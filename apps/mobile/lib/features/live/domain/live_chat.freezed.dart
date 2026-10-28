@@ -574,7 +574,9 @@ as int,
 /// @nodoc
 mixin _$LiveChatAuthorBadges {
 
- int? get charmLevel; int? get supportLevel; LiveChatAuthorFamily? get family;
+ int? get charmLevel; int? get supportLevel; LiveChatAuthorFamily? get family;/// v1.34-live (D154c): the author's account is younger than the
+/// server's newcomer window (owner: 30 days) — «جديد 🌱».
+ bool get newcomer;
 /// Create a copy of LiveChatAuthorBadges
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -588,20 +590,20 @@ $LiveChatAuthorBadgesCopyWith<LiveChatAuthorBadges> get copyWith => _$LiveChatAu
 @override
 bool operator ==(Object other) {
   final _this = this as LiveChatAuthorBadges;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveChatAuthorBadges&&(identical(other.charmLevel, _this.charmLevel) || other.charmLevel == _this.charmLevel)&&(identical(other.supportLevel, _this.supportLevel) || other.supportLevel == _this.supportLevel)&&(identical(other.family, _this.family) || other.family == _this.family));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveChatAuthorBadges&&(identical(other.charmLevel, _this.charmLevel) || other.charmLevel == _this.charmLevel)&&(identical(other.supportLevel, _this.supportLevel) || other.supportLevel == _this.supportLevel)&&(identical(other.family, _this.family) || other.family == _this.family)&&(identical(other.newcomer, _this.newcomer) || other.newcomer == _this.newcomer));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as LiveChatAuthorBadges;
-  return Object.hash(runtimeType,_this.charmLevel,_this.supportLevel,_this.family);
+  return Object.hash(runtimeType,_this.charmLevel,_this.supportLevel,_this.family,_this.newcomer);
 }
 
 @override
 String toString() {
   final _this = this as LiveChatAuthorBadges;
-  return 'LiveChatAuthorBadges(charmLevel: ${_this.charmLevel}, supportLevel: ${_this.supportLevel}, family: ${_this.family})';
+  return 'LiveChatAuthorBadges(charmLevel: ${_this.charmLevel}, supportLevel: ${_this.supportLevel}, family: ${_this.family}, newcomer: ${_this.newcomer})';
 }
 
 
@@ -612,7 +614,7 @@ abstract mixin class $LiveChatAuthorBadgesCopyWith<$Res>  {
   factory $LiveChatAuthorBadgesCopyWith(LiveChatAuthorBadges value, $Res Function(LiveChatAuthorBadges) _then) = _$LiveChatAuthorBadgesCopyWithImpl;
 @useResult
 $Res call({
- int? charmLevel, int? supportLevel, LiveChatAuthorFamily? family
+ int? charmLevel, int? supportLevel, LiveChatAuthorFamily? family, bool newcomer
 });
 
 
@@ -629,12 +631,13 @@ class _$LiveChatAuthorBadgesCopyWithImpl<$Res>
 
 /// Create a copy of LiveChatAuthorBadges
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? charmLevel = freezed,Object? supportLevel = freezed,Object? family = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? charmLevel = freezed,Object? supportLevel = freezed,Object? family = freezed,Object? newcomer = null,}) {
   return _then(LiveChatAuthorBadges(
 charmLevel: freezed == charmLevel ? _self.charmLevel : charmLevel // ignore: cast_nullable_to_non_nullable
 as int?,supportLevel: freezed == supportLevel ? _self.supportLevel : supportLevel // ignore: cast_nullable_to_non_nullable
 as int?,family: freezed == family ? _self.family : family // ignore: cast_nullable_to_non_nullable
-as LiveChatAuthorFamily?,
+as LiveChatAuthorFamily?,newcomer: null == newcomer ? _self.newcomer : newcomer // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 /// Create a copy of LiveChatAuthorBadges
@@ -731,10 +734,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int? charmLevel,  int? supportLevel,  LiveChatAuthorFamily? family)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int? charmLevel,  int? supportLevel,  LiveChatAuthorFamily? family,  bool newcomer)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _LiveChatAuthorBadges() when $default != null:
-return $default(_that.charmLevel,_that.supportLevel,_that.family);case _:
+return $default(_that.charmLevel,_that.supportLevel,_that.family,_that.newcomer);case _:
   return orElse();
 
 }
@@ -752,10 +755,10 @@ return $default(_that.charmLevel,_that.supportLevel,_that.family);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int? charmLevel,  int? supportLevel,  LiveChatAuthorFamily? family)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int? charmLevel,  int? supportLevel,  LiveChatAuthorFamily? family,  bool newcomer)  $default,) {final _that = this;
 switch (_that) {
 case _LiveChatAuthorBadges():
-return $default(_that.charmLevel,_that.supportLevel,_that.family);case _:
+return $default(_that.charmLevel,_that.supportLevel,_that.family,_that.newcomer);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -772,10 +775,10 @@ return $default(_that.charmLevel,_that.supportLevel,_that.family);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int? charmLevel,  int? supportLevel,  LiveChatAuthorFamily? family)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int? charmLevel,  int? supportLevel,  LiveChatAuthorFamily? family,  bool newcomer)?  $default,) {final _that = this;
 switch (_that) {
 case _LiveChatAuthorBadges() when $default != null:
-return $default(_that.charmLevel,_that.supportLevel,_that.family);case _:
+return $default(_that.charmLevel,_that.supportLevel,_that.family,_that.newcomer);case _:
   return null;
 
 }
@@ -787,12 +790,15 @@ return $default(_that.charmLevel,_that.supportLevel,_that.family);case _:
 @JsonSerializable()
 
 class _LiveChatAuthorBadges implements LiveChatAuthorBadges {
-  const _LiveChatAuthorBadges({this.charmLevel, this.supportLevel, this.family});
+  const _LiveChatAuthorBadges({this.charmLevel, this.supportLevel, this.family, this.newcomer = false});
   factory _LiveChatAuthorBadges.fromJson(Map<String, dynamic> json) => _$LiveChatAuthorBadgesFromJson(json);
 
 @override final  int? charmLevel;
 @override final  int? supportLevel;
 @override final  LiveChatAuthorFamily? family;
+/// v1.34-live (D154c): the author's account is younger than the
+/// server's newcomer window (owner: 30 days) — «جديد 🌱».
+@override@JsonKey() final  bool newcomer;
 
 /// Create a copy of LiveChatAuthorBadges
 /// with the given fields replaced by the non-null parameter values.
@@ -807,18 +813,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveChatAuthorBadges&&(identical(other.charmLevel, charmLevel) || other.charmLevel == charmLevel)&&(identical(other.supportLevel, supportLevel) || other.supportLevel == supportLevel)&&(identical(other.family, family) || other.family == family));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveChatAuthorBadges&&(identical(other.charmLevel, charmLevel) || other.charmLevel == charmLevel)&&(identical(other.supportLevel, supportLevel) || other.supportLevel == supportLevel)&&(identical(other.family, family) || other.family == family)&&(identical(other.newcomer, newcomer) || other.newcomer == newcomer));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,charmLevel,supportLevel,family);
+    return Object.hash(runtimeType,charmLevel,supportLevel,family,newcomer);
 }
 
 @override
 String toString() {
-    return 'LiveChatAuthorBadges(charmLevel: $charmLevel, supportLevel: $supportLevel, family: $family)';
+    return 'LiveChatAuthorBadges(charmLevel: $charmLevel, supportLevel: $supportLevel, family: $family, newcomer: $newcomer)';
 }
 
 
@@ -829,7 +835,7 @@ abstract mixin class _$LiveChatAuthorBadgesCopyWith<$Res> implements $LiveChatAu
   factory _$LiveChatAuthorBadgesCopyWith(_LiveChatAuthorBadges value, $Res Function(_LiveChatAuthorBadges) _then) = __$LiveChatAuthorBadgesCopyWithImpl;
 @override @useResult
 $Res call({
- int? charmLevel, int? supportLevel, LiveChatAuthorFamily? family
+ int? charmLevel, int? supportLevel, LiveChatAuthorFamily? family, bool newcomer
 });
 
 
@@ -846,12 +852,13 @@ class __$LiveChatAuthorBadgesCopyWithImpl<$Res>
 
 /// Create a copy of LiveChatAuthorBadges
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? charmLevel = freezed,Object? supportLevel = freezed,Object? family = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? charmLevel = freezed,Object? supportLevel = freezed,Object? family = freezed,Object? newcomer = null,}) {
   return _then(_LiveChatAuthorBadges(
 charmLevel: freezed == charmLevel ? _self.charmLevel : charmLevel // ignore: cast_nullable_to_non_nullable
 as int?,supportLevel: freezed == supportLevel ? _self.supportLevel : supportLevel // ignore: cast_nullable_to_non_nullable
 as int?,family: freezed == family ? _self.family : family // ignore: cast_nullable_to_non_nullable
-as LiveChatAuthorFamily?,
+as LiveChatAuthorFamily?,newcomer: null == newcomer ? _self.newcomer : newcomer // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 

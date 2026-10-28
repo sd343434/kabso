@@ -14,6 +14,18 @@ Map<String, dynamic> _$GiftTagToJson(_GiftTag instance) => <String, dynamic>{
   'name': instance.name,
 };
 
+_GiftQuip _$GiftQuipFromJson(Map<String, dynamic> json) => _GiftQuip(
+  soundKey: json['soundKey'] as String,
+  durationMs: (json['durationMs'] as num).toInt(),
+  text: json['text'] as String?,
+);
+
+Map<String, dynamic> _$GiftQuipToJson(_GiftQuip instance) => <String, dynamic>{
+  'soundKey': instance.soundKey,
+  'durationMs': instance.durationMs,
+  'text': instance.text,
+};
+
 _Gift _$GiftFromJson(Map<String, dynamic> json) => _Gift(
   code: json['code'] as String,
   category: $enumDecode(_$GiftCategoryEnumMap, json['category']),
@@ -33,6 +45,9 @@ _Gift _$GiftFromJson(Map<String, dynamic> json) => _Gift(
   imageUrl: json['imageUrl'] as String?,
   animationUrl: json['animationUrl'] as String?,
   animationBytes: (json['animationBytes'] as num?)?.toInt(),
+  quip: json['quip'] == null
+      ? null
+      : GiftQuip.fromJson(json['quip'] as Map<String, dynamic>),
 );
 
 Map<String, dynamic> _$GiftToJson(_Gift instance) => <String, dynamic>{
@@ -48,6 +63,7 @@ Map<String, dynamic> _$GiftToJson(_Gift instance) => <String, dynamic>{
   'imageUrl': instance.imageUrl,
   'animationUrl': instance.animationUrl,
   'animationBytes': instance.animationBytes,
+  'quip': instance.quip,
 };
 
 const _$GiftCategoryEnumMap = {
@@ -55,6 +71,7 @@ const _$GiftCategoryEnumMap = {
   GiftCategory.event: 'EVENT',
   GiftCategory.fun: 'FUN',
   GiftCategory.lucky: 'LUCKY',
+  GiftCategory.quips: 'QUIPS',
 };
 
 const _$GiftBadgeEnumMap = {
@@ -172,6 +189,9 @@ _LiveGiftResult _$LiveGiftResultFromJson(Map<String, dynamic> json) =>
           : LuckyGiftResult.fromJson(
               json['luckyResult'] as Map<String, dynamic>,
             ),
+      quip: json['quip'] == null
+          ? null
+          : LiveQuip.fromJson(json['quip'] as Map<String, dynamic>),
     );
 
 Map<String, dynamic> _$LiveGiftResultToJson(_LiveGiftResult instance) =>
@@ -180,7 +200,45 @@ Map<String, dynamic> _$LiveGiftResultToJson(_LiveGiftResult instance) =>
       'coins': instance.coins,
       'bagQuantity': instance.bagQuantity,
       'luckyResult': instance.luckyResult,
+      'quip': instance.quip,
     };
+
+_LiveQuip _$LiveQuipFromJson(Map<String, dynamic> json) => _LiveQuip(
+  id: json['id'] as String,
+  roomId: json['roomId'] as String,
+  kind: $enumDecode(
+    _$LiveQuipKindEnumMap,
+    json['kind'],
+    unknownValue: LiveQuipKind.gift,
+  ),
+  giftCode: json['giftCode'] as String,
+  soundKey: json['soundKey'] as String,
+  durationMs: (json['durationMs'] as num).toInt(),
+  free: json['free'] as bool,
+  sender: UserSummary.fromJson(json['sender'] as Map<String, dynamic>),
+  delayMs: (json['delayMs'] as num).toInt(),
+  createdAt: DateTime.parse(json['createdAt'] as String),
+  text: json['text'] as String?,
+);
+
+Map<String, dynamic> _$LiveQuipToJson(_LiveQuip instance) => <String, dynamic>{
+  'id': instance.id,
+  'roomId': instance.roomId,
+  'kind': _$LiveQuipKindEnumMap[instance.kind]!,
+  'giftCode': instance.giftCode,
+  'soundKey': instance.soundKey,
+  'durationMs': instance.durationMs,
+  'free': instance.free,
+  'sender': instance.sender,
+  'delayMs': instance.delayMs,
+  'createdAt': instance.createdAt.toIso8601String(),
+  'text': instance.text,
+};
+
+const _$LiveQuipKindEnumMap = {
+  LiveQuipKind.gift: 'GIFT',
+  LiveQuipKind.soundboard: 'SOUNDBOARD',
+};
 
 _LuckyGiftWin _$LuckyGiftWinFromJson(Map<String, dynamic> json) =>
     _LuckyGiftWin(

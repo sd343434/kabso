@@ -19,7 +19,10 @@ export type WalletLedgerReason =
   | 'LUCKY_GIFT_WIN'
   /** v1.28-live (D146): renting a premium username and renewing it (reference: the payment). */
   | 'PREMIUM_USERNAME_RENT'
-  | 'PREMIUM_USERNAME_RENEW';
+  | 'PREMIUM_USERNAME_RENEW'
+  /** v1.33-live (D154b): a traffic card bought with coins, and its refund when it never ran. */
+  | 'LIVE_BOOST'
+  | 'LIVE_BOOST_REFUND';
 
 /** The largest balance (CONVENTIONS §3: exact as a JSON number; CHECK `wallets_coins_range`). */
 export const MAX_COINS = 9_007_199_254_740_991n;

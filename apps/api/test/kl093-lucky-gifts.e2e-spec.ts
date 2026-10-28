@@ -431,7 +431,7 @@ describe('D132 lucky gifts (on)', { timeout: 180_000 }, () => {
       const res = await ctx.http.get('/api/v1/gifts/catalogue').set(f.auth(u)).set('Accept-Language', 'en');
       expect(res.status).toBe(200);
       expectContract(res, 'getGiftCatalogue');
-      expect(res.body.categories).toEqual(['POPULAR', 'EVENT', 'FUN', 'LUCKY']);
+      expect(res.body.categories).toEqual(['POPULAR', 'EVENT', 'FUN', 'LUCKY', 'QUIPS']);
       expect(res.body.data.find((g: { code: string }) => g.code === code)).toMatchObject({
         category: 'LUCKY',
         name: 'Clover',
@@ -1093,7 +1093,7 @@ describe('D132 lucky gifts (off)', { timeout: 60_000 }, () => {
     const { h, viewer, roomId } = await f.scene();
     const code = await f.gift();
     const cat = await ctx.http.get('/api/v1/gifts/catalogue').set(f.auth(viewer));
-    expect(cat.body.categories).toEqual(['POPULAR', 'EVENT', 'FUN']);
+    expect(cat.body.categories).toEqual(['POPULAR', 'EVENT', 'FUN', 'QUIPS']);
     expect(cat.body.data.map((g: { code: string }) => g.code)).not.toContain(code);
     await ctx.prisma.$transaction((tx) => grantStockIn(tx, viewer.id, code, 3));
     expect((await ctx.http.get('/api/v1/me/gifts/bag').set(f.auth(viewer))).body.data).toEqual([]);

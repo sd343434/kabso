@@ -35,6 +35,7 @@ import 'package:kabso_live/features/safety/safety_screens.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../fixtures/live/live_gift_fixtures.dart';
 import '../../helpers/fake_dm_repository.dart';
 import '../../helpers/fake_live_gift_repository.dart';
 import '../../helpers/fake_live_voice_recorder.dart';
@@ -365,6 +366,39 @@ void main() {
     expect(gifts.sends, isEmpty);
     expect(find.byKey(KLiveGiftSheet.sheetKey), findsNothing);
     expect(find.text(en.dmGiftMine('1')), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('D154 × D155: the conversation panel offers paid quips (sent '
+      'through the DM API) but not the free ones of a live', (tester) async {
+    final dm = _world();
+    final gifts = FakeLiveGiftRepository(codes: ['rose', ...quipFixtureCodes])
+      ..categories = const ['POPULAR', 'EVENT', 'FUN', 'QUIPS'];
+    await _pump(
+      tester,
+      const ChatScreen(username: 'sara_2026'),
+      dm: dm,
+      overrides: [liveGiftRepositoryProvider.overrideWithValue(gifts)],
+    );
+    await tester.tap(find.byKey(ChatScreen.giftKey));
+    await tester.pumpAndSettle();
+    final tab = find.byKey(KLiveGiftSheet.tabKey('QUIPS'));
+    await tester.ensureVisible(tab);
+    await tester.tap(tab);
+    await tester.pumpAndSettle();
+    // The free sound is a live's one free quip: not offered here; no
+    // room mute chip either.
+    expect(find.byKey(KLiveGiftSheet.cellKey('quip_clap')), findsNothing);
+    expect(find.byKey(KLiveGiftSheet.quipsMuteKey), findsNothing);
+    final paid = find.byKey(KLiveGiftSheet.cellKey('quip_ghazal_01'));
+    expect(paid, findsOneWidget);
+    await tester.tap(paid);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(KLiveGiftSheet.sendKey));
+    await tester.pumpAndSettle();
+    expect(dm.calls, contains('sendGift:sara_2026:quip_ghazal_01:1'));
+    expect(gifts.sends, isEmpty);
+    expect(find.byKey(KLiveGiftSheet.sheetKey), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
   });
 

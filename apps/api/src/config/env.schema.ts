@@ -115,6 +115,89 @@ export const giftQuantities = (fallback: string) =>
 const nonNegativeInt = (fallback: number) => intSetting(fallback, 0);
 
 /** v1.27-live (D132): a percentage with at most two decimals ("85", "10.5") → basis points. */
+/**
+ * v1.32-live (D154, CONVENTIONS §10.33): the recipients' earnings share per gift category, e.g.
+ * `POPULAR:65,EVENT:65,FUN:65,QUIPS:50` → basis points by category. Every non-lucky category must be
+ * named once (LUCKY keeps LUCKY_GIFT_HOST_SHARE_PERCENT).
+ */
+export const HOST_SHARE_CATEGORIES = ['POPULAR', 'EVENT', 'FUN', 'QUIPS'] as const;
+export type HostShareCategory = (typeof HOST_SHARE_CATEGORIES)[number];
+
+const hostSharePercents = (fallback: string) =>
+  z
+    .string()
+    .trim()
+    .default(fallback)
+    .transform((value, ctx): Readonly<Record<HostShareCategory, number>> => {
+      const out: Partial<Record<HostShareCategory, number>> = {};
+      for (const part of value.split(',')) {
+        const [name, percent, extra] = part.split(':').map((p) => p.trim());
+        const bps = percent === undefined ? null : percentToBps(percent);
+        if (
+          extra !== undefined ||
+          !HOST_SHARE_CATEGORIES.includes(name as HostShareCategory) ||
+          bps === null ||
+          bps > 10_000 ||
+          out[name as HostShareCategory] !== undefined
+        ) {
+          ctx.addIssue({
+            code: 'custom',
+            message: `expected CATEGORY:percent pairs for ${HOST_SHARE_CATEGORIES.join(', ')} (each once), got "${value}"`,
+          });
+          return z.NEVER;
+        }
+        out[name as HostShareCategory] = bps;
+      }
+      const missing = HOST_SHARE_CATEGORIES.filter((c) => out[c] === undefined);
+      if (missing.length > 0) {
+        ctx.addIssue({ code: 'custom', message: `missing ${missing.join(', ')}` });
+        return z.NEVER;
+      }
+      return out as Record<HostShareCategory, number>;
+    });
+
+/**
+ * v1.33-live (D154b, CONVENTIONS §10.34): the traffic card prices, `minutes:coins` pairs, e.g.
+ * `10:10000,20:18000` → ascending by minutes. 1–8 lengths of 1–1440 minutes, prices 1 … 10^9 coins.
+ */
+export interface BoostPrice {
+  readonly minutes: number;
+  readonly coins: number;
+}
+const boostPrices = (fallback: string) =>
+  z
+    .string()
+    .trim()
+    .default(fallback)
+    .transform((value, ctx): readonly BoostPrice[] => {
+      const out: BoostPrice[] = [];
+      for (const part of value.split(',')) {
+        const m = /^\s*(\d{1,4})\s*:\s*(\d{1,10})\s*$/.exec(part);
+        const minutes = Number(m?.[1]);
+        const coins = Number(m?.[2]);
+        if (
+          !m ||
+          minutes < 1 ||
+          minutes > 1440 ||
+          coins < 1 ||
+          coins > 1_000_000_000 ||
+          out.some((p) => p.minutes === minutes)
+        ) {
+          ctx.addIssue({
+            code: 'custom',
+            message: `expected minutes:coins pairs (distinct minutes), got "${value}"`,
+          });
+          return z.NEVER;
+        }
+        out.push({ minutes, coins });
+      }
+      if (out.length > 8) {
+        ctx.addIssue({ code: 'custom', message: 'at most 8 lengths' });
+        return z.NEVER;
+      }
+      return out.sort((a, b) => a.minutes - b.minutes);
+    });
+
 const percentSetting = (fallback: string) =>
   z
     .string()
@@ -451,6 +534,34 @@ export const envSchema = z
      * `GET /gifts/catalogue` returns them; any other quantity → 400.
      */
     LIVE_GIFT_QUANTITIES: giftQuantities('1,10,66,99,188,520,1314'),
+    /**
+     * v1.32-live (D154, CONVENTIONS §10.33): the recipients' earnings share per gift category (owner:
+     * normal gifts 65 % (D149), «إفيهات» quips 50 %). Fixed on each send (`live_gifts.host_share_bps`).
+     */
+    GIFT_HOST_SHARE_PERCENTS: hostSharePercents('POPULAR:65,EVENT:65,FUN:65,QUIPS:50'),
+    /**
+     * v1.32-live (D154): a quip (or soundboard sound) is refused (409 QUIP_QUEUE_FULL) when it would
+     * start more than this many seconds from now (one plays at a time per room).
+     */
+    QUIP_QUEUE_MAX_WAIT_SECONDS: intSetting(60, 5, 600),
+    /**
+     * v1.33-live (D154b, CONVENTIONS §10.34): traffic cards — the prices by length (owner 15c: 10 min
+     * 10 000, 20 min 18 000, 30 min 25 000, 60 min 45 000 coins), the paid slots at the top of the live
+     * list (owner: 3), and the longest a new card may wait for its slot (else 409 BOOST_QUEUE_FULL).
+     */
+    LIVE_BOOST_PRICES: boostPrices('10:10000,20:18000,30:25000,60:45000'),
+    LIVE_BOOST_SLOTS: intSetting(3, 1, 20),
+    LIVE_BOOST_MAX_WAIT_MINUTES: intSetting(180, 10, 1440),
+    /**
+     * v1.34-live (D154c, CONVENTIONS §10.35): an account younger than this many days is a newcomer
+     * («جديد 🌱» in the live chat, the host's Newcomers list); owner: 30 (was 7).
+     */
+    NEWCOMER_DAYS: intSetting(30, 1, 365),
+    /**
+     * v1.38-live (D154i, CONVENTIONS §10.39): the YouTube Data API key for watch-together search
+     * (server-side only, a secret). Unset: search is off and hosts paste links.
+     */
+    YOUTUBE_API_KEY: z.string().min(20).max(200).optional(),
     /**
      * v1.27-live (D132, CONVENTIONS §10.27): lucky gifts. Off by default: LUCKY gifts are not
      * listed and cannot be sent; the odds are still published. Every other LUCKY_GIFT* setting is

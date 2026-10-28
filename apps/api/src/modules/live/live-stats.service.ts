@@ -35,6 +35,9 @@ export interface LiveRoomStatsDto {
   supporters: number;
   topSupporters: { user: UserSummaryDto; points: number }[];
   giftCount: number;
+  /** v1.35-live (D154d): Σ `totalCoins` of the live's sends, and the host's share of those they received. */
+  giftCoins: number;
+  earningsCoins: number;
   chatMessages: number;
   newFollowers: number;
   viewers: LiveRoomViewerStatsDto | null;
@@ -73,7 +76,10 @@ export class LiveStatsService {
         take: LIVE_STATS_TOP_SUPPORTERS,
         include: { user: { select: USER_SUMMARY_SELECT } },
       }),
-      this.prisma.liveGift.aggregate({ where: { roomId: row.id }, _sum: { quantity: true } }),
+      this.prisma.liveGift.aggregate({
+        where: { roomId: row.id },
+        _sum: { quantity: true, totalCoins: true },
+      }),
       this.prisma.liveChatMessage.count({ where: { roomId: row.id, deletedAt: null } }),
       this.prisma.follow.count({
         where: {
@@ -84,6 +90,13 @@ export class LiveStatsService {
       }),
       this.prisma.liveRoom.findUniqueOrThrow({ where: { id: row.id }, select: { peakViewerCount: true } }),
     ]);
+
+    // v1.35-live (D154d): the host's share of the gifts they received in this live (display only).
+    const [earnings] = await this.prisma.$queryRaw<{ coins: bigint }[]>`
+      SELECT COALESCE(sum(floor(gr.coins * g.host_share_bps / 10000.0)), 0)::bigint AS coins
+        FROM live_gifts g
+        JOIN live_gift_recipients gr ON gr.gift_id = g.id AND gr.user_id = ${row.host_user_id}::uuid
+       WHERE g.room_id = ${row.id}::uuid`;
 
     // Lives started before D140 have no audience record (`peak_viewer_count` NULL): no viewer stats.
     let viewers: LiveRoomViewerStatsDto | null = null;
@@ -130,6 +143,8 @@ export class LiveStatsService {
       supporters,
       topSupporters: top.map((r) => ({ user: userSummary(r.user), points: Number(r.points) })),
       giftCount: gifts._sum.quantity ?? 0,
+      giftCoins: Number(gifts._sum.totalCoins ?? 0n),
+      earningsCoins: Number(earnings?.coins ?? 0n),
       chatMessages,
       newFollowers,
       viewers,

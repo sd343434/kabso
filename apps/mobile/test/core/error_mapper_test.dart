@@ -74,6 +74,13 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.dmRequestLimit: 403,
   ErrorCode.dmRequestTextOnly: 403,
   ErrorCode.dmDeleteWindowPassed: 409,
+  ErrorCode.quipFreeUsed: 409,
+  ErrorCode.quipQueueFull: 409,
+  ErrorCode.boostQueueFull: 409,
+  ErrorCode.boostCardInsufficient: 409,
+  ErrorCode.boostRoomBusy: 409,
+  ErrorCode.youtubeVideoUnavailable: 422,
+  ErrorCode.youtubeSearchUnavailable: 503,
 };
 
 DioException _badResponse(
@@ -171,6 +178,13 @@ void main() {
           'DM_REQUEST_LIMIT',
           'DM_REQUEST_TEXT_ONLY',
           'DM_DELETE_WINDOW_PASSED',
+          'QUIP_FREE_USED',
+          'QUIP_QUEUE_FULL',
+          'BOOST_QUEUE_FULL',
+          'BOOST_CARD_INSUFFICIENT',
+          'BOOST_ROOM_BUSY',
+          'YOUTUBE_VIDEO_UNAVAILABLE',
+          'YOUTUBE_SEARCH_UNAVAILABLE',
         ]),
       );
       expect(ErrorCode.networkOffline.wire, 'NETWORK_OFFLINE');

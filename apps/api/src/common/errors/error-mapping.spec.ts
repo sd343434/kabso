@@ -93,6 +93,15 @@ describe('ErrorCode', () => {
         'DM_REQUEST_LIMIT',
         'DM_REQUEST_TEXT_ONLY',
         'DM_DELETE_WINDOW_PASSED',
+        // v1.32-live (DRAFT, D154)
+        'QUIP_FREE_USED',
+        'QUIP_QUEUE_FULL',
+        // v1.33-live (DRAFT, D154b)
+        'BOOST_QUEUE_FULL',
+        'BOOST_CARD_INSUFFICIENT',
+        'BOOST_ROOM_BUSY',
+        'YOUTUBE_VIDEO_UNAVAILABLE',
+        'YOUTUBE_SEARCH_UNAVAILABLE',
       ].sort(),
     );
     expect(ERROR_HTTP_STATUS).toMatchObject({
@@ -155,6 +164,13 @@ describe('ErrorCode', () => {
       DM_REQUEST_LIMIT: 403,
       DM_REQUEST_TEXT_ONLY: 403,
       DM_DELETE_WINDOW_PASSED: 409,
+      QUIP_FREE_USED: 409,
+      QUIP_QUEUE_FULL: 409,
+      BOOST_QUEUE_FULL: 409,
+      BOOST_CARD_INSUFFICIENT: 409,
+      BOOST_ROOM_BUSY: 409,
+      YOUTUBE_VIDEO_UNAVAILABLE: 422,
+      YOUTUBE_SEARCH_UNAVAILABLE: 503,
     });
   });
 

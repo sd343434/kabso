@@ -803,6 +803,8 @@ describe('D155 direct messages', { timeout: 240_000 }, () => {
       expect(await wallet(a)).toBe(970);
       const send = await ctx.prisma.liveGift.findFirstOrThrow({ where: { senderId: a.id, clientId } });
       expect(send).toMatchObject({ roomId: null, dmConversationId: res.body.message.conversationId });
+      // D154 × D155: the stored share is the DM share (50 %), not the category's live share (65 %).
+      expect(send.hostShareBps).toBe(5000);
       const ledger = await ctx.prisma.walletLedgerEntry.findMany({
         where: { userId: a.id, referenceId: send.id },
       });
@@ -852,6 +854,7 @@ describe('D155 direct messages', { timeout: 240_000 }, () => {
       expect(res.body.coins).toBe(1900);
       expect(res.body.message.gift.lucky).toEqual({ coinsWon: 1000, topMultiplier: 10 });
       const send = await ctx.prisma.liveGift.findFirstOrThrow({ where: { senderId: a.id, giftCode: code } });
+      expect(send.hostShareBps).toBe(1000);
       const ledger = await ctx.prisma.walletLedgerEntry.findMany({
         where: { userId: a.id, referenceId: send.id },
         orderBy: { createdAt: 'asc' },
@@ -864,6 +867,55 @@ describe('D155 direct messages', { timeout: 240_000 }, () => {
         where: { sourceTransactionId: `gift:${send.id}:${b.id}`, userId: b.id },
       });
       expect(charm.sourceValue).toBe(10n);
+    });
+
+    it('quips (D154 × D155): a paid quip counts the DM share; a free quip is not sendable here', async () => {
+      const [a, b] = await friends();
+      await coins(a, 1000);
+      const quipFields = (priceCoins: number): Partial<GiftFields> => ({
+        category: 'QUIPS',
+        priceCoins,
+        assetKey: priceCoins === 0 ? 'quips/clap' : 'quips/ghazal',
+        soundKey: priceCoins === 0 ? 'room/clap' : 'kabi/ghazal_01',
+        soundMs: 3000,
+        quipText: priceCoins === 0 ? null : 'إيه الجمال ده! تحفة بجد!',
+      });
+      const paid = await gift(quipFields(99));
+      const free = await gift(quipFields(0));
+
+      // A paid quip: one at a time, with coins (as in a live).
+      const many = await sendGift(a, b, { giftCode: paid, quantity: 10 });
+      expect(many.status).toBe(400);
+      expect(many.body.error.code).toBe('VALIDATION_FAILED');
+      const bag = await sendGift(a, b, { giftCode: paid, source: 'BAG' });
+      expect(bag.status).toBe(400);
+      expect(await wallet(a)).toBe(1000);
+      const res = await sendGift(a, b, { giftCode: paid });
+      expect(res.status, JSON.stringify(res.body)).toBe(201);
+      expectContract(res, 'sendDmGift');
+      expect(res.body.coins).toBe(901);
+      expect(res.body.message).toMatchObject({
+        kind: 'GIFT',
+        gift: { giftCode: paid, quantity: 1, unitPrice: 99, totalCoins: 99, lucky: null },
+      });
+      const send = await ctx.prisma.liveGift.findFirstOrThrow({ where: { senderId: a.id, giftCode: paid } });
+      expect(send).toMatchObject({ roomId: null, hostShareBps: 5000 });
+      expect(await ctx.prisma.liveFreeQuip.count({ where: { userId: a.id } })).toBe(0);
+      const ledger = await ctx.prisma.walletLedgerEntry.findMany({ where: { referenceId: send.id } });
+      expect(ledger.map((l) => [l.reason, l.delta])).toEqual([['DM_GIFT', -99n]]);
+      const charm = await ctx.prisma.pointsLedgerEntry.findFirstOrThrow({
+        where: { sourceTransactionId: `gift:${send.id}:${b.id}`, userId: b.id },
+      });
+      expect(charm.sourceValue).toBe(49n); // floor(99 × 50 %)
+
+      // A free quip belongs to a live (one per viewer per live): refused, nothing stored or charged.
+      const before = await ctx.prisma.dmMessage.count({ where: { senderId: a.id } });
+      const refused = await sendGift(a, b, { giftCode: free });
+      expect(refused.status).toBe(409);
+      expect(refused.body.error.code).toBe('GIFT_UNAVAILABLE');
+      expect(await ctx.prisma.dmMessage.count({ where: { senderId: a.id } })).toBe(before);
+      expect(await ctx.prisma.liveGift.count({ where: { senderId: a.id, giftCode: free } })).toBe(0);
+      expect(await wallet(a)).toBe(901);
     });
 
     it('a stranger’s gift is a request message; blocks, privacy and coins are checked', async () => {

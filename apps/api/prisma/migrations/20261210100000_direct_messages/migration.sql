@@ -216,9 +216,9 @@ ALTER TABLE "media_assets" DROP CONSTRAINT "media_assets_kind_known";
 ALTER TABLE "media_assets" ADD CONSTRAINT "media_assets_kind_known" CHECK (kind IN ('POST_IMAGE', 'STORY_IMAGE', 'LIVE_COVER', 'LIVE_CHAT_IMAGE', 'LIVE_CHAT_VOICE', 'FAMILY_EMBLEM', 'FAMILY_COVER', 'HOME_BANNER', 'DM_IMAGE', 'DM_VOICE'));
 
 -- Wallet ledger: a gift in a conversation takes coins (the sign CHECK of
--- 20261201100000_premium_usernames, extended).
+-- 20261205100000_live_boosts, extended: it keeps LIVE_BOOST and LIVE_BOOST_REFUND of D154b).
 ALTER TABLE "wallet_ledger" DROP CONSTRAINT "wallet_ledger_reason_sign";
 ALTER TABLE "wallet_ledger" ADD CONSTRAINT "wallet_ledger_reason_sign" CHECK (
-  (reason IN ('ADMIN_GRANT', 'CP_REFUND', 'LUCKY_GIFT_WIN') AND delta > 0)
+  (reason IN ('ADMIN_GRANT', 'CP_REFUND', 'LUCKY_GIFT_WIN', 'LIVE_BOOST_REFUND') AND delta > 0)
   OR (reason IN ('ADMIN_REVOKE', 'BULLET_MESSAGE', 'FAMILY_CREATE', 'CP_REQUEST', 'CP_GIFT', 'LIVE_GIFT', 'LUCKY_GIFT',
-                 'PREMIUM_USERNAME_RENT', 'PREMIUM_USERNAME_RENEW', 'DM_GIFT') AND delta < 0));
+                 'PREMIUM_USERNAME_RENT', 'PREMIUM_USERNAME_RENEW', 'LIVE_BOOST', 'DM_GIFT') AND delta < 0));

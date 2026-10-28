@@ -10,11 +10,18 @@ import 'package:kabso_live/features/auth/presentation/splash_video.dart';
 import 'package:kabso_live/features/auth/presentation/welcome_screen.dart';
 import 'package:kabso_live/features/live/data/home_banners_repository.dart';
 import 'package:kabso_live/features/live/data/live_blocked_words_repository.dart';
+import 'package:kabso_live/features/live/data/live_boost_repository.dart';
+import 'package:kabso_live/features/live/data/live_data_center_repository.dart';
 import 'package:kabso_live/features/live/data/live_gift_repository.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
+import 'package:kabso_live/features/live/data/live_newcomers_repository.dart';
+import 'package:kabso_live/features/live/data/live_program_repository.dart';
 import 'package:kabso_live/features/live/data/live_rankings_repository.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/data/live_schedule_repository.dart';
+import 'package:kabso_live/features/live/data/live_sticker_repository.dart';
+import 'package:kabso_live/features/live/data/live_watch_repository.dart';
+import 'package:kabso_live/features/live/data/youtube_player.dart';
 import 'package:kabso_live/features/messages/data/dm_repository.dart';
 import 'package:kabso_live/features/notifications/data/notifications_repository.dart';
 import 'package:kabso_live/features/posts/data/media_library.dart';
@@ -27,15 +34,22 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'fake_dm_repository.dart';
 import 'fake_home_banners_repository.dart';
 import 'fake_live_blocked_words_repository.dart';
+import 'fake_live_boost_repository.dart';
+import 'fake_live_data_center_repository.dart';
 import 'fake_live_gift_repository.dart';
 import 'fake_live_media_engine.dart';
+import 'fake_live_newcomers_repository.dart';
+import 'fake_live_program_repository.dart';
 import 'fake_live_rankings_repository.dart';
 import 'fake_live_repository.dart';
 import 'fake_live_schedule_repository.dart';
+import 'fake_live_sticker_repository.dart';
+import 'fake_live_watch_repository.dart';
 import 'fake_notifications_repository.dart';
 import 'fake_posts_repository.dart';
 import 'fake_splash_video.dart';
 import 'fake_stories_repository.dart';
+import 'fake_youtube_player.dart';
 
 /// Shared preferences with an explicit language.
 Future<SharedPreferences> testPrefs({
@@ -68,6 +82,13 @@ Future<void> pumpKabsoApp(
   FakeLiveMediaEngine? liveMediaEngine,
   LiveGiftRepository? liveGiftRepository,
   DmRepository? dmRepository,
+  LiveBoostRepository? liveBoostRepository,
+  LiveNewcomersRepository? liveNewcomersRepository,
+  LiveDataCenterRepository? liveDataCenterRepository,
+  LiveProgramRepository? liveProgramRepository,
+  LiveStickerRepository? liveStickerRepository,
+  LiveWatchRepository? liveWatchRepository,
+  FakeYoutubePlayers? youtubePlayers,
   Map<String, Object> prefs = const {},
 }) async {
   final preferences = await testPrefs(language: language, extra: prefs);
@@ -122,6 +143,33 @@ Future<void> pumpKabsoApp(
         liveGiftRepositoryProvider.overrideWithValue(
           liveGiftRepository ?? FakeLiveGiftRepository(),
         ),
+        // D154b: never the network (no featured lives, no cards).
+        liveBoostRepositoryProvider.overrideWithValue(
+          liveBoostRepository ?? FakeLiveBoostRepository(),
+        ),
+        // D154c: never the network (no newcomers).
+        liveNewcomersRepositoryProvider.overrideWithValue(
+          liveNewcomersRepository ?? FakeLiveNewcomersRepository(),
+        ),
+        // D154d: never the network (an empty data center).
+        liveDataCenterRepositoryProvider.overrideWithValue(
+          liveDataCenterRepository ?? FakeLiveDataCenterRepository(),
+        ),
+        // D154e: never the network (no program).
+        liveProgramRepositoryProvider.overrideWithValue(
+          liveProgramRepository ?? FakeLiveProgramRepository(),
+        ),
+        // D154h: never the network (no stickers).
+        liveStickerRepositoryProvider.overrideWithValue(
+          liveStickerRepository ?? FakeLiveStickerRepository(),
+        ),
+        // D154i: never the network, never a web view.
+        liveWatchRepositoryProvider.overrideWithValue(
+          liveWatchRepository ?? FakeLiveWatchRepository(),
+        ),
+        youtubePlayerFactoryProvider.overrideWithValue(
+          (youtubePlayers ?? FakeYoutubePlayers()).call,
+        ),
         ...overrides,
       ],
       child: const KabsoApp(),
@@ -162,6 +210,13 @@ Future<void> pumpScreen(
   PostsRepository? postsRepository,
   FakeLiveMediaEngine? liveMediaEngine,
   LiveGiftRepository? liveGiftRepository,
+  LiveBoostRepository? liveBoostRepository,
+  LiveNewcomersRepository? liveNewcomersRepository,
+  LiveDataCenterRepository? liveDataCenterRepository,
+  LiveProgramRepository? liveProgramRepository,
+  LiveStickerRepository? liveStickerRepository,
+  LiveWatchRepository? liveWatchRepository,
+  FakeYoutubePlayers? youtubePlayers,
   HomeBannersRepository? homeBannersRepository,
   DmRepository? dmRepository,
 }) async {
@@ -197,6 +252,33 @@ Future<void> pumpScreen(
         // CP-020: never the network (an empty catalogue, as production).
         liveGiftRepositoryProvider.overrideWithValue(
           liveGiftRepository ?? FakeLiveGiftRepository(),
+        ),
+        // D154b: never the network (no featured lives, no cards).
+        liveBoostRepositoryProvider.overrideWithValue(
+          liveBoostRepository ?? FakeLiveBoostRepository(),
+        ),
+        // D154c: never the network (no newcomers).
+        liveNewcomersRepositoryProvider.overrideWithValue(
+          liveNewcomersRepository ?? FakeLiveNewcomersRepository(),
+        ),
+        // D154d: never the network (an empty data center).
+        liveDataCenterRepositoryProvider.overrideWithValue(
+          liveDataCenterRepository ?? FakeLiveDataCenterRepository(),
+        ),
+        // D154e: never the network (no program).
+        liveProgramRepositoryProvider.overrideWithValue(
+          liveProgramRepository ?? FakeLiveProgramRepository(),
+        ),
+        // D154h: never the network (no stickers).
+        liveStickerRepositoryProvider.overrideWithValue(
+          liveStickerRepository ?? FakeLiveStickerRepository(),
+        ),
+        // D154i: never the network, never a web view.
+        liveWatchRepositoryProvider.overrideWithValue(
+          liveWatchRepository ?? FakeLiveWatchRepository(),
+        ),
+        youtubePlayerFactoryProvider.overrideWithValue(
+          (youtubePlayers ?? FakeYoutubePlayers()).call,
         ),
         ...overrides,
       ],

@@ -587,6 +587,34 @@ describe('loadConfig — v1.5-social media and posts (CONVENTIONS §11)', () => 
     ).toEqual({ max: 3, windowSeconds: 60 });
   });
 
+  it('reads the v1.32-live host share per gift category and the quip queue limit (D154)', () => {
+    expect(loadConfig(base).gifts.hostShareBps).toEqual({
+      POPULAR: 6500,
+      EVENT: 6500,
+      FUN: 6500,
+      QUIPS: 5000,
+    });
+    expect(loadConfig(base).gifts.quipMaxWaitMs).toBe(60_000);
+    expect(
+      loadConfig({ ...base, GIFT_HOST_SHARE_PERCENTS: ' QUIPS:40 , FUN:70,EVENT:65.5,POPULAR:0' }).gifts
+        .hostShareBps,
+    ).toEqual({ POPULAR: 0, EVENT: 6550, FUN: 7000, QUIPS: 4000 });
+    for (const bad of [
+      'POPULAR:65,EVENT:65,FUN:65',
+      'POPULAR:65,EVENT:65,FUN:65,QUIPS:50,LUCKY:10',
+      'POPULAR:65,EVENT:65,FUN:65,QUIPS:101',
+      'POPULAR:65,POPULAR:60,EVENT:65,FUN:65,QUIPS:50',
+      'POPULAR:65,EVENT:65,FUN:65,QUIPS',
+    ]) {
+      expect(() => loadConfig({ ...base, GIFT_HOST_SHARE_PERCENTS: bad }), bad).toThrow(
+        /GIFT_HOST_SHARE_PERCENTS/,
+      );
+    }
+    expect(() => loadConfig({ ...base, QUIP_QUEUE_MAX_WAIT_SECONDS: '4' })).toThrow(
+      /QUIP_QUEUE_MAX_WAIT_SECONDS/,
+    );
+  });
+
   it('reads the CP-020 gift quantities and the gift-send bucket', () => {
     expect(loadConfig(base).gifts.quantities).toEqual([1, 10, 66, 99, 188, 520, 1314]);
     expect(loadConfig(base).rateLimits.liveGiftUser).toEqual({ max: 120, windowSeconds: 60 });

@@ -287,13 +287,290 @@ as String,
 
 
 /// @nodoc
+mixin _$GiftQuip {
+
+ String get soundKey; int get durationMs; String? get text;
+/// Create a copy of GiftQuip
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$GiftQuipCopyWith<GiftQuip> get copyWith => _$GiftQuipCopyWithImpl<GiftQuip>(this as GiftQuip, _$identity);
+
+  /// Serializes this GiftQuip to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  final _this = this as GiftQuip;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is GiftQuip&&(identical(other.soundKey, _this.soundKey) || other.soundKey == _this.soundKey)&&(identical(other.durationMs, _this.durationMs) || other.durationMs == _this.durationMs)&&(identical(other.text, _this.text) || other.text == _this.text));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+  final _this = this as GiftQuip;
+  return Object.hash(runtimeType,_this.soundKey,_this.durationMs,_this.text);
+}
+
+@override
+String toString() {
+  final _this = this as GiftQuip;
+  return 'GiftQuip(soundKey: ${_this.soundKey}, durationMs: ${_this.durationMs}, text: ${_this.text})';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $GiftQuipCopyWith<$Res>  {
+  factory $GiftQuipCopyWith(GiftQuip value, $Res Function(GiftQuip) _then) = _$GiftQuipCopyWithImpl;
+@useResult
+$Res call({
+ String soundKey, int durationMs, String? text
+});
+
+
+
+
+}
+/// @nodoc
+class _$GiftQuipCopyWithImpl<$Res>
+    implements $GiftQuipCopyWith<$Res> {
+  _$GiftQuipCopyWithImpl(this._self, this._then);
+
+  final GiftQuip _self;
+  final $Res Function(GiftQuip) _then;
+
+/// Create a copy of GiftQuip
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? soundKey = null,Object? durationMs = null,Object? text = freezed,}) {
+  return _then(GiftQuip(
+soundKey: null == soundKey ? _self.soundKey : soundKey // ignore: cast_nullable_to_non_nullable
+as String,durationMs: null == durationMs ? _self.durationMs : durationMs // ignore: cast_nullable_to_non_nullable
+as int,text: freezed == text ? _self.text : text // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [GiftQuip].
+extension GiftQuipPatterns on GiftQuip {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _GiftQuip value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _GiftQuip() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _GiftQuip value)  $default,){
+final _that = this;
+switch (_that) {
+case _GiftQuip():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _GiftQuip value)?  $default,){
+final _that = this;
+switch (_that) {
+case _GiftQuip() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String soundKey,  int durationMs,  String? text)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _GiftQuip() when $default != null:
+return $default(_that.soundKey,_that.durationMs,_that.text);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String soundKey,  int durationMs,  String? text)  $default,) {final _that = this;
+switch (_that) {
+case _GiftQuip():
+return $default(_that.soundKey,_that.durationMs,_that.text);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String soundKey,  int durationMs,  String? text)?  $default,) {final _that = this;
+switch (_that) {
+case _GiftQuip() when $default != null:
+return $default(_that.soundKey,_that.durationMs,_that.text);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _GiftQuip implements GiftQuip {
+  const _GiftQuip({required this.soundKey, required this.durationMs, this.text});
+  factory _GiftQuip.fromJson(Map<String, dynamic> json) => _$GiftQuipFromJson(json);
+
+@override final  String soundKey;
+@override final  int durationMs;
+@override final  String? text;
+
+/// Create a copy of GiftQuip
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$GiftQuipCopyWith<_GiftQuip> get copyWith => __$GiftQuipCopyWithImpl<_GiftQuip>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$GiftQuipToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _GiftQuip&&(identical(other.soundKey, soundKey) || other.soundKey == soundKey)&&(identical(other.durationMs, durationMs) || other.durationMs == durationMs)&&(identical(other.text, text) || other.text == text));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+    return Object.hash(runtimeType,soundKey,durationMs,text);
+}
+
+@override
+String toString() {
+    return 'GiftQuip(soundKey: $soundKey, durationMs: $durationMs, text: $text)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$GiftQuipCopyWith<$Res> implements $GiftQuipCopyWith<$Res> {
+  factory _$GiftQuipCopyWith(_GiftQuip value, $Res Function(_GiftQuip) _then) = __$GiftQuipCopyWithImpl;
+@override @useResult
+$Res call({
+ String soundKey, int durationMs, String? text
+});
+
+
+
+
+}
+/// @nodoc
+class __$GiftQuipCopyWithImpl<$Res>
+    implements _$GiftQuipCopyWith<$Res> {
+  __$GiftQuipCopyWithImpl(this._self, this._then);
+
+  final _GiftQuip _self;
+  final $Res Function(_GiftQuip) _then;
+
+/// Create a copy of GiftQuip
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? soundKey = null,Object? durationMs = null,Object? text = freezed,}) {
+  return _then(_GiftQuip(
+soundKey: null == soundKey ? _self.soundKey : soundKey // ignore: cast_nullable_to_non_nullable
+as String,durationMs: null == durationMs ? _self.durationMs : durationMs // ignore: cast_nullable_to_non_nullable
+as int,text: freezed == text ? _self.text : text // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
+
+}
+
+
+/// @nodoc
 mixin _$Gift {
 
  String get code; GiftCategory get category; String get name; int get priceCoins; String get assetKey; String? get animationKey; int get sortOrder;@JsonKey(unknownEnumValue: GiftBadge.none) GiftBadge get badge;/// The sub-category (v1.24.3-live), or null: none, or an older API.
  GiftTag? get tag;/// The hosted static image (v1.26.2-live), or null: the bundled one.
  String? get imageUrl;/// The hosted SVGA effect (v1.26.2-live), or null: the bundled one.
  String? get animationUrl;/// [animationUrl]'s size in bytes (whether to prefetch it), or null.
- int? get animationBytes;
+ int? get animationBytes;/// v1.32-live (D154): a quip's sound and words; null for other gifts.
+ GiftQuip? get quip;
 /// Create a copy of Gift
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -307,20 +584,20 @@ $GiftCopyWith<Gift> get copyWith => _$GiftCopyWithImpl<Gift>(this as Gift, _$ide
 @override
 bool operator ==(Object other) {
   final _this = this as Gift;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Gift&&(identical(other.code, _this.code) || other.code == _this.code)&&(identical(other.category, _this.category) || other.category == _this.category)&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.priceCoins, _this.priceCoins) || other.priceCoins == _this.priceCoins)&&(identical(other.assetKey, _this.assetKey) || other.assetKey == _this.assetKey)&&(identical(other.animationKey, _this.animationKey) || other.animationKey == _this.animationKey)&&(identical(other.sortOrder, _this.sortOrder) || other.sortOrder == _this.sortOrder)&&(identical(other.badge, _this.badge) || other.badge == _this.badge)&&(identical(other.tag, _this.tag) || other.tag == _this.tag)&&(identical(other.imageUrl, _this.imageUrl) || other.imageUrl == _this.imageUrl)&&(identical(other.animationUrl, _this.animationUrl) || other.animationUrl == _this.animationUrl)&&(identical(other.animationBytes, _this.animationBytes) || other.animationBytes == _this.animationBytes));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Gift&&(identical(other.code, _this.code) || other.code == _this.code)&&(identical(other.category, _this.category) || other.category == _this.category)&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.priceCoins, _this.priceCoins) || other.priceCoins == _this.priceCoins)&&(identical(other.assetKey, _this.assetKey) || other.assetKey == _this.assetKey)&&(identical(other.animationKey, _this.animationKey) || other.animationKey == _this.animationKey)&&(identical(other.sortOrder, _this.sortOrder) || other.sortOrder == _this.sortOrder)&&(identical(other.badge, _this.badge) || other.badge == _this.badge)&&(identical(other.tag, _this.tag) || other.tag == _this.tag)&&(identical(other.imageUrl, _this.imageUrl) || other.imageUrl == _this.imageUrl)&&(identical(other.animationUrl, _this.animationUrl) || other.animationUrl == _this.animationUrl)&&(identical(other.animationBytes, _this.animationBytes) || other.animationBytes == _this.animationBytes)&&(identical(other.quip, _this.quip) || other.quip == _this.quip));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as Gift;
-  return Object.hash(runtimeType,_this.code,_this.category,_this.name,_this.priceCoins,_this.assetKey,_this.animationKey,_this.sortOrder,_this.badge,_this.tag,_this.imageUrl,_this.animationUrl,_this.animationBytes);
+  return Object.hash(runtimeType,_this.code,_this.category,_this.name,_this.priceCoins,_this.assetKey,_this.animationKey,_this.sortOrder,_this.badge,_this.tag,_this.imageUrl,_this.animationUrl,_this.animationBytes,_this.quip);
 }
 
 @override
 String toString() {
   final _this = this as Gift;
-  return 'Gift(code: ${_this.code}, category: ${_this.category}, name: ${_this.name}, priceCoins: ${_this.priceCoins}, assetKey: ${_this.assetKey}, animationKey: ${_this.animationKey}, sortOrder: ${_this.sortOrder}, badge: ${_this.badge}, tag: ${_this.tag}, imageUrl: ${_this.imageUrl}, animationUrl: ${_this.animationUrl}, animationBytes: ${_this.animationBytes})';
+  return 'Gift(code: ${_this.code}, category: ${_this.category}, name: ${_this.name}, priceCoins: ${_this.priceCoins}, assetKey: ${_this.assetKey}, animationKey: ${_this.animationKey}, sortOrder: ${_this.sortOrder}, badge: ${_this.badge}, tag: ${_this.tag}, imageUrl: ${_this.imageUrl}, animationUrl: ${_this.animationUrl}, animationBytes: ${_this.animationBytes}, quip: ${_this.quip})';
 }
 
 
@@ -331,11 +608,11 @@ abstract mixin class $GiftCopyWith<$Res>  {
   factory $GiftCopyWith(Gift value, $Res Function(Gift) _then) = _$GiftCopyWithImpl;
 @useResult
 $Res call({
- String code, GiftCategory category, String name, int priceCoins, String assetKey, String? animationKey, int sortOrder,@JsonKey(unknownEnumValue: GiftBadge.none) GiftBadge badge, GiftTag? tag, String? imageUrl, String? animationUrl, int? animationBytes
+ String code, GiftCategory category, String name, int priceCoins, String assetKey, String? animationKey, int sortOrder,@JsonKey(unknownEnumValue: GiftBadge.none) GiftBadge badge, GiftTag? tag, String? imageUrl, String? animationUrl, int? animationBytes, GiftQuip? quip
 });
 
 
-$GiftTagCopyWith<$Res>? get tag;
+$GiftTagCopyWith<$Res>? get tag;$GiftQuipCopyWith<$Res>? get quip;
 
 }
 /// @nodoc
@@ -348,7 +625,7 @@ class _$GiftCopyWithImpl<$Res>
 
 /// Create a copy of Gift
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? code = null,Object? category = null,Object? name = null,Object? priceCoins = null,Object? assetKey = null,Object? animationKey = freezed,Object? sortOrder = null,Object? badge = null,Object? tag = freezed,Object? imageUrl = freezed,Object? animationUrl = freezed,Object? animationBytes = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? code = null,Object? category = null,Object? name = null,Object? priceCoins = null,Object? assetKey = null,Object? animationKey = freezed,Object? sortOrder = null,Object? badge = null,Object? tag = freezed,Object? imageUrl = freezed,Object? animationUrl = freezed,Object? animationBytes = freezed,Object? quip = freezed,}) {
   return _then(Gift(
 code: null == code ? _self.code : code // ignore: cast_nullable_to_non_nullable
 as String,category: null == category ? _self.category : category // ignore: cast_nullable_to_non_nullable
@@ -362,7 +639,8 @@ as GiftBadge,tag: freezed == tag ? _self.tag : tag // ignore: cast_nullable_to_n
 as GiftTag?,imageUrl: freezed == imageUrl ? _self.imageUrl : imageUrl // ignore: cast_nullable_to_non_nullable
 as String?,animationUrl: freezed == animationUrl ? _self.animationUrl : animationUrl // ignore: cast_nullable_to_non_nullable
 as String?,animationBytes: freezed == animationBytes ? _self.animationBytes : animationBytes // ignore: cast_nullable_to_non_nullable
-as int?,
+as int?,quip: freezed == quip ? _self.quip : quip // ignore: cast_nullable_to_non_nullable
+as GiftQuip?,
   ));
 }
 /// Create a copy of Gift
@@ -376,6 +654,18 @@ $GiftTagCopyWith<$Res>? get tag {
 
   return $GiftTagCopyWith<$Res>(_self.tag!, (value) {
     return _then(_self.copyWith(tag: value));
+  });
+}/// Create a copy of Gift
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$GiftQuipCopyWith<$Res>? get quip {
+    if (_self.quip == null) {
+    return null;
+  }
+
+  return $GiftQuipCopyWith<$Res>(_self.quip!, (value) {
+    return _then(_self.copyWith(quip: value));
   });
 }
 }
@@ -459,10 +749,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String code,  GiftCategory category,  String name,  int priceCoins,  String assetKey,  String? animationKey,  int sortOrder, @JsonKey(unknownEnumValue: GiftBadge.none)  GiftBadge badge,  GiftTag? tag,  String? imageUrl,  String? animationUrl,  int? animationBytes)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String code,  GiftCategory category,  String name,  int priceCoins,  String assetKey,  String? animationKey,  int sortOrder, @JsonKey(unknownEnumValue: GiftBadge.none)  GiftBadge badge,  GiftTag? tag,  String? imageUrl,  String? animationUrl,  int? animationBytes,  GiftQuip? quip)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Gift() when $default != null:
-return $default(_that.code,_that.category,_that.name,_that.priceCoins,_that.assetKey,_that.animationKey,_that.sortOrder,_that.badge,_that.tag,_that.imageUrl,_that.animationUrl,_that.animationBytes);case _:
+return $default(_that.code,_that.category,_that.name,_that.priceCoins,_that.assetKey,_that.animationKey,_that.sortOrder,_that.badge,_that.tag,_that.imageUrl,_that.animationUrl,_that.animationBytes,_that.quip);case _:
   return orElse();
 
 }
@@ -480,10 +770,10 @@ return $default(_that.code,_that.category,_that.name,_that.priceCoins,_that.asse
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String code,  GiftCategory category,  String name,  int priceCoins,  String assetKey,  String? animationKey,  int sortOrder, @JsonKey(unknownEnumValue: GiftBadge.none)  GiftBadge badge,  GiftTag? tag,  String? imageUrl,  String? animationUrl,  int? animationBytes)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String code,  GiftCategory category,  String name,  int priceCoins,  String assetKey,  String? animationKey,  int sortOrder, @JsonKey(unknownEnumValue: GiftBadge.none)  GiftBadge badge,  GiftTag? tag,  String? imageUrl,  String? animationUrl,  int? animationBytes,  GiftQuip? quip)  $default,) {final _that = this;
 switch (_that) {
 case _Gift():
-return $default(_that.code,_that.category,_that.name,_that.priceCoins,_that.assetKey,_that.animationKey,_that.sortOrder,_that.badge,_that.tag,_that.imageUrl,_that.animationUrl,_that.animationBytes);case _:
+return $default(_that.code,_that.category,_that.name,_that.priceCoins,_that.assetKey,_that.animationKey,_that.sortOrder,_that.badge,_that.tag,_that.imageUrl,_that.animationUrl,_that.animationBytes,_that.quip);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -500,10 +790,10 @@ return $default(_that.code,_that.category,_that.name,_that.priceCoins,_that.asse
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String code,  GiftCategory category,  String name,  int priceCoins,  String assetKey,  String? animationKey,  int sortOrder, @JsonKey(unknownEnumValue: GiftBadge.none)  GiftBadge badge,  GiftTag? tag,  String? imageUrl,  String? animationUrl,  int? animationBytes)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String code,  GiftCategory category,  String name,  int priceCoins,  String assetKey,  String? animationKey,  int sortOrder, @JsonKey(unknownEnumValue: GiftBadge.none)  GiftBadge badge,  GiftTag? tag,  String? imageUrl,  String? animationUrl,  int? animationBytes,  GiftQuip? quip)?  $default,) {final _that = this;
 switch (_that) {
 case _Gift() when $default != null:
-return $default(_that.code,_that.category,_that.name,_that.priceCoins,_that.assetKey,_that.animationKey,_that.sortOrder,_that.badge,_that.tag,_that.imageUrl,_that.animationUrl,_that.animationBytes);case _:
+return $default(_that.code,_that.category,_that.name,_that.priceCoins,_that.assetKey,_that.animationKey,_that.sortOrder,_that.badge,_that.tag,_that.imageUrl,_that.animationUrl,_that.animationBytes,_that.quip);case _:
   return null;
 
 }
@@ -515,7 +805,7 @@ return $default(_that.code,_that.category,_that.name,_that.priceCoins,_that.asse
 @JsonSerializable()
 
 class _Gift implements Gift {
-  const _Gift({required this.code, required this.category, required this.name, required this.priceCoins, required this.assetKey, required this.animationKey, required this.sortOrder, @JsonKey(unknownEnumValue: GiftBadge.none) required this.badge, this.tag, this.imageUrl, this.animationUrl, this.animationBytes});
+  const _Gift({required this.code, required this.category, required this.name, required this.priceCoins, required this.assetKey, required this.animationKey, required this.sortOrder, @JsonKey(unknownEnumValue: GiftBadge.none) required this.badge, this.tag, this.imageUrl, this.animationUrl, this.animationBytes, this.quip});
   factory _Gift.fromJson(Map<String, dynamic> json) => _$GiftFromJson(json);
 
 @override final  String code;
@@ -534,6 +824,8 @@ class _Gift implements Gift {
 @override final  String? animationUrl;
 /// [animationUrl]'s size in bytes (whether to prefetch it), or null.
 @override final  int? animationBytes;
+/// v1.32-live (D154): a quip's sound and words; null for other gifts.
+@override final  GiftQuip? quip;
 
 /// Create a copy of Gift
 /// with the given fields replaced by the non-null parameter values.
@@ -548,18 +840,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _Gift&&(identical(other.code, code) || other.code == code)&&(identical(other.category, category) || other.category == category)&&(identical(other.name, name) || other.name == name)&&(identical(other.priceCoins, priceCoins) || other.priceCoins == priceCoins)&&(identical(other.assetKey, assetKey) || other.assetKey == assetKey)&&(identical(other.animationKey, animationKey) || other.animationKey == animationKey)&&(identical(other.sortOrder, sortOrder) || other.sortOrder == sortOrder)&&(identical(other.badge, badge) || other.badge == badge)&&(identical(other.tag, tag) || other.tag == tag)&&(identical(other.imageUrl, imageUrl) || other.imageUrl == imageUrl)&&(identical(other.animationUrl, animationUrl) || other.animationUrl == animationUrl)&&(identical(other.animationBytes, animationBytes) || other.animationBytes == animationBytes));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _Gift&&(identical(other.code, code) || other.code == code)&&(identical(other.category, category) || other.category == category)&&(identical(other.name, name) || other.name == name)&&(identical(other.priceCoins, priceCoins) || other.priceCoins == priceCoins)&&(identical(other.assetKey, assetKey) || other.assetKey == assetKey)&&(identical(other.animationKey, animationKey) || other.animationKey == animationKey)&&(identical(other.sortOrder, sortOrder) || other.sortOrder == sortOrder)&&(identical(other.badge, badge) || other.badge == badge)&&(identical(other.tag, tag) || other.tag == tag)&&(identical(other.imageUrl, imageUrl) || other.imageUrl == imageUrl)&&(identical(other.animationUrl, animationUrl) || other.animationUrl == animationUrl)&&(identical(other.animationBytes, animationBytes) || other.animationBytes == animationBytes)&&(identical(other.quip, quip) || other.quip == quip));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,code,category,name,priceCoins,assetKey,animationKey,sortOrder,badge,tag,imageUrl,animationUrl,animationBytes);
+    return Object.hash(runtimeType,code,category,name,priceCoins,assetKey,animationKey,sortOrder,badge,tag,imageUrl,animationUrl,animationBytes,quip);
 }
 
 @override
 String toString() {
-    return 'Gift(code: $code, category: $category, name: $name, priceCoins: $priceCoins, assetKey: $assetKey, animationKey: $animationKey, sortOrder: $sortOrder, badge: $badge, tag: $tag, imageUrl: $imageUrl, animationUrl: $animationUrl, animationBytes: $animationBytes)';
+    return 'Gift(code: $code, category: $category, name: $name, priceCoins: $priceCoins, assetKey: $assetKey, animationKey: $animationKey, sortOrder: $sortOrder, badge: $badge, tag: $tag, imageUrl: $imageUrl, animationUrl: $animationUrl, animationBytes: $animationBytes, quip: $quip)';
 }
 
 
@@ -570,11 +862,11 @@ abstract mixin class _$GiftCopyWith<$Res> implements $GiftCopyWith<$Res> {
   factory _$GiftCopyWith(_Gift value, $Res Function(_Gift) _then) = __$GiftCopyWithImpl;
 @override @useResult
 $Res call({
- String code, GiftCategory category, String name, int priceCoins, String assetKey, String? animationKey, int sortOrder,@JsonKey(unknownEnumValue: GiftBadge.none) GiftBadge badge, GiftTag? tag, String? imageUrl, String? animationUrl, int? animationBytes
+ String code, GiftCategory category, String name, int priceCoins, String assetKey, String? animationKey, int sortOrder,@JsonKey(unknownEnumValue: GiftBadge.none) GiftBadge badge, GiftTag? tag, String? imageUrl, String? animationUrl, int? animationBytes, GiftQuip? quip
 });
 
 
-@override $GiftTagCopyWith<$Res>? get tag;
+@override $GiftTagCopyWith<$Res>? get tag;@override $GiftQuipCopyWith<$Res>? get quip;
 
 }
 /// @nodoc
@@ -587,7 +879,7 @@ class __$GiftCopyWithImpl<$Res>
 
 /// Create a copy of Gift
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? code = null,Object? category = null,Object? name = null,Object? priceCoins = null,Object? assetKey = null,Object? animationKey = freezed,Object? sortOrder = null,Object? badge = null,Object? tag = freezed,Object? imageUrl = freezed,Object? animationUrl = freezed,Object? animationBytes = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? code = null,Object? category = null,Object? name = null,Object? priceCoins = null,Object? assetKey = null,Object? animationKey = freezed,Object? sortOrder = null,Object? badge = null,Object? tag = freezed,Object? imageUrl = freezed,Object? animationUrl = freezed,Object? animationBytes = freezed,Object? quip = freezed,}) {
   return _then(_Gift(
 code: null == code ? _self.code : code // ignore: cast_nullable_to_non_nullable
 as String,category: null == category ? _self.category : category // ignore: cast_nullable_to_non_nullable
@@ -601,7 +893,8 @@ as GiftBadge,tag: freezed == tag ? _self.tag : tag // ignore: cast_nullable_to_n
 as GiftTag?,imageUrl: freezed == imageUrl ? _self.imageUrl : imageUrl // ignore: cast_nullable_to_non_nullable
 as String?,animationUrl: freezed == animationUrl ? _self.animationUrl : animationUrl // ignore: cast_nullable_to_non_nullable
 as String?,animationBytes: freezed == animationBytes ? _self.animationBytes : animationBytes // ignore: cast_nullable_to_non_nullable
-as int?,
+as int?,quip: freezed == quip ? _self.quip : quip // ignore: cast_nullable_to_non_nullable
+as GiftQuip?,
   ));
 }
 
@@ -616,6 +909,18 @@ $GiftTagCopyWith<$Res>? get tag {
 
   return $GiftTagCopyWith<$Res>(_self.tag!, (value) {
     return _then(_self.copyWith(tag: value));
+  });
+}/// Create a copy of Gift
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$GiftQuipCopyWith<$Res>? get quip {
+    if (_self.quip == null) {
+    return null;
+  }
+
+  return $GiftQuipCopyWith<$Res>(_self.quip!, (value) {
+    return _then(_self.copyWith(quip: value));
   });
 }
 }
@@ -1854,7 +2159,9 @@ $LiveGiftComboCopyWith<$Res> get combo {
 mixin _$LiveGiftResult {
 
  LiveGift get gift; int get coins; int get bagQuantity;/// v1.27-live (D132): the draws of a LUCKY send (absent otherwise).
- LuckyGiftResult? get luckyResult;
+ LuckyGiftResult? get luckyResult;/// v1.32-live (D154): a quip's place in the room's queue (absent
+/// otherwise, and for a retry).
+ LiveQuip? get quip;
 /// Create a copy of LiveGiftResult
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -1868,20 +2175,20 @@ $LiveGiftResultCopyWith<LiveGiftResult> get copyWith => _$LiveGiftResultCopyWith
 @override
 bool operator ==(Object other) {
   final _this = this as LiveGiftResult;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveGiftResult&&(identical(other.gift, _this.gift) || other.gift == _this.gift)&&(identical(other.coins, _this.coins) || other.coins == _this.coins)&&(identical(other.bagQuantity, _this.bagQuantity) || other.bagQuantity == _this.bagQuantity)&&(identical(other.luckyResult, _this.luckyResult) || other.luckyResult == _this.luckyResult));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveGiftResult&&(identical(other.gift, _this.gift) || other.gift == _this.gift)&&(identical(other.coins, _this.coins) || other.coins == _this.coins)&&(identical(other.bagQuantity, _this.bagQuantity) || other.bagQuantity == _this.bagQuantity)&&(identical(other.luckyResult, _this.luckyResult) || other.luckyResult == _this.luckyResult)&&(identical(other.quip, _this.quip) || other.quip == _this.quip));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as LiveGiftResult;
-  return Object.hash(runtimeType,_this.gift,_this.coins,_this.bagQuantity,_this.luckyResult);
+  return Object.hash(runtimeType,_this.gift,_this.coins,_this.bagQuantity,_this.luckyResult,_this.quip);
 }
 
 @override
 String toString() {
   final _this = this as LiveGiftResult;
-  return 'LiveGiftResult(gift: ${_this.gift}, coins: ${_this.coins}, bagQuantity: ${_this.bagQuantity}, luckyResult: ${_this.luckyResult})';
+  return 'LiveGiftResult(gift: ${_this.gift}, coins: ${_this.coins}, bagQuantity: ${_this.bagQuantity}, luckyResult: ${_this.luckyResult}, quip: ${_this.quip})';
 }
 
 
@@ -1892,11 +2199,11 @@ abstract mixin class $LiveGiftResultCopyWith<$Res>  {
   factory $LiveGiftResultCopyWith(LiveGiftResult value, $Res Function(LiveGiftResult) _then) = _$LiveGiftResultCopyWithImpl;
 @useResult
 $Res call({
- LiveGift gift, int coins, int bagQuantity, LuckyGiftResult? luckyResult
+ LiveGift gift, int coins, int bagQuantity, LuckyGiftResult? luckyResult, LiveQuip? quip
 });
 
 
-$LiveGiftCopyWith<$Res> get gift;$LuckyGiftResultCopyWith<$Res>? get luckyResult;
+$LiveGiftCopyWith<$Res> get gift;$LuckyGiftResultCopyWith<$Res>? get luckyResult;$LiveQuipCopyWith<$Res>? get quip;
 
 }
 /// @nodoc
@@ -1909,13 +2216,14 @@ class _$LiveGiftResultCopyWithImpl<$Res>
 
 /// Create a copy of LiveGiftResult
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? gift = null,Object? coins = null,Object? bagQuantity = null,Object? luckyResult = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? gift = null,Object? coins = null,Object? bagQuantity = null,Object? luckyResult = freezed,Object? quip = freezed,}) {
   return _then(LiveGiftResult(
 gift: null == gift ? _self.gift : gift // ignore: cast_nullable_to_non_nullable
 as LiveGift,coins: null == coins ? _self.coins : coins // ignore: cast_nullable_to_non_nullable
 as int,bagQuantity: null == bagQuantity ? _self.bagQuantity : bagQuantity // ignore: cast_nullable_to_non_nullable
 as int,luckyResult: freezed == luckyResult ? _self.luckyResult : luckyResult // ignore: cast_nullable_to_non_nullable
-as LuckyGiftResult?,
+as LuckyGiftResult?,quip: freezed == quip ? _self.quip : quip // ignore: cast_nullable_to_non_nullable
+as LiveQuip?,
   ));
 }
 /// Create a copy of LiveGiftResult
@@ -1938,6 +2246,18 @@ $LuckyGiftResultCopyWith<$Res>? get luckyResult {
 
   return $LuckyGiftResultCopyWith<$Res>(_self.luckyResult!, (value) {
     return _then(_self.copyWith(luckyResult: value));
+  });
+}/// Create a copy of LiveGiftResult
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$LiveQuipCopyWith<$Res>? get quip {
+    if (_self.quip == null) {
+    return null;
+  }
+
+  return $LiveQuipCopyWith<$Res>(_self.quip!, (value) {
+    return _then(_self.copyWith(quip: value));
   });
 }
 }
@@ -2021,10 +2341,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( LiveGift gift,  int coins,  int bagQuantity,  LuckyGiftResult? luckyResult)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( LiveGift gift,  int coins,  int bagQuantity,  LuckyGiftResult? luckyResult,  LiveQuip? quip)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _LiveGiftResult() when $default != null:
-return $default(_that.gift,_that.coins,_that.bagQuantity,_that.luckyResult);case _:
+return $default(_that.gift,_that.coins,_that.bagQuantity,_that.luckyResult,_that.quip);case _:
   return orElse();
 
 }
@@ -2042,10 +2362,10 @@ return $default(_that.gift,_that.coins,_that.bagQuantity,_that.luckyResult);case
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( LiveGift gift,  int coins,  int bagQuantity,  LuckyGiftResult? luckyResult)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( LiveGift gift,  int coins,  int bagQuantity,  LuckyGiftResult? luckyResult,  LiveQuip? quip)  $default,) {final _that = this;
 switch (_that) {
 case _LiveGiftResult():
-return $default(_that.gift,_that.coins,_that.bagQuantity,_that.luckyResult);case _:
+return $default(_that.gift,_that.coins,_that.bagQuantity,_that.luckyResult,_that.quip);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -2062,10 +2382,10 @@ return $default(_that.gift,_that.coins,_that.bagQuantity,_that.luckyResult);case
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( LiveGift gift,  int coins,  int bagQuantity,  LuckyGiftResult? luckyResult)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( LiveGift gift,  int coins,  int bagQuantity,  LuckyGiftResult? luckyResult,  LiveQuip? quip)?  $default,) {final _that = this;
 switch (_that) {
 case _LiveGiftResult() when $default != null:
-return $default(_that.gift,_that.coins,_that.bagQuantity,_that.luckyResult);case _:
+return $default(_that.gift,_that.coins,_that.bagQuantity,_that.luckyResult,_that.quip);case _:
   return null;
 
 }
@@ -2077,7 +2397,7 @@ return $default(_that.gift,_that.coins,_that.bagQuantity,_that.luckyResult);case
 @JsonSerializable()
 
 class _LiveGiftResult implements LiveGiftResult {
-  const _LiveGiftResult({required this.gift, required this.coins, required this.bagQuantity, this.luckyResult});
+  const _LiveGiftResult({required this.gift, required this.coins, required this.bagQuantity, this.luckyResult, this.quip});
   factory _LiveGiftResult.fromJson(Map<String, dynamic> json) => _$LiveGiftResultFromJson(json);
 
 @override final  LiveGift gift;
@@ -2085,6 +2405,9 @@ class _LiveGiftResult implements LiveGiftResult {
 @override final  int bagQuantity;
 /// v1.27-live (D132): the draws of a LUCKY send (absent otherwise).
 @override final  LuckyGiftResult? luckyResult;
+/// v1.32-live (D154): a quip's place in the room's queue (absent
+/// otherwise, and for a retry).
+@override final  LiveQuip? quip;
 
 /// Create a copy of LiveGiftResult
 /// with the given fields replaced by the non-null parameter values.
@@ -2099,18 +2422,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveGiftResult&&(identical(other.gift, gift) || other.gift == gift)&&(identical(other.coins, coins) || other.coins == coins)&&(identical(other.bagQuantity, bagQuantity) || other.bagQuantity == bagQuantity)&&(identical(other.luckyResult, luckyResult) || other.luckyResult == luckyResult));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveGiftResult&&(identical(other.gift, gift) || other.gift == gift)&&(identical(other.coins, coins) || other.coins == coins)&&(identical(other.bagQuantity, bagQuantity) || other.bagQuantity == bagQuantity)&&(identical(other.luckyResult, luckyResult) || other.luckyResult == luckyResult)&&(identical(other.quip, quip) || other.quip == quip));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,gift,coins,bagQuantity,luckyResult);
+    return Object.hash(runtimeType,gift,coins,bagQuantity,luckyResult,quip);
 }
 
 @override
 String toString() {
-    return 'LiveGiftResult(gift: $gift, coins: $coins, bagQuantity: $bagQuantity, luckyResult: $luckyResult)';
+    return 'LiveGiftResult(gift: $gift, coins: $coins, bagQuantity: $bagQuantity, luckyResult: $luckyResult, quip: $quip)';
 }
 
 
@@ -2121,11 +2444,11 @@ abstract mixin class _$LiveGiftResultCopyWith<$Res> implements $LiveGiftResultCo
   factory _$LiveGiftResultCopyWith(_LiveGiftResult value, $Res Function(_LiveGiftResult) _then) = __$LiveGiftResultCopyWithImpl;
 @override @useResult
 $Res call({
- LiveGift gift, int coins, int bagQuantity, LuckyGiftResult? luckyResult
+ LiveGift gift, int coins, int bagQuantity, LuckyGiftResult? luckyResult, LiveQuip? quip
 });
 
 
-@override $LiveGiftCopyWith<$Res> get gift;@override $LuckyGiftResultCopyWith<$Res>? get luckyResult;
+@override $LiveGiftCopyWith<$Res> get gift;@override $LuckyGiftResultCopyWith<$Res>? get luckyResult;@override $LiveQuipCopyWith<$Res>? get quip;
 
 }
 /// @nodoc
@@ -2138,13 +2461,14 @@ class __$LiveGiftResultCopyWithImpl<$Res>
 
 /// Create a copy of LiveGiftResult
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? gift = null,Object? coins = null,Object? bagQuantity = null,Object? luckyResult = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? gift = null,Object? coins = null,Object? bagQuantity = null,Object? luckyResult = freezed,Object? quip = freezed,}) {
   return _then(_LiveGiftResult(
 gift: null == gift ? _self.gift : gift // ignore: cast_nullable_to_non_nullable
 as LiveGift,coins: null == coins ? _self.coins : coins // ignore: cast_nullable_to_non_nullable
 as int,bagQuantity: null == bagQuantity ? _self.bagQuantity : bagQuantity // ignore: cast_nullable_to_non_nullable
 as int,luckyResult: freezed == luckyResult ? _self.luckyResult : luckyResult // ignore: cast_nullable_to_non_nullable
-as LuckyGiftResult?,
+as LuckyGiftResult?,quip: freezed == quip ? _self.quip : quip // ignore: cast_nullable_to_non_nullable
+as LiveQuip?,
   ));
 }
 
@@ -2168,6 +2492,336 @@ $LuckyGiftResultCopyWith<$Res>? get luckyResult {
 
   return $LuckyGiftResultCopyWith<$Res>(_self.luckyResult!, (value) {
     return _then(_self.copyWith(luckyResult: value));
+  });
+}/// Create a copy of LiveGiftResult
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$LiveQuipCopyWith<$Res>? get quip {
+    if (_self.quip == null) {
+    return null;
+  }
+
+  return $LiveQuipCopyWith<$Res>(_self.quip!, (value) {
+    return _then(_self.copyWith(quip: value));
+  });
+}
+}
+
+
+/// @nodoc
+mixin _$LiveQuip {
+
+ String get id; String get roomId;@JsonKey(unknownEnumValue: LiveQuipKind.gift) LiveQuipKind get kind; String get giftCode; String get soundKey; int get durationMs; bool get free; UserSummary get sender; int get delayMs; DateTime get createdAt; String? get text;
+/// Create a copy of LiveQuip
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$LiveQuipCopyWith<LiveQuip> get copyWith => _$LiveQuipCopyWithImpl<LiveQuip>(this as LiveQuip, _$identity);
+
+  /// Serializes this LiveQuip to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  final _this = this as LiveQuip;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveQuip&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.roomId, _this.roomId) || other.roomId == _this.roomId)&&(identical(other.kind, _this.kind) || other.kind == _this.kind)&&(identical(other.giftCode, _this.giftCode) || other.giftCode == _this.giftCode)&&(identical(other.soundKey, _this.soundKey) || other.soundKey == _this.soundKey)&&(identical(other.durationMs, _this.durationMs) || other.durationMs == _this.durationMs)&&(identical(other.free, _this.free) || other.free == _this.free)&&(identical(other.sender, _this.sender) || other.sender == _this.sender)&&(identical(other.delayMs, _this.delayMs) || other.delayMs == _this.delayMs)&&(identical(other.createdAt, _this.createdAt) || other.createdAt == _this.createdAt)&&(identical(other.text, _this.text) || other.text == _this.text));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+  final _this = this as LiveQuip;
+  return Object.hash(runtimeType,_this.id,_this.roomId,_this.kind,_this.giftCode,_this.soundKey,_this.durationMs,_this.free,_this.sender,_this.delayMs,_this.createdAt,_this.text);
+}
+
+@override
+String toString() {
+  final _this = this as LiveQuip;
+  return 'LiveQuip(id: ${_this.id}, roomId: ${_this.roomId}, kind: ${_this.kind}, giftCode: ${_this.giftCode}, soundKey: ${_this.soundKey}, durationMs: ${_this.durationMs}, free: ${_this.free}, sender: ${_this.sender}, delayMs: ${_this.delayMs}, createdAt: ${_this.createdAt}, text: ${_this.text})';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $LiveQuipCopyWith<$Res>  {
+  factory $LiveQuipCopyWith(LiveQuip value, $Res Function(LiveQuip) _then) = _$LiveQuipCopyWithImpl;
+@useResult
+$Res call({
+ String id, String roomId,@JsonKey(unknownEnumValue: LiveQuipKind.gift) LiveQuipKind kind, String giftCode, String soundKey, int durationMs, bool free, UserSummary sender, int delayMs, DateTime createdAt, String? text
+});
+
+
+$UserSummaryCopyWith<$Res> get sender;
+
+}
+/// @nodoc
+class _$LiveQuipCopyWithImpl<$Res>
+    implements $LiveQuipCopyWith<$Res> {
+  _$LiveQuipCopyWithImpl(this._self, this._then);
+
+  final LiveQuip _self;
+  final $Res Function(LiveQuip) _then;
+
+/// Create a copy of LiveQuip
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? roomId = null,Object? kind = null,Object? giftCode = null,Object? soundKey = null,Object? durationMs = null,Object? free = null,Object? sender = null,Object? delayMs = null,Object? createdAt = null,Object? text = freezed,}) {
+  return _then(LiveQuip(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,roomId: null == roomId ? _self.roomId : roomId // ignore: cast_nullable_to_non_nullable
+as String,kind: null == kind ? _self.kind : kind // ignore: cast_nullable_to_non_nullable
+as LiveQuipKind,giftCode: null == giftCode ? _self.giftCode : giftCode // ignore: cast_nullable_to_non_nullable
+as String,soundKey: null == soundKey ? _self.soundKey : soundKey // ignore: cast_nullable_to_non_nullable
+as String,durationMs: null == durationMs ? _self.durationMs : durationMs // ignore: cast_nullable_to_non_nullable
+as int,free: null == free ? _self.free : free // ignore: cast_nullable_to_non_nullable
+as bool,sender: null == sender ? _self.sender : sender // ignore: cast_nullable_to_non_nullable
+as UserSummary,delayMs: null == delayMs ? _self.delayMs : delayMs // ignore: cast_nullable_to_non_nullable
+as int,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
+as DateTime,text: freezed == text ? _self.text : text // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+/// Create a copy of LiveQuip
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$UserSummaryCopyWith<$Res> get sender {
+  
+  return $UserSummaryCopyWith<$Res>(_self.sender, (value) {
+    return _then(_self.copyWith(sender: value));
+  });
+}
+}
+
+
+/// Adds pattern-matching-related methods to [LiveQuip].
+extension LiveQuipPatterns on LiveQuip {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _LiveQuip value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _LiveQuip() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _LiveQuip value)  $default,){
+final _that = this;
+switch (_that) {
+case _LiveQuip():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _LiveQuip value)?  $default,){
+final _that = this;
+switch (_that) {
+case _LiveQuip() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String roomId, @JsonKey(unknownEnumValue: LiveQuipKind.gift)  LiveQuipKind kind,  String giftCode,  String soundKey,  int durationMs,  bool free,  UserSummary sender,  int delayMs,  DateTime createdAt,  String? text)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _LiveQuip() when $default != null:
+return $default(_that.id,_that.roomId,_that.kind,_that.giftCode,_that.soundKey,_that.durationMs,_that.free,_that.sender,_that.delayMs,_that.createdAt,_that.text);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String roomId, @JsonKey(unknownEnumValue: LiveQuipKind.gift)  LiveQuipKind kind,  String giftCode,  String soundKey,  int durationMs,  bool free,  UserSummary sender,  int delayMs,  DateTime createdAt,  String? text)  $default,) {final _that = this;
+switch (_that) {
+case _LiveQuip():
+return $default(_that.id,_that.roomId,_that.kind,_that.giftCode,_that.soundKey,_that.durationMs,_that.free,_that.sender,_that.delayMs,_that.createdAt,_that.text);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String roomId, @JsonKey(unknownEnumValue: LiveQuipKind.gift)  LiveQuipKind kind,  String giftCode,  String soundKey,  int durationMs,  bool free,  UserSummary sender,  int delayMs,  DateTime createdAt,  String? text)?  $default,) {final _that = this;
+switch (_that) {
+case _LiveQuip() when $default != null:
+return $default(_that.id,_that.roomId,_that.kind,_that.giftCode,_that.soundKey,_that.durationMs,_that.free,_that.sender,_that.delayMs,_that.createdAt,_that.text);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _LiveQuip implements LiveQuip {
+  const _LiveQuip({required this.id, required this.roomId, @JsonKey(unknownEnumValue: LiveQuipKind.gift) required this.kind, required this.giftCode, required this.soundKey, required this.durationMs, required this.free, required this.sender, required this.delayMs, required this.createdAt, this.text});
+  factory _LiveQuip.fromJson(Map<String, dynamic> json) => _$LiveQuipFromJson(json);
+
+@override final  String id;
+@override final  String roomId;
+@override@JsonKey(unknownEnumValue: LiveQuipKind.gift) final  LiveQuipKind kind;
+@override final  String giftCode;
+@override final  String soundKey;
+@override final  int durationMs;
+@override final  bool free;
+@override final  UserSummary sender;
+@override final  int delayMs;
+@override final  DateTime createdAt;
+@override final  String? text;
+
+/// Create a copy of LiveQuip
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$LiveQuipCopyWith<_LiveQuip> get copyWith => __$LiveQuipCopyWithImpl<_LiveQuip>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$LiveQuipToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveQuip&&(identical(other.id, id) || other.id == id)&&(identical(other.roomId, roomId) || other.roomId == roomId)&&(identical(other.kind, kind) || other.kind == kind)&&(identical(other.giftCode, giftCode) || other.giftCode == giftCode)&&(identical(other.soundKey, soundKey) || other.soundKey == soundKey)&&(identical(other.durationMs, durationMs) || other.durationMs == durationMs)&&(identical(other.free, free) || other.free == free)&&(identical(other.sender, sender) || other.sender == sender)&&(identical(other.delayMs, delayMs) || other.delayMs == delayMs)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.text, text) || other.text == text));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+    return Object.hash(runtimeType,id,roomId,kind,giftCode,soundKey,durationMs,free,sender,delayMs,createdAt,text);
+}
+
+@override
+String toString() {
+    return 'LiveQuip(id: $id, roomId: $roomId, kind: $kind, giftCode: $giftCode, soundKey: $soundKey, durationMs: $durationMs, free: $free, sender: $sender, delayMs: $delayMs, createdAt: $createdAt, text: $text)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$LiveQuipCopyWith<$Res> implements $LiveQuipCopyWith<$Res> {
+  factory _$LiveQuipCopyWith(_LiveQuip value, $Res Function(_LiveQuip) _then) = __$LiveQuipCopyWithImpl;
+@override @useResult
+$Res call({
+ String id, String roomId,@JsonKey(unknownEnumValue: LiveQuipKind.gift) LiveQuipKind kind, String giftCode, String soundKey, int durationMs, bool free, UserSummary sender, int delayMs, DateTime createdAt, String? text
+});
+
+
+@override $UserSummaryCopyWith<$Res> get sender;
+
+}
+/// @nodoc
+class __$LiveQuipCopyWithImpl<$Res>
+    implements _$LiveQuipCopyWith<$Res> {
+  __$LiveQuipCopyWithImpl(this._self, this._then);
+
+  final _LiveQuip _self;
+  final $Res Function(_LiveQuip) _then;
+
+/// Create a copy of LiveQuip
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? roomId = null,Object? kind = null,Object? giftCode = null,Object? soundKey = null,Object? durationMs = null,Object? free = null,Object? sender = null,Object? delayMs = null,Object? createdAt = null,Object? text = freezed,}) {
+  return _then(_LiveQuip(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,roomId: null == roomId ? _self.roomId : roomId // ignore: cast_nullable_to_non_nullable
+as String,kind: null == kind ? _self.kind : kind // ignore: cast_nullable_to_non_nullable
+as LiveQuipKind,giftCode: null == giftCode ? _self.giftCode : giftCode // ignore: cast_nullable_to_non_nullable
+as String,soundKey: null == soundKey ? _self.soundKey : soundKey // ignore: cast_nullable_to_non_nullable
+as String,durationMs: null == durationMs ? _self.durationMs : durationMs // ignore: cast_nullable_to_non_nullable
+as int,free: null == free ? _self.free : free // ignore: cast_nullable_to_non_nullable
+as bool,sender: null == sender ? _self.sender : sender // ignore: cast_nullable_to_non_nullable
+as UserSummary,delayMs: null == delayMs ? _self.delayMs : delayMs // ignore: cast_nullable_to_non_nullable
+as int,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
+as DateTime,text: freezed == text ? _self.text : text // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
+/// Create a copy of LiveQuip
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$UserSummaryCopyWith<$Res> get sender {
+  
+  return $UserSummaryCopyWith<$Res>(_self.sender, (value) {
+    return _then(_self.copyWith(sender: value));
   });
 }
 }

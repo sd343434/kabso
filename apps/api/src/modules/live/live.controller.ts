@@ -32,6 +32,28 @@ import { UsersService } from '../users/users.service.js';
 import { LiveCategoriesService, type LiveCategoryDto } from './live-categories.service.js';
 import { LiveBulletsService, type LiveBulletResultDto } from './live-bullets.service.js';
 import { LiveSeatEmojiService, type LiveSeatEmojiDto } from './live-seat-emoji.service.js';
+import { LiveQuipsService, type LiveQuipDto } from './live-quips.service.js';
+import {
+  LiveBoostsService,
+  type LiveBoostDto,
+  type LiveBoostedRoomDto,
+  type LiveBoostOffersDto,
+  type LiveBoostResultDto,
+} from './live-boosts.service.js';
+import { LiveNewcomersService, type LiveNewcomersDto } from './live-newcomers.service.js';
+import { LiveDataCenterService, type MyLiveStatsDto } from './live-data-center.service.js';
+import { LiveProgramService, type LiveProgramDto } from './live-program.service.js';
+import {
+  LiveWatchService,
+  type LiveWatchDto,
+  type LiveWatchSuggestionDto,
+  type LiveWatchVideoDto,
+} from './live-watch.service.js';
+import {
+  LiveStickersService,
+  type LiveStickerArtDto,
+  type LiveStickersDto,
+} from './live-stickers.service.js';
 import { LiveGiftsService, type LiveGiftResultDto } from './live-gifts.service.js';
 import { LiveChatService, type LiveChatMessageDto, type LiveChatMuteDto } from './live-chat.service.js';
 import { LiveBlockedWordsService, type LiveBlockedWordsDto } from './live-blocked-words.service.js';
@@ -119,6 +141,13 @@ export class LiveController {
     private readonly chat: LiveChatService,
     private readonly bullets: LiveBulletsService,
     private readonly seatEmoji: LiveSeatEmojiService,
+    private readonly quips: LiveQuipsService,
+    private readonly boosts: LiveBoostsService,
+    private readonly newcomers: LiveNewcomersService,
+    private readonly dataCenter: LiveDataCenterService,
+    private readonly program: LiveProgramService,
+    private readonly stickers: LiveStickersService,
+    private readonly watch: LiveWatchService,
     private readonly liveGifts: LiveGiftsService,
     private readonly kicks: LiveKicksService,
     private readonly rankings: LiveRankingsService,
@@ -145,6 +174,32 @@ export class LiveController {
   @Get('categories')
   async listCategories(@Req() req: AppRequest): Promise<{ data: LiveCategoryDto[] }> {
     return { data: await this.categories.listActive(await this.language(req)) };
+  }
+
+  /**
+   * v1.33-live (D154b): the lives in a paid «مميز» slot now (traffic cards), for the top of the live
+   * list; guests too (the list's buckets).
+   */
+  @Get('boosts/active')
+  @OptionalAuth()
+  @RateLimit(
+    { bucket: 'live:list', rule: 'liveListUser', key: byUserId, replacesDefault: true, appliesTo: 'user' },
+    GUEST_READ,
+  )
+  async activeBoosts(@Req() req: AppRequest): Promise<{ data: LiveBoostedRoomDto[] }> {
+    return this.boosts.active(callerOf(req), await this.language(req));
+  }
+
+  /** v1.33-live (D154b): the traffic card lengths and prices, the caller's cards and the queue. */
+  @Get('boosts/offers')
+  offerBoosts(@Req() req: AppRequest, @Query('roomId') roomId?: string): Promise<LiveBoostOffersDto> {
+    return this.boosts.offers(requireCaller(req), roomId);
+  }
+
+  /** v1.35-live (D154d): the caller's own data center (DAY, WEEK, MONTH or YEAR). */
+  @Get('stats/me')
+  myStats(@Req() req: AppRequest, @Query() query: unknown): Promise<MyLiveStatsDto> {
+    return this.dataCenter.mine(requireCaller(req), query);
   }
 
   @Get('rooms')
@@ -523,6 +578,153 @@ export class LiveController {
     @Body() body: unknown,
   ): Promise<LiveSeatEmojiDto> {
     return this.seatEmoji.send(requireCaller(req), roomId, body);
+  }
+
+  /**
+   * v1.33-live (D154b): a traffic card for this live, bought with coins or one of the caller's cards
+   * (the host, or a viewer gifting it). 201 new, 200 a retry with the same `clientId`. 30 / hour per
+   * user (bucket `live:boost`, the CP writes rule `RATE_LIMIT_CP_WRITE_USER`), replacing the default (§7).
+   */
+  @Post('rooms/:roomId/boosts')
+  @RateLimit({ bucket: 'live:boost', rule: 'cpWriteUser', key: byUserId, replacesDefault: true })
+  async buyBoost(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Body() body: unknown,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<LiveBoostResultDto> {
+    const { created, result } = await this.boosts.buy(requireCaller(req), roomId, body);
+    res.status(created ? 201 : 200);
+    return result;
+  }
+
+  /** v1.36-live (D154e): the live's program (anyone who can see the room, guests too). */
+  @Get('rooms/:roomId/program')
+  @OptionalAuth()
+  @RateLimit(GUEST_READ)
+  getProgram(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<LiveProgramDto> {
+    return this.program.get(callerOf(req), roomId);
+  }
+
+  /** v1.36-live (D154e): the host replaces the live's program. */
+  @Put('rooms/:roomId/program')
+  setProgram(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Body() body: unknown,
+  ): Promise<LiveProgramDto> {
+    return this.program.set(requireCaller(req), roomId, body);
+  }
+
+  /** v1.38-live (D154i): YouTube search for watch-together (needs the server's key). */
+  @Get('youtube/search')
+  async searchYoutube(
+    @Req() req: AppRequest,
+    @Query() query: Record<string, unknown>,
+  ): Promise<{ items: LiveWatchVideoDto[] }> {
+    return this.watch.search(query, await this.language(req));
+  }
+
+  /** v1.38-live (D154i): what the live watches together (anyone who can see the room). */
+  @Get('rooms/:roomId/watch')
+  @OptionalAuth()
+  @RateLimit(GUEST_READ)
+  getWatch(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<LiveWatchDto> {
+    return this.watch.get(callerOf(req), roomId);
+  }
+
+  /** v1.38-live (D154i): the host's player state (video, playing, position). */
+  @Put('rooms/:roomId/watch')
+  @RateLimit({ bucket: 'live:watch', rule: 'liveTapsUser', key: byUserId, replacesDefault: true })
+  setWatch(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Body() body: unknown,
+  ): Promise<LiveWatchDto> {
+    return this.watch.set(requireCaller(req), roomId, body);
+  }
+
+  /** v1.38-live (D154i): the host's waiting suggestions. */
+  @Get('rooms/:roomId/watch/suggestions')
+  listWatchSuggestions(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+  ): Promise<{ data: LiveWatchSuggestionDto[] }> {
+    return this.watch.suggestions(requireCaller(req), roomId);
+  }
+
+  /** v1.38-live (D154i): a viewer suggests a video. */
+  @Post('rooms/:roomId/watch/suggestions')
+  suggestWatch(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Body() body: unknown,
+  ): Promise<LiveWatchSuggestionDto> {
+    return this.watch.suggest(requireCaller(req), roomId, body);
+  }
+
+  /** v1.38-live (D154i): the host plays or turns down a suggestion. */
+  @Post('rooms/:roomId/watch/suggestions/:suggestionId/decision')
+  @HttpCode(200)
+  decideWatchSuggestion(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Param('suggestionId') suggestionId: string,
+    @Body() body: unknown,
+  ): Promise<LiveWatchDto> {
+    return this.watch.decide(requireCaller(req), roomId, suggestionId, body);
+  }
+
+  /** v1.37-live (D154h): the sticker art the app may place on a live. */
+  @Get('stickers')
+  stickerCatalogue(): Promise<{ items: LiveStickerArtDto[] }> {
+    return this.stickers.catalogue();
+  }
+
+  /** v1.37-live (D154h): the stickers on a live now (anyone who can see the room, guests too). */
+  @Get('rooms/:roomId/stickers')
+  @OptionalAuth()
+  @RateLimit(GUEST_READ)
+  getStickers(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<LiveStickersDto> {
+    return this.stickers.get(callerOf(req), roomId);
+  }
+
+  /** v1.37-live (D154h): the host replaces the stickers on the live (drags included). */
+  @Put('rooms/:roomId/stickers')
+  @RateLimit({ bucket: 'live:stickers', rule: 'liveTapsUser', key: byUserId, replacesDefault: true })
+  setStickers(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Body() body: unknown,
+  ): Promise<LiveStickersDto> {
+    return this.stickers.set(requireCaller(req), roomId, body);
+  }
+
+  /** v1.34-live (D154c): the newcomers in this live now (host and moderators). */
+  @Get('rooms/:roomId/newcomers')
+  listNewcomers(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<LiveNewcomersDto> {
+    return this.newcomers.list(requireCaller(req), roomId);
+  }
+
+  /** v1.33-live (D154b): this live's traffic cards (running or waiting first). */
+  @Get('rooms/:roomId/boosts')
+  listRoomBoosts(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<{ data: LiveBoostDto[] }> {
+    return this.boosts.roomBoosts(requireCaller(req), roomId);
+  }
+
+  /**
+   * v1.32-live (D154): a free sound of the host's and moderators' soundboard, queued with the room's
+   * quips. 120 / min per user (bucket `live:sound`, the taps rule), replacing the default (§7); one
+   * every 2 s is a counting rule (§10.33).
+   */
+  @Post('rooms/:roomId/sounds')
+  @RateLimit({ bucket: 'live:sound', rule: 'liveTapsUser', key: byUserId, replacesDefault: true })
+  async playSound(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Body() body: unknown,
+  ): Promise<{ quip: LiveQuipDto }> {
+    return { quip: await this.quips.playSound(requireCaller(req), roomId, body) };
   }
 
   /**

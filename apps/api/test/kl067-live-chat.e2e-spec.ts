@@ -934,6 +934,7 @@ describe('CP-013 live room chat', () => {
       charmLevel: number | null;
       supportLevel: number | null;
       family: { name: string; level: number } | null;
+      newcomer: boolean;
     };
     const badgesOf = (m: unknown) => (m as { authorBadges: Badges }).authorBadges;
     /** Past the badges cache (30 s) and the counting rule. */
@@ -971,7 +972,13 @@ describe('CP-013 live room chat', () => {
       const owner = await host();
       const roomId = await goLive(owner);
       const message = await say(roomId, owner, 'plain');
-      expect(badgesOf(message)).toEqual({ charmLevel: null, supportLevel: null, family: null });
+      // v1.34-live (D154c): a new account is a newcomer.
+      expect(badgesOf(message)).toEqual({
+        charmLevel: null,
+        supportLevel: null,
+        family: null,
+        newcomer: true,
+      });
       expect(chats(roomId)).toEqual([{ type: 'chat', message }]);
       expect(badgesOf(((await list(roomId)).body.data as ChatMessage[])[0])).toEqual(badgesOf(message));
       await end(roomId, owner);
@@ -1001,10 +1008,11 @@ describe('CP-013 live room chat', () => {
         charmLevel: 3,
         supportLevel: 1,
         family: { name: 'Kabso Stars', level: 4 },
+        newcomer: true,
       });
       expect(chats(roomId).at(-1)).toEqual({ type: 'chat', message: byFan });
       const byOther = await say(roomId, other, 'no family');
-      expect(badgesOf(byOther)).toEqual({ charmLevel: 1, supportLevel: 1, family: null });
+      expect(badgesOf(byOther)).toEqual({ charmLevel: 1, supportLevel: 1, family: null, newcomer: true });
       const listed = (await list(roomId)).body.data as ChatMessage[];
       expect(listed.map(badgesOf)).toEqual([badgesOf(byFan), badgesOf(byOther)]);
 

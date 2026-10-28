@@ -691,6 +691,7 @@ class LiveChatAuthoredLine extends StatelessWidget {
           KFormat.bidiIsolate(family.name),
           family.level,
         ),
+      if (badges?.newcomer ?? false) l10n.liveNewcomerBadge,
     ].join('. ');
     final scaler = MediaQuery.textScalerOf(context)
         .clamp(maxScaleFactor: KMetrics.overlayMaxTextScale);
@@ -833,6 +834,9 @@ class LiveChatBadgeRow extends StatelessWidget {
   static const supportKey = Key('liveChat.badge.support');
   static const familyKey = Key('liveChat.badge.family');
 
+  /// D154c: «جديد 🌱» for a newcomer.
+  static const newcomerKey = Key('liveChat.badge.newcomer');
+
   static const double _space = 5;
 
   bool get isNotEmpty =>
@@ -840,7 +844,8 @@ class LiveChatBadgeRow extends StatelessWidget {
       role == LiveChatRole.moderator ||
       badges?.charmLevel != null ||
       badges?.supportLevel != null ||
-      badges?.family != null;
+      badges?.family != null ||
+      (badges?.newcomer ?? false);
 
   @override
   Widget build(BuildContext context) {
@@ -882,6 +887,29 @@ class LiveChatBadgeRow extends StatelessWidget {
                 ),
               ),
             if (tag != null) const SizedBox(width: _space),
+            // D154c (owner): «جديد 🌱» next to a newcomer's name.
+            if (badges?.newcomer ?? false) ...[
+              Container(
+                key: newcomerKey,
+                height: h - 2,
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF3DDC97),
+                  borderRadius: BorderRadius.circular(KRadius.pill),
+                ),
+                child: Text(
+                  l10n.liveNewcomerBadge,
+                  style: context.textStyles.caption.copyWith(
+                    fontSize: 10.5,
+                    height: 1.1,
+                    color: const Color(0xFF06301F),
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              const SizedBox(width: _space),
+            ],
             if (badges?.charmLevel case final level?) ...[
               SizedBox(
                 key: charmKey,

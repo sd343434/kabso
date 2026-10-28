@@ -45,6 +45,7 @@ _LiveChatAuthorBadges _$LiveChatAuthorBadgesFromJson(
   family: json['family'] == null
       ? null
       : LiveChatAuthorFamily.fromJson(json['family'] as Map<String, dynamic>),
+  newcomer: json['newcomer'] as bool? ?? false,
 );
 
 Map<String, dynamic> _$LiveChatAuthorBadgesToJson(
@@ -53,6 +54,7 @@ Map<String, dynamic> _$LiveChatAuthorBadgesToJson(
   'charmLevel': instance.charmLevel,
   'supportLevel': instance.supportLevel,
   'family': instance.family,
+  'newcomer': instance.newcomer,
 };
 
 _LiveChatEntry _$LiveChatEntryFromJson(Map<String, dynamic> json) =>

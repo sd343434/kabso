@@ -7,11 +7,21 @@ import {
   GIFT_CODE_PATTERN,
   GIFT_TAG_CODE_PATTERN,
   giftFieldProblems,
+  giftQuipProblem,
   giftTagProblem,
 } from './gift-catalogue.js';
 
 const migration = readFileSync(
   new URL('../../../prisma/migrations/20261112100000_live_gifts/migration.sql', import.meta.url),
+  'utf8',
+);
+
+const quipsEnumMigration = readFileSync(
+  new URL('../../../prisma/migrations/20261204090000_quips_enums/migration.sql', import.meta.url),
+  'utf8',
+);
+const quipsMigration = readFileSync(
+  new URL('../../../prisma/migrations/20261204100000_quips/migration.sql', import.meta.url),
   'utf8',
 );
 
@@ -39,6 +49,9 @@ const rose = {
   tagNameEn: null,
   imageObjectKey: null,
   animationObjectKey: null,
+  soundKey: null,
+  soundMs: null,
+  quipText: null,
 };
 
 describe('gift catalogue (CP-020)', () => {
@@ -51,7 +64,9 @@ describe('gift catalogue (CP-020)', () => {
     expect(migration).toContain(`CREATE TYPE "gift_category" AS ENUM ('POPULAR', 'EVENT', 'FUN')`);
     // v1.27-live (D132): LUCKY is appended by its own migration (enum order = tab order).
     expect(luckyMigration).toContain(`ALTER TYPE "gift_category" ADD VALUE 'LUCKY';`);
-    expect(GIFT_CATEGORIES).toEqual(['POPULAR', 'EVENT', 'FUN', 'LUCKY']);
+    // v1.32-live (D154): QUIPS likewise, after LUCKY.
+    expect(quipsEnumMigration).toContain(`ALTER TYPE "gift_category" ADD VALUE 'QUIPS';`);
+    expect(GIFT_CATEGORIES).toEqual(['POPULAR', 'EVENT', 'FUN', 'LUCKY', 'QUIPS']);
     expect(migration).toContain(`CHECK (code ~ '${GIFT_CODE_PATTERN.source}')`);
   });
 
@@ -68,6 +83,31 @@ describe('gift catalogue (CP-020)', () => {
     expect(giftFieldProblems({ animationKey: 'fx/rose.svga' })).toEqual([]);
     expect(giftFieldProblems({ category: 'HATS' as never, badge: 'HOT' as never })).toHaveLength(2);
     expect(giftFieldProblems({ sortOrder: -1 })).toHaveLength(1);
+  });
+
+  it('checks the quip fields (v1.32-live, D154): a sound exactly for QUIPS, free only for QUIPS', () => {
+    const quip = { category: 'QUIPS' as const, priceCoins: 99, soundKey: 'kabi/ghazal_01', soundMs: 4360 };
+    expect(giftFieldProblems({ ...quip, quipText: 'إيه الجمال ده!' })).toEqual([]);
+    expect(giftFieldProblems({ category: 'QUIPS', priceCoins: 0 })).toEqual([]);
+    expect(giftFieldProblems({ priceCoins: -1, category: 'QUIPS' })).toHaveLength(1);
+    expect(giftFieldProblems({ soundKey: 'bad key' })).toHaveLength(1);
+    expect(giftFieldProblems({ soundMs: 199 })).toHaveLength(1);
+    expect(giftFieldProblems({ soundMs: 15_001 })).toHaveLength(1);
+    expect(giftFieldProblems({ quipText: '  ' })).toHaveLength(1);
+    expect(giftQuipProblem({ ...quip, quipText: null })).toBeNull();
+    expect(giftQuipProblem({ ...quip, priceCoins: 0, quipText: null })).toBeNull();
+    expect(giftQuipProblem({ ...quip, soundMs: null })).not.toBeNull();
+    expect(giftQuipProblem({ ...rose, soundKey: 'room/clap', soundMs: 2040 })).not.toBeNull();
+    expect(giftQuipProblem({ ...rose, quipText: 'hi' })).not.toBeNull();
+    expect(giftQuipProblem({ ...rose, priceCoins: 0 })).not.toBeNull();
+    expect(giftQuipProblem(rose)).toBeNull();
+  });
+
+  it('the quips migration keeps the API rules (free only for QUIPS, sound fields only for QUIPS)', () => {
+    expect(quipsMigration).toContain(`(price_coins = 0 AND category::text = 'QUIPS')`);
+    expect(quipsMigration).toContain(`sound_ms BETWEEN 200 AND 15000`);
+    expect(quipsMigration).toContain(`'^[A-Za-z0-9][A-Za-z0-9_./-]{0,79}$'`);
+    expect(quipsMigration).toContain('"host_share_bps" SET NOT NULL');
   });
 
   it('checks the optional tag (v1.24.3-live): code shape, names 1–30, all three or none', () => {
@@ -125,5 +165,11 @@ describe('gift catalogue (CP-020)', () => {
     const key = `media/gifts/rose/${'a'.repeat(32)}`;
     expect(catalogueVersion([{ ...rose, imageObjectKey: `${key}.png` }], [1, 10], 5)).not.toBe(v);
     expect(catalogueVersion([{ ...rose, animationObjectKey: `${key}.svga` }], [1, 10], 5)).not.toBe(v);
+    // v1.32-live: a quip's sound and text move it too.
+    const quip = { ...rose, category: 'QUIPS' as const, soundKey: 'room/clap', soundMs: 2040 };
+    expect(catalogueVersion([quip], [1, 10], 5)).not.toBe(v);
+    expect(catalogueVersion([{ ...quip, quipText: 'x' }], [1, 10], 5)).not.toBe(
+      catalogueVersion([quip], [1, 10], 5),
+    );
   });
 });

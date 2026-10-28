@@ -8,6 +8,7 @@ import 'dart:async';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/cp/presentation/cp_space_art.dart';
 import 'package:kabso_live/features/debug/preview_photo.dart';
+import 'package:kabso_live/features/live/application/live_quips.dart';
 import 'package:kabso_live/features/live/application/max_x.dart';
 import 'package:kabso_live/features/live/data/live_permissions.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_cp_mic_effect.dart';
@@ -30,6 +31,8 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   // D145d: the MAX X orb's endless motion, and its sounds (no audio plugin).
   MaxXOrb.animate = false;
   AudioplayersMaxXSounds.enabled = false;
+  // D154: the quips' sounds (no audio plugin in tests).
+  AudioplayersQuipAudio.enabled = false;
   // D134: the animated cherry decodes outside fake time.
   KCherryIcon.animate = false;
   KabsoProfileHeaderArt.animate = false;

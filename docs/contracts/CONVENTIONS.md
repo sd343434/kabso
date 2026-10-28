@@ -135,6 +135,13 @@ All non-2xx responses use one envelope:
 | 409 | `PREMIUM_USERNAME_UNAVAILABLE` | *(v1.28-live, DRAFT, D146)* The name cannot be rented or renewed by the caller now (taken, held for its last renter, reserved, not on sale, not premium, past the prepaid limit, or someone else won the same name a moment earlier). Nothing was charged; the app reads `GET /premium-usernames/{username}` to say why (§10.32). |
 | 409 | `PREMIUM_USERNAME_PRICE_CHANGED` | *(v1.28-live, DRAFT, D146)* The owner changed the price since the app showed it (`priceCoins` differs). Nothing was charged; the app shows the new price (§10.32). |
 | 409 | `PREMIUM_USERNAME_ACTIVE` | *(v1.28-live, DRAFT, D146)* The caller already has an active premium username: renting another one or changing the regular username waits until it is given back (§10.32). |
+| 409 | `QUIP_FREE_USED` | *(v1.32-live, DRAFT, D154)* The caller already sent their one free quip in this live (owner: one free quip per viewer per live). Nothing was stored or played; paid quips are still available (§10.33). |
+| 409 | `QUIP_QUEUE_FULL` | *(v1.32-live, DRAFT, D154)* The room's quips queue is full: this quip would start more than `QUIP_QUEUE_MAX_WAIT_SECONDS` (60) from now. Nothing was stored, charged or played; try again shortly (§10.33). |
+| 409 | `BOOST_QUEUE_FULL` | *(v1.33-live, DRAFT, D154b)* The traffic card would start more than `LIVE_BOOST_MAX_WAIT_MINUTES` (180) from now: every featured slot is booked too far ahead. Nothing was charged (§10.34). |
+| 409 | `BOOST_CARD_INSUFFICIENT` | *(v1.33-live, DRAFT, D154b)* `source: CARD` but the caller holds no traffic card of that length. Nothing was taken (§10.34). |
+| 409 | `BOOST_ROOM_BUSY` | *(v1.33-live, DRAFT, D154b)* This live already has a traffic card running or waiting (one at a time per live). Nothing was charged (§10.34). |
+| 422 | `YOUTUBE_VIDEO_UNAVAILABLE` | *(v1.38-live, DRAFT, D154i)* The YouTube video does not exist, is private or may not be played in other apps (§10.39). |
+| 503 | `YOUTUBE_SEARCH_UNAVAILABLE` | *(v1.38-live, DRAFT, D154i)* YouTube search is not set up on this server (no `YOUTUBE_API_KEY`) or YouTube failed; paste a link instead (§10.39). |
 | 403 | `DM_NOT_ALLOWED` | *(v1.40-social, DRAFT, D155)* The recipient's «who can message you» setting (`whoCanMessage`) does not allow the caller (§11.13). Nothing was stored or charged. The app says the person does not accept messages. |
 | 403 | `DM_REQUEST_LIMIT` | *(v1.40-social, DRAFT, D155)* The caller already sent `DM_REQUEST_MAX_MESSAGES` (3) messages in a message request the recipient has not accepted (§11.13). The app says to wait for a reply. |
 | 403 | `DM_REQUEST_TEXT_ONLY` | *(v1.40-social, DRAFT, D155)* A picture or voice message in a message request (only text, a pack emoji or a gift until the recipient accepts, §11.13). |
@@ -397,6 +404,8 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `PUT /me/bag/equipped` *(v1.22-live, CP-019)* | 60 / hour per user (bucket `bag:equip`, the family-write numbers like the medal showcase). **Replaces** the per-user default; `GET /bag/catalogue` and `GET /me/bag` use the per-user default |
 | `GET /live/rooms/{roomId}/chat` *(v1.9-live, CP-013)* | the per-user default; guests share the CP-010 guest read limit per IP |
 | `POST /live/rooms/{roomId}/seat-emoji` *(v1.27.5-live, D138)* | 120 / min per user (bucket `live:seat-emoji`, the taps rule `RATE_LIMIT_LIVE_TAPS_USER`), plus a counting rule of **one every 2 s per user** (429 with `Retry-After`). **Replaces** the per-user default |
+| `POST /live/rooms/{roomId}/sounds` *(v1.32-live, D154)* | 120 / min per user (bucket `live:sound`, the taps rule `RATE_LIMIT_LIVE_TAPS_USER`), plus a counting rule of **one sound every 2 s per user** (owner; 429 with `Retry-After`). **Replaces** the per-user default. Quips sent from the gift panel use the gift buckets above |
+| `POST /live/rooms/{roomId}/boosts` *(v1.33-live, D154b)* | 30 / hour per user (bucket `live:boost`, the CP writes rule `RATE_LIMIT_CP_WRITE_USER`). **Replaces** the per-user default. `GET /live/boosts/active` uses the live list's buckets (guests too); the other reads the per-user default |
 | `GET /live/rooms/{roomId}/stats` *(v1.27.6-live, D140)* | the per-user default only (600 / 15 min); host only, no endpoint-specific bucket |
 | `PATCH /live/rooms/{roomId}` *(v1.6-live, CP-010)* | 60 / hour per user |
 | `GET /live/rooms/{roomId}/viewers` *(v1.6-live, CP-010)* | 300 / 15 min per user (shares the `GET /live/rooms` rule); *(v1.23.2-live, D109)* guests share the CP-010 guest read limit per IP |
@@ -470,6 +479,12 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.28-live)* Tables `premium_username_leases`, `premium_username_payments`, `premium_username_tier_prices`, `premium_username_name_prices`, `premium_username_reserved`; columns `user_profiles.premium_tier`, `notifications.premium_lease_id` | Backend — `premium-usernames` module (it also writes `user_profiles.username` with the lease, and the wallet ledger's `PREMIUM_USERNAME_*` debits through `wallet-ledger.ts`); prices, the reserved list, grants and revokes only by the `premium-admin` CLI | CTO; Security (coin path, username changes) |
 | *(v1.29-live)* Tables `search_terms`, `search_term_counts`, `search_blocked_words` | Backend — `posts` module (`SearchTrendsService`; changed by admins only with the `search-admin` CLI) | CTO; Security reviews the privacy rules (§11.11) |
 | *(v1.30-live)* Table `device_tokens`; column `notifications.pushed_at` | Backend — `push` module (tokens; the notifications module's push dispatcher sets `pushed_at`; the auth module's session revocation deletes the session's token) | CTO; Security reviews token handling (§11.12) |
+| *(v1.32-live)* Table `live_free_quips`; columns `gifts.sound_key`, `sound_ms`, `quip_text`, `live_gifts.host_share_bps`, `live_rooms.quip_busy_until`; server config `GIFT_HOST_SHARE_PERCENTS`, `QUIP_QUEUE_MAX_WAIT_SECONDS` | Backend — `gifts` module (catalogue, `quips.ts`) and `live` module (`LiveGiftsService` writes sends, free quips and the queue in the send's transaction; `LiveQuipsService` the soundboard) | CTO; Security (coin paths; the host share is a money rule, D149) |
+| *(v1.33-live)* Tables `live_boosts`, `live_boost_cards`; ledger reasons `LIVE_BOOST`, `LIVE_BOOST_REFUND`; server config `LIVE_BOOST_PRICES`, `LIVE_BOOST_SLOTS`, `LIVE_BOOST_MAX_WAIT_MINUTES` | Backend — `live` module (`LiveBoostsService`; cards granted only by the `boost-admin` CLI) | CTO; Security (coin paths, refunds) |
+| *(v1.35-live)* Table `live_summaries` | Backend — `live` module (`LiveDataCenterService`: written once per ended live by its summariser; reads `live_gifts`, `live_gift_recipients`, `live_room_audience`, `follows` read-only) | CTO |
+| *(v1.36-live)* Table `live_program_items` | Backend — `live` module (`LiveProgramService`; the host writes, the announcer marks `announced_at`) | CTO |
+| *(v1.37-live)* Tables `live_stickers`, `live_sticker_art` | Backend — `live` module (`LiveStickersService`; the host writes the stickers; admins add art rows) | CTO |
+| *(v1.38-live)* Tables `live_watch`, `live_watch_suggestions` | Backend — `live` module (`LiveWatchService`; the host writes the state, viewers suggest) | CTO |
 | *(v1.40-social)* Tables `dm_conversations`, `dm_participants`, `dm_messages`, `dm_message_hides`; columns `live_gifts.dm_conversation_id`, `privacy_settings.who_can_message`, `reports.target_dm_message_id`, `reports.dm_snapshot` | Backend — `messages` module (gift sends are written by the live module's `LiveGiftsService`; the privacy column by the `safety` module; report snapshots by the `safety` module through `messages/dm-reports.ts`) | CTO; Security reviews privacy, requests and retention (§11.13) |
 | `apps/api/**` | Backend | CTO review |
 | `apps/mobile/lib/app/router/**` (route registry) | Flutter | CTO review |
@@ -510,7 +525,14 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
-| v1.40-social (draft) | 2026-10-28 | **D155 (owner: real direct messages; 24-hour messages; gifts in conversations):** tag `messages`: `listDmConversations` (`GET /dm/conversations?box=INBOX\|REQUESTS`, `DmConversationPage`, `DmConversation`, `DmConversationStatus`), `getDmUnread` (`GET /dm/unread`, `DmUnread`), `getDmPeer` (`GET /dm/peers/{username}`, `DmPeer`), `listDmMessages` (`GET /dm/conversations/{conversationId}/messages`, `DmMessagePage`), `sendDmMessage` (`POST /dm/messages`, `DmSendRequest`, `DmSendResult`, `DmMessage`, `DmMessageKind`), `sendDmGift` (`POST /dm/gifts`, `DmGiftSendRequest`, `DmGiftResult`, `DmGift`), `markDmRead` (`POST …/read`, `DmReadRequest`), `acceptDmRequest` (`POST …/accept`), `deleteDmConversation`, `muteDmConversation` / `unmuteDmConversation`, `deleteDmMessage` (`DELETE /dm/messages/{messageId}?scope=me\|everyone`); `PrivacySettings.whoCanMessage` (`EVERYONE` default, `FOLLOWING`, `NOBODY`); report `targetType: DM_MESSAGE` with the admin-only `Report.dmSnapshot`; `MediaKind` `DM_IMAGE`, `DM_VOICE`; codes `DM_NOT_ALLOWED`, `DM_REQUEST_LIMIT`, `DM_REQUEST_TEXT_ONLY` (403), `DM_DELETE_WINDOW_PASSED` (409); `NotificationSettings.messages` also covers direct messages; push data `kind: dm`. Every message is hard-deleted 24 h after it was sent (`DM_RETENTION_HOURS`). Gifts in a conversation reuse the live gift pipeline with the recipient's share `GIFT_DM_RECIPIENT_SHARE_PERCENT` (50 %) and lucky gifts at the lucky host share (10 %). Migrations `20261210090000_direct_messages_enums`, `20261210100000_direct_messages`. §7, §11.1, §11.7, §11.12, §11.13. | **Additive** (new tag, paths, schemas, enum values and codes; older apps ignore them). Apps that switch on the Messages tab need this server. |
+| v1.40-social (draft) | 2026-10-28 | **D155 (owner: real direct messages; 24-hour messages; gifts in conversations):** tag `messages`: `listDmConversations` (`GET /dm/conversations?box=INBOX\|REQUESTS`, `DmConversationPage`, `DmConversation`, `DmConversationStatus`), `getDmUnread` (`GET /dm/unread`, `DmUnread`), `getDmPeer` (`GET /dm/peers/{username}`, `DmPeer`), `listDmMessages` (`GET /dm/conversations/{conversationId}/messages`, `DmMessagePage`), `sendDmMessage` (`POST /dm/messages`, `DmSendRequest`, `DmSendResult`, `DmMessage`, `DmMessageKind`), `sendDmGift` (`POST /dm/gifts`, `DmGiftSendRequest`, `DmGiftResult`, `DmGift`), `markDmRead` (`POST …/read`, `DmReadRequest`), `acceptDmRequest` (`POST …/accept`), `deleteDmConversation`, `muteDmConversation` / `unmuteDmConversation`, `deleteDmMessage` (`DELETE /dm/messages/{messageId}?scope=me\|everyone`); `PrivacySettings.whoCanMessage` (`EVERYONE` default, `FOLLOWING`, `NOBODY`); report `targetType: DM_MESSAGE` with the admin-only `Report.dmSnapshot`; `MediaKind` `DM_IMAGE`, `DM_VOICE`; codes `DM_NOT_ALLOWED`, `DM_REQUEST_LIMIT`, `DM_REQUEST_TEXT_ONLY` (403), `DM_DELETE_WINDOW_PASSED` (409); `NotificationSettings.messages` also covers direct messages; push data `kind: dm`. Every message is hard-deleted 24 h after it was sent (`DM_RETENTION_HOURS`). Gifts in a conversation reuse the live gift pipeline with the recipient's share `GIFT_DM_RECIPIENT_SHARE_PERCENT` (50 %) and lucky gifts at the lucky host share (10 %). Migrations `20261210090000_direct_messages_enums`, `20261210100000_direct_messages` (after v1.32–v1.38-live's; the ledger sign CHECK keeps `LIVE_BOOST` / `LIVE_BOOST_REFUND`). With v1.32-live (merged): in a conversation the DM share replaces the category share of `GIFT_HOST_SHARE_PERCENTS` (quips included) and is stored as `live_gifts.host_share_bps`; paid quips can be sent (`COINS`, quantity 1), free quips cannot (409 `GIFT_UNAVAILABLE`). §7, §11.1, §11.7, §11.12, §11.13. | **Additive** (new tag, paths, schemas, enum values and codes; older apps ignore them). Apps that switch on the Messages tab need this server. |
+| v1.38-live (draft) | 2026-10-28 | **D154i (owner: Room Tools item 10 «يوتيوب / YouTube», item 9):** `getLiveWatch` / `setLiveWatch`, `listLiveWatchSuggestions` / `suggestLiveWatch` / `decideLiveWatchSuggestion`, `searchYoutube` (`LiveWatch`, `LiveWatchVideo`, `LiveWatchSuggestion`, `SetLiveWatchRequest`); data messages `watch`, `watch-suggestion` on topic `watch`; error codes `YOUTUBE_VIDEO_UNAVAILABLE` (422), `YOUTUBE_SEARCH_UNAVAILABLE` (503); tables `live_watch`, `live_watch_suggestions` (migration `20261209090000_live_watch`); env `YOUTUBE_API_KEY` (optional secret). §4, §8, §10.39. | **Additive** (new operations, messages and codes). |
+| v1.37-live (draft) | 2026-10-28 | **D154h (owner: Room Tools item 8 «ملصقات / Stickers», item 3):** `listLiveStickerArt` (`GET /live/stickers`), `getLiveStickers` / `setLiveStickers` (`GET` / `PUT /live/rooms/{roomId}/stickers`, `LiveSticker`, `LiveStickers`, `LiveStickerArt`, `SetLiveStickersRequest`); data message `stickers` on topic `sticker`; tables `live_stickers`, `live_sticker_art` (migration `20261208090000_live_stickers`). §8, §10.38. | **Additive** (new operations and data message). |
+| v1.36-live (draft) | 2026-10-28 | **D154e (owner: Room Tools item 5 «قائمة البرامج / Program list», item 10):** `getLiveProgram` / `setLiveProgram` (`GET` / `PUT /live/rooms/{roomId}/program`, `SetLiveProgramRequest`, `LiveProgram`, `LiveProgramItem`); data messages `program` and `program-segment` on topic `program`; table `live_program_items` (migration `20261207090000_live_program`). §8, §10.37. | **Additive** (new operations and data messages). |
+| v1.35-live (draft) | 2026-10-28 | **D154d (owner: Room Tools item 4 «مركز البيانات / Data center», item 14; periods DAY / WEEK / MONTH / YEAR):** `getMyLiveStats` (`GET /live/stats/me?period=`, `MyLiveStats`, `LiveStatsPeriod`); `LiveRoomStats.giftCoins`, `earningsCoins` (required); table `live_summaries` (migration `20261206090000_live_summaries`), filled by a summariser for every ended live (older ones included). §8, §10.31, §10.36. | **Additive** (a new operation and new response fields). |
+| v1.34-live (draft) | 2026-10-28 | **D154c (owner: Room Tools item 3 «الجدد / Newcomers», item 13; window 30 days, was 7):** `listLiveNewcomers` (`GET /live/rooms/{roomId}/newcomers`, `LiveNewcomers` `{newcomerDays, data: [UserSummary]}`; host and moderators); `LiveChatAuthorBadges.newcomer` (required in responses and the `chat` data message); config `NEWCOMER_DAYS` (30). §10.11, §10.35. | **Additive** (a new operation; a new response field older apps ignore). |
+| v1.33-live (draft) | 2026-10-28 | **D154b (owner: Room Tools item 2 «بطاقة الزيارات», 15, 15b, 15c; CP-014 part C, the room boost):** `getLiveBoostOffers` (`GET /live/boosts/offers[?roomId=]`, `LiveBoostOffers`, `LiveBoostOption`, `LiveBoostCardStock`), `listActiveLiveBoosts` (`GET /live/boosts/active`, `LiveBoostedRoom`; guests too), `buyLiveBoost` (`POST /live/rooms/{roomId}/boosts`, `LiveBoostRequest`, `LiveBoostResult`; 201 / 200 retry), `listLiveRoomBoosts` (`GET /live/rooms/{roomId}/boosts`); `LiveBoost`, `LiveBoostState`; data message `boost` on topic `boost`; codes `BOOST_QUEUE_FULL`, `BOOST_CARD_INSUFFICIENT`, `BOOST_ROOM_BUSY` (409); ledger reasons `LIVE_BOOST`, `LIVE_BOOST_REFUND`; config `LIVE_BOOST_PRICES` (default `10:10000,20:18000,30:25000,60:45000`), `LIVE_BOOST_SLOTS` (3), `LIVE_BOOST_MAX_WAIT_MINUTES` (180); CLI `boost-admin grant|cards|queue`, audit `live.boost_card.grant`; migrations `20261205090000_live_boosts_enums`, `20261205100000_live_boosts`. §4, §7, §8, §10.34. | **Additive** (new operations, data message, codes and ledger reasons). The live list itself is unchanged: apps show the boosted lives above it. |
+| v1.32-live (draft) | 2026-10-28 | **D154 (owner: the Room Tools, item 1 «إفيهات / Quips»; 5b–5f):** gift category `QUIPS` (`GiftCategory`), `Gift.quip` (`GiftQuip` `{soundKey, durationMs, text}`, null for other gifts); `Gift.priceCoins`, `LiveGift.unitPrice` / `totalCoins` may be **0** for a free quip; `LiveGiftResult.quip` (`LiveQuip`); `playLiveSound` (`POST /live/rooms/{roomId}/sounds`, `LiveSoundRequest`, `{quip: LiveQuip}`, host and moderators, one every 2 s); data message `quip` on topic `quip` (`{"type":"quip","quip":LiveQuip}`) — a quip is sent instead of the `gift` message; codes `QUIP_FREE_USED`, `QUIP_QUEUE_FULL` (409). Quips: coins and quantity 1 only (else 400), one free quip per person per live, one quip at a time per room (`QUIP_QUEUE_MAX_WAIT_SECONDS`, default 60). The recipients' earnings share is fixed on each send (`live_gifts.host_share_bps`): server config `GIFT_HOST_SHARE_PERCENTS` (default `POPULAR:65,EVENT:65,FUN:65,QUIPS:50`; LUCKY keeps `LUCKY_GIFT_HOST_SHARE_PERCENT`); existing sends backfilled (lucky: their draws' share; others 65 %). CLI `gift-admin quips-seed`, `--sound`, `--sound-ms`, `--quip-text`; migrations `20261204090000_quips_enums`, `20261204100000_quips`. §4, §7, §8, §10.23, §10.33. | **Additive** for clients (a new category older apps drop, new fields, a new operation, a new data message topic, new codes). `GiftCatalogue.categories` now lists `QUIPS`. Score, levels and boards count a paid quip like a normal gift; a free quip counts nothing. |
 | v1.31-live (draft) | 2026-10-28 | **D148 (owner: eight tiers, a guarantee, «لحظة الحظ», 100 lucky sends a second):** the lucky table is configured as chances per million (`LUCKY_GIFT_CHANCES_PER_MILLION`, default ×5 48 918 · ×10 15 451 · ×25 3 903 · ×50 1 464 · ×100 569 · ×250 130 · ×500 40 · ×1000 12; `LUCKY_GIFT_MULTIPLIERS` default `5,10,25,50,100,250,500,1000`; `LUCKY_GIFT_RTP_SHARES` removed — set, the server refuses to start); the per-sender guarantee (`LUCKY_PITY_AFTER` 15, `LUCKY_PITY_MULTIPLIER` 5: after 15 losing draws in a row the next draw pays at least ×5); `LuckyGiftOdds.pity` (`LuckyGiftPity`, nullable) and `returnPercent` now includes the guarantee (84.9999 with the defaults); `LuckyGiftResult.guaranteed`; data message `lucky-ticker` on topic `lucky` to every other LIVE room for a win ≥ `bigWinMultiplier`, at most one every 10 s (all instances), the biggest waiting one next; audit columns `lucky_gift_draws.losses_before`, `losses_after`, `guaranteed` and table `lucky_gift_pity`. §10.27. | **Additive** for clients (new fields and a new data message type; older apps ignore them). **Behaviour change** for lucky draws (new odds and the guarantee) — the published odds say so. A server configured with `LUCKY_GIFT_RTP_SHARES` must switch to `LUCKY_GIFT_CHANCES_PER_MILLION` before upgrading. |
 | v1.30-live (draft) | 2026-10-28 | **D152 (owner: notification sounds; Firebase project `kabso-27b19`, Android app `com.kabso.kabso_live`):** push notifications on Android through Firebase Cloud Messaging. `registerPushToken` (`PUT /me/push-token`, `RegisterPushTokenRequest` `{token, platform: PushPlatform, appVersion}`, 204) and `unregisterPushToken` (`DELETE /me/push-token`, 204): one token per signed-in session, removed with the session (logout, revocation, refresh reuse, password reset) and when Firebase reports it invalid; `NotificationSettings.messages` / `UpdateNotificationSettingsRequest.messages` (family chat pushes, on by default). Table `device_tokens`, column `notifications.pushed_at` (migration `20261203090000_push_notifications`); config `FIREBASE_CREDENTIALS_FILE` (unset → push off), `PUSH_DISPATCH_INTERVAL_MS`, `PUSH_GENERAL_GAP_SECONDS`, `PUSH_MESSAGES_GAP_SECONDS`. §8, §11.10, §11.12. | **Additive** (new operations, a new response field with a default, a new optional request field). Older apps never register a token, so they receive no pushes. Nothing is sent until the server has the Firebase key; iOS tokens are accepted but not used until APNs is set up. |
 | v1.29.2-live (draft) | 2026-10-28 | **D145d (owner: «100 lucky draws a second per user»):** `sendLiveGift` rate-limit defaults — every send 6000 / min per user (`live:gift:any`, `RATE_LIMIT_LIVE_LUCKY_GIFT_USER` `6000/60`, was 600/60), a LUCKY gift 100 / s (`live:gift:lucky`, `RATE_LIMIT_LIVE_LUCKY_GIFT_BURST_USER` `100/1`, was 10/1); a normal gift stays 120 / min (`live:gift`). §7 row. | **Relaxing** for lucky gifts (a higher limit); normal gifts unchanged. No shape change. |
@@ -2226,6 +2248,232 @@ change (server configuration where noted, otherwise a contract change).
 - **Not in v1.28-live**: buying coins (B5), auctions or bids, transfers between users, auto-renewal,
   refunds, a history of past premium names in the app.
 
+### 10.33 «إفيهات» quips and the host share per gift category *(v1.32-live, DRAFT — D154)*
+
+Owner decisions (2026-10-28, D154 items 5, 5b–5f) are marked *(owner)*.
+
+- **What a quip is** *(owner)*: a gift of the category **`QUIPS`** (the panel tab «إفيهات» / "Quips")
+  that plays a short sound to **everyone in the live** and shows its line of text as a chat bubble
+  while it plays (readable when muted). `Gift.quip` = `{soundKey, durationMs, text}` (null for every
+  other gift): `soundKey` names a sound **bundled in the app** (`room/<id>`, `kabi/<id>`), `durationMs`
+  is its length (200 … 15 000), `text` the words (or null: a sound without words). The owner's pack
+  (his own Kabso sounds, loudness-normalised; provenance in the app's `assets/sounds/quips/`) is added
+  with `gift-admin quips-seed`: **8 free sounds** (clap, laugh, welcome, wow, ta-da, ya salam, bell,
+  ooh; tag `free`) and **27 Kabi lines** at **ghazal 99, funny 199, tease 299 coins** (tags `ghazal`,
+  `funny`, `tease`). An admin manages quips like any gift (`gift-admin add|update … --category QUIPS
+  --sound <key> --sound-ms <ms> [--quip-text <text>]`; a new sound needs an app release that bundles
+  it). Only a QUIPS gift may cost **0** (CHECK `gifts_price_range`); the sound fields are set exactly
+  for QUIPS (CHECK `gifts_quip_fields`). Quips are never in the bag (`grant` refuses them).
+- **Sending** (`sendLiveGift`, §10.23, with these differences): `source` must be `COINS` and `quantity`
+  1 (else 400 `invalid_value`); recipients as for any gift. **Free quips** *(owner)*: each person may
+  send **one free quip per live** (any of the free ones; table `live_free_quips`, one row per live and
+  person) — a second → 409 `QUIP_FREE_USED`; a free quip needs no coins, writes no ledger row and
+  counts for nothing (score, boards, Contribution, levels, family). A **paid** quip is charged and
+  counted exactly like a normal gift (ledger `LIVE_GIFT`, 100 points a coin, charm and support).
+- **One at a time** *(owner)*: every live room has **one queue** of quips (`live_rooms.quip_busy_until`,
+  written under the room row's lock): a quip starts when the queue is free (now at the earliest) and
+  keeps it busy for `durationMs` + 400 ms. A quip that would start more than
+  `QUIP_QUEUE_MAX_WAIT_SECONDS` (default **60**) from now → 409 `QUIP_QUEUE_FULL` (nothing stored,
+  charged or played). The response carries `quip` (`LiveQuip`), and the room gets a reliable data
+  message on topic **`quip`**: `{"type":"quip","quip":LiveQuip}` — **instead of** the `gift` message (a
+  quip is heard, not shown as a gift effect). `LiveQuip` = `{id, roomId, kind: GIFT|SOUNDBOARD,
+  giftCode, soundKey, durationMs, text, free, sender: UserSummary, startsAt, delayMs, createdAt}`.
+  **App:** plays it `delayMs` after the message arrives (so every phone plays the queue in the same
+  order without a shared clock), one at a time, from the bundled file; shows `text` (or the quip's name
+  with its emoji when `text` is null) as a bubble with the sender for the sound's length; plays nothing
+  when the app's **Sound effects** setting is off or the viewer muted quips in this live (the bubble
+  still shows); a quip from someone the reader blocked is skipped.
+- **The soundboard** *(owner: host and moderators keep a free soundboard, 1 per 2 s)*:
+  `playLiveSound` (`POST /live/rooms/{roomId}/sounds`, `{"soundCode"}` = an enabled **free** QUIPS
+  gift). Checks: 401; 429 from the route's bucket; 404 (cannot see the room); 409 `LIVE_ROOM_ENDED`;
+  400 body; 403 `AUTH_FORBIDDEN` (not the host or a moderator of this live); 409 `GIFT_UNAVAILABLE`
+  (not an enabled free quip); 429 (one every 2 s per user, `Retry-After`); 409 `QUIP_QUEUE_FULL`. 201
+  `{quip: LiveQuip}` (`kind` `SOUNDBOARD`, `free` true); it takes the same queue and the same data
+  message. Nothing is stored but the queue's tail.
+- **The host share per category** *(owner: quips 50 %, normal gifts 65 % — D149)*: server config
+  `GIFT_HOST_SHARE_PERCENTS` (default `POPULAR:65,EVENT:65,FUN:65,QUIPS:50`; every non-lucky category
+  once, 0–100, up to two decimals; LUCKY keeps `LUCKY_GIFT_HOST_SHARE_PERCENT`, §10.27). Every send
+  stores the share in force (`live_gifts.host_share_bps`, basis points), so a later change never
+  rewrites history; sends before v1.32-live were backfilled (lucky: their draws' share; others 6 500).
+  This is the **earnings** share only (what the host will be paid out of a send's value, D149); the
+  score, charm and boards are unchanged (§10.23, §10.27). A gift sent in a direct conversation
+  (v1.40-social, §11.13) stores the DM recipient share instead (`GIFT_DM_RECIPIENT_SHARE_PERCENT`,
+  quips included; lucky: the lucky share).
+- **Not in v1.32-live:** hosted (downloadable) quip sounds (a new sound needs an app release), a
+  room-wide switch to turn viewers' quips off, quips outside a live, payouts of the host share (D149).
+
+### 10.34 Traffic cards «بطاقة الزيارات» *(v1.33-live, DRAFT — D154b; CP-014 part C, the room boost)*
+
+Owner decisions (2026-10-28, D154 items 15, 15b, 15c) are marked *(owner)*. This is the room boost of
+CP-014 part C (never built before): one mechanism, no second "boost".
+
+- **What it is** *(owner)*: a card that puts a LIVE room in one of **`LIVE_BOOST_SLOTS` = 3** paid
+  slots at the top of the live list for its length, with a small «مميز» / "Featured" label. Lengths
+  and prices are server config `LIVE_BOOST_PRICES` *(owner 15c: 10 min 10 000 · 20 min 18 000 · 30 min
+  25 000 · 60 min 45 000 coins)*; `getLiveBoostOffers` returns them with `savePercent` (rounded saving
+  against the shortest length per minute: 0 / 10 / 17 / 25).
+- **Who** *(owner)*: the host for their own live, or **any viewer for the host** (a gift of exposure).
+  **The host earns nothing from it** *(owner 15c)*: no score, charm, support, boards or earnings share;
+  the buyer's family gets nothing either. Paid with coins (ledger `LIVE_BOOST`) or with one of the
+  buyer's **cards** (`live_boost_cards`, by length), which only an admin grants as rewards:
+  `boost-admin grant <email|username> <minutes> <quantity>` (a length on sale; audited
+  `live.boost_card.grant`), `boost-admin cards <user>`, `boost-admin queue`.
+- **The queue** *(owner: a queue and an honest ETA)*: one FIFO queue over the slots; a card starts at
+  once when a slot is free, else when the slot that frees first frees. A live has **at most one card
+  running or waiting** (409 `BOOST_ROOM_BUSY`). A card that would start more than
+  `LIVE_BOOST_MAX_WAIT_MINUTES` (180) from now → 409 `BOOST_QUEUE_FULL`. `startsAt` is a promise "at the
+  latest": cards are planned again only when one is cancelled or cut short, which never makes a later
+  card start later. `nextStartAt` (offers) is when a new card would start now. When a live ends, its
+  **waiting** card is cancelled (`CANCELLED`) and **refunded** (coins with `LIVE_BOOST_REFUND`, or the
+  card back), its **running** card stops there (its time is used; the slot frees at once). Settled by a
+  background job (`LIVE_SWEEP_INTERVAL_SECONDS`) and before every purchase.
+- **`buyLiveBoost`** (`POST /live/rooms/{roomId}/boosts`, `{minutes, source: COINS|CARD, clientId}`):
+  checks 401, 429, 404 (cannot see the room), 409 `LIVE_ROOM_ENDED`, 400 body (`minutes` not on sale →
+  `invalid_value`), a retry with the same `clientId` → 200 the first card, 409 `BOOST_ROOM_BUSY`, 409
+  `BOOST_QUEUE_FULL`, 409 `INSUFFICIENT_COINS` / `BOOST_CARD_INSUFFICIENT`. 201 `{boost: LiveBoost, coins,
+  cards}`. The room gets `{"type":"boost","boost":LiveBoost}` on topic `boost` (best effort).
+  `LiveBoost` = `{id, roomId, host, buyer: UserSummary, minutes, source, coinsCharged, state:
+  WAITING|RUNNING|DONE|CANCELLED, startsAt, endsAt, createdAt}`.
+- **The list:** `listActiveLiveBoosts` (`GET /live/boosts/active`, guests too) → `{data: [{room:
+  LiveRoomSummary, endsAt}]}`: the rooms whose card runs now, at most `slots`, the earliest started first,
+  only LIVE, fresh, ACTIVE hosts and no block with the caller. **App:** the hub shows them first, each
+  marked «مميز», and leaves them out of the list under it. `listLiveRoomBoosts` lists a room's last 12
+  cards (its host's tool shows the running or waiting one and when it starts).
+- **Not in v1.33-live:** buying cards to keep for later (cards come only from admin rewards), choosing a
+  start time, boosting outside a live, refunds of a running card, an admin UI.
+
+### 10.35 Newcomers «الجدد» *(v1.34-live, DRAFT — D154c)*
+
+Owner decisions (2026-10-28, D154 item 13) are marked *(owner)*.
+
+- **Who is a newcomer** *(owner: 30 days, was 7)*: a user whose account is younger than server config
+  `NEWCOMER_DAYS` (default **30**, 1–365). The signup date itself is **never** sent anywhere.
+- **The badge** *(owner: «جديد 🌱» next to their name in chat for 30 days, visible to all)*:
+  `LiveChatAuthorBadges.newcomer` (§10.11), on send, list and the `chat` data message, cached like the
+  other badges (up to 30 s). **App:** a small «جديد 🌱» / "New 🌱" chip after the author's name.
+- **The list** *(owner: visible to host + moderators)*: `listLiveNewcomers` (`GET
+  /live/rooms/{roomId}/newcomers`) → `{newcomerDays, data: [UserSummary]}`: the signed-in people in the
+  live's media session now (CP-010) who are newcomers, the most recent arrivals first, at most 100,
+  never the host, never someone in a block either way with the caller. Checks: 401, 404, 409
+  `LIVE_ROOM_ENDED`, 403 `AUTH_FORBIDDEN` (not the host or a moderator).
+- **«رحّب» / Welcome** *(owner: a ready welcome line mentioning them, rate-limited)*: the app sends an
+  ordinary chat message (`sendLiveChatMessage`, §10.11 — its limits, blocked words and muting apply)
+  with the ready text «أهلاً @username 🌱 نوّرت البث» / "Welcome @username 🌱 glad you're here"; it
+  offers it once per person per live on that phone. No new write operation.
+- **Not in v1.34-live:** newcomer statistics, automatic welcomes, a newcomer badge outside the live chat.
+
+### 10.36 The host's data center «مركز البيانات» *(v1.35-live, DRAFT — D154d)*
+
+Owner decisions (2026-10-28, D154 item 14) are marked *(owner)*.
+
+- **(a) End of a live** *(owner: duration, peak, total viewers, new followers, gifts count + coin value,
+  top 3 supporters)*: `getLiveRoomStats` (§10.31) already answered all but the value; v1.35-live adds
+  `giftCoins` (Σ `totalCoins` of the live's sends) and `earningsCoins` (the host's share of the gifts
+  **they** received: Σ floor(recipient coins × the send's `host_share_bps` / 10 000), §10.33 — quips 50 %,
+  other gifts 65 %, lucky 10 %; display only, payouts are D149). The app's end screen shows both.
+- **(b) The data center** *(owner: DAY / WEEK / MONTH / YEAR; live hours, earnings, follower growth,
+  best hours, simple charts)*: `getMyLiveStats` (`GET /live/stats/me?period=DAY|WEEK|MONTH|YEAR`, the
+  caller's own lives only; 400 `period` otherwise). Periods in `LIVE_RANKINGS_TIME_ZONE`: DAY = today by
+  hour; WEEK = the last 7 days by day; MONTH = the last 30 days by day; YEAR = the last 12 months by month
+  (each from the start of its first bucket to now). `totals` = `{lives, liveSeconds, giftCount, giftCoins,
+  earningsCoins, newFollowers, uniqueViewers, peakViewers}`; `series` = one bucket per hour / day / month
+  `{start (local "YYYY-MM-DDTHH:mm"), liveSeconds, earningsCoins, newFollowers}`; `heatmap` = the non-empty
+  cells of lives started per ISO weekday × hour `{weekday, hour, lives, viewers}` (the best hours). Lives
+  count by their **start**; follows by when they were made (ACTIVE followers; an unfollow removes the row).
+  The live running now counts once it ends.
+- **Storage** *(owner: persist a per-live summary at the end)*: `live_summaries`, one row per ended live
+  written **once** by a summariser (the live sweeper's interval, 200 a batch, and the caller's own lives
+  before each read) — so every end path (the host, the heartbeat timeout, a suspension, an admin) and
+  lives from before v1.35-live are covered without hooking each one. The rows are never changed. The
+  owner's "daily rollups for the year" are not a separate table: a host's year is at most a few thousand
+  summary rows, aggregated per read with the `(host, started_at)` index.
+- **Not in v1.35-live:** a live in progress in the periods, other hosts' data, exports, payouts (D149).
+
+### 10.37 A live's program «قائمة البرامج» *(v1.36-live, DRAFT — D154e)*
+
+Owner decisions (2026-10-28, D154 item 10) are marked *(owner)*. Separate from the live schedule
+(§10.16), which plans future lives.
+
+- **What** *(owner: up to 10 segments, time + title, for the current live)*: `setLiveProgram`
+  (`PUT /live/rooms/{roomId}/program`, `{"items": [{"startsAt", "title"}]}`) — the host of a LIVE room
+  replaces the whole program (`[]` clears it). Checks: 401, 404, 403 `AUTH_FORBIDDEN` (not the host), 409
+  `LIVE_ROOM_ENDED`, 400 (≤ 10 → `items` / `too_many`; titles 1–60 code points after the §6 hygiene, no
+  line break → `required` / `too_long` / `invalid_format` on `items.N.title`; `startsAt` strictly
+  ascending, from one minute before the live's start to 24 h after it → `items` / `invalid_value`).
+  Titles are masked with the host's blocked words *(owner: through the blocked-words filter)*, like
+  chat (§10.14). Stored in `live_program_items`; a segment that keeps its start and title keeps its
+  announcement.
+- **Reading** *(owner: viewers see a compact card, current highlighted; persists with the live, late
+  joiners see it)*: `getLiveProgram` (`GET …/program`, anyone who can see the room, guests too, also
+  after the end) → `LiveProgram` `{roomId, items: [{position, startsAt, title}], current}` — `current`
+  is the last segment started while the live is on, else null.
+- **Announcements** *(owner: server-timed; honest if the host ends early)*: every change goes to the
+  room as `{"type":"program","program":LiveProgram}` on topic **`program`**; when a segment starts the
+  server sends `{"type":"program-segment","item":LiveProgramItem}` once (a job on the live sweeper's
+  interval, safe on several instances). Nothing is sent for a live that ended (its remaining segments
+  are simply never announced), and a segment first seen more than 10 minutes after its start is marked
+  without a message.
+- **App:** the host edits it from Room Tools «قائمة البرامج»; everyone sees a small card under the room's
+  header with the segment on now and the next one (a tap opens the whole list) and, when a segment
+  starts, the card says «بدأت الفقرة: …» for a few seconds.
+- **Not in v1.36-live:** reminders before a segment, segments in the live list, segment lengths.
+
+### 10.38 Stickers on a live «ملصقات» *(v1.37-live, DRAFT — D154h)*
+
+Owner decisions (2026-10-28, D154 item 3) are marked *(owner)*.
+
+- **What** *(owner: Kabi stickers + free text, at most 3 at once; the host drags, scales, rotates;
+  everyone sees them)*: `setLiveStickers` (`PUT /live/rooms/{roomId}/stickers`, `{"items": [...]}`) —
+  the host of a LIVE room replaces all its stickers (`[]` clears them; a move sends them again with
+  their `id`, which they keep). Each is exactly one of `artKey` (from the catalogue) and `text` (1–40
+  code points after the §6 hygiene, one line, masked with the host's blocked words *(owner: through the
+  blocked-words filter)*), with `x`, `y` in 0–1 — the sticker's centre relative to the picture, so it
+  lands in the same place on every screen *(owner: positions normalised)* — `scale` 0.25–4 and
+  `rotation` −π–π radians. The order is the drawing order (the last on top). Checks: 401, 404, 403
+  `AUTH_FORBIDDEN`, 409 `LIVE_ROOM_ENDED`, 400 (`items` / `too_many`; `items.N.artKey` /
+  `invalid_value`; `items.N.text` / `required` / `too_long` / `invalid_format`; `items.N.x` … range;
+  an `id` twice → `items` / `invalid_value`). Rate: the taps rule (`RATE_LIMIT_LIVE_TAPS_USER`,
+  bucket `live:stickers`), enough for drags sent when a gesture ends.
+- **Reading** *(owner: late joiners get the current state)*: `getLiveStickers` (`GET …/stickers`,
+  anyone who can see the room, guests too; `[]` once the live ended). Every change also goes to the
+  room as `{"type":"stickers","stickers":LiveStickers}` on topic **`sticker`**.
+- **Catalogue** *(owner: admins can add sticker packs later)*: `listLiveStickerArt` (`GET
+  /live/stickers`) — the built-in Kabi pack (the app's own animated art, in the code), then the
+  enabled rows of `live_sticker_art` that admins add (SQL for now; an admin screen later). An app
+  shows only art it can draw; a sticker of unknown art is skipped on that phone.
+- **Not in v1.37-live:** paid stickers *(owner: not now)*, viewers' stickers, uploaded images.
+
+### 10.39 YouTube watch-together «يوتيوب» *(v1.38-live, DRAFT — D154i)*
+
+Owner decisions (2026-10-28, D154 item 9) are marked *(owner)*.
+
+- **Playback** *(owner: the official YouTube embedded player only, per YouTube's terms; each phone
+  streams from YouTube; the server only relays the sync state)*: no video passes through Kabso. The
+  state is `LiveWatch` — `video` (`LiveWatchVideo`: id, title, channel, thumbnail) or null,
+  `playing`, `positionMs` at `updatedAt`, `serverTime` (to place the position on a phone whose clock
+  differs) and `searchEnabled`. A phone plays from `positionMs + (serverTime − updatedAt)` plus the
+  time since it received the state, while `playing`; it seeks when it drifts more than 2 s.
+- **The host** (`setLiveWatch`, `PUT /live/rooms/{roomId}/watch`): sends the player state on every
+  play, pause and seek and every 15 s while playing (the taps rule, bucket `live:watch`). `video` is
+  an 11-character id or a YouTube link (watch, youtu.be, shorts, embed, live, music, mobile); the
+  server asks YouTube (oEmbed) for its title and whether it may be embedded — 422
+  `YOUTUBE_VIDEO_UNAVAILABLE` otherwise *(owner: non-embeddable videos → an honest message)*. Null
+  stops watching. Every change reaches the room as `{"type":"watch","watch":LiveWatch}` on topic
+  **`watch`**; late joiners read `getLiveWatch` (guests too; no video once the live ended).
+- **Suggestions** *(owner: viewers suggest by link or search; the host approves or rejects; one per
+  60 s per viewer; titles through the blocked-words filter)*: `suggestLiveWatch` → `PENDING` (the room
+  gets `{"type":"watch-suggestion","suggestion":LiveWatchSuggestion}`; the host's app lists it, the
+  others ignore it); `listLiveWatchSuggestions` (host, oldest first, ≤ 50);
+  `decideLiveWatchSuggestion` `{approve}` — approve plays it from the start, reject turns it down.
+  Titles (the host's and the suggestions') are masked with the host's blocked words.
+- **Search** *(owner: a server-side YouTube Data API key; no key → paste a link, search «غير مفعّل
+  بعد»)*: `searchYoutube` (`GET /live/youtube/search?q=`, signed in) — embeddable videos, safe search
+  moderate, 10 results, cached 10 min per query (the free quota is about 100 searches a day); 503
+  `YOUTUBE_SEARCH_UNAVAILABLE` without `YOUTUBE_API_KEY` or when YouTube fails. The key is a server
+  secret, never in the app or in git.
+- **Not in v1.38-live:** a queue of several videos, viewers' own controls, YouTube Shorts' vertical
+  layout.
+
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 
 Additive; no earlier rule changes. Reels and video (M2), stories (M3), notifications (M4),
@@ -2607,7 +2855,14 @@ configuration (`DM_*`).
   `GIFT_DM_RECIPIENT_SHARE_PERCENT` (owner: **50 %**) of the gift's coin value; the sender's
   support (and Wizard for lucky) count as in a live. **Exception — lucky gifts keep the lucky host
   share (`LUCKY_GIFT_HOST_SHARE_PERCENT`, 10 %)**: the lucky return is 85 % and 85 % + 50 % would
-  give back more than was spent. No coins are credited to the recipient (as in a live: a share is
+  give back more than was spent. In a conversation this share **replaces** the category's live
+  share of §10.33 (`GIFT_HOST_SHARE_PERCENTS`): a paid quip, like any non-lucky gift, counts
+  `GIFT_DM_RECIPIENT_SHARE_PERCENT`, and the send stores it as `live_gifts.host_share_bps` (lucky:
+  the lucky share). **Quips** *(merge with v1.32-live, D154)*: a paid quip is sent as in a live
+  (`COINS`, quantity 1, else 400 `VALIDATION_FAILED`) without a room's queue (nothing plays for a
+  room; the message shows it); a **free quip** (price 0) is the one free quip of a live and cannot
+  be sent in a conversation — 409 `GIFT_UNAVAILABLE`, nothing charged or stored (the app does not
+  offer it there). No coins are credited to the recipient (as in a live: a share is
   counted points, not coins). The gift shows as a `GIFT` message (icon, name from the catalogue,
   ×quantity, the lucky win). It follows every message rule above: the privacy setting, blocks, and
   a stranger's gift is a **request message** (it counts towards the 3, and the coins are spent even

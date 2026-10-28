@@ -16,6 +16,7 @@ import 'package:kabso_live/features/auth/presentation/country_picker.dart';
 import 'package:kabso_live/features/live/application/home_banners_provider.dart';
 import 'package:kabso_live/features/live/application/live_room_swipe.dart';
 import 'package:kabso_live/features/live/application/live_rooms_provider.dart';
+import 'package:kabso_live/features/live/data/live_boost_repository.dart';
 import 'package:kabso_live/features/live/domain/home_banner.dart';
 import 'package:kabso_live/features/live/domain/home_banner_link.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
@@ -328,6 +329,23 @@ class LiveRoomsPage extends ConsumerWidget {
               FeedTab.latest => LiveListKind.explore,
             });
 
+  /// D154b: the lives in a paid «مميز» slot (traffic cards) go first in the
+  /// main lists (Popular and Explore, every category, not Following, Nearby
+  /// or Featured), those of this list's kind only.
+  List<LiveRoomSummary> _pinned(WidgetRef ref) {
+    if (query.nearby ||
+        query.featured ||
+        query.category != null ||
+        query.tab == FeedTab.following) {
+      return const [];
+    }
+    final boosted = ref.watch(liveBoostedRoomsProvider).value ?? const [];
+    return [
+      for (final b in boosted)
+        if (query.kind.includes(b.room.mode)) b.room,
+    ];
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final provider = liveRoomsProvider(query);
@@ -344,7 +362,7 @@ class LiveRoomsPage extends ConsumerWidget {
       voice: query.kind == LiveRoomsKind.audio,
       layout: layout,
       header: header,
-      content: liveHubContent(async),
+      content: liveHubContent(async, pinned: _pinned(ref)),
       countryNotSet: hub?.countryNotSet ?? false,
       countryName: country == null
           ? null
@@ -358,7 +376,10 @@ class LiveRoomsPage extends ConsumerWidget {
           : () => select(const LiveHubSelection(filter: LiveHubFilter.explore)),
       onRefresh: () {
         // The banners reload with the list (a failure there shows none).
-        ref.invalidate(homeBannersProvider);
+        ref
+          ..invalidate(homeBannersProvider)
+          // D154b: and the featured slots.
+          ..invalidate(liveBoostedRoomsProvider);
         return controller.refresh();
       },
       onRetry: controller.retry,
@@ -388,8 +409,9 @@ class LiveRoomsPage extends ConsumerWidget {
 /// empty or failed) is loading: its old empty or unavailable state is not
 /// shown while the new request runs.
 AsyncValue<FeedLoad<LiveRoomCardData>> liveHubContent(
-  AsyncValue<LiveHubState> async,
-) => switch (async) {
+  AsyncValue<LiveHubState> async, {
+  List<LiveRoomSummary> pinned = const [],
+}) => switch (async) {
   AsyncValue(:final error?, :final stackTrace, isLoading: false) => AsyncError(
     error,
     stackTrace ?? StackTrace.empty,
@@ -405,7 +427,14 @@ AsyncValue<FeedLoad<LiveRoomCardData>> liveHubContent(
   ),
   AsyncValue(value: final LiveHubState hub) => AsyncData(
     FeedItems(
-      [for (final room in hub.rooms) LiveRoomCardData.fromSummary(room)],
+      [
+        // D154b: the «مميز» lives first, then the list without them.
+        for (final room in pinned)
+          LiveRoomCardData.fromSummary(room, featured: true),
+        for (final room in hub.rooms)
+          if (!pinned.any((p) => p.id == room.id))
+            LiveRoomCardData.fromSummary(room),
+      ],
       hasMore: hub.hasMore,
       loadingMore: hub.loadingMore,
       loadMoreError: hub.loadMoreError,

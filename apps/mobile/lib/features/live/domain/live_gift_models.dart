@@ -23,7 +23,12 @@ enum GiftCategory {
 
   /// v1.27-live (D132, §10.27): lucky gifts (listed only while they are on).
   @JsonValue('LUCKY')
-  lucky('LUCKY');
+  lucky('LUCKY'),
+
+  /// v1.32-live (D154, §10.33): «إفيهات» quips — a sound (and its line)
+  /// played to the whole room, one at a time.
+  @JsonValue('QUIPS')
+  quips('QUIPS');
 
   new(this.wire);
 
@@ -62,6 +67,20 @@ abstract class GiftTag with _$GiftTag {
   factory fromJson(Map<String, dynamic> json) => _$GiftTagFromJson(json);
 }
 
+/// `GiftQuip` (v1.32-live, D154, §10.33): a QUIPS gift's bundled sound
+/// ([soundKey] under `assets/sounds/quips/`), its length and its words
+/// (null: a sound without words).
+@freezed
+abstract class GiftQuip with _$GiftQuip {
+  const factory({
+    required String soundKey,
+    required int durationMs,
+    String? text,
+  }) = _GiftQuip;
+
+  factory fromJson(Map<String, dynamic> json) => _$GiftQuipFromJson(json);
+}
+
 /// `Gift`: one gift of the catalogue. [name] follows the app language;
 /// [assetKey] / [animationKey] name the app's bundled files, [imageUrl] /
 /// [animationUrl] the art hosted on the server (D126), which wins.
@@ -88,6 +107,9 @@ abstract class Gift with _$Gift {
 
     /// [animationUrl]'s size in bytes (whether to prefetch it), or null.
     int? animationBytes,
+
+    /// v1.32-live (D154): a quip's sound and words; null for other gifts.
+    GiftQuip? quip,
   }) = _Gift;
 
   factory fromJson(Map<String, dynamic> json) => _$GiftFromJson(json);
@@ -199,9 +221,45 @@ abstract class LiveGiftResult with _$LiveGiftResult {
 
     /// v1.27-live (D132): the draws of a LUCKY send (absent otherwise).
     LuckyGiftResult? luckyResult,
+
+    /// v1.32-live (D154): a quip's place in the room's queue (absent
+    /// otherwise, and for a retry).
+    LiveQuip? quip,
   }) = _LiveGiftResult;
 
   factory fromJson(Map<String, dynamic> json) => _$LiveGiftResultFromJson(json);
+}
+
+/// `LiveQuipKind`: sent from the gift panel, or the host's or a
+/// moderator's soundboard.
+enum LiveQuipKind {
+  @JsonValue('GIFT')
+  gift,
+  @JsonValue('SOUNDBOARD')
+  soundboard,
+}
+
+/// `LiveQuip` (v1.32-live, D154, §10.33): one sound for the whole room, as
+/// the `quip` data message (topic `quip`) and the send's answer carry it.
+/// Every app plays it [delayMs] after it receives it (the room's one
+/// queue), with [text] as a chat bubble for [durationMs].
+@freezed
+abstract class LiveQuip with _$LiveQuip {
+  const factory({
+    required String id,
+    required String roomId,
+    @JsonKey(unknownEnumValue: LiveQuipKind.gift) required LiveQuipKind kind,
+    required String giftCode,
+    required String soundKey,
+    required int durationMs,
+    required bool free,
+    required UserSummary sender,
+    required int delayMs,
+    required DateTime createdAt,
+    String? text,
+  }) = _LiveQuip;
+
+  factory fromJson(Map<String, dynamic> json) => _$LiveQuipFromJson(json);
 }
 
 /// `LuckyGiftWin` (v1.27-live, D132): the draws of one send that paid one

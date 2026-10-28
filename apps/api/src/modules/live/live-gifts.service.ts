@@ -47,6 +47,8 @@ import {
 } from './live-rooms.service.js';
 import { POINTS_PER_SUPPORT_COIN } from './live-taps.js';
 import { liveGiftSendSchema } from './live.schemas.js';
+import { quipSlot } from '../gifts/quips.js';
+import { LiveQuipsService, type LiveQuipDto } from './live-quips.service.js';
 import { LIVE_MEDIA_PROVIDER, type LiveMediaProvider } from './media/live-media.provider.js';
 
 // ---- Response shapes (openapi v1.23-live, CP-020) ----------------------------------------------
@@ -93,6 +95,8 @@ export interface LiveGiftResultDto {
   bagQuantity: number;
   /** v1.27-live (D132): only for a LUCKY gift. */
   luckyResult?: LuckyGiftResultDto;
+  /** v1.32-live (D154): only for a QUIPS gift — its place in the room's queue. */
+  quip?: LiveQuipDto;
 }
 
 export type { LuckyWinDto } from './live-lucky-ticker.service.js';
@@ -127,6 +131,10 @@ interface SendState {
   family_id: string | null;
   replay: boolean | null;
   losses: number | null;
+  quip_busy_until: Date | null;
+  sound_key: string | null;
+  sound_ms: number | null;
+  quip_text: string | null;
 }
 
 /** A send with this clientId was stored while this one waited for the sender's lock. */
@@ -202,6 +210,7 @@ export class LiveGiftsService {
     private readonly limiter: RateLimitService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     private readonly ticker: LiveLuckyTickerService,
+    private readonly quips: LiveQuipsService,
   ) {}
 
   /** D148: the tail of each sender's queue of sends in this process. */
@@ -273,6 +282,14 @@ export class LiveGiftsService {
     if (!gift?.enabled) throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
     // v1.27-live (D132, §10.27): a lucky gift — on, paid with coins, the caller's region and 18+.
     const isLucky = gift.category === 'LUCKY';
+    // v1.32-live (D154, §10.33): a quip — paid with coins (or free), one at a time.
+    const isQuip = gift.category === 'QUIPS';
+    if (isQuip) {
+      if (input.source !== 'COINS')
+        throw AppException.validation([{ field: 'source', issue: 'invalid_value' }]);
+      if (input.quantity !== 1)
+        throw AppException.validation([{ field: 'quantity', issue: 'invalid_value' }]);
+    }
     // D145c (§7): a lucky streak (MAX X) has its own burst limit; normal gifts keep theirs. A retry
     // with the same clientId was answered above and is not counted here.
     await this.limiter.consume(
@@ -299,12 +316,16 @@ export class LiveGiftsService {
     const draws = input.quantity * to.length;
     const winners = isLucky ? this.lucky.draw(draws) : null;
     const table = this.lucky.table;
+    // v1.32-live (D154): the recipients' earnings share of this send, fixed now (§10.33).
+    const hostShareBps =
+      gift.category === 'LUCKY' ? table.hostShareBps : this.config.gifts.hostShareBps[gift.category];
     let created: {
       dto: LiveGiftDto;
       coins: number | null;
       bagQuantity: number | null;
       hostLevelChanged: boolean;
       luckyResult: LuckyGiftResultDto | null;
+      quip: LiveQuipDto | null;
     };
     try {
       // D148: one transaction per sender at a time in this process too (FIFO), so a burst of one
@@ -341,10 +362,11 @@ export class LiveGiftsService {
                  fm.family_id::text AS family_id,
                  (SELECT true FROM live_gifts d
                    WHERE d.sender_id = ${callerId}::uuid AND d.client_id = ${clientId}::uuid) AS replay,
-                 (SELECT losses FROM lucky_gift_pity WHERE user_id = ${callerId}::uuid) AS losses
-            FROM (SELECT id, host_user_id, status, wish_gifts FROM live_rooms
+                 (SELECT losses FROM lucky_gift_pity WHERE user_id = ${callerId}::uuid) AS losses,
+                 r.quip_busy_until, g.sound_key, g.sound_ms, g.quip_text
+            FROM (SELECT id, host_user_id, status, wish_gifts, quip_busy_until FROM live_rooms
                    WHERE id = ${row.id}::uuid FOR NO KEY UPDATE) r
-            LEFT JOIN LATERAL (SELECT price_coins, enabled, category FROM gifts
+            LEFT JOIN LATERAL (SELECT price_coins, enabled, category, sound_key, sound_ms, quip_text FROM gifts
                                 WHERE code = ${gift.code} AND r.id IS NOT NULL FOR SHARE) g ON true
             LEFT JOIN LATERAL (SELECT gift_code, recipients_key, combo_id, combo_count, combo_quantity, created_at
                                  FROM live_gifts
@@ -364,7 +386,18 @@ export class LiveGiftsService {
             throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
           // The category was checked before the transaction (lucky gates); a change since → refused.
           if ((state.category === 'LUCKY') !== isLucky) throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
+          if ((state.category === 'QUIPS') !== isQuip) throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
           const unitPrice = state.price_coins;
+          // v1.32-live (D154, §10.33): a quip takes the next slot of the room's one queue (the room row
+          // is locked); a free one (price 0) is the sender's one free quip of this live.
+          const freeQuip = isQuip && unitPrice === 0;
+          let slot: ReturnType<typeof quipSlot> = null;
+          if (isQuip) {
+            if (state.sound_key === null || state.sound_ms === null)
+              throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
+            slot = quipSlot(now, state.quip_busy_until, state.sound_ms, this.quips.maxWaitMs);
+            if (!slot) throw new AppException(ErrorCode.QUIP_QUEUE_FULL);
+          }
           const amounts = giftAmounts(unitPrice, input.quantity, to.length);
           // v1.27-live (D132): a lucky gift counts its host share (10 %) for everyone but the sender's
           // Wizard level (CP-005: the value of lucky gifts sent).
@@ -415,18 +448,30 @@ export class LiveGiftsService {
           const ledgerId = uuidv7();
           const familyCoins = isLucky ? counted.supportCoins : amounts.totalCoins;
           const family = isCoins && state.family_id !== null && familyCoins > 0 ? state.family_id : null;
+          // A free quip charges nothing (no wallet row needed) and counts for nothing.
+          const charged = isCoins && amounts.totalCoins > 0;
           const [written] = await tx.$queryRaw<
-            { coins: bigint | null; family_points: bigint | null; family_level: number | null }[]
+            {
+              coins: bigint | null;
+              family_points: bigint | null;
+              family_level: number | null;
+              free_quips: number;
+            }[]
           >`
           WITH sent AS (
             INSERT INTO live_gifts (id, sender_id, client_id, room_id, gift_code, quantity, source, unit_price,
                                     total_coins, coins_charged, recipients_key, combo_id, combo_count,
-                                    combo_quantity, created_at)
+                                    combo_quantity, host_share_bps, created_at)
             VALUES (${giftId}::uuid, ${callerId}::uuid, ${clientId}::uuid, ${row.id}::uuid, ${gift.code},
                     ${input.quantity}, ${input.source}::live_gift_source, ${unitPrice}, ${amounts.totalCoins},
                     ${isCoins ? amounts.totalCoins : 0}, ${key}, ${combo.id}::uuid, ${combo.count},
-                    ${combo.quantity}, ${at}::timestamptz)
+                    ${combo.quantity}, ${hostShareBps}, ${at}::timestamptz)
             RETURNING id),
+          free_quip AS (
+            INSERT INTO live_free_quips (room_id, user_id, gift_id, created_at)
+            SELECT ${row.id}::uuid, ${callerId}::uuid, sent.id, ${at}::timestamptz FROM sent WHERE ${freeQuip}
+            ON CONFLICT (room_id, user_id) DO NOTHING
+            RETURNING 1),
           recipients AS (
             INSERT INTO live_gift_recipients (gift_id, user_id, position, coins)
             SELECT sent.id, t.user_id, (t.ord - 1)::smallint, ${amounts.perRecipientCoins}
@@ -434,7 +479,7 @@ export class LiveGiftsService {
             RETURNING 1),
           debit AS (
             UPDATE wallets SET coins = coins - ${amounts.totalCoins}, updated_at = now()
-             WHERE ${isCoins} AND user_id = ${callerId}::uuid AND coins >= ${amounts.totalCoins}
+             WHERE ${charged} AND user_id = ${callerId}::uuid AND coins >= ${amounts.totalCoins}
             RETURNING coins),
           ledger AS (
             INSERT INTO wallet_ledger (id, user_id, delta, balance_after, reason, reference_id, created_at)
@@ -459,7 +504,7 @@ export class LiveGiftsService {
             RETURNING points, level),
           score AS (
             INSERT INTO live_room_scores (room_id, tap_points, support_points, updated_at)
-            VALUES (${row.id}::uuid, 0, ${counted.scorePoints}, ${at}::timestamptz)
+            SELECT ${row.id}::uuid, 0, ${counted.scorePoints}, ${at}::timestamptz WHERE NOT ${freeQuip}
             ON CONFLICT (room_id) DO UPDATE
                SET support_points = live_room_scores.support_points + EXCLUDED.support_points,
                    updated_at = EXCLUDED.updated_at
@@ -469,19 +514,23 @@ export class LiveGiftsService {
                SET score = score + ${counted.scorePoints},
                    info_version = info_version + ${wished ? 1 : 0},
                    updated_at = CASE WHEN ${wished} THEN now() ELSE updated_at END,
-                   seats_version = seats_version + ${others.length > 0 ? 1 : 0}
+                   seats_version = seats_version + ${others.length > 0 && !freeQuip ? 1 : 0},
+                   quip_busy_until = CASE WHEN ${slot !== null} THEN ${slot?.busyUntil.toISOString() ?? null}::timestamptz
+                                          ELSE quip_busy_until END
              WHERE id = ${row.id}::uuid
             RETURNING 1),
           host_points AS (
             INSERT INTO live_host_points_hourly (host_user_id, hour_start, points)
-            VALUES (${state.host_user_id}::uuid, date_trunc('hour', ${at}::timestamptz), ${counted.scorePoints})
+            SELECT ${state.host_user_id}::uuid, date_trunc('hour', ${at}::timestamptz), ${counted.scorePoints}
+             WHERE NOT ${freeQuip}
             ON CONFLICT (host_user_id, hour_start) DO UPDATE
                SET points = live_host_points_hourly.points + EXCLUDED.points
             RETURNING 1),
           tapper AS (
             INSERT INTO live_room_tappers (room_id, user_id, counted, last_batch_at, support_coins, points, points_at)
-            VALUES (${row.id}::uuid, ${callerId}::uuid, 0, NULL, ${counted.supportCoins}, ${counted.scorePoints},
-                    ${at}::timestamptz)
+            SELECT ${row.id}::uuid, ${callerId}::uuid, 0, NULL, ${counted.supportCoins}, ${counted.scorePoints},
+                   ${at}::timestamptz
+             WHERE NOT ${freeQuip}
             ON CONFLICT (room_id, user_id) DO UPDATE
                SET support_coins = live_room_tappers.support_coins + EXCLUDED.support_coins,
                    points = live_room_tappers.points + EXCLUDED.points,
@@ -490,12 +539,15 @@ export class LiveGiftsService {
           SELECT (SELECT coins FROM debit) AS coins,
                  (SELECT points FROM family_row) AS family_points,
                  (SELECT level FROM family_row) AS family_level,
+                 (SELECT count(*) FROM free_quip)::int AS free_quips,
                  (SELECT count(*) FROM recipients) + (SELECT count(*) FROM family_member)
                    + (SELECT count(*) FROM score) + (SELECT count(*) FROM room) + (SELECT count(*) FROM host_points)
                    + (SELECT count(*) FROM tapper) AS rows`;
-          if (isCoins && (written?.coins ?? null) === null)
+          if (charged && (written?.coins ?? null) === null)
             throw new AppException(ErrorCode.INSUFFICIENT_COINS);
-          let coins: number | null = isCoins ? Number(written!.coins) : null;
+          // v1.32-live (D154): the sender's free quip of this live was already used → nothing is kept.
+          if (freeQuip && written?.free_quips !== 1) throw new AppException(ErrorCode.QUIP_FREE_USED);
+          let coins: number | null = charged ? Number(written!.coins) : null;
           if (written?.family_points !== null && written?.family_points !== undefined && family !== null) {
             const level = familyLevelFor(written.family_points);
             if (level !== written.family_level) {
@@ -503,16 +555,19 @@ export class LiveGiftsService {
             }
           }
 
-          // Levels: the recipients' charm and the sender's support (and Wizard for lucky gifts).
-          const hostLevelChanged = await this.creditLevels(tx, {
-            giftId,
-            senderId: callerId,
-            hostId: state.host_user_id,
-            recipients: to,
-            perRecipientCoins: amounts.perRecipientCoins,
-            lucky: isLucky,
-            countedPerRecipientCoins: counted.perRecipientCoins,
-          });
+          // Levels: the recipients' charm and the sender's support (and Wizard for lucky gifts); a free
+          // quip is worth nothing.
+          const hostLevelChanged =
+            !freeQuip &&
+            (await this.creditLevels(tx, {
+              giftId,
+              senderId: callerId,
+              hostId: state.host_user_id,
+              recipients: to,
+              perRecipientCoins: amounts.perRecipientCoins,
+              lucky: isLucky,
+              countedPerRecipientCoins: counted.perRecipientCoins,
+            }));
           if (hostLevelChanged && !wished) {
             await tx.$executeRaw`
             UPDATE live_rooms SET info_version = info_version + 1, updated_at = now()
@@ -555,7 +610,24 @@ export class LiveGiftsService {
             combo: { id: combo.id, count: combo.count, quantity: Number(combo.quantity) },
             createdAt: at,
           };
-          return { dto, coins, bagQuantity, hostLevelChanged, luckyResult };
+          const quip: LiveQuipDto | null =
+            slot === null
+              ? null
+              : {
+                  id: giftId,
+                  roomId: row.id,
+                  kind: 'GIFT',
+                  giftCode: gift.code,
+                  soundKey: state.sound_key!,
+                  durationMs: state.sound_ms!,
+                  text: state.quip_text,
+                  free: freeQuip,
+                  sender: dto.sender,
+                  startsAt: slot.startsAt.toISOString(),
+                  delayMs: slot.delayMs,
+                  createdAt: at,
+                };
+          return { dto, coins, bagQuantity, hostLevelChanged, luckyResult, quip };
         }, LIVE_TX_OPTIONS),
       );
     } catch (err) {
@@ -568,9 +640,17 @@ export class LiveGiftsService {
     }
 
     const dto = created.dto;
-    this.background.run('live gift data message', async () => {
-      await this.broadcast(row.id, { type: 'gift', gift: dto });
-    });
+    const quip = created.quip;
+    if (quip) {
+      // v1.32-live (D154): a quip is heard, not shown as a gift effect: only the `quip` message.
+      this.background.run('live quip data message', async () => {
+        await this.quips.broadcast(quip);
+      });
+    } else {
+      this.background.run('live gift data message', async () => {
+        await this.broadcast(row.id, { type: 'gift', gift: dto });
+      });
+    }
     const luckyResult = created.luckyResult;
     if (
       luckyResult &&
@@ -603,6 +683,7 @@ export class LiveGiftsService {
         coins: created.coins ?? (await this.wallet.mine(callerId)).coins,
         bagQuantity: created.bagQuantity ?? (await stockOf(this.prisma, callerId, dto.giftCode)),
         ...(luckyResult ? { luckyResult } : {}),
+        ...(quip ? { quip } : {}),
       },
     };
   }
@@ -615,7 +696,12 @@ export class LiveGiftsService {
    * draws (guarantee and daily protection) and the level credits — the recipient's charm counts
    * `GIFT_DM_RECIPIENT_SHARE_PERCENT` of the value (lucky: the lucky host share), the sender's
    * support the full value (lucky: as in a live). No score, Contribution, wish list, data message
-   * or ticker. The caller (the messages module) checked the recipient, blocks, privacy and the
+   * or ticker. That share is also the send's stored `host_share_bps` (v1.32-live, D154): in a
+   * conversation the DM share replaces the category's live share (`GIFT_HOST_SHARE_PERCENTS`; a
+   * quip's 50 % and a normal gift's 65 % both become the DM share), lucky keeps its own. A paid
+   * quip (v1.32-live, §10.33) is sent like in a live — `COINS`, quantity 1 — without the room's
+   * queue; a free quip (price 0, the one free quip of a live) cannot be sent in a conversation
+   * (`GIFT_UNAVAILABLE`, D155 × D154 merge). The caller (the messages module) checked the recipient, blocks, privacy and the
    * request rules before; `hooks.before` runs first inside the transaction (after the sender's
    * lock: it locks the pair, checks again and returns the conversation id) and `hooks.after` last
    * (it writes the gift message). A refusal in either rolls everything back. Retries are answered
@@ -638,6 +724,16 @@ export class LiveGiftsService {
     const gift = await this.prisma.gift.findUnique({ where: { code: input.giftCode } });
     if (!gift?.enabled) throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
     const isLucky = gift.category === 'LUCKY';
+    // v1.32-live (D154, §10.33) in a conversation: a paid quip, COINS and one at a time (as in a
+    // live); the free quip belongs to a live (one per viewer per live) and is refused here.
+    const isQuip = gift.category === 'QUIPS';
+    if (isQuip) {
+      if (gift.priceCoins === 0) throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
+      if (input.source !== 'COINS')
+        throw AppException.validation([{ field: 'source', issue: 'invalid_value' }]);
+      if (input.quantity !== 1)
+        throw AppException.validation([{ field: 'quantity', issue: 'invalid_value' }]);
+    }
     if (isLucky) {
       if (!this.lucky.enabled) throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
       if (input.source !== 'COINS')
@@ -677,8 +773,13 @@ export class LiveGiftsService {
             FROM gifts g WHERE g.code = ${gift.code} FOR SHARE`;
         if (!state?.enabled) throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
         if ((state.category === 'LUCKY') !== isLucky) throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
+        if ((state.category === 'QUIPS') !== isQuip) throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
         const unitPrice = state.price_coins;
+        // A quip made free since the check above: still refused (no free sends in a conversation).
+        if (unitPrice === 0) throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
         const amounts = giftAmounts(unitPrice, input.quantity, 1);
+        // The recipient's share (charm, and the stored host_share_bps): the DM share for every
+        // non-lucky category (quips included), the lucky host share for a lucky gift.
         const shareBps = isLucky ? table.hostShareBps : this.config.dm.giftRecipientSharePercent * 100;
         const charmCoins = shareOf(amounts.perRecipientCoins, shareBps);
         let bagQuantity: number | null = null;
@@ -694,11 +795,11 @@ export class LiveGiftsService {
           WITH sent AS (
             INSERT INTO live_gifts (id, sender_id, client_id, room_id, dm_conversation_id, gift_code, quantity,
                                     source, unit_price, total_coins, coins_charged, recipients_key, combo_id,
-                                    combo_count, combo_quantity, created_at)
+                                    combo_count, combo_quantity, host_share_bps, created_at)
             VALUES (${giftId}::uuid, ${callerId}::uuid, ${clientId}::uuid, NULL, ${conversationId}::uuid,
                     ${gift.code}, ${input.quantity}, ${input.source}::live_gift_source, ${unitPrice},
                     ${amounts.totalCoins}, ${isCoins ? amounts.totalCoins : 0}, ${recipientsKey([recipientId])},
-                    ${giftId}::uuid, 1, ${input.quantity}, ${at}::timestamptz)
+                    ${giftId}::uuid, 1, ${input.quantity}, ${shareBps}, ${at}::timestamptz)
             RETURNING id),
           recipients AS (
             INSERT INTO live_gift_recipients (gift_id, user_id, position, coins)

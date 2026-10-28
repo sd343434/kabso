@@ -106,6 +106,20 @@ export enum ErrorCode {
   CP_TASK_NOT_COMPLETED = 'CP_TASK_NOT_COMPLETED',
   /** v1.24-live (DRAFT, CP-021): the couple has not unlocked the CP privilege this needs. */
   CP_PRIVILEGE_LOCKED = 'CP_PRIVILEGE_LOCKED',
+  /** v1.32-live (DRAFT, D154): the caller already sent their one free quip in this live. */
+  QUIP_FREE_USED = 'QUIP_FREE_USED',
+  /** v1.32-live (DRAFT, D154): the room's quip queue is full (the quip would wait too long). */
+  QUIP_QUEUE_FULL = 'QUIP_QUEUE_FULL',
+  /** v1.33-live (DRAFT, D154b): the traffic card would wait longer than the limit for a slot. */
+  BOOST_QUEUE_FULL = 'BOOST_QUEUE_FULL',
+  /** v1.33-live (DRAFT, D154b): the caller holds no traffic card of that length. */
+  BOOST_CARD_INSUFFICIENT = 'BOOST_CARD_INSUFFICIENT',
+  /** v1.33-live (DRAFT, D154b): this live already has a traffic card running or waiting. */
+  BOOST_ROOM_BUSY = 'BOOST_ROOM_BUSY',
+  /** v1.38-live (DRAFT, D154i): the YouTube video does not exist or may not be played in other apps. */
+  YOUTUBE_VIDEO_UNAVAILABLE = 'YOUTUBE_VIDEO_UNAVAILABLE',
+  /** v1.38-live (DRAFT, D154i): YouTube search is not set up on this server (or YouTube is unreachable). */
+  YOUTUBE_SEARCH_UNAVAILABLE = 'YOUTUBE_SEARCH_UNAVAILABLE',
 }
 
 /** HTTP status for every code (CONVENTIONS.md §4 table). */
@@ -170,6 +184,13 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.GIFT_UNAVAILABLE]: 409,
   [ErrorCode.GIFT_BAG_INSUFFICIENT]: 409,
   [ErrorCode.LIVE_GIFT_RECIPIENT_UNAVAILABLE]: 409,
+  [ErrorCode.QUIP_FREE_USED]: 409,
+  [ErrorCode.QUIP_QUEUE_FULL]: 409,
+  [ErrorCode.BOOST_QUEUE_FULL]: 409,
+  [ErrorCode.BOOST_CARD_INSUFFICIENT]: 409,
+  [ErrorCode.BOOST_ROOM_BUSY]: 409,
+  [ErrorCode.YOUTUBE_VIDEO_UNAVAILABLE]: 422,
+  [ErrorCode.YOUTUBE_SEARCH_UNAVAILABLE]: 503,
   [ErrorCode.CP_TASK_NOT_COMPLETED]: 409,
   [ErrorCode.CP_PRIVILEGE_LOCKED]: 403,
 };
@@ -238,6 +259,13 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.LIVE_GIFT_RECIPIENT_UNAVAILABLE]: 'A recipient cannot receive gifts in this live now.',
   [ErrorCode.CP_TASK_NOT_COMPLETED]: 'That CP task is not completed yet today.',
   [ErrorCode.CP_PRIVILEGE_LOCKED]: 'This couple has not unlocked that CP privilege.',
+  [ErrorCode.QUIP_FREE_USED]: 'You already sent your free quip in this live.',
+  [ErrorCode.QUIP_QUEUE_FULL]: 'Too many quips are waiting in this live; try again in a moment.',
+  [ErrorCode.BOOST_QUEUE_FULL]: 'The featured slots are booked too far ahead; try a shorter card or later.',
+  [ErrorCode.BOOST_CARD_INSUFFICIENT]: 'You have no traffic card of that length.',
+  [ErrorCode.BOOST_ROOM_BUSY]: 'This live already has a traffic card running or waiting.',
+  [ErrorCode.YOUTUBE_VIDEO_UNAVAILABLE]: 'This YouTube video cannot be played here.',
+  [ErrorCode.YOUTUBE_SEARCH_UNAVAILABLE]: 'YouTube search is not available; paste a link instead.',
 };
 
 export interface ErrorDetail {

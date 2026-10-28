@@ -3,7 +3,10 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
+import 'package:kabso_live/features/live/domain/live_program.dart';
 import 'package:kabso_live/features/live/domain/live_seat_emoji.dart';
+import 'package:kabso_live/features/live/domain/live_sticker.dart';
+import 'package:kabso_live/features/live/domain/live_watch.dart';
 
 part 'live_chat.freezed.dart';
 part 'live_chat.g.dart';
@@ -66,6 +69,10 @@ abstract class LiveChatAuthorBadges with _$LiveChatAuthorBadges {
     int? charmLevel,
     int? supportLevel,
     LiveChatAuthorFamily? family,
+
+    /// v1.34-live (D154c): the author's account is younger than the
+    /// server's newcomer window (owner: 30 days) — «جديد 🌱».
+    @Default(false) bool newcomer,
   }) = _LiveChatAuthorBadges;
 
   factory fromJson(Map<String, dynamic> json) =>
@@ -168,6 +175,30 @@ sealed class LiveChatEvent {
         'lucky-ticker' => LuckyTickerReceived(LuckyTicker.fromJson(json)),
         // v1.27.5-live (D138): an emoji on someone's own seat.
         'seat-emoji' => LiveSeatEmojiReceived(LiveSeatEmoji.fromJson(json)),
+        // v1.32-live (D154): a quip (or soundboard sound) for the room.
+        'quip' => LiveQuipReceived(
+          LiveQuip.fromJson(json['quip']! as Map<String, dynamic>),
+        ),
+        // v1.36-live (D154e): the live's program changed / a segment began.
+        'program' => LiveProgramChanged(
+          LiveProgram.fromJson(json['program']! as Map<String, dynamic>),
+        ),
+        // v1.38-live (D154i): watch-together's state / a viewer's suggestion.
+        'watch' => LiveWatchChanged(
+          LiveWatch.fromJson(json['watch']! as Map<String, dynamic>),
+        ),
+        'watch-suggestion' => LiveWatchSuggested(
+          LiveWatchSuggestion.fromJson(
+            json['suggestion']! as Map<String, dynamic>,
+          ),
+        ),
+        // v1.37-live (D154h): the live's stickers changed.
+        'stickers' => LiveStickersChanged(
+          LiveStickers.fromJson(json['stickers']! as Map<String, dynamic>),
+        ),
+        'program-segment' => LiveProgramSegmentStarted(
+          LiveProgramItem.fromJson(json['item']! as Map<String, dynamic>),
+        ),
         _ => null,
       };
     } on Object {
@@ -268,6 +299,45 @@ final class LuckyWinReceived extends LiveChatEvent {
 
 /// v1.30-live (D148, §10.27): a big lucky win in another live (topic
 /// `lucky`, `lucky-ticker`), shown as the global gold ticker.
+/// v1.36-live (D154e, §10.37): the host changed the live's program (topic
+/// `program`).
+final class LiveProgramChanged extends LiveChatEvent {
+  const new(this.program);
+
+  final LiveProgram program;
+}
+
+/// v1.36-live (D154e): a segment of the live's program began (sent once by
+/// the server when it starts).
+final class LiveProgramSegmentStarted extends LiveChatEvent {
+  const new(this.item);
+
+  final LiveProgramItem item;
+}
+
+/// v1.37-live (D154h, §10.38): the host changed the live's stickers (topic
+/// `sticker`).
+final class LiveStickersChanged extends LiveChatEvent {
+  const new(this.stickers);
+
+  final LiveStickers stickers;
+}
+
+/// v1.38-live (D154i, §10.39): the host's watch-together state (topic
+/// `watch`).
+final class LiveWatchChanged extends LiveChatEvent {
+  const new(this.watch);
+
+  final LiveWatch watch;
+}
+
+/// v1.38-live (D154i): a viewer suggested a video (the host lists it).
+final class LiveWatchSuggested extends LiveChatEvent {
+  const new(this.suggestion);
+
+  final LiveWatchSuggestion suggestion;
+}
+
 final class LuckyTickerReceived extends LiveChatEvent {
   const new(this.ticker);
 
@@ -279,4 +349,12 @@ final class LiveSeatEmojiReceived extends LiveChatEvent {
   const new(this.emoji);
 
   final LiveSeatEmoji emoji;
+}
+
+/// v1.32-live (D154, §10.33): a quip or a soundboard sound for the whole
+/// room (topic `quip`), played after its `delayMs`, one at a time.
+final class LiveQuipReceived extends LiveChatEvent {
+  const new(this.quip);
+
+  final LiveQuip quip;
 }

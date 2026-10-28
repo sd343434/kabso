@@ -8,6 +8,7 @@ import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/live/application/live_gift_providers.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_quip_art.dart';
 import 'package:kabso_live/features/messages/domain/dm_models.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -449,9 +450,16 @@ class _GiftCard extends ConsumerWidget {
     final p = context.palette;
     final gift = message.gift;
     final mine = message.mine;
-    final name = gift == null
+    final catalogued = gift == null
         ? null
-        : ref.watch(giftCatalogueProvider).value?.byCode(gift.giftCode)?.name;
+        : ref.watch(giftCatalogueProvider).value?.byCode(gift.giftCode);
+    // D154 × D155: a paid quip shows its line of text (no sound plays in a
+    // conversation) and its emoji badge (quips have no picture).
+    final quipText = catalogued?.quip?.text;
+    final name = quipText ?? catalogued?.name;
+    final isQuip =
+        catalogued?.category == GiftCategory.quips ||
+        (gift?.assetKey.startsWith('quips/') ?? false);
     final count = '${gift?.quantity ?? 1}';
     final title = mine
         ? l10n.dmGiftMine(count)
@@ -478,11 +486,14 @@ class _GiftCard extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (gift != null)
-            KGiftImage(
-              gift.assetKey,
-              imageUrl: gift.imageUrl,
-              size: KDmBubble.giftArt,
-            ),
+            if (isQuip)
+              LiveQuipBadge(assetKey: gift.assetKey, size: KDmBubble.giftArt)
+            else
+              KGiftImage(
+                gift.assetKey,
+                imageUrl: gift.imageUrl,
+                size: KDmBubble.giftArt,
+              ),
           const SizedBox(width: KSpacing.sm),
           Flexible(
             child: Column(
@@ -492,8 +503,11 @@ class _GiftCard extends ConsumerWidget {
                 if (name != null)
                   Text(
                     name,
-                    maxLines: 1,
+                    maxLines: quipText == null ? 1 : 2,
                     overflow: TextOverflow.ellipsis,
+                    // A quip's words are Egyptian Arabic, whatever the
+                    // app's language.
+                    textDirection: quipText == null ? null : TextDirection.rtl,
                     style: context.textStyles.bodyStrong.copyWith(color: fg),
                   ),
                 Text(

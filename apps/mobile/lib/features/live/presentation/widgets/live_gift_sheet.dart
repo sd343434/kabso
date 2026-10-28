@@ -16,12 +16,14 @@ import 'package:kabso_live/features/levels/presentation/level_badge.dart';
 import 'package:kabso_live/features/live/application/live_gift_effects.dart';
 import 'package:kabso_live/features/live/application/live_gift_providers.dart';
 import 'package:kabso_live/features/live/application/live_lucky_combo.dart';
+import 'package:kabso_live/features/live/application/live_quips.dart';
 import 'package:kabso_live/features/live/application/live_wallet_controller.dart';
 import 'package:kabso_live/features/live/data/gift_art_cache.dart';
 import 'package:kabso_live/features/live/data/live_gift_repository.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_quip_art.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -37,6 +39,7 @@ class LiveGiftRoom {
     required this.seated,
     this.onSeatsStale,
     this.direct,
+    this.soundboard,
   });
 
   /// D155: the panel inside a direct conversation — [host] is the person,
@@ -47,7 +50,9 @@ class LiveGiftRoom {
       host = peer,
       seated = _nobody,
       onSeatsStale = null,
-      direct = send;
+      direct = send,
+      // D154 × D155: no soundboard in a conversation (no room to hear it).
+      soundboard = null;
 
   static List<UserSummary> _nobody(WidgetRef _) => const [];
 
@@ -58,6 +63,11 @@ class LiveGiftRoom {
 
   /// D155: sends in a direct conversation (null: in the live [roomId]).
   final DmGiftSend? direct;
+
+  /// D154: whether the caller is the host or a moderator of this live now
+  /// (read with the panel's `ref`): their free quips play from the
+  /// soundboard (free, one every 2 s) instead of their one free quip.
+  final bool Function(WidgetRef ref)? soundboard;
 }
 
 /// D155: a gift sent in a direct conversation; the balance, the bag and a
@@ -168,6 +178,9 @@ class KLiveGiftSheet extends ConsumerStatefulWidget {
   /// D148: the odds sheet's guarantee line.
   static const oddsPityKey = Key('gift.lucky.odds.pity');
 
+  /// D154: the quips tab's local mute chip.
+  static const quipsMuteKey = Key('gift.quips.mute');
+
   @override
   ConsumerState<KLiveGiftSheet> createState() => _KLiveGiftSheetState();
 }
@@ -275,6 +288,22 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
   Timer? _comboTimer;
 
   LiveGiftRoom get room => widget.room;
+
+  /// D154 × D155: whether the panel offers [gift] here. In a direct
+  /// conversation the whole box is offered except the free quips (one free
+  /// quip per viewer per live: they belong to a live; the server refuses
+  /// them in a conversation with `GIFT_UNAVAILABLE`). Paid quips are sent
+  /// like any gift there.
+  bool _offered(Gift gift) =>
+      room.direct == null ||
+      gift.category != GiftCategory.quips ||
+      gift.priceCoins > 0;
+
+  /// The gifts of [category] this panel offers ([_offered]).
+  List<Gift> _offeredOf(GiftCatalogue catalogue, GiftCategory category) => [
+    for (final g in catalogue.of(category))
+      if (_offered(g)) g,
+  ];
 
   /// The catalogue version whose small animations were prefetched (D126).
   String? _prefetched;
@@ -430,6 +459,15 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
       return await _sendDirect(direct, intent, clientId, asked);
     }
     try {
+      if (intent.soundboard) {
+        final quip = await ref
+            .read(liveGiftRepositoryProvider)
+            .playSound(room.roomId, soundCode: intent.code);
+        _pending = null;
+        ref.read(liveQuipsProvider(room.roomId).notifier).receive(quip);
+        if (mounted) _quipQueued(quip);
+        return true;
+      }
       final result = await ref
           .read(liveGiftRepositoryProvider)
           .send(
@@ -448,6 +486,14 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
         ref
             .read(giftBagProvider.notifier)
             .setQuantity(intent.code, result.bagQuantity);
+      }
+      if (result.quip case final quip?) {
+        // D154: heard at once (its slot in the room's queue); the room's
+        // own message for it plays nothing more. A quip has no strip.
+        ref.read(liveQuipsProvider(room.roomId).notifier).receive(quip);
+        ref.read(recentGiftsProvider.notifier).add(intent.code);
+        if (mounted) _quipQueued(quip);
+        return true;
       }
       // Shown at once; the room's message for it plays nothing more.
       ref.read(liveGiftEffectsProvider(room.roomId).notifier).show(result.gift);
@@ -591,6 +637,16 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
     }
   }
 
+  /// D154: a quip waits for its turn in the room's queue: says when it
+  /// starts (nothing to say when it starts at once).
+  void _quipQueued(LiveQuip quip) {
+    setState(() => _error = null);
+    final seconds = (quip.delayMs / 1000).ceil();
+    if (seconds > 0) {
+      _showToast(context.l10n.liveQuipQueued(seconds), error: false);
+    }
+  }
+
   /// D132: asks for the 18+ statement and saves it. True when confirmed.
   Future<bool> _askAge() async {
     if (!await _confirmLuckyAge(context)) return false;
@@ -663,7 +719,12 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
       for (final c in categories)
         if (c != GiftCategory.popular &&
             (c != GiftCategory.lucky ||
-                (catalogue?.of(GiftCategory.lucky).isNotEmpty ?? false)))
+                (catalogue?.of(GiftCategory.lucky).isNotEmpty ?? false)) &&
+            // D154: «إفيهات» only when the catalogue has quips (D155: in a
+            // conversation, paid ones).
+            (c != GiftCategory.quips ||
+                (catalogue != null &&
+                    _offeredOf(catalogue, GiftCategory.quips).isNotEmpty)))
           c.wire,
       KLiveGiftSheet.bagTab,
     ];
@@ -693,7 +754,7 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
     if (!_wishApplied && catalogue != null) {
       _wishApplied = true;
       if (widget.preselectGift case final code?) {
-        if (catalogue.byCode(code) case final gift?) {
+        if (catalogue.byCode(code) case final gift? when _offered(gift)) {
           _tab = gift.category.wire;
           _selected = gift.code;
           if (gift.animationUrl case final url?) {
@@ -710,7 +771,7 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
         ? tabs.first
         : tabs.firstWhere(
             (id) => switch (GiftCategory.fromWire(id)) {
-              final c? => catalogue.of(c).isNotEmpty,
+              final c? => _offeredOf(catalogue, c).isNotEmpty,
               null => false,
             },
             orElse: () => tabs.first,
@@ -740,12 +801,13 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
       // Gifts no longer in the catalogue drop out.
       tabCells = [
         for (final code in recent)
-          if (catalogue?.byCode(code) case final g?) _Cell(g),
+          if (catalogue?.byCode(code) case final g? when _offered(g)) _Cell(g),
       ];
     } else {
       tabCells = [
         if (catalogue != null)
-          for (final g in catalogue.of(GiftCategory.fromWire(tab)!)) _Cell(g),
+          for (final g in _offeredOf(catalogue, GiftCategory.fromWire(tab)!))
+            _Cell(g),
       ];
     }
     final tags = isRecent
@@ -766,7 +828,12 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
       });
     }
     final selected = cells.where((c) => c.gift.code == _selected).firstOrNull;
-    final quantities = catalogue?.quantities ?? const [1];
+    // D154: a quip is sent one at a time, with coins (or free).
+    final quipSelected = selected?.gift.category == GiftCategory.quips;
+    final isQuipsTab = tab == GiftCategory.quips.wire;
+    final quantities = quipSelected
+        ? const [1]
+        : catalogue?.quantities ?? const [1];
     final quantity = quantities.contains(_quantity)
         ? _quantity!
         : quantities.first;
@@ -811,11 +878,18 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
               for (final c in candidates)
                 if (chosen.contains(c.username)) c.username,
             ],
-            // A lucky gift is sent with coins only (§10.27).
-            source: isBag && !luckySelected
+            // A lucky gift is sent with coins only (§10.27); a quip too.
+            source: isBag && !luckySelected && !quipSelected
                 ? LiveGiftSource.bag
                 : LiveGiftSource.coins,
             lucky: luckySelected,
+            quip: quipSelected,
+            // D154: the host's and moderators' free quips are the
+            // soundboard's (free, one every 2 s), not their one free quip.
+            soundboard:
+                quipSelected &&
+                selected.gift.priceCoins == 0 &&
+                (room.soundboard?.call(ref) ?? false),
           );
     final pre = widget.preselect;
     final notOnMic = pre != null && !names.contains(pre.username)
@@ -828,7 +902,13 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
         _error ??
         (reason == l10n.liveGiftEmptyTitle || reason == l10n.liveGiftPickGift
             ? null
-            : reason);
+            : reason) ??
+        // D154: what a free quip means for this person.
+        (quipSelected && selected!.gift.priceCoins == 0
+            ? (intent?.soundboard ?? false)
+                  ? l10n.liveQuipSoundboardHint
+                  : l10n.liveQuipFreeOnce
+            : null);
 
     final bottomInset = MediaQuery.paddingOf(context).bottom;
 
@@ -912,6 +992,22 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
         itemCount: cells.length,
         itemBuilder: (context, i) {
           final cell = cells[i];
+          if (cell.gift.quip case final quip?) {
+            return _QuipTile(
+              key: KLiveGiftSheet.cellKey(cell.gift.code),
+              gift: cell.gift,
+              quip: quip,
+              soundboard:
+                  cell.gift.priceCoins == 0 &&
+                  (room.soundboard?.call(ref) ?? false),
+              selected: cell.gift.code == selected?.gift.code,
+              onTap: () => setState(() {
+                _selected = cell.gift.code;
+                _error = null;
+                _resetCombo();
+              }),
+            );
+          }
           return _GiftTile(
             key: KLiveGiftSheet.cellKey(cell.gift.code, bag: isBag),
             cell: cell,
@@ -993,6 +1089,11 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
             _sort = _PriceSort.values[(_sort.index + 1) % 3];
           }),
           onOdds: isLuckyTab ? () => unawaited(showLuckyOdds(context)) : null,
+          // The local mute of the room's quips (none in a conversation).
+          quipsMuted: isQuipsTab && room.direct == null
+              ? ref.watch(quipsMutedProvider)
+              : null,
+          onQuipsMute: () => ref.read(quipsMutedProvider.notifier).toggle(),
         ),
         Expanded(
           child: Stack(
@@ -1079,6 +1180,8 @@ class _Intent {
     required this.recipients,
     required this.source,
     this.lucky = false,
+    this.quip = false,
+    this.soundboard = false,
   });
 
   final String code;
@@ -1088,6 +1191,13 @@ class _Intent {
 
   /// D132: a LUCKY gift (the 18+ statement first).
   final bool lucky;
+
+  /// D154: a quip (heard by the room, no gift strip).
+  final bool quip;
+
+  /// D154: a free quip played from the host's or a moderator's soundboard
+  /// (`playLiveSound`), not sent as a gift.
+  final bool soundboard;
 
   /// Same key, same intent: a lost answer's retry reuses its `clientId`.
   String get key =>
@@ -1367,6 +1477,8 @@ class LiveGiftTabs extends StatelessWidget {
       if (categories.contains(GiftCategory.popular)) GiftCategory.popular.wire,
       for (final c in categories)
         if (c != GiftCategory.popular &&
+            // D154: a quip is not a wish (it is heard once, not given).
+            c != GiftCategory.quips &&
             (c != GiftCategory.lucky ||
                 (catalogue?.of(GiftCategory.lucky).isNotEmpty ?? false)))
           c.wire,
@@ -1381,6 +1493,7 @@ class LiveGiftTabs extends StatelessWidget {
       GiftCategory.event => l10n.liveGiftTabEvent,
       GiftCategory.fun => l10n.liveGiftTabFun,
       GiftCategory.lucky => l10n.liveGiftTabLucky,
+      GiftCategory.quips => l10n.liveGiftTabQuips,
       null when id == KLiveGiftSheet.recentTab => l10n.liveGiftTabRecent,
       null => id,
     };
@@ -1564,6 +1677,8 @@ class _TagChips extends StatelessWidget {
     required this.onTap,
     required this.onSort,
     this.onOdds,
+    this.quipsMuted,
+    this.onQuipsMute,
   });
 
   final List<GiftTag> tags;
@@ -1572,6 +1687,10 @@ class _TagChips extends StatelessWidget {
   final ValueChanged<String?> onTap;
   final VoidCallback onSort;
   final VoidCallback? onOdds;
+
+  /// D154: the quips tab's local mute (null: not the quips tab).
+  final bool? quipsMuted;
+  final VoidCallback? onQuipsMute;
 
   static const double height = 22.1;
 
@@ -1639,6 +1758,15 @@ class _TagChips extends StatelessWidget {
                         l10n.liveLuckyOdds,
                         on: false,
                         tap: odds,
+                      ),
+                      const SizedBox(width: 10),
+                    ],
+                    if (quipsMuted case final muted?) ...[
+                      chip(
+                        KLiveGiftSheet.quipsMuteKey,
+                        muted ? l10n.liveQuipUnmute : l10n.liveQuipMute,
+                        on: muted,
+                        tap: onQuipsMute,
                       ),
                       const SizedBox(width: 10),
                     ],
@@ -1871,6 +1999,111 @@ class _GiftTile extends StatelessWidget {
                     ),
                   ),
                 ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// D154: a quip of the «إفيهات» tab — its emoji in a soft circle (the
+/// owner's sounds have no picture), its words (two lines; the name for a
+/// sound without words) and its price, «مجاني» for a free one (∞ when it
+/// plays from the host's or a moderator's soundboard).
+class _QuipTile extends StatelessWidget {
+  const new({
+    required this.gift,
+    required this.quip,
+    required this.soundboard,
+    required this.selected,
+    required this.onTap,
+    super.key,
+  });
+
+  final Gift gift;
+  final GiftQuip quip;
+  final bool soundboard;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final text = context.textStyles;
+    final free = gift.priceCoins == 0;
+    final words = quip.text ?? gift.name;
+    final price = free
+        ? (soundboard ? l10n.liveQuipSoundboardFree : l10n.liveQuipFree)
+        : gift.priceCoins.toString();
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: [
+        words,
+        if (free) price else l10n.giftCellSemantics(gift.name, price),
+      ].join(', '),
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: KMotion.of(context, KMotion.fast),
+          margin: const EdgeInsets.symmetric(horizontal: 1.6),
+          padding: const EdgeInsets.fromLTRB(3, 6, 3, 2),
+          decoration: BoxDecoration(
+            color: selected ? _Sheet.cellSelected : null,
+            borderRadius: BorderRadius.circular(6),
+            border: Border(
+              top: BorderSide(
+                color: selected ? _Sheet.cellEdge : const Color(0x00000000),
+              ),
+            ),
+          ),
+          child: Column(
+            children: [
+              LiveQuipBadge(assetKey: gift.assetKey),
+              const SizedBox(height: 4),
+              Expanded(
+                child: Text(
+                  words,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  // The words are Egyptian Arabic, whatever the app's
+                  // language.
+                  textDirection: quip.text == null ? null : TextDirection.rtl,
+                  style: text.caption.copyWith(
+                    color: selected ? _Sheet.white : _Sheet.name,
+                    fontSize: 9.5,
+                    height: 1.25,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (!free) ...[
+                      const KabsoArtIcon(KabsoArt.coin, size: 12),
+                      const SizedBox(width: 3),
+                    ],
+                    Text(
+                      price,
+                      style: text.caption.copyWith(
+                        color: free
+                            ? const Color(0xFF7FE3C8)
+                            : _Sheet.priceText,
+                        fontSize: 10,
+                        height: 1.21,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),

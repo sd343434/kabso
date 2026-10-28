@@ -16,12 +16,17 @@ import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/cp/presentation/cp_special_frame.dart';
 import 'package:kabso_live/features/levels/application/levels_providers.dart';
 import 'package:kabso_live/features/levels/domain/level_models.dart';
+import 'package:kabso_live/features/live/application/live_assistant.dart';
 import 'package:kabso_live/features/live/application/live_chat_controller.dart';
 import 'package:kabso_live/features/live/application/live_gift_effects.dart';
 import 'package:kabso_live/features/live/application/live_host_controller.dart';
 import 'package:kabso_live/features/live/application/live_lucky_ticker.dart';
+import 'package:kabso_live/features/live/application/live_program.dart';
+import 'package:kabso_live/features/live/application/live_quips.dart';
 import 'package:kabso_live/features/live/application/live_seat_emojis.dart';
+import 'package:kabso_live/features/live/application/live_stickers.dart';
 import 'package:kabso_live/features/live/application/live_tap_batcher.dart';
+import 'package:kabso_live/features/live/application/live_watch.dart';
 import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
 import 'package:kabso_live/features/live/data/beauty/live_color_filter.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
@@ -33,12 +38,18 @@ import 'package:kabso_live/features/live/live_room_screen.dart'
 import 'package:kabso_live/features/live/presentation/go_live/go_live_audio_setup.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_setup_parts.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_assistant_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_boost_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_cp_seats.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_data_center_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_end_summary.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_fill_light.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_glass.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_host_parts.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_newcomers_sheet.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_program_sheet.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_quality_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_room_info_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_room_tools.dart';
@@ -46,7 +57,10 @@ import 'package:kabso_live/features/live/presentation/go_live/live_schedule_shee
 import 'package:kabso_live/features/live/presentation/go_live/live_score_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_emoji.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_soundboard_sheet.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_sticker_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_watch_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/live_fx_diagnostics.dart';
 import 'package:kabso_live/features/live/presentation/live_permission_sheet.dart';
@@ -61,9 +75,11 @@ import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_side_cards.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_sticker_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_tap_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_viewer_parts.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_watch_card.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -105,6 +121,9 @@ class GoLiveScreen extends ConsumerStatefulWidget {
 
   static const minimizeKey = Key('goLive.minimize');
   static const viewersKey = Key('goLive.viewers');
+
+  /// D154g: the «السلاسة» suggestion on a weak connection.
+  static const smoothSuggestKey = Key('goLive.smoothSuggest');
   static const shareKey = Key('goLive.share');
   static const videoChatKey = Key('goLive.videoChat');
   static const audioChatKey = Key('goLive.audio.chat');
@@ -376,6 +395,31 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       ref.read(liveSeatEmojisProvider(room.id).notifier).attach(engine);
       // D148: big lucky wins in other lives (the gold ticker).
       ref.read(liveLuckyTickersProvider(room.id).notifier).attach(engine);
+      // D154: the room's quips (one at a time, after their delay).
+      ref.read(liveQuipsProvider(room.id).notifier).attach(engine);
+      // D154e: the live's program.
+      ref.read(liveProgramProvider(room.id).notifier).attach(engine);
+      // D154h: the live's stickers.
+      ref.read(liveStickersProvider(room.id).notifier).attach(engine);
+      // D154i: watch-together (the host's suggestions too).
+      ref.read(liveWatchProvider(room.id).notifier)
+        ..onSuggestion = (s) {
+          if (mounted) {
+            KSnack.info(
+              context,
+              context.l10n.liveWatchNewSuggestion(s.video.title),
+            );
+          }
+        }
+        ..attach(engine, host: true);
+      // D154f: the host's assistant (hints on this phone only).
+      ref
+          .read(liveAssistantProvider(room.id).notifier)
+          .attach(
+            engine,
+            startedAt: room.startedAt,
+            selfId: ref.read(currentUserProvider)?.id,
+          );
       unawaited(
         ref
             .read(liveChatProvider(room.id).notifier)
@@ -384,11 +428,53 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     });
   }
 
+  /// D154g: a weak connection for a while with the normal picture suggests
+  /// «السلاسة» (at most every 5 min).
+  final _poorWatch = PoorConnectionWatch();
+
+  void _checkConnection() {
+    final engine = _host.engine;
+    if (!engine.videoEnabled) return;
+    if (!_poorWatch.feed(
+      engine.connectionQuality,
+      engine.videoQuality,
+      clock.now(),
+    )) {
+      return;
+    }
+    final l10n = context.l10n;
+    ScaffoldMessenger.maybeOf(context)
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          key: GoLiveScreen.smoothSuggestKey,
+          content: Text(l10n.liveQualitySuggest),
+          duration: const Duration(seconds: 8),
+          action: SnackBarAction(
+            label: l10n.liveQualitySuggestAction,
+            onPressed: () => unawaited(_goSmooth()),
+          ),
+        ),
+      );
+  }
+
+  Future<void> _goSmooth() async {
+    final l10n = context.l10n;
+    try {
+      await _host.engine.setVideoQuality(LiveVideoQuality.smooth);
+      if (mounted) KSnack.success(context, l10n.liveQualitySmoothOn);
+    } on LiveCaptureException {
+      if (mounted) KSnack.error(context, l10n.liveQualityFailed);
+    }
+  }
+
   void _syncTicker(GoLiveState state) {
     final live = state.phase == GoLivePhase.live;
     if (live && _tick == null) {
       _tick = Timer.periodic(const Duration(seconds: 1), (_) {
-        if (mounted) setState(() {});
+        if (!mounted) return;
+        setState(() {});
+        _checkConnection();
       });
     } else if (!live && _tick != null) {
       _tick!.cancel();
@@ -908,30 +994,45 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               icon: Icons.music_note_rounded,
               label: l10n.liveToolMusic,
             ),
-            GoLiveTool.soon(
+            // D154: the host's free soundboard (quips' free sounds).
+            GoLiveTool(
               id: 'sounds',
               icon: Icons.graphic_eq_rounded,
               label: l10n.liveToolSounds,
+              onTap: room == null || !live
+                  ? null
+                  : () =>
+                        unawaited(showLiveSoundboard(context, roomId: room.id)),
             ),
-            GoLiveTool.soon(
-              id: 'fluent',
-              icon: Icons.speed_rounded,
-              label: l10n.liveToolFluent,
-            ),
-            GoLiveTool.soon(
+            // D154e: the live's program (everyone sees its card).
+            GoLiveTool(
               id: 'program',
               icon: Icons.movie_creation_outlined,
               label: l10n.liveToolProgramList,
+              onTap: room == null || !live
+                  ? null
+                  : () => unawaited(
+                      showLiveProgramEditor(
+                        context,
+                        roomId: room.id,
+                        startedAt: room.startedAt,
+                      ),
+                    ),
             ),
             GoLiveTool.soon(
               id: 'screen',
               icon: Icons.screen_share_outlined,
               label: l10n.liveToolShareScreen,
             ),
-            GoLiveTool.soon(
+            // D154i: YouTube watch-together (the official player).
+            GoLiveTool(
               id: 'youtube',
               icon: Icons.smart_display_outlined,
               label: l10n.liveToolYoutube,
+              onTap: room == null || !live
+                  ? null
+                  : () =>
+                        unawaited(showLiveWatchSheet(context, roomId: room.id)),
             ),
             GoLiveTool.soon(
               id: 'singing',
@@ -953,25 +1054,34 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             // D143: the same User management as video rooms (moderators
             // included: the audio room has seats).
             _managementTool(state, live ? room : null, liveSeats),
-            GoLiveTool.soon(
+            // D154f: the host's rule-based assistant (its settings).
+            GoLiveTool(
               id: 'assistance',
               icon: Icons.support_agent_rounded,
               label: l10n.liveToolAssistance,
+              onTap: () => unawaited(showLiveAssistantSettings(context)),
             ),
             GoLiveTool.soon(
               id: 'recorder',
               icon: Icons.videocam_outlined,
               label: l10n.liveToolRecorder,
             ),
-            GoLiveTool.soon(
+            // D154c: the newcomers in this room, with «رحّب».
+            GoLiveTool(
               id: 'newcomers',
               icon: Icons.fiber_new_outlined,
               label: l10n.liveToolNewcomers,
+              onTap: room == null || !live
+                  ? null
+                  : () =>
+                        unawaited(showLiveNewcomers(context, roomId: room.id)),
             ),
-            GoLiveTool.soon(
+            // D154d: the host's data center.
+            GoLiveTool(
               id: 'data',
               icon: Icons.insights_outlined,
               label: l10n.liveToolDataCenter,
+              onTap: () => unawaited(showLiveDataCenter(context)),
             ),
             // D141 (owner): the host's live schedule (D99 C), from the
             // live itself.
@@ -980,6 +1090,16 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               icon: Icons.alarm_rounded,
               label: l10n.liveToolLiveTime,
               onTap: () => unawaited(showLiveSchedule(context)),
+            ),
+            // D154b: the traffic card (a paid «مميز» slot for this room).
+            GoLiveTool(
+              id: 'traffic',
+              icon: Icons.confirmation_number_outlined,
+              label: l10n.liveToolTrafficCard,
+              onTap: room == null || !live
+                  ? null
+                  : () =>
+                        unawaited(showLiveBoostSheet(context, roomId: room.id)),
             ),
             byId['guests']!,
           ],
@@ -1460,6 +1580,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                         ? LuckyComboLayer.audioBottom
                         : LuckyComboLayer.videoBottom,
                   ),
+                // D154i: the video the live watches together.
+                if (room != null && state.phase == GoLivePhase.live)
+                  LiveWatchLayer(roomId: room.id, host: true),
+                // D154f: the assistant's hint, for the host only.
+                if (room != null && state.phase == GoLivePhase.live)
+                  LiveAssistantHintLayer(roomId: room.id),
                 // CP-021 (D112): the CP Entrance Effect.
                 if (onAir && room != null) LiveCpEntranceLayer(roomId: room.id),
                 // D144a: DeepAR's diagnostics for the owner's screenshots —
@@ -1679,11 +1805,36 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           ?byId['fillLight'],
           ?byId['flip'],
           soon('dual', Icons.switch_video_rounded, l10n.liveToolDual),
-          soon('hd', Icons.hd_rounded, l10n.liveToolHd),
-          soon('sticker', Icons.emoji_emotions_outlined, l10n.liveToolSticker),
+          // D154g: «الجودة» (HD and «السلاسة» in one tool).
+          GoLiveTool(
+            id: 'quality',
+            icon: liveConnectionIcon(engine.connectionQuality),
+            label: l10n.liveToolQuality,
+            onTap: engine.videoEnabled
+                ? () => unawaited(showLiveQualitySheet(context, engine: engine))
+                : null,
+          ),
+          // D154h: Kabi and text stickers on the live (≤ 3).
+          GoLiveTool(
+            id: 'sticker',
+            icon: Icons.emoji_emotions_outlined,
+            label: l10n.liveToolSticker,
+            onTap: !live
+                ? null
+                : () =>
+                      unawaited(showLiveStickerSheet(context, roomId: room.id)),
+          ),
           ?byId['mic'],
           soon('music', Icons.music_note_rounded, l10n.liveToolMusic),
-          soon('sounds', Icons.graphic_eq_rounded, l10n.liveToolSounds),
+          // D154: the host's free soundboard (quips' free sounds).
+          GoLiveTool(
+            id: 'sounds',
+            icon: Icons.graphic_eq_rounded,
+            label: l10n.liveToolSounds,
+            onTap: !live
+                ? null
+                : () => unawaited(showLiveSoundboard(context, roomId: room.id)),
+          ),
           ?byId['beauty'],
           ?byId['voice'],
           ?byId['theme'],
@@ -1707,19 +1858,45 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           ),
           ?byId['chat'],
           management,
-          soon(
-            'assistance',
-            Icons.support_agent_rounded,
-            l10n.liveToolAssistance,
+          // D154f: the host's rule-based assistant (its settings).
+          GoLiveTool(
+            id: 'assistance',
+            icon: Icons.support_agent_rounded,
+            label: l10n.liveToolAssistance,
+            onTap: () => unawaited(showLiveAssistantSettings(context)),
           ),
-          soon(
-            'program',
-            Icons.movie_creation_outlined,
-            l10n.liveToolProgramList,
+          // D154e: the live's program (everyone sees its card).
+          GoLiveTool(
+            id: 'program',
+            icon: Icons.movie_creation_outlined,
+            label: l10n.liveToolProgramList,
+            onTap: !live
+                ? null
+                : () => unawaited(
+                    showLiveProgramEditor(
+                      context,
+                      roomId: room.id,
+                      startedAt: room.startedAt,
+                    ),
+                  ),
           ),
           soon('recorder', Icons.videocam_outlined, l10n.liveToolRecorder),
-          soon('newcomers', Icons.fiber_new_outlined, l10n.liveToolNewcomers),
-          soon('data', Icons.insights_outlined, l10n.liveToolDataCenter),
+          // D154c: the newcomers in this live, with «رحّب».
+          GoLiveTool(
+            id: 'newcomers',
+            icon: Icons.fiber_new_outlined,
+            label: l10n.liveToolNewcomers,
+            onTap: !live
+                ? null
+                : () => unawaited(showLiveNewcomers(context, roomId: room.id)),
+          ),
+          // D154d: the host's data center.
+          GoLiveTool(
+            id: 'data',
+            icon: Icons.insights_outlined,
+            label: l10n.liveToolDataCenter,
+            onTap: () => unawaited(showLiveDataCenter(context)),
+          ),
           // D141 (owner): the host's live schedule (D99 C), from the live.
           GoLiveTool(
             id: 'time',
@@ -1727,10 +1904,14 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             label: l10n.liveToolLiveTime,
             onTap: () => unawaited(showLiveSchedule(context)),
           ),
-          soon(
-            'traffic',
-            Icons.confirmation_number_outlined,
-            l10n.liveToolTrafficCard,
+          // D154b: the traffic card (a paid «مميز» slot for this live).
+          GoLiveTool(
+            id: 'traffic',
+            icon: Icons.confirmation_number_outlined,
+            label: l10n.liveToolTrafficCard,
+            onTap: !live
+                ? null
+                : () => unawaited(showLiveBoostSheet(context, roomId: room.id)),
           ),
           ?byId['guests'],
         ],
@@ -1775,7 +1956,14 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       // D145c: the gift strips keep above the chat text.
       onChatTop: (top) =>
           ref.read(liveChatTopProvider(room.id).notifier).set(top),
-      video: background,
+      // D154h: the stickers over the picture; the host moves them.
+      video: Stack(
+        fit: StackFit.expand,
+        children: [
+          background,
+          LiveStickerLayer(roomId: room.id, editable: live),
+        ],
+      ),
       header: KHostPill(
         // D141 (owner): the host's @username beside the name (copy on tap).
         username: user?.username,
@@ -2049,6 +2237,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           onSeatsStale: () {
             if (mounted) unawaited(_afterSeatChange(room.id));
           },
+          // D154: the host's free quips are the soundboard's.
+          soundboard: (_) => true,
         ),
       );
 
