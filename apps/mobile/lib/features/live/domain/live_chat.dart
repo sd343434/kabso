@@ -5,6 +5,7 @@ import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/domain/live_program.dart';
 import 'package:kabso_live/features/live/domain/live_seat_emoji.dart';
+import 'package:kabso_live/features/live/domain/live_sticker.dart';
 
 part 'live_chat.freezed.dart';
 part 'live_chat.g.dart';
@@ -181,6 +182,10 @@ sealed class LiveChatEvent {
         'program' => LiveProgramChanged(
           LiveProgram.fromJson(json['program']! as Map<String, dynamic>),
         ),
+        // v1.37-live (D154h): the live's stickers changed.
+        'stickers' => LiveStickersChanged(
+          LiveStickers.fromJson(json['stickers']! as Map<String, dynamic>),
+        ),
         'program-segment' => LiveProgramSegmentStarted(
           LiveProgramItem.fromJson(json['item']! as Map<String, dynamic>),
         ),
@@ -298,6 +303,14 @@ final class LiveProgramSegmentStarted extends LiveChatEvent {
   const new(this.item);
 
   final LiveProgramItem item;
+}
+
+/// v1.37-live (D154h, §10.38): the host changed the live's stickers (topic
+/// `sticker`).
+final class LiveStickersChanged extends LiveChatEvent {
+  const new(this.stickers);
+
+  final LiveStickers stickers;
 }
 
 final class LuckyTickerReceived extends LiveChatEvent {

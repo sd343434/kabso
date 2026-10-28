@@ -7320,4 +7320,28 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveQualitySmoothOn => 'تم تفعيل السلاسة';
+
+  @override
+  String get liveStickersHint =>
+      'حتى 3 ملصقات يراها الجميع. اسحب الملصق على البث لتحريكه، وبإصبعين لتكبيره وتدويره.';
+
+  @override
+  String liveStickersOnLive(int count, int max) {
+    return 'على البث ($count من $max)';
+  }
+
+  @override
+  String get liveStickersNone => 'لا ملصقات بعد';
+
+  @override
+  String get liveStickersFull => '3 ملصقات كحد أقصى، احذف واحداً لإضافة غيره';
+
+  @override
+  String get liveStickersRemove => 'احذف الملصق';
+
+  @override
+  String get liveStickersTextHint => 'اكتب ملصقاً نصياً';
+
+  @override
+  String get liveStickersAddText => 'أضف';
 }

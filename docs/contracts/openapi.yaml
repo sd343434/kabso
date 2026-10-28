@@ -193,6 +193,10 @@ info:
     **D154e (DRAFT v1.36-live)** adds a live's program «قائمة البرامج»: `getLiveProgram` /
     `setLiveProgram` (`GET` / `PUT /live/rooms/{roomId}/program`, ≤ 10 segments) and the data messages
     `program` and `program-segment` on topic `program` (CONVENTIONS §10.37).
+    **D154h (DRAFT v1.37-live)** adds stickers on a live «ملصقات»: `listLiveStickerArt`
+    (`GET /live/stickers`), `getLiveStickers` / `setLiveStickers` (`GET` / `PUT
+    /live/rooms/{roomId}/stickers`, ≤ 3) and the data message `stickers` on topic `sticker`
+    (CONVENTIONS §10.38).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -1555,6 +1559,79 @@ paths:
         '429': { $ref: '#/components/responses/Error' }
         '503': { $ref: '#/components/responses/Error' }
 
+  /api/v1/live/stickers:
+    get:
+      tags: [live]
+      operationId: listLiveStickerArt
+      summary: "The sticker art a host may place on a live (D154h)"
+      description: |
+        v1.37-live, CONVENTIONS §10.38. The built-in Kabi pack first, then packs admins added. An app
+        shows only the art it can draw.
+      responses:
+        '200':
+          description: The catalogue.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/LiveStickerArt' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/live/rooms/{roomId}/stickers:
+    get:
+      tags: [live]
+      operationId: getLiveStickers
+      summary: "The stickers on a live now (D154h)"
+      description: |
+        v1.37-live, CONVENTIONS §10.38. Anyone who can see the room, guests too (404 otherwise); none
+        once the live ended.
+      security: [{}, {bearerAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '200':
+          description: The stickers.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveStickers' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    put:
+      tags: [live]
+      operationId: setLiveStickers
+      summary: "The host replaces the stickers on the live (D154h)"
+      description: |
+        v1.37-live, CONVENTIONS §10.38. Replaces them all (`[]` clears; a move sends them again with
+        their `id`). Checks: 401; 404; 403 `AUTH_FORBIDDEN` (not the host); 409 `LIVE_ROOM_ENDED`; 400
+        (more than 3 → `items` / `too_many`; not exactly one of `artKey` and `text`, or an art not in
+        the catalogue → `items.N.artKey` / `invalid_value`; a text over 40 code points, a line break or
+        a rejected character → `items.N.text`; a place out of range → `items.N.x` …; an `id` twice →
+        `items` / `invalid_value`). Texts are masked with the host's blocked words. The room gets
+        `{"type":"stickers","stickers":LiveStickers}` on topic `sticker`.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetLiveStickersRequest' }
+            example: { items: [{ artKey: kabi_love, x: 0.5, y: 0.4, scale: 1.2, rotation: 0.3 }, { text: أهلاً, x: 0.2, y: 0.7, scale: 1, rotation: 0 }] }
+      responses:
+        '200':
+          description: The stickers now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveStickers' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/live/rooms/{roomId}/program:
     get:
       tags: [live]
@@ -9406,6 +9483,57 @@ components:
               hour: { type: integer, minimum: 0, maximum: 23 }
               lives: { type: integer, minimum: 1 }
               viewers: { type: integer, format: int64, minimum: 0 }
+    LiveStickerArt:
+      type: object
+      description: v1.37-live (D154h). One sticker art (`<pack>_<id>`).
+      required: [key, pack]
+      properties:
+        key: { type: string, pattern: '^[a-z0-9]+_[a-z0-9_]+$', maxLength: 64 }
+        pack: { type: string, maxLength: 32 }
+    LiveSticker:
+      type: object
+      description: "v1.37-live (D154h). One sticker: an art or a text, at a place relative to the picture (0–1 from the top-left, the centre of the sticker), its scale and its rotation (radians)."
+      required: [id, artKey, text, x, y, scale, rotation]
+      properties:
+        id: { type: string, format: uuid }
+        artKey: { type: [string, 'null'], maxLength: 64 }
+        text: { type: [string, 'null'], description: Masked with the host's blocked words. }
+        x: { type: number, minimum: 0, maximum: 1 }
+        y: { type: number, minimum: 0, maximum: 1 }
+        scale: { type: number, minimum: 0.25, maximum: 4 }
+        rotation: { type: number, minimum: -3.1416, maximum: 3.1416 }
+    LiveStickers:
+      type: object
+      description: v1.37-live (D154h, CONVENTIONS §10.38). The stickers on a live now, the last on top.
+      required: [roomId, items]
+      properties:
+        roomId: { type: string, format: uuid }
+        items:
+          type: array
+          maxItems: 3
+          items: { $ref: '#/components/schemas/LiveSticker' }
+    SetLiveStickersRequest:
+      type: object
+      description: v1.37-live (D154h). All the stickers, in order (the last on top).
+      required: [items]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          maxItems: 3
+          items:
+            type: object
+            required: [x, y, scale, rotation]
+            additionalProperties: false
+            description: Exactly one of artKey and text.
+            properties:
+              id: { type: string, format: uuid, description: "An existing sticker's id (keeps it)." }
+              artKey: { type: string, maxLength: 64 }
+              text: { type: string, minLength: 1, maxLength: 320, description: "1–40 code points after the text hygiene, one line." }
+              x: { type: number, minimum: 0, maximum: 1 }
+              y: { type: number, minimum: 0, maximum: 1 }
+              scale: { type: number, minimum: 0.25, maximum: 4 }
+              rotation: { type: number, minimum: -3.1416, maximum: 3.1416 }
     SetLiveProgramRequest:
       type: object
       description: v1.36-live (D154e). The whole program, in order.

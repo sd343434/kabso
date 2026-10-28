@@ -2029,6 +2029,8 @@ void main() {
         'assistance',
         // D154g: «الجودة» replaces HD (and audio rooms' Fluent).
         'quality',
+        // D154h: stickers.
+        'sticker',
       ]) {
         expect(find.byKey(GoLiveKeys.tool(id)), findsOneWidget, reason: id);
       }
@@ -2038,6 +2040,7 @@ void main() {
         l10n.liveToolTrafficCard,
         l10n.liveToolProgramList,
         l10n.liveToolAssistance,
+        l10n.liveToolSticker,
       ]) {
         expect(
           find.bySemanticsLabel('$label, ${l10n.liveSoon}'),
@@ -2047,7 +2050,7 @@ void main() {
       }
       expect(find.byKey(GoLiveKeys.tool('hd')), findsNothing);
       expect(find.byKey(GoLiveKeys.tool('fluent')), findsNothing);
-      for (final label in [l10n.liveToolDual, l10n.liveToolSticker]) {
+      for (final label in [l10n.liveToolDual]) {
         expect(
           find.bySemanticsLabel('$label, ${l10n.liveSoon}'),
           findsOneWidget,

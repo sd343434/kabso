@@ -7280,4 +7280,29 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveQualitySmoothOn => 'Smooth is on';
+
+  @override
+  String get liveStickersHint =>
+      'Up to 3 stickers everyone sees. Drag a sticker on the live to move it; use two fingers to resize and rotate it.';
+
+  @override
+  String liveStickersOnLive(int count, int max) {
+    return 'On the live ($count of $max)';
+  }
+
+  @override
+  String get liveStickersNone => 'No stickers yet';
+
+  @override
+  String get liveStickersFull =>
+      '3 stickers at most, remove one to add another';
+
+  @override
+  String get liveStickersRemove => 'Remove the sticker';
+
+  @override
+  String get liveStickersTextHint => 'Write a text sticker';
+
+  @override
+  String get liveStickersAddText => 'Add';
 }

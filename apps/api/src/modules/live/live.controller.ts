@@ -43,6 +43,11 @@ import {
 import { LiveNewcomersService, type LiveNewcomersDto } from './live-newcomers.service.js';
 import { LiveDataCenterService, type MyLiveStatsDto } from './live-data-center.service.js';
 import { LiveProgramService, type LiveProgramDto } from './live-program.service.js';
+import {
+  LiveStickersService,
+  type LiveStickerArtDto,
+  type LiveStickersDto,
+} from './live-stickers.service.js';
 import { LiveGiftsService, type LiveGiftResultDto } from './live-gifts.service.js';
 import { LiveChatService, type LiveChatMessageDto, type LiveChatMuteDto } from './live-chat.service.js';
 import { LiveBlockedWordsService, type LiveBlockedWordsDto } from './live-blocked-words.service.js';
@@ -135,6 +140,7 @@ export class LiveController {
     private readonly newcomers: LiveNewcomersService,
     private readonly dataCenter: LiveDataCenterService,
     private readonly program: LiveProgramService,
+    private readonly stickers: LiveStickersService,
     private readonly liveGifts: LiveGiftsService,
     private readonly kicks: LiveKicksService,
     private readonly rankings: LiveRankingsService,
@@ -601,6 +607,31 @@ export class LiveController {
     @Body() body: unknown,
   ): Promise<LiveProgramDto> {
     return this.program.set(requireCaller(req), roomId, body);
+  }
+
+  /** v1.37-live (D154h): the sticker art the app may place on a live. */
+  @Get('stickers')
+  stickerCatalogue(): Promise<{ items: LiveStickerArtDto[] }> {
+    return this.stickers.catalogue();
+  }
+
+  /** v1.37-live (D154h): the stickers on a live now (anyone who can see the room, guests too). */
+  @Get('rooms/:roomId/stickers')
+  @OptionalAuth()
+  @RateLimit(GUEST_READ)
+  getStickers(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<LiveStickersDto> {
+    return this.stickers.get(callerOf(req), roomId);
+  }
+
+  /** v1.37-live (D154h): the host replaces the stickers on the live (drags included). */
+  @Put('rooms/:roomId/stickers')
+  @RateLimit({ bucket: 'live:stickers', rule: 'liveTapsUser', key: byUserId, replacesDefault: true })
+  setStickers(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Body() body: unknown,
+  ): Promise<LiveStickersDto> {
+    return this.stickers.set(requireCaller(req), roomId, body);
   }
 
   /** v1.34-live (D154c): the newcomers in this live now (host and moderators). */

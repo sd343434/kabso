@@ -23,6 +23,7 @@ import 'package:kabso_live/features/live/application/live_lucky_ticker.dart';
 import 'package:kabso_live/features/live/application/live_program.dart';
 import 'package:kabso_live/features/live/application/live_quips.dart';
 import 'package:kabso_live/features/live/application/live_seat_emojis.dart';
+import 'package:kabso_live/features/live/application/live_stickers.dart';
 import 'package:kabso_live/features/live/application/live_tap_batcher.dart';
 import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
 import 'package:kabso_live/features/live/data/beauty/live_color_filter.dart';
@@ -55,6 +56,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_score_sheet.d
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_emoji.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_soundboard_sheet.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_sticker_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/live_fx_diagnostics.dart';
@@ -70,6 +72,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_side_cards.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_sticker_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_tap_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_viewer_parts.dart';
@@ -387,6 +390,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       ref.read(liveQuipsProvider(room.id).notifier).attach(engine);
       // D154e: the live's program.
       ref.read(liveProgramProvider(room.id).notifier).attach(engine);
+      // D154h: the live's stickers.
+      ref.read(liveStickersProvider(room.id).notifier).attach(engine);
       // D154f: the host's assistant (hints on this phone only).
       ref
           .read(liveAssistantProvider(room.id).notifier)
@@ -1781,7 +1786,16 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 ? () => unawaited(showLiveQualitySheet(context, engine: engine))
                 : null,
           ),
-          soon('sticker', Icons.emoji_emotions_outlined, l10n.liveToolSticker),
+          // D154h: Kabi and text stickers on the live (≤ 3).
+          GoLiveTool(
+            id: 'sticker',
+            icon: Icons.emoji_emotions_outlined,
+            label: l10n.liveToolSticker,
+            onTap: !live
+                ? null
+                : () =>
+                      unawaited(showLiveStickerSheet(context, roomId: room.id)),
+          ),
           ?byId['mic'],
           soon('music', Icons.music_note_rounded, l10n.liveToolMusic),
           // D154: the host's free soundboard (quips' free sounds).
@@ -1914,7 +1928,14 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       // D145c: the gift strips keep above the chat text.
       onChatTop: (top) =>
           ref.read(liveChatTopProvider(room.id).notifier).set(top),
-      video: background,
+      // D154h: the stickers over the picture; the host moves them.
+      video: Stack(
+        fit: StackFit.expand,
+        children: [
+          background,
+          LiveStickerLayer(roomId: room.id, editable: live),
+        ],
+      ),
       header: KHostPill(
         // D141 (owner): the host's @username beside the name (copy on tap).
         username: user?.username,

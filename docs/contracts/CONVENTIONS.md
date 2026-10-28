@@ -474,6 +474,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.33-live)* Tables `live_boosts`, `live_boost_cards`; ledger reasons `LIVE_BOOST`, `LIVE_BOOST_REFUND`; server config `LIVE_BOOST_PRICES`, `LIVE_BOOST_SLOTS`, `LIVE_BOOST_MAX_WAIT_MINUTES` | Backend — `live` module (`LiveBoostsService`; cards granted only by the `boost-admin` CLI) | CTO; Security (coin paths, refunds) |
 | *(v1.35-live)* Table `live_summaries` | Backend — `live` module (`LiveDataCenterService`: written once per ended live by its summariser; reads `live_gifts`, `live_gift_recipients`, `live_room_audience`, `follows` read-only) | CTO |
 | *(v1.36-live)* Table `live_program_items` | Backend — `live` module (`LiveProgramService`; the host writes, the announcer marks `announced_at`) | CTO |
+| *(v1.37-live)* Tables `live_stickers`, `live_sticker_art` | Backend — `live` module (`LiveStickersService`; the host writes the stickers; admins add art rows) | CTO |
 | `apps/api/**` | Backend | CTO review |
 | `apps/mobile/lib/app/router/**` (route registry) | Flutter | CTO review |
 | `apps/mobile/pubspec.yaml` | Flutter | CTO review |
@@ -513,6 +514,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.37-live (draft) | 2026-10-28 | **D154h (owner: Room Tools item 8 «ملصقات / Stickers», item 3):** `listLiveStickerArt` (`GET /live/stickers`), `getLiveStickers` / `setLiveStickers` (`GET` / `PUT /live/rooms/{roomId}/stickers`, `LiveSticker`, `LiveStickers`, `LiveStickerArt`, `SetLiveStickersRequest`); data message `stickers` on topic `sticker`; tables `live_stickers`, `live_sticker_art` (migration `20261208090000_live_stickers`). §8, §10.38. | **Additive** (new operations and data message). |
 | v1.36-live (draft) | 2026-10-28 | **D154e (owner: Room Tools item 5 «قائمة البرامج / Program list», item 10):** `getLiveProgram` / `setLiveProgram` (`GET` / `PUT /live/rooms/{roomId}/program`, `SetLiveProgramRequest`, `LiveProgram`, `LiveProgramItem`); data messages `program` and `program-segment` on topic `program`; table `live_program_items` (migration `20261207090000_live_program`). §8, §10.37. | **Additive** (new operations and data messages). |
 | v1.35-live (draft) | 2026-10-28 | **D154d (owner: Room Tools item 4 «مركز البيانات / Data center», item 14; periods DAY / WEEK / MONTH / YEAR):** `getMyLiveStats` (`GET /live/stats/me?period=`, `MyLiveStats`, `LiveStatsPeriod`); `LiveRoomStats.giftCoins`, `earningsCoins` (required); table `live_summaries` (migration `20261206090000_live_summaries`), filled by a summariser for every ended live (older ones included). §8, §10.31, §10.36. | **Additive** (a new operation and new response fields). |
 | v1.34-live (draft) | 2026-10-28 | **D154c (owner: Room Tools item 3 «الجدد / Newcomers», item 13; window 30 days, was 7):** `listLiveNewcomers` (`GET /live/rooms/{roomId}/newcomers`, `LiveNewcomers` `{newcomerDays, data: [UserSummary]}`; host and moderators); `LiveChatAuthorBadges.newcomer` (required in responses and the `chat` data message); config `NEWCOMER_DAYS` (30). §10.11, §10.35. | **Additive** (a new operation; a new response field older apps ignore). |
@@ -2400,6 +2402,31 @@ Owner decisions (2026-10-28, D154 item 10) are marked *(owner)*. Separate from t
   header with the segment on now and the next one (a tap opens the whole list) and, when a segment
   starts, the card says «بدأت الفقرة: …» for a few seconds.
 - **Not in v1.36-live:** reminders before a segment, segments in the live list, segment lengths.
+
+### 10.38 Stickers on a live «ملصقات» *(v1.37-live, DRAFT — D154h)*
+
+Owner decisions (2026-10-28, D154 item 3) are marked *(owner)*.
+
+- **What** *(owner: Kabi stickers + free text, at most 3 at once; the host drags, scales, rotates;
+  everyone sees them)*: `setLiveStickers` (`PUT /live/rooms/{roomId}/stickers`, `{"items": [...]}`) —
+  the host of a LIVE room replaces all its stickers (`[]` clears them; a move sends them again with
+  their `id`, which they keep). Each is exactly one of `artKey` (from the catalogue) and `text` (1–40
+  code points after the §6 hygiene, one line, masked with the host's blocked words *(owner: through the
+  blocked-words filter)*), with `x`, `y` in 0–1 — the sticker's centre relative to the picture, so it
+  lands in the same place on every screen *(owner: positions normalised)* — `scale` 0.25–4 and
+  `rotation` −π–π radians. The order is the drawing order (the last on top). Checks: 401, 404, 403
+  `AUTH_FORBIDDEN`, 409 `LIVE_ROOM_ENDED`, 400 (`items` / `too_many`; `items.N.artKey` /
+  `invalid_value`; `items.N.text` / `required` / `too_long` / `invalid_format`; `items.N.x` … range;
+  an `id` twice → `items` / `invalid_value`). Rate: the taps rule (`RATE_LIMIT_LIVE_TAPS_USER`,
+  bucket `live:stickers`), enough for drags sent when a gesture ends.
+- **Reading** *(owner: late joiners get the current state)*: `getLiveStickers` (`GET …/stickers`,
+  anyone who can see the room, guests too; `[]` once the live ended). Every change also goes to the
+  room as `{"type":"stickers","stickers":LiveStickers}` on topic **`sticker`**.
+- **Catalogue** *(owner: admins can add sticker packs later)*: `listLiveStickerArt` (`GET
+  /live/stickers`) — the built-in Kabi pack (the app's own animated art, in the code), then the
+  enabled rows of `live_sticker_art` that admins add (SQL for now; an admin screen later). An app
+  shows only art it can draw; a sticker of unknown art is skipped on that phone.
+- **Not in v1.37-live:** paid stickers *(owner: not now)*, viewers' stickers, uploaded images.
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 

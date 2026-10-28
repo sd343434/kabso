@@ -502,6 +502,7 @@ model LiveRoom {
   boosts       LiveBoost[]
   summary      LiveSummary?
   program      LiveProgramItem[]
+  stickers     LiveSticker[]
 
   @@unique([hostUserId], map: "live_rooms_one_live_per_host", where: raw("status = 'LIVE'::live_room_status"))
   @@index([score(sort: Desc), startedAt(sort: Desc), id(sort: Desc)], map: "live_rooms_live_popular_idx", where: raw("status = 'LIVE'::live_room_status"))
@@ -2493,6 +2494,36 @@ model LiveProgramItem {
   @@id([roomId, position], map: "live_program_items_pkey")
   @@index([startsAt], map: "live_program_items_due_idx", where: raw("announced_at IS NULL"))
   @@map("live_program_items")
+}
+
+/// v1.37-live (D154h, CONVENTIONS §10.38): sticker art the app may place on a live (the catalogue).
+model LiveStickerArt {
+  key       String   @id(map: "live_sticker_art_pkey") @db.VarChar(64)
+  pack      String   @db.VarChar(32)
+  sortOrder Int      @default(0) @map("sort_order")
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@map("live_sticker_art")
+}
+
+/// v1.37-live (D154h): a sticker on a live now (≤ 3; Kabi art or a text), placed by the host.
+model LiveSticker {
+  roomId   String  @map("room_id") @db.Uuid
+  id       String  @db.Uuid
+  position Int     @db.SmallInt
+  artKey   String? @map("art_key") @db.VarChar(64)
+  text     String? @db.VarChar(160)
+  x        Float
+  y        Float
+  scale    Float
+  rotation Float
+
+  room LiveRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@id([roomId, id], map: "live_stickers_pkey")
+  @@unique([roomId, position], map: "live_stickers_position_key")
+  @@map("live_stickers")
 }
 
 /// v1.35-live (D154d, CONVENTIONS §10.36): one ended live, summarised once for the host's data center

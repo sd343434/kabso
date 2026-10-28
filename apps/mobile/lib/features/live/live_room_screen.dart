@@ -26,6 +26,7 @@ import 'package:kabso_live/features/live/application/live_quips.dart';
 import 'package:kabso_live/features/live/application/live_room_provider.dart';
 import 'package:kabso_live/features/live/application/live_room_session.dart';
 import 'package:kabso_live/features/live/application/live_seat_emojis.dart';
+import 'package:kabso_live/features/live/application/live_stickers.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_permissions.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
@@ -53,6 +54,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dar
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_states.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_side_cards.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_sticker_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_tap_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_viewer_parts.dart';
@@ -344,6 +346,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       ref.read(liveQuipsProvider(room.id).notifier).attach(_session.engine);
       // D154e: the live's program (late joiners load it).
       ref.read(liveProgramProvider(room.id).notifier).attach(_session.engine);
+      // D154h: the live's stickers.
+      ref.read(liveStickersProvider(room.id).notifier).attach(_session.engine);
       // CP-013: the room chat, on the same media session.
       unawaited(
         ref
@@ -821,12 +825,19 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       // Ended: the overlay explains; no video message underneath it.
       video: ended
           ? const KLiveVideoPlaceholder(child: SizedBox.shrink())
-          : LiveTapLayer(
-              onTap: canTap ? _session.tap : null,
-              // D131 (ref 159): the characters start 37 pt above the bar,
-              // right over the gift button.
-              laneBottomInset: 59,
-              child: _video(session, engine),
+          : Stack(
+              fit: StackFit.expand,
+              children: [
+                LiveTapLayer(
+                  onTap: canTap ? _session.tap : null,
+                  // D131 (ref 159): the characters start 37 pt above the
+                  // bar, right over the gift button.
+                  laneBottomInset: 59,
+                  child: _video(session, engine),
+                ),
+                // D154h: the host's stickers (no touches here).
+                LiveStickerLayer(roomId: room.id),
+              ],
             ),
       stage: !ended && room.mode.hasSeats ? _stage(session, engine) : null,
       header: KHostPill(

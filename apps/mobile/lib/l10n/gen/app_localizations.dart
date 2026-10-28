@@ -12547,6 +12547,48 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'تم تفعيل السلاسة'**
   String get liveQualitySmoothOn;
+
+  /// D154h: the sticker sheet's explanation.
+  ///
+  /// In ar, this message translates to:
+  /// **'حتى 3 ملصقات يراها الجميع. اسحب الملصق على البث لتحريكه، وبإصبعين لتكبيره وتدويره.'**
+  String get liveStickersHint;
+
+  /// D154h: the stickers placed now.
+  ///
+  /// In ar, this message translates to:
+  /// **'على البث ({count} من {max})'**
+  String liveStickersOnLive(int count, int max);
+
+  /// D154h: none placed.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا ملصقات بعد'**
+  String get liveStickersNone;
+
+  /// D154h: the limit is reached.
+  ///
+  /// In ar, this message translates to:
+  /// **'3 ملصقات كحد أقصى، احذف واحداً لإضافة غيره'**
+  String get liveStickersFull;
+
+  /// D154h: removes one sticker.
+  ///
+  /// In ar, this message translates to:
+  /// **'احذف الملصق'**
+  String get liveStickersRemove;
+
+  /// D154h: the text sticker field.
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب ملصقاً نصياً'**
+  String get liveStickersTextHint;
+
+  /// D154h: adds the text sticker.
+  ///
+  /// In ar, this message translates to:
+  /// **'أضف'**
+  String get liveStickersAddText;
 }
 
 class _AppLocalizationsDelegate

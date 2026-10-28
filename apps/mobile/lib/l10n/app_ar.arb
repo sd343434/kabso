@@ -8137,5 +8137,19 @@
   "liveQualitySuggestAction": "فعّل",
   "@liveQualitySuggestAction": {"description": "D154g: the suggestion's action."},
   "liveQualitySmoothOn": "تم تفعيل السلاسة",
-  "@liveQualitySmoothOn": {"description": "D154g: after switching from the suggestion."}
+  "@liveQualitySmoothOn": {"description": "D154g: after switching from the suggestion."},
+  "liveStickersHint": "حتى 3 ملصقات يراها الجميع. اسحب الملصق على البث لتحريكه، وبإصبعين لتكبيره وتدويره.",
+  "@liveStickersHint": {"description": "D154h: the sticker sheet's explanation."},
+  "liveStickersOnLive": "على البث ({count} من {max})",
+  "@liveStickersOnLive": {"description": "D154h: the stickers placed now.", "placeholders": {"count": {"type": "int"}, "max": {"type": "int"}}},
+  "liveStickersNone": "لا ملصقات بعد",
+  "@liveStickersNone": {"description": "D154h: none placed."},
+  "liveStickersFull": "3 ملصقات كحد أقصى، احذف واحداً لإضافة غيره",
+  "@liveStickersFull": {"description": "D154h: the limit is reached."},
+  "liveStickersRemove": "احذف الملصق",
+  "@liveStickersRemove": {"description": "D154h: removes one sticker."},
+  "liveStickersTextHint": "اكتب ملصقاً نصياً",
+  "@liveStickersTextHint": {"description": "D154h: the text sticker field."},
+  "liveStickersAddText": "أضف",
+  "@liveStickersAddText": {"description": "D154h: adds the text sticker."}
 }

@@ -41,10 +41,14 @@ export interface LiveProgramDto {
 
 const LINE_BREAK = /[\n\r\u2028\u2029]/u;
 
-function titleSchema() {
+/**
+ * A one-line live text of 1–[max] code points after the §6 hygiene (`required` / `too_long` /
+ * `invalid_format`, line breaks refused). Shared by the program (D154e) and the stickers (D154h).
+ */
+export function liveLineSchema(max: number) {
   return z
     .string()
-    .max(LIVE_PROGRAM_TITLE_MAX * 8)
+    .max(max * 8)
     .transform((raw, ctx): string => {
       const value = trimHygiene(raw.normalize('NFC'));
       const issue =
@@ -52,7 +56,7 @@ function titleSchema() {
           ? 'required'
           : LINE_BREAK.test(value)
             ? 'invalid_format'
-            : [...value].length > LIVE_PROGRAM_TITLE_MAX
+            : [...value].length > max
               ? 'too_long'
               : null;
       if (issue) {
@@ -60,7 +64,7 @@ function titleSchema() {
         return z.NEVER;
       }
       const result = normalizeContentText(value, {
-        maxCodePoints: LIVE_PROGRAM_TITLE_MAX,
+        maxCodePoints: max,
         maxLineBreaks: 0,
         allowEmpty: false,
       });
@@ -74,7 +78,12 @@ function titleSchema() {
 
 const programSchema = z.strictObject({
   items: z
-    .array(z.strictObject({ startsAt: z.iso.datetime({ offset: true }), title: titleSchema() }))
+    .array(
+      z.strictObject({
+        startsAt: z.iso.datetime({ offset: true }),
+        title: liveLineSchema(LIVE_PROGRAM_TITLE_MAX),
+      }),
+    )
     .max(LIVE_PROGRAM_MAX),
 });
 

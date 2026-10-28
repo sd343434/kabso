@@ -1155,6 +1155,12 @@ APNs key yet): the iOS app never starts Firebase and needs no `GoogleService-Inf
 - Apply with the usual `migrate` job (§5): table `live_program_items`. No GRANT, no backfill, no new
   config (the announcements run on `LIVE_SWEEP_INTERVAL_SECONDS`; 0 turns them off).
 
+### 5.22 Stickers on a live «ملصقات» (migration `20261208090000_live_stickers`; D154h) — [IMPLEMENTED, draft contract v1.37-live; not deployed, not device-tested]
+
+- Apply with the usual `migrate` job (§5): tables `live_stickers` and `live_sticker_art` (empty: the
+  Kabi pack is built into the API). No GRANT, no backfill, no new config. Adding a pack later is an
+  `INSERT INTO live_sticker_art (key, pack, sort_order)` once the app ships its art.
+
 ## 6. Observability baseline
 
 | Item | Status |

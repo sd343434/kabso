@@ -13,6 +13,7 @@ import { LiveBoostsService } from './live-boosts.service.js';
 import { LiveNewcomersService } from './live-newcomers.service.js';
 import { LiveDataCenterService } from './live-data-center.service.js';
 import { LiveProgramService } from './live-program.service.js';
+import { LiveStickersService } from './live-stickers.service.js';
 import { LiveCategoriesService } from './live-categories.service.js';
 import { LiveChatBadgesService } from './live-chat-badges.service.js';
 import { LiveChatService } from './live-chat.service.js';
@@ -88,6 +89,7 @@ import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit
     LiveNewcomersService,
     LiveDataCenterService,
     LiveProgramService,
+    LiveStickersService,
     // v1.20-live (D105): kicking someone out of a live (§10.20).
     LiveKicksService,
     // v1.23-live (CP-020, D108): gifts in a live, through the wallet and the gifts module (§10.23).
