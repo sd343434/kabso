@@ -30,3 +30,11 @@ spending currency (D135); it replaces the D74 coin `assets/art/kabso_coin.webp` 
 | File | Use |
 | ---- | --- |
 | `kabso_coin.png` | `KabsoArt.coin`: every count of coins people spend — gift prices, quantities and the balance in the gift panel, the gift toast, the wallet, bullets, lucky wins, CP gifts |
+
+## Kabso coin v2 — Kabi coin (owner-supplied, 2026-10-28, D161)
+
+The owner replaced the crowned-"K" coin with a new spending-coin artwork: Kabi (3D, peace sign)
+on a red medallion in a gold rim with a crown and red diamonds, supplied in the conversation as a
+1254×1254 transparent PNG. `kabso_coin.png` now holds it trimmed, centred on a square canvas and
+scaled to 256×256 (sharper than the old 96 px file at every size it is drawn). Same file name, so
+`KabsoArt.coin` and every use above are unchanged.
