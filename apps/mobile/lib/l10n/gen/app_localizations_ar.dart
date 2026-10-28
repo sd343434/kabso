@@ -6831,4 +6831,17 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get livePermissionSeatRefused =>
       'لا يمكن الجلوس على المقعد دون السماح بالوصول.';
+
+  @override
+  String get liveMaxXGuaranteed => 'ضمان';
+
+  @override
+  String liveLuckyOddsPity(String multiplier, String after) {
+    return '×$multiplier مضمون بعد $after محاولة بدون ربح';
+  }
+
+  @override
+  String liveLuckyTicker(String name, String multiplier, String room) {
+    return '$name ربح ×$multiplier في غرفة $room';
+  }
 }

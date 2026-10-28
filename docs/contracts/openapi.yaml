@@ -163,6 +163,11 @@ info:
     stored), `listTrendingSearches` (`GET /search/trending`, up to 6 terms with a `TRENDING` /
     `NEW` tag, at least 5 different searchers) and `listTrendingHashtags`
     (`GET /search/trending-hashtags`, the hashtags of the week) (CONVENTIONS §11.11).
+    **D148 (DRAFT v1.30-live)** changes lucky gifts: eight multipliers (×5 ×10 ×25 ×50 ×100 ×250
+    ×500 ×1000) with configured chances per million; a per-sender guarantee (after 15 losing draws
+    in a row the next draw pays at least ×5; `LuckyGiftOdds.pity`, `LuckyGiftResult.guaranteed`);
+    and the data message `lucky-ticker` on topic `lucky`, sent to every other live room for a big
+    win, at most one every 10 s (CONVENTIONS §10.27).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -1900,7 +1905,10 @@ paths:
         and family points count **10 %** of the gift value (`hostSharePercent`); the caller's Wizard
         level counts the full value (CP-005). A retry returns the first send with the same
         `luckyResult` and never draws again. A send whose best win is at least `bigWinMultiplier`
-        also goes to the room as a `lucky-win` data message on topic `lucky`.
+        also goes to the room as a `lucky-win` data message on topic `lucky`, and (v1.30-live,
+        D148) to every other live room as a `lucky-ticker` data message (at most one every 10 s).
+        v1.30-live (D148): after 15 losing lucky draws in a row by the caller (any room) the next
+        draw pays at least ×5 (`luckyResult.guaranteed`).
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
       requestBody:
@@ -1989,17 +1997,21 @@ paths:
               example:
                 enabled: true
                 drawsPerGift: 1
-                returnPercent: 85
+                returnPercent: 84.9999
                 hostSharePercent: 10
                 outcomes:
-                  - { multiplier: 5, chancePerMillion: 68000, probability: 0.068 }
-                  - { multiplier: 10, chancePerMillion: 21250, probability: 0.02125 }
-                  - { multiplier: 50, chancePerMillion: 2550, probability: 0.00255 }
-                  - { multiplier: 100, chancePerMillion: 1020, probability: 0.00102 }
-                  - { multiplier: 500, chancePerMillion: 136, probability: 0.000136 }
-                noWinChancePerMillion: 907044
-                noWinProbability: 0.907044
+                  - { multiplier: 5, chancePerMillion: 48918, probability: 0.048918 }
+                  - { multiplier: 10, chancePerMillion: 15451, probability: 0.015451 }
+                  - { multiplier: 25, chancePerMillion: 3903, probability: 0.003903 }
+                  - { multiplier: 50, chancePerMillion: 1464, probability: 0.001464 }
+                  - { multiplier: 100, chancePerMillion: 569, probability: 0.000569 }
+                  - { multiplier: 250, chancePerMillion: 130, probability: 0.00013 }
+                  - { multiplier: 500, chancePerMillion: 40, probability: 0.00004 }
+                  - { multiplier: 1000, chancePerMillion: 12, probability: 0.000012 }
+                noWinChancePerMillion: 929513
+                noWinProbability: 0.929513
                 bigWinMultiplier: 100
+                pity: { after: 15, multiplier: 5 }
                 dailyProtection: true
                 dayTimeZone: UTC
                 minimumAge: 18
@@ -8963,7 +8975,7 @@ components:
       description: |
         v1.27-live (D132, CONVENTIONS §10.27): the draws of a lucky send. One draw per gift
         (`quantity × recipients`), each against the odds of `getLuckyGiftOdds` at the time of the send.
-      required: [draws, wins, coinsWon, topMultiplier, downgraded]
+      required: [draws, wins, coinsWon, topMultiplier, downgraded, guaranteed]
       properties:
         draws: { type: integer, minimum: 1, description: "quantity × recipients." }
         wins:
@@ -8976,7 +8988,24 @@ components:
         downgraded:
           type: integer
           minimum: 0
-          description: Winning draws paid less, or nothing, because the day's protection budget was reached (CONVENTIONS §10.27).
+          description: Winning draws (and, v1.30-live, guaranteed draws) paid less, or nothing, because the day's protection budget was reached (CONVENTIONS §10.27).
+        guaranteed:
+          type: boolean
+          description: |
+            v1.30-live (D148). A draw of this send was paid by the guarantee (`LuckyGiftOdds.pity`):
+            the caller had lost `pity.after` draws in a row and the draw paid `pity.multiplier`
+            instead of nothing. The app shows the normal win with a small «ضمان» / "Guaranteed" label.
+    LuckyGiftPity:
+      type: object
+      description: |
+        v1.30-live (D148, CONVENTIONS §10.27). The per-sender guarantee: after `after` losing lucky
+        draws in a row by one sender (any room, any session; a paid draw resets the count) that
+        sender's next draw pays at least `multiplier` × the gift's unit price. The daily protection
+        applies to it too: a guarantee that does not fit pays nothing and stays due on the next draw.
+      required: [after, multiplier]
+      properties:
+        after: { type: integer, minimum: 1, maximum: 1000, description: "Losing draws in a row before the guarantee (owner: 15)." }
+        multiplier: { type: integer, minimum: 2, description: "What the guaranteed draw pays at least (owner: ×5)." }
     LuckyGiftOutcome:
       type: object
       required: [multiplier, chancePerMillion, probability]
@@ -8997,7 +9026,7 @@ components:
     LuckyGiftOdds:
       type: object
       description: v1.27-live (D132, CONVENTIONS §10.27). The published odds of lucky gifts (server configuration).
-      required: [enabled, drawsPerGift, returnPercent, hostSharePercent, outcomes, noWinChancePerMillion, noWinProbability, bigWinMultiplier, dailyProtection, dayTimeZone, minimumAge, caller]
+      required: [enabled, drawsPerGift, returnPercent, hostSharePercent, outcomes, noWinChancePerMillion, noWinProbability, bigWinMultiplier, pity, dailyProtection, dayTimeZone, minimumAge, caller]
       properties:
         enabled: { type: boolean, description: "Lucky gifts can be sent now (`LUCKY_GIFTS_ENABLED`)." }
         drawsPerGift: { type: integer, enum: [1], description: "Every gift of a send (quantity × recipients) is one draw." }
@@ -9005,7 +9034,11 @@ components:
           type: number
           minimum: 0
           maximum: 100
-          description: The expected coins won per 100 coins of lucky gifts sent, Σ multiplier × probability × 100, before the daily protection (which can only lower it).
+          description: |
+            The expected coins won per 100 coins of lucky gifts sent, before the daily protection
+            (which can only lower it), four decimals. v1.30-live (D148): including the guarantee
+            (`pity`) — exact, from the losing-streak chain (CONVENTIONS §10.27); without one it is
+            Σ multiplier × probability × 100.
         hostSharePercent: { type: number, minimum: 0, maximum: 100, description: "The share of a lucky gift's value that counts for the recipients (charm), the live score, the boards and the Contribution list." }
         outcomes:
           type: array
@@ -9015,8 +9048,13 @@ components:
           description: The winning outcomes, by multiplier ascending.
         noWinChancePerMillion: { type: integer, minimum: 0, maximum: 1000000 }
         noWinProbability: { type: number, minimum: 0, maximum: 1 }
-        bigWinMultiplier: { type: integer, minimum: 2, description: "Wins of at least this multiplier are announced to the room (`lucky-win`)." }
-        dailyProtection: { type: boolean, enum: [true], description: "The day's wins never exceed `returnPercent` of the day's lucky-gift spend; a draw that would pass it pays a smaller multiplier that fits, or nothing (`LuckyGiftResult.downgraded`)." }
+        bigWinMultiplier: { type: integer, minimum: 2, description: "Wins of at least this multiplier are announced to the room (`lucky-win`) and, v1.30-live, to every other live room (`lucky-ticker`)." }
+        pity:
+          description: v1.30-live (D148). The per-sender guarantee, or null when it is off.
+          oneOf:
+            - $ref: '#/components/schemas/LuckyGiftPity'
+            - type: 'null'
+        dailyProtection: { type: boolean, enum: [true], description: "The day's wins never exceed the configured return (85 %; v1.30-live: `returnPercent` is at most that) of the day's lucky-gift spend; a draw that would pass it pays a smaller multiplier that fits, or nothing (`LuckyGiftResult.downgraded`)." }
         dayTimeZone: { type: string, description: "The IANA time zone whose midnight starts the protection's day." }
         minimumAge: { type: integer, enum: [18] }
         caller:

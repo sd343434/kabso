@@ -823,7 +823,8 @@ class MaxXOrbPainter extends CustomPainter {
 /// D145d: the celebration of one winning send (owner's per-tier design):
 /// the ring, the ribbon banner «x100» (with «جاكبوت» / «JACKPOT» at ×500
 /// and «سوبر جاكبوت» / «SUPER JACKPOT» at ×1000), the coins it won, a coin
-/// fountain, sparkles, a sunburst from ×50 and a shake from ×25. Painted
+/// fountain, sparkles, a sunburst from ×50 and a shake from ×25 (D148: a
+/// win the guarantee paid says «ضمان» / «Guaranteed» over it). Painted
 /// around the button's centre ([centre]) over the room; never takes taps.
 /// The numbers are the server's ([win]); the tier only picks the look.
 /// With reduced motion the banner shows still, without rays, coins or
@@ -889,6 +890,8 @@ class _MaxXCelebrationState extends State<MaxXCelebration>
     final title = switch (_style.tier) {
       1000 => l10n.liveMaxXSuperJackpot,
       500 => l10n.liveMaxXJackpot,
+      // D148: the guarantee's win (×5) says so, small, over its banner.
+      _ when win.guaranteed => l10n.liveMaxXGuaranteed,
       _ => null,
     };
     final spoken = l10n.liveLuckyWon(

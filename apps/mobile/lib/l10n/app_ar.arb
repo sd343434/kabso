@@ -7861,5 +7861,11 @@
   "goLiveMicDeniedBody": "تحتاجه الغرفة الصوتية ليسمعك الحاضرون. اضغط «إعادة المحاولة» ليسألك الجهاز مرة أخرى.",
   "@goLiveMicDeniedBody": {"description": "D144a: DeepAR status and camera/microphone permissions."},
   "livePermissionSeatRefused": "لا يمكن الجلوس على المقعد دون السماح بالوصول.",
-  "@livePermissionSeatRefused": {"description": "D144a: DeepAR status and camera/microphone permissions."}
+  "@livePermissionSeatRefused": {"description": "D144a: DeepAR status and camera/microphone permissions."},
+  "liveMaxXGuaranteed": "ضمان",
+  "@liveMaxXGuaranteed": {"description": "D148: the small label over a MAX X win the guarantee paid (×5 after 15 losing draws in a row)."},
+  "liveLuckyOddsPity": "×{multiplier} مضمون بعد {after} محاولة بدون ربح",
+  "@liveLuckyOddsPity": {"description": "D148: the odds sheet's line for the per-sender guarantee (owner's wording).", "placeholders": {"multiplier": {"type": "String"}, "after": {"type": "String"}}},
+  "liveLuckyTicker": "{name} ربح ×{multiplier} في غرفة {room}",
+  "@liveLuckyTicker": {"description": "D148: the gold ticker of a big lucky win in another live («لحظة الحظ»); a tap opens that live.", "placeholders": {"name": {"type": "String"}, "multiplier": {"type": "String"}, "room": {"type": "String"}}}
 }

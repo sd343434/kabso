@@ -2233,5 +2233,8 @@
   "goLiveMicDeniedBody": "The audio room needs it so people can hear you. Tap Retry and your phone will ask again.",
   "@goLiveMicDeniedBody": {"description": "D144a: DeepAR status and camera/microphone permissions."},
   "livePermissionSeatRefused": "You can't take a seat without allowing access.",
-  "@livePermissionSeatRefused": {"description": "D144a: DeepAR status and camera/microphone permissions."}
+  "@livePermissionSeatRefused": {"description": "D144a: DeepAR status and camera/microphone permissions."},
+  "liveMaxXGuaranteed": "Guaranteed",
+  "liveLuckyOddsPity": "×{multiplier} guaranteed after {after} draws without a win",
+  "liveLuckyTicker": "{name} won ×{multiplier} in {room}"
 }

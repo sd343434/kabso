@@ -139,6 +139,9 @@ class KLiveGiftSheet extends ConsumerStatefulWidget {
   static const ageConfirmKey = Key('gift.lucky.ageConfirm');
   static Key oddsRowKey(int multiplier) => Key('gift.lucky.odds.$multiplier');
 
+  /// D148: the odds sheet's guarantee line.
+  static const oddsPityKey = Key('gift.lucky.odds.pity');
+
   @override
   ConsumerState<KLiveGiftSheet> createState() => _KLiveGiftSheetState();
 }
@@ -2278,6 +2281,29 @@ class _LuckyOddsSheet extends ConsumerWidget {
             label: l10n.liveLuckyOddsNoWin,
             value: _percent(value.noWinProbability),
           ),
+          // D148: the per-sender guarantee («×5 مضمون بعد 15 محاولة بدون
+          // ربح»), from the server's table.
+          if (value.pity case final pity?)
+            Container(
+              key: KLiveGiftSheet.oddsPityKey,
+              margin: const EdgeInsets.only(top: KSpacing.sm),
+              padding: const EdgeInsets.symmetric(
+                horizontal: KSpacing.md,
+                vertical: KSpacing.sm,
+              ),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(KRadius.md),
+                border: Border.all(color: const Color(0xFFFFC93C)),
+                color: const Color(0x33FFC93C),
+              ),
+              child: Text(
+                l10n.liveLuckyOddsPity(
+                  KFormat.grouped(pity.multiplier),
+                  KFormat.grouped(pity.after),
+                ),
+                style: t.bodyStrong.copyWith(color: const Color(0xFFFFE27A)),
+              ),
+            ),
           const SizedBox(height: KSpacing.md),
           for (final line in [
             l10n.liveLuckyOddsReturn(

@@ -11719,6 +11719,24 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'لا يمكن الجلوس على المقعد دون السماح بالوصول.'**
   String get livePermissionSeatRefused;
+
+  /// D148: the small label over a MAX X win the guarantee paid (×5 after 15 losing draws in a row).
+  ///
+  /// In ar, this message translates to:
+  /// **'ضمان'**
+  String get liveMaxXGuaranteed;
+
+  /// D148: the odds sheet's line for the per-sender guarantee (owner's wording).
+  ///
+  /// In ar, this message translates to:
+  /// **'×{multiplier} مضمون بعد {after} محاولة بدون ربح'**
+  String liveLuckyOddsPity(String multiplier, String after);
+
+  /// D148: the gold ticker of a big lucky win in another live («لحظة الحظ»); a tap opens that live.
+  ///
+  /// In ar, this message translates to:
+  /// **'{name} ربح ×{multiplier} في غرفة {room}'**
+  String liveLuckyTicker(String name, String multiplier, String room);
 }
 
 class _AppLocalizationsDelegate

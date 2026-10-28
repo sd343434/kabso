@@ -7,6 +7,7 @@ import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/application/live_gift_effects.dart';
 import 'package:kabso_live/features/live/application/live_gift_providers.dart';
+import 'package:kabso_live/features/live/application/live_lucky_ticker.dart';
 import 'package:kabso_live/features/live/application/max_x.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
@@ -35,9 +36,14 @@ class LiveGiftEffectsLayer extends ConsumerWidget {
     super.key,
     this.onSender,
     this.stripsStart = KSpacing.sm,
+    this.onOpenRoom,
   });
 
   final String roomId;
+
+  /// D148: opens the live of a gold ticker's win (a viewer moves there);
+  /// null: the ticker takes no taps (the host on air stays in their live).
+  final ValueChanged<String>? onOpenRoom;
 
   /// Opens the sender's card (D145); null: the strips take no taps.
   final ValueChanged<UserSummary>? onSender;
@@ -107,8 +113,154 @@ class LiveGiftEffectsLayer extends ConsumerWidget {
           floor: ref.watch(liveChatTopProvider(roomId)),
           child: LiveGiftStrips(roomId: roomId, onSender: onSender),
         ),
+        // D148: «لحظة الحظ» — a big win in another live, under the header.
+        Positioned(
+          top: LiveGiftStripsSlot.top,
+          left: KSpacing.md,
+          right: KSpacing.md,
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: LiveLuckyTickerBar(roomId: roomId, onOpenRoom: onOpenRoom),
+          ),
+        ),
       ],
     );
+  }
+}
+
+/// D148 («لحظة الحظ», owner): the compact gold ticker of a big lucky win
+/// in another live — «فلان ربح ×500 في غرفة …» — under the room's header,
+/// for [LiveLuckyTickers.showTime]. A tap opens that live ([onOpenRoom];
+/// none: not a button). Slides down and fades in; with reduced motion it
+/// just appears. Hidden while [luckyTickerHiddenProvider] says so (the
+/// viewer's switch comes in D151).
+class LiveLuckyTickerBar extends ConsumerWidget {
+  const new({required this.roomId, super.key, this.onOpenRoom});
+
+  final String roomId;
+  final ValueChanged<String>? onOpenRoom;
+
+  static const tickerKey = Key('gift.lucky.ticker');
+
+  /// The bar's widest (narrower screens: their width less the margins).
+  static const double maxWidth = 340;
+
+  static const _gold = [
+    Color(0xFFFFF3B0),
+    Color(0xFFFFC93C),
+    Color(0xFFFF9F1E),
+  ];
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Always watched (the controller keeps its subscription while hidden).
+    final current = ref.watch(liveLuckyTickersProvider(roomId));
+    final ticker = ref.watch(luckyTickerHiddenProvider) ? null : current;
+    final still = MediaQuery.disableAnimationsOf(context);
+    return AnimatedSwitcher(
+      duration: still ? Duration.zero : const Duration(milliseconds: 320),
+      transitionBuilder: (child, animation) => FadeTransition(
+        opacity: animation,
+        child: SlideTransition(
+          position: Tween(
+            begin: const Offset(0, -0.6),
+            end: Offset.zero,
+          ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut)),
+          child: child,
+        ),
+      ),
+      child: ticker == null
+          ? const SizedBox.shrink()
+          : _bar(context, ref, ticker),
+    );
+  }
+
+  Widget _bar(BuildContext context, WidgetRef ref, LuckyTicker ticker) {
+    final l10n = context.l10n;
+    final styles = context.textStyles;
+    final win = ticker.win;
+    final scaler = MediaQuery.textScalerOf(context)
+        .clamp(minScaleFactor: 1, maxScaleFactor: 1.3);
+    final open = onOpenRoom;
+    final text = l10n.liveLuckyTicker(
+      KFormat.bidiIsolate(win.sender.displayName),
+      KFormat.grouped(win.multiplier),
+      KFormat.bidiIsolate(ticker.room.title),
+    );
+    final bar = Container(
+      constraints: const BoxConstraints(maxWidth: maxWidth, minHeight: 36),
+      padding: const EdgeInsetsDirectional.fromSTEB(3, 3, KSpacing.md, 3),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(KRadius.pill),
+        gradient: const LinearGradient(
+          colors: [Color(0xF24A2300), Color(0xF21C0A00)],
+        ),
+        border: Border.all(color: const Color(0xFFFFC93C), width: 1.5),
+        boxShadow: const [BoxShadow(color: Color(0x80FFB020), blurRadius: 14)],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(1.5),
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(colors: _gold),
+            ),
+            child: KAvatar(
+              name: win.sender.displayName,
+              imageUrl: win.sender.avatarUrl,
+              size: 26,
+            ),
+          ),
+          const SizedBox(width: KSpacing.sm),
+          Flexible(
+            child: Text(
+              text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textScaler: scaler,
+              style: styles.label.copyWith(
+                color: const Color(0xFFFFE27A),
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          if (open != null) ...[
+            const SizedBox(width: KSpacing.xs),
+            const Icon(
+              Icons.chevron_right_rounded,
+              size: 18,
+              color: Color(0xFFFFC93C),
+            ),
+          ],
+        ],
+      ),
+    );
+    return Semantics(
+      key: ValueKey('ticker.${win.giftId}'),
+      container: true,
+      liveRegion: true,
+      button: open != null,
+      label: text,
+      excludeSemantics: true,
+      onTap: open == null ? null : () => _open(ref, ticker, open),
+      child: KeyedSubtree(
+        key: tickerKey,
+        child: open == null
+            ? bar
+            : GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => _open(ref, ticker, open),
+                child: bar,
+              ),
+      ),
+    );
+  }
+
+  void _open(WidgetRef ref, LuckyTicker ticker, ValueChanged<String> open) {
+    ref.read(liveLuckyTickersProvider(roomId).notifier).dismiss();
+    open(ticker.room.id);
   }
 }
 

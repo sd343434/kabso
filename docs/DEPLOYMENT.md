@@ -814,10 +814,13 @@ a `CONNECTION LIMIT`.
   | Variable | Default | Meaning |
   | -------- | ------- | ------- |
   | `LUCKY_GIFTS_ENABLED` | `false` | `true` lists the LUCKY tab and lets lucky gifts be sent |
-  | `LUCKY_GIFT_RTP_PERCENT` | `85` | expected coins won per 100 spent (1–99, two decimals) |
+  | `LUCKY_GIFT_RTP_PERCENT` | `85` | target return and the daily protection's ceiling: coins won per 100 spent (1–99, two decimals) |
   | `LUCKY_GIFT_HOST_SHARE_PERCENT` | `10` | share of the value counted for charm, scores, boards, Contribution and family points |
-  | `LUCKY_GIFT_MULTIPLIERS` | `5,10,50,100,500` | winning multipliers, ascending |
-  | `LUCKY_GIFT_RTP_SHARES` | `40,25,15,12,8` | share of the return per multiplier (whole %, sum 100) |
+  | `LUCKY_GIFT_MULTIPLIERS` | `5,10,25,50,100,250,500,1000` (D148; was `5,10,50,100,500`) | winning multipliers, ascending |
+  | `LUCKY_GIFT_CHANCES_PER_MILLION` | `48918,15451,3903,1464,569,130,40,12` (D148) | each multiplier's chance in draws per million, same order; with the guarantee the return must not pass `LUCKY_GIFT_RTP_PERCENT` |
+  | `LUCKY_PITY_AFTER` | `15` (D148) | losing draws in a row before a sender's guaranteed draw; `0` turns the guarantee off |
+  | `LUCKY_PITY_MULTIPLIER` | `5` (D148) | what the guaranteed draw pays at least (one of the multipliers) |
+  | ~~`LUCKY_GIFT_RTP_SHARES`~~ | — | **removed in D148**: set → the API refuses to start |
   | `LUCKY_GIFT_BIG_WIN_MULTIPLIER` | `100` | wins from this multiplier are announced to the room |
   | `LUCKY_GIFT_DAY_TIME_ZONE` | `UTC` | the daily protection's day |
   | `LUCKY_GIFTS_DISABLED_COUNTRIES` | empty | ISO alpha-2 codes where lucky gifts are off |
@@ -844,6 +847,45 @@ a `CONNECTION LIMIT`.
   `lucky-day` prints the right budget.
 - **Rollback:** set `LUCKY_GIFTS_ENABLED=false` (lucky gifts disappear from the catalogue and cannot
   be sent; the rows stay). The migration is additive; do not drop the tables (audit).
+
+### 5.11a Lucky gifts D148: eight tiers, the guarantee, «لحظة الحظ» (migration `20261203090000_lucky_pity`) — [IMPLEMENTED, draft contract v1.30-live; not deployed]
+
+- **Before upgrading:** if the API environment sets `LUCKY_GIFT_RTP_SHARES` (D132's way of setting
+  the odds), **remove it** — the new API refuses to start while it is set (so an old table is never
+  read with a new meaning). If it sets `LUCKY_GIFT_MULTIPLIERS` to the old `5,10,50,100,500`, remove
+  that too (or set `LUCKY_GIFT_CHANCES_PER_MILLION` with one chance per multiplier); the defaults
+  are the owner's D148 table (§5.11 table; CONVENTIONS §10.27).
+- **Migrate** with the usual `migrate` job (§5): one new table `lucky_gift_pity` (a sender's losing
+  draws in a row) and three nullable audit columns on `lucky_gift_draws` (`losses_before`,
+  `losses_after`, `guaranteed`). Additive, no backfill, no GRANT (default privileges). Every
+  sender starts with a count of 0.
+- **New optional config:** `LUCKY_GIFT_CHANCES_PER_MILLION`, `LUCKY_PITY_AFTER` (`15`),
+  `LUCKY_PITY_MULTIPLIER` (`5`) — §5.11 table. The odds endpoint then shows the eight tiers,
+  `pity: {after: 15, multiplier: 5}` and `returnPercent: 84.9999`; check it after deploying:
+
+  ```bash
+  curl -s https://<api>/api/v1/live/gifts/lucky/odds | jq '{returnPercent, pity, outcomes}'
+  ```
+
+- **Global ticker:** no config. It uses two Redis keys (`lucky:ticker:gate`, 10 s;
+  `lucky:ticker:pending`, ≤ 30 s) and the media server's data messages (one per LIVE room, at most
+  5 000, at most once every 10 s). Redis or LiveKit down → no ticker; sends are unaffected.
+- **Throughput (owner: 100 lucky sends a second per user):** measured on the dev box with e2e
+  `kl093` (API and the test client in one Node process, PostgreSQL 16 and Redis on the same 4 vCPU
+  host): before (D145e) one user committed ≈ 23 sends/s one at a time and 32–39/s when 100 were
+  offered in one second; after D148 ≈ 33/s one at a time and 50–70/s offered 100 in a second (61–67/s in
+  the final run), all accepted, 0 × 429; the transaction itself is ≈ 11–12 ms (was 23 ms; ≈ 16 statements instead of
+  ≈ 37). The remaining limit is CPU in the Node process (≈ 85–98 % of one core during the burst):
+  100/s for **one** sender is not reached on this box. Sends of one sender now wait in an in-process
+  queue instead of holding database connections, so a burst no longer starves the pool for other
+  requests.
+- **Monitoring:** `gift-admin lucky-wins` / `lucky-day` as in §5.11. A guaranteed draw shows in
+  `lucky_gift_draws.wins` as `[index, 0, 5]` (paid above drawn) and in `guaranteed`.
+- **Rollback:** `LUCKY_PITY_AFTER=0` turns the guarantee off (the table alone then returns 69.13 %;
+  set `LUCKY_GIFT_CHANCES_PER_MILLION` for another table); `LUCKY_GIFTS_ENABLED=false` turns lucky
+  gifts off. Rolling back to an API before D148 uses that API's own defaults (×5 … ×500, no
+  guarantee); unset `LUCKY_GIFT_MULTIPLIERS` first if it was set to eight tiers (the old API would
+  pair them with its five shares and refuse to start). The new table and columns can stay (unused).
 
 ### 5.12 Nearby and Featured on the live hub (migration `20261128090000_live_nearby_featured`; D133) — [IMPLEMENTED, draft contract]
 

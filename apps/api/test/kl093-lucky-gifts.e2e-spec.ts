@@ -18,6 +18,8 @@ import type { LuckyRng } from '../src/modules/gifts/lucky-odds.js';
 import { LUCKY_RNG } from '../src/modules/gifts/lucky-rng.js';
 import { LIVE_MEDIA_PROVIDER } from '../src/modules/live/media/live-media.provider.js';
 import { creditIn } from '../src/modules/wallet/wallet-ledger.js';
+import type { Redis } from 'ioredis';
+import { REDIS } from '../src/redis/redis.module.js';
 import { MemoryLiveMedia } from './helpers/memory-live-media.js';
 import { expectContract, operations } from './helpers/openapi.js';
 import { createTestApp, registerVerified, settle, type TestContext } from './helpers/test-app.js';
@@ -46,8 +48,30 @@ class ScriptedRng implements LuckyRng {
   }
 }
 
-/** Draw values of the default table (CONVENTIONS §10.27): the first value of each outcome. */
-const DRAW = { x5: 0, x10: 68_000, x50: 89_250, x100: 91_800, x500: 92_820, none: 999_999 } as const;
+/** Draw values of the default table (D148, CONVENTIONS §10.27): the first value of each outcome. */
+const DRAW = {
+  x5: 0,
+  x10: 48_918,
+  x25: 64_369,
+  x50: 68_272,
+  x100: 69_736,
+  x250: 70_305,
+  x500: 70_435,
+  x1000: 70_475,
+  none: 999_999,
+} as const;
+
+/** The default table's outcomes (D148): multiplier and chance per million. */
+const TABLE: [number, number][] = [
+  [5, 48_918],
+  [10, 15_451],
+  [25, 3_903],
+  [50, 1_464],
+  [100, 569],
+  [250, 130],
+  [500, 40],
+  [1000, 12],
+];
 
 interface TestUser {
   readonly id: string;
@@ -78,6 +102,106 @@ describe('D132 contract coverage', () => {
     expect(ids).toContain('confirmLuckyGiftAge PUT /api/v1/me/lucky-gifts/age-confirmation');
   });
 });
+
+/**
+ * D145d / D148 load check (owner: 100 lucky sends a second from one user): 100 sends one at a time
+ * (the MAX X queue's way), then 3 rounds of 100 started 10 ms apart; every send must succeed and
+ * continue the same combo in order. Prints the measurements (they are not pass/fail thresholds).
+ */
+async function loadCheck(ctx: TestContext, f: Fixtures, tag: string): Promise<void> {
+  /** Percentile `p` (0–1) of `xs` in ms, rounded to 0.1. */
+  const pct = (xs: number[], p: number) => {
+    const sorted = [...xs].sort((a, b) => a - b);
+    const v = sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))] ?? 0;
+    return Math.round(v * 10) / 10;
+  };
+  /** Times every interactive transaction of the app (connection, advisory lock wait and body). */
+  const timeTransactions = () => {
+    const prisma = ctx.prisma as unknown as { $transaction: (...a: unknown[]) => Promise<unknown> };
+    const original = prisma.$transaction;
+    const times: number[] = [];
+    prisma.$transaction = function (this: unknown, ...a: unknown[]) {
+      const t0 = performance.now();
+      return original.apply(this, a).finally(() => times.push(performance.now() - t0));
+    };
+    return { times, restore: () => void (prisma.$transaction = original) };
+  };
+  const { h, viewer, roomId } = await f.scene();
+  const code = await f.gift();
+  const report: string[] = [];
+
+  // 1) The MAX X queue's way: one send in flight at a time, as fast as the server answers.
+  const tx1 = timeTransactions();
+  const seq: number[] = [];
+  const cpu1 = process.cpuUsage();
+  const seqStart = performance.now();
+  for (let i = 0; i < 100; i++) {
+    const t0 = performance.now();
+    const res = await f.send(roomId, viewer, f.body(code, [h]));
+    seq.push(performance.now() - t0);
+    expect(res.status, `sequential ${String(i)}: ${JSON.stringify(res.body)}`).toBe(201);
+  }
+  const seqSeconds = (performance.now() - seqStart) / 1000;
+  const seqCpu = process.cpuUsage(cpu1);
+  tx1.restore();
+  report.push(
+    `sequential 100: ${seqSeconds.toFixed(2)} s (${(100 / seqSeconds).toFixed(1)} sends/s); ` +
+      `HTTP p50 ${String(pct(seq, 0.5))} p95 ${String(pct(seq, 0.95))} max ${String(pct(seq, 1))} ms; ` +
+      `transaction p50 ${String(pct(tx1.times, 0.5))} p95 ${String(pct(tx1.times, 0.95))} max ${String(pct(tx1.times, 1))} ms; ` +
+      // The API and the test client share this one Node process (one core at most).
+      `Node CPU ${((seqCpu.user + seqCpu.system) / 1000 / 100).toFixed(1)} ms per send`,
+  );
+  await new Promise((r) => setTimeout(r, 1100));
+
+  // 2) 100 a second offered: each round starts 100 sends 10 ms apart without waiting for the
+  // answers (one fresh 1 s window per round), then waits for them all.
+  for (let round = 0; round < 3; round++) {
+    const tx = timeTransactions();
+    const latencies: number[] = [];
+    const cpu = process.cpuUsage();
+    const t0 = performance.now();
+    const pending: Promise<request.Response>[] = [];
+    for (let i = 0; i < 100; i++) {
+      const due = t0 + i * 10 - performance.now();
+      if (due > 0) await new Promise((r) => setTimeout(r, due));
+      const start = performance.now();
+      pending.push(
+        f.send(roomId, viewer, f.body(code, [h])).then((res) => {
+          latencies.push(performance.now() - start);
+          return res;
+        }),
+      );
+    }
+    const offered = (performance.now() - t0) / 1000;
+    const answers = await Promise.all(pending);
+    const drained = (performance.now() - t0) / 1000;
+    const used = process.cpuUsage(cpu);
+    tx.restore();
+    const statuses = answers.map((r) => r.status);
+    report.push(
+      `round ${String(round + 1)}: 100 offered in ${offered.toFixed(2)} s, all answered after ${drained.toFixed(2)} s ` +
+        `(${(100 / drained).toFixed(1)} sends/s committed); 429s ${String(statuses.filter((s) => s === 429).length)}; ` +
+        `HTTP p50 ${String(pct(latencies, 0.5))} p95 ${String(pct(latencies, 0.95))} max ${String(pct(latencies, 1))} ms; ` +
+        `transaction (incl. lock wait) p50 ${String(pct(tx.times, 0.5))} p95 ${String(pct(tx.times, 0.95))} max ${String(pct(tx.times, 1))} ms; ` +
+        `Node CPU ${(((used.user + used.system) / 1000 / (drained * 1000)) * 100).toFixed(0)} % of one core`,
+    );
+    for (const [i, res] of answers.entries()) {
+      expect(res.status, `round ${String(round)} send ${String(i)}: ${JSON.stringify(res.body)}`).toBe(201);
+    }
+    await new Promise((r) => setTimeout(r, 1100));
+  }
+  expect(await ctx.prisma.liveGift.count({ where: { senderId: viewer.id } })).toBe(400);
+  // Each send is one combo step of the same streak, in order.
+  const combo = await ctx.prisma.liveGift.findMany({
+    where: { senderId: viewer.id },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    select: { comboCount: true },
+  });
+  expect(new Set(combo.map((c) => c.comboCount)).size).toBe(combo.length);
+  process.stderr.write(`[${tag}] ${report.join(`\n[${tag}] `)}\n`);
+}
+
+type Fixtures = ReturnType<typeof fixtures>;
 
 /** Shared fixtures over one app. */
 function fixtures(get: () => TestContext, clock: FakeClock) {
@@ -179,7 +303,7 @@ function fixtures(get: () => TestContext, clock: FakeClock) {
     return req.send(payload as object);
   };
   const newDay = () => clock.advance(24 * 3600);
-  return { auth, signup, coins, gift, wallet, confirmAge, scene, body, send, newDay };
+  return { auth, signup, join, coins, gift, wallet, confirmAge, scene, body, send, newDay };
 }
 
 describe('D132 lucky gifts (on)', { timeout: 180_000 }, () => {
@@ -208,6 +332,8 @@ describe('D132 lucky gifts (on)', { timeout: 180_000 }, () => {
         LUCKY_GIFTS_ENABLED: 'true',
         LUCKY_GIFTS_DISABLED_COUNTRIES: 'IR,KP',
         LUCKY_GIFTS_COUNTRY_HEADER: 'CF-IPCountry',
+        // The D132 arithmetic below is checked without the D148 guarantee (its own describe has it).
+        LUCKY_PITY_AFTER: '0',
       },
       [
         { token: Clock, value: clock },
@@ -223,21 +349,21 @@ describe('D132 lucky gifts (on)', { timeout: 180_000 }, () => {
       const guest = await ctx.http.get('/api/v1/live/gifts/lucky/odds');
       expect(guest.status).toBe(200);
       expectContract(guest, 'getLuckyGiftOdds');
+      // This app runs without the guarantee (LUCKY_PITY_AFTER=0): the draws alone return 69.1275 %.
       expect(guest.body).toEqual({
         enabled: true,
         drawsPerGift: 1,
-        returnPercent: 85,
+        returnPercent: 69.1275,
         hostSharePercent: 10,
-        outcomes: [
-          { multiplier: 5, chancePerMillion: 68_000, probability: 0.068 },
-          { multiplier: 10, chancePerMillion: 21_250, probability: 0.02125 },
-          { multiplier: 50, chancePerMillion: 2_550, probability: 0.00255 },
-          { multiplier: 100, chancePerMillion: 1_020, probability: 0.00102 },
-          { multiplier: 500, chancePerMillion: 136, probability: 0.000136 },
-        ],
-        noWinChancePerMillion: 907_044,
-        noWinProbability: 0.907044,
+        outcomes: TABLE.map(([multiplier, chancePerMillion]) => ({
+          multiplier,
+          chancePerMillion,
+          probability: chancePerMillion / 1_000_000,
+        })),
+        noWinChancePerMillion: 929_513,
+        noWinProbability: 0.929513,
         bigWinMultiplier: 100,
+        pity: null,
         dailyProtection: true,
         dayTimeZone: 'UTC',
         minimumAge: 18,
@@ -247,7 +373,7 @@ describe('D132 lucky gifts (on)', { timeout: 180_000 }, () => {
         (a, o) => a + o.multiplier * o.probability,
         0,
       );
-      expect(sum).toBeCloseTo(0.85, 10);
+      expect(sum).toBeCloseTo(0.691275, 10);
 
       const u = await f.signup();
       const odds = (country: string | null) => {
@@ -315,93 +441,8 @@ describe('D132 lucky gifts (on)', { timeout: 180_000 }, () => {
   });
 
   describe('D145c / D145d rate limits (owner: «too many attempts» during a lucky streak; 100 / s)', () => {
-    /** Percentile `p` (0–1) of `xs` in ms, rounded to 0.1. */
-    const pct = (xs: number[], p: number) => {
-      const sorted = [...xs].sort((a, b) => a - b);
-      const v = sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))] ?? 0;
-      return Math.round(v * 10) / 10;
-    };
-    /** Times every interactive transaction of the app (connection, advisory lock wait and body). */
-    const timeTransactions = () => {
-      const prisma = ctx.prisma as unknown as { $transaction: (...a: unknown[]) => Promise<unknown> };
-      const original = prisma.$transaction;
-      const times: number[] = [];
-      prisma.$transaction = function (this: unknown, ...a: unknown[]) {
-        const t0 = performance.now();
-        return original.apply(this, a).finally(() => times.push(performance.now() - t0));
-      };
-      return { times, restore: () => void (prisma.$transaction = original) };
-    };
-
     it('D145d load: 100 lucky sends a second from one user — 3 rounds of 100 started 10 ms apart all succeed (no 429); sequential sends measured too', async () => {
-      const { h, viewer, roomId } = await f.scene();
-      const code = await f.gift();
-      const report: string[] = [];
-
-      // 1) The MAX X queue's way: one send in flight at a time, as fast as the server answers.
-      const tx1 = timeTransactions();
-      const seq: number[] = [];
-      const seqStart = performance.now();
-      for (let i = 0; i < 100; i++) {
-        const t0 = performance.now();
-        const res = await f.send(roomId, viewer, f.body(code, [h]));
-        seq.push(performance.now() - t0);
-        expect(res.status, `sequential ${String(i)}: ${JSON.stringify(res.body)}`).toBe(201);
-      }
-      const seqSeconds = (performance.now() - seqStart) / 1000;
-      tx1.restore();
-      report.push(
-        `sequential 100: ${seqSeconds.toFixed(2)} s (${(100 / seqSeconds).toFixed(1)} sends/s); ` +
-          `HTTP p50 ${String(pct(seq, 0.5))} p95 ${String(pct(seq, 0.95))} max ${String(pct(seq, 1))} ms; ` +
-          `transaction p50 ${String(pct(tx1.times, 0.5))} p95 ${String(pct(tx1.times, 0.95))} max ${String(pct(tx1.times, 1))} ms`,
-      );
-      await new Promise((r) => setTimeout(r, 1100));
-
-      // 2) 100 a second offered: each round starts 100 sends 10 ms apart without waiting for the
-      // answers (one fresh 1 s window per round), then waits for them all.
-      for (let round = 0; round < 3; round++) {
-        const tx = timeTransactions();
-        const latencies: number[] = [];
-        const t0 = performance.now();
-        const pending: Promise<request.Response>[] = [];
-        for (let i = 0; i < 100; i++) {
-          const due = t0 + i * 10 - performance.now();
-          if (due > 0) await new Promise((r) => setTimeout(r, due));
-          const start = performance.now();
-          pending.push(
-            f.send(roomId, viewer, f.body(code, [h])).then((res) => {
-              latencies.push(performance.now() - start);
-              return res;
-            }),
-          );
-        }
-        const offered = (performance.now() - t0) / 1000;
-        const answers = await Promise.all(pending);
-        const drained = (performance.now() - t0) / 1000;
-        tx.restore();
-        const statuses = answers.map((r) => r.status);
-        report.push(
-          `round ${String(round + 1)}: 100 offered in ${offered.toFixed(2)} s, all answered after ${drained.toFixed(2)} s ` +
-            `(${(100 / drained).toFixed(1)} sends/s committed); 429s ${String(statuses.filter((s) => s === 429).length)}; ` +
-            `HTTP p50 ${String(pct(latencies, 0.5))} p95 ${String(pct(latencies, 0.95))} max ${String(pct(latencies, 1))} ms; ` +
-            `transaction (incl. lock wait) p50 ${String(pct(tx.times, 0.5))} p95 ${String(pct(tx.times, 0.95))} max ${String(pct(tx.times, 1))} ms`,
-        );
-        for (const [i, res] of answers.entries()) {
-          expect(res.status, `round ${String(round)} send ${String(i)}: ${JSON.stringify(res.body)}`).toBe(
-            201,
-          );
-        }
-        await new Promise((r) => setTimeout(r, 1100));
-      }
-      expect(await ctx.prisma.liveGift.count({ where: { senderId: viewer.id } })).toBe(400);
-      // Each send is one combo step of the same streak, in order.
-      const combo = await ctx.prisma.liveGift.findMany({
-        where: { senderId: viewer.id },
-        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-        select: { comboCount: true },
-      });
-      expect(new Set(combo.map((c) => c.comboCount)).size).toBe(combo.length);
-      process.stderr.write(`[D145d load] ${report.join('\n[D145d load] ')}\n`);
+      await loadCheck(ctx, f, 'D145d load');
     });
 
     it('a 101st lucky send in one second → 429 with Retry-After, nothing charged; a retry with the same clientId is not counted; normal gifts keep 120 / min', async () => {
@@ -565,6 +606,7 @@ describe('D132 lucky gifts (on)', { timeout: 180_000 }, () => {
         coinsWon: 10_500,
         topMultiplier: 100,
         downgraded: 0,
+        guaranteed: false,
       });
       expect(res.body.coins).toBe(coinsBefore - 2_000 + 10_500);
       expect(await f.wallet(viewer)).toBe(coinsBefore - 2_000 + 10_500);
@@ -597,17 +639,8 @@ describe('D132 lucky gifts (on)', { timeout: 180_000 }, () => {
         budgetAfter: 111_690n + 1_700n - 10_500n,
         spendAfter: 133_400n,
       });
-      expect(audit.odds).toEqual({
-        rtpBps: 8500,
-        hostShareBps: 1000,
-        outcomes: [
-          [5, 68_000],
-          [10, 21_250],
-          [50, 2_550],
-          [100, 1_020],
-          [500, 136],
-        ],
-      });
+      expect(audit.odds).toEqual({ rtpBps: 8500, hostShareBps: 1000, outcomes: TABLE, pity: null });
+      expect(audit).toMatchObject({ lossesBefore: 1_314, lossesAfter: 16, guaranteed: 0 });
       expect(await dayRow(today())).toMatchObject({
         spendCoins: 133_400n,
         paidCoins: 10_500n,
@@ -707,6 +740,7 @@ describe('D132 lucky gifts (on)', { timeout: 180_000 }, () => {
         coinsWon: 0,
         topMultiplier: null,
         downgraded: 1,
+        guaranteed: false,
       });
       expect(await f.wallet(viewer)).toBe(1_000_000 - 10);
       expect((await ledger(viewer)).some((r) => r.reason === 'LUCKY_GIFT_WIN')).toBe(false);
@@ -727,20 +761,26 @@ describe('D132 lucky gifts (on)', { timeout: 180_000 }, () => {
         coinsWon: 500,
         topMultiplier: 50,
         downgraded: 1,
+        guaranteed: false,
       });
       expect(
         await ctx.prisma.luckyGiftDraw.findUniqueOrThrow({ where: { giftId: capped.body.gift.id } }),
       ).toMatchObject({ wins: [[0, 500, 50]], budgetBefore: 858n, budgetAfter: 358n, spendAfter: 1_010n });
 
       // Three ×100 draws (1 000 coins each): spend 1 110 → budget floor(943.5) − 500 paid = 443, so
-      // each pays ×10 (100) — ×50 (500) does not fit — leaving 143.
+      // the first pays ×25 (250; ×50 = 500 does not fit), the second ×10 (100), the third ×5 (50),
+      // leaving 43.
       rng.script(DRAW.x100, DRAW.x100, DRAW.x100);
       const many = await f.send(roomId, viewer, f.body(code, [h], { quantity: 10 }));
       expect(many.body.luckyResult).toMatchObject({ draws: 10, downgraded: 3 });
       const day = await dayRow(today());
       expect(day!.paidCoins).toBeLessThanOrEqual((day!.spendCoins * 8_500n) / 10_000n);
-      expect(day).toMatchObject({ spendCoins: 1_110n, paidCoins: 800n });
-      expect(many.body.luckyResult.wins).toEqual([{ multiplier: 10, count: 3, coins: 300 }]);
+      expect(day).toMatchObject({ spendCoins: 1_110n, paidCoins: 900n });
+      expect(many.body.luckyResult.wins).toEqual([
+        { multiplier: 5, count: 1, coins: 50 },
+        { multiplier: 10, count: 1, coins: 100 },
+        { multiplier: 25, count: 1, coins: 250 },
+      ]);
 
       // No ×100 or ×500 was paid, so the room got no big-win message.
       await settle(ctx);
@@ -793,7 +833,7 @@ describe('D132 lucky gifts (on)', { timeout: 180_000 }, () => {
       const day = giftAdmin('lucky-day', today());
       expect(day.status).toBe(0);
       expect(day.out).toBe(
-        `${today()}: spend=1110 paid=800 budget left=143 (RTP 85 %) realised=72.07 % sends=4 draws=111\n`,
+        `${today()}: spend=1110 paid=900 budget left=43 (RTP 85 %) realised=81.08 % sends=4 draws=111\n`,
       );
       expect(giftAdmin('lucky-day', '2026-13-40').status).toBe(1);
       expect(giftAdmin('lucky-day', '2001-01-01')).toEqual({
@@ -801,6 +841,237 @@ describe('D132 lucky gifts (on)', { timeout: 180_000 }, () => {
         out: '2001-01-01: no lucky gifts.\n',
       });
     });
+  });
+});
+
+describe('D148 lucky gifts: eight tiers, the guarantee, the global ticker', { timeout: 180_000 }, () => {
+  const clock = new FakeClock();
+  const media = new MemoryLiveMedia();
+  const rng = new ScriptedRng();
+  let ctx: TestContext;
+  const f = fixtures(() => ctx, clock);
+  const auditOf = (giftId: string) => ctx.prisma.luckyGiftDraw.findUniqueOrThrow({ where: { giftId } });
+  const streakOf = async (u: TestUser) =>
+    (await ctx.prisma.luckyGiftPity.findUnique({ where: { userId: u.id } }))?.losses ?? null;
+  /** A second live (another host) the viewer joins too. */
+  const otherRoom = async (viewer: TestUser) => {
+    const host = await f.signup();
+    await ctx.prisma.liveHost.create({ data: { userId: host.id, source: 'ADMIN' } });
+    const res = await ctx.http
+      .post('/api/v1/live/rooms')
+      .set(f.auth(host))
+      .send({ title: 'Other', mode: 'AUDIO', seatCount: 10 });
+    expect(res.status, JSON.stringify(res.body)).toBe(201);
+    const roomId = res.body.id as string;
+    await f.join(roomId, viewer);
+    return { host, roomId };
+  };
+
+  beforeAll(async () => {
+    // The defaults (LUCKY_PITY_AFTER 15, LUCKY_PITY_MULTIPLIER 5, the D148 table).
+    ctx = await createTestApp(
+      { LIVE_HOSTING_ENABLED: 'true', LIVE_HEARTBEAT_STALE_SECONDS: '3600', LUCKY_GIFTS_ENABLED: 'true' },
+      [
+        { token: Clock, value: clock },
+        { token: LIVE_MEDIA_PROVIDER, value: media },
+        { token: LUCKY_RNG, value: rng },
+      ],
+    );
+    await ctx.app.get<Redis>(REDIS).del('lucky:ticker:gate', 'lucky:ticker:pending');
+  });
+  afterAll(async () => ctx?.close());
+
+  it('the odds list the eight tiers and the guarantee; 84.9999 % with it', async () => {
+    const res = await ctx.http.get('/api/v1/live/gifts/lucky/odds');
+    expect(res.status).toBe(200);
+    expectContract(res, 'getLuckyGiftOdds');
+    expect(res.body).toMatchObject({
+      enabled: true,
+      returnPercent: 84.9999,
+      outcomes: TABLE.map(([multiplier, chancePerMillion]) => ({ multiplier, chancePerMillion })),
+      noWinChancePerMillion: 929_513,
+      pity: { after: 15, multiplier: 5 },
+      bigWinMultiplier: 100,
+    });
+  });
+
+  it('15 losing draws in a row (across rooms) → the 16th pays ×5, flagged guaranteed; any win resets the streak; a retry replays it', async () => {
+    f.newDay();
+    const { h, viewer, roomId } = await f.scene();
+    const other = await otherRoom(viewer);
+    const code = await f.gift();
+    rng.script();
+    // 10 losses in the first room, 5 in the other.
+    for (let i = 0; i < 10; i++) expect((await f.send(roomId, viewer, f.body(code, [h]))).status).toBe(201);
+    expect(await streakOf(viewer)).toBe(10);
+    for (let i = 0; i < 5; i++) {
+      const res = await f.send(other.roomId, viewer, f.body(code, [other.host]));
+      expect(res.status, JSON.stringify(res.body)).toBe(201);
+      expect(res.body.luckyResult).toMatchObject({ coinsWon: 0, guaranteed: false });
+    }
+    expect(await streakOf(viewer)).toBe(15);
+
+    const coinsBefore = await f.wallet(viewer);
+    const payload = f.body(code, [other.host]);
+    const res = await f.send(other.roomId, viewer, payload);
+    expect(res.status, JSON.stringify(res.body)).toBe(201);
+    expectContract(res, 'sendLiveGift');
+    expect(res.body.luckyResult).toEqual({
+      draws: 1,
+      wins: [{ multiplier: 5, count: 1, coins: 50 }],
+      coinsWon: 50,
+      topMultiplier: 5,
+      downgraded: 0,
+      guaranteed: true,
+    });
+    expect(res.body.coins).toBe(coinsBefore - 10 + 50);
+    expect(await auditOf(res.body.gift.id)).toMatchObject({
+      wins: [[0, 0, 5]],
+      coinsWon: 50n,
+      lossesBefore: 15,
+      lossesAfter: 0,
+      guaranteed: 1,
+      odds: { rtpBps: 8500, hostShareBps: 1000, outcomes: TABLE, pity: [15, 5] },
+    });
+    expect(await streakOf(viewer)).toBe(0);
+    const retry = await f.send(other.roomId, viewer, payload);
+    expect(retry.status).toBe(200);
+    expect(retry.body.luckyResult).toEqual(res.body.luckyResult);
+    expect(await streakOf(viewer)).toBe(0);
+
+    // A win of its own resets the streak: 9 losses, then ×10.
+    rng.script(...Array<number>(9).fill(DRAW.none), DRAW.x10);
+    const ten = await f.send(roomId, viewer, f.body(code, [h], { quantity: 10 }));
+    expect(ten.body.luckyResult).toMatchObject({ topMultiplier: 10, guaranteed: false });
+    expect(await streakOf(viewer)).toBe(0);
+  });
+
+  it('concurrent sends of one sender keep one exact streak: 48 single draws at once → exactly 3 guaranteed wins', async () => {
+    f.newDay();
+    const { h, viewer, roomId } = await f.scene();
+    const code = await f.gift();
+    rng.script();
+    const answers = await Promise.all(
+      Array.from({ length: 48 }, () => f.send(roomId, viewer, f.body(code, [h]))),
+    );
+    expect(answers.every((r) => r.status === 201)).toBe(true);
+    expect(answers.filter((r) => r.body.luckyResult.guaranteed === true)).toHaveLength(3);
+    // In the order the sends ran (their combo step), each starts from the streak the one before left.
+    const rows = await ctx.prisma.liveGift.findMany({
+      where: { senderId: viewer.id },
+      orderBy: { comboCount: 'asc' },
+      include: { luckyDraw: true },
+    });
+    expect(rows.map((r) => r.comboCount)).toEqual(Array.from({ length: 48 }, (_, i) => i + 1));
+    expect(rows.map((r) => r.luckyDraw!.lossesBefore)).toEqual(Array.from({ length: 48 }, (_, i) => i % 16));
+    expect(rows.map((r) => r.luckyDraw!.guaranteed)).toEqual(
+      Array.from({ length: 48 }, (_, i) => (i % 16 === 15 ? 1 : 0)),
+    );
+    expect(await streakOf(viewer)).toBe(0);
+    expect(await f.wallet(viewer)).toBe(1_000_000 - 480 + 150);
+  });
+
+  it('daily protection: a guarantee larger than what is left pays nothing and stays due; the next draw that fits pays it', async () => {
+    f.newDay();
+    const { h, s1, viewer, roomId } = await f.scene();
+    await f.confirmAge(s1);
+    const code = await f.gift({ priceCoins: 100 });
+    rng.script();
+    for (let i = 0; i < 15; i++) expect((await f.send(roomId, viewer, f.body(code, [h]))).status).toBe(201);
+    // Someone else wins ×10 (1 000 of the day's 1 360).
+    rng.script(DRAW.x10);
+    expect((await f.send(roomId, s1, f.body(code, [h]))).body.luckyResult.coinsWon).toBe(1_000);
+    // The viewer's 16th draw is guaranteed ×5 = 500, but floor(1 700 × 85 %) − 1 000 = 445 is left.
+    rng.script();
+    const due = await f.send(roomId, viewer, f.body(code, [h]));
+    expect(due.body.luckyResult).toEqual({
+      draws: 1,
+      wins: [],
+      coinsWon: 0,
+      topMultiplier: null,
+      downgraded: 1,
+      guaranteed: false,
+    });
+    expect(await auditOf(due.body.gift.id)).toMatchObject({
+      wins: [[0, 0, 0]],
+      budgetBefore: 445n,
+      lossesBefore: 15,
+      lossesAfter: 16,
+      guaranteed: 0,
+    });
+    // The 17th: floor(1 800 × 85 %) − 1 000 = 530 ≥ 500 → the guarantee is paid now.
+    const paid = await f.send(roomId, viewer, f.body(code, [h]));
+    expect(paid.body.luckyResult).toMatchObject({ coinsWon: 500, topMultiplier: 5, guaranteed: true });
+    expect(await auditOf(paid.body.gift.id)).toMatchObject({
+      budgetBefore: 530n,
+      budgetAfter: 30n,
+      lossesAfter: 0,
+    });
+    const day = await ctx.prisma.luckyGiftDay.findFirstOrThrow({ orderBy: { day: 'desc' } });
+    expect(day.paidCoins).toBeLessThanOrEqual((day.spendCoins * 8_500n) / 10_000n);
+  });
+
+  it('«لحظة الحظ»: a ×100+ win goes to every other live as a lucky-ticker — at most one per 10 s, the biggest waiting one next', async () => {
+    f.newDay();
+    const redis = ctx.app.get<Redis>(REDIS);
+    await redis.del('lucky:ticker:gate', 'lucky:ticker:pending');
+    const { h, s1, viewer, roomId } = await f.scene();
+    await f.confirmAge(s1);
+    const elsewhere = await otherRoom(viewer);
+    const code = await f.gift({ priceCoins: 10 });
+    // A day's budget for the wins below: s1 sends 1 314 gifts of 100 first (85 % of 131 400 is
+    // 111 690; s1's own guarantees take about 41 000 of it).
+    const filler = await f.gift({ priceCoins: 100 });
+    rng.script();
+    expect((await f.send(roomId, s1, f.body(filler, [h], { quantity: 1314 }))).status).toBe(201);
+
+    rng.script(DRAW.x250);
+    const first = await f.send(roomId, viewer, f.body(code, [h]));
+    expect(first.body.luckyResult.topMultiplier).toBe(250);
+    await settle(ctx);
+    const ticker = (room: string) => media.broadcastsOf(room, 'lucky-ticker');
+    expect(ticker(elsewhere.roomId)).toEqual([
+      {
+        type: 'lucky-ticker',
+        win: {
+          giftId: first.body.gift.id,
+          roomId,
+          giftCode: code,
+          sender: first.body.gift.sender,
+          multiplier: 250,
+          coinsWon: 2_500,
+          createdAt: first.body.gift.createdAt,
+        },
+        room: {
+          id: roomId,
+          title: 'Lucky',
+          host: expect.objectContaining({ id: h.id, username: h.username }),
+        },
+      },
+    ]);
+    // Not to its own room (it shows the big card there), only the lucky-win.
+    expect(ticker(roomId)).toEqual([]);
+    expect(media.broadcastsOf(roomId, 'lucky-win')).toHaveLength(1);
+
+    // Within 10 s: a ×100 and then a ×1000 wait; the ×1000 replaces the ×100, which is dropped.
+    rng.script(DRAW.x100);
+    expect((await f.send(roomId, s1, f.body(code, [h]))).body.luckyResult.topMultiplier).toBe(100);
+    rng.script(DRAW.x1000);
+    const jackpot = await f.send(roomId, viewer, f.body(code, [h]));
+    expect(jackpot.body.luckyResult.topMultiplier).toBe(1000);
+    await settle(ctx);
+    expect(ticker(elsewhere.roomId)).toHaveLength(1);
+    await new Promise((r) => setTimeout(r, 10_300));
+    await settle(ctx);
+    const told = ticker(elsewhere.roomId) as { win: { multiplier: number; giftId: string } }[];
+    expect(told.map((t) => t.win.multiplier)).toEqual([250, 1000]);
+    expect(told[1]!.win.giftId).toBe(jackpot.body.gift.id);
+    expect(await redis.get('lucky:ticker:pending')).toBeNull();
+  });
+
+  it('D148 load: the same check with the guarantee on (every send writes the streak)', async () => {
+    f.newDay();
+    await loadCheck(ctx, f, 'D148 load');
   });
 });
 

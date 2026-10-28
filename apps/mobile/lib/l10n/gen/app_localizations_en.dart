@@ -6783,4 +6783,17 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get livePermissionSeatRefused =>
       'You can\'t take a seat without allowing access.';
+
+  @override
+  String get liveMaxXGuaranteed => 'Guaranteed';
+
+  @override
+  String liveLuckyOddsPity(String multiplier, String after) {
+    return '×$multiplier guaranteed after $after draws without a win';
+  }
+
+  @override
+  String liveLuckyTicker(String name, String multiplier, String room) {
+    return '$name won ×$multiplier in $room';
+  }
 }

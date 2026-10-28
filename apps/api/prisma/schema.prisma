@@ -154,6 +154,8 @@ model User {
   // v1.27-live (D132): lucky gifts — the audit rows of the caller's lucky sends and the 18+ statement.
   luckyDraws         LuckyGiftDraw[]
   luckyAgeConfirm    LuckyGiftAgeConfirmation?
+  /// v1.30-live (D148): the caller's losing lucky draws in a row (the guarantee).
+  luckyPity          LuckyGiftPity?
   // v1.27.1-live (D133): featured on the live hub.
   liveFeatured       LiveFeaturedHost?
   // v1.28-live (D146): premium usernames.
@@ -2455,6 +2457,11 @@ model LuckyGiftDraw {
   budgetBefore  BigInt   @map("budget_before")
   budgetAfter   BigInt   @map("budget_after")
   spendAfter    BigInt   @map("spend_after")
+  /// v1.30-live (D148): the sender's losing draws in a row before and after the send, and the draws
+  /// the guarantee paid (null before D148).
+  lossesBefore  Int?     @map("losses_before")
+  lossesAfter   Int?     @map("losses_after")
+  guaranteed    Int?
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 
   gift   LiveGift @relation(fields: [giftId], references: [id], onDelete: Cascade)
@@ -2467,6 +2474,19 @@ model LuckyGiftDraw {
 
 /// v1.27-live (D132): the caller's one-time "I am 18 or older" statement (accounts have no birth
 /// date). Pending owner / legal review (CONVENTIONS §10.27).
+/// v1.30-live (D148, CONVENTIONS §10.27): the lucky-gift guarantee — a sender's losing draws in a
+/// row (any room, any session), read and written only under the sender's advisory lock in a lucky
+/// send's transaction; reset by any paid draw. CHECK `lucky_gift_pity_losses`: losses ≥ 0.
+model LuckyGiftPity {
+  userId    String   @id @map("user_id") @db.Uuid
+  losses    Int      @default(0)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("lucky_gift_pity")
+}
+
 model LuckyGiftAgeConfirmation {
   userId      String   @id @map("user_id") @db.Uuid
   confirmedAt DateTime @default(now()) @map("confirmed_at") @db.Timestamptz(3)

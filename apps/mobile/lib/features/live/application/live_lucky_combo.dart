@@ -171,17 +171,31 @@ class LuckyComboState {
 /// [id] grows with every win (the button celebrates each once).
 @immutable
 class MaxXWin {
-  const new({required this.id, required this.multiplier, required this.coins});
+  const new({
+    required this.id,
+    required this.multiplier,
+    required this.coins,
+    this.guaranteed = false,
+  });
 
   final int id;
   final int multiplier;
   final int coins;
 
+  /// D148: the server's guarantee paid it (`luckyResult.guaranteed`, ×5
+  /// after 15 losing draws in a row): the celebration says «ضمان».
+  final bool guaranteed;
+
   /// The win in [result], or null when that send won nothing.
   static MaxXWin? of(LuckyGiftResult? result, {required int id}) {
     final top = result?.topMultiplier;
     if (result == null || top == null || top <= 0) return null;
-    return MaxXWin(id: id, multiplier: top, coins: result.coinsWon);
+    return MaxXWin(
+      id: id,
+      multiplier: top,
+      coins: result.coinsWon,
+      guaranteed: result.guaranteed,
+    );
   }
 }
 

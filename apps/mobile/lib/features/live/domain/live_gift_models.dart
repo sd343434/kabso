@@ -227,6 +227,11 @@ abstract class LuckyGiftResult with _$LuckyGiftResult {
     required int coinsWon,
     required int? topMultiplier,
     required int downgraded,
+
+    /// v1.30-live (D148): a draw of this send was paid by the guarantee
+    /// (×5 after 15 losing draws in a row); the celebration says «ضمان».
+    /// Absent from older servers.
+    @Default(false) bool guaranteed,
   }) = _LuckyGiftResult;
 
   factory fromJson(Map<String, dynamic> json) =>
@@ -289,9 +294,47 @@ abstract class LuckyGiftOdds with _$LuckyGiftOdds {
     required String dayTimeZone,
     required int minimumAge,
     required LuckyGiftEligibility? caller,
+
+    /// v1.30-live (D148): the per-sender guarantee; null when it is off (or
+    /// from an older server).
+    LuckyGiftPity? pity,
   }) = _LuckyGiftOdds;
 
   factory fromJson(Map<String, dynamic> json) => _$LuckyGiftOddsFromJson(json);
+}
+
+/// `LuckyGiftPity` (v1.30-live, D148, §10.27): after [after] losing lucky
+/// draws in a row (any room) the sender's next draw pays at least
+/// ×[multiplier].
+@freezed
+abstract class LuckyGiftPity with _$LuckyGiftPity {
+  const factory({required int after, required int multiplier}) = _LuckyGiftPity;
+
+  factory fromJson(Map<String, dynamic> json) => _$LuckyGiftPityFromJson(json);
+}
+
+/// The live a [LuckyTicker] happened in.
+@freezed
+abstract class LuckyTickerRoom with _$LuckyTickerRoom {
+  const factory({
+    required String id,
+    required String title,
+    required UserSummary host,
+  }) = _LuckyTickerRoom;
+
+  factory fromJson(Map<String, dynamic> json) =>
+      _$LuckyTickerRoomFromJson(json);
+}
+
+/// The `lucky-ticker` data message (topic `lucky`, v1.30-live, D148,
+/// «لحظة الحظ»): a big win in another live, sent to every live room at most
+/// once every 10 s. Tapping it opens [room].
+@freezed
+abstract class LuckyTicker with _$LuckyTicker {
+  const factory({required LuckyWin win, required LuckyTickerRoom room}) =
+      _LuckyTicker;
+
+  factory fromJson(Map<String, dynamic> json) => _$LuckyTickerFromJson(json);
 }
 
 /// The `lucky-win` data message (topic `lucky`, v1.27-live, D132): a send

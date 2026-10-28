@@ -2452,7 +2452,10 @@ as int,
 /// @nodoc
 mixin _$LuckyGiftResult {
 
- int get draws; List<LuckyGiftWin> get wins; int get coinsWon; int? get topMultiplier; int get downgraded;
+ int get draws; List<LuckyGiftWin> get wins; int get coinsWon; int? get topMultiplier; int get downgraded;/// v1.30-live (D148): a draw of this send was paid by the guarantee
+/// (×5 after 15 losing draws in a row); the celebration says «ضمان».
+/// Absent from older servers.
+ bool get guaranteed;
 /// Create a copy of LuckyGiftResult
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -2466,20 +2469,20 @@ $LuckyGiftResultCopyWith<LuckyGiftResult> get copyWith => _$LuckyGiftResultCopyW
 @override
 bool operator ==(Object other) {
   final _this = this as LuckyGiftResult;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LuckyGiftResult&&(identical(other.draws, _this.draws) || other.draws == _this.draws)&&const DeepCollectionEquality().equals(other.wins, _this.wins)&&(identical(other.coinsWon, _this.coinsWon) || other.coinsWon == _this.coinsWon)&&(identical(other.topMultiplier, _this.topMultiplier) || other.topMultiplier == _this.topMultiplier)&&(identical(other.downgraded, _this.downgraded) || other.downgraded == _this.downgraded));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LuckyGiftResult&&(identical(other.draws, _this.draws) || other.draws == _this.draws)&&const DeepCollectionEquality().equals(other.wins, _this.wins)&&(identical(other.coinsWon, _this.coinsWon) || other.coinsWon == _this.coinsWon)&&(identical(other.topMultiplier, _this.topMultiplier) || other.topMultiplier == _this.topMultiplier)&&(identical(other.downgraded, _this.downgraded) || other.downgraded == _this.downgraded)&&(identical(other.guaranteed, _this.guaranteed) || other.guaranteed == _this.guaranteed));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as LuckyGiftResult;
-  return Object.hash(runtimeType,_this.draws,const DeepCollectionEquality().hash(_this.wins),_this.coinsWon,_this.topMultiplier,_this.downgraded);
+  return Object.hash(runtimeType,_this.draws,const DeepCollectionEquality().hash(_this.wins),_this.coinsWon,_this.topMultiplier,_this.downgraded,_this.guaranteed);
 }
 
 @override
 String toString() {
   final _this = this as LuckyGiftResult;
-  return 'LuckyGiftResult(draws: ${_this.draws}, wins: ${_this.wins}, coinsWon: ${_this.coinsWon}, topMultiplier: ${_this.topMultiplier}, downgraded: ${_this.downgraded})';
+  return 'LuckyGiftResult(draws: ${_this.draws}, wins: ${_this.wins}, coinsWon: ${_this.coinsWon}, topMultiplier: ${_this.topMultiplier}, downgraded: ${_this.downgraded}, guaranteed: ${_this.guaranteed})';
 }
 
 
@@ -2490,7 +2493,7 @@ abstract mixin class $LuckyGiftResultCopyWith<$Res>  {
   factory $LuckyGiftResultCopyWith(LuckyGiftResult value, $Res Function(LuckyGiftResult) _then) = _$LuckyGiftResultCopyWithImpl;
 @useResult
 $Res call({
- int draws, List<LuckyGiftWin> wins, int coinsWon, int? topMultiplier, int downgraded
+ int draws, List<LuckyGiftWin> wins, int coinsWon, int? topMultiplier, int downgraded, bool guaranteed
 });
 
 
@@ -2507,14 +2510,15 @@ class _$LuckyGiftResultCopyWithImpl<$Res>
 
 /// Create a copy of LuckyGiftResult
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? draws = null,Object? wins = null,Object? coinsWon = null,Object? topMultiplier = freezed,Object? downgraded = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? draws = null,Object? wins = null,Object? coinsWon = null,Object? topMultiplier = freezed,Object? downgraded = null,Object? guaranteed = null,}) {
   return _then(LuckyGiftResult(
 draws: null == draws ? _self.draws : draws // ignore: cast_nullable_to_non_nullable
 as int,wins: null == wins ? _self.wins : wins // ignore: cast_nullable_to_non_nullable
 as List<LuckyGiftWin>,coinsWon: null == coinsWon ? _self.coinsWon : coinsWon // ignore: cast_nullable_to_non_nullable
 as int,topMultiplier: freezed == topMultiplier ? _self.topMultiplier : topMultiplier // ignore: cast_nullable_to_non_nullable
 as int?,downgraded: null == downgraded ? _self.downgraded : downgraded // ignore: cast_nullable_to_non_nullable
-as int,
+as int,guaranteed: null == guaranteed ? _self.guaranteed : guaranteed // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 
@@ -2599,10 +2603,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int draws,  List<LuckyGiftWin> wins,  int coinsWon,  int? topMultiplier,  int downgraded)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int draws,  List<LuckyGiftWin> wins,  int coinsWon,  int? topMultiplier,  int downgraded,  bool guaranteed)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _LuckyGiftResult() when $default != null:
-return $default(_that.draws,_that.wins,_that.coinsWon,_that.topMultiplier,_that.downgraded);case _:
+return $default(_that.draws,_that.wins,_that.coinsWon,_that.topMultiplier,_that.downgraded,_that.guaranteed);case _:
   return orElse();
 
 }
@@ -2620,10 +2624,10 @@ return $default(_that.draws,_that.wins,_that.coinsWon,_that.topMultiplier,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int draws,  List<LuckyGiftWin> wins,  int coinsWon,  int? topMultiplier,  int downgraded)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int draws,  List<LuckyGiftWin> wins,  int coinsWon,  int? topMultiplier,  int downgraded,  bool guaranteed)  $default,) {final _that = this;
 switch (_that) {
 case _LuckyGiftResult():
-return $default(_that.draws,_that.wins,_that.coinsWon,_that.topMultiplier,_that.downgraded);case _:
+return $default(_that.draws,_that.wins,_that.coinsWon,_that.topMultiplier,_that.downgraded,_that.guaranteed);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -2640,10 +2644,10 @@ return $default(_that.draws,_that.wins,_that.coinsWon,_that.topMultiplier,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int draws,  List<LuckyGiftWin> wins,  int coinsWon,  int? topMultiplier,  int downgraded)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int draws,  List<LuckyGiftWin> wins,  int coinsWon,  int? topMultiplier,  int downgraded,  bool guaranteed)?  $default,) {final _that = this;
 switch (_that) {
 case _LuckyGiftResult() when $default != null:
-return $default(_that.draws,_that.wins,_that.coinsWon,_that.topMultiplier,_that.downgraded);case _:
+return $default(_that.draws,_that.wins,_that.coinsWon,_that.topMultiplier,_that.downgraded,_that.guaranteed);case _:
   return null;
 
 }
@@ -2655,7 +2659,7 @@ return $default(_that.draws,_that.wins,_that.coinsWon,_that.topMultiplier,_that.
 @JsonSerializable()
 
 class _LuckyGiftResult implements LuckyGiftResult {
-  const _LuckyGiftResult({required this.draws, required  List<LuckyGiftWin> wins, required this.coinsWon, required this.topMultiplier, required this.downgraded}): _wins = wins;
+  const _LuckyGiftResult({required this.draws, required  List<LuckyGiftWin> wins, required this.coinsWon, required this.topMultiplier, required this.downgraded, this.guaranteed = false}): _wins = wins;
   factory _LuckyGiftResult.fromJson(Map<String, dynamic> json) => _$LuckyGiftResultFromJson(json);
 
 @override final  int draws;
@@ -2669,6 +2673,10 @@ class _LuckyGiftResult implements LuckyGiftResult {
 @override final  int coinsWon;
 @override final  int? topMultiplier;
 @override final  int downgraded;
+/// v1.30-live (D148): a draw of this send was paid by the guarantee
+/// (×5 after 15 losing draws in a row); the celebration says «ضمان».
+/// Absent from older servers.
+@override@JsonKey() final  bool guaranteed;
 
 /// Create a copy of LuckyGiftResult
 /// with the given fields replaced by the non-null parameter values.
@@ -2683,18 +2691,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LuckyGiftResult&&(identical(other.draws, draws) || other.draws == draws)&&const DeepCollectionEquality().equals(other.wins, _wins)&&(identical(other.coinsWon, coinsWon) || other.coinsWon == coinsWon)&&(identical(other.topMultiplier, topMultiplier) || other.topMultiplier == topMultiplier)&&(identical(other.downgraded, downgraded) || other.downgraded == downgraded));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LuckyGiftResult&&(identical(other.draws, draws) || other.draws == draws)&&const DeepCollectionEquality().equals(other.wins, _wins)&&(identical(other.coinsWon, coinsWon) || other.coinsWon == coinsWon)&&(identical(other.topMultiplier, topMultiplier) || other.topMultiplier == topMultiplier)&&(identical(other.downgraded, downgraded) || other.downgraded == downgraded)&&(identical(other.guaranteed, guaranteed) || other.guaranteed == guaranteed));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,draws,const DeepCollectionEquality().hash(_wins),coinsWon,topMultiplier,downgraded);
+    return Object.hash(runtimeType,draws,const DeepCollectionEquality().hash(_wins),coinsWon,topMultiplier,downgraded,guaranteed);
 }
 
 @override
 String toString() {
-    return 'LuckyGiftResult(draws: $draws, wins: $wins, coinsWon: $coinsWon, topMultiplier: $topMultiplier, downgraded: $downgraded)';
+    return 'LuckyGiftResult(draws: $draws, wins: $wins, coinsWon: $coinsWon, topMultiplier: $topMultiplier, downgraded: $downgraded, guaranteed: $guaranteed)';
 }
 
 
@@ -2705,7 +2713,7 @@ abstract mixin class _$LuckyGiftResultCopyWith<$Res> implements $LuckyGiftResult
   factory _$LuckyGiftResultCopyWith(_LuckyGiftResult value, $Res Function(_LuckyGiftResult) _then) = __$LuckyGiftResultCopyWithImpl;
 @override @useResult
 $Res call({
- int draws, List<LuckyGiftWin> wins, int coinsWon, int? topMultiplier, int downgraded
+ int draws, List<LuckyGiftWin> wins, int coinsWon, int? topMultiplier, int downgraded, bool guaranteed
 });
 
 
@@ -2722,14 +2730,15 @@ class __$LuckyGiftResultCopyWithImpl<$Res>
 
 /// Create a copy of LuckyGiftResult
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? draws = null,Object? wins = null,Object? coinsWon = null,Object? topMultiplier = freezed,Object? downgraded = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? draws = null,Object? wins = null,Object? coinsWon = null,Object? topMultiplier = freezed,Object? downgraded = null,Object? guaranteed = null,}) {
   return _then(_LuckyGiftResult(
 draws: null == draws ? _self.draws : draws // ignore: cast_nullable_to_non_nullable
 as int,wins: null == wins ? _self._wins : wins // ignore: cast_nullable_to_non_nullable
 as List<LuckyGiftWin>,coinsWon: null == coinsWon ? _self.coinsWon : coinsWon // ignore: cast_nullable_to_non_nullable
 as int,topMultiplier: freezed == topMultiplier ? _self.topMultiplier : topMultiplier // ignore: cast_nullable_to_non_nullable
 as int?,downgraded: null == downgraded ? _self.downgraded : downgraded // ignore: cast_nullable_to_non_nullable
-as int,
+as int,guaranteed: null == guaranteed ? _self.guaranteed : guaranteed // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 
@@ -3292,7 +3301,9 @@ as bool,
 /// @nodoc
 mixin _$LuckyGiftOdds {
 
- bool get enabled; int get drawsPerGift; double get returnPercent; double get hostSharePercent; List<LuckyGiftOutcome> get outcomes; int get noWinChancePerMillion; double get noWinProbability; int get bigWinMultiplier; bool get dailyProtection; String get dayTimeZone; int get minimumAge; LuckyGiftEligibility? get caller;
+ bool get enabled; int get drawsPerGift; double get returnPercent; double get hostSharePercent; List<LuckyGiftOutcome> get outcomes; int get noWinChancePerMillion; double get noWinProbability; int get bigWinMultiplier; bool get dailyProtection; String get dayTimeZone; int get minimumAge; LuckyGiftEligibility? get caller;/// v1.30-live (D148): the per-sender guarantee; null when it is off (or
+/// from an older server).
+ LuckyGiftPity? get pity;
 /// Create a copy of LuckyGiftOdds
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -3306,20 +3317,20 @@ $LuckyGiftOddsCopyWith<LuckyGiftOdds> get copyWith => _$LuckyGiftOddsCopyWithImp
 @override
 bool operator ==(Object other) {
   final _this = this as LuckyGiftOdds;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LuckyGiftOdds&&(identical(other.enabled, _this.enabled) || other.enabled == _this.enabled)&&(identical(other.drawsPerGift, _this.drawsPerGift) || other.drawsPerGift == _this.drawsPerGift)&&(identical(other.returnPercent, _this.returnPercent) || other.returnPercent == _this.returnPercent)&&(identical(other.hostSharePercent, _this.hostSharePercent) || other.hostSharePercent == _this.hostSharePercent)&&const DeepCollectionEquality().equals(other.outcomes, _this.outcomes)&&(identical(other.noWinChancePerMillion, _this.noWinChancePerMillion) || other.noWinChancePerMillion == _this.noWinChancePerMillion)&&(identical(other.noWinProbability, _this.noWinProbability) || other.noWinProbability == _this.noWinProbability)&&(identical(other.bigWinMultiplier, _this.bigWinMultiplier) || other.bigWinMultiplier == _this.bigWinMultiplier)&&(identical(other.dailyProtection, _this.dailyProtection) || other.dailyProtection == _this.dailyProtection)&&(identical(other.dayTimeZone, _this.dayTimeZone) || other.dayTimeZone == _this.dayTimeZone)&&(identical(other.minimumAge, _this.minimumAge) || other.minimumAge == _this.minimumAge)&&(identical(other.caller, _this.caller) || other.caller == _this.caller));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LuckyGiftOdds&&(identical(other.enabled, _this.enabled) || other.enabled == _this.enabled)&&(identical(other.drawsPerGift, _this.drawsPerGift) || other.drawsPerGift == _this.drawsPerGift)&&(identical(other.returnPercent, _this.returnPercent) || other.returnPercent == _this.returnPercent)&&(identical(other.hostSharePercent, _this.hostSharePercent) || other.hostSharePercent == _this.hostSharePercent)&&const DeepCollectionEquality().equals(other.outcomes, _this.outcomes)&&(identical(other.noWinChancePerMillion, _this.noWinChancePerMillion) || other.noWinChancePerMillion == _this.noWinChancePerMillion)&&(identical(other.noWinProbability, _this.noWinProbability) || other.noWinProbability == _this.noWinProbability)&&(identical(other.bigWinMultiplier, _this.bigWinMultiplier) || other.bigWinMultiplier == _this.bigWinMultiplier)&&(identical(other.dailyProtection, _this.dailyProtection) || other.dailyProtection == _this.dailyProtection)&&(identical(other.dayTimeZone, _this.dayTimeZone) || other.dayTimeZone == _this.dayTimeZone)&&(identical(other.minimumAge, _this.minimumAge) || other.minimumAge == _this.minimumAge)&&(identical(other.caller, _this.caller) || other.caller == _this.caller)&&(identical(other.pity, _this.pity) || other.pity == _this.pity));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as LuckyGiftOdds;
-  return Object.hash(runtimeType,_this.enabled,_this.drawsPerGift,_this.returnPercent,_this.hostSharePercent,const DeepCollectionEquality().hash(_this.outcomes),_this.noWinChancePerMillion,_this.noWinProbability,_this.bigWinMultiplier,_this.dailyProtection,_this.dayTimeZone,_this.minimumAge,_this.caller);
+  return Object.hash(runtimeType,_this.enabled,_this.drawsPerGift,_this.returnPercent,_this.hostSharePercent,const DeepCollectionEquality().hash(_this.outcomes),_this.noWinChancePerMillion,_this.noWinProbability,_this.bigWinMultiplier,_this.dailyProtection,_this.dayTimeZone,_this.minimumAge,_this.caller,_this.pity);
 }
 
 @override
 String toString() {
   final _this = this as LuckyGiftOdds;
-  return 'LuckyGiftOdds(enabled: ${_this.enabled}, drawsPerGift: ${_this.drawsPerGift}, returnPercent: ${_this.returnPercent}, hostSharePercent: ${_this.hostSharePercent}, outcomes: ${_this.outcomes}, noWinChancePerMillion: ${_this.noWinChancePerMillion}, noWinProbability: ${_this.noWinProbability}, bigWinMultiplier: ${_this.bigWinMultiplier}, dailyProtection: ${_this.dailyProtection}, dayTimeZone: ${_this.dayTimeZone}, minimumAge: ${_this.minimumAge}, caller: ${_this.caller})';
+  return 'LuckyGiftOdds(enabled: ${_this.enabled}, drawsPerGift: ${_this.drawsPerGift}, returnPercent: ${_this.returnPercent}, hostSharePercent: ${_this.hostSharePercent}, outcomes: ${_this.outcomes}, noWinChancePerMillion: ${_this.noWinChancePerMillion}, noWinProbability: ${_this.noWinProbability}, bigWinMultiplier: ${_this.bigWinMultiplier}, dailyProtection: ${_this.dailyProtection}, dayTimeZone: ${_this.dayTimeZone}, minimumAge: ${_this.minimumAge}, caller: ${_this.caller}, pity: ${_this.pity})';
 }
 
 
@@ -3330,11 +3341,11 @@ abstract mixin class $LuckyGiftOddsCopyWith<$Res>  {
   factory $LuckyGiftOddsCopyWith(LuckyGiftOdds value, $Res Function(LuckyGiftOdds) _then) = _$LuckyGiftOddsCopyWithImpl;
 @useResult
 $Res call({
- bool enabled, int drawsPerGift, double returnPercent, double hostSharePercent, List<LuckyGiftOutcome> outcomes, int noWinChancePerMillion, double noWinProbability, int bigWinMultiplier, bool dailyProtection, String dayTimeZone, int minimumAge, LuckyGiftEligibility? caller
+ bool enabled, int drawsPerGift, double returnPercent, double hostSharePercent, List<LuckyGiftOutcome> outcomes, int noWinChancePerMillion, double noWinProbability, int bigWinMultiplier, bool dailyProtection, String dayTimeZone, int minimumAge, LuckyGiftEligibility? caller, LuckyGiftPity? pity
 });
 
 
-$LuckyGiftEligibilityCopyWith<$Res>? get caller;
+$LuckyGiftEligibilityCopyWith<$Res>? get caller;$LuckyGiftPityCopyWith<$Res>? get pity;
 
 }
 /// @nodoc
@@ -3347,7 +3358,7 @@ class _$LuckyGiftOddsCopyWithImpl<$Res>
 
 /// Create a copy of LuckyGiftOdds
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? enabled = null,Object? drawsPerGift = null,Object? returnPercent = null,Object? hostSharePercent = null,Object? outcomes = null,Object? noWinChancePerMillion = null,Object? noWinProbability = null,Object? bigWinMultiplier = null,Object? dailyProtection = null,Object? dayTimeZone = null,Object? minimumAge = null,Object? caller = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? enabled = null,Object? drawsPerGift = null,Object? returnPercent = null,Object? hostSharePercent = null,Object? outcomes = null,Object? noWinChancePerMillion = null,Object? noWinProbability = null,Object? bigWinMultiplier = null,Object? dailyProtection = null,Object? dayTimeZone = null,Object? minimumAge = null,Object? caller = freezed,Object? pity = freezed,}) {
   return _then(LuckyGiftOdds(
 enabled: null == enabled ? _self.enabled : enabled // ignore: cast_nullable_to_non_nullable
 as bool,drawsPerGift: null == drawsPerGift ? _self.drawsPerGift : drawsPerGift // ignore: cast_nullable_to_non_nullable
@@ -3361,7 +3372,8 @@ as int,dailyProtection: null == dailyProtection ? _self.dailyProtection : dailyP
 as bool,dayTimeZone: null == dayTimeZone ? _self.dayTimeZone : dayTimeZone // ignore: cast_nullable_to_non_nullable
 as String,minimumAge: null == minimumAge ? _self.minimumAge : minimumAge // ignore: cast_nullable_to_non_nullable
 as int,caller: freezed == caller ? _self.caller : caller // ignore: cast_nullable_to_non_nullable
-as LuckyGiftEligibility?,
+as LuckyGiftEligibility?,pity: freezed == pity ? _self.pity : pity // ignore: cast_nullable_to_non_nullable
+as LuckyGiftPity?,
   ));
 }
 /// Create a copy of LuckyGiftOdds
@@ -3375,6 +3387,18 @@ $LuckyGiftEligibilityCopyWith<$Res>? get caller {
 
   return $LuckyGiftEligibilityCopyWith<$Res>(_self.caller!, (value) {
     return _then(_self.copyWith(caller: value));
+  });
+}/// Create a copy of LuckyGiftOdds
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$LuckyGiftPityCopyWith<$Res>? get pity {
+    if (_self.pity == null) {
+    return null;
+  }
+
+  return $LuckyGiftPityCopyWith<$Res>(_self.pity!, (value) {
+    return _then(_self.copyWith(pity: value));
   });
 }
 }
@@ -3458,10 +3482,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool enabled,  int drawsPerGift,  double returnPercent,  double hostSharePercent,  List<LuckyGiftOutcome> outcomes,  int noWinChancePerMillion,  double noWinProbability,  int bigWinMultiplier,  bool dailyProtection,  String dayTimeZone,  int minimumAge,  LuckyGiftEligibility? caller)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool enabled,  int drawsPerGift,  double returnPercent,  double hostSharePercent,  List<LuckyGiftOutcome> outcomes,  int noWinChancePerMillion,  double noWinProbability,  int bigWinMultiplier,  bool dailyProtection,  String dayTimeZone,  int minimumAge,  LuckyGiftEligibility? caller,  LuckyGiftPity? pity)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _LuckyGiftOdds() when $default != null:
-return $default(_that.enabled,_that.drawsPerGift,_that.returnPercent,_that.hostSharePercent,_that.outcomes,_that.noWinChancePerMillion,_that.noWinProbability,_that.bigWinMultiplier,_that.dailyProtection,_that.dayTimeZone,_that.minimumAge,_that.caller);case _:
+return $default(_that.enabled,_that.drawsPerGift,_that.returnPercent,_that.hostSharePercent,_that.outcomes,_that.noWinChancePerMillion,_that.noWinProbability,_that.bigWinMultiplier,_that.dailyProtection,_that.dayTimeZone,_that.minimumAge,_that.caller,_that.pity);case _:
   return orElse();
 
 }
@@ -3479,10 +3503,10 @@ return $default(_that.enabled,_that.drawsPerGift,_that.returnPercent,_that.hostS
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool enabled,  int drawsPerGift,  double returnPercent,  double hostSharePercent,  List<LuckyGiftOutcome> outcomes,  int noWinChancePerMillion,  double noWinProbability,  int bigWinMultiplier,  bool dailyProtection,  String dayTimeZone,  int minimumAge,  LuckyGiftEligibility? caller)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool enabled,  int drawsPerGift,  double returnPercent,  double hostSharePercent,  List<LuckyGiftOutcome> outcomes,  int noWinChancePerMillion,  double noWinProbability,  int bigWinMultiplier,  bool dailyProtection,  String dayTimeZone,  int minimumAge,  LuckyGiftEligibility? caller,  LuckyGiftPity? pity)  $default,) {final _that = this;
 switch (_that) {
 case _LuckyGiftOdds():
-return $default(_that.enabled,_that.drawsPerGift,_that.returnPercent,_that.hostSharePercent,_that.outcomes,_that.noWinChancePerMillion,_that.noWinProbability,_that.bigWinMultiplier,_that.dailyProtection,_that.dayTimeZone,_that.minimumAge,_that.caller);case _:
+return $default(_that.enabled,_that.drawsPerGift,_that.returnPercent,_that.hostSharePercent,_that.outcomes,_that.noWinChancePerMillion,_that.noWinProbability,_that.bigWinMultiplier,_that.dailyProtection,_that.dayTimeZone,_that.minimumAge,_that.caller,_that.pity);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -3499,10 +3523,10 @@ return $default(_that.enabled,_that.drawsPerGift,_that.returnPercent,_that.hostS
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool enabled,  int drawsPerGift,  double returnPercent,  double hostSharePercent,  List<LuckyGiftOutcome> outcomes,  int noWinChancePerMillion,  double noWinProbability,  int bigWinMultiplier,  bool dailyProtection,  String dayTimeZone,  int minimumAge,  LuckyGiftEligibility? caller)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool enabled,  int drawsPerGift,  double returnPercent,  double hostSharePercent,  List<LuckyGiftOutcome> outcomes,  int noWinChancePerMillion,  double noWinProbability,  int bigWinMultiplier,  bool dailyProtection,  String dayTimeZone,  int minimumAge,  LuckyGiftEligibility? caller,  LuckyGiftPity? pity)?  $default,) {final _that = this;
 switch (_that) {
 case _LuckyGiftOdds() when $default != null:
-return $default(_that.enabled,_that.drawsPerGift,_that.returnPercent,_that.hostSharePercent,_that.outcomes,_that.noWinChancePerMillion,_that.noWinProbability,_that.bigWinMultiplier,_that.dailyProtection,_that.dayTimeZone,_that.minimumAge,_that.caller);case _:
+return $default(_that.enabled,_that.drawsPerGift,_that.returnPercent,_that.hostSharePercent,_that.outcomes,_that.noWinChancePerMillion,_that.noWinProbability,_that.bigWinMultiplier,_that.dailyProtection,_that.dayTimeZone,_that.minimumAge,_that.caller,_that.pity);case _:
   return null;
 
 }
@@ -3514,7 +3538,7 @@ return $default(_that.enabled,_that.drawsPerGift,_that.returnPercent,_that.hostS
 @JsonSerializable()
 
 class _LuckyGiftOdds implements LuckyGiftOdds {
-  const _LuckyGiftOdds({required this.enabled, required this.drawsPerGift, required this.returnPercent, required this.hostSharePercent, required  List<LuckyGiftOutcome> outcomes, required this.noWinChancePerMillion, required this.noWinProbability, required this.bigWinMultiplier, required this.dailyProtection, required this.dayTimeZone, required this.minimumAge, required this.caller}): _outcomes = outcomes;
+  const _LuckyGiftOdds({required this.enabled, required this.drawsPerGift, required this.returnPercent, required this.hostSharePercent, required  List<LuckyGiftOutcome> outcomes, required this.noWinChancePerMillion, required this.noWinProbability, required this.bigWinMultiplier, required this.dailyProtection, required this.dayTimeZone, required this.minimumAge, required this.caller, this.pity}): _outcomes = outcomes;
   factory _LuckyGiftOdds.fromJson(Map<String, dynamic> json) => _$LuckyGiftOddsFromJson(json);
 
 @override final  bool enabled;
@@ -3535,6 +3559,9 @@ class _LuckyGiftOdds implements LuckyGiftOdds {
 @override final  String dayTimeZone;
 @override final  int minimumAge;
 @override final  LuckyGiftEligibility? caller;
+/// v1.30-live (D148): the per-sender guarantee; null when it is off (or
+/// from an older server).
+@override final  LuckyGiftPity? pity;
 
 /// Create a copy of LuckyGiftOdds
 /// with the given fields replaced by the non-null parameter values.
@@ -3549,18 +3576,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LuckyGiftOdds&&(identical(other.enabled, enabled) || other.enabled == enabled)&&(identical(other.drawsPerGift, drawsPerGift) || other.drawsPerGift == drawsPerGift)&&(identical(other.returnPercent, returnPercent) || other.returnPercent == returnPercent)&&(identical(other.hostSharePercent, hostSharePercent) || other.hostSharePercent == hostSharePercent)&&const DeepCollectionEquality().equals(other.outcomes, _outcomes)&&(identical(other.noWinChancePerMillion, noWinChancePerMillion) || other.noWinChancePerMillion == noWinChancePerMillion)&&(identical(other.noWinProbability, noWinProbability) || other.noWinProbability == noWinProbability)&&(identical(other.bigWinMultiplier, bigWinMultiplier) || other.bigWinMultiplier == bigWinMultiplier)&&(identical(other.dailyProtection, dailyProtection) || other.dailyProtection == dailyProtection)&&(identical(other.dayTimeZone, dayTimeZone) || other.dayTimeZone == dayTimeZone)&&(identical(other.minimumAge, minimumAge) || other.minimumAge == minimumAge)&&(identical(other.caller, caller) || other.caller == caller));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LuckyGiftOdds&&(identical(other.enabled, enabled) || other.enabled == enabled)&&(identical(other.drawsPerGift, drawsPerGift) || other.drawsPerGift == drawsPerGift)&&(identical(other.returnPercent, returnPercent) || other.returnPercent == returnPercent)&&(identical(other.hostSharePercent, hostSharePercent) || other.hostSharePercent == hostSharePercent)&&const DeepCollectionEquality().equals(other.outcomes, _outcomes)&&(identical(other.noWinChancePerMillion, noWinChancePerMillion) || other.noWinChancePerMillion == noWinChancePerMillion)&&(identical(other.noWinProbability, noWinProbability) || other.noWinProbability == noWinProbability)&&(identical(other.bigWinMultiplier, bigWinMultiplier) || other.bigWinMultiplier == bigWinMultiplier)&&(identical(other.dailyProtection, dailyProtection) || other.dailyProtection == dailyProtection)&&(identical(other.dayTimeZone, dayTimeZone) || other.dayTimeZone == dayTimeZone)&&(identical(other.minimumAge, minimumAge) || other.minimumAge == minimumAge)&&(identical(other.caller, caller) || other.caller == caller)&&(identical(other.pity, pity) || other.pity == pity));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,enabled,drawsPerGift,returnPercent,hostSharePercent,const DeepCollectionEquality().hash(_outcomes),noWinChancePerMillion,noWinProbability,bigWinMultiplier,dailyProtection,dayTimeZone,minimumAge,caller);
+    return Object.hash(runtimeType,enabled,drawsPerGift,returnPercent,hostSharePercent,const DeepCollectionEquality().hash(_outcomes),noWinChancePerMillion,noWinProbability,bigWinMultiplier,dailyProtection,dayTimeZone,minimumAge,caller,pity);
 }
 
 @override
 String toString() {
-    return 'LuckyGiftOdds(enabled: $enabled, drawsPerGift: $drawsPerGift, returnPercent: $returnPercent, hostSharePercent: $hostSharePercent, outcomes: $outcomes, noWinChancePerMillion: $noWinChancePerMillion, noWinProbability: $noWinProbability, bigWinMultiplier: $bigWinMultiplier, dailyProtection: $dailyProtection, dayTimeZone: $dayTimeZone, minimumAge: $minimumAge, caller: $caller)';
+    return 'LuckyGiftOdds(enabled: $enabled, drawsPerGift: $drawsPerGift, returnPercent: $returnPercent, hostSharePercent: $hostSharePercent, outcomes: $outcomes, noWinChancePerMillion: $noWinChancePerMillion, noWinProbability: $noWinProbability, bigWinMultiplier: $bigWinMultiplier, dailyProtection: $dailyProtection, dayTimeZone: $dayTimeZone, minimumAge: $minimumAge, caller: $caller, pity: $pity)';
 }
 
 
@@ -3571,11 +3598,11 @@ abstract mixin class _$LuckyGiftOddsCopyWith<$Res> implements $LuckyGiftOddsCopy
   factory _$LuckyGiftOddsCopyWith(_LuckyGiftOdds value, $Res Function(_LuckyGiftOdds) _then) = __$LuckyGiftOddsCopyWithImpl;
 @override @useResult
 $Res call({
- bool enabled, int drawsPerGift, double returnPercent, double hostSharePercent, List<LuckyGiftOutcome> outcomes, int noWinChancePerMillion, double noWinProbability, int bigWinMultiplier, bool dailyProtection, String dayTimeZone, int minimumAge, LuckyGiftEligibility? caller
+ bool enabled, int drawsPerGift, double returnPercent, double hostSharePercent, List<LuckyGiftOutcome> outcomes, int noWinChancePerMillion, double noWinProbability, int bigWinMultiplier, bool dailyProtection, String dayTimeZone, int minimumAge, LuckyGiftEligibility? caller, LuckyGiftPity? pity
 });
 
 
-@override $LuckyGiftEligibilityCopyWith<$Res>? get caller;
+@override $LuckyGiftEligibilityCopyWith<$Res>? get caller;@override $LuckyGiftPityCopyWith<$Res>? get pity;
 
 }
 /// @nodoc
@@ -3588,7 +3615,7 @@ class __$LuckyGiftOddsCopyWithImpl<$Res>
 
 /// Create a copy of LuckyGiftOdds
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? enabled = null,Object? drawsPerGift = null,Object? returnPercent = null,Object? hostSharePercent = null,Object? outcomes = null,Object? noWinChancePerMillion = null,Object? noWinProbability = null,Object? bigWinMultiplier = null,Object? dailyProtection = null,Object? dayTimeZone = null,Object? minimumAge = null,Object? caller = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? enabled = null,Object? drawsPerGift = null,Object? returnPercent = null,Object? hostSharePercent = null,Object? outcomes = null,Object? noWinChancePerMillion = null,Object? noWinProbability = null,Object? bigWinMultiplier = null,Object? dailyProtection = null,Object? dayTimeZone = null,Object? minimumAge = null,Object? caller = freezed,Object? pity = freezed,}) {
   return _then(_LuckyGiftOdds(
 enabled: null == enabled ? _self.enabled : enabled // ignore: cast_nullable_to_non_nullable
 as bool,drawsPerGift: null == drawsPerGift ? _self.drawsPerGift : drawsPerGift // ignore: cast_nullable_to_non_nullable
@@ -3602,7 +3629,8 @@ as int,dailyProtection: null == dailyProtection ? _self.dailyProtection : dailyP
 as bool,dayTimeZone: null == dayTimeZone ? _self.dayTimeZone : dayTimeZone // ignore: cast_nullable_to_non_nullable
 as String,minimumAge: null == minimumAge ? _self.minimumAge : minimumAge // ignore: cast_nullable_to_non_nullable
 as int,caller: freezed == caller ? _self.caller : caller // ignore: cast_nullable_to_non_nullable
-as LuckyGiftEligibility?,
+as LuckyGiftEligibility?,pity: freezed == pity ? _self.pity : pity // ignore: cast_nullable_to_non_nullable
+as LuckyGiftPity?,
   ));
 }
 
@@ -3617,6 +3645,894 @@ $LuckyGiftEligibilityCopyWith<$Res>? get caller {
 
   return $LuckyGiftEligibilityCopyWith<$Res>(_self.caller!, (value) {
     return _then(_self.copyWith(caller: value));
+  });
+}/// Create a copy of LuckyGiftOdds
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$LuckyGiftPityCopyWith<$Res>? get pity {
+    if (_self.pity == null) {
+    return null;
+  }
+
+  return $LuckyGiftPityCopyWith<$Res>(_self.pity!, (value) {
+    return _then(_self.copyWith(pity: value));
+  });
+}
+}
+
+
+/// @nodoc
+mixin _$LuckyGiftPity {
+
+ int get after; int get multiplier;
+/// Create a copy of LuckyGiftPity
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$LuckyGiftPityCopyWith<LuckyGiftPity> get copyWith => _$LuckyGiftPityCopyWithImpl<LuckyGiftPity>(this as LuckyGiftPity, _$identity);
+
+  /// Serializes this LuckyGiftPity to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  final _this = this as LuckyGiftPity;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LuckyGiftPity&&(identical(other.after, _this.after) || other.after == _this.after)&&(identical(other.multiplier, _this.multiplier) || other.multiplier == _this.multiplier));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+  final _this = this as LuckyGiftPity;
+  return Object.hash(runtimeType,_this.after,_this.multiplier);
+}
+
+@override
+String toString() {
+  final _this = this as LuckyGiftPity;
+  return 'LuckyGiftPity(after: ${_this.after}, multiplier: ${_this.multiplier})';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $LuckyGiftPityCopyWith<$Res>  {
+  factory $LuckyGiftPityCopyWith(LuckyGiftPity value, $Res Function(LuckyGiftPity) _then) = _$LuckyGiftPityCopyWithImpl;
+@useResult
+$Res call({
+ int after, int multiplier
+});
+
+
+
+
+}
+/// @nodoc
+class _$LuckyGiftPityCopyWithImpl<$Res>
+    implements $LuckyGiftPityCopyWith<$Res> {
+  _$LuckyGiftPityCopyWithImpl(this._self, this._then);
+
+  final LuckyGiftPity _self;
+  final $Res Function(LuckyGiftPity) _then;
+
+/// Create a copy of LuckyGiftPity
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? after = null,Object? multiplier = null,}) {
+  return _then(LuckyGiftPity(
+after: null == after ? _self.after : after // ignore: cast_nullable_to_non_nullable
+as int,multiplier: null == multiplier ? _self.multiplier : multiplier // ignore: cast_nullable_to_non_nullable
+as int,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [LuckyGiftPity].
+extension LuckyGiftPityPatterns on LuckyGiftPity {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _LuckyGiftPity value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _LuckyGiftPity() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _LuckyGiftPity value)  $default,){
+final _that = this;
+switch (_that) {
+case _LuckyGiftPity():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _LuckyGiftPity value)?  $default,){
+final _that = this;
+switch (_that) {
+case _LuckyGiftPity() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int after,  int multiplier)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _LuckyGiftPity() when $default != null:
+return $default(_that.after,_that.multiplier);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int after,  int multiplier)  $default,) {final _that = this;
+switch (_that) {
+case _LuckyGiftPity():
+return $default(_that.after,_that.multiplier);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int after,  int multiplier)?  $default,) {final _that = this;
+switch (_that) {
+case _LuckyGiftPity() when $default != null:
+return $default(_that.after,_that.multiplier);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _LuckyGiftPity implements LuckyGiftPity {
+  const _LuckyGiftPity({required this.after, required this.multiplier});
+  factory _LuckyGiftPity.fromJson(Map<String, dynamic> json) => _$LuckyGiftPityFromJson(json);
+
+@override final  int after;
+@override final  int multiplier;
+
+/// Create a copy of LuckyGiftPity
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$LuckyGiftPityCopyWith<_LuckyGiftPity> get copyWith => __$LuckyGiftPityCopyWithImpl<_LuckyGiftPity>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$LuckyGiftPityToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LuckyGiftPity&&(identical(other.after, after) || other.after == after)&&(identical(other.multiplier, multiplier) || other.multiplier == multiplier));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+    return Object.hash(runtimeType,after,multiplier);
+}
+
+@override
+String toString() {
+    return 'LuckyGiftPity(after: $after, multiplier: $multiplier)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$LuckyGiftPityCopyWith<$Res> implements $LuckyGiftPityCopyWith<$Res> {
+  factory _$LuckyGiftPityCopyWith(_LuckyGiftPity value, $Res Function(_LuckyGiftPity) _then) = __$LuckyGiftPityCopyWithImpl;
+@override @useResult
+$Res call({
+ int after, int multiplier
+});
+
+
+
+
+}
+/// @nodoc
+class __$LuckyGiftPityCopyWithImpl<$Res>
+    implements _$LuckyGiftPityCopyWith<$Res> {
+  __$LuckyGiftPityCopyWithImpl(this._self, this._then);
+
+  final _LuckyGiftPity _self;
+  final $Res Function(_LuckyGiftPity) _then;
+
+/// Create a copy of LuckyGiftPity
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? after = null,Object? multiplier = null,}) {
+  return _then(_LuckyGiftPity(
+after: null == after ? _self.after : after // ignore: cast_nullable_to_non_nullable
+as int,multiplier: null == multiplier ? _self.multiplier : multiplier // ignore: cast_nullable_to_non_nullable
+as int,
+  ));
+}
+
+
+}
+
+
+/// @nodoc
+mixin _$LuckyTickerRoom {
+
+ String get id; String get title; UserSummary get host;
+/// Create a copy of LuckyTickerRoom
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$LuckyTickerRoomCopyWith<LuckyTickerRoom> get copyWith => _$LuckyTickerRoomCopyWithImpl<LuckyTickerRoom>(this as LuckyTickerRoom, _$identity);
+
+  /// Serializes this LuckyTickerRoom to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  final _this = this as LuckyTickerRoom;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LuckyTickerRoom&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.title, _this.title) || other.title == _this.title)&&(identical(other.host, _this.host) || other.host == _this.host));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+  final _this = this as LuckyTickerRoom;
+  return Object.hash(runtimeType,_this.id,_this.title,_this.host);
+}
+
+@override
+String toString() {
+  final _this = this as LuckyTickerRoom;
+  return 'LuckyTickerRoom(id: ${_this.id}, title: ${_this.title}, host: ${_this.host})';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $LuckyTickerRoomCopyWith<$Res>  {
+  factory $LuckyTickerRoomCopyWith(LuckyTickerRoom value, $Res Function(LuckyTickerRoom) _then) = _$LuckyTickerRoomCopyWithImpl;
+@useResult
+$Res call({
+ String id, String title, UserSummary host
+});
+
+
+$UserSummaryCopyWith<$Res> get host;
+
+}
+/// @nodoc
+class _$LuckyTickerRoomCopyWithImpl<$Res>
+    implements $LuckyTickerRoomCopyWith<$Res> {
+  _$LuckyTickerRoomCopyWithImpl(this._self, this._then);
+
+  final LuckyTickerRoom _self;
+  final $Res Function(LuckyTickerRoom) _then;
+
+/// Create a copy of LuckyTickerRoom
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? title = null,Object? host = null,}) {
+  return _then(LuckyTickerRoom(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
+as String,host: null == host ? _self.host : host // ignore: cast_nullable_to_non_nullable
+as UserSummary,
+  ));
+}
+/// Create a copy of LuckyTickerRoom
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$UserSummaryCopyWith<$Res> get host {
+  
+  return $UserSummaryCopyWith<$Res>(_self.host, (value) {
+    return _then(_self.copyWith(host: value));
+  });
+}
+}
+
+
+/// Adds pattern-matching-related methods to [LuckyTickerRoom].
+extension LuckyTickerRoomPatterns on LuckyTickerRoom {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _LuckyTickerRoom value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _LuckyTickerRoom() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _LuckyTickerRoom value)  $default,){
+final _that = this;
+switch (_that) {
+case _LuckyTickerRoom():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _LuckyTickerRoom value)?  $default,){
+final _that = this;
+switch (_that) {
+case _LuckyTickerRoom() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String title,  UserSummary host)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _LuckyTickerRoom() when $default != null:
+return $default(_that.id,_that.title,_that.host);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String title,  UserSummary host)  $default,) {final _that = this;
+switch (_that) {
+case _LuckyTickerRoom():
+return $default(_that.id,_that.title,_that.host);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String title,  UserSummary host)?  $default,) {final _that = this;
+switch (_that) {
+case _LuckyTickerRoom() when $default != null:
+return $default(_that.id,_that.title,_that.host);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _LuckyTickerRoom implements LuckyTickerRoom {
+  const _LuckyTickerRoom({required this.id, required this.title, required this.host});
+  factory _LuckyTickerRoom.fromJson(Map<String, dynamic> json) => _$LuckyTickerRoomFromJson(json);
+
+@override final  String id;
+@override final  String title;
+@override final  UserSummary host;
+
+/// Create a copy of LuckyTickerRoom
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$LuckyTickerRoomCopyWith<_LuckyTickerRoom> get copyWith => __$LuckyTickerRoomCopyWithImpl<_LuckyTickerRoom>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$LuckyTickerRoomToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LuckyTickerRoom&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.host, host) || other.host == host));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+    return Object.hash(runtimeType,id,title,host);
+}
+
+@override
+String toString() {
+    return 'LuckyTickerRoom(id: $id, title: $title, host: $host)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$LuckyTickerRoomCopyWith<$Res> implements $LuckyTickerRoomCopyWith<$Res> {
+  factory _$LuckyTickerRoomCopyWith(_LuckyTickerRoom value, $Res Function(_LuckyTickerRoom) _then) = __$LuckyTickerRoomCopyWithImpl;
+@override @useResult
+$Res call({
+ String id, String title, UserSummary host
+});
+
+
+@override $UserSummaryCopyWith<$Res> get host;
+
+}
+/// @nodoc
+class __$LuckyTickerRoomCopyWithImpl<$Res>
+    implements _$LuckyTickerRoomCopyWith<$Res> {
+  __$LuckyTickerRoomCopyWithImpl(this._self, this._then);
+
+  final _LuckyTickerRoom _self;
+  final $Res Function(_LuckyTickerRoom) _then;
+
+/// Create a copy of LuckyTickerRoom
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? title = null,Object? host = null,}) {
+  return _then(_LuckyTickerRoom(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
+as String,host: null == host ? _self.host : host // ignore: cast_nullable_to_non_nullable
+as UserSummary,
+  ));
+}
+
+/// Create a copy of LuckyTickerRoom
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$UserSummaryCopyWith<$Res> get host {
+  
+  return $UserSummaryCopyWith<$Res>(_self.host, (value) {
+    return _then(_self.copyWith(host: value));
+  });
+}
+}
+
+
+/// @nodoc
+mixin _$LuckyTicker {
+
+ LuckyWin get win; LuckyTickerRoom get room;
+/// Create a copy of LuckyTicker
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$LuckyTickerCopyWith<LuckyTicker> get copyWith => _$LuckyTickerCopyWithImpl<LuckyTicker>(this as LuckyTicker, _$identity);
+
+  /// Serializes this LuckyTicker to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  final _this = this as LuckyTicker;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LuckyTicker&&(identical(other.win, _this.win) || other.win == _this.win)&&(identical(other.room, _this.room) || other.room == _this.room));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+  final _this = this as LuckyTicker;
+  return Object.hash(runtimeType,_this.win,_this.room);
+}
+
+@override
+String toString() {
+  final _this = this as LuckyTicker;
+  return 'LuckyTicker(win: ${_this.win}, room: ${_this.room})';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $LuckyTickerCopyWith<$Res>  {
+  factory $LuckyTickerCopyWith(LuckyTicker value, $Res Function(LuckyTicker) _then) = _$LuckyTickerCopyWithImpl;
+@useResult
+$Res call({
+ LuckyWin win, LuckyTickerRoom room
+});
+
+
+$LuckyWinCopyWith<$Res> get win;$LuckyTickerRoomCopyWith<$Res> get room;
+
+}
+/// @nodoc
+class _$LuckyTickerCopyWithImpl<$Res>
+    implements $LuckyTickerCopyWith<$Res> {
+  _$LuckyTickerCopyWithImpl(this._self, this._then);
+
+  final LuckyTicker _self;
+  final $Res Function(LuckyTicker) _then;
+
+/// Create a copy of LuckyTicker
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? win = null,Object? room = null,}) {
+  return _then(LuckyTicker(
+win: null == win ? _self.win : win // ignore: cast_nullable_to_non_nullable
+as LuckyWin,room: null == room ? _self.room : room // ignore: cast_nullable_to_non_nullable
+as LuckyTickerRoom,
+  ));
+}
+/// Create a copy of LuckyTicker
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$LuckyWinCopyWith<$Res> get win {
+  
+  return $LuckyWinCopyWith<$Res>(_self.win, (value) {
+    return _then(_self.copyWith(win: value));
+  });
+}/// Create a copy of LuckyTicker
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$LuckyTickerRoomCopyWith<$Res> get room {
+  
+  return $LuckyTickerRoomCopyWith<$Res>(_self.room, (value) {
+    return _then(_self.copyWith(room: value));
+  });
+}
+}
+
+
+/// Adds pattern-matching-related methods to [LuckyTicker].
+extension LuckyTickerPatterns on LuckyTicker {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _LuckyTicker value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _LuckyTicker() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _LuckyTicker value)  $default,){
+final _that = this;
+switch (_that) {
+case _LuckyTicker():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _LuckyTicker value)?  $default,){
+final _that = this;
+switch (_that) {
+case _LuckyTicker() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( LuckyWin win,  LuckyTickerRoom room)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _LuckyTicker() when $default != null:
+return $default(_that.win,_that.room);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( LuckyWin win,  LuckyTickerRoom room)  $default,) {final _that = this;
+switch (_that) {
+case _LuckyTicker():
+return $default(_that.win,_that.room);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( LuckyWin win,  LuckyTickerRoom room)?  $default,) {final _that = this;
+switch (_that) {
+case _LuckyTicker() when $default != null:
+return $default(_that.win,_that.room);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _LuckyTicker implements LuckyTicker {
+  const _LuckyTicker({required this.win, required this.room});
+  factory _LuckyTicker.fromJson(Map<String, dynamic> json) => _$LuckyTickerFromJson(json);
+
+@override final  LuckyWin win;
+@override final  LuckyTickerRoom room;
+
+/// Create a copy of LuckyTicker
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$LuckyTickerCopyWith<_LuckyTicker> get copyWith => __$LuckyTickerCopyWithImpl<_LuckyTicker>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$LuckyTickerToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LuckyTicker&&(identical(other.win, win) || other.win == win)&&(identical(other.room, room) || other.room == room));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+    return Object.hash(runtimeType,win,room);
+}
+
+@override
+String toString() {
+    return 'LuckyTicker(win: $win, room: $room)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$LuckyTickerCopyWith<$Res> implements $LuckyTickerCopyWith<$Res> {
+  factory _$LuckyTickerCopyWith(_LuckyTicker value, $Res Function(_LuckyTicker) _then) = __$LuckyTickerCopyWithImpl;
+@override @useResult
+$Res call({
+ LuckyWin win, LuckyTickerRoom room
+});
+
+
+@override $LuckyWinCopyWith<$Res> get win;@override $LuckyTickerRoomCopyWith<$Res> get room;
+
+}
+/// @nodoc
+class __$LuckyTickerCopyWithImpl<$Res>
+    implements _$LuckyTickerCopyWith<$Res> {
+  __$LuckyTickerCopyWithImpl(this._self, this._then);
+
+  final _LuckyTicker _self;
+  final $Res Function(_LuckyTicker) _then;
+
+/// Create a copy of LuckyTicker
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? win = null,Object? room = null,}) {
+  return _then(_LuckyTicker(
+win: null == win ? _self.win : win // ignore: cast_nullable_to_non_nullable
+as LuckyWin,room: null == room ? _self.room : room // ignore: cast_nullable_to_non_nullable
+as LuckyTickerRoom,
+  ));
+}
+
+/// Create a copy of LuckyTicker
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$LuckyWinCopyWith<$Res> get win {
+  
+  return $LuckyWinCopyWith<$Res>(_self.win, (value) {
+    return _then(_self.copyWith(win: value));
+  });
+}/// Create a copy of LuckyTicker
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$LuckyTickerRoomCopyWith<$Res> get room {
+  
+  return $LuckyTickerRoomCopyWith<$Res>(_self.room, (value) {
+    return _then(_self.copyWith(room: value));
   });
 }
 }

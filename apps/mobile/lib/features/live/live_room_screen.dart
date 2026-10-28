@@ -20,6 +20,7 @@ import 'package:kabso_live/features/live/application/live_chat_controller.dart';
 import 'package:kabso_live/features/live/application/live_gift_effects.dart';
 import 'package:kabso_live/features/live/application/live_host_controller.dart'
     show liveViewersPreviewProvider;
+import 'package:kabso_live/features/live/application/live_lucky_ticker.dart';
 import 'package:kabso_live/features/live/application/live_room_provider.dart';
 import 'package:kabso_live/features/live/application/live_room_session.dart';
 import 'package:kabso_live/features/live/application/live_seat_emojis.dart';
@@ -327,6 +328,10 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       // D138: the emojis people play on their seats.
       ref
           .read(liveSeatEmojisProvider(room.id).notifier)
+          .attach(_session.engine);
+      // D148: big lucky wins in other lives (the gold ticker).
+      ref
+          .read(liveLuckyTickersProvider(room.id).notifier)
           .attach(_session.engine);
       // CP-013: the room chat, on the same media session.
       unawaited(
@@ -716,6 +721,10 @@ class _RoomViewState extends ConsumerState<_RoomView> {
               LiveGiftEffectsLayer(
                 roomId: room.id,
                 onSender: (u) => _person(u.username),
+                // D148: the gold ticker opens the live of the win (like a
+                // swipe to another live: this one is left).
+                onOpenRoom: (id) =>
+                    context.pushReplacement(AppRoutes.liveRoom(id)),
                 // D145c: the strips centred at the reading start in audio
                 // and video alike; beside a video live's wish column.
                 stripsStart: LiveGiftEffectsLayer.videoStripsStart(
