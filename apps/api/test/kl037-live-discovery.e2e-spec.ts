@@ -127,6 +127,27 @@ describe('KL-037 contract coverage', () => {
             'getLuckyGiftOdds',
             // D138 (v1.27.5-live draft): an emoji on one's own seat; kl095-live-seat-emoji covers it.
             'sendLiveSeatEmoji',
+            // D154 Room Tools (v1.32–v1.38-live drafts), each with its own exact list:
+            // d154-quips, d154-boosts, d154-newcomers, d154-data-center, d154-program,
+            // d154-stickers and d154-watch.
+            'playLiveSound',
+            'getLiveBoostOffers',
+            'buyLiveBoost',
+            'listActiveLiveBoosts',
+            'listLiveRoomBoosts',
+            'listLiveNewcomers',
+            'getMyLiveStats',
+            'getLiveProgram',
+            'setLiveProgram',
+            'listLiveStickerArt',
+            'getLiveStickers',
+            'setLiveStickers',
+            'searchYoutube',
+            'getLiveWatch',
+            'setLiveWatch',
+            'listLiveWatchSuggestions',
+            'suggestLiveWatch',
+            'decideLiveWatchSuggestion',
           ].includes(o.operationId),
       )
       .filter(
