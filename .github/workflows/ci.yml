@@ -484,10 +484,14 @@ jobs:
       - name: Pub get (lockfile enforced)
         run: flutter pub get --enforce-lockfile
       - name: Build the staging APK
+        # D144: the DeepAR key comes only from the repository secret (empty → effects off).
+        env:
+          DEEPAR_LICENSE_ANDROID: ${{ secrets.DEEPAR_LICENSE_ANDROID }}
         run: >-
           flutter build apk --profile --split-per-abi --target-platform android-arm64
           --dart-define=API_BASE_URL=https://api.kabsolive.com
           --dart-define=APP_VERSION=0.1.0-staging+${GITHUB_SHA::7}
+          --dart-define=DEEPAR_LICENSE_ANDROID="$DEEPAR_LICENSE_ANDROID"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: kabso-live-staging-apk
