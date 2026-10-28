@@ -149,6 +149,15 @@ export interface AppConfig {
     /** 0 = sweeper disabled (tests; refused in production). */
     readonly sweepIntervalSeconds: number;
   };
+  /** v1.30-live (D152) push notifications (CONVENTIONS §11.12). */
+  readonly push: {
+    /** The Firebase service-account key file, or null (push off). */
+    readonly credentialsFile: string | null;
+    /** 0 = the outbox dispatcher is off (tests call it directly). */
+    readonly dispatchIntervalMs: number;
+    readonly generalGapSeconds: number;
+    readonly messagesGapSeconds: number;
+  };
   /** v1.29-live (D147) search trends (CONVENTIONS §11.11). */
   readonly searchTrends: {
     readonly minSearchers: number;
@@ -335,6 +344,12 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       cursorKey: e.SOCIAL_CURSOR_KEY ?? rateLimitKeySecret,
     },
     gifts: { quantities: e.LIVE_GIFT_QUANTITIES },
+    push: {
+      credentialsFile: e.FIREBASE_CREDENTIALS_FILE ?? null,
+      dispatchIntervalMs: e.PUSH_DISPATCH_INTERVAL_MS,
+      generalGapSeconds: e.PUSH_GENERAL_GAP_SECONDS,
+      messagesGapSeconds: e.PUSH_MESSAGES_GAP_SECONDS,
+    },
     searchTrends: {
       minSearchers: e.SEARCH_TRENDING_MIN_SEARCHERS,
       sweepIntervalSeconds: e.SEARCH_TRENDS_SWEEP_INTERVAL_SECONDS,

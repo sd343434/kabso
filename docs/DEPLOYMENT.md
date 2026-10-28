@@ -973,6 +973,70 @@ a `CONNECTION LIMIT`.
 - Rollback: the API before D147 ignores the tables (the app's sections then hide on 404); drop the
   three tables to remove the data.
 
+### 5.16 Push notifications (migration `20261203090000_push_notifications`; D152) — [IMPLEMENTED, draft contract; not device-tested]
+
+Android pushes through Firebase Cloud Messaging (project `kabso-27b19`, free Spark plan; Android
+app `com.kabso.kabso_live`), CONVENTIONS §11.12. **iOS is deferred** (no Apple Developer account /
+APNs key yet): the iOS app never starts Firebase and needs no `GoogleService-Info.plist`.
+
+- **Migration** with the usual `migrate` job (§5): enum `push_platform`, table `device_tokens`
+  (one token per session, deleted with it), `notifications.pushed_at` (the push outbox; existing
+  rows are marked handled, so nothing old is pushed) and `notification_settings.messages`
+  (default on). No GRANT (default privileges).
+- **Server key** (never in git, never in an env file): the Admin SDK service-account key is a file
+  on the server, `/etc/kabso/firebase-admin.json`, mounted **read-only** into the `api` container
+  at `/run/secrets/firebase-admin.json`, and `FIREBASE_CREDENTIALS_FILE` points there (the `api`
+  service of `infra/deploy/docker-compose.yml` on the deploy branch). The API runs as `node`
+  (uid/gid 1000), so the file is owned `root:1000`, mode `640`; `/etc/kabso` stays `700` (root
+  only), so no other host account can reach it. One-time, on the server:
+
+  ```bash
+  ls -ln /etc/kabso/firebase-admin.json          # the key the owner placed (root, 600)
+  chgrp 1000 /etc/kabso/firebase-admin.json      # the container's `node` group may read it
+  chmod 640 /etc/kabso/firebase-admin.json
+  stat -c '%a %U' /etc/kabso                     # 700 root — keep it so
+  # After the deploy branch carries D152 (the timer deploys it within 5 minutes), or at once:
+  bash /opt/kabso/infra/deploy/update.sh --force
+  cd /opt/kabso && docker compose -f infra/deploy/docker-compose.yml logs api | grep -i "push notifications"
+  #   → "Push notifications are on (Firebase Cloud Messaging)" with projectId kabso-27b19
+  ```
+
+  Never print the key (`cat`, logs, chat). The API logs only the project id and, on failure, the
+  reason (`missing`, `not_a_file`, `unreadable`, `invalid`, `firebase_start_failed`).
+- **Without the key** the stack still starts: Docker creates an empty **directory** where a
+  bind-mounted host file is missing, the API sees "not a file", logs `Push notifications are off`
+  and runs normally (tokens are still accepted; nothing is sent). To add the key later:
+  `rmdir /etc/kabso/firebase-admin.json`, put the file there, run the two commands above, then
+  `docker compose -f infra/deploy/docker-compose.yml up -d api`. To switch push off on purpose
+  without deleting the key, set `KABSO_FIREBASE_ADMIN_FILE=/dev/null` in `/etc/kabso/kabso.env`
+  (the mount source) and recreate `api`.
+- **Settings:** `PUSH_DISPATCH_INTERVAL_MS=2000` (how often new notifications are pushed; 0
+  disables the outbox — then nothing general is pushed), `PUSH_GENERAL_GAP_SECONDS=5` and
+  `PUSH_MESSAGES_GAP_SECONDS=10` (burst collapse, per recipient / per recipient and chat; uses
+  Redis). The outbox is safe on several API instances (`FOR UPDATE SKIP LOCKED`). Tokens of ended
+  sessions and tokens unseen for 60 days are deleted by the notifications sweeper.
+- **APK builds:** CI writes `apps/mobile/android/app/google-services.json` from the repository
+  secret `GOOGLE_SERVICES_JSON` before the debug APK (job `android`) and the staging APK (job
+  `staging-apk`) are built; the file is git-ignored (as is `GoogleService-Info.plist`) and checked
+  for this app's package. Without the secret (forks, pull requests from forks, a fresh clone)
+  Gradle does not apply the `com.google.gms.google-services` plugin and the APK builds and runs
+  with push off. Locally: put the file there yourself (never commit it).
+- **Logs and privacy:** counts and Firebase error codes only — never a token, title, body or
+  message text. Tokens Firebase reports as not registered / invalid are deleted.
+- **Rotating the key:** create a new key in the Firebase console (Project settings → Service
+  accounts), replace the file (same owner and mode), then
+  `docker compose -f infra/deploy/docker-compose.yml up -d --force-recreate api` (a bind-mounted
+  file keeps pointing at the old file until the container is recreated), then delete the old key
+  in Google Cloud IAM. The owner overrode the org policy
+  `iam.disableServiceAccountKeyCreation` on the project to create the key: set it back to
+  *inherit* once the key exists.
+- **Rollback:** the API before D152 ignores the new table and columns; the app before D152 never
+  registers a token. Drop `device_tokens`, `push_platform`, `notifications.pushed_at` and
+  `notification_settings.messages` to remove the data.
+- **Not verified here** (no device, no Firebase project access from this environment): delivery,
+  the channels' sounds, the Android 13+ prompt, taps from a closed app, the compose start with the
+  real key. See the D152 row of the board.
+
 ## 6. Observability baseline
 
 | Item | Status |

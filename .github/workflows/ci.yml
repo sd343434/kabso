@@ -278,6 +278,27 @@ jobs:
         run: flutter doctor -v
       - name: Pub get (lockfile enforced)
         run: flutter pub get --enforce-lockfile
+      # D152: Firebase's Android config (push) from the repository secret,
+      # through env only (never echoed). The file is git-ignored and exists
+      # only in this runner. Without the secret (forks, pull requests from
+      # forks) nothing is written: Gradle skips the google-services plugin and
+      # the APK builds and runs with push off.
+      - name: Write google-services.json (push)
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -z "$GOOGLE_SERVICES_JSON" ]; then
+            echo "GOOGLE_SERVICES_JSON is not set: building without push."
+            exit 0
+          fi
+          umask 077
+          printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+          # Valid JSON with a client for this app's package (else the
+          # google-services plugin fails later with a less clear message).
+          jq -e '[.client[]?.client_info.android_client_info.package_name]
+            | index("com.kabso.kabso_live") != null' \
+            android/app/google-services.json > /dev/null
+          echo "google-services.json written (push on)."
       # D144: DeepAR's licence key from the repository secret, through env
       # only (never echoed; GitHub masks it). Without the secret (forks, a
       # fresh clone) the value is empty: the APK still builds and Magic shows

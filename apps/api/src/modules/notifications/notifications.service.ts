@@ -10,6 +10,7 @@ import { MediaService } from '../media/media.service.js';
 import { USER_SUMMARY_SELECT, userSummary, visiblePostWhere, type PageDto } from '../posts/post-views.js';
 import type { PageQuery } from '../posts/posts.schemas.js';
 import { SocialCursorCodec } from '../posts/social-cursor.js';
+import { PushTokensService } from '../push/push-tokens.service.js';
 import { visibleStoryWhere } from '../stories/stories.service.js';
 import { markReadSchema, updateNotificationSettingsSchema } from './notifications.schemas.js';
 
@@ -46,6 +47,8 @@ export interface NotificationSettingsDto {
   reposts: boolean;
   /** v1.14-live (CP-016 C): reminders of lives scheduled by hosts you follow. */
   lives: boolean;
+  /** v1.30-live (D152): pushes of new family chat messages. */
+  messages: boolean;
 }
 
 /** Retention (owner, D92): latest activity older than this is deleted. */
@@ -62,6 +65,7 @@ const DEFAULT_SETTINGS: NotificationSettingsDto = {
   follows: true,
   reposts: true,
   lives: true,
+  messages: true,
 };
 const ACTOR_TYPES: NotificationType[] = [
   'LIKE_POST',
@@ -174,6 +178,7 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly prisma: PrismaService,
     private readonly media: MediaService,
+    private readonly pushTokens: PushTokensService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {
     this.cursors = new SocialCursorCodec(config.social.cursorKey);
@@ -313,6 +318,18 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
+  /**
+   * D152: one notification of `me` as the inbox would show it, or null when it is not visible
+   * (§11.10: blocks, mutes, inactive actors, removed targets). The push dispatcher's check.
+   */
+  async visible(me: string, id: string): Promise<NotificationDto | null> {
+    const row = await this.prisma.notification.findFirst({
+      where: { AND: [visibleNotificationWhere(me), { id }] },
+      include: include(me),
+    });
+    return row ? this.toDto(row) : null;
+  }
+
   /** `GET /notifications/unread-count`: visible unread notifications, capped at 99. */
   async unreadCount(me: string): Promise<{ count: number }> {
     const count = await this.prisma.notification.count({
@@ -377,6 +394,8 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
   private scheduleSweep(): void {
     this.sweepTimer = setTimeout(() => {
       this.sweepInFlight = this.sweep()
+        // D152: push tokens of ended sessions and tokens unseen for 60 days, on the same timer.
+        .then(() => this.pushTokens.sweep())
         .then(() => undefined)
         .catch((err: unknown) => {
           this.logger.error({ error: safeErrorLog(err) }, 'Notifications sweep failed');
@@ -398,5 +417,6 @@ function pickSettings(row: NotificationSettingsDto): NotificationSettingsDto {
     follows: row.follows,
     reposts: row.reposts,
     lives: row.lives,
+    messages: row.messages,
   };
 }

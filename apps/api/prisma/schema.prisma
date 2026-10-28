@@ -159,6 +159,8 @@ model User {
   // v1.28-live (D146): premium usernames.
   premiumLeases      PremiumUsernameLease[]
   premiumPayments    PremiumUsernamePayment[]
+  /// v1.30-live (D152): push tokens of the user's sessions.
+  deviceTokens       DeviceToken[]
 
   @@map("users")
 }
@@ -223,7 +225,9 @@ model Session {
   /// LOGOUT | USER_REVOKED | REFRESH_REUSE | PASSWORD_RESET | ADMIN
   revokedReason             String?   @map("revoked_reason") @db.VarChar(32)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// v1.30-live (D152): at most one push token per session.
+  deviceTokens DeviceToken[]
 
   @@index([userId, createdAt(sort: Desc)], map: "sessions_user_id_created_at_idx")
   @@index([expiresAt], map: "sessions_expires_at_idx")
@@ -1754,6 +1758,9 @@ model Notification {
   premiumLeaseId String?          @map("premium_lease_id") @db.Uuid
   groupKey       String?          @map("group_key") @db.VarChar(80)
   readAt         DateTime?        @map("read_at") @db.Timestamptz(3)
+  /// v1.30-live (D152): the `updated_at` the push dispatcher last handled (pushed or skipped);
+  /// NULL or older than `updated_at` = waiting (an outbox, `notifications_push_pending_idx`).
+  pushedAt       DateTime?        @map("pushed_at") @db.Timestamptz(3)
   createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime         @default(now()) @map("updated_at") @db.Timestamptz(3)
 
@@ -1772,6 +1779,7 @@ model Notification {
   @@index([recipientId], map: "notifications_unread_idx", where: raw("read_at IS NULL"))
   @@index([premiumLeaseId], map: "notifications_premium_lease_idx", where: raw("premium_lease_id IS NOT NULL"))
   @@index([updatedAt], map: "notifications_updated_idx")
+  @@index([updatedAt], map: "notifications_push_pending_idx", where: raw("pushed_at IS NULL OR pushed_at < updated_at"))
   @@index([postId], map: "notifications_post_id_idx")
   @@index([commentId], map: "notifications_comment_id_idx")
   @@index([storyId], map: "notifications_story_id_idx")
@@ -1805,11 +1813,44 @@ model NotificationSettings {
   reposts   Boolean  @default(true)
   /// CP-016 C: reminders of lives scheduled by hosts you follow.
   lives     Boolean  @default(true)
+  /// v1.30-live (D152): pushes of new family chat messages.
+  messages  Boolean  @default(true)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notification_settings")
+}
+
+/// v1.30-live (D152, CONVENTIONS §11.12).
+enum PushPlatform {
+  ANDROID
+  IOS
+
+  @@map("push_platform")
+}
+
+/// v1.30-live (D152): a session's Firebase Cloud Messaging token (one per session; a token is
+/// unique). Deleted with the session, on logout or revocation, when Firebase reports it invalid,
+/// and by the notifications sweeper after the session ended or 60 days unseen. Never logged.
+model DeviceToken {
+  id         String       @id @default(uuid(7)) @db.Uuid
+  userId     String       @map("user_id") @db.Uuid
+  sessionId  String       @map("session_id") @db.Uuid
+  token      String       @db.VarChar(1024)
+  platform   PushPlatform
+  appVersion String       @map("app_version") @db.VarChar(32)
+  createdAt  DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  lastSeenAt DateTime     @default(now()) @map("last_seen_at") @db.Timestamptz(3)
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([token], map: "device_tokens_token_key")
+  @@unique([sessionId], map: "device_tokens_session_id_key")
+  @@index([userId], map: "device_tokens_user_id_idx")
+  @@index([lastSeenAt], map: "device_tokens_last_seen_at_idx")
+  @@map("device_tokens")
 }
 
 // ---- v1.21-live (DRAFT, CP-018, D106): families, CP couples and medals ------------------------

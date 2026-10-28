@@ -16,6 +16,10 @@ dependencies:
   # the versions livekit_client already resolves.
   dart_webrtc: 1.8.2
   dio: ^5.11.1
+  # D152 push notifications (Android; FCM). Pinned exactly, one FlutterFire
+  # release (2026-09-14). BSD-3-Clause.
+  firebase_core: 4.15.0
+  firebase_messaging: 16.7.0
   flutter:
     sdk: flutter
   flutter_foreground_task: 11.0.3

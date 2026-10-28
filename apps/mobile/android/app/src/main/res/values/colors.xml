@@ -3,4 +3,6 @@
     <!-- D63: the launch animation's background, so the native launch window
          and the Flutter splash have the same colour (no white flash). -->
     <color name="launch_background">#FF0F0F0F</color>
+    <!-- D152: the accent of pushes (Kabso red, design-tokens brand.red500). -->
+    <color name="notification_accent">#FFE50914</color>
 </resources>

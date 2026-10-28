@@ -28,5 +28,7 @@ export const updateNotificationSettingsSchema = z
     reposts: z.boolean().optional(),
     /** v1.14-live (CP-016 C): scheduled-live reminders. */
     lives: z.boolean().optional(),
+    /** v1.30-live (D152): family chat pushes. */
+    messages: z.boolean().optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: 'too_small', params: { issue: 'too_small' } });

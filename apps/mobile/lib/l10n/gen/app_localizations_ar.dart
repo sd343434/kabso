@@ -357,8 +357,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get settingsSoundEffects => 'المؤثرات الصوتية';
 
   @override
-  String get settingsSoundEffectsHint =>
-      'أصوات زر ماكس وأرباح الهدايا المحظوظة';
+  String get settingsSoundEffectsHint => 'ماكس والهدايا المحظوظة والإشعارات';
 
   @override
   String get settingsSessions => 'الجلسات النشطة';
@@ -6819,4 +6818,41 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get livePermissionSeatRefused =>
       'لا يمكن الجلوس على المقعد دون السماح بالوصول.';
+
+  @override
+  String get pushPermissionTitle => 'فعّل الإشعارات';
+
+  @override
+  String get pushPermissionBody =>
+      'ليصلك إشعار بصوت Kabso Live عند وصول رسالة في محادثة عائلتك، وعند المتابعات والإعجابات والتعليقات. يمكنك تغيير ذلك في أي وقت من الإعدادات.';
+
+  @override
+  String get pushPermissionAllow => 'السماح بالإشعارات';
+
+  @override
+  String get pushPermissionNotNow => 'ليس الآن';
+
+  @override
+  String get pushOffTitle => 'الإشعارات متوقفة على هذا الهاتف';
+
+  @override
+  String get pushOffBody =>
+      'فعّلها ليصلك إشعار بالرسائل الجديدة والتفاعلات حتى والتطبيق مغلق.';
+
+  @override
+  String get pushOffBlockedBody =>
+      'أوقفتَ الإشعارات من قبل ولن يسألك الجهاز مجدداً. افتح الإعدادات وفعّل الإشعارات لتطبيق Kabso Live.';
+
+  @override
+  String get pushTurnOn => 'تفعيل';
+
+  @override
+  String get pushOpenSettings => 'فتح الإعدادات';
+
+  @override
+  String get notifSettingMessages => 'رسائل العائلة';
+
+  @override
+  String get notifSettingMessagesBody =>
+      'إشعار على الهاتف عند وصول رسائل جديدة في محادثة عائلتك';
 }

@@ -343,7 +343,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsSoundEffects => 'Sound effects';
 
   @override
-  String get settingsSoundEffectsHint => 'MAX X taps and lucky wins';
+  String get settingsSoundEffectsHint => 'MAX X, lucky wins and notifications';
 
   @override
   String get settingsSessions => 'Active sessions';
@@ -6771,4 +6771,41 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get livePermissionSeatRefused =>
       'You can\'t take a seat without allowing access.';
+
+  @override
+  String get pushPermissionTitle => 'Turn on notifications';
+
+  @override
+  String get pushPermissionBody =>
+      'Hear Kabso Live\'s sound when a message arrives in your family chat, and when someone follows you, likes or comments. You can change this any time in Settings.';
+
+  @override
+  String get pushPermissionAllow => 'Allow notifications';
+
+  @override
+  String get pushPermissionNotNow => 'Not now';
+
+  @override
+  String get pushOffTitle => 'Notifications are off on this phone';
+
+  @override
+  String get pushOffBody =>
+      'Turn them on to hear about new messages and activity, even when the app is closed.';
+
+  @override
+  String get pushOffBlockedBody =>
+      'You turned notifications off earlier and your phone won\'t ask again. Open Settings and turn on notifications for Kabso Live.';
+
+  @override
+  String get pushTurnOn => 'Turn on';
+
+  @override
+  String get pushOpenSettings => 'Open settings';
+
+  @override
+  String get notifSettingMessages => 'Family chat messages';
+
+  @override
+  String get notifSettingMessagesBody =>
+      'A notification on your phone for new messages in your family chat';
 }

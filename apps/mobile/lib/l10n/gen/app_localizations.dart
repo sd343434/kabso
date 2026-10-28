@@ -695,7 +695,7 @@ abstract class AppLocalizations {
   /// D145d: the sound effects switch's subtitle.
   ///
   /// In ar, this message translates to:
-  /// **'أصوات زر ماكس وأرباح الهدايا المحظوظة'**
+  /// **'ماكس والهدايا المحظوظة والإشعارات'**
   String get settingsSoundEffectsHint;
 
   /// No description provided for @settingsSessions.
@@ -11701,6 +11701,72 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'لا يمكن الجلوس على المقعد دون السماح بالوصول.'**
   String get livePermissionSeatRefused;
+
+  /// D152: push notifications (permission, settings).
+  ///
+  /// In ar, this message translates to:
+  /// **'فعّل الإشعارات'**
+  String get pushPermissionTitle;
+
+  /// D152: push notifications (permission, settings).
+  ///
+  /// In ar, this message translates to:
+  /// **'ليصلك إشعار بصوت Kabso Live عند وصول رسالة في محادثة عائلتك، وعند المتابعات والإعجابات والتعليقات. يمكنك تغيير ذلك في أي وقت من الإعدادات.'**
+  String get pushPermissionBody;
+
+  /// D152: push notifications (permission, settings).
+  ///
+  /// In ar, this message translates to:
+  /// **'السماح بالإشعارات'**
+  String get pushPermissionAllow;
+
+  /// D152: push notifications (permission, settings).
+  ///
+  /// In ar, this message translates to:
+  /// **'ليس الآن'**
+  String get pushPermissionNotNow;
+
+  /// D152: push notifications (permission, settings).
+  ///
+  /// In ar, this message translates to:
+  /// **'الإشعارات متوقفة على هذا الهاتف'**
+  String get pushOffTitle;
+
+  /// D152: push notifications (permission, settings).
+  ///
+  /// In ar, this message translates to:
+  /// **'فعّلها ليصلك إشعار بالرسائل الجديدة والتفاعلات حتى والتطبيق مغلق.'**
+  String get pushOffBody;
+
+  /// D152: push notifications (permission, settings).
+  ///
+  /// In ar, this message translates to:
+  /// **'أوقفتَ الإشعارات من قبل ولن يسألك الجهاز مجدداً. افتح الإعدادات وفعّل الإشعارات لتطبيق Kabso Live.'**
+  String get pushOffBlockedBody;
+
+  /// D152: push notifications (permission, settings).
+  ///
+  /// In ar, this message translates to:
+  /// **'تفعيل'**
+  String get pushTurnOn;
+
+  /// D152: push notifications (permission, settings).
+  ///
+  /// In ar, this message translates to:
+  /// **'فتح الإعدادات'**
+  String get pushOpenSettings;
+
+  /// D152: push notifications (permission, settings).
+  ///
+  /// In ar, this message translates to:
+  /// **'رسائل العائلة'**
+  String get notifSettingMessages;
+
+  /// D152: push notifications (permission, settings).
+  ///
+  /// In ar, this message translates to:
+  /// **'إشعار على الهاتف عند وصول رسائل جديدة في محادثة عائلتك'**
+  String get notifSettingMessagesBody;
 }
 
 class _AppLocalizationsDelegate

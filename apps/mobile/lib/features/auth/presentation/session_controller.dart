@@ -9,6 +9,8 @@ import 'package:kabso_live/features/auth/data/auth_repository_impl.dart';
 import 'package:kabso_live/features/auth/domain/entities.dart';
 import 'package:kabso_live/features/auth/presentation/locale_sync.dart';
 import 'package:kabso_live/features/debug/demo_data.dart';
+import 'package:kabso_live/features/push/push_permission.dart';
+import 'package:kabso_live/features/push/push_tokens_repository.dart';
 
 /// Global authentication state. Drives the router's redirect guard.
 sealed class AuthState {
@@ -107,6 +109,8 @@ class SessionController extends Notifier<AuthState> {
   void signedIn(User user) {
     state = Authenticated(user);
     unawaited(ref.read(localeSyncProvider).afterSignIn(user));
+    // D152: the moment to explain notifications (the shell asks, once).
+    ref.read(pushPromptDueProvider.notifier).due();
   }
 
   /// Replaces the user (e.g. after a fresh `GET /me`).
@@ -147,6 +151,9 @@ class SessionController extends Notifier<AuthState> {
       await exitDemo();
       return;
     }
+    // D152: no more pushes to this phone for this account.
+    await unregisterPushToken(ref);
+    if (!ref.mounted) return;
     await ref.read(authRepositoryProvider).logout();
     if (!ref.mounted) return;
     state = const Unauthenticated();

@@ -15,14 +15,19 @@ import 'package:kabso_live/features/families/domain/family_models.dart';
 import 'package:kabso_live/features/families/presentation/bond_widgets.dart';
 import 'package:kabso_live/features/families/presentation/family_widgets.dart';
 import 'package:kabso_live/features/posts/presentation/report_sheet.dart';
+import 'package:kabso_live/features/push/open_conversation.dart';
+import 'package:kabso_live/features/push/push_payload.dart';
+import 'package:kabso_live/features/push/push_permission.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// `/families/:familyId/chat` (مراسلة العائلة, CP-022, §10.25): the family's
-/// text chat, members only. There is no push: while the screen is open it
-/// reads the newest page every [pollEvery]. A long press offers delete
-/// (own messages; the leader and deputies for others, by the server's
-/// rules) and report (others' messages). A muted member reads only.
+/// text chat, members only. While the screen is open it reads the newest
+/// page every [pollEvery]. D152: a new message reaches the family's other
+/// members as a push; nothing plays for this chat while it is open. A long
+/// press offers delete (own messages; the leader and deputies for others, by
+/// the server's rules) and report (others' messages). A muted member reads
+/// only.
 class FamilyChatScreen extends ConsumerStatefulWidget {
   const new({required this.familyId, super.key});
 
@@ -52,6 +57,10 @@ class _FamilyChatScreenState extends ConsumerState<FamilyChatScreen> {
 
   String get familyId => widget.familyId;
 
+  /// D152: this chat's id for pushes (no sound or banner for it while open).
+  late final String _conversation = familyConversation(familyId);
+  late final OpenConversation _open;
+
   @override
   void initState() {
     super.initState();
@@ -60,12 +69,20 @@ class _FamilyChatScreenState extends ConsumerState<FamilyChatScreen> {
       final chat = ref.read(familyChatProvider(familyId).notifier);
       unawaited(chat.refresh().catchError((Object _) {}));
     });
+    _open = ref.read(openConversationProvider.notifier);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _open.opened(_conversation);
+      // D152: a family chat is a moment to explain notifications (once).
+      unawaited(maybeAskPushPermission(context, ref));
+    });
   }
 
   @override
   void dispose() {
     _poll?.cancel();
     _input.dispose();
+    _open.closed(_conversation);
     super.dispose();
   }
 

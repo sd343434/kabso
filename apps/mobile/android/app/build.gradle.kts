@@ -105,3 +105,14 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+// D152 push notifications (Firebase Cloud Messaging). google-services.json is
+// never in git (the repository is public): CI writes it from the
+// GOOGLE_SERVICES_JSON secret before the build. Without it (forks, pull
+// requests, a fresh clone) the plugin is not applied, the APK still builds,
+// and the app runs with push off (Firebase.initializeApp fails and is caught).
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+} else {
+    logger.lifecycle("google-services.json not found: building without push (D152)")
+}

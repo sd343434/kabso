@@ -207,6 +207,9 @@ export function buildTestConfig(overrides: Record<string, string> = {}): AppConf
     // D147: specs call SearchTrendsService.sweep() directly.
     SEARCH_TRENDS_SWEEP_INTERVAL_SECONDS: '0',
     RATE_LIMIT_SEARCH_RECORD_USER: GENEROUS,
+    // D152: no push outbox timer in tests (specs call NotificationPushDispatcher.dispatchOnce());
+    // FIREBASE_CREDENTIALS_FILE is never set, so the real sender is off.
+    PUSH_DISPATCH_INTERVAL_MS: '0',
     // No background sweeper in tests: specs call LiveRoomsService.sweepStale() with a fake clock.
     LIVE_SWEEP_INTERVAL_SECONDS: '0',
     ...overrides,

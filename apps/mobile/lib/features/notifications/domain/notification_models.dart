@@ -207,6 +207,7 @@ class NotificationSettings {
     this.follows = true,
     this.reposts = true,
     this.lives = true,
+    this.messages = true,
   });
 
   factory fromJson(Map<String, dynamic> json) => NotificationSettings(
@@ -217,6 +218,8 @@ class NotificationSettings {
     reposts: json['reposts']! as bool,
     // v1.14-live; an older server does not send it (on).
     lives: json['lives'] as bool? ?? true,
+    // v1.30-live (D152); an older server does not send it (on).
+    messages: json['messages'] as bool? ?? true,
   );
 
   final bool likes;
@@ -230,6 +233,9 @@ class NotificationSettings {
   /// Reminders of lives scheduled by hosts you follow (CP-016 C).
   final bool lives;
 
+  /// Pushes of new family chat messages (v1.30-live, D152).
+  final bool messages;
+
   @override
   bool operator ==(Object other) =>
       other is NotificationSettings &&
@@ -238,11 +244,12 @@ class NotificationSettings {
       other.mentions == mentions &&
       other.follows == follows &&
       other.reposts == reposts &&
-      other.lives == lives;
+      other.lives == lives &&
+      other.messages == messages;
 
   @override
   int get hashCode =>
-      Object.hash(likes, comments, mentions, follows, reposts, lives);
+      Object.hash(likes, comments, mentions, follows, reposts, lives, messages);
 }
 
 /// One switch of [NotificationSettings] (the wire field name).
@@ -252,7 +259,8 @@ enum NotificationSetting {
   mentions,
   follows,
   reposts,
-  lives;
+  lives,
+  messages;
 
   bool of(NotificationSettings s) => switch (this) {
     likes => s.likes,
@@ -261,6 +269,7 @@ enum NotificationSetting {
     follows => s.follows,
     reposts => s.reposts,
     lives => s.lives,
+    messages => s.messages,
   };
 
   NotificationSettings set(NotificationSettings s, {required bool on}) =>
@@ -271,5 +280,6 @@ enum NotificationSetting {
         follows: this == follows ? on : s.follows,
         reposts: this == reposts ? on : s.reposts,
         lives: this == lives ? on : s.lives,
+        messages: this == messages ? on : s.messages,
       );
 }

@@ -163,6 +163,11 @@ info:
     stored), `listTrendingSearches` (`GET /search/trending`, up to 6 terms with a `TRENDING` /
     `NEW` tag, at least 5 different searchers) and `listTrendingHashtags`
     (`GET /search/trending-hashtags`, the hashtags of the week) (CONVENTIONS §11.11).
+    **D152 (DRAFT v1.30-live)** adds push notifications on Android (Firebase Cloud Messaging):
+    `registerPushToken` / `unregisterPushToken` (`PUT` / `DELETE /me/push-token`, one token per
+    signed-in session, removed with the session at logout) and the `messages` switch of
+    `NotificationSettings` (family chat pushes). Pushes follow the in-app rules of §11.10
+    (CONVENTIONS §11.12).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -212,7 +217,7 @@ tags:
   - name: stories
     description: "Photo stories that last 24 hours: tray, seen, viewers and archive (v1.5-social DRAFT, CP-008)."
   - name: notifications
-    description: "In-app notifications: inbox, unread count, mark read and settings (v1.5-social DRAFT, CP-009)."
+    description: "In-app notifications: inbox, unread count, mark read and settings (v1.5-social DRAFT, CP-009); the device's push token (v1.30-live DRAFT, D152)."
   - name: safety
     description: "Block, mute, hide, reports and privacy settings (v1.5-social DRAFT)."
   - name: admin-moderation
@@ -5486,6 +5491,39 @@ paths:
               schema: { $ref: '#/components/schemas/NotificationSettings' }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
+  /api/v1/me/push-token:
+    put:
+      tags: [notifications]
+      operationId: registerPushToken
+      summary: "Register or refresh this device's push token (D152)"
+      description: |
+        v1.30-live (D152, CONVENTIONS §11.12). The token belongs to the **calling session** (one
+        per session): a new token replaces the session's previous one, and a token registered by
+        another session (the same phone, another account) moves to this one. The app sends it
+        after sign-in, on every token refresh and at launch (which also refreshes `lastSeenAt`).
+        The session's logout, revocation or expiry removes it; so does Firebase reporting it
+        invalid. Idempotent.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterPushTokenRequest' }
+      responses:
+        '204': { description: Registered. }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [notifications]
+      operationId: unregisterPushToken
+      summary: "Stop pushes to this device (D152)"
+      description: |
+        v1.30-live (D152). Removes the calling session's push token (none: nothing to do).
+        Idempotent. `POST /auth/logout` removes it too.
+      responses:
+        '204': { description: Removed. }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/me/mutes:
     get:
       tags: [safety]
@@ -7955,7 +7993,7 @@ components:
         all: { type: boolean, const: true }
     NotificationSettings:
       type: object
-      required: [likes, comments, mentions, follows, reposts, lives]
+      required: [likes, comments, mentions, follows, reposts, lives, messages]
       properties:
         likes: { type: boolean }
         comments: { type: boolean, description: Comments on your posts and replies to your comments. }
@@ -7963,6 +8001,7 @@ components:
         follows: { type: boolean }
         reposts: { type: boolean }
         lives: { type: boolean, description: "(v1.14-live) Reminders of lives scheduled by hosts you follow." }
+        messages: { type: boolean, description: "(v1.30-live, D152) Push notifications of new messages in your family chat. In-app reading is not affected." }
     UpdateNotificationSettingsRequest:
       type: object
       additionalProperties: false
@@ -7974,6 +8013,29 @@ components:
         follows: { type: boolean }
         reposts: { type: boolean }
         lives: { type: boolean }
+        messages: { type: boolean }
+    RegisterPushTokenRequest:
+      type: object
+      additionalProperties: false
+      required: [token, platform, appVersion]
+      properties:
+        token:
+          type: string
+          minLength: 1
+          maxLength: 1024
+          pattern: '^[A-Za-z0-9_:.-]+$'
+          description: The Firebase Cloud Messaging registration token. Never logged.
+        platform: { $ref: '#/components/schemas/PushPlatform' }
+        appVersion:
+          type: string
+          minLength: 1
+          maxLength: 32
+          pattern: '^[0-9A-Za-z.+_-]+$'
+          description: The app's version, e.g. `0.1.0-staging+abc1234`.
+    PushPlatform:
+      type: string
+      enum: [ANDROID, IOS]
+      description: "D152: only ANDROID receives pushes until iOS push (APNs) is set up; IOS tokens are accepted and kept."
     CreateReportRequest:
       type: object
       additionalProperties: false

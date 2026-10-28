@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
+import { BackgroundTasks } from '../../common/background/background-tasks.js';
 import { Clock } from '../../common/time/clock.js';
 import { zodErrorToDetails } from '../../common/validation/zod-validation.pipe.js';
 import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
@@ -13,6 +14,7 @@ import { USER_SUMMARY_SELECT, userSummary, type PageDto } from '../posts/post-vi
 import { SocialCursorCodec } from '../posts/social-cursor.js';
 import { UsersService, violatedUniqueIndex } from '../users/users.service.js';
 import { familyChatSendSchema, type FamilyChatQuery } from './families.schemas.js';
+import { FamilyChatPush } from './family-chat-push.js';
 
 /** `FamilyChatMessage` (v1.25-live). */
 export interface FamilyChatMessageDto {
@@ -49,8 +51,9 @@ function forbidden(): AppException {
 
 /**
  * The family chat (مراسلة العائلة, CP-022, owner D116, CONVENTIONS §10.25): one text conversation
- * per family, members only. There is no realtime push: the app reads the newest page again while the
- * chat is open (polling) and pages back with the cursor. Messages follow the live chat text rules
+ * per family, members only. The open chat reads the newest page again (polling) and pages back
+ * with the cursor; since v1.30-live (D152) the other members get a push ({@link FamilyChatPush}).
+ * Messages follow the live chat text rules
  * (1–200 code points, one line) with the leader's live blocked words masked; the author, the
  * leader or a deputy deletes one (a deputy never deletes the leader's or another deputy's); the
  * leader and deputies mute members (a deputy never mutes a deputy; nobody mutes the leader);
@@ -65,6 +68,8 @@ export class FamilyChatService {
     private readonly prisma: PrismaService,
     private readonly users: UsersService,
     private readonly clock: Clock,
+    private readonly chatPush: FamilyChatPush,
+    private readonly background: BackgroundTasks,
     @Inject(APP_CONFIG) config: AppConfig,
   ) {
     this.cursors = new SocialCursorCodec(config.social.cursorKey);
@@ -178,6 +183,10 @@ export class FamilyChatService {
       const row = await this.prisma.familyChatMessage.create({
         data: { familyId: family.id, authorId: callerId, clientId, text, createdAt: this.clock.now() },
         include: INCLUDE,
+      });
+      // D152 (§11.12): the push to the other members, after the response.
+      this.background.run('push.familyChat', async () => {
+        await this.chatPush.newMessage({ familyId: family.id, messageId: row.id, authorId: callerId, text });
       });
       return { created: true, message: (await this.toDtos(family.id, [row]))[0]! };
     } catch (err) {

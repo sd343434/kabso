@@ -18,6 +18,9 @@ import 'package:kabso_live/features/live/presentation/widgets/kabso_pk_bar.dart'
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
 import 'package:kabso_live/features/live/presentation/widgets/max_x_art.dart';
 import 'package:kabso_live/features/profile_card/kabso_profile_header.dart';
+import 'package:kabso_live/features/push/notification_sounds.dart';
+import 'package:kabso_live/features/push/push_messaging.dart';
+import 'package:kabso_live/features/push/push_permission.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 Future<void> testExecutable(FutureOr<void> Function() testMain) async {
@@ -36,6 +39,11 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   KabsoPkBar.enabled = false;
   // D144a: the permission channel has no handler in tests.
   DeviceLivePermissions.enabled = false;
+  // D152: no Firebase, no audio plugin, no permission channel in tests
+  // (push tests override the providers with fakes).
+  FirebasePushMessaging.enabled = false;
+  AudioplayersNotificationSounds.enabled = false;
+  DevicePushPermissions.enabled = false;
   KLiveEqualizer.animate = false;
   // D146: the special-ID badge's light sweep loops; never in tests.
   KSpecialUsername.motion = false;
