@@ -5909,9 +5909,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get liveToolFlash => 'Flash';
-
-  @override
   String get liveToolDual => 'Dual';
 
   @override
@@ -5931,6 +5928,40 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveToolFillLight => 'Fill light';
+
+  @override
+  String get liveFillLightNoTorch => 'This camera has no torch.';
+
+  @override
+  String get liveFilterTitle => 'Colour filters';
+
+  @override
+  String get liveFilterUnsupported =>
+      'Colour filters aren\'t available on this device yet — they must reach your viewers, not only your screen.';
+
+  @override
+  String get liveFilterNatural => 'Natural';
+
+  @override
+  String get liveFilterWarm => 'Warm';
+
+  @override
+  String get liveFilterCool => 'Cool';
+
+  @override
+  String get liveFilterMono => 'Mono';
+
+  @override
+  String get liveFilterCinematic => 'Cinematic';
+
+  @override
+  String get liveFilterVivid => 'Vivid';
+
+  @override
+  String get liveFilterSoft => 'Soft';
+
+  @override
+  String get liveManageAddModerator => 'Add a moderator';
 
   @override
   String get liveToolMixer => 'Mixer';

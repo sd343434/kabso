@@ -1,6 +1,7 @@
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/live/data/beauty/live_beauty.dart';
+import 'package:kabso_live/features/live/data/beauty/live_color_filter.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_glass.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_room_style.dart';
@@ -23,6 +24,8 @@ abstract final class GoLiveKeys {
   static const beautySwitch = Key('goLive.beauty.switch');
   static const beautySmooth = Key('goLive.beauty.smooth');
   static const beautyBrighten = Key('goLive.beauty.brighten');
+  static Key filter(LiveColorFilter f) => Key('goLive.filter.${f.name}');
+  static const filterUnsupported = Key('goLive.filter.unsupported');
 }
 
 const _white = Color(0xFFFFFFFF);
@@ -1039,4 +1042,176 @@ class LiveSheetFrame extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// D143 Magic: the colour filters, applied live to the published camera
+/// picture. Where this device has no camera pipeline ([supported] false)
+/// the filters are shown greyed with why.
+Future<void> showLiveFilterSheet(
+  BuildContext context, {
+  required LiveColorFilter selected,
+  required bool supported,
+  required ValueChanged<LiveColorFilter> onChanged,
+  required Color accent,
+}) => showModalBottomSheet<void>(
+  context: context,
+  backgroundColor: const Color(0x00000000),
+  // The picture stays visible above the sheet while choosing.
+  barrierColor: const Color(0x22000000),
+  builder: (sheet) {
+    var value = selected;
+    return StatefulBuilder(
+      builder: (context, setState) {
+        final l10n = context.l10n;
+        final text = context.textStyles;
+        return LiveSheetFrame(
+          title: l10n.liveFilterTitle,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (!supported)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    KSpacing.lg,
+                    0,
+                    KSpacing.lg,
+                    KSpacing.md,
+                  ),
+                  child: Text(
+                    l10n.liveFilterUnsupported,
+                    key: GoLiveKeys.filterUnsupported,
+                    textAlign: TextAlign.center,
+                    style: text.caption.copyWith(
+                      color: _white.withValues(alpha: 0.75),
+                    ),
+                  ),
+                ),
+              SizedBox(
+                height: KLiveStyle.filterSwatch + 40,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: KSpacing.md),
+                  children: [
+                    for (final f in LiveColorFilter.values)
+                      _FilterSwatch(
+                        key: GoLiveKeys.filter(f),
+                        filter: f,
+                        label: liveFilterLabel(l10n, f),
+                        selected: f == value,
+                        accent: accent,
+                        onTap: supported
+                            ? () {
+                                setState(() => value = f);
+                                onChanged(f);
+                              }
+                            : null,
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  },
+);
+
+/// The name of [filter] in the person's language.
+String liveFilterLabel(AppLocalizations l10n, LiveColorFilter filter) =>
+    switch (filter) {
+      LiveColorFilter.natural => l10n.liveFilterNatural,
+      LiveColorFilter.warm => l10n.liveFilterWarm,
+      LiveColorFilter.cool => l10n.liveFilterCool,
+      LiveColorFilter.mono => l10n.liveFilterMono,
+      LiveColorFilter.cinematic => l10n.liveFilterCinematic,
+      LiveColorFilter.vivid => l10n.liveFilterVivid,
+      LiveColorFilter.soft => l10n.liveFilterSoft,
+    };
+
+class _FilterSwatch extends StatelessWidget {
+  const new({
+    required this.filter,
+    required this.label,
+    required this.selected,
+    required this.accent,
+    required this.onTap,
+    super.key,
+  });
+
+  final LiveColorFilter filter;
+  final String label;
+  final bool selected;
+  final Color accent;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    const size = KLiveStyle.filterSwatch;
+    final enabled = onTap != null;
+    return Semantics(
+      button: true,
+      selected: selected,
+      enabled: enabled,
+      label: label,
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(KRadius.md),
+        child: Opacity(
+          opacity: enabled ? 1 : 0.45,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: KSpacing.xs),
+            child: Column(
+              children: [
+                Container(
+                  width: size,
+                  height: size,
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(KRadius.md),
+                    border: Border.all(
+                      color: selected ? accent : const Color(0x00000000),
+                      width: 2,
+                    ),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(KRadius.md - 2),
+                    child: ColorFiltered(
+                      colorFilter: ColorFilter.matrix(filter.flutterMatrix),
+                      child: const DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: KLiveStyle.filterSample,
+                          ),
+                        ),
+                        child: SizedBox.expand(),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: KSpacing.xs + 2),
+                SizedBox(
+                  width: size + 8,
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: context.textStyles.caption.copyWith(
+                      color: _white,
+                      fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

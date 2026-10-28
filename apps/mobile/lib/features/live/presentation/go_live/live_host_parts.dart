@@ -109,6 +109,7 @@ abstract final class LiveManageKeys {
   static const moderators = Key('manage.moderators');
   static const signedInOnly = Key('manage.signedInOnly');
   static const back = Key('manage.back');
+  static const addModerator = Key('manage.addModerator');
   static Key action(String username) => Key('manage.action.$username');
 }
 
@@ -116,6 +117,8 @@ abstract final class LiveManageKeys {
 /// the chat, who was removed from the live, the moderators (seat rooms
 /// list them; a SOLO live cannot read them, so the row says how to add
 /// one), and "Signed-in viewers only" (`allowGuests` inverted, CP-010).
+/// D143: video and audio rooms share it; [onAddModerator] (seat rooms)
+/// closes it and opens the viewers, where the host makes one a moderator.
 Future<void> showLiveUserManagement(
   BuildContext context, {
   required String roomId,
@@ -123,6 +126,7 @@ Future<void> showLiveUserManagement(
   required bool allowGuests,
   required Future<void> Function({required bool allow}) onAllowGuests,
   VoidCallback? onChanged,
+  VoidCallback? onAddModerator,
 }) => showModalBottomSheet<void>(
   context: context,
   isScrollControlled: true,
@@ -137,6 +141,7 @@ Future<void> showLiveUserManagement(
     allowGuests: allowGuests,
     onAllowGuests: onAllowGuests,
     onChanged: onChanged,
+    onAddModerator: onAddModerator,
   ),
 );
 
@@ -149,8 +154,10 @@ class _ManageSheet extends ConsumerStatefulWidget {
     required this.allowGuests,
     required this.onAllowGuests,
     this.onChanged,
+    this.onAddModerator,
   });
 
+  final VoidCallback? onAddModerator;
   final String roomId;
   final bool hasSeats;
   final bool allowGuests;
@@ -405,14 +412,35 @@ class _ManageSheetState extends ConsumerState<_ManageSheet> {
         child: Center(child: CircularProgressIndicator()),
       );
     }
+    final add = widget.onAddModerator;
+    final addTile = page == _ManagePage.moderators && add != null
+        ? ListTile(
+            key: LiveManageKeys.addModerator,
+            leading: const Icon(Icons.person_add_alt_1_rounded),
+            title: Text(
+              l10n.liveManageAddModerator,
+              style: t.body.copyWith(color: _ink),
+            ),
+            onTap: () {
+              Navigator.of(context).pop();
+              add();
+            },
+          )
+        : null;
     if (people.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.all(KSpacing.xl),
-        child: Text(
-          l10n.liveManageEmpty,
-          textAlign: TextAlign.center,
-          style: t.body.copyWith(color: _soft),
-        ),
+      return ListView(
+        shrinkWrap: true,
+        children: [
+          ?addTile,
+          Padding(
+            padding: const EdgeInsets.all(KSpacing.xl),
+            child: Text(
+              l10n.liveManageEmpty,
+              textAlign: TextAlign.center,
+              style: t.body.copyWith(color: _soft),
+            ),
+          ),
+        ],
       );
     }
     final (label, run) = switch (page) {
@@ -434,6 +462,7 @@ class _ManageSheetState extends ConsumerState<_ManageSheet> {
     return ListView(
       shrinkWrap: true,
       children: [
+        ?addTile,
         for (final u in people)
           ListTile(
             leading: KAvatar(name: u.displayName, imageUrl: u.avatarUrl),

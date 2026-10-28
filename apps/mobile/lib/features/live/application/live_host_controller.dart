@@ -8,6 +8,7 @@ import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/features/live/application/live_background.dart';
 import 'package:kabso_live/features/live/data/beauty/live_beauty.dart';
+import 'package:kabso_live/features/live/data/beauty/live_color_filter.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
@@ -54,7 +55,13 @@ class GoLiveState {
     this.noiseReduction = true,
     this.voiceEnhance = true,
     this.wishGifts,
+    this.fillLight = false,
   });
+
+  /// D143 fill light, kept for this go-live (setup and on air): the front
+  /// camera lights the face with the screen (a warm frame), the back
+  /// camera with its torch.
+  final bool fillLight;
 
   /// D136: the wish list picked before going live (sent once the room
   /// exists); null: the server keeps the host's last live's list.
@@ -118,7 +125,9 @@ class GoLiveState {
     bool? noiseReduction,
     bool? voiceEnhance,
     List<String>? wishGifts,
+    bool? fillLight,
   }) => GoLiveState(
+    fillLight: fillLight ?? this.fillLight,
     wishGifts: wishGifts ?? this.wishGifts,
     noiseReduction: noiseReduction ?? this.noiseReduction,
     voiceEnhance: voiceEnhance ?? this.voiceEnhance,
@@ -343,10 +352,57 @@ class LiveHostController extends Notifier<GoLiveState> {
     await _engine.setBeauty(beauty);
   }
 
+  /// D143: Magic's colour filter, on the published picture (where the
+  /// device has a camera pipeline: [LiveMediaEngine.beautySupported]).
+  Future<void> setColorFilter(LiveColorFilter filter) =>
+      setBeauty(state.beauty.copyWith(filter: filter));
+
+  /// D143 fill light. The front camera: the screen's warm frame (nothing to
+  /// ask the device). The back camera: its torch — `false` (and the light
+  /// stays off) when it has none. Off turns the torch off too.
+  Future<bool> setFillLight({required bool on}) async {
+    if (!on) {
+      state = state.copyWith(fillLight: false);
+      if (!_engine.frontCamera) await _torch(on: false);
+      return true;
+    }
+    if (_engine.frontCamera) {
+      state = state.copyWith(fillLight: true);
+      return true;
+    }
+    if (!await _torch(on: true)) return false;
+    if (!ref.mounted) return false;
+    state = state.copyWith(fillLight: true);
+    return true;
+  }
+
+  /// Best effort: whether the torch is now [on].
+  Future<bool> _torch({required bool on}) async {
+    try {
+      if (on && !await _engine.hasTorch()) return false;
+      await _engine.setTorch(on: on);
+      return true;
+    } on Object {
+      return false;
+    }
+  }
+
   Future<void> flipCamera() async {
+    // The fill light follows the camera: torch off before leaving the back
+    // camera, on again after reaching it (a camera without one turns the
+    // light off rather than pretend).
+    if (state.fillLight && !_engine.frontCamera) await _torch(on: false);
     await _engine.flipCamera();
     if (!ref.mounted) return;
-    state = state.copyWith(frontCamera: _engine.frontCamera);
+    var fillLight = state.fillLight;
+    if (fillLight && !_engine.frontCamera) {
+      fillLight = await _torch(on: true);
+      if (!ref.mounted) return;
+    }
+    state = state.copyWith(
+      frontCamera: _engine.frontCamera,
+      fillLight: fillLight,
+    );
   }
 
   Future<void> toggleMic() async {

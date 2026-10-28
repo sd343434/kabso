@@ -87,6 +87,21 @@ class FakeLiveMediaEngine implements LiveMediaEngine {
     _front = !_front;
   }
 
+  /// D143: whether the back camera has a torch (the front never has).
+  bool backTorch = true;
+
+  /// Every `setTorch` call, in order.
+  final List<bool> torchCalls = [];
+
+  @override
+  Future<bool> hasTorch() async => running && _video && !_front && backTorch;
+
+  @override
+  Future<void> setTorch({required bool on}) async {
+    if (on && !await hasTorch()) throw StateError('no torch');
+    torchCalls.add(on);
+  }
+
   @override
   bool get micEnabled => _mic;
 

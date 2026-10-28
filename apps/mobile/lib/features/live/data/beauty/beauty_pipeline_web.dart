@@ -71,6 +71,8 @@ class _BeautyProcessor implements lk.TrackProcessor<lk.VideoProcessorOptions> {
   web.WebGLUniformLocation? _uSmooth;
   web.WebGLUniformLocation? _uBright;
   web.WebGLUniformLocation? _uTexel;
+  web.WebGLUniformLocation? _uMatrix;
+  web.WebGLUniformLocation? _uOffset;
   web.MediaStream? outputStream;
   rtc.MediaStreamTrack? _processed;
   bool _running = false;
@@ -179,6 +181,8 @@ class _BeautyProcessor implements lk.TrackProcessor<lk.VideoProcessorOptions> {
       ..pixelStorei(web.WebGLRenderingContext.UNPACK_FLIP_Y_WEBGL, 1);
     _uSmooth = gl.getUniformLocation(program, 'u_smooth');
     _uBright = gl.getUniformLocation(program, 'u_bright');
+    _uMatrix = gl.getUniformLocation(program, 'u_cm');
+    _uOffset = gl.getUniformLocation(program, 'u_co');
   }
 
   void _scheduleFrame() {
@@ -193,6 +197,8 @@ class _BeautyProcessor implements lk.TrackProcessor<lk.VideoProcessorOptions> {
     if (!_running || gl == null || video == null || canvas == null) return;
     if (video.readyState >= 2) {
       final on = beauty.enabled;
+      final m = beauty.filter.shaderMatrix;
+      final o = beauty.filter.shaderOffset;
       gl
         ..viewport(0, 0, canvas.width, canvas.height)
         ..texImage2D(
@@ -205,6 +211,9 @@ class _BeautyProcessor implements lk.TrackProcessor<lk.VideoProcessorOptions> {
         )
         ..uniform1f(_uSmooth, on ? beauty.smooth : 0)
         ..uniform1f(_uBright, on ? beauty.brighten : 0)
+        // D143: the colour filter, on the published frame.
+        ..uniformMatrix3fv(_uMatrix, false, Float32List.fromList(m).toJS)
+        ..uniform3f(_uOffset, o[0], o[1], o[2])
         ..drawArrays(web.WebGLRenderingContext.TRIANGLE_STRIP, 0, 4);
     }
     _scheduleFrame();
@@ -249,7 +258,7 @@ void main() {
 
 // Edge-preserving smoothing (a bilateral filter on 16 taps over two rings)
 // weighted by a YCbCr skin mask, then a gentle gamma lift with a little
-// warmth.
+// warmth; then the colour filter (D143): an affine transform on RGB.
 const _fragment = '''
 precision mediump float;
 varying vec2 v_uv;
@@ -257,6 +266,8 @@ uniform sampler2D u_tex;
 uniform vec2 u_texel;
 uniform float u_smooth;
 uniform float u_bright;
+uniform mat3 u_cm;
+uniform vec3 u_co;
 
 float skin(vec3 c) {
   float y = dot(c, vec3(0.299, 0.587, 0.114));
@@ -291,6 +302,7 @@ void main() {
     color = pow(color, vec3(1.0 / (1.0 + u_bright * 0.45)));
     color += vec3(0.02, 0.01, 0.0) * u_bright;
   }
+  color = u_cm * clamp(color, 0.0, 1.0) + u_co;
   gl_FragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
 }
 ''';

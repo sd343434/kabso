@@ -62,6 +62,16 @@ abstract interface class LiveMediaEngine implements LiveVoiceMic {
 
   Future<void> flipCamera();
 
+  /// D143 fill light with the back camera: whether the running camera has
+  /// a torch (phones' back cameras; never on the web). `false` before
+  /// [startPreview] or when the platform cannot tell.
+  Future<bool> hasTorch();
+
+  /// Turns the running camera's torch on or off (WebRTC's capture track,
+  /// Android Camera2 / iOS AVCaptureDevice). Throws where there is none.
+  /// The camera turns it off when it stops or flips.
+  Future<void> setTorch({required bool on});
+
   bool get micEnabled;
 
   Future<void> setMicEnabled({required bool enabled});
@@ -301,6 +311,24 @@ class LiveKitMediaEngine implements LiveMediaEngine {
         final front = await rtc.Helper.switchCamera(track);
         return front;
       };
+
+  @override
+  Future<bool> hasTorch() async {
+    final video = _video;
+    if (video == null || kIsWeb) return false;
+    try {
+      return await video.mediaStreamTrack.hasTorch();
+    } on Object {
+      return false;
+    }
+  }
+
+  @override
+  Future<void> setTorch({required bool on}) async {
+    final video = _video;
+    if (video == null) return;
+    await video.mediaStreamTrack.setTorch(on);
+  }
 
   @override
   bool get micEnabled => _mic;

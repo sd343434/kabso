@@ -10238,12 +10238,6 @@ abstract class AppLocalizations {
   /// **'إرسال: {text}'**
   String liveQuickReplyLabel(String text);
 
-  /// Room tools: the camera flash (not available yet).
-  ///
-  /// In ar, this message translates to:
-  /// **'الفلاش'**
-  String get liveToolFlash;
-
   /// Room tools: both cameras at once (not available yet).
   ///
   /// In ar, this message translates to:
@@ -10274,17 +10268,83 @@ abstract class AppLocalizations {
   /// **'بطاقة الزيارات'**
   String get liveToolTrafficCard;
 
-  /// Beautification tools: face effects (not available yet).
+  /// Beautification tools: Magic — the colour filters (D143).
   ///
   /// In ar, this message translates to:
   /// **'مؤثرات'**
   String get liveToolMagic;
 
-  /// Beautification tools: a screen light (not available yet).
+  /// Fill light (D143): a warm screen frame with the front camera, the torch with the back camera.
   ///
   /// In ar, this message translates to:
   /// **'إضاءة'**
   String get liveToolFillLight;
+
+  /// Fill light: the back camera has no torch, so the light stays off.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذه الكاميرا بلا كشاف.'**
+  String get liveFillLightNoTorch;
+
+  /// Magic: title of the colour-filter picker.
+  ///
+  /// In ar, this message translates to:
+  /// **'فلاتر الألوان'**
+  String get liveFilterTitle;
+
+  /// Magic: why the filters are greyed on a device without a camera pipeline.
+  ///
+  /// In ar, this message translates to:
+  /// **'فلاتر الألوان غير متاحة على هذا الجهاز بعد، فيجب أن يراها مشاهدوك لا شاشتك وحدها.'**
+  String get liveFilterUnsupported;
+
+  /// Colour filter: none.
+  ///
+  /// In ar, this message translates to:
+  /// **'طبيعي'**
+  String get liveFilterNatural;
+
+  /// Colour filter: warmer tones.
+  ///
+  /// In ar, this message translates to:
+  /// **'دافئ'**
+  String get liveFilterWarm;
+
+  /// Colour filter: cooler tones.
+  ///
+  /// In ar, this message translates to:
+  /// **'بارد'**
+  String get liveFilterCool;
+
+  /// Colour filter: black and white.
+  ///
+  /// In ar, this message translates to:
+  /// **'أبيض وأسود'**
+  String get liveFilterMono;
+
+  /// Colour filter: muted film look.
+  ///
+  /// In ar, this message translates to:
+  /// **'سينمائي'**
+  String get liveFilterCinematic;
+
+  /// Colour filter: stronger colour.
+  ///
+  /// In ar, this message translates to:
+  /// **'زاهٍ'**
+  String get liveFilterVivid;
+
+  /// Colour filter: low contrast.
+  ///
+  /// In ar, this message translates to:
+  /// **'ناعم'**
+  String get liveFilterSoft;
+
+  /// User management: opens the viewers to make one a moderator.
+  ///
+  /// In ar, this message translates to:
+  /// **'إضافة مشرف'**
+  String get liveManageAddModerator;
 
   /// Beautification tools: opens the voice settings.
   ///

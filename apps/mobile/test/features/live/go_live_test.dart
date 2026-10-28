@@ -28,6 +28,7 @@ import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/levels/data/levels_repository.dart';
 import 'package:kabso_live/features/levels/domain/level_models.dart';
 import 'package:kabso_live/features/live/application/live_host_controller.dart';
+import 'package:kabso_live/features/live/data/beauty/live_color_filter.dart';
 import 'package:kabso_live/features/live/data/live_blocked_words_repository.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
@@ -41,6 +42,7 @@ import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart
 import 'package:kabso_live/features/live/presentation/go_live/go_live_setup_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_end_summary.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_fill_light.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_host_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_mini_window.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
@@ -282,12 +284,14 @@ void main() {
       expect(find.text(l10n.goLiveNoCategory), findsOneWidget);
       expect(find.text('# Music'), findsOneWidget);
       expect(find.text(l10n.goLiveTitleHint), findsOneWidget);
-      // Nothing that does not work: no flash, timer or sound; Magic and
-      // Fill light say Soon (D99).
+      // Nothing that does not work: no flash, timer or sound. D143: Magic
+      // (colour filters) and Fill light are working tools, not Soon.
       expect(
         find.bySemanticsLabel('${l10n.liveToolMagic}, ${l10n.liveSoon}'),
-        findsOneWidget,
+        findsNothing,
       );
+      expect(find.byKey(GoLiveKeys.tool('magic')), findsOneWidget);
+      expect(find.byKey(GoLiveKeys.tool('fillLight')), findsOneWidget);
       expect(find.byIcon(Icons.flash_on), findsNothing);
       expect(find.byIcon(Icons.timer_outlined), findsNothing);
       await _leave(tester);
@@ -2011,12 +2015,13 @@ void main() {
         'chat',
         'management',
         'guests',
+        // D143: Fill light replaces the "Flash" that said Soon.
+        'fillLight',
       ]) {
         expect(find.byKey(GoLiveKeys.tool(id)), findsOneWidget, reason: id);
       }
       final l10n = _l10n(tester);
       for (final label in [
-        l10n.liveToolFlash,
         l10n.liveToolDual,
         l10n.liveToolHd,
         l10n.liveToolSticker,
@@ -2059,22 +2064,23 @@ void main() {
       await _leave(tester);
     });
 
-    testWidgets('Beautification: Beauty and Mixer work; Magic and Fill light '
-        'are Soon', (tester) async {
+    testWidgets('Beautification: Beauty, Magic, Fill light and Mixer all '
+        'work (D143: no longer Soon)', (tester) async {
       await _pump(tester);
       await _goLive(tester);
       final l10n = _l10n(tester);
       await tester.tap(find.byKey(KHostBar.beautyKey));
       await tester.pumpAndSettle();
       expect(find.text(l10n.liveBeautyToolsTitle), findsOneWidget);
-      expect(
-        find.bySemanticsLabel('${l10n.liveToolMagic}, ${l10n.liveSoon}'),
-        findsOneWidget,
-      );
-      expect(
-        find.bySemanticsLabel('${l10n.liveToolFillLight}, ${l10n.liveSoon}'),
-        findsOneWidget,
-      );
+      for (final label in [l10n.liveToolMagic, l10n.liveToolFillLight]) {
+        expect(
+          find.bySemanticsLabel('$label, ${l10n.liveSoon}'),
+          findsNothing,
+          reason: label,
+        );
+      }
+      expect(find.byKey(GoLiveKeys.tool('magic')), findsOneWidget);
+      expect(find.byKey(GoLiveKeys.tool('fillLight')), findsOneWidget);
       await tester.tap(find.byKey(GoLiveKeys.tool('mixer')));
       await tester.pumpAndSettle();
       expect(find.byKey(GoLiveKeys.tool('mixer')), findsNothing);
@@ -2167,6 +2173,207 @@ void main() {
         findsOneWidget,
       );
       expect(find.byKey(GoLiveScreen.doneKey), findsOneWidget);
+      await _leave(tester);
+    });
+  });
+
+  group('D143 fill light, Magic colour filters, audio-room management', () {
+    final frame = find.byKey(LiveFillLightFrame.frameKey);
+    final fillLight = find.byKey(GoLiveKeys.tool('fillLight'));
+
+    Future<void> toggleFillLight(WidgetTester tester) async {
+      await tester.ensureVisible(fillLight);
+      await tester.tap(fillLight);
+      await tester.pumpAndSettle();
+    }
+
+    GoLiveState hostState(WidgetTester tester) =>
+        ProviderScope.containerOf(tester.element(find.byType(GoLiveScreen)))
+            .read(liveHostControllerProvider);
+
+    testWidgets('front camera: the warm frame lights the face, no torch; '
+        'kept from the setup into the live', (tester) async {
+      final (_, camera) = await _pump(tester);
+      expect(frame, findsNothing);
+      await toggleFillLight(tester);
+      expect(frame, findsOneWidget);
+      expect(hostState(tester).fillLight, isTrue);
+      expect(camera.torchCalls, isEmpty);
+      await _goLive(tester);
+      expect(frame, findsOneWidget, reason: 'remembered for the session');
+      await _openTools(tester);
+      await toggleFillLight(tester);
+      expect(frame, findsNothing);
+      expect(hostState(tester).fillLight, isFalse);
+      await _leave(tester);
+    });
+
+    testWidgets('back camera: the real torch; it follows the camera flips', (
+      tester,
+    ) async {
+      final (_, camera) = await _pump(tester);
+      await tester.tap(find.byKey(GoLiveScreen.flipKey));
+      await tester.pumpAndSettle();
+      await toggleFillLight(tester);
+      expect(camera.torchCalls, [true]);
+      expect(frame, findsNothing, reason: 'the torch lights, not the screen');
+      // To the front: torch off, the screen's frame instead.
+      await tester.tap(find.byKey(GoLiveScreen.flipKey));
+      await tester.pumpAndSettle();
+      expect(camera.torchCalls, [true, false]);
+      expect(frame, findsOneWidget);
+      // Back again: the torch comes back on.
+      await tester.tap(find.byKey(GoLiveScreen.flipKey));
+      await tester.pumpAndSettle();
+      expect(camera.torchCalls, [true, false, true]);
+      await toggleFillLight(tester);
+      expect(camera.torchCalls, [true, false, true, false]);
+      expect(hostState(tester).fillLight, isFalse);
+      await _leave(tester);
+    });
+
+    testWidgets('a back camera without a torch says so and stays off', (
+      tester,
+    ) async {
+      final (_, camera) = await _pump(
+        tester,
+        engine: FakeLiveMediaEngine()..backTorch = false,
+      );
+      await tester.tap(find.byKey(GoLiveScreen.flipKey));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(fillLight);
+      await tester.tap(fillLight);
+      await tester.pump();
+      expect(find.text(_l10n(tester).liveFillLightNoTorch), findsOneWidget);
+      expect(camera.torchCalls, isEmpty);
+      expect(hostState(tester).fillLight, isFalse);
+      expect(frame, findsNothing);
+      await _snackGone(tester);
+      await _leave(tester);
+    });
+
+    testWidgets('reduced motion: the frame appears at once', (tester) async {
+      await _pump(tester);
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+      await tester.pump();
+      await tester.ensureVisible(fillLight);
+      await tester.tap(fillLight);
+      await tester.pump();
+      final opacity = tester.widget<AnimatedOpacity>(
+        find.ancestor(of: frame, matching: find.byType(AnimatedOpacity)),
+      );
+      expect(opacity.duration, Duration.zero);
+      await _leave(tester);
+    });
+
+    testWidgets('Magic: the picked colour filter reaches the camera '
+        'pipeline (published picture) and is marked', (tester) async {
+      final (_, camera) = await _pump(tester);
+      final l10n = _l10n(tester);
+      await tester.tap(find.byKey(GoLiveKeys.tool('magic')));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.liveFilterTitle), findsOneWidget);
+      expect(find.byKey(GoLiveKeys.filterUnsupported), findsNothing);
+      expect(
+        find.byKey(GoLiveKeys.filter(LiveColorFilter.natural)),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(GoLiveKeys.filter(LiveColorFilter.warm)));
+      await tester.pumpAndSettle();
+      expect(camera.beauty.filter, LiveColorFilter.warm);
+      await tester.dragUntilVisible(
+        find.byKey(GoLiveKeys.filter(LiveColorFilter.soft)),
+        find.byKey(GoLiveKeys.filter(LiveColorFilter.warm)),
+        const Offset(-100, 0),
+      );
+      await tester.tap(find.byKey(GoLiveKeys.filter(LiveColorFilter.soft)));
+      await tester.pumpAndSettle();
+      expect(camera.beauty.filter, LiveColorFilter.soft);
+      // Beauty keeps its own settings; the filter rides with them.
+      expect(camera.beauty.enabled, isFalse);
+      expect(hostState(tester).beauty.filter, LiveColorFilter.soft);
+      await _leave(tester);
+    });
+
+    testWidgets('Magic where the device cannot publish filters: says why '
+        'and changes nothing (no preview-only filter)', (tester) async {
+      final (_, camera) = await _pump(
+        tester,
+        engine: FakeLiveMediaEngine()..supportsBeauty = false,
+      );
+      await tester.tap(find.byKey(GoLiveKeys.tool('magic')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(GoLiveKeys.filterUnsupported), findsOneWidget);
+      expect(find.text(_l10n(tester).liveFilterUnsupported), findsOneWidget);
+      await tester.tap(find.byKey(GoLiveKeys.filter(LiveColorFilter.mono)));
+      await tester.pumpAndSettle();
+      expect(camera.beauty.filter, LiveColorFilter.natural);
+      await _leave(tester);
+    });
+
+    testWidgets('audio room ≡ → Management: the moderators (remove), add '
+        'one from the viewers (host only, the same sheet as video)', (
+      tester,
+    ) async {
+      final (repo, _) = await _pump(tester);
+      await tester.tap(find.byKey(GoLiveKeys.mode(LiveRoomMode.audio)));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(GoLiveScreen.titleKey), 'Voices');
+      await _startAudio(tester);
+      const mona = UserSummary(
+        id: 'u-9',
+        username: 'mona',
+        displayName: 'Mona',
+        avatarUrl: null,
+      );
+      repo
+        ..seatState = repo.seatState!.copyWith(moderators: const [mona])
+        ..viewerList = [
+          LiveViewer(
+            kind: LiveViewerKind.user,
+            user: const UserSummary(
+              id: 'u-huda',
+              username: 'huda',
+              displayName: 'Huda',
+              avatarUrl: null,
+            ),
+            guestNumber: null,
+            joinedAt: DateTime.utc(2026, 10, 23),
+          ),
+        ];
+      final l10n = _l10n(tester);
+      await tester.tap(find.byKey(GoLiveScreen.audioMoreKey));
+      await tester.pumpAndSettle();
+      expect(
+        find.bySemanticsLabel('${l10n.liveToolManagement}, ${l10n.liveSoon}'),
+        findsNothing,
+      );
+      await tester.tap(find.byKey(GoLiveKeys.tool('management')));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.liveManageTitle), findsOneWidget);
+      // A seat room lists its moderators (no "open a card" hint).
+      expect(find.text(l10n.liveManageModeratorsHint), findsNothing);
+      await tester.tap(find.byKey(LiveManageKeys.moderators));
+      await tester.pumpAndSettle();
+      expect(find.text('Mona'), findsOneWidget);
+      await tester.tap(find.byKey(LiveManageKeys.action('mona')));
+      await tester.pumpAndSettle();
+      expect(repo.seatCalls, contains('removeModerator:mona'));
+      expect(repo.seatState!.moderators, isEmpty);
+      // Add: the viewers, then make one a moderator from their card.
+      await tester.tap(find.byKey(LiveManageKeys.addModerator));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.liveManageTitle), findsNothing);
+      expect(find.byKey(SeatControlKeys.viewersTab), findsOneWidget);
+      await tester.tap(find.byKey(SeatControlKeys.moderatorUser('huda')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(LivePersonToolKeys.admin));
+      await tester.pumpAndSettle();
+      expect(repo.seatCalls, contains('addModerator:huda'));
       await _leave(tester);
     });
   });

@@ -32,6 +32,7 @@ import 'package:kabso_live/features/live/presentation/go_live/go_live_setup_part
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_cp_seats.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_end_summary.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_fill_light.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_glass.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_host_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
@@ -589,6 +590,38 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 )
               : null,
         ),
+        // D143 Magic: colour filters on the published picture (greyed with
+        // why where the device has no camera pipeline).
+        GoLiveTool(
+          id: 'magic',
+          icon: Icons.auto_awesome_rounded,
+          label: l10n.liveToolMagic,
+          badge: !state.beauty.filter.isNatural,
+          onTap: canAct
+              ? () => unawaited(
+                  showLiveFilterSheet(
+                    context,
+                    selected: state.beauty.filter,
+                    supported: engine.beautySupported,
+                    accent: art.accent,
+                    onChanged: (f) => unawaited(_host.setColorFilter(f)),
+                  ),
+                )
+              : null,
+        ),
+        // D143 fill light: the screen's warm frame (front camera) or the
+        // torch (back camera); one tool for both (it replaces "Flash").
+        GoLiveTool(
+          id: 'fillLight',
+          icon: state.frontCamera
+              ? Icons.light_mode_rounded
+              : Icons.flashlight_on_rounded,
+          label: l10n.liveToolFillLight,
+          toggled: state.fillLight,
+          onTap: canAct && engine.videoEnabled
+              ? () => unawaited(_toggleFillLight(state))
+              : null,
+        ),
       ],
       GoLiveTool(
         id: 'mic',
@@ -873,11 +906,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           other: [
             ?byId['viewers'],
             ?byId['chat'],
-            GoLiveTool.soon(
-              id: 'management',
-              icon: Icons.manage_accounts_outlined,
-              label: l10n.liveToolManagement,
-            ),
+            // D143: the same User management as video rooms (moderators
+            // included: the audio room has seats).
+            _managementTool(state, live ? room : null, liveSeats),
             GoLiveTool.soon(
               id: 'assistance',
               icon: Icons.support_agent_rounded,
@@ -1421,8 +1452,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
 
   bool _toolsExpanded = true;
 
-  /// D131 (ref 164): the setup's tools — Flip, Beauty, Magic (Soon), the
-  /// microphone and the fold; then Fill light (Soon), the voice, the theme
+  /// D131 (ref 164): the setup's tools — Flip, Beauty, Magic (D143 colour
+  /// filters), the microphone and the fold; then Fill light (D143), the
+  /// voice, the theme
   /// (seat rooms), Share and Settings (who may watch).
   Widget _setupTools(
     GoLiveState state,
@@ -1432,19 +1464,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     final l10n = context.l10n;
     final user = ref.read(currentUserProvider);
     final byId = {for (final t in tools) t.id: t};
-    GoLiveTool soon(String id, IconData icon, String label) =>
-        GoLiveTool.soon(id: id, icon: icon, label: label);
     return GoLiveToolGrid(
       expanded: _toolsExpanded,
       onExpanded: (v) => setState(() => _toolsExpanded = v),
-      first: [
-        ?byId['flip'],
-        ?byId['beauty'],
-        soon('magic', Icons.auto_awesome_outlined, l10n.liveToolMagic),
-        ?byId['mic'],
-      ],
+      first: [?byId['flip'], ?byId['beauty'], ?byId['magic'], ?byId['mic']],
       second: [
-        soon('fillLight', Icons.light_mode_outlined, l10n.liveToolFillLight),
+        ?byId['fillLight'],
         GoLiveTool(
           id: 'voice',
           icon: Icons.tune_rounded,
@@ -1565,26 +1590,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               ),
             ),
           );
-    final management = GoLiveTool(
-      id: 'management',
-      icon: Icons.manage_accounts_outlined,
-      label: l10n.liveToolManagement,
-      onTap: !live
-          ? null
-          : () => unawaited(
-              showLiveUserManagement(
-                context,
-                roomId: room.id,
-                hasSeats: state.mode.hasSeats,
-                allowGuests: state.allowGuests,
-                onAllowGuests: ({required allow}) =>
-                    _host.setAllowGuests(allow: allow),
-                onChanged: state.mode.hasSeats
-                    ? () => unawaited(_afterSeatChange(room.id))
-                    : null,
-              ),
-            ),
-    );
+    final management = _managementTool(state, live ? room : null, liveSeats);
     GoLiveTool soon(String id, IconData icon, String label) =>
         GoLiveTool.soon(id: id, icon: icon, label: label);
     void openTools() => unawaited(
@@ -1615,7 +1621,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 ? null
                 : () => unawaited(_shareLive(room.title, user.username)),
           ),
-          soon('flash', Icons.flash_on_rounded, l10n.liveToolFlash),
+          ?byId['fillLight'],
           ?byId['flip'],
           soon('dual', Icons.switch_video_rounded, l10n.liveToolDual),
           soon('hd', Icons.hd_rounded, l10n.liveToolHd),
@@ -1681,8 +1687,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         title: l10n.liveBeautyToolsTitle,
         tools: [
           ?byId['beauty'],
-          soon('magic', Icons.auto_awesome_rounded, l10n.liveToolMagic),
-          soon('fillLight', Icons.light_mode_outlined, l10n.liveToolFillLight),
+          ?byId['magic'],
+          ?byId['fillLight'],
           GoLiveTool(
             id: 'mixer',
             icon: Icons.tune_rounded,
@@ -2141,8 +2147,51 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     );
   }
 
+  /// The host's User management (D131; D143 audio rooms too): muted,
+  /// removed, the moderators (assign from the viewers, remove here) and
+  /// signed-in viewers only. Greyed until [room] is on air.
+  GoLiveTool _managementTool(
+    GoLiveState state,
+    LiveRoom? room,
+    LiveSeats? liveSeats,
+  ) {
+    final seats = state.mode.hasSeats;
+    return GoLiveTool(
+      id: 'management',
+      icon: Icons.manage_accounts_outlined,
+      label: context.l10n.liveToolManagement,
+      onTap: room == null
+          ? null
+          : () => unawaited(
+              showLiveUserManagement(
+                context,
+                roomId: room.id,
+                hasSeats: seats,
+                allowGuests: state.allowGuests,
+                onAllowGuests: ({required allow}) =>
+                    _host.setAllowGuests(allow: allow),
+                onChanged: seats
+                    ? () => unawaited(_afterSeatChange(room.id))
+                    : null,
+                onAddModerator: seats
+                    ? () => unawaited(_openViewers(room.id, liveSeats))
+                    : null,
+              ),
+            ),
+    );
+  }
+
+  /// D143 fill light on or off; says so when the back camera has no torch.
+  Future<void> _toggleFillLight(GoLiveState state) async {
+    final on = !state.fillLight;
+    final done = await _host.setFillLight(on: on);
+    if (!mounted || done) return;
+    KSnack.info(context, context.l10n.liveFillLightNoTorch);
+  }
+
   /// The camera picture (full screen for LIVE, the host tile for
-  /// multi-guest), with [fallback] until it runs.
+  /// multi-guest), with [fallback] until it runs. D143: with the fill light
+  /// on and the front camera, the screen's warm frame lights the face.
   Widget _camera(GoLiveState state, {Widget? fallback}) {
     final picture = state.phase == GoLivePhase.ended
         ? null
@@ -2153,7 +2202,16 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               ? const _Spinner()
               : ColoredBox(color: KPalette.dark.surface));
     }
-    return SizedBox.expand(key: ValueKey(state.frontCamera), child: picture);
+    return SizedBox.expand(
+      key: ValueKey(state.frontCamera),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          picture,
+          LiveFillLightFrame(on: state.fillLight && state.frontCamera),
+        ],
+      ),
+    );
   }
 }
 

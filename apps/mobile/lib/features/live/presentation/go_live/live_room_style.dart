@@ -18,6 +18,22 @@ abstract final class KLiveStyle {
   static const micOn = Color(0xFF2F9BFF);
   static const micMuted = Color(0xFFFF4D7A);
 
+  /// D143 fill light (front camera): a warm white band around the picture
+  /// and its glow inwards; the band is this share of the shortest side.
+  static const fillLight = Color(0xFFFFF4E2);
+  static const fillLightGlow = Color(0xCCFFE9C7);
+  static const fillLightBand = 0.07;
+
+  /// D143 Magic: the colour-filter swatch (a sample of sky, skin and
+  /// shadow tones, tinted by each filter) and its size.
+  static const filterSample = [
+    Color(0xFF7FB6E8),
+    Color(0xFFF2C4A0),
+    Color(0xFFC07A56),
+    Color(0xFF2E3B4E),
+  ];
+  static const filterSwatch = 60.0;
+
   /// The rings of seated guests, in seat order.
   static const rings = [
     [Color(0xFFFF5FA2), Color(0xFFFF9A5F)],

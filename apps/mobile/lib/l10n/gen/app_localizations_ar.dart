@@ -5934,9 +5934,6 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
-  String get liveToolFlash => 'الفلاش';
-
-  @override
   String get liveToolDual => 'كاميرتان';
 
   @override
@@ -5956,6 +5953,40 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveToolFillLight => 'إضاءة';
+
+  @override
+  String get liveFillLightNoTorch => 'هذه الكاميرا بلا كشاف.';
+
+  @override
+  String get liveFilterTitle => 'فلاتر الألوان';
+
+  @override
+  String get liveFilterUnsupported =>
+      'فلاتر الألوان غير متاحة على هذا الجهاز بعد، فيجب أن يراها مشاهدوك لا شاشتك وحدها.';
+
+  @override
+  String get liveFilterNatural => 'طبيعي';
+
+  @override
+  String get liveFilterWarm => 'دافئ';
+
+  @override
+  String get liveFilterCool => 'بارد';
+
+  @override
+  String get liveFilterMono => 'أبيض وأسود';
+
+  @override
+  String get liveFilterCinematic => 'سينمائي';
+
+  @override
+  String get liveFilterVivid => 'زاهٍ';
+
+  @override
+  String get liveFilterSoft => 'ناعم';
+
+  @override
+  String get liveManageAddModerator => 'إضافة مشرف';
 
   @override
   String get liveToolMixer => 'الصوت';
