@@ -669,7 +669,6 @@ void main() {
       tester,
     ) async {
       await _pump(tester, const SvipScreen(), programs: _FakePrograms());
-      debugDumpApp();
       expect(find.text(_en.svipNotYet), findsWidgets);
       expect(find.byKey(SvipScreen.nodeKey(3)), findsOneWidget);
       expect(
