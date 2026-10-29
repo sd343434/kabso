@@ -238,19 +238,24 @@ jobs:
       - name: Test
         run: |
           set +e
-          flutter test --reporter json > r.json
+          flutter test --reporter json > r.raw 2> r.err
           code=$?
-          jq -r 'select(.type=="suite")|[.suite.id,.suite.path]|@tsv' r.json > suites.tsv
-          jq -r 'select(.type=="testStart")|[.test.id,.test.suiteID,.test.name]|@tsv' r.json > starts.tsv
-          jq -r 'select(.type=="testDone" and .result!="success")|.testID' r.json | sort -u > failed.txt
+          grep '^{' r.raw > r.json
+          echo "::warning::DIAG exit=$code raw_lines=$(wc -l < r.raw) json_lines=$(wc -l < r.json)"
+          J() { jq -R -r "fromjson? | $1" r.json; }
+          J 'select(.type=="suite")|[.suite.id,.suite.path]|@tsv' > suites.tsv
+          J 'select(.type=="testStart")|[.test.id,.test.suiteID,.test.name]|@tsv' > starts.tsv
+          J 'select(.type=="testDone" and .result!="success")|.testID' | sort -u > failed.txt
+          echo "::warning::DIAG failed_ids=$(tr '\n' ',' < failed.txt)"
           while read id; do
             line=$(awk -F'\t' -v i="$id" '$1==i' starts.tsv)
             sid=$(echo "$line" | cut -f2); name=$(echo "$line" | cut -f3)
             path=$(awk -F'\t' -v i="$sid" '$1==i{print $2}' suites.tsv)
-            err=$(jq -r --argjson i "$id" 'select(.type=="error" and .testID==$i)|.error' r.json | tr '\n' ' ' | cut -c1-900)
+            err=$(J "select(.type==\"error\" and .testID==$id)|.error" | tr '\n' ' ' | cut -c1-900)
             echo "::error::FAILED [$path] $name :: $err"
           done < failed.txt
-          jq -r 'select(.type=="error")|"\(.testID) \(.error|.[0:300])"' r.json | head -5 | sed "s/^/::warning::ERR /"
+          grep -v '^{' r.raw | grep -i -E "error|fail|exception" | head -5 | sed 's/^/::warning::RAW /'
+          head -c 600 r.err | tr '\n' ' ' | sed 's/^/::warning::STDERR /'; echo
           exit $code
       # D144: the local camera plugin is its own package (excluded from the
       # app's analysis above).
