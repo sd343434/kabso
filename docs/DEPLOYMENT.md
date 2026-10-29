@@ -1352,6 +1352,14 @@ the SDK's built-in background blur). Android only; iOS is phase 3 (Magic stays g
   was moved) / `unknown`. `camera 0` while `on track` → after 10 s `error (no_frames)`;
   `init no` with frames → `error (init_timeout)`; Magic then says the effect did not start
   and the raw camera goes on.
+- **D144c — one DeepAR engine, never paused, nothing black on the air:** DeepAR's native
+  engine is one per app process; a new one never starts while the last is not released
+  (it waits; `error (engine_busy)` after 10 s). None and every failure release DeepAR
+  instead of pausing it (a paused DeepAR ignores `switchEffect`). DeepAR's picture goes out
+  only once it was seen lit; black renders are replaced by the camera and only 8 s of black
+  gives up (`disabled (black_output)`). Overlay: `engine` = DeepAR's own state (1 starting,
+  2 running), `lit N ms` = from the pick to the first lit picture, `held` = black renders
+  replaced by the camera; DeepAR's warnings on their own `warn` line.
 - **Camera/microphone permissions (D144a):** Android asks through the plugin's
   `com.kabso/permissions` channel after the app's own explanation sheet, once; refused for
   good → «فتح الإعدادات». Audio rooms and audio seats ask for the microphone only.

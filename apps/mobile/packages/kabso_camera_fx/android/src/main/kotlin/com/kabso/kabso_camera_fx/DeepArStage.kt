@@ -50,7 +50,7 @@ import java.util.concurrent.atomic.AtomicLong
  *   [STALL_MS], a licence error or a failing `receiveFrame` → the effect turns
  *   itself off (raw camera) and [onStatus] says why.
  * - No effect selected → [process] returns null (the frame passes untouched)
- *   and DeepAR is paused. DeepAR is initialized only when an effect is first
+ *   and DeepAR is released (D144c; D144a paused it). DeepAR is initialized only when an effect is first
  *   picked (DeepAR counts monthly active users by initialization).
  * - Viewers get the true (unmirrored) picture: `mirror=false`.
  * - **D145e — never a black picture** ([BlackOutputWatch]): the luma of the
@@ -70,6 +70,18 @@ import java.util.concurrent.atomic.AtomicLong
  *   DeepAR still sets its render surface (and so initializes) on the first
  *   frame: the input geometry is only known then. That is a dependency on
  *   frames, not a deadlock — frames never wait for initialization.
+ *
+ * - **D144c — one engine, never paused, nothing black on the air**: DeepAR's
+ *   native engine is one per process; a new instance started while the last
+ *   one is not released never initializes (it re-posts `setRenderSurface`
+ *   to the main looper for ever: the owner's `init no … fed 0`), so a stage
+ *   takes the process-wide [EngineSlot] first and waits for it
+ *   (`engine_busy` if that lasts past [WARMUP_MS]). None and every failure
+ *   release DeepAR instead of pausing it — a paused DeepAR drops
+ *   `switchEffect` («Switch effect called but DeepAR rendering is paused!»,
+ *   `Controller::switchEffect` returns before switching). Renders go out
+ *   only once one was seen lit ([OutputVerifier]); black ones are replaced
+ *   by the camera, and only 8 s of black gives up (`black_output`).
  *
  * Adapted from voxa_deepar's DeepArBridgeFilter (MIT; see the package's
  * THIRD_PARTY_NOTICES.md).
@@ -158,15 +170,22 @@ internal class DeepArStage(
     @Volatile private var outputLuma = -1
     @Volatile private var blackMs = 0L
     @Volatile private var probeResult: String? = null
-    private val blackWatch = BlackOutputWatch()
     private val probe = PassthroughProbe()
-    private var publishedSinceSample = 0
+
+    // D144c: renders go out only once seen lit (capture thread).
+    private val verifier = OutputVerifier(sampleEvery = OUTPUT_SAMPLE_EVERY)
+    private val heldBlack = AtomicLong()
+    @Volatile private var litAfterMs = -1L
+    @Volatile private var lastWarning: String? = null
+
+    /** D144c: waiting for the previous DeepAR in the process to be released. */
+    @Volatile private var waitingForEngine = false
 
     fun setLicenseKey(key: String) {
         synchronized(lock) { licenseKey = key }
     }
 
-    /** `null`: no effect (pass-through, DeepAR paused). */
+    /** `null`: no effect (pass-through, DeepAR released — D144c, not paused). */
     fun setEffect(next: Effect?) {
         synchronized(lock) { effect = next }
         if (next != null) {
@@ -184,8 +203,13 @@ internal class DeepArStage(
             if (!isFailure(state)) setState(STATE_OFF, null)
         }
         deepAr.post {
-            if (next != null) startIfNeeded()
-            applyEffect()
+            if (next != null) {
+                startIfNeeded()
+                applyEffect()
+            } else {
+                // D144c: released, not paused (a paused DeepAR drops switchEffect).
+                teardown()
+            }
         }
     }
 
@@ -229,10 +253,27 @@ internal class DeepArStage(
             "outputLuma" to outputLuma,
             "blackMs" to blackMs,
             "probe" to (if (probe.running) "running" else probeResult),
+            "litMs" to litAfterMs,
+            "heldBlack" to heldBlack.get(),
+            "engine" to engineState(),
+            "lastWarning" to lastWarning,
         )
     }
 
     // ------------------------------------------------------------ DeepAR thread
+
+    /**
+     * D144c: DeepAR's private `engineState` (0 none, 1 initializing, 2 running,
+     * 3 shutting down, 4 surface lost), for the overlay; -1 without one.
+     */
+    private fun engineState(): Int {
+        val deepAR = synchronized(lock) { instance } ?: return -1
+        return try {
+            DeepAR::class.java.getDeclaredField("engineState").apply { isAccessible = true }.getInt(deepAR)
+        } catch (_: Throwable) {
+            -1
+        }
+    }
 
     private fun startIfNeeded() {
         val key: String?
@@ -240,6 +281,25 @@ internal class DeepArStage(
         var gen = 0
         synchronized(lock) {
             if (instance != null || disposed.get()) return
+        }
+        // D144c: one DeepAR engine per process; wait for the last one.
+        if (!ENGINE.tryAcquire(this)) {
+            if (!waitingForEngine) Log.w(TAG, "the previous DeepAR is not released yet: waiting")
+            waitingForEngine = true
+            deepAr.postDelayed({
+                if (active && !disposed.get()) {
+                    startIfNeeded()
+                    applyEffect()
+                }
+            }, ENGINE_RETRY_MS)
+            return
+        }
+        waitingForEngine = false
+        synchronized(lock) {
+            if (instance != null || disposed.get()) {
+                if (instance == null) ENGINE.release(this)
+                return
+            }
             key = licenseKey
             if (!key.isNullOrEmpty()) {
                 created = DeepAR(activity)
@@ -250,6 +310,7 @@ internal class DeepArStage(
         }
         val deepAR = created
         if (key.isNullOrEmpty() || deepAR == null) {
+            ENGINE.release(this)
             Log.w(TAG, "an effect was picked before init(licenseKey): ignored")
             fail(STATE_LICENCE_FAILED, "no_key")
             return
@@ -288,14 +349,9 @@ internal class DeepArStage(
         if (initializedGen != gen) return // re-applied from initialized()
         try {
             when (next) {
-                null -> {
-                    if (blurOn) deepAR.backgroundBlur(false, 0)
-                    blurOn = false
-                    deepAR.switchEffect(SLOT, null as String?)
-                    deepAR.setPaused(true)
-                }
+                // D144c: None releases DeepAR (setEffect); nothing to switch.
+                null -> Unit
                 is Effect.Builtin -> {
-                    deepAR.setPaused(false)
                     deepAR.switchEffect(SLOT, null as String?)
                     when (next.name) {
                         "background_blur" -> {
@@ -306,7 +362,6 @@ internal class DeepArStage(
                     }
                 }
                 is Effect.Asset -> {
-                    deepAR.setPaused(false)
                     if (blurOn) deepAR.backgroundBlur(false, 0)
                     blurOn = false
                     activity.assets.open(next.path).use { stream ->
@@ -345,6 +400,9 @@ internal class DeepArStage(
             deepAR?.release()
         } catch (error: Throwable) {
             Log.w(TAG, "DeepAR release failed: $error")
+        } finally {
+            // D144c: the next DeepAR in the process may start now.
+            if (deepAR != null) ENGINE.release(this)
         }
         gate.clear()
         helper?.stopListening()
@@ -419,10 +477,10 @@ internal class DeepArStage(
         }
         if (resetPending) {
             resetPending = false
-            blackWatch.reset()
+            verifier.arm(now)
             probe.finish()
             blackMs = 0L
-            publishedSinceSample = 0
+            litAfterMs = -1L
         }
 
         // DeepAR's thread has been stuck on one frame: it will not recover.
@@ -472,19 +530,34 @@ internal class DeepArStage(
             }
             return miss(done)
         }
+        // DeepAR renders: it started (whatever the picture looks like).
         health.onOutput()
         startWatch.onOutput()
-        if (++publishedSinceSample >= OUTPUT_SAMPLE_EVERY) {
-            publishedSinceSample = 0
+        // D144c: out only once seen lit; black renders → the camera instead.
+        val decision = if (verifier.needsSample()) {
             val luma = sampleLuma(rendered)
             outputLuma = luma
-            val verdict = blackWatch.onSample(inputLuma, luma, done)
-            blackMs = blackWatch.blackNanos(done) / 1_000_000
-            if (verdict == BlackOutputWatch.Verdict.BLACK) {
+            verifier.onSample(inputLuma, luma, done)
+        } else {
+            verifier.unsampled()
+        }
+        blackMs = verifier.blackNanos(done) / 1_000_000
+        if (litAfterMs < 0) {
+            val lit = verifier.litAfterNanos()
+            if (lit >= 0) litAfterMs = lit / 1_000_000
+        }
+        when (decision) {
+            OutputVerifier.Decision.GIVE_UP -> {
                 rendered.release()
                 startProbe(done)
                 return null
             }
+            OutputVerifier.Decision.RAW -> {
+                rendered.release()
+                heldBlack.incrementAndGet()
+                return null
+            }
+            OutputVerifier.Decision.PUBLISH -> Unit
         }
         framesOut.incrementAndGet()
         if (state != STATE_READY) setState(STATE_READY, null)
@@ -738,14 +811,9 @@ internal class DeepArStage(
         gate.clear()
         setState(newState, why)
         Log.w(TAG, "effect off: $newState ($why)")
-        deepAr.post {
-            if (newState == STATE_LICENCE_FAILED || newState == STATE_ERROR) {
-                // Start clean on the next pick.
-                teardown()
-            } else {
-                pauseDeepAr()
-            }
-        }
+        // D144c: always released, never paused — a paused DeepAR drops the
+        // next switchEffect, and the next pick starts clean.
+        deepAr.post { teardown() }
     }
 
     /**
@@ -768,19 +836,13 @@ internal class DeepArStage(
                 lastError = "no camera frame reached the effect in ${WARMUP_MS / 1000} s"
                 fail(STATE_ERROR, "no_frames")
             }
-            StartWatch.Verdict.INIT_TIMEOUT -> fail(STATE_ERROR, "init_timeout")
+            StartWatch.Verdict.INIT_TIMEOUT -> if (waitingForEngine) {
+                lastError = "the previous DeepAR engine in this app was not released"
+                fail(STATE_ERROR, "engine_busy")
+            } else {
+                fail(STATE_ERROR, "init_timeout")
+            }
             StartWatch.Verdict.NO_OUTPUT -> fail(STATE_DISABLED, "no_output")
-        }
-    }
-
-    private fun pauseDeepAr() {
-        val deepAR = synchronized(lock) { instance } ?: return
-        try {
-            if (blurOn) deepAR.backgroundBlur(false, 0)
-            blurOn = false
-            deepAR.setPaused(true)
-        } catch (error: Throwable) {
-            Log.w(TAG, "pausing DeepAR failed: $error")
         }
     }
 
@@ -809,7 +871,8 @@ internal class DeepArStage(
             // Licence problems land here (never contains the key).
             Log.w(TAG, "DeepAR $type: $message")
             if (!current()) return
-            lastError = "$type: $message"
+            // D144c: a warning never hides the error that matters.
+            if (type == ARErrorType.ERROR) lastError = "$type: $message" else lastWarning = "$type: $message"
             val text = message?.lowercase(Locale.ROOT).orEmpty()
             if (type == ARErrorType.ERROR && (text.contains("licen") || text.contains("license"))) {
                 fail(STATE_LICENCE_FAILED, "licence")
@@ -837,7 +900,7 @@ internal class DeepArStage(
         private const val RENDER_TIMEOUT_MS = 40L
         private const val BLUR_STRENGTH = 6
 
-        /** D145e: every Nth published render is read back for its luma (~4/s). */
+        /** D145e: every Nth published render is read back for its luma (~4/s); D144c: every render until one was lit. */
         const val OUTPUT_SAMPLE_EVERY = 8
         private const val LUMA_SAMPLE_W = 36
         private const val LUMA_SAMPLE_H = 64
@@ -857,6 +920,10 @@ internal class DeepArStage(
          * (queued behind an effect load included): the thread is stuck.
          */
         const val STALL_MS = 6_000L
+
+        /** D144c: DeepAR's native engine is one per process. */
+        private val ENGINE = EngineSlot()
+        private const val ENGINE_RETRY_MS = 200L
 
         /** DeepAR's input, long side (WebRTC's 720p camera is 1280). */
         const val MAX_LONG_SIDE = 1280

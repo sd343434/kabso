@@ -352,7 +352,7 @@ void main() {
         LiveArStatus.off,
       );
       expect(lines.first, 'DeepAR  error (no_frames)  licence yes');
-      expect(lines, contains('camera 0  path rebound'));
+      expect(lines, contains('camera 0  path rebound  engine -'));
     });
   });
 }
