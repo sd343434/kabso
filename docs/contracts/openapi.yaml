@@ -202,6 +202,8 @@ info:
     `suggestLiveWatch`, `decideLiveWatchSuggestion`), `searchYoutube` (`GET /live/youtube/search`),
     the data messages `watch` and `watch-suggestion` on topic `watch`, and the error codes
     `YOUTUBE_VIDEO_UNAVAILABLE` (422) and `YOUTUBE_SEARCH_UNAVAILABLE` (503) (CONVENTIONS §10.39).
+    **D166 (DRAFT v1.39-live)** opens `listHomeBanners` with `placement=room` (the in-room promo
+    banner) to callers without a token, so guests watching a live see it too (CONVENTIONS §10.26).
     **D155 (DRAFT v1.40-social)** adds direct messages (tag `messages`, `/dm/…`): conversations
     created by the first message, message requests from people the recipient does not follow (3
     messages until accepted), `PrivacySettings.whoCanMessage`, read receipts and unread counts,
@@ -4383,6 +4385,7 @@ paths:
     get:
       tags: [home]
       operationId: listHomeBanners
+      security: [{}, {bearerAuth: []}]
       summary: "The promo banners shown on the live hub now (bounded, not paginated; v1.26-live, D124)"
       description: |
         CONVENTIONS §10.26. The banners that are enabled and inside their window now
@@ -4397,6 +4400,11 @@ paths:
         `https://` URL; a stored link that no longer passes these rules is left out. Signed-in
         callers only; the default per-user rate limit. The response carries
         `Cache-Control: private, max-age=60` and `Vary: Authorization, Accept-Language`.
+        *(v1.39-live, D166)* `placement=room` is also open to callers without a token (a guest
+        watching a live: the owner wants the in-room banner shown to everyone), rate limited per IP
+        like the other live guest reads; their `title` follows `Accept-Language`, else Arabic. The
+        live hub's `home` banners stay signed-in only (no token → 401); a token that is sent must
+        be valid (else 401).
       parameters:
         - name: placement
           in: query

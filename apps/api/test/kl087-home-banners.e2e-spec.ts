@@ -138,7 +138,7 @@ describe('D124 home banners', { timeout: 240_000 }, () => {
     }
   });
 
-  it('is for signed-in callers only, empty with no banner, and sends cache headers', async () => {
+  it('the hub banners are for signed-in callers only, empty with no banner, and sends cache headers', async () => {
     await clear();
     const anonymous = await ctx.http.get('/api/v1/home/banners');
     expect(anonymous.status).toBe(401);
@@ -380,5 +380,49 @@ describe('D124 home banners', { timeout: 240_000 }, () => {
     expect(bad.status).toBe(400);
     expect(bad.body.error.details).toEqual([{ field: 'placement', issue: 'invalid_value' }]);
     expect(bannerAdmin('list')).toContain(`${room} room`);
+  });
+
+  it('D166: a guest (no token) reads the ROOM banners, in Arabic without Accept-Language; HOME stays signed-in only', async () => {
+    await clear();
+    const home = await add('--link', '/families');
+    const bytes = await sharp({ create: { width: 700, height: 900, channels: 3, background: '#3a5' } })
+      .png()
+      .toBuffer();
+    const asset = await withMigrationClient((c) => storeBannerImage(c, storage, admin.id, bytes, 'ROOM'));
+    const out = bannerAdmin(
+      'add',
+      '--media',
+      asset.id,
+      '--link',
+      '/cp/space',
+      '--placement',
+      'room',
+      '--title-ar',
+      'عرض الغرفة',
+      '--title-en',
+      'Room offer',
+    );
+    const room = /^\+([0-9a-f-]{36}) room /.exec(out)?.[1];
+    expect(room, out).toBeDefined();
+    const guest = await ctx.http.get('/api/v1/home/banners?placement=room');
+    expect(guest.status).toBe(200);
+    expectContract(guest, 'listHomeBanners');
+    expect(guest.body.data.map((b: { id: string }) => b.id)).toEqual([room]);
+    expect(guest.body.data[0].title).toBe('عرض الغرفة');
+    expect(guest.headers['cache-control']).toBe('private, max-age=60');
+    const guestEn = await ctx.http.get('/api/v1/home/banners?placement=room').set('Accept-Language', 'en');
+    expect(guestEn.body.data[0].title).toBe('Room offer');
+    // The live hub's banners stay for signed-in callers.
+    expect((await ctx.http.get('/api/v1/home/banners')).status).toBe(401);
+    expect((await ctx.http.get('/api/v1/home/banners?placement=home')).status).toBe(401);
+    const bad = await ctx.http.get('/api/v1/home/banners?placement=side');
+    expect(bad.status).toBe(400);
+    // A bad token is still refused (OptionalAuth checks a token when one is sent).
+    const forged = await ctx.http
+      .get('/api/v1/home/banners?placement=room')
+      .set('Authorization', 'Bearer not-a-token');
+    expect(forged.status).toBe(401);
+    const signedIn = await ctx.http.get('/api/v1/home/banners').set(auth(viewer));
+    expect(signedIn.body.data.map((b: { id: string }) => b.id)).toEqual([home]);
   });
 });
