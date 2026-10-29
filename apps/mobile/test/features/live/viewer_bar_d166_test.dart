@@ -1,0 +1,456 @@
+// D166 (owner, Arabic, on the viewer screens): the video live's guest (∞)
+// button, the games (joystick) button on both bars, the video live's cherry
+// chip, the wish list in the audio room, and the promo box for everyone,
+// through the real viewer screen.
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
+import 'package:kabso_live/core/preferences/app_preferences.dart';
+import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/live/data/live_repository.dart';
+import 'package:kabso_live/features/live/domain/home_banner.dart';
+import 'package:kabso_live/features/live/domain/live_models.dart';
+import 'package:kabso_live/features/live/live_room_screen.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_games_sheet.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_side_cards.dart';
+import 'package:kabso_live/features/profile/data/profile_repository.dart';
+import 'package:material_ui/material_ui.dart';
+
+import '../../fixtures/live/live_api_fixtures.dart';
+import '../../fixtures/live/live_gift_fixtures.dart';
+import '../../helpers/fake_home_banners_repository.dart';
+import '../../helpers/fake_live_gift_repository.dart';
+import '../../helpers/fake_live_media_engine.dart';
+import '../../helpers/fake_live_repository.dart';
+import '../../helpers/fake_profile_repository.dart';
+import '../../helpers/fakes.dart';
+import '../../helpers/golden.dart';
+import '../../helpers/pump_app.dart';
+
+const _wishes = [
+  LiveWishGift(
+    giftCode: 'rose',
+    name: 'Rose',
+    priceCoins: 1,
+    assetKey: 'gift_rose',
+    received: 12,
+  ),
+  LiveWishGift(
+    giftCode: 'crown',
+    name: 'Crown',
+    priceCoins: 299,
+    assetKey: 'gift_crown',
+  ),
+];
+
+final _roomBanners = [
+  for (var i = 0; i < 2; i++)
+    HomeBanner(
+      id: 'room-banner-$i',
+      imageUrl: 'https://media.example.test/media/r$i/600.webp',
+      link: '/families',
+      width: 600,
+      height: 800,
+    ),
+];
+
+final _multiSeats = LiveSeats(
+  roomId: 'room-0',
+  mode: LiveRoomMode.multi,
+  version: 1,
+  seatCount: 6,
+  seats: [
+    for (var i = 1; i < 6; i++)
+      LiveSeat(index: i, state: LiveSeatState.empty, user: null),
+  ],
+  moderators: const [],
+  mine: const LiveSeatsMine(
+    role: LiveSeatRole.viewer,
+    seatIndex: null,
+    request: null,
+    invite: null,
+  ),
+);
+
+Future<void> _pump(
+  WidgetTester tester, {
+  LiveRoomMode mode = LiveRoomMode.solo,
+  List<LiveWishGift> wishes = const [],
+  List<HomeBanner> roomBanners = const [],
+  int score = 45210,
+  AppLanguage language = AppLanguage.en,
+  bool signedIn = true,
+  GoldenViewport viewport = GoldenViewport.phone,
+  double textScale = 1,
+  LiveSeats? seats,
+}) async {
+  setViewport(tester, viewport);
+  if (textScale != 1) {
+    tester.platformDispatcher.textScaleFactorTestValue = textScale;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+  }
+  await tester.pumpWidget(const SizedBox.shrink());
+  await pumpScreen(
+    tester,
+    const LiveRoomScreen(roomId: 'room-0'),
+    language: language,
+    liveMediaEngine: FakeLiveMediaEngine()..present.add('user-0'),
+    liveGiftRepository: FakeLiveGiftRepository(codes: giftFixtureCodes),
+    homeBannersRepository: FakeHomeBannersRepository(roomBanners: roomBanners),
+    overrides: [
+      liveRepositoryProvider.overrideWithValue(
+        FakeLiveRepository(
+            room: (id) {
+              final room = apiRoom(
+                id: id,
+                ar: language == AppLanguage.ar,
+              ).copyWith(wishGifts: wishes, score: score);
+              return switch (mode) {
+                LiveRoomMode.audio => room.copyWith(mode: mode, seatCount: 10),
+                LiveRoomMode.multi => room.copyWith(mode: mode, seatCount: 6),
+                _ => room,
+              };
+            },
+          )
+          ..seatState =
+              seats ?? (mode == LiveRoomMode.multi ? _multiSeats : null),
+      ),
+      profileRepositoryProvider.overrideWithValue(
+        FakeProfileRepository(apiProfile()),
+      ),
+      if (signedIn) currentUserProvider.overrideWithValue(testUser()),
+    ],
+  );
+  await tester.pumpAndSettle();
+}
+
+Future<void> _leave(WidgetTester tester) async {
+  await tester.pumpWidget(const SizedBox.shrink());
+  await tester.pump();
+}
+
+void main() {
+  group('D166 video live viewer bar', () {
+    for (final language in AppLanguage.values) {
+      for (final viewport in GoldenViewport.values) {
+        testWidgets('∞, games and gift in one row with the pill, nothing '
+            'overlaps (${language.name}, ${viewport.name}, text 1.3)', (
+          tester,
+        ) async {
+          await _pump(
+            tester,
+            language: language,
+            viewport: viewport,
+            textScale: 1.3,
+          );
+          expect(tester.takeException(), isNull);
+          final guest = tester.getRect(find.byKey(LiveRoomScreen.guestKey));
+          final games = tester.getRect(find.byKey(LiveRoomScreen.gamesKey));
+          final gift = tester.getRect(find.byKey(LiveRoomScreen.giftKey));
+          final pill = tester.getRect(find.byKey(AudioRoomViewKeys.chat));
+          for (final r in [guest, games, gift]) {
+            expect((r.center.dy - pill.center.dy).abs(), lessThan(1));
+            expect(r.overlaps(pill), isFalse);
+          }
+          expect(guest.overlaps(games) || games.overlaps(gift), isFalse);
+          final width = viewport.logicalSize.width;
+          final ar = language == AppLanguage.ar;
+          // Reading order: pill, ∞, games, gift (mirrored in Arabic).
+          if (ar) {
+            expect(pill.left, greaterThan(guest.right - 0.5));
+            expect(guest.left, greaterThanOrEqualTo(games.right - 0.5));
+            expect(games.left, greaterThanOrEqualTo(gift.right - 0.5));
+          } else {
+            expect(pill.right, lessThan(guest.left + 0.5));
+            expect(guest.right, lessThanOrEqualTo(games.left + 0.5));
+            expect(games.right, lessThanOrEqualTo(gift.left + 0.5));
+          }
+          for (final r in [pill, guest, games, gift]) {
+            expect(r.left, greaterThanOrEqualTo(0));
+            expect(r.right, lessThanOrEqualTo(width));
+          }
+          // The pill keeps a usable width (the hint is not squeezed away).
+          expect(pill.width, greaterThan(150));
+          await _leave(tester);
+        });
+      }
+    }
+
+    testWidgets('solo: ∞ says honestly that a solo live has no guest seats; '
+        'no seat request is made', (tester) async {
+      await _pump(tester);
+      await tester.tap(find.byKey(LiveRoomScreen.guestKey));
+      await tester.pump();
+      expect(
+        find.text(l10nFor(AppLanguage.en).liveGuestSoloInfo),
+        findsOneWidget,
+      );
+      await tester.pump(const Duration(seconds: 5));
+      await _leave(tester);
+    });
+
+    testWidgets('multi-guest: the seat bar asks for a seat (CP-011); no '
+        'second ∞ button', (tester) async {
+      await _pump(tester, mode: LiveRoomMode.multi);
+      expect(find.byType(VideoSeatGrid), findsOneWidget);
+      expect(find.byKey(const Key('room.seat.request')), findsOneWidget);
+      expect(find.byKey(LiveRoomScreen.guestKey), findsNothing);
+      expect(find.byKey(LiveRoomScreen.gamesKey), findsOneWidget);
+      await _leave(tester);
+    });
+
+    testWidgets('a guest without an account: games and gift, no ∞', (
+      tester,
+    ) async {
+      await _pump(tester, signedIn: false);
+      expect(find.byKey(LiveRoomScreen.guestKey), findsNothing);
+      expect(find.byKey(LiveRoomScreen.gamesKey), findsOneWidget);
+      await _leave(tester);
+    });
+  });
+
+  group('D166 games', () {
+    for (final mode in [LiveRoomMode.solo, LiveRoomMode.audio]) {
+      for (final language in AppLanguage.values) {
+        testWidgets('${mode.name}: the joystick opens the honest «coming '
+            'soon» sheet — no game tiles (${language.name})', (tester) async {
+          await _pump(tester, mode: mode, language: language);
+          final key = mode == LiveRoomMode.audio
+              ? AudioRoomViewKeys.games
+              : LiveRoomScreen.gamesKey;
+          final button = find.byKey(key);
+          expect(button, findsOneWidget);
+          // The owner's controller art, as on the host's bar.
+          expect(
+            find.descendant(
+              of: button,
+              matching: find.image(const AssetImage(LiveGamesSheet.art)),
+            ),
+            findsOneWidget,
+          );
+          await tester.tap(button);
+          await tester.pumpAndSettle();
+          final l10n = l10nFor(language);
+          final sheet = find.byKey(LiveGamesSheet.sheetKey);
+          expect(sheet, findsOneWidget);
+          expect(
+            find.descendant(of: sheet, matching: find.text(l10n.liveGamesSoon)),
+            findsOneWidget,
+          );
+          expect(
+            find.descendant(of: sheet, matching: find.text(l10n.liveGames)),
+            findsOneWidget,
+          );
+          // Nothing in it can be played.
+          for (final type in [
+            InkWell,
+            GestureDetector,
+            FilledButton,
+            TextButton,
+          ]) {
+            expect(
+              find.descendant(of: sheet, matching: find.byType(type)),
+              findsNothing,
+            );
+          }
+          await _leave(tester);
+        });
+      }
+    }
+  });
+
+  group('D166 audio bar', () {
+    for (final language in AppLanguage.values) {
+      testWidgets('a seated moderator at 360 × 800, text 1.3: the bar (games '
+          'added) scrolls sideways instead of overflowing; every button keeps '
+          'a 48 pt target and games is reachable (${language.name})', (
+        tester,
+      ) async {
+        final me = testUser();
+        await _pump(
+          tester,
+          mode: LiveRoomMode.audio,
+          language: language,
+          viewport: GoldenViewport.android,
+          textScale: 1.3,
+          seats: LiveSeats(
+            roomId: 'room-0',
+            mode: LiveRoomMode.audio,
+            version: 1,
+            seatCount: 10,
+            seats: [
+              LiveSeat(
+                index: 1,
+                state: LiveSeatState.taken,
+                user: UserSummary(
+                  id: me.id,
+                  username: me.username,
+                  displayName: me.displayName,
+                  avatarUrl: null,
+                ),
+              ),
+              for (var i = 2; i < 10; i++)
+                LiveSeat(index: i, state: LiveSeatState.empty, user: null),
+            ],
+            moderators: const [],
+            mine: const LiveSeatsMine(
+              role: LiveSeatRole.moderator,
+              seatIndex: 1,
+              request: null,
+              invite: null,
+            ),
+          ),
+        );
+        expect(tester.takeException(), isNull);
+        expect(find.byKey(LiveAudioRoomLayout.crowdedBarKey), findsOneWidget);
+        final games = find.byKey(AudioRoomViewKeys.games);
+        await tester.ensureVisible(games);
+        await tester.pumpAndSettle();
+        expect(tester.getSize(games).width, KAudioRoom.barTarget);
+        await tester.tap(games);
+        await tester.pumpAndSettle();
+        expect(find.byKey(LiveGamesSheet.sheetKey), findsOneWidget);
+        await _leave(tester);
+      });
+    }
+
+    testWidgets('a plain viewer: the bar fits, no scrolling', (tester) async {
+      await _pump(
+        tester,
+        mode: LiveRoomMode.audio,
+        viewport: GoldenViewport.android,
+        textScale: 1.3,
+      );
+      expect(find.byKey(LiveAudioRoomLayout.crowdedBarKey), findsNothing);
+      expect(find.byKey(AudioRoomViewKeys.games), findsOneWidget);
+      await _leave(tester);
+    });
+  });
+
+  group('D166 cherries on the video live', () {
+    for (final language in AppLanguage.values) {
+      testWidgets('the cherry chip sits right after the board chip, as in '
+          'the audio room (${language.name})', (tester) async {
+        await _pump(tester, language: language);
+        final chip = find.byKey(LiveRoomScreen.scoreChipKey);
+        expect(chip, findsOneWidget);
+        final l10n = l10nFor(language);
+        expect(
+          tester.widget<LiveScoreChip>(chip).label,
+          l10n.liveScore(45210, KFormat.grouped(45210)),
+        );
+        final rank = tester.getRect(find.byType(LiveRankChip));
+        final rect = tester.getRect(chip);
+        expect((rect.center.dy - rank.center.dy).abs(), lessThan(1));
+        if (language == AppLanguage.ar) {
+          expect(rect.right, lessThanOrEqualTo(rank.left));
+        } else {
+          expect(rect.left, greaterThanOrEqualTo(rank.right));
+        }
+        await _leave(tester);
+      });
+    }
+
+    testWidgets('no points yet: no chip (as in the audio room)', (
+      tester,
+    ) async {
+      await _pump(tester, score: 0);
+      expect(find.byKey(LiveRoomScreen.scoreChipKey), findsNothing);
+      await _leave(tester);
+    });
+  });
+
+  group('D166 wish list in the audio room', () {
+    for (final language in AppLanguage.values) {
+      for (final viewport in GoldenViewport.values) {
+        testWidgets('the card sits at the end over the promo box and the gift '
+            'button, clear of the seats and the chat (${language.name}, '
+            '${viewport.name}, text 1.3)', (tester) async {
+          await _pump(
+            tester,
+            mode: LiveRoomMode.audio,
+            wishes: _wishes,
+            roomBanners: _roomBanners,
+            language: language,
+            viewport: viewport,
+            textScale: 1.3,
+          );
+          await tester.pump(const Duration(milliseconds: 100));
+          expect(tester.takeException(), isNull);
+          final card = tester.getRect(find.byKey(LiveWishCard.cardKey));
+          final promo = tester.getRect(find.byKey(LiveRoomPromoBox.boxKey));
+          final gift = tester.getRect(find.byKey(AudioRoomViewKeys.gift));
+          expect(card.bottom, lessThanOrEqualTo(promo.top + 0.5));
+          expect(promo.bottom, lessThanOrEqualTo(gift.top));
+          // The promo box keeps its place over the gift button (D141a).
+          expect((promo.center.dx - gift.center.dx).abs(), lessThan(12));
+          final width = viewport.logicalSize.width;
+          final ar = language == AppLanguage.ar;
+          expect(ar ? card.left < 12 : card.right > width - 12, isTrue);
+          final seats = find.ancestor(
+            of: find.byKey(AudioSeatRing.seatKey(0)),
+            matching: find.byType(Scrollable),
+          );
+          expect(
+            tester.getRect(seats.first).bottom,
+            lessThanOrEqualTo(card.top + 0.5),
+          );
+          await _leave(tester);
+        });
+      }
+    }
+
+    testWidgets('a row opens the gift panel; no wishes: no card', (
+      tester,
+    ) async {
+      await _pump(tester, mode: LiveRoomMode.audio, wishes: _wishes);
+      await tester.tap(find.byKey(LiveWishCard.rowKey('crown')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(KLiveGiftSheet.sheetKey), findsOneWidget);
+      await _leave(tester);
+      await _pump(tester, mode: LiveRoomMode.audio);
+      expect(find.byKey(LiveWishCard.cardKey), findsNothing);
+      await _leave(tester);
+    });
+  });
+
+  group('D166 promo box for everyone', () {
+    for (final mode in [LiveRoomMode.solo, LiveRoomMode.audio]) {
+      testWidgets('${mode.name}: a viewer without an account sees it too', (
+        tester,
+      ) async {
+        await _pump(
+          tester,
+          mode: mode,
+          roomBanners: _roomBanners,
+          signedIn: false,
+        );
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(find.byKey(LiveRoomPromoBox.boxKey), findsOneWidget);
+        await _leave(tester);
+      });
+    }
+
+    for (final language in AppLanguage.values) {
+      testWidgets('video: the box is under the «room ranking» chip, on its '
+          'side (${language.name})', (tester) async {
+        await _pump(tester, roomBanners: _roomBanners, language: language);
+        await tester.pump(const Duration(milliseconds: 100));
+        final box = tester.getRect(find.byKey(LiveRoomPromoBox.boxKey));
+        final rank = tester.getRect(find.byType(LiveRankChip));
+        expect(box.top, greaterThanOrEqualTo(rank.bottom));
+        expect(box.top - rank.bottom, lessThan(24));
+        if (language == AppLanguage.ar) {
+          expect(box.right, greaterThan(rank.right - 30));
+        } else {
+          expect(box.left, lessThan(rank.left + 30));
+        }
+        await _leave(tester);
+      });
+    }
+  });
+}

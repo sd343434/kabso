@@ -45,9 +45,15 @@ class KRoomChipsRow extends StatelessWidget {
     this.points,
     this.target,
     this.elapsed,
+    this.score,
   });
 
   final int? level;
+
+  /// D166 (owner: «ولا يوجد في البث الحي الكرزات»): the viewer's cherry
+  /// chip (the live's points), right after the board chip as in the audio
+  /// room.
+  final Widget? score;
   final int? roomNumber;
 
   /// D135: the host's charm points and the next level's requirement (null
@@ -81,6 +87,10 @@ class KRoomChipsRow extends StatelessWidget {
                 const Flexible(
                   child: LiveRankChip(icon: Icons.bar_chart_rounded),
                 ),
+                if (score case final score?) ...[
+                  const SizedBox(width: 6),
+                  score,
+                ],
                 if (level != null) ...[
                   const SizedBox(width: 6),
                   Flexible(
@@ -301,15 +311,21 @@ class KViewerBar extends StatelessWidget {
       height: KSizes.minTouchTarget,
       child: Row(
         children: [
-          Flexible(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: KViewerRoom.pillWidth,
+          // D166: the pill takes the room the buttons leave, up to its
+          // measured width (with three or four buttons it would otherwise
+          // share that room with an empty gap).
+          Expanded(
+            child: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: KViewerRoom.pillWidth,
+                ),
+                child: pill,
               ),
-              child: pill,
             ),
           ),
-          const Spacer(),
+          const SizedBox(width: KSpacing.xs),
           // The reference's circles are 42.1 pt apart, which would make the
           // 48 pt targets overlap; side by side they are 48 pt apart (D154c:
           // a moderator's second button — a negative gap cannot be laid out).

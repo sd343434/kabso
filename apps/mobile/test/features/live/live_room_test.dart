@@ -953,11 +953,11 @@ void main() {
       for (final button in buttons) {
         expect(button.onPressed, isNotNull, reason: button.label);
       }
-      // D131: the bar's round buttons (the gift box).
+      // D131: the bar's round buttons (the gift box); D166: games too.
       final bar = tester.widgetList<KViewerBarButton>(
         find.byType(KViewerBarButton),
       );
-      expect(bar, hasLength(1));
+      expect(bar, hasLength(2));
       for (final button in bar) {
         expect(button.onTap, isNotNull, reason: button.label);
       }

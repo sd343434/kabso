@@ -47,6 +47,7 @@ import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.
 import 'package:kabso_live/features/live/presentation/widgets/live_background_texts.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_cp_entrance.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_games_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_effects_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_lucky_combo_button.dart';
@@ -101,6 +102,12 @@ class LiveRoomScreen extends ConsumerWidget {
 
   /// D154c: a moderator's Newcomers button.
   static const newcomersKey = Key('room.newcomers');
+
+  /// D166: the video bar's games (joystick) and guest (∞) buttons, and the
+  /// cherry chip beside the board chip.
+  static const gamesKey = Key('room.games');
+  static const guestKey = Key('room.guest');
+  static const scoreChipKey = Key('room.scoreChip');
 
   /// v1.20-live (D105): this person was kicked out of the live.
   static const kickedKey = Key('room.kicked');
@@ -898,7 +905,20 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       // Presence does not exist yet: a count only when the API has one.
       viewers: ended ? null : _viewers(session, video: true),
       onClose: () => unawaited(_leave()),
-      roomInfo: ended ? null : KRoomChipsRow(level: room.roomLevel),
+      roomInfo: ended
+          ? null
+          : KRoomChipsRow(
+              level: room.roomLevel,
+              // D166: the cherry chip of the audio room (the live's points;
+              // shown from the first point, as there).
+              score: score > 0
+                  ? LiveScoreChip(
+                      key: LiveRoomScreen.scoreChipKey,
+                      text: KFormat.compact(score, l10n),
+                      label: l10n.liveScore(score, KFormat.grouped(score)),
+                    )
+                  : null,
+            ),
       // D136: the host's wish list (a row opens the gift panel with that
       // gift and the host); D137: the promo box.
       sideStart: ended
@@ -909,7 +929,9 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                   ? null
                   : (w) => unawaited(_openGifts(preselectGift: w.giftCode)),
             ),
-      sidePromo: ended || me == null ? null : LiveRoomPromoBox(roomId: room.id),
+      // D166 (owner: «يجب أن يظهر عند الجميع»): every viewer, signed in or
+      // not (guests read the ROOM banners too, v1.39-live).
+      sidePromo: ended ? null : LiveRoomPromoBox(roomId: room.id),
       // D145a: the lucky combo beside the chat, over the quick replies.
       chatEnd: !ended && LuckyComboCluster.shows(ref, room.id)
           ? LuckyComboCluster(roomId: room.id)
@@ -984,6 +1006,26 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                               showLiveNewcomers(context, roomId: room.id),
                             ),
                           ),
+                        // D166 (owner: «لا يوجد زر طلب جست»): ∞ — joining
+                        // as a guest. A multi-guest live asks for a seat
+                        // with the seat bar above (CP-011); a solo live has
+                        // no guest seats (the API refuses), so ∞ says so.
+                        if (me != null && room.mode == LiveRoomMode.solo)
+                          KViewerBarButton(
+                            key: LiveRoomScreen.guestKey,
+                            icon: Icons.all_inclusive_rounded,
+                            label: l10n.liveGuestJoin,
+                            onTap: () =>
+                                KSnack.info(context, l10n.liveGuestSoloInfo),
+                          ),
+                        // D166: games (none yet: the sheet says so).
+                        KViewerBarButton(
+                          key: LiveRoomScreen.gamesKey,
+                          asset: LiveGamesSheet.art,
+                          art: true,
+                          label: l10n.liveGames,
+                          onTap: () => unawaited(showLiveGamesSheet(context)),
+                        ),
                         KViewerBarButton(
                           key: LiveRoomScreen.giftKey,
                           // D135: the owner's colourful gift box.
@@ -1087,15 +1129,26 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                     ? LuckyComboCluster(roomId: room.id)
                     : null,
                 // D141a (owner): the promo box over the gift button.
+                // D166: for everyone in the room, signed in or not.
                 promo:
-                    signedIn &&
-                        room.status != LiveRoomStatus.ended &&
+                    room.status != LiveRoomStatus.ended &&
                         LiveRoomPromoBox.shows(ref, room.id)
                     ? LiveRoomPromoBox(
                         roomId: room.id,
                         boxWidth: LiveRoomPromoBox.audioWidth,
                       )
                     : null,
+                // D166: the host's wish list (D136), over the promo box.
+                wish: room.wishGifts.isEmpty
+                    ? null
+                    : LiveWishCard(
+                        wishes: room.wishGifts,
+                        onWish: signedIn
+                            ? (w) => unawaited(
+                                _openGifts(preselectGift: w.giftCode),
+                              )
+                            : null,
+                      ),
                 header: LiveAudioRoomHeader(
                   cover: KAvatar(
                     name: host.displayName,
@@ -1234,6 +1287,17 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                         ),
                       ),
                     ),
+                  // D166: games (none yet: the sheet says so), with the
+                  // owner's controller art as on the host's bar.
+                  LiveRoundButton(
+                    key: AudioRoomViewKeys.games,
+                    icon: Icons.sports_esports_rounded,
+                    asset: LiveGamesSheet.art,
+                    art: true,
+                    bare: true,
+                    label: l10n.liveGames,
+                    onTap: () => unawaited(showLiveGamesSheet(context)),
+                  ),
                   LiveRoundButton(
                     key: AudioRoomViewKeys.gift,
                     icon: Icons.card_giftcard_rounded,
@@ -2408,6 +2472,9 @@ abstract final class AudioRoomViewKeys {
   static const leave = Key('audioRoom.seat.leave');
   static const requests = Key('audioRoom.requests');
   static const gift = Key('audioRoom.gift');
+
+  /// D166: games (the joystick).
+  static const games = Key('audioRoom.games');
   static const mic = Key('audioRoom.mic');
 
   /// D138: an emoji on my own seat (seated only).

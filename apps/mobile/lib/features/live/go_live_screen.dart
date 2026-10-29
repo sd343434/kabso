@@ -68,6 +68,7 @@ import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.
 import 'package:kabso_live/features/live/presentation/widgets/live_background_texts.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_cp_entrance.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_games_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_effects_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_lucky_combo_button.dart';
@@ -1143,6 +1144,14 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 boxWidth: LiveRoomPromoBox.audioWidth,
               )
             : null,
+        // D166: the wish list (D136) in the audio room too, over the promo
+        // box; a tap changes it.
+        wish: live && room != null && room.wishGifts.isNotEmpty
+            ? LiveWishCard(
+                wishes: room.wishGifts,
+                onEdit: () => unawaited(_openWishSheet()),
+              )
+            : null,
         header: LiveAudioRoomHeader(
           // CP-015: the live's cover, else the host's picture.
           cover: switch (room?.coverUrl ?? user?.liveCoverUrl) {
@@ -1339,7 +1348,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             art: true,
             bare: true,
             label: l10n.liveGames,
-            onTap: () => KSnack.info(context, l10n.liveGamesSoon),
+            // D166: the same games sheet as the viewers' bars.
+            onTap: () => unawaited(showLiveGamesSheet(context)),
           ),
           LiveRoundButton(
             key: GoLiveScreen.audioGiftKey,

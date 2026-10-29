@@ -134,8 +134,20 @@ class LiveAudioRoomLayout extends StatelessWidget {
     this.barLead,
     this.promo,
     this.combo,
+    this.wish,
     this.onChatTop,
   });
+
+  /// D166: the host's wish list card (D136), at the end directly above the
+  /// promo box (or the combo), so it covers neither the seats nor the chat:
+  /// the chat narrows for the column. Hidden while writing.
+  final Widget? wish;
+
+  /// The gap between the wish card and the promo box under it.
+  static const double wishGap = 6;
+
+  /// D166: the bar when its buttons do not fit side by side (it scrolls).
+  static const crowdedBarKey = Key('audioRoom.bar.crowded');
 
   /// D145c: told the chat's top on the screen when it moves (the gift
   /// strips keep above the chat text).
@@ -183,7 +195,29 @@ class LiveAudioRoomLayout extends StatelessWidget {
     final chips = this.chips;
     final composer = this.composer;
     // D145a: while the lucky combo shows it takes the promo box's place.
-    final slot = composer == null ? (combo ?? promo) : null;
+    final low = combo ?? promo;
+    final wish = this.wish;
+    final slot = composer != null
+        ? null
+        : wish == null
+        ? low
+        // A very short room scales the column down rather than overflow.
+        : FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: AlignmentDirectional.bottomEnd,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                wish,
+                if (low != null) ...[
+                  const SizedBox(height: wishGap),
+                  // The promo box keeps its place over the gift button.
+                  low,
+                ],
+              ],
+            ),
+          );
     return Padding(
       // The keyboard pushes the room up (the screen does not resize).
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
@@ -302,16 +336,42 @@ class LiveAudioRoomLayout extends StatelessWidget {
                       ),
                     )
                   // Ref 147: equal circles, 46 pt apart.
-                  : Row(
-                      children: [
-                        if (barLead case final lead?) ...[
-                          Expanded(child: lead),
-                          const SizedBox(width: 4),
-                        ],
-                        ..._spaced(barStart),
-                        if (barLead == null) const Spacer(),
-                        ..._spaced(barEnd),
-                      ],
+                  : LayoutBuilder(
+                      builder: (context, box) {
+                        // D166: a seated moderator's bar (games added) can
+                        // hold more 48 pt buttons than a narrow phone has
+                        // room for: it then scrolls sideways instead of
+                        // overflowing or shrinking the touch targets.
+                        final count = barStart.length + barEnd.length;
+                        final needed =
+                            count * KAudioRoom.barTarget +
+                            2 * (count - 1) +
+                            KSpacing.sm;
+                        if (barLead == null && needed > box.maxWidth) {
+                          return SingleChildScrollView(
+                            key: crowdedBarKey,
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: [
+                                ..._spaced(barStart),
+                                const SizedBox(width: KSpacing.sm),
+                                ..._spaced(barEnd),
+                              ],
+                            ),
+                          );
+                        }
+                        return Row(
+                          children: [
+                            if (barLead case final lead?) ...[
+                              Expanded(child: lead),
+                              const SizedBox(width: 4),
+                            ],
+                            ..._spaced(barStart),
+                            if (barLead == null) const Spacer(),
+                            ..._spaced(barEnd),
+                          ],
+                        );
+                      },
                     ),
             ),
           ],

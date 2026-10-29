@@ -1495,13 +1495,12 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.byKey(GoLiveKeys.tool('seats')), findsOneWidget);
         await closeSheet(tester);
-        // D141: games are not there yet — the button says so, no list.
+        // D141: games are not there yet — the button says so, no list
+        // (D166: in the same sheet as the viewers' bars).
         await tester.tap(find.byKey(GoLiveScreen.audioGamesKey));
-        await tester.pump();
-        expect(find.text(l10n.liveGamesSoon), findsOneWidget);
-        ScaffoldMessenger.of(tester.element(find.byType(GoLiveScreen)))
-            .removeCurrentSnackBar();
         await tester.pumpAndSettle();
+        expect(find.text(l10n.liveGamesSoon), findsOneWidget);
+        await closeSheet(tester);
         await tester.tap(find.byKey(GoLiveScreen.audioPkKey));
         await tester.pump();
         expect(find.text(l10n.goLivePkSoon), findsOneWidget);

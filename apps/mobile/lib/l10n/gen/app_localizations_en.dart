@@ -6312,6 +6312,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveGamesSoon => 'Games are coming soon';
 
   @override
+  String get liveGamesSoonBody =>
+      'We are adding games you can play in the live. They are not available yet.';
+
+  @override
+  String get liveGuestJoin => 'Join as a guest';
+
+  @override
+  String get liveGuestSoloInfo =>
+      'This is a solo live: it has no guest seats. You can ask to join as a guest in a multi-guest live.';
+
+  @override
   String get liveStatsCherries => 'Cherries this live';
 
   @override

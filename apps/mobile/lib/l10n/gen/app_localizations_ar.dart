@@ -6332,6 +6332,17 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveGamesSoon => 'الألعاب قريباً';
 
   @override
+  String get liveGamesSoonBody =>
+      'نعمل على إضافة ألعاب تلعبها داخل البث، وهي غير متاحة بعد.';
+
+  @override
+  String get liveGuestJoin => 'انضم كضيف';
+
+  @override
+  String get liveGuestSoloInfo =>
+      'هذا بث فردي ولا توجد فيه مقاعد للضيوف. يمكنك طلب الانضمام كضيف في البث متعدد الضيوف.';
+
+  @override
   String get liveStatsCherries => 'كرز هذا البث';
 
   @override

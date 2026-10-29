@@ -10958,6 +10958,24 @@ abstract class AppLocalizations {
   /// **'الألعاب قريباً'**
   String get liveGamesSoon;
 
+  /// D166: the games sheet of the live bars (no games yet).
+  ///
+  /// In ar, this message translates to:
+  /// **'نعمل على إضافة ألعاب تلعبها داخل البث، وهي غير متاحة بعد.'**
+  String get liveGamesSoonBody;
+
+  /// D166: the guest (∞) button of the viewer's video live bar.
+  ///
+  /// In ar, this message translates to:
+  /// **'انضم كضيف'**
+  String get liveGuestJoin;
+
+  /// D166: the guest (∞) button in a solo live (no guest seats there).
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا بث فردي ولا توجد فيه مقاعد للضيوف. يمكنك طلب الانضمام كضيف في البث متعدد الضيوف.'**
+  String get liveGuestSoloInfo;
+
   /// D140: the full-screen end-of-live summary (the live's statistics).
   ///
   /// In ar, this message translates to:
