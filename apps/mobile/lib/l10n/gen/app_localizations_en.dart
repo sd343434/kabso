@@ -7572,4 +7572,143 @@ class AppLocalizationsEn extends AppLocalizations {
   String liveWatchNewSuggestion(String title) {
     return 'New suggestion: $title';
   }
+
+  @override
+  String get createMenuTitle => 'Create';
+
+  @override
+  String get createMenuPost => 'Post';
+
+  @override
+  String get createMenuPostHint => 'Photos, a video or text';
+
+  @override
+  String get createMenuReel => 'Reel';
+
+  @override
+  String get createMenuReelHint => 'A short vertical video for Moments';
+
+  @override
+  String get createMenuStory => 'Story';
+
+  @override
+  String get createMenuStoryHint => 'A photo for 24 hours';
+
+  @override
+  String get createMenuLive => 'Go live';
+
+  @override
+  String get createMenuLiveHint => 'Video or voice, right now';
+
+  @override
+  String get createVideoUpTo => 'One video, up to 3 minutes';
+
+  @override
+  String get createLibraryVideo => 'Video';
+
+  @override
+  String get createLibraryNoVideos => 'There are no videos on this device.';
+
+  @override
+  String get createPickVideo => 'Choose a video';
+
+  @override
+  String get createRemoveVideo => 'Remove video';
+
+  @override
+  String createVideoLabel(String length) {
+    return 'Video, $length';
+  }
+
+  @override
+  String get createVideoOrPhotos =>
+      'A post holds photos or one video, not both.';
+
+  @override
+  String get createVideoTooLong => 'Videos in posts can be up to 3 minutes.';
+
+  @override
+  String get createVideoTooLarge => 'This video is larger than 200 MB.';
+
+  @override
+  String get createVideoTooShort => 'Choose a video of at least 1 second.';
+
+  @override
+  String get createVideoUnsupported =>
+      'This video format isn\'t supported. Use MP4 or MOV.';
+
+  @override
+  String get createVideoUnreadable =>
+      'This video couldn\'t be read on this device.';
+
+  @override
+  String get createVideoInvalid =>
+      'The video couldn\'t be processed. Try another one.';
+
+  @override
+  String get createVideoUploadsUnavailable =>
+      'Video uploads aren\'t available right now. Try again later.';
+
+  @override
+  String createUploadingVideo(int percent) {
+    return 'Uploading the video… $percent%';
+  }
+
+  @override
+  String get createPostedVideoInReview =>
+      'Shared. Others will see it once the video is reviewed';
+
+  @override
+  String get reelNewTitle => 'New reel';
+
+  @override
+  String get reelNewBody =>
+      'A vertical video up to 60 seconds. It shows in Moments.';
+
+  @override
+  String get reelPickVideo => 'Choose a video';
+
+  @override
+  String get reelChangeVideo => 'Change video';
+
+  @override
+  String get reelCaptionHint => 'Write a caption… #hashtags @mentions';
+
+  @override
+  String get reelShare => 'Share';
+
+  @override
+  String get reelShared => 'Your reel is shared';
+
+  @override
+  String get reelSharedInReview =>
+      'Shared. Others will see your reel once it is reviewed';
+
+  @override
+  String get reelTooLong => 'A reel can be up to 60 seconds.';
+
+  @override
+  String get reelTooLarge => 'This video is larger than 100 MB.';
+
+  @override
+  String get reelVertical =>
+      'Reels look best vertical; this video will show with bars.';
+
+  @override
+  String get reelPreview => 'The reel\'s first frame';
+
+  @override
+  String get videoPlay => 'Play video';
+
+  @override
+  String get videoPause => 'Pause video';
+
+  @override
+  String get videoMute => 'Mute';
+
+  @override
+  String get videoUnmute => 'Turn sound on';
+
+  @override
+  String get videoCannotPlay => 'This video can\'t play right now';
 }

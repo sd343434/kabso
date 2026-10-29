@@ -72,7 +72,7 @@
 		<string>en</string>
 	</array>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Kabso Live shows your photos when you create a post or attach one to a message.</string>
+	<string>Kabso Live shows your photos and videos when you create a post or a reel, or attach a photo to a message.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Kabso Live uses the camera when you go live or take a photo or video to send in a message.</string>
 	<key>UIBackgroundModes</key>

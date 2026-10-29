@@ -11,6 +11,7 @@ import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/storage/secure_token_store.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/data/auth_repository_impl.dart';
+import 'package:kabso_live/features/create/create_menu_sheet.dart';
 import 'package:kabso_live/features/create/create_screen.dart';
 import 'package:kabso_live/features/home/feed_screen.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
@@ -108,6 +109,11 @@ void main() {
       await _pumpShell(tester);
       expect(_label(tester, const Key('nav.create')), en.navCreate);
       await tester.tap(find.byKey(const Key('nav.create')));
+      await tester.pumpAndSettle();
+      // D162: the camera button opens the ➕ menu; «منشور» opens Create.
+      await tester.tap(
+        find.byKey(CreateMenuSheet.choiceKey(CreateChoice.post)),
+      );
       await tester.pumpAndSettle();
       expect(find.byType(CreateScreen), findsOneWidget);
       expect(find.byType(KTabBar), findsNothing);

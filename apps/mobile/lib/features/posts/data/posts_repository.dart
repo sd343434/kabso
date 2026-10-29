@@ -62,7 +62,8 @@ abstract interface class PostsRepository {
 
   /// `POST /posts` with [idempotencyKey] (a UUID kept for every retry of
   /// the same draft, CONVENTIONS §11.2): a text post, or photos [mediaIds]
-  /// with an optional caption.
+  /// with an optional caption, or (D162) one video; with [reel], a reel
+  /// (`format: REEL`, one `REEL_VIDEO`, §11.14).
   Future<Post> createPost({
     required String idempotencyKey,
     String? text,
@@ -71,6 +72,14 @@ abstract interface class PostsRepository {
     PostSettingsDraft settings = const PostSettingsDraft(),
     String status = 'PUBLISHED',
     DateTime? publishAt,
+    bool reel = false,
+  });
+
+  /// v1.41-social (D162): `GET /feed/reels`, one page of reels for Moments.
+  Future<PageOf<Post>> reelsFeed(
+    PostsFeedTab tab, {
+    String? cursor,
+    int? limit,
   });
 
   /// `POST /views`: up to 50 views in one batch (best effort; the server
@@ -174,6 +183,14 @@ class PostsRepositoryImpl implements PostsRepository {
   @override
   Future<PageOf<Post>> feed(PostsFeedTab tab, {String? cursor, int? limit}) =>
       _page('/feed/posts', {'tab': tab.name, 'cursor': cursor, 'limit': limit});
+
+  @override
+  Future<PageOf<Post>> reelsFeed(
+    PostsFeedTab tab, {
+    String? cursor,
+    int? limit,
+  }) =>
+      _page('/feed/reels', {'tab': tab.name, 'cursor': cursor, 'limit': limit});
 
   @override
   Future<Post> getPost(String postId) => guardApiCall(() async {
@@ -304,10 +321,12 @@ class PostsRepositoryImpl implements PostsRepository {
     PostSettingsDraft settings = const PostSettingsDraft(),
     String status = 'PUBLISHED',
     DateTime? publishAt,
+    bool reel = false,
   }) => guardApiCall(() async {
     final res = await _dio.post<Map<String, dynamic>>(
       '/posts',
       data: {
+        if (reel) 'format': 'REEL',
         if (text != null && text.isNotEmpty) 'text': text,
         if (mediaIds.isNotEmpty) 'mediaIds': mediaIds,
         if (location != null && location.isNotEmpty) 'location': location,

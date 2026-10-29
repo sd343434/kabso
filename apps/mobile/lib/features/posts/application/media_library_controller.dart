@@ -1,7 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/misc.dart' show FutureProviderFamily;
+import 'package:flutter_riverpod/misc.dart'
+    show AsyncNotifierProviderFamily, FutureProviderFamily;
 import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/posts/application/compose_controller.dart';
@@ -37,10 +38,15 @@ class LibraryState {
   );
 }
 
-/// Asks for library access, then pages the photos in (newest first). A
-/// platform without a library, or a refusal, is a state, not an error: the
-/// screen offers the system picker instead.
+/// Asks for library access, then pages the items of [filter] in (newest
+/// first; D162: photos, videos or both). A platform without a library, or a
+/// refusal, is a state, not an error: the screen offers the system picker
+/// instead.
 class MediaLibraryController extends AsyncNotifier<LibraryState> {
+  new(this.filter);
+
+  final LibraryFilter filter;
+
   /// [MediaLibrary.page]'s default page size.
   static const pageSize = 60;
   int _page = 0;
@@ -51,7 +57,7 @@ class MediaLibraryController extends AsyncNotifier<LibraryState> {
     final library = ref.watch(mediaLibraryProvider);
     final access = await library.requestAccess();
     if (!access.canBrowse) return LibraryState(access: access);
-    final items = await library.page(0);
+    final items = await library.page(0, filter: filter);
     return LibraryState(
       access: access,
       items: List.unmodifiable(items),
@@ -64,7 +70,9 @@ class MediaLibraryController extends AsyncNotifier<LibraryState> {
     if (current == null || current.done || current.loadingMore) return;
     state = AsyncData(current.copyWith(loadingMore: true));
     try {
-      final next = await ref.read(mediaLibraryProvider).page(_page + 1);
+      final next = await ref
+          .read(mediaLibraryProvider)
+          .page(_page + 1, filter: filter);
       if (!ref.mounted) return;
       _page++;
       state = AsyncData(
@@ -81,10 +89,14 @@ class MediaLibraryController extends AsyncNotifier<LibraryState> {
   }
 }
 
-final mediaLibraryControllerProvider =
-    AsyncNotifierProvider<MediaLibraryController, LibraryState>(
-      MediaLibraryController.new,
-    );
+final AsyncNotifierProviderFamily<
+  MediaLibraryController,
+  LibraryState,
+  LibraryFilter
+>
+mediaLibraryControllerProvider = AsyncNotifierProvider.family(
+  MediaLibraryController.new,
+);
 
 /// A library photo's grid thumbnail (kept while the screen shows it).
 final FutureProviderFamily<Uint8List?, String> libraryThumbnailProvider =

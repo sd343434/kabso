@@ -8,6 +8,7 @@ import 'package:kabso_live/core/storage/secure_token_store.dart';
 import 'package:kabso_live/features/auth/data/auth_repository_impl.dart';
 import 'package:kabso_live/features/auth/presentation/login_screen.dart';
 import 'package:kabso_live/features/auth/presentation/welcome_screen.dart';
+import 'package:kabso_live/features/create/create_menu_sheet.dart';
 import 'package:kabso_live/features/create/create_screen.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
 import 'package:kabso_live/features/profile/edit_profile_screen.dart';
@@ -73,6 +74,13 @@ void main() {
       for (final MapEntry(:key, :value) in expected.entries) {
         await tester.tap(find.byKey(key));
         await tester.pumpAndSettle();
+        // D162: ➕ opens the menu; «منشور» (Post) opens Create.
+        if (key == const Key('nav.create')) {
+          await tester.tap(
+            find.byKey(CreateMenuSheet.choiceKey(CreateChoice.post)),
+          );
+          await tester.pumpAndSettle();
+        }
         expect(find.text(value), findsOneWidget, reason: '$key');
         // KL-060: Create is full screen (owner's reference): no bottom bar;
         // its Close returns to Posts.

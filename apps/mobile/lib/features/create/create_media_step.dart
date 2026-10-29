@@ -10,26 +10,32 @@ import 'package:kabso_live/features/create/create_mode_bar.dart';
 import 'package:kabso_live/features/posts/application/compose_controller.dart';
 import 'package:kabso_live/features/posts/application/media_library_controller.dart';
 import 'package:kabso_live/features/posts/data/media_library.dart';
+import 'package:kabso_live/features/posts/data/video_source.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// Step 1 of Create (owner's reference, KL-060): the device photo library
-/// as a grid. A tap selects or unselects a photo (at most 10, in tap
-/// order = post order); the tray under the grid lists the selection.
-/// Without a library (web) or without access, the system picker is
-/// offered instead, and limited access says so with a way to change it.
-/// Video has no upload API before M2: its filter says "soon".
+/// Step 1 of Create (owner's reference, KL-060): the device photo and
+/// video library as a grid, filtered by Photos · Video · All. A tap selects
+/// or unselects a photo (at most 10, in tap order = post order) or (D162)
+/// one video (up to 3 minutes; a post holds photos or one video); the tray
+/// under the grid lists the selection. Without a library (web) or without
+/// access, the system pickers are offered instead, and limited access says
+/// so with a way to change it.
 class CreateMediaStep extends ConsumerStatefulWidget {
   const new({
     required this.onNext,
     required this.onClose,
     required this.onPickFromDevice,
+    required this.onPickVideoFromDevice,
     super.key,
   });
 
   final VoidCallback onNext;
   final VoidCallback onClose;
   final VoidCallback onPickFromDevice;
+
+  /// D162: the system video picker.
+  final VoidCallback onPickVideoFromDevice;
 
   static const nextKey = Key('create.next');
   static const gridKey = Key('create.media.grid');
@@ -44,22 +50,76 @@ class CreateMediaStep extends ConsumerStatefulWidget {
   static Key trayRemoveKey(int localId) =>
       Key('create.media.tray.$localId.remove');
   static Key trayPhotoKey(int localId) => Key('create.media.tray.$localId');
+  static const pickVideoKey = Key('create.media.deviceVideo');
+  static const trayVideoKey = Key('create.media.tray.video');
+  static const trayVideoRemoveKey = Key('create.media.tray.video.remove');
 
   @override
   ConsumerState<CreateMediaStep> createState() => _CreateMediaStepState();
 }
 
-enum _Filter { photos, all }
+/// The message for a video that can't be used in a post.
+String videoRejectionMessage(
+  AppLocalizations l10n,
+  VideoRejection rejection, {
+  bool reel = false,
+}) => switch (rejection) {
+  VideoRejection.unsupportedType => l10n.createVideoUnsupported,
+  VideoRejection.tooLarge =>
+    reel ? l10n.reelTooLarge : l10n.createVideoTooLarge,
+  VideoRejection.tooLong => reel ? l10n.reelTooLong : l10n.createVideoTooLong,
+  VideoRejection.tooShort => l10n.createVideoTooShort,
+  VideoRejection.mixed => l10n.createVideoOrPhotos,
+};
 
 class _CreateMediaStepState extends ConsumerState<CreateMediaStep> {
-  _Filter _filter = _Filter.all;
+  LibraryFilter _filter = LibraryFilter.all;
   final Set<String> _loading = {};
 
-  Future<void> _toggle(String id) async {
+  Future<void> _toggle(LibraryItem item) =>
+      item.video ? _toggleVideo(item.id) : _togglePhoto(item.id);
+
+  /// D162: one video replaces nothing — photos must be removed first.
+  Future<void> _toggleVideo(String id) async {
     final l10n = context.l10n;
     final compose = ref.read(composeControllerProvider.notifier);
     final draft = ref.read(composeControllerProvider);
     if (draft.busy || _loading.contains(id)) return;
+    if (draft.video?.video.sourceId == id) {
+      compose.removeVideo();
+      return;
+    }
+    if (draft.photos.isNotEmpty) {
+      KSnack.info(context, l10n.createVideoOrPhotos);
+      return;
+    }
+    setState(() => _loading.add(id));
+    try {
+      final video = await ref.read(mediaLibraryProvider).video(id);
+      if (!mounted) return;
+      if (video == null) {
+        KSnack.error(context, l10n.createVideoUnreadable);
+        return;
+      }
+      if (compose.setVideo(video) case final rejection?) {
+        KSnack.error(context, videoRejectionMessage(l10n, rejection));
+      }
+    } on Object {
+      if (mounted) KSnack.error(context, l10n.createVideoUnreadable);
+    } finally {
+      if (mounted) setState(() => _loading.remove(id));
+    }
+  }
+
+  Future<void> _togglePhoto(String id) async {
+    final l10n = context.l10n;
+    final compose = ref.read(composeControllerProvider.notifier);
+    final draft = ref.read(composeControllerProvider);
+    if (draft.busy || _loading.contains(id)) return;
+    if (draft.video != null) {
+      KSnack.info(context, l10n.createVideoOrPhotos);
+      return;
+    }
     if (librarySelectionIndex(draft.photos, id) >= 0) {
       compose.removeLibraryPhoto(id);
       return;
@@ -84,6 +144,8 @@ class _CreateMediaStepState extends ConsumerState<CreateMediaStep> {
           KSnack.error(context, l10n.createPhotoTooLarge);
         case PhotoRejection.tooMany:
           KSnack.info(context, l10n.createPhotoTooMany(maxPostPhotos));
+        case PhotoRejection.mixed:
+          KSnack.info(context, l10n.createVideoOrPhotos);
         case null:
           break;
       }
@@ -104,7 +166,8 @@ class _CreateMediaStepState extends ConsumerState<CreateMediaStep> {
     final l10n = context.l10n;
     final p = context.palette;
     final draft = ref.watch(composeControllerProvider);
-    final library = ref.watch(mediaLibraryControllerProvider);
+    final library = ref.watch(mediaLibraryControllerProvider(_filter));
+    final videos = _filter == LibraryFilter.videos;
     return Column(
       children: [
         ComposeHeader(
@@ -138,6 +201,7 @@ class _CreateMediaStepState extends ConsumerState<CreateMediaStep> {
         Expanded(
           child: switch (library) {
             AsyncData(:final value) when value.access.canBrowse => _Grid(
+              filter: _filter,
               state: value,
               draft: draft,
               loading: _loading,
@@ -151,11 +215,17 @@ class _CreateMediaStepState extends ConsumerState<CreateMediaStep> {
               onAllow: value.access == LibraryAccess.denied
                   ? () => _manage(value.access)
                   : null,
-              onPick: draft.busy ? null : widget.onPickFromDevice,
+              onPick: draft.busy || videos ? null : widget.onPickFromDevice,
+              onPickVideo: draft.busy || _filter == LibraryFilter.photos
+                  ? null
+                  : widget.onPickVideoFromDevice,
             ),
             AsyncError() => _NoLibrary(
               message: l10n.createLibraryFailed,
-              onPick: draft.busy ? null : widget.onPickFromDevice,
+              onPick: draft.busy || videos ? null : widget.onPickFromDevice,
+              onPickVideo: draft.busy || _filter == LibraryFilter.photos
+                  ? null
+                  : widget.onPickVideoFromDevice,
               onRetry: () => ref.invalidate(mediaLibraryControllerProvider),
             ),
             _ => Center(
@@ -179,7 +249,11 @@ class _CreateMediaStepState extends ConsumerState<CreateMediaStep> {
                 _Tray(draft: draft),
                 const SizedBox(height: KSpacing.sm),
               ],
-              const _UpToNote(),
+              if (draft.video case final video?) ...[
+                _VideoTray(video: video.video, busy: draft.busy),
+                const SizedBox(height: KSpacing.sm),
+              ],
+              _UpToNote(video: videos || draft.video != null),
               const SizedBox(height: KSpacing.xs),
               CreateModeBar(
                 selected: CreateMode.post,
@@ -197,13 +271,12 @@ class _CreateMediaStepState extends ConsumerState<CreateMediaStep> {
   }
 }
 
-/// All · Video · Photos. The library holds photos only for now, so "All"
-/// and "Photos" show the same grid; Video says "soon".
+/// Photos · Video · All (D162: Video lists the library's videos).
 class _Segments extends StatelessWidget {
   const new({required this.filter, required this.onFilter});
 
-  final _Filter filter;
-  final ValueChanged<_Filter> onFilter;
+  final LibraryFilter filter;
+  final ValueChanged<LibraryFilter> onFilter;
 
   @override
   Widget build(BuildContext context) {
@@ -282,22 +355,22 @@ class _Segments extends StatelessWidget {
             key: CreateMediaStep.tabPhotosKey,
             label: l10n.createTypePhotos,
             icon: const Icon(Icons.image_outlined),
-            selected: filter == _Filter.photos,
-            onTap: () => onFilter(_Filter.photos),
+            selected: filter == LibraryFilter.photos,
+            onTap: () => onFilter(LibraryFilter.photos),
           ),
           segment(
             key: CreateMediaStep.tabVideoKey,
             label: l10n.createTabVideo,
             icon: const Icon(Icons.smart_display_outlined),
-            selected: false,
-            hint: l10n.createSoon,
+            selected: filter == LibraryFilter.videos,
+            onTap: () => onFilter(LibraryFilter.videos),
           ),
           segment(
             key: CreateMediaStep.tabAllKey,
             label: l10n.createTabAll,
             icon: const Icon(Icons.photo_library_outlined),
-            selected: filter == _Filter.all,
-            onTap: () => onFilter(_Filter.all),
+            selected: filter == LibraryFilter.all,
+            onTap: () => onFilter(LibraryFilter.all),
           ),
         ],
       ),
@@ -307,6 +380,7 @@ class _Segments extends StatelessWidget {
 
 class _Grid extends ConsumerWidget {
   const new({
+    required this.filter,
     required this.state,
     required this.draft,
     required this.loading,
@@ -314,10 +388,11 @@ class _Grid extends ConsumerWidget {
     required this.onManage,
   });
 
+  final LibraryFilter filter;
   final LibraryState state;
   final ComposeState draft;
   final Set<String> loading;
-  final ValueChanged<String> onToggle;
+  final ValueChanged<LibraryItem> onToggle;
   final VoidCallback onManage;
 
   @override
@@ -330,7 +405,9 @@ class _Grid extends ConsumerWidget {
       onNotification: (n) {
         if (n.metrics.extentAfter < 400) {
           unawaited(
-            ref.read(mediaLibraryControllerProvider.notifier).loadMore(),
+            ref
+                .read(mediaLibraryControllerProvider(filter).notifier)
+                .loadMore(),
           );
         }
         return false;
@@ -371,7 +448,9 @@ class _Grid extends ConsumerWidget {
               hasScrollBody: false,
               child: Center(
                 child: Text(
-                  l10n.createLibraryEmpty,
+                  filter == LibraryFilter.videos
+                      ? l10n.createLibraryNoVideos
+                      : l10n.createLibraryEmpty,
                   style: context.textStyles.body.copyWith(
                     color: p.textSecondary,
                   ),
@@ -390,13 +469,16 @@ class _Grid extends ConsumerWidget {
               ),
               itemCount: items.length,
               itemBuilder: (context, i) {
-                final id = items[i].id;
+                final item = items[i];
+                final id = item.id;
                 return _Tile(
                   key: CreateMediaStep.itemKey(id),
-                  id: id,
-                  selected: librarySelectionIndex(draft.photos, id) >= 0,
+                  item: item,
+                  selected: item.video
+                      ? draft.video?.video.sourceId == id
+                      : librarySelectionIndex(draft.photos, id) >= 0,
                   loading: loading.contains(id),
-                  onTap: draft.busy ? null : () => onToggle(id),
+                  onTap: draft.busy ? null : () => onToggle(item),
                 );
               },
             ),
@@ -417,14 +499,16 @@ class _Grid extends ConsumerWidget {
 
 class _Tile extends ConsumerWidget {
   const new({
-    required this.id,
+    required this.item,
     required this.selected,
     required this.loading,
     required this.onTap,
     super.key,
   });
 
-  final String id;
+  final LibraryItem item;
+
+  String get id => item.id;
   final bool selected;
   final bool loading;
   final VoidCallback? onTap;
@@ -436,7 +520,11 @@ class _Tile extends ConsumerWidget {
     return Semantics(
       button: true,
       selected: selected,
-      label: context.l10n.createLibraryPhoto,
+      label: item.video
+          ? context.l10n.createVideoLabel(
+              videoLengthLabel(item.duration ?? Duration.zero),
+            )
+          : context.l10n.createLibraryPhoto,
       onTap: onTap,
       excludeSemantics: true,
       child: GestureDetector(
@@ -461,18 +549,41 @@ class _Tile extends ConsumerWidget {
                 bottom: KSpacing.sm,
                 start: KSpacing.sm,
                 child: Container(
-                  width: 26,
                   height: 26,
+                  constraints: const BoxConstraints(minWidth: 26),
+                  padding: item.video
+                      ? const EdgeInsets.symmetric(horizontal: KSpacing.xs)
+                      : null,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: KStatusColors.onStatus.withValues(alpha: 0.45),
                     borderRadius: BorderRadius.circular(KRadius.sm),
                   ),
-                  child: const Icon(
-                    Icons.image_outlined,
-                    size: 17,
-                    color: Colors.white,
-                  ),
+                  child: item.video
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.play_arrow_rounded,
+                              size: 16,
+                              color: Colors.white,
+                            ),
+                            Text(
+                              videoLengthLabel(item.duration ?? Duration.zero),
+                              textDirection: TextDirection.ltr,
+                              style: context.textStyles.caption.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                height: 1,
+                              ),
+                            ),
+                          ],
+                        )
+                      : const Icon(
+                          Icons.image_outlined,
+                          size: 17,
+                          color: Colors.white,
+                        ),
                 ),
               ),
               if (loading)
@@ -671,7 +782,10 @@ class _Tray extends ConsumerWidget {
 }
 
 class _UpToNote extends StatelessWidget {
-  const new();
+  const new({required this.video});
+
+  /// D162: the Video tab, or a video chosen: the video limit instead.
+  final bool video;
 
   @override
   Widget build(BuildContext context) {
@@ -696,7 +810,9 @@ class _UpToNote extends StatelessWidget {
           Flexible(
             flex: 8,
             child: Text(
-              context.l10n.createSelectUpTo(maxPostPhotos),
+              video
+                  ? context.l10n.createVideoUpTo
+                  : context.l10n.createSelectUpTo(maxPostPhotos),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.end,
@@ -713,17 +829,20 @@ class _UpToNote extends StatelessWidget {
   }
 }
 
-/// No library to browse: why, and the system picker instead.
+/// No library to browse: why, and the system pickers instead (photos and,
+/// D162, a video; each hidden on the other's tab).
 class _NoLibrary extends StatelessWidget {
   const new({
     required this.message,
     required this.onPick,
+    required this.onPickVideo,
     this.onAllow,
     this.onRetry,
   });
 
   final String message;
   final VoidCallback? onPick;
+  final VoidCallback? onPickVideo;
   final VoidCallback? onAllow;
   final VoidCallback? onRetry;
 
@@ -747,11 +866,23 @@ class _NoLibrary extends StatelessWidget {
             style: context.textStyles.body.copyWith(color: p.textSecondary),
           ),
           const SizedBox(height: KSpacing.lg),
-          KButton(
-            key: CreateMediaStep.pickDeviceKey,
-            label: l10n.createPickFromDevice,
-            onPressed: onPick,
-          ),
+          if (onPick != null)
+            KButton(
+              key: CreateMediaStep.pickDeviceKey,
+              label: l10n.createPickFromDevice,
+              onPressed: onPick,
+            ),
+          if (onPickVideo != null) ...[
+            if (onPick != null) const SizedBox(height: KSpacing.sm),
+            KButton(
+              key: CreateMediaStep.pickVideoKey,
+              label: l10n.createPickVideo,
+              variant: onPick != null
+                  ? KButtonVariant.secondary
+                  : KButtonVariant.primary,
+              onPressed: onPickVideo,
+            ),
+          ],
           if (onAllow != null) ...[
             const SizedBox(height: KSpacing.sm),
             KButton(
@@ -769,6 +900,72 @@ class _NoLibrary extends StatelessWidget {
               onPressed: onRetry,
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+/// D162: the chosen video under the grid: its first frame, its length,
+/// and × to remove it.
+class _VideoTray extends ConsumerWidget {
+  const new({required this.video, required this.busy});
+
+  final PickedVideo video;
+  final bool busy;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final p = context.palette;
+    final length = videoLengthLabel(video.duration);
+    return Container(
+      key: CreateMediaStep.trayVideoKey,
+      height: 72,
+      padding: const EdgeInsetsDirectional.only(
+        start: KSpacing.md,
+        end: KSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: p.primary.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(KCompose.panelRadius),
+      ),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(KRadius.sm),
+            child: Image.memory(
+              video.poster,
+              width: KCompose.trayThumb,
+              height: KCompose.trayThumb,
+              fit: BoxFit.cover,
+              gaplessPlayback: true,
+              excludeFromSemantics: true,
+              errorBuilder: (_, _, _) => SizedBox.square(
+                dimension: KCompose.trayThumb,
+                child: ColoredBox(color: p.surfaceOverlay),
+              ),
+            ),
+          ),
+          const SizedBox(width: KSpacing.md),
+          Expanded(
+            child: Text(
+              l10n.createVideoLabel(length),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: context.textStyles.label.copyWith(color: p.textPrimary),
+            ),
+          ),
+          IconButton(
+            key: CreateMediaStep.trayVideoRemoveKey,
+            tooltip: l10n.createRemoveVideo,
+            onPressed: busy
+                ? null
+                : () => ref
+                      .read(composeControllerProvider.notifier)
+                      .removeVideo(),
+            icon: AppIcon(AppIcons.close, size: 14, color: p.textSecondary),
+          ),
         ],
       ),
     );

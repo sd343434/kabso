@@ -1070,8 +1070,12 @@ void main() {
     });
 
     for (final details in [false, true]) {
-      testWidgets('video and AI say "soon"; 360 dp at text scale 1.3 does '
-          'not overflow (${details ? 'details' : 'media'})', (tester) async {
+      // D162: the Video segment works now (it was "soon" before video
+      // posts existed); AI still has no API and says "soon".
+      testWidgets('Video is enabled, AI says "soon"; 360 dp at text scale '
+          '1.3 does not overflow (${details ? 'details' : 'media'})', (
+        tester,
+      ) async {
         tester.platformDispatcher.textScaleFactorTestValue = 1.3;
         addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
         final ar = l10nFor(AppLanguage.ar);
@@ -1093,8 +1097,8 @@ void main() {
           final video = tester.getSemantics(
             find.byKey(CreateMediaStep.tabVideoKey),
           );
-          expect(video.hint, ar.createSoon);
-          expect(video.flagsCollection.isEnabled.toBoolOrNull(), isFalse);
+          expect(video.hint, isNot(ar.createSoon));
+          expect(video.flagsCollection.isEnabled.toBoolOrNull(), isTrue);
         }
       });
     }

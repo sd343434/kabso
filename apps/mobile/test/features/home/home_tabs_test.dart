@@ -20,6 +20,7 @@ import 'package:kabso_live/core/storage/secure_token_store.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/data/auth_repository_impl.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/create/create_menu_sheet.dart';
 import 'package:kabso_live/features/create/create_screen.dart';
 import 'package:kabso_live/features/discover/discover_screen.dart';
 import 'package:kabso_live/features/home/application/home_feed_provider.dart';
@@ -158,15 +159,32 @@ ScrollPosition _scroll(WidgetTester tester, HomeTab tab) => tester
     .position;
 
 void main() {
-  test('production providers are honest: reels are unavailable (no API '
-      'before M2)', () {
-    final container = ProviderContainer.test();
-    for (final feed in HomeFeed.values) {
-      expect(
-        container.read(homeReelsProvider(feed)).value,
-        isA<FeedUnavailable<FeedReelData>>(),
-      );
-    }
+  // D162 (v1.41-social): reels have an API now. Was "reels are
+  // unavailable (no API before M2)": the production provider reads
+  // `GET /feed/reels`, never fixtures, and an empty feed is empty.
+  test('production providers are honest: reels come from the reels API '
+      '(D162), each feed its own tab', () async {
+    final posts = FakePostsRepository()
+      ..reels[PostsFeedTab.trending] = [testPost('r1', reel: true)];
+    final container = ProviderContainer.test(
+      retry: (_, _) => null,
+      overrides: [
+        postsRepositoryProvider.overrideWithValue(posts),
+        currentUserProvider.overrideWithValue(testUser()),
+      ],
+    );
+    final trending = await container.read(
+      homeReelsProvider(HomeFeed.trending).future,
+    );
+    final items = (trending as FeedItems<FeedReelData>).items;
+    expect([for (final r in items) r.postId], ['r1']);
+    expect(items.single.videoUrl, endsWith('/video.mp4'));
+    final following = await container.read(
+      homeReelsProvider(HomeFeed.following).future,
+    );
+    expect((following as FeedItems<FeedReelData>).items, isEmpty);
+    expect(posts.calls, containsAll(['reels:trending:', 'reels:following:']));
+    expect(posts.calls.where((c) => c.startsWith('feed:')), isEmpty);
   });
 
   test('CP-008: stories come from the stories API — your entry first ("add" '
@@ -348,7 +366,8 @@ void main() {
       await _pump(tester);
       await _switch(tester);
       expect(_mode(tester), HomeTab.reels);
-      expect(find.text(_en.homeReelsUnavailableTitle), findsOneWidget);
+      // D162: reels have an API (empty here), so the empty copy.
+      expect(find.text(_en.homeReelsEmptyTitle), findsOneWidget);
       expect(find.bySemanticsLabel(_en.homeShowPosts), findsOneWidget);
       expect(
         find.descendant(
@@ -470,9 +489,9 @@ void main() {
     });
 
     for (final (tab, title) in [
-      // KL-060: posts have an API (empty here); reels do not yet.
+      // KL-060: posts have an API (empty here); D162: reels too.
       (HomeTab.posts, _en.homeFollowingEmptyTitle),
-      (HomeTab.reels, _en.homeReelsFollowingUnavailableTitle),
+      (HomeTab.reels, _en.homeReelsFollowingEmptyTitle),
     ]) {
       testWidgets(
         '${tab.name} · Following with nothing to show: its own copy and '
@@ -1039,6 +1058,11 @@ void main() {
       await openReelsTab(tester);
       expect(find.byTooltip(_en.navCreate), findsNothing);
       await tester.tap(find.byKey(const Key('nav.create')));
+      await tester.pumpAndSettle();
+      // D162: ➕ opens the menu; «منشور» (Post) opens Create.
+      await tester.tap(
+        find.byKey(CreateMenuSheet.choiceKey(CreateChoice.post)),
+      );
       await tester.pumpAndSettle();
       expect(find.byType(FeedScreen), findsNothing);
       expect(find.byType(CreateScreen), findsOneWidget);

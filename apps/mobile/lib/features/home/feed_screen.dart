@@ -39,10 +39,10 @@ import 'package:material_ui/material_ui.dart';
 ///   accounts; a ring opens the story viewer). Reels are full-bleed and
 ///   dark; the header floats over the video on a scrim with light
 ///   status-bar icons.
-/// - Posts and stories come from their APIs (KL-060, CP-008); reels have
-///   no API before M2, so that mode shows its honest unavailable state
-///   with a real way forward ("Watch live streams" opens Home, the live
-///   hub). No content is invented (D39).
+/// - Posts, stories and (v1.41-social, D162) reels come from their APIs
+///   (KL-060, CP-008, `GET /feed/reels`); an empty or failed feed shows
+///   its honest state with a real way forward ("Watch live streams" opens
+///   Home, the live hub). No content is invented (D39).
 class FeedScreen extends StatefulWidget {
   const new({
     super.key,
@@ -388,8 +388,13 @@ class _ReelsPage extends ConsumerWidget {
         onEmptyAction: action,
         errorTitle: l10n.homeReelsErrorTitle,
       ),
-      onRefresh: () => ref.refresh(source.future),
-      onRetry: () => ref.invalidate(source),
+      onRefresh: () {
+        ref.invalidate(reelsFeedProvider(feed));
+        return ref.refresh(source.future);
+      },
+      onRetry: () => ref
+        ..invalidate(reelsFeedProvider(feed))
+        ..invalidate(source),
       loadingSliver: const SliverFillRemaining(
         hasScrollBody: false,
         child: KSkeleton(width: double.infinity, height: double.infinity),
@@ -400,6 +405,9 @@ class _ReelsPage extends ConsumerWidget {
         child: HomeReelsPager(
           reels: reels,
           storageKey: 'home.reels.pager.${feed.name}',
+          // D162: the next page of the reels feed before the last reel.
+          onNearEnd: () =>
+              unawaited(ref.read(reelsFeedProvider(feed).notifier).loadMore()),
         ),
       ),
     );

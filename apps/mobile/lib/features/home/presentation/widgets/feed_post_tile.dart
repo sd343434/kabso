@@ -10,6 +10,7 @@ import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/format/k_handle.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
+import 'package:kabso_live/core/media/inline_video.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/posts/application/posts_feed_controller.dart';
@@ -42,6 +43,7 @@ class FeedPostData {
     this.gallery = const [],
     this.mediaAspect,
     this.isVideo = false,
+    this.videoUrl,
     this.likes,
     this.comments,
     this.shares,
@@ -92,6 +94,10 @@ class FeedPostData {
 
   /// [media] is a video cover: it carries the video mark.
   final bool isVideo;
+
+  /// D162: the video file; with it the cover plays in place (tap to play
+  /// or pause, the speaker to unmute). Without it (previews) only the mark.
+  final String? videoUrl;
 
   /// Counts from the API. The counter row is drawn only when all three are
   /// known; it is display-only until the like/comment/share APIs exist.
@@ -189,6 +195,9 @@ class FeedPostTile extends StatefulWidget {
 
   static const seeMoreKey = Key('feed.post.seeMore');
   static const videoMarkKey = Key('feed.post.video');
+
+  /// D162: the playable video of a video post.
+  static const videoKey = Key('feed.post.videoPlayer');
   static const countsKey = Key('feed.post.counts');
   static const moreKey = Key('feed.post.more');
   static const followKey = Key('feed.post.follow');
@@ -266,13 +275,23 @@ class _FeedPostTileState extends State<FeedPostTile> {
         if (media != null)
           AspectRatio(
             aspectRatio: post.mediaAspect ?? KMetrics.feedMediaAspect,
-            child: _MediaPager(
-              images: post.gallery.length > 1 ? post.gallery : [media],
-              isVideo: post.isVideo,
-              onDoubleTap: post.postId == null
-                  ? null
-                  : () => _actions.currentState?.likeFromMedia(),
-            ),
+            child: switch (post.videoUrl) {
+              final url? when post.isVideo => InlineVideo(
+                key: FeedPostTile.videoKey,
+                url: url,
+                poster: media,
+                onDoubleTap: post.postId == null
+                    ? null
+                    : () => _actions.currentState?.likeFromMedia(),
+              ),
+              _ => _MediaPager(
+                images: post.gallery.length > 1 ? post.gallery : [media],
+                isVideo: post.isVideo,
+                onDoubleTap: post.postId == null
+                    ? null
+                    : () => _actions.currentState?.likeFromMedia(),
+              ),
+            },
           ),
         if (post.postId case final id?)
           Padding(

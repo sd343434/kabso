@@ -10,6 +10,7 @@ import 'package:kabso_live/features/posts/application/my_posts_controller.dart';
 import 'package:kabso_live/features/posts/application/posts_feed_controller.dart';
 import 'package:kabso_live/features/posts/data/media_repository.dart';
 import 'package:kabso_live/features/posts/data/posts_repository.dart';
+import 'package:kabso_live/features/posts/data/video_source.dart';
 import 'package:kabso_live/features/posts/domain/post_models.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -89,8 +90,17 @@ class ComposePhoto {
   );
 }
 
-/// Why picked photos were left out.
-enum PhotoRejection { unsupportedType, tooLarge, tooMany }
+/// Why picked photos were left out ([mixed]: the draft holds a video, D162).
+enum PhotoRejection { unsupportedType, tooLarge, tooMany, mixed }
+
+/// D162: the draft's video; [assetId] once uploaded (kept across retries).
+@immutable
+class ComposeVideo {
+  const new({required this.video, this.assetId});
+
+  final PickedVideo video;
+  final String? assetId;
+}
 
 enum ComposePhase { editing, uploading, publishing }
 
@@ -98,14 +108,24 @@ enum ComposePhase { editing, uploading, publishing }
 class ComposeState {
   const new({
     this.photos = const [],
+    this.video,
     this.phase = ComposePhase.editing,
     this.uploaded = 0,
+    this.progress = 0,
     this.failure,
     this.rejections = const {},
     this.settings = const PostSettingsDraft(),
   });
 
   final List<ComposePhoto> photos;
+
+  /// D162: one video instead of photos (a post holds one or the other).
+  final ComposeVideo? video;
+
+  /// The video upload's progress (0–1) while [phase] is uploading.
+  final double progress;
+
+  bool get hasMedia => photos.isNotEmpty || video != null;
   final ComposePhase phase;
 
   /// Photos uploaded so far in this attempt (progress "n of m").
@@ -124,16 +144,21 @@ class ComposeState {
 
   ComposeState copyWith({
     List<ComposePhoto>? photos,
+    ComposeVideo? video,
+    bool clearVideo = false,
     ComposePhase? phase,
     int? uploaded,
+    double? progress,
     AppFailure? failure,
     bool clearFailure = false,
     Set<PhotoRejection>? rejections,
     PostSettingsDraft? settings,
   }) => ComposeState(
     photos: photos ?? this.photos,
+    video: clearVideo ? null : (video ?? this.video),
     phase: phase ?? this.phase,
     uploaded: uploaded ?? this.uploaded,
+    progress: progress ?? this.progress,
     failure: clearFailure ? null : (failure ?? this.failure),
     rejections: rejections ?? this.rejections,
     settings: settings ?? this.settings,
@@ -170,7 +195,9 @@ class ComposeController extends Notifier<ComposeState> {
     final photos = [...state.photos];
     for (final bytes in picked) {
       final type = sniffImageType(bytes);
-      if (type == null) {
+      if (state.video != null) {
+        rejected.add(PhotoRejection.mixed);
+      } else if (type == null) {
         rejected.add(PhotoRejection.unsupportedType);
       } else if (bytes.length > maxPhotoBytes) {
         rejected.add(PhotoRejection.tooLarge);
@@ -196,7 +223,9 @@ class ComposeController extends Notifier<ComposeState> {
     if (state.busy) return null;
     if (state.photos.any((p) => p.sourceId == sourceId)) return null;
     final type = sniffImageType(bytes);
-    final rejection = type == null
+    final rejection = state.video != null
+        ? PhotoRejection.mixed
+        : type == null
         ? PhotoRejection.unsupportedType
         : bytes.length > maxPhotoBytes
         ? PhotoRejection.tooLarge
@@ -219,6 +248,27 @@ class ComposeController extends Notifier<ComposeState> {
       clearFailure: true,
     );
     return rejection;
+  }
+
+  /// D162: makes [video] the draft's media (a post video: ≤ 3 minutes,
+  /// ≤ 200 MiB); the reason when it can't be (photos already chosen, or a
+  /// limit).
+  VideoRejection? setVideo(PickedVideo video) {
+    if (state.busy) return null;
+    if (state.photos.isNotEmpty) return VideoRejection.mixed;
+    final rejection = checkVideo(video, reel: false);
+    if (rejection != null) return rejection;
+    state = state.copyWith(
+      video: ComposeVideo(video: video),
+      clearFailure: true,
+    );
+    return null;
+  }
+
+  /// Removes the draft's video.
+  void removeVideo() {
+    if (state.busy || state.video == null) return;
+    state = state.copyWith(clearVideo: true, clearFailure: true);
   }
 
   /// Removes the photo that came from the library photo [sourceId].
@@ -268,14 +318,29 @@ class ComposeController extends Notifier<ComposeState> {
     if (state.busy) return null;
     final caption = text.trim();
     final place = location.trim();
-    if (caption.isEmpty && state.photos.isEmpty) return null;
+    if (caption.isEmpty && !state.hasMedia) return null;
     state = state.copyWith(
       phase: ComposePhase.uploading,
       uploaded: state.photos.where((p) => p.assetId != null).length,
+      progress: 0,
       clearFailure: true,
     );
     try {
       final media = ref.read(mediaRepositoryProvider);
+      if (state.video case ComposeVideo(:final video, assetId: null)) {
+        final asset = await media.uploadVideo(
+          video,
+          reel: false,
+          onProgress: (p) {
+            if (ref.mounted) state = state.copyWith(progress: p);
+          },
+        );
+        if (!ref.mounted) return null;
+        state = state.copyWith(
+          video: ComposeVideo(video: video, assetId: asset.id),
+          progress: 1,
+        );
+      }
       for (final photo in state.photos) {
         if (photo.assetId != null) continue;
         final asset = await media.uploadPhoto(photo.bytes, photo.contentType);
@@ -290,7 +355,10 @@ class ComposeController extends Notifier<ComposeState> {
         );
       }
       state = state.copyWith(phase: ComposePhase.publishing);
-      final mediaIds = [for (final p in state.photos) p.assetId!];
+      final mediaIds = [
+        for (final p in state.photos) p.assetId!,
+        ?state.video?.assetId,
+      ];
       final content =
           '$caption\u0000$place\u0000${mediaIds.join(',')}'
           '\u0000${state.settings.toJson()}\u0000$status'

@@ -13039,6 +13039,258 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'اقتراح جديد: {title}'**
   String liveWatchNewSuggestion(String title);
+
+  /// D162: the ➕ menu's title.
+  ///
+  /// In ar, this message translates to:
+  /// **'إنشاء'**
+  String get createMenuTitle;
+
+  /// D162: ➕ menu choice.
+  ///
+  /// In ar, this message translates to:
+  /// **'منشور'**
+  String get createMenuPost;
+
+  /// D162: ➕ menu choice hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'صور أو فيديو أو نص'**
+  String get createMenuPostHint;
+
+  /// D162: ➕ menu choice.
+  ///
+  /// In ar, this message translates to:
+  /// **'ريلز'**
+  String get createMenuReel;
+
+  /// D162: ➕ menu choice hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'فيديو عمودي قصير يظهر في لحظات'**
+  String get createMenuReelHint;
+
+  /// D162: ➕ menu choice.
+  ///
+  /// In ar, this message translates to:
+  /// **'ستوري'**
+  String get createMenuStory;
+
+  /// D162: ➕ menu choice hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'صورة تبقى ٢٤ ساعة'**
+  String get createMenuStoryHint;
+
+  /// D162: ➕ menu choice.
+  ///
+  /// In ar, this message translates to:
+  /// **'بث مباشر'**
+  String get createMenuLive;
+
+  /// D162: ➕ menu choice hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'فيديو أو صوت، الآن'**
+  String get createMenuLiveHint;
+
+  /// D162: the media step's note on the Video tab.
+  ///
+  /// In ar, this message translates to:
+  /// **'فيديو واحد حتى ٣ دقائق'**
+  String get createVideoUpTo;
+
+  /// D162: a library video tile (semantics).
+  ///
+  /// In ar, this message translates to:
+  /// **'فيديو'**
+  String get createLibraryVideo;
+
+  /// D162: empty video grid.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد فيديوهات على هذا الجهاز.'**
+  String get createLibraryNoVideos;
+
+  /// D162: the system video picker.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختيار فيديو'**
+  String get createPickVideo;
+
+  /// D162: removes the draft's video.
+  ///
+  /// In ar, this message translates to:
+  /// **'إزالة الفيديو'**
+  String get createRemoveVideo;
+
+  /// D162: the selected video and its length.
+  ///
+  /// In ar, this message translates to:
+  /// **'فيديو، {length}'**
+  String createVideoLabel(String length);
+
+  /// D162: mixing photos and a video.
+  ///
+  /// In ar, this message translates to:
+  /// **'يضم المنشور صوراً أو فيديو واحداً، وليس الاثنين معاً.'**
+  String get createVideoOrPhotos;
+
+  /// D162: post video limit.
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكن أن تصل مدة فيديو المنشور إلى ٣ دقائق.'**
+  String get createVideoTooLong;
+
+  /// D162: post video size limit.
+  ///
+  /// In ar, this message translates to:
+  /// **'حجم هذا الفيديو أكبر من ٢٠٠ ميغابايت.'**
+  String get createVideoTooLarge;
+
+  /// D162: minimum length.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر فيديو مدته ثانية واحدة على الأقل.'**
+  String get createVideoTooShort;
+
+  /// D162: not MP4 / QuickTime.
+  ///
+  /// In ar, this message translates to:
+  /// **'صيغة هذا الفيديو غير مدعومة. استخدم MP4 أو MOV.'**
+  String get createVideoUnsupported;
+
+  /// D162: the library could not open the file.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّرت قراءة هذا الفيديو على هذا الجهاز.'**
+  String get createVideoUnreadable;
+
+  /// D162: the server refused the video (MEDIA_INVALID).
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّرت معالجة الفيديو. جرّب فيديو آخر.'**
+  String get createVideoInvalid;
+
+  /// D162: MEDIA_UPLOADS_UNAVAILABLE for a video.
+  ///
+  /// In ar, this message translates to:
+  /// **'رفع الفيديو غير متاح حالياً. حاول مرة أخرى لاحقاً.'**
+  String get createVideoUploadsUnavailable;
+
+  /// D162: video upload progress.
+  ///
+  /// In ar, this message translates to:
+  /// **'جارٍ رفع الفيديو… {percent}٪'**
+  String createUploadingVideo(int percent);
+
+  /// D162: a video post waits for moderation.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم النشر. سيظهر للآخرين بعد مراجعة الفيديو'**
+  String get createPostedVideoInReview;
+
+  /// D162: the reel screen.
+  ///
+  /// In ar, this message translates to:
+  /// **'ريلز جديد'**
+  String get reelNewTitle;
+
+  /// D162: the reel screen.
+  ///
+  /// In ar, this message translates to:
+  /// **'فيديو عمودي حتى ٦٠ ثانية، يظهر في لحظات.'**
+  String get reelNewBody;
+
+  /// D162: picks the reel's video.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختيار فيديو'**
+  String get reelPickVideo;
+
+  /// D162: picks another video.
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيير الفيديو'**
+  String get reelChangeVideo;
+
+  /// D162: the reel caption.
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب وصفاً… #وسوم @إشارات'**
+  String get reelCaptionHint;
+
+  /// D162: shares the reel.
+  ///
+  /// In ar, this message translates to:
+  /// **'نشر'**
+  String get reelShare;
+
+  /// D162: the reel was created.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم نشر الريلز'**
+  String get reelShared;
+
+  /// D162: a reel waits for moderation.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم النشر. سيظهر الريلز للآخرين بعد مراجعته'**
+  String get reelSharedInReview;
+
+  /// D162: reel length limit.
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكن أن تصل مدة الريلز إلى ٦٠ ثانية.'**
+  String get reelTooLong;
+
+  /// D162: reel size limit.
+  ///
+  /// In ar, this message translates to:
+  /// **'حجم هذا الفيديو أكبر من ١٠٠ ميغابايت.'**
+  String get reelTooLarge;
+
+  /// D162: a landscape reel.
+  ///
+  /// In ar, this message translates to:
+  /// **'تبدو الريلز أفضل عمودية؛ سيظهر هذا الفيديو بأشرطة.'**
+  String get reelVertical;
+
+  /// D162: the preview (semantics).
+  ///
+  /// In ar, this message translates to:
+  /// **'أول لقطة من الريلز'**
+  String get reelPreview;
+
+  /// D162: the inline player.
+  ///
+  /// In ar, this message translates to:
+  /// **'تشغيل الفيديو'**
+  String get videoPlay;
+
+  /// D162: the inline player.
+  ///
+  /// In ar, this message translates to:
+  /// **'إيقاف الفيديو مؤقتاً'**
+  String get videoPause;
+
+  /// D162: the inline player.
+  ///
+  /// In ar, this message translates to:
+  /// **'كتم الصوت'**
+  String get videoMute;
+
+  /// D162: the inline player.
+  ///
+  /// In ar, this message translates to:
+  /// **'تشغيل الصوت'**
+  String get videoUnmute;
+
+  /// D162: the inline player failed.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن تشغيل هذا الفيديو الآن'**
+  String get videoCannotPlay;
 }
 
 class _AppLocalizationsDelegate

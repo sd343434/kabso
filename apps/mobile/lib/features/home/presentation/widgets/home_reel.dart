@@ -5,23 +5,28 @@ import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
+import 'package:kabso_live/core/media/inline_video.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// Presentation-only input for one reel (a short vertical video). There is
-/// no reels API yet (short video Phase 5), so nothing in production builds
-/// these; tests and the debug previews supply fixtures.
-///
-/// Playback is not part of this slice: a reel shows its [cover] frame and
-/// its text. There is no play control or progress until a player exists.
+/// Input for one reel (a short vertical video). Production builds it from
+/// the reels API (`feedReelOf`, v1.41-social, D162) with a [postId] and a
+/// [videoUrl], which plays while the reel is the current page (muted at
+/// first; tap pauses, the speaker unmutes); the debug previews supply
+/// fixtures without a video (their [cover] only).
 @immutable
 class FeedReelData {
   const new({
     required this.authorName,
     required this.postedAt,
+    this.postId,
+    this.videoUrl,
+    this.aspect,
+    this.isSelf = false,
+    this.pendingModeration = false,
     this.authorAvatar,
     this.authorUsername,
     this.isFollowingAuthor,
@@ -34,6 +39,21 @@ class FeedReelData {
 
   final String authorName;
   final ImageProvider? authorAvatar;
+
+  /// The reel's post id (real reels only).
+  final String? postId;
+
+  /// The video file (real reels only).
+  final String? videoUrl;
+
+  /// The video's width / height; a landscape video is shown whole.
+  final double? aspect;
+
+  /// The viewer posted it (no follow badge).
+  final bool isSelf;
+
+  /// Waiting for moderation: visible to its author only (CP-006 Q2).
+  final bool pendingModeration;
 
   /// The author's username, the key of the follow API
   /// (`PUT /users/{username}/follow`).
@@ -78,18 +98,39 @@ abstract final class KHomeReels {
 /// page survives mode and feed switches (they are kept alive), and its
 /// [PageStorageKey] (unique per feed) restores it if the subtree is
 /// rebuilt.
-class HomeReelsPager extends StatelessWidget {
-  const new({required this.reels, required this.storageKey, super.key});
+///
+/// D162: only the current page's video plays; reaching the last pages asks
+/// for more ([onNearEnd]).
+class HomeReelsPager extends StatefulWidget {
+  const new({
+    required this.reels,
+    required this.storageKey,
+    this.onNearEnd,
+    super.key,
+  });
 
   final List<FeedReelData> reels;
   final String storageKey;
+  final VoidCallback? onNearEnd;
+
+  @override
+  State<HomeReelsPager> createState() => _HomeReelsPagerState();
+}
+
+class _HomeReelsPagerState extends State<HomeReelsPager> {
+  int _current = 0;
 
   @override
   Widget build(BuildContext context) => PageView.builder(
-    key: PageStorageKey<String>(storageKey),
+    key: PageStorageKey<String>(widget.storageKey),
     scrollDirection: Axis.vertical,
-    itemCount: reels.length,
-    itemBuilder: (_, i) => HomeReelPage(reel: reels[i]),
+    itemCount: widget.reels.length,
+    onPageChanged: (i) {
+      setState(() => _current = i);
+      if (i >= widget.reels.length - 2) widget.onNearEnd?.call();
+    },
+    itemBuilder: (_, i) =>
+        HomeReelPage(reel: widget.reels[i], active: i == _current),
   );
 }
 
@@ -97,9 +138,14 @@ class HomeReelsPager extends StatelessWidget {
 /// author, time and caption at the bottom start, and the rail at the bottom
 /// end.
 class HomeReelPage extends StatelessWidget {
-  const new({required this.reel, super.key});
+  const new({required this.reel, this.active = false, super.key});
 
   final FeedReelData reel;
+
+  /// The current page: its video plays.
+  final bool active;
+
+  static const pendingKey = Key('home.reel.pending');
 
   static const railKey = Key('home.reel.rail');
   static const countsKey = Key('home.reel.counts');
@@ -117,19 +163,31 @@ class HomeReelPage extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          _Cover(image: reel.cover),
-          const DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                stops: [0, 0.25, 0.6, 1],
-                colors: [
-                  Color(0x66000000),
-                  Color(0x00000000),
-                  Color(0x00000000),
-                  Color(0xA6000000),
-                ],
+          switch (reel.videoUrl) {
+            final url? => InlineVideo(
+              key: ValueKey('home.reel.video.${reel.postId ?? url}'),
+              url: url,
+              poster: reel.cover,
+              autoplay: active,
+              muteOnTop: true,
+              fit: (reel.aspect ?? 0) > 1 ? BoxFit.contain : BoxFit.cover,
+            ),
+            null => _Cover(image: reel.cover),
+          },
+          const IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  stops: [0, 0.25, 0.6, 1],
+                  colors: [
+                    Color(0x66000000),
+                    Color(0x00000000),
+                    Color(0x00000000),
+                    Color(0xA6000000),
+                  ],
+                ),
               ),
             ),
           ),
@@ -153,6 +211,18 @@ class HomeReelPage extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: t.caption.copyWith(color: white, shadows: _shadows),
                 ),
+                if (reel.pendingModeration)
+                  Padding(
+                    key: HomeReelPage.pendingKey,
+                    padding: const EdgeInsets.only(top: KSpacing.xs),
+                    child: Text(
+                      l10n.feedPostPending,
+                      style: t.caption.copyWith(
+                        color: white,
+                        shadows: _shadows,
+                      ),
+                    ),
+                  ),
                 if (caption != null && caption.isNotEmpty) ...[
                   const SizedBox(height: KSpacing.sm),
                   Text(

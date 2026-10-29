@@ -55,6 +55,25 @@ class FakePostsRepository implements PostsRepository {
     return _slice(feeds[tab] ?? const [], cursor);
   }
 
+  /// D162: the reels feeds (empty by default); [reelsFailWith] makes the
+  /// next reels call throw.
+  final Map<PostsFeedTab, List<Post>> reels = {};
+  Exception? reelsFailWith;
+
+  @override
+  Future<PageOf<Post>> reelsFeed(
+    PostsFeedTab tab, {
+    String? cursor,
+    int? limit,
+  }) async {
+    await _step('reels:${tab.name}:${cursor ?? ''}');
+    if (reelsFailWith case final e?) {
+      reelsFailWith = null;
+      throw e;
+    }
+    return _slice(reels[tab] ?? const [], cursor);
+  }
+
   /// Profile grids per username, and the caller's saved posts.
   final Map<String, List<Post>> profilePosts = {};
   List<Post> savedPosts = [];
@@ -254,6 +273,7 @@ class FakePostsRepository implements PostsRepository {
       PostSettingsDraft settings,
       String status,
       DateTime? publishAt,
+      bool reel,
     })
   >
   created = [];
@@ -270,6 +290,7 @@ class FakePostsRepository implements PostsRepository {
     PostSettingsDraft settings = const PostSettingsDraft(),
     String status = 'PUBLISHED',
     DateTime? publishAt,
+    bool reel = false,
   }) async {
     await _step('create:$idempotencyKey');
     created.add((
@@ -280,12 +301,15 @@ class FakePostsRepository implements PostsRepository {
       settings: settings,
       status: status,
       publishAt: publishAt,
+      reel: reel,
     ));
     final post = testPost(
       'new-${created.length}',
       text: text ?? '',
       isSelf: true,
       pending: mediaIds.isNotEmpty,
+      reel: reel,
+      video: mediaIds.isNotEmpty && mediaIds.first.startsWith('v'),
     ).copyWithForTest(status: status, publishAt: publishAt);
     if (status != 'PUBLISHED') (myPostLists[status] ??= []).insert(0, post);
     return post;
@@ -573,6 +597,8 @@ Post testPost(
   List<UserSummary> mentions = const [],
   bool commentsEnabled = true,
   WhoCanComment whoCanComment = WhoCanComment.everyone,
+  bool reel = false,
+  bool video = false,
 }) => Post(
   id: id,
   author: UserSummary(
@@ -582,7 +608,19 @@ Post testPost(
     avatarUrl: null,
   ),
   text: text,
+  isReel: reel,
   media: [
+    if (video || reel)
+      MediaAsset(
+        id: '$id-v',
+        url: 'https://media.example.test/media/$id-v/video.mp4',
+        thumbUrl: 'https://media.example.test/media/$id-p/320.webp',
+        posterUrl: 'https://media.example.test/media/$id-p/1080.webp',
+        width: 1080,
+        height: 1920,
+        type: MediaType.video,
+        durationMs: 8000,
+      ),
     for (var i = 0; i < photos; i++)
       MediaAsset(
         id: '$id-m$i',
@@ -730,6 +768,7 @@ extension PostTestCopy on Post {
       whoCanComment: whoCanComment ?? this.whoCanComment,
       hideLikeCount: hideLikeCount ?? this.hideLikeCount,
       pendingModeration: pendingModeration,
+      isReel: isReel,
       repostedBy: repostedBy,
     );
   }

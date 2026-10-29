@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/app/shell/shell_navigation.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/create/create_menu_sheet.dart';
 import 'package:kabso_live/features/messages/unread_messages.dart';
 import 'package:kabso_live/features/push/push_permission.dart';
 import 'package:kabso_live/features/stories/application/stories_controller.dart';
@@ -18,9 +19,28 @@ class AppShell extends ConsumerWidget {
 
   final StatefulNavigationShell navigationShell;
 
-  void _onSelect(WidgetRef ref, int index) {
+  Future<void> _onSelect(BuildContext context, WidgetRef ref, int index) async {
     final create = AppRoutes.shellBranches.indexOf(AppRoutes.create);
     if (index == create && navigationShell.currentIndex != create) {
+      // D162 (owner): ➕ opens a menu — post, reel, story or go live.
+      final choice = await showCreateMenu(context);
+      if (!context.mounted) return;
+      switch (choice) {
+        case null:
+          return;
+        case CreateChoice.reel:
+          unawaited(context.push(AppRoutes.newReel));
+          return;
+        case CreateChoice.story:
+          unawaited(context.push(AppRoutes.newStory));
+          return;
+        case CreateChoice.live:
+          // D123: a minimized live returns to the tab under it.
+          unawaited(context.push(AppRoutes.goLive));
+          return;
+        case CreateChoice.post:
+          break;
+      }
       // D123: Create (and Go live from it) returns here when it is left.
       ref
           .read(shellReturnTabProvider.notifier)
@@ -56,7 +76,7 @@ class AppShell extends ConsumerWidget {
           ? null
           : KTabBar(
               currentIndex: navigationShell.currentIndex,
-              onSelect: (index) => _onSelect(ref, index),
+              onSelect: (index) => unawaited(_onSelect(context, ref, index)),
               items: shellTabItems(
                 context.l10n,
                 // D130: real sources only — unread direct messages (D155)

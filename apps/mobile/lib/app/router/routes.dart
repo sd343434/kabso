@@ -61,6 +61,9 @@ abstract final class AppRoutes {
   /// CP-008: post a photo story.
   static const newStory = '/story/new';
 
+  /// D162: post a reel (a vertical short video for Moments).
+  static const newReel = '/reel/new';
+
   /// CP-010: go live (camera preview, then on air).
   static const goLive = '/live/new';
 

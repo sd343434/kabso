@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/app/app.dart';
+import 'package:kabso_live/core/media/inline_video.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
@@ -33,6 +34,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fake_dm_repository.dart';
 import 'fake_home_banners_repository.dart';
+import 'fake_inline_video.dart';
 import 'fake_live_blocked_words_repository.dart';
 import 'fake_live_boost_repository.dart';
 import 'fake_live_data_center_repository.dart';
@@ -89,6 +91,7 @@ Future<void> pumpKabsoApp(
   LiveStickerRepository? liveStickerRepository,
   LiveWatchRepository? liveWatchRepository,
   FakeYoutubePlayers? youtubePlayers,
+  FakeInlineVideos? inlineVideos,
   Map<String, Object> prefs = const {},
 }) async {
   final preferences = await testPrefs(language: language, extra: prefs);
@@ -100,6 +103,10 @@ Future<void> pumpKabsoApp(
         // D156: never the video plugin (it has no test implementation).
         splashVideoFactoryProvider.overrideWithValue(
           splashVideo ?? (_) => FakeSplashVideo(endOnPlay: true),
+        ),
+        // D162: post and reel videos without the plugin either.
+        inlineVideoFactoryProvider.overrideWithValue(
+          (inlineVideos ?? FakeInlineVideos()).call,
         ),
         deviceSilentModeProvider.overrideWithValue(silentMode),
         liveRepositoryProvider.overrideWithValue(
@@ -219,6 +226,7 @@ Future<void> pumpScreen(
   FakeYoutubePlayers? youtubePlayers,
   HomeBannersRepository? homeBannersRepository,
   DmRepository? dmRepository,
+  FakeInlineVideos? inlineVideos,
 }) async {
   final prefs = await testPrefs(language: language.name);
   await tester.pumpWidget(
@@ -226,6 +234,10 @@ Future<void> pumpScreen(
       retry: (_, _) => null,
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
+        // D162: post and reel videos without the plugin.
+        inlineVideoFactoryProvider.overrideWithValue(
+          (inlineVideos ?? FakeInlineVideos()).call,
+        ),
         // Never the network: the posts API with no posts yet.
         postsRepositoryProvider.overrideWithValue(
           postsRepository ?? FakePostsRepository(),
