@@ -251,11 +251,11 @@ describe('D162 video posts and reels', () => {
       const { res, uploadId } = await video(
         alice,
         'POST_VIDEO',
-        mp4({ durationMs: 150_000, brand: 'qt  ', codec: 'hvc1', width: 1280, height: 720 }),
+        mp4({ durationMs: 80_000, brand: 'qt  ', codec: 'hvc1', width: 1280, height: 720 }),
         'video/quicktime',
       );
       expect(res.status).toBe(200);
-      expect(res.body).toMatchObject({ type: 'VIDEO', width: 1280, height: 720, durationMs: 150_000 });
+      expect(res.body).toMatchObject({ type: 'VIDEO', width: 1280, height: 720, durationMs: 80_000 });
       expect(res.body.url).toBe(`https://media.example.test/media/${uploadId}/video.mov`);
       expect(storage.objects.get(`media/${uploadId}/video.mov`)?.contentType).toBe('video/quicktime');
     });
@@ -263,7 +263,7 @@ describe('D162 video posts and reels', () => {
     it('refuses bad videos with 422 MEDIA_INVALID, deletes the object and keeps the poster', async () => {
       const bad: [string, Buffer, string][] = [
         ['REEL_VIDEO', mp4({ durationMs: 61_000 }), 'video/mp4'], // too long for a reel
-        ['POST_VIDEO', mp4({ durationMs: 181_000 }), 'video/mp4'], // too long for a post
+        ['POST_VIDEO', mp4({ durationMs: 91_000 }), 'video/mp4'], // too long for a post (90 s since D168)
         ['REEL_VIDEO', mp4({ durationMs: 500 }), 'video/mp4'], // shorter than 1 s
         ['REEL_VIDEO', mp4({ durationMs: 5_000, noVideo: true }), 'video/mp4'], // audio only
         ['REEL_VIDEO', mp4({ durationMs: 5_000, codec: 'vp09' }), 'video/mp4'], // another codec

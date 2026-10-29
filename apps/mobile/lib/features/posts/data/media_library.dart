@@ -74,6 +74,19 @@ class DeviceMediaLibrary implements MediaLibrary {
   final Map<LibraryFilter, AssetPathEntity?> _paths = {};
   final Map<String, AssetEntity> _assets = {};
 
+  /// D168 (owner: the newest photo or video showed at the bottom): an
+  /// explicit order, newest first, for every grid. Without one the platform
+  /// default applies — on iOS the Photos order (oldest first), on Android
+  /// the media id. `createDate` is `creationDate` on iOS and `DATE_ADDED`
+  /// on Android. Paging (`getAssetListPaged`) keeps this order, so page 0
+  /// holds the newest items and later pages go back in time. No date
+  /// window: `FilterOptionGroup`'s default one ends at the moment it is
+  /// built, which would hide photos taken after it.
+  static FilterOptionGroup get newestFirst => FilterOptionGroup(
+    orders: const [OrderOption()],
+    createTimeCond: DateTimeCond.def().copyWith(ignore: true),
+  );
+
   static RequestType _type(LibraryFilter filter) => switch (filter) {
     LibraryFilter.all => RequestType.common,
     LibraryFilter.photos => RequestType.image,
@@ -102,6 +115,7 @@ class DeviceMediaLibrary implements MediaLibrary {
       _paths[filter] = (await PhotoManager.getAssetPathList(
         onlyAll: true,
         type: _type(filter),
+        filterOption: newestFirst,
       )).firstOrNull;
     }
     final all = _paths[filter];

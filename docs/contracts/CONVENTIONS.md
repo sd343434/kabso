@@ -361,6 +361,7 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `POST /auth/register/verify` *(v1.2)* | 10 / 15 min per IP; 5 attempts per code, *(v1.2.3)* 10 per pending registration and **15 / day per email** (SEC-027) |
 | `POST /auth/register/resend` *(v1.2)* | 3 / hour per email, 10 / hour per IP |
 | `PATCH /me` *(v1.2)* | 30 / hour per user |
+| `PUT` and `DELETE /me/avatar` *(v1.45-social, D168)* | 30 / hour per user (one bucket `me:avatar`, `RATE_LIMIT_AVATAR_USER`). **Replaces** the per-user default; the upload itself counts in the `POST /media/uploads` bucket |
 | `PUT /me/username` *(v1.28-live, D146)* | 5 / day per user (bucket `username:change`, `RATE_LIMIT_USERNAME_CHANGE_USER`). **Replaces** the per-user default |
 | `POST /me/premium-username/rentals`, `DELETE /me/premium-username` *(v1.28-live, D146)* | 20 / hour per user (bucket `premium:rent`, `RATE_LIMIT_PREMIUM_RENT_USER`). **Replaces** the per-user default; `GET /premium-usernames`, `GET /premium-usernames/{username}` and `GET /me/premium-username` use the per-user default |
 | `POST /search/queries` *(v1.29-live, D147)* | 120 / hour per user (bucket `search:record`, `RATE_LIMIT_SEARCH_RECORD_USER`). **Replaces** the per-user default; `GET /search/trending` and `GET /search/trending-hashtags` use the per-user default |
@@ -525,6 +526,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.45-social (draft) | 2026-10-29 | **D168 (owner, from the phone: «مدة ريلز لا تتجاوز ٦٠ ثانية، مدة الفيديو لا تتجاوز ٩٠ ثانية» and «فعّل الأزرار المتبقية في تعديل الملف وتغيير الصورة»):** a `POST_VIDEO` is now **1–90 s** (was 1–180 s; reels stay 1–60 s); videos stored before keep their length (`MediaAsset.durationMs` may still be up to 180 000 for them) and an unattached one longer than 90 s can no longer be attached. `updateMe` (`PATCH /me`) also takes `displayName` (the §6 registration rules) and `bio` (≤ 300 code points, ≤ 4 line breaks, free-text hygiene; empty or null clears it). `MediaKind.AVATAR` (processed like `LIVE_COVER`); `setMyAvatar` / `removeMyAvatar` (`PUT` / `DELETE /me/avatar`, `SetAvatarRequest`, `Avatar`). §7 row, §10.42, §11.1, §11.14. | **Tightening** on new uploads (a post video of 90–180 s is refused at `completeMediaUpload` with 422 `MEDIA_INVALID`; apps from v1.41 already explain that code); otherwise **additive** (optional request fields, an enum value, new operations). |
 | v1.43-social (draft) | 2026-10-29 | **D164 (owner: «اجعل الوكيل يعمل على أزرار قريباً في أنا» — the Me hub's "Soon" buttons that only need stored data):** tag `wallet`: `listMyWalletLedger` (`GET /wallet/me/ledger`, `WalletLedgerPage`, `WalletLedgerEntry`, `WalletLedgerReason`), `getMyEarnings` (`GET /wallet/me/earnings`, `MyEarnings`) and `listMyEarnings` (`GET /wallet/me/earnings/history`, `EarningPage`, `Earning`, `EarningContext`); tag `me`: `getMyCreatorStats` (`GET /me/creator-stats?period=LAST_7_DAYS\|LAST_30_DAYS\|ALL_TIME`, `CreatorStats`, `CreatorContentStats`, `CreatorStatsPeriod`). All read the caller's own stored data only (no migration). Earnings are display only (no withdrawal, D149). §10.40. | **Additive** (new operations and schemas). |
 | v1.43.1-social (draft) | 2026-10-29 | **D165 (owner: «الوكيل الثاني يعمل على زر الرسائل» — every button of the Messages tab works):** `listDmConversations` takes `q` (a case-insensitive prefix of the peer's username or display name, trimmed, 1–30 characters, a leading `@` ignored; the cursor is bound to `box` and `q`); `markDmUnread` / `clearDmUnread` (`PUT` / `DELETE /dm/conversations/{conversationId}/unread`, 204, bucket `dm:write`); `DmConversation.markedUnread` (required in responses); `markDmRead` clears the mark; `getDmUnread` counts a marked conversation without unread messages as one. Migration `20261213090000_dm_marked_unread` (`dm_participants.marked_unread`). §7 row, §11.13. | **Additive** (an optional parameter, two operations, a response field older apps ignore; the badge can count a marked conversation). |
 | v1.42-social (draft) | 2026-10-29 | **D162a (owner: «جميعها تظهر فوراً» — every post with media is visible at once, like stories, D91):** CP-006 Q2 hold lifted. `createPost` stores posts with photos, a video and reels as `moderation: VISIBLE`; existing `PENDING` posts became `VISIBLE` (data migration `20261212090000_media_posts_visible`). Safety relies on reports and moderators' `REMOVE_TARGET`. `Post.moderation` keeps `PENDING` as a valid value (a future provider or an admin hold). §11.2, §11.14, §11.13 note. | **Behaviour only** (no shape change): media posts appear in feeds, search and grids at once. |
@@ -2520,6 +2522,47 @@ task center and the event center wait for owner decisions (proposal CP-024).
 - **Not in v1.43-social:** recharge (B5), withdrawal (D149), VIP / SVIP, the task center, the event
   center — proposal `docs/contracts/proposals/CP-024-me-hub-programs.md`.
 
+### 10.42 Editing the own profile *(v1.45-social, DRAFT — D168)*
+
+Owner request (2026-10-29, from the phone): «فعّل الأزرار المتبقية في تعديل الملف وتغيير الصورة» —
+make the remaining controls of «تعديل الملف الشخصي» work, the photo included. Built only where no new
+owner business rule is needed (CP-001's name and bio rules, the media pipeline of §11.1); links, gender,
+account category, the grid order and the private-account switch stay "Soon" with questions to the owner
+(D168).
+
+- **Name and bio:** `PATCH /me` takes `displayName` and/or `bio` besides `locale` and `country` (at least
+  one of the four; `{}` → 400 `body` / `required`).
+  - `displayName`: exactly the registration rules of §6 (NFC, trimmed, 1–50 graphemes, ≤ 100 code
+    points, text hygiene, joiners, zalgo, mixed scripts; `too_short`, `too_long`, `invalid_format`), and
+    the configured reserved terms → 400 `displayName` / `reserved_term`. Display names are not unique.
+  - `bio`: CRLF → LF, NFC, trimmed, each line loses its trailing spaces, blank lines at either end go;
+    then at most **300 code points** and **4 line breaks** (`too_long`), each line under the free-text
+    hygiene of §6 (`invalid_format`). An empty result or `null` clears it (`Me.bio` and
+    `PublicProfile.bio` null). Raw input over 1 200 code points → `too_long` before any work.
+  - The response is the updated `Me`. A change of name or bio is audited `user.profile.update`
+    (metadata: which fields changed, never their values). Profiles, follow lists, rooms, comments and
+    messages show the new name from their next read; nothing stored elsewhere is rewritten (live chat
+    lines already sent keep the name they were sent with).
+- **The profile photo:** the app uploads the photo as an **`AVATAR`** asset (§11.1: a centre-cropped
+  square, `640.webp` and `320.webp`, metadata stripped; the app may crop it square first), then
+  `PUT /me/avatar {mediaId}` → 200 `{avatarUrl}`. Order after auth and the rate limit:
+  `MEDIA_UPLOADS_ENABLED` off → 503 `MEDIA_UPLOADS_UNAVAILABLE` → body (strict; `mediaId` a UUID, else
+  400 `mediaId` / `invalid_value`) → the asset: a READY, unattached `AVATAR` of the caller from the last
+  24 hours, else 400 `mediaId` / `invalid_value`. The previous `AVATAR` asset is deleted with its objects
+  (after commit); a photo that was not an asset (none today) is simply replaced. Setting the current
+  photo again changes nothing. Audited `user.avatar.update` (`set` / `removed`).
+- `DELETE /me/avatar` → 204: `avatarUrl` null (the app shows the initial), the asset deleted;
+  idempotent; works while uploads are off.
+- `avatarUrl` (the 640 px WebP) is what `Me`, `PublicProfile` and every `UserSummary` already carry: the
+  new photo shows everywhere from the next read. It is visible to everyone at once, like stories (D91)
+  and posts (D162a); safety relies on reports of the user and moderators.
+- **Rate limits:** `PATCH /me` keeps 30 / hour per user; `PUT` and `DELETE /me/avatar` share 30 / hour per
+  user (§7).
+- **Not in v1.45-social** (owner questions, D168): profile links, gender, account category, reordering
+  the profile grid, the private-account switch (no follow requests yet, §10.5), a cover photo, a
+  birthday. The username keeps its own endpoint (`PUT /me/username`, §10.32); the country stays in
+  settings (§10.28).
+
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 
 Additive; no earlier rule changes. Reels and video (M2), stories (M3), notifications (M4),
@@ -2569,6 +2612,8 @@ are §11.14.
 - *(v1.41-social, D162)* `POST_VIDEO` and `REEL_VIDEO` uploads are videos (`video/mp4`,
   `video/quicktime`), checked and stored as §11.14 says; `VIDEO_POSTER` uploads are processed like
   `POST_IMAGE` and are consumed by the video they are the poster of.
+- *(v1.45-social, D168)* `AVATAR` uploads are processed like `LIVE_COVER` (centre-cropped squares,
+  640 and 320 px) and attach only as the uploader's profile photo (§10.42).
 - Asset URLs are served from `MEDIA_PUBLIC_BASE_URL` (a CDN or bucket domain). An asset is
   attachable once, only by its owner, within 24 hours; unattached assets and expired slots are
   deleted by a sweeper.
@@ -2985,12 +3030,18 @@ configuration (`DM_*`).
 ### 11.14 Video posts and reels *(v1.41-social, DRAFT — D162, CP-023; CP-006 M2 without transcoding)*
 
 - **Kinds and limits** (server-enforced): `POST_VIDEO` — `video/mp4` or `video/quicktime`, at most
-  **209 715 200 bytes (200 MiB)** and **1–180 s**; `REEL_VIDEO` — the same types, at most
+  **209 715 200 bytes (200 MiB)** and **1–90 s** *(v1.45-social, D168, owner: «مدة الفيديو لا تتجاوز ٩٠
+  ثانية»; 1–180 s before)*; `REEL_VIDEO` — the same types, at most
   **104 857 600 bytes (100 MiB)** and **1–60 s**; `VIDEO_POSTER` — an image (JPEG, PNG, WebP,
   ≤ 15 MiB), the video's first frame made on the phone, processed like `POST_IMAGE` (1 080 and
   320 px WebP and a blurhash). A video type for another kind, or another type for a video kind →
   400 `contentType` / `invalid_value`; a larger `byteSize` → 400 `byteSize` / `too_big`. The
   presigned PUT signs `Content-Type` and `Content-Length`, so storage refuses any other bytes.
+  *(v1.45-social, D168)* Post videos stored before the 90 s limit keep their length and stay
+  playable (`durationMs` up to 180 000); a `POST_VIDEO` asset longer than 90 s that is not attached
+  yet can no longer be attached (`createPost` → 400 `mediaIds` / `invalid_value`, as for any asset
+  that is not attachable). The database keeps the old 1–180 000 ms shape check for every row and a
+  second check, created `NOT VALID`, that holds new and updated `POST_VIDEO` rows to 90 000 ms.
 - **Completing a video** (`completeMediaUpload` with `{posterId}`). Check order: auth →
   `MEDIA_UPLOADS_ENABLED` → the slot (404) → body (`posterId` required for a video kind, refused for
   every other kind with `unknown_field`, and it must be a READY, unattached `VIDEO_POSTER` of the

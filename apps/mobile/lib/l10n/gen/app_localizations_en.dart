@@ -1282,10 +1282,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profileEditBio => 'Bio';
 
   @override
-  String get profileEditUnavailable =>
-      'Changing your name, bio and photo needs a server update that isn\'t available yet.';
-
-  @override
   String get profileEditPhoto => 'Change photo';
 
   @override
@@ -7641,7 +7637,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get meHubItemBag => 'Item Bag';
 
   @override
-  String get meHubPost => 'Post';
+  String get meHubMyProfile => 'My profile';
 
   @override
   String get meHubSvip => 'SVIP';
@@ -7690,7 +7686,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get createMenuLiveHint => 'Video or voice, right now';
 
   @override
-  String get createVideoUpTo => 'One video, up to 3 minutes';
+  String get createVideoUpTo => 'One video, up to 90 seconds';
 
   @override
   String get createLibraryVideo => 'Video';
@@ -7714,7 +7710,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'A post holds photos or one video, not both.';
 
   @override
-  String get createVideoTooLong => 'Videos in posts can be up to 3 minutes.';
+  String get createVideoTooLong => 'Videos in posts can be up to 90 seconds.';
 
   @override
   String get createVideoTooLarge => 'This video is larger than 200 MB.';
@@ -8046,4 +8042,63 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get chatVoiceUnavailable =>
       'Voice messages aren\'t available on this device';
+
+  @override
+  String get profileEditPhotoSheetTitle => 'Profile photo';
+
+  @override
+  String get profileEditPhotoLibrary => 'Choose from photos';
+
+  @override
+  String get profileEditPhotoCamera => 'Take a photo';
+
+  @override
+  String get profileEditPhotoRemove => 'Remove photo';
+
+  @override
+  String get profileEditPhotoUpdated => 'Your photo was updated';
+
+  @override
+  String get profileEditPhotoRemoved => 'Your photo was removed';
+
+  @override
+  String get profileEditPhotoUploading => 'Uploading photo…';
+
+  @override
+  String get profileEditCropTitle => 'Crop photo';
+
+  @override
+  String get profileEditCropHint =>
+      'Drag and zoom the photo to fill the square';
+
+  @override
+  String get profileEditCropDone => 'Done';
+
+  @override
+  String get profileEditSaved => 'Saved';
+
+  @override
+  String get profileEditBioPlaceholder => 'Add a bio';
+
+  @override
+  String profileEditBioTooLong(int max, int lines) {
+    return 'A bio can be up to $max characters and $lines lines.';
+  }
+
+  @override
+  String get profileEditBioInvalid =>
+      'The bio has characters that aren\'t allowed.';
+
+  @override
+  String get profileEditNameHelp =>
+      'Your name shows on your profile, in lives and in messages. Other accounts can have the same name.';
+
+  @override
+  String get profileEditBioHelp =>
+      'Your bio is shown to everyone on your profile.';
+
+  @override
+  String createLibraryVideoTooLong(String length, int seconds) {
+    return 'Video, $length, longer than $seconds seconds, can\'t be used';
+  }
 }

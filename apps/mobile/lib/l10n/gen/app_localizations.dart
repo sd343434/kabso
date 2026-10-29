@@ -2228,12 +2228,6 @@ abstract class AppLocalizations {
   /// **'النبذة'**
   String get profileEditBio;
 
-  /// D58: edit profile (read-only until CP-001).
-  ///
-  /// In ar, this message translates to:
-  /// **'تغيير الاسم والنبذة والصورة يحتاج تحديثًا في الخادم غير متاح بعد.'**
-  String get profileEditUnavailable;
-
   /// D58: under the photo (disabled until upload exists).
   ///
   /// In ar, this message translates to:
@@ -13153,11 +13147,11 @@ abstract class AppLocalizations {
   /// **'الحقيبة'**
   String get meHubItemBag;
 
-  /// D163: the Me hub (owner ref, Bigo-style layout). row: opens the profile with its posts
+  /// D168: the Me hub's top icon beside Settings (tooltip and screen-reader label); opens the profile page with posts, reels, reposts and saved
   ///
   /// In ar, this message translates to:
-  /// **'المنشورات'**
-  String get meHubPost;
+  /// **'ملفي الشخصي'**
+  String get meHubMyProfile;
 
   /// D163: the Me hub (owner ref, Bigo-style layout). row (not built: Soon)
   ///
@@ -13246,7 +13240,7 @@ abstract class AppLocalizations {
   /// D162: the media step's note on the Video tab.
   ///
   /// In ar, this message translates to:
-  /// **'فيديو واحد حتى ٣ دقائق'**
+  /// **'فيديو واحد حتى ٩٠ ثانية'**
   String get createVideoUpTo;
 
   /// D162: a library video tile (semantics).
@@ -13285,10 +13279,10 @@ abstract class AppLocalizations {
   /// **'يضم المنشور صوراً أو فيديو واحداً، وليس الاثنين معاً.'**
   String get createVideoOrPhotos;
 
-  /// D162: post video limit.
+  /// D162: post video limit (D168: 90 seconds, owner).
   ///
   /// In ar, this message translates to:
-  /// **'يمكن أن تصل مدة فيديو المنشور إلى ٣ دقائق.'**
+  /// **'يمكن أن تصل مدة فيديو المنشور إلى ٩٠ ثانية.'**
   String get createVideoTooLong;
 
   /// D162: post video size limit.
@@ -13896,6 +13890,108 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'الرسائل الصوتية غير متاحة على هذا الجهاز'**
   String get chatVoiceUnavailable;
+
+  /// D168: the sheet title of «تغيير الصورة» in edit profile.
+  ///
+  /// In ar, this message translates to:
+  /// **'صورة الملف الشخصي'**
+  String get profileEditPhotoSheetTitle;
+
+  /// D168: photo sheet choice: the system photo picker.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختيار من الصور'**
+  String get profileEditPhotoLibrary;
+
+  /// D168: photo sheet choice: the camera.
+  ///
+  /// In ar, this message translates to:
+  /// **'التقاط صورة'**
+  String get profileEditPhotoCamera;
+
+  /// D168: photo sheet choice: back to the initial.
+  ///
+  /// In ar, this message translates to:
+  /// **'إزالة الصورة'**
+  String get profileEditPhotoRemove;
+
+  /// D168: snack after the profile photo changed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم تحديث صورتك'**
+  String get profileEditPhotoUpdated;
+
+  /// D168: snack after the profile photo was removed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تمت إزالة صورتك'**
+  String get profileEditPhotoRemoved;
+
+  /// D168: under the photo (and its screen-reader label) while it uploads.
+  ///
+  /// In ar, this message translates to:
+  /// **'جارٍ رفع الصورة…'**
+  String get profileEditPhotoUploading;
+
+  /// D168: the square crop screen's title.
+  ///
+  /// In ar, this message translates to:
+  /// **'قص الصورة'**
+  String get profileEditCropTitle;
+
+  /// D168: the crop screen's hint (and the photo's screen-reader label).
+  ///
+  /// In ar, this message translates to:
+  /// **'اسحب الصورة وكبّرها لتملأ المربع'**
+  String get profileEditCropHint;
+
+  /// D168: the crop screen's confirm button.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم'**
+  String get profileEditCropDone;
+
+  /// D168: snack after the name or bio was saved.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم الحفظ'**
+  String get profileEditSaved;
+
+  /// D168: the empty bio row and the bio field's hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'أضف نبذة عنك'**
+  String get profileEditBioPlaceholder;
+
+  /// D168: the bio is too long (characters or lines).
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكن أن تصل النبذة إلى {max} حرف و{lines} أسطر.'**
+  String profileEditBioTooLong(int max, int lines);
+
+  /// D168: the server refused a character in the bio.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحتوي النبذة على رموز غير مسموح بها.'**
+  String get profileEditBioInvalid;
+
+  /// D168: under the name field.
+  ///
+  /// In ar, this message translates to:
+  /// **'يظهر اسمك في ملفك وفي البث والرسائل. يمكن أن يتكرر بين الحسابات.'**
+  String get profileEditNameHelp;
+
+  /// D168: under the bio field.
+  ///
+  /// In ar, this message translates to:
+  /// **'تظهر النبذة للجميع في ملفك الشخصي.'**
+  String get profileEditBioHelp;
+
+  /// D168: screen-reader label of a library video longer than the limit (90 s for posts, 60 s for reels).
+  ///
+  /// In ar, this message translates to:
+  /// **'فيديو، {length}، أطول من {seconds} ثانية، لا يمكن استخدامه'**
+  String createLibraryVideoTooLong(String length, int seconds);
 }
 
 class _AppLocalizationsDelegate

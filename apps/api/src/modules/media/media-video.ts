@@ -12,9 +12,12 @@ export type VideoContentType = (typeof VIDEO_CONTENT_TYPES)[number];
 
 export type VideoKind = 'POST_VIDEO' | 'REEL_VIDEO';
 
-/** Server-enforced limits per kind (owner D162: reels 100 MiB / 60 s, post videos 200 MiB / 3 min). */
+/**
+ * Server-enforced limits per kind (owner D162: reels 100 MiB / 60 s, post videos 200 MiB; owner D168:
+ * post videos at most 90 s, was 3 min). Post videos stored before D168 keep their length (≤ 180 s).
+ */
 export const VIDEO_LIMITS: Readonly<Record<VideoKind, { maxBytes: number; maxDurationMs: number }>> = {
-  POST_VIDEO: { maxBytes: 200 * 1024 * 1024, maxDurationMs: 180_000 },
+  POST_VIDEO: { maxBytes: 200 * 1024 * 1024, maxDurationMs: 90_000 },
   REEL_VIDEO: { maxBytes: 100 * 1024 * 1024, maxDurationMs: 60_000 },
 };
 /** The largest upload of any kind (`CreateMediaUploadRequest.byteSize` maximum). */
@@ -24,7 +27,7 @@ export const MIN_VIDEO_DURATION_MS = 1_000;
 export const VIDEO_DURATION_TOLERANCE_MS = 500;
 export const MIN_VIDEO_SIDE = 16;
 export const MAX_VIDEO_SIDE = 4096;
-/** The largest `moov` box read (a 3-minute phone video's is a few hundred KiB). */
+/** The largest `moov` box read (a few-minute phone video's is a few hundred KiB). */
 export const MAX_MOOV_BYTES = 16 * 1024 * 1024;
 /** Sample entries of the video track that phones play natively (H.264 and HEVC). */
 export const VIDEO_CODECS = ['avc1', 'avc3', 'hvc1', 'hev1'] as const;

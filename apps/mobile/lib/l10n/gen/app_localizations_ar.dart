@@ -1312,10 +1312,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get profileEditBio => 'النبذة';
 
   @override
-  String get profileEditUnavailable =>
-      'تغيير الاسم والنبذة والصورة يحتاج تحديثًا في الخادم غير متاح بعد.';
-
-  @override
   String get profileEditPhoto => 'تغيير الصورة';
 
   @override
@@ -7677,7 +7673,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get meHubItemBag => 'الحقيبة';
 
   @override
-  String get meHubPost => 'المنشورات';
+  String get meHubMyProfile => 'ملفي الشخصي';
 
   @override
   String get meHubSvip => 'SVIP';
@@ -7726,7 +7722,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get createMenuLiveHint => 'فيديو أو صوت، الآن';
 
   @override
-  String get createVideoUpTo => 'فيديو واحد حتى ٣ دقائق';
+  String get createVideoUpTo => 'فيديو واحد حتى ٩٠ ثانية';
 
   @override
   String get createLibraryVideo => 'فيديو';
@@ -7750,7 +7746,8 @@ class AppLocalizationsAr extends AppLocalizations {
       'يضم المنشور صوراً أو فيديو واحداً، وليس الاثنين معاً.';
 
   @override
-  String get createVideoTooLong => 'يمكن أن تصل مدة فيديو المنشور إلى ٣ دقائق.';
+  String get createVideoTooLong =>
+      'يمكن أن تصل مدة فيديو المنشور إلى ٩٠ ثانية.';
 
   @override
   String get createVideoTooLarge => 'حجم هذا الفيديو أكبر من ٢٠٠ ميغابايت.';
@@ -8073,4 +8070,60 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get chatVoiceUnavailable => 'الرسائل الصوتية غير متاحة على هذا الجهاز';
+
+  @override
+  String get profileEditPhotoSheetTitle => 'صورة الملف الشخصي';
+
+  @override
+  String get profileEditPhotoLibrary => 'اختيار من الصور';
+
+  @override
+  String get profileEditPhotoCamera => 'التقاط صورة';
+
+  @override
+  String get profileEditPhotoRemove => 'إزالة الصورة';
+
+  @override
+  String get profileEditPhotoUpdated => 'تم تحديث صورتك';
+
+  @override
+  String get profileEditPhotoRemoved => 'تمت إزالة صورتك';
+
+  @override
+  String get profileEditPhotoUploading => 'جارٍ رفع الصورة…';
+
+  @override
+  String get profileEditCropTitle => 'قص الصورة';
+
+  @override
+  String get profileEditCropHint => 'اسحب الصورة وكبّرها لتملأ المربع';
+
+  @override
+  String get profileEditCropDone => 'تم';
+
+  @override
+  String get profileEditSaved => 'تم الحفظ';
+
+  @override
+  String get profileEditBioPlaceholder => 'أضف نبذة عنك';
+
+  @override
+  String profileEditBioTooLong(int max, int lines) {
+    return 'يمكن أن تصل النبذة إلى $max حرف و$lines أسطر.';
+  }
+
+  @override
+  String get profileEditBioInvalid => 'تحتوي النبذة على رموز غير مسموح بها.';
+
+  @override
+  String get profileEditNameHelp =>
+      'يظهر اسمك في ملفك وفي البث والرسائل. يمكن أن يتكرر بين الحسابات.';
+
+  @override
+  String get profileEditBioHelp => 'تظهر النبذة للجميع في ملفك الشخصي.';
+
+  @override
+  String createLibraryVideoTooLong(String length, int seconds) {
+    return 'فيديو، $length، أطول من $seconds ثانية، لا يمكن استخدامه';
+  }
 }

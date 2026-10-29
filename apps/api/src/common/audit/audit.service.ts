@@ -91,6 +91,10 @@ export enum AuditAction {
   LIVE_BOOST_CARD_GRANT = 'live.boost_card.grant',
   // v1.28-live (DRAFT, D146): premium usernames and the username change (CONVENTIONS §10.32).
   USERNAME_CHANGE = 'user.username.change',
+  /** v1.45-social (D168): the caller changed their display name and/or bio (field names only). */
+  PROFILE_UPDATE = 'user.profile.update',
+  /** v1.45-social (D168): the caller set or removed their profile photo. */
+  AVATAR_UPDATE = 'user.avatar.update',
   PREMIUM_USERNAME_RENT = 'premium_username.rent',
   PREMIUM_USERNAME_RENEW = 'premium_username.renew',
   PREMIUM_USERNAME_GRANT = 'premium_username.grant',

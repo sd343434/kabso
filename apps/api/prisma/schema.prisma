@@ -185,24 +185,28 @@ model User {
 }
 
 model UserProfile {
-  userId      String               @id @map("user_id") @db.Uuid
+  userId        String               @id @map("user_id") @db.Uuid
   /// Lowercase; format enforced by CHECK constraint `user_profiles_username_format`.
-  username    String               @unique @db.VarChar(30)
+  username      String               @unique @db.VarChar(30)
   /// ≤ 100 code points, 1–50 grapheme clusters (contract v1.2 §6).
-  displayName String               @map("display_name") @db.VarChar(100)
-  bio         String?              @db.VarChar(300)
-  avatarUrl   String?              @map("avatar_url") @db.VarChar(2048)
-  locale      String               @default("ar") @db.VarChar(8)
+  displayName   String               @map("display_name") @db.VarChar(100)
+  bio           String?              @db.VarChar(300)
+  avatarUrl     String?              @map("avatar_url") @db.VarChar(2048)
+  /// v1.45-social (D168): the user's profile photo when it was uploaded (an `AVATAR` asset); its
+  /// 640 px URL is `avatarUrl`. CHECK `user_profiles_avatar_media_has_url`.
+  avatarMediaId String?              @unique @map("avatar_media_id") @db.Uuid
+  locale        String               @default("ar") @db.VarChar(8)
   /// v1.27.1-live (D133): the user's own country (ISO 3166-1 alpha-2, upper case), or null (none set;
   /// never inferred). CHECK `user_profiles_country_code_format`. Decides `scope=nearby` (§10.28).
-  countryCode String?              @map("country_code") @db.Char(2)
+  countryCode   String?              @map("country_code") @db.Char(2)
   /// v1.28-live (D146): the tier of the premium username the user has now (set and cleared with
   /// `username` by the premium-usernames module); null for a regular username.
-  premiumTier PremiumUsernameTier? @map("premium_tier")
-  createdAt   DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt   DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+  premiumTier   PremiumUsernameTier? @map("premium_tier")
+  createdAt     DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  avatarMedia MediaAsset? @relation("ProfileAvatar", fields: [avatarMediaId], references: [id], onDelete: NoAction)
 
   @@map("user_profiles")
 }
@@ -1326,7 +1330,8 @@ model MediaAsset {
   width      Int
   height     Int
   /// CP-017: a `LIVE_CHAT_VOICE` clip's length (≤ 30 000 ms); null for images. D162: a video's
-  /// length (`POST_VIDEO` ≤ 180 000, `REEL_VIDEO` ≤ 60 000).
+  /// length (`POST_VIDEO` ≤ 180 000, `REEL_VIDEO` ≤ 60 000). D168: new `POST_VIDEO` rows ≤ 90 000
+  /// (CHECK `media_assets_post_video_90s`, NOT VALID: older rows keep their length).
   durationMs Int?      @map("duration_ms")
   blurhash   String?   @db.VarChar(64)
   /// D162: a video's file (`media/{id}/video.mp4|.mov`); otherwise the large WebP.
@@ -1339,20 +1344,22 @@ model MediaAsset {
   createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   attachedAt DateTime? @map("attached_at") @db.Timestamptz(3)
 
-  owner        User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  upload       MediaUpload?
-  postMedia    PostMedia?
-  story        Story?
-  liveCover    LiveHost?
-  chatMessage  LiveChatMessage?
+  owner         User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  upload        MediaUpload?
+  postMedia     PostMedia?
+  story         Story?
+  liveCover     LiveHost?
+  chatMessage   LiveChatMessage?
   /// CP-018: a family's emblem.
-  familyEmblem Family?
+  familyEmblem  Family?
   /// CP-022: a family's cover.
-  familyCover  Family?          @relation("FamilyCover")
+  familyCover   Family?          @relation("FamilyCover")
   /// D124: a home banner's picture.
-  homeBanner   HomeBanner?
+  homeBanner    HomeBanner?
   /// D155: a direct message's picture or voice clip.
-  dmMessage    DmMessage?
+  dmMessage     DmMessage?
+  /// D168: a profile photo.
+  profileAvatar UserProfile?     @relation("ProfileAvatar")
 
   @@index([createdAt], map: "media_assets_unattached_idx", where: raw("attached_at IS NULL"))
   @@map("media_assets")

@@ -1,11 +1,15 @@
 import { Module } from '@nestjs/common';
+import { MediaModule } from '../media/media.module.js';
 import { PresenceTracker } from './presence.js';
-import { UsersController } from './users.controller.js';
+import { ProfileEditService } from './profile-edit.service.js';
+import { AvatarController, UsersController } from './users.controller.js';
 import { UsersService } from './users.service.js';
 
 @Module({
-  controllers: [UsersController],
-  providers: [UsersService, PresenceTracker],
+  // D168: the profile photo is an `AVATAR` media asset (§10.42).
+  imports: [MediaModule],
+  controllers: [UsersController, AvatarController],
+  providers: [UsersService, PresenceTracker, ProfileEditService],
   exports: [UsersService, PresenceTracker],
 })
 export class UsersModule {}

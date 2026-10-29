@@ -208,7 +208,7 @@ info:
     gifts inside a conversation through the live gift pipeline, block/report (`DM_MESSAGE`, kept as a
     snapshot)/mute/delete; every message is deleted 24 hours after it was sent (CONVENTIONS §11.13).
     **D162 (DRAFT v1.41-social, CP-023, CP-006 M2 without transcoding)** adds video posts and reels:
-    media kinds `POST_VIDEO` (≤ 200 MiB, ≤ 180 s), `REEL_VIDEO` (≤ 100 MiB, ≤ 60 s) and
+    media kinds `POST_VIDEO` (≤ 200 MiB, ≤ 180 s; ≤ 90 s since v1.45-social, D168), `REEL_VIDEO` (≤ 100 MiB, ≤ 60 s) and
     `VIDEO_POSTER` (the phone-made first frame), `video/mp4` and `video/quicktime`, the optional
     `CompleteMediaUploadRequest.posterId`, `MediaAsset.type: VIDEO` with `posterUrl` and
     `durationMs`, `Post.format: REEL` / `CreatePostRequest.format`, and `listFeedReels`
@@ -220,6 +220,10 @@ info:
     stored data: the caller's coin history (`listMyWalletLedger`), gift earnings and their history
     (`getMyEarnings`, `listMyEarnings`, display only — no withdrawal, D149) and the creator center
     (`getMyCreatorStats`, `GET /me/creator-stats`) (CONVENTIONS §10.40).
+    **D168 (DRAFT v1.45-social)**: a post video is now at most 90 s (owner; reels stay ≤ 60 s;
+    stored videos keep their length); `updateMe` also edits `displayName` and `bio`; the profile
+    photo is uploaded as media kind `AVATAR` and set or removed with `setMyAvatar` /
+    `removeMyAvatar` (`PUT` / `DELETE /me/avatar`) (CONVENTIONS §10.42, §11.1, §11.14).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -587,10 +591,11 @@ paths:
     patch:
       tags: [me]
       operationId: updateMe
-      summary: "Update the caller's preferences (v1.2: locale; v1.27.1-live: country)"
+      summary: "Update the caller's preferences and profile (v1.2: locale; v1.27.1-live: country; v1.45-social: displayName, bio)"
       description: |
         v1.27.1-live (D133): `locale` is no longer required and `country` is added; at least one of
-        them must be sent (an empty object → 400 `body` / `required`). `country` is an ISO 3166-1
+        them must be sent (an empty object → 400 `body` / `required`). v1.45-social (D168,
+        CONVENTIONS §10.42): `displayName` and `bio` may be sent too (at least one field of the four). `country` is an ISO 3166-1
         alpha-2 code (two letters; lower case is accepted and stored upper case; `XK` and groupings
         such as `EU` are not countries here), or null to clear it;
         another value → 400 (`field "country"`, `issue "invalid_value"`). It is the caller's own
@@ -609,6 +614,21 @@ paths:
                   type: [string, 'null']
                   pattern: '^[A-Za-z]{2}$'
                   description: v1.27.1-live (D133). ISO 3166-1 alpha-2; null clears it.
+                displayName:
+                  allOf: [{ $ref: '#/components/schemas/DisplayName' }]
+                  description: |
+                    v1.45-social (D168, CONVENTIONS §10.42). The registration rules of §6 (NFC, trimmed,
+                    1–50 graphemes, ≤ 100 code points, text hygiene; `too_short`, `too_long`,
+                    `invalid_format`, `reserved_term` on field `displayName`). Shown everywhere the
+                    person appears from the next read.
+                bio:
+                  type: [string, 'null']
+                  maxLength: 1200
+                  description: |
+                    v1.45-social (D168, CONVENTIONS §10.42). After normalisation (CRLF → LF, NFC, trimmed,
+                    trailing spaces of each line removed) at most 300 code points and 4 line breaks, the
+                    free-text hygiene of §6 on each line (`too_long`, `invalid_format` on field `bio`). An
+                    empty value or null clears it (`Me.bio` null).
       responses:
         '200':
           description: Updated user.
@@ -940,6 +960,46 @@ paths:
         '204': { description: Removed (or there was none). }
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/me/avatar:
+    put:
+      tags: [me]
+      operationId: setMyAvatar
+      summary: "Set the caller's profile photo (v1.45-social, D168)"
+      description: |
+        CONVENTIONS §10.42. Order after auth and the rate limit (30 / hour / user):
+        `MEDIA_UPLOADS_ENABLED` (503 `MEDIA_UPLOADS_UNAVAILABLE`) → body → the asset: a READY,
+        unattached `AVATAR` asset of the caller from the last 24 hours, else 400 `mediaId` /
+        `invalid_value`. The photo replaces the previous one (whose `AVATAR` asset is deleted) and is
+        `Me.avatarUrl`, `PublicProfile.avatarUrl` and every `UserSummary.avatarUrl` of the caller from
+        the next read. Setting the current photo again changes nothing. Visible to everyone at once
+        (like stories and posts, D91 / D162a); reports and moderators handle abuse.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetAvatarRequest' }
+      responses:
+        '200':
+          description: The photo now in use.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Avatar' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [me]
+      operationId: removeMyAvatar
+      summary: "Remove the caller's profile photo; the initial shows again (v1.45-social, idempotent)"
+      description: |
+        CONVENTIONS §10.42. `avatarUrl` becomes null and the photo's `AVATAR` asset (if it was one) is
+        deleted. Works while uploads are off. No photo → 204 too. Same rate limit as `setMyAvatar`.
+      responses:
+        '204': { description: Removed (or there was none). }
+        '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
   /api/v1/users/username-availability:
@@ -5285,7 +5345,8 @@ paths:
         (v1.41-social, D162, CONVENTIONS §11.14) A `POST_VIDEO` / `REEL_VIDEO` upload needs the body
         `{posterId}` (400 `posterId` / `required`; another kind with `posterId` → `unknown_field`; a
         poster that is not a READY, unattached `VIDEO_POSTER` of the caller → `invalid_value`, the
-        slot stays open). The video is checked without decoding (container, 1 s to 60 s / 180 s,
+        slot stays open). The video is checked without decoding (container, 1 s to 60 s / 90 s
+        (a post video; 180 s before v1.45-social, D168),
         H.264 or HEVC video track, 16–4 096 px) else 422 `MEDIA_INVALID`; it is served as
         uploaded (`type: VIDEO`) and the poster becomes its `thumbUrl` / `posterUrl`. Check order:
         auth → `MEDIA_UPLOADS_ENABLED` → 404 → body → the bytes.
@@ -8542,7 +8603,7 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     MediaKind:
       type: string
-      enum: [POST_IMAGE, STORY_IMAGE, LIVE_COVER, LIVE_CHAT_IMAGE, LIVE_CHAT_VOICE, FAMILY_EMBLEM, FAMILY_COVER, HOME_BANNER, DM_IMAGE, DM_VOICE, POST_VIDEO, REEL_VIDEO, VIDEO_POSTER]
+      enum: [POST_IMAGE, STORY_IMAGE, LIVE_COVER, LIVE_CHAT_IMAGE, LIVE_CHAT_VOICE, FAMILY_EMBLEM, FAMILY_COVER, HOME_BANNER, DM_IMAGE, DM_VOICE, POST_VIDEO, REEL_VIDEO, VIDEO_POSTER, AVATAR]
       description: |
         Images for posts, (CP-008) for stories and (CP-015) for the host's live cover; (CP-017)
         a picture or a voice clip (`audio/mp4`, ≤ 30 s, ≤ 1 MiB) for a live chat message;
@@ -8551,11 +8612,13 @@ components:
         (D124) a home banner (cover-cropped to 3:1 around the centre: 1 500 × 500 and 320 × 107,
         attached only by the banner-admin CLI); (D155) `DM_IMAGE` (like a post image) and `DM_VOICE`
         (like a live chat voice clip) for a direct message, deleted with it after 24 hours;
-        (v1.41-social, D162) `POST_VIDEO` (≤ 200 MiB, 1–180 s) for a post, `REEL_VIDEO` (≤ 100 MiB,
+        (v1.41-social, D162) `POST_VIDEO` (≤ 200 MiB, 1–180 s; 1–90 s since v1.45-social, D168) for a post, `REEL_VIDEO` (≤ 100 MiB,
         1–60 s) for a reel, and `VIDEO_POSTER` (an image, the video's first frame made on the phone,
-        processed like a post image) consumed by `completeMediaUpload` of a video. An asset is
-        attachable only to its kind's target (a post, a story, the live cover, a live chat message,
-        a family, a reel or a video).
+        processed like a post image) consumed by `completeMediaUpload` of a video. (v1.45-social,
+        D168) `AVATAR`: the profile photo, processed like `LIVE_COVER` (a centre-cropped square, 640
+        and 320 px), attached only by `setMyAvatar`. An asset is attachable only to its kind's target
+        (a post, a story, the live cover, a live chat message, a family, a reel, a video or the
+        profile photo).
     CreateMediaUploadRequest:
       type: object
       additionalProperties: false
@@ -8639,7 +8702,7 @@ components:
           type: integer
           minimum: 1
           maximum: 180000
-          description: CP-017 — `AUDIO` only (absent for images); the clip's length (≤ 30 000). (v1.41-social, D162) `VIDEO`'s length (≤ 60 000 for a reel, ≤ 180 000 for a post video).
+          description: CP-017 — `AUDIO` only (absent for images); the clip's length (≤ 30 000). (v1.41-social, D162) `VIDEO`'s length (≤ 60 000 for a reel, ≤ 180 000 for a post video). (v1.45-social, D168) New post videos are ≤ 90 000; ones stored before keep their length (≤ 180 000).
     SetLiveBlockedWordsRequest:
       type: object
       additionalProperties: false
@@ -8692,6 +8755,17 @@ components:
       required: [coverUrl]
       properties:
         coverUrl: { type: string, format: uri, description: "WebP, 640 px square (smaller if the photo was)." }
+    SetAvatarRequest:
+      type: object
+      additionalProperties: false
+      required: [mediaId]
+      properties:
+        mediaId: { type: string, format: uuid, description: "v1.45-social (D168). A READY, unattached AVATAR asset of the caller." }
+    Avatar:
+      type: object
+      required: [avatarUrl]
+      properties:
+        avatarUrl: { type: string, format: uri, description: "v1.45-social (D168). WebP, 640 px square (smaller if the photo was)." }
     PostText:
       type: string
       maxLength: 2200
