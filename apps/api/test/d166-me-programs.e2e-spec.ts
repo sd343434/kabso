@@ -422,6 +422,7 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
     const roomB = await startLive(hostB);
     await join(roomA, fan);
     await join(roomB, fan);
+    await new Promise((r) => setTimeout(r, 20));
     const now = Date.now();
     const event = await ctx.prisma.event.create({
       data: {
@@ -429,8 +430,8 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
         titleEn: 'Stars of the week',
         rulesAr: 'أكثر من يستقبل هدايا',
         rulesEn: 'Who receives the most gifts',
-        // From now: gifts of the earlier tests stay outside the window.
-        startsAt: new Date(now - 1000),
+        // From now: gifts of the earlier tests (milliseconds ago) stay outside the window.
+        startsAt: new Date(now),
         endsAt: new Date(now + HOUR_MS),
         metric: 'GIFT_COINS_RECEIVED',
         featured: true,
@@ -573,6 +574,7 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
     await creditIn(ctx.prisma, fan.id, 1_000n, 'ADMIN_GRANT', randomUUID());
     const room = await startLive(host);
     await join(room, fan);
+    await new Promise((r) => setTimeout(r, 20));
     const now = Date.now();
     const event = await ctx.prisma.event.create({
       data: {
@@ -580,7 +582,7 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
         titleEn: 'Held',
         rulesAr: '-',
         rulesEn: '-',
-        startsAt: new Date(now - 1000),
+        startsAt: new Date(now),
         endsAt: new Date(now + HOUR_MS),
         metric: 'GIFT_COINS_SENT',
         payoutHold: true,
