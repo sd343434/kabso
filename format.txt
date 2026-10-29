@@ -1,0 +1,10 @@
+Formatted lib/features/programs/data/programs_repository.dart
+Formatted lib/features/programs/presentation/event_calendar.dart
+Formatted lib/features/programs/presentation/event_center_screen.dart
+Formatted lib/features/programs/presentation/event_detail_screen.dart
+Formatted lib/features/programs/presentation/program_parts.dart
+Formatted lib/features/programs/presentation/svip_screen.dart
+Formatted lib/features/programs/presentation/task_center_screen.dart
+Formatted lib/features/wallet/presentation/wallet_screen.dart
+Formatted test/features/programs/programs_d166_test.dart
+Formatted 633 files (9 changed) in 3.55 seconds.

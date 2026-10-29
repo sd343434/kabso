@@ -1,0 +1,391 @@
+diff --git a/apps/mobile/lib/features/programs/data/programs_repository.dart b/apps/mobile/lib/features/programs/data/programs_repository.dart
+index 6f68220..bc03d2d 100644
+--- a/apps/mobile/lib/features/programs/data/programs_repository.dart
++++ b/apps/mobile/lib/features/programs/data/programs_repository.dart
+@@ -14,7 +14,8 @@ int _int(Object? v) => (v as num?)?.toInt() ?? 0;
+ 
+ int? _intOrNull(Object? v) => (v as num?)?.toInt();
+ 
+-DateTime? _timeOrNull(Object? v) => v == null ? null : DateTime.parse(v as String);
++DateTime? _timeOrNull(Object? v) =>
++    v == null ? null : DateTime.parse(v as String);
+ 
+ List<Map<String, dynamic>> _list(Object? v) => [
+   for (final e in v! as List<dynamic>) e as Map<String, dynamic>,
+@@ -528,8 +529,10 @@ class ProgramsRepositoryImpl implements ProgramsRepository {
+     return res.data!;
+   }
+ 
+-  ProgramPayout _payout(Map<String, dynamic> json) =>
+-      (paidCoins: _int(json['paidCoins']), balanceCoins: _int(json['balanceCoins']));
++  ProgramPayout _payout(Map<String, dynamic> json) => (
++    paidCoins: _int(json['paidCoins']),
++    balanceCoins: _int(json['balanceCoins']),
++  );
+ 
+   @override
+   Future<MyTasks> tasks() =>
+@@ -575,8 +578,7 @@ class ProgramsRepositoryImpl implements ProgramsRepository {
+ 
+   @override
+   Future<RechargeOffer> rechargePackages() => guardApiCall(
+-    () async =>
+-        RechargeOffer.fromJson(await _get('/wallet/recharge-packages')),
++    () async => RechargeOffer.fromJson(await _get('/wallet/recharge-packages')),
+   );
+ }
+ 
+diff --git a/apps/mobile/lib/features/programs/presentation/event_calendar.dart b/apps/mobile/lib/features/programs/presentation/event_calendar.dart
+index 2a2593b..4f601f5 100644
+--- a/apps/mobile/lib/features/programs/presentation/event_calendar.dart
++++ b/apps/mobile/lib/features/programs/presentation/event_calendar.dart
+@@ -72,9 +72,7 @@ List<CalendarWeek> layoutMonth(
+       // The last day the event runs (its end is exclusive).
+       final last = endsAt == null
+           ? weekEnd
+-          : _day(
+-              endsAt.toLocal().subtract(const Duration(milliseconds: 1)),
+-            );
++          : _day(endsAt.toLocal().subtract(const Duration(milliseconds: 1)));
+       if (last.isBefore(weekStart) || start.isAfter(weekEnd)) continue;
+       final from = start.isBefore(weekStart) ? weekStart : start;
+       final to = last.isAfter(weekEnd) ? weekEnd : last;
+@@ -249,9 +247,7 @@ class EventCalendar extends StatelessWidget {
+             padding: const EdgeInsetsDirectional.only(start: KSpacing.xs),
+             child: Text(
+               l10n.eventsMore('$hidden'),
+-              style: context.textStyles.caption.copyWith(
+-                color: p.textTertiary,
+-              ),
++              style: context.textStyles.caption.copyWith(color: p.textTertiary),
+             ),
+           ),
+       ],
+diff --git a/apps/mobile/lib/features/programs/presentation/event_center_screen.dart b/apps/mobile/lib/features/programs/presentation/event_center_screen.dart
+index 0cc39c9..ccbc234 100644
+--- a/apps/mobile/lib/features/programs/presentation/event_center_screen.dart
++++ b/apps/mobile/lib/features/programs/presentation/event_center_screen.dart
+@@ -58,8 +58,7 @@ class _EventCenterScreenState extends ConsumerState<EventCenterScreen> {
+     _ => (tab: EventTab.calendar, month: monthKey(_month)),
+   };
+ 
+-  void _open(EventSummary e) =>
+-      unawaited(context.push(AppRoutes.event(e.id)));
++  void _open(EventSummary e) => unawaited(context.push(AppRoutes.event(e.id)));
+ 
+   Future<void> _refresh() async {
+     ref.invalidate(eventListProvider(_key));
+@@ -79,42 +78,43 @@ class _EventCenterScreenState extends ConsumerState<EventCenterScreen> {
+     final localeTag = Localizations.localeOf(context).toLanguageTag();
+ 
+     final List<Widget> content = switch (list) {
+-      AsyncValue(:final value?) => _tab == 0
+-          ? [
+-              EventCalendar(
+-                month: _month,
+-                events: value.events,
+-                onOpen: _open,
+-              ),
+-              if (value.events.isEmpty)
++      AsyncValue(:final value?) =>
++        _tab == 0
++            ? [
++                EventCalendar(
++                  month: _month,
++                  events: value.events,
++                  onOpen: _open,
++                ),
++                if (value.events.isEmpty)
++                  KEmptyState(
++                    key: EventCenterScreen.emptyKey,
++                    icon: Icons.event_busy_rounded,
++                    title: l10n.eventsEmptyMonth,
++                    message: l10n.eventsEmptyBody,
++                    compact: true,
++                  ),
++              ]
++            : value.events.isEmpty
++            ? [
+                 KEmptyState(
+                   key: EventCenterScreen.emptyKey,
+-                  icon: Icons.event_busy_rounded,
+-                  title: l10n.eventsEmptyMonth,
+-                  message: l10n.eventsEmptyBody,
++                  icon: _tab == 2
++                      ? Icons.public_rounded
++                      : Icons.event_available_rounded,
++                  title: _tab == 2 && value.country == null
++                      ? l10n.eventsNoCountry
++                      : l10n.eventsEmpty,
++                  message: _tab == 2 && value.country == null
++                      ? l10n.eventsNoCountryBody
++                      : l10n.eventsEmptyBody,
+                   compact: true,
+                 ),
+-            ]
+-          : value.events.isEmpty
+-          ? [
+-              KEmptyState(
+-                key: EventCenterScreen.emptyKey,
+-                icon: _tab == 2
+-                    ? Icons.public_rounded
+-                    : Icons.event_available_rounded,
+-                title: _tab == 2 && value.country == null
+-                    ? l10n.eventsNoCountry
+-                    : l10n.eventsEmpty,
+-                message: _tab == 2 && value.country == null
+-                    ? l10n.eventsNoCountryBody
+-                    : l10n.eventsEmptyBody,
+-                compact: true,
+-              ),
+-            ]
+-          : [
+-              for (final e in value.events)
+-                _EventCard(event: e, localeTag: localeTag, onOpen: _open),
+-            ],
++              ]
++            : [
++                for (final e in value.events)
++                  _EventCard(event: e, localeTag: localeTag, onOpen: _open),
++              ],
+       AsyncValue(:final error?, isLoading: false) => [
+         FailureErrorState(
+           title: l10n.eventsLoadError,
+@@ -380,9 +380,7 @@ class _EventCard extends StatelessWidget {
+                             const SizedBox(height: KSpacing.xxs),
+                             Text(
+                               dates,
+-                              style: t.caption.copyWith(
+-                                color: p.textSecondary,
+-                              ),
++                              style: t.caption.copyWith(color: p.textSecondary),
+                             ),
+                           ],
+                         ),
+diff --git a/apps/mobile/lib/features/programs/presentation/event_detail_screen.dart b/apps/mobile/lib/features/programs/presentation/event_detail_screen.dart
+index f1880cb..e9397d7 100644
+--- a/apps/mobile/lib/features/programs/presentation/event_detail_screen.dart
++++ b/apps/mobile/lib/features/programs/presentation/event_detail_screen.dart
+@@ -60,11 +60,7 @@ class EventDetailScreen extends ConsumerWidget {
+       AsyncValue(value: final e?) => [
+         ClipRRect(
+           borderRadius: BorderRadius.circular(KRadius.lg),
+-          child: EventBanner(
+-            event: e,
+-            hue: ProgramHues.of(e.id),
+-            height: 140,
+-          ),
++          child: EventBanner(event: e, hue: ProgramHues.of(e.id), height: 140),
+         ),
+         const SizedBox(height: KSpacing.md),
+         Row(
+@@ -187,11 +183,7 @@ class EventDetailScreen extends ConsumerWidget {
+ }
+ 
+ class _Board extends StatelessWidget {
+-  const new({
+-    required this.metric,
+-    required this.board,
+-    required this.onRetry,
+-  });
++  const new({required this.metric, required this.board, required this.onRetry});
+ 
+   final String metric;
+   final AsyncValue<EventLeaderboard> board;
+@@ -263,7 +255,8 @@ class _Board extends StatelessWidget {
+     return ProgramSection(
+       key: EventDetailScreen.boardKey,
+       title: l10n.eventsBoard,
+-      subtitle: '${isFinal ? l10n.eventsBoardFinal : l10n.eventsBoardLive}'
++      subtitle:
++          '${isFinal ? l10n.eventsBoardFinal : l10n.eventsBoardLive}'
+           ' · $metric',
+       child: child,
+     );
+@@ -295,7 +288,8 @@ class _RankRow extends StatelessWidget {
+         l10n.eventsRank('${row.rank}'),
+         name,
+         KFormat.grouped(row.score),
+-        if (row.prizeCoins > 0) l10n.meHubCoins(KFormat.grouped(row.prizeCoins)),
++        if (row.prizeCoins > 0)
++          l10n.meHubCoins(KFormat.grouped(row.prizeCoins)),
+       ].join('، '),
+       excludeSemantics: true,
+       child: Padding(
+diff --git a/apps/mobile/lib/features/programs/presentation/program_parts.dart b/apps/mobile/lib/features/programs/presentation/program_parts.dart
+index dbb5075..844c521 100644
+--- a/apps/mobile/lib/features/programs/presentation/program_parts.dart
++++ b/apps/mobile/lib/features/programs/presentation/program_parts.dart
+@@ -222,12 +222,7 @@ class ProgramPillButton extends StatelessWidget {
+ 
+ /// A tinted round tile with an icon (task rows, perks, events).
+ class ProgramIconTile extends StatelessWidget {
+-  const new({
+-    required this.icon,
+-    required this.hue,
+-    super.key,
+-    this.size = 44,
+-  });
++  const new({required this.icon, required this.hue, super.key, this.size = 44});
+ 
+   final IconData icon;
+   final Color hue;
+diff --git a/apps/mobile/lib/features/programs/presentation/svip_screen.dart b/apps/mobile/lib/features/programs/presentation/svip_screen.dart
+index da2ed0f..1d90b93 100644
+--- a/apps/mobile/lib/features/programs/presentation/svip_screen.dart
++++ b/apps/mobile/lib/features/programs/presentation/svip_screen.dart
+@@ -187,9 +187,7 @@ class _SvipPage extends ConsumerWidget {
+                 const SizedBox(height: KSpacing.sm),
+                 for (final (i, threshold) in s.thresholds.indexed)
+                   Padding(
+-                    padding: const EdgeInsets.symmetric(
+-                      vertical: KSpacing.xxs,
+-                    ),
++                    padding: const EdgeInsets.symmetric(vertical: KSpacing.xxs),
+                     child: Row(
+                       children: [
+                         Expanded(
+@@ -244,11 +242,7 @@ class _Header extends ConsumerWidget {
+           ),
+           child: Padding(
+             padding: const EdgeInsets.all(2),
+-            child: KAvatar(
+-              name: name,
+-              imageUrl: user?.avatarUrl,
+-              size: 56,
+-            ),
++            child: KAvatar(name: name, imageUrl: user?.avatarUrl, size: 56),
+           ),
+         ),
+         const SizedBox(width: KSpacing.md),
+@@ -531,7 +525,9 @@ class _Perks extends StatelessWidget {
+               child: Row(
+                 crossAxisAlignment: CrossAxisAlignment.stretch,
+                 children: [
+-                  Expanded(child: _PerkCard(perk: perks[i], icon: _icon)),
++                  Expanded(
++                    child: _PerkCard(perk: perks[i], icon: _icon),
++                  ),
+                   const SizedBox(width: KSpacing.sm),
+                   Expanded(
+                     child: i + 1 < perks.length
+@@ -663,9 +659,7 @@ class _BottomBar extends StatelessWidget {
+                   text,
+                   maxLines: 3,
+                   overflow: TextOverflow.ellipsis,
+-                  style: context.textStyles.body.copyWith(
+-                    color: p.textPrimary,
+-                  ),
++                  style: context.textStyles.body.copyWith(color: p.textPrimary),
+                 ),
+               ),
+               const SizedBox(width: KSpacing.sm),
+diff --git a/apps/mobile/lib/features/programs/presentation/task_center_screen.dart b/apps/mobile/lib/features/programs/presentation/task_center_screen.dart
+index 19a527d..178e5fe 100644
+--- a/apps/mobile/lib/features/programs/presentation/task_center_screen.dart
++++ b/apps/mobile/lib/features/programs/presentation/task_center_screen.dart
+@@ -73,7 +73,8 @@ class _TaskCenterScreenState extends ConsumerState<TaskCenterScreen> {
+     } on Object catch (e) {
+       if (!mounted) return;
+       final failure = toAppFailure(e);
+-      final cap = failure is ServerFailure &&
++      final cap =
++          failure is ServerFailure &&
+           failure.rawCode == 'TASK_DAILY_CAP_REACHED';
+       KSnack.error(
+         context,
+@@ -280,11 +281,7 @@ class _LevelCard extends ConsumerWidget {
+               child: Row(
+                 children: [
+                   if (level != null && brief != null)
+-                    KLevelEmblem(
+-                      category: level.category,
+-                      tier: tier,
+-                      size: 64,
+-                    )
++                    KLevelEmblem(category: level.category, tier: tier, size: 64)
+                   else
+                     const ProgramIconTile(
+                       icon: Icons.diamond_rounded,
+@@ -340,11 +337,7 @@ class _LevelCard extends ConsumerWidget {
+ /// The 7-day check-in strip «تسجيل الدخول اليومي»: today and the next six
+ /// days (the 7th of the cycle carries the bonus) and the check-in button.
+ class _CheckInCard extends StatelessWidget {
+-  const new({
+-    required this.state,
+-    required this.busy,
+-    required this.onCheckIn,
+-  });
++  const new({required this.state, required this.busy, required this.onCheckIn});
+ 
+   final CheckInState state;
+   final bool busy;
+@@ -369,7 +362,9 @@ class _CheckInCard extends StatelessWidget {
+             Row(
+               children: [
+                 for (final (i, day) in state.days.indexed)
+-                  Expanded(child: _DaySlot(index: i, day: day, state: state)),
++                  Expanded(
++                    child: _DaySlot(index: i, day: day, state: state),
++                  ),
+               ],
+             ),
+             const SizedBox(height: KSpacing.md),
+diff --git a/apps/mobile/lib/features/wallet/presentation/wallet_screen.dart b/apps/mobile/lib/features/wallet/presentation/wallet_screen.dart
+index 583f85c..9f4e12f 100644
+--- a/apps/mobile/lib/features/wallet/presentation/wallet_screen.dart
++++ b/apps/mobile/lib/features/wallet/presentation/wallet_screen.dart
+@@ -45,8 +45,10 @@ String signedCoins(int delta) =>
+     delta > 0 ? '+${KFormat.grouped(delta)}' : KFormat.grouped(delta);
+ 
+ /// A price in [currency] from minor units (cents), Latin digits.
+-String formatPrice(int minor, String currency) =>
+-    NumberFormat.simpleCurrency(locale: 'en', name: currency).format(minor / 100);
++String formatPrice(int minor, String currency) => NumberFormat.simpleCurrency(
++  locale: 'en',
++  name: currency,
++).format(minor / 100);
+ 
+ /// `/wallet` (D164; D166 the recharge screen of the owner's reference): two
+ /// tabs. «العملات»: the real coin balance (`GET /wallet/me`) with a history
+diff --git a/apps/mobile/test/features/programs/programs_d166_test.dart b/apps/mobile/test/features/programs/programs_d166_test.dart
+index 1fb49d0..b85b59b 100644
+--- a/apps/mobile/test/features/programs/programs_d166_test.dart
++++ b/apps/mobile/test/features/programs/programs_d166_test.dart
+@@ -442,7 +442,10 @@ void main() {
+         tester.widget<Text>(action('FOLLOW_USERS')).data,
+         _en.tasksActionClaim,
+       );
+-      expect(tester.widget<Text>(action('LIVE_CHAT')).data, _en.tasksActionDone);
++      expect(
++        tester.widget<Text>(action('LIVE_CHAT')).data,
++        _en.tasksActionDone,
++      );
+ 
+       await tester.tap(find.byKey(TaskCenterScreen.actionKey('FOLLOW_USERS')));
+       await tester.pumpAndSettle();
+@@ -577,9 +580,7 @@ void main() {
+       expect(find.text('event e1'), findsOneWidget);
+     });
+ 
+-    testWidgets('an empty month says so (never sample events)', (
+-      tester,
+-    ) async {
++    testWidgets('an empty month says so (never sample events)', (tester) async {
+       await _pump(
+         tester,
+         EventCenterScreen(initialMonth: now),
+@@ -602,12 +603,7 @@ void main() {
+       final programs = _FakePrograms(
+         country: null,
+         events: [
+-          _event(
+-            'p1',
+-            start: DateTime(2026, 9),
+-            end: null,
+-            permanent: true,
+-          ),
++          _event('p1', start: DateTime(2026, 9), end: null, permanent: true),
+         ],
+       );
+       await _pump(
