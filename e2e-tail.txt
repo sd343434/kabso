@@ -1,0 +1,106 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.4 [39m[90m/home/runner/work/kabso/kabso/apps/api[39m
+
+Loaded Prisma config from prisma.config.ts.
+
+Prisma schema loaded from prisma/schema.prisma.
+Datasource "db": PostgreSQL database "kabso_test", schema "public" at "localhost:5432"
+
+68 migrations found in prisma/migrations
+
+
+No pending migrations to apply.
+(node:3470) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+DEBUG {"viewer":"01a18789-fd76-7066-b4bc-14a4b364e030","hostA":"01a18789-fd97-7239-b405-f6c13eb55ab7","hostB":"01a18789-fdb8-732d-b140-1ae5518e7653","fan":"01a18789-fdd6-75ac-909b-00950f19d237","now":1793275330069,"start":"2026-10-29T12:02:09.069Z","board":[["01a18789-fa46-74d9-ad4e-27bc2dd4d179","usermvthtvl116",100],["01a18789-fd97-7239-b405-f6c13eb55ab7","usermvthtw8t21",100],["01a18789-fdb8-732d-b140-1ae5518e7653","usermvthtw9o22",10]]}
+DEBUG [{"id":"01a18789-fb77-7554-9082-efb2269cacdb","sender_id":"01a18789-fa85-7019-a950-5980e8199185","user_id":"01a18789-fa46-74d9-ad4e-27bc2dd4d179","coins":10,"created_at":"2026-10-29T12:02:09.399Z"},{"id":"01a18789-fb90-70b6-9e37-2573894df1a7","sender_id":"01a18789-fa85-7019-a950-5980e8199185","user_id":"01a18789-fa46-74d9-ad4e-27bc2dd4d179","coins":10,"created_at":"2026-10-29T12:02:09.424Z"},{"id":"01a18789-fba0-7b19-9c68-ea88ec180918","sender_id":"01a18789-fa85-7019-a950-5980e8199185","user_id":"01a18789-fa46-74d9-ad4e-27bc2dd4d179","coins":10,"created_at":"2026-10-29T12:02:09.440Z"},{"id":"01a18789-fbae-7146-aae0-053730f3373a","sender_id":"01a18789-fa85-7019-a950-5980e8199185","user_id":"01a18789-fa46-74d9-ad4e-27bc2dd4d179","coins":10,"created_at":"2026-10-29T12:02:09.454Z"},{"id":"01a18789-fbc4-703a-b366-aeaadb455c2d","sender_id":"01a18789-fa85-7019-a950-5980e8199185","user_id":"01a18789-fa46-74d9-ad4e-27bc2dd4d179","coins":10,"created_at":"2026-10-29T12:02:09.476Z"},{"id":"01a18789-fbd3-7641-8ece-fb63357cb39d","sender_id":"01a18789-fa85-7019-a950-5980e8199185","user_id":"01a18789-fa46-74d9-ad4e-27bc2dd4d179","coins":10,"created_at":"2026-10-29T12:02:09.491Z"},{"id":"01a18789-fbe0-7f31-87ba-a5b40fb6dbe8","sender_id":"01a18789-fa85-7019-a950-5980e8199185","user_id":"01a18789-fa46-74d9-ad4e-27bc2dd4d179","coins":10,"created_at":"2026-10-29T12:02:09.504Z"},{"id":"01a18789-fbee-7b64-8b9b-67ae0e4d05bf","sender_id":"01a18789-fa85-7019-a950-5980e8199185","user_id":"01a18789-fa46-74d9-ad4e-27bc2dd4d179","coins":10,"created_at":"2026-10-29T12:02:09.518Z"},{"id":"01a18789-fbfc-7e41-b345-63b287a82982","sender_id":"01a18789-fa85-7019-a950-5980e8199185","user_id":"01a18789-fa46-74d9-ad4e-27bc2dd4d179","coins":10,"created_at":"2026-10-29T12:02:09.532Z"},{"id":"01a18789-fc0e-7de8-876a-f8040a53df79","sender_id":"01a18789-fa85-7019-a950-5980e8199185","user_id":"01a18789-fa46-74d9-ad4e-27bc2dd4d179","coins":10,"created_at":"2026-10-29T12:02:09.550Z"},{"id":"01a18789-fe29-74d9-80bd-8f9621b4a329","sender_id":"01a18789-fdd6-75ac-909b-00950f19d237","user_id":"01a18789-fd97-7239-b405-f6c13eb55ab7","coins":100,"created_at":"2026-10-29T12:02:10.089Z"},{"id":"01a18789-fe50-7292-867f-114cb74c6db5","sender_id":"01a18789-fdd6-75ac-909b-00950f19d237","user_id":"01a18789-fdb8-732d-b140-1ae5518e7653","coins":10,"created_at":"2026-10-29T12:02:10.128Z"}]
+DEBUG2 {"id":"01a18789-fef7-7272-ae42-b84d876e7dcb","titleAr":"معلّقة","titleEn":"Held","bannerUrl":null,"startsAt":"2026-10-29T12:02:09.295Z","endsAt":"2026-10-29T13:02:10.295Z","rulesAr":"-","rulesEn":"-","metric":"GIFT_COINS_SENT","audience":"EVERYONE","permanent":false,"regions":[],"featured":false,"prizes":[{"coins":300,"rankTo":1,"rankFrom":1}],"frozenAt":"2026-10-30T18:02:10.321Z","payoutDueAt":"2026-10-31T18:02:10.321Z","payoutHold":false,"paidAt":"2026-10-31T19:02:10.345Z","createdAt":"2026-10-29T12:02:10.295Z","updatedAt":"2026-10-29T12:02:10.358Z"} [{"id":"01a18789-ff1b-767a-9df3-8f397d8af51d","eventId":"01a18789-fef7-7272-ae42-b84d876e7dcb","rank":1,"userId":"01a18789-fdd6-75ac-909b-00950f19d237","score":"110","prizeCoins":300,"prizeStatus":"PAID","paidAt":"2026-10-31T19:02:10.345Z","createdAt":"2026-10-30T18:02:10.321Z"},{"id":"01a18789-ff1b-767a-9df3-9156f001645b","eventId":"01a18789-fef7-7272-ae42-b84d876e7dcb","rank":2,"userId":"01a18789-fa85-7019-a950-5980e8199185","score":"100","prizeCoins":0,"prizeStatus":"NONE","paidAt":null,"createdAt":"2026-10-30T18:02:10.321Z"},{"id":"01a18789-ff1b-767a-9df3-965f2f38699f","eventId":"01a18789-fef7-7272-ae42-b84d876e7dcb","rank":3,"userId":"01a18789-fed7-759f-b9cc-805449e8c00e","score":"10","prizeCoins":0,"prizeStatus":"NONE","paidAt":null,"createdAt":"2026-10-30T18:02:10.321Z"}] now=2026-10-31T19:02:10.360Z fan=01a18789-fed7-759f-b9cc-805449e8c00e host=01a18789-feb7-762e-b78b-936898b7e173
+ [31m❯[39m test/d166-me-programs.e2e-spec.ts [2m([22m[2m11 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[33m 3382[2mms[22m[39m
+   [32m✓[39m D166 contract coverage [2m(1)[22m
+     [32m✓[39m openapi v1.44-social declares the Me hub programs[32m 2[2mms[22m[39m
+   [31m❯[39m D166 Me hub programs [2m(10)[22m
+     [32m✓[39m the default tasks, from stored data only; host tasks only for hosts; 401 without a session[32m 105[2mms[22m[39m
+     [32m✓[39m a task is paid once, even when claimed at the same time; the wallet history shows it[32m 235[2mms[22m[39m
+     [32m✓[39m unfollowing before the claim, or following someone not active, does not count[32m 288[2mms[22m[39m
+     [33m[2m✓[22m[39m check-in: once a day, the 7th day in a row adds the bonus; the daily cap stops task coins[33m 550[2mms[22m[39m
+     [32m✓[39m a new day: daily tasks and the check-in reset, the streak goes on[32m 198[2mms[22m[39m
+     [32m✓[39m SVIP is earned by gift spending in 30 days and lasts 30 days[32m 72[2mms[22m[39m
+[31m     [31m×[31m events: the tabs, the detail, the live board; then frozen once and prizes paid once[39m[33m 324[2mms[22m[39m
+[31m     [31m×[31m a held payout waits for release[39m[32m 157[2mms[22m[39m
+     [32m✓[39m no events configured: honest empty lists[32m 45[2mms[22m[39m
+     [32m✓[39m recharge packages come from config; purchases stay off (B5)[32m 37[2mms[22m[39m
+(node:3547) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/d164-me-hub.e2e-spec.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 5780[2mms[22m[39m
+   [32m✓[39m D164 Me hub [2m(3)[22m
+     [33m[2m✓[22m[39m the creator center: followers, posts and reels published in the period, ended lives[33m 510[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 2 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m test/d166-me-programs.e2e-spec.ts[2m > [22mD166 Me hub programs[2m > [22mevents: the tabs, the detail, the live board; then frozen once and prizes paid once
+[31m[1mAssertionError[22m: expected [ [ 1, …(3) ], [ 2, …(3) ], …(1) ] to deeply equal [ [ 1, …(3) ], [ 2, …(3) ] ][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[2m  [[22m
+[2m    [[22m
+[2m      1,[22m
+[32m-     "01a18789-fd97-7239-b405-f6c13eb55ab7",[39m
+[31m+     "01a18789-fa46-74d9-ad4e-27bc2dd4d179",[39m
+[2m      100,[22m
+[2m      500,[22m
+[2m    ],[22m
+[2m    [[22m
+[2m      2,[22m
+[31m+     "01a18789-fd97-7239-b405-f6c13eb55ab7",[39m
+[31m+     100,[39m
+[31m+     200,[39m
+[31m+   ],[39m
+[31m+   [[39m
+[31m+     3,[39m
+[2m      "01a18789-fdb8-732d-b140-1ae5518e7653",[22m
+[2m      10,[22m
+[2m      200,[22m
+[2m    ],[22m
+[2m  ][22m
+
+[36m [2m❯[22m test/d166-me-programs.e2e-spec.ts:[2m528:7[22m[39m
+    [90m526|[39m         r.prizeCoins,
+    [90m527|[39m       ]),
+    [90m528|[39m     ).toEqual([
+    [90m   |[39m       [31m^[39m
+    [90m529|[39m       [1, hostA.id, 100, 500],
+    [90m530|[39m       [2, hostB.id, 10, 200],
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/d166-me-programs.e2e-spec.ts[2m > [22mD166 Me hub programs[2m > [22ma held payout waits for release
+[31m[1mAssertionError[22m: expected [] to deeply equal [ 300 ][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [[39m
+[32m-   300,[39m
+[32m- ][39m
+[31m+ [][39m
+
+[36m [2m❯[22m test/d166-me-programs.e2e-spec.ts:[2m602:78[22m[39m
+
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m1 passed[39m[22m[90m (2)[39m
+[2m      Tests [22m [1m[31m2 failed[39m[22m[2m | [22m[1m[32m13 passed[39m[22m[90m (15)[39m
+[2m   Start at [22m 12:02:04
+[2m   Duration [22m 13.08s[2m (tests 76%, import 14%, transform 10%)[22m
+
+
+::error file=/home/runner/work/kabso/kabso/apps/api/test/d166-me-programs.e2e-spec.ts,title=test/d166-me-programs.e2e-spec.ts > D166 Me hub programs > events%3A the tabs%2C the detail%2C the live board; then frozen once and prizes paid once,line=528,column=7::AssertionError: expected [ [ 1, …(3) ], [ 2, …(3) ], …(1) ] to deeply equal [ [ 1, …(3) ], [ 2, …(3) ] ]%0A%0A- Expected%0A+ Received%0A%0A  [%0A    [%0A      1,%0A-     "01a18789-fd97-7239-b405-f6c13eb55ab7",%0A+     "01a18789-fa46-74d9-ad4e-27bc2dd4d179",%0A      100,%0A      500,%0A    ],%0A    [%0A      2,%0A+     "01a18789-fd97-7239-b405-f6c13eb55ab7",%0A+     100,%0A+     200,%0A+   ],%0A+   [%0A+     3,%0A      "01a18789-fdb8-732d-b140-1ae5518e7653",%0A      10,%0A      200,%0A    ],%0A  ]%0A%0A ❯ test/d166-me-programs.e2e-spec.ts:528:7%0A%0A
+
+::error file=/home/runner/work/kabso/kabso/apps/api/test/d166-me-programs.e2e-spec.ts,title=test/d166-me-programs.e2e-spec.ts > D166 Me hub programs > a held payout waits for release,line=602,column=78::AssertionError: expected [] to deeply equal [ 300 ]%0A%0A- Expected%0A+ Received%0A%0A- [%0A-   300,%0A- ]%0A+ []%0A%0A ❯ test/d166-me-programs.e2e-spec.ts:602:78%0A%0A
+undefined
+/home/runner/work/kabso/kabso/apps/api:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command failed with exit code 1: vitest run --config vitest.e2e.config.ts test/d166-me-programs.e2e-spec.ts test/d164-me-hub.e2e-spec.ts
