@@ -1,0 +1,18 @@
+  compiling builders/aot
+  28s compiling builders/aot
+W These options have been removed and were ignored: --delete-conflicting-outputs
+  0s freezed on 610 inputs; lib/app/app.dart
+  1s freezed on 610 inputs: 1 no-op; spent 1s sdk; lib/app/router/app_router.dart
+  11s freezed on 610 inputs: 7 no-op; spent 8s analyzing, 2s resolving, 1s sdk; lib/app/shell/feed_tabs_scaffold.dart
+  13s freezed on 610 inputs: 2 output, 72 no-op; spent 9s analyzing, 2s resolving, 1s sdk; lib/features/auth/presentation/onboarding.dart
+  17s freezed on 610 inputs: 5 output, 164 no-op; spent 13s analyzing, 2s resolving, 1s sdk; lib/features/live/application/live_gift_providers.dart
+  18s freezed on 610 inputs: 12 output, 384 no-op; spent 13s analyzing, 2s resolving, 1s sdk; lib/l10n/gen/app_localizations_en.dart
+  19s freezed on 610 inputs: 12 output, 540 no-op; spent 14s analyzing, 3s resolving, 1s sdk; test/goldens/conversations_preview_golden_test.dart
+  19s freezed on 610 inputs: 12 output, 598 no-op; spent 14s analyzing, 3s resolving, 1s sdk
+  0s json_serializable on 1220 inputs; lib/app/app.dart
+  1s json_serializable on 1220 inputs: 136 skipped, 6 output, 139 no-op; lib/features/families/domain/family_models.freezed.dart
+  2s json_serializable on 1220 inputs: 383 skipped, 12 output, 396 no-op; spent 1s analyzing; lib/l10n/gen/app_localizations_ar.freezed.dart
+  3s json_serializable on 1220 inputs: 598 skipped, 12 output, 610 no-op; spent 2s analyzing
+  0s source_gen:combining_builder on 1220 inputs; lib/app/app.dart
+  0s source_gen:combining_builder on 1220 inputs: 598 skipped, 12 output, 610 no-op
+  Built with build_runner/aot in 50s; wrote 36 outputs.

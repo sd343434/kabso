@@ -1,0 +1,104 @@
+                              │        │ └RichText(softWrap: wrapping at box width, overflow: ellipsis, maxLines: 3, text: "Spend 38,000 more coins to reach SVIP 1", dependencies: [Directionality, MediaQuery, _LocalizationsScope-[GlobalKey#fac5c]], renderObject: RenderParagraph#b13c2 relayoutBoundary=up5)
+                                                                                                                                                                       │        ├SizedBox(width: 8.0, renderObject: RenderConstrainedBox#f1f4d relayoutBoundary=up5)
+                                                                                                                                                                       │        └Semantics(container: false, properties: SemanticsProperties, label: "Send a gift", dependencies: [Directionality], renderObject: RenderSemanticsAnnotations#262d6 relayoutBoundary=up5)
+                                                                                                                                                                       │         └Material-[<'svip.cta'>](type: canvas, shape: StadiumBorder(BorderSide(width: 0.0, style: none)), dependencies: [InheritedCupertinoTheme, _InheritedTheme, _LocalizationsScope-[GlobalKey#fac5c]], state: _MaterialState#41d2c)
+                                                                                                                                                                       │          └_MaterialInterior(duration: 200ms, shape: StadiumBorder(BorderSide(width: 0.0, style: none)), elevation: 0.0, color: Color(alpha: 1.0000, red: 0.0431, green: 0.0431, blue: 0.0510, colorSpace: ColorSpace.sRGB), shadowColor: Color(alpha: 1.0000, red: 0.0000, green: 0.0000, blue: 0.0000, colorSpace: ColorSpace.sRGB), dependencies: [Directionality, InheritedCupertinoTheme, _InheritedTheme, _LocalizationsScope-[GlobalKey#fac5c]], state: _MaterialInteriorState#c4c77(ticker inactive))
+                                                                                                                                                                       │           └PhysicalShape(clipper: ShapeBorderClipper, elevation: 0.0, color: Color(alpha: 1.0000, red: 0.0431, green: 0.0431, blue: 0.0510, colorSpace: ColorSpace.sRGB), shadowColor: Color(alpha: 1.0000, red: 0.0000, green: 0.0000, blue: 0.0000, colorSpace: ColorSpace.sRGB), renderObject: RenderPhysicalShape#1d64e relayoutBoundary=up6)
+                                                                                                                                                                       │            └_ShapeBorderPaint(dependencies: [Directionality])
+                                                                                                                                                                       │             └CustomPaint(renderObject: RenderCustomPaint#49b30 relayoutBoundary=up7)
+                                                                                                                                                                       │              └NotificationListener<LayoutChangedNotification>
+                                                                                                                                                                       │               └_InkFeatures-[GlobalKey#5000f ink renderer](renderObject: _RenderInkFeatures#af0ac relayoutBoundary=up8)
+                                                                                                                                                                       │                └AnimatedDefaultTextStyle(duration: 200ms, debugLabel: (englishLike bodyMedium 2021).merge(((((whiteMountainView bodyMedium).apply).apply).apply).merge(unknown)), inherit: false, color: Color(alpha: 1.0000, red: 1.0000, green: 1.0000, blue: 1.0000, colorSpace: ColorSpace.sRGB), family: Inter, familyFallback: [Readex Pro], size: 15.0, weight: 400, letterSpacing: 0.3, baseline: alphabetic, height: 1.4x, leadingDistribution: even, decoration: Color(alpha: 1.0000, red: 1.0000, green: 1.0000, blue: 1.0000, colorSpace: ColorSpace.sRGB) TextDecoration.none, softWrap: wrapping at box width, overflow: clip, state: _AnimatedDefaultTextStyleState#a8e87(ticker inactive))
+                                                                                                                                                                       │                 └DefaultTextStyle(debugLabel: (englishLike bodyMedium 2021).merge(((((whiteMountainView bodyMedium).apply).apply).apply).merge(unknown)), inherit: false, color: Color(alpha: 1.0000, red: 1.0000, green: 1.0000, blue: 1.0000, colorSpace: ColorSpace.sRGB), family: Inter, familyFallback: [Readex Pro], size: 15.0, weight: 400, letterSpacing: 0.3, baseline: alphabetic, height: 1.4x, leadingDistribution: even, decoration: Color(alpha: 1.0000, red: 1.0000, green: 1.0000, blue: 1.0000, colorSpace: ColorSpace.sRGB) TextDecoration.none, softWrap: wrapping at box width, overflow: clip)
+                                                                                                                                                                       │                  └Ink(bg: BoxDecoration(gradient: LinearGradient(begin: Alignment.centerLeft, end: Alignment.centerRight, colors: [Color(alpha: 1.0000, red: 1.0000, green: 0.9059, blue: 0.6392, colorSpace: ColorSpace.sRGB), Color(alpha: 1.0000, red: 0.9608, green: 0.7686, blue: 0.3176, colorSpace: ColorSpace.sRGB)], tileMode: TileMode.clamp)), state: _InkState#83531)
+                                                                                                                                                                       │                   └Padding-[GlobalKey#c7a5e](padding: EdgeInsets.zero, dependencies: [Directionality], renderObject: RenderPadding#533f1 relayoutBoundary=up9)
+                                                                                                                                                                       │                    └Builder(dependencies: [Directionality, MediaQuery, _LocalizationsScope-[GlobalKey#fac5c]])
+                                                                                                                                                                       │                     └InkWell
+                                                                                                                                                                       │                      └_InkResponseStateWidget(gestures: [tap], mouseCursor: null, clipped to BoxShape.rectangle, dependencies: [InheritedCupertinoTheme, MediaQuery, _InheritedTheme, _LocalizationsScope-[GlobalKey#fac5c]], state: _InkResponseState#ab1e5)
+                                                                                                                                                                       │                       └_ParentInkResponseProvider
+                                                                                                                                                                       │                        └Actions(dispatcher: null, actions: {ActivateIntent: CallbackAction<ActivateIntent>#a7218, ButtonActivateIntent: CallbackAction<ButtonActivateIntent>#2f58b}, state: _ActionsState#ae319)
+                                                                                                                                                                       │                         └_ActionsScope
+                                                                                                                                                                       │                          └Focus(dependencies: [_FocusInheritedScope], state: _FocusState#26b54)
+                                                                                                                                                                       │                           └_FocusInheritedScope
+                                                                                                                                                                       │                            └Semantics(container: false, properties: SemanticsProperties, renderObject: RenderSemanticsAnnotations#99d7f relayoutBoundary=up10)
+                                                                                                                                                                       │                             └MouseRegion(listeners: [enter, exit], cursor: SystemMouseCursor(basic), renderObject: RenderMouseRegion#1cac4 relayoutBoundary=up11)
+                                                                                                                                                                       │                              └Builder(dependencies: [DefaultSelectionStyle])
+                                                                                                                                                                       │                               └DefaultSelectionStyle
+                                                                                                                                                                       │                                └Semantics(container: false, properties: SemanticsProperties, renderObject: RenderSemanticsAnnotations#18a18 relayoutBoundary=up12)
+                                                                                                                                                                       │                                 └GestureDetector(startBehavior: start, dependencies: [MediaQuery, ScrollConfiguration])
+                                                                                                                                                                       │                                  └RawGestureDetector(state: RawGestureDetectorState#6f486(gestures: [tap], excludeFromSemantics: true, behavior: opaque))
+                                                                                                                                                                       │                                   └Listener(listeners: [down, panZoomStart], behavior: opaque, renderObject: RenderPointerListener#3529a relayoutBoundary=up13)
+                                                                                                                                                                       │                                    └ConstrainedBox(BoxConstraints(0.0<=w<=Infinity, 48.0<=h<=Infinity), renderObject: RenderConstrainedBox#0dcaf relayoutBoundary=up14)
+                                                                                                                                                                       │                                     └Padding(padding: EdgeInsets(16.0, 0.0, 16.0, 0.0), dependencies: [Directionality], renderObject: RenderPadding#4dd0b relayoutBoundary=up15)
+                                                                                                                                                                       │                                      └Center(alignment: Alignment.center, widthFactor: 1.0, dependencies: [Directionality], renderObject: RenderPositionedBox#8c659 relayoutBoundary=up16)
+                                                                                                                                                                       │                                       └Text("Send a gift", inherit: true, color: Color(alpha: 1.0000, red: 0.0431, green: 0.0431, blue: 0.0510, colorSpace: ColorSpace.sRGB), family: Inter, familyFallback: [Readex Pro], size: 15.0, weight: 800, height: 1.4x, dependencies: [DefaultSelectionStyle, DefaultTextStyle, MediaQuery])
+                                                                                                                                                                       │                                        └RichText(softWrap: wrapping at box width, maxLines: unlimited, text: "Send a gift", dependencies: [Directionality, MediaQuery, _LocalizationsScope-[GlobalKey#fac5c]], renderObject: RenderParagraph#a04a0 relayoutBoundary=up17)
+                                                                                                                                                                       └LayoutId-[<_ScaffoldSlot.floatingActionButton>](id: _ScaffoldSlot.floatingActionButton)
+                                                                                                                                                                        └MediaQuery(MediaQueryData(size: Size(360.0, 800.0), devicePixelRatio: 3.0, textScaler: SystemTextScaler (no scaling), platformBrightness: Brightness.light, padding: EdgeInsets.zero, viewPadding: EdgeInsets.zero, viewInsets: EdgeInsets.zero, systemGestureInsets: EdgeInsets.zero, alwaysUse24HourFormat: false, accessibleNavigation: false, highContrast: false, onOffSwitchLabels: false, disableAnimations: false, invertColors: false, boldText: false, navigationMode: traditional, gestureSettings: DeviceGestureSettings(touchSlop: null), displayFeatures: [], supportsShowingSystemContextMenu: false, lineHeightScaleFactorOverride: null, letterSpacingOverride: null, wordSpacingOverride: null, paragraphSpacingOverride: null, displayCornerRadii: null))
+                                                                                                                                                                         └_FloatingActionButtonTransition(state: _FloatingActionButtonTransitionState#f00c6(tickers: tracking 1 ticker))
+                                                                                                                                                                          └Stack(alignment: Alignment.centerRight, fit: loose, dependencies: [Directionality], renderObject: RenderStack#3eff7 relayoutBoundary=up1)
+                                                                                                                                                                           └ScaleTransition(listenable: AnimationMin<double>(_AnimationSwap<double>(AnimationController#90d86(⏭ 1.000; paused)➩CurveTween(curve: FlippedCurve(Interval(0.5⋯1.0)➩Cubic(0.25, 0.10, 0.25, 1.00)))➩1.0➪ReverseAnimation, AnimationController#90d86(⏭ 1.000; paused)➩CurveTween(curve: Interval(0.5⋯1.0)➩Cubic(0.25, 0.10, 0.25, 1.00))➩1.0), AnimationController#32105(⏮ 0.000; paused)➩Cubic(0.42, 0.00, 1.00, 1.00)), state: _AnimatedState#faa22)
+                                                                                                                                                                            └Transform(dependencies: [Directionality], renderObject: RenderTransform#d3261 relayoutBoundary=up2)
+                                                                                                                                                                             └RotationTransition(listenable: AnimationController#32105(⏮ 0.000; paused)➩CurveTween(curve: Cubic(0.42, 0.00, 1.00, 1.00))➩Tween<double>(0.875 → 1.0)➩0.875➩TrainHoppingAnimation(next: _AnimationSwap<double>(AnimationController#90d86(⏭ 1.000; paused)➩Tween<double>(0.75 → 1.0)➩1.0, AnimationController#90d86(⏭ 1.000; paused)➩CurveTween(curve: Threshold)➩1.0➪ReverseAnimation)), state: _AnimatedState#eced1)
+                                                                                                                                                                              └Transform(dependencies: [Directionality], renderObject: RenderTransform#f393d relayoutBoundary=up3 NEEDS-PAINT)
+
+
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following TestFailure was thrown running a test:
+Expected: at least one matching candidate
+  Actual: _TextWidgetFinder:<Found 0 widgets with text "You're not SVIP yet": []>
+   Which: means none were found but some were expected
+
+When the exception was thrown, this was the stack:
+#4      main.<anonymous closure>.<anonymous closure> (file:///home/runner/work/kabso/kabso/apps/mobile/test/features/programs/programs_d166_test.dart:673:7)
+<asynchronous suspension>
+#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#6      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+This was caught by the test expectation on the following line:
+  file:///home/runner/work/kabso/kabso/apps/mobile/test/features/programs/programs_d166_test.dart line 673
+The test description was:
+  not SVIP yet: status, track, perks «Soon», the bar
+════════════════════════════════════════════════════════════════════════════════════════════════════
+Test failed. See exception logs above.
+The test description was: not SVIP yet: status, track, perks «Soon», the bar
+
+::endgroup::
+::group::❌ svip SVIP 1 until a date (failed)
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following TestFailure was thrown running a test:
+Expected: exactly one matching candidate
+  Actual: _TextWidgetFinder:<Found 0 widgets with text "SVIP 1 until 28 Nov 2026": []>
+   Which: means none were found but one was expected
+
+When the exception was thrown, this was the stack:
+#4      main.<anonymous closure>.<anonymous closure> (file:///home/runner/work/kabso/kabso/apps/mobile/test/features/programs/programs_d166_test.dart:696:7)
+<asynchronous suspension>
+#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#6      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+This was caught by the test expectation on the following line:
+  file:///home/runner/work/kabso/kabso/apps/mobile/test/features/programs/programs_d166_test.dart line 696
+The test description was:
+  SVIP 1 until a date
+════════════════════════════════════════════════════════════════════════════════════════════════════
+Test failed. See exception logs above.
+The test description was: SVIP 1 until a date
+
+::endgroup::
+::group::✅ Passing tests
+✅ svip a failure shows the error with a retry
+✅ wallet recharge packages from the server, the deal ribbon, the selection; the purchase stays disabled (B5)
+✅ wallet recharge the history icon opens the history tab
+✅ wallet recharge no packages configured: an empty state
+::endgroup::
+
+::error::21 tests passed, 2 failed.
