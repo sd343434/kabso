@@ -433,6 +433,8 @@ export const envSchema = z
     RATE_LIMIT_LIVE_MEDIA_TOKEN_GUEST_IP: rateLimit('60/3600'),
     RATE_LIMIT_LIVE_UPDATE_USER: rateLimit('60/3600'),
     RATE_LIMIT_LIVE_COVER_USER: rateLimit('30/3600'),
+    // v1.45-social (D168, CONVENTIONS §7, §10.42): `PUT` / `DELETE /me/avatar`, one bucket.
+    RATE_LIMIT_AVATAR_USER: rateLimit('30/3600'),
     RATE_LIMIT_LIVE_BLOCKED_WORDS_USER: rateLimit('30/3600'),
     RATE_LIMIT_LIVE_SCHEDULE_USER: rateLimit('30/3600'),
     RATE_LIMIT_LIVE_GUEST_READ_IP: rateLimit('300/900'),

@@ -3,6 +3,7 @@ import { isCountryCode } from '../users/country.js';
 import { regularUsernameIssue } from '../premium-usernames/premium-username-rules.js';
 import { USERNAME_MAX_LENGTH, USERNAME_MIN_LENGTH, USERNAME_PATTERN } from '../users/username.js';
 import { normalizeDisplayName, rawDisplayNameIssue } from '../users/display-name.js';
+import { normalizeContentText, type ContentTextLimits } from '../posts/content-text.js';
 import { passwordPolicyIssue } from './password-policy.js';
 
 // Request schemas mirror docs/contracts/openapi.yaml. All objects are strict
@@ -127,9 +128,29 @@ export type RegisterVerifyInput = z.output<typeof registerVerifySchema>;
 
 export const registerResendSchema = z.strictObject({ email: emailSchema });
 
+/** v1.45-social (D168, CONVENTIONS §10.42): a bio — ≤ 300 code points, ≤ 4 line breaks, §6 hygiene. */
+export const BIO_LIMITS: ContentTextLimits = { maxCodePoints: 300, maxLineBreaks: 4, allowEmpty: true };
+/** Raw input bound checked before any normalisation work. */
+export const BIO_RAW_MAX = 1200;
+
+/** A bio after normalisation; an empty result is null (cleared). */
+export const bioSchema = z
+  .string()
+  .max(BIO_RAW_MAX)
+  .transform((raw, ctx) => {
+    const result = normalizeContentText(raw, BIO_LIMITS);
+    if ('issue' in result) {
+      ctx.addIssue({ code: 'custom', message: `bio ${result.issue}`, params: { issue: result.issue } });
+      return z.NEVER;
+    }
+    return result.value.length === 0 ? null : result.value;
+  })
+  .nullable();
+
 /**
  * `PATCH /me`: v1.2 `locale`; v1.27.1-live (D133) `country` (ISO 3166-1 alpha-2, any case,
- * stored upper case; null clears it). At least one of them.
+ * stored upper case; null clears it); v1.45-social (D168) `displayName` (the §6 registration rules;
+ * reserved terms are checked by the service) and `bio` (null or empty clears it). At least one.
  */
 export const updateMeSchema = z
   .strictObject({
@@ -140,9 +161,16 @@ export const updateMeSchema = z
       .refine(isCountryCode, { params: { issue: 'invalid_value' } })
       .nullable()
       .optional(),
+    displayName: displayNameSchema.optional(),
+    bio: bioSchema.optional(),
   })
   .superRefine((body, ctx) => {
-    if (body.locale === undefined && body.country === undefined) {
+    if (
+      body.locale === undefined &&
+      body.country === undefined &&
+      body.displayName === undefined &&
+      body.bio === undefined
+    ) {
       ctx.addIssue({
         code: 'custom',
         path: ['body'],
