@@ -214,6 +214,33 @@ void main() {
     });
   });
 
+  test('D144c: diagnostics carry the first lit picture, held-back black '
+      "renders, DeepAR's engine state and its last warning", () {
+    final d = KabsoCameraFxDiagnostics.fromMap(const {
+      'state': 'initializing',
+      'litMs': 2400,
+      'heldBlack': 61,
+      'engine': 2,
+      'lastWarning':
+          'WARNING: Switch effect called but DeepAR rendering is '
+          'paused!',
+    });
+    expect(d.litMs, 2400);
+    expect(d.heldBlack, 61);
+    expect(d.engine, 2);
+    expect(d.lastWarning, contains('paused'));
+    final none = KabsoCameraFxDiagnostics.fromMap(const {'state': 'off'});
+    expect(none.litMs, -1);
+    expect(none.engine, -1);
+    expect(
+      KabsoCameraFxStatus.fromMap(const {
+        'state': 'error',
+        'reason': 'engine_busy',
+      }),
+      const KabsoCameraFxStatus(KabsoCameraFxState.error, 'engine_busy'),
+    );
+  });
+
   group('D144a permissions', () {
     const permissionsChannel = MethodChannel(KabsoPermissions.channelName);
     final asked = <MethodCall>[];

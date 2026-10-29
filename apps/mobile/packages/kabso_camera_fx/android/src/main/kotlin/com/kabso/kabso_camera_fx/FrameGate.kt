@@ -496,3 +496,100 @@ internal object FxChain {
         return frame to false
     }
 }
+
+/**
+ * D144c: DeepAR's native engine is one per process (`DeepAR::getInstance`,
+ * one global "initialized" flag cleared only at the end of the native
+ * `shutdown`). A new `DeepAR` whose `setRenderSurface` sees that flag still
+ * set never initializes: it re-posts `setRenderSurface` to the main looper
+ * every 150 ms (`DeepAR.setRenderSurface` bytecode, `DeepAR$1`) — the owner's
+ * `init no … fed 0` and `error (init_timeout)`. So a stage starts a DeepAR
+ * only once the previous one in the process has been released: this slot.
+ */
+internal class EngineSlot {
+    private var owner: Any? = null
+
+    /** True if [who] holds the slot now (it was free, or already [who]'s). */
+    @Synchronized
+    fun tryAcquire(who: Any): Boolean {
+        if (owner != null && owner !== who) return false
+        owner = who
+        return true
+    }
+
+    /** [who]'s DeepAR was released (`release()` returned). */
+    @Synchronized
+    fun release(who: Any) {
+        if (owner === who) owner = null
+    }
+
+    val busy: Boolean @Synchronized get() = owner != null
+}
+
+/**
+ * D144c: what may go out while an effect starts or misbehaves. D145e
+ * published every fresh render and gave up after 2 s of black output; the
+ * owner's background blur was given up on after exactly 2.0 s (`black 2.0 s`,
+ * and DeepAR without the effect drew the camera: `probe passthrough_ok`) —
+ * plausibly DeepAR's segmentation still loading (`initializeSegmentationAsync`
+ * in the native library), with the black frames meanwhile on the air.
+ *
+ * Now a render is only published once one has been **seen lit** (sampled
+ * every render until then, then every [sampleEvery]th); a black render
+ * (input lit, output dark) sends the raw camera instead and switches back to
+ * checking every render; only [giveUpNanos] of black in a row gives up. A
+ * read-back that fails (-1) or a dark camera cannot be judged: published.
+ */
+internal class OutputVerifier(
+    private val giveUpNanos: Long = 8_000_000_000L,
+    private val sampleEvery: Int = 8,
+    private val darkLuma: Int = BlackOutputWatch.DARK_LUMA,
+    private val litLuma: Int = BlackOutputWatch.LIT_LUMA,
+) {
+    enum class Decision { PUBLISH, RAW, GIVE_UP }
+
+    private var armedAt = 0L
+    private var verified = false
+    private var blackSince = NONE
+    private var count = 0
+    private var firstLitAt = NONE
+
+    /** The effect was (re)picked at [nowNanos]. */
+    fun arm(nowNanos: Long) {
+        armedAt = nowNanos
+        verified = false
+        blackSince = NONE
+        count = 0
+        firstLitAt = NONE
+    }
+
+    /** Whether this render must be read back before it may go out. */
+    fun needsSample(): Boolean = !verified || ++count % sampleEvery == 0
+
+    /** A render that is not sampled: out only once the output was seen lit. */
+    fun unsampled(): Decision = if (verified) Decision.PUBLISH else Decision.RAW
+
+    fun onSample(inputLuma: Int, outputLuma: Int, nowNanos: Long): Decision {
+        val black = inputLuma >= litLuma && outputLuma in 0..darkLuma
+        if (!black) {
+            if (!verified && outputLuma > darkLuma && firstLitAt == NONE) firstLitAt = nowNanos
+            verified = true
+            blackSince = NONE
+            return Decision.PUBLISH
+        }
+        verified = false
+        count = 0
+        if (blackSince == NONE) blackSince = nowNanos
+        return if (nowNanos - blackSince >= giveUpNanos) Decision.GIVE_UP else Decision.RAW
+    }
+
+    /** How long the output has been black against a lit camera (0: not). */
+    fun blackNanos(nowNanos: Long): Long = if (blackSince == NONE) 0L else nowNanos - blackSince
+
+    /** From the pick to the first lit render (-1: none yet). */
+    fun litAfterNanos(): Long = if (firstLitAt == NONE) -1L else firstLitAt - armedAt
+
+    private companion object {
+        const val NONE = Long.MIN_VALUE
+    }
+}
