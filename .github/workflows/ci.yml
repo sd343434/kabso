@@ -242,7 +242,7 @@ jobs:
           code=$?
           jq -r 'select(.type=="suite")|[.suite.id,.suite.path]|@tsv' r.json > suites.tsv
           jq -r 'select(.type=="testStart")|[.test.id,.test.suiteID,.test.name]|@tsv' r.json > starts.tsv
-          jq -r 'select(.type=="testDone" and .result!="success" and (.hidden|not))|.testID' r.json | sort -u > failed.txt
+          jq -r 'select(.type=="testDone" and .result!="success")|.testID' r.json | sort -u > failed.txt
           while read id; do
             line=$(awk -F'\t' -v i="$id" '$1==i' starts.tsv)
             sid=$(echo "$line" | cut -f2); name=$(echo "$line" | cut -f3)
@@ -250,6 +250,7 @@ jobs:
             err=$(jq -r --argjson i "$id" 'select(.type=="error" and .testID==$i)|.error' r.json | tr '\n' ' ' | cut -c1-900)
             echo "::error::FAILED [$path] $name :: $err"
           done < failed.txt
+          jq -r 'select(.type=="error")|"\(.testID) \(.error|.[0:300])"' r.json | head -5 | sed "s/^/::warning::ERR /"
           exit $code
       # D144: the local camera plugin is its own package (excluded from the
       # app's analysis above).
