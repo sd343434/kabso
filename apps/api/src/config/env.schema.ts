@@ -198,6 +198,84 @@ const boostPrices = (fallback: string) =>
       return out.sort((a, b) => a.minutes - b.minutes);
     });
 
+/**
+ * v1.44-social (D166, CONVENTIONS §10.41): the SVIP thresholds — coins spent on gifts in the rolling
+ * window for SVIP 1, 2, … (comma-separated, strictly ascending, 1–10 tiers of 1 … 10^12 coins).
+ */
+const svipTiers = (fallback: string) =>
+  z
+    .string()
+    .trim()
+    .default(fallback)
+    .transform((value, ctx): readonly number[] => {
+      const parts = value.split(',').map((p) => p.trim());
+      const numbers = parts.map((p) => (/^[1-9][0-9]{0,12}$/.test(p) ? Number(p) : NaN));
+      const ascending = numbers.every((n, i) => i === 0 || n > numbers[i - 1]!);
+      if (
+        parts.length < 1 ||
+        parts.length > 10 ||
+        numbers.some((n) => !Number.isInteger(n) || n < 1 || n > 1_000_000_000_000) ||
+        !ascending
+      ) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `expected 1–10 strictly ascending coin amounts, comma-separated, got "${value}"`,
+        });
+        return z.NEVER;
+      }
+      return Object.freeze(numbers);
+    });
+
+/** v1.44-social (D166): one coin package of the recharge screen (prices in minor units, e.g. cents). */
+export interface RechargePackage {
+  readonly id: string;
+  readonly coins: number;
+  readonly bonusCoins: number;
+  readonly priceMinor: number;
+  /** The price before a discount, or null (no «عرض» ribbon). */
+  readonly originalPriceMinor: number | null;
+}
+
+/**
+ * v1.44-social (D166, CONVENTIONS §10.41): the recharge packages, `coins+bonus:price[:original]` with
+ * prices in minor units, comma-separated, e.g. `10+20:29,276+28:699:800`. 1–12 packages; an original
+ * price must be higher than the price. Placeholders until the owner sets real ones (B5).
+ */
+const rechargePackages = (fallback: string) =>
+  z
+    .string()
+    .trim()
+    .default(fallback)
+    .transform((value, ctx): readonly RechargePackage[] => {
+      const out: RechargePackage[] = [];
+      for (const part of value.split(',')) {
+        const m = /^\s*(\d{1,9})\s*\+\s*(\d{1,9})\s*:\s*(\d{1,9})\s*(?::\s*(\d{1,9})\s*)?$/.exec(part);
+        const coins = Number(m?.[1]);
+        const bonusCoins = Number(m?.[2]);
+        const priceMinor = Number(m?.[3]);
+        const original = m?.[4] === undefined ? null : Number(m[4]);
+        if (!m || coins < 1 || priceMinor < 1 || (original !== null && original <= priceMinor)) {
+          ctx.addIssue({
+            code: 'custom',
+            message: `expected coins+bonus:price[:originalPrice] packages, got "${value}"`,
+          });
+          return z.NEVER;
+        }
+        out.push({
+          id: `p${String(out.length + 1)}`,
+          coins,
+          bonusCoins,
+          priceMinor,
+          originalPriceMinor: original,
+        });
+      }
+      if (out.length > 12) {
+        ctx.addIssue({ code: 'custom', message: 'at most 12 packages' });
+        return z.NEVER;
+      }
+      return Object.freeze(out);
+    });
+
 const percentSetting = (fallback: string) =>
   z
     .string()
@@ -557,6 +635,41 @@ export const envSchema = z
      * («جديد 🌱» in the live chat, the host's Newcomers list); owner: 30 (was 7).
      */
     NEWCOMER_DAYS: intSetting(30, 1, 365),
+    /**
+     * v1.44-social (D166, CONVENTIONS §10.41, CP-024 approved with defaults): the Task Center — the most
+     * coins a person gets from daily tasks and check-ins in one day, the check-in's coins, and the bonus
+     * on every 7th day in a row (owner 2026-10-29: 50, 5, 20; the owner may change them).
+     */
+    TASK_DAILY_CAP_COINS: intSetting(50, 1, 1_000_000),
+    TASK_CHECK_IN_COINS: intSetting(5, 1, 1_000_000),
+    TASK_CHECK_IN_STREAK_BONUS_COINS: intSetting(20, 0, 1_000_000),
+    /**
+     * D166: the Event Center — hours between an event's end (its leaderboard frozen) and the automatic
+     * prize payout (the review window; `event-admin hold` stops it), and the sweeper's period (0 = off,
+     * refused in production).
+     */
+    EVENT_PRIZE_REVIEW_HOURS: intSetting(24, 0, 720),
+    EVENTS_SWEEP_INTERVAL_SECONDS: intSetting(300, 0, 86_400),
+    /**
+     * D166: SVIP is earned by gift spending (CP-024 §4): coins spent in the last SVIP_WINDOW_DAYS days for
+     * SVIP 1, 2, 3 (owner defaults 50 000 / 150 000 / 400 000), kept SVIP_STATUS_DAYS days after the last
+     * moment the threshold was met.
+     */
+    SVIP_TIERS: svipTiers('50000,150000,400000'),
+    SVIP_WINDOW_DAYS: intSetting(30, 1, 365),
+    SVIP_STATUS_DAYS: intSetting(30, 1, 365),
+    /**
+     * D166: the recharge screen's coin packages (placeholders from the owner's reference until the owner
+     * sets real ones) and their currency (ISO 4217). Purchases stay off (B5): no purchase endpoint.
+     */
+    WALLET_RECHARGE_PACKAGES: rechargePackages(
+      '10+20:29,38+20:99,276+28:699:800,800+30:1999,2500+30:5999,4193+30:9999,5197+30:12999',
+    ),
+    WALLET_RECHARGE_CURRENCY: z
+      .string()
+      .trim()
+      .default('USD')
+      .refine((c) => /^[A-Z]{3}$/.test(c), { message: 'must be an ISO 4217 code like USD' }),
     /**
      * v1.38-live (D154i, CONVENTIONS §10.39): the YouTube Data API key for watch-together search
      * (server-side only, a secret). Unset: search is off and hosts paste links.
@@ -919,6 +1032,14 @@ export const envSchema = z
           code: 'custom',
           path: ['NOTIFICATIONS_SWEEP_INTERVAL_SECONDS'],
           message: 'the notifications sweeper cannot be disabled in production',
+        });
+      }
+      // D166: ended events must be frozen and their prizes paid.
+      if (env.EVENTS_SWEEP_INTERVAL_SECONDS === 0) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['EVENTS_SWEEP_INTERVAL_SECONDS'],
+          message: 'the event sweeper (leaderboard freeze and prize payout) cannot be disabled in production',
         });
       }
       // D155 (owner): direct messages must really disappear after DM_RETENTION_HOURS.

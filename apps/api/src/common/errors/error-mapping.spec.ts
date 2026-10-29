@@ -102,6 +102,9 @@ describe('ErrorCode', () => {
         'BOOST_ROOM_BUSY',
         'YOUTUBE_VIDEO_UNAVAILABLE',
         'YOUTUBE_SEARCH_UNAVAILABLE',
+        // v1.44-social (DRAFT, D166)
+        'TASK_NOT_COMPLETED',
+        'TASK_DAILY_CAP_REACHED',
       ].sort(),
     );
     expect(ERROR_HTTP_STATUS).toMatchObject({
@@ -171,6 +174,8 @@ describe('ErrorCode', () => {
       BOOST_ROOM_BUSY: 409,
       YOUTUBE_VIDEO_UNAVAILABLE: 422,
       YOUTUBE_SEARCH_UNAVAILABLE: 503,
+      TASK_NOT_COMPLETED: 409,
+      TASK_DAILY_CAP_REACHED: 409,
     });
   });
 
