@@ -7836,4 +7836,197 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get videoCannotPlay => 'لا يمكن تشغيل هذا الفيديو الآن';
+
+  @override
+  String get walletBalanceLabel => 'رصيد الكوينز';
+
+  @override
+  String get walletRecharge => 'شحن';
+
+  @override
+  String get walletRechargeSoon => 'الشحن قريباً — لم تُحدَّد طريقة الدفع بعد.';
+
+  @override
+  String get walletHistoryTitle => 'سجل المعاملات';
+
+  @override
+  String get walletHistoryEmpty => 'لا معاملات بعد';
+
+  @override
+  String get walletHistoryEmptyBody => 'ستظهر هنا كل عملية تغيّر رصيدك.';
+
+  @override
+  String get walletLoadError => 'تعذّر تحميل المحفظة';
+
+  @override
+  String walletBalanceAfter(String coins) {
+    return 'الرصيد بعدها $coins';
+  }
+
+  @override
+  String get walletReasonAdminGrant => 'منحة من الفريق';
+
+  @override
+  String get walletReasonAdminRevoke => 'سحب من الفريق';
+
+  @override
+  String get walletReasonBulletMessage => 'رسالة عامة';
+
+  @override
+  String get walletReasonFamilyCreate => 'إنشاء عائلة';
+
+  @override
+  String get walletReasonCpRequest => 'طلب CP';
+
+  @override
+  String get walletReasonCpRefund => 'استرداد طلب CP';
+
+  @override
+  String get walletReasonCpGift => 'هدية CP';
+
+  @override
+  String get walletReasonLiveGift => 'هدية في بث';
+
+  @override
+  String get walletReasonLuckyGift => 'هدية الحظ';
+
+  @override
+  String get walletReasonLuckyGiftWin => 'ربح من هدية الحظ';
+
+  @override
+  String get walletReasonPremiumRent => 'استئجار اسم مميز';
+
+  @override
+  String get walletReasonPremiumRenew => 'تجديد اسم مميز';
+
+  @override
+  String get walletReasonDmGift => 'هدية في محادثة';
+
+  @override
+  String get walletReasonLiveBoost => 'بطاقة زيارات';
+
+  @override
+  String get walletReasonLiveBoostRefund => 'استرداد بطاقة زيارات';
+
+  @override
+  String get walletReasonOther => 'تغيير في الرصيد';
+
+  @override
+  String get earnTotal => 'إجمالي أرباحك';
+
+  @override
+  String get earnLast7Days => 'آخر 7 أيام';
+
+  @override
+  String get earnLast30Days => 'آخر 30 يوماً';
+
+  @override
+  String get earnDisplayOnly =>
+      'الأرباح للعرض فقط: هي حصتك من الهدايا التي تصلك في البث والمحادثات، ولا تُضاف إلى رصيد الكوينز.';
+
+  @override
+  String get earnWithdraw => 'سحب الأرباح';
+
+  @override
+  String get earnWithdrawSoon => 'السحب قريباً — لم تُحدَّد طريقة الدفع بعد.';
+
+  @override
+  String get earnHistoryTitle => 'سجل الأرباح';
+
+  @override
+  String get earnEmpty => 'لا أرباح بعد';
+
+  @override
+  String get earnEmptyBody =>
+      'عندما تصلك هدايا في البث أو المحادثات تظهر حصتك منها هنا.';
+
+  @override
+  String get earnLoadError => 'تعذّر تحميل الأرباح';
+
+  @override
+  String earnGiftLine(String gift, int quantity) {
+    return '$gift × $quantity';
+  }
+
+  @override
+  String earnFrom(String name) {
+    return 'من $name';
+  }
+
+  @override
+  String get earnFromHidden => 'من حساب غير متاح';
+
+  @override
+  String get earnContextLive => 'في بث';
+
+  @override
+  String get earnContextDm => 'في محادثة';
+
+  @override
+  String earnShare(String percent, String coins) {
+    return 'حصتك $percent٪ من $coins';
+  }
+
+  @override
+  String get creatorPeriod7 => '7 أيام';
+
+  @override
+  String get creatorPeriod30 => '30 يوماً';
+
+  @override
+  String get creatorPeriodAll => 'كل الوقت';
+
+  @override
+  String get creatorFollowers => 'المتابعون';
+
+  @override
+  String get creatorFollowersTotal => 'كل المتابعين';
+
+  @override
+  String get creatorFollowersNew => 'تابعوك في هذه الفترة';
+
+  @override
+  String get creatorPosts => 'المنشورات';
+
+  @override
+  String get creatorReels => 'الريلز';
+
+  @override
+  String get creatorPublished => 'منشورة';
+
+  @override
+  String get creatorViews => 'المشاهدات';
+
+  @override
+  String get creatorLikes => 'الإعجابات';
+
+  @override
+  String get creatorComments => 'التعليقات';
+
+  @override
+  String get creatorShares => 'المشاركات';
+
+  @override
+  String get creatorContentHint => 'ما نُشر في هذه الفترة، بأرقامه حتى الآن.';
+
+  @override
+  String get creatorNoPosts => 'لم تنشر شيئاً في هذه الفترة.';
+
+  @override
+  String get creatorLive => 'البث المباشر';
+
+  @override
+  String get creatorLiveHint => 'البثوث التي بدأت في هذه الفترة وانتهت.';
+
+  @override
+  String get creatorNoLives => 'لا بثوث منتهية في هذه الفترة.';
+
+  @override
+  String get creatorPeakViewers => 'أعلى مشاهدة';
+
+  @override
+  String get creatorOpenProfile => 'منشوراتي وريلزي';
+
+  @override
+  String get creatorLoadError => 'تعذّر تحميل الإحصاءات';
 }

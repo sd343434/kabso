@@ -51,6 +51,10 @@ const List<String> _destinations = [
   AppRoutes.medals,
   AppRoutes.cp,
   AppRoutes.premium,
+  // D164.
+  AppRoutes.wallet,
+  AppRoutes.earnings,
+  AppRoutes.creatorCenter,
 ];
 
 Future<void> _pump(
@@ -141,12 +145,11 @@ Future<void> _tapItem(WidgetTester tester, MeHubItem item) async {
 }
 
 /// The hub items that are not built yet (faded, "Soon", no action).
+/// D164: Wallet, Earn money and Creator Center are built; these four wait
+/// for the owner's decisions (CP-024).
 const Set<MeHubItem> _soon = {
   MeHubItem.vip,
-  MeHubItem.earn,
-  MeHubItem.creatorCenter,
   MeHubItem.eventCenter,
-  MeHubItem.wallet,
   MeHubItem.svip,
   MeHubItem.taskCenter,
 };
@@ -224,6 +227,10 @@ void main() {
     (MeHubItem.medals, AppRoutes.medals),
     (MeHubItem.relationship, AppRoutes.cp),
     (MeHubItem.premium, AppRoutes.premium),
+    // D164.
+    (MeHubItem.wallet, AppRoutes.wallet),
+    (MeHubItem.earn, AppRoutes.earnings),
+    (MeHubItem.creatorCenter, AppRoutes.creatorCenter),
   ]) {
     testWidgets('${item.name} opens its real screen ($path)', (tester) async {
       await _pump(tester);

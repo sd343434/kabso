@@ -21,6 +21,7 @@ import 'package:kabso_live/features/cp/presentation/cp_screen.dart';
 import 'package:kabso_live/features/cp/presentation/cp_space_screen.dart';
 import 'package:kabso_live/features/create/create_screen.dart';
 import 'package:kabso_live/features/create/new_reel_screen.dart';
+import 'package:kabso_live/features/creator/presentation/creator_center_screen.dart';
 import 'package:kabso_live/features/debug/component_gallery_screen.dart';
 import 'package:kabso_live/features/debug/conversations_preview_screen.dart';
 import 'package:kabso_live/features/debug/demo_data.dart';
@@ -71,6 +72,8 @@ import 'package:kabso_live/features/settings/settings_screen.dart';
 import 'package:kabso_live/features/stories/presentation/new_story_screen.dart';
 import 'package:kabso_live/features/stories/presentation/story_archive_screen.dart';
 import 'package:kabso_live/features/stories/presentation/story_viewer_screen.dart';
+import 'package:kabso_live/features/wallet/presentation/earnings_screen.dart';
+import 'package:kabso_live/features/wallet/presentation/wallet_screen.dart';
 import 'package:material_ui/material_ui.dart';
 
 final rootNavigatorKeyProvider = Provider<GlobalKey<NavigatorState>>(
@@ -324,6 +327,16 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.changeUsername,
         builder: (_, _) => const ChangeUsernameScreen(),
+      ),
+      // D164: the Me hub's wallet, earnings and creator center.
+      GoRoute(path: AppRoutes.wallet, builder: (_, _) => const WalletScreen()),
+      GoRoute(
+        path: AppRoutes.earnings,
+        builder: (_, _) => const EarningsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.creatorCenter,
+        builder: (_, _) => const CreatorCenterScreen(),
       ),
       // Debug/profile only; `kReleaseMode` is a compile-time constant, so
       // the route and the gallery are tree-shaken out of release builds.

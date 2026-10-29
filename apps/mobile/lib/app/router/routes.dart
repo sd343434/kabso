@@ -173,6 +173,12 @@ abstract final class AppRoutes {
   static String premiumFor(String username) =>
       '$premium?q=${Uri.encodeQueryComponent(username)}';
 
+  /// D164: the Me hub's wallet (balance and coin history), earnings and
+  /// creator center.
+  static const wallet = '/wallet';
+  static const earnings = '/earnings';
+  static const creatorCenter = '/creator';
+
   /// D146: change the regular username (`PUT /me/username`).
   static const changeUsername = '/settings/username';
 

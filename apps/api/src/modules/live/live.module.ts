@@ -117,6 +117,14 @@ import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit
     },
   ],
   // v1.40-social (D155): the messages module sends gifts in conversations through LiveGiftsService.
-  exports: [LiveRoomsService, LiveMediaService, LiveSeatsService, LiveChatService, LiveGiftsService],
+  // v1.43-social (D164): the data center's summaries also feed the creator center.
+  exports: [
+    LiveRoomsService,
+    LiveMediaService,
+    LiveSeatsService,
+    LiveChatService,
+    LiveGiftsService,
+    LiveDataCenterService,
+  ],
 })
 export class LiveModule {}

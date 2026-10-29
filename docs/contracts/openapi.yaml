@@ -216,6 +216,10 @@ info:
     length, codec, size) and served as uploaded; there is no server-side transcoding yet.
     **D162a (DRAFT v1.42-social)**: posts with media (photos, video, reels) are `VISIBLE` at once
     (owner); `PENDING` stays valid for a future provider or an admin hold (CONVENTIONS §11.2).
+    **D164 (DRAFT v1.43-social)** makes the Me hub's Wallet, Earn money and Creator Center real from
+    stored data: the caller's coin history (`listMyWalletLedger`), gift earnings and their history
+    (`getMyEarnings`, `listMyEarnings`, display only — no withdrawal, D149) and the creator center
+    (`getMyCreatorStats`, `GET /me/creator-stats`) (CONVENTIONS §10.40).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -239,7 +243,7 @@ tags:
   - name: media
     description: "Presigned image uploads (v1.5-social DRAFT, CP-006)."
   - name: wallet
-    description: "The caller's coins (v1.19-live DRAFT, CP-017)."
+    description: "The caller's coins (v1.19-live DRAFT, CP-017); their history and gift earnings (v1.43-social DRAFT, D164)."
   - name: premium-usernames
     description: "Premium usernames rented monthly with coins, and the username change (v1.28-live DRAFT, D146). Prices, the reserved list and grants are managed by the premium-admin CLI."
   - name: families
@@ -3756,6 +3760,95 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Wallet' }
               example: { coins: 100 }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  # ---- v1.43-social (DRAFT, D164) — the Me hub's wallet, earnings and creator center ----------
+  /api/v1/wallet/me/ledger:
+    get:
+      tags: [wallet]
+      operationId: listMyWalletLedger
+      summary: "The caller's coin history, newest first (D164)"
+      description: |
+        v1.43-social, CONVENTIONS §10.40. Every change of the caller's coin balance (the
+        `wallet_ledger` rows): why, by how much and the balance after it, newest first (signed keyset
+        cursor bound to the caller). Only the caller's own rows; no other person's data (the row's
+        internal reference is not returned). Checks: 401; 400 `cursor` / `limit`.
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page of the history.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WalletLedgerPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/wallet/me/earnings:
+    get:
+      tags: [wallet]
+      operationId: getMyEarnings
+      summary: "The caller's gift earnings: totals (D164, display only)"
+      description: |
+        v1.43-social, CONVENTIONS §10.40. What the caller earned from the gifts they received, in a
+        live or a direct conversation: each send's value to the caller times the share stored with
+        that send (`live_gifts.host_share_bps`, §10.33), rounded down per send — the same arithmetic
+        as the data center's `earningsCoins` (§10.36). **Display only:** earnings are not coins, cannot
+        be spent and cannot be withdrawn yet (payouts D149). Checks: 401.
+      responses:
+        '200':
+          description: The totals.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyEarnings' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/wallet/me/earnings/history:
+    get:
+      tags: [wallet]
+      operationId: listMyEarnings
+      summary: "The gifts the caller earned from, newest first (D164)"
+      description: |
+        v1.43-social, CONVENTIONS §10.40. One row per gift send that gave the caller earnings (a
+        send whose share is 0, like a free quip, is left out), newest first (signed keyset cursor
+        bound to the caller). `sender` is null when the sender's account is not active or a block
+        stands between them. Checks: 401; 400 `cursor` / `limit`.
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page of earnings.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EarningPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/creator-stats:
+    get:
+      tags: [me]
+      operationId: getMyCreatorStats
+      summary: "The caller's creator center: followers, posts, reels and lives (D164)"
+      description: |
+        v1.43-social, CONVENTIONS §10.40. Computed from stored data only, for the last 7 days, the last
+        30 days or all time: the followers (all, and the follows made in the period that still stand),
+        the posts and the reels **published in the period** with the views, likes, comments and
+        shares they have now, and the lives **started in the period** that have ended (the data
+        center's summaries, §10.36). Checks: 401; 400 `period`.
+      parameters:
+        - name: period
+          in: query
+          required: true
+          schema: { $ref: '#/components/schemas/CreatorStatsPeriod' }
+      responses:
+        '200':
+          description: The statistics.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CreatorStats' }
+        '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
   # ---- v1.21-live (DRAFT, CP-018, D106) — families, CP couples and medals ---------------------
@@ -10535,6 +10628,133 @@ components:
           description: Present only for a LUCKY gift.
           allOf:
             - $ref: '#/components/schemas/LuckyGiftResult'
+    # ---- v1.43-social (DRAFT, D164) ------------------------------------------------------------
+    WalletLedgerReason:
+      type: string
+      description: |
+        v1.43-social (D164, CONVENTIONS §10.40): why a coin balance changed. New reasons are added
+        without a version bump; clients show an unknown value as a generic change.
+      enum:
+        - ADMIN_GRANT
+        - ADMIN_REVOKE
+        - BULLET_MESSAGE
+        - FAMILY_CREATE
+        - CP_REQUEST
+        - CP_REFUND
+        - CP_GIFT
+        - LIVE_GIFT
+        - LUCKY_GIFT
+        - LUCKY_GIFT_WIN
+        - PREMIUM_USERNAME_RENT
+        - PREMIUM_USERNAME_RENEW
+        - DM_GIFT
+        - LIVE_BOOST
+        - LIVE_BOOST_REFUND
+    WalletLedgerEntry:
+      type: object
+      required: [id, reason, delta, balanceAfter, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        reason: { $ref: '#/components/schemas/WalletLedgerReason' }
+        delta:
+          type: integer
+          format: int64
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Coins added (> 0) or taken (< 0); never 0.
+        balanceAfter: { type: integer, format: int64, minimum: 0, maximum: 9007199254740991 }
+        createdAt: { type: string, format: date-time }
+    WalletLedgerPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/WalletLedgerEntry' }
+        page: { $ref: '#/components/schemas/PageInfo' }
+    MyEarnings:
+      type: object
+      description: v1.43-social (D164, CONVENTIONS §10.40). Display only — not coins, not withdrawable yet (D149).
+      required: [totalCoins, last7DaysCoins, last30DaysCoins, sendCount]
+      properties:
+        totalCoins: { type: integer, format: int64, minimum: 0, description: All earnings since the account began. }
+        last7DaysCoins: { type: integer, format: int64, minimum: 0 }
+        last30DaysCoins: { type: integer, format: int64, minimum: 0 }
+        sendCount: { type: integer, format: int64, minimum: 0, description: The gift sends that gave earnings (the rows of the history). }
+    EarningContext:
+      type: string
+      enum: [LIVE, DM]
+      description: Where the gift was sent (a live, or a direct conversation).
+    Earning:
+      type: object
+      required: [id, createdAt, context, giftCode, giftName, quantity, giftCoins, shareBps, coins, sender]
+      properties:
+        id: { type: string, format: uuid, description: The gift send. }
+        createdAt: { type: string, format: date-time }
+        context: { $ref: '#/components/schemas/EarningContext' }
+        giftCode: { type: string }
+        giftName: { type: string, description: "In the reader's language (Accept-Language, else the caller's locale)." }
+        quantity: { type: integer, minimum: 1 }
+        giftCoins: { type: integer, format: int64, minimum: 0, description: The coin value of the send to the caller. }
+        shareBps: { type: integer, minimum: 0, maximum: 10000, description: The caller's share stored with the send (basis points). }
+        coins: { type: integer, format: int64, minimum: 1, description: "floor(giftCoins × shareBps / 10 000)." }
+        sender:
+          oneOf:
+            - $ref: '#/components/schemas/UserSummary'
+            - type: 'null'
+          description: Null when the sender's account is not active or a block stands between them.
+    EarningPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Earning' }
+        page: { $ref: '#/components/schemas/PageInfo' }
+    CreatorStatsPeriod:
+      type: string
+      enum: [LAST_7_DAYS, LAST_30_DAYS, ALL_TIME]
+    CreatorContentStats:
+      type: object
+      description: The posts (or reels) published in the period and what they have now.
+      required: [published, views, likes, comments, shares]
+      properties:
+        published: { type: integer, minimum: 0 }
+        views: { type: integer, format: int64, minimum: 0 }
+        likes: { type: integer, format: int64, minimum: 0 }
+        comments: { type: integer, format: int64, minimum: 0 }
+        shares: { type: integer, format: int64, minimum: 0 }
+    CreatorStats:
+      type: object
+      description: v1.43-social (D164, CONVENTIONS §10.40). The caller's creator center for one period.
+      required: [period, from, to, followers, posts, reels, live]
+      properties:
+        period: { $ref: '#/components/schemas/CreatorStatsPeriod' }
+        from: { type: [string, 'null'], format: date-time, description: The period's start; null for ALL_TIME. }
+        to: { type: string, format: date-time }
+        followers:
+          type: object
+          required: [total, newInPeriod]
+          properties:
+            total: { type: integer, minimum: 0, description: Active accounts that follow the caller now. }
+            newInPeriod:
+              type: [integer, 'null']
+              minimum: 0
+              description: Of those, the ones who followed during the period (null for ALL_TIME). Unfollows are not stored, so this is not a net change.
+        posts: { $ref: '#/components/schemas/CreatorContentStats' }
+        reels: { $ref: '#/components/schemas/CreatorContentStats' }
+        live:
+          type: object
+          description: The caller's ended lives that started in the period (§10.36).
+          required: [lives, liveSeconds, giftCount, giftCoins, earningsCoins, newFollowers, peakViewers]
+          properties:
+            lives: { type: integer, minimum: 0 }
+            liveSeconds: { type: integer, format: int64, minimum: 0 }
+            giftCount: { type: integer, format: int64, minimum: 0 }
+            giftCoins: { type: integer, format: int64, minimum: 0 }
+            earningsCoins: { type: integer, format: int64, minimum: 0, description: Display only (D149). }
+            newFollowers: { type: integer, minimum: 0 }
+            peakViewers: { type: integer, minimum: 0 }
     DmReadRequest:
       type: object
       additionalProperties: false

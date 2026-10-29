@@ -133,15 +133,23 @@ export class LiveDataCenterService implements OnModuleInit, OnModuleDestroy {
       ON CONFLICT (room_id) DO NOTHING`;
   }
 
+  /**
+   * Every ended live of `hostId` that has no summary yet (a host with a long history takes several
+   * batches). Also used by the creator center (v1.43-social, D164).
+   */
+  async summariseHost(hostId: string): Promise<void> {
+    while ((await this.summarise(hostId)) === LIVE_SUMMARY_BATCH) {
+      // Keep going until every ended live has its summary.
+    }
+  }
+
   /** `GET /live/stats/me?period=DAY|WEEK|MONTH|YEAR`: the caller's own data center. */
   async mine(callerId: string, query: unknown): Promise<MyLiveStatsDto> {
     const parsed = querySchema.safeParse(query ?? {}, { reportInput: true });
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
     const period = parsed.data.period;
     // The caller's lives that ended since the last summariser run count at once.
-    while ((await this.summarise(callerId)) === LIVE_SUMMARY_BATCH) {
-      // A host with a long history: keep going until every ended live has its summary.
-    }
+    await this.summariseHost(callerId);
     const tz = this.config.live.rankingsTimeZone;
     const { unit, back } = PERIOD_SHAPE[period];
     const now = this.clock.now().toISOString();
