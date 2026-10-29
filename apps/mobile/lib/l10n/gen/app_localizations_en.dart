@@ -8046,4 +8046,337 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get chatVoiceUnavailable =>
       'Voice messages aren\'t available on this device';
+
+  @override
+  String get tasksTabDaily => 'Daily tasks';
+
+  @override
+  String get tasksTabWeekly => 'Weekly tasks';
+
+  @override
+  String get tasksLoadError => 'Couldn\'t load the tasks';
+
+  @override
+  String tasksLevelPoints(String points) {
+    return 'Experience points $points';
+  }
+
+  @override
+  String get tasksLevelNone => 'Levels aren\'t active yet';
+
+  @override
+  String get tasksCheckInTitle => 'Daily check-in';
+
+  @override
+  String tasksCheckInToBonus(String days, String coins) {
+    return 'Check in $days more days to get $coins extra coins';
+  }
+
+  @override
+  String tasksCheckInBonusToday(String coins) {
+    return 'Today is bonus day: $coins extra coins';
+  }
+
+  @override
+  String get tasksCheckInAction => 'Check in';
+
+  @override
+  String tasksStreak(String days) {
+    return '$days days in a row';
+  }
+
+  @override
+  String get tasksToday => 'Today';
+
+  @override
+  String tasksDailyCap(String earned, String cap) {
+    return 'Today\'s rewards: $earned of $cap coins';
+  }
+
+  @override
+  String get tasksRewardsTitle => 'Task rewards';
+
+  @override
+  String get tasksWeeklyTitle => 'Weekly host tasks';
+
+  @override
+  String get tasksWeeklyHint => 'They renew every Monday.';
+
+  @override
+  String get tasksWeeklyEmpty => 'Weekly tasks are for hosts';
+
+  @override
+  String get tasksWeeklyEmptyBody =>
+      'Weekly live tasks show up here for people who can go live.';
+
+  @override
+  String get tasksEmpty => 'No tasks right now';
+
+  @override
+  String get tasksEmptyBody =>
+      'Tasks will show up here when the Kabso team adds them.';
+
+  @override
+  String get tasksActionGo => 'Go';
+
+  @override
+  String get tasksActionClaim => 'Claim';
+
+  @override
+  String get tasksActionDone => 'Done';
+
+  @override
+  String tasksRewardReceived(String coins) {
+    return 'You got $coins coins';
+  }
+
+  @override
+  String get tasksNoCoinsCap => 'Done — you reached today\'s reward limit';
+
+  @override
+  String get tasksCapReached => 'You reached today\'s task reward limit';
+
+  @override
+  String get eventsTabCalendar => 'Event calendar';
+
+  @override
+  String get eventsTabPermanent => 'Permanent events';
+
+  @override
+  String get eventsTabRegional => 'Regional events';
+
+  @override
+  String get eventsIntroTitle => 'Event calendar';
+
+  @override
+  String get eventsIntroBody =>
+      'Kabso\'s main official events every month — see the rewards and how to take part early. Tap any event for details.';
+
+  @override
+  String eventsCalendarMonth(String month) {
+    return '$month event calendar';
+  }
+
+  @override
+  String get eventsPreviousMonth => 'Previous month';
+
+  @override
+  String get eventsNextMonth => 'Next month';
+
+  @override
+  String eventsMore(String count) {
+    return 'and $count more';
+  }
+
+  @override
+  String get eventsEmptyMonth => 'No events this month';
+
+  @override
+  String get eventsEmpty => 'No events right now';
+
+  @override
+  String get eventsEmptyBody =>
+      'When the Kabso team announces an event, it will show up here.';
+
+  @override
+  String get eventsNoCountry => 'Set your country to see your region\'s events';
+
+  @override
+  String get eventsNoCountryBody =>
+      'You can choose your country when you edit your profile.';
+
+  @override
+  String get eventsLoadError => 'Couldn\'t load the events';
+
+  @override
+  String get eventsEnded => 'Ended';
+
+  @override
+  String get eventsFeatured => 'Hot';
+
+  @override
+  String get eventsUpcoming => 'Coming up';
+
+  @override
+  String get eventsRunning => 'Live now';
+
+  @override
+  String eventsDates(String start, String end) {
+    return '$start to $end';
+  }
+
+  @override
+  String eventsSince(String start) {
+    return 'Since $start';
+  }
+
+  @override
+  String get eventsDetailTitle => 'Event details';
+
+  @override
+  String get eventsForHosts => 'Hosts only';
+
+  @override
+  String get eventsRules => 'Rules';
+
+  @override
+  String get eventsNoRules => 'No extra rules.';
+
+  @override
+  String get eventsPrizes => 'Prizes';
+
+  @override
+  String get eventsNoPrizes => 'This event has no prizes.';
+
+  @override
+  String get eventsPrizesReview =>
+      'Prizes are paid automatically 24 hours after the event ends.';
+
+  @override
+  String get eventsPrizesPaid => 'The prizes have been paid.';
+
+  @override
+  String eventsRank(String rank) {
+    return 'Place $rank';
+  }
+
+  @override
+  String eventsRanks(String from, String to) {
+    return 'Places $from–$to';
+  }
+
+  @override
+  String get eventsBoard => 'Leaderboard';
+
+  @override
+  String get eventsBoardLive => 'Live';
+
+  @override
+  String get eventsBoardFinal => 'Final results';
+
+  @override
+  String get eventsBoardEmpty => 'No one on the board yet.';
+
+  @override
+  String eventsMeRank(String rank) {
+    return 'Your place: $rank';
+  }
+
+  @override
+  String get eventsMeNotRanked => 'You\'re not on the board yet';
+
+  @override
+  String get eventsMetricGiftsReceived => 'Gift coins received';
+
+  @override
+  String get eventsMetricGiftsSent => 'Gift coins sent';
+
+  @override
+  String get eventsMetricLiveMinutes => 'Live minutes';
+
+  @override
+  String get eventsMetricTaps => 'Taps received';
+
+  @override
+  String get eventsMetricFollowers => 'New followers';
+
+  @override
+  String get eventsMetricOther => 'Points';
+
+  @override
+  String get svipLoadError => 'Couldn\'t load SVIP';
+
+  @override
+  String get svipRules => 'SVIP rules';
+
+  @override
+  String svipRulesBody(String days) {
+    return 'You earn SVIP by sending gifts: spend coins on gifts within $days days to reach a level, and it stays with you for 30 days from the last time you reached it. SVIP can\'t be bought with money.';
+  }
+
+  @override
+  String get svipNotYet => 'You\'re not SVIP yet';
+
+  @override
+  String svipTier(String tier) {
+    return 'SVIP $tier';
+  }
+
+  @override
+  String svipUntil(String tier, String date) {
+    return '$tier until $date';
+  }
+
+  @override
+  String svipTrack(String tier, String count) {
+    return 'Level $tier of $count';
+  }
+
+  @override
+  String get svipLocked => 'Locked';
+
+  @override
+  String get svipUnlocked => 'Unlocked';
+
+  @override
+  String svipSpendToUpgrade(String coins, String days) {
+    return 'Spend $coins coins on gifts within $days days to upgrade';
+  }
+
+  @override
+  String svipSpent(String coins, String days) {
+    return 'You spent $coins coins in the last $days days';
+  }
+
+  @override
+  String get svipTop => 'You reached the top SVIP level';
+
+  @override
+  String get svipPerksTitle => 'SVIP perks';
+
+  @override
+  String get svipPerksSoon =>
+      'Perks are being prepared and will switch on one by one.';
+
+  @override
+  String svipSpendMore(String coins, String tier) {
+    return 'Spend $coins more coins to reach $tier';
+  }
+
+  @override
+  String get svipCta => 'Send a gift';
+
+  @override
+  String get walletTabCoins => 'Coins';
+
+  @override
+  String get walletRechargeTitle => 'Recharge coins';
+
+  @override
+  String walletBonus(String coins) {
+    return '$coins bonus';
+  }
+
+  @override
+  String get walletOffer => 'Deal';
+
+  @override
+  String walletGetCoins(String coins, String total) {
+    return 'Get $coins coins · Total $total';
+  }
+
+  @override
+  String get walletPackagesEmpty => 'No recharge packages right now';
+
+  @override
+  String get walletPackagesError => 'Couldn\'t load the recharge packages';
+
+  @override
+  String get walletReasonTaskReward => 'Task reward';
+
+  @override
+  String get walletReasonCheckIn => 'Check-in reward';
+
+  @override
+  String get walletReasonEventPrize => 'Event prize';
 }

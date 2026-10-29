@@ -13896,6 +13896,570 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'الرسائل الصوتية غير متاحة على هذا الجهاز'**
   String get chatVoiceUnavailable;
+
+  /// D166: Task Center tab.
+  ///
+  /// In ar, this message translates to:
+  /// **'المهام اليومية'**
+  String get tasksTabDaily;
+
+  /// D166: Task Center tab (host tasks).
+  ///
+  /// In ar, this message translates to:
+  /// **'المهام الأسبوعية'**
+  String get tasksTabWeekly;
+
+  /// D166: tasks failed to load.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل المهام'**
+  String get tasksLoadError;
+
+  /// D166: the level card's points.
+  ///
+  /// In ar, this message translates to:
+  /// **'نقاط الخبرة {points}'**
+  String tasksLevelPoints(String points);
+
+  /// D166: the level card when no level system is active.
+  ///
+  /// In ar, this message translates to:
+  /// **'المستويات غير مفعّلة بعد'**
+  String get tasksLevelNone;
+
+  /// D166: the check-in section.
+  ///
+  /// In ar, this message translates to:
+  /// **'تسجيل الدخول اليومي'**
+  String get tasksCheckInTitle;
+
+  /// D166: days left to the 7th-day bonus.
+  ///
+  /// In ar, this message translates to:
+  /// **'سجّل الدخول {days} أيام أخرى لتحصل على {coins} عملة إضافية'**
+  String tasksCheckInToBonus(String days, String coins);
+
+  /// D166: the 7th day of the streak is today.
+  ///
+  /// In ar, this message translates to:
+  /// **'اليوم يوم المكافأة: {coins} عملة إضافية'**
+  String tasksCheckInBonusToday(String coins);
+
+  /// D166: the check-in button.
+  ///
+  /// In ar, this message translates to:
+  /// **'تسجيل'**
+  String get tasksCheckInAction;
+
+  /// D166: the check-in streak.
+  ///
+  /// In ar, this message translates to:
+  /// **'{days} أيام متتالية'**
+  String tasksStreak(String days);
+
+  /// D166: today's slot of the check-in strip.
+  ///
+  /// In ar, this message translates to:
+  /// **'اليوم'**
+  String get tasksToday;
+
+  /// D166: the daily cap of task and check-in coins.
+  ///
+  /// In ar, this message translates to:
+  /// **'مكافآت اليوم: {earned} من {cap} عملة'**
+  String tasksDailyCap(String earned, String cap);
+
+  /// D166: the daily task list.
+  ///
+  /// In ar, this message translates to:
+  /// **'مكافآت المهام'**
+  String get tasksRewardsTitle;
+
+  /// D166: the weekly task list.
+  ///
+  /// In ar, this message translates to:
+  /// **'مهام المضيف الأسبوعية'**
+  String get tasksWeeklyTitle;
+
+  /// D166: when weekly tasks reset.
+  ///
+  /// In ar, this message translates to:
+  /// **'تتجدد كل يوم إثنين.'**
+  String get tasksWeeklyHint;
+
+  /// D166: weekly tab for someone without the hosting permission.
+  ///
+  /// In ar, this message translates to:
+  /// **'المهام الأسبوعية للمضيفين'**
+  String get tasksWeeklyEmpty;
+
+  /// D166: weekly tab empty message.
+  ///
+  /// In ar, this message translates to:
+  /// **'تظهر هنا مهام البث الأسبوعية لمن لديه صلاحية البث.'**
+  String get tasksWeeklyEmptyBody;
+
+  /// D166: no task is configured.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا مهام الآن'**
+  String get tasksEmpty;
+
+  /// D166: no task is configured (message).
+  ///
+  /// In ar, this message translates to:
+  /// **'ستظهر هنا المهام عندما يضيفها فريق كبسو.'**
+  String get tasksEmptyBody;
+
+  /// D166: a task not done yet: go where it is done.
+  ///
+  /// In ar, this message translates to:
+  /// **'اذهب'**
+  String get tasksActionGo;
+
+  /// D166: a done task: claim its coins.
+  ///
+  /// In ar, this message translates to:
+  /// **'استلام'**
+  String get tasksActionClaim;
+
+  /// D166: a claimed task / today's check-in done.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم'**
+  String get tasksActionDone;
+
+  /// D166: a claim or check-in paid coins.
+  ///
+  /// In ar, this message translates to:
+  /// **'حصلت على {coins} عملة'**
+  String tasksRewardReceived(String coins);
+
+  /// D166: a check-in after the daily cap (no coins).
+  ///
+  /// In ar, this message translates to:
+  /// **'تم التسجيل — بلغت حدّ مكافآت اليوم'**
+  String get tasksNoCoinsCap;
+
+  /// D166: TASK_DAILY_CAP_REACHED.
+  ///
+  /// In ar, this message translates to:
+  /// **'بلغت حدّ مكافآت المهام لهذا اليوم'**
+  String get tasksCapReached;
+
+  /// D166: Event Center tab.
+  ///
+  /// In ar, this message translates to:
+  /// **'تقويم الفعاليات'**
+  String get eventsTabCalendar;
+
+  /// D166: Event Center tab.
+  ///
+  /// In ar, this message translates to:
+  /// **'فعاليات دائمة'**
+  String get eventsTabPermanent;
+
+  /// D166: Event Center tab.
+  ///
+  /// In ar, this message translates to:
+  /// **'فعاليات إقليمية'**
+  String get eventsTabRegional;
+
+  /// D166: the intro card title.
+  ///
+  /// In ar, this message translates to:
+  /// **'تقويم الفعاليات'**
+  String get eventsIntroTitle;
+
+  /// D166: the intro card text.
+  ///
+  /// In ar, this message translates to:
+  /// **'أبرز فعاليات كبسو الرسمية كل شهر — اعرف المكافآت وطريقة المشاركة مبكراً. اضغط أي فعالية لتفاصيلها.'**
+  String get eventsIntroBody;
+
+  /// D166: the calendar's month title.
+  ///
+  /// In ar, this message translates to:
+  /// **'تقويم فعاليات {month}'**
+  String eventsCalendarMonth(String month);
+
+  /// D166: calendar navigation.
+  ///
+  /// In ar, this message translates to:
+  /// **'الشهر السابق'**
+  String get eventsPreviousMonth;
+
+  /// D166: calendar navigation.
+  ///
+  /// In ar, this message translates to:
+  /// **'الشهر التالي'**
+  String get eventsNextMonth;
+
+  /// D166: more event bars than fit in a week.
+  ///
+  /// In ar, this message translates to:
+  /// **'و{count} أخرى'**
+  String eventsMore(String count);
+
+  /// D166: empty calendar month.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا فعاليات هذا الشهر'**
+  String get eventsEmptyMonth;
+
+  /// D166: empty event list.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا فعاليات الآن'**
+  String get eventsEmpty;
+
+  /// D166: empty event list (message).
+  ///
+  /// In ar, this message translates to:
+  /// **'عندما يعلن فريق كبسو عن فعالية ستظهر هنا.'**
+  String get eventsEmptyBody;
+
+  /// D166: regional tab without a country.
+  ///
+  /// In ar, this message translates to:
+  /// **'حدّد بلدك لترى فعاليات منطقتك'**
+  String get eventsNoCountry;
+
+  /// D166: regional tab without a country (message).
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنك اختيار بلدك من تعديل الملف الشخصي.'**
+  String get eventsNoCountryBody;
+
+  /// D166: events failed to load.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل الفعاليات'**
+  String get eventsLoadError;
+
+  /// D166: an ended event's tag.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت'**
+  String get eventsEnded;
+
+  /// D166: a featured event's tag.
+  ///
+  /// In ar, this message translates to:
+  /// **'رائج'**
+  String get eventsFeatured;
+
+  /// D166: an event that has not started.
+  ///
+  /// In ar, this message translates to:
+  /// **'قريباً'**
+  String get eventsUpcoming;
+
+  /// D166: a running event.
+  ///
+  /// In ar, this message translates to:
+  /// **'جارية'**
+  String get eventsRunning;
+
+  /// D166: an event's dates.
+  ///
+  /// In ar, this message translates to:
+  /// **'من {start} إلى {end}'**
+  String eventsDates(String start, String end);
+
+  /// D166: a permanent event without an end.
+  ///
+  /// In ar, this message translates to:
+  /// **'منذ {start}'**
+  String eventsSince(String start);
+
+  /// D166: the event screen's title.
+  ///
+  /// In ar, this message translates to:
+  /// **'تفاصيل الفعالية'**
+  String get eventsDetailTitle;
+
+  /// D166: an event for hosts.
+  ///
+  /// In ar, this message translates to:
+  /// **'للمضيفين فقط'**
+  String get eventsForHosts;
+
+  /// D166: the event rules section.
+  ///
+  /// In ar, this message translates to:
+  /// **'القواعد'**
+  String get eventsRules;
+
+  /// D166: an event without rules text.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا قواعد إضافية.'**
+  String get eventsNoRules;
+
+  /// D166: the event prizes section.
+  ///
+  /// In ar, this message translates to:
+  /// **'الجوائز'**
+  String get eventsPrizes;
+
+  /// D166: an event without prizes.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا جوائز لهذه الفعالية.'**
+  String get eventsNoPrizes;
+
+  /// D166: the review window before payout.
+  ///
+  /// In ar, this message translates to:
+  /// **'تُصرف الجوائز تلقائياً بعد 24 ساعة من انتهاء الفعالية.'**
+  String get eventsPrizesReview;
+
+  /// D166: prizes paid.
+  ///
+  /// In ar, this message translates to:
+  /// **'صُرفت الجوائز.'**
+  String get eventsPrizesPaid;
+
+  /// D166: one rank.
+  ///
+  /// In ar, this message translates to:
+  /// **'المركز {rank}'**
+  String eventsRank(String rank);
+
+  /// D166: a range of ranks (each gets the prize).
+  ///
+  /// In ar, this message translates to:
+  /// **'المراكز {from}–{to}'**
+  String eventsRanks(String from, String to);
+
+  /// D166: the leaderboard section.
+  ///
+  /// In ar, this message translates to:
+  /// **'لوحة الصدارة'**
+  String get eventsBoard;
+
+  /// D166: the board is still counting.
+  ///
+  /// In ar, this message translates to:
+  /// **'مباشر'**
+  String get eventsBoardLive;
+
+  /// D166: the frozen board.
+  ///
+  /// In ar, this message translates to:
+  /// **'النتائج النهائية'**
+  String get eventsBoardFinal;
+
+  /// D166: an empty leaderboard.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا أحد في اللوحة بعد.'**
+  String get eventsBoardEmpty;
+
+  /// D166: the caller's own rank.
+  ///
+  /// In ar, this message translates to:
+  /// **'ترتيبك: {rank}'**
+  String eventsMeRank(String rank);
+
+  /// D166: the caller has no rank.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تدخل اللوحة بعد'**
+  String get eventsMeNotRanked;
+
+  /// D166: what the event counts.
+  ///
+  /// In ar, this message translates to:
+  /// **'قيمة الهدايا المستلمة'**
+  String get eventsMetricGiftsReceived;
+
+  /// D166: what the event counts.
+  ///
+  /// In ar, this message translates to:
+  /// **'قيمة الهدايا المرسلة'**
+  String get eventsMetricGiftsSent;
+
+  /// D166: what the event counts.
+  ///
+  /// In ar, this message translates to:
+  /// **'دقائق البث'**
+  String get eventsMetricLiveMinutes;
+
+  /// D166: what the event counts.
+  ///
+  /// In ar, this message translates to:
+  /// **'النقرات المستلمة'**
+  String get eventsMetricTaps;
+
+  /// D166: what the event counts.
+  ///
+  /// In ar, this message translates to:
+  /// **'المتابعون الجدد'**
+  String get eventsMetricFollowers;
+
+  /// D166: an unknown metric.
+  ///
+  /// In ar, this message translates to:
+  /// **'النقاط'**
+  String get eventsMetricOther;
+
+  /// D166: SVIP failed to load.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل SVIP'**
+  String get svipLoadError;
+
+  /// D166: the rules button and sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'قواعد SVIP'**
+  String get svipRules;
+
+  /// D166: how SVIP is earned.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحصل على SVIP بإرسال الهدايا: أنفق العملات على الهدايا خلال {days} يوماً لتصل إلى المستوى، ويبقى معك 30 يوماً من آخر مرة بلغته. لا يُشترى SVIP بالمال.'**
+  String svipRulesBody(String days);
+
+  /// D166: status line without SVIP.
+  ///
+  /// In ar, this message translates to:
+  /// **'لست SVIP بعد'**
+  String get svipNotYet;
+
+  /// D166: a tier name.
+  ///
+  /// In ar, this message translates to:
+  /// **'SVIP {tier}'**
+  String svipTier(String tier);
+
+  /// D166: status line with SVIP.
+  ///
+  /// In ar, this message translates to:
+  /// **'{tier} حتى {date}'**
+  String svipUntil(String tier, String date);
+
+  /// D166: the tier track (screen readers).
+  ///
+  /// In ar, this message translates to:
+  /// **'المستوى {tier} من {count}'**
+  String svipTrack(String tier, String count);
+
+  /// D166: a locked tier or perk.
+  ///
+  /// In ar, this message translates to:
+  /// **'مقفل'**
+  String get svipLocked;
+
+  /// D166: an unlocked perk.
+  ///
+  /// In ar, this message translates to:
+  /// **'مفتوح'**
+  String get svipUnlocked;
+
+  /// D166: what the next tier needs.
+  ///
+  /// In ar, this message translates to:
+  /// **'أنفق {coins} عملة على الهدايا خلال {days} يوماً للترقية'**
+  String svipSpendToUpgrade(String coins, String days);
+
+  /// D166: the rolling spending.
+  ///
+  /// In ar, this message translates to:
+  /// **'أنفقت {coins} عملة في آخر {days} يوماً'**
+  String svipSpent(String coins, String days);
+
+  /// D166: at the top tier.
+  ///
+  /// In ar, this message translates to:
+  /// **'وصلت إلى أعلى مستوى SVIP'**
+  String get svipTop;
+
+  /// D166: the perks section.
+  ///
+  /// In ar, this message translates to:
+  /// **'امتيازات SVIP'**
+  String get svipPerksTitle;
+
+  /// D166: no perk is built yet.
+  ///
+  /// In ar, this message translates to:
+  /// **'الامتيازات قيد الإعداد وستُفعَّل تباعاً.'**
+  String get svipPerksSoon;
+
+  /// D166: the sticky bar.
+  ///
+  /// In ar, this message translates to:
+  /// **'أنفق {coins} عملة أخرى للوصول إلى {tier}'**
+  String svipSpendMore(String coins, String tier);
+
+  /// D166: the gold button (opens the lives).
+  ///
+  /// In ar, this message translates to:
+  /// **'أرسل هدية'**
+  String get svipCta;
+
+  /// D166: wallet tab.
+  ///
+  /// In ar, this message translates to:
+  /// **'العملات'**
+  String get walletTabCoins;
+
+  /// D166: the packages section.
+  ///
+  /// In ar, this message translates to:
+  /// **'شحن العملات'**
+  String get walletRechargeTitle;
+
+  /// D166: a package's bonus coins (screen readers).
+  ///
+  /// In ar, this message translates to:
+  /// **'{coins} إضافية'**
+  String walletBonus(String coins);
+
+  /// D166: the discount ribbon.
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض'**
+  String get walletOffer;
+
+  /// D166: the recharge button (disabled until payments exist, B5).
+  ///
+  /// In ar, this message translates to:
+  /// **'احصل على {coins} عملة · المجموع {total}'**
+  String walletGetCoins(String coins, String total);
+
+  /// D166: no package configured.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا باقات شحن الآن'**
+  String get walletPackagesEmpty;
+
+  /// D166: packages failed to load.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل باقات الشحن'**
+  String get walletPackagesError;
+
+  /// D166: ledger reason TASK_REWARD.
+  ///
+  /// In ar, this message translates to:
+  /// **'مكافأة مهمة'**
+  String get walletReasonTaskReward;
+
+  /// D166: ledger reason CHECK_IN_REWARD.
+  ///
+  /// In ar, this message translates to:
+  /// **'مكافأة تسجيل الدخول'**
+  String get walletReasonCheckIn;
+
+  /// D166: ledger reason EVENT_PRIZE.
+  ///
+  /// In ar, this message translates to:
+  /// **'جائزة فعالية'**
+  String get walletReasonEventPrize;
 }
 
 class _AppLocalizationsDelegate

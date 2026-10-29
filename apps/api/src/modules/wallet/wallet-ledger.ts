@@ -22,7 +22,13 @@ export type WalletLedgerReason =
   | 'PREMIUM_USERNAME_RENEW'
   /** v1.33-live (D154b): a traffic card bought with coins, and its refund when it never ran. */
   | 'LIVE_BOOST'
-  | 'LIVE_BOOST_REFUND';
+  | 'LIVE_BOOST_REFUND'
+  /** v1.40-social (D155): a gift sent in a direct conversation. */
+  | 'DM_GIFT'
+  /** v1.44-social (D166): a claimed task, a daily check-in and an event prize (credits). */
+  | 'TASK_REWARD'
+  | 'CHECK_IN_REWARD'
+  | 'EVENT_PRIZE';
 
 /** The largest balance (CONVENTIONS §3: exact as a JSON number; CHECK `wallets_coins_range`). */
 export const MAX_COINS = 9_007_199_254_740_991n;

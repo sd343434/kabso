@@ -19,6 +19,7 @@ import 'package:kabso_live/features/creator/data/creator_repository.dart';
 import 'package:kabso_live/features/creator/presentation/creator_center_screen.dart';
 import 'package:kabso_live/features/live/application/live_wallet_controller.dart';
 import 'package:kabso_live/features/profile/me_hub_screen.dart';
+import 'package:kabso_live/features/programs/data/programs_repository.dart';
 import 'package:kabso_live/features/wallet/data/wallet_repository.dart';
 import 'package:kabso_live/features/wallet/presentation/earnings_screen.dart';
 import 'package:kabso_live/features/wallet/presentation/wallet_screen.dart';
@@ -112,6 +113,48 @@ class _FakeWallet implements WalletRepository {
   }
 }
 
+/// D166: the wallet's recharge packages (the rest of the programs are
+/// tested in programs_d166_test).
+class _FakePrograms implements ProgramsRepository {
+  @override
+  Future<RechargeOffer> rechargePackages() async => const RechargeOffer(
+    currency: 'USD',
+    purchasesEnabled: false,
+    packages: [
+      RechargePackage(id: 'p1', coins: 10, bonusCoins: 20, priceMinor: 29),
+    ],
+  );
+
+  @override
+  Future<MyTasks> tasks() => throw UnimplementedError();
+
+  @override
+  Future<ProgramPayout> checkIn() => throw UnimplementedError();
+
+  @override
+  Future<ProgramPayout> claim(String code) => throw UnimplementedError();
+
+  @override
+  Future<SvipStatus> svip() => throw UnimplementedError();
+
+  @override
+  Future<EventList> events(EventTab tab, {String? month}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<EventDetail> event(String eventId) => throw UnimplementedError();
+
+  @override
+  Future<EventLeaderboard> leaderboard(String eventId) =>
+      throw UnimplementedError();
+}
+
+/// D166: the coin history moved to the wallet's second tab.
+Future<void> _openHistory(WidgetTester tester) async {
+  await tester.tap(find.byKey(WalletScreen.historyButtonKey));
+  await tester.pumpAndSettle();
+}
+
 CreatorStats _stats(CreatorStatsPeriod period, {bool empty = false}) =>
     CreatorStats(
       period: period,
@@ -197,6 +240,7 @@ Future<void> _pump(
         liveCoinsProvider.overrideWith(_Coins.new),
         walletRepositoryProvider.overrideWithValue(wallet ?? _FakeWallet()),
         creatorRepositoryProvider.overrideWithValue(creator ?? _FakeCreator()),
+        programsRepositoryProvider.overrideWithValue(_FakePrograms()),
       ],
       child: MaterialApp.router(
         routerConfig: router,
@@ -285,6 +329,7 @@ void main() {
         ),
         findsOneWidget,
       );
+      await _openHistory(tester);
       expect(find.text(_en.walletReasonAdminGrant), findsOneWidget);
       expect(find.text('+100'), findsOneWidget);
       expect(find.text('-15'), findsOneWidget);
@@ -292,6 +337,8 @@ void main() {
       await tester.scrollUntilVisible(
         find.byKey(WalletScreen.entryKey('l1')),
         100,
+        // D166: the wallet's tabs scroll too; the list is the last one.
+        scrollable: find.byType(Scrollable).last,
       );
       await tester.pumpAndSettle();
       // An unknown reason from a newer server reads as a plain change.
@@ -306,7 +353,12 @@ void main() {
     testWidgets('recharge is honestly "Soon" and does nothing', (tester) async {
       final semantics = tester.ensureSemantics();
       await _pump(tester, AppRoutes.wallet, wallet: _walletWithHistory());
-      _expectSoon(tester, WalletScreen.rechargeKey, _en.walletRecharge);
+      // D166: the packages' button, disabled until payments exist (B5).
+      _expectSoon(
+        tester,
+        WalletScreen.rechargeKey,
+        _en.walletGetCoins('30', r'$0.29'),
+      );
       expect(find.text(_en.walletRechargeSoon), findsOneWidget);
       await tester.tap(find.byKey(WalletScreen.rechargeKey));
       await tester.pumpAndSettle();
@@ -318,12 +370,14 @@ void main() {
       tester,
     ) async {
       await _pump(tester, AppRoutes.wallet);
+      await _openHistory(tester);
       expect(find.byKey(WalletScreen.emptyKey), findsOneWidget);
       expect(find.text(_en.walletHistoryEmpty), findsOneWidget);
     });
 
     testWidgets('a failure shows the error with a retry', (tester) async {
       await _pump(tester, AppRoutes.wallet, wallet: _FakeWallet(fail: true));
+      await _openHistory(tester);
       expect(find.text(_en.walletLoadError), findsOneWidget);
       expect(find.text(_en.actionRetry), findsOneWidget);
     });
@@ -511,6 +565,7 @@ void main() {
         wallet: _walletWithHistory(),
         language: AppLanguage.ar,
       );
+      await _openHistory(tester);
       expect(find.text(_ar.walletReasonAdminGrant), findsOneWidget);
       final amount = tester.getCenter(find.text('+100'));
       final reason = tester.getCenter(find.text(_ar.walletReasonAdminGrant));
@@ -520,6 +575,7 @@ void main() {
 
     testWidgets('English LTR: amounts at the right end', (tester) async {
       await _pump(tester, AppRoutes.wallet, wallet: _walletWithHistory());
+      await _openHistory(tester);
       final amount = tester.getCenter(find.text('+100'));
       final reason = tester.getCenter(find.text(_en.walletReasonAdminGrant));
       expect(amount.dx, greaterThan(393 / 2));
