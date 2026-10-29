@@ -11,18 +11,20 @@ import { Clock } from '../src/common/time/clock.js';
 import { addGiftIn } from '../src/modules/gifts/gift-catalogue.js';
 import { LIVE_MEDIA_PROVIDER } from '../src/modules/live/media/live-media.provider.js';
 import { EventsService } from '../src/modules/programs/events.service.js';
+import { seedDefaultTasksIn } from '../src/modules/programs/programs-seed.js';
 import { creditIn, debitIn } from '../src/modules/wallet/wallet-ledger.js';
 import { MemoryLiveMedia } from './helpers/memory-live-media.js';
 import { expectContract, operations } from './helpers/openapi.js';
 import { createTestApp, registerVerified, type TestContext } from './helpers/test-app.js';
 
+/** Real time moved by an offset (rows written by the database keep real times). */
 class FakeClock extends Clock {
-  ms = Date.now();
+  private offset = 0;
   now(): Date {
-    return new Date(this.ms);
+    return new Date(Date.now() + this.offset);
   }
   advance(ms: number): void {
-    this.ms += ms;
+    this.offset += ms;
   }
 }
 
@@ -152,9 +154,12 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
       });
     }
   };
+  /** `u` watched `roomId` for `ms` in total (as the media server's presence records it). */
   const watch = (roomId: string, u: TestUser, ms: number) =>
-    ctx.prisma.liveRoomAudience.create({
-      data: { roomId, identity: u.id, userId: u.id, firstJoinedAt: new Date(), watchMs: BigInt(ms) },
+    ctx.prisma.liveRoomAudience.upsert({
+      where: { roomId_identity: { roomId, identity: u.id } },
+      create: { roomId, identity: u.id, userId: u.id, firstJoinedAt: new Date(), watchMs: BigInt(ms) },
+      update: { watchMs: BigInt(ms), openSince: null },
     });
 
   beforeAll(async () => {
@@ -186,6 +191,9 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
         tagNameEn: null,
       }),
     );
+    // The database is emptied for the tests: the migration's default tasks again.
+    expect(await seedDefaultTasksIn(ctx.prisma)).toBe(6);
+    expect(await seedDefaultTasksIn(ctx.prisma)).toBe(0);
     for (let i = 0; i < 11; i++) targets.push(await signup());
     targets = [...targets];
   });
@@ -455,7 +463,7 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
       },
     });
     await send(roomA, fan, hostA, 10); // 100
-    await send(roomB, fan, hostB, 3); // 30
+    await send(roomB, fan, hostB); // 10
 
     const calendar = await ctx.http
       .get('/api/v1/events?tab=CALENDAR')
@@ -511,9 +519,9 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
       ]),
     ).toEqual([
       [1, hostA.id, 100, 500],
-      [2, hostB.id, 30, 200],
+      [2, hostB.id, 10, 200],
     ]);
-    expect(live.body.me).toEqual({ rank: 2, score: 30, prizeCoins: 200 });
+    expect(live.body.me).toEqual({ rank: 2, score: 10, prizeCoins: 200 });
     const outsider = await ctx.http.get(`/api/v1/events/${event.id}/leaderboard`).set(auth(viewer));
     expect(outsider.body.me).toEqual({ rank: null, score: 0, prizeCoins: 0 });
 
@@ -524,10 +532,10 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
       expect((await sweeper.sweep()).frozen).toBeGreaterThanOrEqual(1);
       expect(await sweeper.sweep()).toEqual({ frozen: 0, paid: 0 });
       // Gifts after the end never change the final board.
-      await send(roomB, fan, hostB, 50);
+      await send(roomB, fan, hostB, 10);
       const frozen = await ctx.http.get(`/api/v1/events/${event.id}/leaderboard`).set(auth(viewer));
       expect(frozen.body.final).toBe(true);
-      expect(frozen.body.data.map((r: { score: number }) => r.score)).toEqual([100, 30]);
+      expect(frozen.body.data.map((r: { score: number }) => r.score)).toEqual([100, 10]);
       expect(await ledger(hostA, 'EVENT_PRIZE')).toHaveLength(0);
 
       // After the 24 h review: paid once; a winner no longer active forfeits.
@@ -571,7 +579,7 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
         prizes: [{ rankFrom: 1, rankTo: 1, coins: 300 }],
       },
     });
-    await send(room, fan, host, 2);
+    await send(room, fan, host);
     const sweeper = ctx.app.get(EventsService);
     clock.advance(30 * HOUR_MS);
     try {
