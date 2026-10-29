@@ -1,0 +1,122 @@
+# TEMPORARY scratch workflow for D166 development (no local Flutter/npm in the agent's container).
+# Lives only on the throw-away branch claude/kl-166-tooling; never merged.
+name: KL166 tooling
+on:
+  push:
+    branches: [claude/kl-166-tooling]
+permissions:
+  contents: write
+jobs:
+  mobile:
+    if: contains(github.event.head_commit.message, '[mobile]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          flutter-version: "3.47.7"
+          cache: true
+          pub-cache: true
+      - name: Generate and format
+        run: |
+          mkdir -p /tmp/out
+          flutter pub get --enforce-lockfile > /tmp/out/pubget.txt 2>&1 || true
+          dart run build_runner build --delete-conflicting-outputs > /tmp/out/build_runner.txt 2>&1 || true
+          dart format lib test > /tmp/out/format.txt 2>&1 || true
+          git diff > /tmp/out/format.patch
+          git ls-files --others --exclude-standard . > /tmp/out/untracked.txt
+      - name: Analyze
+        run: flutter analyze > /tmp/out/analyze.txt 2>&1 || true
+      - name: Test
+        run: |
+          files="$(cat ../../.kl166-tests 2>/dev/null || true)"
+          flutter test $files > /tmp/out/test.txt 2>&1 || true
+          tail -c 20000 /tmp/out/test.txt > /tmp/out/test-tail.txt
+      - name: Publish results
+        working-directory: /tmp/out
+        run: |
+          git init -q . && git checkout -q -b out
+          git config user.name tooling && git config user.email tooling@example.invalid
+          git add -A && git commit -q -m "results ${GITHUB_SHA}"
+          git push -q "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}" "out:refs/heads/claude/kl-166-tooling-out-m${GITHUB_RUN_NUMBER}"
+  api:
+    if: contains(github.event.head_commit.message, '[api]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16.15-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
+        env:
+          POSTGRES_USER: kabso
+          POSTGRES_PASSWORD: ci_test_password_not_secret
+          POSTGRES_DB: kabso_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U kabso -d kabso_test" --health-interval 5s --health-timeout 5s --health-retries 20
+      redis:
+        image: redis:7.4-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      NODE_ENV: test
+      CI: "true"
+      PORT: "3000"
+      DATABASE_URL: postgresql://kabso_app:ci_app_password_not_secret@localhost:5432/kabso_test?schema=public
+      MIGRATION_DATABASE_URL: postgresql://kabso_migrator:ci_migrator_password_not_secret@localhost:5432/kabso_test?schema=public
+      REDIS_URL: redis://localhost:6379/0
+      JWT_ACCESS_SECRET: ci-test-only-jwt-secret-not-used-anywhere-else-0123456789
+      RATE_LIMIT_KEY_SECRET: ci-test-only-rate-limit-hmac-key-not-a-secret-0123456789
+      TRUST_PROXY: "false"
+      UV_THREADPOOL_SIZE: "16"
+      JWT_ACCESS_TTL_SECONDS: "900"
+      REFRESH_TTL_SECONDS: "2592000"
+      APP_PUBLIC_URL: http://localhost:3000
+      MAIL_TRANSPORT: log
+      CORS_ORIGINS: http://localhost:3000
+      LOG_LEVEL: warn
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+          package-manager-cache: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          cache: true
+          cache_dependency_path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter ./apps/api prisma:generate
+      - name: Bootstrap database roles
+        env:
+          PG_CONTAINER: ${{ job.services.postgres.id }}
+          KABSO_DB_MIGRATOR_USER: kabso_migrator
+          KABSO_DB_MIGRATOR_PASSWORD: ci_migrator_password_not_secret
+          KABSO_DB_APP_USER: kabso_app
+          KABSO_DB_APP_PASSWORD: ci_app_password_not_secret
+          KABSO_DB_ENV: development
+        run: >-
+          docker exec -i -e KABSO_DB_MIGRATOR_USER -e KABSO_DB_MIGRATOR_PASSWORD -e KABSO_DB_APP_USER
+          -e KABSO_DB_APP_PASSWORD -e KABSO_DB_ENV "$PG_CONTAINER" psql -v ON_ERROR_STOP=1 -U kabso -d kabso_test -f -
+          < infra/postgres/bootstrap-roles.sql
+      - run: pnpm --filter ./apps/api prisma:migrate:deploy
+      - name: E2E
+        env:
+          KABSO_TEST_ADMIN_DATABASE_URL: postgresql://kabso:ci_test_password_not_secret@localhost:5432/kabso_test
+        run: |
+          mkdir -p /tmp/out
+          files="$(cat .kl166-api-tests 2>/dev/null || true)"
+          pnpm --filter ./apps/api exec vitest run --config vitest.e2e.config.ts $files > /tmp/out/e2e.txt 2>&1 || true
+          tail -c 30000 /tmp/out/e2e.txt > /tmp/out/e2e-tail.txt
+      - name: Publish results
+        working-directory: /tmp/out
+        run: |
+          git init -q . && git checkout -q -b out
+          git config user.name tooling && git config user.email tooling@example.invalid
+          git add -A && git commit -q -m "results ${GITHUB_SHA}"
+          git push -q "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}" "out:refs/heads/claude/kl-166-tooling-out-a${GITHUB_RUN_NUMBER}"
