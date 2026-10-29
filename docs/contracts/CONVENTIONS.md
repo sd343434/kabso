@@ -525,6 +525,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.42-social (draft) | 2026-10-29 | **D162a (owner: «جميعها تظهر فوراً» — every post with media is visible at once, like stories, D91):** CP-006 Q2 hold lifted. `createPost` stores posts with photos, a video and reels as `moderation: VISIBLE`; existing `PENDING` posts became `VISIBLE` (data migration `20261212090000_media_posts_visible`). Safety relies on reports and moderators' `REMOVE_TARGET`. `Post.moderation` keeps `PENDING` as a valid value (a future provider or an admin hold). §11.2, §11.14, §11.13 note. | **Behaviour only** (no shape change): media posts appear in feeds, search and grids at once. |
 | v1.41-social (draft) | 2026-10-28 | **D162 (owner: the «فيديو» tab of «منشور جديد», reels «ريلز» in «لحظات», the ➕ menu; CP-023, CP-006 M2 without transcoding):** `MediaKind` `POST_VIDEO` (≤ 200 MiB, 1–180 s), `REEL_VIDEO` (≤ 100 MiB, 1–60 s), `VIDEO_POSTER` (the phone-made first frame, processed like a post image); `CreateMediaUploadRequest.contentType` `video/mp4`, `video/quicktime` (video kinds only) and `byteSize` maximum 209 715 200 (images still 15 MiB); new optional body `CompleteMediaUploadRequest {posterId}` (required for a video, refused otherwise); `MediaAsset.type` `VIDEO`, `posterUrl` (VIDEO only), `durationMs` maximum 180 000; `Post.format` `REEL` and `CreatePostRequest.format`; `listFeedReels` (`GET /feed/reels?tab=following\|trending`); `listFeedPosts` lists `format: POST` only. §11.1, §11.2, §11.3, §11.8 and §11.14. No server-side transcoding (the file is checked and served as uploaded). | **Additive** (new enum values, operation, optional fields and an optional request body). Clients that do not know `VIDEO` / `REEL` keep working: before v1.41 no video or reel existed. |
 | v1.40-social (draft) | 2026-10-28 | **D155 (owner: real direct messages; 24-hour messages; gifts in conversations):** tag `messages`: `listDmConversations` (`GET /dm/conversations?box=INBOX\|REQUESTS`, `DmConversationPage`, `DmConversation`, `DmConversationStatus`), `getDmUnread` (`GET /dm/unread`, `DmUnread`), `getDmPeer` (`GET /dm/peers/{username}`, `DmPeer`), `listDmMessages` (`GET /dm/conversations/{conversationId}/messages`, `DmMessagePage`), `sendDmMessage` (`POST /dm/messages`, `DmSendRequest`, `DmSendResult`, `DmMessage`, `DmMessageKind`), `sendDmGift` (`POST /dm/gifts`, `DmGiftSendRequest`, `DmGiftResult`, `DmGift`), `markDmRead` (`POST …/read`, `DmReadRequest`), `acceptDmRequest` (`POST …/accept`), `deleteDmConversation`, `muteDmConversation` / `unmuteDmConversation`, `deleteDmMessage` (`DELETE /dm/messages/{messageId}?scope=me\|everyone`); `PrivacySettings.whoCanMessage` (`EVERYONE` default, `FOLLOWING`, `NOBODY`); report `targetType: DM_MESSAGE` with the admin-only `Report.dmSnapshot`; `MediaKind` `DM_IMAGE`, `DM_VOICE`; codes `DM_NOT_ALLOWED`, `DM_REQUEST_LIMIT`, `DM_REQUEST_TEXT_ONLY` (403), `DM_DELETE_WINDOW_PASSED` (409); `NotificationSettings.messages` also covers direct messages; push data `kind: dm`. Every message is hard-deleted 24 h after it was sent (`DM_RETENTION_HOURS`). Gifts in a conversation reuse the live gift pipeline with the recipient's share `GIFT_DM_RECIPIENT_SHARE_PERCENT` (50 %) and lucky gifts at the lucky host share (10 %). Migrations `20261210090000_direct_messages_enums`, `20261210100000_direct_messages` (after v1.32–v1.38-live's; the ledger sign CHECK keeps `LIVE_BOOST` / `LIVE_BOOST_REFUND`). With v1.32-live (merged): in a conversation the DM share replaces the category share of `GIFT_HOST_SHARE_PERCENTS` (quips included) and is stored as `live_gifts.host_share_bps`; paid quips can be sent (`COINS`, quantity 1), free quips cannot (409 `GIFT_UNAVAILABLE`). §7, §11.1, §11.7, §11.12, §11.13. | **Additive** (new tag, paths, schemas, enum values and codes; older apps ignore them). Apps that switch on the Messages tab need this server. |
 | v1.38-live (draft) | 2026-10-28 | **D154i (owner: Room Tools item 10 «يوتيوب / YouTube», item 9):** `getLiveWatch` / `setLiveWatch`, `listLiveWatchSuggestions` / `suggestLiveWatch` / `decideLiveWatchSuggestion`, `searchYoutube` (`LiveWatch`, `LiveWatchVideo`, `LiveWatchSuggestion`, `SetLiveWatchRequest`); data messages `watch`, `watch-suggestion` on topic `watch`; error codes `YOUTUBE_VIDEO_UNAVAILABLE` (422), `YOUTUBE_SEARCH_UNAVAILABLE` (503); tables `live_watch`, `live_watch_suggestions` (migration `20261209090000_live_watch`); env `YOUTUBE_API_KEY` (optional secret). §4, §8, §10.39. | **Additive** (new operations, messages and codes). |
@@ -2541,9 +2542,12 @@ are §11.14.
 - Visibility of a published post to a caller: not removed; author ACTIVE; no block in either
   direction; author public, or the caller is the author or follows the author; `moderation`
   `VISIBLE` unless the caller is the author. Anything else → 404 (never 403).
-- **Moderation (CP-006 Q2, until a provider is chosen):** a post with images is `PENDING` —
-  visible only to its author and absent from feeds, search and other people's grids; text-only
-  posts are `VISIBLE`. Switching on a provider is a config change, not a contract change.
+- **Moderation:** *(v1.42-social, D162a, owner: «جميعها تظهر فوراً»)* every post — text, photos,
+  a video or a reel — is `VISIBLE` at once, like stories (D91); safety relies on reports and
+  moderators' `REMOVE_TARGET`. `PENDING` stays a valid value (a future moderation provider or an
+  admin hold): a `PENDING` post is visible only to its author and absent from feeds, search and
+  other people's grids. *(Until v1.41-social, CP-006 Q2 held posts with images `PENDING`.)*
+  Switching on a provider is a config change, not a contract change.
 - Settings default from the author's privacy settings (§11.7); `hideLikeCount` makes
   `likeCount` null and the likers list 403 for everyone but the author.
 - Pins: at most 3 published posts; a 4th → 409 `PIN_LIMIT_REACHED`. Profile grids list pinned
@@ -2830,8 +2834,8 @@ configuration (`DM_*`).
   re-encoded, metadata stripped); `VOICE` — a `DM_VOICE` clip (the CP-017 voice pipeline: `audio/mp4`,
   ≤ 1 MiB, ≤ 30 s); `EMOJI` — one of the owner's pack emojis as its token `:<pack>_<id>:` (§10.30
   list). An asset that is not the caller's unattached asset of that kind → 400 `mediaId` /
-  `invalid_value`. **No moderation hold:** no moderation provider exists (§11.2 keeps post images
-  `PENDING`), so — like stories (D91) — DM pictures are delivered at once and safety relies on
+  `invalid_value`. **No moderation hold:** no moderation provider exists (and, v1.42-social, posts are
+  visible at once too, §11.2), so — like stories (D91) — DM pictures are delivered at once and safety relies on
   requests (strangers cannot send pictures or voice), block, report and the 24-hour life.
   Order of checks: 400 body → the `clientId` retry → 400 `to` (`invalid_value`: oneself) → 404
   (`to` is not an ACTIVE account, or a block either way: **blocked people cannot message or see
@@ -2961,9 +2965,8 @@ configuration (`DM_*`).
   `required`, anything else → `invalid_value`) and an optional caption under the §11.2 text rules.
   Every other post rule applies to reels unchanged: drafts, scheduling, edits, pins, likes,
   comments, saves, reposts, views (§11.4), reports, hashtags, mentions, search, privacy and blocks.
-  **Moderation:** a post or reel with a video is `PENDING` like a post with photos (§11.2, CP-006
-  Q2): visible to its author only until a moderation provider exists or the owner decides
-  otherwise.
+  **Moderation:** *(v1.42-social, D162a)* a post or reel with a video is `VISIBLE` at once, like
+  every post (§11.2); reports and `REMOVE_TARGET` are the safety net.
 - **Lists:** `GET /feed/posts` lists `format: POST` only. `GET /feed/reels?tab=` lists reels only:
   `following` — reels of followed accounts and the caller's own, and reels reposted by followed
   accounts, newest first (a post appears once; muted and hidden left out); `trending` — the §11.3

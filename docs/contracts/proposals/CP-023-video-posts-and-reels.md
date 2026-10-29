@@ -78,9 +78,9 @@ Not in scope (recorded so nobody assumes otherwise):
 - A `REEL` carries exactly one `REEL_VIDEO` (none → 400 `mediaIds` / `required`; anything else →
   `invalid_value`) and an optional caption (the post text rules).
 - Drafts, scheduling, edits, pins, likes, comments, saves, reposts, views, reports, hashtags,
-  mentions, search and the moderation rule apply to reels exactly as to posts. **Moderation (CP-006
-  Q2):** a post or reel with media stays `PENDING` (its author only) until a moderation provider
-  exists or the owner decides otherwise (as D91 did for stories).
+  mentions, search and the moderation rule apply to reels exactly as to posts. **Moderation:**
+  *(amended by D162a, v1.42-social, owner «جميعها تظهر فوراً»)* posts and reels with media are
+  `VISIBLE` at once, like stories (D91); reports and `REMOVE_TARGET` are the safety net.
 - `listFeedPosts` lists `POST` posts only; reels are listed by `listFeedReels`. Profile grids,
   saved, reposts, search and hashtag pages list both formats (each item carries `format`).
 
@@ -104,4 +104,4 @@ storage key also needs `CopyObject` (read on `uploads/`, write on `media/`) and 
 - No transcoding: a phone that cannot decode the uploaded codec (rare: HEVC on old Android) shows
   the poster and an error; the full-size file is streamed (egress cost ∝ file size).
 - Moov-at-end files play after the player fetches the end of the file (R2 serves ranges).
-- Moderation: as for photos (B13).
+- Moderation: no hold (D162a); reports and removal only, until a provider exists (B13).

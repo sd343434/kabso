@@ -214,6 +214,8 @@ info:
     `durationMs`, `Post.format: REEL` / `CreatePostRequest.format`, and `listFeedReels`
     (`GET /feed/reels`) for Moments (CONVENTIONS §11.1, §11.2, §11.14). The video is checked (container,
     length, codec, size) and served as uploaded; there is no server-side transcoding yet.
+    **D162a (DRAFT v1.42-social)**: posts with media (photos, video, reels) are `VISIBLE` at once
+    (owner); `PENDING` stays valid for a future provider or an admin hold (CONVENTIONS §11.2).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -5429,7 +5431,7 @@ paths:
       summary: "Reels feed for Moments: following (newest) or trending (ranked) (v1.41-social, D162)"
       description: |
         CONVENTIONS §11.14. Posts with `format: REEL` only. `following`: reels of followed accounts
-        and the caller's own (a `PENDING` reel is shown to its author), and reels reposted by followed
+        and the caller's own, and reels reposted by followed
         accounts, newest first. `trending`: the §11.3 global score over visible public reels of the
         last 7 days (not the caller's own, muted or hidden), frozen for 10 minutes (an expired
         cursor → 400 `cursor` / `invalid_value`). Not personalised (M5). Same rate limit bucket as
@@ -8656,7 +8658,7 @@ components:
         moderation:
           type: string
           enum: [VISIBLE, PENDING]
-          description: PENDING (author only) while its images (or, v1.41-social, its video) wait for moderation (CP-006 Q2).
+          description: "PENDING: visible to its author only (a future moderation provider or an admin hold). (v1.42-social, D162a) New posts — photos, video, reels — are VISIBLE at once; until v1.41-social posts with images were held PENDING (CP-006 Q2)."
         repostedBy:
           oneOf:
             - $ref: '#/components/schemas/UserSummary'
