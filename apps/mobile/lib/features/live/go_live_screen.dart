@@ -1144,6 +1144,11 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 boxWidth: LiveRoomPromoBox.audioWidth,
               )
             : null,
+        // D166: YouTube together turns the room into a cinema — the
+        // player on top, the seats under it.
+        screen: live && room != null && LiveWatchScreen.shows(ref, room.id)
+            ? LiveWatchScreen(roomId: room.id, host: true)
+            : null,
         // D166: the wish list (D136) in the audio room too, over the promo
         // box; a tap changes it.
         wish: live && room != null && room.wishGifts.isNotEmpty
@@ -1234,6 +1239,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         ),
         stage: AudioSeatRing(
           count: seatCount!,
+          // D166: the cinema rows under the YouTube screen (big rooms).
+          compact:
+              seatCount > 10 &&
+              live &&
+              room != null &&
+              LiveWatchScreen.shows(ref, room.id),
           seats: liveSeats?.seats ?? const [],
           // D111: CP partners on adjacent seats are drawn joined.
           cpPairs: room == null

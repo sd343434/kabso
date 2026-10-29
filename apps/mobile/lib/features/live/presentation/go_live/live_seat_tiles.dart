@@ -255,6 +255,7 @@ class AudioSeatRing extends StatelessWidget {
     super.key,
     this.hostMicOn,
     this.hostPoints,
+    this.compact = false,
     this.seats = const [],
     this.onSeat,
     this.speaking = const {},
@@ -299,6 +300,12 @@ class AudioSeatRing extends StatelessWidget {
 
   /// CP-012: the live's points under the host's name (shortened), or null.
   final String? hostPoints;
+
+  /// D166: the cinema rows under the YouTube screen — the points pills are
+  /// left out so every seat fits at a usable size.
+  final bool compact;
+
+  String? get _points => compact ? null : hostPoints;
   final List<LiveSeat> seats;
   final ValueChanged<int>? onSeat;
 
@@ -353,7 +360,7 @@ class AudioSeatRing extends StatelessWidget {
       name: hostName,
       muted: hostMicOn == false,
       speaking: !ghost && speaking.contains(0),
-      points: hostPoints,
+      points: _points,
       cpMic: !ghost && cpMicTiles.contains(0),
       overlay: ghost ? null : overlay?.call(0),
     );
@@ -371,7 +378,7 @@ class AudioSeatRing extends StatelessWidget {
   /// taller name gap and points pill take, so every row has the same height
   /// and the rows the same spacing (owner request). It scales with the text.
   Widget _hostExtra() {
-    final points = hostPoints;
+    final points = _points;
     return ExcludeSemantics(
       child: Visibility(
         visible: false,
@@ -402,7 +409,7 @@ class AudioSeatRing extends StatelessWidget {
     if (seat == null ||
         seat.state != LiveSeatState.taken ||
         seat.user == null ||
-        hostPoints == null) {
+        _points == null) {
       return _hostExtra();
     }
     return Column(
@@ -704,7 +711,7 @@ class AudioSeatRing extends StatelessWidget {
     // for the second row the host's points pill above it (host column).
     final hostColumn = visual(Offset(offset + 0.5 * cell, y)).dx;
     final shown = <CpObstacle>[
-      if (first == rowSize && hostPoints != null)
+      if (first == rowSize && _points != null)
         CpRectObstacle(
           Rect.fromLTRB(
             hostColumn - 30 * scale,
@@ -750,7 +757,7 @@ class AudioSeatRing extends StatelessWidget {
           // Above a row: the row gap and the (empty) space under the row
           // above's names that the host's points take in its column.
           ornamentTop:
-              y - (chair / 2 + rowGap + (hostPoints == null ? 2 : 19)) * scale,
+              y - (chair / 2 + rowGap + (_points == null ? 2 : 19)) * scale,
         ),
       );
       bands.add(

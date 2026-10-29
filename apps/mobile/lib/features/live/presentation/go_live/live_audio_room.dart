@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:clock/clock.dart';
 import 'package:kabso_live/core/emoji/unicode_emoji.dart';
@@ -135,8 +136,27 @@ class LiveAudioRoomLayout extends StatelessWidget {
     this.promo,
     this.combo,
     this.wish,
+    this.screen,
     this.onChatTop,
   });
+
+  /// D166 (owner: «عند فتح يوتيوب في الغرفة الصوتية تنتقل الكراسي إلى
+  /// أسفل»): the cinema layout. While the room watches a video together the
+  /// player is the screen at the top (full width, 16:9, under the chips) and
+  /// the seats move down under it, every seat shown at once (the rows scale
+  /// down to the room left instead of scrolling); the chat keeps its place
+  /// over the bar. Back to the normal rows when it closes, animated.
+  ///
+  /// The room's background stays the room's theme under it (the owner's
+  /// cinema artwork, when it arrives, is a background like any theme: the
+  /// layout draws none of its own).
+  final Widget? screen;
+
+  static const screenKey = Key('audioRoom.cinemaScreen');
+  static const cinemaSeatsKey = Key('audioRoom.cinemaSeats');
+
+  /// The screen's side margin and the gap above and under it.
+  static const double screenMargin = 8;
 
   /// D166: the host's wish list card (D136), at the end directly above the
   /// promo box (or the combo), so it covers neither the seats nor the chat:
@@ -247,6 +267,25 @@ class LiveAudioRoomLayout extends StatelessWidget {
                 padding: const EdgeInsetsDirectional.fromSTEB(10.5, 10, 10, 0),
                 child: chips,
               ),
+            // D166: the cinema screen; the seats slide down as it opens.
+            AnimatedSize(
+              duration: KMotion.of(context, KMotion.base),
+              curve: Curves.easeInOut,
+              alignment: Alignment.topCenter,
+              child: switch (screen) {
+                final screen? => Padding(
+                  key: screenKey,
+                  padding: const EdgeInsets.fromLTRB(
+                    screenMargin,
+                    screenMargin,
+                    screenMargin,
+                    0,
+                  ),
+                  child: screen,
+                ),
+                null => const SizedBox(width: double.infinity),
+              },
+            ),
             // The seats (scrolling when they do not fit), then the chat low on
             // the start side, at most 40 % of the height (ref 83).
             Expanded(
@@ -257,15 +296,35 @@ class LiveAudioRoomLayout extends StatelessWidget {
                     // D123: the seats keep one size in every room; when
                     // they do not fit above the chat, they scroll.
                     Expanded(
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.fromLTRB(4, 58, 4, 8),
-                        child: stage,
-                      ),
+                      child: screen == null
+                          ? SingleChildScrollView(
+                              padding: const EdgeInsets.fromLTRB(4, 58, 4, 8),
+                              child: stage,
+                            )
+                          // D166: under the screen every seat shows at once
+                          // (scaled down to fit, still tappable).
+                          : LayoutBuilder(
+                              builder: (context, area) => Padding(
+                                key: cinemaSeatsKey,
+                                padding: const EdgeInsets.fromLTRB(4, 8, 4, 4),
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.topCenter,
+                                  child: SizedBox(
+                                    width: math.max(0, area.maxWidth - 8),
+                                    child: stage,
+                                  ),
+                                ),
+                              ),
+                            ),
                     ),
                     if (chat.isNotEmpty || slot != null)
                       ConstrainedBox(
                         constraints: BoxConstraints(
-                          maxHeight: box.maxHeight * 0.4,
+                          // D166: under the cinema screen the seats need
+                          // the room; the chat keeps 30 %.
+                          maxHeight:
+                              box.maxHeight * (screen == null ? 0.4 : 0.3),
                         ),
                         // The end slot (promo box or combo) beside the
                         // chat: the chat narrows for it and the seats end
@@ -342,11 +401,12 @@ class LiveAudioRoomLayout extends StatelessWidget {
                         // hold more 48 pt buttons than a narrow phone has
                         // room for: it then scrolls sideways instead of
                         // overflowing or shrinking the touch targets.
-                        final count = barStart.length + barEnd.length;
+                        int gaps(List<Widget> group) =>
+                            math.max(0, group.length - 1);
                         final needed =
-                            count * KAudioRoom.barTarget +
-                            2 * (count - 1) +
-                            KSpacing.sm;
+                            (barStart.length + barEnd.length) *
+                                KAudioRoom.barTarget +
+                            2 * (gaps(barStart) + gaps(barEnd));
                         if (barLead == null && needed > box.maxWidth) {
                           return SingleChildScrollView(
                             key: crowdedBarKey,

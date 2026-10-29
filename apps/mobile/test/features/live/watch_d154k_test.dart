@@ -48,11 +48,22 @@ class _RoomState extends ConsumerState<_Room> {
   }
 
   @override
-  Widget build(BuildContext context) => const Scaffold(
-    backgroundColor: Color(0xFF333344),
+  // D166: the audio room shows the card as its cinema screen (in the room's
+  // layout) and the layer keeps the «show» pill.
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: const Color(0xFF333344),
     body: Stack(
       fit: StackFit.expand,
-      children: [LiveWatchLayer(roomId: _room, host: false)],
+      children: [
+        if (LiveWatchScreen.shows(ref, _room))
+          const Positioned(
+            top: LiveWatchLayer.top,
+            left: 12,
+            right: 12,
+            child: LiveWatchScreen(roomId: _room, host: false),
+          ),
+        const LiveWatchLayer(roomId: _room, host: false),
+      ],
     ),
   );
 }

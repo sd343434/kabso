@@ -1138,6 +1138,11 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                         boxWidth: LiveRoomPromoBox.audioWidth,
                       )
                     : null,
+                // D166: YouTube together turns the room into a cinema —
+                // the player on top, the seats under it.
+                screen: LiveWatchScreen.shows(ref, room.id)
+                    ? LiveWatchScreen(roomId: room.id, host: false)
+                    : null,
                 // D166: the host's wish list (D136), over the promo box.
                 wish: room.wishGifts.isEmpty
                     ? null
@@ -1421,6 +1426,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     // The room's stage scrolls; seats keep one size in every room (D123).
     return AudioSeatRing(
       count: count,
+      // D166: the cinema rows under the YouTube screen (big rooms).
+      compact: count > 10 && LiveWatchScreen.shows(ref, room.id),
       seats: seats?.seats ?? const [],
       // D111: CP partners on adjacent seats are drawn joined.
       cpPairs: cpSeatPairs(seats, hostId: host.id),

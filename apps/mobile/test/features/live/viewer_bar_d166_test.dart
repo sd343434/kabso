@@ -10,13 +10,16 @@ import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/home_banner.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
+import 'package:kabso_live/features/live/domain/live_watch.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_games_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_side_cards.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_watch_card.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -26,6 +29,7 @@ import '../../helpers/fake_home_banners_repository.dart';
 import '../../helpers/fake_live_gift_repository.dart';
 import '../../helpers/fake_live_media_engine.dart';
 import '../../helpers/fake_live_repository.dart';
+import '../../helpers/fake_live_watch_repository.dart';
 import '../../helpers/fake_profile_repository.dart';
 import '../../helpers/fakes.dart';
 import '../../helpers/golden.dart';
@@ -47,7 +51,7 @@ const _wishes = [
   ),
 ];
 
-final _roomBanners = [
+final List<HomeBanner> _roomBanners = [
   for (var i = 0; i < 2; i++)
     HomeBanner(
       id: 'room-banner-$i',
@@ -58,7 +62,7 @@ final _roomBanners = [
     ),
 ];
 
-final _multiSeats = LiveSeats(
+final LiveSeats _multiSeats = LiveSeats(
   roomId: 'room-0',
   mode: LiveRoomMode.multi,
   version: 1,
@@ -87,6 +91,8 @@ Future<void> _pump(
   GoldenViewport viewport = GoldenViewport.phone,
   double textScale = 1,
   LiveSeats? seats,
+  int seatCount = 10,
+  LiveWatch? watch,
 }) async {
   setViewport(tester, viewport);
   if (textScale != 1) {
@@ -101,6 +107,8 @@ Future<void> _pump(
     liveMediaEngine: FakeLiveMediaEngine()..present.add('user-0'),
     liveGiftRepository: FakeLiveGiftRepository(codes: giftFixtureCodes),
     homeBannersRepository: FakeHomeBannersRepository(roomBanners: roomBanners),
+    liveWatchRepository: FakeLiveWatchRepository()
+      ..watches.addAll({'room-0': ?watch}),
     overrides: [
       liveRepositoryProvider.overrideWithValue(
         FakeLiveRepository(
@@ -110,7 +118,10 @@ Future<void> _pump(
                 ar: language == AppLanguage.ar,
               ).copyWith(wishGifts: wishes, score: score);
               return switch (mode) {
-                LiveRoomMode.audio => room.copyWith(mode: mode, seatCount: 10),
+                LiveRoomMode.audio => room.copyWith(
+                  mode: mode,
+                  seatCount: seatCount,
+                ),
                 LiveRoomMode.multi => room.copyWith(mode: mode, seatCount: 6),
                 _ => room,
               };
@@ -414,6 +425,101 @@ void main() {
       await _leave(tester);
       await _pump(tester, mode: LiveRoomMode.audio);
       expect(find.byKey(LiveWishCard.cardKey), findsNothing);
+      await _leave(tester);
+    });
+  });
+
+  group('D166 cinema (YouTube together in the audio room)', () {
+    LiveWatch playing() => LiveWatch(
+      roomId: 'room-0',
+      video: FakeLiveWatchRepository.videoOf('aaaaaaaaaaa'),
+      playing: true,
+      positionMs: 30000,
+      updatedAt: DateTime.now(),
+      serverTime: DateTime.now(),
+    );
+
+    for (final viewport in GoldenViewport.values) {
+      for (final language in AppLanguage.values) {
+        for (final count in [5, 10, 15, 20, 25]) {
+          testWidgets('$count seats: the player is the screen at the top '
+              '(full width, 16:9) and every seat is under it, visible and '
+              'tappable, above the chat and the bar (${language.name}, '
+              '${viewport.name}, text 1.3)', (tester) async {
+            await _pump(
+              tester,
+              mode: LiveRoomMode.audio,
+              seatCount: count,
+              watch: playing(),
+              language: language,
+              viewport: viewport,
+              textScale: 1.3,
+            );
+            expect(tester.takeException(), isNull);
+            final size = viewport.logicalSize;
+            final card = tester.getRect(find.byKey(LiveWatchLayer.cardKey));
+            expect(
+              card.width,
+              closeTo(size.width - 2 * LiveAudioRoomLayout.screenMargin, 0.5),
+            );
+            // Under the header and the chips.
+            final chips = tester.getRect(find.byType(LiveRankChip));
+            expect(card.top, greaterThan(chips.bottom));
+            final player = tester.getRect(
+              find.byKey(const ValueKey('watch.player.false')),
+            );
+            expect(player.width / player.height, closeTo(16 / 9, 0.02));
+            final bar = tester.getRect(find.byKey(AudioRoomViewKeys.gift));
+            for (var i = 0; i < count; i++) {
+              final seat = find.byKey(AudioSeatRing.seatKey(i));
+              expect(seat.hitTestable(), findsOneWidget, reason: 'seat $i');
+              final r = tester.getRect(seat);
+              expect(r.top, greaterThanOrEqualTo(card.bottom), reason: '$i');
+              expect(r.bottom, lessThan(bar.top), reason: '$i');
+              expect(r.left, greaterThanOrEqualTo(0), reason: '$i');
+              expect(r.right, lessThanOrEqualTo(size.width), reason: '$i');
+              // Big rooms take the compact cinema rows (no points pills),
+              // so a seat stays a usable size.
+              expect(r.width, greaterThanOrEqualTo(30), reason: '$i');
+            }
+            expect(
+              tester.widget<AudioSeatRing>(find.byType(AudioSeatRing)).compact,
+              count > 10,
+            );
+            // The chat keeps its place over the bar.
+            final chat = find.byType(LiveRoomChatLines);
+            expect(chat, findsOneWidget);
+            expect(tester.getRect(chat).bottom, lessThanOrEqualTo(bar.top));
+            await _leave(tester);
+          });
+        }
+      }
+    }
+
+    testWidgets('hidden on this phone: the circle layout comes back '
+        '(animated) with the «show» pill; shown again: the cinema', (
+      tester,
+    ) async {
+      await _pump(tester, mode: LiveRoomMode.audio, watch: playing());
+      expect(find.byKey(LiveAudioRoomLayout.cinemaSeatsKey), findsOneWidget);
+      await tester.tap(find.byKey(LiveWatchLayer.hideKey));
+      await tester.pump();
+      // The screen shrinks away over the room's motion time.
+      expect(find.byKey(LiveAudioRoomLayout.cinemaSeatsKey), findsNothing);
+      await tester.pumpAndSettle();
+      expect(find.byKey(LiveWatchLayer.cardKey), findsNothing);
+      expect(find.byKey(LiveWatchLayer.showKey), findsOneWidget);
+      await tester.tap(find.byKey(LiveWatchLayer.showKey));
+      await tester.pumpAndSettle();
+      expect(find.byKey(LiveWatchLayer.cardKey), findsOneWidget);
+      expect(find.byKey(LiveAudioRoomLayout.cinemaSeatsKey), findsOneWidget);
+      await _leave(tester);
+    });
+
+    testWidgets('no video: the normal rows (no screen)', (tester) async {
+      await _pump(tester, mode: LiveRoomMode.audio);
+      expect(find.byKey(LiveAudioRoomLayout.cinemaSeatsKey), findsNothing);
+      expect(find.byKey(LiveWatchLayer.cardKey), findsNothing);
       await _leave(tester);
     });
   });
