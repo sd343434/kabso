@@ -1,0 +1,13 @@
+diff --git a/apps/mobile/lib/features/programs/presentation/svip_screen.dart b/apps/mobile/lib/features/programs/presentation/svip_screen.dart
+index 7a0932f..c9fe748 100644
+--- a/apps/mobile/lib/features/programs/presentation/svip_screen.dart
++++ b/apps/mobile/lib/features/programs/presentation/svip_screen.dart
+@@ -687,7 +687,7 @@ class _BottomBar extends StatelessWidget {
+                           ),
+                           child: Center(
+                             widthFactor: 1,
+-                heightFactor: 1,
++                            heightFactor: 1,
+                             child: Text(
+                               l10n.svipCta,
+                               style: context.textStyles.bodyStrong.copyWith(
