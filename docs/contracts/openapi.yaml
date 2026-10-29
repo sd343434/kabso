@@ -203,7 +203,8 @@ info:
     the data messages `watch` and `watch-suggestion` on topic `watch`, and the error codes
     `YOUTUBE_VIDEO_UNAVAILABLE` (422) and `YOUTUBE_SEARCH_UNAVAILABLE` (503) (CONVENTIONS §10.39).
     **D166 (DRAFT v1.39-live)** opens `listHomeBanners` with `placement=room` (the in-room promo
-    banner) to callers without a token, so guests watching a live see it too (CONVENTIONS §10.26).
+    banner) to callers without a token, so guests watching a live see it too (CONVENTIONS §10.26),
+    and makes an AUDIO room watching YouTube a cinema of 10 seats (`LiveSeats.cinema`, §10.9, §10.39).
     **D155 (DRAFT v1.40-social)** adds direct messages (tag `messages`, `/dm/…`): conversations
     created by the first message, message requests from people the recipient does not follow (3
     messages until accepted), `PrivacySettings.whoCanMessage`, read receipts and unread counts,
@@ -1645,6 +1646,12 @@ paths:
         YouTube video); 422 `YOUTUBE_VIDEO_UNAVAILABLE` (missing, private or not embeddable); 503 when
         YouTube cannot be reached. The title is masked with the host's blocked words. The room gets
         `{"type":"watch","watch":LiveWatch}` on topic `watch`.
+        *(v1.39-live, D166)* In an AUDIO room a video makes the room a cinema of 10 seats
+        (`LiveSeats.cinema`): everyone on seat 10 or higher moves to the first free seat 1–9 (in seat
+        order, mic state kept) or, with none free, leaves the seat (publish permission withdrawn);
+        pending requests and invitations for seats 10+ expire; locked seats 10+ are unlocked. Stopping
+        (`video: null`) gives the room its own seats back (nobody is moved back). Either way the seat
+        version moves.
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
       requestBody:
@@ -7548,12 +7555,20 @@ components:
           items: { $ref: '#/components/schemas/CpPrivilegeCode' }
     LiveSeats:
       type: object
-      required: [roomId, mode, version, seatCount, seats, moderators, couples]
+      required: [roomId, mode, version, seatCount, cinema, seats, moderators, couples]
       properties:
         roomId: { type: string, format: uuid }
         mode: { type: string, enum: [MULTI, AUDIO] }
         version: { type: integer, minimum: 0 }
         seatCount: { $ref: '#/components/schemas/LiveSeatCount' }
+        cinema:
+          type: boolean
+          description: |
+            v1.39-live (D166, CONVENTIONS §10.9): true while an AUDIO room watches YouTube together
+            (§10.39): the room is a cinema with 10 seats — the host's and seats 1–9. Seats 10 and up
+            are then listed as `LOCKED` (nobody sits there; requests, invitations and locks for them
+            → 409 `LIVE_SEAT_UNAVAILABLE`). `seatCount` stays the room's own count, which is usable
+            again when the video stops. Always false for MULTI.
         seats:
           type: array
           items: { $ref: '#/components/schemas/LiveSeat' }

@@ -86,6 +86,8 @@ export interface LiveSeatsDto {
   mode: SeatedMode;
   version: number;
   seatCount: number;
+  /** v1.39-live (D166): the room is a cinema now (YouTube together in an AUDIO room). */
+  cinema: boolean;
   seats: LiveSeatDto[];
   moderators: UserSummaryDto[];
   couples: LiveSeatCoupleDto[];
@@ -102,6 +104,13 @@ export interface PageDto<T> {
   data: T[];
   page: { nextCursor: string | null; hasMore: boolean };
 }
+
+/**
+ * v1.39-live (D166, owner: «عندما مشاهدة يوتيوب لا يكون هناك إلا ١٠ كراسي فقط»): while an AUDIO room
+ * watches YouTube together (a `live_watch` row exists) it is a cinema with the 10 drawn seats — the
+ * host's and seats 1–9. Seats from this index on are unavailable (read as LOCKED) until it closes.
+ */
+export const CINEMA_SEAT_COUNT = 10;
 
 /** An invitation is valid for 60 seconds (owner D94). */
 export const SEAT_INVITE_TTL_SECONDS = 60;
@@ -174,7 +183,11 @@ interface LockedRoom {
   id: string;
   hostUserId: string;
   mode: SeatedMode;
+  /** The seats usable now: the room's count, or {@link CINEMA_SEAT_COUNT} in a cinema (D166). */
   seatCount: number;
+  /** The room's own seat count (what a cinema gives back when it closes). */
+  roomSeatCount: number;
+  cinema: boolean;
 }
 
 /** Media work to do after a seat transaction commits (best effort). */
@@ -240,7 +253,25 @@ export class LiveSeatsService {
     if (!room) throw notFound();
     if (room.status !== 'LIVE') throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
     if (!isSeatedMode(room.mode) || room.seat_count === null) throw seatUnavailable();
-    return { id: room.id, hostUserId: room.host_user_id, mode: room.mode, seatCount: room.seat_count };
+    const cinema = await this.isCinema(tx, room.id, room.mode);
+    return {
+      id: room.id,
+      hostUserId: room.host_user_id,
+      mode: room.mode,
+      seatCount: cinema ? Math.min(room.seat_count, CINEMA_SEAT_COUNT) : room.seat_count,
+      roomSeatCount: room.seat_count,
+      cinema,
+    };
+  }
+
+  /** D166: an AUDIO room that watches YouTube together now is a cinema. */
+  private async isCinema(
+    db: Prisma.TransactionClient | PrismaService,
+    roomId: string,
+    mode: string,
+  ): Promise<boolean> {
+    if (mode !== 'AUDIO') return false;
+    return (await db.liveWatch.count({ where: { roomId } })) > 0;
   }
 
   private async isModerator(
@@ -415,9 +446,12 @@ export class LiveSeatsService {
     });
     const mode = room.mode as SeatedMode;
     const seatCount = room.seatCount ?? 0;
+    // D166: in a cinema the seats from CINEMA_SEAT_COUNT on read as LOCKED (nobody sits there).
+    const cinema = await this.isCinema(this.prisma, roomId, mode);
+    const usable = cinema ? Math.min(seatCount, CINEMA_SEAT_COUNT) : seatCount;
     const [rows, moderators] = await Promise.all([
       this.prisma.liveRoomSeat.findMany({
-        where: { roomId, seatIndex: { lt: seatCount } },
+        where: { roomId, seatIndex: { lt: usable } },
         include: { user: { select: USER_SUMMARY_SELECT } },
       }),
       this.prisma.liveRoomModerator.findMany({
@@ -429,12 +463,14 @@ export class LiveSeatsService {
     const byIndex = new Map(rows.map((r) => [r.seatIndex, r]));
     const points = await this.receivedPoints(
       roomId,
-      rows.flatMap((r) => (r.user && r.seatIndex < seatCount ? [r.user.id] : [])),
+      rows.flatMap((r) => (r.user && r.seatIndex < usable ? [r.user.id] : [])),
     );
     const seats: LiveSeatDto[] = [];
     for (let index = 1; index < seatCount; index += 1) {
       const row = byIndex.get(index);
-      if (row?.user) {
+      if (index >= usable) {
+        seats.push({ index, state: 'LOCKED', user: null, mutedByHost: false, points: 0 });
+      } else if (row?.user) {
         seats.push({
           index,
           state: 'TAKEN',
@@ -453,6 +489,7 @@ export class LiveSeatsService {
       mode,
       version: room.seatsVersion,
       seatCount,
+      cinema,
       seats,
       moderators: moderators.map((m) => userSummary(m.user)),
       couples: await this.seatedCouples(room.hostUserId, seats, lang),
@@ -937,7 +974,7 @@ export class LiveSeatsService {
       let version: number | null = null;
       if (input.seatCount !== undefined) {
         const room = await this.lockRoom(tx, roomId);
-        if (input.seatCount !== room.seatCount) {
+        if (input.seatCount !== room.roomSeatCount) {
           const beyond = await tx.liveRoomSeat.count({
             where: { roomId, seatIndex: { gte: input.seatCount }, userId: { not: null } },
           });
@@ -956,6 +993,80 @@ export class LiveSeatsService {
         themeChanged = changed.count > 0;
       }
       return { result: themeChanged, version, effects: [] };
+    });
+  }
+
+  // ---- Cinema (D166) ----------------------------------------------------------------------------
+
+  /**
+   * v1.39-live (D166): YouTube together started in an AUDIO room with more than
+   * {@link CINEMA_SEAT_COUNT} seats. Everyone on a seat from that index on moves to the first free
+   * seat below it (their mic state kept), in seat order; when none is free they leave the seat (the
+   * publish permission is withdrawn). Pending requests and invitations for those seats expire.
+   * Idempotent: nothing to move → no change. Returns the users who moved (`to`) or left (`to` null).
+   */
+  async enterCinema(roomId: string): Promise<{ userId: string; from: number; to: number | null }[]> {
+    return this.change(roomId, async (tx, now) => {
+      const room = await this.lockRoom(tx, roomId);
+      if (!room.cinema || room.roomSeatCount <= CINEMA_SEAT_COUNT) {
+        return { result: [], version: null, effects: [] };
+      }
+      const beyond = await tx.liveRoomSeat.findMany({
+        where: { roomId, seatIndex: { gte: CINEMA_SEAT_COUNT } },
+        orderBy: { seatIndex: 'asc' },
+      });
+      const stale = await tx.liveSeatRequest.updateMany({
+        where: { roomId, status: 'PENDING', seatIndex: { gte: CINEMA_SEAT_COUNT } },
+        data: { status: 'EXPIRED', handledAt: now },
+      });
+      const staleInvites = await tx.liveSeatInvite.updateMany({
+        where: { roomId, status: 'PENDING', seatIndex: { gte: CINEMA_SEAT_COUNT } },
+        data: { status: 'EXPIRED', handledAt: now },
+      });
+      if (beyond.length === 0 && stale.count === 0 && staleInvites.count === 0) {
+        return { result: [], version: null, effects: [] };
+      }
+      const free = await this.freeSeats(tx, room);
+      const moves: { userId: string; from: number; to: number | null }[] = [];
+      const effects: Effect[] = [];
+      for (const seat of beyond) {
+        await tx.liveRoomSeat.delete({
+          where: { roomId_seatIndex: { roomId, seatIndex: seat.seatIndex } },
+        });
+        if (seat.userId === null) continue; // a locked seat beyond the cinema: dropped
+        const to = free.shift();
+        if (to === undefined) {
+          moves.push({ userId: seat.userId, from: seat.seatIndex, to: null });
+          effects.push({ kind: 'permission', identity: seat.userId, permission: VIEWER_PERMISSION });
+          continue;
+        }
+        await tx.liveRoomSeat.create({
+          data: {
+            roomId,
+            seatIndex: to,
+            userId: seat.userId,
+            locked: false,
+            mutedByHost: seat.mutedByHost,
+            updatedAt: now,
+          },
+        });
+        moves.push({ userId: seat.userId, from: seat.seatIndex, to });
+      }
+      return { result: moves, version: await this.bump(tx, roomId), effects };
+    });
+  }
+
+  /**
+   * v1.39-live (D166): YouTube together stopped — the room's own seat count is usable again (nobody
+   * is moved back). A new seat version tells the apps to refetch.
+   */
+  async leaveCinema(roomId: string): Promise<void> {
+    await this.change(roomId, async (tx) => {
+      const room = await this.lockRoom(tx, roomId);
+      if (room.mode !== 'AUDIO' || room.roomSeatCount <= CINEMA_SEAT_COUNT) {
+        return { result: undefined, version: null, effects: [] };
+      }
+      return { result: undefined, version: await this.bump(tx, roomId), effects: [] };
     });
   }
 

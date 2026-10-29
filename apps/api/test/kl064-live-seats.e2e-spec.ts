@@ -267,6 +267,8 @@ describe('CP-011 multi-guest and audio rooms', () => {
         mode: 'AUDIO',
         version: 0,
         seatCount: 5,
+        // v1.39-live (D166): not watching YouTube, so not a cinema.
+        cinema: false,
         seats: [1, 2, 3, 4].map((index) => ({
           index,
           state: 'EMPTY',
