@@ -17,10 +17,12 @@ import 'package:material_ui/material_ui.dart';
 /// Step 1 of Create (owner's reference, KL-060): the device photo and
 /// video library as a grid, filtered by Photos · Video · All. A tap selects
 /// or unselects a photo (at most 10, in tap order = post order) or (D162)
-/// one video (up to 3 minutes; a post holds photos or one video); the tray
-/// under the grid lists the selection. Without a library (web) or without
-/// access, the system pickers are offered instead, and limited access says
-/// so with a way to change it.
+/// one video (up to 90 seconds, D168; a post holds photos or one video);
+/// the tray under the grid lists the selection. Videos longer than that are
+/// marked on their tile (faded, the length in a warning pill) and say why
+/// when tapped. The newest item comes first (D168). Without a library (web)
+/// or without access, the system pickers are offered instead, and limited
+/// access says so with a way to change it.
 class CreateMediaStep extends ConsumerStatefulWidget {
   const new({
     required this.onNext,
@@ -76,8 +78,15 @@ class _CreateMediaStepState extends ConsumerState<CreateMediaStep> {
   LibraryFilter _filter = LibraryFilter.all;
   final Set<String> _loading = {};
 
-  Future<void> _toggle(LibraryItem item) =>
-      item.video ? _toggleVideo(item.id) : _togglePhoto(item.id);
+  Future<void> _toggle(LibraryItem item) {
+    // D168: a video over the limit says so at once (nothing is read).
+    if (item.video &&
+        isVideoTooLong(item.duration ?? Duration.zero, reel: false)) {
+      KSnack.error(context, context.l10n.createVideoTooLong);
+      return Future.value();
+    }
+    return item.video ? _toggleVideo(item.id) : _togglePhoto(item.id);
+  }
 
   /// D162: one video replaces nothing — photos must be removed first.
   Future<void> _toggleVideo(String id) async {
@@ -516,15 +525,22 @@ class _Tile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final p = context.palette;
+    final l10n = context.l10n;
     final thumb = ref.watch(libraryThumbnailProvider(id)).value;
+    final length = item.duration ?? Duration.zero;
+    // D168: a video over the post limit (90 s) is faded and marked.
+    final tooLong = item.video && isVideoTooLong(length, reel: false);
     return Semantics(
       button: true,
       selected: selected,
-      label: item.video
-          ? context.l10n.createVideoLabel(
-              videoLengthLabel(item.duration ?? Duration.zero),
+      label: !item.video
+          ? l10n.createLibraryPhoto
+          : tooLong
+          ? l10n.createLibraryVideoTooLong(
+              videoLengthLabel(length),
+              maxPostVideoLength.inSeconds,
             )
-          : context.l10n.createLibraryPhoto,
+          : l10n.createVideoLabel(videoLengthLabel(length)),
       onTap: onTap,
       excludeSemantics: true,
       child: GestureDetector(
@@ -535,7 +551,14 @@ class _Tile extends ConsumerWidget {
             fit: StackFit.expand,
             children: [
               if (thumb != null)
-                Image.memory(thumb, fit: BoxFit.cover, gaplessPlayback: true)
+                Opacity(
+                  opacity: tooLong ? KCompose.tooLongOpacity : 1,
+                  child: Image.memory(
+                    thumb,
+                    fit: BoxFit.cover,
+                    gaplessPlayback: true,
+                  ),
+                )
               else
                 ColoredBox(color: p.surfaceOverlay),
               if (selected)
@@ -556,15 +579,19 @@ class _Tile extends ConsumerWidget {
                       : null,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: KStatusColors.onStatus.withValues(alpha: 0.45),
+                    color: tooLong
+                        ? p.error
+                        : KStatusColors.onStatus.withValues(alpha: 0.45),
                     borderRadius: BorderRadius.circular(KRadius.sm),
                   ),
                   child: item.video
                       ? Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(
-                              Icons.play_arrow_rounded,
+                            Icon(
+                              tooLong
+                                  ? Icons.timer_off_rounded
+                                  : Icons.play_arrow_rounded,
                               size: 16,
                               color: Colors.white,
                             ),

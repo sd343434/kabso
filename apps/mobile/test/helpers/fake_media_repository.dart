@@ -94,6 +94,33 @@ class FakeMediaRepository implements MediaRepository {
     );
   }
 
+  /// D168: every profile photo upload, e.g. `image/png:1234`.
+  final List<String> avatarUploads = [];
+
+  @override
+  Future<MediaAsset> uploadAvatar(
+    Uint8List bytes,
+    String contentType, {
+    void Function(double progress)? onProgress,
+  }) async {
+    onProgress?.call(0);
+    if (gate case final g?) await g.future;
+    if (failWith case final e?) {
+      failWith = null;
+      throw e;
+    }
+    onProgress?.call(1);
+    avatarUploads.add('$contentType:${bytes.length}');
+    final id = 'av${avatarUploads.length}';
+    return MediaAsset(
+      id: id,
+      url: 'https://media.example.test/media/$id/640.webp',
+      thumbUrl: 'https://media.example.test/media/$id/320.webp',
+      width: 640,
+      height: 640,
+    );
+  }
+
   /// D155: every direct message upload, e.g. `voice:audio/mp4:1234`.
   final List<String> dmUploads = [];
 

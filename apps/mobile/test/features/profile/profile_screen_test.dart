@@ -14,7 +14,6 @@ import 'package:kabso_live/features/auth/domain/entities.dart';
 import 'package:kabso_live/features/auth/presentation/auth_controller.dart';
 import 'package:kabso_live/features/posts/data/posts_repository.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
-import 'package:kabso_live/features/profile/edit_profile_screen.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -258,78 +257,6 @@ void main() {
       });
     }
   }
-
-  group('edit profile (D58)', () {
-    testWidgets('label/value rows with the current details, read-only; '
-        'Save and "Change photo" disabled; says why', (tester) async {
-      setViewport(tester, GoldenViewport.phone);
-      await pumpScreen(
-        tester,
-        const EditProfileScreen(),
-        overrides: [meProvider.overrideWith((ref) => _user())],
-      );
-      await tester.pumpAndSettle();
-      expect(find.text(_en.profileEditTitle), findsOneWidget);
-      expect(find.text(_en.profileEditUnavailable), findsOneWidget);
-      expect(
-        tester
-            .widget<TextButton>(find.byKey(EditProfileScreen.saveKey))
-            .onPressed,
-        isNull,
-      );
-      expect(
-        tester
-            .widget<TextButton>(find.byKey(EditProfileScreen.photoKey))
-            .onPressed,
-        isNull,
-      );
-      for (final (key, label, value) in [
-        (EditProfileScreen.nameKey, _en.profileEditName, 'Layla'),
-        (EditProfileScreen.usernameKey, _en.profileEditUsername, 'layla.k'),
-        (EditProfileScreen.bioKey, _en.profileEditBio, 'Music every evening'),
-      ]) {
-        final row = find.byKey(key);
-        final l = tester.getRect(
-          find.descendant(of: row, matching: find.text(label)),
-        );
-        final v = tester.getRect(
-          find.descendant(of: row, matching: find.text(value)),
-        );
-        // Label at the start, value beside it.
-        expect(v.left, greaterThanOrEqualTo(l.right));
-        expect(v.top, moreOrLessEquals(l.top, epsilon: 2));
-      }
-      // Read-only: no text fields.
-      expect(find.byType(TextField), findsNothing);
-      // The owner's extra options: "Coming soon", not buttons.
-      for (final key in [
-        EditProfileScreen.linksKey,
-        EditProfileScreen.genderKey,
-        EditProfileScreen.categoryKey,
-        EditProfileScreen.gridKey,
-        EditProfileScreen.privacyKey,
-      ]) {
-        await tester.scrollUntilVisible(find.byKey(key), 100);
-        expect(
-          find.descendant(
-            of: find.byKey(key),
-            matching: find.text(_en.profileEditSoon),
-          ),
-          findsOneWidget,
-        );
-        expect(
-          find.descendant(of: find.byKey(key), matching: find.byType(InkWell)),
-          findsNothing,
-        );
-      }
-      // Privacy shows the real state from GET /me.
-      expect(
-        find.descendant(
-          of: find.byKey(EditProfileScreen.privacyKey),
-          matching: find.text(_en.profilePrivacyPublic),
-        ),
-        findsOneWidget,
-      );
-    });
-  });
+  // D168: the edit screen works now (name, bio, photo); its tests are in
+  // edit_profile_d168_test.dart (the D58 read-only checks no longer hold).
 }
