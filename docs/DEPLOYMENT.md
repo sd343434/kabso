@@ -1469,8 +1469,11 @@ Video in «منشور جديد» (the «فيديو» tab), reels («ريلز») 
 - **Cost / capacity:** files are streamed as uploaded (a 60 s phone reel is typically 20–120 MB),
   so egress grows with views; consider a CDN cache rule on `media/*/video.*` (immutable). The
   never-attached sweep (`MEDIA_SWEEP_INTERVAL_SECONDS`) also deletes abandoned videos and posters.
-- **Moderation:** a post or reel with a video is `PENDING` (visible to its author only), like a
-  photo post (CP-006 Q2, B13), until a moderation provider exists or the owner decides otherwise.
+- **Moderation (D162a, owner):** posts with photos, a video and reels are visible to everyone at
+  once (no hold); safety relies on reports and moderators' `REMOVE_TARGET`. Data migration
+  `20261212090000_media_posts_visible` (after `20261211090000_video_posts_reels`, usual `migrate`
+  job) turns posts held `PENDING` by the old CP-006 Q2 rule into `VISIBLE` (nothing else ever set
+  `PENDING`; `REMOVED` posts are untouched). No GRANT, no new setting.
 - **Later (not in this step):** server-side transcoding / HLS / server thumbnails (CP-006 Q1:
   Cloudflare Stream, Mux or FFmpeg workers), video stories, personalised reels ranking (M5).
 

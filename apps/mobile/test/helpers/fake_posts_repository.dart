@@ -55,6 +55,9 @@ class FakePostsRepository implements PostsRepository {
     return _slice(feeds[tab] ?? const [], cursor);
   }
 
+  /// D162a: new posts with media come back `PENDING` (default: VISIBLE).
+  bool holdNewPosts = false;
+
   /// D162: the reels feeds (empty by default); [reelsFailWith] makes the
   /// next reels call throw.
   final Map<PostsFeedTab, List<Post>> reels = {};
@@ -307,7 +310,9 @@ class FakePostsRepository implements PostsRepository {
       'new-${created.length}',
       text: text ?? '',
       isSelf: true,
-      pending: mediaIds.isNotEmpty,
+      // D162a: posts with media are visible at once; [holdNewPosts]
+      // answers PENDING (a moderation provider or an admin hold).
+      pending: holdNewPosts && mediaIds.isNotEmpty,
       reel: reel,
       video: mediaIds.isNotEmpty && mediaIds.first.startsWith('v'),
     ).copyWithForTest(status: status, publishAt: publishAt);

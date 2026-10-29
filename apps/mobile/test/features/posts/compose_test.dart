@@ -412,7 +412,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(media.uploads, ['image/jpeg']);
       expect(posts.created.single.mediaIds, ['a1']);
-      expect(find.text(_en.createPostedInReview), findsOneWidget);
+      // D162a: photo posts are visible at once (the review notice only
+      // shows when the server answers PENDING).
+      expect(find.text(_en.createPosted), findsOneWidget);
+      expect(find.text(_en.createPostedInReview), findsNothing);
     });
 
     testWidgets('progress while uploading; failure banner with Retry keeps '

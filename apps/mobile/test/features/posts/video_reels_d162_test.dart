@@ -259,7 +259,9 @@ void main() {
       expect(posts.created.single.mediaIds, ['v1']);
       expect(posts.created.single.reel, isFalse);
       expect(posts.created.single.text, 'my clip');
-      expect(find.text(en.createPostedVideoInReview), findsOneWidget);
+      // D162a: visible at once — the plain notice, not the review one.
+      expect(find.text(en.createPosted), findsOneWidget);
+      expect(find.text(en.createPostedVideoInReview), findsNothing);
     });
 
     testWidgets('a post holds photos or one video; limits are checked on the '
@@ -479,10 +481,22 @@ void main() {
       expect(created.reel, isTrue);
       expect(created.mediaIds, ['v1']);
       expect(created.text, 'sunset #kabso');
-      expect(find.text(en.reelSharedInReview), findsOneWidget);
+      // D162a: visible at once.
+      expect(find.text(en.reelShared), findsOneWidget);
       expect(find.byType(NewReelScreen), findsNothing);
       expect(find.byKey(const Key('start')), findsOneWidget);
       expect(before, isA<AsyncValue<Object?>>());
+    });
+
+    testWidgets('a reel the server holds (PENDING) says it waits for '
+        'review', (tester) async {
+      final en = l10nFor(AppLanguage.en);
+      final (_, posts, _) = await pump(tester);
+      posts.holdNewPosts = true;
+      await choose(tester, 'r1');
+      await tester.tap(find.byKey(NewReelScreen.shareKey));
+      await tester.pumpAndSettle();
+      expect(find.text(en.reelSharedInReview), findsOneWidget);
     });
 
     testWidgets('a reel longer than 60 s is refused on the device', (
@@ -514,7 +528,7 @@ void main() {
       ];
       expect(keys, hasLength(2));
       expect(keys.toSet(), hasLength(1));
-      expect(find.text(en.reelSharedInReview), findsOneWidget);
+      expect(find.text(en.reelShared), findsOneWidget);
     });
 
     testWidgets('uploads switched off: the honest notice, nothing shared', (
