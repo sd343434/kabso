@@ -79,6 +79,13 @@ export const dmConversationsQuerySchema = z.strictObject({
     .pipe(z.enum(['INBOX', 'REQUESTS']))
     .optional()
     .transform((v) => v ?? 'INBOX'),
+  /** v1.43-social (D165): a prefix of the peer's username or display name (a leading `@` dropped). */
+  q: z
+    .string()
+    .trim()
+    .transform((v) => v.replace(/^@/, '').trim())
+    .pipe(z.string().min(1).max(30))
+    .optional(),
   cursor: z.string().min(1).max(512).optional(),
   limit: limitSchema.optional().transform((v) => v ?? 20),
 });

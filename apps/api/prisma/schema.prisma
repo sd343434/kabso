@@ -3021,6 +3021,8 @@ model DmParticipant {
   peerId         String              @map("peer_id") @db.Uuid
   status         DmParticipantStatus
   muted          Boolean             @default(false)
+  /// v1.43-social (D165): the user marked it unread (cleared by reading it).
+  markedUnread   Boolean             @default(false) @map("marked_unread")
   hasSent        Boolean             @default(false) @map("has_sent")
   requestSent    Int                 @default(0) @map("request_sent")
   readAt         DateTime?           @map("read_at") @db.Timestamptz(3)
