@@ -71,6 +71,8 @@ export interface DmConversationDto {
   peer: UserSummaryDto;
   status: DmConversationStatus;
   muted: boolean;
+  /** v1.43.1-social (D165). */
+  markedUnread: boolean;
   unreadCount: number;
   lastMessage: DmMessageDto | null;
   lastActivityAt: string;
@@ -140,6 +142,11 @@ const MESSAGE_INCLUDE = {
 type MessageRow = Prisma.DmMessageGetPayload<{ include: typeof MESSAGE_INCLUDE }>;
 
 type ParticipantRow = Prisma.DmParticipantGetPayload<object>;
+
+/** A LIKE pattern for the prefix `q` (`\\`, `%` and `_` escaped), as search does (§11.6). */
+function likePrefix(q: string): string {
+  return `${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+}
 
 /** The cap of every unread count (the badge shows "99+"). */
 const UNREAD_CAP = 99;
@@ -344,6 +351,7 @@ export class DmService {
         peer,
         status,
         muted: p.muted,
+        markedUnread: p.markedUnread,
         unreadCount: Math.min(UNREAD_CAP, stat?.unread ?? 0),
         lastMessage: last ? this.messageDto(last, callerId, peerReadAt) : null,
         lastActivityAt: p.lastMessageAt.toISOString(),
@@ -387,7 +395,9 @@ export class DmService {
 
   /** `GET /dm/conversations`: INBOX (accepted, sent requests) or REQUESTS, newest message first. */
   async list(callerId: string, query: DmConversationsQuery): Promise<PageDto<DmConversationDto>> {
-    const scope = `dm-list:${query.box}:${callerId}`;
+    // v1.43.1-social (D165): the cursor is bound to the search too.
+    const scope = `dm-list:${query.box}:${callerId}${query.q === undefined ? '' : `:q=${query.q.toLowerCase()}`}`;
+    const prefix = query.q === undefined ? null : likePrefix(query.q.toLowerCase());
     let after = null;
     if (query.cursor !== undefined) {
       after = this.cursors.decode(query.cursor, scope);
@@ -400,6 +410,11 @@ export class DmService {
         JOIN users u ON u.id = p.peer_id AND u.status = 'ACTIVE'::user_status
        WHERE p.user_id = ${callerId}::uuid
          AND p.status = ${status}::dm_participant_status
+         AND (${prefix === null} OR EXISTS (
+               SELECT 1 FROM user_profiles up
+                WHERE up.user_id = p.peer_id
+                  AND (lower(up.username) LIKE ${prefix ?? ''} ESCAPE '\\'
+                       OR lower(up.display_name) LIKE ${prefix ?? ''} ESCAPE '\\')))
          AND (p.cleared_at IS NULL OR p.last_message_at > p.cleared_at)
          AND NOT EXISTS (SELECT 1 FROM user_blocks b
                           WHERE (b.blocker_id = p.user_id AND b.blocked_id = p.peer_id)
@@ -439,19 +454,20 @@ export class DmService {
              count(*) FILTER (WHERE t.status = 'ACCEPTED' AND NOT t.muted AND t.u > 0)::int AS conversations,
              count(*) FILTER (WHERE t.status = 'REQUEST' AND t.u > 0)::int AS requests
         FROM (
+          -- v1.43.1-social (D165): a conversation marked unread without unread messages counts as one.
           SELECT p.status::text AS status, p.muted,
-                 (SELECT count(*) FROM (
+                 GREATEST(CASE WHEN p.marked_unread THEN 1 ELSE 0 END, (SELECT count(*) FROM (
                     SELECT 1 FROM dm_messages m
                      WHERE m.conversation_id = p.conversation_id AND m.recipient_id = p.user_id
                        AND m.expires_at > ${now}::timestamptz
                        AND (p.read_at IS NULL OR m.created_at > p.read_at)
                        AND (p.cleared_at IS NULL OR m.created_at > p.cleared_at)
                        AND NOT EXISTS (SELECT 1 FROM dm_message_hides h WHERE h.message_id = m.id AND h.user_id = p.user_id)
-                     LIMIT ${UNREAD_CAP}) x) AS u
+                     LIMIT ${UNREAD_CAP}) x)) AS u
             FROM dm_participants p
             JOIN users u ON u.id = p.peer_id AND u.status = 'ACTIVE'::user_status
            WHERE p.user_id = ${callerId}::uuid
-             AND p.last_message_at > ${since}::timestamptz
+             AND (p.marked_unread OR p.last_message_at > ${since}::timestamptz)
              AND NOT EXISTS (SELECT 1 FROM user_blocks b
                               WHERE (b.blocker_id = p.user_id AND b.blocked_id = p.peer_id)
                                  OR (b.blocker_id = p.peer_id AND b.blocked_id = p.user_id))) t`;
@@ -858,7 +874,8 @@ export class DmService {
     });
     if (!message) throw AppException.validation([{ field: 'lastMessageId', issue: 'invalid_value' }]);
     await this.prisma.$executeRaw`
-      UPDATE dm_participants SET read_at = GREATEST(COALESCE(read_at, ${message.createdAt}::timestamptz), ${message.createdAt}::timestamptz)
+      UPDATE dm_participants SET read_at = GREATEST(COALESCE(read_at, ${message.createdAt}::timestamptz), ${message.createdAt}::timestamptz),
+             marked_unread = false
        WHERE conversation_id = ${mine.conversationId}::uuid AND user_id = ${callerId}::uuid`;
   }
 
@@ -887,6 +904,16 @@ export class DmService {
     await this.prisma.dmParticipant.update({
       where: { conversationId_userId: { conversationId: mine.conversationId, userId: callerId } },
       data: { muted },
+    });
+  }
+
+  /** v1.43.1-social (D165): `PUT` / `DELETE /dm/conversations/{id}/unread` (idempotent). */
+  async setMarkedUnread(callerId: string, conversationId: string, marked: boolean): Promise<void> {
+    const mine = await this.access(callerId, conversationId);
+    if (mine.markedUnread === marked) return;
+    await this.prisma.dmParticipant.update({
+      where: { conversationId_userId: { conversationId: mine.conversationId, userId: callerId } },
+      data: { markedUnread: marked },
     });
   }
 

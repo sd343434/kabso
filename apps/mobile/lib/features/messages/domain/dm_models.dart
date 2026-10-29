@@ -169,6 +169,7 @@ class DmConversation {
     required this.status,
     required this.lastActivityAt,
     this.muted = false,
+    this.markedUnread = false,
     this.unreadCount = 0,
     this.lastMessage,
     this.peerReadAt,
@@ -184,6 +185,7 @@ class DmConversation {
       peer: UserSummary.fromJson(json['peer']! as Map<String, dynamic>),
       status: DmConversationStatus.fromWire(json['status']),
       muted: json['muted'] as bool? ?? false,
+      markedUnread: json['markedUnread'] as bool? ?? false,
       unreadCount: json['unreadCount'] as int? ?? 0,
       lastMessage: last == null ? null : DmMessage.fromJson(last),
       lastActivityAt: DateTime.parse(json['lastActivityAt']! as String),
@@ -198,6 +200,12 @@ class DmConversation {
   final DmConversationStatus status;
   final bool muted;
 
+  /// v1.43.1-social (D165): the caller marked it unread (a dot until read).
+  final bool markedUnread;
+
+  /// Unread for the caller: unread messages or the mark (D165).
+  bool get isUnread => unreadCount > 0 || markedUnread;
+
   /// 0–99 (the row shows "99+").
   final int unreadCount;
 
@@ -210,19 +218,24 @@ class DmConversation {
   /// `REQUEST_SENT` only: messages the caller may still send.
   final int? requestMessagesLeft;
 
-  DmConversation copyWith({bool? muted, DmConversationStatus? status}) =>
-      DmConversation(
-        id: id,
-        peer: peer,
-        status: status ?? this.status,
-        muted: muted ?? this.muted,
-        unreadCount: unreadCount,
-        lastMessage: lastMessage,
-        lastActivityAt: lastActivityAt,
-        peerReadAt: peerReadAt,
-        canSend: canSend,
-        requestMessagesLeft: requestMessagesLeft,
-      );
+  DmConversation copyWith({
+    bool? muted,
+    DmConversationStatus? status,
+    bool? markedUnread,
+    int? unreadCount,
+  }) => DmConversation(
+    id: id,
+    peer: peer,
+    status: status ?? this.status,
+    muted: muted ?? this.muted,
+    markedUnread: markedUnread ?? this.markedUnread,
+    unreadCount: unreadCount ?? this.unreadCount,
+    lastMessage: lastMessage,
+    lastActivityAt: lastActivityAt,
+    peerReadAt: peerReadAt,
+    canSend: canSend,
+    requestMessagesLeft: requestMessagesLeft,
+  );
 }
 
 /// A page of conversations.

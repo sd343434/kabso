@@ -6434,12 +6434,19 @@ paths:
         message requests waiting for the caller. Conversations the caller deleted are absent until a
         new message arrives; peers with a block either way or not ACTIVE are never listed. Ordered by
         `lastActivityAt` (signed keyset cursor, §5). Messages live 24 hours: `lastMessage` is null
-        when none is left (CONVENTIONS §11.13).
+        when none is left (CONVENTIONS §11.13). *(v1.43.1-social, D165)* `q`: only conversations whose
+        peer's username or display name starts with it (case-insensitive; a leading `@` is ignored);
+        the cursor is bound to `box` and `q`.
       parameters:
         - name: box
           in: query
           required: false
           schema: { type: string, enum: [INBOX, REQUESTS], default: INBOX }
+        - name: q
+          in: query
+          required: false
+          description: "(v1.43.1-social, D165) A case-insensitive prefix of the peer's username or display name (trimmed, then 1–30 characters; a leading `@` is ignored)."
+          schema: { type: string, minLength: 1, maxLength: 30 }
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
       responses:
@@ -6597,7 +6604,7 @@ paths:
       description: |
         Everything the caller received up to `lastMessageId` (a message of this conversation the
         caller can read; else 400 `lastMessageId` / `invalid_value`) is read; the pointer never moves
-        back. Idempotent.
+        back. *(v1.43.1-social, D165)* Also clears `markedUnread`. Idempotent.
       parameters:
         - $ref: '#/components/parameters/DmConversationIdPath'
       requestBody:
@@ -6657,6 +6664,34 @@ paths:
         - $ref: '#/components/parameters/DmConversationIdPath'
       responses:
         '204': { description: Unmuted. }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/dm/conversations/{conversationId}/unread:
+    put:
+      tags: [messages]
+      operationId: markDmUnread
+      summary: "Mark a conversation unread (v1.43.1-social, D165)"
+      description: |
+        Sets the caller's `markedUnread` (the read pointer does not move). The conversation then counts
+        in `getDmUnread` as one unread message (a request: in `requests`) until the caller reads it
+        (`markDmRead`) or clears the mark (`DELETE`). Only the caller sees it. Idempotent.
+      parameters:
+        - $ref: '#/components/parameters/DmConversationIdPath'
+      responses:
+        '204': { description: Marked unread. }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [messages]
+      operationId: clearDmUnread
+      summary: "Clear the unread mark of a conversation (v1.43.1-social, D165)"
+      description: Clears `markedUnread` (a conversation opened or marked read without a message left to point at). Idempotent.
+      parameters:
+        - $ref: '#/components/parameters/DmConversationIdPath'
+      responses:
+        '204': { description: Cleared. }
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -10537,12 +10572,13 @@ components:
         expiresAt: { type: string, format: date-time, description: "createdAt + DM_RETENTION_HOURS (24 h); the message is deleted then." }
     DmConversation:
       type: object
-      required: [id, peer, status, muted, unreadCount, lastMessage, lastActivityAt, peerReadAt, canSend, requestMessagesLeft]
+      required: [id, peer, status, muted, markedUnread, unreadCount, lastMessage, lastActivityAt, peerReadAt, canSend, requestMessagesLeft]
       properties:
         id: { type: string, format: uuid }
         peer: { $ref: '#/components/schemas/UserSummary' }
         status: { $ref: '#/components/schemas/DmConversationStatus' }
         muted: { type: boolean }
+        markedUnread: { type: boolean, description: "(v1.43.1-social, D165) The caller marked it unread (`markDmUnread`); cleared by `markDmRead` or `clearDmUnread`." }
         unreadCount: { type: integer, minimum: 0, maximum: 99 }
         lastMessage:
           description: The newest message the caller can still read (null after 24 h or deletion).
@@ -10572,6 +10608,7 @@ components:
         conversation: { $ref: '#/components/schemas/DmConversation' }
     DmUnread:
       type: object
+      description: "(v1.43.1-social, D165) A conversation marked unread with no unread message counts as one in `messages` and `conversations` (accepted, not muted) or in `requests`."
       required: [messages, conversations, requests]
       properties:
         messages: { type: integer, minimum: 0, maximum: 99 }

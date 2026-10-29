@@ -1960,9 +1960,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get attachPause => 'إيقاف الفيديو مؤقتًا';
 
   @override
-  String get chatVoiceSoon => 'الرسائل الصوتية قريباً';
-
-  @override
   String get chatOnline => 'متصل الآن';
 
   @override
@@ -8029,4 +8026,51 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get creatorLoadError => 'تعذّر تحميل الإحصاءات';
+
+  @override
+  String get dmSearch => 'بحث في المحادثات';
+
+  @override
+  String get dmSearchHint => 'ابحث بالاسم أو اسم المستخدم';
+
+  @override
+  String get dmSearchClose => 'إغلاق البحث';
+
+  @override
+  String dmSearchEmpty(String query) {
+    return 'لا توجد محادثة تطابق «$query»';
+  }
+
+  @override
+  String get dmNewMessageHint => 'اكتب اسم الشخص أو اسم المستخدم';
+
+  @override
+  String get dmNewMessageEmpty => 'لم نجد أحداً بهذا الاسم';
+
+  @override
+  String get dmNewMessageStart => 'ابحث عن شخص لتبدأ محادثة معه';
+
+  @override
+  String get dmConversationActions => 'خيارات المحادثة';
+
+  @override
+  String get dmMarkRead => 'تعليم كمقروءة';
+
+  @override
+  String get dmMarkUnread => 'تعليم كغير مقروءة';
+
+  @override
+  String get dmMarkedUnread => 'معلّمة كغير مقروءة';
+
+  @override
+  String get dmCopy => 'نسخ';
+
+  @override
+  String get dmCopied => 'تم نسخ الرسالة';
+
+  @override
+  String get dmViewProfile => 'عرض الملف الشخصي';
+
+  @override
+  String get chatVoiceUnavailable => 'الرسائل الصوتية غير متاحة على هذا الجهاز';
 }

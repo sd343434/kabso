@@ -35,14 +35,16 @@ Finder _row(String peer) => find.byKey(ConversationsPreviewScreen.rowKey(peer));
 
 void main() {
   group('composer', () {
-    testWidgets('empty: a disabled microphone (voice needs an API); typed: '
+    // D165: without a recorder the microphone says voice messages are not
+    // available here (no longer «قريباً»: they work in real conversations).
+    testWidgets('empty: a disabled microphone (no recorder here); typed: '
         'a red send button', (tester) async {
       _phone(tester);
       final l10n = l10nFor(AppLanguage.en);
       await pumpScreen(tester, const MessagesPreviewScreen());
       var send = _button(tester, MessagesPreviewScreen.sendKey);
       expect(send.onPressed, isNull);
-      expect(send.tooltip, l10n.chatVoiceSoon);
+      expect(send.tooltip, l10n.chatVoiceUnavailable);
       expect(find.byIcon(Icons.mic_none_rounded), findsOneWidget);
 
       await tester.enterText(find.byKey(MessagesPreviewScreen.inputKey), 'Hi');

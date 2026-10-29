@@ -19,7 +19,8 @@ abstract final class KChatComposer {
 /// The message composer of a conversation (D68): a round "+" to attach a
 /// photo or video, a pill field with the emoji button inside, and a round
 /// red button that sends once something is typed. Empty, it shows a
-/// microphone that is disabled: voice messages need an API (CP-004).
+/// microphone: it records a voice note when [voice] is given (D155), else it
+/// is disabled and says voice messages are not available here (D165).
 ///
 /// D138 (owner: «وأيضاً ستظهر في الرسائل الخاصة»): the emoji button opens
 /// the shared [EmojiPanel] under the field (the owner's nine packs first,
@@ -172,7 +173,8 @@ class _ChatComposerState extends State<ChatComposer> {
                       dimension: KChatComposer.button,
                       child: IconButton(
                         key: widget.giftKey,
-                        tooltip: enabled && onGift != null
+                        // D165: busy for a moment is not "can't send yet".
+                        tooltip: onGift != null
                             ? l10n.chatGiftButton
                             : l10n.giftSendComingSoon,
                         onPressed: enabled ? onGift : null,
@@ -256,7 +258,8 @@ class _ChatComposerState extends State<ChatComposer> {
                     controller: controller,
                     onSend: onSend,
                     sendKey: widget.sendKey,
-                    voice: enabled ? widget.voice : null,
+                    voice: widget.voice,
+                    enabled: enabled,
                   ),
                 ],
               ),
@@ -350,12 +353,17 @@ class _SendOrMic extends StatelessWidget {
     required this.onSend,
     required this.sendKey,
     this.voice,
+    this.enabled = true,
   });
 
   final TextEditingController? controller;
   final VoidCallback? onSend;
   final Key? sendKey;
   final ChatVoiceControl? voice;
+
+  /// D165: false while the composer is busy (the microphone waits but keeps
+  /// saying what it does).
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -373,7 +381,8 @@ class _SendOrMic extends StatelessWidget {
     final l10n = context.l10n;
     final voice = this.voice;
     final recording = voice?.recording ?? false;
-    final mic = !typed && voice != null && !voice.busy;
+    final mic =
+        !typed && voice != null && !voice.busy && (enabled || recording);
     final active = (typed && onSend != null && !recording) || mic;
     final rtl = Directionality.of(context) == TextDirection.rtl;
     return SizedBox.square(
@@ -386,7 +395,7 @@ class _SendOrMic extends StatelessWidget {
             ? l10n.liveVoiceSend
             : voice != null
             ? l10n.liveVoiceRecord
-            : l10n.chatVoiceSoon,
+            : l10n.chatVoiceUnavailable,
         onPressed: !active
             ? null
             : typed && !recording

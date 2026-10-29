@@ -1932,9 +1932,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get attachPause => 'Pause video';
 
   @override
-  String get chatVoiceSoon => 'Voice messages are coming soon';
-
-  @override
   String get chatOnline => 'Online';
 
   @override
@@ -8001,4 +7998,52 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get creatorLoadError => 'Couldn\'t load your statistics';
+
+  @override
+  String get dmSearch => 'Search conversations';
+
+  @override
+  String get dmSearchHint => 'Search by name or username';
+
+  @override
+  String get dmSearchClose => 'Close search';
+
+  @override
+  String dmSearchEmpty(String query) {
+    return 'No conversation matches “$query”';
+  }
+
+  @override
+  String get dmNewMessageHint => 'Type a name or a username';
+
+  @override
+  String get dmNewMessageEmpty => 'No one found with that name';
+
+  @override
+  String get dmNewMessageStart => 'Search for someone to start a conversation';
+
+  @override
+  String get dmConversationActions => 'Conversation options';
+
+  @override
+  String get dmMarkRead => 'Mark as read';
+
+  @override
+  String get dmMarkUnread => 'Mark as unread';
+
+  @override
+  String get dmMarkedUnread => 'Marked as unread';
+
+  @override
+  String get dmCopy => 'Copy';
+
+  @override
+  String get dmCopied => 'Message copied';
+
+  @override
+  String get dmViewProfile => 'View profile';
+
+  @override
+  String get chatVoiceUnavailable =>
+      'Voice messages aren\'t available on this device';
 }
