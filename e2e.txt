@@ -1,0 +1,829 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.4 [39m[90m/home/runner/work/kabso/kabso/apps/api[39m
+
+Loaded Prisma config from prisma.config.ts.
+
+Prisma schema loaded from prisma/schema.prisma.
+Datasource "db": PostgreSQL database "kabso_test", schema "public" at "localhost:5432"
+
+68 migrations found in prisma/migrations
+
+
+No pending migrations to apply.
+(node:3460) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl037-live-discovery.e2e-spec.ts [2m([22m[2m39 tests[22m[2m)[22m[33m 14609[2mms[22m[39m
+   [32m✓[39m KL-037 live discovery and host lifecycle (hosting enabled) [2m(23)[22m
+     [32m✓[39m GET /live/rooms (lists) [2m(6)[22m
+       [33m[2m✓[22m[39m paginates every tab across pages with ties (same startedAt) without duplicates or gaps[33m 1084[2mms[22m[39m
+       [33m[2m✓[22m[39m rejects invalid, tampered and mismatched cursors with 400 cursor/invalid_value[33m 302[2mms[22m[39m
+     [32m✓[39m sweeper and suspension [2m(2)[22m
+       [33m[2m✓[22m[39m suspension ends the LIVE room with HOST_SUSPENDED and keeps follow rows[33m 381[2mms[22m[39m
+   [32m✓[39m KL-037 background sweeper [2m(1)[22m
+     [33m[2m✓[22m[39m ends a stale room on its own schedule[33m 520[2mms[22m[39m
+[1m[Nest] 3733  - [0m10/29/2026, 10:39:07 AM [1m  FATAL[0m [38;5;3m[Database] [39m[1mdb.runtime_role_check failed — refusing to start. DATABASE_URL connects as "kabso_migrator", which is not a least-privilege runtime role: is not a member of kabso_runtime_kabso_test; owns schema(s) public (looks like the migration/owner role); owns public._prisma_migrations, public.audit_logs, public.bag_items, public.comment_likes, public.comment_mentions, … (121 total) (looks like the migration/owner role); may CREATE objects in schema(s) public; may CREATE schemas in the database; may create TEMPORARY tables in the database; holds TRUNCATE/REFERENCES/TRIGGER on public._prisma_migrations, public.audit_logs, public.bag_items, public.comment_likes, public.comment_mentions, … (120 total); may change append-only rows: public.audit_logs (DELETE), public.audit_logs (UPDATE); holds privileges on _prisma_migrations. Point DATABASE_URL at the DML-only runtime login (member of kabso_runtime_<database> only) and keep the migration role in MIGRATION_DATABASE_URL for `prisma migrate deploy` only (SEC-011, docs/DEPLOYMENT.md §5.1).[0m
+[33m[Nest] 3733  - [39m10/29/2026, 10:39:07 AM [33m   WARN[39m [38;5;3m[Database] [39m[33mdb.runtime_role_check (not enforced outside production): DATABASE_URL connects as "kabso_migrator", which is not a least-privilege runtime role: is not a member of kabso_runtime_kabso_test; owns schema(s) public (looks like the migration/owner role); owns public._prisma_migrations, public.audit_logs, public.bag_items, public.comment_likes, public.comment_mentions, … (121 total) (looks like the migration/owner role); may CREATE objects in schema(s) public; may CREATE schemas in the database; may create TEMPORARY tables in the database; holds TRUNCATE/REFERENCES/TRIGGER on public._prisma_migrations, public.audit_logs, public.bag_items, public.comment_likes, public.comment_mentions, … (120 total); may change append-only rows: public.audit_logs (DELETE), public.audit_logs (UPDATE); holds privileges on _prisma_migrations. Point DATABASE_URL at the DML-only runtime login (member of kabso_runtime_<database> only) and keep the migration role in MIGRATION_DATABASE_URL for `prisma migrate deploy` only (SEC-011, docs/DEPLOYMENT.md §5.1).[39m
+[1m[Nest] 3733  - [0m10/29/2026, 10:39:08 AM [1m  FATAL[0m [38;5;3m[Database] [39m[1mdb.runtime_role_check failed — refusing to start. DATABASE_URL connects as "kl013b_login_ea2d9e1c", which is not a least-privilege runtime role: is a member of pg_read_all_data (only kabso_runtime_kabso_test is allowed; any reachable role is one SET ROLE away). Point DATABASE_URL at the DML-only runtime login (member of kabso_runtime_<database> only) and keep the migration role in MIGRATION_DATABASE_URL for `prisma migrate deploy` only (SEC-011, docs/DEPLOYMENT.md §5.1).[0m
+ [32m✓[39m test/security/kl013-db-roles.e2e-spec.ts [2m([22m[2m92 tests[22m[2m)[22m[33m 6843[2mms[22m[39m
+   [32m✓[39m KL-013b bootstrap script: cross-database isolation, atomicity, rotation [2m(11)[22m
+     [33m[2m✓[22m[39m outside development only SCRAM verifiers are accepted, and dev defaults are refused[33m 510[2mms[22m[39m
+     [33m[2m✓[22m[39m zero-downtime rotation: add a second runtime login, retire the first, never the last[33m 371[2mms[22m[39m
+(node:4081) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl081-live-gifts.e2e-spec.ts [2m([22m[2m23 tests[22m[2m)[22m[33m 34960[2mms[22m[39m
+   [32m✓[39m CP-020 live gifts [2m(22)[22m
+     [32m✓[39m sending with coins [2m(9)[22m
+       [33m[2m✓[22m[39m charges price × quantity, credits the room, the contributor and the host board, and sends a data message[33m 380[2mms[22m[39m
+       [33m[2m✓[22m[39m D128: the host and a seated guest may gift themselves; it counts like any gift[33m 315[2mms[22m[39m
+       [33m[2m✓[22m[39m multi-recipient math: each recipient gets the quantity; price × quantity × recipients[33m 307[2mms[22m[39m
+       [33m[2m✓[22m[39m D135: each seat carries the points its person received in this live; a gift to a seated guest moves the seat version[33m 303[2mms[22m[39m
+       [33m[2m✓[22m[39m D136: the wish list — PATCH validates (≤ 4, distinct, sendable), the room shows names and received counts, wished gifts to the host move the info version, a new live copies it[33m 385[2mms[22m[39m
+     [32m✓[39m refusals [2m(4)[22m
+       [33m[2m✓[22m[39m 409 LIVE_GIFT_RECIPIENT_UNAVAILABLE: not seated, unknown, blocked; 409 GIFT_UNAVAILABLE[33m 476[2mms[22m[39m
+     [32m✓[39m levels [2m(2)[22m
+       [33m[2m✓[22m[39m gives each recipient charm and the sender support (coins × multiplier); the room level follows[33m 502[2mms[22m[39m
+     [32m✓[39m gift-admin [2m(1)[22m
+       [33m[2m✓[22m[39m add, update, disable, enable, list, grant and bag, each audited[33m 28522[2mms[22m[39m
+(node:6645) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl064-live-seats.e2e-spec.ts [2m([22m[2m16 tests[22m[2m)[22m[33m 6688[2mms[22m[39m
+   [32m✓[39m CP-011 multi-guest and audio rooms [2m(15)[22m
+     [32m✓[39m going live in a mode [2m(2)[22m
+       [33m[2m✓[22m[39m config lists themes and seat counts; MULTI and AUDIO rooms carry seatCount, occupiedSeats, theme[33m 501[2mms[22m[39m
+     [32m✓[39m asking for a seat [2m(3)[22m
+       [33m[2m✓[22m[39m request, list, accept (permission, metadata, version), decline, cancel[33m 574[2mms[22m[39m
+       [33m[2m✓[22m[39m a SOLO room and a full room refuse requests (409 LIVE_SEAT_UNAVAILABLE)[33m 374[2mms[22m[39m
+       [33m[2m✓[22m[39m two accepts racing for the last seat: exactly one wins[33m 312[2mms[22m[39m
+     [32m✓[39m invitations [2m(1)[22m
+       [33m[2m✓[22m[39m invite a watcher (data message), replace, accept, expire, decline, refusals[33m 423[2mms[22m[39m
+     [32m✓[39m host and moderator controls [2m(3)[22m
+       [33m[2m✓[22m[39m mute (MULTI: camera only; AUDIO: nothing), remove, lock, leave; refusals[33m 554[2mms[22m[39m
+       [33m[2m✓[22m[39m moderators: host appoints up to 5; they handle seats but never act on the host or another moderator[33m 733[2mms[22m[39m
+       [33m[2m✓[22m[39m PATCH changes seatCount (not below an occupied seat) and theme[33m 318[2mms[22m[39m
+     [32m✓[39m losing a seat [2m(2)[22m
+       [33m[2m✓[22m[39m leaving the media session (webhook or reconciliation) ends the seat, the request and the invitation[33m 365[2mms[22m[39m
+       [33m[2m✓[22m[39m a block with the host, a suspension and the room ending free seats and end requests[33m 350[2mms[22m[39m
+     [32m✓[39m rate limits [2m(1)[22m
+       [33m[2m✓[22m[39m seat requests, host actions (incl. seatCount/theme in PATCH) and seat reads are limited (429)[33m 318[2mms[22m[39m
+(node:6736) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl067-live-chat.e2e-spec.ts [2m([22m[2m25 tests[22m[2m | [22m[33m1 skipped[39m[2m)[22m[33m 7588[2mms[22m[39m
+   [32m✓[39m CP-013 live room chat [2m(23)[22m
+     [32m✓[39m sending [2m(6)[22m
+       [33m[2m✓[22m[39m authorRole is the role at sending: MODERATOR, SPEAKER (seated)[33m 356[2mms[22m[39m
+     [32m✓[39m chat mutes [2m(3)[22m
+       [33m[2m✓[22m[39m host mutes a viewer: 403 LIVE_CHAT_MUTED, chatMuted on the room; idempotent; unmute[33m 308[2mms[22m[39m
+       [33m[2m✓[22m[39m who may mute: host and moderators; nobody mutes the host; a moderator never mutes a moderator[33m 334[2mms[22m[39m
+     [32m✓[39m deleting [2m(1)[22m
+       [33m[2m✓[22m[39m author, host and moderators; a moderator never deletes the host’s or another moderator’s[33m 475[2mms[22m[39m
+     [32m✓[39m reading [2m(3)[22m
+       [33m[2m✓[22m[39m the last 50, oldest first, without deleted ones[33m 621[2mms[22m[39m
+     [32m✓[39m reports [2m(2)[22m
+       [33m[2m✓[22m[39m a message the reporter can read (not their own); REMOVE_TARGET deletes it[33m 425[2mms[22m[39m
+     [32m✓[39m retention (owner D96) [2m(1)[22m
+       [33m[2m✓[22m[39m the live sweeper removes messages and mutes 30 days after the room ended, except reported ones[33m 318[2mms[22m[39m
+(node:6847) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[D145d load] sequential 100: 2.13 s (47.0 sends/s); HTTP p50 20.6 p95 25.5 max 53.2 ms; transaction p50 8 p95 9.8 max 20.6 ms; Node CPU 14.6 ms per send
+[D145d load] round 1: 100 offered in 0.99 s, all answered after 1.31 s (76.5 sends/s committed); 429s 0; HTTP p50 337.9 p95 405.2 max 413 ms; transaction (incl. lock wait) p50 12.1 p95 24.7 max 28.4 ms; Node CPU 105 % of one core
+[D145d load] round 2: 100 offered in 0.99 s, all answered after 1.12 s (89.1 sends/s committed); 429s 0; HTTP p50 127 p95 172.4 max 176.3 ms; transaction (incl. lock wait) p50 10.8 p95 14.9 max 18 ms; Node CPU 97 % of one core
+[D145d load] round 3: 100 offered in 0.99 s, all answered after 1.21 s (82.7 sends/s committed); 429s 0; HTTP p50 152.6 p95 288.2 max 291.7 ms; transaction (incl. lock wait) p50 10 p95 27.8 max 39.5 ms; Node CPU 99 % of one core
+(node:6847) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 listening listeners added to [Server]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:6847) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 error listeners added to [Server]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:6847) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 close listeners added to [Server]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:6847) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 listening listeners added to [Server]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:6847) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 error listeners added to [Server]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:6847) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 close listeners added to [Server]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:6847) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 listening listeners added to [Server]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:6847) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 error listeners added to [Server]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:6847) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 close listeners added to [Server]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+[D148 load] sequential 100: 1.55 s (64.5 sends/s); HTTP p50 15.2 p95 18.2 max 21.8 ms; transaction p50 6.3 p95 8.2 max 12.2 ms; Node CPU 7.6 ms per send
+[D148 load] round 1: 100 offered in 0.99 s, all answered after 1.01 s (99.4 sends/s committed); 429s 0; HTTP p50 20.4 p95 33.4 max 35.4 ms; transaction (incl. lock wait) p50 8.4 p95 11.1 max 19.4 ms; Node CPU 76 % of one core
+[D148 load] round 2: 100 offered in 0.99 s, all answered after 1.02 s (98.3 sends/s committed); 429s 0; HTTP p50 18.4 p95 32.2 max 36.5 ms; transaction (incl. lock wait) p50 8 p95 10.7 max 15.3 ms; Node CPU 71 % of one core
+[D148 load] round 3: 100 offered in 0.99 s, all answered after 1.01 s (99.3 sends/s committed); 429s 0; HTTP p50 17.6 p95 20.4 max 21.6 ms; transaction (incl. lock wait) p50 7.6 p95 9.3 max 9.8 ms; Node CPU 67 % of one core
+ [32m✓[39m test/kl093-lucky-gifts.e2e-spec.ts [2m([22m[2m20 tests[22m[2m)[22m[33m 47827[2mms[22m[39m
+   [32m✓[39m D132 lucky gifts (on) [2m(12)[22m
+     [32m✓[39m D145c / D145d rate limits (owner: «too many attempts» during a lucky streak; 100 / s) [2m(2)[22m
+       [33m[2m✓[22m[39m D145d load: 100 lucky sends a second from one user — 3 rounds of 100 started 10 ms apart all succeed (no 429); sequential sends measured too[33m 10392[2mms[22m[39m
+       [33m[2m✓[22m[39m a 101st lucky send in one second → 429 with Retry-After, nothing charged; a retry with the same clientId is not counted; normal gifts keep 120 / min[33m 4538[2mms[22m[39m
+     [32m✓[39m gates [2m(3)[22m
+       [33m[2m✓[22m[39m a lucky gift is sent with coins only (bag → 400 source); gift-admin refuses to put it in a bag[33m 1283[2mms[22m[39m
+     [32m✓[39m sending [2m(2)[22m
+       [33m[2m✓[22m[39m draws once per gift, credits the wins, counts 10 % for the room and full Wizard; a retry never draws again[33m 305[2mms[22m[39m
+     [32m✓[39m admin [2m(1)[22m
+       [33m[2m✓[22m[39m gift-admin: --category LUCKY, lucky-wins and lucky-day[33m 6304[2mms[22m[39m
+   [32m✓[39m D148 lucky gifts: eight tiers, the guarantee, the global ticker [2m(6)[22m
+     [33m[2m✓[22m[39m 15 losing draws in a row (across rooms) → the 16th pays ×5, flagged guaranteed; any win resets the streak; a retry replays it[33m 641[2mms[22m[39m
+     [33m[2m✓[22m[39m concurrent sends of one sender keep one exact streak: 48 single draws at once → exactly 3 guaranteed wins[33m 785[2mms[22m[39m
+     [33m[2m✓[22m[39m daily protection: a guarantee larger than what is left pays nothing and stays due; the next draw that fits pays it[33m 437[2mms[22m[39m
+     [33m[2m✓[22m[39m «لحظة الحظ»: a ×100+ win goes to every other live as a lucky-ticker — at most one per 10 s, the biggest waiting one next[33m 10593[2mms[22m[39m
+     [33m[2m✓[22m[39m D148 load: the same check with the guarantee on (every send writes the streak)[33m 9121[2mms[22m[39m
+(node:7858) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/d155-direct-messages.e2e-spec.ts [2m([22m[2m21 tests[22m[2m)[22m[33m 6428[2mms[22m[39m
+   [32m✓[39m D155 direct messages [2m(19)[22m
+     [32m✓[39m sending and message requests [2m(4)[22m
+       [33m[2m✓[22m[39m the first message creates the conversation; a stranger lands in requests; a retry is the same message[33m 328[2mms[22m[39m
+       [33m[2m✓[22m[39m a request allows 3 messages, text/emoji only; a reply accepts it[33m 345[2mms[22m[39m
+     [32m✓[39m receipts, unread counts, mute and delete [2m(2)[22m
+       [33m[2m✓[22m[39m unread per conversation and in total; read moves ✓✓; mute leaves the badge[33m 308[2mms[22m[39m
+     [32m✓[39m reports [2m(2)[22m
+       [33m[2m✓[22m[39m keeps a snapshot (with a copy of the file) that outlives the message; REMOVE_TARGET; 30-day purge[33m 363[2mms[22m[39m
+     [32m✓[39m gifts [2m(4)[22m
+       [33m[2m✓[22m[39m a stranger’s gift is a request message; blocks, privacy and coins are checked[33m 367[2mms[22m[39m
+(node:7963) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl079-families-cp-medals.e2e-spec.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 6692[2mms[22m[39m
+   [32m✓[39m CP-018 families, CP couples and medals [2m(11)[22m
+     [32m✓[39m families [2m(4)[22m
+       [33m[2m✓[22m[39m create costs 500 coins in one transaction, is idempotent, and refuses short balances[33m 457[2mms[22m[39m
+       [33m[2m✓[22m[39m join by request: accept, decline, pending rules, blocks, expiry and capacity[33m 767[2mms[22m[39m
+       [33m[2m✓[22m[39m roles, removing, leaving, transferring and disbanding[33m 424[2mms[22m[39m
+       [33m[2m✓[22m[39m the family level comes from its members' spending while in the family[33m 323[2mms[22m[39m
+     [32m✓[39m CP couples [2m(3)[22m
+       [33m[2m✓[22m[39m accepting forms the couple; one partner each; gifts raise points and tier; ending[33m 436[2mms[22m[39m
+     [32m✓[39m medals [2m(4)[22m
+       [33m[2m✓[22m[39m medals-admin backfill awards past events once (child process, migration role)[33m 2474[2mms[22m[39m
+(node:8296) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+usermvtexr7w2@example.com does not have role ADMIN.
+ [32m✓[39m test/kl058-levels.e2e-spec.ts [2m([22m[2m36 tests[22m[2m)[22m[33m 10662[2mms[22m[39m
+   [32m✓[39m KL-058 levels [2m(34)[22m
+     [32m✓[39m access [2m(3)[22m
+       [33m[2m✓[22m[39m each admin route needs its own permission (CP-005 §9.8)[33m 5537[2mms[22m[39m
+     [32m✓[39m configuration [2m(4)[22m
+       [33m[2m✓[22m[39m publishes the four categories and enables them[33m 314[2mms[22m[39m
+     [32m✓[39m owner ladder preset (CP-005 §9.1) [2m(1)[22m
+       [33m[2m✓[22m[39m draft-preset writes four valid drafts at ×0.1 and publishes nothing[33m 963[2mms[22m[39m
+(node:9096) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl084-cp-space.e2e-spec.ts [2m([22m[2m14 tests[22m[2m)[22m[33m 5707[2mms[22m[39m
+   [32m✓[39m CP-021 the CP space [2m(12)[22m
+     [32m✓[39m daily tasks [2m(3)[22m
+       [33m[2m✓[22m[39m check-in, gift and chat-together complete, claim once per day per couple, and reset at 00:00[33m 699[2mms[22m[39m
+     [32m✓[39m privileges [2m(3)[22m
+       [33m[2m✓[22m[39m unlock with the CP level, on GET /cp/me/privileges, the profile and the couple page[33m 434[2mms[22m[39m
+       [33m[2m✓[22m[39m the chat bubble is set on messages of a level-2 couple, stored, listed and broadcast[33m 350[2mms[22m[39m
+       [33m[2m✓[22m[39m a joiner whose couple unlocked the Entrance Effect brings the couple in the join line[33m 310[2mms[22m[39m
+     [32m✓[39m the couple page and the gift wall [2m(2)[22m
+       [33m[2m✓[22m[39m lists CP gifts newest first with totals; others read it only once GIFT_WALL is unlocked[33m 376[2mms[22m[39m
+     [32m✓[39m confessions [2m(2)[22m
+       [33m[2m✓[22m[39m either partner deletes one; strangers cannot; reports remove it[33m 368[2mms[22m[39m
+     [32m✓[39m the couples ranking [2m(1)[22m
+       [33m[2m✓[22m[39m ranks couples by points gained this CP week or in all, hides blocked couples, pages and shows me[33m 521[2mms[22m[39m
+(node:9174) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl085-families-v2.e2e-spec.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 4733[2mms[22m[39m
+   [32m✓[39m CP-022 families v2 [2m(8)[22m
+     [32m✓[39m the family boards [2m(2)[22m
+       [33m[2m✓[22m[39m PRESTIGE ranks by points gained this month, pages, and shows the caller’s family[33m 647[2mms[22m[39m
+       [33m[2m✓[22m[39m ACTIVE counts members active this week, without those who hide their activity[33m 408[2mms[22m[39m
+     [32m✓[39m members, contributions and presence [2m(2)[22m
+       [33m[2m✓[22m[39m sorts members by points with ranks, searches, and counts this month’s points[33m 447[2mms[22m[39m
+       [33m[2m✓[22m[39m shows presence to members of the same family only, honours the privacy switch and blocks[33m 339[2mms[22m[39m
+     [32m✓[39m cover, tagline and the requests count [2m(2)[22m
+       [33m[2m✓[22m[39m the leader sets and removes the cover and the tagline; others cannot[33m 362[2mms[22m[39m
+     [32m✓[39m the family chat [2m(2)[22m
+       [33m[2m✓[22m[39m delete and mute rules; blocks hide messages; reports[33m 625[2mms[22m[39m
+(node:9259) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl068-live-room-edit.e2e-spec.ts [2m([22m[2m18 tests[22m[2m | [22m[33m1 skipped[39m[2m)[22m[33m 4470[2mms[22m[39m
+   [32m✓[39m CP-014 editing a live and the Contribution list [2m(14)[22m
+     [32m✓[39m PATCH title, categorySlug, topic (§10.12) [2m(9)[22m
+       [33m[2m✓[22m[39m edits each field; the room, the hub and the metadata follow; audited live.room.edit[33m 438[2mms[22m[39m
+   [32m✓[39m CP-014 rate limits [2m(2)[22m
+     [33m[2m✓[22m[39m the PATCH bucket (60 / hour per user) counts edits; they do not count against seat actions[33m 663[2mms[22m[39m
+     [33m[2m✓[22m[39m guests use the shared guest read bucket per IP[33m 667[2mms[22m[39m
+(node:9359) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl077-wallet-bullets-chat-media.e2e-spec.ts [2m([22m[2m15 tests[22m[2m)[22m[33m 20206[2mms[22m[39m
+   [32m✓[39m CP-017 coins, bullet messages, voice clips and images [2m(14)[22m
+     [32m✓[39m wallet [2m(4)[22m
+       [33m[2m✓[22m[39m wallet:admin grant adds coins with a ledger row and an audit row; revoke and balance[33m 4488[2mms[22m[39m
+       [33m[2m✓[22m[39m wallet:admin refuses non-positive or malformed amounts, unknown emails and a missing amount[33m 5472[2mms[22m[39m
+     [32m✓[39m bullet messages [2m(5)[22m
+       [33m[2m✓[22m[39m costs 15 coins and reaches every LIVE room (video and audio) on topic `bullet`[33m 1269[2mms[22m[39m
+       [33m[2m✓[22m[39m a short balance → 409 INSUFFICIENT_COINS: nothing stored, charged or sent[33m 1078[2mms[22m[39m
+       [33m[2m✓[22m[39m a retry with the same clientId → 200, the first bullet, never charged or sent twice[33m 1085[2mms[22m[39m
+       [33m[2m✓[22m[39m one bullet every 5 s per user (429 with Retry-After), across lives[33m 1138[2mms[22m[39m
+       [33m[2m✓[22m[39m checks: 401, 404, 409 ended, 400 text, 403 not in the room, 403 muted; the host may send[33m 3806[2mms[22m[39m
+     [32m✓[39m voice clips and images in the live chat [2m(5)[22m
+       [33m[2m✓[22m[39m mediaId must be the caller's unused asset of the kind (400); the kind rules of the body[33m 361[2mms[22m[39m
+(node:11238) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [31m❯[39m test/d166-me-programs.e2e-spec.ts [2m([22m[2m11 tests[22m[2m | [22m[31m8 failed[39m[2m)[22m[33m 2878[2mms[22m[39m
+   [32m✓[39m D166 contract coverage [2m(1)[22m
+     [32m✓[39m openapi v1.44-social declares the Me hub programs[32m 2[2mms[22m[39m
+   [31m❯[39m D166 Me hub programs [2m(10)[22m
+[31m     [31m×[31m the default tasks, from stored data only; host tasks only for hosts; 401 without a session[39m[32m 67[2mms[22m[39m
+[31m     [31m×[31m a task is paid once, even when claimed at the same time; the wallet history shows it[39m[32m 169[2mms[22m[39m
+[31m     [31m×[31m unfollowing before the claim, or following someone not active, does not count[39m[32m 166[2mms[22m[39m
+[31m     [31m×[31m check-in: once a day, the 7th day in a row adds the bonus; the daily cap stops task coins[39m[32m 174[2mms[22m[39m
+[31m     [31m×[31m a new day: daily tasks and the check-in reset, the streak goes on[39m[32m 204[2mms[22m[39m
+[31m     [31m×[31m SVIP is earned by gift spending in 30 days and lasts 30 days[39m[32m 69[2mms[22m[39m
+[31m     [31m×[31m events: the tabs, the detail, the live board; then frozen once and prizes paid once[39m[32m 257[2mms[22m[39m
+[31m     [31m×[31m a held payout waits for release[39m[32m 112[2mms[22m[39m
+     [32m✓[39m no events configured: honest empty lists[32m 54[2mms[22m[39m
+     [32m✓[39m recharge packages come from config; purchases stay off (B5)[32m 40[2mms[22m[39m
+(node:11305) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl065-live-taps.e2e-spec.ts [2m([22m[2m16 tests[22m[2m)[22m[33m 4591[2mms[22m[39m
+   [32m✓[39m CP-012 live taps and the room score [2m(14)[22m
+     [32m✓[39m counting and the score [2m(6)[22m
+       [33m[2m✓[22m[39m counts each tap as 1 point; the room and the hub show the score[33m 347[2mms[22m[39m
+       [33m[2m✓[22m[39m concurrent batches of one caller never pass the limit (one transaction with row locks)[33m 338[2mms[22m[39m
+     [32m✓[39m popular order and paging (§10.4) [2m(1)[22m
+       [33m[2m✓[22m[39m orders by score desc, then startedAt desc, then id desc; pages with the v2 cursor[33m 494[2mms[22m[39m
+(node:11380) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl063-live-video.e2e-spec.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 3794[2mms[22m[39m
+   [32m✓[39m CP-010 live video [2m(11)[22m
+     [32m✓[39m hosting permission [2m(1)[22m
+       [33m[2m✓[22m[39m going live needs it (403); admins with LIVE_HOSTS grant and revoke it; revoking ends the live[33m 507[2mms[22m[39m
+     [32m✓[39m presence [2m(4)[22m
+       [33m[2m✓[22m[39m signed webhooks count viewers (not the host), list them for the host, and order Popular[33m 341[2mms[22m[39m
+       [33m[2m✓[22m[39m v1.23.2-live (D109): viewers and guests list who is watching; blocks hidden; kicked → 403[33m 438[2mms[22m[39m
+(node:11452) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:11452) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 listening listeners added to [Server]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:11452) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 error listeners added to [Server]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:11452) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 close listeners added to [Server]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+register timing (10% trimmed mean, n=40 each): new 5.45 ms vs existing 5.91 ms (tolerance 3.00 ms)
+ [32m✓[39m test/kl019-registration.e2e-spec.ts [2m([22m[2m25 tests[22m[2m)[22m[33m 4924[2mms[22m[39m
+   [32m✓[39m KL-019 register timing parity (fake Argon2) [2m(1)[22m
+     [33m[2m✓[22m[39m new and existing emails cost exactly one Argon2 hash each and take comparable time[33m 536[2mms[22m[39m
+(node:11535) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl078-live-kicks.e2e-spec.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 3890[2mms[22m[39m
+   [32m✓[39m D105 kicking someone out of a live [2m(7)[22m
+     [33m[2m✓[22m[39m the host kicks a seated viewer of an AUDIO live: removed, seat freed, data message first, then 403 LIVE_KICKED everywhere[33m 554[2mms[22m[39m
+     [33m[2m✓[22m[39m a moderator kicks a viewer; nobody kicks the host or themselves; a moderator never kicks a moderator; viewers cannot kick[33m 416[2mms[22m[39m
+     [33m[2m✓[22m[39m list (host and moderators) and undo: the person may get a token again; idempotent; audited once[33m 333[2mms[22m[39m
+   [32m✓[39m D105 one person’s points in a live (GET …/contributors/{username}) [2m(2)[22m
+     [33m[2m✓[22m[39m points and rank match the list (ties as the list orders them); 0 points → rank null; the host → 0[33m 445[2mms[22m[39m
+(node:11606) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/d162-video-reels.e2e-spec.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 3631[2mms[22m[39m
+   [32m✓[39m D162 video posts and reels [2m(11)[22m
+     [32m✓[39m completing a video [2m(5)[22m
+       [33m[2m✓[22m[39m refuses bad videos with 422 MEDIA_INVALID, deletes the object and keeps the poster[33m 461[2mms[22m[39m
+     [32m✓[39m posts and reels [2m(3)[22m
+       [33m[2m✓[22m[39m a post takes photos or one video; a reel exactly one reel video[33m 321[2mms[22m[39m
+       [33m[2m✓[22m[39m the reels feed: following (with your own) and trending; posts feeds leave reels out[33m 558[2mms[22m[39m
+       [33m[2m✓[22m[39m cursors are bound to their list[33m 663[2mms[22m[39m
+(node:11686) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl097-premium-usernames.e2e-spec.ts [2m([22m[2m21 tests[22m[2m)[22m[33m 17504[2mms[22m[39m
+   [32m✓[39m D146 premium usernames [2m(20)[22m
+     [32m✓[39m the regular username rule [2m(14)[22m
+       [33m[2m✓[22m[39m accepts letters with digits (and _), and keeps grandfathered names working[33m 314[2mms[22m[39m
+     [32m✓[39m status, prices and the store [2m(2)[22m
+       [33m[2m✓[22m[39m without prices nothing is on sale; prices come only from premium-admin[33m 4649[2mms[22m[39m
+       [33m[2m✓[22m[39m INVALID, REGULAR and RESERVED (code list, kabso, the owner list)[33m 1945[2mms[22m[39m
+     [32m✓[39m rent, renew, idempotency and concurrency [2m(2)[22m
+       [33m[2m✓[22m[39m rents: the username changes, the badge shows, the old name is kept, replay and conflicts[33m 1271[2mms[22m[39m
+       [33m[2m✓[22m[39m two people renting one name at once: exactly one wins, the other is not charged[33m 1080[2mms[22m[39m
+     [32m✓[39m reminders, expiry, grace and revert [2m(1)[22m
+       [33m[2m✓[22m[39m reminds at 3 and 1 days, reverts at the end, holds 7 days for the renter, then frees it[33m 1316[2mms[22m[39m
+     [32m✓[39m premium-admin grant and revoke [2m(1)[22m
+       [33m[2m✓[22m[39m grants without an end (no charge, no renewal), refuses taken names, revokes[33m 5930[2mms[22m[39m
+(node:13164) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/qa/kl006-contract.e2e-spec.ts [2m([22m[2m30 tests[22m[2m)[22m[33m 5741[2mms[22m[39m
+(node:13257) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl062-notifications.e2e-spec.ts [2m([22m[2m19 tests[22m[2m)[22m[33m 5500[2mms[22m[39m
+   [32m✓[39m CP-009 notifications [2m(18)[22m
+     [32m✓[39m likes and reposts [2m(4)[22m
+       [33m[2m✓[22m[39m likes group while unread (newest actors first); never yourself; unlike takes the actor away[33m 627[2mms[22m[39m
+       [33m[2m✓[22m[39m concurrent likes join one group[33m 372[2mms[22m[39m
+     [32m✓[39m comments, replies and mentions [2m(4)[22m
+       [33m[2m✓[22m[39m COMMENT to the post author, REPLY to the comment replied to, MENTION once; likes on comments[33m 501[2mms[22m[39m
+     [32m✓[39m safety [2m(3)[22m
+       [33m[2m✓[22m[39m a muted account cannot notify (D92); an account no longer ACTIVE leaves the group[33m 397[2mms[22m[39m
+     [32m✓[39m inbox, read and retention [2m(4)[22m
+       [33m[2m✓[22m[39m pages by the latest activity with a cursor bound to the caller[33m 313[2mms[22m[39m
+       [33m[2m✓[22m[39m mark read: own ids only (others ignored), or all; idempotent; validation[33m 302[2mms[22m[39m
+(node:13337) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/security/security-regression.e2e-spec.ts [2m([22m[2m25 tests[22m[2m)[22m[33m 5324[2mms[22m[39m
+   [32m✓[39m KL-007 fail-closed rate limiting [2m(1)[22m
+     [33m[2m✓[22m[39m answers 503 SERVICE_UNAVAILABLE on rate-limited routes when Redis is unreachable[33m 3121[2mms[22m[39m
+(node:13430) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/auth.e2e-spec.ts [2m([22m[2m25 tests[22m[2m)[22m[33m 2426[2mms[22m[39m
+(node:13484) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl094-live-hub-nearby-featured.e2e-spec.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 18173[2mms[22m[39m
+   [32m✓[39m D133 nearby, featured and kinds [2m(5)[22m
+     [32m✓[39m nearby [2m(2)[22m
+       [33m[2m✓[22m[39m lists only rooms of hosts in the caller country, with every tab, kind and category; cursors bind the country[33m 1080[2mms[22m[39m
+     [32m✓[39m featured [2m(1)[22m
+       [33m[2m✓[22m[39m feature-admin add / remove / list, audited; featured rooms by rank, then popular, on every tab and kind[33m 15318[2mms[22m[39m
+     [32m✓[39m kinds [2m(1)[22m
+       [33m[2m✓[22m[39m solo, multi and party filter every tab, with and without a category; unknown kinds → 400[33m 552[2mms[22m[39m
+(node:14952) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl060-safety.e2e-spec.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 3331[2mms[22m[39m
+   [32m✓[39m KL-060 safety [2m(8)[22m
+     [32m✓[39m block [2m(3)[22m
+       [33m[2m✓[22m[39m hides both sides, removes follows both ways, refuses new follows, and lists blocks[33m 461[2mms[22m[39m
+       [33m[2m✓[22m[39m a follow racing a block never survives it[33m 564[2mms[22m[39m
+     [32m✓[39m mute and hide [2m(1)[22m
+       [33m[2m✓[22m[39m mute is one-way and silent; hide drops a post from the caller’s feeds only[33m 307[2mms[22m[39m
+     [32m✓[39m muted accounts (CP-007) [2m(1)[22m
+       [33m[2m✓[22m[39m lists the caller’s mutes newest first, paged; isMuted on profiles; never told[33m 329[2mms[22m[39m
+     [32m✓[39m reports and the admin queue [2m(2)[22m
+       [33m[2m✓[22m[39m MODERATION: list oldest first; REMOVE_TARGET removes and closes every open report; audited[33m 455[2mms[22m[39m
+(node:15027) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl060-feed.e2e-spec.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 4800[2mms[22m[39m
+   [32m✓[39m KL-060 feeds and interactions [2m(11)[22m
+     [32m✓[39m likes [2m(4)[22m
+       [33m[2m✓[22m[39m like and unlike are idempotent, race-safe and keep the count exact[33m 402[2mms[22m[39m
+       [33m[2m✓[22m[39m many users liking one post at once: no deadlock, exact count[33m 423[2mms[22m[39m
+       [33m[2m✓[22m[39m likers: newest first, paged; blocked and hidden-count rules[33m 375[2mms[22m[39m
+     [32m✓[39m reposts and the Following feed [2m(2)[22m
+       [33m[2m✓[22m[39m Following: followed posts and reposts newest first, once each, with repostedBy[33m 461[2mms[22m[39m
+       [33m[2m✓[22m[39m own and private posts cannot be reposted; reposts tab follows visibility[33m 372[2mms[22m[39m
+     [32m✓[39m trending [2m(2)[22m
+       [33m[2m✓[22m[39m ranks by score, freezes a snapshot per caller, and spreads authors[33m 396[2mms[22m[39m
+(node:15121) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/d152-push-notifications.e2e-spec.ts [2m([22m[2m13 tests[22m[2m)[22m[33m 4014[2mms[22m[39m
+   [32m✓[39m D152 push notifications [2m(11)[22m
+     [32m✓[39m general pushes (the notifications outbox) [2m(5)[22m
+       [33m[2m✓[22m[39m nothing for a muted actor, a switched-off type, a read or an old notification, or without a token[33m 446[2mms[22m[39m
+     [32m✓[39m family chat pushes [2m(2)[22m
+       [33m[2m✓[22m[39m to the other members on kabso_messages, never the sender; blocks, mutes and `messages` off respected; one per chat per 10 s[33m 647[2mms[22m[39m
+(node:15200) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[KL-045] list with 40000 stale rooms: median 10.9 ms, max 21.7 ms; 10 parallel in 82.7 ms
+[KL-045] sweep of 40000 stale rooms, batch 500: run 1 = 40 batches / 20000 rooms in 3082 ms; run 2 = 40 batches / 19998 rooms in 3156 ms; list during the sweep 113.5 ms
+[KL-045] two instances: 2500 + 2500 rooms in 6 + 6 batches
+ [32m✓[39m test/kl045-v131.e2e-spec.ts [2m([22m[2m18 tests[22m[2m)[22m[33m 14118[2mms[22m[39m
+   [32m✓[39m KL-045 SEC-035: stale-room backlog at scale [2m(4)[22m
+     [33m[2m✓[22m[39m the sweeper drains the backlog in bounded batches, within a per-run budget[33m 6390[2mms[22m[39m
+     [33m[2m✓[22m[39m two instances sweeping at once end each room exactly once[33m 1078[2mms[22m[39m
+(node:15360) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl086-follow-lists.e2e-spec.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 3623[2mms[22m[39m
+   [32m✓[39m KL-086 follow lists (D121) [2m(10)[22m
+     [33m[2m✓[22m[39m lists followers and following newest first, paged, with the reader’s relation[33m 645[2mms[22m[39m
+     [33m[2m✓[22m[39m hides people the reader has a block with, and 404s across a block with the user[33m 401[2mms[22m[39m
+     [32m✓[39m D125 search, order and removing a follower [2m(4)[22m
+       [33m[2m✓[22m[39m q keeps a case-insensitive prefix of the username or the display name[33m 391[2mms[22m[39m
+(node:15432) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl060-posts.e2e-spec.ts [2m([22m[2m13 tests[22m[2m)[22m[33m 2645[2mms[22m[39m
+(node:15516) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl061-stories.e2e-spec.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 4957[2mms[22m[39m
+   [32m✓[39m CP-008 stories [2m(9)[22m
+     [32m✓[39m media [2m(1)[22m
+       [33m[2m✓[22m[39m a STORY_IMAGE keeps up to 1 920 px; kinds attach only to their own target[33m 416[2mms[22m[39m
+     [32m✓[39m create and read [2m(4)[22m
+       [33m[2m✓[22m[39m text: at most 200 characters and 3 line breaks; mentions are linked[33m 493[2mms[22m[39m
+       [33m[2m✓[22m[39m visible at once to others (D91); a private author only to followers; a block hides it[33m 404[2mms[22m[39m
+       [33m[2m✓[22m[39m a user's active stories come oldest first[33m 341[2mms[22m[39m
+     [32m✓[39m tray [2m(1)[22m
+       [33m[2m✓[22m[39m me first, then unseen followed accounts, then seen ones; muted and not followed left out[33m 1129[2mms[22m[39m
+     [32m✓[39m seen and viewers [2m(1)[22m
+       [33m[2m✓[22m[39m seen is idempotent and never counts the author; viewers are for the author only[33m 345[2mms[22m[39m
+     [32m✓[39m expiry, archive and delete [2m(1)[22m
+       [33m[2m✓[22m[39m an expired story leaves every list but the archive; delete removes it everywhere[33m 486[2mms[22m[39m
+     [32m✓[39m reports [2m(1)[22m
+       [33m[2m✓[22m[39m a story can be reported (not your own); REMOVE_TARGET removes it everywhere[33m 380[2mms[22m[39m
+(node:15594) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/d154-quips.e2e-spec.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 5433[2mms[22m[39m
+   [32m✓[39m D154 quips [2m(6)[22m
+     [33m[2m✓[22m[39m quips-seed is idempotent and the catalogue lists the quips tab with each quip's sound[33m 2351[2mms[22m[39m
+     [33m[2m✓[22m[39m a paid quip charges its price, fixes the 50 % share, plays as a `quip` message (not a gift effect)[33m 349[2mms[22m[39m
+     [33m[2m✓[22m[39m the soundboard: host and moderators play free sounds, one every 2 s; viewers cannot[33m 318[2mms[22m[39m
+(node:15937) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:15937) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 listening listeners added to [Server]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:15937) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 error listeners added to [Server]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+ [32m✓[39m test/kl080-bag.e2e-spec.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 10352[2mms[22m[39m
+   [32m✓[39m CP-019 the bag and profile cards [2m(7)[22m
+     [33m[2m✓[22m[39m taking it off stays off: idempotent, never put back on (not by a grant either)[33m 1079[2mms[22m[39m
+     [33m[2m✓[22m[39m bag-admin grants, lists and revokes (audited); a granted item can be worn and shows on the profile[33m 7617[2mms[22m[39m
+(node:16868) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl087-home-banners.e2e-spec.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 65697[2mms[22m[39m
+   [32m✓[39m D124 home banners [2m(10)[22m
+     [33m[2m✓[22m[39m shows a banner with its picture, localized title, side and link[33m 2684[2mms[22m[39m
+     [33m[2m✓[22m[39m only banners inside their window are active (start ≤ now < end, no end = open)[33m 5882[2mms[22m[39m
+     [33m[2m✓[22m[39m orders by sortOrder, then the latest start, then id, at most 10[33m 14739[2mms[22m[39m
+     [33m[2m✓[22m[39m disable hides a banner, enable shows it again; remove deletes it and its picture[33m 10955[2mms[22m[39m
+     [33m[2m✓[22m[39m refuses links outside the allowlist and accepts every allowed shape[33m 12555[2mms[22m[39m
+     [33m[2m✓[22m[39m takes only a fresh, unused HOME_BANNER asset[33m 10349[2mms[22m[39m
+     [33m[2m✓[22m[39m the CLI image path stores a 3:1 HOME_BANNER asset owned by the operator account[33m 1334[2mms[22m[39m
+     [33m[2m✓[22m[39m D137: ROOM banners are 3:4 (600 × 800), listed only with placement=room; HOME stays the default[33m 5869[2mms[22m[39m
+(node:21948) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/d164-me-hub.e2e-spec.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 2180[2mms[22m[39m
+   [32m✓[39m D164 Me hub [2m(3)[22m
+     [33m[2m✓[22m[39m the coin history: own rows only, newest first, signed, paged, no reference[33m 372[2mms[22m[39m
+     [33m[2m✓[22m[39m earnings: the stored share of each send received, rolling windows, history with the sender[33m 350[2mms[22m[39m
+     [33m[2m✓[22m[39m the creator center: followers, posts and reels published in the period, ended lives[33m 612[2mms[22m[39m
+ [2m[90m↓[39m[22m test/kl063-livekit-real.e2e-spec.ts [2m([22m[2m7 tests[22m[2m | [22m[33m7 skipped[39m[2m)[22m
+(node:22024) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/d154-boosts.e2e-spec.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 5584[2mms[22m[39m
+   [32m✓[39m D154b traffic cards [2m(5)[22m
+     [33m[2m✓[22m[39m a viewer gifts a card to the host; a full set of slots queues the next with an honest start[33m 430[2mms[22m[39m
+     [33m[2m✓[22m[39m a waiting card of a live that ended is cancelled and refunded; the queue moves up[33m 391[2mms[22m[39m
+     [33m[2m✓[22m[39m cards: boost-admin grants them; a card is used instead of coins; none left → 409[33m 3625[2mms[22m[39m
+(node:22454) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl011-security-fixes.e2e-spec.ts [2m([22m[2m20 tests[22m[2m)[22m[33m 3063[2mms[22m[39m
+(node:22511) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl096-live-stats.e2e-spec.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 2661[2mms[22m[39m
+   [32m✓[39m D140 live statistics [2m(5)[22m
+     [33m[2m✓[22m[39m audience: unique viewers, guests, peak, watch time and countries (top 5, OTHER, UNKNOWN)[33m 760[2mms[22m[39m
+     [33m[2m✓[22m[39m cherries, the host’s own share, supporters, top three, gifts, chat and new followers[33m 632[2mms[22m[39m
+(node:22586) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:22586) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 listening listeners added to [Server]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:22586) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 error listeners added to [Server]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:22586) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 close listeners added to [Server]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+ [32m✓[39m test/kl060-comments.e2e-spec.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 3267[2mms[22m[39m
+   [32m✓[39m KL-060 comments [2m(7)[22m
+     [33m[2m✓[22m[39m creates comments with linked mentions; validates text[33m 425[2mms[22m[39m
+     [33m[2m✓[22m[39m whoCanComment and commentsEnabled: 403; the author always may; blocked: 404[33m 376[2mms[22m[39m
+     [33m[2m✓[22m[39m one level of replies; a reply to a reply attaches to the top-level comment[33m 332[2mms[22m[39m
+     [33m[2m✓[22m[39m delete: the comment’s author or the post’s author; replies go with it; counts follow[33m 309[2mms[22m[39m
+     [33m[2m✓[22m[39m likes: idempotent, race-safe; order: pinned, then likes, then newest[33m 459[2mms[22m[39m
+     [33m[2m✓[22m[39m many users commenting and liking one comment at once: no deadlock, exact counts[33m 387[2mms[22m[39m
+(node:22642) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl060-media.e2e-spec.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 1951[2mms[22m[39m
+(node:22717) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl092-live-hub-kind.e2e-spec.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 2066[2mms[22m[39m
+   [32m✓[39m D129 the hub kind filter and the per-live ranking [2m(5)[22m
+     [33m[2m✓[22m[39m kind=audio lists only voice rooms; kind=video lists solo, multi and PK lives; no kind lists all[33m 639[2mms[22m[39m
+     [33m[2m✓[22m[39m the ranking belongs to one live: ending it drops the host from the hub, the next live starts at 0[33m 357[2mms[22m[39m
+(node:22765) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl083-live-cp-seats.e2e-spec.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 2354[2mms[22m[39m
+   [32m✓[39m D111 CP couples on seats [2m(3)[22m
+     [33m[2m✓[22m[39m both partners seated → listed (host included, seat order, localized); one seated → not[33m 839[2mms[22m[39m
+     [33m[2m✓[22m[39m an ended couple is not listed, and forming or ending one raises the seat version[33m 454[2mms[22m[39m
+     [33m[2m✓[22m[39m a block between the partners hides the couple until it is lifted; a partner not ACTIVE hides it[33m 310[2mms[22m[39m
+(node:22812) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl069-live-cover.e2e-spec.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 3050[2mms[22m[39m
+   [32m✓[39m CP-015 the live cover [2m(4)[22m
+     [33m[2m✓[22m[39m sets the cover: Me shows it, the next live carries it, the old asset is deleted[33m 304[2mms[22m[39m
+     [33m[2m✓[22m[39m refuses: no permission → 403; another kind, someone else’s or unknown asset → 400; strict body[33m 338[2mms[22m[39m
+   [32m✓[39m CP-015 rate limit [2m(1)[22m
+     [33m[2m✓[22m[39m PUT and DELETE share 30 / hour / user (here 2)[33m 656[2mms[22m[39m
+(node:22892) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl089-gift-art.e2e-spec.ts [2m([22m[2m2 tests[22m[2m)[22m[33m 12807[2mms[22m[39m
+   [32m✓[39m D126 gift art [2m(2)[22m
+     [33m[2m✓[22m[39m add uploads the image and the SVGA (types, immutable cache) and the catalogue answers their URLs[33m 2379[2mms[22m[39m
+     [33m[2m✓[22m[39m refuses bad files and missing storage before changing anything; none clears; version moves[33m 9547[2mms[22m[39m
+(node:23941) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl072-live-schedule.e2e-spec.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 2670[2mms[22m[39m
+   [32m✓[39m CP-016 C the live schedule [2m(5)[22m
+     [33m[2m✓[22m[39m refuses: no permission → 403; times and titles → 400; 11th → 409; others → 404[33m 302[2mms[22m[39m
+     [33m[2m✓[22m[39m reminds followers 15 minutes before, once, with the usual rules[33m 571[2mms[22m[39m
+   [32m✓[39m CP-016 C rate limit [2m(1)[22m
+     [33m[2m✓[22m[39m POST and DELETE: 30 / hour / user, one bucket (here 2)[33m 618[2mms[22m[39m
+(node:24001) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl098-search-trends.e2e-spec.ts [2m([22m[2m9 tests[22m[2m)[22m[33m 3887[2mms[22m[39m
+   [32m✓[39m D147 search trends [2m(8)[22m
+     [33m[2m✓[22m[39m ranks by 7-day searchers, tags TRENDING / NEW / none, lists at most 6[33m 394[2mms[22m[39m
+     [32m✓[39m hashtags of the week [2m(2)[22m
+       [33m[2m✓[22m[39m 3+ visible posts by 2+ authors in 7 days, most posts first; blocks, age and words count[33m 663[2mms[22m[39m
+(node:24106) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:24106) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 listening listeners added to [Server]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:24106) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 error listeners added to [Server]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:24106) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 close listeners added to [Server]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+ [32m✓[39m test/kl024-v123.e2e-spec.ts [2m([22m[2m32 tests[22m[2m)[22m[33m 3652[2mms[22m[39m
+   [32m✓[39m SEC-023 race: account bucket reserved before the Argon2 check [2m(2)[22m
+     [33m[2m✓[22m[39m a successful login refunds its reserved slot[33m 464[2mms[22m[39m
+(node:24190) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/d154-watch.e2e-spec.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 1419[2mms[22m[39m
+   [32m✓[39m D154i watch-together [2m(3)[22m
+     [33m[2m✓[22m[39m the host plays, pauses and stops; everyone (late joiners, guests) reads the state[33m 456[2mms[22m[39m
+(node:24239) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/d165-dm-buttons.e2e-spec.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 1958[2mms[22m[39m
+   [32m✓[39m D165 direct message buttons [2m(3)[22m
+     [33m[2m✓[22m[39m searches conversations by a prefix of the peer username or display name[33m 773[2mms[22m[39m
+(node:24288) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl060-search.e2e-spec.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 2592[2mms[22m[39m
+   [32m✓[39m KL-060 hashtags and search [2m(7)[22m
+     [32m✓[39m hashtags [2m(2)[22m
+       [33m[2m✓[22m[39m a hashtag page: visible post count, recent and top, any case, hidden posts left out[33m 775[2mms[22m[39m
+     [32m✓[39m search [2m(5)[22m
+       [33m[2m✓[22m[39m users: prefix on username and display name, exact first, blocked never shown[33m 493[2mms[22m[39m
+(node:24369) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl075-live-room-level.e2e-spec.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 1844[2mms[22m[39m
+   [32m✓[39m CP-016 D room level and charm points from taps [2m(5)[22m
+     [33m[2m✓[22m[39m has no level and credits nothing while the charm category is unavailable[33m 377[2mms[22m[39m
+(node:24416) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl095-live-seat-emoji.e2e-spec.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 1930[2mms[22m[39m
+   [32m✓[39m D138 an emoji on one’s own seat [2m(6)[22m
+     [33m[2m✓[22m[39m AUDIO: the host plays on tile 0, someone seated on their seat; the room gets `seat-emoji`[33m 382[2mms[22m[39m
+(node:24464) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:24464) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 listening listeners added to [Server]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:24464) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 error listeners added to [Server]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:24464) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 close listeners added to [Server]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+ [32m✓[39m test/security/kl007d-v123.e2e-spec.ts [2m([22m[2m61 tests[22m[2m)[22m[33m 2125[2mms[22m[39m
+   [32m✓[39m KL-007d SEC-023: account bucket is race-free [2m(1)[22m
+     [33m[2m✓[22m[39m 60 parallel wrong passwords from 60 IPs check at most 20 passwords[33m 382[2mms[22m[39m
+(node:24524) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl071-live-rankings.e2e-spec.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 2725[2mms[22m[39m
+   [32m✓[39m CP-016 A the popularity board (UTC) [2m(5)[22m
+     [33m[2m✓[22m[39m ranks hosts by points this hour; the live room is attached; me for a host[33m 553[2mms[22m[39m
+(node:24578) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:24578) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 listening listeners added to [Server]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:24578) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 error listeners added to [Server]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:24578) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 close listeners added to [Server]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:24578) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 listening listeners added to [Server]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:24578) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 error listeners added to [Server]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+ [32m✓[39m test/security/kl007c-v12.e2e-spec.ts [2m([22m[2m18 tests[22m[2m)[22m[33m 1545[2mms[22m[39m
+(node:24653) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/d154-data-center.e2e-spec.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 1427[2mms[22m[39m
+   [32m✓[39m D154d data center [2m(3)[22m
+     [33m[2m✓[22m[39m an ended live is summarised once; the periods add up its time, gifts, earnings and followers[33m 530[2mms[22m[39m
+(node:24686) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/qa/kl006c-v12.e2e-spec.ts [2m([22m[2m49 tests[22m[2m)[22m[33m 1834[2mms[22m[39m
+(node:24753) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/email-password.e2e-spec.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 1611[2mms[22m[39m
+(node:24781) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/d154-program.e2e-spec.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 1235[2mms[22m[39m
+   [32m✓[39m D154e program [2m(2)[22m
+     [33m[2m✓[22m[39m the host sets the program; everyone reads it; a started segment is announced once[33m 391[2mms[22m[39m
+(node:24828) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl070-live-blocked-words.e2e-spec.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 1988[2mms[22m[39m
+   [32m✓[39m CP-016 B blocked words [2m(3)[22m
+     [33m[2m✓[22m[39m masks the host’s words in their lives, stored and sent; other hosts unaffected[33m 337[2mms[22m[39m
+   [32m✓[39m CP-016 B rate limit [2m(1)[22m
+     [33m[2m✓[22m[39m PUT: 30 / hour / user (here 2)[33m 615[2mms[22m[39m
+(node:24879) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl016-auth-hardening.e2e-spec.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 2254[2mms[22m[39m
+   [32m✓[39m SEC-023 failed-only account bucket with recent-success bypass [2m(3)[22m
+     [33m[2m✓[22m[39m counts failed attempts only (successful logins do not consume the account bucket)[33m 327[2mms[22m[39m
+(node:24953) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl074-live-audio-seats.e2e-spec.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 1505[2mms[22m[39m
+   [32m✓[39m D100 / D103 / D123 audio room sizes [2m(3)[22m
+     [33m[2m✓[22m[39m the config lists 5, 10, 15 and 20; 6, 9, 13 and 25 are refused; 5 and 10 start[33m 355[2mms[22m[39m
+     [33m[2m✓[22m[39m a room LIVE with 25 tiles before D123: seats 1 … 24 keep working; it cannot move back to 25[33m 350[2mms[22m[39m
+(node:24983) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/d154-stickers.e2e-spec.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 1283[2mms[22m[39m
+(node:25049) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/d154-newcomers.e2e-spec.ts [2m([22m[2m2 tests[22m[2m)[22m[33m 1357[2mms[22m[39m
+   [32m✓[39m D154c newcomers [2m(1)[22m
+     [33m[2m✓[22m[39m the host and moderators see the newcomers in the room (never their signup date); viewers cannot[33m 632[2mms[22m[39m
+(node:25077) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/platform.e2e-spec.ts [2m([22m[2m9 tests[22m[2m)[22m[33m 1681[2mms[22m[39m
+ [2m[90m↓[39m[22m test/kl060-s3-storage.e2e-spec.ts [2m([22m[2m2 tests[22m[2m | [22m[33m2 skipped[39m[2m)[22m
+(node:25168) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl076-levels-publish-charm.e2e-spec.ts [2m([22m[2m2 tests[22m[2m)[22m[33m 3862[2mms[22m[39m
+   [32m✓[39m D101 levels:admin publish-charm [2m(2)[22m
+     [33m[2m✓[22m[39m refuses a user without role ADMIN[33m 1073[2mms[22m[39m
+     [33m[2m✓[22m[39m publishes the owner ladder, switches it on, audits it; rooms then show level 1[33m 2031[2mms[22m[39m
+(node:25482) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl073-live-room-number.e2e-spec.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 1415[2mms[22m[39m
+   [32m✓[39m CP-016 G the room number [2m(3)[22m
+     [33m[2m✓[22m[39m nine digits, the same in every live of a host, different between hosts[33m 444[2mms[22m[39m
+ [32m✓[39m test/kl011-argon2-cap.e2e-spec.ts [2m([22m[2m1 test[22m[2m)[22m[33m 805[2mms[22m[39m
+ [32m✓[39m test/kl060-contract.e2e-spec.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m test/security/kl007e-v126.e2e-spec.ts [2m([22m[2m27 tests[22m[2m)[22m[32m 36[2mms[22m[39m
+ [32m✓[39m test/kl025-v126.e2e-spec.ts [2m([22m[2m19 tests[22m[2m)[22m[33m 1140[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 8 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m test/d166-me-programs.e2e-spec.ts[2m > [22mD166 Me hub programs[2m > [22mthe default tasks, from stored data only; host tasks only for hosts; 401 without a session
+[31m[1mAssertionError[22m: expected [] to deeply equal [ 'WATCH_LIVE', 'FOLLOW_USERS', …(2) ][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [[39m
+[32m-   "WATCH_LIVE",[39m
+[32m-   "FOLLOW_USERS",[39m
+[32m-   "LIVE_CHAT",[39m
+[32m-   "SEND_GIFTS",[39m
+[32m- ][39m
+[31m+ [][39m
+
+[36m [2m❯[22m test/d166-me-programs.e2e-spec.ts:[2m197:43[22m[39m
+    [90m195|[39m     const me = await signup();
+    [90m196|[39m     const body = await tasks(me);
+    [90m197|[39m     expect(body.tasks.map((t) => t.code)).toEqual(['WATCH_LIVE', 'FOLL…
+    [90m   |[39m                                           [31m^[39m
+    [90m198|[39m     expect(body.tasks.every((t) => t.progress === 0 && !t.completed &&…
+    [90m199|[39m     expect(body.checkIn).toMatchObject({ checkedInToday: false, streak…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/8]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/d166-me-programs.e2e-spec.ts[2m > [22mD166 Me hub programs[2m > [22ma task is paid once, even when claimed at the same time; the wallet history shows it
+[31m[1mAssertionError[22m: expected undefined to match object { progress: 10, target: 10, …(2) }[39m
+
+[32m- Expected:[39m
+{
+  "claimed": false,
+  "completed": true,
+  "progress": 10,
+  "target": 10,
+}
+
+[31m+ Received:[39m
+undefined
+
+[36m [2m❯[22m test/d166-me-programs.e2e-spec.ts:[2m219:44[22m[39m
+    [90m217|[39m     const me = await signup();
+    [90m218|[39m     for (const t of targets.slice(0, 10)) await follow(me, t);
+    [90m219|[39m     expect(await task(me, 'FOLLOW_USERS')).toMatchObject({
+    [90m   |[39m                                            [31m^[39m
+    [90m220|[39m       progress: 10,
+    [90m221|[39m       target: 10,
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/8]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/d166-me-programs.e2e-spec.ts[2m > [22mD166 Me hub programs[2m > [22munfollowing before the claim, or following someone not active, does not count
+[31m[1mAssertionError[22m: expected undefined to match object { progress: 9, completed: false }[39m
+
+[32m- Expected:[39m
+{
+  "completed": false,
+  "progress": 9,
+}
+
+[31m+ Received:[39m
+undefined
+
+[36m [2m❯[22m test/d166-me-programs.e2e-spec.ts:[2m253:44[22m[39m
+    [90m251|[39m     for (const t of targets.slice(0, 10)) await follow(me, t);
+    [90m252|[39m     await ctx.http.delete(`/api/v1/users/${targets[0]!.username}/follo…
+    [90m253|[39m     expect(await task(me, 'FOLLOW_USERS')).toMatchObject({ progress: 9…
+    [90m   |[39m                                            [31m^[39m
+    [90m254|[39m     const refused = await claim(me, 'FOLLOW_USERS');
+    [90m255|[39m     expect(refused.status).toBe(409);
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/8]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/d166-me-programs.e2e-spec.ts[2m > [22mD166 Me hub programs[2m > [22mcheck-in: once a day, the 7th day in a row adds the bonus; the daily cap stops task coins
+[31m[1mPrismaClientKnownRequestError[22m: 
+Invalid `ctx.prisma.liveRoomAudience.create()` invocation in
+/home/runner/work/kabso/kabso/apps/api/test/d166-me-programs.e2e-spec.ts:156:33
+
+  153   }
+  154 };
+  155 const watch = (roomId: string, u: TestUser, ms: number) =>
+→ 156   ctx.prisma.liveRoomAudience.create(
+Unique constraint failed on the constraint: `live_room_audience_pkey`[39m
+[90m [2m❯[22m vn.handleRequestError ../../node_modules/.pnpm/@prisma+client@7.10.0_prisma@7.10.0_@types+node@22.20.5_@types+react@19.3.0_react-dom@1_bd4d5c93ed0da1d64f970536312be0e2/node_modules/@prisma/client/src/runtime/RequestHandler.ts:[2m238:13[22m[39m
+[90m [2m❯[22m vn.handleAndLogRequestError ../../node_modules/.pnpm/@prisma+client@7.10.0_prisma@7.10.0_@types+node@22.20.5_@types+react@19.3.0_react-dom@1_bd4d5c93ed0da1d64f970536312be0e2/node_modules/@prisma/client/src/runtime/RequestHandler.ts:[2m184:12[22m[39m
+[90m [2m❯[22m vn.request ../../node_modules/.pnpm/@prisma+client@7.10.0_prisma@7.10.0_@types+node@22.20.5_@types+react@19.3.0_react-dom@1_bd4d5c93ed0da1d64f970536312be0e2/node_modules/@prisma/client/src/runtime/RequestHandler.ts:[2m153:12[22m[39m
+[90m [2m❯[22m a ../../node_modules/.pnpm/@prisma+client@7.10.0_prisma@7.10.0_@types+node@22.20.5_@types+react@19.3.0_react-dom@1_bd4d5c93ed0da1d64f970536312be0e2/node_modules/@prisma/client/src/runtime/getPrismaClient.ts:[2m1014:24[22m[39m
+[36m [2m❯[22m test/d166-me-programs.e2e-spec.ts:[2m297:5[22m[39m
+    [90m295|[39m     await join(roomId, me);
+    [90m296|[39m     await chat(roomId, me, 10);
+    [90m297|[39m     await watch(roomId, me, 15_000);
+    [90m   |[39m     [31m^[39m
+    [90m298|[39m     for (const t of targets.slice(0, 10)) await follow(me, t);
+    [90m299|[39m     for (let i = 0; i < 10; i++) await send(roomId, me, host);
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/8]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/d166-me-programs.e2e-spec.ts[2m > [22mD166 Me hub programs[2m > [22ma new day: daily tasks and the check-in reset, the streak goes on
+[31m[1mAssertionError[22m: expected 404 to be 201 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 201[39m
+[31m+ 404[39m
+
+[36m [2m❯[22m test/d166-me-programs.e2e-spec.ts:[2m329:54[22m[39m
+    [90m327|[39m     for (const t of targets.slice(0, 10)) await follow(me, t);
+    [90m328|[39m     expect((await ctx.http.post('/api/v1/me/check-in').set(auth(me))).…
+    [90m329|[39m     expect((await claim(me, 'FOLLOW_USERS')).status).toBe(201);
+    [90m   |[39m                                                      [31m^[39m
+    [90m330|[39m
+    [90m331|[39m     clock.advance(DAY_MS);
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/8]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/d166-me-programs.e2e-spec.ts[2m > [22mD166 Me hub programs[2m > [22mSVIP is earned by gift spending in 30 days and lasts 30 days
+[31m[1mAssertionError[22m: expected { tier: +0, expiresAt: null, …(7) } to match object { tier: +0, spentCoins: 30000, …(1) }
+(6 matching properties omitted from actual)[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[2m  {[22m
+[32m-   "coinsToNext": 20000,[39m
+[32m-   "spentCoins": 30000,[39m
+[31m+   "coinsToNext": 50000,[39m
+[31m+   "spentCoins": 0,[39m
+[2m    "tier": 0,[22m
+[2m  }[22m
+
+[36m [2m❯[22m test/d166-me-programs.e2e-spec.ts:[2m382:26[22m[39m
+    [90m380|[39m     await ctx.prisma.$transaction((tx) => debitIn(tx, me.id, 40_000n, …
+    [90m381|[39m     const partial = await ctx.http.get('/api/v1/me/svip').set(auth(me)…
+    [90m382|[39m     expect(partial.body).toMatchObject({ tier: 0, spentCoins: 30_000, …
+    [90m   |[39m                          [31m^[39m
+    [90m383|[39m     await ctx.prisma.$transaction((tx) => debitIn(tx, me.id, 25_000n, …
+    [90m384|[39m     const svip = await ctx.http.get('/api/v1/me/svip').set(auth(me));
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/8]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/d166-me-programs.e2e-spec.ts[2m > [22mD166 Me hub programs[2m > [22mevents: the tabs, the detail, the live board; then frozen once and prizes paid once
+[31m[1mAssertionError[22m: {"error":{"code":"VALIDATION_FAILED","message":"Request validation failed.","details":[{"field":"quantity","issue":"invalid_value"}],"requestId":"13e5cdcb-cfae-4e9f-8cba-12eebe4f54f2"}}: expected 400 to be 201 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 201[39m
+[31m+ 400[39m
+
+[36m [2m❯[22m send test/d166-me-programs.e2e-spec.ts:[2m125:50[22m[39m
+    [90m123|[39m         clientId: randomUUID(),
+    [90m124|[39m       });
+    [90m125|[39m     expect(res.status, JSON.stringify(res.body)).toBe(201);
+    [90m   |[39m                                                  [31m^[39m
+    [90m126|[39m   };
+    [90m127|[39m   const follow = async (a: TestUser, b: TestUser) => {
+[90m [2m❯[22m test/d166-me-programs.e2e-spec.ts:[2m458:5[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/8]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/d166-me-programs.e2e-spec.ts[2m > [22mD166 Me hub programs[2m > [22ma held payout waits for release
+[31m[1mAssertionError[22m: {"error":{"code":"VALIDATION_FAILED","message":"Request validation failed.","details":[{"field":"quantity","issue":"invalid_value"}],"requestId":"fd62720f-3f47-406c-8375-288005ae9ea8"}}: expected 400 to be 201 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 201[39m
+[31m+ 400[39m
+
+[36m [2m❯[22m send test/d166-me-programs.e2e-spec.ts:[2m125:50[22m[39m
+    [90m123|[39m         clientId: randomUUID(),
+    [90m124|[39m       });
+    [90m125|[39m     expect(res.status, JSON.stringify(res.body)).toBe(201);
+    [90m   |[39m                                                  [31m^[39m
+    [90m126|[39m   };
+    [90m127|[39m   const follow = async (a: TestUser, b: TestUser) => {
+[90m [2m❯[22m test/d166-me-programs.e2e-spec.ts:[2m574:5[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/8]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m71 passed[39m[22m[2m | [22m[33m2 skipped[39m[90m (74)[39m
+[2m      Tests [22m [1m[31m8 failed[39m[22m[2m | [22m[1m[32m1034 passed[39m[22m[2m | [22m[33m11 skipped[39m[90m (1053)[39m
+[2m   Start at [22m 10:38:47
+[2m   Duration [22m 531.33s[2m (tests 88%, import 11%)[22m
+
+
+::error file=/home/runner/work/kabso/kabso/apps/api/test/d166-me-programs.e2e-spec.ts,title=test/d166-me-programs.e2e-spec.ts > D166 Me hub programs > the default tasks%2C from stored data only; host tasks only for hosts; 401 without a session,line=197,column=43::AssertionError: expected [] to deeply equal [ 'WATCH_LIVE', 'FOLLOW_USERS', …(2) ]%0A%0A- Expected%0A+ Received%0A%0A- [%0A-   "WATCH_LIVE",%0A-   "FOLLOW_USERS",%0A-   "LIVE_CHAT",%0A-   "SEND_GIFTS",%0A- ]%0A+ []%0A%0A ❯ test/d166-me-programs.e2e-spec.ts:197:43%0A%0A
+
+::error file=/home/runner/work/kabso/kabso/apps/api/test/d166-me-programs.e2e-spec.ts,title=test/d166-me-programs.e2e-spec.ts > D166 Me hub programs > a task is paid once%2C even when claimed at the same time; the wallet history shows it,line=219,column=44::AssertionError: expected undefined to match object { progress: 10, target: 10, …(2) }%0A%0A- Expected:%0A{%0A  "claimed": false,%0A  "completed": true,%0A  "progress": 10,%0A  "target": 10,%0A}%0A%0A+ Received:%0Aundefined%0A%0A ❯ test/d166-me-programs.e2e-spec.ts:219:44%0A%0A
+
+::error file=/home/runner/work/kabso/kabso/apps/api/test/d166-me-programs.e2e-spec.ts,title=test/d166-me-programs.e2e-spec.ts > D166 Me hub programs > unfollowing before the claim%2C or following someone not active%2C does not count,line=253,column=44::AssertionError: expected undefined to match object { progress: 9, completed: false }%0A%0A- Expected:%0A{%0A  "completed": false,%0A  "progress": 9,%0A}%0A%0A+ Received:%0Aundefined%0A%0A ❯ test/d166-me-programs.e2e-spec.ts:253:44%0A%0A
+
+::error file=/home/runner/work/kabso/kabso/apps/api/test/d166-me-programs.e2e-spec.ts,title=test/d166-me-programs.e2e-spec.ts > D166 Me hub programs > check-in%3A once a day%2C the 7th day in a row adds the bonus; the daily cap stops task coins,line=297,column=5::PrismaClientKnownRequestError: %0AInvalid `ctx.prisma.liveRoomAudience.create()` invocation in%0A/home/runner/work/kabso/kabso/apps/api/test/d166-me-programs.e2e-spec.ts:156:33%0A%0A  153   }%0A  154 };%0A  155 const watch = (roomId: string, u: TestUser, ms: number) =>%0A→ 156   ctx.prisma.liveRoomAudience.create(%0AUnique constraint failed on the constraint: `live_room_audience_pkey`%0A ❯ vn.handleRequestError ../../node_modules/.pnpm/@prisma+client@7.10.0_prisma@7.10.0_@types+node@22.20.5_@types+react@19.3.0_react-dom@1_bd4d5c93ed0da1d64f970536312be0e2/node_modules/@prisma/client/src/runtime/RequestHandler.ts:238:13%0A ❯ vn.handleAndLogRequestError ../../node_modules/.pnpm/@prisma+client@7.10.0_prisma@7.10.0_@types+node@22.20.5_@types+react@19.3.0_react-dom@1_bd4d5c93ed0da1d64f970536312be0e2/node_modules/@prisma/client/src/runtime/RequestHandler.ts:184:12%0A ❯ vn.request ../../node_modules/.pnpm/@prisma+client@7.10.0_prisma@7.10.0_@types+node@22.20.5_@types+react@19.3.0_react-dom@1_bd4d5c93ed0da1d64f970536312be0e2/node_modules/@prisma/client/src/runtime/RequestHandler.ts:153:12%0A ❯ a ../../node_modules/.pnpm/@prisma+client@7.10.0_prisma@7.10.0_@types+node@22.20.5_@types+react@19.3.0_react-dom@1_bd4d5c93ed0da1d64f970536312be0e2/node_modules/@prisma/client/src/runtime/getPrismaClient.ts:1014:24%0A ❯ test/d166-me-programs.e2e-spec.ts:297:5%0A%0A⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯%0ASerialized Error: { code: 'P2002', meta: { driverAdapterError: { stack: 'DriverAdapterError: UniqueConstraintViolation%0A    at PrismaPgAdapter.onError (file:///home/runner/work/kabso/kabso/node_modules/.pnpm/@prisma+adapter-pg@7.10.0/node_modules/@prisma/adapter-pg/dist/index.mjs:666:11)%0A    at PrismaPgAdapter.performIO (file:///home/runner/work/kabso/kabso/node_modules/.pnpm/@prisma+adapter-pg@7.10.0/node_modules/@prisma/adapter-pg/dist/index.mjs:661:12)%0A    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)%0A    at async PrismaPgAdapter.queryRaw (file:///home/runner/work/kabso/kabso/node_modules/.pnpm/@prisma+adapter-pg@7.10.0/node_modules/@prisma/adapter-pg/dist/index.mjs:595:30)%0A    at async /home/runner/work/kabso/kabso/node_modules/.pnpm/@prisma+client@7.10.0_prisma@7.10.0_@types+node@22.20.5_@types+react@19.3.0_react-dom@1_bd4d5c93ed0da1d64f970536312be0e2/node_modules/@prisma/client/runtime/client.js:11:70479%0A    at async e.run (/home/runner/work/kabso/kabso/node_modules/.pnpm/@prisma+client@7.10.0_prisma@7.10.0_@types+node@22.20.5_@types+react@19.3.0_react-dom@1_bd4d5c93ed0da1d64f970536312be0e2/node_modules/@prisma/client/runtime/client.js:11:69220)%0A    at async e.execute (/home/runner/work/kabso/kabso/node_modules/.pnpm/@prisma+client@7.10.0_prisma@7.10.0_@types+node@22.20.5_@types+react@19.3.0_react-dom@1_bd4d5c93ed0da1d64f970536312be0e2/node_modules/@prisma/client/runtime/client.js:57:815)%0A    at async yr.request (/home/runner/work/kabso/kabso/node_modules/.pnpm/@prisma+client@7.10.0_prisma@7.10.0_@types+node@22.20.5_@types+react@19.3.0_react-dom@1_bd4d5c93ed0da1d64f970536312be0e2/node_modules/@prisma/client/runtime/client.js:58:2425)%0A    at async Object.singleLoader (/home/runner/work/kabso/kabso/node_modules/.pnpm/@prisma+client@7.10.0_prisma@7.10.0_@types+node@22.20.5_@types+react@19.3.0_react-dom@1_bd4d5c93ed0da1d64f970536312be0e2/node_modules/@prisma/client/runtime/client.js:65:6920)%0A    at async vn.request (/home/runner/work/kabso/kabso/node_modules/.pnpm/@prisma+client@7.10.0_prisma@7.10.0_@types+node@22.20.5_@types+react@19.3.0_react-dom@1_bd4d5c93ed0da1d64f970536312be0e2/node_modules/@prisma/client/runtime/client.js:65:7526)', message: 'UniqueConstraintViolation', name: 'DriverAdapterError', cause: { originalCode: '23505', originalMessage: 'duplicate key value violates unique constraint "live_room_audience_pkey"', kind: 'UniqueConstraintViolation', constraint: { index: 'live_room_audience_pkey' }, table: 'live_room_audience' }, constructor: 'Function<DriverAdapterError>', toString: 'Function<toString>' }, modelName: 'LiveRoomAudience' }, clientVersion: '7.10.0', batchRequestIdx: undefined }%0A
+
+::error file=/home/runner/work/kabso/kabso/apps/api/test/d166-me-programs.e2e-spec.ts,title=test/d166-me-programs.e2e-spec.ts > D166 Me hub programs > a new day%3A daily tasks and the check-in reset%2C the streak goes on,line=329,column=54::AssertionError: expected 404 to be 201 // Object.is equality%0A%0A- Expected%0A+ Received%0A%0A- 201%0A+ 404%0A%0A ❯ test/d166-me-programs.e2e-spec.ts:329:54%0A%0A
+
+::error file=/home/runner/work/kabso/kabso/apps/api/test/d166-me-programs.e2e-spec.ts,title=test/d166-me-programs.e2e-spec.ts > D166 Me hub programs > SVIP is earned by gift spending in 30 days and lasts 30 days,line=382,column=26::AssertionError: expected { tier: +0, expiresAt: null, …(7) } to match object { tier: +0, spentCoins: 30000, …(1) }%0A(6 matching properties omitted from actual)%0A%0A- Expected%0A+ Received%0A%0A  {%0A-   "coinsToNext": 20000,%0A-   "spentCoins": 30000,%0A+   "coinsToNext": 50000,%0A+   "spentCoins": 0,%0A    "tier": 0,%0A  }%0A%0A ❯ test/d166-me-programs.e2e-spec.ts:382:26%0A%0A
+
+::error file=/home/runner/work/kabso/kabso/apps/api/test/d166-me-programs.e2e-spec.ts,title=test/d166-me-programs.e2e-spec.ts > D166 Me hub programs > events%3A the tabs%2C the detail%2C the live board; then frozen once and prizes paid once,line=125,column=50::AssertionError: {"error":{"code":"VALIDATION_FAILED","message":"Request validation failed.","details":[{"field":"quantity","issue":"invalid_value"}],"requestId":"13e5cdcb-cfae-4e9f-8cba-12eebe4f54f2"}}: expected 400 to be 201 // Object.is equality%0A%0A- Expected%0A+ Received%0A%0A- 201%0A+ 400%0A%0A ❯ send test/d166-me-programs.e2e-spec.ts:125:50%0A ❯ test/d166-me-programs.e2e-spec.ts:458:5%0A%0A
+
+::error file=/home/runner/work/kabso/kabso/apps/api/test/d166-me-programs.e2e-spec.ts,title=test/d166-me-programs.e2e-spec.ts > D166 Me hub programs > a held payout waits for release,line=125,column=50::AssertionError: {"error":{"code":"VALIDATION_FAILED","message":"Request validation failed.","details":[{"field":"quantity","issue":"invalid_value"}],"requestId":"fd62720f-3f47-406c-8375-288005ae9ea8"}}: expected 400 to be 201 // Object.is equality%0A%0A- Expected%0A+ Received%0A%0A- 201%0A+ 400%0A%0A ❯ send test/d166-me-programs.e2e-spec.ts:125:50%0A ❯ test/d166-me-programs.e2e-spec.ts:574:5%0A%0A
+undefined
+/home/runner/work/kabso/kabso/apps/api:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command failed with exit code 1: vitest run --config vitest.e2e.config.ts

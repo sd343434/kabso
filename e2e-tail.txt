@@ -1,0 +1,296 @@
+oom-level.e2e-spec.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 1844[2mms[22m[39m
+   [32m✓[39m CP-016 D room level and charm points from taps [2m(5)[22m
+     [33m[2m✓[22m[39m has no level and credits nothing while the charm category is unavailable[33m 377[2mms[22m[39m
+(node:24416) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl095-live-seat-emoji.e2e-spec.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 1930[2mms[22m[39m
+   [32m✓[39m D138 an emoji on one’s own seat [2m(6)[22m
+     [33m[2m✓[22m[39m AUDIO: the host plays on tile 0, someone seated on their seat; the room gets `seat-emoji`[33m 382[2mms[22m[39m
+(node:24464) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:24464) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 listening listeners added to [Server]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:24464) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 error listeners added to [Server]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:24464) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 close listeners added to [Server]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+ [32m✓[39m test/security/kl007d-v123.e2e-spec.ts [2m([22m[2m61 tests[22m[2m)[22m[33m 2125[2mms[22m[39m
+   [32m✓[39m KL-007d SEC-023: account bucket is race-free [2m(1)[22m
+     [33m[2m✓[22m[39m 60 parallel wrong passwords from 60 IPs check at most 20 passwords[33m 382[2mms[22m[39m
+(node:24524) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl071-live-rankings.e2e-spec.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 2725[2mms[22m[39m
+   [32m✓[39m CP-016 A the popularity board (UTC) [2m(5)[22m
+     [33m[2m✓[22m[39m ranks hosts by points this hour; the live room is attached; me for a host[33m 553[2mms[22m[39m
+(node:24578) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:24578) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 listening listeners added to [Server]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:24578) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 error listeners added to [Server]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:24578) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 close listeners added to [Server]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:24578) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 listening listeners added to [Server]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:24578) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 error listeners added to [Server]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+ [32m✓[39m test/security/kl007c-v12.e2e-spec.ts [2m([22m[2m18 tests[22m[2m)[22m[33m 1545[2mms[22m[39m
+(node:24653) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/d154-data-center.e2e-spec.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 1427[2mms[22m[39m
+   [32m✓[39m D154d data center [2m(3)[22m
+     [33m[2m✓[22m[39m an ended live is summarised once; the periods add up its time, gifts, earnings and followers[33m 530[2mms[22m[39m
+(node:24686) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/qa/kl006c-v12.e2e-spec.ts [2m([22m[2m49 tests[22m[2m)[22m[33m 1834[2mms[22m[39m
+(node:24753) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/email-password.e2e-spec.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 1611[2mms[22m[39m
+(node:24781) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/d154-program.e2e-spec.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 1235[2mms[22m[39m
+   [32m✓[39m D154e program [2m(2)[22m
+     [33m[2m✓[22m[39m the host sets the program; everyone reads it; a started segment is announced once[33m 391[2mms[22m[39m
+(node:24828) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl070-live-blocked-words.e2e-spec.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 1988[2mms[22m[39m
+   [32m✓[39m CP-016 B blocked words [2m(3)[22m
+     [33m[2m✓[22m[39m masks the host’s words in their lives, stored and sent; other hosts unaffected[33m 337[2mms[22m[39m
+   [32m✓[39m CP-016 B rate limit [2m(1)[22m
+     [33m[2m✓[22m[39m PUT: 30 / hour / user (here 2)[33m 615[2mms[22m[39m
+(node:24879) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl016-auth-hardening.e2e-spec.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 2254[2mms[22m[39m
+   [32m✓[39m SEC-023 failed-only account bucket with recent-success bypass [2m(3)[22m
+     [33m[2m✓[22m[39m counts failed attempts only (successful logins do not consume the account bucket)[33m 327[2mms[22m[39m
+(node:24953) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl074-live-audio-seats.e2e-spec.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 1505[2mms[22m[39m
+   [32m✓[39m D100 / D103 / D123 audio room sizes [2m(3)[22m
+     [33m[2m✓[22m[39m the config lists 5, 10, 15 and 20; 6, 9, 13 and 25 are refused; 5 and 10 start[33m 355[2mms[22m[39m
+     [33m[2m✓[22m[39m a room LIVE with 25 tiles before D123: seats 1 … 24 keep working; it cannot move back to 25[33m 350[2mms[22m[39m
+(node:24983) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/d154-stickers.e2e-spec.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 1283[2mms[22m[39m
+(node:25049) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/d154-newcomers.e2e-spec.ts [2m([22m[2m2 tests[22m[2m)[22m[33m 1357[2mms[22m[39m
+   [32m✓[39m D154c newcomers [2m(1)[22m
+     [33m[2m✓[22m[39m the host and moderators see the newcomers in the room (never their signup date); viewers cannot[33m 632[2mms[22m[39m
+(node:25077) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/platform.e2e-spec.ts [2m([22m[2m9 tests[22m[2m)[22m[33m 1681[2mms[22m[39m
+ [2m[90m↓[39m[22m test/kl060-s3-storage.e2e-spec.ts [2m([22m[2m2 tests[22m[2m | [22m[33m2 skipped[39m[2m)[22m
+(node:25168) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl076-levels-publish-charm.e2e-spec.ts [2m([22m[2m2 tests[22m[2m)[22m[33m 3862[2mms[22m[39m
+   [32m✓[39m D101 levels:admin publish-charm [2m(2)[22m
+     [33m[2m✓[22m[39m refuses a user without role ADMIN[33m 1073[2mms[22m[39m
+     [33m[2m✓[22m[39m publishes the owner ladder, switches it on, audits it; rooms then show level 1[33m 2031[2mms[22m[39m
+(node:25482) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ [32m✓[39m test/kl073-live-room-number.e2e-spec.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 1415[2mms[22m[39m
+   [32m✓[39m CP-016 G the room number [2m(3)[22m
+     [33m[2m✓[22m[39m nine digits, the same in every live of a host, different between hosts[33m 444[2mms[22m[39m
+ [32m✓[39m test/kl011-argon2-cap.e2e-spec.ts [2m([22m[2m1 test[22m[2m)[22m[33m 805[2mms[22m[39m
+ [32m✓[39m test/kl060-contract.e2e-spec.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m test/security/kl007e-v126.e2e-spec.ts [2m([22m[2m27 tests[22m[2m)[22m[32m 36[2mms[22m[39m
+ [32m✓[39m test/kl025-v126.e2e-spec.ts [2m([22m[2m19 tests[22m[2m)[22m[33m 1140[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 8 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m test/d166-me-programs.e2e-spec.ts[2m > [22mD166 Me hub programs[2m > [22mthe default tasks, from stored data only; host tasks only for hosts; 401 without a session
+[31m[1mAssertionError[22m: expected [] to deeply equal [ 'WATCH_LIVE', 'FOLLOW_USERS', …(2) ][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [[39m
+[32m-   "WATCH_LIVE",[39m
+[32m-   "FOLLOW_USERS",[39m
+[32m-   "LIVE_CHAT",[39m
+[32m-   "SEND_GIFTS",[39m
+[32m- ][39m
+[31m+ [][39m
+
+[36m [2m❯[22m test/d166-me-programs.e2e-spec.ts:[2m197:43[22m[39m
+    [90m195|[39m     const me = await signup();
+    [90m196|[39m     const body = await tasks(me);
+    [90m197|[39m     expect(body.tasks.map((t) => t.code)).toEqual(['WATCH_LIVE', 'FOLL…
+    [90m   |[39m                                           [31m^[39m
+    [90m198|[39m     expect(body.tasks.every((t) => t.progress === 0 && !t.completed &&…
+    [90m199|[39m     expect(body.checkIn).toMatchObject({ checkedInToday: false, streak…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/8]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/d166-me-programs.e2e-spec.ts[2m > [22mD166 Me hub programs[2m > [22ma task is paid once, even when claimed at the same time; the wallet history shows it
+[31m[1mAssertionError[22m: expected undefined to match object { progress: 10, target: 10, …(2) }[39m
+
+[32m- Expected:[39m
+{
+  "claimed": false,
+  "completed": true,
+  "progress": 10,
+  "target": 10,
+}
+
+[31m+ Received:[39m
+undefined
+
+[36m [2m❯[22m test/d166-me-programs.e2e-spec.ts:[2m219:44[22m[39m
+    [90m217|[39m     const me = await signup();
+    [90m218|[39m     for (const t of targets.slice(0, 10)) await follow(me, t);
+    [90m219|[39m     expect(await task(me, 'FOLLOW_USERS')).toMatchObject({
+    [90m   |[39m                                            [31m^[39m
+    [90m220|[39m       progress: 10,
+    [90m221|[39m       target: 10,
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/8]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/d166-me-programs.e2e-spec.ts[2m > [22mD166 Me hub programs[2m > [22munfollowing before the claim, or following someone not active, does not count
+[31m[1mAssertionError[22m: expected undefined to match object { progress: 9, completed: false }[39m
+
+[32m- Expected:[39m
+{
+  "completed": false,
+  "progress": 9,
+}
+
+[31m+ Received:[39m
+undefined
+
+[36m [2m❯[22m test/d166-me-programs.e2e-spec.ts:[2m253:44[22m[39m
+    [90m251|[39m     for (const t of targets.slice(0, 10)) await follow(me, t);
+    [90m252|[39m     await ctx.http.delete(`/api/v1/users/${targets[0]!.username}/follo…
+    [90m253|[39m     expect(await task(me, 'FOLLOW_USERS')).toMatchObject({ progress: 9…
+    [90m   |[39m                                            [31m^[39m
+    [90m254|[39m     const refused = await claim(me, 'FOLLOW_USERS');
+    [90m255|[39m     expect(refused.status).toBe(409);
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/8]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/d166-me-programs.e2e-spec.ts[2m > [22mD166 Me hub programs[2m > [22mcheck-in: once a day, the 7th day in a row adds the bonus; the daily cap stops task coins
+[31m[1mPrismaClientKnownRequestError[22m: 
+Invalid `ctx.prisma.liveRoomAudience.create()` invocation in
+/home/runner/work/kabso/kabso/apps/api/test/d166-me-programs.e2e-spec.ts:156:33
+
+  153   }
+  154 };
+  155 const watch = (roomId: string, u: TestUser, ms: number) =>
+→ 156   ctx.prisma.liveRoomAudience.create(
+Unique constraint failed on the constraint: `live_room_audience_pkey`[39m
+[90m [2m❯[22m vn.handleRequestError ../../node_modules/.pnpm/@prisma+client@7.10.0_prisma@7.10.0_@types+node@22.20.5_@types+react@19.3.0_react-dom@1_bd4d5c93ed0da1d64f970536312be0e2/node_modules/@prisma/client/src/runtime/RequestHandler.ts:[2m238:13[22m[39m
+[90m [2m❯[22m vn.handleAndLogRequestError ../../node_modules/.pnpm/@prisma+client@7.10.0_prisma@7.10.0_@types+node@22.20.5_@types+react@19.3.0_react-dom@1_bd4d5c93ed0da1d64f970536312be0e2/node_modules/@prisma/client/src/runtime/RequestHandler.ts:[2m184:12[22m[39m
+[90m [2m❯[22m vn.request ../../node_modules/.pnpm/@prisma+client@7.10.0_prisma@7.10.0_@types+node@22.20.5_@types+react@19.3.0_react-dom@1_bd4d5c93ed0da1d64f970536312be0e2/node_modules/@prisma/client/src/runtime/RequestHandler.ts:[2m153:12[22m[39m
+[90m [2m❯[22m a ../../node_modules/.pnpm/@prisma+client@7.10.0_prisma@7.10.0_@types+node@22.20.5_@types+react@19.3.0_react-dom@1_bd4d5c93ed0da1d64f970536312be0e2/node_modules/@prisma/client/src/runtime/getPrismaClient.ts:[2m1014:24[22m[39m
+[36m [2m❯[22m test/d166-me-programs.e2e-spec.ts:[2m297:5[22m[39m
+    [90m295|[39m     await join(roomId, me);
+    [90m296|[39m     await chat(roomId, me, 10);
+    [90m297|[39m     await watch(roomId, me, 15_000);
+    [90m   |[39m     [31m^[39m
+    [90m298|[39m     for (const t of targets.slice(0, 10)) await follow(me, t);
+    [90m299|[39m     for (let i = 0; i < 10; i++) await send(roomId, me, host);
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/8]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/d166-me-programs.e2e-spec.ts[2m > [22mD166 Me hub programs[2m > [22ma new day: daily tasks and the check-in reset, the streak goes on
+[31m[1mAssertionError[22m: expected 404 to be 201 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 201[39m
+[31m+ 404[39m
+
+[36m [2m❯[22m test/d166-me-programs.e2e-spec.ts:[2m329:54[22m[39m
+    [90m327|[39m     for (const t of targets.slice(0, 10)) await follow(me, t);
+    [90m328|[39m     expect((await ctx.http.post('/api/v1/me/check-in').set(auth(me))).…
+    [90m329|[39m     expect((await claim(me, 'FOLLOW_USERS')).status).toBe(201);
+    [90m   |[39m                                                      [31m^[39m
+    [90m330|[39m
+    [90m331|[39m     clock.advance(DAY_MS);
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/8]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/d166-me-programs.e2e-spec.ts[2m > [22mD166 Me hub programs[2m > [22mSVIP is earned by gift spending in 30 days and lasts 30 days
+[31m[1mAssertionError[22m: expected { tier: +0, expiresAt: null, …(7) } to match object { tier: +0, spentCoins: 30000, …(1) }
+(6 matching properties omitted from actual)[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[2m  {[22m
+[32m-   "coinsToNext": 20000,[39m
+[32m-   "spentCoins": 30000,[39m
+[31m+   "coinsToNext": 50000,[39m
+[31m+   "spentCoins": 0,[39m
+[2m    "tier": 0,[22m
+[2m  }[22m
+
+[36m [2m❯[22m test/d166-me-programs.e2e-spec.ts:[2m382:26[22m[39m
+    [90m380|[39m     await ctx.prisma.$transaction((tx) => debitIn(tx, me.id, 40_000n, …
+    [90m381|[39m     const partial = await ctx.http.get('/api/v1/me/svip').set(auth(me)…
+    [90m382|[39m     expect(partial.body).toMatchObject({ tier: 0, spentCoins: 30_000, …
+    [90m   |[39m                          [31m^[39m
+    [90m383|[39m     await ctx.prisma.$transaction((tx) => debitIn(tx, me.id, 25_000n, …
+    [90m384|[39m     const svip = await ctx.http.get('/api/v1/me/svip').set(auth(me));
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/8]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/d166-me-programs.e2e-spec.ts[2m > [22mD166 Me hub programs[2m > [22mevents: the tabs, the detail, the live board; then frozen once and prizes paid once
+[31m[1mAssertionError[22m: {"error":{"code":"VALIDATION_FAILED","message":"Request validation failed.","details":[{"field":"quantity","issue":"invalid_value"}],"requestId":"13e5cdcb-cfae-4e9f-8cba-12eebe4f54f2"}}: expected 400 to be 201 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 201[39m
+[31m+ 400[39m
+
+[36m [2m❯[22m send test/d166-me-programs.e2e-spec.ts:[2m125:50[22m[39m
+    [90m123|[39m         clientId: randomUUID(),
+    [90m124|[39m       });
+    [90m125|[39m     expect(res.status, JSON.stringify(res.body)).toBe(201);
+    [90m   |[39m                                                  [31m^[39m
+    [90m126|[39m   };
+    [90m127|[39m   const follow = async (a: TestUser, b: TestUser) => {
+[90m [2m❯[22m test/d166-me-programs.e2e-spec.ts:[2m458:5[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/8]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/d166-me-programs.e2e-spec.ts[2m > [22mD166 Me hub programs[2m > [22ma held payout waits for release
+[31m[1mAssertionError[22m: {"error":{"code":"VALIDATION_FAILED","message":"Request validation failed.","details":[{"field":"quantity","issue":"invalid_value"}],"requestId":"fd62720f-3f47-406c-8375-288005ae9ea8"}}: expected 400 to be 201 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 201[39m
+[31m+ 400[39m
+
+[36m [2m❯[22m send test/d166-me-programs.e2e-spec.ts:[2m125:50[22m[39m
+    [90m123|[39m         clientId: randomUUID(),
+    [90m124|[39m       });
+    [90m125|[39m     expect(res.status, JSON.stringify(res.body)).toBe(201);
+    [90m   |[39m                                                  [31m^[39m
+    [90m126|[39m   };
+    [90m127|[39m   const follow = async (a: TestUser, b: TestUser) => {
+[90m [2m❯[22m test/d166-me-programs.e2e-spec.ts:[2m574:5[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/8]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m71 passed[39m[22m[2m | [22m[33m2 skipped[39m[90m (74)[39m
+[2m      Tests [22m [1m[31m8 failed[39m[22m[2m | [22m[1m[32m1034 passed[39m[22m[2m | [22m[33m11 skipped[39m[90m (1053)[39m
+[2m   Start at [22m 10:38:47
+[2m   Duration [22m 531.33s[2m (tests 88%, import 11%)[22m
+
+
+::error file=/home/runner/work/kabso/kabso/apps/api/test/d166-me-programs.e2e-spec.ts,title=test/d166-me-programs.e2e-spec.ts > D166 Me hub programs > the default tasks%2C from stored data only; host tasks only for hosts; 401 without a session,line=197,column=43::AssertionError: expected [] to deeply equal [ 'WATCH_LIVE', 'FOLLOW_USERS', …(2) ]%0A%0A- Expected%0A+ Received%0A%0A- [%0A-   "WATCH_LIVE",%0A-   "FOLLOW_USERS",%0A-   "LIVE_CHAT",%0A-   "SEND_GIFTS",%0A- ]%0A+ []%0A%0A ❯ test/d166-me-programs.e2e-spec.ts:197:43%0A%0A
+
+::error file=/home/runner/work/kabso/kabso/apps/api/test/d166-me-programs.e2e-spec.ts,title=test/d166-me-programs.e2e-spec.ts > D166 Me hub programs > a task is paid once%2C even when claimed at the same time; the wallet history shows it,line=219,column=44::AssertionError: expected undefined to match object { progress: 10, target: 10, …(2) }%0A%0A- Expected:%0A{%0A  "claimed": false,%0A  "completed": true,%0A  "progress": 10,%0A  "target": 10,%0A}%0A%0A+ Received:%0Aundefined%0A%0A ❯ test/d166-me-programs.e2e-spec.ts:219:44%0A%0A
+
+::error file=/home/runner/work/kabso/kabso/apps/api/test/d166-me-programs.e2e-spec.ts,title=test/d166-me-programs.e2e-spec.ts > D166 Me hub programs > unfollowing before the claim%2C or following someone not active%2C does not count,line=253,column=44::AssertionError: expected undefined to match object { progress: 9, completed: false }%0A%0A- Expected:%0A{%0A  "completed": false,%0A  "progress": 9,%0A}%0A%0A+ Received:%0Aundefined%0A%0A ❯ test/d166-me-programs.e2e-spec.ts:253:44%0A%0A
+
+::error file=/home/runner/work/kabso/kabso/apps/api/test/d166-me-programs.e2e-spec.ts,title=test/d166-me-programs.e2e-spec.ts > D166 Me hub programs > check-in%3A once a day%2C the 7th day in a row adds the bonus; the daily cap stops task coins,line=297,column=5::PrismaClientKnownRequestError: %0AInvalid `ctx.prisma.liveRoomAudience.create()` invocation in%0A/home/runner/work/kabso/kabso/apps/api/test/d166-me-programs.e2e-spec.ts:156:33%0A%0A  153   }%0A  154 };%0A  155 const watch = (roomId: string, u: TestUser, ms: number) =>%0A→ 156   ctx.prisma.liveRoomAudience.create(%0AUnique constraint failed on the constraint: `live_room_audience_pkey`%0A ❯ vn.handleRequestError ../../node_modules/.pnpm/@prisma+client@7.10.0_prisma@7.10.0_@types+node@22.20.5_@types+react@19.3.0_react-dom@1_bd4d5c93ed0da1d64f970536312be0e2/node_modules/@prisma/client/src/runtime/RequestHandler.ts:238:13%0A ❯ vn.handleAndLogRequestError ../../node_modules/.pnpm/@prisma+client@7.10.0_prisma@7.10.0_@types+node@22.20.5_@types+react@19.3.0_react-dom@1_bd4d5c93ed0da1d64f970536312be0e2/node_modules/@prisma/client/src/runtime/RequestHandler.ts:184:12%0A ❯ vn.request ../../node_modules/.pnpm/@prisma+client@7.10.0_prisma@7.10.0_@types+node@22.20.5_@types+react@19.3.0_react-dom@1_bd4d5c93ed0da1d64f970536312be0e2/node_modules/@prisma/client/src/runtime/RequestHandler.ts:153:12%0A ❯ a ../../node_modules/.pnpm/@prisma+client@7.10.0_prisma@7.10.0_@types+node@22.20.5_@types+react@19.3.0_react-dom@1_bd4d5c93ed0da1d64f970536312be0e2/node_modules/@prisma/client/src/runtime/getPrismaClient.ts:1014:24%0A ❯ test/d166-me-programs.e2e-spec.ts:297:5%0A%0A⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯%0ASerialized Error: { code: 'P2002', meta: { driverAdapterError: { stack: 'DriverAdapterError: UniqueConstraintViolation%0A    at PrismaPgAdapter.onError (file:///home/runner/work/kabso/kabso/node_modules/.pnpm/@prisma+adapter-pg@7.10.0/node_modules/@prisma/adapter-pg/dist/index.mjs:666:11)%0A    at PrismaPgAdapter.performIO (file:///home/runner/work/kabso/kabso/node_modules/.pnpm/@prisma+adapter-pg@7.10.0/node_modules/@prisma/adapter-pg/dist/index.mjs:661:12)%0A    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)%0A    at async PrismaPgAdapter.queryRaw (file:///home/runner/work/kabso/kabso/node_modules/.pnpm/@prisma+adapter-pg@7.10.0/node_modules/@prisma/adapter-pg/dist/index.mjs:595:30)%0A    at async /home/runner/work/kabso/kabso/node_modules/.pnpm/@prisma+client@7.10.0_prisma@7.10.0_@types+node@22.20.5_@types+react@19.3.0_react-dom@1_bd4d5c93ed0da1d64f970536312be0e2/node_modules/@prisma/client/runtime/client.js:11:70479%0A    at async e.run (/home/runner/work/kabso/kabso/node_modules/.pnpm/@prisma+client@7.10.0_prisma@7.10.0_@types+node@22.20.5_@types+react@19.3.0_react-dom@1_bd4d5c93ed0da1d64f970536312be0e2/node_modules/@prisma/client/runtime/client.js:11:69220)%0A    at async e.execute (/home/runner/work/kabso/kabso/node_modules/.pnpm/@prisma+client@7.10.0_prisma@7.10.0_@types+node@22.20.5_@types+react@19.3.0_react-dom@1_bd4d5c93ed0da1d64f970536312be0e2/node_modules/@prisma/client/runtime/client.js:57:815)%0A    at async yr.request (/home/runner/work/kabso/kabso/node_modules/.pnpm/@prisma+client@7.10.0_prisma@7.10.0_@types+node@22.20.5_@types+react@19.3.0_react-dom@1_bd4d5c93ed0da1d64f970536312be0e2/node_modules/@prisma/client/runtime/client.js:58:2425)%0A    at async Object.singleLoader (/home/runner/work/kabso/kabso/node_modules/.pnpm/@prisma+client@7.10.0_prisma@7.10.0_@types+node@22.20.5_@types+react@19.3.0_react-dom@1_bd4d5c93ed0da1d64f970536312be0e2/node_modules/@prisma/client/runtime/client.js:65:6920)%0A    at async vn.request (/home/runner/work/kabso/kabso/node_modules/.pnpm/@prisma+client@7.10.0_prisma@7.10.0_@types+node@22.20.5_@types+react@19.3.0_react-dom@1_bd4d5c93ed0da1d64f970536312be0e2/node_modules/@prisma/client/runtime/client.js:65:7526)', message: 'UniqueConstraintViolation', name: 'DriverAdapterError', cause: { originalCode: '23505', originalMessage: 'duplicate key value violates unique constraint "live_room_audience_pkey"', kind: 'UniqueConstraintViolation', constraint: { index: 'live_room_audience_pkey' }, table: 'live_room_audience' }, constructor: 'Function<DriverAdapterError>', toString: 'Function<toString>' }, modelName: 'LiveRoomAudience' }, clientVersion: '7.10.0', batchRequestIdx: undefined }%0A
+
+::error file=/home/runner/work/kabso/kabso/apps/api/test/d166-me-programs.e2e-spec.ts,title=test/d166-me-programs.e2e-spec.ts > D166 Me hub programs > a new day%3A daily tasks and the check-in reset%2C the streak goes on,line=329,column=54::AssertionError: expected 404 to be 201 // Object.is equality%0A%0A- Expected%0A+ Received%0A%0A- 201%0A+ 404%0A%0A ❯ test/d166-me-programs.e2e-spec.ts:329:54%0A%0A
+
+::error file=/home/runner/work/kabso/kabso/apps/api/test/d166-me-programs.e2e-spec.ts,title=test/d166-me-programs.e2e-spec.ts > D166 Me hub programs > SVIP is earned by gift spending in 30 days and lasts 30 days,line=382,column=26::AssertionError: expected { tier: +0, expiresAt: null, …(7) } to match object { tier: +0, spentCoins: 30000, …(1) }%0A(6 matching properties omitted from actual)%0A%0A- Expected%0A+ Received%0A%0A  {%0A-   "coinsToNext": 20000,%0A-   "spentCoins": 30000,%0A+   "coinsToNext": 50000,%0A+   "spentCoins": 0,%0A    "tier": 0,%0A  }%0A%0A ❯ test/d166-me-programs.e2e-spec.ts:382:26%0A%0A
+
+::error file=/home/runner/work/kabso/kabso/apps/api/test/d166-me-programs.e2e-spec.ts,title=test/d166-me-programs.e2e-spec.ts > D166 Me hub programs > events%3A the tabs%2C the detail%2C the live board; then frozen once and prizes paid once,line=125,column=50::AssertionError: {"error":{"code":"VALIDATION_FAILED","message":"Request validation failed.","details":[{"field":"quantity","issue":"invalid_value"}],"requestId":"13e5cdcb-cfae-4e9f-8cba-12eebe4f54f2"}}: expected 400 to be 201 // Object.is equality%0A%0A- Expected%0A+ Received%0A%0A- 201%0A+ 400%0A%0A ❯ send test/d166-me-programs.e2e-spec.ts:125:50%0A ❯ test/d166-me-programs.e2e-spec.ts:458:5%0A%0A
+
+::error file=/home/runner/work/kabso/kabso/apps/api/test/d166-me-programs.e2e-spec.ts,title=test/d166-me-programs.e2e-spec.ts > D166 Me hub programs > a held payout waits for release,line=125,column=50::AssertionError: {"error":{"code":"VALIDATION_FAILED","message":"Request validation failed.","details":[{"field":"quantity","issue":"invalid_value"}],"requestId":"fd62720f-3f47-406c-8375-288005ae9ea8"}}: expected 400 to be 201 // Object.is equality%0A%0A- Expected%0A+ Received%0A%0A- 201%0A+ 400%0A%0A ❯ send test/d166-me-programs.e2e-spec.ts:125:50%0A ❯ test/d166-me-programs.e2e-spec.ts:574:5%0A%0A
+undefined
+/home/runner/work/kabso/kabso/apps/api:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command failed with exit code 1: vitest run --config vitest.e2e.config.ts
