@@ -14,7 +14,8 @@ int _int(Object? v) => (v as num?)?.toInt() ?? 0;
 
 int? _intOrNull(Object? v) => (v as num?)?.toInt();
 
-DateTime? _timeOrNull(Object? v) => v == null ? null : DateTime.parse(v as String);
+DateTime? _timeOrNull(Object? v) =>
+    v == null ? null : DateTime.parse(v as String);
 
 List<Map<String, dynamic>> _list(Object? v) => [
   for (final e in v! as List<dynamic>) e as Map<String, dynamic>,
@@ -528,8 +529,10 @@ class ProgramsRepositoryImpl implements ProgramsRepository {
     return res.data!;
   }
 
-  ProgramPayout _payout(Map<String, dynamic> json) =>
-      (paidCoins: _int(json['paidCoins']), balanceCoins: _int(json['balanceCoins']));
+  ProgramPayout _payout(Map<String, dynamic> json) => (
+    paidCoins: _int(json['paidCoins']),
+    balanceCoins: _int(json['balanceCoins']),
+  );
 
   @override
   Future<MyTasks> tasks() =>
@@ -575,8 +578,7 @@ class ProgramsRepositoryImpl implements ProgramsRepository {
 
   @override
   Future<RechargeOffer> rechargePackages() => guardApiCall(
-    () async =>
-        RechargeOffer.fromJson(await _get('/wallet/recharge-packages')),
+    () async => RechargeOffer.fromJson(await _get('/wallet/recharge-packages')),
   );
 }
 

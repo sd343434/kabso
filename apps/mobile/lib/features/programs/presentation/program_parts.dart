@@ -222,12 +222,7 @@ class ProgramPillButton extends StatelessWidget {
 
 /// A tinted round tile with an icon (task rows, perks, events).
 class ProgramIconTile extends StatelessWidget {
-  const new({
-    required this.icon,
-    required this.hue,
-    super.key,
-    this.size = 44,
-  });
+  const new({required this.icon, required this.hue, super.key, this.size = 44});
 
   final IconData icon;
   final Color hue;
