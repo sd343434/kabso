@@ -236,7 +236,21 @@ jobs:
       - name: Analyze
         run: flutter analyze
       - name: Test
-        run: flutter test
+        run: |
+          set +e
+          flutter test --reporter json > r.json
+          code=$?
+          jq -r 'select(.type=="suite")|[.suite.id,.suite.path]|@tsv' r.json > suites.tsv
+          jq -r 'select(.type=="testStart")|[.test.id,.test.suiteID,.test.name]|@tsv' r.json > starts.tsv
+          jq -r 'select(.type=="testDone" and .result!="success" and (.hidden|not))|.testID' r.json | sort -u > failed.txt
+          while read id; do
+            line=$(awk -F'\t' -v i="$id" '$1==i' starts.tsv)
+            sid=$(echo "$line" | cut -f2); name=$(echo "$line" | cut -f3)
+            path=$(awk -F'\t' -v i="$sid" '$1==i{print $2}' suites.tsv)
+            err=$(jq -r --argjson i "$id" 'select(.type=="error" and .testID==$i)|.error' r.json | tr '\n' ' ' | cut -c1-900)
+            echo "::error::FAILED [$path] $name :: $err"
+          done < failed.txt
+          exit $code
       # D144: the local camera plugin is its own package (excluded from the
       # app's analysis above).
       - name: kabso_camera_fx — analyze and test

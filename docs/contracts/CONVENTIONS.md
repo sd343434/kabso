@@ -142,6 +142,8 @@ All non-2xx responses use one envelope:
 | 409 | `BOOST_ROOM_BUSY` | *(v1.33-live, DRAFT, D154b)* This live already has a traffic card running or waiting (one at a time per live). Nothing was charged (§10.34). |
 | 422 | `YOUTUBE_VIDEO_UNAVAILABLE` | *(v1.38-live, DRAFT, D154i)* The YouTube video does not exist, is private or may not be played in other apps (§10.39). |
 | 503 | `YOUTUBE_SEARCH_UNAVAILABLE` | *(v1.38-live, DRAFT, D154i)* YouTube search is not set up on this server (no `YOUTUBE_API_KEY`) or YouTube failed; paste a link instead (§10.39). |
+| 409 | `TASK_NOT_COMPLETED` | *(v1.44-social, DRAFT, D166)* A task claim whose task is not completed yet in its day or week (§10.41). Nothing was paid. |
+| 409 | `TASK_DAILY_CAP_REACHED` | *(v1.44-social, DRAFT, D166)* A daily task claim after the caller already got the day's cap of task and check-in coins (`TASK_DAILY_CAP_COINS`, §10.41). Nothing was paid; the task stays claimable on a later day only if it is done again then. |
 | 403 | `DM_NOT_ALLOWED` | *(v1.40-social, DRAFT, D155)* The recipient's «who can message you» setting (`whoCanMessage`) does not allow the caller (§11.13). Nothing was stored or charged. The app says the person does not accept messages. |
 | 403 | `DM_REQUEST_LIMIT` | *(v1.40-social, DRAFT, D155)* The caller already sent `DM_REQUEST_MAX_MESSAGES` (3) messages in a message request the recipient has not accepted (§11.13). The app says to wait for a reply. |
 | 403 | `DM_REQUEST_TEXT_ONLY` | *(v1.40-social, DRAFT, D155)* A picture or voice message in a message request (only text, a pack emoji or a gift until the recipient accepts, §11.13). |

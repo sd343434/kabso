@@ -89,6 +89,12 @@ export enum AuditAction {
   LIVE_FEATURE_REMOVE = 'live.feature.remove',
   /** v1.33-live (D154b): traffic cards granted by the boost-admin CLI. */
   LIVE_BOOST_CARD_GRANT = 'live.boost_card.grant',
+  /** v1.44-social (D166): events and tasks, changed only by the event-admin and task-admin CLIs. */
+  EVENT_CREATE = 'event.create',
+  EVENT_END = 'event.end',
+  EVENT_HOLD = 'event.hold',
+  EVENT_RELEASE = 'event.release',
+  TASK_UPDATE = 'task.update',
   // v1.28-live (DRAFT, D146): premium usernames and the username change (CONVENTIONS §10.32).
   USERNAME_CHANGE = 'user.username.change',
   PREMIUM_USERNAME_RENT = 'premium_username.rent',

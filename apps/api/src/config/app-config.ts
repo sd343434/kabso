@@ -6,6 +6,7 @@ import {
   type Env,
   type HostShareCategory,
   type RateLimitRule,
+  type RechargePackage,
 } from './env.schema.js';
 import { luckyTable, type LuckyTable } from '../modules/gifts/lucky-odds.js';
 
@@ -213,6 +214,20 @@ export interface AppConfig {
     readonly slots: number;
     readonly maxWaitMs: number;
   };
+  /** v1.44-social (D166): the Me hub's programs (CONVENTIONS §10.41). */
+  readonly programs: {
+    readonly taskDailyCapCoins: number;
+    readonly checkInCoins: number;
+    readonly checkInStreakBonusCoins: number;
+    readonly eventPrizeReviewMs: number;
+    readonly eventsSweepIntervalSeconds: number;
+    /** Coins spent in the window for SVIP 1, 2, … (ascending). */
+    readonly svipTiers: readonly number[];
+    readonly svipWindowDays: number;
+    readonly svipStatusDays: number;
+    readonly rechargePackages: readonly RechargePackage[];
+    readonly rechargeCurrency: string;
+  };
   /** v1.27-live (D132) lucky gifts (CONVENTIONS §10.27). */
   readonly lucky: {
     readonly enabled: boolean;
@@ -416,6 +431,18 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       prices: e.LIVE_BOOST_PRICES,
       slots: e.LIVE_BOOST_SLOTS,
       maxWaitMs: e.LIVE_BOOST_MAX_WAIT_MINUTES * 60_000,
+    },
+    programs: {
+      taskDailyCapCoins: e.TASK_DAILY_CAP_COINS,
+      checkInCoins: e.TASK_CHECK_IN_COINS,
+      checkInStreakBonusCoins: e.TASK_CHECK_IN_STREAK_BONUS_COINS,
+      eventPrizeReviewMs: e.EVENT_PRIZE_REVIEW_HOURS * 3_600_000,
+      eventsSweepIntervalSeconds: e.EVENTS_SWEEP_INTERVAL_SECONDS,
+      svipTiers: e.SVIP_TIERS,
+      svipWindowDays: e.SVIP_WINDOW_DAYS,
+      svipStatusDays: e.SVIP_STATUS_DAYS,
+      rechargePackages: e.WALLET_RECHARGE_PACKAGES,
+      rechargeCurrency: e.WALLET_RECHARGE_CURRENCY,
     },
     push: {
       credentialsFile: e.FIREBASE_CREDENTIALS_FILE ?? null,
