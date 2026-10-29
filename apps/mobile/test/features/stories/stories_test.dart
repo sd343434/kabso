@@ -2,6 +2,7 @@
 // full-screen viewer (seen, next/previous, viewers, delete, report, mute),
 // posting a story and the archive.
 
+import 'package:clock/clock.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -498,6 +499,9 @@ void main() {
 
     testWidgets('Arabic RTL at 360 dp and text scale 1.3: viewer and new '
         'story do not overflow', (tester) async {
+      // D167: a fixed clock 9 days after the story, so the header always
+      // shows its longest label (a full date) whatever day the suite runs.
+      await withClock(Clock.fixed(DateTime.utc(2026, 10, 30, 9)), () async {
       tester.platformDispatcher.textScaleFactorTestValue = 1.3;
       addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
       final repo = FakeStoriesRepository()
@@ -528,6 +532,7 @@ void main() {
       await settle(tester);
       expect(tester.takeException(), isNull);
       expect(find.byKey(NewStoryScreen.shareKey), findsOneWidget);
+      });
     });
   });
 }
