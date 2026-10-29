@@ -508,6 +508,13 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
     expect((await ctx.http.get(`/api/v1/events/${event.id}`)).status).toBe(401);
 
     const live = await ctx.http.get(`/api/v1/events/${event.id}/leaderboard`).set(auth(hostB));
+    process.stderr.write(
+      `DEBUG ${JSON.stringify({ viewer: viewer.id, hostA: hostA.id, hostB: hostB.id, fan: fan.id, now, start: event.startsAt, board: live.body.data.map((r: { user: { id: string; username: string }; score: number }) => [r.user.id, r.user.username, r.score]) })}\n`,
+    );
+    const rows = await ctx.prisma.$queryRaw<unknown[]>`
+      SELECT g.id::text, g.sender_id::text, gr.user_id::text, gr.coins::int, g.created_at FROM live_gift_recipients gr
+        JOIN live_gifts g ON g.id = gr.gift_id WHERE g.created_at >= ${event.startsAt} ORDER BY g.created_at`;
+    process.stderr.write(`DEBUG ${JSON.stringify(rows)}\n`);
     expect(live.status).toBe(200);
     expectContract(live, 'getEventLeaderboard');
     expect(live.body.final).toBe(false);
@@ -591,6 +598,7 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
       // The review window runs from the freeze.
       clock.advance(25 * HOUR_MS);
       await sweeper.sweep();
+      process.stderr.write(`DEBUG2 ${JSON.stringify(await ctx.prisma.event.findUnique({ where: { id: event.id } }))} ${JSON.stringify(await ctx.prisma.eventResult.findMany({ where: { eventId: event.id } }), (_k, v: unknown) => (typeof v === 'bigint' ? v.toString() : v))} now=${clock.now().toISOString()} fan=${fan.id} host=${host.id}\n`);
       expect((await ledger(fan, 'EVENT_PRIZE')).map((p) => Number(p.delta))).toEqual([300]);
     } finally {
       clock.advance(-55 * HOUR_MS);
