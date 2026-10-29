@@ -7,6 +7,7 @@
  * `pnpm task:admin …`.
  *
  *   pnpm task:admin list
+ *   pnpm task:admin seed-defaults   # adds the default tasks that are missing (never changes a row)
  *   pnpm task:admin set <CODE> [--reward <coins>] [--target <n>] [--enabled true|false]
  *                   [--name-ar <text>] [--name-en <text>] [--sort <n>]
  *
@@ -19,6 +20,7 @@ import { parseArgs } from 'node:util';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../generated/prisma/client.js';
 import { AuditAction } from '../common/audit/audit.service.js';
+import { seedDefaultTasksIn } from '../modules/programs/programs-seed.js';
 
 function fail(message: string): never {
   process.stderr.write(`${message}\n`);
@@ -27,6 +29,7 @@ function fail(message: string): never {
 
 const USAGE = [
   'Usage: pnpm task:admin list',
+  '       pnpm task:admin seed-defaults',
   '       pnpm task:admin set <CODE> [--reward <coins>] [--target <n>] [--enabled true|false]',
   '         [--name-ar <text>] [--name-en <text>] [--sort <n>]',
 ].join('\n');
@@ -115,6 +118,12 @@ try {
       if (first !== undefined) fail(USAGE);
       await list();
       break;
+    case 'seed-defaults': {
+      if (first !== undefined) fail(USAGE);
+      const added = await seedDefaultTasksIn(prisma);
+      process.stdout.write(`Added ${String(added)} default task(s).\n`);
+      break;
+    }
     case 'set':
       if (!first) fail(USAGE);
       await set(first, rest);

@@ -103,3 +103,90 @@ export function parsePrizeText(text: string): EventPrize[] | null {
 export function prizeForRank(prizes: readonly EventPrize[], rank: number): number {
   return prizes.find((p) => rank >= p.rankFrom && rank <= p.rankTo)?.coins ?? 0;
 }
+
+/** A default task (the values seeded by migration 20261214100000_me_programs). */
+export interface DefaultTask {
+  readonly code: string;
+  readonly period: 'DAILY' | 'WEEKLY';
+  readonly metric: TaskMetric;
+  readonly target: number;
+  readonly rewardCoins: number;
+  readonly audience: 'EVERYONE' | 'HOSTS';
+  readonly nameAr: string;
+  readonly nameEn: string;
+  readonly sortOrder: number;
+}
+
+/**
+ * The default tasks (owner 2026-10-29, the reference's tasks adapted to Kabso; CP-024 T7/T8 for hosts).
+ * Migration 20261214100000_me_programs seeds the same rows; `task-admin seed-defaults` adds any that are
+ * missing (it never changes an existing row).
+ */
+export const DEFAULT_TASKS: readonly DefaultTask[] = [
+  {
+    code: 'WATCH_LIVE',
+    period: 'DAILY',
+    metric: 'WATCH_LIVES',
+    target: 1,
+    rewardCoins: 5,
+    audience: 'EVERYONE',
+    nameAr: 'شاهد بثاً لمدة 15 ثانية',
+    nameEn: 'Watch a live for 15 seconds',
+    sortOrder: 10,
+  },
+  {
+    code: 'FOLLOW_USERS',
+    period: 'DAILY',
+    metric: 'FOLLOWS',
+    target: 10,
+    rewardCoins: 5,
+    audience: 'EVERYONE',
+    nameAr: 'تابع مستخدمين آخرين',
+    nameEn: 'Follow other users',
+    sortOrder: 20,
+  },
+  {
+    code: 'LIVE_CHAT',
+    period: 'DAILY',
+    metric: 'LIVE_CHAT_MESSAGES',
+    target: 10,
+    rewardCoins: 5,
+    audience: 'EVERYONE',
+    nameAr: 'دردش في غرفة بث',
+    nameEn: 'Chat in a live room',
+    sortOrder: 30,
+  },
+  {
+    code: 'SEND_GIFTS',
+    period: 'DAILY',
+    metric: 'GIFT_SENDS',
+    target: 10,
+    rewardCoins: 15,
+    audience: 'EVERYONE',
+    nameAr: 'أرسل هدايا',
+    nameEn: 'Send gifts',
+    sortOrder: 40,
+  },
+  {
+    code: 'HOST_LIVE_MINUTES',
+    period: 'WEEKLY',
+    metric: 'HOST_LIVE_MINUTES',
+    target: 60,
+    rewardCoins: 100,
+    audience: 'HOSTS',
+    nameAr: 'ابثّ 60 دقيقة هذا الأسبوع',
+    nameEn: 'Go live for 60 minutes this week',
+    sortOrder: 50,
+  },
+  {
+    code: 'HOST_GIFT_COINS',
+    period: 'WEEKLY',
+    metric: 'HOST_GIFT_COINS',
+    target: 1000,
+    rewardCoins: 100,
+    audience: 'HOSTS',
+    nameAr: 'استقبل هدايا بقيمة 1000 عملة',
+    nameEn: 'Receive gifts worth 1,000 coins',
+    sortOrder: 60,
+  },
+];

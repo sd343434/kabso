@@ -1,8 +1,11 @@
 import { randomBytes } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { loadConfig } from '../../config/app-config.js';
 import {
   CHECK_IN_CYCLE_DAYS,
+  DEFAULT_TASKS,
   TASK_METRICS,
   cappedReward,
   checkInCycleDay,
@@ -42,6 +45,33 @@ describe('D166 check-in rules', () => {
   it('moves calendar dates across months and years', () => {
     expect(addDays('2026-10-31', 1)).toBe('2026-11-01');
     expect(addDays('2027-01-01', -1)).toBe('2026-12-31');
+  });
+
+  it('the migration seeds exactly the default tasks', () => {
+    const sql = readFileSync(
+      fileURLToPath(
+        new URL('../../../prisma/migrations/20261214100000_me_programs/migration.sql', import.meta.url),
+      ),
+      'utf8',
+    );
+    const rows = [
+      ...sql.matchAll(
+        /\('([A-Z_]+)', '(DAILY|WEEKLY)', '([A-Z_]+)', (\d+), (\d+), '(EVERYONE|HOSTS)', '([^']+)', '([^']+)', (\d+)\)/g,
+      ),
+    ];
+    expect(
+      rows.map((m) => ({
+        code: m[1],
+        period: m[2],
+        metric: m[3],
+        target: Number(m[4]),
+        rewardCoins: Number(m[5]),
+        audience: m[6],
+        nameAr: m[7],
+        nameEn: m[8],
+        sortOrder: Number(m[9]),
+      })),
+    ).toEqual(DEFAULT_TASKS);
   });
 
   it('knows the task metrics', () => {

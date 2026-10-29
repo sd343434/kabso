@@ -615,6 +615,9 @@ void main() {
       await tester.tap(find.text(_en.eventsTabPermanent));
       await tester.pumpAndSettle();
       expect(find.byKey(EventCenterScreen.eventKey('p1')), findsOneWidget);
+      // The third tab may start off-screen at 360 lp (the tabs scroll).
+      await tester.ensureVisible(find.text(_en.eventsTabRegional));
+      await tester.pumpAndSettle();
       await tester.tap(find.text(_en.eventsTabRegional));
       await tester.pumpAndSettle();
       expect(find.text(_en.eventsNoCountry), findsOneWidget);
