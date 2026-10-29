@@ -1,0 +1,130 @@
+ the check provider type is exported
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/premium/change_username_test.dart: rule messages as typed; premium names offer the store
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/premium/change_username_test.dart: a premium username active: give it back first (Arabic)
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/premium/change_username_test.dart: a server 409 USERNAME_TAKEN shows under the field
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/premium/premium_handle_test.dart: KHandle plain: a premium username has no @, a regular one keeps it
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/premium/premium_handle_test.dart: KHandle isolated: both left to right inside Arabic
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/premium/premium_handle_test.dart: KHandle text in ar
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/premium/premium_handle_test.dart: KHandle text in en
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/premium/premium_handle_test.dart: comments and stories: a premium mention shows without @
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/premium/premium_handle_test.dart: the premium strings: no @ before the premium name, @ before the regular one (Arabic and English)
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/premium/premium_handle_test.dart: follow rows read the premium tier (for the chat they open)
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/programs/programs_d166_test.dart: calendar layout weeks start on the locale day; days outside the month fill
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/programs/programs_d166_test.dart: calendar layout an event spans its days and wraps across weeks
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/programs/programs_d166_test.dart: calendar layout overlapping events take separate lanes
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/premium/premium_handle_test.dart: Settings › Username (ar): premium without @
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/premium/premium_handle_test.dart: Settings › Username (ar): regular keeps @
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/premium/premium_handle_test.dart: Change username (ar): the premium badge is read without @
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/programs/programs_d166_test.dart: task center the level card, the check-in strip and the three button states: go, claim and done
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/programs/programs_d166_test.dart: task center check-in once; then «Done» and disabled
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/premium/premium_handle_test.dart: Chat header (ar): premium without @, regular with @
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/programs/programs_d166_test.dart: task center the daily cap refusal has its own message
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/premium/premium_handle_test.dart: Live username tag (ar): shown, read and copied without @ for a premium username
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/premium/premium_handle_test.dart: Post caption (ar): a premium mention without @, a regular one with @
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/programs/programs_d166_test.dart: task center «Go» leads to where the task is done
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/programs/programs_d166_test.dart: task center weekly tab: honest empty state for non-hosts
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/premium/premium_handle_test.dart: Settings › Username (en): premium without @
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/programs/programs_d166_test.dart: task center weekly host tasks with their progress
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/programs/programs_d166_test.dart: task center a failure shows the error with a retry
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/premium/premium_handle_test.dart: Settings › Username (en): regular keeps @
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/premium/premium_handle_test.dart: Change username (en): the premium badge is read without @
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/programs/programs_d166_test.dart: task center Arabic: right to left, Arabic labels
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/premium/premium_handle_test.dart: Chat header (en): premium without @, regular with @
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/programs/programs_d166_test.dart: event center the intro, the month and a tappable event bar
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/premium/premium_handle_test.dart: Live username tag (en): shown, read and copied without @ for a premium username
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/premium/premium_handle_test.dart: Post caption (en): a premium mention without @, a regular one with @
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/programs/programs_d166_test.dart: event center an empty month says so (never sample events)
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/programs/programs_d166_test.dart: event center permanent and regional tabs
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/programs/programs_d166_test.dart: event center a failure shows the error with a retry
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/programs/programs_d166_test.dart: event center Arabic calendar mirrors (RTL)
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/programs/programs_d166_test.dart: event center the detail: rules, prizes and the final board
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/programs/programs_d166_test.dart: svip not SVIP yet: status, track, perks «Soon», the bar
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/programs/programs_d166_test.dart: svip SVIP 1 until a date
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/programs/programs_d166_test.dart: svip a failure shows the error with a retry
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/programs/programs_d166_test.dart: wallet recharge packages from the server, the deal ribbon, the selection; the purchase stays disabled (B5)
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/programs/programs_d166_test.dart: wallet recharge the history icon opens the history tab
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages_attachments_test.dart: photo or video from the MIME type, else the extension
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/programs/programs_d166_test.dart: wallet recharge no packages configured: an empty state
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/safety/safety_test.dart: wire block, mute, blocks, report and privacy
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages_attachments_test.dart: the sheet offers the library, a photo and a video
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages_attachments_test.dart: a picked photo appears at once in the conversation
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages_attachments_test.dart: a recorded video appears as a playable tile
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages_attachments_test.dart: what was just attached scrolls into view below a long conversation
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages_attachments_test.dart: cancelling adds nothing
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages_attachments_test.dart: refused access explains where to allow it
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages_attachments_test.dart: D155: the real chat attaches photos only (no video)
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/safety/safety_test.dart: screens profile menu: mute with Undo, report with a reason, block after confirming goes back
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/safety/safety_test.dart: screens CP-007: a muted profile offers Unmute instead of Mute
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/safety/safety_test.dart: screens CP-007: muted accounts from Settings; Unmute removes them; none says so
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/safety/safety_test.dart: screens post menu: mute the author
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/safety/safety_test.dart: screens Settings opens privacy: a change is saved at once; a failed change keeps the old choice
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/safety/safety_test.dart: screens blocked accounts: Unblock removes them; none says so
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/safety/safety_test.dart: screens Arabic RTL at 360 dp and text scale 1.3: privacy and blocked screens fit
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_emoji_panel_test.dart: the emoji button opens the shared panel under the field, no keyboard: the owner's packs first, then the Unicode groups
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_emoji_panel_test.dart: a pack emoji goes in as its token and the bubble plays it (big when alone); a Unicode one goes in as itself; the keyboard key brings the keyboard back
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/chat_gift_test.dart: the test conversation holds a received gift
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_emoji_panel_test.dart: the panel follows the app theme (light and dark)
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_emoji_panel_test.dart: reduced motion: the pack emojis show their first frame
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/chat_gift_test.dart: the box lists the gifts; send waits for a choice; the gift appears with its count
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_emoji_panel_test.dart: Arabic RTL at 360 × 800, text scale 1.3: the first pack at the right, no overflow
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/chat_gift_test.dart: closing the box sends nothing
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/chat_gift_test.dart: the box fits at 360x800, text scale 1.3 (ar)
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_emoji_panel_test.dart: D155: the real conversation opens the emoji panel under its field
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/chat_gift_test.dart: the box fits at 360x800, text scale 1.3 (en)
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/chat_gift_test.dart: D155: the real chat has a working gift button
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_d155_test.dart: the list inbox newest first with previews, unread and the requests box with its count and hint; a row opens the conversation
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_d155_test.dart: the list previews of pictures, voice, gifts and expired messages
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_d155_test.dart: the list empty boxes say so honestly
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/chat_restyle_test.dart: composer empty: a disabled microphone (no recorder here); typed: a red send button
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/chat_restyle_test.dart: composer D155: the real chat shows the same composer, working: the microphone records a voice note
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/chat_restyle_test.dart: composer attach at the start, send at the end (ar)
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_d155_test.dart: a conversation shows messages with ✓/✓✓ and the 24-hour notice, sends, receives by polling and marks read
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/chat_restyle_test.dart: composer attach at the start, send at the end (en)
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/chat_restyle_test.dart: conversation header status, day chip, times, ticks and typing
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/chat_restyle_test.dart: conversation the sender picture sits by the last of their messages in a row (ar)
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_d155_test.dart: a conversation long press: delete for me / for everyone, report others
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/chat_restyle_test.dart: conversation the sender picture sits by the last of their messages in a row (en)
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/chat_restyle_test.dart: conversation the typing dots stop moving (bounded motion)
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_d155_test.dart: a conversation mute and delete the conversation from the menu
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/chat_restyle_test.dart: conversation a message just sent carries one tick
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_d155_test.dart: a conversation a voice note: record, stop, upload as DM_VOICE and send
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/chat_restyle_test.dart: conversation list search filters by name and message
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/chat_restyle_test.dart: conversation list header: search at the start, title centred, "+" at the end (ar)
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/chat_restyle_test.dart: conversation list header: search at the start, title centred, "+" at the end (en)
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_d155_test.dart: a gift in the conversation: the panel sends through the DM API, closes, and the gift shows as a message
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_d155_test.dart: D154 × D155: the conversation panel offers paid quips (sent through the DM API) but not the free ones of a live
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/chat_restyle_test.dart: conversation list "+" picks someone to message and opens their thread
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/chat_restyle_test.dart: conversation list filter chips: unread, groups, favourites, all
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_d155_test.dart: message requests a request to the caller: Accept, Delete or Block; nothing is marked read before accepting
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/chat_restyle_test.dart: conversation list rows announce the unread count, presence and mute
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_d155_test.dart: message requests a request the caller sent: messages left; at the limit or refused by privacy the composer gives way to a notice
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/chat_restyle_test.dart: conversation list "active now" lists the online people and opens their thread, online
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_d155_test.dart: message requests a server refusal is said in words
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_d155_test.dart: message requests a gift to a stranger warns first: the coins are spent even if they never accept
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_d155_test.dart: privacy and badge «who can message you»: saved at once, with the 24-hour hint
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_d155_test.dart: privacy and badge the Messages badge is the server unread count; 0 signed out
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_d155_test.dart: privacy and badge pushes of direct messages open the conversation; polling backs off while quiet
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_d155_test.dart: layout list and conversation at 360×800, text ×1.3 (ar) without overflow
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_d155_test.dart: layout list and conversation at 360×800, text ×1.3 (en) without overflow
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_d155_test.dart: layout Arabic: received messages start on the right, sent ones on the left
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_d155_test.dart: every kind of push body and composer state is localized
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_d165_test.dart: search the search button filters the box by name or username, says when nothing matches and closes back to the whole box
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_d165_test.dart: search Arabic RTL: the search field reads right to left
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_d165_test.dart: row actions mark read reads up to the newest message; mark unread puts a dot; mute; the badge is read again
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_d165_test.dart: row actions a request is never read from the list (the sender would know); it can be marked unread
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_d165_test.dart: row actions delete asks first and removes the row; block blocks the person and removes the row (Arabic RTL)
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_d165_test.dart: row actions a failure is said in words and changes nothing
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_d165_test.dart: new message the pen finds someone and opens the conversation
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_d165_test.dart: new message Arabic RTL at 360×800 and text scale 1.3
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_d165_test.dart: the conversation opening a conversation marked unread clears the mark
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_d165_test.dart: the conversation …and with messages received it reads them
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_d165_test.dart: the conversation …but a request marked unread only loses the mark: nothing is read before it is accepted
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_d165_test.dart: the conversation long press copies a text message; the header opens the profile
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_d165_test.dart: the conversation a gift or voice message offers no copy
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_d165_test.dart: composer tooltips busy (sending): the gift and the microphone wait but still say what they do — never «not yet»
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_d165_test.dart: composer tooltips ready: both work
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_d165_test.dart: composer tooltips a recording can always be stopped and sent
+✅ /home/runner/work/kabso/kabso/apps/mobile/test/features/messages/dm_d165_test.dart: composer tooltips no recorder here: the microphone says so (Arabic)
+::endgroup::
+
+::error::2590 tests passed, 2 failed.

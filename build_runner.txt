@@ -1,0 +1,19 @@
+  compiling builders/aot
+  34s compiling builders/aot
+W These options have been removed and were ignored: --delete-conflicting-outputs
+  0s freezed on 610 inputs; lib/app/app.dart
+  1s freezed on 610 inputs: 1 no-op; spent 1s sdk; lib/app/router/app_router.dart
+  12s freezed on 610 inputs: 7 no-op; spent 9s analyzing, 2s resolving, 1s sdk; lib/app/shell/feed_tabs_scaffold.dart
+  14s freezed on 610 inputs: 2 output, 72 no-op; spent 10s analyzing, 2s resolving, 1s sdk; lib/features/auth/presentation/onboarding.dart
+  19s freezed on 610 inputs: 5 output, 164 no-op; spent 14s analyzing, 3s resolving, 1s sdk; lib/features/live/application/live_gift_providers.dart
+  20s freezed on 610 inputs: 11 output, 331 no-op; spent 15s analyzing, 3s resolving, 1s sdk; lib/features/posts/presentation/edit_post_screen.dart
+  21s freezed on 610 inputs: 12 output, 550 no-op; spent 16s analyzing, 3s resolving, 1s sdk; test/goldens/search_home_golden_test.dart
+  21s freezed on 610 inputs: 12 output, 598 no-op; spent 16s analyzing, 3s resolving, 1s sdk
+  0s json_serializable on 1220 inputs; lib/app/app.dart
+  1s json_serializable on 1220 inputs: 62 skipped, 3 output, 62 no-op; lib/features/auth/data/dtos.freezed.dart
+  2s json_serializable on 1220 inputs: 182 skipped, 6 output, 189 no-op; spent 2s analyzing; lib/features/live/data/beauty/beauty_pipeline_web.freezed.dart
+  3s json_serializable on 1220 inputs: 543 skipped, 12 output, 556 no-op; spent 2s analyzing; test/goldens/go_live_golden_test.freezed.dart
+  3s json_serializable on 1220 inputs: 598 skipped, 12 output, 610 no-op; spent 2s analyzing
+  0s source_gen:combining_builder on 1220 inputs; lib/app/app.dart
+  0s source_gen:combining_builder on 1220 inputs: 598 skipped, 12 output, 610 no-op
+  Built with build_runner/aot in 59s; wrote 36 outputs.
