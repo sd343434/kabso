@@ -1439,3 +1439,38 @@ and the API started as the runtime role with `/health/ready` 200; LiveKit 1.9.1 
 generated `livekit.yaml`; `caddy validate` (2.10.2) accepted the Caddyfile; `docker compose
 config` accepted the compose file; `ci.yml` parses as YAML (no actionlint available). **Not verified yet:** the timer's first automatic update, real mail delivery, and WebRTC media through the server's firewall (a TURN server may be needed for
 some mobile networks).
+
+### 5.25 Video posts and reels (migration `20261211090000_video_posts_reels`; D162) — [IMPLEMENTED, draft contract v1.41-social; not deployed, not device-tested]
+
+Video in «منشور جديد» (the «فيديو» tab), reels («ريلز») in «لحظات» and the ➕ menu (CONVENTIONS
+§11.14, CP-023). **No server-side transcoding:** the API checks the uploaded MP4 / QuickTime file
+(container, length, H.264/HEVC track, size) without decoding it and serves it as uploaded.
+
+- **Migration** with the usual `migrate` job (§5), after D155's (§5.24): enum `post_format`,
+  `posts.format` (default `POST`: every existing post stays a post), `media_assets.poster_key`, the
+  partial index `posts_reels_author_published_idx`, and wider CHECKs — `media_uploads_byte_size_range`
+  (≤ 209 715 200), `media_assets_kind_known` (+ `POST_VIDEO`, `REEL_VIDEO`, `VIDEO_POSTER`),
+  `media_assets_duration_shape` (reels ≤ 60 000 ms, post videos ≤ 180 000 ms) and the new
+  `media_assets_poster_shape`. No GRANT (default privileges), no backfill.
+- **Settings:** none new; no secret. Videos ride the existing upload switch and storage (§5.3):
+  `MEDIA_UPLOADS_ENABLED=true` plus `S3_*` and `MEDIA_PUBLIC_BASE_URL`. With uploads off, the app
+  says video uploads are unavailable and posts nothing. The upload rate limit
+  (`RATE_LIMIT_MEDIA_UPLOAD_USER`, 60 / hour) now counts two uploads per video (the file and its
+  poster); `GET /feed/reels` shares `RATE_LIMIT_FEED_USER`.
+- **Limits (code constants, contract):** reel ≤ 100 MiB and 1–60 s; post video ≤ 200 MiB and
+  1–180 s; 16–4 096 px per side; `moov` ≤ 16 MiB.
+- **Storage:** the storage key additionally needs **`CopyObject`** (the API copies
+  `uploads/{userId}/{uploadId}` to `media/{mediaId}/video.mp4|.mov` inside the bucket — the bytes
+  never pass through the API) and **ranged `GetObject`** (the container is read by its box headers
+  and the `moov` box only). Cloudflare R2's "Object Read & Write" token covers both. The video's
+  poster and thumbnail are the phone-made first frame (`media/{posterId}/1080.webp` and
+  `320.webp`). `media/` stays the only public prefix; it must serve HTTP **range requests**
+  (R2 and its custom domains do) so players can seek and play files whose `moov` is at the end.
+- **Cost / capacity:** files are streamed as uploaded (a 60 s phone reel is typically 20–120 MB),
+  so egress grows with views; consider a CDN cache rule on `media/*/video.*` (immutable). The
+  never-attached sweep (`MEDIA_SWEEP_INTERVAL_SECONDS`) also deletes abandoned videos and posters.
+- **Moderation:** a post or reel with a video is `PENDING` (visible to its author only), like a
+  photo post (CP-006 Q2, B13), until a moderation provider exists or the owner decides otherwise.
+- **Later (not in this step):** server-side transcoding / HLS / server thumbnails (CP-006 Q1:
+  Cloudflare Stream, Mux or FFmpeg workers), video stories, personalised reels ranking (M5).
+
