@@ -56,15 +56,11 @@ class EventDetailScreen extends ConsumerWidget {
       }
     }
 
-    final List<Widget> children = switch (detail) {
+    final children = switch (detail) {
       AsyncValue(value: final e?) => [
         ClipRRect(
           borderRadius: BorderRadius.circular(KRadius.lg),
-          child: EventBanner(
-            event: e,
-            hue: ProgramHues.of(e.id),
-            height: 140,
-          ),
+          child: EventBanner(event: e, hue: ProgramHues.of(e.id), height: 140),
         ),
         const SizedBox(height: KSpacing.md),
         Row(
@@ -187,11 +183,7 @@ class EventDetailScreen extends ConsumerWidget {
 }
 
 class _Board extends StatelessWidget {
-  const new({
-    required this.metric,
-    required this.board,
-    required this.onRetry,
-  });
+  const new({required this.metric, required this.board, required this.onRetry});
 
   final String metric;
   final AsyncValue<EventLeaderboard> board;
@@ -202,7 +194,7 @@ class _Board extends StatelessWidget {
     final l10n = context.l10n;
     final p = context.palette;
     final t = context.textStyles;
-    final Widget child = switch (board) {
+    final child = switch (board) {
       AsyncValue(value: final b?) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -263,7 +255,8 @@ class _Board extends StatelessWidget {
     return ProgramSection(
       key: EventDetailScreen.boardKey,
       title: l10n.eventsBoard,
-      subtitle: '${isFinal ? l10n.eventsBoardFinal : l10n.eventsBoardLive}'
+      subtitle:
+          '${isFinal ? l10n.eventsBoardFinal : l10n.eventsBoardLive}'
           ' · $metric',
       child: child,
     );
@@ -295,7 +288,8 @@ class _RankRow extends StatelessWidget {
         l10n.eventsRank('${row.rank}'),
         name,
         KFormat.grouped(row.score),
-        if (row.prizeCoins > 0) l10n.meHubCoins(KFormat.grouped(row.prizeCoins)),
+        if (row.prizeCoins > 0)
+          l10n.meHubCoins(KFormat.grouped(row.prizeCoins)),
       ].join('، '),
       excludeSemantics: true,
       child: Padding(

@@ -147,7 +147,7 @@ SvipStatus _svip({int tier = 0}) => SvipStatus(
 class _FakePrograms implements ProgramsRepository {
   new({
     MyTasks? tasks,
-    this.events = const [],
+    this.eventItems = const [],
     this.country = 'SA',
     this.svipStatus,
     this.fail = false,
@@ -156,7 +156,7 @@ class _FakePrograms implements ProgramsRepository {
   }) : tasksValue = tasks ?? _tasks();
 
   MyTasks tasksValue;
-  final List<EventSummary> events;
+  final List<EventSummary> eventItems;
   final String? country;
   final SvipStatus? svipStatus;
   final bool fail;
@@ -206,7 +206,7 @@ class _FakePrograms implements ProgramsRepository {
     return EventList(
       country: country,
       events: [
-        for (final e in events)
+        for (final e in eventItems)
           if ((tab == EventTab.permanent) == e.permanent) e,
       ],
     );
@@ -442,7 +442,10 @@ void main() {
         tester.widget<Text>(action('FOLLOW_USERS')).data,
         _en.tasksActionClaim,
       );
-      expect(tester.widget<Text>(action('LIVE_CHAT')).data, _en.tasksActionDone);
+      expect(
+        tester.widget<Text>(action('LIVE_CHAT')).data,
+        _en.tasksActionDone,
+      );
 
       await tester.tap(find.byKey(TaskCenterScreen.actionKey('FOLLOW_USERS')));
       await tester.pumpAndSettle();
@@ -552,7 +555,7 @@ void main() {
       tester,
     ) async {
       final programs = _FakePrograms(
-        events: [
+        eventItems: [
           _event(
             'e1',
             start: DateTime(2026, 10, 13),
@@ -577,9 +580,7 @@ void main() {
       expect(find.text('event e1'), findsOneWidget);
     });
 
-    testWidgets('an empty month says so (never sample events)', (
-      tester,
-    ) async {
+    testWidgets('an empty month says so (never sample events)', (tester) async {
       await _pump(
         tester,
         EventCenterScreen(initialMonth: now),
@@ -588,6 +589,7 @@ void main() {
       await tester.scrollUntilVisible(
         find.byKey(EventCenterScreen.emptyKey),
         100,
+        scrollable: find.byType(Scrollable).last,
       );
       expect(find.text(_en.eventsEmptyMonth), findsOneWidget);
       await tester.tap(find.byKey(EventCenterScreen.nextKey));
@@ -601,13 +603,8 @@ void main() {
     testWidgets('permanent and regional tabs', (tester) async {
       final programs = _FakePrograms(
         country: null,
-        events: [
-          _event(
-            'p1',
-            start: DateTime(2026, 9),
-            end: null,
-            permanent: true,
-          ),
+        eventItems: [
+          _event('p1', start: DateTime(2026, 9), end: null, permanent: true),
         ],
       );
       await _pump(

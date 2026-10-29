@@ -73,7 +73,8 @@ class _TaskCenterScreenState extends ConsumerState<TaskCenterScreen> {
     } on Object catch (e) {
       if (!mounted) return;
       final failure = toAppFailure(e);
-      final cap = failure is ServerFailure &&
+      final cap =
+          failure is ServerFailure &&
           failure.rawCode == 'TASK_DAILY_CAP_REACHED';
       KSnack.error(
         context,
@@ -106,7 +107,7 @@ class _TaskCenterScreenState extends ConsumerState<TaskCenterScreen> {
     final tasks = ref.watch(myTasksProvider);
     final repo = ref.read(programsRepositoryProvider);
 
-    final List<Widget> body = switch (tasks) {
+    final body = switch (tasks) {
       AsyncValue(:final value?) => [
         const _LevelCard(),
         if (_tab == 0) ...[
@@ -280,11 +281,7 @@ class _LevelCard extends ConsumerWidget {
               child: Row(
                 children: [
                   if (level != null && brief != null)
-                    KLevelEmblem(
-                      category: level.category,
-                      tier: tier,
-                      size: 64,
-                    )
+                    KLevelEmblem(category: level.category, tier: tier, size: 64)
                   else
                     const ProgramIconTile(
                       icon: Icons.diamond_rounded,
@@ -340,11 +337,7 @@ class _LevelCard extends ConsumerWidget {
 /// The 7-day check-in strip «تسجيل الدخول اليومي»: today and the next six
 /// days (the 7th of the cycle carries the bonus) and the check-in button.
 class _CheckInCard extends StatelessWidget {
-  const new({
-    required this.state,
-    required this.busy,
-    required this.onCheckIn,
-  });
+  const new({required this.state, required this.busy, required this.onCheckIn});
 
   final CheckInState state;
   final bool busy;
@@ -369,7 +362,9 @@ class _CheckInCard extends StatelessWidget {
             Row(
               children: [
                 for (final (i, day) in state.days.indexed)
-                  Expanded(child: _DaySlot(index: i, day: day, state: state)),
+                  Expanded(
+                    child: _DaySlot(index: i, day: day, state: state),
+                  ),
               ],
             ),
             const SizedBox(height: KSpacing.md),

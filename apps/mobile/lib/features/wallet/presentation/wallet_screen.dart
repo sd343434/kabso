@@ -45,8 +45,10 @@ String signedCoins(int delta) =>
     delta > 0 ? '+${KFormat.grouped(delta)}' : KFormat.grouped(delta);
 
 /// A price in [currency] from minor units (cents), Latin digits.
-String formatPrice(int minor, String currency) =>
-    NumberFormat.simpleCurrency(locale: 'en', name: currency).format(minor / 100);
+String formatPrice(int minor, String currency) => NumberFormat.simpleCurrency(
+  locale: 'en',
+  name: currency,
+).format(minor / 100);
 
 /// `/wallet` (D164; D166 the recharge screen of the owner's reference): two
 /// tabs. «العملات»: the real coin balance (`GET /wallet/me`) with a history
@@ -215,7 +217,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
       ),
     );
 
-    final List<Widget> packages = switch (offer) {
+    final packages = switch (offer) {
       AsyncValue(value: final o?) when o.packages.isEmpty => [
         KEmptyState(
           key: WalletScreen.packagesEmptyKey,

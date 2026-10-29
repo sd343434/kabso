@@ -58,8 +58,7 @@ class _EventCenterScreenState extends ConsumerState<EventCenterScreen> {
     _ => (tab: EventTab.calendar, month: monthKey(_month)),
   };
 
-  void _open(EventSummary e) =>
-      unawaited(context.push(AppRoutes.event(e.id)));
+  void _open(EventSummary e) => unawaited(context.push(AppRoutes.event(e.id)));
 
   Future<void> _refresh() async {
     ref.invalidate(eventListProvider(_key));
@@ -78,43 +77,44 @@ class _EventCenterScreenState extends ConsumerState<EventCenterScreen> {
     final list = ref.watch(eventListProvider(key));
     final localeTag = Localizations.localeOf(context).toLanguageTag();
 
-    final List<Widget> content = switch (list) {
-      AsyncValue(:final value?) => _tab == 0
-          ? [
-              EventCalendar(
-                month: _month,
-                events: value.events,
-                onOpen: _open,
-              ),
-              if (value.events.isEmpty)
+    final content = switch (list) {
+      AsyncValue(:final value?) =>
+        _tab == 0
+            ? [
+                EventCalendar(
+                  month: _month,
+                  events: value.events,
+                  onOpen: _open,
+                ),
+                if (value.events.isEmpty)
+                  KEmptyState(
+                    key: EventCenterScreen.emptyKey,
+                    icon: Icons.event_busy_rounded,
+                    title: l10n.eventsEmptyMonth,
+                    message: l10n.eventsEmptyBody,
+                    compact: true,
+                  ),
+              ]
+            : value.events.isEmpty
+            ? [
                 KEmptyState(
                   key: EventCenterScreen.emptyKey,
-                  icon: Icons.event_busy_rounded,
-                  title: l10n.eventsEmptyMonth,
-                  message: l10n.eventsEmptyBody,
+                  icon: _tab == 2
+                      ? Icons.public_rounded
+                      : Icons.event_available_rounded,
+                  title: _tab == 2 && value.country == null
+                      ? l10n.eventsNoCountry
+                      : l10n.eventsEmpty,
+                  message: _tab == 2 && value.country == null
+                      ? l10n.eventsNoCountryBody
+                      : l10n.eventsEmptyBody,
                   compact: true,
                 ),
-            ]
-          : value.events.isEmpty
-          ? [
-              KEmptyState(
-                key: EventCenterScreen.emptyKey,
-                icon: _tab == 2
-                    ? Icons.public_rounded
-                    : Icons.event_available_rounded,
-                title: _tab == 2 && value.country == null
-                    ? l10n.eventsNoCountry
-                    : l10n.eventsEmpty,
-                message: _tab == 2 && value.country == null
-                    ? l10n.eventsNoCountryBody
-                    : l10n.eventsEmptyBody,
-                compact: true,
-              ),
-            ]
-          : [
-              for (final e in value.events)
-                _EventCard(event: e, localeTag: localeTag, onOpen: _open),
-            ],
+              ]
+            : [
+                for (final e in value.events)
+                  _EventCard(event: e, localeTag: localeTag, onOpen: _open),
+              ],
       AsyncValue(:final error?, isLoading: false) => [
         FailureErrorState(
           title: l10n.eventsLoadError,
@@ -380,9 +380,7 @@ class _EventCard extends StatelessWidget {
                             const SizedBox(height: KSpacing.xxs),
                             Text(
                               dates,
-                              style: t.caption.copyWith(
-                                color: p.textSecondary,
-                              ),
+                              style: t.caption.copyWith(color: p.textSecondary),
                             ),
                           ],
                         ),

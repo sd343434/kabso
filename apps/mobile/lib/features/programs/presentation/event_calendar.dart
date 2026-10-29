@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show immutable;
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/programs/data/programs_repository.dart';
@@ -72,9 +71,7 @@ List<CalendarWeek> layoutMonth(
       // The last day the event runs (its end is exclusive).
       final last = endsAt == null
           ? weekEnd
-          : _day(
-              endsAt.toLocal().subtract(const Duration(milliseconds: 1)),
-            );
+          : _day(endsAt.toLocal().subtract(const Duration(milliseconds: 1)));
       if (last.isBefore(weekStart) || start.isAfter(weekEnd)) continue;
       final from = start.isBefore(weekStart) ? weekStart : start;
       final to = last.isAfter(weekEnd) ? weekEnd : last;
@@ -249,9 +246,7 @@ class EventCalendar extends StatelessWidget {
             padding: const EdgeInsetsDirectional.only(start: KSpacing.xs),
             child: Text(
               l10n.eventsMore('$hidden'),
-              style: context.textStyles.caption.copyWith(
-                color: p.textTertiary,
-              ),
+              style: context.textStyles.caption.copyWith(color: p.textTertiary),
             ),
           ),
       ],

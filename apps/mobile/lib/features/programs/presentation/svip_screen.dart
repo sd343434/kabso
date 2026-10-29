@@ -63,7 +63,7 @@ class _SvipPage extends ConsumerWidget {
       }
     }
 
-    final List<Widget> body = switch (svip) {
+    final body = switch (svip) {
       AsyncValue(value: final s?) => [
         _Header(status: s),
         const SizedBox(height: KSpacing.lg),
@@ -187,9 +187,7 @@ class _SvipPage extends ConsumerWidget {
                 const SizedBox(height: KSpacing.sm),
                 for (final (i, threshold) in s.thresholds.indexed)
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: KSpacing.xxs,
-                    ),
+                    padding: const EdgeInsets.symmetric(vertical: KSpacing.xxs),
                     child: Row(
                       children: [
                         Expanded(
@@ -244,11 +242,7 @@ class _Header extends ConsumerWidget {
           ),
           child: Padding(
             padding: const EdgeInsets.all(2),
-            child: KAvatar(
-              name: name,
-              imageUrl: user?.avatarUrl,
-              size: 56,
-            ),
+            child: KAvatar(name: name, imageUrl: user?.avatarUrl, size: 56),
           ),
         ),
         const SizedBox(width: KSpacing.md),
@@ -531,7 +525,9 @@ class _Perks extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Expanded(child: _PerkCard(perk: perks[i], icon: _icon)),
+                  Expanded(
+                    child: _PerkCard(perk: perks[i], icon: _icon),
+                  ),
                   const SizedBox(width: KSpacing.sm),
                   Expanded(
                     child: i + 1 < perks.length
@@ -663,9 +659,7 @@ class _BottomBar extends StatelessWidget {
                   text,
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
-                  style: context.textStyles.body.copyWith(
-                    color: p.textPrimary,
-                  ),
+                  style: context.textStyles.body.copyWith(color: p.textPrimary),
                 ),
               ),
               const SizedBox(width: KSpacing.sm),

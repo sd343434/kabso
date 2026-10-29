@@ -337,6 +337,8 @@ void main() {
       await tester.scrollUntilVisible(
         find.byKey(WalletScreen.entryKey('l1')),
         100,
+        // D166: the wallet's tabs scroll too; the list is the last one.
+        scrollable: find.byType(Scrollable).last,
       );
       await tester.pumpAndSettle();
       // An unknown reason from a newer server reads as a plain change.
