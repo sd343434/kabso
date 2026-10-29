@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
+  CopyObjectCommand,
   DeleteObjectsCommand,
   GetObjectCommand,
   HeadObjectCommand,
@@ -94,6 +95,40 @@ export class S3ObjectStorage implements ObjectStorage {
         Bucket: this.bucket,
         Key: key,
         Body: body,
+        ContentType: contentType,
+        CacheControl: cacheControl,
+      }),
+    );
+  }
+
+  async getRange(key: string, offset: number, length: number): Promise<Buffer | null> {
+    if (length <= 0) return Buffer.alloc(0);
+    try {
+      const out = await this.s3().send(
+        new GetObjectCommand({
+          Bucket: this.bucket,
+          Key: key,
+          Range: `bytes=${offset}-${offset + length - 1}`,
+        }),
+      );
+      if (!out.Body) return null;
+      const bytes = Buffer.from(await out.Body.transformToByteArray());
+      // A server that ignores Range returns the whole object: keep only the window asked for.
+      return bytes.length > length ? bytes.subarray(offset, offset + length) : bytes;
+    } catch (err) {
+      if (isMissing(err)) return null;
+      throw err;
+    }
+  }
+
+  async copy(fromKey: string, toKey: string, contentType: string, cacheControl: string): Promise<void> {
+    await this.s3().send(
+      new CopyObjectCommand({
+        Bucket: this.bucket,
+        Key: toKey,
+        // Keys are server-chosen (`uploads/{uuid}/{uuid}`): only the path separators stay literal.
+        CopySource: `${this.bucket}/${fromKey.split('/').map(encodeURIComponent).join('/')}`,
+        MetadataDirective: 'REPLACE',
         ContentType: contentType,
         CacheControl: cacheControl,
       }),

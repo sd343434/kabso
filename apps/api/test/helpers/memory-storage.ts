@@ -17,6 +17,10 @@ interface StoredObject {
  */
 export class MemoryObjectStorage implements ObjectStorage {
   readonly objects = new Map<string, StoredObject>();
+  /** v1.41-social: how many ranged reads were made (videos are never read whole). */
+  rangeReads = 0;
+  /** v1.41-social: keys whose whole-object `get` was asked for. */
+  readonly fullReads: string[] = [];
   private readonly signed = new Map<
     string,
     { contentType: string; contentLength: number; expires: number }
@@ -56,12 +60,26 @@ export class MemoryObjectStorage implements ObjectStorage {
   }
 
   get(key: string, maxBytes: number): Promise<Buffer | null> {
+    this.fullReads.push(key);
     const o = this.objects.get(key);
     return Promise.resolve(o && o.body.length <= maxBytes ? o.body : null);
   }
 
   put(key: string, body: Buffer, contentType: string, cacheControl: string): Promise<void> {
     this.objects.set(key, { body, contentType, cacheControl });
+    return Promise.resolve();
+  }
+
+  getRange(key: string, offset: number, length: number): Promise<Buffer | null> {
+    const o = this.objects.get(key);
+    this.rangeReads += 1;
+    return Promise.resolve(o ? o.body.subarray(offset, offset + length) : null);
+  }
+
+  copy(fromKey: string, toKey: string, contentType: string, cacheControl: string): Promise<void> {
+    const o = this.objects.get(fromKey);
+    if (!o) return Promise.reject(new Error(`NoSuchKey ${fromKey}`));
+    this.objects.set(toKey, { body: o.body, contentType, cacheControl });
     return Promise.resolve();
   }
 

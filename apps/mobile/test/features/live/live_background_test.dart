@@ -17,6 +17,7 @@ import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/create/create_menu_sheet.dart';
 import 'package:kabso_live/features/live/application/live_background.dart';
 import 'package:kabso_live/features/live/application/live_host_controller.dart';
 import 'package:kabso_live/features/live/application/live_room_session.dart';
@@ -182,10 +183,12 @@ _pumpApp(WidgetTester tester, GoRouter router) async {
   return (repo, camera, service);
 }
 
+/// D162: ➕ opens the menu; «بث مباشر» (Go live) pushes Go live over the
+/// tab the person is on.
 Future<void> _openGoLiveFromCreate(WidgetTester tester) async {
   await tester.tap(find.byKey(const Key('nav.create')));
   await tester.pumpAndSettle();
-  await tester.tap(find.byKey(const Key('create.live')));
+  await tester.tap(find.byKey(CreateMenuSheet.choiceKey(CreateChoice.live)));
   await tester.pumpAndSettle();
   expect(find.byType(GoLiveScreen), findsOneWidget);
 }

@@ -201,7 +201,7 @@ void main() {
   group('Home (KL-047, D47 tabs)', () {
     // KL-060: posts come from the posts API, so with no posts the Posts
     // mode shows its empty state (with pull-to-refresh: there is a data
-    // source); Reels has no API yet and stays unavailable.
+    // source); D162: Reels too.
     testWidgets('posts: no posts yet → empty state with one primary action '
         'and pull-to-refresh', (tester) async {
       await _pumpHome(tester);
@@ -224,19 +224,18 @@ void main() {
       expect(find.byType(RefreshIndicator), findsOneWidget);
     });
 
+    // D162: reels come from the reels API now (they were "unavailable"
+    // before video existed): no reels yet is the empty state, with
+    // pull-to-refresh like posts.
     for (final (tab, title, body) in [
-      (
-        HomeTab.reels,
-        _en.homeReelsUnavailableTitle,
-        _en.homeReelsUnavailableBody,
-      ),
+      (HomeTab.reels, _en.homeReelsEmptyTitle, _en.feedPullToRefresh),
     ]) {
       testWidgets('${tab.name}: title, supporting line and one primary '
           'action', (tester) async {
         await _pumpHome(tester);
         await tester.pumpAndSettle();
         await _showHomeMode(tester, tab);
-        final state = find.byKey(FeedRegion.unavailableKey);
+        final state = find.byKey(FeedRegion.emptyKey);
         expect(
           find.descendant(of: state, matching: find.text(title)),
           findsOneWidget,
@@ -254,9 +253,8 @@ void main() {
         expect(button.label, _en.homeWatchLive);
         expect(button.variant, KButtonVariant.primary);
         expect(button.onPressed, isNotNull);
-        // Honest: no pull-to-refresh where there is no data source, and no
-        // fake skeletons.
-        expect(find.byType(RefreshIndicator), findsNothing);
+        // A real data source: pull-to-refresh; and no fake skeletons.
+        expect(find.byType(RefreshIndicator), findsWidgets);
         expect(find.byType(FeedPostSkeleton), findsNothing);
       });
 

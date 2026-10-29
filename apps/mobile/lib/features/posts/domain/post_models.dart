@@ -9,7 +9,9 @@ import 'package:material_ui/material_ui.dart';
 DateTime? _dateOrNull(Object? v) =>
     v == null ? null : DateTime.parse(v as String);
 
-/// `MediaAsset`: a processed image (WebP 1080 and 320 wide).
+/// `MediaAsset`: a processed image (WebP 1080 and 320 wide), a voice clip
+/// (CP-017) or (v1.41-social, D162) a video, served as uploaded, with its
+/// poster ([posterUrl], [thumbUrl]) and length ([durationMs]).
 @immutable
 class MediaAsset {
   const new({
@@ -19,6 +21,9 @@ class MediaAsset {
     required this.width,
     required this.height,
     this.blurhash,
+    this.type = MediaType.image,
+    this.posterUrl,
+    this.durationMs,
   });
 
   factory fromJson(Map<String, dynamic> json) => MediaAsset(
@@ -28,17 +33,41 @@ class MediaAsset {
     width: json['width']! as int,
     height: json['height']! as int,
     blurhash: json['blurhash'] as String?,
+    type: switch (json['type']) {
+      'VIDEO' => MediaType.video,
+      'AUDIO' => MediaType.audio,
+      _ => MediaType.image,
+    },
+    posterUrl: json['posterUrl'] as String?,
+    durationMs: json['durationMs'] as int?,
   );
 
   final String id;
+
+  /// The image (1080 px), the clip, or the video file.
   final String url;
   final String thumbUrl;
   final int width;
   final int height;
   final String? blurhash;
+  final MediaType type;
+
+  /// D162: a video's poster (its first frame, 1 080 px).
+  final String? posterUrl;
+
+  /// A clip's or a video's length.
+  final int? durationMs;
+
+  bool get isVideo => type == MediaType.video;
+
+  /// What to show before a video plays (the poster), or the image itself.
+  String get coverUrl => isVideo ? (posterUrl ?? thumbUrl) : url;
 
   double get aspect => height == 0 ? 1 : width / height;
 }
+
+/// `MediaAsset.type`.
+enum MediaType { image, audio, video }
 
 /// Who may comment on a post (`whoCanComment`).
 enum WhoCanComment {
@@ -82,6 +111,7 @@ class Post {
     required this.whoCanComment,
     required this.hideLikeCount,
     required this.pendingModeration,
+    this.isReel = false,
     this.location,
     this.publishAt,
     this.publishedAt,
@@ -126,6 +156,7 @@ class Post {
       whoCanComment: WhoCanComment.fromWire(settings['whoCanComment']),
       hideLikeCount: settings['hideLikeCount']! as bool,
       pendingModeration: json['moderation'] == 'PENDING',
+      isReel: json['format'] == 'REEL',
       repostedBy: switch (json['repostedBy']) {
         final Map<String, dynamic> by => UserSummary.fromJson(by),
         _ => null,
@@ -165,6 +196,13 @@ class Post {
 
   /// `moderation: PENDING`: visible to its author only (CP-006 Q2).
   final bool pendingModeration;
+
+  /// D162: `format: REEL` — one vertical video, listed in Moments' reels.
+  final bool isReel;
+
+  /// The post's video (a reel's, or a video post's), if it has one.
+  MediaAsset? get video =>
+      media.length == 1 && media.first.isVideo ? media.first : null;
   final UserSummary? repostedBy;
 }
 

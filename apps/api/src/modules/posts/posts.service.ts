@@ -33,6 +33,16 @@ const IDEMPOTENCY_MS = 24 * 3600_000;
 
 type Tx = Prisma.TransactionClient;
 
+/**
+ * v1.41-social (D162, §11.14): whether claimed media of these kinds fit the format — a reel is
+ * exactly one REEL_VIDEO; a post is photos only (≤ 10, by schema) or exactly one POST_VIDEO.
+ */
+export function mediaShapeAllowed(format: 'POST' | 'REEL', kinds: readonly string[]): boolean {
+  if (format === 'REEL') return kinds.length === 1 && kinds[0] === 'REEL_VIDEO';
+  if (kinds.some((k) => k === 'POST_VIDEO')) return kinds.length === 1;
+  return kinds.every((k) => k === 'POST_IMAGE');
+}
+
 /** JSON with sorted object keys: the request hash does not depend on key order. */
 export function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
@@ -104,8 +114,23 @@ export class PostsService implements OnModuleInit, OnModuleDestroy {
           data: { idempotencyKey: null, requestHash: null },
         });
         const mediaIds = input.mediaIds ?? [];
-        const assets = await this.media.claimAssetsIn(tx, authorId, mediaIds, 'POST_IMAGE');
-        if (!assets) throw AppException.validation([{ field: 'mediaIds', issue: 'invalid_value' }]);
+        const format = input.format ?? 'POST';
+        // v1.41-social (D162): a reel is one REEL_VIDEO; a post is 1–10 photos or one POST_VIDEO.
+        const assets = await this.media.claimAssetsIn(
+          tx,
+          authorId,
+          mediaIds,
+          format === 'REEL' ? ['REEL_VIDEO'] : ['POST_IMAGE', 'POST_VIDEO'],
+        );
+        if (
+          !assets ||
+          !mediaShapeAllowed(
+            format,
+            assets.map((a) => a.kind),
+          )
+        ) {
+          throw AppException.validation([{ field: 'mediaIds', issue: 'invalid_value' }]);
+        }
         const privacy = await tx.privacySettings.findUnique({ where: { userId: authorId } });
         const status = input.status ?? 'PUBLISHED';
         const now = new Date();
@@ -113,11 +138,13 @@ export class PostsService implements OnModuleInit, OnModuleDestroy {
           data: {
             authorId,
             text: input.text ?? '',
+            format,
             location: input.location ?? null,
             status,
-            // CP-006 Q2: until a moderation provider exists, posts with images are PENDING
-            // (visible to their author only); text-only posts are VISIBLE.
-            moderation: assets.length > 0 ? 'PENDING' : 'VISIBLE',
+            // v1.42-social (D162a, owner «جميعها تظهر فوراً»): every post — photos, a video, a reel —
+            // is visible at once, like stories (D91); reports and REMOVE_TARGET are the safety net.
+            // PENDING stays for a future moderation provider or an admin hold.
+            moderation: 'VISIBLE',
             publishAt: status === 'SCHEDULED' ? new Date(input.publishAt!) : null,
             publishedAt: status === 'PUBLISHED' ? now : null,
             commentsEnabled: input.settings?.commentsEnabled ?? true,
@@ -160,6 +187,9 @@ export class PostsService implements OnModuleInit, OnModuleDestroy {
 
   private checkCreateRules(input: CreatePostInput): void {
     const hasMedia = (input.mediaIds?.length ?? 0) > 0;
+    if (input.format === 'REEL' && !hasMedia) {
+      throw AppException.validation([{ field: 'mediaIds', issue: 'required' }]);
+    }
     if (!hasMedia && (input.text ?? '') === '') {
       throw AppException.validation([{ field: 'text', issue: 'required' }]);
     }

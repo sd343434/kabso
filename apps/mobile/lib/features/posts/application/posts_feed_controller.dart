@@ -15,9 +15,11 @@ import 'package:material_ui/material_ui.dart';
 
 /// A [Post] as the feed tile shows it: the first photo is the cover (its
 /// ratio sizes the media), and a post with several photos carries all of
-/// them. Images load from the media CDN.
+/// them. Images load from the media CDN. D162: a video post (or a reel)
+/// shows its poster and plays its file in place.
 FeedPostData feedPostOf(Post post, {UserSummary? repostedBy}) {
   final cover = post.media.isEmpty ? null : post.media.first;
+  final video = post.video;
   return FeedPostData(
     postId: post.id,
     authorName: post.author.displayName.isEmpty
@@ -32,12 +34,16 @@ FeedPostData feedPostOf(Post post, {UserSummary? repostedBy}) {
     postedAt: post.publishedAt ?? post.createdAt,
     location: post.location,
     text: post.text,
-    media: cover == null ? null : NetworkImage(cover.url),
+    media: cover == null ? null : NetworkImage(cover.coverUrl),
+    isVideo: video != null,
+    videoUrl: video?.url,
     // Every photo, in post order: the tile swipes between them.
     gallery: post.media.length > 1
         ? [for (final m in post.media) NetworkImage(m.url)]
         : const [],
-    mediaAspect: cover?.aspect,
+    // D162: a video keeps to 4:5 – 1.91:1 in the feed (covered), so a
+    // portrait clip never fills the screen.
+    mediaAspect: video != null ? video.aspect.clamp(0.8, 1.91) : cover?.aspect,
     likes: post.likeCount,
     comments: post.commentCount,
     shares: post.shareCount,
@@ -70,13 +76,15 @@ extension on HomeFeed {
 }
 
 /// One posts feed from the real API (`GET /feed/posts`, CONVENTIONS §11.3),
-/// paged by cursor. A rejected cursor (an expired Trending snapshot) reloads
-/// the feed from the first page once. A hidden or deleted post leaves the
-/// list at once.
+/// paged by cursor — or, with [reels] (v1.41-social, D162), the reels feed
+/// of Moments (`GET /feed/reels`, §11.14). A rejected cursor (an expired
+/// Trending snapshot) reloads the feed from the first page once. A hidden or
+/// deleted post leaves the list at once.
 class PostsFeedController extends AsyncNotifier<FeedItems<Post>> {
-  new(this.feed);
+  new(this.feed, {this.reels = false});
 
   final HomeFeed feed;
+  final bool reels;
 
   String? _next;
   int _generation = 0;
@@ -93,7 +101,9 @@ class PostsFeedController extends AsyncNotifier<FeedItems<Post>> {
   }
 
   Future<FeedItems<Post>> _first() async {
-    final page = await _repo.feed(feed.tab);
+    final page = reels
+        ? await _repo.reelsFeed(feed.tab)
+        : await _repo.feed(feed.tab);
     _next = page.next;
     return FeedItems(_dedupe(const [], page.items), hasMore: _next != null);
   }
@@ -115,7 +125,9 @@ class PostsFeedController extends AsyncNotifier<FeedItems<Post>> {
       FeedItems(current.items, hasMore: true, loadingMore: true),
     );
     try {
-      final page = await _repo.feed(feed.tab, cursor: cursor);
+      final page = reels
+          ? await _repo.reelsFeed(feed.tab, cursor: cursor)
+          : await _repo.feed(feed.tab, cursor: cursor);
       if (!ref.mounted || generation != _generation) return;
       _next = page.next;
       state = AsyncData(
@@ -195,6 +207,16 @@ final AsyncNotifierProviderFamily<
 >
 postsFeedProvider = AsyncNotifierProvider.family(PostsFeedController.new);
 
+/// v1.41-social (D162): the reels of Moments, per [HomeFeed].
+final AsyncNotifierProviderFamily<
+  PostsFeedController,
+  FeedItems<Post>,
+  HomeFeed
+>
+reelsFeedProvider = AsyncNotifierProvider.family(
+  (feed) => PostsFeedController(feed, reels: true),
+);
+
 /// The latest version of posts the caller changed in this session (edit,
 /// pin): feeds and the post screen show it instead of what they loaded.
 class PostEdits extends Notifier<Map<String, Post>> {
@@ -233,6 +255,9 @@ void removePostFromFeeds(WidgetRef ref, String postId) {
   for (final feed in HomeFeed.values) {
     if (ref.exists(postsFeedProvider(feed))) {
       ref.read(postsFeedProvider(feed).notifier).remove(postId);
+    }
+    if (ref.exists(reelsFeedProvider(feed))) {
+      ref.read(reelsFeedProvider(feed).notifier).remove(postId);
     }
   }
 }

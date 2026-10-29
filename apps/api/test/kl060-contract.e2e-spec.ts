@@ -45,6 +45,8 @@ describe('KL-060 contract coverage', () => {
         'countPostShare',
         // Feeds and views (§11.3, §11.4)
         'listFeedPosts',
+        // v1.41-social (D162, §11.14): the reels feed of Moments.
+        'listFeedReels',
         'recordViews',
         // Comments (§11.5)
         'listComments',

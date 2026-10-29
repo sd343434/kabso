@@ -7700,4 +7700,140 @@ class AppLocalizationsAr extends AppLocalizations {
   String meHubCoins(String coins) {
     return '$coins كوينز';
   }
+
+  @override
+  String get createMenuTitle => 'إنشاء';
+
+  @override
+  String get createMenuPost => 'منشور';
+
+  @override
+  String get createMenuPostHint => 'صور أو فيديو أو نص';
+
+  @override
+  String get createMenuReel => 'ريلز';
+
+  @override
+  String get createMenuReelHint => 'فيديو عمودي قصير يظهر في لحظات';
+
+  @override
+  String get createMenuStory => 'ستوري';
+
+  @override
+  String get createMenuStoryHint => 'صورة تبقى ٢٤ ساعة';
+
+  @override
+  String get createMenuLive => 'بث مباشر';
+
+  @override
+  String get createMenuLiveHint => 'فيديو أو صوت، الآن';
+
+  @override
+  String get createVideoUpTo => 'فيديو واحد حتى ٣ دقائق';
+
+  @override
+  String get createLibraryVideo => 'فيديو';
+
+  @override
+  String get createLibraryNoVideos => 'لا توجد فيديوهات على هذا الجهاز.';
+
+  @override
+  String get createPickVideo => 'اختيار فيديو';
+
+  @override
+  String get createRemoveVideo => 'إزالة الفيديو';
+
+  @override
+  String createVideoLabel(String length) {
+    return 'فيديو، $length';
+  }
+
+  @override
+  String get createVideoOrPhotos =>
+      'يضم المنشور صوراً أو فيديو واحداً، وليس الاثنين معاً.';
+
+  @override
+  String get createVideoTooLong => 'يمكن أن تصل مدة فيديو المنشور إلى ٣ دقائق.';
+
+  @override
+  String get createVideoTooLarge => 'حجم هذا الفيديو أكبر من ٢٠٠ ميغابايت.';
+
+  @override
+  String get createVideoTooShort => 'اختر فيديو مدته ثانية واحدة على الأقل.';
+
+  @override
+  String get createVideoUnsupported =>
+      'صيغة هذا الفيديو غير مدعومة. استخدم MP4 أو MOV.';
+
+  @override
+  String get createVideoUnreadable =>
+      'تعذّرت قراءة هذا الفيديو على هذا الجهاز.';
+
+  @override
+  String get createVideoInvalid => 'تعذّرت معالجة الفيديو. جرّب فيديو آخر.';
+
+  @override
+  String get createVideoUploadsUnavailable =>
+      'رفع الفيديو غير متاح حالياً. حاول مرة أخرى لاحقاً.';
+
+  @override
+  String createUploadingVideo(int percent) {
+    return 'جارٍ رفع الفيديو… $percent٪';
+  }
+
+  @override
+  String get createPostedVideoInReview =>
+      'تم النشر. سيظهر للآخرين بعد مراجعة الفيديو';
+
+  @override
+  String get reelNewTitle => 'ريلز جديد';
+
+  @override
+  String get reelNewBody => 'فيديو عمودي حتى ٦٠ ثانية، يظهر في لحظات.';
+
+  @override
+  String get reelPickVideo => 'اختيار فيديو';
+
+  @override
+  String get reelChangeVideo => 'تغيير الفيديو';
+
+  @override
+  String get reelCaptionHint => 'اكتب وصفاً… #وسوم @إشارات';
+
+  @override
+  String get reelShare => 'نشر';
+
+  @override
+  String get reelShared => 'تم نشر الريلز';
+
+  @override
+  String get reelSharedInReview => 'تم النشر. سيظهر الريلز للآخرين بعد مراجعته';
+
+  @override
+  String get reelTooLong => 'يمكن أن تصل مدة الريلز إلى ٦٠ ثانية.';
+
+  @override
+  String get reelTooLarge => 'حجم هذا الفيديو أكبر من ١٠٠ ميغابايت.';
+
+  @override
+  String get reelVertical =>
+      'تبدو الريلز أفضل عمودية؛ سيظهر هذا الفيديو بأشرطة.';
+
+  @override
+  String get reelPreview => 'أول لقطة من الريلز';
+
+  @override
+  String get videoPlay => 'تشغيل الفيديو';
+
+  @override
+  String get videoPause => 'إيقاف الفيديو مؤقتاً';
+
+  @override
+  String get videoMute => 'كتم الصوت';
+
+  @override
+  String get videoUnmute => 'تشغيل الصوت';
+
+  @override
+  String get videoCannotPlay => 'لا يمكن تشغيل هذا الفيديو الآن';
 }

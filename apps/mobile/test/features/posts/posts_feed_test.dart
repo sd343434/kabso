@@ -277,7 +277,8 @@ void main() {
       final repo = await _pump(tester, [
         for (var i = 0; i < 6; i++) testPost('p$i', text: 'Post $i'),
       ], pageSize: 3);
-      expect(repo.calls, [
+      // D162: the Reels mode (kept alive) reads its own feed too.
+      expect(repo.calls.where((c) => c.startsWith('feed:')), [
         'feed:trending:',
         'feed:following:',
         'feed:trending:3',

@@ -20,6 +20,7 @@ import 'package:kabso_live/features/cp/domain/cp_models.dart';
 import 'package:kabso_live/features/cp/presentation/cp_screen.dart';
 import 'package:kabso_live/features/cp/presentation/cp_space_screen.dart';
 import 'package:kabso_live/features/create/create_screen.dart';
+import 'package:kabso_live/features/create/new_reel_screen.dart';
 import 'package:kabso_live/features/debug/component_gallery_screen.dart';
 import 'package:kabso_live/features/debug/conversations_preview_screen.dart';
 import 'package:kabso_live/features/debug/demo_data.dart';
@@ -223,6 +224,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.newStory,
         builder: (_, _) => const NewStoryScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.newReel,
+        builder: (_, _) => const NewReelScreen(),
       ),
       GoRoute(path: AppRoutes.goLive, builder: (_, _) => const GoLiveScreen()),
       GoRoute(

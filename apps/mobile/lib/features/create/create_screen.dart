@@ -9,12 +9,14 @@ import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
+import 'package:kabso_live/core/media/inline_video.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/create/compose_widgets.dart';
 import 'package:kabso_live/features/create/create_media_step.dart';
 import 'package:kabso_live/features/posts/application/compose_controller.dart';
 import 'package:kabso_live/features/posts/application/media_library_controller.dart';
+import 'package:kabso_live/features/posts/data/video_source.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -141,7 +143,7 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
   bool get _hasDraft =>
       _text.text.trim().isNotEmpty ||
       _place.isNotEmpty ||
-      ref.read(composeControllerProvider).photos.isNotEmpty;
+      ref.read(composeControllerProvider).hasMedia;
 
   void _toDetails() => setState(() => _details = true);
 
@@ -166,7 +168,9 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
           .read(composeControllerProvider.notifier)
           .addPhotos(picked);
       if (!mounted) return;
-      if (rejected.contains(PhotoRejection.unsupportedType)) {
+      if (rejected.contains(PhotoRejection.mixed)) {
+        KSnack.info(context, l10n.createVideoOrPhotos);
+      } else if (rejected.contains(PhotoRejection.unsupportedType)) {
         KSnack.error(context, l10n.createPhotoUnsupported);
       } else if (rejected.contains(PhotoRejection.tooLarge)) {
         KSnack.error(context, l10n.createPhotoTooLarge);
@@ -175,6 +179,31 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
       }
     } on PlatformException {
       if (mounted) KSnack.error(context, l10n.createPhotoAccessDenied);
+    }
+  }
+
+  /// D162: the system video picker (no library, or no access to it).
+  Future<void> _pickVideoFromDevice() async {
+    final l10n = context.l10n;
+    if (ref.read(composeControllerProvider).photos.isNotEmpty) {
+      KSnack.info(context, l10n.createVideoOrPhotos);
+      return;
+    }
+    try {
+      final video = await ref
+          .read(videoPickerProvider)
+          .pickVideo(maxDuration: maxPostVideoLength);
+      if (!mounted || video == null) return;
+      final rejection = ref
+          .read(composeControllerProvider.notifier)
+          .setVideo(video);
+      if (rejection != null && mounted) {
+        KSnack.error(context, videoRejectionMessage(l10n, rejection));
+      }
+    } on PlatformException {
+      if (mounted) KSnack.error(context, l10n.createPhotoAccessDenied);
+    } on Object {
+      if (mounted) KSnack.error(context, l10n.createVideoUnreadable);
     }
   }
 
@@ -203,7 +232,9 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
       at != null
           ? l10n.createScheduled(scheduleLabel(context, at))
           : post.pendingModeration
-          ? l10n.createPostedInReview
+          ? (post.video != null
+                ? l10n.createPostedVideoInReview
+                : l10n.createPostedInReview)
           : l10n.createPosted,
     );
     context.go(AppRoutes.reels);
@@ -251,7 +282,7 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
       // A draft needs text or a photo (§11.2).
       final canDraft =
           _text.text.trim().isNotEmpty ||
-          ref.read(composeControllerProvider).photos.isNotEmpty;
+          ref.read(composeControllerProvider).hasMedia;
       final choice = await showDialog<_CloseChoice>(
         context: context,
         builder: (dialog) => AlertDialog(
@@ -381,6 +412,7 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
                   onNext: _toDetails,
                   onClose: _close,
                   onPickFromDevice: _pickFromDevice,
+                  onPickVideoFromDevice: _pickVideoFromDevice,
                 ),
         ),
       ),
@@ -398,7 +430,7 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
     final count = _text.text.characters.length;
     final canShare =
         !draft.busy &&
-        (_text.text.trim().isNotEmpty || draft.photos.isNotEmpty) &&
+        (_text.text.trim().isNotEmpty || draft.hasMedia) &&
         count <= maxPostText;
     final tags = _text.hashtags;
     final hasMention = CaptionController.entityPattern
@@ -453,15 +485,20 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
                   ),
                   child: _FailureBanner(
                     failure: failure,
+                    video: draft.video != null,
                     onRetry: canShare ? _share : null,
                   ),
                 ),
-              _PhotoStrip(
-                controller: _strip,
-                onAdd: draft.busy ? null : _toMedia,
-                onOpen: _openPhoto,
-              ),
-              _StripFooter(photos: draft.photos.length, active: _page),
+              if (draft.video case final video?)
+                _VideoCard(video: video.video, busy: draft.busy)
+              else ...[
+                _PhotoStrip(
+                  controller: _strip,
+                  onAdd: draft.busy ? null : _toMedia,
+                  onOpen: _openPhoto,
+                ),
+                _StripFooter(photos: draft.photos.length, active: _page),
+              ],
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: KCompose.inset),
                 child: _CaptionBox(
@@ -888,17 +925,20 @@ class _Badge extends StatelessWidget {
 
 /// × in a 20 dp disc inside a 40 dp target, in the photo's top corner.
 class _RemoveButton extends StatelessWidget {
-  const new({required this.onTap, super.key});
+  const new({required this.onTap, this.tooltip, super.key});
 
   final VoidCallback? onTap;
 
+  /// Defaults to "Remove photo".
+  final String? tooltip;
+
   @override
   Widget build(BuildContext context) => Tooltip(
-    message: context.l10n.createRemovePhoto,
+    message: tooltip ?? context.l10n.createRemovePhoto,
     child: Semantics(
       button: true,
       enabled: onTap != null,
-      label: context.l10n.createRemovePhoto,
+      label: tooltip ?? context.l10n.createRemovePhoto,
       onTap: onTap,
       excludeSemantics: true,
       child: InkResponse(
@@ -1246,8 +1286,10 @@ class _Progress extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final video = draft.video != null;
     final total = draft.photos.length;
-    final uploading = draft.phase == ComposePhase.uploading && total > 0;
+    final uploading =
+        draft.phase == ComposePhase.uploading && (total > 0 || video);
     final current = draft.uploaded + 1 > total ? total : draft.uploaded + 1;
     return Padding(
       key: CreateScreen.progressKey,
@@ -1256,7 +1298,9 @@ class _Progress extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            uploading
+            uploading && video
+                ? l10n.createUploadingVideo((draft.progress * 100).floor())
+                : uploading
                 ? l10n.createUploading(current, total)
                 : l10n.createPublishing,
             style: context.textStyles.caption.copyWith(
@@ -1265,7 +1309,9 @@ class _Progress extends StatelessWidget {
           ),
           const SizedBox(height: KSpacing.xs),
           LinearProgressIndicator(
-            value: uploading ? draft.uploaded / total : null,
+            value: uploading
+                ? (video ? draft.progress : draft.uploaded / total)
+                : null,
             valueColor: AlwaysStoppedAnimation(context.palette.primary),
             backgroundColor: context.palette.surfaceOverlay,
           ),
@@ -1276,10 +1322,13 @@ class _Progress extends StatelessWidget {
 }
 
 class _FailureBanner extends StatelessWidget {
-  const new({required this.failure, required this.onRetry});
+  const new({required this.failure, required this.onRetry, this.video = false});
 
   final AppFailure failure;
   final VoidCallback? onRetry;
+
+  /// The draft holds a video (D162): the media messages say so.
+  final bool video;
 
   @override
   Widget build(BuildContext context) {
@@ -1287,8 +1336,11 @@ class _FailureBanner extends StatelessWidget {
     final p = context.palette;
     final message = switch (failure) {
       ServerFailure(code: ErrorCode.mediaUploadsUnavailable) =>
-        l10n.createUploadsUnavailable,
-      ServerFailure(code: ErrorCode.mediaInvalid) => l10n.createPhotoInvalid,
+        video
+            ? l10n.createVideoUploadsUnavailable
+            : l10n.createUploadsUnavailable,
+      ServerFailure(code: ErrorCode.mediaInvalid) =>
+        video ? l10n.createVideoInvalid : l10n.createPhotoInvalid,
       _ => failureMessage(l10n, failure),
     };
     return Container(
@@ -1318,6 +1370,101 @@ class _FailureBanner extends StatelessWidget {
               child: Text(l10n.actionRetry),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// D162: the post's video on the details step — its first frame at its
+/// own shape (a portrait video kept within the strip's height), its length,
+/// and × to remove it (back to the media step to choose another).
+class _VideoCard extends ConsumerWidget {
+  const new({required this.video, required this.busy});
+
+  final PickedVideo video;
+  final bool busy;
+
+  static const cardKey = Key('create.video');
+  static const removeKey = Key('create.video.remove');
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final p = context.palette;
+    final length = videoLengthLabel(video.duration);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        KCompose.inset,
+        0,
+        KCompose.inset,
+        KSpacing.md,
+      ),
+      child: Center(
+        child: SizedBox(
+          key: cardKey,
+          height: KCompose.stripHeight * 1.6,
+          child: AspectRatio(
+            aspectRatio: video.aspect,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(KCompose.cardRadius),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Semantics(
+                    image: true,
+                    label: l10n.createVideoLabel(length),
+                    child: Image.memory(
+                      video.poster,
+                      fit: BoxFit.cover,
+                      gaplessPlayback: true,
+                      excludeFromSemantics: true,
+                      errorBuilder: (_, _, _) =>
+                          ColoredBox(color: p.surfaceOverlay),
+                    ),
+                  ),
+                  const IgnorePointer(
+                    child: Center(child: VideoPlayMark(size: 44)),
+                  ),
+                  PositionedDirectional(
+                    bottom: KSpacing.xs + 2,
+                    end: KSpacing.xs + 2,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: KSpacing.xs,
+                        vertical: KSpacing.xxs,
+                      ),
+                      decoration: BoxDecoration(
+                        color: KStatusColors.onStatus.withValues(alpha: 0.72),
+                        borderRadius: BorderRadius.circular(KRadius.pill),
+                      ),
+                      child: Text(
+                        length,
+                        textDirection: TextDirection.ltr,
+                        style: context.textStyles.caption.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                  PositionedDirectional(
+                    top: 0,
+                    start: 0,
+                    child: _RemoveButton(
+                      key: removeKey,
+                      tooltip: l10n.createRemoveVideo,
+                      onTap: busy
+                          ? null
+                          : () => ref
+                                .read(composeControllerProvider.notifier)
+                                .removeVideo(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

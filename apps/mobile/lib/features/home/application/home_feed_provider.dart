@@ -8,6 +8,7 @@ import 'package:kabso_live/features/home/presentation/widgets/feed_post_tile.dar
 import 'package:kabso_live/features/home/presentation/widgets/feed_stories_tray.dart';
 import 'package:kabso_live/features/home/presentation/widgets/home_reel.dart';
 import 'package:kabso_live/features/posts/application/posts_feed_controller.dart';
+import 'package:kabso_live/features/posts/domain/post_models.dart';
 import 'package:kabso_live/features/stories/application/stories_controller.dart';
 import 'package:kabso_live/features/stories/domain/story_models.dart';
 import 'package:material_ui/material_ui.dart';
@@ -33,8 +34,8 @@ enum HomeFeed {
 }
 
 // Posts come from the real API (v1.5-social, CONVENTIONS §11.3) through
-// [postsFeedProvider]; there is no stories or reels API yet (stories M3,
-// short video M2), so those return [FeedUnavailable] — never sample
+// [postsFeedProvider], stories from CP-008 and (v1.41-social, D162) reels
+// from `GET /feed/reels` through [reelsFeedProvider] — never sample
 // content. Tests and the debug previews supply fixtures by overriding these
 // providers; D86: test builds with Demo data on get labelled test data.
 // They are not auto-disposed: switching modes never re-fetches.
@@ -106,10 +107,47 @@ final FutureProvider<FeedLoad<FeedStoryData>> homeStoriesProvider =
       ]);
     });
 
-/// Reels: full-screen vertical short videos, per [HomeFeed].
+/// Reels: full-screen vertical short videos, per [HomeFeed] (D162: the
+/// real reels feed, paged by [reelsFeedProvider]).
 final FutureProviderFamily<FeedLoad<FeedReelData>, HomeFeed> homeReelsProvider =
-    FutureProvider.family<FeedLoad<FeedReelData>, HomeFeed>(
-      (ref, feed) => watchDemo(ref)
-          ? DemoData.reels(feed, ar: DemoData.arabic(ref))
-          : const FeedUnavailable<FeedReelData>(),
-    );
+    FutureProvider.family<FeedLoad<FeedReelData>, HomeFeed>((ref, feed) async {
+      if (watchDemo(ref)) return DemoData.reels(feed, ar: DemoData.arabic(ref));
+      final page = await ref.watch(reelsFeedProvider(feed).future);
+      final edits = ref.watch(postEditsProvider);
+      return FeedItems(
+        [
+          for (final post in page.items)
+            if ((edits[post.id] ?? post).video != null)
+              feedReelOf(edits[post.id] ?? post),
+        ],
+        hasMore: page.hasMore,
+        loadingMore: page.loadingMore,
+        loadMoreError: page.loadMoreError,
+      );
+    });
+
+/// A reel ([Post] with `format: REEL`) as Moments' pager shows it.
+FeedReelData feedReelOf(Post post) {
+  final video = post.video!;
+  return FeedReelData(
+    postId: post.id,
+    authorName: post.author.displayName.isEmpty
+        ? post.author.username
+        : post.author.displayName,
+    authorUsername: post.author.username,
+    authorAvatar: switch (post.author.avatarUrl) {
+      final url? => NetworkImage(url),
+      null => null,
+    },
+    postedAt: post.publishedAt ?? post.createdAt,
+    caption: post.text,
+    cover: NetworkImage(video.coverUrl),
+    videoUrl: video.url,
+    aspect: video.aspect,
+    likes: post.likeCount,
+    comments: post.commentCount,
+    shares: post.shareCount,
+    isSelf: post.isSelf,
+    pendingModeration: post.pendingModeration,
+  );
+}

@@ -49,6 +49,8 @@ export const createPostSchema = z.strictObject({
   status: statusSchema.optional(),
   publishAt: z.iso.datetime({ offset: true }).optional(),
   settings: postSettingsPatchSchema.optional(),
+  /** v1.41-social (D162): `REEL` takes exactly one `REEL_VIDEO`. */
+  format: z.enum(['POST', 'REEL']).optional(),
 });
 export type CreatePostInput = z.output<typeof createPostSchema>;
 
@@ -103,6 +105,9 @@ export const feedQuerySchema = z.strictObject({
   limit: limitSchema.optional().transform((v) => v ?? 20),
 });
 export type FeedQuery = z.output<typeof feedQuerySchema>;
+
+/** v1.41-social (D162): which posts a feed lists (`/feed/posts`: POST; `/feed/reels`: REEL). */
+export type FeedFormat = 'POST' | 'REEL';
 
 export const COMMENT_TEXT_LIMITS: ContentTextLimits = {
   maxCodePoints: 500,

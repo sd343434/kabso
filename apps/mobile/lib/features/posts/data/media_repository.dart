@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/config/app_config.dart';
 import 'package:kabso_live/core/network/api_call.dart';
 import 'package:kabso_live/core/network/network_providers.dart';
+import 'package:kabso_live/features/posts/data/video_source.dart';
 import 'package:kabso_live/features/posts/domain/post_models.dart';
 
 /// The largest photo the server accepts (`CreateMediaUploadRequest.byteSize`).
@@ -74,6 +75,16 @@ abstract interface class MediaRepository {
 
   /// CP-022: a family's cover (`FAMILY_COVER`, processed like a post image).
   Future<MediaAsset> uploadFamilyCover(Uint8List bytes, String contentType);
+
+  /// v1.41-social (D162, CONVENTIONS §11.14): a post's video
+  /// (`POST_VIDEO`) or, with [reel], a reel's (`REEL_VIDEO`). The poster
+  /// goes first (`VIDEO_POSTER`), then the file is streamed to its slot and
+  /// completed with `{posterId}`; [onProgress] gets 0–1 of the file.
+  Future<MediaAsset> uploadVideo(
+    PickedVideo video, {
+    required bool reel,
+    void Function(double progress)? onProgress,
+  });
 }
 
 class MediaRepositoryImpl implements MediaRepository {
@@ -132,6 +143,55 @@ class MediaRepositoryImpl implements MediaRepository {
   @override
   Future<MediaAsset> uploadFamilyCover(Uint8List bytes, String contentType) =>
       _upload(bytes, contentType, kind: 'FAMILY_COVER');
+
+  @override
+  Future<MediaAsset> uploadVideo(
+    PickedVideo video, {
+    required bool reel,
+    void Function(double progress)? onProgress,
+  }) async {
+    final poster = await _upload(
+      video.poster,
+      video.posterType,
+      kind: 'VIDEO_POSTER',
+    );
+    return await guardApiCall(() async {
+      final slot = (await _api.post<Map<String, dynamic>>(
+        '/media/uploads',
+        data: {
+          'kind': reel ? 'REEL_VIDEO' : 'POST_VIDEO',
+          'contentType': video.contentType,
+          'byteSize': video.byteSize,
+        },
+      )).data!;
+      final uploadId = slot['uploadId']! as String;
+      final headers = {
+        for (final e in (slot['headers']! as Map<String, dynamic>).entries)
+          e.key: e.value as String,
+      };
+      await _storage.put<void>(
+        slot['uploadUrl']! as String,
+        data: video.open(),
+        options: Options(
+          headers: headers,
+          contentType: headers['Content-Type'],
+          // Up to 200 MiB on a phone connection: the whole send may take
+          // long; a stalled one still ends at the receive timeout.
+          sendTimeout: const Duration(minutes: 30),
+        ),
+        onSendProgress: onProgress == null
+            ? null
+            : (sent, total) => onProgress(
+                total <= 0 ? 0 : (sent / total).clamp(0, 1).toDouble(),
+              ),
+      );
+      final asset = await _api.post<Map<String, dynamic>>(
+        '/media/uploads/${pathSegment(uploadId)}/complete',
+        data: {'posterId': poster.id},
+      );
+      return MediaAsset.fromJson(asset.data!);
+    });
+  }
 
   /// Slot, PUT, complete.
   Future<MediaAsset> _upload(

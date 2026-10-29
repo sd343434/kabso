@@ -15,7 +15,7 @@ import {
   type PageDto,
   type PostDto,
 } from './post-views.js';
-import type { FeedQuery, PageQuery } from './posts.schemas.js';
+import type { FeedFormat, FeedQuery, PageQuery } from './posts.schemas.js';
 import { PostsService } from './posts.service.js';
 
 /** Trending (CONVENTIONS §11.3): window, snapshot size and lifetime, author spread. */
@@ -58,16 +58,24 @@ export class FeedService {
     @Inject(REDIS) private readonly redis: Redis,
   ) {}
 
-  feed(viewerId: string, query: FeedQuery): Promise<PageDto<PostDto>> {
-    return query.tab === 'following' ? this.following(viewerId, query) : this.trending(viewerId, query);
+  /**
+   * `GET /feed/posts` (`format` POST) and, v1.41-social (D162), `GET /feed/reels` (`format` REEL,
+   * CONVENTIONS §11.14). Cursors and snapshots are bound to the list.
+   */
+  feed(viewerId: string, query: FeedQuery, format: FeedFormat = 'POST'): Promise<PageDto<PostDto>> {
+    return query.tab === 'following'
+      ? this.following(viewerId, query, format)
+      : this.trending(viewerId, query, format);
   }
 
   /**
    * Following: posts and reposts of followed accounts, newest entry first; a post appears once
    * (its newest entry; a repost entry carries `repostedBy`). Muted and hidden are left out.
+   * D162: the reels list also holds the caller's own reels (a creator sees what they posted).
    */
-  private async following(viewerId: string, query: FeedQuery): Promise<PageDto<PostDto>> {
-    const scope = `feed-following:${viewerId}`;
+  private async following(viewerId: string, query: FeedQuery, format: FeedFormat): Promise<PageDto<PostDto>> {
+    const reels = format === 'REEL';
+    const scope = reels ? `feed-reels-following:${viewerId}` : `feed-following:${viewerId}`;
     const after = this.posts.decode(query.cursor, scope);
     const rows = await this.prisma.$queryRaw<{ post_id: string; at: Date; reposter_id: string | null }[]>`
       WITH entries AS (
@@ -75,6 +83,16 @@ export class FeedService {
           FROM follows f JOIN posts p ON p.author_id = f.followee_id
          WHERE f.follower_id = ${viewerId}::uuid
            AND p.status = 'PUBLISHED'::post_status AND p.deleted_at IS NULL
+           AND p.format = ${format}::post_format
+        ${
+          reels
+            ? Prisma.sql`UNION ALL
+        SELECT p.id, p.published_at, NULL::uuid
+          FROM posts p
+         WHERE p.author_id = ${viewerId}::uuid AND p.format = 'REEL'::post_format
+           AND p.status = 'PUBLISHED'::post_status AND p.deleted_at IS NULL`
+            : Prisma.empty
+        }
         UNION ALL
         SELECT r.post_id, r.created_at, r.user_id
           FROM follows f
@@ -93,6 +111,7 @@ export class FeedService {
         JOIN users a ON a.id = p.author_id
         LEFT JOIN user_settings s ON s.user_id = a.id
        WHERE ${visiblePostSql(viewerId, { excludeMuted: true, excludeHidden: true })}
+         AND p.format = ${format}::post_format
          ${after ? Prisma.sql`AND (n.at, n.post_id) < (${after.at}, ${after.id}::uuid)` : Prisma.empty}
        ORDER BY n.at DESC, n.post_id DESC
        LIMIT ${query.limit + 1}`;
@@ -121,8 +140,10 @@ export class FeedService {
   }
 
   /** Trending: a ranked snapshot (see {@link rankedPage}) of {@link rankTrending}. */
-  private trending(viewerId: string, query: FeedQuery): Promise<PageDto<PostDto>> {
-    return this.rankedPage(viewerId, 'trending', query, () => this.rankTrending(viewerId));
+  private trending(viewerId: string, query: FeedQuery, format: FeedFormat): Promise<PageDto<PostDto>> {
+    return this.rankedPage(viewerId, format === 'REEL' ? 'reels-trending' : 'trending', query, () =>
+      this.rankTrending(viewerId, format),
+    );
   }
 
   /**
@@ -189,8 +210,11 @@ export class FeedService {
     return `social:ranked:${viewerId}:${snapshotId}`;
   }
 
-  /** Ranked ids of visible public posts of the last 7 days, not the caller's, spread by author. */
-  async rankTrending(viewerId: string): Promise<string[]> {
+  /**
+   * Ranked ids of visible public posts (D162: of `format`) of the last 7 days, not the caller's,
+   * spread by author.
+   */
+  async rankTrending(viewerId: string, format: FeedFormat = 'POST'): Promise<string[]> {
     const w = TRENDING_WEIGHTS;
     const rows = await this.prisma.$queryRaw<{ id: string; author_id: string }[]>`
       SELECT p.id::text AS id, p.author_id::text AS author_id
@@ -201,6 +225,7 @@ export class FeedService {
          AND p.moderation = 'VISIBLE'::post_moderation
          AND COALESCE(s.is_private, false) = false
          AND p.author_id <> ${viewerId}::uuid
+         AND p.format = ${format}::post_format
          AND p.published_at >= now() - make_interval(hours => ${TRENDING_WINDOW_HOURS}::int)
        ORDER BY (${w.like}::float8 * p.like_count + ${w.comment}::float8 * p.comment_count
                  + ${w.share}::float8 * p.share_count + ${w.save}::float8 * p.save_count + 1)

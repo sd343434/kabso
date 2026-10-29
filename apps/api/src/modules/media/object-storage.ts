@@ -28,6 +28,16 @@ export interface ObjectStorage {
   /** The object's bytes, or null when it does not exist or is larger than `maxBytes`. */
   get(key: string, maxBytes: number): Promise<Buffer | null>;
   put(key: string, body: Buffer, contentType: string, cacheControl: string): Promise<void>;
+  /**
+   * v1.41-social (D162): `length` bytes from `offset` (fewer at the object's end), or null when the
+   * object does not exist. Videos are inspected this way, never loaded whole.
+   */
+  getRange(key: string, offset: number, length: number): Promise<Buffer | null>;
+  /**
+   * v1.41-social (D162): copies `fromKey` to `toKey` inside the bucket (a server-side copy; the bytes
+   * do not pass through the API) with a new content type and cache header.
+   */
+  copy(fromKey: string, toKey: string, contentType: string, cacheControl: string): Promise<void>;
   /** Deletes the keys; missing keys are not an error. */
   delete(keys: readonly string[]): Promise<void>;
 }

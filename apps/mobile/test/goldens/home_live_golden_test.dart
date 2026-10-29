@@ -207,10 +207,12 @@ void main() {
           );
         });
 
-        testWidgets('reels_tab.reels.unavailable ($vp)', (tester) async {
+        // D162: was `reels_tab.reels.unavailable`; reels now have an API
+        // (`GET /feed/reels`, empty here), so the honest empty state.
+        testWidgets('reels_tab.reels_empty ($vp)', (tester) async {
           await golden(
             tester,
-            'reels_tab.reels.unavailable',
+            'reels_tab.reels_empty',
             screen: const FeedScreen(initialTab: HomeTab.reels),
             navIndex: _reelsIndex,
           );
