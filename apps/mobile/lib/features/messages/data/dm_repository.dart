@@ -9,13 +9,16 @@ import 'package:kabso_live/features/posts/domain/post_models.dart'
     show ReportReason;
 
 /// Direct messages (docs/contracts/openapi.yaml v1.40-social DRAFT, tag
-/// `messages`, D155; CONVENTIONS §11.13). Every method throws an
-/// `AppFailure`.
+/// `messages`, D155; v1.43-social, D165; CONVENTIONS §11.13). Every method
+/// throws an `AppFailure`.
 abstract interface class DmRepository {
-  /// `GET /dm/conversations?box=INBOX|REQUESTS`, newest message first.
+  /// `GET /dm/conversations?box=INBOX|REQUESTS`, newest message first;
+  /// v1.43-social (D165): [query] keeps the conversations whose peer's
+  /// username or display name starts with it.
   Future<DmConversationPage> conversations({
     bool requests = false,
     String? cursor,
+    String? query,
   });
 
   /// `GET /dm/unread`: the Messages tab badge and the requests count.
@@ -58,6 +61,9 @@ abstract interface class DmRepository {
   /// `PUT` / `DELETE /dm/conversations/{id}/mute`.
   Future<void> setMuted(String conversationId, {required bool muted});
 
+  /// v1.43-social (D165): `PUT` / `DELETE /dm/conversations/{id}/unread`.
+  Future<void> setMarkedUnread(String conversationId, {required bool marked});
+
   /// `DELETE /dm/messages/{id}?scope=me|everyone`.
   Future<void> deleteMessage(String messageId, {required bool forEveryone});
 
@@ -76,11 +82,13 @@ class ApiDmRepository implements DmRepository {
   Future<DmConversationPage> conversations({
     bool requests = false,
     String? cursor,
+    String? query,
   }) => guardApiCall(() async {
     final res = await _dio.get<Map<String, dynamic>>(
       '/dm/conversations',
       queryParameters: {
         'box': requests ? 'REQUESTS' : 'INBOX',
+        'q': ?query,
         'cursor': ?cursor,
       },
     );
@@ -182,6 +190,17 @@ class ApiDmRepository implements DmRepository {
       guardApiCall(() async {
         final path = '${_conv(conversationId)}/mute';
         if (muted) {
+          await _dio.put<void>(path);
+        } else {
+          await _dio.delete<void>(path);
+        }
+      });
+
+  @override
+  Future<void> setMarkedUnread(String conversationId, {required bool marked}) =>
+      guardApiCall(() async {
+        final path = '${_conv(conversationId)}/unread';
+        if (marked) {
           await _dio.put<void>(path);
         } else {
           await _dio.delete<void>(path);

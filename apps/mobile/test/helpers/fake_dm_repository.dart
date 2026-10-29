@@ -60,6 +60,7 @@ class FakeDmRepository implements DmRepository {
     List<DmMessage> messages = const [],
     int unread = 0,
     bool muted = false,
+    bool markedUnread = false,
     bool canSend = true,
     int? requestLeft,
   }) {
@@ -73,6 +74,7 @@ class FakeDmRepository implements DmRepository {
       lastActivityAt: messages.isEmpty ? now : messages.first.createdAt,
       unreadCount: unread,
       muted: muted,
+      markedUnread: markedUnread,
       lastMessage: messages.isEmpty ? null : messages.first,
       canSend: canSend,
       requestMessagesLeft: requestLeft,
@@ -119,11 +121,20 @@ class FakeDmRepository implements DmRepository {
   Future<DmConversationPage> conversations({
     bool requests = false,
     String? cursor,
+    String? query,
   }) async {
-    _step('conversations:${requests ? 'requests' : 'inbox'}');
+    _step(
+      'conversations:${requests ? 'requests' : 'inbox'}'
+      '${query == null ? '' : ':q=$query'}',
+    );
+    final q = query?.toLowerCase();
     final list = [
       for (final c in byPeer.values)
-        if ((c.status == DmConversationStatus.requestReceived) == requests) c,
+        if ((c.status == DmConversationStatus.requestReceived) == requests &&
+            (q == null ||
+                c.peer.username.toLowerCase().startsWith(q) ||
+                c.peer.displayName.toLowerCase().startsWith(q)))
+          c,
     ]..sort((a, b) => b.lastActivityAt.compareTo(a.lastActivityAt));
     return DmConversationPage(list, null);
   }
@@ -257,8 +268,14 @@ class FakeDmRepository implements DmRepository {
   }
 
   @override
-  Future<void> markRead(String conversationId, String lastMessageId) async =>
-      _step('markRead:$conversationId:$lastMessageId');
+  Future<void> markRead(String conversationId, String lastMessageId) async {
+    _step('markRead:$conversationId:$lastMessageId');
+    for (final e in byPeer.entries.toList()) {
+      if (e.value.id == conversationId) {
+        byPeer[e.key] = e.value.copyWith(markedUnread: false);
+      }
+    }
+  }
 
   @override
   Future<void> accept(String conversationId) async {
@@ -280,6 +297,24 @@ class FakeDmRepository implements DmRepository {
   @override
   Future<void> setMuted(String conversationId, {required bool muted}) async {
     _step('mute:$conversationId:$muted');
+    for (final e in byPeer.entries.toList()) {
+      if (e.value.id == conversationId) {
+        byPeer[e.key] = e.value.copyWith(muted: muted);
+      }
+    }
+  }
+
+  @override
+  Future<void> setMarkedUnread(
+    String conversationId, {
+    required bool marked,
+  }) async {
+    _step('markUnread:$conversationId:$marked');
+    for (final e in byPeer.entries.toList()) {
+      if (e.value.id == conversationId) {
+        byPeer[e.key] = e.value.copyWith(markedUnread: marked);
+      }
+    }
   }
 
   @override

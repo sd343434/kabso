@@ -3500,12 +3500,6 @@ abstract class AppLocalizations {
   /// **'إيقاف الفيديو مؤقتًا'**
   String get attachPause;
 
-  /// Tooltip of the disabled microphone in the chat composer: voice messages need an API (D68, CP-004).
-  ///
-  /// In ar, this message translates to:
-  /// **'الرسائل الصوتية قريباً'**
-  String get chatVoiceSoon;
-
   /// Peer status in a conversation header (D68).
   ///
   /// In ar, this message translates to:
@@ -13446,6 +13440,96 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'لا يمكن تشغيل هذا الفيديو الآن'**
   String get videoCannotPlay;
+
+  /// D165: the search button of the conversation list.
+  ///
+  /// In ar, this message translates to:
+  /// **'بحث في المحادثات'**
+  String get dmSearch;
+
+  /// D165: the hint of the conversation search field.
+  ///
+  /// In ar, this message translates to:
+  /// **'ابحث بالاسم أو اسم المستخدم'**
+  String get dmSearchHint;
+
+  /// D165: closes the conversation search.
+  ///
+  /// In ar, this message translates to:
+  /// **'إغلاق البحث'**
+  String get dmSearchClose;
+
+  /// D165: no conversation matches the search.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد محادثة تطابق «{query}»'**
+  String dmSearchEmpty(String query);
+
+  /// D165: the hint of the new-message person search.
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب اسم الشخص أو اسم المستخدم'**
+  String get dmNewMessageHint;
+
+  /// D165: the new-message search found nobody.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم نجد أحداً بهذا الاسم'**
+  String get dmNewMessageEmpty;
+
+  /// D165: the new-message sheet before a search.
+  ///
+  /// In ar, this message translates to:
+  /// **'ابحث عن شخص لتبدأ محادثة معه'**
+  String get dmNewMessageStart;
+
+  /// D165: the long-press menu of a conversation row (semantics hint).
+  ///
+  /// In ar, this message translates to:
+  /// **'خيارات المحادثة'**
+  String get dmConversationActions;
+
+  /// D165: marks a conversation read from the list.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعليم كمقروءة'**
+  String get dmMarkRead;
+
+  /// D165: marks a conversation unread (markDmUnread).
+  ///
+  /// In ar, this message translates to:
+  /// **'تعليم كغير مقروءة'**
+  String get dmMarkUnread;
+
+  /// D165: semantics of a row marked unread.
+  ///
+  /// In ar, this message translates to:
+  /// **'معلّمة كغير مقروءة'**
+  String get dmMarkedUnread;
+
+  /// D165: copies a text message (long press).
+  ///
+  /// In ar, this message translates to:
+  /// **'نسخ'**
+  String get dmCopy;
+
+  /// D165: a text message was copied.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم نسخ الرسالة'**
+  String get dmCopied;
+
+  /// D165: the chat header opens the person's profile.
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض الملف الشخصي'**
+  String get dmViewProfile;
+
+  /// D165: the microphone of a composer that cannot record here (replaces «قريباً»).
+  ///
+  /// In ar, this message translates to:
+  /// **'الرسائل الصوتية غير متاحة على هذا الجهاز'**
+  String get chatVoiceUnavailable;
 }
 
 class _AppLocalizationsDelegate

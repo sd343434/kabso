@@ -1,8 +1,10 @@
 import 'dart:async';
 
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart' show XFile;
+import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/error/failure_widgets.dart';
@@ -88,6 +90,12 @@ class ChatScreen extends ConsumerStatefulWidget {
   static const deleteForMeKey = Key('chat.message.deleteForMe');
   static const deleteForEveryoneKey = Key('chat.message.deleteForEveryone');
   static const reportMessageKey = Key('chat.message.report');
+
+  /// D165: copies a text message.
+  static const copyMessageKey = Key('chat.message.copy');
+
+  /// D165: the header (avatar and name) opens the person's profile.
+  static const headerKey = Key('chat.header');
   static const confirmDeleteKey = Key('chat.delete.confirm');
   static const giftRequestContinueKey = Key('chat.gift.requestContinue');
 
@@ -110,6 +118,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   bool _sending = false;
   String? _conversation;
   String? _readUpTo;
+  bool _clearingMark = false;
 
   bool _recording = false;
   bool _voiceBusy = false;
@@ -191,6 +200,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
     final newest = s.messages.where((m) => !m.mine).firstOrNull;
     final status = s.conversation?.status;
+    // D165: opening a conversation marked unread clears the mark (a request
+    // too: the mark is the caller's own and tells the sender nothing).
+    final marked = s.conversation?.markedUnread ?? false;
+    if (marked && !_clearingMark) {
+      _clearingMark = true;
+      if (status != DmConversationStatus.requestReceived) {
+        _readUpTo = newest?.id;
+      }
+      unawaited(() async {
+        final told = await ref
+            .read(dmChatProvider(username).notifier)
+            .markRead();
+        _clearingMark = false;
+        if (told && mounted) {
+          unawaited(ref.read(dmUnreadProvider.notifier).refresh());
+        }
+      }());
+      return;
+    }
     if (newest != null &&
         newest.id != _readUpTo &&
         status != DmConversationStatus.requestReceived) {
@@ -433,6 +461,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 title: Text(l10n.dmDeleteForEveryone),
                 onTap: () => Navigator.of(sheet).pop('everyone'),
               ),
+            if (m.kind == DmMessageKind.text && (m.text ?? '').isNotEmpty)
+              ListTile(
+                key: ChatScreen.copyMessageKey,
+                leading: const Icon(Icons.copy_rounded),
+                title: Text(l10n.dmCopy),
+                onTap: () => Navigator.of(sheet).pop('copy'),
+              ),
             if (!m.mine)
               ListTile(
                 key: ChatScreen.reportMessageKey,
@@ -445,6 +480,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ),
     );
     if (action == null || !mounted) return;
+    if (action == 'copy') {
+      await Clipboard.setData(ClipboardData(text: m.text ?? ''));
+      if (mounted) KSnack.success(context, l10n.dmCopied);
+      return;
+    }
     try {
       if (action == 'report') {
         final reason = await pickReportReason(context, l10n.dmReportMessage);
@@ -543,39 +583,49 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       appBar: KAppBar(
         backgroundColor: p.background,
         titleSpacing: 0,
-        title: Row(
-          children: [
-            KAvatar(
-              name: name,
-              imageUrl: user?.avatarUrl ?? widget.avatarUrl,
-              size: KSizes.avatarSm,
-            ),
-            const SizedBox(width: KSpacing.sm),
-            Flexible(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: context.textStyles.bodyStrong.copyWith(
-                      color: p.textPrimary,
-                    ),
+        // D165: the person's profile is one tap away.
+        title: Semantics(
+          button: true,
+          hint: l10n.dmViewProfile,
+          child: InkWell(
+            key: ChatScreen.headerKey,
+            borderRadius: BorderRadius.circular(KRadius.md),
+            onTap: () => context.push(AppRoutes.userProfile(username)),
+            child: Row(
+              children: [
+                KAvatar(
+                  name: name,
+                  imageUrl: user?.avatarUrl ?? widget.avatarUrl,
+                  size: KSizes.avatarSm,
+                ),
+                const SizedBox(width: KSpacing.sm),
+                Flexible(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.textStyles.bodyStrong.copyWith(
+                          color: p.textPrimary,
+                        ),
+                      ),
+                      Text(
+                        KHandle.text(l10n, username, premiumTier: tier),
+                        maxLines: 1,
+                        textDirection: TextDirection.ltr,
+                        style: context.textStyles.caption.copyWith(
+                          color: p.textSecondary,
+                        ),
+                      ),
+                    ],
                   ),
-                  Text(
-                    KHandle.text(l10n, username, premiumTier: tier),
-                    maxLines: 1,
-                    textDirection: TextDirection.ltr,
-                    style: context.textStyles.caption.copyWith(
-                      color: p.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
         actions: [
           if (s != null)

@@ -1894,10 +1894,6 @@
   "@attachPause": {
     "description": "D67: attaching a photo or video in a conversation."
   },
-  "chatVoiceSoon": "الرسائل الصوتية قريباً",
-  "@chatVoiceSoon": {
-    "description": "Tooltip of the disabled microphone in the chat composer: voice messages need an API (D68, CP-004)."
-  },
   "chatOnline": "متصل الآن",
   "@chatOnline": {
     "description": "Peer status in a conversation header (D68)."
@@ -8435,5 +8431,35 @@
   "videoUnmute": "تشغيل الصوت",
   "@videoUnmute": {"description": "D162: the inline player."},
   "videoCannotPlay": "لا يمكن تشغيل هذا الفيديو الآن",
-  "@videoCannotPlay": {"description": "D162: the inline player failed."}
+  "@videoCannotPlay": {"description": "D162: the inline player failed."},
+  "dmSearch": "بحث في المحادثات",
+  "@dmSearch": {"description": "D165: the search button of the conversation list."},
+  "dmSearchHint": "ابحث بالاسم أو اسم المستخدم",
+  "@dmSearchHint": {"description": "D165: the hint of the conversation search field."},
+  "dmSearchClose": "إغلاق البحث",
+  "@dmSearchClose": {"description": "D165: closes the conversation search."},
+  "dmSearchEmpty": "لا توجد محادثة تطابق «{query}»",
+  "@dmSearchEmpty": {"description": "D165: no conversation matches the search.", "placeholders": {"query": {"type": "String"}}},
+  "dmNewMessageHint": "اكتب اسم الشخص أو اسم المستخدم",
+  "@dmNewMessageHint": {"description": "D165: the hint of the new-message person search."},
+  "dmNewMessageEmpty": "لم نجد أحداً بهذا الاسم",
+  "@dmNewMessageEmpty": {"description": "D165: the new-message search found nobody."},
+  "dmNewMessageStart": "ابحث عن شخص لتبدأ محادثة معه",
+  "@dmNewMessageStart": {"description": "D165: the new-message sheet before a search."},
+  "dmConversationActions": "خيارات المحادثة",
+  "@dmConversationActions": {"description": "D165: the long-press menu of a conversation row (semantics hint)."},
+  "dmMarkRead": "تعليم كمقروءة",
+  "@dmMarkRead": {"description": "D165: marks a conversation read from the list."},
+  "dmMarkUnread": "تعليم كغير مقروءة",
+  "@dmMarkUnread": {"description": "D165: marks a conversation unread (markDmUnread)."},
+  "dmMarkedUnread": "معلّمة كغير مقروءة",
+  "@dmMarkedUnread": {"description": "D165: semantics of a row marked unread."},
+  "dmCopy": "نسخ",
+  "@dmCopy": {"description": "D165: copies a text message (long press)."},
+  "dmCopied": "تم نسخ الرسالة",
+  "@dmCopied": {"description": "D165: a text message was copied."},
+  "dmViewProfile": "عرض الملف الشخصي",
+  "@dmViewProfile": {"description": "D165: the chat header opens the person's profile."},
+  "chatVoiceUnavailable": "الرسائل الصوتية غير متاحة على هذا الجهاز",
+  "@chatVoiceUnavailable": {"description": "D165: the microphone of a composer that cannot record here (replaces «قريباً»)."}
 }
