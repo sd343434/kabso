@@ -429,7 +429,8 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
         titleEn: 'Stars of the week',
         rulesAr: 'أكثر من يستقبل هدايا',
         rulesEn: 'Who receives the most gifts',
-        startsAt: new Date(now - HOUR_MS),
+        // From now: gifts of the earlier tests stay outside the window.
+        startsAt: new Date(now - 1000),
         endsAt: new Date(now + HOUR_MS),
         metric: 'GIFT_COINS_RECEIVED',
         featured: true,
@@ -572,7 +573,7 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
         titleEn: 'Held',
         rulesAr: '-',
         rulesEn: '-',
-        startsAt: new Date(now - HOUR_MS),
+        startsAt: new Date(now - 1000),
         endsAt: new Date(now + HOUR_MS),
         metric: 'GIFT_COINS_SENT',
         payoutHold: true,
@@ -587,10 +588,12 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
       await sweeper.sweep();
       expect(await ledger(fan, 'EVENT_PRIZE')).toHaveLength(0);
       await ctx.prisma.event.update({ where: { id: event.id }, data: { payoutHold: false } });
+      // The review window runs from the freeze.
+      clock.advance(25 * HOUR_MS);
       await sweeper.sweep();
       expect((await ledger(fan, 'EVENT_PRIZE')).map((p) => Number(p.delta))).toEqual([300]);
     } finally {
-      clock.advance(-30 * HOUR_MS);
+      clock.advance(-55 * HOUR_MS);
     }
   });
 

@@ -195,6 +195,7 @@ class ProgramPillButton extends StatelessWidget {
               ),
               child: Center(
                 widthFactor: 1,
+                heightFactor: 1,
                 child: loading
                     ? SizedBox.square(
                         dimension: 18,
