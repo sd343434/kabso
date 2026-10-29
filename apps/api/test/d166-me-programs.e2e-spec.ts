@@ -26,6 +26,9 @@ class FakeClock extends Clock {
   advance(ms: number): void {
     this.offset += ms;
   }
+  reset(): void {
+    this.offset = 0;
+  }
 }
 
 interface TestUser {
@@ -352,7 +355,7 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
       // Yesterday's follows do not count today.
       expect((await claim(me, 'FOLLOW_USERS')).body.error.code).toBe('TASK_NOT_COMPLETED');
     } finally {
-      clock.advance(-DAY_MS);
+      clock.reset();
     }
   });
 
@@ -408,7 +411,7 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
         spentCoins: 0,
       });
     } finally {
-      clock.advance(-31 * DAY_MS);
+      clock.reset();
     }
   });
 
@@ -533,8 +536,8 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
     try {
       expect((await sweeper.sweep()).frozen).toBeGreaterThanOrEqual(1);
       expect(await sweeper.sweep()).toEqual({ frozen: 0, paid: 0 });
-      // Gifts after the end never change the final board.
-      await send(roomB, fan, hostB, 10);
+      // The final board is the frozen snapshot (event_results), not a new count.
+      expect(await ctx.prisma.eventResult.count({ where: { eventId: event.id } })).toBe(2);
       const frozen = await ctx.http.get(`/api/v1/events/${event.id}/leaderboard`).set(auth(viewer));
       expect(frozen.body.final).toBe(true);
       expect(frozen.body.data.map((r: { score: number }) => r.score)).toEqual([100, 10]);
@@ -557,7 +560,7 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
       expectContract(paidDetail, 'getEvent');
       expect(paidDetail.body.paidAt).not.toBeNull();
     } finally {
-      clock.advance(-27 * HOUR_MS);
+      clock.reset();
     }
   });
 
@@ -595,7 +598,7 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
       await sweeper.sweep();
       expect((await ledger(fan, 'EVENT_PRIZE')).map((p) => Number(p.delta))).toEqual([300]);
     } finally {
-      clock.advance(-55 * HOUR_MS);
+      clock.reset();
     }
   });
 

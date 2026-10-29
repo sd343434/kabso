@@ -8065,11 +8065,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tasksLevelNone => 'Levels aren\'t active yet';
 
   @override
-  String get tasksCheckInTitle => 'Daily sign-in';
+  String get tasksCheckInTitle => 'Daily check-in';
 
   @override
   String tasksCheckInToBonus(String days, String coins) {
-    return 'Sign in $days more days to get $coins extra coins';
+    return 'Check in $days more days to get $coins extra coins';
   }
 
   @override
@@ -8078,7 +8078,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get tasksCheckInAction => 'Sign in';
+  String get tasksCheckInAction => 'Check in';
 
   @override
   String tasksStreak(String days) {
@@ -8375,7 +8375,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get walletReasonTaskReward => 'Task reward';
 
   @override
-  String get walletReasonCheckIn => 'Sign-in reward';
+  String get walletReasonCheckIn => 'Check-in reward';
 
   @override
   String get walletReasonEventPrize => 'Event prize';

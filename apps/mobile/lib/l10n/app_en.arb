@@ -2623,10 +2623,10 @@
   "tasksLoadError": "Couldn't load the tasks",
   "tasksLevelPoints": "Experience points {points}",
   "tasksLevelNone": "Levels aren't active yet",
-  "tasksCheckInTitle": "Daily sign-in",
-  "tasksCheckInToBonus": "Sign in {days} more days to get {coins} extra coins",
+  "tasksCheckInTitle": "Daily check-in",
+  "tasksCheckInToBonus": "Check in {days} more days to get {coins} extra coins",
   "tasksCheckInBonusToday": "Today is bonus day: {coins} extra coins",
-  "tasksCheckInAction": "Sign in",
+  "tasksCheckInAction": "Check in",
   "tasksStreak": "{days} days in a row",
   "tasksToday": "Today",
   "tasksDailyCap": "Today's rewards: {earned} of {cap} coins",
@@ -2710,6 +2710,6 @@
   "walletPackagesEmpty": "No recharge packages right now",
   "walletPackagesError": "Couldn't load the recharge packages",
   "walletReasonTaskReward": "Task reward",
-  "walletReasonCheckIn": "Sign-in reward",
+  "walletReasonCheckIn": "Check-in reward",
   "walletReasonEventPrize": "Event prize"
 }
