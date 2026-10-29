@@ -1,6 +1,11 @@
-# CP-024 — Me hub programs: Task Center, Event Center, VIP and SVIP (PROPOSAL)
+# CP-024 — Me hub programs: Task Center, Event Center, VIP and SVIP
 
-**Status:** proposal, **not approved, nothing built.** Written for D164 (owner, 2026-10-29: «اجعل
+**Status: APPROVED WITH DEFAULTS (owner, 2026-10-29) for the Task Center, the Event Center and SVIP —
+built in D166 (contract v1.44-social, CONVENTIONS §10.41). VIP (buying a tier with coins, §3) is not
+part of the approval and stays «قريباً».** The decisions and every value chosen are recorded in
+"Decisions (D166)" at the end; the text below is the original proposal, kept for the reasoning.
+
+Original status line: proposal, **not approved, nothing built.** Written for D164 (owner, 2026-10-29: «اجعل
 الوكيل يعمل على أزرار قريباً في أنا»). D164 built the three «قريباً» buttons of the Me hub that only
 show data Kabso already stores (Wallet, Earn money, Creator Center, CONVENTIONS §10.40). The four
 below need **business rules only the owner can set** — rewards, prices, benefits, events — so their
@@ -124,3 +129,25 @@ Real-money purchases (B5), withdrawals / payouts (D149), agencies, ads.
 12. SVIP perks: anything beyond VIP 3 + unique badge/frame/effect + a monthly gift?
 13. Art: do you have frames / badges / effects for VIP and SVIP, or should the team design Kabso-owned
     ones?
+
+## Decisions (D166, owner approval 2026-10-29 «with defaults»)
+
+The owner approved the scope the same day and asked for the reference screens he gave, in Kabso's identity.
+Where the proposal left a choice, the value below was chosen; each is server config or an admin-managed row,
+changeable without an app release.
+
+| # | Question | Decision (value) | Where it lives |
+|---|----------|------------------|----------------|
+| 1 | Task list and rewards | The owner's reference tasks adapted to Kabso: watch a live 15 s (1×) **+5**, follow 10 people **+5**, 10 chat messages in a live **+5**, 10 paid gift sends **+15** (daily); host tasks T7 live 60 min **+100**, T8 receive gifts worth 1 000 coins **+100** (weekly, hosts only). T1 is the check-in. T3–T6 of the proposal were replaced by the reference's tasks. «Share a live room» dropped: a share is a link copied on the phone, the server cannot see it (never self-reported). | `task_definitions` (seeded by migration `20261214100000_me_programs`; `task-admin`) |
+| 1b | Daily cap | **50 coins** per account per day, daily tasks + check-in together; weekly host tasks outside it (once a week each) | `TASK_DAILY_CAP_COINS` |
+| 1c | Check-in | **5 coins**, **+20** on every 7th day in a row | `TASK_CHECK_IN_COINS`, `TASK_CHECK_IN_STREAK_BONUS_COINS` |
+| 2 | Coins or bag items | **Coins only.** No XP: the level systems count coin value (CP-005), free points would buy levels. | — |
+| 3 | Reset time | 00:00 (day) and Monday 00:00 (week) in `LIVE_RANKINGS_TIME_ZONE` | config |
+| 4 | Event metrics / audience | All five metrics (gift coins received, gift coins sent, live minutes, taps received, new followers); audience everyone **or** hosts per event; optional regions (countries) | `events` |
+| 5 | Who creates events | The team, with the **`event-admin` CLI** (create / list / end / hold / release) | CLI |
+| 6 | Prizes | **Coins** per rank (1–100), paid automatically **24 h** after the end unless held; once per event and person (`EVENT_PRIZE`) | `events.prizes`, `EVENT_PRIZE_REVIEW_HOURS` |
+| 7–10 | VIP tiers, prices, renewal | **Not decided — VIP purchase stays «قريباً»** (not in the approved scope) | — |
+| 11 | SVIP | **Earned** by gift spending in a **rolling 30 days** (adapted from the reference's "top up 50 000 within 30 days", because real-money top-up is blocked, B5): **SVIP 1 50 000, SVIP 2 150 000, SVIP 3 400 000** coins; status lasts **30 days** after the last moment the threshold was met | `SVIP_TIERS`, `SVIP_WINDOW_DAYS`, `SVIP_STATUS_DAYS` |
+| 12 | SVIP perks | badge, avatar frame, coloured chat name (SVIP 1); entry banner, free daily bullet (SVIP 2); entry effect, viewer-list priority, monthly bag gift (SVIP 3). **None is built yet** — listed as coming, never shown as active (follow-ups in the PR). Points redemption for anti-mute / unban (in the reference) is **not** offered: it would undermine moderation. | `SvipService` |
+| 13 | Art | **Owner art needed**: SVIP emblem, badge, frames and effects; event banners; the Task Center header art. The app uses token-coloured icon compositions until then. | — |
+| — | Recharge screen | Packages from config, placeholders from the reference (10+20 $0.29, 38+20 $0.99, 276+28 $6.99 was $8.00, 800+30 $19.99, 2500+30 $59.99, 4193+30 $99.99, 5197+30 $129.99) **for the owner to set**; the CTA stays disabled «الدفع قريباً» (B5). No purchase endpoint. | `WALLET_RECHARGE_PACKAGES`, `WALLET_RECHARGE_CURRENCY` |
