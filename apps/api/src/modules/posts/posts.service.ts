@@ -141,9 +141,10 @@ export class PostsService implements OnModuleInit, OnModuleDestroy {
             format,
             location: input.location ?? null,
             status,
-            // CP-006 Q2: until a moderation provider exists, posts with images (D162: or a video,
-            // reels included) are PENDING (visible to their author only); text-only posts are VISIBLE.
-            moderation: assets.length > 0 ? 'PENDING' : 'VISIBLE',
+            // v1.42-social (D162a, owner «جميعها تظهر فوراً»): every post — photos, a video, a reel —
+            // is visible at once, like stories (D91); reports and REMOVE_TARGET are the safety net.
+            // PENDING stays for a future moderation provider or an admin hold.
+            moderation: 'VISIBLE',
             publishAt: status === 'SCHEDULED' ? new Date(input.publishAt!) : null,
             publishedAt: status === 'PUBLISHED' ? now : null,
             commentsEnabled: input.settings?.commentsEnabled ?? true,

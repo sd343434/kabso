@@ -180,16 +180,26 @@ describe('KL-060 posts', () => {
       expect(await ctx.prisma.post.count({ where: { authorId: alice.id, text: 'race' } })).toBe(1);
     });
 
-    it('a photo post waits for moderation: only its author sees it', async () => {
+    // D162a (v1.42-social, owner «جميعها تظهر فوراً»): was "a photo post waits for moderation";
+    // photo posts are visible at once now. A PENDING post (a future provider or an admin hold)
+    // is still visible to its author only.
+    it('a photo post is visible at once; a PENDING post only to its author', async () => {
       const media = await photo(alice);
       const res = await create(alice, { mediaIds: [media] });
       expect(res.status).toBe(201);
       expectContract(res, 'createPost');
-      expect(res.body.moderation).toBe('PENDING');
+      expect(res.body.moderation).toBe('VISIBLE');
       expect(res.body.media).toHaveLength(1);
       expect(res.body.media[0].id).toBe(media);
       expect(res.body.text).toBe('');
       expect((await get(alice, res.body.id)).status).toBe(200);
+      expect((await get(bob, res.body.id)).status).toBe(200);
+      await withMigrationClient((c) =>
+        c.post.update({ where: { id: res.body.id }, data: { moderation: 'PENDING' } }),
+      );
+      const held = await get(alice, res.body.id);
+      expect(held.status).toBe(200);
+      expect(held.body.moderation).toBe('PENDING');
       expect((await get(bob, res.body.id)).status).toBe(404);
       // The asset is attached once only.
       const reuse = await create(alice, { text: 'again', mediaIds: [media] });

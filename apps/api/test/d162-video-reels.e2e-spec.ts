@@ -5,6 +5,7 @@
  * runtime role. Object storage is the in-memory double; every response is checked against openapi.
  */
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import sharp from 'sharp';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { MediaService } from '../src/modules/media/media.service.js';
@@ -109,8 +110,8 @@ describe('D162 video posts and reels', () => {
       .get(`/api/v1/feed/${path}`)
       .query({ tab, ...(cursor ? { cursor } : {}), limit: 5 })
       .set(auth(u));
-  const makeVisible = (postId: string) =>
-    withMigrationClient((c) => c.post.update({ where: { id: postId }, data: { moderation: 'VISIBLE' } }));
+  const hold = (postId: string) =>
+    withMigrationClient((c) => c.post.update({ where: { id: postId }, data: { moderation: 'PENDING' } }));
   const follow = (follower: TestUser, followee: TestUser) =>
     withMigrationClient((c) =>
       c.follow.create({ data: { followerId: follower.id, followeeId: followee.id } }),
@@ -324,12 +325,13 @@ describe('D162 video posts and reels', () => {
       const post = await create(alice, { text: 'my video', mediaIds: [postVideo] });
       expect(post.status).toBe(201);
       expectContract(post, 'createPost');
-      expect(post.body).toMatchObject({ format: 'POST', moderation: 'PENDING' });
+      // D162a: media posts are visible at once (was PENDING under CP-006 Q2).
+      expect(post.body).toMatchObject({ format: 'POST', moderation: 'VISIBLE' });
       expect(post.body.media[0]).toMatchObject({ id: postVideo, type: 'VIDEO' });
       const reel = await create(alice, { format: 'REEL', text: 'my reel #kabso', mediaIds: [reelVideo] });
       expect(reel.status).toBe(201);
       expectContract(reel, 'createPost');
-      expect(reel.body).toMatchObject({ format: 'REEL', moderation: 'PENDING', hashtags: ['kabso'] });
+      expect(reel.body).toMatchObject({ format: 'REEL', moderation: 'VISIBLE', hashtags: ['kabso'] });
       expect(reel.body.media[0]).toMatchObject({ id: reelVideo, type: 'VIDEO', durationMs: 8_000 });
       // An attached video cannot attach twice.
       const twice = await create(alice, { format: 'REEL', mediaIds: [reelVideo] });
@@ -338,9 +340,9 @@ describe('D162 video posts and reels', () => {
       expect(read.status).toBe(200);
       expectContract(read, 'getPost');
       expect(read.body.format).toBe('REEL');
-      // PENDING: others cannot see it (CP-006 Q2 until moderation exists).
-      const hidden = await ctx.http.get(`/api/v1/posts/${reel.body.id}`).set(auth(bob));
-      expect(hidden.status).toBe(404);
+      // D162a: visible to others at once (was 404 under the CP-006 Q2 hold).
+      const seen = await ctx.http.get(`/api/v1/posts/${reel.body.id}`).set(auth(bob));
+      expect(seen.status).toBe(200);
     });
 
     it('the reels feed: following (with your own) and trending; posts feeds leave reels out', async () => {
@@ -366,8 +368,9 @@ describe('D162 video posts and reels', () => {
           mediaIds: [(await video(maker, 'REEL_VIDEO')).res.body.id],
         })
       ).body.id as string;
-      await makeVisible(reelId);
-      await makeVisible(postId);
+      // D162a: posts are visible at once; one reel is put on hold (PENDING, as a future provider
+      // or an admin would) to keep the author-only rule covered.
+      await hold(pendingReel);
 
       const following = await feed(viewer, 'reels', 'following');
       expect(following.status).toBe(200);
@@ -410,7 +413,7 @@ describe('D162 video posts and reels', () => {
         const id = (
           await create(maker, { format: 'REEL', mediaIds: [(await video(maker, 'REEL_VIDEO')).res.body.id] })
         ).body.id as string;
-        await makeVisible(id);
+        expect(id).toEqual(expect.any(String));
       }
       const first = await feed(viewer, 'reels', 'following');
       expect(first.body.data).toHaveLength(5);
@@ -427,6 +430,28 @@ describe('D162 video posts and reels', () => {
       expectContract(bad, 'listFeedReels');
       const anon = await ctx.http.get('/api/v1/feed/reels').query({ tab: 'following' });
       expect(anon.status).toBe(401);
+    });
+  });
+
+  describe('D162a: media posts are visible at once', () => {
+    it('the data migration makes held posts VISIBLE and leaves REMOVED ones alone', async () => {
+      const a = (await create(carol, { text: 'held' })).body.id as string;
+      const b = (await create(carol, { text: 'removed' })).body.id as string;
+      await withMigrationClient(async (c) => {
+        await c.post.update({ where: { id: a }, data: { moderation: 'PENDING' } });
+        await c.post.update({ where: { id: b }, data: { moderation: 'REMOVED' } });
+        const sql = readFileSync(
+          new URL('../prisma/migrations/20261212090000_media_posts_visible/migration.sql', import.meta.url),
+          'utf8',
+        );
+        await c.$executeRawUnsafe(sql.replace(/^--.*$/gm, '').trim());
+      });
+      const rows = await ctx.prisma.post.findMany({ where: { id: { in: [a, b] } } });
+      expect(Object.fromEntries(rows.map((r) => [r.id, r.moderation]))).toEqual({
+        [a]: 'VISIBLE',
+        [b]: 'REMOVED',
+      });
+      expect((await ctx.http.get(`/api/v1/posts/${a}`).set(auth(bob))).status).toBe(200);
     });
   });
 
