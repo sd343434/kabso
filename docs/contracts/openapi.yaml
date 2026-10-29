@@ -6864,7 +6864,7 @@ paths:
       summary: "One event: dates, rules and prizes (D166)"
       description: v1.44-social, CONVENTIONS §10.41. Checks — 401; 404 (unknown or malformed id).
       parameters:
-        - $ref: '#/components/parameters/EventIdPath'
+        - $ref: '#/components/parameters/ProgramEventIdPath'
       responses:
         '200':
           description: The event.
@@ -6885,7 +6885,7 @@ paths:
         frozen (`final: true`) and prizes are paid once after the review window. People the caller
         blocked or who blocked the caller are left out of `data` (ranks stay). Checks: 401; 404.
       parameters:
-        - $ref: '#/components/parameters/EventIdPath'
+        - $ref: '#/components/parameters/ProgramEventIdPath'
       responses:
         '200':
           description: The board.
@@ -6919,10 +6919,11 @@ components:
       scheme: bearer
       bearerFormat: JWT
   parameters:
-    EventIdPath:
+    ProgramEventIdPath:
       name: eventId
       in: path
       required: true
+      description: A malformed id is treated as not found (404).
       schema: { type: string }
     Cursor:
       name: cursor
