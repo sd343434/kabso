@@ -525,6 +525,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.43-social (draft) | 2026-10-29 | **D164 (owner: «اجعل الوكيل يعمل على أزرار قريباً في أنا» — the Me hub's "Soon" buttons that only need stored data):** tag `wallet`: `listMyWalletLedger` (`GET /wallet/me/ledger`, `WalletLedgerPage`, `WalletLedgerEntry`, `WalletLedgerReason`), `getMyEarnings` (`GET /wallet/me/earnings`, `MyEarnings`) and `listMyEarnings` (`GET /wallet/me/earnings/history`, `EarningPage`, `Earning`, `EarningContext`); tag `me`: `getMyCreatorStats` (`GET /me/creator-stats?period=LAST_7_DAYS\|LAST_30_DAYS\|ALL_TIME`, `CreatorStats`, `CreatorContentStats`, `CreatorStatsPeriod`). All read the caller's own stored data only (no migration). Earnings are display only (no withdrawal, D149). §10.40. | **Additive** (new operations and schemas). |
 | v1.42-social (draft) | 2026-10-29 | **D162a (owner: «جميعها تظهر فوراً» — every post with media is visible at once, like stories, D91):** CP-006 Q2 hold lifted. `createPost` stores posts with photos, a video and reels as `moderation: VISIBLE`; existing `PENDING` posts became `VISIBLE` (data migration `20261212090000_media_posts_visible`). Safety relies on reports and moderators' `REMOVE_TARGET`. `Post.moderation` keeps `PENDING` as a valid value (a future provider or an admin hold). §11.2, §11.14, §11.13 note. | **Behaviour only** (no shape change): media posts appear in feeds, search and grids at once. |
 | v1.41-social (draft) | 2026-10-28 | **D162 (owner: the «فيديو» tab of «منشور جديد», reels «ريلز» in «لحظات», the ➕ menu; CP-023, CP-006 M2 without transcoding):** `MediaKind` `POST_VIDEO` (≤ 200 MiB, 1–180 s), `REEL_VIDEO` (≤ 100 MiB, 1–60 s), `VIDEO_POSTER` (the phone-made first frame, processed like a post image); `CreateMediaUploadRequest.contentType` `video/mp4`, `video/quicktime` (video kinds only) and `byteSize` maximum 209 715 200 (images still 15 MiB); new optional body `CompleteMediaUploadRequest {posterId}` (required for a video, refused otherwise); `MediaAsset.type` `VIDEO`, `posterUrl` (VIDEO only), `durationMs` maximum 180 000; `Post.format` `REEL` and `CreatePostRequest.format`; `listFeedReels` (`GET /feed/reels?tab=following\|trending`); `listFeedPosts` lists `format: POST` only. §11.1, §11.2, §11.3, §11.8 and §11.14. No server-side transcoding (the file is checked and served as uploaded). | **Additive** (new enum values, operation, optional fields and an optional request body). Clients that do not know `VIDEO` / `REEL` keep working: before v1.41 no video or reel existed. |
 | v1.40-social (draft) | 2026-10-28 | **D155 (owner: real direct messages; 24-hour messages; gifts in conversations):** tag `messages`: `listDmConversations` (`GET /dm/conversations?box=INBOX\|REQUESTS`, `DmConversationPage`, `DmConversation`, `DmConversationStatus`), `getDmUnread` (`GET /dm/unread`, `DmUnread`), `getDmPeer` (`GET /dm/peers/{username}`, `DmPeer`), `listDmMessages` (`GET /dm/conversations/{conversationId}/messages`, `DmMessagePage`), `sendDmMessage` (`POST /dm/messages`, `DmSendRequest`, `DmSendResult`, `DmMessage`, `DmMessageKind`), `sendDmGift` (`POST /dm/gifts`, `DmGiftSendRequest`, `DmGiftResult`, `DmGift`), `markDmRead` (`POST …/read`, `DmReadRequest`), `acceptDmRequest` (`POST …/accept`), `deleteDmConversation`, `muteDmConversation` / `unmuteDmConversation`, `deleteDmMessage` (`DELETE /dm/messages/{messageId}?scope=me\|everyone`); `PrivacySettings.whoCanMessage` (`EVERYONE` default, `FOLLOWING`, `NOBODY`); report `targetType: DM_MESSAGE` with the admin-only `Report.dmSnapshot`; `MediaKind` `DM_IMAGE`, `DM_VOICE`; codes `DM_NOT_ALLOWED`, `DM_REQUEST_LIMIT`, `DM_REQUEST_TEXT_ONLY` (403), `DM_DELETE_WINDOW_PASSED` (409); `NotificationSettings.messages` also covers direct messages; push data `kind: dm`. Every message is hard-deleted 24 h after it was sent (`DM_RETENTION_HOURS`). Gifts in a conversation reuse the live gift pipeline with the recipient's share `GIFT_DM_RECIPIENT_SHARE_PERCENT` (50 %) and lucky gifts at the lucky host share (10 %). Migrations `20261210090000_direct_messages_enums`, `20261210100000_direct_messages` (after v1.32–v1.38-live's; the ledger sign CHECK keeps `LIVE_BOOST` / `LIVE_BOOST_REFUND`). With v1.32-live (merged): in a conversation the DM share replaces the category share of `GIFT_HOST_SHARE_PERCENTS` (quips included) and is stored as `live_gifts.host_share_bps`; paid quips can be sent (`COINS`, quantity 1), free quips cannot (409 `GIFT_UNAVAILABLE`). §7, §11.1, §11.7, §11.12, §11.13. | **Additive** (new tag, paths, schemas, enum values and codes; older apps ignore them). Apps that switch on the Messages tab need this server. |
@@ -2475,6 +2476,48 @@ Owner decisions (2026-10-28, D154 item 9) are marked *(owner)*.
   secret, never in the app or in git.
 - **Not in v1.38-live:** a queue of several videos, viewers' own controls, YouTube Shorts' vertical
   layout.
+
+### 10.40 The Me hub's wallet, earnings and creator center *(v1.43-social, DRAFT — D164)*
+
+Owner request (2026-10-29): make the Me hub's «قريباً» buttons work **without fake data and without new
+business rules**. Only what stored data already answers is built; recharge, withdrawal, VIP, SVIP, the
+task center and the event center wait for owner decisions (proposal CP-024).
+
+- **Coin history** «المحفظة»: `listMyWalletLedger` (`GET /wallet/me/ledger`, cursor / limit §5) — the
+  caller's `wallet_ledger` rows (§10.19), newest first (`created_at` desc, `id` desc; signed social cursor
+  bound to the caller): `{id, reason, delta, balanceAfter, createdAt}`. `delta` is signed (never 0). The
+  row's `reference_id` is **not** returned (it can name another person's send or payment). New
+  `WalletLedgerReason` values may appear with later features; clients show an unknown one as a generic
+  change. The balance itself stays `getMyWallet`. Recharge is not built (B5: no payment method yet).
+- **Earnings** «اربح المال»: there is **no separate earnings balance** in the ledger — a recipient's share is
+  not credited as coins. Earnings are computed per read from the gift sends the caller received
+  (`live_gift_recipients` × `live_gifts`, live and direct-conversation sends alike): for each send,
+  floor(recipient `coins` × the send's stored `host_share_bps` / 10 000) (§10.33; the data center's
+  `earningsCoins` of §10.36 is the same sum for one live). Sends whose share is 0 (free quips, a 0 % share)
+  are left out. `getMyEarnings` (`GET /wallet/me/earnings`) → `{totalCoins, last7DaysCoins,
+  last30DaysCoins, sendCount}` (rolling windows ending now). `listMyEarnings` (`GET
+  /wallet/me/earnings/history`, cursor / limit §5, newest first, signed social cursor bound to the
+  caller) → `{id (the send), createdAt, context LIVE|DM, giftCode, giftName (reader's language, §10.1),
+  quantity, giftCoins, shareBps, coins, sender}`; `sender` is null when the sender is not ACTIVE or a block
+  stands between them either way. **Display only:** earnings cannot be spent or withdrawn (payout method
+  and rules are D149, undecided).
+- **Creator center** «مركز صنّاع المحتوى»: `getMyCreatorStats` (`GET /me/creator-stats?period=`,
+  `LAST_7_DAYS` | `LAST_30_DAYS` | `ALL_TIME`; 400 `period` otherwise). Rolling windows ending now; `from`
+  is null for `ALL_TIME`.
+  - `followers.total`: ACTIVE accounts following the caller now (like `PublicProfile.followerCount`);
+    `followers.newInPeriod`: of those, the follows made in the window (null for `ALL_TIME`). An unfollow
+    deletes its row, so this is **not** a net growth figure.
+  - `posts` / `reels`: the caller's `format: POST` / `format: REEL` posts **published in the window**,
+    published and not deleted or removed, with the sums of their current `viewCount`, `likeCount`,
+    `commentCount`, `shareCount` (the counters are totals, not per day; per-day history is not stored).
+  - `live`: the caller's ended lives **started in the window**, from `live_summaries` (§10.36; the caller's
+    unsummarised lives are summarised first): `{lives, liveSeconds, giftCount, giftCoins, earningsCoins,
+    newFollowers, peakViewers}`. A live in progress is not counted until it ends.
+  - Not included: the popularity points (kept only 15 days, §10.15), per-day charts of post metrics (not
+    stored), other people's data.
+- **Rate limits:** all three reads use the per-user default (§7).
+- **Not in v1.43-social:** recharge (B5), withdrawal (D149), VIP / SVIP, the task center, the event
+  center — proposal `docs/contracts/proposals/CP-024-me-hub-programs.md`.
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 
