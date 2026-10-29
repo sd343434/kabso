@@ -13446,6 +13446,372 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'لا يمكن تشغيل هذا الفيديو الآن'**
   String get videoCannotPlay;
+
+  /// D164: the wallet's balance card.
+  ///
+  /// In ar, this message translates to:
+  /// **'رصيد الكوينز'**
+  String get walletBalanceLabel;
+
+  /// D164: the recharge button (disabled, Soon).
+  ///
+  /// In ar, this message translates to:
+  /// **'شحن'**
+  String get walletRecharge;
+
+  /// D164: why recharge is not available.
+  ///
+  /// In ar, this message translates to:
+  /// **'الشحن قريباً — لم تُحدَّد طريقة الدفع بعد.'**
+  String get walletRechargeSoon;
+
+  /// D164: the ledger section.
+  ///
+  /// In ar, this message translates to:
+  /// **'سجل المعاملات'**
+  String get walletHistoryTitle;
+
+  /// D164: empty ledger title.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا معاملات بعد'**
+  String get walletHistoryEmpty;
+
+  /// D164: empty ledger message.
+  ///
+  /// In ar, this message translates to:
+  /// **'ستظهر هنا كل عملية تغيّر رصيدك.'**
+  String get walletHistoryEmptyBody;
+
+  /// D164: ledger load failed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل المحفظة'**
+  String get walletLoadError;
+
+  /// D164: the balance after one change.
+  ///
+  /// In ar, this message translates to:
+  /// **'الرصيد بعدها {coins}'**
+  String walletBalanceAfter(String coins);
+
+  /// D164: ledger reason ADMIN_GRANT.
+  ///
+  /// In ar, this message translates to:
+  /// **'منحة من الفريق'**
+  String get walletReasonAdminGrant;
+
+  /// D164: ledger reason ADMIN_REVOKE.
+  ///
+  /// In ar, this message translates to:
+  /// **'سحب من الفريق'**
+  String get walletReasonAdminRevoke;
+
+  /// D164: ledger reason BULLET_MESSAGE.
+  ///
+  /// In ar, this message translates to:
+  /// **'رسالة عامة'**
+  String get walletReasonBulletMessage;
+
+  /// D164: ledger reason FAMILY_CREATE.
+  ///
+  /// In ar, this message translates to:
+  /// **'إنشاء عائلة'**
+  String get walletReasonFamilyCreate;
+
+  /// D164: ledger reason CP_REQUEST.
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب CP'**
+  String get walletReasonCpRequest;
+
+  /// D164: ledger reason CP_REFUND.
+  ///
+  /// In ar, this message translates to:
+  /// **'استرداد طلب CP'**
+  String get walletReasonCpRefund;
+
+  /// D164: ledger reason CP_GIFT.
+  ///
+  /// In ar, this message translates to:
+  /// **'هدية CP'**
+  String get walletReasonCpGift;
+
+  /// D164: ledger reason LIVE_GIFT.
+  ///
+  /// In ar, this message translates to:
+  /// **'هدية في بث'**
+  String get walletReasonLiveGift;
+
+  /// D164: ledger reason LUCKY_GIFT.
+  ///
+  /// In ar, this message translates to:
+  /// **'هدية الحظ'**
+  String get walletReasonLuckyGift;
+
+  /// D164: ledger reason LUCKY_GIFT_WIN.
+  ///
+  /// In ar, this message translates to:
+  /// **'ربح من هدية الحظ'**
+  String get walletReasonLuckyGiftWin;
+
+  /// D164: ledger reason PREMIUM_USERNAME_RENT.
+  ///
+  /// In ar, this message translates to:
+  /// **'استئجار اسم مميز'**
+  String get walletReasonPremiumRent;
+
+  /// D164: ledger reason PREMIUM_USERNAME_RENEW.
+  ///
+  /// In ar, this message translates to:
+  /// **'تجديد اسم مميز'**
+  String get walletReasonPremiumRenew;
+
+  /// D164: ledger reason DM_GIFT.
+  ///
+  /// In ar, this message translates to:
+  /// **'هدية في محادثة'**
+  String get walletReasonDmGift;
+
+  /// D164: ledger reason LIVE_BOOST.
+  ///
+  /// In ar, this message translates to:
+  /// **'بطاقة زيارات'**
+  String get walletReasonLiveBoost;
+
+  /// D164: ledger reason LIVE_BOOST_REFUND.
+  ///
+  /// In ar, this message translates to:
+  /// **'استرداد بطاقة زيارات'**
+  String get walletReasonLiveBoostRefund;
+
+  /// D164: a ledger reason this app does not know.
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيير في الرصيد'**
+  String get walletReasonOther;
+
+  /// D164: earnings total card.
+  ///
+  /// In ar, this message translates to:
+  /// **'إجمالي أرباحك'**
+  String get earnTotal;
+
+  /// D164: earnings of the last 7 days.
+  ///
+  /// In ar, this message translates to:
+  /// **'آخر 7 أيام'**
+  String get earnLast7Days;
+
+  /// D164: earnings of the last 30 days.
+  ///
+  /// In ar, this message translates to:
+  /// **'آخر 30 يوماً'**
+  String get earnLast30Days;
+
+  /// D164: what earnings are.
+  ///
+  /// In ar, this message translates to:
+  /// **'الأرباح للعرض فقط: هي حصتك من الهدايا التي تصلك في البث والمحادثات، ولا تُضاف إلى رصيد الكوينز.'**
+  String get earnDisplayOnly;
+
+  /// D164: the withdraw button (disabled, Soon).
+  ///
+  /// In ar, this message translates to:
+  /// **'سحب الأرباح'**
+  String get earnWithdraw;
+
+  /// D164: why withdrawal is not available (D149).
+  ///
+  /// In ar, this message translates to:
+  /// **'السحب قريباً — لم تُحدَّد طريقة الدفع بعد.'**
+  String get earnWithdrawSoon;
+
+  /// D164: the earnings history section.
+  ///
+  /// In ar, this message translates to:
+  /// **'سجل الأرباح'**
+  String get earnHistoryTitle;
+
+  /// D164: no earnings title.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا أرباح بعد'**
+  String get earnEmpty;
+
+  /// D164: no earnings message.
+  ///
+  /// In ar, this message translates to:
+  /// **'عندما تصلك هدايا في البث أو المحادثات تظهر حصتك منها هنا.'**
+  String get earnEmptyBody;
+
+  /// D164: earnings load failed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل الأرباح'**
+  String get earnLoadError;
+
+  /// D164: one earning's gift and quantity.
+  ///
+  /// In ar, this message translates to:
+  /// **'{gift} × {quantity}'**
+  String earnGiftLine(String gift, int quantity);
+
+  /// D164: who sent the gift.
+  ///
+  /// In ar, this message translates to:
+  /// **'من {name}'**
+  String earnFrom(String name);
+
+  /// D164: the sender is hidden (inactive or blocked).
+  ///
+  /// In ar, this message translates to:
+  /// **'من حساب غير متاح'**
+  String get earnFromHidden;
+
+  /// D164: the gift was sent in a live.
+  ///
+  /// In ar, this message translates to:
+  /// **'في بث'**
+  String get earnContextLive;
+
+  /// D164: the gift was sent in a chat.
+  ///
+  /// In ar, this message translates to:
+  /// **'في محادثة'**
+  String get earnContextDm;
+
+  /// D164: the share of one send.
+  ///
+  /// In ar, this message translates to:
+  /// **'حصتك {percent}٪ من {coins}'**
+  String earnShare(String percent, String coins);
+
+  /// D164: creator center period.
+  ///
+  /// In ar, this message translates to:
+  /// **'7 أيام'**
+  String get creatorPeriod7;
+
+  /// D164: creator center period.
+  ///
+  /// In ar, this message translates to:
+  /// **'30 يوماً'**
+  String get creatorPeriod30;
+
+  /// D164: creator center period.
+  ///
+  /// In ar, this message translates to:
+  /// **'كل الوقت'**
+  String get creatorPeriodAll;
+
+  /// D164: creator center section.
+  ///
+  /// In ar, this message translates to:
+  /// **'المتابعون'**
+  String get creatorFollowers;
+
+  /// D164: followers now.
+  ///
+  /// In ar, this message translates to:
+  /// **'كل المتابعين'**
+  String get creatorFollowersTotal;
+
+  /// D164: follows made in the period that still stand.
+  ///
+  /// In ar, this message translates to:
+  /// **'تابعوك في هذه الفترة'**
+  String get creatorFollowersNew;
+
+  /// D164: creator center section.
+  ///
+  /// In ar, this message translates to:
+  /// **'المنشورات'**
+  String get creatorPosts;
+
+  /// D164: creator center section.
+  ///
+  /// In ar, this message translates to:
+  /// **'الريلز'**
+  String get creatorReels;
+
+  /// D164: published in the period.
+  ///
+  /// In ar, this message translates to:
+  /// **'منشورة'**
+  String get creatorPublished;
+
+  /// D164: views.
+  ///
+  /// In ar, this message translates to:
+  /// **'المشاهدات'**
+  String get creatorViews;
+
+  /// D164: likes.
+  ///
+  /// In ar, this message translates to:
+  /// **'الإعجابات'**
+  String get creatorLikes;
+
+  /// D164: comments.
+  ///
+  /// In ar, this message translates to:
+  /// **'التعليقات'**
+  String get creatorComments;
+
+  /// D164: shares.
+  ///
+  /// In ar, this message translates to:
+  /// **'المشاركات'**
+  String get creatorShares;
+
+  /// D164: how post numbers are counted.
+  ///
+  /// In ar, this message translates to:
+  /// **'ما نُشر في هذه الفترة، بأرقامه حتى الآن.'**
+  String get creatorContentHint;
+
+  /// D164: empty content section.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تنشر شيئاً في هذه الفترة.'**
+  String get creatorNoPosts;
+
+  /// D164: creator center section.
+  ///
+  /// In ar, this message translates to:
+  /// **'البث المباشر'**
+  String get creatorLive;
+
+  /// D164: how lives are counted.
+  ///
+  /// In ar, this message translates to:
+  /// **'البثوث التي بدأت في هذه الفترة وانتهت.'**
+  String get creatorLiveHint;
+
+  /// D164: empty live section.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا بثوث منتهية في هذه الفترة.'**
+  String get creatorNoLives;
+
+  /// D164: the most viewers at once.
+  ///
+  /// In ar, this message translates to:
+  /// **'أعلى مشاهدة'**
+  String get creatorPeakViewers;
+
+  /// D164: link to the own profile grid.
+  ///
+  /// In ar, this message translates to:
+  /// **'منشوراتي وريلزي'**
+  String get creatorOpenProfile;
+
+  /// D164: creator stats load failed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل الإحصاءات'**
+  String get creatorLoadError;
 }
 
 class _AppLocalizationsDelegate

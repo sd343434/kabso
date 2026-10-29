@@ -7803,4 +7803,202 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get videoCannotPlay => 'This video can\'t play right now';
+
+  @override
+  String get walletBalanceLabel => 'Coin balance';
+
+  @override
+  String get walletRecharge => 'Recharge';
+
+  @override
+  String get walletRechargeSoon =>
+      'Recharge is coming soon — the payment method isn\'t decided yet.';
+
+  @override
+  String get walletHistoryTitle => 'Transaction history';
+
+  @override
+  String get walletHistoryEmpty => 'No transactions yet';
+
+  @override
+  String get walletHistoryEmptyBody =>
+      'Every change to your balance shows here.';
+
+  @override
+  String get walletLoadError => 'Couldn\'t load your wallet';
+
+  @override
+  String walletBalanceAfter(String coins) {
+    return 'Balance after: $coins';
+  }
+
+  @override
+  String get walletReasonAdminGrant => 'Granted by the team';
+
+  @override
+  String get walletReasonAdminRevoke => 'Removed by the team';
+
+  @override
+  String get walletReasonBulletMessage => 'Bullet message';
+
+  @override
+  String get walletReasonFamilyCreate => 'Family created';
+
+  @override
+  String get walletReasonCpRequest => 'CP request';
+
+  @override
+  String get walletReasonCpRefund => 'CP request refund';
+
+  @override
+  String get walletReasonCpGift => 'CP gift';
+
+  @override
+  String get walletReasonLiveGift => 'Gift in a live';
+
+  @override
+  String get walletReasonLuckyGift => 'Lucky gift';
+
+  @override
+  String get walletReasonLuckyGiftWin => 'Lucky gift win';
+
+  @override
+  String get walletReasonPremiumRent => 'Premium username rent';
+
+  @override
+  String get walletReasonPremiumRenew => 'Premium username renewal';
+
+  @override
+  String get walletReasonDmGift => 'Gift in a chat';
+
+  @override
+  String get walletReasonLiveBoost => 'Traffic card';
+
+  @override
+  String get walletReasonLiveBoostRefund => 'Traffic card refund';
+
+  @override
+  String get walletReasonOther => 'Balance change';
+
+  @override
+  String get earnTotal => 'Your total earnings';
+
+  @override
+  String get earnLast7Days => 'Last 7 days';
+
+  @override
+  String get earnLast30Days => 'Last 30 days';
+
+  @override
+  String get earnDisplayOnly =>
+      'Earnings are display only: your share of the gifts you receive in lives and chats. They are not added to your coins.';
+
+  @override
+  String get earnWithdraw => 'Withdraw';
+
+  @override
+  String get earnWithdrawSoon =>
+      'Withdrawal is coming soon — the payout method isn\'t decided yet.';
+
+  @override
+  String get earnHistoryTitle => 'Earnings history';
+
+  @override
+  String get earnEmpty => 'No earnings yet';
+
+  @override
+  String get earnEmptyBody =>
+      'When you receive gifts in lives or chats, your share shows here.';
+
+  @override
+  String get earnLoadError => 'Couldn\'t load your earnings';
+
+  @override
+  String earnGiftLine(String gift, int quantity) {
+    return '$gift × $quantity';
+  }
+
+  @override
+  String earnFrom(String name) {
+    return 'From $name';
+  }
+
+  @override
+  String get earnFromHidden => 'From an unavailable account';
+
+  @override
+  String get earnContextLive => 'In a live';
+
+  @override
+  String get earnContextDm => 'In a chat';
+
+  @override
+  String earnShare(String percent, String coins) {
+    return 'Your $percent% of $coins';
+  }
+
+  @override
+  String get creatorPeriod7 => '7 days';
+
+  @override
+  String get creatorPeriod30 => '30 days';
+
+  @override
+  String get creatorPeriodAll => 'All time';
+
+  @override
+  String get creatorFollowers => 'Followers';
+
+  @override
+  String get creatorFollowersTotal => 'All followers';
+
+  @override
+  String get creatorFollowersNew => 'Followed you in this period';
+
+  @override
+  String get creatorPosts => 'Posts';
+
+  @override
+  String get creatorReels => 'Reels';
+
+  @override
+  String get creatorPublished => 'Published';
+
+  @override
+  String get creatorViews => 'Views';
+
+  @override
+  String get creatorLikes => 'Likes';
+
+  @override
+  String get creatorComments => 'Comments';
+
+  @override
+  String get creatorShares => 'Shares';
+
+  @override
+  String get creatorContentHint =>
+      'What you published in this period, with its numbers so far.';
+
+  @override
+  String get creatorNoPosts => 'Nothing published in this period.';
+
+  @override
+  String get creatorLive => 'Live';
+
+  @override
+  String get creatorLiveHint =>
+      'Lives that started in this period and have ended.';
+
+  @override
+  String get creatorNoLives => 'No ended lives in this period.';
+
+  @override
+  String get creatorPeakViewers => 'Peak viewers';
+
+  @override
+  String get creatorOpenProfile => 'My posts and reels';
+
+  @override
+  String get creatorLoadError => 'Couldn\'t load your statistics';
 }

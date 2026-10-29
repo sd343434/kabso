@@ -94,6 +94,9 @@ enum MeHubItem {
 /// ([AppRoutes.myProfile]); the counts open the follow lists. Every button
 /// of a feature Kabso has opens its real screen; the ones not built yet are
 /// shown faded with a "Soon" tag and do nothing (no stand-in screens).
+/// D164: Wallet, Earn money and Creator Center open their real screens;
+/// Purchase VIP, Event Center, SVIP and Task Center wait for the owner's
+/// decisions (proposal CP-024).
 ///
 /// Data: `GET /me`, `GET /users/{username}` (counts, family, relationship,
 /// medals), `GET /me/levels` and `GET /wallet/me`. The API has no friends
@@ -173,6 +176,7 @@ class MeHubScreen extends ConsumerWidget {
         icon: Icons.payments_rounded,
         hue: _Hues.blue,
         label: l10n.meHubEarn,
+        onTap: () => push(AppRoutes.earnings),
       ),
     ];
 
@@ -183,6 +187,7 @@ class MeHubScreen extends ConsumerWidget {
           icon: Icons.insights_rounded,
           hue: _Hues.teal,
           title: l10n.meHubCreatorCenter,
+          onTap: () => push(AppRoutes.creatorCenter),
         ),
         _HubRow(
           item: MeHubItem.eventCenter,
@@ -192,8 +197,8 @@ class MeHubScreen extends ConsumerWidget {
         ),
       ],
       [
-        // No wallet screen and no purchases yet (B5): the balance is real,
-        // the button is "Soon".
+        // D164: the wallet screen (balance and coin history); recharge
+        // stays "Soon" inside it (no purchases yet, B5).
         _HubRow(
           item: MeHubItem.wallet,
           icon: Icons.account_balance_wallet_rounded,
@@ -204,6 +209,7 @@ class MeHubScreen extends ConsumerWidget {
               ? null
               : l10n.meHubCoins(KFormat.grouped(coins)),
           valueIcon: AppIcons.coinGold,
+          onTap: () => push(AppRoutes.wallet),
         ),
         _HubRow(
           item: MeHubItem.bag,
@@ -567,15 +573,15 @@ class _Stat extends StatelessWidget {
   }
 }
 
-/// The small "Soon" tag of a feature that is not built yet.
-class _SoonTag extends StatelessWidget {
-  const new();
+/// The small "Soon" tag of a feature that is not built yet (also on the
+/// wallet's recharge and the earnings' withdraw buttons, D164).
+class MeHubSoonTag extends StatelessWidget {
+  const new({super.key = MeHubScreen.soonKey});
 
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
     return Container(
-      key: MeHubScreen.soonKey,
       padding: const EdgeInsets.symmetric(
         horizontal: KSpacing.xs + KSpacing.xxs,
         vertical: 1,
@@ -679,7 +685,7 @@ class _HubCard extends StatelessWidget {
                       const PositionedDirectional(
                         top: KSpacing.xs,
                         end: KSpacing.xs,
-                        child: _SoonTag(),
+                        child: MeHubSoonTag(),
                       ),
                     ],
                   )
@@ -801,7 +807,7 @@ class _HubRow extends StatelessWidget {
                 ],
                 const SizedBox(width: KSpacing.xs),
                 if (soon)
-                  const _SoonTag()
+                  const MeHubSoonTag()
                 else
                   Icon(
                     Icons.chevron_right_rounded,
