@@ -82,9 +82,19 @@ const ACTOR_TYPES: NotificationType[] = [
   'CP_ACCEPTED',
   'FAMILY_JOIN_ACCEPTED',
   'FAMILY_JOIN_DECLINED',
+  // v1.47-social (D175): actor the requester / the private account that accepted.
+  'FOLLOW_REQUEST',
+  'FOLLOW_REQUEST_ACCEPTED',
 ];
 /** v1.21-live (CP-018): the actor types whose target is the actor (USER), like FOLLOW. */
-const USER_TARGET_TYPES: ReadonlySet<NotificationType> = new Set(['FOLLOW', 'CP_REQUEST', 'CP_ACCEPTED']);
+const USER_TARGET_TYPES: ReadonlySet<NotificationType> = new Set([
+  'FOLLOW',
+  'CP_REQUEST',
+  'CP_ACCEPTED',
+  // v1.47-social (D175).
+  'FOLLOW_REQUEST',
+  'FOLLOW_REQUEST_ACCEPTED',
+]);
 
 /** Actors the recipient may see: ACTIVE, no block either way, not muted by the recipient (§11.10). */
 function visibleActorWhere(me: string): Prisma.NotificationActorWhereInput {
@@ -112,6 +122,8 @@ function visibleNotificationWhere(me: string): Prisma.NotificationWhereInput {
       { type: 'MEDAL_AWARDED' },
       // v1.28-live (D146): the caller's premium username ends soon / ended (system, no actor).
       { type: { in: ['PREMIUM_USERNAME_EXPIRING', 'PREMIUM_USERNAME_EXPIRED'] } },
+      // v1.47-social (D175): a moderator removed the caller's profile photo (system, no target).
+      { type: 'AVATAR_REMOVED' },
       { type: 'POST_PUBLISHED', post: visiblePostWhere(me) },
       {
         type: { in: ACTOR_TYPES },

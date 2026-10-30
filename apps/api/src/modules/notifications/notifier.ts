@@ -20,6 +20,8 @@ export const SYSTEM_TYPES: readonly NotificationType[] = [
   'CONTENT_REMOVED',
   'PREMIUM_USERNAME_EXPIRING',
   'PREMIUM_USERNAME_EXPIRED',
+  // v1.47-social (D175): a moderator removed the profile photo.
+  'AVATAR_REMOVED',
 ];
 
 /** Types that join one unread row per target (owner, D92). */
@@ -35,6 +37,9 @@ const SETTING: Readonly<
   REPLY: 'comments',
   MENTION: 'mentions',
   FOLLOW: 'follows',
+  // v1.47-social (D175): follow requests and their acceptance follow the `follows` switch.
+  FOLLOW_REQUEST: 'follows',
+  FOLLOW_REQUEST_ACCEPTED: 'follows',
   REPOST: 'reposts',
 };
 
@@ -150,7 +155,12 @@ export class Notifier {
   async system(
     tx: Tx,
     input: {
-      type: 'POST_PUBLISHED' | 'CONTENT_REMOVED' | 'PREMIUM_USERNAME_EXPIRING' | 'PREMIUM_USERNAME_EXPIRED';
+      type:
+        | 'POST_PUBLISHED'
+        | 'CONTENT_REMOVED'
+        | 'PREMIUM_USERNAME_EXPIRING'
+        | 'PREMIUM_USERNAME_EXPIRED'
+        | 'AVATAR_REMOVED';
       recipientId: string;
     } & NotificationTargetRef,
   ): Promise<void> {

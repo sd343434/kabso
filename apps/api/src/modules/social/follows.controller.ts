@@ -1,10 +1,16 @@
-import { Controller, Delete, Get, HttpCode, Param, Put, Query } from '@nestjs/common';
+import { Controller, Delete, Get, HttpCode, Param, Post, Put, Query } from '@nestjs/common';
 import type { AuthContext } from '../../common/http/request-context.js';
 import { byUserId, RateLimit, type RateLimitSpec } from '../../common/rate-limit/rate-limit.decorator.js';
 import { ZodValidationPipe } from '../../common/validation/zod-validation.pipe.js';
 import { CurrentAuth } from '../auth/current-auth.decorator.js';
 import type { PageDto } from '../posts/post-views.js';
+import { pageQuerySchema, type PageQuery } from '../posts/posts.schemas.js';
 import { FollowListsService, type FollowListItemDto } from './follow-lists.service.js';
+import {
+  FollowRequestsService,
+  type FollowRequestAcceptedDto,
+  type FollowRequestPageDto,
+} from './follow-requests.js';
 import { followListQuerySchema, type FollowListQuery } from './follows.schemas.js';
 import { FollowsService, type FollowerRemovalDto, type FollowStateDto } from './follows.service.js';
 
@@ -83,5 +89,44 @@ export class MyFollowersController {
   @RateLimit(...FOLLOW_LIMITS)
   remove(@CurrentAuth() auth: AuthContext, @Param('username') username: string): Promise<FollowerRemovalDto> {
     return this.follows.removeFollower(auth.userId, username);
+  }
+}
+
+/** v1.47-social (D175, §7): accepting and declining follow requests share 300 / hour per user. */
+const FOLLOW_REQUEST_ANSWER_LIMIT: RateLimitSpec = {
+  bucket: 'follow-requests:answer',
+  rule: 'followRequestAnswerUser',
+  key: byUserId,
+  replacesDefault: true,
+};
+
+/** v1.47-social (D175, CONVENTIONS §10.43): follow requests to the caller's private account. */
+@Controller('me/follow-requests')
+export class FollowRequestsController {
+  constructor(private readonly requests: FollowRequestsService) {}
+
+  @Get()
+  list(
+    @CurrentAuth() auth: AuthContext,
+    @Query(new ZodValidationPipe(pageQuerySchema)) query: PageQuery,
+  ): Promise<FollowRequestPageDto> {
+    return this.requests.list(auth.userId, query);
+  }
+
+  @Post(':username/accept')
+  @HttpCode(200)
+  @RateLimit(FOLLOW_REQUEST_ANSWER_LIMIT)
+  accept(
+    @CurrentAuth() auth: AuthContext,
+    @Param('username') username: string,
+  ): Promise<FollowRequestAcceptedDto> {
+    return this.requests.accept(auth.userId, username);
+  }
+
+  @Post(':username/decline')
+  @HttpCode(204)
+  @RateLimit(FOLLOW_REQUEST_ANSWER_LIMIT)
+  async decline(@CurrentAuth() auth: AuthContext, @Param('username') username: string): Promise<void> {
+    await this.requests.decline(auth.userId, username);
   }
 }

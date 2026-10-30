@@ -86,6 +86,8 @@ describe('KL-086 follow lists (D121)', () => {
       isSelf: false,
       isPrivate: false,
       followedByMe: false,
+      // v1.47-social (D175): no pending follow request.
+      requestedByMe: false,
       followsMe: true,
     });
     expect(first.body.data[1]).toMatchObject({
@@ -130,7 +132,7 @@ describe('KL-086 follow lists (D121)', () => {
     await ctx.prisma.user.update({ where: { id: gone.id }, data: { status: 'ACTIVE' } });
     expect(names(await followers(reader, star.username))).toEqual([kept.username, gone.username]);
     const back = await ctx.http.put(`/api/v1/users/${star.username}/follow`).set(auth(reader));
-    expect(back.body).toEqual({ isFollowing: true, followerCount: 3 });
+    expect(back.body).toEqual({ isFollowing: true, isRequested: false, followerCount: 3 });
   });
 
   it('hides people the reader has a block with, and 404s across a block with the user', async () => {
@@ -376,16 +378,18 @@ describe('KL-086 follow lists (D121)', () => {
       // A public account: they may follow again.
       expect((await ctx.http.put(`/api/v1/users/${me.username}/follow`).set(auth(fan))).body).toEqual({
         isFollowing: true,
+        isRequested: false,
         followerCount: 2,
       });
-      // A private account: a removed follower cannot come back (no follow requests).
+      // A private account: a removed follower comes back only through a follow request (v1.47-social,
+      // D175; it was 403 before follow requests existed).
       await ctx.prisma.userSettings.update({ where: { userId: me.id }, data: { isPrivate: true } });
       expect((await remove(me, other.username)).body).toEqual({ followsMe: false, followerCount: 1 });
-      expectError(
-        await ctx.http.put(`/api/v1/users/${me.username}/follow`).set(auth(other)),
-        403,
-        'AUTH_FORBIDDEN',
-      );
+      expect((await ctx.http.put(`/api/v1/users/${me.username}/follow`).set(auth(other))).body).toEqual({
+        isFollowing: false,
+        isRequested: true,
+        followerCount: 1,
+      });
     });
 
     it('DELETE /me/followers/{username}: 404 unknown / malformed / suspended, 400 self, 401', async () => {

@@ -124,6 +124,8 @@ export enum ErrorCode {
   TASK_NOT_COMPLETED = 'TASK_NOT_COMPLETED',
   /** v1.44-social (DRAFT, D166): the caller already got the day's task and check-in coins cap. */
   TASK_DAILY_CAP_REACHED = 'TASK_DAILY_CAP_REACHED',
+  /** v1.47-social (DRAFT, D175): there is no pending follow request from that account. */
+  FOLLOW_REQUEST_NOT_PENDING = 'FOLLOW_REQUEST_NOT_PENDING',
 }
 
 /** HTTP status for every code (CONVENTIONS.md §4 table). */
@@ -199,6 +201,7 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.CP_PRIVILEGE_LOCKED]: 403,
   [ErrorCode.TASK_NOT_COMPLETED]: 409,
   [ErrorCode.TASK_DAILY_CAP_REACHED]: 409,
+  [ErrorCode.FOLLOW_REQUEST_NOT_PENDING]: 409,
 };
 
 /** Default developer-facing messages (clients localize by `code`, not by message). */
@@ -274,6 +277,7 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.YOUTUBE_SEARCH_UNAVAILABLE]: 'YouTube search is not available; paste a link instead.',
   [ErrorCode.TASK_NOT_COMPLETED]: 'That task is not completed yet.',
   [ErrorCode.TASK_DAILY_CAP_REACHED]: 'You already got today’s maximum of task coins.',
+  [ErrorCode.FOLLOW_REQUEST_NOT_PENDING]: 'That follow request is no longer pending.',
 };
 
 export interface ErrorDetail {

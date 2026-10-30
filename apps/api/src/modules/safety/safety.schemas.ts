@@ -44,6 +44,8 @@ export const createReportSchema = z.strictObject({
     'FAMILY_CHAT_MESSAGE',
     // v1.40-social (D155): a direct message the reporter received (§11.13).
     'DM_MESSAGE',
+    // v1.47-social (D175): a link on someone's profile (`targetId` the link's id, §10.43).
+    'PROFILE_LINK',
   ]),
   targetId: z.string().min(1).max(64),
   reason: z.enum(REPORT_REASONS),
@@ -67,6 +69,8 @@ export const updatePrivacySchema = z
     showActivityStatus: z.boolean().optional(),
     // v1.40-social (D155): who may send the user direct messages (§11.13).
     whoCanMessage: z.enum(['EVERYONE', 'FOLLOWING', 'NOBODY']).optional(),
+    // v1.47-social (D175): a private account (§10.43).
+    isPrivate: z.boolean().optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: 'too_small', params: { issue: 'too_small' } });
 

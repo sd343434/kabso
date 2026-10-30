@@ -14,8 +14,10 @@ import type { FollowListQuery } from './follows.schemas.js';
 export interface FollowListItemDto extends UserSummaryDto {
   /** The row is the reader. */
   isSelf: boolean;
-  /** The listed account is private (a new follow is refused, §10.5). */
+  /** The listed account is private (v1.47-social: a new follow is a request, §10.43). */
   isPrivate: boolean;
+  /** v1.47-social (D175): the reader has a pending follow request to the listed account. */
+  requestedByMe: boolean;
   /** The reader follows the listed account (false when `isSelf`). */
   followedByMe: boolean;
   /** The listed account follows the reader (false when `isSelf`). */
@@ -156,7 +158,7 @@ export class FollowListsService {
     const hasMore = people.length > query.limit;
     people.splice(query.limit);
     const ids = people.map((p) => p.user.id).filter((id) => id !== viewerId);
-    const [mine, theirs] = ids.length
+    const [mine, theirs, requested] = ids.length
       ? await Promise.all([
           this.prisma.follow.findMany({
             where: { followerId: viewerId, followeeId: { in: ids } },
@@ -166,8 +168,13 @@ export class FollowListsService {
             where: { followeeId: viewerId, followerId: { in: ids } },
             select: { followerId: true },
           }),
+          this.prisma.followRequest.findMany({
+            where: { requesterId: viewerId, targetId: { in: ids } },
+            select: { targetId: true },
+          }),
         ])
-      : [[], []];
+      : [[], [], []];
+    const requestedByMe = new Set(requested.map((r) => r.targetId));
     const followedByMe = new Set(mine.map((f) => f.followeeId));
     const followsMe = new Set(theirs.map((f) => f.followerId));
     const last = people[people.length - 1];
@@ -177,6 +184,7 @@ export class FollowListsService {
         isSelf: user.id === viewerId,
         isPrivate: user.settings?.isPrivate ?? false,
         followedByMe: followedByMe.has(user.id),
+        requestedByMe: requestedByMe.has(user.id),
         followsMe: followsMe.has(user.id),
       })),
       page: {

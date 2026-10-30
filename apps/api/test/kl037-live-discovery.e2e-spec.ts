@@ -898,6 +898,11 @@ describe('KL-037 public profile and follow', () => {
       medals: { owned: 0, total: 0, latest: [], showcase: [] },
       // v1.22-live (CP-019): the bag catalogue is empty in this database, so nothing is worn.
       profileCard: null,
+      // v1.47-social (D175): no request pending; gender private by default; no category or links.
+      followRequested: false,
+      gender: null,
+      category: null,
+      links: [],
     });
     const self = await profile(target, target.username);
     expectContract(self, 'getPublicProfile');
@@ -935,6 +940,7 @@ describe('KL-037 public profile and follow', () => {
       password: 'correct horse battery staple',
       username: pendingName,
       displayName: 'Pending',
+      gender: 'MALE',
     });
     expect(reg.status).toBe(202);
 
@@ -973,11 +979,15 @@ describe('KL-037 public profile and follow', () => {
     const star = await signup(ctx);
     const first = await follow(fan, star.username);
     expectContract(first, 'followUser');
-    expect(first.body).toEqual({ isFollowing: true, followerCount: 1 });
+    expect(first.body).toEqual({ isFollowing: true, isRequested: false, followerCount: 1 });
     const repeat = await follow(fan, star.username);
     expectContract(repeat, 'followUser');
-    expect(repeat.body).toEqual({ isFollowing: true, followerCount: 1 });
-    expect((await follow(fan2, star.username)).body).toEqual({ isFollowing: true, followerCount: 2 });
+    expect(repeat.body).toEqual({ isFollowing: true, isRequested: false, followerCount: 1 });
+    expect((await follow(fan2, star.username)).body).toEqual({
+      isFollowing: true,
+      isRequested: false,
+      followerCount: 2,
+    });
     expect(await ctx.prisma.follow.count({ where: { followeeId: star.id } })).toBe(2);
 
     const viewed = await profile(fan, star.username);
@@ -986,10 +996,10 @@ describe('KL-037 public profile and follow', () => {
 
     const off = await unfollow(fan, star.username);
     expectContract(off, 'unfollowUser');
-    expect(off.body).toEqual({ isFollowing: false, followerCount: 1 });
+    expect(off.body).toEqual({ isFollowing: false, isRequested: false, followerCount: 1 });
     const offAgain = await unfollow(fan, star.username);
     expectContract(offAgain, 'unfollowUser');
-    expect(offAgain.body).toEqual({ isFollowing: false, followerCount: 1 });
+    expect(offAgain.body).toEqual({ isFollowing: false, isRequested: false, followerCount: 1 });
     expect((await profile(fan, star.username)).body.isFollowing).toBe(false);
   });
 
@@ -997,11 +1007,13 @@ describe('KL-037 public profile and follow', () => {
     const fan = await signup(ctx);
     const star = await signup(ctx);
     const results = await Promise.all(Array.from({ length: 8 }, () => follow(fan, star.username)));
-    for (const res of results) expect(res.body).toEqual({ isFollowing: true, followerCount: 1 });
+    for (const res of results)
+      expect(res.body).toEqual({ isFollowing: true, isRequested: false, followerCount: 1 });
     expect(await ctx.prisma.follow.count({ where: { followeeId: star.id } })).toBe(1);
   });
 
-  it('self → 400 username/invalid_value; private target → 403 on PUT, unfollow allowed', async () => {
+  // v1.47-social (D175): a new follow of a private target is a follow request (was 403).
+  it('self → 400 username/invalid_value; private target → a request on PUT, unfollow allowed', async () => {
     const fan = await signup(ctx);
     const priv = await signup(ctx);
     const self = await follow(fan, fan.username);
@@ -1018,13 +1030,13 @@ describe('KL-037 public profile and follow', () => {
     expect((await follow(fan, priv.username)).status).toBe(200); // existing follower before going private
     await ctx.prisma.userSettings.update({ where: { userId: priv.id }, data: { isPrivate: true } });
     const newFan = await signup(ctx);
-    const forbidden = await follow(newFan, priv.username);
-    expectContract(forbidden, 'followUser');
-    expectError(forbidden, 403, 'AUTH_FORBIDDEN');
+    const requested = await follow(newFan, priv.username);
+    expectContract(requested, 'followUser');
+    expect(requested.body).toEqual({ isFollowing: false, isRequested: true, followerCount: 1 });
     expect((await profile(newFan, priv.username)).body).toMatchObject({ isPrivate: true, followerCount: 1 });
     const leave = await unfollow(fan, priv.username);
     expectContract(leave, 'unfollowUser');
-    expect(leave.body).toEqual({ isFollowing: false, followerCount: 0 });
+    expect(leave.body).toEqual({ isFollowing: false, isRequested: false, followerCount: 0 });
   });
 
   it('404 for unknown, malformed, suspended and deleted targets', async () => {

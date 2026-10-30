@@ -105,6 +105,8 @@ describe('ErrorCode', () => {
         // v1.44-social (DRAFT, D166)
         'TASK_NOT_COMPLETED',
         'TASK_DAILY_CAP_REACHED',
+        // v1.47-social (DRAFT, D175)
+        'FOLLOW_REQUEST_NOT_PENDING',
       ].sort(),
     );
     expect(ERROR_HTTP_STATUS).toMatchObject({
@@ -176,6 +178,7 @@ describe('ErrorCode', () => {
       YOUTUBE_SEARCH_UNAVAILABLE: 503,
       TASK_NOT_COMPLETED: 409,
       TASK_DAILY_CAP_REACHED: 409,
+      FOLLOW_REQUEST_NOT_PENDING: 409,
     });
   });
 

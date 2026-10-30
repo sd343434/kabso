@@ -6,6 +6,14 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { grantFreeItemsIn } from '../bag/bag-grants.js';
 import type { PremiumTier } from '../premium-usernames/premium-username-rules.js';
 import { regularUsernameIssue } from '../premium-usernames/premium-username-rules.js';
+import {
+  PROFILE_LINKS_SELECT,
+  profileLinkDto,
+  publicGender,
+  type AccountCategory,
+  type Gender,
+  type ProfileLinkDto,
+} from './profile-fields.js';
 import { isReservedUsername, isValidUsername } from './username.js';
 
 /** `Me` response (openapi `#/components/schemas/Me`). */
@@ -29,6 +37,13 @@ export interface MeDto {
   country: string | null;
   /** v1.28-live (D146): the tier of the caller's premium username; absent for a regular one. */
   premiumTier?: PremiumTier;
+  /** v1.47-social (D175, §10.43): the caller's gender (null until chosen) and whether others see it. */
+  gender: Gender | null;
+  showGender: boolean;
+  /** v1.47-social (D175): the account category shown under the name, or null. */
+  category: AccountCategory | null;
+  /** v1.47-social (D175): the profile links, in order (0–3). */
+  links: ProfileLinkDto[];
 }
 
 /** Public identity fields of an ACTIVE user (contract v1.3 `PublicProfile` / `UserSummary`). */
@@ -41,6 +56,10 @@ export interface PublicUser {
   isPrivate: boolean;
   /** v1.28-live (D146): the premium username's tier, or null. */
   premiumTier: PremiumTier | null;
+  /** v1.47-social (D175): the gender others see (only when shown), the category and the links. */
+  gender: 'MALE' | 'FEMALE' | null;
+  category: AccountCategory | null;
+  links: ProfileLinkDto[];
 }
 
 /** A follow target locked for the duration of the caller's transaction. */
@@ -53,6 +72,7 @@ export interface LockedUser {
 // read-only exception for `Me.canHost` (CP-010) and `Me.liveCoverUrl` (CP-015).
 export const ME_INCLUDE = {
   profile: true,
+  profileLinks: PROFILE_LINKS_SELECT,
   settings: true,
   liveHost: { select: { userId: true, coverUrl: true } },
 } as const;
@@ -73,7 +93,13 @@ export interface UserWithProfile {
     countryCode?: string | null;
     /** v1.28-live (D146). Absent in older selects: none. */
     premiumTier?: string | null;
+    /** v1.47-social (D175). */
+    gender?: Gender | null;
+    showGender?: boolean;
+    category?: AccountCategory | null;
   } | null;
+  /** v1.47-social (D175): `ME_INCLUDE` reads them. */
+  profileLinks?: { id: string; url: string; label: string | null }[];
   settings: { isPrivate: boolean } | null;
   /** Absent for a just-created account (no permission yet). */
   liveHost?: { userId: string; coverUrl?: string | null } | null;
@@ -97,6 +123,10 @@ export function toMeDto(user: UserWithProfile): MeDto {
     liveCoverUrl: user.liveHost?.coverUrl ?? null,
     country: user.profile.countryCode ?? null,
     ...(user.profile.premiumTier ? { premiumTier: user.profile.premiumTier as PremiumTier } : {}),
+    gender: user.profile.gender ?? null,
+    showGender: user.profile.showGender ?? false,
+    category: user.profile.category ?? null,
+    links: (user.profileLinks ?? []).map(profileLinkDto),
   };
 }
 
@@ -106,6 +136,8 @@ export interface NewAccount {
   username: string;
   displayName: string;
   locale: 'ar' | 'en';
+  /** v1.47-social (D175): chosen at sign-up (null only for a pending row made before v1.47). */
+  gender?: Gender | null;
   /** Set at creation for verify-first registration (contract v1.2). */
   emailVerifiedAt?: Date;
 }
@@ -175,7 +207,12 @@ export class UsersService {
           passwordHash: input.passwordHash,
           emailVerifiedAt: input.emailVerifiedAt ?? null,
           profile: {
-            create: { username: input.username, displayName: input.displayName, locale: input.locale },
+            create: {
+              username: input.username,
+              displayName: input.displayName,
+              locale: input.locale,
+              gender: input.gender ?? null,
+            },
           },
           settings: { create: {} },
         },
@@ -305,7 +342,10 @@ export class UsersService {
         avatarUrl: true,
         bio: true,
         premiumTier: true,
-        user: { select: { settings: { select: { isPrivate: true } } } },
+        gender: true,
+        showGender: true,
+        category: true,
+        user: { select: { settings: { select: { isPrivate: true } }, profileLinks: PROFILE_LINKS_SELECT } },
       },
     });
     if (!profile) return null;
@@ -317,6 +357,9 @@ export class UsersService {
       bio: profile.bio,
       isPrivate: profile.user.settings?.isPrivate ?? false,
       premiumTier: profile.premiumTier,
+      gender: publicGender(profile.gender, profile.showGender),
+      category: profile.category,
+      links: profile.user.profileLinks.map(profileLinkDto),
     };
   }
 

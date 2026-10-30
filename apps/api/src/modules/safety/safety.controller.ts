@@ -115,8 +115,12 @@ export class SafetyController {
   }
 
   @Patch('me/privacy')
-  updatePrivacy(@CurrentAuth() auth: AuthContext, @Body() body: unknown): Promise<PrivacyDto> {
-    return this.safety.updatePrivacy(auth.userId, body);
+  updatePrivacy(
+    @CurrentAuth() auth: AuthContext,
+    @Req() req: AppRequest,
+    @Body() body: unknown,
+  ): Promise<PrivacyDto> {
+    return this.safety.updatePrivacy(auth.userId, body, { ip: clientIp(req), requestId: getRequestId(req) });
   }
 }
 

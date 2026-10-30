@@ -5,6 +5,7 @@ import { USERNAME_MAX_LENGTH, USERNAME_MIN_LENGTH, USERNAME_PATTERN } from '../u
 import { normalizeDisplayName, rawDisplayNameIssue } from '../users/display-name.js';
 import { normalizeContentText, type ContentTextLimits } from '../posts/content-text.js';
 import { passwordPolicyIssue } from './password-policy.js';
+import { ACCOUNT_CATEGORIES, GENDERS, profileLinksSchema } from '../users/profile-fields.js';
 
 // Request schemas mirror docs/contracts/openapi.yaml. All objects are strict
 // (`additionalProperties: false`): unknown fields fail with `unknown_field`.
@@ -91,6 +92,8 @@ export const registerSchema = z.strictObject({
   password: passwordSchema,
   username: regularUsernameSchema,
   displayName: displayNameSchema,
+  // v1.47-social (D175): required (owner: chosen at sign-up; `UNDISCLOSED` = «أفضّل عدم الذكر»).
+  gender: z.string().pipe(z.enum(GENDERS)),
   locale: localeSchema.optional(),
   device: deviceInfoSchema.optional(),
 });
@@ -150,7 +153,8 @@ export const bioSchema = z
 /**
  * `PATCH /me`: v1.2 `locale`; v1.27.1-live (D133) `country` (ISO 3166-1 alpha-2, any case,
  * stored upper case; null clears it); v1.45-social (D168) `displayName` (the §6 registration rules;
- * reserved terms are checked by the service) and `bio` (null or empty clears it). At least one.
+ * reserved terms are checked by the service) and `bio` (null or empty clears it); v1.47-social (D175)
+ * `gender`, `showGender`, `category` and `links`. At least one.
  */
 export const updateMeSchema = z
   .strictObject({
@@ -163,14 +167,15 @@ export const updateMeSchema = z
       .optional(),
     displayName: displayNameSchema.optional(),
     bio: bioSchema.optional(),
+    // v1.47-social (D175, CONVENTIONS §10.43): gender (never cleared once chosen), whether others see
+    // it, the account category (null clears it) and the links (the whole set; [] clears them).
+    gender: z.enum(GENDERS).optional(),
+    showGender: z.boolean().optional(),
+    category: z.enum(ACCOUNT_CATEGORIES).nullable().optional(),
+    links: profileLinksSchema.optional(),
   })
   .superRefine((body, ctx) => {
-    if (
-      body.locale === undefined &&
-      body.country === undefined &&
-      body.displayName === undefined &&
-      body.bio === undefined
-    ) {
+    if (Object.values(body).every((v) => v === undefined)) {
       ctx.addIssue({
         code: 'custom',
         path: ['body'],

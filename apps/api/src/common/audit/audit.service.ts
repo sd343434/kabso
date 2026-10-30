@@ -101,6 +101,10 @@ export enum AuditAction {
   PROFILE_UPDATE = 'user.profile.update',
   /** v1.45-social (D168): the caller set or removed their profile photo. */
   AVATAR_UPDATE = 'user.avatar.update',
+  /** v1.47-social (D175): the user switched their account private or public. */
+  PRIVACY_PRIVATE = 'user.privacy.private',
+  /** v1.47-social (D175): an admin removed a user's profile photo (`profile-admin remove-avatar`). */
+  ADMIN_AVATAR_REMOVE = 'admin.avatar.remove',
   PREMIUM_USERNAME_RENT = 'premium_username.rent',
   PREMIUM_USERNAME_RENEW = 'premium_username.renew',
   PREMIUM_USERNAME_GRANT = 'premium_username.grant',
