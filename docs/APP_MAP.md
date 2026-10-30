@@ -32,7 +32,7 @@ moves.
 | `/messages/:username` | `ChatScreen` (text, pack emojis, pictures, voice notes, gifts; requests; 24-hour messages) | **API** (D155: `/dm/peers/{username}`, `/dm/conversations/{id}/messages`, `/dm/messages`, `/dm/gifts`) | Designed conversation (test builds only) |
 | `/profile/edit` | `EditProfileScreen` | **API** read; saving waits for the contract | — |
 | `/settings` | `SettingsScreen` (theme, language, sessions, levels, Demo data, logout) | **API** (sessions) | Demo data switch |
-| `/levels`, `/levels/:category` | `LevelsScreen`, `LevelDetailScreen` | **API** (KL-058) | — (needs the server) |
+| `/levels`, `/levels/:category` | `LevelsScreen` (D169: four category tabs side by side + swipeable category pages: header card, how it grows, badge tiers; `LevelDetailScreen` = the same page opened on a category) | **API** (KL-058) | — (needs the server) |
 | `/auth/*`, `/splash` | Splash, welcome, join, login, register, code, forgot password | **API** | "Try with demo data" on welcome and login |
 
 ## Developer routes (`/debug/*`, never in release)

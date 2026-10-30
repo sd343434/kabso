@@ -2182,10 +2182,6 @@
   "@levelsTitle": {
     "description": "D72: levels (CP-005)."
   },
-  "levelsIntro": "تزيد نقاطك من الهدايا والإنفاق في الألعاب بعد تأكيدها. لكل مستوى نقاطه الخاصة.",
-  "@levelsIntro": {
-    "description": "D72: levels (CP-005)."
-  },
   "levelsPreparing": "المستويات قيد التجهيز. ستظهر نقاطك هنا عند تفعيل الهدايا والألعاب.",
   "@levelsPreparing": {
     "description": "D72: levels (CP-005)."
@@ -2220,33 +2216,8 @@
       }
     }
   },
-  "levelsToNext": "{points} للمستوى التالي",
-  "@levelsToNext": {
-    "description": "D72: levels (CP-005). Points are pre-formatted with Latin digits and separators.",
-    "placeholders": {
-      "points": {
-        "type": "String"
-      }
-    }
-  },
-  "levelsToNamed": "{points} نقطة للوصول إلى {level}",
-  "@levelsToNamed": {
-    "description": "D72: levels (CP-005).",
-    "placeholders": {
-      "points": {
-        "type": "String"
-      },
-      "level": {
-        "type": "String"
-      }
-    }
-  },
   "levelsMax": "أعلى مستوى",
   "@levelsMax": {
-    "description": "D72: levels (CP-005)."
-  },
-  "levelsLadder": "كل المستويات",
-  "@levelsLadder": {
     "description": "D72: levels (CP-005)."
   },
   "levelsCurrent": "مستواك",
@@ -2256,6 +2227,102 @@
   "levelsLoadError": "تعذّر تحميل المستويات",
   "@levelsLoadError": {
     "description": "D72: levels (CP-005)."
+  },
+  "levelsLv": "Lv.{number}",
+  "@levelsLv": {
+    "description": "D169: the big level on the level card; Latin in both languages, like the level badges.",
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "levelsNeedXp": "تحتاج {points} خبرة للوصول إلى المستوى التالي",
+  "@levelsNeedXp": {
+    "description": "D169: under the level card's progress bar; {points} is shown highlighted, pre-formatted with Latin digits and separators.",
+    "placeholders": {
+      "points": {
+        "type": "String"
+      }
+    }
+  },
+  "levelsCategories": "تصنيفات المستوى",
+  "@levelsCategories": {
+    "description": "D169: screen-reader label of the category filter above the level card."
+  },
+  "levelsHowItGrows": "كيف يرتفع",
+  "@levelsHowItGrows": {
+    "description": "D169: heading over the category's explanation on its page."
+  },
+  "levelsTiers": "الشارات والمستويات",
+  "@levelsTiers": {
+    "description": "D169: heading over every badge tier of a category with its levels."
+  },
+  "levelsTierRange": "Lv.{from}–{to}",
+  "@levelsTierRange": {
+    "description": "D169: the levels one badge tier covers; Latin, left to right in both languages.",
+    "placeholders": {
+      "from": {
+        "type": "int"
+      },
+      "to": {
+        "type": "int"
+      }
+    }
+  },
+  "levelsTierFrame": "مع إطار الصورة",
+  "@levelsTierFrame": {
+    "description": "D169: screen-reader note on a support tier tile — reaching the tier gives its avatar frame."
+  },
+  "levelsTierCurrent": "الحالي",
+  "@levelsTierCurrent": {
+    "description": "D169: the pill of the caller's current tier card."
+  },
+  "levelsTierOpen": "مفتوح",
+  "@levelsTierOpen": {
+    "description": "D169: the pill of a tier the caller has passed."
+  },
+  "levelsTierLocked": "مقفل",
+  "@levelsTierLocked": {
+    "description": "D169: the pill (with a lock) of a tier not reached yet, or of an inactive category."
+  },
+  "levelsTierUnlocked": "تم الفتح",
+  "@levelsTierUnlocked": {
+    "description": "D169: the grey line of a tier the caller has reached."
+  },
+  "levelsTierToUnlock": "تحتاج {points} نقطة للفتح",
+  "@levelsTierToUnlock": {
+    "description": "D169: the grey line of a locked tier; {points} is stressed, pre-formatted with Latin digits.",
+    "placeholders": {
+      "points": {
+        "type": "String"
+      }
+    }
+  },
+  "levelsTierFrom": "من {points} نقطة",
+  "@levelsTierFrom": {
+    "description": "D169: a tier card's caption — the points the tier starts at.",
+    "placeholders": {
+      "points": {
+        "type": "String"
+      }
+    }
+  },
+  "levelsTabAttractiveness": "الجاذبية",
+  "@levelsTabAttractiveness": {
+    "description": "D169: the short name in the levels tab bar (no «مستوى», so the four fit side by side)."
+  },
+  "levelsTabSupport": "الدعم",
+  "@levelsTabSupport": {
+    "description": "D169: the short name in the levels tab bar (no «مستوى», so the four fit side by side)."
+  },
+  "levelsTabWizard": "الساحر",
+  "@levelsTabWizard": {
+    "description": "D169: the short name in the levels tab bar (no «مستوى», so the four fit side by side)."
+  },
+  "levelsTabGaming": "اللعب",
+  "@levelsTabGaming": {
+    "description": "D169: the short name in the levels tab bar (no «مستوى», so the four fit side by side)."
   },
   "navMoments": "اللحظات",
   "navMessages": "الرسائل",

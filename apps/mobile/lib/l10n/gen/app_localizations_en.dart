@@ -2156,10 +2156,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get levelsTitle => 'My levels';
 
   @override
-  String get levelsIntro =>
-      'Your points grow from gifts and game spending once they are confirmed. Each level has its own points.';
-
-  @override
   String get levelsPreparing =>
       'Levels are on their way. Your points will show here once gifts and games are switched on.';
 
@@ -2184,26 +2180,74 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String levelsToNext(String points) {
-    return '$points to next level';
-  }
-
-  @override
-  String levelsToNamed(String points, String level) {
-    return '$points pts to reach $level';
-  }
-
-  @override
   String get levelsMax => 'Top level reached';
-
-  @override
-  String get levelsLadder => 'All levels';
 
   @override
   String get levelsCurrent => 'You\'re here';
 
   @override
   String get levelsLoadError => 'Couldn\'t load your levels';
+
+  @override
+  String levelsLv(int number) {
+    return 'Lv.$number';
+  }
+
+  @override
+  String levelsNeedXp(String points) {
+    return 'Need $points experience to the next level';
+  }
+
+  @override
+  String get levelsCategories => 'Level categories';
+
+  @override
+  String get levelsHowItGrows => 'How it grows';
+
+  @override
+  String get levelsTiers => 'Badges by level';
+
+  @override
+  String levelsTierRange(int from, int to) {
+    return 'Lv.$from–$to';
+  }
+
+  @override
+  String get levelsTierFrame => 'Comes with an avatar frame';
+
+  @override
+  String get levelsTierCurrent => 'Current';
+
+  @override
+  String get levelsTierOpen => 'Open';
+
+  @override
+  String get levelsTierLocked => 'Locked';
+
+  @override
+  String get levelsTierUnlocked => 'Unlocked';
+
+  @override
+  String levelsTierToUnlock(String points) {
+    return '$points pts to unlock';
+  }
+
+  @override
+  String levelsTierFrom(String points) {
+    return 'From $points pts';
+  }
+
+  @override
+  String get levelsTabAttractiveness => 'Charm';
+
+  @override
+  String get levelsTabSupport => 'Support';
+
+  @override
+  String get levelsTabWizard => 'Wizard';
+
+  @override
+  String get levelsTabGaming => 'Gaming';
 
   @override
   String get navMoments => 'Moments';

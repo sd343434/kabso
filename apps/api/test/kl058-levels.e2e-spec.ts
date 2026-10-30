@@ -544,17 +544,26 @@ describe('KL-058 levels', () => {
   });
 
   describe('reversals', () => {
-    it('REVERSE_POINTS takes back exactly what the gift earned, once', async () => {
+    it('REVERSE_POINTS takes back exactly what the gift earned, once; the level stays (D169)', async () => {
       const id = randomUUID();
       const [a0, b0] = [await points(alice), await points(bob)];
       await gift(alice, bob, 120n, false, id);
+      const [a1, b1] = [await points(alice), await points(bob)];
       const reversed = await deliver({ type: 'GIFT_REVERSED', sourceTransactionId: id });
       expect(reversed.event.status).toBe('PROCESSED');
-      expect(await points(alice)).toEqual(a0);
-      expect(await points(bob)).toEqual(b0);
+      // v1.46-levels (owner D169): the points go back, a level never goes down.
+      const keep = (now: typeof a0, before: typeof a0, after: typeof a0) =>
+        Object.fromEntries(
+          Object.keys(now).map((k) => [
+            k,
+            { points: before[k as Code].points, level: after[k as Code].level },
+          ]),
+        );
+      expect(await points(alice)).toEqual(keep(a0, a0, a1));
+      expect(await points(bob)).toEqual(keep(b0, b0, b1));
       const again = await deliver({ type: 'GIFT_REVERSED', sourceTransactionId: id });
       expect(again.duplicate).toBe(true);
-      expect(await points(bob)).toEqual(b0);
+      expect(await points(bob)).toEqual(keep(b0, b0, b1));
     });
 
     it('a reversal of an unknown transaction fails (retryable) and changes nothing', async () => {

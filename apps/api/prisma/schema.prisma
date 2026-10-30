@@ -960,6 +960,8 @@ enum LevelTransitionReason {
   ADJUSTED
   CONFIG_PUBLISHED
   RECALCULATED
+  /// v1.46-levels (D169): an admin deduction marked as fraud — the only way a level goes down.
+  FRAUD
 
   @@map("level_transition_reason")
 }
@@ -1108,6 +1110,8 @@ model PointsLedgerEntry {
   /// REVERSAL → the EARN it compensates (unique: a reversal happens once).
   reversalOfEntryId   String?          @unique(map: "points_ledger_reversal_of_key") @map("reversal_of_entry_id") @db.Uuid
   reason              String?          @db.VarChar(500)
+  /// v1.46-levels (D169): an admin deduction marked as fraud (CHECK: negative ADJUSTMENT only).
+  fraud               Boolean          @default(false)
   createdById         String?          @map("created_by_id") @db.Uuid
   createdAt           DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
 
@@ -2314,9 +2318,11 @@ model UserMedal {
 
 // ---- v1.22-live (CP-019, D107): the bag (الحقيبة) ---------------------------------------------
 
-/// A bag category. PROFILE_CARD: the decoration on the profile card's header. More come later.
+/// A bag category. PROFILE_CARD: the decoration on the profile card's header. AVATAR_FRAME
+/// (v1.46-levels, D169): the frame around the user's photo. More come later.
 enum BagCategory {
   PROFILE_CARD
+  AVATAR_FRAME
 
   @@map("bag_category")
 }
@@ -2329,6 +2335,8 @@ enum BagItemSource {
   BACKFILL
   /// Granted by an admin (`bag-admin grant`).
   ADMIN
+  /// Given by the server when a level is reached (v1.46-levels, D169: the support tier frames).
+  LEVEL_REWARD
 
   @@map("bag_item_source")
 }

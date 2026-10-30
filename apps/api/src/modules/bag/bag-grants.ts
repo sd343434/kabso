@@ -76,3 +76,43 @@ export async function revokeItemIn(
     RETURNING equipped`;
   return { owned: rows.length === 1, wasEquipped: rows[0]?.equipped ?? false };
 }
+
+/**
+ * Gives `userId` the catalogue items `codes` it does not own yet (source LEVEL_REWARD, not worn:
+ * a reward never changes what the user wears), inside the caller's transaction. Codes missing
+ * from the catalogue give nothing. Returns the codes given now (v1.46-levels, D169: the support
+ * tier frames).
+ */
+export async function grantLevelRewardsIn(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  codes: readonly string[],
+): Promise<string[]> {
+  if (codes.length === 0) return [];
+  const rows = await tx.$queryRaw<{ item_code: string }[]>`
+    INSERT INTO user_bag_items (user_id, item_code, category, source, equipped)
+    SELECT ${userId}::uuid, i.code, i.category, 'LEVEL_REWARD'::bag_item_source, false
+      FROM bag_items i WHERE i.code = ANY(${[...new Set(codes)]}::text[])
+    ON CONFLICT (user_id, item_code) DO NOTHING
+    RETURNING item_code`;
+  return rows.map((r) => r.item_code);
+}
+
+/**
+ * Takes back level rewards (owner D169: only a fraud demotion does this): deletes the user's
+ * LEVEL_REWARD rows for `codes`; a worn one leaves the category worn by nothing. Returns the codes
+ * removed.
+ */
+export async function revokeLevelRewardsIn(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  codes: readonly string[],
+): Promise<string[]> {
+  if (codes.length === 0) return [];
+  const rows = await tx.$queryRaw<{ item_code: string }[]>`
+    DELETE FROM user_bag_items
+     WHERE user_id = ${userId}::uuid AND source = 'LEVEL_REWARD'::bag_item_source
+       AND item_code = ANY(${[...new Set(codes)]}::text[])
+    RETURNING item_code`;
+  return rows.map((r) => r.item_code);
+}

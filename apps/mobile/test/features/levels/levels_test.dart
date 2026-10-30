@@ -1,6 +1,7 @@
-// D72: the four level systems (CP-005) — models, art tiers, the repository
-// against a mocked Dio adapter, the levels and detail screens with honest
-// states, navigation, Arabic RTL / English LTR and small screens.
+// D72 + D169: the four level systems (CP-005) — models, art tiers (support:
+// the owner's 21 badges), the repository against a mocked Dio adapter, the
+// levels page (category cards) and the category page (header card, badge
+// tiers) with honest states, Arabic RTL / English LTR and small screens.
 
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,6 +20,7 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/levels/data/levels_repository.dart';
 import 'package:kabso_live/features/levels/domain/level_models.dart';
 import 'package:kabso_live/features/levels/presentation/level_badge.dart';
+import 'package:kabso_live/features/levels/presentation/level_category_card.dart';
 import 'package:kabso_live/features/levels/presentation/level_detail_screen.dart';
 import 'package:kabso_live/features/levels/presentation/levels_screen.dart';
 import 'package:kabso_live/features/levels/presentation/profile_levels.dart';
@@ -57,11 +59,26 @@ class FakeLevelsRepository implements LevelsRepository {
     return summaries.map(PublicLevel.fromJson).toList();
   }
 
+  /// The categories whose ladder was asked for, in order.
+  final List<LevelCategory> detailCalls = [];
+
+  /// [detail] when set; else the support ladder for Support, and for the
+  /// others a ladder of the summary's own level and the next one.
   @override
   Future<LevelDetail> getMyLevel(LevelCategory category) async {
     calls++;
+    detailCalls.add(category);
     if (failure case final f?) throw f;
-    return LevelDetail.fromJson(detail ?? supportDetailJson());
+    if (detail case final d?) return LevelDetail.fromJson(d);
+    final summary = summaries[category.index];
+    return LevelDetail.fromJson(
+      category == LevelCategory.support
+          ? {...supportDetailJson(), ...summary}
+          : {
+              ...summary,
+              'levels': [?summary['level'], ?summary['nextLevel']],
+            },
+    );
   }
 }
 
@@ -186,12 +203,54 @@ void main() {
       expect(KLevelArt.tier(25, iconKey: 'gold'), 3);
     });
 
-    test('every category has its 11 emblems bundled', () async {
+    test("every category has its emblems bundled (support: the owner's 21 "
+        'badges and pills)', () async {
       TestWidgetsFlutterBinding.ensureInitialized();
       for (final c in LevelCategory.values) {
-        for (var t = 1; t <= KLevelArt.tiers; t++) {
+        for (var t = 1; t <= KLevelArt.tiersOf(c); t++) {
           final data = await rootBundle.load(KLevelArt.asset(c, t));
           expect(data.lengthInBytes, greaterThan(1000));
+        }
+      }
+      expect(KLevelArt.tiersOf(LevelCategory.support), 21);
+      for (var t = 1; t <= 21; t++) {
+        final data = await rootBundle.load(KLevelArt.supportPill(t));
+        expect(data.lengthInBytes, greaterThan(1000));
+      }
+      expect(KLevelArt.supportPillAspect, hasLength(21));
+      // D169: 21 tier frames, one per tier.
+      for (var t = 1; t <= 21; t++) {
+        final data = await rootBundle.load(KLevelArt.supportFrame(t));
+        expect(data.lengthInBytes, greaterThan(1000));
+      }
+      expect(KLevelArt.supportFrame(21), isNot(KLevelArt.supportFrame(20)));
+      expect(KLevelArt.supportGems, hasLength(21));
+    });
+
+    test('support tiers: five levels each, 96–99 in tier 20, 100 alone', () {
+      expect(KLevelArt.supportTier(1), 1);
+      expect(KLevelArt.supportTier(5), 1);
+      expect(KLevelArt.supportTier(6), 2);
+      expect(KLevelArt.supportTier(37), 8);
+      expect(KLevelArt.supportTier(95), 19);
+      expect(KLevelArt.supportTier(99), 20);
+      expect(KLevelArt.supportTier(100), 21);
+      // The server's iconKey names the 11-tier pack: Support ignores it.
+      expect(
+        KLevelArt.tierOf(LevelCategory.support, 37, iconKey: 'tier_04'),
+        8,
+      );
+      expect(KLevelArt.levelRange(LevelCategory.support, 1), (1, 5));
+      expect(KLevelArt.levelRange(LevelCategory.support, 20), (96, 99));
+      expect(KLevelArt.levelRange(LevelCategory.support, 21), (100, 100));
+      expect(KLevelArt.levelRange(LevelCategory.wizard, 1), (1, 9));
+      expect(KLevelArt.levelRange(LevelCategory.wizard, 4), (30, 39));
+      expect(KLevelArt.levelRange(LevelCategory.wizard, 11), (100, 100));
+      // Every level 1–100 falls in exactly one tier.
+      for (final c in LevelCategory.values) {
+        for (var n = 1; n <= 100; n++) {
+          final (from, to) = KLevelArt.levelRange(c, KLevelArt.tierOf(c, n));
+          expect(n, inInclusiveRange(from, to), reason: '$c $n');
         }
       }
     });
@@ -273,36 +332,168 @@ void main() {
     });
   });
 
-  group('LevelsScreen', () {
-    testWidgets('four cards in order with level, points and progress', (
+  group('LevelsScreen (D169: tabs and category pages)', () {
+    testWidgets('opens on the highest active level; four tabs side by side', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      await _pumpRouted(tester, FakeLevelsRepository());
+      final rects = [
+        for (final c in LevelCategory.values)
+          tester.getRect(find.byKey(LevelsScreen.tabKey(c))),
+      ];
+      // One row, reading order, equal widths.
+      expect(rects.map((r) => r.top).toSet(), hasLength(1));
+      expect(
+        rects.map((r) => r.left).toList(),
+        orderedEquals([...rects.map((r) => r.left)]..sort()),
+      );
+      for (final r in rects) {
+        expect(r.width, closeTo(rects.first.width, 0.5));
+      }
+      expect(find.text(_en.levelsTabAttractiveness), findsOneWidget);
+      // Wizard is at level 100, the highest active one.
+      expect(
+        tester.getSemantics(
+          find.byKey(LevelsScreen.tabKey(LevelCategory.wizard)),
+        ),
+        isSemantics(isSelected: true, isButton: true, label: 'Wizard'),
+      );
+      expect(find.text('Legend · ${_en.levelsLv(100)}'), findsOneWidget);
+      expect(find.byKey(LevelsScreen.preparingKey), findsNothing);
+      handle.dispose();
+    });
+
+    testWidgets('/levels/support: the header card, "Need X" and 21 tiers '
+        'with frames, the current one marked', (tester) async {
+      await _pumpRouted(
+        tester,
+        FakeLevelsRepository(),
+        initial: AppRoutes.level('support'),
+      );
+      expect(find.byType(LevelDetailScreen), findsOneWidget);
+      final header = find.byKey(LevelsScreen.headerKey);
+      expect(
+        find.descendant(
+          of: header,
+          matching: find.text('Supporter · ${_en.levelsLv(2)}'),
+        ),
+        findsOneWidget,
+      );
+      final need = tester.widget<Text>(find.byKey(LevelCategoryCard.needKey));
+      final spans = (need.textSpan! as TextSpan).children!.cast<TextSpan>();
+      final x = spans.singleWhere((s) => s.text!.contains('350'));
+      expect(x.style!.color, KLevelCard.highlight);
+      expect(
+        spans
+            .map((s) => s.text)
+            .join()
+            .replaceAll(RegExp('[\u2066\u2069]'), ''),
+        _en.levelsNeedXp('350'),
+      );
+      expect(find.text(_en.levelsHowItGrows), findsOneWidget);
+      // Level 2 is support tier 1 (levels 1–5), with its avatar frame.
+      expect(find.byKey(LevelTierGrid.currentKey), findsOneWidget);
+      expect(find.byKey(LevelTierGrid.frameKey(1)), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.byKey(LevelTierGrid.tierKey(21)),
+        300,
+        scrollable: find.byType(Scrollable).last,
+      );
+      expect(find.text(_en.levelsLv(100)), findsOneWidget);
+      expect(find.text(_en.levelsTierRange(96, 99)), findsOneWidget);
+    });
+
+    testWidgets('a tab and a swipe both move between categories', (
       tester,
     ) async {
       await _pumpRouted(tester, FakeLevelsRepository());
-      for (final c in LevelCategory.values) {
-        expect(find.byKey(LevelsScreen.cardKey(c)), findsOneWidget);
-      }
-      expect(
-        find.text('Rising star · ${_en.levelsLevelNumber(37)}'),
-        findsOneWidget,
+      await tester.tap(
+        find.byKey(LevelsScreen.tabKey(LevelCategory.attractiveness)),
       );
+      await tester.pumpAndSettle();
+      expect(find.text('Rising star · ${_en.levelsLv(37)}'), findsOneWidget);
+      // The pack has 11 tiers; no frames outside Support.
+      expect(find.byKey(LevelTierGrid.frameKey(1)), findsNothing);
+      // Swipe towards the reading end: the next category (Support).
+      await tester.fling(find.byType(PageView), const Offset(-400, 0), 1000);
+      await tester.pumpAndSettle();
+      expect(find.text('Supporter · ${_en.levelsLv(2)}'), findsOneWidget);
+      final handle = tester.ensureSemantics();
+      await tester.pump();
       expect(
-        find.textContaining(_en.levelsPoints('12,500'), findRichText: true),
-        findsOneWidget,
+        tester.getSemantics(
+          find.byKey(LevelsScreen.tabKey(LevelCategory.support)),
+        ),
+        isSemantics(isSelected: true),
       );
-      expect(
-        find.textContaining(_en.levelsToNext('500'), findRichText: true),
-        findsOneWidget,
-      );
-      expect(
-        find.textContaining(_en.levelsMax, findRichText: true),
-        findsOneWidget,
-      );
-      expect(find.text(_en.levelsUnavailable), findsOneWidget);
-      expect(find.byType(KLevelProgressBar), findsNWidgets(3));
-      expect(find.byKey(LevelsScreen.preparingKey), findsNothing);
+      handle.dispose();
     });
 
-    testWidgets('all four unavailable: honest "on their way" banner', (
+    testWidgets('an inactive category: honest header, explanation, tiers '
+        'dimmed', (tester) async {
+      await _pumpRouted(
+        tester,
+        FakeLevelsRepository(),
+        initial: AppRoutes.level('gaming'),
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(LevelsScreen.headerKey),
+          matching: find.text('Gaming · ${_en.levelsUnavailable}'),
+        ),
+        findsOneWidget,
+      );
+      expect(find.byKey(LevelTierGrid.unavailableKey), findsOneWidget);
+      expect(find.byKey(LevelCategoryCard.needKey), findsNothing);
+      expect(find.byKey(LevelTierGrid.currentKey), findsNothing);
+      final tile = find.byKey(LevelTierGrid.tierKey(1));
+      await tester.scrollUntilVisible(
+        tile,
+        200,
+        scrollable: find.byType(Scrollable).last,
+      );
+      // Locked: desaturated, a lock in the pill.
+      expect(
+        find.descendant(of: tile, matching: find.text(_en.levelsTierLocked)),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: tile, matching: find.byType(ColorFiltered)),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('only the tier the caller is on is lit; passed ones are dim '
+        'but say so', (tester) async {
+      await _pumpRouted(
+        tester,
+        FakeLevelsRepository(),
+        initial: AppRoutes.level('attractiveness'),
+      );
+      // Level 37 = pack tier 4; tier 1 is passed.
+      final current = find.byKey(LevelTierGrid.currentKey);
+      await tester.scrollUntilVisible(
+        current,
+        200,
+        scrollable: find.byType(Scrollable).last,
+      );
+      expect(
+        find.descendant(of: current, matching: find.byType(ColorFiltered)),
+        findsNothing,
+      );
+      final passed = find.byKey(LevelTierGrid.tierKey(1));
+      expect(
+        find.descendant(of: passed, matching: find.byType(ColorFiltered)),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: passed, matching: find.text(_en.levelsTierOpen)),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('all four inactive: the "on their way" banner, Charm first', (
       tester,
     ) async {
       await _pumpRouted(
@@ -310,8 +501,13 @@ void main() {
         FakeLevelsRepository(summaries: allUnavailableJson()),
       );
       expect(find.byKey(LevelsScreen.preparingKey), findsOneWidget);
-      expect(find.text(_en.levelsUnavailable), findsNWidgets(4));
-      expect(find.byType(KLevelProgressBar), findsNothing);
+      expect(
+        LevelsScreen.defaultCategory(
+          allUnavailableJson().map(LevelSummary.fromJson).toList(),
+        ),
+        LevelCategory.attractiveness,
+      );
+      expect(find.byKey(LevelTierGrid.unavailableKey), findsOneWidget);
     });
 
     testWidgets('an error offers retry, which reloads', (tester) async {
@@ -323,70 +519,10 @@ void main() {
       repo.failure = null;
       await tester.tap(find.text(_en.actionRetry));
       await tester.pumpAndSettle();
-      expect(
-        find.byKey(LevelsScreen.cardKey(LevelCategory.support)),
-        findsOneWidget,
-      );
+      expect(find.byKey(LevelsScreen.tabBarKey), findsOneWidget);
     });
 
-    testWidgets('a card reads as one button with its whole state', (
-      tester,
-    ) async {
-      final handle = tester.ensureSemantics();
-      await _pumpRouted(tester, FakeLevelsRepository());
-      expect(
-        tester.getSemantics(
-          find.byKey(LevelsScreen.cardKey(LevelCategory.support)),
-        ),
-        matchesSemantics(
-          isButton: true,
-          hasTapAction: true,
-          label: [
-            'Support',
-            'Supporter · ${_en.levelsLevelNumber(2)}',
-            _en.levelsPoints('150'),
-            _en.levelsToNext('350'),
-          ].join('، '),
-        ),
-      );
-      handle.dispose();
-    });
-
-    testWidgets('tapping a card opens its detail with the ladder', (
-      tester,
-    ) async {
-      await _pumpRouted(tester, FakeLevelsRepository());
-      await tester.tap(find.byKey(LevelsScreen.cardKey(LevelCategory.support)));
-      await tester.pumpAndSettle();
-      expect(find.byType(LevelDetailScreen), findsOneWidget);
-      expect(find.text(_en.levelsLadder), findsOneWidget);
-      expect(find.byKey(LevelDetailScreen.currentKey), findsOneWidget);
-      expect(
-        find.text(_en.levelsToNamed('350', 'Silver supporter')),
-        findsOneWidget,
-      );
-    });
-  });
-
-  group('LevelDetailScreen', () {
-    testWidgets('an unavailable category shows its honest state', (
-      tester,
-    ) async {
-      await _pumpRouted(
-        tester,
-        FakeLevelsRepository(
-          detail: {
-            ...levelSummaryJson('GAMING', available: false),
-            'levels': <Object>[],
-          },
-        ),
-        initial: AppRoutes.level('gaming'),
-      );
-      expect(find.text(_en.levelsUnavailableBody), findsOneWidget);
-      expect(find.text(_en.levelsLadder), findsNothing);
-    });
-
-    testWidgets('marks reached and current levels for screen readers', (
+    testWidgets('tier cards read their name, levels, state, frame and pill', (
       tester,
     ) async {
       final handle = tester.ensureSemantics();
@@ -396,15 +532,16 @@ void main() {
         initial: AppRoutes.level('support'),
       );
       expect(
-        tester.getSemantics(find.byKey(LevelDetailScreen.currentKey)),
+        tester.getSemantics(find.byKey(LevelTierGrid.currentKey)),
         matchesSemantics(
           isSelected: true,
           hasSelectedState: true,
           label: [
-            'Supporter',
-            _en.levelsLevelNumber(2),
-            _en.levelsPoints('100'),
-            _en.levelsCurrent,
+            'Starter ${_en.levelsTierRange(1, 5)}',
+            _en.levelsTierUnlocked,
+            _en.levelsTierFrom('0'),
+            _en.levelsTierFrame,
+            _en.levelsTierCurrent,
           ].join('، '),
         ),
       );
@@ -414,49 +551,54 @@ void main() {
 
   group('RTL / small screens', () {
     for (final language in AppLanguage.values) {
-      testWidgets('${language.name}: 360×800 at text scale 1.3 does not '
-          'overflow', (tester) async {
+      testWidgets('${language.name}: 360×800 at text scale 1.3 — the four '
+          'tabs stay on one row, no page overflows', (tester) async {
         final arabic = language == AppLanguage.ar;
         await _pumpRouted(
           tester,
-          FakeLevelsRepository(
-            summaries: mixedLevelsJson(arabic: arabic),
-            detail: supportDetailJson(arabic: arabic),
-          ),
+          FakeLevelsRepository(summaries: mixedLevelsJson(arabic: arabic)),
           language: language,
           viewport: GoldenViewport.android,
           textScale: 1.3,
         );
         expect(tester.takeException(), isNull);
-        await tester.tap(
-          find.byKey(LevelsScreen.cardKey(LevelCategory.support)),
-        );
-        await tester.pumpAndSettle();
-        expect(tester.takeException(), isNull);
+        final tops = {
+          for (final c in LevelCategory.values)
+            tester.getRect(find.byKey(LevelsScreen.tabKey(c))).top,
+        };
+        expect(tops, hasLength(1));
+        for (final c in LevelCategory.values) {
+          await tester.tap(find.byKey(LevelsScreen.tabKey(c)));
+          await tester.pumpAndSettle();
+          expect(tester.takeException(), isNull);
+        }
       });
     }
 
-    testWidgets('Arabic: emblems sit at the reading start (right)', (
-      tester,
-    ) async {
+    testWidgets("Arabic: tabs read right to left; the card's badge sits at "
+        'the top left', (tester) async {
       await _pumpRouted(
         tester,
         FakeLevelsRepository(summaries: mixedLevelsJson(arabic: true)),
         language: AppLanguage.ar,
+        initial: AppRoutes.level('support'),
       );
-      final card = find.byKey(LevelsScreen.cardKey(LevelCategory.support));
-      final emblem = find.descendant(
-        of: card,
-        matching: find.byType(KLevelEmblem),
+      final first = tester.getCenter(
+        find.byKey(LevelsScreen.tabKey(LevelCategory.attractiveness)),
       );
-      expect(
-        tester.getCenter(emblem).dx,
-        greaterThan(tester.getCenter(card).dx),
+      final second = tester.getCenter(
+        find.byKey(LevelsScreen.tabKey(LevelCategory.support)),
       );
-      expect(
-        find.textContaining(_ar.levelsPoints('150'), findRichText: true),
-        findsOneWidget,
+      expect(first.dx, greaterThan(second.dx));
+      expect(find.text(_ar.levelsTabSupport), findsOneWidget);
+      final header = tester.getRect(find.byKey(LevelsScreen.headerKey));
+      final medal = tester.getRect(
+        find.descendant(
+          of: find.byKey(LevelsScreen.headerKey),
+          matching: find.byKey(LevelCategoryCard.medalKey),
+        ),
       );
+      expect(medal.center.dx, lessThan(header.center.dx));
     });
   });
 
@@ -626,7 +768,10 @@ void main() {
         await loadAppFonts();
         await _pumpRouted(
           tester,
-          FakeLevelsRepository(detail: supportDetailJson(arabic: arabic)),
+          FakeLevelsRepository(
+            summaries: mixedLevelsJson(arabic: arabic),
+            detail: supportDetailJson(arabic: arabic),
+          ),
           language: language,
           initial: AppRoutes.level('support'),
         );

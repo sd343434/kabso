@@ -3893,12 +3893,6 @@ abstract class AppLocalizations {
   /// D72: levels (CP-005).
   ///
   /// In ar, this message translates to:
-  /// **'تزيد نقاطك من الهدايا والإنفاق في الألعاب بعد تأكيدها. لكل مستوى نقاطه الخاصة.'**
-  String get levelsIntro;
-
-  /// D72: levels (CP-005).
-  ///
-  /// In ar, this message translates to:
   /// **'المستويات قيد التجهيز. ستظهر نقاطك هنا عند تفعيل الهدايا والألعاب.'**
   String get levelsPreparing;
 
@@ -3932,29 +3926,11 @@ abstract class AppLocalizations {
   /// **'{points} نقطة'**
   String levelsPoints(String points);
 
-  /// D72: levels (CP-005). Points are pre-formatted with Latin digits and separators.
-  ///
-  /// In ar, this message translates to:
-  /// **'{points} للمستوى التالي'**
-  String levelsToNext(String points);
-
-  /// D72: levels (CP-005).
-  ///
-  /// In ar, this message translates to:
-  /// **'{points} نقطة للوصول إلى {level}'**
-  String levelsToNamed(String points, String level);
-
   /// D72: levels (CP-005).
   ///
   /// In ar, this message translates to:
   /// **'أعلى مستوى'**
   String get levelsMax;
-
-  /// D72: levels (CP-005).
-  ///
-  /// In ar, this message translates to:
-  /// **'كل المستويات'**
-  String get levelsLadder;
 
   /// D72: levels (CP-005).
   ///
@@ -3967,6 +3943,108 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'تعذّر تحميل المستويات'**
   String get levelsLoadError;
+
+  /// D169: the big level on the level card; Latin in both languages, like the level badges.
+  ///
+  /// In ar, this message translates to:
+  /// **'Lv.{number}'**
+  String levelsLv(int number);
+
+  /// D169: under the level card's progress bar; {points} is shown highlighted, pre-formatted with Latin digits and separators.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحتاج {points} خبرة للوصول إلى المستوى التالي'**
+  String levelsNeedXp(String points);
+
+  /// D169: screen-reader label of the category filter above the level card.
+  ///
+  /// In ar, this message translates to:
+  /// **'تصنيفات المستوى'**
+  String get levelsCategories;
+
+  /// D169: heading over the category's explanation on its page.
+  ///
+  /// In ar, this message translates to:
+  /// **'كيف يرتفع'**
+  String get levelsHowItGrows;
+
+  /// D169: heading over every badge tier of a category with its levels.
+  ///
+  /// In ar, this message translates to:
+  /// **'الشارات والمستويات'**
+  String get levelsTiers;
+
+  /// D169: the levels one badge tier covers; Latin, left to right in both languages.
+  ///
+  /// In ar, this message translates to:
+  /// **'Lv.{from}–{to}'**
+  String levelsTierRange(int from, int to);
+
+  /// D169: screen-reader note on a support tier tile — reaching the tier gives its avatar frame.
+  ///
+  /// In ar, this message translates to:
+  /// **'مع إطار الصورة'**
+  String get levelsTierFrame;
+
+  /// D169: the pill of the caller's current tier card.
+  ///
+  /// In ar, this message translates to:
+  /// **'الحالي'**
+  String get levelsTierCurrent;
+
+  /// D169: the pill of a tier the caller has passed.
+  ///
+  /// In ar, this message translates to:
+  /// **'مفتوح'**
+  String get levelsTierOpen;
+
+  /// D169: the pill (with a lock) of a tier not reached yet, or of an inactive category.
+  ///
+  /// In ar, this message translates to:
+  /// **'مقفل'**
+  String get levelsTierLocked;
+
+  /// D169: the grey line of a tier the caller has reached.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم الفتح'**
+  String get levelsTierUnlocked;
+
+  /// D169: the grey line of a locked tier; {points} is stressed, pre-formatted with Latin digits.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحتاج {points} نقطة للفتح'**
+  String levelsTierToUnlock(String points);
+
+  /// D169: a tier card's caption — the points the tier starts at.
+  ///
+  /// In ar, this message translates to:
+  /// **'من {points} نقطة'**
+  String levelsTierFrom(String points);
+
+  /// D169: the short name in the levels tab bar (no «مستوى», so the four fit side by side).
+  ///
+  /// In ar, this message translates to:
+  /// **'الجاذبية'**
+  String get levelsTabAttractiveness;
+
+  /// D169: the short name in the levels tab bar (no «مستوى», so the four fit side by side).
+  ///
+  /// In ar, this message translates to:
+  /// **'الدعم'**
+  String get levelsTabSupport;
+
+  /// D169: the short name in the levels tab bar (no «مستوى», so the four fit side by side).
+  ///
+  /// In ar, this message translates to:
+  /// **'الساحر'**
+  String get levelsTabWizard;
+
+  /// D169: the short name in the levels tab bar (no «مستوى», so the four fit side by side).
+  ///
+  /// In ar, this message translates to:
+  /// **'اللعب'**
+  String get levelsTabGaming;
 
   /// No description provided for @navMoments.
   ///

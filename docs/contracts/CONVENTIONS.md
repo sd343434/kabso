@@ -529,6 +529,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.46-levels (draft) | 2026-10-30 | **D169 (owner: the support level's tier frames):** `BagCategory` gains `AVATAR_FRAME` and `BagItemSource` gains `LEVEL_REWARD`; the bag catalogue gains `support_frame_01` … `support_frame_21` (migrations `20261215090000_support_frames_enums`, `20261215100000_support_frames`). When a user's `SUPPORT` level goes up the server gives, in the same transaction, the frame of every support tier reached so far that they do not own (21 tiers: five levels each, 96–99 = tier 20, level 100 = tier 21, one frame per tier); frames are kept when the level goes down. §10.22. **Levels never go down** (owner): every write keeps the higher of the stored level and the level the points reach; only an admin deduction with `LevelAdjustmentRequest.fraud: true` lowers it (history reason `FRAUD`, `points_ledger.fraud`, migrations `20261215120000_level_fraud_enums`, `20261215130000_level_fraud`) and takes back the support frames of the tiers lost. §10.43. | **Additive** (new enum values, catalogue rows and an optional request field); the never-lower rule changes server behaviour only. Clients already ignore items of unknown categories and show unknown sources as opaque (v1.22-live). |
 | v1.45-social (draft) | 2026-10-29 | **D168 (owner, from the phone: «مدة ريلز لا تتجاوز ٦٠ ثانية، مدة الفيديو لا تتجاوز ٩٠ ثانية» and «فعّل الأزرار المتبقية في تعديل الملف وتغيير الصورة»):** a `POST_VIDEO` is now **1–90 s** (was 1–180 s; reels stay 1–60 s); videos stored before keep their length (`MediaAsset.durationMs` may still be up to 180 000 for them) and an unattached one longer than 90 s can no longer be attached. `updateMe` (`PATCH /me`) also takes `displayName` (the §6 registration rules) and `bio` (≤ 300 code points, ≤ 4 line breaks, free-text hygiene; empty or null clears it). `MediaKind.AVATAR` (processed like `LIVE_COVER`); `setMyAvatar` / `removeMyAvatar` (`PUT` / `DELETE /me/avatar`, `SetAvatarRequest`, `Avatar`). §7 row, §10.42, §11.1, §11.14. | **Tightening** on new uploads (a post video of 90–180 s is refused at `completeMediaUpload` with 422 `MEDIA_INVALID`; apps from v1.41 already explain that code); otherwise **additive** (optional request fields, an enum value, new operations). |
 | v1.44-social (draft) | 2026-10-29 | **D166 (owner: the Me hub's «قريباً» programs, CP-024 approved with defaults):** tag `programs`: `getMyTasks` (`GET /me/tasks`, `MyTasks`, `ProgramTask`, `CheckInDay`), `checkIn` (`POST /me/check-in`, `CheckInResult`; 201 / 200), `claimMyTask` (`POST /me/tasks/{code}/claim`, `TaskClaimResult`; 201 / 200), `getMySvip` (`GET /me/svip`, `SvipStatus`, `SvipPerk`), `listEvents` (`GET /events?tab=&month=`, `EventList`, `EventSummary`), `getEvent` (`GET /events/{eventId}`, `EventDetail`, `EventPrize`), `getEventLeaderboard` (`GET /events/{eventId}/leaderboard`, `EventLeaderboard`); tag `wallet`: `listRechargePackages` (`GET /wallet/recharge-packages`, `RechargePackages`; no purchase, B5); `WalletLedgerReason` gains `TASK_REWARD`, `CHECK_IN_REWARD`, `EVENT_PRIZE`; codes `TASK_NOT_COMPLETED`, `TASK_DAILY_CAP_REACHED` (409); migrations `20261214090000_me_programs_enums`, `20261214100000_me_programs`; CLIs `task-admin`, `event-admin`. §4, §8, §10.41. | **Additive** (new operations, schemas, codes and ledger reasons; clients show an unknown reason as a generic change). |
 | v1.43-social (draft) | 2026-10-29 | **D164 (owner: «اجعل الوكيل يعمل على أزرار قريباً في أنا» — the Me hub's "Soon" buttons that only need stored data):** tag `wallet`: `listMyWalletLedger` (`GET /wallet/me/ledger`, `WalletLedgerPage`, `WalletLedgerEntry`, `WalletLedgerReason`), `getMyEarnings` (`GET /wallet/me/earnings`, `MyEarnings`) and `listMyEarnings` (`GET /wallet/me/earnings/history`, `EarningPage`, `Earning`, `EarningContext`); tag `me`: `getMyCreatorStats` (`GET /me/creator-stats?period=LAST_7_DAYS\|LAST_30_DAYS\|ALL_TIME`, `CreatorStats`, `CreatorContentStats`, `CreatorStatsPeriod`). All read the caller's own stored data only (no migration). Earnings are display only (no withdrawal, D149). §10.40. | **Additive** (new operations and schemas). |
@@ -1525,8 +1526,23 @@ locale (§10.1).
 - **On the profile:** `PublicProfile.profileCard` = `{code, assetKey}` of the worn
   `PROFILE_CARD`, or null (§10.5).
 
+- **Avatar frames, the support level's reward** *(v1.46-levels, D169; owner: «هذه الإطارات لكل
+  فئة من فئات مستوى الدعم، يحصل عليها المستخدم عند وصوله فئة جديدة»)*: a second category
+  `AVATAR_FRAME`, the frame drawn around the user's photo. The catalogue gains 20 items
+  `support_frame_01` … `support_frame_21` (إطار الدعم N / Support frame N, `assetKey` = the code:
+  the app's `assets/levels/support_frames/<assetKey>.webp`, not free). The support level's 100
+  levels form 21 badge tiers (levels 1–5 = tier 1 … 91–95 = tier 19, 96–99 = tier 20, 100 = tier
+  21); **when a user's `SUPPORT` level goes up, the server gives the frame of every tier reached so
+  far that they do not own yet**, in the same transaction as the level change (any path: gifts, an
+  admin adjustment, a new published version), source **`LEVEL_REWARD`**, not worn (granting never
+  changes what is worn). Frame N for tier N, tiers 1–21 *(owner, 2026-10-30: tier 21 has its own
+  frame)*; jumping several tiers gives every frame passed (CTO default); **frames are kept for
+  good** — a level that goes down takes nothing back *(owner)*. Wearing a frame uses
+  the same `PUT /me/bag/equipped`; nothing else shows a worn frame yet (the app's bag and the
+  photo will, later).
+
 **Not in v1.22-live:** buying or earning items (store, rewards, events), items that expire, other
-categories (avatar frames, entrance effects, chat bubbles…), a history of grants other than the
+categories (entrance effects, chat bubbles…; avatar frames came in v1.46-levels), a history of grants other than the
 audit log, and `Me` carrying the worn items (the app reads its own profile, or `GET /me/bag`).
 
 ### 10.23 Live gifts *(v1.23-live, DRAFT — CP-020, D108)*
@@ -2623,6 +2639,26 @@ account category, the grid order and the private-account switch stay "Soon" with
   the profile grid, the private-account switch (no follow requests yet, §10.5), a cover photo, a
   birthday. The username keeps its own endpoint (`PUT /me/username`, §10.32); the country stays in
   settings (§10.28).
+
+### 10.43 Levels never go down *(v1.46-levels, DRAFT — owner D169, 2026-10-30)*
+
+*(owner)* In all four level categories (CP-005) a level **never goes down**, with one exception:
+
+- **The kept level** is `user_level_states.current_level` itself: every write sets it to the
+  higher of the level kept so far and the level the points reach — after earning, after a
+  reversal or a refund (any `LevelReversalPolicy`), after an admin deduction, after a rebuild and
+  after a new version is published (`PRESERVE_POINTS` or `RECOMPUTE_FROM_LEDGER`: points as they
+  are, the level `max(old, new ladder)`). No second "peak" column: the stored level is the floor.
+- **Progress** counts from the kept level's threshold: while the points are below it,
+  `progressPercent` is 0 and `pointsToNext` is the honest distance to the next level.
+- **The exception — fraud:** an admin adjustment (`POST /admin/levels/users/{userId}/adjustments`)
+  with `fraud: true` and a negative `pointsDelta` (else 400, issue `fraud_needs_deduction`) lowers
+  the level to what the remaining points reach; history reason `FRAUD`; audited (`fraud` in the
+  metadata); stored on the ledger row (`points_ledger.fraud`, CHECK: negative ADJUSTMENT only), so
+  a replay of the same `Idempotency-Key` with a different flag is 409 `IDEMPOTENCY_CONFLICT`.
+  Gift reversals and refunds are never fraud by themselves.
+- **Frames** (§10.22) are permanent; a fraud demotion is the only way one is removed: the
+  `LEVEL_REWARD` frames of the support tiers lost are deleted (a worn one leaves nothing worn).
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 

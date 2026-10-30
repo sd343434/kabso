@@ -2186,10 +2186,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get levelsTitle => 'مستوياتي';
 
   @override
-  String get levelsIntro =>
-      'تزيد نقاطك من الهدايا والإنفاق في الألعاب بعد تأكيدها. لكل مستوى نقاطه الخاصة.';
-
-  @override
   String get levelsPreparing =>
       'المستويات قيد التجهيز. ستظهر نقاطك هنا عند تفعيل الهدايا والألعاب.';
 
@@ -2214,26 +2210,74 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
-  String levelsToNext(String points) {
-    return '$points للمستوى التالي';
-  }
-
-  @override
-  String levelsToNamed(String points, String level) {
-    return '$points نقطة للوصول إلى $level';
-  }
-
-  @override
   String get levelsMax => 'أعلى مستوى';
-
-  @override
-  String get levelsLadder => 'كل المستويات';
 
   @override
   String get levelsCurrent => 'مستواك';
 
   @override
   String get levelsLoadError => 'تعذّر تحميل المستويات';
+
+  @override
+  String levelsLv(int number) {
+    return 'Lv.$number';
+  }
+
+  @override
+  String levelsNeedXp(String points) {
+    return 'تحتاج $points خبرة للوصول إلى المستوى التالي';
+  }
+
+  @override
+  String get levelsCategories => 'تصنيفات المستوى';
+
+  @override
+  String get levelsHowItGrows => 'كيف يرتفع';
+
+  @override
+  String get levelsTiers => 'الشارات والمستويات';
+
+  @override
+  String levelsTierRange(int from, int to) {
+    return 'Lv.$from–$to';
+  }
+
+  @override
+  String get levelsTierFrame => 'مع إطار الصورة';
+
+  @override
+  String get levelsTierCurrent => 'الحالي';
+
+  @override
+  String get levelsTierOpen => 'مفتوح';
+
+  @override
+  String get levelsTierLocked => 'مقفل';
+
+  @override
+  String get levelsTierUnlocked => 'تم الفتح';
+
+  @override
+  String levelsTierToUnlock(String points) {
+    return 'تحتاج $points نقطة للفتح';
+  }
+
+  @override
+  String levelsTierFrom(String points) {
+    return 'من $points نقطة';
+  }
+
+  @override
+  String get levelsTabAttractiveness => 'الجاذبية';
+
+  @override
+  String get levelsTabSupport => 'الدعم';
+
+  @override
+  String get levelsTabWizard => 'الساحر';
+
+  @override
+  String get levelsTabGaming => 'اللعب';
 
   @override
   String get navMoments => 'اللحظات';

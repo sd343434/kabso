@@ -5,20 +5,26 @@
  * migration row plus a row here; a new category is a new `bag_category` value plus a row in
  * `BAG_CATEGORIES`.
  */
-export type BagCategory = 'PROFILE_CARD';
+export type BagCategory = 'PROFILE_CARD' | 'AVATAR_FRAME';
 
-/** Every category, in display order (only PROFILE_CARD for now; designed to grow). */
-export const BAG_CATEGORIES: readonly BagCategory[] = ['PROFILE_CARD'];
+/**
+ * Every category, in display order: PROFILE_CARD (D107), AVATAR_FRAME (v1.46-levels, D169: the
+ * frame around the user's photo; the support tier frames).
+ */
+export const BAG_CATEGORIES: readonly BagCategory[] = ['PROFILE_CARD', 'AVATAR_FRAME'];
 
-/** How a user got an item (`bag_item_source`). */
-export type BagItemSource = 'FREE_SIGNUP' | 'BACKFILL' | 'ADMIN';
+/** How a user got an item (`bag_item_source`); LEVEL_REWARD: given when a level is reached. */
+export type BagItemSource = 'FREE_SIGNUP' | 'BACKFILL' | 'ADMIN' | 'LEVEL_REWARD';
 
 export interface BagItemDef {
   readonly code: string;
   readonly category: BagCategory;
   readonly nameAr: string;
   readonly nameEn: string;
-  /** The app's asset (`apps/mobile/assets/profile_card/<assetKey>.svga` for a profile card). */
+  /**
+   * The app's asset (`apps/mobile/assets/profile_card/<assetKey>.svga` for a profile card,
+   * `apps/mobile/assets/levels/support_frames/<assetKey>.webp` for a support frame).
+   */
   readonly assetKey: string;
   readonly sortOrder: number;
   /** Every new account receives it, and wears the first free one of its category. */
@@ -27,6 +33,22 @@ export interface BagItemDef {
 
 /** The free profile card every account gets (owner D107). */
 export const FREE_PROFILE_CARD = 'bunny_royal';
+
+/** The support tier frames (D169): 21, one per support tier 1–21 (`support-tiers.ts`). */
+export const SUPPORT_FRAME_COUNT = 21;
+
+/** The bag code (and assetKey) of the support frame for tier `n` (1–21). */
+export const supportFrameCode = (n: number): string => `support_frame_${String(n).padStart(2, '0')}`;
+
+const SUPPORT_FRAMES: readonly BagItemDef[] = Array.from({ length: SUPPORT_FRAME_COUNT }, (_, i) => ({
+  code: supportFrameCode(i + 1),
+  category: 'AVATAR_FRAME' as const,
+  nameAr: `إطار الدعم ${String(i + 1)}`,
+  nameEn: `Support frame ${String(i + 1)}`,
+  assetKey: supportFrameCode(i + 1),
+  sortOrder: (i + 1) * 10,
+  free: false,
+}));
 
 export const BAG_CATALOGUE: readonly BagItemDef[] = [
   {
@@ -65,4 +87,5 @@ export const BAG_CATALOGUE: readonly BagItemDef[] = [
     sortOrder: 40,
     free: false,
   },
+  ...SUPPORT_FRAMES,
 ];
