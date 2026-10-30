@@ -22,6 +22,7 @@ class CreatorCenterScreen extends ConsumerStatefulWidget {
   static Key periodKey(CreatorStatsPeriod p) => Key('creator.period.${p.name}');
   static Key statKey(String section, String id) => Key('creator.$section.$id');
   static const openProfileKey = Key('creator.openProfile');
+  static const agencyKey = Key('creator.agency');
   static const noPostsKey = Key('creator.posts.none');
   static const noReelsKey = Key('creator.reels.none');
   static const noLivesKey = Key('creator.live.none');
@@ -87,6 +88,15 @@ class _CreatorCenterScreenState extends ConsumerState<CreatorCenterScreen> {
         ),
         body,
         const SizedBox(height: KSpacing.lg),
+        // D179: host agencies (D172's «الوكالة» tab is on another branch).
+        KButton(
+          key: CreatorCenterScreen.agencyKey,
+          label: l10n.meHubAgency,
+          icon: Icons.groups_rounded,
+          variant: KButtonVariant.secondary,
+          onPressed: () => unawaited(context.push(AppRoutes.agency)),
+        ),
+        const SizedBox(height: KSpacing.sm),
         KButton(
           key: CreatorCenterScreen.openProfileKey,
           label: l10n.creatorOpenProfile,

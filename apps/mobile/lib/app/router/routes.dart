@@ -186,6 +186,10 @@ abstract final class AppRoutes {
   static const walletHistory = '/wallet/history';
   static const creatorCenter = '/creator';
 
+  /// D179: host agencies «الوكالة» (join by code, the host's agency, the
+  /// agent's dashboard). D172's Creator Center tab will host it on merge.
+  static const agency = '/agency';
+
   /// D166: the Me hub's programs — the Task Center, the Event Center (and
   /// one event) and SVIP.
   static const taskCenter = '/tasks';
