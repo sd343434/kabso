@@ -113,6 +113,8 @@ flutter:
     # The owner's currency set (assets/currency/PROVENANCE.md): the Kabi coin (D161),
     # the Kab Cherry (D134; new art D182) and the game-card ticket (D182).
     - assets/currency/
+    # D185 the owner's recharge-agent frame, badge and entrance bar (assets/recharge_agent/PROVENANCE.md).
+    - assets/recharge_agent/
     # Owner-supplied charm level icons and tap characters (D101, PROVENANCE.md in each).
     - assets/charm/
     - assets/taps/
