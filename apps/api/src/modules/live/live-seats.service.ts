@@ -1249,7 +1249,9 @@ export class LiveSeatsService {
       await this.media.setPermission(roomId, participant.identity, want);
       repairs += 1;
     }
-    return repairs + (await this.reconcileMetadata(roomId, true));
+    // D174: a SOLO live without guests is quiet like before (no metadata until something happens);
+    // its seat changes write the metadata themselves.
+    return repairs + (await this.reconcileMetadata(roomId, mode !== 'SOLO' || seats.size > 0));
   }
 
   /**

@@ -22,6 +22,7 @@ import 'package:kabso_live/features/auth/data/auth_repository_impl.dart';
 import 'package:kabso_live/features/auth/domain/entities.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/emoji/kabi_emoji.dart';
+import 'package:kabso_live/features/live/application/live_gift_effects.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_permissions.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
@@ -38,6 +39,7 @@ import 'package:kabso_live/features/live/presentation/hub/live_grid_card.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_hub_grid.dart';
 import 'package:kabso_live/features/live/presentation/live_permission_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/guest_seats.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_chat_gift_line.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_effects_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
@@ -729,17 +731,26 @@ void main() {
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
-      expect(find.byType(LiveGiftBanner), findsOneWidget);
-      expect(find.textContaining('Lina'), findsOneWidget);
-      expect(find.textContaining('Rose'), findsOneWidget);
+      final banner = find.byType(LiveGiftBanner);
+      expect(banner, findsOneWidget);
+      expect(
+        find.descendant(of: banner, matching: find.textContaining('Lina')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: banner, matching: find.textContaining('Rose')),
+        findsOneWidget,
+      );
       expect(find.text(l10n.giftCombo(10)), findsOneWidget);
+      // D178: and a line in the room's chat.
+      expect(find.byType(LiveChatGiftLineView), findsOneWidget);
       await tester.pump(const Duration(seconds: 4));
       await tester.pumpAndSettle();
       expect(find.byType(LiveGiftBanner), findsNothing);
     });
 
-    testWidgets('D132: a lucky-win message of ×100 or more shows the room '
-        'banner; a smaller one does not', (tester) async {
+    testWidgets('D132: a lucky-win message shows the room banner — D178: '
+        'a smaller one too (was ×100 or more only)', (tester) async {
       final engine = FakeLiveMediaEngine();
       await _pumpRoom(
         tester,
@@ -762,6 +773,9 @@ void main() {
       engine.chat.add(win(50, 'g-1')!);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byType(LiveWinBanner), findsOneWidget);
+      await tester.pump(LiveGiftEffects.luckyTime);
+      await tester.pumpAndSettle();
       expect(find.byType(LiveWinBanner), findsNothing);
       engine.chat.add(win(500, 'g-2')!);
       await tester.pump();
