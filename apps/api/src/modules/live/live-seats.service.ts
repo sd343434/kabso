@@ -25,14 +25,15 @@ import { bumpSeatsVersionIn, releaseUserIn, type ReleasedUser } from './live-sea
 import { LiveRoomMetadataService } from './live-metadata.service.js';
 import { POINTS_PER_SUPPORT_COIN } from './live-taps.js';
 import {
-  isSeatedMode,
+  guestSeatCount,
+  hasGuestSeats,
   isUuid,
   liveSeatInviteBodySchema,
   liveSeatLockBodySchema,
   liveSeatMuteBodySchema,
   liveSeatRequestBodySchema,
   parseSeatIndexPath,
-  type SeatedMode,
+  type GuestSeatMode,
 } from './live.schemas.js';
 import {
   LIVE_MEDIA_PROVIDER,
@@ -83,7 +84,7 @@ export interface LiveSeatCoupleDto {
 
 export interface LiveSeatsDto {
   roomId: string;
-  mode: SeatedMode;
+  mode: GuestSeatMode;
   version: number;
   seatCount: number;
   /** v1.39-live (D173): the room is a cinema now (YouTube together in an AUDIO room). */
@@ -119,9 +120,10 @@ export const MAX_ROOM_MODERATORS = 5;
 const REQUEST_PAGE_MAX = 50;
 
 /** The media permission of a guest on a seat of `mode` (§10.9). */
-export function seatPermission(mode: SeatedMode, mutedByHost: boolean): LiveMediaPermission {
+export function seatPermission(mode: GuestSeatMode, mutedByHost: boolean): LiveMediaPermission {
+  // D174: a SOLO live's guests are on camera like a multi-guest live's.
   const sources: LiveMediaSource[] =
-    mode === 'MULTI'
+    mode !== 'AUDIO'
       ? mutedByHost
         ? ['camera']
         : ['camera', 'microphone']
@@ -182,7 +184,7 @@ function seatIndexOf(raw: string): number {
 interface LockedRoom {
   id: string;
   hostUserId: string;
-  mode: SeatedMode;
+  mode: GuestSeatMode;
   /** The seats usable now: the room's count, or {@link CINEMA_SEAT_COUNT} in a cinema (D173). */
   seatCount: number;
   /** The room's own seat count (what a cinema gives back when it closes). */
@@ -238,7 +240,7 @@ export class LiveSeatsService {
   private async seatedRoom(roomId: string, callerId: string | null): Promise<RoomRow> {
     const row = await this.rooms.visibleRow(roomId, callerId);
     if (row.status !== 'LIVE') throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
-    if (!isSeatedMode(row.mode)) throw seatUnavailable();
+    if (!hasGuestSeats(row.mode)) throw seatUnavailable();
     return row;
   }
 
@@ -252,14 +254,16 @@ export class LiveSeatsService {
         FROM live_rooms WHERE id = ${roomId}::uuid FOR UPDATE`;
     if (!room) throw notFound();
     if (room.status !== 'LIVE') throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
-    if (!isSeatedMode(room.mode) || room.seat_count === null) throw seatUnavailable();
+    if (!hasGuestSeats(room.mode)) throw seatUnavailable();
+    const count = guestSeatCount(room.mode, room.seat_count);
+    if (count === 0) throw seatUnavailable();
     const cinema = await this.isCinema(tx, room.id, room.mode);
     return {
       id: room.id,
       hostUserId: room.host_user_id,
       mode: room.mode,
-      seatCount: cinema ? Math.min(room.seat_count, CINEMA_SEAT_COUNT) : room.seat_count,
-      roomSeatCount: room.seat_count,
+      seatCount: cinema ? Math.min(count, CINEMA_SEAT_COUNT) : count,
+      roomSeatCount: count,
       cinema,
     };
   }
@@ -444,8 +448,8 @@ export class LiveSeatsService {
       where: { id: roomId },
       select: { id: true, mode: true, seatCount: true, seatsVersion: true, hostUserId: true },
     });
-    const mode = room.mode as SeatedMode;
-    const seatCount = room.seatCount ?? 0;
+    const mode = room.mode as GuestSeatMode;
+    const seatCount = guestSeatCount(mode, room.seatCount);
     // D173: in a cinema the seats from CINEMA_SEAT_COUNT on read as LOCKED (nobody sits there).
     const cinema = await this.isCinema(this.prisma, roomId, mode);
     const usable = cinema ? Math.min(seatCount, CINEMA_SEAT_COUNT) : seatCount;
@@ -668,7 +672,7 @@ export class LiveSeatsService {
     }
     const limit = Math.min(query.limit, REQUEST_PAGE_MAX);
     const rows =
-      row.status === 'LIVE' && isSeatedMode(row.mode)
+      row.status === 'LIVE' && hasGuestSeats(row.mode)
         ? await this.prisma.liveSeatRequest.findMany({
             where: {
               roomId: row.id,
@@ -1190,7 +1194,7 @@ export class LiveSeatsService {
       where: { roomId, userId },
       select: { mutedByHost: true, room: { select: { mode: true } } },
     });
-    if (!seat || !isSeatedMode(seat.room.mode)) return;
+    if (!seat || !hasGuestSeats(seat.room.mode)) return;
     await this.applyEffects(roomId, null, [
       { kind: 'permission', identity: userId, permission: seatPermission(seat.room.mode, seat.mutedByHost) },
     ]);
@@ -1226,7 +1230,7 @@ export class LiveSeatsService {
       select: { mode: true, status: true, hostUserId: true },
     });
     if (!room || room.status !== 'LIVE') return 0;
-    if (!isSeatedMode(room.mode)) return this.reconcileMetadata(roomId, false);
+    if (!hasGuestSeats(room.mode)) return this.reconcileMetadata(roomId, false);
     const mode = room.mode;
     const seats = new Map(
       (

@@ -205,6 +205,8 @@ info:
     **D173 (DRAFT v1.39-live)** opens `listHomeBanners` with `placement=room` (the in-room promo
     banner) to callers without a token, so guests watching a live see it too (CONVENTIONS §10.26),
     and makes an AUDIO room watching YouTube a cinema of 10 seats (`LiveSeats.cinema`, §10.9, §10.39).
+    **D174 (DRAFT v1.40-live)** gives a SOLO live 3 guest seats with the CP-011 seat flow (requests,
+    invitations, mute, remove, leave; guests publish camera and microphone) (CONVENTIONS §10.9).
     **D155 (DRAFT v1.40-social)** adds direct messages (tag `messages`, `/dm/…`): conversations
     created by the first message, message requests from people the recipient does not follow (3
     messages until accepted), `PrivacySettings.whoCanMessage`, read receipts and unread counts,
@@ -2819,8 +2821,9 @@ paths:
         by IP). `version` increases on every seat change; the API also writes it into the media
         room's metadata so connected apps refetch only when it moves. `pendingRequests` is
         present for the host and moderators only; `mine` for a signed-in caller only.
-        v1.23.3-live (D111): `couples` lists the CP couples whose partners both sit now. A SOLO
-        room → 409 `LIVE_SEAT_UNAVAILABLE`. Ended room → 409 `LIVE_ROOM_ENDED`. Not visible → 404.
+        v1.23.3-live (D111): `couples` lists the CP couples whose partners both sit now.
+        *(v1.40-live, D174)* A SOLO live has 3 guest seats (`mode: SOLO`, `seatCount: 4`, seats
+        1 … 3; was 409). Ended room → 409 `LIVE_ROOM_ENDED`. Not visible → 404.
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
       responses:
@@ -2841,8 +2844,9 @@ paths:
       description: |
         Signed-in viewers only (a guest → 401). One pending request per user and room: asking
         again returns the pending one (200; 201 when created). Refused with 409
-        `LIVE_SEAT_UNAVAILABLE` when the room has no seats (SOLO), the caller is the host or
-        already seated, the asked seat is taken, locked or out of range, or no seat is free.
+        `LIVE_SEAT_UNAVAILABLE` when the caller is the host or already seated, the asked seat is
+        taken, locked or out of range, or no seat is free (a SOLO live with its 3 guests: v1.40-live,
+        D174; a SOLO live had no seats before).
         The request ends when the caller leaves the media session or the room ends.
         v1.20-live (D105): a caller kicked out of this live → 403 `LIVE_KICKED`.
       parameters:
@@ -7453,6 +7457,7 @@ components:
       enum: [4, 5, 6, 9, 10, 12, 15, 20, 25]
       description: |
         CP-011: tiles in a MULTI or AUDIO room, the host's included. MULTI: 4, 6, 9 or 12;
+        v1.40-live (D174): a SOLO live's seats read 4 (the host and 3 guests; not settable);
         AUDIO: 5, 10, 15 or 20 (v1.25.4-live, owner D123; 5, 10, 15, 20 or 25 since v1.18-live,
         D103; 6, 9, 15, 20 or 25 since v1.16-live, D100; 5, 9 or 13 before) (`LiveConfig.seatCounts`).
         Any other mode/count pair → 400. **25** stays in the enum only for responses: an AUDIO room
@@ -7558,7 +7563,10 @@ components:
       required: [roomId, mode, version, seatCount, cinema, seats, moderators, couples]
       properties:
         roomId: { type: string, format: uuid }
-        mode: { type: string, enum: [MULTI, AUDIO] }
+        mode:
+          type: string
+          enum: [MULTI, AUDIO, SOLO]
+          description: "v1.40-live (D174): SOLO — a solo live's 3 guest seats (`seatCount` 4)."
         version: { type: integer, minimum: 0 }
         seatCount: { $ref: '#/components/schemas/LiveSeatCount' }
         cinema:

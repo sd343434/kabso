@@ -77,6 +77,25 @@ export function isSeatedMode(mode: string): mode is SeatedMode {
   return mode === 'MULTI' || mode === 'AUDIO';
 }
 
+/**
+ * v1.40-live (D174, owner: «نعم بالطبع» — viewers join a solo live as guests; PK design: at most 3):
+ * a SOLO live has 3 guest seats (1 … 3) besides the host's, with the CP-011 seat flow. Its
+ * `seat_count` stays null; this is its fixed count, host tile included.
+ */
+export const SOLO_SEAT_COUNT = 4;
+
+/** The modes whose rooms have guest seats: MULTI and AUDIO (their own count) and SOLO (D174). */
+export type GuestSeatMode = SeatedMode | 'SOLO';
+
+export function hasGuestSeats(mode: string): mode is GuestSeatMode {
+  return isSeatedMode(mode) || mode === 'SOLO';
+}
+
+/** The seat count of a room with guest seats (SOLO: {@link SOLO_SEAT_COUNT}). */
+export function guestSeatCount(mode: GuestSeatMode, seatCount: number | null): number {
+  return mode === 'SOLO' ? SOLO_SEAT_COUNT : (seatCount ?? 0);
+}
+
 /** True when `count` is an allowed seat count for `mode`. */
 export function seatCountFits(mode: string, count: number): boolean {
   return isSeatedMode(mode) && (LIVE_SEAT_COUNTS[mode] as readonly number[]).includes(count);

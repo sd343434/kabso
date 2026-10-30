@@ -218,9 +218,16 @@ describe('CP-011 multi-guest and audio rooms', () => {
       await call('post', `${multi}/media-token`, h1, {}).expect(200);
       expect(media.issued.at(-1)).toMatchObject({ publish: true, sources: ['camera', 'microphone'] });
 
-      // A SOLO room has no seats.
+      // v1.40-live (D174, owner): a SOLO live has 3 guest seats (it had none before).
       const soloSeats = await seats(solo, h3);
-      expectError(soloSeats, 409, 'LIVE_SEAT_UNAVAILABLE', 'getLiveRoomSeats');
+      expect(soloSeats.status).toBe(200);
+      expectContract(soloSeats, 'getLiveRoomSeats');
+      expect(soloSeats.body).toMatchObject({ mode: 'SOLO', seatCount: 4 });
+      expect(soloSeats.body.seats.map((s: { index: number; state: string }) => [s.index, s.state])).toEqual([
+        [1, 'EMPTY'],
+        [2, 'EMPTY'],
+        [3, 'EMPTY'],
+      ]);
       for (const id of [multi, audio, solo]) {
         const owner = id === multi ? h1 : id === audio ? h2 : h3;
         await end(id, owner);
@@ -453,7 +460,7 @@ describe('CP-011 multi-guest and audio rooms', () => {
       expectError(await ask(roomId, b), 409, 'LIVE_ROOM_ENDED', 'requestLiveSeat');
     });
 
-    it('a SOLO room and a full room refuse requests (409 LIVE_SEAT_UNAVAILABLE)', async () => {
+    it('a full room refuses requests (409 LIVE_SEAT_UNAVAILABLE); D174: a SOLO live takes them', async () => {
       const [h1, h2, a, b, c, d] = [
         await host(),
         await host(),
@@ -463,7 +470,8 @@ describe('CP-011 multi-guest and audio rooms', () => {
         await signup(),
       ];
       const solo = await goLive(h1, {});
-      expectError(await ask(solo, a), 409, 'LIVE_SEAT_UNAVAILABLE', 'requestLiveSeat');
+      // v1.40-live (D174): a SOLO live has guest seats now (was 409 LIVE_SEAT_UNAVAILABLE).
+      expect((await ask(solo, a)).status).toBe(201);
       const roomId = await goLive(h2, { mode: 'MULTI', seatCount: 4 });
       await seat(roomId, h2, a);
       await seat(roomId, h2, b);
@@ -1008,6 +1016,76 @@ describe('CP-011 multi-guest and audio rooms', () => {
         'muteLiveSeat',
       );
       expect((await call('get', `${roomId}/seat-requests`, h)).body.data).toEqual([]);
+    });
+  });
+
+  // v1.40-live (D174, owner «نعم بالطبع»: viewers join a solo live as guests; at most 3).
+  describe('D174 guests in a SOLO live', () => {
+    it('ask → host accepts → on camera; 3 guests at most (4th → 409); remove and leave take the camera back', async () => {
+      const [h, a, b, c, d] = [await host(), await signup(), await signup(), await signup(), await signup()];
+      const roomId = await goLive(h, {});
+      expect((await ctx.http.get(`/api/v1/live/rooms/${roomId}`)).body.mode).toBe('SOLO');
+      const asked = await ask(roomId, a);
+      expect(asked.status).toBe(201);
+      expectContract(asked, 'requestLiveSeat');
+      // The host sees it waiting (the badge) and accepts.
+      expect((await seats(roomId, h)).body.pendingRequests).toBe(1);
+      const ok = await accept(roomId, asked.body.id, h, {});
+      expect(ok.status).toBe(200);
+      expectContract(ok, 'acceptLiveSeatRequest');
+      expect(media.lastPermission(roomId, a.id)).toEqual({
+        visible: true,
+        sources: ['camera', 'microphone'],
+      });
+      // A seated guest's media token publishes camera and microphone.
+      const token = await call('post', `${roomId}/media-token`, a, {});
+      expect(token.status).toBe(200);
+      expect(token.body.role).toBe('SPEAKER');
+      expect(media.issued.at(-1)).toMatchObject({ publish: true, sources: ['camera', 'microphone'] });
+      await seat(roomId, h, b);
+      await seat(roomId, h, c);
+      const full = await seats(roomId, d);
+      expect(full.body.seats.map((x: { state: string }) => x.state)).toEqual(['TAKEN', 'TAKEN', 'TAKEN']);
+      expectError(await ask(roomId, d), 409, 'LIVE_SEAT_UNAVAILABLE', 'requestLiveSeat');
+      expectError(await ask(roomId, d, { seatIndex: 4 }), 409, 'LIVE_SEAT_UNAVAILABLE', 'requestLiveSeat');
+      // The host mutes and removes a guest; another leaves.
+      const muted = await call('post', `${roomId}/seats/2/mute`, h, { muted: true });
+      expect(muted.status).toBe(200);
+      expect(media.lastPermission(roomId, b.id)).toEqual({ visible: true, sources: ['camera'] });
+      expect((await call('post', `${roomId}/seats/2/remove`, h)).status).toBe(200);
+      expect(media.lastPermission(roomId, b.id)).toEqual({ visible: false, sources: [] });
+      expect((await call('post', `${roomId}/seats/me/leave`, c)).status).toBe(204);
+      expect(media.lastPermission(roomId, c.id)).toEqual({ visible: false, sources: [] });
+      // Seats free again: the 4th person gets in.
+      await seat(roomId, h, d);
+      expect((await seats(roomId, d)).body.mine.seatIndex).toBe(2);
+      await end(roomId, h);
+    });
+
+    it('the host invites a viewer to a solo live; seat 4 does not exist', async () => {
+      const [h, a] = [await host(), await signup()];
+      const roomId = await goLive(h, {});
+      await watch(roomId, a);
+      expectError(
+        await invite(roomId, h, { username: a.username, seatIndex: 4 }),
+        409,
+        'LIVE_SEAT_UNAVAILABLE',
+        'inviteToLiveSeat',
+      );
+      const sent = await invite(roomId, h, { username: a.username });
+      expect(sent.status).toBe(201);
+      const joined = await call('post', `${roomId}/seat-invites/me/accept`, a);
+      expect(joined.status).toBe(200);
+      expect(joined.body).toMatchObject({
+        mode: 'SOLO',
+        seatCount: 4,
+        mine: { role: 'SEATED', seatIndex: 1 },
+      });
+      expect(media.lastPermission(roomId, a.id)).toEqual({
+        visible: true,
+        sources: ['camera', 'microphone'],
+      });
+      await end(roomId, h);
     });
   });
 
