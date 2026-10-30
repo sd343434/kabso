@@ -3,11 +3,13 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart' show VoidCallback;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/misc.dart' show NotifierProviderFamily;
+import 'package:flutter_riverpod/misc.dart'
+    show KeepAliveLink, NotifierProviderFamily;
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/application/live_background.dart';
+import 'package:kabso_live/features/live/application/live_chat_controller.dart';
 import 'package:kabso_live/features/live/application/live_tap_batcher.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
@@ -133,6 +135,25 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
   VoidCallback? _onLeave;
 
   LiveMediaEngine get engine => _engine;
+
+  /// D181: held while the viewer's room is minimized (no screen watches it).
+  KeepAliveLink? _hold;
+
+  /// D181: keeps the session (and the media) while the room is minimized;
+  /// released when the room opens again or is left from the window.
+  void hold({required bool on}) {
+    if (on) {
+      _hold ??= ref.keepAlive();
+    } else {
+      _hold?.close();
+      _hold = null;
+    }
+  }
+
+  /// D181: the notification's Leave while the room is minimized (its
+  /// screen, which set [start]'s onLeave, is gone).
+  // ignore: use_setters_to_change_properties
+  void leaveWith(VoidCallback? leave) => _onLeave = leave;
 
   @override
   LiveRoomSessionState build() {
@@ -463,3 +484,44 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
 final NotifierProviderFamily<LiveRoomSession, LiveRoomSessionState, String>
 liveRoomSessionProvider = NotifierProvider.autoDispose
     .family<LiveRoomSession, LiveRoomSessionState, String>(LiveRoomSession.new);
+
+/// D181 (owner «زر التصغير لا يظهر للمشاهد»): the room a viewer (or a
+/// seated guest) minimized into the floating window, or null. The session
+/// stays joined ([LiveRoomSession.hold]) while they use the app.
+class LiveViewerMinimized extends Notifier<LiveRoom?> {
+  @override
+  LiveRoom? build() => null;
+
+  void minimize(LiveRoom room) {
+    final session = ref.read(liveRoomSessionProvider(room.id).notifier);
+    if (state != null && state!.id != room.id) leave();
+    session
+      ..hold(on: true)
+      ..leaveWith(leave);
+    state = room;
+  }
+
+  /// The room's screen is open again: it holds the session itself.
+  void restore() => _release();
+
+  /// ✕ on the window (or the notification's Leave): leaves the room.
+  void leave() {
+    final room = state;
+    if (room == null) return;
+    endLiveChatVisit(ref.read(liveChatVisitsProvider), room.id);
+    _release();
+  }
+
+  void _release() {
+    final room = state;
+    if (room == null) return;
+    state = null;
+    final provider = liveRoomSessionProvider(room.id);
+    if (ref.exists(provider)) ref.read(provider.notifier).hold(on: false);
+  }
+}
+
+final NotifierProvider<LiveViewerMinimized, LiveRoom?>
+liveViewerMinimizedProvider = NotifierProvider<LiveViewerMinimized, LiveRoom?>(
+  LiveViewerMinimized.new,
+);

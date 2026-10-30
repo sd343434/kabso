@@ -13571,6 +13571,18 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'الكاميرا مطفأة'**
   String get liveGuestCameraOff;
+
+  /// D181: a viewer's floating window of a minimized live (tap: open it again).
+  ///
+  /// In ar, this message translates to:
+  /// **'العودة إلى البث'**
+  String get liveMiniOpen;
+
+  /// D181: ✕ on a viewer's floating window: leaves the live.
+  ///
+  /// In ar, this message translates to:
+  /// **'مغادرة البث'**
+  String get liveMiniLeave;
 }
 
 class _AppLocalizationsDelegate

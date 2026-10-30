@@ -7881,4 +7881,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveGuestCameraOff => 'Camera off';
+
+  @override
+  String get liveMiniOpen => 'Back to the live';
+
+  @override
+  String get liveMiniLeave => 'Leave the live';
 }

@@ -126,6 +126,9 @@ class LiveRoomScreen extends ConsumerWidget {
   static const guestMicKey = Key('room.guest.mic');
   static const scoreChipKey = Key('room.scoreChip');
 
+  /// D181: minimize into the floating window (viewers and guests).
+  static const minimizeKey = Key('room.minimize');
+
   /// v1.20-live (D105): this person was kicked out of the live.
   static const kickedKey = Key('room.kicked');
 
@@ -283,11 +286,27 @@ class _RoomViewState extends ConsumerState<_RoomView> {
   void initState() {
     super.initState();
     _visits = ref.read(liveChatVisitsProvider);
+    // D181: this room minimized comes back full screen (this screen holds
+    // its session again); another minimized room is left.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final mini = ref.read(liveViewerMinimizedProvider.notifier);
+      final room = ref.read(liveViewerMinimizedProvider);
+      if (room == null) return;
+      if (room.id == widget.room.id) {
+        mini.restore();
+      } else {
+        mini.leave();
+      }
+    });
   }
+
+  /// D181: the room went into the floating window (the visit goes on).
+  bool _minimized = false;
 
   @override
   void dispose() {
-    endLiveChatVisit(_visits, widget.room.id);
+    if (!_minimized) endLiveChatVisit(_visits, widget.room.id);
     _chat.dispose();
     _chatFocus.dispose();
     super.dispose();
@@ -337,6 +356,16 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       if (!mounted) return;
     }
     widget.onClose();
+  }
+
+  /// D181 (owner «زر التصغير لا يظهر للمشاهد»): a viewer or a seated guest
+  /// minimizes the room into the floating window like the host (D94): the
+  /// live goes on while they use the app; a tap opens it again, its ✕
+  /// leaves.
+  void _minimize() {
+    _minimized = true;
+    ref.read(liveViewerMinimizedProvider.notifier).minimize(_room);
+    closeLiveRoom(context);
   }
 
   LiveRoomSession get _session =>
@@ -939,6 +968,17 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       ),
       // Presence does not exist yet: a count only when the API has one.
       viewers: ended ? null : _viewers(session, video: true),
+      // D181: minimize, between the viewers and ✕ (as the host's).
+      trailing: _canMinimize(room)
+          ? KRoomIconButton(
+              key: LiveRoomScreen.minimizeKey,
+              icon: Icons.picture_in_picture_alt_rounded,
+              label: l10n.goLiveMinimize,
+              onPressed: _minimize,
+              iconSize: 19,
+              bare: true,
+            )
+          : null,
       onClose: () => unawaited(_leave()),
       roomInfo: ended
           ? null
@@ -1255,9 +1295,10 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                           onTap: () => unawaited(_setFollowing(follow: true)),
                         )
                       : null,
-                  showMinimize: false,
-                  minimizeTooltip: '',
-                  onMinimize: null,
+                  // D181: minimize for viewers and guests too.
+                  minimizeKey: LiveRoomScreen.minimizeKey,
+                  minimizeTooltip: l10n.goLiveMinimize,
+                  onMinimize: _canMinimize(room) ? _minimize : null,
                   shareKey: AudioRoomViewKeys.share,
                   shareTooltip: l10n.goLiveShare,
                   onShare: () => unawaited(
@@ -1393,6 +1434,11 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     );
   }
 
+  /// D181: only a live room the person is in can be minimized.
+  bool _canMinimize(LiveRoom room) =>
+      room.status == LiveRoomStatus.live &&
+      !ref.read(liveRoomSessionProvider(room.id)).kicked;
+
   /// D173 (owner: «ضع زر الثلاث شخطات عند الجميع، لكن إعدادات المضيف تختلف
   /// عن إعدادات المشاهد»): the ≡ menu of everyone in the room — the host has
   /// the Room Tools on their own screen; here viewers, seated guests and
@@ -1488,12 +1534,15 @@ class _RoomViewState extends ConsumerState<_RoomView> {
           label: l10n.liveToolReportHost,
           onTap: () => unawaited(reportUser(context, ref, userId: host.id)),
         ),
+      // D181: minimize works for viewers too.
+      if (_canMinimize(room))
+        GoLiveTool(
+          id: 'minimize',
+          icon: Icons.picture_in_picture_alt_rounded,
+          label: l10n.goLiveMinimize,
+          onTap: _minimize,
+        ),
       // Not built for viewers yet: shown, greyed «قريباً».
-      GoLiveTool.soon(
-        id: 'minimize',
-        icon: Icons.picture_in_picture_alt_rounded,
-        label: l10n.goLiveMinimize,
-      ),
       GoLiveTool.soon(
         id: 'giftSounds',
         icon: Icons.volume_off_rounded,

@@ -7914,4 +7914,10 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveGuestCameraOff => 'الكاميرا مطفأة';
+
+  @override
+  String get liveMiniOpen => 'العودة إلى البث';
+
+  @override
+  String get liveMiniLeave => 'مغادرة البث';
 }

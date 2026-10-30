@@ -8479,5 +8479,13 @@
   "liveGuestCameraOff": "الكاميرا مطفأة",
   "@liveGuestCameraOff": {
     "description": "D174a: the same toggle while the guest's camera is off (the others see their picture)."
+  },
+  "liveMiniOpen": "العودة إلى البث",
+  "@liveMiniOpen": {
+    "description": "D181: a viewer's floating window of a minimized live (tap: open it again)."
+  },
+  "liveMiniLeave": "مغادرة البث",
+  "@liveMiniLeave": {
+    "description": "D181: ✕ on a viewer's floating window: leaves the live."
   }
 }

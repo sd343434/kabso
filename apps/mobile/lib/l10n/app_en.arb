@@ -2580,5 +2580,7 @@
   "videoUnmute": "Turn sound on",
   "videoCannotPlay": "This video can't play right now",
   "liveGuestCamera": "Camera",
-  "liveGuestCameraOff": "Camera off"
+  "liveGuestCameraOff": "Camera off",
+  "liveMiniOpen": "Back to the live",
+  "liveMiniLeave": "Leave the live"
 }
