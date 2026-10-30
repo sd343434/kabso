@@ -3,6 +3,7 @@ import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { UserSummaryDto } from '../live/live-rooms.service.js';
 import { MediaService, type MediaAssetDto } from '../media/media.service.js';
+import { activeRechargeBadge } from '../recharge/recharge-badges.js';
 import { parseHashtags, parseMentions } from './text-entities.js';
 
 /** `Post` (openapi v1.5-social). */
@@ -47,22 +48,32 @@ export interface PageDto<T> {
 
 const PROFILE_SELECT = { username: true, displayName: true, avatarUrl: true, premiumTier: true } as const;
 
-/** A user row with its profile → `UserSummary` (never an email). */
-export function userSummary(user: {
-  id: string;
-  profile: {
-    username: string;
-    displayName: string;
-    avatarUrl: string | null;
-    /** v1.28-live (D146); absent in older selects. */
-    premiumTier?: 'LEGEND' | 'RUBY' | 'GOLD' | 'SILVER' | null;
-  } | null;
-  /** v1.54-social (D185); absent in older selects. */
-  status?: string;
-  rechargeAgent?: { status: string; code: string | null } | null;
-}): UserSummaryDto {
+/**
+ * A user row with its profile → `UserSummary` (never an email). `now`: when the daily recharge badge
+ * (v1.56-social, D187) is checked (the badge shows only while its `until` is after it).
+ */
+export function userSummary(
+  user: {
+    id: string;
+    profile: {
+      username: string;
+      displayName: string;
+      avatarUrl: string | null;
+      /** v1.28-live (D146); absent in older selects. */
+      premiumTier?: 'LEGEND' | 'RUBY' | 'GOLD' | 'SILVER' | null;
+    } | null;
+    /** v1.54-social (D185); absent in older selects. */
+    status?: string;
+    rechargeAgent?: { status: string; code: string | null } | null;
+    /** v1.56-social (D187); absent in older selects. */
+    rechargeBadge?: { tier: number; until: Date } | null;
+  },
+  now: Date = new Date(),
+): UserSummaryDto {
   const tier = user.profile?.premiumTier;
   const agentCode = rechargeAgentCodeOf(user);
+  // A recharge agent (from approval on) never shows the daily recharge badge.
+  const badge = activeRechargeBadge(user.rechargeBadge, now, (user.rechargeAgent ?? null) !== null);
   return {
     id: user.id,
     username: user.profile?.username ?? '',
@@ -72,6 +83,8 @@ export function userSummary(user: {
     ...(tier ? { premiumTier: tier } : {}),
     // v1.54-social (D185, §10.48): only while an ACTIVE recharge agent with an active account (the badge).
     ...(agentCode ? { rechargeAgent: { code: agentCode } } : {}),
+    // v1.56-social (D187, §10.50): only while the daily recharge badge is showing.
+    ...(badge ? { rechargeBadge: badge } : {}),
   };
 }
 
@@ -92,6 +105,8 @@ export const USER_SUMMARY_SELECT = {
   // v1.54-social (D185): the recharge-agent badge (`UserSummary.rechargeAgent`).
   status: true,
   rechargeAgent: { select: { status: true, code: true } },
+  // v1.56-social (D187): the daily recharge badge (`UserSummary.rechargeBadge`).
+  rechargeBadge: { select: { tier: true, until: true } },
 } as const;
 
 /**

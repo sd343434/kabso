@@ -967,6 +967,25 @@ export const envSchema = z
     RECHARGE_AGENT_KYC_RETENTION_DAYS: intSetting(90, 1, 3650),
     RECHARGE_AGENT_SWEEP_INTERVAL_SECONDS: intSetting(3600, 0, 86_400),
     /**
+     * v1.56-social (D187, CONVENTIONS §10.50): the daily recharge badges. The minimum coins recharged in one
+     * calendar day for each of the five tiers (owner: 1 000 000, 10 000 001, 20 000 001, 40 000 001,
+     * 70 000 001 — tier 1 is 1M–10M, tier 2 10.01M–20M …), the zone of that day (owner default Asia/Riyadh)
+     * and how long a badge shows from the moment its tier was reached (owner: 24 hours).
+     */
+    RECHARGE_BADGE_TIERS: z
+      .string()
+      .trim()
+      .default('1000000,10000001,20000001,40000001,70000001')
+      .refine((v) => /^[1-9][0-9]{0,14}(,[1-9][0-9]{0,14}){4}$/.test(v), {
+        message: 'must be five minimum coin amounts, e.g. 1000000,10000001,20000001,40000001,70000001',
+      })
+      .transform((v) => v.split(',').map(Number))
+      .refine((mins) => mins.every((m, i) => i === 0 || m > mins[i - 1]!), {
+        message: 'tiers must be in increasing order',
+      }),
+    RECHARGE_BADGE_TIME_ZONE: ianaTimeZone('Asia/Riyadh'),
+    RECHARGE_BADGE_HOURS: intSetting(24, 1, 168),
+    /**
      * Optional dedicated source of the HMAC key (HKDF, info `social-cursor/v1`) of the v1.5-social
      * list cursors; like LIVE_CURSOR_KEY it falls back to RATE_LIMIT_KEY_SECRET.
      */

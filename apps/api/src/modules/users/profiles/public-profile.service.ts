@@ -10,6 +10,7 @@ import { MedalsService, type ProfileMedalsDto } from '../../medals/medals.servic
 import { LiveRoomsService } from '../../live/live-rooms.service.js';
 import { FollowsService } from '../../social/follows.service.js';
 import { type AccountCategory, type ProfileLinkDto } from '../profile-fields.js';
+import { activeRechargeBadge, type RechargeBadgeDto } from '../../recharge/recharge-badges.js';
 import { UsersService } from '../users.service.js';
 
 /** `PublicProfile` (openapi v1.3). Never an email, role, status, locale or created-at time. */
@@ -47,6 +48,8 @@ export interface PublicProfileDto {
   links: ProfileLinkDto[];
   /** v1.54-social (D185, §10.48): the user is an ACTIVE recharge agent (the frame, badge and entrance). */
   rechargeAgent: { code: string } | null;
+  /** v1.56-social (D187, §10.50): present only while the daily recharge badge is showing. */
+  rechargeBadge?: RechargeBadgeDto;
 }
 
 /**
@@ -93,6 +96,7 @@ export class PublicProfileService {
       medals,
       profileCard,
       agent,
+      badge,
     ] = await Promise.all([
       this.follows.counts(user.id),
       isSelf ? Promise.resolve(false) : this.follows.isFollowing(callerId, user.id),
@@ -108,7 +112,13 @@ export class PublicProfileService {
         where: { userId: user.id, status: 'ACTIVE', code: { not: null } },
         select: { code: true },
       }),
+      // v1.56-social (D187): the daily recharge badge — never for a recharge agent (from approval on).
+      this.prisma.rechargeBadge.findFirst({
+        where: { userId: user.id, user: { rechargeAgent: { is: null } } },
+        select: { tier: true, until: true },
+      }),
     ]);
+    const shown = activeRechargeBadge(badge, new Date());
     return {
       id: user.id,
       username: user.username,
@@ -132,6 +142,7 @@ export class PublicProfileService {
       category: user.category,
       links: user.links,
       rechargeAgent: agent?.code ? { code: agent.code } : null,
+      ...(shown ? { rechargeBadge: shown } : {}),
     };
   }
 }

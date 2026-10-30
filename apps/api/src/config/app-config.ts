@@ -9,6 +9,7 @@ import {
   type RechargePackage,
 } from './env.schema.js';
 import { luckyTable, type LuckyTable } from '../modules/gifts/lucky-odds.js';
+import type { RechargeBadgeRules } from '../modules/recharge/recharge-badges.js';
 
 export const APP_CONFIG = Symbol('APP_CONFIG');
 
@@ -228,6 +229,8 @@ export interface AppConfig {
     readonly maxEmployees: number;
     readonly kycRetentionDays: number;
     readonly sweepIntervalSeconds: number;
+    /** v1.56-social (D187, §10.50): the daily recharge badges. */
+    readonly badges: RechargeBadgeRules;
   };
   readonly dm: {
     readonly retentionHours: number;
@@ -549,6 +552,11 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       maxEmployees: e.RECHARGE_AGENT_MAX_EMPLOYEES,
       kycRetentionDays: e.RECHARGE_AGENT_KYC_RETENTION_DAYS,
       sweepIntervalSeconds: e.RECHARGE_AGENT_SWEEP_INTERVAL_SECONDS,
+      badges: {
+        tierMins: e.RECHARGE_BADGE_TIERS,
+        timeZone: e.RECHARGE_BADGE_TIME_ZONE,
+        hours: e.RECHARGE_BADGE_HOURS,
+      },
     },
     dm: {
       retentionHours: e.DM_RETENTION_HOURS,

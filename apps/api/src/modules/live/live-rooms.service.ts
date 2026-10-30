@@ -23,6 +23,7 @@ import {
   type LiveTab,
 } from './live-cursor.js';
 import { awardLiveMedalsForRoomsIn } from '../medals/medal-awards.js';
+import { activeRechargeBadge, type RechargeBadgeDto } from '../recharge/recharge-badges.js';
 import { clearEndedRoomSeatsIn, releaseUserIn } from './live-seats.store.js';
 import {
   DEFAULT_LIVE_THEME,
@@ -37,6 +38,13 @@ import {
 // ---- Response shapes (openapi v1.3) ------------------------------------------------------------
 
 /** `UserSummary`: never contains an email. */
+
+/** v1.56-social (D187): the host's daily recharge badge while it shows (`UserSummary.rechargeBadge`). */
+function rechargeBadgeOf(row: RoomRow): { rechargeBadge?: RechargeBadgeDto } {
+  if (row.badge_tier === null || row.badge_until === null || row.host_status !== 'ACTIVE') return {};
+  const badge = activeRechargeBadge({ tier: row.badge_tier, until: row.badge_until }, new Date());
+  return badge ? { rechargeBadge: badge } : {};
+}
 
 /**
  * What every path that ends rooms does in its transaction: guests leave their seats (CP-011) and,
@@ -60,6 +68,8 @@ export interface UserSummaryDto {
   premiumTier?: 'LEGEND' | 'RUBY' | 'GOLD' | 'SILVER';
   /** v1.54-social (D185, §10.48): present only while the user is an ACTIVE recharge agent (the badge). */
   rechargeAgent?: { code: string };
+  /** v1.56-social (D187, §10.50): present only while the user's daily recharge badge is showing. */
+  rechargeBadge?: RechargeBadgeDto;
 }
 
 export type LiveRoomMode = 'SOLO' | 'PK' | 'MULTI' | 'AUDIO';
@@ -193,6 +203,9 @@ export interface RoomRow {
   premium_tier: 'LEGEND' | 'RUBY' | 'GOLD' | 'SILVER' | null;
   /** v1.54-social (D185): the host's recharge-agent code while ACTIVE, else null. */
   agent_code: string | null;
+  /** v1.56-social (D187): the host's daily recharge badge row (null for none or for any recharge agent). */
+  badge_tier: number | null;
+  badge_until: Date | null;
   category_slug: string | null;
   category_name_ar: string | null;
   category_name_en: string | null;
@@ -237,6 +250,9 @@ const ROOM_COLUMNS = Prisma.sql`
          r.host_user_id::text AS host_user_id, u.status::text AS host_status, p.username,
          p.display_name, p.avatar_url, p.premium_tier::text AS premium_tier,
          (SELECT ra.code FROM recharge_agents ra WHERE ra.user_id = r.host_user_id AND ra.status = 'ACTIVE') AS agent_code,
+         (SELECT rb.badge_tier::int FROM recharge_badges rb WHERE rb.user_id = r.host_user_id
+             AND NOT EXISTS (SELECT 1 FROM recharge_agents ra2 WHERE ra2.user_id = r.host_user_id)) AS badge_tier,
+         (SELECT rb.badge_until FROM recharge_badges rb WHERE rb.user_id = r.host_user_id) AS badge_until,
          c.slug AS category_slug, c.name_ar AS category_name_ar,
          c.name_en AS category_name_en, r.chat_enabled, lh.room_number, ${ROOM_LEVEL_SQL} AS room_level,
          r.wish_gifts`;
@@ -773,6 +789,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
         ...(row.agent_code && row.host_status === 'ACTIVE'
           ? { rechargeAgent: { code: row.agent_code } }
           : {}),
+        ...rechargeBadgeOf(row),
       },
       seatCount: row.seat_count,
       occupiedSeats: row.occupied_seats,
