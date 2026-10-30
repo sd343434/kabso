@@ -636,7 +636,7 @@ void main() {
         );
         expect(find.text('coin0007'), findsOneWidget);
         expect(
-          find.text(
+          find.bySemanticsLabel(
             l10n.rechargeEntranceJoined(KFormat.bidiIsolate('coin0007')),
           ),
           findsOneWidget,

@@ -1,4 +1,5 @@
 import 'dart:collection';
+import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/format/k_format.dart';
@@ -112,17 +113,21 @@ class _LiveRechargeEntranceLayerState
     return IgnorePointer(
       child: Align(
         // Above the CP entrance's place, under the gift banners.
-        alignment: const Alignment(0, 0.12),
+        // Owner (D185 feedback): a smaller strip anchored at the leading side,
+        // above the chat (clear of the seats and the host's video centre).
+        alignment: const AlignmentDirectional(-1, 0.26),
         child: moving
             ? AnimatedBuilder(
                 animation: _clock,
                 builder: (context, child) {
                   final t = _clock.value;
                   final double dx;
+                  // In from the leading side, a short stay, out across the room
+                  // to the trailing side (fractions of the bar's width).
                   if (t < 0.14) {
-                    dx = 1.1 * (1 - Curves.easeOutCubic.transform(t / 0.14));
+                    dx = -1.2 * (1 - Curves.easeOutCubic.transform(t / 0.14));
                   } else if (t > 0.86) {
-                    dx = -1.1 * Curves.easeInCubic.transform((t - 0.86) / 0.14);
+                    dx = 2.4 * Curves.easeInCubic.transform((t - 0.86) / 0.14);
                   } else {
                     dx = 0;
                   }
@@ -139,13 +144,64 @@ class _LiveRechargeEntranceLayerState
   }
 }
 
+/// Whether [text] in [style] fits [width] on one line.
+bool rechargeTextFits(
+  String text,
+  TextStyle style,
+  double width,
+  TextDirection direction,
+) {
+  final painter = TextPainter(
+    text: TextSpan(text: text, style: style),
+    textDirection: direction,
+    maxLines: 1,
+  )..layout();
+  final fits = painter.width <= width;
+  painter.dispose();
+  return fits;
+}
+
+/// The largest font size from [max] down to [min] at which [text] fits
+/// [width] on one line (else [min]; the text is then ellipsized).
+double rechargeFitFontSize(
+  String text,
+  TextStyle style,
+  double width, {
+  required double max,
+  required double min,
+  TextDirection direction = TextDirection.ltr,
+}) {
+  for (var size = max; size > min; size -= 0.5) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: style.copyWith(fontSize: size),
+      ),
+      textDirection: direction,
+      maxLines: 1,
+    )..layout();
+    final fits = painter.width <= width;
+    painter.dispose();
+    if (fits) return size;
+  }
+  return min;
+}
+
 /// The bar itself: the owner's entrance art (the mascot on the emblem at the
 /// left, never mirrored) and «دخل وكيل الشحن coin0001» fitted into its red
-/// plate. 92 % of the room's width, at most 420 lp.
+/// plate. Owner feedback (D185): 65 % of the room's width and at most
+/// [maxHeight] high, the art's proportions kept; the text scales with the
+/// bar down to [minFontSize], then ends with an ellipsis.
 class RechargeEntranceBar extends StatelessWidget {
   const new({required this.code, super.key});
 
   final String code;
+
+  /// Owner feedback (D185): the bar's share of the room's width, its
+  /// largest height on phones and the smallest readable text.
+  static const widthFactor = 0.65;
+  static const maxHeight = 64.0;
+  static const minFontSize = 11.0;
 
   // The plate's text box on the art (2000 × 667).
   static const _left = 0.44;
@@ -153,15 +209,59 @@ class RechargeEntranceBar extends StatelessWidget {
   static const _top = 0.367;
   static const _bottom = 0.675;
 
+  // The whole dark-red inside of the plate (the two-line layout).
+  static const _left2 = 0.425;
+  static const _right2 = 0.93;
+  static const _top2 = 0.335;
+  static const _bottom2 = 0.70;
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final text = l10n.rechargeEntranceJoined(KFormat.bidiIsolate(code));
     return LayoutBuilder(
       builder: (context, box) {
-        final width = (box.maxWidth * 0.92).clamp(0.0, 420.0);
+        final width = math.min(
+          box.maxWidth * widthFactor,
+          maxHeight * RechargeAgentArt.entranceAspect,
+        );
         final height = width / RechargeAgentArt.entranceAspect;
         final plateH = height * (_bottom - _top);
+        final style = context.textStyles.title.copyWith(
+          height: 1.1,
+          fontWeight: FontWeight.w800,
+          color: RechargeAgentArt.plateText,
+          shadows: const [
+            Shadow(
+              color: Color(0xCC3A0000),
+              blurRadius: 3,
+              offset: Offset(0, 1),
+            ),
+          ],
+        );
+        final direction = Directionality.of(context);
+        final plateW = width * (_right - _left);
+        final pad = plateH * 0.15;
+        final size = rechargeFitFontSize(
+          text,
+          style,
+          plateW - 2 * pad,
+          max: math.max(minFontSize, plateH * 0.62),
+          min: minFontSize,
+          direction: direction,
+        );
+        // One line when the whole text fits at [minFontSize] or larger.
+        final oneLine = rechargeTextFits(
+          text,
+          style.copyWith(fontSize: size),
+          plateW - 2 * pad,
+          direction,
+        );
+        // The phrase without the code (for the two-line layout).
+        final phrase = text
+            .replaceAll(KFormat.bidiIsolate(code), '')
+            .replaceAll(RegExp(r'\s+'), ' ')
+            .trim();
         return Semantics(
           liveRegion: true,
           label: text,
@@ -184,39 +284,56 @@ class RechargeEntranceBar extends StatelessWidget {
                     ),
                   ),
                   Positioned(
-                    left: width * _left,
-                    width: width * (_right - _left),
-                    top: height * _top,
-                    height: plateH,
+                    left: width * (oneLine ? _left : _left2),
+                    width: oneLine ? plateW : width * (_right2 - _left2),
+                    top: height * (oneLine ? _top : _top2),
+                    height:
+                        height * (oneLine ? _bottom - _top : _bottom2 - _top2),
                     child: Directionality(
-                      textDirection: Directionality.of(context),
+                      textDirection: direction,
                       child: Center(
                         child: Padding(
                           padding: EdgeInsets.symmetric(
-                            horizontal: plateH * 0.2,
+                            horizontal: oneLine ? pad : 1,
                           ),
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Text(
-                              text,
-                              key: LiveRechargeEntranceLayer.textKey,
-                              maxLines: 1,
-                              textScaler: TextScaler.noScaling,
-                              style: context.textStyles.title.copyWith(
-                                fontSize: plateH * 0.42,
-                                height: 1.1,
-                                fontWeight: FontWeight.w900,
-                                color: RechargeAgentArt.plateText,
-                                shadows: const [
-                                  Shadow(
-                                    color: Color(0xCC3A0000),
-                                    blurRadius: 3,
-                                    offset: Offset(0, 1),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
+                          child: oneLine
+                              ? Text(
+                                  text,
+                                  key: LiveRechargeEntranceLayer.textKey,
+                                  maxLines: 1,
+                                  softWrap: false,
+                                  overflow: TextOverflow.ellipsis,
+                                  textScaler: TextScaler.noScaling,
+                                  style: style.copyWith(fontSize: size),
+                                )
+                              // Too narrow for one readable line: the phrase
+                              // over the code, both at least [minFontSize].
+                              : Column(
+                                  key: LiveRechargeEntranceLayer.textKey,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    for (final (i, line) in [
+                                      phrase,
+                                      code,
+                                    ].indexed)
+                                      Text(
+                                        line,
+                                        maxLines: 1,
+                                        softWrap: false,
+                                        overflow: TextOverflow.ellipsis,
+                                        textDirection: i == 1
+                                            ? TextDirection.ltr
+                                            : null,
+                                        textScaler: TextScaler.noScaling,
+                                        style: style.copyWith(
+                                          fontSize: minFontSize,
+                                          height: 1,
+                                          fontWeight: FontWeight.w700,
+                                          letterSpacing: -0.2,
+                                        ),
+                                      ),
+                                  ],
+                                ),
                         ),
                       ),
                     ),

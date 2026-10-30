@@ -111,7 +111,7 @@ void main() {
         await tester.pump(const Duration(milliseconds: 800));
         expect(find.byKey(LiveRechargeEntranceLayer.barKey), findsOneWidget);
         expect(
-          find.text(
+          find.bySemanticsLabel(
             l10n.rechargeEntranceJoined(KFormat.bidiIsolate('coin0007')),
           ),
           findsOneWidget,
@@ -133,6 +133,65 @@ void main() {
       });
     }
 
+    for (final language in AppLanguage.values) {
+      testWidgets('smaller bar: ≤ 65 % wide, ≤ 64 lp high, at the leading '
+          'side above the chat; text ≥ 11 and the code readable '
+          '(${language.name}, 393×852)', (tester) async {
+        LiveRechargeEntranceLayer.animate = false;
+        addTearDown(() => LiveRechargeEntranceLayer.animate = true);
+        final engine = await _room(tester, language: language);
+        setViewport(tester, GoldenViewport.phone);
+        await tester.pumpAndSettle();
+        engine.chat.add(const LiveChatJoined(_agent));
+        await _frames(tester);
+        await tester.pump(const Duration(milliseconds: 300));
+        final bar = tester.getRect(
+          find.byKey(LiveRechargeEntranceLayer.barKey),
+        );
+        expect(bar.width, lessThanOrEqualTo(393 * 0.65 + 0.5));
+        expect(bar.height, lessThanOrEqualTo(64.5));
+        // Leading side: right in Arabic, left in English.
+        if (language == AppLanguage.ar) {
+          expect(bar.right, greaterThan(393 - 20));
+        } else {
+          expect(bar.left, lessThan(20));
+        }
+        // Above the chat area.
+        final chat = tester.getRect(
+          find
+              .byWidgetPredicate(
+                (w) =>
+                    w.key is ValueKey<String> &&
+                    (w.key! as ValueKey<String>).value.startsWith(
+                      'liveChat.line.',
+                    ),
+              )
+              .first,
+        );
+        expect(bar.bottom, lessThanOrEqualTo(chat.top));
+        final texts = tester.widgetList<Text>(
+          find.descendant(
+            of: find.byKey(LiveRechargeEntranceLayer.barKey),
+            matching: find.byType(Text),
+          ),
+        );
+        for (final t in texts) {
+          expect(t.style!.fontSize, greaterThanOrEqualTo(11));
+        }
+        // The code is never cut off.
+        expect(
+          find.descendant(
+            of: find.byKey(LiveRechargeEntranceLayer.barKey),
+            matching: find.textContaining('coin0007'),
+          ),
+          findsOneWidget,
+        );
+        expect(tester.takeException(), isNull);
+        await tester.pump(LiveRechargeEntranceLayer.duration);
+        await tester.pump();
+      });
+    }
+
     testWidgets('two agents queue one after another', (tester) async {
       final engine = await _room(tester);
       engine.chat
@@ -151,13 +210,17 @@ void main() {
       await _frames(tester);
       await tester.pump(const Duration(milliseconds: 800));
       expect(
-        find.text(en.rechargeEntranceJoined(KFormat.bidiIsolate('coin0007'))),
+        find.bySemanticsLabel(
+          en.rechargeEntranceJoined(KFormat.bidiIsolate('coin0007')),
+        ),
         findsOneWidget,
       );
       await tester.pump(LiveRechargeEntranceLayer.duration);
       await tester.pump(const Duration(milliseconds: 800));
       expect(
-        find.text(en.rechargeEntranceJoined(KFormat.bidiIsolate('coin0012'))),
+        find.bySemanticsLabel(
+          en.rechargeEntranceJoined(KFormat.bidiIsolate('coin0012')),
+        ),
         findsOneWidget,
       );
       await tester.pump(LiveRechargeEntranceLayer.duration);
