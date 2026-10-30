@@ -35,6 +35,23 @@ class FakeProfileRepository implements ProfileRepository {
     calls.add('$verb $username');
     await gate?.future;
     if (followFailure case final failure?) throw failure;
+    // D175: a new follow of a private account is a request; unfollowing
+    // a requested account cancels it. Neither moves the count.
+    if (to && profile.isPrivate && !profile.isFollowing) {
+      profile = profile.copyWith(followRequested: true);
+      return FollowState(
+        isFollowing: false,
+        isRequested: true,
+        followerCount: profile.followerCount,
+      );
+    }
+    if (!to && profile.followRequested) {
+      profile = profile.copyWith(followRequested: false);
+      return FollowState(
+        isFollowing: false,
+        followerCount: profile.followerCount,
+      );
+    }
     final was = profile.isFollowing;
     final count = profile.followerCount + (to == was ? 0 : (to ? 1 : -1));
     profile = profile.copyWith(isFollowing: to, followerCount: count);

@@ -1,5 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:kabso_live/core/models/premium_tier.dart';
+import 'package:kabso_live/core/models/profile_fields.dart';
 
 part 'entities.freezed.dart';
 
@@ -37,6 +38,17 @@ abstract class User with _$User {
     /// v1.28-live (D146): the tier of the person's premium username, or
     /// null for a regular one.
     PremiumTier? premiumTier,
+
+    /// v1.47-social (D175): the person's gender (null until chosen) and
+    /// whether others see it (private by default).
+    Gender? gender,
+    @Default(false) bool showGender,
+
+    /// v1.47-social (D175): the account category shown under the name.
+    AccountCategory? category,
+
+    /// v1.47-social (D175): up to 3 profile links, in order.
+    @Default(<ProfileLink>[]) List<ProfileLink> links,
   }) = _User;
 }
 

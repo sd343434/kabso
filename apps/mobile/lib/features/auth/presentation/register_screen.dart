@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/error/failure_widgets.dart';
+import 'package:kabso_live/core/models/profile_fields.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/data/auth_repository_impl.dart';
@@ -13,6 +14,7 @@ import 'package:kabso_live/features/auth/domain/validators.dart';
 import 'package:kabso_live/features/auth/presentation/auth_controller.dart';
 import 'package:kabso_live/features/auth/presentation/registration_flow.dart';
 import 'package:kabso_live/features/auth/presentation/widgets/auth_widgets.dart';
+import 'package:kabso_live/features/profile/profile_fields_view.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -31,6 +33,11 @@ class RegisterScreen extends ConsumerStatefulWidget {
   static const resendCodeKey = Key('register.resendCode');
   static const chooseAnotherKey = Key('register.chooseAnother');
 
+  /// D175: the required gender choice; one chip per value
+  /// (`register.gender.MALE` …).
+  static const genderKey = Key('register.gender');
+  static Key genderOptionKey(Gender g) => Key('register.gender.${g.wire}');
+
   @override
   ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
 }
@@ -41,6 +48,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _username = TextEditingController();
   final _displayName = TextEditingController();
   final _password = TextEditingController();
+
+  /// D175 (owner): chosen at sign-up, required; «أفضّل عدم الذكر» is one of
+  /// the three choices.
+  Gender? _gender;
   AutovalidateMode _autovalidate = AutovalidateMode.disabled;
 
   /// Server-reported field errors, cleared when the field changes.
@@ -69,6 +80,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       _username.text = draft.username;
       _displayName.text = draft.displayName;
       _password.text = draft.password;
+      _gender = draft.gender;
       if (draft.usernameLost) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) _showUsernameLost(draft.username);
@@ -180,7 +192,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     });
     final valid = _formKey.currentState?.validate() ?? false;
     final status = ref.read(usernameAvailabilityProvider);
-    if (!valid || status is UsernameTaken) return;
+    final gender = _gender;
+    if (!valid || status is UsernameTaken || gender == null) return;
 
     final ok = await ref
         .read(authControllerProvider.notifier)
@@ -189,6 +202,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           password: _password.text,
           username: _username.text,
           displayName: _displayName.text,
+          gender: gender,
         );
     if (!mounted) return;
     if (ok) {
@@ -353,6 +367,25 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 validator: (v) => displayNameIssueMessage(
                   l10n,
                   AuthValidators.displayNameIssue(v),
+                ),
+              ),
+              const SizedBox(height: KSpacing.lg),
+              FormField<Gender>(
+                key: RegisterScreen.genderKey,
+                initialValue: _gender,
+                validator: (_) =>
+                    _gender == null ? l10n.registerGenderRequired : null,
+                builder: (field) => GenderChoice(
+                  label: l10n.registerGenderLabel,
+                  helper: l10n.registerGenderHelper,
+                  value: _gender,
+                  enabled: !submitting,
+                  errorText: field.errorText,
+                  optionKey: RegisterScreen.genderOptionKey,
+                  onChanged: (g) {
+                    setState(() => _gender = g);
+                    field.didChange(g);
+                  },
                 ),
               ),
               const SizedBox(height: KSpacing.lg),

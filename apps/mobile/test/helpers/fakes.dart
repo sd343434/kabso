@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:kabso_live/core/error/app_failure.dart';
+import 'package:kabso_live/core/models/profile_fields.dart';
 import 'package:kabso_live/core/storage/secure_token_store.dart';
 import 'package:kabso_live/features/auth/domain/auth_repository.dart';
 import 'package:kabso_live/features/auth/domain/entities.dart';
@@ -69,6 +70,8 @@ class FakeAuthRepository implements AuthRepository {
   final List<String> availabilityChecks = [];
 
   /// Locales sent with `register`.
+  /// D175: the gender each register sent (required at sign-up).
+  final List<Gender> registerGenders = [];
   final List<String> registerLocales = [];
 
   /// Codes sent to `register/verify`; failures are consumed in order.
@@ -106,10 +109,12 @@ class FakeAuthRepository implements AuthRepository {
     required String password,
     required String username,
     required String displayName,
+    required Gender gender,
     required String locale,
   }) async {
     registerCalls++;
     registerLocales.add(locale);
+    registerGenders.add(gender);
     final failure = registerFailure;
     if (failure != null) throw failure;
   }

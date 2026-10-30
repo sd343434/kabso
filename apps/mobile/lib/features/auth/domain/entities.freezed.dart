@@ -22,7 +22,11 @@ mixin _$User {
 /// upper case), or null. It decides the live hub's Nearby.
  String? get country;/// v1.28-live (D146): the tier of the person's premium username, or
 /// null for a regular one.
- PremiumTier? get premiumTier;
+ PremiumTier? get premiumTier;/// v1.47-social (D175): the person's gender (null until chosen) and
+/// whether others see it (private by default).
+ Gender? get gender; bool get showGender;/// v1.47-social (D175): the account category shown under the name.
+ AccountCategory? get category;/// v1.47-social (D175): up to 3 profile links, in order.
+ List<ProfileLink> get links;
 /// Create a copy of User
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -34,20 +38,20 @@ $UserCopyWith<User> get copyWith => _$UserCopyWithImpl<User>(this as User, _$ide
 @override
 bool operator ==(Object other) {
   final _this = this as User;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is User&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.email, _this.email) || other.email == _this.email)&&(identical(other.emailVerified, _this.emailVerified) || other.emailVerified == _this.emailVerified)&&(identical(other.username, _this.username) || other.username == _this.username)&&(identical(other.displayName, _this.displayName) || other.displayName == _this.displayName)&&(identical(other.locale, _this.locale) || other.locale == _this.locale)&&(identical(other.role, _this.role) || other.role == _this.role)&&(identical(other.isPrivate, _this.isPrivate) || other.isPrivate == _this.isPrivate)&&(identical(other.createdAt, _this.createdAt) || other.createdAt == _this.createdAt)&&(identical(other.bio, _this.bio) || other.bio == _this.bio)&&(identical(other.avatarUrl, _this.avatarUrl) || other.avatarUrl == _this.avatarUrl)&&(identical(other.canHost, _this.canHost) || other.canHost == _this.canHost)&&(identical(other.liveCoverUrl, _this.liveCoverUrl) || other.liveCoverUrl == _this.liveCoverUrl)&&(identical(other.country, _this.country) || other.country == _this.country)&&(identical(other.premiumTier, _this.premiumTier) || other.premiumTier == _this.premiumTier));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is User&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.email, _this.email) || other.email == _this.email)&&(identical(other.emailVerified, _this.emailVerified) || other.emailVerified == _this.emailVerified)&&(identical(other.username, _this.username) || other.username == _this.username)&&(identical(other.displayName, _this.displayName) || other.displayName == _this.displayName)&&(identical(other.locale, _this.locale) || other.locale == _this.locale)&&(identical(other.role, _this.role) || other.role == _this.role)&&(identical(other.isPrivate, _this.isPrivate) || other.isPrivate == _this.isPrivate)&&(identical(other.createdAt, _this.createdAt) || other.createdAt == _this.createdAt)&&(identical(other.bio, _this.bio) || other.bio == _this.bio)&&(identical(other.avatarUrl, _this.avatarUrl) || other.avatarUrl == _this.avatarUrl)&&(identical(other.canHost, _this.canHost) || other.canHost == _this.canHost)&&(identical(other.liveCoverUrl, _this.liveCoverUrl) || other.liveCoverUrl == _this.liveCoverUrl)&&(identical(other.country, _this.country) || other.country == _this.country)&&(identical(other.premiumTier, _this.premiumTier) || other.premiumTier == _this.premiumTier)&&(identical(other.gender, _this.gender) || other.gender == _this.gender)&&(identical(other.showGender, _this.showGender) || other.showGender == _this.showGender)&&(identical(other.category, _this.category) || other.category == _this.category)&&const DeepCollectionEquality().equals(other.links, _this.links));
 }
 
 
 @override
 int get hashCode {
   final _this = this as User;
-  return Object.hash(runtimeType,_this.id,_this.email,_this.emailVerified,_this.username,_this.displayName,_this.locale,_this.role,_this.isPrivate,_this.createdAt,_this.bio,_this.avatarUrl,_this.canHost,_this.liveCoverUrl,_this.country,_this.premiumTier);
+  return Object.hashAll([runtimeType,_this.id,_this.email,_this.emailVerified,_this.username,_this.displayName,_this.locale,_this.role,_this.isPrivate,_this.createdAt,_this.bio,_this.avatarUrl,_this.canHost,_this.liveCoverUrl,_this.country,_this.premiumTier,_this.gender,_this.showGender,_this.category,const DeepCollectionEquality().hash(_this.links)]);
 }
 
 @override
 String toString() {
   final _this = this as User;
-  return 'User(id: ${_this.id}, email: ${_this.email}, emailVerified: ${_this.emailVerified}, username: ${_this.username}, displayName: ${_this.displayName}, locale: ${_this.locale}, role: ${_this.role}, isPrivate: ${_this.isPrivate}, createdAt: ${_this.createdAt}, bio: ${_this.bio}, avatarUrl: ${_this.avatarUrl}, canHost: ${_this.canHost}, liveCoverUrl: ${_this.liveCoverUrl}, country: ${_this.country}, premiumTier: ${_this.premiumTier})';
+  return 'User(id: ${_this.id}, email: ${_this.email}, emailVerified: ${_this.emailVerified}, username: ${_this.username}, displayName: ${_this.displayName}, locale: ${_this.locale}, role: ${_this.role}, isPrivate: ${_this.isPrivate}, createdAt: ${_this.createdAt}, bio: ${_this.bio}, avatarUrl: ${_this.avatarUrl}, canHost: ${_this.canHost}, liveCoverUrl: ${_this.liveCoverUrl}, country: ${_this.country}, premiumTier: ${_this.premiumTier}, gender: ${_this.gender}, showGender: ${_this.showGender}, category: ${_this.category}, links: ${_this.links})';
 }
 
 
@@ -58,7 +62,7 @@ abstract mixin class $UserCopyWith<$Res>  {
   factory $UserCopyWith(User value, $Res Function(User) _then) = _$UserCopyWithImpl;
 @useResult
 $Res call({
- String id, String email, bool emailVerified, String username, String displayName, String locale, UserRole role, bool isPrivate, DateTime createdAt, String? bio, String? avatarUrl, bool canHost, String? liveCoverUrl, String? country, PremiumTier? premiumTier
+ String id, String email, bool emailVerified, String username, String displayName, String locale, UserRole role, bool isPrivate, DateTime createdAt, String? bio, String? avatarUrl, bool canHost, String? liveCoverUrl, String? country, PremiumTier? premiumTier, Gender? gender, bool showGender, AccountCategory? category, List<ProfileLink> links
 });
 
 
@@ -75,7 +79,7 @@ class _$UserCopyWithImpl<$Res>
 
 /// Create a copy of User
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? email = null,Object? emailVerified = null,Object? username = null,Object? displayName = null,Object? locale = null,Object? role = null,Object? isPrivate = null,Object? createdAt = null,Object? bio = freezed,Object? avatarUrl = freezed,Object? canHost = null,Object? liveCoverUrl = freezed,Object? country = freezed,Object? premiumTier = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? email = null,Object? emailVerified = null,Object? username = null,Object? displayName = null,Object? locale = null,Object? role = null,Object? isPrivate = null,Object? createdAt = null,Object? bio = freezed,Object? avatarUrl = freezed,Object? canHost = null,Object? liveCoverUrl = freezed,Object? country = freezed,Object? premiumTier = freezed,Object? gender = freezed,Object? showGender = null,Object? category = freezed,Object? links = null,}) {
   return _then(User(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,email: null == email ? _self.email : email // ignore: cast_nullable_to_non_nullable
@@ -92,7 +96,11 @@ as String?,canHost: null == canHost ? _self.canHost : canHost // ignore: cast_nu
 as bool,liveCoverUrl: freezed == liveCoverUrl ? _self.liveCoverUrl : liveCoverUrl // ignore: cast_nullable_to_non_nullable
 as String?,country: freezed == country ? _self.country : country // ignore: cast_nullable_to_non_nullable
 as String?,premiumTier: freezed == premiumTier ? _self.premiumTier : premiumTier // ignore: cast_nullable_to_non_nullable
-as PremiumTier?,
+as PremiumTier?,gender: freezed == gender ? _self.gender : gender // ignore: cast_nullable_to_non_nullable
+as Gender?,showGender: null == showGender ? _self.showGender : showGender // ignore: cast_nullable_to_non_nullable
+as bool,category: freezed == category ? _self.category : category // ignore: cast_nullable_to_non_nullable
+as AccountCategory?,links: null == links ? _self.links : links // ignore: cast_nullable_to_non_nullable
+as List<ProfileLink>,
   ));
 }
 
@@ -177,10 +185,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String email,  bool emailVerified,  String username,  String displayName,  String locale,  UserRole role,  bool isPrivate,  DateTime createdAt,  String? bio,  String? avatarUrl,  bool canHost,  String? liveCoverUrl,  String? country,  PremiumTier? premiumTier)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String email,  bool emailVerified,  String username,  String displayName,  String locale,  UserRole role,  bool isPrivate,  DateTime createdAt,  String? bio,  String? avatarUrl,  bool canHost,  String? liveCoverUrl,  String? country,  PremiumTier? premiumTier,  Gender? gender,  bool showGender,  AccountCategory? category,  List<ProfileLink> links)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _User() when $default != null:
-return $default(_that.id,_that.email,_that.emailVerified,_that.username,_that.displayName,_that.locale,_that.role,_that.isPrivate,_that.createdAt,_that.bio,_that.avatarUrl,_that.canHost,_that.liveCoverUrl,_that.country,_that.premiumTier);case _:
+return $default(_that.id,_that.email,_that.emailVerified,_that.username,_that.displayName,_that.locale,_that.role,_that.isPrivate,_that.createdAt,_that.bio,_that.avatarUrl,_that.canHost,_that.liveCoverUrl,_that.country,_that.premiumTier,_that.gender,_that.showGender,_that.category,_that.links);case _:
   return orElse();
 
 }
@@ -198,10 +206,10 @@ return $default(_that.id,_that.email,_that.emailVerified,_that.username,_that.di
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String email,  bool emailVerified,  String username,  String displayName,  String locale,  UserRole role,  bool isPrivate,  DateTime createdAt,  String? bio,  String? avatarUrl,  bool canHost,  String? liveCoverUrl,  String? country,  PremiumTier? premiumTier)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String email,  bool emailVerified,  String username,  String displayName,  String locale,  UserRole role,  bool isPrivate,  DateTime createdAt,  String? bio,  String? avatarUrl,  bool canHost,  String? liveCoverUrl,  String? country,  PremiumTier? premiumTier,  Gender? gender,  bool showGender,  AccountCategory? category,  List<ProfileLink> links)  $default,) {final _that = this;
 switch (_that) {
 case _User():
-return $default(_that.id,_that.email,_that.emailVerified,_that.username,_that.displayName,_that.locale,_that.role,_that.isPrivate,_that.createdAt,_that.bio,_that.avatarUrl,_that.canHost,_that.liveCoverUrl,_that.country,_that.premiumTier);case _:
+return $default(_that.id,_that.email,_that.emailVerified,_that.username,_that.displayName,_that.locale,_that.role,_that.isPrivate,_that.createdAt,_that.bio,_that.avatarUrl,_that.canHost,_that.liveCoverUrl,_that.country,_that.premiumTier,_that.gender,_that.showGender,_that.category,_that.links);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -218,10 +226,10 @@ return $default(_that.id,_that.email,_that.emailVerified,_that.username,_that.di
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String email,  bool emailVerified,  String username,  String displayName,  String locale,  UserRole role,  bool isPrivate,  DateTime createdAt,  String? bio,  String? avatarUrl,  bool canHost,  String? liveCoverUrl,  String? country,  PremiumTier? premiumTier)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String email,  bool emailVerified,  String username,  String displayName,  String locale,  UserRole role,  bool isPrivate,  DateTime createdAt,  String? bio,  String? avatarUrl,  bool canHost,  String? liveCoverUrl,  String? country,  PremiumTier? premiumTier,  Gender? gender,  bool showGender,  AccountCategory? category,  List<ProfileLink> links)?  $default,) {final _that = this;
 switch (_that) {
 case _User() when $default != null:
-return $default(_that.id,_that.email,_that.emailVerified,_that.username,_that.displayName,_that.locale,_that.role,_that.isPrivate,_that.createdAt,_that.bio,_that.avatarUrl,_that.canHost,_that.liveCoverUrl,_that.country,_that.premiumTier);case _:
+return $default(_that.id,_that.email,_that.emailVerified,_that.username,_that.displayName,_that.locale,_that.role,_that.isPrivate,_that.createdAt,_that.bio,_that.avatarUrl,_that.canHost,_that.liveCoverUrl,_that.country,_that.premiumTier,_that.gender,_that.showGender,_that.category,_that.links);case _:
   return null;
 
 }
@@ -233,7 +241,7 @@ return $default(_that.id,_that.email,_that.emailVerified,_that.username,_that.di
 
 
 class _User implements User {
-  const _User({required this.id, required this.email, required this.emailVerified, required this.username, required this.displayName, required this.locale, required this.role, required this.isPrivate, required this.createdAt, this.bio, this.avatarUrl, this.canHost = false, this.liveCoverUrl, this.country, this.premiumTier});
+  const _User({required this.id, required this.email, required this.emailVerified, required this.username, required this.displayName, required this.locale, required this.role, required this.isPrivate, required this.createdAt, this.bio, this.avatarUrl, this.canHost = false, this.liveCoverUrl, this.country, this.premiumTier, this.gender, this.showGender = false, this.category,  List<ProfileLink> links = const <ProfileLink>[]}): _links = links;
   
 
 @override final  String id;
@@ -258,6 +266,21 @@ class _User implements User {
 /// v1.28-live (D146): the tier of the person's premium username, or
 /// null for a regular one.
 @override final  PremiumTier? premiumTier;
+/// v1.47-social (D175): the person's gender (null until chosen) and
+/// whether others see it (private by default).
+@override final  Gender? gender;
+@override@JsonKey() final  bool showGender;
+/// v1.47-social (D175): the account category shown under the name.
+@override final  AccountCategory? category;
+/// v1.47-social (D175): up to 3 profile links, in order.
+ final  List<ProfileLink> _links;
+/// v1.47-social (D175): up to 3 profile links, in order.
+@override@JsonKey() List<ProfileLink> get links {
+  if (_links is EqualUnmodifiableListView) return _links;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_links);
+}
+
 
 /// Create a copy of User
 /// with the given fields replaced by the non-null parameter values.
@@ -269,18 +292,18 @@ _$UserCopyWith<_User> get copyWith => __$UserCopyWithImpl<_User>(this, _$identit
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _User&&(identical(other.id, id) || other.id == id)&&(identical(other.email, email) || other.email == email)&&(identical(other.emailVerified, emailVerified) || other.emailVerified == emailVerified)&&(identical(other.username, username) || other.username == username)&&(identical(other.displayName, displayName) || other.displayName == displayName)&&(identical(other.locale, locale) || other.locale == locale)&&(identical(other.role, role) || other.role == role)&&(identical(other.isPrivate, isPrivate) || other.isPrivate == isPrivate)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.bio, bio) || other.bio == bio)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl)&&(identical(other.canHost, canHost) || other.canHost == canHost)&&(identical(other.liveCoverUrl, liveCoverUrl) || other.liveCoverUrl == liveCoverUrl)&&(identical(other.country, country) || other.country == country)&&(identical(other.premiumTier, premiumTier) || other.premiumTier == premiumTier));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _User&&(identical(other.id, id) || other.id == id)&&(identical(other.email, email) || other.email == email)&&(identical(other.emailVerified, emailVerified) || other.emailVerified == emailVerified)&&(identical(other.username, username) || other.username == username)&&(identical(other.displayName, displayName) || other.displayName == displayName)&&(identical(other.locale, locale) || other.locale == locale)&&(identical(other.role, role) || other.role == role)&&(identical(other.isPrivate, isPrivate) || other.isPrivate == isPrivate)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.bio, bio) || other.bio == bio)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl)&&(identical(other.canHost, canHost) || other.canHost == canHost)&&(identical(other.liveCoverUrl, liveCoverUrl) || other.liveCoverUrl == liveCoverUrl)&&(identical(other.country, country) || other.country == country)&&(identical(other.premiumTier, premiumTier) || other.premiumTier == premiumTier)&&(identical(other.gender, gender) || other.gender == gender)&&(identical(other.showGender, showGender) || other.showGender == showGender)&&(identical(other.category, category) || other.category == category)&&const DeepCollectionEquality().equals(other.links, _links));
 }
 
 
 @override
 int get hashCode {
-    return Object.hash(runtimeType,id,email,emailVerified,username,displayName,locale,role,isPrivate,createdAt,bio,avatarUrl,canHost,liveCoverUrl,country,premiumTier);
+    return Object.hashAll([runtimeType,id,email,emailVerified,username,displayName,locale,role,isPrivate,createdAt,bio,avatarUrl,canHost,liveCoverUrl,country,premiumTier,gender,showGender,category,const DeepCollectionEquality().hash(_links)]);
 }
 
 @override
 String toString() {
-    return 'User(id: $id, email: $email, emailVerified: $emailVerified, username: $username, displayName: $displayName, locale: $locale, role: $role, isPrivate: $isPrivate, createdAt: $createdAt, bio: $bio, avatarUrl: $avatarUrl, canHost: $canHost, liveCoverUrl: $liveCoverUrl, country: $country, premiumTier: $premiumTier)';
+    return 'User(id: $id, email: $email, emailVerified: $emailVerified, username: $username, displayName: $displayName, locale: $locale, role: $role, isPrivate: $isPrivate, createdAt: $createdAt, bio: $bio, avatarUrl: $avatarUrl, canHost: $canHost, liveCoverUrl: $liveCoverUrl, country: $country, premiumTier: $premiumTier, gender: $gender, showGender: $showGender, category: $category, links: $links)';
 }
 
 
@@ -291,7 +314,7 @@ abstract mixin class _$UserCopyWith<$Res> implements $UserCopyWith<$Res> {
   factory _$UserCopyWith(_User value, $Res Function(_User) _then) = __$UserCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String email, bool emailVerified, String username, String displayName, String locale, UserRole role, bool isPrivate, DateTime createdAt, String? bio, String? avatarUrl, bool canHost, String? liveCoverUrl, String? country, PremiumTier? premiumTier
+ String id, String email, bool emailVerified, String username, String displayName, String locale, UserRole role, bool isPrivate, DateTime createdAt, String? bio, String? avatarUrl, bool canHost, String? liveCoverUrl, String? country, PremiumTier? premiumTier, Gender? gender, bool showGender, AccountCategory? category, List<ProfileLink> links
 });
 
 
@@ -308,7 +331,7 @@ class __$UserCopyWithImpl<$Res>
 
 /// Create a copy of User
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? email = null,Object? emailVerified = null,Object? username = null,Object? displayName = null,Object? locale = null,Object? role = null,Object? isPrivate = null,Object? createdAt = null,Object? bio = freezed,Object? avatarUrl = freezed,Object? canHost = null,Object? liveCoverUrl = freezed,Object? country = freezed,Object? premiumTier = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? email = null,Object? emailVerified = null,Object? username = null,Object? displayName = null,Object? locale = null,Object? role = null,Object? isPrivate = null,Object? createdAt = null,Object? bio = freezed,Object? avatarUrl = freezed,Object? canHost = null,Object? liveCoverUrl = freezed,Object? country = freezed,Object? premiumTier = freezed,Object? gender = freezed,Object? showGender = null,Object? category = freezed,Object? links = null,}) {
   return _then(_User(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,email: null == email ? _self.email : email // ignore: cast_nullable_to_non_nullable
@@ -325,7 +348,11 @@ as String?,canHost: null == canHost ? _self.canHost : canHost // ignore: cast_nu
 as bool,liveCoverUrl: freezed == liveCoverUrl ? _self.liveCoverUrl : liveCoverUrl // ignore: cast_nullable_to_non_nullable
 as String?,country: freezed == country ? _self.country : country // ignore: cast_nullable_to_non_nullable
 as String?,premiumTier: freezed == premiumTier ? _self.premiumTier : premiumTier // ignore: cast_nullable_to_non_nullable
-as PremiumTier?,
+as PremiumTier?,gender: freezed == gender ? _self.gender : gender // ignore: cast_nullable_to_non_nullable
+as Gender?,showGender: null == showGender ? _self.showGender : showGender // ignore: cast_nullable_to_non_nullable
+as bool,category: freezed == category ? _self.category : category // ignore: cast_nullable_to_non_nullable
+as AccountCategory?,links: null == links ? _self._links : links // ignore: cast_nullable_to_non_nullable
+as List<ProfileLink>,
   ));
 }
 

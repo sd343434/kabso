@@ -107,3 +107,16 @@ final saveBioProvider = Provider<Future<User> Function(String?)>(
     return user;
   },
 );
+
+/// D175: `PATCH /me` with profile fields (gender, its visibility, the
+/// category, the links); the updated user is shown at once.
+final saveProfileFieldsProvider =
+    Provider<Future<User> Function(ProfileFieldsChange)>(
+      (ref) => (change) async {
+        final user = await ref
+            .read(profileEditRepositoryProvider)
+            .updateProfileFields(change);
+        showUpdatedProfile(ref, user);
+        return user;
+      },
+    );

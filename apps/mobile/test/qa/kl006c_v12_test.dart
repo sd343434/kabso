@@ -146,6 +146,7 @@ void main() {
         find.byKey(RegisterScreen.passwordKey),
         'pa55word!',
       );
+      await chooseGender(tester);
       await tester.pump();
       await tester.ensureVisible(find.byKey(RegisterScreen.submitKey));
       await tester.tap(find.byKey(RegisterScreen.submitKey));
@@ -196,6 +197,7 @@ void main() {
             find.byKey(RegisterScreen.passwordKey),
             'pa55word!',
           );
+          await chooseGender(tester);
           await tester.pump();
           await tester.ensureVisible(find.byKey(RegisterScreen.submitKey));
           await tester.tap(find.byKey(RegisterScreen.submitKey));

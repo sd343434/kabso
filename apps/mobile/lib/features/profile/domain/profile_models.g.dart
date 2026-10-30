@@ -33,6 +33,12 @@ _PublicProfile _$PublicProfileFromJson(Map<String, dynamic> json) =>
       profileCard: json['profileCard'] == null
           ? null
           : ProfileCard.fromJson(json['profileCard'] as Map<String, dynamic>),
+      followRequested: json['followRequested'] as bool? ?? false,
+      gender: genderFromJson(json['gender']),
+      category: accountCategoryFromJson(json['category']),
+      links: json['links'] == null
+          ? const <ProfileLink>[]
+          : profileLinksFromJson(json['links']),
     );
 
 Map<String, dynamic> _$PublicProfileToJson(_PublicProfile instance) =>
@@ -54,15 +60,21 @@ Map<String, dynamic> _$PublicProfileToJson(_PublicProfile instance) =>
       'cp': instance.cp,
       'medals': instance.medals,
       'profileCard': instance.profileCard,
+      'followRequested': instance.followRequested,
+      'gender': genderToJson(instance.gender),
+      'category': accountCategoryToJson(instance.category),
+      'links': profileLinksToJson(instance.links),
     };
 
 _FollowState _$FollowStateFromJson(Map<String, dynamic> json) => _FollowState(
   isFollowing: json['isFollowing'] as bool,
   followerCount: (json['followerCount'] as num).toInt(),
+  isRequested: json['isRequested'] as bool? ?? false,
 );
 
 Map<String, dynamic> _$FollowStateToJson(_FollowState instance) =>
     <String, dynamic>{
       'isFollowing': instance.isFollowing,
       'followerCount': instance.followerCount,
+      'isRequested': instance.isRequested,
     };

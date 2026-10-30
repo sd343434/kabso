@@ -42,6 +42,7 @@ import 'package:kabso_live/features/families/presentation/family_chat_screen.dar
 import 'package:kabso_live/features/families/presentation/family_screen.dart';
 import 'package:kabso_live/features/follows/domain/follow_list_models.dart';
 import 'package:kabso_live/features/follows/presentation/follow_lists_screen.dart';
+import 'package:kabso_live/features/follows/presentation/follow_requests_screen.dart';
 import 'package:kabso_live/features/home/application/home_feed_provider.dart';
 import 'package:kabso_live/features/home/feed_screen.dart';
 import 'package:kabso_live/features/levels/domain/level_models.dart';
@@ -197,6 +198,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.privacy,
         builder: (_, _) => const PrivacyScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.followRequests,
+        builder: (_, _) => const FollowRequestsScreen(),
       ),
       GoRoute(
         path: AppRoutes.blockedAccounts,

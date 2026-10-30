@@ -172,21 +172,41 @@ void main() {
     expect(find.byType(SnackBar), findsOneWidget);
   });
 
-  testWidgets('private and not followed: Follow disabled, no grid, "This '
-      'account is private"', (tester) async {
-    await _pump(
+  // D175 (owner): following a private account sends a request (until
+  // v1.47-social Follow was disabled there: no follow requests existed).
+  testWidgets('private and not followed: no grid, "This account is private"; '
+      'Follow sends a request ("Requested"), which can be cancelled', (
+    tester,
+  ) async {
+    final repo = await _pump(
       tester,
       repo: FakeProfileRepository(apiProfile(isPrivate: true)),
-    );
-    expect(
-      tester
-          .widget<FilledButton>(find.byKey(PublicProfileScreen.followKey))
-          .onPressed,
-      isNull,
     );
     expect(find.byKey(PublicProfileScreen.privateKey), findsOneWidget);
     expect(find.text(_en.profilePrivateTitle), findsOneWidget);
     expect(find.byType(SliverGrid), findsNothing);
+    final followers = repo.profile.followerCount;
+    await tester.tap(find.byKey(PublicProfileScreen.followKey));
+    await tester.pumpAndSettle();
+    expect(repo.calls.last, 'PUT host0');
+    expect(
+      find.descendant(
+        of: find.byKey(PublicProfileScreen.followKey),
+        matching: find.text(_en.followRequested),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text(_en.profileRequestSent), findsOneWidget);
+    // Still locked; the count does not move for a request.
+    expect(find.byKey(PublicProfileScreen.privateKey), findsOneWidget);
+    expect(repo.profile.followerCount, followers);
+    await tester.tap(find.byKey(PublicProfileScreen.followKey));
+    await tester.pumpAndSettle();
+    expect(find.text(_en.profileCancelRequestConfirm('Sara')), findsOneWidget);
+    await tester.tap(find.byKey(PublicProfileScreen.cancelRequestKey));
+    await tester.pumpAndSettle();
+    expect(repo.calls.last, 'DELETE host0');
+    expect(find.text(_en.liveFollow), findsOneWidget);
   });
 
   testWidgets('private but followed: the grid shows', (tester) async {

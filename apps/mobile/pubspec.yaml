@@ -51,6 +51,9 @@ dependencies:
   # CP-017 voice clips in the live chat (AAC in .m4a). Pinned exactly.
   record: 7.1.2
   shared_preferences: ^2.5.6
+  # D175 profile links open in the system browser / the platform's app. The
+  # official Flutter plugin, pinned exactly. BSD-3-Clause.
+  url_launcher: 6.3.2
   # D156 the launch video (and message attachments). The official Flutter
   # plugin, pinned exactly. BSD-3-Clause.
   video_player: 2.14.1

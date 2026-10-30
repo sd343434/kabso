@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/config/app_config.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
+import 'package:kabso_live/core/models/profile_fields.dart';
 import 'package:kabso_live/core/network/network_providers.dart';
 import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/core/storage/secure_token_store.dart';
@@ -132,6 +133,7 @@ void main() {
       password: 'pa55word!',
       username: 'layla.k',
       displayName: ' ليلى ',
+      gender: Gender.female,
       locale: 'ar',
     );
 
@@ -140,6 +142,8 @@ void main() {
       'password': 'pa55word!',
       'username': 'layla.k',
       'displayName': 'ليلى',
+      // v1.47-social (D175): required at sign-up.
+      'gender': 'FEMALE',
       'locale': 'ar',
       'device': {'platform': 'android', 'appVersion': '1.2.3'},
     });
@@ -264,6 +268,7 @@ void main() {
       password: 'pa55word!',
       username: ' Layla.K ',
       displayName: 'L',
+      gender: Gender.undisclosed,
       locale: 'en',
     );
 
@@ -283,6 +288,7 @@ void main() {
         password: 'pa55word!',
         username: 'admin',
         displayName: 'A',
+        gender: Gender.male,
         locale: 'en',
       ),
       throwsA(

@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/app/app.dart';
 import 'package:kabso_live/core/media/inline_video.dart';
+import 'package:kabso_live/core/models/profile_fields.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/join_screen.dart';
+import 'package:kabso_live/features/auth/presentation/register_screen.dart';
 import 'package:kabso_live/features/auth/presentation/splash_video.dart';
 import 'package:kabso_live/features/auth/presentation/welcome_screen.dart';
 import 'package:kabso_live/features/live/data/home_banners_repository.dart';
@@ -313,3 +315,15 @@ Future<void> pumpScreen(
 
 AppLocalizations l10nFor(AppLanguage language) =>
     lookupAppLocalizations(language.locale);
+
+/// D175: Register needs a gender (required at sign-up); picks [gender],
+/// scrolling to it first.
+Future<void> chooseGender(
+  WidgetTester tester, [
+  Gender gender = Gender.undisclosed,
+]) async {
+  final chip = find.byKey(RegisterScreen.genderOptionKey(gender));
+  await tester.ensureVisible(chip);
+  await tester.tap(chip);
+  await tester.pump();
+}

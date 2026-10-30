@@ -30,17 +30,26 @@ class PublicProfileController extends AsyncNotifier<PublicProfile> {
   /// server's `FollowState` then replaces the count. On failure the previous
   /// profile is restored and the `AppFailure` is rethrown for the caller to
   /// show. Ignored while the profile is not loaded, while another toggle is
-  /// in flight, when nothing would change, or when Follow may not be offered
-  /// (yourself; a private account you do not follow yet).
+  /// in flight, when nothing would change, or for yourself.
+  ///
+  /// v1.47-social (D175, §10.43): following a private account sends a
+  /// request (`followRequested`, the count does not move); [follow] false
+  /// then cancels the request.
   Future<void> setFollowing({required bool follow}) async {
     final before = state.value;
-    if (before == null || _busy || before.isFollowing == follow) return;
-    if (!before.canFollow) return;
+    if (before == null || _busy) return;
+    final active = before.isFollowing || before.followRequested;
+    if (active == follow || !before.canFollow) return;
     _busy = true;
+    final request = follow && before.isPrivate;
+    final counted = before.isFollowing || (follow && !request);
     state = AsyncData(
       before.copyWith(
-        isFollowing: follow,
-        followerCount: math.max(0, before.followerCount + (follow ? 1 : -1)),
+        isFollowing: follow && !request,
+        followRequested: request,
+        followerCount: counted
+            ? math.max(0, before.followerCount + (follow ? 1 : -1))
+            : before.followerCount,
       ),
     );
     try {
@@ -53,6 +62,7 @@ class PublicProfileController extends AsyncNotifier<PublicProfile> {
       state = AsyncData(
         latest.copyWith(
           isFollowing: result.isFollowing,
+          followRequested: result.isRequested,
           followerCount: result.followerCount,
         ),
       );

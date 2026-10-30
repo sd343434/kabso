@@ -16,6 +16,8 @@ import 'package:kabso_live/features/posts/data/media_repository.dart';
 import 'package:kabso_live/features/profile/application/profile_edit_controller.dart';
 import 'package:kabso_live/features/profile/avatar_crop_screen.dart';
 import 'package:kabso_live/features/profile/data/profile_edit_repository.dart';
+import 'package:kabso_live/features/profile/profile_fields_edit.dart';
+import 'package:kabso_live/features/profile/profile_fields_view.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -69,10 +71,11 @@ abstract final class BioRules {
 /// uploads are off the server answers 503 and the screen says so; nothing
 /// changes.
 ///
-/// Links, gender, account category, reordering the grid and the private
-/// account switch wait for the owner's decisions (D168 questions): greyed
-/// rows marked "Coming soon", not buttons. Privacy shows the real
-/// public/private state from `GET /me`.
+/// D175 (owner's answers, contract v1.47-social): the links (up to 3,
+/// https), the gender (with whether others see it) and the account
+/// category are edited here; the grid row shows how to pin posts (no free
+/// reordering, owner); Privacy opens the privacy settings, where the
+/// private-account switch is.
 class EditProfileScreen extends ConsumerWidget {
   const new({super.key});
 
@@ -212,32 +215,59 @@ class EditProfileScreen extends ConsumerWidget {
                   placeholder: l10n.profileEditBioPlaceholder,
                   onTap: () => _edit(context, _ProfileField.bio, user),
                 ),
-                _Row(key: linksKey, label: l10n.profileEditLinks, soon: true),
-                _Row(key: genderKey, label: l10n.profileEditGender, soon: true),
+                // D175 (owner): links, gender and category work.
+                _Row(
+                  key: linksKey,
+                  label: l10n.profileEditLinks,
+                  value: user.links.isEmpty
+                      ? ''
+                      : l10n.profileEditLinksValue(user.links.length),
+                  placeholder: l10n.profileEditNotSet,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => EditLinksScreen(initial: user.links),
+                    ),
+                  ),
+                ),
+                _Row(
+                  key: genderKey,
+                  label: l10n.profileEditGender,
+                  value: switch (user.gender) {
+                    null => '',
+                    final g when !user.showGender =>
+                      l10n.profileEditGenderHidden(genderLabel(l10n, g)),
+                    final g => genderLabel(l10n, g),
+                  },
+                  placeholder: l10n.profileEditNotSet,
+                  onTap: () => editGender(context, ref, user),
+                ),
                 _Row(
                   key: categoryKey,
                   label: l10n.profileEditCategory,
-                  soon: true,
+                  value: switch (user.category) {
+                    final c? => categoryLabel(l10n, c),
+                    null => '',
+                  },
+                  placeholder: l10n.profileEditNotSet,
+                  onTap: () => editCategory(context, ref, user),
                   last: true,
                 ),
                 divider(),
-                _Row(
-                  key: gridKey,
-                  label: l10n.profileEditReorderGrid,
-                  soon: true,
-                  wideLabel: true,
-                  last: true,
-                ),
+                // D175 (owner: «التثبيت يكفي»): the grid keeps its order;
+                // pinning up to 3 posts is how the person puts posts first.
+                const _PinHintRow(key: gridKey),
                 divider(),
+                // D175: the switch lives in the privacy settings.
                 _Row(
                   key: privacyKey,
                   label: l10n.profileEditPrivacy,
                   value: user.isPrivate
                       ? l10n.profilePrivacyPrivate
                       : l10n.profilePrivacyPublic,
-                  soon: true,
                   wideLabel: true,
                   last: true,
+                  onTap: () =>
+                      GoRouter.maybeOf(context)?.push(AppRoutes.privacy),
                 ),
                 divider(),
               ],
@@ -358,6 +388,49 @@ class EditProfileScreen extends ConsumerWidget {
 }
 
 enum _PhotoAction { library, camera, remove }
+
+/// The grid row (D175): the label and how to pin posts; not a button.
+class _PinHintRow extends StatelessWidget {
+  const new({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final p = context.palette;
+    final t = context.textStyles;
+    return Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(
+        KSpacing.lg,
+        KEditProfile.rowPadding,
+        KSpacing.lg,
+        KEditProfile.rowPadding,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            l10n.profileEditReorderGrid,
+            style: t.body.copyWith(color: p.textPrimary),
+          ),
+          const SizedBox(height: KSpacing.xxs),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.push_pin_outlined, size: 16, color: p.textSecondary),
+              const SizedBox(width: KSpacing.xs),
+              Expanded(
+                child: Text(
+                  l10n.profileEditPinHint,
+                  style: t.caption.copyWith(color: p.textSecondary),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 enum _ProfileField { name, bio }
 
@@ -538,8 +611,8 @@ class _FieldScreenState extends ConsumerState<_FieldScreen> {
 
 /// One label/value row; the hairline under it starts at the value column
 /// (none under the [last] row, whose section divider follows). A row with
-/// [onTap] is a button ending with a chevron. A [soon] row is greyed and
-/// ends with "Coming soon" and a chevron; it is not a button. A [wideLabel]
+/// [onTap] is a button ending with a chevron (D175: no row is "Coming
+/// soon" any more). A [wideLabel]
 /// row puts its label in the full width and its value at the end (section
 /// rows such as "Reorder grid").
 class _Row extends StatelessWidget {
@@ -550,7 +623,6 @@ class _Row extends StatelessWidget {
     this.placeholder,
     this.ltr = false,
     this.last = false,
-    this.soon = false,
     this.wideLabel = false,
     this.onTap,
   });
@@ -560,20 +632,15 @@ class _Row extends StatelessWidget {
   final String? placeholder;
   final bool ltr;
   final bool last;
-  final bool soon;
   final bool wideLabel;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
     final p = context.palette;
     final t = context.textStyles;
     final empty = value.isEmpty;
-    final labelText = Text(
-      label,
-      style: t.body.copyWith(color: soon ? p.textSecondary : p.textPrimary),
-    );
+    final labelText = Text(label, style: t.body.copyWith(color: p.textPrimary));
     final valueText = Text(
       empty ? (placeholder ?? '') : value,
       textDirection: ltr ? TextDirection.ltr : null,
@@ -582,37 +649,11 @@ class _Row extends StatelessWidget {
           : TextAlign.start,
       maxLines: 2,
       overflow: TextOverflow.ellipsis,
-      style: t.body.copyWith(
-        color: empty || soon ? p.textTertiary : p.textPrimary,
-      ),
+      style: t.body.copyWith(color: empty ? p.textTertiary : p.textPrimary),
     );
     // Mirrored by the icon itself in RTL (it points to the reading end).
     final chevron = Icon(Icons.chevron_right_rounded, color: p.textTertiary);
-    final trailing = soon
-        ? Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(width: KSpacing.sm),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: KSpacing.sm,
-                  vertical: KSpacing.xxs,
-                ),
-                decoration: BoxDecoration(
-                  color: p.surfaceOverlay,
-                  borderRadius: BorderRadius.circular(KRadius.pill),
-                ),
-                child: Text(
-                  l10n.profileEditSoon,
-                  style: t.caption.copyWith(color: p.textSecondary),
-                ),
-              ),
-              chevron,
-            ],
-          )
-        : onTap != null
-        ? chevron
-        : null;
+    final trailing = onTap != null ? chevron : null;
     const vertical = EdgeInsets.symmetric(vertical: KEditProfile.rowPadding);
     final valueColumn = Padding(
       padding: const EdgeInsetsDirectional.fromSTEB(
@@ -654,8 +695,8 @@ class _Row extends StatelessWidget {
     );
     final tap = onTap;
     return MergeSemantics(
-      child: soon || tap == null
-          ? Semantics(enabled: soon ? false : null, child: row)
+      child: tap == null
+          ? row
           : Semantics(
               button: true,
               child: InkWell(onTap: tap, child: row),

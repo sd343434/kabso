@@ -60,6 +60,7 @@ void main() {
     await tester.enterText(find.byKey(RegisterScreen.usernameKey), 'layla_22');
     await tester.enterText(find.byKey(RegisterScreen.displayNameKey), 'ليلى');
     await tester.enterText(find.byKey(RegisterScreen.passwordKey), 'pa55word!');
+    await chooseGender(tester);
     await tester.pump();
     await tester.ensureVisible(find.byKey(RegisterScreen.submitKey));
     await tester.tap(find.byKey(RegisterScreen.submitKey));
@@ -356,6 +357,7 @@ void main() {
     await tester.enterText(find.byKey(RegisterScreen.usernameKey), 'layla_22');
     await tester.enterText(find.byKey(RegisterScreen.displayNameKey), 'L');
     await tester.enterText(find.byKey(RegisterScreen.passwordKey), 'pa55word!');
+    await chooseGender(tester);
     // Switch to Arabic on the Register screen, then submit. (D64: the
     // switch sits on Kabi's stage, which scrolls with the form.)
     await tester.ensureVisible(find.byKey(AuthLanguageSwitch.switchKey));
@@ -530,6 +532,7 @@ void main() {
         find.byKey(RegisterScreen.passwordKey),
         'pa55word!',
       );
+      await chooseGender(tester);
       await tester.pump();
       await tester.ensureVisible(find.byKey(RegisterScreen.submitKey));
       await tester.tap(find.byKey(RegisterScreen.submitKey));

@@ -53,6 +53,7 @@ FollowListItem _person(
   bool followsMe = false,
   bool isPrivate = false,
   bool isSelf = false,
+  bool requestedByMe = false,
   String? name,
 }) => FollowListItem(
   id: 'u$i',
@@ -63,6 +64,7 @@ FollowListItem _person(
   isPrivate: isPrivate,
   followedByMe: followedByMe,
   followsMe: followsMe,
+  requestedByMe: requestedByMe,
 );
 
 AppFailure _server(ErrorCode code, String raw) =>
@@ -136,6 +138,9 @@ class _FakeProfiles implements ProfileRepository {
   AppFailure? failure;
   final List<String> calls = [];
 
+  /// D175: usernames whose follow is a request (private accounts).
+  final Set<String> private = {};
+
   @override
   Future<PublicProfile> getProfile(String username) async {
     calls.add('GET $username');
@@ -146,6 +151,14 @@ class _FakeProfiles implements ProfileRepository {
     calls.add('$verb $username');
     await gate?.future;
     if (failure case final f?) throw f;
+    // D175: the row's account answers as a private one when [private].
+    if (to && private.contains(username)) {
+      return const FollowState(
+        isFollowing: false,
+        isRequested: true,
+        followerCount: 1,
+      );
+    }
     return FollowState(isFollowing: to, followerCount: 1);
   }
 
@@ -391,9 +404,12 @@ void main() {
   });
 
   group('screen', () {
+    // D175: a private account you do not follow offers Follow too (it sends
+    // a request; until v1.47-social there was no control on that row), and
+    // a pending request says "Requested".
     testWidgets('two tabs with the profile count labels; rows with name, '
-        '@username and Follow back / Following / Follow; none for yourself '
-        'or a private account you do not follow', (tester) async {
+        '@username and Follow back / Following / Follow / Requested; none '
+        'for yourself', (tester) async {
       final lists = _FakeLists(
         followers: [
           _person(1, followsMe: true),
@@ -401,6 +417,7 @@ void main() {
           _person(3),
           _person(4, isSelf: true, name: 'Me'),
           _person(5, isPrivate: true),
+          _person(6, isPrivate: true, requestedByMe: true),
         ],
         following: [_person(7, followedByMe: true)],
       );
@@ -437,7 +454,8 @@ void main() {
       expect(_buttonText(tester, 'user2'), en.liveFollowing);
       expect(_buttonText(tester, 'user3'), en.liveFollow);
       expect(_button('user4'), findsNothing);
-      expect(_button('user5'), findsNothing);
+      expect(_buttonText(tester, 'user5'), en.liveFollow);
+      expect(_buttonText(tester, 'user6'), en.followRequested);
 
       await tester.tap(
         find.byKey(FollowListsScreen.tabKey(FollowListKind.following)),
@@ -551,8 +569,21 @@ void main() {
       await tester.pumpAndSettle();
       // The tab counts are read again (D125).
       expect(profiles.calls, ['DELETE user1', 'GET user0']);
-      // Not followed any more and private: no control.
-      expect(_button('user1'), findsNothing);
+      // Not followed any more: Follow again sends a request (D175; there was
+      // no control here before follow requests existed).
+      expect(_buttonText(tester, 'user1'), en.liveFollow);
+      profiles.private.add('user1');
+      await tester.tap(_button('user1'));
+      await tester.pumpAndSettle();
+      expect(profiles.calls.last, 'GET user0');
+      expect(profiles.calls, contains('PUT user1'));
+      expect(_buttonText(tester, 'user1'), en.followRequested);
+      // Cancelling a request asks nothing.
+      await tester.tap(_button('user1'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('follows.unfollowConfirm')), findsNothing);
+      expect(profiles.calls, contains('DELETE user1'));
+      expect(_buttonText(tester, 'user1'), en.liveFollow);
     });
 
     testWidgets('a row opens that profile', (tester) async {

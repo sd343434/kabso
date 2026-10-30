@@ -2345,7 +2345,7 @@ abstract class AppLocalizations {
   /// D60: public profile.
   ///
   /// In ar, this message translates to:
-  /// **'منشوراته وريلزه يراها متابعوه فقط.'**
+  /// **'منشوراته وريلزه وقصصه يراها متابعوه فقط.'**
   String get profilePrivateBody;
 
   /// D60: public profile.
@@ -14556,6 +14556,384 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'جائزة فعالية'**
   String get walletReasonEventPrize;
+
+  /// D175: the required gender choice on Register.
+  ///
+  /// In ar, this message translates to:
+  /// **'الجنس'**
+  String get registerGenderLabel;
+
+  /// D175: under the gender choice on Register (private by default).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يظهر في ملفك الشخصي إلا إذا اخترت ذلك لاحقاً.'**
+  String get registerGenderHelper;
+
+  /// D175: Register submitted without a gender.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر خياراً'**
+  String get registerGenderRequired;
+
+  /// D175: Gender MALE.
+  ///
+  /// In ar, this message translates to:
+  /// **'ذكر'**
+  String get genderMale;
+
+  /// D175: Gender FEMALE.
+  ///
+  /// In ar, this message translates to:
+  /// **'أنثى'**
+  String get genderFemale;
+
+  /// D175: Gender UNDISCLOSED.
+  ///
+  /// In ar, this message translates to:
+  /// **'أفضّل عدم الذكر'**
+  String get genderUndisclosed;
+
+  /// D175: AccountCategory SINGER.
+  ///
+  /// In ar, this message translates to:
+  /// **'مغنٍّ'**
+  String get categorySinger;
+
+  /// D175: AccountCategory MUSICIAN.
+  ///
+  /// In ar, this message translates to:
+  /// **'موسيقي'**
+  String get categoryMusician;
+
+  /// D175: AccountCategory POET.
+  ///
+  /// In ar, this message translates to:
+  /// **'شاعر'**
+  String get categoryPoet;
+
+  /// D175: AccountCategory PRESENTER.
+  ///
+  /// In ar, this message translates to:
+  /// **'مقدّم برامج'**
+  String get categoryPresenter;
+
+  /// D175: AccountCategory GAMER.
+  ///
+  /// In ar, this message translates to:
+  /// **'لاعب ألعاب'**
+  String get categoryGamer;
+
+  /// D175: AccountCategory CONTENT_CREATOR.
+  ///
+  /// In ar, this message translates to:
+  /// **'صانع محتوى'**
+  String get categoryContentCreator;
+
+  /// D175: AccountCategory ATHLETE.
+  ///
+  /// In ar, this message translates to:
+  /// **'رياضي'**
+  String get categoryAthlete;
+
+  /// D175: AccountCategory ARTIST.
+  ///
+  /// In ar, this message translates to:
+  /// **'فنان'**
+  String get categoryArtist;
+
+  /// D175: AccountCategory BLOGGER.
+  ///
+  /// In ar, this message translates to:
+  /// **'مدوّن'**
+  String get categoryBlogger;
+
+  /// D175: AccountCategory PUBLIC_FIGURE.
+  ///
+  /// In ar, this message translates to:
+  /// **'شخصية عامة'**
+  String get categoryPublicFigure;
+
+  /// D175: AccountCategory OTHER.
+  ///
+  /// In ar, this message translates to:
+  /// **'أخرى'**
+  String get categoryOther;
+
+  /// D175: an Edit profile row without a value (gender, category).
+  ///
+  /// In ar, this message translates to:
+  /// **'غير محدد'**
+  String get profileEditNotSet;
+
+  /// D175: switch in the gender sheet (off by default).
+  ///
+  /// In ar, this message translates to:
+  /// **'إظهار الجنس في ملفي'**
+  String get profileEditGenderShow;
+
+  /// D175: under the show-gender switch.
+  ///
+  /// In ar, this message translates to:
+  /// **'مخفي افتراضياً. «أفضّل عدم الذكر» لا يظهر أبداً.'**
+  String get profileEditGenderShowHint;
+
+  /// D175: the gender row value while it is not shown on the profile.
+  ///
+  /// In ar, this message translates to:
+  /// **'{gender} · مخفي'**
+  String profileEditGenderHidden(String gender);
+
+  /// D175: clears the account category.
+  ///
+  /// In ar, this message translates to:
+  /// **'بدون فئة'**
+  String get profileEditCategoryNone;
+
+  /// D175: the category sheet subtitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'تظهر تحت اسمك في ملفك الشخصي.'**
+  String get profileEditCategoryHint;
+
+  /// D175: the links row value (how many links are set).
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} من 3'**
+  String profileEditLinksValue(int count);
+
+  /// D175: the links editor explanation.
+  ///
+  /// In ar, this message translates to:
+  /// **'حتى 3 روابط تبدأ بـ https://‎. روابط إنستغرام وتيك توك ويوتيوب وفيسبوك وإكس تُفتح مباشرة، وأي رابط آخر بعد تنبيه.'**
+  String get profileEditLinksHint;
+
+  /// D175: the URL field of a link.
+  ///
+  /// In ar, this message translates to:
+  /// **'الرابط'**
+  String get profileEditLinkUrl;
+
+  /// D175: the label field of a link.
+  ///
+  /// In ar, this message translates to:
+  /// **'الاسم (اختياري)'**
+  String get profileEditLinkLabel;
+
+  /// D175: adds a link field (up to 3).
+  ///
+  /// In ar, this message translates to:
+  /// **'إضافة رابط'**
+  String get profileEditLinkAdd;
+
+  /// D175: removes one link field (button tooltip).
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف الرابط'**
+  String get profileEditLinkRemove;
+
+  /// D175: link refused (invalid_format).
+  ///
+  /// In ar, this message translates to:
+  /// **'رابط غير صالح: يجب أن يبدأ بـ https://‎ ويكون اسم موقع، بلا كلمة مرور أو منفذ أو عنوان IP.'**
+  String get profileEditLinkInvalid;
+
+  /// D175: link refused (too_long).
+  ///
+  /// In ar, this message translates to:
+  /// **'الرابط طويل جداً.'**
+  String get profileEditLinkTooLong;
+
+  /// D175: label refused.
+  ///
+  /// In ar, this message translates to:
+  /// **'الاسم حتى {max} حرفاً في سطر واحد.'**
+  String profileEditLinkLabelTooLong(int max);
+
+  /// D175: the same link twice.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا الرابط مضاف مسبقاً.'**
+  String get profileEditLinkDuplicate;
+
+  /// D175 (owner: pinning 3 is enough): replaces the grid-order “Coming soon” row.
+  ///
+  /// In ar, this message translates to:
+  /// **'ثبّت حتى 3 منشورات لتظهر أولاً في ملفك، من قائمة «…» في المنشور.'**
+  String get profileEditPinHint;
+
+  /// D175: privacy section header.
+  ///
+  /// In ar, this message translates to:
+  /// **'الحساب الخاص'**
+  String get privacyPrivateTitle;
+
+  /// D175: the private-account switch.
+  ///
+  /// In ar, this message translates to:
+  /// **'حساب خاص'**
+  String get privacyPrivateLabel;
+
+  /// D175: under the private-account switch.
+  ///
+  /// In ar, this message translates to:
+  /// **'متابعوك فقط يرون منشوراتك وريلزك وقصصك. من يريد متابعتك يرسل طلباً تقبله أو ترفضه. البث المباشر يبقى عاماً.'**
+  String get privacyPrivateHint;
+
+  /// D175: confirm before switching private → public.
+  ///
+  /// In ar, this message translates to:
+  /// **'جعل الحساب عاماً؟'**
+  String get privacyMakePublicTitle;
+
+  /// D175: confirm body.
+  ///
+  /// In ar, this message translates to:
+  /// **'سيرى الجميع منشوراتك وريلزك وقصصك، وستُقبل كل طلبات المتابعة المعلّقة.'**
+  String get privacyMakePublicBody;
+
+  /// D175: confirm button.
+  ///
+  /// In ar, this message translates to:
+  /// **'جعله عاماً'**
+  String get privacyMakePublicConfirm;
+
+  /// D175: the follow-requests screen and its row in privacy settings.
+  ///
+  /// In ar, this message translates to:
+  /// **'طلبات المتابعة'**
+  String get followRequestsTitle;
+
+  /// D175: empty follow-requests list.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد طلبات'**
+  String get followRequestsEmptyTitle;
+
+  /// D175: empty follow-requests list body.
+  ///
+  /// In ar, this message translates to:
+  /// **'عندما يطلب أحد متابعة حسابك الخاص يظهر هنا.'**
+  String get followRequestsEmptyBody;
+
+  /// D175: accept a follow request.
+  ///
+  /// In ar, this message translates to:
+  /// **'قبول'**
+  String get followRequestAccept;
+
+  /// D175: decline a follow request.
+  ///
+  /// In ar, this message translates to:
+  /// **'رفض'**
+  String get followRequestDecline;
+
+  /// D175: snack after accepting.
+  ///
+  /// In ar, this message translates to:
+  /// **'{name} يتابعك الآن'**
+  String followRequestAccepted(String name);
+
+  /// D175: snack after declining.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم رفض الطلب'**
+  String get followRequestDeclined;
+
+  /// D175: the follow button while a request is pending.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم الطلب'**
+  String get followRequested;
+
+  /// D175: confirm sheet title.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء طلب متابعة {name}؟'**
+  String profileCancelRequestConfirm(String name);
+
+  /// D175: cancels a pending follow request.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء الطلب'**
+  String get profileCancelRequest;
+
+  /// D175: snack after following a private account.
+  ///
+  /// In ar, this message translates to:
+  /// **'أُرسل طلب المتابعة'**
+  String get profileRequestSent;
+
+  /// D175 (owner): the warning before opening a link that is not a known platform.
+  ///
+  /// In ar, this message translates to:
+  /// **'أنت تغادر Kabso'**
+  String get linkLeavingTitle;
+
+  /// D175: the warning body (the full URL is shown under it).
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا الرابط يفتح موقعاً خارج Kabso. تأكّد أنك تثق به قبل المتابعة.'**
+  String get linkLeavingBody;
+
+  /// D175: opens the link after the warning.
+  ///
+  /// In ar, this message translates to:
+  /// **'فتح الرابط'**
+  String get linkLeavingOpen;
+
+  /// D175: reports a profile link.
+  ///
+  /// In ar, this message translates to:
+  /// **'الإبلاغ عن الرابط'**
+  String get linkReport;
+
+  /// D175: report reason sheet title.
+  ///
+  /// In ar, this message translates to:
+  /// **'لماذا تبلّغ عن هذا الرابط؟'**
+  String get linkReportTitle;
+
+  /// D175: copies a profile link.
+  ///
+  /// In ar, this message translates to:
+  /// **'نسخ الرابط'**
+  String get linkCopy;
+
+  /// D175: snack after copying a link.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم نسخ الرابط'**
+  String get linkCopied;
+
+  /// D175: the system could not open the link.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر فتح الرابط'**
+  String get linkOpenFailed;
+
+  /// D175: screen-reader label of a profile link.
+  ///
+  /// In ar, this message translates to:
+  /// **'رابط: {name}'**
+  String linkSemantics(String name);
+
+  /// D175: FOLLOW_REQUEST notification.
+  ///
+  /// In ar, this message translates to:
+  /// **'{who} طلب متابعتك'**
+  String notifFollowRequest(String who);
+
+  /// D175: FOLLOW_REQUEST_ACCEPTED notification.
+  ///
+  /// In ar, this message translates to:
+  /// **'{who} قبل طلب متابعتك'**
+  String notifFollowRequestAccepted(String who);
+
+  /// D175: AVATAR_REMOVED notification (system).
+  ///
+  /// In ar, this message translates to:
+  /// **'أزال فريق الإشراف صورة ملفك الشخصي لمخالفتها الإرشادات'**
+  String get notifAvatarRemoved;
 }
 
 class _AppLocalizationsDelegate

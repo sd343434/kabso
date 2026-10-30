@@ -121,6 +121,9 @@ abstract final class AppRoutes {
   static const privacy = '/settings/privacy';
   static const blockedAccounts = '/settings/blocked';
 
+  /// D175: the pending requests to follow the private account.
+  static const followRequests = '/settings/follow-requests';
+
   /// CP-007: muted accounts.
   static const mutedAccounts = '/settings/muted';
 

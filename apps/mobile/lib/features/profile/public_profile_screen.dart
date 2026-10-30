@@ -15,6 +15,7 @@ import 'package:kabso_live/features/profile/application/profile_grid_provider.da
 import 'package:kabso_live/features/profile/application/public_profile_controller.dart';
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
 import 'package:kabso_live/features/profile/profile_bonds.dart';
+import 'package:kabso_live/features/profile/profile_fields_view.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
 import 'package:kabso_live/features/safety/safety_actions.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -31,9 +32,9 @@ import 'package:material_ui/material_ui.dart';
 ///   the room;
 /// - Follow (red) or Following (grey; asks before unfollowing), through the
 ///   follow API with the optimistic [PublicProfileController]; beside it,
-///   Message and, while the user is live, a compact LIVE button. Follow is
-///   disabled for a private account you do not follow (no follow requests
-///   in v1.3.1). Your own
+///   Message and, while the user is live, a compact LIVE button. D175:
+///   following a private account sends a request ("Requested", tap to
+///   cancel). Your own
 ///   username shows "Edit profile" instead. **Message** (D61) opens the
 ///   conversation screen, which is not connected until a messaging API
 ///   exists;
@@ -58,6 +59,7 @@ class PublicProfileScreen extends ConsumerStatefulWidget {
   static const unmuteKey = Key('profile.public.unmute');
   static const blockKey = Key('profile.public.block');
   static const unfollowKey = Key('profile.public.unfollow');
+  static const cancelRequestKey = Key('profile.public.cancelRequest');
   static const privateKey = Key('profile.public.private');
   static const notFoundKey = Key('profile.public.notFound');
 
@@ -82,11 +84,49 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
       await ref
           .read(publicProfileProvider(widget.username).notifier)
           .setFollowing(follow: follow);
+      // D175: a private account gets a request; say so.
+      final now = ref.read(publicProfileProvider(widget.username)).value;
+      if (follow && mounted && (now?.followRequested ?? false)) {
+        KSnack.success(context, context.l10n.profileRequestSent);
+      }
     } on Object catch (e) {
       if (mounted) {
         KSnack.error(context, failureMessage(context.l10n, toAppFailure(e)));
       }
     }
+  }
+
+  /// D175: cancelling a pending follow request asks first.
+  Future<void> _confirmCancelRequest(PublicProfile profile) async {
+    final l10n = context.l10n;
+    final cancel = await showModalBottomSheet<bool>(
+      context: context,
+      builder: (sheet) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(KSpacing.lg),
+              child: Text(
+                l10n.profileCancelRequestConfirm(profile.displayName),
+                textAlign: TextAlign.center,
+                style: sheet.textStyles.bodyStrong,
+              ),
+            ),
+            ListTile(
+              key: PublicProfileScreen.cancelRequestKey,
+              title: Text(
+                l10n.profileCancelRequest,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: sheet.palette.error),
+              ),
+              onTap: () => Navigator.of(sheet).pop(true),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (cancel ?? false) await _setFollowing(follow: false);
   }
 
   Future<void> _confirmUnfollow(PublicProfile profile) async {
@@ -256,6 +296,14 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
             onPressed: () => _confirmUnfollow(profile),
             child: Text(l10n.liveFollowing),
           )
+        : profile.followRequested
+        // D175: a request to a private account waits for its answer.
+        ? OutlinedButton(
+            key: PublicProfileScreen.followKey,
+            style: profileSecondaryButtonStyle(context),
+            onPressed: () => _confirmCancelRequest(profile),
+            child: Text(l10n.followRequested),
+          )
         : FilledButton(
             key: PublicProfileScreen.followKey,
             style: FilledButton.styleFrom(
@@ -266,7 +314,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
               ),
               textStyle: t.bodyStrong,
             ),
-            // No follow requests for private accounts (v1.3.1 §10.6).
+            // D175: a private account gets a follow request (§10.43).
             onPressed: profile.canFollow
                 ? () => _setFollowing(follow: true)
                 : null,
@@ -392,7 +440,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     final l10n = context.l10n;
     final p = context.palette;
     final room = profile.liveRoomId;
-    final locked = profile.isPrivate && !profile.isFollowing && !profile.isSelf;
+    final locked = profile.locked;
     return RefreshIndicator(
       onRefresh: () {
         ref.invalidate(profileGridProvider);
@@ -422,6 +470,17 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                 profile: profile,
               ),
               cpFrame: cpWearsSpecialFrame(profile.cp),
+              // D175: the category (and a gender the person shows) under
+              // the name; the links after the bio — on a private profile
+              // too (the profile itself is public, §10.43).
+              subtitle: ProfileFieldsLine(
+                category: profile.category,
+                gender: profile.gender,
+              ),
+              about: ProfileLinksRow(
+                links: profile.links,
+                reportable: !profile.isSelf,
+              ),
               // D121: the lists; a private account's are its followers'
               // only, so a locked profile keeps the counts plain.
               onOpenFollowers: locked
