@@ -1128,6 +1128,60 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         ),
       );
       // The chat box opens from 💬 and 🙂 (CP-013).
+      // D166: YouTube together turns the room into the owner's cinema.
+      final cinema =
+          live && room != null && LiveWatchScreen.shows(ref, room.id);
+      final ring = AudioSeatRing(
+        count: seatCount!,
+        // D166: no points pills on the cinema's seats.
+        compact: cinema,
+        seats: liveSeats?.seats ?? const [],
+        // D111: CP partners on adjacent seats are drawn joined.
+        cpPairs: room == null
+            ? const []
+            : cpSeatPairs(liveSeats, hostId: room.host.id),
+        host: KAvatar(
+          name: hostName,
+          imageUrl: user?.avatarUrl,
+          size: AudioSeatRing.picture,
+        ),
+        hostName: hostName,
+        hostMicOn: state.micEnabled,
+        // Owner (2026-10-26): a tap on the host's own picture opens their
+        // card (not a mute); they turn the mic on or off from there.
+        // Before the live starts there is no card: the tap tries the mic.
+        onHost: room == null
+            ? byId['mic']!.onTap
+            : () => unawaited(
+                _person(
+                  room.id,
+                  room.host.username,
+                  selfMic: (
+                    enabled: state.micEnabled,
+                    set: ({required enabled}) async {
+                      final host = ref.read(liveHostControllerProvider);
+                      if (host.micEnabled != enabled) {
+                        await ref
+                            .read(liveHostControllerProvider.notifier)
+                            .toggleMic();
+                      }
+                    },
+                  ),
+                ),
+              ),
+        hostTapLabel: room != null
+            ? l10n.liveUserViewProfile
+            : state.micEnabled
+            ? l10n.goLiveMuteMic
+            : l10n.goLiveUnmuteMic,
+        hostPoints: KFormat.compact(score, l10n),
+        speaking: speaking,
+        onSeat: onSeat,
+        // D138: the emojis played on the seats.
+        overlay: room == null
+            ? null
+            : seatEmojiOverlay(ref, room.id, picture: AudioSeatRing.picture),
+      );
       body = LiveAudioRoomLayout(
         // D145c: the gift strips keep above the chat text.
         onChatTop: room == null
@@ -1146,8 +1200,19 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             : null,
         // D166: YouTube together turns the room into a cinema — the
         // player on top, the seats under it.
-        screen: live && room != null && LiveWatchScreen.shows(ref, room.id)
-            ? LiveWatchScreen(roomId: room.id, host: true)
+        screen: cinema
+            ? LiveWatchScreen(
+                roomId: room.id,
+                host: true,
+                part: LiveWatchPart.player,
+              )
+            : null,
+        screenBar: cinema
+            ? LiveWatchScreen(
+                roomId: room.id,
+                host: true,
+                part: LiveWatchPart.bar,
+              )
             : null,
         // D166: the wish list (D136) in the audio room too, over the promo
         // box; a tap changes it.
@@ -1237,61 +1302,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               ),
           ],
         ),
-        stage: AudioSeatRing(
-          count: seatCount!,
-          // D166: the cinema rows under the YouTube screen (big rooms).
-          compact:
-              seatCount > 10 &&
-              live &&
-              room != null &&
-              LiveWatchScreen.shows(ref, room.id),
-          seats: liveSeats?.seats ?? const [],
-          // D111: CP partners on adjacent seats are drawn joined.
-          cpPairs: room == null
-              ? const []
-              : cpSeatPairs(liveSeats, hostId: room.host.id),
-          host: KAvatar(
-            name: hostName,
-            imageUrl: user?.avatarUrl,
-            size: AudioSeatRing.picture,
-          ),
-          hostName: hostName,
-          hostMicOn: state.micEnabled,
-          // Owner (2026-10-26): a tap on the host's own picture opens their
-          // card (not a mute); they turn the mic on or off from there.
-          // Before the live starts there is no card: the tap tries the mic.
-          onHost: room == null
-              ? byId['mic']!.onTap
-              : () => unawaited(
-                  _person(
-                    room.id,
-                    room.host.username,
-                    selfMic: (
-                      enabled: state.micEnabled,
-                      set: ({required enabled}) async {
-                        final host = ref.read(liveHostControllerProvider);
-                        if (host.micEnabled != enabled) {
-                          await ref
-                              .read(liveHostControllerProvider.notifier)
-                              .toggleMic();
-                        }
-                      },
-                    ),
-                  ),
-                ),
-          hostTapLabel: room != null
-              ? l10n.liveUserViewProfile
-              : state.micEnabled
-              ? l10n.goLiveMuteMic
-              : l10n.goLiveUnmuteMic,
-          hostPoints: KFormat.compact(score, l10n),
-          speaking: speaking,
-          onSeat: onSeat,
-          // D138: the emojis played on the seats.
-          overlay: room == null
-              ? null
-              : seatEmojiOverlay(ref, room.id, picture: AudioSeatRing.picture),
-        ),
+        stage: ring,
+        // D166: the cinema's seats on the drawn seats.
+        cinemaSeat: cinema ? ring.cinemaTile : null,
+        cinemaSeats: seatCount,
         chat: [?roomChat],
         composer: chatComposer,
         // Ref 83: chat, emoji and the tools menu on one side; seats, PK and

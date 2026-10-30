@@ -348,6 +348,20 @@ class AudioSeatRing extends StatelessWidget {
   /// The diameter of a picture (the host's too) and of an empty seat.
   static const double picture = _Seat.avatar;
 
+  /// D166: a tile's natural width (its picture is [picture] across).
+  static const double tileWidth = _Seat.width;
+
+  /// D166: the picture's top inside a tile (it is centred in the [chair]).
+  static const double pictureTop = (chair - picture) / 2;
+
+  /// D166: seat [index]'s tile alone (the host's for 0) — for the cinema,
+  /// where each one sits on a seat drawn in the picture. No points pills
+  /// ([compact]) and no CP ornament (the seats are apart there).
+  Widget cinemaTile(int index) => SizedBox(
+    width: _Seat.width,
+    child: index == 0 ? _hostSeat() : _guest(index),
+  );
+
   @override
   Widget build(BuildContext context) => _rows();
 

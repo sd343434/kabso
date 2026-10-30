@@ -800,6 +800,12 @@ a `CONNECTION LIMIT`.
   ```
 
 - Apps read `GET /home/banners?placement=room` when a live opens (cached up to a minute).
+- *(D166, contract v1.39-live)* The same ROOM banners show to **everyone** in the room — signed-in
+  viewers, guests without an account (the endpoint now serves `placement=room` without a token, per-IP
+  guest limit `RATE_LIMIT_LIVE_GUEST_READ_IP`), seated guests and the host — in video lives at the
+  start under the «ترتيب الغرف» chip, in audio rooms low at the end over the gift button. Nothing to
+  configure: deploy the API and add a ROOM banner as above. `$BANNER disable <id>` hides it everywhere
+  within a minute.
 
 ### 5.11 Lucky gifts (migrations `20261127090000_lucky_gifts_enums`, `20261127100000_lucky_gifts`; D132) — [IMPLEMENTED, draft contract; owner / legal review before switching on]
 

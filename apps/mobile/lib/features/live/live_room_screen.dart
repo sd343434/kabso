@@ -35,6 +35,7 @@ import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_boost_sheet.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_cinema.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_cp_seats.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_newcomers_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
@@ -728,6 +729,19 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         _inviteShown = invite.id;
         unawaited(_showInvite(invite));
       }
+      // D166: the room became a cinema of 10 seats and this person sat
+      // beyond them: the server moved them down or off the seat.
+      final had = previous?.mine?.seatIndex;
+      if (had != null &&
+          had >= LiveCinema.seatCount &&
+          next.mine?.seatIndex != had &&
+          ref.read(liveWatchProvider(room.id)).watch?.video != null) {
+        final moved = next.mine?.seatIndex;
+        KSnack.info(
+          context,
+          moved == null ? l10n.liveCinemaOffSeat : l10n.liveCinemaMoved(moved),
+        );
+      }
       final mySeat = next.mine?.seatIndex;
       final muted =
           mySeat != null &&
@@ -1107,6 +1121,9 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         );
       }
     }
+    // D166: YouTube together turns the room into the owner's cinema.
+    final cinema = LiveWatchScreen.shows(ref, room.id);
+    final stage = _stage(session, engine);
     return KLiveSurface(
       child: Material(
         color: KPalette.dark.background,
@@ -1140,9 +1157,24 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                     : null,
                 // D166: YouTube together turns the room into a cinema —
                 // the player on top, the seats under it.
-                screen: LiveWatchScreen.shows(ref, room.id)
-                    ? LiveWatchScreen(roomId: room.id, host: false)
+                screen: cinema
+                    ? LiveWatchScreen(
+                        roomId: room.id,
+                        host: false,
+                        part: LiveWatchPart.player,
+                      )
                     : null,
+                screenBar: cinema
+                    ? LiveWatchScreen(
+                        roomId: room.id,
+                        host: false,
+                        part: LiveWatchPart.bar,
+                      )
+                    : null,
+                cinemaSeat: cinema && stage is AudioSeatRing
+                    ? stage.cinemaTile
+                    : null,
+                cinemaSeats: room.seatCount ?? 0,
                 // D166: the host's wish list (D136), over the promo box.
                 wish: room.wishGifts.isEmpty
                     ? null
@@ -1225,7 +1257,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                     ?_viewers(session),
                   ],
                 ),
-                stage: _stage(session, engine),
+                stage: stage,
                 chat: [_roomChat(session)],
                 composer: _chatComposer(composer),
                 // Ref 83/147: chat and emoji on one side; the seat, requests,
@@ -1427,7 +1459,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     return AudioSeatRing(
       count: count,
       // D166: the cinema rows under the YouTube screen (big rooms).
-      compact: count > 10 && LiveWatchScreen.shows(ref, room.id),
+      // D166: no points pills on the cinema's seats.
+      compact: LiveWatchScreen.shows(ref, room.id),
       seats: seats?.seats ?? const [],
       // D111: CP partners on adjacent seats are drawn joined.
       cpPairs: cpSeatPairs(seats, hostId: host.id),

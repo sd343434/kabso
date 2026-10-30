@@ -89,10 +89,19 @@ class LiveWatchLayer extends ConsumerWidget {
 /// `LiveAudioRoomLayout.screen` at the top of the room with the seats under
 /// it. [shows] tells the room whether to switch to that layout.
 class LiveWatchScreen extends ConsumerWidget {
-  const new({required this.roomId, required this.host, super.key});
+  const new({
+    required this.roomId,
+    required this.host,
+    super.key,
+    this.part = LiveWatchPart.card,
+  });
 
   final String roomId;
   final bool host;
+
+  /// D166: the whole card, or (the cinema) the player on the drawn screen
+  /// and its bar on the stage under it.
+  final LiveWatchPart part;
 
   /// A video plays and this phone has not hidden it.
   static bool shows(WidgetRef ref, String roomId) {
@@ -110,88 +119,113 @@ class LiveWatchScreen extends ConsumerWidget {
     const manageKey = LiveWatchLayer.manageKey;
     const suggestKey = LiveWatchLayer.suggestKey;
     const hideKey = LiveWatchLayer.hideKey;
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 420),
-        child: Container(
-          key: cardKey,
-          decoration: BoxDecoration(
-            color: const Color(0xE6141318),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0x33FFFFFF)),
+    final player = _Player(
+      key: ValueKey('watch.player.$host'),
+      roomId: roomId,
+      host: host,
+    );
+    final bar = Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(10, 4, 4, 4),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.smart_display_rounded,
+            size: 16,
+            color: Color(0xFFFF4D4D),
           ),
-          clipBehavior: Clip.antiAlias,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              AspectRatio(
-                aspectRatio: 16 / 9,
-                child: _Player(
-                  key: ValueKey('watch.player.$host'),
-                  roomId: roomId,
-                  host: host,
-                ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              KFormat.bidiIsolate(video.title),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: context.textStyles.caption.copyWith(
+                color: const Color(0xFFFFFFFF),
+                fontWeight: FontWeight.w600,
               ),
-              Padding(
-                padding: const EdgeInsetsDirectional.fromSTEB(10, 4, 4, 4),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.smart_display_rounded,
-                      size: 16,
-                      color: Color(0xFFFF4D4D),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        KFormat.bidiIsolate(video.title),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: context.textStyles.caption.copyWith(
-                          color: const Color(0xFFFFFFFF),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    if (host)
-                      _IconAction(
-                        key: manageKey,
-                        icon: Icons.playlist_add_rounded,
-                        tooltip: l10n.liveWatchTitle,
-                        badge: view.suggestions.length,
-                        onTap: () => unawaited(
-                          showLiveWatchSheet(context, roomId: roomId),
-                        ),
-                      )
-                    else
-                      _IconAction(
-                        key: suggestKey,
-                        icon: Icons.add_link_rounded,
-                        tooltip: l10n.liveWatchSuggest,
-                        onTap: () => unawaited(
-                          showLiveWatchSuggestSheet(context, roomId: roomId),
-                        ),
-                      ),
-                    // Hidden on this phone only (the seats of an audio
-                    // room show again); the room keeps watching.
-                    _IconAction(
-                      key: hideKey,
-                      icon: Icons.close_fullscreen_rounded,
-                      tooltip: l10n.liveWatchHide,
-                      onTap: () => ref
-                          .read(liveWatchProvider(roomId).notifier)
-                          .toggleHidden(),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
+          if (host)
+            _IconAction(
+              key: manageKey,
+              icon: Icons.playlist_add_rounded,
+              tooltip: l10n.liveWatchTitle,
+              badge: view.suggestions.length,
+              onTap: () =>
+                  unawaited(showLiveWatchSheet(context, roomId: roomId)),
+            )
+          else
+            _IconAction(
+              key: suggestKey,
+              icon: Icons.add_link_rounded,
+              tooltip: l10n.liveWatchSuggest,
+              onTap: () =>
+                  unawaited(showLiveWatchSuggestSheet(context, roomId: roomId)),
+            ),
+          // Hidden on this phone only (the seats of an audio
+          // room show again); the room keeps watching.
+          _IconAction(
+            key: hideKey,
+            icon: Icons.close_fullscreen_rounded,
+            tooltip: l10n.liveWatchHide,
+            onTap: () =>
+                ref.read(liveWatchProvider(roomId).notifier).toggleHidden(),
+          ),
+        ],
       ),
     );
+    switch (part) {
+      case LiveWatchPart.player:
+        return ColoredBox(
+          key: cardKey,
+          color: const Color(0xFF000000),
+          child: player,
+        );
+      case LiveWatchPart.bar:
+        return Container(
+          decoration: BoxDecoration(
+            color: const Color(0xB3141318),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: bar,
+        );
+      case LiveWatchPart.card:
+        return Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: Container(
+              key: cardKey,
+              decoration: BoxDecoration(
+                color: const Color(0xE6141318),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0x33FFFFFF)),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  AspectRatio(aspectRatio: 16 / 9, child: player),
+                  bar,
+                ],
+              ),
+            ),
+          ),
+        );
+    }
   }
+}
+
+/// D166: which part of the watch card [LiveWatchScreen] draws.
+enum LiveWatchPart {
+  /// The player and its bar in one card.
+  card,
+
+  /// The player alone (the cinema's drawn screen).
+  player,
+
+  /// The bar alone (title, suggest / manage, hide), under the screen.
+  bar,
 }
 
 class _Player extends ConsumerStatefulWidget {

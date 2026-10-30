@@ -7,6 +7,9 @@ import 'package:kabso_live/core/models/premium_tier.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/emoji/emoji_panel.dart';
 import 'package:kabso_live/features/emoji/kabi_emoji.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_cinema.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart'
+    show AudioSeatRing;
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart'
     show KLiveUsernameTag, KTopReporter;
@@ -137,26 +140,36 @@ class LiveAudioRoomLayout extends StatelessWidget {
     this.combo,
     this.wish,
     this.screen,
+    this.screenBar,
+    this.cinemaSeat,
+    this.cinemaSeats = 0,
     this.onChatTop,
   });
 
   /// D166 (owner: «عند فتح يوتيوب في الغرفة الصوتية تنتقل الكراسي إلى
-  /// أسفل»): the cinema layout. While the room watches a video together the
-  /// player is the screen at the top (full width, 16:9, under the chips) and
-  /// the seats move down under it, every seat shown at once (the rows scale
-  /// down to the room left instead of scrolling); the chat keeps its place
-  /// over the bar. Back to the normal rows when it closes, animated.
-  ///
-  /// The room's background stays the room's theme under it (the owner's
-  /// cinema artwork, when it arrives, is a background like any theme: the
-  /// layout draws none of its own).
+  /// أسفل», «عندما مشاهدة يوتيوب لا يكون هناك إلا ١٠ كراسي فقط»): the
+  /// cinema. While the room watches a video together the owner's cinema
+  /// picture ([LiveCinema]) is the room: [screen] (the player) sits exactly
+  /// on its drawn screen, [screenBar] under it on the stage, the room's
+  /// first [cinemaSeats] seats ([cinemaSeat]) on the drawn seat backs (the
+  /// server keeps the room at 10 seats meanwhile; a smaller room leaves the
+  /// other drawn seats empty, not tappable) and the chat on the carpet over
+  /// the bar. The normal rows come back (cross-faded) when it closes.
   final Widget? screen;
+  final Widget? screenBar;
+  final Widget Function(int index)? cinemaSeat;
+  final int cinemaSeats;
 
-  static const screenKey = Key('audioRoom.cinemaScreen');
-  static const cinemaSeatsKey = Key('audioRoom.cinemaSeats');
+  static const cinemaKey = Key('audioRoom.cinema');
+  static const cinemaPictureKey = Key('audioRoom.cinema.picture');
+  static Key cinemaSeatKey(int index) => Key('audioRoom.cinema.seat.$index');
 
-  /// The screen's side margin and the gap above and under it.
-  static const double screenMargin = 8;
+  /// The person's picture on a drawn seat: like the mic seat's, never wider
+  /// than this share of the seat back.
+  static const double cinemaPictureShare = 0.72;
+
+  /// The picture's centre, as a share of the seat back's visible height.
+  static const double cinemaPictureCentre = 0.42;
 
   /// D166: the host's wish list card (D136), at the end directly above the
   /// promo box (or the combo), so it covers neither the seats nor the chat:
@@ -210,34 +223,166 @@ class LiveAudioRoomLayout extends StatelessWidget {
       KMetrics.liveHeaderGap -
       (KSizes.minTouchTarget - KAudioRoom.cardHeight) / 2;
 
-  @override
-  Widget build(BuildContext context) {
-    final chips = this.chips;
-    final composer = this.composer;
+  /// The end slot beside the chat: the promo box (or the combo), with the
+  /// wish card over it.
+  Widget? _slot() {
+    if (composer != null) return null;
     // D145a: while the lucky combo shows it takes the promo box's place.
     final low = combo ?? promo;
     final wish = this.wish;
-    final slot = composer != null
-        ? null
-        : wish == null
-        ? low
-        // A very short room scales the column down rather than overflow.
-        : FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: AlignmentDirectional.bottomEnd,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                wish,
-                if (low != null) ...[
-                  const SizedBox(height: wishGap),
-                  // The promo box keeps its place over the gift button.
-                  low,
+    if (wish == null) return low;
+    // A very short room scales the column down rather than overflow.
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: AlignmentDirectional.bottomEnd,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          wish,
+          if (low != null) ...[
+            const SizedBox(height: wishGap),
+            // The promo box keeps its place over the gift button.
+            low,
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// The header row and the chips under it.
+  List<Widget> _top() => [
+    // Ref 147 (430 pt): the room card 10.5 pt from the edge, the last top
+    // circle 10 pt from the other edge (6 + its 39 pt target's 4 pt
+    // margin); the chips 10 pt under the card, the viewers chip 10 pt from
+    // the edge. D141: the card's top [KMetrics.liveHeaderGap] under the
+    // status bar, as the video live's host pill (the 48 pt row centres it).
+    Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(10.5, headerTop, 6, 0),
+      child: header,
+    ),
+    if (chips case final chips?)
+      Padding(
+        padding: const EdgeInsetsDirectional.fromSTEB(10.5, 10, 10, 0),
+        child: chips,
+      ),
+  ];
+
+  /// The chat lines low on the start side with the end slot beside them.
+  Widget _chatRow(Widget? slot) => Row(
+    crossAxisAlignment: CrossAxisAlignment.end,
+    children: [
+      Expanded(
+        child: Padding(
+          padding: EdgeInsetsDirectional.fromSTEB(
+            8,
+            0,
+            slot == null ? 8 : promoGap,
+            6,
+          ),
+          child: KTopReporter(
+            onTop: onChatTop,
+            child: SingleChildScrollView(
+              reverse: true,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (final line in chat)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: line,
+                    ),
                 ],
-              ],
+              ),
             ),
-          );
+          ),
+        ),
+      ),
+      if (slot != null)
+        Padding(
+          padding: const EdgeInsetsDirectional.only(
+            end: promoEnd,
+            bottom: promoGap,
+          ),
+          child: slot,
+        ),
+    ],
+  );
+
+  /// The bottom bar, or the chat box while writing.
+  Widget _bottom(BuildContext context) => Padding(
+    // The chat box is a panel across the whole width.
+    // Ref 147: the outer circles 8 pt from the edges (5 + the 44 pt
+    // target's 3.25 pt margin).
+    padding: composer == null
+        ? const EdgeInsets.fromLTRB(5, 2, 5, 0)
+        : EdgeInsets.zero,
+    child: composer != null
+        ? ColoredBox(
+            color: LiveChatComposer.panel,
+            child: Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.paddingOf(context).bottom,
+              ),
+              child: composer,
+            ),
+          )
+        // Ref 147: equal circles, 46 pt apart.
+        : LayoutBuilder(
+            builder: (context, box) {
+              // D166: a seated moderator's bar (games added) can hold more
+              // 48 pt buttons than a narrow phone has room for: it then
+              // scrolls sideways instead of overflowing or shrinking the
+              // touch targets.
+              int gaps(List<Widget> group) => math.max(0, group.length - 1);
+              final needed =
+                  (barStart.length + barEnd.length) * KAudioRoom.barTarget +
+                  2 * (gaps(barStart) + gaps(barEnd));
+              if (barLead == null && needed > box.maxWidth) {
+                return SingleChildScrollView(
+                  key: crowdedBarKey,
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      ..._spaced(barStart),
+                      const SizedBox(width: KSpacing.sm),
+                      ..._spaced(barEnd),
+                    ],
+                  ),
+                );
+              }
+              return Row(
+                children: [
+                  if (barLead case final lead?) ...[
+                    Expanded(child: lead),
+                    const SizedBox(width: 4),
+                  ],
+                  ..._spaced(barStart),
+                  if (barLead == null) const Spacer(),
+                  ..._spaced(barEnd),
+                ],
+              );
+            },
+          ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final cinema = screen != null;
+    return AnimatedSwitcher(
+      duration: KMotion.of(context, KMotion.base),
+      child: cinema
+          ? KeyedSubtree(key: cinemaKey, child: _cinema(context))
+          : KeyedSubtree(
+              key: const ValueKey('audioRoom.rows'),
+              child: _rows(context),
+            ),
+    );
+  }
+
+  Widget _rows(BuildContext context) {
+    final slot = _slot();
     return Padding(
       // The keyboard pushes the room up (the screen does not resize).
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
@@ -247,45 +392,7 @@ class LiveAudioRoomLayout extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Ref 147 (430 pt): the room card 10.5 pt from the edge, the
-            // last top circle 10 pt from the other edge (6 + its 39 pt
-            // target's 4 pt margin); the chips 10 pt under the card, the
-            // viewers chip 10 pt from the edge. D141: the card's top
-            // [KMetrics.liveHeaderGap] under the status bar, as the video
-            // live's host pill (the 48 pt row centres the card).
-            Padding(
-              padding: const EdgeInsetsDirectional.fromSTEB(
-                10.5,
-                headerTop,
-                6,
-                0,
-              ),
-              child: header,
-            ),
-            if (chips != null)
-              Padding(
-                padding: const EdgeInsetsDirectional.fromSTEB(10.5, 10, 10, 0),
-                child: chips,
-              ),
-            // D166: the cinema screen; the seats slide down as it opens.
-            AnimatedSize(
-              duration: KMotion.of(context, KMotion.base),
-              curve: Curves.easeInOut,
-              alignment: Alignment.topCenter,
-              child: switch (screen) {
-                final screen? => Padding(
-                  key: screenKey,
-                  padding: const EdgeInsets.fromLTRB(
-                    screenMargin,
-                    screenMargin,
-                    screenMargin,
-                    0,
-                  ),
-                  child: screen,
-                ),
-                null => const SizedBox(width: double.infinity),
-              },
-            ),
+            ..._top(),
             // The seats (scrolling when they do not fit), then the chat low on
             // the start side, at most 40 % of the height (ref 83).
             Expanded(
@@ -296,146 +403,154 @@ class LiveAudioRoomLayout extends StatelessWidget {
                     // D123: the seats keep one size in every room; when
                     // they do not fit above the chat, they scroll.
                     Expanded(
-                      child: screen == null
-                          ? SingleChildScrollView(
-                              padding: const EdgeInsets.fromLTRB(4, 58, 4, 8),
-                              child: stage,
-                            )
-                          // D166: under the screen every seat shows at once
-                          // (scaled down to fit, still tappable).
-                          : LayoutBuilder(
-                              builder: (context, area) => Padding(
-                                key: cinemaSeatsKey,
-                                padding: const EdgeInsets.fromLTRB(4, 8, 4, 4),
-                                child: FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  alignment: Alignment.topCenter,
-                                  child: SizedBox(
-                                    width: math.max(0, area.maxWidth - 8),
-                                    child: stage,
-                                  ),
-                                ),
-                              ),
-                            ),
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(4, 58, 4, 8),
+                        child: stage,
+                      ),
                     ),
                     if (chat.isNotEmpty || slot != null)
                       ConstrainedBox(
                         constraints: BoxConstraints(
-                          // D166: under the cinema screen the seats need
-                          // the room; the chat keeps 30 %.
-                          maxHeight:
-                              box.maxHeight * (screen == null ? 0.4 : 0.3),
+                          maxHeight: box.maxHeight * 0.4,
                         ),
                         // The end slot (promo box or combo) beside the
                         // chat: the chat narrows for it and the seats end
                         // above it.
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Expanded(
-                              child: Padding(
-                                padding: EdgeInsetsDirectional.fromSTEB(
-                                  8,
-                                  0,
-                                  slot == null ? 8 : promoGap,
-                                  6,
-                                ),
-                                child: KTopReporter(
-                                  onTop: onChatTop,
-                                  child: SingleChildScrollView(
-                                    reverse: true,
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        for (final line in chat)
-                                          Padding(
-                                            padding: const EdgeInsets.only(
-                                              top: 4,
-                                            ),
-                                            child: line,
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            if (slot != null)
-                              Padding(
-                                padding: const EdgeInsetsDirectional.only(
-                                  end: promoEnd,
-                                  bottom: promoGap,
-                                ),
-                                child: slot,
-                              ),
-                          ],
-                        ),
+                        child: _chatRow(slot),
                       ),
                   ],
                 ),
               ),
             ),
-            Padding(
-              // The chat box is a panel across the whole width.
-              // Ref 147: the outer circles 8 pt from the edges (5 + the
-              // 44 pt target's 3.25 pt margin).
-              padding: composer == null
-                  ? const EdgeInsets.fromLTRB(5, 2, 5, 0)
-                  : EdgeInsets.zero,
-              child: composer != null
-                  ? ColoredBox(
-                      color: LiveChatComposer.panel,
-                      child: Padding(
-                        padding: EdgeInsets.only(
-                          bottom: MediaQuery.paddingOf(context).bottom,
-                        ),
-                        child: composer,
-                      ),
-                    )
-                  // Ref 147: equal circles, 46 pt apart.
-                  : LayoutBuilder(
-                      builder: (context, box) {
-                        // D166: a seated moderator's bar (games added) can
-                        // hold more 48 pt buttons than a narrow phone has
-                        // room for: it then scrolls sideways instead of
-                        // overflowing or shrinking the touch targets.
-                        int gaps(List<Widget> group) =>
-                            math.max(0, group.length - 1);
-                        final needed =
-                            (barStart.length + barEnd.length) *
-                                KAudioRoom.barTarget +
-                            2 * (gaps(barStart) + gaps(barEnd));
-                        if (barLead == null && needed > box.maxWidth) {
-                          return SingleChildScrollView(
-                            key: crowdedBarKey,
-                            scrollDirection: Axis.horizontal,
-                            child: Row(
-                              children: [
-                                ..._spaced(barStart),
-                                const SizedBox(width: KSpacing.sm),
-                                ..._spaced(barEnd),
-                              ],
-                            ),
-                          );
-                        }
-                        return Row(
-                          children: [
-                            if (barLead case final lead?) ...[
-                              Expanded(child: lead),
-                              const SizedBox(width: 4),
-                            ],
-                            ..._spaced(barStart),
-                            if (barLead == null) const Spacer(),
-                            ..._spaced(barEnd),
-                          ],
-                        );
-                      },
-                    ),
-            ),
+            _bottom(context),
           ],
         ),
+      ),
+    );
+  }
+
+  /// D166: the cinema — the picture, the player on its screen, the seats on
+  /// its seat backs, the header on top and the chat and the bar low.
+  Widget _cinema(BuildContext context) => LayoutBuilder(
+    builder: (context, box) {
+      final size = box.biggest;
+      final rtl = Directionality.of(context) == TextDirection.rtl;
+      final top = cinemaMinScreenTop(context);
+      Rect place(Rect fraction) =>
+          LiveCinema.place(fraction, size, minScreenTop: top);
+      final screenRect = place(LiveCinema.screen);
+      final seatsBottom = LiveCinema.seatsBottom(size, minScreenTop: top);
+      final keyboard = MediaQuery.viewInsetsOf(context).bottom;
+      final seat = cinemaSeat;
+      final slot = _slot();
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          const ColoredBox(color: LiveCinema.ceiling),
+          Positioned.fromRect(
+            rect: place(const Rect.fromLTRB(0, 0, 1, 1)),
+            child: Image.asset(
+              LiveCinema.asset,
+              key: cinemaPictureKey,
+              fit: BoxFit.fill,
+              excludeFromSemantics: true,
+            ),
+          ),
+          Positioned.fromRect(rect: screenRect, child: screen!),
+          if (screenBar case final bar?)
+            Positioned(
+              left: screenRect.left,
+              width: screenRect.width,
+              top: screenRect.bottom + 4,
+              child: bar,
+            ),
+          if (seat != null)
+            for (
+              var i = 0;
+              i < math.min(cinemaSeats, LiveCinema.seatCount);
+              i++
+            )
+              _cinemaSeat(
+                place(LiveCinema.seatFraction(i, rtl: rtl)),
+                i,
+                seat(i),
+              ),
+          // The header and the chips over the picture's ceiling.
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            child: SafeArea(
+              bottom: false,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: _top(),
+              ),
+            ),
+          ),
+          // The chat on the carpet, then the bar (or the chat box over the
+          // keyboard).
+          Positioned(
+            left: 0,
+            right: 0,
+            top: composer == null ? seatsBottom + 4 : null,
+            bottom: keyboard,
+            child: SafeArea(
+              top: false,
+              bottom: composer == null,
+              child: Column(
+                mainAxisSize: composer == null
+                    ? MainAxisSize.max
+                    : MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (composer == null && (chat.isNotEmpty || slot != null))
+                    Expanded(child: _chatRow(slot))
+                  else if (composer == null)
+                    const Spacer(),
+                  _bottom(context),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+    },
+  );
+
+  /// Where the drawn screen may start at the earliest: under the header row
+  /// and the chips (they scale with the text, up to the overlay cap).
+  static double cinemaMinScreenTop(BuildContext context) {
+    final scaler = MediaQuery.textScalerOf(context)
+        .clamp(maxScaleFactor: KMetrics.overlayMaxTextScale);
+    return MediaQuery.paddingOf(context).top +
+        headerTop +
+        KSizes.minTouchTarget +
+        10 +
+        scaler.scale(KAudioRoom.chipHeight) +
+        6;
+  }
+
+  /// A person's tile on a drawn seat back: the picture like the mic seat's
+  /// (at most [cinemaPictureShare] of the back), centred on the back's upper
+  /// part, the name under it on the seat.
+  Widget _cinemaSeat(Rect back, int index, Widget tile) {
+    final picture = math.min(
+      AudioSeatRing.picture,
+      back.width * cinemaPictureShare,
+    );
+    final scale = picture / AudioSeatRing.picture;
+    final width = AudioSeatRing.tileWidth * scale;
+    final centreY = back.top + back.height * cinemaPictureCentre;
+    return Positioned(
+      key: cinemaSeatKey(index),
+      left: back.center.dx - width / 2,
+      top: centreY - picture / 2 - AudioSeatRing.pictureTop * scale,
+      width: width,
+      child: FittedBox(
+        fit: BoxFit.fitWidth,
+        alignment: Alignment.topCenter,
+        child: tile,
       ),
     );
   }

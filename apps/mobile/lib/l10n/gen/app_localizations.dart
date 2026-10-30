@@ -10964,6 +10964,18 @@ abstract class AppLocalizations {
   /// **'نعمل على إضافة ألعاب تلعبها داخل البث، وهي غير متاحة بعد.'**
   String get liveGamesSoonBody;
 
+  /// D166: the audio room became a cinema (YouTube together) with 10 seats.
+  ///
+  /// In ar, this message translates to:
+  /// **'وضع السينما يتسع لـ 10 مقاعد: تم نقلك إلى المقعد {seat}.'**
+  String liveCinemaMoved(int seat);
+
+  /// D166: the audio room became a cinema (YouTube together) with 10 seats.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إنزالك من المقعد لأن وضع السينما يتسع لـ 10 مقاعد فقط.'**
+  String get liveCinemaOffSeat;
+
   /// D166: the guest (∞) button of the viewer's video live bar.
   ///
   /// In ar, this message translates to:

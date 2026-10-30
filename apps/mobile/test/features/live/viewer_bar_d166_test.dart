@@ -13,6 +13,7 @@ import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/domain/live_watch.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_cinema.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_games_sheet.dart';
@@ -80,7 +81,7 @@ final LiveSeats _multiSeats = LiveSeats(
   ),
 );
 
-Future<void> _pump(
+Future<FakeLiveRepository> _pump(
   WidgetTester tester, {
   LiveRoomMode mode = LiveRoomMode.solo,
   List<LiveWishGift> wishes = const [],
@@ -93,6 +94,7 @@ Future<void> _pump(
   LiveSeats? seats,
   int seatCount = 10,
   LiveWatch? watch,
+  FakeLiveMediaEngine? engine,
 }) async {
   setViewport(tester, viewport);
   if (textScale != 1) {
@@ -100,36 +102,30 @@ Future<void> _pump(
     addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
   }
   await tester.pumpWidget(const SizedBox.shrink());
+  final repo = FakeLiveRepository(
+    room: (id) {
+      final room = apiRoom(
+        id: id,
+        ar: language == AppLanguage.ar,
+      ).copyWith(wishGifts: wishes, score: score);
+      return switch (mode) {
+        LiveRoomMode.audio => room.copyWith(mode: mode, seatCount: seatCount),
+        LiveRoomMode.multi => room.copyWith(mode: mode, seatCount: 6),
+        _ => room,
+      };
+    },
+  )..seatState = seats ?? (mode == LiveRoomMode.multi ? _multiSeats : null);
   await pumpScreen(
     tester,
     const LiveRoomScreen(roomId: 'room-0'),
     language: language,
-    liveMediaEngine: FakeLiveMediaEngine()..present.add('user-0'),
+    liveMediaEngine: engine ?? (FakeLiveMediaEngine()..present.add('user-0')),
     liveGiftRepository: FakeLiveGiftRepository(codes: giftFixtureCodes),
     homeBannersRepository: FakeHomeBannersRepository(roomBanners: roomBanners),
     liveWatchRepository: FakeLiveWatchRepository()
       ..watches.addAll({'room-0': ?watch}),
     overrides: [
-      liveRepositoryProvider.overrideWithValue(
-        FakeLiveRepository(
-            room: (id) {
-              final room = apiRoom(
-                id: id,
-                ar: language == AppLanguage.ar,
-              ).copyWith(wishGifts: wishes, score: score);
-              return switch (mode) {
-                LiveRoomMode.audio => room.copyWith(
-                  mode: mode,
-                  seatCount: seatCount,
-                ),
-                LiveRoomMode.multi => room.copyWith(mode: mode, seatCount: 6),
-                _ => room,
-              };
-            },
-          )
-          ..seatState =
-              seats ?? (mode == LiveRoomMode.multi ? _multiSeats : null),
-      ),
+      liveRepositoryProvider.overrideWithValue(repo),
       profileRepositoryProvider.overrideWithValue(
         FakeProfileRepository(apiProfile()),
       ),
@@ -137,6 +133,7 @@ Future<void> _pump(
     ],
   );
   await tester.pumpAndSettle();
+  return repo;
 }
 
 Future<void> _leave(WidgetTester tester) async {
@@ -441,11 +438,11 @@ void main() {
 
     for (final viewport in GoldenViewport.values) {
       for (final language in AppLanguage.values) {
-        for (final count in [5, 10, 15, 20, 25]) {
-          testWidgets('$count seats: the player is the screen at the top '
-              '(full width, 16:9) and every seat is under it, visible and '
-              'tappable, above the chat and the bar (${language.name}, '
-              '${viewport.name}, text 1.3)', (tester) async {
+        for (final count in [5, 10, 15, 20]) {
+          testWidgets("$count seats: the owner's cinema — the player exactly "
+              'on the drawn screen, the first ${count < 10 ? count : 10} seats '
+              'on the drawn seat backs, the chat on the carpet over the bar '
+              '(${language.name}, ${viewport.name}, text 1.3)', (tester) async {
             await _pump(
               tester,
               mode: LiveRoomMode.audio,
@@ -457,71 +454,166 @@ void main() {
             );
             expect(tester.takeException(), isNull);
             final size = viewport.logicalSize;
-            final card = tester.getRect(find.byKey(LiveWatchLayer.cardKey));
+            final rtl = language == AppLanguage.ar;
             expect(
-              card.width,
-              closeTo(size.width - 2 * LiveAudioRoomLayout.screenMargin, 0.5),
+              find.byKey(LiveAudioRoomLayout.cinemaPictureKey),
+              findsOneWidget,
             );
-            // Under the header and the chips.
-            final chips = tester.getRect(find.byType(LiveRankChip));
-            expect(card.top, greaterThan(chips.bottom));
-            final player = tester.getRect(
-              find.byKey(const ValueKey('watch.player.false')),
+            final top = LiveAudioRoomLayout.cinemaMinScreenTop(
+              tester.element(find.byType(LiveAudioRoomLayout)),
             );
+            final drawn = LiveCinema.place(
+              LiveCinema.screen,
+              size,
+              minScreenTop: top,
+            );
+            final player = tester.getRect(find.byKey(LiveWatchLayer.cardKey));
+            expect(player.left, closeTo(drawn.left, 0.5));
+            expect(player.top, closeTo(drawn.top, 0.5));
+            expect(player.width, closeTo(drawn.width, 0.5));
+            expect(player.height, closeTo(drawn.height, 0.5));
             expect(player.width / player.height, closeTo(16 / 9, 0.02));
+            // The header and its chips stay above the screen.
+            final chips = tester.getRect(find.byType(LiveRankChip));
+            expect(chips.bottom, lessThan(player.top));
+            final shown = count < 10 ? count : 10;
             final bar = tester.getRect(find.byKey(AudioRoomViewKeys.gift));
-            for (var i = 0; i < count; i++) {
+            for (var i = 0; i < shown; i++) {
               final seat = find.byKey(AudioSeatRing.seatKey(i));
               expect(seat.hitTestable(), findsOneWidget, reason: 'seat $i');
+              final back = LiveCinema.place(
+                LiveCinema.seatFraction(i, rtl: rtl),
+                size,
+                minScreenTop: top,
+              );
               final r = tester.getRect(seat);
-              expect(r.top, greaterThanOrEqualTo(card.bottom), reason: '$i');
-              expect(r.bottom, lessThan(bar.top), reason: '$i');
-              expect(r.left, greaterThanOrEqualTo(0), reason: '$i');
-              expect(r.right, lessThanOrEqualTo(size.width), reason: '$i');
-              // Big rooms take the compact cinema rows (no points pills),
-              // so a seat stays a usable size.
-              expect(r.width, greaterThanOrEqualTo(30), reason: '$i');
+              expect(
+                (r.center.dx - back.center.dx).abs(),
+                lessThan(1),
+                reason: 'seat $i on its drawn seat',
+              );
+              expect(r.top, greaterThanOrEqualTo(back.top - 1), reason: '$i');
+              expect(r.width, greaterThanOrEqualTo(40), reason: '$i');
             }
-            expect(
-              tester.widget<AudioSeatRing>(find.byType(AudioSeatRing)).compact,
-              count > 10,
-            );
-            // The chat keeps its place over the bar.
+            // Only the 10 drawn seats; a smaller room leaves the others
+            // empty (nothing to tap).
+            expect(find.byKey(AudioSeatRing.seatKey(shown)), findsNothing);
+            // The chat keeps its place over the bar, under the seats.
             final chat = find.byType(LiveRoomChatLines);
             expect(chat, findsOneWidget);
-            expect(tester.getRect(chat).bottom, lessThanOrEqualTo(bar.top));
+            // (the lines scroll inside the area under the seats)
+            final c = tester.getRect(
+              find.ancestor(of: chat, matching: find.byType(Scrollable)).first,
+            );
+            expect(
+              c.top,
+              greaterThanOrEqualTo(
+                LiveCinema.seatsBottom(size, minScreenTop: top),
+              ),
+            );
+            expect(c.bottom, lessThanOrEqualTo(bar.top));
             await _leave(tester);
           });
         }
       }
     }
 
-    testWidgets('hidden on this phone: the circle layout comes back '
-        '(animated) with the «show» pill; shown again: the cinema', (
-      tester,
-    ) async {
+    testWidgets('hidden on this phone: the circle rows come back with the '
+        '«show» pill; shown again: the cinema', (tester) async {
       await _pump(tester, mode: LiveRoomMode.audio, watch: playing());
-      expect(find.byKey(LiveAudioRoomLayout.cinemaSeatsKey), findsOneWidget);
+      expect(find.byKey(LiveAudioRoomLayout.cinemaKey), findsOneWidget);
       await tester.tap(find.byKey(LiveWatchLayer.hideKey));
-      await tester.pump();
-      // The screen shrinks away over the room's motion time.
-      expect(find.byKey(LiveAudioRoomLayout.cinemaSeatsKey), findsNothing);
       await tester.pumpAndSettle();
+      expect(find.byKey(LiveAudioRoomLayout.cinemaKey), findsNothing);
       expect(find.byKey(LiveWatchLayer.cardKey), findsNothing);
       expect(find.byKey(LiveWatchLayer.showKey), findsOneWidget);
+      expect(find.byKey(AudioSeatRing.seatKey(9)), findsOneWidget);
       await tester.tap(find.byKey(LiveWatchLayer.showKey));
       await tester.pumpAndSettle();
-      expect(find.byKey(LiveWatchLayer.cardKey), findsOneWidget);
-      expect(find.byKey(LiveAudioRoomLayout.cinemaSeatsKey), findsOneWidget);
+      expect(find.byKey(LiveAudioRoomLayout.cinemaKey), findsOneWidget);
       await _leave(tester);
     });
 
-    testWidgets('no video: the normal rows (no screen)', (tester) async {
+    testWidgets('no video: the normal rows (no picture, no player)', (
+      tester,
+    ) async {
       await _pump(tester, mode: LiveRoomMode.audio);
-      expect(find.byKey(LiveAudioRoomLayout.cinemaSeatsKey), findsNothing);
+      expect(find.byKey(LiveAudioRoomLayout.cinemaKey), findsNothing);
       expect(find.byKey(LiveWatchLayer.cardKey), findsNothing);
       await _leave(tester);
     });
+
+    for (final language in AppLanguage.values) {
+      testWidgets('someone on seat 12 when the cinema starts is told where '
+          'they went: moved to seat 3, or off the seat (${language.name})', (
+        tester,
+      ) async {
+        final me = testUser();
+        final engine = FakeLiveMediaEngine()..present.add('user-0');
+        LiveSeats mine(int? seat, int version) => LiveSeats(
+          roomId: 'room-0',
+          mode: LiveRoomMode.audio,
+          version: version,
+          seatCount: 15,
+          seats: [
+            for (var i = 1; i < 15; i++)
+              LiveSeat(
+                index: i,
+                state: i == seat ? LiveSeatState.taken : LiveSeatState.empty,
+                user: i == seat
+                    ? UserSummary(
+                        id: me.id,
+                        username: me.username,
+                        displayName: me.displayName,
+                        avatarUrl: null,
+                      )
+                    : null,
+              ),
+          ],
+          moderators: const [],
+          mine: LiveSeatsMine(
+            role: seat == null ? LiveSeatRole.viewer : LiveSeatRole.seated,
+            seatIndex: seat,
+            request: null,
+            invite: null,
+          ),
+        );
+        final repo = await _pump(
+          tester,
+          mode: LiveRoomMode.audio,
+          seatCount: 15,
+          watch: playing(),
+          language: language,
+          seats: mine(12, 1),
+          engine: engine,
+        );
+        final l10n = l10nFor(language);
+        repo.seatState = mine(3, 2);
+        engine
+          ..version = 2
+          ..ping();
+        await tester.pumpAndSettle();
+        expect(find.text(l10n.liveCinemaMoved(3)), findsOneWidget);
+        await tester.pump(const Duration(seconds: 5));
+        await tester.pumpAndSettle();
+        // Back on 12 (a fixture jump), then off the seat.
+        repo.seatState = mine(12, 3);
+        engine
+          ..version = 3
+          ..ping();
+        await tester.pumpAndSettle();
+        await tester.pump(const Duration(seconds: 5));
+        await tester.pumpAndSettle();
+        repo.seatState = mine(null, 4);
+        engine
+          ..version = 4
+          ..ping();
+        await tester.pumpAndSettle();
+        expect(find.text(l10n.liveCinemaOffSeat), findsOneWidget);
+        await tester.pump(const Duration(seconds: 5));
+        await _leave(tester);
+      });
+    }
   });
 
   group('D166 promo box for everyone', () {

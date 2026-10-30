@@ -6316,6 +6316,15 @@ class AppLocalizationsEn extends AppLocalizations {
       'We are adding games you can play in the live. They are not available yet.';
 
   @override
+  String liveCinemaMoved(int seat) {
+    return 'Cinema mode has 10 seats: you were moved to seat $seat.';
+  }
+
+  @override
+  String get liveCinemaOffSeat =>
+      'You left the seat because cinema mode has only 10 seats.';
+
+  @override
   String get liveGuestJoin => 'Join as a guest';
 
   @override

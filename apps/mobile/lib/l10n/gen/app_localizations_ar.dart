@@ -6336,6 +6336,15 @@ class AppLocalizationsAr extends AppLocalizations {
       'نعمل على إضافة ألعاب تلعبها داخل البث، وهي غير متاحة بعد.';
 
   @override
+  String liveCinemaMoved(int seat) {
+    return 'وضع السينما يتسع لـ 10 مقاعد: تم نقلك إلى المقعد $seat.';
+  }
+
+  @override
+  String get liveCinemaOffSeat =>
+      'تم إنزالك من المقعد لأن وضع السينما يتسع لـ 10 مقاعد فقط.';
+
+  @override
   String get liveGuestJoin => 'انضم كضيف';
 
   @override
