@@ -47,6 +47,8 @@ export interface PublicProfileDto {
   links: ProfileLinkDto[];
   /** v1.54-social (D185, §10.48): the user is an ACTIVE recharge agent (the frame, badge and entrance). */
   rechargeAgent: { code: string } | null;
+  /** v1.55-social (D186, §10.49): the avatar frame the user wears now (`AvatarFrame`), or null. */
+  avatarFrame: { code: string; assetKey: string } | null;
 }
 
 /**
@@ -93,6 +95,7 @@ export class PublicProfileService {
       medals,
       profileCard,
       agent,
+      avatarFrame,
     ] = await Promise.all([
       this.follows.counts(user.id),
       isSelf ? Promise.resolve(false) : this.follows.isFollowing(callerId, user.id),
@@ -108,6 +111,8 @@ export class PublicProfileService {
         where: { userId: user.id, status: 'ACTIVE', code: { not: null } },
         select: { code: true },
       }),
+      // v1.55-social (D186): the worn avatar frame (e.g. the active-host frame).
+      this.bag.avatarFrame(user.id),
     ]);
     return {
       id: user.id,
@@ -132,6 +137,7 @@ export class PublicProfileService {
       category: user.category,
       links: user.links,
       rechargeAgent: agent?.code ? { code: agent.code } : null,
+      avatarFrame,
     };
   }
 }

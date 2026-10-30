@@ -4,10 +4,12 @@ import { AuditAction, AuditService } from '../../common/audit/audit.service.js';
 import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
 import { zodErrorToDetails } from '../../common/validation/zod-validation.pipe.js';
+import { Clock } from '../../common/time/clock.js';
 import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { isUuid } from '../auth/tokens.js';
+import { syncHostFrameIn } from '../economy/host-frames.js';
 import { MediaService } from '../media/media.service.js';
 import { containsReservedTerm } from './confusables.js';
 import type { AccountCategory, Gender, ProfileLinkInput } from './profile-fields.js';
@@ -55,6 +57,7 @@ export class ProfileEditService {
     private readonly users: UsersService,
     private readonly media: MediaService,
     private readonly audit: AuditService,
+    private readonly clock: Clock,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
@@ -99,7 +102,17 @@ export class ProfileEditService {
       if (input.displayName !== undefined && input.displayName !== before.display_name)
         fields.push('displayName');
       if (input.bio !== undefined && input.bio !== before.bio) fields.push('bio');
-      if (input.gender !== undefined && input.gender !== before.gender) fields.push('gender');
+      if (input.gender !== undefined && input.gender !== before.gender) {
+        fields.push('gender');
+        // v1.55-social (D186, §10.49): the active-host frame follows the gender (blue / pink), worn stays worn.
+        await syncHostFrameIn(
+          tx,
+          userId,
+          this.clock.now(),
+          this.config.economy,
+          this.config.live.rankingsTimeZone,
+        );
+      }
       if (input.showGender !== undefined && input.showGender !== before.show_gender)
         fields.push('showGender');
       if (input.category !== undefined && input.category !== before.account_category) fields.push('category');

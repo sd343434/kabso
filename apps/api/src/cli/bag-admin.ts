@@ -14,6 +14,9 @@
  *   pnpm bag:admin revoke <email> <code>   # takes it back (worn → the user wears nothing there)
  *   pnpm bag:admin list   <email>          # the user's items; `*` marks the worn ones
  *
+ * The active-host frames (`host_frame_blue`, `host_frame_pink`, v1.55-social, D186) are refused: the
+ * server gives and takes them with the host's activity (`pnpm economy:admin agency-evaluate`).
+ *
  * Every grant and revoke that changes something writes an audit_logs row (`bag.grant` /
  * `bag.revoke`) in the same transaction. Granting an item the user owns permanently changes
  * nothing (exit 0); revoking one they do not own fails (exit 1).
@@ -28,7 +31,7 @@ import {
   lockItemHoldersIn,
   revokeItemIn,
 } from '../modules/bag/bag-grants.js';
-import { BAG_DAY_MS, BAG_MAX_DAYS } from '../modules/bag/bag.catalogue.js';
+import { BAG_DAY_MS, BAG_MAX_DAYS, HOST_FRAME_CODES } from '../modules/bag/bag.catalogue.js';
 
 function fail(message: string): never {
   process.stderr.write(`${message}\n`);
@@ -41,6 +44,13 @@ const USAGE =
 const url = process.env.MIGRATION_DATABASE_URL;
 if (!url) fail('MIGRATION_DATABASE_URL is not set (the migration role changes bags).');
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: url, max: 1 }) });
+
+/** D186: the active-host frames follow the host's activity only. */
+function refuseHostFrame(code: string): void {
+  if (Object.values<string>(HOST_FRAME_CODES).includes(code)) {
+    fail(`${code} follows the host's activity (D186); run \`pnpm economy:admin agency-evaluate\` instead.`);
+  }
+}
 
 async function user(email: string): Promise<string> {
   const row = await prisma.user.findUnique({
@@ -61,6 +71,7 @@ function parseDays(arg: string | undefined): number | null {
 }
 
 async function grant(email: string, code: string, daysArg: string | undefined): Promise<void> {
+  refuseHostFrame(code);
   const days = parseDays(daysArg);
   const userId = await user(email);
   const outcome = await prisma.$transaction(async (tx) => {
@@ -109,6 +120,7 @@ async function grant(email: string, code: string, daysArg: string | undefined): 
 }
 
 async function revoke(email: string, code: string): Promise<void> {
+  refuseHostFrame(code);
   const userId = await user(email);
   const wasEquipped = await prisma.$transaction(async (tx) => {
     const result = await revokeItemIn(tx, userId, code);

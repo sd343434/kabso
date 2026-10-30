@@ -905,6 +905,9 @@ describe('KL-037 public profile and follow', () => {
       gender: null,
       category: null,
       links: [],
+      // v1.54-social (D185): not a recharge agent; v1.55-social (D186): no avatar frame worn.
+      rechargeAgent: null,
+      avatarFrame: null,
     });
     const self = await profile(target, target.username);
     expectContract(self, 'getPublicProfile');

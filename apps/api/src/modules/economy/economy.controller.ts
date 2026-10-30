@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Headers, Param, Post, Query, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Post, Put, Query, Req, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { languageFromAcceptLanguage } from '../../common/http/content-language.js';
 import type { AppRequest, AuthContext } from '../../common/http/request-context.js';
+import { byUserId, RateLimit } from '../../common/rate-limit/rate-limit.decorator.js';
 import { ZodValidationPipe } from '../../common/validation/zod-validation.pipe.js';
 import { CurrentAuth } from '../auth/current-auth.decorator.js';
 import type { PageDto } from '../posts/post-views.js';
@@ -20,11 +21,17 @@ import {
   type CherryWalletDto,
   type CherryWithdrawalDto,
 } from './cherries.service.js';
+import {
+  HostFrameService,
+  hostFrameStyleBodySchema,
+  type HostFrameDto,
+  type HostFrameStyleBody,
+} from './host-frame.service.js';
 
 /**
  * The cherry economy (contract v1.52-social draft, D179, CONVENTIONS §10.46): the caller's cherries and
- * withdrawal requests (tag `wallet`) and host agencies (tag `agency`). Every route uses the per-user
- * default rate limit.
+ * withdrawal requests (tag `wallet`) and host agencies (tag `agency`); v1.55-social (D186) the active-host
+ * frame (tag `agency`). Every route uses the per-user default rate limit except the frame style choice.
  */
 @Controller()
 export class EconomyController {
@@ -32,6 +39,7 @@ export class EconomyController {
     private readonly cherries: CherriesService,
     private readonly agencies: AgencyService,
     private readonly users: UsersService,
+    private readonly hostFrames: HostFrameService,
   ) {}
 
   @Get('wallet/me/cherries')
@@ -121,5 +129,21 @@ export class EconomyController {
     @Query(new ZodValidationPipe(pageQuerySchema)) query: PageQuery,
   ): Promise<PageDto<AgencyHostDto>> {
     return this.agencies.hosts(auth.userId, query);
+  }
+
+  /** v1.55-social (D186): the caller's active-host frame. Per-user default rate limit. */
+  @Get('me/host-frame')
+  hostFrame(@CurrentAuth() auth: AuthContext): Promise<HostFrameDto> {
+    return this.hostFrames.mine(auth.userId);
+  }
+
+  /** v1.55-social (D186): a host without a stated gender picks the style. 60 / hour (bucket `host-frame:style`). */
+  @Put('me/host-frame/style')
+  @RateLimit({ bucket: 'host-frame:style', rule: 'familyWriteUser', key: byUserId, replacesDefault: true })
+  chooseHostFrame(
+    @CurrentAuth() auth: AuthContext,
+    @Body(new ZodValidationPipe(hostFrameStyleBodySchema)) body: HostFrameStyleBody,
+  ): Promise<HostFrameDto> {
+    return this.hostFrames.choose(auth.userId, body);
   }
 }

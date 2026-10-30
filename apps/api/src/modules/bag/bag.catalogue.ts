@@ -15,17 +15,19 @@ export const BAG_CATEGORIES: readonly BagCategory[] = ['PROFILE_CARD', 'AVATAR_F
 
 /**
  * How a user got an item (`bag_item_source`); LEVEL_REWARD (v1.46-levels, D169): given when a level
- * is reached; `GIFT` (v1.48-social, D171): sent by another user.
+ * is reached; `GIFT` (v1.48-social, D171): sent by another user; `HOST_ACTIVE` (v1.55-social, D186):
+ * the active-host frame, kept only while the user is an active agency host.
  */
-export type BagItemSource = 'FREE_SIGNUP' | 'BACKFILL' | 'ADMIN' | 'LEVEL_REWARD' | 'GIFT';
+export type BagItemSource = 'FREE_SIGNUP' | 'BACKFILL' | 'ADMIN' | 'LEVEL_REWARD' | 'GIFT' | 'HOST_ACTIVE';
 
 /** One day, the unit of a partial send and of an admin grant (§10.45). */
 export const BAG_DAY_MS = 24 * 3600_000;
 /**
  * Sources whose items cannot be sent (v1.48-social, D171): `LEVEL_REWARD` (D169's support-tier
- * frames, earned by the person's own level). Free items are not transferable either.
+ * frames, earned by the person's own level) and `HOST_ACTIVE` (v1.55-social, D186: the active-host
+ * frame, the server's while the host stays active). Free items are not transferable either.
  */
-export const NON_TRANSFERABLE_SOURCES: ReadonlySet<string> = new Set(['LEVEL_REWARD']);
+export const NON_TRANSFERABLE_SOURCES: ReadonlySet<string> = new Set(['LEVEL_REWARD', 'HOST_ACTIVE']);
 
 /** Whether an owned item may be sent: not free, not a level reward. */
 export function isTransferable(free: boolean, source: string): boolean {
@@ -42,7 +44,8 @@ export interface BagItemDef {
   readonly nameEn: string;
   /**
    * The app's asset (`apps/mobile/assets/profile_card/<assetKey>.svga` for a profile card,
-   * `apps/mobile/assets/levels/support_frames/<assetKey>.webp` for a support frame).
+   * `apps/mobile/assets/levels/support_frames/<assetKey>.webp` for a support frame,
+   * `apps/mobile/assets/host_frames/<assetKey>.webp` for an active-host frame).
    */
   readonly assetKey: string;
   readonly sortOrder: number;
@@ -68,6 +71,37 @@ const SUPPORT_FRAMES: readonly BagItemDef[] = Array.from({ length: SUPPORT_FRAME
   sortOrder: (i + 1) * 10,
   free: false,
 }));
+
+/** v1.55-social (D186): the style of the active-host frame (male → blue, female → pink, else chosen). */
+export type HostFrameStyle = 'BLUE' | 'PINK';
+
+/** The bag code (and assetKey) of the active-host frame of `style` (D186). */
+export const HOST_FRAME_CODES: Readonly<Record<HostFrameStyle, string>> = {
+  BLUE: 'host_frame_blue',
+  PINK: 'host_frame_pink',
+};
+
+/** The active-host frames (D186), shown before the support frames. */
+const HOST_FRAMES: readonly BagItemDef[] = [
+  {
+    code: HOST_FRAME_CODES.BLUE,
+    category: 'AVATAR_FRAME',
+    nameAr: 'إطار المضيف الأزرق',
+    nameEn: 'Blue host frame',
+    assetKey: HOST_FRAME_CODES.BLUE,
+    sortOrder: 1,
+    free: false,
+  },
+  {
+    code: HOST_FRAME_CODES.PINK,
+    category: 'AVATAR_FRAME',
+    nameAr: 'إطار المضيف الوردي',
+    nameEn: 'Pink host frame',
+    assetKey: HOST_FRAME_CODES.PINK,
+    sortOrder: 2,
+    free: false,
+  },
+];
 
 export const BAG_CATALOGUE: readonly BagItemDef[] = [
   {
@@ -107,4 +141,5 @@ export const BAG_CATALOGUE: readonly BagItemDef[] = [
     free: false,
   },
   ...SUPPORT_FRAMES,
+  ...HOST_FRAMES,
 ];

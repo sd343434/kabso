@@ -149,6 +149,7 @@ model User {
   bagItems               UserBagItem[]              @relation("BagItemOwner")
   /// v1.48-social (D171): bag items this user sent (as the latest giver) and the transfer ledger.
   bagItemsGifted         UserBagItem[]              @relation("BagItemGiftedBy")
+  hostFrameChoice        HostFrameChoice?
   bagTransfersSent       BagTransfer[]              @relation("BagTransferSender")
   bagTransfersRecvd      BagTransfer[]              @relation("BagTransferRecipient")
   // v1.23-live (CP-020, D108): live gifts and the gift bag.
@@ -2463,6 +2464,8 @@ enum BagItemSource {
   LEVEL_REWARD
   /// v1.48-social (D171): sent by another user (`gifted_by_user_id`).
   GIFT
+  /// v1.55-social (D186): the active-host frame, kept while the user is an active agency host (never sent).
+  HOST_ACTIVE
 
   @@map("bag_item_source")
 }
@@ -2512,7 +2515,28 @@ model UserBagItem {
   @@index([itemCode, category], map: "user_bag_items_item_idx")
   @@index([expiresAt], map: "user_bag_items_expires_idx", where: raw("(expires_at IS NOT NULL)"))
   @@index([giftedById], map: "user_bag_items_gifted_by_idx")
+  @@index([userId], map: "user_bag_items_host_active_idx", where: raw("(source = 'HOST_ACTIVE'::bag_item_source)"))
   @@map("user_bag_items")
+}
+
+/// v1.55-social (D186): the style of the active-host frame.
+enum HostFrameStyle {
+  BLUE
+  PINK
+
+  @@map("host_frame_style")
+}
+
+/// v1.55-social (D186, CONVENTIONS §10.49): the frame style a host without a stated gender (none, or
+/// UNDISCLOSED) chose. Ignored while the gender is MALE (blue) or FEMALE (pink).
+model HostFrameChoice {
+  userId    String         @id @map("user_id") @db.Uuid
+  style     HostFrameStyle
+  updatedAt DateTime       @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("host_frame_choices")
 }
 
 /// v1.48-social (D171): the ledger of bag items sent between users (whole or part of the time). Kept

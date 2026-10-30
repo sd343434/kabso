@@ -128,6 +128,12 @@ export enum AuditAction {
   RECHARGE_CHERRY_DECLINE = 'recharge.cherry.decline',
   RECHARGE_CHERRY_CANCEL = 'recharge.cherry.cancel',
   RECHARGE_PURGE = 'recharge.purge',
+  // v1.55-social (DRAFT, D186): the active-host frame (CONVENTIONS §10.49). Grants, revokes and swaps are
+  // the server's (actor null); a choice is the host's.
+  HOST_FRAME_GRANT = 'host_frame.grant',
+  HOST_FRAME_REVOKE = 'host_frame.revoke',
+  HOST_FRAME_SWAP = 'host_frame.swap',
+  HOST_FRAME_CHOICE = 'host_frame.choice',
   // v1.28-live (DRAFT, D146): premium usernames and the username change (CONVENTIONS §10.32).
   USERNAME_CHANGE = 'user.username.change',
   /** v1.45-social (D168): the caller changed their display name and/or bio (field names only). */

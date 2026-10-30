@@ -263,6 +263,15 @@ export class BagService implements OnModuleInit, OnModuleDestroy {
     return row ? { code: row.itemCode, assetKey: row.item.assetKey } : null;
   }
 
+  /** v1.55-social (D186): `PublicProfile.avatarFrame` — the AVATAR_FRAME the user wears now, or null. */
+  async avatarFrame(userId: string): Promise<ProfileCardDto | null> {
+    const row = await this.prisma.userBagItem.findFirst({
+      where: { userId, category: 'AVATAR_FRAME', equipped: true, ...liveWhere(this.clock.now()) },
+      select: { itemCode: true, item: { select: { assetKey: true } } },
+    });
+    return row ? { code: row.itemCode, assetKey: row.item.assetKey } : null;
+  }
+
   /**
    * `POST /me/bag/transfers {code, username, days?}` (v1.48-social, D171, §10.45): sends the whole
    * item (`days` absent / null) or `days × 24 h` of its remaining time to `username`. Order: 404

@@ -60,9 +60,12 @@ export function userSummary(user: {
   /** v1.54-social (D185); absent in older selects. */
   status?: string;
   rechargeAgent?: { status: string; code: string | null } | null;
+  /** v1.55-social (D186); absent in older selects. */
+  bagItems?: readonly WornFrameRow[];
 }): UserSummaryDto {
   const tier = user.profile?.premiumTier;
   const agentCode = rechargeAgentCodeOf(user);
+  const frame = wornAvatarFrameOf(user.bagItems);
   return {
     id: user.id,
     username: user.profile?.username ?? '',
@@ -72,7 +75,25 @@ export function userSummary(user: {
     ...(tier ? { premiumTier: tier } : {}),
     // v1.54-social (D185, §10.48): only while an ACTIVE recharge agent with an active account (the badge).
     ...(agentCode ? { rechargeAgent: { code: agentCode } } : {}),
+    // v1.55-social (D186, §10.49): only while the user wears an avatar frame (live seats draw it).
+    ...(frame ? { avatarFrame: frame } : {}),
   };
+}
+
+/** v1.55-social (D186): a worn AVATAR_FRAME row of {@link USER_SUMMARY_SELECT}. */
+export interface WornFrameRow {
+  readonly itemCode: string;
+  readonly expiresAt: Date | null;
+  readonly item: { readonly assetKey: string };
+}
+
+/** v1.55-social (D186): the avatar frame worn now (`AvatarFrame`), or null (an expired one is not worn). */
+export function wornAvatarFrameOf(
+  rows: readonly WornFrameRow[] | undefined,
+  now: Date = new Date(),
+): { code: string; assetKey: string } | null {
+  const row = rows?.find((r) => r.expiresAt === null || r.expiresAt > now);
+  return row ? { code: row.itemCode, assetKey: row.item.assetKey } : null;
 }
 
 /** v1.54-social (D185): the recharge-agent code to show, or null (not ACTIVE, or the account is not active). */
@@ -92,6 +113,12 @@ export const USER_SUMMARY_SELECT = {
   // v1.54-social (D185): the recharge-agent badge (`UserSummary.rechargeAgent`).
   status: true,
   rechargeAgent: { select: { status: true, code: true } },
+  // v1.55-social (D186): the avatar frame worn (`UserSummary.avatarFrame`; at most one per category).
+  bagItems: {
+    where: { category: 'AVATAR_FRAME', equipped: true },
+    select: { itemCode: true, expiresAt: true, item: { select: { assetKey: true } } },
+    take: 1,
+  },
 } as const;
 
 /**
