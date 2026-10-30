@@ -112,6 +112,8 @@ export interface AppConfig {
     readonly dmSendUser: RateLimitRule;
     readonly dmRequestUser: RateLimitRule;
     readonly dmWriteUser: RateLimitRule;
+    /** v1.46-live (D171): bag item sends (per user). */
+    readonly bagSendUser: RateLimitRule;
     readonly liveHeartbeatUser: RateLimitRule;
     readonly liveEndUser: RateLimitRule;
     readonly followHourUser: RateLimitRule;
@@ -187,6 +189,11 @@ export interface AppConfig {
     readonly deleteForEveryoneSeconds: number;
     /** Percent of a non-lucky gift's value counted for the recipient's charm. */
     readonly giftRecipientSharePercent: number;
+  };
+  /** v1.46-live (D171) the bag (CONVENTIONS §10.41). */
+  readonly bag: {
+    /** Period of the sweeper that deletes expired bag items; 0 = disabled (tests; reads filter them anyway). */
+    readonly sweepIntervalSeconds: number;
   };
   /** v1.29-live (D147) search trends (CONVENTIONS §11.11). */
   readonly searchTrends: {
@@ -365,6 +372,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       dmSendUser: e.RATE_LIMIT_DM_SEND_USER,
       dmRequestUser: e.RATE_LIMIT_DM_REQUEST_USER,
       dmWriteUser: e.RATE_LIMIT_DM_WRITE_USER,
+      bagSendUser: e.RATE_LIMIT_BAG_SEND_USER,
       liveHeartbeatUser: e.RATE_LIMIT_LIVE_HEARTBEAT_USER,
       liveEndUser: e.RATE_LIMIT_LIVE_END_USER,
       followHourUser: e.RATE_LIMIT_FOLLOW_HOUR_USER,
@@ -429,6 +437,9 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       requestMaxMessages: e.DM_REQUEST_MAX_MESSAGES,
       deleteForEveryoneSeconds: e.DM_DELETE_FOR_EVERYONE_SECONDS,
       giftRecipientSharePercent: e.GIFT_DM_RECIPIENT_SHARE_PERCENT,
+    },
+    bag: {
+      sweepIntervalSeconds: e.BAG_SWEEP_INTERVAL_SECONDS,
     },
     searchTrends: {
       minSearchers: e.SEARCH_TRENDING_MIN_SEARCHERS,

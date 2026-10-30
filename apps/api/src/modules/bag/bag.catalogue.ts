@@ -10,8 +10,13 @@ export type BagCategory = 'PROFILE_CARD';
 /** Every category, in display order (only PROFILE_CARD for now; designed to grow). */
 export const BAG_CATEGORIES: readonly BagCategory[] = ['PROFILE_CARD'];
 
-/** How a user got an item (`bag_item_source`). */
-export type BagItemSource = 'FREE_SIGNUP' | 'BACKFILL' | 'ADMIN';
+/** How a user got an item (`bag_item_source`); `GIFT` (v1.46-live, D171): sent by another user. */
+export type BagItemSource = 'FREE_SIGNUP' | 'BACKFILL' | 'ADMIN' | 'GIFT';
+
+/** One day, the unit of a partial send and of an admin grant (§10.41). */
+export const BAG_DAY_MS = 24 * 3600_000;
+/** The most days a send or a grant may carry (§10.41). */
+export const BAG_MAX_DAYS = 3650;
 
 export interface BagItemDef {
   readonly code: string;

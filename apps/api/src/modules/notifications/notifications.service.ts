@@ -16,7 +16,7 @@ import { markReadSchema, updateNotificationSettingsSchema } from './notification
 
 /** `NotificationTarget` (openapi v1.5-social, CP-009). */
 export interface NotificationTargetDto {
-  type: 'POST' | 'COMMENT' | 'STORY' | 'USER' | 'FAMILY' | 'MEDAL' | 'PREMIUM_USERNAME';
+  type: 'POST' | 'COMMENT' | 'STORY' | 'USER' | 'FAMILY' | 'MEDAL' | 'PREMIUM_USERNAME' | 'BAG_ITEM';
   id: string;
   postId: string | null;
   thumbUrl: string | null;
@@ -25,6 +25,8 @@ export interface NotificationTargetDto {
   startsAt?: string;
   /** v1.28-live (D146) PREMIUM_USERNAME only: the period's end (EXPIRING) or the grace's (EXPIRED). */
   endsAt?: string;
+  /** v1.46-live (D171) BAG_ITEM only: the item's category. */
+  bagCategory?: string;
 }
 
 /** `Notification`. */
@@ -82,6 +84,8 @@ const ACTOR_TYPES: NotificationType[] = [
   'CP_ACCEPTED',
   'FAMILY_JOIN_ACCEPTED',
   'FAMILY_JOIN_DECLINED',
+  // v1.46-live (D171): actor the sender; target the bag item (no post, comment or story).
+  'BAG_ITEM_RECEIVED',
 ];
 /** v1.21-live (CP-018): the actor types whose target is the actor (USER), like FOLLOW. */
 const USER_TARGET_TYPES: ReadonlySet<NotificationType> = new Set(['FOLLOW', 'CP_REQUEST', 'CP_ACCEPTED']);
@@ -147,6 +151,7 @@ function include(me: string) {
     liveSchedule: { select: { title: true, startsAt: true } },
     family: { select: { name: true } },
     premiumLease: { select: { username: true, expiresAt: true, graceUntil: true } },
+    bagItem: { select: { category: true } },
   } satisfies Prisma.NotificationInclude;
 }
 type NotificationRow = Prisma.NotificationGetPayload<{ include: ReturnType<typeof include> }>;
@@ -271,6 +276,17 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
         thumbUrl: null,
         text: null,
         ...(end ? { endsAt: end.toISOString() } : {}),
+      };
+    }
+    // v1.46-live (D171): the bag item someone sent (the app opens the bag).
+    if (row.bagItemCode !== null && row.bagItem) {
+      return {
+        type: 'BAG_ITEM',
+        id: row.bagItemCode,
+        postId: null,
+        thumbUrl: null,
+        text: null,
+        bagCategory: row.bagItem.category,
       };
     }
     if (row.medalCode !== null) {

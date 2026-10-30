@@ -96,6 +96,11 @@ export enum ErrorCode {
   MEDAL_NOT_UNLOCKED = 'MEDAL_NOT_UNLOCKED',
   /** v1.22-live (DRAFT, CP-019): the caller does not own that bag item (or it does not exist). */
   BAG_ITEM_NOT_OWNED = 'BAG_ITEM_NOT_OWNED',
+  /** v1.46-live (D171, §10.41): sending bag items. */
+  BAG_ITEM_NOT_TRANSFERABLE = 'BAG_ITEM_NOT_TRANSFERABLE',
+  BAG_SEND_PERMANENT_WHOLE_ONLY = 'BAG_SEND_PERMANENT_WHOLE_ONLY',
+  BAG_SEND_EXCEEDS_REMAINING = 'BAG_SEND_EXCEEDS_REMAINING',
+  BAG_RECIPIENT_HAS_PERMANENT = 'BAG_RECIPIENT_HAS_PERMANENT',
   /** v1.23-live (DRAFT, CP-020): the gift is not in the catalogue or is disabled. */
   GIFT_UNAVAILABLE = 'GIFT_UNAVAILABLE',
   /** v1.23-live (DRAFT, CP-020): the caller's gift bag holds fewer of that gift than the send needs. */
@@ -181,6 +186,10 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.CP_NOT_PAIRED]: 409,
   [ErrorCode.MEDAL_NOT_UNLOCKED]: 409,
   [ErrorCode.BAG_ITEM_NOT_OWNED]: 409,
+  [ErrorCode.BAG_ITEM_NOT_TRANSFERABLE]: 409,
+  [ErrorCode.BAG_SEND_PERMANENT_WHOLE_ONLY]: 409,
+  [ErrorCode.BAG_SEND_EXCEEDS_REMAINING]: 409,
+  [ErrorCode.BAG_RECIPIENT_HAS_PERMANENT]: 409,
   [ErrorCode.GIFT_UNAVAILABLE]: 409,
   [ErrorCode.GIFT_BAG_INSUFFICIENT]: 409,
   [ErrorCode.LIVE_GIFT_RECIPIENT_UNAVAILABLE]: 409,
@@ -254,6 +263,10 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.CP_NOT_PAIRED]: 'You have no CP partner.',
   [ErrorCode.MEDAL_NOT_UNLOCKED]: 'You have not unlocked that medal.',
   [ErrorCode.BAG_ITEM_NOT_OWNED]: 'You do not own that item.',
+  [ErrorCode.BAG_ITEM_NOT_TRANSFERABLE]: 'This item cannot be sent.',
+  [ErrorCode.BAG_SEND_PERMANENT_WHOLE_ONLY]: 'A permanent item can only be sent whole.',
+  [ErrorCode.BAG_SEND_EXCEEDS_REMAINING]: 'That is more time than the item has left.',
+  [ErrorCode.BAG_RECIPIENT_HAS_PERMANENT]: 'They already own this item permanently.',
   [ErrorCode.GIFT_UNAVAILABLE]: 'That gift is not available.',
   [ErrorCode.GIFT_BAG_INSUFFICIENT]: 'Not enough of that gift in your bag.',
   [ErrorCode.LIVE_GIFT_RECIPIENT_UNAVAILABLE]: 'A recipient cannot receive gifts in this live now.',
