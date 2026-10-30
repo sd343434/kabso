@@ -10,6 +10,7 @@ import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/media/inline_video.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/create/compose_widgets.dart';
 import 'package:kabso_live/features/create/create_media_step.dart';
 import 'package:kabso_live/features/home/application/home_feed_provider.dart';
 import 'package:kabso_live/features/posts/application/compose_controller.dart';
@@ -527,21 +528,34 @@ class _ReelLibrarySheet extends ConsumerWidget {
             itemBuilder: (context, i) {
               final item = value.items[i];
               final thumb = ref.watch(libraryThumbnailProvider(item.id)).value;
-              final length = videoLengthLabel(item.duration ?? Duration.zero);
+              final duration = item.duration ?? Duration.zero;
+              final length = videoLengthLabel(duration);
+              // D168: a video over 60 s is faded and marked; a tap says why.
+              final tooLong = isVideoTooLong(duration, reel: true);
               return Semantics(
                 button: true,
-                label: l10n.createVideoLabel(length),
+                label: tooLong
+                    ? l10n.createLibraryVideoTooLong(
+                        length,
+                        maxReelVideoLength.inSeconds,
+                      )
+                    : l10n.createVideoLabel(length),
                 excludeSemantics: true,
                 child: GestureDetector(
                   key: NewReelScreen.libraryItemKey(item.id),
-                  onTap: () => Navigator.of(context).pop(item.id),
+                  onTap: () => tooLong
+                      ? KSnack.error(context, l10n.reelTooLong)
+                      : Navigator.of(context).pop(item.id),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(KRadius.sm),
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
                         if (thumb != null)
-                          Image.memory(thumb, fit: BoxFit.cover)
+                          Opacity(
+                            opacity: tooLong ? KCompose.tooLongOpacity : 1,
+                            child: Image.memory(thumb, fit: BoxFit.cover),
+                          )
                         else
                           ColoredBox(color: p.surfaceOverlay),
                         PositionedDirectional(
@@ -552,17 +566,30 @@ class _ReelLibrarySheet extends ConsumerWidget {
                               horizontal: KSpacing.xs,
                             ),
                             decoration: BoxDecoration(
-                              color: KStatusColors.onStatus.withValues(
-                                alpha: 0.6,
-                              ),
+                              color: tooLong
+                                  ? p.error
+                                  : KStatusColors.onStatus.withValues(
+                                      alpha: 0.6,
+                                    ),
                               borderRadius: BorderRadius.circular(KRadius.sm),
                             ),
-                            child: Text(
-                              length,
-                              textDirection: TextDirection.ltr,
-                              style: context.textStyles.caption.copyWith(
-                                color: Colors.white,
-                              ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (tooLong)
+                                  const Icon(
+                                    Icons.timer_off_rounded,
+                                    size: 14,
+                                    color: Colors.white,
+                                  ),
+                                Text(
+                                  length,
+                                  textDirection: TextDirection.ltr,
+                                  style: context.textStyles.caption.copyWith(
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),

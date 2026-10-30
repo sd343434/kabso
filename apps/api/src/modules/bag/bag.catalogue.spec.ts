@@ -8,8 +8,8 @@ const read = (name: string) =>
 /** The bag (D107) and the support tier frames (D169) seed the catalogue. */
 const migration = [
   read('20261111090000_bag'),
-  read('20261213090000_support_frames_enums'),
-  read('20261213100000_support_frames'),
+  read('20261215090000_support_frames_enums'),
+  read('20261215100000_support_frames'),
 ].join('\n');
 
 describe('bag catalogue (CP-019)', () => {

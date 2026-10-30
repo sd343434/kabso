@@ -11,7 +11,14 @@ import 'package:material_ui/material_ui.dart';
 import 'package:video_player/video_player.dart';
 
 /// Where an attachment comes from (D67).
-enum AttachmentSource { gallery, cameraPhoto, cameraVideo }
+enum AttachmentSource {
+  gallery,
+
+  /// D165: the library showing photos only (a conversation sends no video).
+  galleryPhoto,
+  cameraPhoto,
+  cameraVideo,
+}
 
 /// A photo or video the user picked on the device. Nothing is uploaded:
 /// there is no media upload or messaging API yet (CP-004).
@@ -67,6 +74,9 @@ class ImagePickerAttachments implements MediaAttachmentPicker {
   Future<PickedMedia?> pick(AttachmentSource source) async {
     final file = switch (source) {
       AttachmentSource.gallery => await _picker.pickMedia(),
+      AttachmentSource.galleryPhoto => await _picker.pickImage(
+        source: ImageSource.gallery,
+      ),
       AttachmentSource.cameraPhoto => await _picker.pickImage(
         source: ImageSource.camera,
       ),
@@ -177,9 +187,14 @@ class AttachmentButton extends ConsumerWidget {
               );
               if (source == null || !context.mounted) return;
               try {
+                // D165: without video the library offers photos only.
                 final media = await ref
                     .read(mediaAttachmentPickerProvider)
-                    .pick(source);
+                    .pick(
+                      !allowVideo && source == AttachmentSource.gallery
+                          ? AttachmentSource.galleryPhoto
+                          : source,
+                    );
                 if (media != null) onPicked(media);
               } on PlatformException {
                 if (context.mounted) KSnack.error(context, l10n.attachFailed);

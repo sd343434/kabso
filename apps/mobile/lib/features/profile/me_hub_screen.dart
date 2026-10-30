@@ -77,7 +77,6 @@ enum MeHubItem {
   eventCenter,
   wallet,
   bag,
-  posts,
   svip,
   taskCenter,
   medals,
@@ -94,6 +93,9 @@ enum MeHubItem {
 /// ([AppRoutes.myProfile]); the counts open the follow lists. Every button
 /// of a feature Kabso has opens its real screen; the ones not built yet are
 /// shown faded with a "Soon" tag and do nothing (no stand-in screens).
+/// D164: Wallet, Earn money and Creator Center open their real screens.
+/// D166: Event Center, SVIP and Task Center too (CP-024 approved with
+/// defaults); Purchase VIP waits for the owner's prices.
 ///
 /// Data: `GET /me`, `GET /users/{username}` (counts, family, relationship,
 /// medals), `GET /me/levels` and `GET /wallet/me`. The API has no friends
@@ -102,6 +104,10 @@ class MeHubScreen extends ConsumerWidget {
   const new({super.key});
 
   static const settingsKey = Key('meHub.settings');
+
+  /// D168 (owner): the profile page (posts, reels, reposts, saved) opens
+  /// from this icon beside Settings; the «المنشورات» row is gone.
+  static const profileKey = Key('meHub.profile');
   static const notificationsKey = Key('meHub.notifications');
   static const avatarKey = Key('meHub.avatar');
   static const nameKey = Key('meHub.name');
@@ -173,6 +179,7 @@ class MeHubScreen extends ConsumerWidget {
         icon: Icons.payments_rounded,
         hue: _Hues.blue,
         label: l10n.meHubEarn,
+        onTap: () => push(AppRoutes.earnings),
       ),
     ];
 
@@ -183,17 +190,19 @@ class MeHubScreen extends ConsumerWidget {
           icon: Icons.insights_rounded,
           hue: _Hues.teal,
           title: l10n.meHubCreatorCenter,
+          onTap: () => push(AppRoutes.creatorCenter),
         ),
         _HubRow(
           item: MeHubItem.eventCenter,
           icon: Icons.campaign_rounded,
           hue: _Hues.teal,
           title: l10n.meHubEventCenter,
+          onTap: () => push(AppRoutes.eventCenter),
         ),
       ],
       [
-        // No wallet screen and no purchases yet (B5): the balance is real,
-        // the button is "Soon".
+        // D164: the wallet screen (balance and coin history); recharge
+        // stays "Soon" inside it (no purchases yet, B5).
         _HubRow(
           item: MeHubItem.wallet,
           icon: Icons.account_balance_wallet_rounded,
@@ -204,6 +213,7 @@ class MeHubScreen extends ConsumerWidget {
               ? null
               : l10n.meHubCoins(KFormat.grouped(coins)),
           valueIcon: AppIcons.coinGold,
+          onTap: () => push(AppRoutes.wallet),
         ),
         _HubRow(
           item: MeHubItem.bag,
@@ -212,13 +222,6 @@ class MeHubScreen extends ConsumerWidget {
           title: l10n.meHubItemBag,
           onTap: () => push(AppRoutes.bag),
         ),
-        _HubRow(
-          item: MeHubItem.posts,
-          icon: Icons.article_rounded,
-          hue: _Hues.teal,
-          title: l10n.meHubPost,
-          onTap: openProfile,
-        ),
       ],
       [
         _HubRow(
@@ -226,12 +229,14 @@ class MeHubScreen extends ConsumerWidget {
           icon: Icons.military_tech_rounded,
           hue: _Hues.gold,
           title: l10n.meHubSvip,
+          onTap: () => push(AppRoutes.svip),
         ),
         _HubRow(
           item: MeHubItem.taskCenter,
           icon: Icons.task_alt_rounded,
           hue: _Hues.gold,
           title: l10n.meHubTaskCenter,
+          onTap: () => push(AppRoutes.taskCenter),
         ),
         _HubRow(
           item: MeHubItem.medals,
@@ -298,6 +303,13 @@ class MeHubScreen extends ConsumerWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
+                  _ActionIcon(
+                    key: profileKey,
+                    asset: AppIcons.grid,
+                    tooltip: l10n.meHubMyProfile,
+                    onTap: openProfile,
+                    labelled: true,
+                  ),
                   _ActionIcon(
                     key: settingsKey,
                     asset: AppIcons.settings,
@@ -481,27 +493,43 @@ class _ActionIcon extends StatelessWidget {
     required this.tooltip,
     required this.onTap,
     super.key,
+    this.labelled = false,
   });
 
   final String asset;
   final String tooltip;
   final VoidCallback onTap;
 
+  /// D168: screen readers get [tooltip] as the button's label (once, not
+  /// also as a tooltip); the long-press tooltip still shows.
+  final bool labelled;
+
   @override
-  Widget build(BuildContext context) => IconButton(
-    tooltip: tooltip,
-    onPressed: onTap,
-    padding: EdgeInsets.zero,
-    constraints: const BoxConstraints.tightFor(
-      width: KMeHub.actionBox,
-      height: KMeHub.actionBox,
-    ),
-    icon: AppIcon(
-      asset,
-      size: KMeHub.actionIcon,
-      color: context.palette.textPrimary,
-    ),
-  );
+  Widget build(BuildContext context) {
+    final button = IconButton(
+      tooltip: tooltip,
+      onPressed: onTap,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints.tightFor(
+        width: KMeHub.actionBox,
+        height: KMeHub.actionBox,
+      ),
+      icon: AppIcon(
+        asset,
+        size: KMeHub.actionIcon,
+        color: context.palette.textPrimary,
+      ),
+    );
+    if (!labelled) return button;
+    return Semantics(
+      button: true,
+      enabled: true,
+      label: tooltip,
+      onTap: onTap,
+      excludeSemantics: true,
+      child: button,
+    );
+  }
 }
 
 class _Stat extends StatelessWidget {
@@ -567,15 +595,15 @@ class _Stat extends StatelessWidget {
   }
 }
 
-/// The small "Soon" tag of a feature that is not built yet.
-class _SoonTag extends StatelessWidget {
-  const new();
+/// The small "Soon" tag of a feature that is not built yet (also on the
+/// wallet's recharge and the earnings' withdraw buttons, D164).
+class MeHubSoonTag extends StatelessWidget {
+  const new({super.key = MeHubScreen.soonKey});
 
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
     return Container(
-      key: MeHubScreen.soonKey,
       padding: const EdgeInsets.symmetric(
         horizontal: KSpacing.xs + KSpacing.xxs,
         vertical: 1,
@@ -679,7 +707,7 @@ class _HubCard extends StatelessWidget {
                       const PositionedDirectional(
                         top: KSpacing.xs,
                         end: KSpacing.xs,
-                        child: _SoonTag(),
+                        child: MeHubSoonTag(),
                       ),
                     ],
                   )
@@ -801,7 +829,7 @@ class _HubRow extends StatelessWidget {
                 ],
                 const SizedBox(width: KSpacing.xs),
                 if (soon)
-                  const _SoonTag()
+                  const MeHubSoonTag()
                 else
                   Icon(
                     Icons.chevron_right_rounded,

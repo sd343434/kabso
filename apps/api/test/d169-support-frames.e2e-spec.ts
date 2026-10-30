@@ -1,5 +1,5 @@
 /**
- * D169 (v1.43-levels, CONVENTIONS §10.22): reaching a new support-level tier gives that tier's
+ * D169 (v1.46-levels, CONVENTIONS §10.22): reaching a new support-level tier gives that tier's
  * avatar frame (bag `AVATAR_FRAME`, source `LEVEL_REWARD`), once, never worn, kept for good.
  * The support level is moved with the audited admin adjustment (any path that raises the level
  * runs the same hook, in the same transaction).

@@ -1352,6 +1352,14 @@ the SDK's built-in background blur). Android only; iOS is phase 3 (Magic stays g
   was moved) / `unknown`. `camera 0` while `on track` → after 10 s `error (no_frames)`;
   `init no` with frames → `error (init_timeout)`; Magic then says the effect did not start
   and the raw camera goes on.
+- **D144c — one DeepAR engine, never paused, nothing black on the air:** DeepAR's native
+  engine is one per app process; a new one never starts while the last is not released
+  (it waits; `error (engine_busy)` after 10 s). None and every failure release DeepAR
+  instead of pausing it (a paused DeepAR ignores `switchEffect`). DeepAR's picture goes out
+  only once it was seen lit; black renders are replaced by the camera and only 8 s of black
+  gives up (`disabled (black_output)`). Overlay: `engine` = DeepAR's own state (1 starting,
+  2 running), `lit N ms` = from the pick to the first lit picture, `held` = black renders
+  replaced by the camera; DeepAR's warnings on their own `warn` line.
 - **Camera/microphone permissions (D144a):** Android asks through the plugin's
   `com.kabso/permissions` channel after the app's own explanation sheet, once; refused for
   good → «فتح الإعدادات». Audio rooms and audio seats ask for the microphone only.
@@ -1467,7 +1475,7 @@ Video in «منشور جديد» (the «فيديو» tab), reels («ريلز») 
   (`RATE_LIMIT_MEDIA_UPLOAD_USER`, 60 / hour) now counts two uploads per video (the file and its
   poster); `GET /feed/reels` shares `RATE_LIMIT_FEED_USER`.
 - **Limits (code constants, contract):** reel ≤ 100 MiB and 1–60 s; post video ≤ 200 MiB and
-  1–180 s; 16–4 096 px per side; `moov` ≤ 16 MiB.
+  1–180 s (**1–90 s since D168**, §5.26); 16–4 096 px per side; `moov` ≤ 16 MiB.
 - **Storage:** the storage key additionally needs **`CopyObject`** (the API copies
   `uploads/{userId}/{uploadId}` to `media/{mediaId}/video.mp4|.mov` inside the bucket — the bytes
   never pass through the API) and **ranged `GetObject`** (the container is read by its box headers
@@ -1486,3 +1494,21 @@ Video in «منشور جديد» (the «فيديو» tab), reels («ريلز») 
 - **Later (not in this step):** server-side transcoding / HLS / server thumbnails (CP-006 Q1:
   Cloudflare Stream, Mux or FFmpeg workers), video stories, personalised reels ranking (M5).
 
+### 5.26 Profile editing and 90-second post videos (migration `20261213090000_profile_avatar_video_90s`; D168) — [IMPLEMENTED, draft contract v1.45-social; not deployed, not device-tested]
+
+«تعديل الملف الشخصي» can change the name, the bio and the profile photo; post videos are at most
+90 s (owner; reels stay 60 s) (CONVENTIONS §10.42, §11.14).
+
+- **Migration** with the usual `migrate` job (§5), after D162a's: `user_profiles.avatar_media_id`
+  (unique, FK to `media_assets`, NO ACTION) and CHECK `user_profiles_avatar_media_has_url`;
+  `media_assets_kind_known` gains `AVATAR`; new CHECK `media_assets_post_video_90s` created
+  **`NOT VALID`** — PostgreSQL enforces it on new and updated rows only, so post videos stored before
+  (up to 180 s) stay valid and playable. **Do not run `ALTER TABLE … VALIDATE CONSTRAINT
+  media_assets_post_video_90s`** while such videos exist (it would fail). The API refuses to attach an
+  unattached longer one, so it never updates those rows. No GRANT, no backfill.
+- **Settings:** new `RATE_LIMIT_AVATAR_USER` (default `30/3600`, `PUT` / `DELETE /me/avatar`). No
+  secret. Setting a photo needs `MEDIA_UPLOADS_ENABLED=true` (503 `MEDIA_UPLOADS_UNAVAILABLE`
+  otherwise; the app says so); removing it and editing the name / bio work with uploads off.
+- **Storage:** an `AVATAR` is two WebP objects like a live cover (`media/{id}/640.webp`, `320.webp`);
+  a replaced or removed photo's objects are deleted.
+- **Audit:** `user.profile.update` (which fields changed, never values) and `user.avatar.update`.

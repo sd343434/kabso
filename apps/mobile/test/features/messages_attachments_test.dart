@@ -135,10 +135,13 @@ void main() {
   testWidgets('D155: the real chat attaches photos only (no video)', (
     tester,
   ) async {
+    // D165: the library itself shows photos only there.
+    final picker = _Picker(null);
     await pumpScreen(
       tester,
       const ChatScreen(username: 'nour'),
       dmRepository: FakeDmRepository(),
+      overrides: [mediaAttachmentPickerProvider.overrideWithValue(picker)],
     );
     await tester.pumpAndSettle();
     final attach = find.descendant(
@@ -156,5 +159,10 @@ void main() {
       find.byKey(AttachmentButton.sourceKey(AttachmentSource.cameraVideo)),
       findsNothing,
     );
+    await tester.tap(
+      find.byKey(AttachmentButton.sourceKey(AttachmentSource.gallery)),
+    );
+    await tester.pumpAndSettle();
+    expect(picker.sources, [AttachmentSource.galleryPhoto]);
   });
 }

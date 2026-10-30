@@ -128,7 +128,7 @@ describe('CP-019 the bag and profile cards', { timeout: 120_000 }, () => {
     const en = await ctx.http.get('/api/v1/bag/catalogue').set(auth(u)).set('Accept-Language', 'en');
     expect(en.status).toBe(200);
     expectContract(en, 'listBagCatalogue');
-    // v1.43-levels (D169): the 20 support tier frames follow, category AVATAR_FRAME.
+    // v1.46-levels (D169): the 20 support tier frames follow, category AVATAR_FRAME.
     expect(en.body.data).toHaveLength(24);
     expect(
       (en.body.data as { category: string }[]).slice(4).every((i) => i.category === 'AVATAR_FRAME'),

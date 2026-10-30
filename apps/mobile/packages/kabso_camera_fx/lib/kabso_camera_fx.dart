@@ -54,7 +54,8 @@ enum KabsoCameraFxState {
   /// DeepAR failed to start or to take frames ([KabsoCameraFxStatus.reason]:
   /// `init_timeout`, `start_failed`, `surface_failed`, `feed_failed`,
   /// `effect_failed`; D144b: `no_frames` — no camera frame reached the effect
-  /// within 10 s of the pick).
+  /// within 10 s of the pick; D144c: `engine_busy` — the app's previous
+  /// DeepAR engine was not released within 10 s).
   error,
 
   /// The effect switched itself off: DeepAR stopped giving new pictures
@@ -145,6 +146,10 @@ class KabsoCameraFxDiagnostics {
     this.probe,
     this.cameraFrames = 0,
     this.framePath,
+    this.litMs = -1,
+    this.heldBlack = 0,
+    this.engine = -1,
+    this.lastWarning,
   });
 
   factory KabsoCameraFxDiagnostics.fromMap(Map<Object?, Object?> map) {
@@ -187,6 +192,10 @@ class KabsoCameraFxDiagnostics {
       probe: text('probe'),
       cameraFrames: count('cameraFrames'),
       framePath: text('framePath'),
+      litMs: map['litMs'] is num ? count('litMs') : -1,
+      heldBlack: count('heldBlack'),
+      engine: map['engine'] is num ? count('engine') : -1,
+      lastWarning: text('lastWarning'),
     );
   }
 
@@ -266,6 +275,21 @@ class KabsoCameraFxDiagnostics {
   /// frame path), `rebound` (a shared camera track, moved onto the path),
   /// `unknown` (could not tell).
   final String? framePath;
+
+  /// D144c: ms from the pick to DeepAR's first lit picture; -1: none yet
+  /// (its renders so far were black, or there were none).
+  final int litMs;
+
+  /// D144c: DeepAR renders held back because they were black (the camera
+  /// went out instead).
+  final int heldBlack;
+
+  /// D144c: DeepAR's own engine state — 0 none, 1 initializing, 2 running,
+  /// 3 shutting down, 4 surface lost; -1 no DeepAR.
+  final int engine;
+
+  /// D144c: DeepAR's last warning (its errors stay in [lastError]).
+  final String? lastWarning;
 }
 
 /// Steers the native processor. The native side keeps a single processor;

@@ -1282,10 +1282,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profileEditBio => 'Bio';
 
   @override
-  String get profileEditUnavailable =>
-      'Changing your name, bio and photo needs a server update that isn\'t available yet.';
-
-  @override
   String get profileEditPhoto => 'Change photo';
 
   @override
@@ -1930,9 +1926,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get attachPause => 'Pause video';
-
-  @override
-  String get chatVoiceSoon => 'Voice messages are coming soon';
 
   @override
   String get chatOnline => 'Online';
@@ -7674,7 +7667,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get meHubItemBag => 'Item Bag';
 
   @override
-  String get meHubPost => 'Post';
+  String get meHubMyProfile => 'My profile';
 
   @override
   String get meHubSvip => 'SVIP';
@@ -7723,7 +7716,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get createMenuLiveHint => 'Video or voice, right now';
 
   @override
-  String get createVideoUpTo => 'One video, up to 3 minutes';
+  String get createVideoUpTo => 'One video, up to 90 seconds';
 
   @override
   String get createLibraryVideo => 'Video';
@@ -7747,7 +7740,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'A post holds photos or one video, not both.';
 
   @override
-  String get createVideoTooLong => 'Videos in posts can be up to 3 minutes.';
+  String get createVideoTooLong => 'Videos in posts can be up to 90 seconds.';
 
   @override
   String get createVideoTooLarge => 'This video is larger than 200 MB.';
@@ -7833,4 +7826,642 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get videoCannotPlay => 'This video can\'t play right now';
+
+  @override
+  String get walletBalanceLabel => 'Coin balance';
+
+  @override
+  String get walletRecharge => 'Recharge';
+
+  @override
+  String get walletRechargeSoon =>
+      'Recharge is coming soon — the payment method isn\'t decided yet.';
+
+  @override
+  String get walletHistoryTitle => 'Transaction history';
+
+  @override
+  String get walletHistoryEmpty => 'No transactions yet';
+
+  @override
+  String get walletHistoryEmptyBody =>
+      'Every change to your balance shows here.';
+
+  @override
+  String get walletLoadError => 'Couldn\'t load your wallet';
+
+  @override
+  String walletBalanceAfter(String coins) {
+    return 'Balance after: $coins';
+  }
+
+  @override
+  String get walletReasonAdminGrant => 'Granted by the team';
+
+  @override
+  String get walletReasonAdminRevoke => 'Removed by the team';
+
+  @override
+  String get walletReasonBulletMessage => 'Bullet message';
+
+  @override
+  String get walletReasonFamilyCreate => 'Family created';
+
+  @override
+  String get walletReasonCpRequest => 'CP request';
+
+  @override
+  String get walletReasonCpRefund => 'CP request refund';
+
+  @override
+  String get walletReasonCpGift => 'CP gift';
+
+  @override
+  String get walletReasonLiveGift => 'Gift in a live';
+
+  @override
+  String get walletReasonLuckyGift => 'Lucky gift';
+
+  @override
+  String get walletReasonLuckyGiftWin => 'Lucky gift win';
+
+  @override
+  String get walletReasonPremiumRent => 'Premium username rent';
+
+  @override
+  String get walletReasonPremiumRenew => 'Premium username renewal';
+
+  @override
+  String get walletReasonDmGift => 'Gift in a chat';
+
+  @override
+  String get walletReasonLiveBoost => 'Traffic card';
+
+  @override
+  String get walletReasonLiveBoostRefund => 'Traffic card refund';
+
+  @override
+  String get walletReasonOther => 'Balance change';
+
+  @override
+  String get earnTotal => 'Your total earnings';
+
+  @override
+  String get earnLast7Days => 'Last 7 days';
+
+  @override
+  String get earnLast30Days => 'Last 30 days';
+
+  @override
+  String get earnDisplayOnly =>
+      'Earnings are display only: your share of the gifts you receive in lives and chats. They are not added to your coins.';
+
+  @override
+  String get earnWithdraw => 'Withdraw';
+
+  @override
+  String get earnWithdrawSoon =>
+      'Withdrawal is coming soon — the payout method isn\'t decided yet.';
+
+  @override
+  String get earnHistoryTitle => 'Earnings history';
+
+  @override
+  String get earnEmpty => 'No earnings yet';
+
+  @override
+  String get earnEmptyBody =>
+      'When you receive gifts in lives or chats, your share shows here.';
+
+  @override
+  String get earnLoadError => 'Couldn\'t load your earnings';
+
+  @override
+  String earnGiftLine(String gift, int quantity) {
+    return '$gift × $quantity';
+  }
+
+  @override
+  String earnFrom(String name) {
+    return 'From $name';
+  }
+
+  @override
+  String get earnFromHidden => 'From an unavailable account';
+
+  @override
+  String get earnContextLive => 'In a live';
+
+  @override
+  String get earnContextDm => 'In a chat';
+
+  @override
+  String earnShare(String percent, String coins) {
+    return 'Your $percent% of $coins';
+  }
+
+  @override
+  String get creatorPeriod7 => '7 days';
+
+  @override
+  String get creatorPeriod30 => '30 days';
+
+  @override
+  String get creatorPeriodAll => 'All time';
+
+  @override
+  String get creatorFollowers => 'Followers';
+
+  @override
+  String get creatorFollowersTotal => 'All followers';
+
+  @override
+  String get creatorFollowersNew => 'Followed you in this period';
+
+  @override
+  String get creatorPosts => 'Posts';
+
+  @override
+  String get creatorReels => 'Reels';
+
+  @override
+  String get creatorPublished => 'Published';
+
+  @override
+  String get creatorViews => 'Views';
+
+  @override
+  String get creatorLikes => 'Likes';
+
+  @override
+  String get creatorComments => 'Comments';
+
+  @override
+  String get creatorShares => 'Shares';
+
+  @override
+  String get creatorContentHint =>
+      'What you published in this period, with its numbers so far.';
+
+  @override
+  String get creatorNoPosts => 'Nothing published in this period.';
+
+  @override
+  String get creatorLive => 'Live';
+
+  @override
+  String get creatorLiveHint =>
+      'Lives that started in this period and have ended.';
+
+  @override
+  String get creatorNoLives => 'No ended lives in this period.';
+
+  @override
+  String get creatorPeakViewers => 'Peak viewers';
+
+  @override
+  String get creatorOpenProfile => 'My posts and reels';
+
+  @override
+  String get creatorLoadError => 'Couldn\'t load your statistics';
+
+  @override
+  String get dmSearch => 'Search conversations';
+
+  @override
+  String get dmSearchHint => 'Search by name or username';
+
+  @override
+  String get dmSearchClose => 'Close search';
+
+  @override
+  String dmSearchEmpty(String query) {
+    return 'No conversation matches “$query”';
+  }
+
+  @override
+  String get dmNewMessageHint => 'Type a name or a username';
+
+  @override
+  String get dmNewMessageEmpty => 'No one found with that name';
+
+  @override
+  String get dmNewMessageStart => 'Search for someone to start a conversation';
+
+  @override
+  String get dmConversationActions => 'Conversation options';
+
+  @override
+  String get dmMarkRead => 'Mark as read';
+
+  @override
+  String get dmMarkUnread => 'Mark as unread';
+
+  @override
+  String get dmMarkedUnread => 'Marked as unread';
+
+  @override
+  String get dmCopy => 'Copy';
+
+  @override
+  String get dmCopied => 'Message copied';
+
+  @override
+  String get dmViewProfile => 'View profile';
+
+  @override
+  String get chatVoiceUnavailable =>
+      'Voice messages aren\'t available on this device';
+
+  @override
+  String get profileEditPhotoSheetTitle => 'Profile photo';
+
+  @override
+  String get profileEditPhotoLibrary => 'Choose from photos';
+
+  @override
+  String get profileEditPhotoCamera => 'Take a photo';
+
+  @override
+  String get profileEditPhotoRemove => 'Remove photo';
+
+  @override
+  String get profileEditPhotoUpdated => 'Your photo was updated';
+
+  @override
+  String get profileEditPhotoRemoved => 'Your photo was removed';
+
+  @override
+  String get profileEditPhotoUploading => 'Uploading photo…';
+
+  @override
+  String get profileEditCropTitle => 'Crop photo';
+
+  @override
+  String get profileEditCropHint =>
+      'Drag and zoom the photo to fill the square';
+
+  @override
+  String get profileEditCropDone => 'Done';
+
+  @override
+  String get profileEditSaved => 'Saved';
+
+  @override
+  String get profileEditBioPlaceholder => 'Add a bio';
+
+  @override
+  String profileEditBioTooLong(int max, int lines) {
+    return 'A bio can be up to $max characters and $lines lines.';
+  }
+
+  @override
+  String get profileEditBioInvalid =>
+      'The bio has characters that aren\'t allowed.';
+
+  @override
+  String get profileEditNameHelp =>
+      'Your name shows on your profile, in lives and in messages. Other accounts can have the same name.';
+
+  @override
+  String get profileEditBioHelp =>
+      'Your bio is shown to everyone on your profile.';
+
+  @override
+  String createLibraryVideoTooLong(String length, int seconds) {
+    return 'Video, $length, longer than $seconds seconds, can\'t be used';
+  }
+
+  @override
+  String get tasksTabDaily => 'Daily tasks';
+
+  @override
+  String get tasksTabWeekly => 'Weekly tasks';
+
+  @override
+  String get tasksLoadError => 'Couldn\'t load the tasks';
+
+  @override
+  String tasksLevelPoints(String points) {
+    return 'Experience points $points';
+  }
+
+  @override
+  String get tasksLevelNone => 'Levels aren\'t active yet';
+
+  @override
+  String get tasksCheckInTitle => 'Daily check-in';
+
+  @override
+  String tasksCheckInToBonus(String days, String coins) {
+    return 'Check in $days more days to get $coins extra coins';
+  }
+
+  @override
+  String tasksCheckInBonusToday(String coins) {
+    return 'Today is bonus day: $coins extra coins';
+  }
+
+  @override
+  String get tasksCheckInAction => 'Check in';
+
+  @override
+  String tasksStreak(String days) {
+    return '$days days in a row';
+  }
+
+  @override
+  String get tasksToday => 'Today';
+
+  @override
+  String tasksDailyCap(String earned, String cap) {
+    return 'Today\'s rewards: $earned of $cap coins';
+  }
+
+  @override
+  String get tasksRewardsTitle => 'Task rewards';
+
+  @override
+  String get tasksWeeklyTitle => 'Weekly host tasks';
+
+  @override
+  String get tasksWeeklyHint => 'They renew every Monday.';
+
+  @override
+  String get tasksWeeklyEmpty => 'Weekly tasks are for hosts';
+
+  @override
+  String get tasksWeeklyEmptyBody =>
+      'Weekly live tasks show up here for people who can go live.';
+
+  @override
+  String get tasksEmpty => 'No tasks right now';
+
+  @override
+  String get tasksEmptyBody =>
+      'Tasks will show up here when the Kabso team adds them.';
+
+  @override
+  String get tasksActionGo => 'Go';
+
+  @override
+  String get tasksActionClaim => 'Claim';
+
+  @override
+  String get tasksActionDone => 'Done';
+
+  @override
+  String tasksRewardReceived(String coins) {
+    return 'You got $coins coins';
+  }
+
+  @override
+  String get tasksNoCoinsCap => 'Done — you reached today\'s reward limit';
+
+  @override
+  String get tasksCapReached => 'You reached today\'s task reward limit';
+
+  @override
+  String get eventsTabCalendar => 'Event calendar';
+
+  @override
+  String get eventsTabPermanent => 'Permanent events';
+
+  @override
+  String get eventsTabRegional => 'Regional events';
+
+  @override
+  String get eventsIntroTitle => 'Event calendar';
+
+  @override
+  String get eventsIntroBody =>
+      'Kabso\'s main official events every month — see the rewards and how to take part early. Tap any event for details.';
+
+  @override
+  String eventsCalendarMonth(String month) {
+    return '$month event calendar';
+  }
+
+  @override
+  String get eventsPreviousMonth => 'Previous month';
+
+  @override
+  String get eventsNextMonth => 'Next month';
+
+  @override
+  String eventsMore(String count) {
+    return 'and $count more';
+  }
+
+  @override
+  String get eventsEmptyMonth => 'No events this month';
+
+  @override
+  String get eventsEmpty => 'No events right now';
+
+  @override
+  String get eventsEmptyBody =>
+      'When the Kabso team announces an event, it will show up here.';
+
+  @override
+  String get eventsNoCountry => 'Set your country to see your region\'s events';
+
+  @override
+  String get eventsNoCountryBody =>
+      'You can choose your country when you edit your profile.';
+
+  @override
+  String get eventsLoadError => 'Couldn\'t load the events';
+
+  @override
+  String get eventsEnded => 'Ended';
+
+  @override
+  String get eventsFeatured => 'Hot';
+
+  @override
+  String get eventsUpcoming => 'Coming up';
+
+  @override
+  String get eventsRunning => 'Live now';
+
+  @override
+  String eventsDates(String start, String end) {
+    return '$start to $end';
+  }
+
+  @override
+  String eventsSince(String start) {
+    return 'Since $start';
+  }
+
+  @override
+  String get eventsDetailTitle => 'Event details';
+
+  @override
+  String get eventsForHosts => 'Hosts only';
+
+  @override
+  String get eventsRules => 'Rules';
+
+  @override
+  String get eventsNoRules => 'No extra rules.';
+
+  @override
+  String get eventsPrizes => 'Prizes';
+
+  @override
+  String get eventsNoPrizes => 'This event has no prizes.';
+
+  @override
+  String get eventsPrizesReview =>
+      'Prizes are paid automatically 24 hours after the event ends.';
+
+  @override
+  String get eventsPrizesPaid => 'The prizes have been paid.';
+
+  @override
+  String eventsRank(String rank) {
+    return 'Place $rank';
+  }
+
+  @override
+  String eventsRanks(String from, String to) {
+    return 'Places $from–$to';
+  }
+
+  @override
+  String get eventsBoard => 'Leaderboard';
+
+  @override
+  String get eventsBoardLive => 'Live';
+
+  @override
+  String get eventsBoardFinal => 'Final results';
+
+  @override
+  String get eventsBoardEmpty => 'No one on the board yet.';
+
+  @override
+  String eventsMeRank(String rank) {
+    return 'Your place: $rank';
+  }
+
+  @override
+  String get eventsMeNotRanked => 'You\'re not on the board yet';
+
+  @override
+  String get eventsMetricGiftsReceived => 'Gift coins received';
+
+  @override
+  String get eventsMetricGiftsSent => 'Gift coins sent';
+
+  @override
+  String get eventsMetricLiveMinutes => 'Live minutes';
+
+  @override
+  String get eventsMetricTaps => 'Taps received';
+
+  @override
+  String get eventsMetricFollowers => 'New followers';
+
+  @override
+  String get eventsMetricOther => 'Points';
+
+  @override
+  String get svipLoadError => 'Couldn\'t load SVIP';
+
+  @override
+  String get svipRules => 'SVIP rules';
+
+  @override
+  String svipRulesBody(String days) {
+    return 'You earn SVIP by sending gifts: spend coins on gifts within $days days to reach a level, and it stays with you for 30 days from the last time you reached it. SVIP can\'t be bought with money.';
+  }
+
+  @override
+  String get svipNotYet => 'You\'re not SVIP yet';
+
+  @override
+  String svipTier(String tier) {
+    return 'SVIP $tier';
+  }
+
+  @override
+  String svipUntil(String tier, String date) {
+    return '$tier until $date';
+  }
+
+  @override
+  String svipTrack(String tier, String count) {
+    return 'Level $tier of $count';
+  }
+
+  @override
+  String get svipLocked => 'Locked';
+
+  @override
+  String get svipUnlocked => 'Unlocked';
+
+  @override
+  String svipSpendToUpgrade(String coins, String days) {
+    return 'Spend $coins coins on gifts within $days days to upgrade';
+  }
+
+  @override
+  String svipSpent(String coins, String days) {
+    return 'You spent $coins coins in the last $days days';
+  }
+
+  @override
+  String get svipTop => 'You reached the top SVIP level';
+
+  @override
+  String get svipPerksTitle => 'SVIP perks';
+
+  @override
+  String get svipPerksSoon =>
+      'Perks are being prepared and will switch on one by one.';
+
+  @override
+  String svipSpendMore(String coins, String tier) {
+    return 'Spend $coins more coins to reach $tier';
+  }
+
+  @override
+  String get svipCta => 'Send a gift';
+
+  @override
+  String get walletTabCoins => 'Coins';
+
+  @override
+  String get walletRechargeTitle => 'Recharge coins';
+
+  @override
+  String walletBonus(String coins) {
+    return '$coins bonus';
+  }
+
+  @override
+  String get walletOffer => 'Deal';
+
+  @override
+  String walletGetCoins(String coins, String total) {
+    return 'Get $coins coins · Total $total';
+  }
+
+  @override
+  String get walletPackagesEmpty => 'No recharge packages right now';
+
+  @override
+  String get walletPackagesError => 'Couldn\'t load the recharge packages';
+
+  @override
+  String get walletReasonTaskReward => 'Task reward';
+
+  @override
+  String get walletReasonCheckIn => 'Check-in reward';
+
+  @override
+  String get walletReasonEventPrize => 'Event prize';
 }

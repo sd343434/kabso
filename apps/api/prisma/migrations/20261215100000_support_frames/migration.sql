@@ -1,4 +1,4 @@
--- v1.43-levels (D169, 2026-10-30): the owner's 20 support tier avatar frames (owner-supplied art,
+-- v1.46-levels (D169, 2026-10-30): the owner's 20 support tier avatar frames (owner-supplied art,
 -- apps/mobile/assets/levels/support_frames/). Nobody owns them until the server gives one: reaching
 -- support tier N (levels 1–5 = tier 1 … 96–99 = tier 20, level 100 = tier 21) gives the frames of
 -- every tier reached so far, once each (source LEVEL_REWARD, not worn; tier 21 keeps frame 20).

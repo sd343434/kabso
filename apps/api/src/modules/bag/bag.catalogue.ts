@@ -8,7 +8,7 @@
 export type BagCategory = 'PROFILE_CARD' | 'AVATAR_FRAME';
 
 /**
- * Every category, in display order: PROFILE_CARD (D107), AVATAR_FRAME (v1.43-levels, D169: the
+ * Every category, in display order: PROFILE_CARD (D107), AVATAR_FRAME (v1.46-levels, D169: the
  * frame around the user's photo; the support tier frames).
  */
 export const BAG_CATEGORIES: readonly BagCategory[] = ['PROFILE_CARD', 'AVATAR_FRAME'];

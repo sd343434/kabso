@@ -27,6 +27,8 @@ import { PublicProfileModule } from './modules/users/profiles/public-profile.mod
 import { UsersModule } from './modules/users/users.module.js';
 import { PremiumUsernamesModule } from './modules/premium-usernames/premium-usernames.module.js';
 import { WalletModule } from './modules/wallet/wallet.module.js';
+import { CreatorModule } from './modules/creator/creator.module.js';
+import { ProgramsModule } from './modules/programs/programs.module.js';
 import { CouplesModule } from './modules/couples/couples.module.js';
 import { FamiliesModule } from './modules/families/families.module.js';
 import { MedalsModule } from './modules/medals/medals.module.js';
@@ -87,6 +89,10 @@ export class AppModule {
         CpSpaceModule,
         // v1.26-live (DRAFT, D124).
         HomeModule,
+        // v1.43-social (DRAFT, D164): the Me hub's creator center.
+        CreatorModule,
+        // v1.44-social (DRAFT, D166): the Me hub's Task Center, Event Center and SVIP.
+        ProgramsModule,
       ],
       providers: [
         { provide: APP_FILTER, useClass: AllExceptionsFilter },

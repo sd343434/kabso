@@ -24,6 +24,12 @@ import 'package:material_ui/material_ui.dart';
 /// it; `unknown`). `camera 0` while `on track` means no picture can reach the
 /// effect; the effect then stops after 10 s with `error (no_frames)`.
 ///
+/// D144c: `engine` is DeepAR's own state (1 initializing, 2 running; stuck
+/// at 0 or 1 with frames coming: it never started), and the `lit` line says
+/// when DeepAR's picture was first seen lit after the pick and how many
+/// black renders were held back (the camera went out instead). DeepAR's
+/// warnings have their own `warn` line; `err` keeps the error that matters.
+///
 /// Technical read-out for the team, not product copy: not localized.
 class LiveFxDiagnostics extends StatefulWidget {
   const new({
@@ -145,7 +151,10 @@ List<String> liveFxDiagnosticsLines(
   final input =
       'input ${d.input ?? '-'}  init ${d.initialized ? 'yes' : 'no'}  '
       '#${d.instances}  ${d.attached ? 'on track' : 'no track'}$sdk';
-  final camera = 'camera ${d.cameraFrames}  path ${d.framePath ?? '-'}';
+  final camera =
+      'camera ${d.cameraFrames}  path ${d.framePath ?? '-'}  '
+      'engine ${d.engine < 0 ? '-' : d.engine}';
+  final lit = 'lit ${d.litMs < 0 ? '-' : '${d.litMs} ms'}  held ${d.heldBlack}';
   return [
     state,
     frames,
@@ -154,7 +163,10 @@ List<String> liveFxDiagnosticsLines(
     times,
     input,
     camera,
+    lit,
     if (d.lastError case final e?)
       'err ${e.length > 80 ? '${e.substring(0, 80)}…' : e}',
+    if (d.lastWarning case final w?)
+      'warn ${w.length > 80 ? '${w.substring(0, 80)}…' : w}',
   ];
 }

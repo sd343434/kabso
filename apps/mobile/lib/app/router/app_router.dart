@@ -21,6 +21,7 @@ import 'package:kabso_live/features/cp/presentation/cp_screen.dart';
 import 'package:kabso_live/features/cp/presentation/cp_space_screen.dart';
 import 'package:kabso_live/features/create/create_screen.dart';
 import 'package:kabso_live/features/create/new_reel_screen.dart';
+import 'package:kabso_live/features/creator/presentation/creator_center_screen.dart';
 import 'package:kabso_live/features/debug/component_gallery_screen.dart';
 import 'package:kabso_live/features/debug/conversations_preview_screen.dart';
 import 'package:kabso_live/features/debug/demo_data.dart';
@@ -66,11 +67,17 @@ import 'package:kabso_live/features/profile/edit_profile_screen.dart';
 import 'package:kabso_live/features/profile/me_hub_screen.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
 import 'package:kabso_live/features/profile/public_profile_screen.dart';
+import 'package:kabso_live/features/programs/presentation/event_center_screen.dart';
+import 'package:kabso_live/features/programs/presentation/event_detail_screen.dart';
+import 'package:kabso_live/features/programs/presentation/svip_screen.dart';
+import 'package:kabso_live/features/programs/presentation/task_center_screen.dart';
 import 'package:kabso_live/features/safety/safety_screens.dart';
 import 'package:kabso_live/features/settings/settings_screen.dart';
 import 'package:kabso_live/features/stories/presentation/new_story_screen.dart';
 import 'package:kabso_live/features/stories/presentation/story_archive_screen.dart';
 import 'package:kabso_live/features/stories/presentation/story_viewer_screen.dart';
+import 'package:kabso_live/features/wallet/presentation/earnings_screen.dart';
+import 'package:kabso_live/features/wallet/presentation/wallet_screen.dart';
 import 'package:material_ui/material_ui.dart';
 
 final rootNavigatorKeyProvider = Provider<GlobalKey<NavigatorState>>(
@@ -325,6 +332,31 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.changeUsername,
         builder: (_, _) => const ChangeUsernameScreen(),
       ),
+      // D164: the Me hub's wallet, earnings and creator center.
+      GoRoute(path: AppRoutes.wallet, builder: (_, _) => const WalletScreen()),
+      GoRoute(
+        path: AppRoutes.earnings,
+        builder: (_, _) => const EarningsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.creatorCenter,
+        builder: (_, _) => const CreatorCenterScreen(),
+      ),
+      // D166: the Me hub's Task Center, Event Center and SVIP.
+      GoRoute(
+        path: AppRoutes.taskCenter,
+        builder: (_, _) => const TaskCenterScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.eventCenter,
+        builder: (_, _) => const EventCenterScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.eventPattern,
+        builder: (_, state) =>
+            EventDetailScreen(eventId: state.pathParameters['eventId']!),
+      ),
+      GoRoute(path: AppRoutes.svip, builder: (_, _) => const SvipScreen()),
       // Debug/profile only; `kReleaseMode` is a compile-time constant, so
       // the route and the gallery are tree-shaken out of release builds.
       if (!kReleaseMode)

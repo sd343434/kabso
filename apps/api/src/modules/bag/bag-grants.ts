@@ -80,7 +80,7 @@ export async function revokeItemIn(
 /**
  * Gives `userId` the catalogue items `codes` it does not own yet (source LEVEL_REWARD, not worn:
  * a reward never changes what the user wears), inside the caller's transaction. Codes missing
- * from the catalogue give nothing. Returns the codes given now (v1.43-levels, D169: the support
+ * from the catalogue give nothing. Returns the codes given now (v1.46-levels, D169: the support
  * tier frames).
  */
 export async function grantLevelRewardsIn(

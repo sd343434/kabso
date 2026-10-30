@@ -26,7 +26,7 @@ import {
 
 /** v1.40-social (D155, §7): direct message sends, 30 / minute per user, replacing the default. */
 const DM_SEND = { bucket: 'dm:send', rule: 'dmSendUser', key: byUserId, replacesDefault: true } as const;
-/** D155 (§7): the other writes (read, accept, delete, mute), 300 / hour per user. */
+/** D155 (§7): the other writes (read, accept, delete, mute; D165 the unread mark), 300 / hour per user. */
 const DM_WRITE = { bucket: 'dm:write', rule: 'dmWriteUser', key: byUserId, replacesDefault: true } as const;
 
 /**
@@ -137,6 +137,27 @@ export class DmController {
   @RateLimit(DM_WRITE)
   unmute(@CurrentAuth() auth: AuthContext, @Param('conversationId') conversationId: string): Promise<void> {
     return this.dm.setMuted(auth.userId, conversationId, false);
+  }
+
+  /** v1.43.1-social (D165): mark the conversation unread for the caller. */
+  @Put('conversations/:conversationId/unread')
+  @HttpCode(204)
+  @RateLimit(DM_WRITE)
+  markUnread(
+    @CurrentAuth() auth: AuthContext,
+    @Param('conversationId') conversationId: string,
+  ): Promise<void> {
+    return this.dm.setMarkedUnread(auth.userId, conversationId, true);
+  }
+
+  @Delete('conversations/:conversationId/unread')
+  @HttpCode(204)
+  @RateLimit(DM_WRITE)
+  clearUnread(
+    @CurrentAuth() auth: AuthContext,
+    @Param('conversationId') conversationId: string,
+  ): Promise<void> {
+    return this.dm.setMarkedUnread(auth.userId, conversationId, false);
   }
 
   @Delete('messages/:messageId')

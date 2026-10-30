@@ -2228,12 +2228,6 @@ abstract class AppLocalizations {
   /// **'النبذة'**
   String get profileEditBio;
 
-  /// D58: edit profile (read-only until CP-001).
-  ///
-  /// In ar, this message translates to:
-  /// **'تغيير الاسم والنبذة والصورة يحتاج تحديثًا في الخادم غير متاح بعد.'**
-  String get profileEditUnavailable;
-
   /// D58: under the photo (disabled until upload exists).
   ///
   /// In ar, this message translates to:
@@ -3499,12 +3493,6 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'إيقاف الفيديو مؤقتًا'**
   String get attachPause;
-
-  /// Tooltip of the disabled microphone in the chat composer: voice messages need an API (D68, CP-004).
-  ///
-  /// In ar, this message translates to:
-  /// **'الرسائل الصوتية قريباً'**
-  String get chatVoiceSoon;
 
   /// Peer status in a conversation header (D68).
   ///
@@ -13207,11 +13195,11 @@ abstract class AppLocalizations {
   /// **'الحقيبة'**
   String get meHubItemBag;
 
-  /// D163: the Me hub (owner ref, Bigo-style layout). row: opens the profile with its posts
+  /// D168: the Me hub's top icon beside Settings (tooltip and screen-reader label); opens the profile page with posts, reels, reposts and saved
   ///
   /// In ar, this message translates to:
-  /// **'المنشورات'**
-  String get meHubPost;
+  /// **'ملفي الشخصي'**
+  String get meHubMyProfile;
 
   /// D163: the Me hub (owner ref, Bigo-style layout). row (not built: Soon)
   ///
@@ -13300,7 +13288,7 @@ abstract class AppLocalizations {
   /// D162: the media step's note on the Video tab.
   ///
   /// In ar, this message translates to:
-  /// **'فيديو واحد حتى ٣ دقائق'**
+  /// **'فيديو واحد حتى ٩٠ ثانية'**
   String get createVideoUpTo;
 
   /// D162: a library video tile (semantics).
@@ -13339,10 +13327,10 @@ abstract class AppLocalizations {
   /// **'يضم المنشور صوراً أو فيديو واحداً، وليس الاثنين معاً.'**
   String get createVideoOrPhotos;
 
-  /// D162: post video limit.
+  /// D162: post video limit (D168: 90 seconds, owner).
   ///
   /// In ar, this message translates to:
-  /// **'يمكن أن تصل مدة فيديو المنشور إلى ٣ دقائق.'**
+  /// **'يمكن أن تصل مدة فيديو المنشور إلى ٩٠ ثانية.'**
   String get createVideoTooLong;
 
   /// D162: post video size limit.
@@ -13494,6 +13482,1128 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'لا يمكن تشغيل هذا الفيديو الآن'**
   String get videoCannotPlay;
+
+  /// D164: the wallet's balance card.
+  ///
+  /// In ar, this message translates to:
+  /// **'رصيد الكوينز'**
+  String get walletBalanceLabel;
+
+  /// D164: the recharge button (disabled, Soon).
+  ///
+  /// In ar, this message translates to:
+  /// **'شحن'**
+  String get walletRecharge;
+
+  /// D164: why recharge is not available.
+  ///
+  /// In ar, this message translates to:
+  /// **'الشحن قريباً — لم تُحدَّد طريقة الدفع بعد.'**
+  String get walletRechargeSoon;
+
+  /// D164: the ledger section.
+  ///
+  /// In ar, this message translates to:
+  /// **'سجل المعاملات'**
+  String get walletHistoryTitle;
+
+  /// D164: empty ledger title.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا معاملات بعد'**
+  String get walletHistoryEmpty;
+
+  /// D164: empty ledger message.
+  ///
+  /// In ar, this message translates to:
+  /// **'ستظهر هنا كل عملية تغيّر رصيدك.'**
+  String get walletHistoryEmptyBody;
+
+  /// D164: ledger load failed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل المحفظة'**
+  String get walletLoadError;
+
+  /// D164: the balance after one change.
+  ///
+  /// In ar, this message translates to:
+  /// **'الرصيد بعدها {coins}'**
+  String walletBalanceAfter(String coins);
+
+  /// D164: ledger reason ADMIN_GRANT.
+  ///
+  /// In ar, this message translates to:
+  /// **'منحة من الفريق'**
+  String get walletReasonAdminGrant;
+
+  /// D164: ledger reason ADMIN_REVOKE.
+  ///
+  /// In ar, this message translates to:
+  /// **'سحب من الفريق'**
+  String get walletReasonAdminRevoke;
+
+  /// D164: ledger reason BULLET_MESSAGE.
+  ///
+  /// In ar, this message translates to:
+  /// **'رسالة عامة'**
+  String get walletReasonBulletMessage;
+
+  /// D164: ledger reason FAMILY_CREATE.
+  ///
+  /// In ar, this message translates to:
+  /// **'إنشاء عائلة'**
+  String get walletReasonFamilyCreate;
+
+  /// D164: ledger reason CP_REQUEST.
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب CP'**
+  String get walletReasonCpRequest;
+
+  /// D164: ledger reason CP_REFUND.
+  ///
+  /// In ar, this message translates to:
+  /// **'استرداد طلب CP'**
+  String get walletReasonCpRefund;
+
+  /// D164: ledger reason CP_GIFT.
+  ///
+  /// In ar, this message translates to:
+  /// **'هدية CP'**
+  String get walletReasonCpGift;
+
+  /// D164: ledger reason LIVE_GIFT.
+  ///
+  /// In ar, this message translates to:
+  /// **'هدية في بث'**
+  String get walletReasonLiveGift;
+
+  /// D164: ledger reason LUCKY_GIFT.
+  ///
+  /// In ar, this message translates to:
+  /// **'هدية الحظ'**
+  String get walletReasonLuckyGift;
+
+  /// D164: ledger reason LUCKY_GIFT_WIN.
+  ///
+  /// In ar, this message translates to:
+  /// **'ربح من هدية الحظ'**
+  String get walletReasonLuckyGiftWin;
+
+  /// D164: ledger reason PREMIUM_USERNAME_RENT.
+  ///
+  /// In ar, this message translates to:
+  /// **'استئجار اسم مميز'**
+  String get walletReasonPremiumRent;
+
+  /// D164: ledger reason PREMIUM_USERNAME_RENEW.
+  ///
+  /// In ar, this message translates to:
+  /// **'تجديد اسم مميز'**
+  String get walletReasonPremiumRenew;
+
+  /// D164: ledger reason DM_GIFT.
+  ///
+  /// In ar, this message translates to:
+  /// **'هدية في محادثة'**
+  String get walletReasonDmGift;
+
+  /// D164: ledger reason LIVE_BOOST.
+  ///
+  /// In ar, this message translates to:
+  /// **'بطاقة زيارات'**
+  String get walletReasonLiveBoost;
+
+  /// D164: ledger reason LIVE_BOOST_REFUND.
+  ///
+  /// In ar, this message translates to:
+  /// **'استرداد بطاقة زيارات'**
+  String get walletReasonLiveBoostRefund;
+
+  /// D164: a ledger reason this app does not know.
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيير في الرصيد'**
+  String get walletReasonOther;
+
+  /// D164: earnings total card.
+  ///
+  /// In ar, this message translates to:
+  /// **'إجمالي أرباحك'**
+  String get earnTotal;
+
+  /// D164: earnings of the last 7 days.
+  ///
+  /// In ar, this message translates to:
+  /// **'آخر 7 أيام'**
+  String get earnLast7Days;
+
+  /// D164: earnings of the last 30 days.
+  ///
+  /// In ar, this message translates to:
+  /// **'آخر 30 يوماً'**
+  String get earnLast30Days;
+
+  /// D164: what earnings are.
+  ///
+  /// In ar, this message translates to:
+  /// **'الأرباح للعرض فقط: هي حصتك من الهدايا التي تصلك في البث والمحادثات، ولا تُضاف إلى رصيد الكوينز.'**
+  String get earnDisplayOnly;
+
+  /// D164: the withdraw button (disabled, Soon).
+  ///
+  /// In ar, this message translates to:
+  /// **'سحب الأرباح'**
+  String get earnWithdraw;
+
+  /// D164: why withdrawal is not available (D149).
+  ///
+  /// In ar, this message translates to:
+  /// **'السحب قريباً — لم تُحدَّد طريقة الدفع بعد.'**
+  String get earnWithdrawSoon;
+
+  /// D164: the earnings history section.
+  ///
+  /// In ar, this message translates to:
+  /// **'سجل الأرباح'**
+  String get earnHistoryTitle;
+
+  /// D164: no earnings title.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا أرباح بعد'**
+  String get earnEmpty;
+
+  /// D164: no earnings message.
+  ///
+  /// In ar, this message translates to:
+  /// **'عندما تصلك هدايا في البث أو المحادثات تظهر حصتك منها هنا.'**
+  String get earnEmptyBody;
+
+  /// D164: earnings load failed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل الأرباح'**
+  String get earnLoadError;
+
+  /// D164: one earning's gift and quantity.
+  ///
+  /// In ar, this message translates to:
+  /// **'{gift} × {quantity}'**
+  String earnGiftLine(String gift, int quantity);
+
+  /// D164: who sent the gift.
+  ///
+  /// In ar, this message translates to:
+  /// **'من {name}'**
+  String earnFrom(String name);
+
+  /// D164: the sender is hidden (inactive or blocked).
+  ///
+  /// In ar, this message translates to:
+  /// **'من حساب غير متاح'**
+  String get earnFromHidden;
+
+  /// D164: the gift was sent in a live.
+  ///
+  /// In ar, this message translates to:
+  /// **'في بث'**
+  String get earnContextLive;
+
+  /// D164: the gift was sent in a chat.
+  ///
+  /// In ar, this message translates to:
+  /// **'في محادثة'**
+  String get earnContextDm;
+
+  /// D164: the share of one send.
+  ///
+  /// In ar, this message translates to:
+  /// **'حصتك {percent}٪ من {coins}'**
+  String earnShare(String percent, String coins);
+
+  /// D164: creator center period.
+  ///
+  /// In ar, this message translates to:
+  /// **'7 أيام'**
+  String get creatorPeriod7;
+
+  /// D164: creator center period.
+  ///
+  /// In ar, this message translates to:
+  /// **'30 يوماً'**
+  String get creatorPeriod30;
+
+  /// D164: creator center period.
+  ///
+  /// In ar, this message translates to:
+  /// **'كل الوقت'**
+  String get creatorPeriodAll;
+
+  /// D164: creator center section.
+  ///
+  /// In ar, this message translates to:
+  /// **'المتابعون'**
+  String get creatorFollowers;
+
+  /// D164: followers now.
+  ///
+  /// In ar, this message translates to:
+  /// **'كل المتابعين'**
+  String get creatorFollowersTotal;
+
+  /// D164: follows made in the period that still stand.
+  ///
+  /// In ar, this message translates to:
+  /// **'تابعوك في هذه الفترة'**
+  String get creatorFollowersNew;
+
+  /// D164: creator center section.
+  ///
+  /// In ar, this message translates to:
+  /// **'المنشورات'**
+  String get creatorPosts;
+
+  /// D164: creator center section.
+  ///
+  /// In ar, this message translates to:
+  /// **'الريلز'**
+  String get creatorReels;
+
+  /// D164: published in the period.
+  ///
+  /// In ar, this message translates to:
+  /// **'منشورة'**
+  String get creatorPublished;
+
+  /// D164: views.
+  ///
+  /// In ar, this message translates to:
+  /// **'المشاهدات'**
+  String get creatorViews;
+
+  /// D164: likes.
+  ///
+  /// In ar, this message translates to:
+  /// **'الإعجابات'**
+  String get creatorLikes;
+
+  /// D164: comments.
+  ///
+  /// In ar, this message translates to:
+  /// **'التعليقات'**
+  String get creatorComments;
+
+  /// D164: shares.
+  ///
+  /// In ar, this message translates to:
+  /// **'المشاركات'**
+  String get creatorShares;
+
+  /// D164: how post numbers are counted.
+  ///
+  /// In ar, this message translates to:
+  /// **'ما نُشر في هذه الفترة، بأرقامه حتى الآن.'**
+  String get creatorContentHint;
+
+  /// D164: empty content section.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تنشر شيئاً في هذه الفترة.'**
+  String get creatorNoPosts;
+
+  /// D164: creator center section.
+  ///
+  /// In ar, this message translates to:
+  /// **'البث المباشر'**
+  String get creatorLive;
+
+  /// D164: how lives are counted.
+  ///
+  /// In ar, this message translates to:
+  /// **'البثوث التي بدأت في هذه الفترة وانتهت.'**
+  String get creatorLiveHint;
+
+  /// D164: empty live section.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا بثوث منتهية في هذه الفترة.'**
+  String get creatorNoLives;
+
+  /// D164: the most viewers at once.
+  ///
+  /// In ar, this message translates to:
+  /// **'أعلى مشاهدة'**
+  String get creatorPeakViewers;
+
+  /// D164: link to the own profile grid.
+  ///
+  /// In ar, this message translates to:
+  /// **'منشوراتي وريلزي'**
+  String get creatorOpenProfile;
+
+  /// D164: creator stats load failed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل الإحصاءات'**
+  String get creatorLoadError;
+
+  /// D165: the search button of the conversation list.
+  ///
+  /// In ar, this message translates to:
+  /// **'بحث في المحادثات'**
+  String get dmSearch;
+
+  /// D165: the hint of the conversation search field.
+  ///
+  /// In ar, this message translates to:
+  /// **'ابحث بالاسم أو اسم المستخدم'**
+  String get dmSearchHint;
+
+  /// D165: closes the conversation search.
+  ///
+  /// In ar, this message translates to:
+  /// **'إغلاق البحث'**
+  String get dmSearchClose;
+
+  /// D165: no conversation matches the search.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد محادثة تطابق «{query}»'**
+  String dmSearchEmpty(String query);
+
+  /// D165: the hint of the new-message person search.
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب اسم الشخص أو اسم المستخدم'**
+  String get dmNewMessageHint;
+
+  /// D165: the new-message search found nobody.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم نجد أحداً بهذا الاسم'**
+  String get dmNewMessageEmpty;
+
+  /// D165: the new-message sheet before a search.
+  ///
+  /// In ar, this message translates to:
+  /// **'ابحث عن شخص لتبدأ محادثة معه'**
+  String get dmNewMessageStart;
+
+  /// D165: the long-press menu of a conversation row (semantics hint).
+  ///
+  /// In ar, this message translates to:
+  /// **'خيارات المحادثة'**
+  String get dmConversationActions;
+
+  /// D165: marks a conversation read from the list.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعليم كمقروءة'**
+  String get dmMarkRead;
+
+  /// D165: marks a conversation unread (markDmUnread).
+  ///
+  /// In ar, this message translates to:
+  /// **'تعليم كغير مقروءة'**
+  String get dmMarkUnread;
+
+  /// D165: semantics of a row marked unread.
+  ///
+  /// In ar, this message translates to:
+  /// **'معلّمة كغير مقروءة'**
+  String get dmMarkedUnread;
+
+  /// D165: copies a text message (long press).
+  ///
+  /// In ar, this message translates to:
+  /// **'نسخ'**
+  String get dmCopy;
+
+  /// D165: a text message was copied.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم نسخ الرسالة'**
+  String get dmCopied;
+
+  /// D165: the chat header opens the person's profile.
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض الملف الشخصي'**
+  String get dmViewProfile;
+
+  /// D165: the microphone of a composer that cannot record here (replaces «قريباً»).
+  ///
+  /// In ar, this message translates to:
+  /// **'الرسائل الصوتية غير متاحة على هذا الجهاز'**
+  String get chatVoiceUnavailable;
+
+  /// D168: the sheet title of «تغيير الصورة» in edit profile.
+  ///
+  /// In ar, this message translates to:
+  /// **'صورة الملف الشخصي'**
+  String get profileEditPhotoSheetTitle;
+
+  /// D168: photo sheet choice: the system photo picker.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختيار من الصور'**
+  String get profileEditPhotoLibrary;
+
+  /// D168: photo sheet choice: the camera.
+  ///
+  /// In ar, this message translates to:
+  /// **'التقاط صورة'**
+  String get profileEditPhotoCamera;
+
+  /// D168: photo sheet choice: back to the initial.
+  ///
+  /// In ar, this message translates to:
+  /// **'إزالة الصورة'**
+  String get profileEditPhotoRemove;
+
+  /// D168: snack after the profile photo changed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم تحديث صورتك'**
+  String get profileEditPhotoUpdated;
+
+  /// D168: snack after the profile photo was removed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تمت إزالة صورتك'**
+  String get profileEditPhotoRemoved;
+
+  /// D168: under the photo (and its screen-reader label) while it uploads.
+  ///
+  /// In ar, this message translates to:
+  /// **'جارٍ رفع الصورة…'**
+  String get profileEditPhotoUploading;
+
+  /// D168: the square crop screen's title.
+  ///
+  /// In ar, this message translates to:
+  /// **'قص الصورة'**
+  String get profileEditCropTitle;
+
+  /// D168: the crop screen's hint (and the photo's screen-reader label).
+  ///
+  /// In ar, this message translates to:
+  /// **'اسحب الصورة وكبّرها لتملأ المربع'**
+  String get profileEditCropHint;
+
+  /// D168: the crop screen's confirm button.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم'**
+  String get profileEditCropDone;
+
+  /// D168: snack after the name or bio was saved.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم الحفظ'**
+  String get profileEditSaved;
+
+  /// D168: the empty bio row and the bio field's hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'أضف نبذة عنك'**
+  String get profileEditBioPlaceholder;
+
+  /// D168: the bio is too long (characters or lines).
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكن أن تصل النبذة إلى {max} حرف و{lines} أسطر.'**
+  String profileEditBioTooLong(int max, int lines);
+
+  /// D168: the server refused a character in the bio.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحتوي النبذة على رموز غير مسموح بها.'**
+  String get profileEditBioInvalid;
+
+  /// D168: under the name field.
+  ///
+  /// In ar, this message translates to:
+  /// **'يظهر اسمك في ملفك وفي البث والرسائل. يمكن أن يتكرر بين الحسابات.'**
+  String get profileEditNameHelp;
+
+  /// D168: under the bio field.
+  ///
+  /// In ar, this message translates to:
+  /// **'تظهر النبذة للجميع في ملفك الشخصي.'**
+  String get profileEditBioHelp;
+
+  /// D168: screen-reader label of a library video longer than the limit (90 s for posts, 60 s for reels).
+  ///
+  /// In ar, this message translates to:
+  /// **'فيديو، {length}، أطول من {seconds} ثانية، لا يمكن استخدامه'**
+  String createLibraryVideoTooLong(String length, int seconds);
+
+  /// D166: Task Center tab.
+  ///
+  /// In ar, this message translates to:
+  /// **'المهام اليومية'**
+  String get tasksTabDaily;
+
+  /// D166: Task Center tab (host tasks).
+  ///
+  /// In ar, this message translates to:
+  /// **'المهام الأسبوعية'**
+  String get tasksTabWeekly;
+
+  /// D166: tasks failed to load.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل المهام'**
+  String get tasksLoadError;
+
+  /// D166: the level card's points.
+  ///
+  /// In ar, this message translates to:
+  /// **'نقاط الخبرة {points}'**
+  String tasksLevelPoints(String points);
+
+  /// D166: the level card when no level system is active.
+  ///
+  /// In ar, this message translates to:
+  /// **'المستويات غير مفعّلة بعد'**
+  String get tasksLevelNone;
+
+  /// D166: the check-in section.
+  ///
+  /// In ar, this message translates to:
+  /// **'تسجيل الدخول اليومي'**
+  String get tasksCheckInTitle;
+
+  /// D166: days left to the 7th-day bonus.
+  ///
+  /// In ar, this message translates to:
+  /// **'سجّل الدخول {days} أيام أخرى لتحصل على {coins} عملة إضافية'**
+  String tasksCheckInToBonus(String days, String coins);
+
+  /// D166: the 7th day of the streak is today.
+  ///
+  /// In ar, this message translates to:
+  /// **'اليوم يوم المكافأة: {coins} عملة إضافية'**
+  String tasksCheckInBonusToday(String coins);
+
+  /// D166: the check-in button.
+  ///
+  /// In ar, this message translates to:
+  /// **'تسجيل'**
+  String get tasksCheckInAction;
+
+  /// D166: the check-in streak.
+  ///
+  /// In ar, this message translates to:
+  /// **'{days} أيام متتالية'**
+  String tasksStreak(String days);
+
+  /// D166: today's slot of the check-in strip.
+  ///
+  /// In ar, this message translates to:
+  /// **'اليوم'**
+  String get tasksToday;
+
+  /// D166: the daily cap of task and check-in coins.
+  ///
+  /// In ar, this message translates to:
+  /// **'مكافآت اليوم: {earned} من {cap} عملة'**
+  String tasksDailyCap(String earned, String cap);
+
+  /// D166: the daily task list.
+  ///
+  /// In ar, this message translates to:
+  /// **'مكافآت المهام'**
+  String get tasksRewardsTitle;
+
+  /// D166: the weekly task list.
+  ///
+  /// In ar, this message translates to:
+  /// **'مهام المضيف الأسبوعية'**
+  String get tasksWeeklyTitle;
+
+  /// D166: when weekly tasks reset.
+  ///
+  /// In ar, this message translates to:
+  /// **'تتجدد كل يوم إثنين.'**
+  String get tasksWeeklyHint;
+
+  /// D166: weekly tab for someone without the hosting permission.
+  ///
+  /// In ar, this message translates to:
+  /// **'المهام الأسبوعية للمضيفين'**
+  String get tasksWeeklyEmpty;
+
+  /// D166: weekly tab empty message.
+  ///
+  /// In ar, this message translates to:
+  /// **'تظهر هنا مهام البث الأسبوعية لمن لديه صلاحية البث.'**
+  String get tasksWeeklyEmptyBody;
+
+  /// D166: no task is configured.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا مهام الآن'**
+  String get tasksEmpty;
+
+  /// D166: no task is configured (message).
+  ///
+  /// In ar, this message translates to:
+  /// **'ستظهر هنا المهام عندما يضيفها فريق كبسو.'**
+  String get tasksEmptyBody;
+
+  /// D166: a task not done yet: go where it is done.
+  ///
+  /// In ar, this message translates to:
+  /// **'اذهب'**
+  String get tasksActionGo;
+
+  /// D166: a done task: claim its coins.
+  ///
+  /// In ar, this message translates to:
+  /// **'استلام'**
+  String get tasksActionClaim;
+
+  /// D166: a claimed task / today's check-in done.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم'**
+  String get tasksActionDone;
+
+  /// D166: a claim or check-in paid coins.
+  ///
+  /// In ar, this message translates to:
+  /// **'حصلت على {coins} عملة'**
+  String tasksRewardReceived(String coins);
+
+  /// D166: a check-in after the daily cap (no coins).
+  ///
+  /// In ar, this message translates to:
+  /// **'تم التسجيل — بلغت حدّ مكافآت اليوم'**
+  String get tasksNoCoinsCap;
+
+  /// D166: TASK_DAILY_CAP_REACHED.
+  ///
+  /// In ar, this message translates to:
+  /// **'بلغت حدّ مكافآت المهام لهذا اليوم'**
+  String get tasksCapReached;
+
+  /// D166: Event Center tab.
+  ///
+  /// In ar, this message translates to:
+  /// **'تقويم الفعاليات'**
+  String get eventsTabCalendar;
+
+  /// D166: Event Center tab.
+  ///
+  /// In ar, this message translates to:
+  /// **'فعاليات دائمة'**
+  String get eventsTabPermanent;
+
+  /// D166: Event Center tab.
+  ///
+  /// In ar, this message translates to:
+  /// **'فعاليات إقليمية'**
+  String get eventsTabRegional;
+
+  /// D166: the intro card title.
+  ///
+  /// In ar, this message translates to:
+  /// **'تقويم الفعاليات'**
+  String get eventsIntroTitle;
+
+  /// D166: the intro card text.
+  ///
+  /// In ar, this message translates to:
+  /// **'أبرز فعاليات كبسو الرسمية كل شهر — اعرف المكافآت وطريقة المشاركة مبكراً. اضغط أي فعالية لتفاصيلها.'**
+  String get eventsIntroBody;
+
+  /// D166: the calendar's month title.
+  ///
+  /// In ar, this message translates to:
+  /// **'تقويم فعاليات {month}'**
+  String eventsCalendarMonth(String month);
+
+  /// D166: calendar navigation.
+  ///
+  /// In ar, this message translates to:
+  /// **'الشهر السابق'**
+  String get eventsPreviousMonth;
+
+  /// D166: calendar navigation.
+  ///
+  /// In ar, this message translates to:
+  /// **'الشهر التالي'**
+  String get eventsNextMonth;
+
+  /// D166: more event bars than fit in a week.
+  ///
+  /// In ar, this message translates to:
+  /// **'و{count} أخرى'**
+  String eventsMore(String count);
+
+  /// D166: empty calendar month.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا فعاليات هذا الشهر'**
+  String get eventsEmptyMonth;
+
+  /// D166: empty event list.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا فعاليات الآن'**
+  String get eventsEmpty;
+
+  /// D166: empty event list (message).
+  ///
+  /// In ar, this message translates to:
+  /// **'عندما يعلن فريق كبسو عن فعالية ستظهر هنا.'**
+  String get eventsEmptyBody;
+
+  /// D166: regional tab without a country.
+  ///
+  /// In ar, this message translates to:
+  /// **'حدّد بلدك لترى فعاليات منطقتك'**
+  String get eventsNoCountry;
+
+  /// D166: regional tab without a country (message).
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنك اختيار بلدك من تعديل الملف الشخصي.'**
+  String get eventsNoCountryBody;
+
+  /// D166: events failed to load.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل الفعاليات'**
+  String get eventsLoadError;
+
+  /// D166: an ended event's tag.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت'**
+  String get eventsEnded;
+
+  /// D166: a featured event's tag.
+  ///
+  /// In ar, this message translates to:
+  /// **'رائج'**
+  String get eventsFeatured;
+
+  /// D166: an event that has not started.
+  ///
+  /// In ar, this message translates to:
+  /// **'قريباً'**
+  String get eventsUpcoming;
+
+  /// D166: a running event.
+  ///
+  /// In ar, this message translates to:
+  /// **'جارية'**
+  String get eventsRunning;
+
+  /// D166: an event's dates.
+  ///
+  /// In ar, this message translates to:
+  /// **'من {start} إلى {end}'**
+  String eventsDates(String start, String end);
+
+  /// D166: a permanent event without an end.
+  ///
+  /// In ar, this message translates to:
+  /// **'منذ {start}'**
+  String eventsSince(String start);
+
+  /// D166: the event screen's title.
+  ///
+  /// In ar, this message translates to:
+  /// **'تفاصيل الفعالية'**
+  String get eventsDetailTitle;
+
+  /// D166: an event for hosts.
+  ///
+  /// In ar, this message translates to:
+  /// **'للمضيفين فقط'**
+  String get eventsForHosts;
+
+  /// D166: the event rules section.
+  ///
+  /// In ar, this message translates to:
+  /// **'القواعد'**
+  String get eventsRules;
+
+  /// D166: an event without rules text.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا قواعد إضافية.'**
+  String get eventsNoRules;
+
+  /// D166: the event prizes section.
+  ///
+  /// In ar, this message translates to:
+  /// **'الجوائز'**
+  String get eventsPrizes;
+
+  /// D166: an event without prizes.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا جوائز لهذه الفعالية.'**
+  String get eventsNoPrizes;
+
+  /// D166: the review window before payout.
+  ///
+  /// In ar, this message translates to:
+  /// **'تُصرف الجوائز تلقائياً بعد 24 ساعة من انتهاء الفعالية.'**
+  String get eventsPrizesReview;
+
+  /// D166: prizes paid.
+  ///
+  /// In ar, this message translates to:
+  /// **'صُرفت الجوائز.'**
+  String get eventsPrizesPaid;
+
+  /// D166: one rank.
+  ///
+  /// In ar, this message translates to:
+  /// **'المركز {rank}'**
+  String eventsRank(String rank);
+
+  /// D166: a range of ranks (each gets the prize).
+  ///
+  /// In ar, this message translates to:
+  /// **'المراكز {from}–{to}'**
+  String eventsRanks(String from, String to);
+
+  /// D166: the leaderboard section.
+  ///
+  /// In ar, this message translates to:
+  /// **'لوحة الصدارة'**
+  String get eventsBoard;
+
+  /// D166: the board is still counting.
+  ///
+  /// In ar, this message translates to:
+  /// **'مباشر'**
+  String get eventsBoardLive;
+
+  /// D166: the frozen board.
+  ///
+  /// In ar, this message translates to:
+  /// **'النتائج النهائية'**
+  String get eventsBoardFinal;
+
+  /// D166: an empty leaderboard.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا أحد في اللوحة بعد.'**
+  String get eventsBoardEmpty;
+
+  /// D166: the caller's own rank.
+  ///
+  /// In ar, this message translates to:
+  /// **'ترتيبك: {rank}'**
+  String eventsMeRank(String rank);
+
+  /// D166: the caller has no rank.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تدخل اللوحة بعد'**
+  String get eventsMeNotRanked;
+
+  /// D166: what the event counts.
+  ///
+  /// In ar, this message translates to:
+  /// **'قيمة الهدايا المستلمة'**
+  String get eventsMetricGiftsReceived;
+
+  /// D166: what the event counts.
+  ///
+  /// In ar, this message translates to:
+  /// **'قيمة الهدايا المرسلة'**
+  String get eventsMetricGiftsSent;
+
+  /// D166: what the event counts.
+  ///
+  /// In ar, this message translates to:
+  /// **'دقائق البث'**
+  String get eventsMetricLiveMinutes;
+
+  /// D166: what the event counts.
+  ///
+  /// In ar, this message translates to:
+  /// **'النقرات المستلمة'**
+  String get eventsMetricTaps;
+
+  /// D166: what the event counts.
+  ///
+  /// In ar, this message translates to:
+  /// **'المتابعون الجدد'**
+  String get eventsMetricFollowers;
+
+  /// D166: an unknown metric.
+  ///
+  /// In ar, this message translates to:
+  /// **'النقاط'**
+  String get eventsMetricOther;
+
+  /// D166: SVIP failed to load.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل SVIP'**
+  String get svipLoadError;
+
+  /// D166: the rules button and sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'قواعد SVIP'**
+  String get svipRules;
+
+  /// D166: how SVIP is earned.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحصل على SVIP بإرسال الهدايا: أنفق العملات على الهدايا خلال {days} يوماً لتصل إلى المستوى، ويبقى معك 30 يوماً من آخر مرة بلغته. لا يُشترى SVIP بالمال.'**
+  String svipRulesBody(String days);
+
+  /// D166: status line without SVIP.
+  ///
+  /// In ar, this message translates to:
+  /// **'لست SVIP بعد'**
+  String get svipNotYet;
+
+  /// D166: a tier name.
+  ///
+  /// In ar, this message translates to:
+  /// **'SVIP {tier}'**
+  String svipTier(String tier);
+
+  /// D166: status line with SVIP.
+  ///
+  /// In ar, this message translates to:
+  /// **'{tier} حتى {date}'**
+  String svipUntil(String tier, String date);
+
+  /// D166: the tier track (screen readers).
+  ///
+  /// In ar, this message translates to:
+  /// **'المستوى {tier} من {count}'**
+  String svipTrack(String tier, String count);
+
+  /// D166: a locked tier or perk.
+  ///
+  /// In ar, this message translates to:
+  /// **'مقفل'**
+  String get svipLocked;
+
+  /// D166: an unlocked perk.
+  ///
+  /// In ar, this message translates to:
+  /// **'مفتوح'**
+  String get svipUnlocked;
+
+  /// D166: what the next tier needs.
+  ///
+  /// In ar, this message translates to:
+  /// **'أنفق {coins} عملة على الهدايا خلال {days} يوماً للترقية'**
+  String svipSpendToUpgrade(String coins, String days);
+
+  /// D166: the rolling spending.
+  ///
+  /// In ar, this message translates to:
+  /// **'أنفقت {coins} عملة في آخر {days} يوماً'**
+  String svipSpent(String coins, String days);
+
+  /// D166: at the top tier.
+  ///
+  /// In ar, this message translates to:
+  /// **'وصلت إلى أعلى مستوى SVIP'**
+  String get svipTop;
+
+  /// D166: the perks section.
+  ///
+  /// In ar, this message translates to:
+  /// **'امتيازات SVIP'**
+  String get svipPerksTitle;
+
+  /// D166: no perk is built yet.
+  ///
+  /// In ar, this message translates to:
+  /// **'الامتيازات قيد الإعداد وستُفعَّل تباعاً.'**
+  String get svipPerksSoon;
+
+  /// D166: the sticky bar.
+  ///
+  /// In ar, this message translates to:
+  /// **'أنفق {coins} عملة أخرى للوصول إلى {tier}'**
+  String svipSpendMore(String coins, String tier);
+
+  /// D166: the gold button (opens the lives).
+  ///
+  /// In ar, this message translates to:
+  /// **'أرسل هدية'**
+  String get svipCta;
+
+  /// D166: wallet tab.
+  ///
+  /// In ar, this message translates to:
+  /// **'العملات'**
+  String get walletTabCoins;
+
+  /// D166: the packages section.
+  ///
+  /// In ar, this message translates to:
+  /// **'شحن العملات'**
+  String get walletRechargeTitle;
+
+  /// D166: a package's bonus coins (screen readers).
+  ///
+  /// In ar, this message translates to:
+  /// **'{coins} إضافية'**
+  String walletBonus(String coins);
+
+  /// D166: the discount ribbon.
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض'**
+  String get walletOffer;
+
+  /// D166: the recharge button (disabled until payments exist, B5).
+  ///
+  /// In ar, this message translates to:
+  /// **'احصل على {coins} عملة · المجموع {total}'**
+  String walletGetCoins(String coins, String total);
+
+  /// D166: no package configured.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا باقات شحن الآن'**
+  String get walletPackagesEmpty;
+
+  /// D166: packages failed to load.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل باقات الشحن'**
+  String get walletPackagesError;
+
+  /// D166: ledger reason TASK_REWARD.
+  ///
+  /// In ar, this message translates to:
+  /// **'مكافأة مهمة'**
+  String get walletReasonTaskReward;
+
+  /// D166: ledger reason CHECK_IN_REWARD.
+  ///
+  /// In ar, this message translates to:
+  /// **'مكافأة تسجيل الدخول'**
+  String get walletReasonCheckIn;
+
+  /// D166: ledger reason EVENT_PRIZE.
+  ///
+  /// In ar, this message translates to:
+  /// **'جائزة فعالية'**
+  String get walletReasonEventPrize;
 }
 
 class _AppLocalizationsDelegate

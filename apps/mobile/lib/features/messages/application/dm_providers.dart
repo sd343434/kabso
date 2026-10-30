@@ -133,9 +133,13 @@ class DmInboxState {
 class DmInboxController extends AsyncNotifier<DmInboxState> {
   // The provider family's argument (the requests box or not).
   // ignore: avoid_positional_boolean_parameters
-  new(this.requests);
+  new(this.requests, [this.query]);
 
   final bool requests;
+
+  /// D165: only the conversations whose peer's username or display name
+  /// starts with it (null: the whole box).
+  final String? query;
 
   DmRepository get _repo => ref.read(dmRepositoryProvider);
 
@@ -144,13 +148,13 @@ class DmInboxController extends AsyncNotifier<DmInboxState> {
     ref.watch(currentUserProvider.select((u) => u?.id));
     final page = await ref
         .watch(dmRepositoryProvider)
-        .conversations(requests: requests);
+        .conversations(requests: requests, query: query);
     return DmInboxState(items: page.data, nextCursor: page.nextCursor);
   }
 
   Future<void> refresh() async {
     try {
-      final page = await _repo.conversations(requests: requests);
+      final page = await _repo.conversations(requests: requests, query: query);
       if (!ref.mounted) return;
       final first = {for (final c in page.data) c.id};
       final rest = [
@@ -178,6 +182,7 @@ class DmInboxController extends AsyncNotifier<DmInboxState> {
     try {
       final page = await _repo.conversations(
         requests: requests,
+        query: query,
         cursor: s.nextCursor,
       );
       if (!ref.mounted) return;
@@ -195,6 +200,23 @@ class DmInboxController extends AsyncNotifier<DmInboxState> {
     } on Object {
       if (ref.mounted) state = AsyncData(s.copyWith(loadingMore: false));
     }
+  }
+
+  /// D165: [conversationId] changed here (read, marked unread, muted).
+  void patch(
+    String conversationId,
+    DmConversation Function(DmConversation c) change,
+  ) {
+    final s = state.value;
+    if (s == null) return;
+    state = AsyncData(
+      s.copyWith(
+        items: [
+          for (final c in s.items)
+            if (c.id == conversationId) change(c) else c,
+        ],
+      ),
+    );
   }
 
   /// A conversation left this box here (deleted, accepted, blocked).
@@ -215,6 +237,19 @@ class DmInboxController extends AsyncNotifier<DmInboxState> {
 final AsyncNotifierProviderFamily<DmInboxController, DmInboxState, bool>
 dmInboxProvider = AsyncNotifierProvider.autoDispose
     .family<DmInboxController, DmInboxState, bool>(DmInboxController.new);
+
+/// D165: a search of one box (`listDmConversations?q=`).
+typedef DmInboxSearch = ({bool requests, String query});
+
+final AsyncNotifierProviderFamily<
+  DmInboxController,
+  DmInboxState,
+  DmInboxSearch
+>
+dmInboxSearchProvider = AsyncNotifierProvider.autoDispose
+    .family<DmInboxController, DmInboxState, DmInboxSearch>(
+      (search) => DmInboxController(search.requests, search.query),
+    );
 
 /// One conversation as the screen shows it: the peer (and whether the
 /// caller may write), the conversation once it exists, and its messages
@@ -401,9 +436,30 @@ class DmChatController extends AsyncNotifier<DmChatState> {
     final conversation = s?.conversation;
     if (s == null || conversation == null) return false;
     final newest = s.messages.where((m) => !m.mine).firstOrNull;
-    if (newest == null || conversation.unreadCount == 0) return false;
+    final marked = conversation.markedUnread;
+    // A request is never read before it is accepted (the sender would know).
+    final readMessages =
+        newest != null &&
+        conversation.unreadCount > 0 &&
+        conversation.status != DmConversationStatus.requestReceived;
+    if (!readMessages && !marked) return false;
     try {
-      await _repo.markRead(conversation.id, newest.id);
+      // D165: reading clears the unread mark; otherwise (nothing to read, or
+      // a request) the mark is cleared on its own.
+      if (readMessages) {
+        await _repo.markRead(conversation.id, newest.id);
+      } else {
+        await _repo.setMarkedUnread(conversation.id, marked: false);
+      }
+      final now = state.value;
+      final c = now?.conversation;
+      if (marked && now != null && c != null && ref.mounted) {
+        state = AsyncData(
+          now.copyWith(
+            peer: _withConversation(now.peer, c.copyWith(markedUnread: false)),
+          ),
+        );
+      }
       return true;
     } on Object {
       return false;

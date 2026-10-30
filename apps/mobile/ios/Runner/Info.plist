@@ -80,6 +80,6 @@
 		<string>audio</string>
 	</array>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Kabso Live uses the microphone when you go live and for the videos you record to send in a message.</string>
+	<string>Kabso Live uses the microphone when you go live, when you record a voice message, and for the videos you record.</string>
 </dict>
 </plist>

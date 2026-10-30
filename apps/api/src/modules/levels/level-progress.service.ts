@@ -304,7 +304,7 @@ export class LevelProgressService {
   }
 
   /**
-   * v1.43-levels (D169, §10.22): a support (`SUPPORT`) level that went up gives the avatar frame
+   * v1.46-levels (D169, §10.22): a support (`SUPPORT`) level that went up gives the avatar frame
    * of every support tier reached so far that the user does not own yet (bag `AVATAR_FRAME`,
    * source LEVEL_REWARD, not worn), in the same transaction. Frames are kept for good: a level
    * that goes down (a reversal, a new version) takes nothing back.

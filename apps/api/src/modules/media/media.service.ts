@@ -49,7 +49,10 @@ export interface MediaAssetDto {
   thumbUrl: string;
   /** VIDEO only (D162): the poster at 1 080 px. */
   posterUrl?: string;
-  /** AUDIO: the clip's length (≤ 30 000). VIDEO (D162): ≤ 60 000 for a reel, ≤ 180 000 for a post. */
+  /**
+   * AUDIO: the clip's length (≤ 30 000). VIDEO (D162): ≤ 60 000 for a reel, ≤ 90 000 for a new post
+   * video (D168; ones stored before keep up to 180 000).
+   */
   durationMs?: number;
 }
 
@@ -88,6 +91,9 @@ export const MEDIA_KINDS = [
   'POST_VIDEO',
   'REEL_VIDEO',
   'VIDEO_POSTER',
+  // v1.45-social (D168): the profile photo (a centre-cropped square, like the live cover); attached
+  // only by `PUT /me/avatar`.
+  'AVATAR',
 ] as const;
 export type MediaKind = (typeof MEDIA_KINDS)[number];
 
@@ -339,7 +345,7 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
     const shape: ImageShape =
       kind === 'HOME_BANNER'
         ? 'banner'
-        : kind === 'LIVE_COVER' || kind === 'FAMILY_EMBLEM'
+        : kind === 'LIVE_COVER' || kind === 'FAMILY_EMBLEM' || kind === 'AVATAR'
           ? 'square'
           : 'inside';
     const side =
@@ -541,6 +547,8 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
       WHERE id = ANY(${lower}::uuid[]) AND owner_id = ${userId}::uuid AND attached_at IS NULL
         AND kind = ANY(${kinds}::text[])
         AND created_at > now() - interval '24 hours'
+        -- D168: a post video uploaded before the 90 s limit and longer than it is not attachable.
+        AND NOT (kind = 'POST_VIDEO' AND duration_ms > ${VIDEO_LIMITS.POST_VIDEO.maxDurationMs})
       FOR UPDATE`;
     if (locked.length !== lower.length) return null;
     const now = new Date();

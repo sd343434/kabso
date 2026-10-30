@@ -208,7 +208,7 @@ info:
     gifts inside a conversation through the live gift pipeline, block/report (`DM_MESSAGE`, kept as a
     snapshot)/mute/delete; every message is deleted 24 hours after it was sent (CONVENTIONS §11.13).
     **D162 (DRAFT v1.41-social, CP-023, CP-006 M2 without transcoding)** adds video posts and reels:
-    media kinds `POST_VIDEO` (≤ 200 MiB, ≤ 180 s), `REEL_VIDEO` (≤ 100 MiB, ≤ 60 s) and
+    media kinds `POST_VIDEO` (≤ 200 MiB, ≤ 180 s; ≤ 90 s since v1.45-social, D168), `REEL_VIDEO` (≤ 100 MiB, ≤ 60 s) and
     `VIDEO_POSTER` (the phone-made first frame), `video/mp4` and `video/quicktime`, the optional
     `CompleteMediaUploadRequest.posterId`, `MediaAsset.type: VIDEO` with `posterUrl` and
     `durationMs`, `Post.format: REEL` / `CreatePostRequest.format`, and `listFeedReels`
@@ -216,7 +216,22 @@ info:
     length, codec, size) and served as uploaded; there is no server-side transcoding yet.
     **D162a (DRAFT v1.42-social)**: posts with media (photos, video, reels) are `VISIBLE` at once
     (owner); `PENDING` stays valid for a future provider or an admin hold (CONVENTIONS §11.2).
-    **D169 (DRAFT v1.43-levels)**: the bag gains the category `AVATAR_FRAME` and the source
+    **D164 (DRAFT v1.43-social)** makes the Me hub's Wallet, Earn money and Creator Center real from
+    stored data: the caller's coin history (`listMyWalletLedger`), gift earnings and their history
+    (`getMyEarnings`, `listMyEarnings`, display only — no withdrawal, D149) and the creator center
+    (`getMyCreatorStats`, `GET /me/creator-stats`) (CONVENTIONS §10.40).
+    **D166 (DRAFT v1.44-social, CP-024 approved with defaults)** adds the Me hub's programs (tag
+    `programs`): the Task Center (`getMyTasks`, `checkIn`, `claimMyTask`; server-computed progress,
+    one payout per period, a daily cap), SVIP earned by gift spending (`getMySvip`), the Event Center
+    (`listEvents`, `getEvent`, `getEventLeaderboard`; frozen and paid once after the end) and the
+    recharge packages without purchases (`listRechargePackages`, B5); ledger reasons `TASK_REWARD`,
+    `CHECK_IN_REWARD`, `EVENT_PRIZE`; codes `TASK_NOT_COMPLETED`, `TASK_DAILY_CAP_REACHED` (CONVENTIONS
+    §10.41).
+    **D168 (DRAFT v1.45-social)**: a post video is now at most 90 s (owner; reels stay ≤ 60 s;
+    stored videos keep their length); `updateMe` also edits `displayName` and `bio`; the profile
+    photo is uploaded as media kind `AVATAR` and set or removed with `setMyAvatar` /
+    `removeMyAvatar` (`PUT` / `DELETE /me/avatar`) (CONVENTIONS §10.42, §11.1, §11.14).
+    **D169 (DRAFT v1.46-levels)**: the bag gains the category `AVATAR_FRAME` and the source
     `LEVEL_REWARD`: reaching a new support-level tier gives that tier's avatar frame
     (`support_frame_01` … `_20`) once, kept for good (CONVENTIONS §10.22).
 servers:
@@ -241,8 +256,10 @@ tags:
     description: "Admin: the hosting permission (v1.6-live DRAFT, CP-010)."
   - name: media
     description: "Presigned image uploads (v1.5-social DRAFT, CP-006)."
+  - name: programs
+    description: "The Me hub's programs: the Task Center, the Event Center and SVIP (v1.44-social DRAFT, D166)."
   - name: wallet
-    description: "The caller's coins (v1.19-live DRAFT, CP-017)."
+    description: "The caller's coins (v1.19-live DRAFT, CP-017); their history and gift earnings (v1.43-social DRAFT, D164)."
   - name: premium-usernames
     description: "Premium usernames rented monthly with coins, and the username change (v1.28-live DRAFT, D146). Prices, the reserved list and grants are managed by the premium-admin CLI."
   - name: families
@@ -586,10 +603,11 @@ paths:
     patch:
       tags: [me]
       operationId: updateMe
-      summary: "Update the caller's preferences (v1.2: locale; v1.27.1-live: country)"
+      summary: "Update the caller's preferences and profile (v1.2: locale; v1.27.1-live: country; v1.45-social: displayName, bio)"
       description: |
         v1.27.1-live (D133): `locale` is no longer required and `country` is added; at least one of
-        them must be sent (an empty object → 400 `body` / `required`). `country` is an ISO 3166-1
+        them must be sent (an empty object → 400 `body` / `required`). v1.45-social (D168,
+        CONVENTIONS §10.42): `displayName` and `bio` may be sent too (at least one field of the four). `country` is an ISO 3166-1
         alpha-2 code (two letters; lower case is accepted and stored upper case; `XK` and groupings
         such as `EU` are not countries here), or null to clear it;
         another value → 400 (`field "country"`, `issue "invalid_value"`). It is the caller's own
@@ -608,6 +626,21 @@ paths:
                   type: [string, 'null']
                   pattern: '^[A-Za-z]{2}$'
                   description: v1.27.1-live (D133). ISO 3166-1 alpha-2; null clears it.
+                displayName:
+                  allOf: [{ $ref: '#/components/schemas/DisplayName' }]
+                  description: |
+                    v1.45-social (D168, CONVENTIONS §10.42). The registration rules of §6 (NFC, trimmed,
+                    1–50 graphemes, ≤ 100 code points, text hygiene; `too_short`, `too_long`,
+                    `invalid_format`, `reserved_term` on field `displayName`). Shown everywhere the
+                    person appears from the next read.
+                bio:
+                  type: [string, 'null']
+                  maxLength: 1200
+                  description: |
+                    v1.45-social (D168, CONVENTIONS §10.42). After normalisation (CRLF → LF, NFC, trimmed,
+                    trailing spaces of each line removed) at most 300 code points and 4 line breaks, the
+                    free-text hygiene of §6 on each line (`too_long`, `invalid_format` on field `bio`). An
+                    empty value or null clears it (`Me.bio` null).
       responses:
         '200':
           description: Updated user.
@@ -939,6 +972,46 @@ paths:
         '204': { description: Removed (or there was none). }
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/me/avatar:
+    put:
+      tags: [me]
+      operationId: setMyAvatar
+      summary: "Set the caller's profile photo (v1.45-social, D168)"
+      description: |
+        CONVENTIONS §10.42. Order after auth and the rate limit (30 / hour / user):
+        `MEDIA_UPLOADS_ENABLED` (503 `MEDIA_UPLOADS_UNAVAILABLE`) → body → the asset: a READY,
+        unattached `AVATAR` asset of the caller from the last 24 hours, else 400 `mediaId` /
+        `invalid_value`. The photo replaces the previous one (whose `AVATAR` asset is deleted) and is
+        `Me.avatarUrl`, `PublicProfile.avatarUrl` and every `UserSummary.avatarUrl` of the caller from
+        the next read. Setting the current photo again changes nothing. Visible to everyone at once
+        (like stories and posts, D91 / D162a); reports and moderators handle abuse.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetAvatarRequest' }
+      responses:
+        '200':
+          description: The photo now in use.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Avatar' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [me]
+      operationId: removeMyAvatar
+      summary: "Remove the caller's profile photo; the initial shows again (v1.45-social, idempotent)"
+      description: |
+        CONVENTIONS §10.42. `avatarUrl` becomes null and the photo's `AVATAR` asset (if it was one) is
+        deleted. Works while uploads are off. No photo → 204 too. Same rate limit as `setMyAvatar`.
+      responses:
+        '204': { description: Removed (or there was none). }
+        '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
   /api/v1/users/username-availability:
@@ -3761,6 +3834,95 @@ paths:
               example: { coins: 100 }
         '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  # ---- v1.43-social (DRAFT, D164) — the Me hub's wallet, earnings and creator center ----------
+  /api/v1/wallet/me/ledger:
+    get:
+      tags: [wallet]
+      operationId: listMyWalletLedger
+      summary: "The caller's coin history, newest first (D164)"
+      description: |
+        v1.43-social, CONVENTIONS §10.40. Every change of the caller's coin balance (the
+        `wallet_ledger` rows): why, by how much and the balance after it, newest first (signed keyset
+        cursor bound to the caller). Only the caller's own rows; no other person's data (the row's
+        internal reference is not returned). Checks: 401; 400 `cursor` / `limit`.
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page of the history.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WalletLedgerPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/wallet/me/earnings:
+    get:
+      tags: [wallet]
+      operationId: getMyEarnings
+      summary: "The caller's gift earnings: totals (D164, display only)"
+      description: |
+        v1.43-social, CONVENTIONS §10.40. What the caller earned from the gifts they received, in a
+        live or a direct conversation: each send's value to the caller times the share stored with
+        that send (`live_gifts.host_share_bps`, §10.33), rounded down per send — the same arithmetic
+        as the data center's `earningsCoins` (§10.36). **Display only:** earnings are not coins, cannot
+        be spent and cannot be withdrawn yet (payouts D149). Checks: 401.
+      responses:
+        '200':
+          description: The totals.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyEarnings' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/wallet/me/earnings/history:
+    get:
+      tags: [wallet]
+      operationId: listMyEarnings
+      summary: "The gifts the caller earned from, newest first (D164)"
+      description: |
+        v1.43-social, CONVENTIONS §10.40. One row per gift send that gave the caller earnings (a
+        send whose share is 0, like a free quip, is left out), newest first (signed keyset cursor
+        bound to the caller). `sender` is null when the sender's account is not active or a block
+        stands between them. Checks: 401; 400 `cursor` / `limit`.
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page of earnings.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EarningPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/creator-stats:
+    get:
+      tags: [me]
+      operationId: getMyCreatorStats
+      summary: "The caller's creator center: followers, posts, reels and lives (D164)"
+      description: |
+        v1.43-social, CONVENTIONS §10.40. Computed from stored data only, for the last 7 days, the last
+        30 days or all time: the followers (all, and the follows made in the period that still stand),
+        the posts and the reels **published in the period** with the views, likes, comments and
+        shares they have now, and the lives **started in the period** that have ended (the data
+        center's summaries, §10.36). Checks: 401; 400 `period`.
+      parameters:
+        - name: period
+          in: query
+          required: true
+          schema: { $ref: '#/components/schemas/CreatorStatsPeriod' }
+      responses:
+        '200':
+          description: The statistics.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CreatorStats' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   # ---- v1.21-live (DRAFT, CP-018, D106) — families, CP couples and medals ---------------------
   /api/v1/families/config:
     get:
@@ -5195,7 +5357,8 @@ paths:
         (v1.41-social, D162, CONVENTIONS §11.14) A `POST_VIDEO` / `REEL_VIDEO` upload needs the body
         `{posterId}` (400 `posterId` / `required`; another kind with `posterId` → `unknown_field`; a
         poster that is not a READY, unattached `VIDEO_POSTER` of the caller → `invalid_value`, the
-        slot stays open). The video is checked without decoding (container, 1 s to 60 s / 180 s,
+        slot stays open). The video is checked without decoding (container, 1 s to 60 s / 90 s
+        (a post video; 180 s before v1.45-social, D168),
         H.264 or HEVC video track, 16–4 096 px) else 422 `MEDIA_INVALID`; it is served as
         uploaded (`type: VIDEO`) and the poster becomes its `thumbUrl` / `posterUrl`. Check order:
         auth → `MEDIA_UPLOADS_ENABLED` → 404 → body → the bytes.
@@ -6344,12 +6507,19 @@ paths:
         message requests waiting for the caller. Conversations the caller deleted are absent until a
         new message arrives; peers with a block either way or not ACTIVE are never listed. Ordered by
         `lastActivityAt` (signed keyset cursor, §5). Messages live 24 hours: `lastMessage` is null
-        when none is left (CONVENTIONS §11.13).
+        when none is left (CONVENTIONS §11.13). *(v1.43.1-social, D165)* `q`: only conversations whose
+        peer's username or display name starts with it (case-insensitive; a leading `@` is ignored);
+        the cursor is bound to `box` and `q`.
       parameters:
         - name: box
           in: query
           required: false
           schema: { type: string, enum: [INBOX, REQUESTS], default: INBOX }
+        - name: q
+          in: query
+          required: false
+          description: "(v1.43.1-social, D165) A case-insensitive prefix of the peer's username or display name (trimmed, then 1–30 characters; a leading `@` is ignored)."
+          schema: { type: string, minLength: 1, maxLength: 30 }
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
       responses:
@@ -6507,7 +6677,7 @@ paths:
       description: |
         Everything the caller received up to `lastMessageId` (a message of this conversation the
         caller can read; else 400 `lastMessageId` / `invalid_value`) is read; the pointer never moves
-        back. Idempotent.
+        back. *(v1.43.1-social, D165)* Also clears `markedUnread`. Idempotent.
       parameters:
         - $ref: '#/components/parameters/DmConversationIdPath'
       requestBody:
@@ -6570,6 +6740,34 @@ paths:
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  /api/v1/dm/conversations/{conversationId}/unread:
+    put:
+      tags: [messages]
+      operationId: markDmUnread
+      summary: "Mark a conversation unread (v1.43.1-social, D165)"
+      description: |
+        Sets the caller's `markedUnread` (the read pointer does not move). The conversation then counts
+        in `getDmUnread` as one unread message (a request: in `requests`) until the caller reads it
+        (`markDmRead`) or clears the mark (`DELETE`). Only the caller sees it. Idempotent.
+      parameters:
+        - $ref: '#/components/parameters/DmConversationIdPath'
+      responses:
+        '204': { description: Marked unread. }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [messages]
+      operationId: clearDmUnread
+      summary: "Clear the unread mark of a conversation (v1.43.1-social, D165)"
+      description: Clears `markedUnread` (a conversation opened or marked read without a message left to point at). Idempotent.
+      parameters:
+        - $ref: '#/components/parameters/DmConversationIdPath'
+      responses:
+        '204': { description: Cleared. }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/dm/messages/{messageId}:
     delete:
       tags: [messages]
@@ -6597,6 +6795,187 @@ paths:
         '404': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  # ---- v1.44-social (DRAFT, D166) — the Me hub's programs: Task Center, Event Center, SVIP -------
+  /api/v1/me/tasks:
+    get:
+      tags: [programs]
+      operationId: getMyTasks
+      summary: "The caller's Task Center: today's and this week's tasks and the check-in (D166)"
+      description: |
+        v1.44-social, CONVENTIONS §10.41. The enabled tasks the caller can do (tasks for hosts only
+        when the caller holds the hosting permission), each with the progress the server computed
+        from stored data (watch time, follows that still stand, live chat, paid gift sends, lives,
+        gifts received; counterparts must be ACTIVE) — never reported by the app — and whether it was
+        claimed in the current day or ISO week (`LIVE_RANKINGS_TIME_ZONE`). Also the check-in strip:
+        today and the next six days with their place in the 7-day cycle. Names follow
+        `Accept-Language`. Checks: 401.
+      responses:
+        '200':
+          description: The tasks.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyTasks' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/check-in:
+    post:
+      tags: [programs]
+      operationId: checkIn
+      summary: "Check in for today (D166)"
+      description: |
+        v1.44-social, CONVENTIONS §10.41. Once per day: `TASK_CHECK_IN_COINS` (5) coins, plus
+        `TASK_CHECK_IN_STREAK_BONUS_COINS` (20) on every 7th day in a row, paid as a `CHECK_IN_REWARD`
+        ledger row within the daily cap (`TASK_DAILY_CAP_COINS`, 50; after the cap the check-in still
+        keeps the streak and pays 0). 201 checked in now, 200 already today (nothing paid again).
+        Checks: 401.
+      responses:
+        '200':
+          description: Already checked in today.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CheckInResult' }
+        '201':
+          description: Checked in now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CheckInResult' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/tasks/{code}/claim:
+    post:
+      tags: [programs]
+      operationId: claimMyTask
+      summary: "Claim a completed task's coins (D166)"
+      description: |
+        v1.44-social, CONVENTIONS §10.41. Order: 404 (unknown, disabled or not for the caller) →
+        already claimed in this period → 200 (nothing paid again) → 409 `TASK_NOT_COMPLETED` → for a
+        daily task, 409 `TASK_DAILY_CAP_REACHED` when the day's cap is used up → 201, paying the reward
+        (a daily task: at most what is left of the cap) as a `TASK_REWARD` ledger row in the same
+        transaction. One payout per person, task and period, also for concurrent claims. Checks: 401.
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 40 }
+      responses:
+        '200':
+          description: Already claimed in this period.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskClaimResult' }
+        '201':
+          description: Claimed now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskClaimResult' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/svip:
+    get:
+      tags: [programs]
+      operationId: getMySvip
+      summary: "The caller's SVIP status, earned by gift spending (D166)"
+      description: |
+        v1.44-social, CONVENTIONS §10.41. SVIP is never bought: coins spent on gifts (`LIVE_GIFT`,
+        `LUCKY_GIFT`, `DM_GIFT`, `CP_GIFT`) in the last `SVIP_WINDOW_DAYS` (30) days reach the tiers
+        `SVIP_TIERS` (50 000 / 150 000 / 400 000); a tier lasts `SVIP_STATUS_DAYS` (30) days after the
+        last moment its threshold was met. The perks are listed with `available: false` until each is
+        built. Checks: 401.
+      responses:
+        '200':
+          description: The status.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SvipStatus' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/events:
+    get:
+      tags: [programs]
+      operationId: listEvents
+      summary: "The Event Center's lists: calendar month, permanent, regional (D166)"
+      description: |
+        v1.44-social, CONVENTIONS §10.41. `CALENDAR` (default): events for everyone (no regions) that
+        overlap `month` (`YYYY-MM` in `LIVE_RANKINGS_TIME_ZONE`, default the current month), by start.
+        `PERMANENT`: long-running events (for everyone or the caller's country) not ended more than
+        30 days ago. `REGIONAL`: events targeted at the caller's country (`country` null and an empty
+        list when the caller has none). Never sample events: an empty list when none is configured.
+        Checks: 401; 400 `tab` / `month`.
+      parameters:
+        - name: tab
+          in: query
+          required: false
+          schema: { type: string, enum: [CALENDAR, PERMANENT, REGIONAL], default: CALENDAR }
+        - name: month
+          in: query
+          required: false
+          schema: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
+      responses:
+        '200':
+          description: The events.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EventList' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/events/{eventId}:
+    get:
+      tags: [programs]
+      operationId: getEvent
+      summary: "One event: dates, rules and prizes (D166)"
+      description: v1.44-social, CONVENTIONS §10.41. Checks — 401; 404 (unknown or malformed id).
+      parameters:
+        - $ref: '#/components/parameters/ProgramEventIdPath'
+      responses:
+        '200':
+          description: The event.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EventDetail' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/events/{eventId}/leaderboard:
+    get:
+      tags: [programs]
+      operationId: getEventLeaderboard
+      summary: "An event's top 100 and the caller's own place (D166)"
+      description: |
+        v1.44-social, CONVENTIONS §10.41. Computed from the tables the boards already read for the
+        event's dates (ACTIVE people, the event's audience and regions); after the end the board is
+        frozen (`final: true`) and prizes are paid once after the review window. People the caller
+        blocked or who blocked the caller are left out of `data` (ranks stay). Checks: 401; 404.
+      parameters:
+        - $ref: '#/components/parameters/ProgramEventIdPath'
+      responses:
+        '200':
+          description: The board.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EventLeaderboard' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/wallet/recharge-packages:
+    get:
+      tags: [wallet]
+      operationId: listRechargePackages
+      summary: "The recharge screen's coin packages; purchases are not available (D166, B5)"
+      description: |
+        v1.44-social, CONVENTIONS §10.41. Server config `WALLET_RECHARGE_PACKAGES` (placeholders until
+        the owner sets them) in `WALLET_RECHARGE_CURRENCY`. `purchasesEnabled` is false until store
+        purchases and their legal review are done (B5); there is no purchase operation. Checks: 401.
+      responses:
+        '200':
+          description: The packages.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RechargePackages' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
 components:
   securitySchemes:
     bearerAuth:
@@ -6604,6 +6983,12 @@ components:
       scheme: bearer
       bearerFormat: JWT
   parameters:
+    ProgramEventIdPath:
+      name: eventId
+      in: path
+      required: true
+      description: A malformed id is treated as not found (404).
+      schema: { type: string }
     Cursor:
       name: cursor
       in: query
@@ -8417,7 +8802,7 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     MediaKind:
       type: string
-      enum: [POST_IMAGE, STORY_IMAGE, LIVE_COVER, LIVE_CHAT_IMAGE, LIVE_CHAT_VOICE, FAMILY_EMBLEM, FAMILY_COVER, HOME_BANNER, DM_IMAGE, DM_VOICE, POST_VIDEO, REEL_VIDEO, VIDEO_POSTER]
+      enum: [POST_IMAGE, STORY_IMAGE, LIVE_COVER, LIVE_CHAT_IMAGE, LIVE_CHAT_VOICE, FAMILY_EMBLEM, FAMILY_COVER, HOME_BANNER, DM_IMAGE, DM_VOICE, POST_VIDEO, REEL_VIDEO, VIDEO_POSTER, AVATAR]
       description: |
         Images for posts, (CP-008) for stories and (CP-015) for the host's live cover; (CP-017)
         a picture or a voice clip (`audio/mp4`, ≤ 30 s, ≤ 1 MiB) for a live chat message;
@@ -8426,11 +8811,13 @@ components:
         (D124) a home banner (cover-cropped to 3:1 around the centre: 1 500 × 500 and 320 × 107,
         attached only by the banner-admin CLI); (D155) `DM_IMAGE` (like a post image) and `DM_VOICE`
         (like a live chat voice clip) for a direct message, deleted with it after 24 hours;
-        (v1.41-social, D162) `POST_VIDEO` (≤ 200 MiB, 1–180 s) for a post, `REEL_VIDEO` (≤ 100 MiB,
+        (v1.41-social, D162) `POST_VIDEO` (≤ 200 MiB, 1–180 s; 1–90 s since v1.45-social, D168) for a post, `REEL_VIDEO` (≤ 100 MiB,
         1–60 s) for a reel, and `VIDEO_POSTER` (an image, the video's first frame made on the phone,
-        processed like a post image) consumed by `completeMediaUpload` of a video. An asset is
-        attachable only to its kind's target (a post, a story, the live cover, a live chat message,
-        a family, a reel or a video).
+        processed like a post image) consumed by `completeMediaUpload` of a video. (v1.45-social,
+        D168) `AVATAR`: the profile photo, processed like `LIVE_COVER` (a centre-cropped square, 640
+        and 320 px), attached only by `setMyAvatar`. An asset is attachable only to its kind's target
+        (a post, a story, the live cover, a live chat message, a family, a reel, a video or the
+        profile photo).
     CreateMediaUploadRequest:
       type: object
       additionalProperties: false
@@ -8514,7 +8901,7 @@ components:
           type: integer
           minimum: 1
           maximum: 180000
-          description: CP-017 — `AUDIO` only (absent for images); the clip's length (≤ 30 000). (v1.41-social, D162) `VIDEO`'s length (≤ 60 000 for a reel, ≤ 180 000 for a post video).
+          description: CP-017 — `AUDIO` only (absent for images); the clip's length (≤ 30 000). (v1.41-social, D162) `VIDEO`'s length (≤ 60 000 for a reel, ≤ 180 000 for a post video). (v1.45-social, D168) New post videos are ≤ 90 000; ones stored before keep their length (≤ 180 000).
     SetLiveBlockedWordsRequest:
       type: object
       additionalProperties: false
@@ -8567,6 +8954,17 @@ components:
       required: [coverUrl]
       properties:
         coverUrl: { type: string, format: uri, description: "WebP, 640 px square (smaller if the photo was)." }
+    SetAvatarRequest:
+      type: object
+      additionalProperties: false
+      required: [mediaId]
+      properties:
+        mediaId: { type: string, format: uuid, description: "v1.45-social (D168). A READY, unattached AVATAR asset of the caller." }
+    Avatar:
+      type: object
+      required: [avatarUrl]
+      properties:
+        avatarUrl: { type: string, format: uri, description: "v1.45-social (D168). WebP, 640 px square (smaller if the photo was)." }
     PostText:
       type: string
       maxLength: 2200
@@ -9705,11 +10103,11 @@ components:
     BagCategory:
       type: string
       enum: [PROFILE_CARD, AVATAR_FRAME]
-      description: "A bag category. PROFILE_CARD: the decoration on the profile card's header. AVATAR_FRAME (v1.43-levels, D169): the frame around the user's photo (the support level's tier frames). More categories come later; clients ignore items of categories they do not know (§10.22)."
+      description: "A bag category. PROFILE_CARD: the decoration on the profile card's header. AVATAR_FRAME (v1.46-levels, D169): the frame around the user's photo (the support level's tier frames). More categories come later; clients ignore items of categories they do not know (§10.22)."
     BagItemSource:
       type: string
       enum: [FREE_SIGNUP, BACKFILL, ADMIN, LEVEL_REWARD]
-      description: "How the item was obtained: free at signup, free for accounts that existed before the bag, granted by an admin, or (v1.43-levels, D169) given by the server when a level is reached (the support tier frames). More values come later (store); clients treat unknown values as opaque."
+      description: "How the item was obtained: free at signup, free for accounts that existed before the bag, granted by an admin, or (v1.46-levels, D169) given by the server when a level is reached (the support tier frames). More values come later (store); clients treat unknown values as opaque."
     BagCatalogueItem:
       type: object
       required: [code, category, name, assetKey, sortOrder, free]
@@ -10447,12 +10845,13 @@ components:
         expiresAt: { type: string, format: date-time, description: "createdAt + DM_RETENTION_HOURS (24 h); the message is deleted then." }
     DmConversation:
       type: object
-      required: [id, peer, status, muted, unreadCount, lastMessage, lastActivityAt, peerReadAt, canSend, requestMessagesLeft]
+      required: [id, peer, status, muted, markedUnread, unreadCount, lastMessage, lastActivityAt, peerReadAt, canSend, requestMessagesLeft]
       properties:
         id: { type: string, format: uuid }
         peer: { $ref: '#/components/schemas/UserSummary' }
         status: { $ref: '#/components/schemas/DmConversationStatus' }
         muted: { type: boolean }
+        markedUnread: { type: boolean, description: "(v1.43.1-social, D165) The caller marked it unread (`markDmUnread`); cleared by `markDmRead` or `clearDmUnread`." }
         unreadCount: { type: integer, minimum: 0, maximum: 99 }
         lastMessage:
           description: The newest message the caller can still read (null after 24 h or deletion).
@@ -10482,6 +10881,7 @@ components:
         conversation: { $ref: '#/components/schemas/DmConversation' }
     DmUnread:
       type: object
+      description: "(v1.43.1-social, D165) A conversation marked unread with no unread message counts as one in `messages` and `conversations` (accepted, not muted) or in `requests`."
       required: [messages, conversations, requests]
       properties:
         messages: { type: integer, minimum: 0, maximum: 99 }
@@ -10538,6 +10938,136 @@ components:
           description: Present only for a LUCKY gift.
           allOf:
             - $ref: '#/components/schemas/LuckyGiftResult'
+    # ---- v1.43-social (DRAFT, D164) ------------------------------------------------------------
+    WalletLedgerReason:
+      type: string
+      description: |
+        v1.43-social (D164, CONVENTIONS §10.40): why a coin balance changed. New reasons are added
+        without a version bump; clients show an unknown value as a generic change.
+      enum:
+        - ADMIN_GRANT
+        - ADMIN_REVOKE
+        - BULLET_MESSAGE
+        - FAMILY_CREATE
+        - CP_REQUEST
+        - CP_REFUND
+        - CP_GIFT
+        - LIVE_GIFT
+        - LUCKY_GIFT
+        - LUCKY_GIFT_WIN
+        - PREMIUM_USERNAME_RENT
+        - PREMIUM_USERNAME_RENEW
+        - DM_GIFT
+        - LIVE_BOOST
+        - LIVE_BOOST_REFUND
+        - TASK_REWARD
+        - CHECK_IN_REWARD
+        - EVENT_PRIZE
+    WalletLedgerEntry:
+      type: object
+      required: [id, reason, delta, balanceAfter, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        reason: { $ref: '#/components/schemas/WalletLedgerReason' }
+        delta:
+          type: integer
+          format: int64
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Coins added (> 0) or taken (< 0); never 0.
+        balanceAfter: { type: integer, format: int64, minimum: 0, maximum: 9007199254740991 }
+        createdAt: { type: string, format: date-time }
+    WalletLedgerPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/WalletLedgerEntry' }
+        page: { $ref: '#/components/schemas/PageInfo' }
+    MyEarnings:
+      type: object
+      description: v1.43-social (D164, CONVENTIONS §10.40). Display only — not coins, not withdrawable yet (D149).
+      required: [totalCoins, last7DaysCoins, last30DaysCoins, sendCount]
+      properties:
+        totalCoins: { type: integer, format: int64, minimum: 0, description: All earnings since the account began. }
+        last7DaysCoins: { type: integer, format: int64, minimum: 0 }
+        last30DaysCoins: { type: integer, format: int64, minimum: 0 }
+        sendCount: { type: integer, format: int64, minimum: 0, description: The gift sends that gave earnings (the rows of the history). }
+    EarningContext:
+      type: string
+      enum: [LIVE, DM]
+      description: Where the gift was sent (a live, or a direct conversation).
+    Earning:
+      type: object
+      required: [id, createdAt, context, giftCode, giftName, quantity, giftCoins, shareBps, coins, sender]
+      properties:
+        id: { type: string, format: uuid, description: The gift send. }
+        createdAt: { type: string, format: date-time }
+        context: { $ref: '#/components/schemas/EarningContext' }
+        giftCode: { type: string }
+        giftName: { type: string, description: "In the reader's language (Accept-Language, else the caller's locale)." }
+        quantity: { type: integer, minimum: 1 }
+        giftCoins: { type: integer, format: int64, minimum: 0, description: The coin value of the send to the caller. }
+        shareBps: { type: integer, minimum: 0, maximum: 10000, description: The caller's share stored with the send (basis points). }
+        coins: { type: integer, format: int64, minimum: 1, description: "floor(giftCoins × shareBps / 10 000)." }
+        sender:
+          oneOf:
+            - $ref: '#/components/schemas/UserSummary'
+            - type: 'null'
+          description: Null when the sender's account is not active or a block stands between them.
+    EarningPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Earning' }
+        page: { $ref: '#/components/schemas/PageInfo' }
+    CreatorStatsPeriod:
+      type: string
+      enum: [LAST_7_DAYS, LAST_30_DAYS, ALL_TIME]
+    CreatorContentStats:
+      type: object
+      description: The posts (or reels) published in the period and what they have now.
+      required: [published, views, likes, comments, shares]
+      properties:
+        published: { type: integer, minimum: 0 }
+        views: { type: integer, format: int64, minimum: 0 }
+        likes: { type: integer, format: int64, minimum: 0 }
+        comments: { type: integer, format: int64, minimum: 0 }
+        shares: { type: integer, format: int64, minimum: 0 }
+    CreatorStats:
+      type: object
+      description: v1.43-social (D164, CONVENTIONS §10.40). The caller's creator center for one period.
+      required: [period, from, to, followers, posts, reels, live]
+      properties:
+        period: { $ref: '#/components/schemas/CreatorStatsPeriod' }
+        from: { type: [string, 'null'], format: date-time, description: The period's start; null for ALL_TIME. }
+        to: { type: string, format: date-time }
+        followers:
+          type: object
+          required: [total, newInPeriod]
+          properties:
+            total: { type: integer, minimum: 0, description: Active accounts that follow the caller now. }
+            newInPeriod:
+              type: [integer, 'null']
+              minimum: 0
+              description: Of those, the ones who followed during the period (null for ALL_TIME). Unfollows are not stored, so this is not a net change.
+        posts: { $ref: '#/components/schemas/CreatorContentStats' }
+        reels: { $ref: '#/components/schemas/CreatorContentStats' }
+        live:
+          type: object
+          description: The caller's ended lives that started in the period (§10.36).
+          required: [lives, liveSeconds, giftCount, giftCoins, earningsCoins, newFollowers, peakViewers]
+          properties:
+            lives: { type: integer, minimum: 0 }
+            liveSeconds: { type: integer, format: int64, minimum: 0 }
+            giftCount: { type: integer, format: int64, minimum: 0 }
+            giftCoins: { type: integer, format: int64, minimum: 0 }
+            earningsCoins: { type: integer, format: int64, minimum: 0, description: Display only (D149). }
+            newFollowers: { type: integer, minimum: 0 }
+            peakViewers: { type: integer, minimum: 0 }
     DmReadRequest:
       type: object
       additionalProperties: false
@@ -10558,5 +11088,200 @@ components:
         giftCode: { type: [string, 'null'] }
         quantity: { type: [integer, 'null'] }
         purged: { type: boolean, description: The retention period ended; text and file were cleared. }
+    # ---- v1.44-social (DRAFT, D166) ------------------------------------------------------------
+    ProgramTask:
+      type: object
+      description: One task of the Task Center (CONVENTIONS §10.41). `progress` is capped at `target`.
+      required: [code, period, metric, audience, name, target, progress, rewardCoins, completed, claimed, claimedCoins]
+      properties:
+        code: { type: string, maxLength: 40 }
+        period: { type: string, enum: [DAILY, WEEKLY] }
+        metric:
+          type: string
+          enum: [WATCH_LIVES, FOLLOWS, LIVE_CHAT_MESSAGES, GIFT_SENDS, HOST_LIVE_MINUTES, HOST_GIFT_COINS]
+          description: What is counted (the app picks where «اذهب» leads from it).
+        audience: { type: string, enum: [EVERYONE, HOSTS] }
+        name: { type: string }
+        target: { type: integer, minimum: 1 }
+        progress: { type: integer, minimum: 0 }
+        rewardCoins: { type: integer, minimum: 1 }
+        completed: { type: boolean }
+        claimed: { type: boolean }
+        claimedCoins: { type: [integer, 'null'], minimum: 0, description: What the claim paid (after the daily cap). }
+    CheckInDay:
+      type: object
+      required: [date, cycleDay, today, checkedIn, rewardCoins]
+      properties:
+        date: { type: string, format: date }
+        cycleDay: { type: integer, minimum: 1, maximum: 7, description: 7 is the bonus day. }
+        today: { type: boolean }
+        checkedIn: { type: boolean }
+        rewardCoins: { type: integer, minimum: 0, description: Before the daily cap. }
+    MyTasks:
+      type: object
+      required: [day, timeZone, dayStartsAt, dayResetsAt, weekStartsAt, weekResetsAt, dailyCapCoins, dailyEarnedCoins, checkIn, tasks]
+      properties:
+        day: { type: string, format: date }
+        timeZone: { type: string }
+        dayStartsAt: { type: string, format: date-time }
+        dayResetsAt: { type: string, format: date-time }
+        weekStartsAt: { type: string, format: date-time }
+        weekResetsAt: { type: string, format: date-time }
+        dailyCapCoins: { type: integer, minimum: 1 }
+        dailyEarnedCoins: { type: integer, minimum: 0, description: Coins from daily tasks and the check-in today. }
+        checkIn:
+          type: object
+          required: [checkedInToday, streak, cycleDays, rewardCoins, bonusCoins, days]
+          properties:
+            checkedInToday: { type: boolean }
+            streak: { type: integer, minimum: 0, description: Days in a row up to today (or yesterday). }
+            cycleDays: { type: integer, minimum: 1 }
+            rewardCoins: { type: integer, minimum: 1 }
+            bonusCoins: { type: integer, minimum: 0 }
+            days:
+              type: array
+              minItems: 7
+              maxItems: 7
+              items: { $ref: '#/components/schemas/CheckInDay' }
+        tasks:
+          type: array
+          items: { $ref: '#/components/schemas/ProgramTask' }
+    TaskClaimResult:
+      type: object
+      required: [task, paidCoins, balanceCoins]
+      properties:
+        task: { $ref: '#/components/schemas/ProgramTask' }
+        paidCoins: { type: integer, minimum: 0 }
+        balanceCoins: { type: integer, format: int64, minimum: 0 }
+    CheckInResult:
+      type: object
+      required: [paidCoins, balanceCoins, tasks]
+      properties:
+        paidCoins: { type: integer, minimum: 0 }
+        balanceCoins: { type: integer, format: int64, minimum: 0 }
+        tasks: { $ref: '#/components/schemas/MyTasks' }
+    SvipPerk:
+      type: object
+      required: [code, name, unlockTier, unlocked, available]
+      properties:
+        code:
+          type: string
+          enum: [BADGE, AVATAR_FRAME, CHAT_NAME_COLOR, ENTRY_BANNER, ENTRY_EFFECT, DAILY_BULLET, VIEWER_LIST_PRIORITY, MONTHLY_GIFT]
+        name: { type: string }
+        unlockTier: { type: integer, minimum: 1 }
+        unlocked: { type: boolean, description: The caller's tier reaches it. }
+        available: { type: boolean, description: The perk is built and works today (clients never show an unavailable perk as active). }
+    SvipStatus:
+      type: object
+      required: [tier, expiresAt, windowDays, statusDays, spentCoins, tiers, nextTier, coinsToNext, perks]
+      properties:
+        tier: { type: integer, minimum: 0, description: 0 = not SVIP. }
+        expiresAt: { type: [string, 'null'], format: date-time }
+        windowDays: { type: integer, minimum: 1 }
+        statusDays: { type: integer, minimum: 1 }
+        spentCoins: { type: integer, format: int64, minimum: 0, description: Gift spending in the last windowDays days. }
+        tiers:
+          type: array
+          items:
+            type: object
+            required: [tier, thresholdCoins]
+            properties:
+              tier: { type: integer, minimum: 1 }
+              thresholdCoins: { type: integer, format: int64, minimum: 1 }
+        nextTier: { type: [integer, 'null'], minimum: 1 }
+        coinsToNext: { type: [integer, 'null'], format: int64, minimum: 0 }
+        perks:
+          type: array
+          items: { $ref: '#/components/schemas/SvipPerk' }
+    EventSummary:
+      type: object
+      required: [id, title, bannerUrl, startsAt, endsAt, status, metric, audience, permanent, featured, regions]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        bannerUrl: { type: [string, 'null'], format: uri }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: [string, 'null'], format: date-time, description: Null only for a permanent event without an end. }
+        status: { type: string, enum: [UPCOMING, RUNNING, ENDED] }
+        metric: { type: string, enum: [GIFT_COINS_RECEIVED, GIFT_COINS_SENT, LIVE_MINUTES, TAPS_RECEIVED, NEW_FOLLOWERS] }
+        audience: { type: string, enum: [EVERYONE, HOSTS] }
+        permanent: { type: boolean }
+        featured: { type: boolean, description: Shown as «رائج». }
+        regions:
+          type: array
+          items: { type: string, pattern: '^[A-Z]{2}$' }
+    EventList:
+      type: object
+      required: [tab, month, timeZone, country, data]
+      properties:
+        tab: { type: string, enum: [CALENDAR, PERMANENT, REGIONAL] }
+        month: { type: [string, 'null'], pattern: '^\d{4}-\d{2}$' }
+        timeZone: { type: string }
+        country: { type: [string, 'null'], pattern: '^[A-Z]{2}$' }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/EventSummary' }
+    EventPrize:
+      type: object
+      required: [rankFrom, rankTo, coins]
+      properties:
+        rankFrom: { type: integer, minimum: 1, maximum: 100 }
+        rankTo: { type: integer, minimum: 1, maximum: 100 }
+        coins: { type: integer, minimum: 1 }
+    EventDetail:
+      allOf:
+        - $ref: '#/components/schemas/EventSummary'
+        - type: object
+          required: [rules, prizes, frozenAt, payoutDueAt, paidAt]
+          properties:
+            rules: { type: string }
+            prizes:
+              type: array
+              items: { $ref: '#/components/schemas/EventPrize' }
+            frozenAt: { type: [string, 'null'], format: date-time }
+            payoutDueAt: { type: [string, 'null'], format: date-time }
+            paidAt: { type: [string, 'null'], format: date-time }
+    EventLeaderboard:
+      type: object
+      required: [eventId, metric, final, data, me]
+      properties:
+        eventId: { type: string, format: uuid }
+        metric: { type: string, enum: [GIFT_COINS_RECEIVED, GIFT_COINS_SENT, LIVE_MINUTES, TAPS_RECEIVED, NEW_FOLLOWERS] }
+        final: { type: boolean }
+        data:
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            required: [rank, user, score, prizeCoins]
+            properties:
+              rank: { type: integer, minimum: 1 }
+              user: { $ref: '#/components/schemas/UserSummary' }
+              score: { type: integer, format: int64, minimum: 0 }
+              prizeCoins: { type: integer, minimum: 0 }
+        me:
+          type: object
+          required: [rank, score, prizeCoins]
+          properties:
+            rank: { type: [integer, 'null'], minimum: 1 }
+            score: { type: integer, format: int64, minimum: 0 }
+            prizeCoins: { type: integer, minimum: 0 }
+    RechargePackages:
+      type: object
+      required: [currency, purchasesEnabled, packages]
+      properties:
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
+        purchasesEnabled: { type: boolean, description: False until B5. }
+        packages:
+          type: array
+          items:
+            type: object
+            required: [id, coins, bonusCoins, priceMinor, originalPriceMinor]
+            properties:
+              id: { type: string }
+              coins: { type: integer, minimum: 1 }
+              bonusCoins: { type: integer, minimum: 0 }
+              priceMinor: { type: integer, minimum: 1, description: In the currency's minor unit (cents). }
+              originalPriceMinor: { type: [integer, 'null'], minimum: 1, description: The price before a discount (the «عرض» ribbon). }
 security:
   - bearerAuth: []
