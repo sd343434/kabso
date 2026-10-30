@@ -9613,7 +9613,7 @@ class AppLocalizationsEn extends AppLocalizations {
       count,
       locale: localeName,
       other: '$count time slots',
-      one: '1 time slot',
+      one: '$count time slot',
     );
     return '$_temp0';
   }
@@ -9996,7 +9996,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String changeUsernameSpecialLocked(String special, String base) {
-    return '$special is a locked special username and can\'t be changed while it\'s active. Everyone else sees only it; your own username $base is visible only to you, and you can still sign in with it.';
+    return '$special is a locked special username and can\'t be changed while it\'s active. Everyone else sees only it; your own username $base is visible only to you, and you can still log in with it.';
   }
 
   @override
