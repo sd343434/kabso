@@ -1376,7 +1376,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get profilePrivateTitle => 'هذا الحساب خاص';
 
   @override
-  String get profilePrivateBody => 'منشوراته وريلزه يراها متابعوه فقط.';
+  String get profilePrivateBody => 'منشوراته وريلزه وقصصه يراها متابعوه فقط.';
 
   @override
   String get profileNotFoundTitle => 'هذا الحساب غير متاح';
@@ -8667,6 +8667,221 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get walletReasonEventPrize => 'جائزة فعالية';
+
+  @override
+  String get registerGenderLabel => 'الجنس';
+
+  @override
+  String get registerGenderHelper =>
+      'لا يظهر في ملفك الشخصي إلا إذا اخترت ذلك لاحقاً.';
+
+  @override
+  String get registerGenderRequired => 'اختر خياراً';
+
+  @override
+  String get genderMale => 'ذكر';
+
+  @override
+  String get genderFemale => 'أنثى';
+
+  @override
+  String get genderUndisclosed => 'أفضّل عدم الذكر';
+
+  @override
+  String get categorySinger => 'مغنٍّ';
+
+  @override
+  String get categoryMusician => 'موسيقي';
+
+  @override
+  String get categoryPoet => 'شاعر';
+
+  @override
+  String get categoryPresenter => 'مقدّم برامج';
+
+  @override
+  String get categoryGamer => 'لاعب ألعاب';
+
+  @override
+  String get categoryContentCreator => 'صانع محتوى';
+
+  @override
+  String get categoryAthlete => 'رياضي';
+
+  @override
+  String get categoryArtist => 'فنان';
+
+  @override
+  String get categoryBlogger => 'مدوّن';
+
+  @override
+  String get categoryPublicFigure => 'شخصية عامة';
+
+  @override
+  String get categoryOther => 'أخرى';
+
+  @override
+  String get profileEditNotSet => 'غير محدد';
+
+  @override
+  String get profileEditGenderShow => 'إظهار الجنس في ملفي';
+
+  @override
+  String get profileEditGenderShowHint =>
+      'مخفي افتراضياً. «أفضّل عدم الذكر» لا يظهر أبداً.';
+
+  @override
+  String profileEditGenderHidden(String gender) {
+    return '$gender · مخفي';
+  }
+
+  @override
+  String get profileEditCategoryNone => 'بدون فئة';
+
+  @override
+  String get profileEditCategoryHint => 'تظهر تحت اسمك في ملفك الشخصي.';
+
+  @override
+  String profileEditLinksValue(int count) {
+    return '$count من 3';
+  }
+
+  @override
+  String get profileEditLinksHint =>
+      'حتى 3 روابط تبدأ بـ https://‎. روابط إنستغرام وتيك توك ويوتيوب وفيسبوك وإكس تُفتح مباشرة، وأي رابط آخر بعد تنبيه.';
+
+  @override
+  String get profileEditLinkUrl => 'الرابط';
+
+  @override
+  String get profileEditLinkLabel => 'الاسم (اختياري)';
+
+  @override
+  String get profileEditLinkAdd => 'إضافة رابط';
+
+  @override
+  String get profileEditLinkRemove => 'حذف الرابط';
+
+  @override
+  String get profileEditLinkInvalid =>
+      'رابط غير صالح: يجب أن يبدأ بـ https://‎ ويكون اسم موقع، بلا كلمة مرور أو منفذ أو عنوان IP.';
+
+  @override
+  String get profileEditLinkTooLong => 'الرابط طويل جداً.';
+
+  @override
+  String profileEditLinkLabelTooLong(int max) {
+    return 'الاسم حتى $max حرفاً في سطر واحد.';
+  }
+
+  @override
+  String get profileEditLinkDuplicate => 'هذا الرابط مضاف مسبقاً.';
+
+  @override
+  String get profileEditPinHint =>
+      'ثبّت حتى 3 منشورات لتظهر أولاً في ملفك، من قائمة «…» في المنشور.';
+
+  @override
+  String get privacyPrivateTitle => 'الحساب الخاص';
+
+  @override
+  String get privacyPrivateLabel => 'حساب خاص';
+
+  @override
+  String get privacyPrivateHint =>
+      'متابعوك فقط يرون منشوراتك وريلزك وقصصك. من يريد متابعتك يرسل طلباً تقبله أو ترفضه. البث المباشر يبقى عاماً.';
+
+  @override
+  String get privacyMakePublicTitle => 'جعل الحساب عاماً؟';
+
+  @override
+  String get privacyMakePublicBody =>
+      'سيرى الجميع منشوراتك وريلزك وقصصك، وستُقبل كل طلبات المتابعة المعلّقة.';
+
+  @override
+  String get privacyMakePublicConfirm => 'جعله عاماً';
+
+  @override
+  String get followRequestsTitle => 'طلبات المتابعة';
+
+  @override
+  String get followRequestsEmptyTitle => 'لا توجد طلبات';
+
+  @override
+  String get followRequestsEmptyBody =>
+      'عندما يطلب أحد متابعة حسابك الخاص يظهر هنا.';
+
+  @override
+  String get followRequestAccept => 'قبول';
+
+  @override
+  String get followRequestDecline => 'رفض';
+
+  @override
+  String followRequestAccepted(String name) {
+    return '$name يتابعك الآن';
+  }
+
+  @override
+  String get followRequestDeclined => 'تم رفض الطلب';
+
+  @override
+  String get followRequested => 'تم الطلب';
+
+  @override
+  String profileCancelRequestConfirm(String name) {
+    return 'إلغاء طلب متابعة $name؟';
+  }
+
+  @override
+  String get profileCancelRequest => 'إلغاء الطلب';
+
+  @override
+  String get profileRequestSent => 'أُرسل طلب المتابعة';
+
+  @override
+  String get linkLeavingTitle => 'أنت تغادر Kabso';
+
+  @override
+  String get linkLeavingBody =>
+      'هذا الرابط يفتح موقعاً خارج Kabso. تأكّد أنك تثق به قبل المتابعة.';
+
+  @override
+  String get linkLeavingOpen => 'فتح الرابط';
+
+  @override
+  String get linkReport => 'الإبلاغ عن الرابط';
+
+  @override
+  String get linkReportTitle => 'لماذا تبلّغ عن هذا الرابط؟';
+
+  @override
+  String get linkCopy => 'نسخ الرابط';
+
+  @override
+  String get linkCopied => 'تم نسخ الرابط';
+
+  @override
+  String get linkOpenFailed => 'تعذّر فتح الرابط';
+
+  @override
+  String linkSemantics(String name) {
+    return 'رابط: $name';
+  }
+
+  @override
+  String notifFollowRequest(String who) {
+    return '$who طلب متابعتك';
+  }
+
+  @override
+  String notifFollowRequestAccepted(String who) {
+    return '$who قبل طلب متابعتك';
+  }
+
+  @override
+  String get notifAvatarRemoved =>
+      'أزال فريق الإشراف صورة ملفك الشخصي لمخالفتها الإرشادات';
 
   @override
   String bagDays(int days) {

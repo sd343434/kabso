@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kabso_live/core/models/profile_fields.dart';
 
 /// Register form values kept in memory **only while the verify-first flow is
 /// open** (PHASE1_1_SCREENS §1.1), so "Change email" returns to a filled
@@ -12,6 +13,7 @@ class RegistrationDraft {
     required this.displayName,
     required this.password,
     required this.codeSentAt,
+    this.gender,
     this.usernameLost = false,
   });
 
@@ -20,6 +22,9 @@ class RegistrationDraft {
   final String username;
   final String displayName;
   final String password;
+
+  /// v1.47-social (D175): the gender chosen on Register (required there).
+  final Gender? gender;
 
   /// Time of the last 202 from `register` / `register/resend`: starts the
   /// 60 s resend cooldown and the local 30 min expiry hint.
@@ -35,6 +40,7 @@ class RegistrationDraft {
         username: username,
         displayName: displayName,
         password: password,
+        gender: gender,
         codeSentAt: codeSentAt ?? this.codeSentAt,
         usernameLost: usernameLost ?? this.usernameLost,
       );

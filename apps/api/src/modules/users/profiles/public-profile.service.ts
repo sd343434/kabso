@@ -9,6 +9,7 @@ import { FamiliesService, type ProfileFamilyDto } from '../../families/families.
 import { MedalsService, type ProfileMedalsDto } from '../../medals/medals.service.js';
 import { LiveRoomsService } from '../../live/live-rooms.service.js';
 import { FollowsService } from '../../social/follows.service.js';
+import { type AccountCategory, type ProfileLinkDto } from '../profile-fields.js';
 import { UsersService } from '../users.service.js';
 
 /** `PublicProfile` (openapi v1.3). Never an email, role, status, locale or created-at time. */
@@ -36,6 +37,14 @@ export interface PublicProfileDto {
   profileCard: ProfileCardDto | null;
   /** v1.28-live (D146): the tier of the user's premium username; absent for a regular one. */
   premiumTier?: 'LEGEND' | 'RUBY' | 'GOLD' | 'SILVER';
+  /** v1.47-social (D175, §10.47): the caller has a pending follow request to this private account. */
+  followRequested: boolean;
+  /** v1.47-social (D175): the gender, only when the user shows it (MALE / FEMALE), else null. */
+  gender: 'MALE' | 'FEMALE' | null;
+  /** v1.47-social (D175): the account category under the name, or null. */
+  category: AccountCategory | null;
+  /** v1.47-social (D175): the profile links (0–3), also on a private account's profile. */
+  links: ProfileLinkDto[];
 }
 
 /**
@@ -71,16 +80,18 @@ export class PublicProfileService {
     // Malformed, unknown, pending-only, SUSPENDED and DELETED: the same 404 body.
     if (!user) throw new AppException(ErrorCode.NOT_FOUND);
     const isSelf = user.id === callerId;
-    const [counts, isFollowing, isMuted, liveRoomId, family, cp, medals, profileCard] = await Promise.all([
-      this.follows.counts(user.id),
-      isSelf ? Promise.resolve(false) : this.follows.isFollowing(callerId, user.id),
-      isSelf ? Promise.resolve(false) : this.isMuted(callerId, user.id),
-      this.live.freshLiveRoomIdOf(user.id),
-      this.families.profileFamily(user.id),
-      this.couples.profileCp(user.id, lang),
-      this.medals.profileMedals(user.id, lang),
-      this.bag.profileCard(user.id),
-    ]);
+    const [counts, isFollowing, followRequested, isMuted, liveRoomId, family, cp, medals, profileCard] =
+      await Promise.all([
+        this.follows.counts(user.id),
+        isSelf ? Promise.resolve(false) : this.follows.isFollowing(callerId, user.id),
+        isSelf ? Promise.resolve(false) : this.follows.isRequested(callerId, user.id),
+        isSelf ? Promise.resolve(false) : this.isMuted(callerId, user.id),
+        this.live.freshLiveRoomIdOf(user.id),
+        this.families.profileFamily(user.id),
+        this.couples.profileCp(user.id, lang),
+        this.medals.profileMedals(user.id, lang),
+        this.bag.profileCard(user.id),
+      ]);
     return {
       id: user.id,
       username: user.username,
@@ -92,6 +103,7 @@ export class PublicProfileService {
       followerCount: counts.followerCount,
       followingCount: counts.followingCount,
       isFollowing,
+      followRequested,
       isMuted,
       isSelf,
       liveRoomId,
@@ -99,6 +111,9 @@ export class PublicProfileService {
       cp,
       medals,
       profileCard,
+      gender: user.gender,
+      category: user.category,
+      links: user.links,
     };
   }
 }

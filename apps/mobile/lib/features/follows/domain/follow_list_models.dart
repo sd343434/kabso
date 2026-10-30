@@ -45,6 +45,7 @@ class FollowListItem {
     required this.isPrivate,
     required this.followedByMe,
     required this.followsMe,
+    this.requestedByMe = false,
     this.premiumTier,
   });
 
@@ -57,6 +58,7 @@ class FollowListItem {
     isPrivate: json['isPrivate'] as bool? ?? false,
     followedByMe: json['followedByMe'] as bool? ?? false,
     followsMe: json['followsMe'] as bool? ?? false,
+    requestedByMe: json['requestedByMe'] as bool? ?? false,
     premiumTier: premiumTierFromJson(json['premiumTier']),
   );
 
@@ -68,9 +70,12 @@ class FollowListItem {
   /// The row is the reader (no Follow control).
   final bool isSelf;
 
-  /// A private account: a new follow is refused (403, §10.5), so Follow is
-  /// offered only to undo an existing one.
+  /// A private account: v1.47-social (D175) a new follow is a request.
   final bool isPrivate;
+
+  /// v1.47-social (D175): the reader asked to follow this private account
+  /// and waits for an answer ("Requested").
+  final bool requestedByMe;
 
   /// The reader follows this account.
   final bool followedByMe;
@@ -86,18 +91,21 @@ class FollowListItem {
   String get name => displayName.isEmpty ? username : displayName;
 
   /// Whether a Follow / Following control may be shown.
-  bool get canToggle => !isSelf && (followedByMe || !isPrivate);
+  bool get canToggle => !isSelf;
 
-  FollowListItem withFollowedByMe({required bool followedByMe}) =>
-      FollowListItem(
-        id: id,
-        username: username,
-        displayName: displayName,
-        avatarUrl: avatarUrl,
-        isSelf: isSelf,
-        isPrivate: isPrivate,
-        followedByMe: followedByMe,
-        followsMe: followsMe,
-        premiumTier: premiumTier,
-      );
+  FollowListItem withFollowedByMe({
+    required bool followedByMe,
+    bool requestedByMe = false,
+  }) => FollowListItem(
+    id: id,
+    username: username,
+    displayName: displayName,
+    avatarUrl: avatarUrl,
+    isSelf: isSelf,
+    isPrivate: isPrivate,
+    followedByMe: followedByMe,
+    followsMe: followsMe,
+    requestedByMe: requestedByMe,
+    premiumTier: premiumTier,
+  );
 }

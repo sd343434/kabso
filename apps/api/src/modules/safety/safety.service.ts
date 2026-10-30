@@ -29,6 +29,7 @@ import { CommentsService } from '../posts/comments.service.js';
 import { USER_SUMMARY_SELECT, userSummary, visiblePostWhere, type PageDto } from '../posts/post-views.js';
 import type { PageQuery } from '../posts/posts.schemas.js';
 import { PostsService } from '../posts/posts.service.js';
+import { acceptAllFollowRequestsIn, withdrawFollowRequestIn } from '../social/follow-requests.js';
 import { lockUserPairIn } from '../social/pair-lock.js';
 import { UsersService, violatedUniqueIndex } from '../users/users.service.js';
 import {
@@ -42,6 +43,22 @@ import { visibleStoryWhere } from '../stories/stories.service.js';
 
 type Tx = Prisma.TransactionClient;
 
+/** Request metadata for the privacy audit record. */
+export interface PrivacyMeta {
+  readonly ip: string | null;
+  readonly requestId: string;
+}
+
+function linkSnapshotDto(value: Prisma.JsonValue | null): ProfileLinkSnapshot | undefined {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const v = value as Record<string, unknown>;
+  return {
+    username: typeof v.username === 'string' ? v.username : '',
+    url: typeof v.url === 'string' ? v.url : '',
+    label: typeof v.label === 'string' ? v.label : null,
+  };
+}
+
 /** `Report` (openapi v1.5-social); `reporter` in admin views only. */
 export interface ReportDto {
   id: string;
@@ -54,7 +71,8 @@ export interface ReportDto {
     | 'LIVE_CHAT_MESSAGE'
     | 'CP_CONFESSION'
     | 'FAMILY_CHAT_MESSAGE'
-    | 'DM_MESSAGE';
+    | 'DM_MESSAGE'
+    | 'PROFILE_LINK';
   targetId: string;
   reason: string;
   note: string | null;
@@ -64,6 +82,15 @@ export interface ReportDto {
   reporter?: UserSummaryDto;
   /** v1.40-social (D155): admin views of DM_MESSAGE reports. */
   dmSnapshot?: DmSnapshotDto;
+  /** v1.47-social (D175): admin views of PROFILE_LINK reports — what the link was. */
+  linkSnapshot?: ProfileLinkSnapshot;
+}
+
+/** v1.47-social (D175): a reported profile link as it was when reported. */
+export interface ProfileLinkSnapshot {
+  username: string;
+  url: string;
+  label: string | null;
 }
 
 export interface PrivacyDto {
@@ -73,6 +100,8 @@ export interface PrivacyDto {
   showActivityStatus: boolean;
   /** v1.40-social (D155): who may send the user direct messages (§11.13). */
   whoCanMessage: 'EVERYONE' | 'FOLLOWING' | 'NOBODY';
+  /** v1.47-social (D175, §10.47): a private account (follow requests; content for followers only). */
+  isPrivate: boolean;
 }
 
 const REPORT_INCLUDE = {
@@ -135,6 +164,9 @@ export class SafetyService {
             ],
           },
         });
+        // v1.47-social (D175): pending follow requests either way go, with their notifications.
+        await withdrawFollowRequestIn(tx, this.notifier, callerId, targetId);
+        await withdrawFollowRequestIn(tx, this.notifier, targetId, callerId);
       } else {
         await tx.userBlock.deleteMany({ where: { blockerId: callerId, blockedId: targetId } });
       }
@@ -264,7 +296,14 @@ export class SafetyService {
         ? await reportableDmMessage(this.prisma, input.targetId.toLowerCase(), reporterId, new Date())
         : null;
     if (input.targetType === 'DM_MESSAGE' && !dm) throw new AppException(ErrorCode.NOT_FOUND);
-    const target = dm ? { targetDmMessageId: dm.id } : await this.resolveTarget(reporterId, input);
+    // v1.47-social (D175): a profile link is kept as a snapshot (its owner may edit it away).
+    const link =
+      input.targetType === 'PROFILE_LINK' ? await this.reportableLink(reporterId, input.targetId) : null;
+    const target = dm
+      ? { targetDmMessageId: dm.id }
+      : link
+        ? { targetProfileLinkId: link.id }
+        : await this.resolveTarget(reporterId, input);
     const where: Prisma.ReportWhereInput = { reporterId, status: 'OPEN', ...target };
     const existing = await this.prisma.report.findFirst({ where, include: REPORT_INCLUDE });
     if (existing) return { report: this.toDto(existing, false), created: false };
@@ -283,6 +322,7 @@ export class SafetyService {
         data: {
           id: reportId,
           ...(snapshot ? { dmSnapshot: snapshot as unknown as Prisma.InputJsonValue } : {}),
+          ...(link ? { linkSnapshot: link.snapshot as unknown as Prisma.InputJsonValue } : {}),
           reporterId,
           targetType: input.targetType,
           reason: input.reason,
@@ -300,6 +340,46 @@ export class SafetyService {
       }
       throw err;
     }
+  }
+
+  /**
+   * v1.47-social (D175): a link on the profile of an ACTIVE user with no block either way with the
+   * reporter, not the reporter's own (400 `targetId` / `invalid_value`); else 404.
+   */
+  private async reportableLink(
+    reporterId: string,
+    targetId: string,
+  ): Promise<{ id: string; snapshot: ProfileLinkSnapshot & { userId: string } }> {
+    if (!isUuid(targetId)) throw new AppException(ErrorCode.NOT_FOUND);
+    const link = await this.prisma.userProfileLink.findFirst({
+      where: {
+        id: targetId.toLowerCase(),
+        user: {
+          status: 'ACTIVE',
+          blocking: { none: { blockedId: reporterId } },
+          blockedBy: { none: { blockerId: reporterId } },
+        },
+      },
+      select: {
+        id: true,
+        userId: true,
+        url: true,
+        label: true,
+        user: { select: { profile: { select: { username: true } } } },
+      },
+    });
+    if (!link) throw new AppException(ErrorCode.NOT_FOUND);
+    if (link.userId === reporterId)
+      throw AppException.validation([{ field: 'targetId', issue: 'invalid_value' }]);
+    return {
+      id: link.id,
+      snapshot: {
+        userId: link.userId,
+        username: link.user.profile?.username ?? '',
+        url: link.url,
+        label: link.label,
+      },
+    };
   }
 
   private async resolveTarget(
@@ -499,6 +579,10 @@ export class SafetyService {
           // report keeps its snapshot.
           await removeDmMessageIn(tx, report.targetDmMessageId, new Date());
         }
+        if (report.targetProfileLinkId) {
+          // v1.47-social (D175): the link leaves the profile (when it is still there).
+          await tx.userProfileLink.deleteMany({ where: { id: report.targetProfileLinkId } });
+        }
         if (report.targetLiveRoomId) {
           // CP-010: the room ends with ADMIN; its media session closes after the commit.
           endedRooms.push(...(await this.liveRooms.endByAdminIn(tx, { roomId: report.targetLiveRoomId })));
@@ -521,7 +605,9 @@ export class SafetyService {
                     ? { targetFamilyChatMessageId: report.targetFamilyChatMessageId }
                     : report.targetDmMessageId
                       ? { targetDmMessageId: report.targetDmMessageId }
-                      : { targetUserId: report.targetUserId };
+                      : report.targetProfileLinkId
+                        ? { targetProfileLinkId: report.targetProfileLinkId }
+                        : { targetUserId: report.targetUserId };
       const closed = await tx.report.updateMany({
         where: { ...target, status: 'OPEN' },
         data: {
@@ -544,6 +630,7 @@ export class SafetyService {
           report.targetCpConfessionId ??
           report.targetFamilyChatMessageId ??
           report.targetDmMessageId ??
+          report.targetProfileLinkId ??
           report.targetUserId ??
           undefined,
         metadata: { reportId: id, action, reportsClosed: closed.count },
@@ -573,6 +660,7 @@ export class SafetyService {
         row.targetCpConfessionId ??
         row.targetFamilyChatMessageId ??
         row.targetDmMessageId ??
+        row.targetProfileLinkId ??
         row.targetUser?.profile?.username ??
         row.targetUserId ??
         '',
@@ -585,6 +673,9 @@ export class SafetyService {
       ...(admin && row.targetType === 'DM_MESSAGE'
         ? { dmSnapshot: dmSnapshotDto(row.dmSnapshot, this.media.publicBaseUrl) ?? undefined }
         : {}),
+      ...(admin && row.targetType === 'PROFILE_LINK'
+        ? { linkSnapshot: linkSnapshotDto(row.linkSnapshot) }
+        : {}),
     };
   }
 
@@ -592,22 +683,54 @@ export class SafetyService {
   // Privacy
 
   async privacy(userId: string): Promise<PrivacyDto> {
-    const row = await this.prisma.privacySettings.findUnique({ where: { userId } });
+    const [row, settings] = await Promise.all([
+      this.prisma.privacySettings.findUnique({ where: { userId } }),
+      this.prisma.userSettings.findUnique({ where: { userId }, select: { isPrivate: true } }),
+    ]);
     return {
       whoCanMention: row?.whoCanMention ?? 'EVERYONE',
       defaultWhoCanComment: row?.defaultWhoCanComment ?? 'EVERYONE',
       showActivityStatus: row?.showActivityStatus ?? true,
       whoCanMessage: row?.whoCanMessage ?? 'EVERYONE',
+      isPrivate: settings?.isPrivate ?? false,
     };
   }
 
-  async updatePrivacy(userId: string, body: unknown): Promise<PrivacyDto> {
+  /**
+   * `PATCH /me/privacy`. v1.47-social (D175, §10.47): `isPrivate` switches the account private or
+   * public under the account's lock (a concurrent follow waits for it); private → public accepts
+   * every pending follow request. Audited `user.privacy.private` when it changes.
+   */
+  async updatePrivacy(userId: string, body: unknown, meta: PrivacyMeta): Promise<PrivacyDto> {
     const parsed = updatePrivacySchema.safeParse(body ?? {});
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
-    await this.prisma.privacySettings.upsert({
-      where: { userId },
-      create: { userId, ...parsed.data },
-      update: parsed.data,
+    const { isPrivate, ...rest } = parsed.data;
+    await this.prisma.$transaction(async (tx) => {
+      if (Object.keys(rest).length > 0) {
+        await tx.privacySettings.upsert({ where: { userId }, create: { userId, ...rest }, update: rest });
+      }
+      if (isPrivate === undefined) return;
+      const [locked] = await tx.$queryRaw<{ is_private: boolean | null }[]>`
+        SELECT s.is_private FROM users u LEFT JOIN user_settings s ON s.user_id = u.id
+         WHERE u.id = ${userId}::uuid FOR UPDATE OF u`;
+      if (!locked) throw new AppException(ErrorCode.AUTH_UNAUTHENTICATED);
+      const before = locked.is_private ?? false;
+      if (before === isPrivate) return;
+      await tx.userSettings.upsert({
+        where: { userId },
+        create: { userId, isPrivate },
+        update: { isPrivate },
+      });
+      const accepted = isPrivate ? 0 : await acceptAllFollowRequestsIn(tx, userId);
+      await this.audit.recordIn(tx, {
+        action: AuditAction.PRIVACY_PRIVATE,
+        actorUserId: userId,
+        targetType: 'user',
+        targetId: userId,
+        metadata: { isPrivate, requestsAccepted: accepted },
+        ip: meta.ip,
+        requestId: meta.requestId,
+      });
     });
     return this.privacy(userId);
   }

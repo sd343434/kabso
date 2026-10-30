@@ -4,6 +4,7 @@ import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/demo/demo_mode.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
+import 'package:kabso_live/core/models/profile_fields.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/features/auth/data/auth_repository_impl.dart';
@@ -57,6 +58,7 @@ class AuthController extends Notifier<FormSubmission> {
     required String password,
     required String username,
     required String displayName,
+    required Gender gender,
   }) => _run(() async {
     // v1.2: 202 only — no account, no session yet. The `locale` is the
     // language displayed at submit time, so the code email matches it.
@@ -65,12 +67,14 @@ class AuthController extends Notifier<FormSubmission> {
       password: password,
       username: username,
       displayName: displayName,
+      gender: gender,
       locale: ref.read(languageControllerProvider).name,
     );
     ref.read(registrationFlowProvider.notifier).draft = RegistrationDraft(
       email: AuthValidators.normalizeEmail(email),
       username: username,
       displayName: displayName,
+      gender: gender,
       password: password,
       codeSentAt: clock.now(),
     );

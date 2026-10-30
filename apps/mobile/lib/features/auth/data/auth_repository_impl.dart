@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/config/app_config.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/logging/app_logger.dart';
+import 'package:kabso_live/core/models/profile_fields.dart';
 import 'package:kabso_live/core/network/network_providers.dart';
 import 'package:kabso_live/core/network/token_manager.dart';
 import 'package:kabso_live/features/auth/data/auth_remote_data_source.dart';
@@ -46,6 +47,7 @@ class AuthRepositoryImpl implements AuthRepository {
     required String password,
     required String username,
     required String displayName,
+    required Gender gender,
     required String locale,
   }) async {
     await _remote.register(
@@ -54,6 +56,7 @@ class AuthRepositoryImpl implements AuthRepository {
         password: password,
         username: AuthValidators.normalizeUsername(username),
         displayName: displayName.trim(),
+        gender: gender.wire,
         locale: locale,
         device: _device,
       ),

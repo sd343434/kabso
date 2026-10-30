@@ -368,6 +368,8 @@ export function newUser(overrides: Partial<Record<string, unknown>> = {}) {
     password: 'correct horse battery staple',
     username: `user${suffix}`,
     displayName: 'Test User',
+    // v1.47-social (D175): required at sign-up.
+    gender: 'UNDISCLOSED',
     locale: 'en',
     device: { name: 'Pixel 9', platform: 'android', appVersion: '1.0.0' },
     ...overrides,

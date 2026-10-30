@@ -109,6 +109,7 @@ void main() {
     await tester.enterText(find.byKey(RegisterScreen.usernameKey), 'layla_22');
     await tester.enterText(find.byKey(RegisterScreen.displayNameKey), 'L');
     await tester.enterText(find.byKey(RegisterScreen.passwordKey), 'pa55word!');
+    await chooseGender(tester);
     await tester.pump();
     await tester.pump();
   }

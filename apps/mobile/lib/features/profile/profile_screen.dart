@@ -14,6 +14,7 @@ import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/cp/presentation/cp_special_frame.dart';
 import 'package:kabso_live/features/levels/presentation/profile_levels.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
+import 'package:kabso_live/features/profile/profile_fields_view.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -200,6 +201,13 @@ class _OwnHeader extends ConsumerWidget {
       onOpenFollowers: () => context.push(AppRoutes.userFollows(user.username)),
       onOpenFollowing: () =>
           context.push(AppRoutes.userFollows(user.username, following: true)),
+      // D175: the category (and the gender only when the person shows it)
+      // under the name, as others see it; the links after the bio.
+      subtitle: ProfileFieldsLine(
+        category: user.category,
+        gender: user.showGender ? user.gender : null,
+      ),
+      about: ProfileLinksRow(links: user.links, reportable: false),
       actions: SizedBox(
         height: KProfile.buttonHeight,
         child: OutlinedButton(
@@ -249,6 +257,8 @@ class ProfileHeaderView extends StatelessWidget {
     this.cpFrame = false,
     this.onOpenFollowers,
     this.onOpenFollowing,
+    this.subtitle,
+    this.about,
   });
 
   final String displayName;
@@ -276,6 +286,13 @@ class ProfileHeaderView extends StatelessWidget {
   /// D121: tapping the Followers / Following count opens the follow lists.
   final VoidCallback? onOpenFollowers;
   final VoidCallback? onOpenFollowing;
+
+  /// D175: under the name — the account category (and a shown gender),
+  /// [ProfileFieldsLine].
+  final Widget? subtitle;
+
+  /// D175: after the bio — the profile links, [ProfileLinksRow].
+  final Widget? about;
 
   static const avatarKey = Key('profile.avatar');
   static const followersKey = Key('profile.stat.followers');
@@ -395,10 +412,12 @@ class ProfileHeaderView extends StatelessWidget {
               ?nameTrailing,
             ],
           ),
+          ?subtitle,
           if (bio != null && bio.isNotEmpty) ...[
             const SizedBox(height: KSpacing.xxs),
             Text(bio, style: t.body.copyWith(color: p.textPrimary)),
           ],
+          ?about,
           ?levels,
           const SizedBox(height: KSpacing.md),
           actions,

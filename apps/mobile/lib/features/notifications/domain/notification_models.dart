@@ -48,6 +48,17 @@ enum NotificationType {
   /// v1.48-social (D171): someone sent you a bag item (actor: the sender;
   /// target: the item, with its category).
   bagItemReceived('BAG_ITEM_RECEIVED'),
+
+  /// v1.47-social (D175): someone asked to follow your private account
+  /// (target: them as a user; opens the follow requests).
+  followRequest('FOLLOW_REQUEST'),
+
+  /// v1.47-social (D175): your follow request was accepted (target: the
+  /// account as a user).
+  followRequestAccepted('FOLLOW_REQUEST_ACCEPTED'),
+
+  /// v1.47-social (D175, system): a moderator removed your profile photo.
+  avatarRemoved('AVATAR_REMOVED'),
   unknown('');
 
   new(this.wire);
@@ -65,7 +76,8 @@ enum NotificationType {
       this == contentRemoved ||
       this == medalAwarded ||
       this == premiumUsernameExpiring ||
-      this == premiumUsernameExpired;
+      this == premiumUsernameExpired ||
+      this == avatarRemoved;
 }
 
 /// `NotificationTarget.type`.

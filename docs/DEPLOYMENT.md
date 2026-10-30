@@ -1520,6 +1520,33 @@ Video in «منشور جديد» (the «فيديو» tab), reels («ريلز») 
   a replaced or removed photo's objects are deleted.
 - **Audit:** `user.profile.update` (which fields changed, never values) and `user.avatar.update`.
 
+### 5.27 Profile fields, private accounts and follow requests (migrations `20261215090000_profile_fields_enums`, `20261215100000_profile_fields_private_accounts`; D175) — [IMPLEMENTED, draft contract v1.47-social; not deployed, not device-tested]
+
+Gender (required at sign-up, private by default), the account category, up to 3 https profile links,
+the private-account switch with follow requests, and an admin tool to remove a profile photo
+(CONVENTIONS §10.47).
+
+- **Migrations** with the usual `migrate` job (§5), in order (the enum values first, in their own
+  transaction): `notification_type` gains `FOLLOW_REQUEST`, `FOLLOW_REQUEST_ACCEPTED`, `AVATAR_REMOVED`;
+  `report_target_type` gains `PROFILE_LINK`; then types `user_gender`, `account_category`; columns
+  `user_profiles.gender`, `show_gender` (default false), `account_category`, `pending_registrations.gender`,
+  `reports.target_profile_link_id`, `reports.link_snapshot`; tables `user_profile_links` (CHECKs: position
+  0–2, `https://` without whitespace or controls, label 1–30) and `follow_requests` (CHECK not self);
+  `reports_one_target` replaced to include `PROFILE_LINK`. No GRANT (default privileges), no backfill:
+  existing accounts have no gender until they choose one, and every account stays public.
+- **Release together with the app build that has the gender step:** from this API on, `register` without
+  `gender` → 400. An older app cannot sign up new accounts (sign-in is unaffected).
+- **Settings:** new `RATE_LIMIT_FOLLOW_REQUEST_ANSWER_USER` (default `300/3600`, accept / decline one
+  bucket). No secret.
+- **Admin CLI** `dist/cli/profile-admin.js` (locally `pnpm profile:admin …`), migration role like the
+  others: `remove-avatar <username> --reason <text>` resets the photo, deletes the `AVATAR` asset row,
+  notifies the user (`AVATAR_REMOVED`) and audits `admin.avatar.remove` with the reason; it deletes the
+  files when given the API's `S3_*` settings, else prints the object keys to delete by hand:
+  `docker compose --profile jobs run --rm -e S3_ENDPOINT -e S3_REGION -e S3_BUCKET -e S3_ACCESS_KEY_ID
+  -e S3_SECRET_ACCESS_KEY -e S3_FORCE_PATH_STYLE migrate node dist/cli/profile-admin.js remove-avatar
+  <username> --reason "<why>"`.
+- **Audit:** `user.profile.update` now also names `gender`, `showGender`, `category`, `links` (never
+  values); `user.privacy.private` (`{isPrivate, requestsAccepted}`); `admin.avatar.remove`.
 
 ### 5.28 The bag v2: expiry, gifts and sending (migrations `20261216090000_bag_expiry_send_enums`, `20261216100000_bag_expiry_send`; D171) — [IMPLEMENTED, draft contract v1.48-social; not deployed, not device-tested]
 

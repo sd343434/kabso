@@ -34,6 +34,7 @@ class PrivacyController extends AsyncNotifier<PrivacySettings> {
     WhoCanComment? defaultWhoCanComment,
     bool? showActivityStatus,
     MentionPolicy? whoCanMessage,
+    bool? isPrivate,
   }) async {
     final next = await ref
         .read(safetyRepositoryProvider)
@@ -42,7 +43,17 @@ class PrivacyController extends AsyncNotifier<PrivacySettings> {
           defaultWhoCanComment: defaultWhoCanComment,
           showActivityStatus: showActivityStatus,
           whoCanMessage: whoCanMessage,
+          isPrivate: isPrivate,
         );
+    // D175: the session's user (Me, Edit profile) shows the new state.
+    if (isPrivate != null) {
+      final user = ref.read(currentUserProvider);
+      if (user != null && user.isPrivate != next.isPrivate) {
+        ref
+            .read(sessionControllerProvider.notifier)
+            .updateUser(user.copyWith(isPrivate: next.isPrivate));
+      }
+    }
     if (ref.mounted) state = AsyncData(next);
   }
 }
@@ -61,6 +72,11 @@ class PrivacyScreen extends ConsumerWidget {
   static Key mentionKey(MentionPolicy p) => Key('privacy.mention.${p.name}');
   static Key commentKey(WhoCanComment w) => Key('privacy.comment.${w.name}');
   static const activityKey = Key('privacy.activityStatus');
+
+  /// D175: the private-account switch and the follow-requests row.
+  static const privateKey = Key('privacy.private');
+  static const followRequestsKey = Key('privacy.followRequests');
+  static const makePublicKey = Key('privacy.makePublic');
 
   /// D155: «من يستطيع مراسلتك».
   static Key messageKey(MentionPolicy p) => Key('privacy.message.${p.name}');
@@ -99,6 +115,33 @@ class PrivacyScreen extends ConsumerWidget {
       body: switch (privacy) {
         AsyncValue(:final value?) => ListView(
           children: [
+            // D175 (owner): a private account with follow requests.
+            header(l10n.privacyPrivateTitle),
+            SwitchListTile(
+              key: privateKey,
+              value: value.isPrivate,
+              title: Text(l10n.privacyPrivateLabel),
+              subtitle: Text(l10n.privacyPrivateHint),
+              onChanged: (v) async {
+                if (!v && !await _confirmPublic(context)) return;
+                await save(
+                  () => ref.read(privacyProvider.notifier).change(isPrivate: v),
+                );
+              },
+            ),
+            ListTile(
+              key: followRequestsKey,
+              leading: Icon(
+                Icons.person_add_alt_outlined,
+                color: p.textPrimary,
+              ),
+              title: Text(l10n.followRequestsTitle),
+              trailing: Icon(
+                Icons.chevron_right_rounded,
+                color: p.textTertiary,
+              ),
+              onTap: () => context.push(AppRoutes.followRequests),
+            ),
             header(l10n.privacyMentionTitle),
             RadioGroup<MentionPolicy>(
               groupValue: value.whoCanMention,
@@ -230,6 +273,30 @@ class PrivacyScreen extends ConsumerWidget {
       },
     );
   }
+}
+
+/// D175: switching private → public accepts every pending request; ask.
+Future<bool> _confirmPublic(BuildContext context) async {
+  final l10n = context.l10n;
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (dialog) => AlertDialog(
+      title: Text(l10n.privacyMakePublicTitle),
+      content: Text(l10n.privacyMakePublicBody),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialog).pop(false),
+          child: Text(l10n.actionCancel),
+        ),
+        TextButton(
+          key: PrivacyScreen.makePublicKey,
+          onPressed: () => Navigator.of(dialog).pop(true),
+          child: Text(l10n.privacyMakePublicConfirm),
+        ),
+      ],
+    ),
+  );
+  return ok ?? false;
 }
 
 /// Which safety list: blocked (`GET /me/blocks`) or muted (`GET /me/mutes`,

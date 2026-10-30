@@ -199,10 +199,14 @@ export class SearchService {
       SELECT h.id::text AS id, h.tag
         FROM hashtags h
        WHERE h.tag LIKE ${likePrefix(tag)} ESCAPE '\\'
+         -- v1.47-social (D175): only tags of posts the caller may see (a private account's tags stay
+         -- hidden from non-followers, like its posts).
          AND EXISTS (SELECT 1 FROM post_hashtags ph
                        JOIN posts p ON p.id = ph.post_id
-                      WHERE ph.hashtag_id = h.id AND p.status = 'PUBLISHED'::post_status
-                        AND p.deleted_at IS NULL AND p.moderation = 'VISIBLE'::post_moderation)
+                       JOIN users a ON a.id = p.author_id
+                       LEFT JOIN user_settings s ON s.user_id = a.id
+                      WHERE ph.hashtag_id = h.id
+                        AND ${visiblePostSql(viewerId, { excludeMuted: false, excludeHidden: false })})
        ORDER BY (h.tag = ${tag}) DESC,
                 (SELECT count(*) FROM post_hashtags ph WHERE ph.hashtag_id = h.id) DESC,
                 h.tag ASC

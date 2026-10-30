@@ -5,6 +5,7 @@
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:kabso_live/core/models/premium_tier.dart';
+import 'package:kabso_live/core/models/profile_fields.dart';
 import 'package:kabso_live/features/bag/domain/bag_models.dart';
 import 'package:kabso_live/features/cp/domain/cp_models.dart';
 import 'package:kabso_live/features/families/domain/family_models.dart';
@@ -50,24 +51,52 @@ abstract class PublicProfile with _$PublicProfile {
 
     /// v1.22-live (CP-019): the profile card the user wears, or null.
     ProfileCard? profileCard,
+
+    /// v1.47-social (D175): the caller has a pending request to follow
+    /// this private account.
+    @Default(false) bool followRequested,
+
+    /// v1.47-social (D175): the gender, only when the user shows it.
+    @JsonKey(fromJson: genderFromJson, toJson: genderToJson) Gender? gender,
+
+    /// v1.47-social (D175): the account category under the name.
+    @JsonKey(fromJson: accountCategoryFromJson, toJson: accountCategoryToJson)
+    AccountCategory? category,
+
+    /// v1.47-social (D175): the profile links (also on a private profile).
+    @JsonKey(fromJson: profileLinksFromJson, toJson: profileLinksToJson)
+    @Default(<ProfileLink>[])
+    List<ProfileLink> links,
   }) = _PublicProfile;
 
   const new _();
 
   factory fromJson(Map<String, dynamic> json) => _$PublicProfileFromJson(json);
 
-  /// Whether a Follow control may be offered (§10.5/10.6): never for
-  /// yourself, and never to start following a private account (no follow
-  /// requests in v1.3). An existing follower of a private account can still
-  /// unfollow.
+  /// Whether a plain follow (no request) is possible (§10.5/10.6): never
+  /// for yourself, and not to start following a private account.
   bool get canFollow => !isSelf && (isFollowing || !isPrivate);
+
+  /// v1.47-social (D175, §10.47): whether Follow may be offered (the profile
+  /// page and, owner, the live room): everyone but yourself — on a private
+  /// account it sends a request.
+  bool get canFollowOrRequest => !isSelf;
+
+  /// v1.47-social (D175): a private account the caller may not see the
+  /// posts, reels and stories of («هذا الحساب خاص»).
+  bool get locked => isPrivate && !isFollowing && !isSelf;
 }
 
 /// `FollowState`: the result of follow / unfollow.
 @freezed
 abstract class FollowState with _$FollowState {
-  const factory({required bool isFollowing, required int followerCount}) =
-      _FollowState;
+  const factory({
+    required bool isFollowing,
+    required int followerCount,
+
+    /// v1.47-social (D175): a follow request is pending (private account).
+    @Default(false) bool isRequested,
+  }) = _FollowState;
 
   factory fromJson(Map<String, dynamic> json) => _$FollowStateFromJson(json);
 }

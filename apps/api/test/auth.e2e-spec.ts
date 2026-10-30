@@ -66,6 +66,11 @@ describe('POST /auth/register', () => {
       liveCoverUrl: null,
       // v1.27.1-live (D133): every account starts with no country (none is guessed).
       country: null,
+      // v1.47-social (D175): the gender chosen at sign-up, private by default; no category or links.
+      gender: 'UNDISCLOSED',
+      showGender: false,
+      category: null,
+      links: [],
     });
     const { tokens } = res.body as AuthBody;
     expect(tokens.accessToken.split('.')).toHaveLength(3);

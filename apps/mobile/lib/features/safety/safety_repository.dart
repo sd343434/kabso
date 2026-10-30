@@ -30,6 +30,7 @@ class PrivacySettings {
     required this.defaultWhoCanComment,
     this.showActivityStatus = true,
     this.whoCanMessage = MentionPolicy.everyone,
+    this.isPrivate = false,
   });
 
   factory fromJson(Map<String, dynamic> json) => PrivacySettings(
@@ -40,6 +41,8 @@ class PrivacySettings {
     whoCanMessage: json['whoCanMessage'] == null
         ? MentionPolicy.everyone
         : MentionPolicy.fromWire(json['whoCanMessage']),
+    // v1.47-social (D175); absent from older servers: public.
+    isPrivate: json['isPrivate'] as bool? ?? false,
   );
 
   final MentionPolicy whoCanMention;
@@ -56,6 +59,10 @@ class PrivacySettings {
   /// («من يستطيع مراسلتك»): everyone (default), people the caller follows,
   /// or no one. Same three values as [whoCanMention].
   final MentionPolicy whoCanMessage;
+
+  /// v1.47-social (D175, §10.47): a private account — following it is a
+  /// request; posts, reels and stories are for followers only.
+  final bool isPrivate;
 }
 
 /// Block, mute, reports of users and privacy (docs/contracts/openapi.yaml
@@ -77,6 +84,10 @@ abstract interface class SafetyRepository {
   /// `POST /reports` for a user.
   Future<void> reportUser(String userId, ReportReason reason);
 
+  /// v1.47-social (D175): `POST /reports` for a profile link
+  /// (`targetType: PROFILE_LINK`, the link's id).
+  Future<void> reportProfileLink(String linkId, ReportReason reason);
+
   /// `GET /me/privacy`.
   Future<PrivacySettings> privacy();
 
@@ -86,6 +97,7 @@ abstract interface class SafetyRepository {
     WhoCanComment? defaultWhoCanComment,
     bool? showActivityStatus,
     MentionPolicy? whoCanMessage,
+    bool? isPrivate,
   });
 }
 
@@ -146,6 +158,19 @@ class SafetyRepositoryImpl implements SafetyRepository {
   );
 
   @override
+  Future<void> reportProfileLink(String linkId, ReportReason reason) =>
+      guardApiCall(() async {
+        await _dio.post<Map<String, dynamic>>(
+          '/reports',
+          data: {
+            'targetType': 'PROFILE_LINK',
+            'targetId': linkId,
+            'reason': reason.wire,
+          },
+        );
+      });
+
+  @override
   Future<PrivacySettings> privacy() => guardApiCall(() async {
     final res = await _dio.get<Map<String, dynamic>>('/me/privacy');
     return PrivacySettings.fromJson(res.data!);
@@ -157,6 +182,7 @@ class SafetyRepositoryImpl implements SafetyRepository {
     WhoCanComment? defaultWhoCanComment,
     bool? showActivityStatus,
     MentionPolicy? whoCanMessage,
+    bool? isPrivate,
   }) => guardApiCall(() async {
     final res = await _dio.patch<Map<String, dynamic>>(
       '/me/privacy',
@@ -165,6 +191,7 @@ class SafetyRepositoryImpl implements SafetyRepository {
         'defaultWhoCanComment': ?defaultWhoCanComment?.wire,
         'showActivityStatus': ?showActivityStatus,
         'whoCanMessage': ?whoCanMessage?.wire,
+        'isPrivate': ?isPrivate,
       },
     );
     return PrivacySettings.fromJson(res.data!);

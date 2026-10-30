@@ -20,7 +20,8 @@ function details(fn: () => unknown) {
 
 describe('free-text character policy (SEC-008, CONVENTIONS §6)', () => {
   const register = new ZodValidationPipe(registerSchema);
-  const base = { email: 'a@b.co', password: 'password1', username: 'abc123' };
+  // v1.47-social (D175): gender is required at sign-up.
+  const base = { email: 'a@b.co', password: 'password1', username: 'abc123', gender: 'UNDISCLOSED' };
 
   it.each([
     ['RLO bidi override', 'admin‮gnp.exe'],

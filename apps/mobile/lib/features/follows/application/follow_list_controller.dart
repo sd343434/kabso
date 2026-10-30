@@ -88,7 +88,11 @@ class FollowListController extends AsyncNotifier<FeedItems<FollowListItem>> {
     }
   }
 
-  void _replace(String id, {required bool followedByMe}) {
+  void _replace(
+    String id, {
+    required bool followedByMe,
+    bool requestedByMe = false,
+  }) {
     final s = state.value;
     if (s == null) return;
     state = AsyncData(
@@ -96,7 +100,10 @@ class FollowListController extends AsyncNotifier<FeedItems<FollowListItem>> {
         [
           for (final u in s.items)
             if (u.id == id)
-              u.withFollowedByMe(followedByMe: followedByMe)
+              u.withFollowedByMe(
+                followedByMe: followedByMe,
+                requestedByMe: requestedByMe,
+              )
             else
               u,
         ],
@@ -151,27 +158,44 @@ class FollowListController extends AsyncNotifier<FeedItems<FollowListItem>> {
   /// Follows ([follow] true) or unfollows the row [item]. The row changes at
   /// once; on failure it is restored and the `AppFailure` rethrown for the
   /// screen to show. Ignored while that row is busy, when nothing would
-  /// change, or when the row offers no control (yourself; a private account
-  /// you do not follow).
+  /// change, or when the row offers no control (yourself).
+  ///
+  /// v1.47-social (D175): following a private account sends a request (the
+  /// row says "Requested"); [follow] false on such a row cancels it.
   Future<void> setFollowing(FollowListItem item, {required bool follow}) async {
     final row = state.value?.items.where((u) => u.id == item.id).firstOrNull;
-    if (row == null || _busy.contains(row.id) || row.followedByMe == follow) {
+    final active = row != null && (row.followedByMe || row.requestedByMe);
+    if (row == null || _busy.contains(row.id) || active == follow) {
       return;
     }
     if (!row.canToggle) return;
     _busy.add(row.id);
-    _replace(row.id, followedByMe: follow);
+    _replace(
+      row.id,
+      followedByMe: follow && !row.isPrivate,
+      requestedByMe: follow && row.isPrivate,
+    );
     try {
       final repo = ref.read(profileRepositoryProvider);
       final result = follow
           ? await repo.follow(row.username)
           : await repo.unfollow(row.username);
       if (!ref.mounted) return;
-      _replace(row.id, followedByMe: result.isFollowing);
+      _replace(
+        row.id,
+        followedByMe: result.isFollowing,
+        requestedByMe: result.isRequested,
+      );
       // The counts on the profiles behind this screen move too.
       _countsMoved(row.username);
     } on Object {
-      if (ref.mounted) _replace(row.id, followedByMe: row.followedByMe);
+      if (ref.mounted) {
+        _replace(
+          row.id,
+          followedByMe: row.followedByMe,
+          requestedByMe: row.requestedByMe,
+        );
+      }
       rethrow;
     } finally {
       _busy.remove(row.id);

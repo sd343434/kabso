@@ -92,6 +92,13 @@ class _FakeProfileEdit implements ProfileEditRepository {
   }
 
   @override
+  Future<User> updateProfileFields(ProfileFieldsChange change) async {
+    calls.add('fields:${change.toJson()}');
+    _fail();
+    return user;
+  }
+
+  @override
   Future<String> setAvatar(String mediaId) async {
     calls.add('avatar:$mediaId');
     _fail();
@@ -510,8 +517,11 @@ void main() {
 
   group('5. edit profile', () {
     for (final language in AppLanguage.values) {
-      testWidgets('rows: name, username and bio open editors; the owner '
-          'questions stay "Coming soon"; no dead Save (${language.name})', (
+      // D175: the owner answered the D168 questions — links, gender and
+      // category are editors now, the grid row is the pin hint and Privacy
+      // opens the privacy settings (they were "Coming soon" rows here).
+      testWidgets('rows: name, username and bio open editors; no row is '
+          '"Coming soon" any more; no dead Save (${language.name})', (
         tester,
       ) async {
         final semantics = tester.ensureSemantics();
@@ -552,19 +562,27 @@ void main() {
           EditProfileScreen.linksKey,
           EditProfileScreen.genderKey,
           EditProfileScreen.categoryKey,
-          EditProfileScreen.gridKey,
           EditProfileScreen.privacyKey,
         ]) {
           await tester.scrollUntilVisible(find.byKey(key), 100);
-          expect(_inRow(key, l10n.profileEditSoon), findsOneWidget);
+          expect(_inRow(key, l10n.profileEditSoon), findsNothing);
           expect(
             find.descendant(
               of: find.byKey(key),
               matching: find.byType(InkWell),
             ),
-            findsNothing,
+            findsOneWidget,
           );
         }
+        await tester.scrollUntilVisible(
+          find.byKey(EditProfileScreen.gridKey),
+          100,
+        );
+        expect(
+          _inRow(EditProfileScreen.gridKey, l10n.profileEditPinHint),
+          findsOneWidget,
+        );
+        expect(find.text(l10n.profileEditSoon), findsNothing);
         expect(
           _inRow(EditProfileScreen.privacyKey, l10n.profilePrivacyPublic),
           findsOneWidget,

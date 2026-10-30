@@ -25,7 +25,12 @@ mixin _$PublicProfile {
  ProfileCp? get cp;/// v1.21-live (CP-018): medals owned, the newest and the chosen
 /// showcase (empty for previews built without it).
  ProfileMedals get medals;/// v1.22-live (CP-019): the profile card the user wears, or null.
- ProfileCard? get profileCard;
+ ProfileCard? get profileCard;/// v1.47-social (D175): the caller has a pending request to follow
+/// this private account.
+ bool get followRequested;/// v1.47-social (D175): the gender, only when the user shows it.
+@JsonKey(fromJson: genderFromJson, toJson: genderToJson) Gender? get gender;/// v1.47-social (D175): the account category under the name.
+@JsonKey(fromJson: accountCategoryFromJson, toJson: accountCategoryToJson) AccountCategory? get category;/// v1.47-social (D175): the profile links (also on a private profile).
+@JsonKey(fromJson: profileLinksFromJson, toJson: profileLinksToJson) List<ProfileLink> get links;
 /// Create a copy of PublicProfile
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -39,20 +44,20 @@ $PublicProfileCopyWith<PublicProfile> get copyWith => _$PublicProfileCopyWithImp
 @override
 bool operator ==(Object other) {
   final _this = this as PublicProfile;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PublicProfile&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.username, _this.username) || other.username == _this.username)&&(identical(other.displayName, _this.displayName) || other.displayName == _this.displayName)&&(identical(other.avatarUrl, _this.avatarUrl) || other.avatarUrl == _this.avatarUrl)&&(identical(other.bio, _this.bio) || other.bio == _this.bio)&&(identical(other.isPrivate, _this.isPrivate) || other.isPrivate == _this.isPrivate)&&(identical(other.followerCount, _this.followerCount) || other.followerCount == _this.followerCount)&&(identical(other.followingCount, _this.followingCount) || other.followingCount == _this.followingCount)&&(identical(other.isFollowing, _this.isFollowing) || other.isFollowing == _this.isFollowing)&&(identical(other.isSelf, _this.isSelf) || other.isSelf == _this.isSelf)&&(identical(other.liveRoomId, _this.liveRoomId) || other.liveRoomId == _this.liveRoomId)&&(identical(other.isMuted, _this.isMuted) || other.isMuted == _this.isMuted)&&(identical(other.premiumTier, _this.premiumTier) || other.premiumTier == _this.premiumTier)&&(identical(other.family, _this.family) || other.family == _this.family)&&(identical(other.cp, _this.cp) || other.cp == _this.cp)&&(identical(other.medals, _this.medals) || other.medals == _this.medals)&&(identical(other.profileCard, _this.profileCard) || other.profileCard == _this.profileCard));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PublicProfile&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.username, _this.username) || other.username == _this.username)&&(identical(other.displayName, _this.displayName) || other.displayName == _this.displayName)&&(identical(other.avatarUrl, _this.avatarUrl) || other.avatarUrl == _this.avatarUrl)&&(identical(other.bio, _this.bio) || other.bio == _this.bio)&&(identical(other.isPrivate, _this.isPrivate) || other.isPrivate == _this.isPrivate)&&(identical(other.followerCount, _this.followerCount) || other.followerCount == _this.followerCount)&&(identical(other.followingCount, _this.followingCount) || other.followingCount == _this.followingCount)&&(identical(other.isFollowing, _this.isFollowing) || other.isFollowing == _this.isFollowing)&&(identical(other.isSelf, _this.isSelf) || other.isSelf == _this.isSelf)&&(identical(other.liveRoomId, _this.liveRoomId) || other.liveRoomId == _this.liveRoomId)&&(identical(other.isMuted, _this.isMuted) || other.isMuted == _this.isMuted)&&(identical(other.premiumTier, _this.premiumTier) || other.premiumTier == _this.premiumTier)&&(identical(other.family, _this.family) || other.family == _this.family)&&(identical(other.cp, _this.cp) || other.cp == _this.cp)&&(identical(other.medals, _this.medals) || other.medals == _this.medals)&&(identical(other.profileCard, _this.profileCard) || other.profileCard == _this.profileCard)&&(identical(other.followRequested, _this.followRequested) || other.followRequested == _this.followRequested)&&(identical(other.gender, _this.gender) || other.gender == _this.gender)&&(identical(other.category, _this.category) || other.category == _this.category)&&const DeepCollectionEquality().equals(other.links, _this.links));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as PublicProfile;
-  return Object.hash(runtimeType,_this.id,_this.username,_this.displayName,_this.avatarUrl,_this.bio,_this.isPrivate,_this.followerCount,_this.followingCount,_this.isFollowing,_this.isSelf,_this.liveRoomId,_this.isMuted,_this.premiumTier,_this.family,_this.cp,_this.medals,_this.profileCard);
+  return Object.hashAll([runtimeType,_this.id,_this.username,_this.displayName,_this.avatarUrl,_this.bio,_this.isPrivate,_this.followerCount,_this.followingCount,_this.isFollowing,_this.isSelf,_this.liveRoomId,_this.isMuted,_this.premiumTier,_this.family,_this.cp,_this.medals,_this.profileCard,_this.followRequested,_this.gender,_this.category,const DeepCollectionEquality().hash(_this.links)]);
 }
 
 @override
 String toString() {
   final _this = this as PublicProfile;
-  return 'PublicProfile(id: ${_this.id}, username: ${_this.username}, displayName: ${_this.displayName}, avatarUrl: ${_this.avatarUrl}, bio: ${_this.bio}, isPrivate: ${_this.isPrivate}, followerCount: ${_this.followerCount}, followingCount: ${_this.followingCount}, isFollowing: ${_this.isFollowing}, isSelf: ${_this.isSelf}, liveRoomId: ${_this.liveRoomId}, isMuted: ${_this.isMuted}, premiumTier: ${_this.premiumTier}, family: ${_this.family}, cp: ${_this.cp}, medals: ${_this.medals}, profileCard: ${_this.profileCard})';
+  return 'PublicProfile(id: ${_this.id}, username: ${_this.username}, displayName: ${_this.displayName}, avatarUrl: ${_this.avatarUrl}, bio: ${_this.bio}, isPrivate: ${_this.isPrivate}, followerCount: ${_this.followerCount}, followingCount: ${_this.followingCount}, isFollowing: ${_this.isFollowing}, isSelf: ${_this.isSelf}, liveRoomId: ${_this.liveRoomId}, isMuted: ${_this.isMuted}, premiumTier: ${_this.premiumTier}, family: ${_this.family}, cp: ${_this.cp}, medals: ${_this.medals}, profileCard: ${_this.profileCard}, followRequested: ${_this.followRequested}, gender: ${_this.gender}, category: ${_this.category}, links: ${_this.links})';
 }
 
 
@@ -63,7 +68,7 @@ abstract mixin class $PublicProfileCopyWith<$Res>  {
   factory $PublicProfileCopyWith(PublicProfile value, $Res Function(PublicProfile) _then) = _$PublicProfileCopyWithImpl;
 @useResult
 $Res call({
- String id, String username, String displayName, String? avatarUrl, String? bio, bool isPrivate, int followerCount, int followingCount, bool isFollowing, bool isSelf, String? liveRoomId, bool isMuted,@JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson) PremiumTier? premiumTier, ProfileFamily? family, ProfileCp? cp, ProfileMedals medals, ProfileCard? profileCard
+ String id, String username, String displayName, String? avatarUrl, String? bio, bool isPrivate, int followerCount, int followingCount, bool isFollowing, bool isSelf, String? liveRoomId, bool isMuted,@JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson) PremiumTier? premiumTier, ProfileFamily? family, ProfileCp? cp, ProfileMedals medals, ProfileCard? profileCard, bool followRequested,@JsonKey(fromJson: genderFromJson, toJson: genderToJson) Gender? gender,@JsonKey(fromJson: accountCategoryFromJson, toJson: accountCategoryToJson) AccountCategory? category,@JsonKey(fromJson: profileLinksFromJson, toJson: profileLinksToJson) List<ProfileLink> links
 });
 
 
@@ -80,7 +85,7 @@ class _$PublicProfileCopyWithImpl<$Res>
 
 /// Create a copy of PublicProfile
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? username = null,Object? displayName = null,Object? avatarUrl = freezed,Object? bio = freezed,Object? isPrivate = null,Object? followerCount = null,Object? followingCount = null,Object? isFollowing = null,Object? isSelf = null,Object? liveRoomId = freezed,Object? isMuted = null,Object? premiumTier = freezed,Object? family = freezed,Object? cp = freezed,Object? medals = null,Object? profileCard = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? username = null,Object? displayName = null,Object? avatarUrl = freezed,Object? bio = freezed,Object? isPrivate = null,Object? followerCount = null,Object? followingCount = null,Object? isFollowing = null,Object? isSelf = null,Object? liveRoomId = freezed,Object? isMuted = null,Object? premiumTier = freezed,Object? family = freezed,Object? cp = freezed,Object? medals = null,Object? profileCard = freezed,Object? followRequested = null,Object? gender = freezed,Object? category = freezed,Object? links = null,}) {
   return _then(PublicProfile(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,username: null == username ? _self.username : username // ignore: cast_nullable_to_non_nullable
@@ -99,7 +104,11 @@ as PremiumTier?,family: freezed == family ? _self.family : family // ignore: cas
 as ProfileFamily?,cp: freezed == cp ? _self.cp : cp // ignore: cast_nullable_to_non_nullable
 as ProfileCp?,medals: null == medals ? _self.medals : medals // ignore: cast_nullable_to_non_nullable
 as ProfileMedals,profileCard: freezed == profileCard ? _self.profileCard : profileCard // ignore: cast_nullable_to_non_nullable
-as ProfileCard?,
+as ProfileCard?,followRequested: null == followRequested ? _self.followRequested : followRequested // ignore: cast_nullable_to_non_nullable
+as bool,gender: freezed == gender ? _self.gender : gender // ignore: cast_nullable_to_non_nullable
+as Gender?,category: freezed == category ? _self.category : category // ignore: cast_nullable_to_non_nullable
+as AccountCategory?,links: null == links ? _self.links : links // ignore: cast_nullable_to_non_nullable
+as List<ProfileLink>,
   ));
 }
 /// Create a copy of PublicProfile
@@ -229,10 +238,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String username,  String displayName,  String? avatarUrl,  String? bio,  bool isPrivate,  int followerCount,  int followingCount,  bool isFollowing,  bool isSelf,  String? liveRoomId,  bool isMuted, @JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson)  PremiumTier? premiumTier,  ProfileFamily? family,  ProfileCp? cp,  ProfileMedals medals,  ProfileCard? profileCard)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String username,  String displayName,  String? avatarUrl,  String? bio,  bool isPrivate,  int followerCount,  int followingCount,  bool isFollowing,  bool isSelf,  String? liveRoomId,  bool isMuted, @JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson)  PremiumTier? premiumTier,  ProfileFamily? family,  ProfileCp? cp,  ProfileMedals medals,  ProfileCard? profileCard,  bool followRequested, @JsonKey(fromJson: genderFromJson, toJson: genderToJson)  Gender? gender, @JsonKey(fromJson: accountCategoryFromJson, toJson: accountCategoryToJson)  AccountCategory? category, @JsonKey(fromJson: profileLinksFromJson, toJson: profileLinksToJson)  List<ProfileLink> links)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _PublicProfile() when $default != null:
-return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl,_that.bio,_that.isPrivate,_that.followerCount,_that.followingCount,_that.isFollowing,_that.isSelf,_that.liveRoomId,_that.isMuted,_that.premiumTier,_that.family,_that.cp,_that.medals,_that.profileCard);case _:
+return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl,_that.bio,_that.isPrivate,_that.followerCount,_that.followingCount,_that.isFollowing,_that.isSelf,_that.liveRoomId,_that.isMuted,_that.premiumTier,_that.family,_that.cp,_that.medals,_that.profileCard,_that.followRequested,_that.gender,_that.category,_that.links);case _:
   return orElse();
 
 }
@@ -250,10 +259,10 @@ return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String username,  String displayName,  String? avatarUrl,  String? bio,  bool isPrivate,  int followerCount,  int followingCount,  bool isFollowing,  bool isSelf,  String? liveRoomId,  bool isMuted, @JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson)  PremiumTier? premiumTier,  ProfileFamily? family,  ProfileCp? cp,  ProfileMedals medals,  ProfileCard? profileCard)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String username,  String displayName,  String? avatarUrl,  String? bio,  bool isPrivate,  int followerCount,  int followingCount,  bool isFollowing,  bool isSelf,  String? liveRoomId,  bool isMuted, @JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson)  PremiumTier? premiumTier,  ProfileFamily? family,  ProfileCp? cp,  ProfileMedals medals,  ProfileCard? profileCard,  bool followRequested, @JsonKey(fromJson: genderFromJson, toJson: genderToJson)  Gender? gender, @JsonKey(fromJson: accountCategoryFromJson, toJson: accountCategoryToJson)  AccountCategory? category, @JsonKey(fromJson: profileLinksFromJson, toJson: profileLinksToJson)  List<ProfileLink> links)  $default,) {final _that = this;
 switch (_that) {
 case _PublicProfile():
-return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl,_that.bio,_that.isPrivate,_that.followerCount,_that.followingCount,_that.isFollowing,_that.isSelf,_that.liveRoomId,_that.isMuted,_that.premiumTier,_that.family,_that.cp,_that.medals,_that.profileCard);case _:
+return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl,_that.bio,_that.isPrivate,_that.followerCount,_that.followingCount,_that.isFollowing,_that.isSelf,_that.liveRoomId,_that.isMuted,_that.premiumTier,_that.family,_that.cp,_that.medals,_that.profileCard,_that.followRequested,_that.gender,_that.category,_that.links);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -270,10 +279,10 @@ return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String username,  String displayName,  String? avatarUrl,  String? bio,  bool isPrivate,  int followerCount,  int followingCount,  bool isFollowing,  bool isSelf,  String? liveRoomId,  bool isMuted, @JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson)  PremiumTier? premiumTier,  ProfileFamily? family,  ProfileCp? cp,  ProfileMedals medals,  ProfileCard? profileCard)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String username,  String displayName,  String? avatarUrl,  String? bio,  bool isPrivate,  int followerCount,  int followingCount,  bool isFollowing,  bool isSelf,  String? liveRoomId,  bool isMuted, @JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson)  PremiumTier? premiumTier,  ProfileFamily? family,  ProfileCp? cp,  ProfileMedals medals,  ProfileCard? profileCard,  bool followRequested, @JsonKey(fromJson: genderFromJson, toJson: genderToJson)  Gender? gender, @JsonKey(fromJson: accountCategoryFromJson, toJson: accountCategoryToJson)  AccountCategory? category, @JsonKey(fromJson: profileLinksFromJson, toJson: profileLinksToJson)  List<ProfileLink> links)?  $default,) {final _that = this;
 switch (_that) {
 case _PublicProfile() when $default != null:
-return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl,_that.bio,_that.isPrivate,_that.followerCount,_that.followingCount,_that.isFollowing,_that.isSelf,_that.liveRoomId,_that.isMuted,_that.premiumTier,_that.family,_that.cp,_that.medals,_that.profileCard);case _:
+return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl,_that.bio,_that.isPrivate,_that.followerCount,_that.followingCount,_that.isFollowing,_that.isSelf,_that.liveRoomId,_that.isMuted,_that.premiumTier,_that.family,_that.cp,_that.medals,_that.profileCard,_that.followRequested,_that.gender,_that.category,_that.links);case _:
   return null;
 
 }
@@ -285,7 +294,7 @@ return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl,_that.
 @JsonSerializable()
 
 class _PublicProfile extends PublicProfile {
-  const _PublicProfile({required this.id, required this.username, required this.displayName, required this.avatarUrl, required this.bio, required this.isPrivate, required this.followerCount, required this.followingCount, required this.isFollowing, required this.isSelf, required this.liveRoomId, this.isMuted = false, @JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson) this.premiumTier, this.family, this.cp, this.medals = const ProfileMedals(), this.profileCard}): super._();
+  const _PublicProfile({required this.id, required this.username, required this.displayName, required this.avatarUrl, required this.bio, required this.isPrivate, required this.followerCount, required this.followingCount, required this.isFollowing, required this.isSelf, required this.liveRoomId, this.isMuted = false, @JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson) this.premiumTier, this.family, this.cp, this.medals = const ProfileMedals(), this.profileCard, this.followRequested = false, @JsonKey(fromJson: genderFromJson, toJson: genderToJson) this.gender, @JsonKey(fromJson: accountCategoryFromJson, toJson: accountCategoryToJson) this.category, @JsonKey(fromJson: profileLinksFromJson, toJson: profileLinksToJson)  List<ProfileLink> links = const <ProfileLink>[]}): _links = links,super._();
   factory _PublicProfile.fromJson(Map<String, dynamic> json) => _$PublicProfileFromJson(json);
 
 @override final  String id;
@@ -314,6 +323,22 @@ class _PublicProfile extends PublicProfile {
 @override@JsonKey() final  ProfileMedals medals;
 /// v1.22-live (CP-019): the profile card the user wears, or null.
 @override final  ProfileCard? profileCard;
+/// v1.47-social (D175): the caller has a pending request to follow
+/// this private account.
+@override@JsonKey() final  bool followRequested;
+/// v1.47-social (D175): the gender, only when the user shows it.
+@override@JsonKey(fromJson: genderFromJson, toJson: genderToJson) final  Gender? gender;
+/// v1.47-social (D175): the account category under the name.
+@override@JsonKey(fromJson: accountCategoryFromJson, toJson: accountCategoryToJson) final  AccountCategory? category;
+/// v1.47-social (D175): the profile links (also on a private profile).
+ final  List<ProfileLink> _links;
+/// v1.47-social (D175): the profile links (also on a private profile).
+@override@JsonKey(fromJson: profileLinksFromJson, toJson: profileLinksToJson) List<ProfileLink> get links {
+  if (_links is EqualUnmodifiableListView) return _links;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_links);
+}
+
 
 /// Create a copy of PublicProfile
 /// with the given fields replaced by the non-null parameter values.
@@ -328,18 +353,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _PublicProfile&&(identical(other.id, id) || other.id == id)&&(identical(other.username, username) || other.username == username)&&(identical(other.displayName, displayName) || other.displayName == displayName)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl)&&(identical(other.bio, bio) || other.bio == bio)&&(identical(other.isPrivate, isPrivate) || other.isPrivate == isPrivate)&&(identical(other.followerCount, followerCount) || other.followerCount == followerCount)&&(identical(other.followingCount, followingCount) || other.followingCount == followingCount)&&(identical(other.isFollowing, isFollowing) || other.isFollowing == isFollowing)&&(identical(other.isSelf, isSelf) || other.isSelf == isSelf)&&(identical(other.liveRoomId, liveRoomId) || other.liveRoomId == liveRoomId)&&(identical(other.isMuted, isMuted) || other.isMuted == isMuted)&&(identical(other.premiumTier, premiumTier) || other.premiumTier == premiumTier)&&(identical(other.family, family) || other.family == family)&&(identical(other.cp, cp) || other.cp == cp)&&(identical(other.medals, medals) || other.medals == medals)&&(identical(other.profileCard, profileCard) || other.profileCard == profileCard));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _PublicProfile&&(identical(other.id, id) || other.id == id)&&(identical(other.username, username) || other.username == username)&&(identical(other.displayName, displayName) || other.displayName == displayName)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl)&&(identical(other.bio, bio) || other.bio == bio)&&(identical(other.isPrivate, isPrivate) || other.isPrivate == isPrivate)&&(identical(other.followerCount, followerCount) || other.followerCount == followerCount)&&(identical(other.followingCount, followingCount) || other.followingCount == followingCount)&&(identical(other.isFollowing, isFollowing) || other.isFollowing == isFollowing)&&(identical(other.isSelf, isSelf) || other.isSelf == isSelf)&&(identical(other.liveRoomId, liveRoomId) || other.liveRoomId == liveRoomId)&&(identical(other.isMuted, isMuted) || other.isMuted == isMuted)&&(identical(other.premiumTier, premiumTier) || other.premiumTier == premiumTier)&&(identical(other.family, family) || other.family == family)&&(identical(other.cp, cp) || other.cp == cp)&&(identical(other.medals, medals) || other.medals == medals)&&(identical(other.profileCard, profileCard) || other.profileCard == profileCard)&&(identical(other.followRequested, followRequested) || other.followRequested == followRequested)&&(identical(other.gender, gender) || other.gender == gender)&&(identical(other.category, category) || other.category == category)&&const DeepCollectionEquality().equals(other.links, _links));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,id,username,displayName,avatarUrl,bio,isPrivate,followerCount,followingCount,isFollowing,isSelf,liveRoomId,isMuted,premiumTier,family,cp,medals,profileCard);
+    return Object.hashAll([runtimeType,id,username,displayName,avatarUrl,bio,isPrivate,followerCount,followingCount,isFollowing,isSelf,liveRoomId,isMuted,premiumTier,family,cp,medals,profileCard,followRequested,gender,category,const DeepCollectionEquality().hash(_links)]);
 }
 
 @override
 String toString() {
-    return 'PublicProfile(id: $id, username: $username, displayName: $displayName, avatarUrl: $avatarUrl, bio: $bio, isPrivate: $isPrivate, followerCount: $followerCount, followingCount: $followingCount, isFollowing: $isFollowing, isSelf: $isSelf, liveRoomId: $liveRoomId, isMuted: $isMuted, premiumTier: $premiumTier, family: $family, cp: $cp, medals: $medals, profileCard: $profileCard)';
+    return 'PublicProfile(id: $id, username: $username, displayName: $displayName, avatarUrl: $avatarUrl, bio: $bio, isPrivate: $isPrivate, followerCount: $followerCount, followingCount: $followingCount, isFollowing: $isFollowing, isSelf: $isSelf, liveRoomId: $liveRoomId, isMuted: $isMuted, premiumTier: $premiumTier, family: $family, cp: $cp, medals: $medals, profileCard: $profileCard, followRequested: $followRequested, gender: $gender, category: $category, links: $links)';
 }
 
 
@@ -350,7 +375,7 @@ abstract mixin class _$PublicProfileCopyWith<$Res> implements $PublicProfileCopy
   factory _$PublicProfileCopyWith(_PublicProfile value, $Res Function(_PublicProfile) _then) = __$PublicProfileCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String username, String displayName, String? avatarUrl, String? bio, bool isPrivate, int followerCount, int followingCount, bool isFollowing, bool isSelf, String? liveRoomId, bool isMuted,@JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson) PremiumTier? premiumTier, ProfileFamily? family, ProfileCp? cp, ProfileMedals medals, ProfileCard? profileCard
+ String id, String username, String displayName, String? avatarUrl, String? bio, bool isPrivate, int followerCount, int followingCount, bool isFollowing, bool isSelf, String? liveRoomId, bool isMuted,@JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson) PremiumTier? premiumTier, ProfileFamily? family, ProfileCp? cp, ProfileMedals medals, ProfileCard? profileCard, bool followRequested,@JsonKey(fromJson: genderFromJson, toJson: genderToJson) Gender? gender,@JsonKey(fromJson: accountCategoryFromJson, toJson: accountCategoryToJson) AccountCategory? category,@JsonKey(fromJson: profileLinksFromJson, toJson: profileLinksToJson) List<ProfileLink> links
 });
 
 
@@ -367,7 +392,7 @@ class __$PublicProfileCopyWithImpl<$Res>
 
 /// Create a copy of PublicProfile
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? username = null,Object? displayName = null,Object? avatarUrl = freezed,Object? bio = freezed,Object? isPrivate = null,Object? followerCount = null,Object? followingCount = null,Object? isFollowing = null,Object? isSelf = null,Object? liveRoomId = freezed,Object? isMuted = null,Object? premiumTier = freezed,Object? family = freezed,Object? cp = freezed,Object? medals = null,Object? profileCard = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? username = null,Object? displayName = null,Object? avatarUrl = freezed,Object? bio = freezed,Object? isPrivate = null,Object? followerCount = null,Object? followingCount = null,Object? isFollowing = null,Object? isSelf = null,Object? liveRoomId = freezed,Object? isMuted = null,Object? premiumTier = freezed,Object? family = freezed,Object? cp = freezed,Object? medals = null,Object? profileCard = freezed,Object? followRequested = null,Object? gender = freezed,Object? category = freezed,Object? links = null,}) {
   return _then(_PublicProfile(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,username: null == username ? _self.username : username // ignore: cast_nullable_to_non_nullable
@@ -386,7 +411,11 @@ as PremiumTier?,family: freezed == family ? _self.family : family // ignore: cas
 as ProfileFamily?,cp: freezed == cp ? _self.cp : cp // ignore: cast_nullable_to_non_nullable
 as ProfileCp?,medals: null == medals ? _self.medals : medals // ignore: cast_nullable_to_non_nullable
 as ProfileMedals,profileCard: freezed == profileCard ? _self.profileCard : profileCard // ignore: cast_nullable_to_non_nullable
-as ProfileCard?,
+as ProfileCard?,followRequested: null == followRequested ? _self.followRequested : followRequested // ignore: cast_nullable_to_non_nullable
+as bool,gender: freezed == gender ? _self.gender : gender // ignore: cast_nullable_to_non_nullable
+as Gender?,category: freezed == category ? _self.category : category // ignore: cast_nullable_to_non_nullable
+as AccountCategory?,links: null == links ? _self._links : links // ignore: cast_nullable_to_non_nullable
+as List<ProfileLink>,
   ));
 }
 
@@ -442,7 +471,8 @@ $ProfileCardCopyWith<$Res>? get profileCard {
 /// @nodoc
 mixin _$FollowState {
 
- bool get isFollowing; int get followerCount;
+ bool get isFollowing; int get followerCount;/// v1.47-social (D175): a follow request is pending (private account).
+ bool get isRequested;
 /// Create a copy of FollowState
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -456,20 +486,20 @@ $FollowStateCopyWith<FollowState> get copyWith => _$FollowStateCopyWithImpl<Foll
 @override
 bool operator ==(Object other) {
   final _this = this as FollowState;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is FollowState&&(identical(other.isFollowing, _this.isFollowing) || other.isFollowing == _this.isFollowing)&&(identical(other.followerCount, _this.followerCount) || other.followerCount == _this.followerCount));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FollowState&&(identical(other.isFollowing, _this.isFollowing) || other.isFollowing == _this.isFollowing)&&(identical(other.followerCount, _this.followerCount) || other.followerCount == _this.followerCount)&&(identical(other.isRequested, _this.isRequested) || other.isRequested == _this.isRequested));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as FollowState;
-  return Object.hash(runtimeType,_this.isFollowing,_this.followerCount);
+  return Object.hash(runtimeType,_this.isFollowing,_this.followerCount,_this.isRequested);
 }
 
 @override
 String toString() {
   final _this = this as FollowState;
-  return 'FollowState(isFollowing: ${_this.isFollowing}, followerCount: ${_this.followerCount})';
+  return 'FollowState(isFollowing: ${_this.isFollowing}, followerCount: ${_this.followerCount}, isRequested: ${_this.isRequested})';
 }
 
 
@@ -480,7 +510,7 @@ abstract mixin class $FollowStateCopyWith<$Res>  {
   factory $FollowStateCopyWith(FollowState value, $Res Function(FollowState) _then) = _$FollowStateCopyWithImpl;
 @useResult
 $Res call({
- bool isFollowing, int followerCount
+ bool isFollowing, int followerCount, bool isRequested
 });
 
 
@@ -497,11 +527,12 @@ class _$FollowStateCopyWithImpl<$Res>
 
 /// Create a copy of FollowState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? isFollowing = null,Object? followerCount = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? isFollowing = null,Object? followerCount = null,Object? isRequested = null,}) {
   return _then(FollowState(
 isFollowing: null == isFollowing ? _self.isFollowing : isFollowing // ignore: cast_nullable_to_non_nullable
 as bool,followerCount: null == followerCount ? _self.followerCount : followerCount // ignore: cast_nullable_to_non_nullable
-as int,
+as int,isRequested: null == isRequested ? _self.isRequested : isRequested // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 
@@ -586,10 +617,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool isFollowing,  int followerCount)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool isFollowing,  int followerCount,  bool isRequested)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _FollowState() when $default != null:
-return $default(_that.isFollowing,_that.followerCount);case _:
+return $default(_that.isFollowing,_that.followerCount,_that.isRequested);case _:
   return orElse();
 
 }
@@ -607,10 +638,10 @@ return $default(_that.isFollowing,_that.followerCount);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool isFollowing,  int followerCount)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool isFollowing,  int followerCount,  bool isRequested)  $default,) {final _that = this;
 switch (_that) {
 case _FollowState():
-return $default(_that.isFollowing,_that.followerCount);case _:
+return $default(_that.isFollowing,_that.followerCount,_that.isRequested);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -627,10 +658,10 @@ return $default(_that.isFollowing,_that.followerCount);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool isFollowing,  int followerCount)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool isFollowing,  int followerCount,  bool isRequested)?  $default,) {final _that = this;
 switch (_that) {
 case _FollowState() when $default != null:
-return $default(_that.isFollowing,_that.followerCount);case _:
+return $default(_that.isFollowing,_that.followerCount,_that.isRequested);case _:
   return null;
 
 }
@@ -642,11 +673,13 @@ return $default(_that.isFollowing,_that.followerCount);case _:
 @JsonSerializable()
 
 class _FollowState implements FollowState {
-  const _FollowState({required this.isFollowing, required this.followerCount});
+  const _FollowState({required this.isFollowing, required this.followerCount, this.isRequested = false});
   factory _FollowState.fromJson(Map<String, dynamic> json) => _$FollowStateFromJson(json);
 
 @override final  bool isFollowing;
 @override final  int followerCount;
+/// v1.47-social (D175): a follow request is pending (private account).
+@override@JsonKey() final  bool isRequested;
 
 /// Create a copy of FollowState
 /// with the given fields replaced by the non-null parameter values.
@@ -661,18 +694,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _FollowState&&(identical(other.isFollowing, isFollowing) || other.isFollowing == isFollowing)&&(identical(other.followerCount, followerCount) || other.followerCount == followerCount));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _FollowState&&(identical(other.isFollowing, isFollowing) || other.isFollowing == isFollowing)&&(identical(other.followerCount, followerCount) || other.followerCount == followerCount)&&(identical(other.isRequested, isRequested) || other.isRequested == isRequested));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,isFollowing,followerCount);
+    return Object.hash(runtimeType,isFollowing,followerCount,isRequested);
 }
 
 @override
 String toString() {
-    return 'FollowState(isFollowing: $isFollowing, followerCount: $followerCount)';
+    return 'FollowState(isFollowing: $isFollowing, followerCount: $followerCount, isRequested: $isRequested)';
 }
 
 
@@ -683,7 +716,7 @@ abstract mixin class _$FollowStateCopyWith<$Res> implements $FollowStateCopyWith
   factory _$FollowStateCopyWith(_FollowState value, $Res Function(_FollowState) _then) = __$FollowStateCopyWithImpl;
 @override @useResult
 $Res call({
- bool isFollowing, int followerCount
+ bool isFollowing, int followerCount, bool isRequested
 });
 
 
@@ -700,11 +733,12 @@ class __$FollowStateCopyWithImpl<$Res>
 
 /// Create a copy of FollowState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? isFollowing = null,Object? followerCount = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? isFollowing = null,Object? followerCount = null,Object? isRequested = null,}) {
   return _then(_FollowState(
 isFollowing: null == isFollowing ? _self.isFollowing : isFollowing // ignore: cast_nullable_to_non_nullable
 as bool,followerCount: null == followerCount ? _self.followerCount : followerCount // ignore: cast_nullable_to_non_nullable
-as int,
+as int,isRequested: null == isRequested ? _self.isRequested : isRequested // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 

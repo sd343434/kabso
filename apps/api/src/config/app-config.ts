@@ -77,6 +77,8 @@ export interface AppConfig {
     /** CP-015: `PUT`/`DELETE /me/live-cover`, 30 / hour / user. */
     readonly liveCoverUser: RateLimitRule;
     readonly avatarUser: RateLimitRule;
+    /** v1.47-social (D175): accept / decline a follow request (one bucket). */
+    readonly followRequestAnswerUser: RateLimitRule;
     /** CP-016 B: `PUT /me/live-blocked-words`, 30 / hour / user. */
     readonly liveBlockedWordsUser: RateLimitRule;
     /** CP-016 C: `POST` and `DELETE /me/live-schedule`, 30 / hour / user (one bucket). */
@@ -371,6 +373,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       liveUpdateUser: e.RATE_LIMIT_LIVE_UPDATE_USER,
       liveCoverUser: e.RATE_LIMIT_LIVE_COVER_USER,
       avatarUser: e.RATE_LIMIT_AVATAR_USER,
+      followRequestAnswerUser: e.RATE_LIMIT_FOLLOW_REQUEST_ANSWER_USER,
       liveBlockedWordsUser: e.RATE_LIMIT_LIVE_BLOCKED_WORDS_USER,
       liveScheduleUser: e.RATE_LIMIT_LIVE_SCHEDULE_USER,
       liveGuestReadIp: e.RATE_LIMIT_LIVE_GUEST_READ_IP,

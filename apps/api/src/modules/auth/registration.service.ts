@@ -1,3 +1,4 @@
+import type { Gender } from '../users/profile-fields.js';
 import { createHmac, hkdfSync, randomInt } from 'node:crypto';
 import { Inject, Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { AuditAction, AuditService } from '../../common/audit/audit.service.js';
@@ -39,6 +40,8 @@ interface ClaimedPending {
   total_attempts: number;
   username: string;
   display_name: string;
+  /** v1.47-social (D175): null only on rows made before the field existed. */
+  gender: Gender | null;
   locale: string;
   password_hash: string;
   device_name: string | null;
@@ -166,6 +169,7 @@ export class RegistrationService implements OnModuleInit, OnModuleDestroy {
             email: input.email,
             username: input.username,
             displayName: input.displayName,
+            gender: input.gender,
             locale,
             passwordHash,
             deviceName: input.device?.name || null,
@@ -227,7 +231,7 @@ export class RegistrationService implements OnModuleInit, OnModuleDestroy {
         SET "attempts" = "attempts" + 1, "total_attempts" = "total_attempts" + 1, "updated_at" = ${now}
         WHERE "email" = ${input.email} AND "expires_at" > ${now}
           AND "attempts" < ${MAX_CODE_ATTEMPTS} AND "total_attempts" < ${MAX_TOTAL_ATTEMPTS}
-        RETURNING "id", "code_hash", "attempts", "total_attempts", "username", "display_name", "locale",
+        RETURNING "id", "code_hash", "attempts", "total_attempts", "username", "display_name", "gender"::text AS "gender", "locale",
                   "password_hash", "device_name", "platform", "app_version"`;
       const pending = rows[0];
       if (!pending) {
@@ -339,6 +343,7 @@ export class RegistrationService implements OnModuleInit, OnModuleDestroy {
           passwordHash: pending.password_hash,
           username: pending.username,
           displayName: pending.display_name,
+          gender: pending.gender,
           locale: pending.locale === 'en' ? 'en' : 'ar',
           emailVerifiedAt: now,
         });

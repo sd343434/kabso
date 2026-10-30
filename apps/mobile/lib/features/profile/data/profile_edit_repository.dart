@@ -1,8 +1,10 @@
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show immutable;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:kabso_live/core/models/profile_fields.dart';
 import 'package:kabso_live/core/network/api_call.dart';
 import 'package:kabso_live/core/network/network_providers.dart';
 import 'package:kabso_live/features/auth/data/dtos.dart';
@@ -20,6 +22,10 @@ abstract interface class ProfileEditRepository {
 
   /// `PATCH /me {bio}`; null (or empty) clears it. The updated `Me`.
   Future<User> updateBio(String? bio);
+
+  /// v1.47-social (D175, §10.47): `PATCH /me` with the profile fields of
+  /// [change] (only those it sets). The updated `Me`.
+  Future<User> updateProfileFields(ProfileFieldsChange change);
 
   /// `PUT /me/avatar {mediaId}`; the photo's URL.
   Future<String> setAvatar(String mediaId);
@@ -46,6 +52,10 @@ class ProfileEditRepositoryImpl implements ProfileEditRepository {
   Future<User> updateBio(String? bio) => _patch({'bio': bio});
 
   @override
+  Future<User> updateProfileFields(ProfileFieldsChange change) =>
+      _patch(change.toJson());
+
+  @override
   Future<String> setAvatar(String mediaId) => guardApiCall(() async {
     final res = await _api.put<Map<String, dynamic>>(
       '/me/avatar',
@@ -57,6 +67,44 @@ class ProfileEditRepositoryImpl implements ProfileEditRepository {
   @override
   Future<void> removeAvatar() =>
       guardApiCall(() => _api.delete<void>('/me/avatar'));
+}
+
+/// One link as sent to the server (`ProfileLinkInput`).
+typedef ProfileLinkInput = ({String url, String? label});
+
+/// D175: what a `PATCH /me` of the profile fields changes. Unset fields are
+/// not sent; [clearCategory] sends `category: null`.
+@immutable
+class ProfileFieldsChange {
+  const new({
+    this.gender,
+    this.showGender,
+    this.category,
+    this.clearCategory = false,
+    this.links,
+  });
+
+  final Gender? gender;
+  final bool? showGender;
+  final AccountCategory? category;
+  final bool clearCategory;
+
+  /// The whole set, in order (empty clears them).
+  final List<ProfileLinkInput>? links;
+
+  Map<String, Object?> toJson() => {
+    'gender': ?gender?.wire,
+    'showGender': ?showGender,
+    if (clearCategory) 'category': null else 'category': ?category?.wire,
+    if (links case final links?)
+      'links': [
+        for (final l in links)
+          {
+            'url': l.url,
+            if (l.label case final label? when label.isNotEmpty) 'label': label,
+          },
+      ],
+  };
 }
 
 final profileEditRepositoryProvider = Provider<ProfileEditRepository>(

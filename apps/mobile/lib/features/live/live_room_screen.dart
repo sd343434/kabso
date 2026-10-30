@@ -72,6 +72,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_watch_card.da
 import 'package:kabso_live/features/medals/presentation/medal_showcase_row.dart';
 import 'package:kabso_live/features/profile/application/public_profile_controller.dart';
 import 'package:kabso_live/features/profile/profile_bonds.dart';
+import 'package:kabso_live/features/profile/public_profile_screen.dart';
 import 'package:kabso_live/features/profile_card/kabso_profile_header.dart';
 import 'package:kabso_live/features/safety/safety_actions.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -319,6 +320,15 @@ class _RoomViewState extends ConsumerState<_RoomView> {
   Future<void> _setFollowing({required bool follow}) =>
       setHostFollowing(context, ref, _username, follow: follow);
 
+  /// D175 (owner): a pending request to a private host is cancelled after
+  /// asking, as on the profile page.
+  Future<void> _cancelRequest() async {
+    final name = _room.host.displayName;
+    if (await confirmCancelFollowRequest(context, name) && mounted) {
+      await _setFollowing(follow: false);
+    }
+  }
+
   /// D131 (owner, ref 160): leaving asks to follow first when this viewer
   /// can follow the host and does not (signed in, not the host, a live
   /// room); otherwise it leaves at once.
@@ -328,7 +338,11 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     final me = ref.read(currentUserProvider);
     if (me == null || me.id == room.host.id) return false;
     final profile = ref.read(publicProfileProvider(_username)).value;
-    return profile != null && profile.canFollow && !profile.isFollowing;
+    // D175: a private host gets a follow request; a pending one asks nothing.
+    return profile != null &&
+        profile.canFollowOrRequest &&
+        !profile.isFollowing &&
+        !profile.followRequested;
   }
 
   /// ✕ and Back: the leave prompt when [_askBeforeLeaving]. "Follow and
@@ -875,10 +889,14 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     final host = room.host;
     final avatar = _networkImage(host.avatarUrl);
     final profile = ref.watch(publicProfileProvider(_username)).value;
-    final canFollow = profile?.canFollow ?? false;
+    // D175 (owner): Follow on a private host sends a request («تم الطلب»).
+    final canFollow = profile?.canFollowOrRequest ?? false;
     final following = profile?.isFollowing ?? false;
+    final requested = profile?.followRequested ?? false;
     final ended = room.status == LiveRoomStatus.ended;
-    if (ended && canFollow && !following) _endedOfferedFollow = true;
+    if (ended && canFollow && !following && !requested) {
+      _endedOfferedFollow = true;
+    }
 
     // CP-012: signed-in people tap to cheer (D95); D120 (owner): the host's
     // own taps count too.
@@ -898,6 +916,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         canTap: canTap,
         signedIn: me != null,
         canFollow: canFollow && !following,
+        requested: requested,
         composer: composer,
       );
     }
@@ -961,9 +980,11 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                   ),
               ],
         following: following,
-        onFollow: canFollow
+        onFollow: canFollow && !requested
             ? () => unawaited(_setFollowing(follow: true))
             : null,
+        requested: requested,
+        onCancelRequest: requested ? () => unawaited(_cancelRequest()) : null,
         onTap: profile == null ? null : () => _person(_username),
       ),
       // Presence does not exist yet: a count only when the API has one.
@@ -1145,8 +1166,12 @@ class _RoomViewState extends ConsumerState<_RoomView> {
               followAction: _endedOfferedFollow && canFollow
                   ? _FollowButton(
                       following: following,
-                      onPressed: () =>
-                          unawaited(_setFollowing(follow: !following)),
+                      requested: requested,
+                      onPressed: () => unawaited(
+                        requested
+                            ? _cancelRequest()
+                            : _setFollowing(follow: !following),
+                      ),
                     )
                   : null,
             )
@@ -1167,6 +1192,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     required bool signedIn,
     required bool canFollow,
     required ({bool canWrite, String hint}) composer,
+    bool requested = false,
   }) {
     final l10n = context.l10n;
     final room = _room;
@@ -1286,13 +1312,25 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                   action: canFollow
                       ? LiveRoundButton(
                           key: AudioRoomViewKeys.follow,
-                          icon: Icons.person_add_alt_1_rounded,
-                          label: l10n.liveFollow,
+                          icon: requested
+                              ? Icons.hourglass_top_rounded
+                              : Icons.person_add_alt_1_rounded,
+                          // D175: a private host gets a request; tap again
+                          // to cancel it.
+                          label: requested
+                              ? l10n.followRequested
+                              : l10n.liveFollow,
                           // Ref 147: the card's 26 pt action circle.
                           size: KAudioRoom.cardAction,
                           iconSize: 15,
-                          color: const Color(0xFFFF4D7A),
-                          onTap: () => unawaited(_setFollowing(follow: true)),
+                          color: requested
+                              ? const Color(0x66FFFFFF)
+                              : const Color(0xFFFF4D7A),
+                          onTap: () => unawaited(
+                            requested
+                                ? _cancelRequest()
+                                : _setFollowing(follow: true),
+                          ),
                         )
                       : null,
                   // D181: minimize for viewers and guests too.
@@ -2300,7 +2338,7 @@ class _HostSheet extends ConsumerWidget {
                           onTap: () => close(() => onMention(profile.username)),
                         ),
                       ),
-                    if (profile.isFollowing || !profile.canFollow)
+                    if (profile.isFollowing || !profile.canFollowOrRequest)
                       Expanded(
                         child: action(
                           key: messageKey,
@@ -2331,15 +2369,34 @@ class _HostSheet extends ConsumerWidget {
                               color: Color(0xFFFFFFFF),
                             ),
                           ),
-                          label: l10n.liveFollow,
+                          // D175: a private account gets a request
+                          // («تم الطلب»; a tap asks, then cancels it).
+                          label: profile.followRequested
+                              ? l10n.followRequested
+                              : l10n.liveFollow,
                           // Follows; the card then shows Message.
                           onTap: () => unawaited(
-                            setHostFollowing(
-                              context,
-                              ref,
-                              username,
-                              follow: true,
-                            ),
+                            profile.followRequested
+                                ? () async {
+                                    if (await confirmCancelFollowRequest(
+                                          context,
+                                          profile.displayName,
+                                        ) &&
+                                        context.mounted) {
+                                      await setHostFollowing(
+                                        context,
+                                        ref,
+                                        username,
+                                        follow: false,
+                                      );
+                                    }
+                                  }()
+                                : setHostFollowing(
+                                    context,
+                                    ref,
+                                    username,
+                                    follow: true,
+                                  ),
                           ),
                         ),
                       ),
@@ -2641,19 +2698,36 @@ class _RoleBadge extends StatelessWidget {
 }
 
 class _FollowButton extends StatelessWidget {
-  const new({required this.following, required this.onPressed});
+  const new({
+    required this.following,
+    required this.onPressed,
+    this.requested = false,
+  });
 
   final bool following;
   final VoidCallback onPressed;
+
+  /// D175: a pending request to the private host («تم الطلب»).
+  final bool requested;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     return KButton(
       key: const Key('room.follow'),
-      label: following ? l10n.liveFollowing : l10n.liveFollow,
-      icon: following ? Icons.check_rounded : Icons.add_rounded,
-      variant: following ? KButtonVariant.secondary : KButtonVariant.primary,
+      label: following
+          ? l10n.liveFollowing
+          : requested
+          ? l10n.followRequested
+          : l10n.liveFollow,
+      icon: following
+          ? Icons.check_rounded
+          : requested
+          ? Icons.hourglass_top_rounded
+          : Icons.add_rounded,
+      variant: following || requested
+          ? KButtonVariant.secondary
+          : KButtonVariant.primary,
       onPressed: onPressed,
       expand: false,
     );

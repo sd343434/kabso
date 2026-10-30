@@ -389,7 +389,8 @@ describe('KL-045 v1.3.1 behaviour', () => {
   });
 
   describe('QA-002 follow on a private account', () => {
-    it('an existing follower re-PUTs → 200 (no new edge); a new follow stays 403', async () => {
+    // v1.47-social (D175): a new follow of a private account is a follow request (was 403).
+    it('an existing follower re-PUTs → 200 (no new edge); a new follow is a request, not an edge', async () => {
       const fan = await signup(ctx);
       const target = await signup(ctx);
       expect((await ctx.http.put(`/api/v1/users/${target.username}/follow`).set(bearer(fan))).status).toBe(
@@ -400,22 +401,21 @@ describe('KL-045 v1.3.1 behaviour', () => {
       const again = await ctx.http.put(`/api/v1/users/${target.username}/follow`).set(bearer(fan));
       expectContract(again, 'followUser');
       expect(again.status).toBe(200);
-      expect(again.body).toEqual({ isFollowing: true, followerCount: 1 });
+      expect(again.body).toEqual({ isFollowing: true, isRequested: false, followerCount: 1 });
       expect(await ctx.prisma.follow.count({ where: { followeeId: target.id } })).toBe(1);
 
       const stranger = await signup(ctx);
-      const denied = await ctx.http.put(`/api/v1/users/${target.username}/follow`).set(bearer(stranger));
-      expectContract(denied, 'followUser');
-      expect({ status: denied.status, code: denied.body.error?.code }).toEqual({
-        status: 403,
-        code: 'AUTH_FORBIDDEN',
-      });
+      const requested = await ctx.http.put(`/api/v1/users/${target.username}/follow`).set(bearer(stranger));
+      expectContract(requested, 'followUser');
+      expect(requested.status).toBe(200);
+      expect(requested.body).toEqual({ isFollowing: false, isRequested: true, followerCount: 1 });
       expect(await ctx.prisma.follow.count({ where: { followeeId: target.id } })).toBe(1);
 
       const leave = await ctx.http.delete(`/api/v1/users/${target.username}/follow`).set(bearer(fan));
-      expect(leave.body).toEqual({ isFollowing: false, followerCount: 0 });
+      expect(leave.body).toEqual({ isFollowing: false, isRequested: false, followerCount: 0 });
       const back = await ctx.http.put(`/api/v1/users/${target.username}/follow`).set(bearer(fan));
-      expect(back.status).toBe(403); // a former follower is a new follow
+      // a former follower is a new follow: a request again
+      expect(back.body).toEqual({ isFollowing: false, isRequested: true, followerCount: 0 });
     });
   });
 

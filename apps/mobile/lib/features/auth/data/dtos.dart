@@ -2,6 +2,7 @@
 
 import 'package:json_annotation/json_annotation.dart';
 import 'package:kabso_live/core/models/premium_tier.dart';
+import 'package:kabso_live/core/models/profile_fields.dart';
 import 'package:kabso_live/core/network/auth_tokens.dart';
 import 'package:kabso_live/features/auth/domain/entities.dart';
 
@@ -26,6 +27,10 @@ class MeDto {
     this.liveCoverUrl,
     this.country,
     this.premiumTier,
+    this.gender,
+    this.showGender = false,
+    this.category,
+    this.links = const [],
   });
 
   factory fromJson(Map<String, dynamic> json) => _$MeDtoFromJson(json);
@@ -56,6 +61,23 @@ class MeDto {
   @JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson)
   final PremiumTier? premiumTier;
 
+  /// v1.47-social (D175): null until chosen (accounts made before v1.47).
+  @JsonKey(fromJson: genderFromJson, toJson: genderToJson)
+  final Gender? gender;
+
+  /// v1.47-social (D175): others see the gender. Absent in a user cached
+  /// before v1.47 → false.
+  @JsonKey(defaultValue: false)
+  final bool showGender;
+
+  /// v1.47-social (D175): the account category, or null.
+  @JsonKey(fromJson: accountCategoryFromJson, toJson: accountCategoryToJson)
+  final AccountCategory? category;
+
+  /// v1.47-social (D175): the profile links, in order.
+  @JsonKey(fromJson: profileLinksFromJson, toJson: profileLinksToJson)
+  final List<ProfileLink> links;
+
   Map<String, dynamic> toJson() => _$MeDtoToJson(this);
 
   User toEntity() => User(
@@ -74,6 +96,10 @@ class MeDto {
     liveCoverUrl: liveCoverUrl,
     country: country,
     premiumTier: premiumTier,
+    gender: gender,
+    showGender: showGender,
+    category: category,
+    links: links,
   );
 }
 
@@ -130,6 +156,7 @@ class RegisterRequestDto {
     required this.password,
     required this.username,
     required this.displayName,
+    required this.gender,
     this.locale,
     this.device,
   });
@@ -141,6 +168,9 @@ class RegisterRequestDto {
   final String password;
   final String username;
   final String displayName;
+
+  /// v1.47-social (D175): required (`MALE | FEMALE | UNDISCLOSED`).
+  final String gender;
 
   /// `ar | en`
   final String? locale;

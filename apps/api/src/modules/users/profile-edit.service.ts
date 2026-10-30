@@ -10,6 +10,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { isUuid } from '../auth/tokens.js';
 import { MediaService } from '../media/media.service.js';
 import { containsReservedTerm } from './confusables.js';
+import type { AccountCategory, Gender, ProfileLinkInput } from './profile-fields.js';
 import { UsersService, type MeDto } from './users.service.js';
 
 /** Request metadata for audit records. */
@@ -24,6 +25,11 @@ export interface UpdateMeInput {
   readonly country?: string | null | undefined;
   readonly displayName?: string | undefined;
   readonly bio?: string | null | undefined;
+  /** v1.47-social (D175, §10.47). */
+  readonly gender?: Gender | undefined;
+  readonly showGender?: boolean | undefined;
+  readonly category?: AccountCategory | null | undefined;
+  readonly links?: readonly ProfileLinkInput[] | undefined;
 }
 
 /** `SetAvatarRequest` (v1.45-social): strict (unknown fields → `unknown_field`). */
@@ -65,8 +71,17 @@ export class ProfileEditService {
       throw AppException.validation([{ field: 'displayName', issue: 'reserved_term' }]);
     }
     const found = await this.prisma.$transaction(async (tx) => {
-      const [before] = await tx.$queryRaw<{ display_name: string; bio: string | null }[]>`
-        SELECT display_name, bio FROM user_profiles WHERE user_id = ${userId}::uuid FOR UPDATE`;
+      const [before] = await tx.$queryRaw<
+        {
+          display_name: string;
+          bio: string | null;
+          gender: string | null;
+          show_gender: boolean;
+          account_category: string | null;
+        }[]
+      >`
+        SELECT display_name, bio, gender::text AS gender, show_gender, account_category::text AS account_category
+          FROM user_profiles WHERE user_id = ${userId}::uuid FOR UPDATE`;
       if (!before) return false;
       await tx.userProfile.update({
         where: { userId },
@@ -75,12 +90,21 @@ export class ProfileEditService {
           ...(input.country !== undefined ? { countryCode: input.country } : {}),
           ...(input.displayName !== undefined ? { displayName: input.displayName } : {}),
           ...(input.bio !== undefined ? { bio: input.bio } : {}),
+          ...(input.gender !== undefined ? { gender: input.gender } : {}),
+          ...(input.showGender !== undefined ? { showGender: input.showGender } : {}),
+          ...(input.category !== undefined ? { category: input.category } : {}),
         },
       });
       const fields: string[] = [];
       if (input.displayName !== undefined && input.displayName !== before.display_name)
         fields.push('displayName');
       if (input.bio !== undefined && input.bio !== before.bio) fields.push('bio');
+      if (input.gender !== undefined && input.gender !== before.gender) fields.push('gender');
+      if (input.showGender !== undefined && input.showGender !== before.show_gender)
+        fields.push('showGender');
+      if (input.category !== undefined && input.category !== before.account_category) fields.push('category');
+      if (input.links !== undefined && (await this.replaceLinksIn(tx, userId, input.links)))
+        fields.push('links');
       if (fields.length > 0) {
         // Which fields changed, never their values (§10.42).
         await this.audit.recordIn(tx, {
@@ -98,6 +122,33 @@ export class ProfileEditService {
     const me = found ? await this.users.getMe(userId) : null;
     if (!me) throw new AppException(ErrorCode.AUTH_UNAUTHENTICATED);
     return me;
+  }
+
+  /**
+   * v1.47-social (D175): replaces the caller's links with `links` (in order) unless they are the same
+   * already; returns whether anything changed.
+   */
+  private async replaceLinksIn(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    links: readonly ProfileLinkInput[],
+  ): Promise<boolean> {
+    const current = await tx.userProfileLink.findMany({
+      where: { userId },
+      orderBy: { position: 'asc' },
+      select: { url: true, label: true },
+    });
+    const same =
+      current.length === links.length &&
+      current.every((c, i) => c.url === links[i]!.url && c.label === (links[i]!.label ?? null));
+    if (same) return false;
+    await tx.userProfileLink.deleteMany({ where: { userId } });
+    if (links.length > 0) {
+      await tx.userProfileLink.createMany({
+        data: links.map((l, position) => ({ userId, position, url: l.url, label: l.label ?? null })),
+      });
+    }
+    return true;
   }
 
   /**

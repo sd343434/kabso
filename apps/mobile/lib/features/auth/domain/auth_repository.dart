@@ -1,3 +1,4 @@
+import 'package:kabso_live/core/models/profile_fields.dart';
 import 'package:kabso_live/features/auth/domain/entities.dart';
 
 /// Authentication and session operations.
@@ -18,6 +19,7 @@ abstract interface class AuthRepository {
     required String password,
     required String username,
     required String displayName,
+    required Gender gender,
     required String locale,
   });
 

@@ -82,6 +82,11 @@ model User {
   liveKicksBy         LiveRoomKick[]            @relation("LiveKickedBy")
   following           Follow[]                  @relation("FollowFollower")
   followers           Follow[]                  @relation("FollowFollowee")
+  /// v1.47-social (D175): follow requests sent to private accounts / received while private.
+  followRequestsSent     FollowRequest[]        @relation("FollowRequestRequester")
+  followRequestsReceived FollowRequest[]        @relation("FollowRequestTarget")
+  /// v1.47-social (D175): up to 3 profile links (§10.47).
+  profileLinks        UserProfileLink[]
   levelStates         UserLevelState[]
   pointsEntries       PointsLedgerEntry[]
   levelHistory        LevelHistory[]
@@ -211,6 +216,12 @@ model UserProfile {
   /// v1.28-live (D146): the tier of the premium username the user has now (set and cleared with
   /// `username` by the premium-usernames module); null for a regular username.
   premiumTier   PremiumUsernameTier? @map("premium_tier")
+  /// v1.47-social (D175): chosen at sign-up (null for accounts created before, and social sign-in,
+  /// until set). Private unless `showGender` (owner: private by default).
+  gender        Gender?
+  showGender    Boolean              @default(false) @map("show_gender")
+  /// v1.47-social (D175): the account category shown under the name; optional.
+  category      AccountCategory?     @map("account_category")
   createdAt     DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt     DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -218,6 +229,49 @@ model UserProfile {
   avatarMedia MediaAsset? @relation("ProfileAvatar", fields: [avatarMediaId], references: [id], onDelete: NoAction)
 
   @@map("user_profiles")
+}
+
+/// v1.47-social (D175, CONVENTIONS §10.47): the user's gender; `UNDISCLOSED` = «أفضّل عدم الذكر».
+enum Gender {
+  MALE
+  FEMALE
+  UNDISCLOSED
+
+  @@map("user_gender")
+}
+
+/// v1.47-social (D175, CONVENTIONS §10.47): the account category shown under the name.
+enum AccountCategory {
+  SINGER
+  MUSICIAN
+  POET
+  PRESENTER
+  GAMER
+  CONTENT_CREATOR
+  ATHLETE
+  ARTIST
+  BLOGGER
+  PUBLIC_FIGURE
+  OTHER
+
+  @@map("account_category")
+}
+
+/// v1.47-social (D175, CONVENTIONS §10.47): a profile link (https only, normalised by the API).
+/// At most 3 per user (`position` 0–2, CHECK `user_profile_links_position`). `PATCH /me` replaces
+/// the whole set.
+model UserProfileLink {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  position  Int      @db.SmallInt
+  url       String   @db.VarChar(500)
+  label     String?  @db.VarChar(60)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, position], map: "user_profile_links_user_position_key")
+  @@map("user_profile_links")
 }
 
 model UserSettings {
@@ -321,6 +375,8 @@ model PendingRegistration {
   appVersion    String?  @map("app_version") @db.VarChar(32)
   ip            String?  @db.VarChar(64)
   userAgent     String?  @map("user_agent") @db.VarChar(512)
+  /// v1.47-social (D175): required by `register` since v1.47 (null only on rows made before).
+  gender        Gender?
   /// HMAC-SHA-256 (hex) of the 8-digit code, keyed by a key derived from RATE_LIMIT_KEY_SECRET.
   codeHash      String   @map("code_hash") @db.Char(64)
   /// Checks of the CURRENT code (max 5; reset when resend issues a new code).
@@ -908,6 +964,21 @@ model Follow {
   @@map("follows")
 }
 
+/// v1.47-social (D175, CONVENTIONS §10.47): a pending request to follow a private account. Accepted →
+/// a `follows` row (this row deleted); declined or cancelled → deleted. CHECK `follow_requests_not_self`.
+model FollowRequest {
+  requesterId String   @map("requester_id") @db.Uuid
+  targetId    String   @map("target_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  requester User @relation("FollowRequestRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  target    User @relation("FollowRequestTarget", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@id([requesterId, targetId], map: "follow_requests_pkey")
+  @@index([targetId, createdAt(sort: Desc), requesterId(sort: Desc)], map: "follow_requests_target_created_idx")
+  @@map("follow_requests")
+}
+
 // ---------------------------------------------------------------------------------------------
 // v1.4-levels (DRAFT, CP-005, D72) — four independent level systems. Hand-written SQL in
 // migration 20261020090000_levels adds the CHECK constraints, the partial unique indexes (also
@@ -1297,6 +1368,8 @@ enum ReportTargetType {
   FAMILY_CHAT_MESSAGE
   /// v1.40-social (D155): a direct message (kept as a snapshot: messages live 24 h).
   DM_MESSAGE
+  /// v1.47-social (D175): a link on someone's profile (kept as a snapshot: links can be edited).
+  PROFILE_LINK
 
   @@map("report_target_type")
 }
@@ -1694,6 +1767,10 @@ model Report {
   /// the report keeps `dm_snapshot` (cleared 30 days after the report is resolved).
   targetDmMessageId         String?          @map("target_dm_message_id") @db.Uuid
   dmSnapshot                Json?            @map("dm_snapshot")
+  /// v1.47-social (D175): a profile link — no foreign key (the owner may edit it away); the report
+  /// keeps `link_snapshot` ({userId, url, label}).
+  targetProfileLinkId       String?          @map("target_profile_link_id") @db.Uuid
+  linkSnapshot              Json?            @map("link_snapshot")
   reason                    ReportReason
   note                      String?          @db.VarChar(500)
   status                    ReportStatus     @default(OPEN)
@@ -1722,6 +1799,7 @@ model Report {
   @@unique([reporterId, targetCpConfessionId], map: "reports_open_cp_confession_once", where: raw("status = 'OPEN'::report_status AND target_cp_confession_id IS NOT NULL"))
   @@unique([reporterId, targetFamilyChatMessageId], map: "reports_open_family_chat_message_once", where: raw("status = 'OPEN'::report_status AND target_family_chat_message_id IS NOT NULL"))
   @@unique([reporterId, targetDmMessageId], map: "reports_open_dm_message_once", where: raw("status = 'OPEN'::report_status AND target_dm_message_id IS NOT NULL"))
+  @@unique([reporterId, targetProfileLinkId], map: "reports_open_profile_link_once", where: raw("status = 'OPEN'::report_status AND target_profile_link_id IS NOT NULL"))
   @@index([status, createdAt, id], map: "reports_status_created_idx")
   @@index([targetPostId], map: "reports_target_post_idx")
   @@index([targetCommentId], map: "reports_target_comment_idx")
@@ -1732,6 +1810,7 @@ model Report {
   @@index([targetCpConfessionId], map: "reports_target_cp_confession_idx")
   @@index([targetFamilyChatMessageId], map: "reports_target_family_chat_message_idx")
   @@index([targetDmMessageId], map: "reports_target_dm_message_idx")
+  @@index([targetProfileLinkId], map: "reports_target_profile_link_idx")
   @@map("reports")
 }
 
@@ -1827,6 +1906,11 @@ enum NotificationType {
   /// v1.28-live (D146, system): the premium username ends soon / ended.
   PREMIUM_USERNAME_EXPIRING
   PREMIUM_USERNAME_EXPIRED
+  /// v1.47-social (D175): someone asked to follow your private account / your request was accepted.
+  FOLLOW_REQUEST
+  FOLLOW_REQUEST_ACCEPTED
+  /// v1.47-social (D175, system): a moderator removed your profile photo.
+  AVATAR_REMOVED
   /// v1.48-social (D171): someone sent you a bag item (actor the sender).
   BAG_ITEM_RECEIVED
 

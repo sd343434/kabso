@@ -271,6 +271,14 @@ class NotificationRow extends StatelessWidget {
 
   /// Where a tap goes, or `null` (removed content, an unknown target).
   String? routeTo() {
+    // D175: a removed photo leads to Edit profile (to choose another); a
+    // follow request to the list of requests.
+    if (item.type == NotificationType.avatarRemoved) {
+      return AppRoutes.editProfile;
+    }
+    if (item.type == NotificationType.followRequest) {
+      return AppRoutes.followRequests;
+    }
     final target = item.target;
     if (target == null || item.type == NotificationType.contentRemoved) {
       return null;
@@ -369,6 +377,11 @@ class NotificationRow extends StatelessWidget {
           _ => l10n.notifBagItemGeneric,
         },
       ),
+      NotificationType.followRequest => l10n.notifFollowRequest(who),
+      NotificationType.followRequestAccepted => l10n.notifFollowRequestAccepted(
+        who,
+      ),
+      NotificationType.avatarRemoved => l10n.notifAvatarRemoved,
       NotificationType.unknown => '',
     };
     return (text, item.type.isSystem ? null : who, name);
@@ -467,13 +480,16 @@ class NotificationRow extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             child: Icon(
-              item.type == NotificationType.contentRemoved
+              item.type == NotificationType.contentRemoved ||
+                      item.type == NotificationType.avatarRemoved
                   ? Icons.gpp_maybe_outlined
                   : item.type.isSystem &&
                         item.type != NotificationType.postPublished
                   ? Icons.workspace_premium_rounded
                   : Icons.schedule_rounded,
-              color: item.type == NotificationType.contentRemoved
+              color:
+                  item.type == NotificationType.contentRemoved ||
+                      item.type == NotificationType.avatarRemoved
                   ? p.error
                   : p.primary,
             ),

@@ -80,6 +80,10 @@ class FakeSafetyRepository implements SafetyRepository {
       _step('reportUser:$userId:${reason.wire}');
 
   @override
+  Future<void> reportProfileLink(String linkId, ReportReason reason) async =>
+      _step('reportLink:$linkId:${reason.wire}');
+
+  @override
   Future<PrivacySettings> privacy() async {
     _step('privacy');
     return privacySettings;
@@ -91,12 +95,14 @@ class FakeSafetyRepository implements SafetyRepository {
     WhoCanComment? defaultWhoCanComment,
     bool? showActivityStatus,
     MentionPolicy? whoCanMessage,
+    bool? isPrivate,
   }) async {
     _step(
       'updatePrivacy:${whoCanMention?.wire ?? ''}:'
       '${defaultWhoCanComment?.wire ?? ''}'
       '${showActivityStatus == null ? '' : ':activity=$showActivityStatus'}'
-      '${whoCanMessage == null ? '' : ':message=${whoCanMessage.wire}'}',
+      '${whoCanMessage == null ? '' : ':message=${whoCanMessage.wire}'}'
+      '${isPrivate == null ? '' : ':private=$isPrivate'}',
     );
     return privacySettings = PrivacySettings(
       whoCanMention: whoCanMention ?? privacySettings.whoCanMention,
@@ -105,6 +111,7 @@ class FakeSafetyRepository implements SafetyRepository {
       showActivityStatus:
           showActivityStatus ?? privacySettings.showActivityStatus,
       whoCanMessage: whoCanMessage ?? privacySettings.whoCanMessage,
+      isPrivate: isPrivate ?? privacySettings.isPrivate,
     );
   }
 }

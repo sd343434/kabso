@@ -604,9 +604,10 @@ class FollowListRow extends ConsumerWidget {
   FollowListController _notifier(WidgetRef ref) =>
       ref.read(followListProvider(listKey).notifier);
 
-  /// Unfollowing a private account cannot be undone without a request.
+  /// Unfollowing a private account cannot be undone without a new request
+  /// (D175); cancelling a pending request needs no confirmation.
   Future<bool> _confirmPrivateUnfollow(BuildContext context) async {
-    if (!item.isPrivate) return true;
+    if (!item.isPrivate || item.requestedByMe) return true;
     final l10n = context.l10n;
     final ok = await showModalBottomSheet<bool>(
       context: context,
@@ -785,8 +786,11 @@ class FollowListRow extends ConsumerWidget {
     final l10n = context.l10n;
     final p = context.palette;
     final t = context.textStyles;
+    final active = item.followedByMe || item.requestedByMe;
     final label = item.followedByMe
         ? l10n.liveFollowing
+        : item.requestedByMe
+        ? l10n.followRequested
         : item.followsMe
         ? l10n.followListsFollowBack
         : l10n.liveFollow;
@@ -795,7 +799,7 @@ class FollowListRow extends ConsumerWidget {
     const minimum = Size(0, buttonHeight);
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: buttonMaxWidth),
-      child: item.followedByMe
+      child: active
           ? OutlinedButton(
               key: FollowListView.buttonKey(item.username),
               style: profileSecondaryButtonStyle(context).copyWith(

@@ -451,8 +451,11 @@ class KLiveVideoPlaceholder extends StatelessWidget {
 /// [following] turns true it shows a check for
 /// `KMetrics.followConfirmDuration`, then fades out (instant with reduce
 /// motion). If the follow is rolled back, the capsule returns. With
-/// [onFollow] `null` there is no follow control (state unknown, yourself,
-/// or a private account).
+/// [onFollow] `null` there is no follow control (state unknown, yourself).
+///
+/// D175 (owner): on a private account Follow sends a request; while
+/// [requested] the capsule shows an hourglass (announced «تم الطلب») and a
+/// tap runs [onCancelRequest] (which asks first).
 class KHostPill extends StatefulWidget {
   const new({
     required this.hostName,
@@ -462,6 +465,8 @@ class KHostPill extends StatefulWidget {
     this.lines = const [],
     this.following = false,
     this.onFollow,
+    this.requested = false,
+    this.onCancelRequest,
     this.onTap,
     this.username,
     this.premiumTier,
@@ -489,6 +494,10 @@ class KHostPill extends StatefulWidget {
   final List<Widget> lines;
   final bool following;
   final VoidCallback? onFollow;
+
+  /// D175: a follow request to this private host is pending.
+  final bool requested;
+  final VoidCallback? onCancelRequest;
 
   /// Opens the host's profile sheet; `null` → the pill is not a button.
   final VoidCallback? onTap;
@@ -570,7 +579,15 @@ class _KHostPillState extends State<KHostPill> {
     final subtitle = widget.subtitle;
     final onFollow = widget.onFollow;
     final Widget chip;
-    if (!widget.following && onFollow != null) {
+    final onCancel = widget.onCancelRequest;
+    if (widget.requested && onCancel != null) {
+      chip = _FollowChip(
+        key: const ValueKey('requested'),
+        label: l10n.followRequested,
+        requested: true,
+        onTap: onCancel,
+      );
+    } else if (!widget.following && onFollow != null) {
       chip = _FollowChip(
         key: const ValueKey('follow'),
         label: l10n.liveFollow,
@@ -585,7 +602,10 @@ class _KHostPillState extends State<KHostPill> {
     } else {
       chip = const SizedBox.shrink(key: ValueKey('none'));
     }
-    final hasChip = !widget.following && onFollow != null || _confirming;
+    final hasChip =
+        widget.requested && onCancel != null ||
+        !widget.following && onFollow != null ||
+        _confirming;
     final lines = widget.lines;
     final second = lines.isNotEmpty
         ? AnimatedSwitcher(
@@ -745,11 +765,15 @@ class _FollowChip extends StatelessWidget {
     super.key,
     this.onTap,
     this.following = false,
+    this.requested = false,
   });
 
   final String label;
   final VoidCallback? onTap;
   final bool following;
+
+  /// D175: a pending follow request (an hourglass on a grey capsule).
+  final bool requested;
 
   @override
   Widget build(BuildContext context) {
@@ -758,12 +782,19 @@ class _FollowChip extends StatelessWidget {
       width: KMetrics.followChipWidth,
       height: KMetrics.followChipHeight,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: KHostPill.followGradient),
+        gradient: requested
+            ? null
+            : const LinearGradient(colors: KHostPill.followGradient),
+        color: requested ? const Color(0x66FFFFFF) : null,
         borderRadius: BorderRadius.circular(KRadius.pill),
       ),
       child: Icon(
-        following ? Icons.check_rounded : Icons.add_rounded,
-        size: 16,
+        requested
+            ? Icons.hourglass_top_rounded
+            : following
+            ? Icons.check_rounded
+            : Icons.add_rounded,
+        size: requested ? 14 : 16,
         color: p.onPrimary,
       ),
     );

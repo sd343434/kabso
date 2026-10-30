@@ -298,6 +298,7 @@ void main() {
         find.byKey(RegisterScreen.passwordKey),
         'pa55word!',
       );
+      await chooseGender(tester);
       await tester.pump(const Duration(milliseconds: 350));
       await tester.pump();
       expect(find.text(l10n.usernameCheckFailed), findsOneWidget);
@@ -373,6 +374,7 @@ void main() {
         find.byKey(RegisterScreen.passwordKey),
         'pa55word!',
       );
+      await chooseGender(tester);
       await tester.pump(const Duration(milliseconds: 350));
       await tester.ensureVisible(find.byKey(RegisterScreen.submitKey));
       await tester.tap(find.byKey(RegisterScreen.submitKey));
@@ -396,6 +398,7 @@ void main() {
         find.byKey(RegisterScreen.passwordKey),
         'pa55word!',
       );
+      await chooseGender(tester);
       await tester.pump(const Duration(milliseconds: 350));
       await tester.ensureVisible(find.byKey(RegisterScreen.submitKey));
       await tester.tap(find.byKey(RegisterScreen.submitKey));

@@ -1347,7 +1347,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profilePrivateBody =>
-      'Their posts and reels are visible to approved followers only.';
+      'Their posts, reels and stories are visible to approved followers only.';
 
   @override
   String get profileNotFoundTitle => 'This account isn\'t available';
@@ -8644,6 +8644,222 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get walletReasonEventPrize => 'Event prize';
+
+  @override
+  String get registerGenderLabel => 'Gender';
+
+  @override
+  String get registerGenderHelper =>
+      'Not shown on your profile unless you choose to later.';
+
+  @override
+  String get registerGenderRequired => 'Choose one';
+
+  @override
+  String get genderMale => 'Male';
+
+  @override
+  String get genderFemale => 'Female';
+
+  @override
+  String get genderUndisclosed => 'Prefer not to say';
+
+  @override
+  String get categorySinger => 'Singer';
+
+  @override
+  String get categoryMusician => 'Musician';
+
+  @override
+  String get categoryPoet => 'Poet';
+
+  @override
+  String get categoryPresenter => 'Presenter';
+
+  @override
+  String get categoryGamer => 'Gamer';
+
+  @override
+  String get categoryContentCreator => 'Content creator';
+
+  @override
+  String get categoryAthlete => 'Athlete';
+
+  @override
+  String get categoryArtist => 'Artist';
+
+  @override
+  String get categoryBlogger => 'Blogger';
+
+  @override
+  String get categoryPublicFigure => 'Public figure';
+
+  @override
+  String get categoryOther => 'Other';
+
+  @override
+  String get profileEditNotSet => 'Not set';
+
+  @override
+  String get profileEditGenderShow => 'Show on my profile';
+
+  @override
+  String get profileEditGenderShowHint =>
+      'Hidden by default. “Prefer not to say” is never shown.';
+
+  @override
+  String profileEditGenderHidden(String gender) {
+    return '$gender · hidden';
+  }
+
+  @override
+  String get profileEditCategoryNone => 'No category';
+
+  @override
+  String get profileEditCategoryHint =>
+      'Shown under your name on your profile.';
+
+  @override
+  String profileEditLinksValue(int count) {
+    return '$count of 3';
+  }
+
+  @override
+  String get profileEditLinksHint =>
+      'Up to 3 links starting with https://. Instagram, TikTok, YouTube, Facebook and X links open directly; any other link after a warning.';
+
+  @override
+  String get profileEditLinkUrl => 'Link';
+
+  @override
+  String get profileEditLinkLabel => 'Label (optional)';
+
+  @override
+  String get profileEditLinkAdd => 'Add a link';
+
+  @override
+  String get profileEditLinkRemove => 'Remove link';
+
+  @override
+  String get profileEditLinkInvalid =>
+      'Not a valid link: it must start with https:// and name a website (no password, port or IP address).';
+
+  @override
+  String get profileEditLinkTooLong => 'The link is too long.';
+
+  @override
+  String profileEditLinkLabelTooLong(int max) {
+    return 'The label is at most $max characters on one line.';
+  }
+
+  @override
+  String get profileEditLinkDuplicate => 'This link is already added.';
+
+  @override
+  String get profileEditPinHint =>
+      'Pin up to 3 posts to show them first on your profile, from a post’s “…” menu.';
+
+  @override
+  String get privacyPrivateTitle => 'Private account';
+
+  @override
+  String get privacyPrivateLabel => 'Private account';
+
+  @override
+  String get privacyPrivateHint =>
+      'Only your followers see your posts, reels and stories. Anyone who wants to follow you sends a request you accept or decline. Lives stay public.';
+
+  @override
+  String get privacyMakePublicTitle => 'Make your account public?';
+
+  @override
+  String get privacyMakePublicBody =>
+      'Everyone will see your posts, reels and stories, and every pending follow request will be accepted.';
+
+  @override
+  String get privacyMakePublicConfirm => 'Make public';
+
+  @override
+  String get followRequestsTitle => 'Follow requests';
+
+  @override
+  String get followRequestsEmptyTitle => 'No requests';
+
+  @override
+  String get followRequestsEmptyBody =>
+      'When someone asks to follow your private account, they appear here.';
+
+  @override
+  String get followRequestAccept => 'Accept';
+
+  @override
+  String get followRequestDecline => 'Decline';
+
+  @override
+  String followRequestAccepted(String name) {
+    return '$name follows you now';
+  }
+
+  @override
+  String get followRequestDeclined => 'Request declined';
+
+  @override
+  String get followRequested => 'Requested';
+
+  @override
+  String profileCancelRequestConfirm(String name) {
+    return 'Cancel your request to follow $name?';
+  }
+
+  @override
+  String get profileCancelRequest => 'Cancel request';
+
+  @override
+  String get profileRequestSent => 'Follow request sent';
+
+  @override
+  String get linkLeavingTitle => 'You’re leaving Kabso';
+
+  @override
+  String get linkLeavingBody =>
+      'This link opens a site outside Kabso. Make sure you trust it before you continue.';
+
+  @override
+  String get linkLeavingOpen => 'Open link';
+
+  @override
+  String get linkReport => 'Report link';
+
+  @override
+  String get linkReportTitle => 'Why are you reporting this link?';
+
+  @override
+  String get linkCopy => 'Copy link';
+
+  @override
+  String get linkCopied => 'Link copied';
+
+  @override
+  String get linkOpenFailed => 'Couldn’t open the link';
+
+  @override
+  String linkSemantics(String name) {
+    return 'Link: $name';
+  }
+
+  @override
+  String notifFollowRequest(String who) {
+    return '$who asked to follow you';
+  }
+
+  @override
+  String notifFollowRequestAccepted(String who) {
+    return '$who accepted your follow request';
+  }
+
+  @override
+  String get notifAvatarRemoved =>
+      'Moderators removed your profile photo for breaking the community guidelines';
 
   @override
   String bagDays(int days) {

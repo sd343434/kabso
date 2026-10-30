@@ -77,7 +77,12 @@ describe('regular username rule (D146)', () => {
   );
 
   it('registration reports the rule issue on `username`', () => {
-    const base = { email: 'a@b.co', password: 'correct horse battery staple', displayName: 'A' };
+    const base = {
+      email: 'a@b.co',
+      password: 'correct horse battery staple',
+      displayName: 'A',
+      gender: 'MALE',
+    };
     const bad = registerSchema.safeParse({ ...base, username: 'abcdef' });
     expect(bad.success).toBe(false);
     expect(bad.error?.issues[0]).toMatchObject({ path: ['username'], params: { issue: 'premium' } });

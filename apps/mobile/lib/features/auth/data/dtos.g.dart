@@ -22,6 +22,10 @@ MeDto _$MeDtoFromJson(Map<String, dynamic> json) => MeDto(
   liveCoverUrl: json['liveCoverUrl'] as String?,
   country: json['country'] as String?,
   premiumTier: premiumTierFromJson(json['premiumTier']),
+  gender: genderFromJson(json['gender']),
+  showGender: json['showGender'] as bool? ?? false,
+  category: accountCategoryFromJson(json['category']),
+  links: json['links'] == null ? const [] : profileLinksFromJson(json['links']),
 );
 
 Map<String, dynamic> _$MeDtoToJson(MeDto instance) => <String, dynamic>{
@@ -40,6 +44,10 @@ Map<String, dynamic> _$MeDtoToJson(MeDto instance) => <String, dynamic>{
   'liveCoverUrl': instance.liveCoverUrl,
   'country': instance.country,
   'premiumTier': premiumTierToJson(instance.premiumTier),
+  'gender': genderToJson(instance.gender),
+  'showGender': instance.showGender,
+  'category': accountCategoryToJson(instance.category),
+  'links': profileLinksToJson(instance.links),
 };
 
 AuthResponseDto _$AuthResponseDtoFromJson(Map<String, dynamic> json) =>
@@ -87,6 +95,7 @@ RegisterRequestDto _$RegisterRequestDtoFromJson(Map<String, dynamic> json) =>
       password: json['password'] as String,
       username: json['username'] as String,
       displayName: json['displayName'] as String,
+      gender: json['gender'] as String,
       locale: json['locale'] as String?,
       device: json['device'] == null
           ? null
@@ -99,6 +108,7 @@ Map<String, dynamic> _$RegisterRequestDtoToJson(RegisterRequestDto instance) =>
       'password': instance.password,
       'username': instance.username,
       'displayName': instance.displayName,
+      'gender': instance.gender,
       'locale': ?instance.locale,
       'device': ?instance.device?.toJson(),
     };
