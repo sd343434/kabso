@@ -372,7 +372,7 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
     expect(after.dailyEarnedCherries).toBe(CHERRY_CAP);
     expect(after.dailyEarnedCoins).toBe(25);
 
-    // The host's weekly tasks: gifts received (10 000 coins of 5 000 000, D188), outside the daily cap.
+    // The host's weekly tasks: gifts received (10 000 coins of band 1's 2 500 000, D188), outside the daily cap.
     const hostTasks = await tasks(host);
     expect(hostTasks.tasks.map((t) => t.code)).toEqual(
       expect.arrayContaining(['HOST_LIVE_MINUTES', 'HOST_GIFT_COINS']),
@@ -380,7 +380,7 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
     expect(hostTasks.tasks.find((t) => t.code === 'HOST_GIFT_COINS')).toMatchObject({
       period: 'WEEKLY',
       progress: 10_000,
-      target: 5_000_000,
+      target: 2_500_000,
     });
   });
 

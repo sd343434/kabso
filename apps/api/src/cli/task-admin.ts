@@ -10,7 +10,8 @@
  *   pnpm task:admin seed-defaults   # adds the default tasks, pool and bands that are missing
  *   pnpm task:admin set <CODE> [--reward <cherries>] [--target <n>] [--enabled true|false]
  *                   [--name-ar <text>] [--name-en <text>] [--sort <n>]
- *                   [--targets <b1,b2,b3,b4>] [--rewards <b1,b2,b3,b4>] [--group <GROUP>]   # pool only
+ *                   [--targets <b1,b2,b3,b4>] [--rewards <b1,b2,b3,b4>]   # pool templates and weekly tasks
+ *                   [--group <GROUP>]   # pool only
  *   pnpm task:admin bands
  *   pnpm task:admin band <1-4> [--min-level <n>] [--count <n>] [--host-count <n>]
  *                   [--name-ar <text>] [--name-en <text>]
@@ -62,7 +63,8 @@ const USAGE = [
   '       pnpm task:admin seed-defaults',
   '       pnpm task:admin set <CODE> [--reward <cherries>] [--target <n>] [--enabled true|false]',
   '         [--name-ar <text>] [--name-en <text>] [--sort <n>]',
-  '         [--targets <b1,b2,b3,b4>] [--rewards <b1,b2,b3,b4>] [--group <GROUP>]   (pool templates)',
+  '         [--targets <b1,b2,b3,b4>] [--rewards <b1,b2,b3,b4>]   (pool templates and weekly tasks)',
+  '         [--group <GROUP>]   (pool templates)',
   '       pnpm task:admin bands',
   '       pnpm task:admin band <1-4> [--min-level <n>] [--count <n>] [--host-count <n>]',
   '         [--name-ar <text>] [--name-en <text>]',
@@ -113,8 +115,9 @@ function describe(t: {
   nameAr: string;
   nameEn: string;
 }): string {
-  const body = t.pool
-    ? `pool ${t.poolGroup ?? '?'} targets ${t.bandTargets.map((x) => targetWithUsd(x, t.metric)).join(', ')}` +
+  const banded = t.bandTargets.length > 0;
+  const body = banded
+    ? `${t.pool ? `pool ${t.poolGroup ?? '?'}` : 'per band'} targets ${t.bandTargets.map((x) => targetWithUsd(x, t.metric)).join(', ')}` +
       ` rewards ${t.bandRewards.map(cherriesWithUsd).join(', ')} cherries`
     : `target ${targetWithUsd(t.target, t.metric)} reward ${cherriesWithUsd(t.rewardCherries)} cherries`;
   return (
@@ -200,10 +203,22 @@ async function set(code: string, args: readonly string[]): Promise<void> {
     bandRewards?: number[];
     poolGroup?: string;
   } = {};
-  const poolOnly = values.targets !== undefined || values.rewards !== undefined || values.group !== undefined;
-  if (poolOnly && !task.pool) fail('--targets, --rewards and --group are for pool templates only.');
-  if (task.pool && (values.target !== undefined || values.reward !== undefined)) {
-    fail('A pool template has --targets and --rewards (one per band), not --target / --reward.');
+  // v1.57-social (D188 follow-up): a weekly task may also have one target and reward per band.
+  const perBandAllowed = task.pool || task.period === 'WEEKLY';
+  if (values.group !== undefined && !task.pool) fail('--group is for pool templates only.');
+  if ((values.targets !== undefined || values.rewards !== undefined) && !perBandAllowed) {
+    fail('--targets and --rewards are for pool templates and weekly tasks only.');
+  }
+  if (
+    !task.pool &&
+    (values.targets === undefined) !== (values.rewards === undefined) &&
+    task.bandTargets.length === 0
+  ) {
+    fail('A weekly task gets per-band values with both --targets and --rewards.');
+  }
+  const banded = task.pool || task.bandTargets.length > 0 || values.targets !== undefined;
+  if (banded && (values.target !== undefined || values.reward !== undefined)) {
+    fail('This task has --targets and --rewards (one per band), not --target / --reward.');
   }
   if (values.targets !== undefined) data.bandTargets = perBand(values.targets, '--targets', 1_000_000_000);
   if (values.rewards !== undefined)
@@ -214,7 +229,7 @@ async function set(code: string, args: readonly string[]): Promise<void> {
       fail(`--group is ${TASK_POOL_GROUPS.join(', ')}.`);
     data.poolGroup = group;
   }
-  // A pool row's target / reward mirror its highest band (the CHECK needs ≥ 1).
+  // A banded row's target / reward mirror its highest band (the CHECK needs ≥ 1).
   if (data.bandTargets) data.target = Math.max(1, ...data.bandTargets);
   if (data.bandRewards) data.rewardCherries = Math.max(1, ...data.bandRewards);
   if (values.reward !== undefined)

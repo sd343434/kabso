@@ -14,6 +14,7 @@ import {
   CHECK_IN_CYCLE_DAYS,
   DEFAULT_TASK_POOL_BANDS,
   NEW_HOST_DAYS,
+  TASK_POOL_BANDS,
   WATCH_LIVE_MIN_MS,
   assignDailyTasks,
   bandForLevel,
@@ -445,7 +446,9 @@ export class TasksService {
 
   /**
    * The tasks the caller has now: today's pool tasks (assigned, in their order), then the fixed
-   * tasks (not pool), each with its target and reward (a pool task's from its assignment).
+   * tasks (not pool), each with its target and reward (a pool task's from its assignment). v1.57-social
+   * (D188 follow-up): a fixed task with one value per band (the weekly host tasks) takes the caller's
+   * band of the day — today's assignment's, else the band of their level now; 0 = not offered.
    */
   private async tasksFor(db: Tx | PrismaService, me: string, day: string): Promise<OfferedTask[]> {
     const defs = await this.definitionsFor(db, me);
@@ -456,9 +459,22 @@ export class TasksService {
       const def = byCode.get(r.taskCode);
       if (def?.pool) pooled.push({ def, target: r.target, rewardCherries: r.rewardCherries, pooled: true });
     }
-    const fixed = defs
-      .filter((d) => !d.pool)
-      .map((def) => ({ def, target: def.target, rewardCherries: def.rewardCherries, pooled: false }));
+    const banded = (d: TaskDefinition) =>
+      d.bandTargets.length === TASK_POOL_BANDS && d.bandRewards.length === TASK_POOL_BANDS;
+    let band: number | null = rows[0]?.band ?? null;
+    if (band === null && defs.some((d) => !d.pool && banded(d))) {
+      band = bandForLevel(await this.levelOf(db, me), await this.bands(db)).band;
+    }
+    const fixed: OfferedTask[] = [];
+    for (const def of defs.filter((d) => !d.pool)) {
+      if (!banded(def)) {
+        fixed.push({ def, target: def.target, rewardCherries: def.rewardCherries, pooled: false });
+        continue;
+      }
+      const target = def.bandTargets[band! - 1] ?? 0;
+      const rewardCherries = def.bandRewards[band! - 1] ?? 0;
+      if (target > 0 && rewardCherries > 0) fixed.push({ def, target, rewardCherries, pooled: false });
+    }
     return [...pooled, ...fixed];
   }
 

@@ -11,7 +11,11 @@ export async function seedDefaultTasksIn(
   db: Pick<Prisma.TransactionClient, 'taskDefinition'>,
 ): Promise<number> {
   const result = await db.taskDefinition.createMany({
-    data: DEFAULT_TASKS.map((t) => ({ ...t })),
+    data: DEFAULT_TASKS.map((t) => ({
+      ...t,
+      bandTargets: t.bandTargets ? [...t.bandTargets] : [],
+      bandRewards: t.bandRewards ? [...t.bandRewards] : [],
+    })),
     skipDuplicates: true,
   });
   return result.count;

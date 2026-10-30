@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { loadConfig } from '../../config/app-config.js';
 import {
   CHECK_IN_CYCLE_DAYS,
+  DEFAULT_POOL_TASKS,
   DEFAULT_TASKS,
   COIN_VALUE_METRICS,
   TASK_METRICS,
@@ -85,6 +86,21 @@ describe('D166 check-in rules', () => {
       (cherries * rate.minor) / rate.cherries / 100 / ((coins * 12.5) / 1_000_000);
     for (const t of DEFAULT_TASKS.filter((x) => COIN_VALUE_METRICS.includes(x.metric))) {
       expect(share(t.rewardCherries, t.target), t.code).toBeLessThanOrEqual(0.0101);
+      for (let i = 0; i < (t.bandTargets?.length ?? 0); i++) {
+        expect(
+          share(t.bandRewards![i]!, t.bandTargets![i]!),
+          `${t.code} band ${String(i + 1)}`,
+        ).toBeLessThanOrEqual(0.0101);
+      }
+    }
+    for (const t of DEFAULT_POOL_TASKS.filter((x) => COIN_VALUE_METRICS.includes(x.metric))) {
+      for (let i = 0; i < 4; i++) {
+        if (t.bandTargets[i] === 0) continue;
+        expect(
+          share(t.bandRewards[i]!, t.bandTargets[i]!),
+          `${t.code} band ${String(i + 1)}`,
+        ).toBeLessThanOrEqual(0.0101);
+      }
     }
   });
 
@@ -124,7 +140,25 @@ describe('D166 check-in rules', () => {
       ),
       'utf8',
     ).replace(/\s+/g, ' ');
+    // The weekly host tasks got per-band values in 20261231140000_task_weekly_host_bands (follow-up).
+    const weekly = readFileSync(
+      fileURLToPath(
+        new URL(
+          '../../../prisma/migrations/20261231140000_task_weekly_host_bands/migration.sql',
+          import.meta.url,
+        ),
+      ),
+      'utf8',
+    ).replace(/\s+/g, ' ');
     for (const t of DEFAULT_TASKS) {
+      if (t.bandTargets && t.bandRewards) {
+        expect(weekly).toContain(
+          `('${t.code}', ARRAY[${t.bandTargets.join(', ')}], ARRAY[${t.bandRewards.join(', ')}], '${t.nameAr}', '${t.nameEn}')`,
+        );
+        // The row mirrors band 4.
+        expect([t.target, t.rewardCherries]).toEqual([t.bandTargets[3], t.bandRewards[3]]);
+        continue;
+      }
       expect(rebalance).toContain(`('${t.code}', ${String(t.target)}, ${String(t.rewardCherries)},`);
       const seeded = rows.find((m) => m[1] === t.code)!;
       if (seeded[3] !== t.metric)

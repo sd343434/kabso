@@ -76,8 +76,8 @@ interface MyTasks {
 
 const HOUR_MS = 3_600_000;
 const DAY_MS = 24 * HOUR_MS;
-/** The daily cherry cap here (D188 defaults: a band-1 host's three host tasks, 2 000 + 5 000 + 1 000). */
-const CAP = 8_000;
+/** The daily cherry cap here (D188 defaults: a band-1 host's three host tasks, 4 000 + 10 000 + 2 000). */
+const CAP = 16_000;
 const template = new Map(DEFAULT_POOL_TASKS.map((t) => [t.code, t]));
 
 /** A fixed-offset zone where it is about noon now, so "today" never ends in the middle of a test. */
@@ -562,16 +562,16 @@ describe('D176 daily task pool', { timeout: 240_000 }, () => {
       for (const t of now.tasks) expect(t, t.code).toMatchObject({ completed: true, progress: t.target });
       expect(now.tasks.find((t) => t.code === 'P_WATCH_MINUTES')).toMatchObject({ progress: 5, target: 5 });
 
-      // The cherry cap (8 000 here): the check-in pays its coins and no longer counts. Earlier today the
-      // person already got 6 000 task cherries (a claim row as a claim stores it); then 4 × 300 = 1 200
-      // (7 200), the 1 000-cherry gift task pays the 800 left, and the last task is refused with
+      // The cherry cap (16 000 here): the check-in pays its coins and no longer counts. Earlier today the
+      // person already got 14 000 task cherries (a claim row as a claim stores it); then 4 × 300 = 1 200
+      // (15 200), the 1 000-cherry gift task pays the 800 left, and the last task is refused with
       // TASK_DAILY_CAP_REACHED.
       await ctx.prisma.taskClaim.create({
         data: {
           userId: me.id,
           taskCode: 'P_FOLLOW',
           periodStart: new Date(`${listed.day}T00:00:00.000Z`),
-          rewardAmount: 6_000,
+          rewardAmount: 14_000,
           rewardCurrency: 'CHERRIES',
         },
       });

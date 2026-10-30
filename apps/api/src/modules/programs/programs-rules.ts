@@ -188,8 +188,10 @@ export function prizeForRank(prizes: readonly EventPrize[], rank: number): numbe
  * A default task (the values seeded by migration 20261214100000_me_programs; v1.53-social, D184: the
  * reward in cherries). v1.57-social (D188, owner): rebalanced by migration
  * 20261231130000_task_rewards_rebalance — free actions a symbolic 300 cherries, «send gifts» a coin value
- * sent (10 000 coins → 1 000 cherries), the weekly host tasks 10 hours live → 30 000 and 5 000 000 coins
- * received → 50 000.
+ * sent (10 000 coins → 1 000 cherries). Follow-up (owner, same day: an active host should really reach
+ * about $5 a month): the weekly host tasks have per-band targets and rewards (migration
+ * 20261231140000_task_weekly_host_bands) — band 4: 10 hours live → 250 000, 5 000 000 coins received →
+ * 430 000 (0.76 % of their retail value).
  */
 export interface DefaultTask {
   readonly code: string;
@@ -201,6 +203,12 @@ export interface DefaultTask {
   readonly nameAr: string;
   readonly nameEn: string;
   readonly sortOrder: number;
+  /**
+   * v1.57-social (D188 follow-up): a weekly host task's target and reward per level band 1…4 (the
+   * caller's band of the day); `target` / `rewardCherries` then mirror band 4. Absent = one value.
+   */
+  readonly bandTargets?: readonly [number, number, number, number];
+  readonly bandRewards?: readonly [number, number, number, number];
 }
 
 /**
@@ -258,22 +266,26 @@ export const DEFAULT_TASKS: readonly DefaultTask[] = [
     period: 'WEEKLY',
     metric: 'HOST_LIVE_MINUTES',
     target: 600,
-    rewardCherries: 30_000,
+    rewardCherries: 250_000,
     audience: 'HOSTS',
-    nameAr: 'ابثّ 10 ساعات هذا الأسبوع',
-    nameEn: 'Go live for 10 hours this week',
+    nameAr: 'ابثّ مباشرة هذا الأسبوع (بالدقائق)',
+    nameEn: 'Go live this week (minutes)',
     sortOrder: 50,
+    bandTargets: [300, 360, 480, 600],
+    bandRewards: [180_000, 190_000, 220_000, 250_000],
   },
   {
     code: 'HOST_GIFT_COINS',
     period: 'WEEKLY',
     metric: 'HOST_GIFT_COINS',
     target: 5_000_000,
-    rewardCherries: 50_000,
+    rewardCherries: 430_000,
     audience: 'HOSTS',
-    nameAr: 'استقبل هدايا بقيمة 5,000,000 عملة هذا الأسبوع',
-    nameEn: 'Receive gifts worth 5,000,000 coins this week',
+    nameAr: 'استقبل هدايا هذا الأسبوع (بالعملات)',
+    nameEn: 'Receive gifts this week (coins)',
     sortOrder: 60,
+    bandTargets: [2_500_000, 3_500_000, 4_500_000, 5_000_000],
+    bandRewards: [220_000, 270_000, 290_000, 430_000],
   },
 ];
 
@@ -431,7 +443,7 @@ export interface DefaultPoolTask {
  * the ×300 came from wrong pricing — 1 000 000 coins = $12.50 retail, 1 000 000 cherries = $1.10 payout):
  * free actions pay a symbolic 300 → 1 000 cherries (band 1 → 4); tasks with money behind them have
  * coin-value targets (gifts sent, gifts received — stored gift rows, never reported) and pay at most
- * about 1 % of that value; «send a gift» (one gift of any price) is switched off (its coin-value form
+ * about 1 % of that value (the daily host tasks ×2 by the owner's follow-up); «send a gift» (one gift of any price) is switched off (its coin-value form
  * stays for the team). Migration 20261231130000_task_rewards_rebalance. Targets and rewards are per band
  * 1…4; 0 = not offered in that band. Owner-changeable with `task-admin`.
  */
@@ -608,7 +620,7 @@ export const DEFAULT_POOL_TASKS: readonly DefaultPoolTask[] = [
     group: 'HOST',
     audience: 'HOSTS',
     bandTargets: [60, 80, 100, 120],
-    bandRewards: [2_000, 3_000, 4_000, 5_000],
+    bandRewards: [4_000, 6_000, 8_000, 10_000],
     nameAr: 'ابثّ مباشرة (بالدقائق)',
     nameEn: 'Go live (minutes)',
     sortOrder: 700,
@@ -619,7 +631,7 @@ export const DEFAULT_POOL_TASKS: readonly DefaultPoolTask[] = [
     group: 'HOST',
     audience: 'HOSTS',
     bandTargets: [100_000, 250_000, 500_000, 1_000_000],
-    bandRewards: [5_000, 10_000, 20_000, 30_000],
+    bandRewards: [10_000, 20_000, 40_000, 60_000],
     nameAr: 'استقبل هدايا في بثك (بالعملات)',
     nameEn: 'Receive gifts in your live (coins)',
     sortOrder: 710,
@@ -630,7 +642,7 @@ export const DEFAULT_POOL_TASKS: readonly DefaultPoolTask[] = [
     group: 'HOST',
     audience: 'HOSTS',
     bandTargets: [1, 1, 2, 3],
-    bandRewards: [1_000, 1_500, 2_000, 3_000],
+    bandRewards: [2_000, 3_000, 4_000, 6_000],
     nameAr: 'اقبل ضيفاً على مقعد',
     nameEn: 'Accept a guest on a seat',
     sortOrder: 720,

@@ -74,7 +74,24 @@ describe('the default pool and bands (D176)', () => {
       ),
       'utf8',
     );
+    // The daily host tasks' rewards were doubled again by 20261231140000_task_weekly_host_bands.
+    const hostBands = readFileSync(
+      fileURLToPath(
+        new URL(
+          '../../../prisma/migrations/20261231140000_task_weekly_host_bands/migration.sql',
+          import.meta.url,
+        ),
+      ),
+      'utf8',
+    ).replace(/\s+/g, ' ');
     for (const t of DEFAULT_POOL_TASKS) {
+      if (t.group === 'HOST') {
+        expect(hostBands).toContain(`('${t.code}', ARRAY[${t.bandRewards.join(', ')}])`);
+        const at = rebalance.indexOf(`('${t.code}',`);
+        const old = rebalance.slice(at, rebalance.indexOf('])', at) + 2).replace(/\s+/g, ' ');
+        expect(old, t.code).toContain(`ARRAY[${t.bandTargets.join(', ')}], ARRAY[`);
+        continue;
+      }
       const start = rebalance.indexOf(`('${t.code}',`);
       expect(start, t.code).toBeGreaterThan(0);
       const row = rebalance.slice(start, rebalance.indexOf('])', start) + 2).replace(/\s+/g, ' ');

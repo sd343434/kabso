@@ -13,7 +13,7 @@ import { Clock } from '../src/common/time/clock.js';
 import { creditTaskCherriesIn } from '../src/modules/economy/cherry-ledger.js';
 import { addGiftIn } from '../src/modules/gifts/gift-catalogue.js';
 import { LIVE_MEDIA_PROVIDER } from '../src/modules/live/media/live-media.provider.js';
-import { seedDefaultTasksIn } from '../src/modules/programs/programs-seed.js';
+import { seedDefaultTaskPoolIn, seedDefaultTasksIn } from '../src/modules/programs/programs-seed.js';
 import { creditIn } from '../src/modules/wallet/wallet-ledger.js';
 import { MemoryLiveMedia } from './helpers/memory-live-media.js';
 import { expectContract, openapi } from './helpers/openapi.js';
@@ -220,8 +220,9 @@ describe('D188 coin-value gift tasks, the defaults and the $60 unlock', { timeou
     await ctx.prisma.liveHost.create({ data: { userId: host.id, source: 'ADMIN' } });
     const weekly = (await tasks(host)).tasks.filter((t) => t.period === 'WEEKLY');
     expect(weekly.map((t) => [t.code, t.metric, t.target, t.rewardCherries])).toEqual([
-      ['HOST_LIVE_MINUTES', 'HOST_LIVE_MINUTES', 600, 30_000],
-      ['HOST_GIFT_COINS', 'HOST_GIFT_COINS', 5_000_000, 50_000],
+      // Follow-up: per band (a new account is band 1).
+      ['HOST_LIVE_MINUTES', 'HOST_LIVE_MINUTES', 300, 180_000],
+      ['HOST_GIFT_COINS', 'HOST_GIFT_COINS', 2_500_000, 220_000],
     ]);
   });
 
@@ -268,7 +269,7 @@ describe('D188 coin-value gift tasks, the defaults and the $60 unlock', { timeou
     expect(await task(host, 'HOST_GIFT_COINS')).toMatchObject({
       metric: 'HOST_GIFT_COINS',
       progress: 10_010,
-      target: 5_000_000,
+      target: 2_500_000,
       completed: false,
     });
     await ctx.prisma.user.update({ where: { id: fan.id }, data: { status: 'SUSPENDED' } });
@@ -407,3 +408,155 @@ describe('D188 the monthly cap of task cherries', { timeout: 240_000 }, () => {
     expect((await tasks(me)).monthlyEarnedCherries).toBe(4_000);
   });
 });
+
+describe(
+  'D188 follow-up: a band-4 host on the max path reaches the monthly cap',
+  { timeout: 300_000 },
+  () => {
+    const clock = new FakeClock();
+    const media = new MemoryLiveMedia();
+    let ctx: TestContext;
+    const { auth, signup, tasks, claim } = helpers(() => ctx);
+
+    beforeAll(async () => {
+      // The owner's caps (50 000 a day, $5 = 4 545 454 a month), Riyadh time.
+      ctx = await createTestApp({ LIVE_HOSTING_ENABLED: 'true', LIVE_RANKINGS_TIME_ZONE: 'Asia/Riyadh' }, [
+        { token: LIVE_MEDIA_PROVIDER, value: media },
+        { token: Clock, value: clock },
+      ]);
+      expect(await seedDefaultTasksIn(ctx.prisma)).toBe(6);
+      await seedDefaultTaskPoolIn(ctx.prisma);
+      await ctx.prisma.$transaction((tx) =>
+        addGiftIn(tx, 'max_crown', {
+          category: 'POPULAR',
+          nameAr: 'تاج',
+          nameEn: 'Crown',
+          priceCoins: 100_000,
+          assetKey: 'gift_max_crown',
+          animationKey: null,
+          sortOrder: 0,
+          badge: 'NONE',
+          tagCode: null,
+          tagNameAr: null,
+          tagNameEn: null,
+        }),
+      );
+    });
+    afterAll(async () => ctx?.close());
+
+    it('everything every day of a 31-day month: 50 000 a day + the weekly tasks, clipped at 4 545 454', async () => {
+      const host = await signup();
+      const fan = await signup();
+      // Band 4: Support level 80.
+      const support = await ctx.prisma.levelCategory.create({
+        data: {
+          code: 'SUPPORT',
+          nameAr: 'SUPPORT',
+          nameEn: 'SUPPORT',
+          descriptionAr: '-',
+          descriptionEn: '-',
+          isEnabled: true,
+        },
+      });
+      await ctx.prisma.userLevelState.create({
+        data: { userId: host.id, categoryId: support.id, currentLevel: 80 },
+      });
+      await ctx.prisma.liveHost.create({ data: { userId: host.id, source: 'ADMIN' } });
+      const room = await ctx.http.post('/api/v1/live/rooms').set(auth(host)).send({ title: 'Max' });
+      expect(room.status, JSON.stringify(room.body)).toBe(201);
+      const roomId = room.body.id as string;
+
+      // March 2027 (31 days, five ISO weeks touched), from noon in Riyadh on the 1st (a Monday).
+      const start = new Date(Date.UTC(2027, 2, 1, 9));
+      clock.setTo(start);
+      // Live all month (the stored room: started before, last heartbeat after).
+      await ctx.prisma.liveRoom.update({
+        where: { id: roomId },
+        data: {
+          startedAt: new Date(Date.UTC(2027, 1, 20)),
+          lastHeartbeatAt: new Date(Date.UTC(2027, 3, 10)),
+        },
+      });
+
+      let paid = 0;
+      let asked = 0;
+      let partial = 0;
+      let refusedMonthly = 0;
+      const tryClaim = async (code: string, reward: number) => {
+        const res = await claim(host, code);
+        if (res.status === 201) {
+          asked += reward;
+          paid += res.body.paidCherries as number;
+          if ((res.body.paidCherries as number) < reward) partial++;
+        } else if (res.status === 409 && res.body.error.code === 'TASK_MONTHLY_CAP_REACHED') {
+          asked += reward;
+          refusedMonthly++;
+        } else {
+          expect([200, 409], JSON.stringify(res.body)).toContain(res.status);
+          if (res.status === 409) expect(res.body.error.code).toBe('TASK_NOT_COMPLETED');
+        }
+      };
+      for (let day = 0; day < 31; day++) {
+        // 2 000 000 coins of gifts received today (stored like a send stores them).
+        const id = randomUUID();
+        await ctx.prisma.liveGift.create({
+          data: {
+            id,
+            senderId: fan.id,
+            clientId: randomUUID(),
+            roomId,
+            giftCode: 'max_crown',
+            quantity: 20,
+            source: 'COINS',
+            unitPrice: 100_000,
+            totalCoins: 2_000_000n,
+            coinsCharged: 2_000_000n,
+            recipientsKey: host.id,
+            comboId: id,
+            comboCount: 1,
+            comboQuantity: 20n,
+            hostShareBps: 6500,
+            createdAt: clock.now(),
+            recipients: { create: { userId: host.id, position: 0, coins: 2_000_000n } },
+          },
+        });
+        const mine = await tasks(host);
+        if (day === 0) {
+          expect(mine.monthlyCapCherries).toBe(4_545_454);
+          const by = (code: string) => mine.tasks.find((t) => t.code === code)!;
+          // Band 4: the daily host tasks ×2 and the weekly tasks per band (owner follow-up).
+          expect([by('P_HOST_GIFTS').target, by('P_HOST_GIFTS').rewardCherries]).toEqual([1_000_000, 60_000]);
+          expect([by('HOST_LIVE_MINUTES').target, by('HOST_LIVE_MINUTES').rewardCherries]).toEqual([
+            600, 250_000,
+          ]);
+          expect([by('HOST_GIFT_COINS').target, by('HOST_GIFT_COINS').rewardCherries]).toEqual([
+            5_000_000, 430_000,
+          ]);
+        }
+        // The daily task pays the daily cap (60 000 → 50 000), then the weekly tasks once a week.
+        await tryClaim('P_HOST_GIFTS', 50_000);
+        await tryClaim('HOST_LIVE_MINUTES', 250_000);
+        await tryClaim('HOST_GIFT_COINS', 430_000);
+        clock.advance(DAY_MS);
+      }
+      clock.setTo(new Date(Date.UTC(2027, 2, 31, 15)));
+      // Asked: 31 × 50 000 + 5 × 250 000 + 5 × 430 000 = 4 950 000; paid: exactly the monthly cap.
+      expect(asked).toBe(4_950_000);
+      expect(paid).toBe(4_545_454);
+      // One claim crossed the cap (paid the remainder; with these values the month's last weekly claim).
+      expect(partial).toBe(1);
+      expect(refusedMonthly).toBeGreaterThanOrEqual(0);
+      // Then every claim is refused: another completed daily host task (live all day, 120 minutes).
+      const after = await claim(host, 'P_HOST_LIVE_30');
+      expect(after.status, JSON.stringify(after.body)).toBe(409);
+      expect(after.body.error.code).toBe('TASK_MONTHLY_CAP_REACHED');
+      expect((await tasks(host)).monthlyEarnedCherries).toBe(4_545_454);
+      expect(
+        await ctx.prisma.cherryLedgerEntry.aggregate({
+          where: { userId: host.id, reason: 'TASK_REWARD' },
+          _sum: { delta: true },
+        }),
+      ).toEqual({ _sum: { delta: 4_545_454n } });
+    });
+  },
+);

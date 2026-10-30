@@ -293,7 +293,8 @@ info:
     targets (`ProgramTask.metric` `GIFT_COINS_SENT`; gifts received by coin value) paying at most about 1 %;
     daily cap 50 000; a calendar-month cap of $5 of task cherries (`MyTasks.monthlyCapCherries` /
     `monthlyEarnedCherries`, code `TASK_MONTHLY_CAP_REACHED`); task cherries unlock at $60 of lifetime gift
-    support (CONVENTIONS §10.51).
+    support (CONVENTIONS §10.51). Follow-up: the weekly host tasks' `target` / `rewardCherries` follow the
+    caller's level band (a band-4 host who completes everything reaches the monthly cap).
 servers:
   - url: http://localhost:3000
     description: Local development
