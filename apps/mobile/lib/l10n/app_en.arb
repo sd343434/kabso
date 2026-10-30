@@ -3181,5 +3181,16 @@
   "hostAgentPerksNote": "Your frame, badge and live entrance show while your agency is active.",
   "hostAgentReservedNote": "{code} is reserved for you. Your username shows {shown} because it was activated first.",
   "hostAgentSuspendedNote": "Your host-agent perks are suspended. {code} stays reserved for you.",
-  "hostAgentPendingNote": "Your host-agent code is on its way."
+  "hostAgentPendingNote": "Your host-agent code is on its way.",
+  "bagCategoryAvatarFrame": "Avatar frames",
+  "bagFromHostActive": "Active host reward",
+  "bagNoSendHostActive": "The host frame can't be sent",
+  "hostFrameChooseTitle": "Choose your host frame colour",
+  "hostFrameChooseBody": "You're an active host: pick the frame you like. You can change it later.",
+  "hostFrameChoose": "Choose",
+  "hostFrameChangeColour": "Change colour",
+  "hostFrameBlue": "Blue",
+  "hostFramePink": "Pink",
+  "hostFrameSaved": "Host frame chosen",
+  "errorHostFrameStyleFromGender": "Your gender sets the colour of your host frame."
 }

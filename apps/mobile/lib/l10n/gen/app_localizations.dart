@@ -17177,6 +17177,72 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'يُمنح رمز وكيل المضيفين قريباً.'**
   String get hostAgentPendingNote;
+
+  /// D186 active-host frames
+  ///
+  /// In ar, this message translates to:
+  /// **'إطارات الصورة'**
+  String get bagCategoryAvatarFrame;
+
+  /// D186 active-host frames
+  ///
+  /// In ar, this message translates to:
+  /// **'مكافأة المضيف النشط'**
+  String get bagFromHostActive;
+
+  /// D186 active-host frames
+  ///
+  /// In ar, this message translates to:
+  /// **'إطار المضيف لا يُرسل'**
+  String get bagNoSendHostActive;
+
+  /// D186 active-host frames
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر لون إطار المضيف'**
+  String get hostFrameChooseTitle;
+
+  /// D186 active-host frames
+  ///
+  /// In ar, this message translates to:
+  /// **'أنت مضيف نشط: اختر الإطار الذي يناسبك، ويمكنك تغييره لاحقاً.'**
+  String get hostFrameChooseBody;
+
+  /// D186 active-host frames
+  ///
+  /// In ar, this message translates to:
+  /// **'اختيار'**
+  String get hostFrameChoose;
+
+  /// D186 active-host frames
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيير اللون'**
+  String get hostFrameChangeColour;
+
+  /// D186 active-host frames
+  ///
+  /// In ar, this message translates to:
+  /// **'أزرق'**
+  String get hostFrameBlue;
+
+  /// D186 active-host frames
+  ///
+  /// In ar, this message translates to:
+  /// **'وردي'**
+  String get hostFramePink;
+
+  /// D186 active-host frames
+  ///
+  /// In ar, this message translates to:
+  /// **'تم اختيار إطار المضيف'**
+  String get hostFrameSaved;
+
+  /// D186 active-host frames
+  ///
+  /// In ar, this message translates to:
+  /// **'لون إطار المضيف يتبع الجنس في ملفك.'**
+  String get errorHostFrameStyleFromGender;
 }
 
 class _AppLocalizationsDelegate

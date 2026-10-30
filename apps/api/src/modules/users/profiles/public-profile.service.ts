@@ -49,6 +49,8 @@ export interface PublicProfileDto {
   rechargeAgent: { code: string } | null;
   /** v1.58-social (D189, §10.52): the host agent's code while not suspended (frame, badge), else null. */
   hostAgent: { code: string } | null;
+  /** v1.55-social (D186, §10.49): the avatar frame the user wears now (`AvatarFrame`), or null. */
+  avatarFrame: { code: string; assetKey: string } | null;
 }
 
 /**
@@ -96,6 +98,7 @@ export class PublicProfileService {
       profileCard,
       agent,
       hostAgency,
+      avatarFrame,
     ] = await Promise.all([
       this.follows.counts(user.id),
       isSelf ? Promise.resolve(false) : this.follows.isFollowing(callerId, user.id),
@@ -116,6 +119,8 @@ export class PublicProfileService {
         where: { ownerUserId: user.id, suspendedAt: null, hostCode: { not: null } },
         select: { hostCode: true },
       }),
+      // v1.55-social (D186): the worn avatar frame (e.g. the active-host frame).
+      this.bag.avatarFrame(user.id),
     ]);
     return {
       id: user.id,
@@ -141,6 +146,7 @@ export class PublicProfileService {
       links: user.links,
       rechargeAgent: agent?.code ? { code: agent.code } : null,
       hostAgent: hostAgency?.hostCode ? { code: hostAgency.hostCode } : null,
+      avatarFrame,
     };
   }
 }

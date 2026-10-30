@@ -90,6 +90,16 @@ abstract class PublicProfile with _$PublicProfile {
       toJson: rechargeAgentCodeToJson,
     )
     String? hostAgentCode,
+
+    /// v1.55-social (D186, §10.49): the avatar frame the user wears (e.g.
+    /// the active-host frame), drawn around the profile photo. Null when
+    /// none (also on older servers).
+    @JsonKey(
+      includeIfNull: false,
+      fromJson: avatarFrameFromJson,
+      toJson: avatarFrameToJson,
+    )
+    AvatarFrame? avatarFrame,
   }) = _PublicProfile;
 
   const new _();

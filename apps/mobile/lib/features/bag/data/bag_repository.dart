@@ -33,6 +33,15 @@ abstract interface class BagRepository {
   /// a category this app does not know yet works too), or nothing when
   /// [code] is null.
   Future<BagEquipped> setEquipped(String category, String? code);
+
+  /// `GET /me/host-frame` (v1.55-social, D186): the caller's active-host
+  /// frame.
+  Future<HostFrame> hostFrame();
+
+  /// `PUT /me/host-frame/style` (D186): a host without a stated gender
+  /// picks the colour; applied at once (409 HOST_FRAME_STYLE_FROM_GENDER
+  /// when the gender sets it).
+  Future<HostFrame> setHostFrameStyle(HostFrameStyle style);
 }
 
 class BagRepositoryImpl implements BagRepository {
@@ -98,6 +107,22 @@ class BagRepositoryImpl implements BagRepository {
           data: {'category': category, 'code': code},
         );
         return BagEquipped.fromJson(res.data!);
+      });
+
+  @override
+  Future<HostFrame> hostFrame() => guardApiCall(() async {
+    final res = await _dio.get<Map<String, dynamic>>('/me/host-frame');
+    return HostFrame.fromJson(res.data!);
+  });
+
+  @override
+  Future<HostFrame> setHostFrameStyle(HostFrameStyle style) =>
+      guardApiCall(() async {
+        final res = await _dio.put<Map<String, dynamic>>(
+          '/me/host-frame/style',
+          data: {'style': style.wire},
+        );
+        return HostFrame.fromJson(res.data!);
       });
 }
 

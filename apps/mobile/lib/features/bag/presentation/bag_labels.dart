@@ -10,6 +10,7 @@ const bagDay = Duration(days: 1);
 String bagCategoryTitle(AppLocalizations l10n, String wire) =>
     switch (BagCategory.fromWire(wire)) {
       BagCategory.profileCard => l10n.bagCategoryProfileCard,
+      BagCategory.avatarFrame => l10n.bagCategoryAvatarFrame,
       null => l10n.bagCategoryOther,
     };
 
@@ -56,6 +57,7 @@ String? bagSourceLine(AppLocalizations l10n, BagItem item) =>
         null => l10n.bagFromSomeone,
       },
       BagSource.levelReward => l10n.bagFromLevel,
+      BagSource.hostActive => l10n.bagFromHostActive,
       BagSource.purchase => l10n.bagFromPurchase,
       _ => null,
     };
@@ -66,6 +68,7 @@ String? bagNoSendReason(AppLocalizations l10n, BagItem item) {
   return switch (item.source) {
     BagSource.freeSignup || BagSource.backfill => l10n.bagNoSendFree,
     BagSource.levelReward => l10n.bagNoSendLevel,
+    BagSource.hostActive => l10n.bagNoSendHostActive,
     _ => l10n.bagNoSendOther,
   };
 }

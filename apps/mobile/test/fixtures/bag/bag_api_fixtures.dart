@@ -11,6 +11,8 @@ const bagCatalogueCodes = [
 ];
 
 const _namesAr = {
+  'host_frame_blue': 'إطار المضيف الأزرق',
+  'host_frame_pink': 'إطار المضيف الوردي',
   'bunny_royal': 'الأرنب الملكي',
   'kabi_royal': 'كابي الملكي',
   'golden_stags': 'الغزلان الذهبية',
@@ -18,6 +20,8 @@ const _namesAr = {
 };
 
 const _namesEn = {
+  'host_frame_blue': 'Blue host frame',
+  'host_frame_pink': 'Pink host frame',
   'bunny_royal': 'Royal Bunny',
   'kabi_royal': 'Royal Kabi',
   'golden_stags': 'Golden Stags',
@@ -56,11 +60,12 @@ Map<String, Object?> bagItemJson(
   DateTime? expiresAt,
   Map<String, Object?>? giftedBy,
   bool? transferable,
+  String? assetKey,
 }) => {
   'code': code,
   'category': category,
   'name': bagItemName(code, ar: ar),
-  'assetKey': 'header_$code',
+  'assetKey': assetKey ?? 'header_$code',
   'acquiredAt': '2026-10-26T18:30:00.000Z',
   'source': source,
   'equipped': equipped,

@@ -40,6 +40,8 @@ describe('ErrorCode', () => {
         'RECHARGE_CHERRY_REQUEST_CLOSED',
         'RECHARGE_CHERRY_CAP_REACHED',
         'USERNAME_LOCKED',
+        // v1.55-social (D186).
+        'HOST_FRAME_STYLE_FROM_GENDER',
         'INTERNAL_ERROR',
         'SERVICE_UNAVAILABLE',
         'LIVE_ROOM_ALREADY_ACTIVE',

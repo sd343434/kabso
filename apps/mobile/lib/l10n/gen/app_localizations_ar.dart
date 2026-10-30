@@ -10053,4 +10053,39 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get hostAgentPendingNote => 'يُمنح رمز وكيل المضيفين قريباً.';
+
+  @override
+  String get bagCategoryAvatarFrame => 'إطارات الصورة';
+
+  @override
+  String get bagFromHostActive => 'مكافأة المضيف النشط';
+
+  @override
+  String get bagNoSendHostActive => 'إطار المضيف لا يُرسل';
+
+  @override
+  String get hostFrameChooseTitle => 'اختر لون إطار المضيف';
+
+  @override
+  String get hostFrameChooseBody =>
+      'أنت مضيف نشط: اختر الإطار الذي يناسبك، ويمكنك تغييره لاحقاً.';
+
+  @override
+  String get hostFrameChoose => 'اختيار';
+
+  @override
+  String get hostFrameChangeColour => 'تغيير اللون';
+
+  @override
+  String get hostFrameBlue => 'أزرق';
+
+  @override
+  String get hostFramePink => 'وردي';
+
+  @override
+  String get hostFrameSaved => 'تم اختيار إطار المضيف';
+
+  @override
+  String get errorHostFrameStyleFromGender =>
+      'لون إطار المضيف يتبع الجنس في ملفك.';
 }

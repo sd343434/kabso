@@ -11,7 +11,7 @@
  *   pnpm economy:admin agency-reinstate <invite code>                 # … and come back
  *   pnpm economy:admin agency-parent <invite code> <parent invite code | none>
  *   pnpm economy:admin agency-list
- *   pnpm economy:admin agency-evaluate        # the rank evaluation now (what the sweeper does)
+ *   pnpm economy:admin agency-evaluate        # the rank evaluation and the active-host frames now (what the sweeper does)
  *   pnpm economy:admin complaints [--all]
  *   pnpm economy:admin complaint-resolve <complaint id> release|keep|move [--to <invite code>] [--note <text>]
  *   pnpm economy:admin withdrawals [--status pending|paid|rejected]
@@ -36,6 +36,7 @@ import {
   reinstateHostAgentIn,
   suspendHostAgentIn,
 } from '../modules/economy/host-agents.js';
+import { syncHostFrames, type HostFrameChange } from '../modules/economy/host-frames.js';
 import { refundCherriesIn, reverseGiftCherriesIn } from '../modules/economy/cherry-ledger.js';
 import {
   addMonths,
@@ -264,15 +265,33 @@ async function agencyEvaluate(): Promise<void> {
     rankMinActiveHosts: setting('AGENCY_RANK_MIN_ACTIVE_HOSTS') as number,
     rankExceptionCherries: setting('AGENCY_RANK_EXCEPTION_CHERRIES') as number,
     adminMinSubAgencies: setting('AGENCY_ADMIN_MIN_SUB_AGENCIES') as number,
-    activeHostMinDays: setting('AGENCY_ACTIVE_HOST_MIN_DAYS') as number,
-    activeHostMinHours: setting('AGENCY_ACTIVE_HOST_MIN_HOURS') as number,
-    activeHostWindowDays: setting('AGENCY_ACTIVE_HOST_WINDOW_DAYS') as number,
+    ...activityRules(),
   };
-  const changes = await evaluateAgencyRanks(prisma, new Date(), rules, zone());
+  const now = new Date();
+  const changes = await evaluateAgencyRanks(prisma, now, rules, zone());
   if (changes.length === 0) process.stdout.write('No rank changed.\n');
   for (const c of changes) {
     process.stdout.write(`${c.agencyId}: ${c.from} → ${c.to}${c.monthStart ? ' (month start)' : ''}\n`);
   }
+  // v1.55-social (D186): the active-host frames follow the same active-host test.
+  const frames = await syncHostFrames(prisma, now, rules, zone());
+  if (frames.length === 0) process.stdout.write('No host frame changed.\n');
+  for (const f of frames) process.stdout.write(`${hostFrameLine(f)}\n`);
+}
+
+function hostFrameLine(f: HostFrameChange): string {
+  if (f.kind === 'granted') return `host frame ${f.userId}: +${f.code}`;
+  if (f.kind === 'revoked') return `host frame ${f.userId}: -${f.code}${f.wasWorn ? ' (was worn)' : ''}`;
+  return `host frame ${f.userId}: ${f.from} → ${f.to}${f.worn ? ' (worn)' : ''}`;
+}
+
+/** The activity rules (the active-host test) from the environment. */
+function activityRules() {
+  return {
+    activeHostMinDays: setting('AGENCY_ACTIVE_HOST_MIN_DAYS') as number,
+    activeHostMinHours: setting('AGENCY_ACTIVE_HOST_MIN_HOURS') as number,
+    activeHostWindowDays: setting('AGENCY_ACTIVE_HOST_WINDOW_DAYS') as number,
+  };
 }
 
 async function complaints(all: boolean): Promise<void> {
@@ -353,9 +372,12 @@ async function complaintResolve(
         metadata: { action, link: link?.id ?? null, to: target?.id ?? null, newLink, note: text, via: 'cli' },
       },
     });
-    return action;
+    return { action, hostUserId: c.host_user_id };
   });
-  process.stdout.write(`Complaint ${complaintId}: ${result}.\n`);
+  process.stdout.write(`Complaint ${complaintId}: ${result.action}.\n`);
+  // v1.55-social (D186): a released host is no longer an agency host (the frame follows at once).
+  for (const f of await syncHostFrames(prisma, new Date(), activityRules(), zone(), [result.hostUserId]))
+    process.stdout.write(`${hostFrameLine(f)}\n`);
 }
 
 async function withdrawals(statusRaw: string | undefined): Promise<void> {

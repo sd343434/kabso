@@ -62,6 +62,8 @@ export interface UserSummaryDto {
   rechargeAgent?: { code: string };
   /** v1.58-social (D189, §10.52): present only while the user is a host agent (not suspended; the badge). */
   hostAgent?: { code: string };
+  /** v1.55-social (D186, §10.49): present only while the user wears an avatar frame. */
+  avatarFrame?: { code: string; assetKey: string };
 }
 
 export type LiveRoomMode = 'SOLO' | 'PK' | 'MULTI' | 'AUDIO';
@@ -197,6 +199,9 @@ export interface RoomRow {
   agent_code: string | null;
   /** v1.58-social (D189): the host's host-agent code while not suspended, else null. */
   host_agent_code: string | null;
+  /** v1.55-social (D186): the avatar frame the host wears now, else null. */
+  host_frame_code: string | null;
+  host_frame_asset: string | null;
   category_slug: string | null;
   category_name_ar: string | null;
   category_name_en: string | null;
@@ -243,6 +248,12 @@ const ROOM_COLUMNS = Prisma.sql`
          (SELECT ra.code FROM recharge_agents ra WHERE ra.user_id = r.host_user_id AND ra.status = 'ACTIVE') AS agent_code,
          (SELECT ag.host_code FROM agencies ag
            WHERE ag.owner_user_id = r.host_user_id AND ag.suspended_at IS NULL) AS host_agent_code,
+         (SELECT b.item_code FROM user_bag_items b
+           WHERE b.user_id = r.host_user_id AND b.category = 'AVATAR_FRAME' AND b.equipped
+             AND (b.expires_at IS NULL OR b.expires_at > now())) AS host_frame_code,
+         (SELECT i.asset_key FROM user_bag_items b JOIN bag_items i ON i.code = b.item_code
+           WHERE b.user_id = r.host_user_id AND b.category = 'AVATAR_FRAME' AND b.equipped
+             AND (b.expires_at IS NULL OR b.expires_at > now())) AS host_frame_asset,
          c.slug AS category_slug, c.name_ar AS category_name_ar,
          c.name_en AS category_name_en, r.chat_enabled, lh.room_number, ${ROOM_LEVEL_SQL} AS room_level,
          r.wish_gifts`;
@@ -781,6 +792,9 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
           : {}),
         ...(row.host_agent_code && row.host_status === 'ACTIVE'
           ? { hostAgent: { code: row.host_agent_code } }
+          : {}),
+        ...(row.host_frame_code && row.host_frame_asset
+          ? { avatarFrame: { code: row.host_frame_code, assetKey: row.host_frame_asset } }
           : {}),
       },
       seatCount: row.seat_count,

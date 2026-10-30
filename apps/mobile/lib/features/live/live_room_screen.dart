@@ -1836,6 +1836,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         imageUrl: host.avatarUrl,
         size: AudioSeatRing.picture,
       ),
+      // D186: the avatar frame the host wears.
+      hostFrame: host.avatarFrame,
       hostName: host.displayName,
       hostPoints: KFormat.compact(score, context.l10n),
       speaking: speaking,

@@ -115,3 +115,42 @@ Map<String, dynamic> _$BagEquippedToJson(_BagEquipped instance) =>
       'category': instance.category,
       'equipped': instance.equipped,
     };
+
+_HostFrameItem _$HostFrameItemFromJson(Map<String, dynamic> json) =>
+    _HostFrameItem(
+      code: json['code'] as String,
+      assetKey: json['assetKey'] as String,
+      equipped: json['equipped'] as bool,
+    );
+
+Map<String, dynamic> _$HostFrameItemToJson(_HostFrameItem instance) =>
+    <String, dynamic>{
+      'code': instance.code,
+      'assetKey': instance.assetKey,
+      'equipped': instance.equipped,
+    };
+
+_HostFrame _$HostFrameFromJson(Map<String, dynamic> json) => _HostFrame(
+  agencyHost: json['agencyHost'] as bool,
+  active: json['active'] as bool,
+  liveDays: (json['liveDays'] as num).toInt(),
+  liveSeconds: (json['liveSeconds'] as num).toInt(),
+  canChoose: json['canChoose'] as bool,
+  style: json['style'] as String?,
+  styleFrom: json['styleFrom'] as String?,
+  frame: json['frame'] == null
+      ? null
+      : HostFrameItem.fromJson(json['frame'] as Map<String, dynamic>),
+);
+
+Map<String, dynamic> _$HostFrameToJson(_HostFrame instance) =>
+    <String, dynamic>{
+      'agencyHost': instance.agencyHost,
+      'active': instance.active,
+      'liveDays': instance.liveDays,
+      'liveSeconds': instance.liveSeconds,
+      'canChoose': instance.canChoose,
+      'style': instance.style,
+      'styleFrom': instance.styleFrom,
+      'frame': instance.frame,
+    };

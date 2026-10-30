@@ -11,8 +11,10 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/bag/application/bag_providers.dart';
 import 'package:kabso_live/features/bag/data/bag_repository.dart';
 import 'package:kabso_live/features/bag/domain/bag_models.dart';
+import 'package:kabso_live/features/bag/presentation/avatar_frame_art.dart';
 import 'package:kabso_live/features/bag/presentation/bag_labels.dart';
 import 'package:kabso_live/features/bag/presentation/bag_send_sheet.dart';
+import 'package:kabso_live/features/bag/presentation/host_frame_sheet.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/features/profile/application/public_profile_controller.dart';
 import 'package:kabso_live/features/profile_card/kabso_profile_header.dart';
@@ -85,6 +87,12 @@ class BagScreen extends ConsumerStatefulWidget {
   static const selectedSourceKey = Key('bag.selected.source');
   static const noSendKey = Key('bag.selected.noSend');
 
+  /// D186: the banner asking an active host without a stated gender to
+  /// pick the host frame's colour, and «تغيير اللون» on the selected host
+  /// frame.
+  static const hostFrameBannerKey = Key('bag.hostFrame.banner');
+  static const hostFrameChangeKey = Key('bag.hostFrame.change');
+
   static Key sectionKey(String category) => Key('bag.section.$category');
   static Key slotKey(String category) => Key('bag.slot.$category');
   static Key emptySlotKey(String category) => Key('bag.slot.empty.$category');
@@ -128,8 +136,27 @@ class _BagScreenState extends ConsumerState<BagScreen> {
 
   void _refreshEverywhere() => ref
     ..invalidate(myBagItemsProvider)
+    ..invalidate(myHostFrameProvider)
     ..invalidate(profileStatsProvider)
     ..invalidate(publicProfileProvider);
+
+  /// D186: the host picks (or changes) the host frame's colour; the server
+  /// gives or swaps the frame at once.
+  Future<void> _chooseHostFrame(HostFrame? status) async {
+    if (_busy != null) return;
+    final l10n = context.l10n;
+    final result = await showHostFrameStyleSheet(
+      context,
+      current: status?.styleValue,
+    );
+    if (result == null || !mounted) return;
+    KSnack.success(context, l10n.hostFrameSaved);
+    setState(() {
+      _worn.remove(BagCategory.avatarFrame.wire);
+      if (result.frame case final frame?) _selected = frame.code;
+    });
+    _refreshEverywhere();
+  }
 
   bool _isWorn(BagItem item) => _worn.containsKey(item.category)
       ? _worn[item.category] == item.code
@@ -188,6 +215,8 @@ class _BagScreenState extends ConsumerState<BagScreen> {
     });
     final items = _live(mine.value ?? const []);
     final selected = items.where((i) => i.code == _selected).firstOrNull;
+    // D186: an active host without a stated gender picks the colour.
+    final hostFrame = ref.watch(myHostFrameProvider).value;
     return DefaultTabController(
       length: 2,
       child: Scaffold(
@@ -212,6 +241,10 @@ class _BagScreenState extends ConsumerState<BagScreen> {
         ),
         body: Column(
           children: [
+            if (hostFrame != null && hostFrame.needsChoice)
+              _HostFrameBanner(
+                onTap: () => unawaited(_chooseHostFrame(hostFrame)),
+              ),
             Expanded(
               child: TabBarView(
                 children: [_page(mine, _toolsTab), _page(mine, _bagTab)],
@@ -221,6 +254,12 @@ class _BagScreenState extends ConsumerState<BagScreen> {
               item: selected,
               worn: selected != null && _isWorn(selected),
               busy: _busy != null,
+              onChangeColour:
+                  selected != null &&
+                      selected.source == BagSource.hostActive &&
+                      (hostFrame?.canChoose ?? false)
+                  ? () => unawaited(_chooseHostFrame(hostFrame))
+                  : null,
               onUse: selected == null
                   ? null
                   : () =>
@@ -399,6 +438,73 @@ class _BagScreenState extends ConsumerState<BagScreen> {
   }
 }
 
+/// D186: «اختر لون إطار المضيف» — an active host without a stated gender
+/// has no host frame until they pick its colour; a tap opens the sheet.
+class _HostFrameBanner extends StatelessWidget {
+  const new({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final p = context.palette;
+    final t = context.textStyles;
+    return Material(
+      color: p.primary.withValues(alpha: 0.08),
+      child: InkWell(
+        key: BagScreen.hostFrameBannerKey,
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsetsDirectional.fromSTEB(
+            KSpacing.lg,
+            KSpacing.sm,
+            KSpacing.md,
+            KSpacing.sm,
+          ),
+          child: Row(
+            children: [
+              const AvatarFramePreview(art: AvatarFrameArt.hostPink, width: 40),
+              const SizedBox(width: KSpacing.xs),
+              const AvatarFramePreview(art: AvatarFrameArt.hostBlue, width: 40),
+              const SizedBox(width: KSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      l10n.hostFrameChooseTitle,
+                      style: t.bodyStrong.copyWith(color: p.textPrimary),
+                    ),
+                    Text(
+                      l10n.hostFrameChooseBody,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: t.caption.copyWith(color: p.textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: KSpacing.sm),
+              Text(
+                l10n.hostFrameChoose,
+                style: t.bodyStrong.copyWith(color: p.primary),
+              ),
+              Icon(
+                Directionality.of(context) == TextDirection.rtl
+                    ? Icons.chevron_left_rounded
+                    : Icons.chevron_right_rounded,
+                color: p.primary,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// A grey section band with its bold title at the reading start.
 class _Band extends StatelessWidget {
   const new(this.text);
@@ -508,6 +614,7 @@ class _TileGrid extends StatelessWidget {
 IconData bagCategoryGlyph(String category) =>
     switch (BagCategory.fromWire(category)) {
       BagCategory.profileCard => Icons.badge_rounded,
+      BagCategory.avatarFrame => Icons.account_circle_rounded,
       null => Icons.auto_awesome_rounded,
     };
 
@@ -756,6 +863,7 @@ class _SelectionBar extends StatelessWidget {
     required this.busy,
     this.onUse,
     this.onSend,
+    this.onChangeColour,
   });
 
   final BagItem? item;
@@ -763,6 +871,9 @@ class _SelectionBar extends StatelessWidget {
   final bool busy;
   final VoidCallback? onUse;
   final VoidCallback? onSend;
+
+  /// D186: «تغيير اللون» for a selected host frame the host may recolour.
+  final VoidCallback? onChangeColour;
 
   @override
   Widget build(BuildContext context) {
@@ -834,6 +945,23 @@ class _SelectionBar extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                                 style: t.caption.copyWith(
                                   color: p.textTertiary,
+                                ),
+                              ),
+                            if (onChangeColour case final change?)
+                              InkWell(
+                                key: BagScreen.hostFrameChangeKey,
+                                onTap: busy ? null : change,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 2,
+                                  ),
+                                  child: Text(
+                                    context.l10n.hostFrameChangeColour,
+                                    style: t.caption.copyWith(
+                                      color: p.primary,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
                                 ),
                               ),
                           ],
@@ -953,6 +1081,22 @@ class BagItemPreview extends StatelessWidget {
         header: KabsoProfileHeader.byCode(item.code),
         width: width,
       );
+    }
+    if (BagCategory.fromWire(item.category) == BagCategory.avatarFrame) {
+      // D186: a frame this app draws, around a neutral picture; D169's
+      // support frames show their art alone.
+      if (AvatarFrameArt.byAssetKey(item.assetKey) case final art?) {
+        return AvatarFramePreview(art: art, width: width);
+      }
+      if (RegExp(r'^support_frame_\d{2}$').hasMatch(item.assetKey)) {
+        return Image.asset(
+          'assets/levels/support_frames/${item.assetKey}.webp',
+          width: width,
+          height: width,
+          excludeFromSemantics: true,
+          errorBuilder: (_, _, _) => SizedBox.square(dimension: width),
+        );
+      }
     }
     final p = context.palette;
     return Container(

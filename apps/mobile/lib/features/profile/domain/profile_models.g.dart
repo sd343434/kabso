@@ -41,6 +41,7 @@ _PublicProfile _$PublicProfileFromJson(Map<String, dynamic> json) =>
           : profileLinksFromJson(json['links']),
       rechargeAgentCode: rechargeAgentCodeFromJson(json['rechargeAgent']),
       hostAgentCode: rechargeAgentCodeFromJson(json['hostAgent']),
+      avatarFrame: avatarFrameFromJson(json['avatarFrame']),
     );
 
 Map<String, dynamic> _$PublicProfileToJson(_PublicProfile instance) =>
@@ -68,6 +69,7 @@ Map<String, dynamic> _$PublicProfileToJson(_PublicProfile instance) =>
       'links': profileLinksToJson(instance.links),
       'rechargeAgent': ?rechargeAgentCodeToJson(instance.rechargeAgentCode),
       'hostAgent': ?rechargeAgentCodeToJson(instance.hostAgentCode),
+      'avatarFrame': ?avatarFrameToJson(instance.avatarFrame),
     };
 
 _FollowState _$FollowStateFromJson(Map<String, dynamic> json) => _FollowState(

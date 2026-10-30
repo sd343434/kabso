@@ -159,6 +159,8 @@ export enum ErrorCode {
   RECHARGE_CHERRY_CAP_REACHED = 'RECHARGE_CHERRY_CAP_REACHED',
   /** v1.54-social (DRAFT, D185): A special username is active and locked; the username cannot change. */
   USERNAME_LOCKED = 'USERNAME_LOCKED',
+  /** v1.55-social (DRAFT, D186): the host's gender sets the frame style (male blue, female pink). */
+  HOST_FRAME_STYLE_FROM_GENDER = 'HOST_FRAME_STYLE_FROM_GENDER',
 }
 
 /** HTTP status for every code (CONVENTIONS.md §4 table). */
@@ -253,6 +255,7 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.RECHARGE_CHERRY_REQUEST_CLOSED]: 409,
   [ErrorCode.RECHARGE_CHERRY_CAP_REACHED]: 409,
   [ErrorCode.USERNAME_LOCKED]: 409,
+  [ErrorCode.HOST_FRAME_STYLE_FROM_GENDER]: 409,
 };
 
 /** Default developer-facing messages (clients localize by `code`, not by message). */
@@ -347,6 +350,7 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.RECHARGE_CHERRY_REQUEST_CLOSED]: 'This request is no longer open.',
   [ErrorCode.RECHARGE_CHERRY_CAP_REACHED]: "The agent's daily cherry limit is reached.",
   [ErrorCode.USERNAME_LOCKED]: 'Your username is locked while your special username is active.',
+  [ErrorCode.HOST_FRAME_STYLE_FROM_GENDER]: 'Your gender sets the colour of your host frame.',
 };
 
 export interface ErrorDetail {

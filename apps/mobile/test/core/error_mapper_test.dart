@@ -100,6 +100,7 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.rechargeCherryRequestClosed: 409,
   ErrorCode.rechargeCherryCapReached: 409,
   ErrorCode.usernameLocked: 409,
+  ErrorCode.hostFrameStyleFromGender: 409,
 };
 
 DioException _badResponse(
@@ -225,6 +226,8 @@ void main() {
           'RECHARGE_CHERRY_REQUEST_CLOSED',
           'RECHARGE_CHERRY_CAP_REACHED',
           'USERNAME_LOCKED',
+          // v1.55-social (D186).
+          'HOST_FRAME_STYLE_FROM_GENDER',
         ]),
       );
       expect(ErrorCode.networkOffline.wire, 'NETWORK_OFFLINE');

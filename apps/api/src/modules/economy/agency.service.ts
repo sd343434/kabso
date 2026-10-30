@@ -17,6 +17,7 @@ import { SocialCursorCodec } from '../posts/social-cursor.js';
 import { agencyStandings, evaluateAgencyRanks, hostActivity, type RankChange } from './agency-ranks.js';
 import { addMonths, agencyRateBps, dateValue, monthKey, normalizeInviteCode } from './economy-math.js';
 import { assignMissingHostCodes, hostAgentPerksActive } from './host-agents.js';
+import { syncHostFrames, type HostFrameChange } from './host-frames.js';
 
 const DAY_MS = 86_400_000;
 
@@ -168,9 +169,10 @@ export class AgencyService implements OnModuleInit, OnModuleDestroy {
 
   private schedule(): void {
     this.timer = setTimeout(() => {
-      this.inFlight = this.evaluateRanks()
-        .then(async (changes) => {
-          if (changes.length > 0) this.logger.log({ changes: changes.length }, 'Agency ranks evaluated');
+      this.inFlight = this.evaluate()
+        .then(async ({ ranks, frames }) => {
+          if (ranks.length > 0) this.logger.log({ changes: ranks.length }, 'Agency ranks evaluated');
+          if (frames.length > 0) this.logger.log({ changes: frames.length }, 'Host frames synced');
           // v1.58-social (D189, §10.52): agencies made before D189 get their host code (oldest first).
           const coded = await this.assignHostCodes();
           if (coded > 0) this.logger.log({ coded }, 'Host-agent codes given');
@@ -195,9 +197,24 @@ export class AgencyService implements OnModuleInit, OnModuleDestroy {
     return assignMissingHostCodes(this.prisma, this.clock.now(), this.config.specialUsernames.graceDays);
   }
 
-  /** The sweeper's work (also `economy-admin agency-evaluate`). */
+  /** The rank evaluation (also `economy-admin agency-evaluate`). */
   evaluateRanks(): Promise<RankChange[]> {
     return evaluateAgencyRanks(this.prisma, this.clock.now(), this.config.economy, this.zone);
+  }
+
+  /**
+   * The sweeper's work: the ranks, then (v1.55-social, D186) the active-host frames by the same
+   * active-host test — given to hosts who became active, taken back from those who are not any more.
+   */
+  async evaluate(): Promise<{ ranks: RankChange[]; frames: HostFrameChange[] }> {
+    const ranks = await this.evaluateRanks();
+    const frames = await this.syncHostFrames();
+    return { ranks, frames };
+  }
+
+  /** D186: the active-host frames of every host now, or of `userIds`. */
+  syncHostFrames(userIds: readonly string[] | null = null): Promise<HostFrameChange[]> {
+    return syncHostFrames(this.prisma, this.clock.now(), this.config.economy, this.zone, userIds);
   }
 
   private async preview(agencyId: string): Promise<AgencyPreviewDto | null> {
@@ -394,6 +411,8 @@ export class AgencyService implements OnModuleInit, OnModuleDestroy {
       if (raced) return raced;
       throw err;
     }
+    // D186: past live time counts, so a new host may be active (and get the frame) at once.
+    await this.syncHostFrames([me]);
     return { created: true, result: await this.mine(me) };
   }
 
@@ -431,6 +450,8 @@ export class AgencyService implements OnModuleInit, OnModuleDestroy {
         },
       });
     });
+    // D186: no agency, no active-host frame.
+    await this.syncHostFrames([me]);
     return this.mine(me);
   }
 

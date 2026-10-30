@@ -304,6 +304,15 @@ info:
     username (locked; `Me.specialUsername`, self only — the base username never appears in what others read);
     code `USERNAME_LOCKED` (409) on `changeUsername` and `rentPremiumUsername`; `login` also accepts the base
     username.
+    **D186 (DRAFT v1.55-social, CP-029)**: the active-host frame «إطار المضيف»: an ACTIVE agency host who passes
+    D179's active-host test owns a bag `AVATAR_FRAME` with the new source `HOST_ACTIVE` (`host_frame_blue` for a
+    male host, `host_frame_pink` for a female one, the style the host chooses otherwise), not transferable, no
+    expiry; the agency sweeper takes it back (a worn one is taken off) when the host is no longer active and gives
+    it again when they are; a gender change swaps it (worn stays worn). `getMyHostFrame` (`GET /me/host-frame`,
+    `HostFrame`), `setMyHostFrameStyle` (`PUT /me/host-frame/style`, `SetHostFrameStyleRequest`,
+    `HostFrameStyle`); `PublicProfile.avatarFrame` and `UserSummary.avatarFrame` (`AvatarFrame`: the frame a user
+    wears, drawn on the profile and the live seats). Code `HOST_FRAME_STYLE_FROM_GENDER` (409) (CONVENTIONS
+    §10.49).
     **D189 (DRAFT v1.58-social, CP-032)**: host agents «وكيل مضيفين» (an agency's owner, D179) get perks like a
     recharge agent: at activation (the team's `economy-admin agency-create`) the code `host` + a sequential number
     (at least two digits: `host01`, `host100`; `HostAgentCode`) becomes their special username (§10.48.1, source
@@ -339,7 +348,7 @@ tags:
   - name: wallet
     description: "The caller's coins (v1.19-live DRAFT, CP-017); their history and gift earnings (v1.43-social DRAFT, D164); cherries and withdrawals (v1.52-social DRAFT, D179)."
   - name: agency
-    description: "Host agencies: join with an invite code, leave or complain, the agent's dashboard (v1.52-social DRAFT, D179)."
+    description: "Host agencies: join with an invite code, leave or complain, the agent's dashboard (v1.52-social DRAFT, D179); the active-host frame (v1.55-social DRAFT, D186)."
   - name: recharge
     description: "Recharge agents «وكلاء الشحن»: the application, the agent's coin stock and sales, employees, availability, the directory and cherry sales from hosts (v1.54-social DRAFT, D185)."
   - name: premium-usernames
@@ -1166,7 +1175,8 @@ paths:
         `/users/username-availability` cannot collide: `-` is not allowed in usernames.
         v1.21-live (CP-018, §10.21): `family`, `cp` and `medals` for the person card; CP tier and
         medal names follow `Accept-Language`, else the caller's locale. v1.22-live (CP-019,
-        §10.22): `profileCard`, the profile card the user wears (null when none).
+        §10.22): `profileCard`, the profile card the user wears (null when none). v1.55-social (D186,
+        §10.49): `avatarFrame`, the avatar frame the user wears (null when none).
       parameters:
         - $ref: '#/components/parameters/UsernamePath'
       responses:
@@ -1216,6 +1226,7 @@ paths:
                       - { id: 0192f1d0-7777-7000-8000-000000000009, url: 'https://www.instagram.com/layla.k', label: Instagram, platform: INSTAGRAM }
                     rechargeAgent: { code: coin0001 }
                     hostAgent: null
+                    avatarFrame: { code: host_frame_pink, assetKey: host_frame_pink }
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -4401,6 +4412,52 @@ paths:
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/host-frame:
+    get:
+      tags: [agency]
+      operationId: getMyHostFrame
+      summary: "The caller's active-host frame «إطار المضيف» (D186)"
+      description: |
+        v1.55-social, CONVENTIONS §10.49. An ACTIVE agency host who passes the active-host test (D179) owns a
+        bag frame (`AVATAR_FRAME`, source `HOST_ACTIVE`, not transferable, no expiry): `host_frame_blue` for a
+        male host, `host_frame_pink` for a female one, the style the host chose otherwise. The agency sweeper
+        gives it when the host becomes active and takes it back (taken off if worn) when they are not; it is
+        given again when they are active again. The host wears or removes it in the bag
+        (`PUT /me/bag/equipped`). Checks: 401.
+      responses:
+        '200':
+          description: The caller's active-host frame state.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HostFrame' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/host-frame/style:
+    put:
+      tags: [agency]
+      operationId: setMyHostFrameStyle
+      summary: "A host without a stated gender picks the frame's colour (D186)"
+      description: |
+        v1.55-social, CONVENTIONS §10.49. For a caller with no gender or `UNDISCLOSED`: stores the style (any
+        time, also before being active; it can be changed later) and applies it at once — an active host gets
+        the frame, or it is swapped for the other colour, still worn if it was. Idempotent; a change is audited
+        (`host_frame.choice`). Checks: 401 → 429 → 400 (strict body) → 409 `HOST_FRAME_STYLE_FROM_GENDER` (the
+        gender is MALE or FEMALE: it sets the colour). Rate limit 60 / hour per user (`host-frame:style`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetHostFrameStyleRequest' }
+      responses:
+        '200':
+          description: The caller's active-host frame after the choice.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HostFrame' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/me/recharge-agent:
     get:
       tags: [recharge]
@@ -6136,7 +6193,8 @@ paths:
         Refusals (nothing changes): 400 `VALIDATION_FAILED` (strict body; `username` / `invalid_value`
         for oneself); 404 `NOT_FOUND` (no ACTIVE account with that username, or a block either way);
         409 `BAG_ITEM_NOT_OWNED` (not owned, expired or unknown), `BAG_ITEM_NOT_TRANSFERABLE` (a free
-        item), `BAG_SEND_PERMANENT_WHOLE_ONLY`, `BAG_SEND_EXCEEDS_REMAINING`,
+        item, a level reward or (v1.55-social, D186) an active-host frame), `BAG_SEND_PERMANENT_WHOLE_ONLY`,
+        `BAG_SEND_EXCEEDS_REMAINING`,
         `BAG_RECIPIENT_HAS_PERMANENT`. Rate limit 30 / hour per user (`bag:send`). Names follow
         `Accept-Language`.
       requestBody:
@@ -8430,9 +8488,12 @@ components:
         hostAgent:
           $ref: '#/components/schemas/HostAgentTag'
           description: "v1.58-social (D189, §10.52) — present only while the user is a host agent (owns an agency the team has not suspended; any rank) with an active account: the app shows the host-agent badge next to the name wherever the recharge-agent badge goes, and the host-agent entrance on a join; absent otherwise."
+        avatarFrame:
+          $ref: '#/components/schemas/AvatarFrame'
+          description: "v1.55-social (D186, §10.49) — present only while the user wears an avatar frame (bag `AVATAR_FRAME`, e.g. the active-host frame): the app draws it around the photo on the live seats; absent otherwise."
     PublicProfile:
       type: object
-      required: [id, username, displayName, avatarUrl, bio, isPrivate, followerCount, followingCount, isFollowing, followRequested, isMuted, isSelf, liveRoomId, family, cp, medals, profileCard, gender, category, links, rechargeAgent, hostAgent]
+      required: [id, username, displayName, avatarUrl, bio, isPrivate, followerCount, followingCount, isFollowing, followRequested, isMuted, isSelf, liveRoomId, family, cp, medals, profileCard, gender, category, links, rechargeAgent, hostAgent, avatarFrame]
       properties:
         id: { type: string, format: uuid }
         username: { $ref: '#/components/schemas/Username' }
@@ -8510,6 +8571,11 @@ components:
           description: "v1.58-social (D189, §10.52). The user is a host agent (not suspended): their code (the app draws the host-agent frame — no name — and badge); else null."
           oneOf:
             - $ref: '#/components/schemas/HostAgentTag'
+            - type: 'null'
+        avatarFrame:
+          description: "v1.55-social (D186, §10.49). The avatar frame the user wears now (bag `AVATAR_FRAME`), drawn around the profile photo; else null."
+          oneOf:
+            - $ref: '#/components/schemas/AvatarFrame'
             - type: 'null'
     FollowState:
       type: object
@@ -11252,8 +11318,8 @@ components:
       description: "A bag category. PROFILE_CARD: the decoration on the profile card's header. AVATAR_FRAME (v1.46-levels, D169): the frame around the user's photo (the support level's tier frames). More categories come later; clients ignore items of categories they do not know (§10.22)."
     BagItemSource:
       type: string
-      enum: [FREE_SIGNUP, BACKFILL, ADMIN, LEVEL_REWARD, GIFT]
-      description: "How the item was obtained: free at signup, free for accounts that existed before the bag, granted by an admin, (v1.46-levels, D169) given by the server when a level is reached (the support tier frames; not transferable), or (v1.48-social, D171) sent by another user (`GIFT`, see `BagItem.giftedBy`). More values come later (store, rewards); clients treat unknown values as opaque."
+      enum: [FREE_SIGNUP, BACKFILL, ADMIN, LEVEL_REWARD, GIFT, HOST_ACTIVE]
+      description: "How the item was obtained: free at signup, free for accounts that existed before the bag, granted by an admin, (v1.46-levels, D169) given by the server when a level is reached (the support tier frames; not transferable), (v1.48-social, D171) sent by another user (`GIFT`, see `BagItem.giftedBy`), or (v1.55-social, D186) the active-host frame, kept only while the user is an active agency host (`HOST_ACTIVE`; not transferable, no expiry, §10.49). More values come later (store, rewards); clients treat unknown values as opaque."
     BagCatalogueItem:
       type: object
       required: [code, category, name, assetKey, sortOrder, free]
@@ -11360,6 +11426,62 @@ components:
       properties:
         code: { type: string, maxLength: 40, example: bunny_royal }
         assetKey: { type: string, maxLength: 60, example: header_bunny_royal }
+    AvatarFrame:
+      type: object
+      description: "(v1.55-social, D186, §10.49) The avatar frame a user wears (bag `AVATAR_FRAME`): the app draws the frames it has art for around the photo (`assets/host_frames/<assetKey>.webp` for the active-host frames) and ignores others."
+      required: [code, assetKey]
+      properties:
+        code: { type: string, maxLength: 40, example: host_frame_blue }
+        assetKey: { type: string, maxLength: 60, example: host_frame_blue }
+    HostFrameStyle:
+      type: string
+      enum: [BLUE, PINK]
+      description: "(v1.55-social, D186) The active-host frame's style: BLUE (`host_frame_blue`) for a male host, PINK (`host_frame_pink`) for a female one; a host with no stated gender (none, or `UNDISCLOSED`) chooses."
+    HostFrameItem:
+      type: object
+      description: "(v1.55-social, D186) The `HOST_ACTIVE` frame the caller owns now."
+      required: [code, assetKey, equipped]
+      properties:
+        code: { type: string, maxLength: 40, example: host_frame_blue }
+        assetKey: { type: string, maxLength: 60, example: host_frame_blue }
+        equipped: { type: boolean, description: "Worn now (worn and removed in the bag, `PUT /me/bag/equipped`)." }
+    HostFrame:
+      type: object
+      description: "(v1.55-social, D186, §10.49) The caller's active-host frame «إطار المضيف»: whether they are an agency host and pass the active-host test now, the style and where it comes from, and the frame owned now. The frame itself follows the agency sweeper (`AGENCY_SWEEP_INTERVAL_SECONDS`), joining or leaving an agency, a gender change and a style choice; `active` is computed at the time of the call, so it may run ahead of `frame` until the next sweep."
+      required: [agencyHost, active, liveDays, liveSeconds, style, styleFrom, canChoose, frame, rule]
+      properties:
+        agencyHost: { type: boolean, description: "The caller is an ACTIVE host of an agency (the frame needs one)." }
+        active: { type: boolean, description: "The caller passes the active-host test now (D179, §10.46): ≥ `rule.minDays` days with live time and ≥ `rule.minHours` hours live in the last `rule.windowDays` days, an ACTIVE account." }
+        liveDays: { type: integer, minimum: 0, description: "Days (in `LIVE_RANKINGS_TIME_ZONE`) with live time in the window; 0 when not an agency host." }
+        liveSeconds: { type: integer, minimum: 0, description: "Seconds live in the window; 0 when not an agency host." }
+        style:
+          description: "The style that applies: from the gender (MALE → BLUE, FEMALE → PINK) or the caller's choice; null while a host without a stated gender has not chosen (no frame until then)."
+          oneOf:
+            - $ref: '#/components/schemas/HostFrameStyle'
+            - type: 'null'
+        styleFrom:
+          type: [string, 'null']
+          enum: [GENDER, CHOICE, null]
+          description: "Where `style` comes from; null with `style`."
+        canChoose: { type: boolean, description: "The caller picks the style (no gender, or `UNDISCLOSED`): `setMyHostFrameStyle`. False for MALE and FEMALE." }
+        frame:
+          description: "The `HOST_ACTIVE` frame owned now, else null."
+          oneOf:
+            - $ref: '#/components/schemas/HostFrameItem'
+            - type: 'null'
+        rule:
+          type: object
+          required: [minDays, minHours, windowDays]
+          properties:
+            minDays: { type: integer, minimum: 1, example: 7 }
+            minHours: { type: integer, minimum: 1, example: 10 }
+            windowDays: { type: integer, minimum: 1, example: 30 }
+    SetHostFrameStyleRequest:
+      type: object
+      additionalProperties: false
+      required: [style]
+      properties:
+        style: { $ref: '#/components/schemas/HostFrameStyle' }
     # ---- v1.23-live (DRAFT, CP-020): live gifts -----------------------------------------------
     GiftCategory:
       type: string
