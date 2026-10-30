@@ -554,9 +554,15 @@ class _StoryPage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: KSpacing.sm),
-                  Text(
-                    when,
-                    style: t.caption.copyWith(color: const Color(0xCCFFFFFF)),
+                  // The age's length changes with the time ("منذ 23 ساعة"):
+                  // it shrinks with the name instead of overflowing at 360 dp.
+                  Flexible(
+                    child: Text(
+                      when,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: t.caption.copyWith(color: const Color(0xCCFFFFFF)),
+                    ),
                   ),
                   const Spacer(),
                   IconButton(
