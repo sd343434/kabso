@@ -25,7 +25,8 @@ export const BANNER_LINK_MAX = 512;
 export const BANNER_TITLE_SIDES = ['LEFT', 'RIGHT'] as const;
 export type BannerTitleSide = (typeof BANNER_TITLE_SIDES)[number];
 /** v1.27.4-live (D137): the live hub (3:1) or the promo box inside a live (3:4). */
-export const BANNER_PLACEMENTS = ['HOME', 'ROOM'] as const;
+/** v1.50-social (D176): `TASKS` is the Task Center's slot (a 3:1 picture, like `HOME`). */
+export const BANNER_PLACEMENTS = ['HOME', 'ROOM', 'TASKS'] as const;
 export type BannerPlacement = (typeof BANNER_PLACEMENTS)[number];
 /** `GET /home/banners` may be cached by the client for a minute (it is per language). */
 export const HOME_BANNERS_CACHE_CONTROL = 'private, max-age=60';
@@ -101,7 +102,7 @@ export function bannerFieldProblems(fields: BannerFields): string[] {
   }
   if (!BANNER_TITLE_SIDES.includes(fields.titleSide)) problems.push('--text-side is left or right');
   if (fields.placement !== undefined && !BANNER_PLACEMENTS.includes(fields.placement)) {
-    problems.push('--placement is home or room');
+    problems.push('--placement is home, room or tasks');
   }
   if (Number.isNaN(fields.startsAt.getTime())) problems.push('--starts is not a date');
   if (fields.endsAt !== null) {

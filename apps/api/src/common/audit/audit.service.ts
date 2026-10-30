@@ -94,6 +94,8 @@ export enum AuditAction {
   EVENT_END = 'event.end',
   EVENT_HOLD = 'event.hold',
   EVENT_RELEASE = 'event.release',
+  /** v1.50-social (D176): an event's calendar line, tone or «رائج» changed. */
+  EVENT_STYLE = 'event.style',
   TASK_UPDATE = 'task.update',
   // v1.28-live (DRAFT, D146): premium usernames and the username change (CONVENTIONS §10.32).
   USERNAME_CHANGE = 'user.username.change',

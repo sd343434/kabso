@@ -9,10 +9,17 @@
  *                   (--ends <ISO time> | --permanent) --metric <metric>
  *                   [--rules-ar <text>] [--rules-en <text>] [--audience everyone|hosts]
  *                   [--regions SA,EG] [--featured] [--banner <https URL>] [--prizes 1:5000,2:3000,3-10:500]
+ *                   [--summary-ar <text>] [--summary-en <text>] [--tone red|gold|teal|blue|pink|amber]
+ *   pnpm event:admin style <eventId> [--summary-ar <text>] [--summary-en <text>] [--tone <tone>|none]
+ *                   [--featured true|false]
  *   pnpm event:admin list             # every event with its state
  *   pnpm event:admin end <eventId>    # ends a running event now (the sweeper then freezes it)
  *   pnpm event:admin hold <eventId>   # stops the automatic prize payout (during the review)
  *   pnpm event:admin release <eventId>
+ *
+ * v1.50-social (D176): `--summary-ar` / `--summary-en` are the calendar bar's second line (a short prize
+ * line, ≤ 80 characters; empty clears it) and `--tone` its colour among Kabso's hues (none = a hue
+ * from the event's id). `style` changes them, and «رائج» (`--featured`), on an existing event.
  *
  * `<metric>` is gift_coins_received, gift_coins_sent, live_minutes, taps_received or new_followers.
  * Prizes are coins per rank (1–100); they are paid once, `EVENT_PRIZE_REVIEW_HOURS` (24) after the end,
@@ -35,7 +42,9 @@ const USAGE = [
   'Usage: pnpm event:admin create --title-ar <text> --title-en <text> --starts <ISO time>',
   '         (--ends <ISO time> | --permanent) --metric <metric> [--rules-ar <text>] [--rules-en <text>]',
   '         [--audience everyone|hosts] [--regions SA,EG] [--featured] [--banner <https URL>]',
-  '         [--prizes 1:5000,2:3000,3-10:500]',
+  '         [--prizes 1:5000,2:3000,3-10:500] [--summary-ar <text>] [--summary-en <text>] [--tone <tone>]',
+  '       pnpm event:admin style <eventId> [--summary-ar <text>] [--summary-en <text>] [--tone <tone>|none]',
+  '         [--featured true|false]',
   '       pnpm event:admin list',
   '       pnpm event:admin end|hold|release <eventId>',
 ].join('\n');
@@ -66,7 +75,36 @@ const OPTIONS = {
   featured: { type: 'boolean' },
   banner: { type: 'string' },
   prizes: { type: 'string' },
+  'summary-ar': { type: 'string' },
+  'summary-en': { type: 'string' },
+  tone: { type: 'string' },
 } as const;
+
+const STYLE_OPTIONS = {
+  'summary-ar': { type: 'string' },
+  'summary-en': { type: 'string' },
+  tone: { type: 'string' },
+  featured: { type: 'string' },
+} as const;
+
+/** The calendar tones (CHECK `events_style`). */
+const TONES = ['RED', 'GOLD', 'TEAL', 'BLUE', 'PINK', 'AMBER'] as const;
+
+/** `--tone`: one of TONES, or null for `none` (when allowed). */
+function tone(raw: string, allowNone: boolean): string | null {
+  const value = raw.trim().toUpperCase();
+  if (allowNone && value === 'NONE') return null;
+  if (!(TONES as readonly string[]).includes(value)) {
+    fail(`--tone is ${TONES.join(', ').toLowerCase()}${allowNone ? ' or none' : ''}.`);
+  }
+  return value;
+}
+
+/** A calendar summary line (≤ 80 characters); empty → null. */
+function summaryLine(raw: string | undefined, option: string): string | null {
+  const value = text(raw, option, 80, false);
+  return value === '' ? null : value;
+}
 
 function date(raw: string, option: string): Date {
   const value = new Date(raw);
@@ -122,6 +160,9 @@ async function create(args: readonly string[]): Promise<void> {
   }
   const prizes = parsePrizeText(str('prizes') ?? '');
   if (prizes === null) fail('--prizes is like 1:5000,2:3000,3-10:500 (ranks 1–100 in order, coins each).');
+  const summaryAr = summaryLine(str('summary-ar'), '--summary-ar');
+  const summaryEn = summaryLine(str('summary-en'), '--summary-en');
+  const toneValue = str('tone') === undefined ? null : tone(str('tone')!, false);
   const event = await prisma.$transaction(async (tx) => {
     const row = await tx.event.create({
       data: {
@@ -138,6 +179,9 @@ async function create(args: readonly string[]): Promise<void> {
         featured: values.featured === true,
         bannerUrl: banner ?? null,
         prizes: prizes.map((p) => ({ ...p })),
+        summaryAr,
+        summaryEn,
+        tone: toneValue,
       },
       select: { id: true },
     });
@@ -218,6 +262,49 @@ async function change(command: 'end' | 'hold' | 'release', id: string): Promise<
   process.stdout.write(`Event ${event.id}: ${command} done.\n`);
 }
 
+async function style(id: string, args: readonly string[]): Promise<void> {
+  let values: Partial<Record<keyof typeof STYLE_OPTIONS, string>>;
+  try {
+    ({ values } = parseArgs({
+      args: [...args],
+      options: STYLE_OPTIONS,
+      strict: true,
+      allowPositionals: false,
+    }));
+  } catch (err) {
+    fail(`${err instanceof Error ? err.message : String(err)}\n${USAGE}`);
+  }
+  if (!/^[0-9a-f-]{36}$/i.test(id)) fail(`No event ${id}.`);
+  const event = await prisma.event.findUnique({ where: { id: id.toLowerCase() }, select: { id: true } });
+  if (!event) fail(`No event ${id}.`);
+  const data: {
+    summaryAr?: string | null;
+    summaryEn?: string | null;
+    tone?: string | null;
+    featured?: boolean;
+  } = {};
+  if (values['summary-ar'] !== undefined) data.summaryAr = summaryLine(values['summary-ar'], '--summary-ar');
+  if (values['summary-en'] !== undefined) data.summaryEn = summaryLine(values['summary-en'], '--summary-en');
+  if (values.tone !== undefined) data.tone = tone(values.tone, true);
+  if (values.featured !== undefined) {
+    if (values.featured !== 'true' && values.featured !== 'false') fail('--featured is true or false.');
+    data.featured = values.featured === 'true';
+  }
+  if (Object.keys(data).length === 0) fail(`Nothing to change.\n${USAGE}`);
+  await prisma.$transaction(async (tx) => {
+    await tx.event.update({ where: { id: event.id }, data });
+    await tx.auditLog.create({
+      data: {
+        action: AuditAction.EVENT_STYLE,
+        targetType: 'event',
+        targetId: event.id,
+        metadata: { ...data, via: 'cli' },
+      },
+    });
+  });
+  process.stdout.write(`Event ${event.id}: style updated.\n`);
+}
+
 const [command, ...rest] = process.argv.slice(2);
 try {
   switch (command) {
@@ -228,6 +315,12 @@ try {
       if (rest.length > 0) fail(USAGE);
       await list();
       break;
+    case 'style': {
+      const [id, ...options] = rest;
+      if (!id) fail(USAGE);
+      await style(id, options);
+      break;
+    }
     case 'end':
     case 'hold':
     case 'release':
