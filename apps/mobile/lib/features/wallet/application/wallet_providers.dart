@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/core/state/paged_list.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/live/data/home_banners_repository.dart';
+import 'package:kabso_live/features/live/domain/home_banner.dart';
 import 'package:kabso_live/features/wallet/data/wallet_repository.dart';
 
 /// The caller's coin history, newest first (`GET /wallet/me/ledger`, D164).
@@ -44,3 +46,17 @@ final AsyncNotifierProvider<EarningHistoryController, FeedItems<Earning>>
 earningHistoryProvider = AsyncNotifierProvider.autoDispose(
   EarningHistoryController.new,
 );
+
+/// D177: the wallet page's promo banners (`GET /home/banners?placement=
+/// wallet`, openapi v1.51-social). A failure shows no banner slot.
+final FutureProvider<List<HomeBanner>> walletBannersProvider =
+    FutureProvider.autoDispose<List<HomeBanner>>((ref) async {
+      ref.watch(currentUserProvider.select((u) => u?.id));
+      try {
+        return await ref
+            .watch(homeBannersRepositoryProvider)
+            .listBanners(wallet: true);
+      } on Object {
+        return const [];
+      }
+    });

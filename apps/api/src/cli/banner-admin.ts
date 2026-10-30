@@ -9,7 +9,7 @@
  *   pnpm banner:admin add (--image <file> --owner <email> | --media <mediaId>) --link <link>
  *                   [--title-ar <text>] [--title-en <text>] [--text-side left|right]
  *                   [--starts <ISO time>] [--ends <ISO time>] [--sort <n>] [--disabled]
- *                   [--placement home|room|tasks]
+ *                   [--placement home|room|tasks|wallet]
  *   pnpm banner:admin list            # every banner: `+` shown now, `-` disabled, `~` outside its window
  *   pnpm banner:admin disable <id>
  *   pnpm banner:admin enable <id>
@@ -18,7 +18,8 @@
  * `--placement room` (v1.27.4-live, D137) makes it the promo box inside a live: `--image` is then
  * cover-cropped to 3:4 (600 × 800 and 240 × 320; design it at 600 × 800 px, shown ≈ 82 × 109 pt)
  * and `--media` is refused (a `HOME_BANNER` upload is 3:1). `--placement tasks` (v1.50-social, D176)
- * shows it at the bottom of the Task Center (3:1, like home).
+ * shows it at the bottom of the Task Center (3:1, like home). `--placement wallet` (v1.51-social,
+ * D177) shows it on the wallet page, with the same 3:1 picture as `home`.
  * `--image` reads a JPEG, PNG or WebP file, cover-crops it to 3:1 around the centre and stores
  * 1 500 × 500 and 320 × 107 WebP variants in object storage (it needs the `S3_*` settings and
  * `MEDIA_PUBLIC_BASE_URL` of the API); the picture is owned by the `--owner` account. `--media`
@@ -57,7 +58,7 @@ function fail(message: string): never {
 const USAGE = [
   'Usage: pnpm banner:admin add (--image <file> --owner <email> | --media <mediaId>) --link <link>',
   '         [--title-ar <text>] [--title-en <text>] [--text-side left|right]',
-  '         [--starts <ISO time>] [--ends <ISO time>] [--sort <n>] [--disabled] [--placement home|room|tasks]',
+  '         [--starts <ISO time>] [--ends <ISO time>] [--sort <n>] [--disabled] [--placement home|room|tasks|wallet]',
   '       pnpm banner:admin list',
   '       pnpm banner:admin disable|enable|remove <bannerId>',
 ].join('\n');
@@ -136,8 +137,8 @@ async function add(args: readonly string[]): Promise<void> {
   const side = (values['text-side'] ?? 'right').toUpperCase();
   if (side !== 'LEFT' && side !== 'RIGHT') fail('--text-side is left or right.');
   const placement = (values.placement ?? 'home').toUpperCase();
-  if (placement !== 'HOME' && placement !== 'ROOM' && placement !== 'TASKS') {
-    fail('--placement is home, room or tasks.');
+  if (placement !== 'HOME' && placement !== 'ROOM' && placement !== 'TASKS' && placement !== 'WALLET') {
+    fail('--placement is home, room, tasks or wallet.');
   }
   const sort = values.sort ?? '0';
   if (!/^(0|[1-9][0-9]{0,6})$/.test(sort)) fail('--sort is a whole number 0–1000000.');

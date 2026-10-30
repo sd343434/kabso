@@ -18,14 +18,18 @@ import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/creator/data/creator_repository.dart';
 import 'package:kabso_live/features/creator/presentation/creator_stats_screen.dart';
 import 'package:kabso_live/features/live/application/live_wallet_controller.dart';
-import 'package:kabso_live/features/profile/me_hub_screen.dart';
+import 'package:kabso_live/features/live/data/home_banners_repository.dart';
+import 'package:kabso_live/features/live/presentation/hub/home_banner_carousel.dart';
 import 'package:kabso_live/features/programs/data/programs_repository.dart';
 import 'package:kabso_live/features/wallet/data/wallet_repository.dart';
-import 'package:kabso_live/features/wallet/presentation/earnings_screen.dart';
+import 'package:kabso_live/features/wallet/presentation/wallet_cherry_tab.dart';
+import 'package:kabso_live/features/wallet/presentation/wallet_history_screen.dart';
+import 'package:kabso_live/features/wallet/presentation/wallet_parts.dart';
 import 'package:kabso_live/features/wallet/presentation/wallet_screen.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../helpers/fake_home_banners_repository.dart';
 import '../../helpers/fakes.dart';
 import '../../helpers/golden.dart';
 import '../../helpers/pump_app.dart';
@@ -116,13 +120,19 @@ class _FakeWallet implements WalletRepository {
 /// D166: the wallet's recharge packages (the rest of the programs are
 /// tested in programs_d166_test).
 class _FakePrograms implements ProgramsRepository {
-  @override
-  Future<RechargeOffer> rechargePackages() async => const RechargeOffer(
-    currency: 'USD',
-    purchasesEnabled: false,
-    packages: [
+  new({
+    this.packages = const [
       RechargePackage(id: 'p1', coins: 10, bonusCoins: 20, priceMinor: 29),
     ],
+  });
+
+  final List<RechargePackage> packages;
+
+  @override
+  Future<RechargeOffer> rechargePackages() async => RechargeOffer(
+    currency: 'USD',
+    purchasesEnabled: false,
+    packages: packages,
   );
 
   @override
@@ -149,7 +159,7 @@ class _FakePrograms implements ProgramsRepository {
       throw UnimplementedError();
 }
 
-/// D166: the coin history moved to the wallet's second tab.
+/// D177: the coin history is a page behind the gold card's button.
 Future<void> _openHistory(WidgetTester tester) async {
   await tester.tap(find.byKey(WalletScreen.historyButtonKey));
   await tester.pumpAndSettle();
@@ -205,6 +215,8 @@ Future<void> _pump(
   String location, {
   _FakeWallet? wallet,
   _FakeCreator? creator,
+  FakeHomeBannersRepository? banners,
+  _FakePrograms? programs,
   AppLanguage language = AppLanguage.en,
   GoldenViewport viewport = GoldenViewport.phone,
   double textScale = 1,
@@ -212,10 +224,23 @@ Future<void> _pump(
   final router = GoRouter(
     initialLocation: location,
     routes: [
-      GoRoute(path: AppRoutes.wallet, builder: (_, _) => const WalletScreen()),
+      GoRoute(
+        path: AppRoutes.wallet,
+        builder: (_, state) => WalletScreen(
+          initialTab: WalletTab.fromQuery(state.uri.queryParameters['tab']),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.walletHistory,
+        builder: (_, _) => const WalletHistoryScreen(),
+      ),
       GoRoute(
         path: AppRoutes.earnings,
-        builder: (_, _) => const EarningsScreen(),
+        redirect: (_, _) => AppRoutes.walletCherries,
+      ),
+      GoRoute(
+        path: '/families',
+        builder: (_, _) => const Text('page families'),
       ),
       GoRoute(
         path: AppRoutes.creatorStats,
@@ -240,7 +265,12 @@ Future<void> _pump(
         liveCoinsProvider.overrideWith(_Coins.new),
         walletRepositoryProvider.overrideWithValue(wallet ?? _FakeWallet()),
         creatorRepositoryProvider.overrideWithValue(creator ?? _FakeCreator()),
-        programsRepositoryProvider.overrideWithValue(_FakePrograms()),
+        programsRepositoryProvider.overrideWithValue(
+          programs ?? _FakePrograms(),
+        ),
+        homeBannersRepositoryProvider.overrideWithValue(
+          banners ?? FakeHomeBannersRepository(),
+        ),
       ],
       child: MaterialApp.router(
         routerConfig: router,
@@ -290,16 +320,24 @@ _FakeWallet _walletWithHistory() => _FakeWallet(
   },
 );
 
-/// The "Soon" button: disabled, labelled "…, coming soon", with the tag.
-void _expectSoon(WidgetTester tester, Key key, String label) {
-  final node = tester.getSemantics(find.byKey(key));
+/// D177: a wallet pill that is not available: disabled, labelled "…,
+/// coming soon", with the reason as its hint and under it.
+void _expectUnavailable(
+  WidgetTester tester,
+  Key key,
+  String label,
+  String reason,
+) {
+  final node = tester.getSemantics(
+    find
+        .descendant(of: find.byKey(key), matching: find.byType(Semantics))
+        .first,
+  );
   expect(node.label, _en.meHubSoonItem(label));
+  expect(node.hint, reason);
   expect(node.flagsCollection.isEnabled.toBoolOrNull(), isFalse);
   expect(
-    find.descendant(
-      of: find.byKey(key),
-      matching: find.byKey(MeHubScreen.soonKey),
-    ),
+    find.descendant(of: find.byKey(key), matching: find.text(reason)),
     findsOneWidget,
   );
 }
@@ -335,7 +373,7 @@ void main() {
       expect(find.text('-15'), findsOneWidget);
       expect(find.text(_en.walletBalanceAfter('1,150')), findsOneWidget);
       await tester.scrollUntilVisible(
-        find.byKey(WalletScreen.entryKey('l1')),
+        find.byKey(WalletHistoryScreen.entryKey('l1')),
         100,
         // D166: the wallet's tabs scroll too; the list is the last one.
         scrollable: find.byType(Scrollable).last,
@@ -344,24 +382,33 @@ void main() {
       // An unknown reason from a newer server reads as a plain change.
       expect(find.text(_en.walletReasonOther), findsOneWidget);
       expect(wallet.ledgerCalls, [null, 'c1']);
-      final top = tester.getTopLeft(find.byKey(WalletScreen.entryKey('l3')));
-      final next = tester.getTopLeft(find.byKey(WalletScreen.entryKey('l2')));
+      final top = tester.getTopLeft(
+        find.byKey(WalletHistoryScreen.entryKey('l3')),
+      );
+      final next = tester.getTopLeft(
+        find.byKey(WalletHistoryScreen.entryKey('l2')),
+      );
       expect(top.dy, lessThan(next.dy));
       semantics.dispose();
     });
 
-    testWidgets('recharge is honestly "Soon" and does nothing', (tester) async {
+    testWidgets('recharge is honestly unavailable and buys nothing', (
+      tester,
+    ) async {
       final semantics = tester.ensureSemantics();
       await _pump(tester, AppRoutes.wallet, wallet: _walletWithHistory());
-      // D166: the packages' button, disabled until payments exist (B5).
-      _expectSoon(
+      // D177: the gradient pill, disabled until payments exist (B5).
+      _expectUnavailable(
         tester,
         WalletScreen.rechargeKey,
         _en.walletGetCoins('30', r'$0.29'),
+        _en.walletPayUnavailable,
       );
-      expect(find.text(_en.walletRechargeSoon), findsOneWidget);
+      expect(find.text(_en.walletTotal('\u2068\$0.29\u2069')), findsOneWidget);
       await tester.tap(find.byKey(WalletScreen.rechargeKey));
       await tester.pumpAndSettle();
+      // A tap only repeats the reason; the page stays.
+      expect(find.text(_en.walletPayUnavailable), findsNWidgets(2));
       expect(find.byType(WalletScreen), findsOneWidget);
       semantics.dispose();
     });
@@ -371,7 +418,7 @@ void main() {
     ) async {
       await _pump(tester, AppRoutes.wallet);
       await _openHistory(tester);
-      expect(find.byKey(WalletScreen.emptyKey), findsOneWidget);
+      expect(find.byKey(WalletHistoryScreen.emptyKey), findsOneWidget);
       expect(find.text(_en.walletHistoryEmpty), findsOneWidget);
     });
 
@@ -383,27 +430,135 @@ void main() {
     });
   });
 
+  group('D177 gold coins and cherries', () {
+    testWidgets('two tabs; gold first with the coin, cherries on the tab', (
+      tester,
+    ) async {
+      await _pump(tester, AppRoutes.wallet, wallet: _walletWithHistory());
+      expect(find.text(_en.walletTabGold), findsOneWidget);
+      expect(find.text(_en.walletTabCherries), findsOneWidget);
+      expect(find.text(_en.walletGoldBalance), findsOneWidget);
+      expect(find.byKey(WalletCherryTab.totalKey), findsNothing);
+      await tester.tap(find.byKey(WalletTabs.tabKey(1)));
+      await tester.pumpAndSettle();
+      expect(find.text(_en.walletCherryBalance), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(WalletCherryTab.totalKey),
+          matching: find.byType(KCherryIcon),
+        ),
+        // The total, the last 7 and the last 30 days.
+        findsNWidgets(3),
+      );
+      expect(find.byKey(WalletScreen.rechargeKey), findsNothing);
+    });
+
+    testWidgets('/earnings opens the cherry tab', (tester) async {
+      await _pump(tester, AppRoutes.earnings, wallet: _walletWithHistory());
+      expect(find.byType(WalletScreen), findsOneWidget);
+      expect(find.byKey(WalletCherryTab.totalKey), findsOneWidget);
+    });
+
+    testWidgets('the history button opens the coin history page', (
+      tester,
+    ) async {
+      await _pump(tester, AppRoutes.wallet, wallet: _walletWithHistory());
+      await _openHistory(tester);
+      expect(find.byType(WalletHistoryScreen), findsOneWidget);
+      expect(find.text(_en.walletHistoryTitle), findsOneWidget);
+    });
+
+    testWidgets('no wallet banner: no slot; a banner shows and opens', (
+      tester,
+    ) async {
+      await _pump(tester, AppRoutes.wallet);
+      expect(find.byKey(WalletScreen.bannerKey), findsNothing);
+      final banners = FakeHomeBannersRepository(
+        walletBanners: sampleBanners(count: 1),
+      );
+      await _pump(tester, AppRoutes.wallet, banners: banners);
+      expect(find.byKey(WalletScreen.bannerKey), findsOneWidget);
+      await tester.tap(find.byKey(KHomeBannerCarousel.pageKey('banner-0')));
+      await tester.pumpAndSettle();
+      expect(find.text('page families'), findsOneWidget);
+    });
+
+    testWidgets('packages: selection, the discount ribbon, the struck '
+        'price, the rewards row and sheet', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await _pump(
+        tester,
+        AppRoutes.wallet,
+        programs: _FakePrograms(
+          packages: const [
+            RechargePackage(
+              id: 'p1',
+              coins: 10,
+              bonusCoins: 20,
+              priceMinor: 29,
+            ),
+            RechargePackage(id: 'p2', coins: 38, bonusCoins: 0, priceMinor: 99),
+            RechargePackage(
+              id: 'p3',
+              coins: 276,
+              bonusCoins: 28,
+              priceMinor: 699,
+              originalPriceMinor: 800,
+            ),
+          ],
+        ),
+      );
+      expect(find.text(_en.walletOffer), findsOneWidget);
+      expect(find.text(r'$8.00'), findsOneWidget);
+      expect(
+        tester
+            .getSemantics(find.byKey(WalletScreen.packageKey('p1')))
+            .flagsCollection
+            .isSelected
+            .toBoolOrNull(),
+        isTrue,
+      );
+      // The first package's bonus is the reward.
+      expect(find.byKey(WalletScreen.rewardsKey), findsOneWidget);
+      expect(find.text('x20'), findsOneWidget);
+      // No bonus: no rewards row.
+      await tester.tap(find.byKey(WalletScreen.packageKey('p2')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(WalletScreen.rewardsKey), findsNothing);
+      expect(find.text(_en.walletTotal('\u2068\$0.99\u2069')), findsOneWidget);
+      await tester.tap(find.byKey(WalletScreen.packageKey('p3')));
+      await tester.pumpAndSettle();
+      expect(find.text('x28'), findsOneWidget);
+      await tester.tap(find.byKey(WalletScreen.rewardsKey));
+      await tester.pumpAndSettle();
+      expect(find.byKey(WalletScreen.rewardsSheetKey), findsOneWidget);
+      expect(find.text('+28'), findsWidgets);
+      expect(find.text('304'), findsWidgets);
+      semantics.dispose();
+    });
+  });
+
   group('earnings', () {
     testWidgets('totals, the display-only note, and each send with its '
         'sender, place and share', (tester) async {
       await _pump(tester, AppRoutes.earnings, wallet: _walletWithHistory());
       expect(
         find.descendant(
-          of: find.byKey(EarningsScreen.totalKey),
+          of: find.byKey(WalletCherryTab.totalKey),
           matching: find.text('1,200'),
         ),
         findsOneWidget,
       );
       expect(
         find.descendant(
-          of: find.byKey(EarningsScreen.last7Key),
+          of: find.byKey(WalletCherryTab.last7Key),
           matching: find.text('114'),
         ),
         findsOneWidget,
       );
-      expect(find.text(_en.earnDisplayOnly), findsOneWidget);
+      expect(find.text(_en.walletCherryUnit), findsOneWidget);
       await tester.scrollUntilVisible(
-        find.byKey(EarningsScreen.entryKey('e1')),
+        find.byKey(WalletCherryTab.entryKey('e1')),
         100,
       );
       expect(find.text('+65'), findsNWidgets(2));
@@ -424,8 +579,12 @@ void main() {
     testWidgets('withdraw is honestly "Soon" (D149)', (tester) async {
       final semantics = tester.ensureSemantics();
       await _pump(tester, AppRoutes.earnings);
-      _expectSoon(tester, EarningsScreen.withdrawKey, _en.earnWithdraw);
-      expect(find.text(_en.earnWithdrawSoon), findsOneWidget);
+      _expectUnavailable(
+        tester,
+        WalletCherryTab.withdrawKey,
+        _en.walletWithdraw,
+        _en.earnWithdrawSoon,
+      );
       semantics.dispose();
     });
 
@@ -444,12 +603,15 @@ void main() {
       );
       expect(
         find.descendant(
-          of: find.byKey(EarningsScreen.totalKey),
+          of: find.byKey(WalletCherryTab.totalKey),
           matching: find.text('0'),
         ),
-        findsOneWidget,
+        findsNWidgets(3),
       );
-      await tester.scrollUntilVisible(find.byKey(EarningsScreen.emptyKey), 100);
+      await tester.scrollUntilVisible(
+        find.byKey(WalletCherryTab.emptyKey),
+        100,
+      );
       expect(find.text(_en.earnEmpty), findsOneWidget);
     });
 
@@ -602,6 +764,7 @@ void main() {
       for (final location in [
         AppRoutes.wallet,
         AppRoutes.earnings,
+        AppRoutes.walletHistory,
         AppRoutes.creatorStats,
       ]) {
         testWidgets(

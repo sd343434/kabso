@@ -3,6 +3,7 @@
 // (fakes here), loading / error / empty states, the task buttons' three
 // states, the disabled «الدفع قريباً» purchase, Arabic RTL and English LTR.
 
+import 'package:flutter/semantics.dart' show SemanticsNode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
@@ -19,6 +20,7 @@ import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/levels/application/levels_providers.dart';
 import 'package:kabso_live/features/levels/domain/level_models.dart';
 import 'package:kabso_live/features/live/application/live_wallet_controller.dart';
+import 'package:kabso_live/features/live/data/home_banners_repository.dart';
 import 'package:kabso_live/features/programs/data/programs_repository.dart';
 import 'package:kabso_live/features/programs/presentation/event_calendar.dart';
 import 'package:kabso_live/features/programs/presentation/event_center_screen.dart';
@@ -30,6 +32,7 @@ import 'package:kabso_live/features/wallet/presentation/wallet_screen.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../helpers/fake_home_banners_repository.dart';
 import '../../helpers/fakes.dart';
 import '../../helpers/golden.dart';
 import '../../helpers/pump_app.dart';
@@ -358,6 +361,9 @@ Future<void> _pump(
         liveCoinsProvider.overrideWith(_Coins.new),
         programsRepositoryProvider.overrideWithValue(programs),
         walletRepositoryProvider.overrideWithValue(_FakeWallet()),
+        homeBannersRepositoryProvider.overrideWithValue(
+          FakeHomeBannersRepository(),
+        ),
         myLevelsProvider.overrideWith((ref) => _levels()),
         ...extra,
       ],
@@ -725,24 +731,27 @@ void main() {
       expect(find.text(r'$6.99'), findsOneWidget);
       expect(find.text(r'$8.00'), findsOneWidget);
       expect(find.text(_en.walletOffer), findsOneWidget);
-      final node = tester.getSemantics(find.byKey(WalletScreen.rechargeKey));
-      expect(node.label, _en.meHubSoonItem(_en.walletGetCoins('30', r'$0.29')));
-      expect(node.flagsCollection.isEnabled.toBoolOrNull(), isFalse);
+      SemanticsNode pill() => tester.getSemantics(
+        find
+            .descendant(
+              of: find.byKey(WalletScreen.rechargeKey),
+              matching: find.byType(Semantics),
+            )
+            .first,
+      );
+      expect(
+        pill().label,
+        _en.meHubSoonItem(_en.walletGetCoins('30', r'$0.29')),
+      );
+      expect(pill().flagsCollection.isEnabled.toBoolOrNull(), isFalse);
       await tester.tap(find.byKey(WalletScreen.packageKey('p3')));
       await tester.pumpAndSettle();
       expect(
-        tester.getSemantics(find.byKey(WalletScreen.rechargeKey)).label,
+        pill().label,
         _en.meHubSoonItem(_en.walletGetCoins('304', r'$6.99')),
       );
-      expect(find.text(_en.walletRechargeSoon), findsOneWidget);
+      expect(find.text(_en.walletPayUnavailable), findsOneWidget);
       semantics.dispose();
-    });
-
-    testWidgets('the history icon opens the history tab', (tester) async {
-      await _pump(tester, const WalletScreen(), programs: _FakePrograms());
-      await tester.tap(find.byKey(WalletScreen.historyButtonKey));
-      await tester.pumpAndSettle();
-      expect(find.text(_en.walletReasonTaskReward), findsOneWidget);
     });
 
     testWidgets('no packages configured: an empty state', (tester) async {

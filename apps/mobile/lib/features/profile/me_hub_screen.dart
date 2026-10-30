@@ -179,7 +179,7 @@ class MeHubScreen extends ConsumerWidget {
         icon: Icons.payments_rounded,
         hue: _Hues.blue,
         label: l10n.meHubEarn,
-        onTap: () => push(AppRoutes.earnings),
+        onTap: () => push(AppRoutes.walletCherries),
       ),
     ];
 

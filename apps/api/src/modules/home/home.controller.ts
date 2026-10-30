@@ -46,18 +46,28 @@ export class HomeController {
     @Query('placement') placementParam?: unknown,
   ): Promise<{ data: HomeBannerDto[] }> {
     // v1.27.4-live (D137): `placement=home` (default) or `room` (the promo box inside a live);
-    // v1.50-social (D176): `tasks` (the Task Center's banner slot).
+    // v1.50-social (D176): `tasks` (the Task Center's banner slot); v1.51-social (D177): `wallet`
+    // (the wallet page).
     if (
       placementParam !== undefined &&
       placementParam !== 'home' &&
       placementParam !== 'room' &&
-      placementParam !== 'tasks'
+      placementParam !== 'tasks' &&
+      placementParam !== 'wallet'
     ) {
       throw AppException.validation([{ field: 'placement', issue: 'invalid_value' }]);
     }
-    const placement = placementParam === 'room' ? 'ROOM' : placementParam === 'tasks' ? 'TASKS' : 'HOME';
+    const placement =
+      placementParam === 'room'
+        ? 'ROOM'
+        : placementParam === 'tasks'
+          ? 'TASKS'
+          : placementParam === 'wallet'
+            ? 'WALLET'
+            : 'HOME';
     const caller = req.auth?.userId ?? null;
-    // D173: only the in-room promo is open without a token; HOME and TASKS (D176) need one.
+    // D173: only the in-room promo is open without a token; HOME, TASKS (D176) and WALLET (D177)
+    // need one.
     if (caller === null && placement !== 'ROOM') throw new AppException(ErrorCode.AUTH_UNAUTHENTICATED);
     const language =
       languageFromAcceptLanguage(req.headers['accept-language']) ??

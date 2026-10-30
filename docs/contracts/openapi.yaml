@@ -261,6 +261,8 @@ info:
     only); the Event Center's calendar bars get a second line and a tone (`EventSummary.summary`,
     `EventSummary.tone`); `listHomeBanners` takes `placement=tasks` (the Task Center's banner slot)
     (CONVENTIONS §10.41.1, §10.41.2).
+    **D177 (DRAFT v1.51-social)**: another promo banner placement, `wallet` (`listHomeBanners
+    ?placement=wallet`, 3:1), for the wallet page (CONVENTIONS §10.26).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -4628,7 +4630,7 @@ paths:
         caller's locale (§10.1), or null when the banner has none in that language (no fallback to
         the other language). *(v1.27.4-live, D137)* `placement=room` lists the banners of the promo
         box inside a live instead (3:4 pictures, 600 × 800); the default `home` is the live hub's
-        (3:1). `link` is one of the in-app routes `/cp/space`, `/families`,
+        (3:1). *(v1.51-social, D177)* `placement=wallet` lists the wallet page's banners (3:1, 1 500 × 500). `link` is one of the in-app routes `/cp/space`, `/families`,
         `/live?tab=trending|new|following`, `/home/room/{roomId}`, `/users/{username}` or an
         `https://` URL; a stored link that no longer passes these rules is left out. Signed-in
         callers only; the default per-user rate limit. The response carries
@@ -4636,14 +4638,14 @@ paths:
         *(v1.39-live, D173)* `placement=room` is also open to callers without a token (a guest
         watching a live: the owner wants the in-room banner shown to everyone), rate limited per IP
         like the other live guest reads; their `title` follows `Accept-Language`, else Arabic. The
-        live hub's `home` banners and the Task Center's `tasks` banners (v1.50-social, D176) stay
-        signed-in only (no token → 401); a token that is sent must be valid (else 401).
+        live hub's `home` banners, the Task Center's `tasks` banners (v1.50-social, D176) and the
+        wallet's `wallet` banners (v1.51-social, D177) stay signed-in only (no token → 401); a token that is sent must be valid (else 401).
       parameters:
         - name: placement
           in: query
           required: false
-          description: "v1.27.4-live (D137): `home` (default, the live hub) or `room` (the promo box in a live); v1.50-social (D176): `tasks` (the Task Center's banner slot, 3:1 like home). Anything else → 400 `placement` / `invalid_value`."
-          schema: { type: string, enum: [home, room, tasks], default: home }
+          description: "v1.27.4-live (D137): `home` (default, the live hub) or `room` (the promo box in a live); v1.50-social (D176): `tasks` (the Task Center's banner slot, 3:1 like home); v1.51-social (D177): `wallet` (the wallet page, 3:1 like `home`). Anything else → 400 `placement` / `invalid_value`."
+          schema: { type: string, enum: [home, room, tasks, wallet], default: home }
       responses:
         '200':
           description: The active banners (possibly empty).

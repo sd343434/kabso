@@ -77,7 +77,7 @@ import 'package:kabso_live/features/settings/settings_screen.dart';
 import 'package:kabso_live/features/stories/presentation/new_story_screen.dart';
 import 'package:kabso_live/features/stories/presentation/story_archive_screen.dart';
 import 'package:kabso_live/features/stories/presentation/story_viewer_screen.dart';
-import 'package:kabso_live/features/wallet/presentation/earnings_screen.dart';
+import 'package:kabso_live/features/wallet/presentation/wallet_history_screen.dart';
 import 'package:kabso_live/features/wallet/presentation/wallet_screen.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -334,10 +334,20 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const ChangeUsernameScreen(),
       ),
       // D164: the Me hub's wallet, earnings and creator center.
-      GoRoute(path: AppRoutes.wallet, builder: (_, _) => const WalletScreen()),
+      // D177: two tabs (gold coins, cherries); `/earnings` is the cherry tab.
+      GoRoute(
+        path: AppRoutes.wallet,
+        builder: (_, state) => WalletScreen(
+          initialTab: WalletTab.fromQuery(state.uri.queryParameters['tab']),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.walletHistory,
+        builder: (_, _) => const WalletHistoryScreen(),
+      ),
       GoRoute(
         path: AppRoutes.earnings,
-        builder: (_, _) => const EarningsScreen(),
+        redirect: (_, _) => AppRoutes.walletCherries,
       ),
       GoRoute(
         path: AppRoutes.creatorCenter,

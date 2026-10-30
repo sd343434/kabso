@@ -14847,7 +14847,7 @@ abstract class AppLocalizations {
   /// D166: the discount ribbon.
   ///
   /// In ar, this message translates to:
-  /// **'عرض'**
+  /// **'عرض كبير'**
   String get walletOffer;
 
   /// D166: the recharge button (disabled until payments exist, B5).
@@ -15119,6 +15119,90 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'عنصراً لحقيبتك'**
   String get notifBagItemGeneric;
+
+  /// D177: wallet tab, the spending currency (Kabi gold coin, D161).
+  ///
+  /// In ar, this message translates to:
+  /// **'العملات الذهبية'**
+  String get walletTabGold;
+
+  /// D177: wallet tab, the host currency (Kab Cherry, D134).
+  ///
+  /// In ar, this message translates to:
+  /// **'الكرز'**
+  String get walletTabCherries;
+
+  /// D177: under the gold balance.
+  ///
+  /// In ar, this message translates to:
+  /// **'رصيدي من العملات'**
+  String get walletGoldBalance;
+
+  /// D177: under the cherry total.
+  ///
+  /// In ar, this message translates to:
+  /// **'أرباحي من الكرز'**
+  String get walletCherryBalance;
+
+  /// D177: a cherry amount for screen readers.
+  ///
+  /// In ar, this message translates to:
+  /// **'{cherries} كرزة'**
+  String walletCherries(String cherries);
+
+  /// D177: what a cherry in the wallet means (earnings, 1:1 with the coin value of the host's share).
+  ///
+  /// In ar, this message translates to:
+  /// **'كل كرزة هنا تساوي عملة واحدة من حصتك من الهدايا. للعرض فقط: لا تُضاف إلى عملاتك.'**
+  String get walletCherryUnit;
+
+  /// D177: the selected package's bonus row and sheet title.
+  ///
+  /// In ar, this message translates to:
+  /// **'المكافآت'**
+  String get walletRewards;
+
+  /// D177: rewards sheet line.
+  ///
+  /// In ar, this message translates to:
+  /// **'العملات'**
+  String get walletRewardsBase;
+
+  /// D177: rewards sheet line.
+  ///
+  /// In ar, this message translates to:
+  /// **'المكافأة'**
+  String get walletRewardsBonus;
+
+  /// D177: rewards sheet line.
+  ///
+  /// In ar, this message translates to:
+  /// **'المجموع'**
+  String get walletRewardsTotal;
+
+  /// D177: the recharge pill's first line, before the coin icon and amount.
+  ///
+  /// In ar, this message translates to:
+  /// **'احصل على'**
+  String get walletGet;
+
+  /// D177: the recharge pill's second line.
+  ///
+  /// In ar, this message translates to:
+  /// **'المجموع: {total}'**
+  String walletTotal(String total);
+
+  /// D177: the recharge pill is disabled (B5: no payment method chosen).
+  ///
+  /// In ar, this message translates to:
+  /// **'الدفع غير متاح بعد'**
+  String get walletPayUnavailable;
+
+  /// D177: the cherry tab's withdraw pill (disabled, D149).
+  ///
+  /// In ar, this message translates to:
+  /// **'سحب'**
+  String get walletWithdraw;
 }
 
 class _AppLocalizationsDelegate
