@@ -184,6 +184,12 @@ model User {
   taskClaims          TaskClaim[]
   dailyCheckIns       DailyCheckIn[]
   eventResults        EventResult[]
+  // v1.52-social (D179): the cherry economy.
+  cherryWallet        CherryWallet?
+  cherryLedger        CherryLedgerEntry[]
+  ownedAgency         Agency?
+  agencyLinks         AgencyHost[]
+  cherryWithdrawals   CherryWithdrawal[]
 
   @@map("users")
 }
@@ -3246,4 +3252,218 @@ model EventResult {
   @@unique([eventId, userId], map: "event_results_user_once")
   @@index([userId], map: "event_results_user_idx")
   @@map("event_results")
+}
+
+// ---- v1.52-social (D179, CONVENTIONS §10.43): the cherry economy, phase 1 ----------------------------
+
+enum CherryLedgerReason {
+  GIFT_RECEIVED
+  AGENCY_COMMISSION
+  PARENT_COMMISSION
+  GIFT_REVERSAL
+  AGENCY_COMMISSION_REVERSAL
+  PARENT_COMMISSION_REVERSAL
+  WITHDRAWAL_HOLD
+  WITHDRAWAL_REFUND
+
+  @@map("cherry_ledger_reason")
+}
+
+enum AgencyRank {
+  NEW
+  AGENT
+  ADMIN
+  LAPSED
+
+  @@map("agency_rank")
+}
+
+enum AgencyHostStatus {
+  ACTIVE
+  LEFT
+  RELEASED
+  MOVED
+
+  @@map("agency_host_status")
+}
+
+enum AgencyComplaintStatus {
+  OPEN
+  RESOLVED
+  REJECTED
+
+  @@map("agency_complaint_status")
+}
+
+enum CherryWithdrawalStatus {
+  PENDING
+  PAID
+  REJECTED
+
+  @@map("cherry_withdrawal_status")
+}
+
+/// D179: a cherry balance (no row = 0); changed only with a `cherry_ledger` row. CHECK
+/// `cherry_wallets_range` (may be negative only after an admin reversal).
+model CherryWallet {
+  userId    String   @id @map("user_id") @db.Uuid
+  cherries  BigInt   @default(0)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("cherry_wallets")
+}
+
+/// D179: every change of a cherry balance, append-only; `(user, reason, reference)` once.
+model CherryLedgerEntry {
+  id           String             @id @default(uuid(7)) @db.Uuid
+  userId       String             @map("user_id") @db.Uuid
+  delta        BigInt
+  balanceAfter BigInt             @map("balance_after")
+  reason       CherryLedgerReason
+  referenceId  String             @map("reference_id") @db.VarChar(64)
+  createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, reason, referenceId], map: "cherry_ledger_reference_once")
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)], map: "cherry_ledger_user_created_idx")
+  @@index([referenceId], map: "cherry_ledger_reference_idx")
+  @@map("cherry_ledger")
+}
+
+/// D179: a host agency (created by an admin); `rankMonth` = the month of the last month-start
+/// evaluation, `evaluateFrom` = the first month start at which a NEW agency is evaluated.
+model Agency {
+  id             String     @id @default(uuid(7)) @db.Uuid
+  ownerUserId    String     @map("owner_user_id") @db.Uuid
+  inviteCode     String     @map("invite_code") @db.VarChar(12)
+  parentAgencyId String?    @map("parent_agency_id") @db.Uuid
+  rank           AgencyRank @default(NEW)
+  rankMonth      DateTime?  @map("rank_month") @db.Date
+  evaluateFrom   DateTime   @map("evaluate_from") @db.Date
+  createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  owner       User            @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  parent      Agency?         @relation("AgencyParent", fields: [parentAgencyId], references: [id], onDelete: SetNull)
+  subAgencies Agency[]        @relation("AgencyParent")
+  hosts       AgencyHost[]
+  earnings    AgencyEarning[]
+  months      AgencyMonth[]
+
+  @@unique([ownerUserId], map: "agencies_owner_once")
+  @@unique([inviteCode], map: "agencies_invite_code_key")
+  @@index([parentAgencyId], map: "agencies_parent_idx")
+  @@map("agencies")
+}
+
+/// D179: a host's link to an agency (one ACTIVE per host, partial unique `agency_hosts_one_active`).
+model AgencyHost {
+  id                 String           @id @default(uuid(7)) @db.Uuid
+  agencyId           String           @map("agency_id") @db.Uuid
+  hostUserId         String           @map("host_user_id") @db.Uuid
+  status             AgencyHostStatus @default(ACTIVE)
+  commissionEligible Boolean          @map("commission_eligible")
+  activatedAt        DateTime         @default(now()) @map("activated_at") @db.Timestamptz(3)
+  endedAt            DateTime?        @map("ended_at") @db.Timestamptz(3)
+
+  agency     Agency            @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  host       User              @relation(fields: [hostUserId], references: [id], onDelete: Cascade)
+  earnings   AgencyEarning[]
+  complaints AgencyComplaint[]
+
+  @@unique([hostUserId], map: "agency_hosts_one_active", where: raw("status = 'ACTIVE'::agency_host_status"))
+  @@index([agencyId, status, activatedAt(sort: Desc)], map: "agency_hosts_agency_idx")
+  @@index([hostUserId, activatedAt(sort: Desc)], map: "agency_hosts_host_idx")
+  @@map("agency_hosts")
+}
+
+/// D179: a linked host's cherries from one send and the commissions paid on them.
+model AgencyEarning {
+  id               String    @id @default(uuid(7)) @db.Uuid
+  giftId           String    @map("gift_id") @db.Uuid
+  agencyId         String    @map("agency_id") @db.Uuid
+  agencyHostId     String    @map("agency_host_id") @db.Uuid
+  hostUserId       String    @map("host_user_id") @db.Uuid
+  hostCherries     BigInt    @map("host_cherries")
+  rateBps          Int       @map("rate_bps")
+  commission       BigInt
+  parentAgencyId   String?   @map("parent_agency_id") @db.Uuid
+  parentRateBps    Int       @map("parent_rate_bps")
+  parentCommission BigInt    @map("parent_commission")
+  month            DateTime  @db.Date
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  reversedAt       DateTime? @map("reversed_at") @db.Timestamptz(3)
+
+  agency Agency     @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  link   AgencyHost @relation(fields: [agencyHostId], references: [id], onDelete: Cascade)
+
+  @@unique([giftId, hostUserId], map: "agency_earnings_once")
+  @@index([agencyId, month, hostUserId], map: "agency_earnings_agency_month_idx")
+  @@index([agencyHostId], map: "agency_earnings_link_idx")
+  @@index([parentAgencyId, month], map: "agency_earnings_parent_idx")
+  @@map("agency_earnings")
+}
+
+/// D179: an agency's month totals (hosts' cherries, commission, parent commission).
+model AgencyMonth {
+  agencyId         String   @map("agency_id") @db.Uuid
+  month            DateTime @db.Date
+  hostCherries     BigInt   @default(0) @map("host_cherries")
+  commission       BigInt   @default(0)
+  parentCommission BigInt   @default(0) @map("parent_commission")
+
+  agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  @@id([agencyId, month], map: "agency_months_pkey")
+  @@map("agency_months")
+}
+
+/// D179: a host's complaint after the leave window (resolved by an admin with economy-admin).
+model AgencyComplaint {
+  id           String                @id @default(uuid(7)) @db.Uuid
+  agencyHostId String                @map("agency_host_id") @db.Uuid
+  hostUserId   String                @map("host_user_id") @db.Uuid
+  agencyId     String                @map("agency_id") @db.Uuid
+  text         String                @db.VarChar(1000)
+  status       AgencyComplaintStatus @default(OPEN)
+  resolution   String?               @db.VarChar(10)
+  note         String?               @db.VarChar(500)
+  createdAt    DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  resolvedAt   DateTime?             @map("resolved_at") @db.Timestamptz(3)
+
+  link AgencyHost @relation(fields: [agencyHostId], references: [id], onDelete: Cascade)
+
+  @@unique([agencyHostId], map: "agency_complaints_one_open", where: raw("status = 'OPEN'::agency_complaint_status"))
+  @@index([status, createdAt], map: "agency_complaints_status_idx")
+  @@index([agencyId], map: "agency_complaints_agency_idx")
+  @@index([hostUserId], map: "agency_complaints_host_idx")
+  @@map("agency_complaints")
+}
+
+/// D179: a withdrawal request, paid by hand by an admin (no payment provider yet).
+model CherryWithdrawal {
+  id            String                 @id @default(uuid(7)) @db.Uuid
+  userId        String                 @map("user_id") @db.Uuid
+  clientId      String                 @map("client_id") @db.Uuid
+  cherries      BigInt
+  amountMinor   BigInt                 @map("amount_minor")
+  currency      String                 @db.Char(3)
+  rateCherries  BigInt                 @map("rate_cherries")
+  rateMinor     Int                    @map("rate_minor")
+  payoutDetails String                 @map("payout_details") @db.VarChar(500)
+  status        CherryWithdrawalStatus @default(PENDING)
+  createdAt     DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  decidedAt     DateTime?              @map("decided_at") @db.Timestamptz(3)
+  decisionNote  String?                @map("decision_note") @db.VarChar(500)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, clientId], map: "cherry_withdrawals_client_once")
+  @@unique([userId], map: "cherry_withdrawals_one_pending", where: raw("status = 'PENDING'::cherry_withdrawal_status"))
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)], map: "cherry_withdrawals_user_created_idx")
+  @@index([status, createdAt], map: "cherry_withdrawals_status_idx")
+  @@map("cherry_withdrawals")
 }

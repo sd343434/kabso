@@ -181,6 +181,28 @@ export interface AppConfig {
     readonly messagesGapSeconds: number;
   };
   /** v1.40-social (D155) direct messages (CONVENTIONS §11.13). */
+  /** v1.52-social (D179): the cherry economy (CONVENTIONS §10.43). */
+  readonly economy: {
+    readonly cherriesPerCoin: number;
+    readonly agencyCommissionBps: number;
+    readonly agencyTierCommissionBps: number;
+    readonly agencyTierMonthlyCherries: number;
+    readonly parentCommissionBps: number;
+    readonly rankMinActiveHosts: number;
+    readonly rankExceptionCherries: number;
+    readonly adminMinSubAgencies: number;
+    readonly activeHostMinDays: number;
+    readonly activeHostMinHours: number;
+    readonly activeHostWindowDays: number;
+    readonly leaveDays: number;
+    readonly sweepIntervalSeconds: number;
+    /** `rateCherries` cherries are paid `rateMinor` minor units of `currency`. */
+    readonly rateCherries: number;
+    readonly rateMinor: number;
+    readonly currency: string;
+    readonly minWithdrawalMinor: number;
+    readonly payoutDays: number;
+  };
   readonly dm: {
     readonly retentionHours: number;
     /** 0 = sweeper disabled (tests; refused in production). */
@@ -451,6 +473,26 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       dispatchIntervalMs: e.PUSH_DISPATCH_INTERVAL_MS,
       generalGapSeconds: e.PUSH_GENERAL_GAP_SECONDS,
       messagesGapSeconds: e.PUSH_MESSAGES_GAP_SECONDS,
+    },
+    economy: {
+      cherriesPerCoin: e.CHERRIES_PER_COIN,
+      agencyCommissionBps: e.AGENCY_COMMISSION_BPS,
+      agencyTierCommissionBps: e.AGENCY_COMMISSION_TIER_BPS,
+      agencyTierMonthlyCherries: e.AGENCY_TIER_MONTHLY_CHERRIES,
+      parentCommissionBps: e.AGENCY_PARENT_COMMISSION_BPS,
+      rankMinActiveHosts: e.AGENCY_RANK_MIN_ACTIVE_HOSTS,
+      rankExceptionCherries: e.AGENCY_RANK_EXCEPTION_CHERRIES,
+      adminMinSubAgencies: e.AGENCY_ADMIN_MIN_SUB_AGENCIES,
+      activeHostMinDays: e.AGENCY_ACTIVE_HOST_MIN_DAYS,
+      activeHostMinHours: e.AGENCY_ACTIVE_HOST_MIN_HOURS,
+      activeHostWindowDays: e.AGENCY_ACTIVE_HOST_WINDOW_DAYS,
+      leaveDays: e.AGENCY_LEAVE_DAYS,
+      sweepIntervalSeconds: e.AGENCY_SWEEP_INTERVAL_SECONDS,
+      rateCherries: e.CHERRY_PAYOUT_RATE.cherries,
+      rateMinor: e.CHERRY_PAYOUT_RATE.minor,
+      currency: e.CHERRY_PAYOUT_CURRENCY,
+      minWithdrawalMinor: e.CHERRY_WITHDRAWAL_MIN_MINOR,
+      payoutDays: e.CHERRY_WITHDRAWAL_PAYOUT_DAYS,
     },
     dm: {
       retentionHours: e.DM_RETENTION_HOURS,

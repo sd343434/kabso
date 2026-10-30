@@ -124,6 +124,16 @@ export enum ErrorCode {
   TASK_NOT_COMPLETED = 'TASK_NOT_COMPLETED',
   /** v1.44-social (DRAFT, D166): the caller already got the day's task and check-in coins cap. */
   TASK_DAILY_CAP_REACHED = 'TASK_DAILY_CAP_REACHED',
+  /** v1.52-social (DRAFT, D179): the caller is already a host of another agency. */
+  AGENCY_ALREADY_MEMBER = 'AGENCY_ALREADY_MEMBER',
+  /** v1.52-social (DRAFT, D179): an agency's owner cannot join an agency as a host. */
+  AGENCY_JOIN_NOT_ALLOWED = 'AGENCY_JOIN_NOT_ALLOWED',
+  /** v1.52-social (DRAFT, D179): the leave window is over; only a complaint to the admin remains. */
+  AGENCY_LEAVE_WINDOW_CLOSED = 'AGENCY_LEAVE_WINDOW_CLOSED',
+  /** v1.52-social (DRAFT, D179): the cherry balance does not cover the withdrawal. */
+  INSUFFICIENT_CHERRIES = 'INSUFFICIENT_CHERRIES',
+  /** v1.52-social (DRAFT, D179): the caller already has a withdrawal waiting to be paid. */
+  WITHDRAWAL_PENDING = 'WITHDRAWAL_PENDING',
 }
 
 /** HTTP status for every code (CONVENTIONS.md §4 table). */
@@ -199,6 +209,11 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.CP_PRIVILEGE_LOCKED]: 403,
   [ErrorCode.TASK_NOT_COMPLETED]: 409,
   [ErrorCode.TASK_DAILY_CAP_REACHED]: 409,
+  [ErrorCode.AGENCY_ALREADY_MEMBER]: 409,
+  [ErrorCode.AGENCY_JOIN_NOT_ALLOWED]: 409,
+  [ErrorCode.AGENCY_LEAVE_WINDOW_CLOSED]: 409,
+  [ErrorCode.INSUFFICIENT_CHERRIES]: 409,
+  [ErrorCode.WITHDRAWAL_PENDING]: 409,
 };
 
 /** Default developer-facing messages (clients localize by `code`, not by message). */
@@ -274,6 +289,11 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.YOUTUBE_SEARCH_UNAVAILABLE]: 'YouTube search is not available; paste a link instead.',
   [ErrorCode.TASK_NOT_COMPLETED]: 'That task is not completed yet.',
   [ErrorCode.TASK_DAILY_CAP_REACHED]: 'You already got today’s maximum of task coins.',
+  [ErrorCode.AGENCY_ALREADY_MEMBER]: 'You are already a host of another agency.',
+  [ErrorCode.AGENCY_JOIN_NOT_ALLOWED]: 'An agency owner cannot join an agency as a host.',
+  [ErrorCode.AGENCY_LEAVE_WINDOW_CLOSED]: 'The leave window is over; send a complaint to the admin.',
+  [ErrorCode.INSUFFICIENT_CHERRIES]: 'Not enough cherries for that withdrawal.',
+  [ErrorCode.WITHDRAWAL_PENDING]: 'You already have a withdrawal waiting to be paid.',
 };
 
 export interface ErrorDetail {

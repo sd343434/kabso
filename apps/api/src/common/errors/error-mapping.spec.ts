@@ -105,6 +105,12 @@ describe('ErrorCode', () => {
         // v1.44-social (DRAFT, D166)
         'TASK_NOT_COMPLETED',
         'TASK_DAILY_CAP_REACHED',
+        // v1.52-social (DRAFT, D179)
+        'AGENCY_ALREADY_MEMBER',
+        'AGENCY_JOIN_NOT_ALLOWED',
+        'AGENCY_LEAVE_WINDOW_CLOSED',
+        'INSUFFICIENT_CHERRIES',
+        'WITHDRAWAL_PENDING',
       ].sort(),
     );
     expect(ERROR_HTTP_STATUS).toMatchObject({
@@ -176,6 +182,11 @@ describe('ErrorCode', () => {
       YOUTUBE_SEARCH_UNAVAILABLE: 503,
       TASK_NOT_COMPLETED: 409,
       TASK_DAILY_CAP_REACHED: 409,
+      AGENCY_ALREADY_MEMBER: 409,
+      AGENCY_JOIN_NOT_ALLOWED: 409,
+      AGENCY_LEAVE_WINDOW_CLOSED: 409,
+      INSUFFICIENT_CHERRIES: 409,
+      WITHDRAWAL_PENDING: 409,
     });
   });
 

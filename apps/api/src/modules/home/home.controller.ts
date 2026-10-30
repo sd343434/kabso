@@ -29,7 +29,12 @@ export class HomeController {
   ): Promise<{ data: HomeBannerDto[] }> {
     // v1.27.4-live (D137): `placement=home` (default) or `room` (the promo box inside a live);
     // v1.51-social (D177): `wallet` (the wallet page).
-    if (placementParam !== undefined && placementParam !== 'home' && placementParam !== 'room' && placementParam !== 'wallet') {
+    if (
+      placementParam !== undefined &&
+      placementParam !== 'home' &&
+      placementParam !== 'room' &&
+      placementParam !== 'wallet'
+    ) {
       throw AppException.validation([{ field: 'placement', issue: 'invalid_value' }]);
     }
     const placement = placementParam === 'room' ? 'ROOM' : placementParam === 'wallet' ? 'WALLET' : 'HOME';
