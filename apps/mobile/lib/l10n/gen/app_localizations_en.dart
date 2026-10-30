@@ -8593,4 +8593,34 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get notifBagItemGeneric => 'an item for your bag';
+
+  @override
+  String get bagTabTools => 'Tools';
+
+  @override
+  String get bagTabItems => 'Item Bag';
+
+  @override
+  String get bagInUse => 'Tools in use';
+
+  @override
+  String get bagAllTools => 'All tools';
+
+  @override
+  String get bagUse => 'Use';
+
+  @override
+  String get bagNothingWorn => 'None';
+
+  @override
+  String get bagItemsEmptyTitle => 'No items yet';
+
+  @override
+  String get bagItemsEmptyMessage =>
+      'Gifts you own appear here; send them from the gift panel in a live.';
+
+  @override
+  String bagGiftQuantity(int count) {
+    return '×$count';
+  }
 }

@@ -8620,4 +8620,34 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get notifBagItemGeneric => 'عنصراً لحقيبتك';
+
+  @override
+  String get bagTabTools => 'الأدوات';
+
+  @override
+  String get bagTabItems => 'الحقيبة';
+
+  @override
+  String get bagInUse => 'قيد الاستخدام';
+
+  @override
+  String get bagAllTools => 'كل الأدوات';
+
+  @override
+  String get bagUse => 'استخدام';
+
+  @override
+  String get bagNothingWorn => 'لا شيء';
+
+  @override
+  String get bagItemsEmptyTitle => 'لا توجد عناصر بعد';
+
+  @override
+  String get bagItemsEmptyMessage =>
+      'الهدايا التي تملكها تظهر هنا، وتُرسل من لوحة الهدايا في البث.';
+
+  @override
+  String bagGiftQuantity(int count) {
+    return '×$count';
+  }
 }

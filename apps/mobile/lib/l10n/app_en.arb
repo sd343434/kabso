@@ -2764,5 +2764,14 @@
   "errorBagRecipientHasPermanent": "They already own this item permanently.",
   "notifBagItemReceived": "{who} sent you {item}",
   "notifBagItemProfileCard": "a profile card",
-  "notifBagItemGeneric": "an item for your bag"
+  "notifBagItemGeneric": "an item for your bag",
+  "bagTabTools": "Tools",
+  "bagTabItems": "Item Bag",
+  "bagInUse": "Tools in use",
+  "bagAllTools": "All tools",
+  "bagUse": "Use",
+  "bagNothingWorn": "None",
+  "bagItemsEmptyTitle": "No items yet",
+  "bagItemsEmptyMessage": "Gifts you own appear here; send them from the gift panel in a live.",
+  "bagGiftQuantity": "×{count}"
 }

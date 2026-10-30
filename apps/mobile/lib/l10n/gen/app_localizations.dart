@@ -14778,6 +14778,60 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'عنصراً لحقيبتك'**
   String get notifBagItemGeneric;
+
+  /// D180: the bag in the layout of the owner reference.
+  ///
+  /// In ar, this message translates to:
+  /// **'الأدوات'**
+  String get bagTabTools;
+
+  /// D180: the bag in the layout of the owner reference.
+  ///
+  /// In ar, this message translates to:
+  /// **'الحقيبة'**
+  String get bagTabItems;
+
+  /// D180: the bag in the layout of the owner reference.
+  ///
+  /// In ar, this message translates to:
+  /// **'قيد الاستخدام'**
+  String get bagInUse;
+
+  /// D180: the bag in the layout of the owner reference.
+  ///
+  /// In ar, this message translates to:
+  /// **'كل الأدوات'**
+  String get bagAllTools;
+
+  /// D180: the bag in the layout of the owner reference.
+  ///
+  /// In ar, this message translates to:
+  /// **'استخدام'**
+  String get bagUse;
+
+  /// D180: the bag in the layout of the owner reference.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا شيء'**
+  String get bagNothingWorn;
+
+  /// D180: the bag in the layout of the owner reference.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد عناصر بعد'**
+  String get bagItemsEmptyTitle;
+
+  /// D180: the bag in the layout of the owner reference.
+  ///
+  /// In ar, this message translates to:
+  /// **'الهدايا التي تملكها تظهر هنا، وتُرسل من لوحة الهدايا في البث.'**
+  String get bagItemsEmptyMessage;
+
+  /// D180: the bag in the layout of the owner reference.
+  ///
+  /// In ar, this message translates to:
+  /// **'×{count}'**
+  String bagGiftQuantity(int count);
 }
 
 class _AppLocalizationsDelegate
