@@ -207,6 +207,7 @@ model User {
   rechargePurchases      RechargeSale[]             @relation("RechargeSaleBuyer")
   rechargeEmployments    RechargeEmployee[]
   rechargeCherrySales    RechargeCherryRequest[]
+  specialUsernames       SpecialUsername[]
 
   @@map("users")
 }
@@ -3900,4 +3901,51 @@ model RechargeCherryRequest {
   @@index([hostUserId, createdAt(sort: Desc), id(sort: Desc)], map: "recharge_cherry_requests_host_idx")
   @@index([agentUserId, hostUserId, status], map: "recharge_cherry_requests_pair_idx")
   @@map("recharge_cherry_requests")
+}
+
+// ---- v1.54-social (D185, CONVENTIONS §10.48.1): the special-username layer «يوزر مميز» --------------------
+
+enum SpecialUsernameSource {
+  RECHARGE_AGENT
+  ADMIN_GIFT
+  PURCHASE
+
+  @@map("special_username_source")
+}
+
+enum SpecialUsernameStatus {
+  ACTIVE
+  GRACE
+  ENDED
+
+  @@map("special_username_status")
+}
+
+/// D185: a special username. While ACTIVE it is `user_profiles.username` and `baseUsername` is the person's
+/// own username, kept for them. GRACE: ended, the name still reserved for the person until `graceUntil`
+/// (null = forever: the `coin` names).
+model SpecialUsername {
+  id           String                @id @default(uuid(7)) @db.Uuid
+  userId       String                @map("user_id") @db.Uuid
+  username     String                @db.VarChar(30)
+  baseUsername String                @map("base_username") @db.VarChar(30)
+  source       SpecialUsernameSource
+  status       SpecialUsernameStatus @default(ACTIVE)
+  locked       Boolean               @default(true)
+  grantedAt    DateTime              @default(now()) @map("granted_at") @db.Timestamptz(3)
+  expiresAt    DateTime?             @map("expires_at") @db.Timestamptz(3)
+  graceUntil   DateTime?             @map("grace_until") @db.Timestamptz(3)
+  endedAt      DateTime?             @map("ended_at") @db.Timestamptz(3)
+  endReason    String?               @map("end_reason") @db.VarChar(20)
+  reason       String?               @db.VarChar(500)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId], map: "special_usernames_one_active", where: raw("status = 'ACTIVE'::special_username_status"))
+  @@unique([username], map: "special_usernames_name_held", where: raw("status = ANY (ARRAY['ACTIVE'::special_username_status, 'GRACE'::special_username_status])"))
+  @@unique([baseUsername], map: "special_usernames_base_held", where: raw("status = 'ACTIVE'::special_username_status"))
+  @@unique([username], map: "special_usernames_coin_once", where: raw("(username)::text ~ '^coin[0-9]+$'::text"))
+  @@index([userId, grantedAt(sort: Desc)], map: "special_usernames_user_idx")
+  @@index([status, expiresAt, graceUntil], map: "special_usernames_due_idx")
+  @@map("special_usernames")
 }

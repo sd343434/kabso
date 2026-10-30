@@ -9589,5 +9589,15 @@
   "errorRechargeCherryRequestClosed": "هذا الطلب لم يعد مفتوحاً.",
   "@errorRechargeCherryRequestClosed": {"description": "D185 recharge agents"},
   "errorRechargeCherryCapReached": "بلغ الوكيل حدّه اليومي من الكرز.",
-  "@errorRechargeCherryCapReached": {"description": "D185 recharge agents"}
+  "@errorRechargeCherryCapReached": {"description": "D185 recharge agents"},
+  "errorUsernameLocked": "اسم المستخدم مقفل ما دام اليوزر المميز فعّالاً.",
+  "@errorUsernameLocked": {"description": "D185 special usernames"},
+  "settingsUsernameLocked": "مقفل",
+  "@settingsUsernameLocked": {"description": "D185 special usernames"},
+  "settingsBaseUsername": "اسمك الأساسي: {username}",
+  "@settingsBaseUsername": {"description": "D185 special usernames", "placeholders": {"username": {"type": "String"}}},
+  "changeUsernameSpecialLocked": "{special} يوزر مميز مقفل، ولا يمكن تغييره ما دام فعّالاً. يراه الجميع وحده؛ اسمك الأساسي {base} لا يراه غيرك، ويمكنك تسجيل الدخول به.",
+  "@changeUsernameSpecialLocked": {"description": "D185 special usernames", "placeholders": {"special": {"type": "String"}, "base": {"type": "String"}}},
+  "changeUsernameSpecialEnds": "ينتهي في {date}، ثم يعود اسمك الأساسي.",
+  "@changeUsernameSpecialEnds": {"description": "D185 special usernames", "placeholders": {"date": {"type": "String"}}}
 }

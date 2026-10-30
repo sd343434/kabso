@@ -2,7 +2,7 @@
  * Recharge agents «وكلاء الشحن» from the command line (v1.54-social, D185, CONVENTIONS §10.48). There is no admin
  * UI: the team reads applications (private: every view is audited), approves or rejects them, records the
  * wholesale top-ups paid outside the app (the first one ≥ 30 000 000 coins activates the agent and gives the
- * next code `coin0001` …), suspends and reinstates agents, sets an agent's daily cherry cap and runs the
+ * next code `coin0001` …, which also becomes their username — special, locked), suspends and reinstates agents, sets an agent's daily cherry cap and runs the
  * retention step. Runs as the MIGRATION role (MIGRATION_DATABASE_URL), like `economy-admin`: on the server
  * `docker compose --profile jobs run --rm migrate node dist/cli/recharge-admin.js …`, locally
  * `pnpm recharge:admin …`. Reading or deleting the private pictures needs the API's `S3_*` settings.
@@ -67,6 +67,11 @@ function setting<K extends keyof typeof envSchema.shape>(key: K): unknown {
   const parsed = envSchema.shape[key].safeParse(process.env[key]);
   if (!parsed.success) fail(`${key} is invalid: ${parsed.error.issues[0]?.message ?? 'bad value'}`);
   return parsed.data;
+}
+
+/** D185 (§10.48.1): how long a special username stays the person's after it ends. */
+function graceDays(): number {
+  return setting('SPECIAL_USERNAME_GRACE_DAYS') as number;
 }
 
 function storageFromEnv(): ObjectStorage | null {
@@ -246,7 +251,7 @@ try {
         currency: 'USD',
       };
       const r = await run(() =>
-        prisma.$transaction((tx) => topUpIn(tx, agent, BigInt(b), paid, note, rules, now)),
+        prisma.$transaction((tx) => topUpIn(tx, agent, BigInt(b), paid, note, rules, now, graceDays())),
       );
       process.stdout.write(
         `Top-up ${r.topupId}: ${b} coins, tier ${r.tier} (${String(r.minorPerMillion)} cents / 1M, expected ${String(
@@ -258,13 +263,15 @@ try {
     case 'suspend': {
       const agent = await agentId(a);
       const reason = text(values.reason, '--reason');
-      await run(() => prisma.$transaction((tx) => suspendIn(tx, agent, reason, now)));
-      process.stdout.write('Suspended: no selling, no listing, no frame, badge or entrance.\n');
+      await run(() => prisma.$transaction((tx) => suspendIn(tx, agent, reason, now, graceDays())));
+      process.stdout.write(
+        'Suspended: no selling, no listing, no frame, badge or entrance; the own username is shown again.\n',
+      );
       break;
     }
     case 'reinstate': {
       const agent = await agentId(a);
-      const status = await run(() => prisma.$transaction((tx) => reinstateIn(tx, agent, now)));
+      const status = await run(() => prisma.$transaction((tx) => reinstateIn(tx, agent, now, graceDays())));
       process.stdout.write(`Reinstated: ${status}.\n`);
       break;
     }

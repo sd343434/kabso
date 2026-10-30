@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
+import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/format/k_handle.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
@@ -28,6 +29,7 @@ class ChangeUsernameScreen extends ConsumerStatefulWidget {
   static const saveKey = Key('changeUsername.save');
   static const premiumHintKey = Key('changeUsername.premiumHint');
   static const premiumActiveKey = Key('changeUsername.premiumActive');
+  static const specialLockedKey = Key('changeUsername.specialLocked');
 
   @override
   ConsumerState<ChangeUsernameScreen> createState() =>
@@ -77,6 +79,11 @@ class _ChangeUsernameScreenState extends ConsumerState<ChangeUsernameScreen> {
             usernameIssueMessage(l10n, AuthValidators.issueFromWire(issue)) ??
             failureMessage(l10n, failure);
       } else if (failure is ServerFailure &&
+          failure.code == ErrorCode.usernameLocked) {
+        // D185: a special username became active meanwhile — show it.
+        ref.invalidate(meProvider);
+        message = failureMessage(l10n, failure);
+      } else if (failure is ServerFailure &&
           failure.code == ErrorCode.usernameTaken) {
         message = l10n.usernameTaken(name);
         ref.read(usernameAvailabilityProvider.notifier).markTaken(name);
@@ -97,12 +104,17 @@ class _ChangeUsernameScreenState extends ConsumerState<ChangeUsernameScreen> {
     final user = ref.watch(currentUserProvider);
     final premium = ref.watch(myPremiumProvider).value;
     final activePremium = premium != null && !premium.grace;
+    // D185 (§10.48.1): a locked special username (e.g. a recharge agent's
+    // coin0007) cannot be changed while it is active.
+    final special = user?.specialUsername;
+    final lockedSpecial = special != null && special.locked;
     final issue = _controller.text.isEmpty
         ? null
         : AuthValidators.usernameIssue(_value);
     final status = ref.watch(usernameAvailabilityProvider);
     final same = _value == user?.username;
     final canSave =
+        !lockedSpecial &&
         !activePremium &&
         !_saving &&
         !same &&
@@ -159,7 +171,25 @@ class _ChangeUsernameScreenState extends ConsumerState<ChangeUsernameScreen> {
             },
           ),
           const SizedBox(height: KSpacing.lg),
-          if (activePremium) ...[
+          if (lockedSpecial) ...[
+            KInlineMessage(
+              key: ChangeUsernameScreen.specialLockedKey,
+              isError: false,
+              message: [
+                l10n.changeUsernameSpecialLocked(
+                  KHandle.isolated(special.username),
+                  KHandle.isolated(special.baseUsername),
+                ),
+                if (special.expiresAt case final ends?)
+                  l10n.changeUsernameSpecialEnds(
+                    KFormat.date(
+                      ends.toLocal(),
+                      Localizations.localeOf(context).toLanguageTag(),
+                    ),
+                  ),
+              ].join('\n'),
+            ),
+          ] else if (activePremium) ...[
             KInlineMessage(
               key: ChangeUsernameScreen.premiumActiveKey,
               isError: false,

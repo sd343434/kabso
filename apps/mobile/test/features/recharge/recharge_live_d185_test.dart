@@ -333,7 +333,8 @@ void main() {
           if (framed) {
             expect(
               tester.widget<Text>(find.byKey(RechargeAgentFrame.plateKey)).data,
-              'coin0007',
+              // Owner (D185, same day): the plate shows the display name.
+              apiProfile(ar: language == AppLanguage.ar).displayName,
             );
             final rect = tester.getRect(
               find.byKey(const Key('room.userCard.agentFrame')),

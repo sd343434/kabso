@@ -229,6 +229,12 @@ export interface AppConfig {
     readonly kycRetentionDays: number;
     readonly sweepIntervalSeconds: number;
   };
+  /** v1.54-social (D185): special usernames (CONVENTIONS §10.48.1). */
+  readonly specialUsernames: {
+    readonly graceDays: number;
+    /** 0 = sweeper disabled (tests; refused in production). */
+    readonly sweepIntervalSeconds: number;
+  };
   readonly dm: {
     readonly retentionHours: number;
     /** 0 = sweeper disabled (tests; refused in production). */
@@ -549,6 +555,10 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       maxEmployees: e.RECHARGE_AGENT_MAX_EMPLOYEES,
       kycRetentionDays: e.RECHARGE_AGENT_KYC_RETENTION_DAYS,
       sweepIntervalSeconds: e.RECHARGE_AGENT_SWEEP_INTERVAL_SECONDS,
+    },
+    specialUsernames: {
+      graceDays: e.SPECIAL_USERNAME_GRACE_DAYS,
+      sweepIntervalSeconds: e.SPECIAL_USERNAME_SWEEP_INTERVAL_SECONDS,
     },
     dm: {
       retentionHours: e.DM_RETENTION_HOURS,

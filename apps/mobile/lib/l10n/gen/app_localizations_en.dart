@@ -9967,4 +9967,26 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errorRechargeCherryCapReached =>
       'The agent\'s daily cherry limit is reached.';
+
+  @override
+  String get errorUsernameLocked =>
+      'Your username is locked while your special username is active.';
+
+  @override
+  String get settingsUsernameLocked => 'Locked';
+
+  @override
+  String settingsBaseUsername(String username) {
+    return 'Your own username: $username';
+  }
+
+  @override
+  String changeUsernameSpecialLocked(String special, String base) {
+    return '$special is a locked special username and can\'t be changed while it\'s active. Everyone else sees only it; your own username $base is visible only to you, and you can still sign in with it.';
+  }
+
+  @override
+  String changeUsernameSpecialEnds(String date) {
+    return 'It ends on $date, then your own username comes back.';
+  }
 }

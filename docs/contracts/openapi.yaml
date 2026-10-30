@@ -300,7 +300,10 @@ info:
     and `UserSummary.rechargeAgent` (the frame, badge and entrance perks; the inline badge next to the name in live rooms). Codes `RECHARGE_APPLICATION_NOT_ALLOWED`, `RECHARGE_AGENT_NOT_ACTIVE`,
     `RECHARGE_OFF_SHIFT`, `RECHARGE_STOCK_INSUFFICIENT`, `RECHARGE_EMPLOYEE_NOT_ALLOWED`,
     `RECHARGE_CHERRY_REQUEST_PENDING`, `RECHARGE_CHERRY_REQUEST_CLOSED`, `RECHARGE_CHERRY_CAP_REACHED` (409)
-    (CONVENTIONS §10.48).
+    (CONVENTIONS §10.48). Special usernames «يوزر مميز» (§10.48.1): on activation the agent's code becomes their
+    username (locked; `Me.specialUsername`, self only — the base username never appears in what others read);
+    code `USERNAME_LOCKED` (409) on `changeUsername` and `rentPremiumUsername`; `login` also accepts the base
+    username.
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -487,6 +490,10 @@ paths:
       tags: [auth]
       operationId: login
       summary: "Sign in with email or username"
+      description: |
+        `identifier` is an email or a username (any case). v1.54-social (D185, §10.48.1): a username is the one
+        shown now or, while a special username is active, the person's own (base) username; a special username
+        that ended (in its grace period) no longer signs in.
       security: []
       requestBody:
         required: true
@@ -756,9 +763,11 @@ paths:
         nothing is normalized. Order after auth and the rate limit (5 / day / user, replacing the
         default): 400 `VALIDATION_FAILED` on `username` (`too_short`, `too_long`, `invalid_format`,
         `letters_and_digits`, or `premium` — a premium username can only be rented: the app offers
-        the store) → 409 `PREMIUM_USERNAME_ACTIVE` while a premium username is the caller's (give it
-        back first) → 409 `USERNAME_TAKEN` (reserved, another account's, held by a pending
-        registration or kept for a renter). The same name as now → 200, nothing changed. The old name
+        the store) → 409 `USERNAME_LOCKED` while a special username is active (v1.54-social, D185,
+        §10.48.1: e.g. a recharge agent's `coin0007`) → 409 `PREMIUM_USERNAME_ACTIVE` while a premium
+        username is the caller's (give it back first) → 409 `USERNAME_TAKEN` (reserved — including
+        `coin` + digits —, another account's, held by a pending registration, kept for a renter, or
+        another person's base or held special username). The same name as now → 200, nothing changed. The old name
         is free at once. Existing usernames that break the rule keep working (grandfathered).
         Audited `user.username.change`.
       requestBody:
@@ -883,7 +892,8 @@ paths:
         shown; it must equal the current monthly price. Order after auth: 400 `Idempotency-Key`
         (`required` / `invalid_format`) → 400 body → 429 (20 / hour / user, replacing the default) →
         a retry (the same key within 24 h and the same body → **200** with the first result, nothing
-        charged again; another body → 409 `IDEMPOTENCY_CONFLICT`) → 409 `PREMIUM_USERNAME_UNAVAILABLE`
+        charged again; another body → 409 `IDEMPOTENCY_CONFLICT`) → 409 `USERNAME_LOCKED` (v1.54-social,
+        D185: a special username is active, §10.48.1) → 409 `PREMIUM_USERNAME_UNAVAILABLE`
         (the name is not AVAILABLE, YOURS or YOURS_GRACE for the caller — read `getPremiumUsernameStatus`
         for why; also a renewal past the 365-day prepaid limit or of a grant without an end) → 409
         `PREMIUM_USERNAME_ACTIVE` (renting another name, or taking back one in grace, while a premium
@@ -8348,6 +8358,33 @@ components:
           maxItems: 3
           description: v1.47-social (D175). The profile links, in order.
           items: { $ref: '#/components/schemas/ProfileLink' }
+        specialUsername:
+          $ref: '#/components/schemas/MeSpecialUsername'
+          description: |
+            v1.54-social (D185, §10.48.1) — present only while the caller has an active special username (then
+            `username` equals `specialUsername.username`). Only in the caller's own `Me`: never in
+            `PublicProfile`, `UserSummary`, search, room payloads or mentions.
+    MeSpecialUsername:
+      type: object
+      additionalProperties: false
+      description: |
+        v1.54-social (D185, CONVENTIONS §10.48.1): the caller's active special username «يوزر مميز». While it is
+        active everyone sees only `username`; `baseUsername` (the caller's own username, kept for them and still
+        valid to sign in) is visible only to the caller and the team.
+      required: [username, baseUsername, source, grantedAt, expiresAt, locked]
+      properties:
+        username: { $ref: '#/components/schemas/Username' }
+        baseUsername: { $ref: '#/components/schemas/Username' }
+        source:
+          type: string
+          enum: [RECHARGE_AGENT, ADMIN_GIFT, PURCHASE]
+          description: "`RECHARGE_AGENT`: the agent's code; `ADMIN_GIFT`: given by the team; `PURCHASE`: reserved (not sold yet)."
+        grantedAt: { type: string, format: date-time }
+        expiresAt:
+          type: [string, 'null']
+          format: date-time
+          description: When it ends (the base username is shown again); null = permanent.
+        locked: { type: boolean, description: "True: `changeUsername` is refused with `USERNAME_LOCKED`." }
     SessionInfo:
       type: object
       required: [id, current, createdAt, lastUsedAt]

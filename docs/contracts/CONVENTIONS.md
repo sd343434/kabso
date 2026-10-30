@@ -162,6 +162,7 @@ All non-2xx responses use one envelope:
 | 409 | `RECHARGE_CHERRY_REQUEST_PENDING` | *(v1.54-social, DRAFT, D185)* A cherry sale request while another one between the same host and agent is still open (§10.48). |
 | 409 | `RECHARGE_CHERRY_REQUEST_CLOSED` | *(v1.54-social, DRAFT, D185)* Answering a cherry sale request that is no longer pending or has expired (§10.48). Nothing changed. |
 | 409 | `RECHARGE_CHERRY_CAP_REACHED` | *(v1.54-social, DRAFT, D185)* The agent's confirmed cherry purchases today plus this one exceed the agent's daily cap (§10.48). Nothing changed. |
+| 409 | `USERNAME_LOCKED` | *(v1.54-social, DRAFT, D185)* A special username is active and locked (e.g. a recharge agent's `coin0007`): the username cannot be changed and no premium username rented until it ends (§10.48.1). |
 | 403 | `DM_NOT_ALLOWED` | *(v1.40-social, DRAFT, D155)* The recipient's «who can message you» setting (`whoCanMessage`) does not allow the caller (§11.13). Nothing was stored or charged. The app says the person does not accept messages. |
 | 403 | `DM_REQUEST_LIMIT` | *(v1.40-social, DRAFT, D155)* The caller already sent `DM_REQUEST_MAX_MESSAGES` (3) messages in a message request the recipient has not accepted (§11.13). The app says to wait for a reply. |
 | 403 | `DM_REQUEST_TEXT_ONLY` | *(v1.40-social, DRAFT, D155)* A picture or voice message in a message request (only text, a pack emoji or a gift until the recipient accepts, §11.13). |
@@ -219,7 +220,8 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
   username as `identifier`.
 - Usernames: `^[a-z0-9](?:[a-z0-9._]{1,28}[a-z0-9])?$` (3–30 chars, lowercase, no leading/
   trailing `.`/`_`), unique case-insensitively, stored lowercase. The regex alone admits a 1-character name; the 3–30 length bound is a separate, mandatory check (clients and server apply both). A reserved list (admin, kabso,
-  support, api, live, …) is rejected with `USERNAME_TAKEN`.
+  support, api, live, …) is rejected with `USERNAME_TAKEN`. *(v1.54-social, D185)* `coin` + digits (also with
+  `.` / `_` inside) is reserved too: the recharge agents' special usernames, given only by the system (§10.48.1).
   *(v1.28-live, D146)* **Stored shape** (lookups, paths, login, every response): `^[a-z0-9](?:[a-z0-9._]{0,28}[a-z0-9])?$`,
   **1–30** characters (1–2 character premium names). **New regular usernames** (registration and
   `PUT /me/username`): 6–30 of a–z, 0–9 and `_`, a letter **and** a digit, `_` never first or last,
@@ -517,7 +519,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.47-social)* Tables `user_profile_links`, `follow_requests`; columns `user_profiles.gender`, `show_gender`, `account_category`, `pending_registrations.gender`, `reports.target_profile_link_id`, `reports.link_snapshot` | Backend — `users` module (profile fields; `profile-admin` CLI), `social` module (follow requests; the `safety` module accepts them all when an account turns public and deletes them on a block), `safety` module (link reports) | CTO; Security reviews the link rules and the private-account audit (§10.47) |
 | *(v1.52-social)* Tables `cherry_wallets`, `cherry_ledger`, `agencies`, `agency_hosts`, `agency_earnings`, `agency_months`, `agency_complaints`, `cherry_withdrawals`; server config `CHERRIES_PER_COIN`, `AGENCY_*`, `CHERRY_PAYOUT_RATE`, `CHERRY_PAYOUT_CURRENCY`, `CHERRY_WITHDRAWAL_MIN_MINOR`, `CHERRY_WITHDRAWAL_PAYOUT_DAYS` | Backend — `economy` module (`CherriesService`, `AgencyService`; gift credits written by the gift sends through `creditGiftCherriesIn`; agencies, complaints, payouts and reversals changed only by the `economy-admin` CLI) | CTO; Security (money, payout details) |
 | *(v1.53-social)* Columns `task_definitions.reward_cherries`, `task_assignments.reward_cherries`, `task_claims.reward_amount`, `task_claims.reward_currency`; cherry ledger reason `TASK_REWARD`; server config `TASK_DAILY_CAP_CHERRIES`, `TASK_CHERRIES_UNLOCK_GIFT_MINOR` | Backend — `programs` module (claims) and `economy` module (`cherry-ledger.ts`: the credit and the lock) | CTO |
-| *(v1.54-social)* Tables `recharge_agent_applications`, `recharge_agents`, `recharge_agent_counter`, `recharge_stock_ledger`, `recharge_topups`, `recharge_sales`, `recharge_employees`, `recharge_cherry_requests`; column `notifications.recharge_sale_id`; ledger reasons `RECHARGE_PURCHASE` (coins), `RECHARGE_SALE` (cherries); media kinds `RECHARGE_AGENT_PHOTO`, `RECHARGE_AGENT_SELFIE` (private prefix `private/recharge-agents/`); server config `RECHARGE_AGENT_*`, `RATE_LIMIT_RECHARGE_*` | Backend — `recharge` module (`RechargeService`; applications decided, top-ups, suspensions and caps changed only by the `recharge-admin` CLI; reads `cherry_ledger` through `economy/cherry-ledger.ts` and writes coins through `wallet/wallet-ledger.ts`) | CTO; Security (KYC data, money, the private prefix) |
+| *(v1.54-social)* Tables `recharge_agent_applications`, `recharge_agents`, `recharge_agent_counter`, `recharge_stock_ledger`, `recharge_topups`, `recharge_sales`, `recharge_employees`, `recharge_cherry_requests`; column `notifications.recharge_sale_id`; table `special_usernames` (§10.48.1); ledger reasons `RECHARGE_PURCHASE` (coins), `RECHARGE_SALE` (cherries); media kinds `RECHARGE_AGENT_PHOTO`, `RECHARGE_AGENT_SELFIE` (private prefix `private/recharge-agents/`); server config `RECHARGE_AGENT_*`, `RATE_LIMIT_RECHARGE_*`, `SPECIAL_USERNAME_*`; CLI `username-admin` | Backend — `recharge` module (`RechargeService`; applications decided, top-ups, suspensions and caps changed only by the `recharge-admin` CLI; reads `cherry_ledger` through `economy/cherry-ledger.ts` and writes coins through `wallet/wallet-ledger.ts`) | CTO; Security (KYC data, money, the private prefix) |
 | `apps/api/**` | Backend | CTO review |
 | `apps/mobile/lib/app/router/**` (route registry) | Flutter | CTO review |
 | `apps/mobile/pubspec.yaml` | Flutter | CTO review |
@@ -557,7 +559,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
-| v1.54-social (draft) | 2026-10-30 | **D185 (owner: economy phase 2 — recharge agents «وكلاء الشحن», CP-028):** tag `recharge`: `getMyRechargeAgent` (`GET /me/recharge-agent`, `RechargeAgentMe`, `RechargeAgentStatus`, `RechargeApplicationState`, `RechargeAgentDashboard`, `RechargeEmployment`, `RechargeRules`), `applyForRechargeAgent` (`POST /me/recharge-agent/application`, `RechargeAgentApplicationRequest`, `RechargeLocation`, `RechargePaymentMethod`), `setMyRechargeAvailability` (`PUT /me/recharge-agent/availability`, `RechargeAvailability`, `WeeklySlot`), `sellRechargeCoins` / `listMyRechargeSales` (`/me/recharge-agent/sales`, `Idempotency-Key`, `RechargeSale`), `listMyRechargeEmployees` / `addMyRechargeEmployee` / `updateMyRechargeEmployee` / `removeMyRechargeEmployee` (`/me/recharge-agent/employees`), `listRechargeAgents` / `getRechargeAgent` (`/recharge-agents`, `RechargeAgentListing`), `createRechargeCherryRequest` / `listMyRechargeCherryRequests` / `answerRechargeCherryRequest` (`/recharge-cherry-requests`); `MediaKind` `RECHARGE_AGENT_PHOTO`, `RECHARGE_AGENT_SELFIE` (never completed); `PublicProfile.rechargeAgent` and `UserSummary.rechargeAgent` (`RechargeAgentTag`, optional, present only while ACTIVE: the inline badge next to the name in live rooms); `WalletLedgerReason.RECHARGE_PURCHASE`, `CherryLedgerReason.RECHARGE_SALE`; notification types `RECHARGE_COINS_RECEIVED` (target `RECHARGE_SALE` with `coins`), `RECHARGE_CHERRY_REQUEST`; eight `RECHARGE_*` codes (409); §7 rows; CLI `recharge-admin`; migrations `20270101090000_recharge_agents_enums`, `20270101100000_recharge_agents`. §4, §7, §8, §10.48. | **Additive** (new operations; new required `PublicProfile.rechargeAgent` — strict clients update their models in the same change set; clients ignore unknown notification types, target types, ledger reasons and data-message keys). |
+| v1.54-social (draft) | 2026-10-30 | **D185 (owner: economy phase 2 — recharge agents «وكلاء الشحن», CP-028):** tag `recharge`: `getMyRechargeAgent` (`GET /me/recharge-agent`, `RechargeAgentMe`, `RechargeAgentStatus`, `RechargeApplicationState`, `RechargeAgentDashboard`, `RechargeEmployment`, `RechargeRules`), `applyForRechargeAgent` (`POST /me/recharge-agent/application`, `RechargeAgentApplicationRequest`, `RechargeLocation`, `RechargePaymentMethod`), `setMyRechargeAvailability` (`PUT /me/recharge-agent/availability`, `RechargeAvailability`, `WeeklySlot`), `sellRechargeCoins` / `listMyRechargeSales` (`/me/recharge-agent/sales`, `Idempotency-Key`, `RechargeSale`), `listMyRechargeEmployees` / `addMyRechargeEmployee` / `updateMyRechargeEmployee` / `removeMyRechargeEmployee` (`/me/recharge-agent/employees`), `listRechargeAgents` / `getRechargeAgent` (`/recharge-agents`, `RechargeAgentListing`), `createRechargeCherryRequest` / `listMyRechargeCherryRequests` / `answerRechargeCherryRequest` (`/recharge-cherry-requests`); `MediaKind` `RECHARGE_AGENT_PHOTO`, `RECHARGE_AGENT_SELFIE` (never completed); `PublicProfile.rechargeAgent` and `UserSummary.rechargeAgent` (`RechargeAgentTag`, optional, present only while ACTIVE: the inline badge next to the name in live rooms); `WalletLedgerReason.RECHARGE_PURCHASE`, `CherryLedgerReason.RECHARGE_SALE`; notification types `RECHARGE_COINS_RECEIVED` (target `RECHARGE_SALE` with `coins`), `RECHARGE_CHERRY_REQUEST`; eight `RECHARGE_*` codes (409); §7 rows; CLI `recharge-admin`; migrations `20270101090000_recharge_agents_enums`, `20270101100000_recharge_agents`. **Special usernames «يوزر مميز» (owner, same day):** `Me.specialUsername` (`MeSpecialUsername`, self only), code `USERNAME_LOCKED` (409) on `changeUsername` / `rentPremiumUsername`, `login` by the base username, `coin` + digits reserved (§6), CLI `username-admin`, migration `20270101110000_special_usernames`; an agent's code becomes their username at activation. §4, §6, §7, §8, §10.48, §10.48.1. | **Additive** (new operations; new required `PublicProfile.rechargeAgent` — strict clients update their models in the same change set; clients ignore unknown notification types, target types, ledger reasons and data-message keys). |
 | v1.53-social (draft) | 2026-10-30 | **D184 (owner: the Task Center shows only the active tasks — «مهام الماس» removed — and its rewards are cherries at the same value, 1 coin = 10 cherries; follow-ups: task cherries not withdrawable until lifetime gift cherries received are worth $50 — confirmed; rewards raised to ≈ $5 a month):** `ProgramTask.rewardCherries`, `ProgramTask.claimedCherries`, `MyTasks.dailyCapCherries`, `MyTasks.dailyEarnedCherries`, `TaskClaimResult.paidCherries`, `TaskClaimResult.balanceCherries` (all required in responses); `ProgramTask.rewardCoins` deprecated (0, minimum relaxed to 0); `CherryLedgerReason.TASK_REWARD`; `CherryWallet.taskRewardTotal`, `lockedTaskCherries`, `withdrawableCherries`, `taskUnlock` (required); `requestCherryWithdrawal` refuses more than `withdrawableCherries` (`INSUFFICIENT_CHERRIES`); config `TASK_DAILY_CAP_CHERRIES` (150 000), `TASK_CHERRIES_UNLOCK_GIFT_MINOR` (5000 = $50); `TASK_DAILY_CAP_COINS` now caps the check-in's coins only; migrations `20261231100000_task_cherries_enums`, `20261231110000_task_cherries` (stored task rewards ×10, `task_claims.reward_amount` + `reward_currency`, earlier claims COINS), `20261231120000_task_rewards_raise` (stored task rewards ×300). §4, §10.41, §10.41.3, §10.46.1. | **Behaviour change, additive on the wire** (new required response fields strict clients add in the same change set; older apps show «+0» coins on tasks — the app ships with this change). Claimed coin rewards and their ledger rows are untouched. |
 | v1.52-social (draft) | 2026-10-30 | **D179 (owner: the Kabso economy, phase 1 — «الكرز» as a real balance, host agencies, commissions, withdrawals; CP-027):** tag `wallet`: `getMyCherries` (`GET /wallet/me/cherries`, `CherryWallet`, `CherryPayoutRules`), `listMyCherryLedger` (`GET /wallet/me/cherries/ledger`, `CherryLedgerPage`, `CherryLedgerEntry`, `CherryLedgerReason`), `requestCherryWithdrawal` / `listMyCherryWithdrawals` (`POST` / `GET /wallet/me/cherries/withdrawals`, `Idempotency-Key`, `CherryWithdrawalRequest`, `CherryWithdrawal`, `CherryWithdrawalPage`); tag `agency`: `getAgencyByCode` (`GET /agencies/{inviteCode}`, `AgencyPreview`), `getMyAgency` (`GET /me/agency`, `MyAgency`, `AgencyMembership`, `OwnAgency`, `AgencySubAgency`, `AgencyRank`), `joinAgency`, `leaveAgency`, `complainAboutAgency` (`POST /me/agency/join\|leave\|complaints`, `AgencyComplaint`), `listMyAgencyHosts` (`GET /me/agency/hosts`, `AgencyHostPage`); codes `AGENCY_ALREADY_MEMBER`, `AGENCY_JOIN_NOT_ALLOWED`, `AGENCY_LEAVE_WINDOW_CLOSED`, `INSUFFICIENT_CHERRIES`, `WITHDRAWAL_PENDING` (409); `getMyEarnings` / `listMyEarnings` deprecated; migration `20261231090000_cherry_economy` (with the one-time backfill); CLI `economy-admin`. §4, §8, §10.40, §10.46. | **Additive** (new operations, schemas and codes; the deprecated earnings reads keep working). Behaviour: every gift send now also writes cherry ledger rows in its transaction. |
 | v1.51-social (draft) | 2026-10-30 | **D177 (owner: «هذه صفحة المحفظة، لكن نحن عندنا عملة ذهبية وكرزات»):** `listHomeBanners` takes `placement=wallet` (the wallet page's promo slot; 3:1 like `home`); `banner-admin add --placement wallet`; migration `20261220090000_wallet_banners` widens CHECK `home_banners_placement_values` to `WALLET`; §10.26. | **Additive** (a new enum value of a query parameter; existing values unchanged). |
@@ -3182,9 +3184,11 @@ wholesale top-up paid outside the app — the coins, the owner's **price tier** 
 per million, expected and paid amounts are stored with the top-up (`recharge_topups`). The **first** top-up
 must be ≥ `RECHARGE_AGENT_ACTIVATION_MIN_COINS` (30 000 000 = $360) and activates the agent in the same
 transaction: the agent gets the next **code** `coin0001`, `coin0002`, … from a counter row updated in that
-transaction (sequential, no gaps, never reused, never changed; beyond 9999 the number simply grows). The code
-is the agent's **recharge ID** wherever they appear as an agent (the directory, the frame's plate, the
-entrance bar, the badge, the person card); the normal `@username` is unchanged (CP-028 Q1).
+transaction (sequential, never reused, never changed; beyond 9999 the number simply grows; a number whose
+name an older account already uses — made before `coin` + digits was reserved — is skipped, the only gap). The
+code is the agent's **recharge ID** in the directory, the entrance bar and the person card, and — owner
+decision, same day, reversing CP-028 Q1 — it **becomes the agent's `@username`** (a special username, locked,
+§10.48.1). The frame's plate shows the agent's display name.
 
 **Stock and selling** (`sellRechargeCoins`): the stock changes only with a `recharge_stock_ledger` row
 (`TOPUP`, `SALE`, `CHERRY_PURCHASE`); a CHECK keeps it ≥ 0 and amounts are integers. A sale — by the agent, or
@@ -3226,8 +3230,8 @@ cherries are debited with a conditional update that never touches the **locked t
 created.
 
 **Perks** (owner's Kabso assets: the Kabi mascot art, `apps/mobile/assets/recharge_agent/`, PROVENANCE): while
-ACTIVE (and the account is active) the agent has the **agent frame** around their photo with the code written
-in its red plate, the **badge** beside the name on the profile and on the live person card, and the **entrance
+ACTIVE (and the account is active) the agent has the **agent frame** around their photo with their display name
+written in its red plate (fitted, ellipsized; owner, same day), the **badge** beside the name on the profile and on the live person card, and the **entrance
 bar** «دخل وكيل الشحن {code}» / "Top-up agent {code} joined" that crosses any live room for about 3.2 s (the
 CP entrance's timing, §10.24) when they join — the `join` data message's `user` carries `rechargeAgent: {code}`
 (an agent's join is not dropped by the one-line-a-second limit of D96). **Owner addition (same day):** a small
@@ -3247,6 +3251,44 @@ Audit actions: `recharge.application.submit`, `.view`, `.approve`, `.reject`, `r
 `recharge.activate`, `recharge.suspend`, `recharge.reinstate`, `recharge.cap`, `recharge.sale`,
 `recharge.employee.add` / `.update` / `.remove`, `recharge.availability`, `recharge.cherry.request` /
 `.confirm` / `.decline` / `.cancel`, `recharge.purge`.
+
+#### 10.48.1 Special usernames «يوزر مميز» *(v1.54-social, DRAFT — D185, owner 2026-10-30)*
+
+A general layer that the recharge agents use first and other sources reuse. A person has at most one **active
+special username** (`special_usernames`: `username`, `base_username`, `source` `RECHARGE_AGENT` | `ADMIN_GIFT` |
+`PURCHASE` — reserved, nothing sells it yet —, `granted_at`, `expires_at` (null = permanent), `locked`).
+
+- **Shown everywhere:** while it is ACTIVE, `user_profiles.username` *is* the special username, so every payload,
+  link, mention, search and room shows only it. The person's own **base username** is kept in the row and is
+  visible only to the person (`Me.specialUsername`, own profile and settings) and to the team
+  (`username-admin show`); it is **never** in `PublicProfile`, `UserSummary`, search, room payloads, data
+  messages or mentions.
+- **Locked:** `changeUsername` → 409 `USERNAME_LOCKED`; renting a premium username (§10.32) → 409
+  `USERNAME_LOCKED`; a premium grant is refused, and a special username is not given while a premium username
+  is rented (the team ends one first).
+- **Ending** (expiry by the sweeper, `username-admin revoke`, a recharge agent's suspension): the base username
+  is shown again at once; the special one stays **reserved for the person** (GRACE) for
+  `SPECIAL_USERNAME_GRACE_DAYS` (30) and is then released — except `coin` + digits, which is never released or
+  reused. Given back during the grace period (a gift again, an agent reinstated), the same row is ACTIVE again
+  with the then shown username as base. The sweeper runs every `SPECIAL_USERNAME_SWEEP_INTERVAL_SECONDS` (300;
+  cannot be 0 in production).
+- **Uniqueness both ways** (usernames are canonical lower case, so case-insensitive): a name is unavailable to
+  everyone else while it is another account's shown username, a base username behind an ACTIVE special one, a
+  special one ACTIVE or in grace, or any `coin` name ever given (partial unique indexes plus the checks of
+  `changeUsername`, registration, `username-availability`, premium names and grants). `coin` + digits (also
+  with `.` / `_`) is **reserved** (§6): never a regular username, never a gift; only the system gives it.
+- **Sign-in** (`login`): by email, the shown username, or the base username while a special one is ACTIVE. A
+  special username in grace does not sign in.
+- **Old links and mentions:** a profile link, follow or other lookup by the base username (ACTIVE) or by a
+  special username in grace leads to the person, and a mention written with one of those names links them; the
+  response carries only the username shown now.
+- **Recharge agents:** activation grants `coinNNNN` (`RECHARGE_AGENT`, permanent; refused — nothing is charged —
+  while the person rents a premium username); suspension ends it (grace without an end); reinstatement gives it
+  back. Any earlier gift is replaced (it goes to grace).
+- **CLI** `username-admin` (migration role): `gift <user> <special> (--days N | --permanent) --reason`,
+  `revoke <user> --reason`, `show <user>` (audited), `sweep`. `<user>` is an email, the shown or the base
+  username. Audit actions `special_username.grant`, `special_username.end`, `special_username.view`.
+- **Migration** `20270101110000_special_usernames` adds the table only; no existing username changes.
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 

@@ -9988,4 +9988,26 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get errorRechargeCherryCapReached =>
       'بلغ الوكيل حدّه اليومي من الكرز.';
+
+  @override
+  String get errorUsernameLocked =>
+      'اسم المستخدم مقفل ما دام اليوزر المميز فعّالاً.';
+
+  @override
+  String get settingsUsernameLocked => 'مقفل';
+
+  @override
+  String settingsBaseUsername(String username) {
+    return 'اسمك الأساسي: $username';
+  }
+
+  @override
+  String changeUsernameSpecialLocked(String special, String base) {
+    return '$special يوزر مميز مقفل، ولا يمكن تغييره ما دام فعّالاً. يراه الجميع وحده؛ اسمك الأساسي $base لا يراه غيرك، ويمكنك تسجيل الدخول به.';
+  }
+
+  @override
+  String changeUsernameSpecialEnds(String date) {
+    return 'ينتهي في $date، ثم يعود اسمك الأساسي.';
+  }
 }

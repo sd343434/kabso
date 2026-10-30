@@ -100,6 +100,7 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
     ErrorCode.rechargeCherryRequestClosed =>
       l10n.errorRechargeCherryRequestClosed,
     ErrorCode.rechargeCherryCapReached => l10n.errorRechargeCherryCapReached,
+    ErrorCode.usernameLocked => l10n.errorUsernameLocked,
     ErrorCode.networkOffline => l10n.errorNetworkOffline,
     ErrorCode.networkTimeout => l10n.errorNetworkTimeout,
     ErrorCode.unknown => l10n.errorUnknown,

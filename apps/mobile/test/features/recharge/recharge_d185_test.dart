@@ -257,7 +257,8 @@ void main() {
         expect(find.byKey(RechargeAgentFrame.plateKey), findsOneWidget);
         expect(
           tester.widget<Text>(find.byKey(RechargeAgentFrame.plateKey)).data,
-          'coin0007',
+          // Owner (D185, same day): the plate shows the display name.
+          testUser().displayName,
         );
         expect(find.byType(RechargeAgentBadge), findsOneWidget);
         expect(find.text('28,750,000'), findsOneWidget);
@@ -647,7 +648,7 @@ void main() {
           ),
           findsOneWidget,
         );
-        // The code reads left to right in Arabic too, inside the plate.
+        // The display name sits inside the plate.
         final plate = tester.getRect(find.byKey(RechargeAgentFrame.plateKey));
         final frame = tester.getRect(find.byKey(RechargeAgentFrame.frameKey));
         expect(plate.top, greaterThan(frame.top + frame.height * 0.7));

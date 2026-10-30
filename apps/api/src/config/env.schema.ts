@@ -967,6 +967,12 @@ export const envSchema = z
     RECHARGE_AGENT_KYC_RETENTION_DAYS: intSetting(90, 1, 3650),
     RECHARGE_AGENT_SWEEP_INTERVAL_SECONDS: intSetting(3600, 0, 86_400),
     /**
+     * v1.54-social (D185, §10.48.1): special usernames («يوزر مميز»). After one ends, the name stays reserved
+     * for the person this many days (a `coin` name: forever). The sweeper ends expired ones and releases names.
+     */
+    SPECIAL_USERNAME_GRACE_DAYS: intSetting(30, 1, 3650),
+    SPECIAL_USERNAME_SWEEP_INTERVAL_SECONDS: intSetting(300, 0, 86_400),
+    /**
      * Optional dedicated source of the HMAC key (HKDF, info `social-cursor/v1`) of the v1.5-social
      * list cursors; like LIVE_CURSOR_KEY it falls back to RATE_LIMIT_KEY_SECRET.
      */
@@ -1171,6 +1177,14 @@ export const envSchema = z
           code: 'custom',
           path: ['RECHARGE_AGENT_SWEEP_INTERVAL_SECONDS'],
           message: 'the recharge-agent sweeper (KYC retention) cannot be disabled in production',
+        });
+      }
+      // D185: an expired special username must give the person's own username back on time.
+      if (env.SPECIAL_USERNAME_SWEEP_INTERVAL_SECONDS === 0) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['SPECIAL_USERNAME_SWEEP_INTERVAL_SECONDS'],
+          message: 'the special-username sweeper cannot be disabled in production',
         });
       }
       // D179: agency ranks must be re-evaluated at each month start.

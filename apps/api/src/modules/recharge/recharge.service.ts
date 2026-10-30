@@ -13,6 +13,7 @@ import { holdCherriesIn, taskCherryLockIn } from '../economy/cherry-ledger.js';
 import { uuidv7 } from '../levels/uuidv7.js';
 import type { UserSummaryDto } from '../live/live-rooms.service.js';
 import { MediaService } from '../media/media.service.js';
+import { resolveUserIdByUsername } from '../users/special-usernames.js';
 import { Notifier } from '../notifications/notifier.js';
 import { USER_SUMMARY_SELECT, userSummary, type PageDto } from '../posts/post-views.js';
 import type { PageQuery } from '../posts/posts.schemas.js';
@@ -269,11 +270,9 @@ export class RechargeService implements OnModuleInit, OnModuleDestroy {
         select: { id: true },
       });
     }
-    const profile = await this.prisma.userProfile.findUnique({
-      where: { username: value.toLowerCase() },
-      select: { user: { select: { id: true, status: true } } },
-    });
-    return profile?.user.status === 'ACTIVE' ? { id: profile.user.id } : null;
+    const userId = await resolveUserIdByUsername(this.prisma, value.toLowerCase());
+    if (userId === null) return null;
+    return this.prisma.user.findUnique({ where: { id: userId, status: 'ACTIVE' }, select: { id: true } });
   }
 
   private rules(): RechargeAgentMeDto['rules'] {

@@ -95,6 +95,38 @@ export const USER_SUMMARY_SELECT = {
 } as const;
 
 /**
+ * v1.54-social (D185, §10.48.1): a mentioned user, with the names an older text may still use for them — the
+ * base username behind an ACTIVE special one, a special one in grace. Read only to link the text; never
+ * returned (the summary carries the username shown now).
+ */
+export const MENTION_USER_SELECT = {
+  ...USER_SUMMARY_SELECT,
+  specialUsernames: {
+    where: { status: { in: ['ACTIVE', 'GRACE'] } },
+    select: { username: true, baseUsername: true, status: true },
+  },
+} as const satisfies Prisma.UserSelect;
+
+/** The mentioned users by the name in the text: the shown username first, then the older names. */
+export function mentionedByName(
+  rows: readonly {
+    user: Parameters<typeof userSummary>[0] & {
+      specialUsernames: readonly { username: string; baseUsername: string; status: string }[];
+    };
+  }[],
+): Map<string, UserSummaryDto> {
+  const map = new Map<string, UserSummaryDto>();
+  for (const m of rows) map.set(m.user.profile?.username ?? '', userSummary(m.user));
+  for (const m of rows) {
+    for (const s of m.user.specialUsernames) {
+      const alias = s.status === 'ACTIVE' ? s.baseUsername : s.username;
+      if (!map.has(alias)) map.set(alias, userSummary(m.user));
+    }
+  }
+  return map;
+}
+
+/**
  * Posts a viewer may see in lists and by id (CONVENTIONS §11.2): published, not deleted, not
  * removed; the author ACTIVE and no block either way; and either the viewer's own post, or a
  * VISIBLE post of a public author or of an author the viewer follows. Drafts and scheduled posts
@@ -161,7 +193,7 @@ function include(viewerId: string) {
   return {
     author: { select: USER_SUMMARY_SELECT },
     media: { orderBy: { position: 'asc' }, include: { mediaAsset: true } },
-    mentions: { where: { user: { status: 'ACTIVE' } }, include: { user: { select: USER_SUMMARY_SELECT } } },
+    mentions: { where: { user: { status: 'ACTIVE' } }, include: { user: { select: MENTION_USER_SELECT } } },
     hashtags: { include: { hashtag: true } },
     pin: { select: { postId: true } },
     likes: { where: { userId: viewerId }, select: { userId: true }, take: 1 },
@@ -205,7 +237,7 @@ export class PostViews {
     const isSelf = row.authorId === viewerId;
     // Order follows the text; only linked (stored) entities are returned.
     const storedTags = new Set(row.hashtags.map((h) => h.hashtag.tag));
-    const mentioned = new Map(row.mentions.map((m) => [m.user.profile?.username ?? '', userSummary(m.user)]));
+    const mentioned = mentionedByName(row.mentions);
     return {
       id: row.id,
       format: row.format,

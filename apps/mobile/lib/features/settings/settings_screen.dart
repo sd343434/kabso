@@ -62,6 +62,8 @@ class SettingsScreen extends ConsumerWidget {
   static const notificationsKey = Key('settings.notifications');
   static const countryKey = Key('settings.country');
   static const usernameKey = Key('settings.username');
+  static const usernameLockedKey = Key('settings.username.locked');
+  static const baseUsernameKey = Key('settings.username.base');
   static const premiumKey = Key('settings.premium');
   static const soundEffectsKey = Key('settings.soundEffects');
 
@@ -200,21 +202,62 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(height: KSpacing.xl),
           _SectionHeader(l10n.settingsAccount),
           // D146: the username (with its premium badge) and the store.
-          ListTile(
-            key: usernameKey,
-            leading: const Icon(Icons.alternate_email_rounded),
-            title: Text(l10n.settingsUsername),
-            // D158: a premium username has no «@».
-            subtitle: Text(
-              KHandle.isolated(
-                _username(ref),
-                premiumTier: ref.watch(
-                  currentUserProvider.select((u) => u?.premiumTier),
-                ),
-              ),
-            ),
-            onTap: () =>
-                GoRouter.maybeOf(context)?.push(AppRoutes.changeUsername),
+          Builder(
+            builder: (context) {
+              // D185 (§10.48.1): a locked special username, with the
+              // person's own base username — shown only here and on the
+              // change screen (never to anyone else).
+              final special = ref.watch(
+                currentUserProvider.select((u) => u?.specialUsername),
+              );
+              final locked = special != null && special.locked;
+              return ListTile(
+                key: usernameKey,
+                leading: const Icon(Icons.alternate_email_rounded),
+                title: Text(l10n.settingsUsername),
+                // D158: a premium username has no «@».
+                subtitle: special == null
+                    ? Text(
+                        KHandle.isolated(
+                          _username(ref),
+                          premiumTier: ref.watch(
+                            currentUserProvider.select((u) => u?.premiumTier),
+                          ),
+                        ),
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(KHandle.isolated(special.username)),
+                          Text(
+                            l10n.settingsBaseUsername(
+                              KHandle.isolated(special.baseUsername),
+                            ),
+                            key: baseUsernameKey,
+                            style: context.textStyles.caption.copyWith(
+                              color: context.palette.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                trailing: locked
+                    ? Semantics(
+                        key: usernameLockedKey,
+                        label: l10n.settingsUsernameLocked,
+                        child: ExcludeSemantics(
+                          child: Icon(
+                            Icons.lock_rounded,
+                            size: 18,
+                            color: context.palette.textSecondary,
+                          ),
+                        ),
+                      )
+                    : null,
+                onTap: () =>
+                    GoRouter.maybeOf(context)?.push(AppRoutes.changeUsername),
+              );
+            },
           ),
           ListTile(
             key: premiumKey,

@@ -17087,6 +17087,36 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'بلغ الوكيل حدّه اليومي من الكرز.'**
   String get errorRechargeCherryCapReached;
+
+  /// D185 special usernames
+  ///
+  /// In ar, this message translates to:
+  /// **'اسم المستخدم مقفل ما دام اليوزر المميز فعّالاً.'**
+  String get errorUsernameLocked;
+
+  /// D185 special usernames
+  ///
+  /// In ar, this message translates to:
+  /// **'مقفل'**
+  String get settingsUsernameLocked;
+
+  /// D185 special usernames
+  ///
+  /// In ar, this message translates to:
+  /// **'اسمك الأساسي: {username}'**
+  String settingsBaseUsername(String username);
+
+  /// D185 special usernames
+  ///
+  /// In ar, this message translates to:
+  /// **'{special} يوزر مميز مقفل، ولا يمكن تغييره ما دام فعّالاً. يراه الجميع وحده؛ اسمك الأساسي {base} لا يراه غيرك، ويمكنك تسجيل الدخول به.'**
+  String changeUsernameSpecialLocked(String special, String base);
+
+  /// D185 special usernames
+  ///
+  /// In ar, this message translates to:
+  /// **'ينتهي في {date}، ثم يعود اسمك الأساسي.'**
+  String changeUsernameSpecialEnds(String date);
 }
 
 class _AppLocalizationsDelegate

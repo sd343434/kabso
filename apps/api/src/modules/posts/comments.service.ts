@@ -9,7 +9,14 @@ import { isUuid } from '../live/live.schemas.js';
 import { Notifier } from '../notifications/notifier.js';
 import { UsersService } from '../users/users.service.js';
 import type { LikeStateDto } from './post-interactions.service.js';
-import { USER_SUMMARY_SELECT, userSummary, visiblePostWhere, type PageDto } from './post-views.js';
+import {
+  MENTION_USER_SELECT,
+  mentionedByName,
+  USER_SUMMARY_SELECT,
+  userSummary,
+  visiblePostWhere,
+  type PageDto,
+} from './post-views.js';
 import { createCommentSchema, type PageQuery } from './posts.schemas.js';
 import { PostsService } from './posts.service.js';
 import { parseMentions } from './text-entities.js';
@@ -52,7 +59,7 @@ function include(viewerId: string) {
   return {
     author: { select: USER_SUMMARY_SELECT },
     post: { select: { authorId: true } },
-    mentions: { where: { user: { status: 'ACTIVE' } }, include: { user: { select: USER_SUMMARY_SELECT } } },
+    mentions: { where: { user: { status: 'ACTIVE' } }, include: { user: { select: MENTION_USER_SELECT } } },
     likes: { where: { userId: viewerId }, select: { userId: true }, take: 1 },
   } satisfies Prisma.CommentInclude;
 }
@@ -396,7 +403,7 @@ export class CommentsService {
   }
 
   private toDto(viewerId: string, row: CommentRow): CommentDto {
-    const mentioned = new Map(row.mentions.map((m) => [m.user.profile?.username ?? '', userSummary(m.user)]));
+    const mentioned = mentionedByName(row.mentions);
     return {
       id: row.id,
       postId: row.postId,

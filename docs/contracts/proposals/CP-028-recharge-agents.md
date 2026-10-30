@@ -23,11 +23,14 @@ the questions for the owner.
 
 ## 2. Choices made (CTO defaults, changeable)
 
-1. **Code vs username:** a separate immutable `agentCode` (`coin0001`); the person's `@username` is unchanged
-   (renaming would break mentions, links, premium usernames and the person's identity when they stop being an
-   agent). The code is shown everywhere the person appears **as an agent**. *(Owner question 1.)*
-2. **Frame plate text:** the **code** (`coin0001`) — short, Latin, always fits the plate and is what buyers search
-   for; the person's name is already under the photo. The entrance bar says «دخل وكيل الشحن coin0001». *(Q2.)*
+1. **Code vs username — decided by the owner (same day), replacing our default:** the code **becomes the agent's
+   `@username`** through a general **special-username layer «يوزر مميز»** (CONVENTIONS §10.48.1): locked while
+   active, shown to everyone else as the only username; the person's own (base) username is kept, visible only to
+   them and to the team, still signs in, and old links and mentions still lead to them. Suspension gives the base
+   back; the code stays theirs forever (never reused). Gifts by the team (`username-admin`) use the same layer,
+   with an optional end and a 30-day grace period. `PURCHASE` is reserved (no store yet).
+2. **Frame plate text — decided by the owner:** the agent's **display name** (fitted, ellipsized). The entrance bar
+   keeps «دخل وكيل الشحن coin0001».
 3. **Perks are derived from the status** (`ACTIVE` and an active account), not bag items: nothing to send, wear
    off, expire or revoke one by one; a suspension removes everything in the same transaction that changes the
    status. The bag (D171/D180) is not used because a bag item can be taken off and, when bought, sent.
@@ -59,8 +62,13 @@ the questions for the owner.
 
 ## 4. Questions for the owner
 
-1. Keep the `@username` and add the separate code `coin0001` (our default), or really replace the username?
-2. Plate text: the code (default) or the display name?
+1. ~~Username~~ — decided: the code becomes the username (§10.48.1). Open details: (a) during the 30-day grace a
+   special username no longer signs in (only the shown and base names do) — OK? (b) a person who rents a premium
+   username cannot be activated as an agent until it ends (nothing is charged) — OK, or should activation end the
+   rental? (c) an old link or mention by the base username still opens the person's profile, so someone who
+   already knows the base name learns the special one — acceptable? (d) `coin` names are never released, even
+   after an agent leaves for good — OK?
+2. ~~Plate text~~ — decided: the display name.
 3. Daily cherry cap per agent (default 1 000 000 000 cherries / day), minimum 1M and step 100k — OK?
 4. Request expiry 30 minutes — OK?
 5. Should the directory show the agent's stock or «available now» only (default)?

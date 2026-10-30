@@ -14,6 +14,7 @@ import {
   type Gender,
   type ProfileLinkDto,
 } from './profile-fields.js';
+import { resolveUserIdByUsername } from './special-usernames.js';
 import { isReservedUsername, isValidUsername } from './username.js';
 
 /** `Me` response (openapi `#/components/schemas/Me`). */
@@ -44,6 +45,8 @@ export interface MeDto {
   category: AccountCategory | null;
   /** v1.47-social (D175): the profile links, in order (0–3). */
   links: ProfileLinkDto[];
+  /** v1.54-social (D185): the caller's active special username; absent when none. */
+  specialUsername?: MeSpecialUsernameDto;
 }
 
 /** Public identity fields of an ACTIVE user (contract v1.3 `PublicProfile` / `UserSummary`). */
@@ -75,7 +78,30 @@ export const ME_INCLUDE = {
   profileLinks: PROFILE_LINKS_SELECT,
   settings: true,
   liveHost: { select: { userId: true, coverUrl: true } },
+  // v1.54-social (D185): the caller's own ACTIVE special username (self only, never public).
+  specialUsernames: {
+    where: { status: 'ACTIVE' },
+    select: {
+      username: true,
+      baseUsername: true,
+      source: true,
+      grantedAt: true,
+      expiresAt: true,
+      locked: true,
+    },
+    take: 1,
+  },
 } as const;
+
+/** v1.54-social (D185, §10.48.1): `Me.specialUsername` — only ever in the caller's own `Me`. */
+export interface MeSpecialUsernameDto {
+  username: string;
+  baseUsername: string;
+  source: 'RECHARGE_AGENT' | 'ADMIN_GIFT' | 'PURCHASE';
+  grantedAt: string;
+  expiresAt: string | null;
+  locked: boolean;
+}
 
 export interface UserWithProfile {
   id: string;
@@ -103,6 +129,15 @@ export interface UserWithProfile {
   settings: { isPrivate: boolean } | null;
   /** Absent for a just-created account (no permission yet). */
   liveHost?: { userId: string; coverUrl?: string | null } | null;
+  /** v1.54-social (D185): `ME_INCLUDE` reads the ACTIVE one. */
+  specialUsernames?: {
+    username: string;
+    baseUsername: string;
+    source: 'RECHARGE_AGENT' | 'ADMIN_GIFT' | 'PURCHASE';
+    grantedAt: Date;
+    expiresAt: Date | null;
+    locked: boolean;
+  }[];
 }
 
 export function toMeDto(user: UserWithProfile): MeDto {
@@ -127,6 +162,22 @@ export function toMeDto(user: UserWithProfile): MeDto {
     showGender: user.profile.showGender ?? false,
     category: user.profile.category ?? null,
     links: (user.profileLinks ?? []).map(profileLinkDto),
+    ...specialOf(user),
+  };
+}
+
+function specialOf(user: UserWithProfile): { specialUsername?: MeSpecialUsernameDto } {
+  const s = user.specialUsernames?.[0];
+  if (!s) return {};
+  return {
+    specialUsername: {
+      username: s.username,
+      baseUsername: s.baseUsername,
+      source: s.source,
+      grantedAt: s.grantedAt.toISOString(),
+      expiresAt: s.expiresAt?.toISOString() ?? null,
+      locked: s.locked,
+    },
   };
 }
 
@@ -247,7 +298,14 @@ export class UsersService {
       where: { username: identifier.username },
       select: { user: { select } },
     });
-    return profile?.user ?? null;
+    if (profile) return profile.user;
+    // v1.54-social (D185, §10.48.1): the person's own (base) username still signs in while a special
+    // one is shown. A special username in grace does not (only the username shown now and the base).
+    const special = await this.prisma.specialUsername.findFirst({
+      where: { baseUsername: identifier.username, status: 'ACTIVE' },
+      select: { user: { select } },
+    });
+    return special?.user ?? null;
   }
 
   async findMailRecipient(where: { id: string } | { email: string }): Promise<MailRecipient | null> {
@@ -293,7 +351,17 @@ export class UsersService {
       }),
       // v1.28-live (D146): the regular username a renter goes back to is kept for them.
       this.prisma.premiumUsernameLease.count({ where: { regularUsername: username, status: 'ACTIVE' } }),
-    ]);
+      // v1.54-social (D185): a base username behind a special one, a special one in grace, any `coin` name.
+      this.prisma.specialUsername.count({
+        where: {
+          OR: [
+            { status: 'ACTIVE', baseUsername: username },
+            { status: { in: ['ACTIVE', 'GRACE'] }, username },
+            { username, source: 'RECHARGE_AGENT' },
+          ],
+        },
+      }),
+    ]).then(([a, p, h, s]) => [a, p, h + s] as const);
     return accounts > 0 || pending > 0 || held > 0;
   }
 
@@ -327,14 +395,19 @@ export class UsersService {
   /**
    * The public identity of an ACTIVE user by username, else null (contract v1.3 §10.5). A name
    * that is not a well-formed username (§6 pattern and length) is not found without querying
-   * (SEC-037: a NUL byte or other invalid text must never reach the driver). Otherwise one query
+   * (SEC-037: a NUL byte or other invalid text must never reach the driver). Otherwise the name is
+   * resolved (also a base or grace name, D185) and the profile read
    * filtered on `status = 'ACTIVE'`, so unknown, pending-only, SUSPENDED and DELETED are
    * indistinguishable and the response time does not depend on the reason.
    */
   async findActivePublicUser(username: string): Promise<PublicUser | null> {
     if (!isValidUsername(username)) return null;
+    // v1.54-social (D185, §10.48.1): an old link by the person's base username (behind an ACTIVE special
+    // one) or by a special one in grace still leads to them; the response carries the username shown now.
+    const owner = await resolveUserIdByUsername(this.prisma, username);
+    if (owner === null) return null;
     const profile = await this.prisma.userProfile.findFirst({
-      where: { username, user: { status: 'ACTIVE' } },
+      where: { userId: owner, user: { status: 'ACTIVE' } },
       select: {
         userId: true,
         username: true,
@@ -375,7 +448,15 @@ export class UsersService {
         FROM user_profiles p
         JOIN users u ON u.id = p.user_id
         LEFT JOIN user_settings s ON s.user_id = u.id
-       WHERE p.username = ${username} AND u.status = 'ACTIVE'::user_status
+       WHERE (p.username = ${username}
+              -- v1.54-social (D185): an old link by a base or grace name still leads to the person.
+              OR (NOT EXISTS (SELECT 1 FROM user_profiles p2 WHERE p2.username = ${username})
+                  AND EXISTS (SELECT 1 FROM special_usernames su
+                               WHERE su.user_id = u.id
+                                 AND ((su.status = 'ACTIVE'::special_username_status AND su.base_username = ${username})
+                                   OR (su.status = 'GRACE'::special_username_status AND su.username = ${username})))))
+         AND u.status = 'ACTIVE'::user_status
+       LIMIT 1
          FOR SHARE OF u`;
     const row = rows[0];
     return row ? { id: row.id, isPrivate: row.is_private ?? false } : null;

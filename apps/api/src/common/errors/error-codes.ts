@@ -157,6 +157,8 @@ export enum ErrorCode {
   RECHARGE_CHERRY_REQUEST_CLOSED = 'RECHARGE_CHERRY_REQUEST_CLOSED',
   /** v1.54-social (DRAFT, D185): The agent's daily cherry cap would be exceeded. */
   RECHARGE_CHERRY_CAP_REACHED = 'RECHARGE_CHERRY_CAP_REACHED',
+  /** v1.54-social (DRAFT, D185): A special username is active and locked; the username cannot change. */
+  USERNAME_LOCKED = 'USERNAME_LOCKED',
 }
 
 /** HTTP status for every code (CONVENTIONS.md §4 table). */
@@ -250,6 +252,7 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.RECHARGE_CHERRY_REQUEST_PENDING]: 409,
   [ErrorCode.RECHARGE_CHERRY_REQUEST_CLOSED]: 409,
   [ErrorCode.RECHARGE_CHERRY_CAP_REACHED]: 409,
+  [ErrorCode.USERNAME_LOCKED]: 409,
 };
 
 /** Default developer-facing messages (clients localize by `code`, not by message). */
@@ -343,6 +346,7 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.RECHARGE_CHERRY_REQUEST_PENDING]: 'There is already an open request between you.',
   [ErrorCode.RECHARGE_CHERRY_REQUEST_CLOSED]: 'This request is no longer open.',
   [ErrorCode.RECHARGE_CHERRY_CAP_REACHED]: "The agent's daily cherry limit is reached.",
+  [ErrorCode.USERNAME_LOCKED]: 'Your username is locked while your special username is active.',
 };
 
 export interface ErrorDetail {

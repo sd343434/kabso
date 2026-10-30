@@ -36,7 +36,8 @@
     "task:admin": "tsx src/cli/task-admin.ts",
     "profile:admin": "tsx src/cli/profile-admin.ts",
     "economy:admin": "tsx src/cli/economy-admin.ts",
-    "recharge:admin": "tsx src/cli/recharge-admin.ts"
+    "recharge:admin": "tsx src/cli/recharge-admin.ts",
+    "username:admin": "tsx src/cli/username-admin.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1146.0",

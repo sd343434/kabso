@@ -240,6 +240,9 @@ enum ErrorCode {
   rechargeCherryRequestClosed('RECHARGE_CHERRY_REQUEST_CLOSED'),
   rechargeCherryCapReached('RECHARGE_CHERRY_CAP_REACHED'),
 
+  /// v1.54-social (D185): a special username is active and locked.
+  usernameLocked('USERNAME_LOCKED'),
+
   /// Client-only: no connection could be established.
   networkOffline('NETWORK_OFFLINE'),
 

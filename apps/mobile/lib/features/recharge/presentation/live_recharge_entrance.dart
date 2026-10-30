@@ -144,49 +144,6 @@ class _LiveRechargeEntranceLayerState
   }
 }
 
-/// Whether [text] in [style] fits [width] on one line.
-bool rechargeTextFits(
-  String text,
-  TextStyle style,
-  double width,
-  TextDirection direction,
-) {
-  final painter = TextPainter(
-    text: TextSpan(text: text, style: style),
-    textDirection: direction,
-    maxLines: 1,
-  )..layout();
-  final fits = painter.width <= width;
-  painter.dispose();
-  return fits;
-}
-
-/// The largest font size from [max] down to [min] at which [text] fits
-/// [width] on one line (else [min]; the text is then ellipsized).
-double rechargeFitFontSize(
-  String text,
-  TextStyle style,
-  double width, {
-  required double max,
-  required double min,
-  TextDirection direction = TextDirection.ltr,
-}) {
-  for (var size = max; size > min; size -= 0.5) {
-    final painter = TextPainter(
-      text: TextSpan(
-        text: text,
-        style: style.copyWith(fontSize: size),
-      ),
-      textDirection: direction,
-      maxLines: 1,
-    )..layout();
-    final fits = painter.width <= width;
-    painter.dispose();
-    if (fits) return size;
-  }
-  return min;
-}
-
 /// The bar itself: the owner's entrance art (the mascot on the emblem at the
 /// left, never mirrored) and «دخل وكيل الشحن coin0001» fitted into its red
 /// plate. Owner feedback (D185): 65 % of the room's width and at most

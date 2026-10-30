@@ -1,6 +1,14 @@
 import { AuditAction } from '../../common/audit/audit.service.js';
 import type { Prisma, PrismaClient, RechargeStockReason } from '../../generated/prisma/client.js';
 import { uuidv7 } from '../levels/uuidv7.js';
+import { nameInUse } from '../premium-usernames/premium-username-ops.js';
+import {
+  activeSpecialOf,
+  endSpecialIn,
+  grantSpecialIn,
+  restoreSpecialIn,
+  SpecialUsernameError,
+} from '../users/special-usernames.js';
 import { agentCode, topUpPrice, type PriceTier } from './recharge-rules.js';
 
 /**
@@ -154,6 +162,7 @@ export async function topUpIn(
   note: string | null,
   rules: { activationMinCoins: number; priceTiers: readonly PriceTier[]; currency: string },
   now: Date,
+  specialGraceDays = 30,
 ): Promise<TopUpResult> {
   if (coins <= 0n || coins > 1_000_000_000_000n)
     throw new RechargeAdminError('Coins must be 1 … 1 000 000 000 000.');
@@ -191,16 +200,35 @@ export async function topUpIn(
   });
   let code = agent.code;
   if (first) {
-    const [counter] = await tx.$queryRaw<{ n: number }[]>`
-      INSERT INTO recharge_agent_counter (id, last_number) VALUES (1, 1)
-      ON CONFLICT (id) DO UPDATE SET last_number = recharge_agent_counter.last_number + 1
-      RETURNING last_number AS n`;
-    if (!counter) throw new Error('recharge_agent_counter row missing');
-    code = agentCode(counter.n);
+    // v1.54-social (D185, §10.48.1): the code becomes the agent's username (special, locked). A number
+    // whose name an older account already uses (names made before `coin` + digits was reserved) is
+    // skipped — the only gap the counter can have.
+    let n: number;
+    for (let tries = 0; ; tries++) {
+      const [counter] = await tx.$queryRaw<{ n: number }[]>`
+        INSERT INTO recharge_agent_counter (id, last_number) VALUES (1, 1)
+        ON CONFLICT (id) DO UPDATE SET last_number = recharge_agent_counter.last_number + 1
+        RETURNING last_number AS n`;
+      if (!counter) throw new Error('recharge_agent_counter row missing');
+      n = counter.n;
+      if (!(await nameInUse(tx, agentCode(n), agentUserId, now))) break;
+      if (tries >= 50) throw new RechargeAdminError('No free agent code found.');
+    }
+    code = agentCode(n);
     await tx.rechargeAgent.update({
       where: { userId: agentUserId },
-      data: { status: 'ACTIVE', code, codeNumber: counter.n, activatedAt: now },
+      data: { status: 'ACTIVE', code, codeNumber: n, activatedAt: now },
     });
+    await specialIn(() =>
+      grantSpecialIn(
+        tx,
+        agentUserId,
+        code!,
+        { source: 'RECHARGE_AGENT', expiresAt: null, reason: 'recharge agent activated', via: 'system' },
+        now,
+        specialGraceDays,
+      ),
+    );
     await audit(tx, AuditAction.RECHARGE_ACTIVATE, 'recharge_agent', agentUserId, { code, via: 'cli' });
   }
   const stock = await moveStockIn(tx, agentUserId, coins, 'TOPUP', topupId, now);
@@ -231,7 +259,23 @@ export async function topUpIn(
  * `recharge-admin suspend`: the agent loses selling, the listing and every perk at once (they are derived from
  * the status); open cherry requests are cancelled.
  */
-export async function suspendIn(tx: Tx, agentUserId: string, reason: string, now: Date): Promise<void> {
+/** A refused special-username step as the CLI's error (the whole transaction rolls back). */
+async function specialIn<T>(step: () => Promise<T>): Promise<T> {
+  try {
+    return await step();
+  } catch (err) {
+    if (err instanceof SpecialUsernameError) throw new RechargeAdminError(`Username: ${err.message}`);
+    throw err;
+  }
+}
+
+export async function suspendIn(
+  tx: Tx,
+  agentUserId: string,
+  reason: string,
+  now: Date,
+  specialGraceDays = 30,
+): Promise<void> {
   const done = await tx.rechargeAgent.updateMany({
     where: { userId: agentUserId, status: { not: 'SUSPENDED' } },
     data: { status: 'SUSPENDED', suspendedAt: now, suspendReason: reason, updatedAt: now },
@@ -241,6 +285,11 @@ export async function suspendIn(tx: Tx, agentUserId: string, reason: string, now
     where: { agentUserId, status: 'PENDING' },
     data: { status: 'CANCELLED', decidedAt: now },
   });
+  // v1.54-social (D185): the person's own username is shown again; the code stays theirs (never reused).
+  const special = await activeSpecialOf(tx, agentUserId);
+  if (special?.source === 'RECHARGE_AGENT') {
+    await endSpecialIn(tx, agentUserId, 'SUSPENDED', now, specialGraceDays, { via: 'system', note: reason });
+  }
   await audit(tx, AuditAction.RECHARGE_SUSPEND, 'recharge_agent', agentUserId, {
     reason,
     cancelledRequests: cancelled.count,
@@ -249,7 +298,12 @@ export async function suspendIn(tx: Tx, agentUserId: string, reason: string, now
 }
 
 /** `recharge-admin reinstate`: back to ACTIVE (or APPROVED when it was never activated). */
-export async function reinstateIn(tx: Tx, agentUserId: string, now: Date): Promise<string> {
+export async function reinstateIn(
+  tx: Tx,
+  agentUserId: string,
+  now: Date,
+  specialGraceDays = 30,
+): Promise<string> {
   const agent = await tx.rechargeAgent.findUnique({ where: { userId: agentUserId } });
   if (agent?.status !== 'SUSPENDED') throw new RechargeAdminError('Not a SUSPENDED agent.');
   const status = agent.code === null ? 'APPROVED' : 'ACTIVE';
@@ -257,6 +311,9 @@ export async function reinstateIn(tx: Tx, agentUserId: string, now: Date): Promi
     where: { userId: agentUserId },
     data: { status, suspendedAt: null, suspendReason: null, updatedAt: now },
   });
+  if (status === 'ACTIVE') {
+    await specialIn(() => restoreSpecialIn(tx, agentUserId, 'RECHARGE_AGENT', now, specialGraceDays));
+  }
   await audit(tx, AuditAction.RECHARGE_REINSTATE, 'recharge_agent', agentUserId, { status, via: 'cli' });
   return status;
 }

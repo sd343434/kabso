@@ -3166,5 +3166,10 @@
   "errorRechargeEmployeeNotAllowed": "This person can't be added as an employee.",
   "errorRechargeCherryRequestPending": "There is already an open request between you.",
   "errorRechargeCherryRequestClosed": "This request is no longer open.",
-  "errorRechargeCherryCapReached": "The agent's daily cherry limit is reached."
+  "errorRechargeCherryCapReached": "The agent's daily cherry limit is reached.",
+  "errorUsernameLocked": "Your username is locked while your special username is active.",
+  "settingsUsernameLocked": "Locked",
+  "settingsBaseUsername": "Your own username: {username}",
+  "changeUsernameSpecialLocked": "{special} is a locked special username and can't be changed while it's active. Everyone else sees only it; your own username {base} is visible only to you, and you can still sign in with it.",
+  "changeUsernameSpecialEnds": "It ends on {date}, then your own username comes back."
 }

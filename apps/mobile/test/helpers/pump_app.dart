@@ -233,6 +233,7 @@ Future<void> pumpScreen(
   HomeBannersRepository? homeBannersRepository,
   DmRepository? dmRepository,
   FakeInlineVideos? inlineVideos,
+  RechargeRepository? rechargeRepository,
 }) async {
   final prefs = await testPrefs(language: language.name);
   await tester.pumpWidget(
@@ -241,7 +242,9 @@ Future<void> pumpScreen(
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
         // D185: never the network for the recharge-agent state.
-        rechargeRepositoryProvider.overrideWithValue(FakeRechargeRepository()),
+        rechargeRepositoryProvider.overrideWithValue(
+          rechargeRepository ?? FakeRechargeRepository(),
+        ),
         // D162: post and reel videos without the plugin.
         inlineVideoFactoryProvider.overrideWithValue(
           (inlineVideos ?? FakeInlineVideos()).call,

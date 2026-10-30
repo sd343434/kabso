@@ -1,6 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:kabso_live/core/models/premium_tier.dart';
 import 'package:kabso_live/core/models/profile_fields.dart';
+import 'package:kabso_live/core/models/special_username.dart';
 
 part 'entities.freezed.dart';
 
@@ -49,6 +50,10 @@ abstract class User with _$User {
 
     /// v1.47-social (D175): up to 3 profile links, in order.
     @Default(<ProfileLink>[]) List<ProfileLink> links,
+
+    /// v1.54-social (D185, §10.48.1): the active special username (the
+    /// shown [username] while set) and the person's own base username.
+    SpecialUsername? specialUsername,
   }) = _User;
 }
 

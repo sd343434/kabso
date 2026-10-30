@@ -121,6 +121,24 @@ class RechargeAgentFrame extends StatelessWidget {
     final height = heightFor(width);
     final picture = width * 2 * _r * 1.02;
     final plateH = height * (_plateBottom - _plateTop);
+    // Owner (D185, same day): the plate shows the display name — the
+    // largest size from 62 % of the plate's height down to 42 % that fits on
+    // one line, else ellipsized at 42 %.
+    final nameDirection =
+        KFormat.firstStrongDirection(name) ?? Directionality.of(context);
+    final plateStyle = context.textStyles.title.copyWith(
+      height: 1,
+      fontWeight: FontWeight.w900,
+      letterSpacing: plateH * 0.03,
+    );
+    final plateFont = rechargeFitFontSize(
+      name,
+      plateStyle,
+      width * (_plateRight - _plateLeft) - 2 * plateH * 0.3,
+      max: plateH * 0.62,
+      min: plateH * 0.42,
+      direction: nameDirection,
+    );
     return Semantics(
       key: frameKey,
       label: context.l10n.rechargeAgentFrameLabel(
@@ -163,18 +181,15 @@ class RechargeAgentFrame extends StatelessWidget {
                 child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: plateH * 0.3),
                   child: Text(
-                    code,
+                    name,
                     key: plateKey,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
-                    textDirection: TextDirection.ltr,
+                    textDirection: nameDirection,
                     textScaler: TextScaler.noScaling,
-                    style: context.textStyles.title.copyWith(
-                      fontSize: plateH * 0.62,
-                      height: 1,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: plateH * 0.03,
+                    style: plateStyle.copyWith(
+                      fontSize: plateFont,
                       color: RechargeAgentArt.plateText,
                       shadows: const [
                         Shadow(
@@ -193,4 +208,47 @@ class RechargeAgentFrame extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Whether [text] in [style] fits [width] on one line.
+bool rechargeTextFits(
+  String text,
+  TextStyle style,
+  double width,
+  TextDirection direction,
+) {
+  final painter = TextPainter(
+    text: TextSpan(text: text, style: style),
+    textDirection: direction,
+    maxLines: 1,
+  )..layout();
+  final fits = painter.width <= width;
+  painter.dispose();
+  return fits;
+}
+
+/// The largest font size from [max] down to [min] at which [text] fits
+/// [width] on one line (else [min]; the text is then ellipsized).
+double rechargeFitFontSize(
+  String text,
+  TextStyle style,
+  double width, {
+  required double max,
+  required double min,
+  TextDirection direction = TextDirection.ltr,
+}) {
+  for (var size = max; size > min; size -= 0.5) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: style.copyWith(fontSize: size),
+      ),
+      textDirection: direction,
+      maxLines: 1,
+    )..layout();
+    final fits = painter.width <= width;
+    painter.dispose();
+    if (fits) return size;
+  }
+  return min;
 }
