@@ -6316,6 +6316,31 @@ class AppLocalizationsEn extends AppLocalizations {
       'We are adding games you can play in the live. They are not available yet.';
 
   @override
+  String liveChatGiftLine(
+    String sender,
+    String gift,
+    int count,
+    String recipient,
+  ) {
+    return '$sender sent $gift ×$count to $recipient';
+  }
+
+  @override
+  String liveChatGiftRecipients(String name, int more) {
+    return '$name +$more';
+  }
+
+  @override
+  String liveChatLuckyLine(String sender, String multiplier, String coins) {
+    return '$sender won ×$multiplier = $coins coins from a lucky gift';
+  }
+
+  @override
+  String liveGiftTicker(String sender, String gift, int count, String room) {
+    return '$sender sent $gift ×$count in $room';
+  }
+
+  @override
   String get liveViewerMenu => 'More';
 
   @override

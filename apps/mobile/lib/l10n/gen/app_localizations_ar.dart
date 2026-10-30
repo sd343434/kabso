@@ -6336,6 +6336,31 @@ class AppLocalizationsAr extends AppLocalizations {
       'نعمل على إضافة ألعاب تلعبها داخل البث، وهي غير متاحة بعد.';
 
   @override
+  String liveChatGiftLine(
+    String sender,
+    String gift,
+    int count,
+    String recipient,
+  ) {
+    return '$sender أرسل $gift ×$count إلى $recipient';
+  }
+
+  @override
+  String liveChatGiftRecipients(String name, int more) {
+    return '$name و$more آخرين';
+  }
+
+  @override
+  String liveChatLuckyLine(String sender, String multiplier, String coins) {
+    return '$sender ربح ×$multiplier = $coins عملة من هدية الحظ';
+  }
+
+  @override
+  String liveGiftTicker(String sender, String gift, int count, String room) {
+    return '$sender أرسل $gift ×$count في غرفة $room';
+  }
+
+  @override
   String get liveViewerMenu => 'المزيد';
 
   @override

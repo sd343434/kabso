@@ -14,6 +14,7 @@ import 'package:kabso_live/features/live/application/live_wallet_controller.dart
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
+import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/posts/data/media_repository.dart';
 import 'package:kabso_live/features/posts/domain/post_models.dart'
     show ReportReason;
@@ -113,6 +114,40 @@ final class LiveChatNoticeLine extends LiveChatItem {
 
   @override
   String get key => 'n:rules';
+}
+
+/// D178 (owner: «الهدايا … تظهر في تكست البث الذي أُرسلت فيه الهدية»): a
+/// gift sent in this live, as a chat line («فلان أرسل وردة ×3 إلى سارة»).
+/// The same sender's same gift to the same people within [comboWindow] adds
+/// to one line ([count]) instead of a line per tap. Drawn from the room's
+/// `gift` messages and the sender's own answer; never stored.
+final class LiveChatGiftLine extends LiveChatItem {
+  const new(this.gift, {required this.count, required this.lastAt});
+
+  final LiveGift gift;
+
+  /// Gifts in this line (the quantities added up).
+  final int count;
+
+  /// The last send added.
+  final DateTime lastAt;
+
+  static const comboWindow = Duration(seconds: 8);
+
+  @override
+  String get key => 'g:${gift.id}';
+}
+
+/// D178 (owner: «لا يظهر المكسب في التكست»): a lucky win in this live, as a
+/// chat line («فلان ربح ×5 = 50 عملة من هدية الحظ»), from the room's
+/// `lucky-win` message (every win, v1.41-live) or the sender's own answer.
+final class LiveChatLuckyLine extends LiveChatItem {
+  const new(this.win);
+
+  final LuckyWin win;
+
+  @override
+  String get key => 'w:${win.giftId}';
 }
 
 class LiveChatState {
@@ -406,6 +441,7 @@ class LiveChatController extends Notifier<LiveChatState> {
       case LiveGiftReceived() ||
           LuckyWinReceived() ||
           LuckyTickerReceived() ||
+          GiftTickerReceived() ||
           LiveSeatEmojiReceived() ||
           LiveQuipReceived() ||
           LiveProgramChanged() ||
@@ -413,12 +449,58 @@ class LiveChatController extends Notifier<LiveChatState> {
           LiveStickersChanged() ||
           LiveWatchChanged() ||
           LiveWatchSuggested():
-        // CP-020: gifts are not chat lines (§10.11); LiveGiftEffects plays
-        // them (and D132's big lucky wins); D138's seat emojis play on the
+        // CP-020: LiveGiftEffects plays gifts and lucky wins and, D178,
+        // puts their lines in this chat (addGift / addLuckyWin: the
+        // sender's own answer too, once); D138's seat emojis play on the
         // seats (LiveSeatEmojis); D154's quips play in LiveQuips (their
         // own bubble); D154e's program has its own card (LivePrograms).
         break;
     }
+  }
+
+  /// D178: [gift]'s chat line, or more on the line of the same sender's
+  /// same gift to the same people a moment ago.
+  void addGift(LiveGift gift) {
+    if (!ref.mounted) return;
+    final items = [...state.items];
+    final people = {for (final r in gift.recipients) r.id};
+    for (var i = items.length - 1; i >= 0 && i >= items.length - 6; i--) {
+      final it = items[i];
+      if (it is LiveChatGiftLine &&
+          it.gift.sender.id == gift.sender.id &&
+          it.gift.giftCode == gift.giftCode &&
+          it.gift.recipients.length == people.length &&
+          it.gift.recipients.every((r) => people.contains(r.id)) &&
+          gift.createdAt.difference(it.lastAt).abs() <=
+              LiveChatGiftLine.comboWindow) {
+        items[i] = LiveChatGiftLine(
+          it.gift,
+          count: it.count + gift.quantity,
+          lastAt: gift.createdAt,
+        );
+        state = state.copyWith(items: items);
+        return;
+      }
+    }
+    state = state.copyWith(
+      items: _trim([
+        ...items,
+        LiveChatGiftLine(gift, count: gift.quantity, lastAt: gift.createdAt),
+      ]),
+    );
+  }
+
+  /// D178: [win]'s chat line (once).
+  void addLuckyWin(LuckyWin win) {
+    if (!ref.mounted) return;
+    if (state.items.any(
+      (it) => it is LiveChatLuckyLine && it.win.giftId == win.giftId,
+    )) {
+      return;
+    }
+    state = state.copyWith(
+      items: _trim([...state.items, LiveChatLuckyLine(win)]),
+    );
   }
 
   bool _has(String id) =>

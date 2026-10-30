@@ -402,13 +402,20 @@ void main() {
   });
 
   group('the queue', () {
-    test("the sender's own win shows whatever its tier (a ×5 too); the "
-        "room's ×50 message does not (the server sends ×100+ only)", () {
+    test("the sender's own win shows whatever its tier (a ×5 too); D178: "
+        "the room's ×50 message shows too (the server sends every win)", () {
+      final room = _container();
+      room
+          .read(liveGiftEffectsProvider('room-0').notifier)
+          .showLucky(_win(multiplier: 50, giftId: 'r-50'));
+      expect(
+        room.read(liveGiftEffectsProvider('room-0')).lucky?.multiplier,
+        50,
+      );
       final c = _container();
-      final effects = c.read(liveGiftEffectsProvider('room-0').notifier)
-        ..showLucky(_win(multiplier: 50, giftId: 'r-50'));
-      expect(c.read(liveGiftEffectsProvider('room-0')).lucky, isNull);
-      effects.showOwnWin(_send('g-own', _result({5: 1})));
+      c
+          .read(liveGiftEffectsProvider('room-0').notifier)
+          .showOwnWin(_send('g-own', _result({5: 1})));
       final shown = c.read(liveGiftEffectsProvider('room-0')).lucky!;
       expect(shown.multiplier, 5);
       expect(shown.coinsWon, 25);

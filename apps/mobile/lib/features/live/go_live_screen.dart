@@ -19,6 +19,7 @@ import 'package:kabso_live/features/levels/domain/level_models.dart';
 import 'package:kabso_live/features/live/application/live_assistant.dart';
 import 'package:kabso_live/features/live/application/live_chat_controller.dart';
 import 'package:kabso_live/features/live/application/live_gift_effects.dart';
+import 'package:kabso_live/features/live/application/live_gift_ticker.dart';
 import 'package:kabso_live/features/live/application/live_host_controller.dart';
 import 'package:kabso_live/features/live/application/live_lucky_ticker.dart';
 import 'package:kabso_live/features/live/application/live_program.dart';
@@ -397,6 +398,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       ref.read(liveSeatEmojisProvider(room.id).notifier).attach(engine);
       // D148: big lucky wins in other lives (the gold ticker).
       ref.read(liveLuckyTickersProvider(room.id).notifier).attach(engine);
+      // D178: the global gift strip.
+      ref.read(liveGiftTickersProvider(room.id).notifier).attach(engine);
       // D154: the room's quips (one at a time, after their delay).
       ref.read(liveQuipsProvider(room.id).notifier).attach(engine);
       // D154e: the live's program.

@@ -18,6 +18,7 @@ import 'package:kabso_live/features/live/application/live_chat_controller.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_chat_gift_line.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_media.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_public_message.dart';
 import 'package:kabso_live/features/posts/presentation/report_sheet.dart';
@@ -260,6 +261,13 @@ class LiveRoomChatLines extends ConsumerWidget {
       ),
       // D118/D135: the room's rules, a see-through system line (not
       // tappable), the first line of this visit.
+      // D178: a gift or a lucky win of this live.
+      LiveChatGiftLine() || LiveChatLuckyLine() => LiveChatGiftLineView(
+        item: item,
+        color: bubble,
+        maxWidth: boxMax,
+        onProfile: onProfile,
+      ),
       LiveChatNoticeLine() => LiveRoomRulesNotice(
         key: LiveRoomChatLines.noticeKey,
         text: l10n.liveRoomRulesNotice,
@@ -362,6 +370,14 @@ class LiveRoomChatLines extends ConsumerWidget {
           onProfile: () => onProfile(join.user.username),
           onActions: () => onProfile(join.user.username),
           join: l10n.chatJoined(KFormat.bidiIsolate(join.user.displayName)),
+        );
+      case LiveChatGiftLine() || LiveChatLuckyLine():
+        // D178: a gift or a lucky win of this live, as a row.
+        return LiveChatGiftLineView(
+          item: item,
+          color: bubble,
+          maxWidth: max,
+          onProfile: onProfile,
         );
       case LiveChatBulletLine() || LiveChatNoticeLine():
         return null;

@@ -79,7 +79,9 @@ void main() {
   final en = l10nFor(AppLanguage.en);
 
   testWidgets('a gift message: sender → recipients, the name from the '
-      'catalogue, ×quantity; gone 4 s after it (D145c)', (tester) async {
+      'catalogue, ×quantity; gone 3 s after it (D178, owner; D145c had 4)', (
+    tester,
+  ) async {
     final engine = await _pump(tester);
     engine.chat.add(_gift());
     await _show(tester);
@@ -98,8 +100,8 @@ void main() {
     expect(find.byType(KGiftImage), findsOneWidget);
     // A small gift: no centred effect.
     expect(find.byType(KGiftEffect), findsNothing);
-    expect(LiveGiftEffects.bannerTime, const Duration(seconds: 4));
-    await tester.pump(const Duration(milliseconds: 3600));
+    expect(LiveGiftEffects.bannerTime, const Duration(seconds: 3));
+    await tester.pump(const Duration(milliseconds: 2600));
     expect(find.byType(LiveGiftBanner), findsOneWidget);
     await tester.pump(const Duration(milliseconds: 400));
     await tester.pumpAndSettle();
