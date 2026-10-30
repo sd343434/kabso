@@ -75,7 +75,16 @@ describe('D166 check-in rules', () => {
   });
 
   it('knows the task metrics', () => {
-    expect(TASK_METRICS).toHaveLength(6);
+    // D166's six, then D176's twelve daily-pool metrics (v1.50-social).
+    expect(TASK_METRICS.slice(0, 6)).toEqual([
+      'WATCH_LIVES',
+      'FOLLOWS',
+      'LIVE_CHAT_MESSAGES',
+      'GIFT_SENDS',
+      'HOST_LIVE_MINUTES',
+      'HOST_GIFT_COINS',
+    ]);
+    expect(TASK_METRICS).toHaveLength(18);
     expect(isTaskMetric('FOLLOWS')).toBe(true);
     expect(isTaskMetric('SHARES')).toBe(false);
   });

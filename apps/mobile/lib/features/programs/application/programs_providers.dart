@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show FutureProviderFamily;
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/live/domain/home_banner.dart';
 import 'package:kabso_live/features/programs/data/programs_repository.dart';
 
 // Names (tasks, perks, events) are localized by the server, so a language
@@ -58,3 +59,17 @@ final FutureProvider<RechargeOffer> rechargeOfferProvider =
     FutureProvider.autoDispose(
       (ref) => ref.watch(programsRepositoryProvider).rechargePackages(),
     );
+
+/// The Task Center's banners (`placement=tasks`, D176). A failure shows no
+/// banner (a banner is never a reason to show an error).
+final FutureProvider<List<HomeBanner>> taskBannersProvider =
+    FutureProvider.autoDispose((ref) async {
+      ref
+        ..watch(languageControllerProvider)
+        ..watch(currentUserProvider.select((u) => u?.id));
+      try {
+        return await ref.watch(taskBannersRepositoryProvider).list();
+      } on Object {
+        return const [];
+      }
+    });

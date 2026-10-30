@@ -49,7 +49,14 @@ export interface EventSummaryDto {
   permanent: boolean;
   featured: boolean;
   regions: string[];
+  /** v1.50-social (D176): the calendar bar's second line (a short prize line), null when none. */
+  summary: string | null;
+  /** v1.50-social (D176): the calendar bar's tone, null = a hue from the id. */
+  tone: EventTone | null;
 }
+
+/** v1.50-social (D176): Kabso hues for an event's calendar bar (`events.tone`). */
+export type EventTone = 'RED' | 'GOLD' | 'TEAL' | 'BLUE' | 'PINK' | 'AMBER';
 
 /** `EventList`. */
 export interface EventListDto {
@@ -235,6 +242,8 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
       permanent: e.permanent,
       featured: e.featured,
       regions: e.regions.map((r) => r.trim()),
+      summary: lang === 'ar' ? e.summaryAr : e.summaryEn,
+      tone: e.tone as EventTone | null,
     };
   }
 

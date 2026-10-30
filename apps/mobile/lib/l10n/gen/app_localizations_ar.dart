@@ -8309,29 +8309,55 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
-  String get tasksTabDaily => 'المهام اليومية';
-
-  @override
-  String get tasksTabWeekly => 'المهام الأسبوعية';
-
-  @override
   String get tasksLoadError => 'تعذّر تحميل المهام';
 
   @override
-  String tasksLevelPoints(String points) {
-    return 'نقاط الخبرة $points';
+  String get tasksTabActive => 'المهام النشطة';
+
+  @override
+  String get tasksTabDiamond => 'مهام الماس';
+
+  @override
+  String get tasksDiamondSoonTitle => 'مهام الماس قريباً';
+
+  @override
+  String get tasksDiamondSoonBody =>
+      'لم تُطلق مهام الماس بعد. ستظهر هنا عندما يطلقها فريق كبسو.';
+
+  @override
+  String get tasksCheckInCalendar => 'التقويم';
+
+  @override
+  String tasksCheckInMoreDays(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'سجّل $days يوماً إضافياً لتحصل على مكافأة إضافية',
+      few: 'سجّل $days أيام إضافية لتحصل على مكافأة إضافية',
+      two: 'سجّل يومين إضافيين لتحصل على مكافأة إضافية',
+      one: 'سجّل يوماً إضافياً لتحصل على مكافأة إضافية',
+    );
+    return '$_temp0';
   }
 
   @override
-  String get tasksLevelNone => 'المستويات غير مفعّلة بعد';
+  String get tasksCalendarTitle => 'تقويم تسجيل الدخول';
 
   @override
-  String get tasksCheckInTitle => 'تسجيل الدخول اليومي';
-
-  @override
-  String tasksCheckInToBonus(String days, String coins) {
-    return 'سجّل الدخول $days أيام أخرى لتحصل على $coins عملة إضافية';
+  String tasksCalendarBody(String coins) {
+    return 'سجّل الدخول كل يوم: اليوم السابع على التوالي يمنحك $coins عملة إضافية، ويوم فائت يعيد العدّ.';
   }
+
+  @override
+  String tasksDayCoins(String coins) {
+    return '$coins عملة';
+  }
+
+  @override
+  String get eventsTitle => 'الفعاليات';
+
+  @override
+  String get tasksCheckInTitle => 'مكافآت تسجيل الدخول';
 
   @override
   String tasksCheckInBonusToday(String coins) {
@@ -8364,13 +8390,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get tasksWeeklyHint => 'تتجدد كل يوم إثنين.';
 
   @override
-  String get tasksWeeklyEmpty => 'المهام الأسبوعية للمضيفين';
-
-  @override
-  String get tasksWeeklyEmptyBody =>
-      'تظهر هنا مهام البث الأسبوعية لمن لديه صلاحية البث.';
-
-  @override
   String get tasksEmpty => 'لا مهام الآن';
 
   @override
@@ -8380,7 +8399,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get tasksActionGo => 'اذهب';
 
   @override
-  String get tasksActionClaim => 'استلام';
+  String get tasksActionClaim => 'استلم';
 
   @override
   String get tasksActionDone => 'تم';
@@ -8400,10 +8419,10 @@ class AppLocalizationsAr extends AppLocalizations {
   String get eventsTabCalendar => 'تقويم الفعاليات';
 
   @override
-  String get eventsTabPermanent => 'فعاليات دائمة';
+  String get eventsTabPermanent => 'الفعاليات الدائمة';
 
   @override
-  String get eventsTabRegional => 'فعاليات إقليمية';
+  String get eventsTabRegional => 'الإقليمية';
 
   @override
   String get eventsIntroTitle => 'تقويم الفعاليات';

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/api_call.dart';
 import 'package:kabso_live/core/network/network_providers.dart';
+import 'package:kabso_live/features/live/domain/home_banner.dart';
 
 // The Me hub's programs (openapi v1.44-social, D166, CONVENTIONS §10.41):
 // the Task Center, the Event Center, SVIP and the recharge packages. Every
@@ -22,6 +23,8 @@ List<Map<String, dynamic>> _list(Object? v) => [
 ];
 
 /// `ProgramTask.metric`: what a task counts (decides where «اذهب» leads).
+/// v1.50-social (D176) adds the daily pool's metrics; an unknown one is
+/// [other] (a generic icon, «اذهب» to the live hub).
 enum TaskMetric {
   watchLives('WATCH_LIVES'),
   follows('FOLLOWS'),
@@ -29,6 +32,18 @@ enum TaskMetric {
   giftSends('GIFT_SENDS'),
   hostLiveMinutes('HOST_LIVE_MINUTES'),
   hostGiftCoins('HOST_GIFT_COINS'),
+  watchMinutes('WATCH_MINUTES'),
+  audioRooms('AUDIO_ROOMS'),
+  liveTaps('LIVE_TAPS'),
+  newHostGifts('NEW_HOST_GIFTS'),
+  posts('POSTS'),
+  reels('REELS'),
+  stories('STORIES'),
+  postComments('POST_COMMENTS'),
+  dmFriends('DM_FRIENDS'),
+  dmVoiceMessages('DM_VOICE_MESSAGES'),
+  hostGiftsReceived('HOST_GIFTS_RECEIVED'),
+  hostGuests('HOST_GUESTS'),
   other('');
 
   new(this.wire);
@@ -54,10 +69,12 @@ final class ProgramTask {
     required this.completed,
     required this.claimed,
     this.claimedCoins,
+    this.pooled = false,
   });
 
   factory fromJson(Map<String, dynamic> json) => ProgramTask(
     code: json['code']! as String,
+    pooled: json['pooled'] == true,
     weekly: json['period'] == 'WEEKLY',
     metric: TaskMetric.fromWire(json['metric']),
     forHosts: json['audience'] == 'HOSTS',
@@ -83,7 +100,13 @@ final class ProgramTask {
 
   /// What the claim paid (after the daily cap).
   final int? claimedCoins;
+
+  /// v1.50-social (D176): one of the caller's daily pool tasks of today.
+  final bool pooled;
 }
+
+/// `MyTasks.band` (v1.50-social, D176): the level band of today's tasks.
+typedef TaskBand = ({int band, int level, String name, bool host});
 
 /// `CheckInDay`: one day of the sign-in strip (today first).
 @immutable
@@ -159,9 +182,19 @@ final class MyTasks {
     required this.dailyEarnedCoins,
     required this.checkIn,
     required this.tasks,
+    this.band,
   });
 
   factory fromJson(Map<String, dynamic> json) => MyTasks(
+    band: switch (json['band']) {
+      final Map<String, dynamic> b => (
+        band: _int(b['band']),
+        level: _int(b['level']),
+        name: b['name']! as String,
+        host: b['host'] == true,
+      ),
+      _ => null,
+    },
     dailyCapCoins: _int(json['dailyCapCoins']),
     dailyEarnedCoins: _int(json['dailyEarnedCoins']),
     checkIn: CheckInState.fromJson(json['checkIn']! as Map<String, dynamic>),
@@ -172,6 +205,9 @@ final class MyTasks {
   final int dailyEarnedCoins;
   final CheckInState checkIn;
   final List<ProgramTask> tasks;
+
+  /// Null from a server before v1.50-social.
+  final TaskBand? band;
 
   List<ProgramTask> get daily => [
     for (final t in tasks)
@@ -257,6 +293,19 @@ final class SvipStatus {
 /// `EventSummary.status`.
 enum EventStatus { upcoming, running, ended }
 
+/// `EventSummary.tone` (v1.50-social, D176): the calendar bar's Kabso hue.
+enum EventTone {
+  red,
+  gold,
+  teal,
+  blue,
+  pink,
+  amber;
+
+  static EventTone? fromWire(Object? wire) =>
+      values.where((t) => t.name.toUpperCase() == wire).firstOrNull;
+}
+
 /// `EventSummary`.
 @immutable
 class EventSummary {
@@ -271,9 +320,13 @@ class EventSummary {
     required this.featured,
     this.bannerUrl,
     this.endsAt,
+    this.summary,
+    this.tone,
   });
 
   factory fromJson(Map<String, dynamic> json) => EventSummary(
+    summary: json['summary'] as String?,
+    tone: EventTone.fromWire(json['tone']),
     id: json['id']! as String,
     title: json['title']! as String,
     bannerUrl: json['bannerUrl'] as String?,
@@ -305,6 +358,13 @@ class EventSummary {
   final bool forHosts;
   final bool permanent;
   final bool featured;
+
+  /// v1.50-social (D176): the calendar bar's second line (a short prize
+  /// line), null when none.
+  final String? summary;
+
+  /// v1.50-social (D176): null = a stable hue from the id.
+  final EventTone? tone;
 }
 
 /// `EventPrize`.
@@ -326,6 +386,8 @@ final class EventDetail extends EventSummary {
     required this.prizes,
     super.bannerUrl,
     super.endsAt,
+    super.summary,
+    super.tone,
     this.paidAt,
   });
 
@@ -342,6 +404,8 @@ final class EventDetail extends EventSummary {
       forHosts: s.forHosts,
       permanent: s.permanent,
       featured: s.featured,
+      summary: s.summary,
+      tone: s.tone,
       rules: json['rules']! as String,
       prizes: [
         for (final p in _list(json['prizes']))
@@ -584,4 +648,33 @@ class ProgramsRepositoryImpl implements ProgramsRepository {
 
 final programsRepositoryProvider = Provider<ProgramsRepository>(
   (ref) => ProgramsRepositoryImpl(ref.watch(apiDioProvider)),
+);
+
+/// The Task Center's promo banners (`GET /home/banners?placement=tasks`,
+/// v1.50-social, D176): the team's banners for the slot at the bottom of
+/// the page; none → the slot is hidden.
+abstract interface class TaskBannersRepository {
+  Future<List<HomeBanner>> list();
+}
+
+class TaskBannersRepositoryImpl implements TaskBannersRepository {
+  new(this._dio);
+
+  final Dio _dio;
+
+  @override
+  Future<List<HomeBanner>> list() => guardApiCall(() async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      '/home/banners',
+      queryParameters: const {'placement': 'tasks'},
+    );
+    return [
+      for (final item in res.data!['data']! as List<dynamic>)
+        HomeBanner.fromJson(item as Map<String, dynamic>),
+    ];
+  });
+}
+
+final taskBannersRepositoryProvider = Provider<TaskBannersRepository>(
+  (ref) => TaskBannersRepositoryImpl(ref.watch(apiDioProvider)),
 );

@@ -12,7 +12,8 @@ export const WATCH_LIVE_MIN_MS = 15_000;
 /** An event's leaderboard shows (and freezes) at most this many people. */
 export const EVENT_LEADERBOARD_MAX = 100;
 
-/** The task metrics (`task_definitions.metric`, CHECK `task_definitions_shape`). */
+/** The task metrics (`task_definitions.metric`, CHECK `task_definitions_shape`). D176 adds the
+ * daily pool's metrics after the D166 ones (CONVENTIONS §10.41.1). */
 export const TASK_METRICS = [
   'WATCH_LIVES',
   'FOLLOWS',
@@ -20,7 +21,23 @@ export const TASK_METRICS = [
   'GIFT_SENDS',
   'HOST_LIVE_MINUTES',
   'HOST_GIFT_COINS',
+  // v1.50-social (D176)
+  'WATCH_MINUTES',
+  'AUDIO_ROOMS',
+  'LIVE_TAPS',
+  'NEW_HOST_GIFTS',
+  'POSTS',
+  'REELS',
+  'STORIES',
+  'POST_COMMENTS',
+  'DM_FRIENDS',
+  'DM_VOICE_MESSAGES',
+  'HOST_GIFTS_RECEIVED',
+  'HOST_GUESTS',
 ] as const;
+
+/** A host counts as new for «ادعم مضيفاً جديداً» this many days after the hosting permission. */
+export const NEW_HOST_DAYS = 30;
 export type TaskMetric = (typeof TASK_METRICS)[number];
 
 export function isTaskMetric(value: string): value is TaskMetric {
@@ -188,5 +205,355 @@ export const DEFAULT_TASKS: readonly DefaultTask[] = [
     nameAr: 'استقبل هدايا بقيمة 1000 عملة',
     nameEn: 'Receive gifts worth 1,000 coins',
     sortOrder: 60,
+  },
+];
+
+// ---- The daily task pool (v1.50-social, D176, CONVENTIONS §10.41.1) ---------------------------
+
+/** The level bands (`task_pool_bands.band`); a pool template has one target and reward per band. */
+export const TASK_POOL_BANDS = 4;
+
+/** What a pool template groups under, so a day's tasks vary (at most one per group, then two). */
+export const TASK_POOL_GROUPS = ['WATCH', 'LIVE', 'SOCIAL', 'GIFT', 'CONTENT', 'MESSAGE', 'HOST'] as const;
+export type TaskPoolGroup = (typeof TASK_POOL_GROUPS)[number];
+
+/** One level band (`task_pool_bands`): from `minLevel` (the higher of Support and Charm). */
+export interface TaskPoolBand {
+  readonly band: number;
+  readonly minLevel: number;
+  /** Tasks a person in the band gets each day. */
+  readonly dailyCount: number;
+  /** Of those, how many are host tasks for a person with the hosting permission. */
+  readonly hostCount: number;
+  readonly nameAr: string;
+  readonly nameEn: string;
+}
+
+/** The default bands (owner-changeable with `task-admin band`). */
+export const DEFAULT_TASK_POOL_BANDS: readonly TaskPoolBand[] = [
+  { band: 1, minLevel: 0, dailyCount: 6, hostCount: 2, nameAr: 'مبتدئ', nameEn: 'Starter' },
+  { band: 2, minLevel: 10, dailyCount: 7, hostCount: 2, nameAr: 'نشيط', nameEn: 'Active' },
+  { band: 3, minLevel: 30, dailyCount: 7, hostCount: 2, nameAr: 'متقدّم', nameEn: 'Advanced' },
+  { band: 4, minLevel: 60, dailyCount: 8, hostCount: 3, nameAr: 'نخبة', nameEn: 'Elite' },
+];
+
+/** The band of `level` (0 = no level yet): the last band whose `minLevel` it reaches. */
+export function bandForLevel(level: number, bands: readonly TaskPoolBand[]): TaskPoolBand {
+  const sorted = [...bands].sort((a, b) => a.band - b.band);
+  let found = sorted[0]!;
+  for (const b of sorted) if (level >= b.minLevel) found = b;
+  return found;
+}
+
+/** A pool template as the assignment sees it. */
+export interface PoolTemplate {
+  readonly code: string;
+  readonly group: string;
+  readonly audience: 'EVERYONE' | 'HOSTS';
+  /** One per band; 0 = not offered in that band. */
+  readonly bandTargets: readonly number[];
+  readonly bandRewards: readonly number[];
+  readonly sortOrder: number;
+}
+
+/** One of a person's tasks for a day. */
+export interface PoolPick {
+  readonly code: string;
+  readonly target: number;
+  readonly rewardCoins: number;
+  readonly position: number;
+}
+
+/** 32-bit FNV-1a of `text` (the seed of a person's day). */
+export function seedOf(text: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h >>> 0;
+}
+
+/** mulberry32: a small deterministic generator in [0, 1). */
+function generator(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * A person's daily tasks: deterministic for `seed` (the person and the day), from the templates
+ * offered in `band` (target > 0). Hosts get up to `band.hostCount` host tasks first; then
+ * everyone's tasks fill up to `band.dailyCount`, at most one per group, then at most two (variety),
+ * never the same template twice. Shown host tasks first, then in the order picked.
+ */
+export function assignDailyTasks(
+  templates: readonly PoolTemplate[],
+  band: TaskPoolBand,
+  isHost: boolean,
+  seed: number,
+): PoolPick[] {
+  const i = band.band - 1;
+  const offered = [...templates]
+    .filter((t) => (t.bandTargets[i] ?? 0) > 0 && (t.bandRewards[i] ?? 0) > 0)
+    .filter((t) => t.audience === 'EVERYONE' || isHost)
+    .sort((a, b) => a.sortOrder - b.sortOrder || (a.code < b.code ? -1 : a.code > b.code ? 1 : 0));
+  // Fisher–Yates with the seeded generator (the input order is fixed first, so the result is too).
+  const random = generator(seed);
+  for (let k = offered.length - 1; k > 0; k--) {
+    const j = Math.floor(random() * (k + 1));
+    [offered[k], offered[j]] = [offered[j]!, offered[k]!];
+  }
+  const picked: PoolTemplate[] = [];
+  const perGroup = new Map<string, number>();
+  const take = (pool: readonly PoolTemplate[], limit: number, groupMax: number) => {
+    for (const t of pool) {
+      if (picked.length >= limit) return;
+      if (picked.includes(t) || (perGroup.get(t.group) ?? 0) >= groupMax) continue;
+      picked.push(t);
+      perGroup.set(t.group, (perGroup.get(t.group) ?? 0) + 1);
+    }
+  };
+  const hostPool = offered.filter((t) => t.audience === 'HOSTS');
+  const everyonePool = offered.filter((t) => t.audience === 'EVERYONE');
+  if (isHost) {
+    const hostLimit = Math.min(band.hostCount, band.dailyCount);
+    // Host tasks are all one group: vary them by template only.
+    for (const t of hostPool) if (picked.length < hostLimit) picked.push(t);
+  }
+  take(everyonePool, band.dailyCount, 1);
+  take(everyonePool, band.dailyCount, 2);
+  take(everyonePool, band.dailyCount, Number.MAX_SAFE_INTEGER);
+  return picked.map((t, position) => ({
+    code: t.code,
+    target: t.bandTargets[i]!,
+    rewardCoins: t.bandRewards[i]!,
+    position,
+  }));
+}
+
+/** A default pool template (seeded by migration 20261230090000_daily_task_pool). */
+export interface DefaultPoolTask {
+  readonly code: string;
+  readonly metric: TaskMetric;
+  readonly group: TaskPoolGroup;
+  readonly audience: 'EVERYONE' | 'HOSTS';
+  readonly bandTargets: readonly [number, number, number, number];
+  readonly bandRewards: readonly [number, number, number, number];
+  readonly nameAr: string;
+  readonly nameEn: string;
+  readonly sortOrder: number;
+}
+
+/**
+ * The default daily pool (owner 2026-10-30: «أريد أن تصنع الكثير من المهام اليومية، ترسل لكل شخص
+ * بناءً على مستواه»). Only what the server can count from stored data. Left out: sharing a room (a
+ * share is a link copied on the phone), recharging (no purchases, B5), and anything the app would
+ * have to report. Rewards are coins only (owner 2026-10-30: «العملات فقط»). Targets and rewards are
+ * per band 1…4; 0 = not offered in that band. Owner-changeable with `task-admin`.
+ */
+export const DEFAULT_POOL_TASKS: readonly DefaultPoolTask[] = [
+  {
+    code: 'P_WATCH_LIVES',
+    metric: 'WATCH_LIVES',
+    group: 'WATCH',
+    audience: 'EVERYONE',
+    bandTargets: [1, 2, 3, 5],
+    bandRewards: [3, 4, 5, 6],
+    nameAr: 'شاهد بثوثاً لمدة 15 ثانية',
+    nameEn: 'Watch lives for 15 seconds',
+    sortOrder: 100,
+  },
+  {
+    code: 'P_WATCH_MINUTES',
+    metric: 'WATCH_MINUTES',
+    group: 'WATCH',
+    audience: 'EVERYONE',
+    bandTargets: [5, 15, 30, 30],
+    bandRewards: [4, 6, 8, 10],
+    nameAr: 'شاهد البث (بالدقائق)',
+    nameEn: 'Watch lives (minutes)',
+    sortOrder: 110,
+  },
+  {
+    code: 'P_AUDIO_ROOMS',
+    metric: 'AUDIO_ROOMS',
+    group: 'WATCH',
+    audience: 'EVERYONE',
+    bandTargets: [1, 2, 3, 3],
+    bandRewards: [3, 4, 5, 6],
+    nameAr: 'ادخل غرفاً صوتية',
+    nameEn: 'Join audio rooms',
+    sortOrder: 120,
+  },
+  {
+    code: 'P_LIVE_COMMENTS',
+    metric: 'LIVE_CHAT_MESSAGES',
+    group: 'LIVE',
+    audience: 'EVERYONE',
+    bandTargets: [3, 5, 10, 20],
+    bandRewards: [3, 4, 5, 6],
+    nameAr: 'علّق في بث مباشر',
+    nameEn: 'Comment in a live',
+    sortOrder: 200,
+  },
+  {
+    code: 'P_LIVE_TAPS',
+    metric: 'LIVE_TAPS',
+    group: 'LIVE',
+    audience: 'EVERYONE',
+    bandTargets: [20, 50, 100, 200],
+    bandRewards: [2, 3, 4, 5],
+    nameAr: 'أرسل قلوباً في بث مباشر',
+    nameEn: 'Send hearts in a live',
+    sortOrder: 210,
+  },
+  {
+    code: 'P_FOLLOW',
+    metric: 'FOLLOWS',
+    group: 'SOCIAL',
+    audience: 'EVERYONE',
+    bandTargets: [1, 3, 5, 10],
+    bandRewards: [2, 3, 4, 5],
+    nameAr: 'تابع مستخدمين آخرين',
+    nameEn: 'Follow other users',
+    sortOrder: 300,
+  },
+  {
+    code: 'P_POST_COMMENTS',
+    metric: 'POST_COMMENTS',
+    group: 'SOCIAL',
+    audience: 'EVERYONE',
+    bandTargets: [1, 3, 5, 10],
+    bandRewards: [2, 3, 4, 5],
+    nameAr: 'علّق على منشورات الآخرين',
+    nameEn: "Comment on others' posts",
+    sortOrder: 310,
+  },
+  {
+    code: 'P_SEND_GIFT',
+    metric: 'GIFT_SENDS',
+    group: 'GIFT',
+    audience: 'EVERYONE',
+    bandTargets: [1, 1, 3, 5],
+    bandRewards: [5, 6, 8, 10],
+    nameAr: 'أرسل هدية',
+    nameEn: 'Send a gift',
+    sortOrder: 400,
+  },
+  {
+    code: 'P_SEND_GIFTS',
+    metric: 'GIFT_SENDS',
+    group: 'GIFT',
+    audience: 'EVERYONE',
+    bandTargets: [0, 10, 10, 15],
+    bandRewards: [0, 12, 15, 20],
+    nameAr: 'أرسل هدايا',
+    nameEn: 'Send gifts',
+    sortOrder: 410,
+  },
+  {
+    code: 'P_NEW_HOST',
+    metric: 'NEW_HOST_GIFTS',
+    group: 'GIFT',
+    audience: 'EVERYONE',
+    bandTargets: [1, 1, 1, 2],
+    bandRewards: [5, 6, 8, 10],
+    nameAr: 'ادعم مضيفاً جديداً بهدية',
+    nameEn: 'Support a new host with a gift',
+    sortOrder: 420,
+  },
+  {
+    code: 'P_POST',
+    metric: 'POSTS',
+    group: 'CONTENT',
+    audience: 'EVERYONE',
+    bandTargets: [1, 1, 1, 2],
+    bandRewards: [4, 5, 6, 8],
+    nameAr: 'انشر منشوراً',
+    nameEn: 'Share a post',
+    sortOrder: 500,
+  },
+  {
+    code: 'P_REEL',
+    metric: 'REELS',
+    group: 'CONTENT',
+    audience: 'EVERYONE',
+    bandTargets: [0, 1, 1, 1],
+    bandRewards: [0, 6, 8, 10],
+    nameAr: 'انشر مقطع ريلز',
+    nameEn: 'Share a reel',
+    sortOrder: 510,
+  },
+  {
+    code: 'P_STORY',
+    metric: 'STORIES',
+    group: 'CONTENT',
+    audience: 'EVERYONE',
+    bandTargets: [1, 1, 1, 2],
+    bandRewards: [3, 4, 5, 6],
+    nameAr: 'انشر قصة',
+    nameEn: 'Share a story',
+    sortOrder: 520,
+  },
+  {
+    code: 'P_DM_FRIEND',
+    metric: 'DM_FRIENDS',
+    group: 'MESSAGE',
+    audience: 'EVERYONE',
+    bandTargets: [1, 1, 2, 3],
+    bandRewards: [2, 3, 4, 5],
+    nameAr: 'راسل صديقاً',
+    nameEn: 'Message a friend',
+    sortOrder: 600,
+  },
+  {
+    code: 'P_DM_VOICE',
+    metric: 'DM_VOICE_MESSAGES',
+    group: 'MESSAGE',
+    audience: 'EVERYONE',
+    bandTargets: [1, 1, 1, 2],
+    bandRewards: [2, 3, 4, 5],
+    nameAr: 'أرسل رسالة صوتية',
+    nameEn: 'Send a voice message',
+    sortOrder: 610,
+  },
+  {
+    code: 'P_HOST_LIVE_30',
+    metric: 'HOST_LIVE_MINUTES',
+    group: 'HOST',
+    audience: 'HOSTS',
+    bandTargets: [30, 30, 60, 60],
+    bandRewards: [8, 10, 12, 15],
+    nameAr: 'ابثّ مباشرة (بالدقائق)',
+    nameEn: 'Go live (minutes)',
+    sortOrder: 700,
+  },
+  {
+    code: 'P_HOST_GIFTS',
+    metric: 'HOST_GIFTS_RECEIVED',
+    group: 'HOST',
+    audience: 'HOSTS',
+    bandTargets: [3, 5, 10, 20],
+    bandRewards: [5, 6, 8, 10],
+    nameAr: 'استقبل هدايا في بثك',
+    nameEn: 'Receive gifts in your live',
+    sortOrder: 710,
+  },
+  {
+    code: 'P_HOST_GUEST',
+    metric: 'HOST_GUESTS',
+    group: 'HOST',
+    audience: 'HOSTS',
+    bandTargets: [1, 1, 2, 3],
+    bandRewards: [4, 5, 6, 8],
+    nameAr: 'اقبل ضيفاً على مقعد',
+    nameEn: 'Accept a guest on a seat',
+    sortOrder: 720,
   },
 ];

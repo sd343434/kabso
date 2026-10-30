@@ -536,8 +536,9 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
-| v1.48-social (draft) | 2026-10-29 | **D171 (owner: «الحقيبة تعرض العنصر الذي تم شراؤه أو استلامه كهدية … ارتداء / إزالة … إرسال … الوقت المتبقي»; amendment «يمكن أن تجزّئ المدة»):** `BagItem` gains `expiresAt` (null = permanent), `giftedBy` (`UserSummary` or null) and `transferable` (all **required** in responses); `BagItemSource` gains `GIFT`; `getMyBag` never lists expired items; new `sendMyBagItem` (`POST /me/bag/transfers`, `SendBagItemRequest {code, username, days?}`, 201 `BagTransfer`): the whole item or `days` of its remaining time to another user, stacking on the recipient's copy; codes `BAG_ITEM_NOT_TRANSFERABLE`, `BAG_SEND_PERMANENT_WHOLE_ONLY`, `BAG_SEND_EXCEEDS_REMAINING`, `BAG_RECIPIENT_HAS_PERMANENT` (409); notification type `BAG_ITEM_RECEIVED` (target `BAG_ITEM`, `NotificationTarget.bagCategory`). `bag-admin grant <email> <code> [<days>|forever]`. Migrations `20261216090000_bag_expiry_send_enums`, `20261216100000_bag_expiry_send`. Version number: v1.39–v1.47 are taken (live and social share one sequence), so this is v1.48-social. §4, §7, §8, §10.22, §10.45, §11.10. | **Additive** (an operation, codes, enum values clients treat as unknown-safe, required response fields strict clients add in the same change set). `GET /bag/catalogue` is unchanged (the app no longer shows items the user does not own). |
+| v1.50-social (draft) | 2026-10-30 | **D176 (owner: the Task Center and Event Center «مثل الصور 100%» with Kabso's identity; «أريد أن تصنع الكثير من المهام اليومية، ترسل لكل شخص بناءً على مستواه»; rewards «العملات فقط»):** the daily task pool — `ProgramTask.pooled`, `ProgramTask.metric` gains `WATCH_MINUTES`, `AUDIO_ROOMS`, `LIVE_TAPS`, `NEW_HOST_GIFTS`, `POSTS`, `REELS`, `STORIES`, `POST_COMMENTS`, `DM_FRIENDS`, `DM_VOICE_MESSAGES`, `HOST_GIFTS_RECEIVED`, `HOST_GUESTS`; `MyTasks.band`; a pool task not assigned to the caller today → 404 on claim; `EventSummary.summary`, `EventSummary.tone`; `listHomeBanners` `placement=tasks`; migration `20261230090000_daily_task_pool`; CLIs `task-admin bands|band`, `set --targets --rewards --group`, `event-admin style`. §10.41.1, §10.41.2. | **Additive** (new fields and enum values; old clients ignore them; a client shows an unknown metric with a generic icon). |
 | v1.49-social (draft) | 2026-10-30 | **D172 (owner: the Creator Center «مركز صنّاع المحتوى» in the layout of the owner's reference, whose stats card shows «بيانات أكتوبر» — the current month):** `getMyCreatorStats` takes `period=THIS_MONTH` — the current calendar month so far, from the 1st at 00:00 in `LIVE_RANKINGS_TIME_ZONE` (the region's zone, as the families' month, §10.21) until now; `CreatorStats.month` (`YYYY-MM` for `THIS_MONTH`, else null; required in responses). No migration. §10.40. | **Additive** (an enum value the app sends only when it knows it, and a response field older apps ignore). |
+| v1.48-social (draft) | 2026-10-29 | **D171 (owner: «الحقيبة تعرض العنصر الذي تم شراؤه أو استلامه كهدية … ارتداء / إزالة … إرسال … الوقت المتبقي»; amendment «يمكن أن تجزّئ المدة»):** `BagItem` gains `expiresAt` (null = permanent), `giftedBy` (`UserSummary` or null) and `transferable` (all **required** in responses); `BagItemSource` gains `GIFT`; `getMyBag` never lists expired items; new `sendMyBagItem` (`POST /me/bag/transfers`, `SendBagItemRequest {code, username, days?}`, 201 `BagTransfer`): the whole item or `days` of its remaining time to another user, stacking on the recipient's copy; codes `BAG_ITEM_NOT_TRANSFERABLE`, `BAG_SEND_PERMANENT_WHOLE_ONLY`, `BAG_SEND_EXCEEDS_REMAINING`, `BAG_RECIPIENT_HAS_PERMANENT` (409); notification type `BAG_ITEM_RECEIVED` (target `BAG_ITEM`, `NotificationTarget.bagCategory`). `bag-admin grant <email> <code> [<days>|forever]`. Migrations `20261216090000_bag_expiry_send_enums`, `20261216100000_bag_expiry_send`. Version number: v1.39–v1.47 are taken (live and social share one sequence), so this is v1.48-social. §4, §7, §8, §10.22, §10.45, §11.10. | **Additive** (an operation, codes, enum values clients treat as unknown-safe, required response fields strict clients add in the same change set). `GET /bag/catalogue` is unchanged (the app no longer shows items the user does not own). |
 | v1.42-live (draft) | 2026-10-29 | **D170 (owner: «في البث الصوتي أو المرئي» a live goes on in the background; a video host away 5 minutes closes the live):** `setLiveHostPresence` (`POST /live/rooms/{roomId}/host-presence` `{away: boolean}`, 204, host only; rate limit `live:host-presence`, the heartbeat rule); `LiveRoomEndReason.HOST_AWAY_TIMEOUT`; `live_rooms.host_away_since` (migrations `20261215090000_live_host_away_enums`, `20261215090100_live_host_away`); `LIVE_HOST_AWAY_TIMEOUT_SECONDS` (default 300, 30–86400), enforced by the live sweeper. §10.44. (Numbered v1.42-live at integration: D178 took v1.41-live.) | Additive; older apps show `HOST_AWAY_TIMEOUT` as a generic «انتهى البث». |
 | v1.41-live (draft) | 2026-10-30 | **D178 (owner: «عندما يلعب أحد هدايا الحظ لا يظهر المكسب في التكست، والشرائط يجب أن تكون ظاهرة عند الجميع حتى الصغيرة. والهدايا يجب أن تظهر في شريط في جميع البثوث»):** (1) every lucky win (`coinsWon > 0`) sends its room `lucky-win` on topic `lucky` (was only ≥ `LUCKY_GIFT_BIG_WIN_MULTIPLIER`, which now only decides the global `lucky-ticker`); (2) new data message **`gift-ticker`** on topic `gift`: `{"type":"gift-ticker","gift":LiveGift,"room":{"id","title","host":UserSummary}}` to every **other** LIVE room (≤ 5 000, newest first) for a send of at least `GIFT_GLOBAL_TICKER_MIN_COINS` coins (server config, default 1 000; the owner will set the value) — at most one every **3 s** for the whole service (Redis gate `gift:ticker:gate`), one waiting (`gift:ticker:pending`, ≤ 12 s), a newer send replaces it; quips excluded; its own room keeps the `gift` message. Gift and win chat lines are drawn by the apps from these messages (no stored chat line). §10.23, §10.27. | **Additive** for clients (a new data message type; more `lucky-win` messages of the same shape). |
 | v1.40-live (draft) | 2026-10-30 | **D174 (owner «نعم بالطبع»: viewers join a solo live as guests; PK design: at most 3):** a `SOLO` live has **3 guest seats** (indexes 1–3; `LiveSeats.mode` gains `SOLO`, `seatCount` reads 4, not settable) with the whole CP-011 flow — `requestLiveSeat` / accept / decline, `inviteToLiveSeat`, `leaveLiveSeat`, `muteLiveSeat`, `removeFromLiveSeat`, `lockLiveSeat`, moderators; a seated SOLO guest is a `SPEAKER` publishing camera and microphone (muted: camera). A 4th guest → 409 `LIVE_SEAT_UNAVAILABLE` (no seat free). No migration. §10.9. | **Additive for apps** (a new enum value; SOLO seat calls that were 409 now work). |
@@ -2640,6 +2641,62 @@ Every value below is server config or an admin-managed row: the owner changes it
   (10+20 $0.29 … 5197+30 $129.99, 276+28 $6.99 was $8.00) for the owner to set. `purchasesEnabled` is false
   and there is no purchase operation until B5.
 - **Rate limits:** every route uses the per-user default (§7).
+#### 10.41.1 The daily task pool *(v1.50-social, DRAFT — D176)*
+
+Owner (2026-10-30): «أريد أن تصنع الكثير من المهام اليومية، ترسل لكل شخص بناءً على مستواه» — many daily
+tasks, each person getting a few a day by level; rewards are **coins only** («العملات فقط»: no experience
+or level points from tasks). Every value is a default the owner changes with `task-admin` (no release).
+
+- **Templates:** `task_definitions` rows with `pool = true` (code `P_…`, DAILY), a variety group (`WATCH`,
+  `LIVE`, `SOCIAL`, `GIFT`, `CONTENT`, `MESSAGE`, `HOST`) and one target and one coin reward per level band
+  1…4 (`band_targets`, `band_rewards`; 0 = not offered in that band). `HOST` templates are for hosting
+  permission holders only. Fixed (non-pool) tasks keep §10.41; D166's four fixed daily tasks are switched
+  off by the migration (the pool offers the same actions per band; the team can switch them on again).
+- **Bands** (`task_pool_bands`): the band is the last whose `min_level` the person's level reaches — the
+  higher of their **Support** and **Charm** («الجاذبية», `ATTRACTIVENESS`) current levels (enabled
+  categories; 0 = none). Defaults: 1 «مبتدئ» from 0 — 6 tasks a day; 2 «نشيط» from 10 — 7; 3 «متقدّم» from 30
+  — 7; 4 «نخبة» from 60 — 8; of these, host tasks for hosts 2 / 2 / 2 / 3.
+- **Assignment** (`task_assignments`): fixed at the person's first read (or claim) of the day — the day of
+  §10.41's clock — with the band's target and reward at that moment; later template, band or level
+  changes apply from the next day (a template switched off is hidden). The choice is deterministic for the
+  person and the day (FNV-1a of `userId:day` seeding a shuffle of the offered templates): hosts get the
+  band's host tasks first; everyone's tasks then fill the band's count, at most one per group, then at
+  most two; never the same template twice. The next day is a new assignment.
+- **Progress** (computed per read from stored data, counterparts ACTIVE, as §10.41): `WATCH_LIVES` (lives
+  watched ≥ 15 s), `WATCH_MINUTES` (whole minutes watched in lives first joined in the day),
+  `AUDIO_ROOMS` (audio rooms joined, ≥ 15 s), `LIVE_CHAT_MESSAGES`, `LIVE_TAPS` (taps the server counted in
+  lives started in the day), `FOLLOWS`, `POST_COMMENTS` (on someone else's posts, not deleted),
+  `GIFT_SENDS`, `NEW_HOST_GIFTS` (paid gift sends to a host whose permission is ≤ 30 days old), `POSTS` /
+  `REELS` (published, not removed or deleted), `STORIES` (not deleted or removed), `DM_FRIENDS` (different
+  people messaged who follow each other with the caller; a message lives 24 h, so the day's are stored),
+  `DM_VOICE_MESSAGES`, and for hosts `HOST_LIVE_MINUTES`, `HOST_GIFTS_RECEIVED` (gift sends received),
+  `HOST_GUESTS` (seat requests or invitations ACCEPTED in the caller's lives).
+- **Not offered** (the server cannot see them, and nothing is self-reported): sharing a room (a link copied
+  on the phone), recharging (no purchases, B5), and any action only the app could report.
+- **Claim** as §10.41: a pool task is claimable only when it is one of the caller's tasks of today (else
+  404); its reward is the assignment's, within `TASK_DAILY_CAP_COINS` like every daily task.
+- **Defaults** (targets / coins for bands 1–4): watch lives 15 s 1·2·3·5 / 3·4·5·6; watch minutes
+  5·15·30·30 / 4·6·8·10; audio rooms 1·2·3·3 / 3·4·5·6; live comments 3·5·10·20 / 3·4·5·6; hearts
+  20·50·100·200 / 2·3·4·5; follow 1·3·5·10 / 2·3·4·5; post comments 1·3·5·10 / 2·3·4·5; send a gift
+  1·1·3·5 / 5·6·8·10; send gifts —·10·10·15 / —·12·15·20; support a new host 1·1·1·2 / 5·6·8·10; post
+  1·1·1·2 / 4·5·6·8; reel —·1·1·1 / —·6·8·10; story 1·1·1·2 / 3·4·5·6; message a friend 1·1·2·3 / 2·3·4·5;
+  voice message 1·1·1·2 / 2·3·4·5; host: live minutes 30·30·60·60 / 8·10·12·15, gifts received
+  3·5·10·20 / 5·6·8·10, accept a guest 1·1·2·3 / 4·5·6·8.
+- **Wire:** `ProgramTask.pooled`, the new `ProgramTask.metric` values (clients map an unknown metric to a
+  generic icon) and `MyTasks.band` (`band`, `level`, `name`, `host`).
+
+#### 10.41.2 The Event Center calendar and the Task Center banner *(v1.50-social, DRAFT — D176)*
+
+- `EventSummary.summary`: the calendar bar's second line (a short prize line, ≤ 80 characters, ar/en, null
+  when none; no fallback to the other language) and `EventSummary.tone`: `RED`, `GOLD`, `TEAL`, `BLUE`,
+  `PINK`, `AMBER` or null (the client then picks a stable hue from the id). Set with
+  `event-admin create … --summary-ar --summary-en --tone`, changed with `event-admin style <id>` (also
+  `--featured true|false`, «رائج»); audit `event.style`.
+- The calendar's tab, region and «رائج» stay as §10.41 (`permanent`, `regions`, `featured`); an ended event
+  shows «انتهت».
+- `listHomeBanners?placement=tasks`: the banners of the Task Center's slot (3:1 like `home`, added with
+  `banner-admin add … --placement tasks`); empty → the slot is hidden.
+
 ### 10.42 Editing the own profile *(v1.45-social, DRAFT — D168)*
 
 Owner request (2026-10-29, from the phone): «فعّل الأزرار المتبقية في تعديل الملف وتغيير الصورة» —

@@ -255,6 +255,12 @@ info:
     `HOST_AWAY_TIMEOUT` (CONVENTIONS §10.44).
     **D172 (DRAFT v1.49-social)**: `getMyCreatorStats` also takes `period=THIS_MONTH` (the current
     calendar month so far, in the region's time zone) and returns `month` (CONVENTIONS §10.40).
+    **D176 (DRAFT v1.50-social)**: the Task Center's daily task pool — each person gets their level
+    band's 6–8 daily tasks, chosen per person and day from admin-managed templates
+    (`ProgramTask.pooled`, `MyTasks.band`, twelve new `ProgramTask.metric` values; rewards are coins
+    only); the Event Center's calendar bars get a second line and a tone (`EventSummary.summary`,
+    `EventSummary.tone`); `listHomeBanners` takes `placement=tasks` (the Task Center's banner slot)
+    (CONVENTIONS §10.41.1, §10.41.2).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -4630,14 +4636,14 @@ paths:
         *(v1.39-live, D173)* `placement=room` is also open to callers without a token (a guest
         watching a live: the owner wants the in-room banner shown to everyone), rate limited per IP
         like the other live guest reads; their `title` follows `Accept-Language`, else Arabic. The
-        live hub's `home` banners stay signed-in only (no token → 401); a token that is sent must
-        be valid (else 401).
+        live hub's `home` banners and the Task Center's `tasks` banners (v1.50-social, D176) stay
+        signed-in only (no token → 401); a token that is sent must be valid (else 401).
       parameters:
         - name: placement
           in: query
           required: false
-          description: "v1.27.4-live (D137): `home` (default, the live hub) or `room` (the promo box in a live). Anything else → 400 `placement` / `invalid_value`."
-          schema: { type: string, enum: [home, room], default: home }
+          description: "v1.27.4-live (D137): `home` (default, the live hub) or `room` (the promo box in a live); v1.50-social (D176): `tasks` (the Task Center's banner slot, 3:1 like home). Anything else → 400 `placement` / `invalid_value`."
+          schema: { type: string, enum: [home, room, tasks], default: home }
       responses:
         '200':
           description: The active banners (possibly empty).
@@ -6926,7 +6932,11 @@ paths:
       summary: "The caller's Task Center: today's and this week's tasks and the check-in (D166)"
       description: |
         v1.44-social, CONVENTIONS §10.41. The enabled tasks the caller can do (tasks for hosts only
-        when the caller holds the hosting permission), each with the progress the server computed
+        when the caller holds the hosting permission). *(v1.50-social, D176, §10.41.1)* First the
+        caller's daily pool tasks of today (`pooled: true`): their level band's number of tasks
+        (the higher of the Support and Charm levels; hosts get host tasks among them), chosen per
+        person and day and fixed at the day's first read with the band's target and reward; then
+        the fixed tasks. Each with the progress the server computed
         from stored data (watch time, follows that still stand, live chat, paid gift sends, lives,
         gifts received; counterparts must be ACTIVE) — never reported by the app — and whether it was
         claimed in the current day or ISO week (`LIVE_RANKINGS_TIME_ZONE`). Also the check-in strip:
@@ -6970,7 +6980,8 @@ paths:
       operationId: claimMyTask
       summary: "Claim a completed task's coins (D166)"
       description: |
-        v1.44-social, CONVENTIONS §10.41. Order: 404 (unknown, disabled or not for the caller) →
+        v1.44-social, CONVENTIONS §10.41. Order: 404 (unknown, disabled or not for the caller; a
+        pool task that is not one of the caller's tasks of today, v1.50-social) →
         already claimed in this period → 200 (nothing paid again) → 409 `TASK_NOT_COMPLETED` → for a
         daily task, 409 `TASK_DAILY_CAP_REACHED` when the day's cap is used up → 201, paying the reward
         (a daily task: at most what is left of the cap) as a `TASK_REWARD` ledger row in the same
@@ -11281,14 +11292,20 @@ components:
     ProgramTask:
       type: object
       description: One task of the Task Center (CONVENTIONS §10.41). `progress` is capped at `target`.
-      required: [code, period, metric, audience, name, target, progress, rewardCoins, completed, claimed, claimedCoins]
+      required: [code, pooled, period, metric, audience, name, target, progress, rewardCoins, completed, claimed, claimedCoins]
       properties:
         code: { type: string, maxLength: 40 }
+        pooled:
+          type: boolean
+          description: "v1.50-social (D176): one of the caller's daily pool tasks of today (its target and reward are the caller's band's, fixed for the day)."
         period: { type: string, enum: [DAILY, WEEKLY] }
         metric:
           type: string
-          enum: [WATCH_LIVES, FOLLOWS, LIVE_CHAT_MESSAGES, GIFT_SENDS, HOST_LIVE_MINUTES, HOST_GIFT_COINS]
-          description: What is counted (the app picks where «اذهب» leads from it).
+          enum: [WATCH_LIVES, FOLLOWS, LIVE_CHAT_MESSAGES, GIFT_SENDS, HOST_LIVE_MINUTES, HOST_GIFT_COINS, WATCH_MINUTES, AUDIO_ROOMS, LIVE_TAPS, NEW_HOST_GIFTS, POSTS, REELS, STORIES, POST_COMMENTS, DM_FRIENDS, DM_VOICE_MESSAGES, HOST_GIFTS_RECEIVED, HOST_GUESTS]
+          description: |
+            What is counted (the app picks where «اذهب» leads from it). v1.50-social (D176) adds the
+            daily pool's metrics (CONVENTIONS §10.41.1); a client shows an unknown metric with a
+            generic icon and «اذهب» to the live hub.
         audience: { type: string, enum: [EVERYONE, HOSTS] }
         name: { type: string }
         target: { type: integer, minimum: 1 }
@@ -11308,7 +11325,7 @@ components:
         rewardCoins: { type: integer, minimum: 0, description: Before the daily cap. }
     MyTasks:
       type: object
-      required: [day, timeZone, dayStartsAt, dayResetsAt, weekStartsAt, weekResetsAt, dailyCapCoins, dailyEarnedCoins, checkIn, tasks]
+      required: [day, timeZone, dayStartsAt, dayResetsAt, weekStartsAt, weekResetsAt, dailyCapCoins, dailyEarnedCoins, band, checkIn, tasks]
       properties:
         day: { type: string, format: date }
         timeZone: { type: string }
@@ -11318,6 +11335,15 @@ components:
         weekResetsAt: { type: string, format: date-time }
         dailyCapCoins: { type: integer, minimum: 1 }
         dailyEarnedCoins: { type: integer, minimum: 0, description: Coins from daily tasks and the check-in today. }
+        band:
+          type: object
+          description: "v1.50-social (D176): the level band of today's pool tasks (the band at the day's first read; before any assignment, the band of the level now)."
+          required: [band, level, name, host]
+          properties:
+            band: { type: integer, minimum: 1, maximum: 4 }
+            level: { type: integer, minimum: 0, description: The higher of the caller's Support and Charm levels now (0 = none). }
+            name: { type: string, description: In the language of Accept-Language. }
+            host: { type: boolean, description: The caller holds the hosting permission (host tasks are offered). }
         checkIn:
           type: object
           required: [checkedInToday, streak, cycleDays, rewardCoins, bonusCoins, days]
@@ -11384,7 +11410,7 @@ components:
           items: { $ref: '#/components/schemas/SvipPerk' }
     EventSummary:
       type: object
-      required: [id, title, bannerUrl, startsAt, endsAt, status, metric, audience, permanent, featured, regions]
+      required: [id, title, bannerUrl, startsAt, endsAt, status, metric, audience, permanent, featured, regions, summary, tone]
       properties:
         id: { type: string, format: uuid }
         title: { type: string }
@@ -11399,6 +11425,14 @@ components:
         regions:
           type: array
           items: { type: string, pattern: '^[A-Z]{2}$' }
+        summary:
+          type: [string, 'null']
+          maxLength: 80
+          description: "v1.50-social (D176): the calendar bar's second line (a short prize line set by the team), in the language of Accept-Language; null when none (no fallback to the other language)."
+        tone:
+          type: [string, 'null']
+          enum: [RED, GOLD, TEAL, BLUE, PINK, AMBER, null]
+          description: "v1.50-social (D176): the calendar bar's colour among Kabso's hues; null = the client picks a stable hue from the id."
     EventList:
       type: object
       required: [tab, month, timeZone, country, data]

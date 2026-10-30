@@ -23,10 +23,12 @@ String monthKey(DateTime month) =>
 String monthTitle(DateTime month, String localeTag) =>
     '${DateFormat.MMMM(localeTag).format(month)} ${month.year}';
 
-/// `/events` (D166): the Event Center «مركز الفعاليات» in the layout of the
-/// owner's reference — three tabs (calendar, permanent, regional), the intro
-/// card and the month calendar with event bars. Events are created by the
-/// team on the server; with none configured the lists are honestly empty.
+/// `/events` (D166, D176): the Event Center «الفعاليات» in the layout of the
+/// owner's reference (D176) with Kabso's colours — three tabs (calendar,
+/// permanent, regional), the tinted intro card with an illustration slot,
+/// «تقويم فعاليات …», and the full-width month grid with event bars. Events
+/// are created by the team on the server; with none configured the lists
+/// are honestly empty.
 class EventCenterScreen extends ConsumerStatefulWidget {
   const new({super.key, this.initialMonth});
 
@@ -40,6 +42,9 @@ class EventCenterScreen extends ConsumerStatefulWidget {
   static const emptyKey = Key('events.empty');
 
   static Key eventKey(String id) => Key('events.card.$id');
+
+  /// The reference's side margin of the intro card and the heading.
+  static const double sideMargin = 14;
 
   @override
   ConsumerState<EventCenterScreen> createState() => _EventCenterScreenState();
@@ -81,11 +86,7 @@ class _EventCenterScreenState extends ConsumerState<EventCenterScreen> {
       AsyncValue(:final value?) =>
         _tab == 0
             ? [
-                EventCalendar(
-                  month: _month,
-                  events: value.events,
-                  onOpen: _open,
-                ),
+                // An empty month says so above the grid (seen at once).
                 if (value.events.isEmpty)
                   KEmptyState(
                     key: EventCenterScreen.emptyKey,
@@ -94,6 +95,11 @@ class _EventCenterScreenState extends ConsumerState<EventCenterScreen> {
                     message: l10n.eventsEmptyBody,
                     compact: true,
                   ),
+                EventCalendar(
+                  month: _month,
+                  events: value.events,
+                  onOpen: _open,
+                ),
               ]
             : value.events.isEmpty
             ? [
@@ -113,7 +119,16 @@ class _EventCenterScreenState extends ConsumerState<EventCenterScreen> {
               ]
             : [
                 for (final e in value.events)
-                  _EventCard(event: e, localeTag: localeTag, onOpen: _open),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: KSpacing.lg,
+                    ),
+                    child: _EventCard(
+                      event: e,
+                      localeTag: localeTag,
+                      onOpen: _open,
+                    ),
+                  ),
               ],
       AsyncValue(:final error?, isLoading: false) => [
         FailureErrorState(
@@ -136,7 +151,8 @@ class _EventCenterScreenState extends ConsumerState<EventCenterScreen> {
       appBar: KAppBar(
         backgroundColor: p.background,
         centerTitle: true,
-        title: Text(l10n.meHubEventCenter),
+        toolbarHeight: 44,
+        title: Text(l10n.eventsTitle),
       ),
       body: Column(
         children: [
@@ -154,11 +170,11 @@ class _EventCenterScreenState extends ConsumerState<EventCenterScreen> {
               onRefresh: _refresh,
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(
-                  KSpacing.lg,
-                  KSpacing.sm,
-                  KSpacing.lg,
-                  KSpacing.xl,
+                // The calendar is full width; its other parts set their own
+                // side margins.
+                padding: const EdgeInsets.only(
+                  top: KSpacing.sm,
+                  bottom: KSpacing.xl,
                 ),
                 children: [
                   if (_tab == 0) ...[
@@ -198,22 +214,29 @@ class _IntroCard extends StatelessWidget {
     final t = context.textStyles;
     return Container(
       key: EventCenterScreen.introKey,
-      margin: const EdgeInsets.only(bottom: KSpacing.lg),
-      padding: const EdgeInsets.all(KSpacing.lg),
+      margin: const EdgeInsets.fromLTRB(
+        EventCenterScreen.sideMargin,
+        KSpacing.xs,
+        EventCenterScreen.sideMargin,
+        KSpacing.sm,
+      ),
+      padding: const EdgeInsetsDirectional.fromSTEB(15, 12, 6, 12),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: AlignmentDirectional.topStart,
           end: AlignmentDirectional.bottomEnd,
           colors: [
-            Color.alphaBlend(p.primary.withValues(alpha: 0.12), p.surface),
+            Color.alphaBlend(p.primary.withValues(alpha: 0.09), p.surface),
             Color.alphaBlend(
               KBrandColors.gold.withValues(alpha: 0.14),
               p.surface,
             ),
           ],
         ),
-        borderRadius: BorderRadius.circular(KRadius.lg),
-        border: Border.all(color: p.border),
+        borderRadius: BorderRadius.circular(KRadius.md),
+        border: Border.all(
+          color: Color.alphaBlend(p.primary.withValues(alpha: 0.14), p.surface),
+        ),
       ),
       child: Row(
         children: [
@@ -225,56 +248,90 @@ class _IntroCard extends StatelessWidget {
                   l10n.eventsIntroTitle,
                   style: t.title.copyWith(
                     color: p.textPrimary,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
                 const SizedBox(height: KSpacing.xs),
                 Text(
                   l10n.eventsIntroBody,
-                  style: t.caption.copyWith(color: p.textSecondary),
+                  style: t.caption.copyWith(
+                    color: p.textSecondary,
+                    fontSize: 12,
+                    height: 1.3,
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: KSpacing.md),
-          const ExcludeSemantics(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [KBrandColors.red400, KBrandColors.red600],
-                ),
-              ),
-              child: SizedBox.square(
-                dimension: 64,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Icon(
-                      Icons.calendar_month_rounded,
-                      size: 34,
-                      color: Color(0xFFFFFFFF),
-                    ),
-                    PositionedDirectional(
-                      top: 6,
-                      end: 6,
-                      child: Icon(
-                        Icons.star_rounded,
-                        size: 18,
-                        color: KBrandColors.gold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+          const SizedBox(width: KSpacing.sm),
+          // The illustration slot (owner art can replace it): Kabso's
+          // calendar composition, no third-party art.
+          const ExcludeSemantics(child: _IntroArt()),
         ],
       ),
     );
   }
+}
+
+/// A calendar page with a star and confetti from Kabso's tokens.
+class _IntroArt extends StatelessWidget {
+  const new();
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 80,
+    height: 66,
+    child: Stack(
+      alignment: Alignment.center,
+      children: [
+        Transform.rotate(
+          angle: 0.18,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [KBrandColors.red400, KBrandColors.red600],
+              ),
+              borderRadius: BorderRadius.circular(KRadius.md),
+              boxShadow: [
+                BoxShadow(
+                  color: KBrandColors.red600.withValues(alpha: 0.25),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: const SizedBox(
+              width: 52,
+              height: 52,
+              child: Icon(
+                Icons.calendar_month_rounded,
+                size: 34,
+                color: Color(0xFFFFFFFF),
+              ),
+            ),
+          ),
+        ),
+        const PositionedDirectional(
+          top: 2,
+          start: 4,
+          child: Icon(Icons.star_rounded, size: 22, color: KBrandColors.gold),
+        ),
+        const PositionedDirectional(
+          bottom: 2,
+          end: 6,
+          child: Icon(Icons.star_rounded, size: 14, color: KBrandColors.gold),
+        ),
+        const PositionedDirectional(
+          top: 10,
+          end: 2,
+          child: Icon(Icons.circle, size: 6, color: Color(0xFF14B8A6)),
+        ),
+      ],
+    ),
+  );
 }
 
 class _MonthHeader extends StatelessWidget {
@@ -292,34 +349,38 @@ class _MonthHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final p = context.palette;
-    return Row(
-      children: [
-        Expanded(
-          child: Semantics(
-            header: true,
-            child: Text(
-              title,
-              key: EventCenterScreen.monthTitleKey,
-              style: context.textStyles.title.copyWith(
-                color: p.textPrimary,
-                fontWeight: FontWeight.w700,
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(start: 21, end: KSpacing.xs),
+      child: Row(
+        children: [
+          Expanded(
+            child: Semantics(
+              header: true,
+              child: Text(
+                title,
+                key: EventCenterScreen.monthTitleKey,
+                style: context.textStyles.title.copyWith(
+                  color: p.textPrimary,
+                  fontSize: 16.5,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ),
-        ),
-        IconButton(
-          key: EventCenterScreen.previousKey,
-          tooltip: l10n.eventsPreviousMonth,
-          onPressed: onPrevious,
-          icon: const Icon(Icons.chevron_left_rounded),
-        ),
-        IconButton(
-          key: EventCenterScreen.nextKey,
-          tooltip: l10n.eventsNextMonth,
-          onPressed: onNext,
-          icon: const Icon(Icons.chevron_right_rounded),
-        ),
-      ],
+          IconButton(
+            key: EventCenterScreen.previousKey,
+            tooltip: l10n.eventsPreviousMonth,
+            onPressed: onPrevious,
+            icon: const Icon(Icons.chevron_left_rounded),
+          ),
+          IconButton(
+            key: EventCenterScreen.nextKey,
+            tooltip: l10n.eventsNextMonth,
+            onPressed: onNext,
+            icon: const Icon(Icons.chevron_right_rounded),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -9,36 +9,66 @@ import 'package:kabso_live/core/error/failure_widgets.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
-import 'package:kabso_live/features/levels/application/levels_providers.dart';
-import 'package:kabso_live/features/levels/domain/level_models.dart';
-import 'package:kabso_live/features/levels/presentation/level_badge.dart';
 import 'package:kabso_live/features/live/application/live_wallet_controller.dart';
+import 'package:kabso_live/features/live/presentation/hub/home_banner_carousel.dart';
 import 'package:kabso_live/features/programs/application/programs_providers.dart';
 import 'package:kabso_live/features/programs/data/programs_repository.dart';
 import 'package:kabso_live/features/programs/presentation/program_parts.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// `/tasks` (D166): the Task Center «مركز المهام» in the layout of the
-/// owner's reference — two tabs (daily tasks, weekly host tasks), the level
-/// card, the 7-day check-in strip and the task rewards, each with «اذهب»,
-/// «استلام» or «تم». Progress and rewards come from the server
-/// (`GET /me/tasks`); nothing is counted on the phone.
+/// `/tasks` (D166, D176): the Task Center «مركز المهام» in the layout of the
+/// owner's reference (D176) with Kabso's colours and icons — two tabs
+/// («المهام النشطة», «مهام الماس» not launched yet), a warm page, the
+/// sign-in rewards card (a 7-day strip, today first, the 7th day the bonus,
+/// and the check-in pill), the task rewards card (today's tasks from the
+/// daily pool, each «اذهب» → «استلم» → «تم»), the weekly host tasks for
+/// hosts and the team's banners at the bottom (hidden when none). Progress,
+/// targets and coins come from the server (`GET /me/tasks`); rewards are
+/// coins only (owner 2026-10-30).
 class TaskCenterScreen extends ConsumerStatefulWidget {
   const new({super.key});
 
-  static const levelCardKey = Key('tasks.level');
   static const checkInKey = Key('tasks.checkIn');
   static const checkInButtonKey = Key('tasks.checkIn.button');
+  static const calendarKey = Key('tasks.checkIn.calendar');
+  static const calendarSheetKey = Key('tasks.checkIn.sheet');
   static const capKey = Key('tasks.cap');
-  static const weeklyEmptyKey = Key('tasks.weekly.empty');
+  static const rewardsKey = Key('tasks.rewards');
+  static const weeklyKey = Key('tasks.weekly');
+  static const emptyKey = Key('tasks.empty');
+  static const diamondKey = Key('tasks.diamond');
+  static const bannerKey = Key('tasks.banner');
 
   static Key taskKey(String code) => Key('tasks.task.$code');
   static Key actionKey(String code) => Key('tasks.action.$code');
   static Key dayKey(int index) => Key('tasks.day.$index');
 
+  /// The reference's measured geometry (D176 spec, 393 × 852 lp).
+  static const double pagePadding = 12;
+  static const double cardPadding = 14;
+  static const double cardRadius = 17;
+  static const double rowPitch = 62;
+  static const double iconTile = 37;
+  static const double daySlot = 44;
+  static const Size pill = Size(64, 26);
+  static const Size checkInPill = Size(87, 26);
+
+  /// The reference's navigation bar (44 lp, under the status bar).
+  static const double toolbarHeight = 44;
+
   @override
   ConsumerState<TaskCenterScreen> createState() => _TaskCenterScreenState();
+}
+
+/// The warm page behind the cards (the reference's cream, from Kabso gold).
+Color taskPageColor(BuildContext context) {
+  final p = context.palette;
+  final dark = Theme.of(context).brightness == Brightness.dark;
+  return Color.alphaBlend(
+    KBrandColors.gold.withValues(alpha: dark ? 0.07 : 0.3),
+    p.background,
+  );
 }
 
 class _TaskCenterScreenState extends ConsumerState<TaskCenterScreen> {
@@ -48,7 +78,7 @@ class _TaskCenterScreenState extends ConsumerState<TaskCenterScreen> {
   Future<void> _refresh() async {
     ref
       ..invalidate(myTasksProvider)
-      ..invalidate(myLevelsProvider);
+      ..invalidate(taskBannersProvider);
     try {
       await ref.read(myTasksProvider.future);
     } on Object {
@@ -86,18 +116,40 @@ class _TaskCenterScreenState extends ConsumerState<TaskCenterScreen> {
     }
   }
 
+  /// «اذهب»: where the task's action is done.
   void _go(TaskMetric metric) {
-    switch (metric) {
-      case TaskMetric.follows:
-        unawaited(context.push(AppRoutes.discover));
-      case TaskMetric.hostLiveMinutes || TaskMetric.hostGiftCoins:
-        unawaited(context.push(AppRoutes.goLive));
-      case TaskMetric.watchLives ||
-          TaskMetric.liveChatMessages ||
-          TaskMetric.giftSends ||
-          TaskMetric.other:
-        context.go(AppRoutes.home);
+    final route = switch (metric) {
+      TaskMetric.follows || TaskMetric.postComments => AppRoutes.discover,
+      TaskMetric.audioRooms => AppRoutes.voiceRooms,
+      TaskMetric.posts => AppRoutes.create,
+      TaskMetric.reels => AppRoutes.newReel,
+      TaskMetric.stories => AppRoutes.newStory,
+      TaskMetric.dmFriends || TaskMetric.dmVoiceMessages => AppRoutes.messages,
+      TaskMetric.hostLiveMinutes ||
+      TaskMetric.hostGiftCoins ||
+      TaskMetric.hostGiftsReceived ||
+      TaskMetric.hostGuests => AppRoutes.goLive,
+      TaskMetric.watchLives ||
+      TaskMetric.watchMinutes ||
+      TaskMetric.liveChatMessages ||
+      TaskMetric.liveTaps ||
+      TaskMetric.giftSends ||
+      TaskMetric.newHostGifts ||
+      TaskMetric.other => null,
+    };
+    if (route == null) {
+      context.go(AppRoutes.home);
+    } else {
+      unawaited(context.push(route));
     }
+  }
+
+  void _openCalendar(CheckInState state) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (_) => _CheckInCalendarSheet(state: state),
+    );
   }
 
   @override
@@ -107,64 +159,92 @@ class _TaskCenterScreenState extends ConsumerState<TaskCenterScreen> {
     final tasks = ref.watch(myTasksProvider);
     final repo = ref.read(programsRepositoryProvider);
 
-    final body = switch (tasks) {
-      AsyncValue(:final value?) => [
-        const _LevelCard(),
-        if (_tab == 0) ...[
+    final List<Widget> body;
+    if (_tab == 1) {
+      body = [
+        KEmptyState(
+          key: TaskCenterScreen.diamondKey,
+          icon: Icons.diamond_rounded,
+          title: l10n.tasksDiamondSoonTitle,
+          message: l10n.tasksDiamondSoonBody,
+          compact: true,
+        ),
+      ];
+    } else {
+      body = switch (tasks) {
+        AsyncValue(:final value?) => [
           _CheckInCard(
             state: value.checkIn,
             busy: _busy.contains('check-in'),
             onCheckIn: () => unawaited(_run('check-in', repo.checkIn)),
+            onCalendar: () => _openCalendar(value.checkIn),
           ),
-          Padding(
-            key: TaskCenterScreen.capKey,
-            padding: const EdgeInsets.only(bottom: KSpacing.sm),
-            child: Text(
-              l10n.tasksDailyCap(
-                '${value.dailyEarnedCoins}',
-                '${value.dailyCapCoins}',
-              ),
-              style: context.textStyles.caption.copyWith(
-                color: p.textSecondary,
-              ),
+          _RewardsCard(
+            key: TaskCenterScreen.rewardsKey,
+            title: l10n.tasksRewardsTitle,
+            caption: l10n.tasksDailyCap(
+              '${value.dailyEarnedCoins}',
+              '${value.dailyCapCoins}',
             ),
+            captionKey: TaskCenterScreen.capKey,
+            tasks: value.daily,
+            busy: _busy,
+            onGo: _go,
+            onClaim: (code) => unawaited(_run(code, () => repo.claim(code))),
+          ),
+          if (value.weekly.isNotEmpty)
+            _RewardsCard(
+              key: TaskCenterScreen.weeklyKey,
+              title: l10n.tasksWeeklyTitle,
+              caption: l10n.tasksWeeklyHint,
+              tasks: value.weekly,
+              busy: _busy,
+              onGo: _go,
+              onClaim: (code) => unawaited(_run(code, () => repo.claim(code))),
+            ),
+          const _TaskBanners(),
+        ],
+        AsyncValue(:final error?, isLoading: false) => [
+          FailureErrorState(
+            title: l10n.tasksLoadError,
+            failure: toAppFailure(error),
+            onRetry: () => ref.invalidate(myTasksProvider),
+            compact: true,
           ),
         ],
-        _taskList(
-          _tab == 0 ? value.daily : value.weekly,
-          weekly: _tab == 1,
-          onClaim: (code) => unawaited(_run(code, () => repo.claim(code))),
-        ),
-      ],
-      AsyncValue(:final error?, isLoading: false) => [
-        FailureErrorState(
-          title: l10n.tasksLoadError,
-          failure: toAppFailure(error),
-          onRetry: () => ref.invalidate(myTasksProvider),
-          compact: true,
-        ),
-      ],
-      _ => [
-        const Padding(
-          padding: EdgeInsets.all(KSpacing.xxl),
-          child: Center(child: CircularProgressIndicator()),
-        ),
-      ],
-    };
+        _ => [
+          const Padding(
+            padding: EdgeInsets.all(KSpacing.xxl),
+            child: Center(child: CircularProgressIndicator()),
+          ),
+        ],
+      };
+    }
 
     return Scaffold(
-      backgroundColor: p.background,
+      backgroundColor: taskPageColor(context),
       appBar: KAppBar(
         backgroundColor: p.background,
         centerTitle: true,
+        toolbarHeight: TaskCenterScreen.toolbarHeight,
         title: Text(l10n.meHubTaskCenter),
       ),
       body: Column(
         children: [
-          KPrimaryTabs(
-            labels: [l10n.tasksTabDaily, l10n.tasksTabWeekly],
-            selectedIndex: _tab,
-            onSelected: (i) => setState(() => _tab = i),
+          // The white header ends in a soft lip over the warm page.
+          Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: p.background,
+              borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(KRadius.md),
+              ),
+            ),
+            child: KPrimaryTabs(
+              labels: [l10n.tasksTabActive, l10n.tasksTabDiamond],
+              selectedIndex: _tab,
+              onSelected: (i) => setState(() => _tab = i),
+            ),
           ),
           Expanded(
             child: RefreshIndicator(
@@ -172,9 +252,9 @@ class _TaskCenterScreenState extends ConsumerState<TaskCenterScreen> {
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(
-                  KSpacing.lg,
-                  KSpacing.sm,
-                  KSpacing.lg,
+                  TaskCenterScreen.pagePadding,
+                  13,
+                  TaskCenterScreen.pagePadding,
                   KSpacing.xl,
                 ),
                 children: body,
@@ -185,147 +265,160 @@ class _TaskCenterScreenState extends ConsumerState<TaskCenterScreen> {
       ),
     );
   }
-
-  Widget _taskList(
-    List<ProgramTask> list, {
-    required bool weekly,
-    required ValueChanged<String> onClaim,
-  }) {
-    final l10n = context.l10n;
-    if (list.isEmpty) {
-      return KEmptyState(
-        key: weekly ? TaskCenterScreen.weeklyEmptyKey : null,
-        icon: weekly ? Icons.videocam_rounded : Icons.task_alt_rounded,
-        title: weekly ? l10n.tasksWeeklyEmpty : l10n.tasksEmpty,
-        message: weekly ? l10n.tasksWeeklyEmptyBody : l10n.tasksEmptyBody,
-        compact: true,
-      );
-    }
-    return ProgramSection(
-      title: weekly ? l10n.tasksWeeklyTitle : l10n.tasksRewardsTitle,
-      subtitle: weekly ? l10n.tasksWeeklyHint : null,
-      child: Column(
-        children: [
-          for (final t in list)
-            _TaskRow(
-              task: t,
-              busy: _busy.contains(t.code),
-              onGo: () => _go(t.metric),
-              onClaim: () => onClaim(t.code),
-            ),
-        ],
-      ),
-    );
-  }
 }
 
-/// The caller's level, from the level systems (CP-005): the support level
-/// when it is active, else the first active one. Tap → levels.
-class _LevelCard extends ConsumerWidget {
-  const new();
+/// A white card with a warm wash at its top (the reference's card).
+class _TaskCard extends StatelessWidget {
+  const new({required this.child});
+
+  final Widget child;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = context.l10n;
+  Widget build(BuildContext context) {
     final p = context.palette;
-    final t = context.textStyles;
-    final levels = ref.watch(myLevelsProvider).value ?? const [];
-    final active = [
-      for (final l in levels)
-        if (l.available) l,
-    ];
-    final level =
-        active.where((l) => l.category == LevelCategory.support).firstOrNull ??
-        active.firstOrNull;
-    final brief = level?.level;
-    final tier = brief == null
-        ? 1
-        : KLevelArt.tier(brief.levelNumber, iconKey: brief.iconKey);
-    void open() => unawaited(context.push(AppRoutes.levels));
-    final label = level == null
-        ? l10n.tasksLevelNone
-        : [
-            level.name,
-            if (brief != null) l10n.levelsLevelNumber(brief.levelNumber),
-            l10n.tasksLevelPoints(formatPoints(level.points)),
-          ].join('، ');
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(TaskCenterScreen.cardRadius),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          stops: const [0, 0.32],
+          colors: [
+            Color.alphaBlend(
+              KBrandColors.gold.withValues(alpha: 0.12),
+              p.surfaceRaised,
+            ),
+            p.surfaceRaised,
+          ],
+        ),
+      ),
+      child: child,
+    );
+  }
+}
+
+/// The card title: a short gold bar, the words, an optional trailing link.
+class _CardTitle extends StatelessWidget {
+  const new({required this.title, this.trailing});
+
+  final String title;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final trailing = this.trailing;
+    return Row(
+      children: [
+        Container(
+          width: 3,
+          height: 14,
+          decoration: BoxDecoration(
+            color: KBrandColors.gold,
+            borderRadius: BorderRadius.circular(KRadius.pill),
+          ),
+        ),
+        const SizedBox(width: KSpacing.sm),
+        Expanded(
+          child: Semantics(
+            header: true,
+            child: Text(
+              title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: context.textStyles.title.copyWith(
+                color: p.textPrimary,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                height: 1.25,
+              ),
+            ),
+          ),
+        ),
+        ?trailing,
+      ],
+    );
+  }
+}
+
+/// A small stadium pill (26 lp, the reference's) inside a 44 lp tap area.
+class TaskPill extends StatelessWidget {
+  const new({
+    required this.label,
+    required this.onPressed,
+    super.key,
+    this.kind = TaskPillKind.go,
+    this.loading = false,
+    this.minWidth = 64,
+  });
+
+  final String label;
+  final VoidCallback? onPressed;
+  final TaskPillKind kind;
+  final bool loading;
+  final double minWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final enabled = onPressed != null && !loading;
+    final (Gradient? fill, Color flat, Color fg) = switch (kind) {
+      TaskPillKind.go => (
+        const LinearGradient(
+          colors: [KBrandColors.red400, KBrandColors.red500],
+        ),
+        p.primary,
+        p.onPrimary,
+      ),
+      TaskPillKind.claim => (
+        const LinearGradient(colors: [Color(0xFFFFD66B), KBrandColors.gold]),
+        KBrandColors.gold,
+        const Color(0xFF4A3300),
+      ),
+      TaskPillKind.done => (null, p.surfaceOverlay, p.textTertiary),
+    };
     return Semantics(
-      key: TaskCenterScreen.levelCardKey,
       button: true,
+      enabled: enabled,
       label: label,
       excludeSemantics: true,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: KSpacing.md),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: AlignmentDirectional.topStart,
-            end: AlignmentDirectional.bottomEnd,
-            colors: [
-              Color.alphaBlend(
-                KBrandColors.gold.withValues(alpha: 0.22),
-                p.surfaceRaised,
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: enabled ? onPressed : null,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44),
+          child: Center(
+            widthFactor: 1,
+            child: Container(
+              constraints: BoxConstraints(
+                minWidth: minWidth,
+                minHeight: TaskCenterScreen.pill.height,
               ),
-              p.surfaceRaised,
-            ],
-          ),
-          borderRadius: BorderRadius.circular(KRadius.lg),
-          border: Border.all(color: p.border),
-        ),
-        child: Material(
-          type: MaterialType.transparency,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(KRadius.lg),
-            onTap: open,
-            child: Padding(
-              padding: const EdgeInsets.all(KSpacing.lg),
-              child: Row(
-                children: [
-                  if (level != null && brief != null)
-                    KLevelEmblem(category: level.category, tier: tier, size: 64)
-                  else
-                    const ProgramIconTile(
-                      icon: Icons.diamond_rounded,
-                      hue: KBrandColors.red500,
-                      size: 64,
-                    ),
-                  const SizedBox(width: KSpacing.md),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          brief?.name ?? level?.name ?? l10n.meHubLevels,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: t.title.copyWith(
-                            color: p.textPrimary,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: KSpacing.xs),
-                        if (level != null) ...[
-                          KLevelProgressBar(
-                            percent: level.progressPercent ?? 0,
-                            color: KLevelArt.gem(tier),
-                          ),
-                          const SizedBox(height: KSpacing.xs),
-                          Text(
-                            l10n.tasksLevelPoints(formatPoints(level.points)),
-                            style: t.caption.copyWith(
-                              color: programGold(context),
-                            ),
-                          ),
-                        ] else
-                          Text(
-                            l10n.tasksLevelNone,
-                            style: t.caption.copyWith(color: p.textSecondary),
-                          ),
-                      ],
-                    ),
-                  ),
-                  Icon(Icons.chevron_right_rounded, color: p.textTertiary),
-                ],
+              padding: const EdgeInsets.symmetric(horizontal: KSpacing.md),
+              alignment: Alignment.center,
+              decoration: ShapeDecoration(
+                shape: const StadiumBorder(),
+                gradient: fill,
+                color: fill == null ? flat : null,
               ),
+              child: loading
+                  ? SizedBox.square(
+                      dimension: 14,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: fg,
+                      ),
+                    )
+                  : Text(
+                      label,
+                      maxLines: 1,
+                      style: context.textStyles.label.copyWith(
+                        color: fg,
+                        fontWeight: FontWeight.w700,
+                        height: 1.2,
+                      ),
+                    ),
             ),
           ),
         ),
@@ -334,60 +427,222 @@ class _LevelCard extends ConsumerWidget {
   }
 }
 
-/// The 7-day check-in strip «تسجيل الدخول اليومي»: today and the next six
-/// days (the 7th of the cycle carries the bonus) and the check-in button.
+enum TaskPillKind { go, claim, done }
+
+/// «مكافآت تسجيل الدخول»: the line to the bonus, today and the next six days
+/// (the 7th of the cycle is the bonus) and the check-in pill.
 class _CheckInCard extends StatelessWidget {
-  const new({required this.state, required this.busy, required this.onCheckIn});
+  const new({
+    required this.state,
+    required this.busy,
+    required this.onCheckIn,
+    required this.onCalendar,
+  });
 
   final CheckInState state;
   final bool busy;
   final VoidCallback onCheckIn;
+  final VoidCallback onCalendar;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final p = context.palette;
-    final t = context.textStyles;
     final toBonus = state.daysToBonus;
+    final line = toBonus <= 0
+        ? l10n.tasksCheckInBonusToday('${state.bonusCoins}')
+        : l10n.tasksCheckInMoreDays(toBonus);
     return KeyedSubtree(
       key: TaskCenterScreen.checkInKey,
-      child: ProgramSection(
-        title: l10n.tasksCheckInTitle,
-        subtitle: toBonus <= 0
-            ? l10n.tasksCheckInBonusToday('${state.bonusCoins}')
-            : l10n.tasksCheckInToBonus('$toBonus', '${state.bonusCoins}'),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                for (final (i, day) in state.days.indexed)
-                  Expanded(
-                    child: _DaySlot(index: i, day: day, state: state),
+      child: _TaskCard(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            TaskCenterScreen.cardPadding,
+            0,
+            TaskCenterScreen.cardPadding,
+            KSpacing.md,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // The reference puts the line 24 lp under the title; the title
+              // row keeps a 44 lp tap target for «التقويم» over it.
+              Stack(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 37),
+                    child: _HighlightedLine(text: line, highlight: '$toBonus'),
                   ),
-              ],
-            ),
-            const SizedBox(height: KSpacing.md),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    l10n.tasksStreak('${state.streak}'),
-                    style: t.caption.copyWith(color: p.textSecondary),
+                  PositionedDirectional(
+                    top: 0,
+                    start: 0,
+                    end: 0,
+                    height: 44,
+                    child: _CardTitle(
+                      title: l10n.tasksCheckInTitle,
+                      trailing: _CalendarLink(onTap: onCalendar),
+                    ),
                   ),
-                ),
-                ProgramPillButton(
-                  key: TaskCenterScreen.checkInButtonKey,
-                  label: state.checkedInToday
-                      ? l10n.tasksActionDone
-                      : l10n.tasksCheckInAction,
-                  loading: busy,
-                  onPressed: state.checkedInToday ? null : onCheckIn,
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(child: _DayStrip(state: state)),
+                  const SizedBox(width: KSpacing.xs),
+                  TaskPill(
+                    key: TaskCenterScreen.checkInButtonKey,
+                    label: state.checkedInToday
+                        ? l10n.tasksActionDone
+                        : l10n.tasksCheckInAction,
+                    kind: state.checkedInToday
+                        ? TaskPillKind.done
+                        : TaskPillKind.go,
+                    minWidth: TaskCenterScreen.checkInPill.width,
+                    loading: busy,
+                    onPressed: state.checkedInToday ? null : onCheckIn,
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+}
+
+/// A grey line with its number in gold (the reference's «2»).
+class _HighlightedLine extends StatelessWidget {
+  const new({required this.text, required this.highlight});
+
+  final String text;
+  final String highlight;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final style = context.textStyles.caption.copyWith(
+      color: p.textSecondary,
+      fontSize: 12.5,
+    );
+    final at = text.indexOf(highlight);
+    if (at < 0 || highlight.isEmpty) return Text(text, style: style);
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(text: text.substring(0, at)),
+          TextSpan(
+            text: highlight,
+            style: TextStyle(
+              color: programGold(context),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          TextSpan(text: text.substring(at + highlight.length)),
+        ],
+      ),
+      style: style,
+    );
+  }
+}
+
+class _CalendarLink extends StatelessWidget {
+  const new({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final label = context.l10n.tasksCheckInCalendar;
+    return Semantics(
+      key: TaskCenterScreen.calendarKey,
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(KRadius.sm),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: context.textStyles.caption.copyWith(
+                  color: p.textTertiary,
+                  fontSize: 12.5,
+                ),
+              ),
+              Icon(
+                Directionality.of(context) == TextDirection.rtl
+                    ? Icons.chevron_left_rounded
+                    : Icons.chevron_right_rounded,
+                size: 18,
+                color: p.textTertiary,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Today and the next six days on a thin line; scrolls when the row is
+/// narrower than the seven slots (the reference shows about five and a half).
+class _DayStrip extends StatelessWidget {
+  const new({required this.state});
+
+  final CheckInState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    const slot = TaskCenterScreen.daySlot;
+    final width = slot * state.days.length;
+    // The mark (26), a gap (3) and the date's line, which grows with the
+    // text size (44 lp at 1.0).
+    final height =
+        29 +
+        MediaQuery.textScalerOf(context).scale(11 * 1.2).ceilToDouble() +
+        2;
+    return SizedBox(
+      height: height,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.zero,
+        children: [
+          SizedBox(
+            width: width,
+            child: Stack(
+              children: [
+                PositionedDirectional(
+                  start: slot / 2,
+                  end: slot / 2,
+                  top: 12,
+                  height: 2,
+                  child: ColoredBox(
+                    color: Color.alphaBlend(
+                      KBrandColors.gold.withValues(alpha: 0.18),
+                      p.surfaceRaised,
+                    ),
+                  ),
+                ),
+                Row(
+                  children: [
+                    for (final (i, day) in state.days.indexed)
+                      SizedBox(
+                        width: slot,
+                        child: _DaySlot(index: i, day: day, state: state),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -405,10 +660,32 @@ class _DaySlot extends StatelessWidget {
     final l10n = context.l10n;
     final p = context.palette;
     final bonus = day.cycleDay == state.cycleDays;
-    final hue = bonus ? KBrandColors.gold : p.primary;
     final label = day.today
         ? l10n.tasksToday
         : '${day.date.month}.${day.date.day}';
+    final hue = ProgramHues.all[(index + 2) % ProgramHues.all.length];
+    final Widget mark;
+    if (day.checkedIn) {
+      mark = DecoratedBox(
+        decoration: BoxDecoration(color: p.primary, shape: BoxShape.circle),
+        child: const SizedBox.square(
+          dimension: 19,
+          child: Icon(Icons.check_rounded, size: 14, color: Color(0xFFFFFFFF)),
+        ),
+      );
+    } else if (bonus) {
+      mark = const Icon(
+        Icons.redeem_rounded,
+        size: 26,
+        color: KBrandColors.gold,
+      );
+    } else {
+      mark = Icon(
+        Icons.card_giftcard_rounded,
+        size: 22,
+        color: day.today ? p.primary : hue,
+      );
+    }
     return Semantics(
       key: TaskCenterScreen.dayKey(index),
       label: [
@@ -419,28 +696,8 @@ class _DaySlot extends StatelessWidget {
       excludeSemantics: true,
       child: Column(
         children: [
-          DecoratedBox(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: day.checkedIn
-                  ? hue.withValues(alpha: 0.18)
-                  : Color.alphaBlend(hue.withValues(alpha: 0.10), p.surface),
-              border: day.today ? Border.all(color: hue, width: 2) : null,
-            ),
-            child: SizedBox.square(
-              dimension: 36,
-              child: Icon(
-                day.checkedIn
-                    ? Icons.check_rounded
-                    : bonus
-                    ? Icons.redeem_rounded
-                    : Icons.card_giftcard_rounded,
-                size: 20,
-                color: hue,
-              ),
-            ),
-          ),
-          const SizedBox(height: KSpacing.xxs),
+          SizedBox(height: 26, child: Center(child: mark)),
+          const SizedBox(height: 3),
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(
@@ -448,21 +705,10 @@ class _DaySlot extends StatelessWidget {
               maxLines: 1,
               textDirection: day.today ? null : TextDirection.ltr,
               style: context.textStyles.caption.copyWith(
-                color: day.today ? p.textPrimary : p.textTertiary,
-                fontWeight: day.today ? FontWeight.w700 : FontWeight.w400,
-              ),
-            ),
-          ),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              '+${day.rewardCoins}',
-              maxLines: 1,
-              textDirection: TextDirection.ltr,
-              style: context.textStyles.caption.copyWith(
-                color: programGold(context),
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
+                color: day.today ? p.textSecondary : p.textTertiary,
+                fontSize: 11,
+                fontWeight: day.today ? FontWeight.w600 : FontWeight.w400,
+                height: 1.2,
               ),
             ),
           ),
@@ -472,7 +718,86 @@ class _DaySlot extends StatelessWidget {
   }
 }
 
-/// One task: icon tile, «name (x/y)», the coin chip and the action.
+/// «مكافآت المهام» (and the weekly host tasks): a row per task.
+class _RewardsCard extends StatelessWidget {
+  const new({
+    required this.title,
+    required this.tasks,
+    required this.busy,
+    required this.onGo,
+    required this.onClaim,
+    super.key,
+    this.caption,
+    this.captionKey,
+  });
+
+  final String title;
+  final String? caption;
+  final Key? captionKey;
+  final List<ProgramTask> tasks;
+  final Set<String> busy;
+  final ValueChanged<TaskMetric> onGo;
+  final ValueChanged<String> onClaim;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final p = context.palette;
+    final caption = this.caption;
+    return _TaskCard(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          TaskCenterScreen.cardPadding,
+          KSpacing.md,
+          TaskCenterScreen.cardPadding,
+          KSpacing.sm,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _CardTitle(
+              title: title,
+              trailing: caption == null
+                  ? null
+                  : Flexible(
+                      child: Text(
+                        caption,
+                        key: captionKey,
+                        maxLines: 2,
+                        textAlign: TextAlign.end,
+                        style: context.textStyles.caption.copyWith(
+                          color: p.textTertiary,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+            ),
+            const SizedBox(height: KSpacing.xs),
+            if (tasks.isEmpty)
+              KEmptyState(
+                key: TaskCenterScreen.emptyKey,
+                icon: Icons.task_alt_rounded,
+                title: l10n.tasksEmpty,
+                message: l10n.tasksEmptyBody,
+                compact: true,
+              )
+            else
+              for (final t in tasks)
+                _TaskRow(
+                  task: t,
+                  busy: busy.contains(t.code),
+                  onGo: () => onGo(t.metric),
+                  onClaim: () => onClaim(t.code),
+                ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// One task: the tinted icon tile, «name (x/y)» in bold, «+N» coins and the
+/// pill («اذهب», «استلم» or «تم»).
 class _TaskRow extends StatelessWidget {
   const new({
     required this.task,
@@ -486,20 +811,31 @@ class _TaskRow extends StatelessWidget {
   final VoidCallback onGo;
   final VoidCallback onClaim;
 
-  static (IconData, Color) _look(TaskMetric metric) => switch (metric) {
-    TaskMetric.watchLives => (Icons.videocam_rounded, const Color(0xFF14B8A6)),
-    TaskMetric.follows => (Icons.person_add_rounded, const Color(0xFFFF3B6B)),
-    TaskMetric.liveChatMessages => (
-      Icons.chat_bubble_rounded,
-      const Color(0xFF4DA3FF),
-    ),
-    TaskMetric.giftSends => (Icons.redeem_rounded, const Color(0xFFE0A21B)),
+  static const _teal = Color(0xFF14B8A6);
+  static const _pink = Color(0xFFFF3B6B);
+  static const _blue = Color(0xFF4DA3FF);
+  static const _amber = Color(0xFFE0A21B);
+
+  static (IconData, Color) look(TaskMetric metric) => switch (metric) {
+    TaskMetric.watchLives => (Icons.videocam_rounded, _teal),
+    TaskMetric.watchMinutes => (Icons.timer_rounded, _teal),
+    TaskMetric.audioRooms => (Icons.mic_rounded, _blue),
+    TaskMetric.follows => (Icons.person_add_rounded, _pink),
+    TaskMetric.liveChatMessages => (Icons.chat_bubble_rounded, _blue),
+    TaskMetric.liveTaps => (Icons.favorite_rounded, _pink),
+    TaskMetric.giftSends => (Icons.redeem_rounded, _amber),
+    TaskMetric.newHostGifts => (Icons.volunteer_activism_rounded, _amber),
+    TaskMetric.posts => (Icons.edit_note_rounded, _teal),
+    TaskMetric.reels => (Icons.movie_rounded, KBrandColors.red500),
+    TaskMetric.stories => (Icons.amp_stories_rounded, _pink),
+    TaskMetric.postComments => (Icons.mode_comment_rounded, _blue),
+    TaskMetric.dmFriends => (Icons.send_rounded, _blue),
+    TaskMetric.dmVoiceMessages => (Icons.keyboard_voice_rounded, _teal),
     TaskMetric.hostLiveMinutes => (Icons.live_tv_rounded, KBrandColors.red500),
-    TaskMetric.hostGiftCoins => (
-      Icons.volunteer_activism_rounded,
-      const Color(0xFFF5A623),
-    ),
-    TaskMetric.other => (Icons.task_alt_rounded, const Color(0xFF14B8A6)),
+    TaskMetric.hostGiftCoins ||
+    TaskMetric.hostGiftsReceived => (Icons.card_giftcard_rounded, _amber),
+    TaskMetric.hostGuests => (Icons.event_seat_rounded, _blue),
+    TaskMetric.other => (Icons.task_alt_rounded, _teal),
   };
 
   @override
@@ -507,63 +843,191 @@ class _TaskRow extends StatelessWidget {
     final l10n = context.l10n;
     final p = context.palette;
     final t = context.textStyles;
-    final (icon, hue) = _look(task.metric);
+    final (icon, hue) = look(task.metric);
     final title = '${task.name} (${task.progress}/${task.target})';
+    final key = TaskCenterScreen.actionKey(task.code);
     final Widget action;
     if (task.claimed) {
-      action = ProgramPillButton(
-        key: TaskCenterScreen.actionKey(task.code),
+      action = TaskPill(
+        key: key,
         label: l10n.tasksActionDone,
+        kind: TaskPillKind.done,
         onPressed: null,
       );
     } else if (task.completed) {
-      action = ProgramPillButton(
-        key: TaskCenterScreen.actionKey(task.code),
+      action = TaskPill(
+        key: key,
         label: l10n.tasksActionClaim,
+        kind: TaskPillKind.claim,
         loading: busy,
         onPressed: onClaim,
       );
     } else {
-      action = ProgramPillButton(
-        key: TaskCenterScreen.actionKey(task.code),
-        label: l10n.tasksActionGo,
-        filled: false,
-        onPressed: onGo,
-      );
+      action = TaskPill(key: key, label: l10n.tasksActionGo, onPressed: onGo);
     }
-    return Padding(
+    final coins = task.claimedCoins ?? task.rewardCoins;
+    return ConstrainedBox(
       key: TaskCenterScreen.taskKey(task.code),
-      padding: const EdgeInsets.symmetric(vertical: KSpacing.sm),
+      constraints: const BoxConstraints(minHeight: TaskCenterScreen.rowPitch),
       child: Row(
         children: [
-          ProgramIconTile(icon: icon, hue: hue),
-          const SizedBox(width: KSpacing.md),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: Color.alphaBlend(
+                hue.withValues(alpha: 0.14),
+                p.surfaceRaised,
+              ),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: SizedBox.square(
+              dimension: TaskCenterScreen.iconTile,
+              child: Icon(icon, size: 21, color: hue),
+            ),
+          ),
+          const SizedBox(width: 11),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: t.bodyStrong.copyWith(color: p.textPrimary),
-                ),
-                const SizedBox(height: KSpacing.xxs),
-                Semantics(
-                  label: l10n.meHubCoins('${task.rewardCoins}'),
-                  excludeSemantics: true,
-                  child: CoinAmount(
-                    task.claimedCoins ?? task.rewardCoins,
-                    prefix: '+',
-                    style: t.label.copyWith(color: programGold(context)),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: KSpacing.xs),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: t.bodyStrong.copyWith(
+                      color: p.textPrimary,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      height: 1.3,
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 3),
+                  Semantics(
+                    label: l10n.meHubCoins('$coins'),
+                    excludeSemantics: true,
+                    child: CoinAmount(
+                      coins,
+                      prefix: '+',
+                      size: 15,
+                      style: t.label.copyWith(
+                        color: programGold(context),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(width: KSpacing.sm),
           action,
         ],
+      ),
+    );
+  }
+}
+
+/// The team's Task Center banners (`placement=tasks`); nothing when none.
+class _TaskBanners extends ConsumerWidget {
+  const new();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final banners = ref.watch(taskBannersProvider).value ?? const [];
+    if (banners.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      key: TaskCenterScreen.bannerKey,
+      padding: const EdgeInsets.only(bottom: KSpacing.md),
+      child: KHomeBannerCarousel(
+        banners: banners,
+        canOpen: (b) => b.link.startsWith('/'),
+        onOpen: (b) => unawaited(context.push(b.link)),
+      ),
+    );
+  }
+}
+
+/// «التقويم»: the 7-day cycle with each day's coins, the streak and the rule.
+class _CheckInCalendarSheet extends StatelessWidget {
+  const new({required this.state});
+
+  final CheckInState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final p = context.palette;
+    final t = context.textStyles;
+    return SafeArea(
+      key: TaskCenterScreen.calendarSheetKey,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          KSpacing.lg,
+          0,
+          KSpacing.lg,
+          KSpacing.lg,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              l10n.tasksCalendarTitle,
+              style: t.title.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: KSpacing.xs),
+            Text(
+              l10n.tasksCalendarBody('${state.bonusCoins}'),
+              style: t.caption.copyWith(color: p.textSecondary),
+            ),
+            const SizedBox(height: KSpacing.md),
+            for (final day in state.days)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: KSpacing.xs),
+                child: Row(
+                  children: [
+                    Icon(
+                      day.checkedIn
+                          ? Icons.check_circle_rounded
+                          : day.cycleDay == state.cycleDays
+                          ? Icons.redeem_rounded
+                          : Icons.card_giftcard_rounded,
+                      size: 20,
+                      color: day.checkedIn
+                          ? p.primary
+                          : day.cycleDay == state.cycleDays
+                          ? KBrandColors.gold
+                          : p.textTertiary,
+                    ),
+                    const SizedBox(width: KSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        day.today
+                            ? l10n.tasksToday
+                            : '${day.date.month}.${day.date.day}',
+                        textDirection: day.today ? null : TextDirection.ltr,
+                        textAlign:
+                            Directionality.of(context) == TextDirection.rtl
+                            ? TextAlign.right
+                            : TextAlign.left,
+                        style: t.body,
+                      ),
+                    ),
+                    Text(
+                      l10n.tasksDayCoins('${day.rewardCoins}'),
+                      style: t.label.copyWith(color: programGold(context)),
+                    ),
+                  ],
+                ),
+              ),
+            const SizedBox(height: KSpacing.xs),
+            Text(
+              l10n.tasksStreak('${state.streak}'),
+              style: t.caption.copyWith(color: p.textTertiary),
+            ),
+          ],
+        ),
       ),
     );
   }

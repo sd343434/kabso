@@ -8284,29 +8284,53 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get tasksTabDaily => 'Daily tasks';
-
-  @override
-  String get tasksTabWeekly => 'Weekly tasks';
-
-  @override
   String get tasksLoadError => 'Couldn\'t load the tasks';
 
   @override
-  String tasksLevelPoints(String points) {
-    return 'Experience points $points';
+  String get tasksTabActive => 'Active tasks';
+
+  @override
+  String get tasksTabDiamond => 'Diamond missions';
+
+  @override
+  String get tasksDiamondSoonTitle => 'Diamond missions are coming soon';
+
+  @override
+  String get tasksDiamondSoonBody =>
+      'Diamond missions haven\'t launched yet. They\'ll show up here when the Kabso team launches them.';
+
+  @override
+  String get tasksCheckInCalendar => 'Calendar';
+
+  @override
+  String tasksCheckInMoreDays(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days more check-ins bring an extra reward',
+      one: '$days more check-in brings an extra reward',
+    );
+    return '$_temp0';
   }
 
   @override
-  String get tasksLevelNone => 'Levels aren\'t active yet';
+  String get tasksCalendarTitle => 'Check-in calendar';
 
   @override
-  String get tasksCheckInTitle => 'Daily check-in';
-
-  @override
-  String tasksCheckInToBonus(String days, String coins) {
-    return 'Check in $days more days to get $coins extra coins';
+  String tasksCalendarBody(String coins) {
+    return 'Check in every day: every 7th day in a row adds $coins extra coins, and a missed day starts again.';
   }
+
+  @override
+  String tasksDayCoins(String coins) {
+    return '$coins coins';
+  }
+
+  @override
+  String get eventsTitle => 'Activities';
+
+  @override
+  String get tasksCheckInTitle => 'Check-in rewards';
 
   @override
   String tasksCheckInBonusToday(String coins) {
@@ -8337,13 +8361,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tasksWeeklyHint => 'They renew every Monday.';
-
-  @override
-  String get tasksWeeklyEmpty => 'Weekly tasks are for hosts';
-
-  @override
-  String get tasksWeeklyEmptyBody =>
-      'Weekly live tasks show up here for people who can go live.';
 
   @override
   String get tasksEmpty => 'No tasks right now';
@@ -8379,7 +8396,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get eventsTabPermanent => 'Permanent events';
 
   @override
-  String get eventsTabRegional => 'Regional events';
+  String get eventsTabRegional => 'Regional';
 
   @override
   String get eventsIntroTitle => 'Event calendar';

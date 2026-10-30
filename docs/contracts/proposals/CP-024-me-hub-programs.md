@@ -151,3 +151,27 @@ changeable without an app release.
 | 12 | SVIP perks | badge, avatar frame, coloured chat name (SVIP 1); entry banner, free daily bullet (SVIP 2); entry effect, viewer-list priority, monthly bag gift (SVIP 3). **None is built yet** — listed as coming, never shown as active (follow-ups in the PR). Points redemption for anti-mute / unban (in the reference) is **not** offered: it would undermine moderation. | `SvipService` |
 | 13 | Art | **Owner art needed**: SVIP emblem, badge, frames and effects; event banners; the Task Center header art. The app uses token-coloured icon compositions until then. | — |
 | — | Recharge screen | Packages from config, placeholders from the reference (10+20 $0.29, 38+20 $0.99, 276+28 $6.99 was $8.00, 800+30 $19.99, 2500+30 $59.99, 4193+30 $99.99, 5197+30 $129.99) **for the owner to set**; the CTA stays disabled «الدفع قريباً» (B5). No purchase endpoint. | `WALLET_RECHARGE_PACKAGES`, `WALLET_RECHARGE_CURRENCY` |
+
+## Amendment D176 (2026-10-30) — the daily task pool, contract v1.50-social
+
+**Owner requests** (via the coordinator): the Task Center and the Event Center in the layout of two new
+reference screenshots (kept out of git, D40) with Kabso's colours and icons; «أريد أن تصنع الكثير من
+المهام اليومية، ترسل لكل شخص بناءً على مستواه»; and, asked whether tasks give experience: **«العملات فقط»
+— coins only** (no experience reward field, no EXP icon; Q2 above stands).
+
+**Proposal (built as defaults the owner changes with `task-admin`; CONVENTIONS §10.41.1, §10.41.2):**
+
+| # | Question | Default | Where it lives |
+|---|----------|---------|----------------|
+| P1 | Daily tasks | 18 templates (15 for everyone, 3 for hosts), only what the server can count from stored data; not offered: share a room, recharge, anything self-reported | `task_definitions` (`pool`) |
+| P2 | Level | The higher of the Support and Charm levels | — |
+| P3 | Bands | 1 from level 0: 6 tasks; 2 from 10: 7; 3 from 30: 7; 4 from 60: 8 (hosts: 2 / 2 / 2 / 3 of them host tasks) | `task_pool_bands` |
+| P4 | Targets and coins | One per band, harder and bigger in higher bands (table in §10.41.1) | `band_targets`, `band_rewards` |
+| P5 | Choice | Per person and day, deterministic, varied (one per group, then two), no repeats; fixed for the day | `task_assignments` |
+| P6 | Cap | Unchanged: `TASK_DAILY_CAP_COINS` 50 counts pool tasks too (the higher bands' full lists exceed it; the owner may raise it) | config |
+| P7 | D166's fixed daily tasks | Switched off (the pool offers the same actions per band); can be switched on again | `task-admin set … --enabled` |
+| P8 | Event calendar | An optional second line (short prize line, ar/en) and a tone per event | `event-admin create/style` |
+| P9 | Task Center banner | Promo banners with placement `tasks`, hidden when none | `banner-admin --placement tasks` |
+| P10 | «مهام الماس» (Diamond Mission) tab | No reference yet: shown as «قريباً» | — |
+
+Status: **implemented as owner-changeable defaults** (D176, REVIEW). Additive for clients.

@@ -423,15 +423,14 @@ void main() {
   });
 
   group('task center', () {
-    testWidgets('the level card, the check-in strip and the three button '
-        'states: go, claim and done', (tester) async {
+    // D176: the reference's layout has no level card (the levels have their
+    // own page); the line to the bonus is «Sign in for N more days…».
+    testWidgets('the check-in strip and the three button states: go, claim '
+        'and done', (tester) async {
       final programs = _FakePrograms();
       await _pump(tester, const TaskCenterScreen(), programs: programs);
-      expect(find.byKey(TaskCenterScreen.levelCardKey), findsOneWidget);
-      expect(find.text('Activator'), findsOneWidget);
-      expect(find.text(_en.tasksLevelPoints('1,450')), findsOneWidget);
       expect(find.byKey(TaskCenterScreen.dayKey(6)), findsOneWidget);
-      expect(find.text(_en.tasksCheckInToBonus('4', '20')), findsOneWidget);
+      expect(find.text(_en.tasksCheckInMoreDays(4)), findsOneWidget);
       expect(find.text('Follow other users (10/10)'), findsOneWidget);
       Finder action(String code) => find.descendant(
         of: find.byKey(TaskCenterScreen.actionKey(code)),
@@ -492,11 +491,16 @@ void main() {
       expect(find.text('page ${AppRoutes.home}'), findsOneWidget);
     });
 
-    testWidgets('weekly tab: honest empty state for non-hosts', (tester) async {
+    // D176: weekly host tasks are a card under the daily ones (no weekly
+    // tab); the second tab is «Diamond missions», not launched («Soon»).
+    testWidgets('no weekly card for non-hosts; the Diamond tab is honest '
+        '«Soon»', (tester) async {
       await _pump(tester, const TaskCenterScreen(), programs: _FakePrograms());
-      await tester.tap(find.text(_en.tasksTabWeekly));
+      expect(find.byKey(TaskCenterScreen.weeklyKey), findsNothing);
+      await tester.tap(find.text(_en.tasksTabDiamond));
       await tester.pumpAndSettle();
-      expect(find.byKey(TaskCenterScreen.weeklyEmptyKey), findsOneWidget);
+      expect(find.byKey(TaskCenterScreen.diamondKey), findsOneWidget);
+      expect(find.text(_en.tasksDiamondSoonTitle), findsOneWidget);
       expect(find.byKey(TaskCenterScreen.checkInKey), findsNothing);
     });
 
@@ -518,9 +522,13 @@ void main() {
           ),
         ),
       );
-      await tester.tap(find.text(_en.tasksTabWeekly));
-      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.byKey(TaskCenterScreen.weeklyKey),
+        100,
+        scrollable: find.byType(Scrollable).last,
+      );
       expect(find.text('HOST_GIFT_COINS (100/1000)'), findsOneWidget);
+      expect(find.text(_en.tasksWeeklyTitle), findsOneWidget);
     });
 
     testWidgets('a failure shows the error with a retry', (tester) async {
@@ -540,7 +548,7 @@ void main() {
         programs: _FakePrograms(),
         language: AppLanguage.ar,
       );
-      expect(find.text(_ar.tasksTabDaily), findsOneWidget);
+      expect(find.text(_ar.tasksTabActive), findsOneWidget);
       final today = tester.getCenter(find.byKey(TaskCenterScreen.dayKey(0)));
       final last = tester.getCenter(find.byKey(TaskCenterScreen.dayKey(6)));
       expect(today.dx, greaterThan(last.dx));

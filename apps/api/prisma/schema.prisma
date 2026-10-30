@@ -186,6 +186,7 @@ model User {
   dmHides             DmMessageHide[]
   // v1.44-social (D166): the Me hub's programs.
   taskClaims          TaskClaim[]
+  taskAssignments     TaskAssignment[]
   dailyCheckIns       DailyCheckIn[]
   eventResults        EventResult[]
 
@@ -3208,12 +3209,53 @@ model TaskDefinition {
   nameEn      String          @map("name_en") @db.VarChar(80)
   enabled     Boolean         @default(true)
   sortOrder   Int             @default(0) @map("sort_order")
+  /// D176: a daily pool template, offered through the per-person assignment (task_assignments).
+  pool        Boolean         @default(false)
+  /// D176: WATCH, LIVE, SOCIAL, GIFT, CONTENT, MESSAGE or HOST (variety; null when not pool).
+  poolGroup   String?         @map("pool_group") @db.VarChar(10)
+  /// D176: one target and reward per level band 1…4 (0 = not offered in that band).
+  bandTargets Int[]           @default([]) @map("band_targets")
+  bandRewards Int[]           @default([]) @map("band_rewards")
   createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  claims TaskClaim[]
+  claims      TaskClaim[]
+  assignments TaskAssignment[]
 
   @@map("task_definitions")
+}
+
+/// D176: a level band of the daily pool (the higher of Support and Charm levels from `minLevel`).
+model TaskPoolBand {
+  band       Int      @id @db.SmallInt
+  minLevel   Int      @map("min_level")
+  dailyCount Int      @map("daily_count") @db.SmallInt
+  hostCount  Int      @map("host_count") @db.SmallInt
+  nameAr     String   @map("name_ar") @db.VarChar(40)
+  nameEn     String   @map("name_en") @db.VarChar(40)
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("task_pool_bands")
+}
+
+/// D176: a person's pool task of a day, fixed at the day's first read with its band's target and reward.
+model TaskAssignment {
+  userId      String   @map("user_id") @db.Uuid
+  day         DateTime @db.Date
+  taskCode    String   @map("task_code") @db.VarChar(40)
+  band        Int      @db.SmallInt
+  target      Int
+  rewardCoins Int      @map("reward_coins")
+  position    Int      @db.SmallInt
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task TaskDefinition @relation(fields: [taskCode], references: [code], onDelete: Cascade)
+
+  @@id([userId, day, taskCode], map: "task_assignments_pkey")
+  @@index([taskCode], map: "task_assignments_task_idx")
+  @@index([day], map: "task_assignments_day_idx")
+  @@map("task_assignments")
 }
 
 /// D166: a task's reward, paid once per person, task and period (`task_claims_once`). The coins
@@ -3262,6 +3304,10 @@ model Event {
   endsAt      DateTime?       @map("ends_at") @db.Timestamptz(3)
   rulesAr     String          @map("rules_ar") @db.VarChar(4000)
   rulesEn     String          @map("rules_en") @db.VarChar(4000)
+  /// D176: the calendar bar's second line (a short prize line) and its tone.
+  summaryAr   String?         @map("summary_ar") @db.VarChar(80)
+  summaryEn   String?         @map("summary_en") @db.VarChar(80)
+  tone        String?         @db.VarChar(6)
   metric      EventMetric
   audience    ProgramAudience @default(EVERYONE)
   permanent   Boolean         @default(false)

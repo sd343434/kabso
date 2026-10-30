@@ -11,22 +11,38 @@ import { creditIn } from '../wallet/wallet-ledger.js';
 import { addDays, dateValue, programWindowsIn, type ProgramWindow } from './programs-time.js';
 import {
   CHECK_IN_CYCLE_DAYS,
+  DEFAULT_TASK_POOL_BANDS,
+  NEW_HOST_DAYS,
   WATCH_LIVE_MIN_MS,
+  assignDailyTasks,
+  bandForLevel,
   cappedReward,
   checkInCycleDay,
   checkInReward,
   isTaskMetric,
+  seedOf,
   type TaskMetric,
+  type TaskPoolBand,
 } from './programs-rules.js';
 
 type Tx = Prisma.TransactionClient;
 type Db = Pick<Tx, '$queryRaw'>;
+
+/** A task the caller has now, with its target and reward (a pool task's from today's assignment). */
+interface OfferedTask {
+  def: TaskDefinition;
+  target: number;
+  rewardCoins: number;
+  pooled: boolean;
+}
 
 // ---- Response shapes (openapi v1.44-social, D166) ---------------------------------------------
 
 /** `ProgramTask`. */
 export interface ProgramTaskDto {
   code: string;
+  /** v1.50-social (D176): one of the caller's daily pool tasks of today. */
+  pooled: boolean;
   period: 'DAILY' | 'WEEKLY';
   metric: TaskMetric;
   audience: 'EVERYONE' | 'HOSTS';
@@ -61,6 +77,8 @@ export interface MyTasksDto {
   dailyCapCoins: number;
   /** Coins from daily tasks and the check-in today (counts toward the cap). */
   dailyEarnedCoins: number;
+  /** v1.50-social (D176): the level band today's pool tasks were chosen for. */
+  band: { band: number; level: number; name: string; host: boolean };
   checkIn: {
     checkedInToday: boolean;
     streak: number;
@@ -141,6 +159,115 @@ function progressSql(me: string, metric: TaskMetric, w: ProgramWindow, now: Date
          WHERE r.host_user_id = ${me}::uuid
            AND r.started_at < ${to}::timestamptz
            AND COALESCE(r.ended_at, r.last_heartbeat_at) > ${from}::timestamptz`;
+    case 'WATCH_MINUTES':
+      // Whole minutes watched in lives of someone else first joined in the period.
+      return Prisma.sql`
+        SELECT COALESCE(floor(sum(a.watch_ms + COALESCE(GREATEST(0, floor(extract(epoch FROM
+                 (${now}::timestamptz - a.open_since)) * 1000)), 0)) / 60000), 0)::bigint AS n
+          FROM live_room_audience a
+          JOIN live_rooms r ON r.id = a.room_id AND r.host_user_id <> ${me}::uuid
+          JOIN users h ON h.id = r.host_user_id AND h.status = 'ACTIVE'
+         WHERE a.user_id = ${me}::uuid
+           AND a.first_joined_at >= ${from}::timestamptz AND a.first_joined_at < ${to}::timestamptz`;
+    case 'AUDIO_ROOMS':
+      // Audio rooms of someone else first joined in the period and stayed in ≥ 15 s.
+      return Prisma.sql`
+        SELECT count(*) AS n
+          FROM live_room_audience a
+          JOIN live_rooms r ON r.id = a.room_id AND r.host_user_id <> ${me}::uuid AND r.mode = 'AUDIO'
+          JOIN users h ON h.id = r.host_user_id AND h.status = 'ACTIVE'
+         WHERE a.user_id = ${me}::uuid
+           AND a.first_joined_at >= ${from}::timestamptz AND a.first_joined_at < ${to}::timestamptz
+           AND a.watch_ms + COALESCE(GREATEST(0, floor(extract(epoch FROM (${now}::timestamptz - a.open_since)) * 1000)), 0)
+               >= ${WATCH_LIVE_MIN_MS}`;
+    case 'LIVE_TAPS':
+      // Taps (hearts) the server counted in lives of someone else started in the period (the per-live
+      // count of live_room_tappers, as the event boards read it).
+      return Prisma.sql`
+        SELECT COALESCE(sum(t.counted), 0)::bigint AS n
+          FROM live_room_tappers t
+          JOIN live_rooms r ON r.id = t.room_id AND r.host_user_id <> ${me}::uuid
+          JOIN users h ON h.id = r.host_user_id AND h.status = 'ACTIVE'
+         WHERE t.user_id = ${me}::uuid
+           AND r.started_at >= ${from}::timestamptz AND r.started_at < ${to}::timestamptz`;
+    case 'NEW_HOST_GIFTS':
+      // Gift sends paid with coins to an ACTIVE host whose hosting permission is at most 30 days old.
+      return Prisma.sql`
+        SELECT count(*) AS n
+          FROM live_gifts g
+         WHERE g.sender_id = ${me}::uuid AND g.coins_charged > 0
+           AND g.created_at >= ${from}::timestamptz AND g.created_at < ${to}::timestamptz
+           AND EXISTS (SELECT 1 FROM live_gift_recipients gr
+                         JOIN users u ON u.id = gr.user_id AND u.status = 'ACTIVE'
+                         JOIN live_hosts lh ON lh.user_id = gr.user_id
+                        WHERE gr.gift_id = g.id AND gr.user_id <> ${me}::uuid
+                          AND lh.granted_at > g.created_at - make_interval(days => ${NEW_HOST_DAYS}))`;
+    case 'POSTS':
+    case 'REELS':
+      // Published posts (or reels) made in the period, not deleted and not removed.
+      return Prisma.sql`
+        SELECT count(*) AS n
+          FROM posts p
+         WHERE p.author_id = ${me}::uuid AND p.format = ${metric === 'REELS' ? 'REEL' : 'POST'}::post_format
+           AND p.status = 'PUBLISHED' AND p.moderation <> 'REMOVED' AND p.deleted_at IS NULL
+           AND p.created_at >= ${from}::timestamptz AND p.created_at < ${to}::timestamptz`;
+    case 'STORIES':
+      return Prisma.sql`
+        SELECT count(*) AS n
+          FROM stories s
+         WHERE s.author_id = ${me}::uuid AND s.deleted_at IS NULL AND s.removed_at IS NULL
+           AND s.created_at >= ${from}::timestamptz AND s.created_at < ${to}::timestamptz`;
+    case 'POST_COMMENTS':
+      // Comments (not deleted) on posts of someone ACTIVE.
+      return Prisma.sql`
+        SELECT count(*) AS n
+          FROM comments c
+          JOIN posts p ON p.id = c.post_id AND p.author_id <> ${me}::uuid AND p.deleted_at IS NULL
+          JOIN users u ON u.id = p.author_id AND u.status = 'ACTIVE'
+         WHERE c.author_id = ${me}::uuid AND c.deleted_at IS NULL
+           AND c.created_at >= ${from}::timestamptz AND c.created_at < ${to}::timestamptz`;
+    case 'DM_FRIENDS':
+      // Different friends (both follow each other, ACTIVE) messaged in the period. A message lives
+      // 24 hours, so every message of the current day is still stored.
+      return Prisma.sql`
+        SELECT count(DISTINCT m.recipient_id) AS n
+          FROM dm_messages m
+          JOIN users u ON u.id = m.recipient_id AND u.status = 'ACTIVE'
+         WHERE m.sender_id = ${me}::uuid AND m.recipient_id <> ${me}::uuid
+           AND m.created_at >= ${from}::timestamptz AND m.created_at < ${to}::timestamptz
+           AND EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = ${me}::uuid AND f.followee_id = m.recipient_id)
+           AND EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = m.recipient_id AND f.followee_id = ${me}::uuid)`;
+    case 'DM_VOICE_MESSAGES':
+      return Prisma.sql`
+        SELECT count(*) AS n
+          FROM dm_messages m
+          JOIN users u ON u.id = m.recipient_id AND u.status = 'ACTIVE'
+         WHERE m.sender_id = ${me}::uuid AND m.recipient_id <> ${me}::uuid AND m.kind = 'VOICE'
+           AND m.created_at >= ${from}::timestamptz AND m.created_at < ${to}::timestamptz`;
+    case 'HOST_GIFTS_RECEIVED':
+      // Gift sends the caller received in the period from other ACTIVE people.
+      return Prisma.sql`
+        SELECT count(DISTINCT g.id) AS n
+          FROM live_gift_recipients gr
+          JOIN live_gifts g ON g.id = gr.gift_id
+          JOIN users s ON s.id = g.sender_id AND s.status = 'ACTIVE'
+         WHERE gr.user_id = ${me}::uuid AND g.sender_id <> ${me}::uuid
+           AND g.created_at >= ${from}::timestamptz AND g.created_at < ${to}::timestamptz`;
+    case 'HOST_GUESTS':
+      // Guests seated in the caller's lives in the period (a seat request or invitation ACCEPTED).
+      return Prisma.sql`
+        SELECT count(*) AS n FROM (
+          SELECT q.room_id, q.user_id FROM live_seat_requests q
+            JOIN live_rooms r ON r.id = q.room_id AND r.host_user_id = ${me}::uuid
+            JOIN users u ON u.id = q.user_id AND u.status = 'ACTIVE'
+           WHERE q.status = 'ACCEPTED' AND q.user_id <> ${me}::uuid
+             AND q.handled_at >= ${from}::timestamptz AND q.handled_at < ${to}::timestamptz
+          UNION
+          SELECT i.room_id, i.user_id FROM live_seat_invites i
+            JOIN live_rooms r ON r.id = i.room_id AND r.host_user_id = ${me}::uuid
+            JOIN users u ON u.id = i.user_id AND u.status = 'ACTIVE'
+           WHERE i.status = 'ACCEPTED' AND i.user_id <> ${me}::uuid
+             AND i.handled_at >= ${from}::timestamptz AND i.handled_at < ${to}::timestamptz) seated`;
     case 'HOST_GIFT_COINS':
       // The coin value of the gifts the caller received in the period from ACTIVE senders.
       return Prisma.sql`
@@ -192,7 +319,7 @@ export class TasksService {
     return row?.host ?? false;
   }
 
-  /** The tasks the caller sees: enabled, known metric, and HOSTS tasks only for hosts. */
+  /** The tasks the caller may see: enabled, known metric, and HOSTS tasks only for hosts. */
   private async definitionsFor(db: Tx | PrismaService, me: string): Promise<TaskDefinition[]> {
     const defs = await db.taskDefinition.findMany({
       where: { enabled: true },
@@ -200,6 +327,92 @@ export class TasksService {
     });
     const host = defs.some((d) => d.audience === 'HOSTS') ? await this.isHost(db, me) : false;
     return defs.filter((d) => isTaskMetric(d.metric) && (d.audience === 'EVERYONE' || host));
+  }
+
+  /** The caller's level for the pool: the higher of their Support and Charm levels (0 = none). */
+  private async levelOf(db: Db, me: string): Promise<number> {
+    const [row] = await db.$queryRaw<{ level: number | null }[]>`
+      SELECT max(s.current_level) AS level
+        FROM user_level_states s
+        JOIN level_categories c ON c.id = s.category_id AND c.is_enabled
+                               AND c.code IN ('SUPPORT', 'ATTRACTIVENESS')
+       WHERE s.user_id = ${me}::uuid`;
+    return row?.level ?? 0;
+  }
+
+  /** The level bands (the defaults when the table is empty). */
+  private async bands(db: Tx | PrismaService): Promise<TaskPoolBand[]> {
+    const rows = await db.taskPoolBand.findMany({ orderBy: { band: 'asc' } });
+    return rows.length === 0 ? [...DEFAULT_TASK_POOL_BANDS] : rows;
+  }
+
+  /**
+   * The caller's pool tasks of `day` (v1.50-social, D176): fixed by the day's first read —
+   * deterministic from the person and the day (`seedOf`), for their level band, hosts getting host
+   * tasks — with each band's target and reward at that moment, so the day's list never changes
+   * (a template switched off later is hidden). Concurrent first reads pick the same tasks.
+   */
+  private async assignmentsFor(
+    db: Tx | PrismaService,
+    me: string,
+    day: string,
+  ): Promise<{
+    rows: { taskCode: string; target: number; rewardCoins: number; position: number; band: number }[];
+  }> {
+    const where = { userId: me, day: dateValue(day) };
+    const select = { taskCode: true, target: true, rewardCoins: true, position: true, band: true } as const;
+    let rows = await db.taskAssignment.findMany({ where, select, orderBy: { position: 'asc' } });
+    if (rows.length > 0) return { rows };
+    const templates = await db.taskDefinition.findMany({ where: { enabled: true, pool: true } });
+    const usable = templates.filter((t) => isTaskMetric(t.metric) && t.poolGroup !== null);
+    if (usable.length === 0) return { rows };
+    const band = bandForLevel(await this.levelOf(db, me), await this.bands(db));
+    const picks = assignDailyTasks(
+      usable.map((t) => ({
+        code: t.code,
+        group: t.poolGroup!,
+        audience: t.audience,
+        bandTargets: t.bandTargets,
+        bandRewards: t.bandRewards,
+        sortOrder: t.sortOrder,
+      })),
+      band,
+      await this.isHost(db, me),
+      seedOf(`${me}:${day}`),
+    );
+    await db.taskAssignment.createMany({
+      data: picks.map((p) => ({
+        userId: me,
+        day: dateValue(day),
+        taskCode: p.code,
+        band: band.band,
+        target: p.target,
+        rewardCoins: p.rewardCoins,
+        position: p.position,
+      })),
+      skipDuplicates: true,
+    });
+    rows = await db.taskAssignment.findMany({ where, select, orderBy: { position: 'asc' } });
+    return { rows };
+  }
+
+  /**
+   * The tasks the caller has now: today's pool tasks (assigned, in their order), then the fixed
+   * tasks (not pool), each with its target and reward (a pool task's from its assignment).
+   */
+  private async tasksFor(db: Tx | PrismaService, me: string, day: string): Promise<OfferedTask[]> {
+    const defs = await this.definitionsFor(db, me);
+    const byCode = new Map(defs.map((d) => [d.code, d]));
+    const { rows } = await this.assignmentsFor(db, me, day);
+    const pooled: OfferedTask[] = [];
+    for (const r of rows) {
+      const def = byCode.get(r.taskCode);
+      if (def?.pool) pooled.push({ def, target: r.target, rewardCoins: r.rewardCoins, pooled: true });
+    }
+    const fixed = defs
+      .filter((d) => !d.pool)
+      .map((def) => ({ def, target: def.target, rewardCoins: def.rewardCoins, pooled: false }));
+    return [...pooled, ...fixed];
   }
 
   /** Coins already paid today by daily tasks and the check-in (what the cap counts). */
@@ -221,21 +434,23 @@ export class TasksService {
   }
 
   private taskDto(
-    def: TaskDefinition,
+    task: OfferedTask,
     progress: number,
     claimedCoins: number | null,
     lang: ContentLanguage,
   ): ProgramTaskDto {
+    const { def, target } = task;
     return {
       code: def.code,
+      pooled: task.pooled,
       period: def.period,
       metric: def.metric as TaskMetric,
       audience: def.audience,
       name: lang === 'ar' ? def.nameAr : def.nameEn,
-      target: def.target,
-      progress: Math.min(progress, def.target),
-      rewardCoins: def.rewardCoins,
-      completed: progress >= def.target,
+      target,
+      progress: Math.min(progress, target),
+      rewardCoins: task.rewardCoins,
+      completed: progress >= target,
       claimed: claimedCoins !== null,
       claimedCoins,
     };
@@ -244,26 +459,31 @@ export class TasksService {
   private async taskIn(
     db: Db,
     me: string,
-    def: TaskDefinition,
+    task: OfferedTask,
     windows: { day: ProgramWindow; week: ProgramWindow },
     now: Date,
     lang: ContentLanguage,
   ): Promise<ProgramTaskDto> {
-    const w = def.period === 'DAILY' ? windows.day : windows.week;
+    const w = task.def.period === 'DAILY' ? windows.day : windows.week;
     const [claim] = await db.$queryRaw<{ reward_coins: number }[]>`
       SELECT reward_coins FROM task_claims
-       WHERE user_id = ${me}::uuid AND task_code = ${def.code} AND period_start = ${w.date}::date`;
-    const progress = await this.progressOf(db, me, def.metric as TaskMetric, w, now);
-    return this.taskDto(def, progress, claim ? claim.reward_coins : null, lang);
+       WHERE user_id = ${me}::uuid AND task_code = ${task.def.code} AND period_start = ${w.date}::date`;
+    const progress = await this.progressOf(db, me, task.def.metric as TaskMetric, w, now);
+    return this.taskDto(task, progress, claim ? claim.reward_coins : null, lang);
   }
 
   /** `GET /me/tasks`. */
   async mine(me: string, lang: ContentLanguage): Promise<MyTasksDto> {
     const now = this.clock.now();
     const windows = await programWindowsIn(this.prisma, now, this.zone);
-    const defs = await this.definitionsFor(this.prisma, me);
-    const tasks = await Promise.all(defs.map((d) => this.taskIn(this.prisma, me, d, windows, now, lang)));
     const today = windows.day.date;
+    const offered = await this.tasksFor(this.prisma, me, today);
+    const tasks = await Promise.all(offered.map((t) => this.taskIn(this.prisma, me, t, windows, now, lang)));
+    // The band of today's assignment (fixed for the day), else the band of the level now.
+    const level = await this.levelOf(this.prisma, me);
+    const bands = await this.bands(this.prisma);
+    const assignedBand = await this.assignedBand(me, today);
+    const shownBand = bands.find((b) => b.band === assignedBand) ?? bandForLevel(level, bands);
     const checks = await this.prisma.dailyCheckIn.findMany({
       where: { userId: me, day: { in: [dateValue(addDays(today, -1)), dateValue(today)] } },
       select: { day: true, streak: true },
@@ -293,6 +513,12 @@ export class TasksService {
       weekResetsAt: windows.week.end.toISOString(),
       dailyCapCoins: taskDailyCapCoins,
       dailyEarnedCoins: await this.earnedToday(this.prisma, me, today),
+      band: {
+        band: shownBand.band,
+        level,
+        name: lang === 'ar' ? shownBand.nameAr : shownBand.nameEn,
+        host: await this.isHost(this.prisma, me),
+      },
       checkIn: {
         checkedInToday: todayRow !== undefined,
         streak,
@@ -303,6 +529,15 @@ export class TasksService {
       },
       tasks,
     };
+  }
+
+  /** The band today's pool tasks were assigned for (null when none). */
+  private async assignedBand(me: string, day: string): Promise<number | null> {
+    const row = await this.prisma.taskAssignment.findFirst({
+      where: { userId: me, day: dateValue(day) },
+      select: { band: true },
+    });
+    return row?.band ?? null;
   }
 
   /** Locks the caller's `users` row: one claim or check-in of a person at a time. */
@@ -371,10 +606,12 @@ export class TasksService {
     const now = this.clock.now();
     const run = () =>
       this.prisma.$transaction(async (tx) => {
-        const def = (await this.definitionsFor(tx, me)).find((d) => d.code === code);
-        if (!def) throw new AppException(ErrorCode.NOT_FOUND);
-        await this.lockUser(tx, me);
         const windows = await programWindowsIn(tx, now, this.zone);
+        // A pool task only when it is one of the caller's tasks of today (404 otherwise).
+        const offered = (await this.tasksFor(tx, me, windows.day.date)).find((t) => t.def.code === code);
+        if (!offered) throw new AppException(ErrorCode.NOT_FOUND);
+        const { def } = offered;
+        await this.lockUser(tx, me);
         const w = def.period === 'DAILY' ? windows.day : windows.week;
         const existing = await tx.taskClaim.findUnique({
           where: {
@@ -383,15 +620,15 @@ export class TasksService {
           select: { rewardCoins: true },
         });
         if (existing) {
-          const task = await this.taskIn(tx, me, def, windows, now, lang);
+          const task = await this.taskIn(tx, me, offered, windows, now, lang);
           return { created: false, task, paid: existing.rewardCoins };
         }
         const progress = await this.progressOf(tx, me, def.metric as TaskMetric, w, now);
-        if (progress < def.target) throw new AppException(ErrorCode.TASK_NOT_COMPLETED);
-        let coins = def.rewardCoins;
+        if (progress < offered.target) throw new AppException(ErrorCode.TASK_NOT_COMPLETED);
+        let coins = offered.rewardCoins;
         if (def.period === 'DAILY') {
           coins = cappedReward(
-            def.rewardCoins,
+            offered.rewardCoins,
             this.config.programs.taskDailyCapCoins,
             await this.earnedToday(tx, me, w.date),
           );
@@ -408,7 +645,7 @@ export class TasksService {
           select: { id: true },
         });
         await creditIn(tx, me, BigInt(coins), 'TASK_REWARD', claim.id);
-        return { created: true, task: this.taskDto(def, progress, coins, lang), paid: coins };
+        return { created: true, task: this.taskDto(offered, progress, coins, lang), paid: coins };
       });
     let outcome: { created: boolean; task: ProgramTaskDto; paid: number };
     try {
