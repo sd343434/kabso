@@ -518,6 +518,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.52-social)* Tables `cherry_wallets`, `cherry_ledger`, `agencies`, `agency_hosts`, `agency_earnings`, `agency_months`, `agency_complaints`, `cherry_withdrawals`; server config `CHERRIES_PER_COIN`, `AGENCY_*`, `CHERRY_PAYOUT_RATE`, `CHERRY_PAYOUT_CURRENCY`, `CHERRY_WITHDRAWAL_MIN_MINOR`, `CHERRY_WITHDRAWAL_PAYOUT_DAYS` | Backend — `economy` module (`CherriesService`, `AgencyService`; gift credits written by the gift sends through `creditGiftCherriesIn`; agencies, complaints, payouts and reversals changed only by the `economy-admin` CLI) | CTO; Security (money, payout details) |
 | *(v1.53-social)* Columns `task_definitions.reward_cherries`, `task_assignments.reward_cherries`, `task_claims.reward_amount`, `task_claims.reward_currency`; cherry ledger reason `TASK_REWARD`; server config `TASK_DAILY_CAP_CHERRIES`, `TASK_CHERRIES_UNLOCK_GIFT_MINOR` | Backend — `programs` module (claims) and `economy` module (`cherry-ledger.ts`: the credit and the lock) | CTO |
 | *(v1.54-social)* Tables `recharge_agent_applications`, `recharge_agents`, `recharge_agent_counter`, `recharge_stock_ledger`, `recharge_topups`, `recharge_sales`, `recharge_employees`, `recharge_cherry_requests`; column `notifications.recharge_sale_id`; ledger reasons `RECHARGE_PURCHASE` (coins), `RECHARGE_SALE` (cherries); media kinds `RECHARGE_AGENT_PHOTO`, `RECHARGE_AGENT_SELFIE` (private prefix `private/recharge-agents/`); server config `RECHARGE_AGENT_*`, `RATE_LIMIT_RECHARGE_*` | Backend — `recharge` module (`RechargeService`; applications decided, top-ups, suspensions and caps changed only by the `recharge-admin` CLI; reads `cherry_ledger` through `economy/cherry-ledger.ts` and writes coins through `wallet/wallet-ledger.ts`) | CTO; Security (KYC data, money, the private prefix) |
+| *(v1.56-social)* Tables `recharge_daily_totals`, `recharge_badges`; server config `RECHARGE_BADGE_*` | Backend — `recharge` module (`recharge-badges.ts`: `recordRechargeIn` is the only writer, called inside the transaction that credits a recharge — today the agent's sale; later the website top-up) | CTO |
 | `apps/api/**` | Backend | CTO review |
 | `apps/mobile/lib/app/router/**` (route registry) | Flutter | CTO review |
 | `apps/mobile/pubspec.yaml` | Flutter | CTO review |
@@ -557,6 +558,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.56-social (draft) | 2026-10-30 | **D187 (owner: daily recharge badges «شارات الشحن اليومي», CP-030):** `RechargeBadge` (`tier` 1–5, `until`); optional `UserSummary.rechargeBadge` and `PublicProfile.rechargeBadge`, present only while the badge shows (also on the room host's summary, chat authors, join lines and viewers); tables `recharge_daily_totals`, `recharge_badges`; config `RECHARGE_BADGE_TIERS`, `RECHARGE_BADGE_TIME_ZONE`, `RECHARGE_BADGE_HOURS`; §10.50. (v1.55-social is D186's.) | **Additive** (optional fields; clients ignore them). |
 | v1.54-social (draft) | 2026-10-30 | **D185 (owner: economy phase 2 — recharge agents «وكلاء الشحن», CP-028):** tag `recharge`: `getMyRechargeAgent` (`GET /me/recharge-agent`, `RechargeAgentMe`, `RechargeAgentStatus`, `RechargeApplicationState`, `RechargeAgentDashboard`, `RechargeEmployment`, `RechargeRules`), `applyForRechargeAgent` (`POST /me/recharge-agent/application`, `RechargeAgentApplicationRequest`, `RechargeLocation`, `RechargePaymentMethod`), `setMyRechargeAvailability` (`PUT /me/recharge-agent/availability`, `RechargeAvailability`, `WeeklySlot`), `sellRechargeCoins` / `listMyRechargeSales` (`/me/recharge-agent/sales`, `Idempotency-Key`, `RechargeSale`), `listMyRechargeEmployees` / `addMyRechargeEmployee` / `updateMyRechargeEmployee` / `removeMyRechargeEmployee` (`/me/recharge-agent/employees`), `listRechargeAgents` / `getRechargeAgent` (`/recharge-agents`, `RechargeAgentListing`), `createRechargeCherryRequest` / `listMyRechargeCherryRequests` / `answerRechargeCherryRequest` (`/recharge-cherry-requests`); `MediaKind` `RECHARGE_AGENT_PHOTO`, `RECHARGE_AGENT_SELFIE` (never completed); `PublicProfile.rechargeAgent` and `UserSummary.rechargeAgent` (`RechargeAgentTag`, optional, present only while ACTIVE: the inline badge next to the name in live rooms); `WalletLedgerReason.RECHARGE_PURCHASE`, `CherryLedgerReason.RECHARGE_SALE`; notification types `RECHARGE_COINS_RECEIVED` (target `RECHARGE_SALE` with `coins`), `RECHARGE_CHERRY_REQUEST`; eight `RECHARGE_*` codes (409); §7 rows; CLI `recharge-admin`; migrations `20270101090000_recharge_agents_enums`, `20270101100000_recharge_agents`. §4, §7, §8, §10.48. | **Additive** (new operations; new required `PublicProfile.rechargeAgent` — strict clients update their models in the same change set; clients ignore unknown notification types, target types, ledger reasons and data-message keys). |
 | v1.53-social (draft) | 2026-10-30 | **D184 (owner: the Task Center shows only the active tasks — «مهام الماس» removed — and its rewards are cherries at the same value, 1 coin = 10 cherries; follow-ups: task cherries not withdrawable until lifetime gift cherries received are worth $50 — confirmed; rewards raised to ≈ $5 a month):** `ProgramTask.rewardCherries`, `ProgramTask.claimedCherries`, `MyTasks.dailyCapCherries`, `MyTasks.dailyEarnedCherries`, `TaskClaimResult.paidCherries`, `TaskClaimResult.balanceCherries` (all required in responses); `ProgramTask.rewardCoins` deprecated (0, minimum relaxed to 0); `CherryLedgerReason.TASK_REWARD`; `CherryWallet.taskRewardTotal`, `lockedTaskCherries`, `withdrawableCherries`, `taskUnlock` (required); `requestCherryWithdrawal` refuses more than `withdrawableCherries` (`INSUFFICIENT_CHERRIES`); config `TASK_DAILY_CAP_CHERRIES` (150 000), `TASK_CHERRIES_UNLOCK_GIFT_MINOR` (5000 = $50); `TASK_DAILY_CAP_COINS` now caps the check-in's coins only; migrations `20261231100000_task_cherries_enums`, `20261231110000_task_cherries` (stored task rewards ×10, `task_claims.reward_amount` + `reward_currency`, earlier claims COINS), `20261231120000_task_rewards_raise` (stored task rewards ×300). §4, §10.41, §10.41.3, §10.46.1. | **Behaviour change, additive on the wire** (new required response fields strict clients add in the same change set; older apps show «+0» coins on tasks — the app ships with this change). Claimed coin rewards and their ledger rows are untouched. |
 | v1.52-social (draft) | 2026-10-30 | **D179 (owner: the Kabso economy, phase 1 — «الكرز» as a real balance, host agencies, commissions, withdrawals; CP-027):** tag `wallet`: `getMyCherries` (`GET /wallet/me/cherries`, `CherryWallet`, `CherryPayoutRules`), `listMyCherryLedger` (`GET /wallet/me/cherries/ledger`, `CherryLedgerPage`, `CherryLedgerEntry`, `CherryLedgerReason`), `requestCherryWithdrawal` / `listMyCherryWithdrawals` (`POST` / `GET /wallet/me/cherries/withdrawals`, `Idempotency-Key`, `CherryWithdrawalRequest`, `CherryWithdrawal`, `CherryWithdrawalPage`); tag `agency`: `getAgencyByCode` (`GET /agencies/{inviteCode}`, `AgencyPreview`), `getMyAgency` (`GET /me/agency`, `MyAgency`, `AgencyMembership`, `OwnAgency`, `AgencySubAgency`, `AgencyRank`), `joinAgency`, `leaveAgency`, `complainAboutAgency` (`POST /me/agency/join\|leave\|complaints`, `AgencyComplaint`), `listMyAgencyHosts` (`GET /me/agency/hosts`, `AgencyHostPage`); codes `AGENCY_ALREADY_MEMBER`, `AGENCY_JOIN_NOT_ALLOWED`, `AGENCY_LEAVE_WINDOW_CLOSED`, `INSUFFICIENT_CHERRIES`, `WITHDRAWAL_PENDING` (409); `getMyEarnings` / `listMyEarnings` deprecated; migration `20261231090000_cherry_economy` (with the one-time backfill); CLI `economy-admin`. §4, §8, §10.40, §10.46. | **Additive** (new operations, schemas and codes; the deprecated earnings reads keep working). Behaviour: every gift send now also writes cherry ledger rows in its transaction. |
@@ -3247,6 +3249,47 @@ Audit actions: `recharge.application.submit`, `.view`, `.approve`, `.reject`, `r
 `recharge.activate`, `recharge.suspend`, `recharge.reinstate`, `recharge.cap`, `recharge.sale`,
 `recharge.employee.add` / `.update` / `.remove`, `recharge.availability`, `recharge.cherry.request` /
 `.confirm` / `.decline` / `.cancel`, `recharge.purge`.
+
+### 10.50 Daily recharge badges «شارات الشحن اليومي» *(v1.56-social, DRAFT — D187, CP-030)*
+
+The owner's decisions of 2026-10-30 (CP-030). A person who **receives** many coins from recharges in one day
+shows a badge — one of the owner's five pieces of art — next to their name for 24 hours.
+
+**What counts.** Only recharges credited to the person: a recharge agent's (or employee's) sale to them
+(§10.48, the buyer's `RECHARGE_PURCHASE`) and, once it exists, a website top-up. Gifts, rewards (tasks, check-in,
+lucky wins), admin credits, refunds and transfers never count. Every recharge path calls one function,
+`recordRechargeIn` (`recharge/recharge-badges.ts`, source `AGENT_SALE` or `WEBSITE_TOPUP`), inside the
+transaction that credits the coins; nothing else writes the two tables. **Recharge agents** (from approval on,
+whatever their status) never get the badge — as buyers nothing is counted, as sellers nothing is credited — and
+a badge is never shown for a person who has an agent row.
+
+**The day and the tiers.** The day is the calendar day in `RECHARGE_BADGE_TIME_ZONE` (default `Asia/Riyadh`,
+UTC+3: a sale at 23:59:59 and one at 00:00:00 Riyadh time are on two days). The day's total gives the tier
+(`RECHARGE_BADGE_TIERS`, the minimum of tiers 1–5, default `1000000,10000001,20000001,40000001,70000001`):
+
+| Tier | Coins received in one day (default) | Art |
+| ---- | ----------------------------------- | --- |
+| 1 | 1 000 000 – 10 000 000 | bronze coin pouch |
+| 2 | 10 000 001 – 20 000 000 | silver-blue coin chest |
+| 3 | 20 000 001 – 40 000 000 | gold-red coin chest |
+| 4 | 40 000 001 – 70 000 000 | purple coin vessel |
+| 5 | 70 000 001 and more | royal red crystal vault |
+
+**How long.** When a recharge moves the day's total into a higher tier, the badge becomes that tier with
+`until` = that moment + `RECHARGE_BADGE_HOURS` (24); a higher tier the same day replaces it and starts the 24
+hours again; more coins within the same tier change nothing. A badge from an earlier day that is still showing
+and is **higher** stays until it ends (a lower tier reached the next day does not replace it; an equal or higher
+one does). After `until` nothing shows until a new tier is reached.
+
+**Storage (cheap reads).** `recharge_daily_totals` (person, day: coins and the tier reached) is upserted in the
+recharge's transaction (its row lock serializes the person's concurrent recharges); `recharge_badges` (one row
+per person: `badge_tier`, `badge_until`, `badge_day`, `reached_at`) is read with every `UserSummary` (one
+primary-key relation, no aggregation) and with the room host's summary.
+
+**On the wire.** `RechargeBadge {tier, until}` — optional on `UserSummary` and `PublicProfile`, present only
+while `until` is in the future. The app shows it next to the name like the level badge — in live rooms (chat
+lines, the join line, viewers, seats, the host pill, the person card), on the profile and the Me hub card — and
+hides it itself once `until` passes, without a refresh.
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 
