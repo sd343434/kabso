@@ -39,7 +39,7 @@ class PublicProfileController extends AsyncNotifier<PublicProfile> {
     final before = state.value;
     if (before == null || _busy) return;
     final active = before.isFollowing || before.followRequested;
-    if (active == follow || !before.canFollow) return;
+    if (active == follow || !before.canFollowOrRequest) return;
     _busy = true;
     final request = follow && before.isPrivate;
     final counted = before.isFollowing || (follow && !request);

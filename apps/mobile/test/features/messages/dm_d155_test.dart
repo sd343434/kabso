@@ -513,6 +513,11 @@ void main() {
       final nobody = find.byKey(PrivacyScreen.messageKey(MentionPolicy.nobody));
       await tester.scrollUntilVisible(nobody, 100);
       expect(find.text(en.privacyMessageTitle), findsOneWidget);
+      // D175: the private-account section sits above; the hint is further down.
+      await tester.scrollUntilVisible(
+        find.byKey(PrivacyScreen.messageHintKey),
+        100,
+      );
       expect(find.byKey(PrivacyScreen.messageHintKey), findsOneWidget);
       await tester.tap(nobody);
       await tester.pumpAndSettle();

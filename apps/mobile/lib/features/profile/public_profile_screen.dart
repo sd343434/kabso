@@ -315,7 +315,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
               textStyle: t.bodyStrong,
             ),
             // D175: a private account gets a follow request (§10.43).
-            onPressed: profile.canFollow
+            onPressed: profile.canFollowOrRequest
                 ? () => _setFollowing(follow: true)
                 : null,
             child: Text(l10n.liveFollow),
