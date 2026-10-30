@@ -57,25 +57,13 @@ class TaskCenterScreen extends ConsumerStatefulWidget {
   static const double cardRadius = 17;
   static const double rowPitch = 62;
   static const double iconTile = 37;
-  static const double daySlot = 44;
-  static const Size pill = Size(64, 26);
-  static const Size checkInPill = Size(87, 26);
 
-  /// The reference's navigation bar (44 lp, under the status bar).
-  static const double toolbarHeight = 44;
+  /// D184: one width for every pill (the check-in's too), so the rows'
+  /// actions line up; a longer label (English «Check in») grows it.
+  static const Size pill = Size(76, 28);
 
   @override
   ConsumerState<TaskCenterScreen> createState() => _TaskCenterScreenState();
-}
-
-/// The warm page behind the cards (the reference's cream, from Kabso gold).
-Color taskPageColor(BuildContext context) {
-  final p = context.palette;
-  final dark = Theme.of(context).brightness == Brightness.dark;
-  return Color.alphaBlend(
-    KBrandColors.gold.withValues(alpha: dark ? 0.07 : 0.3),
-    p.background,
-  );
 }
 
 class _TaskCenterScreenState extends ConsumerState<TaskCenterScreen> {
@@ -240,50 +228,35 @@ class _TaskCenterScreenState extends ConsumerState<TaskCenterScreen> {
       ],
     };
 
+    // D184 (owner): the page follows the theme like the other Me-hub pages
+    // (the wallet's surface page with raised cards) — no fixed warm beige —
+    // and the header is the standard centred app bar.
     return Scaffold(
-      backgroundColor: taskPageColor(context),
+      backgroundColor: p.surface,
       appBar: KAppBar(
-        backgroundColor: p.background,
+        backgroundColor: p.surface,
         centerTitle: true,
-        toolbarHeight: TaskCenterScreen.toolbarHeight,
         title: Text(l10n.meHubTaskCenter),
       ),
-      body: Column(
-        children: [
-          // D184: no tab bar any more — the white header still ends in a
-          // soft lip over the warm page.
-          Container(
-            width: double.infinity,
-            height: KRadius.md,
-            decoration: BoxDecoration(
-              color: p.background,
-              borderRadius: const BorderRadius.vertical(
-                bottom: Radius.circular(KRadius.md),
-              ),
-            ),
+      body: RefreshIndicator(
+        onRefresh: _refresh,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.fromLTRB(
+            TaskCenterScreen.pagePadding,
+            KSpacing.xs,
+            TaskCenterScreen.pagePadding,
+            KSpacing.lg + MediaQuery.paddingOf(context).bottom,
           ),
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: _refresh,
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(
-                  TaskCenterScreen.pagePadding,
-                  13,
-                  TaskCenterScreen.pagePadding,
-                  KSpacing.xl,
-                ),
-                children: body,
-              ),
-            ),
-          ),
-        ],
+          children: body,
+        ),
       ),
     );
   }
 }
 
-/// A white card with a warm wash at its top (the reference's card).
+/// A card on the theme's raised surface (D184: no fixed warm wash; light
+/// and dark follow the palette).
 class _TaskCard extends StatelessWidget {
   const new({required this.child});
 
@@ -293,21 +266,10 @@ class _TaskCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = context.palette;
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: KSpacing.md),
       decoration: BoxDecoration(
+        color: p.surfaceRaised,
         borderRadius: BorderRadius.circular(TaskCenterScreen.cardRadius),
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          stops: const [0, 0.32],
-          colors: [
-            Color.alphaBlend(
-              KBrandColors.gold.withValues(alpha: 0.12),
-              p.surfaceRaised,
-            ),
-            p.surfaceRaised,
-          ],
-        ),
       ),
       child: child,
     );
@@ -366,7 +328,7 @@ class TaskPill extends StatelessWidget {
     super.key,
     this.kind = TaskPillKind.go,
     this.loading = false,
-    this.minWidth = 64,
+    this.minWidth = 76,
   });
 
   final String label;
@@ -480,31 +442,25 @@ class _CheckInCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // The reference puts the line 24 lp under the title; the title
-              // row keeps a 44 lp tap target for «التقويم» over it.
-              Stack(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(top: 37),
-                    child: _HighlightedLine(text: line, highlight: '$toBonus'),
-                  ),
-                  PositionedDirectional(
-                    top: 0,
-                    start: 0,
-                    end: 0,
-                    height: 44,
-                    child: _CardTitle(
-                      title: l10n.tasksCheckInTitle,
-                      trailing: _CalendarLink(onTap: onCalendar),
-                    ),
-                  ),
-                ],
+              // The title row keeps a 44 lp tap target for «التقويم».
+              SizedBox(
+                height: 44,
+                child: _CardTitle(
+                  title: l10n.tasksCheckInTitle,
+                  trailing: _CalendarLink(onTap: onCalendar),
+                ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: KSpacing.xs),
+              // D184: the seven days share the card's full width (no day cut
+              // at the edge); the line and the pill sit under them.
+              _DayStrip(state: state),
+              const SizedBox(height: KSpacing.sm),
               Row(
                 children: [
-                  Expanded(child: _DayStrip(state: state)),
-                  const SizedBox(width: KSpacing.xs),
+                  Expanded(
+                    child: _HighlightedLine(text: line, highlight: '$toBonus'),
+                  ),
+                  const SizedBox(width: KSpacing.sm),
                   TaskPill(
                     key: TaskCenterScreen.checkInButtonKey,
                     label: state.checkedInToday
@@ -513,7 +469,6 @@ class _CheckInCard extends StatelessWidget {
                     kind: state.checkedInToday
                         ? TaskPillKind.done
                         : TaskPillKind.go,
-                    minWidth: TaskCenterScreen.checkInPill.width,
                     loading: busy,
                     onPressed: state.checkedInToday ? null : onCheckIn,
                   ),
@@ -606,8 +561,8 @@ class _CalendarLink extends StatelessWidget {
   }
 }
 
-/// Today and the next six days on a thin line; scrolls when the row is
-/// narrower than the seven slots (the reference shows about five and a half).
+/// Today and the next six days on a thin line, sharing the full width
+/// (D184: nothing is cut at the edge; the labels shrink to fit).
 class _DayStrip extends StatelessWidget {
   const new({required this.state});
 
@@ -616,49 +571,43 @@ class _DayStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
-    const slot = TaskCenterScreen.daySlot;
-    final width = slot * state.days.length;
+    final count = state.days.length;
     // The mark (26), a gap (3) and the date's line, which grows with the
-    // text size (44 lp at 1.0).
+    // text size.
     final height =
         29 +
         MediaQuery.textScalerOf(context).scale(11 * 1.2).ceilToDouble() +
         2;
     return SizedBox(
       height: height,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.zero,
-        children: [
-          SizedBox(
-            width: width,
-            child: Stack(
-              children: [
-                PositionedDirectional(
-                  start: slot / 2,
-                  end: slot / 2,
-                  top: 12,
-                  height: 2,
-                  child: ColoredBox(
-                    color: Color.alphaBlend(
-                      KBrandColors.gold.withValues(alpha: 0.18),
-                      p.surfaceRaised,
-                    ),
+      child: LayoutBuilder(
+        builder: (context, box) {
+          final slot = box.maxWidth / count;
+          return Stack(
+            children: [
+              PositionedDirectional(
+                start: slot / 2,
+                end: slot / 2,
+                top: 12,
+                height: 2,
+                child: ColoredBox(
+                  color: Color.alphaBlend(
+                    KBrandColors.gold.withValues(alpha: 0.22),
+                    p.surfaceRaised,
                   ),
                 ),
-                Row(
-                  children: [
-                    for (final (i, day) in state.days.indexed)
-                      SizedBox(
-                        width: slot,
-                        child: _DaySlot(index: i, day: day, state: state),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
+              ),
+              Row(
+                children: [
+                  for (final (i, day) in state.days.indexed)
+                    Expanded(
+                      child: _DaySlot(index: i, day: day, state: state),
+                    ),
+                ],
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -860,7 +809,7 @@ class _TaskRow extends StatelessWidget {
     final p = context.palette;
     final t = context.textStyles;
     final (icon, hue) = look(task.metric);
-    final title = '${task.name} (${task.progress}/${task.target})';
+    final progress = ' (${task.progress}/${task.target})';
     final key = TaskCenterScreen.actionKey(task.code);
     final Widget action;
     if (task.claimed) {
@@ -907,18 +856,31 @@ class _TaskRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
+                  // D184: the name first, its progress quieter, then the
+                  // reward on a smaller line.
+                  Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(text: task.name),
+                        TextSpan(
+                          text: progress,
+                          style: TextStyle(
+                            color: p.textTertiary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: t.bodyStrong.copyWith(
                       color: p.textPrimary,
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
                       height: 1.3,
                     ),
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: KSpacing.xxs),
                   // D184: cherries (a claim made in coins before keeps its
                   // coin).
                   Semantics(
@@ -930,8 +892,8 @@ class _TaskRow extends StatelessWidget {
                         ? CoinAmount(
                             amount,
                             prefix: '+',
-                            size: 15,
-                            style: t.label.copyWith(
+                            size: 14,
+                            style: t.caption.copyWith(
                               color: programGold(context),
                               fontWeight: FontWeight.w700,
                             ),
@@ -939,8 +901,9 @@ class _TaskRow extends StatelessWidget {
                         : TaskCherryAmount(
                             amount,
                             key: TaskCenterScreen.rewardAmountKey(task.code),
-                            style: t.label.copyWith(
-                              color: KBrandColors.red500,
+                            size: 14,
+                            style: t.caption.copyWith(
+                              color: p.primaryText,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
