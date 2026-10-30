@@ -674,6 +674,45 @@ describe('CP-020 live gifts', { timeout: 120_000 }, () => {
 
   // ---- Refusals ----------------------------------------------------------------------------------
 
+  // v1.41-live (D178, owner «والهدايا يجب أن تظهر في شريط في جميع البثوث»).
+  describe('D178 global gift strip', () => {
+    it('a send of ≥ GIFT_GLOBAL_TICKER_MIN_COINS (1000) is a `gift-ticker` in every other live, one at a time; smaller ones stay in their room', async () => {
+      const { h, viewer, roomId } = await scene();
+      const other = await goLive(await host());
+      const third = await goLive(await host());
+      const tickers = (room: string) => media.broadcastsOf(room).filter((m) => m.type === 'gift-ticker');
+      const before = { other: tickers(other).length, third: tickers(third).length };
+      const big = await gift({ priceCoins: 1_000 });
+      const small = await gift({ priceCoins: 10 });
+      expect((await send(roomId, viewer, body(small, [h]))).status).toBe(201);
+      await settle(ctx);
+      expect(tickers(other)).toHaveLength(before.other);
+      const sent = await send(roomId, viewer, body(big, [h]));
+      expect(sent.status).toBe(201);
+      await settle(ctx);
+      // Its own room has the `gift` message only.
+      expect(media.broadcastsOf(roomId).filter((m) => m.type === 'gift-ticker')).toEqual([]);
+      expect(giftsTo(roomId).length).toBeGreaterThanOrEqual(2);
+      for (const room of [other, third]) {
+        expect(tickers(room).at(-1)).toMatchObject({
+          type: 'gift-ticker',
+          gift: { id: sent.body.gift.id, roomId, giftCode: big, totalCoins: 1_000 },
+          room: { id: roomId, host: { id: h.id } },
+        });
+      }
+      expect(tickers(other)).toHaveLength(before.other + 1);
+      // A second big send inside the 3 s gap waits, then goes out (the newest).
+      const next = await send(roomId, viewer, body(big, [h]));
+      expect(next.status).toBe(201);
+      await settle(ctx);
+      expect(tickers(other)).toHaveLength(before.other + 1);
+      await new Promise((r) => setTimeout(r, 3_600));
+      await settle(ctx);
+      expect(tickers(other)).toHaveLength(before.other + 2);
+      expect(tickers(other).at(-1)).toMatchObject({ gift: { id: next.body.gift.id } });
+    });
+  });
+
   describe('refusals', () => {
     it('401 without a token; 404 for an unknown room; 400 for the body', async () => {
       const { h, viewer, roomId } = await scene();

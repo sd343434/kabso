@@ -37,6 +37,7 @@ import {
   recipientsKey,
   type PreviousSend,
 } from './live-gifts.js';
+import { LiveGiftTickerService, type GiftTickerGiftDto } from './live-gift-ticker.service.js';
 import { LiveLuckyTickerService, type LuckyWinDto } from './live-lucky-ticker.service.js';
 import { LiveRoomMetadataService } from './live-metadata.service.js';
 import {
@@ -210,6 +211,7 @@ export class LiveGiftsService {
     private readonly limiter: RateLimitService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     private readonly ticker: LiveLuckyTickerService,
+    private readonly giftTicker: LiveGiftTickerService,
     private readonly quips: LiveQuipsService,
   ) {}
 
@@ -650,13 +652,16 @@ export class LiveGiftsService {
       this.background.run('live gift data message', async () => {
         await this.broadcast(row.id, { type: 'gift', gift: dto });
       });
+      // v1.41-live (D178): a big enough send is a strip in every other live (one at a time).
+      this.background.run('gift global ticker', async () => {
+        await this.giftTicker.offer(dto as unknown as GiftTickerGiftDto);
+      });
     }
     const luckyResult = created.luckyResult;
-    if (
-      luckyResult &&
-      luckyResult.topMultiplier !== null &&
-      luckyResult.topMultiplier >= this.lucky.bigWinMultiplier
-    ) {
+    // v1.41-live (D178, owner: «لا يظهر المكسب في التكست»): every win (×1 and up) is announced to its
+    // room — the banner and the chat line for everyone, not only the sender; the big ones
+    // (≥ LUCKY_GIFT_BIG_WIN_MULTIPLIER) are also told to every other live (D148).
+    if (luckyResult && luckyResult.topMultiplier !== null && luckyResult.coinsWon > 0) {
       const win: LuckyWinDto = {
         giftId: dto.id,
         roomId: dto.roomId,
@@ -669,10 +674,12 @@ export class LiveGiftsService {
       this.background.run('lucky win data message', async () => {
         await this.broadcastLuckyWin(row.id, { type: 'lucky-win', win });
       });
-      // v1.30-live (D148): «لحظة الحظ» — every other live room hears about it (rate-limited).
-      this.background.run('lucky global ticker', async () => {
-        await this.ticker.offer(win);
-      });
+      // v1.30-live (D148): «لحظة الحظ» — every other live room hears about a big one (rate-limited).
+      if (luckyResult.topMultiplier >= this.lucky.bigWinMultiplier) {
+        this.background.run('lucky global ticker', async () => {
+          await this.ticker.offer(win);
+        });
+      }
     }
     await this.metadata.scoreChanged(row.id);
     if (created.hostLevelChanged) await this.metadata.infoChanged(row.id);

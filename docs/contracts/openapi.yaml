@@ -205,6 +205,9 @@ info:
     **D173 (DRAFT v1.39-live)** opens `listHomeBanners` with `placement=room` (the in-room promo
     banner) to callers without a token, so guests watching a live see it too (CONVENTIONS §10.26),
     and makes an AUDIO room watching YouTube a cinema of 10 seats (`LiveSeats.cinema`, §10.9, §10.39).
+    **D178 (DRAFT v1.41-live)** announces every lucky win to its room (`lucky-win`) and adds the
+    global gift strip, data message `gift-ticker` on topic `gift` (sends ≥ `GIFT_GLOBAL_TICKER_MIN_COINS`,
+    one every 3 s) (CONVENTIONS §10.23, §10.27).
     **D174 (DRAFT v1.40-live)** gives a SOLO live 3 guest seats with the CP-011 seat flow (requests,
     invitations, mute, remove, leave; guests publish camera and microphone) (CONVENTIONS §10.9).
     **D155 (DRAFT v1.40-social)** adds direct messages (tag `messages`, `/dm/…`): conversations

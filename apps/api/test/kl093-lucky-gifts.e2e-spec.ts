@@ -702,12 +702,20 @@ describe('D132 lucky gifts (on)', { timeout: 180_000 }, () => {
       await settle(ctx);
       expect(media.broadcastsOf(roomId, 'lucky-win')).toHaveLength(1);
 
-      // A small win (×5) is not announced.
+      // v1.41-live (D178, owner): a small win (×5) is announced to the room too (was not), but it
+      // is no global «لحظة الحظ».
+      const tickersBefore = media.broadcasts.filter((b) => b.topic === 'lucky' && b.room !== roomId).length;
       rng.script(DRAW.x5);
       const small = await f.send(roomId, viewer, f.body(big, [h]));
       expect(small.body.luckyResult.topMultiplier).toBe(5);
       await settle(ctx);
-      expect(media.broadcastsOf(roomId, 'lucky-win')).toHaveLength(1);
+      expect(media.broadcastsOf(roomId, 'lucky-win')).toHaveLength(2);
+      expect(media.broadcastsOf(roomId, 'lucky-win').at(-1)).toMatchObject({
+        win: { multiplier: 5, coinsWon: small.body.luckyResult.coinsWon },
+      });
+      expect(media.broadcasts.filter((b) => b.topic === 'lucky' && b.room !== roomId)).toHaveLength(
+        tickersBefore,
+      );
     });
 
     it('concurrent retries with one clientId: one send, one set of draws', async () => {
@@ -782,9 +790,13 @@ describe('D132 lucky gifts (on)', { timeout: 180_000 }, () => {
         { multiplier: 25, count: 1, coins: 250 },
       ]);
 
-      // No ×100 or ×500 was paid, so the room got no big-win message.
+      // v1.41-live (D178): the room hears of the send's win (its best multiplier, all coins won);
+      // no ×100 or ×500 was paid, so no other live does.
       await settle(ctx);
-      expect(media.broadcastsOf(roomId, 'lucky-win')).toEqual([]);
+      expect(media.broadcastsOf(roomId, 'lucky-win')).toEqual([
+        expect.objectContaining({ win: expect.objectContaining({ multiplier: 50, coinsWon: 500 }) }),
+        expect.objectContaining({ win: expect.objectContaining({ multiplier: 25, coinsWon: 400 }) }),
+      ]);
     });
   });
 
@@ -1024,6 +1036,9 @@ describe('D148 lucky gifts: eight tiers, the guarantee, the global ticker', { ti
     const filler = await f.gift({ priceCoins: 100 });
     rng.script();
     expect((await f.send(roomId, s1, f.body(filler, [h], { quantity: 1314 }))).status).toBe(201);
+    await settle(ctx);
+    // v1.41-live (D178): every win is told to its room (the filler's guarantees too).
+    const roomWins = media.broadcastsOf(roomId, 'lucky-win').length;
 
     rng.script(DRAW.x250);
     const first = await f.send(roomId, viewer, f.body(code, [h]));
@@ -1051,7 +1066,7 @@ describe('D148 lucky gifts: eight tiers, the guarantee, the global ticker', { ti
     ]);
     // Not to its own room (it shows the big card there), only the lucky-win.
     expect(ticker(roomId)).toEqual([]);
-    expect(media.broadcastsOf(roomId, 'lucky-win')).toHaveLength(1);
+    expect(media.broadcastsOf(roomId, 'lucky-win')).toHaveLength(roomWins + 1);
 
     // Within 10 s: a ×100 and then a ×1000 wait; the ×1000 replaces the ×100, which is dropped.
     rng.script(DRAW.x100);

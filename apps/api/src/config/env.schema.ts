@@ -598,8 +598,16 @@ export const envSchema = z
     LUCKY_PITY_AFTER: intSetting(15, 0, 1_000),
     /** D148: what the guarantee pays at least (one of LUCKY_GIFT_MULTIPLIERS; owner: ×5). */
     LUCKY_PITY_MULTIPLIER: intSetting(5, 2, 10_000),
-    /** Sends whose best win is at least this multiplier are announced to the room (`lucky-win`). */
+    /**
+     * Sends whose best win is at least this multiplier are told to every other live (`lucky-ticker`,
+     * D148). v1.41-live (D178): every win (×1 and up) is announced to its own room (`lucky-win`).
+     */
     LUCKY_GIFT_BIG_WIN_MULTIPLIER: intSetting(100, 2, 10_000),
+    /**
+     * v1.41-live (D178, owner): a gift send worth at least this many coins is told to every other
+     * live as a `gift-ticker` strip (one at a time, the newest first). Every gift shows in its own room.
+     */
+    GIFT_GLOBAL_TICKER_MIN_COINS: intSetting(1000, 1, 1_000_000_000),
     /** The daily protection's day starts at midnight in this IANA time zone. */
     LUCKY_GIFT_DAY_TIME_ZONE: ianaTimeZone('UTC'),
     /** Countries (ISO 3166-1 alpha-2) where lucky gifts are off; needs LUCKY_GIFTS_COUNTRY_HEADER. */

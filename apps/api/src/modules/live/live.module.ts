@@ -22,6 +22,7 @@ import { LiveChatService } from './live-chat.service.js';
 import { LiveBlockedWordsService } from './live-blocked-words.service.js';
 import { LiveCoverService } from './live-cover.service.js';
 import { LiveGiftsService } from './live-gifts.service.js';
+import { LiveGiftTickerService } from './live-gift-ticker.service.js';
 import { LiveLuckyTickerService } from './live-lucky-ticker.service.js';
 import { LiveKicksService } from './live-kicks.service.js';
 import { LiveMediaService } from './live-media.service.js';
@@ -99,6 +100,7 @@ import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit
     // v1.23-live (CP-020, D108): gifts in a live, through the wallet and the gifts module (§10.23).
     LiveGiftsService,
     LiveLuckyTickerService,
+    LiveGiftTickerService,
     // CP-016 D: taps credit the host's charm level inside the taps transaction (§10.18).
     LevelProgressService,
     AdminGuard,
