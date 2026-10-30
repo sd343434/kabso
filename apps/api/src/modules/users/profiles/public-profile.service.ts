@@ -47,6 +47,8 @@ export interface PublicProfileDto {
   links: ProfileLinkDto[];
   /** v1.54-social (D185, §10.48): the user is an ACTIVE recharge agent (the frame, badge and entrance). */
   rechargeAgent: { code: string } | null;
+  /** v1.58-social (D189, §10.52): the host agent's code while not suspended (frame, badge), else null. */
+  hostAgent: { code: string } | null;
 }
 
 /**
@@ -93,6 +95,7 @@ export class PublicProfileService {
       medals,
       profileCard,
       agent,
+      hostAgency,
     ] = await Promise.all([
       this.follows.counts(user.id),
       isSelf ? Promise.resolve(false) : this.follows.isFollowing(callerId, user.id),
@@ -107,6 +110,11 @@ export class PublicProfileService {
       this.prisma.rechargeAgent.findFirst({
         where: { userId: user.id, status: 'ACTIVE', code: { not: null } },
         select: { code: true },
+      }),
+      // v1.58-social (D189): the agency's owner while not suspended (any rank).
+      this.prisma.agency.findFirst({
+        where: { ownerUserId: user.id, suspendedAt: null, hostCode: { not: null } },
+        select: { hostCode: true },
       }),
     ]);
     return {
@@ -132,6 +140,7 @@ export class PublicProfileService {
       category: user.category,
       links: user.links,
       rechargeAgent: agent?.code ? { code: agent.code } : null,
+      hostAgent: hostAgency?.hostCode ? { code: hostAgency.hostCode } : null,
     };
   }
 }

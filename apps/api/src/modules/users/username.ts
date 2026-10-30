@@ -82,12 +82,14 @@ export function isValidUsername(username: string): boolean {
 
 /**
  * Reserved names. v1.54-social (D185): `coin` + digits (also with `.` / `_` inside) is the recharge agents'
- * special username, given only by the system (CONVENTIONS §10.48.1).
+ * special username, given only by the system (CONVENTIONS §10.48.1); v1.58-social (D189): `host` + digits, the
+ * host agents' (§10.52). Existing accounts that already have such a name keep it.
  */
 export function isReservedUsername(username: string): boolean {
   const lowered = username.toLowerCase();
   const bare = lowered.replace(/[._]/g, '');
-  return RESERVED.has(lowered) || RESERVED.has(bare) || /^coin[0-9]+$/.test(bare);
+  // v1.58-social (D189): `host` + digits too (the host agents' special usernames).
+  return RESERVED.has(lowered) || RESERVED.has(bare) || /^(?:coin|host)[0-9]+$/.test(bare);
 }
 
 /** Emails are compared and stored trimmed + lowercased (CONVENTIONS §6). */

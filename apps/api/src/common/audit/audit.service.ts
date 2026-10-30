@@ -121,6 +121,10 @@ export enum AuditAction {
   SPECIAL_USERNAME_GRANT = 'special_username.grant',
   SPECIAL_USERNAME_END = 'special_username.end',
   SPECIAL_USERNAME_VIEW = 'special_username.view',
+  // v1.58-social (DRAFT, D189): host agents' perks (CONVENTIONS §10.52).
+  HOST_AGENT_ACTIVATE = 'host_agent.activate',
+  HOST_AGENT_SUSPEND = 'host_agent.suspend',
+  HOST_AGENT_REINSTATE = 'host_agent.reinstate',
   RECHARGE_SALE = 'recharge.sale',
   RECHARGE_EMPLOYEE_ADD = 'recharge.employee.add',
   RECHARGE_EMPLOYEE_UPDATE = 'recharge.employee.update',

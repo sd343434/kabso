@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { hostAgentPerksActive } from '../economy/host-agents.js';
 import type { UserSummaryDto } from '../live/live-rooms.service.js';
 import { MediaService, type MediaAssetDto } from '../media/media.service.js';
 import { parseHashtags, parseMentions } from './text-entities.js';
@@ -60,9 +61,12 @@ export function userSummary(user: {
   /** v1.54-social (D185); absent in older selects. */
   status?: string;
   rechargeAgent?: { status: string; code: string | null } | null;
+  /** v1.58-social (D189); absent in older selects. */
+  ownedAgency?: { hostCode: string | null; suspendedAt: Date | null } | null;
 }): UserSummaryDto {
   const tier = user.profile?.premiumTier;
   const agentCode = rechargeAgentCodeOf(user);
+  const hostCode = hostAgentCodeOf(user);
   return {
     id: user.id,
     username: user.profile?.username ?? '',
@@ -72,7 +76,23 @@ export function userSummary(user: {
     ...(tier ? { premiumTier: tier } : {}),
     // v1.54-social (D185, §10.48): only while an ACTIVE recharge agent with an active account (the badge).
     ...(agentCode ? { rechargeAgent: { code: agentCode } } : {}),
+    // v1.58-social (D189, §10.52): only while a host agent (agency not suspended) with an active account.
+    ...(hostCode ? { hostAgent: { code: hostCode } } : {}),
   };
+}
+
+/**
+ * v1.58-social (D189, §10.52): the host-agent code to show, or null — the person owns an agency with a code that
+ * the team has not suspended (any rank, LAPSED too) and the account is active.
+ */
+export function hostAgentCodeOf(user: {
+  status?: string;
+  ownedAgency?: { hostCode: string | null; suspendedAt: Date | null } | null;
+}): string | null {
+  const agency = user.ownedAgency;
+  if (!agency || !hostAgentPerksActive(agency)) return null;
+  if (user.status !== undefined && user.status !== 'ACTIVE') return null;
+  return agency.hostCode;
 }
 
 /** v1.54-social (D185): the recharge-agent code to show, or null (not ACTIVE, or the account is not active). */
@@ -92,6 +112,8 @@ export const USER_SUMMARY_SELECT = {
   // v1.54-social (D185): the recharge-agent badge (`UserSummary.rechargeAgent`).
   status: true,
   rechargeAgent: { select: { status: true, code: true } },
+  // v1.58-social (D189): the host-agent badge (`UserSummary.hostAgent`).
+  ownedAgency: { select: { hostCode: true, suspendedAt: true } },
 } as const;
 
 /**

@@ -9,7 +9,12 @@ import { safeErrorLog } from '../../logging/redact-text.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { cpChatBubbleOf, cpEntranceOf, type LiveJoinCpDto } from '../cp-space/cp-privileges.js';
 import { MediaService, type MediaAssetDto, type MediaKind } from '../media/media.service.js';
-import { rechargeAgentCodeOf, USER_SUMMARY_SELECT, userSummary } from '../posts/post-views.js';
+import {
+  hostAgentCodeOf,
+  rechargeAgentCodeOf,
+  USER_SUMMARY_SELECT,
+  userSummary,
+} from '../posts/post-views.js';
 import { UsersService, violatedUniqueIndex } from '../users/users.service.js';
 import { LiveRoomsService, type RoomRow, type UserSummaryDto } from './live-rooms.service.js';
 import { isUuid, parseLiveChatSend, type LiveChatKind } from './live.schemas.js';
@@ -453,8 +458,9 @@ export class LiveChatService implements OnModuleInit, OnModuleDestroy {
     try {
       const user = await this.prisma.user.findUnique({ where: { id: userId }, select: USER_SUMMARY_SELECT });
       if (!user) return;
-      // v1.54-social (D185, §10.48): an ACTIVE recharge agent's join (its entrance bar) is never dropped.
-      const agent = rechargeAgentCodeOf(user) !== null;
+      // v1.54-social (D185, §10.48): an ACTIVE recharge agent's join (its entrance bar) is never dropped;
+      // v1.58-social (D189, §10.52): nor a host agent's.
+      const agent = rechargeAgentCodeOf(user) !== null || hostAgentCodeOf(user) !== null;
       const waitMs = await this.limiter.interval(
         'live:chat:join',
         roomId,

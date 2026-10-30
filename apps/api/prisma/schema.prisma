@@ -3575,6 +3575,13 @@ model Agency {
   evaluateFrom   DateTime   @map("evaluate_from") @db.Date
   createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  /// v1.58-social (D189): the host agent's code `hostNN` (their special username), given at activation.
+  hostCode       String?    @map("host_code") @db.VarChar(30)
+  hostCodeNumber Int?       @map("host_code_number")
+  hostCodeAt     DateTime?  @map("host_code_at") @db.Timestamptz(3)
+  /// v1.58-social (D189): the team suspended the host agent (every perk removed at once).
+  suspendedAt    DateTime?  @map("suspended_at") @db.Timestamptz(3)
+  suspendReason  String?    @map("suspend_reason") @db.VarChar(500)
 
   owner       User            @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
   parent      Agency?         @relation("AgencyParent", fields: [parentAgencyId], references: [id], onDelete: SetNull)
@@ -3585,6 +3592,8 @@ model Agency {
 
   @@unique([ownerUserId], map: "agencies_owner_once")
   @@unique([inviteCode], map: "agencies_invite_code_key")
+  @@unique([hostCode], map: "agencies_host_code_key")
+  @@unique([hostCodeNumber], map: "agencies_host_code_number_key")
   @@index([parentAgencyId], map: "agencies_parent_idx")
   @@map("agencies")
 }
@@ -3800,6 +3809,14 @@ model RechargeAgentCounter {
   @@map("recharge_agent_counter")
 }
 
+/// v1.58-social (D189): the next host-agent number (one row).
+model HostAgentCounter {
+  id         Int @id @db.SmallInt
+  lastNumber Int @default(0) @map("last_number")
+
+  @@map("host_agent_counter")
+}
+
 /// D185: every change of an agent's coin stock.
 model RechargeStockEntry {
   id           String              @id @default(uuid(7)) @db.Uuid
@@ -3909,6 +3926,8 @@ enum SpecialUsernameSource {
   RECHARGE_AGENT
   ADMIN_GIFT
   PURCHASE
+  /// v1.58-social (D189): a host agent's `hostNN`.
+  HOST_AGENT
 
   @@map("special_username_source")
 }
@@ -3945,6 +3964,7 @@ model SpecialUsername {
   @@unique([username], map: "special_usernames_name_held", where: raw("status = ANY (ARRAY['ACTIVE'::special_username_status, 'GRACE'::special_username_status])"))
   @@unique([baseUsername], map: "special_usernames_base_held", where: raw("status = 'ACTIVE'::special_username_status"))
   @@unique([username], map: "special_usernames_coin_once", where: raw("(username)::text ~ '^coin[0-9]+$'::text"))
+  @@unique([username], map: "special_usernames_host_once", where: raw("(username)::text ~ '^host[0-9]+$'::text"))
   @@index([userId, grantedAt(sort: Desc)], map: "special_usernames_user_idx")
   @@index([status, expiresAt, graceUntil], map: "special_usernames_due_idx")
   @@map("special_usernames")

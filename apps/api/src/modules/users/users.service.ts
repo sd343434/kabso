@@ -97,7 +97,7 @@ export const ME_INCLUDE = {
 export interface MeSpecialUsernameDto {
   username: string;
   baseUsername: string;
-  source: 'RECHARGE_AGENT' | 'ADMIN_GIFT' | 'PURCHASE';
+  source: 'RECHARGE_AGENT' | 'ADMIN_GIFT' | 'PURCHASE' | 'HOST_AGENT';
   grantedAt: string;
   expiresAt: string | null;
   locked: boolean;
@@ -133,7 +133,7 @@ export interface UserWithProfile {
   specialUsernames?: {
     username: string;
     baseUsername: string;
-    source: 'RECHARGE_AGENT' | 'ADMIN_GIFT' | 'PURCHASE';
+    source: 'RECHARGE_AGENT' | 'ADMIN_GIFT' | 'PURCHASE' | 'HOST_AGENT';
     grantedAt: Date;
     expiresAt: Date | null;
     locked: boolean;
@@ -357,7 +357,8 @@ export class UsersService {
           OR: [
             { status: 'ACTIVE', baseUsername: username },
             { status: { in: ['ACTIVE', 'GRACE'] }, username },
-            { username, source: 'RECHARGE_AGENT' },
+            // v1.58-social (D189): any `host` name (host agents) too.
+            { username, source: { in: ['RECHARGE_AGENT', 'HOST_AGENT'] } },
           ],
         },
       }),

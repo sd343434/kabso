@@ -116,7 +116,8 @@ export async function nameInUse(
         OR: [
           { status: 'ACTIVE', baseUsername: name },
           { status: { in: ['ACTIVE', 'GRACE'] }, username: name },
-          { username: name, source: 'RECHARGE_AGENT' },
+          // v1.58-social (D189): and every `host` name (host agents).
+          { username: name, source: { in: ['RECHARGE_AGENT', 'HOST_AGENT'] } },
         ],
       },
     }),

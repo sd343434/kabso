@@ -12,7 +12,7 @@ import { isValidUsername } from './username.js';
  * special one, and the person's own (base) username is kept in `special_usernames.base_username` — reserved for
  * them and never returned in public payloads. Ending it (expiry, revocation, a recharge agent's suspension) puts
  * the base username back and keeps the special one reserved for the person (GRACE) for the grace period, then
- * releases it; a `coin` + digits name is never released. Writes take the same name/user advisory locks as the
+ * releases it; a `coin` + digits name (and, v1.58-social D189, a `host` + digits one) is never released. Writes take the same name/user advisory locks as the
  * premium usernames (D146), so the two never race.
  */
 
@@ -26,6 +26,25 @@ type Db = Pick<
 export function isCoinName(name: string): boolean {
   return /^coin[0-9]+$/.test(name.toLowerCase().replace(/[._]/g, ''));
 }
+
+/**
+ * v1.58-social (D189, §10.52): `host` + digits (also with `.` / `_` inside): the host agents' names, reserved for
+ * the system like `coin` (existing accounts that already have one keep it).
+ */
+export function isHostName(name: string): boolean {
+  return /^host[0-9]+$/.test(name.toLowerCase().replace(/[._]/g, ''));
+}
+
+/** The agents' system codes (`coin…`, `host…`): given only by the system, never released nor reused. */
+export function isSystemCodeName(name: string): boolean {
+  return isCoinName(name) || isHostName(name);
+}
+
+/** The sources whose names are system codes (any row of theirs keeps the name held for the person). */
+export const SYSTEM_CODE_SOURCES = [
+  'RECHARGE_AGENT',
+  'HOST_AGENT',
+] as const satisfies readonly SpecialUsernameSource[];
 
 /** Why a grant was refused (the CLI prints it; the API never grants from user input). */
 export class SpecialUsernameError extends Error {
@@ -73,7 +92,7 @@ export async function specialHolderOf(
       OR: [
         { status: 'ACTIVE', baseUsername: name },
         { status: { in: ['ACTIVE', 'GRACE'] }, username: name },
-        ...(isCoinName(name) ? [{ username: name }] : []),
+        ...(isSystemCodeName(name) ? [{ username: name }] : []),
       ],
     },
     select: { userId: true },
@@ -148,6 +167,9 @@ export async function grantSpecialIn(
     throw new SpecialUsernameError('INVALID', `${name} is not a username.`);
   if (isCoinName(name) && opts.source !== 'RECHARGE_AGENT') {
     throw new SpecialUsernameError('INVALID', 'coin + digits names are reserved for recharge agents.');
+  }
+  if (isHostName(name) && opts.source !== 'HOST_AGENT') {
+    throw new SpecialUsernameError('INVALID', 'host + digits names are reserved for host agents.');
   }
   await lockUser(tx, userId);
   await lockName(tx, name);
@@ -238,8 +260,8 @@ async function endRowIn(
       status: 'GRACE',
       endedAt: now,
       endReason: reason,
-      // A `coin` name is never released (grace without an end).
-      graceUntil: isCoinName(row.username) ? null : new Date(now.getTime() + graceDays * 86_400_000),
+      // A `coin` / `host` name is never released (grace without an end).
+      graceUntil: isSystemCodeName(row.username) ? null : new Date(now.getTime() + graceDays * 86_400_000),
     },
   });
 }
@@ -278,6 +300,46 @@ export async function endSpecialIn(
     },
   });
   return true;
+}
+
+/**
+ * v1.58-social (D189, §10.52): keeps a system code (`hostNN`, `coinNNNN`) the person was given but does not show
+ * now (another special username is active — the one activated first stays) reserved for them: a GRACE row
+ * without an end, which every "held" check already honours and which `grantSpecialIn` turns ACTIVE later.
+ * Nothing when the person already has a row for the name.
+ */
+export async function reserveSpecialIn(
+  tx: Tx,
+  userId: string,
+  name: string,
+  source: SpecialUsernameSource,
+  now: Date,
+): Promise<void> {
+  if (!isSystemCodeName(name)) throw new SpecialUsernameError('INVALID', `${name} is not a system code.`);
+  await lockUser(tx, userId);
+  await lockName(tx, name);
+  if (await tx.specialUsername.count({ where: { userId, username: name } })) return;
+  if ((await specialHolderOf(tx, name, userId)) !== null) {
+    throw new SpecialUsernameError('TAKEN', `${name} is held by another account.`);
+  }
+  const profile = await tx.userProfile.findUniqueOrThrow({ where: { userId }, select: { username: true } });
+  const current = await activeSpecialOf(tx, userId);
+  await tx.specialUsername.create({
+    data: {
+      id: uuidv7(),
+      userId,
+      username: name,
+      baseUsername: current ? current.baseUsername : profile.username,
+      source,
+      status: 'GRACE',
+      locked: true,
+      grantedAt: now,
+      endedAt: now,
+      endReason: 'RESERVED',
+      graceUntil: null,
+      reason: 'reserved: another special username is active',
+    },
+  });
 }
 
 /**

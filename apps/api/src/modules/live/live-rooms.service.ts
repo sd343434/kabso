@@ -60,6 +60,8 @@ export interface UserSummaryDto {
   premiumTier?: 'LEGEND' | 'RUBY' | 'GOLD' | 'SILVER';
   /** v1.54-social (D185, §10.48): present only while the user is an ACTIVE recharge agent (the badge). */
   rechargeAgent?: { code: string };
+  /** v1.58-social (D189, §10.52): present only while the user is a host agent (not suspended; the badge). */
+  hostAgent?: { code: string };
 }
 
 export type LiveRoomMode = 'SOLO' | 'PK' | 'MULTI' | 'AUDIO';
@@ -193,6 +195,8 @@ export interface RoomRow {
   premium_tier: 'LEGEND' | 'RUBY' | 'GOLD' | 'SILVER' | null;
   /** v1.54-social (D185): the host's recharge-agent code while ACTIVE, else null. */
   agent_code: string | null;
+  /** v1.58-social (D189): the host's host-agent code while not suspended, else null. */
+  host_agent_code: string | null;
   category_slug: string | null;
   category_name_ar: string | null;
   category_name_en: string | null;
@@ -237,6 +241,8 @@ const ROOM_COLUMNS = Prisma.sql`
          r.host_user_id::text AS host_user_id, u.status::text AS host_status, p.username,
          p.display_name, p.avatar_url, p.premium_tier::text AS premium_tier,
          (SELECT ra.code FROM recharge_agents ra WHERE ra.user_id = r.host_user_id AND ra.status = 'ACTIVE') AS agent_code,
+         (SELECT ag.host_code FROM agencies ag
+           WHERE ag.owner_user_id = r.host_user_id AND ag.suspended_at IS NULL) AS host_agent_code,
          c.slug AS category_slug, c.name_ar AS category_name_ar,
          c.name_en AS category_name_en, r.chat_enabled, lh.room_number, ${ROOM_LEVEL_SQL} AS room_level,
          r.wish_gifts`;
@@ -772,6 +778,9 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
         ...(row.premium_tier ? { premiumTier: row.premium_tier } : {}),
         ...(row.agent_code && row.host_status === 'ACTIVE'
           ? { rechargeAgent: { code: row.agent_code } }
+          : {}),
+        ...(row.host_agent_code && row.host_status === 'ACTIVE'
+          ? { hostAgent: { code: row.host_agent_code } }
           : {}),
       },
       seatCount: row.seat_count,

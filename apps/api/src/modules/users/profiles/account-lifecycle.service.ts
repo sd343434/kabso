@@ -1,7 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import { APP_CONFIG, type AppConfig } from '../../../config/app-config.js';
 import { PrismaService } from '../../../prisma/prisma.service.js';
 import { LiveRoomsService } from '../../live/live-rooms.service.js';
 import { FollowsService } from '../../social/follows.service.js';
+import { syncAgentUsernameIn } from '../agent-usernames.js';
 import { UsersService } from '../users.service.js';
 
 /**
@@ -27,6 +29,7 @@ export class AccountLifecycleService {
     private readonly users: UsersService,
     private readonly live: LiveRoomsService,
     private readonly follows: FollowsService,
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
   /** Returns false when the account was not ACTIVE (nothing changed). */
@@ -36,6 +39,11 @@ export class AccountLifecycleService {
       await this.live.endForSuspendedHostIn(tx, userId);
       // CP-011: the user also loses seats, requests, invitations and moderator roles elsewhere.
       await this.live.releaseSeatsOfUserIn(tx, userId);
+      // v1.58-social (D189, §10.52): an agent code shown as the username ends (the base one is shown again; the
+      // code stays the person's); the frame, badges and entrance already follow the account status.
+      await syncAgentUsernameIn(tx, userId, new Date(), this.config.specialUsernames.graceDays, {
+        note: 'account suspended',
+      });
       return true;
     });
   }

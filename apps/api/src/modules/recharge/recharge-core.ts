@@ -2,13 +2,8 @@ import { AuditAction } from '../../common/audit/audit.service.js';
 import type { Prisma, PrismaClient, RechargeStockReason } from '../../generated/prisma/client.js';
 import { uuidv7 } from '../levels/uuidv7.js';
 import { nameInUse } from '../premium-usernames/premium-username-ops.js';
-import {
-  activeSpecialOf,
-  endSpecialIn,
-  grantSpecialIn,
-  restoreSpecialIn,
-  SpecialUsernameError,
-} from '../users/special-usernames.js';
+import { syncAgentUsernameIn } from '../users/agent-usernames.js';
+import { SpecialUsernameError } from '../users/special-usernames.js';
 import { agentCode, topUpPrice, type PriceTier } from './recharge-rules.js';
 
 /**
@@ -219,16 +214,9 @@ export async function topUpIn(
       where: { userId: agentUserId },
       data: { status: 'ACTIVE', code, codeNumber: n, activatedAt: now },
     });
-    await specialIn(() =>
-      grantSpecialIn(
-        tx,
-        agentUserId,
-        code!,
-        { source: 'RECHARGE_AGENT', expiresAt: null, reason: 'recharge agent activated', via: 'system' },
-        now,
-        specialGraceDays,
-      ),
-    );
+    // v1.58-social (D189, §10.52): through the agent-username rule — a host agent activated first keeps
+    // `hostNN` shown and this code is kept reserved for the person.
+    await specialIn(() => syncAgentUsernameIn(tx, agentUserId, now, specialGraceDays));
     await audit(tx, AuditAction.RECHARGE_ACTIVATE, 'recharge_agent', agentUserId, { code, via: 'cli' });
   }
   const stock = await moveStockIn(tx, agentUserId, coins, 'TOPUP', topupId, now);
@@ -286,10 +274,8 @@ export async function suspendIn(
     data: { status: 'CANCELLED', decidedAt: now },
   });
   // v1.54-social (D185): the person's own username is shown again; the code stays theirs (never reused).
-  const special = await activeSpecialOf(tx, agentUserId);
-  if (special?.source === 'RECHARGE_AGENT') {
-    await endSpecialIn(tx, agentUserId, 'SUSPENDED', now, specialGraceDays, { via: 'system', note: reason });
-  }
+  // v1.58-social (D189): unless they are also a host agent — then `hostNN` is shown.
+  await specialIn(() => syncAgentUsernameIn(tx, agentUserId, now, specialGraceDays, { note: reason }));
   await audit(tx, AuditAction.RECHARGE_SUSPEND, 'recharge_agent', agentUserId, {
     reason,
     cancelledRequests: cancelled.count,
@@ -312,7 +298,8 @@ export async function reinstateIn(
     data: { status, suspendedAt: null, suspendReason: null, updatedAt: now },
   });
   if (status === 'ACTIVE') {
-    await specialIn(() => restoreSpecialIn(tx, agentUserId, 'RECHARGE_AGENT', now, specialGraceDays));
+    // v1.58-social (D189): the code comes back as the username unless a host code activated earlier is shown.
+    await specialIn(() => syncAgentUsernameIn(tx, agentUserId, now, specialGraceDays));
   }
   await audit(tx, AuditAction.RECHARGE_REINSTATE, 'recharge_agent', agentUserId, { status, via: 'cli' });
   return status;
