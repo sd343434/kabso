@@ -288,6 +288,19 @@ info:
     its coins. Task cherries are not withdrawable until the person's lifetime gift cherries received are
     worth $50 (owner): `CherryWallet.taskRewardTotal`, `lockedTaskCherries`, `withdrawableCherries`, `taskUnlock`
     (CONVENTIONS §10.41.3, §10.46.1).
+    **D185 (DRAFT v1.54-social, CP-028)**: recharge agents «وكلاء الشحن» (tag `recharge`): the in-app application
+    with private KYC uploads (`MediaKind` `RECHARGE_AGENT_PHOTO` / `RECHARGE_AGENT_SELFIE`, never completed nor
+    given a URL), activation by the team's first top-up of ≥ 30 000 000 coins with a sequential code
+    `coin0001…` (`RechargeAgentCode`), the agent's coin stock sold to users by the agent or an employee during
+    their hours (`sellRechargeCoins`, one transaction, `Idempotency-Key`; `WalletLedgerReason.RECHARGE_PURCHASE`,
+    notification `RECHARGE_COINS_RECEIVED` with target `RECHARGE_SALE`), employees and per-employee statistics,
+    the agent's availability per time slot, the directory (`listRechargeAgents`), and hosts selling withdrawable
+    cherries to agents with two-sided confirmation (`createRechargeCherryRequest`, `answerRechargeCherryRequest`;
+    `CherryLedgerReason.RECHARGE_SALE`; notification `RECHARGE_CHERRY_REQUEST`); `PublicProfile.rechargeAgent`
+    and `UserSummary.rechargeAgent` (the frame, badge and entrance perks; the inline badge next to the name in live rooms). Codes `RECHARGE_APPLICATION_NOT_ALLOWED`, `RECHARGE_AGENT_NOT_ACTIVE`,
+    `RECHARGE_OFF_SHIFT`, `RECHARGE_STOCK_INSUFFICIENT`, `RECHARGE_EMPLOYEE_NOT_ALLOWED`,
+    `RECHARGE_CHERRY_REQUEST_PENDING`, `RECHARGE_CHERRY_REQUEST_CLOSED`, `RECHARGE_CHERRY_CAP_REACHED` (409)
+    (CONVENTIONS §10.48).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -316,6 +329,8 @@ tags:
     description: "The caller's coins (v1.19-live DRAFT, CP-017); their history and gift earnings (v1.43-social DRAFT, D164); cherries and withdrawals (v1.52-social DRAFT, D179)."
   - name: agency
     description: "Host agencies: join with an invite code, leave or complain, the agent's dashboard (v1.52-social DRAFT, D179)."
+  - name: recharge
+    description: "Recharge agents «وكلاء الشحن»: the application, the agent's coin stock and sales, employees, availability, the directory and cherry sales from hosts (v1.54-social DRAFT, D185)."
   - name: premium-usernames
     description: "Premium usernames rented monthly with coins, and the username change (v1.28-live DRAFT, D146). Prices, the reserved list and grants are managed by the premium-admin CLI."
   - name: families
@@ -1181,6 +1196,7 @@ paths:
                     category: SINGER
                     links:
                       - { id: 0192f1d0-7777-7000-8000-000000000009, url: 'https://www.instagram.com/layla.k', label: Instagram, platform: INSTAGRAM }
+                    rechargeAgent: { code: coin0001 }
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -4366,6 +4382,376 @@ paths:
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/recharge-agent:
+    get:
+      tags: [recharge]
+      operationId: getMyRechargeAgent
+      summary: "The caller as a recharge agent «وكيل الشحن», applicant or employee (D185)"
+      description: |
+        v1.54-social, CONVENTIONS §10.48. `status`: NONE (never applied), PENDING (application waiting for
+        the team), REJECTED (`application.rejectReason`; may apply again), APPROVED (approved, waiting for the
+        first top-up of at least `rules.activationMinCoins`), ACTIVE, SUSPENDED. The caller never gets their
+        own application data back (it is private: admins read it through the `recharge-admin` CLI, audited).
+        `agent` is set from APPROVED on (the dashboard: code once ACTIVE, stock, today's cherry purchases and
+        cap, the availability, sales totals); `employment` when the caller works for an agent. Checks: 401.
+      responses:
+        '200':
+          description: The caller's recharge-agent state.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RechargeAgentMe' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/recharge-agent/application:
+    post:
+      tags: [recharge]
+      operationId: applyForRechargeAgent
+      summary: "Apply to become a recharge agent «كن وكيل شحن» (D185)"
+      description: |
+        v1.54-social, CONVENTIONS §10.48. The photo and the face-confirmation selfie are uploaded first with
+        `createMediaUpload` (`kind` `RECHARGE_AGENT_PHOTO` / `RECHARGE_AGENT_SELFIE`, the PUT to the presigned
+        URL) and **not** completed: the application consumes the uploads (checked like any image, re-encoded,
+        stored under a private prefix, never given a URL). Order after auth: 503 `MEDIA_UPLOADS_UNAVAILABLE` →
+        400 body (`fullName` at least four words, 8–120 characters; `phone` E.164; `whatsapp` true; 1–10
+        `locations` with distinct ISO countries and 1–20 cities each; 1–30 `paymentMethods`, each in a country of
+        `locations`) → 409 `RECHARGE_APPLICATION_NOT_ALLOWED` (a pending application, already an agent, or an
+        employee of an agent) → 400 `photoUploadId` / `selfieUploadId` `invalid_value` (not the caller's pending
+        upload of that kind, expired, or not a valid image) → 201 (status PENDING). 60 / hour per user
+        (`recharge:write`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RechargeAgentApplicationRequest' }
+      responses:
+        '201':
+          description: Submitted; the caller's state (PENDING).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RechargeAgentMe' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '409':
+          description: "`RECHARGE_APPLICATION_NOT_ALLOWED`."
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/me/recharge-agent/availability:
+    put:
+      tags: [recharge]
+      operationId: setMyRechargeAvailability
+      summary: "The agent's WhatsApp number and payment method per weekly time slot (D185)"
+      description: |
+        v1.54-social, CONVENTIONS §10.48. Replaces the whole list (0–28 slots). The directory shows the first
+        slot that contains «now» in `timeZone`. Checks: 401; 404 (the caller is not an APPROVED, ACTIVE or
+        SUSPENDED agent); 400 (`timeZone` not an IANA zone, a slot's `end` not after its `start`, `whatsapp` not
+        E.164, `paymentMethod` 1–80 characters); 60 / hour per user (`recharge:write`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RechargeAvailability' }
+      responses:
+        '200':
+          description: Saved.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RechargeAvailability' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/recharge-agent/sales:
+    get:
+      tags: [recharge]
+      operationId: listMyRechargeSales
+      summary: "Coin sales: all of the agent's, or the employee's own (D185)"
+      description: "v1.54-social, CONVENTIONS §10.48. Newest first. Checks: 401; 404 (neither an agent nor an employee); 400 `cursor` / `limit`."
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page of sales.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RechargeSalePage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [recharge]
+      operationId: sellRechargeCoins
+      summary: "Sell coins from the agent's stock to a user (D185)"
+      description: |
+        v1.54-social, CONVENTIONS §10.48. The agent, or one of their employees **during the employee's working
+        hours**, moves `coins` from the agent's stock to the buyer's coin wallet in one transaction: the stock
+        never goes below 0, the buyer's wallet gets a `RECHARGE_PURCHASE` row, the sale is recorded and audited
+        and the buyer gets a `RECHARGE_COINS_RECEIVED` notification. The buyer pays the agent outside the app.
+        `buyer` is a username (with or without `@`) or a user id. Order after auth: 400 `Idempotency-Key`, body
+        (`coins` 1 … 1 000 000 000 000) → 404 (the caller is neither an agent nor an employee) → the same key
+        again → 200 with that sale (409 `IDEMPOTENCY_CONFLICT` when the body differs) → 409
+        `RECHARGE_AGENT_NOT_ACTIVE` → 409 `RECHARGE_OFF_SHIFT` (an employee outside their hours) → 404 buyer
+        (unknown, not active, or a block either way with the seller or the agent) → 400 `buyer` `invalid_value`
+        (the seller or the agent themselves) → 409 `RECHARGE_STOCK_INSUFFICIENT` (nothing changed) → 201.
+        120 / hour per user (`recharge:sell`).
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RechargeSaleRequest' }
+      responses:
+        '201':
+          description: Sold.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RechargeSale' }
+        '200':
+          description: A retry with the same `Idempotency-Key`; the first sale.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RechargeSale' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409':
+          description: "`RECHARGE_AGENT_NOT_ACTIVE`, `RECHARGE_OFF_SHIFT`, `RECHARGE_STOCK_INSUFFICIENT` or `IDEMPOTENCY_CONFLICT`."
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/recharge-agent/employees:
+    get:
+      tags: [recharge]
+      operationId: listMyRechargeEmployees
+      summary: "The agent's employees with their hours and sales (D185)"
+      description: "v1.54-social, CONVENTIONS §10.48. Oldest first (at most `RECHARGE_AGENT_MAX_EMPLOYEES`, 20). Checks: 401; 404 (not an agent)."
+      responses:
+        '200':
+          description: The employees.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RechargeEmployeeList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [recharge]
+      operationId: addMyRechargeEmployee
+      summary: "Add an existing user as an employee with weekly hours (D185)"
+      description: |
+        v1.54-social, CONVENTIONS §10.48. Order after auth: 404 (the caller is not an agent) → 400 body → 404
+        `username` (unknown, not active, or a block either way) → 409 `RECHARGE_EMPLOYEE_NOT_ALLOWED` (the
+        caller, an agent or applicant, an employee of an agent, or the agent already has 20) → 201. 60 / hour
+        per user (`recharge:write`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RechargeEmployeeRequest' }
+      responses:
+        '201':
+          description: Added.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RechargeEmployee' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409':
+          description: "`RECHARGE_EMPLOYEE_NOT_ALLOWED`."
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/recharge-agent/employees/{username}:
+    parameters:
+      - name: username
+        in: path
+        required: true
+        schema: { type: string, maxLength: 64 }
+    put:
+      tags: [recharge]
+      operationId: updateMyRechargeEmployee
+      summary: "Change an employee's hours (D185)"
+      description: "v1.54-social, CONVENTIONS §10.48. Checks: 401; 404 (not an agent, or not one of the caller's employees); 400 body; 60 / hour (`recharge:write`)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RechargeEmployeeHours' }
+      responses:
+        '200':
+          description: Saved.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RechargeEmployee' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [recharge]
+      operationId: removeMyRechargeEmployee
+      summary: "Remove an employee (D185)"
+      description: "v1.54-social, CONVENTIONS §10.48. They stop selling at once; their past sales stay in the statistics of the sales list. Checks: 401; 404; 60 / hour (`recharge:write`)."
+      responses:
+        '204': { description: Removed. }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/recharge-agents:
+    get:
+      tags: [recharge]
+      operationId: listRechargeAgents
+      summary: "The «وكلاء الشحن» directory of a country (D185)"
+      description: |
+        v1.54-social, CONVENTIONS §10.48. ACTIVE agents whose account is active and who sell in `country`
+        (ISO 3166-1 alpha-2), those available now first, then by code. Each shows the code, the person, the
+        countries and cities, and the WhatsApp number and payment method of the slot that contains «now» (null
+        when none). Never the application's private data. Checks: 401; 400 `country` (required, two letters),
+        `cursor`, `limit`.
+      parameters:
+        - name: country
+          in: query
+          required: true
+          schema: { type: string, pattern: '^[A-Za-z]{2}$' }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page of agents.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RechargeAgentPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/recharge-agents/{code}:
+    get:
+      tags: [recharge]
+      operationId: getRechargeAgent
+      summary: "One ACTIVE agent by code (D185)"
+      description: "v1.54-social, CONVENTIONS §10.48. The code is matched without case (`coin0001`). Checks: 401; 404 (unknown, not ACTIVE, or the account is not active)."
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema: { type: string, maxLength: 16 }
+      responses:
+        '200':
+          description: The agent.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RechargeAgentListing' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/recharge-cherry-requests:
+    get:
+      tags: [recharge]
+      operationId: listMyRechargeCherryRequests
+      summary: "Cherry sales between hosts and agents the caller is part of (D185)"
+      description: "v1.54-social, CONVENTIONS §10.48. Newest first; a PENDING request past `expiresAt` reads EXPIRED. Checks: 401; 400 `cursor` / `limit`."
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page of requests.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RechargeCherryRequestPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [recharge]
+      operationId: createRechargeCherryRequest
+      summary: "A host offers cherries to an agent, or an agent asks a host for cherries (D185)"
+      description: |
+        v1.54-social, CONVENTIONS §10.48. A host sends `agentCode`; an ACTIVE agent sends `host` (a username).
+        The other side confirms (`confirmRechargeCherryRequest`) after the agent paid the host cash outside the
+        app (`payoutMinor` at `CHERRY_PAYOUT_RATE`, owner $1.10 per 1 000 000); nothing moves before. The request
+        expires after `RECHARGE_AGENT_CHERRY_REQUEST_TTL_MINUTES` (30). `cherries` ≥ `minCherries` (1 000 000) and a
+        multiple of `stepCherries` (100 000); `coins` = floor(cherries × 93 220 / 1 000 000). Order after auth: 400
+        `Idempotency-Key`, body (exactly one of `agentCode` / `host`) → 404 (unknown or inactive agent / host; a
+        block either way; `host` sent by a caller who is not an ACTIVE agent) → 400 `cherries` `invalid_value`
+        (below the minimum or off the step) or the agent's own account → the same key again → 200 → 409
+        `RECHARGE_AGENT_NOT_ACTIVE` → 409 `RECHARGE_CHERRY_REQUEST_PENDING` (an open request between the two) → 409
+        `INSUFFICIENT_CHERRIES` (the host's withdrawable cherries — the balance less locked task cherries — do not
+        cover it) → 409 `RECHARGE_CHERRY_CAP_REACHED` (the agent's cherries today plus this exceed the agent's
+        daily cap) → 201. 60 / hour per user (`recharge:write`).
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RechargeCherryRequestCreate' }
+      responses:
+        '201':
+          description: Requested; waiting for the other side.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RechargeCherryRequest' }
+        '200':
+          description: A retry with the same `Idempotency-Key`; the first request.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RechargeCherryRequest' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409':
+          description: "`RECHARGE_AGENT_NOT_ACTIVE`, `RECHARGE_CHERRY_REQUEST_PENDING`, `INSUFFICIENT_CHERRIES`, `RECHARGE_CHERRY_CAP_REACHED` or `IDEMPOTENCY_CONFLICT`."
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/recharge-cherry-requests/{requestId}/{action}:
+    post:
+      tags: [recharge]
+      operationId: answerRechargeCherryRequest
+      summary: "Confirm, decline or cancel a cherry sale request (D185)"
+      description: |
+        v1.54-social, CONVENTIONS §10.48. `confirm` and `decline`: the side that did not create the request;
+        `cancel`: the side that created it. `confirm` runs in one transaction: the host's cherries are debited
+        (`RECHARGE_SALE` in the cherry ledger; never the locked task cherries, §10.46.1) and the coins are added
+        to the agent's stock (`CHERRY_PURCHASE`), audited. Order after auth: 404 (malformed or unknown id, or the
+        caller is not a side of it) → 400 `action` (`confirm` | `decline` | `cancel`) or the wrong side for it
+        → 409 `RECHARGE_CHERRY_REQUEST_CLOSED` (no longer PENDING, or expired — it then reads EXPIRED) → for
+        `confirm`: 409 `RECHARGE_AGENT_NOT_ACTIVE` → 409 `RECHARGE_CHERRY_CAP_REACHED` → 409
+        `INSUFFICIENT_CHERRIES` (nothing changed) → 200. 60 / hour per user (`recharge:write`).
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: action
+          in: path
+          required: true
+          schema: { type: string, enum: [confirm, decline, cancel] }
+      responses:
+        '200':
+          description: The request after the action.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RechargeCherryRequest' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409':
+          description: "`RECHARGE_CHERRY_REQUEST_CLOSED`, `RECHARGE_AGENT_NOT_ACTIVE`, `RECHARGE_CHERRY_CAP_REACHED` or `INSUFFICIENT_CHERRIES`."
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/me/creator-stats:
     get:
       tags: [me]
@@ -5876,7 +6262,9 @@ paths:
       operationId: completeMediaUpload
       summary: "Finish an upload: verify, strip metadata, make the sizes"
       description: |
-        CONVENTIONS §11.1. Only the uploader may complete (anyone else: 404). The object must
+        CONVENTIONS §11.1. Only the uploader may complete (anyone else: 404; v1.54-social, D185: a
+        `RECHARGE_AGENT_PHOTO` / `RECHARGE_AGENT_SELFIE` upload is never completed — 404 — the recharge-agent
+        application consumes it, §10.48). The object must
         exist, match the declared type and size, and decode as an image of at most 8 000 px per
         side; else 422 `MEDIA_INVALID` and the object is deleted. Completing again returns the
         same asset (idempotent). CP-017: a `LIVE_CHAT_VOICE` upload must be an MPEG-4 audio file
@@ -7990,9 +8378,12 @@ components:
         premiumTier:
           $ref: '#/components/schemas/PremiumUsernameTier'
           description: v1.28-live (D146) — present only while the username is the user's premium username (the badge); absent otherwise.
+        rechargeAgent:
+          $ref: '#/components/schemas/RechargeAgentTag'
+          description: "v1.54-social (D185, §10.48) — present only while the user is an ACTIVE recharge agent with an active account: the app shows the small recharge-agent badge next to the name (live chat, the join line and entrance, the viewers list, seats, the person card); absent otherwise (removed at once by a suspension)."
     PublicProfile:
       type: object
-      required: [id, username, displayName, avatarUrl, bio, isPrivate, followerCount, followingCount, isFollowing, followRequested, isMuted, isSelf, liveRoomId, family, cp, medals, profileCard, gender, category, links]
+      required: [id, username, displayName, avatarUrl, bio, isPrivate, followerCount, followingCount, isFollowing, followRequested, isMuted, isSelf, liveRoomId, family, cp, medals, profileCard, gender, category, links, rechargeAgent]
       properties:
         id: { type: string, format: uuid }
         username: { $ref: '#/components/schemas/Username' }
@@ -8061,6 +8452,11 @@ components:
           maxItems: 3
           description: v1.47-social (D175). The profile links, in order (also on a private account's profile).
           items: { $ref: '#/components/schemas/ProfileLink' }
+        rechargeAgent:
+          description: "v1.54-social (D185, §10.48). The user is an ACTIVE recharge agent: their code (the app draws the agent frame with the code, the badge and the entrance); else null."
+          oneOf:
+            - $ref: '#/components/schemas/RechargeAgentTag'
+            - type: 'null'
     FollowState:
       type: object
       required: [isFollowing, isRequested, followerCount]
@@ -9484,7 +9880,7 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     MediaKind:
       type: string
-      enum: [POST_IMAGE, STORY_IMAGE, LIVE_COVER, LIVE_CHAT_IMAGE, LIVE_CHAT_VOICE, FAMILY_EMBLEM, FAMILY_COVER, HOME_BANNER, DM_IMAGE, DM_VOICE, POST_VIDEO, REEL_VIDEO, VIDEO_POSTER, AVATAR]
+      enum: [POST_IMAGE, STORY_IMAGE, LIVE_COVER, LIVE_CHAT_IMAGE, LIVE_CHAT_VOICE, FAMILY_EMBLEM, FAMILY_COVER, HOME_BANNER, DM_IMAGE, DM_VOICE, POST_VIDEO, REEL_VIDEO, VIDEO_POSTER, AVATAR, RECHARGE_AGENT_PHOTO, RECHARGE_AGENT_SELFIE]
       description: |
         Images for posts, (CP-008) for stories and (CP-015) for the host's live cover; (CP-017)
         a picture or a voice clip (`audio/mp4`, ≤ 30 s, ≤ 1 MiB) for a live chat message;
@@ -9499,7 +9895,9 @@ components:
         D168) `AVATAR`: the profile photo, processed like `LIVE_COVER` (a centre-cropped square, 640
         and 320 px), attached only by `setMyAvatar`. An asset is attachable only to its kind's target
         (a post, a story, the live cover, a live chat message, a family, a reel, a video or the
-        profile photo).
+        profile photo). (v1.54-social, D185) `RECHARGE_AGENT_PHOTO` / `RECHARGE_AGENT_SELFIE`: private images of
+        a recharge-agent application, consumed only by `applyForRechargeAgent` (`completeMediaUpload` answers 404
+        for them: they never become an asset nor get a URL; §10.48).
     CreateMediaUploadRequest:
       type: object
       additionalProperties: false
@@ -9965,13 +10363,13 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     NotificationType:
       type: string
-      description: "`LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). Clients ignore values they do not know."
-      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED]
+      description: "`LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). Clients ignore values they do not know."
+      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST]
     NotificationTarget:
       type: object
       required: [type, id, postId, thumbUrl, text]
       properties:
-        type: { type: string, enum: [POST, COMMENT, STORY, USER, FAMILY, MEDAL, PREMIUM_USERNAME, BAG_ITEM], description: "(v1.21-live) FAMILY and MEDAL are new; (v1.28-live, D146) PREMIUM_USERNAME; (v1.48-social, D171) BAG_ITEM; clients ignore target types they do not know." }
+        type: { type: string, enum: [POST, COMMENT, STORY, USER, FAMILY, MEDAL, PREMIUM_USERNAME, BAG_ITEM, RECHARGE_SALE], description: "(v1.21-live) FAMILY and MEDAL are new; (v1.28-live, D146) PREMIUM_USERNAME; (v1.48-social, D171) BAG_ITEM; (v1.54-social, D185) RECHARGE_SALE; clients ignore target types they do not know." }
         id: { type: string, description: "A post, comment or story id, a username for USER, a family id for FAMILY, a medal code for MEDAL, the username for PREMIUM_USERNAME, the item code for BAG_ITEM." }
         postId: { type: [string, 'null'], format: uuid, description: "For a COMMENT, its post." }
         thumbUrl: { type: [string, 'null'], format: uri, description: "The post or story photo (320 px), when it has one." }
@@ -9979,6 +10377,7 @@ components:
         startsAt: { type: string, format: date-time, description: "LIVE_SCHEDULED_SOON only (v1.14-live): when the live is planned to start." }
         endsAt: { type: string, format: date-time, description: "PREMIUM_USERNAME only (v1.28-live, D146): the end of the paid period (EXPIRING) or of the grace period (EXPIRED)." }
         bagCategory: { $ref: '#/components/schemas/BagCategory', description: "BAG_ITEM only (v1.48-social, D171): the item's category." }
+        coins: { type: integer, format: int64, minimum: 1, description: "RECHARGE_SALE only (v1.54-social, D185): the coins bought." }
     Notification:
       type: object
       required: [id, type, actors, actorCount, target, createdAt, read]
@@ -11692,6 +12091,7 @@ components:
         - TASK_REWARD
         - CHECK_IN_REWARD
         - EVENT_PRIZE
+        - RECHARGE_PURCHASE
     WalletLedgerEntry:
       type: object
       required: [id, reason, delta, balanceAfter, createdAt]
@@ -12066,10 +12466,10 @@ components:
         `PARENT_COMMISSION`, `WITHDRAWAL_REFUND` (a rejected withdrawal). Debits: `GIFT_REVERSAL`,
         `AGENCY_COMMISSION_REVERSAL`, `PARENT_COMMISSION_REVERSAL` (an admin reversed a send),
         `WITHDRAWAL_HOLD` (held by a withdrawal request). *(v1.53-social, D184)* `TASK_REWARD` (credit): a
-        Task Center reward (locked for withdrawal until the unlock rule passes, §10.46.1). New values may
-        appear later.
+        Task Center reward (locked for withdrawal until the unlock rule passes, §10.46.1). *(v1.54-social, D185)*
+        `RECHARGE_SALE` (debit): cherries sold to a recharge agent (§10.48). New values may appear later.
       enum: [GIFT_RECEIVED, AGENCY_COMMISSION, PARENT_COMMISSION, GIFT_REVERSAL, AGENCY_COMMISSION_REVERSAL,
-             PARENT_COMMISSION_REVERSAL, WITHDRAWAL_HOLD, WITHDRAWAL_REFUND, TASK_REWARD]
+             PARENT_COMMISSION_REVERSAL, WITHDRAWAL_HOLD, WITHDRAWAL_REFUND, TASK_REWARD, RECHARGE_SALE]
     CherryPayoutRules:
       type: object
       description: "`rateCherries` cherries are paid `rateMinor` minor units of `currency` (owner: 1 000 000 = 110, $1.10)."
@@ -12313,6 +12713,303 @@ components:
         data:
           type: array
           items: { $ref: '#/components/schemas/AgencyHost' }
+        page: { $ref: '#/components/schemas/PageInfo' }
+    RechargeAgentStatus:
+      type: string
+      description: "v1.54-social (D185, §10.48). NONE: never applied. PENDING / REJECTED: the latest application. APPROVED: waiting for the first top-up. ACTIVE: selling, listed, with the perks. SUSPENDED: an admin suspended the agent (no selling, no listing, no perks)."
+      enum: [NONE, PENDING, REJECTED, APPROVED, ACTIVE, SUSPENDED]
+    RechargeAgentCode:
+      type: string
+      description: "v1.54-social (D185). The agent's recharge ID: `coin` and the activation number, at least four digits (`coin0001`). Given once at activation, in order, never changed or reused. The username is separate and unchanged."
+      pattern: '^coin[0-9]{4,}$'
+    RechargeAgentTag:
+      type: object
+      description: "v1.54-social (D185). Present only while the user is an ACTIVE agent with an active account: the app draws the agent's frame (with the code in its plate), badge and entrance."
+      required: [code]
+      properties:
+        code: { $ref: '#/components/schemas/RechargeAgentCode' }
+    RechargeSalesTotals:
+      type: object
+      required: [count, coins]
+      properties:
+        count: { type: integer, minimum: 0 }
+        coins: { type: integer, format: int64, minimum: 0 }
+    RechargeSalesStats:
+      type: object
+      description: "Today (LIVE_RANKINGS_TIME_ZONE), the last 7 and the last 30 days (rolling)."
+      required: [today, last7Days, last30Days]
+      properties:
+        today: { $ref: '#/components/schemas/RechargeSalesTotals' }
+        last7Days: { $ref: '#/components/schemas/RechargeSalesTotals' }
+        last30Days: { $ref: '#/components/schemas/RechargeSalesTotals' }
+    WeeklySlot:
+      type: object
+      description: "Weekly hours: `days` ISO weekdays (1 = Monday … 7 = Sunday), `start` inclusive and `end` exclusive (`HH:MM`, 00:00–24:00, `end` after `start`; a shift past midnight is two slots)."
+      required: [days, start, end]
+      properties:
+        days:
+          type: array
+          minItems: 1
+          maxItems: 7
+          uniqueItems: true
+          items: { type: integer, minimum: 1, maximum: 7 }
+        start: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$' }
+        end: { type: string, pattern: '^(([01][0-9]|2[0-3]):[0-5][0-9]|24:00)$' }
+    RechargeAvailabilitySlot:
+      allOf:
+        - $ref: '#/components/schemas/WeeklySlot'
+        - type: object
+          required: [whatsapp, paymentMethod]
+          properties:
+            whatsapp: { type: string, pattern: '^\+[1-9][0-9]{7,14}$', description: "E.164, a number with WhatsApp." }
+            paymentMethod: { type: string, minLength: 1, maxLength: 80, description: "What the agent accepts in this slot (free text, public)." }
+    RechargeAvailability:
+      type: object
+      additionalProperties: false
+      required: [timeZone, slots]
+      properties:
+        timeZone: { type: string, maxLength: 64, description: "An IANA time zone, e.g. Africa/Cairo." }
+        slots:
+          type: array
+          maxItems: 28
+          items: { $ref: '#/components/schemas/RechargeAvailabilitySlot' }
+    RechargeAvailableNow:
+      type: object
+      required: [whatsapp, paymentMethod]
+      properties:
+        whatsapp: { type: string }
+        paymentMethod: { type: string }
+    RechargePaymentMethodType:
+      type: string
+      enum: [BANK_TRANSFER, MOBILE_WALLET, CASH, CARD, CRYPTO, OTHER]
+    RechargeLocation:
+      type: object
+      additionalProperties: false
+      required: [country, cities]
+      properties:
+        country: { type: string, pattern: '^[A-Z]{2}$', description: "ISO 3166-1 alpha-2 (sent in any case, stored upper case)." }
+        cities:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items: { type: string, minLength: 1, maxLength: 60 }
+    RechargePaymentMethod:
+      type: object
+      additionalProperties: false
+      required: [country, type, details]
+      properties:
+        country: { type: string, pattern: '^[A-Za-z]{2}$' }
+        type: { $ref: '#/components/schemas/RechargePaymentMethodType' }
+        details: { type: string, minLength: 1, maxLength: 200 }
+    RechargeAgentApplicationRequest:
+      type: object
+      additionalProperties: false
+      required: [fullName, phone, whatsapp, photoUploadId, selfieUploadId, locations, paymentMethods]
+      properties:
+        fullName: { type: string, minLength: 8, maxLength: 120, description: "The full four-part name (at least four words)." }
+        phone: { type: string, pattern: '^\+[1-9][0-9]{7,14}$', description: "E.164." }
+        whatsapp: { type: boolean, const: true, description: "The number has WhatsApp." }
+        photoUploadId: { type: string, format: uuid, description: "A `RECHARGE_AGENT_PHOTO` upload of the caller, sent and not completed." }
+        selfieUploadId: { type: string, format: uuid, description: "A `RECHARGE_AGENT_SELFIE` upload (face confirmation, reviewed by a person)." }
+        locations:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items: { $ref: '#/components/schemas/RechargeLocation' }
+        paymentMethods:
+          type: array
+          minItems: 1
+          maxItems: 30
+          items: { $ref: '#/components/schemas/RechargePaymentMethod' }
+    RechargeApplicationState:
+      type: object
+      description: "The latest application, without its private data."
+      required: [status, submittedAt, decidedAt, rejectReason]
+      properties:
+        status: { type: string, enum: [PENDING, APPROVED, REJECTED] }
+        submittedAt: { type: string, format: date-time }
+        decidedAt: { type: [string, 'null'], format: date-time }
+        rejectReason: { type: [string, 'null'], maxLength: 500 }
+    RechargeAgentDashboard:
+      type: object
+      required: [code, status, stockCoins, activatedAt, dailyCherryCap, todayCherries, availability, sales]
+      properties:
+        code:
+          oneOf:
+            - $ref: '#/components/schemas/RechargeAgentCode'
+            - type: 'null'
+        status: { type: string, enum: [APPROVED, ACTIVE, SUSPENDED] }
+        stockCoins: { type: integer, format: int64, minimum: 0 }
+        activatedAt: { type: [string, 'null'], format: date-time }
+        dailyCherryCap: { type: integer, format: int64, minimum: 0, description: "The most cherries the agent may buy from hosts per day." }
+        todayCherries: { type: integer, format: int64, minimum: 0, description: "Cherries bought today (confirmed)." }
+        availability: { $ref: '#/components/schemas/RechargeAvailability' }
+        sales: { $ref: '#/components/schemas/RechargeSalesStats' }
+    RechargeEmployment:
+      type: object
+      required: [agentCode, agent, timeZone, schedule, onShiftNow]
+      properties:
+        agentCode:
+          oneOf:
+            - $ref: '#/components/schemas/RechargeAgentCode'
+            - type: 'null'
+        agent: { $ref: '#/components/schemas/UserSummary' }
+        timeZone: { type: string }
+        schedule:
+          type: array
+          items: { $ref: '#/components/schemas/WeeklySlot' }
+        onShiftNow: { type: boolean }
+    RechargeRules:
+      type: object
+      required: [activationMinCoins, cherryUnit, coinsPerCherryUnit, minCherries, stepCherries, requestTtlMinutes, payout]
+      properties:
+        activationMinCoins: { type: integer, format: int64, description: "The first top-up that activates an agent (owner: 30 000 000)." }
+        cherryUnit: { type: integer, format: int64, description: "1 000 000 cherries …" }
+        coinsPerCherryUnit: { type: integer, format: int64, description: "… become 93 220 coins in the agent's stock (rounded down)." }
+        minCherries: { type: integer, format: int64 }
+        stepCherries: { type: integer, format: int64 }
+        requestTtlMinutes: { type: integer }
+        payout: { $ref: '#/components/schemas/CherryPayoutRules' }
+    RechargeAgentMe:
+      type: object
+      required: [status, canApply, application, agent, employment, rules]
+      properties:
+        status: { $ref: '#/components/schemas/RechargeAgentStatus' }
+        canApply: { type: boolean, description: "NONE or REJECTED, and not an employee of an agent." }
+        application:
+          oneOf:
+            - $ref: '#/components/schemas/RechargeApplicationState'
+            - type: 'null'
+        agent:
+          oneOf:
+            - $ref: '#/components/schemas/RechargeAgentDashboard'
+            - type: 'null'
+        employment:
+          oneOf:
+            - $ref: '#/components/schemas/RechargeEmployment'
+            - type: 'null'
+        rules: { $ref: '#/components/schemas/RechargeRules' }
+    RechargeSaleRequest:
+      type: object
+      additionalProperties: false
+      required: [buyer, coins]
+      properties:
+        buyer: { type: string, minLength: 1, maxLength: 64, description: "A username (an `@` is ignored) or a user id." }
+        coins: { type: integer, format: int64, minimum: 1, maximum: 1000000000000 }
+    RechargeSale:
+      type: object
+      required: [id, coins, buyer, seller, agentCode, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        coins: { type: integer, format: int64, minimum: 1 }
+        buyer: { $ref: '#/components/schemas/UserSummary' }
+        seller: { $ref: '#/components/schemas/UserSummary' }
+        agentCode: { $ref: '#/components/schemas/RechargeAgentCode' }
+        stockAfter: { type: integer, format: int64, minimum: 0, description: "Only in the answer of `sellRechargeCoins` (the stock after this sale)." }
+        createdAt: { type: string, format: date-time }
+    RechargeSalePage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/RechargeSale' }
+        page: { $ref: '#/components/schemas/PageInfo' }
+    RechargeEmployeeHours:
+      type: object
+      additionalProperties: false
+      required: [timeZone, schedule]
+      properties:
+        timeZone: { type: string, maxLength: 64 }
+        schedule:
+          type: array
+          minItems: 1
+          maxItems: 28
+          items: { $ref: '#/components/schemas/WeeklySlot' }
+    RechargeEmployeeRequest:
+      allOf:
+        - $ref: '#/components/schemas/RechargeEmployeeHours'
+        - type: object
+          required: [username]
+          properties:
+            username: { type: string, maxLength: 64 }
+    RechargeEmployee:
+      type: object
+      required: [user, timeZone, schedule, onShiftNow, addedAt, sales]
+      properties:
+        user: { $ref: '#/components/schemas/UserSummary' }
+        timeZone: { type: string }
+        schedule:
+          type: array
+          items: { $ref: '#/components/schemas/WeeklySlot' }
+        onShiftNow: { type: boolean }
+        addedAt: { type: string, format: date-time }
+        sales: { $ref: '#/components/schemas/RechargeSalesStats' }
+    RechargeEmployeeList:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/RechargeEmployee' }
+    RechargeAgentListing:
+      type: object
+      required: [code, user, locations, paymentMethodTypes, availableNow]
+      properties:
+        code: { $ref: '#/components/schemas/RechargeAgentCode' }
+        user: { $ref: '#/components/schemas/UserSummary' }
+        locations:
+          type: array
+          items: { $ref: '#/components/schemas/RechargeLocation' }
+        paymentMethodTypes:
+          type: array
+          description: "The kinds of payment the agent accepts in the requested country (or all, for `getRechargeAgent`); never the details."
+          items: { $ref: '#/components/schemas/RechargePaymentMethodType' }
+        availableNow:
+          oneOf:
+            - $ref: '#/components/schemas/RechargeAvailableNow'
+            - type: 'null'
+    RechargeAgentPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/RechargeAgentListing' }
+        page: { $ref: '#/components/schemas/PageInfo' }
+    RechargeCherryRequestCreate:
+      type: object
+      additionalProperties: false
+      minProperties: 2
+      required: [cherries]
+      properties:
+        cherries: { type: integer, format: int64, minimum: 1, maximum: 1000000000000 }
+        agentCode: { type: string, maxLength: 16, description: "Sent by a host: the agent to sell to." }
+        host: { type: string, maxLength: 64, description: "Sent by an ACTIVE agent: the host (username) to buy from." }
+    RechargeCherryRequest:
+      type: object
+      required: [id, status, cherries, coins, payoutMinor, currency, agentCode, agent, host, initiatedBy, createdAt, expiresAt, decidedAt]
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [PENDING, CONFIRMED, DECLINED, CANCELLED, EXPIRED] }
+        cherries: { type: integer, format: int64 }
+        coins: { type: integer, format: int64, description: "What the agent's stock receives on confirmation." }
+        payoutMinor: { type: integer, format: int64, description: "What the agent pays the host outside the app (minor units of `currency`)." }
+        currency: { type: string }
+        agentCode: { $ref: '#/components/schemas/RechargeAgentCode' }
+        agent: { $ref: '#/components/schemas/UserSummary' }
+        host: { $ref: '#/components/schemas/UserSummary' }
+        initiatedBy: { type: string, enum: [HOST, AGENT] }
+        createdAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+        decidedAt: { type: [string, 'null'], format: date-time }
+    RechargeCherryRequestPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/RechargeCherryRequest' }
         page: { $ref: '#/components/schemas/PageInfo' }
 security:
   - bearerAuth: []
