@@ -59,7 +59,7 @@ export interface CherryWalletDto {
   lockedTaskCherries: number;
   /** v1.53-social (D184): what a withdrawal may take now — the balance less the locked task cherries. */
   withdrawableCherries: number;
-  /** v1.53-social (D184): the unlock rule for task cherries (placeholder, pending the owner). */
+  /** v1.53-social (D184): the unlock rule for task cherries (owner: $50 of lifetime gift cherries). */
   taskUnlock: { unlocked: boolean; giftValueMinor: number; thresholdMinor: number };
   payout: CherryPayoutRulesDto;
   pendingWithdrawal: CherryWithdrawalDto | null;

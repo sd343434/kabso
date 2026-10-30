@@ -61,18 +61,18 @@ ProgramTask _task(
   target: target,
   progress: progress,
   // D184: task rewards are cherries (the D166 5 coins ×10).
-  rewardCherries: 50,
+  rewardCherries: 15000,
   completed: progress >= target,
   claimed: claimed,
   claimedCoins: claimed ? 0 : null,
-  claimedCherries: claimed ? 50 : null,
+  claimedCherries: claimed ? 15000 : null,
 );
 
 MyTasks _tasks({bool checkedIn = false, List<ProgramTask>? tasks}) => MyTasks(
   dailyCapCoins: 50,
   dailyEarnedCoins: checkedIn ? 5 : 0,
-  dailyCapCherries: 500,
-  dailyEarnedCherries: 50,
+  dailyCapCherries: 150000,
+  dailyEarnedCherries: 15000,
   checkIn: CheckInState(
     checkedInToday: checkedIn,
     streak: 3,
@@ -197,7 +197,7 @@ class _FakePrograms implements ProgramsRepository {
         statusCode: 409,
       );
     }
-    return (paidCoins: 0, balanceCoins: 1250, paidCherries: 50);
+    return (paidCoins: 0, balanceCoins: 1250, paidCherries: 15000);
   }
 
   @override
@@ -459,8 +459,12 @@ void main() {
       await tester.tap(find.byKey(TaskCenterScreen.actionKey('FOLLOW_USERS')));
       await tester.pumpAndSettle();
       expect(programs.claims, ['FOLLOW_USERS']);
-      // D184: the claim feedback says cherries, with the cherry and «+50».
-      expect(find.text(_en.tasksRewardReceivedCherries('50')), findsOneWidget);
+      // D184: the claim feedback says cherries, with the cherry and
+      // «+15,000» (thousands separators).
+      expect(
+        find.text(_en.tasksRewardReceivedCherries('15,000')),
+        findsOneWidget,
+      );
       expect(
         find.descendant(
           of: find.byKey(TaskCenterScreen.claimFeedbackKey),
@@ -471,7 +475,7 @@ void main() {
       expect(
         find.descendant(
           of: find.byKey(TaskCenterScreen.claimFeedbackKey),
-          matching: find.text('+50'),
+          matching: find.text('+15,000'),
         ),
         findsOneWidget,
       );
@@ -553,7 +557,7 @@ void main() {
                 name: 'LIVE_CHAT',
                 target: 10,
                 progress: 10,
-                rewardCherries: 50,
+                rewardCherries: 15000,
                 completed: true,
                 claimed: true,
                 claimedCoins: 5,
@@ -571,7 +575,7 @@ void main() {
           findsOneWidget,
         );
         expect(
-          find.descendant(of: amount, matching: find.text('+50')),
+          find.descendant(of: amount, matching: find.text('+15,000')),
           findsOneWidget,
         );
       }
@@ -591,7 +595,7 @@ void main() {
       );
       expect(
         tester.widget<Text>(find.byKey(TaskCenterScreen.capKey)).data,
-        _en.tasksDailyCap('50', '500'),
+        _en.tasksDailyCap('15,000', '150,000'),
       );
     });
 

@@ -65,8 +65,9 @@ describe('D166 check-in rules', () => {
         period: m[2],
         metric: m[3],
         target: Number(m[4]),
-        // D184: seeded in coins; migration 20261231110000_task_cherries made them cherries (×10).
-        rewardCherries: Number(m[5]) * 10,
+        // D184: seeded in coins; migrations 20261231110000_task_cherries (×10) and
+        // 20261231120000_task_rewards_raise (×300) made them cherries.
+        rewardCherries: Number(m[5]) * 3000,
         audience: m[6],
         nameAr: m[7],
         nameEn: m[8],
@@ -131,9 +132,9 @@ describe('D166 config', () => {
   it('has the owner-approved defaults', () => {
     const { programs } = loadConfig(base);
     expect(programs.taskDailyCapCoins).toBe(50);
-    // D184: task rewards are cherries — the old 50-coin cap at 1 coin = 10 cherries.
-    expect(programs.taskDailyCapCherries).toBe(500);
-    // D184: task cherries unlock for withdrawal at $50 of gift cherries (placeholder rule).
+    // D184: task rewards are cherries — owner: ≈ $5 a month at most, 150 000 a day.
+    expect(programs.taskDailyCapCherries).toBe(150_000);
+    // D184: task cherries unlock for withdrawal at $50 of lifetime gift cherries (owner rule).
     expect(loadConfig(base).economy.taskCherriesUnlockGiftMinor).toBe(5000);
     expect(programs.checkInCoins).toBe(5);
     expect(programs.checkInStreakBonusCoins).toBe(20);

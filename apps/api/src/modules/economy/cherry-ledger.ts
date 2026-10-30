@@ -377,7 +377,7 @@ export function taskRewardReference(taskCode: string, periodStart: string): stri
 
 /**
  * v1.53-social (D184, §10.46.1): the person's task-cherry lock now — the sums of their `TASK_REWARD` rows
- * and their gift cherries (GIFT_RECEIVED + GIFT_REVERSAL) through `taskCherryLock` (the placeholder rule).
+ * and their gift cherries (GIFT_RECEIVED + GIFT_REVERSAL) through `taskCherryLock` (the owner's $50 rule).
  */
 export async function taskCherryLockIn(
   db: Pick<Tx, '$queryRaw'>,

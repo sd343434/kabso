@@ -42,8 +42,8 @@ const HOUR_MS = 3_600_000;
 const DAY_MS = 24 * HOUR_MS;
 /** The check-in's coin cap here. */
 const CAP = 27;
-/** D184: the daily tasks' cherry cap here (17 coins' worth). */
-const CHERRY_CAP = 170;
+/** D184: the daily tasks' cherry cap here (17 old coins × 3 000). */
+const CHERRY_CAP = 51_000;
 
 /**
  * A fixed-offset zone where it is about noon now, so "today" never ends in the middle of a test
@@ -250,18 +250,24 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
     expect(results.map((r) => r.status).sort()).toEqual([200, 200, 201]);
     const first = results.find((r) => r.status === 201)!;
     expectContract(first, 'claimMyTask');
-    // D184: the D166 5 coins are 50 cherries; no coins.
+    // D184: the D166 5 coins are 15 000 cherries (×10, then ×300 by the owner); no coins.
     expect(first.body).toMatchObject({
       paidCoins: 0,
       balanceCoins: 0,
-      paidCherries: 50,
-      balanceCherries: 50,
-      task: { code: 'FOLLOW_USERS', claimed: true, rewardCherries: 50, claimedCherries: 50, claimedCoins: 0 },
+      paidCherries: 15_000,
+      balanceCherries: 15_000,
+      task: {
+        code: 'FOLLOW_USERS',
+        claimed: true,
+        rewardCherries: 15_000,
+        claimedCherries: 15_000,
+        claimedCoins: 0,
+      },
     });
     const again = await claim(me, 'FOLLOW_USERS');
     expect(again.status).toBe(200);
     expectContract(again, 'claimMyTask');
-    expect(again.body).toMatchObject({ paidCherries: 50, balanceCherries: 50, paidCoins: 0 });
+    expect(again.body).toMatchObject({ paidCherries: 15_000, balanceCherries: 15_000, paidCoins: 0 });
     expect(await taskRewards(me)).toHaveLength(1);
     expect(await ledger(me, 'TASK_REWARD')).toHaveLength(0);
 
@@ -270,7 +276,7 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
     expect(history.status).toBe(200);
     expectContract(history, 'listMyCherryLedger');
     expect(history.body.data).toEqual([
-      expect.objectContaining({ reason: 'TASK_REWARD', delta: 50, balanceAfter: 50, gift: null }),
+      expect.objectContaining({ reason: 'TASK_REWARD', delta: 15_000, balanceAfter: 15_000, gift: null }),
     ]);
     const coins = await ctx.http.get('/api/v1/wallet/me/ledger').set(auth(me));
     expect(coins.status).toBe(200);
@@ -333,14 +339,14 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
     expect(all.dailyEarnedCoins).toBe(25);
     expect(all.dailyEarnedCherries).toBe(0);
 
-    // D184: the check-in's coins no longer count toward the task cap. Cherry cap 170: the gift task pays
-    // its 150, the next claim the 20 left (of 50), then 409.
+    // D184: the check-in's coins no longer count toward the task cap. Cherry cap 51 000: the gift task
+    // pays its 45 000, the next claim the 6 000 left (of 15 000), then 409.
     const full = await claim(me, 'SEND_GIFTS');
     expect(full.status).toBe(201);
-    expect(full.body).toMatchObject({ paidCherries: 150, balanceCoins: 925 });
+    expect(full.body).toMatchObject({ paidCherries: 45_000, balanceCoins: 925 });
     const capped = await claim(me, 'FOLLOW_USERS');
     expect(capped.status).toBe(201);
-    expect(capped.body).toMatchObject({ paidCherries: 20, balanceCherries: 170 });
+    expect(capped.body).toMatchObject({ paidCherries: 6_000, balanceCherries: 51_000 });
     const refused = await claim(me, 'WATCH_LIVE');
     expect(refused.status).toBe(409);
     expect(refused.body.error.code).toBe('TASK_DAILY_CAP_REACHED');

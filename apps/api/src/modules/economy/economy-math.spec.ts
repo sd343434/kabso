@@ -100,7 +100,7 @@ describe('D179 cherry arithmetic', () => {
   });
 });
 
-describe('task cherries locked for withdrawal (D184, placeholder rule)', () => {
+describe('task cherries locked for withdrawal (D184, owner rule: $50 of lifetime gift cherries)', () => {
   // Owner's rate: 1 000 000 cherries = $1.10; threshold $50.
   const rule = (task: bigint, gift: bigint, threshold = 5000) =>
     taskCherryLock(task, gift, threshold, 1_000_000, 110);

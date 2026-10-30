@@ -5,7 +5,7 @@
  * host tasks for hosts, progress from stored data only, one payout per task and day within the daily
  * cap, a new list each day — plus the Event Center's calendar line and tone and the Task Center's
  * banner placement. End to end against PostgreSQL + Redis. v1.53-social (D184, owner): the rewards are
- * cherries at the same value (×10), credited to the cherry ledger (`TASK_REWARD`), under the daily
+ * cherries (the coins ×10, then ×300 by the owner: ×3 000), credited to the cherry ledger (`TASK_REWARD`), under the daily
  * cherry cap (the check-in's coins no longer share it).
  */
 import { randomUUID } from 'node:crypto';
@@ -75,8 +75,8 @@ interface MyTasks {
 
 const HOUR_MS = 3_600_000;
 const DAY_MS = 24 * HOUR_MS;
-/** The daily cherry cap here (D184; 15 coins' worth). */
-const CAP = 150;
+/** The daily cherry cap here (D184; 15 old coins × 3 000). */
+const CAP = 45_000;
 const template = new Map(DEFAULT_POOL_TASKS.map((t) => [t.code, t]));
 
 /** A fixed-offset zone where it is about noon now, so "today" never ends in the middle of a test. */
@@ -328,9 +328,9 @@ describe('D176 daily task pool', { timeout: 240_000 }, () => {
     try {
       const a = (await tasks(low)).tasks;
       const b = (await tasks(high)).tasks;
-      // D184: the D176 coins ×10 (2 → 20, 5 → 50 cherries).
-      expect(a).toEqual([expect.objectContaining({ code: 'P_FOLLOW', target: 1, rewardCherries: 20 })]);
-      expect(b).toEqual([expect.objectContaining({ code: 'P_FOLLOW', target: 10, rewardCherries: 50 })]);
+      // D184: the D176 coins ×3 000 (2 → 6 000, 5 → 15 000 cherries).
+      expect(a).toEqual([expect.objectContaining({ code: 'P_FOLLOW', target: 1, rewardCherries: 6_000 })]);
+      expect(b).toEqual([expect.objectContaining({ code: 'P_FOLLOW', target: 10, rewardCherries: 15_000 })]);
       // A level reached later in the day does not change today's list (it applies tomorrow).
       await setLevels(low, 90, 0);
       expect((await tasks(low)).tasks).toEqual(a);
@@ -448,10 +448,10 @@ describe('D176 daily task pool', { timeout: 240_000 }, () => {
         });
         paid += t.rewardCherries;
       }
-      expect(paid).toBe((2 + 4 + 3 + 2 + 2 + 2) * 10);
+      expect(paid).toBe((2 + 4 + 3 + 2 + 2 + 2) * 3_000);
       const again = await claim(me, 'P_POST');
       expect(again.status).toBe(200);
-      expect(again.body).toMatchObject({ paidCherries: 40, paidCoins: 0, balanceCherries: paid });
+      expect(again.body).toMatchObject({ paidCherries: 12_000, paidCoins: 0, balanceCherries: paid });
       // The cherry ledger (one TASK_REWARD row per task and day), no coins.
       const ledger = await ctx.prisma.cherryLedgerEntry.findMany({
         where: { userId: me.id, reason: 'TASK_REWARD' },
@@ -531,8 +531,9 @@ describe('D176 daily task pool', { timeout: 240_000 }, () => {
       for (const t of now.tasks) expect(t, t.code).toMatchObject({ completed: true, progress: t.target });
       expect(now.tasks.find((t) => t.code === 'P_WATCH_MINUTES')).toMatchObject({ progress: 5, target: 5 });
 
-      // The cherry cap (150 here, D184): the check-in pays its coins and no longer counts; then
-      // 40 + 30 + 30 + 20 = 120, the 50-cherry gift task pays the 30 left, and the last task is refused
+      // The cherry cap (45 000 here, D184): the check-in pays its coins and no longer counts; then
+      // 12 000 + 9 000 + 9 000 + 6 000 = 36 000, the 15 000-cherry gift task pays the 9 000 left, and the
+      // last task is refused
       // with TASK_DAILY_CAP_REACHED.
       const checkIn = await ctx.http.post('/api/v1/me/check-in').set(auth(me));
       expect(checkIn.status).toBe(201);
@@ -543,8 +544,8 @@ describe('D176 daily task pool', { timeout: 240_000 }, () => {
       const capped = await claim(me, 'P_SEND_GIFT');
       expect(capped.status).toBe(201);
       expect(capped.body).toMatchObject({
-        paidCherries: 30,
-        task: { rewardCherries: 50, claimedCherries: 30 },
+        paidCherries: 9_000,
+        task: { rewardCherries: 15_000, claimedCherries: 9_000 },
       });
       const refused = await claim(me, 'P_NEW_HOST');
       expect(refused.status).toBe(409);

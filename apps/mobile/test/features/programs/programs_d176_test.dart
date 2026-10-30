@@ -49,17 +49,17 @@ ProgramTask _task(
   name: code,
   target: target,
   progress: progress,
-  rewardCherries: 60,
+  rewardCherries: 18000,
   completed: progress >= target,
   claimed: claimed,
   claimedCoins: claimed ? 0 : null,
-  claimedCherries: claimed ? 60 : null,
+  claimedCherries: claimed ? 18000 : null,
 );
 
 MyTasks _tasks(List<ProgramTask> tasks) => MyTasks(
   dailyCapCoins: 50,
   dailyEarnedCoins: 0,
-  dailyCapCherries: 500,
+  dailyCapCherries: 150000,
   band: (band: 2, level: 12, name: 'Active', host: false),
   checkIn: CheckInState(
     checkedInToday: true,
@@ -126,7 +126,7 @@ class _Programs implements ProgramsRepository {
   @override
   Future<ProgramPayout> claim(String code) async {
     claims.add(code);
-    return (paidCoins: 0, balanceCoins: 100, paidCherries: 60);
+    return (paidCoins: 0, balanceCoins: 100, paidCherries: 18000);
   }
 
   @override
@@ -233,8 +233,8 @@ void main() {
       expect(_label(tester, 'P_AUDIO_ROOMS'), _en.tasksActionGo);
       expect(_label(tester, 'P_POST_COMMENTS'), _en.tasksActionClaim);
       expect(_label(tester, 'P_LIVE_TAPS'), _en.tasksActionDone);
-      // D184: «+60» with the cherry on every row (6 coins → 60 cherries).
-      expect(find.text('+60'), findsWidgets);
+      // D184: «+18,000» with the cherry on every row (6 coins ×3 000).
+      expect(find.text('+18,000'), findsWidgets);
       expect(
         find.descendant(
           of: find.byKey(TaskCenterScreen.rewardAmountKey('P_AUDIO_ROOMS')),

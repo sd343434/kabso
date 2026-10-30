@@ -543,7 +543,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
-| v1.53-social (draft) | 2026-10-30 | **D184 (owner: the Task Center shows only the active tasks — «مهام الماس» removed — and its rewards are cherries at the same value, 1 coin = 10 cherries; follow-up: task cherries not withdrawable until an earnings condition, pending):** `ProgramTask.rewardCherries`, `ProgramTask.claimedCherries`, `MyTasks.dailyCapCherries`, `MyTasks.dailyEarnedCherries`, `TaskClaimResult.paidCherries`, `TaskClaimResult.balanceCherries` (all required in responses); `ProgramTask.rewardCoins` deprecated (0, minimum relaxed to 0); `CherryLedgerReason.TASK_REWARD`; `CherryWallet.taskRewardTotal`, `lockedTaskCherries`, `withdrawableCherries`, `taskUnlock` (required); `requestCherryWithdrawal` refuses more than `withdrawableCherries` (`INSUFFICIENT_CHERRIES`); config `TASK_DAILY_CAP_CHERRIES` (500), `TASK_CHERRIES_UNLOCK_GIFT_MINOR` (5000, placeholder); `TASK_DAILY_CAP_COINS` now caps the check-in's coins only; migrations `20261231100000_task_cherries_enums`, `20261231110000_task_cherries` (stored task rewards ×10, `task_claims.reward_amount` + `reward_currency`, earlier claims COINS). §4, §10.41, §10.41.3, §10.46.1. | **Behaviour change, additive on the wire** (new required response fields strict clients add in the same change set; older apps show «+0» coins on tasks — the app ships with this change). Claimed coin rewards and their ledger rows are untouched. |
+| v1.53-social (draft) | 2026-10-30 | **D184 (owner: the Task Center shows only the active tasks — «مهام الماس» removed — and its rewards are cherries at the same value, 1 coin = 10 cherries; follow-ups: task cherries not withdrawable until lifetime gift cherries received are worth $50 — confirmed; rewards raised to ≈ $5 a month):** `ProgramTask.rewardCherries`, `ProgramTask.claimedCherries`, `MyTasks.dailyCapCherries`, `MyTasks.dailyEarnedCherries`, `TaskClaimResult.paidCherries`, `TaskClaimResult.balanceCherries` (all required in responses); `ProgramTask.rewardCoins` deprecated (0, minimum relaxed to 0); `CherryLedgerReason.TASK_REWARD`; `CherryWallet.taskRewardTotal`, `lockedTaskCherries`, `withdrawableCherries`, `taskUnlock` (required); `requestCherryWithdrawal` refuses more than `withdrawableCherries` (`INSUFFICIENT_CHERRIES`); config `TASK_DAILY_CAP_CHERRIES` (150 000), `TASK_CHERRIES_UNLOCK_GIFT_MINOR` (5000 = $50); `TASK_DAILY_CAP_COINS` now caps the check-in's coins only; migrations `20261231100000_task_cherries_enums`, `20261231110000_task_cherries` (stored task rewards ×10, `task_claims.reward_amount` + `reward_currency`, earlier claims COINS), `20261231120000_task_rewards_raise` (stored task rewards ×300). §4, §10.41, §10.41.3, §10.46.1. | **Behaviour change, additive on the wire** (new required response fields strict clients add in the same change set; older apps show «+0» coins on tasks — the app ships with this change). Claimed coin rewards and their ledger rows are untouched. |
 | v1.52-social (draft) | 2026-10-30 | **D179 (owner: the Kabso economy, phase 1 — «الكرز» as a real balance, host agencies, commissions, withdrawals; CP-027):** tag `wallet`: `getMyCherries` (`GET /wallet/me/cherries`, `CherryWallet`, `CherryPayoutRules`), `listMyCherryLedger` (`GET /wallet/me/cherries/ledger`, `CherryLedgerPage`, `CherryLedgerEntry`, `CherryLedgerReason`), `requestCherryWithdrawal` / `listMyCherryWithdrawals` (`POST` / `GET /wallet/me/cherries/withdrawals`, `Idempotency-Key`, `CherryWithdrawalRequest`, `CherryWithdrawal`, `CherryWithdrawalPage`); tag `agency`: `getAgencyByCode` (`GET /agencies/{inviteCode}`, `AgencyPreview`), `getMyAgency` (`GET /me/agency`, `MyAgency`, `AgencyMembership`, `OwnAgency`, `AgencySubAgency`, `AgencyRank`), `joinAgency`, `leaveAgency`, `complainAboutAgency` (`POST /me/agency/join\|leave\|complaints`, `AgencyComplaint`), `listMyAgencyHosts` (`GET /me/agency/hosts`, `AgencyHostPage`); codes `AGENCY_ALREADY_MEMBER`, `AGENCY_JOIN_NOT_ALLOWED`, `AGENCY_LEAVE_WINDOW_CLOSED`, `INSUFFICIENT_CHERRIES`, `WITHDRAWAL_PENDING` (409); `getMyEarnings` / `listMyEarnings` deprecated; migration `20261231090000_cherry_economy` (with the one-time backfill); CLI `economy-admin`. §4, §8, §10.40, §10.46. | **Additive** (new operations, schemas and codes; the deprecated earnings reads keep working). Behaviour: every gift send now also writes cherry ledger rows in its transaction. |
 | v1.51-social (draft) | 2026-10-30 | **D177 (owner: «هذه صفحة المحفظة، لكن نحن عندنا عملة ذهبية وكرزات»):** `listHomeBanners` takes `placement=wallet` (the wallet page's promo slot; 3:1 like `home`); `banner-admin add --placement wallet`; migration `20261220090000_wallet_banners` widens CHECK `home_banners_placement_values` to `WALLET`; §10.26. | **Additive** (a new enum value of a query parameter; existing values unchanged). |
 | v1.50-social (draft) | 2026-10-30 | **D176 (owner: the Task Center and Event Center «مثل الصور 100%» with Kabso's identity; «أريد أن تصنع الكثير من المهام اليومية، ترسل لكل شخص بناءً على مستواه»; rewards «العملات فقط»):** the daily task pool — `ProgramTask.pooled`, `ProgramTask.metric` gains `WATCH_MINUTES`, `AUDIO_ROOMS`, `LIVE_TAPS`, `NEW_HOST_GIFTS`, `POSTS`, `REELS`, `STORIES`, `POST_COMMENTS`, `DM_FRIENDS`, `DM_VOICE_MESSAGES`, `HOST_GIFTS_RECEIVED`, `HOST_GUESTS`; `MyTasks.band`; a pool task not assigned to the caller today → 404 on claim; `EventSummary.summary`, `EventSummary.tone`; `listHomeBanners` `placement=tasks`; migration `20261230090000_daily_task_pool`; CLIs `task-admin bands|band`, `set --targets --rewards --group`, `event-admin style`. §10.41.1, §10.41.2. | **Additive** (new fields and enum values; old clients ignore them; a client shows an unknown metric with a generic icon). |
@@ -2731,12 +2731,19 @@ has no tab bar there) and the active tasks («المهام النشطة», «م�
   (owner: rewards may grow a lot). Defaults: the D166 fixed tasks 50 / 50 / 50 / 150, host weekly tasks
   1 000 / 1 000; the pool's §10.41.1 coins ×10. Owner-changeable with `task-admin set --reward/--rewards`
   (in cherries).
+- **Raised rewards (owner, same day):** at most about **$5 a month** from tasks — at $1.10 per 1 000 000
+  cherries ≈ 4 500 000 cherries a month ≈ **150 000 a day**. Migration `20261231120000_task_rewards_raise`
+  multiplies every stored task reward (fixed, band and today's offers) by **300** from the values above, so
+  a band's full daily list lands near the cap: the D166 fixed tasks 15 000 / 15 000 / 15 000 / 45 000, host
+  weekly tasks 300 000 / 300 000 (outside the daily cap), the pool's §10.41.1 coins ×3 000 (e.g. 3 coins →
+  9 000 cherries). Claims already made keep what they paid.
 - **Credit:** a claim writes `task_claims` (`reward_amount`, `reward_currency` `CHERRIES`) and, in the same
   transaction, a `cherry_ledger` row `TASK_REWARD` (a credit; reference `<code>@<period start>`, e.g.
   `P_FOLLOW@2026-10-30`, so the ledger itself allows one per person, task and day or ISO week) with the
   balance. The row appears in the Cherries tab's history (`listMyCherryLedger`, `gift: null`). Claim
   order and statuses as §10.41.
-- **Cap:** daily tasks share `TASK_DAILY_CAP_CHERRIES` = 500 (the old 50 coins); a claim pays at most what
+- **Cap:** daily tasks share `TASK_DAILY_CAP_CHERRIES` = 150 000 (owner: ≈ $5 a month; was 500, the old 50
+  coins); the app shows it with thousands separators («مكافآت اليوم: x من 150,000 كرزة»); a claim pays at most what
   is left, then 409 `TASK_DAILY_CAP_REACHED`. Weekly host tasks stay outside it.
 - **Check-in («مكافآت تسجيل الدخول»):** unchanged — it pays **coins** (`wallet_ledger` `CHECK_IN_REWARD`,
   5 a day, +20 every 7th day); `TASK_DAILY_CAP_COINS` (50) now counts only coins (the check-in and daily
@@ -3010,22 +3017,21 @@ is server config with the owner's value as default; the owner changes it without
   conversion *(owner: 93 220 coins per 1 000 000 cherries, two-sided confirmation, daily cap)*, coin selling
   prices and website payments (B5), an admin UI (CLI only), automatic payouts.
 
-#### 10.46.1 Task cherries locked for withdrawal *(v1.53-social, DRAFT — D184; the rule is a placeholder)*
+#### 10.46.1 Task cherries locked for withdrawal *(v1.53-social, DRAFT — D184)*
 
-Owner follow-up (2026-10-30, via the coordinator; **decision partly open**): task cherries (§10.41.3) must
-not be withdrawable until a condition the owner is still defining (likely "has earned at least $50 from gift
-cherries", lifetime or monthly), and the reward size may change. Built so the rule is one function and one
-setting:
+Owner decision (2026-10-30, via the coordinator, **confirmed**): task cherries (§10.41.3) become withdrawable
+once the person's lifetime received support — the gift cherries received since registration — is worth at
+least **$50**. The rule is one function and one setting:
 
 - **Locked amount:** while the rule has not passed, every `TASK_REWARD` cherry ever credited is locked
   (`lockedTaskCherries` = their sum); once it passes, 0. `withdrawableCherries` = `cherries` −
   `lockedTaskCherries`, never below 0. Task cherries are not tracked as a separate balance: the ledger's
   `TASK_REWARD` rows are the record.
-- **The rule (placeholder, `taskCherryLock` in `economy-math.ts`):** lifetime gift cherries (`GIFT_RECEIVED`
-  minus `GIFT_REVERSAL`) worth at least `TASK_CHERRIES_UNLOCK_GIFT_MINOR` (default 5000 = $50) minor units
-  of `CHERRY_PAYOUT_CURRENCY` at `CHERRY_PAYOUT_RATE`; `0` = never locked. A reversal can lock them again.
-  Commissions do not count. When the owner decides (e.g. monthly instead of lifetime), only this function
-  and setting change; the wire stays (`taskUnlock.unlocked`, `giftValueMinor`, `thresholdMinor`).
+- **The rule (`taskCherryLock` in `economy-math.ts`):** lifetime gift cherries received (`GIFT_RECEIVED`;
+  an admin reversal, `GIFT_REVERSAL`, is subtracted) worth at least `TASK_CHERRIES_UNLOCK_GIFT_MINOR`
+  (default 5000 = $50) minor units of `CHERRY_PAYOUT_CURRENCY` at `CHERRY_PAYOUT_RATE` (owner rate:
+  ≈ 45 454 546 cherries); `0` = never locked. A reversal can lock them again. Commissions and task cherries do
+  not count. The wire: `taskUnlock.unlocked`, `giftValueMinor`, `thresholdMinor`.
 - **Withdrawal:** `requestCherryWithdrawal` holds only from the withdrawable part: the conditional update
   is `cherries − locked ≥ held` (the lock computed in the same transaction); otherwise 409
   `INSUFFICIENT_CHERRIES`, nothing held.

@@ -206,7 +206,7 @@ export interface AppConfig {
     readonly payoutDays: number;
     /**
      * v1.53-social (D184): task cherries unlock for withdrawal once lifetime gift cherries are worth this
-     * (minor units; 0 = never locked). Placeholder rule pending the owner (§10.46.1).
+     * (minor units; 0 = never locked). Owner rule: $50 of lifetime gift cherries (§10.46.1).
      */
     readonly taskCherriesUnlockGiftMinor: number;
   };

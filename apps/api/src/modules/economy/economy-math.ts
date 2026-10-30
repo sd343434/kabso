@@ -166,10 +166,9 @@ export interface TaskCherryLock {
 }
 
 /**
- * The unlock rule for task-reward cherries — PLACEHOLDER pending the owner's decision (likely "$50 earned
- * from gift cherries", lifetime or monthly): lifetime gift cherries worth at least `thresholdMinor` at the
- * payout rate unlock every task cherry; until then all task cherries ever credited stay locked. One place
- * to change when the owner decides.
+ * The unlock rule for task-reward cherries (owner, confirmed 2026-10-30): lifetime gift cherries received
+ * (reversals subtracted) worth at least `thresholdMinor` ($50) at the payout rate unlock every task cherry;
+ * until then all task cherries ever credited stay locked.
  */
 export function taskCherryLock(
   taskCherries: bigint,

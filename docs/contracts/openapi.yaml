@@ -271,12 +271,12 @@ info:
     `AGENCY_JOIN_NOT_ALLOWED`, `AGENCY_LEAVE_WINDOW_CLOSED`, `INSUFFICIENT_CHERRIES`,
     `WITHDRAWAL_PENDING` (CONVENTIONS §10.46). `getMyEarnings` / `listMyEarnings` (D164) stay for older
     apps but are deprecated: the cherry ledger is the source of truth.
-    **D184 (DRAFT v1.53-social)**: the Task Center's rewards are cherries — the old coins ×10 (1 coin =
-    10 cherries), credited to the cherry ledger as `TASK_REWARD` under a daily cherry cap
+    **D184 (DRAFT v1.53-social)**: the Task Center's rewards are cherries (the old coins ×10, then raised
+    ×300: ≈ $5 a month at most), credited to the cherry ledger as `TASK_REWARD` under a daily cherry cap
     (`ProgramTask.rewardCherries` / `claimedCherries`, `MyTasks.dailyCapCherries` / `dailyEarnedCherries`,
     `TaskClaimResult.paidCherries` / `balanceCherries`; `rewardCoins` deprecated, 0); the check-in keeps
-    its coins. Task cherries are not withdrawable until an unlock rule passes (placeholder pending the
-    owner): `CherryWallet.taskRewardTotal`, `lockedTaskCherries`, `withdrawableCherries`, `taskUnlock`
+    its coins. Task cherries are not withdrawable until the person's lifetime gift cherries received are
+    worth $50 (owner): `CherryWallet.taskRewardTotal`, `lockedTaskCherries`, `withdrawableCherries`, `taskUnlock`
     (CONVENTIONS §10.41.3, §10.46.1).
 servers:
   - url: http://localhost:3000
@@ -7279,7 +7279,7 @@ paths:
         transaction. One payout per person, task and period, also for concurrent claims.
         *(v1.53-social, D184, §10.41.3)* The reward is cherries: a cherry ledger `TASK_REWARD` row
         (reference `<code>@<period start>`, once per person, task and period) within the daily cherry
-        cap (`TASK_DAILY_CAP_CHERRIES`, 500); a claim made in coins before keeps its coins (`paidCoins`
+        cap (`TASK_DAILY_CAP_CHERRIES`, 150 000); a claim made in coins before keeps its coins (`paidCoins`
         on the 200). Checks: 401.
       parameters:
         - name: code
@@ -11613,7 +11613,7 @@ components:
         rewardCherries:
           type: integer
           minimum: 1
-          description: "v1.53-social (D184, CONVENTIONS §10.41.3): the cherries the task pays (the old coins ×10)."
+          description: "v1.53-social (D184, CONVENTIONS §10.41.3): the cherries the task pays (owner-set; e.g. 9 000)."
         completed: { type: boolean }
         claimed: { type: boolean }
         claimedCoins:
@@ -11645,7 +11645,7 @@ components:
         weekResetsAt: { type: string, format: date-time }
         dailyCapCoins: { type: integer, minimum: 1, description: "Since v1.53-social (D184): the check-in's coin cap (`TASK_DAILY_CAP_COINS`)." }
         dailyEarnedCoins: { type: integer, minimum: 0, description: "Coins today from the check-in (and daily task claims made in coins before v1.53-social)." }
-        dailyCapCherries: { type: integer, minimum: 1, description: "v1.53-social (D184): the daily tasks' cherry cap (`TASK_DAILY_CAP_CHERRIES`, 500)." }
+        dailyCapCherries: { type: integer, minimum: 1, description: "v1.53-social (D184): the daily tasks' cherry cap (`TASK_DAILY_CAP_CHERRIES`, 150 000)." }
         dailyEarnedCherries: { type: integer, minimum: 0, description: "v1.53-social (D184): cherries from daily tasks today." }
         band:
           type: object
@@ -11898,9 +11898,9 @@ components:
         taskUnlock:
           type: object
           description: |
-            v1.53-social (D184, §10.46.1). The rule that unlocks task cherries — a PLACEHOLDER pending the
-            owner: lifetime gift cherries (reversals subtracted) worth at least `thresholdMinor` at the payout
-            rate. The rule may change without a contract change; clients show `unlocked` and the values.
+            v1.53-social (D184, §10.46.1). The rule that unlocks task cherries (owner, confirmed): lifetime gift
+            cherries received (reversals subtracted) worth at least `thresholdMinor` ($50) at the payout rate.
+            Clients show `unlocked` and the values.
           required: [unlocked, giftValueMinor, thresholdMinor]
           properties:
             unlocked: { type: boolean }
