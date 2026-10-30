@@ -8113,6 +8113,73 @@ class AppLocalizationsEn extends AppLocalizations {
   String get creatorOpenProfile => 'My posts and reels';
 
   @override
+  String get creatorTabLive => 'Live';
+
+  @override
+  String get creatorTabAgency => 'Agency';
+
+  @override
+  String get creatorAgencySoonTitle => 'Agencies are coming soon';
+
+  @override
+  String get creatorAgencySoonBody =>
+      'Kabso Live has no host agencies yet. They will appear here when they launch.';
+
+  @override
+  String creatorMonthData(String month) {
+    return '$month data';
+  }
+
+  @override
+  String get creatorLiveData => 'Live Data';
+
+  @override
+  String get creatorLiveMinutes => 'Live minutes';
+
+  @override
+  String get creatorNewFans => 'New followers';
+
+  @override
+  String get creatorNewEarnings => 'New earnings';
+
+  @override
+  String get creatorServices => 'Live Services';
+
+  @override
+  String get creatorSvcPreview => 'Live Preview';
+
+  @override
+  String get creatorSvcCover => 'Cover Adjustment';
+
+  @override
+  String get creatorSvcEvents => 'Check my events';
+
+  @override
+  String get creatorSvcHostLevel => 'Host level';
+
+  @override
+  String get creatorSvcViolations => 'Account Violations';
+
+  @override
+  String get creatorSvcAcademy => 'Host Academy';
+
+  @override
+  String get creatorSvcSupport => 'Customer Services';
+
+  @override
+  String get creatorSvcIdentity => 'Real name authentication';
+
+  @override
+  String get creatorSvcFans => 'Fan Growth';
+
+  @override
+  String get creatorTrafficHint =>
+      'Buy a traffic card from Room Tools during your live.';
+
+  @override
+  String get creatorGoLive => 'Go Live';
+
+  @override
   String get creatorLoadError => 'Couldn\'t load your statistics';
 
   @override

@@ -22,6 +22,7 @@ import 'package:kabso_live/features/cp/presentation/cp_space_screen.dart';
 import 'package:kabso_live/features/create/create_screen.dart';
 import 'package:kabso_live/features/create/new_reel_screen.dart';
 import 'package:kabso_live/features/creator/presentation/creator_center_screen.dart';
+import 'package:kabso_live/features/creator/presentation/creator_stats_screen.dart';
 import 'package:kabso_live/features/debug/component_gallery_screen.dart';
 import 'package:kabso_live/features/debug/conversations_preview_screen.dart';
 import 'package:kabso_live/features/debug/demo_data.dart';
@@ -341,6 +342,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.creatorCenter,
         builder: (_, _) => const CreatorCenterScreen(),
+      ),
+      // D172: D164's detailed statistics, opened from the Creator Center.
+      GoRoute(
+        path: AppRoutes.creatorStats,
+        builder: (_, _) => const CreatorStatsScreen(),
       ),
       // D166: the Me hub's Task Center, Event Center and SVIP.
       GoRoute(

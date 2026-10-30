@@ -67,7 +67,7 @@ class LiveCoverPicture extends ConsumerWidget {
         key: pictureKey,
         behavior: HitTestBehavior.opaque,
         onTap: enabled && !state.busy
-            ? () => _openOptions(context, ref, hasCover: cover != null)
+            ? () => openOptions(context, ref, hasCover: cover != null)
             : null,
         child: ClipRRect(
           borderRadius: BorderRadius.circular(radius),
@@ -140,7 +140,9 @@ class LiveCoverPicture extends ConsumerWidget {
     );
   }
 
-  Future<void> _openOptions(
+  /// The cover options (choose a photo, back to the avatar); also opened
+  /// by the Creator Center's «تعديل الغلاف» (D172).
+  static Future<void> openOptions(
     BuildContext context,
     WidgetRef ref, {
     required bool hasCover,

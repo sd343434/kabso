@@ -245,6 +245,12 @@ info:
     (owner): not with fewer points, not under a harder version; only an admin deduction marked
     `fraud` lowers one (`LevelAdjustmentRequest.fraud`, history reason `FRAUD`) and takes back the
     frames of the tiers lost (CONVENTIONS §10.43).
+    **D170 (DRAFT v1.42-live)**: a live goes on in the background; the host of a video live reports
+    being away or back (`setLiveHostPresence`, `POST /live/rooms/{roomId}/host-presence`), and a video
+    live whose host stays away `LIVE_HOST_AWAY_TIMEOUT_SECONDS` (5 min) ends with
+    `HOST_AWAY_TIMEOUT` (CONVENTIONS §10.44).
+    **D172 (DRAFT v1.49-social)**: `getMyCreatorStats` also takes `period=THIS_MONTH` (the current
+    calendar month so far, in the region's time zone) and returns `month` (CONVENTIONS §10.40).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -3958,7 +3964,8 @@ paths:
       summary: "The caller's creator center: followers, posts, reels and lives (D164)"
       description: |
         v1.43-social, CONVENTIONS §10.40. Computed from stored data only, for the last 7 days, the last
-        30 days or all time: the followers (all, and the follows made in the period that still stand),
+        30 days, all time or *(v1.49-social, D172)* the current calendar month so far
+        (`THIS_MONTH`: from the 1st at 00:00 in `LIVE_RANKINGS_TIME_ZONE`, the region's zone, until now): the followers (all, and the follows made in the period that still stand),
         the posts and the reels **published in the period** with the views, likes, comments and
         shares they have now, and the lives **started in the period** that have ended (the data
         center's summaries, §10.36). Checks: 401; 400 `period`.
@@ -11109,7 +11116,8 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     CreatorStatsPeriod:
       type: string
-      enum: [LAST_7_DAYS, LAST_30_DAYS, ALL_TIME]
+      description: "Rolling windows ending now, all time, or *(v1.49-social, D172)* `THIS_MONTH`: the current calendar month so far in the region's time zone (`LIVE_RANKINGS_TIME_ZONE`)."
+      enum: [LAST_7_DAYS, LAST_30_DAYS, ALL_TIME, THIS_MONTH]
     CreatorContentStats:
       type: object
       description: The posts (or reels) published in the period and what they have now.
@@ -11123,10 +11131,14 @@ components:
     CreatorStats:
       type: object
       description: v1.43-social (D164, CONVENTIONS §10.40). The caller's creator center for one period.
-      required: [period, from, to, followers, posts, reels, live]
+      required: [period, from, to, month, followers, posts, reels, live]
       properties:
         period: { $ref: '#/components/schemas/CreatorStatsPeriod' }
         from: { type: [string, 'null'], format: date-time, description: The period's start; null for ALL_TIME. }
+        month:
+          type: [string, 'null']
+          pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$'
+          description: "(v1.49-social, D172) For THIS_MONTH, the calendar month `YYYY-MM` in the region's time zone (so the app names the right month whatever the phone's zone); null for the other periods."
         to: { type: string, format: date-time }
         followers:
           type: object

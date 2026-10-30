@@ -16,7 +16,7 @@ import 'package:kabso_live/core/storage/secure_token_store.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/creator/data/creator_repository.dart';
-import 'package:kabso_live/features/creator/presentation/creator_center_screen.dart';
+import 'package:kabso_live/features/creator/presentation/creator_stats_screen.dart';
 import 'package:kabso_live/features/live/application/live_wallet_controller.dart';
 import 'package:kabso_live/features/profile/me_hub_screen.dart';
 import 'package:kabso_live/features/programs/data/programs_repository.dart';
@@ -218,8 +218,8 @@ Future<void> _pump(
         builder: (_, _) => const EarningsScreen(),
       ),
       GoRoute(
-        path: AppRoutes.creatorCenter,
-        builder: (_, _) => const CreatorCenterScreen(),
+        path: AppRoutes.creatorStats,
+        builder: (_, _) => const CreatorStatsScreen(),
       ),
       GoRoute(
         path: AppRoutes.myProfile,
@@ -464,56 +464,56 @@ void main() {
       tester,
     ) async {
       final creator = _FakeCreator();
-      await _pump(tester, AppRoutes.creatorCenter, creator: creator);
+      await _pump(tester, AppRoutes.creatorStats, creator: creator);
       expect(creator.calls, [CreatorStatsPeriod.last7Days]);
       expect(
         find.descendant(
-          of: find.byKey(CreatorCenterScreen.statKey('followers', 'total')),
+          of: find.byKey(CreatorStatsScreen.statKey('followers', 'total')),
           matching: find.text('1,234'),
         ),
         findsOneWidget,
       );
       expect(
-        find.byKey(CreatorCenterScreen.statKey('followers', 'new')),
+        find.byKey(CreatorStatsScreen.statKey('followers', 'new')),
         findsOneWidget,
       );
       expect(
         find.descendant(
-          of: find.byKey(CreatorCenterScreen.statKey('posts', 'views')),
+          of: find.byKey(CreatorStatsScreen.statKey('posts', 'views')),
           matching: find.text('4,500'),
         ),
         findsOneWidget,
       );
       // No reels in the period: an honest line, no zero grid.
-      expect(find.byKey(CreatorCenterScreen.noReelsKey), findsOneWidget);
+      expect(find.byKey(CreatorStatsScreen.noReelsKey), findsOneWidget);
       expect(
-        find.byKey(CreatorCenterScreen.statKey('reels', 'views')),
+        find.byKey(CreatorStatsScreen.statKey('reels', 'views')),
         findsNothing,
       );
       await tester.scrollUntilVisible(
-        find.byKey(CreatorCenterScreen.statKey('live', 'time')),
+        find.byKey(CreatorStatsScreen.statKey('live', 'time')),
         100,
       );
       expect(
         find.descendant(
-          of: find.byKey(CreatorCenterScreen.statKey('live', 'time')),
+          of: find.byKey(CreatorStatsScreen.statKey('live', 'time')),
           matching: find.text(_en.liveDataDuration(1, 30)),
         ),
         findsOneWidget,
       );
 
       await tester.scrollUntilVisible(
-        find.byKey(CreatorCenterScreen.periodKey(CreatorStatsPeriod.allTime)),
+        find.byKey(CreatorStatsScreen.periodKey(CreatorStatsPeriod.allTime)),
         -100,
       );
       await tester.tap(
-        find.byKey(CreatorCenterScreen.periodKey(CreatorStatsPeriod.allTime)),
+        find.byKey(CreatorStatsScreen.periodKey(CreatorStatsPeriod.allTime)),
       );
       await tester.pumpAndSettle();
       expect(creator.calls.last, CreatorStatsPeriod.allTime);
       // All time has no "new in the period".
       expect(
-        find.byKey(CreatorCenterScreen.statKey('followers', 'new')),
+        find.byKey(CreatorStatsScreen.statKey('followers', 'new')),
         findsNothing,
       );
     });
@@ -523,12 +523,12 @@ void main() {
     ) async {
       await _pump(
         tester,
-        AppRoutes.creatorCenter,
+        AppRoutes.creatorStats,
         creator: _FakeCreator(empty: true),
       );
-      expect(find.byKey(CreatorCenterScreen.noPostsKey), findsOneWidget);
+      expect(find.byKey(CreatorStatsScreen.noPostsKey), findsOneWidget);
       await tester.scrollUntilVisible(
-        find.byKey(CreatorCenterScreen.noLivesKey),
+        find.byKey(CreatorStatsScreen.noLivesKey),
         100,
       );
       expect(find.text(_en.creatorNoLives), findsOneWidget);
@@ -537,19 +537,19 @@ void main() {
     testWidgets('a failure shows the error with a retry', (tester) async {
       await _pump(
         tester,
-        AppRoutes.creatorCenter,
+        AppRoutes.creatorStats,
         creator: _FakeCreator(fail: true),
       );
       expect(find.text(_en.creatorLoadError), findsOneWidget);
     });
 
     testWidgets('"My posts and reels" opens the profile', (tester) async {
-      await _pump(tester, AppRoutes.creatorCenter);
+      await _pump(tester, AppRoutes.creatorStats);
       await tester.scrollUntilVisible(
-        find.byKey(CreatorCenterScreen.openProfileKey),
+        find.byKey(CreatorStatsScreen.openProfileKey),
         200,
       );
-      await tester.tap(find.byKey(CreatorCenterScreen.openProfileKey));
+      await tester.tap(find.byKey(CreatorStatsScreen.openProfileKey));
       await tester.pumpAndSettle();
       expect(find.text('page profile'), findsOneWidget);
     });
@@ -585,12 +585,12 @@ void main() {
     testWidgets('Arabic creator center: the first period chip at the right', (
       tester,
     ) async {
-      await _pump(tester, AppRoutes.creatorCenter, language: AppLanguage.ar);
+      await _pump(tester, AppRoutes.creatorStats, language: AppLanguage.ar);
       final first = tester.getCenter(
-        find.byKey(CreatorCenterScreen.periodKey(CreatorStatsPeriod.last7Days)),
+        find.byKey(CreatorStatsScreen.periodKey(CreatorStatsPeriod.last7Days)),
       );
       final last = tester.getCenter(
-        find.byKey(CreatorCenterScreen.periodKey(CreatorStatsPeriod.allTime)),
+        find.byKey(CreatorStatsScreen.periodKey(CreatorStatsPeriod.allTime)),
       );
       expect(first.dx, greaterThan(last.dx));
       expect(find.text(_ar.creatorFollowers), findsOneWidget);
@@ -602,7 +602,7 @@ void main() {
       for (final location in [
         AppRoutes.wallet,
         AppRoutes.earnings,
-        AppRoutes.creatorCenter,
+        AppRoutes.creatorStats,
       ]) {
         testWidgets(
           '360x800 at $scale (${language.name}) $location: no overflow',

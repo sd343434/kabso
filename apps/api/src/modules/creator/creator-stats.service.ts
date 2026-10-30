@@ -1,16 +1,19 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { z } from 'zod';
+import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import { AppException } from '../../common/errors/app-exception.js';
 import { Clock } from '../../common/time/clock.js';
 import { zodErrorToDetails } from '../../common/validation/zod-validation.pipe.js';
 import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { familyWindow } from '../families/family-views.js';
 import { LiveDataCenterService } from '../live/live-data-center.service.js';
 
-export const CREATOR_STATS_PERIODS = ['LAST_7_DAYS', 'LAST_30_DAYS', 'ALL_TIME'] as const;
+/** v1.49-social (D172) adds `THIS_MONTH`: the current calendar month so far (region's zone). */
+export const CREATOR_STATS_PERIODS = ['LAST_7_DAYS', 'LAST_30_DAYS', 'ALL_TIME', 'THIS_MONTH'] as const;
 export type CreatorStatsPeriod = (typeof CREATOR_STATS_PERIODS)[number];
 
-const PERIOD_DAYS: Record<CreatorStatsPeriod, number | null> = {
+const PERIOD_DAYS: Record<Exclude<CreatorStatsPeriod, 'THIS_MONTH'>, number | null> = {
   LAST_7_DAYS: 7,
   LAST_30_DAYS: 30,
   ALL_TIME: null,
@@ -33,6 +36,8 @@ export interface CreatorStatsDto {
   period: CreatorStatsPeriod;
   from: string | null;
   to: string;
+  /** v1.49-social (D172): `YYYY-MM` of `THIS_MONTH` in the region's zone; null otherwise. */
+  month: string | null;
   followers: { total: number; newInPeriod: number | null };
   posts: CreatorContentStatsDto;
   reels: CreatorContentStatsDto;
@@ -45,6 +50,17 @@ export interface CreatorStatsDto {
     newFollowers: number;
     peakViewers: number;
   };
+}
+
+/** `YYYY-MM` of [at] in [timeZone]. */
+export function monthIn(at: Date, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+  }).formatToParts(at);
+  const get = (type: 'year' | 'month') => parts.find((p) => p.type === type)!.value;
+  return `${get('year')}-${get('month')}`;
 }
 
 const EMPTY_CONTENT: CreatorContentStatsDto = { published: 0, views: 0, likes: 0, comments: 0, shares: 0 };
@@ -60,16 +76,26 @@ export class CreatorStatsService {
     private readonly prisma: PrismaService,
     private readonly clock: Clock,
     private readonly dataCenter: LiveDataCenterService,
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
-  /** `GET /me/creator-stats?period=LAST_7_DAYS|LAST_30_DAYS|ALL_TIME`. */
+  /** `GET /me/creator-stats?period=LAST_7_DAYS|LAST_30_DAYS|ALL_TIME|THIS_MONTH`. */
   async mine(me: string, query: unknown): Promise<CreatorStatsDto> {
     const parsed = querySchema.safeParse(query ?? {}, { reportInput: true });
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
     const period = parsed.data.period;
     const now = this.clock.now();
-    const days = PERIOD_DAYS[period];
-    const from = days === null ? null : new Date(now.getTime() - days * DAY_MS);
+    let from: Date | null;
+    let month: string | null = null;
+    if (period === 'THIS_MONTH') {
+      // The 1st at 00:00 in the region's zone (the families' month, §10.21) until now.
+      const tz = this.config.live.rankingsTimeZone;
+      from = (await familyWindow(this.prisma, 'month', tz, now)).start;
+      month = monthIn(now, tz);
+    } else {
+      const days = PERIOD_DAYS[period];
+      from = days === null ? null : new Date(now.getTime() - days * DAY_MS);
+    }
     const fromText = from?.toISOString() ?? null;
     // The caller's lives that ended since the summariser last ran count at once.
     await this.dataCenter.summariseHost(me);
@@ -140,6 +166,7 @@ export class CreatorStatsService {
       period,
       from: fromText,
       to: now.toISOString(),
+      month,
       followers: { total: f?.total ?? 0, newInPeriod: from === null ? null : (f?.recent ?? 0) },
       posts: contentDto('POST'),
       reels: contentDto('REEL'),

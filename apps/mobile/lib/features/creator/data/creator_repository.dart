@@ -7,11 +7,13 @@ import 'package:kabso_live/core/network/network_providers.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 
 /// `CreatorStatsPeriod` (openapi v1.43-social, D164): rolling windows
-/// ending now.
+/// ending now, all time, and (v1.49-social, D172) [thisMonth]: the current
+/// calendar month so far in the region's time zone.
 enum CreatorStatsPeriod {
   last7Days('LAST_7_DAYS'),
   last30Days('LAST_30_DAYS'),
-  allTime('ALL_TIME');
+  allTime('ALL_TIME'),
+  thisMonth('THIS_MONTH');
 
   new(this.wire);
 
@@ -90,6 +92,7 @@ final class CreatorStats {
     required this.posts,
     required this.reels,
     required this.live,
+    this.month,
   });
 
   factory fromJson(Map<String, dynamic> json) {
@@ -108,7 +111,15 @@ final class CreatorStats {
         json['reels']! as Map<String, dynamic>,
       ),
       live: CreatorLiveStats.fromJson(json['live']! as Map<String, dynamic>),
+      month: _month(json['month']),
     );
+  }
+
+  /// `YYYY-MM` → the 1st of that month (a calendar date, no zone).
+  static DateTime? _month(Object? v) {
+    final m = RegExp(r'^(\d{4})-(\d{2})$').firstMatch(v is String ? v : '');
+    if (m == null) return null;
+    return DateTime(int.parse(m[1]!), int.parse(m[2]!));
   }
 
   final CreatorStatsPeriod period;
@@ -119,6 +130,10 @@ final class CreatorStats {
   final CreatorContentStats posts;
   final CreatorContentStats reels;
   final CreatorLiveStats live;
+
+  /// v1.49-social (D172): for [CreatorStatsPeriod.thisMonth], the month
+  /// in the region's time zone (its 1st); null for the other periods.
+  final DateTime? month;
 }
 
 /// The creator center (openapi v1.43-social, D164). Throws an `AppFailure`.
