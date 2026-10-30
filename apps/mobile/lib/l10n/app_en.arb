@@ -3023,6 +3023,7 @@
   "agencyHostInactive": "Not active",
   "agencyHostLine": "{days} days · {hours} h live (30 days) · {cherries} cherries this month",
   "agencyHostNoCommission": "Joined while the agency wasn't qualified: no commission",
+  "rechargeBadgeLabel": "Daily recharge badge, tier {tier}",
   "rechargeAgentBadgeLabel": "Top-up agent {code}",
   "rechargeAgentFrameLabel": "{name}, top-up agent {code}",
   "rechargeEntranceJoined": "Top-up agent {code} joined",

@@ -16224,6 +16224,12 @@ abstract class AppLocalizations {
   /// **'انضم والوكالة غير مؤهلة: بلا عمولة'**
   String get agencyHostNoCommission;
 
+  /// D187 daily recharge badge (screen readers)
+  ///
+  /// In ar, this message translates to:
+  /// **'شارة الشحن اليومي، المستوى {tier}'**
+  String rechargeBadgeLabel(int tier);
+
   /// D185 recharge agents
   ///
   /// In ar, this message translates to:

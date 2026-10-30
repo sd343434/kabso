@@ -9457,6 +9457,11 @@ class AppLocalizationsEn extends AppLocalizations {
       'Joined while the agency wasn\'t qualified: no commission';
 
   @override
+  String rechargeBadgeLabel(int tier) {
+    return 'Daily recharge badge, tier $tier';
+  }
+
+  @override
   String rechargeAgentBadgeLabel(String code) {
     return 'Top-up agent $code';
   }

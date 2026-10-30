@@ -12,6 +12,7 @@ import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
+import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -661,6 +662,7 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
               key: SeatControlKeys.moderatorUser(u.username),
               name: u.displayName,
               agentCode: u.rechargeAgentCode,
+              rechargeBadge: u.rechargeBadge,
               handle: _moderators.contains(u.username)
                   ? '${KHandle.plain(u.username, premiumTier: u.premiumTier)}'
                         ' · ${l10n.liveSeatModeratorTag}'
@@ -826,6 +828,7 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
             context,
             name: r.user.displayName,
             agentCode: r.user.rechargeAgentCode,
+            rechargeBadge: r.user.rechargeBadge,
             handle: r.seatIndex == null
                 ? KHandle.plain(
                     r.user.username,
@@ -1005,6 +1008,7 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
     Key? key,
     String? handle,
     String? agentCode,
+    RechargeBadge? rechargeBadge,
     VoidCallback? onTap,
     List<Widget> actions = const [],
   }) {
@@ -1035,6 +1039,8 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
                     ),
                     // D185 (owner): a recharge agent's badge after the name.
                     RechargeAgentInlineBadge(code: agentCode, height: 18),
+                    // D187 (owner): the daily recharge badge after the name.
+                    RechargeTierBadge(badge: rechargeBadge, height: 20, gap: 4),
                   ],
                 ),
                 if (handle != null)

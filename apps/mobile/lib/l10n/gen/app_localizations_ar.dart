@@ -9480,6 +9480,11 @@ class AppLocalizationsAr extends AppLocalizations {
   String get agencyHostNoCommission => 'انضم والوكالة غير مؤهلة: بلا عمولة';
 
   @override
+  String rechargeBadgeLabel(int tier) {
+    return 'شارة الشحن اليومي، المستوى $tier';
+  }
+
+  @override
   String rechargeAgentBadgeLabel(String code) {
     return 'وكيل شحن $code';
   }

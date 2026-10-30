@@ -5,6 +5,7 @@ import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/error/failure_widgets.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/design_system/design_system.dart';
@@ -17,6 +18,7 @@ import 'package:kabso_live/features/profile/application/profile_grid_provider.da
 import 'package:kabso_live/features/profile/profile_fields_view.dart';
 import 'package:kabso_live/features/recharge/application/recharge_providers.dart';
 import 'package:kabso_live/features/recharge/data/recharge_repository.dart';
+import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -187,6 +189,8 @@ class _OwnHeader extends ConsumerWidget {
       agentCode: agent?.status == RechargeAgentStatus.active
           ? agent?.code
           : null,
+      // D187: the caller's own daily recharge badge while it shows.
+      rechargeBadge: stats?.rechargeBadge,
       displayName: user.displayName,
       avatarUrl: user.avatarUrl,
       bio: user.bio,
@@ -268,7 +272,12 @@ class ProfileHeaderView extends StatelessWidget {
     this.subtitle,
     this.about,
     this.agentCode,
+    this.rechargeBadge,
   });
+
+  /// v1.56-social (D187): the person's daily recharge badge while it shows,
+  /// beside the name like the level badge.
+  final RechargeBadge? rechargeBadge;
 
   /// v1.54-social (D185): the person's code while they are an ACTIVE
   /// recharge agent: the agent frame (with the code in its plate) around
@@ -315,6 +324,7 @@ class ProfileHeaderView extends StatelessWidget {
   static const cpFrameKey = Key('profile.avatar.cpFrame');
   static const agentFrameKey = Key('profile.avatar.agentFrame');
   static const agentBadgeKey = Key('profile.agentBadge');
+  static const rechargeBadgeKey = Key('profile.rechargeBadge');
 
   @override
   Widget build(BuildContext context) {
@@ -437,6 +447,12 @@ class ProfileHeaderView extends StatelessWidget {
               ),
               if (agentCode case final code?)
                 RechargeAgentBadge(key: agentBadgeKey, code: code, height: 22),
+              if (rechargeBadgeShows(rechargeBadge))
+                RechargeTierBadge(
+                  key: rechargeBadgeKey,
+                  badge: rechargeBadge,
+                  height: 26,
+                ),
               ?nameTrailing,
             ],
           ),

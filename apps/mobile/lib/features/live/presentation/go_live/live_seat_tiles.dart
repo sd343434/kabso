@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
@@ -9,6 +10,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_cp_mic_effect
 import 'package:kabso_live/features/live/presentation/go_live/live_cp_seat_fx.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_cp_seats.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_glass.dart';
+import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -210,6 +212,12 @@ class _VideoSeatTile extends StatelessWidget {
                 RechargeAgentInlineBadge(
                   code: user.rechargeAgentCode,
                   height: 13,
+                  gap: 3,
+                ),
+                // D187 (owner): the daily recharge badge after the name.
+                RechargeTierBadge(
+                  badge: user.rechargeBadge,
+                  height: 15,
                   gap: 3,
                 ),
               ],
@@ -820,6 +828,7 @@ class AudioSeatRing extends StatelessWidget {
         key: seatKey(i),
         label: user.displayName,
         agentCode: user.rechargeAgentCode,
+        rechargeBadge: user.rechargeBadge,
         semantics: user.displayName,
         muted: seat.mutedByHost || micOff.contains(i),
         speaking: speaking.contains(i),
@@ -914,10 +923,14 @@ class _Seat extends StatelessWidget {
     this.cpMic = false,
     this.overlay,
     this.agentCode,
+    this.rechargeBadge,
   });
 
   /// v1.54-social (D185): the seated person's recharge-agent code.
   final String? agentCode;
+
+  /// v1.56-social (D187): the seated person's daily recharge badge.
+  final RechargeBadge? rechargeBadge;
 
   /// D115: the seat's partner couple has the Couple Mic Effect.
   final bool cpMic;
@@ -978,7 +991,7 @@ class _Seat extends StatelessWidget {
           ),
           // The label's centre 39 pt below the seat's (ref 83).
           const SizedBox(height: 2),
-          _SeatLabel(label, agentCode: agentCode),
+          _SeatLabel(label, agentCode: agentCode, rechargeBadge: rechargeBadge),
         ],
       ),
     ),
@@ -1146,12 +1159,15 @@ class _PointsPill extends StatelessWidget {
 }
 
 class _SeatLabel extends StatelessWidget {
-  const new(this.text, {this.agentCode});
+  const new(this.text, {this.agentCode, this.rechargeBadge});
 
   final String text;
 
   /// v1.54-social (D185): the seated person's recharge-agent code (badge).
   final String? agentCode;
+
+  /// v1.56-social (D187): the seated person's daily recharge badge.
+  final RechargeBadge? rechargeBadge;
 
   /// A soft dark shadow keeps a seat's number or name readable on every
   /// room theme, bright ones too (D118), and on CP ring art.
@@ -1177,13 +1193,15 @@ class _SeatLabel extends StatelessWidget {
     );
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 2),
-      child: agentCode == null
+      child: agentCode == null && !rechargeBadgeShows(rechargeBadge)
           ? label
           : Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Flexible(child: label),
                 RechargeAgentInlineBadge(code: agentCode, height: 12, gap: 2),
+                // D187: the daily recharge badge after the name.
+                RechargeTierBadge(badge: rechargeBadge, height: 14, gap: 2),
               ],
             ),
     );

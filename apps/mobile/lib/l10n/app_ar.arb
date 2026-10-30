@@ -9302,6 +9302,8 @@
   "agencyHostInactive": "غير نشط",
   "agencyHostLine": "{days} أيام · {hours} ساعة بث (30 يوماً) · {cherries} كرزة هذا الشهر",
   "agencyHostNoCommission": "انضم والوكالة غير مؤهلة: بلا عمولة",
+  "rechargeBadgeLabel": "شارة الشحن اليومي، المستوى {tier}",
+  "@rechargeBadgeLabel": {"description": "D187 daily recharge badge (screen readers)", "placeholders": {"tier": {"type": "int"}}},
   "rechargeAgentBadgeLabel": "وكيل شحن {code}",
   "@rechargeAgentBadgeLabel": {"description": "D185 recharge agents", "placeholders": {"code": {"type": "String"}}},
   "rechargeAgentFrameLabel": "{name}، وكيل شحن {code}",

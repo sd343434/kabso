@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:clock/clock.dart';
 import 'package:kabso_live/core/emoji/unicode_emoji.dart';
 import 'package:kabso_live/core/models/premium_tier.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/emoji/emoji_panel.dart';
 import 'package:kabso_live/features/emoji/kabi_emoji.dart';
@@ -13,6 +14,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.da
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart'
     show KLiveUsernameTag, KTopReporter;
+import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -924,6 +926,7 @@ class LiveAudioRoomHeader extends StatelessWidget {
     this.username,
     this.premiumTier,
     this.agentCode,
+    this.rechargeBadge,
     this.minimizeKey,
     this.endKey,
     this.onShare,
@@ -969,6 +972,9 @@ class LiveAudioRoomHeader extends StatelessWidget {
 
   /// v1.54-social (D185): the host's recharge-agent code (the badge).
   final String? agentCode;
+
+  /// v1.56-social (D187): the host's daily recharge badge while it shows.
+  final RechargeBadge? rechargeBadge;
   final String minimizeTooltip;
   final VoidCallback? onMinimize;
   final String endTooltip;
@@ -1052,6 +1058,11 @@ class LiveAudioRoomHeader extends StatelessWidget {
                                 RechargeAgentInlineBadge(
                                   code: agentCode,
                                   height: 13,
+                                ),
+                                RechargeTierBadge(
+                                  badge: rechargeBadge,
+                                  height: 15,
+                                  gap: 3,
                                 ),
                               ],
                             ),
