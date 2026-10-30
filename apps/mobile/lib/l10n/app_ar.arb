@@ -193,8 +193,6 @@
       }
     }
   },
-  "profileContentComingTitle": "ستظهر منشوراتك هنا",
-  "profileContentComingBody": "تصل المنشورات في المرحلة 3 والريلز في المرحلة 5. أما تعديل الملف الشخصي والقصص واللقطات المميزة فلاحقًا.",
   "settingsTitle": "الإعدادات",
   "settingsAppearance": "المظهر",
   "themeSystem": "حسب إعدادات الجهاز",
@@ -1096,8 +1094,6 @@
     "description": "D59: own profile, saved tab."
   },
   "profileWatchLive": "شاهد البث",
-  "profileOtherComingTitle": "المنشورات والريلز قادمة",
-  "profileOtherComingBody": "تصل المنشورات في المرحلة 3 والريلز في المرحلة 5.",
   "profileOtherEmptyBody": "لم يُنشر شيء بعد.",
   "profilePrivateTitle": "هذا الحساب خاص",
   "profilePrivateBody": "منشوراته وريلزه وقصصه يراها متابعوه فقط.",
@@ -1105,12 +1101,6 @@
   "profileNotFoundBody": "قد يكون الرابط غير صحيح، أو أُزيل الحساب.",
   "profileUnfollowConfirm": "إلغاء متابعة {name}؟",
   "@profileWatchLive": {
-    "description": "D60: public profile."
-  },
-  "@profileOtherComingTitle": {
-    "description": "D60: public profile."
-  },
-  "@profileOtherComingBody": {
     "description": "D60: public profile."
   },
   "@profileOtherEmptyBody": {
@@ -9312,8 +9302,8 @@
   "@rechargeAgentBadgeLabel": {"description": "D185 recharge agents", "placeholders": {"code": {"type": "String"}}},
   "rechargeAgentFrameLabel": "{name}، وكيل شحن {code}",
   "@rechargeAgentFrameLabel": {"description": "D185 recharge agents", "placeholders": {"name": {"type": "String"}, "code": {"type": "String"}}},
-  "rechargeEntranceJoined": "دخل وكيل الشحن {code}",
-  "@rechargeEntranceJoined": {"description": "D185 recharge agents", "placeholders": {"code": {"type": "String"}}},
+  "rechargeEntranceJoined": "دخل وكيل الشحن {name}",
+  "@rechargeEntranceJoined": {"description": "D185 recharge agents (the display name)", "placeholders": {"name": {"type": "String"}}},
   "rechargeAgentIdLine": "وكيل شحن · {code}",
   "@rechargeAgentIdLine": {"description": "D185 recharge agents", "placeholders": {"code": {"type": "String"}}},
   "rechargeIdLine": "وكيل شحن · {code}",
@@ -9610,8 +9600,8 @@
   "@hostAgentBadgeLabel": {"description": "D189 host agents", "placeholders": {"code": {"type": "String"}}},
   "hostAgentFrameLabel": "{name}، وكيل مضيفين",
   "@hostAgentFrameLabel": {"description": "D189 host agents", "placeholders": {"name": {"type": "String"}}},
-  "hostAgentEntranceJoined": "دخل وكيل المضيفين {username}",
-  "@hostAgentEntranceJoined": {"description": "D189 host agents", "placeholders": {"username": {"type": "String"}}},
+  "hostAgentEntranceJoined": "دخل وكيل المضيفين {name}",
+  "@hostAgentEntranceJoined": {"description": "D189 host agents (the display name)", "placeholders": {"name": {"type": "String"}}},
   "hostAgentIdLine": "وكيل مضيفين · {code}",
   "@hostAgentIdLine": {"description": "D189 host agents", "placeholders": {"code": {"type": "String"}}},
   "hostAgentCardTitle": "وكيل مضيفين",

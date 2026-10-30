@@ -644,18 +644,6 @@ abstract class AppLocalizations {
   /// **'‎@{username}‎'**
   String profileUsername(String username);
 
-  /// No description provided for @profileContentComingTitle.
-  ///
-  /// In ar, this message translates to:
-  /// **'ستظهر منشوراتك هنا'**
-  String get profileContentComingTitle;
-
-  /// No description provided for @profileContentComingBody.
-  ///
-  /// In ar, this message translates to:
-  /// **'تصل المنشورات في المرحلة 3 والريلز في المرحلة 5. أما تعديل الملف الشخصي والقصص واللقطات المميزة فلاحقًا.'**
-  String get profileContentComingBody;
-
   /// No description provided for @settingsTitle.
   ///
   /// In ar, this message translates to:
@@ -2323,18 +2311,6 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'شاهد البث'**
   String get profileWatchLive;
-
-  /// D60: public profile.
-  ///
-  /// In ar, this message translates to:
-  /// **'المنشورات والريلز قادمة'**
-  String get profileOtherComingTitle;
-
-  /// D60: public profile.
-  ///
-  /// In ar, this message translates to:
-  /// **'تصل المنشورات في المرحلة 3 والريلز في المرحلة 5.'**
-  String get profileOtherComingBody;
 
   /// D60: public profile.
   ///
@@ -16254,11 +16230,11 @@ abstract class AppLocalizations {
   /// **'{name}، وكيل شحن {code}'**
   String rechargeAgentFrameLabel(String name, String code);
 
-  /// D185 recharge agents
+  /// D185 recharge agents (the display name)
   ///
   /// In ar, this message translates to:
-  /// **'دخل وكيل الشحن {code}'**
-  String rechargeEntranceJoined(String code);
+  /// **'دخل وكيل الشحن {name}'**
+  String rechargeEntranceJoined(String name);
 
   /// D185 recharge agents
   ///
@@ -17148,11 +17124,11 @@ abstract class AppLocalizations {
   /// **'{name}، وكيل مضيفين'**
   String hostAgentFrameLabel(String name);
 
-  /// D189 host agents
+  /// D189 host agents (the display name)
   ///
   /// In ar, this message translates to:
-  /// **'دخل وكيل المضيفين {username}'**
-  String hostAgentEntranceJoined(String username);
+  /// **'دخل وكيل المضيفين {name}'**
+  String hostAgentEntranceJoined(String name);
 
   /// D189 host agents
   ///

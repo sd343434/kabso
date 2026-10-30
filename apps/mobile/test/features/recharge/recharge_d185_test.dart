@@ -626,7 +626,7 @@ void main() {
                   ),
                   SizedBox(
                     width: 360,
-                    child: RechargeEntranceBar(code: 'coin0007'),
+                    child: RechargeEntranceBar(name: 'Nour'),
                   ),
                   RechargeAgentBadge(code: 'coin0007', height: 22),
                 ],
@@ -635,10 +635,19 @@ void main() {
           ),
           language: language,
         );
-        expect(find.text('coin0007'), findsOneWidget);
+        // The bar names the agent by the display name, never the code.
+        final bar = find.byKey(LiveRechargeEntranceLayer.barKey);
+        expect(
+          find.descendant(of: bar, matching: find.textContaining('Nour')),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(of: bar, matching: find.textContaining('coin0007')),
+          findsNothing,
+        );
         expect(
           find.bySemanticsLabel(
-            l10n.rechargeEntranceJoined(KFormat.bidiIsolate('coin0007')),
+            l10n.rechargeEntranceJoined(KFormat.bidiIsolate('Nour')),
           ),
           findsOneWidget,
         );

@@ -318,13 +318,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get profileContentComingTitle => 'Your posts will live here';
-
-  @override
-  String get profileContentComingBody =>
-      'Posts arrive in Phase 3 and reels in Phase 5. Profile editing, stories and highlights come later.';
-
-  @override
   String get settingsTitle => 'Settings';
 
   @override
@@ -1331,13 +1324,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profileWatchLive => 'Watch live';
-
-  @override
-  String get profileOtherComingTitle => 'Posts and reels are coming';
-
-  @override
-  String get profileOtherComingBody =>
-      'Posts arrive in Phase 3 and reels in Phase 5.';
 
   @override
   String get profileOtherEmptyBody => 'Nothing shared yet.';
@@ -9481,8 +9467,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String rechargeEntranceJoined(String code) {
-    return 'Top-up agent $code joined';
+  String rechargeEntranceJoined(String name) {
+    return 'Top-up agent $name joined';
   }
 
   @override
@@ -10015,8 +10001,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String hostAgentEntranceJoined(String username) {
-    return 'Host agent $username joined';
+  String hostAgentEntranceJoined(String name) {
+    return 'Host agent $name joined';
   }
 
   @override

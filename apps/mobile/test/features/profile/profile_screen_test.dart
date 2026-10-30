@@ -133,14 +133,16 @@ void main() {
     );
   });
 
-  testWidgets('no API yet: each tab shows the honest "coming" state', (
-    tester,
-  ) async {
+  testWidgets('a tab without its API (reels): the normal empty state, no '
+      '«coming in phase N» note (owner)', (tester) async {
     await _pump(tester);
-    expect(find.text(_en.profileContentComingTitle), findsOneWidget);
+    expect(find.text(_en.profileNoPosts), findsOneWidget);
+    expect(find.text(_en.profileGridEmptyBody), findsOneWidget);
+    expect(find.textContaining('Phase'), findsNothing);
     await tester.tap(find.byKey(ProfileScreen.tabKey(ProfileTab.reels)));
     await tester.pumpAndSettle();
-    expect(find.text(_en.profileContentComingTitle), findsOneWidget);
+    expect(find.text(_en.profileNoReels), findsOneWidget);
+    expect(find.textContaining('Phase'), findsNothing);
     await tester.tap(find.byKey(ProfileScreen.tabKey(ProfileTab.saved)));
     await tester.pumpAndSettle();
     expect(find.text(_en.profileSavedComingTitle), findsOneWidget);

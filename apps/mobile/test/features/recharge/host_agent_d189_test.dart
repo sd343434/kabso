@@ -1,7 +1,7 @@
 // D189 (v1.58-social, CONVENTIONS §10.52): a host agent «وكيل مضيفين»
 // (`hostAgent.code`) gets the perks a recharge agent has — the badge beside
 // the name (profile, person card) and inline next to the name in the live
-// room, the blue entrance bar «دخل وكيل المضيفين host03» (the username; the
+// room, the blue entrance bar «دخل وكيل المضيفين Salma» (the display name; the
 // recharge bar's size, place and timing), and the host-agent frame (photo in
 // the measured circle, no name). With both roles: both badges, the
 // recharge-agent frame and bar win (owner proposals D189 c/d). Arabic and
@@ -189,7 +189,7 @@ void main() {
     for (final language in AppLanguage.values) {
       final l10n = l10nFor(language);
       testWidgets('the frame (no name), the badge and the blue entrance bar '
-          'with the username (${language.name})', (tester) async {
+          'with the display name (${language.name})', (tester) async {
         await pumpScreen(
           tester,
           const Scaffold(
@@ -201,7 +201,7 @@ void main() {
                   SizedBox(
                     width: 360,
                     child: RechargeEntranceBar(
-                      code: 'host03',
+                      name: 'Salma',
                       style: AgentEntranceStyle.host,
                     ),
                   ),
@@ -252,7 +252,7 @@ void main() {
         );
         expect(
           find.bySemanticsLabel(
-            l10n.hostAgentEntranceJoined(KFormat.bidiIsolate('host03')),
+            l10n.hostAgentEntranceJoined(KFormat.bidiIsolate('Salma')),
           ),
           findsOneWidget,
         );
@@ -279,14 +279,22 @@ void main() {
       });
     }
 
-    test('the owner text', () {
+    test('the owner text: the display name', () {
       expect(
-        l10nFor(AppLanguage.ar).hostAgentEntranceJoined('host03'),
-        'دخل وكيل المضيفين host03',
+        l10nFor(AppLanguage.ar).hostAgentEntranceJoined('سارة'),
+        'دخل وكيل المضيفين سارة',
       );
       expect(
-        l10nFor(AppLanguage.en).hostAgentEntranceJoined('host03'),
-        'Host agent host03 joined',
+        l10nFor(AppLanguage.en).hostAgentEntranceJoined('Sara'),
+        'Host agent Sara joined',
+      );
+      expect(
+        l10nFor(AppLanguage.ar).rechargeEntranceJoined('سارة'),
+        'دخل وكيل الشحن سارة',
+      );
+      expect(
+        l10nFor(AppLanguage.en).rechargeEntranceJoined('Sara'),
+        'Top-up agent Sara joined',
       );
     });
   });
@@ -294,10 +302,9 @@ void main() {
   group('live room', () {
     for (final language in AppLanguage.values) {
       final l10n = l10nFor(language);
-      testWidgets('a host agent join plays the host bar with the username, '
-          "the recharge bar's size and place (${language.name}, 393×852)", (
-        tester,
-      ) async {
+      testWidgets('a host agent join plays the host bar with the display '
+          "name, the recharge bar's size and place (${language.name}, "
+          '393×852)', (tester) async {
         LiveRechargeEntranceLayer.animate = false;
         addTearDown(() => LiveRechargeEntranceLayer.animate = true);
         final engine = await _room(
@@ -312,29 +319,44 @@ void main() {
         expect(barFinder, findsOneWidget);
         expect(
           find.bySemanticsLabel(
-            l10n.hostAgentEntranceJoined(KFormat.bidiIsolate('host03')),
+            l10n.hostAgentEntranceJoined(KFormat.bidiIsolate('Salma')),
           ),
           findsOneWidget,
         );
         final bar = tester.getRect(barFinder);
-        expect(bar.width, lessThanOrEqualTo(393 * 0.65 + 0.5));
-        expect(bar.height, lessThanOrEqualTo(64.5));
+        // Owner feedback: 85 % of the screen, the art's aspect, fully on
+        // screen 16 lp from the edges.
+        expect(bar.width, closeTo(393 * 0.85, 0.5));
+        expect(
+          bar.height,
+          closeTo(bar.width / HostAgentArt.entranceAspect, 0.5),
+        );
+        expect(bar.left, greaterThanOrEqualTo(16 - 0.01));
+        expect(bar.right, lessThanOrEqualTo(393 - 16 + 0.01));
         if (language == AppLanguage.ar) {
-          expect(bar.right, greaterThan(393 - 20));
+          expect(bar.right, closeTo(393 - 16, 0.5));
         } else {
-          expect(bar.left, lessThan(20));
+          expect(bar.left, closeTo(16, 0.5));
         }
         for (final t in tester.widgetList<Text>(
           find.descendant(of: barFinder, matching: find.byType(Text)),
         )) {
           expect(t.style!.fontSize, greaterThanOrEqualTo(11));
         }
+        // The display name, not the username.
+        expect(
+          find.descendant(
+            of: barFinder,
+            matching: find.textContaining('Salma'),
+          ),
+          findsOneWidget,
+        );
         expect(
           find.descendant(
             of: barFinder,
             matching: find.textContaining('host03'),
           ),
-          findsOneWidget,
+          findsNothing,
         );
         // The join line carries the host-agent badge.
         expect(find.byType(HostAgentBadge), findsWidgets);
@@ -344,6 +366,48 @@ void main() {
         expect(tester.takeException(), isNull);
       });
     }
+
+    testWidgets('a very long display name: on screen, ≥ 11, the name ends '
+        'with an ellipsis (ar, 393×852)', (tester) async {
+      LiveRechargeEntranceLayer.animate = false;
+      addTearDown(() => LiveRechargeEntranceLayer.animate = true);
+      const longName = 'سارة عبد الرحمن محمد الخطيب الهاشمي القرشي الأنصاري';
+      final engine = await _room(
+        tester,
+        language: AppLanguage.ar,
+        viewport: GoldenViewport.phone,
+      );
+      engine.chat.add(
+        const LiveChatJoined(
+          UserSummary(
+            id: 'u-long',
+            username: 'host09',
+            displayName: longName,
+            avatarUrl: null,
+            hostAgentCode: 'host09',
+          ),
+        ),
+      );
+      await _frames(tester);
+      await tester.pump(const Duration(milliseconds: 300));
+      final barFinder = find.byKey(LiveRechargeEntranceLayer.barKey);
+      final bar = tester.getRect(barFinder);
+      expect(bar.left, greaterThanOrEqualTo(16 - 0.01));
+      expect(bar.right, lessThanOrEqualTo(393 - 16 + 0.01));
+      final texts = tester.widgetList<Text>(
+        find.descendant(of: barFinder, matching: find.byType(Text)),
+      );
+      for (final t in texts) {
+        expect(t.style!.fontSize, greaterThanOrEqualTo(11));
+        expect(t.maxLines, 1);
+      }
+      final named = texts.where((t) => (t.data ?? '').contains(longName));
+      expect(named, hasLength(1));
+      expect(named.single.overflow, TextOverflow.ellipsis);
+      expect(tester.takeException(), isNull);
+      await tester.pump(LiveRechargeEntranceLayer.duration);
+      await tester.pump();
+    });
 
     testWidgets('both roles: the recharge bar; a plain join: nothing', (
       tester,
@@ -359,7 +423,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 800));
       expect(
         find.bySemanticsLabel(
-          en.rechargeEntranceJoined(KFormat.bidiIsolate('coin0007')),
+          en.rechargeEntranceJoined(KFormat.bidiIsolate('Nour')),
         ),
         findsOneWidget,
       );

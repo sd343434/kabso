@@ -12,15 +12,16 @@ import 'package:material_ui/material_ui.dart';
 /// The recharge agent's entrance (v1.54-social, D185, CONVENTIONS §10.48):
 /// when a `join` data message's `user` carries `rechargeAgent` (an ACTIVE
 /// agent), the owner's entrance bar crosses the room — in from the reading
-/// end, a short stay, out to the reading start — with «دخل وكيل الشحن
-/// coin0001» in its red plate; the mascot stays on the emblem. The timing
-/// is the CP entrance's (3.2 s; 2.2 s standing still with reduced motion).
+/// end, a short stay, out to the reading start — with «دخل وكيل الشحن سارة»
+/// (the person's display name, owner feedback) in its red plate; the mascot
+/// stays on the emblem. The timing is the CP entrance's (3.2 s; 2.2 s
+/// standing still with reduced motion).
 /// Several arrive one after another (at most [maxQueued] waiting). Never
 /// takes taps.
 ///
 /// v1.58-social (D189, §10.52): a host agent's join (`user.hostAgent`) shows
 /// the host-agent bar the same way — same size, place and timing — with
-/// «دخل وكيل المضيفين host03» (their username). A person who is both gets
+/// «دخل وكيل المضيفين سارة» (their display name). A person who is both gets
 /// the recharge-agent bar (owner proposal D189 d: the recharge agent's art
 /// wins).
 class LiveRechargeEntranceLayer extends ConsumerStatefulWidget {
@@ -112,54 +113,64 @@ class _LiveRechargeEntranceLayerState
     if (current == null) return const SizedBox.shrink();
     final rechargeCode = current.user.rechargeAgentCode;
     final AgentEntranceStyle style;
-    final String code;
     if (rechargeCode != null) {
       style = AgentEntranceStyle.recharge;
-      code = rechargeCode;
     } else if (current.user.hostAgentCode != null) {
       style = AgentEntranceStyle.host;
-      code = current.user.username;
     } else {
       return const SizedBox.shrink();
     }
+    // Owner feedback: the bar names the person by their display name (the
+    // username only when they have none).
+    final displayName = current.user.displayName.trim();
+    final name = displayName.isEmpty ? current.user.username : displayName;
     final moving =
         LiveRechargeEntranceLayer.animate &&
         !MediaQuery.disableAnimationsOf(context);
     final rtl = Directionality.of(context) == TextDirection.rtl;
     final bar = RechargeEntranceBar(
       key: ValueKey('rechargeEntrance.${current.serial}'),
-      code: code,
+      name: name,
       style: style,
     );
     return IgnorePointer(
-      child: Align(
-        // Above the CP entrance's place, under the gift banners.
-        // Owner (D185 feedback): a smaller strip anchored at the leading side,
-        // above the chat (clear of the seats and the host's video centre).
-        alignment: const AlignmentDirectional(-1, 0.26),
-        child: moving
-            ? AnimatedBuilder(
-                animation: _clock,
-                builder: (context, child) {
-                  final t = _clock.value;
-                  final double dx;
-                  // In from the leading side, a short stay, out across the room
-                  // to the trailing side (fractions of the bar's width).
-                  if (t < 0.14) {
-                    dx = -1.2 * (1 - Curves.easeOutCubic.transform(t / 0.14));
-                  } else if (t > 0.86) {
-                    dx = 2.4 * Curves.easeInCubic.transform((t - 0.86) / 0.14);
-                  } else {
-                    dx = 0;
-                  }
-                  return FractionalTranslation(
-                    translation: Offset(rtl ? -dx : dx, 0),
-                    child: child,
-                  );
-                },
-                child: bar,
-              )
-            : bar,
+      child: Padding(
+        // Owner feedback: fully on screen, [RechargeEntranceBar.sideMargin]
+        // from each edge.
+        padding: const EdgeInsets.symmetric(
+          horizontal: RechargeEntranceBar.sideMargin,
+        ),
+        child: Align(
+          // Above the CP entrance's place, under the gift banners:
+          // anchored at the leading side, above the chat (clear of the
+          // seats and the host's video centre).
+          alignment: const AlignmentDirectional(-1, 0.26),
+          child: moving
+              ? AnimatedBuilder(
+                  animation: _clock,
+                  builder: (context, child) {
+                    final t = _clock.value;
+                    final double dx;
+                    // In from the leading side, a short stay, out across the
+                    // room to the trailing side (fractions of the bar's
+                    // width).
+                    if (t < 0.14) {
+                      dx = -1.2 * (1 - Curves.easeOutCubic.transform(t / 0.14));
+                    } else if (t > 0.86) {
+                      dx =
+                          2.4 * Curves.easeInCubic.transform((t - 0.86) / 0.14);
+                    } else {
+                      dx = 0;
+                    }
+                    return FractionalTranslation(
+                      translation: Offset(rtl ? -dx : dx, 0),
+                      child: child,
+                    );
+                  },
+                  child: bar,
+                )
+              : bar,
+        ),
       ),
     );
   }
@@ -229,47 +240,50 @@ enum AgentEntranceStyle {
   final double bottom2;
   final Color shadow;
 
-  /// «دخل وكيل الشحن coin0001» / «دخل وكيل المضيفين host03».
+  /// «دخل وكيل الشحن سارة» / «دخل وكيل المضيفين سارة» ([name]: the display
+  /// name, isolated so a Latin or mixed name keeps its order).
   String text(AppLocalizations l10n, String name) => this == host
       ? l10n.hostAgentEntranceJoined(KFormat.bidiIsolate(name))
       : l10n.rechargeEntranceJoined(KFormat.bidiIsolate(name));
 }
 
 /// The bar itself: the owner's entrance art (the mascot on the emblem at the
-/// left, never mirrored) and «دخل وكيل الشحن coin0001» fitted into its red
-/// plate. Owner feedback (D185): 65 % of the room's width and at most
-/// [maxHeight] high, the art's proportions kept; the text scales with the
-/// bar down to [minFontSize], then ends with an ellipsis. v1.58-social
-/// (D189): with [AgentEntranceStyle.host], the host agent's blue bar and
-/// «دخل وكيل المضيفين {username}» ([code] is then the username).
+/// left, never mirrored) and «دخل وكيل الشحن سارة» fitted into its red
+/// plate. v1.58-social (D189): with [AgentEntranceStyle.host], the host
+/// agent's blue bar and «دخل وكيل المضيفين سارة».
+///
+/// Owner feedback (integration of D185–D189): [widthFactor] of the screen's
+/// width, never wider than the room less [sideMargin] on each side, the
+/// art's proportions kept (the height follows from the width); the text is
+/// one line, scaled down to [minFontSize] when needed; only when it still
+/// does not fit, the phrase goes over the name, which ends with an ellipsis.
 class RechargeEntranceBar extends StatelessWidget {
   const new({
-    required this.code,
+    required this.name,
     super.key,
     this.style = AgentEntranceStyle.recharge,
   });
 
-  /// The name written: the recharge code, or the host agent's username.
-  final String code;
+  /// The person's display name.
+  final String name;
   final AgentEntranceStyle style;
 
-  /// Owner feedback (D185): the bar's share of the room's width, its
-  /// largest height on phones and the smallest readable text.
-  static const widthFactor = 0.65;
-  static const maxHeight = 64.0;
+  /// Owner feedback: the bar's share of the screen's width, its margin from
+  /// the screen's edges and the smallest readable text.
+  static const widthFactor = 0.85;
+  static const sideMargin = 16.0;
   static const minFontSize = 11.0;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final s = style;
-    final text = s.text(l10n, code);
+    final text = s.text(l10n, name);
+    final screen = MediaQuery.sizeOf(context).width;
     return LayoutBuilder(
       builder: (context, box) {
-        final width = math.min(
-          box.maxWidth * widthFactor,
-          maxHeight * s.aspect,
-        );
+        final room = box.maxWidth.isFinite ? box.maxWidth : screen;
+        final width = math.min(screen * widthFactor, room);
         final height = width / s.aspect;
         final plateH = height * (s.bottom - s.top);
         final style = context.textStyles.title.copyWith(
@@ -298,9 +312,9 @@ class RechargeEntranceBar extends StatelessWidget {
           plateW - 2 * pad,
           direction,
         );
-        // The phrase without the code (for the two-line layout).
+        // The phrase without the name (for the two-line layout).
         final phrase = text
-            .replaceAll(KFormat.bidiIsolate(code), '')
+            .replaceAll(KFormat.bidiIsolate(name), '')
             .replaceAll(RegExp(r'\s+'), ' ')
             .trim();
         return Semantics(
@@ -348,38 +362,40 @@ class RechargeEntranceBar extends StatelessWidget {
                                   textScaler: TextScaler.noScaling,
                                   style: style.copyWith(fontSize: size),
                                 )
-                              // Too narrow for one readable line: the phrase
-                              // over the code, both at least [minFontSize].
+                              // Too long for one readable line: the phrase
+                              // over the name, both at least [minFontSize];
+                              // a long name ends with an ellipsis.
                               : Column(
                                   key: LiveRechargeEntranceLayer.textKey,
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    for (final (i, line) in [
-                                      phrase,
-                                      code,
-                                    ].indexed)
-                                      // D189: a line wider than the plate
-                                      // (the host agent's longer phrase)
-                                      // shrinks to fit rather than being
-                                      // cut with an ellipsis.
-                                      FittedBox(
-                                        fit: BoxFit.scaleDown,
-                                        child: Text(
-                                          line,
-                                          maxLines: 1,
-                                          softWrap: false,
-                                          textDirection: i == 1
-                                              ? TextDirection.ltr
-                                              : null,
-                                          textScaler: TextScaler.noScaling,
-                                          style: style.copyWith(
-                                            fontSize: minFontSize,
-                                            height: 1,
-                                            fontWeight: FontWeight.w700,
-                                            letterSpacing: -0.2,
-                                          ),
+                                    FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text(
+                                        phrase,
+                                        maxLines: 1,
+                                        softWrap: false,
+                                        textScaler: TextScaler.noScaling,
+                                        style: style.copyWith(
+                                          fontSize: minFontSize,
+                                          height: 1.1,
+                                          fontWeight: FontWeight.w700,
                                         ),
                                       ),
+                                    ),
+                                    Text(
+                                      KFormat.bidiIsolate(name),
+                                      maxLines: 1,
+                                      softWrap: false,
+                                      overflow: TextOverflow.ellipsis,
+                                      textAlign: TextAlign.center,
+                                      textScaler: TextScaler.noScaling,
+                                      style: style.copyWith(
+                                        fontSize: minFontSize,
+                                        height: 1.1,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
                                   ],
                                 ),
                         ),

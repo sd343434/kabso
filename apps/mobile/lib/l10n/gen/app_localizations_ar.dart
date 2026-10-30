@@ -332,13 +332,6 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
-  String get profileContentComingTitle => 'ستظهر منشوراتك هنا';
-
-  @override
-  String get profileContentComingBody =>
-      'تصل المنشورات في المرحلة 3 والريلز في المرحلة 5. أما تعديل الملف الشخصي والقصص واللقطات المميزة فلاحقًا.';
-
-  @override
   String get settingsTitle => 'الإعدادات';
 
   @override
@@ -1361,13 +1354,6 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get profileWatchLive => 'شاهد البث';
-
-  @override
-  String get profileOtherComingTitle => 'المنشورات والريلز قادمة';
-
-  @override
-  String get profileOtherComingBody =>
-      'تصل المنشورات في المرحلة 3 والريلز في المرحلة 5.';
 
   @override
   String get profileOtherEmptyBody => 'لم يُنشر شيء بعد.';
@@ -9503,8 +9489,8 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
-  String rechargeEntranceJoined(String code) {
-    return 'دخل وكيل الشحن $code';
+  String rechargeEntranceJoined(String name) {
+    return 'دخل وكيل الشحن $name';
   }
 
   @override
@@ -10035,8 +10021,8 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
-  String hostAgentEntranceJoined(String username) {
-    return 'دخل وكيل المضيفين $username';
+  String hostAgentEntranceJoined(String name) {
+    return 'دخل وكيل المضيفين $name';
   }
 
   @override

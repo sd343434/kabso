@@ -710,7 +710,10 @@ class ProfileGrid extends ConsumerWidget {
               ),
           ],
         ),
-      AsyncValue(value: FeedItems()) => state(
+      // An empty grid — and (owner) a tab without its API yet (the reels
+      // tab): the normal empty state, never a «coming in phase N» note.
+      AsyncValue(value: FeedItems()) ||
+      AsyncValue(value: FeedUnavailable()) when !saved => state(
         switch (tab) {
           ProfileTab.posts => l10n.profileNoPosts,
           ProfileTab.reels => l10n.profileNoReels,
@@ -724,17 +727,13 @@ class ProfileGrid extends ConsumerWidget {
           _ => l10n.profileOtherEmptyBody,
         },
       ),
+      AsyncValue(value: FeedItems()) => state(
+        l10n.profileNoSaved,
+        l10n.profileSavedEmptyBody,
+      ),
       AsyncValue(value: FeedUnavailable()) => state(
-        saved
-            ? l10n.profileSavedComingTitle
-            : (own
-                  ? l10n.profileContentComingTitle
-                  : l10n.profileOtherComingTitle),
-        saved
-            ? l10n.profileSavedComingBody
-            : (own
-                  ? l10n.profileContentComingBody
-                  : l10n.profileOtherComingBody),
+        l10n.profileSavedComingTitle,
+        l10n.profileSavedComingBody,
       ),
       AsyncError(:final error) => SliverToBoxAdapter(
         child: FailureErrorState(

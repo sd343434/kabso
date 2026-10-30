@@ -1,5 +1,5 @@
 // D185 in the live room: an ACTIVE recharge agent (`UserSummary.
-// rechargeAgent`) gets the entrance bar «دخل وكيل الشحن coin0007» (3.2 s,
+// rechargeAgent`) gets the entrance bar «دخل وكيل الشحن Nour» (3.2 s,
 // queued, never takes taps; nothing for a normal join) and — owner addition —
 // the small agent badge next to the name everywhere it shows in the room:
 // chat messages, the join line, the viewers list, seats and the person card
@@ -98,7 +98,8 @@ void main() {
   group('entrance bar', () {
     for (final language in AppLanguage.values) {
       final l10n = language == AppLanguage.ar ? ar : en;
-      testWidgets('an agent join plays the bar with the code; a normal join '
+      testWidgets('an agent join plays the bar with the display name; a '
+          'normal join '
           'does not (${language.name})', (tester) async {
         final engine = await _room(tester, language: language);
         engine.chat.add(const LiveChatJoined(_plain));
@@ -112,7 +113,7 @@ void main() {
         expect(find.byKey(LiveRechargeEntranceLayer.barKey), findsOneWidget);
         expect(
           find.bySemanticsLabel(
-            l10n.rechargeEntranceJoined(KFormat.bidiIsolate('coin0007')),
+            l10n.rechargeEntranceJoined(KFormat.bidiIsolate('Nour')),
           ),
           findsOneWidget,
         );
@@ -134,9 +135,9 @@ void main() {
     }
 
     for (final language in AppLanguage.values) {
-      testWidgets('smaller bar: ≤ 65 % wide, ≤ 64 lp high, at the leading '
-          'side above the chat; text ≥ 11 and the code readable '
-          '(${language.name}, 393×852)', (tester) async {
+      testWidgets('owner size: 85 % of the screen, 16 lp from the edges, the '
+          "art's aspect, at the leading side above the chat; one line ≥ 11 "
+          'with the display name (${language.name}, 393×852)', (tester) async {
         LiveRechargeEntranceLayer.animate = false;
         addTearDown(() => LiveRechargeEntranceLayer.animate = true);
         final engine = await _room(tester, language: language);
@@ -148,13 +149,19 @@ void main() {
         final bar = tester.getRect(
           find.byKey(LiveRechargeEntranceLayer.barKey),
         );
-        expect(bar.width, lessThanOrEqualTo(393 * 0.65 + 0.5));
-        expect(bar.height, lessThanOrEqualTo(64.5));
-        // Leading side: right in Arabic, left in English.
+        // Owner feedback: 85 % of the screen, the height from the art's
+        // aspect, fully on screen 16 lp from the leading edge.
+        expect(bar.width, closeTo(393 * 0.85, 0.5));
+        expect(
+          bar.height,
+          closeTo(bar.width / RechargeAgentArt.entranceAspect, 0.5),
+        );
+        expect(bar.left, greaterThanOrEqualTo(16 - 0.01));
+        expect(bar.right, lessThanOrEqualTo(393 - 16 + 0.01));
         if (language == AppLanguage.ar) {
-          expect(bar.right, greaterThan(393 - 20));
+          expect(bar.right, closeTo(393 - 16, 0.5));
         } else {
-          expect(bar.left, lessThan(20));
+          expect(bar.left, closeTo(16, 0.5));
         }
         // Above the chat area.
         final chat = tester.getRect(
@@ -178,13 +185,21 @@ void main() {
         for (final t in texts) {
           expect(t.style!.fontSize, greaterThanOrEqualTo(11));
         }
-        // The code is never cut off.
+        // The display name (not the code or the username); one line when
+        // it fits (the test font is wider than the app's, see the captures).
+        expect(
+          find.descendant(
+            of: find.byKey(LiveRechargeEntranceLayer.barKey),
+            matching: find.textContaining('Nour'),
+          ),
+          findsOneWidget,
+        );
         expect(
           find.descendant(
             of: find.byKey(LiveRechargeEntranceLayer.barKey),
             matching: find.textContaining('coin0007'),
           ),
-          findsOneWidget,
+          findsNothing,
         );
         expect(tester.takeException(), isNull);
         await tester.pump(LiveRechargeEntranceLayer.duration);
@@ -211,7 +226,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 800));
       expect(
         find.bySemanticsLabel(
-          en.rechargeEntranceJoined(KFormat.bidiIsolate('coin0007')),
+          en.rechargeEntranceJoined(KFormat.bidiIsolate('Nour')),
         ),
         findsOneWidget,
       );
@@ -219,7 +234,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 800));
       expect(
         find.bySemanticsLabel(
-          en.rechargeEntranceJoined(KFormat.bidiIsolate('coin0012')),
+          en.rechargeEntranceJoined(KFormat.bidiIsolate('B')),
         ),
         findsOneWidget,
       );
