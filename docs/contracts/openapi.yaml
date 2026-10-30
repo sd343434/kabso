@@ -271,6 +271,13 @@ info:
     `AGENCY_JOIN_NOT_ALLOWED`, `AGENCY_LEAVE_WINDOW_CLOSED`, `INSUFFICIENT_CHERRIES`,
     `WITHDRAWAL_PENDING` (CONVENTIONS §10.46). `getMyEarnings` / `listMyEarnings` (D164) stay for older
     apps but are deprecated: the cherry ledger is the source of truth.
+    **D184 (DRAFT v1.53-social)**: the Task Center's rewards are cherries — the old coins ×10 (1 coin =
+    10 cherries), credited to the cherry ledger as `TASK_REWARD` under a daily cherry cap
+    (`ProgramTask.rewardCherries` / `claimedCherries`, `MyTasks.dailyCapCherries` / `dailyEarnedCherries`,
+    `TaskClaimResult.paidCherries` / `balanceCherries`; `rewardCoins` deprecated, 0); the check-in keeps
+    its coins. Task cherries are not withdrawable until an unlock rule passes (placeholder pending the
+    owner): `CherryWallet.taskRewardTotal`, `lockedTaskCherries`, `withdrawableCherries`, `taskUnlock`
+    (CONVENTIONS §10.41.3, §10.46.1).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -3991,7 +3998,10 @@ paths:
         send's transaction: floor(coins × the send's stored share × `CHERRIES_PER_COIN`); an agency's
         commissions on top), what it is worth at the payout rate, the cherries held by a pending
         withdrawal, the gift cherries earned (all time and the rolling 7 and 30 days, reversals
-        included), the commission total, the payout rules and the pending withdrawal. Checks: 401.
+        included), the commission total, the payout rules and the pending withdrawal. *(v1.53-social, D184,
+        §10.46.1)* Also the Task Center's cherries (`taskRewardTotal`), the part still locked for withdrawal
+        (`lockedTaskCherries`), what a withdrawal may take (`withdrawableCherries`) and the unlock rule's
+        state (`taskUnlock`). Checks: 401.
       responses:
         '200':
           description: The caller's cherries.
@@ -4054,7 +4064,8 @@ paths:
         body (`amountMinor` an integer, `payoutDetails` 3–500 characters after trimming), `amountMinor`
         `too_small` below `minAmountMinor` (owner: $10) → the same key again → 200 with that request (409
         `IDEMPOTENCY_CONFLICT` when the body differs) → 409 `WITHDRAWAL_PENDING` (one at a time) → 409
-        `INSUFFICIENT_CHERRIES` (nothing held) → 201.
+        `INSUFFICIENT_CHERRIES` (nothing held; *v1.53-social, D184:* more than `withdrawableCherries` — the
+        balance less the task cherries still locked, §10.46.1) → 201.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -7217,7 +7228,9 @@ paths:
         gifts received; counterparts must be ACTIVE) — never reported by the app — and whether it was
         claimed in the current day or ISO week (`LIVE_RANKINGS_TIME_ZONE`). Also the check-in strip:
         today and the next six days with their place in the 7-day cycle. Names follow
-        `Accept-Language`. Checks: 401.
+        `Accept-Language`. *(v1.53-social, D184, §10.41.3)* Rewards are cherries (`rewardCherries`);
+        the daily tasks' cherries share `dailyCapCherries`; `dailyCapCoins` caps the check-in's coins.
+        Checks: 401.
       responses:
         '200':
           description: The tasks.
@@ -7235,7 +7248,9 @@ paths:
         v1.44-social, CONVENTIONS §10.41. Once per day: `TASK_CHECK_IN_COINS` (5) coins, plus
         `TASK_CHECK_IN_STREAK_BONUS_COINS` (20) on every 7th day in a row, paid as a `CHECK_IN_REWARD`
         ledger row within the daily cap (`TASK_DAILY_CAP_COINS`, 50; after the cap the check-in still
-        keeps the streak and pays 0). 201 checked in now, 200 already today (nothing paid again).
+        keeps the streak and pays 0). *(v1.53-social, D184)* The check-in still pays coins; the coin cap
+        counts the check-in and coin task claims made before v1.53-social, not the task cherries.
+        201 checked in now, 200 already today (nothing paid again).
         Checks: 401.
       responses:
         '200':
@@ -7254,14 +7269,18 @@ paths:
     post:
       tags: [programs]
       operationId: claimMyTask
-      summary: "Claim a completed task's coins (D166)"
+      summary: "Claim a completed task's reward — cherries since v1.53-social (D166, D184)"
       description: |
         v1.44-social, CONVENTIONS §10.41. Order: 404 (unknown, disabled or not for the caller; a
         pool task that is not one of the caller's tasks of today, v1.50-social) →
         already claimed in this period → 200 (nothing paid again) → 409 `TASK_NOT_COMPLETED` → for a
         daily task, 409 `TASK_DAILY_CAP_REACHED` when the day's cap is used up → 201, paying the reward
         (a daily task: at most what is left of the cap) as a `TASK_REWARD` ledger row in the same
-        transaction. One payout per person, task and period, also for concurrent claims. Checks: 401.
+        transaction. One payout per person, task and period, also for concurrent claims.
+        *(v1.53-social, D184, §10.41.3)* The reward is cherries: a cherry ledger `TASK_REWARD` row
+        (reference `<code>@<period start>`, once per person, task and period) within the daily cherry
+        cap (`TASK_DAILY_CAP_CHERRIES`, 500); a claim made in coins before keeps its coins (`paidCoins`
+        on the 200). Checks: 401.
       parameters:
         - name: code
           in: path
@@ -11568,7 +11587,7 @@ components:
     ProgramTask:
       type: object
       description: One task of the Task Center (CONVENTIONS §10.41). `progress` is capped at `target`.
-      required: [code, pooled, period, metric, audience, name, target, progress, rewardCoins, completed, claimed, claimedCoins]
+      required: [code, pooled, period, metric, audience, name, target, progress, rewardCoins, rewardCherries, completed, claimed, claimedCoins, claimedCherries]
       properties:
         code: { type: string, maxLength: 40 }
         pooled:
@@ -11586,10 +11605,25 @@ components:
         name: { type: string }
         target: { type: integer, minimum: 1 }
         progress: { type: integer, minimum: 0 }
-        rewardCoins: { type: integer, minimum: 1 }
+        rewardCoins:
+          type: integer
+          minimum: 0
+          deprecated: true
+          description: "Deprecated in v1.53-social (D184): always 0 — the reward is `rewardCherries`."
+        rewardCherries:
+          type: integer
+          minimum: 1
+          description: "v1.53-social (D184, CONVENTIONS §10.41.3): the cherries the task pays (the old coins ×10)."
         completed: { type: boolean }
         claimed: { type: boolean }
-        claimedCoins: { type: [integer, 'null'], minimum: 0, description: What the claim paid (after the daily cap). }
+        claimedCoins:
+          type: [integer, 'null']
+          minimum: 0
+          description: "What the claim paid in coins (after the daily cap): a claim made before v1.53-social; 0 for a cherry claim; null before it is claimed."
+        claimedCherries:
+          type: [integer, 'null']
+          minimum: 0
+          description: "v1.53-social (D184): what the claim paid in cherries (after the daily cap); 0 for a claim paid in coins before; null before it is claimed."
     CheckInDay:
       type: object
       required: [date, cycleDay, today, checkedIn, rewardCoins]
@@ -11601,7 +11635,7 @@ components:
         rewardCoins: { type: integer, minimum: 0, description: Before the daily cap. }
     MyTasks:
       type: object
-      required: [day, timeZone, dayStartsAt, dayResetsAt, weekStartsAt, weekResetsAt, dailyCapCoins, dailyEarnedCoins, band, checkIn, tasks]
+      required: [day, timeZone, dayStartsAt, dayResetsAt, weekStartsAt, weekResetsAt, dailyCapCoins, dailyEarnedCoins, dailyCapCherries, dailyEarnedCherries, band, checkIn, tasks]
       properties:
         day: { type: string, format: date }
         timeZone: { type: string }
@@ -11609,8 +11643,10 @@ components:
         dayResetsAt: { type: string, format: date-time }
         weekStartsAt: { type: string, format: date-time }
         weekResetsAt: { type: string, format: date-time }
-        dailyCapCoins: { type: integer, minimum: 1 }
-        dailyEarnedCoins: { type: integer, minimum: 0, description: Coins from daily tasks and the check-in today. }
+        dailyCapCoins: { type: integer, minimum: 1, description: "Since v1.53-social (D184): the check-in's coin cap (`TASK_DAILY_CAP_COINS`)." }
+        dailyEarnedCoins: { type: integer, minimum: 0, description: "Coins today from the check-in (and daily task claims made in coins before v1.53-social)." }
+        dailyCapCherries: { type: integer, minimum: 1, description: "v1.53-social (D184): the daily tasks' cherry cap (`TASK_DAILY_CAP_CHERRIES`, 500)." }
+        dailyEarnedCherries: { type: integer, minimum: 0, description: "v1.53-social (D184): cherries from daily tasks today." }
         band:
           type: object
           description: "v1.50-social (D176): the level band of today's pool tasks (the band at the day's first read; before any assignment, the band of the level now)."
@@ -11639,11 +11675,13 @@ components:
           items: { $ref: '#/components/schemas/ProgramTask' }
     TaskClaimResult:
       type: object
-      required: [task, paidCoins, balanceCoins]
+      required: [task, paidCoins, balanceCoins, paidCherries, balanceCherries]
       properties:
         task: { $ref: '#/components/schemas/ProgramTask' }
-        paidCoins: { type: integer, minimum: 0 }
+        paidCoins: { type: integer, minimum: 0, description: "0 since v1.53-social, except a claim made in coins before (the 200)." }
         balanceCoins: { type: integer, format: int64, minimum: 0 }
+        paidCherries: { type: integer, minimum: 0, description: "v1.53-social (D184): the cherries the claim paid." }
+        balanceCherries: { type: integer, format: int64, description: "v1.53-social (D184): the caller's cherry balance after the claim." }
     CheckInResult:
       type: object
       required: [paidCoins, balanceCoins, tasks]
@@ -11788,9 +11826,11 @@ components:
         v1.52-social (D179, §10.46). Credits: `GIFT_RECEIVED` (a gift's cherries), `AGENCY_COMMISSION`,
         `PARENT_COMMISSION`, `WITHDRAWAL_REFUND` (a rejected withdrawal). Debits: `GIFT_REVERSAL`,
         `AGENCY_COMMISSION_REVERSAL`, `PARENT_COMMISSION_REVERSAL` (an admin reversed a send),
-        `WITHDRAWAL_HOLD` (held by a withdrawal request). New values may appear later.
+        `WITHDRAWAL_HOLD` (held by a withdrawal request). *(v1.53-social, D184)* `TASK_REWARD` (credit): a
+        Task Center reward (locked for withdrawal until the unlock rule passes, §10.46.1). New values may
+        appear later.
       enum: [GIFT_RECEIVED, AGENCY_COMMISSION, PARENT_COMMISSION, GIFT_REVERSAL, AGENCY_COMMISSION_REVERSAL,
-             PARENT_COMMISSION_REVERSAL, WITHDRAWAL_HOLD, WITHDRAWAL_REFUND]
+             PARENT_COMMISSION_REVERSAL, WITHDRAWAL_HOLD, WITHDRAWAL_REFUND, TASK_REWARD]
     CherryPayoutRules:
       type: object
       description: "`rateCherries` cherries are paid `rateMinor` minor units of `currency` (owner: 1 000 000 = 110, $1.10)."
@@ -11835,7 +11875,7 @@ components:
     CherryWallet:
       type: object
       required: [cherries, valueMinor, heldCherries, earnedTotal, earnedLast7Days, earnedLast30Days, commissionTotal,
-                 payout, pendingWithdrawal]
+                 taskRewardTotal, lockedTaskCherries, withdrawableCherries, taskUnlock, payout, pendingWithdrawal]
       properties:
         cherries: { type: integer, format: int64, description: "The available balance (below 0 only after an admin reversal: a debt)." }
         valueMinor: { type: integer, format: int64, minimum: 0, description: What the available cherries are worth at the payout rate (rounded down). }
@@ -11844,6 +11884,28 @@ components:
         earnedLast7Days: { type: integer, format: int64 }
         earnedLast30Days: { type: integer, format: int64 }
         commissionTotal: { type: integer, format: int64, description: Agency and parent commissions (reversals subtracted). }
+        taskRewardTotal: { type: integer, format: int64, minimum: 0, description: "v1.53-social (D184): Task Center rewards (`TASK_REWARD`), all time." }
+        lockedTaskCherries:
+          type: integer
+          format: int64
+          minimum: 0
+          description: "v1.53-social (D184, §10.46.1): task cherries not withdrawable yet (all of `taskRewardTotal` until `taskUnlock.unlocked`, then 0)."
+        withdrawableCherries:
+          type: integer
+          format: int64
+          minimum: 0
+          description: "v1.53-social (D184): what a withdrawal may hold now — `cherries` less `lockedTaskCherries`, never below 0."
+        taskUnlock:
+          type: object
+          description: |
+            v1.53-social (D184, §10.46.1). The rule that unlocks task cherries — a PLACEHOLDER pending the
+            owner: lifetime gift cherries (reversals subtracted) worth at least `thresholdMinor` at the payout
+            rate. The rule may change without a contract change; clients show `unlocked` and the values.
+          required: [unlocked, giftValueMinor, thresholdMinor]
+          properties:
+            unlocked: { type: boolean }
+            giftValueMinor: { type: integer, format: int64, minimum: 0, description: Lifetime gift cherries at the payout rate (minor units of `payout.currency`). }
+            thresholdMinor: { type: integer, format: int64, minimum: 0, description: "0: task cherries are never locked." }
         payout: { $ref: '#/components/schemas/CherryPayoutRules' }
         pendingWithdrawal:
           oneOf:
