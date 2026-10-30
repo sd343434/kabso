@@ -6,7 +6,8 @@ import 'package:material_ui/material_ui.dart';
 
 /// Glyphs of the KL-056 feed and live previews. Every glyph comes from the
 /// owner-supplied app icon set ([AppIcons]) except [FeedGlyph.discover], which
-/// the set does not have and is drawn here as an outline compass.
+/// the set does not have and is drawn here as an outline compass, and the
+/// coin and the gift, the owner's art ([KabsoArt]).
 enum FeedGlyph {
   heart,
   comment,
@@ -46,7 +47,8 @@ class FeedGlyphIcon extends StatelessWidget {
 
   static const Color _shadowColor = Color(0x59000000);
 
-  /// The [AppIcons] asset of [glyph], or null for the painted compass.
+  /// The [AppIcons] asset of [glyph], or null for the painted compass and
+  /// the coin (owner art).
   static String? assetFor(FeedGlyph glyph) => switch (glyph) {
     FeedGlyph.heart => AppIcons.heartFilled,
     FeedGlyph.comment => AppIcons.commentFilled,
@@ -61,7 +63,8 @@ class FeedGlyphIcon extends StatelessWidget {
     FeedGlyph.close => AppIcons.close,
     FeedGlyph.collapse => AppIcons.chevronDownCircle,
     FeedGlyph.gift => AppIcons.giftFilled,
-    FeedGlyph.coin => AppIcons.coinGold,
+    // D161/D182: the Kabi coin art ([KabsoArt.coin]), drawn in [build].
+    FeedGlyph.coin => null,
     FeedGlyph.smiley => AppIcons.emoji,
     FeedGlyph.wave => AppIcons.handWave,
     FeedGlyph.more => AppIcons.moreHoriz,
@@ -78,7 +81,8 @@ class FeedGlyphIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // D74: the coin and the gift box are the owner's 3D art.
+    // D74: the coin (the Kabi coin, D161) and the gift box are the owner's
+    // 3D art.
     if (glyph == FeedGlyph.coin) {
       return KabsoArtIcon(KabsoArt.coin, size: size);
     }

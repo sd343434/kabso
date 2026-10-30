@@ -7,7 +7,7 @@ import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/app/shell/shell_navigation.dart';
 import 'package:kabso_live/core/error/failure_widgets.dart';
 import 'package:kabso_live/core/format/k_format.dart';
-import 'package:kabso_live/core/icons/app_icons.dart';
+import 'package:kabso_live/core/icons/kabso_art.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/application/live_wallet_controller.dart';
@@ -165,7 +165,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
       key: WalletScreen.balanceKey,
       container: true,
       child: WalletBalanceCard(
-        icon: const AppIcon(AppIcons.coinGold, size: 34, tint: false),
+        icon: const KabsoArtIcon(KabsoArt.coin, size: 34),
         amount: switch (coins) {
           AsyncValue(:final value?) => WalletBigNumber(KFormat.grouped(value)),
           AsyncValue(hasError: true) => const WalletBigNumber('–'),
@@ -292,7 +292,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
           children: [
             Flexible(child: Text(l10n.walletGet)),
             const SizedBox(width: KSpacing.xs),
-            const AppIcon(AppIcons.coinGold, size: 22, tint: false),
+            const KabsoArtIcon(KabsoArt.coin, size: 22),
             const SizedBox(width: KSpacing.xxs),
             Text(coins, textDirection: TextDirection.ltr),
           ],
@@ -390,7 +390,7 @@ class _RewardsRow extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       textDirection: TextDirection.ltr,
                       children: [
-                        const AppIcon(AppIcons.coinGold, size: 22, tint: false),
+                        const KabsoArtIcon(KabsoArt.coin, size: 22),
                         const SizedBox(width: KSpacing.xs),
                         Text(
                           'x$bonus',
@@ -438,7 +438,7 @@ class _RewardsRow extends StatelessWidget {
                       style: t.body.copyWith(color: p.textSecondary),
                     ),
                   ),
-                  const AppIcon(AppIcons.coinGold, size: 18, tint: false),
+                  const KabsoArtIcon(KabsoArt.coin, size: 18),
                   const SizedBox(width: KSpacing.xs),
                   Text(
                     value,
@@ -545,11 +545,7 @@ class _PackageTile extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         textDirection: TextDirection.ltr,
                         children: [
-                          const AppIcon(
-                            AppIcons.coinGold,
-                            size: 16,
-                            tint: false,
-                          ),
+                          const KabsoArtIcon(KabsoArt.coin, size: 16),
                           const SizedBox(width: KSpacing.xxs),
                           Text(
                             KFormat.grouped(package.coins),

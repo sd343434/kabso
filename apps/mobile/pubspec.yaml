@@ -110,7 +110,8 @@ flutter:
     - assets/live_rank_frames/
     # D159 the owner's tiered lucky-win frames (assets/win_frames/PROVENANCE.md).
     - assets/win_frames/
-    # D134 the owner's host currency, the Kab Cherry (assets/currency/PROVENANCE.md).
+    # The owner's currency set (assets/currency/PROVENANCE.md): the Kabi coin (D161),
+    # the Kab Cherry (D134; new art D182) and the game-card ticket (D182).
     - assets/currency/
     # Owner-supplied charm level icons and tap characters (D101, PROVENANCE.md in each).
     - assets/charm/

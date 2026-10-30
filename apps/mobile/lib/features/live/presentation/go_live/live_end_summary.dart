@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show FutureProviderFamily;
 import 'package:kabso_live/core/countries/countries.dart';
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/icons/kabso_art.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/cp/presentation/cp_special_frame.dart';
 import 'package:kabso_live/features/levels/domain/level_models.dart';
@@ -370,7 +371,7 @@ class _Hero extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const KCherryIcon(size: 44, animated: true),
+                const KCherryIcon(size: 44),
                 const SizedBox(width: KSpacing.sm),
                 Flexible(
                   child: FittedBox(
@@ -954,7 +955,8 @@ class _ValueChips extends StatelessWidget {
           Expanded(
             child: _Chip(
               key: GoLiveSummary.giftCoinsKey,
-              icon: Icons.toll_rounded,
+              // D182: the spending coin is the Kabi coin art.
+              art: KabsoArt.coin,
               label: l10n.liveStatsGiftCoins,
               value: KFormat.grouped(stats.giftCoins),
             ),
@@ -976,13 +978,16 @@ class _ValueChips extends StatelessWidget {
 
 class _Chip extends StatelessWidget {
   const new({
-    required this.icon,
     required this.label,
     required this.value,
+    this.icon,
+    this.art,
     super.key,
   });
 
-  final IconData icon;
+  /// A tinted glyph, or the owner's [art] (its own colours).
+  final IconData? icon;
+  final KabsoArt? art;
   final String label;
   final String value;
 
@@ -1009,7 +1014,10 @@ class _Chip extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(icon, size: 14, color: p.textTertiary),
+                if (art case final art?)
+                  KabsoArtIcon(art, size: 14)
+                else
+                  Icon(icon, size: 14, color: p.textTertiary),
                 const SizedBox(width: KSpacing.xs + 2),
                 Flexible(
                   child: FittedBox(
