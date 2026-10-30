@@ -661,9 +661,12 @@ describe('loadConfig — v1.5-social media and posts (CONVENTIONS §11)', () => 
       rateCherries: 1_000_000,
       rateMinor: 110,
       currency: 'USD',
+      // D188 (owner): the coins' retail price, $12.50 per 1 000 000.
+      coinRetailUsdPerMillion: 12.5,
       minWithdrawalMinor: 1000,
       payoutDays: 7,
-      taskCherriesUnlockGiftMinor: 5000,
+      // D188 (owner): $60 of lifetime gift support (was $50).
+      taskCherriesUnlockGiftMinor: 6000,
     });
     expect(loadConfig({ ...base, CHERRY_PAYOUT_RATE: '1000:110' }).economy.rateCherries).toBe(1000);
     expect(() => loadConfig({ ...base, CHERRY_PAYOUT_RATE: '1.1' })).toThrow(/CHERRY_PAYOUT_RATE/);

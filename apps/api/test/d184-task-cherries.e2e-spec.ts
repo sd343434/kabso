@@ -50,8 +50,8 @@ interface CherryWallet {
   taskUnlock: { unlocked: boolean; giftValueMinor: number; thresholdMinor: number };
 }
 
-/** The daily cherry cap here: 6 old coins × 3 000. */
-const CHERRY_CAP = 18_000;
+/** The daily cherry cap here (D188 defaults: a free task 300 + 200 of the next). */
+const CHERRY_CAP = 500;
 const COIN_CAP = 27;
 
 /** A fixed-offset zone where it is about noon now, so "today" never ends in the middle of a test. */
@@ -181,7 +181,7 @@ describe('D184 task rewards in cherries', { timeout: 240_000 }, () => {
   });
   afterAll(async () => ctx?.close());
 
-  it('the rewards are the old coins ×3 000 in cherries (×10, then ×300 by the owner); the caps in cherries and coins', async () => {
+  it('the rewards are cherries — the D188 defaults (owner: free actions 300, gifts by coin value); the caps', async () => {
     const me = await signup();
     const mine = await tasks(me);
     expect(mine).toMatchObject({
@@ -191,15 +191,16 @@ describe('D184 task rewards in cherries', { timeout: 240_000 }, () => {
       dailyEarnedCoins: 0,
     });
     expect(mine.tasks.map((t) => [t.code, t.rewardCherries, t.rewardCoins])).toEqual([
-      ['WATCH_LIVE', 15_000, 0],
-      ['FOLLOW_USERS', 15_000, 0],
-      ['LIVE_CHAT', 15_000, 0],
-      ['SEND_GIFTS', 45_000, 0],
+      ['WATCH_LIVE', 300, 0],
+      ['FOLLOW_USERS', 300, 0],
+      ['LIVE_CHAT', 300, 0],
+      ['SEND_GIFTS', 1_000, 0],
     ]);
-    // The weekly host tasks too (100 coins → 1 000 cherries).
+    // The weekly host tasks too (D188 follow-up: per band; band 1 — 5 hours live → 180 000, 2 500 000 coins
+    // received → 220 000).
     const hostTasks = await tasks(host);
     expect(hostTasks.tasks.filter((t) => t.code.startsWith('HOST_')).map((t) => t.rewardCherries)).toEqual([
-      300_000, 300_000,
+      180_000, 220_000,
     ]);
   });
 
@@ -211,8 +212,8 @@ describe('D184 task rewards in cherries', { timeout: 240_000 }, () => {
     for (const r of results) {
       expectContract(r, 'claimMyTask');
       expect(r.body).toMatchObject({
-        paidCherries: 15_000,
-        balanceCherries: 15_000,
+        paidCherries: 300,
+        balanceCherries: 300,
         paidCoins: 0,
         balanceCoins: 0,
       });
@@ -222,19 +223,19 @@ describe('D184 task rewards in cherries', { timeout: 240_000 }, () => {
     expect(rows).toEqual([
       expect.objectContaining({
         reason: 'TASK_REWARD',
-        delta: 15_000n,
-        balanceAfter: 15_000n,
+        delta: 300n,
+        balanceAfter: 300n,
         referenceId: `FOLLOW_USERS@${day}`,
       }),
     ]);
     expect(await ctx.prisma.walletLedgerEntry.count({ where: { userId: me.id } })).toBe(0);
     const claimRow = await ctx.prisma.taskClaim.findFirstOrThrow({ where: { userId: me.id } });
-    expect(claimRow).toMatchObject({ rewardAmount: 15_000, rewardCurrency: 'CHERRIES' });
+    expect(claimRow).toMatchObject({ rewardAmount: 300, rewardCurrency: 'CHERRIES' });
 
     // The ledger itself refuses a second TASK_REWARD for the same task and day.
     await expect(
       ctx.prisma.$transaction((tx) =>
-        creditTaskCherriesIn(tx, me.id, 15_000n, `FOLLOW_USERS@${day}`, new Date()),
+        creditTaskCherriesIn(tx, me.id, 300n, `FOLLOW_USERS@${day}`, new Date()),
       ),
     ).rejects.toThrow();
 
@@ -242,20 +243,20 @@ describe('D184 task rewards in cherries', { timeout: 240_000 }, () => {
     expect(history.status).toBe(200);
     expectContract(history, 'listMyCherryLedger');
     expect(history.body.data).toEqual([
-      expect.objectContaining({ reason: 'TASK_REWARD', delta: 15_000, balanceAfter: 15_000, gift: null }),
+      expect.objectContaining({ reason: 'TASK_REWARD', delta: 300, balanceAfter: 300, gift: null }),
     ]);
 
-    // Cap 18 000: 15 000 paid → the next pays the 3 000 left (of 15 000), then 409; nothing more is credited.
+    // Cap 500: 300 paid → the next pays the 200 left (of 300), then 409; nothing more is credited.
     const capped = await claim(me, 'LIVE_CHAT');
     expect(capped.status).toBe(201);
     expect(capped.body).toMatchObject({
-      paidCherries: 3_000,
-      balanceCherries: 18_000,
+      paidCherries: 200,
+      balanceCherries: 500,
       task: {
         code: 'LIVE_CHAT',
         claimed: true,
-        rewardCherries: 15_000,
-        claimedCherries: 3_000,
+        rewardCherries: 300,
+        claimedCherries: 200,
         claimedCoins: 0,
       },
     });
@@ -296,7 +297,7 @@ describe('D184 task rewards in cherries', { timeout: 240_000 }, () => {
       claimed: true,
       claimedCoins: 25,
       claimedCherries: 0,
-      rewardCherries: 15_000,
+      rewardCherries: 300,
     });
     const again = await claim(me, 'FOLLOW_USERS');
     expect(again.status).toBe(200);
@@ -314,10 +315,10 @@ describe('D184 task rewards in cherries', { timeout: 240_000 }, () => {
     const checkIn = await ctx.http.post('/api/v1/me/check-in').set(auth(me));
     expect(checkIn.status).toBe(201);
     expect(checkIn.body.paidCoins).toBe(2);
-    // The cherry cap is untouched by coins: a task pays its full 15 000 cherries.
+    // The cherry cap is untouched by coins: a task pays its full 300 cherries.
     const fresh = await claim(me, 'LIVE_CHAT');
     expect(fresh.status).toBe(201);
-    expect(fresh.body.paidCherries).toBe(15_000);
+    expect(fresh.body.paidCherries).toBe(300);
   });
 
   it('task cherries are not withdrawable until gift cherries reach the unlock value', async () => {

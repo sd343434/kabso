@@ -161,6 +161,8 @@ export enum ErrorCode {
   USERNAME_LOCKED = 'USERNAME_LOCKED',
   /** v1.55-social (DRAFT, D186): the host's gender sets the frame style (male blue, female pink). */
   HOST_FRAME_STYLE_FROM_GENDER = 'HOST_FRAME_STYLE_FROM_GENDER',
+  /** v1.57-social (DRAFT, D188): the caller already got the month's maximum of task cherries. */
+  TASK_MONTHLY_CAP_REACHED = 'TASK_MONTHLY_CAP_REACHED',
 }
 
 /** HTTP status for every code (CONVENTIONS.md §4 table). */
@@ -256,6 +258,7 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.RECHARGE_CHERRY_CAP_REACHED]: 409,
   [ErrorCode.USERNAME_LOCKED]: 409,
   [ErrorCode.HOST_FRAME_STYLE_FROM_GENDER]: 409,
+  [ErrorCode.TASK_MONTHLY_CAP_REACHED]: 409,
 };
 
 /** Default developer-facing messages (clients localize by `code`, not by message). */
@@ -334,7 +337,7 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.YOUTUBE_VIDEO_UNAVAILABLE]: 'This YouTube video cannot be played here.',
   [ErrorCode.YOUTUBE_SEARCH_UNAVAILABLE]: 'YouTube search is not available; paste a link instead.',
   [ErrorCode.TASK_NOT_COMPLETED]: 'That task is not completed yet.',
-  [ErrorCode.TASK_DAILY_CAP_REACHED]: 'You already got today’s maximum of task coins.',
+  [ErrorCode.TASK_DAILY_CAP_REACHED]: 'You already got today’s maximum of task rewards.',
   [ErrorCode.FOLLOW_REQUEST_NOT_PENDING]: 'That follow request is no longer pending.',
   [ErrorCode.AGENCY_ALREADY_MEMBER]: 'You are already a host of another agency.',
   [ErrorCode.AGENCY_JOIN_NOT_ALLOWED]: 'An agency owner cannot join an agency as a host.',
@@ -351,6 +354,7 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.RECHARGE_CHERRY_CAP_REACHED]: "The agent's daily cherry limit is reached.",
   [ErrorCode.USERNAME_LOCKED]: 'Your username is locked while your special username is active.',
   [ErrorCode.HOST_FRAME_STYLE_FROM_GENDER]: 'Your gender sets the colour of your host frame.',
+  [ErrorCode.TASK_MONTHLY_CAP_REACHED]: 'You already got this month’s maximum of task rewards.',
 };
 
 export interface ErrorDetail {

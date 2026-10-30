@@ -42,8 +42,8 @@ const HOUR_MS = 3_600_000;
 const DAY_MS = 24 * HOUR_MS;
 /** The check-in's coin cap here. */
 const CAP = 27;
-/** D184: the daily tasks' cherry cap here (17 old coins × 3 000). */
-const CHERRY_CAP = 51_000;
+/** D184: the daily tasks' cherry cap here (D188 defaults: the gift task 1 000 + 200 of a free task). */
+const CHERRY_CAP = 1_200;
 
 /**
  * A fixed-offset zone where it is about noon now, so "today" never ends in the middle of a test
@@ -121,12 +121,12 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
     expect(room.status, JSON.stringify(room.body)).toBe(201);
     return room.body.id as string;
   };
-  const send = async (roomId: string, from: TestUser, to: TestUser, quantity = 1) => {
+  const send = async (roomId: string, from: TestUser, to: TestUser, quantity = 1, giftCode = 'prog_rose') => {
     const res = await ctx.http
       .post(`/api/v1/live/rooms/${roomId}/gifts`)
       .set(auth(from))
       .send({
-        giftCode: 'prog_rose',
+        giftCode,
         quantity,
         recipients: [to.username],
         source: 'COINS',
@@ -204,6 +204,22 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
         tagNameEn: null,
       }),
     );
+    // D188: «send gifts» counts the coin value sent (10 000 coins): a 1 000-coin gift.
+    await ctx.prisma.$transaction((tx) =>
+      addGiftIn(tx, 'prog_crown', {
+        category: 'POPULAR',
+        nameAr: 'تاج',
+        nameEn: 'Crown',
+        priceCoins: 1000,
+        assetKey: 'gift_prog_crown',
+        animationKey: null,
+        sortOrder: 1,
+        badge: 'NONE',
+        tagCode: null,
+        tagNameAr: null,
+        tagNameEn: null,
+      }),
+    );
     // The database is emptied for the tests: the migration's default tasks again.
     expect(await seedDefaultTasksIn(ctx.prisma)).toBe(6);
     expect(await seedDefaultTasksIn(ctx.prisma)).toBe(0);
@@ -250,24 +266,24 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
     expect(results.map((r) => r.status).sort()).toEqual([200, 200, 201]);
     const first = results.find((r) => r.status === 201)!;
     expectContract(first, 'claimMyTask');
-    // D184: the D166 5 coins are 15 000 cherries (×10, then ×300 by the owner); no coins.
+    // D184: task rewards are cherries; D188 (owner): a free action pays 300 cherries; no coins.
     expect(first.body).toMatchObject({
       paidCoins: 0,
       balanceCoins: 0,
-      paidCherries: 15_000,
-      balanceCherries: 15_000,
+      paidCherries: 300,
+      balanceCherries: 300,
       task: {
         code: 'FOLLOW_USERS',
         claimed: true,
-        rewardCherries: 15_000,
-        claimedCherries: 15_000,
+        rewardCherries: 300,
+        claimedCherries: 300,
         claimedCoins: 0,
       },
     });
     const again = await claim(me, 'FOLLOW_USERS');
     expect(again.status).toBe(200);
     expectContract(again, 'claimMyTask');
-    expect(again.body).toMatchObject({ paidCherries: 15_000, balanceCherries: 15_000, paidCoins: 0 });
+    expect(again.body).toMatchObject({ paidCherries: 300, balanceCherries: 300, paidCoins: 0 });
     expect(await taskRewards(me)).toHaveLength(1);
     expect(await ledger(me, 'TASK_REWARD')).toHaveLength(0);
 
@@ -276,7 +292,7 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
     expect(history.status).toBe(200);
     expectContract(history, 'listMyCherryLedger');
     expect(history.body.data).toEqual([
-      expect.objectContaining({ reason: 'TASK_REWARD', delta: 15_000, balanceAfter: 15_000, gift: null }),
+      expect.objectContaining({ reason: 'TASK_REWARD', delta: 300, balanceAfter: 300, gift: null }),
     ]);
     const coins = await ctx.http.get('/api/v1/wallet/me/ledger').set(auth(me));
     expect(coins.status).toBe(200);
@@ -308,7 +324,7 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
     const host = await signup();
     const roomId = await startLive(host);
     const me = await signup();
-    await creditIn(ctx.prisma, me.id, 1000n, 'ADMIN_GRANT', randomUUID());
+    await creditIn(ctx.prisma, me.id, 11_000n, 'ADMIN_GRANT', randomUUID());
     const today = (await tasks(me)).day;
     // Six check-ins in a row before today (streak 1…6).
     for (let i = 6; i >= 1; i--) {
@@ -321,32 +337,34 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
     const first = await ctx.http.post('/api/v1/me/check-in').set(auth(me));
     expect(first.status, JSON.stringify(first.body)).toBe(201);
     expectContract(first, 'checkIn');
-    expect(first.body).toMatchObject({ paidCoins: 25, balanceCoins: 1025 });
+    expect(first.body).toMatchObject({ paidCoins: 25, balanceCoins: 11_025 });
     expect(first.body.tasks.checkIn).toMatchObject({ checkedInToday: true, streak: 7 });
     const second = await ctx.http.post('/api/v1/me/check-in').set(auth(me));
     expect(second.status).toBe(200);
     expect(second.body.paidCoins).toBe(25);
     expect(await ledger(me, 'CHECK_IN_REWARD')).toHaveLength(1);
 
-    // Every daily task done: chat, a 15 s watch, follows, ten paid gift sends.
+    // Every daily task done: chat, a 15 s watch, follows, paid gifts worth 10 000 coins (D188).
     await join(roomId, me);
     await chat(roomId, me, 10);
     await watch(roomId, me, 15_000);
     for (const t of targets.slice(0, 10)) await follow(me, t);
-    for (let i = 0; i < 10; i++) await send(roomId, me, host);
+    for (let i = 0; i < 9; i++) await send(roomId, me, host, 1, 'prog_crown');
+    expect(await task(me, 'SEND_GIFTS')).toMatchObject({ progress: 9_000, target: 10_000, completed: false });
+    await send(roomId, me, host, 1, 'prog_crown');
     const all = await tasks(me);
     expect(all.tasks.every((t) => t.completed)).toBe(true);
     expect(all.dailyEarnedCoins).toBe(25);
     expect(all.dailyEarnedCherries).toBe(0);
 
-    // D184: the check-in's coins no longer count toward the task cap. Cherry cap 51 000: the gift task
-    // pays its 45 000, the next claim the 6 000 left (of 15 000), then 409.
+    // D184: the check-in's coins no longer count toward the task cap. Cherry cap 1 200: the gift task
+    // pays its 1 000 (D188), the next claim the 200 left (of 300), then 409.
     const full = await claim(me, 'SEND_GIFTS');
     expect(full.status).toBe(201);
-    expect(full.body).toMatchObject({ paidCherries: 45_000, balanceCoins: 925 });
+    expect(full.body).toMatchObject({ paidCherries: 1_000, balanceCoins: 1_025 });
     const capped = await claim(me, 'FOLLOW_USERS');
     expect(capped.status).toBe(201);
-    expect(capped.body).toMatchObject({ paidCherries: 6_000, balanceCherries: 51_000 });
+    expect(capped.body).toMatchObject({ paidCherries: 200, balanceCherries: 1_200 });
     const refused = await claim(me, 'WATCH_LIVE');
     expect(refused.status).toBe(409);
     expect(refused.body.error.code).toBe('TASK_DAILY_CAP_REACHED');
@@ -354,15 +372,15 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
     expect(after.dailyEarnedCherries).toBe(CHERRY_CAP);
     expect(after.dailyEarnedCoins).toBe(25);
 
-    // The host's weekly tasks: gifts received (100 coins of 1 000), outside the daily cap.
+    // The host's weekly tasks: gifts received (10 000 coins of band 1's 2 500 000, D188), outside the daily cap.
     const hostTasks = await tasks(host);
     expect(hostTasks.tasks.map((t) => t.code)).toEqual(
       expect.arrayContaining(['HOST_LIVE_MINUTES', 'HOST_GIFT_COINS']),
     );
     expect(hostTasks.tasks.find((t) => t.code === 'HOST_GIFT_COINS')).toMatchObject({
       period: 'WEEKLY',
-      progress: 100,
-      target: 1000,
+      progress: 10_000,
+      target: 2_500_000,
     });
   });
 

@@ -15,7 +15,8 @@ import {
 
 // v1.50-social (D176, CONVENTIONS §10.41.1): the daily task pool's pure rules.
 
-const templates: PoolTemplate[] = DEFAULT_POOL_TASKS.map((t) => ({
+// D188: a template seeded switched off («send a gift») is never offered (the service reads enabled rows).
+const templates: PoolTemplate[] = DEFAULT_POOL_TASKS.filter((t) => t.enabled !== false).map((t) => ({
   code: t.code,
   group: t.group,
   audience: t.audience,
@@ -54,16 +55,9 @@ describe('the default pool and bands (D176)', () => {
       ),
       'utf8',
     );
-    // D184: seeded in coins; migrations 20261231110000_task_cherries (×10) and
-    // 20261231120000_task_rewards_raise (×300) made every reward cherries.
-    for (const t of DEFAULT_POOL_TASKS) {
-      const coins = t.bandRewards.map((r) => r / 3000);
-      expect(sql).toContain(
-        `('${t.code}', 'DAILY', '${t.metric}', ${String(Math.max(...t.bandTargets))}, ${String(Math.max(...coins))}, ` +
-          `'${t.audience}', '${t.nameAr}', '${t.nameEn.replace(/'/g, "''")}', ${String(t.sortOrder)}, true, '${t.group}', ` +
-          `ARRAY[${t.bandTargets.join(', ')}], ARRAY[${coins.join(', ')}])`,
-      );
-    }
+    // D176 seeded every template (in coins); D184 made the rewards cherries (×10, then ×300) and D188
+    // (v1.57-social, owner) rebalanced them: 20261231130000_task_rewards_rebalance holds the values.
+    for (const t of DEFAULT_POOL_TASKS) expect(sql).toContain(`('${t.code}', 'DAILY', '`);
     const cherries = readFileSync(
       fileURLToPath(
         new URL('../../../prisma/migrations/20261231110000_task_cherries/migration.sql', import.meta.url),
@@ -71,18 +65,45 @@ describe('the default pool and bands (D176)', () => {
       'utf8',
     );
     expect(cherries).toContain('"reward_cherries" = "reward_cherries" * 10');
-    expect(cherries).toContain('SELECT r * 10 FROM unnest("band_rewards")');
-    const raise = readFileSync(
+    const rebalance = readFileSync(
       fileURLToPath(
         new URL(
-          '../../../prisma/migrations/20261231120000_task_rewards_raise/migration.sql',
+          '../../../prisma/migrations/20261231130000_task_rewards_rebalance/migration.sql',
           import.meta.url,
         ),
       ),
       'utf8',
     );
-    expect(raise).toContain('"reward_cherries" = LEAST("reward_cherries"::bigint * 300, 1000000000)');
-    expect(raise).toContain('SELECT LEAST(r::bigint * 300, 1000000000)::integer');
+    // The daily host tasks' rewards were doubled again by 20261231140000_task_weekly_host_bands.
+    const hostBands = readFileSync(
+      fileURLToPath(
+        new URL(
+          '../../../prisma/migrations/20261231140000_task_weekly_host_bands/migration.sql',
+          import.meta.url,
+        ),
+      ),
+      'utf8',
+    ).replace(/\s+/g, ' ');
+    for (const t of DEFAULT_POOL_TASKS) {
+      if (t.group === 'HOST') {
+        expect(hostBands).toContain(`('${t.code}', ARRAY[${t.bandRewards.join(', ')}])`);
+        const at = rebalance.indexOf(`('${t.code}',`);
+        const old = rebalance.slice(at, rebalance.indexOf('])', at) + 2).replace(/\s+/g, ' ');
+        expect(old, t.code).toContain(`ARRAY[${t.bandTargets.join(', ')}], ARRAY[`);
+        continue;
+      }
+      const start = rebalance.indexOf(`('${t.code}',`);
+      expect(start, t.code).toBeGreaterThan(0);
+      const row = rebalance.slice(start, rebalance.indexOf('])', start) + 2).replace(/\s+/g, ' ');
+      expect(row, t.code).toContain(
+        `ARRAY[${t.bandTargets.join(', ')}], ARRAY[${t.bandRewards.join(', ')}])`,
+      );
+      if (t.metric === 'GIFT_COINS_SENT' || t.code === 'P_HOST_GIFTS') {
+        expect(row).toContain(
+          `'${t.metric}', '${t.nameAr}', '${t.nameEn}', ${t.enabled === false ? 'false' : 'NULL'},`,
+        );
+      }
+    }
     for (const b of DEFAULT_TASK_POOL_BANDS) {
       expect(sql).toContain(
         `(${String(b.band)}, ${String(b.minLevel)}, ${String(b.dailyCount)}, ${String(b.hostCount)}, '${b.nameAr}', '${b.nameEn}')`,
@@ -138,8 +159,9 @@ describe('assignDailyTasks (D176)', () => {
   it('a template not offered in a band (target 0) is never picked there', () => {
     for (let day = 1; day <= 60; day++) {
       const picks = assignDailyTasks(templates, band(1), true, seed('x', `d${String(day)}`));
-      expect(picks.map((p) => p.code)).not.toContain('P_SEND_GIFTS');
       expect(picks.map((p) => p.code)).not.toContain('P_REEL');
+      // D188: «send a gift» is switched off by default (not in the enabled templates).
+      expect(picks.map((p) => p.code)).not.toContain('P_SEND_GIFT');
     }
   });
 

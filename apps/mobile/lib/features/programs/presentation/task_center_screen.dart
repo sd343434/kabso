@@ -36,6 +36,9 @@ class TaskCenterScreen extends ConsumerStatefulWidget {
   static const calendarKey = Key('tasks.checkIn.calendar');
   static const calendarSheetKey = Key('tasks.checkIn.sheet');
   static const capKey = Key('tasks.cap');
+
+  /// D188: the month's line («مكافآت الشهر: x من …»).
+  static const monthCapKey = Key('tasks.monthCap');
   static const rewardsKey = Key('tasks.rewards');
   static const weeklyKey = Key('tasks.weekly');
   static const emptyKey = Key('tasks.empty');
@@ -115,13 +118,13 @@ class _TaskCenterScreenState extends ConsumerState<TaskCenterScreen> {
     } on Object catch (e) {
       if (!mounted) return;
       final failure = toAppFailure(e);
-      final cap =
-          failure is ServerFailure &&
-          failure.rawCode == 'TASK_DAILY_CAP_REACHED';
-      KSnack.error(
-        context,
-        cap ? l10n.tasksCapReached : failureMessage(l10n, failure),
-      );
+      final code = failure is ServerFailure ? failure.rawCode : null;
+      KSnack.error(context, switch (code) {
+        'TASK_DAILY_CAP_REACHED' => l10n.tasksCapReached,
+        // D188: the month's cap of task cherries (daily and weekly).
+        'TASK_MONTHLY_CAP_REACHED' => l10n.tasksMonthlyCapReached,
+        _ => failureMessage(l10n, failure),
+      });
     } finally {
       if (mounted) setState(() => _busy.remove(id));
       ref.invalidate(myTasksProvider);
@@ -146,6 +149,7 @@ class _TaskCenterScreenState extends ConsumerState<TaskCenterScreen> {
       TaskMetric.liveChatMessages ||
       TaskMetric.liveTaps ||
       TaskMetric.giftSends ||
+      TaskMetric.giftCoinsSent ||
       TaskMetric.newHostGifts ||
       TaskMetric.other => null,
     };
@@ -195,6 +199,15 @@ class _TaskCenterScreenState extends ConsumerState<TaskCenterScreen> {
           title: l10n.tasksRewardsTitle,
           caption: capCaption(value),
           captionKey: TaskCenterScreen.capKey,
+          // D188: «مكافآت الشهر: x من …» under the daily line (none when the
+          // server has no monthly cap).
+          secondCaption: value.monthlyCapCherries > 0
+              ? l10n.tasksMonthlyCap(
+                  KFormat.grouped(value.monthlyEarnedCherries),
+                  KFormat.grouped(value.monthlyCapCherries),
+                )
+              : null,
+          secondCaptionKey: TaskCenterScreen.monthCapKey,
           tasks: value.daily,
           busy: _busy,
           onGo: _go,
@@ -694,11 +707,17 @@ class _RewardsCard extends StatelessWidget {
     super.key,
     this.caption,
     this.captionKey,
+    this.secondCaption,
+    this.secondCaptionKey,
   });
 
   final String title;
   final String? caption;
   final Key? captionKey;
+
+  /// D188: a second line under [caption] (the month's cap).
+  final String? secondCaption;
+  final Key? secondCaptionKey;
   final List<ProgramTask> tasks;
   final Set<String> busy;
   final ValueChanged<TaskMetric> onGo;
@@ -709,6 +728,11 @@ class _RewardsCard extends StatelessWidget {
     final l10n = context.l10n;
     final p = context.palette;
     final caption = this.caption;
+    final secondCaption = this.secondCaption;
+    final captionStyle = context.textStyles.caption.copyWith(
+      color: p.textTertiary,
+      fontSize: 11,
+    );
     return _TaskCard(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
@@ -725,15 +749,26 @@ class _RewardsCard extends StatelessWidget {
               trailing: caption == null
                   ? null
                   : Flexible(
-                      child: Text(
-                        caption,
-                        key: captionKey,
-                        maxLines: 2,
-                        textAlign: TextAlign.end,
-                        style: context.textStyles.caption.copyWith(
-                          color: p.textTertiary,
-                          fontSize: 11,
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            caption,
+                            key: captionKey,
+                            maxLines: 2,
+                            textAlign: TextAlign.end,
+                            style: captionStyle,
+                          ),
+                          if (secondCaption != null)
+                            Text(
+                              secondCaption,
+                              key: secondCaptionKey,
+                              maxLines: 2,
+                              textAlign: TextAlign.end,
+                              style: captionStyle,
+                            ),
+                        ],
                       ),
                     ),
             ),
@@ -788,7 +823,8 @@ class _TaskRow extends StatelessWidget {
     TaskMetric.follows => (Icons.person_add_rounded, _pink),
     TaskMetric.liveChatMessages => (Icons.chat_bubble_rounded, _blue),
     TaskMetric.liveTaps => (Icons.favorite_rounded, _pink),
-    TaskMetric.giftSends => (Icons.redeem_rounded, _amber),
+    TaskMetric.giftSends ||
+    TaskMetric.giftCoinsSent => (Icons.redeem_rounded, _amber),
     TaskMetric.newHostGifts => (Icons.volunteer_activism_rounded, _amber),
     TaskMetric.posts => (Icons.edit_note_rounded, _teal),
     TaskMetric.reels => (Icons.movie_rounded, KBrandColors.red500),
@@ -809,7 +845,9 @@ class _TaskRow extends StatelessWidget {
     final p = context.palette;
     final t = context.textStyles;
     final (icon, hue) = look(task.metric);
-    final progress = ' (${task.progress}/${task.target})';
+    // D188: coin-value targets are large («(25,000/100,000)»).
+    final progress =
+        ' (${KFormat.grouped(task.progress)}/${KFormat.grouped(task.target)})';
     final key = TaskCenterScreen.actionKey(task.code);
     final Widget action;
     if (task.claimed) {

@@ -10,7 +10,8 @@
  *   pnpm task:admin seed-defaults   # adds the default tasks, pool and bands that are missing
  *   pnpm task:admin set <CODE> [--reward <cherries>] [--target <n>] [--enabled true|false]
  *                   [--name-ar <text>] [--name-en <text>] [--sort <n>]
- *                   [--targets <b1,b2,b3,b4>] [--rewards <b1,b2,b3,b4>] [--group <GROUP>]   # pool only
+ *                   [--targets <b1,b2,b3,b4>] [--rewards <b1,b2,b3,b4>]   # pool templates and weekly tasks
+ *                   [--group <GROUP>]   # pool only
  *   pnpm task:admin bands
  *   pnpm task:admin band <1-4> [--min-level <n>] [--count <n>] [--host-count <n>]
  *                   [--name-ar <text>] [--name-en <text>]
@@ -26,6 +27,11 @@
  * ledger, reason TASK_REWARD); the migration converted the coin rewards at 1 coin = 10 cherries. Up to
  * 1 000 000 000 cherries a task.
  *
+ * v1.57-social (D188, owner): `list` and `set` print the real money next to every reward — cherries at
+ * the payout rate (`CHERRY_PAYOUT_RATE`, owner 1 000 000 = $1.10) — and next to coin-value targets
+ * (gifts sent / received) — coins at the retail price (`COIN_RETAIL_USD_PER_MILLION`, owner $12.50 per
+ * 1 000 000). Read from this process's environment (the server's values; defaults when unset).
+ *
  * The daily caps and the check-in coins are server config (`TASK_DAILY_CAP_CHERRIES` for the daily
  * tasks' cherries, `TASK_DAILY_CAP_COINS` for the check-in's coins, `TASK_CHECK_IN_COINS`,
  * `TASK_CHECK_IN_STREAK_BONUS_COINS`). A change applies from the next read; a reward already claimed
@@ -36,7 +42,15 @@ import { parseArgs } from 'node:util';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../generated/prisma/client.js';
 import { AuditAction } from '../common/audit/audit.service.js';
-import { TASK_POOL_BANDS, TASK_POOL_GROUPS } from '../modules/programs/programs-rules.js';
+import {
+  COIN_VALUE_METRICS,
+  TASK_POOL_BANDS,
+  TASK_POOL_GROUPS,
+  cherriesUsd,
+  coinsUsd,
+  parsePayoutRate,
+  type TaskMetric,
+} from '../modules/programs/programs-rules.js';
 import { seedDefaultTaskPoolIn, seedDefaultTasksIn } from '../modules/programs/programs-seed.js';
 
 function fail(message: string): never {
@@ -49,7 +63,8 @@ const USAGE = [
   '       pnpm task:admin seed-defaults',
   '       pnpm task:admin set <CODE> [--reward <cherries>] [--target <n>] [--enabled true|false]',
   '         [--name-ar <text>] [--name-en <text>] [--sort <n>]',
-  '         [--targets <b1,b2,b3,b4>] [--rewards <b1,b2,b3,b4>] [--group <GROUP>]   (pool templates)',
+  '         [--targets <b1,b2,b3,b4>] [--rewards <b1,b2,b3,b4>]   (pool templates and weekly tasks)',
+  '         [--group <GROUP>]   (pool templates)',
   '       pnpm task:admin bands',
   '       pnpm task:admin band <1-4> [--min-level <n>] [--count <n>] [--host-count <n>]',
   '         [--name-ar <text>] [--name-en <text>]',
@@ -57,6 +72,59 @@ const USAGE = [
 
 /** v1.53-social (D184): the CHECKs of migration 20261231110000_task_cherries. */
 const MAX_REWARD_CHERRIES = 1_000_000_000;
+
+/** v1.57-social (D188): the payout rate and the coins' retail price, as the server reads them. */
+const PAYOUT_RATE = (() => {
+  const raw = process.env.CHERRY_PAYOUT_RATE?.trim() || '1000000:110';
+  return parsePayoutRate(raw) ?? fail('CHERRY_PAYOUT_RATE must be cherries:minor, e.g. 1000000:110.');
+})();
+const COIN_USD_PER_MILLION = (() => {
+  const raw = process.env.COIN_RETAIL_USD_PER_MILLION?.trim() || '12.5';
+  if (!/^(0|[1-9][0-9]{0,6})(\.[0-9]{1,4})?$/.test(raw) || Number(raw) <= 0) {
+    fail('COIN_RETAIL_USD_PER_MILLION must be a positive decimal, e.g. 12.5.');
+  }
+  return Number(raw);
+})();
+
+/** `9000 (≈ $0.0099)`: cherries with their payout value. */
+function cherriesWithUsd(cherries: number): string {
+  return `${String(cherries)} (≈ ${cherriesUsd(cherries, PAYOUT_RATE)})`;
+}
+
+/** A target, with its retail value when the metric counts coins. */
+function targetWithUsd(target: number, metric: string): string {
+  return COIN_VALUE_METRICS.includes(metric as TaskMetric)
+    ? `${String(target)} coins (≈ ${coinsUsd(target, COIN_USD_PER_MILLION)})`
+    : String(target);
+}
+
+/** One line per task: targets and rewards with their real money (D188). */
+function describe(t: {
+  enabled: boolean;
+  code: string;
+  period: string;
+  audience: string;
+  metric: string;
+  pool: boolean;
+  poolGroup: string | null;
+  target: number;
+  rewardCherries: number;
+  bandTargets: number[];
+  bandRewards: number[];
+  sortOrder: number;
+  nameAr: string;
+  nameEn: string;
+}): string {
+  const banded = t.bandTargets.length > 0;
+  const body = banded
+    ? `${t.pool ? `pool ${t.poolGroup ?? '?'}` : 'per band'} targets ${t.bandTargets.map((x) => targetWithUsd(x, t.metric)).join(', ')}` +
+      ` rewards ${t.bandRewards.map(cherriesWithUsd).join(', ')} cherries`
+    : `target ${targetWithUsd(t.target, t.metric)} reward ${cherriesWithUsd(t.rewardCherries)} cherries`;
+  return (
+    `${t.enabled ? '+' : '-'} ${t.code} ${t.period} ${t.audience} ${t.metric} ${body} ` +
+    `sort ${String(t.sortOrder)} «${t.nameAr}» / ${t.nameEn}\n`
+  );
+}
 
 const url = process.env.MIGRATION_DATABASE_URL;
 if (!url) fail('MIGRATION_DATABASE_URL is not set (the migration role changes the tasks).');
@@ -108,15 +176,11 @@ function name(raw: string, option: string): string {
 
 async function list(): Promise<void> {
   const rows = await prisma.taskDefinition.findMany({ orderBy: [{ sortOrder: 'asc' }, { code: 'asc' }] });
-  for (const t of rows) {
-    process.stdout.write(
-      `${t.enabled ? '+' : '-'} ${t.code} ${t.period} ${t.audience} ${t.metric} ` +
-        (t.pool
-          ? `pool ${t.poolGroup ?? '?'} targets ${t.bandTargets.join(',')} rewards ${t.bandRewards.join(',')} cherries `
-          : `target ${String(t.target)} reward ${String(t.rewardCherries)} cherries `) +
-        `sort ${String(t.sortOrder)} «${t.nameAr}» / ${t.nameEn}\n`,
-    );
-  }
+  process.stdout.write(
+    `Payout ${String(PAYOUT_RATE.cherries)} cherries = ${String(PAYOUT_RATE.minor)} minor units; ` +
+      `coins $${String(COIN_USD_PER_MILLION)} per 1000000 (retail).\n`,
+  );
+  for (const t of rows) process.stdout.write(describe(t));
 }
 
 async function set(code: string, args: readonly string[]): Promise<void> {
@@ -139,10 +203,22 @@ async function set(code: string, args: readonly string[]): Promise<void> {
     bandRewards?: number[];
     poolGroup?: string;
   } = {};
-  const poolOnly = values.targets !== undefined || values.rewards !== undefined || values.group !== undefined;
-  if (poolOnly && !task.pool) fail('--targets, --rewards and --group are for pool templates only.');
-  if (task.pool && (values.target !== undefined || values.reward !== undefined)) {
-    fail('A pool template has --targets and --rewards (one per band), not --target / --reward.');
+  // v1.57-social (D188 follow-up): a weekly task may also have one target and reward per band.
+  const perBandAllowed = task.pool || task.period === 'WEEKLY';
+  if (values.group !== undefined && !task.pool) fail('--group is for pool templates only.');
+  if ((values.targets !== undefined || values.rewards !== undefined) && !perBandAllowed) {
+    fail('--targets and --rewards are for pool templates and weekly tasks only.');
+  }
+  if (
+    !task.pool &&
+    (values.targets === undefined) !== (values.rewards === undefined) &&
+    task.bandTargets.length === 0
+  ) {
+    fail('A weekly task gets per-band values with both --targets and --rewards.');
+  }
+  const banded = task.pool || task.bandTargets.length > 0 || values.targets !== undefined;
+  if (banded && (values.target !== undefined || values.reward !== undefined)) {
+    fail('This task has --targets and --rewards (one per band), not --target / --reward.');
   }
   if (values.targets !== undefined) data.bandTargets = perBand(values.targets, '--targets', 1_000_000_000);
   if (values.rewards !== undefined)
@@ -153,7 +229,7 @@ async function set(code: string, args: readonly string[]): Promise<void> {
       fail(`--group is ${TASK_POOL_GROUPS.join(', ')}.`);
     data.poolGroup = group;
   }
-  // A pool row's target / reward mirror its highest band (the CHECK needs ≥ 1).
+  // A banded row's target / reward mirror its highest band (the CHECK needs ≥ 1).
   if (data.bandTargets) data.target = Math.max(1, ...data.bandTargets);
   if (data.bandRewards) data.rewardCherries = Math.max(1, ...data.bandRewards);
   if (values.reward !== undefined)
@@ -167,8 +243,8 @@ async function set(code: string, args: readonly string[]): Promise<void> {
   if (values['name-ar'] !== undefined) data.nameAr = name(values['name-ar'], '--name-ar');
   if (values['name-en'] !== undefined) data.nameEn = name(values['name-en'], '--name-en');
   if (Object.keys(data).length === 0) fail(`Nothing to change.\n${USAGE}`);
-  await prisma.$transaction(async (tx) => {
-    await tx.taskDefinition.update({ where: { code: task.code }, data });
+  const updated = await prisma.$transaction(async (tx) => {
+    const row = await tx.taskDefinition.update({ where: { code: task.code }, data });
     await tx.auditLog.create({
       data: {
         action: AuditAction.TASK_UPDATE,
@@ -177,8 +253,9 @@ async function set(code: string, args: readonly string[]): Promise<void> {
         metadata: { ...data, via: 'cli' },
       },
     });
+    return row;
   });
-  process.stdout.write(`Task ${task.code} updated.\n`);
+  process.stdout.write(`Task ${task.code} updated.\n${describe(updated)}`);
 }
 
 async function bands(): Promise<void> {
