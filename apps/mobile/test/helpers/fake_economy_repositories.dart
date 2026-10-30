@@ -195,7 +195,13 @@ AgencyMembership testMembership({
 OwnAgency testOwnAgency({
   AgencyRank rank = AgencyRank.agent,
   bool subs = false,
+  String? hostAgentCode,
+  bool hostAgentActive = true,
+  bool hostAgentUsernameShown = true,
 }) => OwnAgency(
+  hostAgentCode: hostAgentCode,
+  hostAgentActive: hostAgentActive,
+  hostAgentUsernameShown: hostAgentUsernameShown,
   inviteCode: 'KAB5Q7XZ',
   rank: rank,
   month: '2026-10',

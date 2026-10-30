@@ -11,6 +11,7 @@ import type { Prisma } from '../../generated/prisma/client.js';
 import { safeErrorLog } from '../../logging/redact-text.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { Notifier } from '../notifications/notifier.js';
+import { activeSpecialOf } from '../users/special-usernames.js';
 import { isReservedUsername, normalizeUsername } from '../users/username.js';
 import { UsersService, violatedUniqueIndex, type MeDto } from '../users/users.service.js';
 import { debitIn } from '../wallet/wallet-ledger.js';
@@ -287,6 +288,8 @@ export class PremiumUsernamesService implements OnModuleInit, OnModuleDestroy {
           },
           data: { idempotencyKey: null, requestHash: null },
         });
+        // v1.54-social (D185): a locked special username stays until it ends.
+        if (await activeSpecialOf(tx, callerId)) throw new AppException(ErrorCode.USERNAME_LOCKED);
         const info = await nameInfo(tx, name, callerId, now);
         const price = BigInt(parsed.data.priceCoins);
         switch (info.state) {
@@ -484,7 +487,8 @@ export class PremiumUsernamesService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * `PUT /me/username`: a new regular username (the D146 rule). Order: 400 body and rule
-   * (`premium` for a premium name: the app offers to rent it) → 409 `PREMIUM_USERNAME_ACTIVE`
+   * (`premium` for a premium name: the app offers to rent it) → 409 `USERNAME_LOCKED` while a special
+   * username is active (v1.54-social, D185) → 409 `PREMIUM_USERNAME_ACTIVE`
    * while a premium username is the caller's → 409 `USERNAME_TAKEN` (reserved, taken, pending or
    * held). The same name as now → 200, nothing changed.
    */
@@ -506,6 +510,7 @@ export class PremiumUsernamesService implements OnModuleInit, OnModuleDestroy {
           select: { username: true },
         });
         if (profile.username === name) return false;
+        if (await activeSpecialOf(tx, callerId)) throw new AppException(ErrorCode.USERNAME_LOCKED);
         if (await activeLeaseOf(tx, callerId)) throw new AppException(ErrorCode.PREMIUM_USERNAME_ACTIVE);
         const now = this.clock.now();
         if (isReservedUsername(name) || (await nameInUse(tx, name, callerId, now))) {

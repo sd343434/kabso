@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { hostAgentPerksActive } from '../economy/host-agents.js';
 import type { UserSummaryDto } from '../live/live-rooms.service.js';
 import { MediaService, type MediaAssetDto } from '../media/media.service.js';
 import { parseHashtags, parseMentions } from './text-entities.js';
@@ -57,8 +58,15 @@ export function userSummary(user: {
     /** v1.28-live (D146); absent in older selects. */
     premiumTier?: 'LEGEND' | 'RUBY' | 'GOLD' | 'SILVER' | null;
   } | null;
+  /** v1.54-social (D185); absent in older selects. */
+  status?: string;
+  rechargeAgent?: { status: string; code: string | null } | null;
+  /** v1.58-social (D189); absent in older selects. */
+  ownedAgency?: { hostCode: string | null; suspendedAt: Date | null } | null;
 }): UserSummaryDto {
   const tier = user.profile?.premiumTier;
+  const agentCode = rechargeAgentCodeOf(user);
+  const hostCode = hostAgentCodeOf(user);
   return {
     id: user.id,
     username: user.profile?.username ?? '',
@@ -66,10 +74,79 @@ export function userSummary(user: {
     avatarUrl: user.profile?.avatarUrl ?? null,
     // v1.28-live (D146): only while the username is a premium one (absent otherwise).
     ...(tier ? { premiumTier: tier } : {}),
+    // v1.54-social (D185, §10.48): only while an ACTIVE recharge agent with an active account (the badge).
+    ...(agentCode ? { rechargeAgent: { code: agentCode } } : {}),
+    // v1.58-social (D189, §10.52): only while a host agent (agency not suspended) with an active account.
+    ...(hostCode ? { hostAgent: { code: hostCode } } : {}),
   };
 }
 
-export const USER_SUMMARY_SELECT = { id: true, profile: { select: PROFILE_SELECT } } as const;
+/**
+ * v1.58-social (D189, §10.52): the host-agent code to show, or null — the person owns an agency with a code that
+ * the team has not suspended (any rank, LAPSED too) and the account is active.
+ */
+export function hostAgentCodeOf(user: {
+  status?: string;
+  ownedAgency?: { hostCode: string | null; suspendedAt: Date | null } | null;
+}): string | null {
+  const agency = user.ownedAgency;
+  if (!agency || !hostAgentPerksActive(agency)) return null;
+  if (user.status !== undefined && user.status !== 'ACTIVE') return null;
+  return agency.hostCode;
+}
+
+/** v1.54-social (D185): the recharge-agent code to show, or null (not ACTIVE, or the account is not active). */
+export function rechargeAgentCodeOf(user: {
+  status?: string;
+  rechargeAgent?: { status: string; code: string | null } | null;
+}): string | null {
+  const agent = user.rechargeAgent;
+  if (!agent || agent.status !== 'ACTIVE' || agent.code === null) return null;
+  if (user.status !== undefined && user.status !== 'ACTIVE') return null;
+  return agent.code;
+}
+
+export const USER_SUMMARY_SELECT = {
+  id: true,
+  profile: { select: PROFILE_SELECT },
+  // v1.54-social (D185): the recharge-agent badge (`UserSummary.rechargeAgent`).
+  status: true,
+  rechargeAgent: { select: { status: true, code: true } },
+  // v1.58-social (D189): the host-agent badge (`UserSummary.hostAgent`).
+  ownedAgency: { select: { hostCode: true, suspendedAt: true } },
+} as const;
+
+/**
+ * v1.54-social (D185, §10.48.1): a mentioned user, with the names an older text may still use for them — the
+ * base username behind an ACTIVE special one, a special one in grace. Read only to link the text; never
+ * returned (the summary carries the username shown now).
+ */
+export const MENTION_USER_SELECT = {
+  ...USER_SUMMARY_SELECT,
+  specialUsernames: {
+    where: { status: { in: ['ACTIVE', 'GRACE'] } },
+    select: { username: true, baseUsername: true, status: true },
+  },
+} as const satisfies Prisma.UserSelect;
+
+/** The mentioned users by the name in the text: the shown username first, then the older names. */
+export function mentionedByName(
+  rows: readonly {
+    user: Parameters<typeof userSummary>[0] & {
+      specialUsernames: readonly { username: string; baseUsername: string; status: string }[];
+    };
+  }[],
+): Map<string, UserSummaryDto> {
+  const map = new Map<string, UserSummaryDto>();
+  for (const m of rows) map.set(m.user.profile?.username ?? '', userSummary(m.user));
+  for (const m of rows) {
+    for (const s of m.user.specialUsernames) {
+      const alias = s.status === 'ACTIVE' ? s.baseUsername : s.username;
+      if (!map.has(alias)) map.set(alias, userSummary(m.user));
+    }
+  }
+  return map;
+}
 
 /**
  * Posts a viewer may see in lists and by id (CONVENTIONS §11.2): published, not deleted, not
@@ -138,7 +215,7 @@ function include(viewerId: string) {
   return {
     author: { select: USER_SUMMARY_SELECT },
     media: { orderBy: { position: 'asc' }, include: { mediaAsset: true } },
-    mentions: { where: { user: { status: 'ACTIVE' } }, include: { user: { select: USER_SUMMARY_SELECT } } },
+    mentions: { where: { user: { status: 'ACTIVE' } }, include: { user: { select: MENTION_USER_SELECT } } },
     hashtags: { include: { hashtag: true } },
     pin: { select: { postId: true } },
     likes: { where: { userId: viewerId }, select: { userId: true }, take: 1 },
@@ -182,7 +259,7 @@ export class PostViews {
     const isSelf = row.authorId === viewerId;
     // Order follows the text; only linked (stored) entities are returned.
     const storedTags = new Set(row.hashtags.map((h) => h.hashtag.tag));
-    const mentioned = new Map(row.mentions.map((m) => [m.user.profile?.username ?? '', userSummary(m.user)]));
+    const mentioned = mentionedByName(row.mentions);
     return {
       id: row.id,
       format: row.format,

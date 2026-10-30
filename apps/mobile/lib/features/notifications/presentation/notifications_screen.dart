@@ -279,6 +279,14 @@ class NotificationRow extends StatelessWidget {
     if (item.type == NotificationType.followRequest) {
       return AppRoutes.followRequests;
     }
+    // D185: coins from an agent → the wallet; a cherry sale to confirm →
+    // the cherry requests.
+    if (item.type == NotificationType.rechargeCoinsReceived) {
+      return AppRoutes.wallet;
+    }
+    if (item.type == NotificationType.rechargeCherryRequest) {
+      return AppRoutes.rechargeCherries;
+    }
     final target = item.target;
     if (target == null || item.type == NotificationType.contentRemoved) {
       return null;
@@ -292,6 +300,7 @@ class NotificationRow extends StatelessWidget {
     if (item.type == NotificationType.medalAwarded) return AppRoutes.medals;
     return switch (target.type) {
       NotificationTargetType.bagItem => AppRoutes.bag,
+      NotificationTargetType.rechargeSale => AppRoutes.wallet,
       NotificationTargetType.premiumUsername => AppRoutes.premium,
       NotificationTargetType.post => AppRoutes.post(target.id),
       NotificationTargetType.comment when target.postId != null =>
@@ -382,6 +391,11 @@ class NotificationRow extends StatelessWidget {
         who,
       ),
       NotificationType.avatarRemoved => l10n.notifAvatarRemoved,
+      NotificationType.rechargeCoinsReceived => l10n.notifRechargeCoins(
+        who,
+        KFormat.bidiIsolate(KFormat.grouped(item.target?.coins ?? 0)),
+      ),
+      NotificationType.rechargeCherryRequest => l10n.notifRechargeCherry(who),
       NotificationType.unknown => '',
     };
     return (text, item.type.isSystem ? null : who, name);

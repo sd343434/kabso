@@ -16223,6 +16223,960 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'انضم والوكالة غير مؤهلة: بلا عمولة'**
   String get agencyHostNoCommission;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'وكيل شحن {code}'**
+  String rechargeAgentBadgeLabel(String code);
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'{name}، وكيل شحن {code}'**
+  String rechargeAgentFrameLabel(String name, String code);
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'دخل وكيل الشحن {code}'**
+  String rechargeEntranceJoined(String code);
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'وكيل شحن · {code}'**
+  String rechargeAgentIdLine(String code);
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'وكيل شحن · {code}'**
+  String rechargeIdLine(String code);
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'وكيل الشحن'**
+  String get rechargeTitle;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'وكلاء الشحن'**
+  String get rechargeDirectoryTitle;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'اشترِ العملات من وكيل في بلدك وادفع له مباشرة'**
+  String get rechargeDirectoryHint;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'الشحن عبر وكيل'**
+  String get rechargeBuyViaAgent;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'كن وكيل شحن'**
+  String get rechargeBecome;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'بِع عملات Kabso في بلدك'**
+  String get rechargeIntroTitle;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'يشتري الوكيل العملات بالجملة من Kabso ويبيعها لمستخدمي Kabso، ويدفع له المشتري خارج التطبيق. يحصل الوكيل على إطار وشارة ودخول خاص في الغرف.'**
+  String get rechargeIntroBody;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'يُفعَّل الوكيل بعد أول شحن لا يقل عن {coins} عملة.'**
+  String rechargeIntroActivation(String coins);
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'طلبك قيد المراجعة'**
+  String get rechargePendingTitle;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'سيتواصل معك فريق Kabso على واتساب. بيانات طلبك خاصة ولا يراها إلا الفريق.'**
+  String get rechargePendingBody;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يُقبل طلبك السابق.'**
+  String get rechargeRejectedTitle;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'السبب: {reason}'**
+  String rechargeRejectedReason(String reason);
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'قدّم طلباً جديداً'**
+  String get rechargeApplyAgain;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'تمت الموافقة — بانتظار أول شحن'**
+  String get rechargeApprovedTitle;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'فعّل وكالتك بشحن أول لا يقل عن {coins} عملة عبر فريق Kabso. يظهر رمزك وإطارك بعد التفعيل.'**
+  String rechargeApprovedBody(String coins);
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'الوكالة موقوفة'**
+  String get rechargeSuspendedTitle;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكنك البيع الآن ولا تظهر في دليل الوكلاء، وأُزيل الإطار والشارة والدخول. تواصل مع فريق Kabso.'**
+  String get rechargeSuspendedBody;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'مخزون العملات'**
+  String get rechargeStock;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'مخزون العملات: {coins}'**
+  String rechargeStockLabel(String coins);
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'بيع عملات'**
+  String get rechargeSell;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'إدارة الوكالة'**
+  String get rechargeManage;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'المبيعات'**
+  String get rechargeSalesTitle;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} عملية\n{coins} عملة'**
+  String rechargeSalesTotals(int count, String coins);
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'اليوم'**
+  String get rechargeToday;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'٧ أيام'**
+  String get rechargeLast7;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'٣٠ يوماً'**
+  String get rechargeLast30;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'كرز المضيفين اليوم: {today} من {cap}'**
+  String rechargeCherryToday(String today, String cap);
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'الموظفون'**
+  String get rechargeEmployeesTitle;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'أضف موظفين يبيعون من مخزونك في ساعات عملهم'**
+  String get rechargeEmployeesHint;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'أوقات التواصل وطرق الدفع'**
+  String get rechargeAvailabilityTitle;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تحدد أوقاتاً بعد؛ لن يظهر زر التواصل في الدليل'**
+  String get rechargeAvailabilityEmpty;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, =1{وقت واحد} =2{وقتان} few{{count} أوقات} other{{count} وقتاً}}'**
+  String rechargeSlotCount(int count);
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'يظهر رقم واتساب وطريقة الدفع للوقت الحالي في دليل الوكلاء لكل المستخدمين.'**
+  String get rechargeAvailabilityNote;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'شراء كرز المضيفين'**
+  String get rechargeCherryBuyTitle;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'بيع الكرز لوكيل'**
+  String get rechargeCherrySellTitle;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'{cherries} كرزة = {coins} عملة في مخزون الوكيل'**
+  String rechargeCherryRate(String cherries, String coins);
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'موظف لدى {name}'**
+  String rechargeEmployeeOf(String name);
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'في الدوام'**
+  String get rechargeOnShift;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'خارج الدوام'**
+  String get rechargeOffShift;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'بيع عملات من المخزون'**
+  String get rechargeSellTitle;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'في المخزون: {coins} عملة'**
+  String rechargeStockLeft(String coins);
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'المشتري'**
+  String get rechargeBuyer;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'اسم المستخدم أو المعرّف'**
+  String get rechargeBuyerHint;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'عدد العملات'**
+  String get rechargeCoins;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب المشتري وعدد العملات'**
+  String get rechargeSellInvalid;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'بيع {coins} عملة إلى {buyer}؟ لا يمكن التراجع.'**
+  String rechargeSellConfirm(String coins, String buyer);
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'أُرسلت {coins} عملة إلى {buyer}'**
+  String rechargeSold(String coins, String buyer);
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'يدفع لك المشتري خارج التطبيق. تأكد من استلام المبلغ قبل البيع.'**
+  String get rechargeSellNote;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب وكيل شحن'**
+  String get rechargeApplyTitle;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'بيانات الطلب خاصة: لا يراها إلا فريق Kabso، وتُحذف بعد ٩٠ يوماً إذا لم يُقبل الطلب.'**
+  String get rechargePrivacyNote;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'الاسم الرباعي'**
+  String get rechargeFullName;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'كما في الهوية'**
+  String get rechargeFullNameHint;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب الاسم الرباعي (أربعة أسماء على الأقل)'**
+  String get rechargeFullNameError;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'رقم الهاتف (واتساب)'**
+  String get rechargePhone;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'بالصيغة الدولية، مثل ‎+201001234567'**
+  String get rechargePhoneHint;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب رقماً دولياً يبدأ بـ + (مثل ‎+201001234567)'**
+  String get rechargePhoneError;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'صورتك'**
+  String get rechargePhoto;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'صورة واضحة لك'**
+  String get rechargePhotoHint;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'سيلفي للتحقق'**
+  String get rechargeSelfie;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'بالكاميرا الأمامية الآن؛ يراجعها الفريق'**
+  String get rechargeSelfieHint;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'أماكن البيع'**
+  String get rechargeLocations;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'الدولة'**
+  String get rechargeCountry;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'المدن (افصل بفاصلة)'**
+  String get rechargeCities;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'إضافة دولة'**
+  String get rechargeAddLocation;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب رمز الدولة من حرفين (مثل EG) ومدينة واحدة على الأقل'**
+  String get rechargeLocationError;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'طرق الدفع المتاحة في كل دولة'**
+  String get rechargePaymentMethods;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'النوع'**
+  String get rechargePaymentType;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'التفاصيل (مثل فودافون كاش، إنستاباي)'**
+  String get rechargePaymentDetails;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'إضافة طريقة دفع'**
+  String get rechargeAddPayment;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'لكل طريقة دفع: دولة من أماكن البيع وتفاصيل'**
+  String get rechargePaymentError;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'أضف صورتك وصورة السيلفي (JPEG أو PNG أو WebP)'**
+  String get rechargeMissingPhotos;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال الطلب'**
+  String get rechargeSubmit;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'أُرسل طلبك'**
+  String get rechargeSubmitted;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'تحويل بنكي'**
+  String get rechargePayBank;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'محفظة إلكترونية'**
+  String get rechargePayWallet;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'نقداً'**
+  String get rechargePayCash;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'بطاقة'**
+  String get rechargePayCard;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'عملات رقمية'**
+  String get rechargePayCrypto;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'أخرى'**
+  String get rechargePayOther;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'إزالة'**
+  String get rechargeRemove;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'إضافة موظف'**
+  String get rechargeAddEmployee;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'اسم المستخدم'**
+  String get rechargeEmployeeUsername;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد موظفون بعد'**
+  String get rechargeEmployeesEmpty;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'إزالة {name} من الموظفين؟ يتوقف عن البيع فوراً.'**
+  String rechargeRemoveEmployeeConfirm(String name);
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'ساعات العمل'**
+  String get rechargeHours;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'المنطقة الزمنية'**
+  String get rechargeTimeZone;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'من'**
+  String get rechargeFrom;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'إلى'**
+  String get rechargeTo;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'إضافة وقت'**
+  String get rechargeAddSlot;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'رقم واتساب'**
+  String get rechargeWhatsapp;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'طريقة الدفع في هذا الوقت'**
+  String get rechargePaymentNow;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'حفظ'**
+  String get rechargeSave;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'تم الحفظ'**
+  String get rechargeSaved;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'الإثنين'**
+  String get rechargeDay1;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'الثلاثاء'**
+  String get rechargeDay2;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'الأربعاء'**
+  String get rechargeDay3;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'الخميس'**
+  String get rechargeDay4;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'الجمعة'**
+  String get rechargeDay5;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'السبت'**
+  String get rechargeDay6;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'الأحد'**
+  String get rechargeDay7;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'تدفع للوكيل خارج التطبيق، ثم يرسل العملات إلى حسابك مباشرة.'**
+  String get rechargeDirectoryNote;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد وكلاء في هذه الدولة بعد'**
+  String get rechargeDirectoryEmpty;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'جرّب دولة أخرى أو عُد لاحقاً.'**
+  String get rechargeDirectoryEmptyBody;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'متاح الآن · الدفع: {method}'**
+  String rechargeAvailableNowLine(String method);
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'غير متاح الآن'**
+  String get rechargeNotAvailableNow;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'تواصل'**
+  String get rechargeContact;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'بيع كرز لوكيل'**
+  String get rechargeCherryOffer;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب كرز من مضيف'**
+  String get rechargeCherryAsk;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'رمز الوكيل (مثل coin0001)'**
+  String get rechargeAgentCodeField;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'اسم مستخدم المضيف'**
+  String get rechargeHostField;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'عدد الكرز'**
+  String get rechargeCherryAmount;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'الحد الأدنى {min} كرزة، وبمضاعفات {step}'**
+  String rechargeCherryRules(String min, String step);
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'كرز المهام المقفل لا يُباع.'**
+  String get rechargeCherryLockedNote;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'يحصل الوكيل على {coins} عملة، ويدفع للمضيف {money} نقداً'**
+  String rechargeCherryPreview(String coins, String money);
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال الطلب'**
+  String get rechargeCherrySend;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'أُرسل الطلب؛ بانتظار تأكيد الطرف الآخر'**
+  String get rechargeCherrySent;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد طلبات'**
+  String get rechargeCherryEmpty;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'أكّد فقط بعد أن يُدفع المبلغ نقداً. ينتهي الطلب بعد ٣٠ دقيقة.'**
+  String get rechargeCherryConfirmHint;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'بانتظار تأكيد الطرف الآخر'**
+  String get rechargeCherryWaiting;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء الطلب'**
+  String get rechargeCherryCancel;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'تأكيد'**
+  String get rechargeConfirm;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'رفض'**
+  String get rechargeDecline;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'بانتظار التأكيد'**
+  String get rechargeCherryPending;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'مؤكَّد'**
+  String get rechargeCherryConfirmed;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'مرفوض'**
+  String get rechargeCherryDeclined;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'ملغى'**
+  String get rechargeCherryCancelled;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'منتهٍ'**
+  String get rechargeCherryExpired;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'{cherries} كرزة ← {coins} عملة'**
+  String rechargeCherryLine(String cherries, String coins);
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'المبلغ النقدي: {amount}'**
+  String rechargeMoney(String amount);
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'{name} شحن لك {coins} عملة'**
+  String notifRechargeCoins(String name, String coins);
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'{name} يطلب تأكيد بيع كرز'**
+  String notifRechargeCherry(String name);
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكنك تقديم طلب وكيل شحن الآن.'**
+  String get errorRechargeApplicationNotAllowed;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا الوكيل غير مفعّل.'**
+  String get errorRechargeAgentNotActive;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنك البيع في ساعات عملك فقط.'**
+  String get errorRechargeOffShift;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'مخزون العملات لا يكفي.'**
+  String get errorRechargeStockInsufficient;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن إضافة هذا الشخص موظفاً.'**
+  String get errorRechargeEmployeeNotAllowed;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'يوجد طلب مفتوح بينكما بالفعل.'**
+  String get errorRechargeCherryRequestPending;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا الطلب لم يعد مفتوحاً.'**
+  String get errorRechargeCherryRequestClosed;
+
+  /// D185 recharge agents
+  ///
+  /// In ar, this message translates to:
+  /// **'بلغ الوكيل حدّه اليومي من الكرز.'**
+  String get errorRechargeCherryCapReached;
+
+  /// D185 special usernames
+  ///
+  /// In ar, this message translates to:
+  /// **'اسم المستخدم مقفل ما دام اليوزر المميز فعّالاً.'**
+  String get errorUsernameLocked;
+
+  /// D185 special usernames
+  ///
+  /// In ar, this message translates to:
+  /// **'مقفل'**
+  String get settingsUsernameLocked;
+
+  /// D185 special usernames
+  ///
+  /// In ar, this message translates to:
+  /// **'اسمك الأساسي: {username}'**
+  String settingsBaseUsername(String username);
+
+  /// D185 special usernames
+  ///
+  /// In ar, this message translates to:
+  /// **'{special} يوزر مميز مقفل، ولا يمكن تغييره ما دام فعّالاً. يراه الجميع وحده؛ اسمك الأساسي {base} لا يراه غيرك، ويمكنك تسجيل الدخول به.'**
+  String changeUsernameSpecialLocked(String special, String base);
+
+  /// D185 special usernames
+  ///
+  /// In ar, this message translates to:
+  /// **'ينتهي في {date}، ثم يعود اسمك الأساسي.'**
+  String changeUsernameSpecialEnds(String date);
+
+  /// D189 host agents
+  ///
+  /// In ar, this message translates to:
+  /// **'وكيل مضيفين {code}'**
+  String hostAgentBadgeLabel(String code);
+
+  /// D189 host agents
+  ///
+  /// In ar, this message translates to:
+  /// **'{name}، وكيل مضيفين'**
+  String hostAgentFrameLabel(String name);
+
+  /// D189 host agents
+  ///
+  /// In ar, this message translates to:
+  /// **'دخل وكيل المضيفين {username}'**
+  String hostAgentEntranceJoined(String username);
+
+  /// D189 host agents
+  ///
+  /// In ar, this message translates to:
+  /// **'وكيل مضيفين · {code}'**
+  String hostAgentIdLine(String code);
+
+  /// D189 host agents
+  ///
+  /// In ar, this message translates to:
+  /// **'وكيل مضيفين'**
+  String get hostAgentCardTitle;
+
+  /// D189 host agents
+  ///
+  /// In ar, this message translates to:
+  /// **'رمز وكيل المضيفين'**
+  String get hostAgentCodeLabel;
+
+  /// D189 host agents
+  ///
+  /// In ar, this message translates to:
+  /// **'إطارك وشارتك ودخولك المميز في البث ظاهرة ما دامت وكالتك قائمة.'**
+  String get hostAgentPerksNote;
+
+  /// D189 host agents
+  ///
+  /// In ar, this message translates to:
+  /// **'الرمز {code} محجوز لك. يظهر اسم المستخدم {shown} لأنه فُعّل أولاً.'**
+  String hostAgentReservedNote(String code, String shown);
+
+  /// D189 host agents
+  ///
+  /// In ar, this message translates to:
+  /// **'مزايا وكيل المضيفين موقوفة. يبقى الرمز {code} محجوزاً لك.'**
+  String hostAgentSuspendedNote(String code);
+
+  /// D189 host agents
+  ///
+  /// In ar, this message translates to:
+  /// **'يُمنح رمز وكيل المضيفين قريباً.'**
+  String get hostAgentPendingNote;
 }
 
 class _AppLocalizationsDelegate

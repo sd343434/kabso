@@ -45,6 +45,10 @@ export interface PublicProfileDto {
   category: AccountCategory | null;
   /** v1.47-social (D175): the profile links (0–3), also on a private account's profile. */
   links: ProfileLinkDto[];
+  /** v1.54-social (D185, §10.48): the user is an ACTIVE recharge agent (the frame, badge and entrance). */
+  rechargeAgent: { code: string } | null;
+  /** v1.58-social (D189, §10.52): the host agent's code while not suspended (frame, badge), else null. */
+  hostAgent: { code: string } | null;
 }
 
 /**
@@ -80,18 +84,39 @@ export class PublicProfileService {
     // Malformed, unknown, pending-only, SUSPENDED and DELETED: the same 404 body.
     if (!user) throw new AppException(ErrorCode.NOT_FOUND);
     const isSelf = user.id === callerId;
-    const [counts, isFollowing, followRequested, isMuted, liveRoomId, family, cp, medals, profileCard] =
-      await Promise.all([
-        this.follows.counts(user.id),
-        isSelf ? Promise.resolve(false) : this.follows.isFollowing(callerId, user.id),
-        isSelf ? Promise.resolve(false) : this.follows.isRequested(callerId, user.id),
-        isSelf ? Promise.resolve(false) : this.isMuted(callerId, user.id),
-        this.live.freshLiveRoomIdOf(user.id),
-        this.families.profileFamily(user.id),
-        this.couples.profileCp(user.id, lang),
-        this.medals.profileMedals(user.id, lang),
-        this.bag.profileCard(user.id),
-      ]);
+    const [
+      counts,
+      isFollowing,
+      followRequested,
+      isMuted,
+      liveRoomId,
+      family,
+      cp,
+      medals,
+      profileCard,
+      agent,
+      hostAgency,
+    ] = await Promise.all([
+      this.follows.counts(user.id),
+      isSelf ? Promise.resolve(false) : this.follows.isFollowing(callerId, user.id),
+      isSelf ? Promise.resolve(false) : this.follows.isRequested(callerId, user.id),
+      isSelf ? Promise.resolve(false) : this.isMuted(callerId, user.id),
+      this.live.freshLiveRoomIdOf(user.id),
+      this.families.profileFamily(user.id),
+      this.couples.profileCp(user.id, lang),
+      this.medals.profileMedals(user.id, lang),
+      this.bag.profileCard(user.id),
+      // v1.54-social (D185): the perks follow the status (the user is ACTIVE here).
+      this.prisma.rechargeAgent.findFirst({
+        where: { userId: user.id, status: 'ACTIVE', code: { not: null } },
+        select: { code: true },
+      }),
+      // v1.58-social (D189): the agency's owner while not suspended (any rank).
+      this.prisma.agency.findFirst({
+        where: { ownerUserId: user.id, suspendedAt: null, hostCode: { not: null } },
+        select: { hostCode: true },
+      }),
+    ]);
     return {
       id: user.id,
       username: user.username,
@@ -114,6 +139,8 @@ export class PublicProfileService {
       gender: user.gender,
       category: user.category,
       links: user.links,
+      rechargeAgent: agent?.code ? { code: agent.code } : null,
+      hostAgent: hostAgency?.hostCode ? { code: hostAgency.hostCode } : null,
     };
   }
 }

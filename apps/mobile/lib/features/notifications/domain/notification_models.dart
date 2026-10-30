@@ -49,6 +49,14 @@ enum NotificationType {
   /// target: the item, with its category).
   bagItemReceived('BAG_ITEM_RECEIVED'),
 
+  /// v1.54-social (D185): a recharge agent (or employee) sold you coins
+  /// (actor: the seller; target RECHARGE_SALE with `coins`).
+  rechargeCoinsReceived('RECHARGE_COINS_RECEIVED'),
+
+  /// v1.54-social (D185): a host or agent asks you to confirm a cherry sale
+  /// (actor: them; no target — opens the cherry requests).
+  rechargeCherryRequest('RECHARGE_CHERRY_REQUEST'),
+
   /// v1.47-social (D175): someone asked to follow your private account
   /// (target: them as a user; opens the follow requests).
   followRequest('FOLLOW_REQUEST'),
@@ -97,7 +105,10 @@ enum NotificationTargetType {
   premiumUsername('PREMIUM_USERNAME'),
 
   /// v1.48-social (D171): a bag item (its code as the id; `bagCategory`).
-  bagItem('BAG_ITEM');
+  bagItem('BAG_ITEM'),
+
+  /// v1.54-social (D185): coins bought from a recharge agent (`coins`).
+  rechargeSale('RECHARGE_SALE');
 
   new(this.wire);
 
@@ -122,6 +133,7 @@ class NotificationTarget {
     this.startsAt,
     this.endsAt,
     this.bagCategory,
+    this.coins,
   });
 
   factory fromJson(Map<String, dynamic> json) => NotificationTarget(
@@ -139,6 +151,7 @@ class NotificationTarget {
       _ => null,
     },
     bagCategory: json['bagCategory'] as String?,
+    coins: (json['coins'] as num?)?.toInt(),
   );
 
   final NotificationTargetType type;
@@ -166,6 +179,9 @@ class NotificationTarget {
 
   /// D171 [NotificationTargetType.bagItem]: the item's category (wire).
   final String? bagCategory;
+
+  /// RECHARGE_SALE only (v1.54-social, D185): the coins bought.
+  final int? coins;
 }
 
 /// `Notification`. Likes and reposts on one item group while unread

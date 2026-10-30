@@ -6,7 +6,9 @@
  * on the server `docker compose --profile jobs run --rm migrate node dist/cli/economy-admin.js …`
  * (docs/DEPLOYMENT.md), locally `pnpm economy:admin …`.
  *
- *   pnpm economy:admin agency-create <owner email> [--parent <invite code>]   # prints the invite code
+ *   pnpm economy:admin agency-create <owner email> [--parent <invite code>]   # prints the invite and host codes
+ *   pnpm economy:admin agency-suspend <invite code> --note <reason>   # v1.58 (D189): the host agent's perks go
+ *   pnpm economy:admin agency-reinstate <invite code>                 # … and come back
  *   pnpm economy:admin agency-parent <invite code> <parent invite code | none>
  *   pnpm economy:admin agency-list
  *   pnpm economy:admin agency-evaluate        # the rank evaluation now (what the sweeper does)
@@ -28,6 +30,12 @@ import { PrismaClient, type CherryWithdrawalStatus } from '../generated/prisma/c
 import { AuditAction } from '../common/audit/audit.service.js';
 import { envSchema } from '../config/env.schema.js';
 import { evaluateAgencyRanks } from '../modules/economy/agency-ranks.js';
+import {
+  createAgencyIn,
+  HostAgentError,
+  reinstateHostAgentIn,
+  suspendHostAgentIn,
+} from '../modules/economy/host-agents.js';
 import { refundCherriesIn, reverseGiftCherriesIn } from '../modules/economy/cherry-ledger.js';
 import {
   addMonths,
@@ -45,6 +53,7 @@ function fail(message: string): never {
 
 const USAGE = [
   'Usage: pnpm economy:admin agency-create <owner email> [--parent <invite code>]',
+  '       pnpm economy:admin agency-suspend <invite code> --note <reason> | agency-reinstate <invite code>',
   '       pnpm economy:admin agency-parent <invite code> <parent invite code | none>',
   '       pnpm economy:admin agency-list | agency-evaluate',
   '       pnpm economy:admin complaints [--all]',
@@ -66,6 +75,17 @@ function setting<K extends keyof typeof envSchema.shape>(key: K): unknown {
   return parsed.data;
 }
 const zone = () => setting('LIVE_RANKINGS_TIME_ZONE') as string;
+const graceDays = () => setting('SPECIAL_USERNAME_GRACE_DAYS') as number;
+
+/** v1.58-social (D189): a refused host-agent step exits 1 with its message (nothing changed). */
+async function hostAgentStep<T>(step: () => Promise<T>): Promise<T> {
+  try {
+    return await step();
+  } catch (err) {
+    if (err instanceof HostAgentError) fail(err.message);
+    throw err;
+  }
+}
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function id(raw: string | undefined, what: string): string {
@@ -116,38 +136,67 @@ async function agencyCreate(email: string | undefined, parentCode: string | unde
   for (let attempt = 0; attempt < 5; attempt++) {
     const code = newInviteCode();
     if ((await prisma.agency.count({ where: { inviteCode: code } })) > 0) continue;
-    const agencyId = uuidv7();
-    await prisma.$transaction(async (tx) => {
-      await tx.agency.create({
-        data: {
-          id: agencyId,
-          ownerUserId: owner.id,
-          inviteCode: code,
-          parentAgencyId: parent?.id ?? null,
-          evaluateFrom: dateValue(evaluateFrom),
-        },
-      });
-      await tx.auditLog.create({
-        data: {
-          action: AuditAction.AGENCY_CREATE,
-          targetType: 'agency',
-          targetId: agencyId,
-          metadata: {
-            owner: owner.id,
+    const now = new Date();
+    // v1.58-social (D189, §10.52): creating the agency activates its owner as a host agent (code `hostNN`, which
+    // becomes their username per the agent-username rule) in the same transaction.
+    const { agencyId, hostCode } = await hostAgentStep(() =>
+      prisma.$transaction(async (tx) => {
+        const created = await createAgencyIn(
+          tx,
+          {
+            ownerUserId: owner.id,
             inviteCode: code,
-            parent: parent?.id ?? null,
-            evaluateFrom,
-            via: 'cli',
+            parentAgencyId: parent?.id ?? null,
+            evaluateFrom: dateValue(evaluateFrom),
           },
-        },
-      });
-    });
+          now,
+          graceDays(),
+        );
+        await tx.auditLog.create({
+          data: {
+            action: AuditAction.AGENCY_CREATE,
+            targetType: 'agency',
+            targetId: created.agencyId,
+            metadata: {
+              owner: owner.id,
+              inviteCode: code,
+              parent: parent?.id ?? null,
+              evaluateFrom,
+              hostCode: created.hostCode,
+              via: 'cli',
+            },
+          },
+        });
+        return created;
+      }),
+    );
     process.stdout.write(
-      `Agency ${agencyId} for ${email ?? ''}: invite code ${code} (evaluated from ${evaluateFrom}).\n`,
+      `Agency ${agencyId} for ${email ?? ''}: invite code ${code}, host code ${hostCode}` +
+        ` (evaluated from ${evaluateFrom}).\n`,
     );
     return;
   }
   fail('Could not find a free invite code; try again.');
+}
+
+/** v1.58-social (D189): `agency-suspend` / `agency-reinstate` — the host agent's perks only. */
+async function agencySuspend(
+  code: string | undefined,
+  suspend: boolean,
+  reason: string | null,
+): Promise<void> {
+  const agency = await agencyByCode(code);
+  const now = new Date();
+  await hostAgentStep(() =>
+    prisma.$transaction((tx) =>
+      suspend
+        ? suspendHostAgentIn(tx, agency.id, reason!, now, graceDays())
+        : reinstateHostAgentIn(tx, agency.id, now, graceDays()),
+    ),
+  );
+  process.stdout.write(
+    `${agency.inviteCode}: host agent ${suspend ? 'suspended (perks removed)' : 'reinstated (perks back)'}.\n`,
+  );
 }
 
 async function agencyParent(code: string | undefined, parentCode: string | undefined): Promise<void> {
@@ -189,6 +238,8 @@ async function agencyList(): Promise<void> {
       inviteCode: true,
       rank: true,
       rankMonth: true,
+      hostCode: true,
+      suspendedAt: true,
       parent: { select: { inviteCode: true } },
       owner: { select: { email: true } },
       _count: { select: { hosts: { where: { status: 'ACTIVE' } } } },
@@ -201,6 +252,7 @@ async function agencyList(): Promise<void> {
     process.stdout.write(
       `${a.inviteCode} ${a.rank} (${a.rankMonth?.toISOString().slice(0, 7) ?? 'not evaluated'}) owner ${a.owner.email}` +
         ` parent ${a.parent?.inviteCode ?? '-'} hosts ${String(a._count.hosts)}` +
+        ` host code ${a.hostCode ?? '-'}${a.suspendedAt ? ' (SUSPENDED)' : ''}` +
         ` month ${month.slice(0, 7)}: hosts' cherries ${(m?.hostCherries ?? 0n).toString()},` +
         ` commission ${(m?.commission ?? 0n).toString()}\n`,
     );
@@ -410,6 +462,8 @@ const [command, a, b] = positionals;
 try {
   if (command === 'agency-create') await agencyCreate(a, values.parent);
   else if (command === 'agency-parent') await agencyParent(a, b);
+  else if (command === 'agency-suspend') await agencySuspend(a, true, note(values.note, true));
+  else if (command === 'agency-reinstate') await agencySuspend(a, false, null);
   else if (command === 'agency-list') await agencyList();
   else if (command === 'agency-evaluate') await agencyEvaluate();
   else if (command === 'complaints') await complaints(values.all === true);

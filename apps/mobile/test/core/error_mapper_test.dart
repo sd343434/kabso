@@ -91,6 +91,15 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.agencyLeaveWindowClosed: 409,
   ErrorCode.insufficientCherries: 409,
   ErrorCode.withdrawalPending: 409,
+  ErrorCode.rechargeApplicationNotAllowed: 409,
+  ErrorCode.rechargeAgentNotActive: 409,
+  ErrorCode.rechargeOffShift: 409,
+  ErrorCode.rechargeStockInsufficient: 409,
+  ErrorCode.rechargeEmployeeNotAllowed: 409,
+  ErrorCode.rechargeCherryRequestPending: 409,
+  ErrorCode.rechargeCherryRequestClosed: 409,
+  ErrorCode.rechargeCherryCapReached: 409,
+  ErrorCode.usernameLocked: 409,
 };
 
 DioException _badResponse(
@@ -206,6 +215,16 @@ void main() {
           'AGENCY_LEAVE_WINDOW_CLOSED',
           'INSUFFICIENT_CHERRIES',
           'WITHDRAWAL_PENDING',
+          // v1.54-social (D185).
+          'RECHARGE_APPLICATION_NOT_ALLOWED',
+          'RECHARGE_AGENT_NOT_ACTIVE',
+          'RECHARGE_OFF_SHIFT',
+          'RECHARGE_STOCK_INSUFFICIENT',
+          'RECHARGE_EMPLOYEE_NOT_ALLOWED',
+          'RECHARGE_CHERRY_REQUEST_PENDING',
+          'RECHARGE_CHERRY_REQUEST_CLOSED',
+          'RECHARGE_CHERRY_CAP_REACHED',
+          'USERNAME_LOCKED',
         ]),
       );
       expect(ErrorCode.networkOffline.wire, 'NETWORK_OFFLINE');

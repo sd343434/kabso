@@ -230,6 +230,19 @@ enum ErrorCode {
   /// v1.52-social (D179, §10.46, 409): another withdrawal waits to be paid.
   withdrawalPending('WITHDRAWAL_PENDING'),
 
+  /// v1.54-social (D185, §10.48, 409): recharge agents.
+  rechargeApplicationNotAllowed('RECHARGE_APPLICATION_NOT_ALLOWED'),
+  rechargeAgentNotActive('RECHARGE_AGENT_NOT_ACTIVE'),
+  rechargeOffShift('RECHARGE_OFF_SHIFT'),
+  rechargeStockInsufficient('RECHARGE_STOCK_INSUFFICIENT'),
+  rechargeEmployeeNotAllowed('RECHARGE_EMPLOYEE_NOT_ALLOWED'),
+  rechargeCherryRequestPending('RECHARGE_CHERRY_REQUEST_PENDING'),
+  rechargeCherryRequestClosed('RECHARGE_CHERRY_REQUEST_CLOSED'),
+  rechargeCherryCapReached('RECHARGE_CHERRY_CAP_REACHED'),
+
+  /// v1.54-social (D185): a special username is active and locked.
+  usernameLocked('USERNAME_LOCKED'),
+
   /// Client-only: no connection could be established.
   networkOffline('NETWORK_OFFLINE'),
 

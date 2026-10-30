@@ -96,7 +96,7 @@ export async function nameInUse(
   exceptUserId: string | null,
   now: Date,
 ): Promise<boolean> {
-  const [profiles, pending, held] = await Promise.all([
+  const [profiles, pending, held, special] = await Promise.all([
     db.userProfile.count({
       where: { username: name, ...(exceptUserId ? { userId: { not: exceptUserId } } : {}) },
     }),
@@ -108,8 +108,21 @@ export async function nameInUse(
         ...(exceptUserId ? { userId: { not: exceptUserId } } : {}),
       },
     }),
+    // v1.54-social (D185): a base username behind an ACTIVE special one, a special one in grace, and
+    // every `coin` name ever given stay the holder's (CONVENTIONS §10.48.1).
+    db.specialUsername.count({
+      where: {
+        ...(exceptUserId ? { userId: { not: exceptUserId } } : {}),
+        OR: [
+          { status: 'ACTIVE', baseUsername: name },
+          { status: { in: ['ACTIVE', 'GRACE'] }, username: name },
+          // v1.58-social (D189): and every `host` name (host agents).
+          { username: name, source: { in: ['RECHARGE_AGENT', 'HOST_AGENT'] } },
+        ],
+      },
+    }),
   ]);
-  return profiles + pending + held > 0;
+  return profiles + pending + held + special > 0;
 }
 
 /**
@@ -273,6 +286,11 @@ export async function grantIn(
   }
   if (await nameInUse(tx, username, userId, now))
     return { ok: false, reason: `${username} is used by another account.` };
+  if (await tx.specialUsername.count({ where: { userId, status: 'ACTIVE' } }))
+    return {
+      ok: false,
+      reason: 'The user has an active special username; revoke it first (username-admin).',
+    };
   const active = await activeLeaseOf(tx, userId);
   if (active && active.username !== username) {
     if (!input.replace)

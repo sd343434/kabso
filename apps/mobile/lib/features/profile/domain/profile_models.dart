@@ -6,6 +6,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:kabso_live/core/models/premium_tier.dart';
 import 'package:kabso_live/core/models/profile_fields.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/features/bag/domain/bag_models.dart';
 import 'package:kabso_live/features/cp/domain/cp_models.dart';
 import 'package:kabso_live/features/families/domain/family_models.dart';
@@ -67,6 +68,28 @@ abstract class PublicProfile with _$PublicProfile {
     @JsonKey(fromJson: profileLinksFromJson, toJson: profileLinksToJson)
     @Default(<ProfileLink>[])
     List<ProfileLink> links,
+
+    /// v1.54-social (D185, §10.48): the user's code while they are an
+    /// ACTIVE recharge agent — the agent frame (with the code in its
+    /// plate) and the badge. Null otherwise (also on older servers).
+    @JsonKey(
+      name: 'rechargeAgent',
+      includeIfNull: false,
+      fromJson: rechargeAgentCodeFromJson,
+      toJson: rechargeAgentCodeToJson,
+    )
+    String? rechargeAgentCode,
+
+    /// v1.58-social (D189, §10.52): the user's code while they are a host
+    /// agent (agency not suspended) — the host-agent frame (no name) and
+    /// badge. Null otherwise (also on older servers).
+    @JsonKey(
+      name: 'hostAgent',
+      includeIfNull: false,
+      fromJson: rechargeAgentCodeFromJson,
+      toJson: rechargeAgentCodeToJson,
+    )
+    String? hostAgentCode,
   }) = _PublicProfile;
 
   const new _();

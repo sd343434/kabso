@@ -28,7 +28,9 @@ export type WalletLedgerReason =
   /** v1.44-social (D166): a claimed task, a daily check-in and an event prize (credits). */
   | 'TASK_REWARD'
   | 'CHECK_IN_REWARD'
-  | 'EVENT_PRIZE';
+  | 'EVENT_PRIZE'
+  /** v1.54-social (D185): coins bought from a recharge agent (reference: the sale). */
+  | 'RECHARGE_PURCHASE';
 
 /** The largest balance (CONVENTIONS §3: exact as a JSON number; CHECK `wallets_coins_range`). */
 export const MAX_COINS = 9_007_199_254_740_991n;

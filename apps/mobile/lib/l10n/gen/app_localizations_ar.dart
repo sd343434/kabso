@@ -9478,4 +9478,579 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get agencyHostNoCommission => 'انضم والوكالة غير مؤهلة: بلا عمولة';
+
+  @override
+  String rechargeAgentBadgeLabel(String code) {
+    return 'وكيل شحن $code';
+  }
+
+  @override
+  String rechargeAgentFrameLabel(String name, String code) {
+    return '$name، وكيل شحن $code';
+  }
+
+  @override
+  String rechargeEntranceJoined(String code) {
+    return 'دخل وكيل الشحن $code';
+  }
+
+  @override
+  String rechargeAgentIdLine(String code) {
+    return 'وكيل شحن · $code';
+  }
+
+  @override
+  String rechargeIdLine(String code) {
+    return 'وكيل شحن · $code';
+  }
+
+  @override
+  String get rechargeTitle => 'وكيل الشحن';
+
+  @override
+  String get rechargeDirectoryTitle => 'وكلاء الشحن';
+
+  @override
+  String get rechargeDirectoryHint =>
+      'اشترِ العملات من وكيل في بلدك وادفع له مباشرة';
+
+  @override
+  String get rechargeBuyViaAgent => 'الشحن عبر وكيل';
+
+  @override
+  String get rechargeBecome => 'كن وكيل شحن';
+
+  @override
+  String get rechargeIntroTitle => 'بِع عملات Kabso في بلدك';
+
+  @override
+  String get rechargeIntroBody =>
+      'يشتري الوكيل العملات بالجملة من Kabso ويبيعها لمستخدمي Kabso، ويدفع له المشتري خارج التطبيق. يحصل الوكيل على إطار وشارة ودخول خاص في الغرف.';
+
+  @override
+  String rechargeIntroActivation(String coins) {
+    return 'يُفعَّل الوكيل بعد أول شحن لا يقل عن $coins عملة.';
+  }
+
+  @override
+  String get rechargePendingTitle => 'طلبك قيد المراجعة';
+
+  @override
+  String get rechargePendingBody =>
+      'سيتواصل معك فريق Kabso على واتساب. بيانات طلبك خاصة ولا يراها إلا الفريق.';
+
+  @override
+  String get rechargeRejectedTitle => 'لم يُقبل طلبك السابق.';
+
+  @override
+  String rechargeRejectedReason(String reason) {
+    return 'السبب: $reason';
+  }
+
+  @override
+  String get rechargeApplyAgain => 'قدّم طلباً جديداً';
+
+  @override
+  String get rechargeApprovedTitle => 'تمت الموافقة — بانتظار أول شحن';
+
+  @override
+  String rechargeApprovedBody(String coins) {
+    return 'فعّل وكالتك بشحن أول لا يقل عن $coins عملة عبر فريق Kabso. يظهر رمزك وإطارك بعد التفعيل.';
+  }
+
+  @override
+  String get rechargeSuspendedTitle => 'الوكالة موقوفة';
+
+  @override
+  String get rechargeSuspendedBody =>
+      'لا يمكنك البيع الآن ولا تظهر في دليل الوكلاء، وأُزيل الإطار والشارة والدخول. تواصل مع فريق Kabso.';
+
+  @override
+  String get rechargeStock => 'مخزون العملات';
+
+  @override
+  String rechargeStockLabel(String coins) {
+    return 'مخزون العملات: $coins';
+  }
+
+  @override
+  String get rechargeSell => 'بيع عملات';
+
+  @override
+  String get rechargeManage => 'إدارة الوكالة';
+
+  @override
+  String get rechargeSalesTitle => 'المبيعات';
+
+  @override
+  String rechargeSalesTotals(int count, String coins) {
+    return '$count عملية\n$coins عملة';
+  }
+
+  @override
+  String get rechargeToday => 'اليوم';
+
+  @override
+  String get rechargeLast7 => '٧ أيام';
+
+  @override
+  String get rechargeLast30 => '٣٠ يوماً';
+
+  @override
+  String rechargeCherryToday(String today, String cap) {
+    return 'كرز المضيفين اليوم: $today من $cap';
+  }
+
+  @override
+  String get rechargeEmployeesTitle => 'الموظفون';
+
+  @override
+  String get rechargeEmployeesHint =>
+      'أضف موظفين يبيعون من مخزونك في ساعات عملهم';
+
+  @override
+  String get rechargeAvailabilityTitle => 'أوقات التواصل وطرق الدفع';
+
+  @override
+  String get rechargeAvailabilityEmpty =>
+      'لم تحدد أوقاتاً بعد؛ لن يظهر زر التواصل في الدليل';
+
+  @override
+  String rechargeSlotCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count وقتاً',
+      few: '$count أوقات',
+      two: 'وقتان',
+      one: 'وقت واحد',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get rechargeAvailabilityNote =>
+      'يظهر رقم واتساب وطريقة الدفع للوقت الحالي في دليل الوكلاء لكل المستخدمين.';
+
+  @override
+  String get rechargeCherryBuyTitle => 'شراء كرز المضيفين';
+
+  @override
+  String get rechargeCherrySellTitle => 'بيع الكرز لوكيل';
+
+  @override
+  String rechargeCherryRate(String cherries, String coins) {
+    return '$cherries كرزة = $coins عملة في مخزون الوكيل';
+  }
+
+  @override
+  String rechargeEmployeeOf(String name) {
+    return 'موظف لدى $name';
+  }
+
+  @override
+  String get rechargeOnShift => 'في الدوام';
+
+  @override
+  String get rechargeOffShift => 'خارج الدوام';
+
+  @override
+  String get rechargeSellTitle => 'بيع عملات من المخزون';
+
+  @override
+  String rechargeStockLeft(String coins) {
+    return 'في المخزون: $coins عملة';
+  }
+
+  @override
+  String get rechargeBuyer => 'المشتري';
+
+  @override
+  String get rechargeBuyerHint => 'اسم المستخدم أو المعرّف';
+
+  @override
+  String get rechargeCoins => 'عدد العملات';
+
+  @override
+  String get rechargeSellInvalid => 'اكتب المشتري وعدد العملات';
+
+  @override
+  String rechargeSellConfirm(String coins, String buyer) {
+    return 'بيع $coins عملة إلى $buyer؟ لا يمكن التراجع.';
+  }
+
+  @override
+  String rechargeSold(String coins, String buyer) {
+    return 'أُرسلت $coins عملة إلى $buyer';
+  }
+
+  @override
+  String get rechargeSellNote =>
+      'يدفع لك المشتري خارج التطبيق. تأكد من استلام المبلغ قبل البيع.';
+
+  @override
+  String get rechargeApplyTitle => 'طلب وكيل شحن';
+
+  @override
+  String get rechargePrivacyNote =>
+      'بيانات الطلب خاصة: لا يراها إلا فريق Kabso، وتُحذف بعد ٩٠ يوماً إذا لم يُقبل الطلب.';
+
+  @override
+  String get rechargeFullName => 'الاسم الرباعي';
+
+  @override
+  String get rechargeFullNameHint => 'كما في الهوية';
+
+  @override
+  String get rechargeFullNameError =>
+      'اكتب الاسم الرباعي (أربعة أسماء على الأقل)';
+
+  @override
+  String get rechargePhone => 'رقم الهاتف (واتساب)';
+
+  @override
+  String get rechargePhoneHint => 'بالصيغة الدولية، مثل ‎+201001234567';
+
+  @override
+  String get rechargePhoneError =>
+      'اكتب رقماً دولياً يبدأ بـ + (مثل ‎+201001234567)';
+
+  @override
+  String get rechargePhoto => 'صورتك';
+
+  @override
+  String get rechargePhotoHint => 'صورة واضحة لك';
+
+  @override
+  String get rechargeSelfie => 'سيلفي للتحقق';
+
+  @override
+  String get rechargeSelfieHint => 'بالكاميرا الأمامية الآن؛ يراجعها الفريق';
+
+  @override
+  String get rechargeLocations => 'أماكن البيع';
+
+  @override
+  String get rechargeCountry => 'الدولة';
+
+  @override
+  String get rechargeCities => 'المدن (افصل بفاصلة)';
+
+  @override
+  String get rechargeAddLocation => 'إضافة دولة';
+
+  @override
+  String get rechargeLocationError =>
+      'اكتب رمز الدولة من حرفين (مثل EG) ومدينة واحدة على الأقل';
+
+  @override
+  String get rechargePaymentMethods => 'طرق الدفع المتاحة في كل دولة';
+
+  @override
+  String get rechargePaymentType => 'النوع';
+
+  @override
+  String get rechargePaymentDetails => 'التفاصيل (مثل فودافون كاش، إنستاباي)';
+
+  @override
+  String get rechargeAddPayment => 'إضافة طريقة دفع';
+
+  @override
+  String get rechargePaymentError =>
+      'لكل طريقة دفع: دولة من أماكن البيع وتفاصيل';
+
+  @override
+  String get rechargeMissingPhotos =>
+      'أضف صورتك وصورة السيلفي (JPEG أو PNG أو WebP)';
+
+  @override
+  String get rechargeSubmit => 'إرسال الطلب';
+
+  @override
+  String get rechargeSubmitted => 'أُرسل طلبك';
+
+  @override
+  String get rechargePayBank => 'تحويل بنكي';
+
+  @override
+  String get rechargePayWallet => 'محفظة إلكترونية';
+
+  @override
+  String get rechargePayCash => 'نقداً';
+
+  @override
+  String get rechargePayCard => 'بطاقة';
+
+  @override
+  String get rechargePayCrypto => 'عملات رقمية';
+
+  @override
+  String get rechargePayOther => 'أخرى';
+
+  @override
+  String get rechargeRemove => 'إزالة';
+
+  @override
+  String get rechargeAddEmployee => 'إضافة موظف';
+
+  @override
+  String get rechargeEmployeeUsername => 'اسم المستخدم';
+
+  @override
+  String get rechargeEmployeesEmpty => 'لا يوجد موظفون بعد';
+
+  @override
+  String rechargeRemoveEmployeeConfirm(String name) {
+    return 'إزالة $name من الموظفين؟ يتوقف عن البيع فوراً.';
+  }
+
+  @override
+  String get rechargeHours => 'ساعات العمل';
+
+  @override
+  String get rechargeTimeZone => 'المنطقة الزمنية';
+
+  @override
+  String get rechargeFrom => 'من';
+
+  @override
+  String get rechargeTo => 'إلى';
+
+  @override
+  String get rechargeAddSlot => 'إضافة وقت';
+
+  @override
+  String get rechargeWhatsapp => 'رقم واتساب';
+
+  @override
+  String get rechargePaymentNow => 'طريقة الدفع في هذا الوقت';
+
+  @override
+  String get rechargeSave => 'حفظ';
+
+  @override
+  String get rechargeSaved => 'تم الحفظ';
+
+  @override
+  String get rechargeDay1 => 'الإثنين';
+
+  @override
+  String get rechargeDay2 => 'الثلاثاء';
+
+  @override
+  String get rechargeDay3 => 'الأربعاء';
+
+  @override
+  String get rechargeDay4 => 'الخميس';
+
+  @override
+  String get rechargeDay5 => 'الجمعة';
+
+  @override
+  String get rechargeDay6 => 'السبت';
+
+  @override
+  String get rechargeDay7 => 'الأحد';
+
+  @override
+  String get rechargeDirectoryNote =>
+      'تدفع للوكيل خارج التطبيق، ثم يرسل العملات إلى حسابك مباشرة.';
+
+  @override
+  String get rechargeDirectoryEmpty => 'لا يوجد وكلاء في هذه الدولة بعد';
+
+  @override
+  String get rechargeDirectoryEmptyBody => 'جرّب دولة أخرى أو عُد لاحقاً.';
+
+  @override
+  String rechargeAvailableNowLine(String method) {
+    return 'متاح الآن · الدفع: $method';
+  }
+
+  @override
+  String get rechargeNotAvailableNow => 'غير متاح الآن';
+
+  @override
+  String get rechargeContact => 'تواصل';
+
+  @override
+  String get rechargeCherryOffer => 'بيع كرز لوكيل';
+
+  @override
+  String get rechargeCherryAsk => 'طلب كرز من مضيف';
+
+  @override
+  String get rechargeAgentCodeField => 'رمز الوكيل (مثل coin0001)';
+
+  @override
+  String get rechargeHostField => 'اسم مستخدم المضيف';
+
+  @override
+  String get rechargeCherryAmount => 'عدد الكرز';
+
+  @override
+  String rechargeCherryRules(String min, String step) {
+    return 'الحد الأدنى $min كرزة، وبمضاعفات $step';
+  }
+
+  @override
+  String get rechargeCherryLockedNote => 'كرز المهام المقفل لا يُباع.';
+
+  @override
+  String rechargeCherryPreview(String coins, String money) {
+    return 'يحصل الوكيل على $coins عملة، ويدفع للمضيف $money نقداً';
+  }
+
+  @override
+  String get rechargeCherrySend => 'إرسال الطلب';
+
+  @override
+  String get rechargeCherrySent => 'أُرسل الطلب؛ بانتظار تأكيد الطرف الآخر';
+
+  @override
+  String get rechargeCherryEmpty => 'لا توجد طلبات';
+
+  @override
+  String get rechargeCherryConfirmHint =>
+      'أكّد فقط بعد أن يُدفع المبلغ نقداً. ينتهي الطلب بعد ٣٠ دقيقة.';
+
+  @override
+  String get rechargeCherryWaiting => 'بانتظار تأكيد الطرف الآخر';
+
+  @override
+  String get rechargeCherryCancel => 'إلغاء الطلب';
+
+  @override
+  String get rechargeConfirm => 'تأكيد';
+
+  @override
+  String get rechargeDecline => 'رفض';
+
+  @override
+  String get rechargeCherryPending => 'بانتظار التأكيد';
+
+  @override
+  String get rechargeCherryConfirmed => 'مؤكَّد';
+
+  @override
+  String get rechargeCherryDeclined => 'مرفوض';
+
+  @override
+  String get rechargeCherryCancelled => 'ملغى';
+
+  @override
+  String get rechargeCherryExpired => 'منتهٍ';
+
+  @override
+  String rechargeCherryLine(String cherries, String coins) {
+    return '$cherries كرزة ← $coins عملة';
+  }
+
+  @override
+  String rechargeMoney(String amount) {
+    return 'المبلغ النقدي: $amount';
+  }
+
+  @override
+  String notifRechargeCoins(String name, String coins) {
+    return '$name شحن لك $coins عملة';
+  }
+
+  @override
+  String notifRechargeCherry(String name) {
+    return '$name يطلب تأكيد بيع كرز';
+  }
+
+  @override
+  String get errorRechargeApplicationNotAllowed =>
+      'لا يمكنك تقديم طلب وكيل شحن الآن.';
+
+  @override
+  String get errorRechargeAgentNotActive => 'هذا الوكيل غير مفعّل.';
+
+  @override
+  String get errorRechargeOffShift => 'يمكنك البيع في ساعات عملك فقط.';
+
+  @override
+  String get errorRechargeStockInsufficient => 'مخزون العملات لا يكفي.';
+
+  @override
+  String get errorRechargeEmployeeNotAllowed =>
+      'لا يمكن إضافة هذا الشخص موظفاً.';
+
+  @override
+  String get errorRechargeCherryRequestPending =>
+      'يوجد طلب مفتوح بينكما بالفعل.';
+
+  @override
+  String get errorRechargeCherryRequestClosed => 'هذا الطلب لم يعد مفتوحاً.';
+
+  @override
+  String get errorRechargeCherryCapReached =>
+      'بلغ الوكيل حدّه اليومي من الكرز.';
+
+  @override
+  String get errorUsernameLocked =>
+      'اسم المستخدم مقفل ما دام اليوزر المميز فعّالاً.';
+
+  @override
+  String get settingsUsernameLocked => 'مقفل';
+
+  @override
+  String settingsBaseUsername(String username) {
+    return 'اسمك الأساسي: $username';
+  }
+
+  @override
+  String changeUsernameSpecialLocked(String special, String base) {
+    return '$special يوزر مميز مقفل، ولا يمكن تغييره ما دام فعّالاً. يراه الجميع وحده؛ اسمك الأساسي $base لا يراه غيرك، ويمكنك تسجيل الدخول به.';
+  }
+
+  @override
+  String changeUsernameSpecialEnds(String date) {
+    return 'ينتهي في $date، ثم يعود اسمك الأساسي.';
+  }
+
+  @override
+  String hostAgentBadgeLabel(String code) {
+    return 'وكيل مضيفين $code';
+  }
+
+  @override
+  String hostAgentFrameLabel(String name) {
+    return '$name، وكيل مضيفين';
+  }
+
+  @override
+  String hostAgentEntranceJoined(String username) {
+    return 'دخل وكيل المضيفين $username';
+  }
+
+  @override
+  String hostAgentIdLine(String code) {
+    return 'وكيل مضيفين · $code';
+  }
+
+  @override
+  String get hostAgentCardTitle => 'وكيل مضيفين';
+
+  @override
+  String get hostAgentCodeLabel => 'رمز وكيل المضيفين';
+
+  @override
+  String get hostAgentPerksNote =>
+      'إطارك وشارتك ودخولك المميز في البث ظاهرة ما دامت وكالتك قائمة.';
+
+  @override
+  String hostAgentReservedNote(String code, String shown) {
+    return 'الرمز $code محجوز لك. يظهر اسم المستخدم $shown لأنه فُعّل أولاً.';
+  }
+
+  @override
+  String hostAgentSuspendedNote(String code) {
+    return 'مزايا وكيل المضيفين موقوفة. يبقى الرمز $code محجوزاً لك.';
+  }
+
+  @override
+  String get hostAgentPendingNote => 'يُمنح رمز وكيل المضيفين قريباً.';
 }

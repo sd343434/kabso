@@ -331,7 +331,10 @@ describe('D179 cherry economy', { timeout: 300_000 }, () => {
     expect(preview.status).toBe(200);
     expectContract(preview, 'getAgencyByCode');
     expect(preview.body).toMatchObject({ inviteCode: agencyCode, rank: 'NEW', hostCount: 0 });
-    expect(preview.body.owner.username).toBe(agent.username);
+    // v1.58-social (D189): creating the agency made the owner a host agent — `hostNN` is their username now.
+    expect(preview.body.owner.id).toBe(agent.id);
+    expect(preview.body.owner.username).toMatch(/^host[0-9]{2,}$/);
+    expect(preview.body.owner.hostAgent).toEqual({ code: preview.body.owner.username });
     expect((await ctx.http.get('/api/v1/agencies/ZZZZ2222').set(auth(host))).status).toBe(404);
 
     const joined = await join(host, ` ${agencyCode.toLowerCase()} `);

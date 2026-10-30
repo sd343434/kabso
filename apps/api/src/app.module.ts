@@ -30,6 +30,7 @@ import { WalletModule } from './modules/wallet/wallet.module.js';
 import { CreatorModule } from './modules/creator/creator.module.js';
 import { ProgramsModule } from './modules/programs/programs.module.js';
 import { EconomyModule } from './modules/economy/economy.module.js';
+import { RechargeModule } from './modules/recharge/recharge.module.js';
 import { CouplesModule } from './modules/couples/couples.module.js';
 import { FamiliesModule } from './modules/families/families.module.js';
 import { MedalsModule } from './modules/medals/medals.module.js';
@@ -96,6 +97,7 @@ export class AppModule {
         ProgramsModule,
         // v1.52-social (DRAFT, D179): cherries, host agencies, commissions and withdrawals.
         EconomyModule,
+        RechargeModule,
       ],
       providers: [
         { provide: APP_FILTER, useClass: AllExceptionsFilter },

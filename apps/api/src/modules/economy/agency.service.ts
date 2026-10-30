@@ -16,6 +16,7 @@ import type { PageQuery } from '../posts/posts.schemas.js';
 import { SocialCursorCodec } from '../posts/social-cursor.js';
 import { agencyStandings, evaluateAgencyRanks, hostActivity, type RankChange } from './agency-ranks.js';
 import { addMonths, agencyRateBps, dateValue, monthKey, normalizeInviteCode } from './economy-math.js';
+import { assignMissingHostCodes, hostAgentPerksActive } from './host-agents.js';
 
 const DAY_MS = 86_400_000;
 
@@ -87,6 +88,18 @@ export interface OwnAgencyDto {
   commission: CommissionTotalsDto;
   parentCommission: CommissionTotalsDto;
   subAgencies: AgencySubAgencyDto[];
+  /** v1.58-social (D189, §10.52): the owner as a host agent «وكيل مضيفين». */
+  hostAgent: OwnHostAgentDto;
+}
+
+/** v1.58-social (D189, §10.52). */
+export interface OwnHostAgentDto {
+  /** `hostNN`; null until the sweeper gives an agency made before D189 its code. */
+  code: string | null;
+  /** The perks are on (not suspended by the team). */
+  active: boolean;
+  /** The code is the username shown now (false: suspended, or another special username activated first). */
+  usernameShown: boolean;
 }
 
 /** `MyAgency`. */
@@ -156,8 +169,11 @@ export class AgencyService implements OnModuleInit, OnModuleDestroy {
   private schedule(): void {
     this.timer = setTimeout(() => {
       this.inFlight = this.evaluateRanks()
-        .then((changes) => {
+        .then(async (changes) => {
           if (changes.length > 0) this.logger.log({ changes: changes.length }, 'Agency ranks evaluated');
+          // v1.58-social (D189, §10.52): agencies made before D189 get their host code (oldest first).
+          const coded = await this.assignHostCodes();
+          if (coded > 0) this.logger.log({ coded }, 'Host-agent codes given');
         })
         .catch((err: unknown) => {
           this.logger.error({ error: safeErrorLog(err) }, 'Agency rank evaluation failed');
@@ -172,6 +188,11 @@ export class AgencyService implements OnModuleInit, OnModuleDestroy {
 
   private get zone(): string {
     return this.config.live.rankingsTimeZone;
+  }
+
+  /** v1.58-social (D189): the sweeper's backfill of host codes. */
+  assignHostCodes(): Promise<number> {
+    return assignMissingHostCodes(this.prisma, this.clock.now(), this.config.specialUsernames.graceDays);
   }
 
   /** The sweeper's work (also `economy-admin agency-evaluate`). */
@@ -247,7 +268,7 @@ export class AgencyService implements OnModuleInit, OnModuleDestroy {
     const previous = addMonths(month, -1);
     const standings = await agencyStandings(this.prisma, now, e, this.zone, [agency.id]);
     const self = standings.get(agency.id)!;
-    const [months, totals, hostCount, subs, parent] = await Promise.all([
+    const [months, totals, hostCount, subs, parent, profile] = await Promise.all([
       this.prisma.agencyMonth.findMany({
         where: { agencyId: agency.id, month: { in: [dateValue(month), dateValue(previous)] } },
       }),
@@ -262,6 +283,7 @@ export class AgencyService implements OnModuleInit, OnModuleDestroy {
         select: { id: true, inviteCode: true, rank: true, owner: { select: USER_SUMMARY_SELECT } },
       }),
       agency.parentAgencyId ? this.preview(agency.parentAgencyId) : Promise.resolve(null),
+      this.prisma.userProfile.findUnique({ where: { userId: me }, select: { username: true } }),
     ]);
     const cur = months.find((m) => m.month.toISOString().startsWith(month));
     const prev = months.find((m) => m.month.toISOString().startsWith(previous));
@@ -307,6 +329,11 @@ export class AgencyService implements OnModuleInit, OnModuleDestroy {
           qualifies: st?.selfQualifies ?? false,
         };
       }),
+      hostAgent: {
+        code: agency.hostCode,
+        active: hostAgentPerksActive(agency),
+        usernameShown: agency.hostCode !== null && profile?.username === agency.hostCode,
+      },
     };
   }
 

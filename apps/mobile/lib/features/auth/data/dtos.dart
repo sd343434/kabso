@@ -3,6 +3,7 @@
 import 'package:json_annotation/json_annotation.dart';
 import 'package:kabso_live/core/models/premium_tier.dart';
 import 'package:kabso_live/core/models/profile_fields.dart';
+import 'package:kabso_live/core/models/special_username.dart';
 import 'package:kabso_live/core/network/auth_tokens.dart';
 import 'package:kabso_live/features/auth/domain/entities.dart';
 
@@ -31,6 +32,7 @@ class MeDto {
     this.showGender = false,
     this.category,
     this.links = const [],
+    this.specialUsername,
   });
 
   factory fromJson(Map<String, dynamic> json) => _$MeDtoFromJson(json);
@@ -78,6 +80,15 @@ class MeDto {
   @JsonKey(fromJson: profileLinksFromJson, toJson: profileLinksToJson)
   final List<ProfileLink> links;
 
+  /// v1.54-social (D185, §10.48.1): the caller's active special username
+  /// (with the base username — only ever in the caller's own `Me`).
+  @JsonKey(
+    fromJson: specialUsernameFromJson,
+    toJson: specialUsernameToJson,
+    includeIfNull: false,
+  )
+  final SpecialUsername? specialUsername;
+
   Map<String, dynamic> toJson() => _$MeDtoToJson(this);
 
   User toEntity() => User(
@@ -100,6 +111,7 @@ class MeDto {
     showGender: showGender,
     category: category,
     links: links,
+    specialUsername: specialUsername,
   );
 }
 

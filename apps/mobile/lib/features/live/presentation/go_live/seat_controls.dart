@@ -12,6 +12,7 @@ import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
+import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -659,6 +660,8 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
               context,
               key: SeatControlKeys.moderatorUser(u.username),
               name: u.displayName,
+              agentCode: u.rechargeAgentCode,
+              hostAgentCode: u.hostAgentCode,
               handle: _moderators.contains(u.username)
                   ? '${KHandle.plain(u.username, premiumTier: u.premiumTier)}'
                         ' · ${l10n.liveSeatModeratorTag}'
@@ -823,6 +826,8 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
           _row(
             context,
             name: r.user.displayName,
+            agentCode: r.user.rechargeAgentCode,
+            hostAgentCode: r.user.hostAgentCode,
             handle: r.seatIndex == null
                 ? KHandle.plain(
                     r.user.username,
@@ -1001,6 +1006,8 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
     required Widget avatar,
     Key? key,
     String? handle,
+    String? agentCode,
+    String? hostAgentCode,
     VoidCallback? onTap,
     List<Widget> actions = const [],
   }) {
@@ -1015,15 +1022,27 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  KFormat.bidiIsolate(name),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: text.bodyStrong.copyWith(
-                    color: _Panel.ink,
-                    fontSize: 16.5,
-                    fontWeight: FontWeight.w700,
-                  ),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        KFormat.bidiIsolate(name),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: text.bodyStrong.copyWith(
+                          color: _Panel.ink,
+                          fontSize: 16.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    // D185 (owner): a recharge agent's badge after the name.
+                    RechargeAgentInlineBadge(
+                      code: agentCode,
+                      hostCode: hostAgentCode,
+                      height: 18,
+                    ),
+                  ],
                 ),
                 if (handle != null)
                   Text(

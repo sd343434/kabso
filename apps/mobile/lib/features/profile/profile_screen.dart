@@ -15,6 +15,9 @@ import 'package:kabso_live/features/cp/presentation/cp_special_frame.dart';
 import 'package:kabso_live/features/levels/presentation/profile_levels.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/features/profile/profile_fields_view.dart';
+import 'package:kabso_live/features/recharge/application/recharge_providers.dart';
+import 'package:kabso_live/features/recharge/data/recharge_repository.dart';
+import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -178,7 +181,14 @@ class _OwnHeader extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final statsLoad = ref.watch(profileStatsProvider(user.username));
     final stats = statsLoad.value;
+    // D185: the caller's own agent frame and badge while ACTIVE.
+    final agent = ref.watch(myRechargeAgentProvider).value?.agent;
     return ProfileHeaderView(
+      agentCode: agent?.status == RechargeAgentStatus.active
+          ? agent?.code
+          : null,
+      // D189: the own host-agent frame and badge (from the profile read).
+      hostAgentCode: stats?.hostAgentCode,
       displayName: user.displayName,
       avatarUrl: user.avatarUrl,
       bio: user.bio,
@@ -259,7 +269,21 @@ class ProfileHeaderView extends StatelessWidget {
     this.onOpenFollowing,
     this.subtitle,
     this.about,
+    this.agentCode,
+    this.hostAgentCode,
   });
+
+  /// v1.58-social (D189, §10.52): the person's code while they are a host
+  /// agent: the host-agent badge beside the name (after the recharge one)
+  /// and the host-agent frame unless the recharge-agent frame wins
+  /// ([agentFrameKindFor]).
+  final String? hostAgentCode;
+
+  /// v1.54-social (D185): the person's code while they are an ACTIVE
+  /// recharge agent: the agent frame (with the code in its plate) around
+  /// the photo and the agent badge beside the name. While [live], the live
+  /// ring wins (as for the CP frame).
+  final String? agentCode;
 
   final String displayName;
   final String? avatarUrl;
@@ -298,6 +322,9 @@ class ProfileHeaderView extends StatelessWidget {
   static const followersKey = Key('profile.stat.followers');
   static const followingKey = Key('profile.stat.following');
   static const cpFrameKey = Key('profile.avatar.cpFrame');
+  static const agentFrameKey = Key('profile.avatar.agentFrame');
+  static const agentBadgeKey = Key('profile.agentBadge');
+  static const hostAgentBadgeKey = Key('profile.hostAgentBadge');
 
   @override
   Widget build(BuildContext context) {
@@ -340,7 +367,29 @@ class ProfileHeaderView extends StatelessWidget {
         ),
       ),
     );
-    final avatar = cpFrame && !live
+    final agentCode = this.agentCode;
+    final hostCode = hostAgentCode;
+    // D189 d: recharge-agent frame > host-agent frame > the CP / bag frame.
+    final frameKind = agentFrameKindFor(
+      rechargeCode: agentCode,
+      hostCode: hostCode,
+    );
+    final avatar = frameKind == AgentFrameKind.recharge && !live
+        ? RechargeAgentFrame(
+            key: agentFrameKey,
+            width: AgentFrameGeometry.width(frameKind!, KProfile.avatar),
+            name: displayName,
+            code: agentCode!,
+            imageUrl: avatarUrl,
+          )
+        : frameKind == AgentFrameKind.host && !live
+        ? HostAgentFrame(
+            key: agentFrameKey,
+            width: AgentFrameGeometry.width(frameKind!, KProfile.avatar),
+            name: displayName,
+            imageUrl: avatarUrl,
+          )
+        : cpFrame && !live
         ? CpSpecialFrameAvatar(
             key: cpFrameKey,
             width: CpSpecialFrameAvatar.widthForAvatar(KProfile.avatar),
@@ -409,6 +458,11 @@ class ProfileHeaderView extends StatelessWidget {
                 key: const Key('profile.displayName'),
                 style: t.bodyStrong.copyWith(color: p.textPrimary),
               ),
+              if (agentCode case final code?)
+                RechargeAgentBadge(key: agentBadgeKey, code: code, height: 22),
+              // D189: the host-agent badge, placed as the recharge one.
+              if (hostCode case final code?)
+                HostAgentBadge(key: hostAgentBadgeKey, code: code, height: 22),
               ?nameTrailing,
             ],
           ),

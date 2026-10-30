@@ -22,6 +22,8 @@ _UserSummary _$UserSummaryFromJson(Map<String, dynamic> json) => _UserSummary(
   displayName: json['displayName'] as String,
   avatarUrl: json['avatarUrl'] as String?,
   premiumTier: premiumTierFromJson(json['premiumTier']),
+  rechargeAgentCode: rechargeAgentCodeFromJson(json['rechargeAgent']),
+  hostAgentCode: rechargeAgentCodeFromJson(json['hostAgent']),
 );
 
 Map<String, dynamic> _$UserSummaryToJson(_UserSummary instance) =>
@@ -31,4 +33,6 @@ Map<String, dynamic> _$UserSummaryToJson(_UserSummary instance) =>
       'displayName': instance.displayName,
       'avatarUrl': instance.avatarUrl,
       'premiumTier': premiumTierToJson(instance.premiumTier),
+      'rechargeAgent': ?rechargeAgentCodeToJson(instance.rechargeAgentCode),
+      'hostAgent': ?rechargeAgentCodeToJson(instance.hostAgentCode),
     };

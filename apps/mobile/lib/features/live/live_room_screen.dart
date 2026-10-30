@@ -74,6 +74,8 @@ import 'package:kabso_live/features/profile/application/public_profile_controlle
 import 'package:kabso_live/features/profile/profile_bonds.dart';
 import 'package:kabso_live/features/profile/public_profile_screen.dart';
 import 'package:kabso_live/features/profile_card/kabso_profile_header.dart';
+import 'package:kabso_live/features/recharge/presentation/live_recharge_entrance.dart';
+import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
 import 'package:kabso_live/features/safety/safety_actions.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -873,6 +875,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
             // CP-021 (D112): the CP Entrance Effect.
             if (room.status == LiveRoomStatus.live)
               LiveCpEntranceLayer(roomId: room.id),
+            // D185: a recharge agent's entrance bar.
+            LiveRechargeEntranceLayer(roomId: room.id),
           ],
         ),
       ),
@@ -949,6 +953,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         // D141 (owner): the host's @username beside the name (copy on tap).
         username: host.username,
         premiumTier: host.premiumTier,
+        agentCode: host.rechargeAgentCode,
+        hostAgentCode: host.hostAgentCode,
         hostName: host.displayName,
         avatar: avatar,
         lines: ended
@@ -1308,6 +1314,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                   // the room number.
                   username: host.username,
                   premiumTier: host.premiumTier,
+                  agentCode: host.rechargeAgentCode,
+                  hostAgentCode: host.hostAgentCode,
                   onTap: () => _person(_username),
                   action: canFollow
                       ? LiveRoundButton(
@@ -1984,6 +1992,11 @@ class _HostSheet extends ConsumerWidget {
   static const medalsKey = Key('room.userCard.medals');
   static const cpFrameKey = Key('room.userCard.cpFrame');
 
+  /// D185: the recharge agent's frame and badge on the card.
+  static const agentFrameKey = Key('room.userCard.agentFrame');
+  static const agentBadgeKey = Key('room.userCard.agentBadge');
+  static const hostAgentBadgeKey = Key('room.userCard.hostAgentBadge');
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
@@ -2006,10 +2019,27 @@ class _HostSheet extends ConsumerWidget {
         : cpTap(profile, signedIn: ref.watch(currentUserProvider) != null);
     final scope = this.scope;
     // CP-021 (D112): the couple's Special Frame around the picture.
-    final framed = cpWearsSpecialFrame(profile?.cp);
-    final frameWidth = CpSpecialFrameAvatar.widthForAvatar(_Card.avatar);
-    final frameTop = CpSpecialFrameAvatar.pictureCentreY(frameWidth);
-    final frameBelow = CpSpecialFrameAvatar.heightFor(frameWidth) - frameTop;
+    // D185: an ACTIVE recharge agent wears the agent frame (it wins over the
+    // CP frame), with their code in its plate.
+    final agentCode = profile?.rechargeAgentCode;
+    // D189: a host agent wears the host-agent frame (no name); D189 d: the
+    // recharge-agent frame wins over it, either over the CP frame.
+    final frameKind = agentFrameKindFor(
+      rechargeCode: agentCode,
+      hostCode: profile?.hostAgentCode,
+    );
+    final framed = frameKind != null || cpWearsSpecialFrame(profile?.cp);
+    final frameWidth = frameKind != null
+        ? AgentFrameGeometry.width(frameKind, _Card.avatar)
+        : CpSpecialFrameAvatar.widthForAvatar(_Card.avatar);
+    final frameTop = frameKind != null
+        ? AgentFrameGeometry.pictureCentreY(frameKind, frameWidth)
+        : CpSpecialFrameAvatar.pictureCentreY(frameWidth);
+    final frameBelow =
+        (frameKind != null
+            ? AgentFrameGeometry.height(frameKind, frameWidth)
+            : CpSpecialFrameAvatar.heightFor(frameWidth)) -
+        frameTop;
     void close(VoidCallback then) {
       Navigator.of(context).pop();
       then();
@@ -2104,6 +2134,24 @@ class _HostSheet extends ConsumerWidget {
                       ),
                     ),
                   ),
+                  // D185 (owner): an ACTIVE recharge agent's badge.
+                  if (profile.rechargeAgentCode case final code?) ...[
+                    const SizedBox(width: 6),
+                    RechargeAgentBadge(
+                      key: agentBadgeKey,
+                      code: code,
+                      height: 22,
+                    ),
+                  ],
+                  // D189: a host agent's badge, placed as the recharge one.
+                  if (profile.hostAgentCode case final code?) ...[
+                    const SizedBox(width: 6),
+                    HostAgentBadge(
+                      key: hostAgentBadgeKey,
+                      code: code,
+                      height: 22,
+                    ),
+                  ],
                   // Owner (2026-10-26): everyone sees that the person is the
                   // host or a moderator of this live.
                   if (scope?.target case final role?
@@ -2162,6 +2210,32 @@ class _HostSheet extends ConsumerWidget {
                   ),
                 ),
               ),
+              // D185: the agent's recharge ID under the @username.
+              if (profile.rechargeAgentCode case final code?)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    l10n.rechargeAgentIdLine(KFormat.bidiIsolate(code)),
+                    key: const Key('room.userCard.agentCode'),
+                    style: text.caption.copyWith(
+                      color: const Color(0xFFC0262D),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              // D189: the host agent's code under it.
+              if (profile.hostAgentCode case final code?)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    l10n.hostAgentIdLine(KFormat.bidiIsolate(code)),
+                    key: const Key('room.userCard.hostAgentCode'),
+                    style: text.caption.copyWith(
+                      color: const Color(0xFF1D5FD1),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
               // Owner (2026-10-26): every level in one row, the charm level
               // first; a long row scrolls sideways.
               if (shown.isNotEmpty)
@@ -2500,7 +2574,22 @@ class _HostSheet extends ConsumerWidget {
                         context.push(AppRoutes.userProfile(username)),
                       ),
                     ),
-                    child: framed
+                    child: frameKind == AgentFrameKind.recharge
+                        ? RechargeAgentFrame(
+                            key: agentFrameKey,
+                            width: frameWidth,
+                            name: profile?.displayName ?? username,
+                            code: agentCode!,
+                            image: _networkImage(profile?.avatarUrl),
+                          )
+                        : frameKind == AgentFrameKind.host
+                        ? HostAgentFrame(
+                            key: agentFrameKey,
+                            width: frameWidth,
+                            name: profile?.displayName ?? username,
+                            image: _networkImage(profile?.avatarUrl),
+                          )
+                        : framed
                         ? CpSpecialFrameAvatar(
                             key: cpFrameKey,
                             width: frameWidth,

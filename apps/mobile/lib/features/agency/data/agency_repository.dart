@@ -166,10 +166,18 @@ final class OwnAgency {
     required this.parentCommission,
     required this.subAgencies,
     this.parent,
+    this.hostAgentCode,
+    this.hostAgentActive = false,
+    this.hostAgentUsernameShown = false,
   });
 
   factory fromJson(Map<String, dynamic> json) {
     final p = json['progress']! as Map<String, dynamic>;
+    // v1.58-social (D189): absent on older servers (no host-agent part).
+    final host = switch (json['hostAgent']) {
+      final Map<String, dynamic> h => h,
+      _ => const <String, dynamic>{},
+    };
     return OwnAgency(
       inviteCode: json['inviteCode']! as String,
       rank: AgencyRank.fromWire(json['rank']),
@@ -194,6 +202,12 @@ final class OwnAgency {
       parent: json['parent'] == null
           ? null
           : AgencyPreview.fromJson(json['parent']! as Map<String, dynamic>),
+      hostAgentCode: switch (host['code']) {
+        final String code when code.isNotEmpty => code,
+        _ => null,
+      },
+      hostAgentActive: host['active'] == true,
+      hostAgentUsernameShown: host['usernameShown'] == true,
     );
   }
 
@@ -217,6 +231,18 @@ final class OwnAgency {
   final CommissionTotals parentCommission;
   final List<SubAgency> subAgencies;
   final AgencyPreview? parent;
+
+  /// v1.58-social (D189, §10.52): the owner's host-agent code `hostNN`
+  /// (`OwnAgency.hostAgent.code`); null on an older server or before the
+  /// server gave an older agency its code.
+  final String? hostAgentCode;
+
+  /// The host-agent perks are on (false: suspended by the team).
+  final bool hostAgentActive;
+
+  /// The code is the username shown now (false: suspended, or a recharge
+  /// code activated first is shown and this one is kept reserved).
+  final bool hostAgentUsernameShown;
 }
 
 /// `MyAgency`.

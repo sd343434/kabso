@@ -84,6 +84,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dar
 import 'package:kabso_live/features/live/presentation/widgets/live_viewer_parts.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_watch_card.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
+import 'package:kabso_live/features/recharge/presentation/live_recharge_entrance.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -1647,6 +1648,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                   LiveAssistantHintLayer(roomId: room.id),
                 // CP-021 (D112): the CP Entrance Effect.
                 if (onAir && room != null) LiveCpEntranceLayer(roomId: room.id),
+                // D185: a recharge agent's entrance bar.
+                if (onAir && room != null)
+                  LiveRechargeEntranceLayer(roomId: room.id),
                 // D144a: DeepAR's diagnostics for the owner's screenshots —
                 // debug/profile builds with the camera processor only.
                 if (LiveFxDiagnostics.enabled &&

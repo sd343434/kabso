@@ -236,7 +236,7 @@ Future<void> openProfileLink(
     final choice = await showModalBottomSheet<_Leaving>(
       context: context,
       isScrollControlled: true,
-      builder: (sheet) => _LeavingSheet(link: link, reportable: reportable),
+      builder: (sheet) => _LeavingSheet(url: link.url, reportable: reportable),
     );
     if (!context.mounted) return;
     if (choice == _Leaving.report) {
@@ -259,10 +259,22 @@ Future<void> openProfileLink(
 
 enum _Leaving { open, report }
 
-class _LeavingSheet extends StatelessWidget {
-  const new({required this.link, required this.reportable});
+/// D175's «أنت تغادر Kabso» before opening [url] outside the app (D185: the
+/// recharge directory's «تواصل» opens WhatsApp, which is not one of the
+/// platforms opened directly). True when the person chose to open it.
+Future<bool> confirmLeavingKabso(BuildContext context, String url) async {
+  final choice = await showModalBottomSheet<_Leaving>(
+    context: context,
+    isScrollControlled: true,
+    builder: (sheet) => _LeavingSheet(url: url, reportable: false),
+  );
+  return choice == _Leaving.open;
+}
 
-  final ProfileLink link;
+class _LeavingSheet extends StatelessWidget {
+  const new({required this.url, required this.reportable});
+
+  final String url;
   final bool reportable;
 
   @override
@@ -300,7 +312,7 @@ class _LeavingSheet extends StatelessWidget {
                 borderRadius: BorderRadius.circular(KRadius.sm),
               ),
               child: SelectableText(
-                link.url,
+                url,
                 key: ProfileLinkKeys.leavingUrl,
                 textDirection: TextDirection.ltr,
                 style: t.body.copyWith(color: p.textPrimary),

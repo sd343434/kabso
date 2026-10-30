@@ -76,6 +76,7 @@ enum MeHubItem {
   earn,
   creatorCenter,
   agency,
+  recharge,
   eventCenter,
   wallet,
   bag,
@@ -201,6 +202,15 @@ class MeHubScreen extends ConsumerWidget {
           hue: _Hues.pink,
           title: l10n.meHubAgency,
           onTap: () => push(AppRoutes.agency),
+        ),
+        // D185: recharge agents «وكيل الشحن» (apply, the agent's dashboard,
+        // the directory).
+        _HubRow(
+          item: MeHubItem.recharge,
+          icon: Icons.storefront_rounded,
+          hue: _Hues.pink,
+          title: l10n.rechargeTitle,
+          onTap: () => push(AppRoutes.recharge),
         ),
         _HubRow(
           item: MeHubItem.eventCenter,

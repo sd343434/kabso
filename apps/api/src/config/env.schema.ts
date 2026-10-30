@@ -557,6 +557,9 @@ export const envSchema = z
     RATE_LIMIT_DM_WRITE_USER: rateLimit('300/3600'),
     // v1.48-social (D171, CONVENTIONS §7, §10.45): bag item sends, per user.
     RATE_LIMIT_BAG_SEND_USER: rateLimit('30/3600'),
+    /** v1.54-social (D185, §10.48): coin sales by a recharge agent or employee, and the other recharge writes. */
+    RATE_LIMIT_RECHARGE_SELL_USER: rateLimit('120/3600'),
+    RATE_LIMIT_RECHARGE_WRITE_USER: rateLimit('60/3600'),
     RATE_LIMIT_FOLLOW_HOUR_USER: rateLimit('60/3600'),
     RATE_LIMIT_FOLLOW_DAY_USER: rateLimit('300/86400'),
     // v1.5-social (CONVENTIONS §11.8); every bucket is per user and replaces the default.
@@ -921,6 +924,55 @@ export const envSchema = z
      */
     TASK_CHERRIES_UNLOCK_GIFT_MINOR: intSetting(5000, 0, 100_000_000_000),
     /**
+     * v1.54-social (D185, CONVENTIONS §10.48): recharge agents. The first top-up that activates an agent (owner:
+     * 30 000 000 coins); the owner's wholesale price tiers `minCoins:minorPerMillion,…` (USD cents per 1 000 000
+     * coins: $12, from 100M $11.95, from 300M $11.90); the cherry → coin rate for an agent buying a host's
+     * cherries `cherries:coins` (owner: 1 000 000 → 93 220), its minimum and step, how long a request stays open,
+     * the default daily cap per agent (cherries), the most employees per agent, how long a rejected
+     * application's private data is kept, and the sweeper (retention; 0 = off, refused in production).
+     */
+    RECHARGE_AGENT_ACTIVATION_MIN_COINS: intSetting(30_000_000, 1),
+    RECHARGE_AGENT_PRICE_TIERS: z
+      .string()
+      .trim()
+      .default('0:1200,100000000:1195,300000000:1190')
+      .refine((v) => /^0:[1-9][0-9]{0,6}(,[1-9][0-9]{0,14}:[1-9][0-9]{0,6})*$/.test(v), {
+        message: 'must be minCoins:minorPerMillion pairs, the first from 0, e.g. 0:1200,100000000:1195',
+      })
+      .transform((v) =>
+        v.split(',').map((pair) => {
+          const [minCoins, minor] = pair.split(':');
+          return { minCoins: Number(minCoins), minorPerMillion: Number(minor) };
+        }),
+      )
+      .refine((tiers) => tiers.every((t, i) => i === 0 || t.minCoins > tiers[i - 1]!.minCoins), {
+        message: 'tiers must be in increasing order of minCoins',
+      }),
+    RECHARGE_AGENT_CHERRY_RATE: z
+      .string()
+      .trim()
+      .default('1000000:93220')
+      .refine((v) => /^[1-9][0-9]{0,12}:[1-9][0-9]{0,12}$/.test(v), {
+        message: 'must be cherries:coins, e.g. 1000000:93220',
+      })
+      .transform((v) => {
+        const [cherries, coins] = v.split(':');
+        return { cherries: Number(cherries), coins: Number(coins) };
+      }),
+    RECHARGE_AGENT_CHERRY_MIN: intSetting(1_000_000, 1),
+    RECHARGE_AGENT_CHERRY_STEP: intSetting(100_000, 1),
+    RECHARGE_AGENT_CHERRY_REQUEST_TTL_MINUTES: intSetting(30, 1, 10_080),
+    RECHARGE_AGENT_CHERRY_DAILY_CAP: intSetting(1_000_000_000, 0),
+    RECHARGE_AGENT_MAX_EMPLOYEES: intSetting(20, 0, 1000),
+    RECHARGE_AGENT_KYC_RETENTION_DAYS: intSetting(90, 1, 3650),
+    RECHARGE_AGENT_SWEEP_INTERVAL_SECONDS: intSetting(3600, 0, 86_400),
+    /**
+     * v1.54-social (D185, §10.48.1): special usernames («يوزر مميز»). After one ends, the name stays reserved
+     * for the person this many days (a `coin` name: forever). The sweeper ends expired ones and releases names.
+     */
+    SPECIAL_USERNAME_GRACE_DAYS: intSetting(30, 1, 3650),
+    SPECIAL_USERNAME_SWEEP_INTERVAL_SECONDS: intSetting(300, 0, 86_400),
+    /**
      * Optional dedicated source of the HMAC key (HKDF, info `social-cursor/v1`) of the v1.5-social
      * list cursors; like LIVE_CURSOR_KEY it falls back to RATE_LIMIT_KEY_SECRET.
      */
@@ -1117,6 +1169,22 @@ export const envSchema = z
           code: 'custom',
           path: ['NOTIFICATIONS_SWEEP_INTERVAL_SECONDS'],
           message: 'the notifications sweeper cannot be disabled in production',
+        });
+      }
+      // D185: rejected applications' private data must be deleted on time (retention).
+      if (env.RECHARGE_AGENT_SWEEP_INTERVAL_SECONDS === 0) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['RECHARGE_AGENT_SWEEP_INTERVAL_SECONDS'],
+          message: 'the recharge-agent sweeper (KYC retention) cannot be disabled in production',
+        });
+      }
+      // D185: an expired special username must give the person's own username back on time.
+      if (env.SPECIAL_USERNAME_SWEEP_INTERVAL_SECONDS === 0) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['SPECIAL_USERNAME_SWEEP_INTERVAL_SECONDS'],
+          message: 'the special-username sweeper cannot be disabled in production',
         });
       }
       // D179: agency ranks must be re-evaluated at each month start.

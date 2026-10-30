@@ -248,7 +248,14 @@ export class PostsService implements OnModuleInit, OnModuleDestroy {
         FROM user_profiles p
         JOIN users u ON u.id = p.user_id AND u.status = 'ACTIVE'::user_status
         LEFT JOIN privacy_settings ps ON ps.user_id = u.id
-       WHERE p.username = ANY(${[...usernames]}::text[])
+       WHERE (p.username = ANY(${[...usernames]}::text[])
+              -- v1.54-social (D185): a base username behind a special one, or a special one in grace.
+              OR EXISTS (SELECT 1 FROM special_usernames su
+                          WHERE su.user_id = u.id
+                            AND ((su.status = 'ACTIVE'::special_username_status
+                                  AND su.base_username = ANY(${[...usernames]}::text[]))
+                              OR (su.status = 'GRACE'::special_username_status
+                                  AND su.username = ANY(${[...usernames]}::text[])))))
          AND NOT EXISTS (SELECT 1 FROM user_blocks b
                           WHERE (b.blocker_id = u.id AND b.blocked_id = ${authorId}::uuid)
                              OR (b.blocker_id = ${authorId}::uuid AND b.blocked_id = u.id))
