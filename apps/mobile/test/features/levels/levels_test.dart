@@ -218,12 +218,12 @@ void main() {
         expect(data.lengthInBytes, greaterThan(1000));
       }
       expect(KLevelArt.supportPillAspect, hasLength(21));
-      // D169: the 20 tier frames; tier 21 keeps frame 20.
+      // D169: 21 tier frames, one per tier.
       for (var t = 1; t <= 21; t++) {
         final data = await rootBundle.load(KLevelArt.supportFrame(t));
         expect(data.lengthInBytes, greaterThan(1000));
       }
-      expect(KLevelArt.supportFrame(21), KLevelArt.supportFrame(20));
+      expect(KLevelArt.supportFrame(21), isNot(KLevelArt.supportFrame(20)));
       expect(KLevelArt.supportGems, hasLength(21));
     });
 

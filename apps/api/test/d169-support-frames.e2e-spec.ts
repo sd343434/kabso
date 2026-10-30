@@ -33,12 +33,17 @@ describe('D169 support tier frames', () => {
   const auth = (u: TestUser) => ({ Authorization: `Bearer ${u.token}` });
 
   /** Adds `delta` support points to `u` (idempotency `key`, or a new one). */
-  const adjust = async (u: TestUser, delta: bigint, key: string = randomUUID()) => {
+  const adjust = async (u: TestUser, delta: bigint, key: string = randomUUID(), fraud?: boolean) => {
     const res = await ctx.http
       .post(`/api/v1/admin/levels/users/${u.id}/adjustments`)
       .set(auth(admin))
       .set('Idempotency-Key', key)
-      .send({ category: 'SUPPORT', pointsDelta: delta.toString(), reason: 'D169 tier frame test' });
+      .send({
+        category: 'SUPPORT',
+        pointsDelta: delta.toString(),
+        reason: 'D169 tier frame test',
+        ...(fraud === undefined ? {} : { fraud }),
+      });
     expect(res.status).toBe(200);
     return res;
   };
@@ -120,7 +125,7 @@ describe('D169 support tier frames', () => {
     expect(owned).toBe(1);
   });
 
-  it('jumping tiers gives every frame passed; going down keeps them; tier 21 keeps frame 20', async () => {
+  it('jumping tiers gives every frame passed; a deduction keeps level and frames; level 100 gives frame 21', async () => {
     const u = await signup();
     await adjust(u, at(12)); // level 12 → tier 3
     expect(await supportLevel(u)).toBe(12);
@@ -130,15 +135,19 @@ describe('D169 support tier frames', () => {
       'support_frame_03',
     ]);
 
-    await adjust(u, -(at(12) - at(2))); // back to level 2
-    expect(await supportLevel(u)).toBe(2);
+    // A deduction that is not fraud: the points drop to level 2's, the level stays 12 (owner).
+    await adjust(u, -(at(12) - at(2)));
+    expect(await supportLevel(u)).toBe(12);
     expect(await frames(u)).toHaveLength(3);
+    const me = await ctx.http.get('/api/v1/levels/me/support').set(auth(u));
+    expect(me.body.progressPercent).toBe(0);
+    expect(me.body.pointsToNext).toBe((at(13) - at(2)).toString());
 
     await adjust(u, at(100) - at(2)); // level 100 → tier 21
     expect(await supportLevel(u)).toBe(100);
     const all = await frames(u);
-    expect(all).toHaveLength(20);
-    expect(all.at(-1)?.code).toBe('support_frame_20');
+    expect(all).toHaveLength(21);
+    expect(all.at(-1)?.code).toBe('support_frame_21');
     expect(all.every((f) => !f.equipped && f.source === 'LEVEL_REWARD')).toBe(true);
   });
 
@@ -160,5 +169,85 @@ describe('D169 support tier frames', () => {
     // The profile card (PROFILE_CARD) is untouched by the reward.
     const cards = await ctx.http.get('/api/v1/me/bag?category=PROFILE_CARD').set(auth(u));
     expect((cards.body.data as { source: string }[]).every((i) => i.source !== 'LEVEL_REWARD')).toBe(true);
+  });
+
+  it('only a fraud deduction lowers the level, and it takes back the frames of the tiers lost', async () => {
+    const u = await signup();
+    await adjust(u, at(12)); // level 12, frames 1–3
+    await ctx.http
+      .put('/api/v1/me/bag/equipped')
+      .set(auth(u))
+      .send({ category: 'AVATAR_FRAME', code: 'support_frame_03' })
+      .expect(200);
+
+    // Fraud needs a deduction.
+    const bad = await ctx.http
+      .post(`/api/v1/admin/levels/users/${u.id}/adjustments`)
+      .set(auth(admin))
+      .set('Idempotency-Key', randomUUID())
+      .send({ category: 'SUPPORT', pointsDelta: '10', reason: 'not a deduction', fraud: true });
+    expect(bad.status).toBe(400);
+
+    const key = randomUUID();
+    await adjust(u, -(at(12) - at(2)), key, true); // back to level 2: tier 1
+    expect(await supportLevel(u)).toBe(2);
+    expect((await frames(u)).map((f) => f.code)).toEqual(['support_frame_01']);
+    // The worn frame went with it: nothing is worn now.
+    const worn = await ctx.prisma.userBagItem.count({
+      where: { userId: u.id, category: 'AVATAR_FRAME', equipped: true },
+    });
+    expect(worn).toBe(0);
+    // The history says why.
+    const history = await ctx.prisma.levelHistory.findFirst({
+      where: { userId: u.id, newLevel: 2 },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(history?.reason).toBe('FRAUD');
+    // Replaying the same key with another fraud flag is a conflict.
+    const replay = await ctx.http
+      .post(`/api/v1/admin/levels/users/${u.id}/adjustments`)
+      .set(auth(admin))
+      .set('Idempotency-Key', key)
+      .send({
+        category: 'SUPPORT',
+        pointsDelta: (-(at(12) - at(2))).toString(),
+        reason: 'D169 tier frame test',
+      });
+    expect(replay.status).toBe(409);
+  });
+
+  it('a harder new version never lowers a level; frames stay', async () => {
+    const u = await signup();
+    await adjust(u, at(12)); // level 12
+    const category = await ctx.prisma.levelCategory.findFirstOrThrow({ where: { code: 'SUPPORT' } });
+    const harder = await ctx.prisma.levelCategoryVersion.create({
+      data: {
+        categoryId: category.id,
+        versionNumber: 2,
+        status: 'DRAFT',
+        multiplier: '0.1',
+        valueUnit: 'COIN',
+        levels: {
+          create: presetLadder().map((l) => ({ ...l, requiredPoints: l.requiredPoints * 10n })),
+        },
+      },
+    });
+    await withMigrationClient((db) =>
+      db.userAdminPermission.createMany({
+        data: ['LEVELS_PUBLISH', 'LEVELS_VIEW', 'LEVELS_EDIT'].map((permission) => ({
+          userId: admin.id,
+          permission: permission as 'LEVELS_PUBLISH',
+        })),
+        skipDuplicates: true,
+      }),
+    );
+    const pub = await ctx.http
+      .post(`/api/v1/admin/levels/versions/${harder.id}/publish`)
+      .set(auth(admin))
+      .send({ recalculation: 'PRESERVE_POINTS' });
+    expect(pub.status).toBe(200);
+    // Under the new ladder 12's points reach level 3 only; the level stays 12.
+    expect(await supportLevel(u)).toBe(12);
+    expect(await frames(u)).toHaveLength(3);
   });
 });

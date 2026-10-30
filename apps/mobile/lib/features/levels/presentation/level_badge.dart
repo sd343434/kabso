@@ -82,11 +82,11 @@ abstract final class KLevelArt {
   static String supportPill(int tier) =>
       'assets/levels/support/support_pill_${_nn(tier)}.webp';
 
-  /// D169: the owner's 20 support tier avatar frames
+  /// D169: the owner's 21 support tier avatar frames
   /// (`assets/levels/support_frames/`, bag `AVATAR_FRAME` `support_frame_NN`,
-  /// given by the server when the tier is reached). Tier 21 has no frame of
-  /// its own and keeps frame 20 — a default the owner may change.
-  static const int supportFrames = 20;
+  /// given by the server when the tier is reached and kept for good —
+  /// owner-confirmed). Frame N belongs to tier N.
+  static const int supportFrames = 21;
 
   /// The avatar frame that comes with support [tier].
   static String supportFrame(int tier) =>

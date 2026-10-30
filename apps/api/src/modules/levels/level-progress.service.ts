@@ -7,12 +7,12 @@ import type {
   PointsSourceType,
   Prisma,
 } from '../../generated/prisma/client.js';
-import { grantLevelRewardsIn } from '../bag/bag-grants.js';
+import { grantLevelRewardsIn, revokeLevelRewardsIn } from '../bag/bag-grants.js';
 import { awardCharmMedalsIn } from '../medals/medal-awards.js';
 import type { LoadedCategory } from './level-catalog.js';
-import { progressFor } from './level-math.js';
+import { keptLevel, levelFor } from './level-math.js';
 import { addPoints, formatMultiplier } from './points-math.js';
-import { supportFramesFor } from './support-tiers.js';
+import { lostSupportFrames, supportFramesFor } from './support-tiers.js';
 import { uuidv7 } from './uuidv7.js';
 
 type Tx = Prisma.TransactionClient;
@@ -40,6 +40,11 @@ export interface EntryInput {
   readonly createdById?: string | null;
   /** History reason when the level changes (default from the entry type). */
   readonly transitionReason?: LevelTransitionReason;
+  /**
+   * v1.46-levels (owner D169): an admin deduction marked as fraud — the only entry that may lower
+   * the level (to what the points reach); every other entry keeps the level (§10.43).
+   */
+  readonly fraud?: boolean;
 }
 
 export interface StateAfter {
@@ -92,20 +97,19 @@ export class LevelProgressService {
     return row;
   }
 
-  /** The level for `total` under the category's published version and reversal policy. */
-  private levelAfter(
-    category: LoadedCategory,
-    state: StateRow,
-    total: bigint,
-    entryType: PointsEntryType | null,
-  ) {
+  /**
+   * The level for `total` under the published version. v1.46-levels (owner D169, §10.43): a level
+   * never goes down — not with fewer points (reversals, refunds, admin deductions) and not under a
+   * harder new version — so `current_level` is also the user's floor: the result is the higher of
+   * the kept level and what the points reach. Only a fraud deduction (`fraud`) takes the level
+   * down to what the points reach.
+   */
+  private levelAfter(category: LoadedCategory, state: StateRow, total: bigint, fraud: boolean) {
     const version = category.version;
     if (!version) return state.current_level;
-    const keep =
-      entryType === 'REVERSAL' && version.reversalPolicy === 'KEEP_LEVEL' && state.version_id === version.id
-        ? state.current_level
-        : null;
-    return progressFor(version.levels, total, keep).current?.levelNumber ?? null;
+    const reached = levelFor(version.levels, total)?.levelNumber ?? null;
+    if (fraud) return reached;
+    return keptLevel(state.current_level, reached);
   }
 
   async apply(tx: Tx, category: LoadedCategory, input: EntryInput): Promise<ApplyResult> {
@@ -140,6 +144,7 @@ export class LevelProgressService {
           idempotencyKey: input.idempotencyKey ?? null,
           reversalOfEntryId: input.reversalOfEntryId ?? null,
           reason: input.reason ?? null,
+          fraud: input.fraud === true,
           createdById: input.createdById ?? null,
         },
       ],
@@ -152,7 +157,7 @@ export class LevelProgressService {
       input.entryType === 'EARN'
         ? addPoints(state.lifetime_earned_points, delta)
         : state.lifetime_earned_points;
-    const level = this.levelAfter(category, state, total, input.entryType);
+    const level = this.levelAfter(category, state, total, input.fraud === true);
     const now = this.clock.now();
     await tx.userLevelState.update({
       where: { id: state.id },
@@ -173,13 +178,21 @@ export class LevelProgressService {
           previousLevel: state.current_level,
           newLevel: level,
           points: total,
-          reason: input.transitionReason ?? DEFAULT_REASON[input.entryType],
+          reason:
+            input.fraud === true ? 'FRAUD' : (input.transitionReason ?? DEFAULT_REASON[input.entryType]),
           ledgerEntryId: entry.id,
           versionId: version?.id ?? null,
         },
       });
       await this.charmMedals(tx, category, input.userId, level, state.current_level);
       await this.supportFrames(tx, category, input.userId, level, state.current_level);
+      if (input.fraud === true) {
+        await revokeLevelRewardsIn(
+          tx,
+          input.userId,
+          lostSupportFrames(category.code, state.current_level, level),
+        );
+      }
     }
     return {
       kind: 'applied',
@@ -246,12 +259,9 @@ export class LevelProgressService {
     ledgerEntryId: string | null,
   ): Promise<boolean> {
     const version = category.version;
-    const keep =
-      version?.reversalPolicy === 'KEEP_LEVEL' && state.version_id === version.id
-        ? state.current_level
-        : null;
+    // Never lower (owner D169): a rebuild or a new version keeps the level reached.
     const level = version
-      ? (progressFor(version.levels, total, keep).current?.levelNumber ?? null)
+      ? keptLevel(state.current_level, levelFor(version.levels, total)?.levelNumber ?? null)
       : state.current_level;
     const changed =
       total !== state.total_points ||

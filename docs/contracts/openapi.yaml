@@ -233,7 +233,10 @@ info:
     `removeMyAvatar` (`PUT` / `DELETE /me/avatar`) (CONVENTIONS §10.42, §11.1, §11.14).
     **D169 (DRAFT v1.46-levels)**: the bag gains the category `AVATAR_FRAME` and the source
     `LEVEL_REWARD`: reaching a new support-level tier gives that tier's avatar frame
-    (`support_frame_01` … `_20`) once, kept for good (CONVENTIONS §10.22).
+    (`support_frame_01` … `_21`) once, kept for good (CONVENTIONS §10.22). Levels never go down
+    (owner): not with fewer points, not under a harder version; only an admin deduction marked
+    `fraud` lowers one (`LevelAdjustmentRequest.fraud`, history reason `FRAUD`) and takes back the
+    frames of the tiers lost (CONVENTIONS §10.43).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -8446,7 +8449,7 @@ components:
               items: { $ref: '#/components/schemas/LevelBrief' }
     LevelTransitionReason:
       type: string
-      enum: [EARNED, REVERSED, ADJUSTED, CONFIG_PUBLISHED, RECALCULATED]
+      enum: [EARNED, REVERSED, ADJUSTED, CONFIG_PUBLISHED, RECALCULATED, FRAUD]
     LevelTransition:
       type: object
       required: [id, category, previousLevel, newLevel, points, reason, createdAt]
@@ -8668,6 +8671,10 @@ components:
           type: string
           pattern: '^-?[1-9][0-9]{0,18}$'
         reason: { type: string, minLength: 3, maxLength: 500 }
+        fraud:
+          type: boolean
+          default: false
+          description: "(v1.46-levels, owner D169) Marks a deduction as fraud — the only entry that lowers a level (to what the points still reach) and takes back the support frames of the tiers lost. Only with a negative `pointsDelta` (else 400 `VALIDATION_FAILED`, issue `fraud_needs_deduction`). Any other deduction lowers the points, never the level (CONVENTIONS §10.43)."
     AdminLevelAdjustmentResult:
       type: object
       required: [entry, levels]

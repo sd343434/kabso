@@ -27,7 +27,7 @@ describe('bag catalogue (CP-019)', () => {
       'kabi_royal',
       'golden_stags',
       'emerald_wings',
-      ...Array.from({ length: 20 }, (_, i) => `support_frame_${String(i + 1).padStart(2, '0')}`),
+      ...Array.from({ length: 21 }, (_, i) => `support_frame_${String(i + 1).padStart(2, '0')}`),
     ]);
     expect(new Set(BAG_CATALOGUE.map((i) => i.code)).size).toBe(BAG_CATALOGUE.length);
     for (const c of BAG_CATEGORIES) {

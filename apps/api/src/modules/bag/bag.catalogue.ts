@@ -34,10 +34,10 @@ export interface BagItemDef {
 /** The free profile card every account gets (owner D107). */
 export const FREE_PROFILE_CARD = 'bunny_royal';
 
-/** The support tier frames (D169): 20, one per support tier 1–20 (`support-tiers.ts`). */
-export const SUPPORT_FRAME_COUNT = 20;
+/** The support tier frames (D169): 21, one per support tier 1–21 (`support-tiers.ts`). */
+export const SUPPORT_FRAME_COUNT = 21;
 
-/** The bag code (and assetKey) of the support frame for tier `n` (1–20). */
+/** The bag code (and assetKey) of the support frame for tier `n` (1–21). */
 export const supportFrameCode = (n: number): string => `support_frame_${String(n).padStart(2, '0')}`;
 
 const SUPPORT_FRAMES: readonly BagItemDef[] = Array.from({ length: SUPPORT_FRAME_COUNT }, (_, i) => ({

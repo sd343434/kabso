@@ -97,3 +97,22 @@ export async function grantLevelRewardsIn(
     RETURNING item_code`;
   return rows.map((r) => r.item_code);
 }
+
+/**
+ * Takes back level rewards (owner D169: only a fraud demotion does this): deletes the user's
+ * LEVEL_REWARD rows for `codes`; a worn one leaves the category worn by nothing. Returns the codes
+ * removed.
+ */
+export async function revokeLevelRewardsIn(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  codes: readonly string[],
+): Promise<string[]> {
+  if (codes.length === 0) return [];
+  const rows = await tx.$queryRaw<{ item_code: string }[]>`
+    DELETE FROM user_bag_items
+     WHERE user_id = ${userId}::uuid AND source = 'LEVEL_REWARD'::bag_item_source
+       AND item_code = ANY(${[...new Set(codes)]}::text[])
+    RETURNING item_code`;
+  return rows.map((r) => r.item_code);
+}

@@ -86,15 +86,22 @@ export const publishSchema = z.strictObject({ recalculation });
 
 export const recalculateSchema = z.strictObject({ category: categoryCode });
 
-export const adjustmentSchema = z.strictObject({
-  category: categoryCode,
-  pointsDelta: z
-    .string()
-    .regex(/^-?[1-9][0-9]{0,18}$/)
-    .refine((v) => BigInt(v) <= MAX_BIGINT && BigInt(v) >= -MAX_BIGINT, { params: { issue: 'too_big' } })
-    .transform((v) => BigInt(v)),
-  reason: z.string().trim().min(3).max(500),
-});
+export const adjustmentSchema = z
+  .strictObject({
+    category: categoryCode,
+    pointsDelta: z
+      .string()
+      .regex(/^-?[1-9][0-9]{0,18}$/)
+      .refine((v) => BigInt(v) <= MAX_BIGINT && BigInt(v) >= -MAX_BIGINT, { params: { issue: 'too_big' } })
+      .transform((v) => BigInt(v)),
+    reason: z.string().trim().min(3).max(500),
+    /** v1.46-levels (owner D169): marks a deduction as fraud — the only one that lowers the level. */
+    fraud: z.boolean().default(false),
+  })
+  .refine((b) => !b.fraud || b.pointsDelta < 0n, {
+    path: ['fraud'],
+    params: { issue: 'fraud_needs_deduction' },
+  });
 
 export const reconciliationSchema = z.strictObject({
   mode: z.string().pipe(z.enum(['DRY_RUN', 'REPAIR'])),

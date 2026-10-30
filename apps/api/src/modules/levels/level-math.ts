@@ -25,6 +25,16 @@ export function levelFor<L extends LevelRow>(levels: readonly L[], points: bigin
 }
 
 /**
+ * v1.46-levels (owner D169, §10.43): levels never go down — the higher of the level kept so far
+ * and the level the points reach (null = none yet).
+ */
+export function keptLevel(kept: number | null, reached: number | null): number | null {
+  if (kept === null) return reached;
+  if (reached === null) return kept;
+  return Math.max(kept, reached);
+}
+
+/**
  * Progress for `points`. `floorLevel` is a level number the user keeps although their points no
  * longer reach it (reversal policy KEEP_LEVEL); progress then counts from that level's threshold
  * and is 0 while the points are below it.

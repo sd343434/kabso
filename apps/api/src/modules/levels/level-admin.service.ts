@@ -22,6 +22,8 @@ export interface AdjustmentInput {
   readonly category: LevelCategoryCode;
   readonly pointsDelta: bigint;
   readonly reason: string;
+  /** v1.46-levels (D169): a deduction marked as fraud — the only one that lowers the level. */
+  readonly fraud: boolean;
 }
 
 export interface AdjustmentResultDto {
@@ -106,6 +108,7 @@ export class LevelAdminService {
         existing.category.code === input.category &&
         existing.pointsDelta === input.pointsDelta &&
         existing.reason === input.reason &&
+        existing.fraud === input.fraud &&
         existing.sourceType === 'ADMIN';
       if (!same) throw new AppException(ErrorCode.IDEMPOTENCY_CONFLICT);
       return {
@@ -127,6 +130,7 @@ export class LevelAdminService {
           pointsDelta: input.pointsDelta,
           idempotencyKey: key,
           reason: input.reason,
+          fraud: input.fraud,
           createdById: actor.userId,
         });
         if (result.kind === 'applied') {
@@ -140,6 +144,7 @@ export class LevelAdminService {
               entryId: result.entry.id,
               pointsDelta: input.pointsDelta.toString(),
               reason: input.reason,
+              fraud: input.fraud,
               before: {
                 points: (result.state.totalPoints - input.pointsDelta).toString(),
                 level: result.state.previousLevel,

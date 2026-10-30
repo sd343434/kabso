@@ -123,13 +123,13 @@ describe('CP-019 the bag and profile cards', { timeout: 120_000 }, () => {
   });
   afterAll(async () => ctx?.close());
 
-  it("the catalogue lists the four profile cards (then D169's 20 support frames), localized, and filters by category", async () => {
+  it("the catalogue lists the four profile cards (then D169's 21 support frames), localized, and filters by category", async () => {
     const u = await signup();
     const en = await ctx.http.get('/api/v1/bag/catalogue').set(auth(u)).set('Accept-Language', 'en');
     expect(en.status).toBe(200);
     expectContract(en, 'listBagCatalogue');
-    // v1.46-levels (D169): the 20 support tier frames follow, category AVATAR_FRAME.
-    expect(en.body.data).toHaveLength(24);
+    // v1.46-levels (D169): the 21 support tier frames follow, category AVATAR_FRAME.
+    expect(en.body.data).toHaveLength(25);
     expect(
       (en.body.data as { category: string }[]).slice(4).every((i) => i.category === 'AVATAR_FRAME'),
     ).toBe(true);

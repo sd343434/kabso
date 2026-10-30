@@ -10,10 +10,14 @@ cut row, no body overlap), so each column was cut at its thinnest row in each ba
 outside a frame's box was dropped. Each frame is scaled so its longer side is 256 px and centred on a
 transparent 256×256 canvas (`support_frame_NN.webp`, WebP q90).
 
+`support_frame_21.webp` (tier 21, level 100): a separate owner-supplied AI-generated image sent
+the same day (1254×1254 RGBA, transparent background and hole, the crimson-and-gold winged crown
+frame), trimmed and scaled the same way.
+
 The bag item code and `assetKey` are both `support_frame_NN` (`bag_category` `AVATAR_FRAME`).
 
-Default mapping (the owner may change it): frame NN for support tier NN (tiers 1–20, levels 1–5 …
-96–99); tier 21 (level 100) has no frame of its own and keeps frame 20.
+Mapping (owner, 2026-10-30): frame NN for support tier NN, tiers 1–21 (levels 1–5 … 96–99, 100).
+Frames are kept for good once earned (owner).
 
 The photo's hole, as fractions of the 256-px canvas (centre x, centre y, width, height):
 
@@ -39,3 +43,4 @@ The photo's hole, as fractions of the 256-px canvas (centre x, centre y, width, 
 | 18 | 0.498 | 0.458 | 0.480 | 0.391 |
 | 19 | 0.496 | 0.455 | 0.461 | 0.391 |
 | 20 | 0.491 | 0.454 | 0.469 | 0.387 |
+| 21 | 0.498 | 0.498 | 0.480 | 0.391 |

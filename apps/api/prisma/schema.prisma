@@ -960,6 +960,8 @@ enum LevelTransitionReason {
   ADJUSTED
   CONFIG_PUBLISHED
   RECALCULATED
+  /// v1.46-levels (D169): an admin deduction marked as fraud — the only way a level goes down.
+  FRAUD
 
   @@map("level_transition_reason")
 }
@@ -1108,6 +1110,8 @@ model PointsLedgerEntry {
   /// REVERSAL → the EARN it compensates (unique: a reversal happens once).
   reversalOfEntryId   String?          @unique(map: "points_ledger_reversal_of_key") @map("reversal_of_entry_id") @db.Uuid
   reason              String?          @db.VarChar(500)
+  /// v1.46-levels (D169): an admin deduction marked as fraud (CHECK: negative ADJUSTMENT only).
+  fraud               Boolean          @default(false)
   createdById         String?          @map("created_by_id") @db.Uuid
   createdAt           DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
 

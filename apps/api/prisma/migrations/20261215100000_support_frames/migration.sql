@@ -1,7 +1,7 @@
--- v1.46-levels (D169, 2026-10-30): the owner's 20 support tier avatar frames (owner-supplied art,
+-- v1.46-levels (D169, 2026-10-30): the owner's 21 support tier avatar frames (owner-supplied art,
 -- apps/mobile/assets/levels/support_frames/). Nobody owns them until the server gives one: reaching
 -- support tier N (levels 1–5 = tier 1 … 96–99 = tier 20, level 100 = tier 21) gives the frames of
--- every tier reached so far, once each (source LEVEL_REWARD, not worn; tier 21 keeps frame 20).
+-- every tier reached so far, once each (source LEVEL_REWARD, not worn); frames are kept for good (owner).
 -- bag.catalogue.ts keeps the same rows (checked by a unit test).
 
 INSERT INTO "bag_items" ("code", "category", "name_ar", "name_en", "asset_key", "sort_order", "free") VALUES
@@ -24,4 +24,5 @@ INSERT INTO "bag_items" ("code", "category", "name_ar", "name_en", "asset_key", 
   ('support_frame_17', 'AVATAR_FRAME', 'إطار الدعم 17', 'Support frame 17', 'support_frame_17', 170, false),
   ('support_frame_18', 'AVATAR_FRAME', 'إطار الدعم 18', 'Support frame 18', 'support_frame_18', 180, false),
   ('support_frame_19', 'AVATAR_FRAME', 'إطار الدعم 19', 'Support frame 19', 'support_frame_19', 190, false),
-  ('support_frame_20', 'AVATAR_FRAME', 'إطار الدعم 20', 'Support frame 20', 'support_frame_20', 200, false);
+  ('support_frame_20', 'AVATAR_FRAME', 'إطار الدعم 20', 'Support frame 20', 'support_frame_20', 200, false),
+  ('support_frame_21', 'AVATAR_FRAME', 'إطار الدعم 21', 'Support frame 21', 'support_frame_21', 210, false);

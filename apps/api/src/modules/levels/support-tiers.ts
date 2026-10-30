@@ -15,11 +15,21 @@ export function supportTier(level: number): number {
 
 /**
  * The avatar frames a user at support `level` has earned: the frame of every tier reached so far
- * (frame n for tier n; tier 21 has no frame of its own and keeps frame 20 — a default for the
- * owner to confirm). Null or 0 = none.
+ * (frame n for tier n, tiers 1–21; owner 2026-10-30: tier 21 has its own frame). Null or 0 =
+ * none.
  */
 export function supportFramesFor(level: number | null): string[] {
   if (level === null || level < 1) return [];
   const last = Math.min(supportTier(level), SUPPORT_FRAME_COUNT);
   return Array.from({ length: last }, (_, i) => supportFrameCode(i + 1));
+}
+
+/**
+ * The support frames a fraud demotion from `from` to `to` takes back (owner D169: the only way a
+ * frame is removed): the frames of the tiers above the new level's tier. Other categories: none.
+ */
+export function lostSupportFrames(category: string, from: number | null, to: number | null): string[] {
+  if (category !== 'SUPPORT') return [];
+  const kept = new Set(supportFramesFor(to));
+  return supportFramesFor(from).filter((code) => !kept.has(code));
 }
