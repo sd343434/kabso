@@ -80,6 +80,8 @@ flutter:
     - assets/icons/brand/
     # D72 level emblems (owner-supplied kabso_levels pack, 4 × 11 tiers).
     - assets/levels/
+    - assets/levels/support/
+    - assets/levels/support_frames/
     # D74 the owner's 3D coin and gift box.
     - assets/art/
     # D84 leaderboard art (Kabso's own, AI-generated; see the board).

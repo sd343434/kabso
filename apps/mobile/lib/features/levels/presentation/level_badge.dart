@@ -36,11 +36,103 @@ abstract final class KLevelArt {
     return levelNumber.clamp(1, 99) ~/ 10 + 1;
   }
 
+  /// D169: the owner's 21 support badges (2026-10-30,
+  /// `assets/levels/support/`) replace the pack's 11 for Support.
+  static const int supportTiers = 21;
+
+  /// The support tier of a level — a default the owner can change: tiers
+  /// 1–20 are levels 1–5, 6–10 … 96–99 and tier 21 is level 100 alone.
+  /// The server's `iconKey` names the 11-tier pack, so Support ignores it.
+  static int supportTier(int levelNumber) => levelNumber >= 100
+      ? supportTiers
+      : (levelNumber.clamp(1, 99) - 1) ~/ 5 + 1;
+
+  /// How many art tiers [category] has.
+  static int tiersOf(LevelCategory category) =>
+      category == LevelCategory.support ? supportTiers : tiers;
+
+  /// The art tier of [levelNumber] in [category].
+  static int tierOf(
+    LevelCategory category,
+    int levelNumber, {
+    String? iconKey,
+  }) => category == LevelCategory.support
+      ? supportTier(levelNumber)
+      : tier(levelNumber, iconKey: iconKey);
+
+  /// The first and last level drawn with [tier] in [category].
+  static (int, int) levelRange(LevelCategory category, int tier) {
+    if (category == LevelCategory.support) {
+      if (tier >= supportTiers) return (100, 100);
+      return (tier * 5 - 4, tier == supportTiers - 1 ? 99 : tier * 5);
+    }
+    if (tier <= 1) return (1, 9);
+    if (tier >= tiers) return (100, 100);
+    return ((tier - 1) * 10, (tier - 1) * 10 + 9);
+  }
+
+  static String _nn(int tier) => tier.toString().padLeft(2, '0');
+
   static String asset(LevelCategory category, int tier) =>
-      'assets/levels/${category.slug}_${tier.toString().padLeft(2, '0')}.webp';
+      category == LevelCategory.support
+      ? 'assets/levels/support/support_${_nn(tier)}.webp'
+      : 'assets/levels/${category.slug}_${_nn(tier)}.webp';
+
+  /// The support badge on its level bar (the name pill, D169).
+  static String supportPill(int tier) =>
+      'assets/levels/support/support_pill_${_nn(tier)}.webp';
+
+  /// D169: the owner's 20 support tier avatar frames
+  /// (`assets/levels/support_frames/`, bag `AVATAR_FRAME` `support_frame_NN`,
+  /// given by the server when the tier is reached). Tier 21 has no frame of
+  /// its own and keeps frame 20 — a default the owner may change.
+  static const int supportFrames = 20;
+
+  /// The avatar frame that comes with support [tier].
+  static String supportFrame(int tier) =>
+      'assets/levels/support_frames/support_frame_${_nn(tier.clamp(1, supportFrames))}.webp';
+
+  /// Width ÷ height of each support pill image (96 px high).
+  static const List<double> supportPillAspect = [
+    208 / 96, 209 / 96, 210 / 96, 208 / 96, 208 / 96, 195 / 96, 192 / 96, //
+    197 / 96, 197 / 96, 192 / 96, 187 / 96, 188 / 96, 189 / 96, 193 / 96,
+    186 / 96, 193 / 96, 192 / 96, 196 / 96, 196 / 96, 191 / 96, 239 / 96,
+  ];
+
+  /// The gem colour of each support badge (mean of the saturated pixels in
+  /// the badge's centre; tier 5's blue stone on gold reads gold).
+  static const List<Color> supportGems = [
+    Color(0xFFBB6A23),
+    Color(0xFFD11844),
+    Color(0xFF214FDD),
+    Color(0xFF13A968),
+    Color(0xFFE2A12B),
+    Color(0xFFBD40B9),
+    Color(0xFF3EB142),
+    Color(0xFF4B81C8),
+    Color(0xFFEC3F92),
+    Color(0xFFDE4217),
+    Color(0xFF186DE9),
+    Color(0xFFA337C6),
+    Color(0xFF49B046),
+    Color(0xFF307BD8),
+    Color(0xFFE63889),
+    Color(0xFFD53218),
+    Color(0xFF861FEA),
+    Color(0xFF4777C6),
+    Color(0xFF2DB246),
+    Color(0xFFDB3618),
+    Color(0xFFD63B1B),
+  ];
 
   /// The gem colour of [tier] (progress bars, level text).
   static Color gem(int tier) => tierColors[tier - 1][0];
+
+  /// The gem colour of [tier] in [category].
+  static Color gemOf(LevelCategory category, int tier) =>
+      category == LevelCategory.support
+      ? supportGems[tier.clamp(1, supportTiers) - 1]
+      : gem(tier.clamp(1, tiers));
 
   /// [gem] lightened for text on dark and light surfaces alike (the early
   /// tiers' smoky and bronze gems are too dim for text as they are).
@@ -111,6 +203,9 @@ class KLevelBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (category == LevelCategory.support) {
+      return _SupportPill(levelNumber: levelNumber, height: height);
+    }
     final tier = KLevelArt.tier(levelNumber, iconKey: iconKey);
     final c = KLevelArt.tierColors[tier - 1];
     final h = height;
@@ -161,6 +256,67 @@ class KLevelBadge extends StatelessWidget {
           PositionedDirectional(
             start: 0,
             child: KLevelEmblem(category: category, tier: tier, size: h * 1.5),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// D169: the support level next to a name — the owner's badge on its
+/// coloured bar for the level's tier, with the number on the bar. The art
+/// and the number never mirror (Latin, left to right in both languages).
+class _SupportPill extends StatelessWidget {
+  const new({required this.levelNumber, required this.height});
+
+  final int levelNumber;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    final tier = KLevelArt.supportTier(levelNumber);
+    final h = height * 1.5;
+    final w = h * KLevelArt.supportPillAspect[tier - 1];
+    return SizedBox(
+      width: w,
+      height: h,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: Image.asset(
+              KLevelArt.supportPill(tier),
+              fit: BoxFit.fill,
+              excludeFromSemantics: true,
+              errorBuilder: (_, _, _) => const SizedBox.shrink(),
+            ),
+          ),
+          // The bar runs from ≈ 42 % to ≈ 94 % of the width (measured on
+          // the sliced art), its middle at ≈ 55 % of the height.
+          Positioned(
+            left: w * 0.42,
+            right: w * 0.07,
+            top: h * 0.3,
+            bottom: h * 0.2,
+            child: Center(
+              child: FittedBox(
+                child: Text(
+                  '$levelNumber',
+                  textDirection: TextDirection.ltr,
+                  textScaler: TextScaler.noScaling,
+                  style: TextStyle(
+                    fontFamily: KFonts.latin,
+                    fontSize: height * 0.68,
+                    height: 1,
+                    fontWeight: FontWeight.w700,
+                    fontStyle: FontStyle.italic,
+                    color: Colors.white,
+                    shadows: const [
+                      Shadow(color: Color(0x99000000), offset: Offset(0, 1)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       ),

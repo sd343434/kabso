@@ -2265,6 +2265,56 @@
   "@levelsLoadError": {
     "description": "D72: levels (CP-005)."
   },
+  "levelsLv": "Lv.{number}",
+  "@levelsLv": {
+    "description": "D169: the big level on the level card; Latin in both languages, like the level badges.",
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "levelsNeedXp": "تحتاج {points} خبرة للوصول إلى المستوى التالي",
+  "@levelsNeedXp": {
+    "description": "D169: under the level card's progress bar; {points} is shown highlighted, pre-formatted with Latin digits and separators.",
+    "placeholders": {
+      "points": {
+        "type": "String"
+      }
+    }
+  },
+  "levelsCategories": "تصنيفات المستوى",
+  "@levelsCategories": {
+    "description": "D169: screen-reader label of the category filter above the level card."
+  },
+  "levelsDetails": "التفاصيل",
+  "@levelsDetails": {
+    "description": "D169: the dark pill button on a level category card; opens that category's page."
+  },
+  "levelsHowItGrows": "كيف يرتفع",
+  "@levelsHowItGrows": {
+    "description": "D169: heading over the category's explanation on its page."
+  },
+  "levelsTiers": "الشارات والمستويات",
+  "@levelsTiers": {
+    "description": "D169: heading over every badge tier of a category with its levels."
+  },
+  "levelsTierRange": "Lv.{from}–{to}",
+  "@levelsTierRange": {
+    "description": "D169: the levels one badge tier covers; Latin, left to right in both languages.",
+    "placeholders": {
+      "from": {
+        "type": "int"
+      },
+      "to": {
+        "type": "int"
+      }
+    }
+  },
+  "levelsTierFrame": "مع إطار الصورة",
+  "@levelsTierFrame": {
+    "description": "D169: screen-reader note on a support tier tile — reaching the tier gives its avatar frame."
+  },
   "navMoments": "اللحظات",
   "navMessages": "الرسائل",
   "demoDataTitle": "بيانات تجريبية",

@@ -7,10 +7,12 @@ import type {
   PointsSourceType,
   Prisma,
 } from '../../generated/prisma/client.js';
+import { grantLevelRewardsIn } from '../bag/bag-grants.js';
 import { awardCharmMedalsIn } from '../medals/medal-awards.js';
 import type { LoadedCategory } from './level-catalog.js';
 import { progressFor } from './level-math.js';
 import { addPoints, formatMultiplier } from './points-math.js';
+import { supportFramesFor } from './support-tiers.js';
 import { uuidv7 } from './uuidv7.js';
 
 type Tx = Prisma.TransactionClient;
@@ -177,6 +179,7 @@ export class LevelProgressService {
         },
       });
       await this.charmMedals(tx, category, input.userId, level, state.current_level);
+      await this.supportFrames(tx, category, input.userId, level, state.current_level);
     }
     return {
       kind: 'applied',
@@ -280,6 +283,7 @@ export class LevelProgressService {
         },
       });
       await this.charmMedals(tx, category, userId, level, state.current_level);
+      await this.supportFrames(tx, category, userId, level, state.current_level);
     }
     return true;
   }
@@ -297,5 +301,22 @@ export class LevelProgressService {
   ): Promise<void> {
     if (category.code !== 'ATTRACTIVENESS' || level === null || level <= (previous ?? 0)) return;
     await awardCharmMedalsIn(tx, userId, level);
+  }
+
+  /**
+   * v1.43-levels (D169, §10.22): a support (`SUPPORT`) level that went up gives the avatar frame
+   * of every support tier reached so far that the user does not own yet (bag `AVATAR_FRAME`,
+   * source LEVEL_REWARD, not worn), in the same transaction. Frames are kept for good: a level
+   * that goes down (a reversal, a new version) takes nothing back.
+   */
+  private async supportFrames(
+    tx: Tx,
+    category: LoadedCategory,
+    userId: string,
+    level: number | null,
+    previous: number | null,
+  ): Promise<void> {
+    if (category.code !== 'SUPPORT' || level === null || level <= (previous ?? 0)) return;
+    await grantLevelRewardsIn(tx, userId, supportFramesFor(level));
   }
 }

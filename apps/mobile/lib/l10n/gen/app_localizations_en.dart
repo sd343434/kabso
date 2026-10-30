@@ -2213,6 +2213,36 @@ class AppLocalizationsEn extends AppLocalizations {
   String get levelsLoadError => 'Couldn\'t load your levels';
 
   @override
+  String levelsLv(int number) {
+    return 'Lv.$number';
+  }
+
+  @override
+  String levelsNeedXp(String points) {
+    return 'Need $points experience to the next level';
+  }
+
+  @override
+  String get levelsCategories => 'Level categories';
+
+  @override
+  String get levelsDetails => 'Details';
+
+  @override
+  String get levelsHowItGrows => 'How it grows';
+
+  @override
+  String get levelsTiers => 'Badges by level';
+
+  @override
+  String levelsTierRange(int from, int to) {
+    return 'Lv.$from–$to';
+  }
+
+  @override
+  String get levelsTierFrame => 'Comes with an avatar frame';
+
+  @override
   String get navMoments => 'Moments';
 
   @override

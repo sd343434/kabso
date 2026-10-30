@@ -2298,9 +2298,11 @@ model UserMedal {
 
 // ---- v1.22-live (CP-019, D107): the bag (الحقيبة) ---------------------------------------------
 
-/// A bag category. PROFILE_CARD: the decoration on the profile card's header. More come later.
+/// A bag category. PROFILE_CARD: the decoration on the profile card's header. AVATAR_FRAME
+/// (v1.43-levels, D169): the frame around the user's photo. More come later.
 enum BagCategory {
   PROFILE_CARD
+  AVATAR_FRAME
 
   @@map("bag_category")
 }
@@ -2313,6 +2315,8 @@ enum BagItemSource {
   BACKFILL
   /// Granted by an admin (`bag-admin grant`).
   ADMIN
+  /// Given by the server when a level is reached (v1.43-levels, D169: the support tier frames).
+  LEVEL_REWARD
 
   @@map("bag_item_source")
 }

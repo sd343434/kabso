@@ -6,22 +6,36 @@ import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/levels/application/levels_providers.dart';
 import 'package:kabso_live/features/levels/domain/level_models.dart';
-import 'package:kabso_live/features/levels/presentation/level_badge.dart';
+import 'package:kabso_live/features/levels/presentation/level_category_card.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// Levels geometry (D72).
+/// Levels geometry (D72; D169).
 abstract final class KLevels {
-  static const double cardEmblem = 64;
-  static const double heroEmblem = 128;
-  static const double ladderEmblem = 40;
+  /// Side inset of the cards (16 lp: a 398-lp card on a 430-lp phone).
+  static const double side = KSpacing.lg;
+
+  /// Between two cards, on top of the badge rising above each card.
+  static const double cardGap = KSpacing.sm;
+
+  /// A tier tile's badge on the detail page.
+  static const double tileBadge = 64;
+
+  /// The support tier's avatar frame in the tile's top end corner (D169).
+  static const double tileFrame = 34;
 }
 
-/// The caller's four independent levels (D72, CP-005): Attractiveness,
-/// Support, Wizard and Gaming, each a card with its emblem, level, points
-/// and progress to the next level, from `GET /levels/me`. A category the
-/// server has not switched on shows as "not active yet" — the app never
-/// invents a level.
+/// The caller's four independent levels (D72, CP-005; look D169): one card
+/// per category — Attractiveness, Support, Wizard, Gaming, in the server's
+/// order and names (`GET /levels/me`) — in a single column, each tinted to
+/// its badge with the level, points, what is left to the next level and a
+/// «التفاصيل» button that opens the category's page. A category the server
+/// has not switched on says "not active yet" with its explanation — the
+/// app never invents a level.
+///
+/// One column, not the board's two: the card holds a two-line Arabic title
+/// and explanation next to a badge that takes a third of its width, which
+/// needs ≈ 300 lp; two columns would leave 158 lp per card at 360 lp.
 class LevelsScreen extends ConsumerWidget {
   const new({super.key});
 
@@ -45,32 +59,34 @@ class LevelsScreen extends ConsumerWidget {
           onRefresh: () => ref.refresh(myLevelsProvider.future),
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsetsDirectional.all(KSpacing.lg),
+            padding: EdgeInsetsDirectional.fromSTEB(
+              KLevels.side,
+              KSpacing.sm,
+              KLevels.side,
+              KSpacing.xl + MediaQuery.viewPaddingOf(context).bottom,
+            ),
             children: [
-              if (value.every((s) => !s.available)) ...[
+              if (value.every((s) => !s.available))
                 KInlineMessage(
                   key: preparingKey,
                   message: l10n.levelsPreparing,
                   isError: false,
-                ),
-                const SizedBox(height: KSpacing.lg),
-              ] else ...[
+                )
+              else
                 Text(
                   l10n.levelsIntro,
                   style: context.textStyles.caption.copyWith(
                     color: p.textSecondary,
                   ),
                 ),
-                const SizedBox(height: KSpacing.md),
-              ],
               for (final summary in value) ...[
-                LevelCard(
+                const SizedBox(height: KLevels.cardGap),
+                LevelCategoryCard(
                   key: cardKey(summary.category),
                   summary: summary,
-                  onTap: () =>
+                  onOpen: () =>
                       context.push(AppRoutes.level(summary.category.slug)),
                 ),
-                const SizedBox(height: KSpacing.md),
               ],
             ],
           ),
@@ -86,144 +102,6 @@ class LevelsScreen extends ConsumerWidget {
   }
 }
 
-/// The tier of a summary's current level (tier 1 when it has none).
-int summaryTier(LevelSummary s) {
-  final level = s.level;
-  return level == null
-      ? 1
-      : KLevelArt.tier(level.levelNumber, iconKey: level.iconKey);
-}
-
-/// One category: emblem, name, level, points and progress.
-class LevelCard extends StatelessWidget {
-  const new({required this.summary, required this.onTap, super.key});
-
-  final LevelSummary summary;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final p = context.palette;
-    final t = context.textStyles;
-    final s = summary;
-    final tier = summaryTier(s);
-    final level = s.level;
-    final gem = KLevelArt.gem(tier);
-    final status = !s.available
-        ? l10n.levelsUnavailable
-        : level == null
-        ? l10n.levelsNoLevel
-        : '${level.name} · ${l10n.levelsLevelNumber(level.levelNumber)}';
-    final points = l10n.levelsPoints(formatPoints(s.points));
-    final next = !s.available
-        ? null
-        : s.maxLevel
-        ? l10n.levelsMax
-        : s.pointsToNext == null
-        ? null
-        : l10n.levelsToNext(formatPoints(s.pointsToNext!));
-
-    return Semantics(
-      button: true,
-      onTap: onTap,
-      label: [s.name, status, if (s.available) points, ?next].join('، '),
-      excludeSemantics: true,
-      child: Material(
-        color: p.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(KRadius.lg),
-          side: BorderSide(color: p.border),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsetsDirectional.all(KSpacing.lg),
-            child: Row(
-              children: [
-                KLevelEmblem(
-                  category: s.category,
-                  tier: tier,
-                  size: KLevels.cardEmblem,
-                  dimmed: !s.available,
-                ),
-                const SizedBox(width: KSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        s.name,
-                        style: t.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: KSpacing.xxs),
-                      Text(
-                        status,
-                        style: t.bodyStrong.copyWith(
-                          color: s.available
-                              ? KLevelArt.text(tier)
-                              : p.textTertiary,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      if (s.available) ...[
-                        const SizedBox(height: KSpacing.sm),
-                        KLevelProgressBar(
-                          percent: s.progressPercent ?? 0,
-                          color: gem,
-                        ),
-                        const SizedBox(height: KSpacing.xs),
-                        // Points first, then what is left to the next level;
-                        // one line that may wrap at large text sizes.
-                        Text.rich(
-                          TextSpan(
-                            children: [
-                              TextSpan(
-                                text: points,
-                                style: TextStyle(
-                                  color: p.textPrimary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              if (next != null) TextSpan(text: ' · $next'),
-                            ],
-                          ),
-                          style: t.caption.copyWith(color: p.textSecondary),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ] else ...[
-                        const SizedBox(height: KSpacing.xxs),
-                        Text(
-                          s.description,
-                          style: t.caption.copyWith(color: p.textSecondary),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(width: KSpacing.sm),
-                Icon(
-                  Directionality.of(context) == TextDirection.rtl
-                      ? Icons.chevron_left_rounded
-                      : Icons.chevron_right_rounded,
-                  color: p.textTertiary,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _LevelsSkeleton extends StatelessWidget {
   const new();
 
@@ -231,32 +109,12 @@ class _LevelsSkeleton extends StatelessWidget {
   Widget build(BuildContext context) => ListView(
     key: const Key('levels.skeleton'),
     physics: const NeverScrollableScrollPhysics(),
-    padding: const EdgeInsetsDirectional.all(KSpacing.lg),
+    padding: const EdgeInsetsDirectional.all(KLevels.side),
     children: [
       for (var i = 0; i < 4; i++) ...[
-        const Row(
-          children: [
-            KSkeleton(
-              width: KLevels.cardEmblem,
-              height: KLevels.cardEmblem,
-              circle: true,
-            ),
-            SizedBox(width: KSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  KSkeleton(width: 140, height: 18),
-                  SizedBox(height: KSpacing.sm),
-                  KSkeleton(width: 96),
-                  SizedBox(height: KSpacing.sm),
-                  KSkeleton(height: KLevelProgressBar.height),
-                ],
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: KSpacing.xl),
+        const SizedBox(height: KLevelCard.medalRise),
+        const KSkeleton(height: 170),
+        const SizedBox(height: KLevels.cardGap),
       ],
     ],
   );

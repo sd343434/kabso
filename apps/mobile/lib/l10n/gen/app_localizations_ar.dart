@@ -2243,6 +2243,36 @@ class AppLocalizationsAr extends AppLocalizations {
   String get levelsLoadError => 'تعذّر تحميل المستويات';
 
   @override
+  String levelsLv(int number) {
+    return 'Lv.$number';
+  }
+
+  @override
+  String levelsNeedXp(String points) {
+    return 'تحتاج $points خبرة للوصول إلى المستوى التالي';
+  }
+
+  @override
+  String get levelsCategories => 'تصنيفات المستوى';
+
+  @override
+  String get levelsDetails => 'التفاصيل';
+
+  @override
+  String get levelsHowItGrows => 'كيف يرتفع';
+
+  @override
+  String get levelsTiers => 'الشارات والمستويات';
+
+  @override
+  String levelsTierRange(int from, int to) {
+    return 'Lv.$from–$to';
+  }
+
+  @override
+  String get levelsTierFrame => 'مع إطار الصورة';
+
+  @override
   String get navMoments => 'اللحظات';
 
   @override

@@ -3980,6 +3980,54 @@ abstract class AppLocalizations {
   /// **'تعذّر تحميل المستويات'**
   String get levelsLoadError;
 
+  /// D169: the big level on the level card; Latin in both languages, like the level badges.
+  ///
+  /// In ar, this message translates to:
+  /// **'Lv.{number}'**
+  String levelsLv(int number);
+
+  /// D169: under the level card's progress bar; {points} is shown highlighted, pre-formatted with Latin digits and separators.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحتاج {points} خبرة للوصول إلى المستوى التالي'**
+  String levelsNeedXp(String points);
+
+  /// D169: screen-reader label of the category filter above the level card.
+  ///
+  /// In ar, this message translates to:
+  /// **'تصنيفات المستوى'**
+  String get levelsCategories;
+
+  /// D169: the dark pill button on a level category card; opens that category's page.
+  ///
+  /// In ar, this message translates to:
+  /// **'التفاصيل'**
+  String get levelsDetails;
+
+  /// D169: heading over the category's explanation on its page.
+  ///
+  /// In ar, this message translates to:
+  /// **'كيف يرتفع'**
+  String get levelsHowItGrows;
+
+  /// D169: heading over every badge tier of a category with its levels.
+  ///
+  /// In ar, this message translates to:
+  /// **'الشارات والمستويات'**
+  String get levelsTiers;
+
+  /// D169: the levels one badge tier covers; Latin, left to right in both languages.
+  ///
+  /// In ar, this message translates to:
+  /// **'Lv.{from}–{to}'**
+  String levelsTierRange(int from, int to);
+
+  /// D169: screen-reader note on a support tier tile — reaching the tier gives its avatar frame.
+  ///
+  /// In ar, this message translates to:
+  /// **'مع إطار الصورة'**
+  String get levelsTierFrame;
+
   /// No description provided for @navMoments.
   ///
   /// In ar, this message translates to:
