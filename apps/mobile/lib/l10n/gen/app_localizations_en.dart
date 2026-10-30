@@ -8126,18 +8126,18 @@ class AppLocalizationsEn extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       days,
       locale: localeName,
-      other: 'Sign in for $days more days to get an extra reward',
-      one: 'Sign in for 1 more day to get an extra reward',
+      other: '$days more check-ins bring an extra reward',
+      one: '$days more check-in brings an extra reward',
     );
     return '$_temp0';
   }
 
   @override
-  String get tasksCalendarTitle => 'Sign-in calendar';
+  String get tasksCalendarTitle => 'Check-in calendar';
 
   @override
   String tasksCalendarBody(String coins) {
-    return 'Sign in every day: every 7th day in a row adds $coins extra coins, and a missed day starts again.';
+    return 'Check in every day: every 7th day in a row adds $coins extra coins, and a missed day starts again.';
   }
 
   @override
@@ -8149,7 +8149,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get eventsTitle => 'Activities';
 
   @override
-  String get tasksCheckInTitle => 'Sign-in rewards';
+  String get tasksCheckInTitle => 'Check-in rewards';
 
   @override
   String tasksCheckInBonusToday(String coins) {
