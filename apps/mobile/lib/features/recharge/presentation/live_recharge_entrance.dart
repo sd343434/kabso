@@ -254,7 +254,7 @@ enum AgentEntranceStyle {
 /// the same words for both agent types (the art says which; the
 /// screen-reader label keeps the type, [AgentEntranceStyle.label]).
 ///
-/// Owner (after D189): [widthFactor] of the screen's width (≈ 157 lp at
+/// Owner (after D189): [widthFactor] of the screen's width (≈ 216 lp at
 /// 393), never wider than the room less [sideMargin] on each side, the art's
 /// proportions kept. The text is ONE line, centred, scaled down to
 /// [minFontSize]; when it still does not fit, only the name ends with an
@@ -272,7 +272,7 @@ class RechargeEntranceBar extends StatelessWidget {
 
   /// Owner: the bar's share of the screen's width, its margin from the
   /// screen's edges and the smallest text.
-  static const widthFactor = 0.40;
+  static const widthFactor = 0.55;
   static const sideMargin = 16.0;
   static const minFontSize = 9.0;
 

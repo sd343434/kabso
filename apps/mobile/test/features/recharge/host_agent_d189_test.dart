@@ -324,9 +324,9 @@ void main() {
           findsOneWidget,
         );
         final bar = tester.getRect(barFinder);
-        // Owner: 40 % of the screen, the art's aspect, fully on
+        // Owner: 55 % of the screen, the art's aspect, fully on
         // screen 16 lp from the edges.
-        expect(bar.width, closeTo(393 * 0.40, 0.5));
+        expect(bar.width, closeTo(393 * 0.55, 0.5));
         expect(
           bar.height,
           closeTo(bar.width / HostAgentArt.entranceAspect, 0.5),

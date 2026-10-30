@@ -135,7 +135,7 @@ void main() {
     }
 
     for (final language in AppLanguage.values) {
-      testWidgets('owner size: 40 % of the screen, 16 lp from the edges, the '
+      testWidgets('owner size: 55 % of the screen, 16 lp from the edges, the '
           "art's aspect, at the leading side above the chat; one line ≥ 9 "
           'with the display name (${language.name}, 393×852)', (tester) async {
         LiveRechargeEntranceLayer.animate = false;
@@ -149,9 +149,9 @@ void main() {
         final bar = tester.getRect(
           find.byKey(LiveRechargeEntranceLayer.barKey),
         );
-        // Owner: 40 % of the screen, the height from the art's
+        // Owner: 55 % of the screen, the height from the art's
         // aspect, fully on screen 16 lp from the leading edge.
-        expect(bar.width, closeTo(393 * 0.40, 0.5));
+        expect(bar.width, closeTo(393 * 0.55, 0.5));
         expect(
           bar.height,
           closeTo(bar.width / RechargeAgentArt.entranceAspect, 0.5),
