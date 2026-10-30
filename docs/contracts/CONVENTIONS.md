@@ -529,6 +529,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.50-social (draft) | 2026-10-30 | **D176 (owner: the Task Center and Event Center «مثل الصور 100%» with Kabso's identity; «أريد أن تصنع الكثير من المهام اليومية، ترسل لكل شخص بناءً على مستواه»; rewards «العملات فقط»):** the daily task pool — `ProgramTask.pooled`, `ProgramTask.metric` gains `WATCH_MINUTES`, `AUDIO_ROOMS`, `LIVE_TAPS`, `NEW_HOST_GIFTS`, `POSTS`, `REELS`, `STORIES`, `POST_COMMENTS`, `DM_FRIENDS`, `DM_VOICE_MESSAGES`, `HOST_GIFTS_RECEIVED`, `HOST_GUESTS`; `MyTasks.band`; a pool task not assigned to the caller today → 404 on claim; `EventSummary.summary`, `EventSummary.tone`; `listHomeBanners` `placement=tasks`; migration `20261230090000_daily_task_pool`; CLIs `task-admin bands|band`, `set --targets --rewards --group`, `event-admin style`. §10.41.1, §10.41.2. | **Additive** (new fields and enum values; old clients ignore them; a client shows an unknown metric with a generic icon). |
 | v1.45-social (draft) | 2026-10-29 | **D168 (owner, from the phone: «مدة ريلز لا تتجاوز ٦٠ ثانية، مدة الفيديو لا تتجاوز ٩٠ ثانية» and «فعّل الأزرار المتبقية في تعديل الملف وتغيير الصورة»):** a `POST_VIDEO` is now **1–90 s** (was 1–180 s; reels stay 1–60 s); videos stored before keep their length (`MediaAsset.durationMs` may still be up to 180 000 for them) and an unattached one longer than 90 s can no longer be attached. `updateMe` (`PATCH /me`) also takes `displayName` (the §6 registration rules) and `bio` (≤ 300 code points, ≤ 4 line breaks, free-text hygiene; empty or null clears it). `MediaKind.AVATAR` (processed like `LIVE_COVER`); `setMyAvatar` / `removeMyAvatar` (`PUT` / `DELETE /me/avatar`, `SetAvatarRequest`, `Avatar`). §7 row, §10.42, §11.1, §11.14. | **Tightening** on new uploads (a post video of 90–180 s is refused at `completeMediaUpload` with 422 `MEDIA_INVALID`; apps from v1.41 already explain that code); otherwise **additive** (optional request fields, an enum value, new operations). |
 | v1.44-social (draft) | 2026-10-29 | **D166 (owner: the Me hub's «قريباً» programs, CP-024 approved with defaults):** tag `programs`: `getMyTasks` (`GET /me/tasks`, `MyTasks`, `ProgramTask`, `CheckInDay`), `checkIn` (`POST /me/check-in`, `CheckInResult`; 201 / 200), `claimMyTask` (`POST /me/tasks/{code}/claim`, `TaskClaimResult`; 201 / 200), `getMySvip` (`GET /me/svip`, `SvipStatus`, `SvipPerk`), `listEvents` (`GET /events?tab=&month=`, `EventList`, `EventSummary`), `getEvent` (`GET /events/{eventId}`, `EventDetail`, `EventPrize`), `getEventLeaderboard` (`GET /events/{eventId}/leaderboard`, `EventLeaderboard`); tag `wallet`: `listRechargePackages` (`GET /wallet/recharge-packages`, `RechargePackages`; no purchase, B5); `WalletLedgerReason` gains `TASK_REWARD`, `CHECK_IN_REWARD`, `EVENT_PRIZE`; codes `TASK_NOT_COMPLETED`, `TASK_DAILY_CAP_REACHED` (409); migrations `20261214090000_me_programs_enums`, `20261214100000_me_programs`; CLIs `task-admin`, `event-admin`. §4, §8, §10.41. | **Additive** (new operations, schemas, codes and ledger reasons; clients show an unknown reason as a generic change). |
 | v1.43-social (draft) | 2026-10-29 | **D164 (owner: «اجعل الوكيل يعمل على أزرار قريباً في أنا» — the Me hub's "Soon" buttons that only need stored data):** tag `wallet`: `listMyWalletLedger` (`GET /wallet/me/ledger`, `WalletLedgerPage`, `WalletLedgerEntry`, `WalletLedgerReason`), `getMyEarnings` (`GET /wallet/me/earnings`, `MyEarnings`) and `listMyEarnings` (`GET /wallet/me/earnings/history`, `EarningPage`, `Earning`, `EarningContext`); tag `me`: `getMyCreatorStats` (`GET /me/creator-stats?period=LAST_7_DAYS\|LAST_30_DAYS\|ALL_TIME`, `CreatorStats`, `CreatorContentStats`, `CreatorStatsPeriod`). All read the caller's own stored data only (no migration). Earnings are display only (no withdrawal, D149). §10.40. | **Additive** (new operations and schemas). |
@@ -2583,6 +2584,62 @@ Every value below is server config or an admin-managed row: the owner changes it
   (10+20 $0.29 … 5197+30 $129.99, 276+28 $6.99 was $8.00) for the owner to set. `purchasesEnabled` is false
   and there is no purchase operation until B5.
 - **Rate limits:** every route uses the per-user default (§7).
+#### 10.41.1 The daily task pool *(v1.50-social, DRAFT — D176)*
+
+Owner (2026-10-30): «أريد أن تصنع الكثير من المهام اليومية، ترسل لكل شخص بناءً على مستواه» — many daily
+tasks, each person getting a few a day by level; rewards are **coins only** («العملات فقط»: no experience
+or level points from tasks). Every value is a default the owner changes with `task-admin` (no release).
+
+- **Templates:** `task_definitions` rows with `pool = true` (code `P_…`, DAILY), a variety group (`WATCH`,
+  `LIVE`, `SOCIAL`, `GIFT`, `CONTENT`, `MESSAGE`, `HOST`) and one target and one coin reward per level band
+  1…4 (`band_targets`, `band_rewards`; 0 = not offered in that band). `HOST` templates are for hosting
+  permission holders only. Fixed (non-pool) tasks keep §10.41; D166's four fixed daily tasks are switched
+  off by the migration (the pool offers the same actions per band; the team can switch them on again).
+- **Bands** (`task_pool_bands`): the band is the last whose `min_level` the person's level reaches — the
+  higher of their **Support** and **Charm** («الجاذبية», `ATTRACTIVENESS`) current levels (enabled
+  categories; 0 = none). Defaults: 1 «مبتدئ» from 0 — 6 tasks a day; 2 «نشيط» from 10 — 7; 3 «متقدّم» from 30
+  — 7; 4 «نخبة» from 60 — 8; of these, host tasks for hosts 2 / 2 / 2 / 3.
+- **Assignment** (`task_assignments`): fixed at the person's first read (or claim) of the day — the day of
+  §10.41's clock — with the band's target and reward at that moment; later template, band or level
+  changes apply from the next day (a template switched off is hidden). The choice is deterministic for the
+  person and the day (FNV-1a of `userId:day` seeding a shuffle of the offered templates): hosts get the
+  band's host tasks first; everyone's tasks then fill the band's count, at most one per group, then at
+  most two; never the same template twice. The next day is a new assignment.
+- **Progress** (computed per read from stored data, counterparts ACTIVE, as §10.41): `WATCH_LIVES` (lives
+  watched ≥ 15 s), `WATCH_MINUTES` (whole minutes watched in lives first joined in the day),
+  `AUDIO_ROOMS` (audio rooms joined, ≥ 15 s), `LIVE_CHAT_MESSAGES`, `LIVE_TAPS` (taps the server counted in
+  lives started in the day), `FOLLOWS`, `POST_COMMENTS` (on someone else's posts, not deleted),
+  `GIFT_SENDS`, `NEW_HOST_GIFTS` (paid gift sends to a host whose permission is ≤ 30 days old), `POSTS` /
+  `REELS` (published, not removed or deleted), `STORIES` (not deleted or removed), `DM_FRIENDS` (different
+  people messaged who follow each other with the caller; a message lives 24 h, so the day's are stored),
+  `DM_VOICE_MESSAGES`, and for hosts `HOST_LIVE_MINUTES`, `HOST_GIFTS_RECEIVED` (gift sends received),
+  `HOST_GUESTS` (seat requests or invitations ACCEPTED in the caller's lives).
+- **Not offered** (the server cannot see them, and nothing is self-reported): sharing a room (a link copied
+  on the phone), recharging (no purchases, B5), and any action only the app could report.
+- **Claim** as §10.41: a pool task is claimable only when it is one of the caller's tasks of today (else
+  404); its reward is the assignment's, within `TASK_DAILY_CAP_COINS` like every daily task.
+- **Defaults** (targets / coins for bands 1–4): watch lives 15 s 1·2·3·5 / 3·4·5·6; watch minutes
+  5·15·30·30 / 4·6·8·10; audio rooms 1·2·3·3 / 3·4·5·6; live comments 3·5·10·20 / 3·4·5·6; hearts
+  20·50·100·200 / 2·3·4·5; follow 1·3·5·10 / 2·3·4·5; post comments 1·3·5·10 / 2·3·4·5; send a gift
+  1·1·3·5 / 5·6·8·10; send gifts —·10·10·15 / —·12·15·20; support a new host 1·1·1·2 / 5·6·8·10; post
+  1·1·1·2 / 4·5·6·8; reel —·1·1·1 / —·6·8·10; story 1·1·1·2 / 3·4·5·6; message a friend 1·1·2·3 / 2·3·4·5;
+  voice message 1·1·1·2 / 2·3·4·5; host: live minutes 30·30·60·60 / 8·10·12·15, gifts received
+  3·5·10·20 / 5·6·8·10, accept a guest 1·1·2·3 / 4·5·6·8.
+- **Wire:** `ProgramTask.pooled`, the new `ProgramTask.metric` values (clients map an unknown metric to a
+  generic icon) and `MyTasks.band` (`band`, `level`, `name`, `host`).
+
+#### 10.41.2 The Event Center calendar and the Task Center banner *(v1.50-social, DRAFT — D176)*
+
+- `EventSummary.summary`: the calendar bar's second line (a short prize line, ≤ 80 characters, ar/en, null
+  when none; no fallback to the other language) and `EventSummary.tone`: `RED`, `GOLD`, `TEAL`, `BLUE`,
+  `PINK`, `AMBER` or null (the client then picks a stable hue from the id). Set with
+  `event-admin create … --summary-ar --summary-en --tone`, changed with `event-admin style <id>` (also
+  `--featured true|false`, «رائج»); audit `event.style`.
+- The calendar's tab, region and «رائج» stay as §10.41 (`permanent`, `regions`, `featured`); an ended event
+  shows «انتهت».
+- `listHomeBanners?placement=tasks`: the banners of the Task Center's slot (3:1 like `home`, added with
+  `banner-admin add … --placement tasks`); empty → the slot is hidden.
+
 ### 10.42 Editing the own profile *(v1.45-social, DRAFT — D168)*
 
 Owner request (2026-10-29, from the phone): «فعّل الأزرار المتبقية في تعديل الملف وتغيير الصورة» —
