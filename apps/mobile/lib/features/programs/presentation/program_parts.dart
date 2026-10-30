@@ -1,5 +1,5 @@
 import 'package:kabso_live/core/format/k_format.dart';
-import 'package:kabso_live/core/icons/app_icons.dart';
+import 'package:kabso_live/core/icons/kabso_art.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -104,7 +104,7 @@ class CoinAmount extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     mainAxisSize: MainAxisSize.min,
     children: [
-      AppIcon(AppIcons.coinGold, size: size, tint: false),
+      KabsoArtIcon(KabsoArt.coin, size: size),
       const SizedBox(width: KSpacing.xxs),
       Text(
         '$prefix${KFormat.grouped(coins)}',

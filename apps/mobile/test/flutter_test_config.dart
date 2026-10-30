@@ -33,8 +33,6 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   AudioplayersMaxXSounds.enabled = false;
   // D154: the quips' sounds (no audio plugin in tests).
   AudioplayersQuipAudio.enabled = false;
-  // D134: the animated cherry decodes outside fake time.
-  KCherryIcon.animate = false;
   KabsoProfileHeaderArt.animate = false;
   CpRisingHearts.animate = false;
   CpPairFx.animate = false;

@@ -6,6 +6,7 @@ import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
+import 'package:kabso_live/core/icons/kabso_art.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/auth_controller.dart';
@@ -212,7 +213,7 @@ class MeHubScreen extends ConsumerWidget {
           valueLabel: coins == null
               ? null
               : l10n.meHubCoins(KFormat.grouped(coins)),
-          valueIcon: AppIcons.coinGold,
+          valueArt: KabsoArt.coin,
           onTap: () => push(AppRoutes.wallet),
         ),
         _HubRow(
@@ -731,7 +732,7 @@ class _HubRow extends StatelessWidget {
     required this.title,
     this.value,
     this.valueLabel,
-    this.valueIcon,
+    this.valueArt,
     this.onTap,
   });
 
@@ -741,7 +742,7 @@ class _HubRow extends StatelessWidget {
   final String title;
   final String? value;
   final String? valueLabel;
-  final String? valueIcon;
+  final KabsoArt? valueArt;
   final VoidCallback? onTap;
 
   @override
@@ -813,8 +814,8 @@ class _HubRow extends StatelessWidget {
                 ),
                 if (value != null) ...[
                   const SizedBox(width: KSpacing.sm),
-                  if (valueIcon case final asset?) ...[
-                    AppIcon(asset, size: KMetrics.iconSm, tint: false),
+                  if (valueArt case final art?) ...[
+                    KabsoArtIcon(art, size: KMetrics.iconSm),
                     const SizedBox(width: KSpacing.xxs),
                   ],
                   ConstrainedBox(

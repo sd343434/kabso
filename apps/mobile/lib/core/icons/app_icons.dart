@@ -6,8 +6,9 @@ import 'package:material_ui/material_ui.dart';
 /// `<name>_filled.svg` after, 2-unit round strokes) replaces the earlier
 /// icons wherever it has one; the rest keep their earlier files. Outline
 /// icons draw in `currentColor` and are tinted by [AppIcon]; the multicolour
-/// ones ([createButton], [createButtonLight], [followBadge], [coinGold])
-/// keep their own colours (`tint: false`).
+/// ones ([createButton], [createButtonLight], [followBadge]) keep their own
+/// colours (`tint: false`). The spending coin is the owner's Kabi coin art
+/// (`KabsoArt.coin`, D161/D182), not an icon of this set.
 abstract final class AppIcons {
   static const String _p = 'assets/icons';
 
@@ -58,7 +59,6 @@ abstract final class AppIcons {
   static const String giftFilled = '$_p/gift_filled.svg';
   static const String emoji = '$_p/emoji_outline.svg';
   static const String coin = '$_p/coin_outline.svg';
-  static const String coinGold = '$_p/coin_gold.svg';
   static const String handWave = '$_p/hand_wave.svg';
   static const String diamond = '$_p/diamond.svg';
   static const String crown = '$_p/crown.svg';
