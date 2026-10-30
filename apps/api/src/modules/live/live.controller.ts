@@ -835,6 +835,27 @@ export class LiveController {
   }
 
   /**
+   * v1.41-live (D170, §10.40): the host's app went to the background (camera off) or came back. A
+   * video live away for LIVE_HOST_AWAY_TIMEOUT_SECONDS is ended by the sweeper. Heartbeat limits
+   * (12 / min per user) in a bucket of its own.
+   */
+  @Post('rooms/:roomId/host-presence')
+  @HttpCode(204)
+  @RateLimit({
+    bucket: 'live:host-presence',
+    rule: 'liveHeartbeatUser',
+    key: byUserId,
+    replacesDefault: true,
+  })
+  async hostPresence(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Body() body: unknown,
+  ): Promise<void> {
+    await this.rooms.setHostPresence(requireCaller(req), roomId, body);
+  }
+
+  /**
    * v1.27.6-live (D140, §10.31): the host's statistics of one of their lives (LIVE or ENDED);
    * anyone else → 403. Per-user default bucket.
    */

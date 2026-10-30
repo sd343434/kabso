@@ -351,6 +351,9 @@ enum LiveRoomEndReason {
   HEARTBEAT_TIMEOUT
   HOST_SUSPENDED
   ADMIN
+  /// v1.41-live (D170, CONVENTIONS §10.40): a video live whose host stayed away (camera off in the
+  /// background) for LIVE_HOST_AWAY_TIMEOUT_SECONDS.
+  HOST_AWAY_TIMEOUT
 
   @@map("live_room_end_reason")
 }
@@ -488,6 +491,9 @@ model LiveRoom {
   /// v1.32-live (D154, §10.33): when the room's quip queue is free again (null: never used). Written
   /// under the room row's lock by each quip and soundboard sound.
   quipBusyUntil   DateTime?          @map("quip_busy_until") @db.Timestamptz(3)
+  /// v1.41-live (D170, §10.40): since when the host of a video (SOLO / MULTI) live has been away
+  /// (the app in the background, the camera off); null while present and always null for AUDIO.
+  hostAwaySince   DateTime?          @map("host_away_since") @db.Timestamptz(3)
   createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -521,6 +527,7 @@ model LiveRoom {
   @@index([categoryId, score(sort: Desc), startedAt(sort: Desc), id(sort: Desc)], map: "live_rooms_live_cat_popular_idx", where: raw("status = 'LIVE'::live_room_status"))
   @@index([categoryId, startedAt(sort: Desc), id(sort: Desc)], map: "live_rooms_live_cat_new_idx", where: raw("status = 'LIVE'::live_room_status"))
   @@index([lastHeartbeatAt], map: "live_rooms_live_heartbeat_idx", where: raw("status = 'LIVE'::live_room_status"))
+  @@index([hostAwaySince], map: "live_rooms_live_host_away_idx", where: raw("status = 'LIVE'::live_room_status AND host_away_since IS NOT NULL"))
   @@index([hostUserId, startedAt(sort: Desc)], map: "live_rooms_host_started_idx")
   @@index([categoryId], map: "live_rooms_category_id_idx")
   @@map("live_rooms")

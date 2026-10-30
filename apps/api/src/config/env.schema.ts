@@ -510,6 +510,11 @@ export const envSchema = z
     /** Period of the in-process stale-room sweeper; 0 disables it (refused in production). */
     LIVE_SWEEP_INTERVAL_SECONDS: intSetting(15, 0, 3600),
     /**
+     * v1.41-live (D170, CONVENTIONS §10.40): a video live whose host has been away (the app in the
+     * background, the camera off) this long is ended by the sweeper with HOST_AWAY_TIMEOUT.
+     */
+    LIVE_HOST_AWAY_TIMEOUT_SECONDS: intSetting(300, 30, 86400),
+    /**
      * CP-016 A (D99): the one region's time zone (IANA name). The popularity boards' day starts at
      * midnight and the week on Monday there; the hour is the same everywhere.
      */
