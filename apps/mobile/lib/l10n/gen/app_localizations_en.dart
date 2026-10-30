@@ -9656,11 +9656,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get rechargeSellInvalid => 'Enter the buyer and the coins';
 
   @override
-  String rechargeSellConfirm(String coins, String buyer) {
-    return 'Sell $coins coins to $buyer? This can\'t be undone.';
-  }
-
-  @override
   String rechargeSold(String coins, String buyer) {
     return '$coins coins sent to $buyer';
   }
@@ -10072,4 +10067,71 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errorHostFrameStyleFromGender =>
       'Your gender sets the colour of your host frame.';
+
+  @override
+  String get rechargeStatusActive => 'Active';
+
+  @override
+  String get rechargeStatusSuspended => 'Suspended';
+
+  @override
+  String rechargeCherryTodayNoCap(String today) {
+    return 'Hosts\' cherries today: $today';
+  }
+
+  @override
+  String rechargeSalesCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count sales',
+      one: '$count sale',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get rechargeMore => 'More';
+
+  @override
+  String get rechargeBuyerNotFound => 'No user with this username';
+
+  @override
+  String get rechargeBuyerChecking => 'Checking the buyer…';
+
+  @override
+  String get rechargeSellOverStock => 'More than your stock';
+
+  @override
+  String rechargeStockAfter(String coins) {
+    return 'Stock after the sale: $coins';
+  }
+
+  @override
+  String get rechargeSellConfirmTitle => 'Confirm the sale';
+
+  @override
+  String get rechargeSellIrreversible =>
+      'A sale can\'t be undone once confirmed.';
+
+  @override
+  String get rechargeApplyStepPersonal => 'Your details';
+
+  @override
+  String get rechargeApplyStepPhotos => 'Photos';
+
+  @override
+  String get rechargePhotoAdded => 'Added';
+
+  @override
+  String get rechargePhotoRequired => 'Required';
+
+  @override
+  String get rechargeApplyStepPrivacy => 'Privacy';
+
+  @override
+  String get rechargeChooseCountry => 'Choose a country';
+
+  @override
+  String get rechargeStockAfterLabel => 'Stock after the sale';
 }

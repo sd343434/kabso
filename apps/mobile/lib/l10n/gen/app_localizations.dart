@@ -16527,12 +16527,6 @@ abstract class AppLocalizations {
   /// D185 recharge agents
   ///
   /// In ar, this message translates to:
-  /// **'بيع {coins} عملة إلى {buyer}؟ لا يمكن التراجع.'**
-  String rechargeSellConfirm(String coins, String buyer);
-
-  /// D185 recharge agents
-  ///
-  /// In ar, this message translates to:
   /// **'أُرسلت {coins} عملة إلى {buyer}'**
   String rechargeSold(String coins, String buyer);
 
@@ -17243,6 +17237,114 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'لون إطار المضيف يتبع الجنس في ملفك.'**
   String get errorHostFrameStyleFromGender;
+
+  /// D185 recharge screens (owner polish)
+  ///
+  /// In ar, this message translates to:
+  /// **'نشط'**
+  String get rechargeStatusActive;
+
+  /// D185 recharge screens (owner polish)
+  ///
+  /// In ar, this message translates to:
+  /// **'موقوف'**
+  String get rechargeStatusSuspended;
+
+  /// D185 recharge screens (owner polish)
+  ///
+  /// In ar, this message translates to:
+  /// **'كرز المضيفين اليوم: {today}'**
+  String rechargeCherryTodayNoCap(String today);
+
+  /// D185 recharge screens (owner polish)
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, =0{{count} عملية} =1{عملية واحدة} =2{عمليتان} few{{count} عمليات} many{{count} عملية} other{{count} عملية}}'**
+  String rechargeSalesCount(int count);
+
+  /// D185 recharge screens (owner polish)
+  ///
+  /// In ar, this message translates to:
+  /// **'المزيد'**
+  String get rechargeMore;
+
+  /// D185 recharge screens (owner polish)
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد مستخدم بهذا الاسم'**
+  String get rechargeBuyerNotFound;
+
+  /// D185 recharge screens (owner polish)
+  ///
+  /// In ar, this message translates to:
+  /// **'جارٍ التحقق من المشتري…'**
+  String get rechargeBuyerChecking;
+
+  /// D185 recharge screens (owner polish)
+  ///
+  /// In ar, this message translates to:
+  /// **'أكثر من المخزون المتاح'**
+  String get rechargeSellOverStock;
+
+  /// D185 recharge screens (owner polish)
+  ///
+  /// In ar, this message translates to:
+  /// **'المخزون بعد البيع: {coins}'**
+  String rechargeStockAfter(String coins);
+
+  /// D185 recharge screens (owner polish)
+  ///
+  /// In ar, this message translates to:
+  /// **'تأكيد البيع'**
+  String get rechargeSellConfirmTitle;
+
+  /// D185 recharge screens (owner polish)
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن التراجع عن البيع بعد تأكيده.'**
+  String get rechargeSellIrreversible;
+
+  /// D185 recharge screens (owner polish)
+  ///
+  /// In ar, this message translates to:
+  /// **'بياناتك'**
+  String get rechargeApplyStepPersonal;
+
+  /// D185 recharge screens (owner polish)
+  ///
+  /// In ar, this message translates to:
+  /// **'الصور'**
+  String get rechargeApplyStepPhotos;
+
+  /// D185 recharge screens (owner polish)
+  ///
+  /// In ar, this message translates to:
+  /// **'تمت الإضافة'**
+  String get rechargePhotoAdded;
+
+  /// D185 recharge screens (owner polish)
+  ///
+  /// In ar, this message translates to:
+  /// **'مطلوبة'**
+  String get rechargePhotoRequired;
+
+  /// D185 recharge screens (owner polish)
+  ///
+  /// In ar, this message translates to:
+  /// **'الخصوصية'**
+  String get rechargeApplyStepPrivacy;
+
+  /// D185 recharge screens (owner polish)
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر الدولة'**
+  String get rechargeChooseCountry;
+
+  /// D185 recharge screens (owner polish)
+  ///
+  /// In ar, this message translates to:
+  /// **'المخزون بعد البيع'**
+  String get rechargeStockAfterLabel;
 }
 
 class _AppLocalizationsDelegate

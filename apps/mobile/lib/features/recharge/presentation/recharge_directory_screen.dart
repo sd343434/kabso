@@ -68,24 +68,24 @@ class _RechargeDirectoryScreenState
         }
       },
       children: [
+        // Owner polish: the countries scroll; the selected one is filled.
         SizedBox(
-          height: 40,
-          child: ListView(
+          height: KSizes.minTouchTarget,
+          child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            children: [
-              for (final c in countries)
-                Padding(
-                  padding: const EdgeInsetsDirectional.only(end: 6),
-                  child: ChoiceChip(
-                    key: RechargeDirectoryScreen.countryKey(c),
-                    label: Text(
-                      KFormat.bidiIsolate(rechargeCountryName(context, c)),
-                    ),
-                    selected: c == _country,
-                    onSelected: (_) => setState(() => _country = c),
-                  ),
+            itemCount: countries.length,
+            separatorBuilder: (_, _) => const SizedBox(width: KSpacing.xs),
+            itemBuilder: (_, i) {
+              final c = countries[i];
+              return Center(
+                child: KChip(
+                  key: RechargeDirectoryScreen.countryKey(c),
+                  label: KFormat.bidiIsolate(rechargeCountryName(context, c)),
+                  selected: c == _country,
+                  onSelected: () => setState(() => _country = c),
                 ),
-            ],
+              );
+            },
           ),
         ),
         const SizedBox(height: KSpacing.sm),
@@ -204,20 +204,33 @@ class _AgentCard extends ConsumerWidget {
     final p = context.palette;
     final t = context.textStyles;
     final u = agent.user;
+    final now = agent.availableNow;
     final cities = [
       for (final l in agent.locations)
         if (l.country == country) ...l.cities,
     ];
+    // An agent who is not available now is shown muted.
+    final ink = now ? p.textPrimary : p.textSecondary;
     return Padding(
       key: RechargeDirectoryScreen.cardKey(agent.code),
       padding: const EdgeInsets.only(bottom: KSpacing.sm),
-      child: RechargeCard(
+      child: Container(
+        padding: const EdgeInsets.all(KSpacing.md),
+        decoration: BoxDecoration(
+          color: now ? p.surfaceRaised : p.surface,
+          borderRadius: BorderRadius.circular(KRadius.lg),
+          border: Border.all(color: p.border),
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                KAvatar(name: u.displayName, imageUrl: u.avatarUrl, size: 52),
+                Opacity(
+                  opacity: now ? 1 : 0.55,
+                  child: KAvatar(name: u.displayName, imageUrl: u.avatarUrl),
+                ),
                 const SizedBox(width: KSpacing.sm),
                 Expanded(
                   child: Column(
@@ -230,30 +243,46 @@ class _AgentCard extends ConsumerWidget {
                               u.displayName,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: t.bodyStrong.copyWith(
-                                color: p.textPrimary,
-                              ),
+                              style: t.bodyStrong.copyWith(color: ink),
                             ),
                           ),
                           RechargeAgentInlineBadge(
                             code: agent.code,
-                            height: 20,
+                            height: inlineAgentBadgeHeight(
+                              t.bodyStrong.fontSize!,
+                            ),
                           ),
                         ],
                       ),
                       Text(
                         l10n.rechargeIdLine(KFormat.bidiIsolate(agent.code)),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: t.caption.copyWith(
-                          color: const Color(0xFFC0262D),
+                          color: now ? p.primaryText : p.textSecondary,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                       if (cities.isNotEmpty)
-                        Text(
-                          cities.join('، '),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: t.caption.copyWith(color: p.textSecondary),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.place_outlined,
+                              size: 14,
+                              color: p.textTertiary,
+                            ),
+                            const SizedBox(width: 2),
+                            Expanded(
+                              child: Text(
+                                cities.join('، '),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: t.caption.copyWith(
+                                  color: p.textSecondary,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                     ],
                   ),
@@ -261,47 +290,72 @@ class _AgentCard extends ConsumerWidget {
               ],
             ),
             if (agent.paymentTypes.isNotEmpty) ...[
-              const SizedBox(height: KSpacing.xs),
+              const SizedBox(height: KSpacing.sm),
               Wrap(
-                spacing: 6,
-                runSpacing: 4,
+                spacing: KSpacing.xs,
+                runSpacing: KSpacing.xs,
                 children: [
                   for (final ty in agent.paymentTypes)
-                    Chip(
-                      visualDensity: VisualDensity.compact,
-                      label: Text(rechargePaymentTypeName(l10n, ty)),
-                    ),
+                    RechargePill(label: rechargePaymentTypeName(l10n, ty)),
                 ],
               ),
             ],
-            const SizedBox(height: KSpacing.xs),
-            if (agent.availableNow) ...[
-              Row(
-                children: [
-                  const Icon(Icons.circle, size: 10, color: Color(0xFF1E9E5A)),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      l10n.rechargeAvailableNowLine(
-                        KFormat.bidiIsolate(agent.paymentMethodNow ?? ''),
+            const SizedBox(height: KSpacing.sm),
+            Divider(height: 1, color: p.border),
+            const SizedBox(height: KSpacing.sm),
+            Row(
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: now ? p.success : p.textTertiary,
+                          shape: BoxShape.circle,
+                        ),
                       ),
-                      style: t.caption.copyWith(color: p.textPrimary),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          now
+                              ? l10n.rechargeAvailableNowLine(
+                                  KFormat.bidiIsolate(
+                                    agent.paymentMethodNow ?? '',
+                                  ),
+                                )
+                              : l10n.rechargeNotAvailableNow,
+                          style: t.caption.copyWith(
+                            color: now ? p.success : p.textSecondary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (now) ...[
+                  const SizedBox(width: KSpacing.sm),
+                  FilledButton.icon(
+                    key: RechargeDirectoryScreen.contactKey(agent.code),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(0, KSizes.minTouchTarget - 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: KSpacing.md,
+                      ),
+                      tapTargetSize: MaterialTapTargetSize.padded,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(KRadius.pill),
+                      ),
                     ),
+                    onPressed: () => unawaited(_contact(context, ref)),
+                    icon: const Icon(Icons.chat_rounded, size: 18),
+                    label: Text(l10n.rechargeContact),
                   ),
                 ],
-              ),
-              const SizedBox(height: KSpacing.sm),
-              KButton(
-                key: RechargeDirectoryScreen.contactKey(agent.code),
-                label: l10n.rechargeContact,
-                icon: Icons.chat_rounded,
-                onPressed: () => unawaited(_contact(context, ref)),
-              ),
-            ] else
-              Text(
-                l10n.rechargeNotAvailableNow,
-                style: t.caption.copyWith(color: p.textSecondary),
-              ),
+              ],
+            ),
           ],
         ),
       ),

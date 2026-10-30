@@ -34,6 +34,8 @@ const RechargeAgentMe fixtureNone = RechargeAgentMe(
 RechargeAgentMe fixtureActive({
   RechargeAgentStatus status = RechargeAgentStatus.active,
   int stock = 28750000,
+  // Owner («حد وكيل مفتوح»): no daily cherry cap by default (0).
+  int cap = 0,
 }) => RechargeAgentMe(
   status: status,
   canApply: false,
@@ -43,7 +45,7 @@ RechargeAgentMe fixtureActive({
     status: status,
     stockCoins: stock,
     activatedAt: DateTime.utc(2026, 10, 30, 9),
-    dailyCherryCap: 1000000000,
+    dailyCherryCap: cap,
     todayCherries: 2000000,
     availability: const RechargeAvailability(
       timeZone: 'Africa/Cairo',

@@ -14,6 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/app.dart';
 import 'package:kabso_live/app/router/routes.dart';
+import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
@@ -22,6 +23,8 @@ import 'package:kabso_live/core/storage/secure_token_store.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/profile/data/profile_edit_repository.dart';
+import 'package:kabso_live/features/profile/data/profile_repository.dart';
+import 'package:kabso_live/features/profile/domain/profile_models.dart';
 import 'package:kabso_live/features/profile/profile_fields_view.dart';
 import 'package:kabso_live/features/recharge/data/recharge_repository.dart';
 import 'package:kabso_live/features/recharge/presentation/live_recharge_entrance.dart';
@@ -34,12 +37,28 @@ import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../helpers/fake_profile_repository.dart';
 import '../../helpers/fake_recharge_repository.dart';
 import '../../helpers/fakes.dart';
 import '../../helpers/golden.dart';
 import '../../helpers/pump_app.dart';
 
 final AppLocalizations _en = l10nFor(AppLanguage.en);
+
+/// The buyer the sell sheet finds by username.
+const _layla = PublicProfile(
+  id: 'u-layla',
+  username: 'layla.k',
+  displayName: 'ليلى',
+  avatarUrl: null,
+  bio: null,
+  isPrivate: false,
+  followerCount: 10,
+  followingCount: 4,
+  isFollowing: false,
+  isSelf: false,
+  liveRoomId: null,
+);
 final AppLocalizations _ar = l10nFor(AppLanguage.ar);
 
 /// A 1×1 PNG.
@@ -80,6 +99,8 @@ Future<void> _pump(
   double textScale = 1,
   _Picker? picker,
   _Opener? opener,
+  FakeProfileRepository? profiles,
+  Brightness brightness = Brightness.light,
 }) async {
   final router = GoRouter(
     initialLocation: location,
@@ -120,6 +141,9 @@ Future<void> _pump(
         rechargeRepositoryProvider.overrideWithValue(repo),
         avatarPhotoPickerProvider.overrideWithValue(picker ?? _Picker()),
         externalLinkOpenerProvider.overrideWithValue(opener ?? _Opener()),
+        profileRepositoryProvider.overrideWithValue(
+          profiles ?? FakeProfileRepository(_layla),
+        ),
       ],
       child: MaterialApp.router(
         routerConfig: router,
@@ -129,10 +153,7 @@ Future<void> _pump(
           AppLocalizations.delegate,
           ...GlobalMaterialLocalizations.delegates,
         ],
-        theme: buildAppTheme(
-          brightness: Brightness.light,
-          locale: language.locale,
-        ),
+        theme: buildAppTheme(brightness: brightness, locale: language.locale),
         builder: (context, child) => MediaQuery(
           data: MediaQuery.of(context)
               .copyWith(textScaler: TextScaler.linear(textScale)),
@@ -244,8 +265,9 @@ void main() {
 
     for (final language in AppLanguage.values) {
       final l10n = language == AppLanguage.ar ? _ar : _en;
-      testWidgets('active: the frame with the code, the badge, the stock, '
-          'sales and the cherry cap (${language.name})', (tester) async {
+      testWidgets('active: the frame with the display name, the code and '
+          "status, the stock, sales tiles and today's cherries without a "
+          'cap (${language.name})', (tester) async {
         await _pump(
           tester,
           AppRoutes.recharge,
@@ -261,13 +283,27 @@ void main() {
           testUser().displayName,
         );
         expect(find.byType(RechargeAgentBadge), findsOneWidget);
+        expect(find.text(KFormat.bidiIsolate('@coin0007')), findsOneWidget);
+        expect(find.text(l10n.rechargeStatusActive), findsOneWidget);
         expect(find.text('28,750,000'), findsOneWidget);
+        // Three tiles, each with the count and the coins.
+        for (final (key, count) in [
+          ('recharge.sales.today', 3),
+          ('recharge.sales.7', 18),
+          ('recharge.sales.30', 64),
+        ]) {
+          expect(
+            find.descendant(
+              of: find.byKey(Key(key)),
+              matching: find.text(l10n.rechargeSalesCount(count)),
+            ),
+            findsOneWidget,
+          );
+        }
+        // Owner («حد وكيل مفتوح»): no cap, so no «of …».
         expect(
           find.text(
-            l10n.rechargeCherryToday(
-              KFormat.bidiIsolate('2,000,000'),
-              KFormat.bidiIsolate('1,000,000,000'),
-            ),
+            l10n.rechargeCherryTodayNoCap(KFormat.bidiIsolate('2,000,000')),
           ),
           findsOneWidget,
         );
@@ -275,6 +311,23 @@ void main() {
         expect(tester.takeException(), isNull);
       });
     }
+
+    testWidgets('a cap set for the agent is shown with «of …»', (tester) async {
+      await _pump(
+        tester,
+        AppRoutes.recharge,
+        repo: FakeRechargeRepository(mine: fixtureActive(cap: 5000000)),
+      );
+      expect(
+        find.text(
+          _en.rechargeCherryToday(
+            KFormat.bidiIsolate('2,000,000'),
+            KFormat.bidiIsolate('5,000,000'),
+          ),
+        ),
+        findsOneWidget,
+      );
+    });
 
     testWidgets('suspended: selling off, the perks gone, the reason', (
       tester,
@@ -326,33 +379,64 @@ void main() {
   });
 
   group('selling', () {
-    testWidgets('confirm, then one sale with an Idempotency-Key', (
-      tester,
-    ) async {
+    testWidgets('the buyer found with a preview, grouped coins, quick '
+        'amounts and the stock left; a summary, then one sale with an '
+        'Idempotency-Key', (tester) async {
       final repo = FakeRechargeRepository(mine: fixtureActive());
       await _pump(tester, AppRoutes.recharge, repo: repo);
       await tester.tap(find.byKey(RechargeHubScreen.sellKey));
       await tester.pumpAndSettle();
-      // Nothing typed: an honest error, no request.
-      await tester.tap(find.byKey(RechargeSellSheet.submitKey));
-      await tester.pumpAndSettle();
-      expect(find.text(_en.rechargeSellInvalid), findsOneWidget);
+      KButton submit() =>
+          tester.widget<KButton>(find.byKey(RechargeSellSheet.submitKey));
+      // Nothing typed: the button is off and nothing is sent.
+      expect(submit().onPressed, isNull);
       await tester.enterText(
         find.byKey(RechargeSellSheet.buyerKey),
         '@layla.k',
       );
-      await tester.enterText(find.byKey(RechargeSellSheet.coinsKey), '50000');
-      await tester.tap(find.byKey(RechargeSellSheet.submitKey));
+      await tester.pump(const Duration(milliseconds: 400));
       await tester.pumpAndSettle();
+      // The live preview: name and @username.
+      expect(find.byKey(RechargeSellSheet.previewKey), findsOneWidget);
       expect(
-        find.text(
-          _en.rechargeSellConfirm(
-            KFormat.bidiIsolate('50,000'),
-            KFormat.bidiIsolate('@layla.k'),
-          ),
+        find.descendant(
+          of: find.byKey(RechargeSellSheet.previewKey),
+          matching: find.text('ليلى'),
         ),
         findsOneWidget,
       );
+      expect(submit().onPressed, isNull);
+      // Grouped as typed; the stock after the sale below.
+      await tester.enterText(find.byKey(RechargeSellSheet.coinsKey), '50000');
+      await tester.pump();
+      expect(find.text('50,000'), findsWidgets);
+      expect(
+        find.text(_en.rechargeStockAfter(KFormat.bidiIsolate('28,700,000'))),
+        findsOneWidget,
+      );
+      // A quick amount fills the field.
+      await tester.tap(find.byKey(RechargeSellSheet.quickKey(1000000)));
+      await tester.pump();
+      expect(
+        find.text(_en.rechargeStockAfter(KFormat.bidiIsolate('27,750,000'))),
+        findsOneWidget,
+      );
+      await tester.enterText(find.byKey(RechargeSellSheet.coinsKey), '50000');
+      await tester.pump();
+      expect(submit().onPressed, isNotNull);
+      await tester.tap(find.byKey(RechargeSellSheet.submitKey));
+      await tester.pumpAndSettle();
+      // The summary: the buyer, the coins and the stock after the sale.
+      final summary = find.byKey(const Key('recharge.sell.summary'));
+      expect(summary, findsOneWidget);
+      for (final text in ['ليلى', '50,000', '28,700,000']) {
+        expect(
+          find.descendant(of: summary, matching: find.text(text)),
+          findsOneWidget,
+          reason: text,
+        );
+      }
+      expect(find.text(_en.rechargeSellIrreversible), findsOneWidget);
       await tester.tap(find.byKey(const Key('recharge.sell.confirm')));
       await tester.pumpAndSettle();
       expect(repo.sold, hasLength(1));
@@ -368,6 +452,49 @@ void main() {
         ),
         findsOneWidget,
       );
+    });
+
+    testWidgets('an unknown buyer: an inline error; more than the stock: '
+        'refused; the button stays off', (tester) async {
+      final repo = FakeRechargeRepository(mine: fixtureActive(stock: 300000));
+      final profiles = FakeProfileRepository(
+        _layla,
+        profileFailure: const ServerFailure(
+          code: ErrorCode.notFound,
+          rawCode: 'NOT_FOUND',
+          debugMessage: 'not found',
+          statusCode: 404,
+        ),
+      );
+      await _pump(tester, AppRoutes.recharge, repo: repo, profiles: profiles);
+      await tester.tap(find.byKey(RechargeHubScreen.sellKey));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(RechargeSellSheet.buyerKey), 'nobody1');
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+      expect(find.text(_en.rechargeBuyerNotFound), findsOneWidget);
+      expect(find.byKey(RechargeSellSheet.previewKey), findsNothing);
+      profiles.profileFailure = null;
+      await tester.enterText(find.byKey(RechargeSellSheet.buyerKey), 'layla.k');
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(RechargeSellSheet.coinsKey), '500000');
+      await tester.pump();
+      expect(find.text(_en.rechargeSellOverStock), findsOneWidget);
+      // The quick amounts above the stock are off.
+      expect(
+        tester
+            .widget<KChip>(find.byKey(RechargeSellSheet.quickKey(500000)))
+            .onSelected,
+        isNull,
+      );
+      expect(
+        tester
+            .widget<KButton>(find.byKey(RechargeSellSheet.submitKey))
+            .onPressed,
+        isNull,
+      );
+      expect(repo.sold, isEmpty);
     });
   });
 
@@ -386,7 +513,6 @@ void main() {
           picker: picker,
           viewport: GoldenViewport.android,
         );
-        expect(find.text(l10n.rechargePrivacyNote), findsOneWidget);
         await tester.enterText(
           find.byKey(RechargeApplyScreen.nameKey),
           'Mohamed Ali',
@@ -395,24 +521,34 @@ void main() {
           find.byKey(RechargeApplyScreen.phoneKey),
           '0100',
         );
-        await tester.enterText(
-          find.byKey(RechargeApplyScreen.countryKey(0)),
-          'eg',
+        // The country from the list (names in the app language).
+        await tester.tap(find.byKey(RechargeApplyScreen.countryKey(0)));
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.text(language == AppLanguage.ar ? 'مصر' : 'Egypt').last,
         );
+        await tester.pumpAndSettle();
         await tester.enterText(
           find.byKey(RechargeApplyScreen.citiesKey(0)),
           'Cairo, Giza',
         );
         await tester.pump();
+        // The cities show as chips.
+        expect(find.text('Giza'), findsOneWidget);
+        // A payment method in EG.
         await tester.scrollUntilVisible(
-          find.byKey(RechargeApplyScreen.submitKey),
+          find.byKey(const ValueKey('recharge.apply.payCountry.0')),
           200,
           scrollable: find.byType(Scrollable).first,
         );
-        // A payment method in EG.
-        await tester.tap(find.byType(DropdownButtonFormField<String>).first);
         await tester.pumpAndSettle();
-        await tester.tap(find.text('EG').last);
+        await tester.tap(
+          find.byKey(const ValueKey('recharge.apply.payCountry.0')),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.text(language == AppLanguage.ar ? 'مصر' : 'Egypt').last,
+        );
         await tester.pumpAndSettle();
         await tester.enterText(
           find.descendant(
@@ -424,6 +560,13 @@ void main() {
         await tester.tap(find.byKey(RechargeApplyScreen.submitKey));
         await tester.pumpAndSettle();
         expect(repo.applied, isEmpty);
+        // The photos section says what is missing.
+        await tester.scrollUntilVisible(
+          find.text(l10n.rechargeMissingPhotos),
+          -200,
+          scrollable: find.byType(Scrollable).first,
+        );
+        expect(find.text(l10n.rechargeMissingPhotos), findsOneWidget);
         await tester.scrollUntilVisible(
           find.byKey(RechargeApplyScreen.nameKey),
           -200,
@@ -447,6 +590,13 @@ void main() {
         await tester.pumpAndSettle();
         // The selfie is taken with the camera (face confirmation).
         expect(picker.asked, [AvatarSource.library, AvatarSource.camera]);
+        // The privacy note closes the form.
+        await tester.scrollUntilVisible(
+          find.text(l10n.rechargePrivacyNote),
+          300,
+          scrollable: find.byType(Scrollable).first,
+        );
+        expect(find.text(l10n.rechargePrivacyNote), findsOneWidget);
         await tester.scrollUntilVisible(
           find.byKey(RechargeApplyScreen.submitKey),
           200,
@@ -605,6 +755,60 @@ void main() {
       await tester.pumpAndSettle();
       expect(repo.answered, [('r1', 'confirm')]);
     });
+  });
+
+  group('owner polish: 360×800, text ×1.3, light and dark', () {
+    for (final language in AppLanguage.values) {
+      for (final brightness in Brightness.values) {
+        testWidgets('the four screens lay out without overflow '
+            '(${language.name}, ${brightness.name})', (tester) async {
+          Future<void> page(String route, FakeRechargeRepository repo) => _pump(
+            tester,
+            route,
+            repo: repo,
+            language: language,
+            viewport: GoldenViewport.android,
+            textScale: 1.3,
+            brightness: brightness,
+          );
+          await page(
+            AppRoutes.recharge,
+            FakeRechargeRepository(mine: fixtureActive()),
+          );
+          expect(tester.takeException(), isNull);
+          await tester.tap(find.byKey(RechargeHubScreen.sellKey));
+          await tester.pumpAndSettle();
+          await tester.enterText(
+            find.byKey(RechargeSellSheet.buyerKey),
+            'layla.k',
+          );
+          await tester.pump(const Duration(milliseconds: 400));
+          await tester.pumpAndSettle();
+          await tester.tap(find.byKey(RechargeSellSheet.quickKey(1000000)));
+          await tester.pump();
+          expect(find.byKey(RechargeSellSheet.previewKey), findsOneWidget);
+          expect(tester.takeException(), isNull);
+          await page(
+            AppRoutes.rechargeAgents,
+            FakeRechargeRepository(
+              agents: [_listing('coin0007'), _listing('coin0012', now: false)],
+            ),
+          );
+          expect(tester.takeException(), isNull);
+          await page(AppRoutes.rechargeApply, FakeRechargeRepository());
+          await tester.tap(find.byKey(RechargeApplyScreen.submitKey));
+          await tester.pumpAndSettle();
+          for (var i = 0; i < 8; i++) {
+            await tester.drag(
+              find.byType(Scrollable).first,
+              const Offset(0, -300),
+            );
+            await tester.pumpAndSettle();
+            expect(tester.takeException(), isNull);
+          }
+        });
+      }
+    }
   });
 
   group('perks', () {

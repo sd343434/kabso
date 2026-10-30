@@ -12,6 +12,8 @@ import 'package:kabso_live/features/posts/data/media_repository.dart'
 import 'package:kabso_live/features/profile/data/profile_edit_repository.dart';
 import 'package:kabso_live/features/recharge/application/recharge_providers.dart';
 import 'package:kabso_live/features/recharge/data/recharge_repository.dart';
+import 'package:kabso_live/features/recharge/presentation/recharge_directory_screen.dart'
+    show rechargeCountries, rechargeCountryName;
 import 'package:kabso_live/features/recharge/presentation/recharge_widgets.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -43,13 +45,16 @@ class RechargeApplyScreen extends ConsumerStatefulWidget {
 }
 
 class _Location {
-  final country = TextEditingController();
+  /// ISO alpha-2, chosen from the list.
+  String? country;
   final cities = TextEditingController();
 
-  void dispose() {
-    country.dispose();
-    cities.dispose();
-  }
+  List<String> get cityList => [
+    for (final c in cities.text.split(RegExp('[,،]')))
+      if (c.trim().isNotEmpty) c.trim(),
+  ];
+
+  void dispose() => cities.dispose();
 }
 
 class _Payment {
@@ -69,7 +74,14 @@ class _RechargeApplyScreenState extends ConsumerState<RechargeApplyScreen> {
   Uint8List? _selfie;
   bool _busy = false;
   bool _tried = false;
+
+  /// A failure of the request itself (shown above the submit bar).
   String? _error;
+
+  /// The sections' own messages after a submit that was refused here.
+  String? _locationError;
+  String? _paymentError;
+  String? _photoError;
 
   static final _e164 = RegExp(r'^\+[1-9][0-9]{7,14}$');
 
@@ -86,11 +98,7 @@ class _RechargeApplyScreenState extends ConsumerState<RechargeApplyScreen> {
     super.dispose();
   }
 
-  List<String> get _countries => [
-    for (final l in _locations)
-      if (l.country.text.trim().length == 2)
-        l.country.text.trim().toUpperCase(),
-  ];
+  List<String> get _countries => [for (final l in _locations) ?l.country];
 
   String? _nameError(AppLocalizations l10n) {
     final words = _name.text.trim().split(RegExp(r'\s+'));
@@ -113,46 +121,42 @@ class _RechargeApplyScreenState extends ConsumerState<RechargeApplyScreen> {
 
   Future<void> _submit() async {
     final l10n = context.l10n;
-    setState(() {
-      _tried = true;
-      _error = null;
-    });
-    final locations = <RechargeLocation>[];
-    for (final l in _locations) {
-      final country = l.country.text.trim().toUpperCase();
-      final cities = [
-        for (final c in l.cities.text.split(RegExp('[,،]')))
-          if (c.trim().isNotEmpty) c.trim(),
-      ];
-      if (!RegExp(r'^[A-Z]{2}$').hasMatch(country) || cities.isEmpty) {
-        setState(() => _error = l10n.rechargeLocationError);
-        return;
-      }
-      locations.add((country: country, cities: cities));
-    }
+    final locations = <RechargeLocation>[
+      for (final l in _locations)
+        if (l.country case final c? when l.cityList.isNotEmpty)
+          (country: c, cities: l.cityList),
+    ];
     final payments = [
       for (final p in _payments)
         (country: p.country, type: p.type, details: p.details.text.trim()),
     ];
-    if (payments.any(
-      (p) => p.details.isEmpty || !locations.any((l) => l.country == p.country),
-    )) {
-      setState(() => _error = l10n.rechargePaymentError);
-      return;
-    }
     final photo = _photo;
     final selfie = _selfie;
-    if (_nameError(l10n) != null || _phoneError(l10n) != null) return;
-    if (photo == null || selfie == null) {
-      setState(() => _error = l10n.rechargeMissingPhotos);
+    final locationsOk = locations.length == _locations.length;
+    final paymentsOk = !payments.any(
+      (p) => p.details.isEmpty || !locations.any((l) => l.country == p.country),
+    );
+    final photosOk =
+        photo != null &&
+        selfie != null &&
+        sniffImageType(photo) != null &&
+        sniffImageType(selfie) != null;
+    setState(() {
+      _tried = true;
+      _error = null;
+      _locationError = locationsOk ? null : l10n.rechargeLocationError;
+      _paymentError = paymentsOk ? null : l10n.rechargePaymentError;
+      _photoError = photosOk ? null : l10n.rechargeMissingPhotos;
+    });
+    if (!locationsOk ||
+        !paymentsOk ||
+        !photosOk ||
+        _nameError(l10n) != null ||
+        _phoneError(l10n) != null) {
       return;
     }
-    final photoType = sniffImageType(photo);
-    final selfieType = sniffImageType(selfie);
-    if (photoType == null || selfieType == null) {
-      setState(() => _error = l10n.rechargeMissingPhotos);
-      return;
-    }
+    final photoType = sniffImageType(photo)!;
+    final selfieType = sniffImageType(selfie)!;
     setState(() => _busy = true);
     try {
       await ref
@@ -195,11 +199,16 @@ class _RechargeApplyScreenState extends ConsumerState<RechargeApplyScreen> {
     required IconData icon,
     required VoidCallback onPick,
   }) {
+    final l10n = context.l10n;
     final p = context.palette;
     final t = context.textStyles;
+    final added = bytes != null;
+    final missing = _tried && !added;
     return Semantics(
       button: true,
-      label: '$title. $hint',
+      label:
+          '$title. $hint. '
+          '${added ? l10n.rechargePhotoAdded : l10n.rechargePhotoRequired}',
       excludeSemantics: true,
       child: InkWell(
         key: key,
@@ -208,20 +217,25 @@ class _RechargeApplyScreenState extends ConsumerState<RechargeApplyScreen> {
         child: Container(
           padding: const EdgeInsets.all(KSpacing.sm),
           decoration: BoxDecoration(
+            color: p.surface,
             border: Border.all(
-              color: _tried && bytes == null ? p.error : p.border,
+              color: missing
+                  ? p.error
+                  : added
+                  ? p.success
+                  : p.border,
             ),
             borderRadius: BorderRadius.circular(KRadius.md),
           ),
           child: Column(
             children: [
               SizedBox.square(
-                dimension: 84,
+                dimension: 72,
                 child: ClipOval(
                   child: bytes == null
                       ? ColoredBox(
                           color: p.surfaceOverlay,
-                          child: Icon(icon, size: 36, color: p.textSecondary),
+                          child: Icon(icon, size: 32, color: p.textSecondary),
                         )
                       : Image.memory(bytes, fit: BoxFit.cover),
                 ),
@@ -237,10 +251,48 @@ class _RechargeApplyScreenState extends ConsumerState<RechargeApplyScreen> {
                 textAlign: TextAlign.center,
                 style: t.caption.copyWith(color: p.textSecondary),
               ),
+              const SizedBox(height: KSpacing.xs),
+              RechargePill(
+                label: added
+                    ? l10n.rechargePhotoAdded
+                    : l10n.rechargePhotoRequired,
+                color: added ? p.success : (missing ? p.error : null),
+                dot: true,
+              ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  /// A country dropdown over [rechargeCountries] (names in the app
+  /// language).
+  Widget _countryField({
+    required Key key,
+    required String? value,
+    required List<String> options,
+    required ValueChanged<String?> onChanged,
+  }) {
+    final l10n = context.l10n;
+    return DropdownButtonFormField<String>(
+      key: key,
+      initialValue: options.contains(value) ? value : null,
+      isExpanded: true,
+      decoration: InputDecoration(labelText: l10n.rechargeCountry),
+      hint: Text(l10n.rechargeChooseCountry),
+      items: [
+        for (final c in options)
+          DropdownMenuItem(
+            value: c,
+            child: Text(
+              rechargeCountryName(context, c),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+      ],
+      onChanged: onChanged,
     );
   }
 
@@ -251,7 +303,6 @@ class _RechargeApplyScreenState extends ConsumerState<RechargeApplyScreen> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final p = context.palette;
-    final t = context.textStyles;
     final countries = _countries;
     return Scaffold(
       backgroundColor: p.background,
@@ -260,155 +311,180 @@ class _RechargeApplyScreenState extends ConsumerState<RechargeApplyScreen> {
         centerTitle: true,
         title: Text(l10n.rechargeApplyTitle),
       ),
+      // Owner polish: the submit button stays in reach.
+      bottomNavigationBar: _SubmitBar(
+        error: _error,
+        busy: _busy,
+        onSubmit: () => unawaited(_submit()),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(KSpacing.lg),
         children: [
-          RechargeNotice(
-            icon: Icons.lock_outline_rounded,
-            text: l10n.rechargePrivacyNote,
-          ),
-          const SizedBox(height: KSpacing.md),
-          KTextField(
-            fieldKey: RechargeApplyScreen.nameKey,
-            label: l10n.rechargeFullName,
-            helperText: l10n.rechargeFullNameHint,
-            controller: _name,
-            maxLength: 120,
-            errorText: _tried ? _nameError(l10n) : null,
-            onChanged: (_) => setState(() {}),
-          ),
-          const SizedBox(height: KSpacing.sm),
-          KTextField(
-            fieldKey: RechargeApplyScreen.phoneKey,
-            label: l10n.rechargePhone,
-            helperText: l10n.rechargePhoneHint,
-            controller: _phone,
-            keyboardType: TextInputType.phone,
-            textDirection: TextDirection.ltr,
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp('[+0-9]')),
-              LengthLimitingTextInputFormatter(16),
-            ],
-            errorText: _tried ? _phoneError(l10n) : null,
-            onChanged: (_) => setState(() {}),
-          ),
-          const SizedBox(height: KSpacing.md),
-          Row(
-            children: [
-              Expanded(
-                child: _picture(
-                  key: RechargeApplyScreen.photoKey,
-                  title: l10n.rechargePhoto,
-                  hint: l10n.rechargePhotoHint,
-                  bytes: _photo,
-                  icon: Icons.person_rounded,
-                  onPick: () => unawaited(_pick(false)),
+          RechargeSection(
+            step: 1,
+            title: l10n.rechargeApplyStepPersonal,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                KTextField(
+                  fieldKey: RechargeApplyScreen.nameKey,
+                  label: l10n.rechargeFullName,
+                  helperText: l10n.rechargeFullNameHint,
+                  controller: _name,
+                  maxLength: 120,
+                  errorText: _tried ? _nameError(l10n) : null,
+                  onChanged: (_) => setState(() {}),
                 ),
-              ),
-              const SizedBox(width: KSpacing.sm),
-              Expanded(
-                child: _picture(
-                  key: RechargeApplyScreen.selfieKey,
-                  title: l10n.rechargeSelfie,
-                  hint: l10n.rechargeSelfieHint,
-                  bytes: _selfie,
-                  icon: Icons.face_retouching_natural_rounded,
-                  onPick: () => unawaited(_pick(true)),
+                const SizedBox(height: KSpacing.sm),
+                KTextField(
+                  fieldKey: RechargeApplyScreen.phoneKey,
+                  label: l10n.rechargePhone,
+                  helperText: l10n.rechargePhoneHint,
+                  controller: _phone,
+                  keyboardType: TextInputType.phone,
+                  textDirection: TextDirection.ltr,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp('[+0-9]')),
+                    LengthLimitingTextInputFormatter(16),
+                  ],
+                  errorText: _tried ? _phoneError(l10n) : null,
+                  onChanged: (_) => setState(() {}),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-          const SizedBox(height: KSpacing.lg),
-          Text(
-            l10n.rechargeLocations,
-            style: t.bodyStrong.copyWith(color: p.textPrimary),
-          ),
-          const SizedBox(height: KSpacing.xs),
-          for (final (i, l) in _locations.indexed)
-            Padding(
-              padding: const EdgeInsets.only(bottom: KSpacing.sm),
+          RechargeSection(
+            step: 2,
+            title: l10n.rechargeApplyStepPhotos,
+            error: _tried && (_photo == null || _selfie == null)
+                ? _photoError ?? l10n.rechargeMissingPhotos
+                : null,
+            child: IntrinsicHeight(
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  SizedBox(
-                    width: 92,
-                    child: KTextField(
-                      fieldKey: RechargeApplyScreen.countryKey(i),
-                      label: l10n.rechargeCountry,
-                      controller: l.country,
-                      textDirection: TextDirection.ltr,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp('[A-Za-z]')),
-                        LengthLimitingTextInputFormatter(2),
-                      ],
-                      onChanged: (_) => setState(() {}),
-                    ),
-                  ),
-                  const SizedBox(width: KSpacing.xs),
                   Expanded(
-                    child: KTextField(
-                      fieldKey: RechargeApplyScreen.citiesKey(i),
-                      label: l10n.rechargeCities,
-                      controller: l.cities,
+                    child: _picture(
+                      key: RechargeApplyScreen.photoKey,
+                      title: l10n.rechargePhoto,
+                      hint: l10n.rechargePhotoHint,
+                      bytes: _photo,
+                      icon: Icons.person_rounded,
+                      onPick: () => unawaited(_pick(false)),
                     ),
                   ),
-                  if (_locations.length > 1)
-                    IconButton(
-                      tooltip: l10n.rechargeRemove,
-                      onPressed: () => setState(() {
-                        _locations.removeAt(i).dispose();
-                      }),
-                      icon: Icon(Icons.close_rounded, color: p.textSecondary),
+                  const SizedBox(width: KSpacing.sm),
+                  Expanded(
+                    child: _picture(
+                      key: RechargeApplyScreen.selfieKey,
+                      title: l10n.rechargeSelfie,
+                      hint: l10n.rechargeSelfieHint,
+                      bytes: _selfie,
+                      icon: Icons.face_retouching_natural_rounded,
+                      onPick: () => unawaited(_pick(true)),
                     ),
+                  ),
                 ],
               ),
             ),
-          if (_locations.length < 10)
-            TextButton.icon(
-              key: RechargeApplyScreen.addLocationKey,
-              onPressed: () => setState(() => _locations.add(_Location())),
-              icon: const Icon(Icons.add_location_alt_rounded),
-              label: Text(l10n.rechargeAddLocation),
-            ),
-          const SizedBox(height: KSpacing.md),
-          Text(
-            l10n.rechargePaymentMethods,
-            style: t.bodyStrong.copyWith(color: p.textPrimary),
           ),
-          const SizedBox(height: KSpacing.xs),
-          for (final (i, pay) in _payments.indexed)
-            Container(
-              key: RechargeApplyScreen.paymentKey(i),
-              margin: const EdgeInsets.only(bottom: KSpacing.sm),
-              padding: const EdgeInsets.all(KSpacing.sm),
-              decoration: BoxDecoration(
-                border: Border.all(color: p.border),
-                borderRadius: BorderRadius.circular(KRadius.md),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          initialValue: countries.contains(pay.country)
-                              ? pay.country
-                              : null,
-                          decoration: InputDecoration(
-                            labelText: l10n.rechargeCountry,
-                          ),
-                          items: [
-                            for (final c in countries)
-                              DropdownMenuItem(value: c, child: Text(c)),
+          RechargeSection(
+            step: 3,
+            title: l10n.rechargeLocations,
+            error: _locationError,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final (i, l) in _locations.indexed)
+                  _LocationEditor(
+                    key: ObjectKey(l),
+                    index: i,
+                    location: l,
+                    country: _countryField(
+                      key: RechargeApplyScreen.countryKey(i),
+                      value: l.country,
+                      options: [
+                        for (final c in rechargeCountries)
+                          if (c == l.country || !countries.contains(c)) c,
+                      ],
+                      onChanged: (c) => setState(() {
+                        l.country = c;
+                        _locationError = null;
+                        // A payment method without a country takes it.
+                        for (final pay in _payments) {
+                          if (pay.country.isEmpty && c != null) pay.country = c;
+                        }
+                      }),
+                    ),
+                    onChanged: () => setState(() => _locationError = null),
+                    onRemove: _locations.length > 1
+                        ? () => setState(() {
+                            _locations.removeAt(i).dispose();
+                          })
+                        : null,
+                  ),
+                if (_locations.length < 10)
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: TextButton.icon(
+                      key: RechargeApplyScreen.addLocationKey,
+                      onPressed: () =>
+                          setState(() => _locations.add(_Location())),
+                      icon: const Icon(Icons.add_location_alt_rounded),
+                      label: Text(l10n.rechargeAddLocation),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          RechargeSection(
+            step: 4,
+            title: l10n.rechargePaymentMethods,
+            error: _paymentError,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final (i, pay) in _payments.indexed)
+                  Container(
+                    key: RechargeApplyScreen.paymentKey(i),
+                    margin: const EdgeInsets.only(bottom: KSpacing.sm),
+                    padding: const EdgeInsets.all(KSpacing.sm),
+                    decoration: BoxDecoration(
+                      color: p.surface,
+                      border: Border.all(color: p.border),
+                      borderRadius: BorderRadius.circular(KRadius.md),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _countryField(
+                                key: ValueKey('recharge.apply.payCountry.$i'),
+                                value: pay.country,
+                                options: countries,
+                                onChanged: (c) => setState(() {
+                                  pay.country = c ?? '';
+                                  _paymentError = null;
+                                }),
+                              ),
+                            ),
+                            if (_payments.length > 1)
+                              IconButton(
+                                tooltip: l10n.rechargeRemove,
+                                onPressed: () => setState(() {
+                                  _payments.removeAt(i).details.dispose();
+                                }),
+                                icon: Icon(
+                                  Icons.close_rounded,
+                                  color: p.textSecondary,
+                                ),
+                              ),
                           ],
-                          onChanged: (c) =>
-                              setState(() => pay.country = c ?? ''),
                         ),
-                      ),
-                      const SizedBox(width: KSpacing.xs),
-                      Expanded(
-                        flex: 2,
-                        child: DropdownButtonFormField<RechargePaymentType>(
+                        const SizedBox(height: KSpacing.sm),
+                        DropdownButtonFormField<RechargePaymentType>(
                           initialValue: pay.type,
                           isExpanded: true,
                           decoration: InputDecoration(
@@ -425,57 +501,175 @@ class _RechargeApplyScreenState extends ConsumerState<RechargeApplyScreen> {
                             () => pay.type = ty ?? RechargePaymentType.other,
                           ),
                         ),
-                      ),
-                      if (_payments.length > 1)
-                        IconButton(
-                          tooltip: l10n.rechargeRemove,
-                          onPressed: () => setState(() {
-                            _payments.removeAt(i).details.dispose();
-                          }),
-                          icon: Icon(
-                            Icons.close_rounded,
-                            color: p.textSecondary,
-                          ),
+                        const SizedBox(height: KSpacing.sm),
+                        KTextField(
+                          label: l10n.rechargePaymentDetails,
+                          controller: pay.details,
+                          maxLength: 200,
+                          onChanged: (_) =>
+                              setState(() => _paymentError = null),
                         ),
-                    ],
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: KSpacing.xs),
-                  KTextField(
-                    label: l10n.rechargePaymentDetails,
-                    controller: pay.details,
-                    maxLength: 200,
+                if (_payments.length < 30)
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: TextButton.icon(
+                      key: RechargeApplyScreen.addPaymentKey,
+                      onPressed: () => setState(
+                        () => _payments.add(
+                          _Payment(countries.isEmpty ? '' : countries.first),
+                        ),
+                      ),
+                      icon: const Icon(Icons.add_card_rounded),
+                      label: Text(l10n.rechargeAddPayment),
+                    ),
                   ),
-                ],
-              ),
+              ],
             ),
-          if (_payments.length < 30)
-            TextButton.icon(
-              key: RechargeApplyScreen.addPaymentKey,
-              onPressed: () => setState(
-                () => _payments.add(
-                  _Payment(countries.isEmpty ? '' : countries.first),
-                ),
-              ),
-              icon: const Icon(Icons.add_card_rounded),
-              label: Text(l10n.rechargeAddPayment),
+          ),
+          RechargeSection(
+            icon: Icons.lock_outline_rounded,
+            title: l10n.rechargeApplyStepPrivacy,
+            child: RechargeNotice(
+              icon: Icons.lock_outline_rounded,
+              text: l10n.rechargePrivacyNote,
             ),
-          if (_error case final e?)
-            Padding(
-              padding: const EdgeInsets.only(top: KSpacing.sm),
-              child: Text(
-                e,
-                key: const Key('recharge.apply.error'),
-                style: t.caption.copyWith(color: p.error),
-              ),
-            ),
-          const SizedBox(height: KSpacing.lg),
-          KButton(
-            key: RechargeApplyScreen.submitKey,
-            label: l10n.rechargeSubmit,
-            loading: _busy,
-            onPressed: _busy ? null : () => unawaited(_submit()),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// One selling place: the country and its cities (typed with commas, shown
+/// as chips as they are typed).
+class _LocationEditor extends StatefulWidget {
+  const new({
+    required this.index,
+    required this.location,
+    required this.country,
+    required this.onChanged,
+    super.key,
+    this.onRemove,
+  });
+
+  final int index;
+  final _Location location;
+  final Widget country;
+  final VoidCallback onChanged;
+  final VoidCallback? onRemove;
+
+  @override
+  State<_LocationEditor> createState() => _LocationEditorState();
+}
+
+class _LocationEditorState extends State<_LocationEditor> {
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final p = context.palette;
+    final cities = widget.location.cityList;
+    return Container(
+      margin: const EdgeInsets.only(bottom: KSpacing.sm),
+      padding: const EdgeInsets.all(KSpacing.sm),
+      decoration: BoxDecoration(
+        color: p.surface,
+        border: Border.all(color: p.border),
+        borderRadius: BorderRadius.circular(KRadius.md),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(child: widget.country),
+              if (widget.onRemove case final remove?)
+                IconButton(
+                  tooltip: l10n.rechargeRemove,
+                  onPressed: remove,
+                  icon: Icon(Icons.close_rounded, color: p.textSecondary),
+                ),
+            ],
+          ),
+          const SizedBox(height: KSpacing.sm),
+          KTextField(
+            fieldKey: RechargeApplyScreen.citiesKey(widget.index),
+            label: l10n.rechargeCities,
+            controller: widget.location.cities,
+            onChanged: (_) {
+              setState(() {});
+              widget.onChanged();
+            },
+          ),
+          if (cities.isNotEmpty) ...[
+            const SizedBox(height: KSpacing.xs),
+            Wrap(
+              spacing: KSpacing.xs,
+              runSpacing: KSpacing.xs,
+              children: [
+                for (final c in cities)
+                  RechargePill(label: c, color: p.primaryText),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// The sticky bar: the request's failure (if any) and «إرسال الطلب».
+class _SubmitBar extends StatelessWidget {
+  const new({required this.error, required this.busy, required this.onSubmit});
+
+  final String? error;
+  final bool busy;
+  final VoidCallback onSubmit;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final p = context.palette;
+    final t = context.textStyles;
+    final error = this.error;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: p.surfaceRaised,
+        border: Border(top: BorderSide(color: p.border)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            KSpacing.lg,
+            KSpacing.sm,
+            KSpacing.lg,
+            KSpacing.sm,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (error != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: KSpacing.xs),
+                  child: Text(
+                    error,
+                    key: const Key('recharge.apply.error'),
+                    style: t.caption.copyWith(color: p.error),
+                  ),
+                ),
+              KButton(
+                key: RechargeApplyScreen.submitKey,
+                label: l10n.rechargeSubmit,
+                loading: busy,
+                onPressed: busy ? null : onSubmit,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

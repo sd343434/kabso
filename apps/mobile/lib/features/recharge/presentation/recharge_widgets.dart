@@ -72,7 +72,10 @@ class RechargeNotice extends StatelessWidget {
   }
 }
 
-/// A row that opens another page or sheet.
+/// A row that opens another page or sheet: an icon in a tinted tile, the
+/// title and a one- or two-line subtitle, and the chevron. Inside a
+/// [RechargeNavGroup] ([inGroup]) it takes the group's surface; alone it is
+/// its own raised row.
 class RechargeNavRow extends StatelessWidget {
   const new({
     required this.icon,
@@ -80,66 +83,295 @@ class RechargeNavRow extends StatelessWidget {
     required this.onTap,
     super.key,
     this.subtitle,
+    this.inGroup = false,
   });
 
   final IconData icon;
   final String title;
   final String? subtitle;
   final VoidCallback onTap;
+  final bool inGroup;
 
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
     final t = context.textStyles;
+    final row = InkWell(
+      borderRadius: BorderRadius.circular(inGroup ? 0 : KRadius.md),
+      onTap: onTap,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: KSizes.minTouchTarget),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: KSpacing.md,
+            vertical: KSpacing.sm,
+          ),
+          child: Row(
+            children: [
+              RechargeIconTile(icon: icon),
+              const SizedBox(width: KSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: t.bodyStrong.copyWith(color: p.textPrimary),
+                    ),
+                    if (subtitle case final s?)
+                      Text(
+                        s,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: t.caption.copyWith(color: p.textSecondary),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: KSpacing.xs),
+              Icon(
+                Directionality.of(context) == TextDirection.rtl
+                    ? Icons.chevron_left_rounded
+                    : Icons.chevron_right_rounded,
+                color: p.textTertiary,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (inGroup) return Material(type: MaterialType.transparency, child: row);
     return Padding(
       padding: const EdgeInsets.only(bottom: KSpacing.xs),
       child: Material(
         color: p.surfaceRaised,
         borderRadius: BorderRadius.circular(KRadius.md),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(KRadius.md),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: KSpacing.md,
-              vertical: KSpacing.sm,
-            ),
-            child: Row(
-              children: [
-                Icon(icon, color: p.primary),
-                const SizedBox(width: KSpacing.sm),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: t.bodyStrong.copyWith(color: p.textPrimary),
-                      ),
-                      if (subtitle case final s?)
-                        Text(
-                          s,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: t.caption.copyWith(color: p.textSecondary),
-                        ),
-                    ],
-                  ),
-                ),
-                Icon(
-                  Directionality.of(context) == TextDirection.rtl
-                      ? Icons.chevron_left_rounded
-                      : Icons.chevron_right_rounded,
-                  color: p.textSecondary,
-                ),
-              ],
-            ),
-          ),
-        ),
+        child: row,
       ),
     );
   }
 }
+
+/// A rounded tile with the primary colour's tint behind [icon] (the rows'
+/// and the cards' one icon style).
+class RechargeIconTile extends StatelessWidget {
+  const new({required this.icon, super.key, this.size = 40, this.color});
+
+  final IconData icon;
+  final double size;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = color ?? context.palette.primaryText;
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: c.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(KRadius.sm),
+      ),
+      child: Icon(icon, size: size * 0.55, color: c),
+    );
+  }
+}
+
+/// Rows that belong together in one card, separated by hairlines.
+class RechargeNavGroup extends StatelessWidget {
+  const new({required this.children, super.key});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: p.surfaceRaised,
+        borderRadius: BorderRadius.circular(KRadius.lg),
+        border: Border.all(color: p.border),
+      ),
+      child: Column(
+        children: [
+          for (final (i, c) in children.indexed) ...[
+            if (i > 0)
+              Divider(
+                height: 1,
+                thickness: 1,
+                indent: KSpacing.md + 40 + KSpacing.md,
+                color: p.border,
+              ),
+            c,
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// A small rounded label: a status («نشط») or a fact («محفظة إلكترونية»).
+class RechargePill extends StatelessWidget {
+  const new({required this.label, super.key, this.color, this.dot = false});
+
+  final String label;
+
+  /// The tint; the neutral surface when null.
+  final Color? color;
+
+  /// A leading dot (a status).
+  final bool dot;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final t = context.textStyles;
+    final c = color;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: c == null ? p.surfaceOverlay : c.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(KRadius.pill),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (dot) ...[
+            Container(
+              width: 7,
+              height: 7,
+              decoration: BoxDecoration(
+                color: c ?? p.textSecondary,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 5),
+          ],
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: t.caption.copyWith(
+                color: c ?? p.textSecondary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A form section: a numbered step, its title, the fields and, after a
+/// failed submit, the section's own message.
+class RechargeSection extends StatelessWidget {
+  const new({
+    required this.title,
+    required this.child,
+    super.key,
+    this.step,
+    this.icon,
+    this.error,
+  });
+
+  final String title;
+  final Widget child;
+  final int? step;
+  final IconData? icon;
+  final String? error;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final t = context.textStyles;
+    final error = this.error;
+    return Container(
+      margin: const EdgeInsets.only(bottom: KSpacing.md),
+      padding: const EdgeInsets.all(KSpacing.md),
+      decoration: BoxDecoration(
+        color: p.surfaceRaised,
+        borderRadius: BorderRadius.circular(KRadius.lg),
+        border: Border.all(color: error == null ? p.border : p.error),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 26,
+                height: 26,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: p.primary,
+                  shape: BoxShape.circle,
+                ),
+                child: step == null
+                    ? Icon(icon, size: 15, color: p.onPrimary)
+                    : Text(
+                        '$step',
+                        textScaler: TextScaler.noScaling,
+                        style: t.label.copyWith(color: p.onPrimary),
+                      ),
+              ),
+              const SizedBox(width: KSpacing.sm),
+              Expanded(
+                child: Text(
+                  title,
+                  style: t.bodyStrong.copyWith(color: p.textPrimary),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: KSpacing.md),
+          child,
+          if (error != null) ...[
+            const SizedBox(height: KSpacing.xs),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.error_outline_rounded, size: 16, color: p.error),
+                const SizedBox(width: KSpacing.xs),
+                Expanded(
+                  child: Text(error, style: t.caption.copyWith(color: p.error)),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Digits grouped by thousands as they are typed («1,000,000»); the value is
+/// [rechargeDigitsValue] of the text.
+class RechargeGroupedDigitsFormatter extends TextInputFormatter {
+  const new({this.maxDigits = 13});
+
+  final int maxDigits;
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    var digits = newValue.text.replaceAll(RegExp('[^0-9]'), '');
+    digits = digits.replaceFirst(RegExp('^0+(?=[0-9])'), '');
+    if (digits.length > maxDigits) digits = digits.substring(0, maxDigits);
+    final text = digits.isEmpty ? '' : KFormat.grouped(int.parse(digits));
+    return TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
+  }
+}
+
+/// The number in a [RechargeGroupedDigitsFormatter] field (null when empty).
+int? rechargeDigitsValue(String text) =>
+    int.tryParse(text.replaceAll(RegExp('[^0-9]'), ''));
 
 /// «في الدوام الآن» / «خارج الدوام».
 class RechargeShiftChip extends StatelessWidget {

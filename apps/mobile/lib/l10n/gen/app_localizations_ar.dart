@@ -9679,11 +9679,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get rechargeSellInvalid => 'اكتب المشتري وعدد العملات';
 
   @override
-  String rechargeSellConfirm(String coins, String buyer) {
-    return 'بيع $coins عملة إلى $buyer؟ لا يمكن التراجع.';
-  }
-
-  @override
   String rechargeSold(String coins, String buyer) {
     return 'أُرسلت $coins عملة إلى $buyer';
   }
@@ -10092,4 +10087,74 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get errorHostFrameStyleFromGender =>
       'لون إطار المضيف يتبع الجنس في ملفك.';
+
+  @override
+  String get rechargeStatusActive => 'نشط';
+
+  @override
+  String get rechargeStatusSuspended => 'موقوف';
+
+  @override
+  String rechargeCherryTodayNoCap(String today) {
+    return 'كرز المضيفين اليوم: $today';
+  }
+
+  @override
+  String rechargeSalesCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count عملية',
+      many: '$count عملية',
+      few: '$count عمليات',
+      two: 'عمليتان',
+      one: 'عملية واحدة',
+      zero: '$count عملية',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get rechargeMore => 'المزيد';
+
+  @override
+  String get rechargeBuyerNotFound => 'لا يوجد مستخدم بهذا الاسم';
+
+  @override
+  String get rechargeBuyerChecking => 'جارٍ التحقق من المشتري…';
+
+  @override
+  String get rechargeSellOverStock => 'أكثر من المخزون المتاح';
+
+  @override
+  String rechargeStockAfter(String coins) {
+    return 'المخزون بعد البيع: $coins';
+  }
+
+  @override
+  String get rechargeSellConfirmTitle => 'تأكيد البيع';
+
+  @override
+  String get rechargeSellIrreversible => 'لا يمكن التراجع عن البيع بعد تأكيده.';
+
+  @override
+  String get rechargeApplyStepPersonal => 'بياناتك';
+
+  @override
+  String get rechargeApplyStepPhotos => 'الصور';
+
+  @override
+  String get rechargePhotoAdded => 'تمت الإضافة';
+
+  @override
+  String get rechargePhotoRequired => 'مطلوبة';
+
+  @override
+  String get rechargeApplyStepPrivacy => 'الخصوصية';
+
+  @override
+  String get rechargeChooseCountry => 'اختر الدولة';
+
+  @override
+  String get rechargeStockAfterLabel => 'المخزون بعد البيع';
 }

@@ -1,8 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/misc.dart' show AsyncNotifierProviderFamily;
+import 'package:flutter_riverpod/misc.dart'
+    show AsyncNotifierProviderFamily, FutureProviderFamily;
+import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/core/state/paged_list.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/profile/data/profile_repository.dart';
+import 'package:kabso_live/features/profile/domain/profile_models.dart';
 import 'package:kabso_live/features/recharge/data/recharge_repository.dart';
 
 /// D185: the caller as a recharge agent, applicant or employee
@@ -62,3 +66,16 @@ final AsyncNotifierProvider<
 rechargeCherryRequestsProvider = AsyncNotifierProvider.autoDispose(
   RechargeCherryRequestsController.new,
 );
+
+/// D185 (owner polish): the buyer the sell sheet names, looked up by
+/// username (`GET /users/{username}`) for the preview. Null when nobody has
+/// that username (404); other failures stay errors.
+final FutureProviderFamily<PublicProfile?, String> rechargeBuyerProvider =
+    FutureProvider.autoDispose.family((ref, username) async {
+      try {
+        return await ref.watch(profileRepositoryProvider).getProfile(username);
+      } on ServerFailure catch (e) {
+        if (e.code == ErrorCode.notFound) return null;
+        rethrow;
+      }
+    });
