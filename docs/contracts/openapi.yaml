@@ -231,6 +231,16 @@ info:
     stored videos keep their length); `updateMe` also edits `displayName` and `bio`; the profile
     photo is uploaded as media kind `AVATAR` and set or removed with `setMyAvatar` /
     `removeMyAvatar` (`PUT` / `DELETE /me/avatar`) (CONVENTIONS §10.42, §11.1, §11.14).
+    **D175 (DRAFT v1.47-social, CP-025; v1.46-social left free for another branch)**: profile fields,
+    private accounts and follow requests (CONVENTIONS §10.43). `register` takes a required `gender`
+    (`Gender`: MALE, FEMALE, UNDISCLOSED); `updateMe` edits `gender`, `showGender`, `category`
+    (`AccountCategory`) and up to 3 https `links` (`ProfileLinkInput`); `Me` and `PublicProfile` carry
+    them (`PublicProfile.gender` only when shown; `ProfileLink.platform`); `updatePrivacy` takes
+    `isPrivate`; a new follow of a private account creates a follow request (`FollowState.isRequested`,
+    `PublicProfile.followRequested`, `FollowListItem.requestedByMe`) answered with
+    `listFollowRequests`, `acceptFollowRequest`, `declineFollowRequest` (`/me/follow-requests`); notification
+    types `FOLLOW_REQUEST`, `FOLLOW_REQUEST_ACCEPTED`, `AVATAR_REMOVED`; report target `PROFILE_LINK`;
+    code `FOLLOW_REQUEST_NOT_PENDING` (409).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -600,11 +610,14 @@ paths:
     patch:
       tags: [me]
       operationId: updateMe
-      summary: "Update the caller's preferences and profile (v1.2: locale; v1.27.1-live: country; v1.45-social: displayName, bio)"
+      summary: "Update the caller's preferences and profile (v1.2: locale; v1.27.1-live: country; v1.45-social: displayName, bio; v1.47-social: gender, showGender, category, links)"
       description: |
         v1.27.1-live (D133): `locale` is no longer required and `country` is added; at least one of
         them must be sent (an empty object → 400 `body` / `required`). v1.45-social (D168,
-        CONVENTIONS §10.42): `displayName` and `bio` may be sent too (at least one field of the four). `country` is an ISO 3166-1
+        CONVENTIONS §10.42): `displayName` and `bio` may be sent too (at least one field of the four).
+        v1.47-social (D175, CONVENTIONS §10.43): `gender`, `showGender`, `category` and `links` too (at
+        least one field of the eight); a change of any profile field is audited `user.profile.update`
+        with the field names only. `country` is an ISO 3166-1
         alpha-2 code (two letters; lower case is accepted and stored upper case; `XK` and groupings
         such as `EU` are not countries here), or null to clear it;
         another value → 400 (`field "country"`, `issue "invalid_value"`). It is the caller's own
@@ -638,6 +651,25 @@ paths:
                     trailing spaces of each line removed) at most 300 code points and 4 line breaks, the
                     free-text hygiene of §6 on each line (`too_long`, `invalid_format` on field `bio`). An
                     empty value or null clears it (`Me.bio` null).
+                gender:
+                  allOf: [{ $ref: '#/components/schemas/Gender' }]
+                  description: v1.47-social (D175). Cannot be cleared once chosen (`UNDISCLOSED` is «أفضّل عدم الذكر»).
+                showGender:
+                  type: boolean
+                  description: v1.47-social (D175). Whether others see the gender on the profile (default false).
+                category:
+                  description: v1.47-social (D175). The account category shown under the name; null clears it.
+                  oneOf:
+                    - $ref: '#/components/schemas/AccountCategory'
+                    - type: 'null'
+                links:
+                  type: array
+                  maxItems: 3
+                  description: |
+                    v1.47-social (D175, CONVENTIONS §10.43). The whole set, in order (an empty array clears
+                    them); more than 3 → `links` / `too_many`; the same link twice → `links.<i>.url` /
+                    `invalid_value`; each link's issues on `links.<i>.url` / `links.<i>.label`.
+                  items: { $ref: '#/components/schemas/ProfileLinkInput' }
       responses:
         '200':
           description: Updated user.
@@ -1074,6 +1106,7 @@ paths:
                     followerCount: 12
                     followingCount: 40
                     isFollowing: true
+                    followRequested: false
                     isMuted: false
                     isSelf: false
                     liveRoomId: 0192f1d0-1111-7aaa-8bbb-0c0d0e0f1011
@@ -1095,6 +1128,10 @@ paths:
                       showcase:
                         - { code: FIRST_LIVE, name: أول لايف, iconKey: medal_first_live }
                     profileCard: { code: bunny_royal, assetKey: header_bunny_royal }
+                    gender: FEMALE
+                    category: SINGER
+                    links:
+                      - { id: 0192f1d0-7777-7000-8000-000000000009, url: 'https://www.instagram.com/layla.k', label: Instagram, platform: INSTAGRAM }
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -1108,22 +1145,23 @@ paths:
         CONVENTIONS §10.6. Following someone already followed is a no-op that returns 200 with
         the same body. Target unknown / suspended / deleted / malformed → 404 `NOT_FOUND`. The
         caller's own username → 400 `VALIDATION_FAILED` (`field: "username"`,
-        `issue: "invalid_value"`). Target with `isPrivate = true` → 403 `AUTH_FORBIDDEN` for a
-        **new** follow (follow requests are deferred). v1.3.1 (QA-002): a caller who already
-        follows a private target gets the idempotent 200 `{isFollowing: true, …}`; no edge is
-        created.
+        `issue: "invalid_value"`). v1.3.1 (QA-002): a caller who already follows a private target
+        gets the idempotent 200 `{isFollowing: true, …}`; no edge is created. v1.47-social (D175,
+        CONVENTIONS §10.43): a **new** follow of a private target (`isPrivate = true`; it was 403
+        `AUTH_FORBIDDEN` before) creates a follow request instead → 200 `{isFollowing: false,
+        isRequested: true, followerCount}`; repeating it changes nothing; the target gets a
+        `FOLLOW_REQUEST` notification. `unfollowUser` cancels the request.
       parameters:
         - $ref: '#/components/parameters/UsernamePath'
       responses:
         '200':
-          description: The caller now follows the user.
+          description: The caller now follows the user, or (private target) has asked to.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/FollowState' }
-              example: { isFollowing: true, followerCount: 13 }
+              example: { isFollowing: true, isRequested: false, followerCount: 13 }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
-        '403': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
     delete:
@@ -1132,7 +1170,8 @@ paths:
       summary: "Unfollow a user (idempotent, v1.3)"
       description: |
         CONVENTIONS §10.6. Unfollowing someone not followed is a no-op that returns 200. Errors
-        as for `followUser`, except that a private target can always be unfollowed (no 403).
+        as for `followUser`. v1.47-social (D175): also cancels the caller's pending follow request
+        (its notification is withdrawn); the answer then has `isRequested: false`.
       parameters:
         - $ref: '#/components/parameters/UsernamePath'
       responses:
@@ -1141,7 +1180,7 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/FollowState' }
-              example: { isFollowing: false, followerCount: 12 }
+              example: { isFollowing: false, isRequested: false, followerCount: 12 }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
@@ -1179,7 +1218,7 @@ paths:
               schema: { $ref: '#/components/schemas/FollowListPage' }
               example:
                 data:
-                  - { id: 2b5c7d3e-8f41-4c2a-9e6b-1d0f3a7c5e92, username: sara_k, displayName: سارة, avatarUrl: null, isSelf: false, isPrivate: false, followedByMe: false, followsMe: true }
+                  - { id: 2b5c7d3e-8f41-4c2a-9e6b-1d0f3a7c5e92, username: sara_k, displayName: سارة, avatarUrl: null, isSelf: false, isPrivate: false, followedByMe: false, requestedByMe: false, followsMe: true }
                 page: { nextCursor: null, hasMore: false }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
@@ -1219,7 +1258,7 @@ paths:
               schema: { $ref: '#/components/schemas/FollowListPage' }
               example:
                 data:
-                  - { id: 7e1a9c4b-3d2f-4b8e-a5c6-0f9d8e7b6a51, username: omar.live, displayName: Omar, avatarUrl: null, isSelf: false, isPrivate: false, followedByMe: true, followsMe: false }
+                  - { id: 7e1a9c4b-3d2f-4b8e-a5c6-0f9d8e7b6a51, username: omar.live, displayName: Omar, avatarUrl: null, isSelf: false, isPrivate: false, followedByMe: true, requestedByMe: false, followsMe: false }
                 page: { nextCursor: null, hasMore: false }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
@@ -1236,7 +1275,7 @@ paths:
         CONVENTIONS §10.6 (v1.26.1-live, D125). Removes the follow `username` → caller. Idempotent:
         when `username` does not follow the caller → 200 with nothing changed. The follow
         notification it sent the caller is withdrawn (as on an unfollow). They are not told and
-        may follow again, unless the caller's account is private (no follow requests, §10.6).
+        may follow again (v1.47-social: by a follow request while the caller's account is private).
         `username` malformed, unknown, suspended or deleted → 404 `NOT_FOUND`; the caller's own
         username → 400 `VALIDATION_FAILED` (`username` / `invalid_value`). Shares the follow /
         unfollow rate-limit buckets (§7).
@@ -1249,6 +1288,79 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/FollowerRemoval' }
               example: { followsMe: false, followerCount: 41 }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/me/follow-requests:
+    get:
+      tags: [me]
+      operationId: listFollowRequests
+      summary: "Pending requests to follow the caller's private account, newest first (v1.47-social, D175)"
+      description: |
+        CONVENTIONS §10.43. Newest request first (its time, then the requester's id), paged with the
+        signed cursor of §5 bound to the caller (another caller's or list's cursor → 400 `cursor` /
+        `invalid_value`). Only ACTIVE requesters with no block either way with the caller (a block
+        deletes the requests between the two). `total` counts every request the list shows. Making the
+        account public (`updatePrivacy`) accepts every pending request.
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page of requests.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FollowRequestPage' }
+              example:
+                data:
+                  - user: { id: 2b5c7d3e-8f41-4c2a-9e6b-1d0f3a7c5e92, username: sara_k, displayName: سارة, avatarUrl: null }
+                    requestedAt: '2026-10-30T09:12:00.000Z'
+                page: { nextCursor: null, hasMore: false }
+                total: 1
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/follow-requests/{username}/accept:
+    post:
+      tags: [me]
+      operationId: acceptFollowRequest
+      summary: "Accept a follow request: the requester follows the caller (v1.47-social, D175)"
+      description: |
+        CONVENTIONS §10.43. The request is deleted and the follow created; the requester gets a
+        `FOLLOW_REQUEST_ACCEPTED` notification and the caller's `FOLLOW_REQUEST` notification is
+        withdrawn. Already a follower → 200 (idempotent). Order after auth and the rate limit (300 / hour
+        / user, shared with `declineFollowRequest`): `username` malformed, unknown, suspended or deleted
+        → 404 `NOT_FOUND`; the caller's own → 400 `username` / `invalid_value`; no pending request → 409
+        `FOLLOW_REQUEST_NOT_PENDING`.
+      parameters:
+        - $ref: '#/components/parameters/UsernamePath'
+      responses:
+        '200':
+          description: The requester follows the caller.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FollowRequestAccepted' }
+              example: { followsMe: true, followerCount: 42 }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/follow-requests/{username}/decline:
+    post:
+      tags: [me]
+      operationId: declineFollowRequest
+      summary: "Decline a follow request (v1.47-social, D175, idempotent)"
+      description: |
+        CONVENTIONS §10.43. The request is deleted (and its `FOLLOW_REQUEST` notification); the requester
+        is not told and may ask again. No pending request → 204 too. Errors and rate limit as for
+        `acceptFollowRequest` (no 409).
+      parameters:
+        - $ref: '#/components/parameters/UsernamePath'
+      responses:
+        '204': { description: Declined (or there was none). }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
@@ -6435,7 +6547,7 @@ paths:
     patch:
       tags: [safety]
       operationId: updatePrivacy
-      summary: "Change privacy settings (partial)"
+      summary: "Change privacy settings (partial; v1.47-social: isPrivate)"
       requestBody:
         required: true
         content:
@@ -7304,13 +7416,16 @@ components:
         appVersion: { type: string, maxLength: 32 }
     RegisterRequest:
       type: object
-      required: [email, password, username, displayName]
+      required: [email, password, username, displayName, gender]
       additionalProperties: false
       properties:
         email: { type: string, format: email, maxLength: 254 }
         password: { $ref: '#/components/schemas/Password' }
         username: { $ref: '#/components/schemas/RegularUsername' }
         displayName: { $ref: '#/components/schemas/DisplayName' }
+        gender:
+          allOf: [{ $ref: '#/components/schemas/Gender' }]
+          description: v1.47-social (D175). Required (owner); kept private unless the user shows it later.
         locale: { $ref: '#/components/schemas/Locale' }
         device: { $ref: '#/components/schemas/DeviceInfo' }
     DisplayName:
@@ -7367,7 +7482,7 @@ components:
         tokens: { $ref: '#/components/schemas/TokenPair' }
     Me:
       type: object
-      required: [id, email, emailVerified, username, displayName, locale, role, isPrivate, createdAt, canHost, liveCoverUrl, country]
+      required: [id, email, emailVerified, username, displayName, locale, role, isPrivate, createdAt, canHost, liveCoverUrl, country, gender, showGender, category, links]
       properties:
         id: { type: string, format: uuid }
         email: { type: string, format: email }
@@ -7397,6 +7512,22 @@ components:
         premiumTier:
           $ref: '#/components/schemas/PremiumUsernameTier'
           description: v1.28-live (D146) — present only while the caller's username is their premium username.
+        gender:
+          description: v1.47-social (D175). The caller's gender; null for accounts made before v1.47 until they choose.
+          oneOf:
+            - $ref: '#/components/schemas/Gender'
+            - type: 'null'
+        showGender: { type: boolean, description: "v1.47-social (D175). Whether others see the gender (default false)." }
+        category:
+          description: v1.47-social (D175). The account category shown under the name, or null.
+          oneOf:
+            - $ref: '#/components/schemas/AccountCategory'
+            - type: 'null'
+        links:
+          type: array
+          maxItems: 3
+          description: v1.47-social (D175). The profile links, in order.
+          items: { $ref: '#/components/schemas/ProfileLink' }
     SessionInfo:
       type: object
       required: [id, current, createdAt, lastUsedAt]
@@ -7429,7 +7560,7 @@ components:
           description: v1.28-live (D146) — present only while the username is the user's premium username (the badge); absent otherwise.
     PublicProfile:
       type: object
-      required: [id, username, displayName, avatarUrl, bio, isPrivate, followerCount, followingCount, isFollowing, isMuted, isSelf, liveRoomId, family, cp, medals, profileCard]
+      required: [id, username, displayName, avatarUrl, bio, isPrivate, followerCount, followingCount, isFollowing, followRequested, isMuted, isSelf, liveRoomId, family, cp, medals, profileCard, gender, category, links]
       properties:
         id: { type: string, format: uuid }
         username: { $ref: '#/components/schemas/Username' }
@@ -7441,7 +7572,11 @@ components:
           description: v1.28-live (D146) — present only while the username is the user's premium username (the badge); absent otherwise.
         isPrivate:
           type: boolean
-          description: When true the user cannot be followed in v1.3 (no follow requests yet); the client hides Follow.
+          description: |
+            A private account (v1.47-social, D175, §10.43): following it creates a follow request; its posts,
+            reels and stories are for the user and their followers only (other callers get 404 on them; the
+            client shows «هذا الحساب خاص»). The profile itself, the counts, the links and lives stay public.
+            (Until v1.47-social a new follow was 403.)
         followerCount:
           type: integer
           minimum: 0
@@ -7453,6 +7588,9 @@ components:
         isFollowing:
           type: boolean
           description: Whether the caller follows this user (always false when isSelf).
+        followRequested:
+          type: boolean
+          description: v1.47-social (D175). The caller has a pending request to follow this private user (always false when isSelf).
         isMuted:
           type: boolean
           description: "(v1.5-social, CP-007) Whether the caller muted this user (always false when isSelf). Only the caller sees their own mute; the muted user is never told."
@@ -7477,11 +7615,28 @@ components:
           oneOf:
             - $ref: '#/components/schemas/ProfileCard'
             - type: 'null'
+        gender:
+          type: [string, 'null']
+          enum: [MALE, FEMALE, null]
+          description: v1.47-social (D175). Only when the user chose to show it (`showGender`) and it is MALE or FEMALE; else null.
+        category:
+          description: v1.47-social (D175). The account category shown under the name, or null.
+          oneOf:
+            - $ref: '#/components/schemas/AccountCategory'
+            - type: 'null'
+        links:
+          type: array
+          maxItems: 3
+          description: v1.47-social (D175). The profile links, in order (also on a private account's profile).
+          items: { $ref: '#/components/schemas/ProfileLink' }
     FollowState:
       type: object
-      required: [isFollowing, followerCount]
+      required: [isFollowing, isRequested, followerCount]
       properties:
         isFollowing: { type: boolean }
+        isRequested:
+          type: boolean
+          description: v1.47-social (D175). The caller has a pending follow request to this private account (then `isFollowing` is false).
         followerCount:
           type: integer
           minimum: 0
@@ -7491,17 +7646,20 @@ components:
       allOf:
         - $ref: '#/components/schemas/UserSummary'
         - type: object
-          required: [isSelf, isPrivate, followedByMe, followsMe]
+          required: [isSelf, isPrivate, followedByMe, requestedByMe, followsMe]
           properties:
             isSelf:
               type: boolean
               description: The row is the caller (no Follow control).
             isPrivate:
               type: boolean
-              description: The account is private; a new follow → 403 (§10.5), so the client offers Follow only when `followedByMe`.
+              description: The account is private; (v1.47-social) a new follow is a follow request (§10.43).
             followedByMe:
               type: boolean
               description: The caller follows this account (false when `isSelf`).
+            requestedByMe:
+              type: boolean
+              description: v1.47-social (D175). The caller has a pending follow request to this account.
             followsMe:
               type: boolean
               description: This account follows the caller (false when `isSelf`); the client shows "Follow back".
@@ -7518,6 +7676,77 @@ components:
           type: integer
           minimum: 0
           description: The caller's follower count after the operation (ACTIVE followers only, like `PublicProfile.followerCount`).
+    # ---- v1.47-social (DRAFT, D175) — profile fields, private accounts and follow requests ---------
+    Gender:
+      type: string
+      enum: [MALE, FEMALE, UNDISCLOSED]
+      description: v1.47-social (D175). «ذكر / أنثى / أفضّل عدم الذكر».
+    AccountCategory:
+      type: string
+      enum: [SINGER, MUSICIAN, POET, PRESENTER, GAMER, CONTENT_CREATOR, ATHLETE, ARTIST, BLOGGER, PUBLIC_FIGURE, OTHER]
+      description: "v1.47-social (D175). Shown under the name: مغنٍّ، موسيقي، شاعر، مقدّم برامج، لاعب ألعاب، صانع محتوى، رياضي، فنان، مدوّن، شخصية عامة، أخرى. The app names them in its own language."
+    ProfileLinkPlatform:
+      type: string
+      enum: [INSTAGRAM, TIKTOK, YOUTUBE, FACEBOOK, X, OTHER]
+      description: |
+        v1.47-social (D175). From the link's host: instagram.com, tiktok.com, youtube.com / youtu.be,
+        facebook.com / fb.com, x.com / twitter.com or any subdomain of them; OTHER for every other host
+        (the app warns «أنت تغادر Kabso» with the full URL before opening it). Clients treat values they
+        do not know as OTHER.
+    ProfileLink:
+      type: object
+      required: [id, url, label, platform]
+      properties:
+        id: { type: string, format: uuid, description: "The report target id (`PROFILE_LINK`)." }
+        url: { type: string, format: uri, maxLength: 500, description: "Normalised https URL (no fragment)." }
+        label: { type: [string, 'null'], maxLength: 30 }
+        platform: { $ref: '#/components/schemas/ProfileLinkPlatform' }
+    ProfileLinkInput:
+      type: object
+      additionalProperties: false
+      required: [url]
+      properties:
+        url:
+          type: string
+          maxLength: 2048
+          description: |
+            v1.47-social (D175, CONVENTIONS §10.43). `https://` only; no user name or password, no port, a host
+            name (never an IP address, `localhost` or a single label); no spaces, controls, bidi or zero-width
+            characters (`invalid_format`). Stored in its normalised form (lower-case punycode host,
+            percent-encoding, the fragment dropped), at most 500 characters (`too_long`).
+        label:
+          type: [string, 'null']
+          maxLength: 240
+          description: "Optional; one line, NFC, trimmed, ≤ 30 code points, §6 hygiene (`too_long`, `invalid_format`). Empty or null → none."
+    FollowRequest:
+      type: object
+      required: [user, requestedAt]
+      properties:
+        user: { $ref: '#/components/schemas/UserSummary' }
+        requestedAt: { type: string, format: date-time }
+    FollowRequestPage:
+      type: object
+      required: [data, page, total]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/FollowRequest' }
+        page: { $ref: '#/components/schemas/PageInfo' }
+        total: { type: integer, minimum: 0, description: Every pending request the list shows. }
+    FollowRequestAccepted:
+      type: object
+      required: [followsMe, followerCount]
+      properties:
+        followsMe: { type: boolean, enum: [true] }
+        followerCount: { type: integer, minimum: 0, description: "The caller's follower count after (ACTIVE followers only)." }
+    ProfileLinkSnapshot:
+      type: object
+      required: [username, url, label]
+      description: v1.47-social (D175). A reported profile link as it was when reported (admin views).
+      properties:
+        username: { type: string }
+        url: { type: string }
+        label: { type: [string, 'null'] }
     FollowListPage:
       type: object
       required: [data, page]
@@ -9280,8 +9509,8 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     NotificationType:
       type: string
-      description: "`LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). Clients ignore values they do not know."
-      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED]
+      description: "`LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. Clients ignore values they do not know."
+      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED]
     NotificationTarget:
       type: object
       required: [type, id, postId, thumbUrl, text]
@@ -9387,12 +9616,12 @@ components:
       additionalProperties: false
       required: [targetType, targetId, reason]
       properties:
-        targetType: { type: string, enum: [POST, COMMENT, STORY, USER, LIVE_ROOM, LIVE_CHAT_MESSAGE, CP_CONFESSION, FAMILY_CHAT_MESSAGE, DM_MESSAGE] }
+        targetType: { type: string, enum: [POST, COMMENT, STORY, USER, LIVE_ROOM, LIVE_CHAT_MESSAGE, CP_CONFESSION, FAMILY_CHAT_MESSAGE, DM_MESSAGE, PROFILE_LINK] }
         targetId:
           type: string
           minLength: 1
           maxLength: 64
-          description: A post, comment, story, live room, live chat message, CP confession, (CP-022) family chat message or (D155) direct message id, or a username for USER.
+          description: A post, comment, story, live room, live chat message, CP confession, (CP-022) family chat message, (D155) direct message or (v1.47-social, D175) profile link (`ProfileLink.id`) id, or a username for USER.
         reason: { $ref: '#/components/schemas/ReportReason' }
         note: { type: string, maxLength: 500 }
     Report:
@@ -9400,7 +9629,7 @@ components:
       required: [id, targetType, targetId, reason, status, createdAt]
       properties:
         id: { type: string, format: uuid }
-        targetType: { type: string, enum: [POST, COMMENT, STORY, USER, LIVE_ROOM, LIVE_CHAT_MESSAGE, CP_CONFESSION, FAMILY_CHAT_MESSAGE, DM_MESSAGE] }
+        targetType: { type: string, enum: [POST, COMMENT, STORY, USER, LIVE_ROOM, LIVE_CHAT_MESSAGE, CP_CONFESSION, FAMILY_CHAT_MESSAGE, DM_MESSAGE, PROFILE_LINK] }
         targetId: { type: string }
         reason: { $ref: '#/components/schemas/ReportReason' }
         note: { type: [string, 'null'] }
@@ -9413,6 +9642,9 @@ components:
         dmSnapshot:
           description: (v1.40-social, D155) Admin views of `DM_MESSAGE` reports only.
           $ref: '#/components/schemas/DmReportSnapshot'
+        linkSnapshot:
+          description: (v1.47-social, D175) Admin views of `PROFILE_LINK` reports only.
+          $ref: '#/components/schemas/ProfileLinkSnapshot'
     ReportPage:
       type: object
       required: [data, page]
@@ -9430,8 +9662,9 @@ components:
         note: { type: string, maxLength: 500 }
     PrivacySettings:
       type: object
-      required: [whoCanMention, defaultWhoCanComment, showActivityStatus, whoCanMessage]
+      required: [whoCanMention, defaultWhoCanComment, showActivityStatus, whoCanMessage, isPrivate]
       properties:
+        isPrivate: { type: boolean, description: "(v1.47-social, D175) A private account (CONVENTIONS §10.43); the same value as `Me.isPrivate`." }
         whoCanMessage: { type: string, enum: [EVERYONE, FOLLOWING, NOBODY], description: "(v1.40-social, D155) Who may send the user direct messages (default EVERYONE; FOLLOWING = accounts the user follows), CONVENTIONS §11.13." }
         whoCanMention: { type: string, enum: [EVERYONE, FOLLOWING, NOBODY] }
         defaultWhoCanComment: { type: string, enum: [EVERYONE, FOLLOWERS, NOBODY] }
@@ -9445,6 +9678,12 @@ components:
         defaultWhoCanComment: { type: string, enum: [EVERYONE, FOLLOWERS, NOBODY] }
         showActivityStatus: { type: boolean }
         whoCanMessage: { type: string, enum: [EVERYONE, FOLLOWING, NOBODY] }
+        isPrivate:
+          type: boolean
+          description: |
+            (v1.47-social, D175, CONVENTIONS §10.43) Make the account private (follow requests; posts, reels and
+            stories for followers only) or public. Switching to public accepts every pending follow request.
+            Existing followers are kept. Audited `user.privacy.private` when it changes.
     # ---- v1.21-live (DRAFT, CP-018, D106) — families, CP couples and medals ---------------------
     FamilyRole:
       type: string

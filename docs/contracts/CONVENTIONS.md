@@ -144,6 +144,7 @@ All non-2xx responses use one envelope:
 | 503 | `YOUTUBE_SEARCH_UNAVAILABLE` | *(v1.38-live, DRAFT, D154i)* YouTube search is not set up on this server (no `YOUTUBE_API_KEY`) or YouTube failed; paste a link instead (§10.39). |
 | 409 | `TASK_NOT_COMPLETED` | *(v1.44-social, DRAFT, D166)* A task claim whose task is not completed yet in its day or week (§10.41). Nothing was paid. |
 | 409 | `TASK_DAILY_CAP_REACHED` | *(v1.44-social, DRAFT, D166)* A daily task claim after the caller already got the day's cap of task and check-in coins (`TASK_DAILY_CAP_COINS`, §10.41). Nothing was paid. |
+| 409 | `FOLLOW_REQUEST_NOT_PENDING` | *(v1.47-social, DRAFT, D175)* Accepting a follow request that is not pending (cancelled, declined, never sent) from an account that does not follow the caller (§10.43). Nothing changed. |
 | 403 | `DM_NOT_ALLOWED` | *(v1.40-social, DRAFT, D155)* The recipient's «who can message you» setting (`whoCanMessage`) does not allow the caller (§11.13). Nothing was stored or charged. The app says the person does not accept messages. |
 | 403 | `DM_REQUEST_LIMIT` | *(v1.40-social, DRAFT, D155)* The caller already sent `DM_REQUEST_MAX_MESSAGES` (3) messages in a message request the recipient has not accepted (§11.13). The app says to wait for a reply. |
 | 403 | `DM_REQUEST_TEXT_ONLY` | *(v1.40-social, DRAFT, D155)* A picture or voice message in a message request (only text, a pack emoji or a gift until the recipient accepts, §11.13). |
@@ -364,6 +365,7 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `POST /auth/register/resend` *(v1.2)* | 3 / hour per email, 10 / hour per IP |
 | `PATCH /me` *(v1.2)* | 30 / hour per user |
 | `PUT` and `DELETE /me/avatar` *(v1.45-social, D168)* | 30 / hour per user (one bucket `me:avatar`, `RATE_LIMIT_AVATAR_USER`). **Replaces** the per-user default; the upload itself counts in the `POST /media/uploads` bucket |
+| `POST /me/follow-requests/{username}/accept` and `…/decline` *(v1.47-social, D175)* | 300 / hour per user (one bucket `follow-requests:answer`, `RATE_LIMIT_FOLLOW_REQUEST_ANSWER_USER`). **Replaces** the per-user default. A follow request itself is a `PUT /users/{username}/follow` and counts in the follow buckets |
 | `PUT /me/username` *(v1.28-live, D146)* | 5 / day per user (bucket `username:change`, `RATE_LIMIT_USERNAME_CHANGE_USER`). **Replaces** the per-user default |
 | `POST /me/premium-username/rentals`, `DELETE /me/premium-username` *(v1.28-live, D146)* | 20 / hour per user (bucket `premium:rent`, `RATE_LIMIT_PREMIUM_RENT_USER`). **Replaces** the per-user default; `GET /premium-usernames`, `GET /premium-usernames/{username}` and `GET /me/premium-username` use the per-user default |
 | `POST /search/queries` *(v1.29-live, D147)* | 120 / hour per user (bucket `search:record`, `RATE_LIMIT_SEARCH_RECORD_USER`). **Replaces** the per-user default; `GET /search/trending` and `GET /search/trending-hashtags` use the per-user default |
@@ -490,6 +492,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.38-live)* Tables `live_watch`, `live_watch_suggestions` | Backend — `live` module (`LiveWatchService`; the host writes the state, viewers suggest) | CTO |
 | *(v1.40-social)* Tables `dm_conversations`, `dm_participants`, `dm_messages`, `dm_message_hides`; columns `live_gifts.dm_conversation_id`, `privacy_settings.who_can_message`, `reports.target_dm_message_id`, `reports.dm_snapshot` | Backend — `messages` module (gift sends are written by the live module's `LiveGiftsService`; the privacy column by the `safety` module; report snapshots by the `safety` module through `messages/dm-reports.ts`) | CTO; Security reviews privacy, requests and retention (§11.13) |
 | *(v1.44-social)* Tables `task_definitions`, `task_claims`, `daily_check_ins`, `events`, `event_results`; ledger reasons `TASK_REWARD`, `CHECK_IN_REWARD`, `EVENT_PRIZE`; server config `TASK_DAILY_CAP_COINS`, `TASK_CHECK_IN_COINS`, `TASK_CHECK_IN_STREAK_BONUS_COINS`, `EVENT_PRIZE_REVIEW_HOURS`, `EVENTS_SWEEP_INTERVAL_SECONDS`, `SVIP_TIERS`, `SVIP_WINDOW_DAYS`, `SVIP_STATUS_DAYS`, `WALLET_RECHARGE_PACKAGES`, `WALLET_RECHARGE_CURRENCY` | Backend — `programs` module (`TasksService`, `EventsService`, `SvipService`; tasks and events changed only by the `task-admin` / `event-admin` CLIs) | CTO; Security (coin payouts) |
+| *(v1.47-social)* Tables `user_profile_links`, `follow_requests`; columns `user_profiles.gender`, `show_gender`, `account_category`, `pending_registrations.gender`, `reports.target_profile_link_id`, `reports.link_snapshot` | Backend — `users` module (profile fields; `profile-admin` CLI), `social` module (follow requests; the `safety` module accepts them all when an account turns public and deletes them on a block), `safety` module (link reports) | CTO; Security reviews the link rules and the private-account audit (§10.43) |
 | `apps/api/**` | Backend | CTO review |
 | `apps/mobile/lib/app/router/**` (route registry) | Flutter | CTO review |
 | `apps/mobile/pubspec.yaml` | Flutter | CTO review |
@@ -529,6 +532,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.47-social (draft) | 2026-10-30 | **D175 (owner, Arabic, answering D168's questions a–g; CP-025; v1.46-social left free for another branch):** profile fields, private accounts and follow requests. `Gender` (`MALE`, `FEMALE`, `UNDISCLOSED`) is **required** by `register` (`RegisterRequest.gender`) and editable with `updateMe` together with `showGender` (default false), `category` (`AccountCategory`: 11 values) and `links` (0–3 `ProfileLinkInput`, https only, normalised); `Me` gains `gender`, `showGender`, `category`, `links`; `PublicProfile` gains `gender` (only when shown), `category`, `links` (`ProfileLink` with `ProfileLinkPlatform`) and `followRequested`; `FollowState.isRequested`; `FollowListItem.requestedByMe`; `PrivacySettings.isPrivate` / `UpdatePrivacyRequest.isPrivate` (switching to public accepts every pending request); a new follow of a private account is a **follow request** (was 403); `listFollowRequests` (`GET /me/follow-requests`, `FollowRequestPage`, `FollowRequest`), `acceptFollowRequest` / `declineFollowRequest` (`POST /me/follow-requests/{username}/accept` → `FollowRequestAccepted`, `…/decline` → 204); `NotificationType` `FOLLOW_REQUEST`, `FOLLOW_REQUEST_ACCEPTED`, `AVATAR_REMOVED`; report `targetType: PROFILE_LINK` (`Report.linkSnapshot`, `ProfileLinkSnapshot`); code `FOLLOW_REQUEST_NOT_PENDING` (409); server config `RATE_LIMIT_FOLLOW_REQUEST_ANSWER_USER`; CLI `profile-admin remove-avatar`; audit `user.privacy.private`, `admin.avatar.remove`; migrations `20261215090000_profile_fields_enums`, `20261215100000_profile_fields_private_accounts`. §4, §7, §10.5, §10.6, §10.42, §10.43, §11.7, §11.10. | **Breaking for registration** (`gender` is required: an app without the gender step gets 400 `gender` / `required`; app and API ship together). **Behaviour change** for a new follow of a private account (200 with `isRequested: true` instead of 403; no app could make an account private before). Otherwise **additive** (new required response fields: strict clients update their models in the same change set; clients ignore unknown notification types and treat an unknown `ProfileLinkPlatform` as `OTHER`). |
 | v1.45-social (draft) | 2026-10-29 | **D168 (owner, from the phone: «مدة ريلز لا تتجاوز ٦٠ ثانية، مدة الفيديو لا تتجاوز ٩٠ ثانية» and «فعّل الأزرار المتبقية في تعديل الملف وتغيير الصورة»):** a `POST_VIDEO` is now **1–90 s** (was 1–180 s; reels stay 1–60 s); videos stored before keep their length (`MediaAsset.durationMs` may still be up to 180 000 for them) and an unattached one longer than 90 s can no longer be attached. `updateMe` (`PATCH /me`) also takes `displayName` (the §6 registration rules) and `bio` (≤ 300 code points, ≤ 4 line breaks, free-text hygiene; empty or null clears it). `MediaKind.AVATAR` (processed like `LIVE_COVER`); `setMyAvatar` / `removeMyAvatar` (`PUT` / `DELETE /me/avatar`, `SetAvatarRequest`, `Avatar`). §7 row, §10.42, §11.1, §11.14. | **Tightening** on new uploads (a post video of 90–180 s is refused at `completeMediaUpload` with 422 `MEDIA_INVALID`; apps from v1.41 already explain that code); otherwise **additive** (optional request fields, an enum value, new operations). |
 | v1.44-social (draft) | 2026-10-29 | **D166 (owner: the Me hub's «قريباً» programs, CP-024 approved with defaults):** tag `programs`: `getMyTasks` (`GET /me/tasks`, `MyTasks`, `ProgramTask`, `CheckInDay`), `checkIn` (`POST /me/check-in`, `CheckInResult`; 201 / 200), `claimMyTask` (`POST /me/tasks/{code}/claim`, `TaskClaimResult`; 201 / 200), `getMySvip` (`GET /me/svip`, `SvipStatus`, `SvipPerk`), `listEvents` (`GET /events?tab=&month=`, `EventList`, `EventSummary`), `getEvent` (`GET /events/{eventId}`, `EventDetail`, `EventPrize`), `getEventLeaderboard` (`GET /events/{eventId}/leaderboard`, `EventLeaderboard`); tag `wallet`: `listRechargePackages` (`GET /wallet/recharge-packages`, `RechargePackages`; no purchase, B5); `WalletLedgerReason` gains `TASK_REWARD`, `CHECK_IN_REWARD`, `EVENT_PRIZE`; codes `TASK_NOT_COMPLETED`, `TASK_DAILY_CAP_REACHED` (409); migrations `20261214090000_me_programs_enums`, `20261214100000_me_programs`; CLIs `task-admin`, `event-admin`. §4, §8, §10.41. | **Additive** (new operations, schemas, codes and ledger reasons; clients show an unknown reason as a generic change). |
 | v1.43-social (draft) | 2026-10-29 | **D164 (owner: «اجعل الوكيل يعمل على أزرار قريباً في أنا» — the Me hub's "Soon" buttons that only need stored data):** tag `wallet`: `listMyWalletLedger` (`GET /wallet/me/ledger`, `WalletLedgerPage`, `WalletLedgerEntry`, `WalletLedgerReason`), `getMyEarnings` (`GET /wallet/me/earnings`, `MyEarnings`) and `listMyEarnings` (`GET /wallet/me/earnings/history`, `EarningPage`, `Earning`, `EarningContext`); tag `me`: `getMyCreatorStats` (`GET /me/creator-stats?period=LAST_7_DAYS\|LAST_30_DAYS\|ALL_TIME`, `CreatorStats`, `CreatorContentStats`, `CreatorStatsPeriod`). All read the caller's own stored data only (no migration). Earnings are display only (no withdrawal, D149). §10.40. | **Additive** (new operations and schemas). |
@@ -819,6 +823,9 @@ until a media provider is wired in.
   - existing followers are kept and can unfollow;
   - the live room stays listed (live rooms are public).
 
+  *(v1.47-social, D175)* Settable with `PATCH /me/privacy {isPrivate}`; a new follow is now a
+  **follow request** (§10.43) instead of 403. The other points stand.
+
 ### 10.6 Follow
 
 - **`PUT /users/{username}/follow`** creates the edge. It is idempotent: an existing edge →
@@ -826,12 +833,14 @@ until a media provider is wired in.
 - **`DELETE /users/{username}/follow`** removes the edge. It is idempotent: a missing edge → 200.
 - Both return `{isFollowing, followerCount}`, where `followerCount` is the target's count after
   the operation.
+- *(v1.47-social, D175)* Both also return `isRequested` (a pending follow request, §10.43).
 - **Errors:**
   - target malformed, unknown, suspended or deleted → 404;
   - self → 400 `VALIDATION_FAILED` (`field "username"`, `issue "invalid_value"`). The client never
     offers Follow when `isSelf`. A database CHECK is the backstop.
   - private target on `PUT` → 403 `AUTH_FORBIDDEN`, but only when the caller does not already
-    follow the target. *(v1.3.1, QA-002)* A `PUT` by an existing follower of a private account
+    follow the target. *(Superseded by v1.47-social, D175: a follow request is created instead,
+    §10.43.)* *(v1.3.1, QA-002)* A `PUT` by an existing follower of a private account
     is the idempotent no-op: 200 `{isFollowing: true, followerCount}`, and no edge is created.
     The existing-edge check comes before the private check.
 - **Anti-spam:** follow and unfollow share one rate-limit bucket (§7: 60 / hour, 300 / day). No
@@ -2621,8 +2630,93 @@ account category, the grid order and the private-account switch stay "Soon" with
   user (§7).
 - **Not in v1.45-social** (owner questions, D168): profile links, gender, account category, reordering
   the profile grid, the private-account switch (no follow requests yet, §10.5), a cover photo, a
-  birthday. The username keeps its own endpoint (`PUT /me/username`, §10.32); the country stays in
+  birthday. *(v1.47-social, D175: links, gender, category and the private account with follow
+  requests are §10.43; the grid order stays as it is — pinning 3 posts is enough (owner).)* The username keeps its own endpoint (`PUT /me/username`, §10.32); the country stays in
   settings (§10.28).
+
+### 10.43 Profile fields, private accounts and follow requests *(v1.47-social, DRAFT — D175, CP-025)*
+
+The owner's answers (2026-10-30, Arabic) to D168's questions a–g. Numbered §10.43 (§10.44 would do as well
+if another branch takes it first).
+
+- **Gender** (`Gender`): `MALE`, `FEMALE`, `UNDISCLOSED` («ذكر / أنثى / أفضّل عدم الذكر»).
+  - **Required at sign-up** (`RegisterRequest.gender`; missing → 400 `gender` / `required`, another value
+    → `invalid_value`); kept on the pending registration and copied to the account at verify. Accounts
+    made before v1.47 (and pending rows made before) have none (`Me.gender` null) until they choose.
+  - `PATCH /me {gender}` changes it; it cannot be cleared (`UNDISCLOSED` is the "rather not say").
+  - **Private by default** (owner): `showGender` (default false) decides whether others see it;
+    `PublicProfile.gender` is `MALE` / `FEMALE` only when shown, else null (`UNDISCLOSED` shows nothing).
+    `Me` always carries the caller's own value.
+- **Account category** (`AccountCategory`, shown under the name): `SINGER` مغنٍّ, `MUSICIAN` موسيقي, `POET`
+  شاعر, `PRESENTER` مقدّم برامج, `GAMER` لاعب ألعاب, `CONTENT_CREATOR` صانع محتوى, `ATHLETE` رياضي, `ARTIST`
+  فنان, `BLOGGER` مدوّن, `PUBLIC_FIGURE` شخصية عامة, `OTHER` أخرى. Optional; `PATCH /me {category: null}`
+  clears it. The app names the values in its own language; clients show an unknown value as nothing.
+- **Profile links:** `PATCH /me {links}` replaces the whole set (0–3, in order; `[]` clears them).
+  - Each `url` (raw ≤ 2 048 characters): `https://` only; no user name or password; no port (`:443` is
+    the default and disappears); a host name — never an IP literal (any IPv4 spelling, e.g. `2130706433` or
+    `0x7f.1`, or IPv6), `localhost` or a single label; letters, digits and `-` per label and an alphabetic or
+    `xn--` last label; no spaces, controls, bidi or zero-width characters anywhere (`invalid_format`).
+    Stored normalised: the WHATWG serialisation (lower-case punycode host, percent-encoding) without the
+    fragment, at most **500** characters (`too_long`).
+  - `label`: optional, one line, NFC, trimmed, ≤ 30 code points, §6 hygiene (`too_long`,
+    `invalid_format`); empty → none.
+  - More than 3 → `links` / `too_many`; the same normalised link twice → `links.<i>.url` / `invalid_value`.
+  - `ProfileLink.platform` comes from the host: `INSTAGRAM` (instagram.com), `TIKTOK` (tiktok.com),
+    `YOUTUBE` (youtube.com, youtu.be), `FACEBOOK` (facebook.com, fb.com), `X` (x.com, twitter.com) — the
+    domain itself or any subdomain (`www.`, `m.`, …); anything else is `OTHER`. The app opens a known
+    platform directly and shows a warning sheet «أنت تغادر Kabso» with the **full URL** before opening any
+    `OTHER` link (owner).
+  - Links are on the profile of private accounts too (the profile is public, §10.5).
+  - **Reports:** `POST /reports {targetType: PROFILE_LINK, targetId: <ProfileLink.id>}` — a link on the
+    profile of an ACTIVE user with no block either way, not the reporter's own (400 `targetId` /
+    `invalid_value`); else 404. The report keeps a snapshot (`linkSnapshot`: username, url, label; admin
+    views) because the owner may edit the link away; one OPEN report per reporter and link. Admin
+    `REMOVE_TARGET` deletes the link from the profile (if it is still there).
+  - A change of `gender`, `showGender`, `category` or `links` is audited `user.profile.update` with the
+    field names only (§10.42).
+- **Private account** (`PATCH /me/privacy {isPrivate}`, `PrivacySettings.isPrivate`, `Me.isPrivate`):
+  - Posts, reels and stories of a private account are visible only to the account and its followers,
+    **on every endpoint** (the §11.2 / §11.9 visibility rule, already enforced server-side since v1.5 and
+    audited again for D175): the user's grid and reposts, `GET /posts/{id}` (and its comments, likes,
+    like / comment / repost / share / save / report), the stories of the user, `GET /stories/{id}`,
+    seen, the story tray, every feed (posts and reels, following and trending), search (posts **and,
+    v1.47-social, hashtags**: a tag used only by posts the caller may not see is not listed), hashtag
+    pages and counts, trending hashtags, saved posts, notifications pointing at such content, views (ignored).
+    Anyone else gets the usual **404** (never 403); the app shows «هذا الحساب خاص» from `PublicProfile`
+    (`isPrivate` and not `isFollowing`).
+  - The profile (name, photo, bio, category, links, counts) stays public; follower / following **counts**
+    stay visible; the lists stay followers-only (403, §10.6); **lives stay public** (§10.5).
+  - Existing followers are kept when the account turns private.
+  - Switching **private → public accepts every pending request** (each requester follows the account; the
+    requests and their notifications go; requesters are not notified one by one). Audited
+    `user.privacy.private` (`{isPrivate, requestsAccepted}`) when it changes; the switch locks the account
+    like a follow does, so no follow request races it.
+- **Follow requests:**
+  - `PUT /users/{username}/follow` on a private account the caller does not follow creates a request (one
+    per pair; repeating changes nothing) → 200 `{isFollowing: false, isRequested: true, followerCount}`,
+    and the owner gets a `FOLLOW_REQUEST` notification (actor the requester, target `USER`; the `follows`
+    setting). `PublicProfile.followRequested` and `FollowListItem.requestedByMe` show it.
+  - `DELETE /users/{username}/follow` cancels it (the notification is withdrawn).
+  - `GET /me/follow-requests`: newest first, keyset cursor bound to the caller, `limit` 1–50 (default 20),
+    `total`; only ACTIVE requesters with no block either way.
+  - `POST /me/follow-requests/{username}/accept` → 200 `{followsMe: true, followerCount}`: the follow is
+    created, the request and its notification go, the requester gets `FOLLOW_REQUEST_ACCEPTED` (actor the
+    owner). Already a follower → 200. No pending request → 409 `FOLLOW_REQUEST_NOT_PENDING`.
+  - `POST /me/follow-requests/{username}/decline` → 204: deleted; the requester is not told and may ask
+    again; idempotent.
+  - Both: `username` malformed, unknown, suspended or deleted → 404; the caller's own → 400 `username` /
+    `invalid_value`; 300 / hour per user, one bucket (§7).
+  - A block deletes the requests both ways (and their notifications); deleting an account deletes its
+    requests; removing a follower (`DELETE /me/followers/{username}`) lets them ask again.
+- **Grid order:** unchanged — pinning up to 3 posts (§11.2) is enough (owner). The app's Edit profile
+  shows the pin hint instead of a «قريباً» row.
+- **CP frame on other people's profiles:** kept (owner; D112 / §10.24 unchanged).
+- **Profile photos:** stay visible at once with reports (D91 / D168, owner). A moderator removes a
+  violating photo with the server CLI `profile-admin remove-avatar <username> --reason <text>` (migration
+  role, like the other admin CLIs): the profile goes back to the initial, the `AVATAR` asset row is
+  deleted with the change and its files afterwards (the keys are printed when the CLI has no S3 settings),
+  the user gets an `AVATAR_REMOVED` notification (system, no actor, no target; always on) and
+  `admin.avatar.remove` is audited with the reason.
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 
@@ -2770,7 +2864,8 @@ count is eventually consistent (≤ 1 min).
   reporter can read and did not write, §10.24) — *v1.25-live:* or a family chat message
   (`targetType: FAMILY_CHAT_MESSAGE`, in the reporter's family, not their own, §10.25) — *v1.40-social:* or a
   direct message the reporter received (`targetType: DM_MESSAGE`, kept as a snapshot because
-  messages are deleted after 24 h, §11.13) — or, for a user, records the decision only (suspension stays a separate
+  messages are deleted after 24 h, §11.13) — *v1.47-social:* or a profile link (`targetType: PROFILE_LINK`,
+  kept as a snapshot, §10.43) — or, for a user, records the decision only (suspension stays a separate
   admin tool); every OPEN report on that target closes with the same outcome. Acting on a closed
   report → 409 `REPORT_ALREADY_RESOLVED`.
 - **Privacy settings**: `whoCanMention` (`EVERYONE` default; `FOLLOWING` = accounts the user
@@ -2779,6 +2874,7 @@ count is eventually consistent (≤ 1 min).
   the user was last active (§10.25).
   *(v1.40-social, D155)* `whoCanMessage` (`EVERYONE` default; `FOLLOWING` = accounts the user
   follows; `NOBODY`): who may send the user direct messages (§11.13).
+  *(v1.47-social, D175)* `isPrivate` (default false): a private account (§10.43).
 
 ### 11.8 Rate limits (all per user; replace the per-user default)
 
@@ -2835,6 +2931,11 @@ count is eventually consistent (≤ 1 min).
   deputy who answered; `MEDAL_AWARDED` (system, no actor, always on): target `MEDAL` (the medal
   code as `id`, `text` null; the app reads name and icon from `GET /medals`). No setting switches
   these off.
+  *(v1.47-social, D175, §10.43)* `FOLLOW_REQUEST` (someone asked to follow your private account; target
+  the requester as `USER`; withdrawn when the request is cancelled, accepted or declined) and
+  `FOLLOW_REQUEST_ACCEPTED` (your request was accepted; target the account as `USER`), both under the
+  `follows` setting; `AVATAR_REMOVED` (system, no actor, no target, always on: a moderator removed your
+  profile photo).
 - **Never yourself**; never between two users with a block in either direction (existing ones
   are hidden while it lasts); never from an account the recipient muted (owner, D92); actors no
   longer ACTIVE are left out of `actors` and `actorCount`, and a group left with no visible actor
