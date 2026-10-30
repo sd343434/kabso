@@ -10964,6 +10964,60 @@ abstract class AppLocalizations {
   /// **'نعمل على إضافة ألعاب تلعبها داخل البث، وهي غير متاحة بعد.'**
   String get liveGamesSoonBody;
 
+  /// D173: the ≡ menu of the live bar for everyone (viewer and moderator items).
+  ///
+  /// In ar, this message translates to:
+  /// **'المزيد'**
+  String get liveViewerMenu;
+
+  /// D173: the ≡ menu of the live bar for everyone (viewer and moderator items).
+  ///
+  /// In ar, this message translates to:
+  /// **'أدوات المشرف'**
+  String get liveToolsModerator;
+
+  /// D173: the ≡ menu of the live bar for everyone (viewer and moderator items).
+  ///
+  /// In ar, this message translates to:
+  /// **'الإبلاغ عن المضيف'**
+  String get liveToolReportHost;
+
+  /// D173: the ≡ menu of the live bar for everyone (viewer and moderator items).
+  ///
+  /// In ar, this message translates to:
+  /// **'المشاهدون'**
+  String get liveToolViewers;
+
+  /// D173: the ≡ menu of the live bar for everyone (viewer and moderator items).
+  ///
+  /// In ar, this message translates to:
+  /// **'المساهمات'**
+  String get liveToolContributions;
+
+  /// D173: the ≡ menu of the live bar for everyone (viewer and moderator items).
+  ///
+  /// In ar, this message translates to:
+  /// **'أصوات الهدايا'**
+  String get liveToolGiftSounds;
+
+  /// D173: the ≡ menu of the live bar for everyone (viewer and moderator items).
+  ///
+  /// In ar, this message translates to:
+  /// **'مؤثرات الهدايا'**
+  String get liveToolGiftEffects;
+
+  /// D173: the ≡ menu of the live bar for everyone (viewer and moderator items).
+  ///
+  /// In ar, this message translates to:
+  /// **'شاشة نظيفة'**
+  String get liveToolClearScreen;
+
+  /// D173: the ≡ menu of the live bar for everyone (viewer and moderator items).
+  ///
+  /// In ar, this message translates to:
+  /// **'طلبات المقاعد'**
+  String get liveToolSeatRequests;
+
   /// D173: the audio room became a cinema (YouTube together) with 10 seats.
   ///
   /// In ar, this message translates to:

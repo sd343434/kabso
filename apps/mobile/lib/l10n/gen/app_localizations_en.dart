@@ -6316,6 +6316,33 @@ class AppLocalizationsEn extends AppLocalizations {
       'We are adding games you can play in the live. They are not available yet.';
 
   @override
+  String get liveViewerMenu => 'More';
+
+  @override
+  String get liveToolsModerator => 'Moderator tools';
+
+  @override
+  String get liveToolReportHost => 'Report host';
+
+  @override
+  String get liveToolViewers => 'Viewers';
+
+  @override
+  String get liveToolContributions => 'Contributions';
+
+  @override
+  String get liveToolGiftSounds => 'Gift sounds';
+
+  @override
+  String get liveToolGiftEffects => 'Gift effects';
+
+  @override
+  String get liveToolClearScreen => 'Clear screen';
+
+  @override
+  String get liveToolSeatRequests => 'Seat requests';
+
+  @override
   String liveCinemaMoved(int seat) {
     return 'Cinema mode has 10 seats: you were moved to seat $seat.';
   }

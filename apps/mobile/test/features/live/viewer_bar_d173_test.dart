@@ -12,6 +12,7 @@ import 'package:kabso_live/features/live/domain/home_banner.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/domain/live_watch.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
+import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_cinema.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
@@ -217,6 +218,119 @@ void main() {
       await _pump(tester, signedIn: false);
       expect(find.byKey(LiveRoomScreen.guestKey), findsNothing);
       expect(find.byKey(LiveRoomScreen.gamesKey), findsOneWidget);
+      await _leave(tester);
+    });
+  });
+
+  group('D173 ≡ for everyone', () {
+    const viewerTools = [
+      'share',
+      'follow',
+      'viewers',
+      'contributions',
+      'rankings',
+      'games',
+      'suggestVideo',
+      'report',
+    ];
+    const soonTools = ['minimize', 'giftSounds', 'giftEffects', 'clearScreen'];
+    for (final mode in [LiveRoomMode.solo, LiveRoomMode.audio]) {
+      for (final language in AppLanguage.values) {
+        testWidgets("${mode.name}: a viewer's ≡ lists only what works for "
+            'them, the rest greyed «Soon»; no moderator tools '
+            '(${language.name}, 360 dp, text 1.3)', (tester) async {
+          await _pump(
+            tester,
+            mode: mode,
+            language: language,
+            viewport: GoldenViewport.android,
+            textScale: 1.3,
+          );
+          final key = mode == LiveRoomMode.audio
+              ? AudioRoomViewKeys.menu
+              : LiveRoomScreen.menuKey;
+          await tester.tap(find.byKey(key));
+          await tester.pumpAndSettle();
+          expect(tester.takeException(), isNull);
+          for (final id in [...viewerTools, ...soonTools]) {
+            expect(find.byKey(GoLiveKeys.tool(id)), findsOneWidget, reason: id);
+          }
+          for (final id in soonTools) {
+            expect(
+              tester
+                  .getSemantics(find.byKey(GoLiveKeys.tool(id)))
+                  .getSemanticsData()
+                  .label,
+              contains(l10nFor(language).liveSoon),
+              reason: id,
+            );
+          }
+          expect(find.byKey(GoLiveKeys.tool('newcomers')), findsNothing);
+          expect(find.text(l10nFor(language).liveToolsModerator), findsNothing);
+          // Games opens the honest sheet.
+          await tester.tap(find.byKey(GoLiveKeys.tool('games')));
+          await tester.pumpAndSettle();
+          expect(find.byKey(LiveGamesSheet.sheetKey), findsOneWidget);
+          await _leave(tester);
+        });
+      }
+    }
+
+    testWidgets('a guest without an account: share, viewers, rankings, games '
+        '— no follow, suggest or report', (tester) async {
+      await _pump(tester, signedIn: false);
+      await tester.tap(find.byKey(LiveRoomScreen.menuKey));
+      await tester.pumpAndSettle();
+      expect(find.byKey(GoLiveKeys.tool('share')), findsOneWidget);
+      for (final id in ['suggestVideo', 'report', 'leaveSeat']) {
+        expect(find.byKey(GoLiveKeys.tool(id)), findsNothing, reason: id);
+      }
+      await _leave(tester);
+    });
+
+    testWidgets('a seated moderator: their tools (Newcomers, seat requests) '
+        'and leave seat in ≡', (tester) async {
+      final me = testUser();
+      await _pump(
+        tester,
+        mode: LiveRoomMode.audio,
+        seats: LiveSeats(
+          roomId: 'room-0',
+          mode: LiveRoomMode.audio,
+          version: 1,
+          seatCount: 10,
+          seats: [
+            LiveSeat(
+              index: 1,
+              state: LiveSeatState.taken,
+              user: UserSummary(
+                id: me.id,
+                username: me.username,
+                displayName: me.displayName,
+                avatarUrl: null,
+              ),
+            ),
+            for (var i = 2; i < 10; i++)
+              LiveSeat(index: i, state: LiveSeatState.empty, user: null),
+          ],
+          moderators: const [],
+          mine: const LiveSeatsMine(
+            role: LiveSeatRole.moderator,
+            seatIndex: 1,
+            request: null,
+            invite: null,
+          ),
+        ),
+      );
+      await tester.tap(find.byKey(AudioRoomViewKeys.menu));
+      await tester.pumpAndSettle();
+      for (final id in ['newcomers', 'seatRequests', 'leaveSeat']) {
+        expect(find.byKey(GoLiveKeys.tool(id)), findsOneWidget, reason: id);
+      }
+      expect(
+        find.text(l10nFor(AppLanguage.en).liveToolsModerator),
+        findsOneWidget,
+      );
       await _leave(tester);
     });
   });

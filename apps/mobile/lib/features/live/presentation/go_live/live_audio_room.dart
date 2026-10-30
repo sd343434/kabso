@@ -200,7 +200,11 @@ class LiveAudioRoomLayout extends StatelessWidget {
   static const double promoGap = 6;
 
   /// Fills the bar's start before [barStart] (the "Say something" pill).
+  /// D173 (owner): the audio rooms' chat pill, as on the video bar.
   final Widget? barLead;
+
+  /// D173: the pill's smallest width; below it the bar scrolls sideways.
+  static const double barLeadMinWidth = 96;
 
   /// The chat box, in place of the buttons while writing (above the
   /// keyboard).
@@ -269,7 +273,9 @@ class LiveAudioRoomLayout extends StatelessWidget {
   ];
 
   /// The chat lines low on the start side with the end slot beside them.
-  Widget _chatRow(Widget? slot) => Row(
+  /// D173: in the cinema the list's top edge fades ([fadeTop]) so a line
+  /// scrolled under the seats is never cut sharply.
+  Widget _chatRow(Widget? slot, {bool fadeTop = false}) => Row(
     crossAxisAlignment: CrossAxisAlignment.end,
     children: [
       Expanded(
@@ -282,18 +288,21 @@ class LiveAudioRoomLayout extends StatelessWidget {
           ),
           child: KTopReporter(
             onTop: onChatTop,
-            child: SingleChildScrollView(
-              reverse: true,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (final line in chat)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: line,
-                    ),
-                ],
+            child: _fade(
+              fadeTop,
+              SingleChildScrollView(
+                reverse: true,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final line in chat)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: line,
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -309,6 +318,30 @@ class LiveAudioRoomLayout extends StatelessWidget {
         ),
     ],
   );
+
+  /// D173: the cinema chat's top fade height.
+  static const double chatFade = 28;
+  static const chatFadeKey = Key('audioRoom.cinema.chatFade');
+
+  static Widget _fade(bool on, Widget child) => !on
+      ? child
+      : ShaderMask(
+          key: chatFadeKey,
+          blendMode: BlendMode.dstIn,
+          shaderCallback: (rect) => LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: const [Color(0x00000000), Color(0xFF000000)],
+            stops: [
+              0,
+              if (rect.height <= 0)
+                0
+              else
+                (chatFade / rect.height).clamp(0.0, 1.0),
+            ],
+          ).createShader(rect),
+          child: child,
+        );
 
   /// The bottom bar, or the chat box while writing.
   Widget _bottom(BuildContext context) => Padding(
@@ -336,15 +369,21 @@ class LiveAudioRoomLayout extends StatelessWidget {
               // scrolls sideways instead of overflowing or shrinking the
               // touch targets.
               int gaps(List<Widget> group) => math.max(0, group.length - 1);
+              final lead = barLead;
               final needed =
                   (barStart.length + barEnd.length) * KAudioRoom.barTarget +
-                  2 * (gaps(barStart) + gaps(barEnd));
-              if (barLead == null && needed > box.maxWidth) {
+                  2 * (gaps(barStart) + gaps(barEnd)) +
+                  (lead == null ? 0 : barLeadMinWidth + 4);
+              if (needed > box.maxWidth) {
                 return SingleChildScrollView(
                   key: crowdedBarKey,
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
+                      if (lead != null) ...[
+                        SizedBox(width: barLeadMinWidth, child: lead),
+                        const SizedBox(width: 4),
+                      ],
                       ..._spaced(barStart),
                       const SizedBox(width: KSpacing.sm),
                       ..._spaced(barEnd),
@@ -505,7 +544,7 @@ class LiveAudioRoomLayout extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   if (composer == null && (chat.isNotEmpty || slot != null))
-                    Expanded(child: _chatRow(slot))
+                    Expanded(child: _chatRow(slot, fadeTop: true))
                   else if (composer == null)
                     const Spacer(),
                   _bottom(context),

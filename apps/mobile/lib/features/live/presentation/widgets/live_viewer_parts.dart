@@ -241,10 +241,66 @@ class KViewerBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final pill = KViewerChatPill(
+      pillKey: pillKey,
+      hint: hint,
+      onChat: onChat,
+      onEmoji: onEmoji,
+    );
+    return SizedBox(
+      // The pill and the buttons keep 48 pt touch targets around them.
+      height: KSizes.minTouchTarget,
+      child: Row(
+        children: [
+          // D173: the pill takes the room the buttons leave, up to its
+          // measured width (with three or four buttons it would otherwise
+          // share that room with an empty gap).
+          Expanded(
+            child: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: KViewerRoom.pillWidth,
+                ),
+                child: pill,
+              ),
+            ),
+          ),
+          const SizedBox(width: KSpacing.xs),
+          // The reference's circles are 42.1 pt apart, which would make the
+          // 48 pt targets overlap; side by side they are 48 pt apart (D154c:
+          // a moderator's second button — a negative gap cannot be laid out).
+          ...actions,
+        ],
+      ),
+    );
+  }
+}
+
+/// D173 (owner: «لماذا لا تجعل الشريط الذي في الأسفل، زر الرسائل في الغرف
+/// الصوتية، مثله»): the «Say hi…» chat pill with the emoji button inside its
+/// end — the video live's bar and, since D173, the audio room's bar (host,
+/// seated guests and viewers) instead of separate chat and emoji circles.
+class KViewerChatPill extends StatelessWidget {
+  const new({
+    required this.hint,
+    required this.onChat,
+    super.key,
+    this.onEmoji,
+    this.pillKey = KViewerBar.defaultPillKey,
+  });
+
+  final String hint;
+  final VoidCallback onChat;
+  final VoidCallback? onEmoji;
+  final Key pillKey;
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = context.l10n;
     final scaler = MediaQuery.textScalerOf(context)
         .clamp(maxScaleFactor: KMetrics.overlayMaxTextScale);
-    final pill = Semantics(
+    return Semantics(
       button: true,
       label: hint,
       onTap: onChat,
@@ -284,7 +340,7 @@ class KViewerBar extends StatelessWidget {
                   excludeSemantics: true,
                   onTap: onEmoji,
                   child: GestureDetector(
-                    key: emojiKey,
+                    key: KViewerBar.emojiKey,
                     behavior: HitTestBehavior.opaque,
                     onTap: onEmoji,
                     child: SizedBox(
@@ -304,33 +360,6 @@ class KViewerBar extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-    return SizedBox(
-      // The pill and the buttons keep 48 pt touch targets around them.
-      height: KSizes.minTouchTarget,
-      child: Row(
-        children: [
-          // D173: the pill takes the room the buttons leave, up to its
-          // measured width (with three or four buttons it would otherwise
-          // share that room with an empty gap).
-          Expanded(
-            child: Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  maxWidth: KViewerRoom.pillWidth,
-                ),
-                child: pill,
-              ),
-            ),
-          ),
-          const SizedBox(width: KSpacing.xs),
-          // The reference's circles are 42.1 pt apart, which would make the
-          // 48 pt targets overlap; side by side they are 48 pt apart (D154c:
-          // a moderator's second button — a negative gap cannot be laid out).
-          ...actions,
-        ],
       ),
     );
   }

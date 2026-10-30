@@ -6336,6 +6336,33 @@ class AppLocalizationsAr extends AppLocalizations {
       'نعمل على إضافة ألعاب تلعبها داخل البث، وهي غير متاحة بعد.';
 
   @override
+  String get liveViewerMenu => 'المزيد';
+
+  @override
+  String get liveToolsModerator => 'أدوات المشرف';
+
+  @override
+  String get liveToolReportHost => 'الإبلاغ عن المضيف';
+
+  @override
+  String get liveToolViewers => 'المشاهدون';
+
+  @override
+  String get liveToolContributions => 'المساهمات';
+
+  @override
+  String get liveToolGiftSounds => 'أصوات الهدايا';
+
+  @override
+  String get liveToolGiftEffects => 'مؤثرات الهدايا';
+
+  @override
+  String get liveToolClearScreen => 'شاشة نظيفة';
+
+  @override
+  String get liveToolSeatRequests => 'طلبات المقاعد';
+
+  @override
   String liveCinemaMoved(int seat) {
     return 'وضع السينما يتسع لـ 10 مقاعد: تم نقلك إلى المقعد $seat.';
   }

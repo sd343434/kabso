@@ -1310,22 +1310,15 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         composer: chatComposer,
         // Ref 83: chat, emoji and the tools menu on one side; seats, PK and
         // the mic on the other.
+        // D173 (owner): the video bar's chat pill with the emoji inside it,
+        // taking the free width (was D94's separate chat and emoji circles).
+        barLead: KViewerChatPill(
+          pillKey: GoLiveScreen.audioChatKey,
+          hint: l10n.goLiveChatPill,
+          onChat: openChat,
+          onEmoji: () => openChat(emoji: true),
+        ),
         barStart: [
-          LiveRoundButton(
-            key: GoLiveScreen.audioChatKey,
-            icon: Icons.chat_bubble_outline_rounded,
-            asset: 'assets/live_bar/chat.png',
-            bare: true,
-            label: l10n.goLiveChatPill,
-            onTap: openChat,
-          ),
-          LiveRoundButton(
-            icon: Icons.emoji_emotions_rounded,
-            asset: 'assets/live_bar/emoji.png',
-            bare: true,
-            label: l10n.livePreviewEmoji,
-            onTap: () => openChat(emoji: true),
-          ),
           LiveRoundButton(
             key: GoLiveScreen.audioMoreKey,
             icon: Icons.menu_rounded,
