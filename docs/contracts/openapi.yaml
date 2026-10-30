@@ -2777,6 +2777,40 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }
 
+  /api/v1/live/rooms/{roomId}/host-presence:
+    post:
+      tags: [live]
+      operationId: setLiveHostPresence
+      summary: "The host's app went to the background or came back (D170)"
+      description: |
+        v1.41-live, CONVENTIONS §10.40. Host only. The app sends `away: true` when it goes to the
+        background while live (the phone stops the camera) and `away: false` when it comes back. In a
+        video room (`SOLO`, `MULTI`) `away: true` starts the away time once (a repeat keeps the first
+        time) and `away: false` clears it; a room whose host stays away for
+        `LIVE_HOST_AWAY_TIMEOUT_SECONDS` (default 300 s) without coming back is ended by the server with
+        `endReason = HOST_AWAY_TIMEOUT`. In an `AUDIO` room the call is accepted and nothing is stored
+        (the host keeps talking in the background; only the heartbeat rule applies). Viewers see the
+        host away from the media session (the host's camera track muted), not from this call. Checks,
+        as the heartbeat: hosting disabled → 503 `LIVE_HOSTING_UNAVAILABLE`; not the host / nonexistent
+        / malformed id → 404 `NOT_FOUND`; a body other than `{away: boolean}` → 400; room ended (or
+        stale, which ends it) → 409 `LIVE_ROOM_ENDED`. 12 / min per user (bucket `live:host-presence`).
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LiveHostPresenceRequest' }
+            example: { away: true }
+      responses:
+        '204': { description: Recorded. }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+
   /api/v1/live/rooms/{roomId}/end:
     post:
       tags: [live]
@@ -7303,7 +7337,15 @@ components:
             endedAt: { type: [string, 'null'], format: date-time }
             endReason:
               type: [string, 'null']
-              enum: [HOST_ENDED, HEARTBEAT_TIMEOUT, HOST_SUSPENDED, ADMIN, null]
+              description: "v1.41-live (D170, CONVENTIONS §10.40): `HOST_AWAY_TIMEOUT` — a video live whose host stayed away (the app in the background, the camera off) for `LIVE_HOST_AWAY_TIMEOUT_SECONDS`; `endedAt` is when that limit was reached. Clients show an unknown reason as a generic \"live ended\"."
+              enum: [HOST_ENDED, HEARTBEAT_TIMEOUT, HOST_SUSPENDED, ADMIN, HOST_AWAY_TIMEOUT, null]
+    LiveHostPresenceRequest:
+      type: object
+      description: v1.41-live (D170, CONVENTIONS §10.40). The host's app is in the background (camera off) or back.
+      additionalProperties: false
+      required: [away]
+      properties:
+        away: { type: boolean }
     LiveWishGift:
       type: object
       description: v1.27.3-live (D136). One gift of the host's wish list.
