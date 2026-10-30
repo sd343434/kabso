@@ -288,6 +288,12 @@ info:
     its coins. Task cherries are not withdrawable until the person's lifetime gift cherries received are
     worth $50 (owner): `CherryWallet.taskRewardTotal`, `lockedTaskCherries`, `withdrawableCherries`, `taskUnlock`
     (CONVENTIONS §10.41.3, §10.46.1).
+    **D188 (DRAFT v1.57-social)**: task rewards rebalanced to real money (1 000 000 coins = $12.50 retail,
+    1 000 000 cherries = $1.10 payout): free actions a symbolic 300–1 000 cherries, gift tasks coin-value
+    targets (`ProgramTask.metric` `GIFT_COINS_SENT`; gifts received by coin value) paying at most about 1 %;
+    daily cap 50 000; a calendar-month cap of $5 of task cherries (`MyTasks.monthlyCapCherries` /
+    `monthlyEarnedCherries`, code `TASK_MONTHLY_CAP_REACHED`); task cherries unlock at $60 of lifetime gift
+    support (CONVENTIONS §10.51).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -7391,8 +7397,11 @@ paths:
         transaction. One payout per person, task and period, also for concurrent claims.
         *(v1.53-social, D184, §10.41.3)* The reward is cherries: a cherry ledger `TASK_REWARD` row
         (reference `<code>@<period start>`, once per person, task and period) within the daily cherry
-        cap (`TASK_DAILY_CAP_CHERRIES`, 150 000); a claim made in coins before keeps its coins (`paidCoins`
-        on the 200). Checks: 401.
+        cap (`TASK_DAILY_CAP_CHERRIES`, 50 000 since v1.57-social); a claim made in coins before keeps its
+        coins (`paidCoins` on the 200). *(v1.57-social, D188, §10.51)* Before the daily cap, every claim
+        (daily and weekly) is checked against the calendar month's cap of task cherries
+        (`TASK_MONTHLY_CAP_MINOR` $5 at the payout rate = 4 545 454): a claim crossing it pays the
+        remainder, then 409 `TASK_MONTHLY_CAP_REACHED`. Checks: 401.
       parameters:
         - name: code
           in: path
@@ -11835,11 +11844,12 @@ components:
         period: { type: string, enum: [DAILY, WEEKLY] }
         metric:
           type: string
-          enum: [WATCH_LIVES, FOLLOWS, LIVE_CHAT_MESSAGES, GIFT_SENDS, HOST_LIVE_MINUTES, HOST_GIFT_COINS, WATCH_MINUTES, AUDIO_ROOMS, LIVE_TAPS, NEW_HOST_GIFTS, POSTS, REELS, STORIES, POST_COMMENTS, DM_FRIENDS, DM_VOICE_MESSAGES, HOST_GIFTS_RECEIVED, HOST_GUESTS]
+          enum: [WATCH_LIVES, FOLLOWS, LIVE_CHAT_MESSAGES, GIFT_SENDS, HOST_LIVE_MINUTES, HOST_GIFT_COINS, WATCH_MINUTES, AUDIO_ROOMS, LIVE_TAPS, NEW_HOST_GIFTS, POSTS, REELS, STORIES, POST_COMMENTS, DM_FRIENDS, DM_VOICE_MESSAGES, HOST_GIFTS_RECEIVED, HOST_GUESTS, GIFT_COINS_SENT]
           description: |
             What is counted (the app picks where «اذهب» leads from it). v1.50-social (D176) adds the
             daily pool's metrics (CONVENTIONS §10.41.1); a client shows an unknown metric with a
-            generic icon and «اذهب» to the live hub.
+            generic icon and «اذهب» to the live hub. v1.57-social (D188, §10.51) adds `GIFT_COINS_SENT`: the
+            coin value of paid gifts sent (the target is coins, like `HOST_GIFT_COINS`).
         audience: { type: string, enum: [EVERYONE, HOSTS] }
         name: { type: string }
         target: { type: integer, minimum: 1 }
@@ -11874,7 +11884,7 @@ components:
         rewardCoins: { type: integer, minimum: 0, description: Before the daily cap. }
     MyTasks:
       type: object
-      required: [day, timeZone, dayStartsAt, dayResetsAt, weekStartsAt, weekResetsAt, dailyCapCoins, dailyEarnedCoins, dailyCapCherries, dailyEarnedCherries, band, checkIn, tasks]
+      required: [day, timeZone, dayStartsAt, dayResetsAt, weekStartsAt, weekResetsAt, dailyCapCoins, dailyEarnedCoins, dailyCapCherries, dailyEarnedCherries, monthlyCapCherries, monthlyEarnedCherries, band, checkIn, tasks]
       properties:
         day: { type: string, format: date }
         timeZone: { type: string }
@@ -11884,8 +11894,18 @@ components:
         weekResetsAt: { type: string, format: date-time }
         dailyCapCoins: { type: integer, minimum: 1, description: "Since v1.53-social (D184): the check-in's coin cap (`TASK_DAILY_CAP_COINS`)." }
         dailyEarnedCoins: { type: integer, minimum: 0, description: "Coins today from the check-in (and daily task claims made in coins before v1.53-social)." }
-        dailyCapCherries: { type: integer, minimum: 1, description: "v1.53-social (D184): the daily tasks' cherry cap (`TASK_DAILY_CAP_CHERRIES`, 150 000)." }
+        dailyCapCherries: { type: integer, minimum: 1, description: "v1.53-social (D184): the daily tasks' cherry cap (`TASK_DAILY_CAP_CHERRIES`, 50 000 since v1.57-social)." }
         dailyEarnedCherries: { type: integer, minimum: 0, description: "v1.53-social (D184): cherries from daily tasks today." }
+        monthlyCapCherries:
+          type: integer
+          format: int64
+          minimum: 0
+          description: "v1.57-social (D188, CONVENTIONS §10.51): the calendar month's cap of task cherries, daily and weekly tasks together (`TASK_MONTHLY_CAP_MINOR` at the payout rate; owner $5 = 4 545 454); 0 = no monthly cap."
+        monthlyEarnedCherries:
+          type: integer
+          format: int64
+          minimum: 0
+          description: "v1.57-social (D188): task cherries paid this calendar month (`timeZone`), daily and weekly."
         band:
           type: object
           description: "v1.50-social (D176): the level band of today's pool tasks (the band at the day's first read; before any assignment, the band of the level now)."
@@ -12138,7 +12158,8 @@ components:
           type: object
           description: |
             v1.53-social (D184, §10.46.1). The rule that unlocks task cherries (owner, confirmed): lifetime gift
-            cherries received (reversals subtracted) worth at least `thresholdMinor` ($50) at the payout rate.
+            cherries received (reversals subtracted) worth at least `thresholdMinor` ($60 since v1.57-social,
+            D188; was $50) at the payout rate.
             Clients show `unlocked` and the values.
           required: [unlocked, giftValueMinor, thresholdMinor]
           properties:

@@ -59,7 +59,7 @@ ProgramTask _task(
 MyTasks _tasks(List<ProgramTask> tasks) => MyTasks(
   dailyCapCoins: 50,
   dailyEarnedCoins: 0,
-  dailyCapCherries: 150000,
+  dailyCapCherries: 50000,
   band: (band: 2, level: 12, name: 'Active', host: false),
   checkIn: CheckInState(
     checkedInToday: true,

@@ -24,7 +24,8 @@ List<Map<String, dynamic>> _list(Object? v) => [
 
 /// `ProgramTask.metric`: what a task counts (decides where «اذهب» leads).
 /// v1.50-social (D176) adds the daily pool's metrics; an unknown one is
-/// [other] (a generic icon, «اذهب» to the live hub).
+/// [other] (a generic icon, «اذهب» to the live hub). v1.57-social (D188)
+/// adds [giftCoinsSent]: the coin value of the gifts sent (target in coins).
 enum TaskMetric {
   watchLives('WATCH_LIVES'),
   follows('FOLLOWS'),
@@ -44,6 +45,7 @@ enum TaskMetric {
   dmVoiceMessages('DM_VOICE_MESSAGES'),
   hostGiftsReceived('HOST_GIFTS_RECEIVED'),
   hostGuests('HOST_GUESTS'),
+  giftCoinsSent('GIFT_COINS_SENT'),
   other('');
 
   new(this.wire);
@@ -207,6 +209,8 @@ final class MyTasks {
     required this.tasks,
     this.dailyCapCherries = 0,
     this.dailyEarnedCherries = 0,
+    this.monthlyCapCherries = 0,
+    this.monthlyEarnedCherries = 0,
     this.band,
   });
 
@@ -224,6 +228,8 @@ final class MyTasks {
     dailyEarnedCoins: _int(json['dailyEarnedCoins']),
     dailyCapCherries: _int(json['dailyCapCherries']),
     dailyEarnedCherries: _int(json['dailyEarnedCherries']),
+    monthlyCapCherries: _int(json['monthlyCapCherries']),
+    monthlyEarnedCherries: _int(json['monthlyEarnedCherries']),
     checkIn: CheckInState.fromJson(json['checkIn']! as Map<String, dynamic>),
     tasks: [for (final t in _list(json['tasks'])) ProgramTask.fromJson(t)],
   );
@@ -236,6 +242,12 @@ final class MyTasks {
   /// server: the coin cap is the tasks' cap then).
   final int dailyCapCherries;
   final int dailyEarnedCherries;
+
+  /// v1.57-social (D188, CONVENTIONS §10.51): the calendar month's cap of
+  /// task cherries, daily and weekly tasks together (0 = none, or an older
+  /// server: no monthly line).
+  final int monthlyCapCherries;
+  final int monthlyEarnedCherries;
   final CheckInState checkIn;
   final List<ProgramTask> tasks;
 

@@ -8346,6 +8346,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String tasksMonthlyCap(String earned, String cap) {
+    return 'This month\'s rewards: $earned of $cap cherries';
+  }
+
+  @override
   String get tasksRewardsTitle => 'Task rewards';
 
   @override
@@ -8385,6 +8390,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tasksCapReached => 'You reached today\'s task reward limit';
+
+  @override
+  String get tasksMonthlyCapReached =>
+      'You reached this month\'s task reward limit';
 
   @override
   String get eventsTabCalendar => 'Event calendar';

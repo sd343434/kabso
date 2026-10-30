@@ -656,8 +656,16 @@ export const envSchema = z
      * v1.53-social (D184, CONVENTIONS §10.41.3): task rewards are cherries — the most cherries a person
      * gets from daily tasks in one day (owner: at most about $5 a month — at $1.10 per 1 000 000 cherries
      * ≈ 4 500 000 a month ≈ 150 000 a day). Since D184 `TASK_DAILY_CAP_COINS` caps only the check-in's coins.
+     * v1.57-social (D188, owner): 50 000 a day (the 150 000 came from wrong pricing).
      */
-    TASK_DAILY_CAP_CHERRIES: intSetting(150_000, 1, 1_000_000_000),
+    TASK_DAILY_CAP_CHERRIES: intSetting(50_000, 1, 1_000_000_000),
+    /**
+     * v1.57-social (D188, owner, CONVENTIONS §10.41.3): the most task cherries a person gets in one calendar
+     * month (LIVE_RANKINGS_TIME_ZONE), daily and weekly tasks together, in minor units of
+     * CHERRY_PAYOUT_CURRENCY converted at CHERRY_PAYOUT_RATE and floored (owner: $5 = 500 → 4 545 454
+     * cherries at $1.10 per 1 000 000); 0 = no monthly cap.
+     */
+    TASK_MONTHLY_CAP_MINOR: intSetting(500, 0, 100_000_000),
     TASK_CHECK_IN_COINS: intSetting(5, 1, 1_000_000),
     TASK_CHECK_IN_STREAK_BONUS_COINS: intSetting(20, 0, 1_000_000),
     /**
@@ -906,6 +914,19 @@ export const envSchema = z
         const [cherries, minor] = v.split(':');
         return { cherries: Number(cherries), minor: Number(minor) };
       }),
+    /**
+     * v1.57-social (D188, owner): the retail price of coins, in US dollars per 1 000 000 coins (owner:
+     * $12.50). Used to show the real money of coin-value task targets (`task-admin`); nothing is charged
+     * with it.
+     */
+    COIN_RETAIL_USD_PER_MILLION: z
+      .string()
+      .trim()
+      .default('12.5')
+      .refine((v) => /^(0|[1-9][0-9]{0,6})(\.[0-9]{1,4})?$/.test(v) && Number(v) > 0, {
+        message: 'must be a positive decimal, e.g. 12.5',
+      })
+      .transform(Number),
     CHERRY_PAYOUT_CURRENCY: z
       .string()
       .trim()
@@ -917,9 +938,10 @@ export const envSchema = z
      * v1.53-social (D184, CONVENTIONS §10.46.1): task-reward cherries stay locked for withdrawal until the
      * person's lifetime gift cherries (GIFT_RECEIVED minus GIFT_REVERSAL) are worth at least this many minor
      * units of CHERRY_PAYOUT_CURRENCY at CHERRY_PAYOUT_RATE (owner, confirmed: lifetime received support
-     * worth $50 = 5000); 0 = task cherries are never locked.
+     * worth $50 = 5000); 0 = task cherries are never locked. v1.57-social (D188, owner: «لمن يكون قيمة ما حصل
+     * عليه من دعم لا يقل عن 60 دولار»): $60 = 6000.
      */
-    TASK_CHERRIES_UNLOCK_GIFT_MINOR: intSetting(5000, 0, 100_000_000_000),
+    TASK_CHERRIES_UNLOCK_GIFT_MINOR: intSetting(6000, 0, 100_000_000_000),
     /**
      * Optional dedicated source of the HMAC key (HKDF, info `social-cursor/v1`) of the v1.5-social
      * list cursors; like LIVE_CURSOR_KEY it falls back to RATE_LIMIT_KEY_SECRET.

@@ -14394,6 +14394,12 @@ abstract class AppLocalizations {
   /// **'مكافآت اليوم: {earned} من {cap} كرزة'**
   String tasksDailyCap(String earned, String cap);
 
+  /// D188: the calendar month's cap of task cherries (daily and weekly tasks), under the daily line.
+  ///
+  /// In ar, this message translates to:
+  /// **'مكافآت الشهر: {earned} من {cap} كرزة'**
+  String tasksMonthlyCap(String earned, String cap);
+
   /// D166: the daily task list.
   ///
   /// In ar, this message translates to:
@@ -14465,6 +14471,12 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'بلغت حدّ مكافآت المهام لهذا اليوم'**
   String get tasksCapReached;
+
+  /// D188: TASK_MONTHLY_CAP_REACHED.
+  ///
+  /// In ar, this message translates to:
+  /// **'بلغت حدّ مكافآت المهام لهذا الشهر'**
+  String get tasksMonthlyCapReached;
 
   /// D166: Event Center tab.
   ///

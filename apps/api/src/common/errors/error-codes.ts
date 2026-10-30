@@ -141,6 +141,8 @@ export enum ErrorCode {
   INSUFFICIENT_CHERRIES = 'INSUFFICIENT_CHERRIES',
   /** v1.52-social (DRAFT, D179): the caller already has a withdrawal waiting to be paid. */
   WITHDRAWAL_PENDING = 'WITHDRAWAL_PENDING',
+  /** v1.57-social (DRAFT, D188): the caller already got the month's maximum of task cherries. */
+  TASK_MONTHLY_CAP_REACHED = 'TASK_MONTHLY_CAP_REACHED',
 }
 
 /** HTTP status for every code (CONVENTIONS.md §4 table). */
@@ -226,6 +228,7 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.AGENCY_LEAVE_WINDOW_CLOSED]: 409,
   [ErrorCode.INSUFFICIENT_CHERRIES]: 409,
   [ErrorCode.WITHDRAWAL_PENDING]: 409,
+  [ErrorCode.TASK_MONTHLY_CAP_REACHED]: 409,
 };
 
 /** Default developer-facing messages (clients localize by `code`, not by message). */
@@ -304,13 +307,14 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.YOUTUBE_VIDEO_UNAVAILABLE]: 'This YouTube video cannot be played here.',
   [ErrorCode.YOUTUBE_SEARCH_UNAVAILABLE]: 'YouTube search is not available; paste a link instead.',
   [ErrorCode.TASK_NOT_COMPLETED]: 'That task is not completed yet.',
-  [ErrorCode.TASK_DAILY_CAP_REACHED]: 'You already got today’s maximum of task coins.',
+  [ErrorCode.TASK_DAILY_CAP_REACHED]: 'You already got today’s maximum of task rewards.',
   [ErrorCode.FOLLOW_REQUEST_NOT_PENDING]: 'That follow request is no longer pending.',
   [ErrorCode.AGENCY_ALREADY_MEMBER]: 'You are already a host of another agency.',
   [ErrorCode.AGENCY_JOIN_NOT_ALLOWED]: 'An agency owner cannot join an agency as a host.',
   [ErrorCode.AGENCY_LEAVE_WINDOW_CLOSED]: 'The leave window is over; send a complaint to the admin.',
   [ErrorCode.INSUFFICIENT_CHERRIES]: 'Not enough cherries for that withdrawal.',
   [ErrorCode.WITHDRAWAL_PENDING]: 'You already have a withdrawal waiting to be paid.',
+  [ErrorCode.TASK_MONTHLY_CAP_REACHED]: 'You already got this month’s maximum of task rewards.',
 };
 
 export interface ErrorDetail {

@@ -18,9 +18,11 @@ import {
   assignDailyTasks,
   bandForLevel,
   cappedReward,
+  cappedTaskReward,
   checkInCycleDay,
   checkInReward,
   isTaskMetric,
+  monthlyCapCherries,
   seedOf,
   type TaskMetric,
   type TaskPoolBand,
@@ -95,6 +97,10 @@ export interface MyTasksDto {
   dailyCapCherries: number;
   /** v1.53-social (D184): cherries from daily tasks today. */
   dailyEarnedCherries: number;
+  /** v1.57-social (D188): the monthly cherry cap of daily and weekly tasks together (0 = none). */
+  monthlyCapCherries: number;
+  /** v1.57-social (D188): cherries from tasks (daily and weekly) paid this calendar month. */
+  monthlyEarnedCherries: number;
   /** v1.50-social (D176): the level band today's pool tasks were chosen for. */
   band: { band: number; level: number; name: string; host: boolean };
   checkIn: {
@@ -290,6 +296,17 @@ function progressSql(me: string, metric: TaskMetric, w: ProgramWindow, now: Date
             JOIN users u ON u.id = i.user_id AND u.status = 'ACTIVE'
            WHERE i.status = 'ACCEPTED' AND i.user_id <> ${me}::uuid
              AND i.handled_at >= ${from}::timestamptz AND i.handled_at < ${to}::timestamptz) seated`;
+    case 'GIFT_COINS_SENT':
+      // v1.57-social (D188): the coin value of the gifts the caller sent in the period, paid with coins
+      // (live or direct conversation; free quips and bag gifts do not count), to other ACTIVE people —
+      // each recipient's stored share of the send (live_gift_recipients.coins).
+      return Prisma.sql`
+        SELECT COALESCE(sum(gr.coins), 0)::bigint AS n
+          FROM live_gifts g
+          JOIN live_gift_recipients gr ON gr.gift_id = g.id AND gr.user_id <> ${me}::uuid
+          JOIN users u ON u.id = gr.user_id AND u.status = 'ACTIVE'
+         WHERE g.sender_id = ${me}::uuid AND g.coins_charged > 0
+           AND g.created_at >= ${from}::timestamptz AND g.created_at < ${to}::timestamptz`;
     case 'HOST_GIFT_COINS':
       // The coin value of the gifts the caller received in the period from ACTIVE senders.
       return Prisma.sql`
@@ -460,6 +477,25 @@ export class TasksService {
     return Number(row?.n ?? 0n);
   }
 
+  /**
+   * v1.57-social (D188): task cherries paid in the calendar month `w` — daily and weekly claims, by the
+   * time they were paid (what the monthly cap counts).
+   */
+  private async earnedCherriesInMonth(db: Db, me: string, w: ProgramWindow): Promise<number> {
+    const [row] = await db.$queryRaw<{ n: bigint }[]>`
+      SELECT COALESCE(sum(c.reward_amount), 0)::bigint AS n
+        FROM task_claims c
+       WHERE c.user_id = ${me}::uuid AND c.reward_currency = 'CHERRIES'
+         AND c.created_at >= ${w.start}::timestamptz AND c.created_at < ${w.end}::timestamptz`;
+    return Number(row?.n ?? 0n);
+  }
+
+  /** v1.57-social (D188): the monthly cap in cherries (`TASK_MONTHLY_CAP_MINOR` at the payout rate). */
+  private get monthlyCap(): number {
+    const { rateCherries, rateMinor } = this.config.economy;
+    return monthlyCapCherries(this.config.programs.taskMonthlyCapMinor, rateCherries, rateMinor);
+  }
+
   /** v1.53-social (D184): cherries paid today by daily tasks (what `TASK_DAILY_CAP_CHERRIES` counts). */
   private async earnedCherriesToday(db: Db, me: string, day: string): Promise<number> {
     const [row] = await db.$queryRaw<{ n: bigint }[]>`
@@ -573,6 +609,8 @@ export class TasksService {
       dailyEarnedCoins: await this.earnedCoinsToday(this.prisma, me, today),
       dailyCapCherries: taskDailyCapCherries,
       dailyEarnedCherries: await this.earnedCherriesToday(this.prisma, me, today),
+      monthlyCapCherries: this.monthlyCap,
+      monthlyEarnedCherries: await this.earnedCherriesInMonth(this.prisma, me, windows.month),
       band: {
         band: shownBand.band,
         level,
@@ -655,10 +693,12 @@ export class TasksService {
 
   /**
    * `POST /me/tasks/{code}/claim`. Order: 404 (unknown, disabled or not for the caller) → already
-   * claimed in this period → 200 (nothing paid again) → 409 TASK_NOT_COMPLETED → (daily tasks) 409
-   * TASK_DAILY_CAP_REACHED when the day's cherry cap is used up → 201, paying the reward or what is left
-   * of the cap in cherries (v1.53-social, D184: a `cherry_ledger` `TASK_REWARD` row in this transaction).
-   * Weekly (host) tasks are outside the daily cap: each pays once a week.
+   * claimed in this period → 200 (nothing paid again) → 409 TASK_NOT_COMPLETED → 409
+   * TASK_MONTHLY_CAP_REACHED when the month's task cherries are used up (v1.57-social, D188; daily and
+   * weekly tasks) → (daily tasks) 409 TASK_DAILY_CAP_REACHED when the day's cherry cap is used up → 201,
+   * paying the reward or what is left of the caps in cherries (v1.53-social, D184: a `cherry_ledger`
+   * `TASK_REWARD` row in this transaction). Weekly (host) tasks are outside the daily cap: each pays once
+   * a week, within the monthly cap.
    */
   async claim(
     me: string,
@@ -688,15 +728,18 @@ export class TasksService {
         }
         const progress = await this.progressOf(tx, me, def.metric as TaskMetric, w, now);
         if (progress < offered.target) throw new AppException(ErrorCode.TASK_NOT_COMPLETED);
-        let cherries = offered.rewardCherries;
-        if (def.period === 'DAILY') {
-          cherries = cappedReward(
-            offered.rewardCherries,
-            this.config.programs.taskDailyCapCherries,
-            await this.earnedCherriesToday(tx, me, w.date),
-          );
-          if (cherries === 0) throw new AppException(ErrorCode.TASK_DAILY_CAP_REACHED);
-        }
+        const { pay: cherries, cap } = cappedTaskReward(
+          offered.rewardCherries,
+          def.period === 'DAILY'
+            ? {
+                cap: this.config.programs.taskDailyCapCherries,
+                earned: await this.earnedCherriesToday(tx, me, w.date),
+              }
+            : null,
+          { cap: this.monthlyCap, earned: await this.earnedCherriesInMonth(tx, me, windows.month) },
+        );
+        if (cap === 'MONTHLY') throw new AppException(ErrorCode.TASK_MONTHLY_CAP_REACHED);
+        if (cap === 'DAILY') throw new AppException(ErrorCode.TASK_DAILY_CAP_REACHED);
         await tx.taskClaim.create({
           data: {
             userId: me,

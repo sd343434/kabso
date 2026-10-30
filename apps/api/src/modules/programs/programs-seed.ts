@@ -41,6 +41,7 @@ export async function seedDefaultTaskPoolIn(db: SeedDb): Promise<number> {
       nameAr: t.nameAr,
       nameEn: t.nameEn,
       sortOrder: t.sortOrder,
+      enabled: t.enabled ?? true,
       pool: true,
       poolGroup: t.group,
       bandTargets: [...t.bandTargets],

@@ -6,7 +6,8 @@
  * cap, a new list each day — plus the Event Center's calendar line and tone and the Task Center's
  * banner placement. End to end against PostgreSQL + Redis. v1.53-social (D184, owner): the rewards are
  * cherries (the coins ×10, then ×300 by the owner: ×3 000), credited to the cherry ledger (`TASK_REWARD`), under the daily
- * cherry cap (the check-in's coins no longer share it).
+ * cherry cap (the check-in's coins no longer share it). v1.57-social (D188, owner): the rewards are
+ * rebalanced (free actions 300 in band 1; «send gifts» and the host's «gifts received» count coin value).
  */
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -75,8 +76,8 @@ interface MyTasks {
 
 const HOUR_MS = 3_600_000;
 const DAY_MS = 24 * HOUR_MS;
-/** The daily cherry cap here (D184; 15 old coins × 3 000). */
-const CAP = 45_000;
+/** The daily cherry cap here (D188 defaults: a band-1 host's three host tasks, 2 000 + 5 000 + 1 000). */
+const CAP = 8_000;
 const template = new Map(DEFAULT_POOL_TASKS.map((t) => [t.code, t]));
 
 /** A fixed-offset zone where it is about noon now, so "today" never ends in the middle of a test. */
@@ -171,8 +172,14 @@ describe('D176 daily task pool', { timeout: 240_000 }, () => {
       data: { enabled: true },
     });
   };
-  const fullPool = () =>
-    ctx.prisma.taskDefinition.updateMany({ where: { pool: true }, data: { enabled: true } });
+  /** Back to the defaults (D188: «send a gift» is seeded switched off). */
+  const fullPool = async () => {
+    await ctx.prisma.taskDefinition.updateMany({ where: { pool: true }, data: { enabled: true } });
+    await ctx.prisma.taskDefinition.updateMany({
+      where: { code: { in: DEFAULT_POOL_TASKS.filter((t) => t.enabled === false).map((t) => t.code) } },
+      data: { enabled: false },
+    });
+  };
   const startLive = async (host: TestUser) => {
     await ctx.prisma.liveHost.create({ data: { userId: host.id, source: 'ADMIN' } });
     const room = await ctx.http.post('/api/v1/live/rooms').set(auth(host)).send({ title: 'Pool' });
@@ -193,12 +200,12 @@ describe('D176 daily task pool', { timeout: 240_000 }, () => {
       .send(raw);
     expect(res.status).toBe(200);
   };
-  const sendGift = async (roomId: string, from: TestUser, to: TestUser) => {
+  const sendGift = async (roomId: string, from: TestUser, to: TestUser, giftCode = 'pool_rose') => {
     const res = await ctx.http
       .post(`/api/v1/live/rooms/${roomId}/gifts`)
       .set(auth(from))
       .send({
-        giftCode: 'pool_rose',
+        giftCode,
         quantity: 1,
         recipients: [to.username],
         source: 'COINS',
@@ -246,6 +253,22 @@ describe('D176 daily task pool', { timeout: 240_000 }, () => {
         assetKey: 'gift_pool_rose',
         animationKey: null,
         sortOrder: 0,
+        badge: 'NONE',
+        tagCode: null,
+        tagNameAr: null,
+        tagNameEn: null,
+      }),
+    );
+    // D188: gift tasks count coin value — a 10 000-coin gift.
+    await ctx.prisma.$transaction((tx) =>
+      addGiftIn(tx, 'pool_crown', {
+        category: 'POPULAR',
+        nameAr: 'تاج',
+        nameEn: 'Crown',
+        priceCoins: 10_000,
+        assetKey: 'gift_pool_crown',
+        animationKey: null,
+        sortOrder: 1,
         badge: 'NONE',
         tagCode: null,
         tagNameAr: null,
@@ -328,9 +351,9 @@ describe('D176 daily task pool', { timeout: 240_000 }, () => {
     try {
       const a = (await tasks(low)).tasks;
       const b = (await tasks(high)).tasks;
-      // D184: the D176 coins ×3 000 (2 → 6 000, 5 → 15 000 cherries).
-      expect(a).toEqual([expect.objectContaining({ code: 'P_FOLLOW', target: 1, rewardCherries: 6_000 })]);
-      expect(b).toEqual([expect.objectContaining({ code: 'P_FOLLOW', target: 10, rewardCherries: 15_000 })]);
+      // D188 (owner): a free action pays 300 cherries in band 1, 1 000 in band 4.
+      expect(a).toEqual([expect.objectContaining({ code: 'P_FOLLOW', target: 1, rewardCherries: 300 })]);
+      expect(b).toEqual([expect.objectContaining({ code: 'P_FOLLOW', target: 10, rewardCherries: 1_000 })]);
       // A level reached later in the day does not change today's list (it applies tomorrow).
       await setLevels(low, 90, 0);
       expect((await tasks(low)).tasks).toEqual(a);
@@ -448,10 +471,11 @@ describe('D176 daily task pool', { timeout: 240_000 }, () => {
         });
         paid += t.rewardCherries;
       }
-      expect(paid).toBe((2 + 4 + 3 + 2 + 2 + 2) * 3_000);
+      // D188: six free actions in band 1, 300 cherries each.
+      expect(paid).toBe(6 * 300);
       const again = await claim(me, 'P_POST');
       expect(again.status).toBe(200);
-      expect(again.body).toMatchObject({ paidCherries: 12_000, paidCoins: 0, balanceCherries: paid });
+      expect(again.body).toMatchObject({ paidCherries: 300, paidCoins: 0, balanceCherries: paid });
       // The cherry ledger (one TASK_REWARD row per task and day), no coins.
       const ledger = await ctx.prisma.cherryLedgerEntry.findMany({
         where: { userId: me.id, reason: 'TASK_REWARD' },
@@ -478,14 +502,14 @@ describe('D176 daily task pool', { timeout: 240_000 }, () => {
       'P_AUDIO_ROOMS',
       'P_LIVE_COMMENTS',
       'P_LIVE_TAPS',
-      'P_SEND_GIFT',
+      'P_SEND_GIFTS',
       'P_NEW_HOST',
     ]);
     try {
       const me = await signup();
       const hostA = await signup();
       const hostB = await signup();
-      await creditIn(ctx.prisma, me.id, 1_000n, 'ADMIN_GRANT', randomUUID());
+      await creditIn(ctx.prisma, me.id, 11_000n, 'ADMIN_GRANT', randomUUID());
       const roomA = await startLive(hostA);
       const roomB = await startLive(hostB);
       await ctx.prisma.liveRoom.update({ where: { id: roomB }, data: { mode: 'AUDIO' } });
@@ -525,27 +549,43 @@ describe('D176 daily task pool', { timeout: 240_000 }, () => {
         data: { roomId: roomA, userId: me.id, counted: 20, points: 20n, pointsAt: new Date() },
       });
       await join(roomA, me);
-      await sendGift(roomA, me, hostA); // a gift, and hostA's permission is new: also a new host supported
+      // D188: «send gifts» counts the coin value sent (10 000 coins in band 1), not the number of sends.
+      await sendGift(roomA, me, hostA); // 10 coins, and hostA's permission is new: a new host supported
+      expect(await task(me, 'P_SEND_GIFTS')).toMatchObject({
+        progress: 10,
+        target: 10_000,
+        completed: false,
+      });
+      await sendGift(roomA, me, hostA, 'pool_crown'); // 10 010 coins sent
 
       const now = await tasks(me);
       for (const t of now.tasks) expect(t, t.code).toMatchObject({ completed: true, progress: t.target });
       expect(now.tasks.find((t) => t.code === 'P_WATCH_MINUTES')).toMatchObject({ progress: 5, target: 5 });
 
-      // The cherry cap (45 000 here, D184): the check-in pays its coins and no longer counts; then
-      // 12 000 + 9 000 + 9 000 + 6 000 = 36 000, the 15 000-cherry gift task pays the 9 000 left, and the
-      // last task is refused
-      // with TASK_DAILY_CAP_REACHED.
+      // The cherry cap (8 000 here): the check-in pays its coins and no longer counts. Earlier today the
+      // person already got 6 000 task cherries (a claim row as a claim stores it); then 4 × 300 = 1 200
+      // (7 200), the 1 000-cherry gift task pays the 800 left, and the last task is refused with
+      // TASK_DAILY_CAP_REACHED.
+      await ctx.prisma.taskClaim.create({
+        data: {
+          userId: me.id,
+          taskCode: 'P_FOLLOW',
+          periodStart: new Date(`${listed.day}T00:00:00.000Z`),
+          rewardAmount: 6_000,
+          rewardCurrency: 'CHERRIES',
+        },
+      });
       const checkIn = await ctx.http.post('/api/v1/me/check-in').set(auth(me));
       expect(checkIn.status).toBe(201);
       expect(checkIn.body.paidCoins).toBe(5);
       for (const code of ['P_WATCH_MINUTES', 'P_AUDIO_ROOMS', 'P_LIVE_COMMENTS', 'P_LIVE_TAPS']) {
         expect((await claim(me, code)).status).toBe(201);
       }
-      const capped = await claim(me, 'P_SEND_GIFT');
+      const capped = await claim(me, 'P_SEND_GIFTS');
       expect(capped.status).toBe(201);
       expect(capped.body).toMatchObject({
-        paidCherries: 9_000,
-        task: { rewardCherries: 15_000, claimedCherries: 9_000 },
+        paidCherries: 800,
+        task: { rewardCherries: 1_000, claimedCherries: 800 },
       });
       const refused = await claim(me, 'P_NEW_HOST');
       expect(refused.status).toBe(409);
@@ -565,7 +605,7 @@ describe('D176 daily task pool', { timeout: 240_000 }, () => {
       const host = await signup();
       const fan = await signup();
       const guest = await signup();
-      await creditIn(ctx.prisma, fan.id, 1_000n, 'ADMIN_GRANT', randomUUID());
+      await creditIn(ctx.prisma, fan.id, 101_000n, 'ADMIN_GRANT', randomUUID());
       const room = await startLive(host);
       const mine = await tasks(host);
       expect(
@@ -574,14 +614,17 @@ describe('D176 daily task pool', { timeout: 240_000 }, () => {
           .map((t) => t.code)
           .sort(),
       ).toEqual(['P_HOST_GIFTS', 'P_HOST_GUEST', 'P_HOST_LIVE_30']);
-      // Live for 31 minutes (the room started 31 minutes ago, its last heartbeat now).
-      const started = new Date(Date.now() - 31 * 60_000);
+      // Live for 61 minutes (D188: band 1 asks 60; the room started 61 minutes ago, its last heartbeat now).
+      const started = new Date(Date.now() - 61 * 60_000);
       await ctx.prisma.liveRoom.update({
         where: { id: room },
         data: { startedAt: started, lastHeartbeatAt: new Date() },
       });
       await join(room, fan);
+      // D188: gifts received count by coin value (100 000 coins in band 1): three small gifts are not enough.
       for (let i = 0; i < 3; i++) await sendGift(room, fan, host);
+      expect(await task(host, 'P_HOST_GIFTS')).toMatchObject({ progress: 30, completed: false });
+      for (let i = 0; i < 10; i++) await sendGift(room, fan, host, 'pool_crown');
       await ctx.prisma.liveSeatRequest.create({
         data: { roomId: room, userId: guest.id, status: 'ACCEPTED', handledAt: new Date() },
       });
@@ -589,9 +632,9 @@ describe('D176 daily task pool', { timeout: 240_000 }, () => {
       await ctx.prisma.liveSeatRequest.create({ data: { roomId: room, userId: fan.id } });
       const after = await tasks(host);
       const by = (code: string) => after.tasks.find((t) => t.code === code)!;
-      expect(by('P_HOST_LIVE_30').progress).toBe(30);
+      expect(by('P_HOST_LIVE_30').progress).toBe(60);
       expect(by('P_HOST_LIVE_30').completed).toBe(true);
-      expect(by('P_HOST_GIFTS')).toMatchObject({ progress: 3, completed: true });
+      expect(by('P_HOST_GIFTS')).toMatchObject({ progress: 100_000, target: 100_000, completed: true });
       expect(by('P_HOST_GUEST')).toMatchObject({ progress: 1, completed: true });
       for (const code of ['P_HOST_LIVE_30', 'P_HOST_GIFTS', 'P_HOST_GUEST']) {
         expect((await claim(host, code)).status).toBe(201);

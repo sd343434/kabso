@@ -60,19 +60,26 @@ ProgramTask _task(
   name: code == 'FOLLOW_USERS' ? 'Follow other users' : code,
   target: target,
   progress: progress,
-  // D184: task rewards are cherries (the D166 5 coins ×10).
-  rewardCherries: 15000,
+  // D184: task rewards are cherries; D188: a band-4 free action pays 1 000.
+  rewardCherries: 1000,
   completed: progress >= target,
   claimed: claimed,
   claimedCoins: claimed ? 0 : null,
-  claimedCherries: claimed ? 15000 : null,
+  claimedCherries: claimed ? 1000 : null,
 );
 
-MyTasks _tasks({bool checkedIn = false, List<ProgramTask>? tasks}) => MyTasks(
+MyTasks _tasks({
+  bool checkedIn = false,
+  List<ProgramTask>? tasks,
+  int monthlyCap = 4545454,
+}) => MyTasks(
   dailyCapCoins: 50,
   dailyEarnedCoins: checkedIn ? 5 : 0,
-  dailyCapCherries: 150000,
-  dailyEarnedCherries: 15000,
+  // D188 (owner): 50 000 a day, $5 a month (4 545 454 cherries).
+  dailyCapCherries: 50000,
+  dailyEarnedCherries: 1000,
+  monthlyCapCherries: monthlyCap,
+  monthlyEarnedCherries: 31000,
   checkIn: CheckInState(
     checkedInToday: checkedIn,
     streak: 3,
@@ -159,6 +166,7 @@ class _FakePrograms implements ProgramsRepository {
     this.svipStatus,
     this.fail = false,
     this.capOnClaim = false,
+    this.capCode = 'TASK_DAILY_CAP_REACHED',
     this.packages,
   }) : tasksValue = tasks ?? _tasks();
 
@@ -168,6 +176,9 @@ class _FakePrograms implements ProgramsRepository {
   final SvipStatus? svipStatus;
   final bool fail;
   final bool capOnClaim;
+
+  /// D188: which cap refuses the claim (daily or monthly).
+  final String capCode;
   final List<RechargePackage>? packages;
   final List<String> claims = [];
   final List<EventTab> eventCalls = [];
@@ -190,14 +201,14 @@ class _FakePrograms implements ProgramsRepository {
   Future<ProgramPayout> claim(String code) async {
     claims.add(code);
     if (capOnClaim) {
-      throw const ServerFailure(
+      throw ServerFailure(
         code: ErrorCode.unknown,
-        rawCode: 'TASK_DAILY_CAP_REACHED',
+        rawCode: capCode,
         debugMessage: 'cap',
         statusCode: 409,
       );
     }
-    return (paidCoins: 0, balanceCoins: 1250, paidCherries: 15000);
+    return (paidCoins: 0, balanceCoins: 1250, paidCherries: 1000);
   }
 
   @override
@@ -460,9 +471,9 @@ void main() {
       await tester.pumpAndSettle();
       expect(programs.claims, ['FOLLOW_USERS']);
       // D184: the claim feedback says cherries, with the cherry and
-      // «+15,000» (thousands separators).
+      // «+1,000» (thousands separators).
       expect(
-        find.text(_en.tasksRewardReceivedCherries('15,000')),
+        find.text(_en.tasksRewardReceivedCherries('1,000')),
         findsOneWidget,
       );
       expect(
@@ -475,7 +486,7 @@ void main() {
       expect(
         find.descendant(
           of: find.byKey(TaskCenterScreen.claimFeedbackKey),
-          matching: find.text('+15,000'),
+          matching: find.text('+1,000'),
         ),
         findsOneWidget,
       );
@@ -513,6 +524,64 @@ void main() {
       await tester.tap(find.byKey(TaskCenterScreen.actionKey('FOLLOW_USERS')));
       await tester.pumpAndSettle();
       expect(find.text(_en.tasksCapReached), findsOneWidget);
+    });
+
+    testWidgets('D188: the monthly cap refusal has its own message', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        const TaskCenterScreen(),
+        programs: _FakePrograms(
+          capOnClaim: true,
+          capCode: 'TASK_MONTHLY_CAP_REACHED',
+        ),
+      );
+      await tester.tap(find.byKey(TaskCenterScreen.actionKey('FOLLOW_USERS')));
+      await tester.pumpAndSettle();
+      expect(find.text(_en.tasksMonthlyCapReached), findsOneWidget);
+      expect(find.text(_en.tasksCapReached), findsNothing);
+    });
+
+    testWidgets('D188: the month line «x of …» under the daily line, in '
+        'Arabic too; none without a monthly cap', (tester) async {
+      await _pump(tester, const TaskCenterScreen(), programs: _FakePrograms());
+      expect(
+        tester.widget<Text>(find.byKey(TaskCenterScreen.monthCapKey)).data,
+        _en.tasksMonthlyCap('31,000', '4,545,454'),
+      );
+      final day = tester.getRect(find.byKey(TaskCenterScreen.capKey));
+      final month = tester.getRect(find.byKey(TaskCenterScreen.monthCapKey));
+      expect(month.top, greaterThanOrEqualTo(day.bottom));
+      // Both lines end on the same side (the trailing edge).
+      expect(month.right, moreOrLessEquals(day.right, epsilon: 0.5));
+      expect(tester.takeException(), isNull);
+
+      await _pump(
+        tester,
+        const TaskCenterScreen(),
+        programs: _FakePrograms(),
+        language: AppLanguage.ar,
+      );
+      expect(
+        tester.widget<Text>(find.byKey(TaskCenterScreen.monthCapKey)).data,
+        _ar.tasksMonthlyCap('31,000', '4,545,454'),
+      );
+      expect(
+        tester.getRect(find.byKey(TaskCenterScreen.monthCapKey)).left,
+        moreOrLessEquals(
+          tester.getRect(find.byKey(TaskCenterScreen.capKey)).left,
+          epsilon: 0.5,
+        ),
+      );
+
+      await _pump(
+        tester,
+        const TaskCenterScreen(),
+        programs: _FakePrograms(tasks: _tasks(monthlyCap: 0)),
+      );
+      expect(find.byKey(TaskCenterScreen.capKey), findsOneWidget);
+      expect(find.byKey(TaskCenterScreen.monthCapKey), findsNothing);
     });
 
     testWidgets('«Go» leads to where the task is done', (tester) async {
@@ -557,7 +626,7 @@ void main() {
                 name: 'LIVE_CHAT',
                 target: 10,
                 progress: 10,
-                rewardCherries: 15000,
+                rewardCherries: 1000,
                 completed: true,
                 claimed: true,
                 claimedCoins: 5,
@@ -575,7 +644,7 @@ void main() {
           findsOneWidget,
         );
         expect(
-          find.descendant(of: amount, matching: find.text('+15,000')),
+          find.descendant(of: amount, matching: find.text('+1,000')),
           findsOneWidget,
         );
       }
@@ -595,7 +664,7 @@ void main() {
       );
       expect(
         tester.widget<Text>(find.byKey(TaskCenterScreen.capKey)).data,
-        _en.tasksDailyCap('15,000', '150,000'),
+        _en.tasksDailyCap('1,000', '50,000'),
       );
     });
 
@@ -609,8 +678,8 @@ void main() {
               _task(
                 'HOST_GIFT_COINS',
                 TaskMetric.hostGiftCoins,
-                progress: 100,
-                target: 1000,
+                progress: 10010,
+                target: 5000000,
                 weekly: true,
               ),
             ],
@@ -622,7 +691,8 @@ void main() {
         100,
         scrollable: find.byType(Scrollable).last,
       );
-      expect(find.text('HOST_GIFT_COINS (100/1000)'), findsOneWidget);
+      // D188: a coin-value target, with thousands separators.
+      expect(find.text('HOST_GIFT_COINS (10,010/5,000,000)'), findsOneWidget);
       expect(find.text(_en.tasksWeeklyTitle), findsOneWidget);
     });
 

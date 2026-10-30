@@ -10,16 +10,26 @@ export interface ProgramWindow {
 }
 
 /**
- * The day and the ISO week (Monday 00:00) of `now` in `tz` (`LIVE_RANKINGS_TIME_ZONE`, the boards' and
- * the CP space's clock, CONVENTIONS §10.15, §10.24).
+ * The day, the ISO week (Monday 00:00) and (v1.57-social, D188) the calendar month of `now` in `tz`
+ * (`LIVE_RANKINGS_TIME_ZONE`, the boards' and the CP space's clock, CONVENTIONS §10.15, §10.24).
  */
 export async function programWindowsIn(
   db: Db,
   now: Date,
   tz: string,
-): Promise<{ day: ProgramWindow; week: ProgramWindow }> {
+): Promise<{ day: ProgramWindow; week: ProgramWindow; month: ProgramWindow }> {
   const [w] = await db.$queryRaw<
-    { day: string; day_start: Date; day_end: Date; week: string; week_start: Date; week_end: Date }[]
+    {
+      day: string;
+      day_start: Date;
+      day_end: Date;
+      week: string;
+      week_start: Date;
+      week_end: Date;
+      month: string;
+      month_start: Date;
+      month_end: Date;
+    }[]
   >`
     SELECT to_char((${now}::timestamptz AT TIME ZONE ${tz}::text)::date, 'YYYY-MM-DD') AS day,
            (((${now}::timestamptz AT TIME ZONE ${tz}::text)::date)::timestamp AT TIME ZONE ${tz}::text) AS day_start,
@@ -28,10 +38,15 @@ export async function programWindowsIn(
            to_char(date_trunc('week', ${now}::timestamptz AT TIME ZONE ${tz}::text), 'YYYY-MM-DD') AS week,
            (date_trunc('week', ${now}::timestamptz AT TIME ZONE ${tz}::text) AT TIME ZONE ${tz}::text) AS week_start,
            ((date_trunc('week', ${now}::timestamptz AT TIME ZONE ${tz}::text) + interval '7 days')
-              AT TIME ZONE ${tz}::text) AS week_end`;
+              AT TIME ZONE ${tz}::text) AS week_end,
+           to_char(date_trunc('month', ${now}::timestamptz AT TIME ZONE ${tz}::text), 'YYYY-MM-DD') AS month,
+           (date_trunc('month', ${now}::timestamptz AT TIME ZONE ${tz}::text) AT TIME ZONE ${tz}::text) AS month_start,
+           ((date_trunc('month', ${now}::timestamptz AT TIME ZONE ${tz}::text) + interval '1 month')
+              AT TIME ZONE ${tz}::text) AS month_end`;
   return {
     day: { date: w!.day, start: w!.day_start, end: w!.day_end },
     week: { date: w!.week, start: w!.week_start, end: w!.week_end },
+    month: { date: w!.month, start: w!.month_start, end: w!.month_end },
   };
 }
 

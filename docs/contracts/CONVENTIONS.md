@@ -154,6 +154,7 @@ All non-2xx responses use one envelope:
 | 409 | `AGENCY_LEAVE_WINDOW_CLOSED` | *(v1.52-social, DRAFT, D179)* `leaveAgency` after `AGENCY_LEAVE_DAYS` (14) from joining; only a complaint to the admin remains (§10.46). |
 | 409 | `INSUFFICIENT_CHERRIES` | *(v1.52-social, DRAFT, D179)* A withdrawal request larger than the caller's cherry balance (*v1.53-social, D184:* less the task cherries still locked, `withdrawableCherries`, §10.46.1). Nothing was held. |
 | 409 | `WITHDRAWAL_PENDING` | *(v1.52-social, DRAFT, D179)* A withdrawal request while another of the caller's requests waits to be paid (one at a time). |
+| 409 | `TASK_MONTHLY_CAP_REACHED` | *(v1.57-social, DRAFT, D188)* A task claim (daily or weekly) after the caller already got the calendar month's cap of task cherries (`TASK_MONTHLY_CAP_MINOR` at `CHERRY_PAYOUT_RATE`, §10.51). Nothing was paid. Checked before `TASK_DAILY_CAP_REACHED`. |
 | 403 | `DM_NOT_ALLOWED` | *(v1.40-social, DRAFT, D155)* The recipient's «who can message you» setting (`whoCanMessage`) does not allow the caller (§11.13). Nothing was stored or charged. The app says the person does not accept messages. |
 | 403 | `DM_REQUEST_LIMIT` | *(v1.40-social, DRAFT, D155)* The caller already sent `DM_REQUEST_MAX_MESSAGES` (3) messages in a message request the recipient has not accepted (§11.13). The app says to wait for a reply. |
 | 403 | `DM_REQUEST_TEXT_ONLY` | *(v1.40-social, DRAFT, D155)* A picture or voice message in a message request (only text, a pack emoji or a gift until the recipient accepts, §11.13). |
@@ -506,6 +507,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.44-social)* Tables `task_definitions`, `task_claims`, `daily_check_ins`, `events`, `event_results`; ledger reasons `TASK_REWARD`, `CHECK_IN_REWARD`, `EVENT_PRIZE`; server config `TASK_DAILY_CAP_COINS`, `TASK_CHECK_IN_COINS`, `TASK_CHECK_IN_STREAK_BONUS_COINS`, `EVENT_PRIZE_REVIEW_HOURS`, `EVENTS_SWEEP_INTERVAL_SECONDS`, `SVIP_TIERS`, `SVIP_WINDOW_DAYS`, `SVIP_STATUS_DAYS`, `WALLET_RECHARGE_PACKAGES`, `WALLET_RECHARGE_CURRENCY` | Backend — `programs` module (`TasksService`, `EventsService`, `SvipService`; tasks and events changed only by the `task-admin` / `event-admin` CLIs) | CTO; Security (coin payouts) |
 | *(v1.47-social)* Tables `user_profile_links`, `follow_requests`; columns `user_profiles.gender`, `show_gender`, `account_category`, `pending_registrations.gender`, `reports.target_profile_link_id`, `reports.link_snapshot` | Backend — `users` module (profile fields; `profile-admin` CLI), `social` module (follow requests; the `safety` module accepts them all when an account turns public and deletes them on a block), `safety` module (link reports) | CTO; Security reviews the link rules and the private-account audit (§10.47) |
 | *(v1.52-social)* Tables `cherry_wallets`, `cherry_ledger`, `agencies`, `agency_hosts`, `agency_earnings`, `agency_months`, `agency_complaints`, `cherry_withdrawals`; server config `CHERRIES_PER_COIN`, `AGENCY_*`, `CHERRY_PAYOUT_RATE`, `CHERRY_PAYOUT_CURRENCY`, `CHERRY_WITHDRAWAL_MIN_MINOR`, `CHERRY_WITHDRAWAL_PAYOUT_DAYS` | Backend — `economy` module (`CherriesService`, `AgencyService`; gift credits written by the gift sends through `creditGiftCherriesIn`; agencies, complaints, payouts and reversals changed only by the `economy-admin` CLI) | CTO; Security (money, payout details) |
+| *(v1.57-social)* Task metric `GIFT_COINS_SENT`; server config `TASK_MONTHLY_CAP_MINOR`, `COIN_RETAIL_USD_PER_MILLION`; the rebalanced task defaults (migration `20261231130000_task_rewards_rebalance`) | Backend — `programs` module (caps, metrics, `task-admin`) | CTO |
 | *(v1.53-social)* Columns `task_definitions.reward_cherries`, `task_assignments.reward_cherries`, `task_claims.reward_amount`, `task_claims.reward_currency`; cherry ledger reason `TASK_REWARD`; server config `TASK_DAILY_CAP_CHERRIES`, `TASK_CHERRIES_UNLOCK_GIFT_MINOR` | Backend — `programs` module (claims) and `economy` module (`cherry-ledger.ts`: the credit and the lock) | CTO |
 | `apps/api/**` | Backend | CTO review |
 | `apps/mobile/lib/app/router/**` (route registry) | Flutter | CTO review |
@@ -546,6 +548,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.57-social (draft) | 2026-10-30 | **D188 (owner: the task rewards came from wrong pricing — «300,000 كرزة» and the low «استقبل 1000 عملة» targets are absurd; anchors 1 000 000 coins = $12.50 retail, 1 000 000 cherries = $1.10 payout):** `ProgramTask.metric` + `GIFT_COINS_SENT` (the coin value of paid gifts sent, from the stored gift rows); `MyTasks.monthlyCapCherries`, `MyTasks.monthlyEarnedCherries` (required in responses); code `TASK_MONTHLY_CAP_REACHED` (409); config `TASK_DAILY_CAP_CHERRIES` 150 000 → **50 000**, new `TASK_MONTHLY_CAP_MINOR` (500 = $5 → 4 545 454 cherries a calendar month, daily + weekly), new `COIN_RETAIL_USD_PER_MILLION` (12.5; `task-admin` shows real money), `TASK_CHERRIES_UNLOCK_GIFT_MINOR` 5000 → **6000** ($60); migration `20261231130000_task_rewards_rebalance` (stored defaults, the new metric in the CHECK, the days' offers re-priced). §4, §8, §10.41.3, §10.46.1, §10.51. | **Behaviour change, additive on the wire** (a new enum value — the app shows an unknown metric generically; new required response fields the app reads in the same change set). Claims already paid keep what they paid. |
 | v1.53-social (draft) | 2026-10-30 | **D184 (owner: the Task Center shows only the active tasks — «مهام الماس» removed — and its rewards are cherries at the same value, 1 coin = 10 cherries; follow-ups: task cherries not withdrawable until lifetime gift cherries received are worth $50 — confirmed; rewards raised to ≈ $5 a month):** `ProgramTask.rewardCherries`, `ProgramTask.claimedCherries`, `MyTasks.dailyCapCherries`, `MyTasks.dailyEarnedCherries`, `TaskClaimResult.paidCherries`, `TaskClaimResult.balanceCherries` (all required in responses); `ProgramTask.rewardCoins` deprecated (0, minimum relaxed to 0); `CherryLedgerReason.TASK_REWARD`; `CherryWallet.taskRewardTotal`, `lockedTaskCherries`, `withdrawableCherries`, `taskUnlock` (required); `requestCherryWithdrawal` refuses more than `withdrawableCherries` (`INSUFFICIENT_CHERRIES`); config `TASK_DAILY_CAP_CHERRIES` (150 000), `TASK_CHERRIES_UNLOCK_GIFT_MINOR` (5000 = $50); `TASK_DAILY_CAP_COINS` now caps the check-in's coins only; migrations `20261231100000_task_cherries_enums`, `20261231110000_task_cherries` (stored task rewards ×10, `task_claims.reward_amount` + `reward_currency`, earlier claims COINS), `20261231120000_task_rewards_raise` (stored task rewards ×300). §4, §10.41, §10.41.3, §10.46.1. | **Behaviour change, additive on the wire** (new required response fields strict clients add in the same change set; older apps show «+0» coins on tasks — the app ships with this change). Claimed coin rewards and their ledger rows are untouched. |
 | v1.52-social (draft) | 2026-10-30 | **D179 (owner: the Kabso economy, phase 1 — «الكرز» as a real balance, host agencies, commissions, withdrawals; CP-027):** tag `wallet`: `getMyCherries` (`GET /wallet/me/cherries`, `CherryWallet`, `CherryPayoutRules`), `listMyCherryLedger` (`GET /wallet/me/cherries/ledger`, `CherryLedgerPage`, `CherryLedgerEntry`, `CherryLedgerReason`), `requestCherryWithdrawal` / `listMyCherryWithdrawals` (`POST` / `GET /wallet/me/cherries/withdrawals`, `Idempotency-Key`, `CherryWithdrawalRequest`, `CherryWithdrawal`, `CherryWithdrawalPage`); tag `agency`: `getAgencyByCode` (`GET /agencies/{inviteCode}`, `AgencyPreview`), `getMyAgency` (`GET /me/agency`, `MyAgency`, `AgencyMembership`, `OwnAgency`, `AgencySubAgency`, `AgencyRank`), `joinAgency`, `leaveAgency`, `complainAboutAgency` (`POST /me/agency/join\|leave\|complaints`, `AgencyComplaint`), `listMyAgencyHosts` (`GET /me/agency/hosts`, `AgencyHostPage`); codes `AGENCY_ALREADY_MEMBER`, `AGENCY_JOIN_NOT_ALLOWED`, `AGENCY_LEAVE_WINDOW_CLOSED`, `INSUFFICIENT_CHERRIES`, `WITHDRAWAL_PENDING` (409); `getMyEarnings` / `listMyEarnings` deprecated; migration `20261231090000_cherry_economy` (with the one-time backfill); CLI `economy-admin`. §4, §8, §10.40, §10.46. | **Additive** (new operations, schemas and codes; the deprecated earnings reads keep working). Behaviour: every gift send now also writes cherry ledger rows in its transaction. |
 | v1.51-social (draft) | 2026-10-30 | **D177 (owner: «هذه صفحة المحفظة، لكن نحن عندنا عملة ذهبية وكرزات»):** `listHomeBanners` takes `placement=wallet` (the wallet page's promo slot; 3:1 like `home`); `banner-admin add --placement wallet`; migration `20261220090000_wallet_banners` widens CHECK `home_banners_placement_values` to `WALLET`; §10.26. | **Additive** (a new enum value of a query parameter; existing values unchanged). |
@@ -2765,6 +2768,8 @@ has no tab bar there) and the active tasks («المهام النشطة», «م�
   / `balanceCherries`; `ProgramTask.rewardCoins` is deprecated and 0.
 - **Withdrawal:** task cherries are cherries like gift cherries but stay **locked** for withdrawal until the
   unlock rule of §10.46.1 passes.
+- *(v1.57-social, D188)* **Superseded values:** the ×300 raise and the 150 000 daily cap came from wrong
+  pricing; §10.51 sets the defaults, the 50 000 daily cap and a monthly cap.
 
 ### 10.42 Editing the own profile *(v1.45-social, DRAFT — D168)*
 
@@ -3048,6 +3053,9 @@ least **$50**. The rule is one function and one setting:
 - **Wire:** `CherryWallet.taskRewardTotal`, `lockedTaskCherries`, `withdrawableCherries`, `taskUnlock`. The
   app shows the locked cherries with «تُفتح للسحب بعد تحقيق شرط الأرباح» (wording may change) and offers
   only `withdrawableCherries`.
+- *(v1.57-social, D188, owner: «لمن يكون قيمة ما حصل عليه من دعم لا يقل عن 60 دولار»)* The threshold is
+  **$60**: `TASK_CHERRIES_UNLOCK_GIFT_MINOR` default 6000 (≈ 54 545 455 gift cherries at the owner rate),
+  replacing the $50. Same rule and wire; the app's locked line shows no amount (unchanged).
 
 ### 10.47 Profile fields, private accounts and follow requests *(v1.47-social, DRAFT — D175, CP-025)*
 
@@ -3132,6 +3140,55 @@ The owner's answers (2026-10-30, Arabic) to D168's questions a–g. Written as �
   deleted with the change and its files afterwards (the keys are printed when the CLI has no S3 settings),
   the user gets an `AVATAR_REMOVED` notification (system, no actor, no target; always on) and
   `admin.avatar.remove` is audited with the reason.
+
+### 10.51 Task rewards rebalanced: real-money anchors, a monthly cap, the $60 unlock *(v1.57-social, DRAFT — D188)*
+
+Owner (2026-10-30): the rewards of §10.41.3 came from wrong pricing — 300 000 cherries for a task and the
+low «استقبل 1000 عملة» targets are absurd. Anchors: **1 000 000 coins = $12.50** (retail,
+`COIN_RETAIL_USD_PER_MILLION` = 12.5, used to show money, never to charge) and **1 000 000 cherries =
+$1.10** (payout, `CHERRY_PAYOUT_RATE`). Principle: free actions (watch, comment, follow, post, story,
+message, hearts) get a small symbolic reward; tasks with real money behind them (spending or receiving
+gifts) have **coin-value targets** counted from the stored gift rows (never reported by the app) and pay at
+most about **1 %** of that value.
+
+- **Defaults (band 1 · 2 · 3 · 4; migration `20261231130000_task_rewards_rebalance`, `seed-defaults`):**
+
+  | Task | Target | Reward (cherries) |
+  |---|---|---|
+  | Free actions (`P_WATCH_LIVES`, `P_WATCH_MINUTES`, `P_AUDIO_ROOMS`, `P_LIVE_COMMENTS`, `P_LIVE_TAPS`, `P_FOLLOW`, `P_POST_COMMENTS`, `P_POST`, `P_REEL`, `P_STORY`, `P_DM_FRIEND`, `P_DM_VOICE`) | unchanged (§10.41.1) | 300 · 500 · 750 · 1 000 (reel —·500·750·1 000) |
+  | Send gifts `P_SEND_GIFTS` (`GIFT_COINS_SENT`, now in band 1 too) | 10 000 · 25 000 · 50 000 · 100 000 coins | 1 000 · 2 500 · 5 000 · 10 000 |
+  | Support a new host `P_NEW_HOST` | unchanged | 1 000 · 2 000 · 3 500 · 5 000 |
+  | Host: live minutes `P_HOST_LIVE_30` | 60 · 80 · 100 · 120 min | 2 000 · 3 000 · 4 000 · 5 000 |
+  | Host: gifts received `P_HOST_GIFTS` (`HOST_GIFT_COINS`, was a count) | 100 000 · 250 000 · 500 000 · 1 000 000 coins | 5 000 · 10 000 · 20 000 · 30 000 |
+  | Host: accept a guest `P_HOST_GUEST` | unchanged | 1 000 · 1 500 · 2 000 · 3 000 |
+  | Weekly host `HOST_LIVE_MINUTES` | 600 min (10 h) in the ISO week | 30 000 |
+  | Weekly host `HOST_GIFT_COINS` | 5 000 000 coins in the ISO week | 50 000 |
+
+  «Send a gift» `P_SEND_GIFT` (one gift of any price) is **switched off**: a single cheap gift cannot carry a
+  reward within 1 % of its value; it becomes a coin-value template (1 000 · 2 500 · 5 000 · 10 000 coins →
+  100 · 250 · 500 · 1 000) the team may switch on. D166's fixed daily tasks (off since D176) get 300 each and
+  `SEND_GIFTS` becomes `GIFT_COINS_SENT` 10 000 coins → 1 000. Names that state an amount follow it
+  («ابثّ 10 ساعات هذا الأسبوع», «استقبل هدايا بقيمة 5,000,000 عملة هذا الأسبوع»).
+- **`GIFT_COINS_SENT`:** the sum of `live_gift_recipients.coins` of the caller's sends in the period paid
+  with coins (`coins_charged > 0`: live and direct-conversation gifts; free quips and bag gifts do not count)
+  to other ACTIVE people. `HOST_GIFT_COINS` (§10.41) is the coin value received, now also used daily.
+- **Daily cap:** `TASK_DAILY_CAP_CHERRIES` = **50 000** (daily tasks).
+- **Monthly cap:** `TASK_MONTHLY_CAP_MINOR` = **500** minor units of `CHERRY_PAYOUT_CURRENCY` ($5),
+  converted at `CHERRY_PAYOUT_RATE` and floored → **4 545 454** cherries; `0` = none. It counts every task
+  claim paid in cherries — daily and weekly — whose payment time falls in the current **calendar month of
+  `LIVE_RANKINGS_TIME_ZONE`** (the programs' clock, like the days and weeks of §10.41; Asia/Riyadh in
+  production). A claim pays at most what is left of both caps (a claim crossing the monthly cap pays the
+  remainder), then 409 `TASK_MONTHLY_CAP_REACHED` (checked before `TASK_DAILY_CAP_REACHED`; weekly tasks
+  too); it resets on the month's first day. The wire: `MyTasks.monthlyCapCherries` (0 = none) and
+  `monthlyEarnedCherries`; the app shows «مكافآت الشهر: x من 4,545,454 كرزة» under the daily line. With
+  these defaults the most a person can earn is far below it (band 4 host: 50 000 a day + 80 000 a week ≈
+  2 030 000 in a 31-day month); it is a guard for future changes.
+- **Withdrawal unlock:** $60 of lifetime gift support (§10.46.1, `TASK_CHERRIES_UNLOCK_GIFT_MINOR` 6000).
+- **Offers already made:** the migration re-prices the days' assignments (`task_assignments`, offers only)
+  from their template and band, so an offer made under the old count target can never pay the old reward;
+  claims already paid keep what they paid.
+- **`task-admin`:** `list` and `set` print the money next to every reward (cherries × payout rate, e.g.
+  `1000 (≈ $0.0011)`) and next to coin-value targets (coins × retail, e.g. `100000 coins (≈ $1.25)`).
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 

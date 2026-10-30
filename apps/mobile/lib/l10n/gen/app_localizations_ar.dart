@@ -8373,6 +8373,11 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
+  String tasksMonthlyCap(String earned, String cap) {
+    return 'مكافآت الشهر: $earned من $cap كرزة';
+  }
+
+  @override
   String get tasksRewardsTitle => 'مكافآت المهام';
 
   @override
@@ -8411,6 +8416,9 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get tasksCapReached => 'بلغت حدّ مكافآت المهام لهذا اليوم';
+
+  @override
+  String get tasksMonthlyCapReached => 'بلغت حدّ مكافآت المهام لهذا الشهر';
 
   @override
   String get eventsTabCalendar => 'تقويم الفعاليات';

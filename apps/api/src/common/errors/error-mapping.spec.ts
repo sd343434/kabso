@@ -118,6 +118,8 @@ describe('ErrorCode', () => {
         'AGENCY_LEAVE_WINDOW_CLOSED',
         'INSUFFICIENT_CHERRIES',
         'WITHDRAWAL_PENDING',
+        // v1.57-social (DRAFT, D188)
+        'TASK_MONTHLY_CAP_REACHED',
       ].sort(),
     );
     expect(ERROR_HTTP_STATUS).toMatchObject({
@@ -195,6 +197,7 @@ describe('ErrorCode', () => {
       AGENCY_LEAVE_WINDOW_CLOSED: 409,
       INSUFFICIENT_CHERRIES: 409,
       WITHDRAWAL_PENDING: 409,
+      TASK_MONTHLY_CAP_REACHED: 409,
     });
   });
 

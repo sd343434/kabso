@@ -204,6 +204,8 @@ export interface AppConfig {
     readonly rateCherries: number;
     readonly rateMinor: number;
     readonly currency: string;
+    /** v1.57-social (D188): the coins' retail price, US dollars per 1 000 000 coins (owner: 12.5). */
+    readonly coinRetailUsdPerMillion: number;
     readonly minWithdrawalMinor: number;
     readonly payoutDays: number;
     /**
@@ -257,6 +259,11 @@ export interface AppConfig {
     readonly taskDailyCapCoins: number;
     /** v1.53-social (D184): the daily tasks' cherries. */
     readonly taskDailyCapCherries: number;
+    /**
+     * v1.57-social (D188): the monthly cap of task cherries (daily + weekly) in payout minor units,
+     * converted at the economy's payout rate (0 = none).
+     */
+    readonly taskMonthlyCapMinor: number;
     readonly checkInCoins: number;
     readonly checkInStreakBonusCoins: number;
     readonly eventPrizeReviewMs: number;
@@ -482,6 +489,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
     programs: {
       taskDailyCapCoins: e.TASK_DAILY_CAP_COINS,
       taskDailyCapCherries: e.TASK_DAILY_CAP_CHERRIES,
+      taskMonthlyCapMinor: e.TASK_MONTHLY_CAP_MINOR,
       checkInCoins: e.TASK_CHECK_IN_COINS,
       checkInStreakBonusCoins: e.TASK_CHECK_IN_STREAK_BONUS_COINS,
       eventPrizeReviewMs: e.EVENT_PRIZE_REVIEW_HOURS * 3_600_000,
@@ -515,6 +523,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       rateCherries: e.CHERRY_PAYOUT_RATE.cherries,
       rateMinor: e.CHERRY_PAYOUT_RATE.minor,
       currency: e.CHERRY_PAYOUT_CURRENCY,
+      coinRetailUsdPerMillion: e.COIN_RETAIL_USD_PER_MILLION,
       minWithdrawalMinor: e.CHERRY_WITHDRAWAL_MIN_MINOR,
       payoutDays: e.CHERRY_WITHDRAWAL_PAYOUT_DAYS,
       taskCherriesUnlockGiftMinor: e.TASK_CHERRIES_UNLOCK_GIFT_MINOR,
