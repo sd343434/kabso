@@ -53,6 +53,10 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
     ErrorCode.cpNotPaired => l10n.errorCpNotPaired,
     ErrorCode.medalNotUnlocked => l10n.errorMedalNotUnlocked,
     ErrorCode.bagItemNotOwned => l10n.errorBagItemNotOwned,
+    ErrorCode.bagItemNotTransferable => l10n.errorBagItemNotTransferable,
+    ErrorCode.bagSendPermanentWholeOnly => l10n.errorBagSendPermanentWholeOnly,
+    ErrorCode.bagSendExceedsRemaining => l10n.errorBagSendExceedsRemaining,
+    ErrorCode.bagRecipientHasPermanent => l10n.errorBagRecipientHasPermanent,
     ErrorCode.giftUnavailable => l10n.errorGiftUnavailable,
     ErrorCode.giftBagInsufficient => l10n.errorGiftBagInsufficient,
     ErrorCode.liveGiftRecipientUnavailable =>

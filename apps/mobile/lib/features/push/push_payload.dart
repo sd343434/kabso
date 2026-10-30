@@ -62,6 +62,7 @@ class PushPayload {
     if (type == 'CONTENT_REMOVED') return null;
     if (type == 'CP_REQUEST' || type == 'CP_ACCEPTED') return AppRoutes.cp;
     if (type == 'MEDAL_AWARDED') return AppRoutes.medals;
+    if (type == 'BAG_ITEM_RECEIVED') return AppRoutes.bag;
     if (id == null || id.isEmpty) return null;
     final postId = data['targetPostId'];
     final actor = data['actorUsername'];

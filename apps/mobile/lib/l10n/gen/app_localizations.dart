@@ -8645,14 +8645,8 @@ abstract class AppLocalizations {
   /// Button: stop wearing this item. (CP-019 (D107))
   ///
   /// In ar, this message translates to:
-  /// **'خلع'**
+  /// **'إزالة'**
   String get bagTakeOff;
-
-  /// A catalogue item the user does not own (no store yet). (CP-019 (D107))
-  ///
-  /// In ar, this message translates to:
-  /// **'لم تمتلكه بعد'**
-  String get bagLocked;
 
   /// Bag empty state title. (CP-019 (D107))
   ///
@@ -8671,12 +8665,6 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'عناصرك'**
   String get bagOwnedSection;
-
-  /// Bag section: catalogue items not owned. (CP-019 (D107))
-  ///
-  /// In ar, this message translates to:
-  /// **'عناصر أخرى'**
-  String get bagLockedSection;
 
   /// Error GIFT_UNAVAILABLE. (CP-020 (D108))
   ///
@@ -14556,6 +14544,240 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'جائزة فعالية'**
   String get walletReasonEventPrize;
+
+  /// D171: the bag v2 (expiry, gifts, send).
+  ///
+  /// In ar, this message translates to:
+  /// **'{days, plural, =1{يوم واحد} =2{يومان} few{{days} أيام} many{{days} يوماً} other{{days} يوم}}'**
+  String bagDays(int days);
+
+  /// D171: the bag v2 (expiry, gifts, send).
+  ///
+  /// In ar, this message translates to:
+  /// **'{hours, plural, =1{ساعة واحدة} =2{ساعتان} few{{hours} ساعات} many{{hours} ساعة} other{{hours} ساعة}}'**
+  String bagHours(int hours);
+
+  /// D171: the bag v2 (expiry, gifts, send).
+  ///
+  /// In ar, this message translates to:
+  /// **'{minutes, plural, =1{دقيقة واحدة} =2{دقيقتان} few{{minutes} دقائق} many{{minutes} دقيقة} other{{minutes} دقيقة}}'**
+  String bagMinutes(int minutes);
+
+  /// D171: the bag v2 (expiry, gifts, send).
+  ///
+  /// In ar, this message translates to:
+  /// **'{first} {second}'**
+  String bagDurationPair(String first, String second);
+
+  /// D171: the bag v2 (expiry, gifts, send).
+  ///
+  /// In ar, this message translates to:
+  /// **'متبقٍ {duration}'**
+  String bagRemaining(String duration);
+
+  /// D171: the bag v2 (expiry, gifts, send).
+  ///
+  /// In ar, this message translates to:
+  /// **'ينتهي اليوم'**
+  String get bagEndsToday;
+
+  /// D171: the bag v2 (expiry, gifts, send).
+  ///
+  /// In ar, this message translates to:
+  /// **'دائم'**
+  String get bagPermanent;
+
+  /// D171: the bag v2 (expiry, gifts, send).
+  ///
+  /// In ar, this message translates to:
+  /// **'هدية من Kabso'**
+  String get bagFromKabso;
+
+  /// D171: the bag v2 (expiry, gifts, send).
+  ///
+  /// In ar, this message translates to:
+  /// **'هدية من {name}'**
+  String bagFromUser(String name);
+
+  /// D171: the bag v2 (expiry, gifts, send).
+  ///
+  /// In ar, this message translates to:
+  /// **'هدية'**
+  String get bagFromSomeone;
+
+  /// D171: the bag v2 (expiry, gifts, send).
+  ///
+  /// In ar, this message translates to:
+  /// **'مكافأة مستوى'**
+  String get bagFromLevel;
+
+  /// D171: the bag v2 (expiry, gifts, send).
+  ///
+  /// In ar, this message translates to:
+  /// **'تم الشراء'**
+  String get bagFromPurchase;
+
+  /// D171: the bag v2 (expiry, gifts, send).
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال'**
+  String get bagSend;
+
+  /// D171: the bag v2 (expiry, gifts, send).
+  ///
+  /// In ar, this message translates to:
+  /// **'العناصر المجانية لا تُرسل'**
+  String get bagNoSendFree;
+
+  /// D171: the bag v2 (expiry, gifts, send).
+  ///
+  /// In ar, this message translates to:
+  /// **'مكافآت المستوى لا تُرسل، فهي مرتبطة بمستواك'**
+  String get bagNoSendLevel;
+
+  /// D171: the bag v2 (expiry, gifts, send).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن إرسال هذا العنصر'**
+  String get bagNoSendOther;
+
+  /// D171: the bag v2 (expiry, gifts, send).
+  ///
+  /// In ar, this message translates to:
+  /// **'عناصر أخرى'**
+  String get bagCategoryOther;
+
+  /// D171: the bag v2 (expiry, gifts, send).
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال {item}'**
+  String bagSendTitle(String item);
+
+  /// D171: the bag v2 (expiry, gifts, send).
+  ///
+  /// In ar, this message translates to:
+  /// **'لديك: {left}'**
+  String bagSendYouHave(String left);
+
+  /// D171: the bag v2 (expiry, gifts, send).
+  ///
+  /// In ar, this message translates to:
+  /// **'كم تريد أن ترسل؟'**
+  String get bagSendAmount;
+
+  /// D171: the bag v2 (expiry, gifts, send).
+  ///
+  /// In ar, this message translates to:
+  /// **'الكل'**
+  String get bagSendAll;
+
+  /// D171: the bag v2 (expiry, gifts, send).
+  ///
+  /// In ar, this message translates to:
+  /// **'العنصر الدائم يُرسل كاملاً ويخرج من حقيبتك.'**
+  String get bagSendPermanentNote;
+
+  /// D171: the bag v2 (expiry, gifts, send).
+  ///
+  /// In ar, this message translates to:
+  /// **'سيخرج العنصر من حقيبتك مع كل مدته المتبقية.'**
+  String get bagSendWholeNote;
+
+  /// D171: the bag v2 (expiry, gifts, send).
+  ///
+  /// In ar, this message translates to:
+  /// **'يبقى لديك بعد الإرسال: {left}'**
+  String bagSendPartNote(String left);
+
+  /// D171: the bag v2 (expiry, gifts, send).
+  ///
+  /// In ar, this message translates to:
+  /// **'إلى'**
+  String get bagSendTo;
+
+  /// D171: the bag v2 (expiry, gifts, send).
+  ///
+  /// In ar, this message translates to:
+  /// **'ابحث بالاسم أو اسم المستخدم'**
+  String get bagSendSearchHint;
+
+  /// D171: the bag v2 (expiry, gifts, send).
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر من سترسل إليه العنصر.'**
+  String get bagSendSearchStart;
+
+  /// D171: the bag v2 (expiry, gifts, send).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد أحد بهذا الاسم.'**
+  String get bagSendSearchEmpty;
+
+  /// D171: the bag v2 (expiry, gifts, send).
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيير'**
+  String get bagSendChange;
+
+  /// D171: the bag v2 (expiry, gifts, send).
+  ///
+  /// In ar, this message translates to:
+  /// **'تأكيد الإرسال'**
+  String get bagSendConfirmTitle;
+
+  /// D171: the bag v2 (expiry, gifts, send).
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال {item} ({amount}) إلى {user}؟'**
+  String bagSendConfirmBody(String item, String amount, String user);
+
+  /// D171: the bag v2 (expiry, gifts, send).
+  ///
+  /// In ar, this message translates to:
+  /// **'تم الإرسال إلى {user}'**
+  String bagSendDone(String user);
+
+  /// D171: the bag v2 (expiry, gifts, send).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن إرسال هذا العنصر.'**
+  String get errorBagItemNotTransferable;
+
+  /// D171: the bag v2 (expiry, gifts, send).
+  ///
+  /// In ar, this message translates to:
+  /// **'العنصر الدائم يُرسل كاملاً فقط.'**
+  String get errorBagSendPermanentWholeOnly;
+
+  /// D171: the bag v2 (expiry, gifts, send).
+  ///
+  /// In ar, this message translates to:
+  /// **'هذه مدة أطول مما تبقى في العنصر.'**
+  String get errorBagSendExceedsRemaining;
+
+  /// D171: the bag v2 (expiry, gifts, send).
+  ///
+  /// In ar, this message translates to:
+  /// **'يملك هذا العنصر بشكل دائم بالفعل.'**
+  String get errorBagRecipientHasPermanent;
+
+  /// D171: the bag v2 (expiry, gifts, send).
+  ///
+  /// In ar, this message translates to:
+  /// **'أرسل لك {who} {item}'**
+  String notifBagItemReceived(String who, String item);
+
+  /// D171: the bag v2 (expiry, gifts, send).
+  ///
+  /// In ar, this message translates to:
+  /// **'بطاقة ملف شخصي'**
+  String get notifBagItemProfileCard;
+
+  /// D171: the bag v2 (expiry, gifts, send).
+  ///
+  /// In ar, this message translates to:
+  /// **'عنصراً لحقيبتك'**
+  String get notifBagItemGeneric;
 }
 
 class _AppLocalizationsDelegate

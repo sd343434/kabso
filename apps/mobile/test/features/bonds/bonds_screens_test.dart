@@ -503,6 +503,15 @@ void main() {
           'thumbUrl': null,
           'text': null,
         }, actor: false),
+        // D171: a bag item someone sent.
+        n('BAG_ITEM_RECEIVED', {
+          'type': 'BAG_ITEM',
+          'id': 'emerald_wings',
+          'postId': null,
+          'thumbUrl': null,
+          'text': null,
+          'bagCategory': 'PROFILE_CARD',
+        }),
       ];
       expect(items.map((i) => i.type), [
         NotificationType.cpRequest,
@@ -510,6 +519,7 @@ void main() {
         NotificationType.familyJoinAccepted,
         NotificationType.familyJoinDeclined,
         NotificationType.medalAwarded,
+        NotificationType.bagItemReceived,
       ]);
       expect(items.map((i) => NotificationRow(item: i).routeTo()), [
         '/cp',
@@ -517,6 +527,7 @@ void main() {
         '/families/f1',
         '/families/f1',
         '/medals',
+        '/bag',
       ]);
       await pumpBonds(
         tester,
@@ -538,6 +549,12 @@ void main() {
       expect(texts, contains(plain(en.notifFamilyJoinAccepted('Stars'))));
       expect(texts, contains(plain(en.notifFamilyJoinDeclined('Stars'))));
       expect(texts, contains(plain(en.notifMedalAwarded('First couple'))));
+      expect(
+        texts,
+        contains(
+          plain(en.notifBagItemReceived(who, en.notifBagItemProfileCard)),
+        ),
+      );
       expect(tester.takeException(), isNull);
     });
 

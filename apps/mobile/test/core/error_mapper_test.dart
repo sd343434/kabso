@@ -58,6 +58,11 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.cpNotPaired: 409,
   ErrorCode.medalNotUnlocked: 409,
   ErrorCode.bagItemNotOwned: 409,
+  // v1.48-social (D171)
+  ErrorCode.bagItemNotTransferable: 409,
+  ErrorCode.bagSendPermanentWholeOnly: 409,
+  ErrorCode.bagSendExceedsRemaining: 409,
+  ErrorCode.bagRecipientHasPermanent: 409,
   ErrorCode.giftUnavailable: 409,
   ErrorCode.giftBagInsufficient: 409,
   ErrorCode.liveGiftRecipientUnavailable: 409,
@@ -158,6 +163,11 @@ void main() {
           'MEDAL_NOT_UNLOCKED',
           // v1.22-live (CP-019)
           'BAG_ITEM_NOT_OWNED',
+          // v1.48-social (D171)
+          'BAG_ITEM_NOT_TRANSFERABLE',
+          'BAG_SEND_PERMANENT_WHOLE_ONLY',
+          'BAG_SEND_EXCEEDS_REMAINING',
+          'BAG_RECIPIENT_HAS_PERMANENT',
           // v1.23-live (CP-020)
           'GIFT_UNAVAILABLE',
           'GIFT_BAG_INSUFFICIENT',

@@ -1,5 +1,6 @@
 // CP-019: BagRepository and PublicProfile.profileCard against a mocked Dio
-// adapter, with JSON shaped like docs/contracts/openapi.yaml v1.22-live.
+// adapter, with JSON shaped like docs/contracts/openapi.yaml v1.22-live
+// (v1.48-social, D171: expiry, giver, sending).
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -80,32 +81,56 @@ void main() {
       );
     });
 
-    test('my bag: owned items, the worn one, opaque sources', () async {
-      http.on(
-        'GET',
-        '$_base/me/bag',
-        (_) => FakeResponse(
-          200,
-          body: {
-            'data': [
-              bagItemJson('bunny_royal', equipped: true, source: 'FREE_SIGNUP'),
-              bagItemJson('emerald_wings', source: 'STORE'),
-              bagItemJson('x', category: 'CHAT_BUBBLE'),
-            ],
-          },
-        ),
-      );
-      final items = await repo().myBag(category: BagCategory.profileCard);
-      expect(items.map((i) => i.code), ['bunny_royal', 'emerald_wings']);
-      expect(items.first.equipped, isTrue);
-      expect(items.first.source, 'FREE_SIGNUP');
-      expect(items.last.source, 'STORE');
-      expect(items.first.acquiredAt, DateTime.utc(2026, 10, 26, 18, 30));
-      expect(
-        http.requestsTo('GET', '$_base/me/bag').single.uri.queryParameters,
-        {'category': 'PROFILE_CARD'},
-      );
-    });
+    test(
+      'my bag: every category (D171), worn, sources, expiry, giver',
+      () async {
+        http.on(
+          'GET',
+          '$_base/me/bag',
+          (_) => FakeResponse(
+            200,
+            body: {
+              'data': [
+                bagItemJson(
+                  'bunny_royal',
+                  equipped: true,
+                  source: 'FREE_SIGNUP',
+                ),
+                bagItemJson(
+                  'emerald_wings',
+                  source: 'STORE',
+                  expiresAt: DateTime.utc(2026, 11, 5, 13),
+                  giftedBy: {
+                    'id': '0192e4a0-7c1d-7000-8000-000000000002',
+                    'username': 'sara_22',
+                    'displayName': 'Sara',
+                    'avatarUrl': null,
+                  },
+                ),
+                bagItemJson('x', category: 'CHAT_BUBBLE'),
+              ],
+            },
+          ),
+        );
+        final items = await repo().myBag(category: BagCategory.profileCard);
+        // D171: a category this app does not know is kept (it just appears).
+        expect(items.map((i) => i.code), ['bunny_royal', 'emerald_wings', 'x']);
+        expect(items.last.category, 'CHAT_BUBBLE');
+        expect(items.first.expiresAt, isNull);
+        expect(items.first.transferable, isFalse);
+        expect(items[1].expiresAt, DateTime.utc(2026, 11, 5, 13));
+        expect(items[1].giftedBy?.username, 'sara_22');
+        expect(items[1].transferable, isTrue);
+        expect(items.first.equipped, isTrue);
+        expect(items.first.source, 'FREE_SIGNUP');
+        expect(items[1].source, 'STORE');
+        expect(items.first.acquiredAt, DateTime.utc(2026, 10, 26, 18, 30));
+        expect(
+          http.requestsTo('GET', '$_base/me/bag').single.uri.queryParameters,
+          {'category': 'PROFILE_CARD'},
+        );
+      },
+    );
 
     test(
       'wear and take off send the category and the code (or null)',
@@ -116,16 +141,13 @@ void main() {
           sent = body['code'] as String?;
           return FakeResponse(200, body: bagEquippedJson(sent));
         });
-        final worn = await repo().setEquipped(
-          BagCategory.profileCard,
-          'emerald_wings',
-        );
+        final worn = await repo().setEquipped('PROFILE_CARD', 'emerald_wings');
         expect(worn.category, 'PROFILE_CARD');
         expect(worn.equipped?.code, 'emerald_wings');
         expect(worn.equipped?.name, 'الأجنحة الزمردية');
         expect(worn.equipped?.assetKey, 'header_emerald_wings');
 
-        final off = await repo().setEquipped(BagCategory.profileCard, null);
+        final off = await repo().setEquipped('PROFILE_CARD', null);
         expect(off.equipped, isNull);
         final bodies = [
           for (final r in http.requestsTo('PUT', '$_base/me/bag/equipped'))
@@ -140,6 +162,72 @@ void main() {
       },
     );
 
+    test('send (D171): whole omits days, a part sends them', () async {
+      final bodies = <Object?>[];
+      http.on('POST', '$_base/me/bag/transfers', (o) {
+        bodies.add(o.data);
+        final days = (o.data as Map<String, dynamic>)['days'] as int?;
+        return FakeResponse(
+          201,
+          body: bagTransferJson(
+            'emerald_wings',
+            days: days,
+            recipient: {
+              'id': '0192e4a0-7c1d-7000-8000-000000000002',
+              'username': 'sara_22',
+              'displayName': 'Sara',
+              'avatarUrl': null,
+            },
+            remaining: days == null
+                ? null
+                : bagItemJson(
+                    'emerald_wings',
+                    expiresAt: DateTime.utc(2026, 11, 2, 9),
+                  ),
+          ),
+        );
+      });
+      final whole = await repo().send(
+        code: 'emerald_wings',
+        username: 'sara_22',
+      );
+      expect(whole.whole, isTrue);
+      expect(whole.durationSeconds, isNull);
+      expect(whole.recipient.username, 'sara_22');
+      expect(whole.remaining, isNull);
+      final part = await repo().send(
+        code: 'emerald_wings',
+        username: 'sara_22',
+        days: 3,
+      );
+      expect(part.whole, isFalse);
+      expect(part.durationSeconds, 3 * 86400);
+      expect(part.remaining?.expiresAt, DateTime.utc(2026, 11, 2, 9));
+      expect(bodies, [
+        {'code': 'emerald_wings', 'username': 'sara_22'},
+        {'code': 'emerald_wings', 'username': 'sara_22', 'days': 3},
+      ]);
+    });
+
+    test('409 send codes become their failures', () async {
+      for (final code in ErrorCode.values.where(
+        (c) =>
+            c.wire.startsWith('BAG_SEND') ||
+            c.wire.startsWith('BAG_RECIPIENT') ||
+            c.wire == 'BAG_ITEM_NOT_TRANSFERABLE',
+      )) {
+        http.on(
+          'POST',
+          '$_base/me/bag/transfers',
+          (_) => FakeResponse(409, body: errorEnvelope(code.wire, 'x')),
+        );
+        await expectLater(
+          repo().send(code: 'kabi_royal', username: 'sara_22'),
+          throwsA(isA<ServerFailure>().having((f) => f.code, 'code', code)),
+        );
+      }
+    });
+
     test('409 BAG_ITEM_NOT_OWNED becomes its failure', () async {
       http.on(
         'PUT',
@@ -150,7 +238,7 @@ void main() {
         ),
       );
       await expectLater(
-        repo().setEquipped(BagCategory.profileCard, 'kabi_royal'),
+        repo().setEquipped('PROFILE_CARD', 'kabi_royal'),
         throwsA(
           isA<ServerFailure>().having(
             (f) => f.code,

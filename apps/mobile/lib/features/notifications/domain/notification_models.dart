@@ -44,6 +44,10 @@ enum NotificationType {
   /// (target: the username, `endsAt`).
   premiumUsernameExpiring('PREMIUM_USERNAME_EXPIRING'),
   premiumUsernameExpired('PREMIUM_USERNAME_EXPIRED'),
+
+  /// v1.48-social (D171): someone sent you a bag item (actor: the sender;
+  /// target: the item, with its category).
+  bagItemReceived('BAG_ITEM_RECEIVED'),
   unknown('');
 
   new(this.wire);
@@ -78,7 +82,10 @@ enum NotificationTargetType {
   medal('MEDAL'),
 
   /// v1.28-live (D146): a premium username (the name as the id; `endsAt`).
-  premiumUsername('PREMIUM_USERNAME');
+  premiumUsername('PREMIUM_USERNAME'),
+
+  /// v1.48-social (D171): a bag item (its code as the id; `bagCategory`).
+  bagItem('BAG_ITEM');
 
   new(this.wire);
 
@@ -102,6 +109,7 @@ class NotificationTarget {
     this.text,
     this.startsAt,
     this.endsAt,
+    this.bagCategory,
   });
 
   factory fromJson(Map<String, dynamic> json) => NotificationTarget(
@@ -118,6 +126,7 @@ class NotificationTarget {
       final String at => DateTime.parse(at),
       _ => null,
     },
+    bagCategory: json['bagCategory'] as String?,
   );
 
   final NotificationTargetType type;
@@ -142,6 +151,9 @@ class NotificationTarget {
   /// D146 [NotificationTargetType.premiumUsername]: the period's (or the
   /// grace's) end.
   final DateTime? endsAt;
+
+  /// D171 [NotificationTargetType.bagItem]: the item's category (wire).
+  final String? bagCategory;
 }
 
 /// `Notification`. Likes and reposts on one item group while unread
