@@ -65,10 +65,12 @@ final class ProgramTask {
     required this.name,
     required this.target,
     required this.progress,
-    required this.rewardCoins,
     required this.completed,
     required this.claimed,
+    this.rewardCherries = 0,
+    this.rewardCoins = 0,
     this.claimedCoins,
+    this.claimedCherries,
     this.pooled = false,
   });
 
@@ -81,10 +83,12 @@ final class ProgramTask {
     name: json['name']! as String,
     target: _int(json['target']),
     progress: _int(json['progress']),
+    rewardCherries: _int(json['rewardCherries']),
     rewardCoins: _int(json['rewardCoins']),
     completed: json['completed']! as bool,
     claimed: json['claimed']! as bool,
     claimedCoins: _intOrNull(json['claimedCoins']),
+    claimedCherries: _intOrNull(json['claimedCherries']),
   );
 
   final String code;
@@ -94,12 +98,31 @@ final class ProgramTask {
   final String name;
   final int target;
   final int progress;
+
+  /// v1.53-social (D184, CONVENTIONS §10.41.3): the cherries the task pays.
+  final int rewardCherries;
+
+  /// Deprecated since v1.53-social (0); a server before it paid coins.
   final int rewardCoins;
   final bool completed;
   final bool claimed;
 
-  /// What the claim paid (after the daily cap).
+  /// What the claim paid in coins (a claim made before v1.53-social).
   final int? claimedCoins;
+
+  /// v1.53-social (D184): what the claim paid in cherries (after the cap).
+  final int? claimedCherries;
+
+  /// The reward is (or was paid) in coins: a server before v1.53-social, or
+  /// a claim made in coins before the change. Otherwise cherries.
+  bool get inCoins =>
+      (rewardCherries == 0 && rewardCoins > 0) ||
+      (claimed && (claimedCherries ?? 0) == 0 && (claimedCoins ?? 0) > 0);
+
+  /// The amount the row shows: what the claim paid, else the reward.
+  int get shownReward => inCoins
+      ? (claimedCoins ?? rewardCoins)
+      : (claimedCherries ?? rewardCherries);
 
   /// v1.50-social (D176): one of the caller's daily pool tasks of today.
   final bool pooled;
@@ -182,6 +205,8 @@ final class MyTasks {
     required this.dailyEarnedCoins,
     required this.checkIn,
     required this.tasks,
+    this.dailyCapCherries = 0,
+    this.dailyEarnedCherries = 0,
     this.band,
   });
 
@@ -197,12 +222,20 @@ final class MyTasks {
     },
     dailyCapCoins: _int(json['dailyCapCoins']),
     dailyEarnedCoins: _int(json['dailyEarnedCoins']),
+    dailyCapCherries: _int(json['dailyCapCherries']),
+    dailyEarnedCherries: _int(json['dailyEarnedCherries']),
     checkIn: CheckInState.fromJson(json['checkIn']! as Map<String, dynamic>),
     tasks: [for (final t in _list(json['tasks'])) ProgramTask.fromJson(t)],
   );
 
+  /// Since v1.53-social (D184): the check-in's coin cap.
   final int dailyCapCoins;
   final int dailyEarnedCoins;
+
+  /// v1.53-social (D184): the daily tasks' cherry cap (0 from an older
+  /// server: the coin cap is the tasks' cap then).
+  final int dailyCapCherries;
+  final int dailyEarnedCherries;
   final CheckInState checkIn;
   final List<ProgramTask> tasks;
 
@@ -546,8 +579,10 @@ final class RechargeOffer {
   final List<RechargePackage> packages;
 }
 
-/// The outcome of a claim or a check-in: the coins it paid.
-typedef ProgramPayout = ({int paidCoins, int balanceCoins});
+/// The outcome of a claim or a check-in: the coins it paid (the check-in, a
+/// claim made in coins before v1.53-social) and the cherries (a task claim
+/// since v1.53-social, D184).
+typedef ProgramPayout = ({int paidCoins, int balanceCoins, int paidCherries});
 
 /// The Me hub's programs (openapi v1.44-social, D166). Every method throws
 /// an `AppFailure`.
@@ -596,6 +631,7 @@ class ProgramsRepositoryImpl implements ProgramsRepository {
   ProgramPayout _payout(Map<String, dynamic> json) => (
     paidCoins: _int(json['paidCoins']),
     balanceCoins: _int(json['balanceCoins']),
+    paidCherries: _int(json['paidCherries']),
   );
 
   @override

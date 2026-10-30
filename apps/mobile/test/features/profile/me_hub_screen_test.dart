@@ -54,6 +54,8 @@ const List<String> _destinations = [
   // D164.
   AppRoutes.wallet,
   AppRoutes.creatorCenter,
+  // D179.
+  AppRoutes.agency,
   // D166.
   AppRoutes.taskCenter,
   AppRoutes.eventCenter,
@@ -279,6 +281,8 @@ void main() {
     (MeHubItem.taskCenter, AppRoutes.taskCenter),
     (MeHubItem.eventCenter, AppRoutes.eventCenter),
     (MeHubItem.svip, AppRoutes.svip),
+    // D179.
+    (MeHubItem.agency, AppRoutes.agency),
   ]) {
     testWidgets('${item.name} opens its real screen ($path)', (tester) async {
       await _pump(tester);

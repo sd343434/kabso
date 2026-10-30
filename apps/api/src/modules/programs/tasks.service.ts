@@ -7,6 +7,7 @@ import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import { Prisma, type TaskDefinition } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { violatedUniqueIndex } from '../users/users.service.js';
+import { creditTaskCherriesIn, taskRewardReference } from '../economy/cherry-ledger.js';
 import { creditIn } from '../wallet/wallet-ledger.js';
 import { addDays, dateValue, programWindowsIn, type ProgramWindow } from './programs-time.js';
 import {
@@ -32,8 +33,15 @@ type Db = Pick<Tx, '$queryRaw'>;
 interface OfferedTask {
   def: TaskDefinition;
   target: number;
-  rewardCoins: number;
+  /** v1.53-social (D184): task rewards are cherries. */
+  rewardCherries: number;
   pooled: boolean;
+}
+
+/** A claim as stored: what it paid and in which currency (claims before v1.53-social paid coins). */
+interface StoredClaim {
+  amount: number;
+  currency: 'COINS' | 'CHERRIES';
 }
 
 // ---- Response shapes (openapi v1.44-social, D166) ---------------------------------------------
@@ -49,11 +57,16 @@ export interface ProgramTaskDto {
   name: string;
   target: number;
   progress: number;
+  /** Deprecated since v1.53-social (D184): always 0 — the reward is `rewardCherries`. */
   rewardCoins: number;
+  /** v1.53-social (D184): the cherries the task pays. */
+  rewardCherries: number;
   completed: boolean;
   claimed: boolean;
-  /** The coins the claim paid (after the daily cap), null before it is claimed. */
+  /** The coins the claim paid (a claim before v1.53-social; 0 for a cherry claim), null before it is claimed. */
   claimedCoins: number | null;
+  /** v1.53-social (D184): the cherries the claim paid (after the daily cap; 0 for a coin claim), null before. */
+  claimedCherries: number | null;
 }
 
 /** `CheckInDay`: one of the seven days of the sign-in strip (today first). */
@@ -74,9 +87,14 @@ export interface MyTasksDto {
   dayResetsAt: string;
   weekStartsAt: string;
   weekResetsAt: string;
+  /** Since v1.53-social (D184): the check-in's daily coin cap. */
   dailyCapCoins: number;
-  /** Coins from daily tasks and the check-in today (counts toward the cap). */
+  /** Coins today from the check-in (and from daily task claims made before v1.53-social). */
   dailyEarnedCoins: number;
+  /** v1.53-social (D184): the daily tasks' cherry cap. */
+  dailyCapCherries: number;
+  /** v1.53-social (D184): cherries from daily tasks today. */
+  dailyEarnedCherries: number;
   /** v1.50-social (D176): the level band today's pool tasks were chosen for. */
   band: { band: number; level: number; name: string; host: boolean };
   checkIn: {
@@ -93,8 +111,12 @@ export interface MyTasksDto {
 /** `TaskClaimResult`. */
 export interface TaskClaimResultDto {
   task: ProgramTaskDto;
+  /** 0 for a cherry claim (a claim before v1.53-social: its coins). */
   paidCoins: number;
   balanceCoins: number;
+  /** v1.53-social (D184). */
+  paidCherries: number;
+  balanceCherries: number;
 }
 
 /** `CheckInResult`. */
@@ -285,9 +307,11 @@ function progressSql(me: string, metric: TaskMetric, w: ProgramWindow, now: Date
  * §10.41). Tasks come from `task_definitions`; progress is computed per read from what the server
  * already stores (watch time, follows, live chat, gift sends, lives, gifts received) — nothing the app
  * reports. Days and ISO weeks follow `LIVE_RANKINGS_TIME_ZONE`. A reward is paid once per person, task
- * and period (`task_claims_once`) in the claim's transaction as a `TASK_REWARD` ledger row; daily tasks
- * and the check-in share a daily cap (`TASK_DAILY_CAP_COINS`). Claims and check-ins of one person are
- * serialized by a lock on their `users` row, so the cap holds under concurrent requests.
+ * and period (`task_claims_once`) in the claim's transaction. v1.53-social (D184, §10.41.3): task rewards
+ * are cherries — a `cherry_ledger` row `TASK_REWARD` (reference `<code>@<period start>`), daily tasks under
+ * `TASK_DAILY_CAP_CHERRIES`; the check-in keeps paying coins (`wallet_ledger` `CHECK_IN_REWARD`) under
+ * `TASK_DAILY_CAP_COINS`. Claims and check-ins of one person are serialized by a lock on their `users`
+ * row, so the caps hold under concurrent requests.
  */
 @Injectable()
 export class TasksService {
@@ -357,10 +381,16 @@ export class TasksService {
     me: string,
     day: string,
   ): Promise<{
-    rows: { taskCode: string; target: number; rewardCoins: number; position: number; band: number }[];
+    rows: { taskCode: string; target: number; rewardCherries: number; position: number; band: number }[];
   }> {
     const where = { userId: me, day: dateValue(day) };
-    const select = { taskCode: true, target: true, rewardCoins: true, position: true, band: true } as const;
+    const select = {
+      taskCode: true,
+      target: true,
+      rewardCherries: true,
+      position: true,
+      band: true,
+    } as const;
     let rows = await db.taskAssignment.findMany({ where, select, orderBy: { position: 'asc' } });
     if (rows.length > 0) return { rows };
     const templates = await db.taskDefinition.findMany({ where: { enabled: true, pool: true } });
@@ -387,7 +417,7 @@ export class TasksService {
         taskCode: p.code,
         band: band.band,
         target: p.target,
-        rewardCoins: p.rewardCoins,
+        rewardCherries: p.rewardCherries,
         position: p.position,
       })),
       skipDuplicates: true,
@@ -407,22 +437,36 @@ export class TasksService {
     const pooled: OfferedTask[] = [];
     for (const r of rows) {
       const def = byCode.get(r.taskCode);
-      if (def?.pool) pooled.push({ def, target: r.target, rewardCoins: r.rewardCoins, pooled: true });
+      if (def?.pool) pooled.push({ def, target: r.target, rewardCherries: r.rewardCherries, pooled: true });
     }
     const fixed = defs
       .filter((d) => !d.pool)
-      .map((def) => ({ def, target: def.target, rewardCoins: def.rewardCoins, pooled: false }));
+      .map((def) => ({ def, target: def.target, rewardCherries: def.rewardCherries, pooled: false }));
     return [...pooled, ...fixed];
   }
 
-  /** Coins already paid today by daily tasks and the check-in (what the cap counts). */
-  private async earnedToday(db: Db, me: string, day: string): Promise<number> {
+  /**
+   * Coins paid today by the check-in and by daily task claims made before v1.53-social (what the
+   * check-in's coin cap counts).
+   */
+  private async earnedCoinsToday(db: Db, me: string, day: string): Promise<number> {
     const [row] = await db.$queryRaw<{ n: bigint }[]>`
-      SELECT (COALESCE((SELECT sum(c.reward_coins) FROM task_claims c
+      SELECT (COALESCE((SELECT sum(c.reward_amount) FROM task_claims c
                           JOIN task_definitions d ON d.code = c.task_code AND d.period = 'DAILY'
-                         WHERE c.user_id = ${me}::uuid AND c.period_start = ${day}::date), 0)
+                         WHERE c.user_id = ${me}::uuid AND c.period_start = ${day}::date
+                           AND c.reward_currency = 'COINS'), 0)
             + COALESCE((SELECT sum(reward_coins) FROM daily_check_ins
                          WHERE user_id = ${me}::uuid AND day = ${day}::date), 0))::bigint AS n`;
+    return Number(row?.n ?? 0n);
+  }
+
+  /** v1.53-social (D184): cherries paid today by daily tasks (what `TASK_DAILY_CAP_CHERRIES` counts). */
+  private async earnedCherriesToday(db: Db, me: string, day: string): Promise<number> {
+    const [row] = await db.$queryRaw<{ n: bigint }[]>`
+      SELECT COALESCE(sum(c.reward_amount), 0)::bigint AS n
+        FROM task_claims c
+        JOIN task_definitions d ON d.code = c.task_code AND d.period = 'DAILY'
+       WHERE c.user_id = ${me}::uuid AND c.period_start = ${day}::date AND c.reward_currency = 'CHERRIES'`;
     return Number(row?.n ?? 0n);
   }
 
@@ -433,10 +477,17 @@ export class TasksService {
     return Number(row?.coins ?? 0n);
   }
 
+  private async cherryBalance(db: Db, me: string): Promise<number> {
+    const [row] = await db.$queryRaw<
+      { cherries: bigint }[]
+    >`SELECT cherries FROM cherry_wallets WHERE user_id = ${me}::uuid`;
+    return Number(row?.cherries ?? 0n);
+  }
+
   private taskDto(
     task: OfferedTask,
     progress: number,
-    claimedCoins: number | null,
+    claim: StoredClaim | null,
     lang: ContentLanguage,
   ): ProgramTaskDto {
     const { def, target } = task;
@@ -449,10 +500,12 @@ export class TasksService {
       name: lang === 'ar' ? def.nameAr : def.nameEn,
       target,
       progress: Math.min(progress, target),
-      rewardCoins: task.rewardCoins,
+      rewardCoins: 0,
+      rewardCherries: task.rewardCherries,
       completed: progress >= target,
-      claimed: claimedCoins !== null,
-      claimedCoins,
+      claimed: claim !== null,
+      claimedCoins: claim === null ? null : claim.currency === 'COINS' ? claim.amount : 0,
+      claimedCherries: claim === null ? null : claim.currency === 'CHERRIES' ? claim.amount : 0,
     };
   }
 
@@ -465,11 +518,11 @@ export class TasksService {
     lang: ContentLanguage,
   ): Promise<ProgramTaskDto> {
     const w = task.def.period === 'DAILY' ? windows.day : windows.week;
-    const [claim] = await db.$queryRaw<{ reward_coins: number }[]>`
-      SELECT reward_coins FROM task_claims
+    const [claim] = await db.$queryRaw<{ amount: number; currency: 'COINS' | 'CHERRIES' }[]>`
+      SELECT reward_amount AS amount, reward_currency::text AS currency FROM task_claims
        WHERE user_id = ${me}::uuid AND task_code = ${task.def.code} AND period_start = ${w.date}::date`;
     const progress = await this.progressOf(db, me, task.def.metric as TaskMetric, w, now);
-    return this.taskDto(task, progress, claim ? claim.reward_coins : null, lang);
+    return this.taskDto(task, progress, claim ?? null, lang);
   }
 
   /** `GET /me/tasks`. */
@@ -490,7 +543,12 @@ export class TasksService {
     });
     const todayRow = checks.find((c) => c.day.toISOString().startsWith(today));
     const yesterdayRow = checks.find((c) => !c.day.toISOString().startsWith(today));
-    const { checkInCoins, checkInStreakBonusCoins: bonus, taskDailyCapCoins } = this.config.programs;
+    const {
+      checkInCoins,
+      checkInStreakBonusCoins: bonus,
+      taskDailyCapCoins,
+      taskDailyCapCherries,
+    } = this.config.programs;
     // Today's place in the cycle: the streak made by today's check-in (done, or if done now).
     const streak = todayRow?.streak ?? yesterdayRow?.streak ?? 0;
     const todayStreak = todayRow ? todayRow.streak : streak + 1;
@@ -512,7 +570,9 @@ export class TasksService {
       weekStartsAt: windows.week.start.toISOString(),
       weekResetsAt: windows.week.end.toISOString(),
       dailyCapCoins: taskDailyCapCoins,
-      dailyEarnedCoins: await this.earnedToday(this.prisma, me, today),
+      dailyEarnedCoins: await this.earnedCoinsToday(this.prisma, me, today),
+      dailyCapCherries: taskDailyCapCherries,
+      dailyEarnedCherries: await this.earnedCherriesToday(this.prisma, me, today),
       band: {
         band: shownBand.band,
         level,
@@ -547,8 +607,9 @@ export class TasksService {
 
   /**
    * `POST /me/check-in`: today's check-in (once per day). 201 checked in now, 200 already today. The
-   * coins (5, or 5 + 20 on every 7th day in a row) count toward the daily cap; a check-in after the cap
-   * still keeps the streak and pays 0.
+   * coins (5, or 5 + 20 on every 7th day in a row) are capped by `TASK_DAILY_CAP_COINS` (since v1.53-social
+   * it counts only coins: the check-in and coin task claims of the day); a check-in after the cap still
+   * keeps the streak and pays 0.
    */
   async checkIn(me: string, lang: ContentLanguage): Promise<{ created: boolean; result: CheckInResultDto }> {
     const now = this.clock.now();
@@ -570,7 +631,7 @@ export class TasksService {
         const streak = (yesterday?.streak ?? 0) + 1;
         const { checkInCoins, checkInStreakBonusCoins, taskDailyCapCoins } = this.config.programs;
         const reward = checkInReward(streak, checkInCoins, checkInStreakBonusCoins);
-        const coins = cappedReward(reward, taskDailyCapCoins, await this.earnedToday(tx, me, day.date));
+        const coins = cappedReward(reward, taskDailyCapCoins, await this.earnedCoinsToday(tx, me, day.date));
         const row = await tx.dailyCheckIn.create({
           data: { userId: me, day: dateValue(day.date), streak, rewardCoins: coins, createdAt: now },
           select: { id: true },
@@ -595,8 +656,9 @@ export class TasksService {
   /**
    * `POST /me/tasks/{code}/claim`. Order: 404 (unknown, disabled or not for the caller) → already
    * claimed in this period → 200 (nothing paid again) → 409 TASK_NOT_COMPLETED → (daily tasks) 409
-   * TASK_DAILY_CAP_REACHED when the day's cap is used up → 201, paying the reward or what is left of
-   * the cap. Weekly (host) tasks are outside the daily cap: each pays once a week.
+   * TASK_DAILY_CAP_REACHED when the day's cherry cap is used up → 201, paying the reward or what is left
+   * of the cap in cherries (v1.53-social, D184: a `cherry_ledger` `TASK_REWARD` row in this transaction).
+   * Weekly (host) tasks are outside the daily cap: each pays once a week.
    */
   async claim(
     me: string,
@@ -617,50 +679,59 @@ export class TasksService {
           where: {
             userId_taskCode_periodStart: { userId: me, taskCode: def.code, periodStart: dateValue(w.date) },
           },
-          select: { rewardCoins: true },
+          select: { rewardAmount: true, rewardCurrency: true },
         });
         if (existing) {
           const task = await this.taskIn(tx, me, offered, windows, now, lang);
-          return { created: false, task, paid: existing.rewardCoins };
+          const paid: StoredClaim = { amount: existing.rewardAmount, currency: existing.rewardCurrency };
+          return { created: false, task, paid };
         }
         const progress = await this.progressOf(tx, me, def.metric as TaskMetric, w, now);
         if (progress < offered.target) throw new AppException(ErrorCode.TASK_NOT_COMPLETED);
-        let coins = offered.rewardCoins;
+        let cherries = offered.rewardCherries;
         if (def.period === 'DAILY') {
-          coins = cappedReward(
-            offered.rewardCoins,
-            this.config.programs.taskDailyCapCoins,
-            await this.earnedToday(tx, me, w.date),
+          cherries = cappedReward(
+            offered.rewardCherries,
+            this.config.programs.taskDailyCapCherries,
+            await this.earnedCherriesToday(tx, me, w.date),
           );
-          if (coins === 0) throw new AppException(ErrorCode.TASK_DAILY_CAP_REACHED);
+          if (cherries === 0) throw new AppException(ErrorCode.TASK_DAILY_CAP_REACHED);
         }
-        const claim = await tx.taskClaim.create({
+        await tx.taskClaim.create({
           data: {
             userId: me,
             taskCode: def.code,
             periodStart: dateValue(w.date),
-            rewardCoins: coins,
+            rewardAmount: cherries,
+            rewardCurrency: 'CHERRIES',
             createdAt: now,
           },
           select: { id: true },
         });
-        await creditIn(tx, me, BigInt(coins), 'TASK_REWARD', claim.id);
-        return { created: true, task: this.taskDto(offered, progress, coins, lang), paid: coins };
+        await creditTaskCherriesIn(tx, me, BigInt(cherries), taskRewardReference(def.code, w.date), now);
+        const paid: StoredClaim = { amount: cherries, currency: 'CHERRIES' };
+        return { created: true, task: this.taskDto(offered, progress, paid, lang), paid };
       });
-    let outcome: { created: boolean; task: ProgramTaskDto; paid: number };
+    let outcome: { created: boolean; task: ProgramTaskDto; paid: StoredClaim };
     try {
       outcome = await run();
     } catch (err) {
       const index = violatedUniqueIndex(err);
-      if (index === null || !index.includes('task_claims_once')) throw err;
+      if (
+        index === null ||
+        !(index.includes('task_claims_once') || index.includes('cherry_ledger_reference_once'))
+      )
+        throw err;
       outcome = await run();
     }
     return {
       created: outcome.created,
       result: {
         task: outcome.task,
-        paidCoins: outcome.paid,
+        paidCoins: outcome.paid.currency === 'COINS' ? outcome.paid.amount : 0,
         balanceCoins: await this.balance(this.prisma, me),
+        paidCherries: outcome.paid.currency === 'CHERRIES' ? outcome.paid.amount : 0,
+        balanceCherries: await this.cherryBalance(this.prisma, me),
       },
     };
   }

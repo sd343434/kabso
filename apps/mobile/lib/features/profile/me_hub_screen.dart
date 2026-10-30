@@ -75,6 +75,7 @@ enum MeHubItem {
   family,
   earn,
   creatorCenter,
+  agency,
   eventCenter,
   wallet,
   bag,
@@ -192,6 +193,14 @@ class MeHubScreen extends ConsumerWidget {
           hue: _Hues.teal,
           title: l10n.meHubCreatorCenter,
           onTap: () => push(AppRoutes.creatorCenter),
+        ),
+        // D179: host agencies (join by code; the agent's dashboard).
+        _HubRow(
+          item: MeHubItem.agency,
+          icon: Icons.groups_rounded,
+          hue: _Hues.pink,
+          title: l10n.meHubAgency,
+          onTap: () => push(AppRoutes.agency),
         ),
         _HubRow(
           item: MeHubItem.eventCenter,

@@ -3,7 +3,8 @@
  * v1.44-social, CONVENTIONS §10.41): the Task Center (server-computed progress, one payout per period,
  * the daily cap, check-in streaks), SVIP earned from gift spending, the Event Center (lists, the live
  * leaderboard, the freeze and the one-time prize payout) and the recharge packages (no purchase) — end
- * to end against PostgreSQL + Redis.
+ * to end against PostgreSQL + Redis. v1.53-social (D184, owner): task rewards are cherries (the D166
+ * coins ×10) in the cherry ledger under their own daily cap; the check-in keeps its coins and coin cap.
  */
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -39,7 +40,10 @@ interface TestUser {
 
 const HOUR_MS = 3_600_000;
 const DAY_MS = 24 * HOUR_MS;
+/** The check-in's coin cap here. */
 const CAP = 27;
+/** D184: the daily tasks' cherry cap here (17 old coins × 3 000). */
+const CHERRY_CAP = 51_000;
 
 /**
  * A fixed-offset zone where it is about noon now, so "today" never ends in the middle of a test
@@ -59,6 +63,7 @@ interface Task {
   completed: boolean;
   claimed: boolean;
   claimedCoins: number | null;
+  claimedCherries: number | null;
 }
 
 describe('D166 contract coverage', () => {
@@ -140,6 +145,7 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
     return res.body as {
       day: string;
       dailyEarnedCoins: number;
+      dailyEarnedCherries: number;
       checkIn: { checkedInToday: boolean; streak: number; days: { cycleDay: number; rewardCoins: number }[] };
       tasks: Task[];
     };
@@ -149,6 +155,9 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
   const claim = (u: TestUser, code: string) => ctx.http.post(`/api/v1/me/tasks/${code}/claim`).set(auth(u));
   const ledger = (u: TestUser, reason: string) =>
     ctx.prisma.walletLedgerEntry.findMany({ where: { userId: u.id, reason: reason as never } });
+  /** D184: task rewards are cherry ledger rows. */
+  const taskRewards = (u: TestUser) =>
+    ctx.prisma.cherryLedgerEntry.findMany({ where: { userId: u.id, reason: 'TASK_REWARD' } });
   /** Ten chat messages of `u` in someone else's live (stored like the chat endpoint stores them). */
   const chat = async (roomId: string, u: TestUser, n: number) => {
     for (let i = 0; i < n; i++) {
@@ -172,6 +181,7 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
         LIVE_HEARTBEAT_STALE_SECONDS: '3600',
         LIVE_RANKINGS_TIME_ZONE: noonZone(),
         TASK_DAILY_CAP_COINS: String(CAP),
+        TASK_DAILY_CAP_CHERRIES: String(CHERRY_CAP),
         EVENT_PRIZE_REVIEW_HOURS: '24',
       },
       [
@@ -211,6 +221,7 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
     expect(body.checkIn.days.map((d) => d.cycleDay)).toEqual([1, 2, 3, 4, 5, 6, 7]);
     expect(body.checkIn.days.map((d) => d.rewardCoins)).toEqual([5, 5, 5, 5, 5, 5, 25]);
     expect(body.dailyEarnedCoins).toBe(0);
+    expect(body.dailyEarnedCherries).toBe(0);
     expect((await ctx.http.get('/api/v1/me/tasks')).status).toBe(401);
     expect((await ctx.http.post('/api/v1/me/check-in')).status).toBe(401);
     expect((await ctx.http.post('/api/v1/me/tasks/FOLLOW_USERS/claim')).status).toBe(401);
@@ -222,9 +233,10 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
     expect(early.status).toBe(409);
     expect(early.body.error.code).toBe('TASK_NOT_COMPLETED');
     expect(await ledger(me, 'TASK_REWARD')).toHaveLength(0);
+    expect(await taskRewards(me)).toHaveLength(0);
   });
 
-  it('a task is paid once, even when claimed at the same time; the wallet history shows it', async () => {
+  it('a task is paid once, even when claimed at the same time; the cherry history shows it (D184)', async () => {
     const me = await signup();
     for (const t of targets.slice(0, 10)) await follow(me, t);
     expect(await task(me, 'FOLLOW_USERS')).toMatchObject({
@@ -238,23 +250,37 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
     expect(results.map((r) => r.status).sort()).toEqual([200, 200, 201]);
     const first = results.find((r) => r.status === 201)!;
     expectContract(first, 'claimMyTask');
+    // D184: the D166 5 coins are 15 000 cherries (×10, then ×300 by the owner); no coins.
     expect(first.body).toMatchObject({
-      paidCoins: 5,
-      balanceCoins: 5,
-      task: { code: 'FOLLOW_USERS', claimed: true },
+      paidCoins: 0,
+      balanceCoins: 0,
+      paidCherries: 15_000,
+      balanceCherries: 15_000,
+      task: {
+        code: 'FOLLOW_USERS',
+        claimed: true,
+        rewardCherries: 15_000,
+        claimedCherries: 15_000,
+        claimedCoins: 0,
+      },
     });
     const again = await claim(me, 'FOLLOW_USERS');
     expect(again.status).toBe(200);
     expectContract(again, 'claimMyTask');
-    expect(again.body).toMatchObject({ paidCoins: 5, balanceCoins: 5 });
-    expect(await ledger(me, 'TASK_REWARD')).toHaveLength(1);
+    expect(again.body).toMatchObject({ paidCherries: 15_000, balanceCherries: 15_000, paidCoins: 0 });
+    expect(await taskRewards(me)).toHaveLength(1);
+    expect(await ledger(me, 'TASK_REWARD')).toHaveLength(0);
 
-    const history = await ctx.http.get('/api/v1/wallet/me/ledger').set(auth(me));
+    // The Cherries tab's history shows the reward; the coin history has nothing.
+    const history = await ctx.http.get('/api/v1/wallet/me/cherries/ledger').set(auth(me));
     expect(history.status).toBe(200);
-    expectContract(history, 'listMyWalletLedger');
+    expectContract(history, 'listMyCherryLedger');
     expect(history.body.data).toEqual([
-      expect.objectContaining({ reason: 'TASK_REWARD', delta: 5, balanceAfter: 5 }),
+      expect.objectContaining({ reason: 'TASK_REWARD', delta: 15_000, balanceAfter: 15_000, gift: null }),
     ]);
+    const coins = await ctx.http.get('/api/v1/wallet/me/ledger').set(auth(me));
+    expect(coins.status).toBe(200);
+    expect(coins.body.data).toEqual([]);
   });
 
   it('unfollowing before the claim, or following someone not active, does not count', async () => {
@@ -275,10 +301,10 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
     // A suspended account cannot claim at all.
     await ctx.prisma.user.update({ where: { id: me.id }, data: { status: 'SUSPENDED' } });
     expect((await claim(me, 'FOLLOW_USERS')).status).toBe(401);
-    expect(await ledger(me, 'TASK_REWARD')).toHaveLength(0);
+    expect(await taskRewards(me)).toHaveLength(0);
   });
 
-  it('check-in: once a day, the 7th day in a row adds the bonus; the daily cap stops task coins', async () => {
+  it('check-in: once a day, the 7th day in a row adds the bonus; the daily cherry cap stops task rewards', async () => {
     const host = await signup();
     const roomId = await startLive(host);
     const me = await signup();
@@ -311,15 +337,22 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
     const all = await tasks(me);
     expect(all.tasks.every((t) => t.completed)).toBe(true);
     expect(all.dailyEarnedCoins).toBe(25);
+    expect(all.dailyEarnedCherries).toBe(0);
 
-    // Cap 27: 25 already → the next claim pays the 2 left, then 409.
-    const capped = await claim(me, 'SEND_GIFTS');
+    // D184: the check-in's coins no longer count toward the task cap. Cherry cap 51 000: the gift task
+    // pays its 45 000, the next claim the 6 000 left (of 15 000), then 409.
+    const full = await claim(me, 'SEND_GIFTS');
+    expect(full.status).toBe(201);
+    expect(full.body).toMatchObject({ paidCherries: 45_000, balanceCoins: 925 });
+    const capped = await claim(me, 'FOLLOW_USERS');
     expect(capped.status).toBe(201);
-    expect(capped.body.paidCoins).toBe(2);
+    expect(capped.body).toMatchObject({ paidCherries: 6_000, balanceCherries: 51_000 });
     const refused = await claim(me, 'WATCH_LIVE');
     expect(refused.status).toBe(409);
     expect(refused.body.error.code).toBe('TASK_DAILY_CAP_REACHED');
-    expect((await tasks(me)).dailyEarnedCoins).toBe(CAP);
+    const after = await tasks(me);
+    expect(after.dailyEarnedCherries).toBe(CHERRY_CAP);
+    expect(after.dailyEarnedCoins).toBe(25);
 
     // The host's weekly tasks: gifts received (100 coins of 1 000), outside the daily cap.
     const hostTasks = await tasks(host);
@@ -343,6 +376,7 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
     try {
       const next = await tasks(me);
       expect(next.dailyEarnedCoins).toBe(0);
+      expect(next.dailyEarnedCherries).toBe(0);
       expect(next.checkIn).toMatchObject({ checkedInToday: false, streak: 1 });
       expect(next.checkIn.days[0]).toMatchObject({ cycleDay: 2, rewardCoins: 5 });
       expect(next.tasks.find((t) => t.code === 'FOLLOW_USERS')).toMatchObject({

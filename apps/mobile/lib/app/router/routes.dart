@@ -192,6 +192,10 @@ abstract final class AppRoutes {
   /// D172: the Creator Center's detailed statistics (D164's page).
   static const creatorStats = '/creator/stats';
 
+  /// D179: host agencies «الوكالة» (join by code, the host's agency, the
+  /// agent's dashboard). D172's Creator Center tab will host it on merge.
+  static const agency = '/agency';
+
   /// D166: the Me hub's programs — the Task Center, the Event Center (and
   /// one event) and SVIP.
   static const taskCenter = '/tasks';

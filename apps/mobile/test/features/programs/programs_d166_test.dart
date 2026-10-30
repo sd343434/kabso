@@ -60,15 +60,19 @@ ProgramTask _task(
   name: code == 'FOLLOW_USERS' ? 'Follow other users' : code,
   target: target,
   progress: progress,
-  rewardCoins: 5,
+  // D184: task rewards are cherries (the D166 5 coins ×10).
+  rewardCherries: 15000,
   completed: progress >= target,
   claimed: claimed,
-  claimedCoins: claimed ? 5 : null,
+  claimedCoins: claimed ? 0 : null,
+  claimedCherries: claimed ? 15000 : null,
 );
 
 MyTasks _tasks({bool checkedIn = false, List<ProgramTask>? tasks}) => MyTasks(
   dailyCapCoins: 50,
   dailyEarnedCoins: checkedIn ? 5 : 0,
+  dailyCapCherries: 150000,
+  dailyEarnedCherries: 15000,
   checkIn: CheckInState(
     checkedInToday: checkedIn,
     streak: 3,
@@ -179,7 +183,7 @@ class _FakePrograms implements ProgramsRepository {
   Future<ProgramPayout> checkIn() async {
     checkIns++;
     tasksValue = _tasks(checkedIn: true);
-    return (paidCoins: 5, balanceCoins: 1255);
+    return (paidCoins: 5, balanceCoins: 1255, paidCherries: 0);
   }
 
   @override
@@ -193,7 +197,7 @@ class _FakePrograms implements ProgramsRepository {
         statusCode: 409,
       );
     }
-    return (paidCoins: 5, balanceCoins: 1255);
+    return (paidCoins: 0, balanceCoins: 1250, paidCherries: 15000);
   }
 
   @override
@@ -455,7 +459,26 @@ void main() {
       await tester.tap(find.byKey(TaskCenterScreen.actionKey('FOLLOW_USERS')));
       await tester.pumpAndSettle();
       expect(programs.claims, ['FOLLOW_USERS']);
-      expect(find.text(_en.tasksRewardReceived('5')), findsOneWidget);
+      // D184: the claim feedback says cherries, with the cherry and
+      // «+15,000» (thousands separators).
+      expect(
+        find.text(_en.tasksRewardReceivedCherries('15,000')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(TaskCenterScreen.claimFeedbackKey),
+          matching: find.byType(KCherryIcon),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(TaskCenterScreen.claimFeedbackKey),
+          matching: find.text('+15,000'),
+        ),
+        findsOneWidget,
+      );
 
       // A claimed task does nothing.
       await tester.tap(find.byKey(TaskCenterScreen.actionKey('LIVE_CHAT')));
@@ -469,6 +492,8 @@ void main() {
       await tester.tap(find.byKey(TaskCenterScreen.checkInButtonKey));
       await tester.pumpAndSettle();
       expect(programs.checkIns, 1);
+      // The check-in still pays coins (D184 changed only the tasks).
+      expect(find.text(_en.tasksRewardReceived('5')), findsOneWidget);
       final label = find.descendant(
         of: find.byKey(TaskCenterScreen.checkInButtonKey),
         matching: find.text(_en.tasksActionDone),
@@ -498,16 +523,80 @@ void main() {
     });
 
     // D176: weekly host tasks are a card under the daily ones (no weekly
-    // tab); the second tab is «Diamond missions», not launched («Soon»).
-    testWidgets('no weekly card for non-hosts; the Diamond tab is honest '
-        '«Soon»', (tester) async {
+    // tab). D184 (owner): the «Diamond missions» tab is removed — the page
+    // shows only the active tasks, with no tab bar.
+    testWidgets('no weekly card for non-hosts; no Diamond tab and no tab '
+        'bar', (tester) async {
       await _pump(tester, const TaskCenterScreen(), programs: _FakePrograms());
       expect(find.byKey(TaskCenterScreen.weeklyKey), findsNothing);
-      await tester.tap(find.text(_en.tasksTabDiamond));
-      await tester.pumpAndSettle();
-      expect(find.byKey(TaskCenterScreen.diamondKey), findsOneWidget);
-      expect(find.text(_en.tasksDiamondSoonTitle), findsOneWidget);
-      expect(find.byKey(TaskCenterScreen.checkInKey), findsNothing);
+      expect(find.byType(KPrimaryTabs), findsNothing);
+      expect(find.text('Diamond missions'), findsNothing);
+      expect(find.text('Active tasks'), findsNothing);
+      // The active tasks are there at once: the check-in and the rewards.
+      expect(find.byKey(TaskCenterScreen.checkInKey), findsOneWidget);
+      expect(find.byKey(TaskCenterScreen.rewardsKey), findsOneWidget);
+    });
+
+    testWidgets('D184: each row shows the cherry and «+N»; the cap is in '
+        'cherries; a claim paid in coins before keeps its coin', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        const TaskCenterScreen(),
+        programs: _FakePrograms(
+          tasks: _tasks(
+            tasks: [
+              _task('WATCH_LIVE', TaskMetric.watchLives, target: 1),
+              _task('FOLLOW_USERS', TaskMetric.follows, progress: 10),
+              const ProgramTask(
+                code: 'LIVE_CHAT',
+                weekly: false,
+                metric: TaskMetric.liveChatMessages,
+                forHosts: false,
+                name: 'LIVE_CHAT',
+                target: 10,
+                progress: 10,
+                rewardCherries: 15000,
+                completed: true,
+                claimed: true,
+                claimedCoins: 5,
+                claimedCherries: 0,
+              ),
+            ],
+          ),
+        ),
+      );
+      for (final code in ['WATCH_LIVE', 'FOLLOW_USERS']) {
+        final amount = find.byKey(TaskCenterScreen.rewardAmountKey(code));
+        expect(amount, findsOneWidget);
+        expect(
+          find.descendant(of: amount, matching: find.byType(KCherryIcon)),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(of: amount, matching: find.text('+15,000')),
+          findsOneWidget,
+        );
+      }
+      // The coin claim from before the change: its coin, «+5», no cherry.
+      final legacy = find.byKey(TaskCenterScreen.taskKey('LIVE_CHAT'));
+      expect(
+        find.byKey(TaskCenterScreen.rewardAmountKey('LIVE_CHAT')),
+        findsNothing,
+      );
+      expect(
+        find.descendant(of: legacy, matching: find.text('+5')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: legacy, matching: find.byType(KCherryIcon)),
+        findsNothing,
+      );
+      expect(
+        tester.widget<Text>(find.byKey(TaskCenterScreen.capKey)).data,
+        _en.tasksDailyCap('15,000', '150,000'),
+      );
     });
 
     testWidgets('weekly host tasks with their progress', (tester) async {
@@ -554,7 +643,7 @@ void main() {
         programs: _FakePrograms(),
         language: AppLanguage.ar,
       );
-      expect(find.text(_ar.tasksTabActive), findsOneWidget);
+      expect(find.text(_ar.tasksRewardsTitle), findsOneWidget);
       final today = tester.getCenter(find.byKey(TaskCenterScreen.dayKey(0)));
       final last = tester.getCenter(find.byKey(TaskCenterScreen.dayKey(6)));
       expect(today.dx, greaterThan(last.dx));

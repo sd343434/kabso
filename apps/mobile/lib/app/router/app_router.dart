@@ -5,6 +5,7 @@ import 'package:kabso_live/app/router/auth_redirect.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/app/shell/app_shell.dart';
 import 'package:kabso_live/core/demo/demo_mode.dart';
+import 'package:kabso_live/features/agency/presentation/agency_screen.dart';
 import 'package:kabso_live/features/auth/presentation/forgot_password_screen.dart';
 import 'package:kabso_live/features/auth/presentation/join_screen.dart';
 import 'package:kabso_live/features/auth/presentation/login_screen.dart';
@@ -363,6 +364,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.creatorStats,
         builder: (_, _) => const CreatorStatsScreen(),
       ),
+      // D179: host agencies.
+      GoRoute(path: AppRoutes.agency, builder: (_, _) => const AgencyScreen()),
       // D166: the Me hub's Task Center, Event Center and SVIP.
       GoRoute(
         path: AppRoutes.taskCenter,

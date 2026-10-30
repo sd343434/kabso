@@ -147,8 +147,13 @@ All non-2xx responses use one envelope:
 | 422 | `YOUTUBE_VIDEO_UNAVAILABLE` | *(v1.38-live, DRAFT, D154i)* The YouTube video does not exist, is private or may not be played in other apps (§10.39). |
 | 503 | `YOUTUBE_SEARCH_UNAVAILABLE` | *(v1.38-live, DRAFT, D154i)* YouTube search is not set up on this server (no `YOUTUBE_API_KEY`) or YouTube failed; paste a link instead (§10.39). |
 | 409 | `TASK_NOT_COMPLETED` | *(v1.44-social, DRAFT, D166)* A task claim whose task is not completed yet in its day or week (§10.41). Nothing was paid. |
-| 409 | `TASK_DAILY_CAP_REACHED` | *(v1.44-social, DRAFT, D166)* A daily task claim after the caller already got the day's cap of task and check-in coins (`TASK_DAILY_CAP_COINS`, §10.41). Nothing was paid. |
+| 409 | `TASK_DAILY_CAP_REACHED` | *(v1.44-social, DRAFT, D166)* A daily task claim after the caller already got the day's cap of task and check-in coins (`TASK_DAILY_CAP_COINS`, §10.41). *(v1.53-social, D184)* Since task rewards are cherries: the day's cap of task cherries (`TASK_DAILY_CAP_CHERRIES`, §10.41.3). Nothing was paid. |
 | 409 | `FOLLOW_REQUEST_NOT_PENDING` | *(v1.47-social, DRAFT, D175)* Accepting a follow request that is not pending (cancelled, declined, never sent) from an account that does not follow the caller (§10.47). Nothing changed. |
+| 409 | `AGENCY_ALREADY_MEMBER` | *(v1.52-social, DRAFT, D179)* `joinAgency` while the caller is an ACTIVE host of another agency (§10.46). |
+| 409 | `AGENCY_JOIN_NOT_ALLOWED` | *(v1.52-social, DRAFT, D179)* `joinAgency` by the owner of an agency (an agent is never a host of an agency, their own included). |
+| 409 | `AGENCY_LEAVE_WINDOW_CLOSED` | *(v1.52-social, DRAFT, D179)* `leaveAgency` after `AGENCY_LEAVE_DAYS` (14) from joining; only a complaint to the admin remains (§10.46). |
+| 409 | `INSUFFICIENT_CHERRIES` | *(v1.52-social, DRAFT, D179)* A withdrawal request larger than the caller's cherry balance (*v1.53-social, D184:* less the task cherries still locked, `withdrawableCherries`, §10.46.1). Nothing was held. |
+| 409 | `WITHDRAWAL_PENDING` | *(v1.52-social, DRAFT, D179)* A withdrawal request while another of the caller's requests waits to be paid (one at a time). |
 | 403 | `DM_NOT_ALLOWED` | *(v1.40-social, DRAFT, D155)* The recipient's «who can message you» setting (`whoCanMessage`) does not allow the caller (§11.13). Nothing was stored or charged. The app says the person does not accept messages. |
 | 403 | `DM_REQUEST_LIMIT` | *(v1.40-social, DRAFT, D155)* The caller already sent `DM_REQUEST_MAX_MESSAGES` (3) messages in a message request the recipient has not accepted (§11.13). The app says to wait for a reply. |
 | 403 | `DM_REQUEST_TEXT_ONLY` | *(v1.40-social, DRAFT, D155)* A picture or voice message in a message request (only text, a pack emoji or a gift until the recipient accepts, §11.13). |
@@ -500,6 +505,8 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.40-social)* Tables `dm_conversations`, `dm_participants`, `dm_messages`, `dm_message_hides`; columns `live_gifts.dm_conversation_id`, `privacy_settings.who_can_message`, `reports.target_dm_message_id`, `reports.dm_snapshot` | Backend — `messages` module (gift sends are written by the live module's `LiveGiftsService`; the privacy column by the `safety` module; report snapshots by the `safety` module through `messages/dm-reports.ts`) | CTO; Security reviews privacy, requests and retention (§11.13) |
 | *(v1.44-social)* Tables `task_definitions`, `task_claims`, `daily_check_ins`, `events`, `event_results`; ledger reasons `TASK_REWARD`, `CHECK_IN_REWARD`, `EVENT_PRIZE`; server config `TASK_DAILY_CAP_COINS`, `TASK_CHECK_IN_COINS`, `TASK_CHECK_IN_STREAK_BONUS_COINS`, `EVENT_PRIZE_REVIEW_HOURS`, `EVENTS_SWEEP_INTERVAL_SECONDS`, `SVIP_TIERS`, `SVIP_WINDOW_DAYS`, `SVIP_STATUS_DAYS`, `WALLET_RECHARGE_PACKAGES`, `WALLET_RECHARGE_CURRENCY` | Backend — `programs` module (`TasksService`, `EventsService`, `SvipService`; tasks and events changed only by the `task-admin` / `event-admin` CLIs) | CTO; Security (coin payouts) |
 | *(v1.47-social)* Tables `user_profile_links`, `follow_requests`; columns `user_profiles.gender`, `show_gender`, `account_category`, `pending_registrations.gender`, `reports.target_profile_link_id`, `reports.link_snapshot` | Backend — `users` module (profile fields; `profile-admin` CLI), `social` module (follow requests; the `safety` module accepts them all when an account turns public and deletes them on a block), `safety` module (link reports) | CTO; Security reviews the link rules and the private-account audit (§10.47) |
+| *(v1.52-social)* Tables `cherry_wallets`, `cherry_ledger`, `agencies`, `agency_hosts`, `agency_earnings`, `agency_months`, `agency_complaints`, `cherry_withdrawals`; server config `CHERRIES_PER_COIN`, `AGENCY_*`, `CHERRY_PAYOUT_RATE`, `CHERRY_PAYOUT_CURRENCY`, `CHERRY_WITHDRAWAL_MIN_MINOR`, `CHERRY_WITHDRAWAL_PAYOUT_DAYS` | Backend — `economy` module (`CherriesService`, `AgencyService`; gift credits written by the gift sends through `creditGiftCherriesIn`; agencies, complaints, payouts and reversals changed only by the `economy-admin` CLI) | CTO; Security (money, payout details) |
+| *(v1.53-social)* Columns `task_definitions.reward_cherries`, `task_assignments.reward_cherries`, `task_claims.reward_amount`, `task_claims.reward_currency`; cherry ledger reason `TASK_REWARD`; server config `TASK_DAILY_CAP_CHERRIES`, `TASK_CHERRIES_UNLOCK_GIFT_MINOR` | Backend — `programs` module (claims) and `economy` module (`cherry-ledger.ts`: the credit and the lock) | CTO |
 | `apps/api/**` | Backend | CTO review |
 | `apps/mobile/lib/app/router/**` (route registry) | Flutter | CTO review |
 | `apps/mobile/pubspec.yaml` | Flutter | CTO review |
@@ -539,11 +546,13 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
-| v1.47-social (draft) | 2026-10-30 | **D175 (owner, Arabic, answering D168's questions a–g; CP-025; v1.46-social left free for another branch):** profile fields, private accounts and follow requests. `Gender` (`MALE`, `FEMALE`, `UNDISCLOSED`) is **required** by `register` (`RegisterRequest.gender`) and editable with `updateMe` together with `showGender` (default false), `category` (`AccountCategory`: 11 values) and `links` (0–3 `ProfileLinkInput`, https only, normalised); `Me` gains `gender`, `showGender`, `category`, `links`; `PublicProfile` gains `gender` (only when shown), `category`, `links` (`ProfileLink` with `ProfileLinkPlatform`) and `followRequested`; `FollowState.isRequested`; `FollowListItem.requestedByMe`; `PrivacySettings.isPrivate` / `UpdatePrivacyRequest.isPrivate` (switching to public accepts every pending request); a new follow of a private account is a **follow request** (was 403); `listFollowRequests` (`GET /me/follow-requests`, `FollowRequestPage`, `FollowRequest`), `acceptFollowRequest` / `declineFollowRequest` (`POST /me/follow-requests/{username}/accept` → `FollowRequestAccepted`, `…/decline` → 204); `NotificationType` `FOLLOW_REQUEST`, `FOLLOW_REQUEST_ACCEPTED`, `AVATAR_REMOVED`; report `targetType: PROFILE_LINK` (`Report.linkSnapshot`, `ProfileLinkSnapshot`); code `FOLLOW_REQUEST_NOT_PENDING` (409); server config `RATE_LIMIT_FOLLOW_REQUEST_ANSWER_USER`; CLI `profile-admin remove-avatar`; audit `user.privacy.private`, `admin.avatar.remove`; migrations `20261215090000_profile_fields_enums`, `20261215100000_profile_fields_private_accounts`. §4, §7, §10.5, §10.6, §10.42, §10.47, §11.7, §11.10. | **Breaking for registration** (`gender` is required: an app without the gender step gets 400 `gender` / `required`; app and API ship together). **Behaviour change** for a new follow of a private account (200 with `isRequested: true` instead of 403; no app could make an account private before). Otherwise **additive** (new required response fields: strict clients update their models in the same change set; clients ignore unknown notification types and treat an unknown `ProfileLinkPlatform` as `OTHER`). |
+| v1.53-social (draft) | 2026-10-30 | **D184 (owner: the Task Center shows only the active tasks — «مهام الماس» removed — and its rewards are cherries at the same value, 1 coin = 10 cherries; follow-ups: task cherries not withdrawable until lifetime gift cherries received are worth $50 — confirmed; rewards raised to ≈ $5 a month):** `ProgramTask.rewardCherries`, `ProgramTask.claimedCherries`, `MyTasks.dailyCapCherries`, `MyTasks.dailyEarnedCherries`, `TaskClaimResult.paidCherries`, `TaskClaimResult.balanceCherries` (all required in responses); `ProgramTask.rewardCoins` deprecated (0, minimum relaxed to 0); `CherryLedgerReason.TASK_REWARD`; `CherryWallet.taskRewardTotal`, `lockedTaskCherries`, `withdrawableCherries`, `taskUnlock` (required); `requestCherryWithdrawal` refuses more than `withdrawableCherries` (`INSUFFICIENT_CHERRIES`); config `TASK_DAILY_CAP_CHERRIES` (150 000), `TASK_CHERRIES_UNLOCK_GIFT_MINOR` (5000 = $50); `TASK_DAILY_CAP_COINS` now caps the check-in's coins only; migrations `20261231100000_task_cherries_enums`, `20261231110000_task_cherries` (stored task rewards ×10, `task_claims.reward_amount` + `reward_currency`, earlier claims COINS), `20261231120000_task_rewards_raise` (stored task rewards ×300). §4, §10.41, §10.41.3, §10.46.1. | **Behaviour change, additive on the wire** (new required response fields strict clients add in the same change set; older apps show «+0» coins on tasks — the app ships with this change). Claimed coin rewards and their ledger rows are untouched. |
+| v1.52-social (draft) | 2026-10-30 | **D179 (owner: the Kabso economy, phase 1 — «الكرز» as a real balance, host agencies, commissions, withdrawals; CP-027):** tag `wallet`: `getMyCherries` (`GET /wallet/me/cherries`, `CherryWallet`, `CherryPayoutRules`), `listMyCherryLedger` (`GET /wallet/me/cherries/ledger`, `CherryLedgerPage`, `CherryLedgerEntry`, `CherryLedgerReason`), `requestCherryWithdrawal` / `listMyCherryWithdrawals` (`POST` / `GET /wallet/me/cherries/withdrawals`, `Idempotency-Key`, `CherryWithdrawalRequest`, `CherryWithdrawal`, `CherryWithdrawalPage`); tag `agency`: `getAgencyByCode` (`GET /agencies/{inviteCode}`, `AgencyPreview`), `getMyAgency` (`GET /me/agency`, `MyAgency`, `AgencyMembership`, `OwnAgency`, `AgencySubAgency`, `AgencyRank`), `joinAgency`, `leaveAgency`, `complainAboutAgency` (`POST /me/agency/join\|leave\|complaints`, `AgencyComplaint`), `listMyAgencyHosts` (`GET /me/agency/hosts`, `AgencyHostPage`); codes `AGENCY_ALREADY_MEMBER`, `AGENCY_JOIN_NOT_ALLOWED`, `AGENCY_LEAVE_WINDOW_CLOSED`, `INSUFFICIENT_CHERRIES`, `WITHDRAWAL_PENDING` (409); `getMyEarnings` / `listMyEarnings` deprecated; migration `20261231090000_cherry_economy` (with the one-time backfill); CLI `economy-admin`. §4, §8, §10.40, §10.46. | **Additive** (new operations, schemas and codes; the deprecated earnings reads keep working). Behaviour: every gift send now also writes cherry ledger rows in its transaction. |
 | v1.51-social (draft) | 2026-10-30 | **D177 (owner: «هذه صفحة المحفظة، لكن نحن عندنا عملة ذهبية وكرزات»):** `listHomeBanners` takes `placement=wallet` (the wallet page's promo slot; 3:1 like `home`); `banner-admin add --placement wallet`; migration `20261220090000_wallet_banners` widens CHECK `home_banners_placement_values` to `WALLET`; §10.26. | **Additive** (a new enum value of a query parameter; existing values unchanged). |
 | v1.50-social (draft) | 2026-10-30 | **D176 (owner: the Task Center and Event Center «مثل الصور 100%» with Kabso's identity; «أريد أن تصنع الكثير من المهام اليومية، ترسل لكل شخص بناءً على مستواه»; rewards «العملات فقط»):** the daily task pool — `ProgramTask.pooled`, `ProgramTask.metric` gains `WATCH_MINUTES`, `AUDIO_ROOMS`, `LIVE_TAPS`, `NEW_HOST_GIFTS`, `POSTS`, `REELS`, `STORIES`, `POST_COMMENTS`, `DM_FRIENDS`, `DM_VOICE_MESSAGES`, `HOST_GIFTS_RECEIVED`, `HOST_GUESTS`; `MyTasks.band`; a pool task not assigned to the caller today → 404 on claim; `EventSummary.summary`, `EventSummary.tone`; `listHomeBanners` `placement=tasks`; migration `20261230090000_daily_task_pool`; CLIs `task-admin bands|band`, `set --targets --rewards --group`, `event-admin style`. §10.41.1, §10.41.2. | **Additive** (new fields and enum values; old clients ignore them; a client shows an unknown metric with a generic icon). |
 | v1.49-social (draft) | 2026-10-30 | **D172 (owner: the Creator Center «مركز صنّاع المحتوى» in the layout of the owner's reference, whose stats card shows «بيانات أكتوبر» — the current month):** `getMyCreatorStats` takes `period=THIS_MONTH` — the current calendar month so far, from the 1st at 00:00 in `LIVE_RANKINGS_TIME_ZONE` (the region's zone, as the families' month, §10.21) until now; `CreatorStats.month` (`YYYY-MM` for `THIS_MONTH`, else null; required in responses). No migration. §10.40. | **Additive** (an enum value the app sends only when it knows it, and a response field older apps ignore). |
 | v1.48-social (draft) | 2026-10-29 | **D171 (owner: «الحقيبة تعرض العنصر الذي تم شراؤه أو استلامه كهدية … ارتداء / إزالة … إرسال … الوقت المتبقي»; amendment «يمكن أن تجزّئ المدة»):** `BagItem` gains `expiresAt` (null = permanent), `giftedBy` (`UserSummary` or null) and `transferable` (all **required** in responses); `BagItemSource` gains `GIFT`; `getMyBag` never lists expired items; new `sendMyBagItem` (`POST /me/bag/transfers`, `SendBagItemRequest {code, username, days?}`, 201 `BagTransfer`): the whole item or `days` of its remaining time to another user, stacking on the recipient's copy; codes `BAG_ITEM_NOT_TRANSFERABLE`, `BAG_SEND_PERMANENT_WHOLE_ONLY`, `BAG_SEND_EXCEEDS_REMAINING`, `BAG_RECIPIENT_HAS_PERMANENT` (409); notification type `BAG_ITEM_RECEIVED` (target `BAG_ITEM`, `NotificationTarget.bagCategory`). `bag-admin grant <email> <code> [<days>|forever]`. Migrations `20261216090000_bag_expiry_send_enums`, `20261216100000_bag_expiry_send`. Version number: v1.39–v1.47 are taken (live and social share one sequence), so this is v1.48-social. §4, §7, §8, §10.22, §10.45, §11.10. | **Additive** (an operation, codes, enum values clients treat as unknown-safe, required response fields strict clients add in the same change set). `GET /bag/catalogue` is unchanged (the app no longer shows items the user does not own). |
+| v1.47-social (draft) | 2026-10-30 | **D175 (owner, Arabic, answering D168's questions a–g; CP-025; v1.46-social left free for another branch):** profile fields, private accounts and follow requests. `Gender` (`MALE`, `FEMALE`, `UNDISCLOSED`) is **required** by `register` (`RegisterRequest.gender`) and editable with `updateMe` together with `showGender` (default false), `category` (`AccountCategory`: 11 values) and `links` (0–3 `ProfileLinkInput`, https only, normalised); `Me` gains `gender`, `showGender`, `category`, `links`; `PublicProfile` gains `gender` (only when shown), `category`, `links` (`ProfileLink` with `ProfileLinkPlatform`) and `followRequested`; `FollowState.isRequested`; `FollowListItem.requestedByMe`; `PrivacySettings.isPrivate` / `UpdatePrivacyRequest.isPrivate` (switching to public accepts every pending request); a new follow of a private account is a **follow request** (was 403); `listFollowRequests` (`GET /me/follow-requests`, `FollowRequestPage`, `FollowRequest`), `acceptFollowRequest` / `declineFollowRequest` (`POST /me/follow-requests/{username}/accept` → `FollowRequestAccepted`, `…/decline` → 204); `NotificationType` `FOLLOW_REQUEST`, `FOLLOW_REQUEST_ACCEPTED`, `AVATAR_REMOVED`; report `targetType: PROFILE_LINK` (`Report.linkSnapshot`, `ProfileLinkSnapshot`); code `FOLLOW_REQUEST_NOT_PENDING` (409); server config `RATE_LIMIT_FOLLOW_REQUEST_ANSWER_USER`; CLI `profile-admin remove-avatar`; audit `user.privacy.private`, `admin.avatar.remove`; migrations `20261215090000_profile_fields_enums`, `20261215100000_profile_fields_private_accounts`. §4, §7, §10.5, §10.6, §10.42, §10.47, §11.7, §11.10. | **Breaking for registration** (`gender` is required: an app without the gender step gets 400 `gender` / `required`; app and API ship together). **Behaviour change** for a new follow of a private account (200 with `isRequested: true` instead of 403; no app could make an account private before). Otherwise **additive** (new required response fields: strict clients update their models in the same change set; clients ignore unknown notification types and treat an unknown `ProfileLinkPlatform` as `OTHER`). |
 | v1.42-live (draft) | 2026-10-29 | **D170 (owner: «في البث الصوتي أو المرئي» a live goes on in the background; a video host away 5 minutes closes the live):** `setLiveHostPresence` (`POST /live/rooms/{roomId}/host-presence` `{away: boolean}`, 204, host only; rate limit `live:host-presence`, the heartbeat rule); `LiveRoomEndReason.HOST_AWAY_TIMEOUT`; `live_rooms.host_away_since` (migrations `20261215090000_live_host_away_enums`, `20261215090100_live_host_away`); `LIVE_HOST_AWAY_TIMEOUT_SECONDS` (default 300, 30–86400), enforced by the live sweeper. §10.44. (Numbered v1.42-live at integration: D178 took v1.41-live.) | Additive; older apps show `HOST_AWAY_TIMEOUT` as a generic «انتهى البث». |
 | v1.41-live (draft) | 2026-10-30 | **D178 (owner: «عندما يلعب أحد هدايا الحظ لا يظهر المكسب في التكست، والشرائط يجب أن تكون ظاهرة عند الجميع حتى الصغيرة. والهدايا يجب أن تظهر في شريط في جميع البثوث»):** (1) every lucky win (`coinsWon > 0`) sends its room `lucky-win` on topic `lucky` (was only ≥ `LUCKY_GIFT_BIG_WIN_MULTIPLIER`, which now only decides the global `lucky-ticker`); (2) new data message **`gift-ticker`** on topic `gift`: `{"type":"gift-ticker","gift":LiveGift,"room":{"id","title","host":UserSummary}}` to every **other** LIVE room (≤ 5 000, newest first) for a send of at least `GIFT_GLOBAL_TICKER_MIN_COINS` coins (server config, default 1 000; the owner will set the value) — at most one every **3 s** for the whole service (Redis gate `gift:ticker:gate`), one waiting (`gift:ticker:pending`, ≤ 12 s), a newer send replaces it; quips excluded; its own room keeps the `gift` message. Gift and win chat lines are drawn by the apps from these messages (no stored chat line). §10.23, §10.27. | **Additive** for clients (a new data message type; more `lucky-win` messages of the same shape). |
 | v1.40-live (draft) | 2026-10-30 | **D174 (owner «نعم بالطبع»: viewers join a solo live as guests; PK design: at most 3):** a `SOLO` live has **3 guest seats** (indexes 1–3; `LiveSeats.mode` gains `SOLO`, `seatCount` reads 4, not settable) with the whole CP-011 flow — `requestLiveSeat` / accept / decline, `inviteToLiveSeat`, `leaveLiveSeat`, `muteLiveSeat`, `removeFromLiveSeat`, `lockLiveSeat`, moderators; a seated SOLO guest is a `SPEAKER` publishing camera and microphone (muted: camera). A 4th guest → 409 `LIVE_SEAT_UNAVAILABLE` (no seat free). No migration. §10.9. | **Additive for apps** (a new enum value; SOLO seat calls that were 409 now work). |
@@ -2570,6 +2579,8 @@ task center and the event center wait for owner decisions (proposal CP-024).
   row's `reference_id` is **not** returned (it can name another person's send or payment). New
   `WalletLedgerReason` values may appear with later features; clients show an unknown one as a generic
   change. The balance itself stays `getMyWallet`. Recharge is not built (B5: no payment method yet).
+- *(v1.52-social, D179: **superseded** — the cherry balance of §10.46 is the source of truth; the two reads below
+  stay for older apps, deprecated.)*
 - **Earnings** «اربح المال»: there is **no separate earnings balance** in the ledger — a recipient's share is
   not credited as coins. Earnings are computed per read from the gift sends the caller received
   (`live_gift_recipients` × `live_gifts`, live and direct-conversation sends alike): for each send,
@@ -2610,7 +2621,8 @@ Every value below is server config or an admin-managed row: the owner changes it
 
 - **Clock:** days start at 00:00 and weeks on Monday in `LIVE_RANKINGS_TIME_ZONE` (the boards' clock, §10.15).
 - **Task Center** «مركز المهام» (`getMyTasks`, `checkIn`, `claimMyTask`):
-  - Tasks are rows of `task_definitions` (code, `DAILY` | `WEEKLY`, metric, target, `rewardCoins`, audience
+  - Tasks are rows of `task_definitions` (code, `DAILY` | `WEEKLY`, metric, target, `rewardCoins` — cherries
+    since v1.53-social, §10.41.3 —, audience
     `EVERYONE` | `HOSTS`, names ar/en, enabled, order), changed only with the `task-admin` CLI. Defaults: watch
     a live of someone else for 15 s (1×) +5; follow 10 people +5; 10 live chat messages in someone else's live
     +5; 10 gift sends paid with coins +15 (daily); host tasks (weekly, hosting permission holders only): live
@@ -2694,7 +2706,7 @@ or level points from tasks). Every value is a default the owner changes with `ta
   on the phone), recharging (no purchases, B5), and any action only the app could report.
 - **Claim** as §10.41: a pool task is claimable only when it is one of the caller's tasks of today (else
   404); its reward is the assignment's, within `TASK_DAILY_CAP_COINS` like every daily task.
-- **Defaults** (targets / coins for bands 1–4): watch lives 15 s 1·2·3·5 / 3·4·5·6; watch minutes
+- **Defaults** (targets / coins for bands 1–4; *v1.53-social, D184:* now cherries, each ×10 — §10.41.3): watch lives 15 s 1·2·3·5 / 3·4·5·6; watch minutes
   5·15·30·30 / 4·6·8·10; audio rooms 1·2·3·3 / 3·4·5·6; live comments 3·5·10·20 / 3·4·5·6; hearts
   20·50·100·200 / 2·3·4·5; follow 1·3·5·10 / 2·3·4·5; post comments 1·3·5·10 / 2·3·4·5; send a gift
   1·1·3·5 / 5·6·8·10; send gifts —·10·10·15 / —·12·15·20; support a new host 1·1·1·2 / 5·6·8·10; post
@@ -2715,6 +2727,44 @@ or level points from tasks). Every value is a default the owner changes with `ta
   shows «انتهت».
 - `listHomeBanners?placement=tasks`: the banners of the Task Center's slot (3:1 like `home`, added with
   `banner-admin add … --placement tasks`); empty → the slot is hidden.
+
+#### 10.41.3 Task rewards in cherries *(v1.53-social, DRAFT — D184)*
+
+Owner (2026-10-30): the Task Center shows only the active tasks (the «مهام الماس» tab is removed — the app
+has no tab bar there) and the active tasks («المهام النشطة», «مكافآت المهام», the weekly host tasks) reward
+**cherries** instead of coins, at the same value. This replaces §10.41.1's "coins only".
+
+- **Conversion:** 1 coin = 10 cherries. Migration `20261231110000_task_cherries` multiplies every stored
+  reward by 10 — `task_definitions.reward_cherries` (was `reward_coins`), `band_rewards`,
+  `task_assignments.reward_cherries` (offers) — and widens the bounds to 1 000 000 000 cherries a task
+  (owner: rewards may grow a lot). Defaults: the D166 fixed tasks 50 / 50 / 50 / 150, host weekly tasks
+  1 000 / 1 000; the pool's §10.41.1 coins ×10. Owner-changeable with `task-admin set --reward/--rewards`
+  (in cherries).
+- **Raised rewards (owner, same day):** at most about **$5 a month** from tasks — at $1.10 per 1 000 000
+  cherries ≈ 4 500 000 cherries a month ≈ **150 000 a day**. Migration `20261231120000_task_rewards_raise`
+  multiplies every stored task reward (fixed, band and today's offers) by **300** from the values above, so
+  a band's full daily list lands near the cap: the D166 fixed tasks 15 000 / 15 000 / 15 000 / 45 000, host
+  weekly tasks 300 000 / 300 000 (outside the daily cap), the pool's §10.41.1 coins ×3 000 (e.g. 3 coins →
+  9 000 cherries). Claims already made keep what they paid.
+- **Credit:** a claim writes `task_claims` (`reward_amount`, `reward_currency` `CHERRIES`) and, in the same
+  transaction, a `cherry_ledger` row `TASK_REWARD` (a credit; reference `<code>@<period start>`, e.g.
+  `P_FOLLOW@2026-10-30`, so the ledger itself allows one per person, task and day or ISO week) with the
+  balance. The row appears in the Cherries tab's history (`listMyCherryLedger`, `gift: null`). Claim
+  order and statuses as §10.41.
+- **Cap:** daily tasks share `TASK_DAILY_CAP_CHERRIES` = 150 000 (owner: ≈ $5 a month; was 500, the old 50
+  coins); the app shows it with thousands separators («مكافآت اليوم: x من 150,000 كرزة»); a claim pays at most what
+  is left, then 409 `TASK_DAILY_CAP_REACHED`. Weekly host tasks stay outside it.
+- **Check-in («مكافآت تسجيل الدخول»):** unchanged — it pays **coins** (`wallet_ledger` `CHECK_IN_REWARD`,
+  5 a day, +20 every 7th day); `TASK_DAILY_CAP_COINS` (50) now counts only coins (the check-in and daily
+  claims made in coins before this version), so task cherries never reduce it.
+- **History:** claims made before the migration keep what they paid (`reward_currency` `COINS`, their
+  `wallet_ledger` `TASK_REWARD` rows untouched); on the wire `claimedCoins` is their coins and
+  `claimedCherries` 0 (a cherry claim: `claimedCoins` 0).
+- **Wire:** `ProgramTask.rewardCherries` / `claimedCherries`, `MyTasks.dailyCapCherries` /
+  `dailyEarnedCherries` (`dailyCapCoins` / `dailyEarnedCoins` are the check-in's), `TaskClaimResult.paidCherries`
+  / `balanceCherries`; `ProgramTask.rewardCoins` is deprecated and 0.
+- **Withdrawal:** task cherries are cherries like gift cherries but stay **locked** for withdrawal until the
+  unlock rule of §10.46.1 passes.
 
 ### 10.42 Editing the own profile *(v1.45-social, DRAFT — D168)*
 
@@ -2874,6 +2924,130 @@ points are marked *(owner)*; the rest are CTO defaults the owner may change.
 - **Not in v1.48-social:** a store or purchases, other categories (entrance effects, chat bubbles — none
   exist in the catalogue or the app; avatar frames came with v1.46-levels, D169), refunds or taking a sent item back, hiding the
   sender's name on a gift.
+
+### 10.46 The cherry economy, phase 1: cherry balances, host agencies, commissions and withdrawals *(v1.52-social, DRAFT — D179, CP-027)*
+
+Owner decisions (2026-10-30, chat, Arabic; `ECONOMY_spec`) are marked *(owner)*. Every rate and threshold
+is server config with the owner's value as default; the owner changes it without an app release.
+
+- **Two different "cherry" numbers.** (1) The **cherry balance** «رصيد الكرز» defined here: the host currency
+  *(owner: 1 coin = 10 cherries)*, credited per gift, withdrawable. (2) The **in-room cherry score** of the
+  live (the room chip, the host pill, the rankings, seat points; 100 points per counted coin, §10.10, D134):
+  a popularity measure, **not** money and **not** this balance. The two are never added or converted.
+- **The cherry ledger** (tables `cherry_wallets`, `cherry_ledger`): append-only; every change is a ledger row
+  `{user, delta (signed, never 0), balanceAfter, reason, reference}` written with the balance in one
+  transaction; `(user, reason, reference)` is unique. Reasons: `GIFT_RECEIVED`, `AGENCY_COMMISSION`,
+  `PARENT_COMMISSION`, `WITHDRAWAL_REFUND` (credits); `GIFT_REVERSAL`, `AGENCY_COMMISSION_REVERSAL`,
+  `PARENT_COMMISSION_REVERSAL`, `WITHDRAWAL_HOLD` (debits); clients show an unknown reason as a generic change.
+- **Instant credit per gift** *(owner)*: in the gift send's own transaction (live sends, §10.23 / §10.27 /
+  §10.33, and direct-conversation sends, §11.13), each recipient gets floor(recipient coins × the send's stored
+  `host_share_bps` × `CHERRIES_PER_COIN` (10) / 10 000) cherries (`GIFT_RECEIVED`, reference: the send). With
+  the stored shares: a normal gift 65 % (100 coins → 650 cherries), lucky 10 % (→ 100), a paid quip 50 % (→ 500),
+  a gift in a conversation 50 % (→ 500; lucky there 10 % → 100); 1 coin at 65 % → 6 (6.5 rounded down). A free
+  quip credits nothing. A replayed send (`clientId`) never credits again. Gifts sent from the **bag** credit
+  like coin gifts (the D164 earnings counted them; **owner question**). The cherries are **on top of** nothing:
+  they are the recipient's share; commissions below are paid by the company on top of it *(owner)*.
+- **History before v1.52** (the choice): the gifts received before this release were **backfilled once** by the
+  migration `20261231090000_cherry_economy` — one `GIFT_RECEIVED` row per (send, recipient) with the same
+  arithmetic, at the send's time, and the balances — so the history and the balance are continuous and come
+  from one source (the alternative, a ledger that starts at the cutover, would hide earnings the D164 screen
+  already showed). No commission is backfilled (no agency existed). D164's computed earnings
+  (`getMyEarnings`, `listMyEarnings`, §10.40) stay for older apps, **deprecated**: they are coin values
+  (×1), the ledger is the source of truth (×10, reversals included).
+- **Host agencies** «وكالة المضيفين» (tables `agencies`, `agency_hosts`, `agency_complaints`):
+  - An agency is created for its owner, the **host agent**, by the team (`economy-admin agency-create <email>
+    [--parent <code>]`); it has an **invite code** (8 characters `A–Z 2–9` without `0 O 1 I`, matched without
+    case). `--parent` / `agency-parent` links it to the **agency admin** (parent agency) that activated it.
+  - **Joining** *(owner)*: the host types the code, sees the agency (`getAgencyByCode`) and accepts
+    (`joinAgency`): the link is ACTIVE at once. One agency per host; an agency owner is never a host (409
+    `AGENCY_JOIN_NOT_ALLOWED`); another agency → 409 `AGENCY_ALREADY_MEMBER`; the same agency again → 200.
+  - **Leaving** *(owner)*: within `AGENCY_LEAVE_DAYS` (14) of joining (`leaveAgency`); after that 409
+    `AGENCY_LEAVE_WINDOW_CLOSED` and the only way is a **complaint** to the admin (`complainAboutAgency`, one open
+    at a time), which the team resolves with `economy-admin complaint-resolve <id> release|keep|move --to <code>`
+    (release ends the link, move ends it and links the host to another agency with a new leave window, keep
+    rejects the complaint). Every step is audited.
+  - **Active host** *(owner)*: live on ≥ `AGENCY_ACTIVE_HOST_MIN_DAYS` (7) days **and** ≥
+    `AGENCY_ACTIVE_HOST_MIN_HOURS` (10) hours in the last `AGENCY_ACTIVE_HOST_WINDOW_DAYS` (30) days, from the
+    host's own lives in `live_rooms` (start → end, a live in progress to its last heartbeat; a day counts when
+    it has live time in `LIVE_RANKINGS_TIME_ZONE`); an account that is not ACTIVE is never an active host.
+  - **Ranks** (`AgencyRank`): `AGENT` *(owner)* — ≥ `AGENCY_RANK_MIN_ACTIVE_HOSTS` (5) active hosts, **or** the
+    owner's exception: its hosts earned ≥ `AGENCY_RANK_EXCEPTION_CHERRIES` (200 000 000) cherries in the month
+    (the current or the last calendar month); `ADMIN` *(owner)* — an agent with ≥ `AGENCY_ADMIN_MIN_SUB_AGENCIES`
+    (3) sub-agencies that each qualify as an agent **by the same test** (5 active hosts or the 200M exception —
+    our reading of "each with at least 5 active hosts"; **owner to confirm**); `LAPSED` — did not qualify at the
+    last month start; `NEW` — created and not evaluated yet: its **grace** (CTO default) lasts until the month
+    start two months after its creation month (an agency needs time to recruit before it can have 5 active
+    hosts); a NEW agency earns commission.
+  - **Evaluation** *(owner: re-evaluated at the start of each month, rank kept until the month's end)*: the
+    sweeper (`AGENCY_SWEEP_INTERVAL_SECONDS`, 3 600; `economy-admin agency-evaluate` does the same) re-evaluates
+    every agency past its grace at its first run in a new month (`LIVE_RANKINGS_TIME_ZONE`): the rank becomes what
+    it qualifies for, up or down, and is kept to the month's end. Other runs only **promote** (an agency that
+    reaches 5 active hosts mid-month becomes AGENT at once; a rank is never lowered mid-month).
+  - **Lapsed** *(owner: "no commission on hosts who join after that, existing hosts stay linked")*: each link
+    stores `commission_eligible` = the agency was not LAPSED when the host joined. A LAPSED agency keeps earning on
+    its eligible hosts and earns nothing on hosts who joined while lapsed; once it qualifies again it earns on all.
+- **Commissions, credited instantly per gift, paid by the company on top of the host's share** *(owner)*
+  (tables `agency_earnings`, one row per (send, linked recipient), and `agency_months`, an agency's month in
+  `LIVE_RANKINGS_TIME_ZONE`): for a recipient who is an ACTIVE host of an agency, in the same transaction,
+  - the agency's owner gets floor(host cherries × rate) (`AGENCY_COMMISSION`), rate = `AGENCY_COMMISSION_BPS`
+    (15 %) or `AGENCY_COMMISSION_TIER_BPS` (16 %) **in the month after a month in which its hosts earned ≥
+    `AGENCY_TIER_MONTHLY_CHERRIES` (1 500 000 000)** cherries *(owner)*;
+  - the parent agency's owner gets floor(host cherries × `AGENCY_PARENT_COMMISSION_BPS` (3 %))
+    (`PARENT_COMMISSION`) while the parent's rank is ADMIN *(owner: 3 % of each sub-agency's hosts' cherries)*;
+  - the host's cherries count for the agency's month (the 16 % tier, the 200M exception) whether or not a
+    commission is due. Example *(owner)*: 1 000 000 coins of normal gifts → host 6 500 000 cherries, agency
+    975 000 (15 %), parent 195 000 (3 %). Lock order: the agencies' month rows (sorted), then the cherry
+    balances (sorted), each in one statement — sends, reversals and withdrawals cannot deadlock.
+- **Reversal** (`economy-admin reverse-gift <send id>`; fraud, a refunded payment): mirrors every cherry credit of
+  the send — `GIFT_REVERSAL`, `AGENCY_COMMISSION_REVERSAL`, `PARENT_COMMISSION_REVERSAL` — marks its agency rows
+  reversed and takes them out of the months' totals, once (a second run changes nothing). A balance may go
+  below 0 (cherries already withdrawn): a debt that blocks withdrawals until gifts cover it. The sender's coins,
+  points and levels are not touched (no coin refund exists yet).
+- **Withdrawals** *(owner: 1 000 000 cherries = $1.10, minimum $10 for hosts and agents)* (table
+  `cherry_withdrawals`; no payment provider yet): `requestCherryWithdrawal` (`Idempotency-Key`, `{amountMinor,
+  payoutDetails}`) holds ceil(amount × `CHERRY_PAYOUT_RATE` cherries / minor) cherries (`WITHDRAWAL_HOLD`; $10 =
+  9 090 910 cherries); amount ≥ `CHERRY_WITHDRAWAL_MIN_MINOR` (1 000) in `CHERRY_PAYOUT_CURRENCY` (USD); one
+  pending request at a time (409 `WITHDRAWAL_PENDING`); 409 `INSUFFICIENT_CHERRIES`. The team pays by hand to
+  `payoutDetails` within `CHERRY_WITHDRAWAL_PAYOUT_DAYS` (7, shown to the requester) and marks it
+  (`economy-admin withdrawal-pay <id> [--note <reference>]`) or rejects it with a reason
+  (`withdrawal-reject <id> --note …`, `WITHDRAWAL_REFUND` gives the cherries back). Request, payment and rejection
+  are audited; the requester sees the status (`listMyCherryWithdrawals`, `getMyCherries.pendingWithdrawal`).
+  `payoutDetails` is personal data: only its owner and the team see it.
+- **Reads:** `getMyCherries` (balance, its value, held, earned all time / 7 / 30 days, commissions, the payout
+  rules, the pending request), `listMyCherryLedger` (newest first; a gift row names the gift and the visible
+  sender), `getMyAgency` (as a host: the agency, the leave deadline, the latest complaint; as an agent: code, rank,
+  this month's rate, progress — active hosts x / 5, the hosts' month cherries vs the exception and the tier,
+  qualified sub-agencies x / 3 — commissions this month / last month / total, the parent and the sub-agencies),
+  `listMyAgencyHosts` (the agent's hosts: live days and hours in the window, active, this month's cherries).
+- **Rate limits:** every route uses the per-user default (§7).
+- **Task cherries (v1.53-social, D184, §10.46.1):** `TASK_REWARD` rows are part of the balance and the
+  history, but not of `earnedTotal` / the agencies' month totals (no commission on them).
+- **Not in phase 1 (next, CP-027 §6):** recharge agents «وكيل الشحن» (`coin0001` usernames, the KYC application
+  with selfie review, employees and their hours, availability and payment methods), an agent's cherry → coin
+  conversion *(owner: 93 220 coins per 1 000 000 cherries, two-sided confirmation, daily cap)*, coin selling
+  prices and website payments (B5), an admin UI (CLI only), automatic payouts.
+
+#### 10.46.1 Task cherries locked for withdrawal *(v1.53-social, DRAFT — D184)*
+
+Owner decision (2026-10-30, via the coordinator, **confirmed**): task cherries (§10.41.3) become withdrawable
+once the person's lifetime received support — the gift cherries received since registration — is worth at
+least **$50**. The rule is one function and one setting:
+
+- **Locked amount:** while the rule has not passed, every `TASK_REWARD` cherry ever credited is locked
+  (`lockedTaskCherries` = their sum); once it passes, 0. `withdrawableCherries` = `cherries` −
+  `lockedTaskCherries`, never below 0. Task cherries are not tracked as a separate balance: the ledger's
+  `TASK_REWARD` rows are the record.
+- **The rule (`taskCherryLock` in `economy-math.ts`):** lifetime gift cherries received (`GIFT_RECEIVED`;
+  an admin reversal, `GIFT_REVERSAL`, is subtracted) worth at least `TASK_CHERRIES_UNLOCK_GIFT_MINOR`
+  (default 5000 = $50) minor units of `CHERRY_PAYOUT_CURRENCY` at `CHERRY_PAYOUT_RATE` (owner rate:
+  ≈ 45 454 546 cherries); `0` = never locked. A reversal can lock them again. Commissions and task cherries do
+  not count. The wire: `taskUnlock.unlocked`, `giftValueMinor`, `thresholdMinor`.
+- **Withdrawal:** `requestCherryWithdrawal` holds only from the withdrawable part: the conditional update
+  is `cherries − locked ≥ held` (the lock computed in the same transaction); otherwise 409
+  `INSUFFICIENT_CHERRIES`, nothing held.
+- **Wire:** `CherryWallet.taskRewardTotal`, `lockedTaskCherries`, `withdrawableCherries`, `taskUnlock`. The
+  app shows the locked cherries with «تُفتح للسحب بعد تحقيق شرط الأرباح» (wording may change) and offers
+  only `withdrawableCherries`.
 
 ### 10.47 Profile fields, private accounts and follow requests *(v1.47-social, DRAFT — D175, CP-025)*
 

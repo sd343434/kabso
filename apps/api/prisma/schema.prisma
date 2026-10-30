@@ -194,6 +194,12 @@ model User {
   taskAssignments     TaskAssignment[]
   dailyCheckIns       DailyCheckIn[]
   eventResults        EventResult[]
+  // v1.52-social (D179): the cherry economy.
+  cherryWallet        CherryWallet?
+  cherryLedger        CherryLedgerEntry[]
+  ownedAgency         Agency?
+  agencyLinks         AgencyHost[]
+  cherryWithdrawals   CherryWithdrawal[]
 
   @@map("users")
 }
@@ -3285,25 +3291,27 @@ enum EventMetric {
 /// D166: a task on offer (task-admin CLI). Progress is computed from stored data (`metric`), never
 /// reported by the app.
 model TaskDefinition {
-  code        String          @id @db.VarChar(40)
-  period      TaskPeriod
-  metric      String          @db.VarChar(40)
-  target      Int
-  rewardCoins Int             @map("reward_coins")
-  audience    ProgramAudience @default(EVERYONE)
-  nameAr      String          @map("name_ar") @db.VarChar(80)
-  nameEn      String          @map("name_en") @db.VarChar(80)
-  enabled     Boolean         @default(true)
-  sortOrder   Int             @default(0) @map("sort_order")
+  code           String          @id @db.VarChar(40)
+  period         TaskPeriod
+  metric         String          @db.VarChar(40)
+  target         Int
+  /// v1.53-social (D184): task rewards are cherries (was `reward_coins`, ×10 at the migration).
+  rewardCherries Int             @map("reward_cherries")
+  audience       ProgramAudience @default(EVERYONE)
+  nameAr         String          @map("name_ar") @db.VarChar(80)
+  nameEn         String          @map("name_en") @db.VarChar(80)
+  enabled        Boolean         @default(true)
+  sortOrder      Int             @default(0) @map("sort_order")
   /// D176: a daily pool template, offered through the per-person assignment (task_assignments).
-  pool        Boolean         @default(false)
+  pool           Boolean         @default(false)
   /// D176: WATCH, LIVE, SOCIAL, GIFT, CONTENT, MESSAGE or HOST (variety; null when not pool).
-  poolGroup   String?         @map("pool_group") @db.VarChar(10)
-  /// D176: one target and reward per level band 1…4 (0 = not offered in that band).
-  bandTargets Int[]           @default([]) @map("band_targets")
-  bandRewards Int[]           @default([]) @map("band_rewards")
-  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt   DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  poolGroup      String?         @map("pool_group") @db.VarChar(10)
+  /// D176: one target and reward per level band 1…4 (0 = not offered in that band); rewards in
+  /// cherries since v1.53-social (D184).
+  bandTargets    Int[]           @default([]) @map("band_targets")
+  bandRewards    Int[]           @default([]) @map("band_rewards")
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   claims      TaskClaim[]
   assignments TaskAssignment[]
@@ -3326,14 +3334,15 @@ model TaskPoolBand {
 
 /// D176: a person's pool task of a day, fixed at the day's first read with its band's target and reward.
 model TaskAssignment {
-  userId      String   @map("user_id") @db.Uuid
-  day         DateTime @db.Date
-  taskCode    String   @map("task_code") @db.VarChar(40)
-  band        Int      @db.SmallInt
-  target      Int
-  rewardCoins Int      @map("reward_coins")
-  position    Int      @db.SmallInt
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  userId         String   @map("user_id") @db.Uuid
+  day            DateTime @db.Date
+  taskCode       String   @map("task_code") @db.VarChar(40)
+  band           Int      @db.SmallInt
+  target         Int
+  /// v1.53-social (D184): cherries (was `reward_coins`, ×10 at the migration).
+  rewardCherries Int      @map("reward_cherries")
+  position       Int      @db.SmallInt
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 
   user User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   task TaskDefinition @relation(fields: [taskCode], references: [code], onDelete: Cascade)
@@ -3344,15 +3353,19 @@ model TaskAssignment {
   @@map("task_assignments")
 }
 
-/// D166: a task's reward, paid once per person, task and period (`task_claims_once`). The coins
-/// paid (after the daily cap) are a `wallet_ledger` row `TASK_REWARD` with this id as reference.
+/// D166: a task's reward, paid once per person, task and period (`task_claims_once`). Until v1.53-social
+/// the coins paid (after the daily cap) are a `wallet_ledger` row `TASK_REWARD` with this id as reference
+/// (`reward_currency` COINS); since then (D184) the cherries paid are a `cherry_ledger` row `TASK_REWARD`
+/// with reference `<code>@<period start>` (`reward_currency` CHERRIES).
 model TaskClaim {
-  id          String   @id @default(uuid(7)) @db.Uuid
-  userId      String   @map("user_id") @db.Uuid
-  taskCode    String   @map("task_code") @db.VarChar(40)
-  periodStart DateTime @map("period_start") @db.Date
-  rewardCoins Int      @map("reward_coins")
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  id             String             @id @default(uuid(7)) @db.Uuid
+  userId         String             @map("user_id") @db.Uuid
+  taskCode       String             @map("task_code") @db.VarChar(40)
+  periodStart    DateTime           @map("period_start") @db.Date
+  /// What the claim paid, in `rewardCurrency` (was `reward_coins`).
+  rewardAmount   Int                @map("reward_amount")
+  rewardCurrency TaskRewardCurrency @map("reward_currency")
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
 
   user User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   task TaskDefinition @relation(fields: [taskCode], references: [code], onDelete: Restrict)
@@ -3438,4 +3451,229 @@ model EventResult {
   @@unique([eventId, userId], map: "event_results_user_once")
   @@index([userId], map: "event_results_user_idx")
   @@map("event_results")
+}
+
+// ---- v1.52-social (D179, CONVENTIONS §10.46): the cherry economy, phase 1 ----------------------------
+
+enum CherryLedgerReason {
+  GIFT_RECEIVED
+  AGENCY_COMMISSION
+  PARENT_COMMISSION
+  GIFT_REVERSAL
+  AGENCY_COMMISSION_REVERSAL
+  PARENT_COMMISSION_REVERSAL
+  WITHDRAWAL_HOLD
+  WITHDRAWAL_REFUND
+  /// v1.53-social (D184): a Task Center reward (locked for withdrawal until the unlock rule passes).
+  TASK_REWARD
+
+  @@map("cherry_ledger_reason")
+}
+
+/// v1.53-social (D184): what a task claim paid in (claims before the migration: COINS).
+enum TaskRewardCurrency {
+  COINS
+  CHERRIES
+
+  @@map("task_reward_currency")
+}
+
+enum AgencyRank {
+  NEW
+  AGENT
+  ADMIN
+  LAPSED
+
+  @@map("agency_rank")
+}
+
+enum AgencyHostStatus {
+  ACTIVE
+  LEFT
+  RELEASED
+  MOVED
+
+  @@map("agency_host_status")
+}
+
+enum AgencyComplaintStatus {
+  OPEN
+  RESOLVED
+  REJECTED
+
+  @@map("agency_complaint_status")
+}
+
+enum CherryWithdrawalStatus {
+  PENDING
+  PAID
+  REJECTED
+
+  @@map("cherry_withdrawal_status")
+}
+
+/// D179: a cherry balance (no row = 0); changed only with a `cherry_ledger` row. CHECK
+/// `cherry_wallets_range` (may be negative only after an admin reversal).
+model CherryWallet {
+  userId    String   @id @map("user_id") @db.Uuid
+  cherries  BigInt   @default(0)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("cherry_wallets")
+}
+
+/// D179: every change of a cherry balance, append-only; `(user, reason, reference)` once.
+model CherryLedgerEntry {
+  id           String             @id @default(uuid(7)) @db.Uuid
+  userId       String             @map("user_id") @db.Uuid
+  delta        BigInt
+  balanceAfter BigInt             @map("balance_after")
+  reason       CherryLedgerReason
+  referenceId  String             @map("reference_id") @db.VarChar(64)
+  createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, reason, referenceId], map: "cherry_ledger_reference_once")
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)], map: "cherry_ledger_user_created_idx")
+  @@index([referenceId], map: "cherry_ledger_reference_idx")
+  @@index([userId, reason], map: "cherry_ledger_user_reason_idx")
+  @@map("cherry_ledger")
+}
+
+/// D179: a host agency (created by an admin); `rankMonth` = the month of the last month-start
+/// evaluation, `evaluateFrom` = the first month start at which a NEW agency is evaluated.
+model Agency {
+  id             String     @id @default(uuid(7)) @db.Uuid
+  ownerUserId    String     @map("owner_user_id") @db.Uuid
+  inviteCode     String     @map("invite_code") @db.VarChar(12)
+  parentAgencyId String?    @map("parent_agency_id") @db.Uuid
+  rank           AgencyRank @default(NEW)
+  rankMonth      DateTime?  @map("rank_month") @db.Date
+  evaluateFrom   DateTime   @map("evaluate_from") @db.Date
+  createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  owner       User            @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  parent      Agency?         @relation("AgencyParent", fields: [parentAgencyId], references: [id], onDelete: SetNull)
+  subAgencies Agency[]        @relation("AgencyParent")
+  hosts       AgencyHost[]
+  earnings    AgencyEarning[]
+  months      AgencyMonth[]
+
+  @@unique([ownerUserId], map: "agencies_owner_once")
+  @@unique([inviteCode], map: "agencies_invite_code_key")
+  @@index([parentAgencyId], map: "agencies_parent_idx")
+  @@map("agencies")
+}
+
+/// D179: a host's link to an agency (one ACTIVE per host, partial unique `agency_hosts_one_active`).
+model AgencyHost {
+  id                 String           @id @default(uuid(7)) @db.Uuid
+  agencyId           String           @map("agency_id") @db.Uuid
+  hostUserId         String           @map("host_user_id") @db.Uuid
+  status             AgencyHostStatus @default(ACTIVE)
+  commissionEligible Boolean          @map("commission_eligible")
+  activatedAt        DateTime         @default(now()) @map("activated_at") @db.Timestamptz(3)
+  endedAt            DateTime?        @map("ended_at") @db.Timestamptz(3)
+
+  agency     Agency            @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  host       User              @relation(fields: [hostUserId], references: [id], onDelete: Cascade)
+  earnings   AgencyEarning[]
+  complaints AgencyComplaint[]
+
+  @@unique([hostUserId], map: "agency_hosts_one_active", where: raw("status = 'ACTIVE'::agency_host_status"))
+  @@index([agencyId, status, activatedAt(sort: Desc)], map: "agency_hosts_agency_idx")
+  @@index([hostUserId, activatedAt(sort: Desc)], map: "agency_hosts_host_idx")
+  @@map("agency_hosts")
+}
+
+/// D179: a linked host's cherries from one send and the commissions paid on them.
+model AgencyEarning {
+  id               String    @id @default(uuid(7)) @db.Uuid
+  giftId           String    @map("gift_id") @db.Uuid
+  agencyId         String    @map("agency_id") @db.Uuid
+  agencyHostId     String    @map("agency_host_id") @db.Uuid
+  hostUserId       String    @map("host_user_id") @db.Uuid
+  hostCherries     BigInt    @map("host_cherries")
+  rateBps          Int       @map("rate_bps")
+  commission       BigInt
+  parentAgencyId   String?   @map("parent_agency_id") @db.Uuid
+  parentRateBps    Int       @map("parent_rate_bps")
+  parentCommission BigInt    @map("parent_commission")
+  month            DateTime  @db.Date
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  reversedAt       DateTime? @map("reversed_at") @db.Timestamptz(3)
+
+  agency Agency     @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  link   AgencyHost @relation(fields: [agencyHostId], references: [id], onDelete: Cascade)
+
+  @@unique([giftId, hostUserId], map: "agency_earnings_once")
+  @@index([agencyId, month, hostUserId], map: "agency_earnings_agency_month_idx")
+  @@index([agencyHostId], map: "agency_earnings_link_idx")
+  @@index([parentAgencyId, month], map: "agency_earnings_parent_idx")
+  @@map("agency_earnings")
+}
+
+/// D179: an agency's month totals (hosts' cherries, commission, parent commission).
+model AgencyMonth {
+  agencyId         String   @map("agency_id") @db.Uuid
+  month            DateTime @db.Date
+  hostCherries     BigInt   @default(0) @map("host_cherries")
+  commission       BigInt   @default(0)
+  parentCommission BigInt   @default(0) @map("parent_commission")
+
+  agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  @@id([agencyId, month], map: "agency_months_pkey")
+  @@map("agency_months")
+}
+
+/// D179: a host's complaint after the leave window (resolved by an admin with economy-admin).
+model AgencyComplaint {
+  id           String                @id @default(uuid(7)) @db.Uuid
+  agencyHostId String                @map("agency_host_id") @db.Uuid
+  hostUserId   String                @map("host_user_id") @db.Uuid
+  agencyId     String                @map("agency_id") @db.Uuid
+  text         String                @db.VarChar(1000)
+  status       AgencyComplaintStatus @default(OPEN)
+  resolution   String?               @db.VarChar(10)
+  note         String?               @db.VarChar(500)
+  createdAt    DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  resolvedAt   DateTime?             @map("resolved_at") @db.Timestamptz(3)
+
+  link AgencyHost @relation(fields: [agencyHostId], references: [id], onDelete: Cascade)
+
+  @@unique([agencyHostId], map: "agency_complaints_one_open", where: raw("status = 'OPEN'::agency_complaint_status"))
+  @@index([status, createdAt], map: "agency_complaints_status_idx")
+  @@index([agencyId], map: "agency_complaints_agency_idx")
+  @@index([hostUserId], map: "agency_complaints_host_idx")
+  @@map("agency_complaints")
+}
+
+/// D179: a withdrawal request, paid by hand by an admin (no payment provider yet).
+model CherryWithdrawal {
+  id            String                 @id @default(uuid(7)) @db.Uuid
+  userId        String                 @map("user_id") @db.Uuid
+  clientId      String                 @map("client_id") @db.Uuid
+  cherries      BigInt
+  amountMinor   BigInt                 @map("amount_minor")
+  currency      String                 @db.Char(3)
+  rateCherries  BigInt                 @map("rate_cherries")
+  rateMinor     Int                    @map("rate_minor")
+  payoutDetails String                 @map("payout_details") @db.VarChar(500)
+  status        CherryWithdrawalStatus @default(PENDING)
+  createdAt     DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  decidedAt     DateTime?              @map("decided_at") @db.Timestamptz(3)
+  decisionNote  String?                @map("decision_note") @db.VarChar(500)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, clientId], map: "cherry_withdrawals_client_once")
+  @@unique([userId], map: "cherry_withdrawals_one_pending", where: raw("status = 'PENDING'::cherry_withdrawal_status"))
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)], map: "cherry_withdrawals_user_created_idx")
+  @@index([status, createdAt], map: "cherry_withdrawals_status_idx")
+  @@map("cherry_withdrawals")
 }

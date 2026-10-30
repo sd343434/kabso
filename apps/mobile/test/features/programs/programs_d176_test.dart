@@ -1,6 +1,7 @@
 // D176: the Task Center and the Event Center in the layout of the owner's
 // references with Kabso's colours — the daily pool's tasks (new metrics and
-// where «اذهب» leads; coins only, owner 2026-10-30), the sign-in calendar
+// where «اذهب» leads; rewards in cherries since D184 — the old coins ×10),
+// the sign-in calendar
 // sheet, the banner slot (hidden when none), the calendar bars' second line,
 // tags and tone, the Arabic week start, and 360 × 800 at text scale 1.3.
 // Server data only (fakes here).
@@ -48,15 +49,17 @@ ProgramTask _task(
   name: code,
   target: target,
   progress: progress,
-  rewardCoins: 6,
+  rewardCherries: 18000,
   completed: progress >= target,
   claimed: claimed,
-  claimedCoins: claimed ? 6 : null,
+  claimedCoins: claimed ? 0 : null,
+  claimedCherries: claimed ? 18000 : null,
 );
 
 MyTasks _tasks(List<ProgramTask> tasks) => MyTasks(
   dailyCapCoins: 50,
   dailyEarnedCoins: 0,
+  dailyCapCherries: 150000,
   band: (band: 2, level: 12, name: 'Active', host: false),
   checkIn: CheckInState(
     checkedInToday: true,
@@ -123,7 +126,7 @@ class _Programs implements ProgramsRepository {
   @override
   Future<ProgramPayout> claim(String code) async {
     claims.add(code);
-    return (paidCoins: 6, balanceCoins: 106);
+    return (paidCoins: 0, balanceCoins: 100, paidCherries: 18000);
   }
 
   @override
@@ -222,7 +225,7 @@ String _label(WidgetTester tester, String code) => tester
 
 void main() {
   group('task center (D176)', () {
-    testWidgets('pool tasks: «name (x/y)», coins only, and the three pill '
+    testWidgets('pool tasks: «name (x/y)», cherries (D184), and the three pill '
         'states; an unknown metric still shows', (tester) async {
       final programs = _Programs();
       await _pump(tester, const TaskCenterScreen(), programs: programs);
@@ -230,8 +233,16 @@ void main() {
       expect(_label(tester, 'P_AUDIO_ROOMS'), _en.tasksActionGo);
       expect(_label(tester, 'P_POST_COMMENTS'), _en.tasksActionClaim);
       expect(_label(tester, 'P_LIVE_TAPS'), _en.tasksActionDone);
-      expect(find.text('+6'), findsWidgets);
-      // Owner 2026-10-30: coins only — no experience reward anywhere.
+      // D184: «+18,000» with the cherry on every row (6 coins ×3 000).
+      expect(find.text('+18,000'), findsWidgets);
+      expect(
+        find.descendant(
+          of: find.byKey(TaskCenterScreen.rewardAmountKey('P_AUDIO_ROOMS')),
+          matching: find.byType(KCherryIcon),
+        ),
+        findsOneWidget,
+      );
+      // No experience reward anywhere (owner 2026-10-30).
       expect(find.textContaining('EXP'), findsNothing);
       await tester.tap(
         find.byKey(TaskCenterScreen.actionKey('P_POST_COMMENTS')),

@@ -643,6 +643,36 @@ describe('loadConfig — v1.5-social media and posts (CONVENTIONS §11)', () => 
     }
   });
 
+  it('D179: the cherry economy defaults are the owner values; the agency sweeper cannot be off in production', () => {
+    expect(loadConfig(base).economy).toEqual({
+      cherriesPerCoin: 10,
+      agencyCommissionBps: 1500,
+      agencyTierCommissionBps: 1600,
+      agencyTierMonthlyCherries: 1_500_000_000,
+      parentCommissionBps: 300,
+      rankMinActiveHosts: 5,
+      rankExceptionCherries: 200_000_000,
+      adminMinSubAgencies: 3,
+      activeHostMinDays: 7,
+      activeHostMinHours: 10,
+      activeHostWindowDays: 30,
+      leaveDays: 14,
+      sweepIntervalSeconds: 3600,
+      rateCherries: 1_000_000,
+      rateMinor: 110,
+      currency: 'USD',
+      minWithdrawalMinor: 1000,
+      payoutDays: 7,
+      taskCherriesUnlockGiftMinor: 5000,
+    });
+    expect(loadConfig({ ...base, CHERRY_PAYOUT_RATE: '1000:110' }).economy.rateCherries).toBe(1000);
+    expect(() => loadConfig({ ...base, CHERRY_PAYOUT_RATE: '1.1' })).toThrow(/CHERRY_PAYOUT_RATE/);
+    expect(() => loadConfig({ ...base, AGENCY_COMMISSION_BPS: '10001' })).toThrow(/AGENCY_COMMISSION_BPS/);
+    expect(() => loadConfig({ ...base, NODE_ENV: 'production', AGENCY_SWEEP_INTERVAL_SECONDS: '0' })).toThrow(
+      /AGENCY_SWEEP_INTERVAL_SECONDS/,
+    );
+  });
+
   it('D155: direct messages live 24 h; the sweeper runs by default and cannot be off in production', () => {
     expect(loadConfig(base).dm).toEqual({
       retentionHours: 24,

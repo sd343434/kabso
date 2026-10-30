@@ -273,6 +273,21 @@ info:
     `listFollowRequests`, `acceptFollowRequest`, `declineFollowRequest` (`/me/follow-requests`); notification
     types `FOLLOW_REQUEST`, `FOLLOW_REQUEST_ACCEPTED`, `AVATAR_REMOVED`; report target `PROFILE_LINK`;
     code `FOLLOW_REQUEST_NOT_PENDING` (409).
+    **D179 (DRAFT v1.52-social, CP-027)**: the cherry economy, phase 1 — a real cherry balance credited
+    in each gift send's transaction (`getMyCherries`, `listMyCherryLedger`), withdrawal requests paid by
+    hand (`requestCherryWithdrawal`, `listMyCherryWithdrawals`), and host agencies with commissions
+    paid on top of the host's share (tag `agency`: `getAgencyByCode`, `getMyAgency`, `joinAgency`,
+    `leaveAgency`, `complainAboutAgency`, `listMyAgencyHosts`); codes `AGENCY_ALREADY_MEMBER`,
+    `AGENCY_JOIN_NOT_ALLOWED`, `AGENCY_LEAVE_WINDOW_CLOSED`, `INSUFFICIENT_CHERRIES`,
+    `WITHDRAWAL_PENDING` (CONVENTIONS §10.46). `getMyEarnings` / `listMyEarnings` (D164) stay for older
+    apps but are deprecated: the cherry ledger is the source of truth.
+    **D184 (DRAFT v1.53-social)**: the Task Center's rewards are cherries (the old coins ×10, then raised
+    ×300: ≈ $5 a month at most), credited to the cherry ledger as `TASK_REWARD` under a daily cherry cap
+    (`ProgramTask.rewardCherries` / `claimedCherries`, `MyTasks.dailyCapCherries` / `dailyEarnedCherries`,
+    `TaskClaimResult.paidCherries` / `balanceCherries`; `rewardCoins` deprecated, 0); the check-in keeps
+    its coins. Task cherries are not withdrawable until the person's lifetime gift cherries received are
+    worth $50 (owner): `CherryWallet.taskRewardTotal`, `lockedTaskCherries`, `withdrawableCherries`, `taskUnlock`
+    (CONVENTIONS §10.41.3, §10.46.1).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -298,7 +313,9 @@ tags:
   - name: programs
     description: "The Me hub's programs: the Task Center, the Event Center and SVIP (v1.44-social DRAFT, D166)."
   - name: wallet
-    description: "The caller's coins (v1.19-live DRAFT, CP-017); their history and gift earnings (v1.43-social DRAFT, D164)."
+    description: "The caller's coins (v1.19-live DRAFT, CP-017); their history and gift earnings (v1.43-social DRAFT, D164); cherries and withdrawals (v1.52-social DRAFT, D179)."
+  - name: agency
+    description: "Host agencies: join with an invite code, leave or complain, the agent's dashboard (v1.52-social DRAFT, D179)."
   - name: premium-usernames
     description: "Premium usernames rented monthly with coins, and the username change (v1.28-live DRAFT, D146). Prices, the reserved list and grants are managed by the premium-admin CLI."
   - name: families
@@ -4044,6 +4061,7 @@ paths:
     get:
       tags: [wallet]
       operationId: getMyEarnings
+      deprecated: true
       summary: "The caller's gift earnings: totals (D164, display only)"
       description: |
         v1.43-social, CONVENTIONS §10.40. What the caller earned from the gifts they received, in a
@@ -4063,6 +4081,7 @@ paths:
     get:
       tags: [wallet]
       operationId: listMyEarnings
+      deprecated: true
       summary: "The gifts the caller earned from, newest first (D164)"
       description: |
         v1.43-social, CONVENTIONS §10.40. One row per gift send that gave the caller earnings (a
@@ -4080,6 +4099,272 @@ paths:
               schema: { $ref: '#/components/schemas/EarningPage' }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/wallet/me/cherries:
+    get:
+      tags: [wallet]
+      operationId: getMyCherries
+      summary: "The caller's cherry balance, earnings and payout rules (D179)"
+      description: |
+        v1.52-social, CONVENTIONS §10.46. The cherry balance from the cherry ledger (credited in each gift
+        send's transaction: floor(coins × the send's stored share × `CHERRIES_PER_COIN`); an agency's
+        commissions on top), what it is worth at the payout rate, the cherries held by a pending
+        withdrawal, the gift cherries earned (all time and the rolling 7 and 30 days, reversals
+        included), the commission total, the payout rules and the pending withdrawal. *(v1.53-social, D184,
+        §10.46.1)* Also the Task Center's cherries (`taskRewardTotal`), the part still locked for withdrawal
+        (`lockedTaskCherries`), what a withdrawal may take (`withdrawableCherries`) and the unlock rule's
+        state (`taskUnlock`). Checks: 401.
+      responses:
+        '200':
+          description: The caller's cherries.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CherryWallet' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/wallet/me/cherries/ledger:
+    get:
+      tags: [wallet]
+      operationId: listMyCherryLedger
+      summary: "Every change of the caller's cherries, newest first (D179)"
+      description: |
+        v1.52-social, CONVENTIONS §10.46. The caller's `cherry_ledger` rows, newest first (signed keyset
+        cursor bound to the caller). A `GIFT_RECEIVED` / `GIFT_REVERSAL` row carries the gift (name in
+        the reader's language; `sender` null when not active or blocked either way); other rows carry
+        `gift: null`. New `CherryLedgerReason` values may appear later; clients show an unknown one as a
+        generic change. Checks: 401; 400 `cursor` / `limit`.
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page of the cherry history.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CherryLedgerPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/wallet/me/cherries/withdrawals:
+    get:
+      tags: [wallet]
+      operationId: listMyCherryWithdrawals
+      summary: "The caller's withdrawal requests, newest first (D179)"
+      description: "v1.52-social, CONVENTIONS §10.46. Checks: 401; 400 `cursor` / `limit`."
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page of withdrawal requests.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CherryWithdrawalPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [wallet]
+      operationId: requestCherryWithdrawal
+      summary: "Ask for a payout of cherries (held now, paid by hand) (D179)"
+      description: |
+        v1.52-social, CONVENTIONS §10.46. No payment provider yet: the cherries are **held** now
+        (`WITHDRAWAL_HOLD`) and the team pays by hand to `payoutDetails` within `payoutDays`, then marks the
+        request `PAID` — or `REJECTED`, which gives the cherries back (`WITHDRAWAL_REFUND`). The request holds
+        ceil(`amountMinor` × `rateCherries` / `rateMinor`) cherries (owner: 1 000 000 cherries = $1.10, so
+        $10 = 9 090 910 cherries). Order after auth: 400 `Idempotency-Key` (`required` / `invalid_format`),
+        body (`amountMinor` an integer, `payoutDetails` 3–500 characters after trimming), `amountMinor`
+        `too_small` below `minAmountMinor` (owner: $10) → the same key again → 200 with that request (409
+        `IDEMPOTENCY_CONFLICT` when the body differs) → 409 `WITHDRAWAL_PENDING` (one at a time) → 409
+        `INSUFFICIENT_CHERRIES` (nothing held; *v1.53-social, D184:* more than `withdrawableCherries` — the
+        balance less the task cherries still locked, §10.46.1) → 201.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CherryWithdrawalRequest' }
+      responses:
+        '201':
+          description: Requested; the cherries are held.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CherryWithdrawal' }
+        '200':
+          description: A retry with the same `Idempotency-Key`; the first request.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CherryWithdrawal' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '409':
+          description: "`WITHDRAWAL_PENDING`, `INSUFFICIENT_CHERRIES` or `IDEMPOTENCY_CONFLICT`."
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/agencies/{inviteCode}:
+    get:
+      tags: [agency]
+      operationId: getAgencyByCode
+      summary: "The agency of an invite code, before joining it (D179)"
+      description: |
+        v1.52-social, CONVENTIONS §10.46. The code is matched without case or surrounding spaces. Checks:
+        401; 404 (unknown code, or the owner's account is not active).
+      parameters:
+        - name: inviteCode
+          in: path
+          required: true
+          schema: { type: string, maxLength: 32 }
+      responses:
+        '200':
+          description: The agency.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AgencyPreview' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/agency:
+    get:
+      tags: [agency]
+      operationId: getMyAgency
+      summary: "The caller's agency as a host and their own agency as an agent (D179)"
+      description: |
+        v1.52-social, CONVENTIONS §10.46. `membership`: the agency the caller is an ACTIVE host of (null:
+        none), with the leave deadline and the latest complaint. `ownAgency`: the caller's own agency (null:
+        not an agent) — invite code, rank, this month's rate, progress to the rank (active hosts, the
+        hosts' cherries this and last month, the exception, qualified sub-agencies), the commissions and
+        the sub-agencies. Checks: 401.
+      responses:
+        '200':
+          description: The caller's agencies.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyAgency' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/agency/join:
+    post:
+      tags: [agency]
+      operationId: joinAgency
+      summary: "Join (accept) the agency of an invite code as a host (D179)"
+      description: |
+        v1.52-social, CONVENTIONS §10.46. The host enters the agent's code, sees the agency
+        (`getAgencyByCode`) and accepts: the link is ACTIVE at once and the leave window starts. Order
+        after auth: 400 body → 404 (unknown code, owner not active) → 409 `AGENCY_JOIN_NOT_ALLOWED` (the
+        caller owns an agency) → already a host of this agency → 200 → 409 `AGENCY_ALREADY_MEMBER` → 201.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [inviteCode]
+              properties:
+                inviteCode: { type: string, minLength: 1, maxLength: 32 }
+      responses:
+        '201':
+          description: Joined.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyAgency' }
+        '200':
+          description: Already a host of this agency.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyAgency' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409':
+          description: "`AGENCY_JOIN_NOT_ALLOWED` or `AGENCY_ALREADY_MEMBER`."
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/agency/leave:
+    post:
+      tags: [agency]
+      operationId: leaveAgency
+      summary: "Leave the agency within the leave window (D179)"
+      description: |
+        v1.52-social, CONVENTIONS §10.46 (owner: within 14 days of joining; after that only a complaint
+        to the admin). Checks: 401; 404 (not a host of an agency); 409 `AGENCY_LEAVE_WINDOW_CLOSED`.
+      responses:
+        '200':
+          description: Left; the caller's agencies now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyAgency' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409':
+          description: "`AGENCY_LEAVE_WINDOW_CLOSED`."
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/agency/complaints:
+    post:
+      tags: [agency]
+      operationId: complainAboutAgency
+      summary: "A complaint to the admin about the caller's agency (D179)"
+      description: |
+        v1.52-social, CONVENTIONS §10.46. The way out after the leave window: the team reads it and
+        releases the host, moves them to another agency or keeps the link (`economy-admin
+        complaint-resolve`). One open complaint at a time: while one is open it is returned (200).
+        Checks: 401; 404 (not a host of an agency); 400 `text` (1–1 000 characters after trimming).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [text]
+              properties:
+                text: { type: string, minLength: 1, maxLength: 1000 }
+      responses:
+        '201':
+          description: Filed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AgencyComplaint' }
+        '200':
+          description: The complaint already open.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AgencyComplaint' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/agency/hosts:
+    get:
+      tags: [agency]
+      operationId: listMyAgencyHosts
+      summary: "The hosts of the caller's agency with activity and month cherries (D179)"
+      description: |
+        v1.52-social, CONVENTIONS §10.46. The caller's agency's ACTIVE hosts, newest first: live days and
+        live seconds in the active-host window, whether the host is active, this month's cherries (gifts
+        received while a host of this agency, reversals excluded) and whether the host earns the agency
+        its commission while it is lapsed. Checks: 401; 404 (the caller has no agency); 400 `cursor` /
+        `limit`.
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page of hosts.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AgencyHostPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
   /api/v1/me/creator-stats:
     get:
@@ -7055,7 +7340,9 @@ paths:
         gifts received; counterparts must be ACTIVE) — never reported by the app — and whether it was
         claimed in the current day or ISO week (`LIVE_RANKINGS_TIME_ZONE`). Also the check-in strip:
         today and the next six days with their place in the 7-day cycle. Names follow
-        `Accept-Language`. Checks: 401.
+        `Accept-Language`. *(v1.53-social, D184, §10.41.3)* Rewards are cherries (`rewardCherries`);
+        the daily tasks' cherries share `dailyCapCherries`; `dailyCapCoins` caps the check-in's coins.
+        Checks: 401.
       responses:
         '200':
           description: The tasks.
@@ -7073,7 +7360,9 @@ paths:
         v1.44-social, CONVENTIONS §10.41. Once per day: `TASK_CHECK_IN_COINS` (5) coins, plus
         `TASK_CHECK_IN_STREAK_BONUS_COINS` (20) on every 7th day in a row, paid as a `CHECK_IN_REWARD`
         ledger row within the daily cap (`TASK_DAILY_CAP_COINS`, 50; after the cap the check-in still
-        keeps the streak and pays 0). 201 checked in now, 200 already today (nothing paid again).
+        keeps the streak and pays 0). *(v1.53-social, D184)* The check-in still pays coins; the coin cap
+        counts the check-in and coin task claims made before v1.53-social, not the task cherries.
+        201 checked in now, 200 already today (nothing paid again).
         Checks: 401.
       responses:
         '200':
@@ -7092,14 +7381,18 @@ paths:
     post:
       tags: [programs]
       operationId: claimMyTask
-      summary: "Claim a completed task's coins (D166)"
+      summary: "Claim a completed task's reward — cherries since v1.53-social (D166, D184)"
       description: |
         v1.44-social, CONVENTIONS §10.41. Order: 404 (unknown, disabled or not for the caller; a
         pool task that is not one of the caller's tasks of today, v1.50-social) →
         already claimed in this period → 200 (nothing paid again) → 409 `TASK_NOT_COMPLETED` → for a
         daily task, 409 `TASK_DAILY_CAP_REACHED` when the day's cap is used up → 201, paying the reward
         (a daily task: at most what is left of the cap) as a `TASK_REWARD` ledger row in the same
-        transaction. One payout per person, task and period, also for concurrent claims. Checks: 401.
+        transaction. One payout per person, task and period, also for concurrent claims.
+        *(v1.53-social, D184, §10.41.3)* The reward is cherries: a cherry ledger `TASK_REWARD` row
+        (reference `<code>@<period start>`, once per person, task and period) within the daily cherry
+        cap (`TASK_DAILY_CAP_CHERRIES`, 150 000); a claim made in coins before keeps its coins (`paidCoins`
+        on the 200). Checks: 401.
       parameters:
         - name: code
           in: path
@@ -11533,7 +11826,7 @@ components:
     ProgramTask:
       type: object
       description: One task of the Task Center (CONVENTIONS §10.41). `progress` is capped at `target`.
-      required: [code, pooled, period, metric, audience, name, target, progress, rewardCoins, completed, claimed, claimedCoins]
+      required: [code, pooled, period, metric, audience, name, target, progress, rewardCoins, rewardCherries, completed, claimed, claimedCoins, claimedCherries]
       properties:
         code: { type: string, maxLength: 40 }
         pooled:
@@ -11551,10 +11844,25 @@ components:
         name: { type: string }
         target: { type: integer, minimum: 1 }
         progress: { type: integer, minimum: 0 }
-        rewardCoins: { type: integer, minimum: 1 }
+        rewardCoins:
+          type: integer
+          minimum: 0
+          deprecated: true
+          description: "Deprecated in v1.53-social (D184): always 0 — the reward is `rewardCherries`."
+        rewardCherries:
+          type: integer
+          minimum: 1
+          description: "v1.53-social (D184, CONVENTIONS §10.41.3): the cherries the task pays (owner-set; e.g. 9 000)."
         completed: { type: boolean }
         claimed: { type: boolean }
-        claimedCoins: { type: [integer, 'null'], minimum: 0, description: What the claim paid (after the daily cap). }
+        claimedCoins:
+          type: [integer, 'null']
+          minimum: 0
+          description: "What the claim paid in coins (after the daily cap): a claim made before v1.53-social; 0 for a cherry claim; null before it is claimed."
+        claimedCherries:
+          type: [integer, 'null']
+          minimum: 0
+          description: "v1.53-social (D184): what the claim paid in cherries (after the daily cap); 0 for a claim paid in coins before; null before it is claimed."
     CheckInDay:
       type: object
       required: [date, cycleDay, today, checkedIn, rewardCoins]
@@ -11566,7 +11874,7 @@ components:
         rewardCoins: { type: integer, minimum: 0, description: Before the daily cap. }
     MyTasks:
       type: object
-      required: [day, timeZone, dayStartsAt, dayResetsAt, weekStartsAt, weekResetsAt, dailyCapCoins, dailyEarnedCoins, band, checkIn, tasks]
+      required: [day, timeZone, dayStartsAt, dayResetsAt, weekStartsAt, weekResetsAt, dailyCapCoins, dailyEarnedCoins, dailyCapCherries, dailyEarnedCherries, band, checkIn, tasks]
       properties:
         day: { type: string, format: date }
         timeZone: { type: string }
@@ -11574,8 +11882,10 @@ components:
         dayResetsAt: { type: string, format: date-time }
         weekStartsAt: { type: string, format: date-time }
         weekResetsAt: { type: string, format: date-time }
-        dailyCapCoins: { type: integer, minimum: 1 }
-        dailyEarnedCoins: { type: integer, minimum: 0, description: Coins from daily tasks and the check-in today. }
+        dailyCapCoins: { type: integer, minimum: 1, description: "Since v1.53-social (D184): the check-in's coin cap (`TASK_DAILY_CAP_COINS`)." }
+        dailyEarnedCoins: { type: integer, minimum: 0, description: "Coins today from the check-in (and daily task claims made in coins before v1.53-social)." }
+        dailyCapCherries: { type: integer, minimum: 1, description: "v1.53-social (D184): the daily tasks' cherry cap (`TASK_DAILY_CAP_CHERRIES`, 150 000)." }
+        dailyEarnedCherries: { type: integer, minimum: 0, description: "v1.53-social (D184): cherries from daily tasks today." }
         band:
           type: object
           description: "v1.50-social (D176): the level band of today's pool tasks (the band at the day's first read; before any assignment, the band of the level now)."
@@ -11604,11 +11914,13 @@ components:
           items: { $ref: '#/components/schemas/ProgramTask' }
     TaskClaimResult:
       type: object
-      required: [task, paidCoins, balanceCoins]
+      required: [task, paidCoins, balanceCoins, paidCherries, balanceCherries]
       properties:
         task: { $ref: '#/components/schemas/ProgramTask' }
-        paidCoins: { type: integer, minimum: 0 }
+        paidCoins: { type: integer, minimum: 0, description: "0 since v1.53-social, except a claim made in coins before (the 200)." }
         balanceCoins: { type: integer, format: int64, minimum: 0 }
+        paidCherries: { type: integer, minimum: 0, description: "v1.53-social (D184): the cherries the claim paid." }
+        balanceCherries: { type: integer, format: int64, description: "v1.53-social (D184): the caller's cherry balance after the claim." }
     CheckInResult:
       type: object
       required: [paidCoins, balanceCoins, tasks]
@@ -11747,5 +12059,260 @@ components:
               bonusCoins: { type: integer, minimum: 0 }
               priceMinor: { type: integer, minimum: 1, description: In the currency's minor unit (cents). }
               originalPriceMinor: { type: [integer, 'null'], minimum: 1, description: The price before a discount (the «عرض» ribbon). }
+    CherryLedgerReason:
+      type: string
+      description: |
+        v1.52-social (D179, §10.46). Credits: `GIFT_RECEIVED` (a gift's cherries), `AGENCY_COMMISSION`,
+        `PARENT_COMMISSION`, `WITHDRAWAL_REFUND` (a rejected withdrawal). Debits: `GIFT_REVERSAL`,
+        `AGENCY_COMMISSION_REVERSAL`, `PARENT_COMMISSION_REVERSAL` (an admin reversed a send),
+        `WITHDRAWAL_HOLD` (held by a withdrawal request). *(v1.53-social, D184)* `TASK_REWARD` (credit): a
+        Task Center reward (locked for withdrawal until the unlock rule passes, §10.46.1). New values may
+        appear later.
+      enum: [GIFT_RECEIVED, AGENCY_COMMISSION, PARENT_COMMISSION, GIFT_REVERSAL, AGENCY_COMMISSION_REVERSAL,
+             PARENT_COMMISSION_REVERSAL, WITHDRAWAL_HOLD, WITHDRAWAL_REFUND, TASK_REWARD]
+    CherryPayoutRules:
+      type: object
+      description: "`rateCherries` cherries are paid `rateMinor` minor units of `currency` (owner: 1 000 000 = 110, $1.10)."
+      required: [currency, rateCherries, rateMinor, minAmountMinor, payoutDays]
+      properties:
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
+        rateCherries: { type: integer, format: int64, minimum: 1 }
+        rateMinor: { type: integer, minimum: 1 }
+        minAmountMinor: { type: integer, minimum: 1, description: "The smallest request (owner: 1 000 = $10)." }
+        payoutDays: { type: integer, minimum: 1, description: The team pays a request by hand within this many days. }
+    CherryWithdrawalStatus:
+      type: string
+      enum: [PENDING, PAID, REJECTED]
+    CherryWithdrawal:
+      type: object
+      required: [id, status, cherries, amountMinor, currency, payoutDetails, createdAt, decidedAt, decisionNote]
+      properties:
+        id: { type: string, format: uuid }
+        status: { $ref: '#/components/schemas/CherryWithdrawalStatus' }
+        cherries: { type: integer, format: int64, minimum: 1, description: The cherries held (given back when rejected). }
+        amountMinor: { type: integer, format: int64, minimum: 1 }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
+        payoutDetails: { type: string, description: Where the caller asked to be paid (their own text). }
+        createdAt: { type: string, format: date-time }
+        decidedAt: { type: [string, 'null'], format: date-time }
+        decisionNote: { type: [string, 'null'], description: "The team's note (a payment reference or the reason)." }
+    CherryWithdrawalRequest:
+      type: object
+      additionalProperties: false
+      required: [amountMinor, payoutDetails]
+      properties:
+        amountMinor: { type: integer, minimum: 1, maximum: 100000000, description: "At least `minAmountMinor`." }
+        payoutDetails: { type: string, minLength: 3, maxLength: 500, description: "Bank, wallet or transfer details (free text)." }
+    CherryWithdrawalPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/CherryWithdrawal' }
+        page: { $ref: '#/components/schemas/PageInfo' }
+    CherryWallet:
+      type: object
+      required: [cherries, valueMinor, heldCherries, earnedTotal, earnedLast7Days, earnedLast30Days, commissionTotal,
+                 taskRewardTotal, lockedTaskCherries, withdrawableCherries, taskUnlock, payout, pendingWithdrawal]
+      properties:
+        cherries: { type: integer, format: int64, description: "The available balance (below 0 only after an admin reversal: a debt)." }
+        valueMinor: { type: integer, format: int64, minimum: 0, description: What the available cherries are worth at the payout rate (rounded down). }
+        heldCherries: { type: integer, format: int64, minimum: 0, description: Held by the pending withdrawal. }
+        earnedTotal: { type: integer, format: int64, description: "Gift cherries received (reversals subtracted), all time." }
+        earnedLast7Days: { type: integer, format: int64 }
+        earnedLast30Days: { type: integer, format: int64 }
+        commissionTotal: { type: integer, format: int64, description: Agency and parent commissions (reversals subtracted). }
+        taskRewardTotal: { type: integer, format: int64, minimum: 0, description: "v1.53-social (D184): Task Center rewards (`TASK_REWARD`), all time." }
+        lockedTaskCherries:
+          type: integer
+          format: int64
+          minimum: 0
+          description: "v1.53-social (D184, §10.46.1): task cherries not withdrawable yet (all of `taskRewardTotal` until `taskUnlock.unlocked`, then 0)."
+        withdrawableCherries:
+          type: integer
+          format: int64
+          minimum: 0
+          description: "v1.53-social (D184): what a withdrawal may hold now — `cherries` less `lockedTaskCherries`, never below 0."
+        taskUnlock:
+          type: object
+          description: |
+            v1.53-social (D184, §10.46.1). The rule that unlocks task cherries (owner, confirmed): lifetime gift
+            cherries received (reversals subtracted) worth at least `thresholdMinor` ($50) at the payout rate.
+            Clients show `unlocked` and the values.
+          required: [unlocked, giftValueMinor, thresholdMinor]
+          properties:
+            unlocked: { type: boolean }
+            giftValueMinor: { type: integer, format: int64, minimum: 0, description: Lifetime gift cherries at the payout rate (minor units of `payout.currency`). }
+            thresholdMinor: { type: integer, format: int64, minimum: 0, description: "0: task cherries are never locked." }
+        payout: { $ref: '#/components/schemas/CherryPayoutRules' }
+        pendingWithdrawal:
+          oneOf:
+            - $ref: '#/components/schemas/CherryWithdrawal'
+            - type: 'null'
+    CherryLedgerEntry:
+      type: object
+      required: [id, reason, delta, balanceAfter, createdAt, gift]
+      properties:
+        id: { type: string, format: uuid }
+        reason: { $ref: '#/components/schemas/CherryLedgerReason' }
+        delta: { type: integer, format: int64, description: "Signed, never 0." }
+        balanceAfter: { type: integer, format: int64 }
+        createdAt: { type: string, format: date-time }
+        gift:
+          oneOf:
+            - type: object
+              required: [giftCode, giftName, quantity, giftCoins, shareBps, context, sender]
+              properties:
+                giftCode: { type: string }
+                giftName: { type: string }
+                quantity: { type: integer, minimum: 1 }
+                giftCoins: { type: integer, format: int64, minimum: 0, description: The coin value of the send to the caller. }
+                shareBps: { type: integer, minimum: 0, maximum: 10000 }
+                context: { $ref: '#/components/schemas/EarningContext' }
+                sender:
+                  oneOf:
+                    - $ref: '#/components/schemas/UserSummary'
+                    - type: 'null'
+            - type: 'null'
+          description: The gift of a `GIFT_RECEIVED` / `GIFT_REVERSAL` row (null for other rows, or a send no longer stored).
+    CherryLedgerPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/CherryLedgerEntry' }
+        page: { $ref: '#/components/schemas/PageInfo' }
+    AgencyRank:
+      type: string
+      description: |
+        v1.52-social (D179). `NEW`: created, not evaluated yet (its grace; earns commission). `AGENT`: ≥ 5
+        active hosts or the monthly-cherries exception. `ADMIN`: an agent with ≥ 3 qualified sub-agencies
+        (earns 3 % on them). `LAPSED`: did not qualify at the last month start (no commission on hosts who
+        joined while lapsed).
+      enum: [NEW, AGENT, ADMIN, LAPSED]
+    AgencyPreview:
+      type: object
+      required: [inviteCode, owner, rank, hostCount]
+      properties:
+        inviteCode: { type: string, pattern: '^[A-HJ-NP-Z2-9]{8}$' }
+        owner: { $ref: '#/components/schemas/UserSummary' }
+        rank: { $ref: '#/components/schemas/AgencyRank' }
+        hostCount: { type: integer, minimum: 0 }
+    AgencyComplaint:
+      type: object
+      required: [id, status, text, resolution, createdAt, resolvedAt]
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [OPEN, RESOLVED, REJECTED] }
+        text: { type: string }
+        resolution: { type: [string, 'null'], enum: [RELEASED, MOVED, KEPT, null] }
+        createdAt: { type: string, format: date-time }
+        resolvedAt: { type: [string, 'null'], format: date-time }
+    AgencyMembership:
+      type: object
+      required: [agency, joinedAt, leaveUntil, canLeave, complaint]
+      properties:
+        agency: { $ref: '#/components/schemas/AgencyPreview' }
+        joinedAt: { type: string, format: date-time }
+        leaveUntil: { type: string, format: date-time, description: The end of the leave window. }
+        canLeave: { type: boolean }
+        complaint:
+          oneOf:
+            - $ref: '#/components/schemas/AgencyComplaint'
+            - type: 'null'
+    AgencyCommissionTotals:
+      type: object
+      required: [thisMonth, lastMonth, total]
+      properties:
+        thisMonth: { type: integer, format: int64, minimum: 0 }
+        lastMonth: { type: integer, format: int64, minimum: 0 }
+        total: { type: integer, format: int64, minimum: 0 }
+    AgencySubAgency:
+      type: object
+      required: [inviteCode, owner, rank, activeHosts, monthHostCherries, qualifies]
+      properties:
+        inviteCode: { type: string }
+        owner: { $ref: '#/components/schemas/UserSummary' }
+        rank: { $ref: '#/components/schemas/AgencyRank' }
+        activeHosts: { type: integer, minimum: 0 }
+        monthHostCherries: { type: integer, format: int64, minimum: 0 }
+        qualifies: { type: boolean, description: It qualifies as an agent now (counts for the parent's ADMIN rank). }
+    OwnAgency:
+      type: object
+      required: [inviteCode, rank, rankMonth, createdAt, timeZone, month, commissionRateBps, parent, progress, commission,
+                 parentCommission, subAgencies]
+      properties:
+        inviteCode: { type: string, pattern: '^[A-HJ-NP-Z2-9]{8}$' }
+        rank: { $ref: '#/components/schemas/AgencyRank' }
+        rankMonth: { type: [string, 'null'], format: date, description: The month of the last month-start evaluation. }
+        createdAt: { type: string, format: date-time }
+        timeZone: { type: string, description: "The months' clock (`LIVE_RANKINGS_TIME_ZONE`)." }
+        month: { type: string, pattern: '^\d{4}-\d{2}$' }
+        commissionRateBps: { type: integer, minimum: 0, maximum: 10000, description: "This month's rate (15 % or 16 %)." }
+        parent:
+          oneOf:
+            - $ref: '#/components/schemas/AgencyPreview'
+            - type: 'null'
+        progress:
+          type: object
+          required: [hostCount, activeHosts, requiredActiveHosts, monthHostCherries, lastMonthHostCherries, exceptionCherries,
+                     tierCherries, qualifiesNow, qualifiedSubAgencies, requiredSubAgencies]
+          properties:
+            hostCount: { type: integer, minimum: 0 }
+            activeHosts: { type: integer, minimum: 0 }
+            requiredActiveHosts: { type: integer, minimum: 1 }
+            monthHostCherries: { type: integer, format: int64, minimum: 0 }
+            lastMonthHostCherries: { type: integer, format: int64, minimum: 0 }
+            exceptionCherries: { type: integer, format: int64, minimum: 1 }
+            tierCherries: { type: integer, format: int64, minimum: 1 }
+            qualifiesNow: { type: boolean }
+            qualifiedSubAgencies: { type: integer, minimum: 0 }
+            requiredSubAgencies: { type: integer, minimum: 1 }
+        commission: { $ref: '#/components/schemas/AgencyCommissionTotals' }
+        parentCommission: { $ref: '#/components/schemas/AgencyCommissionTotals' }
+        subAgencies:
+          type: array
+          items: { $ref: '#/components/schemas/AgencySubAgency' }
+    MyAgency:
+      type: object
+      required: [membership, ownAgency, activeHostRule, leaveDays]
+      properties:
+        membership:
+          oneOf:
+            - $ref: '#/components/schemas/AgencyMembership'
+            - type: 'null'
+        ownAgency:
+          oneOf:
+            - $ref: '#/components/schemas/OwnAgency'
+            - type: 'null'
+        activeHostRule:
+          type: object
+          required: [minDays, minHours, windowDays]
+          properties:
+            minDays: { type: integer, minimum: 1 }
+            minHours: { type: integer, minimum: 1 }
+            windowDays: { type: integer, minimum: 1 }
+        leaveDays: { type: integer, minimum: 0 }
+    AgencyHost:
+      type: object
+      required: [user, joinedAt, liveDays, liveSeconds, active, monthCherries, commissionEligible]
+      properties:
+        user: { $ref: '#/components/schemas/UserSummary' }
+        joinedAt: { type: string, format: date-time }
+        liveDays: { type: integer, minimum: 0 }
+        liveSeconds: { type: integer, minimum: 0 }
+        active: { type: boolean }
+        monthCherries: { type: integer, format: int64, minimum: 0 }
+        commissionEligible: { type: boolean }
+    AgencyHostPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/AgencyHost' }
+        page: { $ref: '#/components/schemas/PageInfo' }
 security:
   - bearerAuth: []

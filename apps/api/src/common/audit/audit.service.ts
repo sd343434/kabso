@@ -97,6 +97,17 @@ export enum AuditAction {
   /** v1.50-social (D176): an event's calendar line, tone or «رائج» changed. */
   EVENT_STYLE = 'event.style',
   TASK_UPDATE = 'task.update',
+  /** v1.52-social (D179): the cherry economy — agencies, complaints, withdrawals, reversals. */
+  AGENCY_CREATE = 'agency.create',
+  AGENCY_PARENT = 'agency.parent',
+  AGENCY_JOIN = 'agency.join',
+  AGENCY_LEAVE = 'agency.leave',
+  AGENCY_COMPLAINT = 'agency.complaint',
+  AGENCY_COMPLAINT_RESOLVE = 'agency.complaint.resolve',
+  CHERRY_WITHDRAWAL_REQUEST = 'cherry.withdrawal.request',
+  CHERRY_WITHDRAWAL_PAY = 'cherry.withdrawal.pay',
+  CHERRY_WITHDRAWAL_REJECT = 'cherry.withdrawal.reject',
+  CHERRY_GIFT_REVERSE = 'cherry.gift.reverse',
   // v1.28-live (DRAFT, D146): premium usernames and the username change (CONVENTIONS §10.32).
   USERNAME_CHANGE = 'user.username.change',
   /** v1.45-social (D168): the caller changed their display name and/or bio (field names only). */

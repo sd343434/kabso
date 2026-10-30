@@ -14016,18 +14016,6 @@ abstract class AppLocalizations {
   /// **'الوكالة'**
   String get creatorTabAgency;
 
-  /// D172: the Agency tab's honest Soon state.
-  ///
-  /// In ar, this message translates to:
-  /// **'الوكالة قريباً'**
-  String get creatorAgencySoonTitle;
-
-  /// D172: why the Agency tab is empty.
-  ///
-  /// In ar, this message translates to:
-  /// **'لا توجد وكالات مضيفين في Kabso Live بعد. ستظهر هنا عند إطلاقها.'**
-  String get creatorAgencySoonBody;
-
   /// D172: the stats card's title; month is the month's name (this month so far).
   ///
   /// In ar, this message translates to:
@@ -14334,30 +14322,6 @@ abstract class AppLocalizations {
   /// **'تعذّر تحميل المهام'**
   String get tasksLoadError;
 
-  /// D176: the Task Center tab with the day's tasks and the sign-in rewards.
-  ///
-  /// In ar, this message translates to:
-  /// **'المهام النشطة'**
-  String get tasksTabActive;
-
-  /// D176: the Task Center tab not launched yet («قريباً»).
-  ///
-  /// In ar, this message translates to:
-  /// **'مهام الماس'**
-  String get tasksTabDiamond;
-
-  /// D176: the Diamond missions tab (no reference or rules yet).
-  ///
-  /// In ar, this message translates to:
-  /// **'مهام الماس قريباً'**
-  String get tasksDiamondSoonTitle;
-
-  /// D176: the Diamond missions tab body.
-  ///
-  /// In ar, this message translates to:
-  /// **'لم تُطلق مهام الماس بعد. ستظهر هنا عندما يطلقها فريق كبسو.'**
-  String get tasksDiamondSoonBody;
-
   /// D176: the sign-in card's link to the 7-day calendar sheet.
   ///
   /// In ar, this message translates to:
@@ -14424,10 +14388,10 @@ abstract class AppLocalizations {
   /// **'اليوم'**
   String get tasksToday;
 
-  /// D166: the daily cap of task and check-in coins.
+  /// D166; D184: the daily cap of task cherries (task rewards are cherries).
   ///
   /// In ar, this message translates to:
-  /// **'مكافآت اليوم: {earned} من {cap} عملة'**
+  /// **'مكافآت اليوم: {earned} من {cap} كرزة'**
   String tasksDailyCap(String earned, String cap);
 
   /// D166: the daily task list.
@@ -14489,6 +14453,12 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'تم التسجيل — بلغت حدّ مكافآت اليوم'**
   String get tasksNoCoinsCap;
+
+  /// D184: a task claim paid cherries.
+  ///
+  /// In ar, this message translates to:
+  /// **'حصلت على {cherries} كرزة'**
+  String tasksRewardReceivedCherries(String cherries);
 
   /// D166: TASK_DAILY_CAP_REACHED.
   ///
@@ -15579,7 +15549,7 @@ abstract class AppLocalizations {
   /// D177: under the cherry total.
   ///
   /// In ar, this message translates to:
-  /// **'أرباحي من الكرز'**
+  /// **'رصيدي من الكرز'**
   String get walletCherryBalance;
 
   /// D177: a cherry amount for screen readers.
@@ -15587,12 +15557,6 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'{cherries} كرزة'**
   String walletCherries(String cherries);
-
-  /// D177: what a cherry in the wallet means (earnings, 1:1 with the coin value of the host's share).
-  ///
-  /// In ar, this message translates to:
-  /// **'كل كرزة هنا تساوي عملة واحدة من حصتك من الهدايا. للعرض فقط: لا تُضاف إلى عملاتك.'**
-  String get walletCherryUnit;
 
   /// D177: the selected package's bonus row and sheet title.
   ///
@@ -15641,6 +15605,624 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'سحب'**
   String get walletWithdraw;
+
+  /// No description provided for @cherryValue.
+  ///
+  /// In ar, this message translates to:
+  /// **'≈ {amount}'**
+  String cherryValue(Object amount);
+
+  /// No description provided for @cherryHeld.
+  ///
+  /// In ar, this message translates to:
+  /// **'محجوز للسحب: {cherries}'**
+  String cherryHeld(Object cherries);
+
+  /// No description provided for @cherryUnitShort.
+  ///
+  /// In ar, this message translates to:
+  /// **'عملة واحدة من حصتك في الهدية = 10 كرزات.'**
+  String get cherryUnitShort;
+
+  /// No description provided for @cherryUnit.
+  ///
+  /// In ar, this message translates to:
+  /// **'عملة واحدة من حصتك في الهدية = 10 كرزات. {cherries} كرزة = {amount}. السحب من {min}. ليست نقاط الكرز في البث.'**
+  String cherryUnit(Object amount, Object cherries, Object min);
+
+  /// No description provided for @cherryHistoryTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'سجل الكرز'**
+  String get cherryHistoryTitle;
+
+  /// No description provided for @cherryReasonGift.
+  ///
+  /// In ar, this message translates to:
+  /// **'هدية مستلمة'**
+  String get cherryReasonGift;
+
+  /// No description provided for @cherryReasonAgency.
+  ///
+  /// In ar, this message translates to:
+  /// **'عمولة الوكالة'**
+  String get cherryReasonAgency;
+
+  /// No description provided for @cherryReasonParent.
+  ///
+  /// In ar, this message translates to:
+  /// **'عمولة أدمن الوكالات'**
+  String get cherryReasonParent;
+
+  /// No description provided for @cherryReasonGiftReversal.
+  ///
+  /// In ar, this message translates to:
+  /// **'ألغى الفريق هدية'**
+  String get cherryReasonGiftReversal;
+
+  /// No description provided for @cherryReasonCommissionReversal.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء عمولة'**
+  String get cherryReasonCommissionReversal;
+
+  /// No description provided for @cherryReasonWithdrawal.
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب سحب (محجوز)'**
+  String get cherryReasonWithdrawal;
+
+  /// No description provided for @cherryReasonRefund.
+  ///
+  /// In ar, this message translates to:
+  /// **'رُفض السحب: أُعيدت الكرزات'**
+  String get cherryReasonRefund;
+
+  /// D184: a TASK_REWARD row of the cherry history (a Task Center reward).
+  ///
+  /// In ar, this message translates to:
+  /// **'مكافأة مهمة'**
+  String get cherryReasonTask;
+
+  /// D184: task cherries not withdrawable yet (the owner's earnings condition, wording may change).
+  ///
+  /// In ar, this message translates to:
+  /// **'{cherries} كرزة من المهام مقفلة — تُفتح للسحب بعد تحقيق شرط الأرباح'**
+  String cherryTaskLocked(String cherries);
+
+  /// No description provided for @cherryReasonOther.
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيير في الكرز'**
+  String get cherryReasonOther;
+
+  /// No description provided for @cherryWithdrawalsTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'طلبات السحب'**
+  String get cherryWithdrawalsTitle;
+
+  /// No description provided for @cherryWithdrawalPending.
+  ///
+  /// In ar, this message translates to:
+  /// **'قيد الانتظار'**
+  String get cherryWithdrawalPending;
+
+  /// No description provided for @cherryWithdrawalPaid.
+  ///
+  /// In ar, this message translates to:
+  /// **'دُفع'**
+  String get cherryWithdrawalPaid;
+
+  /// No description provided for @cherryWithdrawalRejected.
+  ///
+  /// In ar, this message translates to:
+  /// **'مرفوض'**
+  String get cherryWithdrawalRejected;
+
+  /// No description provided for @cherryWithdrawalLine.
+  ///
+  /// In ar, this message translates to:
+  /// **'{cherries} كرزة'**
+  String cherryWithdrawalLine(Object cherries);
+
+  /// No description provided for @cherryPendingNote.
+  ///
+  /// In ar, this message translates to:
+  /// **'طلبك بقيمة {amount} قيد الانتظار: يدفعه فريق كبسو يدوياً خلال {days} أيام.'**
+  String cherryPendingNote(Object amount, Object days);
+
+  /// No description provided for @withdrawTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'سحب الكرز'**
+  String get withdrawTitle;
+
+  /// No description provided for @withdrawBalance.
+  ///
+  /// In ar, this message translates to:
+  /// **'المتاح: {cherries} كرزة ≈ {amount}'**
+  String withdrawBalance(Object amount, Object cherries);
+
+  /// No description provided for @withdrawRate.
+  ///
+  /// In ar, this message translates to:
+  /// **'{cherries} كرزة = {amount} · الحد الأدنى {min}'**
+  String withdrawRate(Object amount, Object cherries, Object min);
+
+  /// No description provided for @withdrawAmountLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'المبلغ ({currency})'**
+  String withdrawAmountLabel(Object currency);
+
+  /// No description provided for @withdrawAmountHelper.
+  ///
+  /// In ar, this message translates to:
+  /// **'= {cherries} كرزة'**
+  String withdrawAmountHelper(Object cherries);
+
+  /// No description provided for @withdrawAmountMin.
+  ///
+  /// In ar, this message translates to:
+  /// **'الحد الأدنى {amount}'**
+  String withdrawAmountMin(Object amount);
+
+  /// No description provided for @withdrawAmountShort.
+  ///
+  /// In ar, this message translates to:
+  /// **'كرزاتك تكفي حتى {amount}'**
+  String withdrawAmountShort(Object amount);
+
+  /// No description provided for @withdrawAmountInvalid.
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب مبلغاً مثل 10 أو 12.50'**
+  String get withdrawAmountInvalid;
+
+  /// No description provided for @withdrawDetailsLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'أين ندفع لك؟'**
+  String get withdrawDetailsLabel;
+
+  /// No description provided for @withdrawDetailsHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'اسم البنك والآيبان، أو اسم المحفظة ورقمها'**
+  String get withdrawDetailsHint;
+
+  /// No description provided for @withdrawManualNote.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد دفع تلقائي بعد: يراجع فريق كبسو طلبك ويدفعه يدوياً خلال {days} أيام. تُحجز الكرزات الآن وتعود إليك إن رُفض الطلب.'**
+  String withdrawManualNote(Object days);
+
+  /// No description provided for @withdrawSubmit.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال الطلب'**
+  String get withdrawSubmit;
+
+  /// No description provided for @withdrawSubmitAmount.
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب سحب {amount}'**
+  String withdrawSubmitAmount(Object amount);
+
+  /// No description provided for @withdrawSent.
+  ///
+  /// In ar, this message translates to:
+  /// **'أُرسل طلب السحب'**
+  String get withdrawSent;
+
+  /// No description provided for @errorAgencyAlreadyMember.
+  ///
+  /// In ar, this message translates to:
+  /// **'أنت مضيف في وكالة أخرى.'**
+  String get errorAgencyAlreadyMember;
+
+  /// No description provided for @errorAgencyJoinNotAllowed.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن لوكيل وكالة الانضمام إلى وكالة كمضيف.'**
+  String get errorAgencyJoinNotAllowed;
+
+  /// No description provided for @errorAgencyLeaveWindowClosed.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت مدة المغادرة. أرسل شكوى إلى الإدارة.'**
+  String get errorAgencyLeaveWindowClosed;
+
+  /// No description provided for @errorInsufficientCherries.
+  ///
+  /// In ar, this message translates to:
+  /// **'كرزاتك لا تكفي لهذا المبلغ.'**
+  String get errorInsufficientCherries;
+
+  /// No description provided for @errorWithdrawalPending.
+  ///
+  /// In ar, this message translates to:
+  /// **'لديك طلب سحب ينتظر الدفع.'**
+  String get errorWithdrawalPending;
+
+  /// No description provided for @meHubAgency.
+  ///
+  /// In ar, this message translates to:
+  /// **'الوكالة'**
+  String get meHubAgency;
+
+  /// No description provided for @agencyTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'الوكالة'**
+  String get agencyTitle;
+
+  /// No description provided for @agencyLoadError.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل الوكالة'**
+  String get agencyLoadError;
+
+  /// No description provided for @agencyJoinTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'انضم إلى وكالة'**
+  String get agencyJoinTitle;
+
+  /// No description provided for @agencyJoinBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب رمز الدعوة من وكيلك، تحقّق من الوكالة، ثم اقبل.'**
+  String get agencyJoinBody;
+
+  /// No description provided for @agencyCodeLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'رمز الدعوة'**
+  String get agencyCodeLabel;
+
+  /// No description provided for @agencyFind.
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض الوكالة'**
+  String get agencyFind;
+
+  /// No description provided for @agencyNotFound.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد وكالة بهذا الرمز.'**
+  String get agencyNotFound;
+
+  /// No description provided for @agencyPreviewOwner.
+  ///
+  /// In ar, this message translates to:
+  /// **'الوكيل: {name}'**
+  String agencyPreviewOwner(Object name);
+
+  /// No description provided for @agencyHostCount.
+  ///
+  /// In ar, this message translates to:
+  /// **'المضيفون: {count}'**
+  String agencyHostCount(Object count);
+
+  /// No description provided for @agencyAccept.
+  ///
+  /// In ar, this message translates to:
+  /// **'قبول والانضمام'**
+  String get agencyAccept;
+
+  /// No description provided for @agencyLeaveRule.
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنك المغادرة خلال {days} يوماً من الانضمام؛ بعدها عبر شكوى إلى الإدارة فقط.'**
+  String agencyLeaveRule(Object days);
+
+  /// No description provided for @agencyJoined.
+  ///
+  /// In ar, this message translates to:
+  /// **'انضممت إلى الوكالة'**
+  String get agencyJoined;
+
+  /// No description provided for @agencyMyAgency.
+  ///
+  /// In ar, this message translates to:
+  /// **'وكالتي'**
+  String get agencyMyAgency;
+
+  /// No description provided for @agencyJoinedAt.
+  ///
+  /// In ar, this message translates to:
+  /// **'انضممت في {date}'**
+  String agencyJoinedAt(Object date);
+
+  /// No description provided for @agencyLeaveUntil.
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنك المغادرة حتى {date}'**
+  String agencyLeaveUntil(Object date);
+
+  /// No description provided for @agencyLeaveClosed.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت مدة المغادرة ({days} يوماً). للمغادرة أرسل شكوى إلى الإدارة.'**
+  String agencyLeaveClosed(Object days);
+
+  /// No description provided for @agencyLeave.
+  ///
+  /// In ar, this message translates to:
+  /// **'مغادرة الوكالة'**
+  String get agencyLeave;
+
+  /// No description provided for @agencyLeaveConfirm.
+  ///
+  /// In ar, this message translates to:
+  /// **'تتوقف عمولة الوكالة على هداياك. يمكنك الانضمام إلى وكالة أخرى برمزها.'**
+  String get agencyLeaveConfirm;
+
+  /// No description provided for @agencyLeft.
+  ///
+  /// In ar, this message translates to:
+  /// **'غادرت الوكالة'**
+  String get agencyLeft;
+
+  /// No description provided for @agencyComplain.
+  ///
+  /// In ar, this message translates to:
+  /// **'شكوى إلى الإدارة'**
+  String get agencyComplain;
+
+  /// No description provided for @agencyComplaintHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'ما المشكلة؟'**
+  String get agencyComplaintHint;
+
+  /// No description provided for @agencyComplaintSend.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال الشكوى'**
+  String get agencyComplaintSend;
+
+  /// No description provided for @agencyComplaintSent.
+  ///
+  /// In ar, this message translates to:
+  /// **'أُرسلت الشكوى إلى الإدارة'**
+  String get agencyComplaintSent;
+
+  /// No description provided for @agencyComplaintOpen.
+  ///
+  /// In ar, this message translates to:
+  /// **'شكواك لدى الإدارة (أُرسلت في {date}).'**
+  String agencyComplaintOpen(Object date);
+
+  /// No description provided for @agencyComplaintDone.
+  ///
+  /// In ar, this message translates to:
+  /// **'ردّت الإدارة على شكواك.'**
+  String get agencyComplaintDone;
+
+  /// No description provided for @agencyInviteCode.
+  ///
+  /// In ar, this message translates to:
+  /// **'رمز الدعوة الخاص بك'**
+  String get agencyInviteCode;
+
+  /// No description provided for @agencyCopy.
+  ///
+  /// In ar, this message translates to:
+  /// **'نسخ الرمز'**
+  String get agencyCopy;
+
+  /// No description provided for @agencyCopied.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم نسخ الرمز'**
+  String get agencyCopied;
+
+  /// No description provided for @agencyInviteHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'يكتب المضيفون هذا الرمز في «الوكالة» ثم يقبلون.'**
+  String get agencyInviteHint;
+
+  /// No description provided for @agencyRankTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'الرتبة'**
+  String get agencyRankTitle;
+
+  /// No description provided for @agencyRankNew.
+  ///
+  /// In ar, this message translates to:
+  /// **'جديدة (فترة سماح)'**
+  String get agencyRankNew;
+
+  /// No description provided for @agencyRankAgent.
+  ///
+  /// In ar, this message translates to:
+  /// **'وكيل مضيفين'**
+  String get agencyRankAgent;
+
+  /// No description provided for @agencyRankAdmin.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدمن وكالات'**
+  String get agencyRankAdmin;
+
+  /// No description provided for @agencyRankLapsed.
+  ///
+  /// In ar, this message translates to:
+  /// **'غير مؤهلة هذا الشهر'**
+  String get agencyRankLapsed;
+
+  /// No description provided for @agencyRate.
+  ///
+  /// In ar, this message translates to:
+  /// **'عمولتك هذا الشهر: {percent}%'**
+  String agencyRate(Object percent);
+
+  /// No description provided for @agencyRateNote.
+  ///
+  /// In ar, this message translates to:
+  /// **'تدفعها كبسو فوق كرزات مضيفيك ولا تُخصم منهم. 16% في الشهر التالي لشهر يحقق فيه مضيفوك {tier} كرزة.'**
+  String agencyRateNote(Object tier);
+
+  /// No description provided for @agencyParent.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدمن الوكالات: {name}'**
+  String agencyParent(Object name);
+
+  /// No description provided for @agencyProgressTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'التقدّم'**
+  String get agencyProgressTitle;
+
+  /// No description provided for @agencyActiveHosts.
+  ///
+  /// In ar, this message translates to:
+  /// **'المضيفون النشطون: {count} / {required}'**
+  String agencyActiveHosts(Object count, Object required);
+
+  /// No description provided for @agencyActiveRule.
+  ///
+  /// In ar, this message translates to:
+  /// **'النشط = بثّ في {days} أيام ولمدة {hours} ساعات خلال آخر {window} يوماً.'**
+  String agencyActiveRule(Object days, Object hours, Object window);
+
+  /// No description provided for @agencyMonthCherries.
+  ///
+  /// In ar, this message translates to:
+  /// **'كرز مضيفيك هذا الشهر: {cherries}'**
+  String agencyMonthCherries(Object cherries);
+
+  /// No description provided for @agencyException.
+  ///
+  /// In ar, this message translates to:
+  /// **'أو {cherries} كرزة في الشهر مع أقل من {hosts} مضيفين نشطين.'**
+  String agencyException(Object cherries, Object hosts);
+
+  /// No description provided for @agencySubProgress.
+  ///
+  /// In ar, this message translates to:
+  /// **'الوكالات الفرعية المؤهلة: {count} / {required}'**
+  String agencySubProgress(Object count, Object required);
+
+  /// No description provided for @agencyQualifiesNow.
+  ///
+  /// In ar, this message translates to:
+  /// **'أنت مؤهل الآن.'**
+  String get agencyQualifiesNow;
+
+  /// No description provided for @agencyNotQualifiedNow.
+  ///
+  /// In ar, this message translates to:
+  /// **'لست مؤهلاً بعد.'**
+  String get agencyNotQualifiedNow;
+
+  /// No description provided for @agencyEvaluationNote.
+  ///
+  /// In ar, this message translates to:
+  /// **'تُراجع الرتب في بداية كل شهر وتبقى حتى نهايته.'**
+  String get agencyEvaluationNote;
+
+  /// No description provided for @agencyCommissionTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'العمولات (كرز)'**
+  String get agencyCommissionTitle;
+
+  /// No description provided for @agencyThisMonth.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا الشهر'**
+  String get agencyThisMonth;
+
+  /// No description provided for @agencyLastMonth.
+  ///
+  /// In ar, this message translates to:
+  /// **'الشهر الماضي'**
+  String get agencyLastMonth;
+
+  /// No description provided for @agencyTotal.
+  ///
+  /// In ar, this message translates to:
+  /// **'الإجمالي'**
+  String get agencyTotal;
+
+  /// No description provided for @agencyParentCommissionTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'عمولة أدمن الوكالات (3%)'**
+  String get agencyParentCommissionTitle;
+
+  /// No description provided for @agencySubAgenciesTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'الوكالات الفرعية'**
+  String get agencySubAgenciesTitle;
+
+  /// No description provided for @agencySubLine.
+  ///
+  /// In ar, this message translates to:
+  /// **'{active} نشطون · {cherries} كرزة هذا الشهر'**
+  String agencySubLine(Object active, Object cherries);
+
+  /// No description provided for @agencyQualified.
+  ///
+  /// In ar, this message translates to:
+  /// **'مؤهلة'**
+  String get agencyQualified;
+
+  /// No description provided for @agencyNotQualified.
+  ///
+  /// In ar, this message translates to:
+  /// **'غير مؤهلة'**
+  String get agencyNotQualified;
+
+  /// No description provided for @agencyHostsTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'المضيفون ({count})'**
+  String agencyHostsTitle(Object count);
+
+  /// No description provided for @agencyHostsEmpty.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا مضيفين بعد'**
+  String get agencyHostsEmpty;
+
+  /// No description provided for @agencyHostsEmptyBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'شارك رمز الدعوة مع المضيفين.'**
+  String get agencyHostsEmptyBody;
+
+  /// No description provided for @agencyHostActive.
+  ///
+  /// In ar, this message translates to:
+  /// **'نشط'**
+  String get agencyHostActive;
+
+  /// No description provided for @agencyHostInactive.
+  ///
+  /// In ar, this message translates to:
+  /// **'غير نشط'**
+  String get agencyHostInactive;
+
+  /// No description provided for @agencyHostLine.
+  ///
+  /// In ar, this message translates to:
+  /// **'{days} أيام · {hours} ساعة بث (30 يوماً) · {cherries} كرزة هذا الشهر'**
+  String agencyHostLine(Object cherries, Object days, Object hours);
+
+  /// No description provided for @agencyHostNoCommission.
+  ///
+  /// In ar, this message translates to:
+  /// **'انضم والوكالة غير مؤهلة: بلا عمولة'**
+  String get agencyHostNoCommission;
 }
 
 class _AppLocalizationsDelegate

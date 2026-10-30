@@ -112,6 +112,12 @@ describe('ErrorCode', () => {
         'TASK_DAILY_CAP_REACHED',
         // v1.47-social (DRAFT, D175)
         'FOLLOW_REQUEST_NOT_PENDING',
+        // v1.52-social (DRAFT, D179)
+        'AGENCY_ALREADY_MEMBER',
+        'AGENCY_JOIN_NOT_ALLOWED',
+        'AGENCY_LEAVE_WINDOW_CLOSED',
+        'INSUFFICIENT_CHERRIES',
+        'WITHDRAWAL_PENDING',
       ].sort(),
     );
     expect(ERROR_HTTP_STATUS).toMatchObject({
@@ -184,6 +190,11 @@ describe('ErrorCode', () => {
       TASK_NOT_COMPLETED: 409,
       TASK_DAILY_CAP_REACHED: 409,
       FOLLOW_REQUEST_NOT_PENDING: 409,
+      AGENCY_ALREADY_MEMBER: 409,
+      AGENCY_JOIN_NOT_ALLOWED: 409,
+      AGENCY_LEAVE_WINDOW_CLOSED: 409,
+      INSUFFICIENT_CHERRIES: 409,
+      WITHDRAWAL_PENDING: 409,
     });
   });
 

@@ -54,13 +54,35 @@ describe('the default pool and bands (D176)', () => {
       ),
       'utf8',
     );
+    // D184: seeded in coins; migrations 20261231110000_task_cherries (×10) and
+    // 20261231120000_task_rewards_raise (×300) made every reward cherries.
     for (const t of DEFAULT_POOL_TASKS) {
+      const coins = t.bandRewards.map((r) => r / 3000);
       expect(sql).toContain(
-        `('${t.code}', 'DAILY', '${t.metric}', ${String(Math.max(...t.bandTargets))}, ${String(Math.max(...t.bandRewards))}, ` +
+        `('${t.code}', 'DAILY', '${t.metric}', ${String(Math.max(...t.bandTargets))}, ${String(Math.max(...coins))}, ` +
           `'${t.audience}', '${t.nameAr}', '${t.nameEn.replace(/'/g, "''")}', ${String(t.sortOrder)}, true, '${t.group}', ` +
-          `ARRAY[${t.bandTargets.join(', ')}], ARRAY[${t.bandRewards.join(', ')}])`,
+          `ARRAY[${t.bandTargets.join(', ')}], ARRAY[${coins.join(', ')}])`,
       );
     }
+    const cherries = readFileSync(
+      fileURLToPath(
+        new URL('../../../prisma/migrations/20261231110000_task_cherries/migration.sql', import.meta.url),
+      ),
+      'utf8',
+    );
+    expect(cherries).toContain('"reward_cherries" = "reward_cherries" * 10');
+    expect(cherries).toContain('SELECT r * 10 FROM unnest("band_rewards")');
+    const raise = readFileSync(
+      fileURLToPath(
+        new URL(
+          '../../../prisma/migrations/20261231120000_task_rewards_raise/migration.sql',
+          import.meta.url,
+        ),
+      ),
+      'utf8',
+    );
+    expect(raise).toContain('"reward_cherries" = LEAST("reward_cherries"::bigint * 300, 1000000000)');
+    expect(raise).toContain('SELECT LEAST(r::bigint * 300, 1000000000)::integer');
     for (const b of DEFAULT_TASK_POOL_BANDS) {
       expect(sql).toContain(
         `(${String(b.band)}, ${String(b.minLevel)}, ${String(b.dailyCount)}, ${String(b.hostCount)}, '${b.nameAr}', '${b.nameEn}')`,
@@ -106,7 +128,7 @@ describe('assignDailyTasks (D176)', () => {
           const t = byCode.get(p.code)!;
           expect(t.audience).toBe('EVERYONE');
           expect(p.target).toBe(t.bandTargets[n - 1]);
-          expect(p.rewardCoins).toBe(t.bandRewards[n - 1]);
+          expect(p.rewardCherries).toBe(t.bandRewards[n - 1]);
           expect(p.target).toBeGreaterThan(0);
         }
       }
@@ -128,7 +150,7 @@ describe('assignDailyTasks (D176)', () => {
       for (let day = 1; day <= 40; day++) {
         for (const p of assignDailyTasks(templates, band(n), false, seed('same', `day-${String(day)}`))) {
           target += p.target / byCode.get(p.code)!.bandTargets[3];
-          reward += p.rewardCoins;
+          reward += p.rewardCherries;
         }
       }
       return { target, reward };

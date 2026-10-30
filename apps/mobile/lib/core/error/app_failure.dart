@@ -211,6 +211,25 @@ enum ErrorCode {
   /// server (or failed); paste a link instead.
   youtubeSearchUnavailable('YOUTUBE_SEARCH_UNAVAILABLE'),
 
+  /// v1.52-social (D179, §10.46, 409): the caller is already a host of
+  /// another agency.
+  agencyAlreadyMember('AGENCY_ALREADY_MEMBER'),
+
+  /// v1.52-social (D179, §10.46, 409): an agency owner cannot join an
+  /// agency as a host.
+  agencyJoinNotAllowed('AGENCY_JOIN_NOT_ALLOWED'),
+
+  /// v1.52-social (D179, §10.46, 409): the 14-day leave window is over; a
+  /// complaint to the admin remains.
+  agencyLeaveWindowClosed('AGENCY_LEAVE_WINDOW_CLOSED'),
+
+  /// v1.52-social (D179, §10.46, 409): the cherry balance does not cover
+  /// the withdrawal.
+  insufficientCherries('INSUFFICIENT_CHERRIES'),
+
+  /// v1.52-social (D179, §10.46, 409): another withdrawal waits to be paid.
+  withdrawalPending('WITHDRAWAL_PENDING'),
+
   /// Client-only: no connection could be established.
   networkOffline('NETWORK_OFFLINE'),
 

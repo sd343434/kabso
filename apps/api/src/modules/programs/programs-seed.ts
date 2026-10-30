@@ -36,7 +36,7 @@ export async function seedDefaultTaskPoolIn(db: SeedDb): Promise<number> {
       period: 'DAILY' as const,
       metric: t.metric,
       target: Math.max(...t.bandTargets),
-      rewardCoins: Math.max(...t.bandRewards),
+      rewardCherries: Math.max(...t.bandRewards),
       audience: t.audience,
       nameAr: t.nameAr,
       nameEn: t.nameEn,

@@ -8154,13 +8154,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get creatorTabAgency => 'الوكالة';
 
   @override
-  String get creatorAgencySoonTitle => 'الوكالة قريباً';
-
-  @override
-  String get creatorAgencySoonBody =>
-      'لا توجد وكالات مضيفين في Kabso Live بعد. ستظهر هنا عند إطلاقها.';
-
-  @override
   String creatorMonthData(String month) {
     return 'بيانات $month';
   }
@@ -8324,19 +8317,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get tasksLoadError => 'تعذّر تحميل المهام';
 
   @override
-  String get tasksTabActive => 'المهام النشطة';
-
-  @override
-  String get tasksTabDiamond => 'مهام الماس';
-
-  @override
-  String get tasksDiamondSoonTitle => 'مهام الماس قريباً';
-
-  @override
-  String get tasksDiamondSoonBody =>
-      'لم تُطلق مهام الماس بعد. ستظهر هنا عندما يطلقها فريق كبسو.';
-
-  @override
   String get tasksCheckInCalendar => 'التقويم';
 
   @override
@@ -8389,7 +8369,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String tasksDailyCap(String earned, String cap) {
-    return 'مكافآت اليوم: $earned من $cap عملة';
+    return 'مكافآت اليوم: $earned من $cap كرزة';
   }
 
   @override
@@ -8423,6 +8403,11 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get tasksNoCoinsCap => 'تم التسجيل — بلغت حدّ مكافآت اليوم';
+
+  @override
+  String tasksRewardReceivedCherries(String cherries) {
+    return 'حصلت على $cherries كرزة';
+  }
 
   @override
   String get tasksCapReached => 'بلغت حدّ مكافآت المهام لهذا اليوم';
@@ -9082,16 +9067,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get walletGoldBalance => 'رصيدي من العملات';
 
   @override
-  String get walletCherryBalance => 'أرباحي من الكرز';
+  String get walletCherryBalance => 'رصيدي من الكرز';
 
   @override
   String walletCherries(String cherries) {
     return '$cherries كرزة';
   }
-
-  @override
-  String get walletCherryUnit =>
-      'كل كرزة هنا تساوي عملة واحدة من حصتك من الهدايا. للعرض فقط: لا تُضاف إلى عملاتك.';
 
   @override
   String get walletRewards => 'المكافآت';
@@ -9118,4 +9099,383 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get walletWithdraw => 'سحب';
+
+  @override
+  String cherryValue(Object amount) {
+    return '≈ $amount';
+  }
+
+  @override
+  String cherryHeld(Object cherries) {
+    return 'محجوز للسحب: $cherries';
+  }
+
+  @override
+  String get cherryUnitShort => 'عملة واحدة من حصتك في الهدية = 10 كرزات.';
+
+  @override
+  String cherryUnit(Object amount, Object cherries, Object min) {
+    return 'عملة واحدة من حصتك في الهدية = 10 كرزات. $cherries كرزة = $amount. السحب من $min. ليست نقاط الكرز في البث.';
+  }
+
+  @override
+  String get cherryHistoryTitle => 'سجل الكرز';
+
+  @override
+  String get cherryReasonGift => 'هدية مستلمة';
+
+  @override
+  String get cherryReasonAgency => 'عمولة الوكالة';
+
+  @override
+  String get cherryReasonParent => 'عمولة أدمن الوكالات';
+
+  @override
+  String get cherryReasonGiftReversal => 'ألغى الفريق هدية';
+
+  @override
+  String get cherryReasonCommissionReversal => 'إلغاء عمولة';
+
+  @override
+  String get cherryReasonWithdrawal => 'طلب سحب (محجوز)';
+
+  @override
+  String get cherryReasonRefund => 'رُفض السحب: أُعيدت الكرزات';
+
+  @override
+  String get cherryReasonTask => 'مكافأة مهمة';
+
+  @override
+  String cherryTaskLocked(String cherries) {
+    return '$cherries كرزة من المهام مقفلة — تُفتح للسحب بعد تحقيق شرط الأرباح';
+  }
+
+  @override
+  String get cherryReasonOther => 'تغيير في الكرز';
+
+  @override
+  String get cherryWithdrawalsTitle => 'طلبات السحب';
+
+  @override
+  String get cherryWithdrawalPending => 'قيد الانتظار';
+
+  @override
+  String get cherryWithdrawalPaid => 'دُفع';
+
+  @override
+  String get cherryWithdrawalRejected => 'مرفوض';
+
+  @override
+  String cherryWithdrawalLine(Object cherries) {
+    return '$cherries كرزة';
+  }
+
+  @override
+  String cherryPendingNote(Object amount, Object days) {
+    return 'طلبك بقيمة $amount قيد الانتظار: يدفعه فريق كبسو يدوياً خلال $days أيام.';
+  }
+
+  @override
+  String get withdrawTitle => 'سحب الكرز';
+
+  @override
+  String withdrawBalance(Object amount, Object cherries) {
+    return 'المتاح: $cherries كرزة ≈ $amount';
+  }
+
+  @override
+  String withdrawRate(Object amount, Object cherries, Object min) {
+    return '$cherries كرزة = $amount · الحد الأدنى $min';
+  }
+
+  @override
+  String withdrawAmountLabel(Object currency) {
+    return 'المبلغ ($currency)';
+  }
+
+  @override
+  String withdrawAmountHelper(Object cherries) {
+    return '= $cherries كرزة';
+  }
+
+  @override
+  String withdrawAmountMin(Object amount) {
+    return 'الحد الأدنى $amount';
+  }
+
+  @override
+  String withdrawAmountShort(Object amount) {
+    return 'كرزاتك تكفي حتى $amount';
+  }
+
+  @override
+  String get withdrawAmountInvalid => 'اكتب مبلغاً مثل 10 أو 12.50';
+
+  @override
+  String get withdrawDetailsLabel => 'أين ندفع لك؟';
+
+  @override
+  String get withdrawDetailsHint => 'اسم البنك والآيبان، أو اسم المحفظة ورقمها';
+
+  @override
+  String withdrawManualNote(Object days) {
+    return 'لا يوجد دفع تلقائي بعد: يراجع فريق كبسو طلبك ويدفعه يدوياً خلال $days أيام. تُحجز الكرزات الآن وتعود إليك إن رُفض الطلب.';
+  }
+
+  @override
+  String get withdrawSubmit => 'إرسال الطلب';
+
+  @override
+  String withdrawSubmitAmount(Object amount) {
+    return 'طلب سحب $amount';
+  }
+
+  @override
+  String get withdrawSent => 'أُرسل طلب السحب';
+
+  @override
+  String get errorAgencyAlreadyMember => 'أنت مضيف في وكالة أخرى.';
+
+  @override
+  String get errorAgencyJoinNotAllowed =>
+      'لا يمكن لوكيل وكالة الانضمام إلى وكالة كمضيف.';
+
+  @override
+  String get errorAgencyLeaveWindowClosed =>
+      'انتهت مدة المغادرة. أرسل شكوى إلى الإدارة.';
+
+  @override
+  String get errorInsufficientCherries => 'كرزاتك لا تكفي لهذا المبلغ.';
+
+  @override
+  String get errorWithdrawalPending => 'لديك طلب سحب ينتظر الدفع.';
+
+  @override
+  String get meHubAgency => 'الوكالة';
+
+  @override
+  String get agencyTitle => 'الوكالة';
+
+  @override
+  String get agencyLoadError => 'تعذّر تحميل الوكالة';
+
+  @override
+  String get agencyJoinTitle => 'انضم إلى وكالة';
+
+  @override
+  String get agencyJoinBody =>
+      'اكتب رمز الدعوة من وكيلك، تحقّق من الوكالة، ثم اقبل.';
+
+  @override
+  String get agencyCodeLabel => 'رمز الدعوة';
+
+  @override
+  String get agencyFind => 'عرض الوكالة';
+
+  @override
+  String get agencyNotFound => 'لا توجد وكالة بهذا الرمز.';
+
+  @override
+  String agencyPreviewOwner(Object name) {
+    return 'الوكيل: $name';
+  }
+
+  @override
+  String agencyHostCount(Object count) {
+    return 'المضيفون: $count';
+  }
+
+  @override
+  String get agencyAccept => 'قبول والانضمام';
+
+  @override
+  String agencyLeaveRule(Object days) {
+    return 'يمكنك المغادرة خلال $days يوماً من الانضمام؛ بعدها عبر شكوى إلى الإدارة فقط.';
+  }
+
+  @override
+  String get agencyJoined => 'انضممت إلى الوكالة';
+
+  @override
+  String get agencyMyAgency => 'وكالتي';
+
+  @override
+  String agencyJoinedAt(Object date) {
+    return 'انضممت في $date';
+  }
+
+  @override
+  String agencyLeaveUntil(Object date) {
+    return 'يمكنك المغادرة حتى $date';
+  }
+
+  @override
+  String agencyLeaveClosed(Object days) {
+    return 'انتهت مدة المغادرة ($days يوماً). للمغادرة أرسل شكوى إلى الإدارة.';
+  }
+
+  @override
+  String get agencyLeave => 'مغادرة الوكالة';
+
+  @override
+  String get agencyLeaveConfirm =>
+      'تتوقف عمولة الوكالة على هداياك. يمكنك الانضمام إلى وكالة أخرى برمزها.';
+
+  @override
+  String get agencyLeft => 'غادرت الوكالة';
+
+  @override
+  String get agencyComplain => 'شكوى إلى الإدارة';
+
+  @override
+  String get agencyComplaintHint => 'ما المشكلة؟';
+
+  @override
+  String get agencyComplaintSend => 'إرسال الشكوى';
+
+  @override
+  String get agencyComplaintSent => 'أُرسلت الشكوى إلى الإدارة';
+
+  @override
+  String agencyComplaintOpen(Object date) {
+    return 'شكواك لدى الإدارة (أُرسلت في $date).';
+  }
+
+  @override
+  String get agencyComplaintDone => 'ردّت الإدارة على شكواك.';
+
+  @override
+  String get agencyInviteCode => 'رمز الدعوة الخاص بك';
+
+  @override
+  String get agencyCopy => 'نسخ الرمز';
+
+  @override
+  String get agencyCopied => 'تم نسخ الرمز';
+
+  @override
+  String get agencyInviteHint =>
+      'يكتب المضيفون هذا الرمز في «الوكالة» ثم يقبلون.';
+
+  @override
+  String get agencyRankTitle => 'الرتبة';
+
+  @override
+  String get agencyRankNew => 'جديدة (فترة سماح)';
+
+  @override
+  String get agencyRankAgent => 'وكيل مضيفين';
+
+  @override
+  String get agencyRankAdmin => 'أدمن وكالات';
+
+  @override
+  String get agencyRankLapsed => 'غير مؤهلة هذا الشهر';
+
+  @override
+  String agencyRate(Object percent) {
+    return 'عمولتك هذا الشهر: $percent%';
+  }
+
+  @override
+  String agencyRateNote(Object tier) {
+    return 'تدفعها كبسو فوق كرزات مضيفيك ولا تُخصم منهم. 16% في الشهر التالي لشهر يحقق فيه مضيفوك $tier كرزة.';
+  }
+
+  @override
+  String agencyParent(Object name) {
+    return 'أدمن الوكالات: $name';
+  }
+
+  @override
+  String get agencyProgressTitle => 'التقدّم';
+
+  @override
+  String agencyActiveHosts(Object count, Object required) {
+    return 'المضيفون النشطون: $count / $required';
+  }
+
+  @override
+  String agencyActiveRule(Object days, Object hours, Object window) {
+    return 'النشط = بثّ في $days أيام ولمدة $hours ساعات خلال آخر $window يوماً.';
+  }
+
+  @override
+  String agencyMonthCherries(Object cherries) {
+    return 'كرز مضيفيك هذا الشهر: $cherries';
+  }
+
+  @override
+  String agencyException(Object cherries, Object hosts) {
+    return 'أو $cherries كرزة في الشهر مع أقل من $hosts مضيفين نشطين.';
+  }
+
+  @override
+  String agencySubProgress(Object count, Object required) {
+    return 'الوكالات الفرعية المؤهلة: $count / $required';
+  }
+
+  @override
+  String get agencyQualifiesNow => 'أنت مؤهل الآن.';
+
+  @override
+  String get agencyNotQualifiedNow => 'لست مؤهلاً بعد.';
+
+  @override
+  String get agencyEvaluationNote =>
+      'تُراجع الرتب في بداية كل شهر وتبقى حتى نهايته.';
+
+  @override
+  String get agencyCommissionTitle => 'العمولات (كرز)';
+
+  @override
+  String get agencyThisMonth => 'هذا الشهر';
+
+  @override
+  String get agencyLastMonth => 'الشهر الماضي';
+
+  @override
+  String get agencyTotal => 'الإجمالي';
+
+  @override
+  String get agencyParentCommissionTitle => 'عمولة أدمن الوكالات (3%)';
+
+  @override
+  String get agencySubAgenciesTitle => 'الوكالات الفرعية';
+
+  @override
+  String agencySubLine(Object active, Object cherries) {
+    return '$active نشطون · $cherries كرزة هذا الشهر';
+  }
+
+  @override
+  String get agencyQualified => 'مؤهلة';
+
+  @override
+  String get agencyNotQualified => 'غير مؤهلة';
+
+  @override
+  String agencyHostsTitle(Object count) {
+    return 'المضيفون ($count)';
+  }
+
+  @override
+  String get agencyHostsEmpty => 'لا مضيفين بعد';
+
+  @override
+  String get agencyHostsEmptyBody => 'شارك رمز الدعوة مع المضيفين.';
+
+  @override
+  String get agencyHostActive => 'نشط';
+
+  @override
+  String get agencyHostInactive => 'غير نشط';
+
+  @override
+  String agencyHostLine(Object cherries, Object days, Object hours) {
+    return '$days أيام · $hours ساعة بث (30 يوماً) · $cherries كرزة هذا الشهر';
+  }
+
+  @override
+  String get agencyHostNoCommission => 'انضم والوكالة غير مؤهلة: بلا عمولة';
 }
