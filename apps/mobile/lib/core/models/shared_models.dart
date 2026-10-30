@@ -27,6 +27,40 @@ String? rechargeAgentCodeFromJson(Object? json) => switch (json) {
 Map<String, dynamic>? rechargeAgentCodeToJson(String? code) =>
     code == null ? null : {'code': code};
 
+/// `AvatarFrame` (v1.55-social, D186, CONVENTIONS §10.49): the avatar frame a
+/// user wears (bag `AVATAR_FRAME`). The app draws the frames it has art for
+/// (`AvatarFrameArt.of`) and ignores the others.
+@immutable
+final class AvatarFrame {
+  const new({required this.code, required this.assetKey});
+
+  final String code;
+  final String assetKey;
+
+  @override
+  bool operator ==(Object other) =>
+      other is AvatarFrame && other.code == code && other.assetKey == assetKey;
+
+  @override
+  int get hashCode => Object.hash(code, assetKey);
+
+  @override
+  String toString() => 'AvatarFrame($code, $assetKey)';
+}
+
+/// v1.55-social (D186): reads `AvatarFrame` (`{code, assetKey}`); anything
+/// else (absent, null, malformed) is no frame.
+AvatarFrame? avatarFrameFromJson(Object? json) => switch (json) {
+  {'code': final String code, 'assetKey': final String assetKey}
+      when code.isNotEmpty && assetKey.isNotEmpty =>
+    AvatarFrame(code: code, assetKey: assetKey),
+  _ => null,
+};
+
+/// The wire shape of [avatarFrameFromJson].
+Map<String, dynamic>? avatarFrameToJson(AvatarFrame? frame) =>
+    frame == null ? null : {'code': frame.code, 'assetKey': frame.assetKey};
+
 /// `UserSummary`: minimal public identity of a user. Never has an email.
 @freezed
 abstract class UserSummary with _$UserSummary {
@@ -51,6 +85,16 @@ abstract class UserSummary with _$UserSummary {
       toJson: rechargeAgentCodeToJson,
     )
     String? rechargeAgentCode,
+
+    /// v1.55-social (D186, §10.49): the avatar frame the user wears
+    /// (`UserSummary.avatarFrame`, present only while one is worn): drawn
+    /// around the picture on the live seats. Null otherwise.
+    @JsonKey(
+      includeIfNull: false,
+      fromJson: avatarFrameFromJson,
+      toJson: avatarFrameToJson,
+    )
+    AvatarFrame? avatarFrame,
   }) = _UserSummary;
 
   factory fromJson(Map<String, dynamic> json) => _$UserSummaryFromJson(json);

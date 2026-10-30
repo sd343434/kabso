@@ -240,6 +240,10 @@ enum ErrorCode {
   rechargeCherryRequestClosed('RECHARGE_CHERRY_REQUEST_CLOSED'),
   rechargeCherryCapReached('RECHARGE_CHERRY_CAP_REACHED'),
 
+  /// v1.55-social (D186, §10.49, 409): the gender sets the host frame's
+  /// colour (only a host without a stated gender picks it).
+  hostFrameStyleFromGender('HOST_FRAME_STYLE_FROM_GENDER'),
+
   /// Client-only: no connection could be established.
   networkOffline('NETWORK_OFFLINE'),
 

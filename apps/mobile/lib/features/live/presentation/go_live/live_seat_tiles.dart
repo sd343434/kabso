@@ -2,7 +2,9 @@ import 'dart:math' as math;
 
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/bag/presentation/avatar_frame_art.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_cp_mic_effect.dart';
@@ -271,7 +273,13 @@ class AudioSeatRing extends StatelessWidget {
     this.hostTapLabel,
     this.cpPairs = const [],
     this.overlay,
+    this.hostFrame,
   });
+
+  /// v1.55-social (D186): the avatar frame the host wears (the room's
+  /// `host.avatarFrame`), drawn around the host's picture; guests' frames
+  /// come with their seat's user.
+  final AvatarFrame? hostFrame;
 
   /// D138: what plays over tile `i`'s picture now (0 is the host), e.g. a
   /// seat emoji; null for nothing.
@@ -355,6 +363,9 @@ class AudioSeatRing extends StatelessWidget {
   /// The diameter of a picture (the host's too) and of an empty seat.
   static const double picture = _Seat.avatar;
 
+  /// D186: the diameter of a picture inside an avatar frame.
+  static const double framedPicture = _Seat.framedAvatar;
+
   /// D173: a tile's natural width (its picture is [picture] across).
   static const double tileWidth = _Seat.width;
 
@@ -384,6 +395,7 @@ class AudioSeatRing extends StatelessWidget {
       points: _points,
       cpMic: !ghost && cpMicTiles.contains(0),
       overlay: ghost ? null : overlay?.call(0),
+      frame: ghost ? null : hostFrame,
     );
     return ghost ? _ghost(seat) : seat;
   }
@@ -820,6 +832,7 @@ class AudioSeatRing extends StatelessWidget {
         key: seatKey(i),
         label: user.displayName,
         agentCode: user.rechargeAgentCode,
+        frame: user.avatarFrame,
         semantics: user.displayName,
         muted: seat.mutedByHost || micOff.contains(i),
         speaking: speaking.contains(i),
@@ -914,10 +927,14 @@ class _Seat extends StatelessWidget {
     this.cpMic = false,
     this.overlay,
     this.agentCode,
+    this.frame,
   });
 
   /// v1.54-social (D185): the seated person's recharge-agent code.
   final String? agentCode;
+
+  /// v1.55-social (D186): the avatar frame the seated person wears.
+  final AvatarFrame? frame;
 
   /// D115: the seat's partner couple has the Couple Mic Effect.
   final bool cpMic;
@@ -936,6 +953,10 @@ class _Seat extends StatelessWidget {
   /// five fit a 360 pt phone at full size (one seat size in every room).
   static const width = 70.0;
   static const avatar = 50.0;
+
+  /// D186: a picture inside an avatar frame — the frame is then about
+  /// [width] across (the photo fills the art's measured circle).
+  static const framedAvatar = 42.0;
 
   @override
   Widget build(BuildContext context) => Semantics(
@@ -958,10 +979,10 @@ class _Seat extends StatelessWidget {
                   if (child is _Chair)
                     child
                   else
-                    _speakingPicture(
+                    _framedPicture(
+                      frame: frame,
                       speaking: speaking,
                       cpMic: cpMic,
-                      size: avatar,
                       picture: child,
                     ),
                   if (muted)
@@ -999,10 +1020,14 @@ class _HostSeat extends StatelessWidget {
     this.tapLabel,
     this.cpMic = false,
     this.overlay,
+    this.frame,
   });
 
   /// D115: the host's couple has the Couple Mic Effect.
   final bool cpMic;
+
+  /// v1.55-social (D186): the avatar frame the host wears.
+  final AvatarFrame? frame;
 
   /// D138: over the picture, under the name.
   final Widget? overlay;
@@ -1043,10 +1068,10 @@ class _HostSeat extends StatelessWidget {
                   clipBehavior: Clip.none,
                   alignment: Alignment.center,
                   children: [
-                    _speakingPicture(
+                    _framedPicture(
+                      frame: frame,
                       speaking: speaking,
                       cpMic: cpMic,
-                      size: _Seat.avatar,
                       picture: circle,
                     ),
                     Positioned(
@@ -1188,6 +1213,29 @@ class _SeatLabel extends StatelessWidget {
             ),
     );
   }
+}
+
+/// A seat's round [picture] (see [_speakingPicture]) — v1.55-social (D186):
+/// with the avatar [frame] the person wears around it when this app has its
+/// art. A framed picture is [_Seat.framedAvatar] across so the frame is
+/// about a seat wide (it never takes taps); no name is written under the
+/// frame (owner).
+Widget _framedPicture({
+  required AvatarFrame? frame,
+  required bool speaking,
+  required bool cpMic,
+  required Widget picture,
+}) {
+  final art = AvatarFrameArt.of(frame);
+  final size = art == null ? _Seat.avatar : _Seat.framedAvatar;
+  final round = _speakingPicture(
+    speaking: speaking,
+    cpMic: cpMic,
+    size: size,
+    picture: picture,
+  );
+  if (art == null) return round;
+  return FramedAvatar(art: art, picture: size, child: round);
 }
 
 /// A seat's round picture of [size]: while [speaking], the glowing ring, or

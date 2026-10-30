@@ -59,7 +59,7 @@ void main() {
           body: {
             'data': [
               for (final code in bagCatalogueCodes) bagCatalogueItemJson(code),
-              bagCatalogueItemJson('fire_frame', category: 'AVATAR_FRAME'),
+              bagCatalogueItemJson('fire_entrance', category: 'ENTRANCE'),
             ],
           },
         ),

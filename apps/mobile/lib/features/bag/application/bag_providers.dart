@@ -16,3 +16,11 @@ final FutureProvider<List<BagItem>> myBagItemsProvider =
         ..watch(currentUserProvider.select((u) => u?.id));
       return ref.watch(bagRepositoryProvider).myBag();
     });
+
+/// D186: the caller's active-host frame (`GET /me/host-frame`): whether the
+/// bag asks a host without a stated gender to pick the colour.
+final FutureProvider<HostFrame> myHostFrameProvider =
+    FutureProvider.autoDispose((ref) {
+      ref.watch(currentUserProvider.select((u) => u?.id));
+      return ref.watch(bagRepositoryProvider).hostFrame();
+    });

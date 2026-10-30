@@ -3166,5 +3166,16 @@
   "errorRechargeEmployeeNotAllowed": "This person can't be added as an employee.",
   "errorRechargeCherryRequestPending": "There is already an open request between you.",
   "errorRechargeCherryRequestClosed": "This request is no longer open.",
-  "errorRechargeCherryCapReached": "The agent's daily cherry limit is reached."
+  "errorRechargeCherryCapReached": "The agent's daily cherry limit is reached.",
+  "bagCategoryAvatarFrame": "Avatar frames",
+  "bagFromHostActive": "Active host reward",
+  "bagNoSendHostActive": "The host frame can't be sent",
+  "hostFrameChooseTitle": "Choose your host frame colour",
+  "hostFrameChooseBody": "You're an active host: pick the frame you like. You can change it later.",
+  "hostFrameChoose": "Choose",
+  "hostFrameChangeColour": "Change colour",
+  "hostFrameBlue": "Blue",
+  "hostFramePink": "Pink",
+  "hostFrameSaved": "Host frame chosen",
+  "errorHostFrameStyleFromGender": "Your gender sets the colour of your host frame."
 }

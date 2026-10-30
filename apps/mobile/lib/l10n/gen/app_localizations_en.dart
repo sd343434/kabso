@@ -9967,4 +9967,39 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errorRechargeCherryCapReached =>
       'The agent\'s daily cherry limit is reached.';
+
+  @override
+  String get bagCategoryAvatarFrame => 'Avatar frames';
+
+  @override
+  String get bagFromHostActive => 'Active host reward';
+
+  @override
+  String get bagNoSendHostActive => 'The host frame can\'t be sent';
+
+  @override
+  String get hostFrameChooseTitle => 'Choose your host frame colour';
+
+  @override
+  String get hostFrameChooseBody =>
+      'You\'re an active host: pick the frame you like. You can change it later.';
+
+  @override
+  String get hostFrameChoose => 'Choose';
+
+  @override
+  String get hostFrameChangeColour => 'Change colour';
+
+  @override
+  String get hostFrameBlue => 'Blue';
+
+  @override
+  String get hostFramePink => 'Pink';
+
+  @override
+  String get hostFrameSaved => 'Host frame chosen';
+
+  @override
+  String get errorHostFrameStyleFromGender =>
+      'Your gender sets the colour of your host frame.';
 }

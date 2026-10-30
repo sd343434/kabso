@@ -5,12 +5,14 @@ import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/error/failure_widgets.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/domain/entities.dart';
 import 'package:kabso_live/features/auth/presentation/auth_controller.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/bag/presentation/avatar_frame_art.dart';
 import 'package:kabso_live/features/cp/presentation/cp_special_frame.dart';
 import 'package:kabso_live/features/levels/presentation/profile_levels.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
@@ -187,6 +189,9 @@ class _OwnHeader extends ConsumerWidget {
       agentCode: agent?.status == RechargeAgentStatus.active
           ? agent?.code
           : null,
+      // D186: the avatar frame the user wears (worn in the bag; the
+      // profile's own read, refreshed when the bag changes).
+      avatarFrame: stats?.avatarFrame,
       displayName: user.displayName,
       avatarUrl: user.avatarUrl,
       bio: user.bio,
@@ -268,7 +273,14 @@ class ProfileHeaderView extends StatelessWidget {
     this.subtitle,
     this.about,
     this.agentCode,
+    this.avatarFrame,
   });
+
+  /// v1.55-social (D186): the avatar frame the person wears (e.g. the
+  /// active-host frame), drawn around the photo when this app has its art.
+  /// The live ring and the recharge-agent frame win over it; it wins over
+  /// the CP frame.
+  final AvatarFrame? avatarFrame;
 
   /// v1.54-social (D185): the person's code while they are an ACTIVE
   /// recharge agent: the agent frame (with the code in its plate) around
@@ -314,6 +326,7 @@ class ProfileHeaderView extends StatelessWidget {
   static const followingKey = Key('profile.stat.following');
   static const cpFrameKey = Key('profile.avatar.cpFrame');
   static const agentFrameKey = Key('profile.avatar.agentFrame');
+  static const avatarFrameKey = Key('profile.avatar.frame');
   static const agentBadgeKey = Key('profile.agentBadge');
 
   @override
@@ -358,6 +371,7 @@ class ProfileHeaderView extends StatelessWidget {
       ),
     );
     final agentCode = this.agentCode;
+    final frameArt = AvatarFrameArt.of(avatarFrame);
     final avatar = agentCode != null && !live
         ? RechargeAgentFrame(
             key: agentFrameKey,
@@ -365,6 +379,19 @@ class ProfileHeaderView extends StatelessWidget {
             name: displayName,
             code: agentCode,
             imageUrl: avatarUrl,
+          )
+        : frameArt != null && !live
+        ? FramedAvatar(
+            key: avatarFrameKey,
+            art: frameArt,
+            // As wide as the agent frame (1.6 × the photo slot).
+            picture: frameArt.pictureForWidth(KProfile.avatar * 1.6),
+            layout: true,
+            child: KAvatar(
+              name: displayName,
+              imageUrl: avatarUrl,
+              size: frameArt.pictureForWidth(KProfile.avatar * 1.6),
+            ),
           )
         : cpFrame && !live
         ? CpSpecialFrameAvatar(

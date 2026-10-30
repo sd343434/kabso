@@ -30,6 +30,21 @@ class FakeBagRepository implements BagRepository {
   /// What `send` returns (its recipient), set by the test.
   Map<String, Object?>? sendResult;
 
+  /// D186: `GET /me/host-frame` (by default: not an agency host). A style
+  /// choice updates it (and, while [hostFrame]'s `active`, gives or swaps
+  /// the frame in [items]).
+  Map<String, Object?> hostFrameJson = const {
+    'agencyHost': false,
+    'active': false,
+    'liveDays': 0,
+    'liveSeconds': 0,
+    'style': null,
+    'styleFrom': null,
+    'canChoose': false,
+    'frame': null,
+    'rule': {'minDays': 7, 'minHours': 10, 'windowDays': 30},
+  };
+
   void _record(String call) {
     calls.add(call);
     final name = call.split(':').first;
@@ -66,6 +81,53 @@ class FakeBagRepository implements BagRepository {
     _record('setEquipped:${code ?? 'null'}');
     worn = code;
     return BagEquipped.fromJson(bagEquippedJson(code, ar: ar));
+  }
+
+  @override
+  Future<HostFrame> hostFrame() async {
+    _record('hostFrame');
+    return HostFrame.fromJson(hostFrameJson);
+  }
+
+  @override
+  Future<HostFrame> setHostFrameStyle(HostFrameStyle style) async {
+    _record('setHostFrameStyle:${style.wire}');
+    final active = hostFrameJson['active'] == true;
+    final old = items
+        ?.where((i) => i['source'] == 'HOST_ACTIVE')
+        .map((i) => i['code'])
+        .firstOrNull;
+    final wasWorn = old != null && worn == old;
+    if (active) {
+      items?.removeWhere((i) => i['source'] == 'HOST_ACTIVE');
+      items?.insert(0, {
+        'code': style.assetKey,
+        'category': 'AVATAR_FRAME',
+        'name': style == HostFrameStyle.blue
+            ? (ar ? 'إطار المضيف الأزرق' : 'Blue host frame')
+            : (ar ? 'إطار المضيف الوردي' : 'Pink host frame'),
+        'assetKey': style.assetKey,
+        'acquiredAt': '2026-10-30T08:00:00.000Z',
+        'source': 'HOST_ACTIVE',
+        'expiresAt': null,
+        'giftedBy': null,
+        'transferable': false,
+      });
+      if (wasWorn) worn = style.assetKey;
+    }
+    hostFrameJson = {
+      ...hostFrameJson,
+      'style': style.wire,
+      'styleFrom': 'CHOICE',
+      'frame': active
+          ? {
+              'code': style.assetKey,
+              'assetKey': style.assetKey,
+              'equipped': wasWorn,
+            }
+          : null,
+    };
+    return HostFrame.fromJson(hostFrameJson);
   }
 
   @override

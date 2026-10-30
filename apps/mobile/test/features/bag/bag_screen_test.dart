@@ -48,8 +48,8 @@ const Map<String, Object?> _sara = {
 };
 
 /// A free card (worn), an admin item with 6 days 4 hours left, a gift from
-/// @sara_22 that ends at 14:00 today, a permanent level reward and a frame
-/// of a category this app does not know yet (D169's AVATAR_FRAME).
+/// @sara_22 that ends at 14:00 today, a permanent level reward and an item
+/// of a category this app does not know yet (an entrance).
 List<Map<String, Object?>> _items({bool ar = false}) => [
   bagItemJson('bunny_royal', ar: ar, source: 'FREE_SIGNUP'),
   bagItemJson(
@@ -73,7 +73,7 @@ List<Map<String, Object?>> _items({bool ar = false}) => [
   bagItemJson(
     'fire_frame',
     ar: ar,
-    category: 'AVATAR_FRAME',
+    category: 'ENTRANCE',
     source: 'LEVEL_REWARD',
     transferable: false,
   ),
@@ -163,15 +163,17 @@ void main() {
     await withClock(Clock.fixed(_now), () async {
       // The user holds live gifts too: the bag never shows or asks for them.
       final f = await _pump(tester, gifts: const {'rose': 3});
-      // Only the owned items are asked for; the catalogue never.
-      expect(f.bag.calls, ['myBag']);
+      // Only the owned items (and, D186, the host-frame state) are asked
+      // for; the catalogue never.
+      expect(f.bag.calls, unorderedEquals(['myBag', 'hostFrame']));
       expect(find.byKey(BagScreen.toolsTabKey), findsOneWidget);
       expect(find.byKey(BagScreen.itemsTabKey), findsOneWidget);
       // «الأدوات»: what is worn, never the full list (that is «الحقيبة»).
       expect(find.text(en.bagInUse), findsOneWidget);
       expect(find.text(en.bagAllTools), findsNothing);
       expect(find.byKey(BagScreen.itemKey('golden_stags')), findsNothing);
-      // In use: the worn profile card; the frame category has an empty slot.
+      // In use: the worn profile card; the frame category (D186: known now)
+      // has an empty slot.
       expect(
         find.descendant(
           of: find.byKey(BagScreen.slotKey('PROFILE_CARD')),
@@ -202,7 +204,7 @@ void main() {
         200,
         scrollable: _list,
       );
-      expect(find.byKey(BagScreen.sectionKey('AVATAR_FRAME')), findsOneWidget);
+      expect(find.byKey(BagScreen.sectionKey('ENTRANCE')), findsOneWidget);
       expect(find.text(en.bagCategoryOther), findsWidgets);
       // Nothing selected: Use and Send are off, nothing named.
       expect(button(tester, BagScreen.useKey).onPressed, isNull);
@@ -469,7 +471,7 @@ void main() {
     expect(find.byKey(BagScreen.emptySlotKey('PROFILE_CARD')), findsOneWidget);
     await tab(tester, BagScreen.itemsTabKey);
     expect(find.byKey(BagScreen.emptyKey), findsOneWidget);
-    expect(f.bag.calls, ['myBag']);
+    expect(f.bag.calls, unorderedEquals(['myBag', 'hostFrame']));
   });
 
   for (final scale in [1.3, 2.0]) {

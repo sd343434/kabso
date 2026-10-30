@@ -100,6 +100,7 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
     ErrorCode.rechargeCherryRequestClosed =>
       l10n.errorRechargeCherryRequestClosed,
     ErrorCode.rechargeCherryCapReached => l10n.errorRechargeCherryCapReached,
+    ErrorCode.hostFrameStyleFromGender => l10n.errorHostFrameStyleFromGender,
     ErrorCode.networkOffline => l10n.errorNetworkOffline,
     ErrorCode.networkTimeout => l10n.errorNetworkTimeout,
     ErrorCode.unknown => l10n.errorUnknown,

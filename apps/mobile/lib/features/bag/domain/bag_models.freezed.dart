@@ -1797,4 +1797,595 @@ $BagEquippedItemCopyWith<$Res>? get equipped {
 }
 }
 
+
+/// @nodoc
+mixin _$HostFrameItem {
+
+ String get code; String get assetKey; bool get equipped;
+/// Create a copy of HostFrameItem
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$HostFrameItemCopyWith<HostFrameItem> get copyWith => _$HostFrameItemCopyWithImpl<HostFrameItem>(this as HostFrameItem, _$identity);
+
+  /// Serializes this HostFrameItem to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  final _this = this as HostFrameItem;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is HostFrameItem&&(identical(other.code, _this.code) || other.code == _this.code)&&(identical(other.assetKey, _this.assetKey) || other.assetKey == _this.assetKey)&&(identical(other.equipped, _this.equipped) || other.equipped == _this.equipped));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+  final _this = this as HostFrameItem;
+  return Object.hash(runtimeType,_this.code,_this.assetKey,_this.equipped);
+}
+
+@override
+String toString() {
+  final _this = this as HostFrameItem;
+  return 'HostFrameItem(code: ${_this.code}, assetKey: ${_this.assetKey}, equipped: ${_this.equipped})';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $HostFrameItemCopyWith<$Res>  {
+  factory $HostFrameItemCopyWith(HostFrameItem value, $Res Function(HostFrameItem) _then) = _$HostFrameItemCopyWithImpl;
+@useResult
+$Res call({
+ String code, String assetKey, bool equipped
+});
+
+
+
+
+}
+/// @nodoc
+class _$HostFrameItemCopyWithImpl<$Res>
+    implements $HostFrameItemCopyWith<$Res> {
+  _$HostFrameItemCopyWithImpl(this._self, this._then);
+
+  final HostFrameItem _self;
+  final $Res Function(HostFrameItem) _then;
+
+/// Create a copy of HostFrameItem
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? code = null,Object? assetKey = null,Object? equipped = null,}) {
+  return _then(HostFrameItem(
+code: null == code ? _self.code : code // ignore: cast_nullable_to_non_nullable
+as String,assetKey: null == assetKey ? _self.assetKey : assetKey // ignore: cast_nullable_to_non_nullable
+as String,equipped: null == equipped ? _self.equipped : equipped // ignore: cast_nullable_to_non_nullable
+as bool,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [HostFrameItem].
+extension HostFrameItemPatterns on HostFrameItem {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _HostFrameItem value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _HostFrameItem() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _HostFrameItem value)  $default,){
+final _that = this;
+switch (_that) {
+case _HostFrameItem():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _HostFrameItem value)?  $default,){
+final _that = this;
+switch (_that) {
+case _HostFrameItem() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String code,  String assetKey,  bool equipped)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _HostFrameItem() when $default != null:
+return $default(_that.code,_that.assetKey,_that.equipped);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String code,  String assetKey,  bool equipped)  $default,) {final _that = this;
+switch (_that) {
+case _HostFrameItem():
+return $default(_that.code,_that.assetKey,_that.equipped);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String code,  String assetKey,  bool equipped)?  $default,) {final _that = this;
+switch (_that) {
+case _HostFrameItem() when $default != null:
+return $default(_that.code,_that.assetKey,_that.equipped);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _HostFrameItem implements HostFrameItem {
+  const _HostFrameItem({required this.code, required this.assetKey, required this.equipped});
+  factory _HostFrameItem.fromJson(Map<String, dynamic> json) => _$HostFrameItemFromJson(json);
+
+@override final  String code;
+@override final  String assetKey;
+@override final  bool equipped;
+
+/// Create a copy of HostFrameItem
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$HostFrameItemCopyWith<_HostFrameItem> get copyWith => __$HostFrameItemCopyWithImpl<_HostFrameItem>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$HostFrameItemToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _HostFrameItem&&(identical(other.code, code) || other.code == code)&&(identical(other.assetKey, assetKey) || other.assetKey == assetKey)&&(identical(other.equipped, equipped) || other.equipped == equipped));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+    return Object.hash(runtimeType,code,assetKey,equipped);
+}
+
+@override
+String toString() {
+    return 'HostFrameItem(code: $code, assetKey: $assetKey, equipped: $equipped)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$HostFrameItemCopyWith<$Res> implements $HostFrameItemCopyWith<$Res> {
+  factory _$HostFrameItemCopyWith(_HostFrameItem value, $Res Function(_HostFrameItem) _then) = __$HostFrameItemCopyWithImpl;
+@override @useResult
+$Res call({
+ String code, String assetKey, bool equipped
+});
+
+
+
+
+}
+/// @nodoc
+class __$HostFrameItemCopyWithImpl<$Res>
+    implements _$HostFrameItemCopyWith<$Res> {
+  __$HostFrameItemCopyWithImpl(this._self, this._then);
+
+  final _HostFrameItem _self;
+  final $Res Function(_HostFrameItem) _then;
+
+/// Create a copy of HostFrameItem
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? code = null,Object? assetKey = null,Object? equipped = null,}) {
+  return _then(_HostFrameItem(
+code: null == code ? _self.code : code // ignore: cast_nullable_to_non_nullable
+as String,assetKey: null == assetKey ? _self.assetKey : assetKey // ignore: cast_nullable_to_non_nullable
+as String,equipped: null == equipped ? _self.equipped : equipped // ignore: cast_nullable_to_non_nullable
+as bool,
+  ));
+}
+
+
+}
+
+
+/// @nodoc
+mixin _$HostFrame {
+
+ bool get agencyHost; bool get active; int get liveDays; int get liveSeconds; bool get canChoose; String? get style; String? get styleFrom; HostFrameItem? get frame;
+/// Create a copy of HostFrame
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$HostFrameCopyWith<HostFrame> get copyWith => _$HostFrameCopyWithImpl<HostFrame>(this as HostFrame, _$identity);
+
+  /// Serializes this HostFrame to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  final _this = this as HostFrame;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is HostFrame&&(identical(other.agencyHost, _this.agencyHost) || other.agencyHost == _this.agencyHost)&&(identical(other.active, _this.active) || other.active == _this.active)&&(identical(other.liveDays, _this.liveDays) || other.liveDays == _this.liveDays)&&(identical(other.liveSeconds, _this.liveSeconds) || other.liveSeconds == _this.liveSeconds)&&(identical(other.canChoose, _this.canChoose) || other.canChoose == _this.canChoose)&&(identical(other.style, _this.style) || other.style == _this.style)&&(identical(other.styleFrom, _this.styleFrom) || other.styleFrom == _this.styleFrom)&&(identical(other.frame, _this.frame) || other.frame == _this.frame));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+  final _this = this as HostFrame;
+  return Object.hash(runtimeType,_this.agencyHost,_this.active,_this.liveDays,_this.liveSeconds,_this.canChoose,_this.style,_this.styleFrom,_this.frame);
+}
+
+@override
+String toString() {
+  final _this = this as HostFrame;
+  return 'HostFrame(agencyHost: ${_this.agencyHost}, active: ${_this.active}, liveDays: ${_this.liveDays}, liveSeconds: ${_this.liveSeconds}, canChoose: ${_this.canChoose}, style: ${_this.style}, styleFrom: ${_this.styleFrom}, frame: ${_this.frame})';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $HostFrameCopyWith<$Res>  {
+  factory $HostFrameCopyWith(HostFrame value, $Res Function(HostFrame) _then) = _$HostFrameCopyWithImpl;
+@useResult
+$Res call({
+ bool agencyHost, bool active, int liveDays, int liveSeconds, bool canChoose, String? style, String? styleFrom, HostFrameItem? frame
+});
+
+
+$HostFrameItemCopyWith<$Res>? get frame;
+
+}
+/// @nodoc
+class _$HostFrameCopyWithImpl<$Res>
+    implements $HostFrameCopyWith<$Res> {
+  _$HostFrameCopyWithImpl(this._self, this._then);
+
+  final HostFrame _self;
+  final $Res Function(HostFrame) _then;
+
+/// Create a copy of HostFrame
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? agencyHost = null,Object? active = null,Object? liveDays = null,Object? liveSeconds = null,Object? canChoose = null,Object? style = freezed,Object? styleFrom = freezed,Object? frame = freezed,}) {
+  return _then(HostFrame(
+agencyHost: null == agencyHost ? _self.agencyHost : agencyHost // ignore: cast_nullable_to_non_nullable
+as bool,active: null == active ? _self.active : active // ignore: cast_nullable_to_non_nullable
+as bool,liveDays: null == liveDays ? _self.liveDays : liveDays // ignore: cast_nullable_to_non_nullable
+as int,liveSeconds: null == liveSeconds ? _self.liveSeconds : liveSeconds // ignore: cast_nullable_to_non_nullable
+as int,canChoose: null == canChoose ? _self.canChoose : canChoose // ignore: cast_nullable_to_non_nullable
+as bool,style: freezed == style ? _self.style : style // ignore: cast_nullable_to_non_nullable
+as String?,styleFrom: freezed == styleFrom ? _self.styleFrom : styleFrom // ignore: cast_nullable_to_non_nullable
+as String?,frame: freezed == frame ? _self.frame : frame // ignore: cast_nullable_to_non_nullable
+as HostFrameItem?,
+  ));
+}
+/// Create a copy of HostFrame
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$HostFrameItemCopyWith<$Res>? get frame {
+    if (_self.frame == null) {
+    return null;
+  }
+
+  return $HostFrameItemCopyWith<$Res>(_self.frame!, (value) {
+    return _then(_self.copyWith(frame: value));
+  });
+}
+}
+
+
+/// Adds pattern-matching-related methods to [HostFrame].
+extension HostFramePatterns on HostFrame {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _HostFrame value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _HostFrame() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _HostFrame value)  $default,){
+final _that = this;
+switch (_that) {
+case _HostFrame():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _HostFrame value)?  $default,){
+final _that = this;
+switch (_that) {
+case _HostFrame() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool agencyHost,  bool active,  int liveDays,  int liveSeconds,  bool canChoose,  String? style,  String? styleFrom,  HostFrameItem? frame)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _HostFrame() when $default != null:
+return $default(_that.agencyHost,_that.active,_that.liveDays,_that.liveSeconds,_that.canChoose,_that.style,_that.styleFrom,_that.frame);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool agencyHost,  bool active,  int liveDays,  int liveSeconds,  bool canChoose,  String? style,  String? styleFrom,  HostFrameItem? frame)  $default,) {final _that = this;
+switch (_that) {
+case _HostFrame():
+return $default(_that.agencyHost,_that.active,_that.liveDays,_that.liveSeconds,_that.canChoose,_that.style,_that.styleFrom,_that.frame);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool agencyHost,  bool active,  int liveDays,  int liveSeconds,  bool canChoose,  String? style,  String? styleFrom,  HostFrameItem? frame)?  $default,) {final _that = this;
+switch (_that) {
+case _HostFrame() when $default != null:
+return $default(_that.agencyHost,_that.active,_that.liveDays,_that.liveSeconds,_that.canChoose,_that.style,_that.styleFrom,_that.frame);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _HostFrame extends HostFrame {
+  const _HostFrame({required this.agencyHost, required this.active, required this.liveDays, required this.liveSeconds, required this.canChoose, this.style, this.styleFrom, this.frame}): super._();
+  factory _HostFrame.fromJson(Map<String, dynamic> json) => _$HostFrameFromJson(json);
+
+@override final  bool agencyHost;
+@override final  bool active;
+@override final  int liveDays;
+@override final  int liveSeconds;
+@override final  bool canChoose;
+@override final  String? style;
+@override final  String? styleFrom;
+@override final  HostFrameItem? frame;
+
+/// Create a copy of HostFrame
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$HostFrameCopyWith<_HostFrame> get copyWith => __$HostFrameCopyWithImpl<_HostFrame>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$HostFrameToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _HostFrame&&(identical(other.agencyHost, agencyHost) || other.agencyHost == agencyHost)&&(identical(other.active, active) || other.active == active)&&(identical(other.liveDays, liveDays) || other.liveDays == liveDays)&&(identical(other.liveSeconds, liveSeconds) || other.liveSeconds == liveSeconds)&&(identical(other.canChoose, canChoose) || other.canChoose == canChoose)&&(identical(other.style, style) || other.style == style)&&(identical(other.styleFrom, styleFrom) || other.styleFrom == styleFrom)&&(identical(other.frame, frame) || other.frame == frame));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+    return Object.hash(runtimeType,agencyHost,active,liveDays,liveSeconds,canChoose,style,styleFrom,frame);
+}
+
+@override
+String toString() {
+    return 'HostFrame(agencyHost: $agencyHost, active: $active, liveDays: $liveDays, liveSeconds: $liveSeconds, canChoose: $canChoose, style: $style, styleFrom: $styleFrom, frame: $frame)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$HostFrameCopyWith<$Res> implements $HostFrameCopyWith<$Res> {
+  factory _$HostFrameCopyWith(_HostFrame value, $Res Function(_HostFrame) _then) = __$HostFrameCopyWithImpl;
+@override @useResult
+$Res call({
+ bool agencyHost, bool active, int liveDays, int liveSeconds, bool canChoose, String? style, String? styleFrom, HostFrameItem? frame
+});
+
+
+@override $HostFrameItemCopyWith<$Res>? get frame;
+
+}
+/// @nodoc
+class __$HostFrameCopyWithImpl<$Res>
+    implements _$HostFrameCopyWith<$Res> {
+  __$HostFrameCopyWithImpl(this._self, this._then);
+
+  final _HostFrame _self;
+  final $Res Function(_HostFrame) _then;
+
+/// Create a copy of HostFrame
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? agencyHost = null,Object? active = null,Object? liveDays = null,Object? liveSeconds = null,Object? canChoose = null,Object? style = freezed,Object? styleFrom = freezed,Object? frame = freezed,}) {
+  return _then(_HostFrame(
+agencyHost: null == agencyHost ? _self.agencyHost : agencyHost // ignore: cast_nullable_to_non_nullable
+as bool,active: null == active ? _self.active : active // ignore: cast_nullable_to_non_nullable
+as bool,liveDays: null == liveDays ? _self.liveDays : liveDays // ignore: cast_nullable_to_non_nullable
+as int,liveSeconds: null == liveSeconds ? _self.liveSeconds : liveSeconds // ignore: cast_nullable_to_non_nullable
+as int,canChoose: null == canChoose ? _self.canChoose : canChoose // ignore: cast_nullable_to_non_nullable
+as bool,style: freezed == style ? _self.style : style // ignore: cast_nullable_to_non_nullable
+as String?,styleFrom: freezed == styleFrom ? _self.styleFrom : styleFrom // ignore: cast_nullable_to_non_nullable
+as String?,frame: freezed == frame ? _self.frame : frame // ignore: cast_nullable_to_non_nullable
+as HostFrameItem?,
+  ));
+}
+
+/// Create a copy of HostFrame
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$HostFrameItemCopyWith<$Res>? get frame {
+    if (_self.frame == null) {
+    return null;
+  }
+
+  return $HostFrameItemCopyWith<$Res>(_self.frame!, (value) {
+    return _then(_self.copyWith(frame: value));
+  });
+}
+}
+
 // dart format on

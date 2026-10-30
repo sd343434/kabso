@@ -1151,6 +1151,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           imageUrl: user?.avatarUrl,
           size: AudioSeatRing.picture,
         ),
+        // D186: the avatar frame the host wears (the server's room).
+        hostFrame: room?.host.avatarFrame,
         hostName: hostName,
         hostMicOn: state.micEnabled,
         // Owner (2026-10-26): a tap on the host's own picture opens their

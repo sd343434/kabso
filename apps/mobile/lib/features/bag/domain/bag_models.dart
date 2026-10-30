@@ -11,7 +11,11 @@ part 'bag_models.g.dart';
 /// later; items of a category the app does not know are ignored (§10.22).
 enum BagCategory {
   /// The decoration on the profile card's header.
-  profileCard('PROFILE_CARD');
+  profileCard('PROFILE_CARD'),
+
+  /// D169 / D186: the frame drawn around the person's photo (the support
+  /// tier frames, the active-host frames).
+  avatarFrame('AVATAR_FRAME');
 
   new(this.wire);
 
@@ -31,8 +35,12 @@ abstract final class BagSource {
   static const admin = 'ADMIN';
   static const gift = 'GIFT';
 
-  /// D169 (another branch): support-tier frames, permanent, not sendable.
+  /// D169: support-tier frames, permanent, not sendable.
   static const levelReward = 'LEVEL_REWARD';
+
+  /// D186: the active-host frame, kept while the host stays active; not
+  /// sendable.
+  static const hostActive = 'HOST_ACTIVE';
 
   /// A future store.
   static const purchase = 'PURCHASE';
@@ -126,4 +134,61 @@ abstract class BagEquipped with _$BagEquipped {
       _BagEquipped;
 
   factory fromJson(Map<String, dynamic> json) => _$BagEquippedFromJson(json);
+}
+
+/// `HostFrameStyle` (v1.55-social, D186): the active-host frame's colour.
+enum HostFrameStyle {
+  blue('BLUE', 'host_frame_blue'),
+  pink('PINK', 'host_frame_pink');
+
+  new(this.wire, this.assetKey);
+
+  /// The exact string used on the wire.
+  final String wire;
+
+  /// The frame's bag code and `assetKey`.
+  final String assetKey;
+
+  static HostFrameStyle? fromWire(String? wire) =>
+      values.where((s) => s.wire == wire).firstOrNull;
+}
+
+/// `HostFrameItem`: the `HOST_ACTIVE` frame the caller owns now.
+@freezed
+abstract class HostFrameItem with _$HostFrameItem {
+  const factory({
+    required String code,
+    required String assetKey,
+    required bool equipped,
+  }) = _HostFrameItem;
+
+  factory fromJson(Map<String, dynamic> json) => _$HostFrameItemFromJson(json);
+}
+
+/// `HostFrame` (`GET /me/host-frame`, v1.55-social, D186, §10.49): the
+/// caller's active-host frame — whether they are an agency host and active
+/// now, the style ([style] null until a host without a stated gender
+/// chooses), whether they choose ([canChoose]) and the frame owned now.
+@freezed
+abstract class HostFrame with _$HostFrame {
+  const factory({
+    required bool agencyHost,
+    required bool active,
+    required int liveDays,
+    required int liveSeconds,
+    required bool canChoose,
+    String? style,
+    String? styleFrom,
+    HostFrameItem? frame,
+  }) = _HostFrame;
+
+  const new _();
+
+  factory fromJson(Map<String, dynamic> json) => _$HostFrameFromJson(json);
+
+  /// The style as the app knows it.
+  HostFrameStyle? get styleValue => HostFrameStyle.fromWire(style);
+
+  /// An active host who picks the colour and has not yet: the bag asks.
+  bool get needsChoice => active && canChoose && styleValue == null;
 }

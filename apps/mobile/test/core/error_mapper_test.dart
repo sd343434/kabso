@@ -99,6 +99,7 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.rechargeCherryRequestPending: 409,
   ErrorCode.rechargeCherryRequestClosed: 409,
   ErrorCode.rechargeCherryCapReached: 409,
+  ErrorCode.hostFrameStyleFromGender: 409,
 };
 
 DioException _badResponse(
@@ -223,6 +224,8 @@ void main() {
           'RECHARGE_CHERRY_REQUEST_PENDING',
           'RECHARGE_CHERRY_REQUEST_CLOSED',
           'RECHARGE_CHERRY_CAP_REACHED',
+          // v1.55-social (D186).
+          'HOST_FRAME_STYLE_FROM_GENDER',
         ]),
       );
       expect(ErrorCode.networkOffline.wire, 'NETWORK_OFFLINE');
