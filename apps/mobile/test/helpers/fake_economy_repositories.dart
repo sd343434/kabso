@@ -28,6 +28,7 @@ CherryWallet testCherryWallet({
   int cherries = 12500000,
   int held = 0,
   CherryWithdrawal? pending,
+  int lockedTask = 0,
 }) => CherryWallet(
   cherries: cherries,
   valueMinor: testPayout.valueOf(cherries),
@@ -38,6 +39,9 @@ CherryWallet testCherryWallet({
   commissionTotal: 75,
   payout: testPayout,
   pendingWithdrawal: pending,
+  taskRewardTotal: lockedTask,
+  lockedTaskCherries: lockedTask,
+  taskUnlocked: lockedTask == 0,
 );
 
 CherryWithdrawal testWithdrawal(

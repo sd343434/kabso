@@ -20,6 +20,9 @@ enum CherryLedgerReason {
   parentCommissionReversal('PARENT_COMMISSION_REVERSAL'),
   withdrawalHold('WITHDRAWAL_HOLD'),
   withdrawalRefund('WITHDRAWAL_REFUND'),
+
+  /// v1.53-social (D184): a Task Center reward.
+  taskReward('TASK_REWARD'),
   other('');
 
   new(this.wire);
@@ -126,7 +129,15 @@ final class CherryWallet {
     required this.commissionTotal,
     required this.payout,
     this.pendingWithdrawal,
-  });
+    this.taskRewardTotal = 0,
+    this.lockedTaskCherries = 0,
+    int? withdrawableCherries,
+    this.taskUnlocked = true,
+  }) : withdrawableCherries =
+           withdrawableCherries ??
+           (cherries - lockedTaskCherries < 0
+               ? 0
+               : cherries - lockedTaskCherries);
 
   factory fromJson(Map<String, dynamic> json) => CherryWallet(
     cherries: _int(json['cherries']),
@@ -136,6 +147,16 @@ final class CherryWallet {
     earnedLast7Days: _int(json['earnedLast7Days']),
     earnedLast30Days: _int(json['earnedLast30Days']),
     commissionTotal: _int(json['commissionTotal']),
+    taskRewardTotal: _int(json['taskRewardTotal']),
+    lockedTaskCherries: _int(json['lockedTaskCherries']),
+    // A server before v1.53-social: everything is withdrawable.
+    withdrawableCherries: json['withdrawableCherries'] == null
+        ? null
+        : _int(json['withdrawableCherries']),
+    taskUnlocked: switch (json['taskUnlock']) {
+      final Map<String, dynamic> u => u['unlocked'] != false,
+      _ => true,
+    },
     payout: CherryPayoutRules.fromJson(json['payout']! as Map<String, dynamic>),
     pendingWithdrawal: json['pendingWithdrawal'] == null
         ? null
@@ -154,6 +175,19 @@ final class CherryWallet {
   final int commissionTotal;
   final CherryPayoutRules payout;
   final CherryWithdrawal? pendingWithdrawal;
+
+  /// v1.53-social (D184): Task Center rewards, all time.
+  final int taskRewardTotal;
+
+  /// v1.53-social (D184, CONVENTIONS §10.46.1): task cherries not
+  /// withdrawable yet (0 once the unlock rule passed).
+  final int lockedTaskCherries;
+
+  /// What a withdrawal may take now: [cherries] less [lockedTaskCherries].
+  final int withdrawableCherries;
+
+  /// The unlock rule for task cherries passed (the owner's rule; pending).
+  final bool taskUnlocked;
 }
 
 /// The gift of a `GIFT_RECEIVED` / `GIFT_REVERSAL` row.

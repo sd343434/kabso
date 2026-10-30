@@ -8305,19 +8305,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get tasksLoadError => 'تعذّر تحميل المهام';
 
   @override
-  String get tasksTabActive => 'المهام النشطة';
-
-  @override
-  String get tasksTabDiamond => 'مهام الماس';
-
-  @override
-  String get tasksDiamondSoonTitle => 'مهام الماس قريباً';
-
-  @override
-  String get tasksDiamondSoonBody =>
-      'لم تُطلق مهام الماس بعد. ستظهر هنا عندما يطلقها فريق كبسو.';
-
-  @override
   String get tasksCheckInCalendar => 'التقويم';
 
   @override
@@ -8370,7 +8357,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String tasksDailyCap(String earned, String cap) {
-    return 'مكافآت اليوم: $earned من $cap عملة';
+    return 'مكافآت اليوم: $earned من $cap كرزة';
   }
 
   @override
@@ -8404,6 +8391,11 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get tasksNoCoinsCap => 'تم التسجيل — بلغت حدّ مكافآت اليوم';
+
+  @override
+  String tasksRewardReceivedCherries(String cherries) {
+    return 'حصلت على $cherries كرزة';
+  }
 
   @override
   String get tasksCapReached => 'بلغت حدّ مكافآت المهام لهذا اليوم';
@@ -8904,6 +8896,14 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get cherryReasonRefund => 'رُفض السحب: أُعيدت الكرزات';
+
+  @override
+  String get cherryReasonTask => 'مكافأة مهمة';
+
+  @override
+  String cherryTaskLocked(String cherries) {
+    return '$cherries كرزة من المهام مقفلة — تُفتح للسحب بعد تحقيق شرط الأرباح';
+  }
 
   @override
   String get cherryReasonOther => 'تغيير في الكرز';

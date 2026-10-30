@@ -195,6 +195,67 @@ void main() {
       expect(find.byKey(WalletCherryTab.pendingKey), findsOneWidget);
     });
 
+    // D184 (CONVENTIONS §10.46.1): task cherries wait for the owner's
+    // earnings condition; the tab says so and the sheet offers only the rest.
+    testWidgets('locked task cherries: the line on the card, the history '
+        'row, and the sheet limits the request to the withdrawable part', (
+      tester,
+    ) async {
+      final cherries = FakeCherryRepository(
+        wallet: testCherryWallet(lockedTask: 3500000),
+        entries: [
+          CherryLedgerEntry(
+            id: 't1',
+            reason: CherryLedgerReason.taskReward,
+            delta: 500,
+            balanceAfter: 12500000,
+            createdAt: economyAt,
+          ),
+          ...testCherryLedger(),
+        ],
+      );
+      await _pump(tester, AppRoutes.walletCherries, cherries: cherries);
+      expect(
+        tester.widget<Text>(find.byKey(WalletCherryTab.lockedKey)).data,
+        _en.cherryTaskLocked(_iso('3,500,000')),
+      );
+      await tester.scrollUntilVisible(
+        find.byKey(WalletCherryTab.entryKey('t1')),
+        100,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(WalletCherryTab.entryKey('t1')),
+          matching: find.text(_en.cherryReasonTask),
+        ),
+        findsOneWidget,
+      );
+      await _openSheet(tester);
+      expect(find.text(_en.cherryTaskLocked(_iso('3,500,000'))), findsWidgets);
+      // 12 500 000 − 3 500 000 = 9 000 000 withdrawable = $9.90: $10 is short.
+      await tester.enterText(find.byKey(CherryWithdrawSheet.amountKey), '10');
+      await tester.enterText(
+        find.byKey(CherryWithdrawSheet.detailsKey),
+        'Bank: IBAN SA00 TEST',
+      );
+      await tester.pump();
+      expect(
+        find.text(_en.withdrawAmountShort(_iso(r'$9.90'))),
+        findsOneWidget,
+      );
+      expect(
+        tester
+            .widget<KButton>(find.byKey(CherryWithdrawSheet.submitKey))
+            .onPressed,
+        isNull,
+      );
+    });
+
+    testWidgets('no locked task cherries: no lock line', (tester) async {
+      await _pump(tester, AppRoutes.walletCherries);
+      expect(find.byKey(WalletCherryTab.lockedKey), findsNothing);
+    });
+
     testWidgets('a refusal is shown in the sheet; a retry keeps its key', (
       tester,
     ) async {

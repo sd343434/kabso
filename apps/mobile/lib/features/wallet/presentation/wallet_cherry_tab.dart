@@ -42,6 +42,9 @@ abstract final class WalletCherryTab {
   static const pendingKey = Key('cherries.pending');
   static const emptyKey = Key('earnings.empty');
 
+  /// D184: the task cherries still locked for withdrawal.
+  static const lockedKey = Key('cherries.taskLocked');
+
   static Key entryKey(String id) => Key('earnings.entry.$id');
   static Key withdrawalKey(String id) => Key('cherries.withdrawal.$id');
 
@@ -114,6 +117,11 @@ abstract final class WalletCherryTab {
     final held = w == null || w.heldCherries == 0
         ? null
         : l10n.cherryHeld(KFormat.bidiIsolate(n(w.heldCherries)));
+    // D184 (CONVENTIONS §10.46.1): task cherries wait for the owner's
+    // earnings condition before they can be withdrawn.
+    final locked = w == null || w.lockedTaskCherries <= 0
+        ? null
+        : l10n.cherryTaskLocked(KFormat.bidiIsolate(n(w.lockedTaskCherries)));
 
     return Semantics(
       key: totalKey,
@@ -129,6 +137,7 @@ abstract final class WalletCherryTab {
           if (w != null) l10n.walletCherries(n(w.cherries)),
           ?value,
           ?held,
+          ?locked,
         ].join(': '),
         tint: KBrandColors.red400,
         tintStrength: 0.22,
@@ -142,6 +151,28 @@ abstract final class WalletCherryTab {
                   [value, ?held].join(' · '),
                   key: valueKey,
                   style: t.label.copyWith(color: p.textSecondary),
+                ),
+              ),
+            if (locked != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: KSpacing.sm),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.lock_clock_rounded,
+                      size: 16,
+                      color: p.textSecondary,
+                    ),
+                    const SizedBox(width: KSpacing.xs),
+                    Expanded(
+                      child: Text(
+                        locked,
+                        key: lockedKey,
+                        style: t.caption.copyWith(color: p.textSecondary),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             Row(
@@ -417,6 +448,7 @@ class _CherryTile extends StatelessWidget {
           l10n.cherryReasonCommissionReversal,
         CherryLedgerReason.withdrawalHold => l10n.cherryReasonWithdrawal,
         CherryLedgerReason.withdrawalRefund => l10n.cherryReasonRefund,
+        CherryLedgerReason.taskReward => l10n.cherryReasonTask,
         CherryLedgerReason.other => l10n.cherryReasonOther,
       };
 
@@ -429,6 +461,7 @@ class _CherryTile extends StatelessWidget {
     CherryLedgerReason.parentCommissionReversal => Icons.groups_rounded,
     CherryLedgerReason.withdrawalHold ||
     CherryLedgerReason.withdrawalRefund => Icons.account_balance_rounded,
+    CherryLedgerReason.taskReward => Icons.task_alt_rounded,
     CherryLedgerReason.other => Icons.swap_vert_rounded,
   };
 

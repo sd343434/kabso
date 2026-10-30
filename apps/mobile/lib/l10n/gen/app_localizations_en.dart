@@ -8280,19 +8280,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tasksLoadError => 'Couldn\'t load the tasks';
 
   @override
-  String get tasksTabActive => 'Active tasks';
-
-  @override
-  String get tasksTabDiamond => 'Diamond missions';
-
-  @override
-  String get tasksDiamondSoonTitle => 'Diamond missions are coming soon';
-
-  @override
-  String get tasksDiamondSoonBody =>
-      'Diamond missions haven\'t launched yet. They\'ll show up here when the Kabso team launches them.';
-
-  @override
   String get tasksCheckInCalendar => 'Calendar';
 
   @override
@@ -8343,7 +8330,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String tasksDailyCap(String earned, String cap) {
-    return 'Today\'s rewards: $earned of $cap coins';
+    return 'Today\'s rewards: $earned of $cap cherries';
   }
 
   @override
@@ -8378,6 +8365,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tasksNoCoinsCap => 'Done — you reached today\'s reward limit';
+
+  @override
+  String tasksRewardReceivedCherries(String cherries) {
+    return 'You got $cherries cherries';
+  }
 
   @override
   String get tasksCapReached => 'You reached today\'s task reward limit';
@@ -8875,6 +8867,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cherryReasonRefund => 'Withdrawal refused: cherries returned';
+
+  @override
+  String get cherryReasonTask => 'Task reward';
+
+  @override
+  String cherryTaskLocked(String cherries) {
+    return '$cherries cherries from tasks are locked — they unlock for withdrawal once the earnings condition is met';
+  }
 
   @override
   String get cherryReasonOther => 'Cherry change';

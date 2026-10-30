@@ -128,13 +128,14 @@ class _CherryWithdrawSheetState extends ConsumerState<CherryWithdrawSheet> {
         KFormat.bidiIsolate(formatPrice(minor, rules.currency));
     final minor = parseAmountMinor(_amount.text);
     final need = minor == null ? null : rules.cherriesFor(minor);
-    final maxMinor = rules.valueOf(w.cherries);
+    // D184: locked task cherries are not withdrawable.
+    final maxMinor = rules.valueOf(w.withdrawableCherries);
     final amountError = switch (minor) {
       null when _amount.text.trim().isNotEmpty => l10n.withdrawAmountInvalid,
       final m? when m < rules.minAmountMinor => l10n.withdrawAmountMin(
         money(rules.minAmountMinor),
       ),
-      final m? when rules.cherriesFor(m) > w.cherries =>
+      final m? when rules.cherriesFor(m) > w.withdrawableCherries =>
         l10n.withdrawAmountShort(money(maxMinor)),
       _ => null,
     };
@@ -187,6 +188,15 @@ class _CherryWithdrawSheetState extends ConsumerState<CherryWithdrawSheet> {
                 ),
               ],
             ),
+            if (w.lockedTaskCherries > 0) ...[
+              const SizedBox(height: KSpacing.xxs),
+              Text(
+                l10n.cherryTaskLocked(
+                  KFormat.bidiIsolate(KFormat.grouped(w.lockedTaskCherries)),
+                ),
+                style: t.caption.copyWith(color: p.textSecondary),
+              ),
+            ],
             const SizedBox(height: KSpacing.xxs),
             Text(
               l10n.withdrawRate(

@@ -14,18 +14,20 @@ import 'package:kabso_live/features/live/presentation/hub/home_banner_carousel.d
 import 'package:kabso_live/features/programs/application/programs_providers.dart';
 import 'package:kabso_live/features/programs/data/programs_repository.dart';
 import 'package:kabso_live/features/programs/presentation/program_parts.dart';
+import 'package:kabso_live/features/wallet/application/wallet_providers.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// `/tasks` (D166, D176): the Task Center «مركز المهام» in the layout of the
-/// owner's reference (D176) with Kabso's colours and icons — two tabs
-/// («المهام النشطة», «مهام الماس» not launched yet), a warm page, the
-/// sign-in rewards card (a 7-day strip, today first, the 7th day the bonus,
-/// and the check-in pill), the task rewards card (today's tasks from the
-/// daily pool, each «اذهب» → «استلم» → «تم»), the weekly host tasks for
-/// hosts and the team's banners at the bottom (hidden when none). Progress,
-/// targets and coins come from the server (`GET /me/tasks`); rewards are
-/// coins only (owner 2026-10-30).
+/// `/tasks` (D166, D176, D184): the Task Center «مركز المهام» in the layout
+/// of the owner's reference (D176) with Kabso's colours and icons — only the
+/// active tasks (D184, owner: the «مهام الماس» tab and the tab bar are gone),
+/// a warm page, the sign-in rewards card (a 7-day strip, today first, the 7th
+/// day the bonus, and the check-in pill; it pays coins), the task rewards
+/// card (today's tasks from the daily pool, each «اذهب» → «استلم» → «تم»), the
+/// weekly host tasks for hosts and the team's banners at the bottom (hidden
+/// when none). Progress, targets and rewards come from the server
+/// (`GET /me/tasks`); task rewards are cherries since v1.53-social (D184:
+/// the cherry icon and «+N» on each row and in the claim feedback).
 class TaskCenterScreen extends ConsumerStatefulWidget {
   const new({super.key});
 
@@ -37,10 +39,15 @@ class TaskCenterScreen extends ConsumerStatefulWidget {
   static const rewardsKey = Key('tasks.rewards');
   static const weeklyKey = Key('tasks.weekly');
   static const emptyKey = Key('tasks.empty');
-  static const diamondKey = Key('tasks.diamond');
+
+  /// D184: the claim feedback's «+N» cherries.
+  static const claimFeedbackKey = Key('tasks.claimFeedback');
   static const bannerKey = Key('tasks.banner');
 
   static Key taskKey(String code) => Key('tasks.task.$code');
+
+  /// D184: a task row's «+N» cherries.
+  static Key rewardAmountKey(String code) => Key('tasks.reward.$code');
   static Key actionKey(String code) => Key('tasks.action.$code');
   static Key dayKey(int index) => Key('tasks.day.$index');
 
@@ -72,7 +79,6 @@ Color taskPageColor(BuildContext context) {
 }
 
 class _TaskCenterScreenState extends ConsumerState<TaskCenterScreen> {
-  int _tab = 0;
   final Set<String> _busy = {};
 
   Future<void> _refresh() async {
@@ -93,12 +99,30 @@ class _TaskCenterScreenState extends ConsumerState<TaskCenterScreen> {
     try {
       final payout = await call();
       if (!mounted) return;
-      KSnack.success(
-        context,
-        payout.paidCoins > 0
-            ? l10n.tasksRewardReceived(KFormat.grouped(payout.paidCoins))
-            : l10n.tasksNoCoinsCap,
-      );
+      if (payout.paidCherries > 0) {
+        // D184: task rewards are cherries — the cherry icon and «+N».
+        KSnack.success(
+          context,
+          l10n.tasksRewardReceivedCherries(
+            KFormat.grouped(payout.paidCherries),
+          ),
+          leading: TaskCherryAmount(
+            payout.paidCherries,
+            key: TaskCenterScreen.claimFeedbackKey,
+            size: 18,
+          ),
+        );
+        ref
+          ..invalidate(myCherriesProvider)
+          ..invalidate(cherryLedgerProvider);
+      } else {
+        KSnack.success(
+          context,
+          payout.paidCoins > 0
+              ? l10n.tasksRewardReceived(KFormat.grouped(payout.paidCoins))
+              : l10n.tasksNoCoinsCap,
+        );
+      }
       ref.invalidate(liveCoinsProvider);
     } on Object catch (e) {
       if (!mounted) return;
@@ -159,67 +183,62 @@ class _TaskCenterScreenState extends ConsumerState<TaskCenterScreen> {
     final tasks = ref.watch(myTasksProvider);
     final repo = ref.read(programsRepositoryProvider);
 
-    final List<Widget> body;
-    if (_tab == 1) {
-      body = [
-        KEmptyState(
-          key: TaskCenterScreen.diamondKey,
-          icon: Icons.diamond_rounded,
-          title: l10n.tasksDiamondSoonTitle,
-          message: l10n.tasksDiamondSoonBody,
-          compact: true,
+    // D184: the cherry cap (an older server: the coin cap).
+    String capCaption(MyTasks v) => v.dailyCapCherries > 0
+        ? l10n.tasksDailyCap(
+            KFormat.grouped(v.dailyEarnedCherries),
+            KFormat.grouped(v.dailyCapCherries),
+          )
+        : l10n.tasksDailyCap(
+            KFormat.grouped(v.dailyEarnedCoins),
+            KFormat.grouped(v.dailyCapCoins),
+          );
+
+    final body = switch (tasks) {
+      AsyncValue(:final value?) => <Widget>[
+        _CheckInCard(
+          state: value.checkIn,
+          busy: _busy.contains('check-in'),
+          onCheckIn: () => unawaited(_run('check-in', repo.checkIn)),
+          onCalendar: () => _openCalendar(value.checkIn),
         ),
-      ];
-    } else {
-      body = switch (tasks) {
-        AsyncValue(:final value?) => [
-          _CheckInCard(
-            state: value.checkIn,
-            busy: _busy.contains('check-in'),
-            onCheckIn: () => unawaited(_run('check-in', repo.checkIn)),
-            onCalendar: () => _openCalendar(value.checkIn),
-          ),
+        _RewardsCard(
+          key: TaskCenterScreen.rewardsKey,
+          title: l10n.tasksRewardsTitle,
+          caption: capCaption(value),
+          captionKey: TaskCenterScreen.capKey,
+          tasks: value.daily,
+          busy: _busy,
+          onGo: _go,
+          onClaim: (code) => unawaited(_run(code, () => repo.claim(code))),
+        ),
+        if (value.weekly.isNotEmpty)
           _RewardsCard(
-            key: TaskCenterScreen.rewardsKey,
-            title: l10n.tasksRewardsTitle,
-            caption: l10n.tasksDailyCap(
-              '${value.dailyEarnedCoins}',
-              '${value.dailyCapCoins}',
-            ),
-            captionKey: TaskCenterScreen.capKey,
-            tasks: value.daily,
+            key: TaskCenterScreen.weeklyKey,
+            title: l10n.tasksWeeklyTitle,
+            caption: l10n.tasksWeeklyHint,
+            tasks: value.weekly,
             busy: _busy,
             onGo: _go,
             onClaim: (code) => unawaited(_run(code, () => repo.claim(code))),
           ),
-          if (value.weekly.isNotEmpty)
-            _RewardsCard(
-              key: TaskCenterScreen.weeklyKey,
-              title: l10n.tasksWeeklyTitle,
-              caption: l10n.tasksWeeklyHint,
-              tasks: value.weekly,
-              busy: _busy,
-              onGo: _go,
-              onClaim: (code) => unawaited(_run(code, () => repo.claim(code))),
-            ),
-          const _TaskBanners(),
-        ],
-        AsyncValue(:final error?, isLoading: false) => [
-          FailureErrorState(
-            title: l10n.tasksLoadError,
-            failure: toAppFailure(error),
-            onRetry: () => ref.invalidate(myTasksProvider),
-            compact: true,
-          ),
-        ],
-        _ => [
-          const Padding(
-            padding: EdgeInsets.all(KSpacing.xxl),
-            child: Center(child: CircularProgressIndicator()),
-          ),
-        ],
-      };
-    }
+        const _TaskBanners(),
+      ],
+      AsyncValue(:final error?, isLoading: false) => [
+        FailureErrorState(
+          title: l10n.tasksLoadError,
+          failure: toAppFailure(error),
+          onRetry: () => ref.invalidate(myTasksProvider),
+          compact: true,
+        ),
+      ],
+      _ => [
+        const Padding(
+          padding: EdgeInsets.all(KSpacing.xxl),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      ],
+    };
 
     return Scaffold(
       backgroundColor: taskPageColor(context),
@@ -231,19 +250,16 @@ class _TaskCenterScreenState extends ConsumerState<TaskCenterScreen> {
       ),
       body: Column(
         children: [
-          // The white header ends in a soft lip over the warm page.
+          // D184: no tab bar any more — the white header still ends in a
+          // soft lip over the warm page.
           Container(
             width: double.infinity,
+            height: KRadius.md,
             decoration: BoxDecoration(
               color: p.background,
               borderRadius: const BorderRadius.vertical(
                 bottom: Radius.circular(KRadius.md),
               ),
-            ),
-            child: KPrimaryTabs(
-              labels: [l10n.tasksTabActive, l10n.tasksTabDiamond],
-              selectedIndex: _tab,
-              onSelected: (i) => setState(() => _tab = i),
             ),
           ),
           Expanded(
@@ -796,8 +812,8 @@ class _RewardsCard extends StatelessWidget {
   }
 }
 
-/// One task: the tinted icon tile, «name (x/y)» in bold, «+N» coins and the
-/// pill («اذهب», «استلم» or «تم»).
+/// One task: the tinted icon tile, «name (x/y)» in bold, «+N» cherries (D184)
+/// and the pill («اذهب», «استلم» or «تم»).
 class _TaskRow extends StatelessWidget {
   const new({
     required this.task,
@@ -865,7 +881,7 @@ class _TaskRow extends StatelessWidget {
     } else {
       action = TaskPill(key: key, label: l10n.tasksActionGo, onPressed: onGo);
     }
-    final coins = task.claimedCoins ?? task.rewardCoins;
+    final amount = task.shownReward;
     return ConstrainedBox(
       key: TaskCenterScreen.taskKey(task.code),
       constraints: const BoxConstraints(minHeight: TaskCenterScreen.rowPitch),
@@ -903,18 +919,31 @@ class _TaskRow extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 3),
+                  // D184: cherries (a claim made in coins before keeps its
+                  // coin).
                   Semantics(
-                    label: l10n.meHubCoins('$coins'),
+                    label: task.inCoins
+                        ? l10n.meHubCoins('$amount')
+                        : l10n.walletCherries(KFormat.grouped(amount)),
                     excludeSemantics: true,
-                    child: CoinAmount(
-                      coins,
-                      prefix: '+',
-                      size: 15,
-                      style: t.label.copyWith(
-                        color: programGold(context),
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                    child: task.inCoins
+                        ? CoinAmount(
+                            amount,
+                            prefix: '+',
+                            size: 15,
+                            style: t.label.copyWith(
+                              color: programGold(context),
+                              fontWeight: FontWeight.w700,
+                            ),
+                          )
+                        : TaskCherryAmount(
+                            amount,
+                            key: TaskCenterScreen.rewardAmountKey(task.code),
+                            style: t.label.copyWith(
+                              color: KBrandColors.red500,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                   ),
                 ],
               ),
@@ -1031,4 +1060,31 @@ class _CheckInCalendarSheet extends StatelessWidget {
       ),
     );
   }
+}
+
+/// D184: «+N» with the cherry (`KCherryIcon`), Latin digits — a task's reward.
+class TaskCherryAmount extends StatelessWidget {
+  const new(this.cherries, {super.key, this.size = 15, this.style});
+
+  final int cherries;
+  final double size;
+  final TextStyle? style;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      KCherryIcon(size: size),
+      const SizedBox(width: KSpacing.xxs),
+      Text(
+        '+${KFormat.grouped(cherries)}',
+        textDirection: TextDirection.ltr,
+        // In a snack bar: the bar's own text colour.
+        style:
+            style ??
+            DefaultTextStyle.of(context).style
+                .copyWith(fontWeight: FontWeight.w700),
+      ),
+    ],
+  );
 }

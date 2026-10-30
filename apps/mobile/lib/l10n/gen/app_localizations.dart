@@ -14298,30 +14298,6 @@ abstract class AppLocalizations {
   /// **'تعذّر تحميل المهام'**
   String get tasksLoadError;
 
-  /// D176: the Task Center tab with the day's tasks and the sign-in rewards.
-  ///
-  /// In ar, this message translates to:
-  /// **'المهام النشطة'**
-  String get tasksTabActive;
-
-  /// D176: the Task Center tab not launched yet («قريباً»).
-  ///
-  /// In ar, this message translates to:
-  /// **'مهام الماس'**
-  String get tasksTabDiamond;
-
-  /// D176: the Diamond missions tab (no reference or rules yet).
-  ///
-  /// In ar, this message translates to:
-  /// **'مهام الماس قريباً'**
-  String get tasksDiamondSoonTitle;
-
-  /// D176: the Diamond missions tab body.
-  ///
-  /// In ar, this message translates to:
-  /// **'لم تُطلق مهام الماس بعد. ستظهر هنا عندما يطلقها فريق كبسو.'**
-  String get tasksDiamondSoonBody;
-
   /// D176: the sign-in card's link to the 7-day calendar sheet.
   ///
   /// In ar, this message translates to:
@@ -14388,10 +14364,10 @@ abstract class AppLocalizations {
   /// **'اليوم'**
   String get tasksToday;
 
-  /// D166: the daily cap of task and check-in coins.
+  /// D166; D184: the daily cap of task cherries (task rewards are cherries).
   ///
   /// In ar, this message translates to:
-  /// **'مكافآت اليوم: {earned} من {cap} عملة'**
+  /// **'مكافآت اليوم: {earned} من {cap} كرزة'**
   String tasksDailyCap(String earned, String cap);
 
   /// D166: the daily task list.
@@ -14453,6 +14429,12 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'تم التسجيل — بلغت حدّ مكافآت اليوم'**
   String get tasksNoCoinsCap;
+
+  /// D184: a task claim paid cherries.
+  ///
+  /// In ar, this message translates to:
+  /// **'حصلت على {cherries} كرزة'**
+  String tasksRewardReceivedCherries(String cherries);
 
   /// D166: TASK_DAILY_CAP_REACHED.
   ///
@@ -15257,6 +15239,18 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'رُفض السحب: أُعيدت الكرزات'**
   String get cherryReasonRefund;
+
+  /// D184: a TASK_REWARD row of the cherry history (a Task Center reward).
+  ///
+  /// In ar, this message translates to:
+  /// **'مكافأة مهمة'**
+  String get cherryReasonTask;
+
+  /// D184: task cherries not withdrawable yet (the owner's earnings condition, wording may change).
+  ///
+  /// In ar, this message translates to:
+  /// **'{cherries} كرزة من المهام مقفلة — تُفتح للسحب بعد تحقيق شرط الأرباح'**
+  String cherryTaskLocked(String cherries);
 
   /// No description provided for @cherryReasonOther.
   ///
