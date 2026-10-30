@@ -92,6 +92,14 @@ abstract final class KLevelArt {
   static String supportFrame(int tier) =>
       'assets/levels/support_frames/support_frame_${_nn(tier.clamp(1, supportFrames))}.webp';
 
+  /// How much larger a category's emblem must be drawn to look as big as
+  /// the others (D169, owner: «شارة الدعم أصغر من باقي الشارات»): the
+  /// support badges are wide winged shields whose visible height is 60–75 %
+  /// of their square (the pack's emblems: 75–95 %), so they are scaled by
+  /// the ratio of the mean visible heights (0.86 / 0.69 ≈ 1.25).
+  static double visualScale(LevelCategory category) =>
+      category == LevelCategory.support ? 1.25 : 1;
+
   /// Width ÷ height of each support pill image (96 px high).
   static const List<double> supportPillAspect = [
     208 / 96, 209 / 96, 210 / 96, 208 / 96, 208 / 96, 195 / 96, 192 / 96, //

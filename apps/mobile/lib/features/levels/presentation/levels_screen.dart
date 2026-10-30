@@ -15,13 +15,11 @@ abstract final class KLevels {
   /// Side inset of the page (16 lp: a 398-lp card on a 430-lp phone).
   static const double side = KSpacing.lg;
 
-  /// The category tab bar: its height, the badge in each tab and the
-  /// selected tab's underline (D169, owner: four side by side, never
-  /// wrapping).
-  static const double tabBarHeight = 64;
+  /// The category tab bar: its height and the badge in each tab (D169,
+  /// owner: four side by side, never wrapping; no underline — the selected
+  /// name is Kabso red).
+  static const double tabBarHeight = 60;
   static const double tabBadge = 26;
-  static const double tabIndicatorWidth = 28;
-  static const double tabIndicatorHeight = 3;
 }
 
 /// The levels page (D72, CP-005; D169 after the owner's feedback «هذه
@@ -161,8 +159,8 @@ class _LevelsScreenState extends ConsumerState<LevelsScreen> {
 
 /// The four categories side by side, equal widths, never wrapping: each
 /// tab is the category's current badge over a short name (scaled down
-/// rather than wrapped at large text), the selected one in Kabso red with
-/// an underline. Order follows the reading direction.
+/// rather than wrapped at large text), the selected one in Kabso red.
+/// Order follows the reading direction.
 class _CategoryTabBar extends StatelessWidget {
   const new({
     required this.summaries,
@@ -243,13 +241,22 @@ class _CategoryTab extends StatelessWidget {
             horizontal: KSpacing.xxs,
           ),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.end,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              KLevelEmblem(
-                category: s.category,
-                tier: tier,
-                size: KLevels.tabBadge,
-                dimmed: !s.available,
+              // Every badge at the same visible size: the wide support
+              // badges are drawn larger, overflowing their box.
+              SizedBox.square(
+                dimension: KLevels.tabBadge,
+                child: OverflowBox(
+                  maxWidth: KLevels.tabBadge * 2,
+                  maxHeight: KLevels.tabBadge * 2,
+                  child: KLevelEmblem(
+                    category: s.category,
+                    tier: tier,
+                    size: KLevels.tabBadge * KLevelArt.visualScale(s.category),
+                    dimmed: !s.available,
+                  ),
+                ),
               ),
               const SizedBox(height: KSpacing.xxs),
               SizedBox(
@@ -266,16 +273,6 @@ class _CategoryTab extends StatelessWidget {
                       fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(height: KSpacing.xxs),
-              AnimatedContainer(
-                duration: KMotion.of(context, KMotion.fast),
-                width: KLevels.tabIndicatorWidth,
-                height: KLevels.tabIndicatorHeight,
-                decoration: BoxDecoration(
-                  color: selected ? p.primary : Colors.transparent,
-                  borderRadius: BorderRadius.circular(KRadius.pill),
                 ),
               ),
             ],
