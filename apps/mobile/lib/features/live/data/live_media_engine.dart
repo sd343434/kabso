@@ -252,6 +252,10 @@ abstract interface class LiveMediaEngine implements LiveVoiceMic {
   /// it on return. Nothing without a camera.
   Future<void> setVideoPaused({required bool paused});
 
+  /// D174a: whether the published camera is paused now (a seated guest
+  /// turned it off, or the app is in the background).
+  bool get videoPaused;
+
   /// Joins the room's media session with [access] and publishes what is
   /// running (camera and microphone, or the microphone alone).
   Future<void> publish(LiveMediaAccess access);
@@ -783,6 +787,9 @@ class LiveKitMediaEngine implements LiveMediaEngine {
       await audio.mute();
     }
   }
+
+  @override
+  bool get videoPaused => _video?.muted ?? false;
 
   @override
   Future<void> setVideoPaused({required bool paused}) async {

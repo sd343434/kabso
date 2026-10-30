@@ -8527,6 +8527,22 @@
   "@videoUnmute": {"description": "D162: the inline player."},
   "videoCannotPlay": "لا يمكن تشغيل هذا الفيديو الآن",
   "@videoCannotPlay": {"description": "D162: the inline player failed."},
+  "liveGuestCamera": "الكاميرا",
+  "@liveGuestCamera": {
+    "description": "D174a: a seated guest's own camera toggle on the viewer bar (camera on)."
+  },
+  "liveGuestCameraOff": "الكاميرا مطفأة",
+  "@liveGuestCameraOff": {
+    "description": "D174a: the same toggle while the guest's camera is off (the others see their picture)."
+  },
+  "liveMiniOpen": "العودة إلى البث",
+  "@liveMiniOpen": {
+    "description": "D181: a viewer's floating window of a minimized live (tap: open it again)."
+  },
+  "liveMiniLeave": "مغادرة البث",
+  "@liveMiniLeave": {
+    "description": "D181: ✕ on a viewer's floating window: leaves the live."
+  },
   "walletBalanceLabel": "رصيد الكوينز",
   "@walletBalanceLabel": {"description": "D164: the wallet's balance card."},
   "walletRecharge": "شحن",

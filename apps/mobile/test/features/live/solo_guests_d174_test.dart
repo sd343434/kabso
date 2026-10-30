@@ -58,6 +58,7 @@ Future<(FakeLiveRepository, FakeLiveMediaEngine)> _pump(
   AppLanguage language = AppLanguage.en,
   GoldenViewport viewport = GoldenViewport.phone,
   double textScale = 1,
+  bool publish = false,
 }) async {
   setViewport(tester, viewport);
   if (textScale != 1) {
@@ -66,7 +67,9 @@ Future<(FakeLiveRepository, FakeLiveMediaEngine)> _pump(
   }
   final repo = FakeLiveRepository(room: (id) => apiRoom(id: id))
     ..seatState = seats;
-  final engine = FakeLiveMediaEngine()..present.add('user-0');
+  final engine = FakeLiveMediaEngine()
+    ..present.add('user-0')
+    ..publishAllowed = publish;
   await tester.pumpWidget(const SizedBox.shrink());
   await pumpScreen(
     tester,
@@ -141,6 +144,132 @@ void main() {
     expect(find.text(l10nFor(AppLanguage.en).liveGuestsFull), findsOneWidget);
     expect(repo.seatCalls.where((c) => c.startsWith('requestSeat')), isEmpty);
     await tester.pump(const Duration(seconds: 5));
+    await _leave(tester);
+  });
+
+  // D174a (owner: «الضيوف في البث الفردي يمكن إقفال الكاميرا»).
+  for (final language in AppLanguage.values) {
+    testWidgets('seated guest: camera and mic toggles on the bar; camera off '
+        "shows my picture on my tile; the host's mute wins "
+        '(${language.name})', (tester) async {
+      final me = testUser();
+      final l10n = l10nFor(language);
+      final (_, engine) = await _pump(
+        tester,
+        seats: _solo(people: [me.id, null, null], mine: 1),
+        language: language,
+        publish: true,
+      );
+      expect(tester.takeException(), isNull);
+      final camera = find.byKey(LiveRoomScreen.guestCameraKey);
+      final mic = find.byKey(LiveRoomScreen.guestMicKey);
+      expect(camera, findsOneWidget);
+      expect(mic, findsOneWidget);
+      expect(find.bySemanticsLabel(l10n.liveGuestCamera), findsOneWidget);
+      final tile = find.byKey(LiveGuestTiles.tileKey(1));
+      final preview = find.descendant(
+        of: tile,
+        matching: find.byKey(FakeLiveMediaEngine.previewKey),
+      );
+      expect(preview, findsOneWidget);
+
+      await tester.tap(camera);
+      await tester.pumpAndSettle();
+      expect(engine.videoPauses, [true]);
+      expect(find.bySemanticsLabel(l10n.liveGuestCameraOff), findsOneWidget);
+      expect(preview, findsNothing);
+      await tester.tap(camera);
+      await tester.pumpAndSettle();
+      expect(engine.videoPauses, [true, false]);
+      expect(preview, findsOneWidget);
+
+      await tester.tap(mic);
+      await tester.pumpAndSettle();
+      expect(engine.micEnabled, isFalse);
+      expect(find.bySemanticsLabel(l10n.goLiveMicOff), findsOneWidget);
+      await tester.tap(mic);
+      await tester.pumpAndSettle();
+      expect(engine.micEnabled, isTrue);
+      await _leave(tester);
+    });
+  }
+
+  testWidgets('camera off stays off after the background; muted by the host '
+      'the mic stays off', (tester) async {
+    final me = testUser();
+    final (repo, engine) = await _pump(
+      tester,
+      seats: _solo(people: [me.id, null, null], mine: 1),
+      publish: true,
+    );
+    await tester.tap(find.byKey(LiveRoomScreen.guestCameraKey));
+    await tester.pumpAndSettle();
+    for (final s in [
+      AppLifecycleState.inactive,
+      AppLifecycleState.hidden,
+      AppLifecycleState.paused,
+      AppLifecycleState.hidden,
+      AppLifecycleState.inactive,
+      AppLifecycleState.resumed,
+    ]) {
+      tester.binding.handleAppLifecycleStateChanged(s);
+      await tester.pump();
+    }
+    await tester.pumpAndSettle();
+    expect(engine.videoPauses.last, isTrue);
+    await _leave(tester);
+
+    final (_, muted) = await _pump(
+      tester,
+      seats: _solo(people: [me.id, null, null], mine: 1).copyWith(
+        seats: [
+          LiveSeat(
+            index: 1,
+            state: LiveSeatState.taken,
+            user: _u(me.id),
+            mutedByHost: true,
+          ),
+          const LiveSeat(index: 2, state: LiveSeatState.empty, user: null),
+          const LiveSeat(index: 3, state: LiveSeatState.empty, user: null),
+        ],
+      ),
+    );
+    await muted.setMicEnabled(enabled: false);
+    await tester.tap(find.byKey(LiveRoomScreen.guestMicKey));
+    await tester.pump();
+    expect(muted.micEnabled, isFalse);
+    final l10n = l10nFor(AppLanguage.en);
+    expect(find.text(l10n.liveSeatMutedByHost), findsWidgets);
+    await tester.pump(const Duration(seconds: 5));
+    expect(repo.seatCalls, isNot(contains('muteSeat')));
+    await _leave(tester);
+  });
+
+  testWidgets("a viewer sees a guest's camera off as their picture", (
+    tester,
+  ) async {
+    final (_, engine) = await _pump(
+      tester,
+      seats: _solo(people: ['huda', null, null]),
+    );
+    final tile = find.byKey(LiveGuestTiles.tileKey(1));
+    final video = find.descendant(
+      of: tile,
+      matching: find.byKey(const Key('remote.huda')),
+    );
+    expect(video, findsNothing);
+    engine
+      ..present.add('huda')
+      ..ping();
+    await tester.pump();
+    expect(video, findsOneWidget);
+    // The guest pauses their camera: LiveKit reports no video for them.
+    engine
+      ..present.remove('huda')
+      ..ping();
+    await tester.pump();
+    expect(video, findsNothing);
+    expect(find.byKey(LiveRoomScreen.guestCameraKey), findsNothing);
     await _leave(tester);
   });
 

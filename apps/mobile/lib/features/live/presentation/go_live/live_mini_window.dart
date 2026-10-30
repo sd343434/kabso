@@ -8,6 +8,7 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/application/live_background.dart';
 import 'package:kabso_live/features/live/application/live_host_controller.dart';
+import 'package:kabso_live/features/live/application/live_room_session.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
@@ -23,10 +24,18 @@ class LiveMiniWindow extends ConsumerWidget {
   final GoRouter router;
 
   static const windowKey = Key('liveMini.window');
+  static const closeKey = Key('liveMini.close');
 
   void _open(WidgetRef ref) {
     ref.read(liveMinimizedProvider.notifier).restore();
     unawaited(router.push(AppRoutes.goLive));
+  }
+
+  /// D181: the viewer's room full screen again (its screen restores it).
+  void _openViewer(WidgetRef ref) {
+    final room = ref.read(liveViewerMinimizedProvider);
+    if (room == null) return;
+    unawaited(router.push(AppRoutes.liveRoom(room.id)));
   }
 
   @override
@@ -35,7 +44,24 @@ class LiveMiniWindow extends ConsumerWidget {
     ref.listen(liveBackgroundOpenRequestsProvider, (_, _) {
       if (ref.read(liveMinimizedProvider)) _open(ref);
     });
-    if (!ref.watch(liveMinimizedProvider)) return const SizedBox.shrink();
+    // D123: a tap on a guest's or listener's notification too (D181).
+    ref.listen(liveBackgroundOpenRequestsProvider, (_, _) {
+      if (!ref.read(liveMinimizedProvider)) _openViewer(ref);
+    });
+    if (!ref.watch(liveMinimizedProvider)) {
+      // D181: a viewer's (or seated guest's) minimized room.
+      final room = ref.watch(liveViewerMinimizedProvider);
+      if (room == null) return const SizedBox.shrink();
+      return Material(
+        type: MaterialType.transparency,
+        child: _Floating(
+          label: context.l10n.liveMiniOpen,
+          onOpen: () => _openViewer(ref),
+          onClose: () => ref.read(liveViewerMinimizedProvider.notifier).leave(),
+          child: _ViewerPicture(room: room),
+        ),
+      );
+    }
     final state = ref.watch(liveHostControllerProvider);
     if (state.phase != GoLivePhase.live && state.phase != GoLivePhase.ending) {
       // Over (ended elsewhere, e.g. by the server): nothing to float.
@@ -49,6 +75,7 @@ class LiveMiniWindow extends ConsumerWidget {
     return Material(
       type: MaterialType.transparency,
       child: _Floating(
+        label: context.l10n.goLiveBackToLive,
         onOpen: () => _open(ref),
         child: _Picture(state: state),
       ),
@@ -57,10 +84,20 @@ class LiveMiniWindow extends ConsumerWidget {
 }
 
 class _Floating extends StatefulWidget {
-  const new({required this.child, required this.onOpen});
+  const new({
+    required this.child,
+    required this.onOpen,
+    required this.label,
+    this.onClose,
+  });
 
   final Widget child;
   final VoidCallback onOpen;
+  final String label;
+
+  /// D181: a viewer's window has ✕ (leave the live); the host ends theirs
+  /// on the live screen.
+  final VoidCallback? onClose;
 
   static const size = Size(108, 156);
 
@@ -108,7 +145,7 @@ class _FloatingState extends State<_Floating> {
             onPanUpdate: (d) => setState(() => _at = clamp(start + d.delta)),
             child: Semantics(
               button: true,
-              label: context.l10n.goLiveBackToLive,
+              label: widget.label,
               excludeSemantics: true,
               child: Container(
                 width: size.width,
@@ -132,6 +169,36 @@ class _FloatingState extends State<_Floating> {
             ),
           ),
         ),
+        if (widget.onClose case final close?)
+          Positioned(
+            // ✕ at the window's top end corner, a 32 pt target.
+            left: rtl ? start.dx - 6 : start.dx + size.width - 26,
+            top: start.dy - 6,
+            child: Semantics(
+              button: true,
+              label: context.l10n.liveMiniLeave,
+              excludeSemantics: true,
+              child: GestureDetector(
+                key: LiveMiniWindow.closeKey,
+                behavior: HitTestBehavior.opaque,
+                onTap: close,
+                child: const SizedBox.square(
+                  dimension: 32,
+                  child: Center(
+                    child: CircleAvatar(
+                      radius: 11,
+                      backgroundColor: Color(0xE6000000),
+                      child: Icon(
+                        Icons.close_rounded,
+                        size: 14,
+                        color: Color(0xFFFFFFFF),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -240,4 +307,158 @@ class _PictureState extends ConsumerState<_Picture> {
       ],
     );
   }
+}
+
+/// D181: a viewer's minimized room — the host's video (video rooms), or the
+/// room's theme with the host's picture, ringing while they speak (audio).
+class _ViewerPicture extends ConsumerWidget {
+  const new({required this.room});
+
+  final LiveRoom room;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final session = ref.watch(liveRoomSessionProvider(room.id));
+    final current = session.room ?? room;
+    if (session.kicked || current.status != LiveRoomStatus.live) {
+      // Over or removed: nothing to float.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(liveViewerMinimizedProvider.notifier).leave();
+      });
+    }
+    final engine = ref.read(liveRoomSessionProvider(room.id).notifier).engine;
+    final host = current.host;
+    return ListenableBuilder(
+      listenable: engine.changes,
+      builder: (context, _) {
+        final video = current.mode == LiveRoomMode.audio
+            ? null
+            : engine.remoteVideo(host.id);
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            if (video != null)
+              video
+            else ...[
+              LiveThemeBackground(
+                theme: current.mode.hasSeats
+                    ? current.theme
+                    : LiveThemes.classic,
+                waves: current.mode == LiveRoomMode.audio,
+              ),
+              Center(
+                child: _SpeakingRing(
+                  on: engine.speaking.contains(host.id),
+                  child: KAvatar(
+                    name: host.displayName,
+                    imageUrl: host.avatarUrl,
+                    size: 56,
+                  ),
+                ),
+              ),
+            ],
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.center,
+                  colors: [Color(0x99000000), Color(0x00000000)],
+                ),
+              ),
+            ),
+            const PositionedDirectional(
+              top: KSpacing.xs + 2,
+              start: KSpacing.xs + 2,
+              child: KBadge.live(),
+            ),
+            PositionedDirectional(
+              bottom: KSpacing.xs + 2,
+              start: KSpacing.xs + 2,
+              end: KSpacing.xs + 2,
+              child: Text(
+                host.displayName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: context.textStyles.caption.copyWith(
+                  color: KPalette.dark.textPrimary,
+                  fontWeight: FontWeight.w700,
+                  shadows: const [
+                    Shadow(color: Color(0x99000000), blurRadius: 4),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// D181: the host's picture pulses while they speak.
+class _SpeakingRing extends StatefulWidget {
+  const new({required this.on, required this.child});
+
+  final bool on;
+  final Widget child;
+
+  @override
+  State<_SpeakingRing> createState() => _SpeakingRingState();
+}
+
+class _SpeakingRingState extends State<_SpeakingRing>
+    with SingleTickerProviderStateMixin {
+  late final _pulse = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _sync();
+  }
+
+  @override
+  void didUpdateWidget(_SpeakingRing old) {
+    super.didUpdateWidget(old);
+    _sync();
+  }
+
+  void _sync() {
+    if (widget.on && !_pulse.isAnimating) {
+      _pulse.repeat(reverse: true);
+    } else if (!widget.on && _pulse.isAnimating) {
+      _pulse
+        ..stop()
+        ..value = 0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: _pulse,
+    builder: (context, child) => DecoratedBox(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        boxShadow: widget.on
+            ? [
+                BoxShadow(
+                  color: const Color(0xFF34E0C8).withValues(alpha: 0.75),
+                  spreadRadius: 2 + 4 * _pulse.value,
+                  blurRadius: 8 + 6 * _pulse.value,
+                ),
+              ]
+            : const [],
+      ),
+      child: child,
+    ),
+    child: widget.child,
+  );
 }

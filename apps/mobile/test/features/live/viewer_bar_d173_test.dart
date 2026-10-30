@@ -219,8 +219,10 @@ void main() {
       'games',
       'suggestVideo',
       'report',
+      // D181 (owner «زر التصغير لا يظهر للمشاهد»): minimize works now.
+      'minimize',
     ];
-    const soonTools = ['minimize', 'giftSounds', 'giftEffects', 'clearScreen'];
+    const soonTools = ['giftSounds', 'giftEffects', 'clearScreen'];
     for (final mode in [LiveRoomMode.solo, LiveRoomMode.audio]) {
       for (final language in AppLanguage.values) {
         testWidgets("${mode.name}: a viewer's ≡ lists only what works for "

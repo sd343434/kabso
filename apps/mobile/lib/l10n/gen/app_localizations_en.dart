@@ -7912,6 +7912,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get videoCannotPlay => 'This video can\'t play right now';
 
   @override
+  String get liveGuestCamera => 'Camera';
+
+  @override
+  String get liveGuestCameraOff => 'Camera off';
+
+  @override
+  String get liveMiniOpen => 'Back to the live';
+
+  @override
+  String get liveMiniLeave => 'Leave the live';
+
+  @override
   String get walletBalanceLabel => 'Coin balance';
 
   @override

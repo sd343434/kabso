@@ -963,7 +963,8 @@ void main() {
       final buttons = tester.widgetList<KRoomIconButton>(
         find.byType(KRoomIconButton),
       );
-      expect(buttons, hasLength(1)); // close
+      // Close; D181 (owner): minimize for viewers too, and it acts.
+      expect(buttons, hasLength(2));
       for (final button in buttons) {
         expect(button.onPressed, isNotNull, reason: button.label);
       }

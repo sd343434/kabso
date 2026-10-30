@@ -141,8 +141,13 @@ class FakeLiveMediaEngine implements LiveMediaEngine {
   final List<bool> videoPauses = [];
 
   @override
-  Future<void> setVideoPaused({required bool paused}) async =>
-      videoPauses.add(paused);
+  Future<void> setVideoPaused({required bool paused}) async {
+    videoPauses.add(paused);
+    _changes.notifyListeners();
+  }
+
+  @override
+  bool get videoPaused => videoPauses.isNotEmpty && videoPauses.last;
 
   // ---- CP-017: the live microphone around a voice clip -------------------
 

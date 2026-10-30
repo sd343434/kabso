@@ -13620,6 +13620,30 @@ abstract class AppLocalizations {
   /// **'لا يمكن تشغيل هذا الفيديو الآن'**
   String get videoCannotPlay;
 
+  /// D174a: a seated guest's own camera toggle on the viewer bar (camera on).
+  ///
+  /// In ar, this message translates to:
+  /// **'الكاميرا'**
+  String get liveGuestCamera;
+
+  /// D174a: the same toggle while the guest's camera is off (the others see their picture).
+  ///
+  /// In ar, this message translates to:
+  /// **'الكاميرا مطفأة'**
+  String get liveGuestCameraOff;
+
+  /// D181: a viewer's floating window of a minimized live (tap: open it again).
+  ///
+  /// In ar, this message translates to:
+  /// **'العودة إلى البث'**
+  String get liveMiniOpen;
+
+  /// D181: ✕ on a viewer's floating window: leaves the live.
+  ///
+  /// In ar, this message translates to:
+  /// **'مغادرة البث'**
+  String get liveMiniLeave;
+
   /// D164: the wallet's balance card.
   ///
   /// In ar, this message translates to:
