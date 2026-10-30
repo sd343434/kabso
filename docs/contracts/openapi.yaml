@@ -304,6 +304,14 @@ info:
     username (locked; `Me.specialUsername`, self only — the base username never appears in what others read);
     code `USERNAME_LOCKED` (409) on `changeUsername` and `rentPremiumUsername`; `login` also accepts the base
     username.
+    **D189 (DRAFT v1.58-social, CP-032)**: host agents «وكيل مضيفين» (an agency's owner, D179) get perks like a
+    recharge agent: at activation (the team's `economy-admin agency-create`) the code `host` + a sequential number
+    (at least two digits: `host01`, `host100`; `HostAgentCode`) becomes their special username (§10.48.1, source
+    `HOST_AGENT`, locked, never reused; `host` + digits is reserved), and the app draws the host-agent frame, badge
+    and entrance from `PublicProfile.hostAgent` / `UserSummary.hostAgent` (`HostAgentTag`) — present while the
+    agency exists and the team has not suspended its host agent (any rank, LAPSED too). `OwnAgency.hostAgent`
+    (`OwnHostAgent`): the code, whether the perks are on and whether the code is the username shown now (a person
+    who is also a recharge agent shows the code activated first; the other stays reserved) (CONVENTIONS §10.52).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -766,7 +774,7 @@ paths:
         the store) → 409 `USERNAME_LOCKED` while a special username is active (v1.54-social, D185,
         §10.48.1: e.g. a recharge agent's `coin0007`) → 409 `PREMIUM_USERNAME_ACTIVE` while a premium
         username is the caller's (give it back first) → 409 `USERNAME_TAKEN` (reserved — including
-        `coin` + digits —, another account's, held by a pending registration, kept for a renter, or
+        `coin` + digits and, v1.58-social D189, `host` + digits —, another account's, held by a pending registration, kept for a renter, or
         another person's base or held special username). The same name as now → 200, nothing changed. The old name
         is free at once. Existing usernames that break the rule keep working (grandfathered).
         Audited `user.username.change`.
@@ -1207,6 +1215,7 @@ paths:
                     links:
                       - { id: 0192f1d0-7777-7000-8000-000000000009, url: 'https://www.instagram.com/layla.k', label: Instagram, platform: INSTAGRAM }
                     rechargeAgent: { code: coin0001 }
+                    hostAgent: null
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -4262,7 +4271,7 @@ paths:
         none), with the leave deadline and the latest complaint. `ownAgency`: the caller's own agency (null:
         not an agent) — invite code, rank, this month's rate, progress to the rank (active hosts, the
         hosts' cherries this and last month, the exception, qualified sub-agencies), the commissions and
-        the sub-agencies. Checks: 401.
+        the sub-agencies; (v1.58-social, D189) `hostAgent`: the owner's host-agent code and perks. Checks: 401.
       responses:
         '200':
           description: The caller's agencies.
@@ -8377,8 +8386,8 @@ components:
         baseUsername: { $ref: '#/components/schemas/Username' }
         source:
           type: string
-          enum: [RECHARGE_AGENT, ADMIN_GIFT, PURCHASE]
-          description: "`RECHARGE_AGENT`: the agent's code; `ADMIN_GIFT`: given by the team; `PURCHASE`: reserved (not sold yet)."
+          enum: [RECHARGE_AGENT, ADMIN_GIFT, PURCHASE, HOST_AGENT]
+          description: "`RECHARGE_AGENT`: the agent's code; `ADMIN_GIFT`: given by the team; `PURCHASE`: reserved (not sold yet); `HOST_AGENT` (v1.58-social, D189): the host agent's `hostNN`."
         grantedAt: { type: string, format: date-time }
         expiresAt:
           type: [string, 'null']
@@ -8418,9 +8427,12 @@ components:
         rechargeAgent:
           $ref: '#/components/schemas/RechargeAgentTag'
           description: "v1.54-social (D185, §10.48) — present only while the user is an ACTIVE recharge agent with an active account: the app shows the small recharge-agent badge next to the name (live chat, the join line and entrance, the viewers list, seats, the person card); absent otherwise (removed at once by a suspension)."
+        hostAgent:
+          $ref: '#/components/schemas/HostAgentTag'
+          description: "v1.58-social (D189, §10.52) — present only while the user is a host agent (owns an agency the team has not suspended; any rank) with an active account: the app shows the host-agent badge next to the name wherever the recharge-agent badge goes, and the host-agent entrance on a join; absent otherwise."
     PublicProfile:
       type: object
-      required: [id, username, displayName, avatarUrl, bio, isPrivate, followerCount, followingCount, isFollowing, followRequested, isMuted, isSelf, liveRoomId, family, cp, medals, profileCard, gender, category, links, rechargeAgent]
+      required: [id, username, displayName, avatarUrl, bio, isPrivate, followerCount, followingCount, isFollowing, followRequested, isMuted, isSelf, liveRoomId, family, cp, medals, profileCard, gender, category, links, rechargeAgent, hostAgent]
       properties:
         id: { type: string, format: uuid }
         username: { $ref: '#/components/schemas/Username' }
@@ -8493,6 +8505,11 @@ components:
           description: "v1.54-social (D185, §10.48). The user is an ACTIVE recharge agent: their code (the app draws the agent frame with the code, the badge and the entrance); else null."
           oneOf:
             - $ref: '#/components/schemas/RechargeAgentTag'
+            - type: 'null'
+        hostAgent:
+          description: "v1.58-social (D189, §10.52). The user is a host agent (not suspended): their code (the app draws the host-agent frame — no name — and badge); else null."
+          oneOf:
+            - $ref: '#/components/schemas/HostAgentTag'
             - type: 'null'
     FollowState:
       type: object
@@ -12679,7 +12696,7 @@ components:
     OwnAgency:
       type: object
       required: [inviteCode, rank, rankMonth, createdAt, timeZone, month, commissionRateBps, parent, progress, commission,
-                 parentCommission, subAgencies]
+                 parentCommission, subAgencies, hostAgent]
       properties:
         inviteCode: { type: string, pattern: '^[A-HJ-NP-Z2-9]{8}$' }
         rank: { $ref: '#/components/schemas/AgencyRank' }
@@ -12712,6 +12729,7 @@ components:
         subAgencies:
           type: array
           items: { $ref: '#/components/schemas/AgencySubAgency' }
+        hostAgent: { $ref: '#/components/schemas/OwnHostAgent' }
     MyAgency:
       type: object
       required: [membership, ownAgency, activeHostRule, leaveDays]
@@ -12759,6 +12777,32 @@ components:
       type: string
       description: "v1.54-social (D185). The agent's recharge ID: `coin` and the activation number, at least four digits (`coin0001`). Given once at activation, in order, never changed or reused. The username is separate and unchanged."
       pattern: '^coin[0-9]{4,}$'
+    HostAgentCode:
+      type: string
+      description: "v1.58-social (D189, §10.52). The host agent's code and special username: `host` and the activation number, at least two digits (`host01`, `host100`). Given once at activation, in order, never changed or reused."
+      pattern: '^host[0-9]{2,}$'
+    HostAgentTag:
+      type: object
+      additionalProperties: false
+      description: "v1.58-social (D189). Present only while the user is a host agent whose agency the team has not suspended, with an active account: the app draws the host-agent frame, badge and entrance."
+      required: [code]
+      properties:
+        code: { $ref: '#/components/schemas/HostAgentCode' }
+    OwnHostAgent:
+      type: object
+      additionalProperties: false
+      description: "v1.58-social (D189, §10.52). The agency's owner as a host agent «وكيل مضيفين»."
+      required: [code, active, usernameShown]
+      properties:
+        code:
+          description: The code (null only until the server gives an agency made before v1.58 its code).
+          oneOf:
+            - $ref: '#/components/schemas/HostAgentCode'
+            - type: 'null'
+        active: { type: boolean, description: "The perks are on (false: suspended by the team)." }
+        usernameShown:
+          type: boolean
+          description: "The code is the username shown now. False while suspended, or while another special username (a recharge agent's code activated first) is shown — the code then stays reserved for the person."
     RechargeAgentTag:
       type: object
       description: "v1.54-social (D185). Present only while the user is an ACTIVE agent with an active account: the app draws the agent's frame (with the code in its plate), badge and entrance."
