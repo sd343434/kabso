@@ -27,11 +27,12 @@ export class HomeController {
     @Res({ passthrough: true }) res: Response,
     @Query('placement') placementParam?: unknown,
   ): Promise<{ data: HomeBannerDto[] }> {
-    // v1.27.4-live (D137): `placement=home` (default) or `room` (the promo box inside a live).
-    if (placementParam !== undefined && placementParam !== 'home' && placementParam !== 'room') {
+    // v1.27.4-live (D137): `placement=home` (default) or `room` (the promo box inside a live);
+    // v1.51-social (D177): `wallet` (the wallet page).
+    if (placementParam !== undefined && placementParam !== 'home' && placementParam !== 'room' && placementParam !== 'wallet') {
       throw AppException.validation([{ field: 'placement', issue: 'invalid_value' }]);
     }
-    const placement = placementParam === 'room' ? 'ROOM' : 'HOME';
+    const placement = placementParam === 'room' ? 'ROOM' : placementParam === 'wallet' ? 'WALLET' : 'HOME';
     const language =
       languageFromAcceptLanguage(req.headers['accept-language']) ?? (await this.users.getLocale(auth.userId));
     const data = await this.home.listBanners(language, placement);

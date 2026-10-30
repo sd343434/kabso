@@ -53,7 +53,6 @@ const List<String> _destinations = [
   AppRoutes.premium,
   // D164.
   AppRoutes.wallet,
-  AppRoutes.earnings,
   AppRoutes.creatorCenter,
   // D166.
   AppRoutes.taskCenter,
@@ -74,7 +73,11 @@ Future<void> _pump(
     routes: [
       GoRoute(path: AppRoutes.profile, builder: (_, _) => const MeHubScreen()),
       for (final path in _destinations)
-        GoRoute(path: path, builder: (_, _) => Text('page $path')),
+        GoRoute(
+          path: path,
+          // D177: the earn card opens the wallet on its cherry tab.
+          builder: (_, s) => Text('page ${s.uri}'),
+        ),
       GoRoute(
         path: AppRoutes.userFollowsPattern,
         builder: (_, s) => Text(
@@ -270,7 +273,7 @@ void main() {
     (MeHubItem.premium, AppRoutes.premium),
     // D164.
     (MeHubItem.wallet, AppRoutes.wallet),
-    (MeHubItem.earn, AppRoutes.earnings),
+    (MeHubItem.earn, AppRoutes.walletCherries),
     (MeHubItem.creatorCenter, AppRoutes.creatorCenter),
     // D166.
     (MeHubItem.taskCenter, AppRoutes.taskCenter),

@@ -381,4 +381,28 @@ describe('D124 home banners', { timeout: 240_000 }, () => {
     expect(bad.body.error.details).toEqual([{ field: 'placement', issue: 'invalid_value' }]);
     expect(bannerAdmin('list')).toContain(`${room} room`);
   });
+
+  it('D177: WALLET banners are 3:1, listed only with placement=wallet (not on the hub or in a live)', async () => {
+    await clear();
+    const home = await add('--link', '/families');
+    const wide = await upload(admin);
+    const out = bannerAdmin('add', '--media', wide.id, '--link', '/cp/space', '--placement', 'wallet');
+    const wallet = /^\+([0-9a-f-]{36}) wallet /.exec(out)?.[1];
+    expect(wallet, out).toBeDefined();
+    const res = await ctx.http
+      .get('/api/v1/home/banners?placement=wallet')
+      .set(auth(viewer))
+      .set('Accept-Language', 'en');
+    expect(res.status).toBe(200);
+    expectContract(res, 'listHomeBanners');
+    expect(res.body.data.map((b: { id: string }) => b.id)).toEqual([wallet]);
+    expect(res.body.data[0]).toMatchObject({ width: 1500, height: 500, link: '/cp/space' });
+    const hub = await ctx.http.get('/api/v1/home/banners').set(auth(viewer));
+    expect(hub.body.data.map((b: { id: string }) => b.id)).toEqual([home]);
+    const inLive = await ctx.http.get('/api/v1/home/banners?placement=room').set(auth(viewer));
+    expect(inLive.body.data).toEqual([]);
+    const upper = await ctx.http.get('/api/v1/home/banners?placement=WALLET').set(auth(viewer));
+    expect(upper.status).toBe(400);
+    expect(bannerAdmin('list')).toContain(`${wallet} wallet`);
+  });
 });

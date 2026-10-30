@@ -1,13 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/error/failure_widgets.dart';
 import 'package:kabso_live/core/format/k_format.dart';
-import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/wallet/application/wallet_providers.dart';
 import 'package:kabso_live/features/wallet/data/wallet_repository.dart';
 import 'package:kabso_live/features/wallet/presentation/me_page_parts.dart';
+import 'package:kabso_live/features/wallet/presentation/wallet_parts.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -18,13 +18,13 @@ String sharePercent(int bps) {
   return text.endsWith('0') ? text.substring(0, text.length - 1) : text;
 }
 
-/// `/earnings` «اربح المال» (D164): what the person earned from the gifts
-/// they received (`GET /wallet/me/earnings` and `…/history`) — each send's
-/// value times the share stored with it. Display only: earnings are not
-/// coins; withdrawal stays "Soon" until the payout method is decided (D149).
-class EarningsScreen extends ConsumerWidget {
-  const new({super.key});
-
+/// The wallet's «الكرز» tab (D177; D164's `/earnings` before): the host
+/// currency, the Kab Cherry (D134). The numbers are D164's gift earnings —
+/// Σ floor(received gift coins × the send's stored share) — shown 1:1 as
+/// cherries (one cherry = one coin of the host's share). Display only: no
+/// stored balance, nothing is credited, and withdrawal stays «قريباً»
+/// until the payout method is decided (D149).
+abstract final class WalletCherryTab {
   static const totalKey = Key('earnings.total');
   static const last7Key = Key('earnings.last7');
   static const last30Key = Key('earnings.last30');
@@ -33,114 +33,101 @@ class EarningsScreen extends ConsumerWidget {
 
   static Key entryKey(String id) => Key('earnings.entry.$id');
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  /// Reloads the totals and the history.
+  static Future<void> refresh(WidgetRef ref) async {
+    ref
+      ..invalidate(myEarningsProvider)
+      ..invalidate(earningHistoryProvider);
+    try {
+      await ref.read(myEarningsProvider.future);
+    } on Object {
+      // The tab shows the failure with a retry.
+    }
+  }
+
+  /// The card (inside the page's white header block).
+  static Widget card(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final p = context.palette;
     final t = context.textStyles;
     final totals = ref.watch(myEarningsProvider);
-    final history = ref.watch(earningHistoryProvider);
-    final notifier = ref.read(earningHistoryProvider.notifier);
-    final localeTag = Localizations.localeOf(context).toLanguageTag();
-
-    Future<void> refresh() async {
-      ref
-        ..invalidate(myEarningsProvider)
-        ..invalidate(earningHistoryProvider);
-      try {
-        await ref.read(myEarningsProvider.future);
-      } on Object {
-        // The page shows the failure with a retry.
-      }
-    }
-
-    final summary = switch (totals) {
-      AsyncValue(:final value?) => Container(
-        padding: const EdgeInsets.all(KSpacing.lg),
-        decoration: BoxDecoration(
-          color: Color.alphaBlend(
-            const Color(0xFF4DA3FF).withValues(alpha: 0.12),
-            p.background,
-          ),
-          borderRadius: BorderRadius.circular(KRadius.md),
-        ),
-        child: Column(
-          children: [
-            Semantics(
-              key: totalKey,
-              container: true,
-              label:
-                  '${l10n.earnTotal}: '
-                  '${l10n.meHubCoins(KFormat.grouped(value.totalCoins))}',
-              excludeSemantics: true,
-              child: Column(
-                children: [
-                  Text(
-                    l10n.earnTotal,
-                    style: t.label.copyWith(color: p.textSecondary),
-                  ),
-                  const SizedBox(height: KSpacing.xs),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const AppIcon(AppIcons.coinGold, size: 28, tint: false),
-                      const SizedBox(width: KSpacing.sm),
-                      Flexible(
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            KFormat.grouped(value.totalCoins),
-                            maxLines: 1,
-                            style: t.title.copyWith(
-                              color: p.textPrimary,
-                              fontSize: 30,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: KSpacing.md),
-            MeStatGrid(
-              columns: 2,
-              stats: [
-                (
-                  last7Key,
-                  l10n.earnLast7Days,
-                  KFormat.grouped(value.last7DaysCoins),
-                ),
-                (
-                  last30Key,
-                  l10n.earnLast30Days,
-                  KFormat.grouped(value.last30DaysCoins),
-                ),
-              ],
-            ),
-            const SizedBox(height: KSpacing.md),
-            Text(
-              l10n.earnDisplayOnly,
-              textAlign: TextAlign.center,
-              style: t.caption.copyWith(color: p.textSecondary),
-            ),
-          ],
-        ),
-      ),
-      AsyncValue(:final error?, isLoading: false) => FailureErrorState(
+    if (totals case AsyncValue(:final error?, isLoading: false)) {
+      return FailureErrorState(
         title: l10n.earnLoadError,
         failure: toAppFailure(error),
         onRetry: () => ref.invalidate(myEarningsProvider),
         compact: true,
+      );
+    }
+    final value = totals.value;
+    String n(int v) => KFormat.grouped(v);
+    Widget stat(Key key, String label, int? v) => Expanded(
+      child: Semantics(
+        key: key,
+        container: true,
+        label: v == null ? label : '$label: ${l10n.walletCherries(n(v))}',
+        excludeSemantics: true,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: t.caption.copyWith(color: p.textSecondary)),
+            Row(
+              children: [
+                const KCherryIcon(size: 16),
+                const SizedBox(width: KSpacing.xxs),
+                Flexible(
+                  child: Text(
+                    v == null ? '–' : n(v),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textDirection: TextDirection.ltr,
+                    style: t.bodyStrong.copyWith(
+                      color: p.textPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
-      _ => const Padding(
-        padding: EdgeInsets.all(KSpacing.xl),
-        child: Center(child: CircularProgressIndicator()),
-      ),
-    };
+    );
 
+    return Semantics(
+      key: totalKey,
+      container: true,
+      child: WalletBalanceCard(
+        icon: const KCherryIcon(size: 34),
+        amount: value == null
+            ? const KSkeleton(width: 96, height: 32)
+            : WalletBigNumber(n(value.totalCoins)),
+        label: l10n.walletCherryBalance,
+        semanticsLabel: [
+          l10n.walletCherryBalance,
+          if (value != null) l10n.walletCherries(n(value.totalCoins)),
+        ].join(': '),
+        tint: KBrandColors.red400,
+        tintStrength: 0.22,
+        footer: Row(
+          children: [
+            stat(last7Key, l10n.earnLast7Days, value?.last7DaysCoins),
+            const SizedBox(width: KSpacing.md),
+            stat(last30Key, l10n.earnLast30Days, value?.last30DaysCoins),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Everything under the header block.
+  static List<Widget> children(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final p = context.palette;
+    final t = context.textStyles;
+    final history = ref.watch(earningHistoryProvider);
+    final notifier = ref.read(earningHistoryProvider.notifier);
+    final localeTag = Localizations.localeOf(context).toLanguageTag();
     final rows = switch (history) {
       AsyncValue(value: FeedItems(:final items)) when items.isEmpty => [
         KEmptyState(
@@ -178,23 +165,36 @@ class EarningsScreen extends ConsumerWidget {
         ),
       ],
     };
-
-    return MePage(
-      title: l10n.meHubEarn,
-      onRefresh: refresh,
-      children: [
-        summary,
-        const SizedBox(height: KSpacing.md),
-        MeSoonAction(
-          key: withdrawKey,
-          label: l10n.earnWithdraw,
-          icon: Icons.account_balance_rounded,
-          reason: l10n.earnWithdrawSoon,
-        ),
-        MeSectionTitle(l10n.earnHistoryTitle),
-        ...rows,
-      ],
-    );
+    return [
+      WalletSection(
+        children: [
+          Text(
+            l10n.walletCherryUnit,
+            style: t.caption.copyWith(color: p.textSecondary),
+          ),
+          const SizedBox(height: KSpacing.md),
+          // D149: no payout method yet, so the pill stays disabled.
+          WalletPill(
+            key: withdrawKey,
+            title: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const KCherryIcon(size: 22),
+                const SizedBox(width: KSpacing.xs),
+                Flexible(child: Text(l10n.walletWithdraw)),
+              ],
+            ),
+            semanticsLabel: l10n.walletWithdraw,
+            available: false,
+            reason: l10n.earnWithdrawSoon,
+          ),
+        ],
+      ),
+      const SizedBox(height: KSpacing.md),
+      WalletSectionPiece(title: l10n.earnHistoryTitle),
+      for (final row in rows) WalletSectionPiece(child: row),
+      const WalletSectionPiece(bottom: true, child: SizedBox.shrink()),
+    ];
   }
 }
 
@@ -226,16 +226,17 @@ class _EarningTile extends StatelessWidget {
         '${KFormat.time(e.createdAt, localeTag)}';
     final gift = l10n.earnGiftLine(KFormat.bidiIsolate(e.giftName), e.quantity);
     final amount = '+${KFormat.grouped(e.coins)}';
+    final cherries = KFormat.grouped(e.coins);
     final share = l10n.earnShare(
       sharePercent(e.shareBps),
       KFormat.grouped(e.giftCoins),
     );
     return Semantics(
-      key: EarningsScreen.entryKey(e.id),
+      key: WalletCherryTab.entryKey(e.id),
       container: true,
       label:
           '$gift, $from, $where, $when, '
-          '${l10n.meHubCoins(amount)}, $share',
+          '${l10n.walletCherries(cherries)}, $share',
       excludeSemantics: true,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: KSpacing.sm),
@@ -282,13 +283,21 @@ class _EarningTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(
-                    amount,
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
                     textDirection: TextDirection.ltr,
-                    style: t.bodyStrong.copyWith(
-                      color: p.success,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    children: [
+                      Text(
+                        amount,
+                        textDirection: TextDirection.ltr,
+                        style: t.bodyStrong.copyWith(
+                          color: p.success,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(width: KSpacing.xxs),
+                      const KCherryIcon(size: 16),
+                    ],
                   ),
                   Text(
                     share,

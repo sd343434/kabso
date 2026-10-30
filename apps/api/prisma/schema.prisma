@@ -2714,7 +2714,8 @@ model HomeBanner {
   /// The empty side of the picture where the overlay text goes (physical: `LEFT` or `RIGHT`).
   titleSide String    @default("RIGHT") @map("title_side") @db.VarChar(8)
   /// v1.27.4-live (D137, §10.26): `HOME` (the live hub, 3:1) or `ROOM` (the promo box in a live,
-  /// 3:4, 600 × 800) — CHECK `home_banners_placement_values`.
+  /// 3:4, 600 × 800); v1.51-social (D177): `WALLET` (the wallet page, 3:1) — CHECK
+  /// `home_banners_placement_values`.
   placement String    @default("HOME") @db.VarChar(8)
   link      String    @db.VarChar(512)
   startsAt  DateTime  @default(now()) @map("starts_at") @db.Timestamptz(3)

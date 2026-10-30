@@ -8434,7 +8434,7 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
-  String get walletOffer => 'عرض';
+  String get walletOffer => 'عرض كبير';
 
   @override
   String walletGetCoins(String coins, String total) {
@@ -8455,4 +8455,51 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get walletReasonEventPrize => 'جائزة فعالية';
+
+  @override
+  String get walletTabGold => 'العملات الذهبية';
+
+  @override
+  String get walletTabCherries => 'الكرز';
+
+  @override
+  String get walletGoldBalance => 'رصيدي من العملات';
+
+  @override
+  String get walletCherryBalance => 'أرباحي من الكرز';
+
+  @override
+  String walletCherries(String cherries) {
+    return '$cherries كرزة';
+  }
+
+  @override
+  String get walletCherryUnit =>
+      'كل كرزة هنا تساوي عملة واحدة من حصتك من الهدايا. للعرض فقط: لا تُضاف إلى عملاتك.';
+
+  @override
+  String get walletRewards => 'المكافآت';
+
+  @override
+  String get walletRewardsBase => 'العملات';
+
+  @override
+  String get walletRewardsBonus => 'المكافأة';
+
+  @override
+  String get walletRewardsTotal => 'المجموع';
+
+  @override
+  String get walletGet => 'احصل على';
+
+  @override
+  String walletTotal(String total) {
+    return 'المجموع: $total';
+  }
+
+  @override
+  String get walletPayUnavailable => 'الدفع غير متاح بعد';
+
+  @override
+  String get walletWithdraw => 'سحب';
 }

@@ -4,21 +4,36 @@ import 'package:kabso_live/features/live/domain/home_banner.dart';
 
 /// D124: in-memory promo banners (none by default, as after a deploy).
 class FakeHomeBannersRepository implements HomeBannersRepository {
-  new({this.banners = const [], this.failure, this.roomBanners = const []});
+  new({
+    this.banners = const [],
+    this.failure,
+    this.roomBanners = const [],
+    this.walletBanners = const [],
+  });
 
   List<HomeBanner> banners;
 
   /// D137: the in-room promo box's banners.
   List<HomeBanner> roomBanners;
+
+  /// D177: the wallet page's banners.
+  List<HomeBanner> walletBanners;
   AppFailure? failure;
   int calls = 0;
 
   @override
-  Future<List<HomeBanner>> listBanners({bool room = false}) async {
+  Future<List<HomeBanner>> listBanners({
+    bool room = false,
+    bool wallet = false,
+  }) async {
     calls++;
     final f = failure;
     if (f != null) throw f;
-    return room ? roomBanners : banners;
+    return room
+        ? roomBanners
+        : wallet
+        ? walletBanners
+        : banners;
   }
 }
 

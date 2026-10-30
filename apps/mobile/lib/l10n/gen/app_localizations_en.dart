@@ -8413,7 +8413,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get walletOffer => 'Deal';
+  String get walletOffer => 'Big deal';
 
   @override
   String walletGetCoins(String coins, String total) {
@@ -8434,4 +8434,51 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get walletReasonEventPrize => 'Event prize';
+
+  @override
+  String get walletTabGold => 'Gold coins';
+
+  @override
+  String get walletTabCherries => 'Cherries';
+
+  @override
+  String get walletGoldBalance => 'My coin balance';
+
+  @override
+  String get walletCherryBalance => 'My cherry earnings';
+
+  @override
+  String walletCherries(String cherries) {
+    return '$cherries cherries';
+  }
+
+  @override
+  String get walletCherryUnit =>
+      'Each cherry here is one coin of your share of the gifts. Display only: they are not added to your coins.';
+
+  @override
+  String get walletRewards => 'Rewards';
+
+  @override
+  String get walletRewardsBase => 'Coins';
+
+  @override
+  String get walletRewardsBonus => 'Bonus';
+
+  @override
+  String get walletRewardsTotal => 'Total';
+
+  @override
+  String get walletGet => 'Get';
+
+  @override
+  String walletTotal(String total) {
+    return 'Total: $total';
+  }
+
+  @override
+  String get walletPayUnavailable => 'Payment isn\'t available yet';
+
+  @override
+  String get walletWithdraw => 'Withdraw';
 }

@@ -176,7 +176,14 @@ abstract final class AppRoutes {
   /// D164: the Me hub's wallet (balance and coin history), earnings and
   /// creator center.
   static const wallet = '/wallet';
+
+  /// D177: the earnings are the wallet's «الكرز» tab; `/earnings` redirects
+  /// there.
   static const earnings = '/earnings';
+  static const walletCherries = '/wallet?tab=cherries';
+
+  /// D177: the coin history (D164's ledger), behind the gold card's button.
+  static const walletHistory = '/wallet/history';
   static const creatorCenter = '/creator';
 
   /// D166: the Me hub's programs — the Task Center, the Event Center (and
