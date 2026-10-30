@@ -247,8 +247,9 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
       _keeper.release(this);
       return;
     }
+    // D174: a solo live's guests are on camera too.
     final video =
-        role == LiveBackgroundRole.guest && _mode == LiveRoomMode.multi;
+        role == LiveBackgroundRole.guest && _mode != LiveRoomMode.audio;
     _keeper.hold(
       this,
       LiveBackgroundSpec.of(role, texts),
@@ -260,7 +261,35 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
     );
   }
 
+  /// D174a (owner: «الضيوف في البث الفردي يمكن إقفال الكاميرا»): a seated
+  /// guest turned their own camera off (the others see their picture); the
+  /// return from the background does not turn it on again.
+  bool _cameraOff = false;
+
+  /// D174a: the seated guest's own camera, off or on (the track is muted:
+  /// nothing new on the server).
+  Future<void> setCamera({required bool on}) async {
+    _cameraOff = !on;
+    await _pauseVideo(paused: !on);
+  }
+
+  /// D174a: the seated guest's own microphone. Muted by the host, it stays
+  /// off (returns false).
+  Future<bool> setMic({required bool on}) async {
+    final seat = state.seats?.seats
+        .where((s) => s.index == state.mine?.seatIndex)
+        .firstOrNull;
+    if (on && (seat?.mutedByHost ?? false)) return false;
+    try {
+      await _engine.setMicEnabled(enabled: on);
+    } on Object {
+      return false;
+    }
+    return true;
+  }
+
   Future<void> _pauseVideo({required bool paused}) async {
+    if (!paused && _cameraOff) return;
     try {
       await _engine.setVideoPaused(paused: paused);
     } on Object {
@@ -357,6 +386,7 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
           if (ref.mounted) state = state.copyWith(captureFailed: true);
         }
       } else if (!state.seated && state.publishing) {
+        _cameraOff = false;
         await _engine.unpublishLocal();
         if (ref.mounted) {
           state = state.copyWith(publishing: false, captureFailed: false);

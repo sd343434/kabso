@@ -7908,4 +7908,10 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get videoCannotPlay => 'لا يمكن تشغيل هذا الفيديو الآن';
+
+  @override
+  String get liveGuestCamera => 'الكاميرا';
+
+  @override
+  String get liveGuestCameraOff => 'الكاميرا مطفأة';
 }

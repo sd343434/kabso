@@ -122,6 +122,8 @@ class LiveRoomScreen extends ConsumerWidget {
   /// D174: ∞ while the request waits (cancel) and while seated (leave).
   static const guestCancelKey = Key('room.guest.cancel');
   static const guestLeaveKey = Key('room.guest.leave');
+  static const guestCameraKey = Key('room.guest.camera');
+  static const guestMicKey = Key('room.guest.mic');
   static const scoreChipKey = Key('room.scoreChip');
 
   /// v1.20-live (D105): this person was kicked out of the live.
@@ -1046,6 +1048,34 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                         // the request (tap: cancel) or the seat (tap: leave).
                         if (me != null && room.mode == LiveRoomMode.solo)
                           _soloGuestButton(session),
+                        // D174a (owner: «الضيوف في البث الفردي يمكن إقفال
+                        // الكاميرا»): a seated guest on camera turns their
+                        // own camera and mic off or on.
+                        if (session.seated &&
+                            room.mode != LiveRoomMode.audio) ...[
+                          KViewerBarButton(
+                            key: LiveRoomScreen.guestCameraKey,
+                            icon: engine.videoPaused
+                                ? Icons.videocam_off_rounded
+                                : Icons.videocam_rounded,
+                            label: engine.videoPaused
+                                ? l10n.liveGuestCameraOff
+                                : l10n.liveGuestCamera,
+                            onTap: () => unawaited(
+                              _session.setCamera(on: engine.videoPaused),
+                            ),
+                          ),
+                          KViewerBarButton(
+                            key: LiveRoomScreen.guestMicKey,
+                            icon: engine.micEnabled
+                                ? Icons.mic_rounded
+                                : Icons.mic_off_rounded,
+                            label: engine.micEnabled
+                                ? l10n.goLiveMic
+                                : l10n.goLiveMicOff,
+                            onTap: () => unawaited(_toggleMic(engine)),
+                          ),
+                        ],
                         // D173: games (none yet: the sheet says so).
                         KViewerBarButton(
                           key: LiveRoomScreen.gamesKey,
@@ -1535,7 +1565,10 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     final me = ref.read(currentUserProvider)?.id;
     final tiles = LiveGuestTiles(
       seats: guests,
-      video: (u) => u.id == me ? engine.preview() : engine.remoteVideo(u.id),
+      // D174a: my camera off, my tile shows my picture (as the others see).
+      video: (u) => u.id == me
+          ? (engine.videoPaused ? null : engine.preview())
+          : engine.remoteVideo(u.id),
       onTap: (u) => _person(u.username),
     );
     if (combo == null) return tiles;
@@ -1544,6 +1577,14 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [tiles, const SizedBox(height: 6), combo],
     );
+  }
+
+  /// D174a: the seated guest's own mic; muted by the host it stays off.
+  Future<void> _toggleMic(LiveMediaEngine engine) async {
+    final ok = await _session.setMic(on: !engine.micEnabled);
+    if (!mounted) return;
+    if (!ok) KSnack.info(context, context.l10n.liveSeatMutedByHost);
+    setState(() {});
   }
 
   /// D174: ∞ in a solo live — ask to join as a guest, the pending request
@@ -1672,7 +1713,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
           seats: seats?.seats ?? const [],
           host: engine.remoteVideo(host.id) ?? Center(child: hostPicture),
           guestVideo: (seat) => seat.user!.id == me
-              ? engine.preview()
+              ? (engine.videoPaused ? null : engine.preview())
               : engine.remoteVideo(seat.user!.id),
           onSeat: onSeat,
         ),

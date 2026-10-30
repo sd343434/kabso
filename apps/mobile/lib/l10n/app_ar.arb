@@ -8471,5 +8471,13 @@
   "videoUnmute": "تشغيل الصوت",
   "@videoUnmute": {"description": "D162: the inline player."},
   "videoCannotPlay": "لا يمكن تشغيل هذا الفيديو الآن",
-  "@videoCannotPlay": {"description": "D162: the inline player failed."}
+  "@videoCannotPlay": {"description": "D162: the inline player failed."},
+  "liveGuestCamera": "الكاميرا",
+  "@liveGuestCamera": {
+    "description": "D174a: a seated guest's own camera toggle on the viewer bar (camera on)."
+  },
+  "liveGuestCameraOff": "الكاميرا مطفأة",
+  "@liveGuestCameraOff": {
+    "description": "D174a: the same toggle while the guest's camera is off (the others see their picture)."
+  }
 }

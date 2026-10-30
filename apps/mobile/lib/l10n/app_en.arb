@@ -2578,5 +2578,7 @@
   "videoPause": "Pause video",
   "videoMute": "Mute",
   "videoUnmute": "Turn sound on",
-  "videoCannotPlay": "This video can't play right now"
+  "videoCannotPlay": "This video can't play right now",
+  "liveGuestCamera": "Camera",
+  "liveGuestCameraOff": "Camera off"
 }

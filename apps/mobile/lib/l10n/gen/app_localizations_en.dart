@@ -7875,4 +7875,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get videoCannotPlay => 'This video can\'t play right now';
+
+  @override
+  String get liveGuestCamera => 'Camera';
+
+  @override
+  String get liveGuestCameraOff => 'Camera off';
 }

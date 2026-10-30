@@ -13559,6 +13559,18 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'لا يمكن تشغيل هذا الفيديو الآن'**
   String get videoCannotPlay;
+
+  /// D174a: a seated guest's own camera toggle on the viewer bar (camera on).
+  ///
+  /// In ar, this message translates to:
+  /// **'الكاميرا'**
+  String get liveGuestCamera;
+
+  /// D174a: the same toggle while the guest's camera is off (the others see their picture).
+  ///
+  /// In ar, this message translates to:
+  /// **'الكاميرا مطفأة'**
+  String get liveGuestCameraOff;
 }
 
 class _AppLocalizationsDelegate
