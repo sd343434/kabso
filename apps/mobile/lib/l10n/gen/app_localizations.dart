@@ -14814,24 +14814,6 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'لا شيء'**
   String get bagNothingWorn;
-
-  /// D180: the bag in the layout of the owner reference.
-  ///
-  /// In ar, this message translates to:
-  /// **'لا توجد عناصر بعد'**
-  String get bagItemsEmptyTitle;
-
-  /// D180: the bag in the layout of the owner reference.
-  ///
-  /// In ar, this message translates to:
-  /// **'الهدايا التي تملكها تظهر هنا، وتُرسل من لوحة الهدايا في البث.'**
-  String get bagItemsEmptyMessage;
-
-  /// D180: the bag in the layout of the owner reference.
-  ///
-  /// In ar, this message translates to:
-  /// **'×{count}'**
-  String bagGiftQuantity(int count);
 }
 
 class _AppLocalizationsDelegate

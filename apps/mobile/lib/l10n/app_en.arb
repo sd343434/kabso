@@ -2770,8 +2770,5 @@
   "bagInUse": "Tools in use",
   "bagAllTools": "All tools",
   "bagUse": "Use",
-  "bagNothingWorn": "None",
-  "bagItemsEmptyTitle": "No items yet",
-  "bagItemsEmptyMessage": "Gifts you own appear here; send them from the gift panel in a live.",
-  "bagGiftQuantity": "×{count}"
+  "bagNothingWorn": "None"
 }

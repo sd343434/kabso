@@ -8611,16 +8611,4 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get bagNothingWorn => 'None';
-
-  @override
-  String get bagItemsEmptyTitle => 'No items yet';
-
-  @override
-  String get bagItemsEmptyMessage =>
-      'Gifts you own appear here; send them from the gift panel in a live.';
-
-  @override
-  String bagGiftQuantity(int count) {
-    return '×$count';
-  }
 }

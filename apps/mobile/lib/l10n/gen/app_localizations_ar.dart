@@ -8638,16 +8638,4 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get bagNothingWorn => 'لا شيء';
-
-  @override
-  String get bagItemsEmptyTitle => 'لا توجد عناصر بعد';
-
-  @override
-  String get bagItemsEmptyMessage =>
-      'الهدايا التي تملكها تظهر هنا، وتُرسل من لوحة الهدايا في البث.';
-
-  @override
-  String bagGiftQuantity(int count) {
-    return '×$count';
-  }
 }

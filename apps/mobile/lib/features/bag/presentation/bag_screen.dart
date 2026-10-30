@@ -13,9 +13,6 @@ import 'package:kabso_live/features/bag/data/bag_repository.dart';
 import 'package:kabso_live/features/bag/domain/bag_models.dart';
 import 'package:kabso_live/features/bag/presentation/bag_labels.dart';
 import 'package:kabso_live/features/bag/presentation/bag_send_sheet.dart';
-import 'package:kabso_live/features/live/application/live_gift_providers.dart';
-import 'package:kabso_live/features/live/domain/live_gift_models.dart';
-import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/features/profile/application/public_profile_controller.dart';
 import 'package:kabso_live/features/profile_card/kabso_profile_header.dart';
@@ -61,24 +58,25 @@ abstract final class KBagMetrics {
 
 /// `/bag` (CP-019, D107; D171 behaviour; D180 layout): two tabs.
 ///
-/// «الأدوات» (Tools): the wearable items the user owns (every bag
-/// category is worn: profile cards today, more as the server adds them).
-/// «قيد الاستخدام» shows one column per category with the worn item (or an
-/// empty slot); «كل الأدوات» lists each category's items as tiles (picture,
-/// category glyph, name, time left «31 يوماً» / «دائم»). Tapping a tile
-/// selects it; the bottom bar then names it with where it came from and
-/// offers «استخدام» / «إزالة» and «إرسال» (D171's send sheet).
+/// The bag holds only the wearable items the user owns (owner: entrances,
+/// frames and the like — every bag category; profile cards today), never
+/// live gifts. The two tabs split them without repeating content:
 ///
-/// «الحقيبة» (Item Bag): the other things the user owns — the gifts of the
-/// gift bag (CP-020, `GET /me/gifts/bag`), sent from the gift panel in a
-/// live; an honest empty state when there are none.
+/// «الأدوات» (Tools): «قيد الاستخدام» — one column per category with the
+/// item worn now (or an empty slot); tapping one selects it.
+///
+/// «الحقيبة» (Item Bag): «كل الأدوات» — every owned item by category as
+/// tiles (picture, category glyph, name, time left «31 يوماً» / «دائم»);
+/// tapping one selects it.
+///
+/// The bottom bar (both tabs) names the selection with where it came from
+/// and offers «استخدام» / «إزالة» and «إرسال» (D171's send sheet).
 class BagScreen extends ConsumerStatefulWidget {
   const new({super.key});
 
   static const toolsTabKey = Key('bag.tab.tools');
   static const itemsTabKey = Key('bag.tab.items');
   static const emptyKey = Key('bag.empty');
-  static const itemsEmptyKey = Key('bag.items.empty');
   static const inUseKey = Key('bag.inUse');
   static const useKey = Key('bag.use');
   static const takeOffKey = Key('bag.takeOff');
@@ -93,7 +91,6 @@ class BagScreen extends ConsumerStatefulWidget {
   static Key itemKey(String code) => Key('bag.item.$code');
   static Key wornKey(String code) => Key('bag.worn.$code');
   static Key timeKey(String code) => Key('bag.time.$code');
-  static Key giftKey(String code) => Key('bag.gift.$code');
 
   @override
   ConsumerState<BagScreen> createState() => _BagScreenState();
@@ -213,56 +210,77 @@ class _BagScreenState extends ConsumerState<BagScreen> {
             ],
           ),
         ),
-        body: TabBarView(
+        body: Column(
           children: [
-            Column(
-              children: [
-                Expanded(
-                  child: switch (mine) {
-                    AsyncValue(hasValue: true) => RefreshIndicator(
-                      onRefresh: () async {
-                        try {
-                          await Future.wait([
-                            ref.refresh(myBagItemsProvider.future),
-                          ]);
-                        } on Object catch (e) {
-                          if (context.mounted) {
-                            KSnack.error(
-                              context,
-                              failureMessage(l10n, toAppFailure(e)),
-                            );
-                          }
-                        }
-                      },
-                      child: _tools(items),
-                    ),
-                    AsyncValue(:final error?, isLoading: false) =>
-                      FailureErrorState(
-                        title: l10n.bagLoadError,
-                        failure: toAppFailure(error),
-                        onRetry: () => ref.invalidate(myBagItemsProvider),
-                      ),
-                    _ => const Center(child: CircularProgressIndicator()),
-                  },
-                ),
-                _SelectionBar(
-                  item: selected,
-                  worn: selected != null && _isWorn(selected),
-                  busy: _busy != null,
-                  onUse: selected == null
-                      ? null
-                      : () => unawaited(
-                          _setWorn(selected, wear: !_isWorn(selected)),
-                        ),
-                  onSend: selected == null || !selected.transferable
-                      ? null
-                      : () => unawaited(_send(selected)),
-                ),
-              ],
+            Expanded(
+              child: TabBarView(
+                children: [_page(mine, _toolsTab), _page(mine, _bagTab)],
+              ),
             ),
-            const _GiftItems(),
+            _SelectionBar(
+              item: selected,
+              worn: selected != null && _isWorn(selected),
+              busy: _busy != null,
+              onUse: selected == null
+                  ? null
+                  : () =>
+                        unawaited(_setWorn(selected, wear: !_isWorn(selected))),
+              onSend: selected == null || !selected.transferable
+                  ? null
+                  : () => unawaited(_send(selected)),
+            ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// One tab's page: the owned items when loaded (pull to refresh), the
+  /// error with retry, or the progress.
+  Widget _page(
+    AsyncValue<List<BagItem>> mine,
+    Widget Function(List<BagItem> items) build,
+  ) {
+    final l10n = context.l10n;
+    return switch (mine) {
+      AsyncValue(:final value?) => RefreshIndicator(
+        onRefresh: () async {
+          try {
+            await Future.wait([ref.refresh(myBagItemsProvider.future)]);
+          } on Object catch (e) {
+            if (mounted) {
+              KSnack.error(context, failureMessage(l10n, toAppFailure(e)));
+            }
+          }
+        },
+        child: build(_live(value)),
+      ),
+      AsyncValue(:final error?, isLoading: false) => FailureErrorState(
+        title: l10n.bagLoadError,
+        failure: toAppFailure(error),
+        onRetry: () => ref.invalidate(myBagItemsProvider),
+      ),
+      _ => const Center(child: CircularProgressIndicator()),
+    };
+  }
+
+  /// Known categories first, in the app's order; then any other.
+  List<String> _ownedCategories(List<BagItem> items) => <String>{
+    for (final c in BagCategory.values)
+      if (items.any((i) => i.category == c.wire)) c.wire,
+    for (final i in items) i.category,
+  }.toList();
+
+  Widget _empty() {
+    final l10n = context.l10n;
+    return Padding(
+      padding: const EdgeInsets.all(KSpacing.lg),
+      child: KEmptyState(
+        key: BagScreen.emptyKey,
+        icon: Icons.backpack_outlined,
+        title: l10n.bagEmptyTitle,
+        message: l10n.bagEmptyMessage,
+        compact: true,
       ),
     );
   }
@@ -288,18 +306,13 @@ class _BagScreenState extends ConsumerState<BagScreen> {
     return items;
   }
 
-  Widget _tools(List<BagItem> items) {
+  /// «الأدوات»: what is worn now, one column per category (tap one to
+  /// select it: the bar takes it off or sends it).
+  Widget _toolsTab(List<BagItem> items) {
     final l10n = context.l10n;
-    final now = clock.now();
-    // Known categories first, in the app's order; then any other.
-    final owned = <String>{
-      for (final c in BagCategory.values)
-        if (items.any((i) => i.category == c.wire)) c.wire,
-      for (final i in items) i.category,
-    }.toList();
     final slots = <String>{
       for (final c in BagCategory.values) c.wire,
-      ...owned,
+      ..._ownedCategories(items),
     }.toList();
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -342,18 +355,23 @@ class _BagScreenState extends ConsumerState<BagScreen> {
             },
           ),
         ),
+        if (items.isEmpty) _empty(),
+      ],
+    );
+  }
+
+  /// «الحقيبة»: every item the user owns, by category, as tiles (tap one
+  /// to select it: the bar wears, takes off or sends it).
+  Widget _bagTab(List<BagItem> items) {
+    final l10n = context.l10n;
+    final now = clock.now();
+    final owned = _ownedCategories(items);
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: EdgeInsets.zero,
+      children: [
         _Band(l10n.bagAllTools),
-        if (items.isEmpty)
-          Padding(
-            padding: const EdgeInsets.all(KSpacing.lg),
-            child: KEmptyState(
-              key: BagScreen.emptyKey,
-              icon: Icons.backpack_outlined,
-              title: l10n.bagEmptyTitle,
-              message: l10n.bagEmptyMessage,
-              compact: true,
-            ),
-          ),
+        if (items.isEmpty) _empty(),
         for (final category in owned) ...[
           _CategoryTitle(
             key: BagScreen.sectionKey(category),
@@ -880,110 +898,6 @@ class _SelectionBar extends StatelessWidget {
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-/// «الحقيبة»: the gifts the user owns (the gift bag), each with how many.
-class _GiftItems extends ConsumerWidget {
-  const new();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = context.l10n;
-    final p = context.palette;
-    final t = context.textStyles;
-    return switch (ref.watch(giftBagProvider)) {
-      AsyncValue(value: final gifts?) when gifts.isEmpty => ListView(
-        padding: const EdgeInsets.all(KSpacing.lg),
-        children: [
-          KEmptyState(
-            key: BagScreen.itemsEmptyKey,
-            icon: Icons.card_giftcard_rounded,
-            title: l10n.bagItemsEmptyTitle,
-            message: l10n.bagItemsEmptyMessage,
-            compact: true,
-          ),
-        ],
-      ),
-      AsyncValue(value: final gifts?) => ListView(
-        padding: const EdgeInsets.only(top: KSpacing.md),
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              KSpacing.lg,
-              0,
-              KSpacing.lg,
-              KSpacing.md,
-            ),
-            child: Text(
-              l10n.bagItemsEmptyMessage,
-              style: t.caption.copyWith(color: p.textSecondary),
-            ),
-          ),
-          _TileGrid(
-            children: [
-              for (final g in gifts)
-                _GiftTile(key: BagScreen.giftKey(g.gift.code), item: g),
-            ],
-          ),
-        ],
-      ),
-      AsyncValue(:final error?, isLoading: false) => FailureErrorState(
-        title: l10n.bagLoadError,
-        failure: toAppFailure(error),
-        onRetry: () => ref.invalidate(giftBagProvider),
-      ),
-      _ => const Center(child: CircularProgressIndicator()),
-    };
-  }
-}
-
-class _GiftTile extends StatelessWidget {
-  const new({required this.item, super.key});
-
-  final GiftBagItem item;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final p = context.palette;
-    final t = context.textStyles;
-    final gift = item.gift;
-    return Semantics(
-      container: true,
-      label: '${gift.name}، ${l10n.bagGiftQuantity(item.quantity)}',
-      excludeSemantics: true,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: KSpacing.xs,
-          vertical: KSpacing.xs,
-        ),
-        child: Column(
-          children: [
-            KGiftImage(
-              gift.assetKey,
-              imageUrl: gift.imageUrl,
-              size: KBagMetrics.tilePreview,
-            ),
-            const SizedBox(height: KSpacing.sm),
-            Text(
-              gift.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: t.caption.copyWith(
-                color: p.textPrimary,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            Text(
-              l10n.bagGiftQuantity(item.quantity),
-              maxLines: 1,
-              style: t.caption.copyWith(color: p.textSecondary),
-            ),
-          ],
         ),
       ),
     );

@@ -1,4 +1,6 @@
-// CP-019 / D171 / D180: the bag screen — only owned items (never the catalogue),
+// CP-019 / D171 / D180: the bag screen (owner: only wearable owned items,
+// never live gifts; «الأدوات» = in use, «الحقيبة» = the full list) — only
+// owned items (never the catalogue),
 // grouped by category (an unknown category still shows), each with its
 // preview, where it came from, the time left («متبقٍ …», «ينتهي اليوم»,
 // «دائم»), «ارتداء» / «إزالة» and «إرسال» (off with the reason for free
@@ -26,7 +28,6 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../fixtures/bag/bag_api_fixtures.dart';
 import '../../fixtures/live/live_api_fixtures.dart';
-import '../../fixtures/live/live_gift_fixtures.dart';
 import '../../helpers/fake_bag_repository.dart';
 import '../../helpers/fake_bonds_repositories.dart';
 import '../../helpers/fake_live_gift_repository.dart';
@@ -134,7 +135,17 @@ void main() {
   ButtonStyleButton button(WidgetTester tester, Key key) =>
       tester.widget<ButtonStyleButton>(find.byKey(key));
 
+  Future<void> tab(WidgetTester tester, Key key) async {
+    await tester.tap(find.byKey(key));
+    await tester.pumpAndSettle();
+  }
+
+  /// Selects [code] on «الحقيبة» (the full list).
   Future<void> select(WidgetTester tester, String code) async {
+    if (find.byKey(BagScreen.itemKey(code)).evaluate().isEmpty &&
+        find.byKey(BagScreen.sectionKey('PROFILE_CARD')).evaluate().isEmpty) {
+      await tab(tester, BagScreen.itemsTabKey);
+    }
     await tester.scrollUntilVisible(
       find.byKey(BagScreen.itemKey(code)),
       200,
@@ -150,13 +161,16 @@ void main() {
     tester,
   ) async {
     await withClock(Clock.fixed(_now), () async {
-      final f = await _pump(tester);
+      // The user holds live gifts too: the bag never shows or asks for them.
+      final f = await _pump(tester, gifts: const {'rose': 3});
       // Only the owned items are asked for; the catalogue never.
       expect(f.bag.calls, ['myBag']);
       expect(find.byKey(BagScreen.toolsTabKey), findsOneWidget);
       expect(find.byKey(BagScreen.itemsTabKey), findsOneWidget);
+      // «الأدوات»: what is worn, never the full list (that is «الحقيبة»).
       expect(find.text(en.bagInUse), findsOneWidget);
-      expect(find.text(en.bagAllTools), findsOneWidget);
+      expect(find.text(en.bagAllTools), findsNothing);
+      expect(find.byKey(BagScreen.itemKey('golden_stags')), findsNothing);
       // In use: the worn profile card; the frame category has an empty slot.
       expect(
         find.descendant(
@@ -169,7 +183,12 @@ void main() {
         find.byKey(BagScreen.emptySlotKey('AVATAR_FRAME')),
         findsOneWidget,
       );
-      // All tools: a section per category (an unknown one as «Other items»).
+      // «الحقيبة»: every owned item by category (an unknown one as «Other
+      // items»); still no live gifts.
+      await tab(tester, BagScreen.itemsTabKey);
+      expect(find.text(en.bagAllTools), findsOneWidget);
+      expect(find.text(en.bagInUse), findsNothing);
+      expect(f.gifts.calls, isEmpty);
       expect(find.byKey(BagScreen.sectionKey('PROFILE_CARD')), findsOneWidget);
       expect(find.byKey(BagScreen.wornKey('bunny_royal')), findsOneWidget);
       expect(
@@ -236,11 +255,10 @@ void main() {
       expect(f.bag.calls.where((c) => c == 'myBag'), hasLength(2));
       // The user's own profile (their card) reloads too.
       expect(f.profiles.calls.length, greaterThan(gets));
-      await tester.scrollUntilVisible(
-        find.byKey(BagScreen.inUseKey),
-        -200,
-        scrollable: _list,
-      );
+      expect(find.byKey(BagScreen.wornKey('bunny_royal')), findsNothing);
+      expect(find.byKey(BagScreen.wornKey('golden_stags')), findsOneWidget);
+      // «الأدوات» shows it in use, and the selection stays across tabs.
+      await tab(tester, BagScreen.toolsTabKey);
       expect(
         find.descendant(
           of: find.byKey(BagScreen.slotKey('PROFILE_CARD')),
@@ -248,7 +266,7 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(find.byKey(BagScreen.wornKey('bunny_royal')), findsNothing);
+      expect(find.byKey(BagScreen.takeOffKey), findsOneWidget);
       // Tapping the selected tile again clears the selection.
       await select(tester, 'golden_stags');
       expect(find.byKey(BagScreen.selectedNameKey), findsNothing);
@@ -266,11 +284,7 @@ void main() {
       expect(f.bag.calls, contains('setEquipped:null'));
       expect(f.bag.worn, isNull);
       expect(find.byKey(BagScreen.useKey), findsOneWidget);
-      await tester.scrollUntilVisible(
-        find.byKey(BagScreen.inUseKey),
-        -200,
-        scrollable: _list,
-      );
+      await tab(tester, BagScreen.toolsTabKey);
       expect(
         find.byKey(BagScreen.emptySlotKey('PROFILE_CARD')),
         findsOneWidget,
@@ -412,6 +426,7 @@ void main() {
           ),
         ],
       );
+      await tab(tester, BagScreen.itemsTabKey);
       expect(
         _text(tester, BagScreen.timeKey('golden_stags')).data,
         '2 minutes',
@@ -432,15 +447,18 @@ void main() {
     await pumpBonds(
       tester,
       const BagScreen(),
-      overrides: [
-        bagRepositoryProvider.overrideWithValue(bag),
-        liveGiftRepositoryProvider.overrideWithValue(FakeLiveGiftRepository()),
-      ],
+      overrides: [bagRepositoryProvider.overrideWithValue(bag)],
     );
     expect(find.text(en.bagLoadError), findsOneWidget);
     await tester.tap(find.text(en.actionRetry));
     await tester.pumpAndSettle();
-    expect(find.byKey(BagScreen.itemKey('bunny_royal')), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(BagScreen.slotKey('PROFILE_CARD')),
+        matching: find.text('Royal Bunny'),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('owning nothing: the empty state and an empty slot', (
@@ -449,30 +467,9 @@ void main() {
     final f = await _pump(tester, items: const [], worn: null);
     expect(find.byKey(BagScreen.emptyKey), findsOneWidget);
     expect(find.byKey(BagScreen.emptySlotKey('PROFILE_CARD')), findsOneWidget);
+    await tab(tester, BagScreen.itemsTabKey);
+    expect(find.byKey(BagScreen.emptyKey), findsOneWidget);
     expect(f.bag.calls, ['myBag']);
-  });
-
-  testWidgets('Item Bag: the gifts owned with how many; else empty', (
-    tester,
-  ) async {
-    final f = await _pump(tester, gifts: const {'rose': 3, 'crown': 1});
-    await tester.tap(find.byKey(BagScreen.itemsTabKey));
-    await tester.pumpAndSettle();
-    expect(f.gifts.calls, contains('bag'));
-    expect(find.byKey(BagScreen.giftKey('rose')), findsOneWidget);
-    expect(find.byKey(BagScreen.giftKey('crown')), findsOneWidget);
-    expect(find.text('×3'), findsOneWidget);
-    expect(
-      find.text(giftJson('rose', ar: false)['name']! as String),
-      findsOneWidget,
-    );
-
-    await tester.pumpWidget(const SizedBox.shrink());
-    await _pump(tester);
-    await tester.tap(find.byKey(BagScreen.itemsTabKey));
-    await tester.pumpAndSettle();
-    expect(find.byKey(BagScreen.itemsEmptyKey), findsOneWidget);
-    expect(find.text(en.bagItemsEmptyTitle), findsOneWidget);
   });
 
   for (final scale in [1.3, 2.0]) {
@@ -484,16 +481,18 @@ void main() {
       await withClock(Clock.fixed(_now), () async {
         for (final language in AppLanguage.values) {
           await tester.pumpWidget(const SizedBox.shrink());
-          await _pump(tester, language: language, gifts: const {'rose': 2});
+          await _pump(tester, language: language);
           expect(tester.takeException(), isNull, reason: language.name);
           final isAr = language == AppLanguage.ar;
           final l10n = isAr ? ar : en;
           expect(find.text(l10n.bagTabTools), findsOneWidget);
           if (isAr) {
             expect(find.text('قيد الاستخدام'), findsOneWidget);
-            expect(find.text('كل الأدوات'), findsOneWidget);
             expect(find.text('استخدام'), findsOneWidget);
           }
+          await tab(tester, BagScreen.itemsTabKey);
+          expect(tester.takeException(), isNull, reason: language.name);
+          if (isAr) expect(find.text('كل الأدوات'), findsOneWidget);
           // The first tile at the reading start: right in Arabic.
           final first = tester.getCenter(
             find.byKey(BagScreen.itemKey('bunny_royal')),
@@ -514,11 +513,8 @@ void main() {
             scrollable: _list,
           );
           expect(tester.takeException(), isNull, reason: language.name);
-          await tester.tap(find.byKey(BagScreen.itemsTabKey));
-          await tester.pumpAndSettle();
+          await tab(tester, BagScreen.toolsTabKey);
           expect(tester.takeException(), isNull, reason: language.name);
-          await tester.tap(find.byKey(BagScreen.toolsTabKey));
-          await tester.pumpAndSettle();
           await select(tester, 'golden_stags');
           await tester.tap(find.byKey(BagScreen.sendKey));
           await tester.pumpAndSettle();
