@@ -22,8 +22,15 @@ describe('ZodValidationPipe', () => {
       password: 'password1',
       username: 'abc123',
       displayName: ' Name ',
+      gender: 'FEMALE',
     });
-    expect(out).toEqual({ email: 'a@b.co', password: 'password1', username: 'abc123', displayName: 'Name' });
+    expect(out).toEqual({
+      email: 'a@b.co',
+      password: 'password1',
+      username: 'abc123',
+      displayName: 'Name',
+      gender: 'FEMALE',
+    });
   });
 
   it('produces { field, issue } details with dotted paths', () => {
