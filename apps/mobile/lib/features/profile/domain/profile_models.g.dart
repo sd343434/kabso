@@ -39,6 +39,7 @@ _PublicProfile _$PublicProfileFromJson(Map<String, dynamic> json) =>
       links: json['links'] == null
           ? const <ProfileLink>[]
           : profileLinksFromJson(json['links']),
+      rechargeAgentCode: rechargeAgentCodeFromJson(json['rechargeAgent']),
     );
 
 Map<String, dynamic> _$PublicProfileToJson(_PublicProfile instance) =>
@@ -64,6 +65,7 @@ Map<String, dynamic> _$PublicProfileToJson(_PublicProfile instance) =>
       'gender': genderToJson(instance.gender),
       'category': accountCategoryToJson(instance.category),
       'links': profileLinksToJson(instance.links),
+      'rechargeAgent': ?rechargeAgentCodeToJson(instance.rechargeAgentCode),
     };
 
 _FollowState _$FollowStateFromJson(Map<String, dynamic> json) => _FollowState(

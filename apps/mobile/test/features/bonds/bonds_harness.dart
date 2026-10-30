@@ -11,11 +11,13 @@ import 'package:kabso_live/features/cp/data/cp_repository.dart';
 import 'package:kabso_live/features/families/data/families_repository.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/medals/data/medals_repository.dart';
+import 'package:kabso_live/features/recharge/data/recharge_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../helpers/fake_bonds_repositories.dart';
 import '../../helpers/fake_live_repository.dart';
+import '../../helpers/fake_recharge_repository.dart';
 import '../../helpers/fakes.dart';
 import '../../helpers/pump_app.dart';
 
@@ -57,6 +59,8 @@ Future<BondFakes> pumpBonds(
       retry: (_, _) => null,
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
+        // D185: never the network for the recharge-agent state.
+        rechargeRepositoryProvider.overrideWithValue(FakeRechargeRepository()),
         familiesRepositoryProvider.overrideWithValue(f.families),
         cpRepositoryProvider.overrideWithValue(f.cp),
         medalsRepositoryProvider.overrideWithValue(f.medals),

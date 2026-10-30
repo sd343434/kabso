@@ -29,6 +29,7 @@ import 'package:kabso_live/features/messages/data/dm_repository.dart';
 import 'package:kabso_live/features/notifications/data/notifications_repository.dart';
 import 'package:kabso_live/features/posts/data/media_library.dart';
 import 'package:kabso_live/features/posts/data/posts_repository.dart';
+import 'package:kabso_live/features/recharge/data/recharge_repository.dart';
 import 'package:kabso_live/features/stories/data/stories_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -51,6 +52,7 @@ import 'fake_live_sticker_repository.dart';
 import 'fake_live_watch_repository.dart';
 import 'fake_notifications_repository.dart';
 import 'fake_posts_repository.dart';
+import 'fake_recharge_repository.dart';
 import 'fake_splash_video.dart';
 import 'fake_stories_repository.dart';
 import 'fake_youtube_player.dart';
@@ -102,6 +104,8 @@ Future<void> pumpKabsoApp(
       retry: (_, _) => null,
       overrides: [
         sharedPreferencesProvider.overrideWithValue(preferences),
+        // D185: never the network for the recharge-agent state.
+        rechargeRepositoryProvider.overrideWithValue(FakeRechargeRepository()),
         // D156: never the video plugin (it has no test implementation).
         splashVideoFactoryProvider.overrideWithValue(
           splashVideo ?? (_) => FakeSplashVideo(endOnPlay: true),
@@ -236,6 +240,8 @@ Future<void> pumpScreen(
       retry: (_, _) => null,
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
+        // D185: never the network for the recharge-agent state.
+        rechargeRepositoryProvider.overrideWithValue(FakeRechargeRepository()),
         // D162: post and reel videos without the plugin.
         inlineVideoFactoryProvider.overrideWithValue(
           (inlineVideos ?? FakeInlineVideos()).call,

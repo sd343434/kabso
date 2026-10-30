@@ -11,6 +11,7 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_side_cards.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
+import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -470,7 +471,12 @@ class KHostPill extends StatefulWidget {
     this.onTap,
     this.username,
     this.premiumTier,
+    this.agentCode,
   });
+
+  /// v1.54-social (D185): the host's recharge-agent code while ACTIVE (the
+  /// badge after the name).
+  final String? agentCode;
 
   /// D141 (owner, replaces D135's room ID): the host's `@username` beside
   /// the name; a tap copies it ([KLiveUsernameTag]).
@@ -677,6 +683,11 @@ class _KHostPillState extends State<KHostPill> {
                               shadows: KLiveColors.glassShadow,
                             ),
                           ),
+                        ),
+                        RechargeAgentInlineBadge(
+                          code: widget.agentCode,
+                          height: 14,
+                          gap: 3,
                         ),
                         if (widget.username case final name?) ...[
                           const SizedBox(width: 5),

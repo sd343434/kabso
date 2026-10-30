@@ -16,6 +16,17 @@ abstract class PageInfo with _$PageInfo {
   factory fromJson(Map<String, dynamic> json) => _$PageInfoFromJson(json);
 }
 
+/// v1.54-social (D185): reads `RechargeAgentTag` (`{code}`) to its code;
+/// anything else (absent, null, malformed) is no agent.
+String? rechargeAgentCodeFromJson(Object? json) => switch (json) {
+  {'code': final String code} when code.isNotEmpty => code,
+  _ => null,
+};
+
+/// The wire shape of [rechargeAgentCodeFromJson].
+Map<String, dynamic>? rechargeAgentCodeToJson(String? code) =>
+    code == null ? null : {'code': code};
+
 /// `UserSummary`: minimal public identity of a user. Never has an email.
 @freezed
 abstract class UserSummary with _$UserSummary {
@@ -29,6 +40,17 @@ abstract class UserSummary with _$UserSummary {
     /// badge), or null for a regular username. Only the server decides it.
     @JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson)
     PremiumTier? premiumTier,
+
+    /// v1.54-social (D185, §10.48): the user's recharge-agent code while
+    /// they are an ACTIVE agent (`UserSummary.rechargeAgent.code`): the
+    /// small agent badge next to the name in live rooms. Null otherwise.
+    @JsonKey(
+      name: 'rechargeAgent',
+      includeIfNull: false,
+      fromJson: rechargeAgentCodeFromJson,
+      toJson: rechargeAgentCodeToJson,
+    )
+    String? rechargeAgentCode,
   }) = _UserSummary;
 
   factory fromJson(Map<String, dynamic> json) => _$UserSummaryFromJson(json);

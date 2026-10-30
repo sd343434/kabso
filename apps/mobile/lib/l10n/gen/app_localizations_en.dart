@@ -9455,4 +9455,516 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get agencyHostNoCommission =>
       'Joined while the agency wasn\'t qualified: no commission';
+
+  @override
+  String rechargeAgentBadgeLabel(String code) {
+    return 'Top-up agent $code';
+  }
+
+  @override
+  String rechargeAgentFrameLabel(String name, String code) {
+    return '$name, top-up agent $code';
+  }
+
+  @override
+  String rechargeEntranceJoined(String code) {
+    return 'Top-up agent $code joined';
+  }
+
+  @override
+  String rechargeAgentIdLine(String code) {
+    return 'Top-up agent · $code';
+  }
+
+  @override
+  String rechargeIdLine(String code) {
+    return 'Top-up agent · $code';
+  }
+
+  @override
+  String get rechargeTitle => 'Top-up agent';
+
+  @override
+  String get rechargeDirectoryTitle => 'Top-up agents';
+
+  @override
+  String get rechargeDirectoryHint =>
+      'Buy coins from an agent in your country and pay them directly';
+
+  @override
+  String get rechargeBuyViaAgent => 'Top up through an agent';
+
+  @override
+  String get rechargeBecome => 'Become a top-up agent';
+
+  @override
+  String get rechargeIntroTitle => 'Sell Kabso coins in your country';
+
+  @override
+  String get rechargeIntroBody =>
+      'An agent buys coins wholesale from Kabso and sells them to Kabso users, who pay the agent outside the app. Agents get a frame, a badge and a special room entrance.';
+
+  @override
+  String rechargeIntroActivation(String coins) {
+    return 'An agent is activated by a first top-up of at least $coins coins.';
+  }
+
+  @override
+  String get rechargePendingTitle => 'Your application is under review';
+
+  @override
+  String get rechargePendingBody =>
+      'The Kabso team will contact you on WhatsApp. Your application is private: only the team sees it.';
+
+  @override
+  String get rechargeRejectedTitle => 'Your last application was not accepted.';
+
+  @override
+  String rechargeRejectedReason(String reason) {
+    return 'Reason: $reason';
+  }
+
+  @override
+  String get rechargeApplyAgain => 'Apply again';
+
+  @override
+  String get rechargeApprovedTitle =>
+      'Approved — waiting for your first top-up';
+
+  @override
+  String rechargeApprovedBody(String coins) {
+    return 'Activate your agency with a first top-up of at least $coins coins through the Kabso team. Your code and frame appear after activation.';
+  }
+
+  @override
+  String get rechargeSuspendedTitle => 'Agency suspended';
+
+  @override
+  String get rechargeSuspendedBody =>
+      'You can\'t sell now and you are not listed; the frame, badge and entrance are removed. Contact the Kabso team.';
+
+  @override
+  String get rechargeStock => 'Coin stock';
+
+  @override
+  String rechargeStockLabel(String coins) {
+    return 'Coin stock: $coins';
+  }
+
+  @override
+  String get rechargeSell => 'Sell coins';
+
+  @override
+  String get rechargeManage => 'Manage the agency';
+
+  @override
+  String get rechargeSalesTitle => 'Sales';
+
+  @override
+  String rechargeSalesTotals(int count, String coins) {
+    return '$count sales\n$coins coins';
+  }
+
+  @override
+  String get rechargeToday => 'Today';
+
+  @override
+  String get rechargeLast7 => '7 days';
+
+  @override
+  String get rechargeLast30 => '30 days';
+
+  @override
+  String rechargeCherryToday(String today, String cap) {
+    return 'Hosts\' cherries today: $today of $cap';
+  }
+
+  @override
+  String get rechargeEmployeesTitle => 'Employees';
+
+  @override
+  String get rechargeEmployeesHint =>
+      'Add employees who sell from your stock during their hours';
+
+  @override
+  String get rechargeAvailabilityTitle => 'Contact times and payment';
+
+  @override
+  String get rechargeAvailabilityEmpty =>
+      'No times yet: the contact button won\'t show in the directory';
+
+  @override
+  String rechargeSlotCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count time slots',
+      one: '1 time slot',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get rechargeAvailabilityNote =>
+      'The WhatsApp number and payment method of the current slot are shown to everyone in the directory.';
+
+  @override
+  String get rechargeCherryBuyTitle => 'Buy hosts\' cherries';
+
+  @override
+  String get rechargeCherrySellTitle => 'Sell cherries to an agent';
+
+  @override
+  String rechargeCherryRate(String cherries, String coins) {
+    return '$cherries cherries = $coins coins in the agent\'s stock';
+  }
+
+  @override
+  String rechargeEmployeeOf(String name) {
+    return 'Employee of $name';
+  }
+
+  @override
+  String get rechargeOnShift => 'On shift';
+
+  @override
+  String get rechargeOffShift => 'Off shift';
+
+  @override
+  String get rechargeSellTitle => 'Sell coins from the stock';
+
+  @override
+  String rechargeStockLeft(String coins) {
+    return 'In stock: $coins coins';
+  }
+
+  @override
+  String get rechargeBuyer => 'Buyer';
+
+  @override
+  String get rechargeBuyerHint => 'Username or ID';
+
+  @override
+  String get rechargeCoins => 'Coins';
+
+  @override
+  String get rechargeSellInvalid => 'Enter the buyer and the coins';
+
+  @override
+  String rechargeSellConfirm(String coins, String buyer) {
+    return 'Sell $coins coins to $buyer? This can\'t be undone.';
+  }
+
+  @override
+  String rechargeSold(String coins, String buyer) {
+    return '$coins coins sent to $buyer';
+  }
+
+  @override
+  String get rechargeSellNote =>
+      'The buyer pays you outside the app. Make sure you were paid before selling.';
+
+  @override
+  String get rechargeApplyTitle => 'Top-up agent application';
+
+  @override
+  String get rechargePrivacyNote =>
+      'Your application is private: only the Kabso team sees it, and it is deleted 90 days after a refusal.';
+
+  @override
+  String get rechargeFullName => 'Full four-part name';
+
+  @override
+  String get rechargeFullNameHint => 'As on your ID';
+
+  @override
+  String get rechargeFullNameError =>
+      'Enter your full name (at least four names)';
+
+  @override
+  String get rechargePhone => 'Phone number (WhatsApp)';
+
+  @override
+  String get rechargePhoneHint => 'International format, e.g. +201001234567';
+
+  @override
+  String get rechargePhoneError =>
+      'Enter an international number starting with + (e.g. +201001234567)';
+
+  @override
+  String get rechargePhoto => 'Your photo';
+
+  @override
+  String get rechargePhotoHint => 'A clear photo of you';
+
+  @override
+  String get rechargeSelfie => 'Verification selfie';
+
+  @override
+  String get rechargeSelfieHint => 'Front camera, now; the team reviews it';
+
+  @override
+  String get rechargeLocations => 'Where you sell';
+
+  @override
+  String get rechargeCountry => 'Country';
+
+  @override
+  String get rechargeCities => 'Cities (comma separated)';
+
+  @override
+  String get rechargeAddLocation => 'Add a country';
+
+  @override
+  String get rechargeLocationError =>
+      'Enter a two-letter country code (e.g. EG) and at least one city';
+
+  @override
+  String get rechargePaymentMethods => 'Payment methods in each country';
+
+  @override
+  String get rechargePaymentType => 'Type';
+
+  @override
+  String get rechargePaymentDetails => 'Details (e.g. Vodafone Cash, InstaPay)';
+
+  @override
+  String get rechargeAddPayment => 'Add a payment method';
+
+  @override
+  String get rechargePaymentError =>
+      'Each payment method needs a country you sell in and details';
+
+  @override
+  String get rechargeMissingPhotos =>
+      'Add your photo and the selfie (JPEG, PNG or WebP)';
+
+  @override
+  String get rechargeSubmit => 'Send the application';
+
+  @override
+  String get rechargeSubmitted => 'Application sent';
+
+  @override
+  String get rechargePayBank => 'Bank transfer';
+
+  @override
+  String get rechargePayWallet => 'Mobile wallet';
+
+  @override
+  String get rechargePayCash => 'Cash';
+
+  @override
+  String get rechargePayCard => 'Card';
+
+  @override
+  String get rechargePayCrypto => 'Crypto';
+
+  @override
+  String get rechargePayOther => 'Other';
+
+  @override
+  String get rechargeRemove => 'Remove';
+
+  @override
+  String get rechargeAddEmployee => 'Add an employee';
+
+  @override
+  String get rechargeEmployeeUsername => 'Username';
+
+  @override
+  String get rechargeEmployeesEmpty => 'No employees yet';
+
+  @override
+  String rechargeRemoveEmployeeConfirm(String name) {
+    return 'Remove $name? They stop selling at once.';
+  }
+
+  @override
+  String get rechargeHours => 'Working hours';
+
+  @override
+  String get rechargeTimeZone => 'Time zone';
+
+  @override
+  String get rechargeFrom => 'From';
+
+  @override
+  String get rechargeTo => 'To';
+
+  @override
+  String get rechargeAddSlot => 'Add a time slot';
+
+  @override
+  String get rechargeWhatsapp => 'WhatsApp number';
+
+  @override
+  String get rechargePaymentNow => 'Payment method in this slot';
+
+  @override
+  String get rechargeSave => 'Save';
+
+  @override
+  String get rechargeSaved => 'Saved';
+
+  @override
+  String get rechargeDay1 => 'Mon';
+
+  @override
+  String get rechargeDay2 => 'Tue';
+
+  @override
+  String get rechargeDay3 => 'Wed';
+
+  @override
+  String get rechargeDay4 => 'Thu';
+
+  @override
+  String get rechargeDay5 => 'Fri';
+
+  @override
+  String get rechargeDay6 => 'Sat';
+
+  @override
+  String get rechargeDay7 => 'Sun';
+
+  @override
+  String get rechargeDirectoryNote =>
+      'You pay the agent outside the app; they send the coins to your account.';
+
+  @override
+  String get rechargeDirectoryEmpty => 'No agents in this country yet';
+
+  @override
+  String get rechargeDirectoryEmptyBody =>
+      'Try another country or come back later.';
+
+  @override
+  String rechargeAvailableNowLine(String method) {
+    return 'Available now · Payment: $method';
+  }
+
+  @override
+  String get rechargeNotAvailableNow => 'Not available now';
+
+  @override
+  String get rechargeContact => 'Contact';
+
+  @override
+  String get rechargeCherryOffer => 'Sell cherries to an agent';
+
+  @override
+  String get rechargeCherryAsk => 'Ask a host for cherries';
+
+  @override
+  String get rechargeAgentCodeField => 'Agent code (e.g. coin0001)';
+
+  @override
+  String get rechargeHostField => 'Host\'s username';
+
+  @override
+  String get rechargeCherryAmount => 'Cherries';
+
+  @override
+  String rechargeCherryRules(String min, String step) {
+    return 'At least $min cherries, in steps of $step';
+  }
+
+  @override
+  String get rechargeCherryLockedNote => 'Locked task cherries are never sold.';
+
+  @override
+  String rechargeCherryPreview(String coins, String money) {
+    return 'The agent gets $coins coins and pays the host $money in cash';
+  }
+
+  @override
+  String get rechargeCherrySend => 'Send request';
+
+  @override
+  String get rechargeCherrySent => 'Request sent; waiting for the other side';
+
+  @override
+  String get rechargeCherryEmpty => 'No requests';
+
+  @override
+  String get rechargeCherryConfirmHint =>
+      'Confirm only after the cash was paid. A request ends after 30 minutes.';
+
+  @override
+  String get rechargeCherryWaiting => 'Waiting for the other side';
+
+  @override
+  String get rechargeCherryCancel => 'Cancel request';
+
+  @override
+  String get rechargeConfirm => 'Confirm';
+
+  @override
+  String get rechargeDecline => 'Decline';
+
+  @override
+  String get rechargeCherryPending => 'Pending';
+
+  @override
+  String get rechargeCherryConfirmed => 'Confirmed';
+
+  @override
+  String get rechargeCherryDeclined => 'Declined';
+
+  @override
+  String get rechargeCherryCancelled => 'Cancelled';
+
+  @override
+  String get rechargeCherryExpired => 'Expired';
+
+  @override
+  String rechargeCherryLine(String cherries, String coins) {
+    return '$cherries cherries → $coins coins';
+  }
+
+  @override
+  String rechargeMoney(String amount) {
+    return 'Cash amount: $amount';
+  }
+
+  @override
+  String notifRechargeCoins(String name, String coins) {
+    return '$name topped up $coins coins for you';
+  }
+
+  @override
+  String notifRechargeCherry(String name) {
+    return '$name asks you to confirm a cherry sale';
+  }
+
+  @override
+  String get errorRechargeApplicationNotAllowed =>
+      'You can\'t apply to be a top-up agent now.';
+
+  @override
+  String get errorRechargeAgentNotActive => 'This top-up agent is not active.';
+
+  @override
+  String get errorRechargeOffShift =>
+      'You can sell only during your working hours.';
+
+  @override
+  String get errorRechargeStockInsufficient => 'Not enough coins in the stock.';
+
+  @override
+  String get errorRechargeEmployeeNotAllowed =>
+      'This person can\'t be added as an employee.';
+
+  @override
+  String get errorRechargeCherryRequestPending =>
+      'There is already an open request between you.';
+
+  @override
+  String get errorRechargeCherryRequestClosed =>
+      'This request is no longer open.';
+
+  @override
+  String get errorRechargeCherryCapReached =>
+      'The agent\'s daily cherry limit is reached.';
 }

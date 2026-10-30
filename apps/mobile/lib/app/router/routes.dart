@@ -196,6 +196,15 @@ abstract final class AppRoutes {
   /// agent's dashboard). D172's Creator Center tab will host it on merge.
   static const agency = '/agency';
 
+  /// D185: recharge agents «وكيل الشحن»: the caller's page (apply, pending,
+  /// the agent's dashboard or the employee's), the application, employees,
+  /// the directory «وكلاء الشحن» and cherry sales between hosts and agents.
+  static const recharge = '/recharge';
+  static const rechargeApply = '/recharge/apply';
+  static const rechargeEmployees = '/recharge/employees';
+  static const rechargeAgents = '/recharge/agents';
+  static const rechargeCherries = '/recharge/cherries';
+
   /// D166: the Me hub's programs — the Task Center, the Event Center (and
   /// one event) and SVIP.
   static const taskCenter = '/tasks';

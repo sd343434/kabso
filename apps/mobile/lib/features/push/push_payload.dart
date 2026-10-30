@@ -63,6 +63,9 @@ class PushPayload {
     if (type == 'CP_REQUEST' || type == 'CP_ACCEPTED') return AppRoutes.cp;
     if (type == 'MEDAL_AWARDED') return AppRoutes.medals;
     if (type == 'BAG_ITEM_RECEIVED') return AppRoutes.bag;
+    // D185.
+    if (type == 'RECHARGE_COINS_RECEIVED') return AppRoutes.wallet;
+    if (type == 'RECHARGE_CHERRY_REQUEST') return AppRoutes.rechargeCherries;
     if (id == null || id.isEmpty) return null;
     final postId = data['targetPostId'];
     final actor = data['actorUsername'];

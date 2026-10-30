@@ -15,6 +15,9 @@ import 'package:kabso_live/features/cp/presentation/cp_special_frame.dart';
 import 'package:kabso_live/features/levels/presentation/profile_levels.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/features/profile/profile_fields_view.dart';
+import 'package:kabso_live/features/recharge/application/recharge_providers.dart';
+import 'package:kabso_live/features/recharge/data/recharge_repository.dart';
+import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -178,7 +181,12 @@ class _OwnHeader extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final statsLoad = ref.watch(profileStatsProvider(user.username));
     final stats = statsLoad.value;
+    // D185: the caller's own agent frame and badge while ACTIVE.
+    final agent = ref.watch(myRechargeAgentProvider).value?.agent;
     return ProfileHeaderView(
+      agentCode: agent?.status == RechargeAgentStatus.active
+          ? agent?.code
+          : null,
       displayName: user.displayName,
       avatarUrl: user.avatarUrl,
       bio: user.bio,
@@ -259,7 +267,14 @@ class ProfileHeaderView extends StatelessWidget {
     this.onOpenFollowing,
     this.subtitle,
     this.about,
+    this.agentCode,
   });
+
+  /// v1.54-social (D185): the person's code while they are an ACTIVE
+  /// recharge agent: the agent frame (with the code in its plate) around
+  /// the photo and the agent badge beside the name. While [live], the live
+  /// ring wins (as for the CP frame).
+  final String? agentCode;
 
   final String displayName;
   final String? avatarUrl;
@@ -298,6 +313,8 @@ class ProfileHeaderView extends StatelessWidget {
   static const followersKey = Key('profile.stat.followers');
   static const followingKey = Key('profile.stat.following');
   static const cpFrameKey = Key('profile.avatar.cpFrame');
+  static const agentFrameKey = Key('profile.avatar.agentFrame');
+  static const agentBadgeKey = Key('profile.agentBadge');
 
   @override
   Widget build(BuildContext context) {
@@ -340,7 +357,16 @@ class ProfileHeaderView extends StatelessWidget {
         ),
       ),
     );
-    final avatar = cpFrame && !live
+    final agentCode = this.agentCode;
+    final avatar = agentCode != null && !live
+        ? RechargeAgentFrame(
+            key: agentFrameKey,
+            width: KProfile.avatar * 1.6,
+            name: displayName,
+            code: agentCode,
+            imageUrl: avatarUrl,
+          )
+        : cpFrame && !live
         ? CpSpecialFrameAvatar(
             key: cpFrameKey,
             width: CpSpecialFrameAvatar.widthForAvatar(KProfile.avatar),
@@ -409,6 +435,8 @@ class ProfileHeaderView extends StatelessWidget {
                 key: const Key('profile.displayName'),
                 style: t.bodyStrong.copyWith(color: p.textPrimary),
               ),
+              if (agentCode case final code?)
+                RechargeAgentBadge(key: agentBadgeKey, code: code, height: 22),
               ?nameTrailing,
             ],
           ),

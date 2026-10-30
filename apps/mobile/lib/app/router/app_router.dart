@@ -74,6 +74,11 @@ import 'package:kabso_live/features/programs/presentation/event_center_screen.da
 import 'package:kabso_live/features/programs/presentation/event_detail_screen.dart';
 import 'package:kabso_live/features/programs/presentation/svip_screen.dart';
 import 'package:kabso_live/features/programs/presentation/task_center_screen.dart';
+import 'package:kabso_live/features/recharge/presentation/recharge_apply_screen.dart';
+import 'package:kabso_live/features/recharge/presentation/recharge_cherry_screen.dart';
+import 'package:kabso_live/features/recharge/presentation/recharge_directory_screen.dart';
+import 'package:kabso_live/features/recharge/presentation/recharge_employees_screen.dart';
+import 'package:kabso_live/features/recharge/presentation/recharge_hub_screen.dart';
 import 'package:kabso_live/features/safety/safety_screens.dart';
 import 'package:kabso_live/features/settings/settings_screen.dart';
 import 'package:kabso_live/features/stories/presentation/new_story_screen.dart';
@@ -366,6 +371,27 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       // D179: host agencies.
       GoRoute(path: AppRoutes.agency, builder: (_, _) => const AgencyScreen()),
+      // D185: recharge agents.
+      GoRoute(
+        path: AppRoutes.recharge,
+        builder: (_, _) => const RechargeHubScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.rechargeApply,
+        builder: (_, _) => const RechargeApplyScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.rechargeEmployees,
+        builder: (_, _) => const RechargeEmployeesScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.rechargeAgents,
+        builder: (_, _) => const RechargeDirectoryScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.rechargeCherries,
+        builder: (_, _) => const RechargeCherryScreen(),
+      ),
       // D166: the Me hub's Task Center, Event Center and SVIP.
       GoRoute(
         path: AppRoutes.taskCenter,

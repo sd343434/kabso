@@ -17,6 +17,7 @@ import 'package:kabso_live/features/live/presentation/hub/home_banner_carousel.d
 import 'package:kabso_live/features/programs/application/programs_providers.dart';
 import 'package:kabso_live/features/programs/data/programs_repository.dart';
 import 'package:kabso_live/features/programs/presentation/program_parts.dart';
+import 'package:kabso_live/features/recharge/presentation/recharge_widgets.dart';
 import 'package:kabso_live/features/wallet/application/wallet_providers.dart';
 import 'package:kabso_live/features/wallet/presentation/wallet_cherry_tab.dart';
 import 'package:kabso_live/features/wallet/presentation/wallet_parts.dart';
@@ -66,6 +67,9 @@ class WalletScreen extends ConsumerStatefulWidget {
 
   static const balanceKey = Key('wallet.balance');
   static const rechargeKey = Key('wallet.recharge');
+
+  /// D185: «الشحن عبر وكيل» → the agents' directory.
+  static const agentsKey = Key('wallet.agents');
   static const historyButtonKey = Key('wallet.historyButton');
   static const packagesEmptyKey = Key('wallet.packages.empty');
   static const rewardsKey = Key('wallet.rewards');
@@ -240,6 +244,17 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
           ),
         ),
       WalletSection(title: l10n.walletRechargeTitle, children: packages),
+      // D185: buying coins from a recharge agent (paid outside the app).
+      Padding(
+        padding: const EdgeInsets.only(top: KSpacing.sm),
+        child: RechargeNavRow(
+          key: WalletScreen.agentsKey,
+          icon: Icons.storefront_rounded,
+          title: l10n.rechargeBuyViaAgent,
+          subtitle: l10n.rechargeDirectoryHint,
+          onTap: () => context.push(AppRoutes.rechargeAgents),
+        ),
+      ),
     ];
   }
 

@@ -13,6 +13,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.da
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart'
     show KLiveUsernameTag, KTopReporter;
+import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -922,6 +923,7 @@ class LiveAudioRoomHeader extends StatelessWidget {
     this.subtitle,
     this.username,
     this.premiumTier,
+    this.agentCode,
     this.minimizeKey,
     this.endKey,
     this.onShare,
@@ -964,6 +966,9 @@ class LiveAudioRoomHeader extends StatelessWidget {
 
   /// D146: the host's premium username tier (the special-ID badge).
   final PremiumTier? premiumTier;
+
+  /// v1.54-social (D185): the host's recharge-agent code (the badge).
+  final String? agentCode;
   final String minimizeTooltip;
   final VoidCallback? onMinimize;
   final String endTooltip;
@@ -1044,6 +1049,10 @@ class LiveAudioRoomHeader extends StatelessWidget {
                                   const SizedBox(width: 4),
                                   CharmLevelBadge(level: level, height: 13),
                                 ],
+                                RechargeAgentInlineBadge(
+                                  code: agentCode,
+                                  height: 13,
+                                ),
                               ],
                             ),
                             if (username case final name?)

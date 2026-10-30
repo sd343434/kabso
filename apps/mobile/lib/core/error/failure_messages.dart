@@ -88,6 +88,18 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
     ErrorCode.agencyLeaveWindowClosed => l10n.errorAgencyLeaveWindowClosed,
     ErrorCode.insufficientCherries => l10n.errorInsufficientCherries,
     ErrorCode.withdrawalPending => l10n.errorWithdrawalPending,
+    ErrorCode.rechargeApplicationNotAllowed =>
+      l10n.errorRechargeApplicationNotAllowed,
+    ErrorCode.rechargeAgentNotActive => l10n.errorRechargeAgentNotActive,
+    ErrorCode.rechargeOffShift => l10n.errorRechargeOffShift,
+    ErrorCode.rechargeStockInsufficient => l10n.errorRechargeStockInsufficient,
+    ErrorCode.rechargeEmployeeNotAllowed =>
+      l10n.errorRechargeEmployeeNotAllowed,
+    ErrorCode.rechargeCherryRequestPending =>
+      l10n.errorRechargeCherryRequestPending,
+    ErrorCode.rechargeCherryRequestClosed =>
+      l10n.errorRechargeCherryRequestClosed,
+    ErrorCode.rechargeCherryCapReached => l10n.errorRechargeCherryCapReached,
     ErrorCode.networkOffline => l10n.errorNetworkOffline,
     ErrorCode.networkTimeout => l10n.errorNetworkTimeout,
     ErrorCode.unknown => l10n.errorUnknown,

@@ -22,6 +22,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_chat_gift_lin
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_media.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_public_message.dart';
 import 'package:kabso_live/features/posts/presentation/report_sheet.dart';
+import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -183,6 +184,7 @@ class LiveRoomChatLines extends ConsumerWidget {
         name: entry.author.displayName,
         username: entry.author.username,
         premiumTier: entry.author.premiumTier,
+        agentCode: entry.author.rechargeAgentCode,
         avatarUrl: entry.author.avatarUrl,
         role: entry.authorRole,
         badges: entry.authorBadges,
@@ -300,6 +302,7 @@ class LiveRoomChatLines extends ConsumerWidget {
           name: name,
           role: entry.authorRole,
           badges: entry.authorBadges,
+          agentCode: entry.author.rechargeAgentCode,
           maxWidth: max,
           color: bubble,
           cp: entry.cpBubble,
@@ -323,6 +326,7 @@ class LiveRoomChatLines extends ConsumerWidget {
           name: entry.author.displayName,
           role: entry.authorRole,
           badges: entry.authorBadges,
+          agentCode: entry.author.rechargeAgentCode,
           maxWidth: max,
           color: bubble,
           cp: entry.cpBubble,
@@ -370,6 +374,7 @@ class LiveRoomChatLines extends ConsumerWidget {
           onProfile: () => onProfile(join.user.username),
           onActions: () => onProfile(join.user.username),
           join: l10n.chatJoined(KFormat.bidiIsolate(join.user.displayName)),
+          agentCode: join.user.rechargeAgentCode,
         );
       case LiveChatGiftLine() || LiveChatLuckyLine():
         // D178: a gift or a lucky win of this live, as a row.
@@ -427,6 +432,7 @@ class LiveRoomChatLines extends ConsumerWidget {
       name: name,
       username: entry.author.username,
       premiumTier: entry.author.premiumTier,
+      agentCode: entry.author.rechargeAgentCode,
       avatarUrl: entry.author.avatarUrl,
       role: entry.authorRole,
       badges: entry.authorBadges,
@@ -631,9 +637,13 @@ class LiveChatAuthoredLine extends StatelessWidget {
     this.mediaInside = false,
     this.username,
     this.premiumTier,
+    this.agentCode,
   });
 
   final String name;
+
+  /// v1.54-social (D185): the author's recharge-agent code (the badge).
+  final String? agentCode;
 
   /// D146: the author's username and premium tier; with a tier the line
   /// shows the special-ID badge (still, no sweep) under the name.
@@ -699,6 +709,8 @@ class LiveChatAuthoredLine extends StatelessWidget {
     final badges = this.badges;
     final spoken = [
       label,
+      if (agentCode case final code?)
+        l10n.rechargeAgentBadgeLabel(KFormat.bidiIsolate(code)),
       if (badges?.charmLevel case final level?) l10n.liveChatCharmLabel(level),
       if (badges?.supportLevel case final level?)
         l10n.liveChatSupportLabel(level),
@@ -711,7 +723,11 @@ class LiveChatAuthoredLine extends StatelessWidget {
     ].join('. ');
     final scaler = MediaQuery.textScalerOf(context)
         .clamp(maxScaleFactor: KMetrics.overlayMaxTextScale);
-    final row = LiveChatBadgeRow(role: role, badges: badges);
+    final row = LiveChatBadgeRow(
+      role: role,
+      badges: badges,
+      agentCode: agentCode,
+    );
     final profile = onProfile;
     // The picture and the name are in the line's label already.
     Widget tapProfile(Widget child) => ExcludeSemantics(
@@ -837,10 +853,15 @@ class LiveChatBadgeRow extends StatelessWidget {
     required this.badges,
     super.key,
     this.height = LiveChatAuthoredLine.badgeRowHeight,
+    this.agentCode,
   });
 
   final LiveChatRole? role;
   final LiveChatAuthorBadges? badges;
+
+  /// v1.54-social (D185): the author's recharge-agent code while ACTIVE
+  /// (`UserSummary.rechargeAgent`): the agent badge leads the row.
+  final String? agentCode;
 
   /// The row's height (D131: 14 pt in the video live's rows).
   final double height;
@@ -856,6 +877,7 @@ class LiveChatBadgeRow extends StatelessWidget {
   static const double _space = 5;
 
   bool get isNotEmpty =>
+      agentCode != null ||
       role == LiveChatRole.host ||
       role == LiveChatRole.moderator ||
       badges?.charmLevel != null ||
@@ -880,6 +902,11 @@ class LiveChatBadgeRow extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // D185 (owner): the recharge agent's badge next to the name.
+            if (agentCode case final code?) ...[
+              RechargeAgentBadge(code: code, height: h),
+              const SizedBox(width: _space),
+            ],
             if (tag != null)
               Container(
                 key: roleKey,
@@ -1314,6 +1341,11 @@ class _LiveChatJoinStripState extends State<LiveChatJoinStrip> {
                       style: style,
                     ),
                   ),
+                  // D185 (owner): a recharge agent's badge after the name.
+                  RechargeAgentInlineBadge(
+                    code: shown.user.rechargeAgentCode,
+                    height: 14,
+                  ),
                   if (shown.burst > 0) ...[
                     const SizedBox(width: 6),
                     Text(
@@ -1463,6 +1495,7 @@ class LiveChatInlineRow extends StatefulWidget {
     this.text,
     this.media,
     this.join,
+    this.agentCode,
     this.failed,
     this.cp = false,
     this.mediaInside = false,
@@ -1482,6 +1515,10 @@ class LiveChatInlineRow extends StatefulWidget {
 
   /// A join line's text ("X joined").
   final String? join;
+
+  /// v1.54-social (D185): the person's recharge-agent code (the badge after
+  /// the name or the join text).
+  final String? agentCode;
 
   /// Why a pending line failed (shown under it).
   final String? failed;
@@ -1547,16 +1584,25 @@ class _LiveChatInlineRowState extends State<LiveChatInlineRow> {
       role: w.role,
       badges: w.badges,
       height: LiveChatInlineRow.badgeHeight,
+      agentCode: w.join == null ? w.agentCode : null,
     );
     final name = w.name;
     final text = w.text;
     final spans = <InlineSpan>[
-      if (w.join != null)
+      if (w.join != null) ...[
         TextSpan(
           text: w.join,
           style: base.copyWith(color: LiveChatInlineRow.joinColor),
-        )
-      else ...[
+        ),
+        if (w.agentCode case final code?)
+          WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: RechargeAgentInlineBadge(
+              code: code,
+              height: LiveChatInlineRow.badgeHeight,
+            ),
+          ),
+      ] else ...[
         if (w.cp)
           WidgetSpan(
             alignment: PlaceholderAlignment.middle,
