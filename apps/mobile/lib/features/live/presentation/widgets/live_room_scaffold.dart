@@ -697,13 +697,13 @@ class _KHostPillState extends State<KHostPill> {
                         RechargeAgentInlineBadge(
                           code: widget.agentCode,
                           hostCode: widget.hostAgentCode,
-                          height: 14,
+                          height: inlineAgentBadgeHeight(12.5),
                           gap: 3,
                         ),
                         // D187 (owner): the daily recharge badge.
                         RechargeTierBadge(
                           badge: widget.rechargeBadge,
-                          height: 16,
+                          height: inlineAgentBadgeHeight(12.5),
                           gap: 3,
                         ),
                         if (widget.username case final name?) ...[

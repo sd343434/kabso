@@ -12,8 +12,8 @@ import 'package:material_ui/material_ui.dart';
 /// The recharge agent's entrance (v1.54-social, D185, CONVENTIONS §10.48):
 /// when a `join` data message's `user` carries `rechargeAgent` (an ACTIVE
 /// agent), the owner's entrance bar crosses the room — in from the reading
-/// end, a short stay, out to the reading start — with «دخل وكيل الشحن سارة»
-/// (the person's display name, owner feedback) in its red plate; the mascot
+/// end, a short stay, out to the reading start — with «دخل سارة البث» (the
+/// person's display name, owner feedback) in its red plate; the mascot
 /// stays on the emblem. The timing is the CP entrance's (3.2 s; 2.2 s
 /// standing still with reduced motion).
 /// Several arrive one after another (at most [maxQueued] waiting). Never
@@ -21,7 +21,7 @@ import 'package:material_ui/material_ui.dart';
 ///
 /// v1.58-social (D189, §10.52): a host agent's join (`user.hostAgent`) shows
 /// the host-agent bar the same way — same size, place and timing — with
-/// «دخل وكيل المضيفين سارة» (their display name). A person who is both gets
+/// the same «دخل سارة البث». A person who is both gets
 /// the recharge-agent bar (owner proposal D189 d: the recharge agent's art
 /// wins).
 class LiveRechargeEntranceLayer extends ConsumerStatefulWidget {
@@ -35,6 +35,7 @@ class LiveRechargeEntranceLayer extends ConsumerStatefulWidget {
 
   static const barKey = Key('live.rechargeEntrance');
   static const textKey = Key('live.rechargeEntrance.text');
+  static const nameKey = Key('live.rechargeEntrance.name');
 
   /// The CP entrance's timing (CP-021, §10.24).
   static const duration = Duration(milliseconds: 3200);
@@ -240,23 +241,24 @@ enum AgentEntranceStyle {
   final double bottom2;
   final Color shadow;
 
-  /// «دخل وكيل الشحن سارة» / «دخل وكيل المضيفين سارة» ([name]: the display
-  /// name, isolated so a Latin or mixed name keeps its order).
-  String text(AppLocalizations l10n, String name) => this == host
+  /// The screen-reader label, which keeps the agent type: «دخل وكيل الشحن
+  /// سارة البث» / «دخل وكيل المضيفين سارة البث» ([name]: the display name,
+  /// isolated so a Latin or mixed name keeps its order).
+  String label(AppLocalizations l10n, String name) => this == host
       ? l10n.hostAgentEntranceJoined(KFormat.bidiIsolate(name))
       : l10n.rechargeEntranceJoined(KFormat.bidiIsolate(name));
 }
 
-/// The bar itself: the owner's entrance art (the mascot on the emblem at the
-/// left, never mirrored) and «دخل وكيل الشحن سارة» fitted into its red
-/// plate. v1.58-social (D189): with [AgentEntranceStyle.host], the host
-/// agent's blue bar and «دخل وكيل المضيفين سارة».
+/// The bar itself: the owner's entrance art (the emblem at the left, never
+/// mirrored) and, in its plate, «دخل سارة البث» / "Sara joined the live" —
+/// the same words for both agent types (the art says which; the
+/// screen-reader label keeps the type, [AgentEntranceStyle.label]).
 ///
-/// Owner feedback (integration of D185–D189): [widthFactor] of the screen's
-/// width, never wider than the room less [sideMargin] on each side, the
-/// art's proportions kept (the height follows from the width); the text is
-/// one line, scaled down to [minFontSize] when needed; only when it still
-/// does not fit, the phrase goes over the name, which ends with an ellipsis.
+/// Owner (after D189): [widthFactor] of the screen's width (≈ 157 lp at
+/// 393), never wider than the room less [sideMargin] on each side, the art's
+/// proportions kept. The text is ONE line, centred, scaled down to
+/// [minFontSize]; when it still does not fit, only the name ends with an
+/// ellipsis — «دخل … البث» stays whole.
 class RechargeEntranceBar extends StatelessWidget {
   const new({
     required this.name,
@@ -268,25 +270,34 @@ class RechargeEntranceBar extends StatelessWidget {
   final String name;
   final AgentEntranceStyle style;
 
-  /// Owner feedback: the bar's share of the screen's width, its margin from
-  /// the screen's edges and the smallest readable text.
-  static const widthFactor = 0.85;
+  /// Owner: the bar's share of the screen's width, its margin from the
+  /// screen's edges and the smallest text.
+  static const widthFactor = 0.40;
   static const sideMargin = 16.0;
-  static const minFontSize = 11.0;
+  static const minFontSize = 9.0;
+
+  /// The name's slot in the localized text (split around it).
+  static const _slot = '';
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final s = style;
-    final text = s.text(l10n, name);
+    final isolated = KFormat.bidiIsolate(name);
+    final full = l10n.agentEntranceJoined(isolated);
+    final parts = l10n.agentEntranceJoined(_slot).split(_slot);
+    final before = parts.first.trim();
+    final after = parts.length > 1 ? parts.last.trim() : '';
     final screen = MediaQuery.sizeOf(context).width;
     return LayoutBuilder(
       builder: (context, box) {
         final room = box.maxWidth.isFinite ? box.maxWidth : screen;
         final width = math.min(screen * widthFactor, room);
         final height = width / s.aspect;
+        final plateW = width * (s.right - s.left);
         final plateH = height * (s.bottom - s.top);
-        final style = context.textStyles.title.copyWith(
+        final pad = plateH * 0.12;
+        final textStyle = context.textStyles.title.copyWith(
           height: 1.1,
           fontWeight: FontWeight.w800,
           color: RechargeAgentArt.plateText,
@@ -295,31 +306,46 @@ class RechargeEntranceBar extends StatelessWidget {
           ],
         );
         final direction = Directionality.of(context);
-        final plateW = width * (s.right - s.left);
-        final pad = plateH * 0.15;
         final size = rechargeFitFontSize(
-          text,
-          style,
+          full,
+          textStyle,
           plateW - 2 * pad,
           max: math.max(minFontSize, plateH * 0.62),
           min: minFontSize,
           direction: direction,
         );
-        // One line when the whole text fits at [minFontSize] or larger.
-        final oneLine = rechargeTextFits(
-          text,
-          style.copyWith(fontSize: size),
-          plateW - 2 * pad,
-          direction,
+        final sized = textStyle.copyWith(fontSize: size);
+        // The room left for the name once «دخل … البث» is laid out whole (at
+        // least a few letters, so a long name still shows its start).
+        double widthOf(String t) {
+          if (t.isEmpty) return 0;
+          final painter = TextPainter(
+            text: TextSpan(text: t, style: sized),
+            textDirection: direction,
+            maxLines: 1,
+          )..layout();
+          final w = painter.width;
+          painter.dispose();
+          return w;
+        }
+
+        final gaps =
+            (before.isEmpty ? 0 : size * 0.3) +
+            (after.isEmpty ? 0 : size * 0.3);
+        final nameRoom = math.max(
+          size * 3,
+          plateW - 2 * pad - widthOf(before) - widthOf(after) - gaps,
         );
-        // The phrase without the name (for the two-line layout).
-        final phrase = text
-            .replaceAll(KFormat.bidiIsolate(name), '')
-            .replaceAll(RegExp(r'\s+'), ' ')
-            .trim();
+        Text piece(String t) => Text(
+          t,
+          maxLines: 1,
+          softWrap: false,
+          textScaler: TextScaler.noScaling,
+          style: sized,
+        );
         return Semantics(
           liveRegion: true,
-          label: text,
+          label: s.label(l10n, name),
           excludeSemantics: true,
           child: SizedBox(
             key: LiveRechargeEntranceLayer.barKey,
@@ -339,65 +365,54 @@ class RechargeEntranceBar extends StatelessWidget {
                     ),
                   ),
                   Positioned(
-                    left: width * (oneLine ? s.left : s.left2),
-                    width: oneLine ? plateW : width * (s.right2 - s.left2),
-                    top: height * (oneLine ? s.top : s.top2),
-                    height:
-                        height *
-                        (oneLine ? s.bottom - s.top : s.bottom2 - s.top2),
+                    left: width * s.left,
+                    width: plateW,
+                    top: height * s.top,
+                    height: plateH,
                     child: Directionality(
                       textDirection: direction,
-                      child: Center(
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: oneLine ? pad : 1,
-                          ),
-                          child: oneLine
-                              ? Text(
-                                  text,
-                                  key: LiveRechargeEntranceLayer.textKey,
-                                  maxLines: 1,
-                                  softWrap: false,
-                                  overflow: TextOverflow.ellipsis,
-                                  textScaler: TextScaler.noScaling,
-                                  style: style.copyWith(fontSize: size),
-                                )
-                              // Too long for one readable line: the phrase
-                              // over the name, both at least [minFontSize];
-                              // a long name ends with an ellipsis.
-                              : Column(
-                                  key: LiveRechargeEntranceLayer.textKey,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    FittedBox(
-                                      fit: BoxFit.scaleDown,
-                                      child: Text(
-                                        phrase,
-                                        maxLines: 1,
-                                        softWrap: false,
-                                        textScaler: TextScaler.noScaling,
-                                        style: style.copyWith(
-                                          fontSize: minFontSize,
-                                          height: 1.1,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ),
-                                    Text(
-                                      KFormat.bidiIsolate(name),
-                                      maxLines: 1,
-                                      softWrap: false,
-                                      overflow: TextOverflow.ellipsis,
-                                      textAlign: TextAlign.center,
-                                      textScaler: TextScaler.noScaling,
-                                      style: style.copyWith(
-                                        fontSize: minFontSize,
-                                        height: 1.1,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: pad),
+                        // One line, centred: the phrase whole, the name
+                        // ellipsized when nothing else fits.
+                        // Only when even the phrase cannot fit at the
+                        // smallest size (a very narrow bar) does the line
+                        // scale down as a whole.
+                        child: Center(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Row(
+                              key: LiveRechargeEntranceLayer.textKey,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (before.isNotEmpty) ...[
+                                  piece(before),
+                                  SizedBox(width: size * 0.3),
+                                ],
+                                ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    maxWidth: nameRoom,
+                                  ),
+                                  child: Text(
+                                    isolated,
+                                    key: LiveRechargeEntranceLayer.nameKey,
+                                    maxLines: 1,
+                                    softWrap: false,
+                                    overflow: TextOverflow.ellipsis,
+                                    // An ellipsized name leaves no gap
+                                    // before «البث».
+                                    textWidthBasis: TextWidthBasis.longestLine,
+                                    textScaler: TextScaler.noScaling,
+                                    style: sized,
+                                  ),
                                 ),
+                                if (after.isNotEmpty) ...[
+                                  SizedBox(width: size * 0.3),
+                                  piece(after),
+                                ],
+                              ],
+                            ),
+                          ),
                         ),
                       ),
                     ),

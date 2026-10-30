@@ -1,7 +1,7 @@
 // D189 (v1.58-social, CONVENTIONS §10.52): a host agent «وكيل مضيفين»
 // (`hostAgent.code`) gets the perks a recharge agent has — the badge beside
 // the name (profile, person card) and inline next to the name in the live
-// room, the blue entrance bar «دخل وكيل المضيفين Salma» (the display name; the
+// room, the blue entrance bar «دخل Salma البث» (the display name; the
 // recharge bar's size, place and timing), and the host-agent frame (photo in
 // the measured circle, no name). With both roles: both badges, the
 // recharge-agent frame and bar win (owner proposals D189 c/d). Arabic and
@@ -280,22 +280,21 @@ void main() {
       });
     }
 
-    test('the owner text: the display name', () {
+    test('the owner text: «دخل سارة البث» in both bars; the label keeps '
+        'the agent type', () {
+      final ar = l10nFor(AppLanguage.ar);
+      final en = l10nFor(AppLanguage.en);
+      expect(ar.agentEntranceJoined('سارة'), 'دخل سارة البث');
+      expect(en.agentEntranceJoined('Sara'), 'Sara joined the live');
+      expect(ar.hostAgentEntranceJoined('سارة'), 'دخل وكيل المضيفين سارة البث');
       expect(
-        l10nFor(AppLanguage.ar).hostAgentEntranceJoined('سارة'),
-        'دخل وكيل المضيفين سارة',
+        en.hostAgentEntranceJoined('Sara'),
+        'Host agent Sara joined the live',
       );
+      expect(ar.rechargeEntranceJoined('سارة'), 'دخل وكيل الشحن سارة البث');
       expect(
-        l10nFor(AppLanguage.en).hostAgentEntranceJoined('Sara'),
-        'Host agent Sara joined',
-      );
-      expect(
-        l10nFor(AppLanguage.ar).rechargeEntranceJoined('سارة'),
-        'دخل وكيل الشحن سارة',
-      );
-      expect(
-        l10nFor(AppLanguage.en).rechargeEntranceJoined('Sara'),
-        'Top-up agent Sara joined',
+        en.rechargeEntranceJoined('Sara'),
+        'Top-up agent Sara joined the live',
       );
     });
   });
@@ -325,9 +324,9 @@ void main() {
           findsOneWidget,
         );
         final bar = tester.getRect(barFinder);
-        // Owner feedback: 85 % of the screen, the art's aspect, fully on
+        // Owner: 40 % of the screen, the art's aspect, fully on
         // screen 16 lp from the edges.
-        expect(bar.width, closeTo(393 * 0.85, 0.5));
+        expect(bar.width, closeTo(393 * 0.40, 0.5));
         expect(
           bar.height,
           closeTo(bar.width / HostAgentArt.entranceAspect, 0.5),
@@ -342,7 +341,7 @@ void main() {
         for (final t in tester.widgetList<Text>(
           find.descendant(of: barFinder, matching: find.byType(Text)),
         )) {
-          expect(t.style!.fontSize, greaterThanOrEqualTo(11));
+          expect(t.style!.fontSize, greaterThanOrEqualTo(9));
         }
         // The display name, not the username.
         expect(
@@ -368,7 +367,7 @@ void main() {
       });
     }
 
-    testWidgets('a very long display name: on screen, ≥ 11, the name ends '
+    testWidgets('a very long display name: on screen, ≥ 9, the name ends '
         'with an ellipsis (ar, 393×852)', (tester) async {
       LiveRechargeEntranceLayer.animate = false;
       addTearDown(() => LiveRechargeEntranceLayer.animate = true);
@@ -399,12 +398,23 @@ void main() {
         find.descendant(of: barFinder, matching: find.byType(Text)),
       );
       for (final t in texts) {
-        expect(t.style!.fontSize, greaterThanOrEqualTo(11));
+        expect(t.style!.fontSize, greaterThanOrEqualTo(9));
         expect(t.maxLines, 1);
       }
       final named = texts.where((t) => (t.data ?? '').contains(longName));
       expect(named, hasLength(1));
       expect(named.single.overflow, TextOverflow.ellipsis);
+      // One line: «دخل … البث» stays whole around the ellipsized name.
+      for (final word in ['دخل', 'البث']) {
+        expect(
+          find.descendant(of: barFinder, matching: find.text(word)),
+          findsOneWidget,
+        );
+      }
+      expect(
+        tester.getRect(find.byKey(LiveRechargeEntranceLayer.nameKey)).height,
+        lessThan(bar.height),
+      );
       expect(tester.takeException(), isNull);
       await tester.pump(LiveRechargeEntranceLayer.duration);
       await tester.pump();

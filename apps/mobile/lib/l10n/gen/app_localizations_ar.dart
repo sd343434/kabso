@@ -9490,7 +9490,12 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String rechargeEntranceJoined(String name) {
-    return 'دخل وكيل الشحن $name';
+    return 'دخل وكيل الشحن $name البث';
+  }
+
+  @override
+  String agentEntranceJoined(String name) {
+    return 'دخل $name البث';
   }
 
   @override
@@ -10022,7 +10027,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String hostAgentEntranceJoined(String name) {
-    return 'دخل وكيل المضيفين $name';
+    return 'دخل وكيل المضيفين $name البث';
   }
 
   @override

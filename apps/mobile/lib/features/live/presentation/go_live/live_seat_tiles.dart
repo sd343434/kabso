@@ -213,13 +213,13 @@ class _VideoSeatTile extends StatelessWidget {
                 RechargeAgentInlineBadge(
                   code: user.rechargeAgentCode,
                   hostCode: user.hostAgentCode,
-                  height: 13,
+                  height: inlineAgentBadgeHeight(text.caption.fontSize!),
                   gap: 3,
                 ),
                 // D187 (owner): the daily recharge badge after the name.
                 RechargeTierBadge(
                   badge: user.rechargeBadge,
-                  height: 15,
+                  height: inlineAgentBadgeHeight(text.caption.fontSize!),
                   gap: 3,
                 ),
               ],
@@ -1205,6 +1205,9 @@ class _SeatLabel extends StatelessWidget {
     this.rechargeBadge,
   });
 
+  /// The seat name's size.
+  static const double fontSize = 11.5;
+
   final String text;
 
   /// v1.54-social (D185): the seated person's recharge-agent code (badge).
@@ -1231,7 +1234,7 @@ class _SeatLabel extends StatelessWidget {
       overflow: TextOverflow.ellipsis,
       textAlign: TextAlign.center,
       style: context.textStyles.caption.copyWith(
-        fontSize: 11.5,
+        fontSize: fontSize,
         height: 1.2,
         color: KAudioRoom.text,
         fontWeight: FontWeight.w600,
@@ -1252,11 +1255,15 @@ class _SeatLabel extends StatelessWidget {
                 RechargeAgentInlineBadge(
                   code: agentCode,
                   hostCode: hostAgentCode,
-                  height: 12,
+                  height: inlineAgentBadgeHeight(_SeatLabel.fontSize),
                   gap: 2,
                 ),
                 // D187: the daily recharge badge after the name.
-                RechargeTierBadge(badge: rechargeBadge, height: 14, gap: 2),
+                RechargeTierBadge(
+                  badge: rechargeBadge,
+                  height: inlineAgentBadgeHeight(_SeatLabel.fontSize),
+                  gap: 2,
+                ),
               ],
             ),
     );

@@ -1062,11 +1062,11 @@ class LiveAudioRoomHeader extends StatelessWidget {
                                 RechargeAgentInlineBadge(
                                   code: agentCode,
                                   hostCode: hostAgentCode,
-                                  height: 13,
+                                  height: inlineAgentBadgeHeight(14),
                                 ),
                                 RechargeTierBadge(
                                   badge: rechargeBadge,
-                                  height: 15,
+                                  height: inlineAgentBadgeHeight(14),
                                   gap: 3,
                                 ),
                               ],

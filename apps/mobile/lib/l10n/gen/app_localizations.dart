@@ -16230,11 +16230,17 @@ abstract class AppLocalizations {
   /// **'{name}، وكيل شحن {code}'**
   String rechargeAgentFrameLabel(String name, String code);
 
-  /// D185 recharge agents (the display name)
+  /// D185 recharge agents: the entrance bar's screen-reader label (the display name)
   ///
   /// In ar, this message translates to:
-  /// **'دخل وكيل الشحن {name}'**
+  /// **'دخل وكيل الشحن {name} البث'**
   String rechargeEntranceJoined(String name);
+
+  /// D185/D189 the text in both entrance bars (the display name)
+  ///
+  /// In ar, this message translates to:
+  /// **'دخل {name} البث'**
+  String agentEntranceJoined(String name);
 
   /// D185 recharge agents
   ///
@@ -17127,7 +17133,7 @@ abstract class AppLocalizations {
   /// D189 host agents (the display name)
   ///
   /// In ar, this message translates to:
-  /// **'دخل وكيل المضيفين {name}'**
+  /// **'دخل وكيل المضيفين {name} البث'**
   String hostAgentEntranceJoined(String name);
 
   /// D189 host agents

@@ -882,6 +882,7 @@ class LiveChatBadgeRow extends StatelessWidget {
     this.agentCode,
     this.hostAgentCode,
     this.rechargeBadge,
+    this.agentBadgeHeight,
   });
 
   final LiveChatRole? role;
@@ -901,6 +902,11 @@ class LiveChatBadgeRow extends StatelessWidget {
 
   /// The row's height (D131: 14 pt in the video live's rows).
   final double height;
+
+  /// Owner (after D189): the agent and daily recharge badges' height — the
+  /// level badge's in the line ([inlineAgentBadgeHeight] of the author's
+  /// name size by default), never the row's full [height].
+  final double? agentBadgeHeight;
 
   static const roleKey = Key('liveChat.badge.role');
   static const charmKey = Key('liveChat.badge.charm');
@@ -933,6 +939,10 @@ class LiveChatBadgeRow extends StatelessWidget {
       _ => null,
     };
     final h = height;
+    final agentH = math.min(
+      h,
+      agentBadgeHeight ?? inlineAgentBadgeHeight(LiveChatAuthoredLine.nameSize),
+    );
     return ExcludeSemantics(
       child: MediaQuery.withNoTextScaling(
         // A row (not a wrap): each badge takes its own width; the family
@@ -942,17 +952,17 @@ class LiveChatBadgeRow extends StatelessWidget {
           children: [
             // D185 (owner): the recharge agent's badge next to the name.
             if (agentCode case final code?) ...[
-              RechargeAgentBadge(code: code, height: h),
+              RechargeAgentBadge(code: code, height: agentH),
               const SizedBox(width: _space),
             ],
             // D189: the host agent's badge, placed as the recharge one.
             if (hostAgentCode case final code?) ...[
-              HostAgentBadge(code: code, height: h),
+              HostAgentBadge(code: code, height: agentH),
               const SizedBox(width: _space),
             ],
             // D187 (owner): the daily recharge badge next to the name.
             if (rechargeBadgeShows(rechargeBadge)) ...[
-              RechargeTierBadge(badge: rechargeBadge, height: h),
+              RechargeTierBadge(badge: rechargeBadge, height: agentH),
               const SizedBox(width: _space),
             ],
             if (tag != null)
@@ -1393,12 +1403,12 @@ class _LiveChatJoinStripState extends State<LiveChatJoinStrip> {
                   RechargeAgentInlineBadge(
                     code: shown.user.rechargeAgentCode,
                     hostCode: shown.user.hostAgentCode,
-                    height: 14,
+                    height: inlineAgentBadgeHeight(style.fontSize!),
                   ),
                   // D187: the daily recharge badge after the name.
                   RechargeTierBadge(
                     badge: shown.user.rechargeBadge,
-                    height: 16,
+                    height: inlineAgentBadgeHeight(style.fontSize!),
                     gap: 4,
                   ),
                   if (shown.burst > 0) ...[
@@ -1648,6 +1658,7 @@ class _LiveChatInlineRowState extends State<LiveChatInlineRow> {
       role: w.role,
       badges: w.badges,
       height: LiveChatInlineRow.badgeHeight,
+      agentBadgeHeight: inlineAgentBadgeHeight(LiveChatInlineRow.textSize),
       agentCode: w.join == null ? w.agentCode : null,
       hostAgentCode: w.join == null ? w.hostAgentCode : null,
       rechargeBadge: w.join == null ? w.rechargeBadge : null,
@@ -1666,7 +1677,7 @@ class _LiveChatInlineRowState extends State<LiveChatInlineRow> {
             child: RechargeAgentInlineBadge(
               code: w.agentCode,
               hostCode: w.hostAgentCode,
-              height: LiveChatInlineRow.badgeHeight,
+              height: inlineAgentBadgeHeight(LiveChatInlineRow.textSize),
             ),
           ),
         // D187: the daily recharge badge after the join text.
@@ -1675,7 +1686,7 @@ class _LiveChatInlineRowState extends State<LiveChatInlineRow> {
             alignment: PlaceholderAlignment.middle,
             child: RechargeTierBadge(
               badge: w.rechargeBadge,
-              height: LiveChatInlineRow.badgeHeight + 2,
+              height: inlineAgentBadgeHeight(LiveChatInlineRow.textSize),
               gap: 4,
             ),
           ),

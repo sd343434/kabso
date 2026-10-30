@@ -505,17 +505,15 @@ class ProfileHeaderView extends StatelessWidget {
                 key: const Key('profile.displayName'),
                 style: t.bodyStrong.copyWith(color: p.textPrimary),
               ),
+              // Owner (after D189): the agent and daily badges are as tall
+              // as the level badges (their default 18 = ProfileLevels').
               if (agentCode case final code?)
-                RechargeAgentBadge(key: agentBadgeKey, code: code, height: 22),
+                RechargeAgentBadge(key: agentBadgeKey, code: code),
               // D189: the host-agent badge, placed as the recharge one.
               if (hostCode case final code?)
-                HostAgentBadge(key: hostAgentBadgeKey, code: code, height: 22),
+                HostAgentBadge(key: hostAgentBadgeKey, code: code),
               if (rechargeBadgeShows(rechargeBadge))
-                RechargeTierBadge(
-                  key: rechargeBadgeKey,
-                  badge: rechargeBadge,
-                  height: 26,
-                ),
+                RechargeTierBadge(key: rechargeBadgeKey, badge: rechargeBadge),
               ?nameTrailing,
             ],
           ),

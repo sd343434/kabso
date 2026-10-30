@@ -41,6 +41,9 @@ abstract final class SeatControlKeys {
 
 const _white = Color(0xFFFFFFFF);
 
+/// The person sheet's name size (its inline badges follow it).
+const double _nameSize = 16.5;
+
 /// Runs [action]; a failure shows its message as a snack.
 Future<void> runSeatAction(
   BuildContext context,
@@ -1035,7 +1038,7 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
                         overflow: TextOverflow.ellipsis,
                         style: text.bodyStrong.copyWith(
                           color: _Panel.ink,
-                          fontSize: 16.5,
+                          fontSize: _nameSize,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -1044,10 +1047,14 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
                     RechargeAgentInlineBadge(
                       code: agentCode,
                       hostCode: hostAgentCode,
-                      height: 18,
+                      height: inlineAgentBadgeHeight(_nameSize),
                     ),
                     // D187 (owner): the daily recharge badge after the name.
-                    RechargeTierBadge(badge: rechargeBadge, height: 20, gap: 4),
+                    RechargeTierBadge(
+                      badge: rechargeBadge,
+                      height: inlineAgentBadgeHeight(_nameSize),
+                      gap: 4,
+                    ),
                   ],
                 ),
                 if (handle != null)

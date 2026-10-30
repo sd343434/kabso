@@ -9468,7 +9468,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String rechargeEntranceJoined(String name) {
-    return 'Top-up agent $name joined';
+    return 'Top-up agent $name joined the live';
+  }
+
+  @override
+  String agentEntranceJoined(String name) {
+    return '$name joined the live';
   }
 
   @override
@@ -10002,7 +10007,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String hostAgentEntranceJoined(String name) {
-    return 'Host agent $name joined';
+    return 'Host agent $name joined the live';
   }
 
   @override

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/bag/presentation/avatar_frame_art.dart';
@@ -54,6 +56,13 @@ class RechargeAgentBadge extends StatelessWidget {
     ),
   );
 }
+
+/// Owner (after D189: «الشارة حجمها كبير»): the height of an inline agent or
+/// daily recharge badge next to a name in a line of text [fontSize] high —
+/// as tall as the level badge of that line: the text's cap height (≈ 0.7
+/// em) plus 4, at most 16.
+double inlineAgentBadgeHeight(double fontSize) =>
+    math.min(16, fontSize * 0.7 + 4);
 
 /// The agent badges next to a name: [RechargeAgentBadge] when [code] is set
 /// (an ACTIVE recharge agent) and — v1.58-social (D189) — [HostAgentBadge]

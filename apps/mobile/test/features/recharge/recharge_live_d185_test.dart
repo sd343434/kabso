@@ -1,5 +1,5 @@
 // D185 in the live room: an ACTIVE recharge agent (`UserSummary.
-// rechargeAgent`) gets the entrance bar «دخل وكيل الشحن Nour» (3.2 s,
+// rechargeAgent`) gets the entrance bar «دخل Nour البث» (3.2 s,
 // queued, never takes taps; nothing for a normal join) and — owner addition —
 // the small agent badge next to the name everywhere it shows in the room:
 // chat messages, the join line, the viewers list, seats and the person card
@@ -135,8 +135,8 @@ void main() {
     }
 
     for (final language in AppLanguage.values) {
-      testWidgets('owner size: 85 % of the screen, 16 lp from the edges, the '
-          "art's aspect, at the leading side above the chat; one line ≥ 11 "
+      testWidgets('owner size: 40 % of the screen, 16 lp from the edges, the '
+          "art's aspect, at the leading side above the chat; one line ≥ 9 "
           'with the display name (${language.name}, 393×852)', (tester) async {
         LiveRechargeEntranceLayer.animate = false;
         addTearDown(() => LiveRechargeEntranceLayer.animate = true);
@@ -149,9 +149,9 @@ void main() {
         final bar = tester.getRect(
           find.byKey(LiveRechargeEntranceLayer.barKey),
         );
-        // Owner feedback: 85 % of the screen, the height from the art's
+        // Owner: 40 % of the screen, the height from the art's
         // aspect, fully on screen 16 lp from the leading edge.
-        expect(bar.width, closeTo(393 * 0.85, 0.5));
+        expect(bar.width, closeTo(393 * 0.40, 0.5));
         expect(
           bar.height,
           closeTo(bar.width / RechargeAgentArt.entranceAspect, 0.5),
@@ -183,7 +183,7 @@ void main() {
           ),
         );
         for (final t in texts) {
-          expect(t.style!.fontSize, greaterThanOrEqualTo(11));
+          expect(t.style!.fontSize, greaterThanOrEqualTo(9));
         }
         // The display name (not the code or the username); one line when
         // it fits (the test font is wider than the app's, see the captures).
