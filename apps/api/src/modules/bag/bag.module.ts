@@ -7,7 +7,7 @@ import { BagService } from './bag.service.js';
 /**
  * CP-019 (D107, CONVENTIONS §10.22): owns `bag_items` (seeded by migration) and `user_bag_items`
  * (free items written at signup by `grantFreeItemsIn` inside the account's transaction; admin
- * grants by the `bag-admin` CLI). v1.46-live (D171, §10.41): `bag_transfers` (sends between users,
+ * grants by the `bag-admin` CLI). v1.48-social (D171, §10.43): `bag_transfers` (sends between users,
  * notified through the notifications module's `Notifier`) and the expired-item sweeper.
  */
 @Module({

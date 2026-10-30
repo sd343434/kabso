@@ -1,5 +1,5 @@
--- v1.46-live (D171, owner 2026-10-29): the bag v2 — expiry, gifts between users and sending items
--- (CONVENTIONS §10.41). The new enum values go first, in a migration of their own (PostgreSQL does
+-- v1.48-social (D171, owner 2026-10-29): the bag v2 — expiry, gifts between users and sending items
+-- (CONVENTIONS §10.43). The new enum values go first, in a migration of their own (PostgreSQL does
 -- not allow a value added by ALTER TYPE … ADD VALUE to be used in the same transaction; the same
 -- split as 20261201090000_premium_usernames_enums).
 

@@ -67,6 +67,10 @@ import 'package:kabso_live/features/profile/edit_profile_screen.dart';
 import 'package:kabso_live/features/profile/me_hub_screen.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
 import 'package:kabso_live/features/profile/public_profile_screen.dart';
+import 'package:kabso_live/features/programs/presentation/event_center_screen.dart';
+import 'package:kabso_live/features/programs/presentation/event_detail_screen.dart';
+import 'package:kabso_live/features/programs/presentation/svip_screen.dart';
+import 'package:kabso_live/features/programs/presentation/task_center_screen.dart';
 import 'package:kabso_live/features/safety/safety_screens.dart';
 import 'package:kabso_live/features/settings/settings_screen.dart';
 import 'package:kabso_live/features/stories/presentation/new_story_screen.dart';
@@ -338,6 +342,21 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.creatorCenter,
         builder: (_, _) => const CreatorCenterScreen(),
       ),
+      // D166: the Me hub's Task Center, Event Center and SVIP.
+      GoRoute(
+        path: AppRoutes.taskCenter,
+        builder: (_, _) => const TaskCenterScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.eventCenter,
+        builder: (_, _) => const EventCenterScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.eventPattern,
+        builder: (_, state) =>
+            EventDetailScreen(eventId: state.pathParameters['eventId']!),
+      ),
+      GoRoute(path: AppRoutes.svip, builder: (_, _) => const SvipScreen()),
       // Debug/profile only; `kReleaseMode` is a compile-time constant, so
       // the route and the gallery are tree-shaken out of release builds.
       if (!kReleaseMode)

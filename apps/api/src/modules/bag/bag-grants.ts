@@ -55,7 +55,7 @@ export type AddItemOutcome =
 
 /**
  * Serializes every change to the holders of `code` among `userIds` for the rest of `tx`
- * (v1.46-live, D171): advisory locks taken in a fixed order (sorted ids), so a send between two
+ * (v1.48-social, D171): advisory locks taken in a fixed order (sorted ids), so a send between two
  * users and a grant never deadlock and never interleave.
  */
 export async function lockItemHoldersIn(
@@ -69,7 +69,7 @@ export async function lockItemHoldersIn(
 }
 
 /**
- * Gives `userId` the item, or adds time to the one they own (v1.46-live, D171, §10.41). The
+ * Gives `userId` the item, or adds time to the one they own (v1.48-social, D171, §10.43). The
  * caller holds {@link lockItemHoldersIn} for `(userId, code)`. `durationMs` null = permanent.
  *
  * - Not owned, or owned but expired: a new item counting from `now` (not worn; an expired row is

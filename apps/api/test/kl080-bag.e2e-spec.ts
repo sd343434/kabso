@@ -65,8 +65,9 @@ describe('CP-019 contract coverage', () => {
     ]) {
       expect(ids).toContain(op);
     }
+    // v1.48-social (D171) adds the fourth, `sendMyBagItem` (covered by d171-bag-v2).
     expect(operations().filter((o) => o.spec.tags && (o.spec.tags as string[]).includes('bag'))).toHaveLength(
-      3,
+      4,
     );
   });
 });

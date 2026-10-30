@@ -73,6 +73,11 @@ describe('ErrorCode', () => {
         'MEDAL_NOT_UNLOCKED',
         // v1.22-live (DRAFT, CP-019)
         'BAG_ITEM_NOT_OWNED',
+        // v1.48-social (D171).
+        'BAG_ITEM_NOT_TRANSFERABLE',
+        'BAG_SEND_PERMANENT_WHOLE_ONLY',
+        'BAG_SEND_EXCEEDS_REMAINING',
+        'BAG_RECIPIENT_HAS_PERMANENT',
         // v1.23-live (DRAFT, CP-020)
         'GIFT_UNAVAILABLE',
         'GIFT_BAG_INSUFFICIENT',
@@ -102,6 +107,9 @@ describe('ErrorCode', () => {
         'BOOST_ROOM_BUSY',
         'YOUTUBE_VIDEO_UNAVAILABLE',
         'YOUTUBE_SEARCH_UNAVAILABLE',
+        // v1.44-social (DRAFT, D166)
+        'TASK_NOT_COMPLETED',
+        'TASK_DAILY_CAP_REACHED',
       ].sort(),
     );
     expect(ERROR_HTTP_STATUS).toMatchObject({
@@ -171,6 +179,8 @@ describe('ErrorCode', () => {
       BOOST_ROOM_BUSY: 409,
       YOUTUBE_VIDEO_UNAVAILABLE: 422,
       YOUTUBE_SEARCH_UNAVAILABLE: 503,
+      TASK_NOT_COMPLETED: 409,
+      TASK_DAILY_CAP_REACHED: 409,
     });
   });
 

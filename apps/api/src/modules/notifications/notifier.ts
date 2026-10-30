@@ -12,7 +12,7 @@ export interface NotificationTargetRef {
   readonly familyId?: string;
   /** v1.28-live (D146): the premium username lease of PREMIUM_USERNAME_EXPIRING / _EXPIRED. */
   readonly premiumLeaseId?: string;
-  /** v1.46-live (D171): the bag item of BAG_ITEM_RECEIVED. */
+  /** v1.48-social (D171): the bag item of BAG_ITEM_RECEIVED. */
   readonly bagItemCode?: string;
 }
 

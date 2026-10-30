@@ -6,6 +6,7 @@ import {
   type Env,
   type HostShareCategory,
   type RateLimitRule,
+  type RechargePackage,
 } from './env.schema.js';
 import { luckyTable, type LuckyTable } from '../modules/gifts/lucky-odds.js';
 
@@ -75,6 +76,7 @@ export interface AppConfig {
     readonly liveUpdateUser: RateLimitRule;
     /** CP-015: `PUT`/`DELETE /me/live-cover`, 30 / hour / user. */
     readonly liveCoverUser: RateLimitRule;
+    readonly avatarUser: RateLimitRule;
     /** CP-016 B: `PUT /me/live-blocked-words`, 30 / hour / user. */
     readonly liveBlockedWordsUser: RateLimitRule;
     /** CP-016 C: `POST` and `DELETE /me/live-schedule`, 30 / hour / user (one bucket). */
@@ -112,7 +114,7 @@ export interface AppConfig {
     readonly dmSendUser: RateLimitRule;
     readonly dmRequestUser: RateLimitRule;
     readonly dmWriteUser: RateLimitRule;
-    /** v1.46-live (D171): bag item sends (per user). */
+    /** v1.48-social (D171): bag item sends (per user). */
     readonly bagSendUser: RateLimitRule;
     readonly liveHeartbeatUser: RateLimitRule;
     readonly liveEndUser: RateLimitRule;
@@ -190,7 +192,7 @@ export interface AppConfig {
     /** Percent of a non-lucky gift's value counted for the recipient's charm. */
     readonly giftRecipientSharePercent: number;
   };
-  /** v1.46-live (D171) the bag (CONVENTIONS §10.41). */
+  /** v1.48-social (D171) the bag (CONVENTIONS §10.43). */
   readonly bag: {
     /** Period of the sweeper that deletes expired bag items; 0 = disabled (tests; reads filter them anyway). */
     readonly sweepIntervalSeconds: number;
@@ -219,6 +221,20 @@ export interface AppConfig {
     readonly prices: readonly BoostPrice[];
     readonly slots: number;
     readonly maxWaitMs: number;
+  };
+  /** v1.44-social (D166): the Me hub's programs (CONVENTIONS §10.41). */
+  readonly programs: {
+    readonly taskDailyCapCoins: number;
+    readonly checkInCoins: number;
+    readonly checkInStreakBonusCoins: number;
+    readonly eventPrizeReviewMs: number;
+    readonly eventsSweepIntervalSeconds: number;
+    /** Coins spent in the window for SVIP 1, 2, … (ascending). */
+    readonly svipTiers: readonly number[];
+    readonly svipWindowDays: number;
+    readonly svipStatusDays: number;
+    readonly rechargePackages: readonly RechargePackage[];
+    readonly rechargeCurrency: string;
   };
   /** v1.27-live (D132) lucky gifts (CONVENTIONS §10.27). */
   readonly lucky: {
@@ -350,6 +366,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       liveMediaTokenGuestIp: e.RATE_LIMIT_LIVE_MEDIA_TOKEN_GUEST_IP,
       liveUpdateUser: e.RATE_LIMIT_LIVE_UPDATE_USER,
       liveCoverUser: e.RATE_LIMIT_LIVE_COVER_USER,
+      avatarUser: e.RATE_LIMIT_AVATAR_USER,
       liveBlockedWordsUser: e.RATE_LIMIT_LIVE_BLOCKED_WORDS_USER,
       liveScheduleUser: e.RATE_LIMIT_LIVE_SCHEDULE_USER,
       liveGuestReadIp: e.RATE_LIMIT_LIVE_GUEST_READ_IP,
@@ -424,6 +441,18 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       prices: e.LIVE_BOOST_PRICES,
       slots: e.LIVE_BOOST_SLOTS,
       maxWaitMs: e.LIVE_BOOST_MAX_WAIT_MINUTES * 60_000,
+    },
+    programs: {
+      taskDailyCapCoins: e.TASK_DAILY_CAP_COINS,
+      checkInCoins: e.TASK_CHECK_IN_COINS,
+      checkInStreakBonusCoins: e.TASK_CHECK_IN_STREAK_BONUS_COINS,
+      eventPrizeReviewMs: e.EVENT_PRIZE_REVIEW_HOURS * 3_600_000,
+      eventsSweepIntervalSeconds: e.EVENTS_SWEEP_INTERVAL_SECONDS,
+      svipTiers: e.SVIP_TIERS,
+      svipWindowDays: e.SVIP_WINDOW_DAYS,
+      svipStatusDays: e.SVIP_STATUS_DAYS,
+      rechargePackages: e.WALLET_RECHARGE_PACKAGES,
+      rechargeCurrency: e.WALLET_RECHARGE_CURRENCY,
     },
     push: {
       credentialsFile: e.FIREBASE_CREDENTIALS_FILE ?? null,

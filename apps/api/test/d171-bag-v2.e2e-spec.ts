@@ -1,7 +1,7 @@
 /**
  * D171 (owner 2026-10-29; amendment «يمكن أن تجزّئ المدة»): the bag v2 — only owned items, expiry,
  * wear / take off, sending an item whole or some days of it, stacking, notification, ledger and
- * admin grants with a duration (openapi v1.46-live DRAFT, CONVENTIONS §10.41, §4, §7, §11.10), end
+ * admin grants with a duration (openapi v1.48-social DRAFT, CONVENTIONS §10.43, §4, §7, §11.10), end
  * to end against PostgreSQL + Redis with the API as the DML-only runtime role.
  *
  * Times are moved by writing `expires_at` directly (the API reads the system clock); every
@@ -53,7 +53,7 @@ function bagAdmin(...args: string[]): { status: number; out: string } {
 }
 
 describe('D171 contract coverage', () => {
-  it('openapi v1.46-live declares sendMyBagItem', () => {
+  it('openapi v1.48-social declares sendMyBagItem', () => {
     const ids = operations().map((o) => `${o.operationId} ${o.method.toUpperCase()} ${o.path}`);
     expect(ids).toContain('sendMyBagItem POST /api/v1/me/bag/transfers');
   });
@@ -106,7 +106,9 @@ describe('D171 the bag v2', { timeout: 180_000 }, () => {
     return res.body.profileCard as { code: string } | null;
   };
   const expiresIn = (item: OwnedItem | undefined) =>
-    item?.expiresAt == null ? null : new Date(item.expiresAt).getTime() - Date.now();
+    item?.expiresAt === null || item?.expiresAt === undefined
+      ? null
+      : new Date(item.expiresAt).getTime() - Date.now();
 
   beforeAll(async () => {
     ctx = await createTestApp();
@@ -162,7 +164,10 @@ describe('D171 the bag v2', { timeout: 180_000 }, () => {
     });
     const swept = await ctx.app.get(BagService).sweep();
     expect(swept).toBeGreaterThanOrEqual(1);
-    const rows = await ctx.prisma.userBagItem.findMany({ where: { userId: v.id }, orderBy: { itemCode: 'asc' } });
+    const rows = await ctx.prisma.userBagItem.findMany({
+      where: { userId: v.id },
+      orderBy: { itemCode: 'asc' },
+    });
     expect(rows.map((r) => r.itemCode)).toEqual(['bunny_royal', 'golden_stags']);
   });
 
@@ -203,7 +208,11 @@ describe('D171 the bag v2', { timeout: 180_000 }, () => {
     expect(await profileCard(b, a)).toBeNull();
     // The recipient owns it, not worn, with the same remaining time, «gift from @a».
     const got = await owned(b, 'emerald_wings');
-    expect(got).toMatchObject({ source: 'GIFT', equipped: false, giftedBy: { id: a.id, username: a.username } });
+    expect(got).toMatchObject({
+      source: 'GIFT',
+      equipped: false,
+      giftedBy: { id: a.id, username: a.username },
+    });
     expect(Math.abs(expiresIn(got)! - before)).toBeLessThan(SLACK);
     expect((await bag(b)).filter((i) => i.equipped).map((i) => i.code)).toEqual(['bunny_royal']);
     // The notification.
@@ -318,9 +327,9 @@ describe('D171 the bag v2', { timeout: 180_000 }, () => {
     // Whole (timed) on top: the sender's remaining time is added.
     const aLeft = expiresIn(await owned(a, 'emerald_wings'))!;
     expect((await send(a, { code: 'emerald_wings', username: b.username })).status).toBe(201);
-    expect(Math.abs(expiresIn(await owned(b, 'emerald_wings'))! - (theirsBefore + 2 * DAY + aLeft))).toBeLessThan(
-      SLACK,
-    );
+    expect(
+      Math.abs(expiresIn(await owned(b, 'emerald_wings'))! - (theirsBefore + 2 * DAY + aLeft)),
+    ).toBeLessThan(SLACK);
     // A whole permanent item on a timed copy: permanent.
     const c = await signup();
     await give(c, 'emerald_wings', null);
@@ -377,10 +386,22 @@ describe('D171 the bag v2', { timeout: 180_000 }, () => {
     const cases: [unknown, { field: string; issue: string }][] = [
       [{ username: b.username }, { field: 'code', issue: 'required' }],
       [{ code: 'golden_stags' }, { field: 'username', issue: 'required' }],
-      [{ code: 'golden_stags', username: b.username, days: 0 }, { field: 'days', issue: 'too_small' }],
-      [{ code: 'golden_stags', username: b.username, days: 3651 }, { field: 'days', issue: 'too_big' }],
-      [{ code: 'golden_stags', username: b.username, days: 1.5 }, { field: 'days', issue: 'invalid_type' }],
-      [{ code: 'golden_stags', username: b.username, extra: 1 }, { field: 'extra', issue: 'unknown_field' }],
+      [
+        { code: 'golden_stags', username: b.username, days: 0 },
+        { field: 'days', issue: 'too_small' },
+      ],
+      [
+        { code: 'golden_stags', username: b.username, days: 3651 },
+        { field: 'days', issue: 'too_big' },
+      ],
+      [
+        { code: 'golden_stags', username: b.username, days: 1.5 },
+        { field: 'days', issue: 'invalid_type' },
+      ],
+      [
+        { code: 'golden_stags', username: b.username, extra: 1 },
+        { field: 'extra', issue: 'unknown_field' },
+      ],
     ];
     for (const [body, detail] of cases) {
       const res = await send(a, body as Record<string, unknown>);
@@ -388,7 +409,9 @@ describe('D171 the bag v2', { timeout: 180_000 }, () => {
       expectContract(res, 'sendMyBagItem');
       expect(res.body.error.details, JSON.stringify(body)).toContainEqual(detail);
     }
-    expect((await ctx.http.post('/api/v1/me/bag/transfers').send({ code: 'x', username: 'y' })).status).toBe(401);
+    expect((await ctx.http.post('/api/v1/me/bag/transfers').send({ code: 'x', username: 'y' })).status).toBe(
+      401,
+    );
     expect(await ctx.prisma.bagTransfer.count({ where: { senderId: a.id } })).toBe(0);
   });
 
@@ -397,7 +420,9 @@ describe('D171 the bag v2', { timeout: 180_000 }, () => {
     const r = await Promise.all([signup(), signup(), signup(), signup()]);
     await give(a, 'emerald_wings', 5);
     // 4 × 2 days of 5: at most two succeed (2 + 2 < 5; a third would need 6).
-    const parts = await Promise.all(r.map((u) => send(a, { code: 'emerald_wings', username: u.username, days: 2 })));
+    const parts = await Promise.all(
+      r.map((u) => send(a, { code: 'emerald_wings', username: u.username, days: 2 })),
+    );
     const ok = parts.filter((p) => p.status === 201).length;
     expect(ok).toBe(2);
     for (const p of parts) {
@@ -488,7 +513,11 @@ describe('D171 send rate limit', { timeout: 120_000 }, () => {
   it('the third send in the hour → 429', async () => {
     const reg = async () => {
       const { res } = await registerVerified(ctx);
-      return { id: res.body.user.id as string, username: res.body.user.username as string, token: res.body.tokens.accessToken as string };
+      return {
+        id: res.body.user.id as string,
+        username: res.body.user.username as string,
+        token: res.body.tokens.accessToken as string,
+      };
     };
     const a = await reg();
     const b = await reg();

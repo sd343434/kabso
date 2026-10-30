@@ -77,7 +77,6 @@ enum MeHubItem {
   eventCenter,
   wallet,
   bag,
-  posts,
   svip,
   taskCenter,
   medals,
@@ -94,9 +93,9 @@ enum MeHubItem {
 /// ([AppRoutes.myProfile]); the counts open the follow lists. Every button
 /// of a feature Kabso has opens its real screen; the ones not built yet are
 /// shown faded with a "Soon" tag and do nothing (no stand-in screens).
-/// D164: Wallet, Earn money and Creator Center open their real screens;
-/// Purchase VIP, Event Center, SVIP and Task Center wait for the owner's
-/// decisions (proposal CP-024).
+/// D164: Wallet, Earn money and Creator Center open their real screens.
+/// D166: Event Center, SVIP and Task Center too (CP-024 approved with
+/// defaults); Purchase VIP waits for the owner's prices.
 ///
 /// Data: `GET /me`, `GET /users/{username}` (counts, family, relationship,
 /// medals), `GET /me/levels` and `GET /wallet/me`. The API has no friends
@@ -105,6 +104,10 @@ class MeHubScreen extends ConsumerWidget {
   const new({super.key});
 
   static const settingsKey = Key('meHub.settings');
+
+  /// D168 (owner): the profile page (posts, reels, reposts, saved) opens
+  /// from this icon beside Settings; the «المنشورات» row is gone.
+  static const profileKey = Key('meHub.profile');
   static const notificationsKey = Key('meHub.notifications');
   static const avatarKey = Key('meHub.avatar');
   static const nameKey = Key('meHub.name');
@@ -194,6 +197,7 @@ class MeHubScreen extends ConsumerWidget {
           icon: Icons.campaign_rounded,
           hue: _Hues.teal,
           title: l10n.meHubEventCenter,
+          onTap: () => push(AppRoutes.eventCenter),
         ),
       ],
       [
@@ -218,13 +222,6 @@ class MeHubScreen extends ConsumerWidget {
           title: l10n.meHubItemBag,
           onTap: () => push(AppRoutes.bag),
         ),
-        _HubRow(
-          item: MeHubItem.posts,
-          icon: Icons.article_rounded,
-          hue: _Hues.teal,
-          title: l10n.meHubPost,
-          onTap: openProfile,
-        ),
       ],
       [
         _HubRow(
@@ -232,12 +229,14 @@ class MeHubScreen extends ConsumerWidget {
           icon: Icons.military_tech_rounded,
           hue: _Hues.gold,
           title: l10n.meHubSvip,
+          onTap: () => push(AppRoutes.svip),
         ),
         _HubRow(
           item: MeHubItem.taskCenter,
           icon: Icons.task_alt_rounded,
           hue: _Hues.gold,
           title: l10n.meHubTaskCenter,
+          onTap: () => push(AppRoutes.taskCenter),
         ),
         _HubRow(
           item: MeHubItem.medals,
@@ -304,6 +303,13 @@ class MeHubScreen extends ConsumerWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
+                  _ActionIcon(
+                    key: profileKey,
+                    asset: AppIcons.grid,
+                    tooltip: l10n.meHubMyProfile,
+                    onTap: openProfile,
+                    labelled: true,
+                  ),
                   _ActionIcon(
                     key: settingsKey,
                     asset: AppIcons.settings,
@@ -487,27 +493,43 @@ class _ActionIcon extends StatelessWidget {
     required this.tooltip,
     required this.onTap,
     super.key,
+    this.labelled = false,
   });
 
   final String asset;
   final String tooltip;
   final VoidCallback onTap;
 
+  /// D168: screen readers get [tooltip] as the button's label (once, not
+  /// also as a tooltip); the long-press tooltip still shows.
+  final bool labelled;
+
   @override
-  Widget build(BuildContext context) => IconButton(
-    tooltip: tooltip,
-    onPressed: onTap,
-    padding: EdgeInsets.zero,
-    constraints: const BoxConstraints.tightFor(
-      width: KMeHub.actionBox,
-      height: KMeHub.actionBox,
-    ),
-    icon: AppIcon(
-      asset,
-      size: KMeHub.actionIcon,
-      color: context.palette.textPrimary,
-    ),
-  );
+  Widget build(BuildContext context) {
+    final button = IconButton(
+      tooltip: tooltip,
+      onPressed: onTap,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints.tightFor(
+        width: KMeHub.actionBox,
+        height: KMeHub.actionBox,
+      ),
+      icon: AppIcon(
+        asset,
+        size: KMeHub.actionIcon,
+        color: context.palette.textPrimary,
+      ),
+    );
+    if (!labelled) return button;
+    return Semantics(
+      button: true,
+      enabled: true,
+      label: tooltip,
+      onTap: onTap,
+      excludeSemantics: true,
+      child: button,
+    );
+  }
 }
 
 class _Stat extends StatelessWidget {

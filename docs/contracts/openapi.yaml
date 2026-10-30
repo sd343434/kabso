@@ -208,7 +208,7 @@ info:
     gifts inside a conversation through the live gift pipeline, block/report (`DM_MESSAGE`, kept as a
     snapshot)/mute/delete; every message is deleted 24 hours after it was sent (CONVENTIONS §11.13).
     **D162 (DRAFT v1.41-social, CP-023, CP-006 M2 without transcoding)** adds video posts and reels:
-    media kinds `POST_VIDEO` (≤ 200 MiB, ≤ 180 s), `REEL_VIDEO` (≤ 100 MiB, ≤ 60 s) and
+    media kinds `POST_VIDEO` (≤ 200 MiB, ≤ 180 s; ≤ 90 s since v1.45-social, D168), `REEL_VIDEO` (≤ 100 MiB, ≤ 60 s) and
     `VIDEO_POSTER` (the phone-made first frame), `video/mp4` and `video/quicktime`, the optional
     `CompleteMediaUploadRequest.posterId`, `MediaAsset.type: VIDEO` with `posterUrl` and
     `durationMs`, `Post.format: REEL` / `CreatePostRequest.format`, and `listFeedReels`
@@ -220,10 +220,21 @@ info:
     stored data: the caller's coin history (`listMyWalletLedger`), gift earnings and their history
     (`getMyEarnings`, `listMyEarnings`, display only — no withdrawal, D149) and the creator center
     (`getMyCreatorStats`, `GET /me/creator-stats`) (CONVENTIONS §10.40).
-    **D171 (DRAFT v1.46-live)**: the bag lists only owned items, each with `expiresAt` (null =
+    **D166 (DRAFT v1.44-social, CP-024 approved with defaults)** adds the Me hub's programs (tag
+    `programs`): the Task Center (`getMyTasks`, `checkIn`, `claimMyTask`; server-computed progress,
+    one payout per period, a daily cap), SVIP earned by gift spending (`getMySvip`), the Event Center
+    (`listEvents`, `getEvent`, `getEventLeaderboard`; frozen and paid once after the end) and the
+    recharge packages without purchases (`listRechargePackages`, B5); ledger reasons `TASK_REWARD`,
+    `CHECK_IN_REWARD`, `EVENT_PRIZE`; codes `TASK_NOT_COMPLETED`, `TASK_DAILY_CAP_REACHED` (CONVENTIONS
+    §10.41).
+    **D168 (DRAFT v1.45-social)**: a post video is now at most 90 s (owner; reels stay ≤ 60 s;
+    stored videos keep their length); `updateMe` also edits `displayName` and `bio`; the profile
+    photo is uploaded as media kind `AVATAR` and set or removed with `setMyAvatar` /
+    `removeMyAvatar` (`PUT` / `DELETE /me/avatar`) (CONVENTIONS §10.42, §11.1, §11.14).
+    **D171 (DRAFT v1.48-social)**: the bag lists only owned items, each with `expiresAt` (null =
     permanent; expired items are gone), `giftedBy` and `transferable`; source `GIFT`; sending a bag
     item, whole or some days of it, to another user (`sendMyBagItem`, `POST /me/bag/transfers`,
-    stacking on the recipient's copy), notification `BAG_ITEM_RECEIVED` (CONVENTIONS §10.41).
+    stacking on the recipient's copy), notification `BAG_ITEM_RECEIVED` (CONVENTIONS §10.43).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -246,6 +257,8 @@ tags:
     description: "Admin: the hosting permission (v1.6-live DRAFT, CP-010)."
   - name: media
     description: "Presigned image uploads (v1.5-social DRAFT, CP-006)."
+  - name: programs
+    description: "The Me hub's programs: the Task Center, the Event Center and SVIP (v1.44-social DRAFT, D166)."
   - name: wallet
     description: "The caller's coins (v1.19-live DRAFT, CP-017); their history and gift earnings (v1.43-social DRAFT, D164)."
   - name: premium-usernames
@@ -257,7 +270,7 @@ tags:
   - name: medals
     description: "Medals: the catalogue and a user's medals (v1.21-live DRAFT, CP-018)."
   - name: bag
-    description: "The bag: owned items by category and the one worn per category, starting with profile cards (v1.22-live DRAFT, CP-019); expiry and sending items (v1.46-live DRAFT, D171)."
+    description: "The bag: owned items by category and the one worn per category, starting with profile cards (v1.22-live DRAFT, CP-019); expiry and sending items (v1.48-social DRAFT, D171)."
   - name: gifts
     description: "Live gifts: the catalogue and the caller's gift bag (v1.23-live DRAFT, CP-020). Sending is `sendLiveGift` (tag `live`)."
   - name: home
@@ -591,10 +604,11 @@ paths:
     patch:
       tags: [me]
       operationId: updateMe
-      summary: "Update the caller's preferences (v1.2: locale; v1.27.1-live: country)"
+      summary: "Update the caller's preferences and profile (v1.2: locale; v1.27.1-live: country; v1.45-social: displayName, bio)"
       description: |
         v1.27.1-live (D133): `locale` is no longer required and `country` is added; at least one of
-        them must be sent (an empty object → 400 `body` / `required`). `country` is an ISO 3166-1
+        them must be sent (an empty object → 400 `body` / `required`). v1.45-social (D168,
+        CONVENTIONS §10.42): `displayName` and `bio` may be sent too (at least one field of the four). `country` is an ISO 3166-1
         alpha-2 code (two letters; lower case is accepted and stored upper case; `XK` and groupings
         such as `EU` are not countries here), or null to clear it;
         another value → 400 (`field "country"`, `issue "invalid_value"`). It is the caller's own
@@ -613,6 +627,21 @@ paths:
                   type: [string, 'null']
                   pattern: '^[A-Za-z]{2}$'
                   description: v1.27.1-live (D133). ISO 3166-1 alpha-2; null clears it.
+                displayName:
+                  allOf: [{ $ref: '#/components/schemas/DisplayName' }]
+                  description: |
+                    v1.45-social (D168, CONVENTIONS §10.42). The registration rules of §6 (NFC, trimmed,
+                    1–50 graphemes, ≤ 100 code points, text hygiene; `too_short`, `too_long`,
+                    `invalid_format`, `reserved_term` on field `displayName`). Shown everywhere the
+                    person appears from the next read.
+                bio:
+                  type: [string, 'null']
+                  maxLength: 1200
+                  description: |
+                    v1.45-social (D168, CONVENTIONS §10.42). After normalisation (CRLF → LF, NFC, trimmed,
+                    trailing spaces of each line removed) at most 300 code points and 4 line breaks, the
+                    free-text hygiene of §6 on each line (`too_long`, `invalid_format` on field `bio`). An
+                    empty value or null clears it (`Me.bio` null).
       responses:
         '200':
           description: Updated user.
@@ -944,6 +973,46 @@ paths:
         '204': { description: Removed (or there was none). }
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/me/avatar:
+    put:
+      tags: [me]
+      operationId: setMyAvatar
+      summary: "Set the caller's profile photo (v1.45-social, D168)"
+      description: |
+        CONVENTIONS §10.42. Order after auth and the rate limit (30 / hour / user):
+        `MEDIA_UPLOADS_ENABLED` (503 `MEDIA_UPLOADS_UNAVAILABLE`) → body → the asset: a READY,
+        unattached `AVATAR` asset of the caller from the last 24 hours, else 400 `mediaId` /
+        `invalid_value`. The photo replaces the previous one (whose `AVATAR` asset is deleted) and is
+        `Me.avatarUrl`, `PublicProfile.avatarUrl` and every `UserSummary.avatarUrl` of the caller from
+        the next read. Setting the current photo again changes nothing. Visible to everyone at once
+        (like stories and posts, D91 / D162a); reports and moderators handle abuse.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetAvatarRequest' }
+      responses:
+        '200':
+          description: The photo now in use.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Avatar' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [me]
+      operationId: removeMyAvatar
+      summary: "Remove the caller's profile photo; the initial shows again (v1.45-social, idempotent)"
+      description: |
+        CONVENTIONS §10.42. `avatarUrl` becomes null and the photo's `AVATAR` asset (if it was one) is
+        deleted. Works while uploads are off. No photo → 204 too. Same rate limit as `setMyAvatar`.
+      responses:
+        '204': { description: Removed (or there was none). }
+        '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
   /api/v1/users/username-availability:
@@ -5111,9 +5180,9 @@ paths:
       operationId: getMyBag
       summary: "The items the caller owns, and which one they wear (CP-019)"
       description: |
-        CONVENTIONS §10.22, §10.41. The caller's items in catalogue order; `equipped` is true for at most
+        CONVENTIONS §10.22, §10.43. The caller's items in catalogue order; `equipped` is true for at most
         one item per category. Only items owned now: an item whose `expiresAt` has passed is never
-        listed (v1.46-live, D171). Names follow `Accept-Language`, else the caller's locale. An
+        listed (v1.48-social, D171). Names follow `Accept-Language`, else the caller's locale. An
         unknown `category` → 400 `VALIDATION_FAILED` (`category` / `invalid_value`).
       parameters:
         - $ref: '#/components/parameters/BagCategoryQuery'
@@ -5143,7 +5212,7 @@ paths:
         missing (`required`), `category` missing or unknown (`invalid_value`), an empty or too long
         `code`, or an unknown field; 409
         `BAG_ITEM_NOT_OWNED`: the caller does not own `code` in that category (an unknown code
-        too, and an expired item since v1.46-live); nothing changes then. Names follow `Accept-Language`.
+        too, and an expired item since v1.48-social); nothing changes then. Names follow `Accept-Language`.
       requestBody:
         required: true
         content:
@@ -5177,7 +5246,7 @@ paths:
       operationId: sendMyBagItem
       summary: "Send a bag item, whole or some days of it, to another user (D171)"
       description: |
-        CONVENTIONS §10.41. `days` absent or null sends the **whole** item: it leaves the caller's bag
+        CONVENTIONS §10.43. `days` absent or null sends the **whole** item: it leaves the caller's bag
         (taken off if worn) and the recipient receives its remaining time, or a permanent item if it
         was permanent. `days` (1–3650) sends **part** of the remaining time: the caller keeps the
         item (still worn if it was) with `expiresAt` moved back by `days × 24 h`, which must be less
@@ -5342,7 +5411,8 @@ paths:
         (v1.41-social, D162, CONVENTIONS §11.14) A `POST_VIDEO` / `REEL_VIDEO` upload needs the body
         `{posterId}` (400 `posterId` / `required`; another kind with `posterId` → `unknown_field`; a
         poster that is not a READY, unattached `VIDEO_POSTER` of the caller → `invalid_value`, the
-        slot stays open). The video is checked without decoding (container, 1 s to 60 s / 180 s,
+        slot stays open). The video is checked without decoding (container, 1 s to 60 s / 90 s
+        (a post video; 180 s before v1.45-social, D168),
         H.264 or HEVC video track, 16–4 096 px) else 422 `MEDIA_INVALID`; it is served as
         uploaded (`type: VIDEO`) and the poster becomes its `thumbUrl` / `posterUrl`. Check order:
         auth → `MEDIA_UPLOADS_ENABLED` → 404 → body → the bytes.
@@ -6779,6 +6849,187 @@ paths:
         '404': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  # ---- v1.44-social (DRAFT, D166) — the Me hub's programs: Task Center, Event Center, SVIP -------
+  /api/v1/me/tasks:
+    get:
+      tags: [programs]
+      operationId: getMyTasks
+      summary: "The caller's Task Center: today's and this week's tasks and the check-in (D166)"
+      description: |
+        v1.44-social, CONVENTIONS §10.41. The enabled tasks the caller can do (tasks for hosts only
+        when the caller holds the hosting permission), each with the progress the server computed
+        from stored data (watch time, follows that still stand, live chat, paid gift sends, lives,
+        gifts received; counterparts must be ACTIVE) — never reported by the app — and whether it was
+        claimed in the current day or ISO week (`LIVE_RANKINGS_TIME_ZONE`). Also the check-in strip:
+        today and the next six days with their place in the 7-day cycle. Names follow
+        `Accept-Language`. Checks: 401.
+      responses:
+        '200':
+          description: The tasks.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyTasks' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/check-in:
+    post:
+      tags: [programs]
+      operationId: checkIn
+      summary: "Check in for today (D166)"
+      description: |
+        v1.44-social, CONVENTIONS §10.41. Once per day: `TASK_CHECK_IN_COINS` (5) coins, plus
+        `TASK_CHECK_IN_STREAK_BONUS_COINS` (20) on every 7th day in a row, paid as a `CHECK_IN_REWARD`
+        ledger row within the daily cap (`TASK_DAILY_CAP_COINS`, 50; after the cap the check-in still
+        keeps the streak and pays 0). 201 checked in now, 200 already today (nothing paid again).
+        Checks: 401.
+      responses:
+        '200':
+          description: Already checked in today.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CheckInResult' }
+        '201':
+          description: Checked in now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CheckInResult' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/tasks/{code}/claim:
+    post:
+      tags: [programs]
+      operationId: claimMyTask
+      summary: "Claim a completed task's coins (D166)"
+      description: |
+        v1.44-social, CONVENTIONS §10.41. Order: 404 (unknown, disabled or not for the caller) →
+        already claimed in this period → 200 (nothing paid again) → 409 `TASK_NOT_COMPLETED` → for a
+        daily task, 409 `TASK_DAILY_CAP_REACHED` when the day's cap is used up → 201, paying the reward
+        (a daily task: at most what is left of the cap) as a `TASK_REWARD` ledger row in the same
+        transaction. One payout per person, task and period, also for concurrent claims. Checks: 401.
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 40 }
+      responses:
+        '200':
+          description: Already claimed in this period.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskClaimResult' }
+        '201':
+          description: Claimed now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskClaimResult' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/svip:
+    get:
+      tags: [programs]
+      operationId: getMySvip
+      summary: "The caller's SVIP status, earned by gift spending (D166)"
+      description: |
+        v1.44-social, CONVENTIONS §10.41. SVIP is never bought: coins spent on gifts (`LIVE_GIFT`,
+        `LUCKY_GIFT`, `DM_GIFT`, `CP_GIFT`) in the last `SVIP_WINDOW_DAYS` (30) days reach the tiers
+        `SVIP_TIERS` (50 000 / 150 000 / 400 000); a tier lasts `SVIP_STATUS_DAYS` (30) days after the
+        last moment its threshold was met. The perks are listed with `available: false` until each is
+        built. Checks: 401.
+      responses:
+        '200':
+          description: The status.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SvipStatus' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/events:
+    get:
+      tags: [programs]
+      operationId: listEvents
+      summary: "The Event Center's lists: calendar month, permanent, regional (D166)"
+      description: |
+        v1.44-social, CONVENTIONS §10.41. `CALENDAR` (default): events for everyone (no regions) that
+        overlap `month` (`YYYY-MM` in `LIVE_RANKINGS_TIME_ZONE`, default the current month), by start.
+        `PERMANENT`: long-running events (for everyone or the caller's country) not ended more than
+        30 days ago. `REGIONAL`: events targeted at the caller's country (`country` null and an empty
+        list when the caller has none). Never sample events: an empty list when none is configured.
+        Checks: 401; 400 `tab` / `month`.
+      parameters:
+        - name: tab
+          in: query
+          required: false
+          schema: { type: string, enum: [CALENDAR, PERMANENT, REGIONAL], default: CALENDAR }
+        - name: month
+          in: query
+          required: false
+          schema: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
+      responses:
+        '200':
+          description: The events.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EventList' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/events/{eventId}:
+    get:
+      tags: [programs]
+      operationId: getEvent
+      summary: "One event: dates, rules and prizes (D166)"
+      description: v1.44-social, CONVENTIONS §10.41. Checks — 401; 404 (unknown or malformed id).
+      parameters:
+        - $ref: '#/components/parameters/ProgramEventIdPath'
+      responses:
+        '200':
+          description: The event.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EventDetail' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/events/{eventId}/leaderboard:
+    get:
+      tags: [programs]
+      operationId: getEventLeaderboard
+      summary: "An event's top 100 and the caller's own place (D166)"
+      description: |
+        v1.44-social, CONVENTIONS §10.41. Computed from the tables the boards already read for the
+        event's dates (ACTIVE people, the event's audience and regions); after the end the board is
+        frozen (`final: true`) and prizes are paid once after the review window. People the caller
+        blocked or who blocked the caller are left out of `data` (ranks stay). Checks: 401; 404.
+      parameters:
+        - $ref: '#/components/parameters/ProgramEventIdPath'
+      responses:
+        '200':
+          description: The board.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EventLeaderboard' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/wallet/recharge-packages:
+    get:
+      tags: [wallet]
+      operationId: listRechargePackages
+      summary: "The recharge screen's coin packages; purchases are not available (D166, B5)"
+      description: |
+        v1.44-social, CONVENTIONS §10.41. Server config `WALLET_RECHARGE_PACKAGES` (placeholders until
+        the owner sets them) in `WALLET_RECHARGE_CURRENCY`. `purchasesEnabled` is false until store
+        purchases and their legal review are done (B5); there is no purchase operation. Checks: 401.
+      responses:
+        '200':
+          description: The packages.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RechargePackages' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
 components:
   securitySchemes:
     bearerAuth:
@@ -6786,6 +7037,12 @@ components:
       scheme: bearer
       bearerFormat: JWT
   parameters:
+    ProgramEventIdPath:
+      name: eventId
+      in: path
+      required: true
+      description: A malformed id is treated as not found (404).
+      schema: { type: string }
     Cursor:
       name: cursor
       in: query
@@ -8599,7 +8856,7 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     MediaKind:
       type: string
-      enum: [POST_IMAGE, STORY_IMAGE, LIVE_COVER, LIVE_CHAT_IMAGE, LIVE_CHAT_VOICE, FAMILY_EMBLEM, FAMILY_COVER, HOME_BANNER, DM_IMAGE, DM_VOICE, POST_VIDEO, REEL_VIDEO, VIDEO_POSTER]
+      enum: [POST_IMAGE, STORY_IMAGE, LIVE_COVER, LIVE_CHAT_IMAGE, LIVE_CHAT_VOICE, FAMILY_EMBLEM, FAMILY_COVER, HOME_BANNER, DM_IMAGE, DM_VOICE, POST_VIDEO, REEL_VIDEO, VIDEO_POSTER, AVATAR]
       description: |
         Images for posts, (CP-008) for stories and (CP-015) for the host's live cover; (CP-017)
         a picture or a voice clip (`audio/mp4`, ≤ 30 s, ≤ 1 MiB) for a live chat message;
@@ -8608,11 +8865,13 @@ components:
         (D124) a home banner (cover-cropped to 3:1 around the centre: 1 500 × 500 and 320 × 107,
         attached only by the banner-admin CLI); (D155) `DM_IMAGE` (like a post image) and `DM_VOICE`
         (like a live chat voice clip) for a direct message, deleted with it after 24 hours;
-        (v1.41-social, D162) `POST_VIDEO` (≤ 200 MiB, 1–180 s) for a post, `REEL_VIDEO` (≤ 100 MiB,
+        (v1.41-social, D162) `POST_VIDEO` (≤ 200 MiB, 1–180 s; 1–90 s since v1.45-social, D168) for a post, `REEL_VIDEO` (≤ 100 MiB,
         1–60 s) for a reel, and `VIDEO_POSTER` (an image, the video's first frame made on the phone,
-        processed like a post image) consumed by `completeMediaUpload` of a video. An asset is
-        attachable only to its kind's target (a post, a story, the live cover, a live chat message,
-        a family, a reel or a video).
+        processed like a post image) consumed by `completeMediaUpload` of a video. (v1.45-social,
+        D168) `AVATAR`: the profile photo, processed like `LIVE_COVER` (a centre-cropped square, 640
+        and 320 px), attached only by `setMyAvatar`. An asset is attachable only to its kind's target
+        (a post, a story, the live cover, a live chat message, a family, a reel, a video or the
+        profile photo).
     CreateMediaUploadRequest:
       type: object
       additionalProperties: false
@@ -8696,7 +8955,7 @@ components:
           type: integer
           minimum: 1
           maximum: 180000
-          description: CP-017 — `AUDIO` only (absent for images); the clip's length (≤ 30 000). (v1.41-social, D162) `VIDEO`'s length (≤ 60 000 for a reel, ≤ 180 000 for a post video).
+          description: CP-017 — `AUDIO` only (absent for images); the clip's length (≤ 30 000). (v1.41-social, D162) `VIDEO`'s length (≤ 60 000 for a reel, ≤ 180 000 for a post video). (v1.45-social, D168) New post videos are ≤ 90 000; ones stored before keep their length (≤ 180 000).
     SetLiveBlockedWordsRequest:
       type: object
       additionalProperties: false
@@ -8749,6 +9008,17 @@ components:
       required: [coverUrl]
       properties:
         coverUrl: { type: string, format: uri, description: "WebP, 640 px square (smaller if the photo was)." }
+    SetAvatarRequest:
+      type: object
+      additionalProperties: false
+      required: [mediaId]
+      properties:
+        mediaId: { type: string, format: uuid, description: "v1.45-social (D168). A READY, unattached AVATAR asset of the caller." }
+    Avatar:
+      type: object
+      required: [avatarUrl]
+      properties:
+        avatarUrl: { type: string, format: uri, description: "v1.45-social (D168). WebP, 640 px square (smaller if the photo was)." }
     PostText:
       type: string
       maxLength: 2200
@@ -9067,20 +9337,20 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     NotificationType:
       type: string
-      description: "`LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.46-live, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). Clients ignore values they do not know."
+      description: "`LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). Clients ignore values they do not know."
       enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, BAG_ITEM_RECEIVED]
     NotificationTarget:
       type: object
       required: [type, id, postId, thumbUrl, text]
       properties:
-        type: { type: string, enum: [POST, COMMENT, STORY, USER, FAMILY, MEDAL, PREMIUM_USERNAME, BAG_ITEM], description: "(v1.21-live) FAMILY and MEDAL are new; (v1.28-live, D146) PREMIUM_USERNAME; (v1.46-live, D171) BAG_ITEM; clients ignore target types they do not know." }
+        type: { type: string, enum: [POST, COMMENT, STORY, USER, FAMILY, MEDAL, PREMIUM_USERNAME, BAG_ITEM], description: "(v1.21-live) FAMILY and MEDAL are new; (v1.28-live, D146) PREMIUM_USERNAME; (v1.48-social, D171) BAG_ITEM; clients ignore target types they do not know." }
         id: { type: string, description: "A post, comment or story id, a username for USER, a family id for FAMILY, a medal code for MEDAL, the username for PREMIUM_USERNAME, the item code for BAG_ITEM." }
         postId: { type: [string, 'null'], format: uuid, description: "For a COMMENT, its post." }
         thumbUrl: { type: [string, 'null'], format: uri, description: "The post or story photo (320 px), when it has one." }
         text: { type: [string, 'null'], maxLength: 80, description: "A short excerpt of the comment or caption, the scheduled live's title (LIVE_SCHEDULED_SOON) or the family's name (FAMILY)." }
         startsAt: { type: string, format: date-time, description: "LIVE_SCHEDULED_SOON only (v1.14-live): when the live is planned to start." }
         endsAt: { type: string, format: date-time, description: "PREMIUM_USERNAME only (v1.28-live, D146): the end of the paid period (EXPIRING) or of the grace period (EXPIRED)." }
-        bagCategory: { $ref: '#/components/schemas/BagCategory', description: "BAG_ITEM only (v1.46-live, D171): the item's category." }
+        bagCategory: { $ref: '#/components/schemas/BagCategory', description: "BAG_ITEM only (v1.48-social, D171): the item's category." }
     Notification:
       type: object
       required: [id, type, actors, actorCount, target, createdAt, read]
@@ -9892,7 +10162,7 @@ components:
     BagItemSource:
       type: string
       enum: [FREE_SIGNUP, BACKFILL, ADMIN, GIFT]
-      description: "How the item was obtained: free at signup, free for accounts that existed before the bag, granted by an admin, or (v1.46-live, D171) sent by another user (`GIFT`, see `BagItem.giftedBy`). More values come later (store, rewards); clients treat unknown values as opaque."
+      description: "How the item was obtained: free at signup, free for accounts that existed before the bag, granted by an admin, or (v1.48-social, D171) sent by another user (`GIFT`, see `BagItem.giftedBy`). More values come later (store, rewards); clients treat unknown values as opaque."
     BagCatalogueItem:
       type: object
       required: [code, category, name, assetKey, sortOrder, free]
@@ -9921,13 +10191,13 @@ components:
         acquiredAt: { type: string, format: date-time }
         source: { $ref: '#/components/schemas/BagItemSource' }
         equipped: { type: boolean, description: Worn now; at most one item per category. }
-        expiresAt: { type: [string, 'null'], format: date-time, description: "(v1.46-live, D171) When the item leaves the bag; null = permanent. Never in the past (expired items are not listed)." }
+        expiresAt: { type: [string, 'null'], format: date-time, description: "(v1.48-social, D171) When the item leaves the bag; null = permanent. Never in the past (expired items are not listed)." }
         giftedBy:
-          description: "(v1.46-live, D171) `GIFT` only: who sent it (the latest giver when time was added); null for other sources, or when that account is not ACTIVE or a block stands between you either way."
+          description: "(v1.48-social, D171) `GIFT` only: who sent it (the latest giver when time was added); null for other sources, or when that account is not ACTIVE or a block stands between you either way."
           oneOf:
             - $ref: '#/components/schemas/UserSummary'
             - type: 'null'
-        transferable: { type: boolean, description: "(v1.46-live, D171) Whether `sendMyBagItem` accepts it (false for free items every account gets)." }
+        transferable: { type: boolean, description: "(v1.48-social, D171) Whether `sendMyBagItem` accepts it (false for free items every account gets and for level rewards, source `LEVEL_REWARD`)." }
     Bag:
       type: object
       required: [data]
@@ -9977,7 +10247,7 @@ components:
           description: "Whole days of the remaining time to send (must be less than the remaining time; not for a permanent item). Absent or null sends the whole item."
     BagTransfer:
       type: object
-      description: "(v1.46-live, D171) A bag item sent to another user."
+      description: "(v1.48-social, D171) A bag item sent to another user."
       required: [id, code, category, name, recipient, whole, durationSeconds, remaining]
       properties:
         id: { type: string, format: uuid }
@@ -10781,6 +11051,9 @@ components:
         - DM_GIFT
         - LIVE_BOOST
         - LIVE_BOOST_REFUND
+        - TASK_REWARD
+        - CHECK_IN_REWARD
+        - EVENT_PRIZE
     WalletLedgerEntry:
       type: object
       required: [id, reason, delta, balanceAfter, createdAt]
@@ -10906,5 +11179,200 @@ components:
         giftCode: { type: [string, 'null'] }
         quantity: { type: [integer, 'null'] }
         purged: { type: boolean, description: The retention period ended; text and file were cleared. }
+    # ---- v1.44-social (DRAFT, D166) ------------------------------------------------------------
+    ProgramTask:
+      type: object
+      description: One task of the Task Center (CONVENTIONS §10.41). `progress` is capped at `target`.
+      required: [code, period, metric, audience, name, target, progress, rewardCoins, completed, claimed, claimedCoins]
+      properties:
+        code: { type: string, maxLength: 40 }
+        period: { type: string, enum: [DAILY, WEEKLY] }
+        metric:
+          type: string
+          enum: [WATCH_LIVES, FOLLOWS, LIVE_CHAT_MESSAGES, GIFT_SENDS, HOST_LIVE_MINUTES, HOST_GIFT_COINS]
+          description: What is counted (the app picks where «اذهب» leads from it).
+        audience: { type: string, enum: [EVERYONE, HOSTS] }
+        name: { type: string }
+        target: { type: integer, minimum: 1 }
+        progress: { type: integer, minimum: 0 }
+        rewardCoins: { type: integer, minimum: 1 }
+        completed: { type: boolean }
+        claimed: { type: boolean }
+        claimedCoins: { type: [integer, 'null'], minimum: 0, description: What the claim paid (after the daily cap). }
+    CheckInDay:
+      type: object
+      required: [date, cycleDay, today, checkedIn, rewardCoins]
+      properties:
+        date: { type: string, format: date }
+        cycleDay: { type: integer, minimum: 1, maximum: 7, description: 7 is the bonus day. }
+        today: { type: boolean }
+        checkedIn: { type: boolean }
+        rewardCoins: { type: integer, minimum: 0, description: Before the daily cap. }
+    MyTasks:
+      type: object
+      required: [day, timeZone, dayStartsAt, dayResetsAt, weekStartsAt, weekResetsAt, dailyCapCoins, dailyEarnedCoins, checkIn, tasks]
+      properties:
+        day: { type: string, format: date }
+        timeZone: { type: string }
+        dayStartsAt: { type: string, format: date-time }
+        dayResetsAt: { type: string, format: date-time }
+        weekStartsAt: { type: string, format: date-time }
+        weekResetsAt: { type: string, format: date-time }
+        dailyCapCoins: { type: integer, minimum: 1 }
+        dailyEarnedCoins: { type: integer, minimum: 0, description: Coins from daily tasks and the check-in today. }
+        checkIn:
+          type: object
+          required: [checkedInToday, streak, cycleDays, rewardCoins, bonusCoins, days]
+          properties:
+            checkedInToday: { type: boolean }
+            streak: { type: integer, minimum: 0, description: Days in a row up to today (or yesterday). }
+            cycleDays: { type: integer, minimum: 1 }
+            rewardCoins: { type: integer, minimum: 1 }
+            bonusCoins: { type: integer, minimum: 0 }
+            days:
+              type: array
+              minItems: 7
+              maxItems: 7
+              items: { $ref: '#/components/schemas/CheckInDay' }
+        tasks:
+          type: array
+          items: { $ref: '#/components/schemas/ProgramTask' }
+    TaskClaimResult:
+      type: object
+      required: [task, paidCoins, balanceCoins]
+      properties:
+        task: { $ref: '#/components/schemas/ProgramTask' }
+        paidCoins: { type: integer, minimum: 0 }
+        balanceCoins: { type: integer, format: int64, minimum: 0 }
+    CheckInResult:
+      type: object
+      required: [paidCoins, balanceCoins, tasks]
+      properties:
+        paidCoins: { type: integer, minimum: 0 }
+        balanceCoins: { type: integer, format: int64, minimum: 0 }
+        tasks: { $ref: '#/components/schemas/MyTasks' }
+    SvipPerk:
+      type: object
+      required: [code, name, unlockTier, unlocked, available]
+      properties:
+        code:
+          type: string
+          enum: [BADGE, AVATAR_FRAME, CHAT_NAME_COLOR, ENTRY_BANNER, ENTRY_EFFECT, DAILY_BULLET, VIEWER_LIST_PRIORITY, MONTHLY_GIFT]
+        name: { type: string }
+        unlockTier: { type: integer, minimum: 1 }
+        unlocked: { type: boolean, description: The caller's tier reaches it. }
+        available: { type: boolean, description: The perk is built and works today (clients never show an unavailable perk as active). }
+    SvipStatus:
+      type: object
+      required: [tier, expiresAt, windowDays, statusDays, spentCoins, tiers, nextTier, coinsToNext, perks]
+      properties:
+        tier: { type: integer, minimum: 0, description: 0 = not SVIP. }
+        expiresAt: { type: [string, 'null'], format: date-time }
+        windowDays: { type: integer, minimum: 1 }
+        statusDays: { type: integer, minimum: 1 }
+        spentCoins: { type: integer, format: int64, minimum: 0, description: Gift spending in the last windowDays days. }
+        tiers:
+          type: array
+          items:
+            type: object
+            required: [tier, thresholdCoins]
+            properties:
+              tier: { type: integer, minimum: 1 }
+              thresholdCoins: { type: integer, format: int64, minimum: 1 }
+        nextTier: { type: [integer, 'null'], minimum: 1 }
+        coinsToNext: { type: [integer, 'null'], format: int64, minimum: 0 }
+        perks:
+          type: array
+          items: { $ref: '#/components/schemas/SvipPerk' }
+    EventSummary:
+      type: object
+      required: [id, title, bannerUrl, startsAt, endsAt, status, metric, audience, permanent, featured, regions]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        bannerUrl: { type: [string, 'null'], format: uri }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: [string, 'null'], format: date-time, description: Null only for a permanent event without an end. }
+        status: { type: string, enum: [UPCOMING, RUNNING, ENDED] }
+        metric: { type: string, enum: [GIFT_COINS_RECEIVED, GIFT_COINS_SENT, LIVE_MINUTES, TAPS_RECEIVED, NEW_FOLLOWERS] }
+        audience: { type: string, enum: [EVERYONE, HOSTS] }
+        permanent: { type: boolean }
+        featured: { type: boolean, description: Shown as «رائج». }
+        regions:
+          type: array
+          items: { type: string, pattern: '^[A-Z]{2}$' }
+    EventList:
+      type: object
+      required: [tab, month, timeZone, country, data]
+      properties:
+        tab: { type: string, enum: [CALENDAR, PERMANENT, REGIONAL] }
+        month: { type: [string, 'null'], pattern: '^\d{4}-\d{2}$' }
+        timeZone: { type: string }
+        country: { type: [string, 'null'], pattern: '^[A-Z]{2}$' }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/EventSummary' }
+    EventPrize:
+      type: object
+      required: [rankFrom, rankTo, coins]
+      properties:
+        rankFrom: { type: integer, minimum: 1, maximum: 100 }
+        rankTo: { type: integer, minimum: 1, maximum: 100 }
+        coins: { type: integer, minimum: 1 }
+    EventDetail:
+      allOf:
+        - $ref: '#/components/schemas/EventSummary'
+        - type: object
+          required: [rules, prizes, frozenAt, payoutDueAt, paidAt]
+          properties:
+            rules: { type: string }
+            prizes:
+              type: array
+              items: { $ref: '#/components/schemas/EventPrize' }
+            frozenAt: { type: [string, 'null'], format: date-time }
+            payoutDueAt: { type: [string, 'null'], format: date-time }
+            paidAt: { type: [string, 'null'], format: date-time }
+    EventLeaderboard:
+      type: object
+      required: [eventId, metric, final, data, me]
+      properties:
+        eventId: { type: string, format: uuid }
+        metric: { type: string, enum: [GIFT_COINS_RECEIVED, GIFT_COINS_SENT, LIVE_MINUTES, TAPS_RECEIVED, NEW_FOLLOWERS] }
+        final: { type: boolean }
+        data:
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            required: [rank, user, score, prizeCoins]
+            properties:
+              rank: { type: integer, minimum: 1 }
+              user: { $ref: '#/components/schemas/UserSummary' }
+              score: { type: integer, format: int64, minimum: 0 }
+              prizeCoins: { type: integer, minimum: 0 }
+        me:
+          type: object
+          required: [rank, score, prizeCoins]
+          properties:
+            rank: { type: [integer, 'null'], minimum: 1 }
+            score: { type: integer, format: int64, minimum: 0 }
+            prizeCoins: { type: integer, minimum: 0 }
+    RechargePackages:
+      type: object
+      required: [currency, purchasesEnabled, packages]
+      properties:
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
+        purchasesEnabled: { type: boolean, description: False until B5. }
+        packages:
+          type: array
+          items:
+            type: object
+            required: [id, coins, bonusCoins, priceMinor, originalPriceMinor]
+            properties:
+              id: { type: string }
+              coins: { type: integer, minimum: 1 }
+              bonusCoins: { type: integer, minimum: 0 }
+              priceMinor: { type: integer, minimum: 1, description: In the currency's minor unit (cents). }
+              originalPriceMinor: { type: [integer, 'null'], minimum: 1, description: The price before a discount (the «عرض» ribbon). }
 security:
   - bearerAuth: []

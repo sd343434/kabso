@@ -9,7 +9,7 @@
  *   pnpm bag:admin grant  <email> <code> [<days>|forever]
  *                                  # gives the item for <days> (1–3650) or for ever (the default);
  *                                  # not worn (what the user wears stays). An item the user owns
- *                                  # gets the days added (v1.46-live, D171); `forever` makes it
+ *                                  # gets the days added (v1.48-social, D171); `forever` makes it
  *                                  # permanent; a permanent one is left as it is.
  *   pnpm bag:admin revoke <email> <code>   # takes it back (worn → the user wears nothing there)
  *   pnpm bag:admin list   <email>          # the user's items; `*` marks the worn ones
@@ -22,7 +22,12 @@ import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../generated/prisma/client.js';
 import { AuditAction } from '../common/audit/audit.service.js';
-import { addItemTimeIn, catalogueItemIn, lockItemHoldersIn, revokeItemIn } from '../modules/bag/bag-grants.js';
+import {
+  addItemTimeIn,
+  catalogueItemIn,
+  lockItemHoldersIn,
+  revokeItemIn,
+} from '../modules/bag/bag-grants.js';
 import { BAG_DAY_MS, BAG_MAX_DAYS } from '../modules/bag/bag.catalogue.js';
 
 function fail(message: string): never {
@@ -30,7 +35,8 @@ function fail(message: string): never {
   process.exit(1);
 }
 
-const USAGE = 'Usage: pnpm bag:admin grant <email> <code> [<days>|forever] | revoke <email> <code> | list <email>';
+const USAGE =
+  'Usage: pnpm bag:admin grant <email> <code> [<days>|forever] | revoke <email> <code> | list <email>';
 
 const url = process.env.MIGRATION_DATABASE_URL;
 if (!url) fail('MIGRATION_DATABASE_URL is not set (the migration role changes bags).');
@@ -78,7 +84,13 @@ async function grant(email: string, code: string, daysArg: string | undefined): 
           metadata:
             days === null && result.kind === 'added'
               ? { item: item.code, category: item.category, via: 'cli' }
-              : { item: item.code, category: item.category, via: 'cli', days, extended: result.kind === 'extended' },
+              : {
+                  item: item.code,
+                  category: item.category,
+                  via: 'cli',
+                  days,
+                  extended: result.kind === 'extended',
+                },
         },
       });
     }
@@ -128,7 +140,9 @@ async function list(email: string): Promise<void> {
   for (const r of rows) {
     process.stdout.write(
       `${r.equipped ? '*' : ' '} ${r.category} ${r.itemCode} (${r.source}, ${r.acquiredAt.toISOString()}${
-        r.expiresAt === null ? '' : `, ${r.expiresAt <= new Date() ? 'expired' : 'until'} ${r.expiresAt.toISOString()}`
+        r.expiresAt === null
+          ? ''
+          : `, ${r.expiresAt <= new Date() ? 'expired' : 'until'} ${r.expiresAt.toISOString()}`
       })\n`,
     );
   }

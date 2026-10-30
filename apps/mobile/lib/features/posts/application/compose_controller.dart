@@ -250,7 +250,7 @@ class ComposeController extends Notifier<ComposeState> {
     return rejection;
   }
 
-  /// D162: makes [video] the draft's media (a post video: ≤ 3 minutes,
+  /// D162: makes [video] the draft's media (a post video: ≤ 90 s since D168,
   /// ≤ 200 MiB); the reason when it can't be (photos already chosen, or a
   /// limit).
   VideoRejection? setVideo(PickedVideo video) {

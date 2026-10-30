@@ -156,6 +156,7 @@ export function buildTestConfig(overrides: Record<string, string> = {}): AppConf
     RATE_LIMIT_LIVE_MEDIA_TOKEN_GUEST_IP: GENEROUS,
     RATE_LIMIT_LIVE_UPDATE_USER: GENEROUS,
     RATE_LIMIT_LIVE_COVER_USER: GENEROUS,
+    RATE_LIMIT_AVATAR_USER: GENEROUS,
     RATE_LIMIT_LIVE_BLOCKED_WORDS_USER: GENEROUS,
     RATE_LIMIT_LIVE_GUEST_READ_IP: GENEROUS,
     // CP-011 (KL-064)
@@ -216,6 +217,8 @@ export function buildTestConfig(overrides: Record<string, string> = {}): AppConf
     RATE_LIMIT_DM_SEND_USER: GENEROUS,
     RATE_LIMIT_DM_REQUEST_USER: GENEROUS,
     RATE_LIMIT_DM_WRITE_USER: GENEROUS,
+    // D166: specs call EventsService.sweep() with a fake clock.
+    EVENTS_SWEEP_INTERVAL_SECONDS: '0',
     // No background sweeper in tests: specs call LiveRoomsService.sweepStale() with a fake clock.
     LIVE_SWEEP_INTERVAL_SECONDS: '0',
     ...overrides,

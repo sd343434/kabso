@@ -17,7 +17,7 @@ export const equipBodySchema = z.strictObject({
 export type EquipBody = z.output<typeof equipBodySchema>;
 
 /**
- * `POST /me/bag/transfers` (strict, v1.46-live, D171): `{code, username, days?}`; `days` absent or
+ * `POST /me/bag/transfers` (strict, v1.48-social, D171): `{code, username, days?}`; `days` absent or
  * null sends the whole item.
  */
 export const sendBodySchema = z.strictObject({

@@ -1312,10 +1312,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get profileEditBio => 'النبذة';
 
   @override
-  String get profileEditUnavailable =>
-      'تغيير الاسم والنبذة والصورة يحتاج تحديثًا في الخادم غير متاح بعد.';
-
-  @override
   String get profileEditPhoto => 'تغيير الصورة';
 
   @override
@@ -7677,7 +7673,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get meHubItemBag => 'الحقيبة';
 
   @override
-  String get meHubPost => 'المنشورات';
+  String get meHubMyProfile => 'ملفي الشخصي';
 
   @override
   String get meHubSvip => 'SVIP';
@@ -7726,7 +7722,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get createMenuLiveHint => 'فيديو أو صوت، الآن';
 
   @override
-  String get createVideoUpTo => 'فيديو واحد حتى ٣ دقائق';
+  String get createVideoUpTo => 'فيديو واحد حتى ٩٠ ثانية';
 
   @override
   String get createLibraryVideo => 'فيديو';
@@ -7750,7 +7746,8 @@ class AppLocalizationsAr extends AppLocalizations {
       'يضم المنشور صوراً أو فيديو واحداً، وليس الاثنين معاً.';
 
   @override
-  String get createVideoTooLong => 'يمكن أن تصل مدة فيديو المنشور إلى ٣ دقائق.';
+  String get createVideoTooLong =>
+      'يمكن أن تصل مدة فيديو المنشور إلى ٩٠ ثانية.';
 
   @override
   String get createVideoTooLarge => 'حجم هذا الفيديو أكبر من ٢٠٠ ميغابايت.';
@@ -8073,4 +8070,389 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get chatVoiceUnavailable => 'الرسائل الصوتية غير متاحة على هذا الجهاز';
+
+  @override
+  String get profileEditPhotoSheetTitle => 'صورة الملف الشخصي';
+
+  @override
+  String get profileEditPhotoLibrary => 'اختيار من الصور';
+
+  @override
+  String get profileEditPhotoCamera => 'التقاط صورة';
+
+  @override
+  String get profileEditPhotoRemove => 'إزالة الصورة';
+
+  @override
+  String get profileEditPhotoUpdated => 'تم تحديث صورتك';
+
+  @override
+  String get profileEditPhotoRemoved => 'تمت إزالة صورتك';
+
+  @override
+  String get profileEditPhotoUploading => 'جارٍ رفع الصورة…';
+
+  @override
+  String get profileEditCropTitle => 'قص الصورة';
+
+  @override
+  String get profileEditCropHint => 'اسحب الصورة وكبّرها لتملأ المربع';
+
+  @override
+  String get profileEditCropDone => 'تم';
+
+  @override
+  String get profileEditSaved => 'تم الحفظ';
+
+  @override
+  String get profileEditBioPlaceholder => 'أضف نبذة عنك';
+
+  @override
+  String profileEditBioTooLong(int max, int lines) {
+    return 'يمكن أن تصل النبذة إلى $max حرف و$lines أسطر.';
+  }
+
+  @override
+  String get profileEditBioInvalid => 'تحتوي النبذة على رموز غير مسموح بها.';
+
+  @override
+  String get profileEditNameHelp =>
+      'يظهر اسمك في ملفك وفي البث والرسائل. يمكن أن يتكرر بين الحسابات.';
+
+  @override
+  String get profileEditBioHelp => 'تظهر النبذة للجميع في ملفك الشخصي.';
+
+  @override
+  String createLibraryVideoTooLong(String length, int seconds) {
+    return 'فيديو، $length، أطول من $seconds ثانية، لا يمكن استخدامه';
+  }
+
+  @override
+  String get tasksTabDaily => 'المهام اليومية';
+
+  @override
+  String get tasksTabWeekly => 'المهام الأسبوعية';
+
+  @override
+  String get tasksLoadError => 'تعذّر تحميل المهام';
+
+  @override
+  String tasksLevelPoints(String points) {
+    return 'نقاط الخبرة $points';
+  }
+
+  @override
+  String get tasksLevelNone => 'المستويات غير مفعّلة بعد';
+
+  @override
+  String get tasksCheckInTitle => 'تسجيل الدخول اليومي';
+
+  @override
+  String tasksCheckInToBonus(String days, String coins) {
+    return 'سجّل الدخول $days أيام أخرى لتحصل على $coins عملة إضافية';
+  }
+
+  @override
+  String tasksCheckInBonusToday(String coins) {
+    return 'اليوم يوم المكافأة: $coins عملة إضافية';
+  }
+
+  @override
+  String get tasksCheckInAction => 'تسجيل';
+
+  @override
+  String tasksStreak(String days) {
+    return '$days أيام متتالية';
+  }
+
+  @override
+  String get tasksToday => 'اليوم';
+
+  @override
+  String tasksDailyCap(String earned, String cap) {
+    return 'مكافآت اليوم: $earned من $cap عملة';
+  }
+
+  @override
+  String get tasksRewardsTitle => 'مكافآت المهام';
+
+  @override
+  String get tasksWeeklyTitle => 'مهام المضيف الأسبوعية';
+
+  @override
+  String get tasksWeeklyHint => 'تتجدد كل يوم إثنين.';
+
+  @override
+  String get tasksWeeklyEmpty => 'المهام الأسبوعية للمضيفين';
+
+  @override
+  String get tasksWeeklyEmptyBody =>
+      'تظهر هنا مهام البث الأسبوعية لمن لديه صلاحية البث.';
+
+  @override
+  String get tasksEmpty => 'لا مهام الآن';
+
+  @override
+  String get tasksEmptyBody => 'ستظهر هنا المهام عندما يضيفها فريق كبسو.';
+
+  @override
+  String get tasksActionGo => 'اذهب';
+
+  @override
+  String get tasksActionClaim => 'استلام';
+
+  @override
+  String get tasksActionDone => 'تم';
+
+  @override
+  String tasksRewardReceived(String coins) {
+    return 'حصلت على $coins عملة';
+  }
+
+  @override
+  String get tasksNoCoinsCap => 'تم التسجيل — بلغت حدّ مكافآت اليوم';
+
+  @override
+  String get tasksCapReached => 'بلغت حدّ مكافآت المهام لهذا اليوم';
+
+  @override
+  String get eventsTabCalendar => 'تقويم الفعاليات';
+
+  @override
+  String get eventsTabPermanent => 'فعاليات دائمة';
+
+  @override
+  String get eventsTabRegional => 'فعاليات إقليمية';
+
+  @override
+  String get eventsIntroTitle => 'تقويم الفعاليات';
+
+  @override
+  String get eventsIntroBody =>
+      'أبرز فعاليات كبسو الرسمية كل شهر — اعرف المكافآت وطريقة المشاركة مبكراً. اضغط أي فعالية لتفاصيلها.';
+
+  @override
+  String eventsCalendarMonth(String month) {
+    return 'تقويم فعاليات $month';
+  }
+
+  @override
+  String get eventsPreviousMonth => 'الشهر السابق';
+
+  @override
+  String get eventsNextMonth => 'الشهر التالي';
+
+  @override
+  String eventsMore(String count) {
+    return 'و$count أخرى';
+  }
+
+  @override
+  String get eventsEmptyMonth => 'لا فعاليات هذا الشهر';
+
+  @override
+  String get eventsEmpty => 'لا فعاليات الآن';
+
+  @override
+  String get eventsEmptyBody => 'عندما يعلن فريق كبسو عن فعالية ستظهر هنا.';
+
+  @override
+  String get eventsNoCountry => 'حدّد بلدك لترى فعاليات منطقتك';
+
+  @override
+  String get eventsNoCountryBody => 'يمكنك اختيار بلدك من تعديل الملف الشخصي.';
+
+  @override
+  String get eventsLoadError => 'تعذّر تحميل الفعاليات';
+
+  @override
+  String get eventsEnded => 'انتهت';
+
+  @override
+  String get eventsFeatured => 'رائج';
+
+  @override
+  String get eventsUpcoming => 'قريباً';
+
+  @override
+  String get eventsRunning => 'جارية';
+
+  @override
+  String eventsDates(String start, String end) {
+    return 'من $start إلى $end';
+  }
+
+  @override
+  String eventsSince(String start) {
+    return 'منذ $start';
+  }
+
+  @override
+  String get eventsDetailTitle => 'تفاصيل الفعالية';
+
+  @override
+  String get eventsForHosts => 'للمضيفين فقط';
+
+  @override
+  String get eventsRules => 'القواعد';
+
+  @override
+  String get eventsNoRules => 'لا قواعد إضافية.';
+
+  @override
+  String get eventsPrizes => 'الجوائز';
+
+  @override
+  String get eventsNoPrizes => 'لا جوائز لهذه الفعالية.';
+
+  @override
+  String get eventsPrizesReview =>
+      'تُصرف الجوائز تلقائياً بعد 24 ساعة من انتهاء الفعالية.';
+
+  @override
+  String get eventsPrizesPaid => 'صُرفت الجوائز.';
+
+  @override
+  String eventsRank(String rank) {
+    return 'المركز $rank';
+  }
+
+  @override
+  String eventsRanks(String from, String to) {
+    return 'المراكز $from–$to';
+  }
+
+  @override
+  String get eventsBoard => 'لوحة الصدارة';
+
+  @override
+  String get eventsBoardLive => 'مباشر';
+
+  @override
+  String get eventsBoardFinal => 'النتائج النهائية';
+
+  @override
+  String get eventsBoardEmpty => 'لا أحد في اللوحة بعد.';
+
+  @override
+  String eventsMeRank(String rank) {
+    return 'ترتيبك: $rank';
+  }
+
+  @override
+  String get eventsMeNotRanked => 'لم تدخل اللوحة بعد';
+
+  @override
+  String get eventsMetricGiftsReceived => 'قيمة الهدايا المستلمة';
+
+  @override
+  String get eventsMetricGiftsSent => 'قيمة الهدايا المرسلة';
+
+  @override
+  String get eventsMetricLiveMinutes => 'دقائق البث';
+
+  @override
+  String get eventsMetricTaps => 'النقرات المستلمة';
+
+  @override
+  String get eventsMetricFollowers => 'المتابعون الجدد';
+
+  @override
+  String get eventsMetricOther => 'النقاط';
+
+  @override
+  String get svipLoadError => 'تعذّر تحميل SVIP';
+
+  @override
+  String get svipRules => 'قواعد SVIP';
+
+  @override
+  String svipRulesBody(String days) {
+    return 'تحصل على SVIP بإرسال الهدايا: أنفق العملات على الهدايا خلال $days يوماً لتصل إلى المستوى، ويبقى معك 30 يوماً من آخر مرة بلغته. لا يُشترى SVIP بالمال.';
+  }
+
+  @override
+  String get svipNotYet => 'لست SVIP بعد';
+
+  @override
+  String svipTier(String tier) {
+    return 'SVIP $tier';
+  }
+
+  @override
+  String svipUntil(String tier, String date) {
+    return '$tier حتى $date';
+  }
+
+  @override
+  String svipTrack(String tier, String count) {
+    return 'المستوى $tier من $count';
+  }
+
+  @override
+  String get svipLocked => 'مقفل';
+
+  @override
+  String get svipUnlocked => 'مفتوح';
+
+  @override
+  String svipSpendToUpgrade(String coins, String days) {
+    return 'أنفق $coins عملة على الهدايا خلال $days يوماً للترقية';
+  }
+
+  @override
+  String svipSpent(String coins, String days) {
+    return 'أنفقت $coins عملة في آخر $days يوماً';
+  }
+
+  @override
+  String get svipTop => 'وصلت إلى أعلى مستوى SVIP';
+
+  @override
+  String get svipPerksTitle => 'امتيازات SVIP';
+
+  @override
+  String get svipPerksSoon => 'الامتيازات قيد الإعداد وستُفعَّل تباعاً.';
+
+  @override
+  String svipSpendMore(String coins, String tier) {
+    return 'أنفق $coins عملة أخرى للوصول إلى $tier';
+  }
+
+  @override
+  String get svipCta => 'أرسل هدية';
+
+  @override
+  String get walletTabCoins => 'العملات';
+
+  @override
+  String get walletRechargeTitle => 'شحن العملات';
+
+  @override
+  String walletBonus(String coins) {
+    return '$coins إضافية';
+  }
+
+  @override
+  String get walletOffer => 'عرض';
+
+  @override
+  String walletGetCoins(String coins, String total) {
+    return 'احصل على $coins عملة · المجموع $total';
+  }
+
+  @override
+  String get walletPackagesEmpty => 'لا باقات شحن الآن';
+
+  @override
+  String get walletPackagesError => 'تعذّر تحميل باقات الشحن';
+
+  @override
+  String get walletReasonTaskReward => 'مكافأة مهمة';
+
+  @override
+  String get walletReasonCheckIn => 'مكافأة تسجيل الدخول';
+
+  @override
+  String get walletReasonEventPrize => 'جائزة فعالية';
 }

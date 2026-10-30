@@ -96,7 +96,7 @@ export enum ErrorCode {
   MEDAL_NOT_UNLOCKED = 'MEDAL_NOT_UNLOCKED',
   /** v1.22-live (DRAFT, CP-019): the caller does not own that bag item (or it does not exist). */
   BAG_ITEM_NOT_OWNED = 'BAG_ITEM_NOT_OWNED',
-  /** v1.46-live (D171, §10.41): sending bag items. */
+  /** v1.48-social (D171, §10.43): sending bag items. */
   BAG_ITEM_NOT_TRANSFERABLE = 'BAG_ITEM_NOT_TRANSFERABLE',
   BAG_SEND_PERMANENT_WHOLE_ONLY = 'BAG_SEND_PERMANENT_WHOLE_ONLY',
   BAG_SEND_EXCEEDS_REMAINING = 'BAG_SEND_EXCEEDS_REMAINING',
@@ -125,6 +125,10 @@ export enum ErrorCode {
   YOUTUBE_VIDEO_UNAVAILABLE = 'YOUTUBE_VIDEO_UNAVAILABLE',
   /** v1.38-live (DRAFT, D154i): YouTube search is not set up on this server (or YouTube is unreachable). */
   YOUTUBE_SEARCH_UNAVAILABLE = 'YOUTUBE_SEARCH_UNAVAILABLE',
+  /** v1.44-social (DRAFT, D166): the task is not completed yet in this period (nothing paid). */
+  TASK_NOT_COMPLETED = 'TASK_NOT_COMPLETED',
+  /** v1.44-social (DRAFT, D166): the caller already got the day's task and check-in coins cap. */
+  TASK_DAILY_CAP_REACHED = 'TASK_DAILY_CAP_REACHED',
 }
 
 /** HTTP status for every code (CONVENTIONS.md §4 table). */
@@ -202,6 +206,8 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.YOUTUBE_SEARCH_UNAVAILABLE]: 503,
   [ErrorCode.CP_TASK_NOT_COMPLETED]: 409,
   [ErrorCode.CP_PRIVILEGE_LOCKED]: 403,
+  [ErrorCode.TASK_NOT_COMPLETED]: 409,
+  [ErrorCode.TASK_DAILY_CAP_REACHED]: 409,
 };
 
 /** Default developer-facing messages (clients localize by `code`, not by message). */
@@ -279,6 +285,8 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.BOOST_ROOM_BUSY]: 'This live already has a traffic card running or waiting.',
   [ErrorCode.YOUTUBE_VIDEO_UNAVAILABLE]: 'This YouTube video cannot be played here.',
   [ErrorCode.YOUTUBE_SEARCH_UNAVAILABLE]: 'YouTube search is not available; paste a link instead.',
+  [ErrorCode.TASK_NOT_COMPLETED]: 'That task is not completed yet.',
+  [ErrorCode.TASK_DAILY_CAP_REACHED]: 'You already got today’s maximum of task coins.',
 };
 
 export interface ErrorDetail {

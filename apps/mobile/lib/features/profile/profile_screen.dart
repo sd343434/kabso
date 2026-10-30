@@ -194,7 +194,9 @@ class _OwnHeader extends ConsumerWidget {
         onOpen: () => context.push(AppRoutes.levels),
         padding: EdgeInsetsDirectional.zero,
       ),
-      cpFrame: cpWearsSpecialFrame(stats?.cp),
+      // D168 (owner: «اعرض الصورة بدون إطار»): the own profile page shows
+      // the plain photo; the heart frame stays on the Me hub and, as the
+      // couple's privilege others see (D112), on the public profile.
       onOpenFollowers: () => context.push(AppRoutes.userFollows(user.username)),
       onOpenFollowing: () =>
           context.push(AppRoutes.userFollows(user.username, following: true)),

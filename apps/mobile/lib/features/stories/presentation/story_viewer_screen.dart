@@ -546,6 +546,7 @@ class _StoryPage extends StatelessWidget {
                   ),
                   const SizedBox(width: KSpacing.sm),
                   Flexible(
+                    flex: 2,
                     child: Text(
                       name,
                       maxLines: 1,
@@ -554,9 +555,15 @@ class _StoryPage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: KSpacing.sm),
-                  Text(
-                    when,
-                    style: t.caption.copyWith(color: const Color(0xCCFFFFFF)),
+                  // D167: after 7 days the label becomes a full date, which
+                  // at large text scales no longer fits beside the name.
+                  Flexible(
+                    child: Text(
+                      when,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: t.caption.copyWith(color: const Color(0xCCFFFFFF)),
+                    ),
                   ),
                   const Spacer(),
                   IconButton(

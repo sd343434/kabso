@@ -59,11 +59,17 @@ describe('videos (v1.41-social, D162, CONVENTIONS §11.14)', () => {
     expect(largest).toBeLessThan(10_000);
   });
 
-  it('enforces each kind length: reel ≤ 60 s, post ≤ 180 s (+ 500 ms padding), ≥ 1 s', async () => {
+  // D168 (owner): a post video is at most 90 s (was 180 s); a reel stays at most 60 s.
+  it('enforces each kind length: reel ≤ 60 s, post ≤ 90 s (+ 500 ms padding), ≥ 1 s', async () => {
+    expect(VIDEO_LIMITS.POST_VIDEO.maxDurationMs).toBe(90_000);
+    expect(VIDEO_LIMITS.REEL_VIDEO.maxDurationMs).toBe(60_000);
     expect((await inspect(mp4({ durationMs: 60_500 }))).info.durationMs).toBe(60_000);
     await rejects(mp4({ durationMs: 60_501 }));
-    expect((await inspect(mp4({ durationMs: 180_000 }), 'POST_VIDEO')).info.durationMs).toBe(180_000);
-    await rejects(mp4({ durationMs: 181_000 }), 'POST_VIDEO');
+    expect((await inspect(mp4({ durationMs: 90_000 }), 'POST_VIDEO')).info.durationMs).toBe(90_000);
+    expect((await inspect(mp4({ durationMs: 90_500 }), 'POST_VIDEO')).info.durationMs).toBe(90_000);
+    await rejects(mp4({ durationMs: 90_501 }), 'POST_VIDEO');
+    await rejects(mp4({ durationMs: 120_000 }), 'POST_VIDEO');
+    await rejects(mp4({ durationMs: 180_000 }), 'POST_VIDEO');
     await rejects(mp4({ durationMs: 999 }));
   });
 

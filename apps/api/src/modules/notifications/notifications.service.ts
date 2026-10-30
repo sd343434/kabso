@@ -25,7 +25,7 @@ export interface NotificationTargetDto {
   startsAt?: string;
   /** v1.28-live (D146) PREMIUM_USERNAME only: the period's end (EXPIRING) or the grace's (EXPIRED). */
   endsAt?: string;
-  /** v1.46-live (D171) BAG_ITEM only: the item's category. */
+  /** v1.48-social (D171) BAG_ITEM only: the item's category. */
   bagCategory?: string;
 }
 
@@ -84,7 +84,7 @@ const ACTOR_TYPES: NotificationType[] = [
   'CP_ACCEPTED',
   'FAMILY_JOIN_ACCEPTED',
   'FAMILY_JOIN_DECLINED',
-  // v1.46-live (D171): actor the sender; target the bag item (no post, comment or story).
+  // v1.48-social (D171): actor the sender; target the bag item (no post, comment or story).
   'BAG_ITEM_RECEIVED',
 ];
 /** v1.21-live (CP-018): the actor types whose target is the actor (USER), like FOLLOW. */
@@ -278,7 +278,7 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
         ...(end ? { endsAt: end.toISOString() } : {}),
       };
     }
-    // v1.46-live (D171): the bag item someone sent (the app opens the bag).
+    // v1.48-social (D171): the bag item someone sent (the app opens the bag).
     if (row.bagItemCode !== null && row.bagItem) {
       return {
         type: 'BAG_ITEM',

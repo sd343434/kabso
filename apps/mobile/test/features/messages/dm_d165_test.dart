@@ -426,7 +426,7 @@ void main() {
         status: DmConversationStatus.requestReceived,
         markedUnread: true,
         unread: 1,
-        messages: [dm.message('c-omar', mine: false, text: 'hello')],
+        messages: [dm.message('c-omar', mine: false)],
       );
       await _pump(tester, const ChatScreen(username: 'omar'), dm: dm);
       expect(dm.calls, contains('markUnread:c-omar:false'));

@@ -13,7 +13,7 @@ import { USER_SUMMARY_SELECT, userSummary } from '../posts/post-views.js';
 import { blockedEitherWayIn, lockUserPairIn } from '../social/pair-lock.js';
 import { UsersService } from '../users/users.service.js';
 import { addItemTimeIn, catalogueItemIn, lockItemHoldersIn } from './bag-grants.js';
-import { BAG_DAY_MS, type BagCategory, type BagItemSource } from './bag.catalogue.js';
+import { BAG_DAY_MS, isTransferable, type BagCategory, type BagItemSource } from './bag.catalogue.js';
 import type { BagQuery, EquipBody, SendBody } from './bag.schemas.js';
 
 /** `BagCatalogueItem`. */
@@ -40,11 +40,11 @@ export interface BagOwnedItemDto {
   acquiredAt: string;
   source: BagItemSource;
   equipped: boolean;
-  /** v1.46-live (D171): null = permanent. */
+  /** v1.48-social (D171): null = permanent. */
   expiresAt: string | null;
-  /** v1.46-live (D171): the giver of a GIFT, when ACTIVE and no block either way. */
+  /** v1.48-social (D171): the giver of a GIFT, when ACTIVE and no block either way. */
   giftedBy: UserSummaryDto | null;
-  /** v1.46-live (D171): free items are not. */
+  /** v1.48-social (D171): free items are not. */
   transferable: boolean;
 }
 
@@ -72,7 +72,7 @@ export interface ProfileCardDto {
   assetKey: string;
 }
 
-/** `BagTransfer` (v1.46-live, D171). */
+/** `BagTransfer` (v1.48-social, D171). */
 export interface BagTransferDto {
   id: string;
   code: string;
@@ -88,7 +88,7 @@ function nameOf(item: Pick<BagItem, 'nameAr' | 'nameEn'>, lang: ContentLanguage)
   return lang === 'ar' ? item.nameAr : item.nameEn;
 }
 
-/** Owned rows that have not expired at `now` (§10.41). */
+/** Owned rows that have not expired at `now` (§10.43). */
 function liveWhere(now: Date): Prisma.UserBagItemWhereInput {
   return { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] };
 }
@@ -102,7 +102,7 @@ type OwnedRow = Prisma.UserBagItemGetPayload<{ include: typeof OWNED_INCLUDE }>;
 const SWEEP_BATCH = 5000;
 
 /**
- * The bag (الحقيبة, CP-019, owner D107, CONVENTIONS §10.22; v1.46-live D171, §10.41): the
+ * The bag (الحقيبة, CP-019, owner D107, CONVENTIONS §10.22; v1.48-social D171, §10.43): the
  * catalogue, what a user owns now (never an expired item) and what they wear, and sending an item
  * — whole or some days of it — to another user. Free items are given at signup by
  * `grantFreeItemsIn` (users module, same transaction as the account); others by `bag-admin grant`
@@ -165,7 +165,7 @@ export class BagService implements OnModuleInit, OnModuleDestroy {
     return { data: rows.map((r) => this.ownedDto(r, lang, visible)) };
   }
 
-  /** Givers among `rows` the caller may see: ACTIVE and no block either way (§10.41). */
+  /** Givers among `rows` the caller may see: ACTIVE and no block either way (§10.43). */
   private async visibleGivers(callerId: string, rows: readonly OwnedRow[]): Promise<Set<string>> {
     const ids = [
       ...new Set(rows.flatMap((r) => (r.giftedBy && r.giftedBy.status === 'ACTIVE' ? [r.giftedBy.id] : []))),
@@ -195,7 +195,7 @@ export class BagService implements OnModuleInit, OnModuleDestroy {
       equipped: row.equipped,
       expiresAt: row.expiresAt?.toISOString() ?? null,
       giftedBy: row.giftedBy && visibleGivers.has(row.giftedBy.id) ? userSummary(row.giftedBy) : null,
-      transferable: !row.item.free,
+      transferable: isTransferable(row.item.free, row.source),
     };
   }
 
@@ -203,7 +203,7 @@ export class BagService implements OnModuleInit, OnModuleDestroy {
    * `PUT /me/bag/equipped {category, code}`: wears `code` (taking off what was worn in that
    * category) or, with `code: null`, wears nothing. Idempotent. 409 BAG_ITEM_NOT_OWNED: the caller
    * does not own `code` in that category (an unknown or expired code too); nothing changes then.
-   * The caller's expired rows of the category are deleted first (they are gone, §10.41); the
+   * The caller's expired rows of the category are deleted first (they are gone, §10.43); the
    * remaining rows are locked in `item_code` order (a fixed order: no deadlock between concurrent
    * calls), so concurrent calls apply one after the other.
    */
@@ -264,7 +264,7 @@ export class BagService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * `POST /me/bag/transfers {code, username, days?}` (v1.46-live, D171, §10.41): sends the whole
+   * `POST /me/bag/transfers {code, username, days?}` (v1.48-social, D171, §10.43): sends the whole
    * item (`days` absent / null) or `days × 24 h` of its remaining time to `username`. Order: 404
    * (no ACTIVE account with that username, or a block either way); 400 `username` /
    * `invalid_value` (oneself); 409 BAG_ITEM_NOT_OWNED (not owned, expired or unknown);
@@ -279,20 +279,22 @@ export class BagService implements OnModuleInit, OnModuleDestroy {
     const sent = await this.prisma.$transaction(async (tx) => {
       const target = await this.users.lockActiveByUsername(tx, body.username);
       if (!target) throw new AppException(ErrorCode.NOT_FOUND);
-      if (target.id === callerId) throw AppException.validation([{ field: 'username', issue: 'invalid_value' }]);
+      if (target.id === callerId)
+        throw AppException.validation([{ field: 'username', issue: 'invalid_value' }]);
       await lockUserPairIn(tx, callerId, target.id);
       if (await blockedEitherWayIn(tx, callerId, target.id)) throw new AppException(ErrorCode.NOT_FOUND);
       const item = await catalogueItemIn(tx, body.code);
       if (!item) throw new AppException(ErrorCode.BAG_ITEM_NOT_OWNED);
       await lockItemHoldersIn(tx, item.code, [callerId, target.id]);
-      const [mine] = await tx.$queryRaw<{ expires_at: Date | null; free: boolean }[]>`
-        SELECT o.expires_at, i.free FROM user_bag_items o JOIN bag_items i ON i.code = o.item_code
+      const [mine] = await tx.$queryRaw<{ expires_at: Date | null; free: boolean; source: string }[]>`
+        SELECT o.expires_at, i.free, o.source::text AS source FROM user_bag_items o JOIN bag_items i ON i.code = o.item_code
          WHERE o.user_id = ${callerId}::uuid AND o.item_code = ${item.code}
            FOR UPDATE OF o`;
       if (!mine || (mine.expires_at !== null && mine.expires_at <= now)) {
         throw new AppException(ErrorCode.BAG_ITEM_NOT_OWNED);
       }
-      if (mine.free) throw new AppException(ErrorCode.BAG_ITEM_NOT_TRANSFERABLE);
+      if (!isTransferable(mine.free, mine.source))
+        throw new AppException(ErrorCode.BAG_ITEM_NOT_TRANSFERABLE);
       const whole = body.days === undefined || body.days === null;
       let durationMs: number | null;
       if (whole) {

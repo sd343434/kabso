@@ -1,4 +1,4 @@
--- v1.46-live (D171, owner 2026-10-29): the bag v2 (CONVENTIONS §10.41). Owned by the `bag` module.
+-- v1.48-social (D171, owner 2026-10-29): the bag v2 (CONVENTIONS §10.43). Owned by the `bag` module.
 -- The runtime role gets DML through the default privileges
 -- (20261016130000_per_database_runtime_group), so this migration contains no GRANT.
 --

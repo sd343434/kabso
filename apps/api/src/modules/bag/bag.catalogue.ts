@@ -10,12 +10,24 @@ export type BagCategory = 'PROFILE_CARD';
 /** Every category, in display order (only PROFILE_CARD for now; designed to grow). */
 export const BAG_CATEGORIES: readonly BagCategory[] = ['PROFILE_CARD'];
 
-/** How a user got an item (`bag_item_source`); `GIFT` (v1.46-live, D171): sent by another user. */
+/** How a user got an item (`bag_item_source`); `GIFT` (v1.48-social, D171): sent by another user. */
 export type BagItemSource = 'FREE_SIGNUP' | 'BACKFILL' | 'ADMIN' | 'GIFT';
 
-/** One day, the unit of a partial send and of an admin grant (§10.41). */
+/** One day, the unit of a partial send and of an admin grant (§10.43). */
 export const BAG_DAY_MS = 24 * 3600_000;
-/** The most days a send or a grant may carry (§10.41). */
+/**
+ * Sources whose items cannot be sent (v1.48-social, D171): `LEVEL_REWARD` (D169's support-tier
+ * frames, earned by the person's own level; the value arrives with that branch — a string
+ * compare keeps this file valid before and after). Free items are not transferable either.
+ */
+export const NON_TRANSFERABLE_SOURCES: ReadonlySet<string> = new Set(['LEVEL_REWARD']);
+
+/** Whether an owned item may be sent: not free, not a level reward. */
+export function isTransferable(free: boolean, source: string): boolean {
+  return !free && !NON_TRANSFERABLE_SOURCES.has(source);
+}
+
+/** The most days a send or a grant may carry (§10.43). */
 export const BAG_MAX_DAYS = 3650;
 
 export interface BagItemDef {

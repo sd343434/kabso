@@ -21,7 +21,7 @@ import {
   type BagTransferDto,
 } from './bag.service.js';
 
-/** The bag (contract v1.22-live draft, CP-019, CONVENTIONS §10.22; v1.46-live, D171, §10.41). Names follow Accept-Language. */
+/** The bag (contract v1.22-live draft, CP-019, CONVENTIONS §10.22; v1.48-social, D171, §10.43). Names follow Accept-Language. */
 @Controller()
 export class BagController {
   constructor(
@@ -66,7 +66,7 @@ export class BagController {
     return this.bag.equip(auth.userId, body, await this.language(req, auth));
   }
 
-  /** v1.46-live (D171): 30 / hour per user (bucket `bag:send`, §7). */
+  /** v1.48-social (D171): 30 / hour per user (bucket `bag:send`, §7). */
   @Post('me/bag/transfers')
   @HttpCode(201)
   @RateLimit({ bucket: 'bag:send', rule: 'bagSendUser', key: byUserId, replacesDefault: true })
