@@ -21,6 +21,7 @@ import 'package:kabso_live/features/live/application/live_wallet_controller.dart
 import 'package:kabso_live/features/live/data/home_banners_repository.dart';
 import 'package:kabso_live/features/live/presentation/hub/home_banner_carousel.dart';
 import 'package:kabso_live/features/programs/data/programs_repository.dart';
+import 'package:kabso_live/features/wallet/data/cherry_repository.dart';
 import 'package:kabso_live/features/wallet/data/wallet_repository.dart';
 import 'package:kabso_live/features/wallet/presentation/wallet_cherry_tab.dart';
 import 'package:kabso_live/features/wallet/presentation/wallet_history_screen.dart';
@@ -29,6 +30,7 @@ import 'package:kabso_live/features/wallet/presentation/wallet_screen.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../helpers/fake_economy_repositories.dart';
 import '../../helpers/fake_home_banners_repository.dart';
 import '../../helpers/fakes.dart';
 import '../../helpers/golden.dart';
@@ -78,22 +80,20 @@ Earning _earning(String id, {UserSummary? sender, bool dm = false}) => Earning(
 );
 
 class _FakeWallet implements WalletRepository {
-  new({
-    this.pages = const {},
-    this.earningPages = const {},
-    this.totals = const MyEarnings(
-      totalCoins: 1200,
-      last7DaysCoins: 114,
-      last30DaysCoins: 900,
-      sendCount: 3,
-    ),
-    this.fail = false,
-  });
+  new({this.pages = const {}, this.earningPages = const {}, this.fail = false});
 
   /// Pages by cursor (null = the first).
   final Map<String?, WalletPage<WalletLedgerEntry>> pages;
   final Map<String?, WalletPage<Earning>> earningPages;
-  final MyEarnings totals;
+
+  /// D164's earnings (deprecated by D179; the cherry tab no longer reads
+  /// them).
+  final MyEarnings totals = const MyEarnings(
+    totalCoins: 1200,
+    last7DaysCoins: 114,
+    last30DaysCoins: 900,
+    sendCount: 3,
+  );
   final bool fail;
   final List<String?> ledgerCalls = [];
 
@@ -217,6 +217,7 @@ Future<void> _pump(
   _FakeCreator? creator,
   FakeHomeBannersRepository? banners,
   _FakePrograms? programs,
+  FakeCherryRepository? cherries,
   AppLanguage language = AppLanguage.en,
   GoldenViewport viewport = GoldenViewport.phone,
   double textScale = 1,
@@ -264,6 +265,9 @@ Future<void> _pump(
         currentUserProvider.overrideWithValue(testUser()),
         liveCoinsProvider.overrideWith(_Coins.new),
         walletRepositoryProvider.overrideWithValue(wallet ?? _FakeWallet()),
+        cherryRepositoryProvider.overrideWithValue(
+          cherries ?? FakeCherryRepository(),
+        ),
         creatorRepositoryProvider.overrideWithValue(creator ?? _FakeCreator()),
         programsRepositoryProvider.overrideWithValue(
           programs ?? _FakePrograms(),
@@ -538,31 +542,37 @@ void main() {
     });
   });
 
-  group('earnings', () {
-    testWidgets('totals, the display-only note, and each send with its '
-        'sender, place and share', (tester) async {
-      await _pump(tester, AppRoutes.earnings, wallet: _walletWithHistory());
+  group('cherries (D179: the cherry ledger)', () {
+    testWidgets('the real balance and its value, the unit line, and each '
+        'row with its sender, place and share', (tester) async {
+      await _pump(tester, AppRoutes.earnings);
       expect(
         find.descendant(
           of: find.byKey(WalletCherryTab.totalKey),
-          matching: find.text('1,200'),
+          matching: find.text('12,500,000'),
         ),
         findsOneWidget,
       );
       expect(
         find.descendant(
           of: find.byKey(WalletCherryTab.last7Key),
-          matching: find.text('114'),
+          matching: find.text('650'),
         ),
         findsOneWidget,
       );
-      expect(find.text(_en.walletCherryUnit), findsOneWidget);
+      expect(find.text(_en.cherryValue(_iso(r'$13.75'))), findsOneWidget);
+      expect(
+        find.text(
+          _en.cherryUnit(_iso('1,000,000'), _iso(r'$1.10'), _iso(r'$10.00')),
+        ),
+        findsOneWidget,
+      );
       await tester.scrollUntilVisible(
-        find.byKey(WalletCherryTab.entryKey('e1')),
+        find.byKey(WalletCherryTab.entryKey('c1')),
         100,
       );
-      expect(find.text('+65'), findsNWidgets(2));
-      expect(find.text(_en.earnShare('65', '100')), findsNWidgets(2));
+      expect(find.text('+650'), findsOneWidget);
+      expect(find.text(_en.earnShare('65', '100')), findsOneWidget);
       expect(
         find.text(
           '${_en.earnFrom('\u2068Sara\u2069')} · ${_en.earnContextLive}',
@@ -574,31 +584,43 @@ void main() {
         find.text('${_en.earnFromHidden} · ${_en.earnContextDm}'),
         findsOneWidget,
       );
+      expect(find.text(_en.cherryReasonAgency), findsOneWidget);
     });
 
-    testWidgets('withdraw is honestly "Soon" (D149)', (tester) async {
+    testWidgets('withdraw is offered (it opens the request sheet)', (
+      tester,
+    ) async {
       final semantics = tester.ensureSemantics();
       await _pump(tester, AppRoutes.earnings);
-      _expectUnavailable(
-        tester,
-        WalletCherryTab.withdrawKey,
-        _en.walletWithdraw,
-        _en.earnWithdrawSoon,
+      final node = tester.getSemantics(
+        find
+            .descendant(
+              of: find.byKey(WalletCherryTab.withdrawKey),
+              matching: find.byType(Semantics),
+            )
+            .first,
       );
+      expect(node.label, _en.walletWithdraw);
+      expect(node.flagsCollection.isEnabled.toBoolOrNull(), isTrue);
       semantics.dispose();
     });
 
-    testWidgets('no earnings: zeros and the empty state', (tester) async {
+    testWidgets('no cherries: zeros and the empty state', (tester) async {
       await _pump(
         tester,
         AppRoutes.earnings,
-        wallet: _FakeWallet(
-          totals: const MyEarnings(
-            totalCoins: 0,
-            last7DaysCoins: 0,
-            last30DaysCoins: 0,
-            sendCount: 0,
+        cherries: FakeCherryRepository(
+          wallet: const CherryWallet(
+            cherries: 0,
+            valueMinor: 0,
+            heldCherries: 0,
+            earnedTotal: 0,
+            earnedLast7Days: 0,
+            earnedLast30Days: 0,
+            commissionTotal: 0,
+            payout: testPayout,
           ),
+          entries: const [],
         ),
       );
       expect(
@@ -616,7 +638,11 @@ void main() {
     });
 
     testWidgets('a failure shows the error with a retry', (tester) async {
-      await _pump(tester, AppRoutes.earnings, wallet: _FakeWallet(fail: true));
+      await _pump(
+        tester,
+        AppRoutes.earnings,
+        cherries: FakeCherryRepository(fail: true),
+      );
       expect(find.text(_en.earnLoadError), findsWidgets);
     });
   });
@@ -793,3 +819,5 @@ void main() {
     }
   }
 }
+
+String _iso(String s) => '\u2068$s\u2069';

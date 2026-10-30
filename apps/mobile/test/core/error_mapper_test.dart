@@ -86,6 +86,11 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.boostRoomBusy: 409,
   ErrorCode.youtubeVideoUnavailable: 422,
   ErrorCode.youtubeSearchUnavailable: 503,
+  ErrorCode.agencyAlreadyMember: 409,
+  ErrorCode.agencyJoinNotAllowed: 409,
+  ErrorCode.agencyLeaveWindowClosed: 409,
+  ErrorCode.insufficientCherries: 409,
+  ErrorCode.withdrawalPending: 409,
 };
 
 DioException _badResponse(
@@ -195,6 +200,12 @@ void main() {
           'BOOST_ROOM_BUSY',
           'YOUTUBE_VIDEO_UNAVAILABLE',
           'YOUTUBE_SEARCH_UNAVAILABLE',
+          // v1.52-social (D179)
+          'AGENCY_ALREADY_MEMBER',
+          'AGENCY_JOIN_NOT_ALLOWED',
+          'AGENCY_LEAVE_WINDOW_CLOSED',
+          'INSUFFICIENT_CHERRIES',
+          'WITHDRAWAL_PENDING',
         ]),
       );
       expect(ErrorCode.networkOffline.wire, 'NETWORK_OFFLINE');

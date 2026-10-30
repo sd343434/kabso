@@ -8,6 +8,7 @@ import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/app/shell/shell_navigation.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/agency/presentation/agency_screen.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/creator/data/creator_repository.dart';
 import 'package:kabso_live/features/levels/domain/level_models.dart';
@@ -115,7 +116,6 @@ class CreatorCenterScreen extends ConsumerStatefulWidget {
 
   static const liveTabKey = Key('creator.tab.live');
   static const agencyTabKey = Key('creator.tab.agency');
-  static const agencySoonKey = Key('creator.agency.soon');
   static const statsCardKey = Key('creator.stats');
   static const liveDataKey = Key('creator.liveData');
   static const monthTitleKey = Key('creator.stats.title');
@@ -216,18 +216,6 @@ class _CreatorCenterScreenState extends ConsumerState<CreatorCenterScreen> {
       ],
     );
 
-    final agency = ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      children: [
-        KEmptyState(
-          key: CreatorCenterScreen.agencySoonKey,
-          icon: Icons.groups_2_outlined,
-          title: l10n.creatorAgencySoonTitle,
-          message: l10n.creatorAgencySoonBody,
-        ),
-      ],
-    );
-
     return Scaffold(
       backgroundColor: p.surface,
       appBar: KAppBar(
@@ -251,10 +239,10 @@ class _CreatorCenterScreenState extends ConsumerState<CreatorCenterScreen> {
       body: Stack(
         children: [
           Positioned.fill(
-            child: RefreshIndicator(
-              onRefresh: refresh,
-              child: _agency ? agency : live,
-            ),
+            // D184: the «الوكالة» tab is D179's agency page (its own refresh).
+            child: _agency
+                ? const AgencyScreen(embedded: true)
+                : RefreshIndicator(onRefresh: refresh, child: live),
           ),
           if (!_agency)
             Positioned(

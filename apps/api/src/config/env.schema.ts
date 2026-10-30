@@ -855,6 +855,57 @@ export const envSchema = z
      */
     GIFT_DM_RECIPIENT_SHARE_PERCENT: intSetting(50, 0, 100),
     /**
+     * v1.52-social (D179, CONVENTIONS §10.46, owner 2026-10-30): the cherry economy. Cherries a recipient
+     * gets per coin of their share (1 coin = 10 cherries); an agency's commission on its hosts' cherries
+     * (15 %), the rate for the month after a month in which its hosts earned AGENCY_TIER_MONTHLY_CHERRIES
+     * (16 % after 1.5 billion) and a parent agency's commission on its sub-agencies' hosts (3 %), in basis
+     * points, paid by the company on top of the host's share.
+     */
+    CHERRIES_PER_COIN: intSetting(10, 1, 1000),
+    AGENCY_COMMISSION_BPS: intSetting(1500, 0, 10_000),
+    AGENCY_COMMISSION_TIER_BPS: intSetting(1600, 0, 10_000),
+    AGENCY_TIER_MONTHLY_CHERRIES: intSetting(1_500_000_000, 1),
+    AGENCY_PARENT_COMMISSION_BPS: intSetting(300, 0, 10_000),
+    /**
+     * D179: agency ranks — an AGENT has ≥ AGENCY_RANK_MIN_ACTIVE_HOSTS active hosts or its hosts earned
+     * ≥ AGENCY_RANK_EXCEPTION_CHERRIES in the month; an ADMIN (parent) is an agent with ≥
+     * AGENCY_ADMIN_MIN_SUB_AGENCIES sub-agencies that qualify as agents. An active host was live on ≥
+     * AGENCY_ACTIVE_HOST_MIN_DAYS days and ≥ AGENCY_ACTIVE_HOST_MIN_HOURS hours in the last
+     * AGENCY_ACTIVE_HOST_WINDOW_DAYS days. A host may leave within AGENCY_LEAVE_DAYS of joining. The
+     * sweeper evaluates ranks every AGENCY_SWEEP_INTERVAL_SECONDS (0 = off; refused in production).
+     */
+    AGENCY_RANK_MIN_ACTIVE_HOSTS: intSetting(5, 1, 1000),
+    AGENCY_RANK_EXCEPTION_CHERRIES: intSetting(200_000_000, 1),
+    AGENCY_ADMIN_MIN_SUB_AGENCIES: intSetting(3, 1, 1000),
+    AGENCY_ACTIVE_HOST_MIN_DAYS: intSetting(7, 1, 365),
+    AGENCY_ACTIVE_HOST_MIN_HOURS: intSetting(10, 1, 8760),
+    AGENCY_ACTIVE_HOST_WINDOW_DAYS: intSetting(30, 1, 365),
+    AGENCY_LEAVE_DAYS: intSetting(14, 0, 365),
+    AGENCY_SWEEP_INTERVAL_SECONDS: intSetting(3600, 0, 86_400),
+    /**
+     * D179: withdrawals (paid by hand, no provider yet): CHERRY_PAYOUT_RATE = `cherries:minor` (owner:
+     * 1 000 000 cherries = $1.10 → `1000000:110`), the currency, the smallest request in minor units
+     * (owner: $10) and the payout time shown to the requester («تُدفع يدوياً خلال … أيام»).
+     */
+    CHERRY_PAYOUT_RATE: z
+      .string()
+      .trim()
+      .default('1000000:110')
+      .refine((v) => /^[1-9][0-9]{0,12}:[1-9][0-9]{0,6}$/.test(v), {
+        message: 'must be cherries:minor, e.g. 1000000:110',
+      })
+      .transform((v) => {
+        const [cherries, minor] = v.split(':');
+        return { cherries: Number(cherries), minor: Number(minor) };
+      }),
+    CHERRY_PAYOUT_CURRENCY: z
+      .string()
+      .trim()
+      .default('USD')
+      .refine((c) => /^[A-Z]{3}$/.test(c), { message: 'must be an ISO 4217 code like USD' }),
+    CHERRY_WITHDRAWAL_MIN_MINOR: intSetting(1000, 1, 100_000_000),
+    CHERRY_WITHDRAWAL_PAYOUT_DAYS: intSetting(7, 1, 90),
+    /**
      * Optional dedicated source of the HMAC key (HKDF, info `social-cursor/v1`) of the v1.5-social
      * list cursors; like LIVE_CURSOR_KEY it falls back to RATE_LIMIT_KEY_SECRET.
      */
@@ -1051,6 +1102,14 @@ export const envSchema = z
           code: 'custom',
           path: ['NOTIFICATIONS_SWEEP_INTERVAL_SECONDS'],
           message: 'the notifications sweeper cannot be disabled in production',
+        });
+      }
+      // D179: agency ranks must be re-evaluated at each month start.
+      if (env.AGENCY_SWEEP_INTERVAL_SECONDS === 0) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['AGENCY_SWEEP_INTERVAL_SECONDS'],
+          message: 'the agency sweeper (monthly rank evaluation) cannot be disabled in production',
         });
       }
       // D166: ended events must be frozen and their prizes paid.

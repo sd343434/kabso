@@ -25,6 +25,7 @@ import { isAvailable, loadCategories, type LoadedCategory } from '../levels/leve
 import { LevelProgressService } from '../levels/level-progress.service.js';
 import { qualify, type Credit } from '../levels/level-qualification.js';
 import { pointsFor } from '../levels/points-math.js';
+import { creditGiftCherriesIn } from '../economy/cherry-ledger.js';
 import { uuidv7 } from '../levels/uuidv7.js';
 import { USER_SUMMARY_SELECT, userSummary } from '../posts/post-views.js';
 import { violatedUniqueIndex } from '../users/users.service.js';
@@ -575,6 +576,9 @@ export class LiveGiftsService {
             UPDATE live_rooms SET info_version = info_version + 1, updated_at = now()
              WHERE id = ${row.id}::uuid`;
           }
+          // v1.52-social (D179, §10.46): the recipients' cherries and their agencies' commissions, credited
+          // now in the send's transaction (a free quip credits nothing).
+          if (!freeQuip) await this.creditCherries(tx, giftId, now);
 
           // v1.27-live (D132, §10.27): the lucky settlement last, so the day row (locked by every lucky
           // send of the day) is held for as short a time as possible.
@@ -860,6 +864,8 @@ export class LiveGiftsService {
           countedPerRecipientCoins: charmCoins,
           ...(isLucky ? {} : { supportPerRecipientCoins: amounts.perRecipientCoins }),
         });
+        // v1.52-social (D179, §10.46): the recipient's cherries and their agency's commissions.
+        await this.creditCherries(tx, giftId, now);
         let luckyResult: LuckyGiftResultDto | null = null;
         if (isLucky) {
           const lucky = await this.settleLucky(tx, {
@@ -887,6 +893,11 @@ export class LiveGiftsService {
       bagQuantity: done.bagQuantity ?? (await stockOf(this.prisma, callerId, gift.code)),
       luckyResult: done.luckyResult,
     };
+  }
+
+  /** D179: the cherry credit of a send (CONVENTIONS §10.46), inside its transaction. */
+  private async creditCherries(tx: Prisma.TransactionClient, giftId: string, now: Date): Promise<void> {
+    await creditGiftCherriesIn(tx, giftId, now, this.config.economy, this.config.live.rankingsTimeZone);
   }
 
   /**

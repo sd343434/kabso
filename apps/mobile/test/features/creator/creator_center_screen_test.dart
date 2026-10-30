@@ -1,7 +1,8 @@
 // D172: the Creator Center hub in the owner's reference layout — this
 // month's real numbers (fakes here), the detailed statistics one tap away,
 // every service tile to a real destination or an honest «قريباً», the
-// admin's banner only when there is one, the Agency tab's Soon state,
+// admin's banner only when there is one, the Agency tab (D179's agency
+// page, embedded by D184),
 // Arabic RTL and English LTR, 360×800 and large text.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,6 +15,8 @@ import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/core/storage/secure_token_store.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/agency/data/agency_repository.dart';
+import 'package:kabso_live/features/agency/presentation/agency_screen.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/creator/data/creator_repository.dart';
 import 'package:kabso_live/features/creator/presentation/creator_center_screen.dart';
@@ -23,6 +26,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_cover_picture
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../helpers/fake_economy_repositories.dart';
 import '../../helpers/fakes.dart';
 import '../../helpers/golden.dart';
 import '../../helpers/pump_app.dart';
@@ -119,6 +123,7 @@ Future<_FakeCreator> _pump(
         currentUserProvider.overrideWithValue(testUser()),
         creatorRepositoryProvider.overrideWithValue(fake),
         homeBannersProvider.overrideWith((ref) async => banners),
+        agencyRepositoryProvider.overrideWithValue(FakeAgencyRepository()),
       ],
       child: MaterialApp.router(
         routerConfig: router,
@@ -343,12 +348,16 @@ void main() {
   });
 
   group('agency', () {
-    testWidgets('an honest Soon state, no Go Live', (tester) async {
+    testWidgets("D179's agency page as the tab (join by code), no Go Live", (
+      tester,
+    ) async {
       await _pump(tester);
       await tester.tap(find.byKey(CreatorCenterScreen.agencyTabKey));
       await tester.pumpAndSettle();
-      expect(find.byKey(CreatorCenterScreen.agencySoonKey), findsOneWidget);
-      expect(find.text(_en.creatorAgencySoonTitle), findsOneWidget);
+      // No agency yet: the join-by-code card, inside the Creator Center (no
+      // second app bar).
+      expect(find.byKey(AgencyScreen.codeFieldKey), findsOneWidget);
+      expect(find.byType(KAppBar), findsOneWidget);
       expect(find.byKey(CreatorCenterScreen.goLiveKey), findsNothing);
       expect(
         tester

@@ -8113,13 +8113,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get creatorTabAgency => 'Agency';
 
   @override
-  String get creatorAgencySoonTitle => 'Agencies are coming soon';
-
-  @override
-  String get creatorAgencySoonBody =>
-      'Kabso Live has no host agencies yet. They will appear here when they launch.';
-
-  @override
   String creatorMonthData(String month) {
     return '$month data';
   }
@@ -8808,16 +8801,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get walletGoldBalance => 'My coin balance';
 
   @override
-  String get walletCherryBalance => 'My cherry earnings';
+  String get walletCherryBalance => 'My cherry balance';
 
   @override
   String walletCherries(String cherries) {
     return '$cherries cherries';
   }
-
-  @override
-  String get walletCherryUnit =>
-      'Each cherry here is one coin of your share of the gifts. Display only: they are not added to your coins.';
 
   @override
   String get walletRewards => 'Rewards';
@@ -8844,4 +8833,380 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get walletWithdraw => 'Withdraw';
+
+  @override
+  String cherryValue(Object amount) {
+    return '≈ $amount';
+  }
+
+  @override
+  String cherryHeld(Object cherries) {
+    return 'Held for withdrawal: $cherries';
+  }
+
+  @override
+  String get cherryUnitShort => '1 coin of your share of a gift = 10 cherries.';
+
+  @override
+  String cherryUnit(Object amount, Object cherries, Object min) {
+    return '1 coin of your share of a gift = 10 cherries. $cherries cherries = $amount. Withdrawals from $min. Not the cherry score of a live.';
+  }
+
+  @override
+  String get cherryHistoryTitle => 'Cherry history';
+
+  @override
+  String get cherryReasonGift => 'Gift received';
+
+  @override
+  String get cherryReasonAgency => 'Agency commission';
+
+  @override
+  String get cherryReasonParent => 'Agency admin commission';
+
+  @override
+  String get cherryReasonGiftReversal => 'Gift reversed by the team';
+
+  @override
+  String get cherryReasonCommissionReversal => 'Commission reversed';
+
+  @override
+  String get cherryReasonWithdrawal => 'Withdrawal request (held)';
+
+  @override
+  String get cherryReasonRefund => 'Withdrawal refused: cherries returned';
+
+  @override
+  String get cherryReasonOther => 'Cherry change';
+
+  @override
+  String get cherryWithdrawalsTitle => 'Withdrawal requests';
+
+  @override
+  String get cherryWithdrawalPending => 'Waiting';
+
+  @override
+  String get cherryWithdrawalPaid => 'Paid';
+
+  @override
+  String get cherryWithdrawalRejected => 'Refused';
+
+  @override
+  String cherryWithdrawalLine(Object cherries) {
+    return '$cherries cherries';
+  }
+
+  @override
+  String cherryPendingNote(Object amount, Object days) {
+    return 'Your request of $amount is waiting: the Kabso team pays it by hand within $days days.';
+  }
+
+  @override
+  String get withdrawTitle => 'Withdraw cherries';
+
+  @override
+  String withdrawBalance(Object amount, Object cherries) {
+    return 'Available: $cherries cherries ≈ $amount';
+  }
+
+  @override
+  String withdrawRate(Object amount, Object cherries, Object min) {
+    return '$cherries cherries = $amount · minimum $min';
+  }
+
+  @override
+  String withdrawAmountLabel(Object currency) {
+    return 'Amount ($currency)';
+  }
+
+  @override
+  String withdrawAmountHelper(Object cherries) {
+    return '= $cherries cherries';
+  }
+
+  @override
+  String withdrawAmountMin(Object amount) {
+    return 'At least $amount';
+  }
+
+  @override
+  String withdrawAmountShort(Object amount) {
+    return 'Your cherries cover up to $amount';
+  }
+
+  @override
+  String get withdrawAmountInvalid => 'Enter an amount like 10 or 12.50';
+
+  @override
+  String get withdrawDetailsLabel => 'Where should we pay you?';
+
+  @override
+  String get withdrawDetailsHint =>
+      'Bank name and IBAN, or wallet name and number';
+
+  @override
+  String withdrawManualNote(Object days) {
+    return 'No automatic payout yet: the Kabso team checks your request and pays it by hand within $days days. The cherries are held now and come back to you if the request is refused.';
+  }
+
+  @override
+  String get withdrawSubmit => 'Send the request';
+
+  @override
+  String withdrawSubmitAmount(Object amount) {
+    return 'Request $amount';
+  }
+
+  @override
+  String get withdrawSent => 'Withdrawal request sent';
+
+  @override
+  String get errorAgencyAlreadyMember =>
+      'You\'re already a host of another agency.';
+
+  @override
+  String get errorAgencyJoinNotAllowed =>
+      'An agency\'s agent can\'t join an agency as a host.';
+
+  @override
+  String get errorAgencyLeaveWindowClosed =>
+      'The time to leave is over. Send a complaint to the admin.';
+
+  @override
+  String get errorInsufficientCherries =>
+      'You don\'t have enough cherries for this amount.';
+
+  @override
+  String get errorWithdrawalPending =>
+      'You already have a withdrawal request waiting to be paid.';
+
+  @override
+  String get meHubAgency => 'Agency';
+
+  @override
+  String get agencyTitle => 'Agency';
+
+  @override
+  String get agencyLoadError => 'Couldn\'t load the agency';
+
+  @override
+  String get agencyJoinTitle => 'Join an agency';
+
+  @override
+  String get agencyJoinBody =>
+      'Enter your agent\'s invite code, check the agency, then accept.';
+
+  @override
+  String get agencyCodeLabel => 'Invite code';
+
+  @override
+  String get agencyFind => 'Show the agency';
+
+  @override
+  String get agencyNotFound => 'No agency has this code.';
+
+  @override
+  String agencyPreviewOwner(Object name) {
+    return 'Agent: $name';
+  }
+
+  @override
+  String agencyHostCount(Object count) {
+    return 'Hosts: $count';
+  }
+
+  @override
+  String get agencyAccept => 'Accept and join';
+
+  @override
+  String agencyLeaveRule(Object days) {
+    return 'You can leave within $days days of joining; after that only through a complaint to the admin.';
+  }
+
+  @override
+  String get agencyJoined => 'You joined the agency';
+
+  @override
+  String get agencyMyAgency => 'My agency';
+
+  @override
+  String agencyJoinedAt(Object date) {
+    return 'Joined on $date';
+  }
+
+  @override
+  String agencyLeaveUntil(Object date) {
+    return 'You can leave until $date';
+  }
+
+  @override
+  String agencyLeaveClosed(Object days) {
+    return 'The $days days to leave are over. To leave, send a complaint to the admin.';
+  }
+
+  @override
+  String get agencyLeave => 'Leave the agency';
+
+  @override
+  String get agencyLeaveConfirm =>
+      'The agency stops earning a commission on your gifts. You can join another agency with its code.';
+
+  @override
+  String get agencyLeft => 'You left the agency';
+
+  @override
+  String get agencyComplain => 'Complain to the admin';
+
+  @override
+  String get agencyComplaintHint => 'What\'s the problem?';
+
+  @override
+  String get agencyComplaintSend => 'Send the complaint';
+
+  @override
+  String get agencyComplaintSent => 'Complaint sent to the admin';
+
+  @override
+  String agencyComplaintOpen(Object date) {
+    return 'Your complaint is with the admin (sent on $date).';
+  }
+
+  @override
+  String get agencyComplaintDone => 'The admin answered your complaint.';
+
+  @override
+  String get agencyInviteCode => 'Your invite code';
+
+  @override
+  String get agencyCopy => 'Copy the code';
+
+  @override
+  String get agencyCopied => 'Code copied';
+
+  @override
+  String get agencyInviteHint =>
+      'Hosts enter this code in «Agency» and accept.';
+
+  @override
+  String get agencyRankTitle => 'Rank';
+
+  @override
+  String get agencyRankNew => 'New (grace period)';
+
+  @override
+  String get agencyRankAgent => 'Host agent';
+
+  @override
+  String get agencyRankAdmin => 'Agency admin';
+
+  @override
+  String get agencyRankLapsed => 'Not qualified this month';
+
+  @override
+  String agencyRate(Object percent) {
+    return 'Your commission this month: $percent%';
+  }
+
+  @override
+  String agencyRateNote(Object tier) {
+    return 'Paid by Kabso on top of your hosts\' cherries, never taken from them. 16% in the month after your hosts earn $tier cherries in a month.';
+  }
+
+  @override
+  String agencyParent(Object name) {
+    return 'Agency admin: $name';
+  }
+
+  @override
+  String get agencyProgressTitle => 'Progress';
+
+  @override
+  String agencyActiveHosts(Object count, Object required) {
+    return 'Active hosts: $count / $required';
+  }
+
+  @override
+  String agencyActiveRule(Object days, Object hours, Object window) {
+    return 'Active = live on $days days and for $hours hours in the last $window days.';
+  }
+
+  @override
+  String agencyMonthCherries(Object cherries) {
+    return 'Your hosts\' cherries this month: $cherries';
+  }
+
+  @override
+  String agencyException(Object cherries, Object hosts) {
+    return 'Or $cherries cherries in a month with fewer than $hosts active hosts.';
+  }
+
+  @override
+  String agencySubProgress(Object count, Object required) {
+    return 'Qualified sub-agencies: $count / $required';
+  }
+
+  @override
+  String get agencyQualifiesNow => 'You qualify now.';
+
+  @override
+  String get agencyNotQualifiedNow => 'You don\'t qualify yet.';
+
+  @override
+  String get agencyEvaluationNote =>
+      'Ranks are checked at the start of each month and kept until its end.';
+
+  @override
+  String get agencyCommissionTitle => 'Commissions (cherries)';
+
+  @override
+  String get agencyThisMonth => 'This month';
+
+  @override
+  String get agencyLastMonth => 'Last month';
+
+  @override
+  String get agencyTotal => 'Total';
+
+  @override
+  String get agencyParentCommissionTitle => 'Agency admin commission (3%)';
+
+  @override
+  String get agencySubAgenciesTitle => 'Sub-agencies';
+
+  @override
+  String agencySubLine(Object active, Object cherries) {
+    return '$active active · $cherries cherries this month';
+  }
+
+  @override
+  String get agencyQualified => 'Qualified';
+
+  @override
+  String get agencyNotQualified => 'Not qualified';
+
+  @override
+  String agencyHostsTitle(Object count) {
+    return 'Hosts ($count)';
+  }
+
+  @override
+  String get agencyHostsEmpty => 'No hosts yet';
+
+  @override
+  String get agencyHostsEmptyBody => 'Share your invite code with hosts.';
+
+  @override
+  String get agencyHostActive => 'Active';
+
+  @override
+  String get agencyHostInactive => 'Not active';
+
+  @override
+  String agencyHostLine(Object cherries, Object days, Object hours) {
+    return '$days days · $hours h live (30 days) · $cherries cherries this month';
+  }
+
+  @override
+  String get agencyHostNoCommission =>
+      'Joined while the agency wasn\'t qualified: no commission';
 }
