@@ -323,6 +323,8 @@ export async function holdCherriesIn(
   withdrawalId: string,
   now: Date,
   locked = 0n,
+  /** v1.54-social (D185): `RECHARGE_SALE` — the same guarded debit for cherries sold to a recharge agent. */
+  reason: 'WITHDRAWAL_HOLD' | 'RECHARGE_SALE' = 'WITHDRAWAL_HOLD',
 ): Promise<bigint | null> {
   const [row] = await tx.$queryRaw<{ cherries: bigint }[]>`
     UPDATE cherry_wallets SET cherries = cherries - ${cherries}, updated_at = now()
@@ -335,7 +337,7 @@ export async function holdCherriesIn(
       userId,
       delta: -cherries,
       balanceAfter: row.cherries,
-      reason: 'WITHDRAWAL_HOLD',
+      reason,
       referenceId: withdrawalId,
       createdAt: now,
     },

@@ -57,149 +57,156 @@ model User {
   /// online = within the last 5 minutes. Shown only as CONVENTIONS §10.25 allows.
   lastActiveAt    DateTime?  @map("last_active_at") @db.Timestamptz(3)
 
-  profile             UserProfile?
-  settings            UserSettings?
-  sessions            Session[]
-  verificationTokens  VerificationToken[]
-  auditLogs           AuditLog[]
-  liveRooms           LiveRoom[]
-  liveHost            LiveHost?                 @relation("LiveHostUser")
-  liveHostsGranted    LiveHost[]                @relation("LiveHostGrantedBy")
-  liveViews           LiveRoomViewer[]
+  profile                UserProfile?
+  settings               UserSettings?
+  sessions               Session[]
+  verificationTokens     VerificationToken[]
+  auditLogs              AuditLog[]
+  liveRooms              LiveRoom[]
+  liveHost               LiveHost?                  @relation("LiveHostUser")
+  liveHostsGranted       LiveHost[]                 @relation("LiveHostGrantedBy")
+  liveViews              LiveRoomViewer[]
   /// v1.27.6-live (D140): the lives this user watched (statistics only).
-  liveAudience        LiveRoomAudience[]
-  liveSeats           LiveRoomSeat[]
-  liveSeatRequests    LiveSeatRequest[]
-  liveSeatInvites     LiveSeatInvite[]          @relation("LiveSeatInvitee")
-  liveSeatInvitesBy   LiveSeatInvite[]          @relation("LiveSeatInviter")
-  liveModeratorOf     LiveRoomModerator[]
-  liveTaps            LiveRoomTapper[]
-  liveChatMessages    LiveChatMessage[]         @relation("LiveChatAuthor")
-  liveChatDeletions   LiveChatMessage[]         @relation("LiveChatDeleter")
-  liveChatMutes       LiveChatMute[]            @relation("LiveChatMuted")
-  liveChatMutesBy     LiveChatMute[]            @relation("LiveChatMutedBy")
-  liveKicks           LiveRoomKick[]            @relation("LiveKicked")
-  liveKicksBy         LiveRoomKick[]            @relation("LiveKickedBy")
-  following           Follow[]                  @relation("FollowFollower")
-  followers           Follow[]                  @relation("FollowFollowee")
+  liveAudience           LiveRoomAudience[]
+  liveSeats              LiveRoomSeat[]
+  liveSeatRequests       LiveSeatRequest[]
+  liveSeatInvites        LiveSeatInvite[]           @relation("LiveSeatInvitee")
+  liveSeatInvitesBy      LiveSeatInvite[]           @relation("LiveSeatInviter")
+  liveModeratorOf        LiveRoomModerator[]
+  liveTaps               LiveRoomTapper[]
+  liveChatMessages       LiveChatMessage[]          @relation("LiveChatAuthor")
+  liveChatDeletions      LiveChatMessage[]          @relation("LiveChatDeleter")
+  liveChatMutes          LiveChatMute[]             @relation("LiveChatMuted")
+  liveChatMutesBy        LiveChatMute[]             @relation("LiveChatMutedBy")
+  liveKicks              LiveRoomKick[]             @relation("LiveKicked")
+  liveKicksBy            LiveRoomKick[]             @relation("LiveKickedBy")
+  following              Follow[]                   @relation("FollowFollower")
+  followers              Follow[]                   @relation("FollowFollowee")
   /// v1.47-social (D175): follow requests sent to private accounts / received while private.
-  followRequestsSent     FollowRequest[]        @relation("FollowRequestRequester")
-  followRequestsReceived FollowRequest[]        @relation("FollowRequestTarget")
+  followRequestsSent     FollowRequest[]            @relation("FollowRequestRequester")
+  followRequestsReceived FollowRequest[]            @relation("FollowRequestTarget")
   /// v1.47-social (D175): up to 3 profile links (§10.47).
-  profileLinks        UserProfileLink[]
-  levelStates         UserLevelState[]
-  pointsEntries       PointsLedgerEntry[]
-  levelHistory        LevelHistory[]
-  adminPermissions    UserAdminPermission[]
-  mediaUploads        MediaUpload[]
-  mediaAssets         MediaAsset[]
-  posts               Post[]
-  postLikes           PostLike[]
-  postSaves           PostSave[]
-  postReposts         PostRepost[]
-  postViews           PostView[]
-  postShareEvents     PostShareEvent[]
-  postPins            PostPin[]
-  postMentions        PostMention[]
-  comments            Comment[]
-  commentLikes        CommentLike[]
-  commentMentions     CommentMention[]
-  blocking            UserBlock[]               @relation("BlockBlocker")
-  blockedBy           UserBlock[]               @relation("BlockBlocked")
-  muting              UserMute[]                @relation("MuteMuter")
-  mutedBy             UserMute[]                @relation("MuteMuted")
-  postHides           PostHide[]
-  reportsMade         Report[]                  @relation("ReportReporter")
-  reportsAgainst      Report[]                  @relation("ReportTargetUser")
-  reportsResolved     Report[]                  @relation("ReportResolver")
-  privacySettings     PrivacySettings?
-  stories             Story[]
-  storyViews          StoryView[]
-  storyMentions       StoryMention[]
-  notifications       Notification[]
-  notificationActs    NotificationActor[]
-  notificationPrefs   NotificationSettings?
-  livePointsHourly    LiveHostPointsHourly[]    @relation("LiveHostPointsHourly")
-  liveScheduleSlots   LiveScheduleSlot[]        @relation("LiveScheduleSlots")
-  wallet              Wallet?
-  walletLedger        WalletLedgerEntry[]
-  liveBullets         LiveBullet[]
+  profileLinks           UserProfileLink[]
+  levelStates            UserLevelState[]
+  pointsEntries          PointsLedgerEntry[]
+  levelHistory           LevelHistory[]
+  adminPermissions       UserAdminPermission[]
+  mediaUploads           MediaUpload[]
+  mediaAssets            MediaAsset[]
+  posts                  Post[]
+  postLikes              PostLike[]
+  postSaves              PostSave[]
+  postReposts            PostRepost[]
+  postViews              PostView[]
+  postShareEvents        PostShareEvent[]
+  postPins               PostPin[]
+  postMentions           PostMention[]
+  comments               Comment[]
+  commentLikes           CommentLike[]
+  commentMentions        CommentMention[]
+  blocking               UserBlock[]                @relation("BlockBlocker")
+  blockedBy              UserBlock[]                @relation("BlockBlocked")
+  muting                 UserMute[]                 @relation("MuteMuter")
+  mutedBy                UserMute[]                 @relation("MuteMuted")
+  postHides              PostHide[]
+  reportsMade            Report[]                   @relation("ReportReporter")
+  reportsAgainst         Report[]                   @relation("ReportTargetUser")
+  reportsResolved        Report[]                   @relation("ReportResolver")
+  privacySettings        PrivacySettings?
+  stories                Story[]
+  storyViews             StoryView[]
+  storyMentions          StoryMention[]
+  notifications          Notification[]
+  notificationActs       NotificationActor[]
+  notificationPrefs      NotificationSettings?
+  livePointsHourly       LiveHostPointsHourly[]     @relation("LiveHostPointsHourly")
+  liveScheduleSlots      LiveScheduleSlot[]         @relation("LiveScheduleSlots")
+  wallet                 Wallet?
+  walletLedger           WalletLedgerEntry[]
+  liveBullets            LiveBullet[]
   // v1.21-live (CP-018, D106): families, CP couples and medals.
-  familyMember        FamilyMember?
-  familiesCreated     Family[]                  @relation("FamilyCreatedBy")
-  familyJoinRequests  FamilyJoinRequest[]       @relation("FamilyJoinRequester")
-  familyJoinHandled   FamilyJoinRequest[]       @relation("FamilyJoinHandler")
-  familyPoints        FamilyPointsEntry[]
-  cpRequestsSent      CpRequest[]               @relation("CpRequestSender")
-  cpRequestsReceived  CpRequest[]               @relation("CpRequestReceiver")
-  cpCouplesA          CpCouple[]                @relation("CpCoupleA")
-  cpCouplesB          CpCouple[]                @relation("CpCoupleB")
-  cpCouplesEnded      CpCouple[]                @relation("CpCoupleEndedBy")
-  cpPartner           CpPartner?                @relation("CpPartnerUser")
-  cpPartnerOf         CpPartner[]               @relation("CpPartnerOther")
-  cpGiftsSent         CpGift[]                  @relation("CpGiftSender")
-  cpGiftsReceived     CpGift[]                  @relation("CpGiftReceiver")
-  cpCheckIns          CpCheckIn[]
-  cpTaskClaims        CpTaskClaim[]
-  cpConfessionsSent   CpConfession[]            @relation("CpConfessionAuthor")
-  cpConfessionsGot    CpConfession[]            @relation("CpConfessionRecipient")
-  cpConfessionsDel    CpConfession[]            @relation("CpConfessionDeleter")
-  medals              UserMedal[]
+  familyMember           FamilyMember?
+  familiesCreated        Family[]                   @relation("FamilyCreatedBy")
+  familyJoinRequests     FamilyJoinRequest[]        @relation("FamilyJoinRequester")
+  familyJoinHandled      FamilyJoinRequest[]        @relation("FamilyJoinHandler")
+  familyPoints           FamilyPointsEntry[]
+  cpRequestsSent         CpRequest[]                @relation("CpRequestSender")
+  cpRequestsReceived     CpRequest[]                @relation("CpRequestReceiver")
+  cpCouplesA             CpCouple[]                 @relation("CpCoupleA")
+  cpCouplesB             CpCouple[]                 @relation("CpCoupleB")
+  cpCouplesEnded         CpCouple[]                 @relation("CpCoupleEndedBy")
+  cpPartner              CpPartner?                 @relation("CpPartnerUser")
+  cpPartnerOf            CpPartner[]                @relation("CpPartnerOther")
+  cpGiftsSent            CpGift[]                   @relation("CpGiftSender")
+  cpGiftsReceived        CpGift[]                   @relation("CpGiftReceiver")
+  cpCheckIns             CpCheckIn[]
+  cpTaskClaims           CpTaskClaim[]
+  cpConfessionsSent      CpConfession[]             @relation("CpConfessionAuthor")
+  cpConfessionsGot       CpConfession[]             @relation("CpConfessionRecipient")
+  cpConfessionsDel       CpConfession[]             @relation("CpConfessionDeleter")
+  medals                 UserMedal[]
   // v1.22-live (CP-019, D107): the bag (owned profile cards and later categories).
-  bagItems            UserBagItem[]             @relation("BagItemOwner")
+  bagItems               UserBagItem[]              @relation("BagItemOwner")
   /// v1.48-social (D171): bag items this user sent (as the latest giver) and the transfer ledger.
-  bagItemsGifted      UserBagItem[]             @relation("BagItemGiftedBy")
-  bagTransfersSent    BagTransfer[]             @relation("BagTransferSender")
-  bagTransfersRecvd   BagTransfer[]             @relation("BagTransferRecipient")
+  bagItemsGifted         UserBagItem[]              @relation("BagItemGiftedBy")
+  bagTransfersSent       BagTransfer[]              @relation("BagTransferSender")
+  bagTransfersRecvd      BagTransfer[]              @relation("BagTransferRecipient")
   // v1.23-live (CP-020, D108): live gifts and the gift bag.
-  giftStock           UserGiftStock[]
-  giftsSent           LiveGift[]
-  giftsReceived       LiveGiftRecipient[]
+  giftStock              UserGiftStock[]
+  giftsSent              LiveGift[]
+  giftsReceived          LiveGiftRecipient[]
   // v1.25-live (CP-022, D116): family chat.
-  familyChatMessages  FamilyChatMessage[]       @relation("FamilyChatAuthor")
-  familyChatDeleted   FamilyChatMessage[]       @relation("FamilyChatDeleter")
-  familyChatMutes     FamilyChatMute[]          @relation("FamilyChatMuted")
-  familyChatMutesBy   FamilyChatMute[]          @relation("FamilyChatMutedBy")
+  familyChatMessages     FamilyChatMessage[]        @relation("FamilyChatAuthor")
+  familyChatDeleted      FamilyChatMessage[]        @relation("FamilyChatDeleter")
+  familyChatMutes        FamilyChatMute[]           @relation("FamilyChatMuted")
+  familyChatMutesBy      FamilyChatMute[]           @relation("FamilyChatMutedBy")
   // v1.27-live (D132): lucky gifts — the audit rows of the caller's lucky sends and the 18+ statement.
-  luckyDraws          LuckyGiftDraw[]
-  luckyAgeConfirm     LuckyGiftAgeConfirmation?
+  luckyDraws             LuckyGiftDraw[]
+  luckyAgeConfirm        LuckyGiftAgeConfirmation?
   /// v1.30-live (D148): the caller's losing lucky draws in a row (the guarantee).
-  luckyPity           LuckyGiftPity?
+  luckyPity              LuckyGiftPity?
   /// v1.33-live (D154b): traffic cards held, bought and received.
-  boostCards          LiveBoostCard[]
-  boostsBought        LiveBoost[]               @relation("LiveBoostBuyer")
-  boostsReceived      LiveBoost[]               @relation("LiveBoostHost")
+  boostCards             LiveBoostCard[]
+  boostsBought           LiveBoost[]                @relation("LiveBoostBuyer")
+  boostsReceived         LiveBoost[]                @relation("LiveBoostHost")
   /// v1.35-live (D154d): the summaries of the user's ended lives (the data center).
-  liveSummaries       LiveSummary[]
+  liveSummaries          LiveSummary[]
   /// v1.32-live (D154): the free quips the user sent (one per live).
-  freeQuips           LiveFreeQuip[]
-  watchSuggestions    LiveWatchSuggestion[]
+  freeQuips              LiveFreeQuip[]
+  watchSuggestions       LiveWatchSuggestion[]
   // v1.27.1-live (D133): featured on the live hub.
-  liveFeatured        LiveFeaturedHost?
+  liveFeatured           LiveFeaturedHost?
   // v1.28-live (D146): premium usernames.
-  premiumLeases       PremiumUsernameLease[]
-  premiumPayments     PremiumUsernamePayment[]
+  premiumLeases          PremiumUsernameLease[]
+  premiumPayments        PremiumUsernamePayment[]
   /// v1.30-live (D152): push tokens of the user's sessions.
-  deviceTokens        DeviceToken[]
+  deviceTokens           DeviceToken[]
   // v1.40-social (D155): direct messages.
-  dmConversationsLow  DmConversation[]          @relation("DmConversationLow")
-  dmConversationsHigh DmConversation[]          @relation("DmConversationHigh")
-  dmParticipants      DmParticipant[]           @relation("DmParticipantUser")
-  dmPeerOf            DmParticipant[]           @relation("DmParticipantPeer")
-  dmSent              DmMessage[]               @relation("DmMessageSender")
-  dmReceived          DmMessage[]               @relation("DmMessageRecipient")
-  dmHides             DmMessageHide[]
+  dmConversationsLow     DmConversation[]           @relation("DmConversationLow")
+  dmConversationsHigh    DmConversation[]           @relation("DmConversationHigh")
+  dmParticipants         DmParticipant[]            @relation("DmParticipantUser")
+  dmPeerOf               DmParticipant[]            @relation("DmParticipantPeer")
+  dmSent                 DmMessage[]                @relation("DmMessageSender")
+  dmReceived             DmMessage[]                @relation("DmMessageRecipient")
+  dmHides                DmMessageHide[]
   // v1.44-social (D166): the Me hub's programs.
-  taskClaims          TaskClaim[]
-  taskAssignments     TaskAssignment[]
-  dailyCheckIns       DailyCheckIn[]
-  eventResults        EventResult[]
+  taskClaims             TaskClaim[]
+  taskAssignments        TaskAssignment[]
+  dailyCheckIns          DailyCheckIn[]
+  eventResults           EventResult[]
   // v1.52-social (D179): the cherry economy.
-  cherryWallet        CherryWallet?
-  cherryLedger        CherryLedgerEntry[]
-  ownedAgency         Agency?
-  agencyLinks         AgencyHost[]
-  cherryWithdrawals   CherryWithdrawal[]
+  cherryWallet           CherryWallet?
+  cherryLedger           CherryLedgerEntry[]
+  ownedAgency            Agency?
+  agencyLinks            AgencyHost[]
+  cherryWithdrawals      CherryWithdrawal[]
+  // v1.54-social (D185): recharge agents.
+  rechargeApplications   RechargeAgentApplication[]
+  rechargeAgent          RechargeAgent?
+  rechargeSalesMade      RechargeSale[]             @relation("RechargeSaleSeller")
+  rechargePurchases      RechargeSale[]             @relation("RechargeSaleBuyer")
+  rechargeEmployments    RechargeEmployee[]
+  rechargeCherrySales    RechargeCherryRequest[]
 
   @@map("users")
 }
@@ -858,6 +865,8 @@ enum WalletLedgerReason {
   TASK_REWARD
   CHECK_IN_REWARD
   EVENT_PRIZE
+  /// v1.54-social (D185): coins bought from a recharge agent (reference: the sale).
+  RECHARGE_PURCHASE
 
   @@map("wallet_ledger_reason")
 }
@@ -1919,6 +1928,10 @@ enum NotificationType {
   AVATAR_REMOVED
   /// v1.48-social (D171): someone sent you a bag item (actor the sender).
   BAG_ITEM_RECEIVED
+  /// v1.54-social (D185): a recharge agent (or employee) sold you coins (actor the seller; target the sale).
+  RECHARGE_COINS_RECEIVED
+  /// v1.54-social (D185): a host or agent asked you to confirm a cherry sale (actor the creator).
+  RECHARGE_CHERRY_REQUEST
 
   @@map("notification_type")
 }
@@ -1944,6 +1957,8 @@ model Notification {
   premiumLeaseId String?          @map("premium_lease_id") @db.Uuid
   /// v1.48-social (D171): the bag item of BAG_ITEM_RECEIVED.
   bagItemCode    String?          @map("bag_item_code") @db.VarChar(40)
+  /// v1.54-social (D185): the sale of RECHARGE_COINS_RECEIVED.
+  rechargeSaleId String?          @map("recharge_sale_id") @db.Uuid
   groupKey       String?          @map("group_key") @db.VarChar(80)
   readAt         DateTime?        @map("read_at") @db.Timestamptz(3)
   /// v1.30-live (D152): the `updated_at` the push dispatcher last handled (pushed or skipped);
@@ -1961,6 +1976,7 @@ model Notification {
   medal        Medal?                @relation(fields: [medalCode], references: [code], onDelete: Cascade)
   premiumLease PremiumUsernameLease? @relation(fields: [premiumLeaseId], references: [id], onDelete: Cascade)
   bagItem      BagItem?              @relation(fields: [bagItemCode], references: [code], onDelete: Cascade, onUpdate: Cascade)
+  rechargeSale RechargeSale?         @relation(fields: [rechargeSaleId], references: [id], onDelete: Cascade)
   actors       NotificationActor[]
 
   @@index([recipientId, updatedAt(sort: Desc), id(sort: Desc)], map: "notifications_recipient_updated_idx")
@@ -1975,6 +1991,7 @@ model Notification {
   @@index([liveScheduleId], map: "notifications_live_schedule_id_idx")
   @@index([familyId], map: "notifications_family_id_idx")
   @@index([medalCode], map: "notifications_medal_code_idx")
+  @@index([rechargeSaleId], map: "notifications_recharge_sale_idx", where: raw("recharge_sale_id IS NOT NULL"))
   @@map("notifications")
 }
 
@@ -3466,6 +3483,8 @@ enum CherryLedgerReason {
   WITHDRAWAL_REFUND
   /// v1.53-social (D184): a Task Center reward (locked for withdrawal until the unlock rule passes).
   TASK_REWARD
+  /// v1.54-social (D185): cherries sold to a recharge agent (reference: the request).
+  RECHARGE_SALE
 
   @@map("cherry_ledger_reason")
 }
@@ -3676,4 +3695,209 @@ model CherryWithdrawal {
   @@index([userId, createdAt(sort: Desc), id(sort: Desc)], map: "cherry_withdrawals_user_created_idx")
   @@index([status, createdAt], map: "cherry_withdrawals_status_idx")
   @@map("cherry_withdrawals")
+}
+
+// ---- v1.54-social (D185, CONVENTIONS §10.48): recharge agents «وكلاء الشحن» ------------------------------
+
+enum RechargeApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+
+  @@map("recharge_application_status")
+}
+
+enum RechargeAgentStatus {
+  APPROVED
+  ACTIVE
+  SUSPENDED
+
+  @@map("recharge_agent_status")
+}
+
+enum RechargeStockReason {
+  TOPUP
+  SALE
+  CHERRY_PURCHASE
+
+  @@map("recharge_stock_reason")
+}
+
+enum RechargeCherryRequestStatus {
+  PENDING
+  CONFIRMED
+  DECLINED
+  CANCELLED
+  EXPIRED
+
+  @@map("recharge_cherry_request_status")
+}
+
+/// D185: an application «كن وكيل شحن». PRIVATE (admins only, through the recharge-admin CLI, audited); the
+/// personal fields are NULL once `purgedAt` is set (retention).
+model RechargeAgentApplication {
+  id             String                    @id @default(uuid(7)) @db.Uuid
+  userId         String                    @map("user_id") @db.Uuid
+  status         RechargeApplicationStatus @default(PENDING)
+  fullName       String?                   @map("full_name") @db.VarChar(120)
+  phone          String?                   @db.VarChar(16)
+  photoKey       String?                   @map("photo_key") @db.VarChar(256)
+  selfieKey      String?                   @map("selfie_key") @db.VarChar(256)
+  locations      Json?
+  paymentMethods Json?                     @map("payment_methods")
+  rejectReason   String?                   @map("reject_reason") @db.VarChar(500)
+  createdAt      DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
+  decidedAt      DateTime?                 @map("decided_at") @db.Timestamptz(3)
+  purgedAt       DateTime?                 @map("purged_at") @db.Timestamptz(3)
+
+  user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agent RechargeAgent?
+
+  @@unique([userId], map: "recharge_agent_applications_one_pending", where: raw("status = 'PENDING'::recharge_application_status"))
+  @@index([userId, createdAt(sort: Desc)], map: "recharge_agent_applications_user_idx")
+  @@index([status, createdAt], map: "recharge_agent_applications_status_idx")
+  @@map("recharge_agent_applications")
+}
+
+/// D185: a recharge agent (from approval on). `code` is given at activation and never changes.
+model RechargeAgent {
+  userId               String              @id @map("user_id") @db.Uuid
+  applicationId        String              @unique(map: "recharge_agents_application_key") @map("application_id") @db.Uuid
+  status               RechargeAgentStatus @default(APPROVED)
+  code                 String?             @unique(map: "recharge_agents_code_key") @db.VarChar(16)
+  codeNumber           Int?                @unique(map: "recharge_agents_code_number_key") @map("code_number")
+  stockCoins           BigInt              @default(0) @map("stock_coins")
+  dailyCherryCap       BigInt?             @map("daily_cherry_cap")
+  countries            String[]            @db.VarChar(2)
+  locations            Json
+  paymentTypes         Json                @map("payment_types")
+  availability         Json                @default("[]")
+  availabilityTimeZone String              @default("UTC") @map("availability_time_zone") @db.VarChar(64)
+  suspendReason        String?             @map("suspend_reason") @db.VarChar(500)
+  approvedAt           DateTime            @default(now()) @map("approved_at") @db.Timestamptz(3)
+  activatedAt          DateTime?           @map("activated_at") @db.Timestamptz(3)
+  suspendedAt          DateTime?           @map("suspended_at") @db.Timestamptz(3)
+  updatedAt            DateTime            @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  user           User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  application    RechargeAgentApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  stockLedger    RechargeStockEntry[]
+  topups         RechargeTopup[]
+  sales          RechargeSale[]
+  employees      RechargeEmployee[]
+  cherryRequests RechargeCherryRequest[]
+
+  @@index([countries], map: "recharge_agents_countries_idx", type: Gin)
+  @@map("recharge_agents")
+}
+
+/// D185: the last code number given (one row, id 1).
+model RechargeAgentCounter {
+  id         Int @id @db.SmallInt
+  lastNumber Int @default(0) @map("last_number")
+
+  @@map("recharge_agent_counter")
+}
+
+/// D185: every change of an agent's coin stock.
+model RechargeStockEntry {
+  id           String              @id @default(uuid(7)) @db.Uuid
+  agentUserId  String              @map("agent_user_id") @db.Uuid
+  delta        BigInt
+  balanceAfter BigInt              @map("balance_after")
+  reason       RechargeStockReason
+  referenceId  String              @map("reference_id") @db.Uuid
+  createdAt    DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  agent RechargeAgent @relation(fields: [agentUserId], references: [userId], onDelete: Cascade)
+
+  @@unique([agentUserId, reason, referenceId], map: "recharge_stock_ledger_reference_once")
+  @@index([agentUserId, createdAt(sort: Desc)], map: "recharge_stock_ledger_agent_created_idx")
+  @@map("recharge_stock_ledger")
+}
+
+/// D185: a wholesale top-up paid outside the app, recorded by an admin with the price tier.
+model RechargeTopup {
+  id                   String   @id @default(uuid(7)) @db.Uuid
+  agentUserId          String   @map("agent_user_id") @db.Uuid
+  coins                BigInt
+  tier                 String   @db.VarChar(16)
+  pricePerMillionMinor Int      @map("price_per_million_minor")
+  expectedMinor        BigInt   @map("expected_minor")
+  paidMinor            BigInt   @map("paid_minor")
+  currency             String   @db.Char(3)
+  first                Boolean
+  note                 String?  @db.VarChar(500)
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  agent RechargeAgent @relation(fields: [agentUserId], references: [userId], onDelete: Cascade)
+
+  @@index([agentUserId, createdAt(sort: Desc)], map: "recharge_topups_agent_idx")
+  @@map("recharge_topups")
+}
+
+/// D185: coins sold from an agent's stock to a buyer by the agent or an employee.
+model RechargeSale {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  agentUserId  String   @map("agent_user_id") @db.Uuid
+  sellerUserId String   @map("seller_user_id") @db.Uuid
+  buyerUserId  String   @map("buyer_user_id") @db.Uuid
+  clientId     String   @map("client_id") @db.Uuid
+  coins        BigInt
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  agent         RechargeAgent  @relation(fields: [agentUserId], references: [userId], onDelete: Cascade)
+  seller        User           @relation("RechargeSaleSeller", fields: [sellerUserId], references: [id], onDelete: Cascade)
+  buyer         User           @relation("RechargeSaleBuyer", fields: [buyerUserId], references: [id], onDelete: Cascade)
+  notifications Notification[]
+
+  @@unique([sellerUserId, clientId], map: "recharge_sales_client_once")
+  @@index([agentUserId, createdAt(sort: Desc), id(sort: Desc)], map: "recharge_sales_agent_created_idx")
+  @@index([sellerUserId, createdAt(sort: Desc), id(sort: Desc)], map: "recharge_sales_seller_created_idx")
+  @@index([buyerUserId], map: "recharge_sales_buyer_idx")
+  @@map("recharge_sales")
+}
+
+/// D185: an agent's employee with weekly hours (one active employment per user).
+model RechargeEmployee {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  agentUserId    String    @map("agent_user_id") @db.Uuid
+  employeeUserId String    @map("employee_user_id") @db.Uuid
+  timeZone       String    @map("time_zone") @db.VarChar(64)
+  schedule       Json
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  removedAt      DateTime? @map("removed_at") @db.Timestamptz(3)
+
+  agent    RechargeAgent @relation(fields: [agentUserId], references: [userId], onDelete: Cascade)
+  employee User          @relation(fields: [employeeUserId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeUserId], map: "recharge_employees_one_active", where: raw("removed_at IS NULL"))
+  @@index([agentUserId, createdAt], map: "recharge_employees_agent_idx")
+  @@map("recharge_employees")
+}
+
+/// D185: a host's cherries sold to an agent (two-sided confirmation).
+model RechargeCherryRequest {
+  id          String                      @id @default(uuid(7)) @db.Uuid
+  agentUserId String                      @map("agent_user_id") @db.Uuid
+  hostUserId  String                      @map("host_user_id") @db.Uuid
+  createdBy   String                      @map("created_by") @db.Uuid
+  clientId    String                      @map("client_id") @db.Uuid
+  cherries    BigInt
+  coins       BigInt
+  payoutMinor BigInt                      @map("payout_minor")
+  currency    String                      @db.Char(3)
+  status      RechargeCherryRequestStatus @default(PENDING)
+  createdAt   DateTime                    @default(now()) @map("created_at") @db.Timestamptz(3)
+  expiresAt   DateTime                    @map("expires_at") @db.Timestamptz(3)
+  decidedAt   DateTime?                   @map("decided_at") @db.Timestamptz(3)
+
+  agent RechargeAgent @relation(fields: [agentUserId], references: [userId], onDelete: Cascade)
+  host  User          @relation(fields: [hostUserId], references: [id], onDelete: Cascade)
+
+  @@unique([createdBy, clientId], map: "recharge_cherry_requests_client_once")
+  @@index([agentUserId, createdAt(sort: Desc), id(sort: Desc)], map: "recharge_cherry_requests_agent_idx")
+  @@index([hostUserId, createdAt(sort: Desc), id(sort: Desc)], map: "recharge_cherry_requests_host_idx")
+  @@index([agentUserId, hostUserId, status], map: "recharge_cherry_requests_pair_idx")
+  @@map("recharge_cherry_requests")
 }

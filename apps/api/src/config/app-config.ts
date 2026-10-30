@@ -118,6 +118,9 @@ export interface AppConfig {
     readonly dmWriteUser: RateLimitRule;
     /** v1.48-social (D171): bag item sends (per user). */
     readonly bagSendUser: RateLimitRule;
+    /** v1.54-social (D185). */
+    readonly rechargeSellUser: RateLimitRule;
+    readonly rechargeWriteUser: RateLimitRule;
     readonly liveHeartbeatUser: RateLimitRule;
     readonly liveEndUser: RateLimitRule;
     readonly followHourUser: RateLimitRule;
@@ -211,6 +214,20 @@ export interface AppConfig {
      * (minor units; 0 = never locked). Owner rule: $50 of lifetime gift cherries (§10.46.1).
      */
     readonly taskCherriesUnlockGiftMinor: number;
+  };
+  /** v1.54-social (D185): recharge agents (CONVENTIONS §10.48). */
+  readonly recharge: {
+    readonly activationMinCoins: number;
+    /** Increasing `minCoins`; the first is 0. Minor units (USD cents) per 1 000 000 coins. */
+    readonly priceTiers: readonly { minCoins: number; minorPerMillion: number }[];
+    readonly cherryRate: { cherries: number; coins: number };
+    readonly cherryMin: number;
+    readonly cherryStep: number;
+    readonly requestTtlMinutes: number;
+    readonly dailyCherryCap: number;
+    readonly maxEmployees: number;
+    readonly kycRetentionDays: number;
+    readonly sweepIntervalSeconds: number;
   };
   readonly dm: {
     readonly retentionHours: number;
@@ -427,6 +444,8 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       dmRequestUser: e.RATE_LIMIT_DM_REQUEST_USER,
       dmWriteUser: e.RATE_LIMIT_DM_WRITE_USER,
       bagSendUser: e.RATE_LIMIT_BAG_SEND_USER,
+      rechargeSellUser: e.RATE_LIMIT_RECHARGE_SELL_USER,
+      rechargeWriteUser: e.RATE_LIMIT_RECHARGE_WRITE_USER,
       liveHeartbeatUser: e.RATE_LIMIT_LIVE_HEARTBEAT_USER,
       liveEndUser: e.RATE_LIMIT_LIVE_END_USER,
       followHourUser: e.RATE_LIMIT_FOLLOW_HOUR_USER,
@@ -518,6 +537,18 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       minWithdrawalMinor: e.CHERRY_WITHDRAWAL_MIN_MINOR,
       payoutDays: e.CHERRY_WITHDRAWAL_PAYOUT_DAYS,
       taskCherriesUnlockGiftMinor: e.TASK_CHERRIES_UNLOCK_GIFT_MINOR,
+    },
+    recharge: {
+      activationMinCoins: e.RECHARGE_AGENT_ACTIVATION_MIN_COINS,
+      priceTiers: e.RECHARGE_AGENT_PRICE_TIERS,
+      cherryRate: e.RECHARGE_AGENT_CHERRY_RATE,
+      cherryMin: e.RECHARGE_AGENT_CHERRY_MIN,
+      cherryStep: e.RECHARGE_AGENT_CHERRY_STEP,
+      requestTtlMinutes: e.RECHARGE_AGENT_CHERRY_REQUEST_TTL_MINUTES,
+      dailyCherryCap: e.RECHARGE_AGENT_CHERRY_DAILY_CAP,
+      maxEmployees: e.RECHARGE_AGENT_MAX_EMPLOYEES,
+      kycRetentionDays: e.RECHARGE_AGENT_KYC_RETENTION_DAYS,
+      sweepIntervalSeconds: e.RECHARGE_AGENT_SWEEP_INTERVAL_SECONDS,
     },
     dm: {
       retentionHours: e.DM_RETENTION_HOURS,

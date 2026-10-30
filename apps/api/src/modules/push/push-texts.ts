@@ -101,6 +101,10 @@ export function notificationBody(n: NotificationText, locale: PushLocale): strin
         : `Your premium username @${n.targetId ?? ''} ends soon`;
     case 'BAG_ITEM_RECEIVED':
       return w && (ar ? `أرسل لك ${w} عنصراً إلى حقيبتك` : `${w} sent you an item for your bag`);
+    case 'RECHARGE_COINS_RECEIVED':
+      return w && (ar ? `شحن لك ${w} عملات` : `${w} topped up your coins`);
+    case 'RECHARGE_CHERRY_REQUEST':
+      return w && (ar ? `${w} يطلب تأكيد بيع كرز` : `${w} asks you to confirm a cherry sale`);
     case 'PREMIUM_USERNAME_EXPIRED':
       return ar
         ? `انتهت مدة يوزرك المميز @${n.targetId ?? ''}`

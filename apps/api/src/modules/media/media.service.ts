@@ -94,8 +94,17 @@ export const MEDIA_KINDS = [
   // v1.45-social (D168): the profile photo (a centre-cropped square, like the live cover); attached
   // only by `PUT /me/avatar`.
   'AVATAR',
+  // v1.54-social (D185, §10.48): the private pictures of a recharge-agent application; never completed (404),
+  // consumed by the application into the private prefix (no asset, no URL).
+  'RECHARGE_AGENT_PHOTO',
+  'RECHARGE_AGENT_SELFIE',
 ] as const;
 export type MediaKind = (typeof MEDIA_KINDS)[number];
+
+/** v1.54-social (D185): kinds consumed privately (never completed into a public asset). */
+export function isPrivateKind(kind: string): boolean {
+  return kind === 'RECHARGE_AGENT_PHOTO' || kind === 'RECHARGE_AGENT_SELFIE';
+}
 
 /** The voice-clip kinds (CP-017 pipeline: `audio/mp4`, ≤ 1 MiB, ≤ 30 s). */
 export function isVoiceKind(kind: string): boolean {
@@ -213,6 +222,52 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
+   * v1.54-social (D185, §10.48): consumes the caller's pending private upload of `kind` (a recharge-agent
+   * application's photo or selfie): checks and re-encodes it like any image (metadata stripped, at most
+   * 1 080 px), stores it at `toKey` with `private, no-store` (a prefix that is never public), marks the upload
+   * completed without an asset and deletes the raw object. Returns false — nothing stored — when the upload is
+   * not the caller's pending one of that kind, its slot expired or the bytes are not a valid image.
+   */
+  async consumePrivateImage(
+    userId: string,
+    uploadId: string,
+    kind: MediaKind,
+    toKey: string,
+  ): Promise<boolean> {
+    if (!isPrivateKind(kind) || !isUuid(uploadId)) return false;
+    const upload = await this.prisma.mediaUpload.findFirst({
+      where: { id: uploadId.toLowerCase(), userId, kind, status: 'PENDING' },
+    });
+    if (!upload || upload.expiresAt.getTime() + SLOT_GRACE_MS < Date.now()) return false;
+    const head = await this.storage.head(upload.objectKey);
+    if (!head || head.size !== upload.byteSize) return false;
+    const bytes = await this.storage.get(upload.objectKey, upload.byteSize);
+    if (!bytes || bytes.length !== upload.byteSize) return false;
+    let image;
+    try {
+      image = await processImage(bytes, upload.contentType as ImageContentType, LARGE_SIDE, 'inside');
+    } catch (err) {
+      if (err instanceof InvalidImageError) {
+        this.logger.warn({ uploadId: upload.id, reason: err.message }, 'Private upload rejected');
+        return false;
+      }
+      throw err;
+    }
+    await this.storage.put(toKey, image.large, 'image/webp', 'private, no-store');
+    const done = await this.prisma.mediaUpload.updateMany({
+      where: { id: upload.id, status: 'PENDING' },
+      data: { status: 'COMPLETED', completedAt: new Date() },
+    });
+    await this.storage.delete([upload.objectKey]).catch(() => undefined);
+    return done.count === 1;
+  }
+
+  /** v1.54-social (D185): deletes private objects (retention); best effort is not enough — it throws. */
+  async deletePrivateObjects(keys: readonly string[]): Promise<void> {
+    if (keys.length > 0) await this.storage.delete(keys);
+  }
+
+  /**
    * Deletes the objects of assets whose rows the caller already deleted (a replaced or removed
    * live cover, CP-015). Best effort: a failure is logged, the rows are gone either way.
    */
@@ -282,7 +337,8 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
       where: { id: uploadId.toLowerCase(), userId },
       include: { mediaAsset: true },
     });
-    if (!upload) throw new AppException(ErrorCode.NOT_FOUND);
+    // v1.54-social (D185): a private kind is never completed (only its application consumes it).
+    if (!upload || isPrivateKind(upload.kind)) throw new AppException(ErrorCode.NOT_FOUND);
     const parsed = completeMediaUploadSchema.safeParse(body ?? {});
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
     const posterId = parsed.data.posterId?.toLowerCase();

@@ -57,8 +57,12 @@ export function userSummary(user: {
     /** v1.28-live (D146); absent in older selects. */
     premiumTier?: 'LEGEND' | 'RUBY' | 'GOLD' | 'SILVER' | null;
   } | null;
+  /** v1.54-social (D185); absent in older selects. */
+  status?: string;
+  rechargeAgent?: { status: string; code: string | null } | null;
 }): UserSummaryDto {
   const tier = user.profile?.premiumTier;
+  const agentCode = rechargeAgentCodeOf(user);
   return {
     id: user.id,
     username: user.profile?.username ?? '',
@@ -66,10 +70,29 @@ export function userSummary(user: {
     avatarUrl: user.profile?.avatarUrl ?? null,
     // v1.28-live (D146): only while the username is a premium one (absent otherwise).
     ...(tier ? { premiumTier: tier } : {}),
+    // v1.54-social (D185, §10.48): only while an ACTIVE recharge agent with an active account (the badge).
+    ...(agentCode ? { rechargeAgent: { code: agentCode } } : {}),
   };
 }
 
-export const USER_SUMMARY_SELECT = { id: true, profile: { select: PROFILE_SELECT } } as const;
+/** v1.54-social (D185): the recharge-agent code to show, or null (not ACTIVE, or the account is not active). */
+export function rechargeAgentCodeOf(user: {
+  status?: string;
+  rechargeAgent?: { status: string; code: string | null } | null;
+}): string | null {
+  const agent = user.rechargeAgent;
+  if (!agent || agent.status !== 'ACTIVE' || agent.code === null) return null;
+  if (user.status !== undefined && user.status !== 'ACTIVE') return null;
+  return agent.code;
+}
+
+export const USER_SUMMARY_SELECT = {
+  id: true,
+  profile: { select: PROFILE_SELECT },
+  // v1.54-social (D185): the recharge-agent badge (`UserSummary.rechargeAgent`).
+  status: true,
+  rechargeAgent: { select: { status: true, code: true } },
+} as const;
 
 /**
  * Posts a viewer may see in lists and by id (CONVENTIONS §11.2): published, not deleted, not

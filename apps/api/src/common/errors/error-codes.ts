@@ -141,6 +141,22 @@ export enum ErrorCode {
   INSUFFICIENT_CHERRIES = 'INSUFFICIENT_CHERRIES',
   /** v1.52-social (DRAFT, D179): the caller already has a withdrawal waiting to be paid. */
   WITHDRAWAL_PENDING = 'WITHDRAWAL_PENDING',
+  /** v1.54-social (DRAFT, D185): A pending application, already an agent, or an employee of an agent. */
+  RECHARGE_APPLICATION_NOT_ALLOWED = 'RECHARGE_APPLICATION_NOT_ALLOWED',
+  /** v1.54-social (DRAFT, D185): The recharge agent is not ACTIVE (waiting for the first top-up, or suspended). */
+  RECHARGE_AGENT_NOT_ACTIVE = 'RECHARGE_AGENT_NOT_ACTIVE',
+  /** v1.54-social (DRAFT, D185): An employee tried to sell outside their working hours. */
+  RECHARGE_OFF_SHIFT = 'RECHARGE_OFF_SHIFT',
+  /** v1.54-social (DRAFT, D185): The agent's coin stock does not cover the sale. */
+  RECHARGE_STOCK_INSUFFICIENT = 'RECHARGE_STOCK_INSUFFICIENT',
+  /** v1.54-social (DRAFT, D185): The person cannot be added as an employee. */
+  RECHARGE_EMPLOYEE_NOT_ALLOWED = 'RECHARGE_EMPLOYEE_NOT_ALLOWED',
+  /** v1.54-social (DRAFT, D185): An open cherry request between the same host and agent already exists. */
+  RECHARGE_CHERRY_REQUEST_PENDING = 'RECHARGE_CHERRY_REQUEST_PENDING',
+  /** v1.54-social (DRAFT, D185): The cherry request is no longer pending or has expired. */
+  RECHARGE_CHERRY_REQUEST_CLOSED = 'RECHARGE_CHERRY_REQUEST_CLOSED',
+  /** v1.54-social (DRAFT, D185): The agent's daily cherry cap would be exceeded. */
+  RECHARGE_CHERRY_CAP_REACHED = 'RECHARGE_CHERRY_CAP_REACHED',
 }
 
 /** HTTP status for every code (CONVENTIONS.md §4 table). */
@@ -226,6 +242,14 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.AGENCY_LEAVE_WINDOW_CLOSED]: 409,
   [ErrorCode.INSUFFICIENT_CHERRIES]: 409,
   [ErrorCode.WITHDRAWAL_PENDING]: 409,
+  [ErrorCode.RECHARGE_APPLICATION_NOT_ALLOWED]: 409,
+  [ErrorCode.RECHARGE_AGENT_NOT_ACTIVE]: 409,
+  [ErrorCode.RECHARGE_OFF_SHIFT]: 409,
+  [ErrorCode.RECHARGE_STOCK_INSUFFICIENT]: 409,
+  [ErrorCode.RECHARGE_EMPLOYEE_NOT_ALLOWED]: 409,
+  [ErrorCode.RECHARGE_CHERRY_REQUEST_PENDING]: 409,
+  [ErrorCode.RECHARGE_CHERRY_REQUEST_CLOSED]: 409,
+  [ErrorCode.RECHARGE_CHERRY_CAP_REACHED]: 409,
 };
 
 /** Default developer-facing messages (clients localize by `code`, not by message). */
@@ -311,6 +335,14 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.AGENCY_LEAVE_WINDOW_CLOSED]: 'The leave window is over; send a complaint to the admin.',
   [ErrorCode.INSUFFICIENT_CHERRIES]: 'Not enough cherries for that withdrawal.',
   [ErrorCode.WITHDRAWAL_PENDING]: 'You already have a withdrawal waiting to be paid.',
+  [ErrorCode.RECHARGE_APPLICATION_NOT_ALLOWED]: 'You cannot apply to be a recharge agent now.',
+  [ErrorCode.RECHARGE_AGENT_NOT_ACTIVE]: 'This recharge agent is not active.',
+  [ErrorCode.RECHARGE_OFF_SHIFT]: 'You can sell only during your working hours.',
+  [ErrorCode.RECHARGE_STOCK_INSUFFICIENT]: 'Not enough coins in the stock.',
+  [ErrorCode.RECHARGE_EMPLOYEE_NOT_ALLOWED]: 'This person cannot be added as an employee.',
+  [ErrorCode.RECHARGE_CHERRY_REQUEST_PENDING]: 'There is already an open request between you.',
+  [ErrorCode.RECHARGE_CHERRY_REQUEST_CLOSED]: 'This request is no longer open.',
+  [ErrorCode.RECHARGE_CHERRY_CAP_REACHED]: "The agent's daily cherry limit is reached.",
 };
 
 export interface ErrorDetail {

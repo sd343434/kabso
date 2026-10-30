@@ -16,7 +16,16 @@ import { markReadSchema, updateNotificationSettingsSchema } from './notification
 
 /** `NotificationTarget` (openapi v1.5-social, CP-009). */
 export interface NotificationTargetDto {
-  type: 'POST' | 'COMMENT' | 'STORY' | 'USER' | 'FAMILY' | 'MEDAL' | 'PREMIUM_USERNAME' | 'BAG_ITEM';
+  type:
+    | 'POST'
+    | 'COMMENT'
+    | 'STORY'
+    | 'USER'
+    | 'FAMILY'
+    | 'MEDAL'
+    | 'PREMIUM_USERNAME'
+    | 'BAG_ITEM'
+    | 'RECHARGE_SALE';
   id: string;
   postId: string | null;
   thumbUrl: string | null;
@@ -27,6 +36,8 @@ export interface NotificationTargetDto {
   endsAt?: string;
   /** v1.48-social (D171) BAG_ITEM only: the item's category. */
   bagCategory?: string;
+  /** v1.54-social (D185) RECHARGE_SALE only: the coins bought. */
+  coins?: number;
 }
 
 /** `Notification`. */
@@ -89,6 +100,9 @@ const ACTOR_TYPES: NotificationType[] = [
   // v1.47-social (D175): actor the requester / the private account that accepted.
   'FOLLOW_REQUEST',
   'FOLLOW_REQUEST_ACCEPTED',
+  // v1.54-social (D185): actor the seller (target the sale) / the host or agent who asked (no target).
+  'RECHARGE_COINS_RECEIVED',
+  'RECHARGE_CHERRY_REQUEST',
 ];
 /** v1.21-live (CP-018): the actor types whose target is the actor (USER), like FOLLOW. */
 const USER_TARGET_TYPES: ReadonlySet<NotificationType> = new Set([
@@ -164,6 +178,7 @@ function include(me: string) {
     family: { select: { name: true } },
     premiumLease: { select: { username: true, expiresAt: true, graceUntil: true } },
     bagItem: { select: { category: true } },
+    rechargeSale: { select: { coins: true } },
   } satisfies Prisma.NotificationInclude;
 }
 type NotificationRow = Prisma.NotificationGetPayload<{ include: ReturnType<typeof include> }>;
@@ -299,6 +314,17 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
         thumbUrl: null,
         text: null,
         bagCategory: row.bagItem.category,
+      };
+    }
+    // v1.54-social (D185): coins bought from a recharge agent (the app opens the wallet).
+    if (row.rechargeSaleId !== null && row.rechargeSale) {
+      return {
+        type: 'RECHARGE_SALE',
+        id: row.rechargeSaleId,
+        postId: null,
+        thumbUrl: null,
+        text: null,
+        coins: Number(row.rechargeSale.coins),
       };
     }
     if (row.medalCode !== null) {
