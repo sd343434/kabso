@@ -2156,10 +2156,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get levelsTitle => 'My levels';
 
   @override
-  String get levelsIntro =>
-      'Your points grow from gifts and game spending once they are confirmed. Each level has its own points.';
-
-  @override
   String get levelsPreparing =>
       'Levels are on their way. Your points will show here once gifts and games are switched on.';
 
@@ -2197,9 +2193,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get levelsMax => 'Top level reached';
 
   @override
-  String get levelsLadder => 'All levels';
-
-  @override
   String get levelsCurrent => 'You\'re here';
 
   @override
@@ -2234,6 +2227,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get levelsTierFrame => 'Comes with an avatar frame';
+
+  @override
+  String levelsTabName(String category) {
+    String _temp0 = intl.Intl.selectLogic(category, {
+      'attractiveness': 'Charm',
+      'support': 'Support',
+      'wizard': 'Wizard',
+      'gaming': 'Gaming',
+      'other': '',
+    });
+    return '$_temp0';
+  }
 
   @override
   String get navMoments => 'Moments';

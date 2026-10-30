@@ -3893,12 +3893,6 @@ abstract class AppLocalizations {
   /// D72: levels (CP-005).
   ///
   /// In ar, this message translates to:
-  /// **'تزيد نقاطك من الهدايا والإنفاق في الألعاب بعد تأكيدها. لكل مستوى نقاطه الخاصة.'**
-  String get levelsIntro;
-
-  /// D72: levels (CP-005).
-  ///
-  /// In ar, this message translates to:
   /// **'المستويات قيد التجهيز. ستظهر نقاطك هنا عند تفعيل الهدايا والألعاب.'**
   String get levelsPreparing;
 
@@ -3949,12 +3943,6 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'أعلى مستوى'**
   String get levelsMax;
-
-  /// D72: levels (CP-005).
-  ///
-  /// In ar, this message translates to:
-  /// **'كل المستويات'**
-  String get levelsLadder;
 
   /// D72: levels (CP-005).
   ///
@@ -4015,6 +4003,12 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'مع إطار الصورة'**
   String get levelsTierFrame;
+
+  /// D169: the short category name in the levels tab bar (no «مستوى» so the four fit side by side).
+  ///
+  /// In ar, this message translates to:
+  /// **'{category, select, attractiveness{الجاذبية} support{الدعم} wizard{الساحر} gaming{اللعب} other{}}'**
+  String levelsTabName(String category);
 
   /// No description provided for @navMoments.
   ///

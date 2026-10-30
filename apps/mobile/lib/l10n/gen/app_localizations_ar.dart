@@ -2186,10 +2186,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get levelsTitle => 'مستوياتي';
 
   @override
-  String get levelsIntro =>
-      'تزيد نقاطك من الهدايا والإنفاق في الألعاب بعد تأكيدها. لكل مستوى نقاطه الخاصة.';
-
-  @override
   String get levelsPreparing =>
       'المستويات قيد التجهيز. ستظهر نقاطك هنا عند تفعيل الهدايا والألعاب.';
 
@@ -2227,9 +2223,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get levelsMax => 'أعلى مستوى';
 
   @override
-  String get levelsLadder => 'كل المستويات';
-
-  @override
   String get levelsCurrent => 'مستواك';
 
   @override
@@ -2264,6 +2257,18 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get levelsTierFrame => 'مع إطار الصورة';
+
+  @override
+  String levelsTabName(String category) {
+    String _temp0 = intl.Intl.selectLogic(category, {
+      'attractiveness': 'الجاذبية',
+      'support': 'الدعم',
+      'wizard': 'الساحر',
+      'gaming': 'اللعب',
+      'other': '',
+    });
+    return '$_temp0';
+  }
 
   @override
   String get navMoments => 'اللحظات';

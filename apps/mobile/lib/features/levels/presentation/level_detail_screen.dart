@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
-import 'package:kabso_live/core/error/failure_widgets.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/levels/application/levels_providers.dart';
@@ -11,139 +10,26 @@ import 'package:kabso_live/features/levels/presentation/levels_screen.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// One category's page (D72; look D169, e.g. «صفحة مستوى الدعم»): the
-/// categories as chips at the top to move between them, the level card
-/// large (current badge, level, points, progress and "Need X experience
-/// to the next level"), how the category grows, then every badge tier with
-/// its levels and the points it starts at — reached tiers in colour, the
-/// current one marked, the rest dimmed (`GET /levels/me/{category}`).
-/// Support shows the owner's 21 badges; the others the pack's 11.
-class LevelDetailScreen extends ConsumerStatefulWidget {
+/// `/levels/:category` (D72): since D169 the levels page itself
+/// ([LevelsScreen]) opened on that category's tab.
+class LevelDetailScreen extends StatelessWidget {
   const new({required this.category, super.key});
 
   final LevelCategory category;
 
-  static Key chipKey(LevelCategory c) => Key('levels.chip.${c.slug}');
+  @override
+  Widget build(BuildContext context) => LevelsScreen(initialCategory: category);
+}
+
+/// Every badge tier of a category (D169): three per row, each with its badge,
+/// its levels and — once the ladder is loaded — the points it starts at.
+class LevelTierGrid extends ConsumerWidget {
+  const new({required this.summary, super.key});
+
   static Key tierKey(int tier) => Key('levels.tier.$tier');
   static Key frameKey(int tier) => Key('levels.tier.frame.$tier');
   static const currentKey = Key('levels.tier.current');
-  static const headerKey = Key('levels.header');
-  static const unavailableKey = Key('levels.detail.unavailable');
-
-  @override
-  ConsumerState<LevelDetailScreen> createState() => _LevelDetailScreenState();
-}
-
-class _LevelDetailScreenState extends ConsumerState<LevelDetailScreen> {
-  late LevelCategory _category = widget.category;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final p = context.palette;
-    final load = ref.watch(myLevelsProvider);
-    final summary = load.value
-        ?.where((s) => s.category == _category)
-        .firstOrNull;
-    return Scaffold(
-      backgroundColor: p.background,
-      appBar: KAppBar(
-        backgroundColor: p.background,
-        centerTitle: true,
-        title: Text(summary?.name ?? l10n.levelsTitle),
-      ),
-      body: switch (load) {
-        AsyncValue(:final value?) when summary != null => RefreshIndicator(
-          onRefresh: () async {
-            ref
-              ..invalidate(myLevelProvider(_category))
-              ..invalidate(myLevelsProvider);
-            await ref.read(myLevelsProvider.future);
-          },
-          child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: EdgeInsetsDirectional.fromSTEB(
-              KLevels.side,
-              0,
-              KLevels.side,
-              KSpacing.xl + MediaQuery.viewPaddingOf(context).bottom,
-            ),
-            children: [
-              Semantics(
-                container: true,
-                label: l10n.levelsCategories,
-                child: Wrap(
-                  spacing: KSpacing.sm,
-                  runSpacing: KSpacing.sm,
-                  children: [
-                    for (final s in value)
-                      KChip(
-                        key: LevelDetailScreen.chipKey(s.category),
-                        label: s.name,
-                        selected: s.category == _category,
-                        onSelected: () =>
-                            setState(() => _category = s.category),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: KSpacing.sm),
-              LevelCategoryCard(
-                key: LevelDetailScreen.headerKey,
-                summary: summary,
-                header: true,
-              ),
-              const SizedBox(height: KSpacing.xl),
-              _Heading(l10n.levelsHowItGrows),
-              const SizedBox(height: KSpacing.xs),
-              Text(
-                summary.available
-                    ? summary.description
-                    : '${summary.description}\n${l10n.levelsUnavailableBody}',
-                key: summary.available
-                    ? null
-                    : LevelDetailScreen.unavailableKey,
-                style: context.textStyles.body.copyWith(color: p.textSecondary),
-              ),
-              const SizedBox(height: KSpacing.xl),
-              _Heading(l10n.levelsTiers),
-              const SizedBox(height: KSpacing.sm),
-              _TierGrid(summary: summary),
-            ],
-          ),
-        ),
-        AsyncValue(:final error?, isLoading: false) => FailureErrorState(
-          title: l10n.levelsLoadError,
-          failure: toAppFailure(error),
-          onRetry: () => ref.invalidate(myLevelsProvider),
-        ),
-        AsyncValue(hasValue: true) => KEmptyState(
-          icon: Icons.hourglass_empty_rounded,
-          title: l10n.levelsUnavailable,
-          message: l10n.levelsUnavailableBody,
-        ),
-        _ => const Center(child: CircularProgressIndicator()),
-      },
-    );
-  }
-}
-
-class _Heading extends StatelessWidget {
-  const new(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-    header: true,
-    child: Text(text, style: context.textStyles.title),
-  );
-}
-
-/// Every badge tier of the category: three per row, each with its badge,
-/// its levels and — once the ladder is loaded — the points it starts at.
-class _TierGrid extends ConsumerWidget {
-  const new({required this.summary});
+  static const unavailableKey = Key('levels.unavailable');
 
   final LevelSummary summary;
 
@@ -191,8 +77,8 @@ class _TierGrid extends ConsumerWidget {
                     width: w,
                     child: _TierTile(
                       key: t == current
-                          ? LevelDetailScreen.currentKey
-                          : LevelDetailScreen.tierKey(t),
+                          ? LevelTierGrid.currentKey
+                          : LevelTierGrid.tierKey(t),
                       category: category,
                       tier: t,
                       start: ladder[KLevelArt.levelRange(category, t).$1],
@@ -312,7 +198,7 @@ class _TierTile extends StatelessWidget {
               top: KSpacing.xxs,
               end: KSpacing.xxs,
               child: Opacity(
-                key: LevelDetailScreen.frameKey(tier),
+                key: LevelTierGrid.frameKey(tier),
                 opacity: reached ? 1 : 0.45,
                 child: Image.asset(
                   KLevelArt.supportFrame(tier),

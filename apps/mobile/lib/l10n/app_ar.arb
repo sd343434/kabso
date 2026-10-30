@@ -2182,10 +2182,6 @@
   "@levelsTitle": {
     "description": "D72: levels (CP-005)."
   },
-  "levelsIntro": "تزيد نقاطك من الهدايا والإنفاق في الألعاب بعد تأكيدها. لكل مستوى نقاطه الخاصة.",
-  "@levelsIntro": {
-    "description": "D72: levels (CP-005)."
-  },
   "levelsPreparing": "المستويات قيد التجهيز. ستظهر نقاطك هنا عند تفعيل الهدايا والألعاب.",
   "@levelsPreparing": {
     "description": "D72: levels (CP-005)."
@@ -2245,10 +2241,6 @@
   "@levelsMax": {
     "description": "D72: levels (CP-005)."
   },
-  "levelsLadder": "كل المستويات",
-  "@levelsLadder": {
-    "description": "D72: levels (CP-005)."
-  },
   "levelsCurrent": "مستواك",
   "@levelsCurrent": {
     "description": "D72: levels (CP-005)."
@@ -2306,6 +2298,15 @@
   "levelsTierFrame": "مع إطار الصورة",
   "@levelsTierFrame": {
     "description": "D169: screen-reader note on a support tier tile — reaching the tier gives its avatar frame."
+  },
+  "levelsTabName": "{category, select, attractiveness{الجاذبية} support{الدعم} wizard{الساحر} gaming{اللعب} other{}}",
+  "@levelsTabName": {
+    "description": "D169: the short category name in the levels tab bar (no «مستوى» so the four fit side by side).",
+    "placeholders": {
+      "category": {
+        "type": "String"
+      }
+    }
   },
   "navMoments": "اللحظات",
   "navMessages": "الرسائل",

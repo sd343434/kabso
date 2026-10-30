@@ -761,7 +761,6 @@
     "description": "D85: explanation of the hosts ranking."
   },
   "levelsTitle": "My levels",
-  "levelsIntro": "Your points grow from gifts and game spending once they are confirmed. Each level has its own points.",
   "levelsPreparing": "Levels are on their way. Your points will show here once gifts and games are switched on.",
   "levelsUnavailable": "Not active yet",
   "levelsUnavailableBody": "This level isn't active yet. Your points and level will show here once it is.",
@@ -771,7 +770,6 @@
   "levelsToNext": "{points} to next level",
   "levelsToNamed": "{points} pts to reach {level}",
   "levelsMax": "Top level reached",
-  "levelsLadder": "All levels",
   "levelsCurrent": "You're here",
   "levelsLoadError": "Couldn't load your levels",
   "levelsLv": "Lv.{number}",
@@ -782,6 +780,7 @@
   "levelsTiers": "Badges by level",
   "levelsTierRange": "Lv.{from}–{to}",
   "levelsTierFrame": "Comes with an avatar frame",
+  "levelsTabName": "{category, select, attractiveness{Charm} support{Support} wizard{Wizard} gaming{Gaming} other{}}",
   "navMoments": "Moments",
   "@navMoments": {
     "description": "D86 bottom bar: the posts and reels tab, named Moments (D130)."

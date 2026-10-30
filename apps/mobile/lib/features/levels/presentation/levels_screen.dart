@@ -1,49 +1,108 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/failure_widgets.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/levels/application/levels_providers.dart';
 import 'package:kabso_live/features/levels/domain/level_models.dart';
+import 'package:kabso_live/features/levels/presentation/level_badge.dart';
 import 'package:kabso_live/features/levels/presentation/level_category_card.dart';
+import 'package:kabso_live/features/levels/presentation/level_detail_screen.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// Levels geometry (D72; D169).
 abstract final class KLevels {
-  /// Side inset of the cards (16 lp: a 398-lp card on a 430-lp phone).
+  /// Side inset of the page (16 lp: a 398-lp card on a 430-lp phone).
   static const double side = KSpacing.lg;
 
-  /// Between two cards, on top of the badge rising above each card.
-  static const double cardGap = KSpacing.sm;
+  /// The category tab bar: its height, the badge in each tab and the
+  /// selected tab's underline (D169, owner: four side by side, never
+  /// wrapping).
+  static const double tabBarHeight = 64;
+  static const double tabBadge = 26;
+  static const double tabIndicatorWidth = 28;
+  static const double tabIndicatorHeight = 3;
 
-  /// A tier tile's badge on the detail page.
+  /// A tier tile's badge on the category page.
   static const double tileBadge = 64;
 
-  /// The support tier's avatar frame in the tile's top end corner (D169).
+  /// The support tier's avatar frame in the tile's top end corner.
   static const double tileFrame = 34;
 }
 
-/// The caller's four independent levels (D72, CP-005; look D169): one card
-/// per category — Attractiveness, Support, Wizard, Gaming, in the server's
-/// order and names (`GET /levels/me`) — in a single column, each tinted to
-/// its badge with the level, points, what is left to the next level and a
-/// «التفاصيل» button that opens the category's page. A category the server
-/// has not switched on says "not active yet" with its explanation — the
-/// app never invents a level.
+/// The levels page (D72, CP-005; D169 after the owner's feedback «هذه
+/// الصفحة ليس لها داعي، اجعل هذه الصفحة الأولى، والفلتر في الأعلى اجعله
+/// بغير طريقة، والخانات بجانب بعض»): every entry — the Me hub, the
+/// profile badges, `/levels` and `/levels/:category` — opens one page with
+/// the four categories (Attractiveness, Support, Wizard, Gaming) as tabs side
+/// by side at the top and a page per category under them that the tabs and
+/// a swipe move between. Each page: the category's card (badge, level,
+/// points, progress and "Need X experience to the next level"), how it
+/// grows, and every badge tier ([LevelTierGrid]). An inactive category says
+/// «غير مفعّل بعد» with its explanation and its tiers dimmed — the app
+/// never invents a level.
 ///
-/// One column, not the board's two: the card holds a two-line Arabic title
-/// and explanation next to a badge that takes a third of its width, which
-/// needs ≈ 300 lp; two columns would leave 158 lp per card at 360 lp.
-class LevelsScreen extends ConsumerWidget {
-  const new({super.key});
+/// It opens on [initialCategory], else the caller's highest active level,
+/// else Attractiveness.
+class LevelsScreen extends ConsumerStatefulWidget {
+  const new({super.key, this.initialCategory});
 
-  static Key cardKey(LevelCategory c) => Key('levels.card.${c.slug}');
+  final LevelCategory? initialCategory;
+
+  static Key tabKey(LevelCategory c) => Key('levels.tab.${c.slug}');
+  static const tabBarKey = Key('levels.tabs');
+  static const headerKey = Key('levels.header');
   static const preparingKey = Key('levels.preparing');
 
+  /// The category to open on: the caller's highest active level (the first
+  /// in order on a tie), else Attractiveness.
+  static LevelCategory defaultCategory(List<LevelSummary> all) {
+    LevelSummary? best;
+    for (final s in all) {
+      final n = s.available ? s.level?.levelNumber : null;
+      if (n == null) continue;
+      if (best == null || n > best.level!.levelNumber) best = s;
+    }
+    return best?.category ?? LevelCategory.attractiveness;
+  }
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<LevelsScreen> createState() => _LevelsScreenState();
+}
+
+class _LevelsScreenState extends ConsumerState<LevelsScreen> {
+  PageController? _pages;
+  LevelCategory? _selected;
+
+  @override
+  void dispose() {
+    _pages?.dispose();
+    super.dispose();
+  }
+
+  /// Created once the summaries are known (the default needs them).
+  PageController _controller(List<LevelSummary> all) {
+    if (_pages case final p?) return p;
+    final first = widget.initialCategory ?? LevelsScreen.defaultCategory(all);
+    _selected = first;
+    final index = all.indexWhere((s) => s.category == first);
+    return _pages = PageController(initialPage: index < 0 ? 0 : index);
+  }
+
+  void _select(List<LevelSummary> all, LevelCategory c) {
+    final index = all.indexWhere((s) => s.category == c);
+    if (index < 0) return;
+    setState(() => _selected = c);
+    final duration = KMotion.of(context, KMotion.base);
+    if (duration == Duration.zero) {
+      _pages?.jumpToPage(index);
+    } else {
+      _pages?.animateToPage(index, duration: duration, curve: KMotion.standard);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = context.l10n;
     final p = context.palette;
     final load = ref.watch(myLevelsProvider);
@@ -55,67 +114,245 @@ class LevelsScreen extends ConsumerWidget {
         title: Text(l10n.levelsTitle),
       ),
       body: switch (load) {
-        AsyncValue(:final value?) => RefreshIndicator(
-          onRefresh: () => ref.refresh(myLevelsProvider.future),
-          child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: EdgeInsetsDirectional.fromSTEB(
-              KLevels.side,
-              KSpacing.sm,
-              KLevels.side,
-              KSpacing.xl + MediaQuery.viewPaddingOf(context).bottom,
-            ),
+        AsyncValue(:final value?) when value.isNotEmpty => () {
+          final pages = _controller(value);
+          final selected = _selected ?? value.first.category;
+          return Column(
             children: [
               if (value.every((s) => !s.available))
-                KInlineMessage(
-                  key: preparingKey,
-                  message: l10n.levelsPreparing,
-                  isError: false,
-                )
-              else
-                Text(
-                  l10n.levelsIntro,
-                  style: context.textStyles.caption.copyWith(
-                    color: p.textSecondary,
+                Padding(
+                  padding: const EdgeInsetsDirectional.fromSTEB(
+                    KLevels.side,
+                    0,
+                    KLevels.side,
+                    KSpacing.sm,
+                  ),
+                  child: KInlineMessage(
+                    key: LevelsScreen.preparingKey,
+                    message: l10n.levelsPreparing,
+                    isError: false,
                   ),
                 ),
-              for (final summary in value) ...[
-                const SizedBox(height: KLevels.cardGap),
-                LevelCategoryCard(
-                  key: cardKey(summary.category),
-                  summary: summary,
-                  onOpen: () =>
-                      context.push(AppRoutes.level(summary.category.slug)),
+              _CategoryTabBar(
+                summaries: value,
+                selected: selected,
+                onSelect: (c) => _select(value, c),
+              ),
+              Expanded(
+                child: PageView(
+                  controller: pages,
+                  onPageChanged: (i) =>
+                      setState(() => _selected = value[i].category),
+                  children: [for (final s in value) _CategoryPage(summary: s)],
                 ),
-              ],
+              ),
             ],
-          ),
-        ),
+          );
+        }(),
         AsyncValue(:final error?, isLoading: false) => FailureErrorState(
           title: l10n.levelsLoadError,
           failure: toAppFailure(error),
           onRetry: () => ref.invalidate(myLevelsProvider),
         ),
-        _ => const _LevelsSkeleton(),
+        AsyncValue(hasValue: true) => KEmptyState(
+          icon: Icons.hourglass_empty_rounded,
+          title: l10n.levelsUnavailable,
+          message: l10n.levelsPreparing,
+        ),
+        _ => const Center(child: CircularProgressIndicator()),
       },
     );
   }
 }
 
-class _LevelsSkeleton extends StatelessWidget {
-  const new();
+/// The four categories side by side, equal widths, never wrapping: each
+/// tab is the category's current badge over a short name (scaled down
+/// rather than wrapped at large text), the selected one in Kabso red with
+/// an underline. Order follows the reading direction.
+class _CategoryTabBar extends StatelessWidget {
+  const new({
+    required this.summaries,
+    required this.selected,
+    required this.onSelect,
+  });
+
+  final List<LevelSummary> summaries;
+  final LevelCategory selected;
+  final ValueChanged<LevelCategory> onSelect;
 
   @override
-  Widget build(BuildContext context) => ListView(
-    key: const Key('levels.skeleton'),
-    physics: const NeverScrollableScrollPhysics(),
-    padding: const EdgeInsetsDirectional.all(KLevels.side),
-    children: [
-      for (var i = 0; i < 4; i++) ...[
-        const SizedBox(height: KLevelCard.medalRise),
-        const KSkeleton(height: 170),
-        const SizedBox(height: KLevels.cardGap),
-      ],
-    ],
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return Semantics(
+      container: true,
+      label: context.l10n.levelsCategories,
+      child: DecoratedBox(
+        key: LevelsScreen.tabBarKey,
+        decoration: BoxDecoration(
+          border: Border(bottom: BorderSide(color: p.border)),
+        ),
+        child: SizedBox(
+          height: KLevels.tabBarHeight,
+          child: Row(
+            children: [
+              for (final s in summaries)
+                Expanded(
+                  child: _CategoryTab(
+                    key: LevelsScreen.tabKey(s.category),
+                    summary: s,
+                    selected: s.category == selected,
+                    onTap: () => onSelect(s.category),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CategoryTab extends StatelessWidget {
+  const new({
+    required this.summary,
+    required this.selected,
+    required this.onTap,
+    super.key,
+  });
+
+  final LevelSummary summary;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final s = summary;
+    final level = s.available ? s.level : null;
+    final tier = level == null
+        ? 1
+        : KLevelArt.tierOf(
+            s.category,
+            level.levelNumber,
+            iconKey: level.iconKey,
+          );
+    final color = selected ? p.primary : p.textSecondary;
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: s.name,
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsetsDirectional.symmetric(
+            horizontal: KSpacing.xxs,
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              KLevelEmblem(
+                category: s.category,
+                tier: tier,
+                size: KLevels.tabBadge,
+                dimmed: !s.available,
+              ),
+              const SizedBox(height: KSpacing.xxs),
+              SizedBox(
+                height: 20,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    context.l10n.levelsTabName(s.category.slug),
+                    maxLines: 1,
+                    style: context.textStyles.bodyStrong.copyWith(
+                      fontSize: 14,
+                      height: 1.2,
+                      color: color,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: KSpacing.xxs),
+              AnimatedContainer(
+                duration: KMotion.of(context, KMotion.fast),
+                width: KLevels.tabIndicatorWidth,
+                height: KLevels.tabIndicatorHeight,
+                decoration: BoxDecoration(
+                  color: selected ? p.primary : Colors.transparent,
+                  borderRadius: BorderRadius.circular(KRadius.pill),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One category's page: its card, how it grows, every badge tier.
+class _CategoryPage extends ConsumerWidget {
+  const new({required this.summary});
+
+  final LevelSummary summary;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final p = context.palette;
+    final s = summary;
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref
+          ..invalidate(myLevelProvider(s.category))
+          ..invalidate(myLevelsProvider);
+        await ref.read(myLevelsProvider.future);
+      },
+      child: ListView(
+        key: PageStorageKey('levels.page.${s.category.slug}'),
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsetsDirectional.fromSTEB(
+          KLevels.side,
+          KSpacing.md,
+          KLevels.side,
+          KSpacing.xl + MediaQuery.viewPaddingOf(context).bottom,
+        ),
+        children: [
+          LevelCategoryCard(
+            key: LevelsScreen.headerKey,
+            summary: s,
+            header: true,
+          ),
+          const SizedBox(height: KSpacing.xl),
+          _Heading(l10n.levelsHowItGrows),
+          const SizedBox(height: KSpacing.xs),
+          Text(
+            s.available
+                ? s.description
+                : '${s.description}\n${l10n.levelsUnavailableBody}',
+            key: s.available ? null : LevelTierGrid.unavailableKey,
+            style: context.textStyles.body.copyWith(color: p.textSecondary),
+          ),
+          const SizedBox(height: KSpacing.xl),
+          _Heading(l10n.levelsTiers),
+          const SizedBox(height: KSpacing.sm),
+          LevelTierGrid(summary: s),
+        ],
+      ),
+    );
+  }
+}
+
+class _Heading extends StatelessWidget {
+  const new(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    header: true,
+    child: Text(text, style: context.textStyles.title),
   );
 }
