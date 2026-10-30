@@ -114,10 +114,27 @@ List<CalendarWeek> layoutMonth(
   return result;
 }
 
-/// The month grid of the Event Center (the reference's calendar): weekday
-/// names, then each week's dates and its event bars. Days outside [month]
-/// are greyed; bars carry «انتهت» (ended) or «رائج» (featured). RTL
-/// mirrors the columns.
+/// The hue of an event's bar: its tone (v1.50-social, D176), else a stable
+/// hue from its id.
+Color eventHue(EventSummary e) => switch (e.tone) {
+  EventTone.red => KBrandColors.red500,
+  EventTone.gold => const Color(0xFFE0A21B),
+  EventTone.teal => const Color(0xFF14B8A6),
+  EventTone.blue => const Color(0xFF4DA3FF),
+  EventTone.pink => const Color(0xFFFF3B6B),
+  EventTone.amber => const Color(0xFFF5A623),
+  null => ProgramHues.of(e.id),
+};
+
+/// The month grid of the Event Center in the layout of the owner's
+/// reference (D176): weekday names on the page colour, then full-width week
+/// rows on a light grid (thin column lines), the dates large and centred,
+/// days outside the month faded, and each event as a rounded tinted bar
+/// over its days — its name, an optional second line (`summary`, a short
+/// prize line) and a small «انتهت» or «رائج» tag over its start. Bars wrap
+/// across weeks; overlapping ones take lanes. RTL mirrors the columns; the
+/// week starts on the locale's first day (`firstDayOfWeekIndex`: Sunday in
+/// English, Saturday in Arabic).
 class EventCalendar extends StatelessWidget {
   const new({
     required this.month,
@@ -134,12 +151,38 @@ class EventCalendar extends StatelessWidget {
   /// Today (tests pass a fixed day).
   final DateTime? today;
 
-  static const double barHeight = 22;
-  static const double barGap = 3;
+  // The reference's measured geometry (D176 spec, 393 lp wide).
+  /// Space before the first and after the last column (the grid itself is
+  /// full width).
+  static const double gridInset = 10;
+
+  /// A week row at least this tall; taller when its bars need it.
+  static const double weekHeight = 127;
+
+  /// The dates' centre from the row's top.
+  static const double dateCentre = 25.5;
+
+  /// The first lane's top from the row's top.
+  static const double barsTop = 61;
+  static const double barHeight = 27;
+  static const double barHeightTwoLines = 48;
+  static const double barGap = 6;
+  static const double barInset = 4;
   static const int maxLanes = 3;
 
   static Key barKey(String eventId, int week) =>
       Key('events.bar.$eventId.$week');
+
+  static Key tagKey(String eventId) => Key('events.tag.$eventId');
+
+  /// The grid's background (the reference's light grey, from the palette).
+  static Color gridColor(BuildContext context) {
+    final p = context.palette;
+    return Color.alphaBlend(
+      p.textPrimary.withValues(alpha: 0.035),
+      p.background,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -159,99 +202,210 @@ class EventCalendar extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            for (final name in names)
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: KSpacing.sm),
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      name,
-                      maxLines: 1,
-                      style: t.label.copyWith(color: p.textSecondary),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: gridInset),
+          child: SizedBox(
+            height: 46,
+            child: Row(
+              children: [
+                for (final name in names)
+                  Expanded(
+                    child: Center(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          name,
+                          maxLines: 1,
+                          style: t.label.copyWith(
+                            color: p.textPrimary,
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
                     ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        for (final (w, week) in weeks.indexed)
+          _WeekRow(
+            index: w,
+            week: week,
+            month: month,
+            today: now,
+            onOpen: onOpen,
+          ),
+      ],
+    );
+  }
+}
+
+/// One week: the grid, the dates and the bars.
+class _WeekRow extends StatelessWidget {
+  const new({
+    required this.index,
+    required this.week,
+    required this.month,
+    required this.today,
+    required this.onOpen,
+  });
+
+  final int index;
+  final CalendarWeek week;
+  final DateTime month;
+  final DateTime today;
+  final ValueChanged<EventSummary> onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final p = context.palette;
+    final lanes = week.lanes.clamp(0, EventCalendar.maxLanes);
+    // A lane is two lines tall when one of its bars has a second line.
+    double laneHeight(int lane) =>
+        week.segments.any((s) => s.lane == lane && s.event.summary != null)
+        ? EventCalendar.barHeightTwoLines
+        : EventCalendar.barHeight;
+    final laneHeights = [
+      for (var lane = 0; lane < lanes; lane++) laneHeight(lane),
+    ];
+    final laneTops = <double>[];
+    var top = EventCalendar.barsTop;
+    for (final h in laneHeights) {
+      laneTops.add(top);
+      top += h + EventCalendar.barGap;
+    }
+    final hidden = week.segments.where((s) => s.lane >= lanes).length;
+    final height = [
+      EventCalendar.weekHeight,
+      top + (hidden > 0 ? 20 : 8),
+    ].reduce((a, b) => a > b ? a : b);
+    final line = p.border.withValues(alpha: 0.5);
+    return SizedBox(
+      height: height,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final col = (constraints.maxWidth - 2 * EventCalendar.gridInset) / 7;
+          double colStart(int i) => EventCalendar.gridInset + i * col;
+          final segments = [
+            for (final s in week.segments)
+              if (s.lane < lanes) s,
+          ];
+          return Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: EventCalendar.gridColor(context),
+                    border: Border(top: BorderSide(color: p.border)),
                   ),
                 ),
               ),
-          ],
-        ),
-        for (final (w, week) in weeks.indexed)
-          DecoratedBox(
-            decoration: BoxDecoration(
-              border: Border(top: BorderSide(color: p.border)),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: KSpacing.xs),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    children: [
-                      for (final day in week.days)
-                        Expanded(
-                          child: _DayNumber(
-                            day: day,
-                            inMonth: day.month == month.month,
-                            today: day == now,
-                          ),
-                        ),
-                    ],
+              for (var i = 1; i < 7; i++)
+                PositionedDirectional(
+                  start: colStart(i),
+                  top: 0,
+                  bottom: 0,
+                  width: 1,
+                  child: ColoredBox(color: line),
+                ),
+              for (final (i, day) in week.days.indexed)
+                PositionedDirectional(
+                  start: colStart(i),
+                  width: col,
+                  top: EventCalendar.dateCentre - 16,
+                  height: 32,
+                  child: _DayNumber(
+                    day: day,
+                    inMonth: day.month == month.month,
+                    today: day == today,
                   ),
-                  _bars(context, w, week),
-                ],
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _bars(BuildContext context, int w, CalendarWeek week) {
-    final l10n = context.l10n;
-    final p = context.palette;
-    final lanes = week.lanes.clamp(0, maxLanes);
-    final hidden = week.segments.where((s) => s.lane >= maxLanes).length;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SizedBox(
-          height: lanes == 0 ? KSpacing.md : lanes * (barHeight + barGap),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final col = constraints.maxWidth / 7;
-              return Stack(
-                children: [
-                  for (final s in week.segments)
-                    if (s.lane < maxLanes)
-                      PositionedDirectional(
-                        key: barKey(s.event.id, w),
-                        start: s.startCol * col + (s.continuesBefore ? 0 : 2),
-                        width:
-                            (s.endCol - s.startCol + 1) * col -
-                            (s.continuesBefore ? 0 : 2) -
-                            (s.continuesAfter ? 0 : 2),
-                        top: s.lane * (barHeight + barGap),
-                        height: barHeight,
-                        child: _Bar(segment: s, onOpen: onOpen),
+                ),
+              for (final s in segments)
+                PositionedDirectional(
+                  key: EventCalendar.barKey(s.event.id, index),
+                  start: colStart(s.startCol) + EventCalendar.barInset,
+                  width:
+                      (s.endCol - s.startCol + 1) * col -
+                      2 * EventCalendar.barInset,
+                  top: laneTops[s.lane],
+                  height: laneHeights[s.lane],
+                  child: _Bar(segment: s, onOpen: onOpen),
+                ),
+              for (final s in segments)
+                if (!s.continuesBefore && _tagOf(s.event) != null)
+                  PositionedDirectional(
+                    key: EventCalendar.tagKey(s.event.id),
+                    start: colStart(s.startCol) + EventCalendar.barInset,
+                    top: laneTops[s.lane] - 5,
+                    child: ExcludeSemantics(
+                      child: _BarTag(
+                        label: _tagOf(s.event) == _Tag.ended
+                            ? l10n.eventsEnded
+                            : l10n.eventsFeatured,
+                        color: _tagOf(s.event) == _Tag.ended
+                            ? p.textTertiary
+                            : KBrandColors.red500,
                       ),
-                ],
-              );
-            },
-          ),
-        ),
-        if (hidden > 0)
-          Padding(
-            padding: const EdgeInsetsDirectional.only(start: KSpacing.xs),
-            child: Text(
-              l10n.eventsMore('$hidden'),
-              style: context.textStyles.caption.copyWith(color: p.textTertiary),
-            ),
-          ),
-      ],
+                    ),
+                  ),
+              if (hidden > 0)
+                PositionedDirectional(
+                  start: EventCalendar.gridInset + KSpacing.xs,
+                  bottom: KSpacing.xs,
+                  child: Text(
+                    l10n.eventsMore('$hidden'),
+                    style: context.textStyles.caption.copyWith(
+                      color: p.textTertiary,
+                    ),
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
     );
   }
+}
+
+enum _Tag { ended, featured }
+
+/// «انتهت» for an ended event, else «رائج» when featured, else none.
+_Tag? _tagOf(EventSummary e) => e.status == EventStatus.ended
+    ? _Tag.ended
+    : e.featured
+    ? _Tag.featured
+    : null;
+
+class _BarTag extends StatelessWidget {
+  const new({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 5),
+    decoration: BoxDecoration(
+      color: color,
+      borderRadius: BorderRadius.circular(KRadius.pill),
+      border: Border.all(color: context.palette.surfaceRaised),
+    ),
+    child: Text(
+      label,
+      maxLines: 1,
+      textScaler: TextScaler.noScaling,
+      style: context.textStyles.caption.copyWith(
+        color: const Color(0xFFFFFFFF),
+        fontSize: 8.5,
+        fontWeight: FontWeight.w800,
+        height: 1.25,
+      ),
+    ),
+  );
 }
 
 class _DayNumber extends StatelessWidget {
@@ -267,31 +421,31 @@ class _DayNumber extends StatelessWidget {
     final text = Text(
       day.day.toString().padLeft(2, '0'),
       textAlign: TextAlign.center,
-      style: context.textStyles.bodyStrong.copyWith(
+      maxLines: 1,
+      style: context.textStyles.title.copyWith(
         color: today
             ? p.onPrimary
             : inMonth
             ? p.textPrimary
-            : p.textTertiary.withValues(alpha: 0.5),
-        fontWeight: inMonth ? FontWeight.w700 : FontWeight.w400,
+            : p.textTertiary.withValues(alpha: 0.35),
+        fontSize: 18.5,
+        fontWeight: FontWeight.w500,
+        height: 1.2,
       ),
     );
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: KSpacing.xs),
-      child: Center(
-        child: today
-            ? DecoratedBox(
-                decoration: BoxDecoration(
-                  color: p.primary,
-                  shape: BoxShape.circle,
-                ),
-                child: SizedBox.square(
-                  dimension: 30,
-                  child: Center(child: text),
-                ),
-              )
-            : SizedBox(height: 30, child: Center(child: text)),
-      ),
+    return Center(
+      child: today
+          ? DecoratedBox(
+              decoration: BoxDecoration(
+                color: p.primary,
+                shape: BoxShape.circle,
+              ),
+              child: SizedBox.square(
+                dimension: 32,
+                child: Center(child: FittedBox(child: text)),
+              ),
+            )
+          : FittedBox(fit: BoxFit.scaleDown, child: text),
     );
   }
 }
@@ -308,51 +462,63 @@ class _Bar extends StatelessWidget {
     final p = context.palette;
     final e = segment.event;
     final ended = e.status == EventStatus.ended;
-    final hue = ProgramHues.of(e.id);
-    final radius = BorderRadiusDirectional.horizontal(
-      start: Radius.circular(segment.continuesBefore ? 0 : KRadius.sm),
-      end: Radius.circular(segment.continuesAfter ? 0 : KRadius.sm),
-    );
+    final hue = eventHue(e);
+    final ink = Color.lerp(hue, const Color(0xFF000000), 0.35)!;
+    final textColor = ended ? ink.withValues(alpha: 0.5) : ink;
+    final summary = e.summary;
+    final radius = BorderRadius.circular(5);
     return Semantics(
       button: true,
       label: [
         e.title,
+        ?summary,
         if (ended) l10n.eventsEnded,
-        if (e.featured) l10n.eventsFeatured,
+        if (e.featured && !ended) l10n.eventsFeatured,
       ].join('، '),
       excludeSemantics: true,
       child: Material(
         color: Color.alphaBlend(
-          hue.withValues(alpha: ended ? 0.10 : 0.22),
+          hue.withValues(alpha: ended ? 0.13 : 0.2),
           p.surface,
         ),
         borderRadius: radius,
         child: InkWell(
-          borderRadius: radius.resolve(Directionality.of(context)),
+          borderRadius: radius,
           onTap: () => onOpen(e),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: KSpacing.xs),
-            child: Row(
+            padding: const EdgeInsetsDirectional.only(start: 9, end: 6),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (!segment.continuesBefore && ended) ...[
-                  ProgramTag(l10n.eventsEnded, color: p.textTertiary),
-                  const SizedBox(width: KSpacing.xxs),
-                ] else if (!segment.continuesBefore && e.featured) ...[
-                  ProgramTag(l10n.eventsFeatured, color: KBrandColors.red500),
-                  const SizedBox(width: KSpacing.xxs),
-                ],
-                Expanded(
-                  child: Text(
-                    e.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.clip,
-                    softWrap: false,
-                    style: context.textStyles.caption.copyWith(
-                      color: ended ? p.textTertiary : p.textPrimary,
-                      fontWeight: FontWeight.w700,
-                    ),
+                Text(
+                  e.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  softWrap: false,
+                  textScaler: MediaQuery.textScalerOf(context)
+                      .clamp(maxScaleFactor: 1.15),
+                  style: context.textStyles.caption.copyWith(
+                    color: textColor,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    height: 1.3,
                   ),
                 ),
+                if (summary != null)
+                  Text(
+                    summary,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    softWrap: false,
+                    textScaler: MediaQuery.textScalerOf(context)
+                        .clamp(maxScaleFactor: 1.15),
+                    style: context.textStyles.caption.copyWith(
+                      color: textColor.withValues(alpha: 0.8),
+                      fontSize: 11,
+                      height: 1.3,
+                    ),
+                  ),
               ],
             ),
           ),

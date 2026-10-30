@@ -13993,47 +13993,77 @@ abstract class AppLocalizations {
   /// **'فيديو، {length}، أطول من {seconds} ثانية، لا يمكن استخدامه'**
   String createLibraryVideoTooLong(String length, int seconds);
 
-  /// D166: Task Center tab.
-  ///
-  /// In ar, this message translates to:
-  /// **'المهام اليومية'**
-  String get tasksTabDaily;
-
-  /// D166: Task Center tab (host tasks).
-  ///
-  /// In ar, this message translates to:
-  /// **'المهام الأسبوعية'**
-  String get tasksTabWeekly;
-
   /// D166: tasks failed to load.
   ///
   /// In ar, this message translates to:
   /// **'تعذّر تحميل المهام'**
   String get tasksLoadError;
 
-  /// D166: the level card's points.
+  /// D176: the Task Center tab with the day's tasks and the sign-in rewards.
   ///
   /// In ar, this message translates to:
-  /// **'نقاط الخبرة {points}'**
-  String tasksLevelPoints(String points);
+  /// **'المهام النشطة'**
+  String get tasksTabActive;
 
-  /// D166: the level card when no level system is active.
+  /// D176: the Task Center tab not launched yet («قريباً»).
   ///
   /// In ar, this message translates to:
-  /// **'المستويات غير مفعّلة بعد'**
-  String get tasksLevelNone;
+  /// **'مهام الماس'**
+  String get tasksTabDiamond;
+
+  /// D176: the Diamond missions tab (no reference or rules yet).
+  ///
+  /// In ar, this message translates to:
+  /// **'مهام الماس قريباً'**
+  String get tasksDiamondSoonTitle;
+
+  /// D176: the Diamond missions tab body.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تُطلق مهام الماس بعد. ستظهر هنا عندما يطلقها فريق كبسو.'**
+  String get tasksDiamondSoonBody;
+
+  /// D176: the sign-in card's link to the 7-day calendar sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'التقويم'**
+  String get tasksCheckInCalendar;
+
+  /// D176: sign-ins still needed for the 7th-day bonus (computed by the server's cycle).
+  ///
+  /// In ar, this message translates to:
+  /// **'{days, plural, =1{سجّل يوماً إضافياً لتحصل على مكافأة إضافية} =2{سجّل يومين إضافيين لتحصل على مكافأة إضافية} few{سجّل {days} أيام إضافية لتحصل على مكافأة إضافية} other{سجّل {days} يوماً إضافياً لتحصل على مكافأة إضافية}}'**
+  String tasksCheckInMoreDays(int days);
+
+  /// D176: the 7-day sign-in calendar sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'تقويم تسجيل الدخول'**
+  String get tasksCalendarTitle;
+
+  /// D176: the sign-in calendar sheet's rule line.
+  ///
+  /// In ar, this message translates to:
+  /// **'سجّل الدخول كل يوم: اليوم السابع على التوالي يمنحك {coins} عملة إضافية، ويوم فائت يعيد العدّ.'**
+  String tasksCalendarBody(String coins);
+
+  /// D176: a day's coins in the sign-in calendar sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'{coins} عملة'**
+  String tasksDayCoins(String coins);
+
+  /// D176: the Event Center page title (the reference's «Activities»).
+  ///
+  /// In ar, this message translates to:
+  /// **'الفعاليات'**
+  String get eventsTitle;
 
   /// D166: the check-in section.
   ///
   /// In ar, this message translates to:
-  /// **'تسجيل الدخول اليومي'**
+  /// **'مكافآت تسجيل الدخول'**
   String get tasksCheckInTitle;
-
-  /// D166: days left to the 7th-day bonus.
-  ///
-  /// In ar, this message translates to:
-  /// **'سجّل الدخول {days} أيام أخرى لتحصل على {coins} عملة إضافية'**
-  String tasksCheckInToBonus(String days, String coins);
 
   /// D166: the 7th day of the streak is today.
   ///
@@ -14083,18 +14113,6 @@ abstract class AppLocalizations {
   /// **'تتجدد كل يوم إثنين.'**
   String get tasksWeeklyHint;
 
-  /// D166: weekly tab for someone without the hosting permission.
-  ///
-  /// In ar, this message translates to:
-  /// **'المهام الأسبوعية للمضيفين'**
-  String get tasksWeeklyEmpty;
-
-  /// D166: weekly tab empty message.
-  ///
-  /// In ar, this message translates to:
-  /// **'تظهر هنا مهام البث الأسبوعية لمن لديه صلاحية البث.'**
-  String get tasksWeeklyEmptyBody;
-
   /// D166: no task is configured.
   ///
   /// In ar, this message translates to:
@@ -14116,7 +14134,7 @@ abstract class AppLocalizations {
   /// D166: a done task: claim its coins.
   ///
   /// In ar, this message translates to:
-  /// **'استلام'**
+  /// **'استلم'**
   String get tasksActionClaim;
 
   /// D166: a claimed task / today's check-in done.
@@ -14152,13 +14170,13 @@ abstract class AppLocalizations {
   /// D166: Event Center tab.
   ///
   /// In ar, this message translates to:
-  /// **'فعاليات دائمة'**
+  /// **'الفعاليات الدائمة'**
   String get eventsTabPermanent;
 
   /// D166: Event Center tab.
   ///
   /// In ar, this message translates to:
-  /// **'فعاليات إقليمية'**
+  /// **'الإقليمية'**
   String get eventsTabRegional;
 
   /// D166: the intro card title.
