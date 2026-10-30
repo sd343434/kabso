@@ -17,7 +17,8 @@ abstract class PageInfo with _$PageInfo {
 }
 
 /// v1.54-social (D185): reads `RechargeAgentTag` (`{code}`) to its code;
-/// anything else (absent, null, malformed) is no agent.
+/// anything else (absent, null, malformed) is no agent. v1.58-social
+/// (D189): also `HostAgentTag` (the same shape).
 String? rechargeAgentCodeFromJson(Object? json) => switch (json) {
   {'code': final String code} when code.isNotEmpty => code,
   _ => null,
@@ -51,6 +52,18 @@ abstract class UserSummary with _$UserSummary {
       toJson: rechargeAgentCodeToJson,
     )
     String? rechargeAgentCode,
+
+    /// v1.58-social (D189, §10.52): the user's host-agent code «وكيل مضيفين»
+    /// while their agency is not suspended (`UserSummary.hostAgent.code`,
+    /// the same `{code}` shape): the host-agent badge next to the name and
+    /// the entrance. Null otherwise.
+    @JsonKey(
+      name: 'hostAgent',
+      includeIfNull: false,
+      fromJson: rechargeAgentCodeFromJson,
+      toJson: rechargeAgentCodeToJson,
+    )
+    String? hostAgentCode,
   }) = _UserSummary;
 
   factory fromJson(Map<String, dynamic> json) => _$UserSummaryFromJson(json);

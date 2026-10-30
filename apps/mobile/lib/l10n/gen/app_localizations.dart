@@ -17117,6 +17117,66 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'ينتهي في {date}، ثم يعود اسمك الأساسي.'**
   String changeUsernameSpecialEnds(String date);
+
+  /// D189 host agents
+  ///
+  /// In ar, this message translates to:
+  /// **'وكيل مضيفين {code}'**
+  String hostAgentBadgeLabel(String code);
+
+  /// D189 host agents
+  ///
+  /// In ar, this message translates to:
+  /// **'{name}، وكيل مضيفين'**
+  String hostAgentFrameLabel(String name);
+
+  /// D189 host agents
+  ///
+  /// In ar, this message translates to:
+  /// **'دخل وكيل المضيفين {username}'**
+  String hostAgentEntranceJoined(String username);
+
+  /// D189 host agents
+  ///
+  /// In ar, this message translates to:
+  /// **'وكيل مضيفين · {code}'**
+  String hostAgentIdLine(String code);
+
+  /// D189 host agents
+  ///
+  /// In ar, this message translates to:
+  /// **'وكيل مضيفين'**
+  String get hostAgentCardTitle;
+
+  /// D189 host agents
+  ///
+  /// In ar, this message translates to:
+  /// **'رمز وكيل المضيفين'**
+  String get hostAgentCodeLabel;
+
+  /// D189 host agents
+  ///
+  /// In ar, this message translates to:
+  /// **'إطارك وشارتك ودخولك المميز في البث ظاهرة ما دامت وكالتك قائمة.'**
+  String get hostAgentPerksNote;
+
+  /// D189 host agents
+  ///
+  /// In ar, this message translates to:
+  /// **'الرمز {code} محجوز لك. يظهر اسم المستخدم {shown} لأنه فُعّل أولاً.'**
+  String hostAgentReservedNote(String code, String shown);
+
+  /// D189 host agents
+  ///
+  /// In ar, this message translates to:
+  /// **'مزايا وكيل المضيفين موقوفة. يبقى الرمز {code} محجوزاً لك.'**
+  String hostAgentSuspendedNote(String code);
+
+  /// D189 host agents
+  ///
+  /// In ar, this message translates to:
+  /// **'يُمنح رمز وكيل المضيفين قريباً.'**
+  String get hostAgentPendingNote;
 }
 
 class _AppLocalizationsDelegate

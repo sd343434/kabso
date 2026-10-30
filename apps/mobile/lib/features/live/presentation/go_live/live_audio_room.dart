@@ -924,6 +924,7 @@ class LiveAudioRoomHeader extends StatelessWidget {
     this.username,
     this.premiumTier,
     this.agentCode,
+    this.hostAgentCode,
     this.minimizeKey,
     this.endKey,
     this.onShare,
@@ -969,6 +970,9 @@ class LiveAudioRoomHeader extends StatelessWidget {
 
   /// v1.54-social (D185): the host's recharge-agent code (the badge).
   final String? agentCode;
+
+  /// v1.58-social (D189): the host's host-agent code (its badge too).
+  final String? hostAgentCode;
   final String minimizeTooltip;
   final VoidCallback? onMinimize;
   final String endTooltip;
@@ -1051,6 +1055,7 @@ class LiveAudioRoomHeader extends StatelessWidget {
                                 ],
                                 RechargeAgentInlineBadge(
                                   code: agentCode,
+                                  hostCode: hostAgentCode,
                                   height: 13,
                                 ),
                               ],

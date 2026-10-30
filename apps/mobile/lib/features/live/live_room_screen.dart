@@ -954,6 +954,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         username: host.username,
         premiumTier: host.premiumTier,
         agentCode: host.rechargeAgentCode,
+        hostAgentCode: host.hostAgentCode,
         hostName: host.displayName,
         avatar: avatar,
         lines: ended
@@ -1314,6 +1315,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                   username: host.username,
                   premiumTier: host.premiumTier,
                   agentCode: host.rechargeAgentCode,
+                  hostAgentCode: host.hostAgentCode,
                   onTap: () => _person(_username),
                   action: canFollow
                       ? LiveRoundButton(
@@ -1993,6 +1995,7 @@ class _HostSheet extends ConsumerWidget {
   /// D185: the recharge agent's frame and badge on the card.
   static const agentFrameKey = Key('room.userCard.agentFrame');
   static const agentBadgeKey = Key('room.userCard.agentBadge');
+  static const hostAgentBadgeKey = Key('room.userCard.hostAgentBadge');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -2019,16 +2022,22 @@ class _HostSheet extends ConsumerWidget {
     // D185: an ACTIVE recharge agent wears the agent frame (it wins over the
     // CP frame), with their code in its plate.
     final agentCode = profile?.rechargeAgentCode;
-    final framed = agentCode != null || cpWearsSpecialFrame(profile?.cp);
-    final frameWidth = agentCode != null
-        ? _Card.avatar * 1.6
+    // D189: a host agent wears the host-agent frame (no name); D189 d: the
+    // recharge-agent frame wins over it, either over the CP frame.
+    final frameKind = agentFrameKindFor(
+      rechargeCode: agentCode,
+      hostCode: profile?.hostAgentCode,
+    );
+    final framed = frameKind != null || cpWearsSpecialFrame(profile?.cp);
+    final frameWidth = frameKind != null
+        ? AgentFrameGeometry.width(frameKind, _Card.avatar)
         : CpSpecialFrameAvatar.widthForAvatar(_Card.avatar);
-    final frameTop = agentCode != null
-        ? RechargeAgentFrame.pictureCentreY(frameWidth)
+    final frameTop = frameKind != null
+        ? AgentFrameGeometry.pictureCentreY(frameKind, frameWidth)
         : CpSpecialFrameAvatar.pictureCentreY(frameWidth);
     final frameBelow =
-        (agentCode != null
-            ? RechargeAgentFrame.heightFor(frameWidth)
+        (frameKind != null
+            ? AgentFrameGeometry.height(frameKind, frameWidth)
             : CpSpecialFrameAvatar.heightFor(frameWidth)) -
         frameTop;
     void close(VoidCallback then) {
@@ -2134,6 +2143,15 @@ class _HostSheet extends ConsumerWidget {
                       height: 22,
                     ),
                   ],
+                  // D189: a host agent's badge, placed as the recharge one.
+                  if (profile.hostAgentCode case final code?) ...[
+                    const SizedBox(width: 6),
+                    HostAgentBadge(
+                      key: hostAgentBadgeKey,
+                      code: code,
+                      height: 22,
+                    ),
+                  ],
                   // Owner (2026-10-26): everyone sees that the person is the
                   // host or a moderator of this live.
                   if (scope?.target case final role?
@@ -2201,6 +2219,19 @@ class _HostSheet extends ConsumerWidget {
                     key: const Key('room.userCard.agentCode'),
                     style: text.caption.copyWith(
                       color: const Color(0xFFC0262D),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              // D189: the host agent's code under it.
+              if (profile.hostAgentCode case final code?)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    l10n.hostAgentIdLine(KFormat.bidiIsolate(code)),
+                    key: const Key('room.userCard.hostAgentCode'),
+                    style: text.caption.copyWith(
+                      color: const Color(0xFF1D5FD1),
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -2543,12 +2574,19 @@ class _HostSheet extends ConsumerWidget {
                         context.push(AppRoutes.userProfile(username)),
                       ),
                     ),
-                    child: agentCode != null
+                    child: frameKind == AgentFrameKind.recharge
                         ? RechargeAgentFrame(
                             key: agentFrameKey,
                             width: frameWidth,
                             name: profile?.displayName ?? username,
-                            code: agentCode,
+                            code: agentCode!,
+                            image: _networkImage(profile?.avatarUrl),
+                          )
+                        : frameKind == AgentFrameKind.host
+                        ? HostAgentFrame(
+                            key: agentFrameKey,
+                            width: frameWidth,
+                            name: profile?.displayName ?? username,
                             image: _networkImage(profile?.avatarUrl),
                           )
                         : framed

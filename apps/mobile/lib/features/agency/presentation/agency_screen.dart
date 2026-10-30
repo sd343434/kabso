@@ -12,6 +12,8 @@ import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/agency/application/agency_providers.dart';
 import 'package:kabso_live/features/agency/data/agency_repository.dart';
+import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
 import 'package:kabso_live/features/wallet/presentation/me_page_parts.dart';
 import 'package:kabso_live/features/wallet/presentation/wallet_cherry_tab.dart'
     show sharePercent;
@@ -49,6 +51,11 @@ class AgencyScreen extends ConsumerWidget {
   static const inviteKey = Key('agency.invite');
   static const copyKey = Key('agency.copy');
   static const rankKey = Key('agency.rank');
+
+  /// v1.58-social (D189): the host-agent card, its code and its note.
+  static const hostAgentKey = Key('agency.hostAgent');
+  static const hostAgentCodeKey = Key('agency.hostAgent.code');
+  static const hostAgentNoteKey = Key('agency.hostAgent.note');
   static const progressKey = Key('agency.progress');
   static const commissionKey = Key('agency.commission');
   static const hostsEmptyKey = Key('agency.hosts.empty');
@@ -197,6 +204,57 @@ class AgencyScreen extends ConsumerWidget {
           style: t.caption.copyWith(color: p.textSecondary),
         ),
       ),
+      // v1.58-social (D189, §10.52): the owner as a host agent «وكيل مضيفين».
+      if (own.hostAgentCode case final code?) ...[
+        const SizedBox(height: KSpacing.md),
+        WalletSection(
+          key: hostAgentKey,
+          title: l10n.hostAgentCardTitle,
+          children: [
+            Row(
+              children: [
+                HostAgentBadge(code: code, height: 40),
+                const SizedBox(width: KSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        l10n.hostAgentCodeLabel,
+                        style: t.caption.copyWith(color: p.textSecondary),
+                      ),
+                      Text(
+                        code,
+                        key: hostAgentCodeKey,
+                        textDirection: TextDirection.ltr,
+                        style: t.title.copyWith(color: p.textPrimary),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: KSpacing.sm),
+            Text(
+              key: hostAgentNoteKey,
+              !own.hostAgentActive
+                  ? l10n.hostAgentSuspendedNote(KFormat.bidiIsolate(code))
+                  : own.hostAgentUsernameShown
+                  ? l10n.hostAgentPerksNote
+                  : l10n.hostAgentReservedNote(
+                      KFormat.bidiIsolate(code),
+                      KFormat.bidiIsolate(
+                        ref.watch(
+                              currentUserProvider.select((u) => u?.username),
+                            ) ??
+                            '',
+                      ),
+                    ),
+              style: t.caption.copyWith(color: p.textSecondary),
+            ),
+          ],
+        ),
+      ],
       const SizedBox(height: KSpacing.md),
       WalletSection(
         key: rankKey,

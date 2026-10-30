@@ -54,22 +54,45 @@ class RechargeAgentBadge extends StatelessWidget {
   );
 }
 
-/// [RechargeAgentBadge] when [code] is set (the person is an ACTIVE agent),
-/// with [gap] before it; nothing otherwise.
+/// The agent badges next to a name: [RechargeAgentBadge] when [code] is set
+/// (an ACTIVE recharge agent) and — v1.58-social (D189) — [HostAgentBadge]
+/// when [hostCode] is set (a host agent), each with [gap] before it; both
+/// when the person is both (owner proposal D189 c); nothing otherwise.
 class RechargeAgentInlineBadge extends StatelessWidget {
-  const new({required this.code, super.key, this.height = 16, this.gap = 4});
+  const new({
+    required this.code,
+    super.key,
+    this.hostCode,
+    this.height = 16,
+    this.gap = 4,
+  });
 
   final String? code;
+  final String? hostCode;
   final double height;
   final double gap;
 
   @override
   Widget build(BuildContext context) {
     final code = this.code;
-    if (code == null) return const SizedBox.shrink();
-    return Padding(
+    final hostCode = this.hostCode;
+    if (code == null && hostCode == null) return const SizedBox.shrink();
+    Widget pad(Widget child) => Padding(
       padding: EdgeInsetsDirectional.only(start: gap),
-      child: RechargeAgentBadge(code: code, height: height),
+      child: child,
+    );
+    if (hostCode == null) {
+      return pad(RechargeAgentBadge(code: code!, height: height));
+    }
+    if (code == null) {
+      return pad(HostAgentBadge(code: hostCode, height: height));
+    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        pad(RechargeAgentBadge(code: code, height: height)),
+        pad(HostAgentBadge(code: hostCode, height: height)),
+      ],
     );
   }
 }
@@ -208,6 +231,163 @@ class RechargeAgentFrame extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The host-agent perks «وكيل مضيفين» (v1.58-social, D189, CONVENTIONS
+/// §10.52): the owner's art in `assets/host_agent/` (PROVENANCE.md). Shown
+/// only while the server says the person is a host agent (`hostAgent.code`:
+/// the agency exists and is not suspended, any rank).
+abstract final class HostAgentArt {
+  static const frame = 'assets/host_agent/avatar_frame.webp';
+  static const badge = 'assets/host_agent/badge.webp';
+  static const entrance = 'assets/host_agent/entrance_bar.webp';
+
+  /// The badge and the frame are square (240 × 240, 512 × 512).
+  static const double badgeAspect = 1;
+  static const double frameAspect = 1;
+
+  /// The entrance bar's width / height (1050 × 389).
+  static const double entranceAspect = 1050 / 389;
+}
+
+/// The host-agent badge «وكيل مضيفين»: placed exactly as
+/// [RechargeAgentBadge] — beside the name on the profile and the person
+/// card, and inline next to the name everywhere it shows in a live room.
+/// Announced as «وكيل مضيفين host03».
+class HostAgentBadge extends StatelessWidget {
+  const new({required this.code, super.key, this.height = 18});
+
+  final String code;
+
+  /// The art's height; the width follows its proportions.
+  final double height;
+
+  static const badgeKey = Key('hostAgent.badge');
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    label: context.l10n.hostAgentBadgeLabel(KFormat.bidiIsolate(code)),
+    excludeSemantics: true,
+    child: Image.asset(
+      HostAgentArt.badge,
+      key: badgeKey,
+      height: height,
+      width: height * HostAgentArt.badgeAspect,
+      fit: BoxFit.contain,
+      excludeFromSemantics: true,
+    ),
+  );
+}
+
+/// The host-agent frame (owner's art): the person's photo in the round
+/// opening. The art has no name plate, so no text is written. [width] is
+/// the frame's width (it is square).
+class HostAgentFrame extends StatelessWidget {
+  const new({
+    required this.width,
+    required this.name,
+    super.key,
+    this.imageUrl,
+    this.image,
+  });
+
+  final double width;
+  final String name;
+  final String? imageUrl;
+  final ImageProvider? image;
+
+  // Measured from the alpha channel of the trimmed square (PROVENANCE.md):
+  // the opening's centre and radius as fractions of the side.
+  static const double _cx = 0.4995;
+  static const double _cy = 0.4815;
+  static const double _r = 0.2645;
+
+  /// The photo is drawn this much larger so its edge tucks under the ring.
+  static const double _tuck = 1.04;
+
+  static const frameKey = Key('hostAgent.frame');
+
+  /// The frame's height for [width].
+  static double heightFor(double width) => width / HostAgentArt.frameAspect;
+
+  /// The frame width whose drawn photo is [picture] wide.
+  static double widthForPicture(double picture) => picture / (2 * _r * _tuck);
+
+  /// How far below the frame's top the picture's centre sits.
+  static double pictureCentreY(double width) => heightFor(width) * _cy;
+
+  @override
+  Widget build(BuildContext context) {
+    final picture = width * 2 * _r * _tuck;
+    return Semantics(
+      key: frameKey,
+      label: context.l10n.hostAgentFrameLabel(KFormat.bidiIsolate(name)),
+      image: true,
+      excludeSemantics: true,
+      child: SizedBox.square(
+        dimension: width,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned(
+              left: width * _cx - picture / 2,
+              top: width * _cy - picture / 2,
+              width: picture,
+              height: picture,
+              child: KAvatar(
+                name: name,
+                imageUrl: imageUrl,
+                image: image,
+                size: picture,
+              ),
+            ),
+            Positioned.fill(
+              child: Image.asset(
+                HostAgentArt.frame,
+                fit: BoxFit.fill,
+                excludeFromSemantics: true,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Which agent frame a person wears around the profile / person-card photo.
+enum AgentFrameKind { recharge, host }
+
+/// Owner proposal D189 d (pending confirmation; the single place to change
+/// it): the recharge-agent frame wins over the host-agent frame, and either
+/// wins over a frame worn from the bag (or the CP frame).
+AgentFrameKind? agentFrameKindFor({String? rechargeCode, String? hostCode}) =>
+    rechargeCode != null
+    ? AgentFrameKind.recharge
+    : hostCode != null
+    ? AgentFrameKind.host
+    : null;
+
+/// The geometry of the agent frames around an avatar-sized picture, so a
+/// header can lay either out the same way.
+abstract final class AgentFrameGeometry {
+  /// The frame's width around a picture of [avatar].
+  static double width(AgentFrameKind kind, double avatar) => switch (kind) {
+    AgentFrameKind.recharge => avatar * 1.6,
+    // The same drawn photo size as the recharge frame's (≈ 0.93 × avatar).
+    AgentFrameKind.host => HostAgentFrame.widthForPicture(avatar * 0.93),
+  };
+
+  static double height(AgentFrameKind kind, double width) => switch (kind) {
+    AgentFrameKind.recharge => RechargeAgentFrame.heightFor(width),
+    AgentFrameKind.host => HostAgentFrame.heightFor(width),
+  };
+
+  static double pictureCentreY(AgentFrameKind kind, double width) =>
+      switch (kind) {
+        AgentFrameKind.recharge => RechargeAgentFrame.pictureCentreY(width),
+        AgentFrameKind.host => HostAgentFrame.pictureCentreY(width),
+      };
 }
 
 /// Whether [text] in [style] fits [width] on one line.

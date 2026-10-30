@@ -21,6 +21,7 @@ import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/application/live_wallet_controller.dart';
 import 'package:kabso_live/features/live/data/home_banners_repository.dart';
 import 'package:kabso_live/features/programs/data/programs_repository.dart';
+import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
 import 'package:kabso_live/features/wallet/data/cherry_repository.dart';
 import 'package:kabso_live/features/wallet/presentation/cherry_withdraw_sheet.dart';
 import 'package:kabso_live/features/wallet/presentation/wallet_cherry_tab.dart';
@@ -420,6 +421,57 @@ void main() {
       expect(find.text(_en.agencyHostActive), findsOneWidget);
       expect(find.text(_en.agencyHostInactive), findsOneWidget);
       expect(find.text(_en.agencyHostNoCommission), findsOneWidget);
+    });
+
+    // v1.58-social (D189): the owner's host-agent code, its badge and what
+    // the code does now (shown, reserved behind a recharge code, suspended).
+    testWidgets('the host-agent card: code, badge and note', (tester) async {
+      for (final (shown, active, note) in [
+        (true, true, _en.hostAgentPerksNote),
+        (false, true, null),
+        (false, false, _en.hostAgentSuspendedNote('\u2068host07\u2069')),
+      ]) {
+        await _pump(
+          tester,
+          AppRoutes.agency,
+          agency: FakeAgencyRepository(
+            mine: testMyAgency(
+              own: testOwnAgency(
+                hostAgentCode: 'host07',
+                hostAgentActive: active,
+                hostAgentUsernameShown: shown,
+              ),
+            ),
+          ),
+        );
+        expect(find.byKey(AgencyScreen.hostAgentKey), findsOneWidget);
+        expect(
+          tester.widget<Text>(find.byKey(AgencyScreen.hostAgentCodeKey)).data,
+          'host07',
+        );
+        expect(
+          find.descendant(
+            of: find.byKey(AgencyScreen.hostAgentKey),
+            matching: find.byType(HostAgentBadge),
+          ),
+          findsOneWidget,
+        );
+        final text = tester
+            .widget<Text>(find.byKey(AgencyScreen.hostAgentNoteKey))
+            .data!;
+        if (note != null) {
+          expect(text, note);
+        } else {
+          expect(text, contains('host07'));
+        }
+      }
+      // An older server: no card.
+      await _pump(
+        tester,
+        AppRoutes.agency,
+        agency: FakeAgencyRepository(mine: testMyAgency(own: testOwnAgency())),
+      );
+      expect(find.byKey(AgencyScreen.hostAgentKey), findsNothing);
     });
 
     testWidgets('an agency admin sees the sub-agencies and the 3 %', (

@@ -187,6 +187,8 @@ class _OwnHeader extends ConsumerWidget {
       agentCode: agent?.status == RechargeAgentStatus.active
           ? agent?.code
           : null,
+      // D189: the own host-agent frame and badge (from the profile read).
+      hostAgentCode: stats?.hostAgentCode,
       displayName: user.displayName,
       avatarUrl: user.avatarUrl,
       bio: user.bio,
@@ -268,7 +270,14 @@ class ProfileHeaderView extends StatelessWidget {
     this.subtitle,
     this.about,
     this.agentCode,
+    this.hostAgentCode,
   });
+
+  /// v1.58-social (D189, §10.52): the person's code while they are a host
+  /// agent: the host-agent badge beside the name (after the recharge one)
+  /// and the host-agent frame unless the recharge-agent frame wins
+  /// ([agentFrameKindFor]).
+  final String? hostAgentCode;
 
   /// v1.54-social (D185): the person's code while they are an ACTIVE
   /// recharge agent: the agent frame (with the code in its plate) around
@@ -315,6 +324,7 @@ class ProfileHeaderView extends StatelessWidget {
   static const cpFrameKey = Key('profile.avatar.cpFrame');
   static const agentFrameKey = Key('profile.avatar.agentFrame');
   static const agentBadgeKey = Key('profile.agentBadge');
+  static const hostAgentBadgeKey = Key('profile.hostAgentBadge');
 
   @override
   Widget build(BuildContext context) {
@@ -358,12 +368,25 @@ class ProfileHeaderView extends StatelessWidget {
       ),
     );
     final agentCode = this.agentCode;
-    final avatar = agentCode != null && !live
+    final hostCode = hostAgentCode;
+    // D189 d: recharge-agent frame > host-agent frame > the CP / bag frame.
+    final frameKind = agentFrameKindFor(
+      rechargeCode: agentCode,
+      hostCode: hostCode,
+    );
+    final avatar = frameKind == AgentFrameKind.recharge && !live
         ? RechargeAgentFrame(
             key: agentFrameKey,
-            width: KProfile.avatar * 1.6,
+            width: AgentFrameGeometry.width(frameKind!, KProfile.avatar),
             name: displayName,
-            code: agentCode,
+            code: agentCode!,
+            imageUrl: avatarUrl,
+          )
+        : frameKind == AgentFrameKind.host && !live
+        ? HostAgentFrame(
+            key: agentFrameKey,
+            width: AgentFrameGeometry.width(frameKind!, KProfile.avatar),
+            name: displayName,
             imageUrl: avatarUrl,
           )
         : cpFrame && !live
@@ -437,6 +460,9 @@ class ProfileHeaderView extends StatelessWidget {
               ),
               if (agentCode case final code?)
                 RechargeAgentBadge(key: agentBadgeKey, code: code, height: 22),
+              // D189: the host-agent badge, placed as the recharge one.
+              if (hostCode case final code?)
+                HostAgentBadge(key: hostAgentBadgeKey, code: code, height: 22),
               ?nameTrailing,
             ],
           ),

@@ -661,6 +661,7 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
               key: SeatControlKeys.moderatorUser(u.username),
               name: u.displayName,
               agentCode: u.rechargeAgentCode,
+              hostAgentCode: u.hostAgentCode,
               handle: _moderators.contains(u.username)
                   ? '${KHandle.plain(u.username, premiumTier: u.premiumTier)}'
                         ' · ${l10n.liveSeatModeratorTag}'
@@ -826,6 +827,7 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
             context,
             name: r.user.displayName,
             agentCode: r.user.rechargeAgentCode,
+            hostAgentCode: r.user.hostAgentCode,
             handle: r.seatIndex == null
                 ? KHandle.plain(
                     r.user.username,
@@ -1005,6 +1007,7 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
     Key? key,
     String? handle,
     String? agentCode,
+    String? hostAgentCode,
     VoidCallback? onTap,
     List<Widget> actions = const [],
   }) {
@@ -1034,7 +1037,11 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
                       ),
                     ),
                     // D185 (owner): a recharge agent's badge after the name.
-                    RechargeAgentInlineBadge(code: agentCode, height: 18),
+                    RechargeAgentInlineBadge(
+                      code: agentCode,
+                      hostCode: hostAgentCode,
+                      height: 18,
+                    ),
                   ],
                 ),
                 if (handle != null)

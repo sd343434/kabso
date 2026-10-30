@@ -80,6 +80,9 @@ enum SpecialUsernameSource {
   rechargeAgent('RECHARGE_AGENT'),
   adminGift('ADMIN_GIFT'),
   purchase('PURCHASE'),
+
+  /// v1.58-social (D189): a host agent's `hostNN`.
+  hostAgent('HOST_AGENT'),
   other('');
 
   new(this.wire);

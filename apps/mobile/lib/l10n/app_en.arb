@@ -3171,5 +3171,15 @@
   "settingsUsernameLocked": "Locked",
   "settingsBaseUsername": "Your own username: {username}",
   "changeUsernameSpecialLocked": "{special} is a locked special username and can't be changed while it's active. Everyone else sees only it; your own username {base} is visible only to you, and you can still sign in with it.",
-  "changeUsernameSpecialEnds": "It ends on {date}, then your own username comes back."
+  "changeUsernameSpecialEnds": "It ends on {date}, then your own username comes back.",
+  "hostAgentBadgeLabel": "Host agent {code}",
+  "hostAgentFrameLabel": "{name}, host agent",
+  "hostAgentEntranceJoined": "Host agent {username} joined",
+  "hostAgentIdLine": "Host agent · {code}",
+  "hostAgentCardTitle": "Host agent",
+  "hostAgentCodeLabel": "Host-agent code",
+  "hostAgentPerksNote": "Your frame, badge and live entrance show while your agency is active.",
+  "hostAgentReservedNote": "{code} is reserved for you. Your username shows {shown} because it was activated first.",
+  "hostAgentSuspendedNote": "Your host-agent perks are suspended. {code} stays reserved for you.",
+  "hostAgentPendingNote": "Your host-agent code is on its way."
 }

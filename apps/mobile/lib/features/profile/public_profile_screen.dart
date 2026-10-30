@@ -483,6 +483,8 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
               cpFrame: cpWearsSpecialFrame(profile.cp),
               // D185: an ACTIVE recharge agent's frame and badge.
               agentCode: profile.rechargeAgentCode,
+              // D189: a host agent's frame and badge.
+              hostAgentCode: profile.hostAgentCode,
               // D175: the category (and a gender the person shows) under
               // the name; the links after the bio — on a private profile
               // too (the profile itself is public, §10.47).

@@ -209,6 +209,7 @@ class _VideoSeatTile extends StatelessWidget {
                 // D185 (owner): a recharge agent's badge after the name.
                 RechargeAgentInlineBadge(
                   code: user.rechargeAgentCode,
+                  hostCode: user.hostAgentCode,
                   height: 13,
                   gap: 3,
                 ),
@@ -820,6 +821,7 @@ class AudioSeatRing extends StatelessWidget {
         key: seatKey(i),
         label: user.displayName,
         agentCode: user.rechargeAgentCode,
+        hostAgentCode: user.hostAgentCode,
         semantics: user.displayName,
         muted: seat.mutedByHost || micOff.contains(i),
         speaking: speaking.contains(i),
@@ -914,10 +916,14 @@ class _Seat extends StatelessWidget {
     this.cpMic = false,
     this.overlay,
     this.agentCode,
+    this.hostAgentCode,
   });
 
   /// v1.54-social (D185): the seated person's recharge-agent code.
   final String? agentCode;
+
+  /// v1.58-social (D189): the seated person's host-agent code.
+  final String? hostAgentCode;
 
   /// D115: the seat's partner couple has the Couple Mic Effect.
   final bool cpMic;
@@ -978,7 +984,7 @@ class _Seat extends StatelessWidget {
           ),
           // The label's centre 39 pt below the seat's (ref 83).
           const SizedBox(height: 2),
-          _SeatLabel(label, agentCode: agentCode),
+          _SeatLabel(label, agentCode: agentCode, hostAgentCode: hostAgentCode),
         ],
       ),
     ),
@@ -1146,12 +1152,15 @@ class _PointsPill extends StatelessWidget {
 }
 
 class _SeatLabel extends StatelessWidget {
-  const new(this.text, {this.agentCode});
+  const new(this.text, {this.agentCode, this.hostAgentCode});
 
   final String text;
 
   /// v1.54-social (D185): the seated person's recharge-agent code (badge).
   final String? agentCode;
+
+  /// v1.58-social (D189): the seated person's host-agent code (badge).
+  final String? hostAgentCode;
 
   /// A soft dark shadow keeps a seat's number or name readable on every
   /// room theme, bright ones too (D118), and on CP ring art.
@@ -1177,13 +1186,18 @@ class _SeatLabel extends StatelessWidget {
     );
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 2),
-      child: agentCode == null
+      child: agentCode == null && hostAgentCode == null
           ? label
           : Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Flexible(child: label),
-                RechargeAgentInlineBadge(code: agentCode, height: 12, gap: 2),
+                RechargeAgentInlineBadge(
+                  code: agentCode,
+                  hostCode: hostAgentCode,
+                  height: 12,
+                  gap: 2,
+                ),
               ],
             ),
     );

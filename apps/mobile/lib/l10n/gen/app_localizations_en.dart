@@ -9989,4 +9989,47 @@ class AppLocalizationsEn extends AppLocalizations {
   String changeUsernameSpecialEnds(String date) {
     return 'It ends on $date, then your own username comes back.';
   }
+
+  @override
+  String hostAgentBadgeLabel(String code) {
+    return 'Host agent $code';
+  }
+
+  @override
+  String hostAgentFrameLabel(String name) {
+    return '$name, host agent';
+  }
+
+  @override
+  String hostAgentEntranceJoined(String username) {
+    return 'Host agent $username joined';
+  }
+
+  @override
+  String hostAgentIdLine(String code) {
+    return 'Host agent · $code';
+  }
+
+  @override
+  String get hostAgentCardTitle => 'Host agent';
+
+  @override
+  String get hostAgentCodeLabel => 'Host-agent code';
+
+  @override
+  String get hostAgentPerksNote =>
+      'Your frame, badge and live entrance show while your agency is active.';
+
+  @override
+  String hostAgentReservedNote(String code, String shown) {
+    return '$code is reserved for you. Your username shows $shown because it was activated first.';
+  }
+
+  @override
+  String hostAgentSuspendedNote(String code) {
+    return 'Your host-agent perks are suspended. $code stays reserved for you.';
+  }
+
+  @override
+  String get hostAgentPendingNote => 'Your host-agent code is on its way.';
 }

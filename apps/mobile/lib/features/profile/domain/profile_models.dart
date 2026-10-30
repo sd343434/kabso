@@ -79,6 +79,17 @@ abstract class PublicProfile with _$PublicProfile {
       toJson: rechargeAgentCodeToJson,
     )
     String? rechargeAgentCode,
+
+    /// v1.58-social (D189, §10.52): the user's code while they are a host
+    /// agent (agency not suspended) — the host-agent frame (no name) and
+    /// badge. Null otherwise (also on older servers).
+    @JsonKey(
+      name: 'hostAgent',
+      includeIfNull: false,
+      fromJson: rechargeAgentCodeFromJson,
+      toJson: rechargeAgentCodeToJson,
+    )
+    String? hostAgentCode,
   }) = _PublicProfile;
 
   const new _();

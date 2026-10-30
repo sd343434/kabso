@@ -472,11 +472,15 @@ class KHostPill extends StatefulWidget {
     this.username,
     this.premiumTier,
     this.agentCode,
+    this.hostAgentCode,
   });
 
   /// v1.54-social (D185): the host's recharge-agent code while ACTIVE (the
   /// badge after the name).
   final String? agentCode;
+
+  /// v1.58-social (D189): the host's host-agent code (its badge too).
+  final String? hostAgentCode;
 
   /// D141 (owner, replaces D135's room ID): the host's `@username` beside
   /// the name; a tap copies it ([KLiveUsernameTag]).
@@ -686,6 +690,7 @@ class _KHostPillState extends State<KHostPill> {
                         ),
                         RechargeAgentInlineBadge(
                           code: widget.agentCode,
+                          hostCode: widget.hostAgentCode,
                           height: 14,
                           gap: 3,
                         ),

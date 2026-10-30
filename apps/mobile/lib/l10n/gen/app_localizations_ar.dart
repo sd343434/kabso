@@ -10010,4 +10010,47 @@ class AppLocalizationsAr extends AppLocalizations {
   String changeUsernameSpecialEnds(String date) {
     return 'ينتهي في $date، ثم يعود اسمك الأساسي.';
   }
+
+  @override
+  String hostAgentBadgeLabel(String code) {
+    return 'وكيل مضيفين $code';
+  }
+
+  @override
+  String hostAgentFrameLabel(String name) {
+    return '$name، وكيل مضيفين';
+  }
+
+  @override
+  String hostAgentEntranceJoined(String username) {
+    return 'دخل وكيل المضيفين $username';
+  }
+
+  @override
+  String hostAgentIdLine(String code) {
+    return 'وكيل مضيفين · $code';
+  }
+
+  @override
+  String get hostAgentCardTitle => 'وكيل مضيفين';
+
+  @override
+  String get hostAgentCodeLabel => 'رمز وكيل المضيفين';
+
+  @override
+  String get hostAgentPerksNote =>
+      'إطارك وشارتك ودخولك المميز في البث ظاهرة ما دامت وكالتك قائمة.';
+
+  @override
+  String hostAgentReservedNote(String code, String shown) {
+    return 'الرمز $code محجوز لك. يظهر اسم المستخدم $shown لأنه فُعّل أولاً.';
+  }
+
+  @override
+  String hostAgentSuspendedNote(String code) {
+    return 'مزايا وكيل المضيفين موقوفة. يبقى الرمز $code محجوزاً لك.';
+  }
+
+  @override
+  String get hostAgentPendingNote => 'يُمنح رمز وكيل المضيفين قريباً.';
 }
