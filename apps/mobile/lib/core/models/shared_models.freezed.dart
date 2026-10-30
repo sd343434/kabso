@@ -301,7 +301,10 @@ mixin _$UserSummary {
 @JsonKey(name: 'hostAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson) String? get hostAgentCode;/// v1.55-social (D186, §10.49): the avatar frame the user wears
 /// (`UserSummary.avatarFrame`, present only while one is worn): drawn
 /// around the picture on the live seats. Null otherwise.
-@JsonKey(includeIfNull: false, fromJson: avatarFrameFromJson, toJson: avatarFrameToJson) AvatarFrame? get avatarFrame;
+@JsonKey(includeIfNull: false, fromJson: avatarFrameFromJson, toJson: avatarFrameToJson) AvatarFrame? get avatarFrame;/// v1.56-social (D187, §10.50): the daily recharge badge while it shows
+/// (never for a recharge agent): next to the name in live rooms like the
+/// level badge. Null otherwise (also on older servers).
+@JsonKey(includeIfNull: false, fromJson: rechargeBadgeFromJson, toJson: rechargeBadgeToJson) RechargeBadge? get rechargeBadge;
 /// Create a copy of UserSummary
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -315,20 +318,20 @@ $UserSummaryCopyWith<UserSummary> get copyWith => _$UserSummaryCopyWithImpl<User
 @override
 bool operator ==(Object other) {
   final _this = this as UserSummary;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is UserSummary&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.username, _this.username) || other.username == _this.username)&&(identical(other.displayName, _this.displayName) || other.displayName == _this.displayName)&&(identical(other.avatarUrl, _this.avatarUrl) || other.avatarUrl == _this.avatarUrl)&&(identical(other.premiumTier, _this.premiumTier) || other.premiumTier == _this.premiumTier)&&(identical(other.rechargeAgentCode, _this.rechargeAgentCode) || other.rechargeAgentCode == _this.rechargeAgentCode)&&(identical(other.hostAgentCode, _this.hostAgentCode) || other.hostAgentCode == _this.hostAgentCode)&&(identical(other.avatarFrame, _this.avatarFrame) || other.avatarFrame == _this.avatarFrame));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is UserSummary&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.username, _this.username) || other.username == _this.username)&&(identical(other.displayName, _this.displayName) || other.displayName == _this.displayName)&&(identical(other.avatarUrl, _this.avatarUrl) || other.avatarUrl == _this.avatarUrl)&&(identical(other.premiumTier, _this.premiumTier) || other.premiumTier == _this.premiumTier)&&(identical(other.rechargeAgentCode, _this.rechargeAgentCode) || other.rechargeAgentCode == _this.rechargeAgentCode)&&(identical(other.hostAgentCode, _this.hostAgentCode) || other.hostAgentCode == _this.hostAgentCode)&&(identical(other.avatarFrame, _this.avatarFrame) || other.avatarFrame == _this.avatarFrame)&&(identical(other.rechargeBadge, _this.rechargeBadge) || other.rechargeBadge == _this.rechargeBadge));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as UserSummary;
-  return Object.hash(runtimeType,_this.id,_this.username,_this.displayName,_this.avatarUrl,_this.premiumTier,_this.rechargeAgentCode,_this.hostAgentCode,_this.avatarFrame);
+  return Object.hash(runtimeType,_this.id,_this.username,_this.displayName,_this.avatarUrl,_this.premiumTier,_this.rechargeAgentCode,_this.hostAgentCode,_this.avatarFrame,_this.rechargeBadge);
 }
 
 @override
 String toString() {
   final _this = this as UserSummary;
-  return 'UserSummary(id: ${_this.id}, username: ${_this.username}, displayName: ${_this.displayName}, avatarUrl: ${_this.avatarUrl}, premiumTier: ${_this.premiumTier}, rechargeAgentCode: ${_this.rechargeAgentCode}, hostAgentCode: ${_this.hostAgentCode}, avatarFrame: ${_this.avatarFrame})';
+  return 'UserSummary(id: ${_this.id}, username: ${_this.username}, displayName: ${_this.displayName}, avatarUrl: ${_this.avatarUrl}, premiumTier: ${_this.premiumTier}, rechargeAgentCode: ${_this.rechargeAgentCode}, hostAgentCode: ${_this.hostAgentCode}, avatarFrame: ${_this.avatarFrame}, rechargeBadge: ${_this.rechargeBadge})';
 }
 
 
@@ -339,7 +342,7 @@ abstract mixin class $UserSummaryCopyWith<$Res>  {
   factory $UserSummaryCopyWith(UserSummary value, $Res Function(UserSummary) _then) = _$UserSummaryCopyWithImpl;
 @useResult
 $Res call({
- String id, String username, String displayName, String? avatarUrl,@JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson) PremiumTier? premiumTier,@JsonKey(name: 'rechargeAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson) String? rechargeAgentCode,@JsonKey(name: 'hostAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson) String? hostAgentCode,@JsonKey(includeIfNull: false, fromJson: avatarFrameFromJson, toJson: avatarFrameToJson) AvatarFrame? avatarFrame
+ String id, String username, String displayName, String? avatarUrl,@JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson) PremiumTier? premiumTier,@JsonKey(name: 'rechargeAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson) String? rechargeAgentCode,@JsonKey(name: 'hostAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson) String? hostAgentCode,@JsonKey(includeIfNull: false, fromJson: avatarFrameFromJson, toJson: avatarFrameToJson) AvatarFrame? avatarFrame,@JsonKey(includeIfNull: false, fromJson: rechargeBadgeFromJson, toJson: rechargeBadgeToJson) RechargeBadge? rechargeBadge
 });
 
 
@@ -356,7 +359,7 @@ class _$UserSummaryCopyWithImpl<$Res>
 
 /// Create a copy of UserSummary
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? username = null,Object? displayName = null,Object? avatarUrl = freezed,Object? premiumTier = freezed,Object? rechargeAgentCode = freezed,Object? hostAgentCode = freezed,Object? avatarFrame = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? username = null,Object? displayName = null,Object? avatarUrl = freezed,Object? premiumTier = freezed,Object? rechargeAgentCode = freezed,Object? hostAgentCode = freezed,Object? avatarFrame = freezed,Object? rechargeBadge = freezed,}) {
   return _then(UserSummary(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,username: null == username ? _self.username : username // ignore: cast_nullable_to_non_nullable
@@ -366,7 +369,8 @@ as String?,premiumTier: freezed == premiumTier ? _self.premiumTier : premiumTier
 as PremiumTier?,rechargeAgentCode: freezed == rechargeAgentCode ? _self.rechargeAgentCode : rechargeAgentCode // ignore: cast_nullable_to_non_nullable
 as String?,hostAgentCode: freezed == hostAgentCode ? _self.hostAgentCode : hostAgentCode // ignore: cast_nullable_to_non_nullable
 as String?,avatarFrame: freezed == avatarFrame ? _self.avatarFrame : avatarFrame // ignore: cast_nullable_to_non_nullable
-as AvatarFrame?,
+as AvatarFrame?,rechargeBadge: freezed == rechargeBadge ? _self.rechargeBadge : rechargeBadge // ignore: cast_nullable_to_non_nullable
+as RechargeBadge?,
   ));
 }
 
@@ -451,10 +455,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String username,  String displayName,  String? avatarUrl, @JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson)  PremiumTier? premiumTier, @JsonKey(name: 'rechargeAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson)  String? rechargeAgentCode, @JsonKey(name: 'hostAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson)  String? hostAgentCode, @JsonKey(includeIfNull: false, fromJson: avatarFrameFromJson, toJson: avatarFrameToJson)  AvatarFrame? avatarFrame)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String username,  String displayName,  String? avatarUrl, @JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson)  PremiumTier? premiumTier, @JsonKey(name: 'rechargeAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson)  String? rechargeAgentCode, @JsonKey(name: 'hostAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson)  String? hostAgentCode, @JsonKey(includeIfNull: false, fromJson: avatarFrameFromJson, toJson: avatarFrameToJson)  AvatarFrame? avatarFrame, @JsonKey(includeIfNull: false, fromJson: rechargeBadgeFromJson, toJson: rechargeBadgeToJson)  RechargeBadge? rechargeBadge)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _UserSummary() when $default != null:
-return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl,_that.premiumTier,_that.rechargeAgentCode,_that.hostAgentCode,_that.avatarFrame);case _:
+return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl,_that.premiumTier,_that.rechargeAgentCode,_that.hostAgentCode,_that.avatarFrame,_that.rechargeBadge);case _:
   return orElse();
 
 }
@@ -472,10 +476,10 @@ return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String username,  String displayName,  String? avatarUrl, @JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson)  PremiumTier? premiumTier, @JsonKey(name: 'rechargeAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson)  String? rechargeAgentCode, @JsonKey(name: 'hostAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson)  String? hostAgentCode, @JsonKey(includeIfNull: false, fromJson: avatarFrameFromJson, toJson: avatarFrameToJson)  AvatarFrame? avatarFrame)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String username,  String displayName,  String? avatarUrl, @JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson)  PremiumTier? premiumTier, @JsonKey(name: 'rechargeAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson)  String? rechargeAgentCode, @JsonKey(name: 'hostAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson)  String? hostAgentCode, @JsonKey(includeIfNull: false, fromJson: avatarFrameFromJson, toJson: avatarFrameToJson)  AvatarFrame? avatarFrame, @JsonKey(includeIfNull: false, fromJson: rechargeBadgeFromJson, toJson: rechargeBadgeToJson)  RechargeBadge? rechargeBadge)  $default,) {final _that = this;
 switch (_that) {
 case _UserSummary():
-return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl,_that.premiumTier,_that.rechargeAgentCode,_that.hostAgentCode,_that.avatarFrame);case _:
+return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl,_that.premiumTier,_that.rechargeAgentCode,_that.hostAgentCode,_that.avatarFrame,_that.rechargeBadge);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -492,10 +496,10 @@ return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String username,  String displayName,  String? avatarUrl, @JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson)  PremiumTier? premiumTier, @JsonKey(name: 'rechargeAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson)  String? rechargeAgentCode, @JsonKey(name: 'hostAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson)  String? hostAgentCode, @JsonKey(includeIfNull: false, fromJson: avatarFrameFromJson, toJson: avatarFrameToJson)  AvatarFrame? avatarFrame)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String username,  String displayName,  String? avatarUrl, @JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson)  PremiumTier? premiumTier, @JsonKey(name: 'rechargeAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson)  String? rechargeAgentCode, @JsonKey(name: 'hostAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson)  String? hostAgentCode, @JsonKey(includeIfNull: false, fromJson: avatarFrameFromJson, toJson: avatarFrameToJson)  AvatarFrame? avatarFrame, @JsonKey(includeIfNull: false, fromJson: rechargeBadgeFromJson, toJson: rechargeBadgeToJson)  RechargeBadge? rechargeBadge)?  $default,) {final _that = this;
 switch (_that) {
 case _UserSummary() when $default != null:
-return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl,_that.premiumTier,_that.rechargeAgentCode,_that.hostAgentCode,_that.avatarFrame);case _:
+return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl,_that.premiumTier,_that.rechargeAgentCode,_that.hostAgentCode,_that.avatarFrame,_that.rechargeBadge);case _:
   return null;
 
 }
@@ -507,7 +511,7 @@ return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl,_that.
 @JsonSerializable()
 
 class _UserSummary implements UserSummary {
-  const _UserSummary({required this.id, required this.username, required this.displayName, required this.avatarUrl, @JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson) this.premiumTier, @JsonKey(name: 'rechargeAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson) this.rechargeAgentCode, @JsonKey(name: 'hostAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson) this.hostAgentCode, @JsonKey(includeIfNull: false, fromJson: avatarFrameFromJson, toJson: avatarFrameToJson) this.avatarFrame});
+  const _UserSummary({required this.id, required this.username, required this.displayName, required this.avatarUrl, @JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson) this.premiumTier, @JsonKey(name: 'rechargeAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson) this.rechargeAgentCode, @JsonKey(name: 'hostAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson) this.hostAgentCode, @JsonKey(includeIfNull: false, fromJson: avatarFrameFromJson, toJson: avatarFrameToJson) this.avatarFrame, @JsonKey(includeIfNull: false, fromJson: rechargeBadgeFromJson, toJson: rechargeBadgeToJson) this.rechargeBadge});
   factory _UserSummary.fromJson(Map<String, dynamic> json) => _$UserSummaryFromJson(json);
 
 @override final  String id;
@@ -530,6 +534,10 @@ class _UserSummary implements UserSummary {
 /// (`UserSummary.avatarFrame`, present only while one is worn): drawn
 /// around the picture on the live seats. Null otherwise.
 @override@JsonKey(includeIfNull: false, fromJson: avatarFrameFromJson, toJson: avatarFrameToJson) final  AvatarFrame? avatarFrame;
+/// v1.56-social (D187, §10.50): the daily recharge badge while it shows
+/// (never for a recharge agent): next to the name in live rooms like the
+/// level badge. Null otherwise (also on older servers).
+@override@JsonKey(includeIfNull: false, fromJson: rechargeBadgeFromJson, toJson: rechargeBadgeToJson) final  RechargeBadge? rechargeBadge;
 
 /// Create a copy of UserSummary
 /// with the given fields replaced by the non-null parameter values.
@@ -544,18 +552,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _UserSummary&&(identical(other.id, id) || other.id == id)&&(identical(other.username, username) || other.username == username)&&(identical(other.displayName, displayName) || other.displayName == displayName)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl)&&(identical(other.premiumTier, premiumTier) || other.premiumTier == premiumTier)&&(identical(other.rechargeAgentCode, rechargeAgentCode) || other.rechargeAgentCode == rechargeAgentCode)&&(identical(other.hostAgentCode, hostAgentCode) || other.hostAgentCode == hostAgentCode)&&(identical(other.avatarFrame, avatarFrame) || other.avatarFrame == avatarFrame));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _UserSummary&&(identical(other.id, id) || other.id == id)&&(identical(other.username, username) || other.username == username)&&(identical(other.displayName, displayName) || other.displayName == displayName)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl)&&(identical(other.premiumTier, premiumTier) || other.premiumTier == premiumTier)&&(identical(other.rechargeAgentCode, rechargeAgentCode) || other.rechargeAgentCode == rechargeAgentCode)&&(identical(other.hostAgentCode, hostAgentCode) || other.hostAgentCode == hostAgentCode)&&(identical(other.avatarFrame, avatarFrame) || other.avatarFrame == avatarFrame)&&(identical(other.rechargeBadge, rechargeBadge) || other.rechargeBadge == rechargeBadge));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,id,username,displayName,avatarUrl,premiumTier,rechargeAgentCode,hostAgentCode,avatarFrame);
+    return Object.hash(runtimeType,id,username,displayName,avatarUrl,premiumTier,rechargeAgentCode,hostAgentCode,avatarFrame,rechargeBadge);
 }
 
 @override
 String toString() {
-    return 'UserSummary(id: $id, username: $username, displayName: $displayName, avatarUrl: $avatarUrl, premiumTier: $premiumTier, rechargeAgentCode: $rechargeAgentCode, hostAgentCode: $hostAgentCode, avatarFrame: $avatarFrame)';
+    return 'UserSummary(id: $id, username: $username, displayName: $displayName, avatarUrl: $avatarUrl, premiumTier: $premiumTier, rechargeAgentCode: $rechargeAgentCode, hostAgentCode: $hostAgentCode, avatarFrame: $avatarFrame, rechargeBadge: $rechargeBadge)';
 }
 
 
@@ -566,7 +574,7 @@ abstract mixin class _$UserSummaryCopyWith<$Res> implements $UserSummaryCopyWith
   factory _$UserSummaryCopyWith(_UserSummary value, $Res Function(_UserSummary) _then) = __$UserSummaryCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String username, String displayName, String? avatarUrl,@JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson) PremiumTier? premiumTier,@JsonKey(name: 'rechargeAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson) String? rechargeAgentCode,@JsonKey(name: 'hostAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson) String? hostAgentCode,@JsonKey(includeIfNull: false, fromJson: avatarFrameFromJson, toJson: avatarFrameToJson) AvatarFrame? avatarFrame
+ String id, String username, String displayName, String? avatarUrl,@JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson) PremiumTier? premiumTier,@JsonKey(name: 'rechargeAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson) String? rechargeAgentCode,@JsonKey(name: 'hostAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson) String? hostAgentCode,@JsonKey(includeIfNull: false, fromJson: avatarFrameFromJson, toJson: avatarFrameToJson) AvatarFrame? avatarFrame,@JsonKey(includeIfNull: false, fromJson: rechargeBadgeFromJson, toJson: rechargeBadgeToJson) RechargeBadge? rechargeBadge
 });
 
 
@@ -583,7 +591,7 @@ class __$UserSummaryCopyWithImpl<$Res>
 
 /// Create a copy of UserSummary
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? username = null,Object? displayName = null,Object? avatarUrl = freezed,Object? premiumTier = freezed,Object? rechargeAgentCode = freezed,Object? hostAgentCode = freezed,Object? avatarFrame = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? username = null,Object? displayName = null,Object? avatarUrl = freezed,Object? premiumTier = freezed,Object? rechargeAgentCode = freezed,Object? hostAgentCode = freezed,Object? avatarFrame = freezed,Object? rechargeBadge = freezed,}) {
   return _then(_UserSummary(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,username: null == username ? _self.username : username // ignore: cast_nullable_to_non_nullable
@@ -593,7 +601,8 @@ as String?,premiumTier: freezed == premiumTier ? _self.premiumTier : premiumTier
 as PremiumTier?,rechargeAgentCode: freezed == rechargeAgentCode ? _self.rechargeAgentCode : rechargeAgentCode // ignore: cast_nullable_to_non_nullable
 as String?,hostAgentCode: freezed == hostAgentCode ? _self.hostAgentCode : hostAgentCode // ignore: cast_nullable_to_non_nullable
 as String?,avatarFrame: freezed == avatarFrame ? _self.avatarFrame : avatarFrame // ignore: cast_nullable_to_non_nullable
-as AvatarFrame?,
+as AvatarFrame?,rechargeBadge: freezed == rechargeBadge ? _self.rechargeBadge : rechargeBadge // ignore: cast_nullable_to_non_nullable
+as RechargeBadge?,
   ));
 }
 

@@ -12,6 +12,7 @@ import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
+import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -662,6 +663,7 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
               name: u.displayName,
               agentCode: u.rechargeAgentCode,
               hostAgentCode: u.hostAgentCode,
+              rechargeBadge: u.rechargeBadge,
               handle: _moderators.contains(u.username)
                   ? '${KHandle.plain(u.username, premiumTier: u.premiumTier)}'
                         ' · ${l10n.liveSeatModeratorTag}'
@@ -828,6 +830,7 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
             name: r.user.displayName,
             agentCode: r.user.rechargeAgentCode,
             hostAgentCode: r.user.hostAgentCode,
+            rechargeBadge: r.user.rechargeBadge,
             handle: r.seatIndex == null
                 ? KHandle.plain(
                     r.user.username,
@@ -1008,6 +1011,7 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
     String? handle,
     String? agentCode,
     String? hostAgentCode,
+    RechargeBadge? rechargeBadge,
     VoidCallback? onTap,
     List<Widget> actions = const [],
   }) {
@@ -1042,6 +1046,8 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
                       hostCode: hostAgentCode,
                       height: 18,
                     ),
+                    // D187 (owner): the daily recharge badge after the name.
+                    RechargeTierBadge(badge: rechargeBadge, height: 20, gap: 4),
                   ],
                 ),
                 if (handle != null)

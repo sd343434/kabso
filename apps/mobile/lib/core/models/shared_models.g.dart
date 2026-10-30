@@ -25,6 +25,7 @@ _UserSummary _$UserSummaryFromJson(Map<String, dynamic> json) => _UserSummary(
   rechargeAgentCode: rechargeAgentCodeFromJson(json['rechargeAgent']),
   hostAgentCode: rechargeAgentCodeFromJson(json['hostAgent']),
   avatarFrame: avatarFrameFromJson(json['avatarFrame']),
+  rechargeBadge: rechargeBadgeFromJson(json['rechargeBadge']),
 );
 
 Map<String, dynamic> _$UserSummaryToJson(_UserSummary instance) =>
@@ -37,4 +38,5 @@ Map<String, dynamic> _$UserSummaryToJson(_UserSummary instance) =>
       'rechargeAgent': ?rechargeAgentCodeToJson(instance.rechargeAgentCode),
       'hostAgent': ?rechargeAgentCodeToJson(instance.hostAgentCode),
       'avatarFrame': ?avatarFrameToJson(instance.avatarFrame),
+      'rechargeBadge': ?rechargeBadgeToJson(instance.rechargeBadge),
     };

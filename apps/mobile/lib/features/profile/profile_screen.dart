@@ -19,6 +19,7 @@ import 'package:kabso_live/features/profile/application/profile_grid_provider.da
 import 'package:kabso_live/features/profile/profile_fields_view.dart';
 import 'package:kabso_live/features/recharge/application/recharge_providers.dart';
 import 'package:kabso_live/features/recharge/data/recharge_repository.dart';
+import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -194,6 +195,8 @@ class _OwnHeader extends ConsumerWidget {
       // D186: the avatar frame the user wears (worn in the bag; the
       // profile's own read, refreshed when the bag changes).
       avatarFrame: stats?.avatarFrame,
+      // D187: the caller's own daily recharge badge while it shows.
+      rechargeBadge: stats?.rechargeBadge,
       displayName: user.displayName,
       avatarUrl: user.avatarUrl,
       bio: user.bio,
@@ -277,6 +280,7 @@ class ProfileHeaderView extends StatelessWidget {
     this.agentCode,
     this.hostAgentCode,
     this.avatarFrame,
+    this.rechargeBadge,
   });
 
   /// v1.58-social (D189, §10.52): the person's code while they are a host
@@ -290,6 +294,10 @@ class ProfileHeaderView extends StatelessWidget {
   /// The live ring and the recharge-agent and host-agent frames win over
   /// it; it wins over the CP frame.
   final AvatarFrame? avatarFrame;
+
+  /// v1.56-social (D187): the person's daily recharge badge while it shows,
+  /// beside the name like the level badge.
+  final RechargeBadge? rechargeBadge;
 
   /// v1.54-social (D185): the person's code while they are an ACTIVE
   /// recharge agent: the agent frame (with the code in its plate) around
@@ -338,6 +346,7 @@ class ProfileHeaderView extends StatelessWidget {
   static const avatarFrameKey = Key('profile.avatar.frame');
   static const agentBadgeKey = Key('profile.agentBadge');
   static const hostAgentBadgeKey = Key('profile.hostAgentBadge');
+  static const rechargeBadgeKey = Key('profile.rechargeBadge');
 
   @override
   Widget build(BuildContext context) {
@@ -491,6 +500,12 @@ class ProfileHeaderView extends StatelessWidget {
               // D189: the host-agent badge, placed as the recharge one.
               if (hostCode case final code?)
                 HostAgentBadge(key: hostAgentBadgeKey, code: code, height: 22),
+              if (rechargeBadgeShows(rechargeBadge))
+                RechargeTierBadge(
+                  key: rechargeBadgeKey,
+                  badge: rechargeBadge,
+                  height: 26,
+                ),
               ?nameTrailing,
             ],
           ),

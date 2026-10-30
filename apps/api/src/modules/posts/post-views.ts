@@ -4,6 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { hostAgentPerksActive } from '../economy/host-agents.js';
 import type { UserSummaryDto } from '../live/live-rooms.service.js';
 import { MediaService, type MediaAssetDto } from '../media/media.service.js';
+import { activeRechargeBadge } from '../recharge/recharge-badges.js';
 import { parseHashtags, parseMentions } from './text-entities.js';
 
 /** `Post` (openapi v1.5-social). */
@@ -48,28 +49,38 @@ export interface PageDto<T> {
 
 const PROFILE_SELECT = { username: true, displayName: true, avatarUrl: true, premiumTier: true } as const;
 
-/** A user row with its profile → `UserSummary` (never an email). */
-export function userSummary(user: {
-  id: string;
-  profile: {
-    username: string;
-    displayName: string;
-    avatarUrl: string | null;
-    /** v1.28-live (D146); absent in older selects. */
-    premiumTier?: 'LEGEND' | 'RUBY' | 'GOLD' | 'SILVER' | null;
-  } | null;
-  /** v1.54-social (D185); absent in older selects. */
-  status?: string;
-  rechargeAgent?: { status: string; code: string | null } | null;
-  /** v1.58-social (D189); absent in older selects. */
-  ownedAgency?: { hostCode: string | null; suspendedAt: Date | null } | null;
-  /** v1.55-social (D186); absent in older selects. */
-  bagItems?: readonly WornFrameRow[];
-}): UserSummaryDto {
+/**
+ * A user row with its profile → `UserSummary` (never an email). `now`: when the daily recharge badge
+ * (v1.56-social, D187) is checked (the badge shows only while its `until` is after it).
+ */
+export function userSummary(
+  user: {
+    id: string;
+    profile: {
+      username: string;
+      displayName: string;
+      avatarUrl: string | null;
+      /** v1.28-live (D146); absent in older selects. */
+      premiumTier?: 'LEGEND' | 'RUBY' | 'GOLD' | 'SILVER' | null;
+    } | null;
+    /** v1.54-social (D185); absent in older selects. */
+    status?: string;
+    rechargeAgent?: { status: string; code: string | null } | null;
+    /** v1.55-social (D186); absent in older selects. */
+    bagItems?: readonly WornFrameRow[];
+    /** v1.56-social (D187); absent in older selects. */
+    rechargeBadge?: { tier: number; until: Date } | null;
+    /** v1.58-social (D189); absent in older selects. */
+    ownedAgency?: { hostCode: string | null; suspendedAt: Date | null } | null;
+  },
+  now: Date = new Date(),
+): UserSummaryDto {
   const tier = user.profile?.premiumTier;
   const agentCode = rechargeAgentCodeOf(user);
   const hostCode = hostAgentCodeOf(user);
-  const frame = wornAvatarFrameOf(user.bagItems);
+  const frame = wornAvatarFrameOf(user.bagItems, now);
+  // A recharge agent (from approval on) never shows the daily recharge badge.
+  const badge = activeRechargeBadge(user.rechargeBadge, now, (user.rechargeAgent ?? null) !== null);
   return {
     id: user.id,
     username: user.profile?.username ?? '',
@@ -83,6 +94,8 @@ export function userSummary(user: {
     ...(hostCode ? { hostAgent: { code: hostCode } } : {}),
     // v1.55-social (D186, §10.49): only while the user wears an avatar frame (live seats draw it).
     ...(frame ? { avatarFrame: frame } : {}),
+    // v1.56-social (D187, §10.50): only while the daily recharge badge is showing.
+    ...(badge ? { rechargeBadge: badge } : {}),
   };
 }
 
@@ -141,6 +154,8 @@ export const USER_SUMMARY_SELECT = {
     select: { itemCode: true, expiresAt: true, item: { select: { assetKey: true } } },
     take: 1,
   },
+  // v1.56-social (D187): the daily recharge badge (`UserSummary.rechargeBadge`).
+  rechargeBadge: { select: { tier: true, until: true } },
 } as const;
 
 /**

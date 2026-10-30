@@ -100,6 +100,15 @@ abstract class PublicProfile with _$PublicProfile {
       toJson: avatarFrameToJson,
     )
     AvatarFrame? avatarFrame,
+
+    /// v1.56-social (D187, §10.50): the daily recharge badge while it shows;
+    /// beside the name on the profile like the level badge. Null otherwise.
+    @JsonKey(
+      includeIfNull: false,
+      fromJson: rechargeBadgeFromJson,
+      toJson: rechargeBadgeToJson,
+    )
+    RechargeBadge? rechargeBadge,
   }) = _PublicProfile;
 
   const new _();

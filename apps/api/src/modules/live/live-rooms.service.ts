@@ -23,6 +23,7 @@ import {
   type LiveTab,
 } from './live-cursor.js';
 import { awardLiveMedalsForRoomsIn } from '../medals/medal-awards.js';
+import { activeRechargeBadge, type RechargeBadgeDto } from '../recharge/recharge-badges.js';
 import { clearEndedRoomSeatsIn, releaseUserIn } from './live-seats.store.js';
 import {
   DEFAULT_LIVE_THEME,
@@ -37,6 +38,13 @@ import {
 // ---- Response shapes (openapi v1.3) ------------------------------------------------------------
 
 /** `UserSummary`: never contains an email. */
+
+/** v1.56-social (D187): the host's daily recharge badge while it shows (`UserSummary.rechargeBadge`). */
+function rechargeBadgeOf(row: RoomRow): { rechargeBadge?: RechargeBadgeDto } {
+  if (row.badge_tier === null || row.badge_until === null || row.host_status !== 'ACTIVE') return {};
+  const badge = activeRechargeBadge({ tier: row.badge_tier, until: row.badge_until }, new Date());
+  return badge ? { rechargeBadge: badge } : {};
+}
 
 /**
  * What every path that ends rooms does in its transaction: guests leave their seats (CP-011) and,
@@ -64,6 +72,8 @@ export interface UserSummaryDto {
   hostAgent?: { code: string };
   /** v1.55-social (D186, §10.49): present only while the user wears an avatar frame. */
   avatarFrame?: { code: string; assetKey: string };
+  /** v1.56-social (D187, §10.50): present only while the user's daily recharge badge is showing. */
+  rechargeBadge?: RechargeBadgeDto;
 }
 
 export type LiveRoomMode = 'SOLO' | 'PK' | 'MULTI' | 'AUDIO';
@@ -202,6 +212,9 @@ export interface RoomRow {
   /** v1.55-social (D186): the avatar frame the host wears now, else null. */
   host_frame_code: string | null;
   host_frame_asset: string | null;
+  /** v1.56-social (D187): the host's daily recharge badge row (null for none or for any recharge agent). */
+  badge_tier: number | null;
+  badge_until: Date | null;
   category_slug: string | null;
   category_name_ar: string | null;
   category_name_en: string | null;
@@ -254,6 +267,9 @@ const ROOM_COLUMNS = Prisma.sql`
          (SELECT i.asset_key FROM user_bag_items b JOIN bag_items i ON i.code = b.item_code
            WHERE b.user_id = r.host_user_id AND b.category = 'AVATAR_FRAME' AND b.equipped
              AND (b.expires_at IS NULL OR b.expires_at > now())) AS host_frame_asset,
+         (SELECT rb.badge_tier::int FROM recharge_badges rb WHERE rb.user_id = r.host_user_id
+             AND NOT EXISTS (SELECT 1 FROM recharge_agents ra2 WHERE ra2.user_id = r.host_user_id)) AS badge_tier,
+         (SELECT rb.badge_until FROM recharge_badges rb WHERE rb.user_id = r.host_user_id) AS badge_until,
          c.slug AS category_slug, c.name_ar AS category_name_ar,
          c.name_en AS category_name_en, r.chat_enabled, lh.room_number, ${ROOM_LEVEL_SQL} AS room_level,
          r.wish_gifts`;
@@ -796,6 +812,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
         ...(row.host_frame_code && row.host_frame_asset
           ? { avatarFrame: { code: row.host_frame_code, assetKey: row.host_frame_asset } }
           : {}),
+        ...rechargeBadgeOf(row),
       },
       seatCount: row.seat_count,
       occupiedSeats: row.occupied_seats,

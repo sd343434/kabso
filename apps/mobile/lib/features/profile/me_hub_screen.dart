@@ -17,6 +17,7 @@ import 'package:kabso_live/features/levels/presentation/profile_levels.dart';
 import 'package:kabso_live/features/live/application/live_wallet_controller.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
+import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -114,6 +115,9 @@ class MeHubScreen extends ConsumerWidget {
   static const notificationsKey = Key('meHub.notifications');
   static const avatarKey = Key('meHub.avatar');
   static const nameKey = Key('meHub.name');
+
+  /// D187: the daily recharge badge beside the name.
+  static const rechargeBadgeKey = Key('meHub.rechargeBadge');
   static const followingKey = Key('meHub.stat.following');
   static const fansKey = Key('meHub.stat.fans');
   static const cardsKey = Key('meHub.cards');
@@ -415,6 +419,13 @@ class MeHubScreen extends ConsumerWidget {
                     onOpen: () => push(AppRoutes.levels),
                     padding: EdgeInsetsDirectional.zero,
                   ),
+                  // D187: the daily recharge badge beside it while it shows.
+                  if (rechargeBadgeShows(stats?.rechargeBadge))
+                    RechargeTierBadge(
+                      key: rechargeBadgeKey,
+                      badge: stats?.rechargeBadge,
+                      height: 26,
+                    ),
                 ],
               ),
             ),

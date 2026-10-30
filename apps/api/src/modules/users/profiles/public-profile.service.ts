@@ -10,6 +10,7 @@ import { MedalsService, type ProfileMedalsDto } from '../../medals/medals.servic
 import { LiveRoomsService } from '../../live/live-rooms.service.js';
 import { FollowsService } from '../../social/follows.service.js';
 import { type AccountCategory, type ProfileLinkDto } from '../profile-fields.js';
+import { activeRechargeBadge, type RechargeBadgeDto } from '../../recharge/recharge-badges.js';
 import { UsersService } from '../users.service.js';
 
 /** `PublicProfile` (openapi v1.3). Never an email, role, status, locale or created-at time. */
@@ -51,6 +52,8 @@ export interface PublicProfileDto {
   hostAgent: { code: string } | null;
   /** v1.55-social (D186, §10.49): the avatar frame the user wears now (`AvatarFrame`), or null. */
   avatarFrame: { code: string; assetKey: string } | null;
+  /** v1.56-social (D187, §10.50): present only while the daily recharge badge is showing. */
+  rechargeBadge?: RechargeBadgeDto;
 }
 
 /**
@@ -99,6 +102,7 @@ export class PublicProfileService {
       agent,
       hostAgency,
       avatarFrame,
+      badge,
     ] = await Promise.all([
       this.follows.counts(user.id),
       isSelf ? Promise.resolve(false) : this.follows.isFollowing(callerId, user.id),
@@ -121,7 +125,13 @@ export class PublicProfileService {
       }),
       // v1.55-social (D186): the worn avatar frame (e.g. the active-host frame).
       this.bag.avatarFrame(user.id),
+      // v1.56-social (D187): the daily recharge badge — never for a recharge agent (from approval on).
+      this.prisma.rechargeBadge.findFirst({
+        where: { userId: user.id, user: { rechargeAgent: { is: null } } },
+        select: { tier: true, until: true },
+      }),
     ]);
+    const shown = activeRechargeBadge(badge, new Date());
     return {
       id: user.id,
       username: user.username,
@@ -147,6 +157,7 @@ export class PublicProfileService {
       rechargeAgent: agent?.code ? { code: agent.code } : null,
       hostAgent: hostAgency?.hostCode ? { code: hostAgency.hostCode } : null,
       avatarFrame,
+      ...(shown ? { rechargeBadge: shown } : {}),
     };
   }
 }

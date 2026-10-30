@@ -8,6 +8,7 @@ import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/format/k_handle.dart';
 import 'package:kabso_live/core/models/premium_tier.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
@@ -22,6 +23,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_chat_gift_lin
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_media.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_public_message.dart';
 import 'package:kabso_live/features/posts/presentation/report_sheet.dart';
+import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -186,6 +188,7 @@ class LiveRoomChatLines extends ConsumerWidget {
         premiumTier: entry.author.premiumTier,
         agentCode: entry.author.rechargeAgentCode,
         hostAgentCode: entry.author.hostAgentCode,
+        rechargeBadge: entry.author.rechargeBadge,
         avatarUrl: entry.author.avatarUrl,
         role: entry.authorRole,
         badges: entry.authorBadges,
@@ -305,6 +308,7 @@ class LiveRoomChatLines extends ConsumerWidget {
           badges: entry.authorBadges,
           agentCode: entry.author.rechargeAgentCode,
           hostAgentCode: entry.author.hostAgentCode,
+          rechargeBadge: entry.author.rechargeBadge,
           maxWidth: max,
           color: bubble,
           cp: entry.cpBubble,
@@ -330,6 +334,7 @@ class LiveRoomChatLines extends ConsumerWidget {
           badges: entry.authorBadges,
           agentCode: entry.author.rechargeAgentCode,
           hostAgentCode: entry.author.hostAgentCode,
+          rechargeBadge: entry.author.rechargeBadge,
           maxWidth: max,
           color: bubble,
           cp: entry.cpBubble,
@@ -379,6 +384,7 @@ class LiveRoomChatLines extends ConsumerWidget {
           join: l10n.chatJoined(KFormat.bidiIsolate(join.user.displayName)),
           agentCode: join.user.rechargeAgentCode,
           hostAgentCode: join.user.hostAgentCode,
+          rechargeBadge: join.user.rechargeBadge,
         );
       case LiveChatGiftLine() || LiveChatLuckyLine():
         // D178: a gift or a lucky win of this live, as a row.
@@ -438,6 +444,7 @@ class LiveRoomChatLines extends ConsumerWidget {
       premiumTier: entry.author.premiumTier,
       agentCode: entry.author.rechargeAgentCode,
       hostAgentCode: entry.author.hostAgentCode,
+      rechargeBadge: entry.author.rechargeBadge,
       avatarUrl: entry.author.avatarUrl,
       role: entry.authorRole,
       badges: entry.authorBadges,
@@ -644,6 +651,7 @@ class LiveChatAuthoredLine extends StatelessWidget {
     this.premiumTier,
     this.agentCode,
     this.hostAgentCode,
+    this.rechargeBadge,
   });
 
   final String name;
@@ -653,6 +661,9 @@ class LiveChatAuthoredLine extends StatelessWidget {
 
   /// v1.58-social (D189): the author's host-agent code (the badge).
   final String? hostAgentCode;
+
+  /// v1.56-social (D187): the author's daily recharge badge while it shows.
+  final RechargeBadge? rechargeBadge;
 
   /// D146: the author's username and premium tier; with a tier the line
   /// shows the special-ID badge (still, no sweep) under the name.
@@ -722,6 +733,8 @@ class LiveChatAuthoredLine extends StatelessWidget {
         l10n.rechargeAgentBadgeLabel(KFormat.bidiIsolate(code)),
       if (hostAgentCode case final code?)
         l10n.hostAgentBadgeLabel(KFormat.bidiIsolate(code)),
+      if (rechargeBadge case final badge? when rechargeBadgeShows(badge))
+        l10n.rechargeBadgeLabel(badge.tier),
       if (badges?.charmLevel case final level?) l10n.liveChatCharmLabel(level),
       if (badges?.supportLevel case final level?)
         l10n.liveChatSupportLabel(level),
@@ -739,6 +752,7 @@ class LiveChatAuthoredLine extends StatelessWidget {
       badges: badges,
       agentCode: agentCode,
       hostAgentCode: hostAgentCode,
+      rechargeBadge: rechargeBadge,
     );
     final profile = onProfile;
     // The picture and the name are in the line's label already.
@@ -867,6 +881,7 @@ class LiveChatBadgeRow extends StatelessWidget {
     this.height = LiveChatAuthoredLine.badgeRowHeight,
     this.agentCode,
     this.hostAgentCode,
+    this.rechargeBadge,
   });
 
   final LiveChatRole? role;
@@ -879,6 +894,10 @@ class LiveChatBadgeRow extends StatelessWidget {
   /// v1.58-social (D189): the author's host-agent code
   /// (`UserSummary.hostAgent`): its badge follows the recharge one.
   final String? hostAgentCode;
+
+  /// v1.56-social (D187): the daily recharge badge while it shows (next to
+  /// the name like the level badge); gone once its `until` passes.
+  final RechargeBadge? rechargeBadge;
 
   /// The row's height (D131: 14 pt in the video live's rows).
   final double height;
@@ -896,6 +915,7 @@ class LiveChatBadgeRow extends StatelessWidget {
   bool get isNotEmpty =>
       agentCode != null ||
       hostAgentCode != null ||
+      rechargeBadgeShows(rechargeBadge) ||
       role == LiveChatRole.host ||
       role == LiveChatRole.moderator ||
       badges?.charmLevel != null ||
@@ -928,6 +948,11 @@ class LiveChatBadgeRow extends StatelessWidget {
             // D189: the host agent's badge, placed as the recharge one.
             if (hostAgentCode case final code?) ...[
               HostAgentBadge(code: code, height: h),
+              const SizedBox(width: _space),
+            ],
+            // D187 (owner): the daily recharge badge next to the name.
+            if (rechargeBadgeShows(rechargeBadge)) ...[
+              RechargeTierBadge(badge: rechargeBadge, height: h),
               const SizedBox(width: _space),
             ],
             if (tag != null)
@@ -1370,6 +1395,12 @@ class _LiveChatJoinStripState extends State<LiveChatJoinStrip> {
                     hostCode: shown.user.hostAgentCode,
                     height: 14,
                   ),
+                  // D187: the daily recharge badge after the name.
+                  RechargeTierBadge(
+                    badge: shown.user.rechargeBadge,
+                    height: 16,
+                    gap: 4,
+                  ),
                   if (shown.burst > 0) ...[
                     const SizedBox(width: 6),
                     Text(
@@ -1521,6 +1552,7 @@ class LiveChatInlineRow extends StatefulWidget {
     this.join,
     this.agentCode,
     this.hostAgentCode,
+    this.rechargeBadge,
     this.failed,
     this.cp = false,
     this.mediaInside = false,
@@ -1547,6 +1579,10 @@ class LiveChatInlineRow extends StatefulWidget {
 
   /// v1.58-social (D189): the person's host-agent code (its badge too).
   final String? hostAgentCode;
+
+  /// v1.56-social (D187): the person's daily recharge badge (after the name
+  /// or the join text) while it shows.
+  final RechargeBadge? rechargeBadge;
 
   /// Why a pending line failed (shown under it).
   final String? failed;
@@ -1614,6 +1650,7 @@ class _LiveChatInlineRowState extends State<LiveChatInlineRow> {
       height: LiveChatInlineRow.badgeHeight,
       agentCode: w.join == null ? w.agentCode : null,
       hostAgentCode: w.join == null ? w.hostAgentCode : null,
+      rechargeBadge: w.join == null ? w.rechargeBadge : null,
     );
     final name = w.name;
     final text = w.text;
@@ -1630,6 +1667,16 @@ class _LiveChatInlineRowState extends State<LiveChatInlineRow> {
               code: w.agentCode,
               hostCode: w.hostAgentCode,
               height: LiveChatInlineRow.badgeHeight,
+            ),
+          ),
+        // D187: the daily recharge badge after the join text.
+        if (rechargeBadgeShows(w.rechargeBadge))
+          WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: RechargeTierBadge(
+              badge: w.rechargeBadge,
+              height: LiveChatInlineRow.badgeHeight + 2,
+              gap: 4,
             ),
           ),
       ] else ...[

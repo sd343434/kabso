@@ -313,6 +313,13 @@ info:
     `HostFrameStyle`); `PublicProfile.avatarFrame` and `UserSummary.avatarFrame` (`AvatarFrame`: the frame a user
     wears, drawn on the profile and the live seats). Code `HOST_FRAME_STYLE_FROM_GENDER` (409) (CONVENTIONS
     §10.49).
+    **D187 (DRAFT v1.56-social, CP-030)**: the daily recharge badges «شارات الشحن اليومي»: the coins a person
+    received in one calendar day (`RECHARGE_BADGE_TIME_ZONE`, default Asia/Riyadh) from recharges — a recharge
+    agent's sale (D185) and, later, a website top-up; never gifts, rewards, admin credits or transfers — give a
+    tier 1–5 (1M–10M, 10.01M–20M, 20.01M–40M, 40.01M–70M, 70.01M+, configurable) shown for 24 hours from the
+    moment it was reached; a higher tier the same day replaces it and restarts the 24 hours. Recharge agents
+    never get it. Optional `UserSummary.rechargeBadge` and `PublicProfile.rechargeBadge` (`RechargeBadge`),
+    present only while the badge shows (CONVENTIONS §10.50).
     **D189 (DRAFT v1.58-social, CP-032)**: host agents «وكيل مضيفين» (an agency's owner, D179) get perks like a
     recharge agent: at activation (the team's `economy-admin agency-create`) the code `host` + a sequential number
     (at least two digits: `host01`, `host100`; `HostAgentCode`) becomes their special username (§10.48.1, source
@@ -8491,6 +8498,9 @@ components:
         avatarFrame:
           $ref: '#/components/schemas/AvatarFrame'
           description: "v1.55-social (D186, §10.49) — present only while the user wears an avatar frame (bag `AVATAR_FRAME`, e.g. the active-host frame): the app draws it around the photo on the live seats; absent otherwise."
+        rechargeBadge:
+          $ref: '#/components/schemas/RechargeBadge'
+          description: "v1.56-social (D187, §10.50) — present only while the user's daily recharge badge shows (`until` in the future); never for a recharge agent. The app shows it next to the name in live rooms like the level badge and hides it itself once `until` passes."
     PublicProfile:
       type: object
       required: [id, username, displayName, avatarUrl, bio, isPrivate, followerCount, followingCount, isFollowing, followRequested, isMuted, isSelf, liveRoomId, family, cp, medals, profileCard, gender, category, links, rechargeAgent, hostAgent, avatarFrame]
@@ -8577,6 +8587,9 @@ components:
           oneOf:
             - $ref: '#/components/schemas/AvatarFrame'
             - type: 'null'
+        rechargeBadge:
+          $ref: '#/components/schemas/RechargeBadge'
+          description: "v1.56-social (D187, §10.50) — present only while the user's daily recharge badge shows; absent otherwise (never for a recharge agent). Shown beside the name on the profile like the level badge."
     FollowState:
       type: object
       required: [isFollowing, isRequested, followerCount]
@@ -12931,6 +12944,16 @@ components:
       required: [code]
       properties:
         code: { $ref: '#/components/schemas/RechargeAgentCode' }
+    RechargeBadge:
+      type: object
+      description: "v1.56-social (D187, §10.50). The daily recharge badge «شارة الشحن اليومي»: the tier reached by the coins the user received from recharges in one calendar day (RECHARGE_BADGE_TIME_ZONE, default Asia/Riyadh) — by default 1: 1 000 000–10 000 000, 2: 10 000 001–20 000 000, 3: 20 000 001–40 000 000, 4: 40 000 001–70 000 000, 5: 70 000 001 and more. Present only while it shows."
+      required: [tier, until]
+      properties:
+        tier: { type: integer, minimum: 1, maximum: 5 }
+        until:
+          type: string
+          format: date-time
+          description: "The moment the tier was reached + RECHARGE_BADGE_HOURS (24). Clients hide the badge once it passes."
     RechargeSalesTotals:
       type: object
       required: [count, coins]

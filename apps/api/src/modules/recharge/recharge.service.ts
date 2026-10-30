@@ -19,6 +19,7 @@ import { USER_SUMMARY_SELECT, userSummary, type PageDto } from '../posts/post-vi
 import type { PageQuery } from '../posts/posts.schemas.js';
 import { SocialCursorCodec, type SocialPosition } from '../posts/social-cursor.js';
 import { creditIn } from '../wallet/wallet-ledger.js';
+import { recordRechargeIn } from './recharge-badges.js';
 import { moveStockIn, privateKeyOf, purgeApplications } from './recharge-core.js';
 import {
   applicationSchema,
@@ -586,6 +587,12 @@ export class RechargeService implements OnModuleInit, OnModuleDestroy {
           },
         });
         const wallet = await creditIn(tx, buyer.id, coins, 'RECHARGE_PURCHASE', saleId);
+        // v1.56-social (D187, §10.50): the buyer's coins count toward the daily recharge badge.
+        await recordRechargeIn(
+          tx,
+          { userId: buyer.id, coins, source: 'AGENT_SALE', now },
+          this.config.recharge.badges,
+        );
         await tx.auditLog.create({
           data: {
             actorUserId: userId,

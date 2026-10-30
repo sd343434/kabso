@@ -75,6 +75,7 @@ import 'package:kabso_live/features/profile/profile_bonds.dart';
 import 'package:kabso_live/features/profile/public_profile_screen.dart';
 import 'package:kabso_live/features/profile_card/kabso_profile_header.dart';
 import 'package:kabso_live/features/recharge/presentation/live_recharge_entrance.dart';
+import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
 import 'package:kabso_live/features/safety/safety_actions.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -955,6 +956,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         premiumTier: host.premiumTier,
         agentCode: host.rechargeAgentCode,
         hostAgentCode: host.hostAgentCode,
+        rechargeBadge: host.rechargeBadge,
         hostName: host.displayName,
         avatar: avatar,
         lines: ended
@@ -1316,6 +1318,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                   premiumTier: host.premiumTier,
                   agentCode: host.rechargeAgentCode,
                   hostAgentCode: host.hostAgentCode,
+                  rechargeBadge: host.rechargeBadge,
                   onTap: () => _person(_username),
                   action: canFollow
                       ? LiveRoundButton(
@@ -1999,6 +2002,9 @@ class _HostSheet extends ConsumerWidget {
   static const agentBadgeKey = Key('room.userCard.agentBadge');
   static const hostAgentBadgeKey = Key('room.userCard.hostAgentBadge');
 
+  /// D187: the daily recharge badge beside the name.
+  static const rechargeBadgeKey = Key('room.userCard.rechargeBadge');
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
@@ -2154,6 +2160,15 @@ class _HostSheet extends ConsumerWidget {
                       height: 22,
                     ),
                   ],
+                  // D187 (owner): the daily recharge badge, like the level
+                  // badge, beside the name.
+                  if (rechargeBadgeShows(profile.rechargeBadge))
+                    RechargeTierBadge(
+                      key: rechargeBadgeKey,
+                      badge: profile.rechargeBadge,
+                      height: 26,
+                      gap: 6,
+                    ),
                   // Owner (2026-10-26): everyone sees that the person is the
                   // host or a moderator of this live.
                   if (scope?.target case final role?

@@ -7,10 +7,12 @@ import 'package:intl/intl.dart' show Bidi;
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/format/k_handle.dart';
 import 'package:kabso_live/core/models/premium_tier.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_side_cards.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
+import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -473,6 +475,7 @@ class KHostPill extends StatefulWidget {
     this.premiumTier,
     this.agentCode,
     this.hostAgentCode,
+    this.rechargeBadge,
   });
 
   /// v1.54-social (D185): the host's recharge-agent code while ACTIVE (the
@@ -481,6 +484,9 @@ class KHostPill extends StatefulWidget {
 
   /// v1.58-social (D189): the host's host-agent code (its badge too).
   final String? hostAgentCode;
+
+  /// v1.56-social (D187): the host's daily recharge badge while it shows.
+  final RechargeBadge? rechargeBadge;
 
   /// D141 (owner, replaces D135's room ID): the host's `@username` beside
   /// the name; a tap copies it ([KLiveUsernameTag]).
@@ -692,6 +698,12 @@ class _KHostPillState extends State<KHostPill> {
                           code: widget.agentCode,
                           hostCode: widget.hostAgentCode,
                           height: 14,
+                          gap: 3,
+                        ),
+                        // D187 (owner): the daily recharge badge.
+                        RechargeTierBadge(
+                          badge: widget.rechargeBadge,
+                          height: 16,
                           gap: 3,
                         ),
                         if (widget.username case final name?) ...[
