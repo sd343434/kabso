@@ -45,6 +45,7 @@ describe('D169 support tier frames', () => {
         ...(fraud === undefined ? {} : { fraud }),
       });
     expect(res.status).toBe(200);
+    expectContract(res, 'createAdminLevelAdjustment');
     return res;
   };
 
@@ -67,6 +68,18 @@ describe('D169 support tier frames', () => {
   beforeAll(async () => {
     ctx = await createTestApp();
     await ctx.prisma.bagItem.createMany({ data: BAG_CATALOGUE.map((i) => ({ ...i })) });
+    // The contract always lists the four categories (`AdminUserLevels.data` has 4 items), as the
+    // migration seeds them; the test database is truncated, so they are seeded again (the other
+    // three without a published version).
+    for (const [code, nameAr, nameEn] of [
+      ['ATTRACTIVENESS', 'مستوى الجاذبية', 'Attractiveness'],
+      ['WIZARD', 'مستوى الساحر', 'Wizard'],
+      ['GAMING', 'مستوى اللعب', 'Gaming'],
+    ] as const) {
+      await ctx.prisma.levelCategory.create({
+        data: { code, nameAr, nameEn, descriptionAr: `وصف ${nameAr}`, descriptionEn: `About ${nameEn}` },
+      });
+    }
     const category = await ctx.prisma.levelCategory.create({
       data: {
         code: 'SUPPORT',
@@ -187,6 +200,8 @@ describe('D169 support tier frames', () => {
       .set('Idempotency-Key', randomUUID())
       .send({ category: 'SUPPORT', pointsDelta: '10', reason: 'not a deduction', fraud: true });
     expect(bad.status).toBe(400);
+    expectContract(bad, 'createAdminLevelAdjustment');
+    expect(bad.body.error.details).toEqual([{ field: 'fraud', issue: 'fraud_needs_deduction' }]);
 
     const key = randomUUID();
     await adjust(u, -(at(12) - at(2)), key, true); // back to level 2: tier 1
@@ -214,6 +229,8 @@ describe('D169 support tier frames', () => {
         reason: 'D169 tier frame test',
       });
     expect(replay.status).toBe(409);
+    expectContract(replay, 'createAdminLevelAdjustment');
+    expect(replay.body.error.code).toBe('IDEMPOTENCY_CONFLICT');
   });
 
   it('a harder new version never lowers a level; frames stay', async () => {
