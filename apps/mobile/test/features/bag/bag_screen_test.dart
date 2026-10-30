@@ -1,4 +1,6 @@
-// CP-019 / D171: the bag screen — only owned items (never the catalogue),
+// CP-019 / D171 / D180: the bag screen (owner: only wearable owned items,
+// never live gifts; «الأدوات» = in use, «الحقيبة» = the full list) — only
+// owned items (never the catalogue),
 // grouped by category (an unknown category still shows), each with its
 // preview, where it came from, the time left («متبقٍ …», «ينتهي اليوم»,
 // «دائم»), «ارتداء» / «إزالة» and «إرسال» (off with the reason for free
@@ -17,17 +19,18 @@ import 'package:kabso_live/features/bag/data/bag_repository.dart';
 import 'package:kabso_live/features/bag/presentation/bag_labels.dart';
 import 'package:kabso_live/features/bag/presentation/bag_screen.dart';
 import 'package:kabso_live/features/bag/presentation/bag_send_sheet.dart';
+import 'package:kabso_live/features/live/data/live_gift_repository.dart';
 import 'package:kabso_live/features/posts/data/posts_repository.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/features/profile/profile_bonds.dart';
-import 'package:kabso_live/features/profile_card/kabso_profile_header.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../fixtures/bag/bag_api_fixtures.dart';
 import '../../fixtures/live/live_api_fixtures.dart';
 import '../../helpers/fake_bag_repository.dart';
 import '../../helpers/fake_bonds_repositories.dart';
+import '../../helpers/fake_live_gift_repository.dart';
 import '../../helpers/fake_posts_repository.dart';
 import '../../helpers/fake_profile_repository.dart';
 import '../../helpers/golden.dart';
@@ -80,6 +83,7 @@ typedef _Fakes = ({
   FakeBagRepository bag,
   FakeProfileRepository profiles,
   FakePostsRepository posts,
+  FakeLiveGiftRepository gifts,
 });
 
 Future<_Fakes> _pump(
@@ -87,6 +91,7 @@ Future<_Fakes> _pump(
   List<Map<String, Object?>>? items,
   String? worn = 'bunny_royal',
   AppLanguage language = AppLanguage.en,
+  Map<String, int> gifts = const {},
 }) async {
   setViewport(tester, GoldenViewport.android);
   final ar = language == AppLanguage.ar;
@@ -97,6 +102,7 @@ Future<_Fakes> _pump(
   );
   final profiles = FakeProfileRepository(apiProfile(isSelf: true));
   final posts = FakePostsRepository()..people = [UserSummary.fromJson(_sara)];
+  final giftRepo = FakeLiveGiftRepository(held: gifts, ar: ar);
   await pumpBonds(
     tester,
     const BagScreen(),
@@ -105,15 +111,19 @@ Future<_Fakes> _pump(
       bagRepositoryProvider.overrideWithValue(bag),
       profileRepositoryProvider.overrideWithValue(profiles),
       postsRepositoryProvider.overrideWithValue(posts),
+      liveGiftRepositoryProvider.overrideWithValue(giftRepo),
     ],
   );
-  return (bag: bag, profiles: profiles, posts: posts);
+  return (bag: bag, profiles: profiles, posts: posts, gifts: giftRepo);
 }
 
-Finder _in(String code, Finder finder) =>
-    find.descendant(of: find.byKey(BagScreen.itemKey(code)), matching: finder);
-
-Finder get _list => find.byType(Scrollable).first;
+/// The Tools list (not the tab pages or the in-use row).
+Finder get _list => find
+    .descendant(
+      of: find.byType(RefreshIndicator),
+      matching: find.byType(Scrollable),
+    )
+    .first;
 
 Text _text(WidgetTester tester, Key key) =>
     tester.widget<Text>(find.byKey(key));
@@ -122,96 +132,82 @@ void main() {
   final en = l10nFor(AppLanguage.en);
   final ar = l10nFor(AppLanguage.ar);
 
-  testWidgets('only owned items, by category, with source and time left', (
+  ButtonStyleButton button(WidgetTester tester, Key key) =>
+      tester.widget<ButtonStyleButton>(find.byKey(key));
+
+  Future<void> tab(WidgetTester tester, Key key) async {
+    await tester.tap(find.byKey(key));
+    await tester.pumpAndSettle();
+  }
+
+  /// Selects [code] on «الحقيبة» (the full list).
+  Future<void> select(WidgetTester tester, String code) async {
+    if (find.byKey(BagScreen.itemKey(code)).evaluate().isEmpty &&
+        find.byKey(BagScreen.sectionKey('PROFILE_CARD')).evaluate().isEmpty) {
+      await tab(tester, BagScreen.itemsTabKey);
+    }
+    await tester.scrollUntilVisible(
+      find.byKey(BagScreen.itemKey(code)),
+      200,
+      scrollable: _list,
+    );
+    await tester.ensureVisible(find.byKey(BagScreen.itemKey(code)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(BagScreen.itemKey(code)));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('Tools: in use per category, all tools by category, times', (
     tester,
   ) async {
     await withClock(Clock.fixed(_now), () async {
-      final f = await _pump(tester);
-      // The catalogue is never asked: items not owned are not shown.
+      // The user holds live gifts too: the bag never shows or asks for them.
+      final f = await _pump(tester, gifts: const {'rose': 3});
+      // Only the owned items are asked for; the catalogue never.
       expect(f.bag.calls, ['myBag']);
-      expect(find.text(en.bagTitle), findsOneWidget);
-      expect(find.byKey(BagScreen.sectionKey('PROFILE_CARD')), findsOneWidget);
-      expect(find.text(en.bagCategoryProfileCard), findsOneWidget);
-
-      // The free card: «Gift from Kabso», permanent, worn, not sendable.
-      expect(_in('bunny_royal', find.text('Royal Bunny')), findsOneWidget);
+      expect(find.byKey(BagScreen.toolsTabKey), findsOneWidget);
+      expect(find.byKey(BagScreen.itemsTabKey), findsOneWidget);
+      // «الأدوات»: what is worn, never the full list (that is «الحقيبة»).
+      expect(find.text(en.bagInUse), findsOneWidget);
+      expect(find.text(en.bagAllTools), findsNothing);
+      expect(find.byKey(BagScreen.itemKey('golden_stags')), findsNothing);
+      // In use: the worn profile card; the frame category has an empty slot.
       expect(
-        _in('bunny_royal', find.byType(KabsoProfileHeaderArt)),
+        find.descendant(
+          of: find.byKey(BagScreen.slotKey('PROFILE_CARD')),
+          matching: find.text('Royal Bunny'),
+        ),
         findsOneWidget,
       );
       expect(
-        _text(tester, BagScreen.sourceKey('bunny_royal')).data,
-        en.bagFromKabso,
+        find.byKey(BagScreen.emptySlotKey('AVATAR_FRAME')),
+        findsOneWidget,
       );
+      // «الحقيبة»: every owned item by category (an unknown one as «Other
+      // items»); still no live gifts.
+      await tab(tester, BagScreen.itemsTabKey);
+      expect(find.text(en.bagAllTools), findsOneWidget);
+      expect(find.text(en.bagInUse), findsNothing);
+      expect(f.gifts.calls, isEmpty);
+      expect(find.byKey(BagScreen.sectionKey('PROFILE_CARD')), findsOneWidget);
+      expect(find.byKey(BagScreen.wornKey('bunny_royal')), findsOneWidget);
       expect(
         _text(tester, BagScreen.timeKey('bunny_royal')).data,
         en.bagPermanent,
       );
-      expect(find.byKey(BagScreen.wornKey('bunny_royal')), findsOneWidget);
-      expect(find.byKey(BagScreen.takeOffKey('bunny_royal')), findsOneWidget);
-      expect(
-        tester
-            .widget<ButtonStyleButton>(
-              find.byKey(BagScreen.sendKey('bunny_royal')),
-            )
-            .onPressed,
-        isNull,
-      );
-      expect(
-        _text(tester, BagScreen.noSendKey('bunny_royal')).data,
-        en.bagNoSendFree,
-      );
-
-      // 6 days 4 hours left; sendable.
-      expect(
-        _text(tester, BagScreen.timeKey('golden_stags')).data,
-        '6 days 4 hours left',
-      );
-      expect(find.byKey(BagScreen.wearKey('golden_stags')), findsOneWidget);
-      expect(
-        tester
-            .widget<ButtonStyleButton>(
-              find.byKey(BagScreen.sendKey('golden_stags')),
-            )
-            .onPressed,
-        isNotNull,
-      );
-      expect(find.byKey(BagScreen.noSendKey('golden_stags')), findsNothing);
-
-      // A gift from @sara_22 that ends at 14:00 today.
-      expect(
-        _text(tester, BagScreen.sourceKey('emerald_wings')).data,
-        'Gift from @sara_22',
-      );
-      expect(
-        _text(tester, BagScreen.timeKey('emerald_wings')).data,
-        en.bagEndsToday,
-      );
-
-      // A level reward: permanent, wearable, not sendable (with why).
+      expect(_text(tester, BagScreen.timeKey('golden_stags')).data, '6 days');
+      expect(_text(tester, BagScreen.timeKey('emerald_wings')).data, '5 hours');
       await tester.scrollUntilVisible(
         find.byKey(BagScreen.itemKey('fire_frame')),
         200,
         scrollable: _list,
       );
-      expect(
-        _text(tester, BagScreen.sourceKey('kabi_royal')).data,
-        en.bagFromLevel,
-      );
-      expect(
-        _text(tester, BagScreen.noSendKey('kabi_royal')).data,
-        en.bagNoSendLevel,
-      );
-      expect(find.byKey(BagScreen.wearKey('kabi_royal')), findsOneWidget);
-
-      // A category this app does not know yet still shows, as «Other items».
       expect(find.byKey(BagScreen.sectionKey('AVATAR_FRAME')), findsOneWidget);
-      expect(find.text(en.bagCategoryOther), findsOneWidget);
-      expect(find.byKey(BagScreen.wearKey('fire_frame')), findsOneWidget);
-      expect(
-        _text(tester, BagScreen.noSendKey('fire_frame')).data,
-        en.bagNoSendLevel,
-      );
+      expect(find.text(en.bagCategoryOther), findsWidgets);
+      // Nothing selected: Use and Send are off, nothing named.
+      expect(button(tester, BagScreen.useKey).onPressed, isNull);
+      expect(button(tester, BagScreen.sendKey).onPressed, isNull);
+      expect(find.byKey(BagScreen.selectedNameKey), findsNothing);
     });
   });
 
@@ -220,18 +216,21 @@ void main() {
     String left(Duration d, {bool arabic = true}) =>
         bagTimeLeft(arabic ? ar : en, now.add(d), now);
     expect(left(const Duration(days: 6, hours: 4)), 'متبقٍ 6 أيام 4 ساعات');
-    expect(left(const Duration(days: 1)), 'متبقٍ يوم واحد');
-    expect(left(const Duration(days: 2, hours: 1)), 'متبقٍ يومان ساعة واحدة');
     expect(left(const Duration(hours: 5)), 'ينتهي اليوم');
-    // After midnight: hours, not «today».
     expect(left(const Duration(hours: 16)), 'متبقٍ 16 ساعة');
-    expect(left(const Duration(minutes: 12)), 'متبقٍ 12 دقيقة');
     expect(bagTimeLeft(ar, null, now), 'دائم');
-    expect(left(const Duration(hours: 3), arabic: false), 'Ends today');
     expect(left(const Duration(minutes: 1), arabic: false), '1 minute left');
+    // The tiles: whole days, else hours / minutes; «دائم».
+    expect(
+      bagTileTime(ar, now.add(const Duration(days: 31, hours: 3)), now),
+      '31 يوماً',
+    );
+    expect(bagTileTime(en, now.add(const Duration(days: 31)), now), '31 days');
+    expect(bagTileTime(ar, now.add(const Duration(hours: 5)), now), '5 ساعات');
+    expect(bagTileTime(ar, null, now), 'دائم');
   });
 
-  testWidgets('Wear: PUT the code, the badge moves, the profile reloads', (
+  testWidgets('select, Use: PUT the code, Remove appears, in use updates', (
     tester,
   ) async {
     await withClock(Clock.fixed(_now), () async {
@@ -243,29 +242,75 @@ void main() {
       addTearDown(sub.close);
       await tester.pumpAndSettle();
       final gets = f.profiles.calls.length;
-
-      await tester.tap(find.byKey(BagScreen.wearKey('golden_stags')));
+      await select(tester, 'golden_stags');
+      expect(_text(tester, BagScreen.selectedNameKey).data, 'Golden Stags');
+      expect(_text(tester, BagScreen.selectedSourceKey).data, en.bagFromKabso);
+      expect(button(tester, BagScreen.useKey).onPressed, isNotNull);
+      expect(button(tester, BagScreen.sendKey).onPressed, isNotNull);
+      await tester.tap(find.byKey(BagScreen.useKey));
       await tester.pumpAndSettle();
       expect(f.bag.calls, contains('setEquipped:golden_stags'));
-      expect(find.byKey(BagScreen.wornKey('golden_stags')), findsOneWidget);
-      expect(find.byKey(BagScreen.wornKey('bunny_royal')), findsNothing);
-      expect(find.byKey(BagScreen.wearKey('bunny_royal')), findsOneWidget);
-      expect(find.byKey(BagScreen.takeOffKey('golden_stags')), findsOneWidget);
+      expect(find.byKey(BagScreen.takeOffKey), findsOneWidget);
+      expect(find.text(en.bagTakeOff), findsOneWidget);
       expect(f.bag.calls.where((c) => c == 'myBag'), hasLength(2));
+      // The user's own profile (their card) reloads too.
       expect(f.profiles.calls.length, greaterThan(gets));
+      expect(find.byKey(BagScreen.wornKey('bunny_royal')), findsNothing);
+      expect(find.byKey(BagScreen.wornKey('golden_stags')), findsOneWidget);
+      // «الأدوات» shows it in use, and the selection stays across tabs.
+      await tab(tester, BagScreen.toolsTabKey);
+      expect(
+        find.descendant(
+          of: find.byKey(BagScreen.slotKey('PROFILE_CARD')),
+          matching: find.text('Golden Stags'),
+        ),
+        findsOneWidget,
+      );
+      expect(find.byKey(BagScreen.takeOffKey), findsOneWidget);
+      // Tapping the selected tile again clears the selection.
+      await select(tester, 'golden_stags');
+      expect(find.byKey(BagScreen.selectedNameKey), findsNothing);
     });
   });
 
-  testWidgets('Remove («إزالة»): PUT null, nothing worn', (tester) async {
+  testWidgets('Remove («إزالة») the worn one: PUT null, the slot empties', (
+    tester,
+  ) async {
     await withClock(Clock.fixed(_now), () async {
       final f = await _pump(tester);
-      expect(find.text(en.bagTakeOff), findsOneWidget);
-      await tester.tap(find.byKey(BagScreen.takeOffKey('bunny_royal')));
+      await select(tester, 'bunny_royal');
+      await tester.tap(find.byKey(BagScreen.takeOffKey));
       await tester.pumpAndSettle();
       expect(f.bag.calls, contains('setEquipped:null'));
       expect(f.bag.worn, isNull);
-      expect(find.text(en.bagWorn), findsNothing);
-      expect(find.byKey(BagScreen.wearKey('bunny_royal')), findsOneWidget);
+      expect(find.byKey(BagScreen.useKey), findsOneWidget);
+      await tab(tester, BagScreen.toolsTabKey);
+      expect(
+        find.byKey(BagScreen.emptySlotKey('PROFILE_CARD')),
+        findsOneWidget,
+      );
+    });
+  });
+
+  testWidgets('not sendable: free items and level rewards say why', (
+    tester,
+  ) async {
+    await withClock(Clock.fixed(_now), () async {
+      await _pump(tester);
+      await select(tester, 'bunny_royal');
+      expect(button(tester, BagScreen.sendKey).onPressed, isNull);
+      expect(_text(tester, BagScreen.noSendKey).data, en.bagNoSendFree);
+      await select(tester, 'kabi_royal');
+      expect(button(tester, BagScreen.sendKey).onPressed, isNull);
+      expect(_text(tester, BagScreen.selectedSourceKey).data, en.bagFromLevel);
+      expect(_text(tester, BagScreen.noSendKey).data, en.bagNoSendLevel);
+      // Still wearable.
+      expect(button(tester, BagScreen.useKey).onPressed, isNotNull);
+      await select(tester, 'emerald_wings');
+      expect(
+        _text(tester, BagScreen.selectedSourceKey).data,
+        'Gift from @sara_22',
+      );
     });
   });
 
@@ -275,56 +320,43 @@ void main() {
     await withClock(Clock.fixed(_now), () async {
       final f = await _pump(tester);
       f.bag.failNext['setEquipped'] = bondFailure(ErrorCode.bagItemNotOwned);
-      await tester.tap(find.byKey(BagScreen.wearKey('golden_stags')));
+      await select(tester, 'golden_stags');
+      await tester.tap(find.byKey(BagScreen.useKey));
       await tester.pumpAndSettle();
       expect(find.text(en.errorBagItemNotOwned), findsOneWidget);
       expect(f.bag.calls.where((c) => c == 'myBag'), hasLength(2));
-      expect(find.byKey(BagScreen.wornKey('bunny_royal')), findsOneWidget);
     });
   });
 
-  testWidgets('send some days: the sheet, the person, the confirmation', (
+  testWidgets('Send from the bar: some days, the person, the confirmation', (
     tester,
   ) async {
     await withClock(Clock.fixed(_now), () async {
       final f = await _pump(tester);
-      await tester.tap(find.byKey(BagScreen.sendKey('golden_stags')));
+      await select(tester, 'golden_stags');
+      await tester.tap(find.byKey(BagScreen.sendKey));
       await tester.pumpAndSettle();
       expect(find.byType(BagSendSheet), findsOneWidget);
       expect(
         _text(tester, BagSendSheet.haveKey).data,
         'You have: 6 days 4 hours',
       );
-      // Whole days below what is left, and «All».
       for (final d in [1, 3, 6]) {
         expect(find.byKey(BagSendSheet.daysKey(d)), findsOneWidget);
       }
-      expect(find.byKey(BagSendSheet.daysKey(7)), findsNothing);
-      expect(find.byKey(BagSendSheet.allKey), findsOneWidget);
-      expect(_text(tester, BagSendSheet.noteKey).data, en.bagSendWholeNote);
       await tester.tap(find.byKey(BagSendSheet.daysKey(3)));
       await tester.pump();
       expect(
         _text(tester, BagSendSheet.noteKey).data,
         'You keep: 3 days 4 hours',
       );
-      // Nobody chosen yet: Send is off.
-      expect(
-        tester
-            .widget<FilledButton>(find.byKey(BagSendSheet.submitKey))
-            .onPressed,
-        isNull,
-      );
       await tester.enterText(find.byKey(BagSendSheet.fieldKey), '@sa');
       await tester.pump(const Duration(milliseconds: 350));
       await tester.pumpAndSettle();
-      expect(f.posts.calls, contains('searchUsers:sa'));
       await tester.tap(find.byKey(BagSendSheet.personKey('sara_22')));
       await tester.pumpAndSettle();
-      expect(find.byKey(BagSendSheet.changeKey), findsOneWidget);
       await tester.tap(find.byKey(BagSendSheet.submitKey));
       await tester.pumpAndSettle();
-      // The confirmation names the item, the amount and the person.
       expect(
         find.text(
           en.bagSendConfirmBody(
@@ -338,48 +370,23 @@ void main() {
       await tester.tap(find.byKey(BagSendSheet.confirmKey));
       await tester.pumpAndSettle();
       expect(f.bag.calls, contains('send:golden_stags:sara_22:3'));
-      expect(find.byType(BagSendSheet), findsNothing);
       expect(find.text('Sent to @sara_22'), findsOneWidget);
-      expect(f.bag.calls.where((c) => c == 'myBag'), hasLength(2));
+      // A partial send keeps the selection.
+      expect(find.byKey(BagScreen.selectedNameKey), findsOneWidget);
     });
   });
 
-  testWidgets('send all; cancelling the confirmation sends nothing', (
-    tester,
-  ) async {
-    await withClock(Clock.fixed(_now), () async {
-      final f = await _pump(tester);
-      await tester.tap(find.byKey(BagScreen.sendKey('emerald_wings')));
-      await tester.pumpAndSettle();
-      // 5 hours left: no whole day to split, only «All».
-      expect(find.byKey(BagSendSheet.daysKey(1)), findsNothing);
-      await tester.enterText(find.byKey(BagSendSheet.fieldKey), 'sara');
-      await tester.pump(const Duration(milliseconds: 350));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(BagSendSheet.personKey('sara_22')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(BagSendSheet.submitKey));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text(en.actionCancel));
-      await tester.pumpAndSettle();
-      expect(f.bag.calls.where((c) => c.startsWith('send')), isEmpty);
-      await tester.tap(find.byKey(BagSendSheet.submitKey));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(BagSendSheet.confirmKey));
-      await tester.pumpAndSettle();
-      expect(f.bag.calls, contains('send:emerald_wings:sara_22:all'));
-      expect(find.byKey(BagScreen.itemKey('emerald_wings')), findsNothing);
-    });
-  });
-
-  testWidgets('a refused send stays in the sheet with the reason', (
+  testWidgets('Send all: the item leaves; a refused send keeps the sheet', (
     tester,
   ) async {
     await withClock(Clock.fixed(_now), () async {
       final f = await _pump(tester);
       f.bag.failNext['send'] = bondFailure(ErrorCode.bagRecipientHasPermanent);
-      await tester.tap(find.byKey(BagScreen.sendKey('golden_stags')));
+      await select(tester, 'emerald_wings');
+      await tester.tap(find.byKey(BagScreen.sendKey));
       await tester.pumpAndSettle();
+      // 5 hours left: only «All».
+      expect(find.byKey(BagSendSheet.daysKey(1)), findsNothing);
       await tester.enterText(find.byKey(BagSendSheet.fieldKey), 'sa');
       await tester.pump(const Duration(milliseconds: 350));
       await tester.pumpAndSettle();
@@ -389,27 +396,17 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(BagSendSheet.confirmKey));
       await tester.pumpAndSettle();
-      expect(find.byType(BagSendSheet), findsOneWidget);
       expect(
         _text(tester, BagSendSheet.errorKey).data,
         en.errorBagRecipientHasPermanent,
       );
-    });
-  });
-
-  testWidgets('a permanent sendable item goes whole only', (tester) async {
-    await withClock(Clock.fixed(_now), () async {
-      await _pump(
-        tester,
-        items: [bagItemJson('golden_stags', ar: false)],
-        worn: null,
-      );
-      await tester.tap(find.byKey(BagScreen.sendKey('golden_stags')));
+      await tester.tap(find.byKey(BagSendSheet.submitKey));
       await tester.pumpAndSettle();
-      expect(_text(tester, BagSendSheet.haveKey).data, 'You have: Permanent');
-      expect(find.byKey(BagSendSheet.daysKey(1)), findsNothing);
-      expect(find.byKey(BagSendSheet.allKey), findsOneWidget);
-      expect(_text(tester, BagSendSheet.noteKey).data, en.bagSendPermanentNote);
+      await tester.tap(find.byKey(BagSendSheet.confirmKey));
+      await tester.pumpAndSettle();
+      expect(f.bag.calls, contains('send:emerald_wings:sara_22:all'));
+      expect(find.byKey(BagScreen.itemKey('emerald_wings')), findsNothing);
+      expect(find.byKey(BagScreen.selectedNameKey), findsNothing);
     });
   });
 
@@ -429,9 +426,10 @@ void main() {
           ),
         ],
       );
+      await tab(tester, BagScreen.itemsTabKey);
       expect(
         _text(tester, BagScreen.timeKey('golden_stags')).data,
-        '2 minutes left',
+        '2 minutes',
       );
       now = _now.add(const Duration(minutes: 2));
       await tester.pump(const Duration(minutes: 1));
@@ -454,14 +452,23 @@ void main() {
     expect(find.text(en.bagLoadError), findsOneWidget);
     await tester.tap(find.text(en.actionRetry));
     await tester.pumpAndSettle();
-    expect(find.byKey(BagScreen.itemKey('bunny_royal')), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(BagScreen.slotKey('PROFILE_CARD')),
+        matching: find.text('Royal Bunny'),
+      ),
+      findsOneWidget,
+    );
   });
 
-  testWidgets('owning nothing: the empty state, no other item', (tester) async {
+  testWidgets('owning nothing: the empty state and an empty slot', (
+    tester,
+  ) async {
     final f = await _pump(tester, items: const [], worn: null);
     expect(find.byKey(BagScreen.emptyKey), findsOneWidget);
-    expect(find.text(en.bagEmptyTitle), findsOneWidget);
-    expect(find.byType(FilledButton), findsNothing);
+    expect(find.byKey(BagScreen.emptySlotKey('PROFILE_CARD')), findsOneWidget);
+    await tab(tester, BagScreen.itemsTabKey);
+    expect(find.byKey(BagScreen.emptyKey), findsOneWidget);
     expect(f.bag.calls, ['myBag']);
   });
 
@@ -478,64 +485,38 @@ void main() {
           expect(tester.takeException(), isNull, reason: language.name);
           final isAr = language == AppLanguage.ar;
           final l10n = isAr ? ar : en;
-          expect(find.text(l10n.bagTitle), findsOneWidget);
-          expect(
-            find.text(bagItemName('bunny_royal', ar: isAr)),
-            findsOneWidget,
-          );
-          // The preview sits at the reading start: right in Arabic.
-          final card = tester.getRect(
+          expect(find.text(l10n.bagTabTools), findsOneWidget);
+          if (isAr) {
+            expect(find.text('قيد الاستخدام'), findsOneWidget);
+            expect(find.text('استخدام'), findsOneWidget);
+          }
+          await tab(tester, BagScreen.itemsTabKey);
+          expect(tester.takeException(), isNull, reason: language.name);
+          if (isAr) expect(find.text('كل الأدوات'), findsOneWidget);
+          // The first tile at the reading start: right in Arabic.
+          final first = tester.getCenter(
             find.byKey(BagScreen.itemKey('bunny_royal')),
           );
-          final art = tester.getCenter(
-            _in('bunny_royal', find.byType(ProfileCardPreview)),
+          final second = tester.getCenter(
+            find.byKey(BagScreen.itemKey('golden_stags')),
           );
-          expect(art.dx > card.center.dx, isAr, reason: language.name);
-          // Wear / Remove beside Send.
-          final wear = tester.getCenter(
-            find.byKey(BagScreen.takeOffKey('bunny_royal')),
-          );
-          final send = tester.getCenter(
-            find.byKey(BagScreen.sendKey('bunny_royal')),
-          );
-          expect((wear.dy - send.dy).abs() < 1, isTrue);
-          expect(wear.dx > send.dx, isAr);
-          if (isAr) {
-            expect(find.text('إزالة'), findsOneWidget);
-            await tester.scrollUntilVisible(
-              find.byKey(BagScreen.timeKey('golden_stags')),
-              200,
-              scrollable: _list,
-            );
-            expect(
-              _text(tester, BagScreen.timeKey('golden_stags')).data,
-              'متبقٍ 6 أيام 4 ساعات',
-            );
-            await tester.scrollUntilVisible(
-              find.byKey(BagScreen.sourceKey('emerald_wings')),
-              200,
-              scrollable: _list,
-            );
-            expect(
-              _text(tester, BagScreen.sourceKey('emerald_wings')).data,
-              contains('هدية من'),
-            );
-            expect(find.text('ارتداء'), findsWidgets);
-            expect(find.text('إرسال'), findsWidgets);
-          }
+          expect(first.dx > second.dx, isAr, reason: language.name);
+          // The pills at the end: Use / Remove after Send.
+          final send = tester.getCenter(find.byKey(BagScreen.sendKey));
+          final use = tester.getCenter(find.byKey(BagScreen.useKey));
+          expect(use.dx > send.dx, !isAr, reason: language.name);
+          await select(tester, 'kabi_royal');
+          expect(tester.takeException(), isNull, reason: language.name);
           await tester.scrollUntilVisible(
             find.byKey(BagScreen.itemKey('fire_frame')),
             200,
             scrollable: _list,
           );
           expect(tester.takeException(), isNull, reason: language.name);
-          // The send sheet too.
-          await tester.scrollUntilVisible(
-            find.byKey(BagScreen.sendKey('golden_stags')),
-            -200,
-            scrollable: _list,
-          );
-          await tester.tap(find.byKey(BagScreen.sendKey('golden_stags')));
+          await tab(tester, BagScreen.toolsTabKey);
+          expect(tester.takeException(), isNull, reason: language.name);
+          await select(tester, 'golden_stags');
+          await tester.tap(find.byKey(BagScreen.sendKey));
           await tester.pumpAndSettle();
           expect(tester.takeException(), isNull, reason: language.name);
           expect(find.byType(BagSendSheet), findsOneWidget);

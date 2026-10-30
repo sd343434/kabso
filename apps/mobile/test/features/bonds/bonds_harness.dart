@@ -39,6 +39,7 @@ Future<BondFakes> pumpBonds(
   BondFakes? fakes,
   List<Override> overrides = const [],
   bool signedIn = true,
+  Brightness brightness = Brightness.dark,
 }) async {
   final f = fakes ?? BondFakes();
   final prefs = await testPrefs(language: language.name);
@@ -71,10 +72,7 @@ Future<BondFakes> pumpBonds(
           AppLocalizations.delegate,
           ...GlobalMaterialLocalizations.delegates,
         ],
-        theme: buildAppTheme(
-          brightness: Brightness.dark,
-          locale: language.locale,
-        ),
+        theme: buildAppTheme(brightness: brightness, locale: language.locale),
       ),
     ),
   );

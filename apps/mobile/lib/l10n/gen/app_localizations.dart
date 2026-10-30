@@ -15522,6 +15522,42 @@ abstract class AppLocalizations {
   /// **'عنصراً لحقيبتك'**
   String get notifBagItemGeneric;
 
+  /// D180: the bag in the layout of the owner reference.
+  ///
+  /// In ar, this message translates to:
+  /// **'الأدوات'**
+  String get bagTabTools;
+
+  /// D180: the bag in the layout of the owner reference.
+  ///
+  /// In ar, this message translates to:
+  /// **'الحقيبة'**
+  String get bagTabItems;
+
+  /// D180: the bag in the layout of the owner reference.
+  ///
+  /// In ar, this message translates to:
+  /// **'قيد الاستخدام'**
+  String get bagInUse;
+
+  /// D180: the bag in the layout of the owner reference.
+  ///
+  /// In ar, this message translates to:
+  /// **'كل الأدوات'**
+  String get bagAllTools;
+
+  /// D180: the bag in the layout of the owner reference.
+  ///
+  /// In ar, this message translates to:
+  /// **'استخدام'**
+  String get bagUse;
+
+  /// D180: the bag in the layout of the owner reference.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا شيء'**
+  String get bagNothingWorn;
+
   /// D177: wallet tab, the spending currency (Kabi gold coin, D161).
   ///
   /// In ar, this message translates to:

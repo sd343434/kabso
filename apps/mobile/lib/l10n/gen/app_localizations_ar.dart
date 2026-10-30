@@ -9055,6 +9055,24 @@ class AppLocalizationsAr extends AppLocalizations {
   String get notifBagItemGeneric => 'عنصراً لحقيبتك';
 
   @override
+  String get bagTabTools => 'الأدوات';
+
+  @override
+  String get bagTabItems => 'الحقيبة';
+
+  @override
+  String get bagInUse => 'قيد الاستخدام';
+
+  @override
+  String get bagAllTools => 'كل الأدوات';
+
+  @override
+  String get bagUse => 'استخدام';
+
+  @override
+  String get bagNothingWorn => 'لا شيء';
+
+  @override
   String get walletTabGold => 'العملات الذهبية';
 
   @override
