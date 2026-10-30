@@ -220,6 +220,8 @@ info:
     stored data: the caller's coin history (`listMyWalletLedger`), gift earnings and their history
     (`getMyEarnings`, `listMyEarnings`, display only — no withdrawal, D149) and the creator center
     (`getMyCreatorStats`, `GET /me/creator-stats`) (CONVENTIONS §10.40).
+    **D172 (DRAFT v1.43.2-social)**: `getMyCreatorStats` also takes `period=THIS_MONTH` (the current
+    calendar month so far, in the region's time zone) and returns `month` (CONVENTIONS §10.40).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -3833,7 +3835,8 @@ paths:
       summary: "The caller's creator center: followers, posts, reels and lives (D164)"
       description: |
         v1.43-social, CONVENTIONS §10.40. Computed from stored data only, for the last 7 days, the last
-        30 days or all time: the followers (all, and the follows made in the period that still stand),
+        30 days, all time or *(v1.43.2-social, D172)* the current calendar month so far
+        (`THIS_MONTH`: from the 1st at 00:00 in `LIVE_RANKINGS_TIME_ZONE`, the region's zone, until now): the followers (all, and the follows made in the period that still stand),
         the posts and the reels **published in the period** with the views, likes, comments and
         shares they have now, and the lives **started in the period** that have ended (the data
         center's summaries, §10.36). Checks: 401; 400 `period`.
@@ -10750,7 +10753,8 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     CreatorStatsPeriod:
       type: string
-      enum: [LAST_7_DAYS, LAST_30_DAYS, ALL_TIME]
+      description: "Rolling windows ending now, all time, or *(v1.43.2-social, D172)* `THIS_MONTH`: the current calendar month so far in the region's time zone (`LIVE_RANKINGS_TIME_ZONE`)."
+      enum: [LAST_7_DAYS, LAST_30_DAYS, ALL_TIME, THIS_MONTH]
     CreatorContentStats:
       type: object
       description: The posts (or reels) published in the period and what they have now.
@@ -10764,10 +10768,14 @@ components:
     CreatorStats:
       type: object
       description: v1.43-social (D164, CONVENTIONS §10.40). The caller's creator center for one period.
-      required: [period, from, to, followers, posts, reels, live]
+      required: [period, from, to, month, followers, posts, reels, live]
       properties:
         period: { $ref: '#/components/schemas/CreatorStatsPeriod' }
         from: { type: [string, 'null'], format: date-time, description: The period's start; null for ALL_TIME. }
+        month:
+          type: [string, 'null']
+          pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$'
+          description: "(v1.43.2-social, D172) For THIS_MONTH, the calendar month `YYYY-MM` in the region's time zone (so the app names the right month whatever the phone's zone); null for the other periods."
         to: { type: string, format: date-time }
         followers:
           type: object
