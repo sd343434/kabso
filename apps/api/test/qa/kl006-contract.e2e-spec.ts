@@ -38,6 +38,11 @@ const ME_REQUIRED = [
   'liveCoverUrl',
   // D133 (v1.27.1-live): the caller's own country (nullable, always present).
   'country',
+  // D175 (v1.47-social): gender (nullable), its visibility, the category (nullable) and the links.
+  'gender',
+  'showGender',
+  'category',
+  'links',
 ];
 const ME_OPTIONAL = ['bio', 'avatarUrl'];
 const TOKEN_PAIR = ['accessToken', 'accessTokenExpiresAt', 'refreshToken', 'refreshTokenExpiresAt'];
