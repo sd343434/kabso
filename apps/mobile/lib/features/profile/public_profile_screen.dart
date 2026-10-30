@@ -76,6 +76,43 @@ class PublicProfileScreen extends ConsumerStatefulWidget {
 
 enum _More { copy, mute, unmute, block, report }
 
+/// D175: asks before cancelling a pending follow request to [name] (the
+/// profile page and the live room). True when the person confirms.
+Future<bool> confirmCancelFollowRequest(
+  BuildContext context,
+  String name,
+) async {
+  final l10n = context.l10n;
+  final cancel = await showModalBottomSheet<bool>(
+    context: context,
+    builder: (sheet) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(KSpacing.lg),
+            child: Text(
+              l10n.profileCancelRequestConfirm(name),
+              textAlign: TextAlign.center,
+              style: sheet.textStyles.bodyStrong,
+            ),
+          ),
+          ListTile(
+            key: PublicProfileScreen.cancelRequestKey,
+            title: Text(
+              l10n.profileCancelRequest,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: sheet.palette.error),
+            ),
+            onTap: () => Navigator.of(sheet).pop(true),
+          ),
+        ],
+      ),
+    ),
+  );
+  return cancel ?? false;
+}
+
 class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
   ProfileTab _tab = ProfileTab.posts;
 
@@ -98,35 +135,9 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
 
   /// D175: cancelling a pending follow request asks first.
   Future<void> _confirmCancelRequest(PublicProfile profile) async {
-    final l10n = context.l10n;
-    final cancel = await showModalBottomSheet<bool>(
-      context: context,
-      builder: (sheet) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(KSpacing.lg),
-              child: Text(
-                l10n.profileCancelRequestConfirm(profile.displayName),
-                textAlign: TextAlign.center,
-                style: sheet.textStyles.bodyStrong,
-              ),
-            ),
-            ListTile(
-              key: PublicProfileScreen.cancelRequestKey,
-              title: Text(
-                l10n.profileCancelRequest,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: sheet.palette.error),
-              ),
-              onTap: () => Navigator.of(sheet).pop(true),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (cancel ?? false) await _setFollowing(follow: false);
+    if (await confirmCancelFollowRequest(context, profile.displayName)) {
+      await _setFollowing(follow: false);
+    }
   }
 
   Future<void> _confirmUnfollow(PublicProfile profile) async {

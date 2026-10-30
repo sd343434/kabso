@@ -73,13 +73,13 @@ abstract class PublicProfile with _$PublicProfile {
 
   factory fromJson(Map<String, dynamic> json) => _$PublicProfileFromJson(json);
 
-  /// Whether a plain Follow control may be offered (§10.5/10.6): never for
-  /// yourself, and not to start following a private account. The live
-  /// room's Follow chip uses this (it has no request state).
+  /// Whether a plain follow (no request) is possible (§10.5/10.6): never
+  /// for yourself, and not to start following a private account.
   bool get canFollow => !isSelf && (isFollowing || !isPrivate);
 
-  /// v1.47-social (D175, §10.43): whether the profile page may offer Follow:
-  /// everyone but yourself — on a private account it sends a request.
+  /// v1.47-social (D175, §10.43): whether Follow may be offered (the profile
+  /// page and, owner, the live room): everyone but yourself — on a private
+  /// account it sends a request.
   bool get canFollowOrRequest => !isSelf;
 
   /// v1.47-social (D175): a private account the caller may not see the

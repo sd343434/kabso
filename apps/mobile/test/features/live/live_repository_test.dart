@@ -451,11 +451,18 @@ void main() {
       });
     });
 
-    test('canFollow: never for yourself or a new follow of a private user', () {
+    // D175 (owner): the live room and the profile page offer Follow on a
+    // private account too (it sends a request): `canFollowOrRequest`. The
+    // plain `canFollow` (no request involved) keeps its meaning.
+    test('canFollow: never for yourself or a new follow of a private user; '
+        'canFollowOrRequest: everyone but yourself', () {
       expect(_profile(isSelf: true).canFollow, isFalse);
       expect(_profile(isPrivate: true).canFollow, isFalse);
       expect(_profile(isPrivate: true, isFollowing: true).canFollow, isTrue);
       expect(_profile().canFollow, isTrue);
+      expect(_profile(isSelf: true).canFollowOrRequest, isFalse);
+      expect(_profile(isPrivate: true).canFollowOrRequest, isTrue);
+      expect(_profile().canFollowOrRequest, isTrue);
     });
   });
 }

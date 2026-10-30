@@ -53,6 +53,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_win_banner.da
 import 'package:kabso_live/features/live/presentation/widgets/pk_layout.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
+import 'package:kabso_live/features/profile/public_profile_screen.dart';
 import 'package:kabso_live/features/safety/safety_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -521,15 +522,43 @@ void main() {
       expect(find.text(l10n.errorRateLimited), findsOneWidget);
     });
 
-    testWidgets('no Follow for yourself or a private account', (tester) async {
+    // D175 (owner): a private host's Follow sends a follow request and shows
+    // «تم الطلب» (a tap cancels it after asking); until then the chip was
+    // hidden for private accounts.
+    testWidgets('no Follow for yourself; a private host gets a request that '
+        'can be cancelled', (tester) async {
       await _pumpRoom(
         tester,
         profile: apiProfile(isSelf: true),
         user: testUser(),
       );
       expect(_label(l10n.liveFollow), findsNothing);
-      await _pumpRoom(tester, profile: apiProfile(isPrivate: true));
+      final (_, profiles) = await _pumpRoom(
+        tester,
+        profile: apiProfile(isPrivate: true),
+      );
+      final followers = profiles.profile.followerCount;
+      await tester.tap(_label(l10n.liveFollow));
+      await tester.pumpAndSettle();
+      expect(profiles.calls.last, 'PUT host0');
+      expect(profiles.profile.followRequested, isTrue);
+      expect(profiles.profile.followerCount, followers);
       expect(_label(l10n.liveFollow), findsNothing);
+      expect(_label(l10n.followRequested), findsOneWidget);
+      // It stays (no fade-out like a confirmed follow).
+      await tester.pump(KMetrics.followConfirmDuration);
+      await tester.pumpAndSettle();
+      expect(_label(l10n.followRequested), findsOneWidget);
+      await tester.tap(_label(l10n.followRequested));
+      await tester.pumpAndSettle();
+      expect(
+        find.text(l10n.profileCancelRequestConfirm('Sara')),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(PublicProfileScreen.cancelRequestKey));
+      await tester.pumpAndSettle();
+      expect(profiles.calls.last, 'DELETE host0');
+      expect(_label(l10n.liveFollow), findsOneWidget);
     });
 
     testWidgets("D135: the card's bottom row — Gift, Mention, Message for "
