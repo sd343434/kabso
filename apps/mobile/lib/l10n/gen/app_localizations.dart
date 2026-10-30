@@ -3926,18 +3926,6 @@ abstract class AppLocalizations {
   /// **'{points} نقطة'**
   String levelsPoints(String points);
 
-  /// D72: levels (CP-005). Points are pre-formatted with Latin digits and separators.
-  ///
-  /// In ar, this message translates to:
-  /// **'{points} للمستوى التالي'**
-  String levelsToNext(String points);
-
-  /// D72: levels (CP-005).
-  ///
-  /// In ar, this message translates to:
-  /// **'{points} نقطة للوصول إلى {level}'**
-  String levelsToNamed(String points, String level);
-
   /// D72: levels (CP-005).
   ///
   /// In ar, this message translates to:
@@ -3974,12 +3962,6 @@ abstract class AppLocalizations {
   /// **'تصنيفات المستوى'**
   String get levelsCategories;
 
-  /// D169: the dark pill button on a level category card; opens that category's page.
-  ///
-  /// In ar, this message translates to:
-  /// **'التفاصيل'**
-  String get levelsDetails;
-
   /// D169: heading over the category's explanation on its page.
   ///
   /// In ar, this message translates to:
@@ -4004,11 +3986,65 @@ abstract class AppLocalizations {
   /// **'مع إطار الصورة'**
   String get levelsTierFrame;
 
-  /// D169: the short category name in the levels tab bar (no «مستوى» so the four fit side by side).
+  /// D169: the pill of the caller's current tier card.
   ///
   /// In ar, this message translates to:
-  /// **'{category, select, attractiveness{الجاذبية} support{الدعم} wizard{الساحر} gaming{اللعب} other{}}'**
-  String levelsTabName(String category);
+  /// **'الحالي'**
+  String get levelsTierCurrent;
+
+  /// D169: the pill of a tier the caller has passed.
+  ///
+  /// In ar, this message translates to:
+  /// **'مفتوح'**
+  String get levelsTierOpen;
+
+  /// D169: the pill (with a lock) of a tier not reached yet, or of an inactive category.
+  ///
+  /// In ar, this message translates to:
+  /// **'مقفل'**
+  String get levelsTierLocked;
+
+  /// D169: the grey line of a tier the caller has reached.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم الفتح'**
+  String get levelsTierUnlocked;
+
+  /// D169: the grey line of a locked tier; {points} is stressed, pre-formatted with Latin digits.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحتاج {points} نقطة للفتح'**
+  String levelsTierToUnlock(String points);
+
+  /// D169: a tier card's caption — the points the tier starts at.
+  ///
+  /// In ar, this message translates to:
+  /// **'من {points} نقطة'**
+  String levelsTierFrom(String points);
+
+  /// D169: the short name in the levels tab bar (no «مستوى», so the four fit side by side).
+  ///
+  /// In ar, this message translates to:
+  /// **'الجاذبية'**
+  String get levelsTabAttractiveness;
+
+  /// D169: the short name in the levels tab bar (no «مستوى», so the four fit side by side).
+  ///
+  /// In ar, this message translates to:
+  /// **'الدعم'**
+  String get levelsTabSupport;
+
+  /// D169: the short name in the levels tab bar (no «مستوى», so the four fit side by side).
+  ///
+  /// In ar, this message translates to:
+  /// **'الساحر'**
+  String get levelsTabWizard;
+
+  /// D169: the short name in the levels tab bar (no «مستوى», so the four fit side by side).
+  ///
+  /// In ar, this message translates to:
+  /// **'اللعب'**
+  String get levelsTabGaming;
 
   /// No description provided for @navMoments.
   ///

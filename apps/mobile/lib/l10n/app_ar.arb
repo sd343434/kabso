@@ -2216,27 +2216,6 @@
       }
     }
   },
-  "levelsToNext": "{points} للمستوى التالي",
-  "@levelsToNext": {
-    "description": "D72: levels (CP-005). Points are pre-formatted with Latin digits and separators.",
-    "placeholders": {
-      "points": {
-        "type": "String"
-      }
-    }
-  },
-  "levelsToNamed": "{points} نقطة للوصول إلى {level}",
-  "@levelsToNamed": {
-    "description": "D72: levels (CP-005).",
-    "placeholders": {
-      "points": {
-        "type": "String"
-      },
-      "level": {
-        "type": "String"
-      }
-    }
-  },
   "levelsMax": "أعلى مستوى",
   "@levelsMax": {
     "description": "D72: levels (CP-005)."
@@ -2271,10 +2250,6 @@
   "@levelsCategories": {
     "description": "D169: screen-reader label of the category filter above the level card."
   },
-  "levelsDetails": "التفاصيل",
-  "@levelsDetails": {
-    "description": "D169: the dark pill button on a level category card; opens that category's page."
-  },
   "levelsHowItGrows": "كيف يرتفع",
   "@levelsHowItGrows": {
     "description": "D169: heading over the category's explanation on its page."
@@ -2299,14 +2274,55 @@
   "@levelsTierFrame": {
     "description": "D169: screen-reader note on a support tier tile — reaching the tier gives its avatar frame."
   },
-  "levelsTabName": "{category, select, attractiveness{الجاذبية} support{الدعم} wizard{الساحر} gaming{اللعب} other{}}",
-  "@levelsTabName": {
-    "description": "D169: the short category name in the levels tab bar (no «مستوى» so the four fit side by side).",
+  "levelsTierCurrent": "الحالي",
+  "@levelsTierCurrent": {
+    "description": "D169: the pill of the caller's current tier card."
+  },
+  "levelsTierOpen": "مفتوح",
+  "@levelsTierOpen": {
+    "description": "D169: the pill of a tier the caller has passed."
+  },
+  "levelsTierLocked": "مقفل",
+  "@levelsTierLocked": {
+    "description": "D169: the pill (with a lock) of a tier not reached yet, or of an inactive category."
+  },
+  "levelsTierUnlocked": "تم الفتح",
+  "@levelsTierUnlocked": {
+    "description": "D169: the grey line of a tier the caller has reached."
+  },
+  "levelsTierToUnlock": "تحتاج {points} نقطة للفتح",
+  "@levelsTierToUnlock": {
+    "description": "D169: the grey line of a locked tier; {points} is stressed, pre-formatted with Latin digits.",
     "placeholders": {
-      "category": {
+      "points": {
         "type": "String"
       }
     }
+  },
+  "levelsTierFrom": "من {points} نقطة",
+  "@levelsTierFrom": {
+    "description": "D169: a tier card's caption — the points the tier starts at.",
+    "placeholders": {
+      "points": {
+        "type": "String"
+      }
+    }
+  },
+  "levelsTabAttractiveness": "الجاذبية",
+  "@levelsTabAttractiveness": {
+    "description": "D169: the short name in the levels tab bar (no «مستوى», so the four fit side by side)."
+  },
+  "levelsTabSupport": "الدعم",
+  "@levelsTabSupport": {
+    "description": "D169: the short name in the levels tab bar (no «مستوى», so the four fit side by side)."
+  },
+  "levelsTabWizard": "الساحر",
+  "@levelsTabWizard": {
+    "description": "D169: the short name in the levels tab bar (no «مستوى», so the four fit side by side)."
+  },
+  "levelsTabGaming": "اللعب",
+  "@levelsTabGaming": {
+    "description": "D169: the short name in the levels tab bar (no «مستوى», so the four fit side by side)."
   },
   "navMoments": "اللحظات",
   "navMessages": "الرسائل",

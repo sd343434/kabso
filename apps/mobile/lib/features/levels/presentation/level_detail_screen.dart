@@ -21,8 +21,13 @@ class LevelDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) => LevelsScreen(initialCategory: category);
 }
 
-/// Every badge tier of a category (D169): three per row, each with its badge,
-/// its levels and — once the ladder is loaded — the points it starts at.
+/// Every badge tier of a category (D169) as the reference's cards, two
+/// per row on the board's deep indigo panel: the tier's name and levels,
+/// «تم الفتح» or the points still needed to unlock it, a bar towards it,
+/// the points it starts at, and a pill — «الحالي», «مفتوح» or «مقفل» (with
+/// a lock; styling, not a button). Locked tiers are desaturated; an
+/// inactive category shows every tier locked. One column when two would
+/// not fit (a 360-lp phone at text scale 1.3).
 class LevelTierGrid extends ConsumerWidget {
   const new({required this.summary, super.key});
 
@@ -30,6 +35,7 @@ class LevelTierGrid extends ConsumerWidget {
   static Key frameKey(int tier) => Key('levels.tier.frame.$tier');
   static const currentKey = Key('levels.tier.current');
   static const unavailableKey = Key('levels.unavailable');
+  static const panelKey = Key('levels.tiers.panel');
 
   final LevelSummary summary;
 
@@ -37,19 +43,20 @@ class LevelTierGrid extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final category = summary.category;
-    // The ladder's points per level; an inactive category has none.
+    // The ladder (points and names per level); an inactive category has none.
     final load = summary.available
         ? ref.watch(myLevelProvider(category))
         : null;
     final ladder = {
       for (final l in load?.value?.levels ?? const <LevelBrief>[])
-        l.levelNumber: l.requiredPoints,
+        l.levelNumber: l,
     };
     final level = summary.available ? summary.level : null;
     final current = level == null
         ? 0
         : KLevelArt.tierOf(category, level.levelNumber, iconKey: level.iconKey);
     final count = KLevelArt.tiersOf(category);
+    final scale = MediaQuery.textScalerOf(context).scale(1);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -65,28 +72,45 @@ class LevelTierGrid extends ConsumerWidget {
         ],
         LayoutBuilder(
           builder: (context, constraints) {
-            const columns = 3;
+            final outer = constraints.maxWidth;
+            // Two columns need ≈ 300 lp of text width at the current scale.
+            final columns = outer / scale >= 300 ? 2 : 1;
+            // outer = columns·W + 2·pad·W + (columns − 1)·gap·W.
             final w =
-                (constraints.maxWidth - KSpacing.sm * (columns - 1)) / columns;
-            return Wrap(
-              spacing: KSpacing.sm,
-              runSpacing: KSpacing.sm,
-              children: [
-                for (var t = 1; t <= count; t++)
-                  SizedBox(
-                    width: w,
-                    child: _TierTile(
-                      key: t == current
-                          ? LevelTierGrid.currentKey
-                          : LevelTierGrid.tierKey(t),
-                      category: category,
-                      tier: t,
-                      start: ladder[KLevelArt.levelRange(category, t).$1],
-                      current: t == current,
-                      reached: t <= current,
-                    ),
-                  ),
-              ],
+                outer /
+                (columns +
+                    2 * KLevelCard.panelPadFactor +
+                    (columns - 1) * KLevelCard.columnGapFactor);
+            final pad = w * KLevelCard.panelPadFactor;
+            final gap = w * KLevelCard.columnGapFactor;
+            return DecoratedBox(
+              key: panelKey,
+              decoration: BoxDecoration(
+                color: KLevelCard.panel,
+                borderRadius: BorderRadius.circular(KRadius.lg),
+              ),
+              child: Padding(
+                padding: EdgeInsetsDirectional.all(pad),
+                child: Wrap(
+                  spacing: gap,
+                  runSpacing: pad,
+                  children: [
+                    for (var t = 1; t <= count; t++)
+                      SizedBox(
+                        width: w,
+                        child: _TierCard(
+                          key: t == current
+                              ? LevelTierGrid.currentKey
+                              : LevelTierGrid.tierKey(t),
+                          summary: summary,
+                          tier: t,
+                          current: current,
+                          ladder: ladder,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
             );
           },
         ),
@@ -95,121 +119,89 @@ class LevelTierGrid extends ConsumerWidget {
   }
 }
 
-class _TierTile extends StatelessWidget {
+class _TierCard extends StatelessWidget {
   const new({
-    required this.category,
+    required this.summary,
     required this.tier,
-    required this.start,
     required this.current,
-    required this.reached,
+    required this.ladder,
     super.key,
   });
 
-  final LevelCategory category;
+  final LevelSummary summary;
   final int tier;
 
-  /// Points at the tier's first level, when the ladder is known.
-  final BigInt? start;
-  final bool current;
-  final bool reached;
+  /// The caller's tier (0 = none or inactive).
+  final int current;
+  final Map<int, LevelBrief> ladder;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final category = summary.category;
     final (from, to) = KLevelArt.levelRange(category, tier);
     final range = from == to
         ? l10n.levelsLv(from)
         : l10n.levelsTierRange(from, to);
-    final tint = LevelCardTint(
-      KLevelArt.gemOf(category, tier),
-      active: reached,
-    );
-    final points = start == null
+    final first = ladder[from];
+    final title = first == null ? range : '${first.name} $range';
+    final reached = tier <= current;
+    final isCurrent = tier == current;
+    final start = first?.requiredPoints;
+    final left = start == null || reached ? null : start - summary.points;
+    final InlineSpan line;
+    if (!summary.available) {
+      line = TextSpan(text: l10n.levelsUnavailable);
+    } else if (reached) {
+      line = TextSpan(text: l10n.levelsTierUnlocked);
+    } else if (left != null && left > BigInt.zero) {
+      final x = formatPoints(left);
+      line = levelCardStressed(l10n.levelsTierToUnlock(x), x);
+    } else {
+      line = const TextSpan();
+    }
+    final progress = !summary.available
         ? null
-        : l10n.levelsPoints(formatPoints(start!));
-    // Support tiers come with the owner's avatar frame (D169).
-    final frame = category == LevelCategory.support;
+        : reached
+        ? 1.0
+        : start == null || start == BigInt.zero
+        ? 0.0
+        : (summary.points.toDouble() / start.toDouble()).clamp(0.0, 1.0);
+    final pill = isCurrent
+        ? LevelCardPill(l10n.levelsTierCurrent)
+        : reached
+        ? LevelCardPill(l10n.levelsTierOpen)
+        : LevelCardPill(l10n.levelsTierLocked, locked: true);
+    // The starting points once the ladder is known (the title has the range).
+    final caption = start == null
+        ? ''
+        : l10n.levelsTierFrom(formatPoints(start));
+    final frame = category == LevelCategory.support
+        ? KLevelArt.supportFrame(tier)
+        : null;
     return Semantics(
-      selected: current,
+      selected: isCurrent,
       label: [
-        range,
-        ?points,
-        if (frame) l10n.levelsTierFrame,
-        if (current) l10n.levelsCurrent,
-      ].join('، '),
+        title,
+        line.toPlainText().replaceAll(RegExp('[\u2066\u2069]'), ''),
+        if (start != null) caption,
+        if (frame != null) l10n.levelsTierFrame,
+        pill.label,
+      ].where((e) => e.isNotEmpty).join('، '),
       excludeSemantics: true,
-      child: Stack(
-        // The tile keeps its grid width.
-        fit: StackFit.passthrough,
-        children: [
-          Container(
-            padding: const EdgeInsetsDirectional.fromSTEB(
-              KSpacing.xs,
-              KSpacing.sm,
-              KSpacing.xs,
-              KSpacing.sm,
-            ),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(KRadius.md),
-              gradient: LinearGradient(
-                begin: AlignmentDirectional.topStart,
-                end: AlignmentDirectional.bottomEnd,
-                colors: [tint.light, tint.deep],
-              ),
-              border: Border.all(
-                color: current ? tint.gem : Colors.white.withValues(alpha: 0.7),
-                width: current ? 2 : 1,
-              ),
-            ),
-            child: Column(
-              children: [
-                KLevelEmblem(
-                  category: category,
-                  tier: tier,
-                  size: KLevels.tileBadge,
-                  dimmed: !reached,
-                ),
-                const SizedBox(height: KSpacing.xxs),
-                Text(
-                  range,
-                  maxLines: 1,
-                  textDirection: TextDirection.ltr,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.textStyles.bodyStrong.copyWith(
-                    fontSize: 13,
-                    color: tint.ink,
-                  ),
-                ),
-                Text(
-                  current ? l10n.levelsCurrent : points ?? ' ',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.textStyles.caption.copyWith(
-                    fontSize: 11.5,
-                    color: current ? tint.ink : tint.inkSoft,
-                    fontWeight: current ? FontWeight.w700 : null,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (frame)
-            PositionedDirectional(
-              top: KSpacing.xxs,
-              end: KSpacing.xxs,
-              child: Opacity(
-                key: LevelTierGrid.frameKey(tier),
-                opacity: reached ? 1 : 0.45,
-                child: Image.asset(
-                  KLevelArt.supportFrame(tier),
-                  width: KLevels.tileFrame,
-                  height: KLevels.tileFrame,
-                  excludeFromSemantics: true,
-                  errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                ),
-              ),
-            ),
-        ],
+      child: KeyedSubtree(
+        key: frame == null ? null : LevelTierGrid.frameKey(tier),
+        child: LevelTierCard(
+          category: category,
+          tier: tier,
+          title: title,
+          line: line,
+          caption: caption,
+          pill: pill,
+          progress: progress,
+          locked: !reached,
+          frame: frame,
+        ),
       ),
     );
   }

@@ -351,7 +351,7 @@ void main() {
       for (final r in rects) {
         expect(r.width, closeTo(rects.first.width, 0.5));
       }
-      expect(find.text(_en.levelsTabName('attractiveness')), findsOneWidget);
+      expect(find.text(_en.levelsTabAttractiveness), findsOneWidget);
       // Wizard is at level 100, the highest active one.
       expect(
         tester.getSemantics(
@@ -359,10 +359,7 @@ void main() {
         ),
         isSemantics(isSelected: true, isButton: true, label: 'Wizard'),
       );
-      expect(
-        find.text('Legend · ${_en.levelsLevelNumber(100)}'),
-        findsOneWidget,
-      );
+      expect(find.text('Legend · ${_en.levelsLv(100)}'), findsOneWidget);
       expect(find.byKey(LevelsScreen.preparingKey), findsNothing);
       handle.dispose();
     });
@@ -379,16 +376,11 @@ void main() {
       expect(
         find.descendant(
           of: header,
-          matching: find.text('Supporter · ${_en.levelsLevelNumber(2)}'),
+          matching: find.text('Supporter · ${_en.levelsLv(2)}'),
         ),
         findsOneWidget,
       );
-      final need = tester.widget<Text>(
-        find.descendant(
-          of: find.byKey(LevelCategoryCard.needKey),
-          matching: find.byType(Text),
-        ),
-      );
+      final need = tester.widget<Text>(find.byKey(LevelCategoryCard.needKey));
       final spans = (need.textSpan! as TextSpan).children!.cast<TextSpan>();
       final x = spans.singleWhere((s) => s.text!.contains('350'));
       expect(x.style!.color, KLevelCard.highlight);
@@ -420,19 +412,13 @@ void main() {
         find.byKey(LevelsScreen.tabKey(LevelCategory.attractiveness)),
       );
       await tester.pumpAndSettle();
-      expect(
-        find.text('Rising star · ${_en.levelsLevelNumber(37)}'),
-        findsOneWidget,
-      );
+      expect(find.text('Rising star · ${_en.levelsLv(37)}'), findsOneWidget);
       // The pack has 11 tiers; no frames outside Support.
       expect(find.byKey(LevelTierGrid.frameKey(1)), findsNothing);
       // Swipe towards the reading end: the next category (Support).
       await tester.fling(find.byType(PageView), const Offset(-400, 0), 1000);
       await tester.pumpAndSettle();
-      expect(
-        find.text('Supporter · ${_en.levelsLevelNumber(2)}'),
-        findsOneWidget,
-      );
+      expect(find.text('Supporter · ${_en.levelsLv(2)}'), findsOneWidget);
       final handle = tester.ensureSemantics();
       await tester.pump();
       expect(
@@ -454,7 +440,7 @@ void main() {
       expect(
         find.descendant(
           of: find.byKey(LevelsScreen.headerKey),
-          matching: find.text(_en.levelsUnavailable),
+          matching: find.text('Gaming · ${_en.levelsUnavailable}'),
         ),
         findsOneWidget,
       );
@@ -467,13 +453,14 @@ void main() {
         200,
         scrollable: find.byType(Scrollable).last,
       );
+      // Locked: desaturated, a lock in the pill.
       expect(
-        tester
-            .widget<KLevelEmblem>(
-              find.descendant(of: tile, matching: find.byType(KLevelEmblem)),
-            )
-            .dimmed,
-        isTrue,
+        find.descendant(of: tile, matching: find.text(_en.levelsTierLocked)),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: tile, matching: find.byType(ColorFiltered)),
+        findsOneWidget,
       );
     });
 
@@ -506,7 +493,7 @@ void main() {
       expect(find.byKey(LevelsScreen.tabBarKey), findsOneWidget);
     });
 
-    testWidgets('tiers read their levels, points, frame and "You\'re here"', (
+    testWidgets('tier cards read their name, levels, state, frame and pill', (
       tester,
     ) async {
       final handle = tester.ensureSemantics();
@@ -521,10 +508,11 @@ void main() {
           isSelected: true,
           hasSelectedState: true,
           label: [
-            _en.levelsTierRange(1, 5),
-            _en.levelsPoints('0'),
+            'Starter ${_en.levelsTierRange(1, 5)}',
+            _en.levelsTierUnlocked,
+            _en.levelsTierFrom('0'),
             _en.levelsTierFrame,
-            _en.levelsCurrent,
+            _en.levelsTierCurrent,
           ].join('، '),
         ),
       );
@@ -573,7 +561,7 @@ void main() {
         find.byKey(LevelsScreen.tabKey(LevelCategory.support)),
       );
       expect(first.dx, greaterThan(second.dx));
-      expect(find.text(_ar.levelsTabName('support')), findsOneWidget);
+      expect(find.text(_ar.levelsTabSupport), findsOneWidget);
       final header = tester.getRect(find.byKey(LevelsScreen.headerKey));
       final medal = tester.getRect(
         find.descendant(

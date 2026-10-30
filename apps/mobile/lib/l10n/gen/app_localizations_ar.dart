@@ -2210,16 +2210,6 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
-  String levelsToNext(String points) {
-    return '$points للمستوى التالي';
-  }
-
-  @override
-  String levelsToNamed(String points, String level) {
-    return '$points نقطة للوصول إلى $level';
-  }
-
-  @override
   String get levelsMax => 'أعلى مستوى';
 
   @override
@@ -2242,9 +2232,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get levelsCategories => 'تصنيفات المستوى';
 
   @override
-  String get levelsDetails => 'التفاصيل';
-
-  @override
   String get levelsHowItGrows => 'كيف يرتفع';
 
   @override
@@ -2259,16 +2246,38 @@ class AppLocalizationsAr extends AppLocalizations {
   String get levelsTierFrame => 'مع إطار الصورة';
 
   @override
-  String levelsTabName(String category) {
-    String _temp0 = intl.Intl.selectLogic(category, {
-      'attractiveness': 'الجاذبية',
-      'support': 'الدعم',
-      'wizard': 'الساحر',
-      'gaming': 'اللعب',
-      'other': '',
-    });
-    return '$_temp0';
+  String get levelsTierCurrent => 'الحالي';
+
+  @override
+  String get levelsTierOpen => 'مفتوح';
+
+  @override
+  String get levelsTierLocked => 'مقفل';
+
+  @override
+  String get levelsTierUnlocked => 'تم الفتح';
+
+  @override
+  String levelsTierToUnlock(String points) {
+    return 'تحتاج $points نقطة للفتح';
   }
+
+  @override
+  String levelsTierFrom(String points) {
+    return 'من $points نقطة';
+  }
+
+  @override
+  String get levelsTabAttractiveness => 'الجاذبية';
+
+  @override
+  String get levelsTabSupport => 'الدعم';
+
+  @override
+  String get levelsTabWizard => 'الساحر';
+
+  @override
+  String get levelsTabGaming => 'اللعب';
 
   @override
   String get navMoments => 'اللحظات';

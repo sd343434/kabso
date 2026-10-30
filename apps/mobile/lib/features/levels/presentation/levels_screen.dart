@@ -22,12 +22,6 @@ abstract final class KLevels {
   static const double tabBadge = 26;
   static const double tabIndicatorWidth = 28;
   static const double tabIndicatorHeight = 3;
-
-  /// A tier tile's badge on the category page.
-  static const double tileBadge = 64;
-
-  /// The support tier's avatar frame in the tile's top end corner.
-  static const double tileFrame = 34;
 }
 
 /// The levels page (D72, CP-005; D169 after the owner's feedback «هذه
@@ -263,7 +257,7 @@ class _CategoryTab extends StatelessWidget {
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
                   child: Text(
-                    context.l10n.levelsTabName(s.category.slug),
+                    levelsTabName(context.l10n, s.category),
                     maxLines: 1,
                     style: context.textStyles.bodyStrong.copyWith(
                       fontSize: 14,
@@ -320,11 +314,7 @@ class _CategoryPage extends ConsumerWidget {
           KSpacing.xl + MediaQuery.viewPaddingOf(context).bottom,
         ),
         children: [
-          LevelCategoryCard(
-            key: LevelsScreen.headerKey,
-            summary: s,
-            header: true,
-          ),
+          LevelCategoryCard(key: LevelsScreen.headerKey, summary: s),
           const SizedBox(height: KSpacing.xl),
           _Heading(l10n.levelsHowItGrows),
           const SizedBox(height: KSpacing.xs),
@@ -356,3 +346,11 @@ class _Heading extends StatelessWidget {
     child: Text(text, style: context.textStyles.title),
   );
 }
+
+/// The short name of [c] in the tab bar (D169).
+String levelsTabName(AppLocalizations l10n, LevelCategory c) => switch (c) {
+  LevelCategory.attractiveness => l10n.levelsTabAttractiveness,
+  LevelCategory.support => l10n.levelsTabSupport,
+  LevelCategory.wizard => l10n.levelsTabWizard,
+  LevelCategory.gaming => l10n.levelsTabGaming,
+};

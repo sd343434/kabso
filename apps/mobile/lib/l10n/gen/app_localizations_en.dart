@@ -2180,16 +2180,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String levelsToNext(String points) {
-    return '$points to next level';
-  }
-
-  @override
-  String levelsToNamed(String points, String level) {
-    return '$points pts to reach $level';
-  }
-
-  @override
   String get levelsMax => 'Top level reached';
 
   @override
@@ -2212,9 +2202,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get levelsCategories => 'Level categories';
 
   @override
-  String get levelsDetails => 'Details';
-
-  @override
   String get levelsHowItGrows => 'How it grows';
 
   @override
@@ -2229,16 +2216,38 @@ class AppLocalizationsEn extends AppLocalizations {
   String get levelsTierFrame => 'Comes with an avatar frame';
 
   @override
-  String levelsTabName(String category) {
-    String _temp0 = intl.Intl.selectLogic(category, {
-      'attractiveness': 'Charm',
-      'support': 'Support',
-      'wizard': 'Wizard',
-      'gaming': 'Gaming',
-      'other': '',
-    });
-    return '$_temp0';
+  String get levelsTierCurrent => 'Current';
+
+  @override
+  String get levelsTierOpen => 'Unlocked';
+
+  @override
+  String get levelsTierLocked => 'Locked';
+
+  @override
+  String get levelsTierUnlocked => 'Unlocked';
+
+  @override
+  String levelsTierToUnlock(String points) {
+    return '$points pts to unlock';
   }
+
+  @override
+  String levelsTierFrom(String points) {
+    return 'From $points pts';
+  }
+
+  @override
+  String get levelsTabAttractiveness => 'Charm';
+
+  @override
+  String get levelsTabSupport => 'Support';
+
+  @override
+  String get levelsTabWizard => 'Wizard';
+
+  @override
+  String get levelsTabGaming => 'Gaming';
 
   @override
   String get navMoments => 'Moments';
