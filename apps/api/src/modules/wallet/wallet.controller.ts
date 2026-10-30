@@ -1,7 +1,8 @@
-import { Controller, Get, Query, Req } from '@nestjs/common';
+import { Controller, Get, Inject, Query, Req } from '@nestjs/common';
 import { languageFromAcceptLanguage } from '../../common/http/content-language.js';
 import type { AppRequest, AuthContext } from '../../common/http/request-context.js';
 import { ZodValidationPipe } from '../../common/validation/zod-validation.pipe.js';
+import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import { CurrentAuth } from '../auth/current-auth.decorator.js';
 import type { PageDto } from '../posts/post-views.js';
 import { pageQuerySchema, type PageQuery } from '../posts/posts.schemas.js';
@@ -14,6 +15,21 @@ import {
 } from './wallet-history.service.js';
 import { WalletService, type WalletDto } from './wallet.service.js';
 
+/** `RechargePackages` (openapi v1.44-social, D166). */
+export interface RechargePackagesDto {
+  /** ISO 4217; prices are in its minor unit (cents). */
+  currency: string;
+  /** Always false until B5 (store purchases) is done. */
+  purchasesEnabled: boolean;
+  packages: {
+    id: string;
+    coins: number;
+    bonusCoins: number;
+    priceMinor: number;
+    originalPriceMinor: number | null;
+  }[];
+}
+
 /**
  * The caller's coins (contract v1.19-live draft, CP-017, CONVENTIONS §10.19); v1.43-social (D164,
  * §10.40): their coin history and gift earnings. Every route uses the per-user default rate limit.
@@ -24,7 +40,23 @@ export class WalletController {
     private readonly wallet: WalletService,
     private readonly history: WalletHistoryService,
     private readonly users: UsersService,
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
+
+  /**
+   * v1.44-social (D166, CONVENTIONS §10.41): the recharge screen's coin packages, from server config
+   * (`WALLET_RECHARGE_PACKAGES`, placeholders until the owner sets them). Purchases are not available
+   * (B5: no payment method and no legal review yet), so there is no purchase operation.
+   */
+  @Get('recharge-packages')
+  rechargePackages(): RechargePackagesDto {
+    const { rechargePackages, rechargeCurrency } = this.config.programs;
+    return {
+      currency: rechargeCurrency,
+      purchasesEnabled: false,
+      packages: rechargePackages.map((p) => ({ ...p })),
+    };
+  }
 
   @Get('me')
   mine(@CurrentAuth() auth: AuthContext): Promise<WalletDto> {

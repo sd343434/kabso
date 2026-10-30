@@ -55,6 +55,10 @@ const List<String> _destinations = [
   AppRoutes.wallet,
   AppRoutes.earnings,
   AppRoutes.creatorCenter,
+  // D166.
+  AppRoutes.taskCenter,
+  AppRoutes.eventCenter,
+  AppRoutes.svip,
 ];
 
 Future<void> _pump(
@@ -145,14 +149,10 @@ Future<void> _tapItem(WidgetTester tester, MeHubItem item) async {
 }
 
 /// The hub items that are not built yet (faded, "Soon", no action).
-/// D164: Wallet, Earn money and Creator Center are built; these four wait
-/// for the owner's decisions (CP-024).
-const Set<MeHubItem> _soon = {
-  MeHubItem.vip,
-  MeHubItem.eventCenter,
-  MeHubItem.svip,
-  MeHubItem.taskCenter,
-};
+/// D164: Wallet, Earn money and Creator Center are built. D166: Event
+/// Center, SVIP and Task Center too; Purchase VIP waits for the owner's
+/// prices (CP-024).
+const Set<MeHubItem> _soon = {MeHubItem.vip};
 
 void main() {
   testWidgets('header: the name with the level badge on its line, the '
@@ -212,6 +212,48 @@ void main() {
     expect(find.text('follows layla.k following'), findsOneWidget);
   });
 
+  // D168 (owner): «المنشورات» is no longer a row; an icon beside Settings
+  // opens the profile page (posts, reels, reposts, saved).
+  for (final language in AppLanguage.values) {
+    testWidgets('the profile icon sits beside Settings, is labelled and '
+        'opens the profile (${language.name})', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await _pump(tester, language: language);
+      final l10n = l10nFor(language);
+      final icon = find.byKey(MeHubScreen.profileKey);
+      final settings = find.byKey(MeHubScreen.settingsKey);
+      expect(icon, findsOneWidget);
+      expect(find.byTooltip(l10n.meHubMyProfile), findsOneWidget);
+      expect(
+        tester.getSemantics(icon),
+        matchesSemantics(
+          label: l10n.meHubMyProfile,
+          isButton: true,
+          hasTapAction: true,
+          hasEnabledState: true,
+          isEnabled: true,
+        ),
+      );
+      final a = tester.getRect(icon);
+      final b = tester.getRect(settings);
+      expect(a.center.dy, moreOrLessEquals(b.center.dy, epsilon: 0.5));
+      // Adjacent, on the reading-start side of Settings.
+      if (language == AppLanguage.ar) {
+        expect(a.left, moreOrLessEquals(b.right, epsilon: 0.5));
+      } else {
+        expect(a.right, moreOrLessEquals(b.left, epsilon: 0.5));
+      }
+      expect(
+        find.text(language == AppLanguage.ar ? 'المنشورات' : 'Post'),
+        findsNothing,
+      );
+      await tester.tap(icon);
+      await tester.pumpAndSettle();
+      expect(find.text('page ${AppRoutes.myProfile}'), findsOneWidget);
+      semantics.dispose();
+    });
+  }
+
   testWidgets('settings and notifications open their screens', (tester) async {
     await _pump(tester);
     await tester.tap(find.byKey(MeHubScreen.settingsKey));
@@ -223,7 +265,6 @@ void main() {
     (MeHubItem.levels, AppRoutes.levels),
     (MeHubItem.family, AppRoutes.families),
     (MeHubItem.bag, AppRoutes.bag),
-    (MeHubItem.posts, AppRoutes.myProfile),
     (MeHubItem.medals, AppRoutes.medals),
     (MeHubItem.relationship, AppRoutes.cp),
     (MeHubItem.premium, AppRoutes.premium),
@@ -231,6 +272,10 @@ void main() {
     (MeHubItem.wallet, AppRoutes.wallet),
     (MeHubItem.earn, AppRoutes.earnings),
     (MeHubItem.creatorCenter, AppRoutes.creatorCenter),
+    // D166.
+    (MeHubItem.taskCenter, AppRoutes.taskCenter),
+    (MeHubItem.eventCenter, AppRoutes.eventCenter),
+    (MeHubItem.svip, AppRoutes.svip),
   ]) {
     testWidgets('${item.name} opens its real screen ($path)', (tester) async {
       await _pump(tester);

@@ -9,11 +9,11 @@ import 'package:video_player/video_player.dart';
 
 /// Server limits of videos (v1.41-social, D162, CONVENTIONS §11.14), checked
 /// again on the device so a too-long or too-large video never starts an
-/// upload: a post video ≤ 200 MiB and 3 minutes, a reel ≤ 100 MiB and 60 s,
-/// both at least 1 s, MP4 or QuickTime.
+/// upload: a post video ≤ 200 MiB and 90 s (D168, owner; 3 minutes before),
+/// a reel ≤ 100 MiB and 60 s, both at least 1 s, MP4 or QuickTime.
 const int maxPostVideoBytes = 200 * 1024 * 1024;
 const int maxReelVideoBytes = 100 * 1024 * 1024;
-const Duration maxPostVideoLength = Duration(minutes: 3);
+const Duration maxPostVideoLength = Duration(seconds: 90);
 const Duration maxReelVideoLength = Duration(seconds: 60);
 const Duration minVideoLength = Duration(seconds: 1);
 
@@ -76,6 +76,13 @@ class PickedVideo {
   double get aspect => width <= 0 || height <= 0 ? 9 / 16 : width / height;
 }
 
+/// Whether a video of [length] is longer than a post's (or, with [reel], a
+/// reel's) limit, with the server's 500 ms of padding (D168: library tiles
+/// mark such videos before they are tapped).
+bool isVideoTooLong(Duration length, {required bool reel}) =>
+    length >
+    (reel ? maxReelVideoLength : maxPostVideoLength) + _lengthTolerance;
+
 /// Why a picked video cannot be used ([mixed]: a post holds photos or one
 /// video, never both, §11.14).
 enum VideoRejection { unsupportedType, tooLarge, tooLong, tooShort, mixed }
@@ -90,8 +97,7 @@ VideoRejection? checkVideo(PickedVideo video, {required bool reel}) {
   if (video.byteSize > (reel ? maxReelVideoBytes : maxPostVideoBytes)) {
     return VideoRejection.tooLarge;
   }
-  final max = reel ? maxReelVideoLength : maxPostVideoLength;
-  if (video.duration > max + _lengthTolerance) return VideoRejection.tooLong;
+  if (isVideoTooLong(video.duration, reel: reel)) return VideoRejection.tooLong;
   if (video.duration < minVideoLength) return VideoRejection.tooShort;
   return null;
 }

@@ -9,7 +9,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { familyWindow } from '../families/family-views.js';
 import { LiveDataCenterService } from '../live/live-data-center.service.js';
 
-/** v1.43.2-social (D172) adds `THIS_MONTH`: the current calendar month so far (region's zone). */
+/** v1.49-social (D172) adds `THIS_MONTH`: the current calendar month so far (region's zone). */
 export const CREATOR_STATS_PERIODS = ['LAST_7_DAYS', 'LAST_30_DAYS', 'ALL_TIME', 'THIS_MONTH'] as const;
 export type CreatorStatsPeriod = (typeof CREATOR_STATS_PERIODS)[number];
 
@@ -36,7 +36,7 @@ export interface CreatorStatsDto {
   period: CreatorStatsPeriod;
   from: string | null;
   to: string;
-  /** v1.43.2-social (D172): `YYYY-MM` of `THIS_MONTH` in the region's zone; null otherwise. */
+  /** v1.49-social (D172): `YYYY-MM` of `THIS_MONTH` in the region's zone; null otherwise. */
   month: string | null;
   followers: { total: number; newInPeriod: number | null };
   posts: CreatorContentStatsDto;

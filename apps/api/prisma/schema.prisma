@@ -180,29 +180,37 @@ model User {
   dmSent              DmMessage[]               @relation("DmMessageSender")
   dmReceived          DmMessage[]               @relation("DmMessageRecipient")
   dmHides             DmMessageHide[]
+  // v1.44-social (D166): the Me hub's programs.
+  taskClaims          TaskClaim[]
+  dailyCheckIns       DailyCheckIn[]
+  eventResults        EventResult[]
 
   @@map("users")
 }
 
 model UserProfile {
-  userId      String               @id @map("user_id") @db.Uuid
+  userId        String               @id @map("user_id") @db.Uuid
   /// Lowercase; format enforced by CHECK constraint `user_profiles_username_format`.
-  username    String               @unique @db.VarChar(30)
+  username      String               @unique @db.VarChar(30)
   /// ≤ 100 code points, 1–50 grapheme clusters (contract v1.2 §6).
-  displayName String               @map("display_name") @db.VarChar(100)
-  bio         String?              @db.VarChar(300)
-  avatarUrl   String?              @map("avatar_url") @db.VarChar(2048)
-  locale      String               @default("ar") @db.VarChar(8)
+  displayName   String               @map("display_name") @db.VarChar(100)
+  bio           String?              @db.VarChar(300)
+  avatarUrl     String?              @map("avatar_url") @db.VarChar(2048)
+  /// v1.45-social (D168): the user's profile photo when it was uploaded (an `AVATAR` asset); its
+  /// 640 px URL is `avatarUrl`. CHECK `user_profiles_avatar_media_has_url`.
+  avatarMediaId String?              @unique @map("avatar_media_id") @db.Uuid
+  locale        String               @default("ar") @db.VarChar(8)
   /// v1.27.1-live (D133): the user's own country (ISO 3166-1 alpha-2, upper case), or null (none set;
   /// never inferred). CHECK `user_profiles_country_code_format`. Decides `scope=nearby` (§10.28).
-  countryCode String?              @map("country_code") @db.Char(2)
+  countryCode   String?              @map("country_code") @db.Char(2)
   /// v1.28-live (D146): the tier of the premium username the user has now (set and cleared with
   /// `username` by the premium-usernames module); null for a regular username.
-  premiumTier PremiumUsernameTier? @map("premium_tier")
-  createdAt   DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt   DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+  premiumTier   PremiumUsernameTier? @map("premium_tier")
+  createdAt     DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  avatarMedia MediaAsset? @relation("ProfileAvatar", fields: [avatarMediaId], references: [id], onDelete: NoAction)
 
   @@map("user_profiles")
 }
@@ -771,6 +779,11 @@ enum WalletLedgerReason {
   /// v1.33-live (D154b): a traffic card bought with coins, and its refund when it never ran.
   LIVE_BOOST
   LIVE_BOOST_REFUND
+  /// v1.44-social (D166): a claimed task's coins (reference: the claim), a daily check-in's coins
+  /// (reference: the check-in) and an event prize (reference: the event result).
+  TASK_REWARD
+  CHECK_IN_REWARD
+  EVENT_PRIZE
 
   @@map("wallet_ledger_reason")
 }
@@ -1326,7 +1339,8 @@ model MediaAsset {
   width      Int
   height     Int
   /// CP-017: a `LIVE_CHAT_VOICE` clip's length (≤ 30 000 ms); null for images. D162: a video's
-  /// length (`POST_VIDEO` ≤ 180 000, `REEL_VIDEO` ≤ 60 000).
+  /// length (`POST_VIDEO` ≤ 180 000, `REEL_VIDEO` ≤ 60 000). D168: new `POST_VIDEO` rows ≤ 90 000
+  /// (CHECK `media_assets_post_video_90s`, NOT VALID: older rows keep their length).
   durationMs Int?      @map("duration_ms")
   blurhash   String?   @db.VarChar(64)
   /// D162: a video's file (`media/{id}/video.mp4|.mov`); otherwise the large WebP.
@@ -1339,20 +1353,22 @@ model MediaAsset {
   createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   attachedAt DateTime? @map("attached_at") @db.Timestamptz(3)
 
-  owner        User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  upload       MediaUpload?
-  postMedia    PostMedia?
-  story        Story?
-  liveCover    LiveHost?
-  chatMessage  LiveChatMessage?
+  owner         User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  upload        MediaUpload?
+  postMedia     PostMedia?
+  story         Story?
+  liveCover     LiveHost?
+  chatMessage   LiveChatMessage?
   /// CP-018: a family's emblem.
-  familyEmblem Family?
+  familyEmblem  Family?
   /// CP-022: a family's cover.
-  familyCover  Family?          @relation("FamilyCover")
+  familyCover   Family?          @relation("FamilyCover")
   /// D124: a home banner's picture.
-  homeBanner   HomeBanner?
+  homeBanner    HomeBanner?
   /// D155: a direct message's picture or voice clip.
-  dmMessage    DmMessage?
+  dmMessage     DmMessage?
+  /// D168: a profile photo.
+  profileAvatar UserProfile?     @relation("ProfileAvatar")
 
   @@index([createdAt], map: "media_assets_unattached_idx", where: raw("attached_at IS NULL"))
   @@map("media_assets")
@@ -3084,4 +3100,149 @@ model DmMessageHide {
   @@id([messageId, userId], map: "dm_message_hides_pkey")
   @@index([userId], map: "dm_message_hides_user_idx")
   @@map("dm_message_hides")
+}
+
+// ---------------------------------------------------------------------------------------------
+// v1.44-social (DRAFT, D166, CP-024 approved with defaults, CONVENTIONS §10.41): the Me hub's
+// programs — the Task Center, the Event Center (SVIP and the recharge packages need no table).
+// CHECKs in migration 20261214100000_me_programs.
+
+/// D166: how often a task resets (a day or an ISO week in LIVE_RANKINGS_TIME_ZONE).
+enum TaskPeriod {
+  DAILY
+  WEEKLY
+
+  @@map("task_period")
+}
+
+/// D166: who a task or an event is for (HOSTS = holders of the hosting permission).
+enum ProgramAudience {
+  EVERYONE
+  HOSTS
+
+  @@map("program_audience")
+}
+
+/// D166: what an event's leaderboard counts.
+enum EventMetric {
+  GIFT_COINS_RECEIVED
+  GIFT_COINS_SENT
+  LIVE_MINUTES
+  TAPS_RECEIVED
+  NEW_FOLLOWERS
+
+  @@map("event_metric")
+}
+
+/// D166: a task on offer (task-admin CLI). Progress is computed from stored data (`metric`), never
+/// reported by the app.
+model TaskDefinition {
+  code        String          @id @db.VarChar(40)
+  period      TaskPeriod
+  metric      String          @db.VarChar(40)
+  target      Int
+  rewardCoins Int             @map("reward_coins")
+  audience    ProgramAudience @default(EVERYONE)
+  nameAr      String          @map("name_ar") @db.VarChar(80)
+  nameEn      String          @map("name_en") @db.VarChar(80)
+  enabled     Boolean         @default(true)
+  sortOrder   Int             @default(0) @map("sort_order")
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  claims TaskClaim[]
+
+  @@map("task_definitions")
+}
+
+/// D166: a task's reward, paid once per person, task and period (`task_claims_once`). The coins
+/// paid (after the daily cap) are a `wallet_ledger` row `TASK_REWARD` with this id as reference.
+model TaskClaim {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  taskCode    String   @map("task_code") @db.VarChar(40)
+  periodStart DateTime @map("period_start") @db.Date
+  rewardCoins Int      @map("reward_coins")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task TaskDefinition @relation(fields: [taskCode], references: [code], onDelete: Restrict)
+
+  @@unique([userId, taskCode, periodStart], map: "task_claims_once")
+  @@index([userId, periodStart], map: "task_claims_user_period_idx")
+  @@index([taskCode], map: "task_claims_task_idx")
+  @@map("task_claims")
+}
+
+/// D166: a person checked in that day; `streak` counts consecutive days (a missed day restarts it).
+model DailyCheckIn {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  day         DateTime @db.Date
+  streak      Int
+  rewardCoins Int      @map("reward_coins")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, day], map: "daily_check_ins_once")
+  @@map("daily_check_ins")
+}
+
+/// D166: an event created by the team (event-admin CLI). `permanent` events may have no end;
+/// `regions` (ISO 3166-1 alpha-2) targets the event at those countries (the Regional tab).
+/// `prizes` is a JSON array of `{rankFrom, rankTo, coins}`.
+model Event {
+  id          String          @id @default(uuid(7)) @db.Uuid
+  titleAr     String          @map("title_ar") @db.VarChar(120)
+  titleEn     String          @map("title_en") @db.VarChar(120)
+  bannerUrl   String?         @map("banner_url") @db.VarChar(2048)
+  startsAt    DateTime        @map("starts_at") @db.Timestamptz(3)
+  endsAt      DateTime?       @map("ends_at") @db.Timestamptz(3)
+  rulesAr     String          @map("rules_ar") @db.VarChar(4000)
+  rulesEn     String          @map("rules_en") @db.VarChar(4000)
+  metric      EventMetric
+  audience    ProgramAudience @default(EVERYONE)
+  permanent   Boolean         @default(false)
+  regions     String[]        @default([]) @db.Char(2)
+  featured    Boolean         @default(false)
+  prizes      Json            @default("[]")
+  /// The leaderboard was frozen into `event_results` (once, after the end).
+  frozenAt    DateTime?       @map("frozen_at") @db.Timestamptz(3)
+  /// The prizes are paid from this time (the review window after the freeze).
+  payoutDueAt DateTime?       @map("payout_due_at") @db.Timestamptz(3)
+  /// An admin holds the payout during the review (event-admin hold / release).
+  payoutHold  Boolean         @default(false) @map("payout_hold")
+  paidAt      DateTime?       @map("paid_at") @db.Timestamptz(3)
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  results EventResult[]
+
+  @@index([startsAt], map: "events_starts_idx")
+  @@index([endsAt], map: "events_due_idx", where: raw("(paid_at IS NULL)"))
+  @@map("events")
+}
+
+/// D166: one row of an ended event's frozen leaderboard and its prize (`EVENT_PRIZE`, reference: this
+/// id, so a prize is paid once per event and person).
+model EventResult {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  eventId     String    @map("event_id") @db.Uuid
+  rank        Int
+  userId      String    @map("user_id") @db.Uuid
+  score       BigInt
+  prizeCoins  Int       @default(0) @map("prize_coins")
+  /// NONE (no prize for this rank), PENDING, PAID or FORFEITED (the account was not active).
+  prizeStatus String    @default("NONE") @map("prize_status") @db.VarChar(10)
+  paidAt      DateTime? @map("paid_at") @db.Timestamptz(3)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, rank], map: "event_results_rank_once")
+  @@unique([eventId, userId], map: "event_results_user_once")
+  @@index([userId], map: "event_results_user_idx")
+  @@map("event_results")
 }

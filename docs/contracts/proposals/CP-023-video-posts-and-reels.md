@@ -41,7 +41,7 @@ Not in scope (recorded so nobody assumes otherwise):
 
 | Kind | Content types | `byteSize` | Length | Attaches to |
 | --- | --- | --- | --- | --- |
-| `POST_VIDEO` | `video/mp4`, `video/quicktime` | ≤ 209 715 200 (200 MiB) | 1–180 s | a `POST` |
+| `POST_VIDEO` | `video/mp4`, `video/quicktime` | ≤ 209 715 200 (200 MiB) | 1–180 s → **1–90 s** (D168, v1.45-social) | a `POST` |
 | `REEL_VIDEO` | `video/mp4`, `video/quicktime` | ≤ 104 857 600 (100 MiB) | 1–60 s | a `REEL` |
 | `VIDEO_POSTER` | the image types | ≤ 15 MiB | — | a video (at `complete`) |
 
@@ -66,7 +66,7 @@ Not in scope (recorded so nobody assumes otherwise):
   WebP variants become the video's: the poster asset is consumed (it no longer exists on its own).
 - `MediaAsset.type` gains `VIDEO`: `url` = the video file, `thumbUrl` = the poster at 320 px,
   new `posterUrl` = the poster at 1 080 px (VIDEO only), `blurhash` = the poster's, `width` /
-  `height` = the video's display size, `durationMs` = its length (≤ 180 000).
+  `height` = the video's display size, `durationMs` = its length (≤ 180 000; new post videos ≤ 90 000 since D168).
 - A video asset is attachable once, by its owner, within 24 h, like every asset; never-attached
   videos (and posters) are swept with their objects.
 
@@ -105,3 +105,10 @@ storage key also needs `CopyObject` (read on `uploads/`, write on `media/`) and 
   the poster and an error; the full-size file is streamed (egress cost ∝ file size).
 - Moov-at-end files play after the player fetches the end of the file (R2 serves ranges).
 - Moderation: no hold (D162a); reports and removal only, until a provider exists (B13).
+
+## Amendment — D168 (2026-10-29, owner)
+
+Owner, from the phone: «مدة ريلز لا تتجاوز ٦٠ ثانية، مدة الفيديو لا تتجاوز ٩٠ ثانية». A post video is
+now 1–90 s (contract v1.45-social, CONVENTIONS §11.14); reels stay 1–60 s. Post videos already stored
+keep their length; an unattached one longer than 90 s can no longer be attached. The 200 MiB size
+limit is unchanged.

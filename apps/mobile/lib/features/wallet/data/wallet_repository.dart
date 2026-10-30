@@ -24,6 +24,10 @@ enum WalletLedgerReason {
   dmGift('DM_GIFT'),
   liveBoost('LIVE_BOOST'),
   liveBoostRefund('LIVE_BOOST_REFUND'),
+  // D166: the Me hub's programs.
+  taskReward('TASK_REWARD'),
+  checkInReward('CHECK_IN_REWARD'),
+  eventPrize('EVENT_PRIZE'),
   other('');
 
   new(this.wire);

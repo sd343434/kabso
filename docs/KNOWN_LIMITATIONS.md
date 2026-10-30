@@ -60,3 +60,29 @@
   (a reply's lone `@handle` reads left to right); in a field that also holds Arabic, a Latin
   `@handle` still shows its `@` on the right while editing (posted text is displayed with the
   handle isolated).
+
+## Me hub programs (v1.44-social draft, D166, CP-024 approved with defaults)
+
+- **Recharge is still blocked on B5.** The wallet's «شحن العملات» grid shows the packages from server
+  config `WALLET_RECHARGE_PACKAGES`; the default prices are **placeholders copied from the owner's
+  reference** (10+20 $0.29 … 5197+30 $129.99) **for the owner to set**. The button stays disabled with
+  «قريباً»; there is no purchase endpoint. No support banner is shown (no support destination exists).
+- **Values the owner can change without a release** (server config or the admin CLIs): the tasks and
+  their rewards (`task-admin`), the daily cap 50, check-in 5 + 20 on day 7, SVIP thresholds
+  50 000 / 150 000 / 400 000 in 30 days, status 30 days, the 24-hour prize review, events
+  (`event-admin`).
+- **Owner art needed:** the SVIP emblem (the app shows a Kabso gold/red icon composition), SVIP badge,
+  frames and entry effects, event banners (an https URL per event; a token gradient otherwise), the
+  Task Center header art (the level emblem is used).
+- **SVIP perks are not built yet** (badge, frame, coloured chat name, entry banner, daily bullet, entry
+  effect, viewer-list priority, monthly bag gift): `GET /me/svip` lists them with `available: false`
+  and the app shows each as «قريباً». SVIP points redemption (anti-mute / unban) is not offered.
+- **Task Center:** coins only (no XP — level points are coin value, CP-005). «Share a live room» is not
+  offered (a share is a link copied on the phone; the server cannot see it). The monthly benefits block
+  of the reference is omitted (no monthly benefit exists). Weekly host tasks are outside the daily cap.
+  A live's watch time counts for the day it was first joined.
+- **Event Center:** events are created only with the `event-admin` CLI (no admin web page);
+  `TAPS_RECEIVED` counts the taps of lives *started* in the event's window; an event with no
+  configured events shows empty lists.
+- **Purchase VIP** (CP-024 §3) is not part of the approval: its hub card stays «قريباً».
+- Not verified on a device.

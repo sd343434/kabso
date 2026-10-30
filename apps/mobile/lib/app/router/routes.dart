@@ -179,6 +179,17 @@ abstract final class AppRoutes {
   static const earnings = '/earnings';
   static const creatorCenter = '/creator';
 
+  /// D166: the Me hub's programs — the Task Center, the Event Center (and
+  /// one event) and SVIP.
+  static const taskCenter = '/tasks';
+  static const eventCenter = '/events';
+  static const eventPattern = '/events/:eventId';
+  static const svip = '/svip';
+
+  /// The page of event [eventId].
+  static String event(String eventId) =>
+      '/events/${Uri.encodeComponent(eventId)}';
+
   /// D146: change the regular username (`PUT /me/username`).
   static const changeUsername = '/settings/username';
 

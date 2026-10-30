@@ -17,6 +17,9 @@ import 'package:material_ui/material_ui.dart';
 /// Geometry of the Create flow (owner's references, KL-060; values on the
 /// Kabso scale, see the reference spec in the PR notes).
 abstract final class KCompose {
+  /// D168: a library video over the limit is shown faded.
+  static const double tooLongOpacity = 0.45;
+
   /// Media step page inset; the details step is a little tighter.
   static const double mediaInset = 20;
   static const double inset = KSpacing.md;

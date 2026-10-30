@@ -1,6 +1,6 @@
 /**
  * D172 (owner 2026-10-29: the Creator Center in the layout of the owner's reference, whose stats card is
- * «بيانات أكتوبر» — this month's data; contract v1.43.2-social, CONVENTIONS §10.40):
+ * «بيانات أكتوبر» — this month's data; contract v1.49-social, CONVENTIONS §10.40):
  * `GET /me/creator-stats?period=THIS_MONTH` counts from the 1st at 00:00 in the region's zone
  * (`LIVE_RANKINGS_TIME_ZONE`) until now and names the month — end to end against PostgreSQL + Redis.
  */
