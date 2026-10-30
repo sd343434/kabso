@@ -179,6 +179,9 @@ abstract final class AppRoutes {
   static const earnings = '/earnings';
   static const creatorCenter = '/creator';
 
+  /// D172: the Creator Center's detailed statistics (D164's page).
+  static const creatorStats = '/creator/stats';
+
   /// D166: the Me hub's programs — the Task Center, the Event Center (and
   /// one event) and SVIP.
   static const taskCenter = '/tasks';

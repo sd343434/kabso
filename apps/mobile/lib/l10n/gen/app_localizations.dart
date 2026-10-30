@@ -13795,6 +13795,132 @@ abstract class AppLocalizations {
   /// **'منشوراتي وريلزي'**
   String get creatorOpenProfile;
 
+  /// D172: Creator Center tab.
+  ///
+  /// In ar, this message translates to:
+  /// **'البث'**
+  String get creatorTabLive;
+
+  /// D172: Creator Center tab (host agencies; not built).
+  ///
+  /// In ar, this message translates to:
+  /// **'الوكالة'**
+  String get creatorTabAgency;
+
+  /// D172: the Agency tab's honest Soon state.
+  ///
+  /// In ar, this message translates to:
+  /// **'الوكالة قريباً'**
+  String get creatorAgencySoonTitle;
+
+  /// D172: why the Agency tab is empty.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد وكالات مضيفين في Kabso Live بعد. ستظهر هنا عند إطلاقها.'**
+  String get creatorAgencySoonBody;
+
+  /// D172: the stats card's title; month is the month's name (this month so far).
+  ///
+  /// In ar, this message translates to:
+  /// **'بيانات {month}'**
+  String creatorMonthData(String month);
+
+  /// D172: link to (and title of) the detailed statistics.
+  ///
+  /// In ar, this message translates to:
+  /// **'بيانات البث'**
+  String get creatorLiveData;
+
+  /// D172: minutes live this month.
+  ///
+  /// In ar, this message translates to:
+  /// **'دقائق البث'**
+  String get creatorLiveMinutes;
+
+  /// D172: follows made this month that still stand.
+  ///
+  /// In ar, this message translates to:
+  /// **'متابعون جدد'**
+  String get creatorNewFans;
+
+  /// D172: the host's share of gifts in this month's lives (display only).
+  ///
+  /// In ar, this message translates to:
+  /// **'أرباح جديدة'**
+  String get creatorNewEarnings;
+
+  /// D172: the services grid's title.
+  ///
+  /// In ar, this message translates to:
+  /// **'خدمات البث'**
+  String get creatorServices;
+
+  /// D172: service tile.
+  ///
+  /// In ar, this message translates to:
+  /// **'معاينة البث'**
+  String get creatorSvcPreview;
+
+  /// D172: service tile.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعديل الغلاف'**
+  String get creatorSvcCover;
+
+  /// D172: service tile.
+  ///
+  /// In ar, this message translates to:
+  /// **'فعالياتي'**
+  String get creatorSvcEvents;
+
+  /// D172: service tile.
+  ///
+  /// In ar, this message translates to:
+  /// **'مستوى المضيف'**
+  String get creatorSvcHostLevel;
+
+  /// D172: service tile.
+  ///
+  /// In ar, this message translates to:
+  /// **'مخالفات الحساب'**
+  String get creatorSvcViolations;
+
+  /// D172: service tile.
+  ///
+  /// In ar, this message translates to:
+  /// **'أكاديمية المضيف'**
+  String get creatorSvcAcademy;
+
+  /// D172: service tile.
+  ///
+  /// In ar, this message translates to:
+  /// **'خدمة العملاء'**
+  String get creatorSvcSupport;
+
+  /// D172: service tile.
+  ///
+  /// In ar, this message translates to:
+  /// **'توثيق الهوية'**
+  String get creatorSvcIdentity;
+
+  /// D172: service tile.
+  ///
+  /// In ar, this message translates to:
+  /// **'نمو المتابعين'**
+  String get creatorSvcFans;
+
+  /// D172: where the traffic card is bought.
+  ///
+  /// In ar, this message translates to:
+  /// **'تشتري بطاقة الزيارات من «أدوات الغرفة» أثناء بثك.'**
+  String get creatorTrafficHint;
+
+  /// D172: the floating button.
+  ///
+  /// In ar, this message translates to:
+  /// **'ابدأ البث'**
+  String get creatorGoLive;
+
   /// D164: creator stats load failed.
   ///
   /// In ar, this message translates to:

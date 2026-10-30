@@ -8022,6 +8022,73 @@ class AppLocalizationsAr extends AppLocalizations {
   String get creatorOpenProfile => 'منشوراتي وريلزي';
 
   @override
+  String get creatorTabLive => 'البث';
+
+  @override
+  String get creatorTabAgency => 'الوكالة';
+
+  @override
+  String get creatorAgencySoonTitle => 'الوكالة قريباً';
+
+  @override
+  String get creatorAgencySoonBody =>
+      'لا توجد وكالات مضيفين في Kabso Live بعد. ستظهر هنا عند إطلاقها.';
+
+  @override
+  String creatorMonthData(String month) {
+    return 'بيانات $month';
+  }
+
+  @override
+  String get creatorLiveData => 'بيانات البث';
+
+  @override
+  String get creatorLiveMinutes => 'دقائق البث';
+
+  @override
+  String get creatorNewFans => 'متابعون جدد';
+
+  @override
+  String get creatorNewEarnings => 'أرباح جديدة';
+
+  @override
+  String get creatorServices => 'خدمات البث';
+
+  @override
+  String get creatorSvcPreview => 'معاينة البث';
+
+  @override
+  String get creatorSvcCover => 'تعديل الغلاف';
+
+  @override
+  String get creatorSvcEvents => 'فعالياتي';
+
+  @override
+  String get creatorSvcHostLevel => 'مستوى المضيف';
+
+  @override
+  String get creatorSvcViolations => 'مخالفات الحساب';
+
+  @override
+  String get creatorSvcAcademy => 'أكاديمية المضيف';
+
+  @override
+  String get creatorSvcSupport => 'خدمة العملاء';
+
+  @override
+  String get creatorSvcIdentity => 'توثيق الهوية';
+
+  @override
+  String get creatorSvcFans => 'نمو المتابعين';
+
+  @override
+  String get creatorTrafficHint =>
+      'تشتري بطاقة الزيارات من «أدوات الغرفة» أثناء بثك.';
+
+  @override
+  String get creatorGoLive => 'ابدأ البث';
+
+  @override
   String get creatorLoadError => 'تعذّر تحميل الإحصاءات';
 
   @override
