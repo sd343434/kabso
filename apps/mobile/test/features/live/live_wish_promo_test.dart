@@ -355,9 +355,15 @@ void main() {
         findsNWidgets(3),
       );
       expect(find.descendant(of: group, matching: find.text('4')), findsOne);
-      // Ref 158: the count pill is at least 31 × 25 pt, at the top end.
+      // Ref 158: the count pill is at least 31 × 25 pt, at the top end —
+      // right before D181's minimize button (viewers minimize too) and ✕.
       final rect = tester.getRect(group);
-      expect(rect.right, greaterThan(393 - 80));
+      final minimize = tester.getRect(
+        find.byKey(LiveRoomScreen.minimizeKey).first,
+      );
+      expect(rect.right, lessThanOrEqualTo(minimize.left + 0.5));
+      expect(rect.right, greaterThan(minimize.left - 16));
+      expect(rect.right, greaterThan(393 - 80 - minimize.width));
       await tester.tap(group);
       await tester.pumpAndSettle();
       expect(find.byKey(LiveRoomScreen.viewersKey), findsWidgets);
