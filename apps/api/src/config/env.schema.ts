@@ -650,6 +650,12 @@ export const envSchema = z
      * on every 7th day in a row (owner 2026-10-29: 50, 5, 20; the owner may change them).
      */
     TASK_DAILY_CAP_COINS: intSetting(50, 1, 1_000_000),
+    /**
+     * v1.53-social (D184, CONVENTIONS §10.41.3): task rewards are cherries — the most cherries a person
+     * gets from daily tasks in one day (owner: the old 50 coins at 1 coin = 10 cherries → 500). Since
+     * D184 `TASK_DAILY_CAP_COINS` caps only the check-in's coins.
+     */
+    TASK_DAILY_CAP_CHERRIES: intSetting(500, 1, 1_000_000_000),
     TASK_CHECK_IN_COINS: intSetting(5, 1, 1_000_000),
     TASK_CHECK_IN_STREAK_BONUS_COINS: intSetting(20, 0, 1_000_000),
     /**
@@ -905,6 +911,13 @@ export const envSchema = z
       .refine((c) => /^[A-Z]{3}$/.test(c), { message: 'must be an ISO 4217 code like USD' }),
     CHERRY_WITHDRAWAL_MIN_MINOR: intSetting(1000, 1, 100_000_000),
     CHERRY_WITHDRAWAL_PAYOUT_DAYS: intSetting(7, 1, 90),
+    /**
+     * v1.53-social (D184, CONVENTIONS §10.46.1): task-reward cherries stay locked for withdrawal until the
+     * person's lifetime gift cherries (GIFT_RECEIVED minus GIFT_REVERSAL) are worth at least this many minor
+     * units of CHERRY_PAYOUT_CURRENCY at CHERRY_PAYOUT_RATE. PLACEHOLDER pending the owner's rule (likely
+     * $50 = 5000, lifetime or monthly); 0 = task cherries are never locked.
+     */
+    TASK_CHERRIES_UNLOCK_GIFT_MINOR: intSetting(5000, 0, 100_000_000_000),
     /**
      * Optional dedicated source of the HMAC key (HKDF, info `social-cursor/v1`) of the v1.5-social
      * list cursors; like LIVE_CURSOR_KEY it falls back to RATE_LIMIT_KEY_SECRET.

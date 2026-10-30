@@ -121,13 +121,16 @@ export function prizeForRank(prizes: readonly EventPrize[], rank: number): numbe
   return prizes.find((p) => rank >= p.rankFrom && rank <= p.rankTo)?.coins ?? 0;
 }
 
-/** A default task (the values seeded by migration 20261214100000_me_programs). */
+/**
+ * A default task (the values seeded by migration 20261214100000_me_programs; v1.53-social, D184: the
+ * reward in cherries, the seeded coins ×10 as migration 20261231110000_task_cherries converted them).
+ */
 export interface DefaultTask {
   readonly code: string;
   readonly period: 'DAILY' | 'WEEKLY';
   readonly metric: TaskMetric;
   readonly target: number;
-  readonly rewardCoins: number;
+  readonly rewardCherries: number;
   readonly audience: 'EVERYONE' | 'HOSTS';
   readonly nameAr: string;
   readonly nameEn: string;
@@ -145,7 +148,7 @@ export const DEFAULT_TASKS: readonly DefaultTask[] = [
     period: 'DAILY',
     metric: 'WATCH_LIVES',
     target: 1,
-    rewardCoins: 5,
+    rewardCherries: 50,
     audience: 'EVERYONE',
     nameAr: 'شاهد بثاً لمدة 15 ثانية',
     nameEn: 'Watch a live for 15 seconds',
@@ -156,7 +159,7 @@ export const DEFAULT_TASKS: readonly DefaultTask[] = [
     period: 'DAILY',
     metric: 'FOLLOWS',
     target: 10,
-    rewardCoins: 5,
+    rewardCherries: 50,
     audience: 'EVERYONE',
     nameAr: 'تابع مستخدمين آخرين',
     nameEn: 'Follow other users',
@@ -167,7 +170,7 @@ export const DEFAULT_TASKS: readonly DefaultTask[] = [
     period: 'DAILY',
     metric: 'LIVE_CHAT_MESSAGES',
     target: 10,
-    rewardCoins: 5,
+    rewardCherries: 50,
     audience: 'EVERYONE',
     nameAr: 'دردش في غرفة بث',
     nameEn: 'Chat in a live room',
@@ -178,7 +181,7 @@ export const DEFAULT_TASKS: readonly DefaultTask[] = [
     period: 'DAILY',
     metric: 'GIFT_SENDS',
     target: 10,
-    rewardCoins: 15,
+    rewardCherries: 150,
     audience: 'EVERYONE',
     nameAr: 'أرسل هدايا',
     nameEn: 'Send gifts',
@@ -189,7 +192,7 @@ export const DEFAULT_TASKS: readonly DefaultTask[] = [
     period: 'WEEKLY',
     metric: 'HOST_LIVE_MINUTES',
     target: 60,
-    rewardCoins: 100,
+    rewardCherries: 1000,
     audience: 'HOSTS',
     nameAr: 'ابثّ 60 دقيقة هذا الأسبوع',
     nameEn: 'Go live for 60 minutes this week',
@@ -200,7 +203,7 @@ export const DEFAULT_TASKS: readonly DefaultTask[] = [
     period: 'WEEKLY',
     metric: 'HOST_GIFT_COINS',
     target: 1000,
-    rewardCoins: 100,
+    rewardCherries: 1000,
     audience: 'HOSTS',
     nameAr: 'استقبل هدايا بقيمة 1000 عملة',
     nameEn: 'Receive gifts worth 1,000 coins',
@@ -260,7 +263,7 @@ export interface PoolTemplate {
 export interface PoolPick {
   readonly code: string;
   readonly target: number;
-  readonly rewardCoins: number;
+  readonly rewardCherries: number;
   readonly position: number;
 }
 
@@ -332,7 +335,7 @@ export function assignDailyTasks(
   return picked.map((t, position) => ({
     code: t.code,
     target: t.bandTargets[i]!,
-    rewardCoins: t.bandRewards[i]!,
+    rewardCherries: t.bandRewards[i]!,
     position,
   }));
 }
@@ -354,8 +357,10 @@ export interface DefaultPoolTask {
  * The default daily pool (owner 2026-10-30: «أريد أن تصنع الكثير من المهام اليومية، ترسل لكل شخص
  * بناءً على مستواه»). Only what the server can count from stored data. Left out: sharing a room (a
  * share is a link copied on the phone), recharging (no purchases, B5), and anything the app would
- * have to report. Rewards are coins only (owner 2026-10-30: «العملات فقط»). Targets and rewards are
- * per band 1…4; 0 = not offered in that band. Owner-changeable with `task-admin`.
+ * have to report. Rewards were coins (owner 2026-10-30: «العملات فقط»); v1.53-social (D184, owner) pays
+ * them in cherries at the same value (1 coin = 10 cherries: every reward ×10, migration
+ * 20261231110000_task_cherries). Targets and rewards are per band 1…4; 0 = not offered in that band.
+ * Owner-changeable with `task-admin`.
  */
 export const DEFAULT_POOL_TASKS: readonly DefaultPoolTask[] = [
   {
@@ -364,7 +369,7 @@ export const DEFAULT_POOL_TASKS: readonly DefaultPoolTask[] = [
     group: 'WATCH',
     audience: 'EVERYONE',
     bandTargets: [1, 2, 3, 5],
-    bandRewards: [3, 4, 5, 6],
+    bandRewards: [30, 40, 50, 60],
     nameAr: 'شاهد بثوثاً لمدة 15 ثانية',
     nameEn: 'Watch lives for 15 seconds',
     sortOrder: 100,
@@ -375,7 +380,7 @@ export const DEFAULT_POOL_TASKS: readonly DefaultPoolTask[] = [
     group: 'WATCH',
     audience: 'EVERYONE',
     bandTargets: [5, 15, 30, 30],
-    bandRewards: [4, 6, 8, 10],
+    bandRewards: [40, 60, 80, 100],
     nameAr: 'شاهد البث (بالدقائق)',
     nameEn: 'Watch lives (minutes)',
     sortOrder: 110,
@@ -386,7 +391,7 @@ export const DEFAULT_POOL_TASKS: readonly DefaultPoolTask[] = [
     group: 'WATCH',
     audience: 'EVERYONE',
     bandTargets: [1, 2, 3, 3],
-    bandRewards: [3, 4, 5, 6],
+    bandRewards: [30, 40, 50, 60],
     nameAr: 'ادخل غرفاً صوتية',
     nameEn: 'Join audio rooms',
     sortOrder: 120,
@@ -397,7 +402,7 @@ export const DEFAULT_POOL_TASKS: readonly DefaultPoolTask[] = [
     group: 'LIVE',
     audience: 'EVERYONE',
     bandTargets: [3, 5, 10, 20],
-    bandRewards: [3, 4, 5, 6],
+    bandRewards: [30, 40, 50, 60],
     nameAr: 'علّق في بث مباشر',
     nameEn: 'Comment in a live',
     sortOrder: 200,
@@ -408,7 +413,7 @@ export const DEFAULT_POOL_TASKS: readonly DefaultPoolTask[] = [
     group: 'LIVE',
     audience: 'EVERYONE',
     bandTargets: [20, 50, 100, 200],
-    bandRewards: [2, 3, 4, 5],
+    bandRewards: [20, 30, 40, 50],
     nameAr: 'أرسل قلوباً في بث مباشر',
     nameEn: 'Send hearts in a live',
     sortOrder: 210,
@@ -419,7 +424,7 @@ export const DEFAULT_POOL_TASKS: readonly DefaultPoolTask[] = [
     group: 'SOCIAL',
     audience: 'EVERYONE',
     bandTargets: [1, 3, 5, 10],
-    bandRewards: [2, 3, 4, 5],
+    bandRewards: [20, 30, 40, 50],
     nameAr: 'تابع مستخدمين آخرين',
     nameEn: 'Follow other users',
     sortOrder: 300,
@@ -430,7 +435,7 @@ export const DEFAULT_POOL_TASKS: readonly DefaultPoolTask[] = [
     group: 'SOCIAL',
     audience: 'EVERYONE',
     bandTargets: [1, 3, 5, 10],
-    bandRewards: [2, 3, 4, 5],
+    bandRewards: [20, 30, 40, 50],
     nameAr: 'علّق على منشورات الآخرين',
     nameEn: "Comment on others' posts",
     sortOrder: 310,
@@ -441,7 +446,7 @@ export const DEFAULT_POOL_TASKS: readonly DefaultPoolTask[] = [
     group: 'GIFT',
     audience: 'EVERYONE',
     bandTargets: [1, 1, 3, 5],
-    bandRewards: [5, 6, 8, 10],
+    bandRewards: [50, 60, 80, 100],
     nameAr: 'أرسل هدية',
     nameEn: 'Send a gift',
     sortOrder: 400,
@@ -452,7 +457,7 @@ export const DEFAULT_POOL_TASKS: readonly DefaultPoolTask[] = [
     group: 'GIFT',
     audience: 'EVERYONE',
     bandTargets: [0, 10, 10, 15],
-    bandRewards: [0, 12, 15, 20],
+    bandRewards: [0, 120, 150, 200],
     nameAr: 'أرسل هدايا',
     nameEn: 'Send gifts',
     sortOrder: 410,
@@ -463,7 +468,7 @@ export const DEFAULT_POOL_TASKS: readonly DefaultPoolTask[] = [
     group: 'GIFT',
     audience: 'EVERYONE',
     bandTargets: [1, 1, 1, 2],
-    bandRewards: [5, 6, 8, 10],
+    bandRewards: [50, 60, 80, 100],
     nameAr: 'ادعم مضيفاً جديداً بهدية',
     nameEn: 'Support a new host with a gift',
     sortOrder: 420,
@@ -474,7 +479,7 @@ export const DEFAULT_POOL_TASKS: readonly DefaultPoolTask[] = [
     group: 'CONTENT',
     audience: 'EVERYONE',
     bandTargets: [1, 1, 1, 2],
-    bandRewards: [4, 5, 6, 8],
+    bandRewards: [40, 50, 60, 80],
     nameAr: 'انشر منشوراً',
     nameEn: 'Share a post',
     sortOrder: 500,
@@ -485,7 +490,7 @@ export const DEFAULT_POOL_TASKS: readonly DefaultPoolTask[] = [
     group: 'CONTENT',
     audience: 'EVERYONE',
     bandTargets: [0, 1, 1, 1],
-    bandRewards: [0, 6, 8, 10],
+    bandRewards: [0, 60, 80, 100],
     nameAr: 'انشر مقطع ريلز',
     nameEn: 'Share a reel',
     sortOrder: 510,
@@ -496,7 +501,7 @@ export const DEFAULT_POOL_TASKS: readonly DefaultPoolTask[] = [
     group: 'CONTENT',
     audience: 'EVERYONE',
     bandTargets: [1, 1, 1, 2],
-    bandRewards: [3, 4, 5, 6],
+    bandRewards: [30, 40, 50, 60],
     nameAr: 'انشر قصة',
     nameEn: 'Share a story',
     sortOrder: 520,
@@ -507,7 +512,7 @@ export const DEFAULT_POOL_TASKS: readonly DefaultPoolTask[] = [
     group: 'MESSAGE',
     audience: 'EVERYONE',
     bandTargets: [1, 1, 2, 3],
-    bandRewards: [2, 3, 4, 5],
+    bandRewards: [20, 30, 40, 50],
     nameAr: 'راسل صديقاً',
     nameEn: 'Message a friend',
     sortOrder: 600,
@@ -518,7 +523,7 @@ export const DEFAULT_POOL_TASKS: readonly DefaultPoolTask[] = [
     group: 'MESSAGE',
     audience: 'EVERYONE',
     bandTargets: [1, 1, 1, 2],
-    bandRewards: [2, 3, 4, 5],
+    bandRewards: [20, 30, 40, 50],
     nameAr: 'أرسل رسالة صوتية',
     nameEn: 'Send a voice message',
     sortOrder: 610,
@@ -529,7 +534,7 @@ export const DEFAULT_POOL_TASKS: readonly DefaultPoolTask[] = [
     group: 'HOST',
     audience: 'HOSTS',
     bandTargets: [30, 30, 60, 60],
-    bandRewards: [8, 10, 12, 15],
+    bandRewards: [80, 100, 120, 150],
     nameAr: 'ابثّ مباشرة (بالدقائق)',
     nameEn: 'Go live (minutes)',
     sortOrder: 700,
@@ -540,7 +545,7 @@ export const DEFAULT_POOL_TASKS: readonly DefaultPoolTask[] = [
     group: 'HOST',
     audience: 'HOSTS',
     bandTargets: [3, 5, 10, 20],
-    bandRewards: [5, 6, 8, 10],
+    bandRewards: [50, 60, 80, 100],
     nameAr: 'استقبل هدايا في بثك',
     nameEn: 'Receive gifts in your live',
     sortOrder: 710,
@@ -551,7 +556,7 @@ export const DEFAULT_POOL_TASKS: readonly DefaultPoolTask[] = [
     group: 'HOST',
     audience: 'HOSTS',
     bandTargets: [1, 1, 2, 3],
-    bandRewards: [4, 5, 6, 8],
+    bandRewards: [40, 50, 60, 80],
     nameAr: 'اقبل ضيفاً على مقعد',
     nameEn: 'Accept a guest on a seat',
     sortOrder: 720,

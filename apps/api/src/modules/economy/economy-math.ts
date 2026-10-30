@@ -153,3 +153,44 @@ export function addMonths(month: string, months: number): string {
 export function dateValue(date: string): Date {
   return new Date(`${date}T00:00:00.000Z`);
 }
+
+/** v1.53-social (D184): the task-cherry lock of one person (CONVENTIONS §10.46.1). */
+export interface TaskCherryLock {
+  /** The unlock rule passed (or there is no rule: threshold 0). */
+  readonly unlocked: boolean;
+  /** Task cherries not withdrawable now (0 when unlocked). */
+  readonly lockedCherries: bigint;
+  /** Lifetime gift cherries (reversals subtracted) at the payout rate, minor units. */
+  readonly giftValueMinor: bigint;
+  readonly thresholdMinor: bigint;
+}
+
+/**
+ * The unlock rule for task-reward cherries — PLACEHOLDER pending the owner's decision (likely "$50 earned
+ * from gift cherries", lifetime or monthly): lifetime gift cherries worth at least `thresholdMinor` at the
+ * payout rate unlock every task cherry; until then all task cherries ever credited stay locked. One place
+ * to change when the owner decides.
+ */
+export function taskCherryLock(
+  taskCherries: bigint,
+  giftCherriesNet: bigint,
+  thresholdMinor: number,
+  rateCherries: number,
+  rateMinor: number,
+): TaskCherryLock {
+  const giftValueMinor = cherriesValueMinor(giftCherriesNet, rateCherries, rateMinor);
+  const threshold = BigInt(thresholdMinor);
+  const unlocked = threshold === 0n || giftValueMinor >= threshold;
+  return {
+    unlocked,
+    lockedCherries: unlocked || taskCherries < 0n ? 0n : taskCherries,
+    giftValueMinor,
+    thresholdMinor: threshold,
+  };
+}
+
+/** What may be withdrawn: the balance minus the locked task cherries (never below 0). */
+export function withdrawableCherries(balance: bigint, lockedCherries: bigint): bigint {
+  const free = balance - lockedCherries;
+  return free > 0n ? free : 0n;
+}

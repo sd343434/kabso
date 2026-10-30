@@ -663,6 +663,7 @@ describe('loadConfig — v1.5-social media and posts (CONVENTIONS §11)', () => 
       currency: 'USD',
       minWithdrawalMinor: 1000,
       payoutDays: 7,
+      taskCherriesUnlockGiftMinor: 5000,
     });
     expect(loadConfig({ ...base, CHERRY_PAYOUT_RATE: '1000:110' }).economy.rateCherries).toBe(1000);
     expect(() => loadConfig({ ...base, CHERRY_PAYOUT_RATE: '1.1' })).toThrow(/CHERRY_PAYOUT_RATE/);

@@ -9,8 +9,10 @@ import {
   monthKey,
   addMonths,
   parentCommissionPaid,
+  taskCherryLock,
   type AgencyRankValue,
   type EconomyRules,
+  type TaskCherryLock,
 } from './economy-math.js';
 
 /**
@@ -311,7 +313,8 @@ export async function reverseGiftCherriesIn(tx: Tx, giftId: string, now: Date): 
 
 /**
  * Holds `cherries` for a withdrawal (`WITHDRAWAL_HOLD`, reference: the withdrawal): one conditional UPDATE
- * (the row lock serializes concurrent requests); false — nothing changed — when the balance is short.
+ * (the row lock serializes concurrent requests); null — nothing changed — when the balance less `locked`
+ * (v1.53-social, D184: task cherries not unlocked yet, §10.46.1) is short.
  */
 export async function holdCherriesIn(
   tx: Tx,
@@ -319,10 +322,11 @@ export async function holdCherriesIn(
   cherries: bigint,
   withdrawalId: string,
   now: Date,
+  locked = 0n,
 ): Promise<bigint | null> {
   const [row] = await tx.$queryRaw<{ cherries: bigint }[]>`
     UPDATE cherry_wallets SET cherries = cherries - ${cherries}, updated_at = now()
-     WHERE user_id = ${userId}::uuid AND cherries >= ${cherries}
+     WHERE user_id = ${userId}::uuid AND cherries - ${locked} >= ${cherries}
     RETURNING cherries`;
   if (!row) return null;
   await tx.cherryLedgerEntry.create({
@@ -348,4 +352,48 @@ export async function refundCherriesIn(
   now: Date,
 ) {
   await applyMovementsIn(tx, [{ userId, reason: 'WITHDRAWAL_REFUND', delta: cherries }], withdrawalId, now);
+}
+
+/**
+ * v1.53-social (D184, CONVENTIONS §10.41.3): a Task Center reward in the claim's transaction — `cherries`
+ * (> 0) as one `TASK_REWARD` row. `reference` is `<task code>@<period start>` (e.g. `P_WATCH_LIVES@2026-10-30`),
+ * so the ledger itself allows one credit per person, task and day (or week); a second one fails on
+ * `cherry_ledger_reference_once` and rolls the claim back.
+ */
+export async function creditTaskCherriesIn(
+  tx: Tx,
+  userId: string,
+  cherries: bigint,
+  reference: string,
+  now: Date,
+): Promise<void> {
+  await applyMovementsIn(tx, [{ userId, reason: 'TASK_REWARD', delta: cherries }], reference, now);
+}
+
+/** The ledger reference of a task reward: one per person, task and period. */
+export function taskRewardReference(taskCode: string, periodStart: string): string {
+  return `${taskCode}@${periodStart}`;
+}
+
+/**
+ * v1.53-social (D184, §10.46.1): the person's task-cherry lock now — the sums of their `TASK_REWARD` rows
+ * and their gift cherries (GIFT_RECEIVED + GIFT_REVERSAL) through `taskCherryLock` (the placeholder rule).
+ */
+export async function taskCherryLockIn(
+  db: Pick<Tx, '$queryRaw'>,
+  userId: string,
+  rules: { taskCherriesUnlockGiftMinor: number; rateCherries: number; rateMinor: number },
+): Promise<TaskCherryLock> {
+  const [row] = await db.$queryRaw<{ task: bigint; gift: bigint }[]>`
+    SELECT COALESCE(sum(delta) FILTER (WHERE reason = 'TASK_REWARD'), 0)::bigint AS task,
+           COALESCE(sum(delta) FILTER (WHERE reason IN ('GIFT_RECEIVED', 'GIFT_REVERSAL')), 0)::bigint AS gift
+      FROM cherry_ledger
+     WHERE user_id = ${userId}::uuid AND reason IN ('TASK_REWARD', 'GIFT_RECEIVED', 'GIFT_REVERSAL')`;
+  return taskCherryLock(
+    row?.task ?? 0n,
+    row?.gift ?? 0n,
+    rules.taskCherriesUnlockGiftMinor,
+    rules.rateCherries,
+    rules.rateMinor,
+  );
 }

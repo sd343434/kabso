@@ -4,7 +4,9 @@
  * a deterministic per-person, per-day assignment by level band (the higher of Support and Charm),
  * host tasks for hosts, progress from stored data only, one payout per task and day within the daily
  * cap, a new list each day — plus the Event Center's calendar line and tone and the Task Center's
- * banner placement. End to end against PostgreSQL + Redis.
+ * banner placement. End to end against PostgreSQL + Redis. v1.53-social (D184, owner): the rewards are
+ * cherries at the same value (×10), credited to the cherry ledger (`TASK_REWARD`), under the daily
+ * cherry cap (the check-in's coins no longer share it).
  */
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -56,21 +58,25 @@ interface Task {
   progress: number;
   target: number;
   rewardCoins: number;
+  rewardCherries: number;
   completed: boolean;
   claimed: boolean;
   claimedCoins: number | null;
+  claimedCherries: number | null;
 }
 
 interface MyTasks {
   day: string;
   dailyEarnedCoins: number;
+  dailyEarnedCherries: number;
   band: { band: number; level: number; name: string; host: boolean };
   tasks: Task[];
 }
 
 const HOUR_MS = 3_600_000;
 const DAY_MS = 24 * HOUR_MS;
-const CAP = 20;
+/** The daily cherry cap here (D184; 15 coins' worth). */
+const CAP = 150;
 const template = new Map(DEFAULT_POOL_TASKS.map((t) => [t.code, t]));
 
 /** A fixed-offset zone where it is about noon now, so "today" never ends in the middle of a test. */
@@ -104,7 +110,7 @@ describe('D176 contract coverage', () => {
         'HOST_GUESTS',
       ]),
     );
-    // Coins only (owner 2026-10-30): no experience reward on a task.
+    // No experience reward on a task (owner 2026-10-30; since D184 the reward is cherries).
     expect(Object.keys(task.properties).some((k) => /exp/i.test(k))).toBe(false);
     expect((schemas.MyTasks as { required: string[] }).required).toContain('band');
     expect((schemas.EventSummary as { required: string[] }).required).toEqual(
@@ -224,7 +230,7 @@ describe('D176 daily task pool', { timeout: 240_000 }, () => {
         LIVE_HOSTING_ENABLED: 'true',
         LIVE_HEARTBEAT_STALE_SECONDS: '3600',
         LIVE_RANKINGS_TIME_ZONE: noonZone(),
-        TASK_DAILY_CAP_COINS: String(CAP),
+        TASK_DAILY_CAP_CHERRIES: String(CAP),
       },
       [
         { token: LIVE_MEDIA_PROVIDER, value: media },
@@ -270,8 +276,8 @@ describe('D176 daily task pool', { timeout: 240_000 }, () => {
       true,
     );
     const want = await expected(me, first.day, 1, false);
-    expect(first.tasks.map((t) => [t.code, t.target, t.rewardCoins])).toEqual(
-      want.map((p) => [p.code, p.target, p.rewardCoins]),
+    expect(first.tasks.map((t) => [t.code, t.target, t.rewardCherries, t.rewardCoins])).toEqual(
+      want.map((p) => [p.code, p.target, p.rewardCherries, 0]),
     );
     for (const code of POOL_REPLACES_TASKS) expect(first.tasks.map((t) => t.code)).not.toContain(code);
     // The same list on every read of the day, in Arabic too (names follow the language).
@@ -308,7 +314,7 @@ describe('D176 daily task pool', { timeout: 240_000 }, () => {
       expect(mine.tasks).toHaveLength(count);
       for (const t of mine.tasks) {
         expect(t.target).toBe(template.get(t.code)!.bandTargets[band - 1]);
-        expect(t.rewardCoins).toBe(template.get(t.code)!.bandRewards[band - 1]);
+        expect(t.rewardCherries).toBe(template.get(t.code)!.bandRewards[band - 1]);
       }
       expect(mine.tasks.map((t) => t.code)).toEqual(
         (await expected(me, mine.day, band, false)).map((p) => p.code),
@@ -322,8 +328,9 @@ describe('D176 daily task pool', { timeout: 240_000 }, () => {
     try {
       const a = (await tasks(low)).tasks;
       const b = (await tasks(high)).tasks;
-      expect(a).toEqual([expect.objectContaining({ code: 'P_FOLLOW', target: 1, rewardCoins: 2 })]);
-      expect(b).toEqual([expect.objectContaining({ code: 'P_FOLLOW', target: 10, rewardCoins: 5 })]);
+      // D184: the D176 coins ×10 (2 → 20, 5 → 50 cherries).
+      expect(a).toEqual([expect.objectContaining({ code: 'P_FOLLOW', target: 1, rewardCherries: 20 })]);
+      expect(b).toEqual([expect.objectContaining({ code: 'P_FOLLOW', target: 10, rewardCherries: 50 })]);
       // A level reached later in the day does not change today's list (it applies tomorrow).
       await setLevels(low, 90, 0);
       expect((await tasks(low)).tasks).toEqual(a);
@@ -428,28 +435,38 @@ describe('D176 daily task pool', { timeout: 240_000 }, () => {
       expect(by('P_DM_FRIEND')).toMatchObject({ progress: 1, completed: true });
       expect(by('P_DM_VOICE')).toMatchObject({ progress: 1, completed: true });
 
-      // Claimed once each, at the band's coins; again → 200, nothing paid again.
+      // Claimed once each, at the band's cherries (D184); again → 200, nothing paid again.
       let paid = 0;
       for (const t of after.tasks) {
         const res = await claim(me, t.code);
         expect(res.status, JSON.stringify(res.body)).toBe(201);
         expectContract(res, 'claimMyTask');
         expect(res.body).toMatchObject({
-          paidCoins: t.rewardCoins,
-          task: { code: t.code, claimed: true, pooled: true },
+          paidCoins: 0,
+          paidCherries: t.rewardCherries,
+          task: { code: t.code, claimed: true, pooled: true, claimedCherries: t.rewardCherries },
         });
-        paid += t.rewardCoins;
+        paid += t.rewardCherries;
       }
-      expect(paid).toBe(2 + 4 + 3 + 2 + 2 + 2);
+      expect(paid).toBe((2 + 4 + 3 + 2 + 2 + 2) * 10);
       const again = await claim(me, 'P_POST');
       expect(again.status).toBe(200);
-      expect(again.body.paidCoins).toBe(4);
-      const ledger = await ctx.prisma.walletLedgerEntry.findMany({
+      expect(again.body).toMatchObject({ paidCherries: 40, paidCoins: 0, balanceCherries: paid });
+      // The cherry ledger (one TASK_REWARD row per task and day), no coins.
+      const ledger = await ctx.prisma.cherryLedgerEntry.findMany({
         where: { userId: me.id, reason: 'TASK_REWARD' },
       });
       expect(ledger).toHaveLength(6);
       expect(ledger.reduce((s, e) => s + Number(e.delta), 0)).toBe(paid);
-      expect((await tasks(me)).dailyEarnedCoins).toBe(paid);
+      expect(ledger.map((e) => e.referenceId).sort()).toEqual(
+        after.tasks.map((t) => `${t.code}@${after.day}`).sort(),
+      );
+      expect(
+        await ctx.prisma.walletLedgerEntry.count({ where: { userId: me.id, reason: 'TASK_REWARD' } }),
+      ).toBe(0);
+      const mineNow = await tasks(me);
+      expect(mineNow.dailyEarnedCherries).toBe(paid);
+      expect(mineNow.dailyEarnedCoins).toBe(0);
     } finally {
       await fullPool();
     }
@@ -514,19 +531,27 @@ describe('D176 daily task pool', { timeout: 240_000 }, () => {
       for (const t of now.tasks) expect(t, t.code).toMatchObject({ completed: true, progress: t.target });
       expect(now.tasks.find((t) => t.code === 'P_WATCH_MINUTES')).toMatchObject({ progress: 5, target: 5 });
 
-      // The cap (20 here): check-in 5, then 4 + 3 + 3 + 2 = 17, then the 5-coin gift task pays 3, and the
-      // last task is refused with TASK_DAILY_CAP_REACHED.
-      expect((await ctx.http.post('/api/v1/me/check-in').set(auth(me))).status).toBe(201);
+      // The cherry cap (150 here, D184): the check-in pays its coins and no longer counts; then
+      // 40 + 30 + 30 + 20 = 120, the 50-cherry gift task pays the 30 left, and the last task is refused
+      // with TASK_DAILY_CAP_REACHED.
+      const checkIn = await ctx.http.post('/api/v1/me/check-in').set(auth(me));
+      expect(checkIn.status).toBe(201);
+      expect(checkIn.body.paidCoins).toBe(5);
       for (const code of ['P_WATCH_MINUTES', 'P_AUDIO_ROOMS', 'P_LIVE_COMMENTS', 'P_LIVE_TAPS']) {
         expect((await claim(me, code)).status).toBe(201);
       }
       const capped = await claim(me, 'P_SEND_GIFT');
       expect(capped.status).toBe(201);
-      expect(capped.body.paidCoins).toBe(3);
+      expect(capped.body).toMatchObject({
+        paidCherries: 30,
+        task: { rewardCherries: 50, claimedCherries: 30 },
+      });
       const refused = await claim(me, 'P_NEW_HOST');
       expect(refused.status).toBe(409);
       expect(refused.body.error.code).toBe('TASK_DAILY_CAP_REACHED');
-      expect((await tasks(me)).dailyEarnedCoins).toBe(CAP);
+      const capDay = await tasks(me);
+      expect(capDay.dailyEarnedCherries).toBe(CAP);
+      expect(capDay.dailyEarnedCoins).toBe(5);
     } finally {
       await fullPool();
     }
@@ -597,12 +622,13 @@ describe('D176 daily task pool', { timeout: 240_000 }, () => {
       try {
         const next = await tasks(me);
         expect(next.day).not.toBe(today.day);
-        expect(next.dailyEarnedCoins).toBe(0);
+        expect(next.dailyEarnedCherries).toBe(0);
         expect(next.tasks.find((t) => t.code === 'P_FOLLOW')).toMatchObject({
           target: 4,
           progress: 0,
           claimed: false,
           claimedCoins: null,
+          claimedCherries: null,
         });
         expect(next.tasks.map((t) => t.code)).toEqual(
           (await expected(me, next.day, 1, false)).map((p) => p.code),

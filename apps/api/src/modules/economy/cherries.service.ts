@@ -18,8 +18,8 @@ import type { UserSummaryDto } from '../live/live-rooms.service.js';
 import { USER_SUMMARY_SELECT, userSummary, type PageDto } from '../posts/post-views.js';
 import type { PageQuery } from '../posts/posts.schemas.js';
 import { SocialCursorCodec, type SocialPosition } from '../posts/social-cursor.js';
-import { holdCherriesIn } from './cherry-ledger.js';
-import { cherriesValueMinor, withdrawalCherries } from './economy-math.js';
+import { holdCherriesIn, taskCherryLockIn } from './cherry-ledger.js';
+import { cherriesValueMinor, withdrawableCherries, withdrawalCherries } from './economy-math.js';
 
 /** `CherryPayoutRules` (openapi v1.52-social, D179). */
 export interface CherryPayoutRulesDto {
@@ -53,6 +53,14 @@ export interface CherryWalletDto {
   earnedLast7Days: number;
   earnedLast30Days: number;
   commissionTotal: number;
+  /** v1.53-social (D184): Task Center rewards (`TASK_REWARD`), all time. */
+  taskRewardTotal: number;
+  /** v1.53-social (D184): task cherries not withdrawable yet (0 once unlocked). */
+  lockedTaskCherries: number;
+  /** v1.53-social (D184): what a withdrawal may take now — the balance less the locked task cherries. */
+  withdrawableCherries: number;
+  /** v1.53-social (D184): the unlock rule for task cherries (placeholder, pending the owner). */
+  taskUnlock: { unlocked: boolean; giftValueMinor: number; thresholdMinor: number };
   payout: CherryPayoutRulesDto;
   pendingWithdrawal: CherryWithdrawalDto | null;
 }
@@ -138,18 +146,20 @@ export class CherriesService {
     const now = this.clock.now().getTime();
     const d7 = new Date(now - 7 * DAY_MS);
     const d30 = new Date(now - 30 * DAY_MS);
-    const [wallet, sums, pending] = await Promise.all([
+    const [wallet, sums, pending, lock] = await Promise.all([
       this.prisma.cherryWallet.findUnique({ where: { userId: me }, select: { cherries: true } }),
-      this.prisma.$queryRaw<{ total: bigint; d7: bigint; d30: bigint; commission: bigint }[]>`
+      this.prisma.$queryRaw<{ total: bigint; d7: bigint; d30: bigint; commission: bigint; task: bigint }[]>`
         SELECT COALESCE(sum(delta) FILTER (WHERE reason IN ('GIFT_RECEIVED', 'GIFT_REVERSAL')), 0)::bigint AS total,
                COALESCE(sum(delta) FILTER (WHERE reason IN ('GIFT_RECEIVED', 'GIFT_REVERSAL')
                                              AND created_at >= ${d7}), 0)::bigint AS d7,
                COALESCE(sum(delta) FILTER (WHERE reason IN ('GIFT_RECEIVED', 'GIFT_REVERSAL')
                                              AND created_at >= ${d30}), 0)::bigint AS d30,
                COALESCE(sum(delta) FILTER (WHERE reason IN ('AGENCY_COMMISSION', 'PARENT_COMMISSION',
-                 'AGENCY_COMMISSION_REVERSAL', 'PARENT_COMMISSION_REVERSAL')), 0)::bigint AS commission
+                 'AGENCY_COMMISSION_REVERSAL', 'PARENT_COMMISSION_REVERSAL')), 0)::bigint AS commission,
+               COALESCE(sum(delta) FILTER (WHERE reason = 'TASK_REWARD'), 0)::bigint AS task
           FROM cherry_ledger WHERE user_id = ${me}::uuid`,
       this.prisma.cherryWithdrawal.findFirst({ where: { userId: me, status: 'PENDING' } }),
+      taskCherryLockIn(this.prisma, me, this.config.economy),
     ]);
     const cherries = wallet?.cherries ?? 0n;
     const s = sums[0];
@@ -163,6 +173,14 @@ export class CherriesService {
       earnedLast7Days: Number(s?.d7 ?? 0n),
       earnedLast30Days: Number(s?.d30 ?? 0n),
       commissionTotal: Number(s?.commission ?? 0n),
+      taskRewardTotal: Number(s?.task ?? 0n),
+      lockedTaskCherries: Number(lock.lockedCherries),
+      withdrawableCherries: Number(withdrawableCherries(cherries, lock.lockedCherries)),
+      taskUnlock: {
+        unlocked: lock.unlocked,
+        giftValueMinor: Number(lock.giftValueMinor),
+        thresholdMinor: Number(lock.thresholdMinor),
+      },
       payout: this.payout,
       pendingWithdrawal: pending ? withdrawalDto(pending) : null,
     };
@@ -243,7 +261,8 @@ export class CherriesService {
   /**
    * `POST /wallet/me/cherries/withdrawals` (Idempotency-Key). Order: 400 (key, body, amount below the
    * minimum) → the same key again → 200 with that request (409 IDEMPOTENCY_CONFLICT when the body differs)
-   * → 409 WITHDRAWAL_PENDING → 409 INSUFFICIENT_CHERRIES → 201, the cherries held.
+   * → 409 WITHDRAWAL_PENDING → 409 INSUFFICIENT_CHERRIES (more than the withdrawable cherries: the balance
+   * less the locked task cherries, v1.53-social D184) → 201, the cherries held.
    */
   async withdraw(
     me: string,
@@ -299,7 +318,9 @@ export class CherriesService {
             createdAt: now,
           },
         });
-        const balance = await holdCherriesIn(tx, me, cherries, id, now);
+        // v1.53-social (D184): task cherries stay out of a withdrawal until they are unlocked.
+        const lock = await taskCherryLockIn(tx, me, e);
+        const balance = await holdCherriesIn(tx, me, cherries, id, now, lock.lockedCherries);
         if (balance === null) throw new AppException(ErrorCode.INSUFFICIENT_CHERRIES);
         await tx.auditLog.create({
           data: {

@@ -3207,25 +3207,27 @@ enum EventMetric {
 /// D166: a task on offer (task-admin CLI). Progress is computed from stored data (`metric`), never
 /// reported by the app.
 model TaskDefinition {
-  code        String          @id @db.VarChar(40)
-  period      TaskPeriod
-  metric      String          @db.VarChar(40)
-  target      Int
-  rewardCoins Int             @map("reward_coins")
-  audience    ProgramAudience @default(EVERYONE)
-  nameAr      String          @map("name_ar") @db.VarChar(80)
-  nameEn      String          @map("name_en") @db.VarChar(80)
-  enabled     Boolean         @default(true)
-  sortOrder   Int             @default(0) @map("sort_order")
+  code           String          @id @db.VarChar(40)
+  period         TaskPeriod
+  metric         String          @db.VarChar(40)
+  target         Int
+  /// v1.53-social (D184): task rewards are cherries (was `reward_coins`, ×10 at the migration).
+  rewardCherries Int             @map("reward_cherries")
+  audience       ProgramAudience @default(EVERYONE)
+  nameAr         String          @map("name_ar") @db.VarChar(80)
+  nameEn         String          @map("name_en") @db.VarChar(80)
+  enabled        Boolean         @default(true)
+  sortOrder      Int             @default(0) @map("sort_order")
   /// D176: a daily pool template, offered through the per-person assignment (task_assignments).
-  pool        Boolean         @default(false)
+  pool           Boolean         @default(false)
   /// D176: WATCH, LIVE, SOCIAL, GIFT, CONTENT, MESSAGE or HOST (variety; null when not pool).
-  poolGroup   String?         @map("pool_group") @db.VarChar(10)
-  /// D176: one target and reward per level band 1…4 (0 = not offered in that band).
-  bandTargets Int[]           @default([]) @map("band_targets")
-  bandRewards Int[]           @default([]) @map("band_rewards")
-  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt   DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  poolGroup      String?         @map("pool_group") @db.VarChar(10)
+  /// D176: one target and reward per level band 1…4 (0 = not offered in that band); rewards in
+  /// cherries since v1.53-social (D184).
+  bandTargets    Int[]           @default([]) @map("band_targets")
+  bandRewards    Int[]           @default([]) @map("band_rewards")
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   claims      TaskClaim[]
   assignments TaskAssignment[]
@@ -3248,14 +3250,15 @@ model TaskPoolBand {
 
 /// D176: a person's pool task of a day, fixed at the day's first read with its band's target and reward.
 model TaskAssignment {
-  userId      String   @map("user_id") @db.Uuid
-  day         DateTime @db.Date
-  taskCode    String   @map("task_code") @db.VarChar(40)
-  band        Int      @db.SmallInt
-  target      Int
-  rewardCoins Int      @map("reward_coins")
-  position    Int      @db.SmallInt
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  userId         String   @map("user_id") @db.Uuid
+  day            DateTime @db.Date
+  taskCode       String   @map("task_code") @db.VarChar(40)
+  band           Int      @db.SmallInt
+  target         Int
+  /// v1.53-social (D184): cherries (was `reward_coins`, ×10 at the migration).
+  rewardCherries Int      @map("reward_cherries")
+  position       Int      @db.SmallInt
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 
   user User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   task TaskDefinition @relation(fields: [taskCode], references: [code], onDelete: Cascade)
@@ -3266,15 +3269,19 @@ model TaskAssignment {
   @@map("task_assignments")
 }
 
-/// D166: a task's reward, paid once per person, task and period (`task_claims_once`). The coins
-/// paid (after the daily cap) are a `wallet_ledger` row `TASK_REWARD` with this id as reference.
+/// D166: a task's reward, paid once per person, task and period (`task_claims_once`). Until v1.53-social
+/// the coins paid (after the daily cap) are a `wallet_ledger` row `TASK_REWARD` with this id as reference
+/// (`reward_currency` COINS); since then (D184) the cherries paid are a `cherry_ledger` row `TASK_REWARD`
+/// with reference `<code>@<period start>` (`reward_currency` CHERRIES).
 model TaskClaim {
-  id          String   @id @default(uuid(7)) @db.Uuid
-  userId      String   @map("user_id") @db.Uuid
-  taskCode    String   @map("task_code") @db.VarChar(40)
-  periodStart DateTime @map("period_start") @db.Date
-  rewardCoins Int      @map("reward_coins")
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  id             String             @id @default(uuid(7)) @db.Uuid
+  userId         String             @map("user_id") @db.Uuid
+  taskCode       String             @map("task_code") @db.VarChar(40)
+  periodStart    DateTime           @map("period_start") @db.Date
+  /// What the claim paid, in `rewardCurrency` (was `reward_coins`).
+  rewardAmount   Int                @map("reward_amount")
+  rewardCurrency TaskRewardCurrency @map("reward_currency")
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
 
   user User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   task TaskDefinition @relation(fields: [taskCode], references: [code], onDelete: Restrict)
@@ -3373,8 +3380,18 @@ enum CherryLedgerReason {
   PARENT_COMMISSION_REVERSAL
   WITHDRAWAL_HOLD
   WITHDRAWAL_REFUND
+  /// v1.53-social (D184): a Task Center reward (locked for withdrawal until the unlock rule passes).
+  TASK_REWARD
 
   @@map("cherry_ledger_reason")
+}
+
+/// v1.53-social (D184): what a task claim paid in (claims before the migration: COINS).
+enum TaskRewardCurrency {
+  COINS
+  CHERRIES
+
+  @@map("task_reward_currency")
 }
 
 enum AgencyRank {
@@ -3438,6 +3455,7 @@ model CherryLedgerEntry {
   @@unique([userId, reason, referenceId], map: "cherry_ledger_reference_once")
   @@index([userId, createdAt(sort: Desc), id(sort: Desc)], map: "cherry_ledger_user_created_idx")
   @@index([referenceId], map: "cherry_ledger_reference_idx")
+  @@index([userId, reason], map: "cherry_ledger_user_reason_idx")
   @@map("cherry_ledger")
 }
 

@@ -10,6 +10,8 @@ import {
   newInviteCode,
   nextRank,
   normalizeInviteCode,
+  taskCherryLock,
+  withdrawableCherries,
   parentCommissionPaid,
   qualifiedRank,
   qualifiesAsAgent,
@@ -95,5 +97,38 @@ describe('D179 cherry arithmetic', () => {
     expect(normalizeInviteCode(' abcd2345 ')).toBe('ABCD2345');
     expect(normalizeInviteCode('ABCD0123')).toBeNull(); // 0 and 1 are never used
     expect(normalizeInviteCode('short')).toBeNull();
+  });
+});
+
+describe('task cherries locked for withdrawal (D184, placeholder rule)', () => {
+  // Owner's rate: 1 000 000 cherries = $1.10; threshold $50.
+  const rule = (task: bigint, gift: bigint, threshold = 5000) =>
+    taskCherryLock(task, gift, threshold, 1_000_000, 110);
+
+  it('locks every task cherry until lifetime gift cherries are worth the threshold', () => {
+    expect(rule(500n, 0n)).toEqual({
+      unlocked: false,
+      lockedCherries: 500n,
+      giftValueMinor: 0n,
+      thresholdMinor: 5000n,
+    });
+    // $49.99… of gift cherries: still locked; $50 exactly: unlocked.
+    expect(rule(500n, 45_454_545n).unlocked).toBe(false);
+    expect(rule(500n, 45_454_546n)).toMatchObject({
+      unlocked: true,
+      lockedCherries: 0n,
+      giftValueMinor: 5000n,
+    });
+  });
+
+  it('threshold 0 never locks; a reversal below the threshold locks again', () => {
+    expect(rule(500n, 0n, 0)).toMatchObject({ unlocked: true, lockedCherries: 0n });
+    expect(rule(500n, -10n).lockedCherries).toBe(500n);
+  });
+
+  it('withdrawable = balance less the locked cherries, never below 0', () => {
+    expect(withdrawableCherries(30_000n, 20_000n)).toBe(10_000n);
+    expect(withdrawableCherries(10_000n, 20_000n)).toBe(0n);
+    expect(withdrawableCherries(-5n, 0n)).toBe(0n);
   });
 });

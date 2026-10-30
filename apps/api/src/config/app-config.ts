@@ -204,6 +204,11 @@ export interface AppConfig {
     readonly currency: string;
     readonly minWithdrawalMinor: number;
     readonly payoutDays: number;
+    /**
+     * v1.53-social (D184): task cherries unlock for withdrawal once lifetime gift cherries are worth this
+     * (minor units; 0 = never locked). Placeholder rule pending the owner (§10.46.1).
+     */
+    readonly taskCherriesUnlockGiftMinor: number;
   };
   readonly dm: {
     readonly retentionHours: number;
@@ -246,7 +251,10 @@ export interface AppConfig {
   };
   /** v1.44-social (D166): the Me hub's programs (CONVENTIONS §10.41). */
   readonly programs: {
+    /** Since v1.53-social (D184): the check-in's coins only. */
     readonly taskDailyCapCoins: number;
+    /** v1.53-social (D184): the daily tasks' cherries. */
+    readonly taskDailyCapCherries: number;
     readonly checkInCoins: number;
     readonly checkInStreakBonusCoins: number;
     readonly eventPrizeReviewMs: number;
@@ -470,6 +478,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
     },
     programs: {
       taskDailyCapCoins: e.TASK_DAILY_CAP_COINS,
+      taskDailyCapCherries: e.TASK_DAILY_CAP_CHERRIES,
       checkInCoins: e.TASK_CHECK_IN_COINS,
       checkInStreakBonusCoins: e.TASK_CHECK_IN_STREAK_BONUS_COINS,
       eventPrizeReviewMs: e.EVENT_PRIZE_REVIEW_HOURS * 3_600_000,
@@ -505,6 +514,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       currency: e.CHERRY_PAYOUT_CURRENCY,
       minWithdrawalMinor: e.CHERRY_WITHDRAWAL_MIN_MINOR,
       payoutDays: e.CHERRY_WITHDRAWAL_PAYOUT_DAYS,
+      taskCherriesUnlockGiftMinor: e.TASK_CHERRIES_UNLOCK_GIFT_MINOR,
     },
     dm: {
       retentionHours: e.DM_RETENTION_HOURS,
