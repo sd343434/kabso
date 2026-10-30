@@ -551,6 +551,8 @@ describe('D185 recharge agents', { timeout: 300_000 }, () => {
     expect((await me(agent)).agent).toMatchObject({
       stockCoins: 30_000_000 + 186_440,
       todayCherries: 2_000_000,
+      // Owner follow-up («حد وكيل مفتوح»): no daily cap by default (0 = none).
+      dailyCherryCap: 0,
     });
 
     // The agent asks; it expires before the host confirms.
@@ -575,6 +577,11 @@ describe('D185 recharge agents', { timeout: 300_000 }, () => {
     const c = await create(host, { agentCode: code, cherries: 1_000_000 });
     expect((await answer(host, c.body.id as string, 'cancel')).body.status).toBe('CANCELLED');
 
+    // An agent's own 0 is no cap either.
+    await ctx.prisma.$transaction((tx) => setCapIn(tx, agent.id, 0n));
+    const free = await create(host, { agentCode: code, cherries: 1_000_000 });
+    expect(free.status, JSON.stringify(free.body)).toBe(201);
+    expect((await answer(host, free.body.id as string, 'cancel')).body.status).toBe('CANCELLED');
     // The daily cap: 2 000 000 already today; cap 2 500 000.
     await ctx.prisma.$transaction((tx) => setCapIn(tx, agent.id, 2_500_000n));
     const capped = await create(host, { agentCode: code, cherries: 1_000_000 });

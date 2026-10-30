@@ -13089,7 +13089,7 @@ components:
         status: { type: string, enum: [APPROVED, ACTIVE, SUSPENDED] }
         stockCoins: { type: integer, format: int64, minimum: 0 }
         activatedAt: { type: [string, 'null'], format: date-time }
-        dailyCherryCap: { type: integer, format: int64, minimum: 0, description: "The most cherries the agent may buy from hosts per day." }
+        dailyCherryCap: { type: integer, format: int64, minimum: 0, description: "The most cherries the agent may buy from hosts per day; 0 = no cap (the default since the owner's «حد وكيل مفتوح», D185 follow-up)." }
         todayCherries: { type: integer, format: int64, minimum: 0, description: "Cherries bought today (confirmed)." }
         availability: { $ref: '#/components/schemas/RechargeAvailability' }
         sales: { $ref: '#/components/schemas/RechargeSalesStats' }

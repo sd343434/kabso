@@ -329,8 +329,15 @@ export class RechargeService implements OnModuleInit, OnModuleDestroy {
     return row?.total ?? 0n;
   }
 
+  /** The agent's daily cherry cap: their own (`set-cap`), else the server's; 0 = no cap (owner: «حد وكيل مفتوح»). */
   private capOf(agent: { dailyCherryCap: bigint | null }): bigint {
     return agent.dailyCherryCap ?? BigInt(this.config.recharge.dailyCherryCap);
+  }
+
+  /** Whether `today` plus `cherries` goes over the agent's cap (never when the cap is 0, i.e. none). */
+  private overCap(agent: { dailyCherryCap: bigint | null }, today: bigint, cherries: bigint): boolean {
+    const cap = this.capOf(agent);
+    return cap > 0n && today + cherries > cap;
   }
 
   private activeEmployment(userId: string) {
@@ -990,7 +997,7 @@ export class RechargeService implements OnModuleInit, OnModuleDestroy {
     if ((await this.withdrawable(this.prisma, hostUserId)) < cherries) {
       throw new AppException(ErrorCode.INSUFFICIENT_CHERRIES);
     }
-    if ((await this.todayCherries(this.prisma, agentUserId)) + cherries > this.capOf(agent)) {
+    if (this.overCap(agent, await this.todayCherries(this.prisma, agentUserId), cherries)) {
       throw new AppException(ErrorCode.RECHARGE_CHERRY_CAP_REACHED);
     }
     const e = this.config.economy;
@@ -1106,7 +1113,7 @@ export class RechargeService implements OnModuleInit, OnModuleDestroy {
           throw new AppException(ErrorCode.RECHARGE_AGENT_NOT_ACTIVE);
         }
         const today = await this.todayCherries(tx, found.agentUserId);
-        if (today + found.cherries > this.capOf({ dailyCherryCap: agent.cap })) {
+        if (this.overCap({ dailyCherryCap: agent.cap }, today, found.cherries)) {
           throw new AppException(ErrorCode.RECHARGE_CHERRY_CAP_REACHED);
         }
         // D184: the locked task cherries are never sold (the same guarded debit as a withdrawal).

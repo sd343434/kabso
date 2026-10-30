@@ -984,7 +984,9 @@ export const envSchema = z
     RECHARGE_AGENT_CHERRY_MIN: intSetting(1_000_000, 1),
     RECHARGE_AGENT_CHERRY_STEP: intSetting(100_000, 1),
     RECHARGE_AGENT_CHERRY_REQUEST_TTL_MINUTES: intSetting(30, 1, 10_080),
-    RECHARGE_AGENT_CHERRY_DAILY_CAP: intSetting(1_000_000_000, 0),
+    // Owner (D185 follow-up, «حد وكيل مفتوح»): 0 = no daily cap (the default); a positive value caps every
+    // agent without their own cap (`recharge-admin set-cap`).
+    RECHARGE_AGENT_CHERRY_DAILY_CAP: intSetting(0, 0),
     RECHARGE_AGENT_MAX_EMPLOYEES: intSetting(20, 0, 1000),
     RECHARGE_AGENT_KYC_RETENTION_DAYS: intSetting(90, 1, 3650),
     RECHARGE_AGENT_SWEEP_INTERVAL_SECONDS: intSetting(3600, 0, 86_400),

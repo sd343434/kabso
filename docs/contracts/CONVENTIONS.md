@@ -3241,7 +3241,8 @@ and agent. Minimum `RECHARGE_AGENT_CHERRY_MIN` 1 000 000 cherries, in steps of `
 100 000; the agent's stock receives floor(cherries × 93 220 / 1 000 000) coins (`RECHARGE_AGENT_CHERRY_RATE`;
 with the step this is exact: 9 322 coins per 100 000). Confirmation is one transaction: the agent row is locked,
 the day's confirmed cherries (LIVE_RANKINGS_TIME_ZONE) plus this must stay within the agent's **daily cap**
-(`RECHARGE_AGENT_CHERRY_DAILY_CAP`, 1 000 000 000 by default; `recharge-admin set-cap` per agent), the host's
+(`RECHARGE_AGENT_CHERRY_DAILY_CAP`; owner follow-up «حد وكيل مفتوح»: **0 = no cap, the default**;
+`recharge-admin set-cap <agent> <cherries | 0 | default>` per agent, 0 = none, `default` = the server's), the host's
 cherries are debited with a conditional update that never touches the **locked task cherries** (D184,
 §10.46.1) — `RECHARGE_SALE` in the cherry ledger — and the stock gets `CHERRY_PURCHASE`; audit
 `recharge.cherry.confirm`. The other side gets a `RECHARGE_CHERRY_REQUEST` notification when a request is

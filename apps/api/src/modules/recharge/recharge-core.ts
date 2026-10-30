@@ -305,7 +305,7 @@ export async function reinstateIn(
   return status;
 }
 
-/** `recharge-admin set-cap`: the agent's daily cherry cap (null = the server default). */
+/** `recharge-admin set-cap`: the agent's daily cherry cap (null = the server default, 0 = no cap). */
 export async function setCapIn(tx: Tx, agentUserId: string, cap: bigint | null): Promise<void> {
   const done = await tx.rechargeAgent.updateMany({
     where: { userId: agentUserId },

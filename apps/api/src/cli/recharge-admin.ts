@@ -14,7 +14,7 @@
  *   pnpm recharge:admin topup <agent> <coins> --paid <USD> [--note <text>]
  *   pnpm recharge:admin suspend <agent> --reason <text>
  *   pnpm recharge:admin reinstate <agent>
- *   pnpm recharge:admin set-cap <agent> <cherries | default>
+ *   pnpm recharge:admin set-cap <agent> <cherries | 0 | default>   # 0 = no cap; default = the server's (none)
  *   pnpm recharge:admin agents
  *   pnpm recharge:admin purge                                    # the retention step now
  *
@@ -55,7 +55,7 @@ const USAGE = [
   '       pnpm recharge:admin approve <application id> | reject <application id> --reason <text>',
   '       pnpm recharge:admin topup <agent> <coins> --paid <USD> [--note <text>]',
   '       pnpm recharge:admin suspend <agent> --reason <text> | reinstate <agent>',
-  '       pnpm recharge:admin set-cap <agent> <cherries | default>',
+  '       pnpm recharge:admin set-cap <agent> <cherries | 0 | default>',
   '       pnpm recharge:admin agents | purge',
 ].join('\n');
 
@@ -279,7 +279,7 @@ try {
       const agent = await agentId(a);
       if (!b || !(b === 'default' || /^[0-9]{1,13}$/.test(b))) fail(USAGE);
       await run(() => prisma.$transaction((tx) => setCapIn(tx, agent, b === 'default' ? null : BigInt(b))));
-      process.stdout.write(`Daily cherry cap: ${b}.\n`);
+      process.stdout.write(`Daily cherry cap: ${b === '0' ? 'none' : b}.\n`);
       break;
     }
     case 'agents': {
