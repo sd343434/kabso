@@ -283,6 +283,13 @@ describe('push texts', () => {
     expect(notificationBody(n({ type: 'MEDAL_AWARDED', actorName: null }), 'ar')).toBe(
       'حصلت على ميدالية جديدة',
     );
+    // v1.48-social (D171).
+    expect(notificationBody(n({ type: 'BAG_ITEM_RECEIVED', targetType: 'BAG_ITEM' }), 'ar')).toBe(
+      'أرسل لك Sara عنصراً إلى حقيبتك',
+    );
+    expect(notificationBody(n({ type: 'BAG_ITEM_RECEIVED', targetType: 'BAG_ITEM' }), 'en')).toBe(
+      'Sara sent you an item for your bag',
+    );
   });
 
   it('a group names the newest actor and counts the others (Arabic plural forms)', () => {

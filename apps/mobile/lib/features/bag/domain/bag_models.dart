@@ -1,7 +1,8 @@
 // Wire models of the bag API (docs/contracts/openapi.yaml v1.22-live DRAFT,
-// tag `bag`, CP-019; CONVENTIONS §10.22).
+// tag `bag`, CP-019; CONVENTIONS §10.22; v1.48-social, D171, §10.45).
 
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
 
 part 'bag_models.freezed.dart';
 part 'bag_models.g.dart';
@@ -20,6 +21,39 @@ enum BagCategory {
   /// The category named [wire], or null when the app does not know it.
   static BagCategory? fromWire(String? wire) =>
       values.where((c) => c.wire == wire).firstOrNull;
+}
+
+/// `BagItemSource` values the app words (D171); others are shown without a
+/// source line.
+abstract final class BagSource {
+  static const freeSignup = 'FREE_SIGNUP';
+  static const backfill = 'BACKFILL';
+  static const admin = 'ADMIN';
+  static const gift = 'GIFT';
+
+  /// D169 (another branch): support-tier frames, permanent, not sendable.
+  static const levelReward = 'LEVEL_REWARD';
+
+  /// A future store.
+  static const purchase = 'PURCHASE';
+}
+
+/// `BagTransfer` (`POST /me/bag/transfers`, D171): an item sent; [remaining]
+/// is the caller's item after a partial send (null after a whole one).
+@freezed
+abstract class BagTransfer with _$BagTransfer {
+  const factory({
+    required String id,
+    required String code,
+    required String category,
+    required String name,
+    required UserSummary recipient,
+    required bool whole,
+    int? durationSeconds,
+    BagItem? remaining,
+  }) = _BagTransfer;
+
+  factory fromJson(Map<String, dynamic> json) => _$BagTransferFromJson(json);
 }
 
 /// `ProfileCard`: the profile card a user wears, on `PublicProfile`.
@@ -49,7 +83,10 @@ abstract class BagCatalogueItem with _$BagCatalogueItem {
 }
 
 /// `BagItem`: an item the caller owns. [source] is opaque (more values come
-/// later); [equipped] is true for at most one item per category.
+/// later, see [BagSource]); [equipped] is true for at most one item per
+/// category. v1.48-social (D171): [expiresAt] (null = permanent; the
+/// server never lists an expired item), [giftedBy] (the sender of a
+/// `GIFT`, when they may be shown) and [transferable].
 @freezed
 abstract class BagItem with _$BagItem {
   const factory({
@@ -60,6 +97,9 @@ abstract class BagItem with _$BagItem {
     required DateTime acquiredAt,
     required String source,
     required bool equipped,
+    DateTime? expiresAt,
+    UserSummary? giftedBy,
+    @Default(false) bool transferable,
   }) = _BagItem;
 
   factory fromJson(Map<String, dynamic> json) => _$BagItemFromJson(json);

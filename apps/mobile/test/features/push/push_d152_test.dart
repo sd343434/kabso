@@ -196,6 +196,8 @@ void main() {
       );
       expect(_note({'type': 'CP_REQUEST'}).route(), AppRoutes.cp);
       expect(_note({'type': 'MEDAL_AWARDED'}).route(), AppRoutes.medals);
+      // D171.
+      expect(_note({'type': 'BAG_ITEM_RECEIVED'}).route(), AppRoutes.bag);
       expect(
         _note({
           'type': 'PREMIUM_USERNAME_EXPIRING',

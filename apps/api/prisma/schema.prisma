@@ -141,7 +141,11 @@ model User {
   cpConfessionsDel    CpConfession[]            @relation("CpConfessionDeleter")
   medals              UserMedal[]
   // v1.22-live (CP-019, D107): the bag (owned profile cards and later categories).
-  bagItems            UserBagItem[]
+  bagItems            UserBagItem[]             @relation("BagItemOwner")
+  /// v1.48-social (D171): bag items this user sent (as the latest giver) and the transfer ledger.
+  bagItemsGifted      UserBagItem[]             @relation("BagItemGiftedBy")
+  bagTransfersSent    BagTransfer[]             @relation("BagTransferSender")
+  bagTransfersRecvd   BagTransfer[]             @relation("BagTransferRecipient")
   // v1.23-live (CP-020, D108): live gifts and the gift bag.
   giftStock           UserGiftStock[]
   giftsSent           LiveGift[]
@@ -1822,6 +1826,8 @@ enum NotificationType {
   /// v1.28-live (D146, system): the premium username ends soon / ended.
   PREMIUM_USERNAME_EXPIRING
   PREMIUM_USERNAME_EXPIRED
+  /// v1.48-social (D171): someone sent you a bag item (actor the sender).
+  BAG_ITEM_RECEIVED
 
   @@map("notification_type")
 }
@@ -1845,6 +1851,8 @@ model Notification {
   medalCode      String?          @map("medal_code") @db.VarChar(40)
   /// D146: the premium username lease of PREMIUM_USERNAME_EXPIRING / _EXPIRED.
   premiumLeaseId String?          @map("premium_lease_id") @db.Uuid
+  /// v1.48-social (D171): the bag item of BAG_ITEM_RECEIVED.
+  bagItemCode    String?          @map("bag_item_code") @db.VarChar(40)
   groupKey       String?          @map("group_key") @db.VarChar(80)
   readAt         DateTime?        @map("read_at") @db.Timestamptz(3)
   /// v1.30-live (D152): the `updated_at` the push dispatcher last handled (pushed or skipped);
@@ -1861,6 +1869,7 @@ model Notification {
   family       Family?               @relation(fields: [familyId], references: [id], onDelete: Cascade)
   medal        Medal?                @relation(fields: [medalCode], references: [code], onDelete: Cascade)
   premiumLease PremiumUsernameLease? @relation(fields: [premiumLeaseId], references: [id], onDelete: Cascade)
+  bagItem      BagItem?              @relation(fields: [bagItemCode], references: [code], onDelete: Cascade, onUpdate: Cascade)
   actors       NotificationActor[]
 
   @@index([recipientId, updatedAt(sort: Desc), id(sort: Desc)], map: "notifications_recipient_updated_idx")
@@ -2344,6 +2353,8 @@ enum BagItemSource {
   ADMIN
   /// Given by the server when a level is reached (v1.46-levels, D169: the support tier frames).
   LEVEL_REWARD
+  /// v1.48-social (D171): sent by another user (`gifted_by_user_id`).
+  GIFT
 
   @@map("bag_item_source")
 }
@@ -2361,7 +2372,8 @@ model BagItem {
   free      Boolean     @default(false)
   createdAt DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  owners UserBagItem[]
+  owners        UserBagItem[]
+  notifications Notification[]
 
   @@unique([code, category], map: "bag_items_code_category_key")
   @@index([category, sortOrder], map: "bag_items_category_sort_idx")
@@ -2377,14 +2389,48 @@ model UserBagItem {
   source     BagItemSource
   acquiredAt DateTime      @default(now()) @map("acquired_at") @db.Timestamptz(3)
   equipped   Boolean       @default(false)
+  /// v1.48-social (D171): when the item leaves the bag; NULL = permanent. Past = gone (never read;
+  /// the sweeper deletes the row).
+  expiresAt  DateTime?     @map("expires_at") @db.Timestamptz(3)
+  /// v1.48-social (D171): who sent it (source GIFT; the latest giver when time was added).
+  giftedById String?       @map("gifted_by_user_id") @db.Uuid
 
-  user User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  item BagItem @relation(fields: [itemCode, category], references: [code, category], onDelete: Cascade, onUpdate: Cascade)
+  user     User    @relation("BagItemOwner", fields: [userId], references: [id], onDelete: Cascade)
+  item     BagItem @relation(fields: [itemCode, category], references: [code, category], onDelete: Cascade, onUpdate: Cascade)
+  giftedBy User?   @relation("BagItemGiftedBy", fields: [giftedById], references: [id], onDelete: SetNull)
 
   @@id([userId, itemCode], map: "user_bag_items_pkey")
   @@unique([userId, category], map: "user_bag_items_equipped_key", where: raw("equipped"))
   @@index([itemCode, category], map: "user_bag_items_item_idx")
+  @@index([expiresAt], map: "user_bag_items_expires_idx", where: raw("(expires_at IS NOT NULL)"))
+  @@index([giftedById], map: "user_bag_items_gifted_by_idx")
   @@map("user_bag_items")
+}
+
+/// v1.48-social (D171): the ledger of bag items sent between users (whole or part of the time). Kept
+/// when an account is gone (the user columns become NULL); no foreign key to the catalogue.
+model BagTransfer {
+  id                 String      @id @default(uuid(7)) @db.Uuid
+  senderId           String?     @map("sender_id") @db.Uuid
+  recipientId        String?     @map("recipient_id") @db.Uuid
+  itemCode           String      @map("item_code") @db.VarChar(40)
+  category           BagCategory
+  /// The whole item left the sender's bag.
+  whole              Boolean
+  /// The time sent; NULL = a permanent item (sent whole).
+  durationMs         BigInt?     @map("duration_ms")
+  /// The sender's expiry after the send (partial sends only).
+  senderExpiresAt    DateTime?   @map("sender_expires_at") @db.Timestamptz(3)
+  /// The recipient's expiry after the send (NULL = permanent).
+  recipientExpiresAt DateTime?   @map("recipient_expires_at") @db.Timestamptz(3)
+  createdAt          DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  sender    User? @relation("BagTransferSender", fields: [senderId], references: [id], onDelete: SetNull)
+  recipient User? @relation("BagTransferRecipient", fields: [recipientId], references: [id], onDelete: SetNull)
+
+  @@index([senderId, createdAt], map: "bag_transfers_sender_idx")
+  @@index([recipientId, createdAt], map: "bag_transfers_recipient_idx")
+  @@map("bag_transfers")
 }
 
 // ---- v1.23-live (CP-020, D108): live gifts (CONVENTIONS §10.23) --------------------------------

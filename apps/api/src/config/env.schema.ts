@@ -553,6 +553,8 @@ export const envSchema = z
     RATE_LIMIT_DM_SEND_USER: rateLimit('30/60'),
     RATE_LIMIT_DM_REQUEST_USER: rateLimit('20/3600'),
     RATE_LIMIT_DM_WRITE_USER: rateLimit('300/3600'),
+    // v1.48-social (D171, CONVENTIONS §7, §10.45): bag item sends, per user.
+    RATE_LIMIT_BAG_SEND_USER: rateLimit('30/3600'),
     RATE_LIMIT_FOLLOW_HOUR_USER: rateLimit('60/3600'),
     RATE_LIMIT_FOLLOW_DAY_USER: rateLimit('300/86400'),
     // v1.5-social (CONVENTIONS §11.8); every bucket is per user and replaces the default.
@@ -839,6 +841,8 @@ export const envSchema = z
     PUSH_MESSAGES_GAP_SECONDS: intSetting(10, 0, 3600),
     /** v1.40-social (D155, §11.13, owner): a direct message is deleted this many hours after it was sent. */
     DM_RETENTION_HOURS: intSetting(24, 1, 720),
+    /** v1.48-social (D171): period of the sweeper that deletes expired bag items; 0 disables it (reads filter them anyway). */
+    BAG_SWEEP_INTERVAL_SECONDS: intSetting(300, 0, 86400),
     /** D155: period of the direct-message sweeper (expired messages and their media); 0 disables it (not in production). */
     DM_SWEEP_INTERVAL_SECONDS: intSetting(60, 0, 3600),
     /** D155: messages a sender may send in a message request before the recipient accepts or replies. */

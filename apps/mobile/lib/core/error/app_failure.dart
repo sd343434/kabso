@@ -120,6 +120,12 @@ enum ErrorCode {
   /// own (or an unknown code).
   bagItemNotOwned('BAG_ITEM_NOT_OWNED'),
 
+  /// v1.48-social (D171, §10.45, 409): sending a bag item.
+  bagItemNotTransferable('BAG_ITEM_NOT_TRANSFERABLE'),
+  bagSendPermanentWholeOnly('BAG_SEND_PERMANENT_WHOLE_ONLY'),
+  bagSendExceedsRemaining('BAG_SEND_EXCEEDS_REMAINING'),
+  bagRecipientHasPermanent('BAG_RECIPIENT_HAS_PERMANENT'),
+
   /// v1.23-live (CP-020, §10.23, 409): the gift is not in the catalogue or
   /// was disabled; the app reloads the catalogue.
   giftUnavailable('GIFT_UNAVAILABLE'),

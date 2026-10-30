@@ -5034,10 +5034,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get bagWear => 'ارتداء';
 
   @override
-  String get bagTakeOff => 'خلع';
-
-  @override
-  String get bagLocked => 'لم تمتلكه بعد';
+  String get bagTakeOff => 'إزالة';
 
   @override
   String get bagEmptyTitle => 'حقيبتك فارغة';
@@ -5047,9 +5044,6 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get bagOwnedSection => 'عناصرك';
-
-  @override
-  String get bagLockedSection => 'عناصر أخرى';
 
   @override
   String get errorGiftUnavailable => 'هذه الهدية لم تعد متاحة.';
@@ -8642,4 +8636,175 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get walletReasonEventPrize => 'جائزة فعالية';
+
+  @override
+  String bagDays(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days يوم',
+      many: '$days يوماً',
+      few: '$days أيام',
+      two: 'يومان',
+      one: 'يوم واحد',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String bagHours(int hours) {
+    String _temp0 = intl.Intl.pluralLogic(
+      hours,
+      locale: localeName,
+      other: '$hours ساعة',
+      many: '$hours ساعة',
+      few: '$hours ساعات',
+      two: 'ساعتان',
+      one: 'ساعة واحدة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String bagMinutes(int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes دقيقة',
+      many: '$minutes دقيقة',
+      few: '$minutes دقائق',
+      two: 'دقيقتان',
+      one: 'دقيقة واحدة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String bagDurationPair(String first, String second) {
+    return '$first $second';
+  }
+
+  @override
+  String bagRemaining(String duration) {
+    return 'متبقٍ $duration';
+  }
+
+  @override
+  String get bagEndsToday => 'ينتهي اليوم';
+
+  @override
+  String get bagPermanent => 'دائم';
+
+  @override
+  String get bagFromKabso => 'هدية من Kabso';
+
+  @override
+  String bagFromUser(String name) {
+    return 'هدية من $name';
+  }
+
+  @override
+  String get bagFromSomeone => 'هدية';
+
+  @override
+  String get bagFromLevel => 'مكافأة مستوى';
+
+  @override
+  String get bagFromPurchase => 'تم الشراء';
+
+  @override
+  String get bagSend => 'إرسال';
+
+  @override
+  String get bagNoSendFree => 'العناصر المجانية لا تُرسل';
+
+  @override
+  String get bagNoSendLevel => 'مكافآت المستوى لا تُرسل، فهي مرتبطة بمستواك';
+
+  @override
+  String get bagNoSendOther => 'لا يمكن إرسال هذا العنصر';
+
+  @override
+  String get bagCategoryOther => 'عناصر أخرى';
+
+  @override
+  String bagSendTitle(String item) {
+    return 'إرسال $item';
+  }
+
+  @override
+  String bagSendYouHave(String left) {
+    return 'لديك: $left';
+  }
+
+  @override
+  String get bagSendAmount => 'كم تريد أن ترسل؟';
+
+  @override
+  String get bagSendAll => 'الكل';
+
+  @override
+  String get bagSendPermanentNote =>
+      'العنصر الدائم يُرسل كاملاً ويخرج من حقيبتك.';
+
+  @override
+  String get bagSendWholeNote => 'سيخرج العنصر من حقيبتك مع كل مدته المتبقية.';
+
+  @override
+  String bagSendPartNote(String left) {
+    return 'يبقى لديك بعد الإرسال: $left';
+  }
+
+  @override
+  String get bagSendTo => 'إلى';
+
+  @override
+  String get bagSendSearchHint => 'ابحث بالاسم أو اسم المستخدم';
+
+  @override
+  String get bagSendSearchStart => 'اختر من سترسل إليه العنصر.';
+
+  @override
+  String get bagSendSearchEmpty => 'لا يوجد أحد بهذا الاسم.';
+
+  @override
+  String get bagSendChange => 'تغيير';
+
+  @override
+  String get bagSendConfirmTitle => 'تأكيد الإرسال';
+
+  @override
+  String bagSendConfirmBody(String item, String amount, String user) {
+    return 'إرسال $item ($amount) إلى $user؟';
+  }
+
+  @override
+  String bagSendDone(String user) {
+    return 'تم الإرسال إلى $user';
+  }
+
+  @override
+  String get errorBagItemNotTransferable => 'لا يمكن إرسال هذا العنصر.';
+
+  @override
+  String get errorBagSendPermanentWholeOnly =>
+      'العنصر الدائم يُرسل كاملاً فقط.';
+
+  @override
+  String get errorBagSendExceedsRemaining => 'هذه مدة أطول مما تبقى في العنصر.';
+
+  @override
+  String get errorBagRecipientHasPermanent =>
+      'يملك هذا العنصر بشكل دائم بالفعل.';
+
+  @override
+  String notifBagItemReceived(String who, String item) {
+    return 'أرسل لك $who $item';
+  }
+
+  @override
+  String get notifBagItemProfileCard => 'بطاقة ملف شخصي';
+
+  @override
+  String get notifBagItemGeneric => 'عنصراً لحقيبتك';
 }

@@ -14,6 +14,339 @@ part of 'bag_models.dart';
 T _$identity<T>(T value) => value;
 
 /// @nodoc
+mixin _$BagTransfer {
+
+ String get id; String get code; String get category; String get name; UserSummary get recipient; bool get whole; int? get durationSeconds; BagItem? get remaining;
+/// Create a copy of BagTransfer
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$BagTransferCopyWith<BagTransfer> get copyWith => _$BagTransferCopyWithImpl<BagTransfer>(this as BagTransfer, _$identity);
+
+  /// Serializes this BagTransfer to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  final _this = this as BagTransfer;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BagTransfer&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.code, _this.code) || other.code == _this.code)&&(identical(other.category, _this.category) || other.category == _this.category)&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.recipient, _this.recipient) || other.recipient == _this.recipient)&&(identical(other.whole, _this.whole) || other.whole == _this.whole)&&(identical(other.durationSeconds, _this.durationSeconds) || other.durationSeconds == _this.durationSeconds)&&(identical(other.remaining, _this.remaining) || other.remaining == _this.remaining));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+  final _this = this as BagTransfer;
+  return Object.hash(runtimeType,_this.id,_this.code,_this.category,_this.name,_this.recipient,_this.whole,_this.durationSeconds,_this.remaining);
+}
+
+@override
+String toString() {
+  final _this = this as BagTransfer;
+  return 'BagTransfer(id: ${_this.id}, code: ${_this.code}, category: ${_this.category}, name: ${_this.name}, recipient: ${_this.recipient}, whole: ${_this.whole}, durationSeconds: ${_this.durationSeconds}, remaining: ${_this.remaining})';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $BagTransferCopyWith<$Res>  {
+  factory $BagTransferCopyWith(BagTransfer value, $Res Function(BagTransfer) _then) = _$BagTransferCopyWithImpl;
+@useResult
+$Res call({
+ String id, String code, String category, String name, UserSummary recipient, bool whole, int? durationSeconds, BagItem? remaining
+});
+
+
+$UserSummaryCopyWith<$Res> get recipient;$BagItemCopyWith<$Res>? get remaining;
+
+}
+/// @nodoc
+class _$BagTransferCopyWithImpl<$Res>
+    implements $BagTransferCopyWith<$Res> {
+  _$BagTransferCopyWithImpl(this._self, this._then);
+
+  final BagTransfer _self;
+  final $Res Function(BagTransfer) _then;
+
+/// Create a copy of BagTransfer
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? code = null,Object? category = null,Object? name = null,Object? recipient = null,Object? whole = null,Object? durationSeconds = freezed,Object? remaining = freezed,}) {
+  return _then(BagTransfer(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,code: null == code ? _self.code : code // ignore: cast_nullable_to_non_nullable
+as String,category: null == category ? _self.category : category // ignore: cast_nullable_to_non_nullable
+as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String,recipient: null == recipient ? _self.recipient : recipient // ignore: cast_nullable_to_non_nullable
+as UserSummary,whole: null == whole ? _self.whole : whole // ignore: cast_nullable_to_non_nullable
+as bool,durationSeconds: freezed == durationSeconds ? _self.durationSeconds : durationSeconds // ignore: cast_nullable_to_non_nullable
+as int?,remaining: freezed == remaining ? _self.remaining : remaining // ignore: cast_nullable_to_non_nullable
+as BagItem?,
+  ));
+}
+/// Create a copy of BagTransfer
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$UserSummaryCopyWith<$Res> get recipient {
+  
+  return $UserSummaryCopyWith<$Res>(_self.recipient, (value) {
+    return _then(_self.copyWith(recipient: value));
+  });
+}/// Create a copy of BagTransfer
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$BagItemCopyWith<$Res>? get remaining {
+    if (_self.remaining == null) {
+    return null;
+  }
+
+  return $BagItemCopyWith<$Res>(_self.remaining!, (value) {
+    return _then(_self.copyWith(remaining: value));
+  });
+}
+}
+
+
+/// Adds pattern-matching-related methods to [BagTransfer].
+extension BagTransferPatterns on BagTransfer {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _BagTransfer value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _BagTransfer() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _BagTransfer value)  $default,){
+final _that = this;
+switch (_that) {
+case _BagTransfer():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _BagTransfer value)?  $default,){
+final _that = this;
+switch (_that) {
+case _BagTransfer() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String code,  String category,  String name,  UserSummary recipient,  bool whole,  int? durationSeconds,  BagItem? remaining)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _BagTransfer() when $default != null:
+return $default(_that.id,_that.code,_that.category,_that.name,_that.recipient,_that.whole,_that.durationSeconds,_that.remaining);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String code,  String category,  String name,  UserSummary recipient,  bool whole,  int? durationSeconds,  BagItem? remaining)  $default,) {final _that = this;
+switch (_that) {
+case _BagTransfer():
+return $default(_that.id,_that.code,_that.category,_that.name,_that.recipient,_that.whole,_that.durationSeconds,_that.remaining);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String code,  String category,  String name,  UserSummary recipient,  bool whole,  int? durationSeconds,  BagItem? remaining)?  $default,) {final _that = this;
+switch (_that) {
+case _BagTransfer() when $default != null:
+return $default(_that.id,_that.code,_that.category,_that.name,_that.recipient,_that.whole,_that.durationSeconds,_that.remaining);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _BagTransfer implements BagTransfer {
+  const _BagTransfer({required this.id, required this.code, required this.category, required this.name, required this.recipient, required this.whole, this.durationSeconds, this.remaining});
+  factory _BagTransfer.fromJson(Map<String, dynamic> json) => _$BagTransferFromJson(json);
+
+@override final  String id;
+@override final  String code;
+@override final  String category;
+@override final  String name;
+@override final  UserSummary recipient;
+@override final  bool whole;
+@override final  int? durationSeconds;
+@override final  BagItem? remaining;
+
+/// Create a copy of BagTransfer
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$BagTransferCopyWith<_BagTransfer> get copyWith => __$BagTransferCopyWithImpl<_BagTransfer>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$BagTransferToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _BagTransfer&&(identical(other.id, id) || other.id == id)&&(identical(other.code, code) || other.code == code)&&(identical(other.category, category) || other.category == category)&&(identical(other.name, name) || other.name == name)&&(identical(other.recipient, recipient) || other.recipient == recipient)&&(identical(other.whole, whole) || other.whole == whole)&&(identical(other.durationSeconds, durationSeconds) || other.durationSeconds == durationSeconds)&&(identical(other.remaining, remaining) || other.remaining == remaining));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+    return Object.hash(runtimeType,id,code,category,name,recipient,whole,durationSeconds,remaining);
+}
+
+@override
+String toString() {
+    return 'BagTransfer(id: $id, code: $code, category: $category, name: $name, recipient: $recipient, whole: $whole, durationSeconds: $durationSeconds, remaining: $remaining)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$BagTransferCopyWith<$Res> implements $BagTransferCopyWith<$Res> {
+  factory _$BagTransferCopyWith(_BagTransfer value, $Res Function(_BagTransfer) _then) = __$BagTransferCopyWithImpl;
+@override @useResult
+$Res call({
+ String id, String code, String category, String name, UserSummary recipient, bool whole, int? durationSeconds, BagItem? remaining
+});
+
+
+@override $UserSummaryCopyWith<$Res> get recipient;@override $BagItemCopyWith<$Res>? get remaining;
+
+}
+/// @nodoc
+class __$BagTransferCopyWithImpl<$Res>
+    implements _$BagTransferCopyWith<$Res> {
+  __$BagTransferCopyWithImpl(this._self, this._then);
+
+  final _BagTransfer _self;
+  final $Res Function(_BagTransfer) _then;
+
+/// Create a copy of BagTransfer
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? code = null,Object? category = null,Object? name = null,Object? recipient = null,Object? whole = null,Object? durationSeconds = freezed,Object? remaining = freezed,}) {
+  return _then(_BagTransfer(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,code: null == code ? _self.code : code // ignore: cast_nullable_to_non_nullable
+as String,category: null == category ? _self.category : category // ignore: cast_nullable_to_non_nullable
+as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String,recipient: null == recipient ? _self.recipient : recipient // ignore: cast_nullable_to_non_nullable
+as UserSummary,whole: null == whole ? _self.whole : whole // ignore: cast_nullable_to_non_nullable
+as bool,durationSeconds: freezed == durationSeconds ? _self.durationSeconds : durationSeconds // ignore: cast_nullable_to_non_nullable
+as int?,remaining: freezed == remaining ? _self.remaining : remaining // ignore: cast_nullable_to_non_nullable
+as BagItem?,
+  ));
+}
+
+/// Create a copy of BagTransfer
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$UserSummaryCopyWith<$Res> get recipient {
+  
+  return $UserSummaryCopyWith<$Res>(_self.recipient, (value) {
+    return _then(_self.copyWith(recipient: value));
+  });
+}/// Create a copy of BagTransfer
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$BagItemCopyWith<$Res>? get remaining {
+    if (_self.remaining == null) {
+    return null;
+  }
+
+  return $BagItemCopyWith<$Res>(_self.remaining!, (value) {
+    return _then(_self.copyWith(remaining: value));
+  });
+}
+}
+
+
+/// @nodoc
 mixin _$ProfileCard {
 
  String get code; String get assetKey;
@@ -574,7 +907,7 @@ as bool,
 /// @nodoc
 mixin _$BagItem {
 
- String get code; String get category; String get name; String get assetKey; DateTime get acquiredAt; String get source; bool get equipped;
+ String get code; String get category; String get name; String get assetKey; DateTime get acquiredAt; String get source; bool get equipped; DateTime? get expiresAt; UserSummary? get giftedBy; bool get transferable;
 /// Create a copy of BagItem
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -588,20 +921,20 @@ $BagItemCopyWith<BagItem> get copyWith => _$BagItemCopyWithImpl<BagItem>(this as
 @override
 bool operator ==(Object other) {
   final _this = this as BagItem;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is BagItem&&(identical(other.code, _this.code) || other.code == _this.code)&&(identical(other.category, _this.category) || other.category == _this.category)&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.assetKey, _this.assetKey) || other.assetKey == _this.assetKey)&&(identical(other.acquiredAt, _this.acquiredAt) || other.acquiredAt == _this.acquiredAt)&&(identical(other.source, _this.source) || other.source == _this.source)&&(identical(other.equipped, _this.equipped) || other.equipped == _this.equipped));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BagItem&&(identical(other.code, _this.code) || other.code == _this.code)&&(identical(other.category, _this.category) || other.category == _this.category)&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.assetKey, _this.assetKey) || other.assetKey == _this.assetKey)&&(identical(other.acquiredAt, _this.acquiredAt) || other.acquiredAt == _this.acquiredAt)&&(identical(other.source, _this.source) || other.source == _this.source)&&(identical(other.equipped, _this.equipped) || other.equipped == _this.equipped)&&(identical(other.expiresAt, _this.expiresAt) || other.expiresAt == _this.expiresAt)&&(identical(other.giftedBy, _this.giftedBy) || other.giftedBy == _this.giftedBy)&&(identical(other.transferable, _this.transferable) || other.transferable == _this.transferable));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as BagItem;
-  return Object.hash(runtimeType,_this.code,_this.category,_this.name,_this.assetKey,_this.acquiredAt,_this.source,_this.equipped);
+  return Object.hash(runtimeType,_this.code,_this.category,_this.name,_this.assetKey,_this.acquiredAt,_this.source,_this.equipped,_this.expiresAt,_this.giftedBy,_this.transferable);
 }
 
 @override
 String toString() {
   final _this = this as BagItem;
-  return 'BagItem(code: ${_this.code}, category: ${_this.category}, name: ${_this.name}, assetKey: ${_this.assetKey}, acquiredAt: ${_this.acquiredAt}, source: ${_this.source}, equipped: ${_this.equipped})';
+  return 'BagItem(code: ${_this.code}, category: ${_this.category}, name: ${_this.name}, assetKey: ${_this.assetKey}, acquiredAt: ${_this.acquiredAt}, source: ${_this.source}, equipped: ${_this.equipped}, expiresAt: ${_this.expiresAt}, giftedBy: ${_this.giftedBy}, transferable: ${_this.transferable})';
 }
 
 
@@ -612,11 +945,11 @@ abstract mixin class $BagItemCopyWith<$Res>  {
   factory $BagItemCopyWith(BagItem value, $Res Function(BagItem) _then) = _$BagItemCopyWithImpl;
 @useResult
 $Res call({
- String code, String category, String name, String assetKey, DateTime acquiredAt, String source, bool equipped
+ String code, String category, String name, String assetKey, DateTime acquiredAt, String source, bool equipped, DateTime? expiresAt, UserSummary? giftedBy, bool transferable
 });
 
 
-
+$UserSummaryCopyWith<$Res>? get giftedBy;
 
 }
 /// @nodoc
@@ -629,7 +962,7 @@ class _$BagItemCopyWithImpl<$Res>
 
 /// Create a copy of BagItem
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? code = null,Object? category = null,Object? name = null,Object? assetKey = null,Object? acquiredAt = null,Object? source = null,Object? equipped = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? code = null,Object? category = null,Object? name = null,Object? assetKey = null,Object? acquiredAt = null,Object? source = null,Object? equipped = null,Object? expiresAt = freezed,Object? giftedBy = freezed,Object? transferable = null,}) {
   return _then(BagItem(
 code: null == code ? _self.code : code // ignore: cast_nullable_to_non_nullable
 as String,category: null == category ? _self.category : category // ignore: cast_nullable_to_non_nullable
@@ -638,10 +971,25 @@ as String,assetKey: null == assetKey ? _self.assetKey : assetKey // ignore: cast
 as String,acquiredAt: null == acquiredAt ? _self.acquiredAt : acquiredAt // ignore: cast_nullable_to_non_nullable
 as DateTime,source: null == source ? _self.source : source // ignore: cast_nullable_to_non_nullable
 as String,equipped: null == equipped ? _self.equipped : equipped // ignore: cast_nullable_to_non_nullable
+as bool,expiresAt: freezed == expiresAt ? _self.expiresAt : expiresAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,giftedBy: freezed == giftedBy ? _self.giftedBy : giftedBy // ignore: cast_nullable_to_non_nullable
+as UserSummary?,transferable: null == transferable ? _self.transferable : transferable // ignore: cast_nullable_to_non_nullable
 as bool,
   ));
 }
+/// Create a copy of BagItem
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$UserSummaryCopyWith<$Res>? get giftedBy {
+    if (_self.giftedBy == null) {
+    return null;
+  }
 
+  return $UserSummaryCopyWith<$Res>(_self.giftedBy!, (value) {
+    return _then(_self.copyWith(giftedBy: value));
+  });
+}
 }
 
 
@@ -723,10 +1071,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String code,  String category,  String name,  String assetKey,  DateTime acquiredAt,  String source,  bool equipped)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String code,  String category,  String name,  String assetKey,  DateTime acquiredAt,  String source,  bool equipped,  DateTime? expiresAt,  UserSummary? giftedBy,  bool transferable)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _BagItem() when $default != null:
-return $default(_that.code,_that.category,_that.name,_that.assetKey,_that.acquiredAt,_that.source,_that.equipped);case _:
+return $default(_that.code,_that.category,_that.name,_that.assetKey,_that.acquiredAt,_that.source,_that.equipped,_that.expiresAt,_that.giftedBy,_that.transferable);case _:
   return orElse();
 
 }
@@ -744,10 +1092,10 @@ return $default(_that.code,_that.category,_that.name,_that.assetKey,_that.acquir
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String code,  String category,  String name,  String assetKey,  DateTime acquiredAt,  String source,  bool equipped)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String code,  String category,  String name,  String assetKey,  DateTime acquiredAt,  String source,  bool equipped,  DateTime? expiresAt,  UserSummary? giftedBy,  bool transferable)  $default,) {final _that = this;
 switch (_that) {
 case _BagItem():
-return $default(_that.code,_that.category,_that.name,_that.assetKey,_that.acquiredAt,_that.source,_that.equipped);case _:
+return $default(_that.code,_that.category,_that.name,_that.assetKey,_that.acquiredAt,_that.source,_that.equipped,_that.expiresAt,_that.giftedBy,_that.transferable);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -764,10 +1112,10 @@ return $default(_that.code,_that.category,_that.name,_that.assetKey,_that.acquir
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String code,  String category,  String name,  String assetKey,  DateTime acquiredAt,  String source,  bool equipped)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String code,  String category,  String name,  String assetKey,  DateTime acquiredAt,  String source,  bool equipped,  DateTime? expiresAt,  UserSummary? giftedBy,  bool transferable)?  $default,) {final _that = this;
 switch (_that) {
 case _BagItem() when $default != null:
-return $default(_that.code,_that.category,_that.name,_that.assetKey,_that.acquiredAt,_that.source,_that.equipped);case _:
+return $default(_that.code,_that.category,_that.name,_that.assetKey,_that.acquiredAt,_that.source,_that.equipped,_that.expiresAt,_that.giftedBy,_that.transferable);case _:
   return null;
 
 }
@@ -779,7 +1127,7 @@ return $default(_that.code,_that.category,_that.name,_that.assetKey,_that.acquir
 @JsonSerializable()
 
 class _BagItem implements BagItem {
-  const _BagItem({required this.code, required this.category, required this.name, required this.assetKey, required this.acquiredAt, required this.source, required this.equipped});
+  const _BagItem({required this.code, required this.category, required this.name, required this.assetKey, required this.acquiredAt, required this.source, required this.equipped, this.expiresAt, this.giftedBy, this.transferable = false});
   factory _BagItem.fromJson(Map<String, dynamic> json) => _$BagItemFromJson(json);
 
 @override final  String code;
@@ -789,6 +1137,9 @@ class _BagItem implements BagItem {
 @override final  DateTime acquiredAt;
 @override final  String source;
 @override final  bool equipped;
+@override final  DateTime? expiresAt;
+@override final  UserSummary? giftedBy;
+@override@JsonKey() final  bool transferable;
 
 /// Create a copy of BagItem
 /// with the given fields replaced by the non-null parameter values.
@@ -803,18 +1154,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _BagItem&&(identical(other.code, code) || other.code == code)&&(identical(other.category, category) || other.category == category)&&(identical(other.name, name) || other.name == name)&&(identical(other.assetKey, assetKey) || other.assetKey == assetKey)&&(identical(other.acquiredAt, acquiredAt) || other.acquiredAt == acquiredAt)&&(identical(other.source, source) || other.source == source)&&(identical(other.equipped, equipped) || other.equipped == equipped));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _BagItem&&(identical(other.code, code) || other.code == code)&&(identical(other.category, category) || other.category == category)&&(identical(other.name, name) || other.name == name)&&(identical(other.assetKey, assetKey) || other.assetKey == assetKey)&&(identical(other.acquiredAt, acquiredAt) || other.acquiredAt == acquiredAt)&&(identical(other.source, source) || other.source == source)&&(identical(other.equipped, equipped) || other.equipped == equipped)&&(identical(other.expiresAt, expiresAt) || other.expiresAt == expiresAt)&&(identical(other.giftedBy, giftedBy) || other.giftedBy == giftedBy)&&(identical(other.transferable, transferable) || other.transferable == transferable));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,code,category,name,assetKey,acquiredAt,source,equipped);
+    return Object.hash(runtimeType,code,category,name,assetKey,acquiredAt,source,equipped,expiresAt,giftedBy,transferable);
 }
 
 @override
 String toString() {
-    return 'BagItem(code: $code, category: $category, name: $name, assetKey: $assetKey, acquiredAt: $acquiredAt, source: $source, equipped: $equipped)';
+    return 'BagItem(code: $code, category: $category, name: $name, assetKey: $assetKey, acquiredAt: $acquiredAt, source: $source, equipped: $equipped, expiresAt: $expiresAt, giftedBy: $giftedBy, transferable: $transferable)';
 }
 
 
@@ -825,11 +1176,11 @@ abstract mixin class _$BagItemCopyWith<$Res> implements $BagItemCopyWith<$Res> {
   factory _$BagItemCopyWith(_BagItem value, $Res Function(_BagItem) _then) = __$BagItemCopyWithImpl;
 @override @useResult
 $Res call({
- String code, String category, String name, String assetKey, DateTime acquiredAt, String source, bool equipped
+ String code, String category, String name, String assetKey, DateTime acquiredAt, String source, bool equipped, DateTime? expiresAt, UserSummary? giftedBy, bool transferable
 });
 
 
-
+@override $UserSummaryCopyWith<$Res>? get giftedBy;
 
 }
 /// @nodoc
@@ -842,7 +1193,7 @@ class __$BagItemCopyWithImpl<$Res>
 
 /// Create a copy of BagItem
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? code = null,Object? category = null,Object? name = null,Object? assetKey = null,Object? acquiredAt = null,Object? source = null,Object? equipped = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? code = null,Object? category = null,Object? name = null,Object? assetKey = null,Object? acquiredAt = null,Object? source = null,Object? equipped = null,Object? expiresAt = freezed,Object? giftedBy = freezed,Object? transferable = null,}) {
   return _then(_BagItem(
 code: null == code ? _self.code : code // ignore: cast_nullable_to_non_nullable
 as String,category: null == category ? _self.category : category // ignore: cast_nullable_to_non_nullable
@@ -851,11 +1202,26 @@ as String,assetKey: null == assetKey ? _self.assetKey : assetKey // ignore: cast
 as String,acquiredAt: null == acquiredAt ? _self.acquiredAt : acquiredAt // ignore: cast_nullable_to_non_nullable
 as DateTime,source: null == source ? _self.source : source // ignore: cast_nullable_to_non_nullable
 as String,equipped: null == equipped ? _self.equipped : equipped // ignore: cast_nullable_to_non_nullable
+as bool,expiresAt: freezed == expiresAt ? _self.expiresAt : expiresAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,giftedBy: freezed == giftedBy ? _self.giftedBy : giftedBy // ignore: cast_nullable_to_non_nullable
+as UserSummary?,transferable: null == transferable ? _self.transferable : transferable // ignore: cast_nullable_to_non_nullable
 as bool,
   ));
 }
 
+/// Create a copy of BagItem
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$UserSummaryCopyWith<$Res>? get giftedBy {
+    if (_self.giftedBy == null) {
+    return null;
+  }
 
+  return $UserSummaryCopyWith<$Res>(_self.giftedBy!, (value) {
+    return _then(_self.copyWith(giftedBy: value));
+  });
+}
 }
 
 

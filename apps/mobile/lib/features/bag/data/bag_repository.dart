@@ -5,9 +5,11 @@ import 'package:kabso_live/core/network/network_providers.dart';
 import 'package:kabso_live/features/bag/domain/bag_models.dart';
 
 /// The bag (docs/contracts/openapi.yaml v1.22-live DRAFT, tag `bag`,
-/// CP-019; CONVENTIONS §10.22). Items are granted by the server; the app
-/// lists them and chooses the one worn per category. Items of categories
-/// the app does not know are dropped here.
+/// CP-019; CONVENTIONS §10.22; v1.48-social, D171, §10.45). Items are
+/// granted by the server; the app lists the ones the caller owns, chooses
+/// the one worn per category and sends items to other people. The caller's
+/// items of a category the app does not know are kept (D171: a new
+/// category just appears in the bag); the catalogue drops them.
 ///
 /// Every method throws an `AppFailure`.
 abstract interface class BagRepository {
@@ -15,12 +17,22 @@ abstract interface class BagRepository {
   /// order.
   Future<List<BagCatalogueItem>> catalogue({BagCategory? category});
 
-  /// `GET /me/bag[?category=]`: the caller's items in catalogue order.
+  /// `GET /me/bag[?category=]`: the caller's items owned now, in
+  /// catalogue order (every category, known or not).
   Future<List<BagItem>> myBag({BagCategory? category});
 
-  /// `PUT /me/bag/equipped`: wear [code] in [category], or nothing when
+  /// `POST /me/bag/transfers` (D171): sends [code] to [username] — the
+  /// whole item when [days] is null, else that many days of its time.
+  Future<BagTransfer> send({
+    required String code,
+    required String username,
+    int? days,
+  });
+
+  /// `PUT /me/bag/equipped`: wear [code] in [category] (its wire value, so
+  /// a category this app does not know yet works too), or nothing when
   /// [code] is null.
-  Future<BagEquipped> setEquipped(BagCategory category, String? code);
+  Future<BagEquipped> setEquipped(String category, String? code);
 }
 
 class BagRepositoryImpl implements BagRepository {
@@ -59,15 +71,31 @@ class BagRepositoryImpl implements BagRepository {
           '/me/bag',
           queryParameters: _query(category),
         );
-        return [for (final i in _known(res.data!)) BagItem.fromJson(i)];
+        return [
+          for (final i in res.data!['data']! as List<dynamic>)
+            BagItem.fromJson(i as Map<String, dynamic>),
+        ];
       });
 
   @override
-  Future<BagEquipped> setEquipped(BagCategory category, String? code) =>
+  Future<BagTransfer> send({
+    required String code,
+    required String username,
+    int? days,
+  }) => guardApiCall(() async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/me/bag/transfers',
+      data: {'code': code, 'username': username, 'days': ?days},
+    );
+    return BagTransfer.fromJson(res.data!);
+  });
+
+  @override
+  Future<BagEquipped> setEquipped(String category, String? code) =>
       guardApiCall(() async {
         final res = await _dio.put<Map<String, dynamic>>(
           '/me/bag/equipped',
-          data: {'category': category.wire, 'code': code},
+          data: {'category': category, 'code': code},
         );
         return BagEquipped.fromJson(res.data!);
       });

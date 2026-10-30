@@ -99,6 +99,8 @@ export function notificationBody(n: NotificationText, locale: PushLocale): strin
       return ar
         ? `يوشك يوزرك المميز @${n.targetId ?? ''} على الانتهاء`
         : `Your premium username @${n.targetId ?? ''} ends soon`;
+    case 'BAG_ITEM_RECEIVED':
+      return w && (ar ? `أرسل لك ${w} عنصراً إلى حقيبتك` : `${w} sent you an item for your bag`);
     case 'PREMIUM_USERNAME_EXPIRED':
       return ar
         ? `انتهت مدة يوزرك المميز @${n.targetId ?? ''}`

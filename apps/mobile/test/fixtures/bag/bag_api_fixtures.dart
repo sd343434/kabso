@@ -44,13 +44,18 @@ Map<String, Object?> bagCatalogueItemJson(
   'free': free ?? code == 'bunny_royal',
 };
 
-/// `BagItem`.
+/// `BagItem` (v1.48-social, D171: [expiresAt] null = permanent, the
+/// sender of a GIFT, [transferable] — by default false only for the free
+/// `bunny_royal`).
 Map<String, Object?> bagItemJson(
   String code, {
   String category = 'PROFILE_CARD',
   bool ar = true,
   bool equipped = false,
   String source = 'ADMIN',
+  DateTime? expiresAt,
+  Map<String, Object?>? giftedBy,
+  bool? transferable,
 }) => {
   'code': code,
   'category': category,
@@ -59,6 +64,27 @@ Map<String, Object?> bagItemJson(
   'acquiredAt': '2026-10-26T18:30:00.000Z',
   'source': source,
   'equipped': equipped,
+  'expiresAt': expiresAt?.toUtc().toIso8601String(),
+  'giftedBy': giftedBy,
+  'transferable': transferable ?? code != 'bunny_royal',
+};
+
+/// `BagTransfer` (D171).
+Map<String, Object?> bagTransferJson(
+  String code, {
+  required Map<String, Object?> recipient,
+  int? days,
+  bool ar = true,
+  Map<String, Object?>? remaining,
+}) => {
+  'id': '0192e4a0-7c1d-7000-8000-0000000000aa',
+  'code': code,
+  'category': 'PROFILE_CARD',
+  'name': bagItemName(code, ar: ar),
+  'recipient': recipient,
+  'whole': days == null,
+  'durationSeconds': days == null ? null : days * 86400,
+  'remaining': remaining,
 };
 
 /// `BagEquipped`: [code] worn, or nothing.

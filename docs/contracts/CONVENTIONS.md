@@ -124,6 +124,10 @@ All non-2xx responses use one envelope:
 | 409 | `CP_NOT_PAIRED` | *(v1.21-live, DRAFT, CP-018)* A CP gift from a caller who has no partner. Nothing was charged. |
 | 409 | `MEDAL_NOT_UNLOCKED` | *(v1.21-live, DRAFT, CP-018)* `PUT /me/medals/showcase` named a medal the caller has not earned (or an unknown code). Nothing changed. |
 | 409 | `BAG_ITEM_NOT_OWNED` | *(v1.22-live, DRAFT, CP-019)* `PUT /me/bag/equipped` named an item the caller does not own in that category (or an unknown code). Nothing changed (§10.22). |
+| 409 | `BAG_ITEM_NOT_TRANSFERABLE` | *(v1.48-social, DRAFT, D171)* `POST /me/bag/transfers` named an item that cannot be sent (a **free** item every account gets, `BagItem.transferable: false`). Nothing changed (§10.45). |
+| 409 | `BAG_SEND_PERMANENT_WHOLE_ONLY` | *(v1.48-social, DRAFT, D171)* `POST /me/bag/transfers` asked to send `days` of a **permanent** item; a permanent item is sent whole only (`days` absent or null). Nothing changed (§10.45). |
+| 409 | `BAG_SEND_EXCEEDS_REMAINING` | *(v1.48-social, DRAFT, D171)* `POST /me/bag/transfers` asked to send `days` that are not less than the item's remaining time (to send everything, leave `days` out). Nothing changed (§10.45). |
+| 409 | `BAG_RECIPIENT_HAS_PERMANENT` | *(v1.48-social, DRAFT, D171)* The recipient already owns that item **permanently**, so time sent would be lost. Nothing changed (§10.45). |
 | 409 | `GIFT_UNAVAILABLE` | *(v1.23-live, DRAFT, CP-020)* A gift send named a code that is not in the gift catalogue or was disabled. Nothing was charged or sent; the app reloads `GET /gifts/catalogue` (§10.23). |
 | 409 | `GIFT_BAG_INSUFFICIENT` | *(v1.23-live, DRAFT, CP-020)* A send with `source: BAG` needs more of that gift (quantity × recipients) than the caller's gift bag holds. Nothing was taken or sent; the app reloads `GET /me/gifts/bag` (§10.23). |
 | 409 | `LIVE_GIFT_RECIPIENT_UNAVAILABLE` | *(v1.23-live, DRAFT, CP-020)* A recipient of a gift send is not the host or seated in that live now, has no ACTIVE account with that username, or blocked the sender (or was blocked by them). Nothing was charged or sent; the app reloads the seats (§10.23). |
@@ -406,6 +410,7 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `GET /live/gifts/lucky/odds` *(v1.27-live, D132)* | Guests: the per-IP guest read bucket (`RATE_LIMIT_LIVE_GUEST_READ_IP`); signed in: the per-user default. `PUT /me/lucky-gifts/age-confirmation` uses the per-user default |
 | `POST /live/rooms/{roomId}/gifts` *(v1.23-live, CP-020; v1.29.1-live, D145c; v1.29.2-live, D145d)* | Every send: 6000 / min per user (bucket `live:gift:any`, `RATE_LIMIT_LIVE_LUCKY_GIFT_USER`), checked first. Then, once the gift is known (after the `clientId` replay, which is not counted again): a **normal** gift 120 / min per user (bucket `live:gift`, `RATE_LIMIT_LIVE_GIFT_USER`; combos are quick taps on "send"); a **LUCKY** gift 100 / s per user (bucket `live:gift:lucky`, `RATE_LIMIT_LIVE_LUCKY_GIFT_BURST_USER`) instead — a MAX X streak is never held to the normal 120 / min. 429 `RATE_LIMITED` with `Retry-After`; nothing charged. **Replaces** the per-user default. `GET /gifts/catalogue` and `GET /me/gifts/bag` use the per-user default |
 | `PUT /me/bag/equipped` *(v1.22-live, CP-019)* | 60 / hour per user (bucket `bag:equip`, the family-write numbers like the medal showcase). **Replaces** the per-user default; `GET /bag/catalogue` and `GET /me/bag` use the per-user default |
+| `POST /me/bag/transfers` *(v1.48-social, D171)* | 30 / hour per user (bucket `bag:send`, `RATE_LIMIT_BAG_SEND_USER`). **Replaces** the per-user default |
 | `GET /live/rooms/{roomId}/chat` *(v1.9-live, CP-013)* | the per-user default; guests share the CP-010 guest read limit per IP |
 | `POST /live/rooms/{roomId}/seat-emoji` *(v1.27.5-live, D138)* | 120 / min per user (bucket `live:seat-emoji`, the taps rule `RATE_LIMIT_LIVE_TAPS_USER`), plus a counting rule of **one every 2 s per user** (429 with `Retry-After`). **Replaces** the per-user default |
 | `POST /live/rooms/{roomId}/sounds` *(v1.32-live, D154)* | 120 / min per user (bucket `live:sound`, the taps rule `RATE_LIMIT_LIVE_TAPS_USER`), plus a counting rule of **one sound every 2 s per user** (owner; 429 with `Retry-After`). **Replaces** the per-user default. Quips sent from the gift panel use the gift buckets above |
@@ -479,6 +484,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.24-live)* Tables `cp_points_ledger`, `cp_check_ins`, `cp_task_claims`, `cp_confessions` | Backend — `cp-space` module (`cp_points_ledger` is also written by the `couples` module's CP gift path through `couples/cp-points.ts`, in the gift's transaction) | CTO |
 | *(v1.21-live)* Tables `medals`, `user_medals` | Backend — `medals` module (awards are written by the modules where the events happen, through `medal-awards.ts`) | CTO |
 | *(v1.22-live)* Tables `bag_items`, `user_bag_items` | Backend — `bag` module (the free items are written at signup by the users module through `bag-grants.ts`, in the account's transaction; admin grants by the `bag-admin` CLI) | CTO |
+| *(v1.48-social)* Table `bag_transfers`; columns `user_bag_items.expires_at`, `user_bag_items.gifted_by_user_id`, `notifications.bag_item_code`; `bag_item_source` value `GIFT`, `notification_type` value `BAG_ITEM_RECEIVED` | Backend — `bag` module (the notification through the notifications module's `Notifier`) | CTO |
 | *(v1.23-live)* Tables `gifts`, `user_gift_stock`, `live_gifts`, `live_gift_recipients` | Backend — `gifts` module (sends are written by the live module's `LiveGiftsService` through `gift-catalogue.ts` in the send's transaction; the catalogue and grants only by the `gift-admin` CLI) | CTO; Security (coin path) |
 | *(v1.28-live)* Tables `premium_username_leases`, `premium_username_payments`, `premium_username_tier_prices`, `premium_username_name_prices`, `premium_username_reserved`; columns `user_profiles.premium_tier`, `notifications.premium_lease_id` | Backend — `premium-usernames` module (it also writes `user_profiles.username` with the lease, and the wallet ledger's `PREMIUM_USERNAME_*` debits through `wallet-ledger.ts`); prices, the reserved list, grants and revokes only by the `premium-admin` CLI | CTO; Security (coin path, username changes) |
 | *(v1.29-live)* Tables `search_terms`, `search_term_counts`, `search_blocked_words` | Backend — `posts` module (`SearchTrendsService`; changed by admins only with the `search-admin` CLI) | CTO; Security reviews the privacy rules (§11.11) |
@@ -530,6 +536,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.48-social (draft) | 2026-10-29 | **D171 (owner: «الحقيبة تعرض العنصر الذي تم شراؤه أو استلامه كهدية … ارتداء / إزالة … إرسال … الوقت المتبقي»; amendment «يمكن أن تجزّئ المدة»):** `BagItem` gains `expiresAt` (null = permanent), `giftedBy` (`UserSummary` or null) and `transferable` (all **required** in responses); `BagItemSource` gains `GIFT`; `getMyBag` never lists expired items; new `sendMyBagItem` (`POST /me/bag/transfers`, `SendBagItemRequest {code, username, days?}`, 201 `BagTransfer`): the whole item or `days` of its remaining time to another user, stacking on the recipient's copy; codes `BAG_ITEM_NOT_TRANSFERABLE`, `BAG_SEND_PERMANENT_WHOLE_ONLY`, `BAG_SEND_EXCEEDS_REMAINING`, `BAG_RECIPIENT_HAS_PERMANENT` (409); notification type `BAG_ITEM_RECEIVED` (target `BAG_ITEM`, `NotificationTarget.bagCategory`). `bag-admin grant <email> <code> [<days>|forever]`. Migrations `20261216090000_bag_expiry_send_enums`, `20261216100000_bag_expiry_send`. Version number: v1.39–v1.47 are taken (live and social share one sequence), so this is v1.48-social. §4, §7, §8, §10.22, §10.45, §11.10. | **Additive** (an operation, codes, enum values clients treat as unknown-safe, required response fields strict clients add in the same change set). `GET /bag/catalogue` is unchanged (the app no longer shows items the user does not own). |
 | v1.49-social (draft) | 2026-10-30 | **D172 (owner: the Creator Center «مركز صنّاع المحتوى» in the layout of the owner's reference, whose stats card shows «بيانات أكتوبر» — the current month):** `getMyCreatorStats` takes `period=THIS_MONTH` — the current calendar month so far, from the 1st at 00:00 in `LIVE_RANKINGS_TIME_ZONE` (the region's zone, as the families' month, §10.21) until now; `CreatorStats.month` (`YYYY-MM` for `THIS_MONTH`, else null; required in responses). No migration. §10.40. | **Additive** (an enum value the app sends only when it knows it, and a response field older apps ignore). |
 | v1.42-live (draft) | 2026-10-29 | **D170 (owner: «في البث الصوتي أو المرئي» a live goes on in the background; a video host away 5 minutes closes the live):** `setLiveHostPresence` (`POST /live/rooms/{roomId}/host-presence` `{away: boolean}`, 204, host only; rate limit `live:host-presence`, the heartbeat rule); `LiveRoomEndReason.HOST_AWAY_TIMEOUT`; `live_rooms.host_away_since` (migrations `20261215090000_live_host_away_enums`, `20261215090100_live_host_away`); `LIVE_HOST_AWAY_TIMEOUT_SECONDS` (default 300, 30–86400), enforced by the live sweeper. §10.44. (Numbered v1.42-live at integration: D178 took v1.41-live.) | Additive; older apps show `HOST_AWAY_TIMEOUT` as a generic «انتهى البث». |
 | v1.41-live (draft) | 2026-10-30 | **D178 (owner: «عندما يلعب أحد هدايا الحظ لا يظهر المكسب في التكست، والشرائط يجب أن تكون ظاهرة عند الجميع حتى الصغيرة. والهدايا يجب أن تظهر في شريط في جميع البثوث»):** (1) every lucky win (`coinsWon > 0`) sends its room `lucky-win` on topic `lucky` (was only ≥ `LUCKY_GIFT_BIG_WIN_MULTIPLIER`, which now only decides the global `lucky-ticker`); (2) new data message **`gift-ticker`** on topic `gift`: `{"type":"gift-ticker","gift":LiveGift,"room":{"id","title","host":UserSummary}}` to every **other** LIVE room (≤ 5 000, newest first) for a send of at least `GIFT_GLOBAL_TICKER_MIN_COINS` coins (server config, default 1 000; the owner will set the value) — at most one every **3 s** for the whole service (Redis gate `gift:ticker:gate`), one waiting (`gift:ticker:pending`, ≤ 12 s), a newer send replaces it; quips excluded; its own room keeps the `gift` message. Gift and win chat lines are drawn by the apps from these messages (no stored chat line). §10.23, §10.27. | **Additive** for clients (a new data message type; more `lucky-win` messages of the same shape). |
@@ -1550,6 +1557,7 @@ locale (§10.1).
   good** — a level that goes down takes nothing back *(owner)*. Wearing a frame uses
   the same `PUT /me/bag/equipped`; nothing else shows a worn frame yet (the app's bag and the
   photo will, later).
+*(v1.48-social, D171: items that expire, gifts between users and sending are §10.45.)*
 
 **Not in v1.22-live:** buying or earning items (store, rewards, events), items that expire, other
 categories (entrance effects, chat bubbles…; avatar frames came in v1.46-levels), a history of grants other than the
@@ -2729,6 +2737,66 @@ stays like that for more than 5 minutes is closed.
 - **Older apps** show `HOST_AWAY_TIMEOUT` as a generic «انتهى البث» (unknown reasons map to it).
 - **Not in v1.42-live:** an away state in `LiveRoom` responses, a warning to the host before the
   close, an away rule for audio rooms or for seated guests.
+### 10.45 The bag v2: expiry, gifts and sending *(v1.48-social, DRAFT — D171)*
+
+Owner request (2026-10-29, Arabic, D171): «الحقيبة تعرض العنصر الذي تم شراؤه أو استلامه كهدية — من التطبيق
+أو من مستخدم آخر — ولا تعرض العناصر الأخرى. زر «ارتداء» يصبح «إزالة» … وبجانبه «إرسال» … وكل عنصر يظهر الوقت
+المتبقي لاختفائه من الحقيبة»; amendment «يمكن أن تجزّئ المدة» (send part of the remaining time). Owner
+points are marked *(owner)*; the rest are CTO defaults the owner may change.
+
+- **Only owned items** *(owner)*: `GET /me/bag` lists what the caller owns now — never an expired item.
+  Items the caller does not own are not shown by the app (the catalogue route stays for later use; no
+  store exists, so nothing is sold yet and no `PURCHASE` source exists).
+- **Expiry** *(owner: «الوقت المتبقي»)*: each owned item has `expiresAt` (`null` = permanent). The
+  server computes it; the app counts down from it. An item whose `expiresAt` has passed is gone: no read
+  returns it, it cannot be worn or sent, `PublicProfile.profileCard` no longer shows it (so expiry takes
+  it off), and a sweeper deletes the rows (every `BAG_SWEEP_INTERVAL_SECONDS`, default 300). Items given
+  before v1.48 (free, backfill, admin) are permanent.
+- **Sources** (`BagItemSource`): `FREE_SIGNUP`, `BACKFILL`, `ADMIN` (the app shows «هدية من Kabso»),
+  `GIFT` (*new*: sent by another user; `giftedBy` is that user's `UserSummary`, or null when the account
+  is no longer ACTIVE or a block stands between them either way). When time is **added** to an item one
+  already owns (a gift or an admin grant), the row's `source` / `giftedBy` become the latest giver's;
+  `acquiredAt` stays.
+- **Wearing** is unchanged (§10.22): one item per category; an expired one is not owned (409
+  `BAG_ITEM_NOT_OWNED`).
+- **Sending** *(owner)*: `POST /me/bag/transfers {code, username, days?}` → 201 `BagTransfer {id, code,
+  category, name, recipient, whole, durationSeconds, remaining}`.
+  - `days` absent or null = **the whole item** *(owner: «الكل»)*: it leaves the caller's bag (taken off
+    if worn) and the recipient receives its **remaining time** (exactly, to the second) or, if it was
+    permanent, a permanent item. `remaining` is null.
+  - `days` = 1 … 3650 = **part of the time** *(owner amendment)*: the caller keeps the item (still worn
+    if it was) with `expiresAt` moved back by `days × 24 h`; the recipient receives `days × 24 h`.
+    `days × 24 h` must be **less than** the remaining time (409 `BAG_SEND_EXCEEDS_REMAINING`; send the
+    whole item instead). A **permanent item is sent whole only** (409 `BAG_SEND_PERMANENT_WHOLE_ONLY`):
+    sending days out of a permanent item would mint unlimited time. `remaining` is the caller's item
+    after the send (`BagItem`).
+  - **Stacking** *(owner amendment)*: if the recipient already owns the item, the time is **added** to
+    it (from its `expiresAt`, never from before now); a whole permanent item makes theirs permanent; if
+    theirs is already permanent → 409 `BAG_RECIPIENT_HAS_PERMANENT` (the time would be lost). Otherwise
+    the recipient gets a new item, not worn, counting from now. What the recipient wears never changes.
+  - **Not transferable** (`BagItem.transferable: false`; 409 `BAG_ITEM_NOT_TRANSFERABLE`): **free** items
+    (catalogue `free`, given to every account) and **level rewards** (source `LEVEL_REWARD`, D169's
+    support-tier frames, earned by one's own level). The app says why from
+    the `source`.
+  - **New categories and sources** (e.g. D169's `AVATAR_FRAME`, `LEVEL_REWARD`) need nothing here:
+    their items are listed, worn and (unless above) sent like any other.
+  - Refusals, after auth, rate limit and 400 `VALIDATION_FAILED` (strict body; `username` 1–30, `code`
+    1–40, `days` an integer 1–3650 or null): 404 `NOT_FOUND` — no ACTIVE account with that username, or a
+    block either way (the same answer, like CP requests); 400 `username` / `invalid_value` — oneself; 409
+    `BAG_ITEM_NOT_OWNED` — not owned (or expired, or unknown); then the 409s above. Nothing changes on any
+    refusal.
+  - **Atomic and serialized:** one transaction locks the pair of users, then the two holders of the item
+    in a fixed order, so concurrent sends never give away more than the caller has. The recipient's
+    `BAG_ITEM_RECEIVED` notification (§11.10) and a `bag_transfers` ledger row (sender, recipient, item,
+    `whole`, `duration_ms` — null for a permanent item — and both `expires_at` after) are in the same
+    transaction. No coins move.
+- **Admin grants**: `bag-admin grant <email> <code> [<days>|forever]` (default `forever`, as before):
+  a new item, or time added to an owned one (`forever` makes it permanent; an item already permanent is
+  left as it is). Audited `bag.grant` with `days` (null = forever).
+- **Rate limit** (§7): sends 30 / hour per user (`bag:send`).
+- **Not in v1.48-social:** a store or purchases, other categories (entrance effects, chat bubbles — none
+  exist in the catalogue or the app; avatar frames came with v1.46-levels, D169), refunds or taking a sent item back, hiding the
+  sender's name on a gift.
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 
@@ -2940,7 +3008,9 @@ count is eventually consistent (≤ 1 min).
   `FAMILY_JOIN_DECLINED`: target `FAMILY` (the family id, its name as `text`), actor the leader or
   deputy who answered; `MEDAL_AWARDED` (system, no actor, always on): target `MEDAL` (the medal
   code as `id`, `text` null; the app reads name and icon from `GET /medals`). No setting switches
-  these off.
+  these off. *(v1.48-social, D171, §10.45)* `BAG_ITEM_RECEIVED`: someone sent you a bag item (actor
+  the sender; target `BAG_ITEM`: the item code as `id`, `text` null, `bagCategory` its category;
+  the app opens the bag). Always on.
 - **Never yourself**; never between two users with a block in either direction (existing ones
   are hidden while it lasts); never from an account the recipient muted (owner, D92); actors no
   longer ACTIVE are left out of `actors` and `actorCount`, and a group left with no visible actor

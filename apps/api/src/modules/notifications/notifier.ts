@@ -12,6 +12,8 @@ export interface NotificationTargetRef {
   readonly familyId?: string;
   /** v1.28-live (D146): the premium username lease of PREMIUM_USERNAME_EXPIRING / _EXPIRED. */
   readonly premiumLeaseId?: string;
+  /** v1.48-social (D171): the bag item of BAG_ITEM_RECEIVED. */
+  readonly bagItemCode?: string;
 }
 
 /** Types without an actor: always on, never grouped, never hidden with their target. */
@@ -119,6 +121,7 @@ export class Notifier {
         type,
         ...target,
         familyId: input.familyId ?? null,
+        bagItemCode: input.bagItemCode ?? null,
         createdAt: now,
         updatedAt: now,
         actors: { create: [{ actorId, createdAt: now }] },

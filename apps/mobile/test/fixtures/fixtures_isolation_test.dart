@@ -78,6 +78,7 @@ void main() {
       'bagCatalogueItemJson(',
       'bagItemJson(',
       'bagEquippedJson(',
+      'bagTransferJson(',
       'FakeBagRepository',
       // CP-020 (test/fixtures/live/live_gift_fixtures.dart,
       // test/helpers/fake_live_gift_repository.dart).

@@ -283,6 +283,7 @@ class NotificationRow extends StatelessWidget {
     }
     if (item.type == NotificationType.medalAwarded) return AppRoutes.medals;
     return switch (target.type) {
+      NotificationTargetType.bagItem => AppRoutes.bag,
       NotificationTargetType.premiumUsername => AppRoutes.premium,
       NotificationTargetType.post => AppRoutes.post(target.id),
       NotificationTargetType.comment when target.postId != null =>
@@ -361,6 +362,13 @@ class NotificationRow extends StatelessWidget {
         ),
       NotificationType.premiumUsernameExpired =>
         l10n.notificationPremiumExpired(item.target?.id ?? ''),
+      NotificationType.bagItemReceived => l10n.notifBagItemReceived(
+        who,
+        switch (item.target?.bagCategory) {
+          'PROFILE_CARD' => l10n.notifBagItemProfileCard,
+          _ => l10n.notifBagItemGeneric,
+        },
+      ),
       NotificationType.unknown => '',
     };
     return (text, item.type.isSystem ? null : who, name);

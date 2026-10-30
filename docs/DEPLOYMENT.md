@@ -1519,3 +1519,29 @@ Video in «منشور جديد» (the «فيديو» tab), reels («ريلز») 
 - **Storage:** an `AVATAR` is two WebP objects like a live cover (`media/{id}/640.webp`, `320.webp`);
   a replaced or removed photo's objects are deleted.
 - **Audit:** `user.profile.update` (which fields changed, never values) and `user.avatar.update`.
+
+
+### 5.28 The bag v2: expiry, gifts and sending (migrations `20261216090000_bag_expiry_send_enums`, `20261216100000_bag_expiry_send`; D171) — [IMPLEMENTED, draft contract v1.48-social; not deployed, not device-tested]
+
+(Numbered 5.28: 5.26 and 5.27 are used by other branches in flight.) CONVENTIONS §10.45.
+
+- **Migrations** with the usual `migrate` job (§5), in order (the first only adds the enum values
+  `bag_item_source.GIFT` and `notification_type.BAG_ITEM_RECEIVED`): columns
+  `user_bag_items.expires_at` (NULL = permanent: **every existing item stays permanent**) and
+  `user_bag_items.gifted_by_user_id`, `notifications.bag_item_code`, table `bag_transfers` (the send
+  ledger), the CHECK `user_bag_items_gifted_by_source_check`. No GRANT (default privileges), no
+  backfill.
+- **Settings** (optional; defaults shown):
+
+  | Variable | Default | Meaning |
+  | --- | --- | --- |
+  | `BAG_SWEEP_INTERVAL_SECONDS` | `300` | The sweeper that deletes expired bag items (reads never return them anyway). 0 disables it |
+  | `RATE_LIMIT_BAG_SEND_USER` | `30/3600` | `POST /me/bag/transfers` per user |
+
+- **Granting with a duration:** `bag-admin grant <email> <code> [<days>|forever]` (default
+  `forever`, as before; days 1–3650). An item the user owns gets the days added; `forever` makes
+  it permanent. On the server:
+
+  ```bash
+  docker compose --profile jobs run --rm migrate node dist/cli/bag-admin.js grant someone@example.com emerald_wings 7
+  ```

@@ -5007,10 +5007,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bagWear => 'Wear';
 
   @override
-  String get bagTakeOff => 'Take off';
-
-  @override
-  String get bagLocked => 'Not owned yet';
+  String get bagTakeOff => 'Remove';
 
   @override
   String get bagEmptyTitle => 'Your bag is empty';
@@ -5020,9 +5017,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get bagOwnedSection => 'Your items';
-
-  @override
-  String get bagLockedSection => 'More items';
 
   @override
   String get errorGiftUnavailable => 'This gift isn\'t available anymore.';
@@ -8621,4 +8615,169 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get walletReasonEventPrize => 'Event prize';
+
+  @override
+  String bagDays(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days days',
+      one: '$days day',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String bagHours(int hours) {
+    String _temp0 = intl.Intl.pluralLogic(
+      hours,
+      locale: localeName,
+      other: '$hours hours',
+      one: '$hours hour',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String bagMinutes(int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes minutes',
+      one: '$minutes minute',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String bagDurationPair(String first, String second) {
+    return '$first $second';
+  }
+
+  @override
+  String bagRemaining(String duration) {
+    return '$duration left';
+  }
+
+  @override
+  String get bagEndsToday => 'Ends today';
+
+  @override
+  String get bagPermanent => 'Permanent';
+
+  @override
+  String get bagFromKabso => 'Gift from Kabso';
+
+  @override
+  String bagFromUser(String name) {
+    return 'Gift from $name';
+  }
+
+  @override
+  String get bagFromSomeone => 'Gift';
+
+  @override
+  String get bagFromLevel => 'Level reward';
+
+  @override
+  String get bagFromPurchase => 'Bought';
+
+  @override
+  String get bagSend => 'Send';
+
+  @override
+  String get bagNoSendFree => 'Free items can\'t be sent';
+
+  @override
+  String get bagNoSendLevel =>
+      'Level rewards can\'t be sent: they belong to your level';
+
+  @override
+  String get bagNoSendOther => 'This item can\'t be sent';
+
+  @override
+  String get bagCategoryOther => 'Other items';
+
+  @override
+  String bagSendTitle(String item) {
+    return 'Send $item';
+  }
+
+  @override
+  String bagSendYouHave(String left) {
+    return 'You have: $left';
+  }
+
+  @override
+  String get bagSendAmount => 'How much to send?';
+
+  @override
+  String get bagSendAll => 'All';
+
+  @override
+  String get bagSendPermanentNote =>
+      'A permanent item is sent whole and leaves your bag.';
+
+  @override
+  String get bagSendWholeNote =>
+      'The item leaves your bag with all its remaining time.';
+
+  @override
+  String bagSendPartNote(String left) {
+    return 'You keep: $left';
+  }
+
+  @override
+  String get bagSendTo => 'To';
+
+  @override
+  String get bagSendSearchHint => 'Search by name or username';
+
+  @override
+  String get bagSendSearchStart => 'Choose who gets the item.';
+
+  @override
+  String get bagSendSearchEmpty => 'No one by that name.';
+
+  @override
+  String get bagSendChange => 'Change';
+
+  @override
+  String get bagSendConfirmTitle => 'Confirm sending';
+
+  @override
+  String bagSendConfirmBody(String item, String amount, String user) {
+    return 'Send $item ($amount) to $user?';
+  }
+
+  @override
+  String bagSendDone(String user) {
+    return 'Sent to $user';
+  }
+
+  @override
+  String get errorBagItemNotTransferable => 'This item can\'t be sent.';
+
+  @override
+  String get errorBagSendPermanentWholeOnly =>
+      'A permanent item can only be sent whole.';
+
+  @override
+  String get errorBagSendExceedsRemaining =>
+      'That\'s more time than the item has left.';
+
+  @override
+  String get errorBagRecipientHasPermanent =>
+      'They already own this item permanently.';
+
+  @override
+  String notifBagItemReceived(String who, String item) {
+    return '$who sent you $item';
+  }
+
+  @override
+  String get notifBagItemProfileCard => 'a profile card';
+
+  @override
+  String get notifBagItemGeneric => 'an item for your bag';
 }
