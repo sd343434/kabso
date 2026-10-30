@@ -371,6 +371,7 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `GET /users/{username}` *(v1.3)* | 300 / 15 min per user (profile scraping) |
 | `POST /live/rooms` *(v1.3)* | 10 / hour and 30 / day per user; counted **before** the `LIVE_HOSTING_ENABLED` check |
 | `POST /live/rooms/{roomId}/heartbeat` *(v1.3)* | 12 / min per user (expected cadence 1 / 15 s = 4 / min; 3× headroom for retries) |
+| `POST /live/rooms/{roomId}/host-presence` *(v1.42-live, D170)* | 12 / min per user (bucket `live:host-presence`, the heartbeat rule `RATE_LIMIT_LIVE_HEARTBEAT_USER`). **Replaces** the per-user default |
 | `POST /live/rooms/{roomId}/end` *(v1.3)* | 30 / hour per user |
 | `POST /live/rooms/{roomId}/media-token` *(v1.6-live, CP-010)* | 120 / hour per user; guests 60 / hour per IP |
 | Seat requests and invitations *(v1.7-live, CP-011)* | 30 / 10 min per user |
@@ -529,6 +530,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.42-live (draft) | 2026-10-29 | **D170 (owner: «في البث الصوتي أو المرئي» a live goes on in the background; a video host away 5 minutes closes the live):** `setLiveHostPresence` (`POST /live/rooms/{roomId}/host-presence` `{away: boolean}`, 204, host only; rate limit `live:host-presence`, the heartbeat rule); `LiveRoomEndReason.HOST_AWAY_TIMEOUT`; `live_rooms.host_away_since` (migrations `20261215090000_live_host_away_enums`, `20261215090100_live_host_away`); `LIVE_HOST_AWAY_TIMEOUT_SECONDS` (default 300, 30–86400), enforced by the live sweeper. §10.44. (Numbered v1.42-live at integration: D178 took v1.41-live.) | Additive; older apps show `HOST_AWAY_TIMEOUT` as a generic «انتهى البث». |
 | v1.46-levels (draft) | 2026-10-30 | **D169 (owner: the support level's tier frames):** `BagCategory` gains `AVATAR_FRAME` and `BagItemSource` gains `LEVEL_REWARD`; the bag catalogue gains `support_frame_01` … `support_frame_21` (migrations `20261215090000_support_frames_enums`, `20261215100000_support_frames`). When a user's `SUPPORT` level goes up the server gives, in the same transaction, the frame of every support tier reached so far that they do not own (21 tiers: five levels each, 96–99 = tier 20, level 100 = tier 21, one frame per tier); frames are kept when the level goes down. §10.22. **Levels never go down** (owner): every write keeps the higher of the stored level and the level the points reach; only an admin deduction with `LevelAdjustmentRequest.fraud: true` lowers it (history reason `FRAUD`, `points_ledger.fraud`, migrations `20261215120000_level_fraud_enums`, `20261215130000_level_fraud`) and takes back the support frames of the tiers lost. §10.43. | **Additive** (new enum values, catalogue rows and an optional request field); the never-lower rule changes server behaviour only. Clients already ignore items of unknown categories and show unknown sources as opaque (v1.22-live). |
 | v1.45-social (draft) | 2026-10-29 | **D168 (owner, from the phone: «مدة ريلز لا تتجاوز ٦٠ ثانية، مدة الفيديو لا تتجاوز ٩٠ ثانية» and «فعّل الأزرار المتبقية في تعديل الملف وتغيير الصورة»):** a `POST_VIDEO` is now **1–90 s** (was 1–180 s; reels stay 1–60 s); videos stored before keep their length (`MediaAsset.durationMs` may still be up to 180 000 for them) and an unattached one longer than 90 s can no longer be attached. `updateMe` (`PATCH /me`) also takes `displayName` (the §6 registration rules) and `bio` (≤ 300 code points, ≤ 4 line breaks, free-text hygiene; empty or null clears it). `MediaKind.AVATAR` (processed like `LIVE_COVER`); `setMyAvatar` / `removeMyAvatar` (`PUT` / `DELETE /me/avatar`, `SetAvatarRequest`, `Avatar`). §7 row, §10.42, §11.1, §11.14. | **Tightening** on new uploads (a post video of 90–180 s is refused at `completeMediaUpload` with 422 `MEDIA_INVALID`; apps from v1.41 already explain that code); otherwise **additive** (optional request fields, an enum value, new operations). |
 | v1.44-social (draft) | 2026-10-29 | **D166 (owner: the Me hub's «قريباً» programs, CP-024 approved with defaults):** tag `programs`: `getMyTasks` (`GET /me/tasks`, `MyTasks`, `ProgramTask`, `CheckInDay`), `checkIn` (`POST /me/check-in`, `CheckInResult`; 201 / 200), `claimMyTask` (`POST /me/tasks/{code}/claim`, `TaskClaimResult`; 201 / 200), `getMySvip` (`GET /me/svip`, `SvipStatus`, `SvipPerk`), `listEvents` (`GET /events?tab=&month=`, `EventList`, `EventSummary`), `getEvent` (`GET /events/{eventId}`, `EventDetail`, `EventPrize`), `getEventLeaderboard` (`GET /events/{eventId}/leaderboard`, `EventLeaderboard`); tag `wallet`: `listRechargePackages` (`GET /wallet/recharge-packages`, `RechargePackages`; no purchase, B5); `WalletLedgerReason` gains `TASK_REWARD`, `CHECK_IN_REWARD`, `EVENT_PRIZE`; codes `TASK_NOT_COMPLETED`, `TASK_DAILY_CAP_REACHED` (409); migrations `20261214090000_me_programs_enums`, `20261214100000_me_programs`; CLIs `task-admin`, `event-admin`. §4, §8, §10.41. | **Additive** (new operations, schemas, codes and ledger reasons; clients show an unknown reason as a generic change). |
@@ -722,6 +724,8 @@ until a media provider is wired in.
   End is allowed while hosting is disabled.
 - Audit actions: `live.room.start`, `live.room.end` (with the reason), `live.room.timeout`.
   Heartbeats are not audited.
+- *(v1.42-live, D170)* A video live whose host stays away (the app in the background, the camera
+  off) for `LIVE_HOST_AWAY_TIMEOUT_SECONDS` ends with `HOST_AWAY_TIMEOUT` (§10.44).
 
 ### 10.4 Lists and cursors (`GET /live/rooms`)
 
@@ -2659,6 +2663,43 @@ account category, the grid order and the private-account switch stay "Soon" with
   Gift reversals and refunds are never fraud by themselves.
 - **Frames** (§10.22) are permanent; a fraud demotion is the only way one is removed: the
   `LEVEL_REWARD` frames of the support tiers lost are deleted (a worn one leaves nothing worn).
+### 10.44 A live in the background; the host away «سيعود المضيف قريباً» *(v1.42-live, DRAFT — D170)*
+
+Owner (2026-10-29): in an audio or video live, a viewer, a guest on a seat and the host who put the
+app in the background (another app in front) stay in the live: the sound goes on, a person on the
+mic is still heard, and nothing leaves the room. In a **video** live the host's camera stops in the
+background (the phones do not allow it), viewers see «سيعود المضيف قريباً», and a video live that
+stays like that for more than 5 minutes is closed.
+
+- **Nothing leaves on background.** The apps keep the media session (Android: a foreground service
+  of type `microphone|mediaPlayback` with an ongoing notification — tap to return, End live / Leave;
+  iOS: `UIBackgroundModes` `audio`). Leaving happens only when the person leaves, the app is killed
+  (the host's heartbeats stop: `HEARTBEAT_TIMEOUT`, §10.2, unchanged) or the server ends the room.
+- **The host away** (`setLiveHostPresence`, `POST /live/rooms/{roomId}/host-presence`
+  `{away: boolean}`, 204): the host's app sends `away: true` when it goes to the background in a
+  video room (after muting its camera track) and `away: false` when it returns (after unmuting).
+  In a `SOLO` or `MULTI` room the server keeps `host_away_since` — set once (a repeat keeps the first
+  time, so the time is **continuous**) and cleared by `away: false`. An `AUDIO` room stores nothing
+  (the host keeps talking; no away state, no auto close). A failed report is sent again with the
+  next heartbeat. Checks as the heartbeat: 503 hosting off; 404 not the host / no such room / bad id;
+  400 a body other than `{away: boolean}`; 409 `LIVE_ROOM_ENDED` (a stale room is ended as
+  `HEARTBEAT_TIMEOUT` first).
+- **The away limit:** `LIVE_HOST_AWAY_TIMEOUT_SECONDS` (default **300**, 30–86400). The live
+  sweeper (every `LIVE_SWEEP_INTERVAL_SECONDS`, after the stale-room run) ends every fresh LIVE
+  video room away for at least that long with `endReason = HOST_AWAY_TIMEOUT` and `endedAt =
+  host_away_since + limit`, in bounded batches (`SKIP LOCKED`, the `status = 'LIVE'` guard: each
+  room once), audited `live.room.end` with `{reason: HOST_AWAY_TIMEOUT, hostUserId}`; seats, medals
+  and statistics as every end (`roomsEndedIn`); the media session is closed by the media
+  reconciliation, as for a timeout. The host's next heartbeat or presence call gets 409 and the app
+  shows the ended live.
+- **What viewers see** comes from the media session, not from the API: the host's camera track is
+  muted while away, so the app shows «سيعود المضيف قريباً» (the same state as a host not in the
+  session) instead of a black or frozen picture, and the video again when it is unmuted.
+- **Why an app call, not a media webhook:** muting a track sends no LiveKit webhook, and a killed
+  app is already covered by the heartbeat rule (45 s); `track_unpublished` would only repeat that.
+- **Older apps** show `HOST_AWAY_TIMEOUT` as a generic «انتهى البث» (unknown reasons map to it).
+- **Not in v1.42-live:** an away state in `LiveRoom` responses, a warning to the host before the
+  close, an away rule for audio rooms or for seated guests.
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 

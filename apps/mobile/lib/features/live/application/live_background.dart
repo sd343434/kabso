@@ -14,7 +14,7 @@ enum LiveBackgroundRole {
   /// A seated guest publishing their microphone (and camera in MULTI).
   guest,
 
-  /// A viewer listening to an audio room.
+  /// A viewer listening to the live (audio and, D170, video rooms).
   listener,
 }
 

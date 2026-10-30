@@ -13,6 +13,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/app.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/app/shell/app_shell.dart';
+import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
@@ -64,6 +65,20 @@ class FakeLiveBackgroundService implements LiveBackgroundService {
 
   void tap(LiveBackgroundAction action) => _actions.add(action);
 }
+
+const _ended = ServerFailure(
+  code: ErrorCode.liveRoomEnded,
+  rawCode: 'LIVE_ROOM_ENDED',
+  debugMessage: 'x',
+  statusCode: 409,
+);
+
+const _internal = ServerFailure(
+  code: ErrorCode.internalError,
+  rawCode: 'INTERNAL_ERROR',
+  debugMessage: 'x',
+  statusCode: 500,
+);
 
 const _texts = LiveBackgroundTexts(
   channelName: 'Live',
@@ -328,12 +343,14 @@ void main() {
       await _openGoLiveFromCreate(tester);
       await _goLive(tester);
       expect(service.calls, ['start:host']);
-      expect(service.running?.title, 'Your live is on');
+      expect(service.running?.title, "Kabso: You're live");
       expect(service.running?.actionLabel, 'End live');
       expect(service.running?.microphone, isTrue);
 
       await _toBackground(tester);
       expect(camera.videoPauses, [true]);
+      // D170: the server is told the video host is away (camera off).
+      expect(repo.presenceCalls, [true]);
       // Away for a minute: still on air, beating every 15 s.
       for (var i = 0; i < 4; i++) {
         await tester.pump(const Duration(seconds: 15));
@@ -346,6 +363,7 @@ void main() {
       await _toForeground(tester);
       await tester.pump();
       expect(camera.videoPauses, [true, false]);
+      expect(repo.presenceCalls, [true, false]);
       // Back: one heartbeat at once.
       expect(repo.heartbeats, hasLength(5));
       expect(repo.endRequests, isEmpty);
@@ -380,7 +398,63 @@ void main() {
       await tester.pump(const Duration(seconds: 15));
       await _toForeground(tester);
       expect(camera.videoPauses, isEmpty);
+      // D170: an audio host is never away (no auto close).
+      expect(repo.presenceCalls, isEmpty);
       expect(repo.endRequests, isEmpty);
+      await _leave(tester);
+    });
+
+    testWidgets('D170: a failed away report is sent again with the next '
+        'heartbeat; the server ending the live (away 5 min) ends it here', (
+      tester,
+    ) async {
+      final router = _shellRouter();
+      final (repo, camera, service) = await _pumpApp(tester, router);
+      await _openGoLiveFromCreate(tester);
+      await _goLive(tester);
+      repo.presenceFailure = _internal;
+      await _toBackground(tester);
+      expect(repo.presenceCalls, [true]);
+      repo.presenceFailure = null;
+      await tester.pump(const Duration(seconds: 15));
+      await tester.pump();
+      expect(repo.presenceCalls, [true, true]);
+      // Acknowledged: the next beats send nothing more.
+      await tester.pump(const Duration(seconds: 15));
+      await tester.pump();
+      expect(repo.presenceCalls, [true, true]);
+      expect(repo.endRequests, isEmpty);
+      expect(camera.stops, 0);
+
+      // The server ended the live (HOST_AWAY_TIMEOUT): the next heartbeat
+      // gets 409 and the live stops here — camera, microphone, service.
+      repo.heartbeatFailure = _ended;
+      await tester.pump(const Duration(seconds: 15));
+      await tester.pump();
+      expect(camera.stops, greaterThan(0));
+      expect(service.calls, ['start:host', 'stop']);
+      await _toForeground(tester);
+      await tester.pumpAndSettle();
+      expect(find.byKey(GoLiveScreen.endedKey), findsOneWidget);
+      // Back after the end: no presence report for an ended live.
+      expect(repo.presenceCalls, [true, true]);
+      await _leave(tester);
+    });
+
+    testWidgets('D170: the away report itself answering "ended" ends the '
+        'live here', (tester) async {
+      final router = _shellRouter();
+      final (repo, camera, service) = await _pumpApp(tester, router);
+      await _openGoLiveFromCreate(tester);
+      await _goLive(tester);
+      await _toBackground(tester);
+      repo.presenceFailure = _ended;
+      await _toForeground(tester);
+      await tester.pumpAndSettle();
+      expect(repo.presenceCalls, [true, false]);
+      expect(find.byKey(GoLiveScreen.endedKey), findsOneWidget);
+      expect(service.calls, ['start:host', 'stop']);
+      expect(camera.stops, greaterThan(0));
       await _leave(tester);
     });
 
@@ -472,6 +546,61 @@ void main() {
   });
 
   group('viewer session', () {
+    test(
+      'D170: a viewer of a VIDEO live keeps hearing it in the background '
+      '(listener service); nothing leaves; the camera is not touched',
+      () async {
+        final repo = FakeLiveRepository();
+        final engine = FakeLiveMediaEngine();
+        final service = FakeLiveBackgroundService();
+        final container = ProviderContainer(
+          retry: (_, _) => null,
+          overrides: [
+            liveRepositoryProvider.overrideWithValue(repo),
+            liveMediaEngineProvider.overrideWithValue(() => engine),
+            liveBackgroundServiceProvider.overrideWithValue(service),
+            currentUserProvider.overrideWithValue(testUser()),
+          ],
+        );
+        addTearDown(container.dispose);
+        final sub = container.listen(
+          liveRoomSessionProvider('room-0'),
+          (_, _) {},
+        );
+        final session = container.read(
+          liveRoomSessionProvider('room-0').notifier,
+        );
+        var left = 0;
+        await session.start(
+          apiRoom(),
+          background: _texts,
+          onLeave: () => left++,
+        );
+        final keeper = container.read(liveBackgroundKeeperProvider);
+        await keeper.settled;
+        expect(apiRoom().mode, LiveRoomMode.solo);
+        expect(service.calls, ['start:listener']);
+        expect(service.running?.microphone, isFalse);
+
+        keeper
+          ..handleLifecycle(AppLifecycleState.hidden)
+          ..handleLifecycle(AppLifecycleState.paused);
+        await Future<void>.delayed(Duration.zero);
+        expect(engine.stops, 0);
+        expect(left, 0);
+        expect(engine.videoPauses, isEmpty);
+        expect(
+          container.read(liveRoomSessionProvider('room-0')).joined,
+          isTrue,
+        );
+        keeper.handleLifecycle(AppLifecycleState.resumed);
+        await Future<void>.delayed(Duration.zero);
+        expect(engine.stops, 0);
+        expect(service.calls, ['start:listener']);
+        sub.close();
+      },
+    );
+
     LiveSeats seats({int? mySeat}) => LiveSeats(
       roomId: 'room-0',
       mode: LiveRoomMode.audio,
@@ -535,6 +664,14 @@ void main() {
       service.tap(LiveBackgroundAction.end);
       await Future<void>.delayed(Duration.zero);
       expect(repo.seatCalls, contains('leaveSeat'));
+
+      // D170: the app going to the background leaves nothing.
+      final engineStops = engine.stops;
+      keeper.handleLifecycle(AppLifecycleState.paused);
+      await Future<void>.delayed(Duration.zero);
+      expect(engine.stops, engineStops);
+      expect(left, 1);
+      keeper.handleLifecycle(AppLifecycleState.resumed);
 
       sub.close();
       container.invalidate(liveRoomSessionProvider('room-0'));

@@ -343,6 +343,7 @@ describe('loadConfig', () => {
         heartbeatIntervalSeconds: 15,
         heartbeatStaleSeconds: 45,
         sweepIntervalSeconds: 15,
+        hostAwayTimeoutSeconds: 300,
       });
       expect(config.rateLimits).toMatchObject({
         liveListUser: { max: 300, windowSeconds: 900 },

@@ -363,6 +363,10 @@ class DemoLiveRepository implements LiveRepository {
   Future<void> heartbeat(String roomId) async => throw _serverOnly;
 
   @override
+  Future<void> setHostPresence(String roomId, {required bool away}) async =>
+      throw _serverOnly;
+
+  @override
   Future<LiveRoom> endRoom(String roomId) async => throw _serverOnly;
 
   @override

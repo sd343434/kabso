@@ -676,6 +676,10 @@
   "liveRoomEndedTitle": "انتهى هذا البث",
   "liveRoomEndedByHost": "أنهى المضيف هذا البث.",
   "liveRoomEndedTimeout": "توقف البث بعد انقطاع اتصال المضيف.",
+  "liveRoomEndedHostAway": "انتهى البث لأن المضيف غاب أكثر من 5 دقائق.",
+  "@liveRoomEndedHostAway": {
+    "description": "D170: the video live ended because the host was away (app in the background, camera off) for 5 minutes."
+  },
   "liveRoomEndedOther": "لم يعد هذا البث متاحًا.",
   "liveRoomBackToLive": "العودة إلى البثوث",
   "liveRoomNotFoundTitle": "هذا البث غير متاح",
@@ -4223,7 +4227,7 @@
   "@liveBgChannel": {
     "description": "Android notification channel name for the ongoing live notification (D123)"
   },
-  "liveBgHostTitle": "البث مستمر",
+  "liveBgHostTitle": "Kabso: أنت في بث مباشر",
   "@liveBgHostTitle": {
     "description": "Ongoing notification title while the host's live runs in the background"
   },

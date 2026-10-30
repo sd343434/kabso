@@ -244,6 +244,16 @@ class FakeLiveRepository implements LiveRepository {
   }
 
   @override
+  Future<void> setHostPresence(String roomId, {required bool away}) async {
+    presenceCalls.add(away);
+    if (presenceFailure case final failure?) throw failure;
+  }
+
+  /// D170: every `setHostPresence` call's `away`, and an error to throw.
+  final List<bool> presenceCalls = [];
+  AppFailure? presenceFailure;
+
+  @override
   Future<void> heartbeat(String roomId) async {
     heartbeats.add(roomId);
     if (heartbeatFailure case final failure?) throw failure;

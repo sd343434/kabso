@@ -914,6 +914,10 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveRoomEndedTimeout => 'توقف البث بعد انقطاع اتصال المضيف.';
 
   @override
+  String get liveRoomEndedHostAway =>
+      'انتهى البث لأن المضيف غاب أكثر من 5 دقائق.';
+
+  @override
   String get liveRoomEndedOther => 'لم يعد هذا البث متاحًا.';
 
   @override
@@ -3686,7 +3690,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveBgChannel => 'البث المباشر';
 
   @override
-  String get liveBgHostTitle => 'البث مستمر';
+  String get liveBgHostTitle => 'Kabso: أنت في بث مباشر';
 
   @override
   String get liveBgGuestTitle => 'أنت على مقعد في البث';

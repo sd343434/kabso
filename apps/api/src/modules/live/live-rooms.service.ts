@@ -26,6 +26,7 @@ import { awardLiveMedalsForRoomsIn } from '../medals/medal-awards.js';
 import { clearEndedRoomSeatsIn, releaseUserIn } from './live-seats.store.js';
 import {
   DEFAULT_LIVE_THEME,
+  hostPresenceSchema,
   isUuid,
   LIVE_SEAT_COUNTS,
   LIVE_THEMES,
@@ -60,7 +61,13 @@ export interface UserSummaryDto {
 }
 
 export type LiveRoomMode = 'SOLO' | 'PK' | 'MULTI' | 'AUDIO';
-export type LiveRoomEndReason = 'HOST_ENDED' | 'HEARTBEAT_TIMEOUT' | 'HOST_SUSPENDED' | 'ADMIN';
+export type LiveRoomEndReason =
+  | 'HOST_ENDED'
+  | 'HEARTBEAT_TIMEOUT'
+  | 'HOST_SUSPENDED'
+  | 'ADMIN'
+  /** v1.42-live (D170, §10.44): a video live's host stayed away (background, camera off) too long. */
+  | 'HOST_AWAY_TIMEOUT';
 
 export interface LiveRoomSummaryDto {
   id: string;
@@ -429,6 +436,15 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
             'Stale live-room sweep failed',
           ),
         )
+        // v1.42-live (D170): then video lives whose host has been away too long (its failure is
+        // logged and does not hold back the retention sweeps).
+        .then(() => (this.stopped ? 0 : this.sweepHostAway()))
+        .catch((err: unknown) =>
+          this.logger.error(
+            { ...errorClassAndCode(err), error: safeErrorLog(err) },
+            'Host-away live-room sweep failed',
+          ),
+        )
         .then(() => {
           if (this.stopped) return undefined;
           // CP-016 C: the schedule reminders first (they are due now; a failure is logged and
@@ -654,6 +670,65 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
       if (removed < CHAT_RETENTION_BATCH) break;
     }
     return { messages, mutes, kicks };
+  }
+
+  /**
+   * v1.42-live (D170, CONVENTIONS §10.44): ends the video (SOLO / MULTI) LIVE rooms whose host has
+   * been away (`host_away_since`) for at least LIVE_HOST_AWAY_TIMEOUT_SECONDS, with
+   * HOST_AWAY_TIMEOUT and `ended_at` = the moment the limit was reached, auditing `live.room.end`
+   * (reason HOST_AWAY_TIMEOUT) — in bounded batches, each its own transaction, like the stale
+   * sweep. Stale rooms are left to the heartbeat rule (HEARTBEAT_TIMEOUT). The media session is
+   * closed by the media reconciliation, as for a timeout. Returns the number of rooms ended.
+   */
+  async sweepHostAway(): Promise<number> {
+    const batchSize = this.config.live.sweepBatchSize;
+    const timeout = this.config.live.hostAwayTimeoutSeconds;
+    let ended = 0;
+    for (let batch = 0; batch < SWEEP_MAX_BATCHES_PER_RUN && !this.stopped; batch += 1) {
+      const now = this.clock.now();
+      const awayCutoff = ts(new Date(now.getTime() - timeout * 1000));
+      const staleCutoff = ts(this.cutoff(now));
+      const locked = await this.prisma.$transaction(async (tx) => {
+        await this.setStatementTimeout(tx);
+        const ids = await tx.$queryRaw<{ id: string }[]>`
+          SELECT id::text AS id FROM live_rooms
+           WHERE status = 'LIVE' AND host_away_since IS NOT NULL
+             AND host_away_since <= ${awayCutoff}::timestamptz
+             AND mode <> 'AUDIO'::live_room_mode AND last_heartbeat_at > ${staleCutoff}::timestamptz
+           ORDER BY host_away_since
+           LIMIT ${batchSize}
+             FOR UPDATE SKIP LOCKED`;
+        if (ids.length === 0) return 0;
+        const rows = await tx.$queryRaw<{ id: string; host_user_id: string }[]>`
+          UPDATE live_rooms
+             SET status = 'ENDED', end_reason = 'HOST_AWAY_TIMEOUT',
+                 ended_at = host_away_since + make_interval(secs => ${timeout}::int),
+                 updated_at = ${ts(now)}::timestamptz
+           WHERE id = ANY(${ids.map((row) => row.id)}::uuid[])
+             AND status = 'LIVE' AND mode <> 'AUDIO'::live_room_mode
+             AND host_away_since IS NOT NULL AND host_away_since <= ${awayCutoff}::timestamptz
+             AND last_heartbeat_at > ${staleCutoff}::timestamptz
+       RETURNING id::text AS id, host_user_id::text AS host_user_id`;
+        await this.audit.recordManyIn(
+          tx,
+          rows.map((row): AuditEntry => ({
+            action: AuditAction.LIVE_ROOM_END,
+            targetType: 'live_room',
+            targetId: row.id,
+            metadata: { reason: 'HOST_AWAY_TIMEOUT', hostUserId: row.host_user_id },
+          })),
+        );
+        await roomsEndedIn(
+          tx,
+          rows.map((row) => row.id),
+          now,
+        );
+        ended += rows.length;
+        return ids.length;
+      }, LIVE_TX_OPTIONS);
+      if (locked < batchSize) break;
+    }
+    return ended;
   }
 
   /** One sweeper run with the default budget; returns the number of rooms it ended. */
@@ -1035,6 +1110,40 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
       if (this.isFresh(room.lastHeartbeatAt, now)) return; // clock skew between instances; still live
       await this.endStaleOne(Prisma.sql`id = ${roomId}::uuid`, now);
     }
+    throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
+  }
+
+  /**
+   * v1.42-live (D170, CONVENTIONS §10.44): `POST /live/rooms/{roomId}/host-presence` `{away}`. The
+   * host's app reports going to the background (the camera stops: `away: true`) and coming back
+   * (`away: false`). In a video (SOLO / MULTI) room `away: true` starts the away time once (a repeat
+   * keeps the first time, so the 5 minutes are continuous) and `away: false` clears it; an AUDIO
+   * room never stores it (the host keeps talking in the background). Same checks as the heartbeat:
+   * hosting off → 503; not the host / no such room → 404; ended (or stale, which ends it) → 409.
+   */
+  async setHostPresence(callerId: string, roomId: string, body: unknown): Promise<void> {
+    this.assertHostingEnabled();
+    if (!isUuid(roomId)) throw notFound();
+    const parsed = hostPresenceSchema.safeParse(body);
+    if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
+    const { away } = parsed.data;
+    const now = this.clock.now();
+    const updated = await this.prisma.$executeRaw`
+      UPDATE live_rooms
+         SET host_away_since = CASE
+               WHEN ${away}::boolean AND mode <> 'AUDIO'::live_room_mode
+                 THEN COALESCE(host_away_since, ${ts(now)}::timestamptz)
+               ELSE NULL END
+       WHERE id = ${roomId}::uuid AND host_user_id = ${callerId}::uuid AND status = 'LIVE'
+         AND last_heartbeat_at > ${ts(this.cutoff(now))}::timestamptz`;
+    if (updated === 1) return;
+
+    const room = await this.prisma.liveRoom.findFirst({
+      where: { id: roomId, hostUserId: callerId },
+      select: { status: true },
+    });
+    if (!room) throw notFound(); // not the host, or no such room: never reveal ownership
+    if (room.status === 'LIVE') await this.endStaleOne(Prisma.sql`id = ${roomId}::uuid`, now);
     throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
   }
 

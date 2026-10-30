@@ -180,6 +180,7 @@ const _$LiveRoomEndReasonEnumMap = {
   LiveRoomEndReason.heartbeatTimeout: 'HEARTBEAT_TIMEOUT',
   LiveRoomEndReason.hostSuspended: 'HOST_SUSPENDED',
   LiveRoomEndReason.admin: 'ADMIN',
+  LiveRoomEndReason.hostAwayTimeout: 'HOST_AWAY_TIMEOUT',
   LiveRoomEndReason.unknown: 'unknown',
 };
 

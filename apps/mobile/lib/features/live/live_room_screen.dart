@@ -1283,7 +1283,9 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         ),
       );
     }
-    if (session.joined && !engine.isPresent(room.host.id)) {
+    // D170: a host away (app in the background, camera muted) too.
+    if (session.joined &&
+        (!engine.isPresent(room.host.id) || engine.videoMuted(room.host.id))) {
       return KLiveVideoPlaceholder(
         child: _StageNote(
           key: const Key('room.hostAway'),
@@ -1418,6 +1420,7 @@ String endReasonText(AppLocalizations l10n, LiveRoomEndReason? reason) =>
     switch (reason) {
       LiveRoomEndReason.hostEnded => l10n.liveRoomEndedByHost,
       LiveRoomEndReason.heartbeatTimeout => l10n.liveRoomEndedTimeout,
+      LiveRoomEndReason.hostAwayTimeout => l10n.liveRoomEndedHostAway,
       LiveRoomEndReason.hostSuspended ||
       LiveRoomEndReason.admin ||
       LiveRoomEndReason.unknown ||

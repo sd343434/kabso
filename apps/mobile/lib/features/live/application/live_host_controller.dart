@@ -665,12 +665,52 @@ class LiveHostController extends Notifier<GoLiveState> {
           ref.read(liveBackgroundOpenRequestsProvider.notifier).request();
         }
       },
-      onBackground: video ? () => unawaited(_pauseVideo(paused: true)) : null,
+      onBackground: video
+          ? () {
+              unawaited(_pauseVideo(paused: true));
+              unawaited(_reportAway(away: true));
+            }
+          : null,
       onForeground: () {
-        if (video) unawaited(_pauseVideo(paused: false));
+        if (video) {
+          unawaited(_pauseVideo(paused: false));
+          unawaited(_reportAway(away: false));
+        }
         unawaited(beatNow());
       },
     );
+  }
+
+  /// D170: what the server should know (the video host is away, camera
+  /// off) and what it last acknowledged; a failed report is sent again
+  /// with the next heartbeat.
+  bool _awayWanted = false;
+  bool _awayAcked = false;
+  int _reporting = 0;
+
+  /// D170 (v1.42-live): tells the server the video host is away or back;
+  /// a video live away for 5 minutes is ended by the server
+  /// (`HOST_AWAY_TIMEOUT`). An audio host is never reported.
+  Future<void> _reportAway({required bool away}) async {
+    _awayWanted = away;
+    final room = state.room;
+    if (room == null || state.phase != GoLivePhase.live) return;
+    _reporting++;
+    try {
+      await _repo.setHostPresence(room.id, away: away);
+      if (_awayWanted == away) _awayAcked = away;
+    } on Object catch (e) {
+      // The room ended meanwhile (the away limit, timeout, admin): stop.
+      // Anything else is retried with the next heartbeat.
+      if (toAppFailure(e).code == ErrorCode.liveRoomEnded &&
+          ref.mounted &&
+          state.phase == GoLivePhase.live) {
+        _onAir = null;
+        await _finish();
+      }
+    } finally {
+      _reporting--;
+    }
   }
 
   Future<void> _pauseVideo({required bool paused}) async {
@@ -689,6 +729,10 @@ class LiveHostController extends Notifier<GoLiveState> {
     if (room == null || state.phase != GoLivePhase.live) return;
     try {
       await _repo.heartbeat(room.id);
+      // D170: a report that failed (none is under way) is sent again.
+      if (_awayWanted != _awayAcked && _reporting == 0) {
+        unawaited(_reportAway(away: _awayWanted));
+      }
     } on Object catch (e) {
       // The room was ended elsewhere (timeout, admin, suspension): stop.
       // Anything else is transient; the next beat retries.

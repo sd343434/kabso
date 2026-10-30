@@ -148,6 +148,8 @@ describe('KL-037 contract coverage', () => {
             'listLiveWatchSuggestions',
             'suggestLiveWatch',
             'decideLiveWatchSuggestion',
+            // v1.42-live (D170): the host's presence; d170-host-away covers it.
+            'setLiveHostPresence',
           ].includes(o.operationId),
       )
       .filter(

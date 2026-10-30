@@ -460,3 +460,9 @@ const UUID_ANY = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
 export function isUuid(value: string): boolean {
   return UUID_ANY.test(value);
 }
+
+/**
+ * v1.42-live (D170, CONVENTIONS §10.44): `POST /live/rooms/{roomId}/host-presence` — the host's app
+ * went to the background (camera off) or came back.
+ */
+export const hostPresenceSchema = z.object({ away: z.boolean() }).strict();
