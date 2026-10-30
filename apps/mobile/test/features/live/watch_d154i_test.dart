@@ -65,6 +65,15 @@ class _RoomState extends ConsumerState<_Room> {
             ),
           ),
         ),
+        // D173: the audio room shows the card as its cinema screen (in the
+        // room's layout) and the layer keeps the «show» pill.
+        if (LiveWatchScreen.shows(ref, _room))
+          Positioned(
+            top: LiveWatchLayer.top,
+            left: 12,
+            right: 12,
+            child: LiveWatchScreen(roomId: _room, host: widget.host),
+          ),
         LiveWatchLayer(roomId: _room, host: widget.host),
       ],
     ),

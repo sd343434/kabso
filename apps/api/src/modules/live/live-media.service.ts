@@ -25,7 +25,7 @@ import { LiveChatService } from './live-chat.service.js';
 import { LiveRoomMetadataService } from './live-metadata.service.js';
 import { hostSources, LiveSeatsService, seatPermission } from './live-seats.service.js';
 import {
-  isSeatedMode,
+  hasGuestSeats,
   isUuid,
   liveMediaTokenSchema,
   seatCountFits,
@@ -168,7 +168,7 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
     if (isHost) {
       role = 'HOST';
       sources = hostSources(row.mode);
-    } else if (callerId !== null && isSeatedMode(row.mode)) {
+    } else if (callerId !== null && hasGuestSeats(row.mode)) {
       const seat = await this.seats.seatOfUser(row.id, callerId);
       if (seat) {
         role = 'SPEAKER';

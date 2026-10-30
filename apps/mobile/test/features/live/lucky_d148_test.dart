@@ -158,17 +158,17 @@ void main() {
       expect(MaxXTiers.winTierOf(null), isNull);
     });
 
-    test('the room card fires for every ×100+ win (×250 and ×1000 too), '
-        'one after the other; ×50 does not', () {
+    test('the room card fires for every win, one after the other — D178 '
+        '(owner «حتى الصغيرة»): a ×50 too (was ×100+ only)', () {
       final c = _container();
       final effects = c.read(liveGiftEffectsProvider('room-b').notifier);
       c.listen(liveGiftEffectsProvider('room-b'), (_, _) {});
       effects.showLucky(_win(multiplier: 50, giftId: 'g-50'));
-      expect(c.read(liveGiftEffectsProvider('room-b')).lucky, isNull);
+      expect(c.read(liveGiftEffectsProvider('room-b')).lucky?.multiplier, 50);
       effects
         ..showLucky(_win(multiplier: 250, giftId: 'g-250'))
         ..showLucky(_win(multiplier: 1000, giftId: 'g-1000'));
-      expect(c.read(liveGiftEffectsProvider('room-b')).lucky?.multiplier, 250);
+      expect(c.read(liveGiftEffectsProvider('room-b')).lucky?.multiplier, 50);
     });
   });
 

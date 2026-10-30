@@ -6353,6 +6353,78 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveGamesSoon => 'Games are coming soon';
 
   @override
+  String get liveGamesSoonBody =>
+      'We are adding games you can play in the live. They are not available yet.';
+
+  @override
+  String liveChatGiftLine(
+    String sender,
+    String gift,
+    int count,
+    String recipient,
+  ) {
+    return '$sender sent $gift ×$count to $recipient';
+  }
+
+  @override
+  String liveChatGiftRecipients(String name, int more) {
+    return '$name +$more';
+  }
+
+  @override
+  String liveChatLuckyLine(String sender, String multiplier, String coins) {
+    return '$sender won ×$multiplier = $coins coins from a lucky gift';
+  }
+
+  @override
+  String liveGiftTicker(String sender, String gift, int count, String room) {
+    return '$sender sent $gift ×$count in $room';
+  }
+
+  @override
+  String get liveViewerMenu => 'More';
+
+  @override
+  String get liveToolsModerator => 'Moderator tools';
+
+  @override
+  String get liveToolReportHost => 'Report host';
+
+  @override
+  String get liveToolViewers => 'Viewers';
+
+  @override
+  String get liveToolContributions => 'Contributions';
+
+  @override
+  String get liveToolGiftSounds => 'Gift sounds';
+
+  @override
+  String get liveToolGiftEffects => 'Gift effects';
+
+  @override
+  String get liveToolClearScreen => 'Clear screen';
+
+  @override
+  String get liveToolSeatRequests => 'Seat requests';
+
+  @override
+  String liveCinemaMoved(int seat) {
+    return 'Cinema mode has 10 seats: you were moved to seat $seat.';
+  }
+
+  @override
+  String get liveCinemaOffSeat =>
+      'You left the seat because cinema mode has only 10 seats.';
+
+  @override
+  String get liveGuestJoin => 'Join as a guest';
+
+  @override
+  String get liveGuestsFull =>
+      'The 3 guest seats of this live are taken. Try again when one is free.';
+
+  @override
   String get liveStatsCherries => 'Cherries this live';
 
   @override

@@ -22,6 +22,7 @@ import 'package:kabso_live/features/auth/data/auth_repository_impl.dart';
 import 'package:kabso_live/features/auth/domain/entities.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/emoji/kabi_emoji.dart';
+import 'package:kabso_live/features/live/application/live_gift_effects.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_permissions.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
@@ -38,6 +39,7 @@ import 'package:kabso_live/features/live/presentation/hub/live_grid_card.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_hub_grid.dart';
 import 'package:kabso_live/features/live/presentation/live_permission_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/guest_seats.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_chat_gift_line.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_effects_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
@@ -729,17 +731,26 @@ void main() {
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
-      expect(find.byType(LiveGiftBanner), findsOneWidget);
-      expect(find.textContaining('Lina'), findsOneWidget);
-      expect(find.textContaining('Rose'), findsOneWidget);
+      final banner = find.byType(LiveGiftBanner);
+      expect(banner, findsOneWidget);
+      expect(
+        find.descendant(of: banner, matching: find.textContaining('Lina')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: banner, matching: find.textContaining('Rose')),
+        findsOneWidget,
+      );
       expect(find.text(l10n.giftCombo(10)), findsOneWidget);
+      // D178: and a line in the room's chat.
+      expect(find.byType(LiveChatGiftLineView), findsOneWidget);
       await tester.pump(const Duration(seconds: 4));
       await tester.pumpAndSettle();
       expect(find.byType(LiveGiftBanner), findsNothing);
     });
 
-    testWidgets('D132: a lucky-win message of ×100 or more shows the room '
-        'banner; a smaller one does not', (tester) async {
+    testWidgets('D132: a lucky-win message shows the room banner — D178: '
+        'a smaller one too (was ×100 or more only)', (tester) async {
       final engine = FakeLiveMediaEngine();
       await _pumpRoom(
         tester,
@@ -762,6 +773,9 @@ void main() {
       engine.chat.add(win(50, 'g-1')!);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byType(LiveWinBanner), findsOneWidget);
+      await tester.pump(LiveGiftEffects.luckyTime);
+      await tester.pumpAndSettle();
       expect(find.byType(LiveWinBanner), findsNothing);
       engine.chat.add(win(500, 'g-2')!);
       await tester.pump();
@@ -953,11 +967,12 @@ void main() {
       for (final button in buttons) {
         expect(button.onPressed, isNotNull, reason: button.label);
       }
-      // D131: the bar's round buttons (the gift box).
+      // D131: the bar's round buttons (the gift box); D173: ≡ and games
+      // too.
       final bar = tester.widgetList<KViewerBarButton>(
         find.byType(KViewerBarButton),
       );
-      expect(bar, hasLength(1));
+      expect(bar, hasLength(3));
       for (final button in bar) {
         expect(button.onTap, isNotNull, reason: button.label);
       }
@@ -1879,9 +1894,8 @@ void main() {
           ..chat = [entry('m1', 'Hello room')];
         await _pumpRoom(tester, repo: repo, engine: FakeLiveMediaEngine());
         expect(line('Hello room'), findsOneWidget);
-        // Ref 83: a round chat button; its label says why (tooltip and
-        // screen readers).
-        expect(find.byTooltip(l10n.liveChatSignIn), findsOneWidget);
+        // D173: the chat pill (was ref 83's round button) says why.
+        expect(_pillSays(l10n.liveChatSignIn), findsOneWidget);
         await tester.tap(find.byKey(AudioRoomViewKeys.chat));
         await tester.pump();
         expect(find.byKey(LiveChatComposer.fieldKey), findsNothing);
@@ -1898,7 +1912,7 @@ void main() {
             room: (_) => room.copyWith(mode: LiveRoomMode.audio, seatCount: 10),
           )..seatState = seats(mode: LiveRoomMode.audio, count: 10);
           await _pumpRoom(tester, repo: repo, engine: engine, user: testUser());
-          expect(find.byTooltip(hint), findsOneWidget);
+          expect(_pillSays(hint), findsOneWidget);
           await tester.tap(find.byKey(AudioRoomViewKeys.chat));
           await tester.pump();
           expect(find.byKey(LiveChatComposer.fieldKey), findsNothing);
@@ -1922,7 +1936,7 @@ void main() {
           engine: FakeLiveMediaEngine(),
           user: testUser(),
         );
-        expect(find.byTooltip(l10n.liveChatMutedPill), findsOneWidget);
+        expect(_pillSays(l10n.liveChatMutedPill), findsOneWidget);
         muted = false; // The host unmuted (no live notice).
         await tester.tap(find.byKey(AudioRoomViewKeys.chat));
         await tester.pumpAndSettle();
@@ -1935,7 +1949,7 @@ void main() {
         final engine = FakeLiveMediaEngine();
         final repo = seatRoom(LiveRoomMode.audio, 9);
         await _pumpRoom(tester, repo: repo, engine: engine, user: testUser());
-        expect(find.byTooltip(l10n.goLiveChatPill), findsOneWidget);
+        expect(_pillSays(l10n.liveChatSayHi), findsOneWidget);
         // Writing when it happens: the box closes so the pill can say why
         // (real two-browser run).
         await tester.tap(find.byKey(AudioRoomViewKeys.chat));
@@ -1944,7 +1958,7 @@ void main() {
         engine.chat.add(const LiveChatStateChanged(enabled: false));
         await tester.pumpAndSettle();
         expect(find.byKey(LiveChatComposer.fieldKey), findsNothing);
-        expect(find.byTooltip(l10n.liveChatOff), findsOneWidget);
+        expect(_pillSays(l10n.liveChatOff), findsOneWidget);
       });
 
       testWidgets('video rooms: the chat over the video and the pill above '
@@ -2657,3 +2671,9 @@ void _expectNoDimming(WidgetTester tester) {
     expect(color == null || color.a == 0, isTrue, reason: '$color');
   }
 }
+
+/// D173: the audio room's chat pill shows (and reads) [text].
+Finder _pillSays(String text) => find.descendant(
+  of: find.byKey(AudioRoomViewKeys.chat),
+  matching: find.text(text),
+);

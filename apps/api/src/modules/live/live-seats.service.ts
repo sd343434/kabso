@@ -25,14 +25,15 @@ import { bumpSeatsVersionIn, releaseUserIn, type ReleasedUser } from './live-sea
 import { LiveRoomMetadataService } from './live-metadata.service.js';
 import { POINTS_PER_SUPPORT_COIN } from './live-taps.js';
 import {
-  isSeatedMode,
+  guestSeatCount,
+  hasGuestSeats,
   isUuid,
   liveSeatInviteBodySchema,
   liveSeatLockBodySchema,
   liveSeatMuteBodySchema,
   liveSeatRequestBodySchema,
   parseSeatIndexPath,
-  type SeatedMode,
+  type GuestSeatMode,
 } from './live.schemas.js';
 import {
   LIVE_MEDIA_PROVIDER,
@@ -83,9 +84,11 @@ export interface LiveSeatCoupleDto {
 
 export interface LiveSeatsDto {
   roomId: string;
-  mode: SeatedMode;
+  mode: GuestSeatMode;
   version: number;
   seatCount: number;
+  /** v1.39-live (D173): the room is a cinema now (YouTube together in an AUDIO room). */
+  cinema: boolean;
   seats: LiveSeatDto[];
   moderators: UserSummaryDto[];
   couples: LiveSeatCoupleDto[];
@@ -103,6 +106,13 @@ export interface PageDto<T> {
   page: { nextCursor: string | null; hasMore: boolean };
 }
 
+/**
+ * v1.39-live (D173, owner: «عندما مشاهدة يوتيوب لا يكون هناك إلا ١٠ كراسي فقط»): while an AUDIO room
+ * watches YouTube together (a `live_watch` row exists) it is a cinema with the 10 drawn seats — the
+ * host's and seats 1–9. Seats from this index on are unavailable (read as LOCKED) until it closes.
+ */
+export const CINEMA_SEAT_COUNT = 10;
+
 /** An invitation is valid for 60 seconds (owner D94). */
 export const SEAT_INVITE_TTL_SECONDS = 60;
 /** Up to 5 moderators per room (owner D94). */
@@ -110,9 +120,10 @@ export const MAX_ROOM_MODERATORS = 5;
 const REQUEST_PAGE_MAX = 50;
 
 /** The media permission of a guest on a seat of `mode` (§10.9). */
-export function seatPermission(mode: SeatedMode, mutedByHost: boolean): LiveMediaPermission {
+export function seatPermission(mode: GuestSeatMode, mutedByHost: boolean): LiveMediaPermission {
+  // D174: a SOLO live's guests are on camera like a multi-guest live's.
   const sources: LiveMediaSource[] =
-    mode === 'MULTI'
+    mode !== 'AUDIO'
       ? mutedByHost
         ? ['camera']
         : ['camera', 'microphone']
@@ -173,8 +184,12 @@ function seatIndexOf(raw: string): number {
 interface LockedRoom {
   id: string;
   hostUserId: string;
-  mode: SeatedMode;
+  mode: GuestSeatMode;
+  /** The seats usable now: the room's count, or {@link CINEMA_SEAT_COUNT} in a cinema (D173). */
   seatCount: number;
+  /** The room's own seat count (what a cinema gives back when it closes). */
+  roomSeatCount: number;
+  cinema: boolean;
 }
 
 /** Media work to do after a seat transaction commits (best effort). */
@@ -225,7 +240,7 @@ export class LiveSeatsService {
   private async seatedRoom(roomId: string, callerId: string | null): Promise<RoomRow> {
     const row = await this.rooms.visibleRow(roomId, callerId);
     if (row.status !== 'LIVE') throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
-    if (!isSeatedMode(row.mode)) throw seatUnavailable();
+    if (!hasGuestSeats(row.mode)) throw seatUnavailable();
     return row;
   }
 
@@ -239,8 +254,28 @@ export class LiveSeatsService {
         FROM live_rooms WHERE id = ${roomId}::uuid FOR UPDATE`;
     if (!room) throw notFound();
     if (room.status !== 'LIVE') throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
-    if (!isSeatedMode(room.mode) || room.seat_count === null) throw seatUnavailable();
-    return { id: room.id, hostUserId: room.host_user_id, mode: room.mode, seatCount: room.seat_count };
+    if (!hasGuestSeats(room.mode)) throw seatUnavailable();
+    const count = guestSeatCount(room.mode, room.seat_count);
+    if (count === 0) throw seatUnavailable();
+    const cinema = await this.isCinema(tx, room.id, room.mode);
+    return {
+      id: room.id,
+      hostUserId: room.host_user_id,
+      mode: room.mode,
+      seatCount: cinema ? Math.min(count, CINEMA_SEAT_COUNT) : count,
+      roomSeatCount: count,
+      cinema,
+    };
+  }
+
+  /** D173: an AUDIO room that watches YouTube together now is a cinema. */
+  private async isCinema(
+    db: Prisma.TransactionClient | PrismaService,
+    roomId: string,
+    mode: string,
+  ): Promise<boolean> {
+    if (mode !== 'AUDIO') return false;
+    return (await db.liveWatch.count({ where: { roomId } })) > 0;
   }
 
   private async isModerator(
@@ -413,11 +448,14 @@ export class LiveSeatsService {
       where: { id: roomId },
       select: { id: true, mode: true, seatCount: true, seatsVersion: true, hostUserId: true },
     });
-    const mode = room.mode as SeatedMode;
-    const seatCount = room.seatCount ?? 0;
+    const mode = room.mode as GuestSeatMode;
+    const seatCount = guestSeatCount(mode, room.seatCount);
+    // D173: in a cinema the seats from CINEMA_SEAT_COUNT on read as LOCKED (nobody sits there).
+    const cinema = await this.isCinema(this.prisma, roomId, mode);
+    const usable = cinema ? Math.min(seatCount, CINEMA_SEAT_COUNT) : seatCount;
     const [rows, moderators] = await Promise.all([
       this.prisma.liveRoomSeat.findMany({
-        where: { roomId, seatIndex: { lt: seatCount } },
+        where: { roomId, seatIndex: { lt: usable } },
         include: { user: { select: USER_SUMMARY_SELECT } },
       }),
       this.prisma.liveRoomModerator.findMany({
@@ -429,12 +467,14 @@ export class LiveSeatsService {
     const byIndex = new Map(rows.map((r) => [r.seatIndex, r]));
     const points = await this.receivedPoints(
       roomId,
-      rows.flatMap((r) => (r.user && r.seatIndex < seatCount ? [r.user.id] : [])),
+      rows.flatMap((r) => (r.user && r.seatIndex < usable ? [r.user.id] : [])),
     );
     const seats: LiveSeatDto[] = [];
     for (let index = 1; index < seatCount; index += 1) {
       const row = byIndex.get(index);
-      if (row?.user) {
+      if (index >= usable) {
+        seats.push({ index, state: 'LOCKED', user: null, mutedByHost: false, points: 0 });
+      } else if (row?.user) {
         seats.push({
           index,
           state: 'TAKEN',
@@ -453,6 +493,7 @@ export class LiveSeatsService {
       mode,
       version: room.seatsVersion,
       seatCount,
+      cinema,
       seats,
       moderators: moderators.map((m) => userSummary(m.user)),
       couples: await this.seatedCouples(room.hostUserId, seats, lang),
@@ -631,7 +672,7 @@ export class LiveSeatsService {
     }
     const limit = Math.min(query.limit, REQUEST_PAGE_MAX);
     const rows =
-      row.status === 'LIVE' && isSeatedMode(row.mode)
+      row.status === 'LIVE' && hasGuestSeats(row.mode)
         ? await this.prisma.liveSeatRequest.findMany({
             where: {
               roomId: row.id,
@@ -937,7 +978,7 @@ export class LiveSeatsService {
       let version: number | null = null;
       if (input.seatCount !== undefined) {
         const room = await this.lockRoom(tx, roomId);
-        if (input.seatCount !== room.seatCount) {
+        if (input.seatCount !== room.roomSeatCount) {
           const beyond = await tx.liveRoomSeat.count({
             where: { roomId, seatIndex: { gte: input.seatCount }, userId: { not: null } },
           });
@@ -956,6 +997,80 @@ export class LiveSeatsService {
         themeChanged = changed.count > 0;
       }
       return { result: themeChanged, version, effects: [] };
+    });
+  }
+
+  // ---- Cinema (D173) ----------------------------------------------------------------------------
+
+  /**
+   * v1.39-live (D173): YouTube together started in an AUDIO room with more than
+   * {@link CINEMA_SEAT_COUNT} seats. Everyone on a seat from that index on moves to the first free
+   * seat below it (their mic state kept), in seat order; when none is free they leave the seat (the
+   * publish permission is withdrawn). Pending requests and invitations for those seats expire.
+   * Idempotent: nothing to move → no change. Returns the users who moved (`to`) or left (`to` null).
+   */
+  async enterCinema(roomId: string): Promise<{ userId: string; from: number; to: number | null }[]> {
+    return this.change(roomId, async (tx, now) => {
+      const room = await this.lockRoom(tx, roomId);
+      if (!room.cinema || room.roomSeatCount <= CINEMA_SEAT_COUNT) {
+        return { result: [], version: null, effects: [] };
+      }
+      const beyond = await tx.liveRoomSeat.findMany({
+        where: { roomId, seatIndex: { gte: CINEMA_SEAT_COUNT } },
+        orderBy: { seatIndex: 'asc' },
+      });
+      const stale = await tx.liveSeatRequest.updateMany({
+        where: { roomId, status: 'PENDING', seatIndex: { gte: CINEMA_SEAT_COUNT } },
+        data: { status: 'EXPIRED', handledAt: now },
+      });
+      const staleInvites = await tx.liveSeatInvite.updateMany({
+        where: { roomId, status: 'PENDING', seatIndex: { gte: CINEMA_SEAT_COUNT } },
+        data: { status: 'EXPIRED', handledAt: now },
+      });
+      if (beyond.length === 0 && stale.count === 0 && staleInvites.count === 0) {
+        return { result: [], version: null, effects: [] };
+      }
+      const free = await this.freeSeats(tx, room);
+      const moves: { userId: string; from: number; to: number | null }[] = [];
+      const effects: Effect[] = [];
+      for (const seat of beyond) {
+        await tx.liveRoomSeat.delete({
+          where: { roomId_seatIndex: { roomId, seatIndex: seat.seatIndex } },
+        });
+        if (seat.userId === null) continue; // a locked seat beyond the cinema: dropped
+        const to = free.shift();
+        if (to === undefined) {
+          moves.push({ userId: seat.userId, from: seat.seatIndex, to: null });
+          effects.push({ kind: 'permission', identity: seat.userId, permission: VIEWER_PERMISSION });
+          continue;
+        }
+        await tx.liveRoomSeat.create({
+          data: {
+            roomId,
+            seatIndex: to,
+            userId: seat.userId,
+            locked: false,
+            mutedByHost: seat.mutedByHost,
+            updatedAt: now,
+          },
+        });
+        moves.push({ userId: seat.userId, from: seat.seatIndex, to });
+      }
+      return { result: moves, version: await this.bump(tx, roomId), effects };
+    });
+  }
+
+  /**
+   * v1.39-live (D173): YouTube together stopped — the room's own seat count is usable again (nobody
+   * is moved back). A new seat version tells the apps to refetch.
+   */
+  async leaveCinema(roomId: string): Promise<void> {
+    await this.change(roomId, async (tx) => {
+      const room = await this.lockRoom(tx, roomId);
+      if (room.mode !== 'AUDIO' || room.roomSeatCount <= CINEMA_SEAT_COUNT) {
+        return { result: undefined, version: null, effects: [] };
+      }
+      return { result: undefined, version: await this.bump(tx, roomId), effects: [] };
     });
   }
 
@@ -1079,7 +1194,7 @@ export class LiveSeatsService {
       where: { roomId, userId },
       select: { mutedByHost: true, room: { select: { mode: true } } },
     });
-    if (!seat || !isSeatedMode(seat.room.mode)) return;
+    if (!seat || !hasGuestSeats(seat.room.mode)) return;
     await this.applyEffects(roomId, null, [
       { kind: 'permission', identity: userId, permission: seatPermission(seat.room.mode, seat.mutedByHost) },
     ]);
@@ -1115,7 +1230,7 @@ export class LiveSeatsService {
       select: { mode: true, status: true, hostUserId: true },
     });
     if (!room || room.status !== 'LIVE') return 0;
-    if (!isSeatedMode(room.mode)) return this.reconcileMetadata(roomId, false);
+    if (!hasGuestSeats(room.mode)) return this.reconcileMetadata(roomId, false);
     const mode = room.mode;
     const seats = new Map(
       (
@@ -1134,7 +1249,9 @@ export class LiveSeatsService {
       await this.media.setPermission(roomId, participant.identity, want);
       repairs += 1;
     }
-    return repairs + (await this.reconcileMetadata(roomId, true));
+    // D174: a SOLO live without guests is quiet like before (no metadata until something happens);
+    // its seat changes write the metadata themselves.
+    return repairs + (await this.reconcileMetadata(roomId, mode !== 'SOLO' || seats.size > 0));
   }
 
   /**

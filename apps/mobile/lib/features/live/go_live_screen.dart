@@ -19,6 +19,7 @@ import 'package:kabso_live/features/levels/domain/level_models.dart';
 import 'package:kabso_live/features/live/application/live_assistant.dart';
 import 'package:kabso_live/features/live/application/live_chat_controller.dart';
 import 'package:kabso_live/features/live/application/live_gift_effects.dart';
+import 'package:kabso_live/features/live/application/live_gift_ticker.dart';
 import 'package:kabso_live/features/live/application/live_host_controller.dart';
 import 'package:kabso_live/features/live/application/live_lucky_ticker.dart';
 import 'package:kabso_live/features/live/application/live_program.dart';
@@ -68,8 +69,10 @@ import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.
 import 'package:kabso_live/features/live/presentation/widgets/live_background_texts.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_cp_entrance.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_games_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_effects_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_guest_tiles.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_lucky_combo_button.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
@@ -395,6 +398,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       ref.read(liveSeatEmojisProvider(room.id).notifier).attach(engine);
       // D148: big lucky wins in other lives (the gold ticker).
       ref.read(liveLuckyTickersProvider(room.id).notifier).attach(engine);
+      // D178: the global gift strip.
+      ref.read(liveGiftTickersProvider(room.id).notifier).attach(engine);
       // D154: the room's quips (one at a time, after their delay).
       ref.read(liveQuipsProvider(room.id).notifier).attach(engine);
       // D154e: the live's program.
@@ -558,7 +563,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         setup && !captureFailed && state.mode == LiveRoomMode.audio;
     final seats = state.mode.hasSeats;
     final room = state.room;
-    final liveSeats = onAir && seats && room != null
+    // D174: a solo live has guest seats too.
+    final liveSeats = onAir && state.mode.hasGuestSeats && room != null
         ? ref.watch(liveSeatsProvider(room.id)).value
         : null;
     // Before going live, the count previewed is the one that will be sent
@@ -1127,6 +1133,60 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         ),
       );
       // The chat box opens from 💬 and 🙂 (CP-013).
+      // D173: YouTube together turns the room into the owner's cinema.
+      final cinema =
+          live && room != null && LiveWatchScreen.shows(ref, room.id);
+      final ring = AudioSeatRing(
+        count: seatCount!,
+        // D173: no points pills on the cinema's seats.
+        compact: cinema,
+        seats: liveSeats?.seats ?? const [],
+        // D111: CP partners on adjacent seats are drawn joined.
+        cpPairs: room == null
+            ? const []
+            : cpSeatPairs(liveSeats, hostId: room.host.id),
+        host: KAvatar(
+          name: hostName,
+          imageUrl: user?.avatarUrl,
+          size: AudioSeatRing.picture,
+        ),
+        hostName: hostName,
+        hostMicOn: state.micEnabled,
+        // Owner (2026-10-26): a tap on the host's own picture opens their
+        // card (not a mute); they turn the mic on or off from there.
+        // Before the live starts there is no card: the tap tries the mic.
+        onHost: room == null
+            ? byId['mic']!.onTap
+            : () => unawaited(
+                _person(
+                  room.id,
+                  room.host.username,
+                  selfMic: (
+                    enabled: state.micEnabled,
+                    set: ({required enabled}) async {
+                      final host = ref.read(liveHostControllerProvider);
+                      if (host.micEnabled != enabled) {
+                        await ref
+                            .read(liveHostControllerProvider.notifier)
+                            .toggleMic();
+                      }
+                    },
+                  ),
+                ),
+              ),
+        hostTapLabel: room != null
+            ? l10n.liveUserViewProfile
+            : state.micEnabled
+            ? l10n.goLiveMuteMic
+            : l10n.goLiveUnmuteMic,
+        hostPoints: KFormat.compact(score, l10n),
+        speaking: speaking,
+        onSeat: onSeat,
+        // D138: the emojis played on the seats.
+        overlay: room == null
+            ? null
+            : seatEmojiOverlay(ref, room.id, picture: AudioSeatRing.picture),
+      );
       body = LiveAudioRoomLayout(
         // D145c: the gift strips keep above the chat text.
         onChatTop: room == null
@@ -1141,6 +1201,30 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             ? LiveRoomPromoBox(
                 roomId: room.id,
                 boxWidth: LiveRoomPromoBox.audioWidth,
+              )
+            : null,
+        // D173: YouTube together turns the room into a cinema — the
+        // player on top, the seats under it.
+        screen: cinema
+            ? LiveWatchScreen(
+                roomId: room.id,
+                host: true,
+                part: LiveWatchPart.player,
+              )
+            : null,
+        screenBar: cinema
+            ? LiveWatchScreen(
+                roomId: room.id,
+                host: true,
+                part: LiveWatchPart.bar,
+              )
+            : null,
+        // D173: the wish list (D136) in the audio room too, over the promo
+        // box; a tap changes it.
+        wish: live && room != null && room.wishGifts.isNotEmpty
+            ? LiveWishCard(
+                wishes: room.wishGifts,
+                onEdit: () => unawaited(_openWishSheet()),
               )
             : null,
         header: LiveAudioRoomHeader(
@@ -1223,75 +1307,23 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               ),
           ],
         ),
-        stage: AudioSeatRing(
-          count: seatCount!,
-          seats: liveSeats?.seats ?? const [],
-          // D111: CP partners on adjacent seats are drawn joined.
-          cpPairs: room == null
-              ? const []
-              : cpSeatPairs(liveSeats, hostId: room.host.id),
-          host: KAvatar(
-            name: hostName,
-            imageUrl: user?.avatarUrl,
-            size: AudioSeatRing.picture,
-          ),
-          hostName: hostName,
-          hostMicOn: state.micEnabled,
-          // Owner (2026-10-26): a tap on the host's own picture opens their
-          // card (not a mute); they turn the mic on or off from there.
-          // Before the live starts there is no card: the tap tries the mic.
-          onHost: room == null
-              ? byId['mic']!.onTap
-              : () => unawaited(
-                  _person(
-                    room.id,
-                    room.host.username,
-                    selfMic: (
-                      enabled: state.micEnabled,
-                      set: ({required enabled}) async {
-                        final host = ref.read(liveHostControllerProvider);
-                        if (host.micEnabled != enabled) {
-                          await ref
-                              .read(liveHostControllerProvider.notifier)
-                              .toggleMic();
-                        }
-                      },
-                    ),
-                  ),
-                ),
-          hostTapLabel: room != null
-              ? l10n.liveUserViewProfile
-              : state.micEnabled
-              ? l10n.goLiveMuteMic
-              : l10n.goLiveUnmuteMic,
-          hostPoints: KFormat.compact(score, l10n),
-          speaking: speaking,
-          onSeat: onSeat,
-          // D138: the emojis played on the seats.
-          overlay: room == null
-              ? null
-              : seatEmojiOverlay(ref, room.id, picture: AudioSeatRing.picture),
-        ),
+        stage: ring,
+        // D173: the cinema's seats on the drawn seats.
+        cinemaSeat: cinema ? ring.cinemaTile : null,
+        cinemaSeats: seatCount,
         chat: [?roomChat],
         composer: chatComposer,
         // Ref 83: chat, emoji and the tools menu on one side; seats, PK and
         // the mic on the other.
+        // D173 (owner): the video bar's chat pill with the emoji inside it,
+        // taking the free width (was D94's separate chat and emoji circles).
+        barLead: KViewerChatPill(
+          pillKey: GoLiveScreen.audioChatKey,
+          hint: l10n.goLiveChatPill,
+          onChat: openChat,
+          onEmoji: () => openChat(emoji: true),
+        ),
         barStart: [
-          LiveRoundButton(
-            key: GoLiveScreen.audioChatKey,
-            icon: Icons.chat_bubble_outline_rounded,
-            asset: 'assets/live_bar/chat.png',
-            bare: true,
-            label: l10n.goLiveChatPill,
-            onTap: openChat,
-          ),
-          LiveRoundButton(
-            icon: Icons.emoji_emotions_rounded,
-            asset: 'assets/live_bar/emoji.png',
-            bare: true,
-            label: l10n.livePreviewEmoji,
-            onTap: () => openChat(emoji: true),
-          ),
           LiveRoundButton(
             key: GoLiveScreen.audioMoreKey,
             icon: Icons.menu_rounded,
@@ -1339,7 +1371,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             art: true,
             bare: true,
             label: l10n.liveGames,
-            onTap: () => KSnack.info(context, l10n.liveGamesSoon),
+            // D173: the same games sheet as the viewers' bars.
+            onTap: () => unawaited(showLiveGamesSheet(context)),
           ),
           LiveRoundButton(
             key: GoLiveScreen.audioGiftKey,
@@ -2078,9 +2111,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       ),
       sidePromo: live ? LiveRoomPromoBox(roomId: room.id) : null,
       // D145a: the lucky combo beside the chat, over the quick replies.
-      chatEnd: LuckyComboCluster.shows(ref, room.id)
-          ? LuckyComboCluster(roomId: room.id)
-          : null,
+      chatEnd: _soloChatEnd(room, liveSeats),
       closeButtonKey: GoLiveScreen.closeKey,
       closeLabel: l10n.goLiveEndConfirm,
       onClose: live ? () => unawaited(_confirmEnd()) : null,
@@ -2122,7 +2153,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 requests: liveSeats?.pendingRequests ?? 0,
                 // In a multi-guest live: requests and seats; a solo live has no
                 // seats to join (switching mid-live has no backend yet).
-                onGuests: state.mode.hasSeats
+                // D174: a solo live's guest requests (3 seats) as well.
+                onGuests: state.mode.hasGuestSeats
                     ? () => unawaited(
                         _openViewers(room.id, liveSeats, guests: true),
                       )
@@ -2132,6 +2164,32 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               ),
             ],
           ),
+    );
+  }
+
+  /// D174: a solo live's guests as tiles at the end over the chat (a tap:
+  /// their card, with remove and mute), then the lucky combo (D145a).
+  Widget? _soloChatEnd(LiveRoom room, LiveSeats? liveSeats) {
+    final combo = LuckyComboCluster.shows(ref, room.id)
+        ? LuckyComboCluster(roomId: room.id)
+        : null;
+    final guests = room.mode == LiveRoomMode.solo
+        ? (liveSeats?.seats ?? const <LiveSeat>[])
+              .where((s) => s.state == LiveSeatState.taken)
+              .toList()
+        : const <LiveSeat>[];
+    if (guests.isEmpty) return combo;
+    final engine = _host.engine;
+    final tiles = LiveGuestTiles(
+      seats: guests,
+      video: (u) => engine.remoteVideo(u.id),
+      onTap: (u) => unawaited(_person(room.id, u.username)),
+    );
+    if (combo == null) return tiles;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [tiles, const SizedBox(height: 6), combo],
     );
   }
 

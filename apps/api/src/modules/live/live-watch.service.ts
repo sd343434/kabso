@@ -12,6 +12,7 @@ import { USER_SUMMARY_SELECT, userSummary } from '../posts/post-views.js';
 import { trimHygiene } from '../users/text-hygiene.js';
 import { maskBlockedWords } from './live-blocked-words.js';
 import { LiveRoomsService, type UserSummaryDto } from './live-rooms.service.js';
+import { LiveSeatsService } from './live-seats.service.js';
 import { LIVE_MEDIA_PROVIDER, type LiveMediaProvider } from './media/live-media.provider.js';
 import {
   thumbnailOf,
@@ -85,7 +86,18 @@ export class LiveWatchService {
     private readonly clock: Clock,
     @Inject(YOUTUBE_CLIENT) private readonly youtube: YoutubeClient,
     @Inject(LIVE_MEDIA_PROVIDER) private readonly media: LiveMediaProvider,
+    private readonly seats: LiveSeatsService,
   ) {}
+
+  /**
+   * v1.39-live (D173): an AUDIO room is a cinema while it watches — at most 10 seats; people on
+   * seats 10+ move down or leave the seat when it starts; the room's own count returns when it stops.
+   */
+  private async cinema(room: { id: string; mode: string }, watching: boolean): Promise<void> {
+    if (room.mode !== 'AUDIO') return;
+    if (watching) await this.seats.enterCinema(room.id);
+    else await this.seats.leaveCinema(room.id);
+  }
 
   private watchDto(
     roomId: string,
@@ -198,6 +210,7 @@ export class LiveWatchService {
         update: data,
       });
     }
+    await this.cinema(room, row !== null);
     const watch = this.watchDto(room.id, row);
     await this.broadcast(room.id, { type: 'watch', watch });
     return watch;
@@ -319,6 +332,7 @@ export class LiveWatchService {
       create: { roomId: room.id, ...data },
       update: data,
     });
+    await this.cinema(room, true);
     const watch = this.watchDto(room.id, row);
     await this.broadcast(room.id, { type: 'watch', watch });
     return watch;

@@ -19,6 +19,7 @@ import 'package:kabso_live/features/levels/domain/level_models.dart';
 import 'package:kabso_live/features/levels/presentation/level_badge.dart';
 import 'package:kabso_live/features/live/application/live_chat_controller.dart';
 import 'package:kabso_live/features/live/application/live_gift_effects.dart';
+import 'package:kabso_live/features/live/application/live_gift_ticker.dart';
 import 'package:kabso_live/features/live/application/live_host_controller.dart'
     show liveViewersPreviewProvider;
 import 'package:kabso_live/features/live/application/live_lucky_ticker.dart';
@@ -33,22 +34,29 @@ import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_permissions.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
+import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_boost_sheet.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_cinema.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_cp_seats.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_newcomers_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_room_tools.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_score_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_emoji.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_watch_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/live_permission_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_background_texts.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_cp_entrance.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_games_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_effects_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_guest_tiles.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_lucky_combo_button.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_boxes.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
@@ -65,6 +73,7 @@ import 'package:kabso_live/features/medals/presentation/medal_showcase_row.dart'
 import 'package:kabso_live/features/profile/application/public_profile_controller.dart';
 import 'package:kabso_live/features/profile/profile_bonds.dart';
 import 'package:kabso_live/features/profile_card/kabso_profile_header.dart';
+import 'package:kabso_live/features/safety/safety_actions.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -101,6 +110,19 @@ class LiveRoomScreen extends ConsumerWidget {
 
   /// D154c: a moderator's Newcomers button.
   static const newcomersKey = Key('room.newcomers');
+
+  /// D173: ≡, the room menu of everyone (viewer and moderator items).
+  static const menuKey = Key('room.menu');
+
+  /// D173: the video bar's games (joystick) and guest (∞) buttons, and the
+  /// cherry chip beside the board chip.
+  static const gamesKey = Key('room.games');
+  static const guestKey = Key('room.guest');
+
+  /// D174: ∞ while the request waits (cancel) and while seated (leave).
+  static const guestCancelKey = Key('room.guest.cancel');
+  static const guestLeaveKey = Key('room.guest.leave');
+  static const scoreChipKey = Key('room.scoreChip');
 
   /// v1.20-live (D105): this person was kicked out of the live.
   static const kickedKey = Key('room.kicked');
@@ -344,6 +366,10 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       // D148: big lucky wins in other lives (the gold ticker).
       ref
           .read(liveLuckyTickersProvider(room.id).notifier)
+          .attach(_session.engine);
+      // D178: the global gift strip.
+      ref
+          .read(liveGiftTickersProvider(room.id).notifier)
           .attach(_session.engine);
       // D154: the room's quips (one at a time, after their delay).
       ref.read(liveQuipsProvider(room.id).notifier).attach(_session.engine);
@@ -646,7 +672,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     final ok = await ensureSeatCapturePermission(
       context,
       ref.read(livePermissionsProvider),
-      camera: _room.mode == LiveRoomMode.multi,
+      // D174: a SOLO live's guests are on camera too.
+      camera: _room.mode != LiveRoomMode.audio,
     );
     if (!ok && mounted) {
       KSnack.info(context, context.l10n.livePermissionSeatRefused);
@@ -720,6 +747,19 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       if (invite != null && invite.id != _inviteShown) {
         _inviteShown = invite.id;
         unawaited(_showInvite(invite));
+      }
+      // D173: the room became a cinema of 10 seats and this person sat
+      // beyond them: the server moved them down or off the seat.
+      final had = previous?.mine?.seatIndex;
+      if (had != null &&
+          had >= LiveCinema.seatCount &&
+          next.mine?.seatIndex != had &&
+          ref.read(liveWatchProvider(room.id)).watch?.video != null) {
+        final moved = next.mine?.seatIndex;
+        KSnack.info(
+          context,
+          moved == null ? l10n.liveCinemaOffSeat : l10n.liveCinemaMoved(moved),
+        );
       }
       final mySeat = next.mine?.seatIndex;
       final muted =
@@ -898,7 +938,20 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       // Presence does not exist yet: a count only when the API has one.
       viewers: ended ? null : _viewers(session, video: true),
       onClose: () => unawaited(_leave()),
-      roomInfo: ended ? null : KRoomChipsRow(level: room.roomLevel),
+      roomInfo: ended
+          ? null
+          : KRoomChipsRow(
+              level: room.roomLevel,
+              // D173: the cherry chip of the audio room (the live's points;
+              // shown from the first point, as there).
+              score: score > 0
+                  ? LiveScoreChip(
+                      key: LiveRoomScreen.scoreChipKey,
+                      text: KFormat.compact(score, l10n),
+                      label: l10n.liveScore(score, KFormat.grouped(score)),
+                    )
+                  : null,
+            ),
       // D136: the host's wish list (a row opens the gift panel with that
       // gift and the host); D137: the promo box.
       sideStart: ended
@@ -909,11 +962,13 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                   ? null
                   : (w) => unawaited(_openGifts(preselectGift: w.giftCode)),
             ),
-      sidePromo: ended || me == null ? null : LiveRoomPromoBox(roomId: room.id),
+      // D173 (owner: «يجب أن يظهر عند الجميع»): every viewer, signed in or
+      // not (guests read the ROOM banners too, v1.39-live).
+      sidePromo: ended ? null : LiveRoomPromoBox(roomId: room.id),
       // D145a: the lucky combo beside the chat, over the quick replies.
-      chatEnd: !ended && LuckyComboCluster.shows(ref, room.id)
-          ? LuckyComboCluster(roomId: room.id)
-          : null,
+      // D174: a solo live's guests stacked at the end over the chat; D145a:
+      // the lucky combo under them.
+      chatEnd: ended ? null : _chatEnd(session, engine, room),
       chat: ended
           ? null
           : Align(
@@ -974,16 +1029,31 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                       onEmoji: () =>
                           unawaited(_openChat(composer, emoji: true)),
                       actions: [
-                        // D154c: a moderator's Newcomers list.
-                        if (session.canModerate)
-                          KViewerBarButton(
-                            key: LiveRoomScreen.newcomersKey,
-                            icon: Icons.fiber_new_outlined,
-                            label: l10n.liveToolNewcomers,
-                            onTap: () => unawaited(
-                              showLiveNewcomers(context, roomId: room.id),
-                            ),
-                          ),
+                        // D173 (owner): ≡ for everyone; a moderator's
+                        // Newcomers (D154c) moved into it.
+                        KViewerBarButton(
+                          key: LiveRoomScreen.menuKey,
+                          asset: 'assets/live_bar/menu.png',
+                          label: l10n.liveViewerMenu,
+                          onTap: () => _openMenu(session),
+                        ),
+                        // D173 (owner: «لا يوجد زر طلب جست»): ∞ — joining
+                        // as a guest. A multi-guest live asks for a seat
+                        // with the seat bar above (CP-011); a solo live has
+                        // no guest seats (the API refuses), so ∞ says so.
+                        // D174 (owner «نعم بالطبع»): in a solo live ∞
+                        // asks to join as a guest (3 at most), then shows
+                        // the request (tap: cancel) or the seat (tap: leave).
+                        if (me != null && room.mode == LiveRoomMode.solo)
+                          _soloGuestButton(session),
+                        // D173: games (none yet: the sheet says so).
+                        KViewerBarButton(
+                          key: LiveRoomScreen.gamesKey,
+                          asset: LiveGamesSheet.art,
+                          art: true,
+                          label: l10n.liveGames,
+                          onTap: () => unawaited(showLiveGamesSheet(context)),
+                        ),
                         KViewerBarButton(
                           key: LiveRoomScreen.giftKey,
                           // D135: the owner's colourful gift box.
@@ -1065,6 +1135,9 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         );
       }
     }
+    // D173: YouTube together turns the room into the owner's cinema.
+    final cinema = LiveWatchScreen.shows(ref, room.id);
+    final stage = _stage(session, engine);
     return KLiveSurface(
       child: Material(
         color: KPalette.dark.background,
@@ -1087,15 +1160,46 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                     ? LuckyComboCluster(roomId: room.id)
                     : null,
                 // D141a (owner): the promo box over the gift button.
+                // D173: for everyone in the room, signed in or not.
                 promo:
-                    signedIn &&
-                        room.status != LiveRoomStatus.ended &&
+                    room.status != LiveRoomStatus.ended &&
                         LiveRoomPromoBox.shows(ref, room.id)
                     ? LiveRoomPromoBox(
                         roomId: room.id,
                         boxWidth: LiveRoomPromoBox.audioWidth,
                       )
                     : null,
+                // D173: YouTube together turns the room into a cinema —
+                // the player on top, the seats under it.
+                screen: cinema
+                    ? LiveWatchScreen(
+                        roomId: room.id,
+                        host: false,
+                        part: LiveWatchPart.player,
+                      )
+                    : null,
+                screenBar: cinema
+                    ? LiveWatchScreen(
+                        roomId: room.id,
+                        host: false,
+                        part: LiveWatchPart.bar,
+                      )
+                    : null,
+                cinemaSeat: cinema && stage is AudioSeatRing
+                    ? stage.cinemaTile
+                    : null,
+                cinemaSeats: room.seatCount ?? 0,
+                // D173: the host's wish list (D136), over the promo box.
+                wish: room.wishGifts.isEmpty
+                    ? null
+                    : LiveWishCard(
+                        wishes: room.wishGifts,
+                        onWish: signedIn
+                            ? (w) => unawaited(
+                                _openGifts(preselectGift: w.giftCode),
+                              )
+                            : null,
+                      ),
                 header: LiveAudioRoomHeader(
                   cover: KAvatar(
                     name: host.displayName,
@@ -1167,26 +1271,31 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                     ?_viewers(session),
                   ],
                 ),
-                stage: _stage(session, engine),
+                stage: stage,
                 chat: [_roomChat(session)],
                 composer: _chatComposer(composer),
                 // Ref 83/147: chat and emoji on one side; the seat, requests,
                 // gifts and the mic on the other.
+                // D173 (owner: «لماذا لا تجعل الشريط الذي في الأسفل، زر
+                // الرسائل في الغرف الصوتية، مثله»): the video bar's chat pill
+                // with the emoji inside it, taking the free width (was D94's
+                // separate chat and emoji circles).
+                barLead: KViewerChatPill(
+                  pillKey: AudioRoomViewKeys.chat,
+                  hint: composer.canWrite ? l10n.liveChatSayHi : composer.hint,
+                  onChat: () => unawaited(_openChat(composer)),
+                  onEmoji: () => unawaited(_openChat(composer, emoji: true)),
+                ),
                 barStart: [
+                  // D173 (owner): ≡ for everyone (a viewer's own menu;
+                  // a moderator's Newcomers moved into it).
                   LiveRoundButton(
-                    key: AudioRoomViewKeys.chat,
-                    icon: Icons.chat_bubble_outline_rounded,
-                    asset: 'assets/live_bar/chat.png',
+                    key: AudioRoomViewKeys.menu,
+                    icon: Icons.menu_rounded,
+                    asset: 'assets/live_bar/menu.png',
                     bare: true,
-                    label: composer.hint,
-                    onTap: () => unawaited(_openChat(composer)),
-                  ),
-                  LiveRoundButton(
-                    icon: Icons.emoji_emotions_rounded,
-                    asset: 'assets/live_bar/emoji.png',
-                    bare: true,
-                    label: l10n.livePreviewEmoji,
-                    onTap: () => unawaited(_openChat(composer, emoji: true)),
+                    label: l10n.liveViewerMenu,
+                    onTap: () => _openMenu(session),
                   ),
                   // D138: someone seated plays an emoji on their seat.
                   if (mine?.seatIndex case final seat?)
@@ -1207,17 +1316,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                 ],
                 barEnd: [
                   ?seatButton,
-                  // D154c: a moderator's Newcomers list.
-                  if (session.canModerate)
-                    LiveRoundButton(
-                      key: LiveRoomScreen.newcomersKey,
-                      icon: Icons.fiber_new_outlined,
-                      bare: true,
-                      label: l10n.liveToolNewcomers,
-                      onTap: () => unawaited(
-                        showLiveNewcomers(context, roomId: room.id),
-                      ),
-                    ),
+
                   if (session.canModerate)
                     LiveRoundButton(
                       key: AudioRoomViewKeys.requests,
@@ -1234,6 +1333,17 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                         ),
                       ),
                     ),
+                  // D173: games (none yet: the sheet says so), with the
+                  // owner's controller art as on the host's bar.
+                  LiveRoundButton(
+                    key: AudioRoomViewKeys.games,
+                    icon: Icons.sports_esports_rounded,
+                    asset: LiveGamesSheet.art,
+                    art: true,
+                    bare: true,
+                    label: l10n.liveGames,
+                    onTap: () => unawaited(showLiveGamesSheet(context)),
+                  ),
                   LiveRoundButton(
                     key: AudioRoomViewKeys.gift,
                     icon: Icons.card_giftcard_rounded,
@@ -1250,6 +1360,226 @@ class _RoomViewState extends ConsumerState<_RoomView> {
           ),
         ),
       ),
+    );
+  }
+
+  /// D173 (owner: «ضع زر الثلاث شخطات عند الجميع، لكن إعدادات المضيف تختلف
+  /// عن إعدادات المشاهد»): the ≡ menu of everyone in the room — the host has
+  /// the Room Tools on their own screen; here viewers, seated guests and
+  /// moderators get only what already works for them, and the features
+  /// not built yet greyed «قريباً» (no toggle that does nothing).
+  /// Moderators also get their tools (Newcomers; seat requests in a room
+  /// with seats).
+  void _openMenu(LiveRoomSessionState session) {
+    final l10n = context.l10n;
+    final room = _room;
+    final host = room.host;
+    final me = ref.read(currentUserProvider);
+    final profile = ref.read(publicProfileProvider(_username)).value;
+    final watch = ref.read(liveWatchProvider(room.id));
+    final viewer = <GoLiveTool>[
+      GoLiveTool(
+        id: 'share',
+        icon: Icons.share_rounded,
+        label: l10n.goLiveShare,
+        onTap: () => unawaited(
+          _share(
+            room.title,
+            KHandle.plain(host.username, premiumTier: host.premiumTier),
+          ),
+        ),
+      ),
+      if (profile != null && profile.canFollow && !profile.isFollowing)
+        GoLiveTool(
+          id: 'follow',
+          icon: Icons.person_add_alt_1_rounded,
+          label: l10n.liveFollow,
+          onTap: () => unawaited(_setFollowing(follow: true)),
+        ),
+      GoLiveTool(
+        id: 'viewers',
+        icon: Icons.groups_rounded,
+        label: l10n.liveToolViewers,
+        onTap: () => unawaited(
+          showLiveViewers(
+            context,
+            roomId: room.id,
+            moderators: session.seats?.moderators ?? const [],
+            seated: session.seats?.seats ?? const [],
+            onPerson: (u) => _person(u.username),
+          ),
+        ),
+      ),
+      GoLiveTool(
+        id: 'contributions',
+        icon: Icons.emoji_events_rounded,
+        label: l10n.liveToolContributions,
+        onTap: () => unawaited(showLiveScoreSheet(context, room.id)),
+      ),
+      GoLiveTool(
+        id: 'rankings',
+        icon: Icons.bar_chart_rounded,
+        label: l10n.liveRankChip,
+        onTap: () => unawaited(showLiveRankings(context)),
+      ),
+      GoLiveTool(
+        id: 'games',
+        icon: Icons.sports_esports_rounded,
+        label: l10n.liveGames,
+        onTap: () => unawaited(showLiveGamesSheet(context)),
+      ),
+      if (me != null && room.status == LiveRoomStatus.live)
+        GoLiveTool(
+          id: 'suggestVideo',
+          icon: Icons.add_link_rounded,
+          label: l10n.liveWatchSuggest,
+          onTap: () =>
+              unawaited(showLiveWatchSuggestSheet(context, roomId: room.id)),
+        ),
+      if (watch.watch?.video != null)
+        GoLiveTool(
+          id: 'video',
+          icon: Icons.smart_display_rounded,
+          label: watch.hidden ? l10n.liveWatchShow : l10n.liveWatchHide,
+          onTap: () =>
+              ref.read(liveWatchProvider(room.id).notifier).toggleHidden(),
+        ),
+      if (session.seated)
+        GoLiveTool(
+          id: 'leaveSeat',
+          icon: Icons.logout_rounded,
+          label: l10n.liveSeatLeave,
+          onTap: () => unawaited(runSeatAction(context, _session.leaveSeat)),
+        ),
+      if (me != null && me.id != host.id)
+        GoLiveTool(
+          id: 'report',
+          icon: Icons.flag_outlined,
+          label: l10n.liveToolReportHost,
+          onTap: () => unawaited(reportUser(context, ref, userId: host.id)),
+        ),
+      // Not built for viewers yet: shown, greyed «قريباً».
+      GoLiveTool.soon(
+        id: 'minimize',
+        icon: Icons.picture_in_picture_alt_rounded,
+        label: l10n.goLiveMinimize,
+      ),
+      GoLiveTool.soon(
+        id: 'giftSounds',
+        icon: Icons.volume_off_rounded,
+        label: l10n.liveToolGiftSounds,
+      ),
+      GoLiveTool.soon(
+        id: 'giftEffects',
+        icon: Icons.auto_awesome_rounded,
+        label: l10n.liveToolGiftEffects,
+      ),
+      GoLiveTool.soon(
+        id: 'clearScreen',
+        icon: Icons.fullscreen_rounded,
+        label: l10n.liveToolClearScreen,
+      ),
+    ];
+    final moderator = <GoLiveTool>[
+      if (session.canModerate) ...[
+        GoLiveTool(
+          id: 'newcomers',
+          icon: Icons.fiber_new_outlined,
+          label: l10n.liveToolNewcomers,
+          onTap: () => unawaited(showLiveNewcomers(context, roomId: room.id)),
+        ),
+        if (room.mode.hasGuestSeats)
+          GoLiveTool(
+            id: 'seatRequests',
+            icon: Icons.front_hand_rounded,
+            label: l10n.liveToolSeatRequests,
+            badge: (session.seats?.pendingRequests ?? 0) > 0,
+            onTap: () => unawaited(
+              showSeatRequests(
+                context,
+                roomId: room.id,
+                onAccept: _session.accept,
+                onDecline: _session.decline,
+              ),
+            ),
+          ),
+      ],
+    ];
+    unawaited(
+      showLiveRoomTools(
+        context,
+        room: viewer,
+        other: moderator,
+        roomTitle: l10n.liveViewerMenu,
+        otherTitle: l10n.liveToolsModerator,
+      ),
+    );
+  }
+
+  /// D174: the end of the chat row — a solo live's guest tiles, then the
+  /// lucky combo (D145a); null when neither shows.
+  Widget? _chatEnd(
+    LiveRoomSessionState session,
+    LiveMediaEngine engine,
+    LiveRoom room,
+  ) {
+    final combo = LuckyComboCluster.shows(ref, room.id)
+        ? LuckyComboCluster(roomId: room.id)
+        : null;
+    final guests = room.mode == LiveRoomMode.solo
+        ? (session.seats?.seats ?? const <LiveSeat>[])
+              .where((s) => s.state == LiveSeatState.taken)
+              .toList()
+        : const <LiveSeat>[];
+    if (guests.isEmpty) return combo;
+    final me = ref.read(currentUserProvider)?.id;
+    final tiles = LiveGuestTiles(
+      seats: guests,
+      video: (u) => u.id == me ? engine.preview() : engine.remoteVideo(u.id),
+      onTap: (u) => _person(u.username),
+    );
+    if (combo == null) return tiles;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [tiles, const SizedBox(height: 6), combo],
+    );
+  }
+
+  /// D174: ∞ in a solo live — ask to join as a guest, the pending request
+  /// (tap: cancel) or the seat (tap: leave). The 3 guest seats full: it
+  /// says so instead of asking.
+  Widget _soloGuestButton(LiveRoomSessionState session) {
+    final l10n = context.l10n;
+    final mine = session.mine;
+    if (session.seated) {
+      return KViewerBarButton(
+        key: LiveRoomScreen.guestLeaveKey,
+        icon: Icons.logout_rounded,
+        label: l10n.liveSeatLeave,
+        onTap: () => unawaited(runSeatAction(context, _session.leaveSeat)),
+      );
+    }
+    if (mine?.request != null) {
+      return KViewerBarButton(
+        key: LiveRoomScreen.guestCancelKey,
+        icon: Icons.hourglass_top_rounded,
+        label: l10n.liveSeatRequested,
+        onTap: () => unawaited(runSeatAction(context, _session.cancelRequest)),
+      );
+    }
+    final seats = session.seats?.seats;
+    final full =
+        seats != null &&
+        seats.isNotEmpty &&
+        seats.every((s) => s.state != LiveSeatState.empty);
+    return KViewerBarButton(
+      key: LiveRoomScreen.guestKey,
+      icon: Icons.all_inclusive_rounded,
+      label: l10n.liveGuestJoin,
+      onTap: full
+          ? () => KSnack.info(context, l10n.liveGuestsFull)
+          : () => unawaited(_requestSeat()),
     );
   }
 
@@ -1359,6 +1689,9 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     // The room's stage scrolls; seats keep one size in every room (D123).
     return AudioSeatRing(
       count: count,
+      // D173: the cinema rows under the YouTube screen (big rooms).
+      // D173: no points pills on the cinema's seats.
+      compact: LiveWatchScreen.shows(ref, room.id),
       seats: seats?.seats ?? const [],
       // D111: CP partners on adjacent seats are drawn joined.
       cpPairs: cpSeatPairs(seats, hostId: host.id),
@@ -2411,6 +2744,12 @@ abstract final class AudioRoomViewKeys {
   static const leave = Key('audioRoom.seat.leave');
   static const requests = Key('audioRoom.requests');
   static const gift = Key('audioRoom.gift');
+
+  /// D173: games (the joystick).
+  static const games = Key('audioRoom.games');
+
+  /// D173: ≡, the room menu (viewer and moderator items).
+  static const menu = Key('audioRoom.menu');
   static const mic = Key('audioRoom.mic');
 
   /// D138: an emoji on my own seat (seated only).

@@ -65,6 +65,10 @@ List<String> _texts(
           failed ? '!$text' : '…$text',
         LiveChatBulletLine(:final bullet) => '*${bullet.text}',
         LiveChatNoticeLine() => '#rules',
+        // D178: gift and lucky-win lines.
+        LiveChatGiftLine(:final gift, :final count) =>
+          '%${gift.giftCode}×$count',
+        LiveChatLuckyLine(:final win) => '\$×${win.multiplier}',
       },
 ];
 

@@ -91,7 +91,7 @@ All non-2xx responses use one envelope:
 | 409 | `LIVE_ROOM_ENDED` | *(v1.3)* Heartbeat for a room that is no longer LIVE (ended by the host, heartbeat timeout, suspension or admin). The host client stops heartbeats and shows the ended state. |
 | 403 | `LIVE_HOSTING_NOT_ALLOWED` | *(v1.6-live, DRAFT, CP-010)* Go-live refused: the caller does not hold the hosting permission (`Me.canHost`; admin-granted, later through an agency or an identity check). The app explains how to get it. |
 | 403 | `LIVE_GUESTS_NOT_ALLOWED` | *(v1.6-live, DRAFT, CP-010)* A guest (no account) asked to watch a room whose host switched guests off. The app offers to sign in. |
-| 409 | `LIVE_SEAT_UNAVAILABLE` | *(v1.7-live, DRAFT, CP-011)* The seat or seats asked for cannot be used: taken, locked, out of range, none free, a room without seats (SOLO), the user already seated, the host, or (invitation) not watching now; also shrinking `seatCount` below an occupied seat and locking an occupied seat. |
+| 409 | `LIVE_SEAT_UNAVAILABLE` | *(v1.7-live, DRAFT, CP-011)* The seat or seats asked for cannot be used: taken, locked, out of range, none free (a SOLO live with its 3 guests, v1.40-live), a room without seats (PK), the user already seated, the host, or (invitation) not watching now; also shrinking `seatCount` below an occupied seat and locking an occupied seat. |
 | 403 | `LIVE_CHAT_NOT_IN_ROOM` | *(v1.9-live, DRAFT, CP-013)* A chat message from someone who is not in the room now (neither the host nor in the room's media session). The app shows the room again (it rejoins). |
 | 403 | `LIVE_CHAT_MUTED` | *(v1.9-live, DRAFT, CP-013)* The host or a moderator muted the caller in this live's chat. The app disables the composer and says so. |
 | 409 | `LIVE_CHAT_CLOSED` | *(v1.9-live, DRAFT, CP-013)* The host turned the chat off. The app shows "Chat is off". |
@@ -531,6 +531,9 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
 | v1.42-live (draft) | 2026-10-29 | **D170 (owner: «في البث الصوتي أو المرئي» a live goes on in the background; a video host away 5 minutes closes the live):** `setLiveHostPresence` (`POST /live/rooms/{roomId}/host-presence` `{away: boolean}`, 204, host only; rate limit `live:host-presence`, the heartbeat rule); `LiveRoomEndReason.HOST_AWAY_TIMEOUT`; `live_rooms.host_away_since` (migrations `20261215090000_live_host_away_enums`, `20261215090100_live_host_away`); `LIVE_HOST_AWAY_TIMEOUT_SECONDS` (default 300, 30–86400), enforced by the live sweeper. §10.44. (Numbered v1.42-live at integration: D178 took v1.41-live.) | Additive; older apps show `HOST_AWAY_TIMEOUT` as a generic «انتهى البث». |
+| v1.41-live (draft) | 2026-10-30 | **D178 (owner: «عندما يلعب أحد هدايا الحظ لا يظهر المكسب في التكست، والشرائط يجب أن تكون ظاهرة عند الجميع حتى الصغيرة. والهدايا يجب أن تظهر في شريط في جميع البثوث»):** (1) every lucky win (`coinsWon > 0`) sends its room `lucky-win` on topic `lucky` (was only ≥ `LUCKY_GIFT_BIG_WIN_MULTIPLIER`, which now only decides the global `lucky-ticker`); (2) new data message **`gift-ticker`** on topic `gift`: `{"type":"gift-ticker","gift":LiveGift,"room":{"id","title","host":UserSummary}}` to every **other** LIVE room (≤ 5 000, newest first) for a send of at least `GIFT_GLOBAL_TICKER_MIN_COINS` coins (server config, default 1 000; the owner will set the value) — at most one every **3 s** for the whole service (Redis gate `gift:ticker:gate`), one waiting (`gift:ticker:pending`, ≤ 12 s), a newer send replaces it; quips excluded; its own room keeps the `gift` message. Gift and win chat lines are drawn by the apps from these messages (no stored chat line). §10.23, §10.27. | **Additive** for clients (a new data message type; more `lucky-win` messages of the same shape). |
+| v1.40-live (draft) | 2026-10-30 | **D174 (owner «نعم بالطبع»: viewers join a solo live as guests; PK design: at most 3):** a `SOLO` live has **3 guest seats** (indexes 1–3; `LiveSeats.mode` gains `SOLO`, `seatCount` reads 4, not settable) with the whole CP-011 flow — `requestLiveSeat` / accept / decline, `inviteToLiveSeat`, `leaveLiveSeat`, `muteLiveSeat`, `removeFromLiveSeat`, `lockLiveSeat`, moderators; a seated SOLO guest is a `SPEAKER` publishing camera and microphone (muted: camera). A 4th guest → 409 `LIVE_SEAT_UNAVAILABLE` (no seat free). No migration. §10.9. | **Additive for apps** (a new enum value; SOLO seat calls that were 409 now work). |
+| v1.39-live (draft) | 2026-10-29 | **D173 (owner: the in-room promo banner «يجب أن يظهر عند الجميع»):** `listHomeBanners` with `placement=room` also serves callers without a token (guests watching a live; per-IP guest read limit `liveGuestReadIp`; `title` by `Accept-Language`, else Arabic). `placement=home` without a token stays 401. §10.26. **Cinema (owner: «عندما مشاهدة يوتيوب لا يكون هناك إلا ١٠ كراسي فقط»):** while an AUDIO room watches YouTube together (§10.39) it has 10 seats (host + 1–9): `LiveSeats.cinema` (new, required), seats 10+ listed `LOCKED`, their people moved to the first free seat 1–9 or off the seat, requests / invitations / locks for 10+ → 409 `LIVE_SEAT_UNAVAILABLE`; the room's own count returns when the video stops (nobody moved back). No migration (derived from `live_watch`). §10.9, §10.39. | **Additive** (a refused caller is now served; a new response field older apps ignore — they see seats 10+ as LOCKED). |
 | v1.46-levels (draft) | 2026-10-30 | **D169 (owner: the support level's tier frames):** `BagCategory` gains `AVATAR_FRAME` and `BagItemSource` gains `LEVEL_REWARD`; the bag catalogue gains `support_frame_01` … `support_frame_21` (migrations `20261215090000_support_frames_enums`, `20261215100000_support_frames`). When a user's `SUPPORT` level goes up the server gives, in the same transaction, the frame of every support tier reached so far that they do not own (21 tiers: five levels each, 96–99 = tier 20, level 100 = tier 21, one frame per tier); frames are kept when the level goes down. §10.22. **Levels never go down** (owner): every write keeps the higher of the stored level and the level the points reach; only an admin deduction with `LevelAdjustmentRequest.fraud: true` lowers it (history reason `FRAUD`, `points_ledger.fraud`, migrations `20261215120000_level_fraud_enums`, `20261215130000_level_fraud`) and takes back the support frames of the tiers lost. §10.43. | **Additive** (new enum values, catalogue rows and an optional request field); the never-lower rule changes server behaviour only. Clients already ignore items of unknown categories and show unknown sources as opaque (v1.22-live). |
 | v1.45-social (draft) | 2026-10-29 | **D168 (owner, from the phone: «مدة ريلز لا تتجاوز ٦٠ ثانية، مدة الفيديو لا تتجاوز ٩٠ ثانية» and «فعّل الأزرار المتبقية في تعديل الملف وتغيير الصورة»):** a `POST_VIDEO` is now **1–90 s** (was 1–180 s; reels stay 1–60 s); videos stored before keep their length (`MediaAsset.durationMs` may still be up to 180 000 for them) and an unattached one longer than 90 s can no longer be attached. `updateMe` (`PATCH /me`) also takes `displayName` (the §6 registration rules) and `bio` (≤ 300 code points, ≤ 4 line breaks, free-text hygiene; empty or null clears it). `MediaKind.AVATAR` (processed like `LIVE_COVER`); `setMyAvatar` / `removeMyAvatar` (`PUT` / `DELETE /me/avatar`, `SetAvatarRequest`, `Avatar`). §7 row, §10.42, §11.1, §11.14. | **Tightening** on new uploads (a post video of 90–180 s is refused at `completeMediaUpload` with 422 `MEDIA_INVALID`; apps from v1.41 already explain that code); otherwise **additive** (optional request fields, an enum value, new operations). |
 | v1.44-social (draft) | 2026-10-29 | **D166 (owner: the Me hub's «قريباً» programs, CP-024 approved with defaults):** tag `programs`: `getMyTasks` (`GET /me/tasks`, `MyTasks`, `ProgramTask`, `CheckInDay`), `checkIn` (`POST /me/check-in`, `CheckInResult`; 201 / 200), `claimMyTask` (`POST /me/tasks/{code}/claim`, `TaskClaimResult`; 201 / 200), `getMySvip` (`GET /me/svip`, `SvipStatus`, `SvipPerk`), `listEvents` (`GET /events?tab=&month=`, `EventList`, `EventSummary`), `getEvent` (`GET /events/{eventId}`, `EventDetail`, `EventPrize`), `getEventLeaderboard` (`GET /events/{eventId}/leaderboard`, `EventLeaderboard`); tag `wallet`: `listRechargePackages` (`GET /wallet/recharge-packages`, `RechargePackages`; no purchase, B5); `WalletLedgerReason` gains `TASK_REWARD`, `CHECK_IN_REWARD`, `EVENT_PRIZE`; codes `TASK_NOT_COMPLETED`, `TASK_DAILY_CAP_REACHED` (409); migrations `20261214090000_me_programs_enums`, `20261214100000_me_programs`; CLIs `task-admin`, `event-admin`. §4, §8, §10.41. | **Additive** (new operations, schemas, codes and ledger reasons; clients show an unknown reason as a generic change). |
@@ -948,7 +951,9 @@ until a media provider is wired in.
 
 ### 10.9 Multi-guest and audio rooms *(v1.7-live, DRAFT — CP-011, D94)*
 
-- **Modes:** `SOLO` (§10.8), `MULTI` (video seats) and `AUDIO` (voice seats). `PK` stays
+- **Modes:** `SOLO` (§10.8; *v1.40-live, D174:* 3 guest seats, 1–3, camera and microphone, the
+  same flow as `MULTI`; `seatCount` reads 4 and cannot be changed), `MULTI` (video seats) and
+  `AUDIO` (voice seats). `PK` stays
   reserved (L5). `seatCount` counts the host's tile: `MULTI` 4, 6, 9 or 12 (owner D94); `AUDIO`
   5, 10, 15 or 20 (v1.25.4-live, owner D123: 25 removed — a start or a change to 25 → 400
   `invalid_value`; a room already LIVE with 25 keeps them, seats 1 … 24 working, until it ends, and
@@ -1890,6 +1895,10 @@ Owner decisions (D124, 2026-10-26) are marked *(owner)*; the rest are CTO defaul
   rotates them every 4 s, a tap opens an in-app link (an https link is not tappable yet), and "–"
   hides the box for the rest of that live on that device. Migration
   `20261129090000_live_wish_gifts_room_banners` (`placement`, CHECK `home_banners_placement_values`).
+- *(v1.39-live, DRAFT — D173)* **Everyone in the room** *(owner)*: `GET /home/banners?placement=room`
+  is also open to a caller without a token (a guest watching a live; per IP, the live guest read
+  limit; `title` by `Accept-Language`, else Arabic); `placement=home` stays signed-in only (401). The
+  app shows the box to every viewer (signed in or not), the host and seated guests, video and audio.
 
 ### 10.27 Lucky gifts *(v1.27-live, DRAFT — D132; v1.31-live, D148)*
 
@@ -2033,6 +2042,10 @@ change in the server configuration (no app update). Odds, the age gate and the r
   guaranteed}` (*v1.31-live, D148:* `guaranteed` true when a draw was paid by the guarantee — the
   app plays the normal ×5 celebration with a small «ضمان» / "Guaranteed" label); `coins` is the
   balance after the charge **and** the wins. Absent for every other gift.
+- *(v1.41-live, DRAFT — D178, owner: «لا يظهر المكسب في التكست … حتى الصغيرة»)* **Every win** (a send
+  whose `coinsWon > 0`, ×5 and up) now sends its room the `lucky-win` message below (was only from
+  `LUCKY_GIFT_BIG_WIN_MULTIPLIER`), so everyone in the room sees the win's banner and chat line, not
+  only the sender. `LUCKY_GIFT_BIG_WIN_MULTIPLIER` now only decides the global `lucky-ticker`.
 - **Big wins:** when `topMultiplier ≥ LUCKY_GIFT_BIG_WIN_MULTIPLIER` (default 100) the server also
   sends the room a reliable data message on topic **`lucky`** after the response (best effort):
 
@@ -2503,6 +2516,18 @@ Owner decisions (2026-10-28, D154 item 9) are marked *(owner)*.
   secret, never in the app or in git.
 - **Not in v1.38-live:** a queue of several videos, viewers' own controls, YouTube Shorts' vertical
   layout.
+- *(v1.39-live, DRAFT — D173)* **Cinema in audio rooms** *(owner: «عندما مشاهدة يوتيوب لا يكون هناك
+  إلا ١٠ كراسي فقط»)*: while an AUDIO room has a video (`live_watch` row) it is a cinema of
+  **10 seats** — the host's (0) and seats 1–9, the 10 seats drawn in the owner's cinema picture.
+  `LiveSeats.cinema` is true; seats 10+ are listed `LOCKED`. When the video starts (`setLiveWatch` or
+  an approved suggestion), in one seat transaction: everyone on seat 10+ moves to the first free seat
+  1–9 in seat order (mic mute kept) or, with none free, leaves the seat (publish permission withdrawn;
+  the app tells them why); pending requests and invitations for seats 10+ expire; locked seats 10+
+  are dropped. While it lasts, a request, invitation or lock for seat 10+ → 409
+  `LIVE_SEAT_UNAVAILABLE` (without a seat number the first free seat 1–9 is used). When the video
+  stops the room's own `seatCount` is usable again; nobody is moved back. Both moves raise the seat
+  version (§10.9). Rooms of 10 seats or fewer change nothing. MULTI rooms are never a cinema (their
+  video floats in a window, D160).
 
 ### 10.40 The Me hub's wallet, earnings and creator center *(v1.43-social, DRAFT — D164)*
 

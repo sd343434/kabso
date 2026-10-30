@@ -12,13 +12,20 @@ Future<void> showLiveRoomTools(
   BuildContext context, {
   required List<GoLiveTool> room,
   required List<GoLiveTool> other,
+  String? roomTitle,
+  String? otherTitle,
 }) => showModalBottomSheet<void>(
   context: context,
   isScrollControlled: true,
   backgroundColor: const Color(0x00000000),
   // The reference leaves the room undimmed behind the sheet.
   barrierColor: const Color(0x00000000),
-  builder: (sheet) => _ToolsSheet(room: room, other: other),
+  builder: (sheet) => _ToolsSheet(
+    room: room,
+    other: other,
+    roomTitle: roomTitle,
+    otherTitle: otherTitle,
+  ),
 );
 
 /// D131: one titled grid of tools in the same white sheet (the host's
@@ -37,13 +44,21 @@ Future<void> showLiveToolGrid(
 );
 
 class _ToolsSheet extends StatelessWidget {
-  const new({required this.room, required this.other, this.roomTitle});
+  const new({
+    required this.room,
+    required this.other,
+    this.roomTitle,
+    this.otherTitle,
+  });
 
   final List<GoLiveTool> room;
   final List<GoLiveTool> other;
 
   /// The first section's title (default "Room tools").
   final String? roomTitle;
+
+  /// D173: the second section's title (default "Other tools").
+  final String? otherTitle;
 
   static const ink = Color(0xFF1C1B2E);
 
@@ -98,7 +113,11 @@ class _ToolsSheet extends StatelessWidget {
               if (room.isNotEmpty)
                 section(roomTitle ?? l10n.liveToolsRoom, room),
               if (other.isNotEmpty)
-                section(l10n.liveToolsOther, other, first: room.isEmpty),
+                section(
+                  otherTitle ?? l10n.liveToolsOther,
+                  other,
+                  first: room.isEmpty,
+                ),
             ],
           ),
         ),
@@ -208,7 +227,9 @@ class _ToolTile extends StatelessWidget {
               if (!tool.label.contains(' '))
                 FittedBox(fit: BoxFit.scaleDown, child: _label(context))
               else
-                _label(context),
+                // D173: a large text scale on a narrow phone never overflows
+                // the tile (the second line is cut at the tile's edge).
+                Flexible(child: _label(context)),
             ],
           ),
         ),

@@ -173,6 +173,8 @@ sealed class LiveChatEvent {
         ),
         // v1.30-live (D148): a big win in another live («لحظة الحظ»).
         'lucky-ticker' => LuckyTickerReceived(LuckyTicker.fromJson(json)),
+        // v1.41-live (D178): a big gift in another live (the global strip).
+        'gift-ticker' => GiftTickerReceived(GiftTicker.fromJson(json)),
         // v1.27.5-live (D138): an emoji on someone's own seat.
         'seat-emoji' => LiveSeatEmojiReceived(LiveSeatEmoji.fromJson(json)),
         // v1.32-live (D154): a quip (or soundboard sound) for the room.
@@ -336,6 +338,14 @@ final class LiveWatchSuggested extends LiveChatEvent {
   const new(this.suggestion);
 
   final LiveWatchSuggestion suggestion;
+}
+
+/// v1.41-live (D178): a big gift in another live (topic `gift`,
+/// `gift-ticker`), shown as the global gift strip.
+final class GiftTickerReceived extends LiveChatEvent {
+  const new(this.ticker);
+
+  final GiftTicker ticker;
 }
 
 final class LuckyTickerReceived extends LiveChatEvent {

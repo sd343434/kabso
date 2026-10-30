@@ -6373,6 +6373,78 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveGamesSoon => 'الألعاب قريباً';
 
   @override
+  String get liveGamesSoonBody =>
+      'نعمل على إضافة ألعاب تلعبها داخل البث، وهي غير متاحة بعد.';
+
+  @override
+  String liveChatGiftLine(
+    String sender,
+    String gift,
+    int count,
+    String recipient,
+  ) {
+    return '$sender أرسل $gift ×$count إلى $recipient';
+  }
+
+  @override
+  String liveChatGiftRecipients(String name, int more) {
+    return '$name و$more آخرين';
+  }
+
+  @override
+  String liveChatLuckyLine(String sender, String multiplier, String coins) {
+    return '$sender ربح ×$multiplier = $coins عملة من هدية الحظ';
+  }
+
+  @override
+  String liveGiftTicker(String sender, String gift, int count, String room) {
+    return '$sender أرسل $gift ×$count في غرفة $room';
+  }
+
+  @override
+  String get liveViewerMenu => 'المزيد';
+
+  @override
+  String get liveToolsModerator => 'أدوات المشرف';
+
+  @override
+  String get liveToolReportHost => 'الإبلاغ عن المضيف';
+
+  @override
+  String get liveToolViewers => 'المشاهدون';
+
+  @override
+  String get liveToolContributions => 'المساهمات';
+
+  @override
+  String get liveToolGiftSounds => 'أصوات الهدايا';
+
+  @override
+  String get liveToolGiftEffects => 'مؤثرات الهدايا';
+
+  @override
+  String get liveToolClearScreen => 'شاشة نظيفة';
+
+  @override
+  String get liveToolSeatRequests => 'طلبات المقاعد';
+
+  @override
+  String liveCinemaMoved(int seat) {
+    return 'وضع السينما يتسع لـ 10 مقاعد: تم نقلك إلى المقعد $seat.';
+  }
+
+  @override
+  String get liveCinemaOffSeat =>
+      'تم إنزالك من المقعد لأن وضع السينما يتسع لـ 10 مقاعد فقط.';
+
+  @override
+  String get liveGuestJoin => 'انضم كضيف';
+
+  @override
+  String get liveGuestsFull =>
+      'مقاعد الضيوف الثلاثة في هذا البث ممتلئة. حاول مجدداً عندما يفرغ مقعد.';
+
+  @override
   String get liveStatsCherries => 'كرز هذا البث';
 
   @override

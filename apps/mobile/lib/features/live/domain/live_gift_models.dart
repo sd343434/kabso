@@ -411,3 +411,20 @@ abstract class LuckyWin with _$LuckyWin {
 
   factory fromJson(Map<String, dynamic> json) => _$LuckyWinFromJson(json);
 }
+
+/// The `gift-ticker` data message (topic `gift`, v1.41-live, D178): a send
+/// of at least the server's `GIFT_GLOBAL_TICKER_MIN_COINS` in another live,
+/// shown as the global gift strip; a tap opens [room].
+@immutable
+class GiftTicker {
+  const new({required this.gift, required this.room});
+
+  /// Throws a `TypeError` when the message does not match the contract.
+  factory fromJson(Map<String, dynamic> json) => GiftTicker(
+    gift: LiveGift.fromJson(json['gift']! as Map<String, dynamic>),
+    room: LuckyTickerRoom.fromJson(json['room']! as Map<String, dynamic>),
+  );
+
+  final LiveGift gift;
+  final LuckyTickerRoom room;
+}

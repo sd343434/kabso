@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show NotifierProviderFamily;
+import 'package:kabso_live/features/live/application/live_chat_controller.dart';
 import 'package:kabso_live/features/live/application/live_gift_providers.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
@@ -41,9 +42,9 @@ class LiveGiftEffects extends Notifier<LiveGiftEffectsState> {
   /// Banners on screen at once; more wait in turn (D145: 3, was 2).
   static const maxBanners = 3;
 
-  /// A banner stays this long after the last send of its streak (D145c,
-  /// owner: 4 s; was 3).
-  static const bannerTime = Duration(seconds: 4);
+  /// A banner stays this long after the last send of its streak (D178,
+  /// owner: 3 s each; D145c had 4).
+  static const bannerTime = Duration(seconds: 3);
 
   /// How long the effect may stay without saying it fetches or plays an
   /// SVGA ([bigHold]); then the next one plays.
@@ -104,11 +105,11 @@ class LiveGiftEffects extends Notifier<LiveGiftEffectsState> {
     });
   }
 
-  /// D132: announces [win] (a `lucky-win` message of the room) when it
-  /// reaches [luckyBanner] — the server's rule (`bigWinMultiplier`, ×100):
-  /// the room only hears of those.
+  /// D132: announces [win] (a `lucky-win` message of the room). D178
+  /// (owner: «حتى الصغيرة»): every win, ×5 and up — the server sends them
+  /// all to the room since v1.41-live (it sent only ×100+ before).
   void showLucky(LuckyWin win) {
-    if (!ref.mounted || win.multiplier < luckyBanner) return;
+    if (!ref.mounted || win.multiplier <= 0) return;
     _queueLucky(win);
   }
 
@@ -138,6 +139,8 @@ class LiveGiftEffects extends Notifier<LiveGiftEffectsState> {
   /// waiting, and a win no bigger than any of a full queue is dropped.
   void _queueLucky(LuckyWin win) {
     if (!_seen.add('lucky:${win.giftId}')) return;
+    // D178: its chat line, for everyone in the room.
+    _chat((chat) => chat.addLuckyWin(win));
     if (state.lucky == null) {
       _setLucky(win);
       return;
@@ -160,6 +163,15 @@ class LiveGiftEffects extends Notifier<LiveGiftEffectsState> {
     });
   }
 
+  /// D178: this live's chat (when the room has one open).
+  void _chat(void Function(LiveChatController chat) add) {
+    try {
+      add(ref.read(liveChatProvider(roomId).notifier));
+    } on Object {
+      // No chat in this room (yet): nothing to add to.
+    }
+  }
+
   /// One combo, one banner: the same sender's combo continues it.
   static String _comboKey(LiveGift g) => '${g.sender.id}:${g.combo.id}';
 
@@ -174,6 +186,8 @@ class LiveGiftEffects extends Notifier<LiveGiftEffectsState> {
     // D145c (owner): the strip comes first, for every gift, on every
     // device — the sender's own answer included (and a gift to oneself).
     _banner(gift);
+    // D178: and its line in this live's chat.
+    _chat((chat) => chat.addGift(gift));
     // Only a gift with an SVGA plays the full-screen effect: the still
     // picture is never blown up mid-screen (it is in the strip).
     if (_animated(gift)) _big(gift);

@@ -97,6 +97,8 @@ flutter:
     - assets/live_room_icons/
     # Owner-supplied live bottom-bar icons (assets/live_bar/PROVENANCE.md).
     - assets/live_bar/
+    # D173 the owner's cinema room for YouTube in audio rooms (assets/live_cinema/PROVENANCE.md).
+    - assets/live_cinema/
     # D146 the owner's special-ID medals (assets/special_id/PROVENANCE.md).
     - assets/special_id/
     # Owner-supplied live category icons (assets/category_icons/PROVENANCE.md).

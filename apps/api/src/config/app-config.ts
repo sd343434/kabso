@@ -244,6 +244,8 @@ export interface AppConfig {
   /** Contract v1.3 live discovery (CONVENTIONS §10). */
   readonly live: {
     readonly hostingEnabled: boolean;
+    /** v1.41-live (D178): the coins from which a gift send is told to every other live. */
+    readonly giftTickerMinCoins: number;
     readonly heartbeatIntervalSeconds: number;
     readonly heartbeatStaleSeconds: number;
     /** 0 = sweeper disabled (tests; refused in production). */
@@ -488,6 +490,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
     },
     live: {
       hostingEnabled: e.LIVE_HOSTING_ENABLED,
+      giftTickerMinCoins: e.GIFT_GLOBAL_TICKER_MIN_COINS,
       heartbeatIntervalSeconds: e.LIVE_HEARTBEAT_INTERVAL_SECONDS,
       heartbeatStaleSeconds: e.LIVE_HEARTBEAT_STALE_SECONDS,
       sweepIntervalSeconds: e.LIVE_SWEEP_INTERVAL_SECONDS,

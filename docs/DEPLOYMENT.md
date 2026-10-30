@@ -800,6 +800,12 @@ a `CONNECTION LIMIT`.
   ```
 
 - Apps read `GET /home/banners?placement=room` when a live opens (cached up to a minute).
+- *(D173, contract v1.39-live)* The same ROOM banners show to **everyone** in the room — signed-in
+  viewers, guests without an account (the endpoint now serves `placement=room` without a token, per-IP
+  guest limit `RATE_LIMIT_LIVE_GUEST_READ_IP`), seated guests and the host — in video lives at the
+  start under the «ترتيب الغرف» chip, in audio rooms low at the end over the gift button. Nothing to
+  configure: deploy the API and add a ROOM banner as above. `$BANNER disable <id>` hides it everywhere
+  within a minute.
 
 ### 5.11 Lucky gifts (migrations `20261127090000_lucky_gifts_enums`, `20261127100000_lucky_gifts`; D132) — [IMPLEMENTED, draft contract; owner / legal review before switching on]
 
@@ -821,7 +827,8 @@ a `CONNECTION LIMIT`.
   | `LUCKY_PITY_AFTER` | `15` (D148) | losing draws in a row before a sender's guaranteed draw; `0` turns the guarantee off |
   | `LUCKY_PITY_MULTIPLIER` | `5` (D148) | what the guaranteed draw pays at least (one of the multipliers) |
   | ~~`LUCKY_GIFT_RTP_SHARES`~~ | — | **removed in D148**: set → the API refuses to start |
-  | `LUCKY_GIFT_BIG_WIN_MULTIPLIER` | `100` | wins from this multiplier are announced to the room |
+  | `LUCKY_GIFT_BIG_WIN_MULTIPLIER` | `100` | wins from this multiplier are told to every other live («لحظة الحظ»); D178: every win is announced to its own room |
+  | `GIFT_GLOBAL_TICKER_MIN_COINS` | `1000` (D178; **the owner will set the real value** after studying coin prices) | a gift send worth at least this many coins shows as a strip in every other live (one every 3 s, the newest first). See D178. Change it in the API's `.env` on the server (`GIFT_GLOBAL_TICKER_MIN_COINS=5000`) and restart the API (`docker compose up -d api`); no app update, no migration |
   | `LUCKY_GIFT_DAY_TIME_ZONE` | `UTC` | the daily protection's day |
   | `LUCKY_GIFTS_DISABLED_COUNTRIES` | empty | ISO alpha-2 codes where lucky gifts are off |
   | `LUCKY_GIFTS_COUNTRY_HEADER` | unset | the header the edge sets to the client country (required with a country list) |

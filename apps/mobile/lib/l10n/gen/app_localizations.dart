@@ -11030,6 +11030,119 @@ abstract class AppLocalizations {
   /// **'الألعاب قريباً'**
   String get liveGamesSoon;
 
+  /// D173: the games sheet of the live bars (no games yet).
+  ///
+  /// In ar, this message translates to:
+  /// **'نعمل على إضافة ألعاب تلعبها داخل البث، وهي غير متاحة بعد.'**
+  String get liveGamesSoonBody;
+
+  /// D178: gifts, lucky wins and the global gift strip in the live.
+  ///
+  /// In ar, this message translates to:
+  /// **'{sender} أرسل {gift} ×{count} إلى {recipient}'**
+  String liveChatGiftLine(
+    String sender,
+    String gift,
+    int count,
+    String recipient,
+  );
+
+  /// D178: gifts, lucky wins and the global gift strip in the live.
+  ///
+  /// In ar, this message translates to:
+  /// **'{name} و{more} آخرين'**
+  String liveChatGiftRecipients(String name, int more);
+
+  /// D178: gifts, lucky wins and the global gift strip in the live.
+  ///
+  /// In ar, this message translates to:
+  /// **'{sender} ربح ×{multiplier} = {coins} عملة من هدية الحظ'**
+  String liveChatLuckyLine(String sender, String multiplier, String coins);
+
+  /// D178: gifts, lucky wins and the global gift strip in the live.
+  ///
+  /// In ar, this message translates to:
+  /// **'{sender} أرسل {gift} ×{count} في غرفة {room}'**
+  String liveGiftTicker(String sender, String gift, int count, String room);
+
+  /// D173: the ≡ menu of the live bar for everyone (viewer and moderator items).
+  ///
+  /// In ar, this message translates to:
+  /// **'المزيد'**
+  String get liveViewerMenu;
+
+  /// D173: the ≡ menu of the live bar for everyone (viewer and moderator items).
+  ///
+  /// In ar, this message translates to:
+  /// **'أدوات المشرف'**
+  String get liveToolsModerator;
+
+  /// D173: the ≡ menu of the live bar for everyone (viewer and moderator items).
+  ///
+  /// In ar, this message translates to:
+  /// **'الإبلاغ عن المضيف'**
+  String get liveToolReportHost;
+
+  /// D173: the ≡ menu of the live bar for everyone (viewer and moderator items).
+  ///
+  /// In ar, this message translates to:
+  /// **'المشاهدون'**
+  String get liveToolViewers;
+
+  /// D173: the ≡ menu of the live bar for everyone (viewer and moderator items).
+  ///
+  /// In ar, this message translates to:
+  /// **'المساهمات'**
+  String get liveToolContributions;
+
+  /// D173: the ≡ menu of the live bar for everyone (viewer and moderator items).
+  ///
+  /// In ar, this message translates to:
+  /// **'أصوات الهدايا'**
+  String get liveToolGiftSounds;
+
+  /// D173: the ≡ menu of the live bar for everyone (viewer and moderator items).
+  ///
+  /// In ar, this message translates to:
+  /// **'مؤثرات الهدايا'**
+  String get liveToolGiftEffects;
+
+  /// D173: the ≡ menu of the live bar for everyone (viewer and moderator items).
+  ///
+  /// In ar, this message translates to:
+  /// **'شاشة نظيفة'**
+  String get liveToolClearScreen;
+
+  /// D173: the ≡ menu of the live bar for everyone (viewer and moderator items).
+  ///
+  /// In ar, this message translates to:
+  /// **'طلبات المقاعد'**
+  String get liveToolSeatRequests;
+
+  /// D173: the audio room became a cinema (YouTube together) with 10 seats.
+  ///
+  /// In ar, this message translates to:
+  /// **'وضع السينما يتسع لـ 10 مقاعد: تم نقلك إلى المقعد {seat}.'**
+  String liveCinemaMoved(int seat);
+
+  /// D173: the audio room became a cinema (YouTube together) with 10 seats.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إنزالك من المقعد لأن وضع السينما يتسع لـ 10 مقاعد فقط.'**
+  String get liveCinemaOffSeat;
+
+  /// D173: the guest (∞) button of the viewer's video live bar.
+  ///
+  /// In ar, this message translates to:
+  /// **'انضم كضيف'**
+  String get liveGuestJoin;
+
+  /// D174: a solo live's 3 guest seats are taken.
+  ///
+  /// In ar, this message translates to:
+  /// **'مقاعد الضيوف الثلاثة في هذا البث ممتلئة. حاول مجدداً عندما يفرغ مقعد.'**
+  String get liveGuestsFull;
+
   /// D140: the full-screen end-of-live summary (the live's statistics).
   ///
   /// In ar, this message translates to:

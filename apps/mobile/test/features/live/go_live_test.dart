@@ -1495,13 +1495,12 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.byKey(GoLiveKeys.tool('seats')), findsOneWidget);
         await closeSheet(tester);
-        // D141: games are not there yet — the button says so, no list.
+        // D141: games are not there yet — the button says so, no list
+        // (D173: in the same sheet as the viewers' bars).
         await tester.tap(find.byKey(GoLiveScreen.audioGamesKey));
-        await tester.pump();
-        expect(find.text(l10n.liveGamesSoon), findsOneWidget);
-        ScaffoldMessenger.of(tester.element(find.byType(GoLiveScreen)))
-            .removeCurrentSnackBar();
         await tester.pumpAndSettle();
+        expect(find.text(l10n.liveGamesSoon), findsOneWidget);
+        await closeSheet(tester);
         await tester.tap(find.byKey(GoLiveScreen.audioPkKey));
         await tester.pump();
         expect(find.text(l10n.goLivePkSoon), findsOneWidget);
@@ -2211,8 +2210,8 @@ void main() {
       await _leave(tester);
     });
 
-    testWidgets('PK and (solo) guest connection say they are coming; 🎁 '
-        'opens the gifts', (tester) async {
+    testWidgets('PK says it is coming; D174: (solo) guests open the guests '
+        'tab (requests); 🎁 opens the gifts', (tester) async {
       await _pump(tester);
       await _goLive(tester);
       final l10n = _l10n(tester);
@@ -2221,9 +2220,10 @@ void main() {
       expect(find.text(l10n.goLivePkSoon), findsOneWidget);
       await _snackGone(tester);
       await tester.tap(find.byKey(KHostBar.guestsKey));
-      await tester.pump();
-      expect(find.text(l10n.liveHostGuestsSoon), findsOneWidget);
-      await _snackGone(tester);
+      await tester.pumpAndSettle();
+      expect(find.byKey(SeatControlKeys.guestsTab), findsOneWidget);
+      await tester.tap(find.byTooltip(l10n.liveClose).last);
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(KHostBar.giftKey));
       await tester.pumpAndSettle();
       expect(find.byType(KLiveGiftSheet), findsOneWidget);

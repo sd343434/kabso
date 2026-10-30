@@ -71,6 +71,10 @@ enum LiveRoomMode {
 
   /// MULTI and AUDIO rooms have seats.
   bool get hasSeats => this == multi || this == audio;
+
+  /// D174: rooms with guest seats — MULTI and AUDIO, and a SOLO live's 3
+  /// guests (v1.40-live).
+  bool get hasGuestSeats => hasSeats || this == solo;
 }
 
 enum LiveRoomStatus {
