@@ -883,6 +883,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'The live stopped after the host\'s connection was lost.';
 
   @override
+  String get liveRoomEndedHostAway =>
+      'The live ended because the host was away for more than 5 minutes.';
+
+  @override
   String get liveRoomEndedOther => 'This live is no longer available.';
 
   @override
@@ -3623,7 +3627,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveBgChannel => 'Live';
 
   @override
-  String get liveBgHostTitle => 'Your live is on';
+  String get liveBgHostTitle => 'Kabso: You\'re live';
 
   @override
   String get liveBgGuestTitle => 'You\'re on a seat in a live';

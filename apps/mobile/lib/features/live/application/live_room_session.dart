@@ -184,10 +184,10 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
 
   /// Joins the media session of [room] (once).
   ///
-  /// D123: with [background], a seated guest (and a listener of an audio
-  /// room) keeps the live running while the app is in the background; the
-  /// notification's Leave leaves the seat, or calls [onLeave] (the screen
-  /// leaves the room) for a listener.
+  /// D123: with [background], a seated guest (and, D170, every listener
+  /// of an audio or video room) keeps the live running while the app is in
+  /// the background; the notification's Leave leaves the seat, or calls
+  /// [onLeave] (the screen leaves the room) for a listener.
   Future<void> start(
     LiveRoom room, {
     LiveBackgroundTexts? background,
@@ -228,7 +228,7 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
   }
 
   /// D123: who this session is for the background service — a seated
-  /// guest publishing, a listener of an audio room, or nobody (released).
+  /// guest publishing, a listener (D170: audio and video rooms), or nobody.
   void _syncBackground() {
     final texts = _background;
     if (!ref.mounted || texts == null) return;
@@ -238,10 +238,10 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
       role = null;
     } else if (s.seated && s.publishing) {
       role = LiveBackgroundRole.guest;
-    } else if (_mode == LiveRoomMode.audio) {
-      role = LiveBackgroundRole.listener;
     } else {
-      role = null;
+      // D170 (owner): every viewer — audio and video lives — keeps hearing
+      // the live in the background (another app in front).
+      role = LiveBackgroundRole.listener;
     }
     if (role == null) {
       _keeper.release(this);

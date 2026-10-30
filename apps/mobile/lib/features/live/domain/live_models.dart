@@ -90,6 +90,11 @@ enum LiveRoomEndReason {
   @JsonValue('ADMIN')
   admin,
 
+  /// v1.41-live (D170): a video live whose host stayed away (the app in
+  /// the background, the camera off) for 5 minutes.
+  @JsonValue('HOST_AWAY_TIMEOUT')
+  hostAwayTimeout,
+
   /// A reason this build does not know yet.
   unknown,
 }

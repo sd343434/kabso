@@ -57,6 +57,12 @@ abstract interface class LiveRepository {
   /// `POST /live/rooms/{roomId}/heartbeat` (host).
   Future<void> heartbeat(String roomId);
 
+  /// v1.41-live (D170, CONVENTIONS §10.40): `POST /live/rooms/{roomId}/
+  /// host-presence` (host) — the app went to the background with the camera
+  /// off ([away]) or came back. A video live away for 5 minutes is ended by
+  /// the server (`HOST_AWAY_TIMEOUT`).
+  Future<void> setHostPresence(String roomId, {required bool away});
+
   /// `POST /live/rooms/{roomId}/end` (host; idempotent).
   Future<LiveRoom> endRoom(String roomId);
 
@@ -322,6 +328,15 @@ class LiveRepositoryImpl implements LiveRepository {
   Future<void> heartbeat(String roomId) => guardApiCall(() async {
     await _dio.post<void>('/live/rooms/${pathSegment(roomId)}/heartbeat');
   });
+
+  @override
+  Future<void> setHostPresence(String roomId, {required bool away}) =>
+      guardApiCall(() async {
+        await _dio.post<void>(
+          '/live/rooms/${pathSegment(roomId)}/host-presence',
+          data: {'away': away},
+        );
+      });
 
   @override
   Future<LiveRoom> endRoom(String roomId) => guardApiCall(() async {

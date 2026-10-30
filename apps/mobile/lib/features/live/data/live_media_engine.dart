@@ -282,6 +282,11 @@ abstract interface class LiveMediaEngine implements LiveVoiceMic {
   /// Whether [identity] is in the session now.
   bool isPresent(String identity);
 
+  /// D170: whether [identity] is in the session with a camera track that is
+  /// muted — a host whose app is in the background (the phone stopped the
+  /// camera). Viewers then see "the host will be right back".
+  bool videoMuted(String identity);
+
   /// The identities speaking now (the local one included).
   Set<String> get speaking;
 
@@ -979,6 +984,13 @@ class LiveKitMediaEngine implements LiveMediaEngine {
   @override
   bool isPresent(String identity) =>
       _room?.remoteParticipants.containsKey(identity) ?? false;
+
+  @override
+  bool videoMuted(String identity) {
+    final videos =
+        _room?.remoteParticipants[identity]?.videoTrackPublications ?? const [];
+    return videos.isNotEmpty && videos.every((p) => p.muted);
+  }
 
   @override
   Set<String> get speaking => _speaking;

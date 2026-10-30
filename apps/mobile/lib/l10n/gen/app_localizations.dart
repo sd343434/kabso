@@ -1538,6 +1538,12 @@ abstract class AppLocalizations {
   /// **'توقف البث بعد انقطاع اتصال المضيف.'**
   String get liveRoomEndedTimeout;
 
+  /// D170: the video live ended because the host was away (app in the background, camera off) for 5 minutes.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهى البث لأن المضيف غاب أكثر من 5 دقائق.'**
+  String get liveRoomEndedHostAway;
+
   /// No description provided for @liveRoomEndedOther.
   ///
   /// In ar, this message translates to:
@@ -6449,7 +6455,7 @@ abstract class AppLocalizations {
   /// Ongoing notification title while the host's live runs in the background
   ///
   /// In ar, this message translates to:
-  /// **'البث مستمر'**
+  /// **'Kabso: أنت في بث مباشر'**
   String get liveBgHostTitle;
 
   /// Ongoing notification title for a seated guest

@@ -233,10 +233,19 @@ class FakeLiveMediaEngine implements LiveMediaEngine {
     running = false;
   }
 
+  /// D170: identities whose camera track is muted (a host in the
+  /// background): present, but no picture.
+  final Set<String> videoMutedIds = {};
+
   @override
-  Widget? remoteVideo(String identity) => present.contains(identity)
+  Widget? remoteVideo(String identity) =>
+      present.contains(identity) && !videoMutedIds.contains(identity)
       ? ColoredBox(key: Key('remote.$identity'), color: const Color(0xFF304050))
       : null;
+
+  @override
+  bool videoMuted(String identity) =>
+      present.contains(identity) && videoMutedIds.contains(identity);
 
   @override
   bool isPresent(String identity) => present.contains(identity);
