@@ -98,8 +98,8 @@ class LevelCardPill {
 /// start, a small grey line under it, a short thin bar, then at the bottom
 /// a grey caption at the start and a dark pill at the end; the badge large
 /// over the card's top end, breaking out of its top edge (top left in
-/// Arabic; the art never mirrors). [locked] shows the card desaturated with
-/// a lock in the pill, still legible.
+/// Arabic; the art never mirrors). [locked] shows the card dimmed and
+/// desaturated, still legible; [glow] lights the caller's tier.
 class LevelTierCard extends StatelessWidget {
   const new({
     required this.category,
@@ -114,6 +114,7 @@ class LevelTierCard extends StatelessWidget {
     this.frame,
     this.medalKey,
     this.lineKey,
+    this.glow = false,
   });
 
   final LevelCategory category;
@@ -134,10 +135,15 @@ class LevelTierCard extends StatelessWidget {
   final Key? medalKey;
   final Key? lineKey;
 
+  /// The tier the caller is on (D169, owner: «ولا تضيء إلا إذا كان الشخص
+  /// على هذه الفئة»): a soft glow of the badge's colour around the card.
+  final bool glow;
+
+  /// Dim tiers (D169): 65 % desaturated and 15 % darker, still legible.
   static const _desaturate = ColorFilter.matrix([
-    0.6213, 0.2861, 0.0289, 0, 0, //
-    0.0851, 0.8227, 0.0289, 0, 0,
-    0.0851, 0.2861, 0.5651, 0, 0,
+    0.415, 0.3951, 0.0399, 0, 0, //
+    0.1175, 0.6926, 0.0399, 0, 0,
+    0.1175, 0.3951, 0.3374, 0, 0,
     0, 0, 0, 1, 0,
   ]);
 
@@ -170,6 +176,12 @@ class LevelTierCard extends StatelessWidget {
                     blurRadius: 10,
                     offset: const Offset(0, 3),
                   ),
+                  if (glow)
+                    BoxShadow(
+                      color: tint.gem.withValues(alpha: 0.75),
+                      blurRadius: 18,
+                      spreadRadius: 2,
+                    ),
                 ],
               ),
               child: ConstrainedBox(

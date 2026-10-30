@@ -778,7 +778,7 @@
   "levelsTierRange": "Lv.{from}–{to}",
   "levelsTierFrame": "Comes with an avatar frame",
   "levelsTierCurrent": "Current",
-  "levelsTierOpen": "Unlocked",
+  "levelsTierOpen": "Open",
   "levelsTierLocked": "Locked",
   "levelsTierUnlocked": "Unlocked",
   "levelsTierToUnlock": "{points} pts to unlock",

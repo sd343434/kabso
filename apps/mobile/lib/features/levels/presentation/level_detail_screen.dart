@@ -25,8 +25,9 @@ class LevelDetailScreen extends StatelessWidget {
 /// per row on the board's deep indigo panel: the tier's name and levels,
 /// «تم الفتح» or the points still needed to unlock it, a bar towards it,
 /// the points it starts at, and a pill — «الحالي», «مفتوح» or «مقفل» (with
-/// a lock; styling, not a button). Locked tiers are desaturated; an
-/// inactive category shows every tier locked. One column when two would
+/// a lock; styling, not a button). Only the caller's tier is lit, with a
+/// glow; passed and locked tiers are dim. An inactive category shows every
+/// tier locked. One column when two would
 /// not fit (a 360-lp phone at text scale 1.3).
 class LevelTierGrid extends ConsumerWidget {
   const new({required this.summary, super.key});
@@ -199,7 +200,9 @@ class _TierCard extends StatelessWidget {
           caption: caption,
           pill: pill,
           progress: progress,
-          locked: !reached,
+          // Only the caller's tier is lit; passed and locked tiers are dim.
+          locked: !isCurrent,
+          glow: isCurrent,
           frame: frame,
         ),
       ),

@@ -464,6 +464,35 @@ void main() {
       );
     });
 
+    testWidgets('only the tier the caller is on is lit; passed ones are dim '
+        'but say so', (tester) async {
+      await _pumpRouted(
+        tester,
+        FakeLevelsRepository(),
+        initial: AppRoutes.level('attractiveness'),
+      );
+      // Level 37 = pack tier 4; tier 1 is passed.
+      final current = find.byKey(LevelTierGrid.currentKey);
+      await tester.scrollUntilVisible(
+        current,
+        200,
+        scrollable: find.byType(Scrollable).last,
+      );
+      expect(
+        find.descendant(of: current, matching: find.byType(ColorFiltered)),
+        findsNothing,
+      );
+      final passed = find.byKey(LevelTierGrid.tierKey(1));
+      expect(
+        find.descendant(of: passed, matching: find.byType(ColorFiltered)),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: passed, matching: find.text(_en.levelsTierOpen)),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('all four inactive: the "on their way" banner, Charm first', (
       tester,
     ) async {

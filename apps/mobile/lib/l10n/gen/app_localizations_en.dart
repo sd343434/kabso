@@ -2219,7 +2219,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get levelsTierCurrent => 'Current';
 
   @override
-  String get levelsTierOpen => 'Unlocked';
+  String get levelsTierOpen => 'Open';
 
   @override
   String get levelsTierLocked => 'Locked';
