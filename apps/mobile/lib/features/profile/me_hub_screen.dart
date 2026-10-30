@@ -93,9 +93,9 @@ enum MeHubItem {
 /// ([AppRoutes.myProfile]); the counts open the follow lists. Every button
 /// of a feature Kabso has opens its real screen; the ones not built yet are
 /// shown faded with a "Soon" tag and do nothing (no stand-in screens).
-/// D164: Wallet, Earn money and Creator Center open their real screens;
-/// Purchase VIP, Event Center, SVIP and Task Center wait for the owner's
-/// decisions (proposal CP-024).
+/// D164: Wallet, Earn money and Creator Center open their real screens.
+/// D166: Event Center, SVIP and Task Center too (CP-024 approved with
+/// defaults); Purchase VIP waits for the owner's prices.
 ///
 /// Data: `GET /me`, `GET /users/{username}` (counts, family, relationship,
 /// medals), `GET /me/levels` and `GET /wallet/me`. The API has no friends
@@ -197,6 +197,7 @@ class MeHubScreen extends ConsumerWidget {
           icon: Icons.campaign_rounded,
           hue: _Hues.teal,
           title: l10n.meHubEventCenter,
+          onTap: () => push(AppRoutes.eventCenter),
         ),
       ],
       [
@@ -228,12 +229,14 @@ class MeHubScreen extends ConsumerWidget {
           icon: Icons.military_tech_rounded,
           hue: _Hues.gold,
           title: l10n.meHubSvip,
+          onTap: () => push(AppRoutes.svip),
         ),
         _HubRow(
           item: MeHubItem.taskCenter,
           icon: Icons.task_alt_rounded,
           hue: _Hues.gold,
           title: l10n.meHubTaskCenter,
+          onTap: () => push(AppRoutes.taskCenter),
         ),
         _HubRow(
           item: MeHubItem.medals,

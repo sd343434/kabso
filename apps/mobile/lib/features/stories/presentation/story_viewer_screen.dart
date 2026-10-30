@@ -546,6 +546,7 @@ class _StoryPage extends StatelessWidget {
                   ),
                   const SizedBox(width: KSpacing.sm),
                   Flexible(
+                    flex: 2,
                     child: Text(
                       name,
                       maxLines: 1,
@@ -554,8 +555,8 @@ class _StoryPage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: KSpacing.sm),
-                  // The age's length changes with the time ("منذ 23 ساعة"):
-                  // it shrinks with the name instead of overflowing at 360 dp.
+                  // D167: after 7 days the label becomes a full date, which
+                  // at large text scales no longer fits beside the name.
                   Flexible(
                     child: Text(
                       when,
