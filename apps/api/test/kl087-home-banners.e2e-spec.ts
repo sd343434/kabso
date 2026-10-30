@@ -382,7 +382,7 @@ describe('D124 home banners', { timeout: 240_000 }, () => {
     expect(bannerAdmin('list')).toContain(`${room} room`);
   });
 
-  it('D166: a guest (no token) reads the ROOM banners, in Arabic without Accept-Language; HOME stays signed-in only', async () => {
+  it('D173: a guest (no token) reads the ROOM banners, in Arabic without Accept-Language; HOME stays signed-in only', async () => {
     await clear();
     const home = await add('--link', '/families');
     const bytes = await sharp({ create: { width: 700, height: 900, channels: 3, background: '#3a5' } })

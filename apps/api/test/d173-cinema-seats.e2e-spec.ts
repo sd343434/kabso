@@ -1,5 +1,5 @@
 /**
- * D166 (owner 2026-10-29: «عندما مشاهدة يوتيوب لا يكون هناك إلا ١٠ كراسي فقط»; contract v1.39-live,
+ * D173 (owner 2026-10-29: «عندما مشاهدة يوتيوب لا يكون هناك إلا ١٠ كراسي فقط»; contract v1.39-live,
  * CONVENTIONS §10.9, §10.39): while an AUDIO room watches YouTube together it is a cinema with the 10
  * drawn seats (the host's and seats 1–9). Seats 10+ read LOCKED, their people move to a free seat
  * below or leave the seat, requests and invitations can only target seats 1–9, and the room's own
@@ -43,7 +43,7 @@ interface SeatBody {
   mutedByHost: boolean;
 }
 
-describe('D166 cinema seats', { timeout: 180_000 }, () => {
+describe('D173 cinema seats', { timeout: 180_000 }, () => {
   const media = new MemoryLiveMedia();
   let ctx: TestContext;
 

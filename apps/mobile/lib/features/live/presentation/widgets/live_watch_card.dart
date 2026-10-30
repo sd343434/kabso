@@ -18,7 +18,7 @@ import 'package:material_ui/material_ui.dart';
 /// they drift more than 2 s). A viewer may hide it on their phone or
 /// suggest a video; the host sees the waiting suggestions and stops the
 /// show. Anyone may hide it on their own phone (the room keeps watching).
-/// Nothing while no video is on. D166: in an audio room the card is the
+/// Nothing while no video is on. D173: in an audio room the card is the
 /// cinema screen inside the room's layout ([LiveWatchScreen]); this layer
 /// then only shows the «show» pill while it is hidden on this phone.
 /// D160: in a video live ([pip]) the same
@@ -77,13 +77,13 @@ class LiveWatchLayer extends ConsumerWidget {
         ),
       );
     }
-    // D166: in an audio room the card is the cinema screen inside the
+    // D173: in an audio room the card is the cinema screen inside the
     // room's layout ([LiveWatchScreen]); this layer keeps only the pill.
     return const Positioned(top: 0, left: 0, child: SizedBox.shrink());
   }
 }
 
-/// D166 (owner: «عند فتح يوتيوب في الغرفة الصوتية تنتقل الكراسي إلى
+/// D173 (owner: «عند فتح يوتيوب في الغرفة الصوتية تنتقل الكراسي إلى
 /// أسفل»): the audio room's cinema screen — the player (16:9) and its bar
 /// (title, suggest / manage, hide on this phone), placed by
 /// `LiveAudioRoomLayout.screen` at the top of the room with the seats under
@@ -99,7 +99,7 @@ class LiveWatchScreen extends ConsumerWidget {
   final String roomId;
   final bool host;
 
-  /// D166: the whole card, or (the cinema) the player on the drawn screen
+  /// D173: the whole card, or (the cinema) the player on the drawn screen
   /// and its bar on the stage under it.
   final LiveWatchPart part;
 
@@ -216,7 +216,7 @@ class LiveWatchScreen extends ConsumerWidget {
   }
 }
 
-/// D166: which part of the watch card [LiveWatchScreen] draws.
+/// D173: which part of the watch card [LiveWatchScreen] draws.
 enum LiveWatchPart {
   /// The player and its bar in one card.
   card,

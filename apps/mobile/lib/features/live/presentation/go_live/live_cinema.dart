@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'package:material_ui/material_ui.dart';
 
-/// D166 (owner: «عند فتح يوتيوب في الغرفة الصوتية تنتقل الكراسي إلى أسفل»
+/// D173 (owner: «عند فتح يوتيوب في الغرفة الصوتية تنتقل الكراسي إلى أسفل»
 /// and «عندما مشاهدة يوتيوب لا يكون هناك إلا ١٠ كراسي فقط»): the owner's
 /// cinema picture, drawn as the audio room's background while the room
 /// watches YouTube together. The player sits exactly on the drawn screen and

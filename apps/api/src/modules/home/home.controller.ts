@@ -11,7 +11,7 @@ import { HOME_BANNERS_CACHE_CONTROL } from './home-banners.js';
 import { HomeService, type HomeBannerDto } from './home.service.js';
 
 /**
- * v1.39-live (D166): a guest reads the in-room banners per IP, in the same bucket as the other live
+ * v1.39-live (D173): a guest reads the in-room banners per IP, in the same bucket as the other live
  * guest reads (CP-010), since they can watch a live.
  */
 const GUEST_READ = {
@@ -33,7 +33,7 @@ export class HomeController {
   /**
    * `GET /home/banners`: signed-in callers (the default rate limit). The title follows
    * `Accept-Language`, else the caller's locale (§10.1). `Cache-Control: private, max-age=60`.
-   * v1.39-live (D166, owner: «يجب أن يظهر عند الجميع»): `placement=room` also serves a caller
+   * v1.39-live (D173, owner: «يجب أن يظهر عند الجميع»): `placement=room` also serves a caller
    * without a token (a guest watching a live; rate limited per IP; Arabic without
    * `Accept-Language`); the live hub's `home` banners stay signed-in only (401).
    */

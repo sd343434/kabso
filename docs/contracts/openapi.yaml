@@ -202,7 +202,7 @@ info:
     `suggestLiveWatch`, `decideLiveWatchSuggestion`), `searchYoutube` (`GET /live/youtube/search`),
     the data messages `watch` and `watch-suggestion` on topic `watch`, and the error codes
     `YOUTUBE_VIDEO_UNAVAILABLE` (422) and `YOUTUBE_SEARCH_UNAVAILABLE` (503) (CONVENTIONS §10.39).
-    **D166 (DRAFT v1.39-live)** opens `listHomeBanners` with `placement=room` (the in-room promo
+    **D173 (DRAFT v1.39-live)** opens `listHomeBanners` with `placement=room` (the in-room promo
     banner) to callers without a token, so guests watching a live see it too (CONVENTIONS §10.26),
     and makes an AUDIO room watching YouTube a cinema of 10 seats (`LiveSeats.cinema`, §10.9, §10.39).
     **D155 (DRAFT v1.40-social)** adds direct messages (tag `messages`, `/dm/…`): conversations
@@ -1646,7 +1646,7 @@ paths:
         YouTube video); 422 `YOUTUBE_VIDEO_UNAVAILABLE` (missing, private or not embeddable); 503 when
         YouTube cannot be reached. The title is masked with the host's blocked words. The room gets
         `{"type":"watch","watch":LiveWatch}` on topic `watch`.
-        *(v1.39-live, D166)* In an AUDIO room a video makes the room a cinema of 10 seats
+        *(v1.39-live, D173)* In an AUDIO room a video makes the room a cinema of 10 seats
         (`LiveSeats.cinema`): everyone on seat 10 or higher moves to the first free seat 1–9 (in seat
         order, mic state kept) or, with none free, leaves the seat (publish permission withdrawn);
         pending requests and invitations for seats 10+ expire; locked seats 10+ are unlocked. Stopping
@@ -4407,7 +4407,7 @@ paths:
         `https://` URL; a stored link that no longer passes these rules is left out. Signed-in
         callers only; the default per-user rate limit. The response carries
         `Cache-Control: private, max-age=60` and `Vary: Authorization, Accept-Language`.
-        *(v1.39-live, D166)* `placement=room` is also open to callers without a token (a guest
+        *(v1.39-live, D173)* `placement=room` is also open to callers without a token (a guest
         watching a live: the owner wants the in-room banner shown to everyone), rate limited per IP
         like the other live guest reads; their `title` follows `Accept-Language`, else Arabic. The
         live hub's `home` banners stay signed-in only (no token → 401); a token that is sent must
@@ -7564,7 +7564,7 @@ components:
         cinema:
           type: boolean
           description: |
-            v1.39-live (D166, CONVENTIONS §10.9): true while an AUDIO room watches YouTube together
+            v1.39-live (D173, CONVENTIONS §10.9): true while an AUDIO room watches YouTube together
             (§10.39): the room is a cinema with 10 seats — the host's and seats 1–9. Seats 10 and up
             are then listed as `LOCKED` (nobody sits there; requests, invitations and locks for them
             → 409 `LIVE_SEAT_UNAVAILABLE`). `seatCount` stays the room's own count, which is usable

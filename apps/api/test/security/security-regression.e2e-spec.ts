@@ -88,7 +88,7 @@ const OPTIONAL_AUTH_ALLOWLIST = [
   'GET /api/v1/live/rooms/:roomId/stickers',
   // v1.38-live (D154i): what the live watches together (guests follow it like the picture).
   'GET /api/v1/live/rooms/:roomId/watch',
-  // v1.39-live (D166): the in-room promo banners (`placement=room`; `home` stays 401 without a
+  // v1.39-live (D173): the in-room promo banners (`placement=room`; `home` stays 401 without a
   // token), so a guest watching a live sees them too.
   'GET /api/v1/home/banners',
 ].sort();
@@ -143,7 +143,7 @@ const CONTROLLERS = [
   // CP-010 (KL-063): admin hosting permission and the media server's webhook.
   AdminLiveController,
   LiveMediaWebhookController,
-  // v1.39-live (D166): the promo banners (guests read the in-room ones).
+  // v1.39-live (D173): the promo banners (guests read the in-room ones).
   HomeController,
 ] as const;
 

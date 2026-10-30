@@ -2,7 +2,7 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// D166 (owner: «ولا يوجد في الاثنين زر جوي ستيك الخاص بالألعاب»): the
+/// D173 (owner: «ولا يوجد في الاثنين زر جوي ستيك الخاص بالألعاب»): the
 /// games button of the viewer's video and audio bars (and the host's audio
 /// bar) opens this sheet. There are no games yet — they wait for a game
 /// provider — so the sheet says so honestly: the owner's controller art,

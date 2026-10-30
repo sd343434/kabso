@@ -50,7 +50,7 @@ class KRoomChipsRow extends StatelessWidget {
 
   final int? level;
 
-  /// D166 (owner: «ولا يوجد في البث الحي الكرزات»): the viewer's cherry
+  /// D173 (owner: «ولا يوجد في البث الحي الكرزات»): the viewer's cherry
   /// chip (the live's points), right after the board chip as in the audio
   /// room.
   final Widget? score;
@@ -311,7 +311,7 @@ class KViewerBar extends StatelessWidget {
       height: KSizes.minTouchTarget,
       child: Row(
         children: [
-          // D166: the pill takes the room the buttons leave, up to its
+          // D173: the pill takes the room the buttons leave, up to its
           // measured width (with three or four buttons it would otherwise
           // share that room with an empty gap).
           Expanded(

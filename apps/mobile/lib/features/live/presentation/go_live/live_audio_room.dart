@@ -146,7 +146,7 @@ class LiveAudioRoomLayout extends StatelessWidget {
     this.onChatTop,
   });
 
-  /// D166 (owner: «عند فتح يوتيوب في الغرفة الصوتية تنتقل الكراسي إلى
+  /// D173 (owner: «عند فتح يوتيوب في الغرفة الصوتية تنتقل الكراسي إلى
   /// أسفل», «عندما مشاهدة يوتيوب لا يكون هناك إلا ١٠ كراسي فقط»): the
   /// cinema. While the room watches a video together the owner's cinema
   /// picture ([LiveCinema]) is the room: [screen] (the player) sits exactly
@@ -171,7 +171,7 @@ class LiveAudioRoomLayout extends StatelessWidget {
   /// The picture's centre, as a share of the seat back's visible height.
   static const double cinemaPictureCentre = 0.42;
 
-  /// D166: the host's wish list card (D136), at the end directly above the
+  /// D173: the host's wish list card (D136), at the end directly above the
   /// promo box (or the combo), so it covers neither the seats nor the chat:
   /// the chat narrows for the column. Hidden while writing.
   final Widget? wish;
@@ -179,7 +179,7 @@ class LiveAudioRoomLayout extends StatelessWidget {
   /// The gap between the wish card and the promo box under it.
   static const double wishGap = 6;
 
-  /// D166: the bar when its buttons do not fit side by side (it scrolls).
+  /// D173: the bar when its buttons do not fit side by side (it scrolls).
   static const crowdedBarKey = Key('audioRoom.bar.crowded');
 
   /// D145c: told the chat's top on the screen when it moves (the gift
@@ -331,7 +331,7 @@ class LiveAudioRoomLayout extends StatelessWidget {
         // Ref 147: equal circles, 46 pt apart.
         : LayoutBuilder(
             builder: (context, box) {
-              // D166: a seated moderator's bar (games added) can hold more
+              // D173: a seated moderator's bar (games added) can hold more
               // 48 pt buttons than a narrow phone has room for: it then
               // scrolls sideways instead of overflowing or shrinking the
               // touch targets.
@@ -429,7 +429,7 @@ class LiveAudioRoomLayout extends StatelessWidget {
     );
   }
 
-  /// D166: the cinema — the picture, the player on its screen, the seats on
+  /// D173: the cinema — the picture, the player on its screen, the seats on
   /// its seat backs, the header on top and the chat and the bar low.
   Widget _cinema(BuildContext context) => LayoutBuilder(
     builder: (context, box) {

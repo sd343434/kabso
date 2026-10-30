@@ -90,7 +90,7 @@ export class LiveWatchService {
   ) {}
 
   /**
-   * v1.39-live (D166): an AUDIO room is a cinema while it watches — at most 10 seats; people on
+   * v1.39-live (D173): an AUDIO room is a cinema while it watches — at most 10 seats; people on
    * seats 10+ move down or leave the seat when it starts; the room's own count returns when it stops.
    */
   private async cinema(room: { id: string; mode: string }, watching: boolean): Promise<void> {

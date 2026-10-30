@@ -1128,12 +1128,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         ),
       );
       // The chat box opens from 💬 and 🙂 (CP-013).
-      // D166: YouTube together turns the room into the owner's cinema.
+      // D173: YouTube together turns the room into the owner's cinema.
       final cinema =
           live && room != null && LiveWatchScreen.shows(ref, room.id);
       final ring = AudioSeatRing(
         count: seatCount!,
-        // D166: no points pills on the cinema's seats.
+        // D173: no points pills on the cinema's seats.
         compact: cinema,
         seats: liveSeats?.seats ?? const [],
         // D111: CP partners on adjacent seats are drawn joined.
@@ -1198,7 +1198,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 boxWidth: LiveRoomPromoBox.audioWidth,
               )
             : null,
-        // D166: YouTube together turns the room into a cinema — the
+        // D173: YouTube together turns the room into a cinema — the
         // player on top, the seats under it.
         screen: cinema
             ? LiveWatchScreen(
@@ -1214,7 +1214,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 part: LiveWatchPart.bar,
               )
             : null,
-        // D166: the wish list (D136) in the audio room too, over the promo
+        // D173: the wish list (D136) in the audio room too, over the promo
         // box; a tap changes it.
         wish: live && room != null && room.wishGifts.isNotEmpty
             ? LiveWishCard(
@@ -1303,7 +1303,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           ],
         ),
         stage: ring,
-        // D166: the cinema's seats on the drawn seats.
+        // D173: the cinema's seats on the drawn seats.
         cinemaSeat: cinema ? ring.cinemaTile : null,
         cinemaSeats: seatCount,
         chat: [?roomChat],
@@ -1373,7 +1373,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             art: true,
             bare: true,
             label: l10n.liveGames,
-            // D166: the same games sheet as the viewers' bars.
+            // D173: the same games sheet as the viewers' bars.
             onTap: () => unawaited(showLiveGamesSheet(context)),
           ),
           LiveRoundButton(

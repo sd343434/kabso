@@ -10958,31 +10958,31 @@ abstract class AppLocalizations {
   /// **'الألعاب قريباً'**
   String get liveGamesSoon;
 
-  /// D166: the games sheet of the live bars (no games yet).
+  /// D173: the games sheet of the live bars (no games yet).
   ///
   /// In ar, this message translates to:
   /// **'نعمل على إضافة ألعاب تلعبها داخل البث، وهي غير متاحة بعد.'**
   String get liveGamesSoonBody;
 
-  /// D166: the audio room became a cinema (YouTube together) with 10 seats.
+  /// D173: the audio room became a cinema (YouTube together) with 10 seats.
   ///
   /// In ar, this message translates to:
   /// **'وضع السينما يتسع لـ 10 مقاعد: تم نقلك إلى المقعد {seat}.'**
   String liveCinemaMoved(int seat);
 
-  /// D166: the audio room became a cinema (YouTube together) with 10 seats.
+  /// D173: the audio room became a cinema (YouTube together) with 10 seats.
   ///
   /// In ar, this message translates to:
   /// **'تم إنزالك من المقعد لأن وضع السينما يتسع لـ 10 مقاعد فقط.'**
   String get liveCinemaOffSeat;
 
-  /// D166: the guest (∞) button of the viewer's video live bar.
+  /// D173: the guest (∞) button of the viewer's video live bar.
   ///
   /// In ar, this message translates to:
   /// **'انضم كضيف'**
   String get liveGuestJoin;
 
-  /// D166: the guest (∞) button in a solo live (no guest seats there).
+  /// D173: the guest (∞) button in a solo live (no guest seats there).
   ///
   /// In ar, this message translates to:
   /// **'هذا بث فردي ولا توجد فيه مقاعد للضيوف. يمكنك طلب الانضمام كضيف في البث متعدد الضيوف.'**

@@ -48,7 +48,7 @@ class _RoomState extends ConsumerState<_Room> {
   }
 
   @override
-  // D166: the audio room shows the card as its cinema screen (in the room's
+  // D173: the audio room shows the card as its cinema screen (in the room's
   // layout) and the layer keeps the «show» pill.
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: const Color(0xFF333344),

@@ -86,7 +86,7 @@ export interface LiveSeatsDto {
   mode: SeatedMode;
   version: number;
   seatCount: number;
-  /** v1.39-live (D166): the room is a cinema now (YouTube together in an AUDIO room). */
+  /** v1.39-live (D173): the room is a cinema now (YouTube together in an AUDIO room). */
   cinema: boolean;
   seats: LiveSeatDto[];
   moderators: UserSummaryDto[];
@@ -106,7 +106,7 @@ export interface PageDto<T> {
 }
 
 /**
- * v1.39-live (D166, owner: «عندما مشاهدة يوتيوب لا يكون هناك إلا ١٠ كراسي فقط»): while an AUDIO room
+ * v1.39-live (D173, owner: «عندما مشاهدة يوتيوب لا يكون هناك إلا ١٠ كراسي فقط»): while an AUDIO room
  * watches YouTube together (a `live_watch` row exists) it is a cinema with the 10 drawn seats — the
  * host's and seats 1–9. Seats from this index on are unavailable (read as LOCKED) until it closes.
  */
@@ -183,7 +183,7 @@ interface LockedRoom {
   id: string;
   hostUserId: string;
   mode: SeatedMode;
-  /** The seats usable now: the room's count, or {@link CINEMA_SEAT_COUNT} in a cinema (D166). */
+  /** The seats usable now: the room's count, or {@link CINEMA_SEAT_COUNT} in a cinema (D173). */
   seatCount: number;
   /** The room's own seat count (what a cinema gives back when it closes). */
   roomSeatCount: number;
@@ -264,7 +264,7 @@ export class LiveSeatsService {
     };
   }
 
-  /** D166: an AUDIO room that watches YouTube together now is a cinema. */
+  /** D173: an AUDIO room that watches YouTube together now is a cinema. */
   private async isCinema(
     db: Prisma.TransactionClient | PrismaService,
     roomId: string,
@@ -446,7 +446,7 @@ export class LiveSeatsService {
     });
     const mode = room.mode as SeatedMode;
     const seatCount = room.seatCount ?? 0;
-    // D166: in a cinema the seats from CINEMA_SEAT_COUNT on read as LOCKED (nobody sits there).
+    // D173: in a cinema the seats from CINEMA_SEAT_COUNT on read as LOCKED (nobody sits there).
     const cinema = await this.isCinema(this.prisma, roomId, mode);
     const usable = cinema ? Math.min(seatCount, CINEMA_SEAT_COUNT) : seatCount;
     const [rows, moderators] = await Promise.all([
@@ -996,10 +996,10 @@ export class LiveSeatsService {
     });
   }
 
-  // ---- Cinema (D166) ----------------------------------------------------------------------------
+  // ---- Cinema (D173) ----------------------------------------------------------------------------
 
   /**
-   * v1.39-live (D166): YouTube together started in an AUDIO room with more than
+   * v1.39-live (D173): YouTube together started in an AUDIO room with more than
    * {@link CINEMA_SEAT_COUNT} seats. Everyone on a seat from that index on moves to the first free
    * seat below it (their mic state kept), in seat order; when none is free they leave the seat (the
    * publish permission is withdrawn). Pending requests and invitations for those seats expire.
@@ -1057,7 +1057,7 @@ export class LiveSeatsService {
   }
 
   /**
-   * v1.39-live (D166): YouTube together stopped — the room's own seat count is usable again (nobody
+   * v1.39-live (D173): YouTube together stopped — the room's own seat count is usable again (nobody
    * is moved back). A new seat version tells the apps to refetch.
    */
   async leaveCinema(roomId: string): Promise<void> {

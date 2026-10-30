@@ -104,7 +104,7 @@ class LiveRoomScreen extends ConsumerWidget {
   /// D154c: a moderator's Newcomers button.
   static const newcomersKey = Key('room.newcomers');
 
-  /// D166: the video bar's games (joystick) and guest (∞) buttons, and the
+  /// D173: the video bar's games (joystick) and guest (∞) buttons, and the
   /// cherry chip beside the board chip.
   static const gamesKey = Key('room.games');
   static const guestKey = Key('room.guest');
@@ -729,7 +729,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         _inviteShown = invite.id;
         unawaited(_showInvite(invite));
       }
-      // D166: the room became a cinema of 10 seats and this person sat
+      // D173: the room became a cinema of 10 seats and this person sat
       // beyond them: the server moved them down or off the seat.
       final had = previous?.mine?.seatIndex;
       if (had != null &&
@@ -923,7 +923,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
           ? null
           : KRoomChipsRow(
               level: room.roomLevel,
-              // D166: the cherry chip of the audio room (the live's points;
+              // D173: the cherry chip of the audio room (the live's points;
               // shown from the first point, as there).
               score: score > 0
                   ? LiveScoreChip(
@@ -943,7 +943,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                   ? null
                   : (w) => unawaited(_openGifts(preselectGift: w.giftCode)),
             ),
-      // D166 (owner: «يجب أن يظهر عند الجميع»): every viewer, signed in or
+      // D173 (owner: «يجب أن يظهر عند الجميع»): every viewer, signed in or
       // not (guests read the ROOM banners too, v1.39-live).
       sidePromo: ended ? null : LiveRoomPromoBox(roomId: room.id),
       // D145a: the lucky combo beside the chat, over the quick replies.
@@ -1020,7 +1020,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                               showLiveNewcomers(context, roomId: room.id),
                             ),
                           ),
-                        // D166 (owner: «لا يوجد زر طلب جست»): ∞ — joining
+                        // D173 (owner: «لا يوجد زر طلب جست»): ∞ — joining
                         // as a guest. A multi-guest live asks for a seat
                         // with the seat bar above (CP-011); a solo live has
                         // no guest seats (the API refuses), so ∞ says so.
@@ -1032,7 +1032,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                             onTap: () =>
                                 KSnack.info(context, l10n.liveGuestSoloInfo),
                           ),
-                        // D166: games (none yet: the sheet says so).
+                        // D173: games (none yet: the sheet says so).
                         KViewerBarButton(
                           key: LiveRoomScreen.gamesKey,
                           asset: LiveGamesSheet.art,
@@ -1121,7 +1121,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         );
       }
     }
-    // D166: YouTube together turns the room into the owner's cinema.
+    // D173: YouTube together turns the room into the owner's cinema.
     final cinema = LiveWatchScreen.shows(ref, room.id);
     final stage = _stage(session, engine);
     return KLiveSurface(
@@ -1146,7 +1146,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                     ? LuckyComboCluster(roomId: room.id)
                     : null,
                 // D141a (owner): the promo box over the gift button.
-                // D166: for everyone in the room, signed in or not.
+                // D173: for everyone in the room, signed in or not.
                 promo:
                     room.status != LiveRoomStatus.ended &&
                         LiveRoomPromoBox.shows(ref, room.id)
@@ -1155,7 +1155,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                         boxWidth: LiveRoomPromoBox.audioWidth,
                       )
                     : null,
-                // D166: YouTube together turns the room into a cinema —
+                // D173: YouTube together turns the room into a cinema —
                 // the player on top, the seats under it.
                 screen: cinema
                     ? LiveWatchScreen(
@@ -1175,7 +1175,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                     ? stage.cinemaTile
                     : null,
                 cinemaSeats: room.seatCount ?? 0,
-                // D166: the host's wish list (D136), over the promo box.
+                // D173: the host's wish list (D136), over the promo box.
                 wish: room.wishGifts.isEmpty
                     ? null
                     : LiveWishCard(
@@ -1324,7 +1324,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                         ),
                       ),
                     ),
-                  // D166: games (none yet: the sheet says so), with the
+                  // D173: games (none yet: the sheet says so), with the
                   // owner's controller art as on the host's bar.
                   LiveRoundButton(
                     key: AudioRoomViewKeys.games,
@@ -1458,8 +1458,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     // The room's stage scrolls; seats keep one size in every room (D123).
     return AudioSeatRing(
       count: count,
-      // D166: the cinema rows under the YouTube screen (big rooms).
-      // D166: no points pills on the cinema's seats.
+      // D173: the cinema rows under the YouTube screen (big rooms).
+      // D173: no points pills on the cinema's seats.
       compact: LiveWatchScreen.shows(ref, room.id),
       seats: seats?.seats ?? const [],
       // D111: CP partners on adjacent seats are drawn joined.
@@ -2513,7 +2513,7 @@ abstract final class AudioRoomViewKeys {
   static const requests = Key('audioRoom.requests');
   static const gift = Key('audioRoom.gift');
 
-  /// D166: games (the joystick).
+  /// D173: games (the joystick).
   static const games = Key('audioRoom.games');
   static const mic = Key('audioRoom.mic');
 

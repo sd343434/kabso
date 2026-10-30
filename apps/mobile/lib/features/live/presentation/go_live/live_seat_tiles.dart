@@ -301,7 +301,7 @@ class AudioSeatRing extends StatelessWidget {
   /// CP-012: the live's points under the host's name (shortened), or null.
   final String? hostPoints;
 
-  /// D166: the cinema rows under the YouTube screen — the points pills are
+  /// D173: the cinema rows under the YouTube screen — the points pills are
   /// left out so every seat fits at a usable size.
   final bool compact;
 
@@ -348,13 +348,13 @@ class AudioSeatRing extends StatelessWidget {
   /// The diameter of a picture (the host's too) and of an empty seat.
   static const double picture = _Seat.avatar;
 
-  /// D166: a tile's natural width (its picture is [picture] across).
+  /// D173: a tile's natural width (its picture is [picture] across).
   static const double tileWidth = _Seat.width;
 
-  /// D166: the picture's top inside a tile (it is centred in the [chair]).
+  /// D173: the picture's top inside a tile (it is centred in the [chair]).
   static const double pictureTop = (chair - picture) / 2;
 
-  /// D166: seat [index]'s tile alone (the host's for 0) — for the cinema,
+  /// D173: seat [index]'s tile alone (the host's for 0) — for the cinema,
   /// where each one sits on a seat drawn in the picture. No points pills
   /// ([compact]) and no CP ornament (the seats are apart there).
   Widget cinemaTile(int index) => SizedBox(

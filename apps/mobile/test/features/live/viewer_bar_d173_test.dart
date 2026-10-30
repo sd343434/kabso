@@ -1,4 +1,4 @@
-// D166 (owner, Arabic, on the viewer screens): the video live's guest (∞)
+// D173 (owner, Arabic, on the viewer screens): the video live's guest (∞)
 // button, the games (joystick) button on both bars, the video live's cherry
 // chip, the wish list in the audio room, and the promo box for everyone,
 // through the real viewer screen.
@@ -142,7 +142,7 @@ Future<void> _leave(WidgetTester tester) async {
 }
 
 void main() {
-  group('D166 video live viewer bar', () {
+  group('D173 video live viewer bar', () {
     for (final language in AppLanguage.values) {
       for (final viewport in GoldenViewport.values) {
         testWidgets('∞, games and gift in one row with the pill, nothing '
@@ -221,7 +221,7 @@ void main() {
     });
   });
 
-  group('D166 games', () {
+  group('D173 games', () {
     for (final mode in [LiveRoomMode.solo, LiveRoomMode.audio]) {
       for (final language in AppLanguage.values) {
         testWidgets('${mode.name}: the joystick opens the honest «coming '
@@ -271,7 +271,7 @@ void main() {
     }
   });
 
-  group('D166 audio bar', () {
+  group('D173 audio bar', () {
     for (final language in AppLanguage.values) {
       testWidgets('a seated moderator at 360 × 800, text 1.3: the bar (games '
           'added) scrolls sideways instead of overflowing; every button keeps '
@@ -339,7 +339,7 @@ void main() {
     });
   });
 
-  group('D166 cherries on the video live', () {
+  group('D173 cherries on the video live', () {
     for (final language in AppLanguage.values) {
       testWidgets('the cherry chip sits right after the board chip, as in '
           'the audio room (${language.name})', (tester) async {
@@ -372,7 +372,7 @@ void main() {
     });
   });
 
-  group('D166 wish list in the audio room', () {
+  group('D173 wish list in the audio room', () {
     for (final language in AppLanguage.values) {
       for (final viewport in GoldenViewport.values) {
         testWidgets('the card sits at the end over the promo box and the gift '
@@ -426,7 +426,7 @@ void main() {
     });
   });
 
-  group('D166 cinema (YouTube together in the audio room)', () {
+  group('D173 cinema (YouTube together in the audio room)', () {
     LiveWatch playing() => LiveWatch(
       roomId: 'room-0',
       video: FakeLiveWatchRepository.videoOf('aaaaaaaaaaa'),
@@ -616,7 +616,7 @@ void main() {
     }
   });
 
-  group('D166 promo box for everyone', () {
+  group('D173 promo box for everyone', () {
     for (final mode in [LiveRoomMode.solo, LiveRoomMode.audio]) {
       testWidgets('${mode.name}: a viewer without an account sees it too', (
         tester,

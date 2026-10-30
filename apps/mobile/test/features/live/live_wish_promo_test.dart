@@ -300,7 +300,7 @@ void main() {
       }
     }
 
-    testWidgets('no ROOM banner: no box; D166 (owner: «يجب أن يظهر عند '
+    testWidgets('no ROOM banner: no box; D173 (owner: «يجب أن يظهر عند '
         'الجميع»): a guest without an account sees it too', (tester) async {
       await _pump(tester);
       expect(find.byKey(LiveRoomPromoBox.boxKey), findsNothing);

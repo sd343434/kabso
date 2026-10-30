@@ -1496,7 +1496,7 @@ void main() {
         expect(find.byKey(GoLiveKeys.tool('seats')), findsOneWidget);
         await closeSheet(tester);
         // D141: games are not there yet — the button says so, no list
-        // (D166: in the same sheet as the viewers' bars).
+        // (D173: in the same sheet as the viewers' bars).
         await tester.tap(find.byKey(GoLiveScreen.audioGamesKey));
         await tester.pumpAndSettle();
         expect(find.text(l10n.liveGamesSoon), findsOneWidget);
