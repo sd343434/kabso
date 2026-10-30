@@ -17,6 +17,7 @@ import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/agency/data/agency_repository.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/bag/presentation/avatar_frame_art.dart';
 import 'package:kabso_live/features/cp/data/cp_repository.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
@@ -594,15 +595,21 @@ void main() {
             find.byKey(ProfileHeaderView.agentBadgeKey),
             recharge == null ? findsNothing : findsOneWidget,
           );
-          // The frame's photo is the same size as the recharge frame's.
+          // Owner (after D189): the host-agent frame is drawn in the
+          // recharge frame's box — as high as it, no larger — and the photo
+          // fills its measured circle.
           if (host != null && recharge == null) {
+            final box = AvatarFrameBox.aroundAvatar(KProfile.avatar);
+            final frame = tester.getRect(find.byType(HostAgentFrame));
+            expect(frame.height, closeTo(box.height, 0.5));
+            expect(frame.width, lessThanOrEqualTo(box.width + 0.5));
             final photo = tester.getRect(
               find.descendant(
                 of: find.byType(HostAgentFrame),
                 matching: find.byType(KAvatar),
               ),
             );
-            expect(photo.width, closeTo(KProfile.avatar * 0.93, 0.5));
+            expect(photo.width, closeTo(box.height * 2 * 0.2645 * 1.04, 0.5));
           }
           expect(tester.takeException(), isNull);
         }

@@ -13,6 +13,7 @@ import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/bag/presentation/avatar_frame_art.dart';
 import 'package:kabso_live/features/cp/presentation/cp_special_frame.dart';
 import 'package:kabso_live/features/levels/application/levels_providers.dart';
 import 'package:kabso_live/features/levels/domain/level_models.dart';
@@ -2037,17 +2038,21 @@ class _HostSheet extends ConsumerWidget {
       hostCode: profile?.hostAgentCode,
     );
     final framed = frameKind != null || cpWearsSpecialFrame(profile?.cp);
+    // Owner (after D189): every frame in one box — the recharge frame's —
+    // centred; the photo in each art's measured circle.
+    final frameBox = AvatarFrameBox.aroundAvatar(_Card.avatar);
     final frameWidth = frameKind != null
-        ? AgentFrameGeometry.width(frameKind, _Card.avatar)
-        : CpSpecialFrameAvatar.widthForAvatar(_Card.avatar);
-    final frameTop = frameKind != null
-        ? AgentFrameGeometry.pictureCentreY(frameKind, frameWidth)
-        : CpSpecialFrameAvatar.pictureCentreY(frameWidth);
-    final frameBelow =
+        ? AgentFrameGeometry.widthIn(frameKind, frameBox)
+        : frameBox.fit(CpSpecialFrameAvatar.paintAspect).width;
+    final frameHeight = frameKind != null
+        ? AgentFrameGeometry.height(frameKind, frameWidth)
+        : CpSpecialFrameAvatar.heightFor(frameWidth);
+    final frameTop =
+        frameBox.topOf(frameHeight) +
         (frameKind != null
-            ? AgentFrameGeometry.height(frameKind, frameWidth)
-            : CpSpecialFrameAvatar.heightFor(frameWidth)) -
-        frameTop;
+            ? AgentFrameGeometry.pictureCentreY(frameKind, frameWidth)
+            : CpSpecialFrameAvatar.pictureCentreY(frameWidth));
+    final frameBelow = frameBox.height - frameTop;
     void close(VoidCallback then) {
       Navigator.of(context).pop();
       then();
@@ -2592,26 +2597,32 @@ class _HostSheet extends ConsumerWidget {
                       ),
                     ),
                     child: frameKind == AgentFrameKind.recharge
-                        ? RechargeAgentFrame(
-                            key: agentFrameKey,
-                            width: frameWidth,
-                            name: profile?.displayName ?? username,
-                            code: agentCode!,
-                            image: _networkImage(profile?.avatarUrl),
+                        ? frameBox.place(
+                            RechargeAgentFrame(
+                              key: agentFrameKey,
+                              width: frameWidth,
+                              name: profile?.displayName ?? username,
+                              code: agentCode!,
+                              image: _networkImage(profile?.avatarUrl),
+                            ),
                           )
                         : frameKind == AgentFrameKind.host
-                        ? HostAgentFrame(
-                            key: agentFrameKey,
-                            width: frameWidth,
-                            name: profile?.displayName ?? username,
-                            image: _networkImage(profile?.avatarUrl),
+                        ? frameBox.place(
+                            HostAgentFrame(
+                              key: agentFrameKey,
+                              width: frameWidth,
+                              name: profile?.displayName ?? username,
+                              image: _networkImage(profile?.avatarUrl),
+                            ),
                           )
                         : framed
-                        ? CpSpecialFrameAvatar(
-                            key: cpFrameKey,
-                            width: frameWidth,
-                            name: profile?.displayName ?? username,
-                            image: _networkImage(profile?.avatarUrl),
+                        ? frameBox.place(
+                            CpSpecialFrameAvatar(
+                              key: cpFrameKey,
+                              width: frameWidth,
+                              name: profile?.displayName ?? username,
+                              image: _networkImage(profile?.avatarUrl),
+                            ),
                           )
                         : Container(
                             padding: const EdgeInsets.all(3),

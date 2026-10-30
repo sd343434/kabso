@@ -1,5 +1,60 @@
+import 'dart:math' as math;
+
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:material_ui/material_ui.dart';
+
+/// The one outer box every avatar frame is drawn in (owner, after D185–D189:
+/// «تثبيت حجم مثل حجم هذا» — the recharge-agent frame's size on the
+/// profile): the recharge-agent frame's own box, [aspect] wide for 1 high.
+/// In each context (profile header, person card, seat) every frame — the
+/// recharge-agent and host-agent frames, the active-host frames (D186) and
+/// the CP Special Frame — is scaled so its painted art fits this box
+/// (contained, centred); the photo then fits that art's measured circle.
+@immutable
+final class AvatarFrameBox {
+  const new(this.width);
+
+  /// The box around an [avatar]-wide photo slot: the recharge-agent frame's
+  /// box on the profile (1.6 × the slot wide, D185).
+  factory aroundAvatar(double avatar) => AvatarFrameBox(avatar * avatarFactor);
+
+  /// The box [height] high.
+  factory ofHeight(double height) => AvatarFrameBox(height * aspect);
+
+  /// The recharge-agent frame art's width / height (1312 × 1199).
+  static const double aspect = 1312 / 1199;
+
+  /// The box's width for an avatar-wide photo slot.
+  static const double avatarFactor = 1.6;
+
+  final double width;
+  double get height => width / aspect;
+
+  /// The side of a square frame art fitted in the box.
+  double get square => math.min(width, height);
+
+  /// The size of art [artAspect] (width / height) fitted in the box.
+  Size fit(double artAspect) => artAspect >= aspect
+      ? Size(width, width / artAspect)
+      : Size(height * artAspect, height);
+
+  /// How far below the box's top a fitted art [artHeight] high starts.
+  double topOf(double artHeight) => (height - artHeight) / 2;
+
+  /// [frame] centred in the box.
+  Widget place(Widget frame) => SizedBox(
+    width: width,
+    height: height,
+    child: Center(child: frame),
+  );
+
+  @override
+  bool operator ==(Object other) =>
+      other is AvatarFrameBox && other.width == width;
+
+  @override
+  int get hashCode => width.hashCode;
+}
 
 /// The avatar frames this app can draw around a photo (bag `AVATAR_FRAME`,
 /// v1.55-social, D186, CONVENTIONS §10.49): the art and the photo's circle

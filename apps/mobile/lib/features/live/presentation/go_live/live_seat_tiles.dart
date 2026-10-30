@@ -371,8 +371,10 @@ class AudioSeatRing extends StatelessWidget {
   /// The diameter of a picture (the host's too) and of an empty seat.
   static const double picture = _Seat.avatar;
 
-  /// D186: the diameter of a picture inside an avatar frame.
-  static const double framedPicture = _Seat.framedAvatar;
+  /// D186: the diameter of a picture inside the avatar frame [art] (owner,
+  /// after D189: the frame in the seat's standard box).
+  static double framedPictureFor(AvatarFrameArt art) =>
+      art.pictureForWidth(_Seat.frameBox.square);
 
   /// D173: a tile's natural width (its picture is [picture] across).
   static const double tileWidth = _Seat.width;
@@ -972,9 +974,11 @@ class _Seat extends StatelessWidget {
   static const width = 70.0;
   static const avatar = 50.0;
 
-  /// D186: a picture inside an avatar frame — the frame is then about
-  /// [width] across (the photo fills the art's measured circle).
-  static const framedAvatar = 42.0;
+  /// The standard frame box of a seat (owner, after D189): every frame on
+  /// a seat is drawn in it (the recharge frame's shape, [width] high); a
+  /// square art is then exactly [width] across and the photo fills its
+  /// measured circle (≈ 41 pt).
+  static const frameBox = AvatarFrameBox(width * AvatarFrameBox.aspect);
 
   @override
   Widget build(BuildContext context) => Semantics(
@@ -1261,8 +1265,8 @@ class _SeatLabel extends StatelessWidget {
 
 /// A seat's round [picture] (see [_speakingPicture]) — v1.55-social (D186):
 /// with the avatar [frame] the person wears around it when this app has its
-/// art. A framed picture is [_Seat.framedAvatar] across so the frame is
-/// about a seat wide (it never takes taps); no name is written under the
+/// art. A framed picture fits the art's circle in [_Seat.frameBox], so the
+/// frame is a seat wide (it never takes taps); no name is written under the
 /// frame (owner).
 Widget _framedPicture({
   required AvatarFrame? frame,
@@ -1271,7 +1275,9 @@ Widget _framedPicture({
   required Widget picture,
 }) {
   final art = AvatarFrameArt.of(frame);
-  final size = art == null ? _Seat.avatar : _Seat.framedAvatar;
+  final size = art == null
+      ? _Seat.avatar
+      : art.pictureForWidth(_Seat.frameBox.square);
   final round = _speakingPicture(
     speaking: speaking,
     cpMic: cpMic,

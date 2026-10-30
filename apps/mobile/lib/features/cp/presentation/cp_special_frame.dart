@@ -51,6 +51,9 @@ class CpSpecialFrameAvatar extends StatelessWidget {
   /// The heart opening's width in the art.
   static const _holeWidth = 403.0;
 
+  /// The painted art's width / height (768 × 665).
+  static const double paintAspect = _art / (_paintBottom - _paintTop);
+
   /// The height of a frame [width] wide (only the painted part).
   static double heightFor(double width) =>
       width * (_paintBottom - _paintTop) / _art;

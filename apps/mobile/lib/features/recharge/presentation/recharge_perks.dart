@@ -1,5 +1,6 @@
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/bag/presentation/avatar_frame_art.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -369,14 +370,20 @@ AgentFrameKind? agentFrameKindFor({String? rechargeCode, String? hostCode}) =>
     : null;
 
 /// The geometry of the agent frames around an avatar-sized picture, so a
-/// header can lay either out the same way.
+/// header can lay either out the same way. Owner (after D189): both are
+/// drawn in the standard [AvatarFrameBox] — the recharge frame fills it,
+/// the square host-agent frame is as high as it (no longer larger).
 abstract final class AgentFrameGeometry {
-  /// The frame's width around a picture of [avatar].
-  static double width(AgentFrameKind kind, double avatar) => switch (kind) {
-    AgentFrameKind.recharge => avatar * 1.6,
-    // The same drawn photo size as the recharge frame's (≈ 0.93 × avatar).
-    AgentFrameKind.host => HostAgentFrame.widthForPicture(avatar * 0.93),
-  };
+  /// The frame's width in the standard box around a picture of [avatar].
+  static double width(AgentFrameKind kind, double avatar) =>
+      widthIn(kind, AvatarFrameBox.aroundAvatar(avatar));
+
+  /// The frame's width fitted in [box].
+  static double widthIn(AgentFrameKind kind, AvatarFrameBox box) =>
+      switch (kind) {
+        AgentFrameKind.recharge => box.fit(RechargeAgentArt.frameAspect).width,
+        AgentFrameKind.host => box.fit(HostAgentArt.frameAspect).width,
+      };
 
   static double height(AgentFrameKind kind, double width) => switch (kind) {
     AgentFrameKind.recharge => RechargeAgentFrame.heightFor(width),

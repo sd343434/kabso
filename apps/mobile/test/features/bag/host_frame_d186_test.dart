@@ -490,7 +490,13 @@ void main() {
             )
             .first,
       );
-      expect(picture.width, AudioSeatRing.framedPicture);
+      expect(
+        picture.width,
+        moreOrLessEquals(
+          AudioSeatRing.framedPictureFor(AvatarFrameArt.hostBlue),
+          epsilon: 0.01,
+        ),
+      );
       final plain = tester.getRect(
         find
             .descendant(
@@ -510,6 +516,9 @@ void main() {
         ),
       );
       const art = AvatarFrameArt.hostBlue;
+      // Owner (after D189): the seat's standard frame box — a square art is
+      // as wide as the seat.
+      expect(frame.width, moreOrLessEquals(AudioSeatRing.tileWidth));
       expect(
         frame.left + frame.width * art.cx,
         moreOrLessEquals(picture.center.dx, epsilon: 0.5),

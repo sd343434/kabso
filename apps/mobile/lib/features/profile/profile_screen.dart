@@ -398,40 +398,50 @@ class ProfileHeaderView extends StatelessWidget {
       hostCode: hostCode,
     );
     final frameArt = AvatarFrameArt.of(avatarFrame);
+    // Owner (after D189): every frame in one box — the recharge frame's —
+    // the photo in each art's measured circle.
+    final box = AvatarFrameBox.aroundAvatar(KProfile.avatar);
     final avatar = frameKind == AgentFrameKind.recharge && !live
-        ? RechargeAgentFrame(
-            key: agentFrameKey,
-            width: AgentFrameGeometry.width(frameKind!, KProfile.avatar),
-            name: displayName,
-            code: agentCode!,
-            imageUrl: avatarUrl,
+        ? box.place(
+            RechargeAgentFrame(
+              key: agentFrameKey,
+              width: AgentFrameGeometry.widthIn(frameKind!, box),
+              name: displayName,
+              code: agentCode!,
+              imageUrl: avatarUrl,
+            ),
           )
         : frameKind == AgentFrameKind.host && !live
-        ? HostAgentFrame(
-            key: agentFrameKey,
-            width: AgentFrameGeometry.width(frameKind!, KProfile.avatar),
-            name: displayName,
-            imageUrl: avatarUrl,
-          )
-        : frameArt != null && !live
-        ? FramedAvatar(
-            key: avatarFrameKey,
-            art: frameArt,
-            // As wide as the agent frame (1.6 × the photo slot).
-            picture: frameArt.pictureForWidth(KProfile.avatar * 1.6),
-            layout: true,
-            child: KAvatar(
+        ? box.place(
+            HostAgentFrame(
+              key: agentFrameKey,
+              width: AgentFrameGeometry.widthIn(frameKind!, box),
               name: displayName,
               imageUrl: avatarUrl,
-              size: frameArt.pictureForWidth(KProfile.avatar * 1.6),
+            ),
+          )
+        : frameArt != null && !live
+        ? box.place(
+            FramedAvatar(
+              key: avatarFrameKey,
+              art: frameArt,
+              picture: frameArt.pictureForWidth(box.square),
+              layout: true,
+              child: KAvatar(
+                name: displayName,
+                imageUrl: avatarUrl,
+                size: frameArt.pictureForWidth(box.square),
+              ),
             ),
           )
         : cpFrame && !live
-        ? CpSpecialFrameAvatar(
-            key: cpFrameKey,
-            width: CpSpecialFrameAvatar.widthForAvatar(KProfile.avatar),
-            name: displayName,
-            imageUrl: avatarUrl,
+        ? box.place(
+            CpSpecialFrameAvatar(
+              key: cpFrameKey,
+              width: box.fit(CpSpecialFrameAvatar.paintAspect).width,
+              name: displayName,
+              imageUrl: avatarUrl,
+            ),
           )
         : KAvatar(
             name: displayName,
