@@ -210,7 +210,7 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
       await _engine.join(access);
       if (!ref.mounted) return;
       state = state.copyWith(joined: true);
-      if (_mode.hasSeats) {
+      if (_mode.hasGuestSeats) {
         await refreshSeats();
         _poll = Timer.periodic(
           const Duration(seconds: 10),
@@ -292,7 +292,7 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
     _watchRoomInfo();
     final version = _engine.seatsVersion;
     final seats = state.seats;
-    if (_mode.hasSeats &&
+    if (_mode.hasGuestSeats &&
         version != null &&
         (seats == null || version > seats.version)) {
       unawaited(refreshSeats());
@@ -323,7 +323,7 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
 
   /// `GET /live/rooms/{roomId}/seats`; failures keep the last seats.
   Future<void> refreshSeats() async {
-    if (_refreshing || !_mode.hasSeats) return;
+    if (_refreshing || !_mode.hasGuestSeats) return;
     _refreshing = true;
     try {
       final seats = await _repo.seats(roomId);
@@ -350,7 +350,8 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
       final want = state.seated && _engine.canPublish;
       if (want && !state.publishing && !state.captureFailed) {
         try {
-          await _engine.publishLocal(video: _mode == LiveRoomMode.multi);
+          // D174: a SOLO live's guests are on camera too.
+          await _engine.publishLocal(video: _mode != LiveRoomMode.audio);
           if (ref.mounted) state = state.copyWith(publishing: true);
         } on LiveCaptureException {
           if (ref.mounted) state = state.copyWith(captureFailed: true);

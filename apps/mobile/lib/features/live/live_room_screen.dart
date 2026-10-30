@@ -55,6 +55,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_cp_entrance.d
 import 'package:kabso_live/features/live/presentation/widgets/live_games_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_effects_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_guest_tiles.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_lucky_combo_button.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_boxes.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
@@ -116,6 +117,10 @@ class LiveRoomScreen extends ConsumerWidget {
   /// cherry chip beside the board chip.
   static const gamesKey = Key('room.games');
   static const guestKey = Key('room.guest');
+
+  /// D174: ∞ while the request waits (cancel) and while seated (leave).
+  static const guestCancelKey = Key('room.guest.cancel');
+  static const guestLeaveKey = Key('room.guest.leave');
   static const scoreChipKey = Key('room.scoreChip');
 
   /// v1.20-live (D105): this person was kicked out of the live.
@@ -662,7 +667,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     final ok = await ensureSeatCapturePermission(
       context,
       ref.read(livePermissionsProvider),
-      camera: _room.mode == LiveRoomMode.multi,
+      // D174: a SOLO live's guests are on camera too.
+      camera: _room.mode != LiveRoomMode.audio,
     );
     if (!ok && mounted) {
       KSnack.info(context, context.l10n.livePermissionSeatRefused);
@@ -955,9 +961,9 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       // not (guests read the ROOM banners too, v1.39-live).
       sidePromo: ended ? null : LiveRoomPromoBox(roomId: room.id),
       // D145a: the lucky combo beside the chat, over the quick replies.
-      chatEnd: !ended && LuckyComboCluster.shows(ref, room.id)
-          ? LuckyComboCluster(roomId: room.id)
-          : null,
+      // D174: a solo live's guests stacked at the end over the chat; D145a:
+      // the lucky combo under them.
+      chatEnd: ended ? null : _chatEnd(session, engine, room),
       chat: ended
           ? null
           : Align(
@@ -1030,14 +1036,11 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                         // as a guest. A multi-guest live asks for a seat
                         // with the seat bar above (CP-011); a solo live has
                         // no guest seats (the API refuses), so ∞ says so.
+                        // D174 (owner «نعم بالطبع»): in a solo live ∞
+                        // asks to join as a guest (3 at most), then shows
+                        // the request (tap: cancel) or the seat (tap: leave).
                         if (me != null && room.mode == LiveRoomMode.solo)
-                          KViewerBarButton(
-                            key: LiveRoomScreen.guestKey,
-                            icon: Icons.all_inclusive_rounded,
-                            label: l10n.liveGuestJoin,
-                            onTap: () =>
-                                KSnack.info(context, l10n.liveGuestSoloInfo),
-                          ),
+                          _soloGuestButton(session),
                         // D173: games (none yet: the sheet says so).
                         KViewerBarButton(
                           key: LiveRoomScreen.gamesKey,
@@ -1480,7 +1483,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
           label: l10n.liveToolNewcomers,
           onTap: () => unawaited(showLiveNewcomers(context, roomId: room.id)),
         ),
-        if (room.mode.hasSeats)
+        if (room.mode.hasGuestSeats)
           GoLiveTool(
             id: 'seatRequests',
             icon: Icons.front_hand_rounded,
@@ -1505,6 +1508,73 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         roomTitle: l10n.liveViewerMenu,
         otherTitle: l10n.liveToolsModerator,
       ),
+    );
+  }
+
+  /// D174: the end of the chat row — a solo live's guest tiles, then the
+  /// lucky combo (D145a); null when neither shows.
+  Widget? _chatEnd(
+    LiveRoomSessionState session,
+    LiveMediaEngine engine,
+    LiveRoom room,
+  ) {
+    final combo = LuckyComboCluster.shows(ref, room.id)
+        ? LuckyComboCluster(roomId: room.id)
+        : null;
+    final guests = room.mode == LiveRoomMode.solo
+        ? (session.seats?.seats ?? const <LiveSeat>[])
+              .where((s) => s.state == LiveSeatState.taken)
+              .toList()
+        : const <LiveSeat>[];
+    if (guests.isEmpty) return combo;
+    final me = ref.read(currentUserProvider)?.id;
+    final tiles = LiveGuestTiles(
+      seats: guests,
+      video: (u) => u.id == me ? engine.preview() : engine.remoteVideo(u.id),
+      onTap: (u) => _person(u.username),
+    );
+    if (combo == null) return tiles;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [tiles, const SizedBox(height: 6), combo],
+    );
+  }
+
+  /// D174: ∞ in a solo live — ask to join as a guest, the pending request
+  /// (tap: cancel) or the seat (tap: leave). The 3 guest seats full: it
+  /// says so instead of asking.
+  Widget _soloGuestButton(LiveRoomSessionState session) {
+    final l10n = context.l10n;
+    final mine = session.mine;
+    if (session.seated) {
+      return KViewerBarButton(
+        key: LiveRoomScreen.guestLeaveKey,
+        icon: Icons.logout_rounded,
+        label: l10n.liveSeatLeave,
+        onTap: () => unawaited(runSeatAction(context, _session.leaveSeat)),
+      );
+    }
+    if (mine?.request != null) {
+      return KViewerBarButton(
+        key: LiveRoomScreen.guestCancelKey,
+        icon: Icons.hourglass_top_rounded,
+        label: l10n.liveSeatRequested,
+        onTap: () => unawaited(runSeatAction(context, _session.cancelRequest)),
+      );
+    }
+    final seats = session.seats?.seats;
+    final full =
+        seats != null &&
+        seats.isNotEmpty &&
+        seats.every((s) => s.state != LiveSeatState.empty);
+    return KViewerBarButton(
+      key: LiveRoomScreen.guestKey,
+      icon: Icons.all_inclusive_rounded,
+      label: l10n.liveGuestJoin,
+      onTap: full
+          ? () => KSnack.info(context, l10n.liveGuestsFull)
+          : () => unawaited(_requestSeat()),
     );
   }
 

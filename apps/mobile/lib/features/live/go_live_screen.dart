@@ -71,6 +71,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_cp_entrance.d
 import 'package:kabso_live/features/live/presentation/widgets/live_games_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_effects_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_guest_tiles.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_lucky_combo_button.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
@@ -559,7 +560,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         setup && !captureFailed && state.mode == LiveRoomMode.audio;
     final seats = state.mode.hasSeats;
     final room = state.room;
-    final liveSeats = onAir && seats && room != null
+    // D174: a solo live has guest seats too.
+    final liveSeats = onAir && state.mode.hasGuestSeats && room != null
         ? ref.watch(liveSeatsProvider(room.id)).value
         : null;
     // Before going live, the count previewed is the one that will be sent
@@ -2106,9 +2108,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       ),
       sidePromo: live ? LiveRoomPromoBox(roomId: room.id) : null,
       // D145a: the lucky combo beside the chat, over the quick replies.
-      chatEnd: LuckyComboCluster.shows(ref, room.id)
-          ? LuckyComboCluster(roomId: room.id)
-          : null,
+      chatEnd: _soloChatEnd(room, liveSeats),
       closeButtonKey: GoLiveScreen.closeKey,
       closeLabel: l10n.goLiveEndConfirm,
       onClose: live ? () => unawaited(_confirmEnd()) : null,
@@ -2150,7 +2150,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 requests: liveSeats?.pendingRequests ?? 0,
                 // In a multi-guest live: requests and seats; a solo live has no
                 // seats to join (switching mid-live has no backend yet).
-                onGuests: state.mode.hasSeats
+                // D174: a solo live's guest requests (3 seats) as well.
+                onGuests: state.mode.hasGuestSeats
                     ? () => unawaited(
                         _openViewers(room.id, liveSeats, guests: true),
                       )
@@ -2160,6 +2161,32 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               ),
             ],
           ),
+    );
+  }
+
+  /// D174: a solo live's guests as tiles at the end over the chat (a tap:
+  /// their card, with remove and mute), then the lucky combo (D145a).
+  Widget? _soloChatEnd(LiveRoom room, LiveSeats? liveSeats) {
+    final combo = LuckyComboCluster.shows(ref, room.id)
+        ? LuckyComboCluster(roomId: room.id)
+        : null;
+    final guests = room.mode == LiveRoomMode.solo
+        ? (liveSeats?.seats ?? const <LiveSeat>[])
+              .where((s) => s.state == LiveSeatState.taken)
+              .toList()
+        : const <LiveSeat>[];
+    if (guests.isEmpty) return combo;
+    final engine = _host.engine;
+    final tiles = LiveGuestTiles(
+      seats: guests,
+      video: (u) => engine.remoteVideo(u.id),
+      onTap: (u) => unawaited(_person(room.id, u.username)),
+    );
+    if (combo == null) return tiles;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [tiles, const SizedBox(height: 6), combo],
     );
   }
 

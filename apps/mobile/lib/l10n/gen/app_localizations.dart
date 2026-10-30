@@ -11036,11 +11036,11 @@ abstract class AppLocalizations {
   /// **'انضم كضيف'**
   String get liveGuestJoin;
 
-  /// D173: the guest (∞) button in a solo live (no guest seats there).
+  /// D174: a solo live's 3 guest seats are taken.
   ///
   /// In ar, this message translates to:
-  /// **'هذا بث فردي ولا توجد فيه مقاعد للضيوف. يمكنك طلب الانضمام كضيف في البث متعدد الضيوف.'**
-  String get liveGuestSoloInfo;
+  /// **'مقاعد الضيوف الثلاثة في هذا البث ممتلئة. حاول مجدداً عندما يفرغ مقعد.'**
+  String get liveGuestsFull;
 
   /// D140: the full-screen end-of-live summary (the live's statistics).
   ///

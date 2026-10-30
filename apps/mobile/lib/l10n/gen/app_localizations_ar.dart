@@ -6375,8 +6375,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveGuestJoin => 'انضم كضيف';
 
   @override
-  String get liveGuestSoloInfo =>
-      'هذا بث فردي ولا توجد فيه مقاعد للضيوف. يمكنك طلب الانضمام كضيف في البث متعدد الضيوف.';
+  String get liveGuestsFull =>
+      'مقاعد الضيوف الثلاثة في هذا البث ممتلئة. حاول مجدداً عندما يفرغ مقعد.';
 
   @override
   String get liveStatsCherries => 'كرز هذا البث';

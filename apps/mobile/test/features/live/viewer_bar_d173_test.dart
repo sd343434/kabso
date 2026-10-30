@@ -189,19 +189,6 @@ void main() {
       }
     }
 
-    testWidgets('solo: ∞ says honestly that a solo live has no guest seats; '
-        'no seat request is made', (tester) async {
-      await _pump(tester);
-      await tester.tap(find.byKey(LiveRoomScreen.guestKey));
-      await tester.pump();
-      expect(
-        find.text(l10nFor(AppLanguage.en).liveGuestSoloInfo),
-        findsOneWidget,
-      );
-      await tester.pump(const Duration(seconds: 5));
-      await _leave(tester);
-    });
-
     testWidgets('multi-guest: the seat bar asks for a seat (CP-011); no '
         'second ∞ button', (tester) async {
       await _pump(tester, mode: LiveRoomMode.multi);

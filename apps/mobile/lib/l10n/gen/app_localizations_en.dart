@@ -6355,8 +6355,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveGuestJoin => 'Join as a guest';
 
   @override
-  String get liveGuestSoloInfo =>
-      'This is a solo live: it has no guest seats. You can ask to join as a guest in a multi-guest live.';
+  String get liveGuestsFull =>
+      'The 3 guest seats of this live are taken. Try again when one is free.';
 
   @override
   String get liveStatsCherries => 'Cherries this live';
