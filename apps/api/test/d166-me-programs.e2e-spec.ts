@@ -671,13 +671,13 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
     expectContract(res, 'listRechargePackages');
     expect(res.body.purchasesEnabled).toBe(false);
     expect(res.body.currency).toBe('USD');
-    expect(res.body.packages).toHaveLength(7);
+    expect(res.body.packages).toHaveLength(6);
     expect(res.body.packages[2]).toEqual({
       id: 'p3',
-      coins: 276,
-      bonusCoins: 28,
-      priceMinor: 699,
-      originalPriceMinor: 800,
+      coins: 1_000_000,
+      bonusCoins: 0,
+      priceMinor: 1250,
+      originalPriceMinor: null,
     });
     expect((await ctx.http.get('/api/v1/wallet/recharge-packages')).status).toBe(401);
   });

@@ -2762,8 +2762,9 @@ Every value below is server config or an admin-managed row: the owner changes it
   listed with `available: false` until each is built; clients never show one as active. Points redemption
   for anti-mute / unban is out of scope (it would undermine moderation).
 - **Recharge packages** (`listRechargePackages`): `WALLET_RECHARGE_PACKAGES` (`coins+bonus:price[:original]`,
-  prices in minor units of `WALLET_RECHARGE_CURRENCY`); defaults are placeholders from the owner's reference
-  (10+20 $0.29 … 5197+30 $129.99, 276+28 $6.99 was $8.00) for the owner to set. `purchasesEnabled` is false
+  prices in minor units of `WALLET_RECHARGE_CURRENCY`); defaults (D203, owner 2026-10-31) are the website's
+  amounts at $12.50 per 1 000 000 coins: 100 000 $1.25, 500 000 $6.25, 1 000 000 $12.50, 5 000 000 $62.50,
+  10 000 000 $125, 50 000 000 $625, no bonus. `purchasesEnabled` is false
   and there is no purchase operation until B5.
 - **Rate limits:** every route uses the per-user default (§7).
 #### 10.41.1 The daily task pool *(v1.50-social, DRAFT — D176)*
