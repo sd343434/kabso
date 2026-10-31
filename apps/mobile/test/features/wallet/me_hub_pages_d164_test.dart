@@ -20,6 +20,7 @@ import 'package:kabso_live/features/creator/presentation/creator_stats_screen.da
 import 'package:kabso_live/features/live/application/live_wallet_controller.dart';
 import 'package:kabso_live/features/live/data/home_banners_repository.dart';
 import 'package:kabso_live/features/live/presentation/hub/home_banner_carousel.dart';
+import 'package:kabso_live/features/profile/profile_fields_view.dart';
 import 'package:kabso_live/features/programs/data/programs_repository.dart';
 import 'package:kabso_live/features/wallet/data/cherry_repository.dart';
 import 'package:kabso_live/features/wallet/data/wallet_repository.dart';
@@ -124,15 +125,20 @@ class _FakePrograms implements ProgramsRepository {
     this.packages = const [
       RechargePackage(id: 'p1', coins: 10, bonusCoins: 20, priceMinor: 29),
     ],
+    this.websiteTopupUrl,
   });
 
   final List<RechargePackage> packages;
+
+  /// D190: null unless the server switches the website link on.
+  final String? websiteTopupUrl;
 
   @override
   Future<RechargeOffer> rechargePackages() async => RechargeOffer(
     currency: 'USD',
     purchasesEnabled: false,
     packages: packages,
+    websiteTopupUrl: websiteTopupUrl,
   );
 
   @override
@@ -157,6 +163,16 @@ class _FakePrograms implements ProgramsRepository {
   @override
   Future<EventLeaderboard> leaderboard(String eventId) =>
       throw UnimplementedError();
+}
+
+class _FakeOpener implements ExternalLinkOpener {
+  final List<Uri> opened = [];
+
+  @override
+  Future<bool> open(Uri url) async {
+    opened.add(url);
+    return true;
+  }
 }
 
 /// D177: the coin history is a page behind the gold card's button.
@@ -218,6 +234,7 @@ Future<void> _pump(
   FakeHomeBannersRepository? banners,
   _FakePrograms? programs,
   FakeCherryRepository? cherries,
+  ExternalLinkOpener? opener,
   AppLanguage language = AppLanguage.en,
   GoldenViewport viewport = GoldenViewport.phone,
   double textScale = 1,
@@ -275,6 +292,8 @@ Future<void> _pump(
         homeBannersRepositoryProvider.overrideWithValue(
           banners ?? FakeHomeBannersRepository(),
         ),
+        if (opener != null)
+          externalLinkOpenerProvider.overrideWithValue(opener),
       ],
       child: MaterialApp.router(
         routerConfig: router,
@@ -415,6 +434,34 @@ void main() {
       expect(find.text(_en.walletPayUnavailable), findsNWidgets(2));
       expect(find.byType(WalletScreen), findsOneWidget);
       semantics.dispose();
+    });
+
+    // D190: card top-ups live on the website only; the app's link is a
+    // server flag (TOPUP_APP_LINK_ENABLED), off by default.
+    testWidgets('no «الشحن من الموقع» link by default (no URL from the '
+        'server)', (tester) async {
+      await _pump(tester, AppRoutes.wallet, language: AppLanguage.ar);
+      expect(find.byKey(WalletScreen.agentsKey), findsOneWidget);
+      expect(find.byKey(WalletScreen.websiteTopupKey), findsNothing);
+      expect(find.text(_ar.walletTopupWebsite), findsNothing);
+    });
+
+    testWidgets('the website link shows only with the server URL and opens '
+        'the browser', (tester) async {
+      final opener = _FakeOpener();
+      await _pump(
+        tester,
+        AppRoutes.wallet,
+        language: AppLanguage.ar,
+        programs: _FakePrograms(websiteTopupUrl: 'https://kabso.live/topup'),
+        opener: opener,
+      );
+      final row = find.byKey(WalletScreen.websiteTopupKey);
+      await tester.scrollUntilVisible(row, 200);
+      expect(find.text(_ar.walletTopupWebsite), findsOneWidget);
+      await tester.tap(row);
+      await tester.pumpAndSettle();
+      expect(opener.opened, [Uri.parse('https://kabso.live/topup')]);
     });
 
     testWidgets('no history: the empty state, never sample rows', (

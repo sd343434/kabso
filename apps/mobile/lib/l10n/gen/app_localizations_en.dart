@@ -10134,4 +10134,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get rechargeStockAfterLabel => 'Stock after the sale';
+
+  @override
+  String get walletTopupWebsite => 'Top up on the website';
+
+  @override
+  String get walletTopupWebsiteHint =>
+      'Pay by card on the official Kabso website';
 }

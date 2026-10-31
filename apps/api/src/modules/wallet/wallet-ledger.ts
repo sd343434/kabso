@@ -30,7 +30,14 @@ export type WalletLedgerReason =
   | 'CHECK_IN_REWARD'
   | 'EVENT_PRIZE'
   /** v1.54-social (D185): coins bought from a recharge agent (reference: the sale). */
-  | 'RECHARGE_PURCHASE';
+  | 'RECHARGE_PURCHASE'
+  /**
+   * v1.59-social (D190): coins bought on the website (reference: the order), taken back after a refund, an
+   * early-fraud warning or a dispute (reference: the Stripe event) and given back when a dispute is won.
+   */
+  | 'CARD_TOPUP'
+  | 'CARD_TOPUP_REVERSAL'
+  | 'CARD_TOPUP_RESTORE';
 
 /** The largest balance (CONVENTIONS §3: exact as a JSON number; CHECK `wallets_coins_range`). */
 export const MAX_COINS = 9_007_199_254_740_991n;
@@ -92,4 +99,38 @@ export async function debitIn(
     select: { id: true },
   });
   return { coins: row.coins, ledgerId: entry.id };
+}
+
+/**
+ * v1.59-social (D190, §10.53): takes `amount` (> 0) coins back from a website purchase even when they were already
+ * spent — the balance may go below 0 (a debt the buyer's next coins pay first). Only `CARD_TOPUP_REVERSAL` may do
+ * this; every other charge goes through [debitIn]. Inside the caller's transaction; the reference is unique.
+ */
+export async function reverseTopupIn(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  amount: bigint,
+  referenceId: string,
+): Promise<WalletChange> {
+  if (amount <= 0n) throw new RangeError('A reversal is positive');
+  const [row] = await tx.$queryRaw<{ coins: bigint }[]>`
+    INSERT INTO wallets (user_id, coins, updated_at) VALUES (${userId}::uuid, ${-amount}, now())
+    ON CONFLICT (user_id) DO UPDATE SET coins = wallets.coins - ${amount}, updated_at = now()
+    RETURNING coins`;
+  const entry = await tx.walletLedgerEntry.create({
+    data: { userId, delta: -amount, balanceAfter: row!.coins, reason: 'CARD_TOPUP_REVERSAL', referenceId },
+    select: { id: true },
+  });
+  return { coins: row!.coins, ledgerId: entry.id };
+}
+
+/**
+ * v1.59-social (D190, §10.53): whether the user's coin balance is below 0 (a reversed website purchase whose coins
+ * were already spent). While it is, the buyer sends no gift at all — not even from the bag — and transfers no bag
+ * item (403 TOPUP_ACCOUNT_FROZEN); coin spending fails anyway (INSUFFICIENT_COINS). Inside the caller's transaction.
+ */
+export async function inCoinDebtIn(tx: Prisma.TransactionClient, userId: string): Promise<boolean> {
+  const [row] = await tx.$queryRaw<{ debt: boolean }[]>`
+    SELECT EXISTS (SELECT 1 FROM wallets WHERE user_id = ${userId}::uuid AND coins < 0) AS debt`;
+  return row?.debt === true;
 }

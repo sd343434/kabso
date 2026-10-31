@@ -55,6 +55,15 @@ export function luckyPityOf(env: {
     : { after: env.LUCKY_PITY_AFTER, multiplier: env.LUCKY_PITY_MULTIPLIER };
 }
 
+/**
+ * v1.59-social (D190): the retail price in cents per 1 000 000 coins (COIN_RETAIL_USD_PER_MILLION × 100), or null
+ * when it is not a whole number of cents.
+ */
+export function topupMinorPerMillion(usdPerMillion: number): number | null {
+  const minor = Math.round(usdPerMillion * 100);
+  return Math.abs(minor - usdPerMillion * 100) < 1e-6 ? minor : null;
+}
+
 export const LIVE_GIFT_QUANTITIES_MAX = 12;
 /** The largest gift quantity. */
 export const LIVE_GIFT_QUANTITY_MAX = 9999;
@@ -560,6 +569,8 @@ export const envSchema = z
     /** v1.54-social (D185, §10.48): coin sales by a recharge agent or employee, and the other recharge writes. */
     RATE_LIMIT_RECHARGE_SELL_USER: rateLimit('120/3600'),
     RATE_LIMIT_RECHARGE_WRITE_USER: rateLimit('60/3600'),
+    /** v1.59-social (D190, §10.53): card top-up checkouts started, per user. */
+    RATE_LIMIT_TOPUP_CHECKOUT_USER: rateLimit('20/3600'),
     RATE_LIMIT_FOLLOW_HOUR_USER: rateLimit('60/3600'),
     RATE_LIMIT_FOLLOW_DAY_USER: rateLimit('300/86400'),
     // v1.5-social (CONVENTIONS §11.8); every bucket is per user and replaces the default.
@@ -1016,6 +1027,95 @@ export const envSchema = z
     RECHARGE_BADGE_TIME_ZONE: ianaTimeZone('Asia/Riyadh'),
     RECHARGE_BADGE_HOURS: intSetting(24, 1, 168),
     /**
+     * v1.59-social (D190, CONVENTIONS §10.53): card top-ups on the Kabso website through Stripe Checkout. Off
+     * (every top-up operation answers 503 TOPUP_UNAVAILABLE) until the owner places all three secrets in the
+     * server environment: the secret key, the webhook signing secret and the public base URL of the website.
+     * Never in git or chat. A test key (`sk_test_`/`rk_test_`) is refused in production unless
+     * STRIPE_ALLOW_TEST_KEYS_IN_PRODUCTION=true. Hosted Checkout needs no publishable key.
+     */
+    STRIPE_SECRET_KEY: z
+      .string()
+      .trim()
+      .regex(/^(sk|rk)_(test|live)_[A-Za-z0-9_]{8,250}$/, 'must be a Stripe secret or restricted key')
+      .optional(),
+    STRIPE_WEBHOOK_SECRET: z
+      .string()
+      .trim()
+      .regex(/^whsec_[A-Za-z0-9+/=_]{8,250}$/, 'must be a Stripe webhook signing secret (whsec_…)')
+      .optional(),
+    STRIPE_ALLOW_TEST_KEYS_IN_PRODUCTION: z
+      .enum(['true', 'false'], { error: 'must be "true" or "false"' })
+      .default('false')
+      .transform((v) => v === 'true'),
+    /** The website's origin (the API serves `/topup`): Stripe's success / cancel redirects come back here. */
+    TOPUP_PUBLIC_BASE_URL: z
+      .string()
+      .trim()
+      .url()
+      .refine((v) => /^https?:\/\/[^/?#]+$/.test(v.replace(/\/$/, '')), {
+        message: 'must be an origin like https://kabso.live',
+      })
+      .transform((v) => v.replace(/\/$/, ''))
+      .optional(),
+    /**
+     * The coin packages sold on the website (owner: 100 000 … 50 000 000). Each price is computed on the server
+     * from COIN_RETAIL_USD_PER_MILLION (owner $12.50 per 1 000 000) and must be a whole number of cents ≥ 50.
+     */
+    TOPUP_PACKAGES: z
+      .string()
+      .trim()
+      .default('100000,500000,1000000,5000000,10000000,50000000')
+      .refine((v) => /^[1-9][0-9]{0,12}(,[1-9][0-9]{0,12}){0,11}$/.test(v), {
+        message: 'must be 1–12 comma-separated coin amounts',
+      })
+      .transform((v) => v.split(',').map(Number))
+      .refine((list) => new Set(list).size === list.length, { message: 'must not repeat an amount' }),
+    /**
+     * Stripe bank transfers (`customer_balance` with bank-transfer funding instructions: push payments, no
+     * chargebacks) offered next to the card where the Stripe account supports them. Off by default.
+     */
+    STRIPE_BANK_TRANSFER_ENABLED: z
+      .enum(['true', 'false'], { error: 'must be "true" or "false"' })
+      .default('false')
+      .transform((v) => v === 'true'),
+    STRIPE_BANK_TRANSFER_TYPE: z
+      .enum([
+        'us_bank_transfer',
+        'eu_bank_transfer',
+        'gb_bank_transfer',
+        'mx_bank_transfer',
+        'jp_bank_transfer',
+      ])
+      .default('us_bank_transfer'),
+    /**
+     * Optional dynamic suffix after the account's statement descriptor prefix (the prefix «KABSO LIVE» is set in the
+     * Stripe dashboard). Letters, digits and spaces; prefix + suffix ≤ 22 characters.
+     */
+    STRIPE_STATEMENT_DESCRIPTOR_SUFFIX: z
+      .string()
+      .trim()
+      .regex(/^[A-Za-z0-9 ]{1,10}$/, 'must be 1–10 letters, digits or spaces')
+      .optional(),
+    /** On `charge.dispute.created` the evidence is submitted to Stripe at once (owner); false = staged only. */
+    STRIPE_DISPUTE_AUTO_SUBMIT: z
+      .enum(['true', 'false'], { error: 'must be "true" or "false"' })
+      .default('true')
+      .transform((v) => v === 'true'),
+    /**
+     * The app's «الشحن من الموقع» link to the website (store policy decides; owner: off by default). When true
+     * and top-ups are on, `GET /wallet/recharge-packages` carries `websiteTopupUrl`.
+     */
+    TOPUP_APP_LINK_ENABLED: z
+      .enum(['true', 'false'], { error: 'must be "true" or "false"' })
+      .default('false')
+      .transform((v) => v === 'true'),
+    /** The version of the «العملات رقمية وغير قابلة للاسترداد» statement recorded with every acceptance. */
+    TOPUP_TERMS_VERSION: z
+      .string()
+      .trim()
+      .regex(/^[A-Za-z0-9._-]{1,32}$/, 'must be 1–32 letters, digits, dots, dashes or underscores')
+      .default('2026-10-31'),
+    /**
      * Optional dedicated source of the HMAC key (HKDF, info `social-cursor/v1`) of the v1.5-social
      * list cursors; like LIVE_CURSOR_KEY it falls back to RATE_LIMIT_KEY_SECRET.
      */
@@ -1165,9 +1265,64 @@ export const envSchema = z
         }
       }
     }
+    // v1.59-social (D190): card top-ups are all or nothing (a key without the webhook secret would take payments
+    // that are never credited).
+    {
+      const topupKeys = ['STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'TOPUP_PUBLIC_BASE_URL'] as const;
+      const set = topupKeys.filter((k) => env[k] !== undefined);
+      if (set.length > 0 && set.length < topupKeys.length) {
+        for (const key of topupKeys.filter((k) => env[k] === undefined)) {
+          ctx.addIssue({
+            code: 'custom',
+            path: [key],
+            message: `is required when ${set.join(', ')} is set (card top-ups need all three)`,
+          });
+        }
+      }
+      const minorPerMillion = topupMinorPerMillion(env.COIN_RETAIL_USD_PER_MILLION);
+      if (minorPerMillion === null) {
+        if (set.length > 0) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['COIN_RETAIL_USD_PER_MILLION'],
+            message: 'must be a whole number of cents per 1 000 000 coins when card top-ups are on',
+          });
+        }
+      } else if (set.length > 0) {
+        // Only when card top-ups are on: COIN_RETAIL_USD_PER_MILLION also prices task rewards (D188).
+        for (const coins of env.TOPUP_PACKAGES) {
+          const minor = (coins * minorPerMillion) / 1_000_000;
+          if (!Number.isInteger(minor) || minor < 50) {
+            ctx.addIssue({
+              code: 'custom',
+              path: ['TOPUP_PACKAGES'],
+              message: `${coins} coins cost ${minor} cents: each package must cost a whole number of cents, at least 50`,
+            });
+          }
+        }
+      }
+    }
     if (env.NODE_ENV === 'production') {
       if (env.LIVEKIT_URL !== undefined && !env.LIVEKIT_URL.startsWith('wss://')) {
         ctx.addIssue({ code: 'custom', path: ['LIVEKIT_URL'], message: 'must use wss in production' });
+      }
+      if (env.STRIPE_SECRET_KEY !== undefined && /^(sk|rk)_test_/.test(env.STRIPE_SECRET_KEY)) {
+        if (!env.STRIPE_ALLOW_TEST_KEYS_IN_PRODUCTION) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['STRIPE_SECRET_KEY'],
+            message:
+              'a Stripe TEST key is refused in production (set STRIPE_ALLOW_TEST_KEYS_IN_PRODUCTION=true only for a ' +
+              'staging server that must not take real money)',
+          });
+        }
+      }
+      if (env.TOPUP_PUBLIC_BASE_URL !== undefined && !env.TOPUP_PUBLIC_BASE_URL.startsWith('https://')) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['TOPUP_PUBLIC_BASE_URL'],
+          message: 'must use https in production',
+        });
       }
       if (env.LIVEKIT_API_SECRET !== undefined) {
         const problem = productionSecretProblem(env.LIVEKIT_API_SECRET);

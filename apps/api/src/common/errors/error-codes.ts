@@ -163,6 +163,10 @@ export enum ErrorCode {
   HOST_FRAME_STYLE_FROM_GENDER = 'HOST_FRAME_STYLE_FROM_GENDER',
   /** v1.57-social (DRAFT, D188): the caller already got the month's maximum of task cherries. */
   TASK_MONTHLY_CAP_REACHED = 'TASK_MONTHLY_CAP_REACHED',
+  /** v1.59-social (DRAFT, D190): card top-ups are not configured on this server (no Stripe keys); no Retry-After. */
+  TOPUP_UNAVAILABLE = 'TOPUP_UNAVAILABLE',
+  /** v1.59-social (DRAFT, D190): the account is frozen from card purchases after a refund, a fraud warning or a dispute. */
+  TOPUP_ACCOUNT_FROZEN = 'TOPUP_ACCOUNT_FROZEN',
 }
 
 /** HTTP status for every code (CONVENTIONS.md §4 table). */
@@ -259,6 +263,8 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.USERNAME_LOCKED]: 409,
   [ErrorCode.HOST_FRAME_STYLE_FROM_GENDER]: 409,
   [ErrorCode.TASK_MONTHLY_CAP_REACHED]: 409,
+  [ErrorCode.TOPUP_UNAVAILABLE]: 503,
+  [ErrorCode.TOPUP_ACCOUNT_FROZEN]: 403,
 };
 
 /** Default developer-facing messages (clients localize by `code`, not by message). */
@@ -355,6 +361,8 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.USERNAME_LOCKED]: 'Your username is locked while your special username is active.',
   [ErrorCode.HOST_FRAME_STYLE_FROM_GENDER]: 'Your gender sets the colour of your host frame.',
   [ErrorCode.TASK_MONTHLY_CAP_REACHED]: 'You already got this month’s maximum of task rewards.',
+  [ErrorCode.TOPUP_UNAVAILABLE]: 'Card top-up is not enabled (الشحن بالبطاقة غير مفعّل).',
+  [ErrorCode.TOPUP_ACCOUNT_FROZEN]: 'Card purchases are frozen on this account.',
 };
 
 export interface ErrorDetail {

@@ -10157,4 +10157,10 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get rechargeStockAfterLabel => 'المخزون بعد البيع';
+
+  @override
+  String get walletTopupWebsite => 'الشحن من الموقع';
+
+  @override
+  String get walletTopupWebsiteHint => 'اشحن بالبطاقة على موقع كابسو الرسمي';
 }

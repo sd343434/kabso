@@ -141,6 +141,20 @@ export enum AuditAction {
   HOST_FRAME_REVOKE = 'host_frame.revoke',
   HOST_FRAME_SWAP = 'host_frame.swap',
   HOST_FRAME_CHOICE = 'host_frame.choice',
+  // v1.59-social (DRAFT, D190): card top-ups through Stripe (CONVENTIONS §10.53). Webhook actions have no actor.
+  TOPUP_CHECKOUT_CREATE = 'topup.checkout.create',
+  TOPUP_CREDIT = 'topup.credit',
+  TOPUP_STATUS = 'topup.status',
+  TOPUP_REVERSE = 'topup.reverse',
+  TOPUP_RESTORE = 'topup.restore',
+  TOPUP_FREEZE = 'topup.freeze',
+  TOPUP_UNFREEZE = 'topup.unfreeze',
+  TOPUP_AUTO_REFUND = 'topup.auto_refund',
+  TOPUP_ADMIN_REFUND = 'topup.admin_refund',
+  TOPUP_DISPUTE_EVIDENCE = 'topup.dispute.evidence',
+  TOPUP_CASE_OPEN = 'topup.case.open',
+  TOPUP_CASE_CLOSE = 'topup.case.close',
+  TOPUP_EVENT_UNMATCHED = 'topup.event.unmatched',
   // v1.28-live (DRAFT, D146): premium usernames and the username change (CONVENTIONS §10.32).
   USERNAME_CHANGE = 'user.username.change',
   /** v1.45-social (D168): the caller changed their display name and/or bio (field names only). */

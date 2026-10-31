@@ -212,6 +212,12 @@ model User {
   // v1.56-social (D187): the daily recharge badges.
   rechargeDailyTotals    RechargeDailyTotal[]
   rechargeBadge          RechargeBadge?
+  // v1.59-social (D190): card top-ups on the website.
+  topupTermsAcceptances  TopupTermsAcceptance[]
+  topupOrders            TopupOrder[]
+  topupFreeze            TopupFreeze?
+  topupCases             TopupCase[]
+  stripeCustomer         StripeCustomer?
 
   @@map("users")
 }
@@ -872,6 +878,12 @@ enum WalletLedgerReason {
   EVENT_PRIZE
   /// v1.54-social (D185): coins bought from a recharge agent (reference: the sale).
   RECHARGE_PURCHASE
+  /// v1.59-social (D190): coins bought on the website (reference: the order), taken back after a refund, an
+  /// early-fraud warning or a dispute (reference: the Stripe event; the balance may go below 0), and given back
+  /// when a dispute is won (reference: the Stripe event).
+  CARD_TOPUP
+  CARD_TOPUP_REVERSAL
+  CARD_TOPUP_RESTORE
 
   @@map("wallet_ledger_reason")
 }
@@ -4025,4 +4037,155 @@ model RechargeBadge {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("recharge_badges")
+}
+
+// ---- v1.59-social (D190, CONVENTIONS §10.53): card top-ups on the website through Stripe -------------------------
+
+enum TopupOrderStatus {
+  /// The Checkout session exists; nothing paid yet.
+  PENDING
+  /// A bank transfer was chosen: Stripe waits for the money (funding instructions shown).
+  AWAITING_FUNDS
+  /// Paid and credited (once, by the webhook).
+  PAID
+  EXPIRED
+  FAILED
+
+  @@map("topup_order_status")
+}
+
+enum TopupCaseKind {
+  REFUND
+  EARLY_FRAUD_WARNING
+  DISPUTE
+
+  @@map("topup_case_kind")
+}
+
+enum TopupCaseStatus {
+  OPEN
+  CLOSED
+
+  @@map("topup_case_status")
+}
+
+/// D190: «العملات رقمية وغير قابلة للاسترداد» accepted before a checkout (statement, version, time, IP, user agent).
+model TopupTermsAcceptance {
+  id           String   @id @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  termsVersion String   @map("terms_version") @db.VarChar(32)
+  termsText    String   @map("terms_text") @db.VarChar(300)
+  locale       String   @db.VarChar(5)
+  ip           String?  @db.VarChar(64)
+  userAgent    String?  @map("user_agent") @db.VarChar(512)
+  acceptedAt   DateTime @map("accepted_at") @db.Timestamptz(3)
+
+  user  User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  order TopupOrder?
+
+  @@index([userId, acceptedAt(sort: Desc)], map: "topup_terms_acceptances_user_idx")
+  @@map("topup_terms_acceptances")
+}
+
+/// D190: one website purchase (CHECKs in migration 20270104100000_card_topups).
+model TopupOrder {
+  id                    String           @id @db.Uuid
+  userId                String           @map("user_id") @db.Uuid
+  termsAcceptanceId     String           @map("terms_acceptance_id") @db.Uuid
+  packageId             String           @map("package_id") @db.VarChar(32)
+  coins                 BigInt
+  amountMinor           Int              @map("amount_minor")
+  currency              String           @db.Char(3)
+  paymentMethodTypes    String[]         @map("payment_method_types") @db.VarChar(32)
+  status                TopupOrderStatus @default(PENDING)
+  stripeSessionId       String?          @map("stripe_session_id") @db.VarChar(255)
+  stripePaymentIntentId String?          @map("stripe_payment_intent_id") @db.VarChar(255)
+  stripeChargeId        String?          @map("stripe_charge_id") @db.VarChar(255)
+  paymentMethodType     String?          @map("payment_method_type") @db.VarChar(32)
+  creditedAt            DateTime?        @map("credited_at") @db.Timestamptz(3)
+  refundedMinor         Int              @default(0) @map("refunded_minor")
+  fraudWarningAt        DateTime?        @map("fraud_warning_at") @db.Timestamptz(3)
+  autoRefundId          String?          @map("auto_refund_id") @db.VarChar(255)
+  disputeId             String?          @map("dispute_id") @db.VarChar(255)
+  disputeStatus         String?          @map("dispute_status") @db.VarChar(32)
+  disputeAmountMinor    Int              @default(0) @map("dispute_amount_minor")
+  evidenceSubmittedAt   DateTime?        @map("evidence_submitted_at") @db.Timestamptz(3)
+  coinsReversed         BigInt           @default(0) @map("coins_reversed")
+  createdAt             DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime         @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  user    User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
+  terms   TopupTermsAcceptance @relation(fields: [termsAcceptanceId], references: [id], onDelete: Restrict)
+  freezes TopupFreeze[]
+  cases   TopupCase[]
+  events  StripeEvent[]
+
+  @@unique([termsAcceptanceId], map: "topup_orders_terms_once")
+  @@unique([stripeSessionId], map: "topup_orders_session_once")
+  @@unique([stripePaymentIntentId], map: "topup_orders_payment_intent_once")
+  @@index([stripeChargeId], map: "topup_orders_charge_idx")
+  @@index([userId, createdAt(sort: Desc)], map: "topup_orders_user_created_idx")
+  @@map("topup_orders")
+}
+
+/// D190: a buyer frozen from card purchases (one row per user).
+model TopupFreeze {
+  userId    String        @id @map("user_id") @db.Uuid
+  orderId   String        @map("order_id") @db.Uuid
+  reason    TopupCaseKind
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order TopupOrder @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@map("topup_freezes")
+}
+
+/// D190: an admin case after a refund, an early-fraud warning or a dispute, with the FIFO gift attribution.
+model TopupCase {
+  id             String          @id @db.Uuid
+  orderId        String          @map("order_id") @db.Uuid
+  userId         String          @map("user_id") @db.Uuid
+  kind           TopupCaseKind
+  stripeObjectId String          @map("stripe_object_id") @db.VarChar(255)
+  status         TopupCaseStatus @default(OPEN)
+  outcome        String?         @db.VarChar(32)
+  coinsReversed  BigInt          @map("coins_reversed")
+  attribution    Json
+  note           String?         @db.VarChar(500)
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  closedAt       DateTime?       @map("closed_at") @db.Timestamptz(3)
+
+  order TopupOrder @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  user  User       @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([kind, stripeObjectId], map: "topup_cases_object_once")
+  @@index([status, createdAt(sort: Desc)], map: "topup_cases_status_idx")
+  @@map("topup_cases")
+}
+
+/// D190: every Stripe event, once.
+model StripeEvent {
+  id          String    @id @db.VarChar(255)
+  type        String    @db.VarChar(100)
+  orderId     String?   @map("order_id") @db.Uuid
+  outcome     String?   @db.VarChar(32)
+  receivedAt  DateTime  @default(now()) @map("received_at") @db.Timestamptz(3)
+  processedAt DateTime? @map("processed_at") @db.Timestamptz(3)
+
+  order TopupOrder? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@map("stripe_events")
+}
+
+/// D190: the buyer's Stripe customer (bank transfers only).
+model StripeCustomer {
+  userId     String   @id @map("user_id") @db.Uuid
+  customerId String   @map("customer_id") @db.VarChar(255)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId], map: "stripe_customers_customer_once")
+  @@map("stripe_customers")
 }

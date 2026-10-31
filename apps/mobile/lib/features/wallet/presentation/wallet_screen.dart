@@ -14,6 +14,7 @@ import 'package:kabso_live/features/live/application/live_wallet_controller.dart
 import 'package:kabso_live/features/live/domain/home_banner.dart';
 import 'package:kabso_live/features/live/domain/home_banner_link.dart';
 import 'package:kabso_live/features/live/presentation/hub/home_banner_carousel.dart';
+import 'package:kabso_live/features/profile/profile_fields_view.dart';
 import 'package:kabso_live/features/programs/application/programs_providers.dart';
 import 'package:kabso_live/features/programs/data/programs_repository.dart';
 import 'package:kabso_live/features/programs/presentation/program_parts.dart';
@@ -70,6 +71,9 @@ class WalletScreen extends ConsumerStatefulWidget {
 
   /// D185: «الشحن عبر وكيل» → the agents' directory.
   static const agentsKey = Key('wallet.agents');
+
+  /// D190: «الشحن من الموقع» (hidden unless the server sends the URL).
+  static const websiteTopupKey = Key('wallet.websiteTopup');
   static const historyButtonKey = Key('wallet.historyButton');
   static const packagesEmptyKey = Key('wallet.packages.empty');
   static const rewardsKey = Key('wallet.rewards');
@@ -255,6 +259,21 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
           onTap: () => context.push(AppRoutes.rechargeAgents),
         ),
       ),
+      // D190: «الشحن من الموقع» — only when the server sends the website's
+      // URL (a config flag, off by default); it opens the browser.
+      if (offer.value?.websiteTopupUrl case final url?)
+        Padding(
+          padding: const EdgeInsets.only(top: KSpacing.sm),
+          child: RechargeNavRow(
+            key: WalletScreen.websiteTopupKey,
+            icon: Icons.language_rounded,
+            title: l10n.walletTopupWebsite,
+            subtitle: l10n.walletTopupWebsiteHint,
+            onTap: () => unawaited(
+              ref.read(externalLinkOpenerProvider).open(Uri.parse(url)),
+            ),
+          ),
+        ),
     ];
   }
 

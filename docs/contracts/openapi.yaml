@@ -335,6 +335,15 @@ info:
     agency exists and the team has not suspended its host agent (any rank, LAPSED too). `OwnAgency.hostAgent`
     (`OwnHostAgent`): the code, whether the perks are on and whether the code is the username shown now (a person
     who is also a recharge agent shows the code activated first; the other stays reserved) (CONVENTIONS §10.52).
+    **D190 (DRAFT v1.59-social, CP-033)**: card top-ups on the Kabso WEBSITE through Stripe Checkout — never in the
+    app (store rules). Tag `topup`: `listTopupPackages` (public; server prices, 1 000 000 coins = $12.50),
+    `getMyTopupState`, `createTopupCheckout` (records «العملات رقمية وغير قابلة للاسترداد» first; 3-D Secure; no
+    price from the client), `getTopupOrder` (the success page polls it) and `receiveStripeWebhook` (signed; the only
+    source of coins, once per order; refunds, early-fraud warnings and disputes take the coins back — the balance may
+    go below 0 — and freeze card purchases). Codes `TOPUP_UNAVAILABLE` (503, keys missing) and `TOPUP_ACCOUNT_FROZEN`
+    (403). `Wallet.coins` / `WalletLedgerEntry.balanceAfter` may be negative; ledger reasons `CARD_TOPUP`,
+    `CARD_TOPUP_REVERSAL`, `CARD_TOPUP_RESTORE`; `RechargePackages.websiteTopupUrl` (null unless enabled)
+    (CONVENTIONS §10.53).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -361,6 +370,8 @@ tags:
     description: "The Me hub's programs: the Task Center, the Event Center and SVIP (v1.44-social DRAFT, D166)."
   - name: wallet
     description: "The caller's coins (v1.19-live DRAFT, CP-017); their history and gift earnings (v1.43-social DRAFT, D164); cherries and withdrawals (v1.52-social DRAFT, D179)."
+  - name: topup
+    description: "Card top-ups on the Kabso website through Stripe Checkout (v1.59-social DRAFT, D190, CONVENTIONS §10.53). Never inside the app (store rules)."
   - name: agency
     description: "Host agencies: join with an invite code, leave or complain, the agent's dashboard (v1.52-social DRAFT, D179); the active-host frame (v1.55-social DRAFT, D186)."
   - name: recharge
@@ -2752,6 +2763,8 @@ paths:
         receives `quantity` of the gift. `source: COINS` charges
         `priceCoins × quantity × recipients` coins (ledger `LIVE_GIFT`, it counts for the sender's
         family); `source: BAG` takes `quantity × recipients` of that gift from the caller's gift bag.
+        v1.59-social (D190): 403 `TOPUP_ACCOUNT_FROZEN` (with either source) while the caller's coin balance is
+        below 0 after a reversed website purchase (§10.53).
         Checks, in order: 401; 429 (6000 / min per user for every send; once the gift is known, a
         normal gift 120 / min and a LUCKY gift 100 / s — D145c, v1.29.2-live D145d, CONVENTIONS §7;
         nothing charged); 404
@@ -6211,6 +6224,8 @@ paths:
         `BAG_SEND_EXCEEDS_REMAINING`,
         `BAG_RECIPIENT_HAS_PERMANENT`. Rate limit 30 / hour per user (`bag:send`). Names follow
         `Accept-Language`.
+        v1.59-social (D190): 403 `TOPUP_ACCOUNT_FROZEN` while the caller's coin balance is below 0 (a reversed
+        website purchase, §10.53).
       requestBody:
         required: true
         content:
@@ -6240,6 +6255,7 @@ paths:
                 remaining: { code: emerald_wings, category: PROFILE_CARD, name: الأجنحة الزمردية, assetKey: header_emerald_wings, acquiredAt: '2026-10-27T09:00:00.000Z', source: ADMIN, equipped: true, expiresAt: '2026-11-02T09:00:00.000Z', giftedBy: null, transferable: true }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -7645,7 +7661,8 @@ paths:
         The live gift pipeline (CONVENTIONS §10.23, §10.27) with the conversation instead of a room:
         one recipient (`to`), the catalogue quantities, `COINS` or `BAG` (lucky: `COINS` only, its
         gates). The recipient's charm counts `GIFT_DM_RECIPIENT_SHARE_PERCENT` (50 %) of the value;
-        lucky gifts keep the lucky host share (10 %). In a conversation this share replaces the
+        lucky gifts keep the lucky host share (10 %). v1.59-social (D190): 403 `TOPUP_ACCOUNT_FROZEN` while the
+        caller's coin balance is below 0 after a reversed website purchase (§10.53). In a conversation this share replaces the
         category's live share (`GIFT_HOST_SHARE_PERCENTS`, v1.32-live) and is the send's stored
         share. Quips (v1.32-live): a paid quip is sent with `COINS` and quantity 1 (else 400), without
         a room's queue; a free quip (price 0) is refused with 409 `GIFT_UNAVAILABLE` (the one free quip
@@ -7999,6 +8016,128 @@ paths:
               schema: { $ref: '#/components/schemas/RechargePackages' }
         '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  /api/v1/topup/packages:
+    get:
+      tags: [topup]
+      operationId: listTopupPackages
+      summary: The website's coin packages, prices computed on the server (D190)
+      description: |
+        v1.59-social (DRAFT, D190, CONVENTIONS §10.53). Public (the website shows them before sign-in). Server
+        config `TOPUP_PACKAGES` priced from `COIN_RETAIL_USD_PER_MILLION` (owner: 1 000 000 coins = $12.50) in USD
+        cents; a package's `id` is the only thing a checkout sends — never a price. `terms`: the statement the buyer
+        must accept and its version. 503 `TOPUP_UNAVAILABLE` while the Stripe keys are missing.
+      security: []
+      responses:
+        '200':
+          description: The packages.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TopupPackages' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/topup/me:
+    get:
+      tags: [topup]
+      operationId: getMyTopupState
+      summary: The caller's coin balance and whether card purchases are frozen (D190)
+      description: v1.59-social (DRAFT, §10.53). `coins` may be below 0 after a reversed purchase. Checks 401, 503.
+      responses:
+        '200':
+          description: The caller's state.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TopupMe' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/topup/checkout:
+    post:
+      tags: [topup]
+      operationId: createTopupCheckout
+      summary: Records the terms acceptance and starts a Stripe Checkout session (D190)
+      description: |
+        v1.59-social (DRAFT, §10.53). Stores the acceptance of «العملات رقمية وغير قابلة للاسترداد» (time, IP, user
+        agent) and the order at the server's price BEFORE creating the hosted Checkout session (3-D Secure always
+        requested, receipt to the account's email, statement descriptor «KABSO LIVE»). The website then sends the
+        buyer to `checkoutUrl`. Coins are credited only by the signed webhook, never by the redirect. Checks: 400
+        `VALIDATION_FAILED` (`packageId` unknown → `invalid_value`; `termsAccepted` not `true`; `termsVersion` not the
+        current one → `invalid_value`; unknown fields such as a price → `unknown_field`), 401, 403
+        `TOPUP_ACCOUNT_FROZEN`, 429 (`RATE_LIMIT_TOPUP_CHECKOUT_USER`), 503 `TOPUP_UNAVAILABLE` or
+        `SERVICE_UNAVAILABLE` (Stripe did not answer; nothing charged).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TopupCheckoutRequest' }
+      responses:
+        '201':
+          description: The order exists and the Checkout session was created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TopupCheckout' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/topup/orders/{orderId}:
+    get:
+      tags: [topup]
+      operationId: getTopupOrder
+      summary: One of the caller's website orders — the success page polls it (D190)
+      description: v1.59-social (DRAFT, §10.53). Another user's order, or an id that is not a UUID, is 404. Checks 401, 503.
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: The order.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TopupOrder' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/payments/stripe/webhook:
+    post:
+      tags: [topup]
+      operationId: receiveStripeWebhook
+      summary: Stripe's signed events (server to server; not for clients) (D190)
+      description: |
+        v1.59-social (DRAFT, §10.53). Verified with `STRIPE_WEBHOOK_SECRET` over the exact raw body (the
+        `Stripe-Signature` header, 5-minute tolerance); a missing or bad signature is 400 and changes nothing. Each
+        event id is applied once (a replay or a concurrent delivery answers 200 and changes nothing). Handled:
+        `checkout.session.completed` (credits only with `payment_status=paid`; a bank transfer waits),
+        `checkout.session.async_payment_succeeded` / `_failed`, `checkout.session.expired`, `charge.refunded`,
+        `radar.early_fraud_warning.created` (refunds automatically), `charge.dispute.created` (submits evidence),
+        `charge.dispute.closed`; others are acknowledged and ignored. 503 when a Stripe call it needs failed (Stripe
+        retries) or `TOPUP_UNAVAILABLE`. No rate limit.
+      security: []
+      parameters:
+        - name: Stripe-Signature
+          in: header
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, description: A Stripe `Event` object. }
+      responses:
+        '200':
+          description: Received (applied now or before).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [received]
+                properties:
+                  received: { type: boolean, const: true }
+        '400': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
 components:
   securitySchemes:
     bearerAuth:
@@ -9445,9 +9584,9 @@ components:
         coins:
           type: integer
           format: int64
-          minimum: 0
+          minimum: -9007199254740991
           maximum: 9007199254740991
-          description: The caller's coin balance (CONVENTIONS §3, §10.19).
+          description: The caller's coin balance (CONVENTIONS §3, §10.19). v1.59-social (D190) — below 0 only after a website purchase was reversed (a debt the next coins pay first; no coin spending while it lasts).
     LiveBulletSendRequest:
       type: object
       required: [text, clientId]
@@ -12291,6 +12430,9 @@ components:
         - CHECK_IN_REWARD
         - EVENT_PRIZE
         - RECHARGE_PURCHASE
+        - CARD_TOPUP
+        - CARD_TOPUP_REVERSAL
+        - CARD_TOPUP_RESTORE
     WalletLedgerEntry:
       type: object
       required: [id, reason, delta, balanceAfter, createdAt]
@@ -12303,7 +12445,7 @@ components:
           minimum: -9007199254740991
           maximum: 9007199254740991
           description: Coins added (> 0) or taken (< 0); never 0.
-        balanceAfter: { type: integer, format: int64, minimum: 0, maximum: 9007199254740991 }
+        balanceAfter: { type: integer, format: int64, minimum: -9007199254740991, maximum: 9007199254740991, description: 'v1.59-social: may be below 0 after `CARD_TOPUP_REVERSAL`.' }
         createdAt: { type: string, format: date-time }
     WalletLedgerPage:
       type: object
@@ -12658,6 +12800,10 @@ components:
       properties:
         currency: { type: string, pattern: '^[A-Z]{3}$' }
         purchasesEnabled: { type: boolean, description: False until B5. }
+        websiteTopupUrl:
+          type: [string, 'null']
+          format: uri
+          description: "v1.59-social (D190): the Kabso website's top-up page for the app's «الشحن من الموقع» link, only while `TOPUP_APP_LINK_ENABLED` (store policy; off by default) and card top-ups are on; else null. The app never takes a card payment itself."
         packages:
           type: array
           items:
@@ -12669,6 +12815,69 @@ components:
               bonusCoins: { type: integer, minimum: 0 }
               priceMinor: { type: integer, minimum: 1, description: In the currency's minor unit (cents). }
               originalPriceMinor: { type: [integer, 'null'], minimum: 1, description: The price before a discount (the «عرض» ribbon). }
+    TopupPackages:
+      type: object
+      description: v1.59-social (DRAFT, D190, §10.53). USD only; prices in cents, from the server.
+      required: [currency, packages, bankTransfer, terms]
+      properties:
+        currency: { type: string, const: USD }
+        packages:
+          type: array
+          items:
+            type: object
+            required: [id, coins, priceMinor]
+            properties:
+              id: { type: string, description: The package id a checkout sends (the coin amount as text). }
+              coins: { type: integer, minimum: 1 }
+              priceMinor: { type: integer, minimum: 50, description: USD cents. }
+        bankTransfer: { type: boolean, description: Stripe bank transfers are offered next to the card (STRIPE_BANK_TRANSFER_ENABLED). }
+        terms:
+          type: object
+          required: [version, ar, en]
+          properties:
+            version: { type: string, description: The version a checkout must echo in `termsVersion`. }
+            ar: { type: string, description: «العملات رقمية وغير قابلة للاسترداد» }
+            en: { type: string }
+    TopupMe:
+      type: object
+      required: [coins, frozen]
+      properties:
+        coins: { type: integer, format: int64, minimum: -9007199254740991, maximum: 9007199254740991 }
+        frozen: { type: boolean, description: 'Card purchases are frozen after a refund, a fraud warning or a dispute.' }
+    TopupCheckoutRequest:
+      type: object
+      additionalProperties: false
+      required: [packageId, termsAccepted, termsVersion]
+      properties:
+        packageId: { type: string, minLength: 1, maxLength: 32 }
+        termsAccepted: { type: boolean, const: true, description: The buyer ticked «العملات رقمية وغير قابلة للاسترداد». }
+        termsVersion: { type: string, maxLength: 32, description: "`TopupPackages.terms.version` as shown." }
+        locale: { type: string, enum: [ar, en], default: ar, description: The statement's language as shown. }
+    TopupCheckout:
+      type: object
+      required: [orderId, checkoutUrl, expiresAt]
+      properties:
+        orderId: { type: string, format: uuid }
+        checkoutUrl: { type: string, format: uri, description: Stripe's hosted Checkout page. }
+        expiresAt: { type: string, format: date-time }
+    TopupOrderStatus:
+      type: string
+      description: "`AWAITING_FUNDS`: a bank transfer was chosen and Stripe waits for the money. New values may appear."
+      enum: [PENDING, AWAITING_FUNDS, PAID, EXPIRED, FAILED]
+    TopupOrder:
+      type: object
+      required: [id, packageId, coins, amountMinor, currency, status, credited, coinsReversed, createdAt, creditedAt]
+      properties:
+        id: { type: string, format: uuid }
+        packageId: { type: string }
+        coins: { type: integer, format: int64, minimum: 1 }
+        amountMinor: { type: integer, minimum: 1 }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
+        status: { $ref: '#/components/schemas/TopupOrderStatus' }
+        credited: { type: boolean, description: The coins were added (by the webhook). }
+        coinsReversed: { type: integer, format: int64, minimum: 0, description: 'Coins taken back after a refund, a fraud warning or a dispute.' }
+        createdAt: { type: string, format: date-time }
+        creditedAt: { type: [string, 'null'], format: date-time }
     CherryLedgerReason:
       type: string
       description: |

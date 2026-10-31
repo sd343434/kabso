@@ -7,6 +7,7 @@ import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module.js';
 import { expressErrorHandler } from './common/errors/all-exceptions.filter.js';
 import { requestIdMiddleware } from './common/request-id/request-id.js';
+import { STRIPE_WEBHOOK_PATH } from './modules/topup/topup.controller.js';
 import type { AppConfig } from './config/app-config.js';
 
 export const API_PREFIX = 'api/v1';
@@ -51,6 +52,12 @@ export function configureApp(app: NestExpressApplication, config: AppConfig): vo
     exposedHeaders: ['X-Request-Id', 'Retry-After'],
     maxAge: 600,
   });
+  // v1.59-social (D190): Stripe signs the exact bytes of its webhook, so that one path keeps a raw Buffer (read
+  // before the JSON parser, which then skips the already-read body). Stripe events stay far below 1 MB.
+  app.useBodyParser('raw', {
+    type: (req: { url?: string }) => (req.url ?? '').split('?')[0] === STRIPE_WEBHOOK_PATH,
+    limit: '1mb',
+  });
   app.useBodyParser('json', { limit: config.http.bodyLimit, strict: true });
   // CP-010: the media server's signed webhook (`application/webhook+json`) is verified against
   // its exact bytes, so that one content type is kept raw (a Buffer); no route but the webhook
@@ -64,6 +71,12 @@ export function configureApp(app: NestExpressApplication, config: AppConfig): vo
       { path: 'health/live', method: RequestMethod.GET },
       { path: 'health/ready', method: RequestMethod.GET },
       { path: 'internal/livekit/webhook', method: RequestMethod.POST },
+      // v1.59-social (D190): the top-up website's pages and assets.
+      { path: 'topup', method: RequestMethod.GET },
+      { path: 'topup/success', method: RequestMethod.GET },
+      { path: 'topup/cancel', method: RequestMethod.GET },
+      { path: 'topup/assets/topup.js', method: RequestMethod.GET },
+      { path: 'topup/assets/topup.css', method: RequestMethod.GET },
     ],
   });
   app.enableShutdownHooks();
