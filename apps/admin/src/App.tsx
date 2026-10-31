@@ -6,6 +6,8 @@ import { translate, type Key, type Lang } from './i18n';
 import { Agents } from './pages/Agents';
 import { ApplicationDetail, Applications } from './pages/Applications';
 import { Dashboard } from './pages/Dashboard';
+import { DisputeDetail, Disputes } from './pages/Disputes';
+import { Rates } from './pages/Rates';
 import { Login } from './pages/Login';
 import { Reports } from './pages/Reports';
 import { Payments } from './pages/Payments';
@@ -23,6 +25,8 @@ const NAV: { to: string; key: Key; cap: Capability; match: string[] }[] = [
   { to: '/users', key: 'navUsers', cap: 'users.view', match: ['users', 'user'] },
   { to: '/recharge/applications', key: 'navApplications', cap: 'recharge.applications', match: ['applications', 'application'] },
   { to: '/recharge/agents', key: 'navAgents', cap: 'recharge.agents', match: ['agents'] },
+  { to: '/recharge/disputes', key: 'navDisputes', cap: 'recharge.disputes', match: ['disputes', 'dispute'] },
+  { to: '/recharge/exchange-rates', key: 'navRates', cap: 'recharge.agents', match: ['rates'] },
   { to: '/withdrawals', key: 'navWithdrawals', cap: 'withdrawals.view', match: ['withdrawals'] },
   { to: '/reports', key: 'navReports', cap: 'reports.view', match: ['reports'] },
   { to: '/site-settings', key: 'navSite', cap: 'site.settings', match: ['site'] },
@@ -164,6 +168,15 @@ export function App() {
           break;
         case 'payments':
           page = <Payments />;
+          break;
+        case 'disputes':
+          page = <Disputes />;
+          break;
+        case 'dispute':
+          page = <DisputeDetail id={match.params.id!} />;
+          break;
+        case 'rates':
+          page = <Rates />;
           break;
       }
     }

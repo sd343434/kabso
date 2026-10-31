@@ -20,7 +20,11 @@ export type Capability =
   | 'reports.view'
   | 'reports.act'
   | 'site.settings'
-  | 'payments.settings';
+  | 'payments.settings'
+  // v1.69-social (D204).
+  | 'recharge.disputes'
+  | 'recharge.disputes.resolve'
+  | 'recharge.rates';
 
 export interface AdminSessionInfo {
   admin: { id: string; email: string; username: string; displayName: string };
@@ -254,4 +258,76 @@ export interface PaymentKeyCheck {
   mode: 'live' | 'test' | null;
   last4: string;
   restricted: boolean;
+}
+
+// ---- v1.69-social (D204): «نزاعات الشحن» and «أسعار الصرف» ----
+
+export interface RechargePrice {
+  usdMinor: number;
+  usd: string;
+  local: { currency: string; minor: number; digits: number; amount: string; rate: string } | null;
+}
+
+export interface OrderPerson {
+  id: string;
+  username: string;
+  displayName: string;
+  email?: string | null;
+  code?: string | null;
+  stockCoins?: number;
+}
+
+export interface DisputeRow {
+  id: string;
+  status: string;
+  coins: number;
+  country: string;
+  price: RechargePrice;
+  disputedAt: string;
+  disputedBy: string | null;
+  closedAt: string | null;
+  buyer: OrderPerson;
+  agent: OrderPerson;
+}
+
+export interface OrderMessage {
+  id: string;
+  kind: 'TEXT' | 'IMAGE' | 'PAYMENT_DETAILS' | 'TRANSFER_PROOF' | 'SYSTEM';
+  role: 'BUYER' | 'AGENT' | 'EMPLOYEE' | 'ADMIN' | 'SYSTEM';
+  author: { id: string; username: string; displayName: string } | null;
+  text: string | null;
+  method: string | null;
+  event: string | null;
+  hasImage: boolean;
+  createdAt: string;
+  adminUserId: string | null;
+}
+
+export interface AdminOrder {
+  id: string;
+  status: string;
+  coins: number;
+  heldCoins: number;
+  country: string;
+  price: RechargePrice;
+  paymentType: string;
+  createdAt: string;
+  detailsAt: string | null;
+  noticeAcknowledgedAt: string | null;
+  paidAt: string | null;
+  disputedAt: string;
+  disputedBy: string | null;
+  closedAt: string | null;
+  closeReason: string | null;
+  buyer: OrderPerson;
+  agent: OrderPerson;
+  messages: OrderMessage[];
+}
+
+export interface ExchangeRateRow {
+  country: string;
+  currency: string | null;
+  digits: number;
+  unitsPerUsd: string | null;
+  updatedAt: string | null;
 }
