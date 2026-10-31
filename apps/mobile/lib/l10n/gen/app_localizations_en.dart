@@ -10140,5 +10140,5 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get walletTopupWebsiteHint =>
-      'Pay by card on the official Kabso website';
+      'Pay by card on the official Kabso Live website';
 }

@@ -10162,5 +10162,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get walletTopupWebsite => 'الشحن من الموقع';
 
   @override
-  String get walletTopupWebsiteHint => 'اشحن بالبطاقة على موقع كابسو الرسمي';
+  String get walletTopupWebsiteHint =>
+      'اشحن بالبطاقة على موقع Kabso Live الرسمي';
 }

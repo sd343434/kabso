@@ -17355,7 +17355,7 @@ abstract class AppLocalizations {
   /// D190 the website top-up link
   ///
   /// In ar, this message translates to:
-  /// **'اشحن بالبطاقة على موقع كابسو الرسمي'**
+  /// **'اشحن بالبطاقة على موقع Kabso Live الرسمي'**
   String get walletTopupWebsiteHint;
 }
 

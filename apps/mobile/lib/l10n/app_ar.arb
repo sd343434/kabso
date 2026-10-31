@@ -9676,6 +9676,6 @@
   "@rechargeStockAfterLabel": {"description": "D185 recharge screens (owner polish)"},
   "walletTopupWebsite": "الشحن من الموقع",
   "@walletTopupWebsite": {"description": "D190 the website top-up link (server flag, off by default)"},
-  "walletTopupWebsiteHint": "اشحن بالبطاقة على موقع كابسو الرسمي",
+  "walletTopupWebsiteHint": "اشحن بالبطاقة على موقع Kabso Live الرسمي",
   "@walletTopupWebsiteHint": {"description": "D190 the website top-up link"}
 }
