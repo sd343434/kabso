@@ -1,0 +1,116 @@
+/* D208 «تحكم كامل»: the user page's action groups and dialogs. Kabso tokens from styles.css only; logical properties. */
+.ct-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 16px;
+}
+@media (max-width: 1100px) {
+  .ct-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 640px) {
+  .ct-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.ct-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+}
+.ct-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ct-head h2 {
+  margin: 0;
+  font-size: 16px;
+}
+.ct-icon {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 32px;
+  block-size: 32px;
+  border-radius: var(--r-md);
+  background: var(--side-active-bg);
+  color: var(--primary-text);
+}
+.ct-state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  min-block-size: 24px;
+}
+.ct-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-block-start: auto;
+}
+.ct-list,
+.ct-history ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  inline-size: 100%;
+}
+.ct-list li,
+.ct-history li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+.ct-history {
+  border-block-start: 1px solid var(--border);
+  margin-block: 10px;
+  padding-block-start: 10px;
+}
+.ct-history h3 {
+  margin: 0 0 6px;
+  font-size: 14px;
+}
+.ct-kinds {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.ct-kind {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  background: var(--surface);
+}
+.ct-kind.on {
+  border-color: var(--primary);
+  background: var(--side-active-bg);
+}
+.ct-kind input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.ct-secret {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  background: var(--overlay);
+}
+.ct-secret code {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  flex: 1;
+}

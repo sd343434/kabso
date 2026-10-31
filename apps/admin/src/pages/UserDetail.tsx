@@ -9,8 +9,21 @@ import type { AuditRow, LedgerRow, UserDetail as Detail } from '../types';
 import { DataTable } from '../ui/DataTable';
 import { Icon } from '../ui/icons';
 import { AuditMeta } from './Audit';
+import {
+  AdjustDialog,
+  ContentModeration,
+  ControlGroups,
+  DurationDialog,
+  EmailDialog,
+  ProfileDialog,
+  RequireChangeDialog,
+  TempPasswordDialog,
+  type ControlAction,
+} from './UserControl';
+import { codeField } from '../components';
+import type { UserControl } from '../types';
 
-type Action = 'ban' | 'unban' | 'avatar' | 'gift' | 'revoke' | 'signout' | 'bag' | null;
+type Action = ControlAction | 'revoke' | 'bag' | null;
 type Tab = 'overview' | 'money' | 'content' | 'reports' | 'items' | 'audit' | 'sessions';
 
 function GiftDialog({ userId, onClose, onDone }: { userId: string; onClose: () => void; onDone: () => void }) {
@@ -76,19 +89,6 @@ function GiftDialog({ userId, onClose, onDone }: { userId: string; onClose: () =
   );
 }
 
-interface PostRow {
-  id: string;
-  text: string;
-  format: string;
-  status: string;
-  moderation: string;
-  media: number;
-  likes: number;
-  comments: number;
-  views: number;
-  deleted: boolean;
-  createdAt: string;
-}
 interface SessionRow {
   id: string;
   deviceName: string | null;
@@ -213,6 +213,12 @@ function BagGrantDialog({ userId, onClose, onDone }: { userId: string; onClose: 
 export function UserDetail({ id }: { id: string }) {
   const { t, lang, can, toast } = useApp();
   const { data, error, loading, reload } = useAsync(() => api.get<Detail>(`/admin/users/${id}`), [id]);
+  const [controlBump, setControlBump] = useState(0);
+  // D208: the control state (locks, restrictions, password / email, deletion, adjustments) for the action groups.
+  const control = useAsync(
+    () => (can('users.control_view') ? api.get<UserControl>(`/admin/users/${id}/control`) : Promise.resolve(null)),
+    [id, controlBump],
+  );
   const [action, setAction] = useState<Action>(null);
   const [tab, setTab] = useState<Tab>('overview');
   const [bump, setBump] = useState(0);
@@ -222,6 +228,7 @@ export function UserDetail({ id }: { id: string }) {
     setRevokeOne(null);
     toast(t('done'));
     setBump((b) => b + 1);
+    setControlBump((b) => b + 1);
     reload();
   };
   const n = (v: number) => formatNumber(v, lang);
@@ -270,39 +277,9 @@ export function UserDetail({ id }: { id: string }) {
           </div>
         </div>
         <div className="row actions-row">
-          {can('users.ban') && u.status === 'ACTIVE' && (
-            <button className="btn danger" onClick={() => setAction('ban')}>
-              {t('ban')}
-            </button>
-          )}
-          {can('users.ban') && u.status === 'SUSPENDED' && (
-            <button className="btn" onClick={() => setAction('unban')}>
-              {t('unban')}
-            </button>
-          )}
-          {can('users.avatar') && u.avatarUrl && (
-            <button className="btn" onClick={() => setAction('avatar')}>
-              {t('removeAvatar')}
-            </button>
-          )}
-          {can('users.special_username') && (
-            <button className="btn" onClick={() => setAction('gift')}>
-              {t('giftSpecial')}
-            </button>
-          )}
-          {can('users.special_username') && data.specialUsername && (
-            <button className="btn" onClick={() => setAction('revoke')}>
-              {t('revokeSpecial')}
-            </button>
-          )}
           {can('items.grant') && (
             <button className="btn" onClick={() => setAction('bag')}>
               {t('bagGrant')}
-            </button>
-          )}
-          {can('users.sessions') && (
-            <button className="btn" onClick={() => setAction('signout')}>
-              {t('signOutAll')}
             </button>
           )}
           <button className="btn ghost" onClick={() => (window.history.length > 1 ? window.history.back() : navigate('/users'))}>
@@ -320,6 +297,9 @@ export function UserDetail({ id }: { id: string }) {
           ))}
       </div>
       <ErrorAlert error={error} />
+      {tab === 'overview' && (
+        <ControlGroups detail={data} control={control.data} onAction={setAction} onTab={setTab} />
+      )}
       {tab === 'overview' && (
         <div className="grid cols-2">
           <div className="card">
@@ -426,24 +406,7 @@ export function UserDetail({ id }: { id: string }) {
           )}
         </>
       )}
-      {tab === 'content' && (
-        <DataTable<PostRow>
-          id="user-posts"
-          endpoint={`/admin/users/${id}/posts`}
-          rowKey={(r) => r.id}
-          pageSize={10}
-          columns={[
-            { key: 'text', label: 'colText', render: (r) => <span className="clip">{r.text || t('none')}</span> },
-            { key: 'format', label: 'colFormat', render: (r) => r.format },
-            { key: 'status', label: 'colStatus', render: (r) => (r.deleted ? <span className="badge bad">{t('deleted')}</span> : <span className="badge">{r.status}</span>) },
-            { key: 'mod', label: 'colModeration', render: (r) => r.moderation },
-            { key: 'likes', label: 'colLikes', numeric: true, render: (r) => n(r.likes) },
-            { key: 'comments', label: 'colComments', numeric: true, render: (r) => n(r.comments) },
-            { key: 'views', label: 'colViews', numeric: true, optional: true, render: (r) => n(r.views) },
-            { key: 'date', label: 'colDate', render: (r) => <span className="date small">{formatDate(r.createdAt, lang)}</span> },
-          ]}
-        />
-      )}
+      {tab === 'content' && <ContentModeration userId={id} />}
       {tab === 'reports' && (
         <div className="card">
           <h2>{t('reportsAgainst')}</h2>
@@ -511,6 +474,35 @@ export function UserDetail({ id }: { id: string }) {
       {action === 'signout' && reasonAction('sessions/revoke', t('signOutAll'), true)}
       {revokeOne && reasonAction('sessions/revoke', t('signOut'), true, { sessionId: revokeOne })}
       {action === 'gift' && <GiftDialog userId={id} onClose={() => setAction(null)} onDone={done} />}
+      {action === 'revokeSpecial' && reasonAction('special-username/revoke', t('revokeSpecial'))}
+      {/* D208 «تحكم كامل» */}
+      {(action === 'lock' || action === 'restrict') && (
+        <DurationDialog userId={id} mode={action} control={control.data} onClose={() => setAction(null)} onDone={done} />
+      )}
+      {action === 'unlock' && reasonAction('unlock', t('ctUnlock'))}
+      {typeof action === 'object' && action !== null && 'lift' in action && reasonAction('restrictions/lift', t('ctLift'), false, { kind: action.lift })}
+      {action === 'delete' && (
+        <FormDialog
+          title={t('ctDelete')}
+          intro={<p className="muted small">{t('ctDeleteIntro', { days: 30 })}</p>}
+          fields={[reasonField(t), { ...codeField(t), hint: t('ctCodeHint') }]}
+          confirmLabel={t('ctDelete')}
+          danger
+          submit={(v) => api.post(`/admin/users/${id}/deletion`, v)}
+          onClose={() => setAction(null)}
+          onDone={done}
+        />
+      )}
+      {action === 'cancelDeletion' && reasonAction('deletion/cancel', t('ctCancelDeletion'))}
+      {action === 'resetLink' && reasonAction('password/reset-link', t('ctResetLink'))}
+      {action === 'tempPassword' && <TempPasswordDialog userId={id} onClose={() => setAction(null)} onDone={done} />}
+      {action === 'requireChange' && <RequireChangeDialog userId={id} onClose={() => setAction(null)} onDone={done} />}
+      {action === 'email' && <EmailDialog userId={id} current={u.email} onClose={() => setAction(null)} onDone={done} />}
+      {action === 'resend' && reasonAction('email/resend-verification', t('ctResendVerification'))}
+      {action === 'profile' && (
+        <ProfileDialog userId={id} detail={data} gender={control.data?.gender ?? null} onClose={() => setAction(null)} onDone={done} />
+      )}
+      {action === 'adjust' && <AdjustDialog userId={id} detail={data} control={control.data} onClose={() => setAction(null)} onDone={done} />}
       {action === 'bag' && <BagGrantDialog userId={id} onClose={() => setAction(null)} onDone={done} />}
     </>
   );

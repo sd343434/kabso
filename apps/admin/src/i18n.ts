@@ -3,6 +3,7 @@
  * replaces `{name}` placeholders.
  */
 import { AR_V2, EN_V2 } from './i18n-v2';
+import { AR_D208, EN_D208 } from './i18n-d208';
 
 export type Lang = 'ar' | 'en';
 
@@ -295,6 +296,7 @@ const ar = {
   payErrKeysMissing: 'لا يمكن تفعيل «شحن العملات» قبل إدخال مفاتيح Stripe في «الدفع (Stripe)».',
   payErrUnreachable: 'تعذّر الوصول إلى Stripe. لم يُحفظ شيء؛ حاول لاحقاً.',
   ...AR_V2,
+  ...AR_D208,
 };
 
 export type Key = keyof typeof ar;
@@ -577,6 +579,7 @@ const en: Record<Key, string> = {
   payErrKeysMissing: '«Buy coins» cannot be turned on before the Stripe keys are entered in «Payments (Stripe)».',
   payErrUnreachable: 'Stripe could not be reached. Nothing was saved; try again later.',
   ...EN_V2,
+  ...EN_D208,
 };
 
 export const DICTIONARIES: Record<Lang, Record<Key, string>> = { ar, en };
