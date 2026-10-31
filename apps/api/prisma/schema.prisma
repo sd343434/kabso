@@ -150,6 +150,15 @@ model User {
   /// v1.48-social (D171): bag items this user sent (as the latest giver) and the transfer ledger.
   bagItemsGifted         UserBagItem[]              @relation("BagItemGiftedBy")
   hostFrameChoice        HostFrameChoice?
+  // v1.43-live (D195, CP-038): PK 1 v 1 battles between hosts.
+  pkMatchesAsA           PkMatch[]                  @relation("PkMatchHostA")
+  pkMatchesAsB           PkMatch[]                  @relation("PkMatchHostB")
+  pkInvitesSent          PkInvite[]                 @relation("PkInviteFrom")
+  pkInvitesReceived      PkInvite[]                 @relation("PkInviteTo")
+  pkQueueEntry           PkQueueEntry?
+  pkRecord               PkHostRecord?
+  pkSettings             PkHostSettings?
+  pkSupports             PkSupporter[]
   bagTransfersSent       BagTransfer[]              @relation("BagTransferSender")
   bagTransfersRecvd      BagTransfer[]              @relation("BagTransferRecipient")
   // v1.23-live (CP-020, D108): live gifts and the gift bag.
@@ -607,6 +616,12 @@ model LiveRoom {
   stickers         LiveSticker[]
   watch            LiveWatch?
   watchSuggestions LiveWatchSuggestion[]
+  /// v1.43-live (D195): PK battles this room took part in.
+  pkMatchesAsA     PkMatch[]             @relation("PkMatchRoomA")
+  pkMatchesAsB     PkMatch[]             @relation("PkMatchRoomB")
+  pkInvitesSent    PkInvite[]            @relation("PkInviteFromRoom")
+  pkInvitesGot     PkInvite[]            @relation("PkInviteToRoom")
+  pkQueueEntries   PkQueueEntry[]
 
   @@unique([hostUserId], map: "live_rooms_one_live_per_host", where: raw("status = 'LIVE'::live_room_status"))
   @@index([score(sort: Desc), startedAt(sort: Desc), id(sort: Desc)], map: "live_rooms_live_popular_idx", where: raw("status = 'LIVE'::live_room_status"))
@@ -2605,40 +2620,44 @@ enum LiveGiftSource {
 /// The gift catalogue, managed only with the `gift-admin` CLI (no gift is seeded). Disabled, never
 /// deleted. CHECKs `gifts_code_format`, `gifts_price_range`, `gifts_names_present`.
 model Gift {
-  code               String       @id @db.VarChar(40)
+  code               String         @id @db.VarChar(40)
   category           GiftCategory
-  nameAr             String       @map("name_ar") @db.VarChar(60)
-  nameEn             String       @map("name_en") @db.VarChar(60)
-  priceCoins         Int          @map("price_coins")
+  nameAr             String         @map("name_ar") @db.VarChar(60)
+  nameEn             String         @map("name_en") @db.VarChar(60)
+  priceCoins         Int            @map("price_coins")
   /// The app's static image of the gift.
-  assetKey           String       @map("asset_key") @db.VarChar(80)
+  assetKey           String         @map("asset_key") @db.VarChar(80)
   /// The app's full-screen effect (SVGA), or null for none.
-  animationKey       String?      @map("animation_key") @db.VarChar(80)
-  sortOrder          Int          @default(0) @map("sort_order")
-  badge              GiftBadge    @default(NONE)
+  animationKey       String?        @map("animation_key") @db.VarChar(80)
+  sortOrder          Int            @default(0) @map("sort_order")
+  badge              GiftBadge      @default(NONE)
   /// v1.24.3-live (D117): the optional sub-category (the panel's chips): all three null or all set
   /// (CHECK `gifts_tag_complete`; `gifts_tag_code_format`).
-  tagCode            String?      @map("tag_code") @db.VarChar(40)
-  tagNameAr          String?      @map("tag_name_ar") @db.VarChar(30)
-  tagNameEn          String?      @map("tag_name_en") @db.VarChar(30)
+  tagCode            String?        @map("tag_code") @db.VarChar(40)
+  tagNameAr          String?        @map("tag_name_ar") @db.VarChar(30)
+  tagNameEn          String?        @map("tag_name_en") @db.VarChar(30)
   /// v1.26.2-live (D126): the gift's art on the server, downloaded by the app on demand (object keys
   /// under `media/gifts/<code>/`, content-addressed; the API answers `MEDIA_PUBLIC_BASE_URL/<key>`).
   /// Null: the bundled `assetKey` / `animationKey` only. `animationBytes` is set exactly when
   /// `animationObjectKey` is (CHECK `gifts_animation_bytes_set`).
-  imageObjectKey     String?      @map("image_object_key") @db.VarChar(200)
-  animationObjectKey String?      @map("animation_object_key") @db.VarChar(200)
-  animationBytes     Int?         @map("animation_bytes")
+  imageObjectKey     String?        @map("image_object_key") @db.VarChar(200)
+  animationObjectKey String?        @map("animation_object_key") @db.VarChar(200)
+  animationBytes     Int?           @map("animation_bytes")
+  /// v1.43-live (D195, §10.58): a PK booster's activation gift (DOUBLE ×2 … TRIPLE_TURBO ×10), or null.
+  /// Never LUCKY or QUIPS, never free (CHECK `gifts_pk_booster_kind`). PK points only, never money.
+  pkBooster          PkBoosterKind? @map("pk_booster")
   /// v1.32-live (D154, §10.33): a QUIPS gift's bundled sound (app asset key), its length and its line
   /// of text (shown as a chat bubble while it plays). Set exactly for QUIPS (CHECK `gifts_quip_fields`).
-  soundKey           String?      @map("sound_key") @db.VarChar(80)
-  soundMs            Int?         @map("sound_ms")
-  quipText           String?      @map("quip_text") @db.VarChar(200)
-  enabled            Boolean      @default(true)
-  createdAt          DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt          DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  soundKey           String?        @map("sound_key") @db.VarChar(80)
+  soundMs            Int?           @map("sound_ms")
+  quipText           String?        @map("quip_text") @db.VarChar(200)
+  enabled            Boolean        @default(true)
+  createdAt          DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  stock UserGiftStock[]
-  sends LiveGift[]
+  stock    UserGiftStock[]
+  pkBoosts PkBoost[]
+  sends    LiveGift[]
 
   @@index([category, sortOrder], map: "gifts_category_sort_idx")
   @@map("gifts")
@@ -2700,6 +2719,8 @@ model LiveGift {
   dmMessage      DmMessage?
   /// v1.32-live (D154): the free-quip row of a free QUIPS send.
   freeQuip       LiveFreeQuip?
+  /// v1.43-live (D195): the PK points of a send made in a room during a PK battle.
+  pkPoints       PkGiftPoint?
 
   @@unique([senderId, clientId], map: "live_gifts_client_once")
   @@index([senderId, roomId, createdAt(sort: Desc)], map: "live_gifts_sender_room_idx")
@@ -4025,4 +4046,250 @@ model RechargeBadge {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("recharge_badges")
+}
+
+// ---- v1.43-live (D195, CONVENTIONS §10.58, CP-038): PK 1 v 1 ------------------------------------
+
+/// The four PK boosters (owner D195): «دبل» ×2, «دبل تيربو» ×3, «تربل» ×5, «تربل تيربو» ×10 by default.
+enum PkBoosterKind {
+  DOUBLE
+  DOUBLE_TURBO
+  TRIPLE
+  TRIPLE_TURBO
+
+  @@map("pk_booster_kind")
+}
+
+/// A PK match: BATTLE (PK_BATTLE_SECONDS) → RESULT (PK_RESULT_SECONDS, the win / lose animation) →
+/// CLOSED. Side A is the inviter (or the first in the random queue).
+enum PkMatchStatus {
+  BATTLE
+  RESULT
+  CLOSED
+
+  @@map("pk_match_status")
+}
+
+/// How a PK came about.
+enum PkMatchSource {
+  INVITE
+  RANDOM
+
+  @@map("pk_match_source")
+}
+
+/// Why the battle ended: its time ran out, a host ended it early (forfeit), a host left or stayed
+/// away, or a moderator ended it (void: no result, not counted).
+enum PkEndReason {
+  TIME
+  FORFEIT
+  DISCONNECT
+  AWAY
+  ADMIN
+
+  @@map("pk_end_reason")
+}
+
+/// A side of a match.
+enum PkSide {
+  A
+  B
+
+  @@map("pk_side")
+}
+
+enum PkInviteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+  EXPIRED
+
+  @@map("pk_invite_status")
+}
+
+/// v1.43-live (D195): one PK between two SOLO video lives. Scores are PK points only (the coin value of
+/// the gifts sent in each room during the battle × that side's booster); money, cherries, live scores,
+/// rankings, charm and levels always use the gift's real value. At most one BATTLE / RESULT match per
+/// room (partial unique indexes on each room column, plus the PK room advisory locks).
+model PkMatch {
+  id            String        @id @default(uuid(7)) @db.Uuid
+  source        PkMatchSource
+  status        PkMatchStatus @default(BATTLE)
+  roomAId       String        @map("room_a_id") @db.Uuid
+  hostAId       String        @map("host_a_id") @db.Uuid
+  roomBId       String        @map("room_b_id") @db.Uuid
+  hostBId       String        @map("host_b_id") @db.Uuid
+  scoreA        BigInt        @default(0) @map("score_a")
+  scoreB        BigInt        @default(0) @map("score_b")
+  startedAt     DateTime      @map("started_at") @db.Timestamptz(3)
+  battleEndsAt  DateTime      @map("battle_ends_at") @db.Timestamptz(3)
+  /// When the battle actually ended (time, forfeit, disconnect, admin); null during BATTLE.
+  endedAt       DateTime?     @map("ended_at") @db.Timestamptz(3)
+  resultEndsAt  DateTime?     @map("result_ends_at") @db.Timestamptz(3)
+  closedAt      DateTime?     @map("closed_at") @db.Timestamptz(3)
+  endReason     PkEndReason?  @map("end_reason")
+  /// The winning side; null for a draw, a void (ADMIN) match or while the battle runs.
+  winner        PkSide?
+  /// The side that forfeited, disconnected or stayed away (FORFEIT / DISCONNECT / AWAY).
+  loserCause    PkSide?       @map("loser_cause")
+  /// D170 × D195: since when side A's / B's host has been out of the media session (webhook); null
+  /// while connected.
+  aLeftAt       DateTime?     @map("a_left_at") @db.Timestamptz(3)
+  bLeftAt       DateTime?     @map("b_left_at") @db.Timestamptz(3)
+  /// The host of side A / B turned the opponent's sound off in their room.
+  aMutesB       Boolean       @default(false) @map("a_mutes_b")
+  bMutesA       Boolean       @default(false) @map("b_mutes_a")
+  /// Increases on every change (data messages carry it; apps keep the highest).
+  seq           Int           @default(0)
+  /// Set by `pk-admin end` (the CLI cannot reach the media server): the API's PK tick tells both rooms.
+  pendingNotice Boolean       @default(false) @map("pending_notice")
+  adminReason   String?       @map("admin_reason") @db.VarChar(200)
+  /// The top supporters frozen when the battle ended: `[{userId, points}]`, at most 3 per side.
+  topA          Json?         @map("top_a")
+  topB          Json?         @map("top_b")
+  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  roomA      LiveRoom      @relation("PkMatchRoomA", fields: [roomAId], references: [id], onDelete: Cascade)
+  roomB      LiveRoom      @relation("PkMatchRoomB", fields: [roomBId], references: [id], onDelete: Cascade)
+  hostA      User          @relation("PkMatchHostA", fields: [hostAId], references: [id], onDelete: Cascade)
+  hostB      User          @relation("PkMatchHostB", fields: [hostBId], references: [id], onDelete: Cascade)
+  boosts     PkBoost[]
+  points     PkGiftPoint[]
+  supporters PkSupporter[]
+  invite     PkInvite?
+
+  @@unique([roomAId], map: "pk_matches_room_a_active", where: raw("status <> 'CLOSED'::pk_match_status"))
+  @@unique([roomBId], map: "pk_matches_room_b_active", where: raw("status <> 'CLOSED'::pk_match_status"))
+  @@index([status], map: "pk_matches_open_idx", where: raw("status <> 'CLOSED'::pk_match_status"))
+  @@index([hostAId, startedAt(sort: Desc)], map: "pk_matches_host_a_idx")
+  @@index([hostBId, startedAt(sort: Desc)], map: "pk_matches_host_b_idx")
+  @@index([roomBId], map: "pk_matches_room_b_idx")
+  @@map("pk_matches")
+}
+
+/// v1.43-live (D195): a host invites another live host; PK_INVITE_TTL_SECONDS (15) to answer.
+model PkInvite {
+  id         String         @id @default(uuid(7)) @db.Uuid
+  fromRoomId String         @map("from_room_id") @db.Uuid
+  fromHostId String         @map("from_host_id") @db.Uuid
+  toRoomId   String         @map("to_room_id") @db.Uuid
+  toHostId   String         @map("to_host_id") @db.Uuid
+  status     PkInviteStatus @default(PENDING)
+  createdAt  DateTime       @map("created_at") @db.Timestamptz(3)
+  expiresAt  DateTime       @map("expires_at") @db.Timestamptz(3)
+  handledAt  DateTime?      @map("handled_at") @db.Timestamptz(3)
+  matchId    String?        @unique @map("match_id") @db.Uuid
+
+  fromRoom LiveRoom @relation("PkInviteFromRoom", fields: [fromRoomId], references: [id], onDelete: Cascade)
+  toRoom   LiveRoom @relation("PkInviteToRoom", fields: [toRoomId], references: [id], onDelete: Cascade)
+  fromHost User     @relation("PkInviteFrom", fields: [fromHostId], references: [id], onDelete: Cascade)
+  toHost   User     @relation("PkInviteTo", fields: [toHostId], references: [id], onDelete: Cascade)
+  match    PkMatch? @relation(fields: [matchId], references: [id], onDelete: SetNull)
+
+  @@unique([fromRoomId], map: "pk_invites_one_out", where: raw("status = 'PENDING'::pk_invite_status"))
+  @@unique([toRoomId], map: "pk_invites_one_in", where: raw("status = 'PENDING'::pk_invite_status"))
+  @@index([expiresAt], map: "pk_invites_pending_expiry_idx", where: raw("status = 'PENDING'::pk_invite_status"))
+  @@index([fromHostId, createdAt(sort: Desc)], map: "pk_invites_from_host_idx")
+  @@index([toHostId], map: "pk_invites_to_host_idx")
+  @@index([toRoomId], map: "pk_invites_to_room_idx")
+  @@map("pk_invites")
+}
+
+/// v1.43-live (D195): «مطابقة عشوائية» — a host waiting to be paired (PK_RANDOM_WAIT_SECONDS).
+model PkQueueEntry {
+  hostId    String   @id @map("host_id") @db.Uuid
+  roomId    String   @map("room_id") @db.Uuid
+  joinedAt  DateTime @map("joined_at") @db.Timestamptz(3)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+
+  host User     @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  room LiveRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([joinedAt], map: "pk_queue_joined_idx")
+  @@index([roomId], map: "pk_queue_room_idx")
+  @@map("pk_queue")
+}
+
+/// v1.43-live (D195): a booster activated by its gift on one side of a match. Active while
+/// `starts_at <= now < ends_at`; a higher one replaces a lower one (the lower one's `ends_at` moves
+/// to the replacement time, `replaced` true).
+model PkBoost {
+  id         String        @id @default(uuid(7)) @db.Uuid
+  matchId    String        @map("match_id") @db.Uuid
+  side       PkSide
+  kind       PkBoosterKind
+  multiplier Int           @db.SmallInt
+  giftId     String        @unique @map("gift_id") @db.Uuid
+  giftCode   String        @map("gift_code") @db.VarChar(40)
+  senderId   String        @map("sender_id") @db.Uuid
+  startsAt   DateTime      @map("starts_at") @db.Timestamptz(3)
+  endsAt     DateTime      @map("ends_at") @db.Timestamptz(3)
+  replaced   Boolean       @default(false)
+
+  match PkMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  gift  Gift    @relation(fields: [giftCode], references: [code], onDelete: Restrict)
+
+  @@index([matchId, side, endsAt], map: "pk_boosts_match_side_idx")
+  @@index([giftCode], map: "pk_boosts_gift_code_idx")
+  @@map("pk_boosts")
+}
+
+/// v1.43-live (D195): the PK points of one gift send (one row per send: a retry is never counted twice).
+/// `points = coins × multiplier`; `coins` is the send's real coin value.
+model PkGiftPoint {
+  giftId     String   @id @map("gift_id") @db.Uuid
+  matchId    String   @map("match_id") @db.Uuid
+  side       PkSide
+  senderId   String   @map("sender_id") @db.Uuid
+  coins      BigInt
+  multiplier Int      @db.SmallInt
+  points     BigInt
+  createdAt  DateTime @map("created_at") @db.Timestamptz(3)
+
+  gift  LiveGift @relation(fields: [giftId], references: [id], onDelete: Cascade)
+  match PkMatch  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@index([matchId, side], map: "pk_gift_points_match_idx")
+  @@map("pk_gift_points")
+}
+
+/// v1.43-live (D195): a supporter's PK points on one side of a match (the top three per side).
+model PkSupporter {
+  matchId String @map("match_id") @db.Uuid
+  side    PkSide
+  userId  String @map("user_id") @db.Uuid
+  points  BigInt @default(0)
+
+  match PkMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  user  User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([matchId, side, userId], map: "pk_supporters_pkey")
+  @@index([matchId, side, points(sort: Desc)], map: "pk_supporters_rank_idx")
+  @@index([userId], map: "pk_supporters_user_idx")
+  @@map("pk_supporters")
+}
+
+/// v1.43-live (D195): a host's PK record (finished, non-void matches).
+model PkHostRecord {
+  hostId    String   @id @map("host_id") @db.Uuid
+  wins      Int      @default(0)
+  losses    Int      @default(0)
+  draws     Int      @default(0)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  host User @relation(fields: [hostId], references: [id], onDelete: Cascade)
+
+  @@map("pk_host_records")
+}
+
+/// v1.43-live (D195): a host's PK settings (no row: invitations on).
+model PkHostSettings {
+  hostId         String   @id @map("host_id") @db.Uuid
+  invitesEnabled Boolean  @default(true) @map("invites_enabled")
+  updatedAt      DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  host User @relation(fields: [hostId], references: [id], onDelete: Cascade)
+
+  @@map("pk_host_settings")
 }

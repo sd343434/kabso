@@ -51,6 +51,7 @@ import { POINTS_PER_SUPPORT_COIN } from './live-taps.js';
 import { liveGiftSendSchema } from './live.schemas.js';
 import { quipSlot } from '../gifts/quips.js';
 import { LiveQuipsService, type LiveQuipDto } from './live-quips.service.js';
+import { LivePkService, type PkGiftCredit } from './live-pk.service.js';
 import { LIVE_MEDIA_PROVIDER, type LiveMediaProvider } from './media/live-media.provider.js';
 
 // ---- Response shapes (openapi v1.23-live, CP-020) ----------------------------------------------
@@ -214,6 +215,7 @@ export class LiveGiftsService {
     private readonly ticker: LiveLuckyTickerService,
     private readonly giftTicker: LiveGiftTickerService,
     private readonly quips: LiveQuipsService,
+    private readonly pk: LivePkService,
   ) {}
 
   /** D148: the tail of each sender's queue of sends in this process. */
@@ -311,6 +313,14 @@ export class LiveGiftsService {
     }
     const to = recipients as Recipient[];
     await this.assertNoBlocks(callerId, to);
+    // v1.43-live (D195, §10.58): a PK booster's gift goes to the host alone, one at a time.
+    if (gift.pkBooster !== null) {
+      this.pk.assertBoosterSend({
+        quantity: input.quantity,
+        recipients: to.map((r) => r.id),
+        hostId: row.host_user_id,
+      });
+    }
 
     const key = recipientsKey(to.map((r) => r.id));
     const toIds = to.map((r) => r.id);
@@ -329,6 +339,7 @@ export class LiveGiftsService {
       hostLevelChanged: boolean;
       luckyResult: LuckyGiftResultDto | null;
       quip: LiveQuipDto | null;
+      pk: PkGiftCredit | null;
     };
     try {
       // D148: one transaction per sender at a time in this process too (FIFO), so a burst of one
@@ -579,6 +590,20 @@ export class LiveGiftsService {
           // v1.52-social (D179, §10.46): the recipients' cherries and their agencies' commissions, credited
           // now in the send's transaction (a free quip credits nothing).
           if (!freeQuip) await this.creditCherries(tx, giftId, now);
+          // v1.43-live (D195, §10.58): PK points — the send's REAL coin value (lucky gifts too) × the
+          // side's booster, in their own tables only (money, cherries, scores and levels above all used
+          // the real value). A refused booster rolls the whole send back.
+          const pk = freeQuip
+            ? null
+            : await this.pk.creditGiftIn(tx, {
+                roomId: row.id,
+                giftId,
+                giftCode: gift.code,
+                senderId: callerId,
+                coins: amounts.totalCoins,
+                booster: gift.pkBooster,
+                now,
+              });
 
           // v1.27-live (D132, §10.27): the lucky settlement last, so the day row (locked by every lucky
           // send of the day) is held for as short a time as possible.
@@ -633,7 +658,7 @@ export class LiveGiftsService {
                   delayMs: slot.delayMs,
                   createdAt: at,
                 };
-          return { dto, coins, bagQuantity, hostLevelChanged, luckyResult, quip };
+          return { dto, coins, bagQuantity, hostLevelChanged, luckyResult, quip, pk };
         }, LIVE_TX_OPTIONS),
       );
     } catch (err) {
@@ -659,6 +684,12 @@ export class LiveGiftsService {
       // v1.41-live (D178): a big enough send is a strip in every other live (one at a time).
       this.background.run('gift global ticker', async () => {
         await this.giftTicker.offer(dto as unknown as GiftTickerGiftDto);
+      });
+    }
+    const pkCredit = created.pk;
+    if (pkCredit) {
+      this.background.run('pk score data message', async () => {
+        await this.pk.afterGift(pkCredit);
       });
     }
     const luckyResult = created.luckyResult;

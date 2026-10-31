@@ -41,6 +41,8 @@ import {
   LiveMediaWebhookController,
   LiveScheduleController,
 } from './live.controller.js';
+import { LivePkController, MyLivePkController } from './live-pk.controller.js';
+import { LivePkService } from './live-pk.service.js';
 import { LIVE_MEDIA_PROVIDER } from './media/live-media.provider.js';
 import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit-media.provider.js';
 
@@ -66,6 +68,9 @@ import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit
     LiveScheduleController,
     AdminLiveController,
     LiveMediaWebhookController,
+    // v1.43-live (D195, §10.58): PK 1 v 1.
+    LivePkController,
+    MyLivePkController,
   ],
   providers: [
     LiveCategoriesService,
@@ -99,6 +104,8 @@ import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit
     LiveKicksService,
     // v1.23-live (CP-020, D108): gifts in a live, through the wallet and the gifts module (§10.23).
     LiveGiftsService,
+    // v1.43-live (D195, CP-038): PK 1 v 1 — matches, boosters, the PK tick (§10.58).
+    LivePkService,
     LiveLuckyTickerService,
     LiveGiftTickerService,
     // CP-016 D: taps credit the host's charm level inside the taps transaction (§10.18).

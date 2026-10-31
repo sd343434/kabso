@@ -163,6 +163,20 @@ export enum ErrorCode {
   HOST_FRAME_STYLE_FROM_GENDER = 'HOST_FRAME_STYLE_FROM_GENDER',
   /** v1.57-social (DRAFT, D188): the caller already got the month's maximum of task cherries. */
   TASK_MONTHLY_CAP_REACHED = 'TASK_MONTHLY_CAP_REACHED',
+  /** v1.43-live (DRAFT, D195): the room cannot take part in a PK now (not a LIVE SOLO video live of the caller, the host away, or PK switched off). */
+  PK_UNAVAILABLE = 'PK_UNAVAILABLE',
+  /** v1.43-live (DRAFT, D195): the caller or the other host is already in a PK, an open invitation or the random queue. */
+  PK_HOST_BUSY = 'PK_HOST_BUSY',
+  /** v1.43-live (DRAFT, D195): the invited host switched PK invitations off. */
+  PK_INVITES_OFF = 'PK_INVITES_OFF',
+  /** v1.43-live (DRAFT, D195): an invitation sooner than PK_INVITE_COOLDOWN_SECONDS after the previous one (Retry-After). */
+  PK_INVITE_COOLDOWN = 'PK_INVITE_COOLDOWN',
+  /** v1.43-live (DRAFT, D195): the invitation was answered, cancelled or expired. */
+  PK_INVITE_CLOSED = 'PK_INVITE_CLOSED',
+  /** v1.43-live (DRAFT, D195): no BATTLE or RESULT match in the room. */
+  PK_NOT_ACTIVE = 'PK_NOT_ACTIVE',
+  /** v1.43-live (DRAFT, D195): a booster gift outside a battle, outside its window, over its per-match limit or not higher than the active one (detail issue). */
+  PK_BOOSTER_UNAVAILABLE = 'PK_BOOSTER_UNAVAILABLE',
 }
 
 /** HTTP status for every code (CONVENTIONS.md §4 table). */
@@ -259,6 +273,13 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.USERNAME_LOCKED]: 409,
   [ErrorCode.HOST_FRAME_STYLE_FROM_GENDER]: 409,
   [ErrorCode.TASK_MONTHLY_CAP_REACHED]: 409,
+  [ErrorCode.PK_UNAVAILABLE]: 409,
+  [ErrorCode.PK_HOST_BUSY]: 409,
+  [ErrorCode.PK_INVITES_OFF]: 409,
+  [ErrorCode.PK_INVITE_COOLDOWN]: 409,
+  [ErrorCode.PK_INVITE_CLOSED]: 409,
+  [ErrorCode.PK_NOT_ACTIVE]: 409,
+  [ErrorCode.PK_BOOSTER_UNAVAILABLE]: 409,
 };
 
 /** Default developer-facing messages (clients localize by `code`, not by message). */
@@ -355,6 +376,13 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.USERNAME_LOCKED]: 'Your username is locked while your special username is active.',
   [ErrorCode.HOST_FRAME_STYLE_FROM_GENDER]: 'Your gender sets the colour of your host frame.',
   [ErrorCode.TASK_MONTHLY_CAP_REACHED]: 'You already got this month’s maximum of task rewards.',
+  [ErrorCode.PK_UNAVAILABLE]: 'This live cannot start a PK now.',
+  [ErrorCode.PK_HOST_BUSY]: 'That host is already in a PK or answering an invitation.',
+  [ErrorCode.PK_INVITES_OFF]: 'This host does not accept PK invitations.',
+  [ErrorCode.PK_INVITE_COOLDOWN]: 'Wait a moment before inviting again.',
+  [ErrorCode.PK_INVITE_CLOSED]: 'This PK invitation is no longer open.',
+  [ErrorCode.PK_NOT_ACTIVE]: 'There is no PK in this live now.',
+  [ErrorCode.PK_BOOSTER_UNAVAILABLE]: 'That booster cannot be used now.',
 };
 
 export interface ErrorDetail {

@@ -23,6 +23,8 @@ import { LiveCategoriesService } from './live-categories.service.js';
 import { closeVisits, closeVisitsOfEndedRooms, openVisit, recountViewers } from './live-audience.js';
 import { LiveChatService } from './live-chat.service.js';
 import { LiveRoomMetadataService } from './live-metadata.service.js';
+import { LivePkService } from './live-pk.service.js';
+import { PK_IDENTITY_PREFIX } from './live-pk.js';
 import { hostSources, LiveSeatsService, seatPermission } from './live-seats.service.js';
 import {
   hasGuestSeats,
@@ -93,6 +95,7 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
     private readonly chat: LiveChatService,
     private readonly categories: LiveCategoriesService,
     private readonly metadata: LiveRoomMetadataService,
+    private readonly pk: LivePkService,
     @Inject(LIVE_MEDIA_PROVIDER) private readonly media: LiveMediaProvider,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {
@@ -459,6 +462,10 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
       return;
     }
     if (event.kind === 'left') {
+      // v1.43-live (D195): a PK watcher of the other room is never a viewer here; a host leaving
+      // their own media session during a PK battle starts the absence time.
+      if (event.identity.startsWith(PK_IDENTITY_PREFIX)) return;
+      await this.pk.onHostMedia(roomId, event.identity, false);
       await closeVisits(this.prisma, roomId, [event.identity], this.clock.now());
       await this.prisma.liveRoomViewer.deleteMany({ where: { roomId, identity: event.identity } });
       await this.recount(this.prisma, roomId);
@@ -479,13 +486,25 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
       where: { id: roomId },
       select: { status: true, hostUserId: true, allowGuests: true },
     });
+    // v1.43-live (D195, §10.58): a viewer (or the host) of the other room of a PK, watch-only and
+    // hidden — allowed while that match runs, never recorded or counted as a viewer of this room.
+    if (identity.startsWith(PK_IDENTITY_PREFIX)) {
+      if (!room || room.status !== 'LIVE' || !(await this.pk.allowsWatcher(roomId, identity))) {
+        await this.kick(roomId, identity);
+      }
+      return;
+    }
     const guestId = guestIdOf(identity);
     const userId = guestId === null && isUuid(identity) ? identity.toLowerCase() : null;
     if (!room || room.status !== 'LIVE' || (guestId === null && userId === null)) {
       await this.kick(roomId, identity);
       return;
     }
-    if (userId === room.hostUserId) return; // the host is not a viewer
+    if (userId === room.hostUserId) {
+      // The host is not a viewer; back in the session during a PK battle (D195).
+      await this.pk.onHostMedia(roomId, userId, true);
+      return;
+    }
     if (guestId !== null && !room.allowGuests) {
       await this.kick(roomId, identity);
       return;

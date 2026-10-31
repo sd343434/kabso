@@ -28,6 +28,12 @@
  * host's/moderators' soundboard). `quips-seed` adds the owner's pack (prices ghazal 99, funny 199,
  * tease 299 coins) — gifts that exist already are left as they are (change them with `update`).
  *
+ * v1.43-live (D195, CONVENTIONS §10.58): `--pk-booster DOUBLE|DOUBLE_TURBO|TRIPLE|TRIPLE_TURBO` makes the
+ * gift a PK booster's activation gift (shown in the app's «PK» tab during a PK only; never LUCKY or
+ * QUIPS; `--pk-booster none` on update makes it ordinary again). `pk-boosters-seed` adds the four with
+ * the suggested default prices (owner-confirmable, D195): «دبل» 5 000, «دبل تيربو» 20 000, «تربل»
+ * 50 000, «تربل تيربو» 150 000 coins — gifts that exist already are left as they are.
+ *
  * v1.27-live (D132, CONVENTIONS §10.27): `--category LUCKY` makes a lucky gift (listed and sendable
  * only while the API has LUCKY_GIFTS_ENABLED=true; sent with coins only, so `grant` refuses it).
  * `lucky-wins` and `lucky-day` read the audit rows of the draws and the daily protection.
@@ -48,7 +54,12 @@ import 'dotenv/config';
 import { readFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient, type GiftBadge, type GiftCategory } from '../generated/prisma/client.js';
+import {
+  PrismaClient,
+  type GiftBadge,
+  type GiftCategory,
+  type PkBoosterKind,
+} from '../generated/prisma/client.js';
 import { AuditAction } from '../common/audit/audit.service.js';
 import type { AppConfig } from '../config/app-config.js';
 import type { ObjectStorage } from '../modules/media/object-storage.js';
@@ -68,7 +79,9 @@ import {
   GIFT_STOCK_MAX,
   giftFieldProblems,
   GiftFieldsError,
+  giftPkBoosterProblem,
   giftQuipProblem,
+  PK_BOOSTER_PACK,
   giftTagProblem,
   grantStockIn,
   setGiftEnabledIn,
@@ -97,6 +110,8 @@ const USAGE = [
   '       pnpm gift:admin lucky-wins [--limit N] [--min-multiplier M]',
   '       pnpm gift:admin lucky-day [YYYY-MM-DD]',
   '       pnpm gift:admin quips-seed',
+  '       pnpm gift:admin pk-boosters-seed',
+  '       (PK: --pk-booster DOUBLE|DOUBLE_TURBO|TRIPLE|TRIPLE_TURBO|none)',
   '       (QUIPS: --sound <key> --sound-ms <ms> [--quip-text <text>]; update: --quip-text none)',
 ].join('\n');
 
@@ -121,6 +136,7 @@ const OPTIONS = {
   sound: { type: 'string' },
   'sound-ms': { type: 'string' },
   'quip-text': { type: 'string' },
+  'pk-booster': { type: 'string' },
 } as const;
 
 /** The hosted-art options given (`none`: remove), checked and uploaded by {@link uploadArt}. */
@@ -256,6 +272,9 @@ function optionsFrom(args: readonly string[]): { fields: Partial<GiftFields>; ar
   if (values['quip-text'] !== undefined) {
     fields.quipText = values['quip-text'] === 'none' ? null : values['quip-text'];
   }
+  if (values['pk-booster'] !== undefined) {
+    fields.pkBooster = values['pk-booster'] === 'none' ? null : (values['pk-booster'] as PkBoosterKind);
+  }
   const problems = giftFieldProblems(fields);
   for (const option of ['image', 'animation-file'] as const) {
     if (values[option] === '') problems.push(`--${option} needs a file (or none)`);
@@ -301,8 +320,9 @@ async function add(code: string, args: readonly string[]): Promise<void> {
     soundKey: options.soundKey ?? null,
     soundMs: options.soundMs ?? null,
     quipText: options.quipText ?? null,
+    pkBooster: options.pkBooster ?? null,
   };
-  const tagProblem = giftTagProblem(fields) ?? giftQuipProblem(fields);
+  const tagProblem = giftTagProblem(fields) ?? giftQuipProblem(fields) ?? giftPkBoosterProblem(fields);
   if (tagProblem !== null) fail(`${tagProblem}.\n${USAGE}`);
   if (await prisma.gift.findUnique({ where: { code }, select: { code: true } })) {
     fail(`A gift ${code} exists already; use update.`);
@@ -399,6 +419,7 @@ async function list(): Promise<void> {
         `tag=${g.tagCode === null ? 'none' : `${g.tagCode} "${g.tagNameAr ?? ''}" / "${g.tagNameEn ?? ''}"`} ` +
         `image=${g.imageObjectKey ?? 'none'} ` +
         `animation-file=${g.animationObjectKey === null ? 'none' : `${g.animationObjectKey} (${String(g.animationBytes)} bytes)`}` +
+        (g.pkBooster === null ? '' : ` pk-booster=${g.pkBooster}`) +
         (g.soundKey === null
           ? ''
           : ` sound=${g.soundKey} (${String(g.soundMs)} ms) text="${g.quipText ?? ''}"`) +
@@ -479,6 +500,34 @@ async function quipsSeed(): Promise<void> {
   process.stdout.write(
     `quips: ${String(added.length)} added${added.length > 0 ? ` (${added.join(', ')})` : ''}, ` +
       `${String(kept)} already there (unchanged).\n`,
+  );
+}
+
+/**
+ * v1.43-live (D195): adds the four PK boosters' activation gifts (PK_BOOSTER_PACK, suggested prices).
+ * Idempotent like `quips-seed`: an existing code is left as it is (change it with `update`).
+ */
+async function pkBoostersSeed(): Promise<void> {
+  const added = await prisma.$transaction(async (tx) => {
+    const codes: string[] = [];
+    for (const { code, ...fields } of PK_BOOSTER_PACK) {
+      if (await addGiftIn(tx, code, fields)) {
+        codes.push(code);
+        await tx.auditLog.create({
+          data: {
+            action: AuditAction.GIFT_ADD,
+            targetType: 'gift',
+            targetId: code,
+            metadata: { ...fields, via: 'cli', pack: 'pk-boosters' },
+          },
+        });
+      }
+    }
+    return codes;
+  });
+  process.stdout.write(
+    `pk boosters: ${String(added.length)} added${added.length > 0 ? ` (${added.join(', ')})` : ''}, ` +
+      `${String(PK_BOOSTER_PACK.length - added.length)} already there (unchanged).\n`,
   );
 }
 
@@ -577,6 +626,10 @@ try {
     case 'quips-seed':
       if (first !== undefined) fail(USAGE);
       await quipsSeed();
+      break;
+    case 'pk-boosters-seed':
+      if (first !== undefined) fail(USAGE);
+      await pkBoostersSeed();
       break;
     default:
       fail(command ? `Unknown command ${command}.\n${USAGE}` : USAGE);

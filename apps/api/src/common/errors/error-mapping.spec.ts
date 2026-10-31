@@ -30,6 +30,14 @@ describe('ErrorCode', () => {
         'TOKEN_EXPIRED',
         'TOKEN_INVALID',
         'RATE_LIMITED',
+        // v1.43-live (D195).
+        'PK_UNAVAILABLE',
+        'PK_HOST_BUSY',
+        'PK_INVITES_OFF',
+        'PK_INVITE_COOLDOWN',
+        'PK_INVITE_CLOSED',
+        'PK_NOT_ACTIVE',
+        'PK_BOOSTER_UNAVAILABLE',
         // v1.54-social (D185).
         'RECHARGE_APPLICATION_NOT_ALLOWED',
         'RECHARGE_AGENT_NOT_ACTIVE',
@@ -210,6 +218,13 @@ describe('ErrorCode', () => {
       INSUFFICIENT_CHERRIES: 409,
       WITHDRAWAL_PENDING: 409,
       TASK_MONTHLY_CAP_REACHED: 409,
+      PK_UNAVAILABLE: 409,
+      PK_HOST_BUSY: 409,
+      PK_INVITES_OFF: 409,
+      PK_INVITE_COOLDOWN: 409,
+      PK_INVITE_CLOSED: 409,
+      PK_NOT_ACTIVE: 409,
+      PK_BOOSTER_UNAVAILABLE: 409,
     });
   });
 
