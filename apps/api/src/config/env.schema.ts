@@ -539,6 +539,11 @@ export const envSchema = z
     // (answers, the random queue, ending, muting, the opponent's media token), per user.
     RATE_LIMIT_LIVE_PK_INVITE_USER: rateLimit('30/600'),
     RATE_LIMIT_LIVE_PK_ACTION_USER: rateLimit('300/600'),
+    // v1.45-live (D201, CONVENTIONS §7, §10.63): second-camera pairing codes (create) and their redemption,
+    // per user; the other second-camera and recording calls share the tools bucket.
+    RATE_LIMIT_LIVE_SECOND_CAMERA_CODE_USER: rateLimit('10/600'),
+    RATE_LIMIT_LIVE_SECOND_CAMERA_REDEEM_USER: rateLimit('10/600'),
+    RATE_LIMIT_LIVE_TOOLS_USER: rateLimit('120/600'),
     // CP-012 (CONVENTIONS §7): tap batches per user, replacing the default authenticated bucket.
     RATE_LIMIT_LIVE_TAPS_USER: rateLimit('120/60'),
     // CP-013 (CONVENTIONS §7): chat messages per user, replacing the default authenticated bucket
@@ -628,6 +633,8 @@ export const envSchema = z
      * background, the camera off) this long is ended by the sweeper with HOST_AWAY_TIMEOUT.
      */
     LIVE_HOST_AWAY_TIMEOUT_SECONDS: intSetting(300, 30, 86400),
+    // v1.45-live (D201, §10.63): how long a second-camera pairing code can be redeemed.
+    LIVE_SECOND_CAMERA_CODE_SECONDS: intSetting(120, 30, 600),
     /**
      * v1.43-live (D195, CONVENTIONS §10.58): PK 1 v 1 between two SOLO video lives. Every value is an
      * owner-confirmable default. PK_ENABLED off refuses new PKs and booster gifts (running ones end

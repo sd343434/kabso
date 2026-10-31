@@ -7394,6 +7394,516 @@ abstract class AppLocalizations {
   /// **'التسجيل'**
   String get liveToolRecorder;
 
+  /// D201 live tools: a generic failure.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر ذلك الآن. حاول مرة أخرى.'**
+  String get liveToolsFailed;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء'**
+  String get liveToolsCancel;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'إغلاق'**
+  String get liveToolsClose;
+
+  /// D201: the go-live setup tile that opens «الانضمام ككاميرا ثانية» (short).
+  ///
+  /// In ar, this message translates to:
+  /// **'كاميرا ثانية'**
+  String get liveCam2JoinTile;
+
+  /// D201 live tools: entry on the go-live screen and the screen title (device B).
+  ///
+  /// In ar, this message translates to:
+  /// **'الانضمام ككاميرا ثانية'**
+  String get liveSecondCameraJoin;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'بُثّ من جهازين: هذا الهاتف، وكاميرا ثانية على هاتف أو جهاز لوحي آخر بالحساب نفسه.'**
+  String get liveCam2Intro;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'على الجهاز الثاني: سجّل الدخول بالحساب نفسه، افتح «بث مباشر» ثم «الانضمام ككاميرا ثانية»، وأدخل الرمز.'**
+  String get liveCam2Steps;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'يرى المشاهدون صورة كبيرة وصورة صغيرة يمكن سحبها، ويبدّلون بينهما بلمسة.'**
+  String get liveCam2Layout;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'إنشاء رمز الاقتران'**
+  String get liveCam2CreateCode;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'رمز الاقتران'**
+  String get liveCam2CodeLabel;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'ينتهي خلال {time}'**
+  String liveCam2CodeExpires(String time);
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'يُستخدم مرة واحدة، وبحسابك فقط.'**
+  String get liveCam2CodeOnce;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت صلاحية الرمز. أنشئ رمزاً جديداً.'**
+  String get liveCam2CodeExpired;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'رمز جديد'**
+  String get liveCam2NewCode;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء الرمز'**
+  String get liveCam2Cancel;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'في انتظار اتصال الجهاز الثاني…'**
+  String get liveCam2Waiting;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'الكاميرا الثانية متصلة'**
+  String get liveCam2Connected;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'الصورة الكبيرة للمشاهدين'**
+  String get liveCam2MainLabel;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا الهاتف'**
+  String get liveCam2MainHost;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'الكاميرا الثانية'**
+  String get liveCam2MainSecond;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'يستطيع كل مشاهد التبديل بين الصورتين على شاشته.'**
+  String get liveCam2MainNote;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'فصل الكاميرا الثانية'**
+  String get liveCam2End;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'ابدأ البث أولاً، ثم وصّل جهازك الثاني.'**
+  String get liveCam2NotLive;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'الكاميرا الثانية غير متاحة أثناء PK. وصّلها من جديد بعد انتهاء PK.'**
+  String get liveCam2InPk;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'الكاميرا الثانية متاحة في البث الفردي بالفيديو فقط.'**
+  String get liveCam2NotSolo;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'لهذا البث كاميرا ثانية بالفعل.'**
+  String get liveCam2Busy;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن إضافة كاميرا ثانية لهذا البث الآن: انتهى البث أو هو في PK.'**
+  String get liveCam2Unavailable;
+
+  /// D201 live tools: screen reader label of the small picture.
+  ///
+  /// In ar, this message translates to:
+  /// **'تبديل الكاميرتين'**
+  String get liveCam2Swap;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'سجّل الدخول بالحساب نفسه الذي تبثّ منه، ثم أدخل الرمز الظاهر في «كاميرتان» على جهازك الرئيسي.'**
+  String get liveCam2JoinIntro;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'سيطلب كابسو إذن الكاميرا والميكروفون. يبدأ الميكروفون مكتوماً، ولا تظهر الدردشة على هذا الجهاز.'**
+  String get liveCam2JoinPermissions;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'انضمام'**
+  String get liveCam2JoinButton;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'الرمز غير صحيح أو انتهت صلاحيته. أنشئ رمزاً جديداً على جهازك الرئيسي.'**
+  String get liveCam2CodeInvalid;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'محاولات كثيرة. انتظر قليلاً ثم حاول مجدداً.'**
+  String get liveCam2TooMany;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر الاتصال. حاول مرة أخرى.'**
+  String get liveCam2Failed;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'اسمح لكابسو باستخدام الكاميرا والميكروفون من إعدادات الجهاز.'**
+  String get liveCam2PermissionDenied;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'كاميرا ثانية · مباشر'**
+  String get liveCam2OnAir;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'جارٍ الاتصال…'**
+  String get liveCam2Connecting;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'قلب'**
+  String get liveCam2Flip;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'تشغيل الصوت'**
+  String get liveCam2MicOn;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'كتم الصوت'**
+  String get liveCam2MicOff;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'مغادرة'**
+  String get liveCam2Leave;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت الكاميرا الثانية: انتهى البث أو فُصلت من الجهاز الرئيسي.'**
+  String get liveCam2Ended;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'حقوق الموسيقى'**
+  String get liveMusicRightsTitle;
+
+  /// D201 live tools: the one-time notice (owner text, exact).
+  ///
+  /// In ar, this message translates to:
+  /// **'تأكد أنك تملك حقوق تشغيل الموسيقى. يُمنع تشغيل موسيقى محمية بحقوق النشر بدون ترخيص.'**
+  String get liveMusicRightsBody;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'أؤكد ذلك'**
+  String get liveMusicRightsAccept;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'إضافة ملفات صوتية'**
+  String get liveMusicAdd;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'يفتح منتقي الملفات في جهازك؛ لا يرى كابسو إلا الملفات التي تختارها، ولا تُرفع إلى الخادم.'**
+  String get liveMusicPickerNote;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'تُمزج الموسيقى تحت صوتك في بثك، وتنخفض حين تتكلم. لا تسمعها أنت من سماعة هاتفك، وكتم الميكروفون يكتمها أيضاً.'**
+  String get liveMusicMixNote;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد موسيقى بعد. لن يُشغَّل شيء حتى تختار ملفاً وتضغط تشغيل.'**
+  String get liveMusicEmpty;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'لا شيء يُشغَّل'**
+  String get liveMusicNothing;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'تشغيل'**
+  String get liveMusicPlay;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'إيقاف مؤقت'**
+  String get liveMusicPause;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'التالي'**
+  String get liveMusicNext;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'إزالة'**
+  String get liveMusicRemove;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'مستوى الموسيقى'**
+  String get liveMusicVolume;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'خفض الموسيقى حين أتكلم'**
+  String get liveMusicDucking;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'القائمة ممتلئة (حتى {max} ملفاً).'**
+  String liveMusicQueueFull(int max);
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تشغيل هذا الملف.'**
+  String get liveMusicUnreadable;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'الميكروفون مكتوم: لن يسمع المشاهدون الموسيقى.'**
+  String get liveMusicMicOff;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'الموسيقى غير متاحة على iOS في هذا الإصدار: مزج الملف داخل ميكروفون البث يحتاج وحدة صوت خاصة بـ iOS لم تُبنَ بعد.'**
+  String get liveMusicUnsupportedIos;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'الموسيقى غير متاحة في نسخة الويب. استخدم تطبيق أندرويد.'**
+  String get liveMusicUnsupportedWeb;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'تسجيل مقطع'**
+  String get liveClipTitle;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'سجّل حتى ٦٠ ثانية من بثك كما يراه المشاهدون: كاميرتك وصوتك. يمكنك الإيقاف قبل ذلك.'**
+  String get liveClipIntro;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'يرى المشاهدون «يتم التسجيل» أثناء التسجيل.'**
+  String get liveClipTransparency;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يتضمّن المقطع الكاميرا الثانية ولا الموسيقى ولا التعليقات والهدايا على الشاشة.'**
+  String get liveClipLimits;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'ابدأ التسجيل'**
+  String get liveClipStart;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'إيقاف التسجيل'**
+  String get liveClipStop;
+
+  /// D201 live tools: the recording badge.
+  ///
+  /// In ar, this message translates to:
+  /// **'تسجيل'**
+  String get liveClipRec;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'يتم التسجيل، بقي {seconds} ثانية'**
+  String liveClipRecSemantics(int seconds);
+
+  /// D201 live tools: what viewers see while the host records.
+  ///
+  /// In ar, this message translates to:
+  /// **'يتم التسجيل'**
+  String get liveClipViewerBadge;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'مقطعك'**
+  String get liveClipPreviewTitle;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'وصف (اختياري)'**
+  String get liveClipCaption;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'حفظ في الجهاز'**
+  String get liveClipSave;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'محفوظ'**
+  String get liveClipSavedShort;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'حُفظ المقطع في معرض الصور.'**
+  String get liveClipSaved;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر الحفظ. اسمح لكابسو بإضافة الصور والفيديو من الإعدادات.'**
+  String get liveClipSaveFailed;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'نشر كريلز'**
+  String get liveClipPostReel;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر النشر. المقطع باقٍ، حاول مجدداً.'**
+  String get liveClipPostFailed;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'تجاهل'**
+  String get liveClipDiscard;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر بدء التسجيل على هذا الجهاز.'**
+  String get liveClipFailed;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'المقطع أقصر من ثانية؛ سجّل مقطعاً أطول.'**
+  String get liveClipTooShort;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّرت قراءة المقطع.'**
+  String get liveClipUnreadable;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'تسجيل المقاطع غير متاح على iOS في هذا الإصدار: مسجّل WebRTC هناك لا يلتقط صوت البث.'**
+  String get liveClipUnsupportedIos;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'تسجيل المقاطع غير متاح في نسخة الويب.'**
+  String get liveClipUnsupportedWeb;
+
+  /// D201 live tools
+  ///
+  /// In ar, this message translates to:
+  /// **'شغّل الكاميرا لتسجيل مقطع.'**
+  String get liveClipNoCamera;
+
   /// Room tools sheet tile (owner ref 84)
   ///
   /// In ar, this message translates to:

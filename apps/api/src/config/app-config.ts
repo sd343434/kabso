@@ -137,6 +137,10 @@ export interface AppConfig {
     /** v1.43-live (D195): PK invitations; every other PK action (per user). */
     readonly livePkInviteUser: RateLimitRule;
     readonly livePkActionUser: RateLimitRule;
+    /** v1.45-live (D201): second-camera codes created; codes redeemed; the other live tools calls. */
+    readonly liveSecondCameraCodeUser: RateLimitRule;
+    readonly liveSecondCameraRedeemUser: RateLimitRule;
+    readonly liveToolsUser: RateLimitRule;
     /** CP-012: tap batches (per user). */
     readonly liveTapsUser: RateLimitRule;
     /** CP-013: chat messages (per user). */
@@ -452,6 +456,8 @@ export interface AppConfig {
     readonly guestKey: string;
     /** CP-016 A: the popularity boards' time zone (day and week boundaries). */
     readonly rankingsTimeZone: string;
+    /** v1.45-live (D201, §10.63): a second-camera pairing code's lifetime (LIVE_SECOND_CAMERA_CODE_SECONDS). */
+    readonly secondCameraCodeSeconds: number;
   };
   readonly registration: {
     readonly ttlSeconds: number;
@@ -565,6 +571,9 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       liveSeatsReadUser: e.RATE_LIMIT_LIVE_SEATS_READ_USER,
       livePkInviteUser: e.RATE_LIMIT_LIVE_PK_INVITE_USER,
       livePkActionUser: e.RATE_LIMIT_LIVE_PK_ACTION_USER,
+      liveSecondCameraCodeUser: e.RATE_LIMIT_LIVE_SECOND_CAMERA_CODE_USER,
+      liveSecondCameraRedeemUser: e.RATE_LIMIT_LIVE_SECOND_CAMERA_REDEEM_USER,
+      liveToolsUser: e.RATE_LIMIT_LIVE_TOOLS_USER,
       liveTapsUser: e.RATE_LIMIT_LIVE_TAPS_USER,
       liveChatUser: e.RATE_LIMIT_LIVE_CHAT_USER,
       familyWriteUser: e.RATE_LIMIT_FAMILY_WRITE_USER,
@@ -826,6 +835,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
           : null,
       guestKey: rateLimitKeySecret,
       rankingsTimeZone: e.LIVE_RANKINGS_TIME_ZONE,
+      secondCameraCodeSeconds: e.LIVE_SECOND_CAMERA_CODE_SECONDS,
     },
     registration: {
       ttlSeconds: e.REGISTRATION_TTL_SECONDS,

@@ -74,6 +74,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_tap_layer.dar
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_viewer_parts.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_watch_card.dart';
+import 'package:kabso_live/features/live/tools/live_tools_stage.dart';
 import 'package:kabso_live/features/medals/presentation/medal_showcase_row.dart';
 import 'package:kabso_live/features/profile/application/public_profile_controller.dart';
 import 'package:kabso_live/features/profile/profile_bonds.dart';
@@ -1808,7 +1809,15 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       return LiveThemeBackground(theme: room.theme);
     }
     final picture = engine.remoteVideo(room.host.id);
-    if (picture != null) return SizedBox.expand(child: picture);
+    // D201: the host's second camera (small picture, tap to swap) and the
+    // recording indicator.
+    if (picture != null) {
+      return LiveViewerToolsStage(
+        engine: engine,
+        hostId: room.host.id,
+        picture: SizedBox.expand(child: picture),
+      );
+    }
     final failure = session.joinFailure;
     if (failure != null) {
       return KLiveVideoPlaceholder(

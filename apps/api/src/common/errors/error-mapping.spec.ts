@@ -38,6 +38,10 @@ describe('ErrorCode', () => {
         'PK_INVITE_CLOSED',
         'PK_NOT_ACTIVE',
         'PK_BOOSTER_UNAVAILABLE',
+        // v1.45-live (D201).
+        'SECOND_CAMERA_CODE_INVALID',
+        'SECOND_CAMERA_UNAVAILABLE',
+        'SECOND_CAMERA_BUSY',
         // v1.54-social (D185).
         'RECHARGE_APPLICATION_NOT_ALLOWED',
         'RECHARGE_AGENT_NOT_ACTIVE',
@@ -250,6 +254,9 @@ describe('ErrorCode', () => {
       PK_INVITE_CLOSED: 409,
       PK_NOT_ACTIVE: 409,
       PK_BOOSTER_UNAVAILABLE: 409,
+      SECOND_CAMERA_CODE_INVALID: 422,
+      SECOND_CAMERA_UNAVAILABLE: 409,
+      SECOND_CAMERA_BUSY: 409,
     });
   });
 

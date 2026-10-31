@@ -42,6 +42,9 @@ dependencies:
   # camera track, Android (packages/kabso_camera_fx).
   kabso_camera_fx:
     path: packages/kabso_camera_fx
+  # D201: background music mixed into the host's microphone (Android).
+  kabso_live_music:
+    path: packages/kabso_live_music
   livekit_client: 2.13.1
   lottie: ^3.3.1
   material_ui: ^1.7.0

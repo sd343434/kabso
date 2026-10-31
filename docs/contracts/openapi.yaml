@@ -436,6 +436,16 @@ info:
     family never drops a level: its stored level is a floor, so `Family.level` may sit above what `points` reach
     on the current ladder, and `nextLevelPoints` is then the next level's threshold on that ladder. No shape
     changes (CONVENTIONS §10.21).
+    **D201 (DRAFT v1.45-live)**: the host's live tools «كاميرتان», «موسيقى», «التسجيل». A **second camera**: a
+    second device of the SAME account publishes into the host's LIVE SOLO video live as `cam2:<hostUserId>` after
+    redeeming a 6-digit single-use code (`createLiveSecondCameraCode`, 120 s; `redeemLiveSecondCameraCode` →
+    `LiveSecondCameraAccess`, a token that publishes camera and microphone only and subscribes to nothing); one per
+    live, none during a PK; never counted as a viewer; `getLiveSecondCamera`, `setLiveSecondCameraMain` (the default
+    main feed, participant attribute `kabso.mainFeed`), `endLiveSecondCamera`. **Recording**: `setLiveRecording` tells
+    the room the host records a clip (≤ 60 s, on the phone; host attribute `kabso.recordingUntil`). **Music**: the
+    one-time rights notice (`getMyLiveMusicRights` / `acceptMyLiveMusicRights`); music is mixed into the host's
+    microphone track on the phone. Codes `SECOND_CAMERA_CODE_INVALID` (422), `SECOND_CAMERA_UNAVAILABLE`,
+    `SECOND_CAMERA_BUSY` (409) (CONVENTIONS §10.63).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -3843,6 +3853,190 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/MyLivePk' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/second-camera:
+    get:
+      tags: [live]
+      operationId: getLiveSecondCamera
+      summary: "The live's second camera (D201)"
+      description: |
+        v1.45-live, §10.63. The room's host (either device: the same account; 404 for anyone else). `status`
+        NONE / CODE (an open code, `codeExpiresAt`) / PAIRED (redeemed, not in the media session yet) /
+        CONNECTED; `available` false with `unavailableReason` when no code can be created now.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '200':
+          description: The second camera's state.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveSecondCamera' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [live]
+      operationId: endLiveSecondCamera
+      summary: "End the second camera and its open code (D201)"
+      description: |
+        v1.45-live, §10.63. The room's host, from either device (404 otherwise). The open code can no longer be
+        redeemed and the second device leaves the media session. Nothing open: 204 too. Audited.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '204': { description: Ended (or nothing was open). }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/second-camera/codes:
+    post:
+      tags: [live]
+      operationId: createLiveSecondCameraCode
+      summary: "A pairing code for a second camera (D201)"
+      description: |
+        v1.45-live, §10.63. The room's host (404 otherwise), on the main device: a 6-digit code, single use,
+        valid `LIVE_SECOND_CAMERA_CODE_SECONDS` (default 120) for the SAME account only; it replaces the room's
+        open code. The live must be the caller's LIVE SOLO video live, not in a PK (409
+        `SECOND_CAMERA_UNAVAILABLE`), without a second camera already (409 `SECOND_CAMERA_BUSY`). Only the
+        code's HMAC is stored; it is never logged. 10 / 10 min per user. Audited (without the code).
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '201':
+          description: The code.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveSecondCameraCode' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/second-camera/main:
+    put:
+      tags: [live]
+      operationId: setLiveSecondCameraMain
+      summary: "Which feed viewers see full screen by default (D201)"
+      description: |
+        v1.45-live, §10.63. The room's host (404 otherwise), while the live has a second camera (409
+        `SECOND_CAMERA_UNAVAILABLE` otherwise). Written to the second camera's participant attribute
+        `kabso.mainFeed`; each viewer may still swap on their own screen. Audited when it changes.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LiveSecondCameraMainRequest' }
+      responses:
+        '200':
+          description: The second camera's state.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveSecondCamera' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/second-camera/redeem:
+    post:
+      tags: [live]
+      operationId: redeemLiveSecondCameraCode
+      summary: "Join a live as its host's second camera (D201)"
+      description: |
+        v1.45-live, §10.63. On the second device, signed in to the SAME account as the host. An unknown,
+        expired, used, replaced or another account's code → 422 `SECOND_CAMERA_CODE_INVALID` (one answer for
+        all; refusals are audited with the reason, never the code). The live ended, is not SOLO or is in a PK
+        → 409 `SECOND_CAMERA_UNAVAILABLE`; it already has a second camera → 409 `SECOND_CAMERA_BUSY`. The
+        token joins that media room as `cam2:<hostUserId>`, publishes the camera and the microphone only,
+        subscribes to nothing and publishes no data (600 s to connect). 10 / 10 min per user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LiveSecondCameraRedeemRequest' }
+      responses:
+        '200':
+          description: The media access of the second camera.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveSecondCameraAccess' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/recording:
+    put:
+      tags: [live]
+      operationId: setLiveRecording
+      summary: "Tell the room the host records a clip (D201)"
+      description: |
+        v1.45-live, §10.63. The room's host (404 otherwise), in a LIVE video live (409 `LIVE_ROOM_ENDED`; 400 for
+        an AUDIO room). The clip (≤ 60 s) is recorded on the host's phone and never reaches the server; this
+        only sets the host's participant attribute `kabso.recordingUntil` (now + 61 s, or removed with
+        `active` false) so every viewer sees «يتم التسجيل». Audited (start / stop).
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LiveRecordingRequest' }
+      responses:
+        '200':
+          description: The recording indicator.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveRecording' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+
+  /api/v1/me/live-music-rights:
+    get:
+      tags: [live]
+      operationId: getMyLiveMusicRights
+      summary: "Whether the caller accepted the music-rights notice (D201)"
+      description: v1.45-live, §10.63. The app shows the notice before the first music in a live until accepted.
+      responses:
+        '200':
+          description: The caller's acceptance.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveMusicRights' }
+        '401': { $ref: '#/components/responses/Error' }
+    put:
+      tags: [live]
+      operationId: acceptMyLiveMusicRights
+      summary: "Accept the music-rights notice (D201)"
+      description: |
+        v1.45-live, §10.63. «تأكد أنك تملك حقوق تشغيل الموسيقى. يُمنع تشغيل موسيقى محمية بحقوق النشر بدون
+        ترخيص.» — `noticeVersion` must be the current one (1). The first acceptance is kept and audited;
+        again → 200 unchanged.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LiveMusicRightsRequest' }
+      responses:
+        '200':
+          description: The caller's acceptance.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveMusicRights' }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -16935,6 +17129,77 @@ components:
       type: string
       enum: [GLOBAL, SAME_COUNTRY]
       description: "v1.44-live (D199): anyone, or hosts whose D133 country is the caller's (a caller with no country is treated as GLOBAL; a partner with SAME_COUNTRY needs the caller's country to equal theirs)."
+    # ---- v1.45-live (DRAFT, D201) --------------------------------------------------------
+    LiveSecondCameraMainFeed:
+      type: string
+      enum: [HOST, SECOND]
+      description: "v1.45-live (D201): the feed viewers see full screen by default (the other is the small picture)."
+    LiveSecondCamera:
+      type: object
+      required: [status, codeExpiresAt, main, available, unavailableReason, identity]
+      properties:
+        status: { type: string, enum: [NONE, CODE, PAIRED, CONNECTED] }
+        codeExpiresAt: { type: [string, 'null'], format: date-time, description: "When status is CODE." }
+        main: { $ref: '#/components/schemas/LiveSecondCameraMainFeed' }
+        available: { type: boolean, description: "Whether a code can be created now." }
+        unavailableReason: { type: [string, 'null'], enum: [NOT_LIVE, NOT_SOLO, PK, null] }
+        identity: { type: string, description: "`cam2:<hostUserId>`: the media identity the second camera publishes as." }
+    LiveSecondCameraCode:
+      type: object
+      required: [code, expiresAt, ttlSeconds]
+      properties:
+        code: { type: string, pattern: '^[0-9]{6}$' }
+        expiresAt: { type: string, format: date-time }
+        ttlSeconds: { type: integer, minimum: 1 }
+    LiveSecondCameraRedeemRequest:
+      type: object
+      additionalProperties: false
+      required: [code]
+      properties:
+        code: { type: string, pattern: '^[0-9]{6}$' }
+    LiveSecondCameraMainRequest:
+      type: object
+      additionalProperties: false
+      required: [main]
+      properties:
+        main: { $ref: '#/components/schemas/LiveSecondCameraMainFeed' }
+    LiveSecondCameraAccess:
+      type: object
+      required: [roomId, hostUserId, url, token, expiresAt, identity, main]
+      properties:
+        roomId: { type: string, format: uuid }
+        hostUserId: { type: string, format: uuid }
+        url: { type: string, description: The media server's WebSocket URL. }
+        token: { type: string, description: "Joins that room only; publishes camera and microphone; subscribes to nothing; no data." }
+        expiresAt: { type: string, format: date-time }
+        identity: { type: string }
+        main: { $ref: '#/components/schemas/LiveSecondCameraMainFeed' }
+    LiveRecordingRequest:
+      type: object
+      additionalProperties: false
+      required: [active]
+      properties:
+        active: { type: boolean }
+    LiveRecording:
+      type: object
+      required: [active, until, maxSeconds]
+      properties:
+        active: { type: boolean }
+        until: { type: [string, 'null'], format: date-time, description: "The indicator clears itself then." }
+        maxSeconds: { type: integer, enum: [60] }
+    LiveMusicRightsRequest:
+      type: object
+      additionalProperties: false
+      required: [noticeVersion]
+      properties:
+        noticeVersion: { type: integer, enum: [1] }
+    LiveMusicRights:
+      type: object
+      required: [accepted, acceptedAt, noticeVersion]
+      properties:
+        accepted: { type: boolean }
+        acceptedAt: { type: [string, 'null'], format: date-time }
+        noticeVersion: { type: integer, minimum: 1, description: The current notice's version. }
     LiveViewer:
       type: object
       required: [kind, user, guestNumber, joinedAt]

@@ -11,6 +11,7 @@ import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
 import 'package:kabso_live/features/live/data/beauty/live_beauty.dart';
 import 'package:kabso_live/features/live/data/beauty/live_camera_fx.dart';
 import 'package:kabso_live/features/live/data/live_camera_gate.dart';
+import 'package:kabso_live/features/live/data/live_media_extras.dart';
 import 'package:kabso_live/features/live/data/live_voice_recorder.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
@@ -331,7 +332,9 @@ class _Changes extends ChangeNotifier {
 }
 
 /// [LiveMediaEngine] on `livekit_client` (its defaults: 720p, simulcast).
-class LiveKitMediaEngine implements LiveMediaEngine {
+/// D201: also the live tools' attributes and the clip recorder.
+class LiveKitMediaEngine
+    implements LiveMediaEngine, LiveParticipantAttributes, LiveClipCapture {
   lk.LocalVideoTrack? _video;
   lk.LocalAudioTrack? _audio;
   lk.Room? _room;
@@ -924,6 +927,8 @@ class LiveKitMediaEngine implements LiveMediaEngine {
       ..on<lk.TrackMutedEvent>((_) => _changes.ping())
       ..on<lk.TrackUnmutedEvent>((_) => _changes.ping())
       ..on<lk.ParticipantPermissionsUpdatedEvent>((_) => _changes.ping())
+      // D201: the second camera's main feed, the host's recording.
+      ..on<lk.ParticipantAttributesChanged>((_) => _changes.ping())
       ..on<lk.RoomDisconnectedEvent>((e) {
         if (e.reason == lk.DisconnectReason.participantRemoved) {
           _removed = true;
@@ -1002,6 +1007,54 @@ class LiveKitMediaEngine implements LiveMediaEngine {
   }
 
   @override
+  Map<String, String> attributesOf(String identity) =>
+      _room?.remoteParticipants[identity]?.attributes ?? const {};
+
+  rtc.MediaRecorder? _clip;
+
+  @override
+  LiveClipUnsupported? get clipUnsupported {
+    if (kIsWeb) return LiveClipUnsupported.web;
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      return LiveClipUnsupported.ios;
+    }
+    if (_video == null) return LiveClipUnsupported.noCamera;
+    return null;
+  }
+
+  @override
+  Future<void> startClip(String path) async {
+    final video = _video;
+    if (video == null || _clip != null) throw StateError('no camera');
+    final recorder = rtc.MediaRecorder();
+    await recorder.start(
+      path,
+      videoTrack: video.mediaStreamTrack,
+      audioChannel: rtc.RecorderAudioChannel.INPUT,
+    );
+    _clip = recorder;
+  }
+
+  @override
+  Future<void> stopClip() async {
+    final recorder = _clip;
+    _clip = null;
+    await recorder?.stop();
+  }
+
+  @override
+  Future<Uint8List?> cameraStill() async {
+    final video = _video;
+    if (video == null || kIsWeb) return null;
+    try {
+      final frame = await video.mediaStreamTrack.captureFrame();
+      return frame.asUint8List();
+    } on Object {
+      return null;
+    }
+  }
+
+  @override
   bool isPresent(String identity) =>
       _room?.remoteParticipants.containsKey(identity) ?? false;
 
@@ -1054,6 +1107,14 @@ class LiveKitMediaEngine implements LiveMediaEngine {
   }
 
   Future<void> _stop(Completer<void>? camera) async {
+    // D201: a clip still recording ends with the session.
+    final clip = _clip;
+    _clip = null;
+    try {
+      await clip?.stop();
+    } on Object {
+      // Nothing to keep.
+    }
     _uplinkTimer?.cancel();
     _uplinkTimer = null;
     _uplink.reset();

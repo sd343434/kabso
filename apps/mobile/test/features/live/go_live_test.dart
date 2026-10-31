@@ -2064,10 +2064,11 @@ void main() {
       }
       expect(find.byKey(GoLiveKeys.tool('hd')), findsNothing);
       expect(find.byKey(GoLiveKeys.tool('fluent')), findsNothing);
+      // D201: Dual is a real tool now (the second camera).
       for (final label in [l10n.liveToolDual]) {
         expect(
           find.bySemanticsLabel('$label, ${l10n.liveSoon}'),
-          findsOneWidget,
+          findsNothing,
           reason: label,
         );
       }
@@ -2710,10 +2711,14 @@ void main() {
           reason: label,
         );
       }
-      // Blocked at an honest boundary (D154): native audio mixing / DSP,
-      // the screen capture (owner: blocked), the clip buffer.
+      // Blocked at an honest boundary (D154): DSP, the screen capture
+      // (owner: blocked), the clip buffer (a voice room records no video).
+      // D201: Music is real now (mixed into the host's microphone).
+      expect(
+        find.bySemanticsLabel('${l10n.liveToolMusic}, ${l10n.liveSoon}'),
+        findsNothing,
+      );
       for (final label in [
-        l10n.liveToolMusic,
         l10n.liveToolSinging,
         l10n.liveToolShareScreen,
         l10n.liveToolRecorder,
@@ -2815,8 +2820,10 @@ void main() {
       return sorted;
     }
 
-    testWidgets('Room Tools in the reference order; tiles without a feature '
-        'say Soon and do nothing', (tester) async {
+    // D201: «كاميرتان», «موسيقى» and «التسجيل» are real tools now (their
+    // flows: live_tools_d201_test); this test checked them «قريباً».
+    testWidgets('Room Tools in the reference order; every tile works '
+        '(D201 made Dual, Music and Recorder real)', (tester) async {
       await _pump(tester);
       await _goLive(tester);
       await _openTools(tester);
@@ -2869,18 +2876,17 @@ void main() {
       ]) {
         expect(
           find.bySemanticsLabel('$label, ${l10n.liveSoon}'),
-          findsOneWidget,
+          findsNothing,
           reason: label,
         );
       }
-      // A «Soon» tile is disabled: the sheet stays open.
-      await tester.tap(find.byKey(GoLiveKeys.tool('dual')));
-      await tester.pumpAndSettle();
-      expect(find.byKey(GoLiveKeys.tool('dual')), findsOneWidget);
       for (final id in [
         'share',
         'fillLight',
         'flip',
+        'dual',
+        'music',
+        'recorder',
         'quality',
         'sticker',
         'mic',
