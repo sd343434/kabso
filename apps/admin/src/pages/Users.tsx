@@ -1,78 +1,64 @@
-import { useState } from 'react';
-import { api } from '../api';
-import { ErrorAlert, Loading, StatusBadge, useAsync, UserCell } from '../components';
+import { StatusBadge, UserCell } from '../components';
 import { useApp } from '../context';
 import { formatDate } from '../format';
-import { navigate, useLocation } from '../router';
-import type { UserRow } from '../types';
+import { navigate } from '../router';
+import { DataTable } from '../ui/DataTable';
 
+interface UsersRow {
+  id: string;
+  username: string;
+  displayName: string;
+  email: string;
+  status: string;
+  role: string;
+  avatarUrl: string | null;
+  countryCode: string | null;
+  createdAt: string;
+  lastActiveAt: string | null;
+}
+
+/** The users table (D197): pages, sort, status / role filters, search, columns, CSV (users.export, audited). */
 export function Users() {
-  const { t, lang } = useApp();
-  const { search } = useLocation();
-  const q = search.get('q') ?? '';
-  const [text, setText] = useState(q);
-  const { data, error, loading } = useAsync(
-    () => (q ? api.get<{ data: UserRow[] }>('/admin/users', { q, limit: 50 }) : Promise.resolve(null)),
-    [q],
-  );
+  const { t, lang, can } = useApp();
   return (
     <>
       <div className="page-head">
-        <h1>{t('usersTitle')}</h1>
-      </div>
-      <form
-        className="row"
-        style={{ marginBottom: 16 }}
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (text.trim()) navigate(`/users?q=${encodeURIComponent(text.trim())}`);
-        }}
-      >
-        <input
-          type="search"
-          aria-label={t('usersSearch')}
-          placeholder={t('usersSearch')}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          style={{ flex: '1 1 280px', width: 'auto' }}
-        />
-        <button className="btn primary" disabled={!text.trim()}>
-          {t('search')}
-        </button>
-      </form>
-      <ErrorAlert error={error} />
-      {q && loading && <Loading />}
-      {data && data.data.length === 0 && <p className="muted">{t('empty')}</p>}
-      {data && data.data.length > 0 && (
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>{t('colUser')}</th>
-                <th>{t('colEmail')}</th>
-                <th>{t('colStatus')}</th>
-                <th>{t('colJoined')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.data.map((u) => (
-                <tr key={u.id} className="clickable" onClick={() => navigate(`/users/${u.id}`)}>
-                  <td>
-                    <a href={`/users/${u.id}`} onClick={(e) => e.preventDefault()} style={{ color: 'inherit', textDecoration: 'none' }}>
-                      <UserCell username={u.username} displayName={u.displayName} avatarUrl={u.avatarUrl} />
-                    </a>
-                  </td>
-                  <td className="ltr">{u.email}</td>
-                  <td>
-                    <StatusBadge status={u.status} />
-                  </td>
-                  <td className="date">{formatDate(u.createdAt, lang)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div>
+          <h1>{t('usersTitle')}</h1>
+          <p className="muted small">{t('usersSubtitle')}</p>
         </div>
-      )}
+      </div>
+      <DataTable<UsersRow>
+        id="users"
+        endpoint="/admin/tables/users"
+        rowKey={(r) => r.id}
+        defaultSort={{ sort: 'createdAt', order: 'desc' }}
+        searchLabel="usersSearch"
+        csv={can('users.export')}
+        onRowClick={(r) => navigate(`/users/${r.id}`)}
+        filters={[
+          {
+            name: 'status',
+            label: 'colStatus',
+            options: [
+              { value: 'ACTIVE', label: 'statusACTIVE' },
+              { value: 'SUSPENDED', label: 'statusSUSPENDED' },
+              { value: 'DELETED', label: 'statusDELETED' },
+            ],
+          },
+          { name: 'role', label: 'userRole', options: [{ value: 'USER', label: 'roleUser' }, { value: 'ADMIN', label: 'roleAdmin' }] },
+        ]}
+        columns={[
+          { key: 'user', label: 'colUser', sort: 'username', render: (r) => <UserCell username={r.username} displayName={r.displayName} avatarUrl={r.avatarUrl} /> },
+          { key: 'email', label: 'colEmail', sort: 'email', render: (r) => <span className="ltr">{r.email}</span> },
+          { key: 'status', label: 'colStatus', render: (r) => <StatusBadge status={r.status} /> },
+          { key: 'role', label: 'userRole', render: (r) => (r.role === 'ADMIN' ? <span className="badge info">{t('roleAdmin')}</span> : t('roleUser')) },
+          { key: 'country', label: 'userCountry', optional: true, render: (r) => r.countryCode ?? t('none') },
+          { key: 'joined', label: 'colJoined', sort: 'createdAt', render: (r) => <span className="date">{formatDate(r.createdAt, lang)}</span> },
+          { key: 'active', label: 'userLastActive', sort: 'lastActiveAt', render: (r) => <span className="date">{formatDate(r.lastActiveAt, lang)}</span> },
+          { key: 'id', label: 'colId', optional: true, render: (r) => <span className="mono small">{r.id}</span> },
+        ]}
+      />
     </>
   );
 }

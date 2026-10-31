@@ -41,7 +41,7 @@ export function withQuery(path: string, query: Query = {}): string {
 }
 
 export async function request<T>(
-  method: 'GET' | 'POST' | 'PUT',
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH',
   path: string,
   body?: unknown,
   opts: { auth?: boolean } = {},
@@ -82,4 +82,42 @@ export const api = {
   get: <T>(path: string, query?: Query) => request<T>('GET', withQuery(path, query)),
   post: <T>(path: string, body?: unknown) => request<T>('POST', path, body ?? {}),
   put: <T>(path: string, body: unknown) => request<T>('PUT', path, body),
+  patch: <T>(path: string, body: unknown) => request<T>('PATCH', path, body),
 };
+
+/** The file name of a `Content-Disposition: attachment; filename="…"` header, or the fallback. */
+export function attachmentName(header: string | null, fallback: string): string {
+  const m = header ? /filename="([^"]+)"/.exec(header) : null;
+  return m?.[1] ?? fallback;
+}
+
+/**
+ * v1.65-social (D197): a table's `format=csv` export. The server audits it (`admin.export.csv`); the page only
+ * saves the bytes it got (a Blob URL, revoked right after).
+ */
+export async function downloadCsv(path: string, query: Query, fallback: string): Promise<void> {
+  let res: Response;
+  try {
+    res = await fetch(`/api/v1${withQuery(path, { ...query, format: 'csv' })}`, {
+      credentials: 'same-origin',
+      cache: 'no-store',
+      headers: { Accept: 'text/csv' },
+    });
+  } catch {
+    throw new ApiError(0, 'NETWORK', 'network');
+  }
+  if (!res.ok) {
+    const parsed = (await res.json().catch(() => null)) as ApiErrorBody | null;
+    if (res.status === 401) onUnauthenticated?.();
+    throw new ApiError(res.status, parsed?.error.code ?? 'HTTP_ERROR', parsed?.error.message ?? res.statusText);
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = attachmentName(res.headers.get('Content-Disposition'), fallback);
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}

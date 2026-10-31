@@ -2,6 +2,8 @@
  * Arabic first (RTL), English on the toggle (LTR). Every visible string of the panel is here. `t(key, vars)`
  * replaces `{name}` placeholders.
  */
+import { AR_V2, EN_V2 } from './i18n-v2';
+
 export type Lang = 'ar' | 'en';
 
 const ar = {
@@ -224,6 +226,7 @@ const ar = {
   whatsapp: 'واتساب (رقم دولي أو رابط wa.me)',
   topupEnabled: 'إظهار رابط «شحن العملات» في الموقع',
   saved: 'تم الحفظ.',
+  ...AR_V2,
 };
 
 export type Key = keyof typeof ar;
@@ -438,6 +441,7 @@ const en: Record<Key, string> = {
   whatsapp: 'WhatsApp (international number or wa.me link)',
   topupEnabled: 'Show the «Buy coins» link on the website',
   saved: 'Saved.',
+  ...EN_V2,
 };
 
 export const DICTIONARIES: Record<Lang, Record<Key, string>> = { ar, en };

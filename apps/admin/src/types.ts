@@ -19,7 +19,24 @@ export type Capability =
   | 'withdrawals.decide'
   | 'reports.view'
   | 'reports.act'
-  | 'site.settings';
+  | 'site.settings'
+  // v1.65-social (D197)
+  | 'users.list'
+  | 'users.export'
+  | 'users.sessions'
+  | 'agencies.view'
+  | 'agencies.manage'
+  | 'lives.view'
+  | 'lives.manage'
+  | 'catalog.view'
+  | 'catalog.manage'
+  | 'items.grant'
+  | 'finance.view'
+  | 'finance.refund'
+  | 'audit.view'
+  | 'team.manage'
+  | 'programs.view'
+  | 'waitlist.view';
 
 export interface AdminSessionInfo {
   admin: { id: string; email: string; username: string; displayName: string };
@@ -201,4 +218,71 @@ export interface PanelReport {
 export interface SiteSettings {
   socials: { instagram: string | null; tiktok: string | null; whatsapp: string | null };
   topupEnabled: boolean;
+}
+
+// ---- v1.65-social (D197): the panel v2 ----------------------------------------------------------------------------
+
+export interface PersonRef {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarUrl?: string | null;
+}
+
+export interface Kpi {
+  value: number;
+  today: number;
+  yesterday: number;
+  spark: number[];
+}
+
+export interface StatsOverview {
+  since: string;
+  timeZone: string;
+  kpis: {
+    newUsers: Kpi;
+    coinsSold: Kpi & { agentsToday: number; websiteToday: number };
+    giftCoins: Kpi & { giftsToday: number };
+    lives: Kpi;
+    pending: Kpi;
+  };
+}
+
+export interface StatsDay {
+  day: string;
+  newUsers: number;
+  agentCoins: number;
+  websiteCoins: number;
+  coinsSold: number;
+  giftCoins: number;
+  giftsSent: number;
+  livesStarted: number;
+  newPending: number;
+}
+
+export type AttentionKind = 'RECHARGE_APPLICATIONS' | 'WITHDRAWALS' | 'REPORTS' | 'AGENCY_COMPLAINTS' | 'TOPUP_CASES';
+
+export interface Attention {
+  total: number;
+  items: { kind: AttentionKind; count: number; oldestAt: string | null }[];
+}
+
+export interface ActivityRow {
+  id: string;
+  action: string;
+  targetType: string | null;
+  targetId: string | null;
+  createdAt: string;
+  actor: PersonRef | null;
+}
+
+export interface AuditRow extends ActivityRow {
+  metadata: Record<string, unknown>;
+  ip: string | null;
+}
+
+export interface SearchResult {
+  users: UserRow[];
+  agents: { userId: string; code: string | null; status: string; username: string; displayName: string }[];
+  agencies: { id: string; inviteCode: string; hostCode: string | null; rank: string; suspended: boolean; ownerUsername: string; ownerDisplayName: string }[];
 }

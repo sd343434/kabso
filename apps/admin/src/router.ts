@@ -19,6 +19,24 @@ export const ROUTES: readonly { name: string; pattern: string }[] = [
   { name: 'withdrawals', pattern: '/withdrawals' },
   { name: 'reports', pattern: '/reports' },
   { name: 'site', pattern: '/site-settings' },
+  // v1.65-social (D197): the panel v2 sections.
+  { name: 'specialUsernames', pattern: '/special-usernames' },
+  { name: 'agencies', pattern: '/agencies' },
+  { name: 'agency', pattern: '/agencies/:id' },
+  { name: 'complaints', pattern: '/agency-complaints' },
+  { name: 'lives', pattern: '/lives' },
+  { name: 'hosts', pattern: '/live-hosts' },
+  { name: 'gifts', pattern: '/gifts' },
+  { name: 'items', pattern: '/items' },
+  { name: 'promo', pattern: '/promo' },
+  { name: 'report', pattern: '/finance/report' },
+  { name: 'topups', pattern: '/finance/topups' },
+  { name: 'cards', pattern: '/finance/cards' },
+  { name: 'tasks', pattern: '/programs/tasks' },
+  { name: 'levels', pattern: '/programs/levels' },
+  { name: 'waitlist', pattern: '/waitlist' },
+  { name: 'team', pattern: '/team' },
+  { name: 'audit', pattern: '/audit' },
 ];
 
 export function matchPath(path: string): Match | null {
