@@ -16,6 +16,8 @@ import { createAgencyIn } from '../src/modules/economy/host-agents.js';
 import { dateValue } from '../src/modules/economy/economy-math.js';
 import { addGiftIn } from '../src/modules/gifts/gift-catalogue.js';
 import { LIVE_MEDIA_PROVIDER } from '../src/modules/live/media/live-media.provider.js';
+import { OBJECT_STORAGE } from '../src/modules/media/object-storage.js';
+import { DmSweeper } from '../src/modules/messages/dm-sweeper.js';
 import {
   DELETED_DISPLAY_NAME,
   purgeAccountIn,
@@ -25,8 +27,15 @@ import {
 } from '../src/modules/users/account-deletion.js';
 import { creditIn } from '../src/modules/wallet/wallet-ledger.js';
 import { MemoryLiveMedia } from './helpers/memory-live-media.js';
+import { MemoryObjectStorage } from './helpers/memory-storage.js';
 import { expectContract, openapi, operations } from './helpers/openapi.js';
-import { createTestApp, registerVerified, settle, type TestContext } from './helpers/test-app.js';
+import {
+  createTestApp,
+  registerVerified,
+  settle,
+  withMigrationClient,
+  type TestContext,
+} from './helpers/test-app.js';
 
 interface TestUser {
   readonly id: string;
@@ -93,6 +102,7 @@ describe('D193 contract coverage', () => {
 
 describe('D193 account deletion', { timeout: 300_000 }, () => {
   const media = new MemoryLiveMedia();
+  const storage = new MemoryObjectStorage();
   let ctx: TestContext;
   let sweeper: AccountDeletionSweeper;
 
@@ -162,6 +172,7 @@ describe('D193 account deletion', { timeout: 300_000 }, () => {
   beforeAll(async () => {
     ctx = await createTestApp({ LIVE_HOSTING_ENABLED: 'true', LIVE_HEARTBEAT_STALE_SECONDS: '3600' }, [
       { token: LIVE_MEDIA_PROVIDER, value: media },
+      { token: OBJECT_STORAGE, value: storage },
     ]);
     sweeper = ctx.app.get(AccountDeletionSweeper);
     await gift('del_rose', 10);
@@ -512,7 +523,12 @@ describe('D193 account deletion', { timeout: 300_000 }, () => {
     });
     const purge = () =>
       ctx.prisma.$transaction((tx) =>
-        purgeAccountIn(tx, agent.id, new Date(), { quarantineDays: 90, specialGraceDays: 30, via: 'ADMIN' }),
+        purgeAccountIn(tx, agent.id, new Date(), {
+          quarantineDays: 90,
+          specialGraceDays: 30,
+          legalHoldDays: 90,
+          via: 'ADMIN',
+        }),
       );
     expect(await purge()).not.toBeNull();
     expect(await purge()).toBeNull(); // already a tombstone
@@ -556,5 +572,327 @@ describe('D193 account deletion', { timeout: 300_000 }, () => {
       ]),
     );
     expect(accountAdmin('purge-now', u.id, '--reason', 'again').out).toContain('already deleted');
+  });
+  it('owner retention: reported content held 90 days (hidden, audited views), the rest deleted; IPs dropped; ledgers 7 years', async () => {
+    const u = await signup();
+    const reporter = await signup();
+    const other = await signup();
+    const mod = await signup();
+    await withMigrationClient(async (c) => {
+      await c.user.update({ where: { id: mod.id }, data: { role: 'ADMIN' } });
+      await c.userAdminPermission.create({ data: { userId: mod.id, permission: 'MODERATION' } });
+    });
+    // A picture post with an OPEN report (held), a post whose only report was DISMISSED and an unreported picture post
+    // (both deleted), a comment on someone else's post with an ACTIONED report (held), a reported DM and profile link.
+    const picture = async (tag: string) => {
+      const asset = await ctx.prisma.mediaAsset.create({
+        data: {
+          ownerId: u.id,
+          kind: 'POST_IMAGE',
+          width: 1080,
+          height: 1080,
+          largeKey: `media/${tag}-${u.id}/large.webp`,
+          thumbKey: `media/${tag}-${u.id}/thumb.webp`,
+          byteSize: 1000,
+          attachedAt: new Date(),
+        },
+      });
+      storage.putRaw(asset.largeKey, Buffer.from('L'), 'image/webp');
+      storage.putRaw(asset.thumbKey, Buffer.from('T'), 'image/webp');
+      return asset;
+    };
+    const heldPic = await picture('held');
+    const plainPic = await picture('plain');
+    const heldPost = await ctx.prisma.post.create({
+      data: {
+        authorId: u.id,
+        text: 'held post text',
+        publishedAt: new Date(),
+        media: { create: { mediaAssetId: heldPic.id, position: 0 } },
+      },
+    });
+    const dismissedPost = await ctx.prisma.post.create({
+      data: { authorId: u.id, text: 'dismissed post', publishedAt: new Date() },
+    });
+    const plainPost = await ctx.prisma.post.create({
+      data: {
+        authorId: u.id,
+        text: 'plain post',
+        publishedAt: new Date(),
+        media: { create: { mediaAssetId: plainPic.id, position: 0 } },
+      },
+    });
+    const otherPost = await ctx.prisma.post.create({
+      data: { authorId: other.id, text: 'other post', publishedAt: new Date(), commentCount: 1 },
+    });
+    const badComment = await ctx.prisma.comment.create({
+      data: { postId: otherPost.id, authorId: u.id, text: 'bad comment text' },
+    });
+    const postReport = await ctx.prisma.report.create({
+      data: { reporterId: reporter.id, targetType: 'POST', targetPostId: heldPost.id, reason: 'HATE' },
+    });
+    const postReport2 = await ctx.prisma.report.create({
+      data: { reporterId: other.id, targetType: 'POST', targetPostId: heldPost.id, reason: 'SPAM' },
+    });
+    const dismissedReport = await ctx.prisma.report.create({
+      data: {
+        reporterId: reporter.id,
+        targetType: 'POST',
+        targetPostId: dismissedPost.id,
+        reason: 'SPAM',
+        status: 'DISMISSED',
+        resolvedAt: new Date(),
+      },
+    });
+    const commentReport = await ctx.prisma.report.create({
+      data: {
+        reporterId: other.id,
+        targetType: 'COMMENT',
+        targetCommentId: badComment.id,
+        reason: 'HARASSMENT',
+        status: 'ACTIONED',
+        resolvedAt: new Date(),
+      },
+    });
+    const dmId = randomUUID();
+    const dmFile = `reports/dm/${randomUUID()}.webp`;
+    storage.putRaw(dmFile, Buffer.from('D'), 'image/webp');
+    const dmReport = await ctx.prisma.report.create({
+      data: {
+        reporterId: reporter.id,
+        targetType: 'DM_MESSAGE',
+        targetDmMessageId: dmId,
+        reason: 'NUDITY',
+        // Resolved 40 days ago: the DM sweeper would clear an ordinary snapshot (30 days), not a held one.
+        status: 'ACTIONED',
+        resolvedAt: new Date(Date.now() - 40 * DAY_MS),
+        dmSnapshot: {
+          kind: 'IMAGE',
+          text: 'dm text',
+          token: null,
+          senderId: u.id,
+          senderUsername: u.username,
+          conversationId: randomUUID(),
+          sentAt: new Date().toISOString(),
+          mediaKey: dmFile,
+          giftCode: null,
+          quantity: null,
+          purged: false,
+        },
+      },
+    });
+    const linkReport = await ctx.prisma.report.create({
+      data: {
+        reporterId: reporter.id,
+        targetType: 'PROFILE_LINK',
+        targetProfileLinkId: randomUUID(),
+        reason: 'SPAM',
+        linkSnapshot: { userId: u.id, username: u.username, url: 'https://spam.example/x', label: 'x' },
+      },
+    });
+    // Money and audit: a ledger row, a paid withdrawal, an 18+ statement; an audit row with an IP and a username.
+    await creditIn(ctx.prisma, u.id, 500n, 'ADMIN_GRANT', randomUUID());
+    await ctx.prisma.cherryWithdrawal.create({
+      data: {
+        userId: u.id,
+        clientId: randomUUID(),
+        cherries: 1000n,
+        amountMinor: 110n,
+        currency: 'USD',
+        rateCherries: 1000n,
+        rateMinor: 110,
+        payoutDetails: 'IBAN JO00 0000 5678',
+        decisionNote: 'paid to the account holder',
+        status: 'PAID',
+        decidedAt: new Date(),
+      },
+    });
+    await ctx.prisma.luckyGiftAgeConfirmation.create({ data: { userId: u.id } });
+    await ctx.prisma.auditLog.create({
+      data: {
+        action: 'profile.username.change',
+        actorUserId: u.id,
+        targetType: 'user',
+        targetId: u.id,
+        metadata: { from: u.username, to: `${u.username}x`, email: u.email, kept: 1 },
+        ip: '203.0.113.7',
+      },
+    });
+    const ledgerRows = await ctx.prisma.walletLedgerEntry.count({ where: { userId: u.id } });
+    const userAudit = () =>
+      ctx.prisma.auditLog.findMany({
+        where: { OR: [{ actorUserId: u.id }, { targetType: 'user', targetId: u.id }] },
+      });
+
+    const asked = await askDeletion(u);
+    expect(asked.status).toBe(202);
+    expect((await userAudit()).some((a) => a.ip !== null)).toBe(true); // the request carries the caller's IP
+    const purgeAt = new Date(new Date(asked.body.purgeAfter as string).getTime() + 60_000);
+    expect((await sweeper.sweep(purgeAt)).purged).toBeGreaterThanOrEqual(1);
+
+    // -- Held: one hold per reported item, linked to the tombstone and its reports, never to the person.
+    const holds = await ctx.prisma.legalHold.findMany({
+      where: { userId: u.id },
+      include: { reports: true },
+    });
+    expect(holds.map((h) => h.targetType).sort()).toEqual(['COMMENT', 'DM_MESSAGE', 'POST', 'PROFILE_LINK']);
+    for (const h of holds) {
+      expect(h.deleteAfter.getTime() - h.heldAt.getTime()).toBe(90 * DAY_MS);
+      expect(h.heldAt.getTime()).toBe(purgeAt.getTime());
+      const text = JSON.stringify(h);
+      expect(text).not.toContain(u.username);
+      expect(text).not.toContain(u.email);
+    }
+    const postHold = holds.find((h) => h.targetType === 'POST')!;
+    expect(postHold.targetId).toBe(heldPost.id);
+    expect(postHold.snapshot).toMatchObject({
+      text: 'held post text',
+      media: [{ largeKey: heldPic.largeKey }],
+    });
+    expect(postHold.objectKeys.sort()).toEqual([heldPic.largeKey, heldPic.thumbKey].sort());
+    expect(postHold.reports.map((r) => r.id).sort()).toEqual([postReport.id, postReport2.id].sort());
+    expect(postHold.reports.every((r) => r.targetPostId === null && r.status === 'OPEN')).toBe(true);
+    const commentHold = holds.find((h) => h.targetType === 'COMMENT')!;
+    expect(commentHold.snapshot).toMatchObject({ text: 'bad comment text', postId: otherPost.id });
+    expect(commentHold.reports.map((r) => r.id)).toEqual([commentReport.id]);
+    expect((await ctx.prisma.comment.findUniqueOrThrow({ where: { id: badComment.id } })).text).toBe('');
+    const dmHold = holds.find((h) => h.targetType === 'DM_MESSAGE')!;
+    expect(dmHold.snapshot).toMatchObject({ text: 'dm text', mediaKey: dmFile });
+    expect(dmHold.objectKeys).toEqual([dmFile]);
+    const dmRow = await ctx.prisma.report.findUniqueOrThrow({ where: { id: dmReport.id } });
+    expect((dmRow.dmSnapshot as { senderUsername: unknown }).senderUsername).toBeNull();
+    const linkRow = await ctx.prisma.report.findUniqueOrThrow({ where: { id: linkReport.id } });
+    expect((linkRow.linkSnapshot as { username: string }).username).toMatch(TOMBSTONE_USERNAME);
+    expect(holds.find((h) => h.targetType === 'PROFILE_LINK')!.snapshot).toEqual({
+      url: 'https://spam.example/x',
+      label: 'x',
+    });
+
+    // -- Deleted: the content rows (held ones too: the hold is a copy), the unreported and dismissed items with their
+    // reports and files; the held files stay.
+    expect(
+      await ctx.prisma.post.count({ where: { id: { in: [heldPost.id, dismissedPost.id, plainPost.id] } } }),
+    ).toBe(0);
+    expect(await ctx.prisma.report.count({ where: { id: dismissedReport.id } })).toBe(0);
+    expect(storage.objects.has(plainPic.largeKey)).toBe(false);
+    expect(storage.objects.has(plainPic.thumbKey)).toBe(false);
+    expect(storage.objects.has(heldPic.largeKey)).toBe(true);
+    expect(storage.objects.has(dmFile)).toBe(true);
+
+    // -- Hidden from every user: the post is gone for the reporter; no API returns the hold's content. The moderation
+    // queue shows the report (its target id from the hold) and can still close it; every report of the hold closes.
+    expect((await ctx.http.get(`/api/v1/posts/${heldPost.id}`).set(auth(reporter))).status).toBe(404);
+    const modLogin = await login(mod);
+    const modAuth = { Authorization: `Bearer ${modLogin.body.tokens.accessToken as string}` };
+    const queue = await ctx.http.get('/api/v1/admin/reports').query({ limit: 50 }).set(modAuth);
+    expect(queue.status).toBe(200);
+    const queued = (queue.body.data as { id: string; targetId: string }[]).find(
+      (r) => r.id === postReport.id,
+    );
+    expect(queued?.targetId).toBe(heldPost.id);
+    expect(JSON.stringify(queue.body)).not.toContain('held post text');
+    const acted = await ctx.http
+      .post(`/api/v1/admin/reports/${postReport.id}/actions`)
+      .set(modAuth)
+      .send({ action: 'REMOVE_TARGET' });
+    expect(acted.status, JSON.stringify(acted.body)).toBe(200);
+    expectContract(acted, 'actOnReport');
+    expect(await ctx.prisma.report.count({ where: { legalHoldId: postHold.id, status: 'ACTIONED' } })).toBe(
+      2,
+    );
+    // Unrelated open reports were not closed by it.
+    expect((await ctx.prisma.report.findUniqueOrThrow({ where: { id: linkReport.id } })).status).toBe('OPEN');
+
+    // -- The DM sweeper leaves a held snapshot (and its file) alone.
+    await ctx.app.get(DmSweeper).sweep();
+    const dmAfter = await ctx.prisma.report.findUniqueOrThrow({ where: { id: dmReport.id } });
+    expect((dmAfter.dmSnapshot as { purged: boolean; text: string }).text).toBe('dm text');
+    expect(storage.objects.has(dmFile)).toBe(true);
+
+    // -- Audit: kept, without the IP addresses and without the person's identifiers.
+    const scrubbed = await userAudit();
+    expect(scrubbed.length).toBeGreaterThanOrEqual(3);
+    expect(scrubbed.every((a) => a.ip === null)).toBe(true);
+    const flat = JSON.stringify(scrubbed);
+    expect(flat).not.toContain(u.username);
+    expect(flat).not.toContain(u.email);
+    expect(scrubbed.find((a) => a.action === 'profile.username.change')!.metadata).toEqual({ kept: 1 });
+    expect(
+      (
+        await ctx.prisma.auditLog.findFirstOrThrow({
+          where: { targetId: u.id, action: 'account.deletion.purged' },
+        })
+      ).metadata,
+    ).toMatchObject({ held: 4 });
+
+    // -- Admins read a hold only with the CLI, and each view is audited with its reason.
+    expect(accountAdmin('holds').status).toBe(1); // a reason is required
+    const listed = accountAdmin('holds', '--reason', 'weekly legal review');
+    expect(listed.status, listed.out).toBe(0);
+    expect(listed.out).toContain(postHold.id);
+    expect(listed.out).not.toContain('held post text');
+    const shown = accountAdmin('hold-show', postReport2.id, '--reason', 'police request #77');
+    expect(shown.status, shown.out).toBe(0);
+    expect(shown.out).toContain('held post text');
+    expect(shown.out).toContain(postReport.id);
+    expect(shown.out).toContain(heldPic.largeKey);
+    expect(accountAdmin('hold-show', randomUUID(), '--reason', 'x').status).toBe(1);
+    const views = await ctx.prisma.auditLog.findMany({
+      where: { action: 'account.deletion.hold_viewed' },
+      orderBy: { createdAt: 'asc' },
+    });
+    expect(views.map((v) => (v.metadata as { reason: string }).reason)).toEqual(
+      expect.arrayContaining(['weekly legal review', 'police request #77']),
+    );
+    const itemView = views.find((v) => v.targetId === postHold.id)!;
+    expect(itemView.metadata).toMatchObject({ via: 'cli', scope: 'item', heldType: 'POST' });
+    expect((itemView.metadata as { reportIds: string[] }).reportIds.sort()).toEqual(
+      [postReport.id, postReport2.id].sort(),
+    );
+
+    // -- 90 days: not a minute before; then the hold goes with its reports and files.
+    const early = await sweeper.sweep(new Date(postHold.deleteAfter.getTime() - 60_000));
+    expect(early.holdsExpired).toBe(0);
+    expect(await ctx.prisma.legalHold.count({ where: { userId: u.id } })).toBe(4);
+    const expired = await sweeper.sweep(new Date(postHold.deleteAfter.getTime() + 60_000));
+    expect(expired.holdsExpired).toBeGreaterThanOrEqual(4);
+    expect(await ctx.prisma.legalHold.count({ where: { userId: u.id } })).toBe(0);
+    expect(
+      await ctx.prisma.report.count({
+        where: { id: { in: [postReport.id, postReport2.id, commentReport.id, dmReport.id, linkReport.id] } },
+      }),
+    ).toBe(0);
+    expect(storage.objects.has(heldPic.largeKey)).toBe(false);
+    expect(storage.objects.has(heldPic.thumbKey)).toBe(false);
+    expect(storage.objects.has(dmFile)).toBe(false);
+    const expiredAudit = await ctx.prisma.auditLog.findMany({
+      where: { action: 'account.deletion.hold_expired', targetId: { in: holds.map((h) => h.id) } },
+    });
+    expect(expiredAudit).toHaveLength(4);
+    expect(JSON.stringify(expiredAudit)).not.toContain(u.id);
+
+    // -- 7 years (2557 days) after the purge: the ledgers stay anonymous, the rest of the trail goes.
+    const purgedAt = (await ctx.prisma.user.findUniqueOrThrow({ where: { id: u.id } })).deletedAt!;
+    // (Tombstones purged earlier in this file, at the real time, may end here already; this one not yet.)
+    await sweeper.sweep(new Date(purgedAt.getTime() + 2556 * DAY_MS));
+    expect(await ctx.prisma.accountDeletionRequest.count({ where: { userId: u.id } })).toBe(1);
+    expect((await userAudit()).length).toBeGreaterThanOrEqual(3);
+    const after7 = await sweeper.sweep(new Date(purgedAt.getTime() + 2557 * DAY_MS + 60_000));
+    expect(after7.retentionEnded).toBeGreaterThanOrEqual(1);
+    expect(await userAudit()).toHaveLength(0);
+    expect(await ctx.prisma.accountDeletionRequest.count({ where: { userId: u.id } })).toBe(0);
+    expect(await ctx.prisma.luckyGiftAgeConfirmation.count({ where: { userId: u.id } })).toBe(0);
+    const w = await ctx.prisma.cherryWithdrawal.findFirstOrThrow({ where: { userId: u.id } });
+    expect(w).toMatchObject({ payoutDetails: '…', decisionNote: null, amountMinor: 110n, status: 'PAID' });
+    expect(await ctx.prisma.walletLedgerEntry.count({ where: { userId: u.id } })).toBe(ledgerRows);
+    expect((await ctx.prisma.user.findUniqueOrThrow({ where: { id: u.id } })).status).toBe('DELETED');
+    const ended = await ctx.prisma.auditLog.findFirstOrThrow({
+      where: { action: 'account.deletion.retention_ended' },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(ended).toMatchObject({ targetId: null, actorUserId: null });
+    expect(ended.metadata).toMatchObject({ retentionDays: 2557 });
+    // Idempotent: the next sweep finds nothing more for it.
+    expect((await sweeper.sweep(new Date(purgedAt.getTime() + 2558 * DAY_MS))).retentionEnded).toBe(0);
   });
 });

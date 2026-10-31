@@ -217,6 +217,8 @@ model User {
   rechargeBadge          RechargeBadge?
   // v1.62-social (D193): account deletion requests «حذف الحساب».
   deletionRequests       AccountDeletionRequest[]
+  /// D193: reported content of this (purged) account under a legal hold.
+  legalHolds             LegalHold[]
 
   @@map("users")
 }
@@ -1803,6 +1805,9 @@ model Report {
   resolvedAt                DateTime?        @map("resolved_at") @db.Timestamptz(3)
   resolvedById              String?          @map("resolved_by_id") @db.Uuid
   resolutionNote            String?          @map("resolution_note") @db.VarChar(500)
+  /// D193: the content was deleted with its author's account and is kept under this legal hold (the target id of a
+  /// deleted row is then null; the hold carries it). Deleted with the hold (REPORT_LEGAL_HOLD_DAYS).
+  legalHoldId               String?          @map("legal_hold_id") @db.Uuid
 
   reporter                User               @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
   targetPost              Post?              @relation(fields: [targetPostId], references: [id], onDelete: Cascade)
@@ -1814,6 +1819,7 @@ model Report {
   targetCpConfession      CpConfession?      @relation(fields: [targetCpConfessionId], references: [id], onDelete: Cascade)
   targetFamilyChatMessage FamilyChatMessage? @relation(fields: [targetFamilyChatMessageId], references: [id], onDelete: Cascade)
   resolvedBy              User?              @relation("ReportResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+  legalHold               LegalHold?         @relation(fields: [legalHoldId], references: [id], onDelete: Cascade)
 
   @@unique([reporterId, targetPostId], map: "reports_open_post_once", where: raw("status = 'OPEN'::report_status AND target_post_id IS NOT NULL"))
   @@unique([reporterId, targetCommentId], map: "reports_open_comment_once", where: raw("status = 'OPEN'::report_status AND target_comment_id IS NOT NULL"))
@@ -1836,6 +1842,7 @@ model Report {
   @@index([targetFamilyChatMessageId], map: "reports_target_family_chat_message_idx")
   @@index([targetDmMessageId], map: "reports_target_dm_message_idx")
   @@index([targetProfileLinkId], map: "reports_target_profile_link_idx")
+  @@index([legalHoldId], map: "reports_legal_hold_idx")
   @@map("reports")
 }
 
@@ -4045,7 +4052,8 @@ enum AccountDeletionStatus {
 }
 
 /// D193: one deletion request. At most one PENDING per user (partial unique). Kept after the purge (no personal data:
-/// the user row is the tombstone) as the record of when and how the account was deleted.
+/// the user row is the tombstone) as the record of when and how the account was deleted, until
+/// DELETED_LEDGER_RETENTION_DAYS (7 years) after the purge — then deleted with the tombstone's audit rows.
 model AccountDeletionRequest {
   id           String                @id @default(uuid(7)) @db.Uuid
   userId       String                @map("user_id") @db.Uuid
@@ -4068,6 +4076,32 @@ model AccountDeletionRequest {
   @@index([purgeAfter], map: "account_deletion_requests_due_idx", where: raw("status = 'PENDING'::account_deletion_status"))
   @@index([userId, requestedAt(sort: Desc)], map: "account_deletion_requests_user_idx")
   @@map("account_deletion_requests")
+}
+
+/// D193 (owner 2026-10-31): content of a purged account that had an OPEN or ACTIONED report, kept as a snapshot for
+/// REPORT_LEGAL_HOLD_DAYS (90) — hidden from every user, linked only to its reports and the tombstone id; admins read it
+/// with `account-admin hold-show` (audited). The sweeper deletes it with its reports and files at `delete_after`.
+model LegalHold {
+  id          String           @id @default(uuid(7)) @db.Uuid
+  /// The tombstone (the purged account's random id; no personal data).
+  userId      String           @map("user_id") @db.Uuid
+  targetType  ReportTargetType @map("target_type")
+  /// The deleted row's id (no foreign key: the row is gone, except a comment's, which stays soft-deleted).
+  targetId    String           @map("target_id") @db.Uuid
+  /// What the content was: text, dates, media metadata and keys (see `legalHoldSnapshot`).
+  snapshot    Json             @db.JsonB
+  /// Stored files kept for the hold and deleted with it.
+  objectKeys  String[]         @default([]) @map("object_keys")
+  heldAt      DateTime         @map("held_at") @db.Timestamptz(3)
+  deleteAfter DateTime         @map("delete_after") @db.Timestamptz(3)
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reports Report[]
+
+  @@unique([targetType, targetId], map: "legal_holds_target_key")
+  @@index([deleteAfter], map: "legal_holds_delete_after_idx")
+  @@index([userId], map: "legal_holds_user_idx")
+  @@map("legal_holds")
 }
 
 /// D193: the regular username of a purged account, held for ACCOUNT_DELETION_USERNAME_QUARANTINE_DAYS so nobody can

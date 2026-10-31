@@ -244,6 +244,10 @@ export interface AppConfig {
     readonly supportEmail: string;
     /** 0 = sweeper disabled (tests; refused in production). */
     readonly sweepIntervalSeconds: number;
+    /** REPORT_LEGAL_HOLD_DAYS: reported content of a purged account is kept hidden this long, then deleted. */
+    readonly legalHoldDays: number;
+    /** DELETED_LEDGER_RETENTION_DAYS: the tombstone's ledgers and audit rows are kept this long after the purge. */
+    readonly ledgerRetentionDays: number;
   };
   /** v1.54-social (D185): special usernames (CONVENTIONS §10.48.1). */
   readonly specialUsernames: {
@@ -590,6 +594,8 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       usernameQuarantineDays: e.ACCOUNT_DELETION_USERNAME_QUARANTINE_DAYS,
       supportEmail: e.SUPPORT_EMAIL,
       sweepIntervalSeconds: e.ACCOUNT_DELETION_SWEEP_INTERVAL_SECONDS,
+      legalHoldDays: e.REPORT_LEGAL_HOLD_DAYS,
+      ledgerRetentionDays: e.DELETED_LEDGER_RETENTION_DAYS,
     },
     specialUsernames: {
       graceDays: e.SPECIAL_USERNAME_GRACE_DAYS,

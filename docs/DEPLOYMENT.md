@@ -1573,22 +1573,39 @@ the private-account switch with follow requests, and an admin tool to remove a p
   docker compose --profile jobs run --rm migrate node dist/cli/bag-admin.js grant someone@example.com emerald_wings 7
   ```
 
-### 5.29 Account deletion «حذف الحساب» (migrations `20270110090000_account_deletion_enums`, `20270110100000_account_deletion`; D193) — [IMPLEMENTED, draft contract v1.62-social; not deployed, not device-tested]
+### 5.29 Account deletion «حذف الحساب» (migrations `20270110090000_account_deletion_enums`, `20270110100000_account_deletion`, `20270110110000_account_deletion_retention`; D193) — [IMPLEMENTED, draft contract v1.62-social; not deployed, not device-tested]
 
 - **What it is** (CONVENTIONS §10.56): Settings › Account › «حذف الحساب» → explanation, password, confirmation word →
   the account is hidden and signed out at once; 30 days to cancel by signing in; then the sweeper purges it into a
   tombstone (personal data and content deleted; ledgers and audit kept without personal data).
 - **Settings:** `ACCOUNT_DELETION_GRACE_DAYS` (30), `ACCOUNT_DELETION_USERNAME_QUARANTINE_DAYS` (90),
   `ACCOUNT_DELETION_SWEEP_INTERVAL_SECONDS` (3600; refused as 0 in production), `SUPPORT_EMAIL`
-  (info@kabsolive.com), `RATE_LIMIT_ACCOUNT_DELETION_USER` (5/900). The notices need real mail (PP-20); without it
-  they go to the log adapter (development only).
+  (info@kabsolive.com), `RATE_LIMIT_ACCOUNT_DELETION_USER` (5/900), `REPORT_LEGAL_HOLD_DAYS` (90, 1–3650: reported
+  content of a purged account kept hidden, then deleted with its reports and files), `DELETED_LEDGER_RETENTION_DAYS`
+  (2557 = 7 years, 1–36500: the tombstone's ledgers and audit rows; then the trail is deleted and the rest
+  anonymised). The owner set 90 days and 7 years (2026-10-31); change them only with the owner/legal. The notices
+  need real mail (PP-20); without it they go to the log adapter (development only).
+- **Retention jobs** (CONVENTIONS §10.56, in the same hourly sweeper — no separate cron): legal holds whose 90 days
+  ended are deleted with their reports and files (audit `account.deletion.hold_expired`); tombstones purged more than
+  `DELETED_LEDGER_RETENTION_DAYS` ago lose their audit rows, deletion record and 18+ statement, their withdrawals keep
+  amounts only (`…`) (one audit row per sweep, `account.deletion.retention_ended`, a count). The migration creates
+  two `SECURITY DEFINER` functions (`account_deletion_scrub_audit`, `account_deletion_end_retention`; EXECUTE for the
+  runtime group only) because `audit_logs` and `points_ledger` are append-only for the runtime role; they refuse any
+  account that is not DELETED.
+- **Legal hold (moderation):** there is no app or API view of held content. The team reads it with
+  `account-admin holds --reason <text>` and `account-admin hold-show <hold|report id> --reason <text> [--save <dir>]`
+  (every view audited, `account.deletion.hold_viewed`); `--save` downloads its files (needs `S3_*`) — keep them off
+  shared drives and delete them when the case is closed. The moderation queue (`GET /admin/reports`) still lists the
+  held reports (target id only) and can close them.
 - **Object storage:** the sweeper deletes the purged account's files through the API's `S3_*` settings; a failure
   is logged (`Media objects not deleted`) and the keys are not kept — check the log after the first purges.
 - **Admin CLI** `dist/cli/account-admin.js` (locally `pnpm account:admin …`), migration role:
   `docker compose --profile jobs run --rm -e S3_ENDPOINT -e S3_REGION -e S3_BUCKET -e S3_ACCESS_KEY_ID
   -e S3_SECRET_ACCESS_KEY -e S3_FORCE_PATH_STYLE migrate node dist/cli/account-admin.js pending`
-  (`request|cancel|purge-now <username|email|id> --reason <text>`; audited). Without the `S3_*` settings
-  `purge-now` prints the object keys to delete by hand.
+  (`request|cancel|purge-now <username|email|id> --reason <text>`, `holds`, `hold-show`; audited). Without the
+  `S3_*` settings `purge-now` prints the object keys to delete by hand (files under a legal hold are not in that list;
+  the sweeper deletes them when the hold ends, so run the API with `S3_*`). Pass `-e REPORT_LEGAL_HOLD_DAYS` when the
+  server does not use the default.
 - **Deletion without the app (Google Play "web resource"):** until the page exists, the store listing and the
   privacy policy name the address **info@kabsolive.com**: the person writes from the account's email; the team
   replies to confirm, then runs `account-admin request <email> --reason "emailed request <date>"` (same 30-day

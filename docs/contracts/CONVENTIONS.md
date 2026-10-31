@@ -575,7 +575,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
-| v1.62-social (draft) | 2026-10-31 | **D193 (owner: «حذف الحساب» inside the app, as Apple 5.1.1(v) and Google Play require, with a 30-day grace period, CP-036):** `getAccountDeletionInfo` (`GET /me/account-deletion`, `AccountDeletionInfo`, `AccountDeletionBlocker`), `requestAccountDeletion` (`POST /me/account-deletion`, `AccountDeletionRequestBody`, 202 `AccountDeletionRequest`); `LoginRequest.cancelDeletion`; `login` 409 `ACCOUNT_DELETION_PENDING`; `Earning.senderDeleted`, `CherryLedgerEntry.gift.senderDeleted` (optional); codes `REAUTH_FAILED` (403), `ACCOUNT_DELETION_BLOCKED` (409), `ACCOUNT_DELETION_PENDING` (409); rate limit `RATE_LIMIT_ACCOUNT_DELETION_USER`; config `ACCOUNT_DELETION_GRACE_DAYS` (30), `ACCOUNT_DELETION_USERNAME_QUARANTINE_DAYS` (90), `ACCOUNT_DELETION_SWEEP_INTERVAL_SECONDS` (3600, not 0 in production), `SUPPORT_EMAIL` (info@kabsolive.com); `account-admin` CLI; audit actions `account.deletion.*`; migrations `20270110090000_account_deletion_enums` (`user_status` `PENDING_DELETION`), `20270110100000_account_deletion` (`account_deletion_requests`, `deleted_usernames`). §4, §6, §7, §10.56. | **Additive** (new operations, an optional request field, optional response fields, new codes). A deleted account's rows stay under a tombstone; clients show «مستخدم محذوف» where `senderDeleted` is set. |
+| v1.62-social (draft) | 2026-10-31 | **D193 (owner: «حذف الحساب» inside the app, as Apple 5.1.1(v) and Google Play require, with a 30-day grace period, CP-036):** `getAccountDeletionInfo` (`GET /me/account-deletion`, `AccountDeletionInfo`, `AccountDeletionBlocker`), `requestAccountDeletion` (`POST /me/account-deletion`, `AccountDeletionRequestBody`, 202 `AccountDeletionRequest`); `LoginRequest.cancelDeletion`; `login` 409 `ACCOUNT_DELETION_PENDING`; `Earning.senderDeleted`, `CherryLedgerEntry.gift.senderDeleted` (optional); codes `REAUTH_FAILED` (403), `ACCOUNT_DELETION_BLOCKED` (409), `ACCOUNT_DELETION_PENDING` (409); rate limit `RATE_LIMIT_ACCOUNT_DELETION_USER`; config `ACCOUNT_DELETION_GRACE_DAYS` (30), `ACCOUNT_DELETION_USERNAME_QUARANTINE_DAYS` (90), `ACCOUNT_DELETION_SWEEP_INTERVAL_SECONDS` (3600, not 0 in production), `SUPPORT_EMAIL` (info@kabsolive.com), `REPORT_LEGAL_HOLD_DAYS` (90), `DELETED_LEDGER_RETENTION_DAYS` (2557 = 7 years; owner retention answers 2026-10-31); `account-admin` CLI (`holds`, `hold-show`); audit actions `account.deletion.*`; migrations `20270110090000_account_deletion_enums` (`user_status` `PENDING_DELETION`), `20270110100000_account_deletion` (`account_deletion_requests`, `deleted_usernames`), `20270110110000_account_deletion_retention` (`legal_holds`, `reports.legal_hold_id`). A report of held content keeps its `targetId` (from the hold). §4, §6, §7, §10.56. | **Additive** (new operations, an optional request field, optional response fields, new codes). A deleted account's rows stay under a tombstone; clients show «مستخدم محذوف» where `senderDeleted` is set. |
 | v1.58-social (draft) | 2026-10-30 | **D189 (owner: a host agent «وكيل مضيفين» gets the same kind of perks as a recharge agent, CP-032):** `UserSummary.hostAgent` (optional) and `PublicProfile.hostAgent` (required, nullable) — `HostAgentTag {code}`, `HostAgentCode` (`^host[0-9]{2,}$`) — present while the person owns an agency the team has not suspended (any rank) with an active account; `OwnAgency.hostAgent` (`OwnHostAgent`: `code`, `active`, `usernameShown`); `MeSpecialUsername.source` `HOST_AGENT`; `host` + digits reserved (§6); `economy-admin agency-create` activates the host agent (prints the host code), new `agency-suspend` / `agency-reinstate`; migrations `20270103090000_host_agent_perks_enums`, `20270103100000_host_agent_perks`. §6, §7, §10.52. | **Additive** (new optional/nullable fields; new required `PublicProfile.hostAgent` and `OwnAgency.hostAgent` — strict clients update their models in the same change set; an agency owner's shown username becomes `hostNN`). |
 | v1.57-social (draft) | 2026-10-30 | **D188 (owner: the task rewards came from wrong pricing — «300,000 كرزة» and the low «استقبل 1000 عملة» targets are absurd; anchors 1 000 000 coins = $12.50 retail, 1 000 000 cherries = $1.10 payout):** `ProgramTask.metric` + `GIFT_COINS_SENT` (the coin value of paid gifts sent, from the stored gift rows); `MyTasks.monthlyCapCherries`, `MyTasks.monthlyEarnedCherries` (required in responses); code `TASK_MONTHLY_CAP_REACHED` (409); weekly host tasks per level band (follow-up: a band-4 host reaches the $5 cap); config `TASK_DAILY_CAP_CHERRIES` 150 000 → **50 000**, new `TASK_MONTHLY_CAP_MINOR` (500 = $5 → 4 545 454 cherries a calendar month, daily + weekly), new `COIN_RETAIL_USD_PER_MILLION` (12.5; `task-admin` shows real money), `TASK_CHERRIES_UNLOCK_GIFT_MINOR` 5000 → **6000** ($60); migrations `20261231130000_task_rewards_rebalance` (stored defaults, the new metric in the CHECK, the days' offers re-priced) and `20261231140000_task_weekly_host_bands` (follow-up: daily host tasks ×2, weekly host tasks per band). §4, §8, §10.41.3, §10.46.1, §10.51. | **Behaviour change, additive on the wire** (a new enum value — the app shows an unknown metric generically; new required response fields the app reads in the same change set). Claims already paid keep what they paid. |
 | v1.56-social (draft) | 2026-10-30 | **D187 (owner: daily recharge badges «شارات الشحن اليومي», CP-030):** `RechargeBadge` (`tier` 1–5, `until`); optional `UserSummary.rechargeBadge` and `PublicProfile.rechargeBadge`, present only while the badge shows (also on the room host's summary, chat authors, join lines and viewers); tables `recharge_daily_totals`, `recharge_badges`; config `RECHARGE_BADGE_TIERS`, `RECHARGE_BADGE_TIME_ZONE`, `RECHARGE_BADGE_HOURS`; §10.50. (v1.55-social is D186's.) | **Additive** (optional fields; clients ignore them). |
@@ -3535,7 +3535,8 @@ live in `users/account-deletion.ts` (shared by the API, the sweeper and the `acc
   `deleted_at` set, no personal data. Idempotent (a DELETED account is skipped).
   - **Deleted:** email (→ `deleted+<id>@deleted.invalid`), password, profile fields (name → «مستخدم محذوف»,
     username → `deleted.` + 16 hex digits, bio, photo, country, gender, category, links), settings, sessions,
-    verification and push tokens; posts and reels (with their likes, comments, media and reports), stories,
+    verification and push tokens; posts and reels (with their likes, comments, media and reports — except reported
+    items under a legal hold, below), stories,
     comments on others' posts (soft-deleted, text removed), likes, saves and reposts of others' posts (counters
     adjusted), views and share events, mentions; direct messages they wrote (gift messages stay — they show the
     gift), live-chat, family-chat and CP-confession messages they wrote, paid bullet texts (→ `·`), their
@@ -3552,10 +3553,47 @@ live in `users/account-deletion.ts` (shared by the API, the sweeper and the `acc
     18+ statement; boosts, bag items and transfers; premium-username leases and payments; recharge sales, stock and
     cherry requests; agency rows, earnings and months; cherry withdrawals (the payout details cut to their last 4
     characters, to match bank records); task, check-in and event rewards; live-room history and statistics; reports
-    made and received; special usernames; the deletion request (PURGED); the audit log (append-only; its IP column
-    follows the audit retention, PP-08).
+    made and about the person; special usernames; the deletion request (PURGED); the audit log (append-only). All of
+    it for `DELETED_LEDGER_RETENTION_DAYS` (owner: **7 years**, 2557 days) after the purge — below.
+  - **Audit log at the purge:** every row whose actor or target user is the account loses its **IP address (set to
+    NULL — dropped rather than truncated: a truncated /24 or /48 still narrows a home connection down, and nothing
+    needs it once the account is gone)** and the person's identifiers in its metadata (`username`, `email`,
+    `identifier`, `from`, `to`, `baseUsername`, `regularUsername`, `displayName`, `name`, `phone`, `fullName`
+    removed). `audit_logs` is append-only for the runtime role, so this is the `SECURITY DEFINER` function
+    `account_deletion_scrub_audit` (only for a DELETED account). The snapshots of DM reports about their messages lose
+    `senderUsername`, those of profile-link reports carry the tombstone username.
+  - **Legal hold of reported content** (owner, 2026-10-31): before anything is deleted, every item of theirs with an
+    **OPEN or ACTIONED** report — a post or reel, comment, story, live-chat, family-chat or CP-confession message, a
+    direct message (from the report's snapshot) or a profile link — is copied into `legal_holds`: a snapshot of the
+    content (text, dates, kind, media metadata and keys; never the author's name, username or email) linked only to
+    the **tombstone id** and to its reports (`reports.legal_hold_id`; every report of that item, whatever its status;
+    the target id of a post, comment, story or chat message moves to the hold, `legal_holds.target_id`). The original
+    rows are deleted (a comment stays soft-deleted with its text removed) as for unreported content; the files of
+    held items (media, the DM report's own copy) stay in storage. **No user can see it** — no app or API operation
+    returns `legal_holds`; the moderation queue (`GET /admin/reports`) keeps listing the reports with `targetId` and
+    can act on them (closes every report of the hold; nothing left to remove). Admins read the content only with
+    `account-admin holds` / `hold-show` (migration role), and **every view is audited** (`account.deletion.hold_viewed`,
+    with the reason; the list too). The DM sweeper leaves held DM snapshots alone. After `REPORT_LEGAL_HOLD_DAYS` (90)
+    the sweeper deletes the hold **with its reports and files** (`account.deletion.hold_expired`). Content whose
+    reports are all DISMISSED, and unreported content, is deleted at the purge with its reports.
+  - **Retention end** (`DELETED_LEDGER_RETENTION_DAYS`, 2557, after `account_deletion_requests.purged_at`; the same
+    sweeper, one transaction per tombstone): **deleted** — `audit_logs` rows whose actor or target user is the
+    tombstone (function `account_deletion_end_retention`), `account_deletion_requests` (the record of the deletion),
+    `lucky_gift_age_confirmations` (the 18+ statement); **anonymised** — `cherry_withdrawals.payout_details` → `…`
+    and `decision_note` → NULL, `points_ledger.reason` → NULL (`—` on ADMIN rows, which must keep one). These five
+    tables are all the job changes. **Left in place as anonymous accounting** (amounts, dates and counterparties
+    only, under a random id that no longer leads to anything about the person; deleting them would break other
+    people's `balance_after` chains, gift histories and the books): every other row under the tombstone id — the
+    *Kept* list above, i.e. `wallets`, `wallet_ledger`, `cherry_wallets`, `cherry_ledger`, `points_ledger`,
+    `level_history`, `user_level_states`, `family_points_ledger`, `cp_gifts`, `cp_points_ledger`, `cp_check_ins`,
+    `cp_task_claims`, `live_gifts`, `live_gift_recipients`, `lucky_gift_draws`, `live_boosts`, `user_bag_items`,
+    `bag_transfers`, `premium_username_leases`, `premium_username_payments`, `recharge_sales`,
+    `recharge_cherry_requests`, `agencies`, `agency_hosts`, `agency_earnings`, `agency_months`, `cherry_withdrawals`
+    (amounts), `special_usernames` (system codes held for ever), reward, medal and live-room history rows, `reports`
+    made or about the person; the `users` row stays the tombstone. One audit row per sweep,
+    `account.deletion.retention_ended` (a count; no id).
   - **Usernames:** the regular username (the base one behind a special or premium username) is **quarantined**
-    for `ACCOUNT_DELETION_USERNAME_QUARANTINE_DAYS` (90) — nobody can register or take it (only its SHA-256 is
+    for `ACCOUNT_DELETION_USERNAME_QUARANTINE_DAYS` (90; owner confirmed 2026-10-31) — nobody can register or take it (only its SHA-256 is
     kept, `deleted_usernames`, with no link to the tombstone) — then the sweeper frees it. `coin…` / `host…` system
     codes are **never** released or reused (§10.48.1, §10.52: held for the tombstone forever); other special
     usernames end with their usual grace; a premium lease ends (its name returns to the pool by the D146 rules).
@@ -3564,12 +3602,16 @@ live in `users/account-deletion.ts` (shared by the API, the sweeper and the `acc
   from the account's email address; the team checks it and runs `account-admin request <email> --reason …` (the
   same grace period and notices; planned web page `https://kabsolive.com/delete-account` with these steps).
 - **CLI** `account-admin pending [<user>] | request | cancel | purge-now <user> --reason <text>` (migration role,
-  audited with the reason, `via: cli`). `request` and `purge-now` refuse while a blocker stands.
+  audited with the reason, `via: cli`). `request` and `purge-now` refuse while a blocker stands. `holds --reason` and
+  `hold-show <hold|report> --reason [--save <dir>]` read the legal holds (each view audited).
 - **Settings:** `ACCOUNT_DELETION_GRACE_DAYS` (30, 1–90), `ACCOUNT_DELETION_USERNAME_QUARANTINE_DAYS` (90, 0–3650),
   `ACCOUNT_DELETION_SWEEP_INTERVAL_SECONDS` (3600; 0 off — refused in production), `SUPPORT_EMAIL`,
-  `RATE_LIMIT_ACCOUNT_DELETION_USER` (5/900).
+  `RATE_LIMIT_ACCOUNT_DELETION_USER` (5/900), `REPORT_LEGAL_HOLD_DAYS` (90, 1–3650), `DELETED_LEDGER_RETENTION_DAYS`
+  (2557, 1–36500).
 - **Migrations** `20270110090000_account_deletion_enums` (`user_status` `PENDING_DELETION`),
-  `20270110100000_account_deletion` (`account_deletion_requests`, `deleted_usernames`).
+  `20270110100000_account_deletion` (`account_deletion_requests`, `deleted_usernames`),
+  `20270110110000_account_deletion_retention` (`legal_holds`, `reports.legal_hold_id` and the `reports_one_target`
+  rule for held reports, functions `account_deletion_scrub_audit` and `account_deletion_end_retention`).
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 

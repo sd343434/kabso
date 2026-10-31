@@ -15,6 +15,7 @@ import {
   deletionBlockersIn,
   requestDeletionIn,
   sweepAccountDeletions,
+  type SweepResult,
   type DeletionBlocker,
 } from '../users/account-deletion.js';
 import { normalizePassword } from './auth.schemas.js';
@@ -201,7 +202,8 @@ function toDto(request: { requestedAt: Date; purgeAfter: Date }): AccountDeletio
 }
 
 /**
- * D193: purges the accounts whose grace period ended and ends finished username quarantines, every
+ * D193: purges the accounts whose grace period ended, ends finished username quarantines, deletes legal holds that ran
+ * out (REPORT_LEGAL_HOLD_DAYS) and ends the retention of old tombstones (DELETED_LEDGER_RETENTION_DAYS), every
  * `ACCOUNT_DELETION_SWEEP_INTERVAL_SECONDS` (0: off — tests; refused in production). Objects are deleted from storage
  * after each purge commits (a storage failure is logged by MediaService; the rows are already gone).
  */
@@ -228,13 +230,15 @@ export class AccountDeletionSweeper implements OnModuleInit, OnModuleDestroy {
   }
 
   /** One step (also the tests' entry, with a moved clock). */
-  sweep(now: Date = this.clock.now()): Promise<{ purged: number; released: number }> {
+  sweep(now: Date = this.clock.now()): Promise<SweepResult> {
     return sweepAccountDeletions(
       this.prisma,
       now,
       {
         quarantineDays: this.config.accountDeletion.usernameQuarantineDays,
         specialGraceDays: this.config.specialUsernames.graceDays,
+        legalHoldDays: this.config.accountDeletion.legalHoldDays,
+        ledgerRetentionDays: this.config.accountDeletion.ledgerRetentionDays,
       },
       (keys) => this.media.deleteObjects(keys),
     );
@@ -244,7 +248,8 @@ export class AccountDeletionSweeper implements OnModuleInit, OnModuleDestroy {
     this.timer = setTimeout(() => {
       this.inFlight = this.sweep()
         .then((r) => {
-          if (r.purged + r.released > 0) this.logger.log(r, 'Account deletions swept');
+          if (r.purged + r.released + r.holdsExpired + r.retentionEnded > 0)
+            this.logger.log(r, 'Account deletions swept');
         })
         .catch((err: unknown) => {
           this.logger.error({ error: safeErrorLog(err) }, 'Account-deletion sweep failed');

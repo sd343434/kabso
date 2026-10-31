@@ -19,6 +19,11 @@ import { isValidUsername } from './username.js';
  *     user row becomes a tombstone — same random id, no personal data, status DELETED — personal content and the
  *     social graph are deleted, and the financial and audit rows stay under the tombstone id (see the list in
  *     CONVENTIONS §10.56 and `purgeAccountIn`). The regular username is quarantined ({@link DeletedUsername}).
+ *  4. **Legal hold** (owner 2026-10-31): content with an OPEN or ACTIONED report is copied into `legal_holds` at the
+ *     purge ({@link holdReportedContentIn}) — hidden from every user, linked only to its reports and the tombstone id —
+ *     and deleted with its reports and files after REPORT_LEGAL_HOLD_DAYS (90, {@link expireLegalHolds}).
+ *  5. **Retention** (owner: 7 years): DELETED_LEDGER_RETENTION_DAYS (2557) after the purge the tombstone's audit rows
+ *     and deletion record are deleted and the last free-text fields of its ledgers blanked ({@link endLedgerRetention}).
  */
 
 type Tx = Prisma.TransactionClient;
@@ -219,6 +224,8 @@ export interface PurgeOptions {
   readonly quarantineDays: number;
   /** SPECIAL_USERNAME_GRACE_DAYS: a gifted or bought special username in use is held this long, as when it ends. */
   readonly specialGraceDays: number;
+  /** REPORT_LEGAL_HOLD_DAYS: reported content (an OPEN or ACTIONED report) is kept hidden this long. */
+  readonly legalHoldDays: number;
   readonly via: 'SWEEPER' | 'ADMIN';
   readonly reason?: string | null;
 }
@@ -226,8 +233,10 @@ export interface PurgeOptions {
 export interface PurgeResult {
   readonly userId: string;
   readonly tombstoneUsername: string;
-  /** Object-storage keys to delete after the commit (media, avatar, KYC pictures). */
+  /** Object-storage keys to delete after the commit (media, avatar, KYC pictures; not those under a legal hold). */
   readonly objectKeys: string[];
+  /** Reported items put under a legal hold. */
+  readonly held: number;
 }
 
 /** A tombstone username nobody has (retried on the rare collision with a grandfathered name). */
@@ -259,7 +268,11 @@ async function freeTombstoneUsername(tx: Tx): Promise<string> {
  * CP and level ledgers, gifts sent and received, lucky draws, boosts, bag items and transfers, premium-username
  * leases and payments, recharge sales, stock and cherry requests, agency rows and earnings, cherry withdrawals (the
  * payout details reduced to their last 4 characters), task and event rewards, live-room history and statistics,
- * reports made and received, the 18+ statement, special usernames (system codes held forever), the audit log.
+ * reports made and received, the 18+ statement, special usernames (system codes held forever), the audit log (its IP
+ * addresses dropped and the person's identifiers removed from its metadata, `account_deletion_scrub_audit`).
+ *
+ * **Held** ({@link holdReportedContentIn}, before anything is deleted): content with an OPEN or ACTIONED report — a
+ * snapshot in `legal_holds`, its files kept, its reports re-linked to the hold.
  */
 export async function purgeAccountIn(
   tx: Tx,
@@ -284,6 +297,16 @@ export async function purgeAccountIn(
   });
   const regular = activeSpecial?.baseUsername ?? activeLease?.regularUsername ?? profile?.username ?? null;
   const tombstone = await freeTombstoneUsername(tx);
+
+  // -- Reported content survives as a hidden legal hold (owner: OPEN or ACTIONED report, 90 days); the snapshots of
+  // their DM and profile-link reports lose the old username.
+  const holds = await holdReportedContentIn(tx, userId, now, options.legalHoldDays);
+  await tx.$executeRaw`
+    UPDATE reports SET dm_snapshot = jsonb_set(dm_snapshot, '{senderUsername}', 'null'::jsonb)
+     WHERE target_type = 'DM_MESSAGE'::report_target_type AND dm_snapshot->>'senderId' = ${userId}`;
+  await tx.$executeRaw`
+    UPDATE reports SET link_snapshot = jsonb_set(link_snapshot, '{username}', to_jsonb(${tombstone}::text))
+     WHERE target_type = 'PROFILE_LINK'::report_target_type AND link_snapshot->>'userId' = ${userId}`;
 
   // -- Content they wrote, and its counters on others' content.
   await tx.$executeRaw`DELETE FROM posts WHERE author_id = ${u}`;
@@ -433,6 +456,10 @@ export async function purgeAccountIn(
            password_hash = ${TOMBSTONE_PASSWORD_HASH}, status = 'DELETED', role = 'USER',
            deleted_at = ${at}::timestamptz, last_active_at = NULL, updated_at = ${at}::timestamptz
      WHERE id = ${u}`;
+  // The audit log stays (7 years) without the IP addresses (dropped, not truncated: a /24 still narrows a home
+  // connection down) and without usernames, emails or names in its metadata. audit_logs is append-only for the runtime
+  // role: a SECURITY DEFINER function that acts only on a DELETED account (migration 20270110110000).
+  await tx.$queryRaw`SELECT account_deletion_scrub_audit(${u}) AS n`;
 
   const request = await pendingRequestOf(tx, userId);
   if (request) {
@@ -459,7 +486,7 @@ export async function purgeAccountIn(
     ...uploads.map((x) => x.object_key),
     ...kyc.flatMap((k) => [k.photoKey, k.selfieKey]).filter((k): k is string => k !== null),
     ...familyKeys,
-  ];
+  ].filter((k) => !holds.objectKeys.has(k)); // files under a legal hold stay until the hold ends
   await tx.auditLog.create({
     data: {
       action: AuditAction.ACCOUNT_DELETION_PURGED,
@@ -472,10 +499,11 @@ export async function purgeAccountIn(
         ...(request ? { requestId: request.id } : {}),
         objects: objectKeys.length,
         usernameQuarantined: regular !== null && options.quarantineDays > 0,
+        held: holds.count,
       },
     },
   });
-  return { userId, tombstoneUsername: tombstone, objectKeys };
+  return { userId, tombstoneUsername: tombstone, objectKeys, held: holds.count };
 }
 
 /**
@@ -559,29 +587,451 @@ async function leaveFamilyIn(tx: Tx, userId: string, now: Date): Promise<string[
   return gone.flatMap((g) => [g.large_key, g.thumb_key]);
 }
 
-/** One sweep: purges the accounts whose grace period ended (oldest first) and ends finished quarantines. */
+export interface SweepOptions extends Omit<PurgeOptions, 'via' | 'reason'> {
+  /** DELETED_LEDGER_RETENTION_DAYS: how long after the purge the tombstone's ledgers and audit rows are kept. */
+  readonly ledgerRetentionDays: number;
+}
+
+export interface SweepResult {
+  readonly purged: number;
+  readonly released: number;
+  /** Legal holds deleted (with their reports and files). */
+  readonly holdsExpired: number;
+  /** Tombstones whose retention period ended. */
+  readonly retentionEnded: number;
+}
+
+/**
+ * One sweep: purges the accounts whose grace period ended (oldest first), ends finished quarantines, deletes the legal
+ * holds that ran out and ends the retention of tombstones purged more than DELETED_LEDGER_RETENTION_DAYS ago.
+ */
 export async function sweepAccountDeletions(
   prisma: PrismaClient,
   now: Date,
-  options: Omit<PurgeOptions, 'via' | 'reason'>,
+  options: SweepOptions,
   deleteObjects: (keys: string[]) => Promise<void>,
   limit = 50,
-): Promise<{ purged: number; released: number }> {
+): Promise<SweepResult> {
   const due = await prisma.accountDeletionRequest.findMany({
     where: { status: 'PENDING', purgeAfter: { lte: now } },
     orderBy: [{ purgeAfter: 'asc' }, { id: 'asc' }],
     select: { userId: true },
     take: limit,
   });
+  const { ledgerRetentionDays, ...purgeOptions } = options;
   let purged = 0;
   for (const d of due) {
     const result = await prisma.$transaction((tx) =>
-      purgeAccountIn(tx, d.userId, now, { ...options, via: 'SWEEPER' }),
+      purgeAccountIn(tx, d.userId, now, { ...purgeOptions, via: 'SWEEPER' }),
     );
     if (!result) continue;
     purged++;
     await deleteObjects(result.objectKeys);
   }
   const released = await prisma.deletedUsername.deleteMany({ where: { until: { lte: now } } });
-  return { purged, released: released.count };
+  const holdsExpired = await expireLegalHolds(prisma, now, deleteObjects, limit * 4);
+  const retentionEnded = await endLedgerRetention(prisma, now, ledgerRetentionDays, limit);
+  return { purged, released: released.count, holdsExpired, retentionEnded };
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Legal hold of reported content (owner 2026-10-31)
+
+/** Report statuses that keep their content under a legal hold at the purge (a DISMISSED report does not). */
+export const LEGAL_HOLD_REPORT_STATUSES = ['OPEN', 'ACTIONED'] as const;
+
+/** When a hold made at `now` is deleted. */
+export function legalHoldDeleteAfter(now: Date, days: number): Date {
+  return new Date(now.getTime() + days * 86_400_000);
+}
+
+/** Content types a purge can hold: the person's own items that the purge deletes or blanks. */
+export type HeldTargetType =
+  | 'POST'
+  | 'COMMENT'
+  | 'STORY'
+  | 'LIVE_CHAT_MESSAGE'
+  | 'CP_CONFESSION'
+  | 'FAMILY_CHAT_MESSAGE'
+  | 'DM_MESSAGE'
+  | 'PROFILE_LINK';
+
+/** The report column naming each held type's target (DM and profile-link reports have no foreign key). */
+const TARGET_COLUMN = {
+  POST: 'targetPostId',
+  COMMENT: 'targetCommentId',
+  STORY: 'targetStoryId',
+  LIVE_CHAT_MESSAGE: 'targetLiveChatMessageId',
+  CP_CONFESSION: 'targetCpConfessionId',
+  FAMILY_CHAT_MESSAGE: 'targetFamilyChatMessageId',
+  DM_MESSAGE: 'targetDmMessageId',
+  PROFILE_LINK: 'targetProfileLinkId',
+} as const satisfies Record<HeldTargetType, keyof Prisma.ReportWhereInput>;
+
+/** Types whose target row the purge deletes (or, for a comment, may delete): the report's id is moved to the hold. */
+const DETACHED_TYPES: ReadonlySet<HeldTargetType> = new Set([
+  'POST',
+  'COMMENT',
+  'STORY',
+  'LIVE_CHAT_MESSAGE',
+  'CP_CONFESSION',
+  'FAMILY_CHAT_MESSAGE',
+]);
+
+interface MediaRow {
+  kind: string;
+  width: number;
+  height: number;
+  durationMs: number | null;
+  largeKey: string;
+  thumbKey: string;
+  posterKey: string | null;
+}
+
+const MEDIA_SELECT = {
+  kind: true,
+  width: true,
+  height: true,
+  durationMs: true,
+  largeKey: true,
+  thumbKey: true,
+  posterKey: true,
+} as const;
+
+const mediaKeys = (m: MediaRow): string[] => [m.largeKey, m.thumbKey, ...(m.posterKey ? [m.posterKey] : [])];
+const iso = (d: Date | null): string | null => d?.toISOString() ?? null;
+
+/** What a hold keeps of one item: its content without the author's identity (the hold row names the tombstone). */
+async function heldSnapshotIn(
+  tx: Tx,
+  type: HeldTargetType,
+  id: string,
+): Promise<{ snapshot: Prisma.InputJsonObject; objectKeys: string[] } | null> {
+  switch (type) {
+    case 'POST': {
+      const p = await tx.post.findUnique({
+        where: { id },
+        select: {
+          text: true,
+          format: true,
+          location: true,
+          status: true,
+          moderation: true,
+          createdAt: true,
+          publishedAt: true,
+          deletedAt: true,
+          media: {
+            select: { position: true, mediaAsset: { select: MEDIA_SELECT } },
+            orderBy: { position: 'asc' },
+          },
+        },
+      });
+      if (!p) return null;
+      const media = p.media.map((m) => ({ position: m.position, ...m.mediaAsset }));
+      return {
+        snapshot: {
+          text: p.text,
+          format: p.format,
+          location: p.location,
+          status: p.status,
+          moderation: p.moderation,
+          createdAt: p.createdAt.toISOString(),
+          publishedAt: iso(p.publishedAt),
+          deletedAt: iso(p.deletedAt),
+          media,
+        },
+        objectKeys: media.flatMap(mediaKeys),
+      };
+    }
+    case 'STORY': {
+      const st = await tx.story.findUnique({
+        where: { id },
+        select: {
+          text: true,
+          createdAt: true,
+          expiresAt: true,
+          deletedAt: true,
+          removedAt: true,
+          mediaAsset: { select: MEDIA_SELECT },
+        },
+      });
+      if (!st) return null;
+      return {
+        snapshot: {
+          text: st.text,
+          createdAt: st.createdAt.toISOString(),
+          expiresAt: st.expiresAt.toISOString(),
+          deletedAt: iso(st.deletedAt),
+          removedAt: iso(st.removedAt),
+          media: [st.mediaAsset],
+        },
+        objectKeys: mediaKeys(st.mediaAsset),
+      };
+    }
+    case 'COMMENT': {
+      const c = await tx.comment.findUnique({
+        where: { id },
+        select: { text: true, postId: true, parentId: true, createdAt: true, deletedAt: true },
+      });
+      if (!c) return null;
+      return {
+        snapshot: {
+          text: c.text,
+          postId: c.postId,
+          parentId: c.parentId,
+          createdAt: c.createdAt.toISOString(),
+          deletedAt: iso(c.deletedAt),
+        },
+        objectKeys: [],
+      };
+    }
+    case 'LIVE_CHAT_MESSAGE': {
+      const m = await tx.liveChatMessage.findUnique({
+        where: { id },
+        select: {
+          roomId: true,
+          kind: true,
+          text: true,
+          createdAt: true,
+          deletedAt: true,
+          media: { select: MEDIA_SELECT },
+        },
+      });
+      if (!m) return null;
+      return {
+        snapshot: {
+          roomId: m.roomId,
+          kind: m.kind,
+          text: m.text,
+          createdAt: m.createdAt.toISOString(),
+          deletedAt: iso(m.deletedAt),
+          media: m.media ? [m.media] : [],
+        },
+        objectKeys: m.media ? mediaKeys(m.media) : [],
+      };
+    }
+    case 'CP_CONFESSION': {
+      const c = await tx.cpConfession.findUnique({
+        where: { id },
+        select: { coupleId: true, text: true, createdAt: true, deletedAt: true },
+      });
+      if (!c) return null;
+      return {
+        snapshot: {
+          coupleId: c.coupleId,
+          text: c.text,
+          createdAt: c.createdAt.toISOString(),
+          deletedAt: iso(c.deletedAt),
+        },
+        objectKeys: [],
+      };
+    }
+    case 'FAMILY_CHAT_MESSAGE': {
+      const f = await tx.familyChatMessage.findUnique({
+        where: { id },
+        select: { familyId: true, text: true, createdAt: true, deletedAt: true },
+      });
+      if (!f) return null;
+      return {
+        snapshot: {
+          familyId: f.familyId,
+          text: f.text,
+          createdAt: f.createdAt.toISOString(),
+          deletedAt: iso(f.deletedAt),
+        },
+        objectKeys: [],
+      };
+    }
+    case 'DM_MESSAGE':
+    case 'PROFILE_LINK': {
+      // No row to read (a DM lives 24 h; a link may have been edited): the reports' own snapshots, and their files.
+      const reports = await tx.report.findMany({
+        where: { [TARGET_COLUMN[type]]: id },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        select: { dmSnapshot: true, linkSnapshot: true },
+      });
+      const first = reports[0];
+      if (!first) return null;
+      const raw = (type === 'DM_MESSAGE' ? first.dmSnapshot : first.linkSnapshot) as Record<
+        string,
+        unknown
+      > | null;
+      const keep =
+        type === 'DM_MESSAGE'
+          ? ['kind', 'text', 'token', 'conversationId', 'sentAt', 'mediaKey', 'giftCode', 'quantity']
+          : ['url', 'label'];
+      const snapshot: Record<string, Prisma.InputJsonValue | null> = {};
+      for (const k of keep) snapshot[k] = raw?.[k] ?? null;
+      const objectKeys =
+        type === 'DM_MESSAGE'
+          ? reports
+              .map((r) => (r.dmSnapshot as { mediaKey?: unknown } | null)?.mediaKey)
+              .filter((k): k is string => typeof k === 'string' && k !== '')
+          : [];
+      return { snapshot, objectKeys };
+    }
+  }
+}
+
+/**
+ * Puts `userId`'s reported content under a legal hold, inside the purge's transaction and before anything is deleted:
+ * every item of theirs with at least one OPEN or ACTIONED report becomes one `legal_holds` row (a snapshot of the
+ * content and the keys of its files, linked to the tombstone id; `delete_after` = now + `holdDays`), and every report
+ * of that item (whatever its status) is linked to the hold — for a post, comment, story, live-chat, family-chat or
+ * CP-confession message its target id is moved to the hold, so the purge's deletes do not cascade into it. Returns the
+ * number of holds and the files to keep.
+ */
+export async function holdReportedContentIn(
+  tx: Tx,
+  userId: string,
+  now: Date,
+  holdDays: number,
+): Promise<{ count: number; objectKeys: Set<string> }> {
+  const u = Prisma.sql`${userId}::uuid`;
+  const targets = await tx.$queryRaw<{ target_type: HeldTargetType; target_id: string }[]>`
+    SELECT DISTINCT r.target_type::text AS target_type,
+           COALESCE(r.target_post_id, r.target_comment_id, r.target_story_id, r.target_live_chat_message_id,
+                    r.target_cp_confession_id, r.target_family_chat_message_id, r.target_dm_message_id,
+                    r.target_profile_link_id)::text AS target_id
+      FROM reports r
+     WHERE r.status IN ('OPEN'::report_status, 'ACTIONED'::report_status)
+       AND r.legal_hold_id IS NULL
+       AND (r.target_post_id IN (SELECT id FROM posts WHERE author_id = ${u})
+            OR r.target_comment_id IN (SELECT id FROM comments WHERE author_id = ${u})
+            OR r.target_story_id IN (SELECT id FROM stories WHERE author_id = ${u})
+            OR r.target_live_chat_message_id IN (SELECT id FROM live_chat_messages WHERE user_id = ${u})
+            OR r.target_cp_confession_id IN (SELECT id FROM cp_confessions WHERE author_id = ${u})
+            OR r.target_family_chat_message_id IN (SELECT id FROM family_chat_messages WHERE author_id = ${u})
+            OR (r.target_type = 'DM_MESSAGE'::report_target_type AND r.dm_snapshot->>'senderId' = ${userId})
+            OR (r.target_type = 'PROFILE_LINK'::report_target_type AND r.link_snapshot->>'userId' = ${userId}))
+     ORDER BY 1, 2`;
+  const kept = new Set<string>();
+  let count = 0;
+  for (const t of targets) {
+    const held = await heldSnapshotIn(tx, t.target_type, t.target_id);
+    if (!held) continue;
+    const hold = await tx.legalHold.create({
+      data: {
+        userId,
+        targetType: t.target_type,
+        targetId: t.target_id,
+        snapshot: held.snapshot,
+        objectKeys: [...new Set(held.objectKeys)],
+        heldAt: now,
+        deleteAfter: legalHoldDeleteAfter(now, holdDays),
+      },
+      select: { id: true },
+    });
+    const column = TARGET_COLUMN[t.target_type];
+    await tx.report.updateMany({
+      where: { [column]: t.target_id },
+      data: { legalHoldId: hold.id, ...(DETACHED_TYPES.has(t.target_type) ? { [column]: null } : {}) },
+    });
+    for (const k of held.objectKeys) kept.add(k);
+    count++;
+  }
+  return { count, objectKeys: kept };
+}
+
+/**
+ * Deletes the legal holds whose `delete_after` passed (oldest first), each with its reports (the foreign key cascades)
+ * in its own transaction, then their files. One audit row per hold (`account.deletion.hold_expired`: the hold id, the
+ * type and the counts; no user).
+ */
+export async function expireLegalHolds(
+  prisma: PrismaClient,
+  now: Date,
+  deleteObjects: (keys: string[]) => Promise<void>,
+  limit = 200,
+): Promise<number> {
+  const due = await prisma.legalHold.findMany({
+    where: { deleteAfter: { lte: now } },
+    orderBy: [{ deleteAfter: 'asc' }, { id: 'asc' }],
+    select: { id: true },
+    take: limit,
+  });
+  let expired = 0;
+  for (const d of due) {
+    const gone = await prisma.$transaction(async (tx) => {
+      const hold = await tx.legalHold.findUnique({
+        where: { id: d.id },
+        select: { targetType: true, objectKeys: true, deleteAfter: true },
+      });
+      if (!hold || hold.deleteAfter > now) return null;
+      const reports = await tx.report.count({ where: { legalHoldId: d.id } });
+      await tx.legalHold.delete({ where: { id: d.id } });
+      await tx.auditLog.create({
+        data: {
+          action: AuditAction.ACCOUNT_DELETION_HOLD_EXPIRED,
+          actorUserId: null,
+          targetType: 'legal_hold',
+          targetId: d.id,
+          metadata: { via: 'sweeper', heldType: hold.targetType, reports, objects: hold.objectKeys.length },
+        },
+      });
+      return hold;
+    });
+    if (!gone) continue;
+    expired++;
+    if (gone.objectKeys.length > 0) await deleteObjects(gone.objectKeys);
+  }
+  return expired;
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Retention of the ledgers and audit rows kept under a tombstone (owner 2026-10-31: 7 years)
+
+/** Tombstones purged at or before this moment reached the end of their retention. */
+export function ledgerRetentionCutoff(now: Date, days: number): Date {
+  return new Date(now.getTime() - days * 86_400_000);
+}
+
+/**
+ * Ends the retention of tombstones purged more than `retentionDays` ago, one transaction each. Deleted: the audit rows
+ * whose actor or target user is the tombstone, its deletion requests (the record of the deletion) and its 18+
+ * statement. Anonymised: cherry withdrawals keep amounts and dates only (payout details `…`, decision note removed),
+ * admin reasons on its points ledger are blanked. The money rows other people's balances and the company's books
+ * depend on (wallets and ledgers, gifts, transfers, sales, earnings) stay under the tombstone's random id, which no
+ * longer leads to anything about the person. One aggregate audit row per sweep (`account.deletion.retention_ended`,
+ * a count only).
+ */
+export async function endLedgerRetention(
+  prisma: PrismaClient,
+  now: Date,
+  retentionDays: number,
+  limit = 50,
+): Promise<number> {
+  const cutoff = ledgerRetentionCutoff(now, retentionDays);
+  const due = await prisma.accountDeletionRequest.findMany({
+    where: { status: 'PURGED', purgedAt: { lte: cutoff } },
+    orderBy: [{ purgedAt: 'asc' }, { id: 'asc' }],
+    select: { userId: true },
+    take: limit,
+  });
+  let ended = 0;
+  for (const userId of [...new Set(due.map((d) => d.userId))]) {
+    const done = await prisma.$transaction(async (tx) => {
+      const user = await lockUser(tx, userId);
+      if (user?.status !== 'DELETED') return false;
+      await tx.$queryRaw`SELECT account_deletion_end_retention(${userId}::uuid, ${cutoff}::timestamptz) AS n`;
+      await tx.cherryWithdrawal.updateMany({
+        where: { userId },
+        data: { payoutDetails: '…', decisionNote: null },
+      });
+      await tx.luckyGiftAgeConfirmation.deleteMany({ where: { userId } });
+      await tx.accountDeletionRequest.deleteMany({ where: { userId } });
+      return true;
+    });
+    if (done) ended++;
+  }
+  if (ended > 0) {
+    await prisma.auditLog.create({
+      data: {
+        action: AuditAction.ACCOUNT_DELETION_RETENTION_ENDED,
+        actorUserId: null,
+        metadata: { via: 'sweeper', tombstones: ended, retentionDays },
+      },
+    });
+  }
+  return ended;
 }

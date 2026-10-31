@@ -1006,6 +1006,13 @@ export const envSchema = z
     ACCOUNT_DELETION_GRACE_DAYS: intSetting(30, 1, 90),
     ACCOUNT_DELETION_USERNAME_QUARANTINE_DAYS: intSetting(90, 0, 3650),
     ACCOUNT_DELETION_SWEEP_INTERVAL_SECONDS: intSetting(3600, 0, 86_400),
+    /**
+     * D193 (owner 2026-10-31): how long the purge keeps reported content (an OPEN or ACTIONED report) under a hidden
+     * legal hold before deleting it with its reports and files, and how long the ledgers and the audit log kept under a
+     * tombstone stay before the sweeper deletes or anonymises the rest (7 years = 2557 days).
+     */
+    REPORT_LEGAL_HOLD_DAYS: intSetting(90, 1, 3650),
+    DELETED_LEDGER_RETENTION_DAYS: intSetting(2557, 1, 36_500),
     /** D193: the address shown in the deletion notices and used for deletion requests without the app. */
     SUPPORT_EMAIL: z
       .string()
