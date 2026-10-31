@@ -3784,7 +3784,8 @@ paths:
         target in cherries (coins × CHERRIES_PER_COIN × the POPULAR host share, default 65 %), the coin
         value of lucky gifts received against «استقبل هدايا الحظ», and today's top three supporters; never
         longer periods (`getMyHostGiftStats` is the host's own). A target is 0 when its task is switched
-        off. Unknown or inactive user, not a host, or a block either way → 404.
+        off. Unknown or inactive user, not a host, or a block either way → 404. D199b: up to 20 per list,
+        today's lucky list, the end of the day, and a signed-in caller's own place (`me`).
       parameters:
         - $ref: '#/components/parameters/UsernamePath'
       responses:
@@ -3804,9 +3805,9 @@ paths:
       description: |
         v1.44-live, §10.62. The caller's own (no one else's): the Riyadh calendar day, ISO week (Monday),
         month, or ALL. Cherries received (the cherry ledger: gifts net of reversals), gift sends and
-        different givers (other ACTIVE people), the top three supporters by coin value, and a bar series of
+        different givers (other ACTIVE people), the top supporters (D199b: up to 20, by cherries), and a bar series of
         the cherries (hours of the day, days of the week or month, months of the last 12 for ALL); lucky
-        gifts: coin value, sends, givers and the top three. DAY also has today's `targets`.
+        gifts: coin value, sends, givers and the top supporters (up to 20, by coins). DAY also has today's `targets`.
       parameters:
         - name: period
           in: query
@@ -17066,15 +17067,32 @@ components:
         reached: { type: boolean }
     HostSupporter:
       type: object
-      required: [user, coins]
+      required: [user, coins, cherries, supportLevel]
       properties:
         user: { $ref: '#/components/schemas/UserSummary' }
         coins: { type: integer, format: int64, minimum: 1, description: The coin value of their gifts to the host in the period. }
+        cherries:
+          type: integer
+          format: int64
+          description: "D199b: the cherries the host got from their sends in the period (the ledger, net of reversals)."
+        supportLevel:
+          type: [integer, 'null']
+          minimum: 1
+          maximum: 200
+          description: "D199b: their `SUPPORT` level number; null while that category is unavailable."
+    HostSupporterRank:
+      type: object
+      description: "D199b: the caller's own place in a supporters list today."
+      required: [rank, amount]
+      properties:
+        rank: { type: [integer, 'null'], minimum: 1, description: "1-based, in the list's order; null: they sent nothing." }
+        amount: { type: integer, format: int64, minimum: 0, description: "Cherries in the cherries list, coins in the lucky list." }
     LiveHostTargets:
       type: object
-      required: [day, timeZone, band, cherries, lucky, topSupporters]
+      required: [day, timeZone, endsAt, band, cherries, lucky, topSupporters, luckySupporters, me]
       properties:
         day: { type: string, format: date }
+        endsAt: { type: string, format: date-time, description: "D199b: the end of the Riyadh day (the countdown)." }
         timeZone: { type: string, example: Asia/Riyadh }
         band: { type: integer, minimum: 1, maximum: 4, description: The host's task band today. }
         cherries: { $ref: '#/components/schemas/HostTarget' }
@@ -17084,8 +17102,23 @@ components:
           description: In coins (the lucky gifts' value).
         topSupporters:
           type: array
-          maxItems: 3
+          maxItems: 20
+          description: "Today's cherries list (D199b: up to 20, by cherries)."
           items: { $ref: '#/components/schemas/HostSupporter' }
+        luckySupporters:
+          type: array
+          maxItems: 20
+          description: "D199b: today's lucky list (by coins)."
+          items: { $ref: '#/components/schemas/HostSupporter' }
+        me:
+          description: "D199b: the signed-in caller's own place today; null for guests and for the host."
+          oneOf:
+            - type: object
+              required: [cherries, lucky]
+              properties:
+                cherries: { $ref: '#/components/schemas/HostSupporterRank' }
+                lucky: { $ref: '#/components/schemas/HostSupporterRank' }
+            - type: 'null'
     HostGiftStats:
       type: object
       required: [period, timeZone, from, to, cherries, lucky, targets]
@@ -17103,7 +17136,7 @@ components:
             givers: { type: integer, minimum: 0 }
             topSupporters:
               type: array
-              maxItems: 3
+              maxItems: 20
               items: { $ref: '#/components/schemas/HostSupporter' }
             series:
               type: array
@@ -17122,7 +17155,7 @@ components:
             givers: { type: integer, minimum: 0 }
             topSupporters:
               type: array
-              maxItems: 3
+              maxItems: 20
               items: { $ref: '#/components/schemas/HostSupporter' }
         targets:
           description: DAY only.

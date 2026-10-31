@@ -6,6 +6,7 @@ import { Clock } from '../../common/time/clock.js';
 import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import { Prisma, type TaskDefinition } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { levelSql } from '../live/live-chat-badges.service.js';
 import { USER_SUMMARY_SELECT, userSummary } from '../posts/post-views.js';
 import { violatedUniqueIndex } from '../users/users.service.js';
 import { creditTaskCherriesIn, taskRewardReference } from '../economy/cherry-ledger.js';
@@ -51,19 +52,39 @@ export interface HostTargetDto {
 export interface HostSupporterDto {
   user: ReturnType<typeof userSummary>;
   coins: number;
+  /** D199b: the cherries the host got from their sends in the period (the ledger, net of reversals). */
+  cherries: number;
+  /** D199b: their `SUPPORT` level number; null while that category is unavailable. */
+  supportLevel: number | null;
 }
+
+/** D199b `HostSupporterRank`: the caller's own place in a list (rank null: they sent nothing). */
+export interface HostSupporterRankDto {
+  rank: number | null;
+  /** Cherries in the cherries list, coins in the lucky list. */
+  amount: number;
+}
+
+/** D199b: how many people a supporters list holds. */
+export const HOST_SUPPORTERS_LIMIT = 20;
 
 /** v1.44-live (D199) `LiveHostTargets`: the «تارجت» chip — public (today only). */
 export interface LiveHostTargetsDto {
   day: string;
   timeZone: string;
+  /** D199b: the end of the Riyadh day (the countdown). */
+  endsAt: string;
   band: number;
   /** Cherries received today from gifts / the band's «استقبل هدايا في بثك» target in cherries. */
   cherries: HostTargetDto;
   /** Coin value of the lucky gifts received today / the band's «استقبل هدايا الحظ» target. */
   lucky: HostTargetDto;
-  /** Today's top three supporters (coin value of their gifts to the host). */
+  /** Today's top supporters by cherries (D199b: up to 20). */
   topSupporters: HostSupporterDto[];
+  /** D199b: today's lucky list by coins (up to 20). */
+  luckySupporters: HostSupporterDto[];
+  /** D199b: a signed-in caller's own place today (null for guests and the host). */
+  me: { cherries: HostSupporterRankDto; lucky: HostSupporterRankDto } | null;
 }
 
 /** v1.44-live (D199) `HostGiftStats`: the host's own statistics of a period. */
@@ -860,34 +881,70 @@ export class TasksService {
 
   // ---- v1.44-live (D199): the host's «تارجت» and statistics ------------------------------------
 
-  /** The coin value each ACTIVE sender gave `host` in [from, to) (lucky sends only with `lucky`). */
+  /**
+   * The ACTIVE people who sent `host` gifts in [from, to) (lucky sends only with `lucky`): the coin value
+   * and the cherries the host got from them (the ledger rows of those sends, net of reversals), ranked by
+   * cherries (a cherries list) or coins (`lucky`); the first `limit` with their support level, and — for
+   * `viewer` — the viewer's own place (D199b).
+   */
   private async supporters(
     host: string,
     from: Date | null,
     to: Date,
     lucky: boolean,
     limit: number,
-  ): Promise<HostSupporterDto[]> {
-    const rows = await this.prisma.$queryRaw<{ id: string; coins: bigint }[]>`
-      SELECT g.sender_id::text AS id, sum(gr.coins)::bigint AS coins
-        FROM live_gift_recipients gr
-        JOIN live_gifts g ON g.id = gr.gift_id
-        JOIN users s ON s.id = g.sender_id AND s.status = 'ACTIVE'
-       WHERE gr.user_id = ${host}::uuid AND g.sender_id <> ${host}::uuid
-         AND (${from}::timestamptz IS NULL OR g.created_at >= ${from}::timestamptz)
-         AND g.created_at < ${to}::timestamptz
-         AND (NOT ${lucky} OR EXISTS (SELECT 1 FROM lucky_gift_draws d WHERE d.gift_id = g.id))
-       GROUP BY g.sender_id
-      HAVING sum(gr.coins) > 0
-       ORDER BY sum(gr.coins) DESC, g.sender_id
-       LIMIT ${limit}`;
-    if (rows.length === 0) return [];
-    const users = await this.prisma.user.findMany({
-      where: { id: { in: rows.map((r) => r.id) } },
-      select: USER_SUMMARY_SELECT,
-    });
+    viewer: string | null = null,
+  ): Promise<{ list: HostSupporterDto[]; me: HostSupporterRankDto | null }> {
+    const rows = await this.prisma.$queryRaw<{ id: string; coins: bigint; cherries: bigint; rank: bigint }[]>`
+      WITH per AS (
+        SELECT g.sender_id AS id, sum(gr.coins)::bigint AS coins, COALESCE(sum(c.n), 0)::bigint AS cherries
+          FROM live_gift_recipients gr
+          JOIN live_gifts g ON g.id = gr.gift_id
+          JOIN users s ON s.id = g.sender_id AND s.status = 'ACTIVE'
+          LEFT JOIN LATERAL (
+            SELECT sum(l.delta) AS n FROM cherry_ledger l
+             WHERE l.user_id = gr.user_id AND l.reference_id = g.id::text
+               AND l.reason IN ('GIFT_RECEIVED', 'GIFT_REVERSAL')) c ON true
+         WHERE gr.user_id = ${host}::uuid AND g.sender_id <> ${host}::uuid
+           AND (${from}::timestamptz IS NULL OR g.created_at >= ${from}::timestamptz)
+           AND g.created_at < ${to}::timestamptz
+           AND (NOT ${lucky} OR EXISTS (SELECT 1 FROM lucky_gift_draws d WHERE d.gift_id = g.id))
+         GROUP BY g.sender_id
+        HAVING sum(gr.coins) > 0),
+      ranked AS (
+        SELECT id, coins, cherries,
+               row_number() OVER (
+                 ORDER BY CASE WHEN ${lucky} THEN coins ELSE cherries END DESC, coins DESC, id) AS rank
+          FROM per)
+      SELECT id::text AS id, coins, cherries, rank FROM ranked
+       WHERE rank <= ${limit} OR id = ${viewer}::uuid
+       ORDER BY rank`;
+    const top = rows.filter((r) => Number(r.rank) <= limit);
+    const mine = viewer === null ? undefined : rows.find((r) => r.id === viewer);
+    const me =
+      viewer === null
+        ? null
+        : mine
+          ? { rank: Number(mine.rank), amount: Number(lucky ? mine.coins : mine.cherries) }
+          : { rank: null, amount: 0 };
+    if (top.length === 0) return { list: [], me };
+    const ids = top.map((r) => r.id);
+    const [users, levels] = await Promise.all([
+      this.prisma.user.findMany({ where: { id: { in: ids } }, select: USER_SUMMARY_SELECT }),
+      this.prisma.$queryRaw<{ id: string; level: number | null }[]>`
+        SELECT a.id::text AS id, ${levelSql('SUPPORT')} AS level FROM unnest(${ids}::uuid[]) AS a(id)`,
+    ]);
     const byId = new Map(users.map((u) => [u.id, userSummary(u)]));
-    return rows.filter((r) => byId.has(r.id)).map((r) => ({ user: byId.get(r.id)!, coins: Number(r.coins) }));
+    const levelOf = new Map(levels.map((l) => [l.id, l.level]));
+    const list = top
+      .filter((r) => byId.has(r.id))
+      .map((r) => ({
+        user: byId.get(r.id)!,
+        coins: Number(r.coins),
+        cherries: Number(r.cherries),
+        supportLevel: levelOf.get(r.id) ?? null,
+      }));
+    return { list, me };
   }
 
   /** Cherries `host` received from gifts in [from, to) (net of reversals; the stored ledger). */
@@ -927,7 +984,7 @@ export class TasksService {
    * the lucky target «استقبل هدايا الحظ»'s; 0 when that task is switched off. The band: today's
    * assignment's, else the level's now (as the Task Center).
    */
-  async hostTargets(host: string): Promise<LiveHostTargetsDto> {
+  async hostTargets(host: string, viewer: string | null = null): Promise<LiveHostTargetsDto> {
     const now = this.clock.now();
     const { day } = await programWindowsIn(this.prisma, now, this.zone);
     const bands = await this.bands(this.prisma);
@@ -945,10 +1002,13 @@ export class TasksService {
       this.config.gifts.hostShareBps.POPULAR,
     );
     const luckyTarget = targetOf(HOST_LUCKY_TARGET_TASK);
-    const [cherries, lucky, topSupporters] = await Promise.all([
+    // D199b: the caller's own place (never the host's own).
+    const me = viewer !== null && viewer !== host ? viewer : null;
+    const [cherries, lucky, top, luckyTop] = await Promise.all([
       this.giftCherries(host, day.start, day.end),
       this.received(host, day.start, day.end, true),
-      this.supporters(host, day.start, day.end, false, 3),
+      this.supporters(host, day.start, day.end, false, HOST_SUPPORTERS_LIMIT, me),
+      this.supporters(host, day.start, day.end, true, HOST_SUPPORTERS_LIMIT, me),
     ]);
     const target = (received: number, t: number): HostTargetDto => ({
       received,
@@ -958,10 +1018,13 @@ export class TasksService {
     return {
       day: day.date,
       timeZone: this.zone,
+      endsAt: day.end.toISOString(),
       band: band.band,
       cherries: target(cherries, cherriesTarget),
       lucky: target(lucky.coins, luckyTarget),
-      topSupporters,
+      topSupporters: top.list,
+      luckySupporters: luckyTop.list,
+      me: me !== null && top.me && luckyTop.me ? { cherries: top.me, lucky: luckyTop.me } : null,
     };
   }
 
@@ -1004,8 +1067,8 @@ export class TasksService {
       this.giftCherries(me, from, to),
       this.received(me, from, to, false),
       this.received(me, from, to, true),
-      this.supporters(me, from, to, false, 3),
-      this.supporters(me, from, to, true, 3),
+      this.supporters(me, from, to, false, HOST_SUPPORTERS_LIMIT),
+      this.supporters(me, from, to, true, HOST_SUPPORTERS_LIMIT),
     ]);
     return {
       period,
@@ -1016,10 +1079,10 @@ export class TasksService {
         received: cherries,
         gifts: gifts.gifts,
         givers: gifts.givers,
-        topSupporters: top,
+        topSupporters: top.list,
         series: series.map((r) => ({ start: r.start, cherries: Number(r.n) })),
       },
-      lucky: { coins: lucky.coins, gifts: lucky.gifts, givers: lucky.givers, topSupporters: luckyTop },
+      lucky: { coins: lucky.coins, gifts: lucky.gifts, givers: lucky.givers, topSupporters: luckyTop.list },
       targets: period === 'DAY' ? await this.hostTargets(me) : null,
     };
   }

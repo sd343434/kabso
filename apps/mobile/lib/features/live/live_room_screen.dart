@@ -1042,7 +1042,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                       label: l10n.liveScore(score, KFormat.grouped(score)),
                     )
                   : null,
-              // D199: the host's «تارجت» chip (today's progress on tap).
+              // D199: the host's «تارجت» chip (the ranking sheet on tap).
               targetChip:
                   LiveHostTargetChip.shows(
                     ref
@@ -1052,6 +1052,10 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                   ? LiveHostTargetChip(
                       username: room.host.username,
                       isHost: false,
+                      // D199b: the sheet's «ادعم» opens the gift panel.
+                      onSupport: me == null
+                          ? null
+                          : () => unawaited(_openGifts()),
                     )
                   : null,
             ),

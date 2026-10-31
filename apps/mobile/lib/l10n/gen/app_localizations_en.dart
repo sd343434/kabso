@@ -11143,23 +11143,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveTargetChip => 'Target';
 
   @override
-  String liveTargetCherriesSemantics(String received, String target) {
-    return 'Cherries today: $received of $target';
+  String liveTargetCherriesSemantics(String received) {
+    return 'Cherries today: $received';
   }
 
   @override
-  String liveTargetLuckySemantics(String received, String target) {
-    return 'Lucky gifts today: $received of $target coins';
+  String liveTargetLuckySemantics(String received) {
+    return 'Lucky gifts today: $received coins';
   }
 
   @override
   String get liveTargetReached => 'Target reached';
-
-  @override
-  String get liveTargetStatsTitle => 'Gift stats';
-
-  @override
-  String get liveTargetPublicTitle => 'Today’s target';
 
   @override
   String get liveTargetPeriodDay => 'Daily';
@@ -11180,22 +11174,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveTargetLuckySection => 'Lucky gifts';
 
   @override
-  String get liveTargetReceived => 'Received';
-
-  @override
-  String get liveTargetGifts => 'Gifts';
-
-  @override
-  String get liveTargetGivers => 'Givers';
-
-  @override
-  String get liveTargetLuckyValue => 'Value (coins)';
-
-  @override
   String get liveTargetTopSupporters => 'Top supporters';
-
-  @override
-  String get liveTargetTopLucky => 'Top lucky supporters';
 
   @override
   String get liveTargetNoSupporters => 'No supporters yet';
@@ -11219,9 +11198,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveTargetTaskCenter => 'Task center';
-
-  @override
-  String get liveTargetChart => 'Cherries over the period';
 
   @override
   String get liveTargetLoadError => 'Couldn’t load the stats';
@@ -11298,4 +11274,44 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get reelsNearbyUnavailableTitle => 'Couldn\'t load nearby reels';
+
+  @override
+  String liveTargetCountdownHours(String hours, String minutes) {
+    return 'Countdown ${hours}H ${minutes}M';
+  }
+
+  @override
+  String liveTargetCountdownDays(String days, String hours) {
+    return 'Countdown ${days}D ${hours}H';
+  }
+
+  @override
+  String get liveTargetRangeToday => 'Today';
+
+  @override
+  String get liveTargetRangeWeek => 'This week';
+
+  @override
+  String get liveTargetRangeMonth => 'This month';
+
+  @override
+  String get liveTargetRangeAll => 'All time';
+
+  @override
+  String get liveTargetHelpTitle => 'What is the target?';
+
+  @override
+  String get liveTargetHelp =>
+      'A host has two targets each day: cherries (the cherries their gifts bring) and lucky gifts (the coin value of lucky gifts). They start again at midnight Riyadh time. The list ranks the supporters of the chosen period: by cherries under «Cherries», by coins under «Lucky gifts».';
+
+  @override
+  String get liveTargetSupport => 'Support';
+
+  @override
+  String liveTargetMyPlace(String rank, String amount) {
+    return 'Your place $rank: $amount';
+  }
+
+  @override
+  String get liveTargetClose => 'Close';
 }
