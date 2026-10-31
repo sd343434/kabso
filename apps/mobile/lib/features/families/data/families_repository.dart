@@ -20,7 +20,7 @@ abstract interface class FamiliesRepository {
   /// fragment or digits that also match the number.
   Future<FamilyCardPage> search({String? query, String? cursor});
 
-  /// `POST /families` (500 coins). Returns the family and the balance.
+  /// `POST /families` (`FamilyConfig.createCost` coins). Returns the family and the balance.
   Future<({Family family, int coins})> create({
     required String name,
     required String clientId,

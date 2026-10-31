@@ -9,6 +9,7 @@
 // directions, the activity card, the podium backdrop, the hero layout
 // (level chip left, number box right, emblem over the sheet's edge).
 
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
@@ -711,6 +712,213 @@ void main() {
       expect(find.byType(FamilyEmblem), findsOneWidget);
       expect(find.text(en.familyNumberLabel), findsOneWidget);
     });
+  });
+
+  group('D200 family levels: big numbers, the floor, honest progress', () {
+    Family big({required int level, required int points, int? next}) =>
+        Family.fromJson({
+          ...familyJson(points: points, nextLevelPoints: next),
+          'level': level,
+        });
+
+    Future<void> pumpAt(
+      WidgetTester tester,
+      Family family,
+      AppLanguage language, {
+      List<FamilyMember> members = const [],
+    }) async {
+      tester.view
+        ..physicalSize = const Size(360, 800) * 3
+        ..devicePixelRatio = 3;
+      tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      final fakes = BondFakes();
+      fakes.families
+        ..byId[_familyId] = family
+        ..memberList = members;
+      await pumpBonds(
+        tester,
+        const FamilyScreen(familyId: _familyId),
+        language: language,
+        fakes: fakes,
+      );
+      expect(tester.takeException(), isNull);
+    }
+
+    String isolated(String a, String b) => '\u2068$a\u2069 / \u2068$b\u2069';
+
+    double barFactor(WidgetTester tester) => tester
+        .widget<FractionallySizedBox>(
+          find.descendant(
+            of: find.ancestor(
+              of: find.byKey(FamilyScreen.levelPointsKey),
+              matching: find.byType(Row),
+            ),
+            matching: find.byType(FractionallySizedBox),
+          ),
+        )
+        .widthFactor!;
+
+    void fitsOneLine(WidgetTester tester) {
+      final paragraph = tester.renderObject<RenderParagraph>(
+        find.byKey(FamilyScreen.levelPointsKey),
+      );
+      expect(paragraph.didExceedMaxLines, isFalse);
+      // Shown whole (scaled down if needed), never past the 132 lp column.
+      final box = tester.getRect(
+        find.ancestor(
+          of: find.byKey(FamilyScreen.levelPointsKey),
+          matching: find.byType(FittedBox),
+        ),
+      );
+      expect(box.width, lessThanOrEqualTo(132));
+      expect(box.right, lessThanOrEqualTo(360));
+    }
+
+    for (final language in AppLanguage.values) {
+      final l10n = l10nFor(language);
+      final b = language == AppLanguage.ar ? '\u00a0مليار' : 'B';
+
+      testWidgets('${language.name}: billions are compact and fit at 360×800, '
+          'text scale 1.3', (tester) async {
+        await pumpAt(
+          tester,
+          big(level: 9, points: 23999999999, next: 24000000000),
+          language,
+          members: [_member('oz', 'LEADER', points: 24000000000, rank: 1)],
+        );
+        expect(find.text(isolated('23.9$b', '24$b')), findsOneWidget);
+        expect(find.text(l10n.familyToReach(10)), findsOneWidget);
+        fitsOneLine(tester);
+        expect(barFactor(tester), closeTo(1.0, 0.001));
+      });
+
+      testWidgets('${language.name}: level 10 shows the points alone', (
+        tester,
+      ) async {
+        await pumpAt(tester, big(level: 10, points: 24000000000), language);
+        expect(find.text('24$b'), findsOneWidget);
+        expect(find.text(l10n.familyTopLevel), findsOneWidget);
+        expect(barFactor(tester), 1.0);
+      });
+
+      testWidgets('${language.name}: a family kept at level 5 (the floor) '
+          'shows an honest bar near 0 %', (tester) async {
+        await pumpAt(
+          tester,
+          big(level: 5, points: 60000, next: 640000000),
+          language,
+        );
+        expect(find.text(l10n.familyLevelLong(5)), findsWidgets);
+        final k = language == AppLanguage.ar ? '\u00a0ألف' : 'K';
+        final m = language == AppLanguage.ar ? '\u00a0مليون' : 'M';
+        expect(find.text(isolated('60$k', '640$m')), findsOneWidget);
+        expect(find.text(l10n.familyToReach(6)), findsOneWidget);
+        expect(barFactor(tester), closeTo(60000 / 640000000, 1e-9));
+        fitsOneLine(tester);
+      });
+    }
+  });
+
+  group('the family header never overlaps (360×800 and 393×852, text scale '
+      '1, 1.3 and 2)', () {
+    bool overlaps(Rect a, Rect b) =>
+        a.left < b.right - 0.5 &&
+        b.left < a.right - 0.5 &&
+        a.top < b.bottom - 0.5 &&
+        b.top < a.bottom - 0.5;
+
+    for (final language in AppLanguage.values) {
+      testWidgets('${language.name}: name, tagline and members stay above '
+          'the level row and apart', (tester) async {
+        for (final size in [const Size(360, 800), const Size(393, 852)]) {
+          for (final scale in [1.0, 1.3, 2.0]) {
+            final reason = '${language.name} $size ×$scale';
+            tester.view
+              ..physicalSize = size * 3
+              ..devicePixelRatio = 3;
+            tester.platformDispatcher.textScaleFactorTestValue = scale;
+            final fakes = BondFakes();
+            fakes.families
+              ..byId[_familyId] = Family.fromJson({
+                ...familyJson(
+                  name: 'عائلة النجوم الذهبية الكبرى',
+                  points: 23999999999,
+                  nextLevelPoints: 24000000000,
+                  memberCount: 412,
+                ),
+                'level': 9,
+                'tagline': 'عائلة عالمية · ترفيه · بث مباشر · أصدقاء',
+                'pendingRequestCount': 0,
+              })
+              ..memberList = [_member('oz', 'LEADER', rank: 1)];
+            await pumpBonds(
+              tester,
+              const FamilyScreen(familyId: _familyId),
+              language: language,
+              fakes: fakes,
+            );
+            // Overflow and layout errors surface here.
+            expect(tester.takeException(), isNull, reason: reason);
+
+            final name = tester.getRect(find.byKey(FamilyScreen.heroNameKey));
+            final tagline = tester.getRect(
+              find.byKey(FamilyScreen.heroTaglineKey),
+            );
+            final members = tester.getRect(
+              find.byKey(FamilyScreen.membersCountKey),
+            );
+            final identity = tester.getRect(
+              find.byKey(FamilyScreen.heroIdentityKey),
+            );
+            final level = tester.getRect(find.byKey(FamilyScreen.levelRowKey));
+            final points = tester.getRect(
+              find.byKey(FamilyScreen.levelPointsKey),
+            );
+
+            expect(overlaps(tagline, members), isFalse, reason: reason);
+            expect(overlaps(name, members), isFalse, reason: reason);
+            expect(
+              tagline.top,
+              greaterThanOrEqualTo(name.bottom - 0.5),
+              reason: reason,
+            );
+            for (final r in [name, tagline, members, identity]) {
+              expect(
+                r.bottom,
+                lessThanOrEqualTo(level.top + 0.5),
+                reason: reason,
+              );
+              expect(overlaps(r, points), isFalse, reason: reason);
+            }
+            for (final r in [name, tagline, members, points]) {
+              expect(r.left, greaterThanOrEqualTo(-0.5), reason: reason);
+              expect(
+                r.right,
+                lessThanOrEqualTo(size.width + 0.5),
+                reason: reason,
+              );
+            }
+            // Each line is one line, cut with an ellipsis if needed, never
+            // clipped vertically.
+            final taglineText = tester.renderObject<RenderParagraph>(
+              find.byKey(FamilyScreen.heroTaglineKey),
+            );
+            expect(
+              taglineText.size.height,
+              greaterThanOrEqualTo(
+                taglineText.getMaxIntrinsicHeight(double.infinity) - 0.5,
+              ),
+              reason: reason,
+            );
+            await tester.pumpWidget(const SizedBox.shrink());
+          }
+        }
+        tester.view.reset();
+        tester.platformDispatcher.clearTextScaleFactorTestValue();
+      });
+    }
   });
 
   group('Arabic and English, 393×852 and 360×800, text scale 1.3 and 2', () {

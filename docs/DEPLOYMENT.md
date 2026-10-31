@@ -1866,3 +1866,13 @@ CONVENTIONS §10.61, CP-040.
   EU/UK Art. 27 representative), `hostingProvider` and `emailProvider` (empty → «سيُضاف قريباً»; `update.sh` warns).
   The draft banner stays until `legalReviewed` is true. Adding analytics or any cookie fails CI (`site` job) until a
   consent banner and a new policy version exist.
+### 5.32 Family levels and price repriced (migration `20270113100000_family_levels_d200`; D200) — [IMPLEMENTED, draft contract v1.67-social; not deployed]
+
+CONVENTIONS §10.21 (D200 amendment). Creating a family costs **1 000 000 coins** ($12.50; was 500) and the family
+level ladder is level 2 at 4 000 000 points … level 10 at 24 000 000 000 — both code constants
+(`families.constants.ts`), no setting. The migration only **raises** a family's stored level to what its points reach
+on the new ladder (none in practice: every new threshold is above the old one) and never lowers one; from then on a
+family's stored level is a floor (`max(stored, ladder)`), so families that levelled up under the old ladder keep
+their level. No schema change, no GRANT, no backfill of points; idempotent (a second run changes nothing). Ship the
+app with or after the API: the app reads the price and the ladder from `GET /families/config` and formats big values
+compactly; an older app shows the new values from the server too (its level line may be cut at billions).

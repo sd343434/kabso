@@ -70,8 +70,9 @@ void main() {
           ),
         );
       final config = await repo().config();
-      expect(config.createCost, 500);
-      expect(config.levels[1].minPoints, 1000);
+      expect(config.createCost, 1000000);
+      expect(config.levels[1].minPoints, 4000000);
+      expect(config.levels.last.minPoints, 24000000000);
       final page = await repo().search(query: 'نجوم', cursor: 'c1');
       expect(page.data.single.level, 3);
       expect(page.data.single.number, 48213907);
@@ -90,7 +91,7 @@ void main() {
       final result = await repo().create(name: 'عائلة النجوم', clientId: 'c-1');
       expect(result.coins, 120);
       expect(result.family.myRole, FamilyRole.leader);
-      expect(result.family.nextLevelPoints, 1000);
+      expect(result.family.nextLevelPoints, 4000000);
       expect(result.family.leader?.username, 'sara');
       expect(http.requests.single.data, {
         'name': 'عائلة النجوم',

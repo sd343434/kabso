@@ -9,7 +9,7 @@ import { zodErrorToDetails } from '../../common/validation/zod-validation.pipe.j
 import type { LevelCategoryCode, LiveGiftSource, Prisma } from '../../generated/prisma/client.js';
 import { safeErrorLog } from '../../logging/redact-text.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { familyLevelFor } from '../families/families.constants.js';
+import { familyLevelAfter } from '../families/families.constants.js';
 import { consumeStockIn, stockOf } from '../gifts/gift-catalogue.js';
 import { giftArtDto, GiftsService, LIVE_GIFT_COMBO_WINDOW_SECONDS } from '../gifts/gifts.service.js';
 import { LuckyGiftsService, type LuckyRegionInput } from '../gifts/lucky-gifts.service.js';
@@ -555,7 +555,8 @@ export class LiveGiftsService {
           if (freeQuip && written?.free_quips !== 1) throw new AppException(ErrorCode.QUIP_FREE_USED);
           let coins: number | null = charged ? Number(written!.coins) : null;
           if (written?.family_points !== null && written?.family_points !== undefined && family !== null) {
-            const level = familyLevelFor(written.family_points);
+            // D200: the stored level is a floor (a family never drops a level).
+            const level = familyLevelAfter(written.family_points, written.family_level ?? 1);
             if (level !== written.family_level) {
               await tx.$executeRaw`UPDATE families SET level = ${level} WHERE id = ${family}::uuid`;
             }
@@ -854,7 +855,8 @@ export class LiveGiftsService {
           throw new AppException(ErrorCode.INSUFFICIENT_COINS);
         let coins: number | null = isCoins ? Number(written!.coins) : null;
         if (written?.family_points !== null && written?.family_points !== undefined && family !== null) {
-          const level = familyLevelFor(written.family_points);
+          // D200: the stored level is a floor (a family never drops a level).
+          const level = familyLevelAfter(written.family_points, written.family_level ?? 1);
           if (level !== written.family_level) {
             await tx.$executeRaw`UPDATE families SET level = ${level} WHERE id = ${family}::uuid`;
           }

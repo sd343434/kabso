@@ -12,14 +12,23 @@ Map<String, Object?> bondUserJson({
   'avatarUrl': null,
 };
 
-Map<String, Object?> familyConfigJson({int createCost = 500}) => {
+/// The `getFamilyConfig` example (D200: 1 000 000 coins, the owner's
+/// ten-step ladder).
+Map<String, Object?> familyConfigJson({int createCost = 1000000}) => {
   'createCost': createCost,
   'capacity': 500,
   'requestTtlDays': 7,
   'levels': [
     {'level': 1, 'minPoints': 0},
-    {'level': 2, 'minPoints': 1000},
-    {'level': 3, 'minPoints': 5000},
+    {'level': 2, 'minPoints': 4000000},
+    {'level': 3, 'minPoints': 20000000},
+    {'level': 4, 'minPoints': 80000000},
+    {'level': 5, 'minPoints': 240000000},
+    {'level': 6, 'minPoints': 640000000},
+    {'level': 7, 'minPoints': 1600000000},
+    {'level': 8, 'minPoints': 4000000000},
+    {'level': 9, 'minPoints': 9600000000},
+    {'level': 10, 'minPoints': 24000000000},
   ],
 };
 
@@ -48,8 +57,8 @@ Map<String, Object?> familyJson({
   String? myRole = 'LEADER',
   String? myRequestId,
   int memberCount = 1,
-  int points = 500,
-  int? nextLevelPoints = 1000,
+  int points = 1000000,
+  int? nextLevelPoints = 4000000,
 }) => {
   ...familyCardJson(id: id, name: name, memberCount: memberCount),
   'points': points,

@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Clock } from '../src/common/time/clock.js';
 import { CouplesService } from '../src/modules/couples/couples.service.js';
+import { FAMILY_CREATE_COST_COINS as COST } from '../src/modules/families/families.constants.js';
 import { FamiliesService } from '../src/modules/families/families.service.js';
 import { uuidv7 } from '../src/modules/levels/uuidv7.js';
 import { LIVE_MEDIA_PROVIDER } from '../src/modules/live/media/live-media.provider.js';
@@ -157,7 +158,7 @@ describe('CP-018 families, CP couples and medals', { timeout: 120_000 }, () => {
   const createFamily = (u: TestUser, body: object) =>
     ctx.http.post('/api/v1/families').set(auth(u)).send(body);
   const newFamily = async (leader: TestUser, name: string): Promise<{ id: string; number: number }> => {
-    await grant(leader, 500);
+    await grant(leader, COST);
     const res = await createFamily(leader, { name, clientId: randomUUID() });
     expect(res.status, JSON.stringify(res.body)).toBe(201);
     return res.body.family as { id: string; number: number };
@@ -194,15 +195,15 @@ describe('CP-018 families, CP couples and medals', { timeout: 120_000 }, () => {
   afterAll(async () => ctx?.close());
 
   describe('families', () => {
-    it('create costs 500 coins in one transaction, is idempotent, and refuses short balances', async () => {
+    it('create costs 1 000 000 coins (owner D200) in one transaction, is idempotent, and refuses short balances', async () => {
       const a = await signup();
-      await grant(a, 499);
+      await grant(a, COST - 1);
       const clientId = randomUUID();
       const short = await createFamily(a, { name: 'Lions', clientId });
       expect(short.status).toBe(409);
       expectContract(short, 'createFamily');
       expect(short.body.error.code).toBe('INSUFFICIENT_COINS');
-      expect(await coins(a)).toBe(499);
+      expect(await coins(a)).toBe(COST - 1);
       expect(await ctx.prisma.family.count({ where: { createdById: a.id } })).toBe(0);
       expect(await ctx.prisma.familyMember.count({ where: { userId: a.id } })).toBe(0);
 
@@ -215,7 +216,7 @@ describe('CP-018 families, CP couples and medals', { timeout: 120_000 }, () => {
       expect(f).toMatchObject({
         name: 'Lions',
         level: 1,
-        points: 500,
+        points: COST,
         memberCount: 1,
         capacity: 500,
         myRole: 'LEADER',
@@ -230,18 +231,18 @@ describe('CP-018 families, CP couples and medals', { timeout: 120_000 }, () => {
       expect(replay.body.family.id).toBe(f.id);
       expect(replay.body.coins).toBe(100);
       const rows = (await ledger(a)).filter((r) => r.reason === 'FAMILY_CREATE');
-      expect(rows.map((r) => [Number(r.delta), r.referenceId])).toEqual([[-500, f.id]]);
+      expect(rows.map((r) => [Number(r.delta), r.referenceId])).toEqual([[-COST, f.id]]);
 
       const again = await createFamily(a, { name: 'Tigers', clientId: randomUUID() });
       expect(again.body.error.code).toBe('ALREADY_IN_FAMILY');
 
       // The name is unique ignoring case; nothing is charged for a taken name.
       const b = await signup();
-      await grant(b, 500);
+      await grant(b, COST);
       const taken = await createFamily(b, { name: 'LIONS', clientId: randomUUID() });
       expect(taken.status).toBe(409);
       expect(taken.body.error.code).toBe('FAMILY_NAME_TAKEN');
-      expect(await coins(b)).toBe(500);
+      expect(await coins(b)).toBe(COST);
       const bad = await createFamily(b, { name: 'L', clientId: randomUUID() });
       expect(bad.status).toBe(400);
       expect(bad.body.error.details).toEqual([{ field: 'name', issue: 'too_short' }]);
@@ -273,7 +274,11 @@ describe('CP-018 families, CP couples and medals', { timeout: 120_000 }, () => {
       expect(none.body).toEqual({ family: null });
       const config = await ctx.http.get('/api/v1/families/config').set(auth(b));
       expectContract(config, 'getFamilyConfig');
-      expect(config.body).toMatchObject({ createCost: 500, capacity: 500, requestTtlDays: 7 });
+      expect(config.body).toMatchObject({ createCost: 1_000_000, capacity: 500, requestTtlDays: 7 });
+      // D200: the owner's ladder, level 2 at 4 000 000 … level 10 at 24 000 000 000 points.
+      expect(config.body.levels[1]).toEqual({ level: 2, minPoints: 4_000_000 });
+      expect(config.body.levels[9]).toEqual({ level: 10, minPoints: 24_000_000_000 });
+      expect(f.nextLevelPoints).toBe(4_000_000);
     });
 
     it('join by request: accept, decline, pending rules, blocks, expiry and capacity', async () => {
@@ -478,25 +483,26 @@ describe('CP-018 families, CP couples and medals', { timeout: 120_000 }, () => {
         .set(auth(member))
         .send({ text: 'hello family', clientId: randomUUID() });
       expect(bullet.status).toBe(201);
-      expect((await family(member, f.id)).points).toBe(515);
+      expect((await family(member, f.id)).points).toBe(COST + 15);
       // The first bullet earns BULLET_FIRST.
       expect(await medalsOf(member)).toEqual(['BULLET_FIRST', 'FIRST_FAMILY']);
 
       // Crossing a threshold raises the level (points set near it instead of 33 more bullets).
-      await ctx.prisma.family.update({ where: { id: f.id }, data: { points: 990n } });
+      // D200: level 2 at 4 000 000 points; 3 999 990 + 15 crosses it.
+      await ctx.prisma.family.update({ where: { id: f.id }, data: { points: 3_999_990n } });
       clock.advance(6);
       const second = await ctx.http
         .post(`/api/v1/live/rooms/${roomId}/bullets`)
         .set(auth(member))
         .send({ text: 'level up', clientId: randomUUID() });
       expect(second.status).toBe(201);
-      expect(await family(member, f.id)).toMatchObject({ points: 1005, level: 2 });
+      expect(await family(member, f.id)).toMatchObject({ points: 4_000_005, level: 2 });
       const entries = await ctx.prisma.familyPointsEntry.findMany({
         where: { familyId: f.id },
         orderBy: { createdAt: 'asc' },
       });
       expect(entries.map((e) => [e.userId, Number(e.points)])).toEqual([
-        [leader.id, 500],
+        [leader.id, COST],
         [member.id, 15],
         [member.id, 15],
       ]);
@@ -508,7 +514,7 @@ describe('CP-018 families, CP couples and medals', { timeout: 120_000 }, () => {
         .set(auth(member))
         .send({ text: 'outside', clientId: randomUUID() })
         .expect(201);
-      expect((await family(leader, f.id)).points).toBe(1005);
+      expect((await family(leader, f.id)).points).toBe(4_000_005);
       await ctx.http.post(`/api/v1/live/rooms/${roomId}/end`).set(auth(host)).expect(200);
     });
   });
@@ -656,7 +662,7 @@ describe('CP-018 families, CP couples and medals', { timeout: 120_000 }, () => {
       expect(await medalsOf(a)).toContain('FIRST_CP');
       expect(await medalsOf(b)).toContain('FIRST_CP');
       // The accepted request's 99 coins count for the sender's family.
-      expect((await family(a, f.id)).points).toBe(599);
+      expect((await family(a, f.id)).points).toBe(COST + 99);
 
       // One partner each.
       expect((await send(d, a)).body.error.code).toBe('CP_ALREADY_PAIRED');
@@ -691,7 +697,7 @@ describe('CP-018 families, CP couples and medals', { timeout: 120_000 }, () => {
         levelName: 'ثنائي ذهبي',
         partner: { username: a.username },
       });
-      expect((await family(a, f.id)).points).toBe(599 + 520 + 1314);
+      expect((await family(a, f.id)).points).toBe(COST + 99 + 520 + 1314);
       const config = await ctx.http.get('/api/v1/cp/config').set(auth(a)).set('Accept-Language', 'en');
       expectContract(config, 'getCpConfig');
       expect(config.body).toMatchObject({ requestCost: 99, giftAmounts: [10, 52, 99, 520, 1314] });

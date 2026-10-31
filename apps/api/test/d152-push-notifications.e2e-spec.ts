@@ -10,6 +10,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Redis } from 'ioredis';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { FAMILY_CREATE_COST_COINS } from '../src/modules/families/families.constants.js';
 import { uuidv7 } from '../src/modules/levels/uuidv7.js';
 import { NotificationPushDispatcher } from '../src/modules/notifications/notification-push.dispatcher.js';
 import {
@@ -349,7 +350,7 @@ describe('D152 push notifications', { timeout: 180_000 }, () => {
     const grant = (u: TestUser, coins: number) =>
       ctx.prisma.$transaction((tx) => creditIn(tx, u.id, BigInt(coins), 'ADMIN_GRANT', uuidv7()));
     const newFamily = async (leader: TestUser, name: string): Promise<string> => {
-      await grant(leader, 500);
+      await grant(leader, FAMILY_CREATE_COST_COINS);
       const res = await ctx.http
         .post('/api/v1/families')
         .set(auth(leader))

@@ -1,7 +1,7 @@
 import type { Prisma } from '../../generated/prisma/client.js';
 import { uuidv7 } from '../levels/uuidv7.js';
 import type { WalletLedgerReason } from '../wallet/wallet-ledger.js';
-import { familyLevelFor } from './families.constants.js';
+import { familyLevelAfter } from './families.constants.js';
 
 /**
  * Wallet debits that count for the spender's family at the moment they are made (CP-018, D106,
@@ -21,7 +21,8 @@ export const FAMILY_SPEND_REASONS: ReadonlySet<WalletLedgerReason> = new Set([
 /**
  * Adds `coins` family points for a wallet debit of `userId` to the family they belong to now,
  * inside the caller's transaction: a `family_points_ledger` row (unique per wallet ledger row, so
- * a spend never counts twice), the member's and the family's points, and the family level. Not in
+ * a spend never counts twice), the member's and the family's points, and the family level (never
+ * lower than it was, D200). Not in
  * a family → nothing. Locks the family row (after the caller's wallet row: the same order as every
  * money path). Shared by the API and the CLIs (no Nest dependencies).
  */
@@ -47,7 +48,8 @@ export async function creditFamilyForSpendIn(
      WHERE id = ${member.family_id}::uuid
     RETURNING points, level`;
   if (!family) return;
-  const level = familyLevelFor(family.points);
+  // D200: the stored level is a floor (a family never drops a level).
+  const level = familyLevelAfter(family.points, family.level);
   if (level !== family.level) {
     await tx.$executeRaw`UPDATE families SET level = ${level} WHERE id = ${member.family_id}::uuid`;
   }

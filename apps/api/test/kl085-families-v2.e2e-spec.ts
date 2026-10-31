@@ -16,6 +16,7 @@ import { randomUUID } from 'node:crypto';
 import sharp from 'sharp';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Clock } from '../src/common/time/clock.js';
+import { FAMILY_CREATE_COST_COINS } from '../src/modules/families/families.constants.js';
 import { uuidv7 } from '../src/modules/levels/uuidv7.js';
 import { OBJECT_STORAGE } from '../src/modules/media/object-storage.js';
 import { creditIn } from '../src/modules/wallet/wallet-ledger.js';
@@ -109,7 +110,7 @@ describe('CP-022 families v2', { timeout: 180_000 }, () => {
     expect(done).not.toBeNull();
   };
   const newFamily = async (leader: TestUser, name: string): Promise<string> => {
-    await grant(leader, 500);
+    await grant(leader, FAMILY_CREATE_COST_COINS);
     const res = await ctx.http
       .post('/api/v1/families')
       .set(auth(leader))
@@ -196,13 +197,13 @@ describe('CP-022 families v2', { timeout: 180_000 }, () => {
         await signup(),
         await signup(),
       ];
-      const fa = await newFamily(a, 'Alpha house'); // 500 this month (creation)
+      const fa = await newFamily(a, 'Alpha house'); // 1 000 000 this month (creation, D200)
       const fb = await newFamily(b, 'Beta house');
       const fc = await newFamily(c, 'Gamma house');
-      await spend(b, 300); // Beta 800
-      await lastMonth(fc); // Gamma: 500 points, none this month
+      await spend(b, 600_000); // Beta 1 600 000
+      await lastMonth(fc); // Gamma: 1 000 000 points, none this month
       await join(a, d, fa);
-      await spend(d, 100); // Alpha 600
+      await spend(d, 200_000); // Alpha 1 200 000
 
       const board = async (u: TestUser, query: Record<string, string> = {}) => {
         const res = await ctx.http.get('/api/v1/families/rankings').query(query).set(auth(u));
@@ -220,12 +221,12 @@ describe('CP-022 families v2', { timeout: 180_000 }, () => {
       const all = await board(a);
       expect(all.board).toBe('PRESTIGE');
       expect(all.data.map((e) => [e.rank, e.family.id, e.score])).toEqual([
-        [1, fb, 800],
-        [2, fa, 600],
+        [1, fb, 1_600_000],
+        [2, fa, 1_200_000],
       ]);
       expect(new Date(all.startsAt).getTime()).toBeLessThanOrEqual(Date.now());
       expect(new Date(all.endsAt).getTime()).toBeGreaterThan(Date.now());
-      expect(all.me).toMatchObject({ family: { id: fa }, rank: 2, score: 600 });
+      expect(all.me).toMatchObject({ family: { id: fa }, rank: 2, score: 1_200_000 });
       // Gamma has points, none this month: not listed, rank null.
       expect((await board(c)).me).toMatchObject({ family: { id: fc }, rank: null, score: 0 });
       expect((await board(loner)).me).toBeNull();
@@ -255,7 +256,7 @@ describe('CP-022 families v2', { timeout: 180_000 }, () => {
       const standing = await ctx.http.get(`/api/v1/families/${fa}/rankings`).set(auth(loner));
       expect(standing.status).toBe(200);
       expectContract(standing, 'getFamilyStanding');
-      expect(standing.body).toMatchObject({ familyId: fa, prestige: { rank: 2, score: 600 } });
+      expect(standing.body).toMatchObject({ familyId: fa, prestige: { rank: 2, score: 1_200_000 } });
       const gamma = await ctx.http.get(`/api/v1/families/${fc}/rankings`).set(auth(loner));
       expect(gamma.body.prestige).toMatchObject({ rank: null, score: 0 });
       expect((await ctx.http.get(`/api/v1/families/${randomUUID()}/rankings`).set(auth(loner))).status).toBe(
@@ -315,14 +316,14 @@ describe('CP-022 families v2', { timeout: 180_000 }, () => {
       const fid = await newFamily(lead, 'Points house');
       await join(lead, x, fid);
       await join(lead, y, fid);
-      await spend(x, 700);
-      await spend(y, 50);
+      await spend(x, 1_400_000);
+      await spend(y, 100_000);
       // A row of last month for y: in `points`, not in `monthPoints`.
-      await spend(y, 40);
+      await spend(y, 80_000);
       await withMigrationClient((c) =>
         c.$executeRawUnsafe(
           `UPDATE family_points_ledger SET created_at = date_trunc('month', now()) - interval '1 day'
-            WHERE user_id = $1::uuid AND points = 40`,
+            WHERE user_id = $1::uuid AND points = 80000`,
           y.id,
         ),
       );
@@ -340,9 +341,9 @@ describe('CP-022 families v2', { timeout: 180_000 }, () => {
 
       const byPoints = await members(outsider, fid, { sort: 'POINTS' });
       expect(byPoints.data.map((m) => [m.rank, m.user.username, m.points, m.monthPoints])).toEqual([
-        [1, x.username, 700, 700],
-        [2, lead.username, 500, 500],
-        [3, y.username, 90, 50],
+        [1, x.username, 1_400_000, 1_400_000],
+        [2, lead.username, 1_000_000, 1_000_000],
+        [3, y.username, 180_000, 100_000],
       ]);
       const paged = await members(outsider, fid, { sort: 'POINTS', limit: '2' });
       const rest = await members(outsider, fid, {
@@ -379,9 +380,9 @@ describe('CP-022 families v2', { timeout: 180_000 }, () => {
           }[]
         ).map((c) => [c.rank, c.user.username, c.points, c.role]),
       ).toEqual([
-        [1, x.username, 700, 'MEMBER'],
-        [2, lead.username, 500, 'LEADER'],
-        [3, y.username, 50, 'MEMBER'],
+        [1, x.username, 1_400_000, 'MEMBER'],
+        [2, lead.username, 1_000_000, 'LEADER'],
+        [3, y.username, 100_000, 'MEMBER'],
       ]);
       const one = await ctx.http
         .get(`/api/v1/families/${fid}/contributions`)
@@ -699,7 +700,9 @@ describe('CP-022 family chat rate limit', { timeout: 60_000 }, () => {
     const { res } = await registerVerified(ctx);
     const token = res.body.tokens.accessToken as string;
     const userId = res.body.user.id as string;
-    await ctx.prisma.$transaction((tx) => creditIn(tx, userId, 500n, 'ADMIN_GRANT', uuidv7()));
+    await ctx.prisma.$transaction((tx) =>
+      creditIn(tx, userId, BigInt(FAMILY_CREATE_COST_COINS), 'ADMIN_GRANT', uuidv7()),
+    );
     const created = await ctx.http
       .post('/api/v1/families')
       .set('Authorization', `Bearer ${token}`)

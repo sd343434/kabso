@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url';
 import type request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Clock } from '../src/common/time/clock.js';
+import { FAMILY_CREATE_COST_COINS } from '../src/modules/families/families.constants.js';
 import { addGiftIn, grantStockIn, type GiftFields } from '../src/modules/gifts/gift-catalogue.js';
 import { LIVE_MEDIA_PROVIDER } from '../src/modules/live/media/live-media.provider.js';
 import { creditIn } from '../src/modules/wallet/wallet-ledger.js';
@@ -627,8 +628,9 @@ describe('CP-020 live gifts', { timeout: 120_000 }, () => {
       await ctx.http.post(`/api/v1/live/rooms/${next}/end`).set(auth(h)).expect(200);
     });
 
-    it('counts for the sender family like other spending', async () => {
+    it('counts for the sender family like other spending, and levels it up (never down, D200)', async () => {
       const { h, viewer, roomId } = await scene();
+      await coins(viewer, FAMILY_CREATE_COST_COINS);
       const created = await ctx.http
         .post('/api/v1/families')
         .set(auth(viewer))
@@ -640,6 +642,30 @@ describe('CP-020 live gifts', { timeout: 120_000 }, () => {
       const ledgerRow = (await ledger(viewer)).find((r) => r.reason === 'LIVE_GIFT')!;
       const points = await ctx.prisma.familyPointsEntry.findMany({ where: { walletLedgerId: ledgerRow.id } });
       expect(points.map((p) => Number(p.points))).toEqual([20]);
+      const familyId = created.body.family.id as string;
+      const familyRow = () =>
+        ctx.prisma.family.findUniqueOrThrow({
+          where: { id: familyId },
+          select: { points: true, level: true },
+        });
+      expect(await familyRow()).toEqual({ points: BigInt(FAMILY_CREATE_COST_COINS + 20), level: 1 });
+
+      // D200: level 2 at 4 000 000 points — one coin short stays at 1, the gift that reaches it is 2.
+      await ctx.prisma.family.update({ where: { id: familyId }, data: { points: 4_000_000n - 21n } });
+      clock.advance(10);
+      expect((await send(roomId, viewer, body(code, [h]))).status).toBe(201);
+      expect(await familyRow()).toEqual({ points: 4_000_000n - 1n, level: 1 });
+      clock.advance(10);
+      expect((await send(roomId, viewer, body(code, [h]))).status).toBe(201);
+      expect(await familyRow()).toEqual({ points: 4_000_019n, level: 2 });
+
+      // A family kept at level 5 by the floor (reached under the old ladder) stays at 5.
+      await ctx.prisma.family.update({ where: { id: familyId }, data: { points: 60_000n, level: 5 } });
+      clock.advance(10);
+      expect((await send(roomId, viewer, body(code, [h]))).status).toBe(201);
+      expect(await familyRow()).toEqual({ points: 60_020n, level: 5 });
+      const read = await ctx.http.get(`/api/v1/families/${familyId}`).set(auth(viewer));
+      expect(read.body).toMatchObject({ level: 5, points: 60_020, nextLevelPoints: 640_000_000 });
     });
 
     it('combos: the same gift to the same recipients within 5 s continues the combo', async () => {

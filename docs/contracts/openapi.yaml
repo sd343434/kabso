@@ -402,6 +402,12 @@ info:
     single-use token → 410 `DATA_EXPORT_LINK_INVALID`); `NotificationType.DATA_EXPORT_READY`. Codes
     `CONSENT_REQUIRED` (428), `CONSENT_VERSION_MISMATCH` (409), `DATA_EXPORT_LIMIT` (429), `DATA_EXPORT_LINK_INVALID`
     (410). Additive except the 428 gate, which applies only after the owner publishes a version (CONVENTIONS §10.61).
+    **D200 (DRAFT v1.67-social)**: families repriced for the coin price 1 000 000 coins = $12.50 — creating a
+    family costs **1 000 000 coins** (`FamilyConfig.createCost`, `createFamily`) and the family level ladder is
+    level 2 at 4 000 000 points (≈ $50) … level 10 at 24 000 000 000 (≈ $300 000) (`FamilyConfig.levels`). A
+    family never drops a level: its stored level is a floor, so `Family.level` may sit above what `points` reach
+    on the current ladder, and `nextLevelPoints` is then the next level's threshold on that ladder. No shape
+    changes (CONVENTIONS §10.21).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -5161,13 +5167,20 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/FamilyConfig' }
               example:
-                createCost: 500
+                createCost: 1000000
                 capacity: 500
                 requestTtlDays: 7
                 levels:
                   - { level: 1, minPoints: 0 }
-                  - { level: 2, minPoints: 1000 }
-                  - { level: 3, minPoints: 5000 }
+                  - { level: 2, minPoints: 4000000 }
+                  - { level: 3, minPoints: 20000000 }
+                  - { level: 4, minPoints: 80000000 }
+                  - { level: 5, minPoints: 240000000 }
+                  - { level: 6, minPoints: 640000000 }
+                  - { level: 7, minPoints: 1600000000 }
+                  - { level: 8, minPoints: 4000000000 }
+                  - { level: 9, minPoints: 9600000000 }
+                  - { level: 10, minPoints: 24000000000 }
         '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
   /api/v1/families:
@@ -5198,7 +5211,7 @@ paths:
     post:
       tags: [families]
       operationId: createFamily
-      summary: "Create a family for 500 coins (CP-018)"
+      summary: "Create a family for 1 000 000 coins (CP-018, D200)"
       description: |
         CONVENTIONS §10.21. The caller becomes its LEADER. Checks, in order: 400 for the body
         (`name`: the display-name text rules with 2–20 grapheme clusters and at most 40 code
@@ -5209,7 +5222,8 @@ paths:
         400 `emblemMediaId` / `invalid_value` (not the caller's unattached `FAMILY_EMBLEM` asset of
         the last 24 hours); 409 `FAMILY_NAME_TAKEN`; 409 `INSUFFICIENT_COINS` (nothing created or
         charged). The family, the membership and the charge (ledger `FAMILY_CREATE`) are one
-        transaction; the 500 coins are the family's first points; the caller earns `FIRST_FAMILY`.
+        transaction; the coins it costs (`FamilyConfig.createCost`: 1 000 000, v1.67-social D200; 500
+        before) are the family's first points; the caller earns `FIRST_FAMILY`.
       requestBody:
         required: true
         content:
@@ -5229,10 +5243,10 @@ paths:
                   name: عائلة النجوم
                   emblemUrl: null
                   level: 1
-                  points: 500
+                  points: 1000000
                   memberCount: 1
                   capacity: 500
-                  nextLevelPoints: 1000
+                  nextLevelPoints: 4000000
                   leader: { id: 0192f1d0-5555-7000-8000-000000000006, username: sara, displayName: سارة, avatarUrl: null }
                   createdAt: '2026-10-26T18:30:00.000Z'
                   myRole: LEADER
@@ -12793,12 +12807,12 @@ components:
       type: object
       required: [createCost, capacity, requestTtlDays, levels]
       properties:
-        createCost: { type: integer, minimum: 1, description: "Coins a new family costs (500)." }
+        createCost: { type: integer, minimum: 1, description: "Coins a new family costs (1 000 000 = $12.50, v1.67-social D200; 500 before). The app shows this value, never its own." }
         capacity: { type: integer, minimum: 1, description: "The most members, the leader included (500)." }
         requestTtlDays: { type: integer, minimum: 1, description: "Days before a join request expires (7)." }
         levels:
           type: array
-          description: The family level ladder, lowest first.
+          description: "The family level ladder, lowest first: ten steps, level 1 at 0 points (v1.67-social D200: 4 000 000, 20 000 000, 80 000 000, 240 000 000, 640 000 000, 1 600 000 000, 4 000 000 000, 9 600 000 000, 24 000 000 000 for levels 2–10). Points can exceed 2^31: 64-bit integers, all below 2^53."
           items:
             type: object
             required: [level, minPoints]
@@ -12829,7 +12843,7 @@ components:
         points: { type: integer, minimum: 0 }
         memberCount: { type: integer, minimum: 0 }
         capacity: { type: integer, minimum: 1 }
-        nextLevelPoints: { type: [integer, 'null'], minimum: 1, description: Points the next level needs; null at the top level. }
+        nextLevelPoints: { type: [integer, 'null'], minimum: 1, description: "Points the next level needs (the threshold of `level + 1` on the current ladder); null at the top level. v1.67-social (D200): a family never drops a level, so `level` may sit above what `points` reach and `points` may be far below this value (its progress is `points / nextLevelPoints`)." }
         leader:
           oneOf:
             - $ref: '#/components/schemas/UserSummary'
