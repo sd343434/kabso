@@ -453,6 +453,51 @@ it('serves the admin panel smoke API', async () => {
       }
       extra = { ...extra, selfAgency: opened.agencyId };
     }
+    // v1.73-social (D209): applications «كن مضيفاً مع الإدارة» — one pending with its drawn pictures and a report
+    // against the applicant, one rejected earlier by the same person, one approved (another person).
+    {
+      const hostApp = async (
+        userId: string,
+        status: 'PENDING' | 'REJECTED' | 'APPROVED',
+        at: number,
+        extraFields: Record<string, unknown> = {},
+      ) => {
+        const id = randomUUID();
+        const key = (w: string) => `private/host-applications/${id}/${w}.webp`;
+        storage.putRaw(key('photo'), await picture('#3b5b8a'), 'image/webp');
+        storage.putRaw(key('selfie'), await picture('#8a3b6b'), 'image/webp');
+        await ctx.prisma.hostApplication.create({
+          data: {
+            id,
+            userId,
+            status,
+            clientKey: randomUUID(),
+            requestHash: '0'.repeat(64),
+            displayName: 'ريم للطبخ',
+            country: 'SA',
+            dateOfBirth: new Date('1999-04-12T00:00:00.000Z'),
+            contactType: 'WHATSAPP',
+            contactValue: '+966511111111',
+            bio: 'أبث وصفات الطبخ السعودي كل مساء، ودردشة مع المتابعين.',
+            links: ['https://www.tiktok.com/@reem.cooks', 'https://www.youtube.com/@reemcooks'],
+            photoKey: key('photo'),
+            selfieKey: key('selfie'),
+            rulesAcceptedAt: new Date(at),
+            createdAt: new Date(at),
+            ...(status === 'PENDING' ? {} : { decidedAt: new Date(at + 3_600_000), decidedById: owner.id }),
+            ...extraFields,
+          },
+        });
+        return id;
+      };
+      await hostApp(people[56]!, 'REJECTED', now - 40 * DAY, { rejectReason: 'صورة الهوية غير واضحة' });
+      const pending = await hostApp(people[56]!, 'PENDING', now - 2 * 3_600_000);
+      await ctx.prisma.report.create({
+        data: { reporterId: people[57]!, targetType: 'USER', targetUserId: people[56]!, reason: 'SPAM' },
+      });
+      await hostApp(people[58]!, 'APPROVED', now - 3 * DAY, { displayName: 'عمر للألعاب', country: 'EG' });
+      extra = { ...extra, hostApplication: pending };
+    }
     const link = await ctx.prisma.agencyHost.findFirstOrThrow({ where: { agencyId: agencyIds[0]! } });
     await ctx.prisma.agencyComplaint.create({
       data: {

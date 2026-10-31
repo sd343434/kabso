@@ -255,22 +255,23 @@ describe('audit viewer', () => {
 
 describe('navigation by role', () => {
   const CAPS: Record<string, Capability[]> = {
-    MODERATION: ['dashboard.view', 'users.view', 'users.list', 'users.balances', 'users.ban', 'users.avatar', 'reports.view', 'reports.act', 'users.sessions', 'lives.view', 'lives.manage'],
+    MODERATION: ['dashboard.view', 'users.view', 'users.list', 'users.balances', 'users.ban', 'users.avatar', 'reports.view', 'reports.act', 'users.sessions', 'lives.view', 'lives.manage', 'hosts.applications'],
     FINANCE: ['dashboard.view', 'users.view', 'users.list', 'users.balances', 'users.ledger', 'recharge.agents', 'recharge.topup', 'recharge.cap', 'withdrawals.view', 'withdrawals.decide', 'agencies.view', 'catalog.view', 'finance.view', 'finance.refund', 'programs.view'],
   };
   const items = (role: string) => visibleNav((c) => CAPS[role]!.includes(c)).flatMap((g) => g.items.map((i) => i.to));
   it('shows each role only what it can open (groups without items vanish)', () => {
-    expect(items('MODERATION')).toEqual(['/', '/users', '/lives', '/live-hosts', '/reports']);
+    expect(items('MODERATION')).toEqual(['/', '/users', '/lives', '/live-hosts', '/host-applications', '/reports']);
     expect(items('FINANCE')).toContain('/finance/report');
     expect(items('FINANCE')).not.toContain('/team');
     expect(items('FINANCE')).not.toContain('/reports');
     expect(visibleNav((c) => CAPS.MODERATION!.includes(c)).map((g) => g.key)).not.toContain('navGroupMoney');
   });
   it('every v2 route has a capability', () => {
-    for (const r of ['agencies', 'agency', 'complaints', 'lives', 'hosts', 'gifts', 'items', 'promo', 'report', 'topups', 'cards', 'tasks', 'levels', 'waitlist', 'team', 'audit', 'specialUsernames']) {
+    for (const r of ['agencies', 'agency', 'complaints', 'lives', 'hosts', 'gifts', 'items', 'promo', 'report', 'topups', 'cards', 'tasks', 'levels', 'waitlist', 'team', 'audit', 'specialUsernames', 'hostApplications', 'hostApplication']) {
       expect(CAP_OF_ROUTE[r], r).toBeTruthy();
     }
     expect(matchPath('/agencies/abc')).toEqual({ name: 'agency', params: { id: 'abc' } });
     expect(matchPath('/finance/report')?.name).toBe('report');
+    expect(matchPath('/host-applications/abc')).toEqual({ name: 'hostApplication', params: { id: 'abc' } });
   });
 });

@@ -30,6 +30,10 @@ export type Capability =
   // v1.70-social (D206)
   | 'agencies.applications'
   | 'agencies.probation'
+  // v1.73-social (D209)
+  | 'hosts.applications'
+  | 'hosts.applications.photos'
+  | 'hosts.applications.decide'
   | 'lives.view'
   | 'lives.manage'
   | 'catalog.view'
@@ -341,4 +345,57 @@ export interface SearchResult {
   users: UserRow[];
   agents: { userId: string; code: string | null; status: string; username: string; displayName: string }[];
   agencies: { id: string; inviteCode: string; hostCode: string | null; rank: string; suspended: boolean; ownerUsername: string; ownerDisplayName: string }[];
+}
+
+/** v1.73-social (D209): `AdminHostApplicationRow` — a row of «طلبات المضيفين» (no private field). */
+export interface HostApplicationRow {
+  id: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+  displayName: string;
+  country: string;
+  user: PersonRef;
+  decidedBy: PersonRef | null;
+  createdAt: string;
+  decidedAt: string | null;
+  purged: boolean;
+}
+
+/** v1.73-social (D209): `AdminHostApplication` — the application with its private fields and the account summary. */
+export interface HostApplicationDetail {
+  id: string;
+  status: HostApplicationRow['status'];
+  createdAt: string;
+  decidedAt: string | null;
+  decidedBy: PersonRef | null;
+  rejectReason: string | null;
+  cancelReason: 'USER' | 'AGENCY' | 'ACCOUNT' | null;
+  purgedAt: string | null;
+  reapplyAt: string | null;
+  displayName: string;
+  country: string;
+  dateOfBirth: string | null;
+  age: number | null;
+  contact: { type: 'WHATSAPP' | 'TELEGRAM' | 'PHONE' | 'EMAIL' | 'OTHER'; value: string | null };
+  bio: string | null;
+  links: string[];
+  rulesAcceptedAt: string;
+  photos: { photo: boolean; selfie: boolean };
+  account: {
+    id: string;
+    username: string;
+    displayName: string;
+    avatarUrl: string | null;
+    email: string;
+    status: string;
+    createdAt: string;
+    accountAgeDays: number;
+    profileCountry: string | null;
+    openReports: number;
+    totalReports: number;
+    bans: number;
+    warnings: number;
+    host: { source: 'ADMIN' | 'AGENCY' | 'IDENTITY'; grantedAt: string } | null;
+    agency: { role: 'HOST' | 'OWNER'; inviteCode: string } | null;
+  };
+  history: { id: string; status: HostApplicationRow['status']; createdAt: string; decidedAt: string | null; rejectReason: string | null }[];
 }
