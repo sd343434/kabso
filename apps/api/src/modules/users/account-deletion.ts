@@ -450,6 +450,11 @@ export async function purgeAccountIn(
   await tx.$executeRaw`DELETE FROM sessions WHERE user_id = ${u}`;
   await tx.$executeRaw`DELETE FROM verification_tokens WHERE user_id = ${u}`;
   await tx.$executeRaw`DELETE FROM device_tokens WHERE user_id = ${u}`;
+  // v1.66-social (D198): data exports are deleted with their files; consent records stay as the record of what was
+  // accepted, without the truncated IP and the user agent (deleted with the tombstone's other records 7 years later).
+  const exports = await tx.$queryRaw<{ object_key: string | null }[]>`
+    DELETE FROM data_exports WHERE user_id = ${u} RETURNING object_key`;
+  await tx.$executeRaw`UPDATE user_consents SET ip_truncated = NULL, user_agent = NULL WHERE user_id = ${u}`;
   await tx.$executeRaw`
     UPDATE users
        SET email = ${`deleted+${userId}@deleted.invalid`}, email_verified_at = NULL,
@@ -486,6 +491,7 @@ export async function purgeAccountIn(
     ...uploads.map((x) => x.object_key),
     ...kyc.flatMap((k) => [k.photoKey, k.selfieKey]).filter((k): k is string => k !== null),
     ...familyKeys,
+    ...exports.flatMap((x) => (x.object_key ? [x.object_key] : [])),
   ].filter((k) => !holds.objectKeys.has(k)); // files under a legal hold stay until the hold ends
   await tx.auditLog.create({
     data: {
@@ -1019,6 +1025,8 @@ export async function endLedgerRetention(
         data: { payoutDetails: '…', decisionNote: null },
       });
       await tx.luckyGiftAgeConfirmation.deleteMany({ where: { userId } });
+      // v1.66-social (D198): the consent records go with the rest of the trail.
+      await tx.userConsent.deleteMany({ where: { userId } });
       await tx.accountDeletionRequest.deleteMany({ where: { userId } });
       return true;
     });

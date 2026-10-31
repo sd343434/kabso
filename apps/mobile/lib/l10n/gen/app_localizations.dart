@@ -17571,7 +17571,7 @@ abstract class AppLocalizations {
   /// D193 account deletion
   ///
   /// In ar, this message translates to:
-  /// **'أُلغي الحذف. مرحباً بعودتك!'**
+  /// **'أُلغي الحذف. مرحباً بعودتك.'**
   String get deletionPendingRestored;
 
   /// D193 account deletion
@@ -17597,6 +17597,234 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'هذا الحساب في انتظار الحذف.'**
   String get errorAccountDeletionPending;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'بياناتك'**
+  String get privacyDataTitle;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'تنزيل بياناتي'**
+  String get dataExportTitle;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'نسخة من بياناتك بصيغة يمكنك نقلها'**
+  String get dataExportTileHint;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'نجهّز لك ملف ZIP فيه بياناتك بصيغة JSON مع ملف توضيحي بالعربية والإنجليزية: ملفك وإعداداتك، منشوراتك وريلزك وقصصك، تعليقاتك، رسائلك، متابعاتك والحظر، سجلات العملات والكرز والمستويات، الهدايا، السحوبات، طلب وكيل الشحن، موافقاتك، وسجل الأجهزة وتسجيل الدخول.'**
+  String get dataExportIntro;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنك طلب نسخة واحدة كل 24 ساعة. عندما تجهز نرسل لك إشعاراً ورسالة بريد، والتنزيل يعمل مرة واحدة خلال 7 أيام.'**
+  String get dataExportRules;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يحوي الملف كلمة مرورك ولا بيانات خاصة لأشخاص آخرين.'**
+  String get dataExportNoSecrets;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب نسخة من بياناتي'**
+  String get dataExportRequest;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'تأكيد هويتك'**
+  String get dataExportPasswordTitle;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل كلمة مرور حسابك لطلب نسخة من بياناتك.'**
+  String get dataExportPasswordBody;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'كلمة المرور'**
+  String get dataExportPasswordLabel;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'متابعة'**
+  String get dataExportContinue;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'استلمنا طلبك. سنرسل لك إشعاراً عندما تجهز بياناتك.'**
+  String get dataExportRequested;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'نجهّز بياناتك… سنرسل لك إشعاراً عندما تجهز.'**
+  String get dataExportPreparing;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'بياناتك جاهزة. التنزيل متاح مرة واحدة حتى {date}.'**
+  String dataExportReady(String date);
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'تنزيل الملف'**
+  String get dataExportDownload;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'حُفظ الملف في: {path}'**
+  String dataExportSaved(String path);
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'نزّلت هذه النسخة في {date}.'**
+  String dataExportDownloaded(String date);
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت صلاحية آخر نسخة قبل تنزيلها.'**
+  String get dataExportExpired;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تجهيز آخر نسخة. يمكنك طلب نسخة جديدة.'**
+  String get dataExportFailed;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنك طلب نسخة جديدة بعد {date}.'**
+  String dataExportNextAt(String date);
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'تحديث'**
+  String get dataExportRefresh;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'حدّثنا الشروط وسياسة الخصوصية'**
+  String get consentTitle;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'اقرأ ملخص التغييرات، ثم وافق لتتابع استخدام Kabso Live.'**
+  String get consentBody;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'شروط الاستخدام'**
+  String get consentTermsName;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'سياسة الخصوصية'**
+  String get consentPrivacyName;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'الإصدار {version} · ساري من {date}'**
+  String consentVersion(String version, String date);
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'قراءة النص الكامل'**
+  String get consentReadFull;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'أوافق وأتابع'**
+  String get consentAccept;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توافق؟ يمكنك تنزيل بياناتك أو حذف حسابك أو تسجيل الخروج.'**
+  String get consentNotNow;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'تسجيل الخروج'**
+  String get consentLogout;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'شكراً، سُجّلت موافقتك.'**
+  String get consentAccepted;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'عمري 18 عاماً أو أكثر، وأوافق على شروط الاستخدام وسياسة الخصوصية.'**
+  String get registerLegalAccept;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'أكّد عمرك ووافق على الشروط للمتابعة.'**
+  String get registerLegalRequired;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'نسخة بياناتك جاهزة للتنزيل'**
+  String get notifDataExportReady;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'راجع الشروط وسياسة الخصوصية المحدّثة ووافق عليها للمتابعة.'**
+  String get errorConsentRequired;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'صدر إصدار أحدث للتو. راجعه من جديد.'**
+  String get errorConsentVersionMismatch;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنك طلب نسخة واحدة من بياناتك كل 24 ساعة.'**
+  String get errorDataExportLimit;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'رابط التنزيل لم يعد صالحاً.'**
+  String get errorDataExportLinkInvalid;
 }
 
 class _AppLocalizationsDelegate

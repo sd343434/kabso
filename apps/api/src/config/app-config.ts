@@ -114,6 +114,9 @@ export interface AppConfig {
     readonly usernameChangeUser: RateLimitRule;
     /** D193: account-deletion requests (the password is re-checked), per user. */
     readonly accountDeletionUser: RateLimitRule;
+    /** D198: data-export requests and downloads, per user. */
+    readonly dataExportUser: RateLimitRule;
+    readonly dataExportDownloadUser: RateLimitRule;
     /** CP-021: CP space writes; new confessions (per user). */
     readonly cpSpaceWriteUser: RateLimitRule;
     readonly cpConfessionUser: RateLimitRule;
@@ -293,6 +296,13 @@ export interface AppConfig {
     readonly legalHoldDays: number;
     /** DELETED_LEDGER_RETENTION_DAYS: the tombstone's ledgers and audit rows are kept this long after the purge. */
     readonly ledgerRetentionDays: number;
+  };
+  /** v1.66-social (D198): the personal-data export (CONVENTIONS §10.61). */
+  readonly dataExport: {
+    readonly minIntervalHours: number;
+    readonly linkDays: number;
+    /** 0 = sweeper disabled (tests; refused in production). */
+    readonly sweepIntervalSeconds: number;
   };
   /** v1.54-social (D185): special usernames (CONVENTIONS §10.48.1). */
   readonly specialUsernames: {
@@ -516,6 +526,8 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       premiumRentUser: e.RATE_LIMIT_PREMIUM_RENT_USER,
       usernameChangeUser: e.RATE_LIMIT_USERNAME_CHANGE_USER,
       accountDeletionUser: e.RATE_LIMIT_ACCOUNT_DELETION_USER,
+      dataExportUser: e.RATE_LIMIT_DATA_EXPORT_USER,
+      dataExportDownloadUser: e.RATE_LIMIT_DATA_EXPORT_DOWNLOAD_USER,
       cpSpaceWriteUser: e.RATE_LIMIT_CP_SPACE_WRITE_USER,
       cpConfessionUser: e.RATE_LIMIT_CP_CONFESSION_USER,
       familyChatUser: e.RATE_LIMIT_FAMILY_CHAT_USER,
@@ -682,6 +694,11 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       sweepIntervalSeconds: e.ACCOUNT_DELETION_SWEEP_INTERVAL_SECONDS,
       legalHoldDays: e.REPORT_LEGAL_HOLD_DAYS,
       ledgerRetentionDays: e.DELETED_LEDGER_RETENTION_DAYS,
+    },
+    dataExport: {
+      minIntervalHours: e.DATA_EXPORT_MIN_INTERVAL_HOURS,
+      linkDays: e.DATA_EXPORT_LINK_DAYS,
+      sweepIntervalSeconds: e.DATA_EXPORT_SWEEP_INTERVAL_SECONDS,
     },
     specialUsernames: {
       graceDays: e.SPECIAL_USERNAME_GRACE_DAYS,

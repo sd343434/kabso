@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpCode, Put, Req } from '@nestjs/common';
 import { languageFromAcceptLanguage, type ContentLanguage } from '../../common/http/content-language.js';
-import { clientIp, type AppRequest, type AuthContext } from '../../common/http/request-context.js';
+import { clientIp, userAgent, type AppRequest, type AuthContext } from '../../common/http/request-context.js';
 import { getRequestId } from '../../common/request-id/request-id.js';
 import { byIp, RateLimit } from '../../common/rate-limit/rate-limit.decorator.js';
 import { ZodValidationPipe } from '../../common/validation/zod-validation.pipe.js';
@@ -71,6 +71,10 @@ export class GiftsController {
     @Req() req: AppRequest,
     @Body(new ZodValidationPipe(luckyAgeConfirmationSchema)) _body: unknown,
   ): Promise<{ ageConfirmedAt: string }> {
-    return this.lucky.confirmAge(auth.userId, { ip: clientIp(req), requestId: getRequestId(req) });
+    return this.lucky.confirmAge(auth.userId, {
+      ip: clientIp(req),
+      requestId: getRequestId(req),
+      userAgent: userAgent(req),
+    });
   }
 }

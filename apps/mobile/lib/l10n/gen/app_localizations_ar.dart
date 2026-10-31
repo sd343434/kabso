@@ -10292,7 +10292,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get deletionPendingKeep => 'متابعة الحذف';
 
   @override
-  String get deletionPendingRestored => 'أُلغي الحذف. مرحباً بعودتك!';
+  String get deletionPendingRestored => 'أُلغي الحذف. مرحباً بعودتك.';
 
   @override
   String get deletedUser => 'مستخدم محذوف';
@@ -10306,4 +10306,140 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get errorAccountDeletionPending => 'هذا الحساب في انتظار الحذف.';
+
+  @override
+  String get privacyDataTitle => 'بياناتك';
+
+  @override
+  String get dataExportTitle => 'تنزيل بياناتي';
+
+  @override
+  String get dataExportTileHint => 'نسخة من بياناتك بصيغة يمكنك نقلها';
+
+  @override
+  String get dataExportIntro =>
+      'نجهّز لك ملف ZIP فيه بياناتك بصيغة JSON مع ملف توضيحي بالعربية والإنجليزية: ملفك وإعداداتك، منشوراتك وريلزك وقصصك، تعليقاتك، رسائلك، متابعاتك والحظر، سجلات العملات والكرز والمستويات، الهدايا، السحوبات، طلب وكيل الشحن، موافقاتك، وسجل الأجهزة وتسجيل الدخول.';
+
+  @override
+  String get dataExportRules =>
+      'يمكنك طلب نسخة واحدة كل 24 ساعة. عندما تجهز نرسل لك إشعاراً ورسالة بريد، والتنزيل يعمل مرة واحدة خلال 7 أيام.';
+
+  @override
+  String get dataExportNoSecrets =>
+      'لا يحوي الملف كلمة مرورك ولا بيانات خاصة لأشخاص آخرين.';
+
+  @override
+  String get dataExportRequest => 'طلب نسخة من بياناتي';
+
+  @override
+  String get dataExportPasswordTitle => 'تأكيد هويتك';
+
+  @override
+  String get dataExportPasswordBody =>
+      'أدخل كلمة مرور حسابك لطلب نسخة من بياناتك.';
+
+  @override
+  String get dataExportPasswordLabel => 'كلمة المرور';
+
+  @override
+  String get dataExportContinue => 'متابعة';
+
+  @override
+  String get dataExportRequested =>
+      'استلمنا طلبك. سنرسل لك إشعاراً عندما تجهز بياناتك.';
+
+  @override
+  String get dataExportPreparing =>
+      'نجهّز بياناتك… سنرسل لك إشعاراً عندما تجهز.';
+
+  @override
+  String dataExportReady(String date) {
+    return 'بياناتك جاهزة. التنزيل متاح مرة واحدة حتى $date.';
+  }
+
+  @override
+  String get dataExportDownload => 'تنزيل الملف';
+
+  @override
+  String dataExportSaved(String path) {
+    return 'حُفظ الملف في: $path';
+  }
+
+  @override
+  String dataExportDownloaded(String date) {
+    return 'نزّلت هذه النسخة في $date.';
+  }
+
+  @override
+  String get dataExportExpired => 'انتهت صلاحية آخر نسخة قبل تنزيلها.';
+
+  @override
+  String get dataExportFailed => 'تعذّر تجهيز آخر نسخة. يمكنك طلب نسخة جديدة.';
+
+  @override
+  String dataExportNextAt(String date) {
+    return 'يمكنك طلب نسخة جديدة بعد $date.';
+  }
+
+  @override
+  String get dataExportRefresh => 'تحديث';
+
+  @override
+  String get consentTitle => 'حدّثنا الشروط وسياسة الخصوصية';
+
+  @override
+  String get consentBody =>
+      'اقرأ ملخص التغييرات، ثم وافق لتتابع استخدام Kabso Live.';
+
+  @override
+  String get consentTermsName => 'شروط الاستخدام';
+
+  @override
+  String get consentPrivacyName => 'سياسة الخصوصية';
+
+  @override
+  String consentVersion(String version, String date) {
+    return 'الإصدار $version · ساري من $date';
+  }
+
+  @override
+  String get consentReadFull => 'قراءة النص الكامل';
+
+  @override
+  String get consentAccept => 'أوافق وأتابع';
+
+  @override
+  String get consentNotNow =>
+      'لا توافق؟ يمكنك تنزيل بياناتك أو حذف حسابك أو تسجيل الخروج.';
+
+  @override
+  String get consentLogout => 'تسجيل الخروج';
+
+  @override
+  String get consentAccepted => 'شكراً، سُجّلت موافقتك.';
+
+  @override
+  String get registerLegalAccept =>
+      'عمري 18 عاماً أو أكثر، وأوافق على شروط الاستخدام وسياسة الخصوصية.';
+
+  @override
+  String get registerLegalRequired => 'أكّد عمرك ووافق على الشروط للمتابعة.';
+
+  @override
+  String get notifDataExportReady => 'نسخة بياناتك جاهزة للتنزيل';
+
+  @override
+  String get errorConsentRequired =>
+      'راجع الشروط وسياسة الخصوصية المحدّثة ووافق عليها للمتابعة.';
+
+  @override
+  String get errorConsentVersionMismatch =>
+      'صدر إصدار أحدث للتو. راجعه من جديد.';
+
+  @override
+  String get errorDataExportLimit =>
+      'يمكنك طلب نسخة واحدة من بياناتك كل 24 ساعة.';
+
+  @override
+  String get errorDataExportLinkInvalid => 'رابط التنزيل لم يعد صالحاً.';
 }

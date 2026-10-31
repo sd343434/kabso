@@ -82,6 +82,9 @@ class PrivacyScreen extends ConsumerWidget {
   static Key messageKey(MentionPolicy p) => Key('privacy.message.${p.name}');
   static const messageHintKey = Key('privacy.message.hint');
 
+  /// D198: «تنزيل بياناتي».
+  static const dataExportKey = Key('privacy.dataExport');
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
@@ -261,6 +264,19 @@ class PrivacyScreen extends ConsumerWidget {
                       .change(showActivityStatus: v),
                 ),
               ),
+            ),
+            // v1.66-social (D198, §10.61.1): a copy of the person's data.
+            header(l10n.privacyDataTitle),
+            ListTile(
+              key: dataExportKey,
+              leading: Icon(Icons.download_rounded, color: p.textPrimary),
+              title: Text(l10n.dataExportTitle),
+              subtitle: Text(l10n.dataExportTileHint),
+              trailing: Icon(
+                Icons.chevron_right_rounded,
+                color: p.textTertiary,
+              ),
+              onTap: () => context.push(AppRoutes.dataExport),
             ),
           ],
         ),

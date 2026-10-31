@@ -104,6 +104,10 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.reauthFailed: 403,
   ErrorCode.accountDeletionBlocked: 409,
   ErrorCode.accountDeletionPending: 409,
+  ErrorCode.consentRequired: 428,
+  ErrorCode.consentVersionMismatch: 409,
+  ErrorCode.dataExportLimit: 429,
+  ErrorCode.dataExportLinkInvalid: 410,
 };
 
 DioException _badResponse(
@@ -234,6 +238,10 @@ void main() {
           'REAUTH_FAILED',
           'ACCOUNT_DELETION_BLOCKED',
           'ACCOUNT_DELETION_PENDING',
+          'CONSENT_REQUIRED',
+          'CONSENT_VERSION_MISMATCH',
+          'DATA_EXPORT_LIMIT',
+          'DATA_EXPORT_LINK_INVALID',
         ]),
       );
       expect(ErrorCode.networkOffline.wire, 'NETWORK_OFFLINE');

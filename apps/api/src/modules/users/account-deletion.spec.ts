@@ -153,6 +153,13 @@ describe('endLedgerRetention', () => {
           return Promise.resolve({ count: 1 });
         },
       },
+      // D198: consent records end with the trail.
+      userConsent: {
+        deleteMany: (a: { where: { userId: string } }) => {
+          calls.push(`consents ${a.where.userId}`);
+          return Promise.resolve({ count: 1 });
+        },
+      },
       accountDeletionRequest: {
         deleteMany: (a: { where: { userId: string } }) => {
           calls.push(`requests ${a.where.userId}`);
@@ -197,6 +204,7 @@ describe('endLedgerRetention', () => {
       `fn tomb-1 ${ledgerRetentionCutoff(now, 2557).toISOString()}`,
       'withdrawals tomb-1 {"payoutDetails":"…","decisionNote":null}',
       'age tomb-1',
+      'consents tomb-1',
       'requests tomb-1',
     ]);
     expect(audits).toEqual([

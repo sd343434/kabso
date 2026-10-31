@@ -187,6 +187,20 @@ export enum AuditAction {
   ACCOUNT_DELETION_HOLD_VIEWED = 'account.deletion.hold_viewed',
   ACCOUNT_DELETION_HOLD_EXPIRED = 'account.deletion.hold_expired',
   ACCOUNT_DELETION_RETENTION_ENDED = 'account.deletion.retention_ended',
+  // v1.66-social (DRAFT, D198): privacy (CONVENTIONS §10.61). Legal documents published with `legal-admin`, consents
+  // accepted in the app or at sign-up, and the personal-data export «تنزيل بياناتي» (requested, built, downloaded,
+  // expired, failed, refused for a wrong password or the 24-hour limit; `privacy-admin` views and admin requests).
+  LEGAL_DOCUMENT_PUBLISH = 'legal.document.publish',
+  CONSENT_ACCEPT = 'privacy.consent.accept',
+  DATA_EXPORT_REQUESTED = 'privacy.export.requested',
+  DATA_EXPORT_REAUTH_FAILED = 'privacy.export.reauth_failed',
+  DATA_EXPORT_LIMITED = 'privacy.export.limited',
+  DATA_EXPORT_READY = 'privacy.export.ready',
+  DATA_EXPORT_FAILED = 'privacy.export.failed',
+  DATA_EXPORT_DOWNLOADED = 'privacy.export.downloaded',
+  DATA_EXPORT_DOWNLOAD_REFUSED = 'privacy.export.download_refused',
+  DATA_EXPORT_EXPIRED = 'privacy.export.expired',
+  DATA_EXPORT_ADMIN_VIEW = 'privacy.export.admin_view',
   // v1.29-live (DRAFT, D147): search trends, changed only by the search-admin CLI (§11.11).
   SEARCH_TERM_HIDE = 'search.term.hide',
   SEARCH_BLOCKED_WORD = 'search.blocked_word',

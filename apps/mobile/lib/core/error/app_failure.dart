@@ -260,6 +260,20 @@ enum ErrorCode {
   /// reason a session ends after the person asked for deletion.
   accountDeletionPending('ACCOUNT_DELETION_PENDING'),
 
+  /// v1.66-social (D198, §10.61.2, 428): a new version of the terms or the
+  /// privacy policy waits to be accepted; the app shows the consent screen.
+  consentRequired('CONSENT_REQUIRED'),
+
+  /// v1.66-social (D198, 409): the accepted version is no longer the one in
+  /// force (a newer one was published while the screen was open).
+  consentVersionMismatch('CONSENT_VERSION_MISMATCH'),
+
+  /// v1.66-social (D198, 429): one data export per 24 hours.
+  dataExportLimit('DATA_EXPORT_LIMIT'),
+
+  /// v1.66-social (D198, 410): the download link is used, wrong or expired.
+  dataExportLinkInvalid('DATA_EXPORT_LINK_INVALID'),
+
   /// Client-only: no connection could be established.
   networkOffline('NETWORK_OFFLINE'),
 

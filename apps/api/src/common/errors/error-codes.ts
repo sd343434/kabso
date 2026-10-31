@@ -189,6 +189,18 @@ export enum ErrorCode {
    * `details: [{field: 'purgeAfter', issue: <ISO time>}]`. Signing in with `cancelDeletion: true` cancels it.
    */
   ACCOUNT_DELETION_PENDING = 'ACCOUNT_DELETION_PENDING',
+  /**
+   * v1.66-social (DRAFT, D198): a new version of the terms or the privacy policy is in force and the caller has not
+   * accepted it; `details: [{field: 'terms'|'privacy', issue: <version>}]`. Only accepting, signing out, deleting the
+   * account and the data export work until then.
+   */
+  CONSENT_REQUIRED = 'CONSENT_REQUIRED',
+  /** v1.66-social (DRAFT, D198): `acceptConsents` named a version that is not the one in force. */
+  CONSENT_VERSION_MISMATCH = 'CONSENT_VERSION_MISMATCH',
+  /** v1.66-social (DRAFT, D198): one data export per 24 hours (or one is still being prepared); `Retry-After`. */
+  DATA_EXPORT_LIMIT = 'DATA_EXPORT_LIMIT',
+  /** v1.66-social (DRAFT, D198): the download link is wrong, already used or expired. */
+  DATA_EXPORT_LINK_INVALID = 'DATA_EXPORT_LINK_INVALID',
 }
 
 /** HTTP status for every code (CONVENTIONS.md §4 table). */
@@ -295,6 +307,10 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.REAUTH_FAILED]: 403,
   [ErrorCode.ACCOUNT_DELETION_BLOCKED]: 409,
   [ErrorCode.ACCOUNT_DELETION_PENDING]: 409,
+  [ErrorCode.CONSENT_REQUIRED]: 428,
+  [ErrorCode.CONSENT_VERSION_MISMATCH]: 409,
+  [ErrorCode.DATA_EXPORT_LIMIT]: 429,
+  [ErrorCode.DATA_EXPORT_LINK_INVALID]: 410,
 };
 
 /** Default developer-facing messages (clients localize by `code`, not by message). */
@@ -401,6 +417,10 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.REAUTH_FAILED]: 'The password is not correct.',
   [ErrorCode.ACCOUNT_DELETION_BLOCKED]: 'Some things must be settled before this account can be deleted.',
   [ErrorCode.ACCOUNT_DELETION_PENDING]: 'This account is scheduled for deletion.',
+  [ErrorCode.CONSENT_REQUIRED]: 'Please review and accept the updated terms and privacy policy.',
+  [ErrorCode.CONSENT_VERSION_MISMATCH]: 'A newer version is in force; review it again.',
+  [ErrorCode.DATA_EXPORT_LIMIT]: 'You can ask for one copy of your data every 24 hours.',
+  [ErrorCode.DATA_EXPORT_LINK_INVALID]: 'This download link is no longer valid.',
 };
 
 export interface ErrorDetail {

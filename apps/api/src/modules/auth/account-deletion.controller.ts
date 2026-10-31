@@ -11,6 +11,7 @@ import {
 } from './account-deletion.service.js';
 import { requestMeta } from './auth.controller.js';
 import { CurrentAuth } from './current-auth.decorator.js';
+import { ConsentExempt } from '../privacy/consent-exempt.decorator.js';
 
 /** D193 (§7): the request re-checks the password — 5 / 15 min per user, replacing the default. */
 const REQUEST_LIMIT = {
@@ -22,6 +23,7 @@ const REQUEST_LIMIT = {
 
 /** Account deletion «حذف الحساب» (contract v1.62-social draft, D193, CONVENTIONS §10.56). */
 @Controller('me/account-deletion')
+@ConsentExempt()
 export class AccountDeletionController {
   constructor(private readonly deletion: AccountDeletionService) {}
 

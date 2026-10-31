@@ -1,4 +1,4 @@
-import type { AccountDeletionMail, MailLocale } from './mail-sender.js';
+import type { AccountDeletionMail, DataExportReadyMail, MailLocale } from './mail-sender.js';
 
 /**
  * Transactional email copy (ar + en). Plain text: adapters may wrap it in HTML later.
@@ -21,7 +21,8 @@ export type MailTemplate =
       readonly date: string;
       readonly supportEmail: string;
     }
-  | { readonly kind: 'account_deletion_cancelled'; readonly supportEmail: string };
+  | { readonly kind: 'account_deletion_cancelled'; readonly supportEmail: string }
+  | { readonly kind: 'data_export_ready'; readonly date: string; readonly supportEmail: string };
 
 /** U+200F RIGHT-TO-LEFT MARK: keeps mixed Arabic/Latin lines right-aligned in plain text. */
 const RLM = '\u200f';
@@ -101,6 +102,22 @@ export function renderMail(template: MailTemplate, locale: MailLocale): Rendered
               `It will be deleted for good on ${template.date}. Until then you can cancel by signing in to the app and choosing "Cancel deletion".\n` +
               `If this wasn't you, sign in, cancel the deletion and change your password, or write to ${template.supportEmail}.`,
           };
+    case 'data_export_ready':
+      return ar
+        ? {
+            subject: 'نسخة بياناتك في كابسو جاهزة',
+            text:
+              `${RLM}نسخة بياناتك التي طلبتها جاهزة للتنزيل.\n` +
+              `${RLM}افتح تطبيق كابسو لايف › الإعدادات › الخصوصية › «تنزيل بياناتي» وأنت مسجّل الدخول. يعمل التنزيل مرة واحدة حتى ${template.date}.\n` +
+              `${RLM}لا نرسل بياناتك أو رابطاً لها بالبريد. إذا لم تطلب ذلك، غيّر كلمة المرور وراسلنا على ${template.supportEmail}.`,
+          }
+        : {
+            subject: 'Your Kabso data is ready',
+            text:
+              `The copy of your data you asked for is ready to download.\n` +
+              `Open the Kabso Live app › Settings › Privacy › Download my data while signed in. The download works once, until ${template.date}.\n` +
+              `We never email your data or a link to it. If this wasn't you, change your password and write to ${template.supportEmail}.`,
+          };
     case 'account_deletion_cancelled':
       return ar
         ? {
@@ -127,4 +144,13 @@ export function deletionTemplate(mail: AccountDeletionMail): MailTemplate {
         supportEmail: mail.supportEmail,
       }
     : { kind: 'account_deletion_cancelled', supportEmail: mail.supportEmail };
+}
+
+/** D198: the template of the data-export notice (the last day in UTC, YYYY-MM-DD). */
+export function dataExportTemplate(mail: DataExportReadyMail): MailTemplate {
+  return {
+    kind: 'data_export_ready',
+    date: mail.expiresAt.toISOString().slice(0, 10),
+    supportEmail: mail.supportEmail,
+  };
 }

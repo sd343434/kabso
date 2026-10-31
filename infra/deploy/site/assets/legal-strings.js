@@ -6,6 +6,7 @@
     privacy: ['سياسة الخصوصية', 'Privacy Policy'],
     terms: ['شروط الاستخدام', 'Terms of Service'],
     contact: ['تواصل معنا', 'Contact us'],
+    'delete-account': ['حذف الحساب', 'Delete your account'],
   };
   var t = TITLES[page];
   if (t) window.KABSO.addStrings({ ar: { pageTitle: t[0] + ' — Kabso Live' }, en: { pageTitle: t[1] + ' — Kabso Live' } });

@@ -42,6 +42,18 @@ export interface AccountDeletionMail {
   readonly supportEmail: string;
 }
 
+/**
+ * v1.66-social (D198, §10.61.1): «بياناتك جاهزة للتنزيل». Like D193's notices it carries NO link that acts on the
+ * account (a phished copy must not hand the data to anyone): the person downloads it in the app, signed in, once,
+ * before `expiresAt`.
+ */
+export interface DataExportReadyMail {
+  readonly to: string;
+  readonly locale: MailLocale;
+  readonly expiresAt: Date;
+  readonly supportEmail: string;
+}
+
 /** Outbound mail port. Adapters: `log` (development) and `smtp` (KL-042). */
 export interface MailSender {
   sendEmailVerification(mail: TokenMail): Promise<void>;
@@ -49,6 +61,7 @@ export interface MailSender {
   sendRegistrationCode(mail: RegistrationCodeMail): Promise<void>;
   sendAccountExistsNotice(mail: AccountExistsMail): Promise<void>;
   sendAccountDeletionNotice(mail: AccountDeletionMail): Promise<void>;
+  sendDataExportReady(mail: DataExportReadyMail): Promise<void>;
 }
 
 export const MAIL_SENDER = Symbol('MAIL_SENDER');

@@ -560,6 +560,9 @@ export const envSchema = z
     // v1.62-social (D193, CONVENTIONS §7, §10.56): the account-deletion request re-checks the password, so it is
     // limited like a login (per user, replacing the default authenticated bucket).
     RATE_LIMIT_ACCOUNT_DELETION_USER: rateLimit('5/900'),
+    /** v1.66-social (D198): data-export requests (the password is re-checked) and downloads, per user. */
+    RATE_LIMIT_DATA_EXPORT_USER: rateLimit('5/900'),
+    RATE_LIMIT_DATA_EXPORT_DOWNLOAD_USER: rateLimit('10/3600'),
     // v1.24-live (CP-021, CONVENTIONS §7): CP space writes (check-in, task claims, confession
     // deletes) and new confessions, per user, each replacing the default authenticated bucket.
     RATE_LIMIT_CP_SPACE_WRITE_USER: rateLimit('60/60'),
@@ -1024,6 +1027,14 @@ export const envSchema = z
     ACCOUNT_DELETION_USERNAME_QUARANTINE_DAYS: intSetting(90, 0, 3650),
     ACCOUNT_DELETION_SWEEP_INTERVAL_SECONDS: intSetting(3600, 0, 86_400),
     /**
+     * v1.66-social (D198, CONVENTIONS §10.61): the personal-data export «تنزيل بياناتي». One per
+     * DATA_EXPORT_MIN_INTERVAL_HOURS (24); its single-use download link lives DATA_EXPORT_LINK_DAYS (7); the sweeper
+     * (re)builds waiting jobs and deletes expired or downloaded files (0: off — tests; refused in production).
+     */
+    DATA_EXPORT_MIN_INTERVAL_HOURS: intSetting(24, 1, 720),
+    DATA_EXPORT_LINK_DAYS: intSetting(7, 1, 30),
+    DATA_EXPORT_SWEEP_INTERVAL_SECONDS: intSetting(300, 0, 86_400),
+    /**
      * D193 (owner 2026-10-31): how long the purge keeps reported content (an OPEN or ACTIONED report) under a hidden
      * legal hold before deleting it with its reports and files, and how long the ledgers and the audit log kept under a
      * tombstone stay before the sweeper deletes or anonymises the rest (7 years = 2557 days).
@@ -1453,6 +1464,14 @@ export const envSchema = z
           code: 'custom',
           path: ['ACCOUNT_DELETION_SWEEP_INTERVAL_SECONDS'],
           message: 'the account-deletion sweeper cannot be disabled in production',
+        });
+      }
+      // D198: export jobs must be built and their files deleted when their link ends.
+      if (env.DATA_EXPORT_SWEEP_INTERVAL_SECONDS === 0) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['DATA_EXPORT_SWEEP_INTERVAL_SECONDS'],
+          message: 'the data-export sweeper cannot be disabled in production',
         });
       }
       // D179: agency ranks must be re-evaluated at each month start.

@@ -15,6 +15,7 @@ import {
   type LuckyTable,
 } from './lucky-odds.js';
 import { LUCKY_RNG } from './lucky-rng.js';
+import { AGE_STATEMENT_VERSION, recordStatementConsentIn } from '../privacy/legal.js';
 
 /** Why the caller may not send lucky gifts now (`LuckyGiftEligibility.reason`). */
 export type LuckyIneligibility = 'DISABLED' | 'REGION_UNAVAILABLE' | 'AGE_UNCONFIRMED';
@@ -199,7 +200,7 @@ export class LuckyGiftsService {
    */
   async confirmAge(
     userId: string,
-    meta: { ip: string | null; requestId: string | null },
+    meta: { ip: string | null; requestId: string | null; userAgent?: string | null },
   ): Promise<{ ageConfirmedAt: string }> {
     const confirmedAt = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const inserted = await tx.luckyGiftAgeConfirmation.createMany({
@@ -214,6 +215,13 @@ export class LuckyGiftsService {
           targetId: userId,
           ip: meta.ip,
           requestId: meta.requestId,
+        });
+        // v1.66-social (D198, §10.61.2): the 18+ statement also goes to the consent records.
+        await recordStatementConsentIn(tx, userId, 'AGE_18', AGE_STATEMENT_VERSION, {
+          ip: meta.ip,
+          userAgent: meta.userAgent ?? null,
+          method: 'LUCKY_GIFT',
+          at: this.clock.now(),
         });
       }
       return (await tx.luckyGiftAgeConfirmation.findUniqueOrThrow({ where: { userId } })).confirmedAt;

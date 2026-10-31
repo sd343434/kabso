@@ -2,13 +2,14 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import type {
   AccountDeletionMail,
+  DataExportReadyMail,
   AccountExistsMail,
   MailLocale,
   MailSender,
   RegistrationCodeMail,
   TokenMail,
 } from './mail-sender.js';
-import { deletionTemplate, renderMail, type MailTemplate } from './mail-templates.js';
+import { dataExportTemplate, deletionTemplate, renderMail, type MailTemplate } from './mail-templates.js';
 
 /** Masks the local part of an address for logs: `al***@example.com`. */
 export function maskEmail(email: string): string {
@@ -50,6 +51,10 @@ export class LogMailSender implements MailSender {
 
   sendAccountExistsNotice(mail: AccountExistsMail): Promise<void> {
     return this.write(mail.to, mail.locale, { kind: 'account_exists', appUrl: mail.appUrl }, []);
+  }
+
+  sendDataExportReady(mail: DataExportReadyMail): Promise<void> {
+    return this.write(mail.to, mail.locale, dataExportTemplate(mail), []);
   }
 
   sendAccountDeletionNotice(mail: AccountDeletionMail): Promise<void> {

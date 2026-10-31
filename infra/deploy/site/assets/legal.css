@@ -28,7 +28,7 @@ html[lang=en] h2{font-family:Inter,Cairo,sans-serif;font-weight:700}
 h3{font-size:16px;margin:16px 0 4px}
 p,li{color:rgba(255,255,255,.86)}
 p+p{margin-top:10px}
-ul{padding-inline-start:22px;margin:8px 0}
+ul,ol{padding-inline-start:22px;margin:8px 0}
 li{margin:4px 0}
 .missing{color:#FFD866;font-style:italic}
 .note{margin-top:10px;padding:10px 14px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid var(--line);font-size:14px}

@@ -1,4 +1,5 @@
-/* Kabso Live legal pages (D192): fills the legal entity and contact from /config.json. An empty field shows
+/* Kabso Live legal pages (D192; D198: the documents' version and date, the EU/UK representative, the providers):
+ * fills the legal entity and contact from /config.json. An empty field shows
  * «سيُضاف قريباً» / "To be added soon"; on /contact an item whose field is empty is left out; the draft banner shows
  * until config.legalReviewed is true (and whenever config.json cannot be read). */
 (function () {
@@ -8,7 +9,12 @@
 
   function value(key) {
     if (!cfg) return '';
-    var v = cfg[key];
+    // D198: dotted keys reach nested fields (`documents.privacy.version`).
+    var v = cfg;
+    var parts = key.split('.');
+    for (var p = 0; p < parts.length; p++) {
+      v = v !== null && typeof v === 'object' && Object.prototype.hasOwnProperty.call(v, parts[p]) ? v[parts[p]] : '';
+    }
     return typeof v === 'string' ? v.trim() : typeof v === 'number' ? String(v) : '';
   }
 

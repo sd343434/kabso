@@ -222,6 +222,21 @@ abstract final class AppRoutes {
   /// v1.62-social (D193): the in-app account deletion «حذف الحساب».
   static const deleteAccount = '/settings/delete-account';
 
+  /// v1.66-social (D198): «تنزيل بياناتي» (Settings › Privacy).
+  static const dataExport = '/settings/privacy/data-export';
+
+  /// v1.66-social (D198): the blocking consent screen after a new version
+  /// of the terms or the privacy policy.
+  static const legalConsent = '/legal/consent';
+
+  /// D198: what stays reachable while consent is required (the API answers
+  /// 428 to everything else).
+  static const Set<String> consentAllowedRoutes = {
+    legalConsent,
+    dataExport,
+    deleteAccount,
+  };
+
   /// v1.62-social (D193): signing in to an account in its deletion grace
   /// period («طلب حذف قيد التنفيذ — إلغاء الحذف؟»). Public (no session yet).
   static const deletionPending = '/auth/deletion-pending';

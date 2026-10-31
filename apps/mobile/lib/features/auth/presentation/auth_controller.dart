@@ -59,6 +59,7 @@ class AuthController extends Notifier<FormSubmission> {
     required String username,
     required String displayName,
     required Gender gender,
+    Map<String, dynamic>? legal,
   }) => _run(() async {
     // v1.2: 202 only — no account, no session yet. The `locale` is the
     // language displayed at submit time, so the code email matches it.
@@ -69,6 +70,7 @@ class AuthController extends Notifier<FormSubmission> {
       displayName: displayName,
       gender: gender,
       locale: ref.read(languageControllerProvider).name,
+      legal: legal,
     );
     ref.read(registrationFlowProvider.notifier).draft = RegistrationDraft(
       email: AuthValidators.normalizeEmail(email),

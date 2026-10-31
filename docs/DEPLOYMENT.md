@@ -1825,6 +1825,44 @@ actions `topup.*` (no actor for webhook steps).
 - **Deletion without the app (Google Play "web resource"):** until the page exists, the store listing and the
   privacy policy name the address **info@kabsolive.com**: the person writes from the account's email; the team
   replies to confirm, then runs `account-admin request <email> --reason "emailed request <date>"` (same 30-day
-  grace and notices). Planned page `https://kabsolive.com/delete-account` (static, `infra/deploy/site`): the in-app
-  steps, the email route, what is deleted and kept, the 30 days. Google Play Console › App content › Data safety
-  needs that URL (or the email page) before submission.
+  grace and notices). Page `https://kabsolive.com/delete-account` (D198, static, `infra/deploy/site/delete-account.html`): the in-app
+  steps, the email route, what is deleted and kept, the 30 days. Enter that URL in Google Play Console › App content ›
+  Data safety (and as the "delete account" URL of the listing) before submission.
+
+### 5.31 Privacy: data export, consents, legal documents (migrations `20270115090000_privacy_enums`, `20270115100000_privacy`; D198) — [IMPLEMENTED, draft contract v1.66-social; not deployed, not device-tested]
+
+CONVENTIONS §10.61, CP-040.
+
+- **Migrations** with the usual `migrate` job: `notification_type` gains `DATA_EXPORT_READY`; tables `legal_documents`,
+  `user_consents`, `data_exports`; column `pending_registrations.legal_consent`. No GRANT, no backfill.
+- **Settings:** `DATA_EXPORT_MIN_INTERVAL_HOURS` (24), `DATA_EXPORT_LINK_DAYS` (7), `DATA_EXPORT_SWEEP_INTERVAL_SECONDS`
+  (300; refused as 0 in production), `RATE_LIMIT_DATA_EXPORT_USER` (5/900), `RATE_LIMIT_DATA_EXPORT_DOWNLOAD_USER`
+  (10/3600). The export needs object storage (`S3_*`, the export ZIP goes to `private/data-exports/` — like
+  `private/recharge-agents/`, **never** public: keep the public-read rule limited to `media/`) and, for the ready
+  notice by mail, real mail (PP-20). A bucket lifecycle rule deleting `private/data-exports/` objects older than 10
+  days is a recommended backstop (the sweeper deletes them after the download or 7 days).
+- **Order at launch (important):** ship the app version with the consent screen first. Then publish the first
+  versions — until then no consent is required; from their effective time every signed-in call of an app that has
+  not accepted answers 428 (an older app without the screen would be stuck):
+
+  ```bash
+  docker compose --profile jobs run --rm -v "$PWD/infra/deploy/site:/site:ro" migrate node dist/cli/legal-admin.js \
+    publish terms --version 2026-11-01 --effective <YYYY-MM-DD> --file /site/terms.html \
+    --summary-ar "<ملخص>" --summary-en "<summary>"
+  docker compose --profile jobs run --rm -v "$PWD/infra/deploy/site:/site:ro" migrate node dist/cli/legal-admin.js \
+    publish privacy --version 2026-11-01 --effective <YYYY-MM-DD> --file /site/privacy.html \
+    --summary-ar "<ملخص>" --summary-en "<summary>"
+  docker compose --profile jobs run --rm migrate node dist/cli/legal-admin.js list
+  ```
+
+  and set `infra/deploy/site/config.json` `documents.terms|privacy` = the same version and effective date. Each later
+  change of the text: edit the page, publish a **new** version (never reuse one), update `config.json`. The page's
+  SHA-256 is recorded, so publish exactly the file the site serves.
+- **Emailed requests** (GDPR/CCPA "access" or "portability" by email): verify the sender owns the account (writes from
+  its address and confirms), then `privacy-admin export <email> --reason "verified email request <date>"` (the person
+  downloads in the app) or, if they cannot use the app, `… --save /tmp/exports` with `-v` a host folder (send by a
+  secure channel, then delete). `privacy-admin exports [<user>]` lists jobs. Deletion requests: §5.30.
+- **Website:** `privacy.html` and `terms.html` show the version/date from `config.json`; fill `euRepresentative` (an
+  EU/UK Art. 27 representative), `hostingProvider` and `emailProvider` (empty → «سيُضاف قريباً»; `update.sh` warns).
+  The draft banner stays until `legalReviewed` is true. Adding analytics or any cookie fails CI (`site` job) until a
+  consent banner and a new policy version exist.

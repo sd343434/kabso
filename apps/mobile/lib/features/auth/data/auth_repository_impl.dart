@@ -49,6 +49,7 @@ class AuthRepositoryImpl implements AuthRepository {
     required String displayName,
     required Gender gender,
     required String locale,
+    Map<String, dynamic>? legal,
   }) async {
     await _remote.register(
       RegisterRequestDto(
@@ -59,6 +60,7 @@ class AuthRepositoryImpl implements AuthRepository {
         gender: gender.wire,
         locale: locale,
         device: _device,
+        legal: legal,
       ),
     );
   }

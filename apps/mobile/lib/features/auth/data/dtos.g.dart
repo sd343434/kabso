@@ -102,6 +102,7 @@ RegisterRequestDto _$RegisterRequestDtoFromJson(Map<String, dynamic> json) =>
       device: json['device'] == null
           ? null
           : DeviceInfoDto.fromJson(json['device'] as Map<String, dynamic>),
+      legal: json['legal'] as Map<String, dynamic>?,
     );
 
 Map<String, dynamic> _$RegisterRequestDtoToJson(RegisterRequestDto instance) =>
@@ -113,6 +114,7 @@ Map<String, dynamic> _$RegisterRequestDtoToJson(RegisterRequestDto instance) =>
       'gender': instance.gender,
       'locale': ?instance.locale,
       'device': ?instance.device?.toJson(),
+      'legal': ?instance.legal,
     };
 
 SessionInfoDto _$SessionInfoDtoFromJson(Map<String, dynamic> json) =>

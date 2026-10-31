@@ -31,6 +31,7 @@ import { Public } from './public.decorator.js';
 import { RegistrationService, type VerificationPendingDto } from './registration.service.js';
 import type { SessionInfoDto } from './sessions.service.js';
 import { isUuid, parseRefreshToken } from './tokens.js';
+import { ConsentExempt } from '../privacy/consent-exempt.decorator.js';
 
 function acceptLanguage(req: AppRequest): 'ar' | 'en' | undefined {
   const header = req.headers['accept-language'];
@@ -136,6 +137,7 @@ export class AuthController {
   }
 
   @Post('logout')
+  @ConsentExempt()
   @HttpCode(204)
   async logout(@CurrentAuth() auth: AuthContext, @Req() req: AppRequest): Promise<void> {
     await this.auth.logout(auth.userId, auth.sessionId, requestMeta(req));
@@ -185,11 +187,13 @@ export class AuthController {
   }
 
   @Get('sessions')
+  @ConsentExempt()
   async listSessions(@CurrentAuth() auth: AuthContext): Promise<{ data: SessionInfoDto[] }> {
     return { data: await this.auth.listSessions(auth.userId, auth.sessionId) };
   }
 
   @Delete('sessions/:sessionId')
+  @ConsentExempt()
   @HttpCode(204)
   async revokeSession(
     @CurrentAuth() auth: AuthContext,

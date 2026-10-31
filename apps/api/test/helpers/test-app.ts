@@ -14,6 +14,7 @@ import {
   MAIL_SENDER,
   type AccountDeletionMail,
   type AccountExistsMail,
+  type DataExportReadyMail,
   type MailLocale,
   type MailSender,
   type RegistrationCodeMail,
@@ -24,7 +25,13 @@ import { PrismaService } from '../../src/prisma/prisma.service.js';
 import { BackgroundTasks } from '../../src/common/background/background-tasks.js';
 
 export type CapturedKind =
-  'verify' | 'reset' | 'code' | 'account_exists' | 'deletion_requested' | 'deletion_cancelled';
+  | 'verify'
+  | 'reset'
+  | 'code'
+  | 'account_exists'
+  | 'deletion_requested'
+  | 'deletion_cancelled'
+  | 'data_export_ready';
 
 /** Every captured mail; fields that do not apply to a kind are empty strings. */
 export interface CapturedMail {
@@ -90,6 +97,18 @@ export class CapturingMailSender implements MailSender {
       token: '',
       link: '',
       code: mail.purgeAfter?.toISOString().slice(0, 10) ?? '',
+    });
+    return Promise.resolve();
+  }
+
+  sendDataExportReady(mail: DataExportReadyMail): Promise<void> {
+    this.sent.push({
+      kind: 'data_export_ready',
+      to: mail.to,
+      locale: mail.locale,
+      token: '',
+      link: '',
+      code: mail.expiresAt.toISOString().slice(0, 10),
     });
     return Promise.resolve();
   }
@@ -232,6 +251,10 @@ export function buildTestConfig(overrides: Record<string, string> = {}): AppConf
     // D193: specs call AccountDeletionSweeper.sweep() with a later time.
     ACCOUNT_DELETION_SWEEP_INTERVAL_SECONDS: '0',
     RATE_LIMIT_ACCOUNT_DELETION_USER: GENEROUS,
+    // D198: specs call DataExportsService.sweep() / build directly.
+    DATA_EXPORT_SWEEP_INTERVAL_SECONDS: '0',
+    RATE_LIMIT_DATA_EXPORT_USER: GENEROUS,
+    RATE_LIMIT_DATA_EXPORT_DOWNLOAD_USER: GENEROUS,
     BAG_SWEEP_INTERVAL_SECONDS: '0',
     RATE_LIMIT_DM_SEND_USER: GENEROUS,
     RATE_LIMIT_DM_REQUEST_USER: GENEROUS,

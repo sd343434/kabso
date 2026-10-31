@@ -28,6 +28,8 @@ export const SYSTEM_TYPES: readonly NotificationType[] = [
   'AVATAR_REMOVED',
   // v1.60-social (D191): a moderator warned the person (from the panel's report queue).
   'MODERATION_WARNING',
+  // v1.66-social (D198): the data export «تنزيل بياناتي» is ready.
+  'DATA_EXPORT_READY',
 ];
 
 /** Types that join one unread row per target (owner, D92). */
@@ -169,7 +171,8 @@ export class Notifier {
         | 'PREMIUM_USERNAME_EXPIRING'
         | 'PREMIUM_USERNAME_EXPIRED'
         | 'AVATAR_REMOVED'
-        | 'MODERATION_WARNING';
+        | 'MODERATION_WARNING'
+        | 'DATA_EXPORT_READY';
       recipientId: string;
     } & NotificationTargetRef,
   ): Promise<void> {

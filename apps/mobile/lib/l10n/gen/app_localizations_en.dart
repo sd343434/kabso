@@ -10183,7 +10183,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String deleteAccountGrace(int days) {
-    return 'You have $days days to change your mind: sign in during that time and choose “Cancel deletion”. After that the account is deleted for good.';
+    return 'You have $days days to change your mind: log in during that time and choose “Cancel deletion”. After that the account is deleted for good.';
   }
 
   @override
@@ -10271,7 +10271,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get deletionPendingKeep => 'Keep the deletion';
 
   @override
-  String get deletionPendingRestored => 'Deletion cancelled. Welcome back!';
+  String get deletionPendingRestored => 'Deletion cancelled. Welcome back.';
 
   @override
   String get deletedUser => 'Deleted user';
@@ -10286,4 +10286,144 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errorAccountDeletionPending =>
       'This account is scheduled for deletion.';
+
+  @override
+  String get privacyDataTitle => 'Your data';
+
+  @override
+  String get dataExportTitle => 'Download my data';
+
+  @override
+  String get dataExportTileHint => 'A copy of your data you can take elsewhere';
+
+  @override
+  String get dataExportIntro =>
+      'We prepare a ZIP file with your data as JSON and a short README in Arabic and English: your profile and settings, posts, reels and stories, comments, messages, follows and blocks, coin, cherry and level records, gifts, withdrawals, your recharge-agent application, your consents, and your device and sign-in history.';
+
+  @override
+  String get dataExportRules =>
+      'You can ask for one copy every 24 hours. When it is ready we send you a notification and an email; the download works once, within 7 days.';
+
+  @override
+  String get dataExportNoSecrets =>
+      'The file never contains your password or other people’s private data.';
+
+  @override
+  String get dataExportRequest => 'Request a copy of my data';
+
+  @override
+  String get dataExportPasswordTitle => 'Confirm it’s you';
+
+  @override
+  String get dataExportPasswordBody =>
+      'Enter your account password to ask for a copy of your data.';
+
+  @override
+  String get dataExportPasswordLabel => 'Password';
+
+  @override
+  String get dataExportContinue => 'Continue';
+
+  @override
+  String get dataExportRequested =>
+      'Request received. We will notify you when your data is ready.';
+
+  @override
+  String get dataExportPreparing =>
+      'Preparing your data… we will notify you when it is ready.';
+
+  @override
+  String dataExportReady(String date) {
+    return 'Your data is ready. You can download it once, until $date.';
+  }
+
+  @override
+  String get dataExportDownload => 'Download the file';
+
+  @override
+  String dataExportSaved(String path) {
+    return 'Saved to: $path';
+  }
+
+  @override
+  String dataExportDownloaded(String date) {
+    return 'You downloaded this copy on $date.';
+  }
+
+  @override
+  String get dataExportExpired =>
+      'The last copy expired before it was downloaded.';
+
+  @override
+  String get dataExportFailed =>
+      'We could not prepare the last copy. You can ask for a new one.';
+
+  @override
+  String dataExportNextAt(String date) {
+    return 'You can ask for a new copy after $date.';
+  }
+
+  @override
+  String get dataExportRefresh => 'Refresh';
+
+  @override
+  String get consentTitle => 'We updated our terms';
+
+  @override
+  String get consentBody =>
+      'Read the summary of the changes, then accept to keep using Kabso Live.';
+
+  @override
+  String get consentTermsName => 'Terms of Service';
+
+  @override
+  String get consentPrivacyName => 'Privacy Policy';
+
+  @override
+  String consentVersion(String version, String date) {
+    return 'Version $version · effective $date';
+  }
+
+  @override
+  String get consentReadFull => 'Read the full text';
+
+  @override
+  String get consentAccept => 'I agree and continue';
+
+  @override
+  String get consentNotNow =>
+      'Don’t agree? You can download your data, delete your account or log out.';
+
+  @override
+  String get consentLogout => 'Log out';
+
+  @override
+  String get consentAccepted => 'Thank you, your acceptance is recorded.';
+
+  @override
+  String get registerLegalAccept =>
+      'I am 18 or older, and I accept the Terms of Service and the Privacy Policy.';
+
+  @override
+  String get registerLegalRequired =>
+      'Confirm your age and accept the terms to continue.';
+
+  @override
+  String get notifDataExportReady => 'Your data is ready to download';
+
+  @override
+  String get errorConsentRequired =>
+      'Please review and accept the updated terms and privacy policy.';
+
+  @override
+  String get errorConsentVersionMismatch =>
+      'A newer version was just published. Please review it again.';
+
+  @override
+  String get errorDataExportLimit =>
+      'You can ask for one copy of your data every 24 hours.';
+
+  @override
+  String get errorDataExportLinkInvalid =>
+      'This download link is no longer valid.';
 }

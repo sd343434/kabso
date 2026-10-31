@@ -14,9 +14,11 @@ import 'package:kabso_live/features/auth/domain/validators.dart';
 import 'package:kabso_live/features/auth/presentation/auth_controller.dart';
 import 'package:kabso_live/features/auth/presentation/registration_flow.dart';
 import 'package:kabso_live/features/auth/presentation/widgets/auth_widgets.dart';
+import 'package:kabso_live/features/privacy/privacy_repository.dart';
 import 'package:kabso_live/features/profile/profile_fields_view.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:url_launcher/url_launcher.dart' as launcher;
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const new({super.key});
@@ -38,6 +40,13 @@ class RegisterScreen extends ConsumerStatefulWidget {
   static const genderKey = Key('register.gender');
   static Key genderOptionKey(Gender g) => Key('register.gender.${g.wire}');
 
+  /// D198: «عمري 18 عاماً أو أكثر وأوافق على الشروط وسياسة الخصوصية»
+  /// (required) and its two links.
+  static const legalKey = Key('register.legal');
+  static const legalCheckKey = Key('register.legal.check');
+  static const termsLinkKey = Key('register.legal.terms');
+  static const privacyLinkKey = Key('register.legal.privacy');
+
   @override
   ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
 }
@@ -52,6 +61,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   /// D175 (owner): chosen at sign-up, required; «أفضّل عدم الذكر» is one of
   /// the three choices.
   Gender? _gender;
+
+  /// D198: the 18+ statement and the acceptance of the terms and the policy.
+  bool _legalAccepted = false;
   AutovalidateMode _autovalidate = AutovalidateMode.disabled;
 
   /// Server-reported field errors, cleared when the field changes.
@@ -194,6 +206,21 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     final status = ref.read(usernameAvailabilityProvider);
     final gender = _gender;
     if (!valid || status is UsernameTaken || gender == null) return;
+    if (!_legalAccepted) return;
+    // D198: the versions shown (none before the owner publishes them).
+    final docs = ref.read(legalDocumentsProvider).value ?? const [];
+    String? versionOf(LegalKind k) {
+      for (final d in docs) {
+        if (d.kind == k) return d.version;
+      }
+      return null;
+    }
+
+    final legal = <String, dynamic>{
+      'ageConfirmed': true,
+      'termsVersion': ?versionOf(LegalKind.terms),
+      'privacyVersion': ?versionOf(LegalKind.privacy),
+    };
 
     final ok = await ref
         .read(authControllerProvider.notifier)
@@ -203,6 +230,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           username: _username.text,
           displayName: _displayName.text,
           gender: gender,
+          legal: legal,
         );
     if (!mounted) return;
     if (ok) {
@@ -410,7 +438,23 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 validator: (v) =>
                     validationMessage(l10n, AuthValidators.password(v)),
               ),
-              const SizedBox(height: KSpacing.xl),
+              const SizedBox(height: KSpacing.md),
+              FormField<bool>(
+                key: RegisterScreen.legalKey,
+                initialValue: _legalAccepted,
+                validator: (_) =>
+                    _legalAccepted ? null : l10n.registerLegalRequired,
+                builder: (field) => _LegalConsent(
+                  accepted: _legalAccepted,
+                  enabled: !submitting,
+                  errorText: field.errorText,
+                  onChanged: (v) {
+                    setState(() => _legalAccepted = v);
+                    field.didChange(v);
+                  },
+                ),
+              ),
+              const SizedBox(height: KSpacing.lg),
               KButton(
                 key: RegisterScreen.submitKey,
                 label: l10n.registerSubmit,
@@ -424,8 +468,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 key: RegisterScreen.codeNoticeKey,
                 style: context.textStyles.caption,
               ),
-              const SizedBox(height: KSpacing.xs),
-              Text(l10n.registerTerms, style: context.textStyles.caption),
+
               const SizedBox(height: KSpacing.lg),
               AuthSwitchPrompt(
                 question: l10n.registerHaveAccount,
@@ -566,4 +609,101 @@ class _LowerCaseFormatter extends TextInputFormatter {
     TextEditingValue oldValue,
     TextEditingValue newValue,
   ) => newValue.copyWith(text: newValue.text.toLowerCase());
+}
+
+/// D198: the sign-up's 18+ statement and acceptance of the terms and the
+/// privacy policy, with links to both (the website pages).
+class _LegalConsent extends ConsumerWidget {
+  const new({
+    required this.accepted,
+    required this.enabled,
+    required this.errorText,
+    required this.onChanged,
+  });
+
+  final bool accepted;
+  final bool enabled;
+  final String? errorText;
+  final ValueChanged<bool> onChanged;
+
+  static const _termsUrl = 'https://kabsolive.com/terms';
+  static const _privacyUrl = 'https://kabsolive.com/privacy';
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final p = context.palette;
+    final docs = ref.watch(legalDocumentsProvider).value ?? const [];
+    final arabic = Localizations.localeOf(context).languageCode == 'ar';
+    String urlOf(LegalKind k, String fallback) {
+      var url = fallback;
+      for (final d in docs) {
+        if (d.kind == k) url = d.url;
+      }
+      return arabic ? url : '$url?lang=en';
+    }
+
+    Future<void> open(String url) => launcher.launchUrl(
+      Uri.parse(url),
+      mode: launcher.LaunchMode.externalApplication,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        MergeSemantics(
+          child: InkWell(
+            onTap: enabled ? () => onChanged(!accepted) : null,
+            borderRadius: BorderRadius.circular(KRadius.sm),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Checkbox(
+                  key: RegisterScreen.legalCheckKey,
+                  value: accepted,
+                  onChanged: enabled ? (v) => onChanged(v ?? false) : null,
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsetsDirectional.only(top: 12),
+                    child: Text(
+                      l10n.registerLegalAccept,
+                      style: context.textStyles.caption.copyWith(
+                        color: p.textPrimary,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsetsDirectional.only(start: 40),
+          child: Wrap(
+            spacing: KSpacing.xs,
+            children: [
+              TextButton(
+                key: RegisterScreen.termsLinkKey,
+                onPressed: () => open(urlOf(LegalKind.terms, _termsUrl)),
+                child: Text(l10n.consentTermsName),
+              ),
+              TextButton(
+                key: RegisterScreen.privacyLinkKey,
+                onPressed: () => open(urlOf(LegalKind.privacy, _privacyUrl)),
+                child: Text(l10n.consentPrivacyName),
+              ),
+            ],
+          ),
+        ),
+        if (errorText != null)
+          Padding(
+            padding: const EdgeInsetsDirectional.only(start: KSpacing.md),
+            child: Text(
+              errorText!,
+              style: context.textStyles.caption.copyWith(color: p.error),
+            ),
+          ),
+      ],
+    );
+  }
 }
