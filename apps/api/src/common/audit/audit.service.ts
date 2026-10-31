@@ -163,6 +163,10 @@ export enum AuditAction {
   // v1.29-live (DRAFT, D147): search trends, changed only by the search-admin CLI (§11.11).
   SEARCH_TERM_HIDE = 'search.term.hide',
   SEARCH_BLOCKED_WORD = 'search.blocked_word',
+  // v1.61-social (DRAFT, D192): the public website — its settings (`PUT /admin/site-settings`, before/after in
+  // metadata) and each read of the waitlist's e-mails by the `waitlist-admin` CLI (`op`: list|export, the count).
+  SITE_SETTINGS_UPDATE = 'site.settings.update',
+  WAITLIST_VIEW = 'waitlist.view',
 }
 
 export interface AuditEntry {

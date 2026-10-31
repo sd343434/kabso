@@ -1304,6 +1304,9 @@ enum AdminPermission {
   MODERATION
   /// v1.6-live (CP-010): grant and revoke the hosting permission.
   LIVE_HOSTS
+  /// v1.61-social (D192): edit the public website's settings (social links, the top-up switch). The owner's
+  /// permission; D191's admin panel maps its OWNER role onto it.
+  SITE_SETTINGS
 
   @@map("admin_permission")
 }
@@ -4025,4 +4028,33 @@ model RechargeBadge {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("recharge_badges")
+}
+
+// ---- v1.61-social (D192, CONVENTIONS §10.55): the public website kabsolive.com ---------------------------------
+
+/// D192: the website's «أبلغني عند الإطلاق» waitlist. One row per normalized email; a repeated sign-up changes
+/// nothing (the response never says whether the email was already there). Read only by the `waitlist-admin` CLI.
+model WaitlistSignup {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  /// Trimmed + lowercase.
+  email     String   @unique(map: "waitlist_signups_email_key") @db.VarChar(254)
+  /// `ar` or `en`: the language of the launch e-mail.
+  locale    String   @db.VarChar(8)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([createdAt], map: "waitlist_signups_created_at_idx")
+  @@map("waitlist_signups")
+}
+
+/// D192: the public website's settings, key → JSON value (`site-settings` module). Keys: `socials.instagram`,
+/// `socials.tiktok`, `socials.whatsapp` (a URL string), `topup.enabled` (boolean). A missing key is its default
+/// (no link, top-up hidden). Written only by `PUT /admin/site-settings` (audited).
+model SiteSetting {
+  key         String   @id @db.VarChar(64)
+  value       Json     @db.JsonB
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  /// The admin who changed it last (no foreign key: the audit log is the record).
+  updatedById String?  @map("updated_by_id") @db.Uuid
+
+  @@map("site_settings")
 }

@@ -32,6 +32,12 @@ const PERMISSIONS: readonly AdminPermission[] = [
   'LEVELS_RECONCILE',
 ];
 
+/**
+ * v1.61-social (D192): also grantable by name, never by `ALL` — the website's settings (the owner's permission,
+ * until D191's admin CLI takes over permission grants).
+ */
+const GRANTABLE: readonly AdminPermission[] = [...PERMISSIONS, 'SITE_SETTINGS'];
+
 function fail(message: string): never {
   process.stderr.write(`${message}\n`);
   process.exit(1);
@@ -50,8 +56,8 @@ async function admin(email: string): Promise<string> {
 
 function permissions(args: string[]): AdminPermission[] {
   if (args.length === 1 && args[0] === 'ALL') return [...PERMISSIONS];
-  if (args.length === 0) fail(`Name permissions: ${PERMISSIONS.join(' ')} or ALL.`);
-  for (const a of args) if (!(PERMISSIONS as readonly string[]).includes(a)) fail(`Unknown permission ${a}.`);
+  if (args.length === 0) fail(`Name permissions: ${GRANTABLE.join(' ')} or ALL.`);
+  for (const a of args) if (!(GRANTABLE as readonly string[]).includes(a)) fail(`Unknown permission ${a}.`);
   return args as AdminPermission[];
 }
 

@@ -38,6 +38,8 @@ import { BagModule } from './modules/bag/bag.module.js';
 import { GiftsModule } from './modules/gifts/gifts.module.js';
 import { CpSpaceModule } from './modules/cp-space/cp-space.module.js';
 import { HomeModule } from './modules/home/home.module.js';
+import { SiteSettingsModule } from './modules/site-settings/site-settings.module.js';
+import { WaitlistModule } from './modules/waitlist/waitlist.module.js';
 import { ClockModule } from './common/time/clock.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { RedisModule } from './redis/redis.module.js';
@@ -98,6 +100,9 @@ export class AppModule {
         // v1.52-social (DRAFT, D179): cherries, host agencies, commissions and withdrawals.
         EconomyModule,
         RechargeModule,
+        // v1.61-social (DRAFT, D192): the public website's waitlist and settings.
+        WaitlistModule,
+        SiteSettingsModule,
       ],
       providers: [
         { provide: APP_FILTER, useClass: AllExceptionsFilter },
