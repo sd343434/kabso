@@ -821,6 +821,106 @@ void main() {
     }
   });
 
+  group('the family header never overlaps (360×800 and 393×852, text scale '
+      '1, 1.3 and 2)', () {
+    bool overlaps(Rect a, Rect b) =>
+        a.left < b.right - 0.5 &&
+        b.left < a.right - 0.5 &&
+        a.top < b.bottom - 0.5 &&
+        b.top < a.bottom - 0.5;
+
+    for (final language in AppLanguage.values) {
+      testWidgets('${language.name}: name, tagline and members stay above '
+          'the level row and apart', (tester) async {
+        for (final size in [const Size(360, 800), const Size(393, 852)]) {
+          for (final scale in [1.0, 1.3, 2.0]) {
+            final reason = '${language.name} $size ×$scale';
+            tester.view
+              ..physicalSize = size * 3
+              ..devicePixelRatio = 3;
+            tester.platformDispatcher.textScaleFactorTestValue = scale;
+            final fakes = BondFakes();
+            fakes.families
+              ..byId[_familyId] = Family.fromJson({
+                ...familyJson(
+                  name: 'عائلة النجوم الذهبية الكبرى',
+                  points: 23999999999,
+                  nextLevelPoints: 24000000000,
+                  memberCount: 412,
+                ),
+                'level': 9,
+                'tagline': 'عائلة عالمية · ترفيه · بث مباشر · أصدقاء',
+                'pendingRequestCount': 0,
+              })
+              ..memberList = [_member('oz', 'LEADER', rank: 1)];
+            await pumpBonds(
+              tester,
+              const FamilyScreen(familyId: _familyId),
+              language: language,
+              fakes: fakes,
+            );
+            // Overflow and layout errors surface here.
+            expect(tester.takeException(), isNull, reason: reason);
+
+            final name = tester.getRect(find.byKey(FamilyScreen.heroNameKey));
+            final tagline = tester.getRect(
+              find.byKey(FamilyScreen.heroTaglineKey),
+            );
+            final members = tester.getRect(
+              find.byKey(FamilyScreen.membersCountKey),
+            );
+            final identity = tester.getRect(
+              find.byKey(FamilyScreen.heroIdentityKey),
+            );
+            final level = tester.getRect(find.byKey(FamilyScreen.levelRowKey));
+            final points = tester.getRect(
+              find.byKey(FamilyScreen.levelPointsKey),
+            );
+
+            expect(overlaps(tagline, members), isFalse, reason: reason);
+            expect(overlaps(name, members), isFalse, reason: reason);
+            expect(
+              tagline.top,
+              greaterThanOrEqualTo(name.bottom - 0.5),
+              reason: reason,
+            );
+            for (final r in [name, tagline, members, identity]) {
+              expect(
+                r.bottom,
+                lessThanOrEqualTo(level.top + 0.5),
+                reason: reason,
+              );
+              expect(overlaps(r, points), isFalse, reason: reason);
+            }
+            for (final r in [name, tagline, members, points]) {
+              expect(r.left, greaterThanOrEqualTo(-0.5), reason: reason);
+              expect(
+                r.right,
+                lessThanOrEqualTo(size.width + 0.5),
+                reason: reason,
+              );
+            }
+            // Each line is one line, cut with an ellipsis if needed, never
+            // clipped vertically.
+            final taglineText = tester.renderObject<RenderParagraph>(
+              find.byKey(FamilyScreen.heroTaglineKey),
+            );
+            expect(
+              taglineText.size.height,
+              greaterThanOrEqualTo(
+                taglineText.getMaxIntrinsicHeight(double.infinity) - 0.5,
+              ),
+              reason: reason,
+            );
+            await tester.pumpWidget(const SizedBox.shrink());
+          }
+        }
+        tester.view.reset();
+        tester.platformDispatcher.clearTextScaleFactorTestValue();
+      });
+    }
+  });
+
   group('Arabic and English, 393×852 and 360×800, text scale 1.3 and 2', () {
     setUp(() => FamilyChatScreen.pollEvery = const Duration(days: 1));
 

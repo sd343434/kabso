@@ -62,6 +62,10 @@ class FamilyScreen extends ConsumerWidget {
   static const chatKey = Key('family.chat');
   static const inviteKey = Key('family.invite');
   static const levelPointsKey = Key('family.levelPoints');
+  static const levelRowKey = Key('family.levelRow');
+  static const heroNameKey = Key('family.heroName');
+  static const heroTaglineKey = Key('family.heroTagline');
+  static const heroIdentityKey = Key('family.heroIdentity');
   static const shareKey = Key('family.share');
   static const numberKey = Key('family.number');
   static const heroArtKey = Key('family.heroArt');
@@ -953,6 +957,7 @@ class _Top extends ConsumerWidget {
     );
 
     final identity = Row(
+      key: FamilyScreen.heroIdentityKey,
       textDirection: TextDirection.ltr,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -962,8 +967,10 @@ class _Top extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              SizedBox(
-                height: 28,
+              // At least the edit button's height; taller when the text
+              // scale needs it (never a fixed height that clips).
+              ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 28),
                 child: Row(
                   textDirection: TextDirection.ltr,
                   children: [
@@ -972,6 +979,7 @@ class _Top extends ConsumerWidget {
                         header: true,
                         child: Text(
                           family.name,
+                          key: FamilyScreen.heroNameKey,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: t.title.copyWith(
@@ -1007,6 +1015,7 @@ class _Top extends ConsumerWidget {
               if (tagline != null)
                 Text(
                   tagline,
+                  key: FamilyScreen.heroTaglineKey,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: t.label.copyWith(
@@ -1026,52 +1035,54 @@ class _Top extends ConsumerWidget {
       ],
     );
 
-    // Over a picture: text scaling is capped like other overlays.
-    return SizedBox(
-      height: top + height,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          ...picture,
-          // Darkens the top under the status and top bars.
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            height: top + sheetTop,
-            child: const IgnorePointer(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Color(0x8C000000),
-                      Color(0x00000000),
-                      Color(0x26000000),
-                    ],
-                    stops: [0, 0.5, 1],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          // The sheet.
-          Positioned(
-            left: 0,
-            right: 0,
-            top: top + sheetTop,
-            bottom: 0,
+    // Over a picture: text scaling is capped like other overlays. The block
+    // is at least [height] tall and grows with the name, tagline and members
+    // (the identity is in flow, not positioned), so at text scale 1.3 or 2
+    // they never run into the level row below.
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        ...picture,
+        // Darkens the top under the status and top bars.
+        Positioned(
+          left: 0,
+          right: 0,
+          top: 0,
+          height: top + sheetTop,
+          child: const IgnorePointer(
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: p.background,
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(sheetRadius),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0x8C000000),
+                    Color(0x00000000),
+                    Color(0x26000000),
+                  ],
+                  stops: [0, 0.5, 1],
                 ),
               ),
             ),
           ),
-          MediaQuery.withClampedTextScaling(
+        ),
+        // The sheet.
+        Positioned(
+          left: 0,
+          right: 0,
+          top: top + sheetTop,
+          bottom: 0,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: p.background,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(sheetRadius),
+              ),
+            ),
+          ),
+        ),
+        Positioned.fill(
+          child: MediaQuery.withClampedTextScaling(
             maxScaleFactor: KMetrics.overlayMaxTextScale,
             child: Stack(
               clipBehavior: Clip.none,
@@ -1096,46 +1107,45 @@ class _Top extends ConsumerWidget {
               ],
             ),
           ),
-          // The emblem in its ring over the sheet's edge.
-          Positioned(
-            left: 6,
-            top: top + avatarTop,
-            width: avatar,
-            height: avatar,
-            child: Container(
-              padding: const EdgeInsets.all(3),
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: SweepGradient(
-                  colors: [
-                    Color(0xFFF06BC8),
-                    Color(0xFFF8CB6A),
-                    Color(0xFFE4A23C),
-                    Color(0xFFF06BC8),
-                  ],
-                ),
-                boxShadow: [
-                  BoxShadow(color: Color(0x59F06BC8), blurRadius: 10),
+        ),
+        // The emblem in its ring over the sheet's edge.
+        Positioned(
+          left: 6,
+          top: top + avatarTop,
+          width: avatar,
+          height: avatar,
+          child: Container(
+            padding: const EdgeInsets.all(3),
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: SweepGradient(
+                colors: [
+                  Color(0xFFF06BC8),
+                  Color(0xFFF8CB6A),
+                  Color(0xFFE4A23C),
+                  Color(0xFFF06BC8),
                 ],
               ),
-              child: Container(
-                padding: const EdgeInsets.all(2),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: p.background,
-                ),
-                child: FamilyEmblem(url: family.emblemUrl, size: avatar - 10),
+              boxShadow: [BoxShadow(color: Color(0x59F06BC8), blurRadius: 10)],
+            ),
+            child: Container(
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: p.background,
               ),
+              child: FamilyEmblem(url: family.emblemUrl, size: avatar - 10),
             ),
           ),
-          Positioned(
-            left: 91,
-            right: 13,
-            top: top + sheetTop + 20,
+        ),
+        ConstrainedBox(
+          constraints: BoxConstraints(minWidth: width, minHeight: top + height),
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(91, top + sheetTop + 20, 13, 6),
             child: identity,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -1165,6 +1175,7 @@ class _LevelRow extends StatelessWidget {
         ? 1.0
         : (family.points / next).clamp(0.0, 1.0);
     return Padding(
+      key: FamilyScreen.levelRowKey,
       padding: const EdgeInsets.fromLTRB(12, 0, 13, 0),
       child: Row(
         textDirection: TextDirection.ltr,
