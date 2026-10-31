@@ -1,4 +1,5 @@
 import { AuditAction } from '../../common/audit/audit.service.js';
+import { auditBy, CLI_VIA, type AdminVia } from '../../common/audit/admin-actor.js';
 import type { Prisma, PrismaClient } from '../../generated/prisma/client.js';
 import { uuidv7 } from '../levels/uuidv7.js';
 import { nameInUse } from '../premium-usernames/premium-username-ops.js';
@@ -130,6 +131,7 @@ export async function suspendHostAgentIn(
   reason: string,
   now: Date,
   specialGraceDays: number,
+  by: AdminVia = CLI_VIA,
 ): Promise<void> {
   const rows = await tx.$queryRaw<{ owner: string }[]>`
     UPDATE agencies SET suspended_at = ${now}, suspend_reason = ${reason}, updated_at = ${now}
@@ -139,10 +141,11 @@ export async function suspendHostAgentIn(
   await specialIn(() => syncAgentUsernameIn(tx, owner, now, specialGraceDays, { note: reason }));
   await tx.auditLog.create({
     data: {
+      ...auditBy(by),
       action: AuditAction.HOST_AGENT_SUSPEND,
       targetType: 'agency',
       targetId: agencyId,
-      metadata: { owner, reason, via: 'cli' },
+      metadata: { owner, reason, before: 'ACTIVE', after: 'SUSPENDED', via: by.via },
     },
   });
 }
@@ -153,6 +156,8 @@ export async function reinstateHostAgentIn(
   agencyId: string,
   now: Date,
   specialGraceDays: number,
+  by: AdminVia = CLI_VIA,
+  reason: string | null = null,
 ): Promise<void> {
   const rows = await tx.$queryRaw<{ owner: string; code: string | null }[]>`
     UPDATE agencies SET suspended_at = NULL, suspend_reason = NULL, updated_at = ${now}
@@ -164,10 +169,17 @@ export async function reinstateHostAgentIn(
   else await specialIn(() => syncAgentUsernameIn(tx, row.owner, now, specialGraceDays));
   await tx.auditLog.create({
     data: {
+      ...auditBy(by),
       action: AuditAction.HOST_AGENT_REINSTATE,
       targetType: 'agency',
       targetId: agencyId,
-      metadata: { owner: row.owner, via: 'cli' },
+      metadata: {
+        owner: row.owner,
+        before: 'SUSPENDED',
+        after: 'ACTIVE',
+        ...(reason ? { reason } : {}),
+        via: by.via,
+      },
     },
   });
 }

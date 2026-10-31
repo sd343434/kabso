@@ -1,4 +1,5 @@
 import type { Prisma, PrismaClient, TopupCaseKind, TopupOrder } from '../../generated/prisma/client.js';
+import { auditBy, CLI_VIA, type AdminVia } from '../../common/audit/admin-actor.js';
 import { AuditAction } from '../../common/audit/audit.service.js';
 import { uuidv7 } from '../levels/uuidv7.js';
 import { recordRechargeIn, type RechargeBadgeRules } from '../recharge/recharge-badges.js';
@@ -336,6 +337,7 @@ export async function closeCaseIn(
   note: string | null,
   outcome: string | null = null,
   actorUserId: string | null = null,
+  via: AdminVia | null = null,
 ): Promise<boolean> {
   const done = await tx.topupCase.updateMany({
     where: { id: caseId, status: 'OPEN' },
@@ -344,11 +346,15 @@ export async function closeCaseIn(
   if (done.count === 0) return false;
   await tx.auditLog.create({
     data: {
-      actorUserId,
+      ...(via ? auditBy(via) : { actorUserId }),
       action: AuditAction.TOPUP_CASE_CLOSE,
       targetType: 'topup_case',
       targetId: caseId,
-      metadata: { note: note ?? '', outcome: outcome ?? '' },
+      metadata: {
+        note: note ?? '',
+        outcome: outcome ?? '',
+        ...(via ? { before: 'OPEN', after: 'CLOSED', via: via.via } : {}),
+      },
     },
   });
   return true;
@@ -369,6 +375,7 @@ export async function requestTeamRefund(
   orderId: string,
   reason: string,
   now: Date,
+  by: AdminVia = CLI_VIA,
 ): Promise<{ refundId: string; status: string | null; amountMinor: number }> {
   const planned = await prisma.$transaction(async (tx) => {
     const order = await lockOrderIn(tx, orderId);
@@ -407,6 +414,7 @@ export async function requestTeamRefund(
   }
   await prisma.auditLog.create({
     data: {
+      ...auditBy(by),
       action: AuditAction.TOPUP_ADMIN_REFUND,
       targetType: 'topup_order',
       targetId: orderId,
@@ -416,7 +424,7 @@ export async function requestTeamRefund(
         amountMinor: planned.amount,
         reason,
         initiatedBy: 'kabso',
-        via: 'cli',
+        via: by.via,
       },
     },
   });

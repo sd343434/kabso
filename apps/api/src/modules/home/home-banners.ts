@@ -2,6 +2,7 @@
  * Home banners (D124, contract v1.26-live draft, CONVENTIONS §10.26): the rules shared by the API
  * (`GET /home/banners`) and the `banner-admin` CLI, which is the only writer.
  */
+import { auditBy, CLI_VIA, type AdminVia } from '../../common/audit/admin-actor.js';
 import type { HomeBanner, MediaAsset, Prisma, PrismaClient } from '../../generated/prisma/client.js';
 import { AuditAction } from '../../common/audit/audit.service.js';
 import { uuidv7 } from '../levels/uuidv7.js';
@@ -249,6 +250,8 @@ export async function setBannerEnabledIn(
   tx: Prisma.TransactionClient,
   bannerId: string,
   enabled: boolean,
+  by: AdminVia = CLI_VIA,
+  reason: string | null = null,
 ): Promise<boolean | null> {
   if (!isUuid(bannerId)) return null;
   const id = bannerId.toLowerCase();
@@ -258,10 +261,16 @@ export async function setBannerEnabledIn(
   }
   await tx.auditLog.create({
     data: {
+      ...auditBy(by),
       action: enabled ? AuditAction.BANNER_ENABLE : AuditAction.BANNER_DISABLE,
       targetType: 'home_banner',
       targetId: id,
-      metadata: { via: 'cli' },
+      metadata: {
+        before: enabled ? 'disabled' : 'enabled',
+        after: enabled ? 'enabled' : 'disabled',
+        ...(reason ? { reason } : {}),
+        via: by.via,
+      },
     },
   });
   return true;
@@ -274,6 +283,8 @@ export async function setBannerEnabledIn(
 export async function removeBannerIn(
   tx: Prisma.TransactionClient,
   bannerId: string,
+  by: AdminVia = CLI_VIA,
+  reason: string | null = null,
 ): Promise<string[] | null> {
   if (!isUuid(bannerId)) return null;
   const id = bannerId.toLowerCase();
@@ -283,10 +294,11 @@ export async function removeBannerIn(
   await tx.mediaAsset.delete({ where: { id: banner.mediaId } });
   await tx.auditLog.create({
     data: {
+      ...auditBy(by),
       action: AuditAction.BANNER_REMOVE,
       targetType: 'home_banner',
       targetId: id,
-      metadata: { mediaId: banner.mediaId, link: banner.link, via: 'cli' },
+      metadata: { mediaId: banner.mediaId, link: banner.link, ...(reason ? { reason } : {}), via: by.via },
     },
   });
   return [...new Set([banner.media.largeKey, banner.media.thumbKey])];

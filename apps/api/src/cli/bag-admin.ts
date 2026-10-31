@@ -24,14 +24,12 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../generated/prisma/client.js';
-import { AuditAction } from '../common/audit/audit.service.js';
 import {
-  addItemTimeIn,
-  catalogueItemIn,
-  lockItemHoldersIn,
-  revokeItemIn,
-} from '../modules/bag/bag-grants.js';
-import { BAG_DAY_MS, BAG_MAX_DAYS, HOST_FRAME_CODES } from '../modules/bag/bag.catalogue.js';
+  BagAdminError,
+  grantBagItemByAdminIn,
+  revokeBagItemByAdminIn,
+} from '../modules/bag/bag-admin-rules.js';
+import { BAG_MAX_DAYS } from '../modules/bag/bag.catalogue.js';
 
 function fail(message: string): never {
   process.stderr.write(`${message}\n`);
@@ -45,10 +43,13 @@ const url = process.env.MIGRATION_DATABASE_URL;
 if (!url) fail('MIGRATION_DATABASE_URL is not set (the migration role changes bags).');
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: url, max: 1 }) });
 
-/** D186: the active-host frames follow the host's activity only. */
-function refuseHostFrame(code: string): void {
-  if (Object.values<string>(HOST_FRAME_CODES).includes(code)) {
-    fail(`${code} follows the host's activity (D186); run \`pnpm economy:admin agency-evaluate\` instead.`);
+/** A refused bag change exits 1 with its sentence (nothing changed). */
+async function bagStep<T>(step: () => Promise<T>): Promise<T> {
+  try {
+    return await step();
+  } catch (err) {
+    if (err instanceof BagAdminError) fail(err.message);
+    throw err;
   }
 }
 
@@ -71,42 +72,12 @@ function parseDays(arg: string | undefined): number | null {
 }
 
 async function grant(email: string, code: string, daysArg: string | undefined): Promise<void> {
-  refuseHostFrame(code);
   const days = parseDays(daysArg);
   const userId = await user(email);
-  const outcome = await prisma.$transaction(async (tx) => {
-    const item = await catalogueItemIn(tx, code);
-    if (!item) fail(`No bag item ${code}.`);
-    await lockItemHoldersIn(tx, item.code, [userId]);
-    const result = await addItemTimeIn(tx, {
-      userId,
-      item,
-      source: 'ADMIN',
-      giftedById: null,
-      durationMs: days === null ? null : days * BAG_DAY_MS,
-      now: new Date(),
-    });
-    if (result.kind !== 'permanent') {
-      await tx.auditLog.create({
-        data: {
-          action: AuditAction.BAG_GRANT,
-          targetType: 'user',
-          targetId: userId,
-          metadata:
-            days === null && result.kind === 'added'
-              ? { item: item.code, category: item.category, via: 'cli' }
-              : {
-                  item: item.code,
-                  category: item.category,
-                  via: 'cli',
-                  days,
-                  extended: result.kind === 'extended',
-                },
-        },
-      });
-    }
-    return result;
-  });
+  // v1.65-social (D197): the audited rule is shared with the admin panel (bag-admin-rules.ts).
+  const outcome = await bagStep(() =>
+    prisma.$transaction((tx) => grantBagItemByAdminIn(tx, userId, code, days)),
+  );
   if (outcome.kind === 'permanent') {
     process.stdout.write(`${email} already owns ${code}; nothing changed.\n`);
     return;
@@ -120,21 +91,10 @@ async function grant(email: string, code: string, daysArg: string | undefined): 
 }
 
 async function revoke(email: string, code: string): Promise<void> {
-  refuseHostFrame(code);
   const userId = await user(email);
-  const wasEquipped = await prisma.$transaction(async (tx) => {
-    const result = await revokeItemIn(tx, userId, code);
-    if (!result.owned) fail(`${email} does not own ${code}; nothing changed.`);
-    await tx.auditLog.create({
-      data: {
-        action: AuditAction.BAG_REVOKE,
-        targetType: 'user',
-        targetId: userId,
-        metadata: { item: code, wasEquipped: result.wasEquipped, via: 'cli' },
-      },
-    });
-    return result.wasEquipped;
-  });
+  const { wasEquipped } = await bagStep(() =>
+    prisma.$transaction((tx) => revokeBagItemByAdminIn(tx, userId, code)),
+  );
   process.stdout.write(`${email}: -${code}${wasEquipped ? ' (was worn; now wears nothing there)' : ''}.\n`);
 }
 

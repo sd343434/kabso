@@ -31,6 +31,14 @@ import { parseArgs } from 'node:util';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient, type EventMetric } from '../generated/prisma/client.js';
 import { AuditAction } from '../common/audit/audit.service.js';
+import {
+  changeEventByAdminIn,
+  createEventByAdminIn,
+  EVENT_METRICS,
+  EVENT_TONES,
+  EventAdminError,
+  eventState,
+} from '../modules/programs/event-admin-rules.js';
 import { parsePrizeText } from '../modules/programs/programs-rules.js';
 
 function fail(message: string): never {
@@ -49,13 +57,7 @@ const USAGE = [
   '       pnpm event:admin end|hold|release <eventId>',
 ].join('\n');
 
-const METRICS: readonly EventMetric[] = [
-  'GIFT_COINS_RECEIVED',
-  'GIFT_COINS_SENT',
-  'LIVE_MINUTES',
-  'TAPS_RECEIVED',
-  'NEW_FOLLOWERS',
-];
+const METRICS = EVENT_METRICS;
 
 const url = process.env.MIGRATION_DATABASE_URL;
 if (!url) fail('MIGRATION_DATABASE_URL is not set (the migration role changes the events).');
@@ -87,8 +89,7 @@ const STYLE_OPTIONS = {
   featured: { type: 'string' },
 } as const;
 
-/** The calendar tones (CHECK `events_style`). */
-const TONES = ['RED', 'GOLD', 'TEAL', 'BLUE', 'PINK', 'AMBER'] as const;
+const TONES = EVENT_TONES;
 
 /** `--tone`: one of TONES, or null for `none` (when allowed). */
 function tone(raw: string, allowNone: boolean): string | null {
@@ -163,9 +164,10 @@ async function create(args: readonly string[]): Promise<void> {
   const summaryAr = summaryLine(str('summary-ar'), '--summary-ar');
   const summaryEn = summaryLine(str('summary-en'), '--summary-en');
   const toneValue = str('tone') === undefined ? null : tone(str('tone')!, false);
-  const event = await prisma.$transaction(async (tx) => {
-    const row = await tx.event.create({
-      data: {
+  // v1.65-social (D197): the audited rule is shared with the admin panel (event-admin-rules.ts).
+  const event = await eventStep(() =>
+    prisma.$transaction((tx) =>
+      createEventByAdminIn(tx, {
         titleAr,
         titleEn,
         rulesAr,
@@ -174,27 +176,17 @@ async function create(args: readonly string[]): Promise<void> {
         endsAt,
         permanent,
         metric,
-        audience,
-        regions: [...new Set(regions)],
+        audience: audience,
+        regions,
         featured: values.featured === true,
         bannerUrl: banner ?? null,
-        prizes: prizes.map((p) => ({ ...p })),
+        prizes,
         summaryAr,
         summaryEn,
         tone: toneValue,
-      },
-      select: { id: true },
-    });
-    await tx.auditLog.create({
-      data: {
-        action: AuditAction.EVENT_CREATE,
-        targetType: 'event',
-        targetId: row.id,
-        metadata: { metric, audience, permanent, regions, prizes: prizes.length, via: 'cli' },
-      },
-    });
-    return row;
-  });
+      }),
+    ),
+  );
   process.stdout.write(`Created event ${event.id}.\n`);
 }
 
@@ -206,18 +198,7 @@ async function list(): Promise<void> {
     return;
   }
   for (const e of rows) {
-    const state =
-      now < e.startsAt
-        ? 'UPCOMING'
-        : e.endsAt === null || now < e.endsAt
-          ? 'RUNNING'
-          : e.paidAt
-            ? 'PAID'
-            : e.frozenAt
-              ? e.payoutHold
-                ? 'HELD'
-                : 'IN REVIEW'
-              : 'ENDED';
+    const state = eventState(e, now).replace('_', ' ');
     process.stdout.write(
       `${e.id} ${state} ${e.metric} ${e.audience}${e.permanent ? ' permanent' : ''}${e.featured ? ' featured' : ''}` +
         `${e.regions.length > 0 ? ` [${e.regions.join(',')}]` : ''} ${e.startsAt.toISOString()} → ` +
@@ -228,38 +209,24 @@ async function list(): Promise<void> {
 
 async function change(command: 'end' | 'hold' | 'release', id: string): Promise<void> {
   if (!/^[0-9a-f-]{36}$/i.test(id)) fail(`No event ${id}.`);
-  const now = new Date();
-  const event = await prisma.event.findUnique({ where: { id: id.toLowerCase() } });
-  if (!event) fail(`No event ${id}.`);
-  if (command === 'end') {
-    if (now < event.startsAt) fail('This event has not started; nothing to end.');
-    if (event.endsAt !== null && event.endsAt <= now) {
-      process.stdout.write('Already ended; nothing changed.\n');
-      return;
-    }
-  } else if (event.paidAt !== null) {
-    fail('The prizes of this event are already settled.');
+  const changed = await eventStep(() =>
+    prisma.$transaction((tx) => changeEventByAdminIn(tx, id.toLowerCase(), command, new Date())),
+  );
+  if (!changed) {
+    process.stdout.write('Already ended; nothing changed.\n');
+    return;
   }
-  await prisma.$transaction(async (tx) => {
-    await tx.event.update({
-      where: { id: event.id },
-      data: command === 'end' ? { endsAt: now } : { payoutHold: command === 'hold' },
-    });
-    await tx.auditLog.create({
-      data: {
-        action:
-          command === 'end'
-            ? AuditAction.EVENT_END
-            : command === 'hold'
-              ? AuditAction.EVENT_HOLD
-              : AuditAction.EVENT_RELEASE,
-        targetType: 'event',
-        targetId: event.id,
-        metadata: { via: 'cli' },
-      },
-    });
-  });
-  process.stdout.write(`Event ${event.id}: ${command} done.\n`);
+  process.stdout.write(`Event ${id.toLowerCase()}: ${command} done.\n`);
+}
+
+/** A refused event change exits 1 with its sentence (nothing changed). */
+async function eventStep<T>(step: () => Promise<T>): Promise<T> {
+  try {
+    return await step();
+  } catch (err) {
+    if (err instanceof EventAdminError) fail(err.message);
+    throw err;
+  }
 }
 
 async function style(id: string, args: readonly string[]): Promise<void> {
