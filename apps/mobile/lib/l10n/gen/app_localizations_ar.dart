@@ -10582,23 +10582,17 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveTargetChip => 'تارجت';
 
   @override
-  String liveTargetCherriesSemantics(String received, String target) {
-    return 'الكرز اليوم: $received من $target';
+  String liveTargetCherriesSemantics(String received) {
+    return 'الكرز اليوم: $received';
   }
 
   @override
-  String liveTargetLuckySemantics(String received, String target) {
-    return 'هدايا الحظ اليوم: $received من $target عملة';
+  String liveTargetLuckySemantics(String received) {
+    return 'هدايا الحظ اليوم: $received عملة';
   }
 
   @override
   String get liveTargetReached => 'تم بلوغ الهدف';
-
-  @override
-  String get liveTargetStatsTitle => 'إحصاءات الهدايا';
-
-  @override
-  String get liveTargetPublicTitle => 'تارجت اليوم';
 
   @override
   String get liveTargetPeriodDay => 'يومي';
@@ -10619,22 +10613,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveTargetLuckySection => 'هدايا الحظ';
 
   @override
-  String get liveTargetReceived => 'المستلم';
-
-  @override
-  String get liveTargetGifts => 'الهدايا';
-
-  @override
-  String get liveTargetGivers => 'الداعمون';
-
-  @override
-  String get liveTargetLuckyValue => 'القيمة (عملات)';
-
-  @override
   String get liveTargetTopSupporters => 'أفضل الداعمين';
-
-  @override
-  String get liveTargetTopLucky => 'أفضل داعمي الحظ';
 
   @override
   String get liveTargetNoSupporters => 'لا يوجد داعمون بعد';
@@ -10660,11 +10639,48 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveTargetTaskCenter => 'مركز المهام';
 
   @override
-  String get liveTargetChart => 'الكرز خلال الفترة';
-
-  @override
   String get liveTargetLoadError => 'تعذّر تحميل الإحصاءات';
 
   @override
   String get liveTargetZoneHint => 'الفترات حسب توقيت الرياض.';
+
+  @override
+  String liveTargetCountdownHours(String hours, String minutes) {
+    return 'العد التنازلي $hoursس $minutesد';
+  }
+
+  @override
+  String liveTargetCountdownDays(String days, String hours) {
+    return 'العد التنازلي $daysي $hoursس';
+  }
+
+  @override
+  String get liveTargetRangeToday => 'اليوم';
+
+  @override
+  String get liveTargetRangeWeek => 'هذا الأسبوع';
+
+  @override
+  String get liveTargetRangeMonth => 'هذا الشهر';
+
+  @override
+  String get liveTargetRangeAll => 'كل الوقت';
+
+  @override
+  String get liveTargetHelpTitle => 'ما هو التارجت؟';
+
+  @override
+  String get liveTargetHelp =>
+      'للمضيف هدفان كل يوم: هدف الكرز (الكرز الذي يصله من الهدايا) وهدف هدايا الحظ (قيمة هدايا الحظ بالعملات). يبدأ العد من جديد عند منتصف الليل بتوقيت الرياض. القائمة ترتّب الداعمين في الفترة المختارة: بالكرز في «الكرز» وبالعملات في «هدايا الحظ».';
+
+  @override
+  String get liveTargetSupport => 'ادعم';
+
+  @override
+  String liveTargetMyPlace(String rank, String amount) {
+    return 'ترتيبك $rank: $amount';
+  }
+
+  @override
+  String get liveTargetClose => 'إغلاق';
 }

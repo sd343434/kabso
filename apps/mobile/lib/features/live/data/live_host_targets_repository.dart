@@ -48,18 +48,46 @@ final class HostTarget {
   double get progress => target <= 0 ? 0 : (received / target).clamp(0.0, 1.0);
 }
 
-/// `HostSupporter`: a giver and the coin value of their gifts in the period.
+/// `HostSupporter`: a giver, the coin value of their gifts in the period
+/// and (D199b) the cherries the host got from them and their support level.
 @immutable
 final class HostSupporter {
-  const new({required this.user, required this.coins});
+  const new({
+    required this.user,
+    required this.coins,
+    this.cherries = 0,
+    this.supportLevel,
+  });
 
   factory fromJson(Map<String, dynamic> json) => HostSupporter(
     user: UserSummary.fromJson(json['user']! as Map<String, dynamic>),
     coins: _int(json['coins']),
+    cherries: _int(json['cherries']),
+    supportLevel: (json['supportLevel'] as num?)?.toInt(),
   );
 
   final UserSummary user;
   final int coins;
+  final int cherries;
+
+  /// The `SUPPORT` level number (null while that category is unavailable).
+  final int? supportLevel;
+}
+
+/// `HostSupporterRank` (D199b): the caller's own place in a list today
+/// ([rank] null: they sent nothing). [amount] is cherries in the cherries
+/// list, coins in the lucky list.
+@immutable
+final class HostSupporterRank {
+  const new({required this.rank, required this.amount});
+
+  factory fromJson(Map<String, dynamic> json) => HostSupporterRank(
+    rank: (json['rank'] as num?)?.toInt(),
+    amount: _int(json['amount']),
+  );
+
+  final int? rank;
+  final int amount;
 }
 
 List<HostSupporter> _supporters(Object? list) => [
@@ -70,7 +98,8 @@ List<HostSupporter> _supporters(Object? list) => [
 /// `LiveHostTargets` (`GET /live/hosts/{username}/targets`, public): the
 /// «تارجت» chip — today's cherries (the «استقبل هدايا في بثك» band target
 /// in cherries) and lucky-gift value (the «استقبل هدايا الحظ» target, in
-/// coins), and today's top three supporters.
+/// coins), and today's supporters (D199b: up to 20 by cherries, the lucky
+/// list by coins, the end of the day and a signed-in caller's own place).
 @immutable
 final class LiveHostTargets {
   const new({
@@ -79,22 +108,50 @@ final class LiveHostTargets {
     required this.cherries,
     required this.lucky,
     required this.topSupporters,
+    this.endsAt,
+    this.luckySupporters = const [],
+    this.meCherries,
+    this.meLucky,
   });
 
-  factory fromJson(Map<String, dynamic> json) => LiveHostTargets(
-    day: json['day']! as String,
-    band: _int(json['band']),
-    cherries: HostTarget.fromJson(json['cherries']! as Map<String, dynamic>),
-    lucky: HostTarget.fromJson(json['lucky']! as Map<String, dynamic>),
-    topSupporters: _supporters(json['topSupporters']),
-  );
+  factory fromJson(Map<String, dynamic> json) {
+    final me = json['me'];
+    final endsAt = json['endsAt'];
+    return LiveHostTargets(
+      day: json['day']! as String,
+      band: _int(json['band']),
+      cherries: HostTarget.fromJson(json['cherries']! as Map<String, dynamic>),
+      lucky: HostTarget.fromJson(json['lucky']! as Map<String, dynamic>),
+      topSupporters: _supporters(json['topSupporters']),
+      endsAt: endsAt is String ? DateTime.parse(endsAt) : null,
+      luckySupporters: _supporters(json['luckySupporters']),
+      meCherries: me is Map<String, dynamic>
+          ? HostSupporterRank.fromJson(me['cherries']! as Map<String, dynamic>)
+          : null,
+      meLucky: me is Map<String, dynamic>
+          ? HostSupporterRank.fromJson(me['lucky']! as Map<String, dynamic>)
+          : null,
+    );
+  }
 
   /// The Riyadh day (`YYYY-MM-DD`).
   final String day;
   final int band;
   final HostTarget cherries;
   final HostTarget lucky;
+
+  /// Today's cherries list.
   final List<HostSupporter> topSupporters;
+
+  /// The end of the Riyadh day (the countdown; null from an older server).
+  final DateTime? endsAt;
+
+  /// Today's lucky list.
+  final List<HostSupporter> luckySupporters;
+
+  /// The signed-in caller's own place today (null for guests and the host).
+  final HostSupporterRank? meCherries;
+  final HostSupporterRank? meLucky;
 }
 
 /// One bucket of the cherries series (an hour, a day or a month, local).
@@ -122,13 +179,16 @@ final class HostGiftStats {
     required this.luckyGivers,
     required this.luckySupporters,
     this.targets,
+    this.to,
   });
 
   factory fromJson(Map<String, dynamic> json) {
     final c = json['cherries']! as Map<String, dynamic>;
     final l = json['lucky']! as Map<String, dynamic>;
     final targets = json['targets'];
+    final to = json['to'];
     return HostGiftStats(
+      to: to is String ? DateTime.parse(to) : null,
       period: HostStatsPeriod.values.firstWhere(
         (p) => p.wire == json['period'],
         orElse: () => HostStatsPeriod.day,
@@ -169,6 +229,9 @@ final class HostGiftStats {
 
   /// The day's targets (DAY only).
   final LiveHostTargets? targets;
+
+  /// The end of the period (the countdown; not shown for ALL).
+  final DateTime? to;
 }
 
 /// D199 «تارجت»: the host's daily targets and gift stats. Throws an

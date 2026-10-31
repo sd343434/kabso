@@ -18067,32 +18067,20 @@ abstract class AppLocalizations {
   /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
   ///
   /// In ar, this message translates to:
-  /// **'الكرز اليوم: {received} من {target}'**
-  String liveTargetCherriesSemantics(String received, String target);
+  /// **'الكرز اليوم: {received}'**
+  String liveTargetCherriesSemantics(String received);
 
   /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
   ///
   /// In ar, this message translates to:
-  /// **'هدايا الحظ اليوم: {received} من {target} عملة'**
-  String liveTargetLuckySemantics(String received, String target);
+  /// **'هدايا الحظ اليوم: {received} عملة'**
+  String liveTargetLuckySemantics(String received);
 
   /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
   ///
   /// In ar, this message translates to:
   /// **'تم بلوغ الهدف'**
   String get liveTargetReached;
-
-  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
-  ///
-  /// In ar, this message translates to:
-  /// **'إحصاءات الهدايا'**
-  String get liveTargetStatsTitle;
-
-  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
-  ///
-  /// In ar, this message translates to:
-  /// **'تارجت اليوم'**
-  String get liveTargetPublicTitle;
 
   /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
   ///
@@ -18133,38 +18121,8 @@ abstract class AppLocalizations {
   /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
   ///
   /// In ar, this message translates to:
-  /// **'المستلم'**
-  String get liveTargetReceived;
-
-  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
-  ///
-  /// In ar, this message translates to:
-  /// **'الهدايا'**
-  String get liveTargetGifts;
-
-  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
-  ///
-  /// In ar, this message translates to:
-  /// **'الداعمون'**
-  String get liveTargetGivers;
-
-  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
-  ///
-  /// In ar, this message translates to:
-  /// **'القيمة (عملات)'**
-  String get liveTargetLuckyValue;
-
-  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
-  ///
-  /// In ar, this message translates to:
   /// **'أفضل الداعمين'**
   String get liveTargetTopSupporters;
-
-  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
-  ///
-  /// In ar, this message translates to:
-  /// **'أفضل داعمي الحظ'**
-  String get liveTargetTopLucky;
 
   /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
   ///
@@ -18211,12 +18169,6 @@ abstract class AppLocalizations {
   /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
   ///
   /// In ar, this message translates to:
-  /// **'الكرز خلال الفترة'**
-  String get liveTargetChart;
-
-  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
-  ///
-  /// In ar, this message translates to:
   /// **'تعذّر تحميل الإحصاءات'**
   String get liveTargetLoadError;
 
@@ -18225,6 +18177,72 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'الفترات حسب توقيت الرياض.'**
   String get liveTargetZoneHint;
+
+  /// v1.44-live (D199b): the «تارجت» ranking sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'العد التنازلي {hours}س {minutes}د'**
+  String liveTargetCountdownHours(String hours, String minutes);
+
+  /// v1.44-live (D199b): the «تارجت» ranking sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'العد التنازلي {days}ي {hours}س'**
+  String liveTargetCountdownDays(String days, String hours);
+
+  /// v1.44-live (D199b): the «تارجت» ranking sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'اليوم'**
+  String get liveTargetRangeToday;
+
+  /// v1.44-live (D199b): the «تارجت» ranking sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا الأسبوع'**
+  String get liveTargetRangeWeek;
+
+  /// v1.44-live (D199b): the «تارجت» ranking sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا الشهر'**
+  String get liveTargetRangeMonth;
+
+  /// v1.44-live (D199b): the «تارجت» ranking sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'كل الوقت'**
+  String get liveTargetRangeAll;
+
+  /// v1.44-live (D199b): the «تارجت» ranking sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'ما هو التارجت؟'**
+  String get liveTargetHelpTitle;
+
+  /// v1.44-live (D199b): the «تارجت» ranking sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'للمضيف هدفان كل يوم: هدف الكرز (الكرز الذي يصله من الهدايا) وهدف هدايا الحظ (قيمة هدايا الحظ بالعملات). يبدأ العد من جديد عند منتصف الليل بتوقيت الرياض. القائمة ترتّب الداعمين في الفترة المختارة: بالكرز في «الكرز» وبالعملات في «هدايا الحظ».'**
+  String get liveTargetHelp;
+
+  /// v1.44-live (D199b): the «تارجت» ranking sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'ادعم'**
+  String get liveTargetSupport;
+
+  /// v1.44-live (D199b): the «تارجت» ranking sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'ترتيبك {rank}: {amount}'**
+  String liveTargetMyPlace(String rank, String amount);
+
+  /// v1.44-live (D199b): the «تارجت» ranking sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'إغلاق'**
+  String get liveTargetClose;
 }
 
 class _AppLocalizationsDelegate

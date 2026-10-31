@@ -10312,40 +10312,26 @@
   "@liveTargetChip": {
     "description": "v1.44-live (D199): the «تارجت» chip and the host gift stats sheet."
   },
-  "liveTargetCherriesSemantics": "الكرز اليوم: {received} من {target}",
+  "liveTargetCherriesSemantics": "الكرز اليوم: {received}",
   "@liveTargetCherriesSemantics": {
     "description": "v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.",
     "placeholders": {
       "received": {
         "type": "String"
-      },
-      "target": {
-        "type": "String"
       }
     }
   },
-  "liveTargetLuckySemantics": "هدايا الحظ اليوم: {received} من {target} عملة",
+  "liveTargetLuckySemantics": "هدايا الحظ اليوم: {received} عملة",
   "@liveTargetLuckySemantics": {
     "description": "v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.",
     "placeholders": {
       "received": {
-        "type": "String"
-      },
-      "target": {
         "type": "String"
       }
     }
   },
   "liveTargetReached": "تم بلوغ الهدف",
   "@liveTargetReached": {
-    "description": "v1.44-live (D199): the «تارجت» chip and the host gift stats sheet."
-  },
-  "liveTargetStatsTitle": "إحصاءات الهدايا",
-  "@liveTargetStatsTitle": {
-    "description": "v1.44-live (D199): the «تارجت» chip and the host gift stats sheet."
-  },
-  "liveTargetPublicTitle": "تارجت اليوم",
-  "@liveTargetPublicTitle": {
     "description": "v1.44-live (D199): the «تارجت» chip and the host gift stats sheet."
   },
   "liveTargetPeriodDay": "يومي",
@@ -10372,28 +10358,8 @@
   "@liveTargetLuckySection": {
     "description": "v1.44-live (D199): the «تارجت» chip and the host gift stats sheet."
   },
-  "liveTargetReceived": "المستلم",
-  "@liveTargetReceived": {
-    "description": "v1.44-live (D199): the «تارجت» chip and the host gift stats sheet."
-  },
-  "liveTargetGifts": "الهدايا",
-  "@liveTargetGifts": {
-    "description": "v1.44-live (D199): the «تارجت» chip and the host gift stats sheet."
-  },
-  "liveTargetGivers": "الداعمون",
-  "@liveTargetGivers": {
-    "description": "v1.44-live (D199): the «تارجت» chip and the host gift stats sheet."
-  },
-  "liveTargetLuckyValue": "القيمة (عملات)",
-  "@liveTargetLuckyValue": {
-    "description": "v1.44-live (D199): the «تارجت» chip and the host gift stats sheet."
-  },
   "liveTargetTopSupporters": "أفضل الداعمين",
   "@liveTargetTopSupporters": {
-    "description": "v1.44-live (D199): the «تارجت» chip and the host gift stats sheet."
-  },
-  "liveTargetTopLucky": "أفضل داعمي الحظ",
-  "@liveTargetTopLucky": {
     "description": "v1.44-live (D199): the «تارجت» chip and the host gift stats sheet."
   },
   "liveTargetNoSupporters": "لا يوجد داعمون بعد",
@@ -10429,10 +10395,6 @@
   "@liveTargetTaskCenter": {
     "description": "v1.44-live (D199): the «تارجت» chip and the host gift stats sheet."
   },
-  "liveTargetChart": "الكرز خلال الفترة",
-  "@liveTargetChart": {
-    "description": "v1.44-live (D199): the «تارجت» chip and the host gift stats sheet."
-  },
   "liveTargetLoadError": "تعذّر تحميل الإحصاءات",
   "@liveTargetLoadError": {
     "description": "v1.44-live (D199): the «تارجت» chip and the host gift stats sheet."
@@ -10440,5 +10402,73 @@
   "liveTargetZoneHint": "الفترات حسب توقيت الرياض.",
   "@liveTargetZoneHint": {
     "description": "v1.44-live (D199): the «تارجت» chip and the host gift stats sheet."
+  },
+  "liveTargetCountdownHours": "العد التنازلي {hours}س {minutes}د",
+  "@liveTargetCountdownHours": {
+    "description": "v1.44-live (D199b): the «تارجت» ranking sheet.",
+    "placeholders": {
+      "hours": {
+        "type": "String"
+      },
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
+  "liveTargetCountdownDays": "العد التنازلي {days}ي {hours}س",
+  "@liveTargetCountdownDays": {
+    "description": "v1.44-live (D199b): the «تارجت» ranking sheet.",
+    "placeholders": {
+      "days": {
+        "type": "String"
+      },
+      "hours": {
+        "type": "String"
+      }
+    }
+  },
+  "liveTargetRangeToday": "اليوم",
+  "@liveTargetRangeToday": {
+    "description": "v1.44-live (D199b): the «تارجت» ranking sheet."
+  },
+  "liveTargetRangeWeek": "هذا الأسبوع",
+  "@liveTargetRangeWeek": {
+    "description": "v1.44-live (D199b): the «تارجت» ranking sheet."
+  },
+  "liveTargetRangeMonth": "هذا الشهر",
+  "@liveTargetRangeMonth": {
+    "description": "v1.44-live (D199b): the «تارجت» ranking sheet."
+  },
+  "liveTargetRangeAll": "كل الوقت",
+  "@liveTargetRangeAll": {
+    "description": "v1.44-live (D199b): the «تارجت» ranking sheet."
+  },
+  "liveTargetHelpTitle": "ما هو التارجت؟",
+  "@liveTargetHelpTitle": {
+    "description": "v1.44-live (D199b): the «تارجت» ranking sheet."
+  },
+  "liveTargetHelp": "للمضيف هدفان كل يوم: هدف الكرز (الكرز الذي يصله من الهدايا) وهدف هدايا الحظ (قيمة هدايا الحظ بالعملات). يبدأ العد من جديد عند منتصف الليل بتوقيت الرياض. القائمة ترتّب الداعمين في الفترة المختارة: بالكرز في «الكرز» وبالعملات في «هدايا الحظ».",
+  "@liveTargetHelp": {
+    "description": "v1.44-live (D199b): the «تارجت» ranking sheet."
+  },
+  "liveTargetSupport": "ادعم",
+  "@liveTargetSupport": {
+    "description": "v1.44-live (D199b): the «تارجت» ranking sheet."
+  },
+  "liveTargetMyPlace": "ترتيبك {rank}: {amount}",
+  "@liveTargetMyPlace": {
+    "description": "v1.44-live (D199b): the «تارجت» ranking sheet.",
+    "placeholders": {
+      "rank": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "liveTargetClose": "إغلاق",
+  "@liveTargetClose": {
+    "description": "v1.44-live (D199b): the «تارجت» ranking sheet."
   }
 }
