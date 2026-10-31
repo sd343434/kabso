@@ -17345,6 +17345,18 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'المخزون بعد البيع'**
   String get rechargeStockAfterLabel;
+
+  /// D190 the website top-up link (server flag, off by default)
+  ///
+  /// In ar, this message translates to:
+  /// **'الشحن من الموقع'**
+  String get walletTopupWebsite;
+
+  /// D190 the website top-up link
+  ///
+  /// In ar, this message translates to:
+  /// **'اشحن بالبطاقة على موقع كابسو الرسمي'**
+  String get walletTopupWebsiteHint;
 }
 
 class _AppLocalizationsDelegate

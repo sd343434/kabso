@@ -165,6 +165,8 @@ All non-2xx responses use one envelope:
 | 409 | `USERNAME_LOCKED` | *(v1.54-social, DRAFT, D185)* A special username is active and locked (e.g. a recharge agent's `coin0007`): the username cannot be changed and no premium username rented until it ends (§10.48.1). |
 | 409 | `HOST_FRAME_STYLE_FROM_GENDER` | *(v1.55-social, DRAFT, D186)* `setMyHostFrameStyle` while the caller's gender is MALE or FEMALE: the gender sets the active-host frame's colour (§10.49). Nothing changed. |
 | 409 | `TASK_MONTHLY_CAP_REACHED` | *(v1.57-social, DRAFT, D188)* A task claim (daily or weekly) after the caller already got the calendar month's cap of task cherries (`TASK_MONTHLY_CAP_MINOR` at `CHERRY_PAYOUT_RATE`, §10.51). Nothing was paid. Checked before `TASK_DAILY_CAP_REACHED`. |
+| 503 | `TOPUP_UNAVAILABLE` | *(v1.59-social, DRAFT, D190)* Card top-ups are not configured on this server: one of `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `TOPUP_PUBLIC_BASE_URL` is missing (the website shows «الشحن بالبطاقة غير مفعّل»). Not transient: no `Retry-After` (§10.53). |
+| 403 | `TOPUP_ACCOUNT_FROZEN` | *(v1.59-social, DRAFT, D190)* The caller's account is frozen from card purchases after a refund, an early-fraud warning or a dispute of an earlier purchase; the team lifts it (`payments-admin unfreeze`) or a won dispute that leaves nothing reversed does. Also every gift send (live, conversation, `BAG` source too) and bag transfer while the caller's coin balance is below 0 (§10.53). Nothing changed. |
 | 403 | `DM_NOT_ALLOWED` | *(v1.40-social, DRAFT, D155)* The recipient's «who can message you» setting (`whoCanMessage`) does not allow the caller (§11.13). Nothing was stored or charged. The app says the person does not accept messages. |
 | 403 | `DM_REQUEST_LIMIT` | *(v1.40-social, DRAFT, D155)* The caller already sent `DM_REQUEST_MAX_MESSAGES` (3) messages in a message request the recipient has not accepted (§11.13). The app says to wait for a reply. |
 | 403 | `DM_REQUEST_TEXT_ONLY` | *(v1.40-social, DRAFT, D155)* A picture or voice message in a message request (only text, a pack emoji or a gift until the recipient accepts, §11.13). |
@@ -433,6 +435,7 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `PUT /me/bag/equipped` *(v1.22-live, CP-019)* | 60 / hour per user (bucket `bag:equip`, the family-write numbers like the medal showcase). **Replaces** the per-user default; `GET /bag/catalogue` and `GET /me/bag` use the per-user default |
 | `POST /me/bag/transfers` *(v1.48-social, D171)* | 30 / hour per user (bucket `bag:send`, `RATE_LIMIT_BAG_SEND_USER`). **Replaces** the per-user default |
 | `POST /me/recharge-agent/sales` *(v1.54-social, D185)* | 120 / hour per user (bucket `recharge:sell`, `RATE_LIMIT_RECHARGE_SELL_USER`). **Replaces** the per-user default |
+| `POST /topup/checkout` *(v1.59-social, D190)* | 20 / hour per user (bucket `topup:checkout`, `RATE_LIMIT_TOPUP_CHECKOUT_USER`). **Replaces** the per-user default; the other top-up reads use it; `POST /payments/stripe/webhook` has **no** rate limit (signed by Stripe) |
 | `PUT /me/host-frame/style` *(v1.55-social, D186)* | 60 / hour per user (bucket `host-frame:style`, the family-write numbers like `PUT /me/bag/equipped`). **Replaces** the per-user default; `GET /me/host-frame` uses the per-user default |
 | `POST /me/recharge-agent/application`, `PUT /me/recharge-agent/availability`, `POST`/`PUT`/`DELETE /me/recharge-agent/employees…`, `POST /recharge-cherry-requests`, `POST /recharge-cherry-requests/{id}/{action}` *(v1.54-social, D185)* | 60 / hour per user, one bucket (`recharge:write`, `RATE_LIMIT_RECHARGE_WRITE_USER`). **Replaces** the per-user default |
 | `GET /live/rooms/{roomId}/chat` *(v1.9-live, CP-013)* | the per-user default; guests share the CP-010 guest read limit per IP |
@@ -529,6 +532,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.55-social)* Table `host_frame_choices`; bag source `HOST_ACTIVE`; catalogue rows `host_frame_blue`, `host_frame_pink` | Backend — `economy` module (`host-frames.ts`: given and taken by the agency sweeper and `economy-admin agency-evaluate`, on agency join / leave / a resolved complaint, on a gender change and a style choice; `bag-admin` refuses them) | CTO |
 | *(v1.56-social)* Tables `recharge_daily_totals`, `recharge_badges`; server config `RECHARGE_BADGE_*` | Backend — `recharge` module (`recharge-badges.ts`: `recordRechargeIn` is the only writer, called inside the transaction that credits a recharge — today the agent's sale; later the website top-up) | CTO |
 | *(v1.58-social)* Columns `agencies.host_code`, `host_code_number`, `host_code_at`, `suspended_at`, `suspend_reason`; table `host_agent_counter`; special-username source `HOST_AGENT` (§10.52) | Backend — `economy` module (`economy/host-agents.ts`; codes given and perks suspended only by the `economy-admin` CLI, older agencies' codes by the agency sweeper) and `users/agent-usernames.ts` (which agent code is the username) | CTO |
+| *(v1.59-social)* Tables `topup_terms_acceptances`, `topup_orders`, `topup_freezes`, `topup_cases`, `stripe_events`, `stripe_customers`; coin ledger reasons `CARD_TOPUP`, `CARD_TOPUP_REVERSAL`, `CARD_TOPUP_RESTORE`; `wallets.coins` may be below 0; server config `STRIPE_*`, `TOPUP_*`; the `/topup` website pages; CLI `payments-admin` (§10.53) | Backend — `topup` module (`topup-core.ts` is the only writer of the tables; coins only through `wallet/wallet-ledger.ts` — `reverseTopupIn` is the only debit that may go below 0 — and the badge hook `recharge/recharge-badges.ts`) | CTO; Security (money, Stripe keys, dispute evidence) |
 | `apps/api/**` | Backend | CTO review |
 | `apps/mobile/lib/app/router/**` (route registry) | Flutter | CTO review |
 | `apps/mobile/pubspec.yaml` | Flutter | CTO review |
@@ -568,6 +572,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.59-social (draft) | 2026-10-31 | **D190 (owner: card top-ups on the Kabso WEBSITE only, never inside the app; Stripe Checkout with 3-D Secure; refunds / early-fraud warnings / disputes take the coins back, CP-033):** tag `topup` — `listTopupPackages` (public), `getMyTopupState`, `createTopupCheckout`, `getTopupOrder`, `receiveStripeWebhook` (signed, server to server); schemas `TopupPackages`, `TopupMe`, `TopupCheckoutRequest`, `TopupCheckout`, `TopupOrder`, `TopupOrderStatus`; codes `TOPUP_UNAVAILABLE` (503) and `TOPUP_ACCOUNT_FROZEN` (403, also on `sendLiveGift`, `sendDmGift`, `sendMyBagItem` while the balance is below 0); `Wallet.coins` and `WalletLedgerEntry.balanceAfter` may be **negative**; ledger reasons `CARD_TOPUP`, `CARD_TOPUP_REVERSAL`, `CARD_TOPUP_RESTORE`; `RechargePackages.websiteTopupUrl` (set while `TOPUP_APP_LINK_ENABLED`, on by default, and top-ups are on); the website pages `/topup`, `/topup/success`, `/topup/cancel` (outside `/api/v1`); CLI `payments-admin`; migrations `20270104090000_card_topups_enums`, `20270104100000_card_topups`, `20270104110000_topup_team_refunds`. Owner answers (CP-033 §3): bank transfers (US) and the app link on by default; a team refund never freezes; gifts again once the balance is ≥ 0. §4, §7, §8, §10.53. | **Additive** on the wire (new operations, codes, enum values, a nullable field); **behaviour change**: a coin balance can be below 0 (clients show it as is; strict clients accept negative numbers in the same change set). Off until the owner sets the Stripe secrets on the server. |
 | v1.58-social (draft) | 2026-10-30 | **D189 (owner: a host agent «وكيل مضيفين» gets the same kind of perks as a recharge agent, CP-032):** `UserSummary.hostAgent` (optional) and `PublicProfile.hostAgent` (required, nullable) — `HostAgentTag {code}`, `HostAgentCode` (`^host[0-9]{2,}$`) — present while the person owns an agency the team has not suspended (any rank) with an active account; `OwnAgency.hostAgent` (`OwnHostAgent`: `code`, `active`, `usernameShown`); `MeSpecialUsername.source` `HOST_AGENT`; `host` + digits reserved (§6); `economy-admin agency-create` activates the host agent (prints the host code), new `agency-suspend` / `agency-reinstate`; migrations `20270103090000_host_agent_perks_enums`, `20270103100000_host_agent_perks`. §6, §7, §10.52. | **Additive** (new optional/nullable fields; new required `PublicProfile.hostAgent` and `OwnAgency.hostAgent` — strict clients update their models in the same change set; an agency owner's shown username becomes `hostNN`). |
 | v1.57-social (draft) | 2026-10-30 | **D188 (owner: the task rewards came from wrong pricing — «300,000 كرزة» and the low «استقبل 1000 عملة» targets are absurd; anchors 1 000 000 coins = $12.50 retail, 1 000 000 cherries = $1.10 payout):** `ProgramTask.metric` + `GIFT_COINS_SENT` (the coin value of paid gifts sent, from the stored gift rows); `MyTasks.monthlyCapCherries`, `MyTasks.monthlyEarnedCherries` (required in responses); code `TASK_MONTHLY_CAP_REACHED` (409); weekly host tasks per level band (follow-up: a band-4 host reaches the $5 cap); config `TASK_DAILY_CAP_CHERRIES` 150 000 → **50 000**, new `TASK_MONTHLY_CAP_MINOR` (500 = $5 → 4 545 454 cherries a calendar month, daily + weekly), new `COIN_RETAIL_USD_PER_MILLION` (12.5; `task-admin` shows real money), `TASK_CHERRIES_UNLOCK_GIFT_MINOR` 5000 → **6000** ($60); migrations `20261231130000_task_rewards_rebalance` (stored defaults, the new metric in the CHECK, the days' offers re-priced) and `20261231140000_task_weekly_host_bands` (follow-up: daily host tasks ×2, weekly host tasks per band). §4, §8, §10.41.3, §10.46.1, §10.51. | **Behaviour change, additive on the wire** (a new enum value — the app shows an unknown metric generically; new required response fields the app reads in the same change set). Claims already paid keep what they paid. |
 | v1.56-social (draft) | 2026-10-30 | **D187 (owner: daily recharge badges «شارات الشحن اليومي», CP-030):** `RechargeBadge` (`tier` 1–5, `until`); optional `UserSummary.rechargeBadge` and `PublicProfile.rechargeBadge`, present only while the badge shows (also on the room host's summary, chat authors, join lines and viewers); tables `recharge_daily_totals`, `recharge_badges`; config `RECHARGE_BADGE_TIERS`, `RECHARGE_BADGE_TIME_ZONE`, `RECHARGE_BADGE_HOURS`; §10.50. (v1.55-social is D186's.) | **Additive** (optional fields; clients ignore them). |
@@ -3492,6 +3497,85 @@ are **derived from the agency** (no bag items), like D185's.
   code), `active` (not suspended), `usernameShown`.
 - **Migrations** `20270103090000_host_agent_perks_enums` (the enum value), `20270103100000_host_agent_perks`
   (columns, counter, index); no username changes in SQL.
+
+### 10.53 Card top-ups on the Kabso website «الشحن بالبطاقة» *(v1.59-social, DRAFT — D190, CP-033)*
+
+Coins are bought by card **only on the Kabso website**, never inside the app (store rules). The website is three
+small pages the API serves itself (`GET /topup`, `/topup/success`, `/topup/cancel`, outside `/api/v1`; Arabic RTL by
+default, English with `?lang=en`; plain HTML/CSS/vanilla JS from the same origin, CSP `script-src 'self'`, no inline
+script, nothing framed; the access token lives in the tab's `sessionStorage` only). The seller is **Kigofi LLC**,
+30 N Gould St #7354, Sheridan, WY 82801, USA; the card statement shows **KABSO LIVE**.
+
+- **Off by default.** All three of `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `TOPUP_PUBLIC_BASE_URL` are needed
+  (a partial set refuses to boot); without them every top-up operation is 503 `TOPUP_UNAVAILABLE` (no `Retry-After`)
+  and the page says «الشحن بالبطاقة غير مفعّل». Production refuses a test key (`sk_test_` / `rk_test_`) unless
+  `STRIPE_ALLOW_TEST_KEYS_IN_PRODUCTION=true`, and needs an `https` base URL. The keys are set by the owner on the
+  server only — never in git or chat. Hosted Checkout needs no publishable key.
+- **Prices are the server's.** `TOPUP_PACKAGES` (default 100 000, 500 000, 1 000 000, 5 000 000, 10 000 000,
+  50 000 000 coins; id = the amount) priced from `COIN_RETAIL_USD_PER_MILLION` (owner: 1 000 000 = **$12.50**), USD
+  cents, each a whole number of cents ≥ 50. A checkout sends only `packageId` (a price or any other field is 400
+  `unknown_field`). **No per-purchase limit; no hold on the host cherries the coins later make.**
+- **Terms first.** `createTopupCheckout` needs `termsAccepted: true` and the current `termsVersion`
+  (`TOPUP_TERMS_VERSION`); it stores the acceptance of «العملات رقمية وغير قابلة للاسترداد» (statement as shown,
+  version, locale, time, IP, user agent) and the order **before** creating the Checkout session.
+- **Checkout session:** `mode=payment`, one line at the order's price, `payment_method_options.card.
+  request_three_d_secure=any` (3-D Secure always requested), receipt to the account's email, metadata
+  `kabso_order_id` / `kabso_user_id`, optional `STRIPE_STATEMENT_DESCRIPTOR_SUFFIX`, 30-minute expiry, Stripe
+  idempotency key per order. Radar runs with its default rules. A Stripe failure is 503 `SERVICE_UNAVAILABLE` (the
+  order is marked FAILED; nothing charged).
+- **Bank transfers** (`STRIPE_BANK_TRANSFER_ENABLED`, **on by default** — owner answer CP-033 Q3; Kigofi LLC is a US
+  LLC): `customer_balance` with `bank_transfer` funding
+  (`STRIPE_BANK_TRANSFER_TYPE`, default `us_bank_transfer`) next to the card where the Stripe account supports it;
+  the buyer gets a Stripe customer once (`stripe_customers`). The order waits (`AWAITING_FUNDS`) and is credited on
+  `checkout.session.async_payment_succeeded`.
+- **Coins come ONLY from the signed webhook** (`POST /payments/stripe/webhook`, raw body, `Stripe-Signature`, 5-minute
+  tolerance; a bad signature is 400): `checkout.session.completed` with `payment_status=paid` (amount and currency
+  equal to the order's) or `async_payment_succeeded`, **exactly once per order** (`CARD_TOPUP`, reference the order,
+  under the order's row lock; the ledger's unique key backs it). In the same transaction the D187 hook
+  `recordRechargeIn(…, WEBSITE_TOPUP)` counts the coins for the daily recharge badge. The success page polls
+  `getTopupOrder`; the redirect itself credits nothing.
+- **Every Stripe event is applied once** (`stripe_events`, the event id; a replay or a concurrent delivery answers 200
+  and changes nothing). A Stripe call an event needs (the automatic refund, the dispute evidence) runs after its
+  database step; if it fails the webhook answers 503, Stripe retries, the database step is a no-op the second time.
+- **Refund** (`charge.refunded`, cumulative `amount_refunded`), **early-fraud warning**
+  (`radar.early_fraud_warning.created`) and **dispute** (`charge.dispute.created` / `closed`): the coins owed are
+  recomputed from the order's facts — the refunded share plus an open or lost dispute's share, each rounded up; all
+  of them after an early-fraud warning — and the difference is taken back (`CARD_TOPUP_REVERSAL`; **the balance may
+  go below 0**, a debt the next coins pay first) or given back (`CARD_TOPUP_RESTORE`, a won dispute,
+  `warning_closed`, `prevented`). The buyer is **frozen** (`topup_freezes`; 403 `TOPUP_ACCOUNT_FROZEN` on a new
+  checkout) only by what Stripe or the card holder started — a dispute, an early-fraud warning (with its automatic
+  refund), a `charge.refunded` Kabso did not ask for (owner answer CP-033 Q2). A **team refund** (`payments-admin
+  refund`, e.g. goodwill) is recorded on the order (`team_refunded_minor`, `team_refund_reason`) before the Stripe
+  call and carries `kabso_initiated=true` + `kabso_reason` in the refund's metadata (the automatic refund too): its
+  coins are reversed **without a freeze**; audit `topup.admin_refund` and `topup.reverse` carry `initiatedBy` and the
+  reason. When the event lists the charge's refunds, their marker decides; otherwise the recorded amount does.
+  Whatever froze or not: while the balance is below 0 every gift send (live or conversation, coins or bag) and bag
+  transfer is 403 `TOPUP_ACCOUNT_FROZEN`; once it is back to ≥ 0 gifts work again (owner answer CP-033 Q1) while
+  card buying stays frozen until the team or a won dispute lifts it; and coin spending fails anyway (`INSUFFICIENT_COINS`). An early-fraud warning is
+  **refunded automatically** through the API (`reason=fraudulent`, idempotency key per order; never after a dispute
+  or a full refund) — the later `charge.refunded` takes nothing more and opens no second case.
+- **Host cherries are never taken back automatically.** Each refund / warning / dispute opens an admin case
+  (`topup_cases`, once per Stripe object) with the **FIFO attribution**: the coins held before the purchase are spent
+  first, then the purchase's; the case lists every send the purchase paid for (gift, place, coins from the purchase,
+  recipients and the cherries each got, whether already reversed) — the team decides with `economy-admin
+  reverse-gift` (D179). `payments-admin` lists orders and cases, shows a case, closes it, unfreezes a buyer and asks
+  Stripe for a team refund (the coins then come back through the webhook; no freeze).
+- **Dispute evidence** on `charge.dispute.created` (submitted at once unless `STRIPE_DISPUTE_AUTO_SUBMIT=false`):
+  `access_activity_log` (the buyer's sign-ins with IP and device, the terms acceptance, the credit, what the coins
+  were used for — no recipient), `customer_email_address`, `customer_name`, `customer_purchase_ip`,
+  `product_description`, `refund_policy`, `refund_policy_disclosure` (the ticked statement with time, IP, UA),
+  `service_date`, `uncategorized_text`, and a one-page receipt PDF (`receipt`). **Never another user's personal
+  data.** A **won** dispute gives the coins back, closes the case and lifts the freeze when none of the buyer's
+  purchases still has coins taken back or a fraud warning; a lost one keeps both.
+- **Chargeback Protection** (Stripe's product) may be switched on by the owner in the dashboard; nothing here
+  depends on it.
+- **The app** never takes a card payment. `RechargePackages.websiteTopupUrl` is `${TOPUP_PUBLIC_BASE_URL}/topup`
+  only while `TOPUP_APP_LINK_ENABLED=true` (**on by default**, owner answer CP-033 Q4; a per-environment server switch;
+  store payment rules reviewed before release, PP-35) and top-ups are on; the wallet then shows
+  «الشحن من الموقع», which opens the browser.
+- **Migrations** `20270104090000_card_topups_enums` (the three ledger reasons), `20270104100000_card_topups` (tables,
+  CHECKs, the wallet and ledger ranges below 0, the reason-sign rule), `20270104110000_topup_team_refunds` (the team
+  refund columns).
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 

@@ -5,6 +5,8 @@
 }
 
 {$KABSO_DOMAIN} {
+	# D190: the card top-up pages are served by the API (same origin as its /api/v1 calls).
+	redir /topup* https://api.{$KABSO_DOMAIN}{uri} 302
 	root * /srv/site
 	file_server
 	encode zstd gzip

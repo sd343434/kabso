@@ -3209,5 +3209,7 @@
   "rechargePhotoRequired": "Required",
   "rechargeApplyStepPrivacy": "Privacy",
   "rechargeChooseCountry": "Choose a country",
-  "rechargeStockAfterLabel": "Stock after the sale"
+  "rechargeStockAfterLabel": "Stock after the sale",
+  "walletTopupWebsite": "Top up on the website",
+  "walletTopupWebsiteHint": "Pay by card on the official Kabso website"
 }

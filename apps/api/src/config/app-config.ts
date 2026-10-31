@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import {
   envSchema,
   luckyPityOf,
+  topupMinorPerMillion,
   type BoostPrice,
   type Env,
   type HostShareCategory,
@@ -122,6 +123,7 @@ export interface AppConfig {
     /** v1.54-social (D185). */
     readonly rechargeSellUser: RateLimitRule;
     readonly rechargeWriteUser: RateLimitRule;
+    readonly topupCheckoutUser: RateLimitRule;
     readonly liveHeartbeatUser: RateLimitRule;
     readonly liveEndUser: RateLimitRule;
     readonly followHourUser: RateLimitRule;
@@ -233,6 +235,24 @@ export interface AppConfig {
     readonly sweepIntervalSeconds: number;
     /** v1.56-social (D187, §10.50): the daily recharge badges. */
     readonly badges: RechargeBadgeRules;
+  };
+  /** v1.59-social (D190): card top-ups on the website through Stripe Checkout (CONVENTIONS §10.53). */
+  readonly topup: {
+    /** Null until the owner sets STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET and TOPUP_PUBLIC_BASE_URL (→ 503). */
+    readonly stripe: {
+      readonly secretKey: string;
+      readonly webhookSecret: string;
+      readonly publicBaseUrl: string;
+      readonly testMode: boolean;
+    } | null;
+    /** The packages, prices computed from COIN_RETAIL_USD_PER_MILLION (id = the coin amount). */
+    readonly packages: readonly { id: string; coins: number; priceMinor: number }[];
+    readonly currency: 'USD';
+    readonly bankTransfer: { readonly enabled: boolean; readonly type: string };
+    readonly statementDescriptorSuffix: string | null;
+    readonly disputeAutoSubmit: boolean;
+    readonly appLinkEnabled: boolean;
+    readonly termsVersion: string;
   };
   /** v1.54-social (D185): special usernames (CONVENTIONS §10.48.1). */
   readonly specialUsernames: {
@@ -462,6 +482,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       bagSendUser: e.RATE_LIMIT_BAG_SEND_USER,
       rechargeSellUser: e.RATE_LIMIT_RECHARGE_SELL_USER,
       rechargeWriteUser: e.RATE_LIMIT_RECHARGE_WRITE_USER,
+      topupCheckoutUser: e.RATE_LIMIT_TOPUP_CHECKOUT_USER,
       liveHeartbeatUser: e.RATE_LIMIT_LIVE_HEARTBEAT_USER,
       liveEndUser: e.RATE_LIMIT_LIVE_END_USER,
       followHourUser: e.RATE_LIMIT_FOLLOW_HOUR_USER,
@@ -572,6 +593,32 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
         timeZone: e.RECHARGE_BADGE_TIME_ZONE,
         hours: e.RECHARGE_BADGE_HOURS,
       },
+    },
+    topup: {
+      stripe:
+        e.STRIPE_SECRET_KEY !== undefined &&
+        e.STRIPE_WEBHOOK_SECRET !== undefined &&
+        e.TOPUP_PUBLIC_BASE_URL !== undefined
+          ? {
+              secretKey: e.STRIPE_SECRET_KEY,
+              webhookSecret: e.STRIPE_WEBHOOK_SECRET,
+              publicBaseUrl: e.TOPUP_PUBLIC_BASE_URL,
+              testMode: /^(sk|rk)_test_/.test(e.STRIPE_SECRET_KEY),
+            }
+          : null,
+      packages: e.TOPUP_PACKAGES.map((coins) => ({
+        id: String(coins),
+        coins,
+        priceMinor: Math.round(
+          (coins * (topupMinorPerMillion(e.COIN_RETAIL_USD_PER_MILLION) ?? 0)) / 1_000_000,
+        ),
+      })),
+      currency: 'USD',
+      bankTransfer: { enabled: e.STRIPE_BANK_TRANSFER_ENABLED, type: e.STRIPE_BANK_TRANSFER_TYPE },
+      statementDescriptorSuffix: e.STRIPE_STATEMENT_DESCRIPTOR_SUFFIX ?? null,
+      disputeAutoSubmit: e.STRIPE_DISPUTE_AUTO_SUBMIT,
+      appLinkEnabled: e.TOPUP_APP_LINK_ENABLED,
+      termsVersion: e.TOPUP_TERMS_VERSION,
     },
     specialUsernames: {
       graceDays: e.SPECIAL_USERNAME_GRACE_DAYS,

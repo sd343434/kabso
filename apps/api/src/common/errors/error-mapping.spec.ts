@@ -132,6 +132,9 @@ describe('ErrorCode', () => {
         'WITHDRAWAL_PENDING',
         // v1.57-social (DRAFT, D188)
         'TASK_MONTHLY_CAP_REACHED',
+        // v1.59-social (DRAFT, D190)
+        'TOPUP_UNAVAILABLE',
+        'TOPUP_ACCOUNT_FROZEN',
       ].sort(),
     );
     expect(ERROR_HTTP_STATUS).toMatchObject({
@@ -210,6 +213,8 @@ describe('ErrorCode', () => {
       INSUFFICIENT_CHERRIES: 409,
       WITHDRAWAL_PENDING: 409,
       TASK_MONTHLY_CAP_REACHED: 409,
+      TOPUP_UNAVAILABLE: 503,
+      TOPUP_ACCOUNT_FROZEN: 403,
     });
   });
 

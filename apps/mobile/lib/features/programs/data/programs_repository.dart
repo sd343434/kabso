@@ -574,6 +574,7 @@ final class RechargeOffer {
     required this.currency,
     required this.purchasesEnabled,
     required this.packages,
+    this.websiteTopupUrl,
   });
 
   factory fromJson(Map<String, dynamic> json) => RechargeOffer(
@@ -582,13 +583,29 @@ final class RechargeOffer {
     packages: [
       for (final p in _list(json['packages'])) RechargePackage.fromJson(p),
     ],
+    websiteTopupUrl: _httpsUrl(json['websiteTopupUrl']),
   );
+
+  /// Only an http(s) URL is kept (anything else hides the link).
+  static String? _httpsUrl(Object? raw) {
+    if (raw is! String) return null;
+    final uri = Uri.tryParse(raw);
+    return uri != null && (uri.scheme == 'https' || uri.scheme == 'http')
+        ? raw
+        : null;
+  }
 
   final String currency;
 
   /// False until store purchases are allowed (B5).
   final bool purchasesEnabled;
   final List<RechargePackage> packages;
+
+  /// v1.59-social (D190): the Kabso website's top-up page for the
+  /// «الشحن من الموقع» link. Null (the default) unless the server switches
+  /// the link on (`TOPUP_APP_LINK_ENABLED`, on by default; a server switch).
+  /// The app never takes a card payment itself.
+  final String? websiteTopupUrl;
 }
 
 /// The outcome of a claim or a check-in: the coins it paid (the check-in, a

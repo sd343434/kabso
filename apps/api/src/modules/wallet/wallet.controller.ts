@@ -21,6 +21,11 @@ export interface RechargePackagesDto {
   currency: string;
   /** Always false until B5 (store purchases) is done. */
   purchasesEnabled: boolean;
+  /**
+   * v1.59-social (D190): the Kabso website's top-up page for the app's «الشحن من الموقع» link — only while
+   * TOPUP_APP_LINK_ENABLED (store policy; off by default) and card top-ups are configured; else null.
+   */
+  websiteTopupUrl: string | null;
   packages: {
     id: string;
     coins: number;
@@ -51,9 +56,11 @@ export class WalletController {
   @Get('recharge-packages')
   rechargePackages(): RechargePackagesDto {
     const { rechargePackages, rechargeCurrency } = this.config.programs;
+    const topup = this.config.topup;
     return {
       currency: rechargeCurrency,
       purchasesEnabled: false,
+      websiteTopupUrl: topup.appLinkEnabled && topup.stripe ? `${topup.stripe.publicBaseUrl}/topup` : null,
       packages: rechargePackages.map((p) => ({ ...p })),
     };
   }

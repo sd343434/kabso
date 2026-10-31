@@ -29,6 +29,7 @@ import { creditGiftCherriesIn } from '../economy/cherry-ledger.js';
 import { uuidv7 } from '../levels/uuidv7.js';
 import { USER_SUMMARY_SELECT, userSummary } from '../posts/post-views.js';
 import { violatedUniqueIndex } from '../users/users.service.js';
+import { inCoinDebtIn } from '../wallet/wallet-ledger.js';
 import { WalletService } from '../wallet/wallet.service.js';
 import {
   comboFor,
@@ -434,6 +435,8 @@ export class LiveGiftsService {
           // the room info version moves too (the metadata follows with the score's write).
           const wished = state.wish_gifts.includes(gift.code) && toIds.includes(state.host_user_id);
 
+          // v1.59-social (D190): a buyer whose website purchase was reversed into a debt sends no gift.
+          if (await inCoinDebtIn(tx, callerId)) throw new AppException(ErrorCode.TOPUP_ACCOUNT_FROZEN);
           // The bag (BAG): its own statement, refused before anything is written.
           let bagQuantity: number | null = null;
           if (!isCoins) {
@@ -793,6 +796,8 @@ export class LiveGiftsService {
         // non-lucky category (quips included), the lucky host share for a lucky gift.
         const shareBps = isLucky ? table.hostShareBps : this.config.dm.giftRecipientSharePercent * 100;
         const charmCoins = shareOf(amounts.perRecipientCoins, shareBps);
+        // v1.59-social (D190): no gift while the balance is a debt (a reversed website purchase).
+        if (await inCoinDebtIn(tx, callerId)) throw new AppException(ErrorCode.TOPUP_ACCOUNT_FROZEN);
         let bagQuantity: number | null = null;
         if (!isCoins) {
           bagQuantity = await consumeStockIn(tx, callerId, gift.code, amounts.bagUnits);
