@@ -345,6 +345,13 @@ info:
     mute (`muteLivePkOpponent`); records and history (`getLivePkHost`); codes `PK_UNAVAILABLE`, `PK_HOST_BUSY`,
     `PK_INVITES_OFF`, `PK_INVITE_COOLDOWN`, `PK_INVITE_CLOSED`, `PK_NOT_ACTIVE`, `PK_BOOSTER_UNAVAILABLE` (409)
     (CONVENTIONS §10.58).
+    **D199 (DRAFT v1.44-live)**: the host's PK Setting page (`getMyLivePk` / `setMyLivePk`, `MyLivePk`): mode
+    (single round or **best of three**, `PkMatch.round` / `rounds`, `PkSideState.roundsWon` / `totalScore`, the
+    `round` event), the round time 3 / 5 / 10 min, **auto-start** (off: the match is `CONNECTED` until a host
+    calls `startLivePk`; `CANCELLED` when it never starts), the random queue's gender and region preferences,
+    **Auto Match**, being suggested to other hosts, the «effective PK» threshold (`PkMatch.effective`,
+    `PkHistoryItem.effective`); the hosts' settings differ → one host's at random (`settingsFromRoomId`);
+    `listLivePkCandidates?friends=true` (mutual follows); `LiveRoomStats.giftGivers` (CONVENTIONS §10.62).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -3041,6 +3048,7 @@ paths:
                 giftCount: 6
                 giftCoins: 520
                 earningsCoins: 338
+                giftGivers: 3
                 chatMessages: 3
                 newFollowers: 2
                 viewers: { unique: 11, guests: 1, peak: 11, atEnd: 0, averageWatchSeconds: 74 }
@@ -3159,10 +3167,13 @@ paths:
         invitations, is not in a PK, an open invitation or the random queue, and has no block with the
         caller either way. `q` (≤ 30 characters) matches the start of the username or any part of the
         display name (case-insensitive); without `q` the busiest lives come first (suggestions). `limit`
-        1–50 (default 20); no pagination.
+        1–50 (default 20); no pagination. v1.44-live (D199, §10.62): `friends=true` keeps only mutual
+        follows («Friends»); hosts who turned `recommendable` off are left out of the suggestions (no `q`,
+        no `friends`) but are still found by `q`.
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
         - { name: q, in: query, required: false, schema: { type: string, maxLength: 30 } }
+        - { name: friends, in: query, required: false, schema: { type: string, enum: ['true', 'false'], default: 'false' } }
         - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
       responses:
         '200':
@@ -3319,6 +3330,30 @@ paths:
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
+  /api/v1/live/rooms/{roomId}/pk/start:
+    post:
+      tags: [live]
+      operationId: startLivePk
+      summary: "Start a connected PK (auto-start off) (v1.44-live, D199)"
+      description: |
+        v1.44-live, §10.62. Either host of a `CONNECTED` match (404 for anyone else). The battle (round 1)
+        starts now for `roundSeconds`; both rooms get `pk-match` `started`. Already running: the match as
+        it is (idempotent). No PK in the room, or one in its result phase → 409 `PK_NOT_ACTIVE`; PK
+        switched off → 409 `PK_UNAVAILABLE` (503 hosting off).
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '200':
+          description: The match.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PkMatch' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+
   /api/v1/live/rooms/{roomId}/pk/end:
     post:
       tags: [live]
@@ -3327,7 +3362,8 @@ paths:
       description: |
         v1.43-live, §10.58. The room's host (404 otherwise). During the battle it is a **forfeit**: the
         opponent wins (`endReason` FORFEIT), the result phase starts for `PK_RESULT_SECONDS` (default
-        60); during the result phase it closes the PK for both rooms. No PK in the room → 409
+        60); during the result phase it closes the PK for both rooms; a `CONNECTED` one (v1.44-live) is
+        closed at once as `CANCELLED` (void, never counted). No PK in the room → 409
         `PK_NOT_ACTIVE`. Both rooms get a `pk-match` data message.
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
@@ -3431,8 +3467,8 @@ paths:
     get:
       tags: [live]
       operationId: getMyLivePk
-      summary: "The caller's PK invitation switch and record (D195)"
-      description: v1.43-live, §10.58. No row yet → invitations on, 0 / 0 / 0.
+      summary: "The caller's PK settings and record (D195; the PK Setting page, D199)"
+      description: v1.43-live, §10.58; v1.44-live, §10.62. No row yet → the defaults, 0 / 0 / 0.
       responses:
         '200':
           description: The caller's PK settings.
@@ -3443,10 +3479,13 @@ paths:
     put:
       tags: [live]
       operationId: setMyLivePk
-      summary: "Switch PK invitations on or off (D195)"
+      summary: "Change the caller's PK settings (D195, D199)"
       description: |
-        v1.43-live, §10.58. Off: other hosts cannot invite the caller (409 `PK_INVITES_OFF`) and the
-        caller is left out of their candidates; the random queue still works. Audited when it changes.
+        v1.43-live, §10.58. `invitesEnabled` off: other hosts cannot invite the caller (409 `PK_INVITES_OFF`)
+        and the caller is left out of their candidates; the random queue still works. v1.44-live (§10.62):
+        any of the PK Setting page's fields (at least one; 400 otherwise). They shape the caller's next
+        matches; when the two hosts' differ, one host's are used, picked at random. `autoMatch` off also
+        leaves the random queue. Audited with the fields that changed.
       requestBody:
         required: true
         content:
@@ -9418,17 +9457,22 @@ components:
         TRIPLE_TURBO: { type: integer, minimum: 0 }
     PkSideState:
       type: object
-      required: [roomId, host, score, boost, boosterUses, supporters, guests, mutesOpponent]
+      required: [roomId, host, score, totalScore, roundsWon, boost, boosterUses, supporters, guests, mutesOpponent]
       properties:
         roomId: { type: string, format: uuid }
         host: { $ref: '#/components/schemas/UserSummary' }
-        score: { type: integer, minimum: 0, description: "PK points: the coin value of this room's gifts during the battle × the active booster." }
+        score: { type: integer, minimum: 0, description: "PK points of the running round (v1.44-live; the only round of a single PK): the coin value of this room's gifts during it × the active booster." }
+        totalScore: { type: integer, minimum: 0, description: "v1.44-live (D199): PK points of every round, the running one included." }
+        roundsWon: { type: integer, minimum: 0, maximum: 2, description: "v1.44-live (D199): rounds this side won (a single PK: 1 for its winner once it ended by time)." }
         boost:
           description: The booster active on this side now, or null.
           oneOf:
             - $ref: '#/components/schemas/PkActiveBoost'
             - type: 'null'
-        boosterUses: { $ref: '#/components/schemas/PkBoosterUses' }
+        boosterUses:
+          allOf:
+            - $ref: '#/components/schemas/PkBoosterUses'
+          description: "Uses of each booster in the running round (v1.44-live: limits are per round)."
         supporters:
           type: array
           maxItems: 3
@@ -9441,22 +9485,22 @@ components:
         mutesOpponent: { type: boolean, description: "This side's host turned the opponent's sound off in their room." }
     PkMatch:
       type: object
-      required: [id, source, status, startedAt, battleEndsAt, endedAt, resultEndsAt, endReason, winnerRoomId, loserCauseRoomId, seq, serverTime, sides, boosters]
+      required: [id, source, status, startedAt, battleEndsAt, endedAt, resultEndsAt, endReason, winnerRoomId, loserCauseRoomId, seq, serverTime, sides, boosters, mode, roundSeconds, round, rounds, connectedAt, settingsFromRoomId, effective]
       properties:
         id: { type: string, format: uuid }
         source: { type: string, enum: [INVITE, RANDOM] }
         status:
           type: string
-          enum: [BATTLE, RESULT, CLOSED]
-          description: BATTLE (the timer runs), RESULT (the win / lose animation and the top supporters), CLOSED (back to the solo live).
-        startedAt: { type: string, format: date-time }
-        battleEndsAt: { type: string, format: date-time }
+          enum: [CONNECTED, BATTLE, RESULT, CLOSED]
+          description: "CONNECTED (v1.44-live: the hosts see each other, no timer, no points, until a host starts it), BATTLE (the timer runs), RESULT (the win / lose animation and the top supporters), CLOSED (back to the solo live). Unknown future values: treat as BATTLE without a timer."
+        startedAt: { type: string, format: date-time, description: "When the battle started (CONNECTED: when the hosts were connected)." }
+        battleEndsAt: { type: string, format: date-time, description: "BATTLE: the running round's end. CONNECTED (v1.44-live): the time by which a host must start it, else it is CANCELLED." }
         endedAt: { type: [string, 'null'], format: date-time }
         resultEndsAt: { type: [string, 'null'], format: date-time }
         endReason:
           type: [string, 'null']
-          enum: [TIME, FORFEIT, DISCONNECT, AWAY, ADMIN, null]
-          description: Unknown future values are shown as a generic end. ADMIN is a void match (no winner, not counted).
+          enum: [TIME, FORFEIT, DISCONNECT, AWAY, ADMIN, CANCELLED, null]
+          description: Unknown future values are shown as a generic end. ADMIN is a void match (no winner, not counted); CANCELLED (v1.44-live) a CONNECTED match that never started.
         winnerRoomId: { type: [string, 'null'], format: uuid, description: 'Null for a draw, a void match or while the battle runs.' }
         loserCauseRoomId: { type: [string, 'null'], format: uuid, description: 'The room whose host forfeited, disconnected or stayed away.' }
         seq: { type: integer, minimum: 0, description: Increases on every change; apps keep the highest and re-read on a gap. }
@@ -9470,6 +9514,17 @@ components:
         boosters:
           type: array
           items: { $ref: '#/components/schemas/PkBoosterRule' }
+        mode: { $ref: '#/components/schemas/PkMode' }
+        roundSeconds: { type: integer, minimum: 1, description: "v1.44-live (D199): one round's time." }
+        round: { type: integer, minimum: 1, maximum: 3, description: "v1.44-live: the running (or last) round." }
+        rounds: { type: integer, enum: [1, 3], description: "v1.44-live: 1 (single) or 3 (best of three: the first to win two rounds; after three, more rounds won, then more total points, else a draw)." }
+        connectedAt: { type: [string, 'null'], format: date-time, description: "v1.44-live: when the hosts were connected with auto-start off; null when the battle started at once." }
+        settingsFromRoomId: { type: [string, 'null'], format: uuid, description: "v1.44-live: the room whose host's settings were used, when the two hosts' differed (picked at random); null when they were the same." }
+        effective: { type: [boolean, 'null'], description: "v1.44-live: whether the finished match counts in the records (both sides' total PK points ≥ `MyLivePk.effectiveMinPoints`; never ADMIN or CANCELLED); null until it ends." }
+    PkMode:
+      type: string
+      enum: [SINGLE, BEST_OF_THREE]
+      description: v1.44-live (D199) «Single Round PK» / «Best of three PK».
     PkInvite:
       type: object
       required: [id, status, fromRoomId, toRoomId, from, to, createdAt, expiresAt, matchId]
@@ -9560,13 +9615,17 @@ components:
         draws: { type: integer, minimum: 0 }
     PkHistoryItem:
       type: object
-      required: [id, result, endReason, score, opponentScore, opponent, startedAt, durationSeconds, supporters]
+      required: [id, result, endReason, score, opponentScore, opponent, startedAt, durationSeconds, supporters, effective, mode, roundsWon, opponentRoundsWon]
       properties:
         id: { type: string, format: uuid }
         result: { type: string, enum: [WIN, LOSS, DRAW, VOID] }
-        endReason: { type: string, enum: [TIME, FORFEIT, DISCONNECT, AWAY, ADMIN] }
-        score: { type: integer, minimum: 0 }
+        endReason: { type: string, enum: [TIME, FORFEIT, DISCONNECT, AWAY, ADMIN], description: "A CANCELLED match (v1.44-live) is never listed." }
+        score: { type: integer, minimum: 0, description: "PK points of every round." }
         opponentScore: { type: integer, minimum: 0 }
+        effective: { type: boolean, description: "v1.44-live (D199): counted in the record (an «effective PK»)." }
+        mode: { $ref: '#/components/schemas/PkMode' }
+        roundsWon: { type: integer, minimum: 0, maximum: 2 }
+        opponentRoundsWon: { type: integer, minimum: 0, maximum: 2 }
         opponent: { $ref: '#/components/schemas/UserSummary' }
         startedAt: { type: string, format: date-time }
         durationSeconds: { type: integer, minimum: 0 }
@@ -9585,16 +9644,40 @@ components:
           items: { $ref: '#/components/schemas/PkHistoryItem' }
     MyLivePk:
       type: object
-      required: [invitesEnabled, record]
+      required: [invitesEnabled, mode, roundMinutes, roundSeconds, autoStart, randomGender, randomRegion, autoMatch, recommendable, effectiveMinPoints, record]
       properties:
         invitesEnabled: { type: boolean }
+        mode: { $ref: '#/components/schemas/PkMode' }
+        roundMinutes: { type: [integer, 'null'], enum: [3, 5, 10, null], description: "v1.44-live (D199): the chosen round time; null: the server's default (`roundSeconds`)." }
+        roundSeconds: { type: integer, minimum: 1, description: The round time the caller's matches use. }
+        autoStart: { type: boolean, description: "On: the battle starts as soon as the hosts are connected. Off: the match is CONNECTED until either host starts it." }
+        randomGender: { $ref: '#/components/schemas/PkGenderPref' }
+        randomRegion: { $ref: '#/components/schemas/PkRegionPref' }
+        autoMatch: { type: boolean, description: "On: while live and idle the caller enters the random queue by itself (the PK tick)." }
+        recommendable: { type: boolean, description: "Off: the caller is not in other hosts' PK suggestions (still found by search)." }
+        effectiveMinPoints: { type: integer, minimum: 0, description: "The «effective PK» threshold: both sides' PK points of every round together (coin value × booster; ≈ charm, which grows 1 : 1 with the coin value received). Default 3000." }
         record: { $ref: '#/components/schemas/PkHostRecord' }
     MyLivePkRequest:
       type: object
       additionalProperties: false
-      required: [invitesEnabled]
+      minProperties: 1
       properties:
         invitesEnabled: { type: boolean }
+        mode: { $ref: '#/components/schemas/PkMode' }
+        roundMinutes: { type: integer, enum: [3, 5, 10] }
+        autoStart: { type: boolean }
+        randomGender: { $ref: '#/components/schemas/PkGenderPref' }
+        randomRegion: { $ref: '#/components/schemas/PkRegionPref' }
+        autoMatch: { type: boolean }
+        recommendable: { type: boolean }
+    PkGenderPref:
+      type: string
+      enum: [BOTH, MALE, FEMALE]
+      description: "v1.44-live (D199): whom the random queue may pair the host with, by D175 gender; a host with no gender or UNDISCLOSED matches any preference."
+    PkRegionPref:
+      type: string
+      enum: [GLOBAL, SAME_COUNTRY]
+      description: "v1.44-live (D199): anyone, or hosts whose D133 country is the caller's (a caller with no country is treated as GLOBAL; a partner with SAME_COUNTRY needs the caller's country to equal theirs)."
     LiveViewer:
       type: object
       required: [kind, user, guestNumber, joinedAt]
@@ -10068,9 +10151,10 @@ components:
     # ---- v1.27.6-live (DRAFT, D140) — the host's statistics of a live ----------------------
     LiveRoomStats:
       type: object
-      required: [roomId, status, startedAt, endedAt, durationSeconds, score, hostOwnPoints, supporters, topSupporters, giftCount, giftCoins, earningsCoins, chatMessages, newFollowers, viewers, viewerCountries]
+      required: [roomId, status, startedAt, endedAt, durationSeconds, score, hostOwnPoints, supporters, topSupporters, giftCount, giftCoins, earningsCoins, giftGivers, chatMessages, newFollowers, viewers, viewerCountries]
       properties:
         giftCoins: { type: integer, format: int64, minimum: 0, description: "v1.35-live (D154d). Σ `totalCoins` of the live's sends (the value of the gifts, whoever they went to)." }
+        giftGivers: { type: integer, minimum: 0, description: "v1.44-live (D199): different people other than the host who sent a gift in this live (the Data Center's «Gift-givers»)." }
         earningsCoins:
           type: integer
           format: int64

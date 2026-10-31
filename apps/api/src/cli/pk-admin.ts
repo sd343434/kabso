@@ -123,7 +123,7 @@ async function end(id: string, args: readonly string[]): Promise<void> {
   });
   if (before === null) fail(`No running PK match ${id}.`);
   process.stdout.write(
-    before === 'BATTLE'
+    before === 'BATTLE' || before === 'CONNECTED'
       ? `${id}: ended by a moderator (void, not counted).\n`
       : `${id}: result phase closed by a moderator (result kept).\n`,
   );

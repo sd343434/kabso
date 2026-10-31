@@ -1,3 +1,4 @@
+import { randomInt } from 'node:crypto';
 import { Inject, Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { z } from 'zod';
 import { AuditAction, AuditService } from '../../common/audit/audit.service.js';
@@ -22,6 +23,9 @@ import {
   absenceOf,
   boosterProblem,
   boosterRule,
+  isEffectivePk,
+  matchSettings,
+  roundOutcome,
   PK_TOPIC,
   pkIdentity,
   pkMatchOfIdentity,
@@ -29,6 +33,10 @@ import {
   topSupportersIn,
   winnerByScore,
   type PkEndReasonName,
+  type PkGenderPrefName,
+  type PkMatchSettings,
+  type PkModeName,
+  type PkRegionPrefName,
   type PkSideName,
 } from './live-pk.js';
 import {
@@ -79,7 +87,12 @@ export interface PkGuestDto {
 export interface PkSideDto {
   roomId: string;
   host: UserSummaryDto;
+  /** The running round's PK points (the only round of a single PK). */
   score: number;
+  /** v1.44-live (D199): every round's PK points, this one included. */
+  totalScore: number;
+  /** v1.44-live (D199): rounds this side won (best of three). */
+  roundsWon: number;
   boost: PkActiveBoostDto | null;
   boosterUses: Record<PkBoosterKindName, number>;
   supporters: PkSupporterDto[];
@@ -92,8 +105,10 @@ export interface PkSideDto {
 export interface PkMatchDto {
   id: string;
   source: 'INVITE' | 'RANDOM';
-  status: 'BATTLE' | 'RESULT' | 'CLOSED';
+  status: 'CONNECTED' | 'BATTLE' | 'RESULT' | 'CLOSED';
+  /** CONNECTED: when the hosts were connected; then when the battle (round 1) started. */
   startedAt: string;
+  /** BATTLE: the running round's end. CONNECTED: the time by which a host must start (else cancelled). */
   battleEndsAt: string;
   endedAt: string | null;
   resultEndsAt: string | null;
@@ -107,6 +122,17 @@ export interface PkMatchDto {
   /** Side A (the inviter, or the host who waited longest) first. */
   sides: [PkSideDto, PkSideDto];
   boosters: PkBoosterRuleDto[];
+  /** v1.44-live (D199): the settings used (`settingsFromRoomId`: whose, when the hosts' differed). */
+  mode: PkModeName;
+  roundSeconds: number;
+  /** The running (or last) round: 1–3. */
+  round: number;
+  /** 1 (single) or 3 (best of three). */
+  rounds: number;
+  connectedAt: string | null;
+  settingsFromRoomId: string | null;
+  /** Whether the finished match counts in the records; null until it ends. */
+  effective: boolean | null;
 }
 
 /** `PkInvite`. */
@@ -174,6 +200,28 @@ export interface PkHistoryItemDto {
   startedAt: string;
   durationSeconds: number;
   supporters: PkSupporterDto[];
+  /** v1.44-live (D199): counted in the record (an «effective PK»). */
+  effective: boolean;
+  mode: PkModeName;
+  roundsWon: number;
+  opponentRoundsWon: number;
+}
+
+/** v1.44-live (D199) `PkSettings`: the caller's PK Setting page (1 v 1) and record. */
+export interface PkSettingsDto {
+  invitesEnabled: boolean;
+  mode: PkModeName;
+  /** The chosen round time (3, 5 or 10), or null: the server's default (`roundSeconds`). */
+  roundMinutes: number | null;
+  roundSeconds: number;
+  autoStart: boolean;
+  randomGender: PkGenderPrefName;
+  randomRegion: PkRegionPrefName;
+  autoMatch: boolean;
+  recommendable: boolean;
+  /** The «effective PK» threshold: both sides' PK points together (PK_EFFECTIVE_MIN_POINTS). */
+  effectiveMinPoints: number;
+  record: PkHostRecordDto;
 }
 
 /** `PkHostProfile`. */
@@ -185,7 +233,7 @@ export interface PkHostProfileDto {
 /** The data message of topic `pk` (both rooms). */
 export interface PkMatchData {
   readonly type: 'pk-match';
-  readonly event: 'started' | 'score' | 'boost' | 'ended' | 'closed' | 'mute';
+  readonly event: 'connected' | 'started' | 'round' | 'score' | 'boost' | 'ended' | 'closed' | 'mute';
   readonly match: PkMatchDto;
   /** `boost`: the side (room id) and booster that just started (the «فعّل فريق X تربل ×5!» line). */
   readonly boost?: { roomId: string; kind: PkBoosterKindName; multiplier: number; endsAt: string };
@@ -207,9 +255,22 @@ export interface PkQueueData {
 
 const inviteSchema = z.strictObject({ toRoomId: z.uuid() });
 const muteSchema = z.strictObject({ muted: z.boolean() });
-const settingsSchema = z.strictObject({ invitesEnabled: z.boolean() });
+const settingsSchema = z
+  .strictObject({
+    invitesEnabled: z.boolean().optional(),
+    mode: z.enum(['SINGLE', 'BEST_OF_THREE']).optional(),
+    roundMinutes: z.union([z.literal(3), z.literal(5), z.literal(10)]).optional(),
+    autoStart: z.boolean().optional(),
+    randomGender: z.enum(['BOTH', 'MALE', 'FEMALE']).optional(),
+    randomRegion: z.enum(['GLOBAL', 'SAME_COUNTRY']).optional(),
+    autoMatch: z.boolean().optional(),
+    recommendable: z.boolean().optional(),
+  })
+  .refine((v) => Object.keys(v).length > 0, { message: 'at least one setting' });
 const candidatesQuerySchema = z.object({
   q: z.string().trim().max(30).optional(),
+  /** v1.44-live (D199): only mutual follows («Friends»). */
+  friends: z.enum(['true', 'false']).optional(),
   limit: z
     .string()
     .regex(/^\d{1,3}$/)
@@ -223,7 +284,7 @@ const candidatesQuerySchema = z.object({
 interface MatchRow {
   id: string;
   source: 'INVITE' | 'RANDOM';
-  status: 'BATTLE' | 'RESULT' | 'CLOSED';
+  status: 'CONNECTED' | 'BATTLE' | 'RESULT' | 'CLOSED';
   room_a_id: string;
   host_a_id: string;
   room_b_id: string;
@@ -242,13 +303,24 @@ interface MatchRow {
   seq: number;
   top_a: { userId: string; points: number }[] | null;
   top_b: { userId: string; points: number }[] | null;
+  mode: PkModeName;
+  round_seconds: number;
+  round: number;
+  rounds_a: number;
+  rounds_b: number;
+  total_a: bigint;
+  total_b: bigint;
+  settings_from: PkSideName | null;
+  connected_at: Date | null;
+  effective: boolean | null;
 }
 
 const MATCH_COLUMNS = `id::text AS id, source::text AS source, status::text AS status,
   room_a_id::text AS room_a_id, host_a_id::text AS host_a_id, room_b_id::text AS room_b_id,
   host_b_id::text AS host_b_id, score_a, score_b, started_at, battle_ends_at, ended_at, result_ends_at,
   end_reason::text AS end_reason, winner::text AS winner, loser_cause::text AS loser_cause,
-  a_mutes_b, b_mutes_a, seq, top_a, top_b`;
+  a_mutes_b, b_mutes_a, seq, top_a, top_b, mode::text AS mode, round_seconds, round, rounds_a, rounds_b,
+  total_a, total_b, settings_from::text AS settings_from, connected_at, effective`;
 
 interface RoomState {
   id: string;
@@ -517,7 +589,7 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
          ORDER BY side, multiplier DESC`,
       this.prisma.$queryRaw<{ side: PkSideName; kind: PkBoosterKindName; n: number }[]>`
         SELECT side::text AS side, kind::text AS kind, count(*)::int AS n FROM pk_boosts
-         WHERE match_id = ${row.id}::uuid GROUP BY side, kind`,
+         WHERE match_id = ${row.id}::uuid AND round = ${row.round} GROUP BY side, kind`,
       row.status === 'BATTLE' || row.top_a === null || row.top_b === null
         ? this.prisma.$transaction((tx) => topSupportersIn(tx, row.id))
         : Promise.resolve({ A: row.top_a, B: row.top_b }),
@@ -550,6 +622,8 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
         roomId,
         host: people.get(s === 'A' ? row.host_a_id : row.host_b_id)!,
         score: Number(s === 'A' ? row.score_a : row.score_b),
+        totalScore: Number(this.totalOf(row, s)),
+        roundsWon: s === 'A' ? row.rounds_a : row.rounds_b,
         boost: boost
           ? {
               id: boost.id,
@@ -591,7 +665,25 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
       serverTime: iso(now),
       sides: [side('A'), side('B')],
       boosters: rules,
+      mode: row.mode,
+      roundSeconds: row.round_seconds,
+      round: row.round,
+      rounds: row.mode === 'BEST_OF_THREE' ? 3 : 1,
+      connectedAt: row.connected_at ? iso(row.connected_at) : null,
+      settingsFromRoomId: roomOf(row.settings_from),
+      effective: row.effective,
     };
+  }
+
+  /**
+   * A side's PK points of every round. While a round runs (and for a match that ended before D199)
+   * the running round's score is not yet in `total_*`; once the match ends it is (see finishBattle).
+   */
+  private totalOf(row: MatchRow, s: PkSideName): bigint {
+    const total = s === 'A' ? row.total_a : row.total_b;
+    const score = s === 'A' ? row.score_a : row.score_b;
+    const folded = row.status === 'RESULT' || row.status === 'CLOSED';
+    return folded && total > 0n ? total : total + score;
   }
 
   private async inviteDto(id: string): Promise<PkInviteDto | null> {
@@ -666,6 +758,7 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
     const q = parsed.data.q?.toLowerCase().replace(/[\\%_]/g, (c) => `\\${c}`) ?? '';
     const limit = parsed.data.limit ?? 20;
+    const friends = parsed.data.friends === 'true';
     const now = this.clock.now();
     const rows = await this.prisma.$queryRaw<
       { id: string; host_user_id: string; title: string; viewer_count: number }[]
@@ -689,6 +782,10 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
          AND NOT EXISTS (SELECT 1 FROM pk_queue w WHERE w.host_id = r.host_user_id
                           AND w.expires_at > ${iso(now)}::timestamptz)
          AND (${q} = '' OR lower(p.username) LIKE ${q} || '%' OR lower(p.display_name) LIKE '%' || ${q} || '%')
+         AND (${q} <> '' OR ${friends} OR COALESCE(s.recommendable, true))
+         AND (NOT ${friends} OR (
+              EXISTS (SELECT 1 FROM follows f1 WHERE f1.follower_id = ${callerId}::uuid AND f1.followee_id = r.host_user_id)
+          AND EXISTS (SELECT 1 FROM follows f2 WHERE f2.follower_id = r.host_user_id AND f2.followee_id = ${callerId}::uuid)))
        ORDER BY r.viewer_count DESC, r.score DESC, r.started_at DESC, r.id DESC
        LIMIT ${limit}`;
     const people = await this.summaries(rows.map((r) => r.host_user_id));
@@ -938,16 +1035,37 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
       }
       if (existing) await tx.pkQueueEntry.delete({ where: { hostId: callerId } });
       if (await this.busyIn(tx, own.id, callerId, now)) throw new AppException(ErrorCode.PK_HOST_BUSY);
+      // v1.44-live (D199): both hosts' gender and region preferences must hold (each way).
+      const [me] = await tx.$queryRaw<
+        { gender: string | null; country: string | null; g: PkGenderPrefName; c: PkRegionPrefName }[]
+      >`
+        SELECT p.gender::text AS gender, p.country_code AS country,
+               COALESCE(s.random_gender::text, 'BOTH') AS g, COALESCE(s.random_region::text, 'GLOBAL') AS c
+          FROM user_profiles p LEFT JOIN pk_host_settings s ON s.host_id = p.user_id
+         WHERE p.user_id = ${callerId}::uuid`;
+      const myGender = me?.gender === 'MALE' || me?.gender === 'FEMALE' ? me.gender : null;
+      const myCountry = me?.country ?? null;
+      const wantGender = me?.g ?? 'BOTH';
+      const wantCountry = me?.c === 'SAME_COUNTRY' ? myCountry : null;
       const partners = await tx.$queryRaw<{ host_id: string; room_id: string }[]>`
         SELECT q.host_id::text AS host_id, q.room_id::text AS room_id
           FROM pk_queue q
           JOIN live_rooms r ON r.id = q.room_id
+          JOIN user_profiles pp ON pp.user_id = q.host_id
+          LEFT JOIN pk_host_settings ps ON ps.host_id = q.host_id
          WHERE q.host_id <> ${callerId}::uuid AND q.expires_at > ${iso(now)}::timestamptz
            AND r.status = 'LIVE' AND r.mode = 'SOLO'::live_room_mode AND r.host_user_id = q.host_id
            AND r.last_heartbeat_at > ${iso(this.staleCutoff(now))}::timestamptz AND r.host_away_since IS NULL
            AND NOT EXISTS (SELECT 1 FROM user_blocks b
                             WHERE (b.blocker_id = ${callerId}::uuid AND b.blocked_id = q.host_id)
                                OR (b.blocker_id = q.host_id AND b.blocked_id = ${callerId}::uuid))
+           AND (${wantGender} = 'BOTH' OR pp.gender IS NULL OR pp.gender::text NOT IN ('MALE', 'FEMALE')
+                OR pp.gender::text = ${wantGender})
+           AND (COALESCE(ps.random_gender::text, 'BOTH') = 'BOTH' OR ${myGender}::text IS NULL
+                OR ps.random_gender::text = ${myGender}::text)
+           AND (${wantCountry}::text IS NULL OR pp.country_code = ${wantCountry}::text)
+           AND (COALESCE(ps.random_region::text, 'GLOBAL') = 'GLOBAL' OR pp.country_code IS NULL
+                OR pp.country_code = ${myCountry}::text)
          ORDER BY q.joined_at, q.host_id
          LIMIT 5`;
       for (const partner of partners) {
@@ -1022,16 +1140,30 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
                         OR room_b_id IN (${input.roomA}::uuid, ${input.roomB}::uuid))) AS busy`;
     if (busy?.busy) return null;
     const id = uuidv7();
+    const [a, b] = await Promise.all([
+      this.matchSettingsOf(tx, input.hostA),
+      this.matchSettingsOf(tx, input.hostB),
+    ]);
+    const { settings, from } = matchSettings(a, b, () => randomInt(2) === 0);
+    const connected = !settings.autoStart;
     await tx.pkMatch.create({
       data: {
         id,
         source: input.source,
+        status: connected ? 'CONNECTED' : 'BATTLE',
         roomAId: input.roomA,
         hostAId: input.hostA,
         roomBId: input.roomB,
         hostBId: input.hostB,
         startedAt: input.now,
-        battleEndsAt: new Date(input.now.getTime() + this.config.pk.battleSeconds * 1000),
+        // CONNECTED: the start deadline (PK_CONNECT_SECONDS); BATTLE: round 1's end.
+        battleEndsAt: new Date(
+          input.now.getTime() + (connected ? this.config.pk.connectSeconds : settings.roundSeconds) * 1000,
+        ),
+        connectedAt: connected ? input.now : null,
+        mode: settings.mode,
+        roundSeconds: settings.roundSeconds,
+        settingsFrom: from,
         seq: 1,
       },
     });
@@ -1046,14 +1178,76 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
       actorUserId: input.hostB,
       targetType: 'pk_match',
       targetId: id,
-      metadata: { source: input.source, roomA: input.roomA, roomB: input.roomB, hostA: input.hostA },
+      metadata: {
+        source: input.source,
+        roomA: input.roomA,
+        roomB: input.roomB,
+        hostA: input.hostA,
+        mode: settings.mode,
+        roundSeconds: settings.roundSeconds,
+        autoStart: settings.autoStart,
+        settingsFrom: from,
+      },
     });
     return id;
   }
 
+  /** v1.44-live (D199): a host's settings that shape a match (no row: the defaults). */
+  private async matchSettingsOf(tx: Prisma.TransactionClient, hostId: string): Promise<PkMatchSettings> {
+    const s = await tx.pkHostSettings.findUnique({ where: { hostId } });
+    return {
+      mode: s?.mode ?? 'SINGLE',
+      roundSeconds:
+        s?.roundMinutes !== null && s?.roundMinutes !== undefined
+          ? s.roundMinutes * 60
+          : this.config.pk.battleSeconds,
+      autoStart: s?.autoStart ?? true,
+    };
+  }
+
+  /** The new match told to both rooms: `started`, or `connected` while it waits for a start. */
   private async started(matchId: string): Promise<PkMatchDto> {
-    const dto = await this.broadcastMatch(matchId, 'started');
+    const row = await this.selectMatch(this.prisma, Prisma.sql`id = ${matchId}::uuid`);
+    const dto = await this.broadcastMatch(matchId, row?.status === 'CONNECTED' ? 'connected' : 'started');
     return dto!;
+  }
+
+  /**
+   * v1.44-live (D199) `POST /live/rooms/{roomId}/pk/start`: either host of a CONNECTED match starts the
+   * battle (round 1, `roundSeconds`); both rooms get `started`. Already running: the match as it is
+   * (idempotent). No open match, or one in its result → 409 PK_NOT_ACTIVE.
+   */
+  async start(callerId: string, roomId: string): Promise<PkMatchDto> {
+    this.assertPkOn();
+    const room = await this.ownRoom(callerId, roomId);
+    const now = this.clock.now();
+    const match = await this.openMatchOfRoom(this.prisma, room.id);
+    if (!match || match.status === 'RESULT') throw new AppException(ErrorCode.PK_NOT_ACTIVE);
+    if (match.status === 'BATTLE') return this.matchDto(match);
+    const changed = await this.prisma.$executeRaw`
+      UPDATE pk_matches
+         SET status = 'BATTLE', started_at = ${iso(now)}::timestamptz,
+             battle_ends_at = ${iso(now)}::timestamptz + make_interval(secs => round_seconds), seq = seq + 1
+       WHERE id = ${match.id}::uuid AND status = 'CONNECTED'`;
+    if (changed > 0) return (await this.broadcastMatch(match.id, 'started'))!;
+    return this.matchDto((await this.selectMatch(this.prisma, Prisma.sql`id = ${match.id}::uuid`))!);
+  }
+
+  /**
+   * v1.44-live (D199): a CONNECTED match that never started is closed at once — void (CANCELLED), no
+   * winner, never counted. A host's End, a host gone or the start deadline passed.
+   */
+  private async cancelConnected(matchId: string, loser: PkSideName | null): Promise<boolean> {
+    const now = iso(this.clock.now());
+    const changed = await this.prisma.$executeRaw`
+      UPDATE pk_matches
+         SET status = 'CLOSED', ended_at = ${now}::timestamptz, result_ends_at = ${now}::timestamptz,
+             closed_at = ${now}::timestamptz, end_reason = 'CANCELLED', loser_cause = ${loser}::pk_side,
+             effective = false, seq = seq + 1, top_a = '[]'::jsonb, top_b = '[]'::jsonb
+       WHERE id = ${matchId}::uuid AND status = 'CONNECTED'`;
+    if (changed === 0) return false;
+    await this.afterClose(matchId);
+    return true;
   }
 
   /**
@@ -1066,7 +1260,9 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
     const match = await this.openMatchOfRoom(this.prisma, room.id);
     if (!match) throw new AppException(ErrorCode.PK_NOT_ACTIVE);
     const side: PkSideName = match.room_a_id === room.id ? 'A' : 'B';
-    if (match.status === 'BATTLE') {
+    if (match.status === 'CONNECTED') {
+      await this.cancelConnected(match.id, side);
+    } else if (match.status === 'BATTLE') {
       await this.finishBattle(match.id, { reason: 'FORFEIT', loser: side }, callerId);
     } else {
       await this.closeResult(match.id);
@@ -1110,28 +1306,84 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
     actorId: string | null = null,
   ): Promise<boolean> {
     const now = this.clock.now();
-    const done = await this.prisma.$transaction(async (tx) => {
+    const done = await this.prisma.$transaction(async (tx): Promise<'ended' | 'round' | false> => {
       const m = await this.selectMatch(tx, Prisma.sql`id = ${matchId}::uuid`, true);
       if (!m || m.status !== 'BATTLE') return false;
       const endedAt = finish.reason === 'TIME' ? m.battle_ends_at : now;
-      const winner =
-        finish.reason === 'TIME'
-          ? winnerByScore(m.score_a, m.score_b)
-          : finish.loser === 'both' || finish.loser === null
-            ? null
-            : otherSide(finish.loser);
+      // v1.44-live (D199): every round's points, this one included.
+      const totalA = m.total_a + m.score_a;
+      const totalB = m.total_b + m.score_b;
+      let roundsA = m.rounds_a;
+      let roundsB = m.rounds_b;
+      let winner: PkSideName | null;
+      if (finish.reason === 'TIME' && m.mode === 'BEST_OF_THREE') {
+        const out = roundOutcome({
+          round: m.round,
+          roundsA,
+          roundsB,
+          scoreA: m.score_a,
+          scoreB: m.score_b,
+          totalA,
+          totalB,
+        });
+        roundsA = out.roundsA;
+        roundsB = out.roundsB;
+        if (out.kind === 'next') {
+          // The next round: its own scores, boosters and multipliers (the running booster ends here).
+          await tx.$executeRaw`
+            UPDATE pk_boosts SET ends_at = ${iso(now)}::timestamptz
+             WHERE match_id = ${matchId}::uuid AND ends_at > ${iso(now)}::timestamptz`;
+          await tx.$executeRaw`
+            UPDATE pk_matches
+               SET round = round + 1, rounds_a = ${roundsA}, rounds_b = ${roundsB}, total_a = ${totalA},
+                   total_b = ${totalB}, score_a = 0, score_b = 0,
+                   battle_ends_at = ${iso(now)}::timestamptz + make_interval(secs => round_seconds), seq = seq + 1
+             WHERE id = ${matchId}::uuid`;
+          await this.audit.recordIn(tx, {
+            action: AuditAction.LIVE_PK_END,
+            actorUserId: null,
+            targetType: 'pk_match',
+            targetId: matchId,
+            metadata: {
+              round: m.round,
+              roundsA,
+              roundsB,
+              scoreA: Number(m.score_a),
+              scoreB: Number(m.score_b),
+            },
+          });
+          return 'round';
+        }
+        winner = out.winner;
+      } else {
+        winner =
+          finish.reason === 'TIME'
+            ? winnerByScore(m.score_a, m.score_b)
+            : finish.loser === 'both' || finish.loser === null
+              ? null
+              : otherSide(finish.loser);
+        if (m.mode === 'SINGLE' && finish.reason === 'TIME') {
+          roundsA = winner === 'A' ? 1 : 0;
+          roundsB = winner === 'B' ? 1 : 0;
+        }
+      }
       const loserCause = finish.loser === 'A' || finish.loser === 'B' ? finish.loser : null;
       const resultEndsAt = new Date(endedAt.getTime() + this.config.pk.resultSeconds * 1000);
+      const effective = isEffectivePk(finish.reason, totalA, totalB, this.config.pk.effectiveMinPoints);
       const top = await topSupportersIn(tx, matchId);
       await tx.$executeRaw`
         UPDATE pk_matches
            SET status = 'RESULT', ended_at = ${iso(endedAt)}::timestamptz,
                result_ends_at = ${iso(resultEndsAt)}::timestamptz, end_reason = ${finish.reason}::pk_end_reason,
                winner = ${winner}::pk_side, loser_cause = ${loserCause}::pk_side, seq = seq + 1,
+               rounds_a = ${roundsA}, rounds_b = ${roundsB}, total_a = ${totalA}, total_b = ${totalB},
+               effective = ${effective},
                top_a = ${JSON.stringify(top.A)}::jsonb, top_b = ${JSON.stringify(top.B)}::jsonb
          WHERE id = ${matchId}::uuid`;
-      const results: [string, 'wins' | 'losses' | 'draws'][] =
-        winner === null
+      // v1.44-live (D199): only an «effective PK» counts in the records.
+      const results: [string, 'wins' | 'losses' | 'draws'][] = !effective
+        ? []
+        : winner === null
           ? [
               [m.host_a_id, 'draws'],
               [m.host_b_id, 'draws'],
@@ -1160,12 +1412,17 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
           loserCause,
           scoreA: Number(m.score_a),
           scoreB: Number(m.score_b),
+          totalA: Number(totalA),
+          totalB: Number(totalB),
+          roundsA,
+          roundsB,
+          effective,
         },
       });
-      return true;
+      return 'ended';
     }, LIVE_TX_OPTIONS);
-    if (done) await this.broadcastMatch(matchId, 'ended');
-    return done;
+    if (done) await this.broadcastMatch(matchId, done);
+    return done !== false;
   }
 
   /** RESULT → CLOSED (nothing when it is no longer RESULT); both rooms told, cross-watchers removed. */
@@ -1284,7 +1541,8 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
       const rule = boosterRule(this.config.pk.boosters, input.booster);
       const [used] = await tx.$queryRaw<{ n: number }[]>`
         SELECT count(*)::int AS n FROM pk_boosts
-         WHERE match_id = ${m.id}::uuid AND side = ${side}::pk_side AND kind = ${input.booster}::pk_booster_kind`;
+         WHERE match_id = ${m.id}::uuid AND side = ${side}::pk_side AND kind = ${input.booster}::pk_booster_kind
+           AND round = ${m.round}`;
       const problem = boosterProblem({ rule, remainingMs, used: used?.n ?? 0, activeMultiplier });
       if (problem) {
         throw new AppException(ErrorCode.PK_BOOSTER_UNAVAILABLE, undefined, [
@@ -1296,10 +1554,10 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
       }
       const endsAt = new Date(input.now.getTime() + rule.durationSeconds * 1000);
       await tx.$executeRaw`
-        INSERT INTO pk_boosts (id, match_id, side, kind, multiplier, gift_id, gift_code, sender_id, starts_at, ends_at)
+        INSERT INTO pk_boosts (id, match_id, side, kind, multiplier, gift_id, gift_code, sender_id, starts_at, ends_at, round)
         VALUES (${uuidv7()}::uuid, ${m.id}::uuid, ${side}::pk_side, ${input.booster}::pk_booster_kind, ${rule.multiplier},
                 ${input.giftId}::uuid, ${input.giftCode}, ${input.senderId}::uuid, ${at}::timestamptz,
-                ${iso(endsAt)}::timestamptz)`;
+                ${iso(endsAt)}::timestamptz, ${m.round})`;
       boosted = { side, roomId: input.roomId, kind: input.booster, multiplier: rule.multiplier, endsAt };
     }
     const coins = BigInt(input.coins);
@@ -1423,7 +1681,7 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
       await this.prisma.$executeRaw`
         UPDATE pk_matches SET a_left_at = CASE WHEN room_a_id = ${roomId}::uuid AND host_a_id = ${host}::uuid THEN NULL ELSE a_left_at END,
                               b_left_at = CASE WHEN room_b_id = ${roomId}::uuid AND host_b_id = ${host}::uuid THEN NULL ELSE b_left_at END
-         WHERE status = 'BATTLE' AND (room_a_id = ${roomId}::uuid OR room_b_id = ${roomId}::uuid)
+         WHERE status IN ('CONNECTED', 'BATTLE') AND (room_a_id = ${roomId}::uuid OR room_b_id = ${roomId}::uuid)
            AND (a_left_at IS NOT NULL OR b_left_at IS NOT NULL)`;
     } else {
       await this.prisma.$executeRaw`
@@ -1431,47 +1689,72 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
                                                THEN COALESCE(a_left_at, ${now}::timestamptz) ELSE a_left_at END,
                               b_left_at = CASE WHEN room_b_id = ${roomId}::uuid AND host_b_id = ${host}::uuid
                                                THEN COALESCE(b_left_at, ${now}::timestamptz) ELSE b_left_at END
-         WHERE status = 'BATTLE' AND (room_a_id = ${roomId}::uuid OR room_b_id = ${roomId}::uuid)`;
+         WHERE status IN ('CONNECTED', 'BATTLE') AND (room_a_id = ${roomId}::uuid OR room_b_id = ${roomId}::uuid)`;
     }
   }
 
   // ---- Settings, records -----------------------------------------------------------------------
 
   /** `GET /me/live-pk`: the caller's PK switch and record. */
-  async mySettings(callerId: string): Promise<{ invitesEnabled: boolean; record: PkHostRecordDto }> {
+  async mySettings(callerId: string): Promise<PkSettingsDto> {
     const [settings, record] = await Promise.all([
       this.prisma.pkHostSettings.findUnique({ where: { hostId: callerId } }),
       this.prisma.pkHostRecord.findUnique({ where: { hostId: callerId } }),
     ]);
+    const minutes = settings?.roundMinutes ?? null;
     return {
       invitesEnabled: settings?.invitesEnabled ?? true,
+      mode: settings?.mode ?? 'SINGLE',
+      roundMinutes: minutes,
+      roundSeconds: minutes !== null ? minutes * 60 : this.config.pk.battleSeconds,
+      autoStart: settings?.autoStart ?? true,
+      randomGender: settings?.randomGender ?? 'BOTH',
+      randomRegion: settings?.randomRegion ?? 'GLOBAL',
+      autoMatch: settings?.autoMatch ?? false,
+      recommendable: settings?.recommendable ?? true,
+      effectiveMinPoints: this.config.pk.effectiveMinPoints,
       record: { wins: record?.wins ?? 0, losses: record?.losses ?? 0, draws: record?.draws ?? 0 },
     };
   }
 
-  /** `PUT /me/live-pk` `{invitesEnabled}`: audited when it changes. */
-  async setSettings(
-    callerId: string,
-    body: unknown,
-    meta: RequestMeta,
-  ): Promise<{ invitesEnabled: boolean; record: PkHostRecordDto }> {
+  /**
+   * `PUT /me/live-pk`: any of the settings (v1.43: `invitesEnabled`; v1.44-live, D199: the PK Setting
+   * page — at least one field, 400 otherwise). Audited with the fields that changed, when any did.
+   * Auto match off also takes the host out of the random queue.
+   */
+  async setSettings(callerId: string, body: unknown, meta: RequestMeta): Promise<PkSettingsDto> {
     const parsed = settingsSchema.safeParse(body ?? {});
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
-    const enabled = parsed.data.invitesEnabled;
+    const next = parsed.data;
     await this.prisma.$transaction(async (tx) => {
       const before = await tx.pkHostSettings.findUnique({ where: { hostId: callerId } });
-      if ((before?.invitesEnabled ?? true) === enabled) return;
+      const current: Record<string, unknown> = {
+        invitesEnabled: before?.invitesEnabled ?? true,
+        mode: before?.mode ?? 'SINGLE',
+        roundMinutes: before?.roundMinutes ?? null,
+        autoStart: before?.autoStart ?? true,
+        randomGender: before?.randomGender ?? 'BOTH',
+        randomRegion: before?.randomRegion ?? 'GLOBAL',
+        autoMatch: before?.autoMatch ?? false,
+        recommendable: before?.recommendable ?? true,
+      };
+      const changed = Object.fromEntries(
+        Object.entries(next).filter(([k, v]) => v !== undefined && current[k] !== v),
+      );
+      if (Object.keys(changed).length === 0) return;
+      const now = this.clock.now();
       await tx.pkHostSettings.upsert({
         where: { hostId: callerId },
-        create: { hostId: callerId, invitesEnabled: enabled, updatedAt: this.clock.now() },
-        update: { invitesEnabled: enabled, updatedAt: this.clock.now() },
+        create: { hostId: callerId, ...changed, updatedAt: now },
+        update: { ...changed, updatedAt: now },
       });
+      if (changed.autoMatch === false) await tx.pkQueueEntry.deleteMany({ where: { hostId: callerId } });
       await this.audit.recordIn(tx, {
         action: AuditAction.LIVE_PK_SETTINGS,
         actorUserId: callerId,
         targetType: 'user',
         targetId: callerId,
-        metadata: { invitesEnabled: enabled },
+        metadata: changed,
         ip: meta.ip,
         requestId: meta.requestId,
       });
@@ -1494,7 +1777,8 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
       this.prisma.pkHostRecord.findUnique({ where: { hostId: user.id } }),
       this.prisma.$queryRaw<MatchRow[]>(
         Prisma.sql`SELECT ${Prisma.raw(MATCH_COLUMNS)} FROM pk_matches
-          WHERE status <> 'BATTLE' AND (host_a_id = ${user.id}::uuid OR host_b_id = ${user.id}::uuid)
+          WHERE status IN ('RESULT', 'CLOSED') AND end_reason IS DISTINCT FROM 'CANCELLED'
+            AND (host_a_id = ${user.id}::uuid OR host_b_id = ${user.id}::uuid)
           ORDER BY started_at DESC, id DESC LIMIT 20`,
       ),
     ]);
@@ -1524,14 +1808,19 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
             id: r.id,
             result,
             endReason: r.end_reason!,
-            score: Number(mine === 'A' ? r.score_a : r.score_b),
-            opponentScore: Number(mine === 'A' ? r.score_b : r.score_a),
+            score: Number(this.totalOf(r, mine)),
+            opponentScore: Number(this.totalOf(r, otherSide(mine))),
             opponent: people.get(mine === 'A' ? r.host_b_id : r.host_a_id)!,
             startedAt: iso(r.started_at),
             durationSeconds: Math.max(0, Math.round((r.ended_at!.getTime() - r.started_at.getTime()) / 1000)),
             supporters: top
               .filter((s) => people.has(s.userId))
               .map((s) => ({ user: people.get(s.userId)!, points: s.points })),
+            // A match before D199 has no `effective`: it was counted.
+            effective: r.effective ?? r.end_reason !== 'ADMIN',
+            mode: r.mode,
+            roundsWon: mine === 'A' ? r.rounds_a : r.rounds_b,
+            opponentRoundsWon: mine === 'A' ? r.rounds_b : r.rounds_a,
           };
         })
         .filter((r) => r.opponent !== undefined),
@@ -1579,7 +1868,32 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
         FROM pk_matches WHERE status <> 'CLOSED' ORDER BY started_at LIMIT 1000`);
     const grace = this.config.pk.absenceGraceSeconds;
     for (const m of open) {
-      if (m.status === 'BATTLE') {
+      if (m.status === 'CONNECTED') {
+        // v1.44-live (D199): not started — a host gone, or nobody started it in time: cancelled.
+        const [a, b] = await Promise.all([
+          this.roomState(this.prisma, m.room_a_id),
+          this.roomState(this.prisma, m.room_b_id),
+        ]);
+        const gone = (room: RoomState | null, leftAt: Date | null) =>
+          room === null ||
+          absenceOf(
+            {
+              roomStatus: room.status,
+              roomEndReason: room.end_reason,
+              lastHeartbeatAt: room.last_heartbeat_at,
+              hostAwaySince: room.host_away_since,
+              leftAt,
+            },
+            now,
+            grace,
+          ) !== null;
+        const goneA = gone(a, m.a_left_at);
+        const goneB = gone(b, m.b_left_at);
+        if (goneA || goneB || m.battle_ends_at.getTime() <= now.getTime()) {
+          const loser = goneA && !goneB ? 'A' : goneB && !goneA ? 'B' : null;
+          if (await this.cancelConnected(m.id, loser)) closed += 1;
+        }
+      } else if (m.status === 'BATTLE') {
         const [a, b] = await Promise.all([
           this.roomState(this.prisma, m.room_a_id),
           this.roomState(this.prisma, m.room_b_id),
@@ -1618,6 +1932,43 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
     const notices = await this.prisma.$queryRaw<{ id: string }[]>`
       UPDATE pk_matches SET pending_notice = false WHERE pending_notice RETURNING id::text AS id`;
     for (const { id } of notices) await this.afterClose(id);
+    await this.autoMatch(now);
     return { expiredInvites: expired.length, ended, closed };
+  }
+
+  /**
+   * v1.44-live (D199) «Auto Match»: a host with it on whose SOLO video live may start a PK and who is
+   * idle — no match, no open invitation, not waiting, no PK of theirs closed in the last
+   * PK_AUTO_MATCH_REST_SECONDS — enters the random queue as if they had tapped «مطابقة عشوائية». Their
+   * preferences apply as usual. Refusals (PK off, a block, a race) are left for the next tick.
+   */
+  private async autoMatch(now: Date): Promise<number> {
+    if (!this.config.pk.enabled || !this.config.live.hostingEnabled) return 0;
+    const rest = new Date(now.getTime() - this.config.pk.autoMatchRestSeconds * 1000);
+    const hosts = await this.prisma.$queryRaw<{ host_id: string; room_id: string }[]>`
+      SELECT s.host_id::text AS host_id, r.id::text AS room_id
+        FROM pk_host_settings s
+        JOIN live_rooms r ON r.host_user_id = s.host_id AND r.status = 'LIVE' AND r.mode = 'SOLO'::live_room_mode
+       WHERE s.auto_match
+         AND r.last_heartbeat_at > ${iso(this.staleCutoff(now))}::timestamptz AND r.host_away_since IS NULL
+         AND NOT EXISTS (SELECT 1 FROM pk_queue q WHERE q.host_id = s.host_id AND q.expires_at > ${iso(now)}::timestamptz)
+         AND NOT EXISTS (SELECT 1 FROM pk_matches m WHERE (m.room_a_id = r.id OR m.room_b_id = r.id)
+                          AND (m.status <> 'CLOSED' OR m.closed_at > ${iso(rest)}::timestamptz))
+         AND NOT EXISTS (SELECT 1 FROM pk_invites i WHERE i.status = 'PENDING' AND i.expires_at > ${iso(now)}::timestamptz
+                          AND (i.from_room_id = r.id OR i.to_room_id = r.id))
+       ORDER BY r.started_at, s.host_id
+       LIMIT 200`;
+    let joined = 0;
+    for (const h of hosts) {
+      try {
+        await this.joinRandom(h.host_id, h.room_id);
+        joined += 1;
+      } catch (err) {
+        if (!(err instanceof AppException)) {
+          this.logger.warn({ error: safeErrorLog(err) }, 'PK auto match could not queue a host');
+        }
+      }
+    }
+    return joined;
   }
 }

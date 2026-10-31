@@ -619,6 +619,16 @@ export const envSchema = z
     PK_RANDOM_WAIT_SECONDS: intSetting(60, 10, 600),
     PK_BATTLE_SECONDS: intSetting(300, 60, 3600),
     PK_RESULT_SECONDS: intSetting(60, 5, 600),
+    /**
+     * v1.44-live (D199, §10.62): an «effective PK» — a finished match counts in the hosts' records only when
+     * both sides' PK points together (every round; coin value × booster) reach this. Owner's «3000 charm»:
+     * charm grows 1 : 1 with the coin value of the gifts received, so 3000 PK points ≈ 3000 coins of gifts.
+     */
+    PK_EFFECTIVE_MIN_POINTS: intSetting(3000, 0, 100_000_000),
+    /** v1.44-live (D199): a CONNECTED PK (auto-start off) that nobody starts within this is cancelled. */
+    PK_CONNECT_SECONDS: intSetting(300, 30, 3600),
+    /** v1.44-live (D199): «Auto Match» re-queues a host only this long after their last PK closed. */
+    PK_AUTO_MATCH_REST_SECONDS: intSetting(30, 0, 3600),
     /** A host out of the media session, without heartbeats or away (D170) this long loses the battle. */
     PK_ABSENCE_GRACE_SECONDS: intSetting(30, 5, 600),
     /** The PK tick (expiries, ends, pairing) in ms; 0 disables it (tests; refused in production). */

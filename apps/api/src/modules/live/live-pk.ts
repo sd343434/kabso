@@ -14,7 +14,91 @@ export const PK_TOPIC = 'pk';
 /** A side of a match: A is the inviter (or the host who waited longest in the random queue). */
 export type PkSideName = 'A' | 'B';
 
-export type PkEndReasonName = 'TIME' | 'FORFEIT' | 'DISCONNECT' | 'AWAY' | 'ADMIN';
+export type PkEndReasonName = 'TIME' | 'FORFEIT' | 'DISCONNECT' | 'AWAY' | 'ADMIN' | 'CANCELLED';
+
+/** v1.44-live (D199): one round, or the best of three (the first to win two rounds). */
+export type PkModeName = 'SINGLE' | 'BEST_OF_THREE';
+
+/** v1.44-live (D199): the random queue's gender preference (D175 gender). */
+export type PkGenderPrefName = 'BOTH' | 'MALE' | 'FEMALE';
+
+/** v1.44-live (D199): the random queue's region preference (D133 country). */
+export type PkRegionPrefName = 'GLOBAL' | 'SAME_COUNTRY';
+
+/** The settings of a host that shape a match (the rest only shape pairing). */
+export interface PkMatchSettings {
+  readonly mode: PkModeName;
+  readonly roundSeconds: number;
+  readonly autoStart: boolean;
+}
+
+/**
+ * v1.44-live (D199): the settings a match uses. Equal settings: those (no side named). Different ones:
+ * one host's, picked at random (`pickA` — the owner's «If the PK settings of matched hosts are
+ * different, one host's setting will be selected randomly»).
+ */
+export function matchSettings(
+  a: PkMatchSettings,
+  b: PkMatchSettings,
+  pickA: () => boolean,
+): { settings: PkMatchSettings; from: PkSideName | null } {
+  if (a.mode === b.mode && a.roundSeconds === b.roundSeconds && a.autoStart === b.autoStart) {
+    return { settings: a, from: null };
+  }
+  return pickA() ? { settings: a, from: 'A' } : { settings: b, from: 'B' };
+}
+
+/** What the end of a round's time does in a best-of-three match. */
+export type PkRoundOutcome =
+  | { readonly kind: 'next'; readonly roundsA: number; readonly roundsB: number }
+  | {
+      readonly kind: 'final';
+      readonly roundsA: number;
+      readonly roundsB: number;
+      readonly winner: PkSideName | null;
+    };
+
+/**
+ * v1.44-live (D199): a best-of-three round ran its time. The round's higher score wins it (equal: no
+ * one). Two rounds won ends the match; after round 3 the side with more rounds wins, then the higher
+ * total PK points of all rounds, else a draw. Otherwise the next round starts.
+ */
+export function roundOutcome(input: {
+  readonly round: number;
+  readonly roundsA: number;
+  readonly roundsB: number;
+  readonly scoreA: bigint;
+  readonly scoreB: bigint;
+  /** All rounds' points, this one included. */
+  readonly totalA: bigint;
+  readonly totalB: bigint;
+}): PkRoundOutcome {
+  const w = winnerByScore(input.scoreA, input.scoreB);
+  const roundsA = input.roundsA + (w === 'A' ? 1 : 0);
+  const roundsB = input.roundsB + (w === 'B' ? 1 : 0);
+  if (roundsA >= 2) return { kind: 'final', roundsA, roundsB, winner: 'A' };
+  if (roundsB >= 2) return { kind: 'final', roundsA, roundsB, winner: 'B' };
+  if (input.round >= 3) {
+    const winner =
+      roundsA !== roundsB ? (roundsA > roundsB ? 'A' : 'B') : winnerByScore(input.totalA, input.totalB);
+    return { kind: 'final', roundsA, roundsB, winner };
+  }
+  return { kind: 'next', roundsA, roundsB };
+}
+
+/**
+ * v1.44-live (D199): whether a finished match counts in the records — not void (ADMIN, CANCELLED) and
+ * both sides' PK points of every round together at least `minPoints` (PK_EFFECTIVE_MIN_POINTS).
+ */
+export function isEffectivePk(
+  reason: PkEndReasonName,
+  totalA: bigint,
+  totalB: bigint,
+  minPoints: number,
+): boolean {
+  if (reason === 'ADMIN' || reason === 'CANCELLED') return false;
+  return totalA + totalB >= BigInt(minPoints);
+}
 
 /** Why a booster gift is refused (the `issue` of the 409 PK_BOOSTER_UNAVAILABLE detail). */
 export type PkBoosterProblem = 'no_match' | 'too_early' | 'limit_reached' | 'active_higher';
@@ -141,18 +225,19 @@ export async function adminEndPkIn(
   matchId: string,
   reason: string,
   now: Date,
-): Promise<'BATTLE' | 'RESULT' | null> {
+): Promise<'CONNECTED' | 'BATTLE' | 'RESULT' | null> {
   const [row] = await tx.$queryRaw<{ status: string }[]>`
     SELECT status::text AS status FROM pk_matches WHERE id = ${matchId}::uuid FOR UPDATE`;
   if (!row || row.status === 'CLOSED') return null;
   const at = now.toISOString();
-  if (row.status === 'BATTLE') {
+  // v1.44-live (D199): a CONNECTED match (not started) is voided like a running battle.
+  if (row.status === 'BATTLE' || row.status === 'CONNECTED') {
     const top = await topSupportersIn(tx, matchId);
     await tx.$executeRaw`
       UPDATE pk_matches
          SET status = 'CLOSED', ended_at = ${at}::timestamptz, closed_at = ${at}::timestamptz,
              result_ends_at = ${at}::timestamptz, end_reason = 'ADMIN', winner = NULL, loser_cause = NULL,
-             admin_reason = ${reason}, pending_notice = true, seq = seq + 1,
+             admin_reason = ${reason}, pending_notice = true, seq = seq + 1, effective = false,
              top_a = ${JSON.stringify(top.A)}::jsonb, top_b = ${JSON.stringify(top.B)}::jsonb
        WHERE id = ${matchId}::uuid`;
   } else {
@@ -162,5 +247,5 @@ export async function adminEndPkIn(
              pending_notice = true, seq = seq + 1
        WHERE id = ${matchId}::uuid`;
   }
-  return row.status as 'BATTLE' | 'RESULT';
+  return row.status as 'CONNECTED' | 'BATTLE' | 'RESULT';
 }

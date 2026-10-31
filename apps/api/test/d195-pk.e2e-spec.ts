@@ -247,10 +247,14 @@ describe('D195 PK 1 v 1', { timeout: 300_000 }, () => {
   };
 
   beforeAll(async () => {
-    ctx = await createTestApp({ LIVE_HOSTING_ENABLED: 'true', PK_SCORE_BROADCAST_MS: '0' }, [
-      { token: Clock, value: clock },
-      { token: LIVE_MEDIA_PROVIDER, value: media },
-    ]);
+    // D199: these D195 matches use small gifts; every finished match counts (no «effective PK» floor).
+    ctx = await createTestApp(
+      { LIVE_HOSTING_ENABLED: 'true', PK_SCORE_BROADCAST_MS: '0', PK_EFFECTIVE_MIN_POINTS: '0' },
+      [
+        { token: Clock, value: clock },
+        { token: LIVE_MEDIA_PROVIDER, value: media },
+      ],
+    );
     pk = ctx.app.get(LivePkService);
     const prices: Record<string, number> = {
       DOUBLE: 1000,
@@ -381,7 +385,7 @@ describe('D195 PK 1 v 1', { timeout: 300_000 }, () => {
     const off = await call('put', 'me/live-pk', b, { invitesEnabled: false });
     expect(off.status).toBe(200);
     expectContract(off, 'setMyLivePk');
-    expect(off.body).toEqual({ invitesEnabled: false, record: { wins: 0, losses: 0, draws: 0 } });
+    expect(off.body).toMatchObject({ invitesEnabled: false, record: { wins: 0, losses: 0, draws: 0 } });
     expectError(await invite(roomA, a, roomB), 409, 'PK_INVITES_OFF');
     const cands = await call('get', `live/rooms/${roomA}/pk/candidates`, a);
     expect((cands.body.data as { roomId: string }[]).map((c) => c.roomId)).not.toContain(roomB);

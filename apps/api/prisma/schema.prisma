@@ -4063,6 +4063,8 @@ enum PkBoosterKind {
 /// A PK match: BATTLE (PK_BATTLE_SECONDS) → RESULT (PK_RESULT_SECONDS, the win / lose animation) →
 /// CLOSED. Side A is the inviter (or the first in the random queue).
 enum PkMatchStatus {
+  /// v1.44-live (D199): connected, waiting for either host to start (auto-start off).
+  CONNECTED
   BATTLE
   RESULT
   CLOSED
@@ -4086,8 +4088,36 @@ enum PkEndReason {
   DISCONNECT
   AWAY
   ADMIN
+  /// v1.44-live (D199): a CONNECTED PK that never started (void, never counted).
+  CANCELLED
 
   @@map("pk_end_reason")
+}
+
+/// v1.44-live (D199): one round, or the best of three rounds (the first to win two).
+enum PkMode {
+  SINGLE
+  BEST_OF_THREE
+
+  @@map("pk_mode")
+}
+
+/// v1.44-live (D199): whom the random queue may pair a host with (D175 gender; unknown or undisclosed
+/// matches any preference).
+enum PkGenderPref {
+  BOTH
+  MALE
+  FEMALE
+
+  @@map("pk_gender_pref")
+}
+
+/// v1.44-live (D199): the random queue's region — anyone, or hosts of the same country (D133).
+enum PkRegionPref {
+  GLOBAL
+  SAME_COUNTRY
+
+  @@map("pk_region_pref")
 }
 
 /// A side of a match.
@@ -4149,6 +4179,21 @@ model PkMatch {
   topA          Json?         @map("top_a")
   topB          Json?         @map("top_b")
   createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  /// v1.44-live (D199): the settings used (one host's; `settingsFrom` names whose when they differed).
+  mode          PkMode        @default(SINGLE)
+  roundSeconds  Int           @default(300) @map("round_seconds")
+  /// The round running (or the last one); best of three only goes past 1.
+  round         Int           @default(1) @db.SmallInt
+  roundsA       Int           @default(0) @map("rounds_a") @db.SmallInt
+  roundsB       Int           @default(0) @map("rounds_b") @db.SmallInt
+  /// PK points of the rounds already finished (`score_*` is the running round's).
+  totalA        BigInt        @default(0) @map("total_a")
+  totalB        BigInt        @default(0) @map("total_b")
+  settingsFrom  PkSide?       @map("settings_from")
+  /// When the hosts were connected (auto-start off: `startedAt` is then when the battle started).
+  connectedAt   DateTime?     @map("connected_at") @db.Timestamptz(3)
+  /// Whether the finished match counts in the records (combined PK points ≥ PK_EFFECTIVE_MIN_POINTS).
+  effective     Boolean?
 
   roomA      LiveRoom      @relation("PkMatchRoomA", fields: [roomAId], references: [id], onDelete: Cascade)
   roomB      LiveRoom      @relation("PkMatchRoomB", fields: [roomBId], references: [id], onDelete: Cascade)
@@ -4226,11 +4271,13 @@ model PkBoost {
   startsAt   DateTime      @map("starts_at") @db.Timestamptz(3)
   endsAt     DateTime      @map("ends_at") @db.Timestamptz(3)
   replaced   Boolean       @default(false)
+  /// v1.44-live (D199): the round it was used in (limits are per round).
+  round      Int           @default(1) @db.SmallInt
 
   match PkMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
   gift  Gift    @relation(fields: [giftCode], references: [code], onDelete: Restrict)
 
-  @@index([matchId, side, endsAt], map: "pk_boosts_match_side_idx")
+  @@index([matchId, side, round, endsAt], map: "pk_boosts_match_side_idx")
   @@index([giftCode], map: "pk_boosts_gift_code_idx")
   @@map("pk_boosts")
 }
@@ -4288,8 +4335,18 @@ model PkHostSettings {
   hostId         String   @id @map("host_id") @db.Uuid
   invitesEnabled Boolean  @default(true) @map("invites_enabled")
   updatedAt      DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+  /// v1.44-live (D199): the PK Setting page (1 v 1).
+  mode           PkMode       @default(SINGLE)
+  /// 3, 5 or 10; null: the server's PK_BATTLE_SECONDS.
+  roundMinutes   Int?         @map("round_minutes") @db.SmallInt
+  autoStart      Boolean      @default(true) @map("auto_start")
+  randomGender   PkGenderPref @default(BOTH) @map("random_gender")
+  randomRegion   PkRegionPref @default(GLOBAL) @map("random_region")
+  autoMatch      Boolean      @default(false) @map("auto_match")
+  recommendable  Boolean      @default(true)
 
   host User @relation(fields: [hostId], references: [id], onDelete: Cascade)
 
+  @@index([hostId], map: "pk_host_settings_auto_match_idx", where: raw("auto_match"))
   @@map("pk_host_settings")
 }
