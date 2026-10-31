@@ -5,6 +5,7 @@ export type Capability =
   | 'dashboard.view'
   | 'users.view'
   | 'users.balances'
+  | 'users.ledger'
   | 'users.ban'
   | 'users.avatar'
   | 'users.special_username'

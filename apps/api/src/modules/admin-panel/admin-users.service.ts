@@ -9,6 +9,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { taskCherryLockIn } from '../economy/cherry-ledger.js';
 import { isUuid } from '../live/live.schemas.js';
 import { OBJECT_STORAGE, type ObjectStorage } from '../media/object-storage.js';
+import { dayStart } from '../recharge/recharge-rules.js';
 import { removeAvatarByAdminIn } from '../users/avatar-admin.js';
 import { AccountLifecycleService } from '../users/profiles/account-lifecycle.service.js';
 import {
@@ -75,9 +76,12 @@ function rowDto(u: RowUser): AdminUserRowDto {
   };
 }
 
-/** UTC midnight of `now` (the dashboard's «today»). */
-export function utcDayStart(now: Date): Date {
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+/**
+ * The start of the dashboard's «today»: midnight of `now`'s day in `zone` (ADMIN_DASHBOARD_TIME_ZONE, owner
+ * 2026-10-31: the Asia/Riyadh day, not UTC). The same rule as the recharge badges' day (`dayStart`).
+ */
+export function dashboardDayStart(now: Date, zone: string): Date {
+  return dayStart(now, zone);
 }
 
 /**
@@ -99,7 +103,7 @@ export class AdminUsersService {
   ) {}
 
   async dashboard(now = new Date()) {
-    const since = utcDayStart(now);
+    const since = dashboardDayStart(now, this.config.adminPanel.dashboardTimeZone);
     const [newUsers, sold, gifts, lives, apps, withdrawals, reports] = await Promise.all([
       this.prisma.user.count({ where: { createdAt: { gte: since } } }),
       this.prisma.rechargeSale.aggregate({
@@ -189,6 +193,7 @@ export class AdminUsersService {
     });
     if (!user) throw new AppException(ErrorCode.NOT_FOUND);
     const withBalances = can(ctx.roles, 'users.balances');
+    const withLedger = can(ctx.roles, 'users.ledger');
     const [special, agent, agency, agencyHost, openReports, recentReports] = await Promise.all([
       this.prisma.specialUsername.findFirst({
         where: { userId: id, status: 'ACTIVE' },
@@ -250,14 +255,14 @@ export class AdminUsersService {
         reason: r.reason,
         createdAt: r.createdAt.toISOString(),
       });
-      ledger = { coins: coins.map(row), cherries: cherries.map(row) };
+      if (withLedger) ledger = { coins: coins.map(row), cherries: cherries.map(row) };
     }
     await this.audit.record({
       action: AuditAction.ADMIN_USER_VIEW,
       actorUserId: ctx.userId,
       targetType: 'user',
       targetId: id,
-      metadata: { balances: withBalances, via: 'panel' },
+      metadata: { balances: withBalances, ledger: withLedger, via: 'panel' },
       ip: ctx.ip,
       requestId: ctx.requestId,
     });

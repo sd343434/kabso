@@ -1034,6 +1034,8 @@ export const envSchema = z
     ADMIN_LOCKOUT_ATTEMPTS: intSetting(5, 3, 50),
     /** … for this long. */
     ADMIN_LOCKOUT_SECONDS: intSetting(900, 60, 86_400),
+    /** The zone of the panel dashboard's «today» (owner 2026-10-31: the Asia/Riyadh day, like the recharge badges). */
+    ADMIN_DASHBOARD_TIME_ZONE: ianaTimeZone('Asia/Riyadh'),
     /**
      * v1.56-social (D187, CONVENTIONS §10.50): the daily recharge badges. The minimum coins recharged in one
      * calendar day for each of the five tiers (owner: 1 000 000, 10 000 001, 20 000 001, 40 000 001,

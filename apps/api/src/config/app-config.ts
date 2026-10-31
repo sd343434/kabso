@@ -267,6 +267,8 @@ export interface AppConfig {
     readonly pendingSeconds: number;
     readonly lockoutAttempts: number;
     readonly lockoutSeconds: number;
+    /** IANA zone of the dashboard's «today» (default Asia/Riyadh). */
+    readonly dashboardTimeZone: string;
   };
   /** v1.54-social (D185): special usernames (CONVENTIONS §10.48.1). */
   readonly specialUsernames: {
@@ -644,6 +646,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       pendingSeconds: e.ADMIN_PENDING_SECONDS,
       lockoutAttempts: e.ADMIN_LOCKOUT_ATTEMPTS,
       lockoutSeconds: e.ADMIN_LOCKOUT_SECONDS,
+      dashboardTimeZone: e.ADMIN_DASHBOARD_TIME_ZONE,
     },
     specialUsernames: {
       graceDays: e.SPECIAL_USERNAME_GRACE_DAYS,

@@ -3613,7 +3613,8 @@ session's `capabilities` do not include.
 | Capability | OWNER | MODERATION | SUPPORT | FINANCE |
 |---|:-:|:-:|:-:|:-:|
 | `dashboard.view`, `users.view` | ✓ | ✓ | ✓ | ✓ |
-| `users.balances` (balances and the latest ledger rows in a profile) | ✓ | | ✓ | ✓ |
+| `users.balances` (a profile's balances, read-only; owner 2026-10-31: the moderator too) | ✓ | ✓ | ✓ | ✓ |
+| `users.ledger` (the latest coin and cherry ledger rows in a profile) | ✓ | | ✓ | ✓ |
 | `users.ban`, `users.avatar`, `reports.view`, `reports.act` | ✓ | ✓ | | |
 | `users.special_username`, `recharge.applications` (private fields and pictures), `recharge.decide`, `recharge.status` | ✓ | | ✓ | |
 | `recharge.agents` | ✓ | | ✓ | ✓ |
@@ -3682,7 +3683,8 @@ own message.
 
 #### 10.54.5 The sections (phase 1)
 
-1. **Home** `getAdminDashboard`: today's (UTC) new users, coins sold by recharge agents (and the number of sales),
+1. **Home** `getAdminDashboard`: today's new users (the **Asia/Riyadh day**, owner 2026-10-31; server setting
+   `ADMIN_DASHBOARD_TIME_ZONE`, default `Asia/Riyadh`, the recharge badges' day rule), coins sold by recharge agents (and the number of sales),
    gifts sent (and their coin value), lives live now, and the pending counts (applications, withdrawals, open reports)
    — real aggregates. Website top-ups appear when D190 merges.
 2. **Users** `searchAdminUsers` (`q`: a UUID, an email prefix, or a username — shown, base or special, also as a

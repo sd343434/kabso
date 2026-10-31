@@ -20,17 +20,23 @@ sections plus the website's settings. The CLIs stay; the panel runs the very sam
 | | Choice | Where |
 |-|--------|-------|
 | a | The moderator role **is** the existing `MODERATION` permission (the report queue's); OWNER, SUPPORT and FINANCE are new `admin_permission` values. `admin-admin` accepts `MODERATOR`. | `admin-permissions.ts`, migration `20270104090000_admin_panel_enums` |
-| b | The capability table of §10.54.1 (e.g. SUPPORT reviews applications and their pictures; FINANCE tops up and pays; MODERATION sees no balances and no private pictures; only OWNER edits the website). | `CAPABILITIES` in `admin-permissions.ts` |
+| b | The capability table of §10.54.1 (e.g. SUPPORT reviews applications and their pictures; FINANCE tops up and pays; MODERATION sees balances read-only — owner answer Q3 — but no ledger rows and no private pictures; only OWNER edits the website). | `CAPABILITIES` in `admin-permissions.ts` |
 | c | Only an OWNER may act on an account that holds a panel role; nobody on their own account. | `AdminUsersService.target`, `AdminModerationService.act` |
 | d | Rejecting a withdrawal also needs the code again (it moves cherries back). | `AdminFinanceService.rejectWithdrawal` |
 | e | WARN is a new system notification `MODERATION_WARNING` (the app ignores it until it shows it); BAN from a report suspends the author. Both close the target's open reports as ACTIONED. | `admin-moderation.service.ts` |
-| f | «Today» on the dashboard is the UTC day. | `utcDayStart` |
+| f | «Today» on the dashboard is the Asia/Riyadh day (owner answer Q2; `ADMIN_DASHBOARD_TIME_ZONE`, default Asia/Riyadh). | `dashboardDayStart` |
 | g | The authenticator code consumed at sign-in cannot be re-used for a financial action in the same 30 s (single use); the panel asks for the next code. | `consumeTotp` |
 | h | The panel's API paths live under `/api/v1/admin/...` beside the older bearer-token `/admin/reports` and `/admin/levels` (unchanged); the panel's report queue is `/admin/moderation/reports`. | openapi tag `admin-panel` |
 
-## 3. Questions for the owner
+## 3. Questions for the owner — answered 2026-10-31 (via the coordinator)
 
-1. Should the IP allowlist be mandatory in production (and which addresses)?
-2. Is a UTC «today» right, or should the dashboard use Asia/Riyadh like the recharge badges?
-3. Should MODERATION see balances (read-only) in a profile?
-4. Phase 2: an audit-log viewer, admin role management in the panel (now CLI-only by decision), the Stripe cases.
+1. ~~Should the IP allowlist be mandatory in production?~~ **No:** no allowlist by default (`KABSO_ADMIN_ALLOW_IPS`
+   unset = everyone); the owner may set one later.
+2. ~~UTC or Asia/Riyadh «today»?~~ **Asia/Riyadh:** the dashboard counts the Riyadh day (`ADMIN_DASHBOARD_TIME_ZONE`,
+   default `Asia/Riyadh`, the same day rule as the recharge badges; a server setting can change it).
+3. ~~Should MODERATION see balances?~~ **Yes, read-only:** `users.balances` now includes MODERATION; the ledger rows
+   are a separate capability `users.ledger` (OWNER, SUPPORT, FINANCE), so the moderator sees the balances only.
+4. **Kept:** rejecting a withdrawal still needs the authenticator code again (choice d).
+5. **Kept (D190):** a team refund (`payments-admin refund`) opens an admin case without freezing the buyer.
+6. Still open — phase 2: an audit-log viewer, admin role management in the panel (now CLI-only by decision), the
+   Stripe cases.

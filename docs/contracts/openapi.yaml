@@ -8295,7 +8295,7 @@ paths:
       tags: [admin-panel]
       operationId: getAdminDashboard
       summary: "Home: today's real aggregates and the pending queues (capability dashboard.view)"
-      description: "«Today» is the UTC day (`since`). Website top-ups are not counted (D190 not merged)."
+      description: "«Today» is the Asia/Riyadh day (`since` = that day's midnight; server setting `ADMIN_DASHBOARD_TIME_ZONE`, default Asia/Riyadh; owner 2026-10-31). Website top-ups are not counted yet."
       security: [{ adminSession: [] }]
       responses:
         '200':
@@ -8334,7 +8334,7 @@ paths:
       tags: [admin-panel]
       operationId: getAdminUser
       summary: "A user's profile for the panel (users.view; audited `admin.user.view`)"
-      description: "`balances` and `ledger` are null without the capability `users.balances` (OWNER, SUPPORT, FINANCE). The base username shows (it is audited)."
+      description: "`balances` is null without the capability `users.balances` (OWNER, MODERATION read-only, SUPPORT, FINANCE); `ledger` is null without `users.ledger` (OWNER, SUPPORT, FINANCE). The base username shows (it is audited)."
       security: [{ adminSession: [] }]
       parameters:
         - $ref: '#/components/parameters/AdminUserIdPath'
@@ -9236,7 +9236,7 @@ components:
       type: object
       required: [since, today, livesNow, pending]
       properties:
-        since: { type: string, format: date-time, description: Start of today (UTC). }
+        since: { type: string, format: date-time, description: "Start of today: midnight in ADMIN_DASHBOARD_TIME_ZONE (default Asia/Riyadh)." }
         today:
           type: object
           required: [newUsers, agentCoinsSold, agentSales, giftsSent, giftCoins]
@@ -9317,7 +9317,7 @@ components:
             lockedTaskCherries: { type: integer, description: Task cherries not withdrawable yet (D184). }
         ledger:
           type: [object, 'null']
-          description: The 20 latest coin and cherry ledger rows; null without `users.balances`.
+          description: The 20 latest coin and cherry ledger rows; null without `users.ledger`.
           required: [coins, cherries]
           properties:
             coins: { type: array, items: { $ref: '#/components/schemas/AdminLedgerRow' } }

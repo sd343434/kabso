@@ -1486,7 +1486,8 @@ first-party). The panel signs in an existing admin account with its password and
 
    Never change it afterwards without `admin-admin reset-2fa` for every admin (their authenticators become
    unreadable). Optional settings (defaults): `ADMIN_SESSION_IDLE_SECONDS` 1800, `ADMIN_SESSION_MAX_SECONDS` 28800,
-   `ADMIN_PENDING_SECONDS` 300, `ADMIN_LOCKOUT_ATTEMPTS` 5, `ADMIN_LOCKOUT_SECONDS` 900, `RATE_LIMIT_ADMIN_LOGIN_IP`
+   `ADMIN_PENDING_SECONDS` 300, `ADMIN_LOCKOUT_ATTEMPTS` 5, `ADMIN_LOCKOUT_SECONDS` 900, `ADMIN_DASHBOARD_TIME_ZONE`
+   `Asia/Riyadh` (the dashboard's «today»), `RATE_LIMIT_ADMIN_LOGIN_IP`
    `30/900`, `RATE_LIMIT_ADMIN_IP` `1200/900`.
 3. **Optional IP allowlist:** `KABSO_ADMIN_ALLOW_IPS='203.0.113.7/32 198.51.100.0/24'` in `/etc/kabso/kabso.env`
    (space-separated CIDRs) answers 403 at admin.<domain> to every other address. **Leave it unset for everyone** — an

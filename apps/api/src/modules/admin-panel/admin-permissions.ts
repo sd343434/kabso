@@ -18,8 +18,10 @@ export type PanelRole = (typeof PANEL_ROLES)[number];
 export const CAPABILITIES = {
   'dashboard.view': ['OWNER', 'MODERATION', 'SUPPORT', 'FINANCE'],
   'users.view': ['OWNER', 'MODERATION', 'SUPPORT', 'FINANCE'],
-  /** Balances and the recent coin and cherry ledger of a user. */
-  'users.balances': ['OWNER', 'SUPPORT', 'FINANCE'],
+  /** A user's balances, read-only (owner 2026-10-31: the moderator «مشرف» sees them too). */
+  'users.balances': ['OWNER', 'MODERATION', 'SUPPORT', 'FINANCE'],
+  /** The recent coin and cherry ledger rows of a user. */
+  'users.ledger': ['OWNER', 'SUPPORT', 'FINANCE'],
   'users.ban': ['OWNER', 'MODERATION'],
   'users.avatar': ['OWNER', 'MODERATION'],
   'users.special_username': ['OWNER', 'SUPPORT'],

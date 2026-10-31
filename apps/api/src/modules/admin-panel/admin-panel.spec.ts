@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { AdminSecretBox, newRecoveryCode, recoveryCodeHash } from './admin-crypto.js';
 import { CAPABILITIES, can, capabilitiesOf, PANEL_ROLES } from './admin-permissions.js';
 import { parseRole } from './admin-roles.js';
+import { dashboardDayStart } from './admin-users.service.js';
+import { randomBytes } from 'node:crypto';
+import { loadConfig } from '../../config/app-config.js';
 import { readCookie } from './admin-session.guard.js';
 import { base32Decode, base32Encode, hotp, matchTotp, otpauthUri, totpCode, totpStep } from './totp.js';
 import {
@@ -82,7 +85,11 @@ describe('panel roles', () => {
     expect(capabilitiesOf(['OWNER'])).toEqual(Object.keys(CAPABILITIES));
     expect(can(['MODERATION'], 'reports.act')).toBe(true);
     expect(can(['MODERATION'], 'recharge.applications')).toBe(false);
-    expect(can(['MODERATION'], 'users.balances')).toBe(false);
+    // Owner 2026-10-31: the moderator sees a user's balances (read-only), not the ledger rows.
+    expect(can(['MODERATION'], 'users.balances')).toBe(true);
+    expect(can(['MODERATION'], 'users.ledger')).toBe(false);
+    expect(can(['SUPPORT'], 'users.ledger')).toBe(true);
+    expect(can(['FINANCE'], 'users.ledger')).toBe(true);
     expect(can(['SUPPORT'], 'recharge.applications')).toBe(true);
     expect(can(['SUPPORT'], 'recharge.topup')).toBe(false);
     expect(can(['FINANCE'], 'recharge.topup')).toBe(true);
@@ -132,5 +139,35 @@ describe('site settings rules', () => {
       updateSiteSettingsSchema.safeParse({ socials: { instagram: null, tiktok: null }, topupEnabled: false })
         .success,
     ).toBe(false);
+  });
+});
+
+describe('dashboard «today» (owner 2026-10-31: the Asia/Riyadh day)', () => {
+  it('starts at midnight in Riyadh (UTC+3), not at UTC midnight', () => {
+    // 2026-10-31 22:30 UTC is already 2026-11-01 01:30 in Riyadh.
+    expect(dashboardDayStart(new Date('2026-10-31T22:30:00Z'), 'Asia/Riyadh').toISOString()).toBe(
+      '2026-10-31T21:00:00.000Z',
+    );
+    // 2026-11-01 20:59 UTC is still 2026-11-01 (23:59) in Riyadh.
+    expect(dashboardDayStart(new Date('2026-11-01T20:59:00Z'), 'Asia/Riyadh').toISOString()).toBe(
+      '2026-10-31T21:00:00.000Z',
+    );
+    expect(dashboardDayStart(new Date('2026-10-31T22:30:00Z'), 'UTC').toISOString()).toBe(
+      '2026-10-31T00:00:00.000Z',
+    );
+  });
+  it('defaults to Asia/Riyadh (ADMIN_DASHBOARD_TIME_ZONE)', () => {
+    const base = {
+      DATABASE_URL: 'postgresql://u:p@localhost:5432/db',
+      REDIS_URL: 'redis://localhost:6379',
+      // Generated per run: never commit a secret-like literal (gitleaks).
+      JWT_ACCESS_SECRET: randomBytes(48).toString('base64url'),
+      APP_PUBLIC_URL: 'https://kabso.example/',
+    };
+    expect(loadConfig(base).adminPanel.dashboardTimeZone).toBe('Asia/Riyadh');
+    expect(loadConfig({ ...base, ADMIN_DASHBOARD_TIME_ZONE: 'UTC' }).adminPanel.dashboardTimeZone).toBe(
+      'UTC',
+    );
+    expect(() => loadConfig({ ...base, ADMIN_DASHBOARD_TIME_ZONE: 'Mars/Base' })).toThrow();
   });
 });
