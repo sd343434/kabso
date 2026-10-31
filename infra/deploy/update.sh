@@ -2,7 +2,8 @@
 # Kabso Live — automatic update (KL-069, docs/DEPLOYMENT.md §11). Run by kabso-update.timer every
 # 5 minutes, and once by install.sh with --force.
 #
-# 1. fast-forwards /opt/kabso to origin/$KABSO_BRANCH (compose file, Caddyfile, initdb);
+# 1. fast-forwards /opt/kabso to origin/$KABSO_BRANCH (compose file, Caddyfile, initdb) and rebuilds the admin
+#    panel's static files when apps/admin changed (build-admin.sh, D191);
 # 2. pulls the API image CI published for that branch ($KABSO_API_IMAGE, only after CI is green);
 # 3. when either changed, or the running API is not on the pulled image yet: runs `prisma migrate
 #    deploy` as the migration role, then restarts the services whose image or configuration
@@ -35,6 +36,10 @@ new_image=$(docker image inspect -f '{{.Id}}' "$KABSO_API_IMAGE")
 # The image the running API container was started from (empty when it is not running).
 api_container=$("${C[@]}" ps -q api)
 running_image=$( [ -n "$api_container" ] && docker inspect -f '{{.Image}}' "$api_container" 2>/dev/null || true)
+
+# v1.60-social (D191): the admin panel's static build (skips itself when apps/admin did not change). A failed build
+# keeps the previous one and does not stop the API deploy.
+infra/deploy/build-admin.sh || echo "admin panel build failed; the previous build stays" >&2
 
 if [ "${1:-}" != "--force" ] && [ "$before" = "$after" ] && [ "$old_image" = "$new_image" ] &&
   [ "$running_image" = "$new_image" ]; then

@@ -37,7 +37,12 @@ import {
   suspendHostAgentIn,
 } from '../modules/economy/host-agents.js';
 import { syncHostFrames, type HostFrameChange } from '../modules/economy/host-frames.js';
-import { refundCherriesIn, reverseGiftCherriesIn } from '../modules/economy/cherry-ledger.js';
+import { reverseGiftCherriesIn } from '../modules/economy/cherry-ledger.js';
+import {
+  decideWithdrawalIn,
+  WithdrawalAdminError,
+  type WithdrawalDecision,
+} from '../modules/economy/withdrawal-admin.js';
 import {
   addMonths,
   dateValue,
@@ -409,28 +414,14 @@ async function withdrawals(statusRaw: string | undefined): Promise<void> {
 }
 
 async function withdrawalDecide(withdrawalId: string, pay: boolean, text: string | null): Promise<void> {
-  const now = new Date();
-  const done = await prisma.$transaction(async (tx) => {
-    const [w] = await tx.$queryRaw<{ id: string; user_id: string; status: string; cherries: bigint }[]>`
-      SELECT id::text AS id, user_id::text AS user_id, status::text AS status, cherries
-        FROM cherry_withdrawals WHERE id = ${withdrawalId}::uuid FOR UPDATE`;
-    if (!w) fail(`No withdrawal ${withdrawalId}.`);
-    if (w.status !== 'PENDING') fail(`Withdrawal ${withdrawalId} is ${w.status}; nothing changed.`);
-    await tx.cherryWithdrawal.update({
-      where: { id: withdrawalId },
-      data: { status: pay ? 'PAID' : 'REJECTED', decidedAt: now, decisionNote: text },
-    });
-    if (!pay) await refundCherriesIn(tx, w.user_id, w.cherries, withdrawalId, now);
-    await tx.auditLog.create({
-      data: {
-        action: pay ? AuditAction.CHERRY_WITHDRAWAL_PAY : AuditAction.CHERRY_WITHDRAWAL_REJECT,
-        targetType: 'cherry_withdrawal',
-        targetId: withdrawalId,
-        metadata: { user: w.user_id, cherries: Number(w.cherries), note: text, via: 'cli' },
-      },
-    });
-    return w;
-  });
+  // v1.60-social (D191): the same rule as the admin panel (modules/economy/withdrawal-admin.ts).
+  let done: WithdrawalDecision;
+  try {
+    done = await prisma.$transaction((tx) => decideWithdrawalIn(tx, withdrawalId, pay, text, new Date()));
+  } catch (err) {
+    if (err instanceof WithdrawalAdminError) fail(err.message);
+    throw err;
+  }
   process.stdout.write(
     `Withdrawal ${withdrawalId}: ${pay ? 'PAID' : `REJECTED, ${done.cherries.toString()} cherries given back`}.\n`,
   );

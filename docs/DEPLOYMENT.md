@@ -1402,10 +1402,11 @@ the `deploy-image` job of `.github/workflows/ci.yml`.
 | `kabsolive.com` | Caddy, a static "coming soon" page (`infra/deploy/site`) |
 | `api.kabsolive.com` | Caddy → API (`/internal/*` answers 404 from outside) |
 | `live.kabsolive.com` | Caddy → LiveKit signalling (`wss://`); media on 7881/tcp, 7882/udp |
+| `admin.kabsolive.com` | *(D191)* Caddy, the admin panel's static build (`infra/deploy/admin/current`) and `/api/*` → API (§11.6) |
 
 PostgreSQL, Redis and the API are not published; only 80, 443 (TCP+UDP), 7881/tcp and
-7882/udp are. Caddy gets and renews the Let's Encrypt certificates once the three DNS A
-records point at the server.
+7882/udp are. Caddy gets and renews the Let's Encrypt certificates once the DNS A records (the
+domain, `api.`, `live.` and, since D191, `admin.`) point at the server.
 
 **Release flow (no manual server step):**
 
@@ -1463,6 +1464,66 @@ and the API started as the runtime role with `/health/ready` 200; LiveKit 1.9.1 
 generated `livekit.yaml`; `caddy validate` (2.10.2) accepted the Caddyfile; `docker compose
 config` accepted the compose file; `ci.yml` parses as YAML (no actionlint available). **Not verified yet:** the timer's first automatic update, real mail delivery, and WebRTC media through the server's firewall (a TURN server may be needed for
 some mobile networks).
+
+### 11.6 The admin panel «لوحة الإدارة» (D191) — [IMPLEMENTED, draft contract v1.60-social; not deployed]
+
+CONVENTIONS §10.54. `apps/admin` (React + TypeScript + Vite) is built into static files and served by Caddy at
+`https://admin.<domain>`, which also proxies `/api/*` to the API (same origin: the HttpOnly session cookie stays
+first-party). The panel signs in an existing admin account with its password and a **mandatory authenticator code**.
+
+**Owner steps, once:**
+
+1. **DNS:** an A record `admin.kabsolive.com` → the server's IPv4 (the same address as `api.`). Caddy gets the
+   certificate by itself on the next update.
+2. **Key:** `ADMIN_TOTP_KEY` in `/etc/kabso/api.env` (encrypts the authenticators' secrets; without it the panel
+   answers 503). `install.sh` writes it on a new server and adds it once on an existing one; by hand:
+
+   ```bash
+   sudo sh -c 'grep -q "^ADMIN_TOTP_KEY=" /etc/kabso/api.env || echo "ADMIN_TOTP_KEY='"'"'$(openssl rand -base64 48 | tr "+/" "-_" | tr -d "=\n")'"'"'" >> /etc/kabso/api.env'
+   sudo docker compose -f /opt/kabso/infra/deploy/docker-compose.yml up -d api   # re-reads api.env
+   ```
+
+   Never change it afterwards without `admin-admin reset-2fa` for every admin (their authenticators become
+   unreadable). Optional settings (defaults): `ADMIN_SESSION_IDLE_SECONDS` 1800, `ADMIN_SESSION_MAX_SECONDS` 28800,
+   `ADMIN_PENDING_SECONDS` 300, `ADMIN_LOCKOUT_ATTEMPTS` 5, `ADMIN_LOCKOUT_SECONDS` 900, `RATE_LIMIT_ADMIN_LOGIN_IP`
+   `30/900`, `RATE_LIMIT_ADMIN_IP` `1200/900`.
+3. **Optional IP allowlist:** `KABSO_ADMIN_ALLOW_IPS='203.0.113.7/32 198.51.100.0/24'` in `/etc/kabso/kabso.env`
+   (space-separated CIDRs) answers 403 at admin.<domain> to every other address. **Leave it unset for everyone** — an
+   empty value (`KABSO_ADMIN_ALLOW_IPS=`) blocks everyone. Then `docker compose … up -d caddy`.
+4. **Bootstrap the first OWNER** (an existing app account; a grant also makes it an admin):
+
+   ```bash
+   cd /opt/kabso/infra/deploy
+   sudo docker compose --profile jobs run --rm migrate node dist/cli/admin-admin.js grant owner@example.com OWNER
+   sudo docker compose --profile jobs run --rm migrate node dist/cli/admin-admin.js list
+   ```
+
+   Other roles the same way: `MODERATOR`, `SUPPORT`, `FINANCE`; `revoke <email> <role>` takes one back (the last one
+   ends the person's panel sessions); `reset-2fa <email>` after a lost phone. The panel itself cannot change roles.
+5. **Enrol the authenticator:** open `https://admin.kabsolive.com`, sign in with the account's email and password,
+   scan the QR code with Google Authenticator / Microsoft Authenticator / 1Password, enter the code, and **store the
+   ten recovery codes** offline (shown once; each works once).
+
+**How the build reaches the server:** `update.sh` runs `infra/deploy/build-admin.sh`, which rebuilds only when
+`apps/admin`, the lockfile or the fonts changed: it runs `pnpm install --frozen-lockfile --filter @kabso/admin` and
+`vite build` in the API's pinned Node image on a copy of those files, then swaps `infra/deploy/admin/current` (two
+renames; not in git). A failed build keeps the previous one and does not stop the API deploy. By hand:
+`sudo /opt/kabso/infra/deploy/build-admin.sh --force`. CI checks the panel in the `admin` job (typecheck, lint, unit
+tests, build).
+
+**Security headers** (Caddy): CSP `default-src 'self'` (no inline script or style, `frame-ancestors 'none'`,
+`img-src 'self' data: https:` for the media host's avatars), HSTS, `X-Frame-Options: DENY`, `nosniff`,
+`Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex`; `index.html` is `no-store`, hashed assets immutable.
+
+**Local development:** API on :3000 with `ADMIN_TOTP_KEY` set, then `pnpm --filter @kabso/admin dev` (Vite on :5180
+proxies `/api`). Smoke: `SMOKE_FILE=/tmp/admin-smoke.json pnpm --filter @kabso/api smoke:admin-server` (resets the
+`*_test` database of `DATABASE_URL`, seeds a not-yet-enrolled OWNER and data, listens on :3000), then
+`pnpm --filter @kabso/admin build && KABSO_SMOKE_FILE=/tmp/admin-smoke.json pnpm --filter @kabso/admin e2e`.
+
+**Verified in the authoring environment (no server):** API unit and e2e tests (D191 + D185, D179, D175, D189,
+KL-060 safety, KL-062 notifications), the Playwright smoke against the local API, `caddy validate` 2.10.2 and a
+local Caddy run of the admin block (SPA fallback, headers, `/internal/*` 404, the allowlist). **Not verified:** the
+DNS record, the certificate, `build-admin.sh` inside Docker on the server (no Docker daemon here).
 
 ### 5.25 Video posts and reels (migration `20261211090000_video_posts_reels`; D162) — [IMPLEMENTED, draft contract v1.41-social; not deployed, not device-tested]
 

@@ -132,6 +132,12 @@ describe('ErrorCode', () => {
         'WITHDRAWAL_PENDING',
         // v1.57-social (DRAFT, D188)
         'TASK_MONTHLY_CAP_REACHED',
+        // v1.60-social (D191).
+        'ADMIN_PANEL_UNAVAILABLE',
+        'ADMIN_LOCKED',
+        'ADMIN_TOTP_INVALID',
+        'ADMIN_CSRF_INVALID',
+        'ADMIN_ACTION_REFUSED',
       ].sort(),
     );
     expect(ERROR_HTTP_STATUS).toMatchObject({
@@ -210,6 +216,11 @@ describe('ErrorCode', () => {
       INSUFFICIENT_CHERRIES: 409,
       WITHDRAWAL_PENDING: 409,
       TASK_MONTHLY_CAP_REACHED: 409,
+      ADMIN_PANEL_UNAVAILABLE: 503,
+      ADMIN_LOCKED: 429,
+      ADMIN_TOTP_INVALID: 403,
+      ADMIN_CSRF_INVALID: 403,
+      ADMIN_ACTION_REFUSED: 409,
     });
   });
 

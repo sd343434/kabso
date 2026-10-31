@@ -39,3 +39,8 @@ Thumbs.db
 
 # D40: reference screenshots never committed while the repository is public
 /design/references/
+
+# v1.60-social (D191): the admin panel's static build on the server (infra/deploy/build-admin.sh) and Playwright output.
+infra/deploy/admin/
+apps/admin/test-results/
+apps/admin/playwright-report/

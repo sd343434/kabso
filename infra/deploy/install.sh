@@ -86,6 +86,11 @@ fi
 install -d -m 700 "$ETC"
 if [ -f "$ETC/kabso.env" ]; then
   log "Secrets already exist in $ETC: keeping them (delete the directory to start over)"
+  # v1.60-social (D191): servers installed before the admin panel get its key once (existing values stay).
+  if ! grep -q '^ADMIN_TOTP_KEY=' "$ETC/api.env"; then
+    echo "ADMIN_TOTP_KEY='$(secret)'" >>"$ETC/api.env"
+    log "Added ADMIN_TOTP_KEY to $ETC/api.env (the admin panel)"
+  fi
 else
   log "Settings (press Enter for the default)"
   ask DOMAIN "Domain" "kabsolive.com"
@@ -145,6 +150,8 @@ RATE_LIMIT_KEY_SECRET='$(secret)'
 REGISTRATION_CODE_KEY='$(secret)'
 LIVE_CURSOR_KEY='$(secret)'
 SOCIAL_CURSOR_KEY='$(secret)'
+# v1.60-social (D191): encrypts the admin panel's authenticator secrets; without it the panel is off.
+ADMIN_TOTP_KEY='$(secret)'
 APP_PUBLIC_URL='https://${DOMAIN}'
 CORS_ORIGINS='https://${DOMAIN}'
 # Caddy is the only proxy in front and appends X-Forwarded-For (docs/DEPLOYMENT.md §3.1).

@@ -3,7 +3,7 @@ import { AuditAction, AuditService } from '../../common/audit/audit.service.js';
 import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
 import { zodErrorToDetails } from '../../common/validation/zod-validation.pipe.js';
-import type { Prisma } from '../../generated/prisma/client.js';
+import type { Prisma, Report } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { readableCpConfession, removeCpConfessionIn } from '../cp-space/cp-confessions.js';
 import { readableFamilyChatMessage, removeFamilyChatMessageIn } from '../families/family-chat.js';
@@ -102,6 +102,49 @@ export interface PrivacyDto {
   whoCanMessage: 'EVERYONE' | 'FOLLOWING' | 'NOBODY';
   /** v1.47-social (D175, §10.47): a private account (follow requests; content for followers only). */
   isPrivate: boolean;
+}
+
+/**
+ * Every report on the same target as `report` (v1.60-social, D191: shared with the admin panel's warn and ban, which
+ * close the target's OPEN reports like REMOVE_TARGET does).
+ */
+export function reportTargetWhere(report: Report): Prisma.ReportWhereInput {
+  return report.targetPostId
+    ? { targetPostId: report.targetPostId }
+    : report.targetCommentId
+      ? { targetCommentId: report.targetCommentId }
+      : report.targetStoryId
+        ? { targetStoryId: report.targetStoryId }
+        : report.targetLiveRoomId
+          ? { targetLiveRoomId: report.targetLiveRoomId }
+          : report.targetLiveChatMessageId
+            ? { targetLiveChatMessageId: report.targetLiveChatMessageId }
+            : report.targetCpConfessionId
+              ? { targetCpConfessionId: report.targetCpConfessionId }
+              : report.targetFamilyChatMessageId
+                ? { targetFamilyChatMessageId: report.targetFamilyChatMessageId }
+                : report.targetDmMessageId
+                  ? { targetDmMessageId: report.targetDmMessageId }
+                  : report.targetProfileLinkId
+                    ? { targetProfileLinkId: report.targetProfileLinkId }
+                    : { targetUserId: report.targetUserId };
+}
+
+/** The reported item's id (the audit row's target). */
+export function reportTargetId(report: Report): string | undefined {
+  return (
+    report.targetPostId ??
+    report.targetCommentId ??
+    report.targetStoryId ??
+    report.targetLiveRoomId ??
+    report.targetLiveChatMessageId ??
+    report.targetCpConfessionId ??
+    report.targetFamilyChatMessageId ??
+    report.targetDmMessageId ??
+    report.targetProfileLinkId ??
+    report.targetUserId ??
+    undefined
+  );
 }
 
 const REPORT_INCLUDE = {
@@ -589,25 +632,7 @@ export class SafetyService {
         }
         // USER: the decision is recorded only; suspension is a separate admin tool.
       }
-      const target: Prisma.ReportWhereInput = report.targetPostId
-        ? { targetPostId: report.targetPostId }
-        : report.targetCommentId
-          ? { targetCommentId: report.targetCommentId }
-          : report.targetStoryId
-            ? { targetStoryId: report.targetStoryId }
-            : report.targetLiveRoomId
-              ? { targetLiveRoomId: report.targetLiveRoomId }
-              : report.targetLiveChatMessageId
-                ? { targetLiveChatMessageId: report.targetLiveChatMessageId }
-                : report.targetCpConfessionId
-                  ? { targetCpConfessionId: report.targetCpConfessionId }
-                  : report.targetFamilyChatMessageId
-                    ? { targetFamilyChatMessageId: report.targetFamilyChatMessageId }
-                    : report.targetDmMessageId
-                      ? { targetDmMessageId: report.targetDmMessageId }
-                      : report.targetProfileLinkId
-                        ? { targetProfileLinkId: report.targetProfileLinkId }
-                        : { targetUserId: report.targetUserId };
+      const target = reportTargetWhere(report);
       const closed = await tx.report.updateMany({
         where: { ...target, status: 'OPEN' },
         data: {
@@ -621,19 +646,13 @@ export class SafetyService {
         action: AuditAction.MODERATION_REPORT_ACTION,
         actorUserId: actor.userId,
         targetType: report.targetType.toLowerCase(),
-        targetId:
-          report.targetPostId ??
-          report.targetCommentId ??
-          report.targetStoryId ??
-          report.targetLiveRoomId ??
-          report.targetLiveChatMessageId ??
-          report.targetCpConfessionId ??
-          report.targetFamilyChatMessageId ??
-          report.targetDmMessageId ??
-          report.targetProfileLinkId ??
-          report.targetUserId ??
-          undefined,
-        metadata: { reportId: id, action, reportsClosed: closed.count },
+        targetId: reportTargetId(report),
+        metadata: {
+          reportId: id,
+          action,
+          reportsClosed: closed.count,
+          ...(actor.via ? { via: actor.via } : {}),
+        },
         ip: actor.ip,
         requestId: actor.requestId,
       });
@@ -641,6 +660,14 @@ export class SafetyService {
     for (const roomId of endedRooms) await this.liveMedia.closeMedia(roomId);
     const chat = removedChat as { roomId: string; messageId: string } | null;
     if (chat) await this.liveChat.afterRemoved(chat.roomId, chat.messageId);
+    return this.toDto(
+      await this.prisma.report.findUniqueOrThrow({ where: { id }, include: REPORT_INCLUDE }),
+      true,
+    );
+  }
+
+  /** v1.60-social (D191): one report as the admin queue shows it (the panel's answer after an action). */
+  async adminGet(id: string): Promise<ReportDto> {
     return this.toDto(
       await this.prisma.report.findUniqueOrThrow({ where: { id }, include: REPORT_INCLUDE }),
       true,

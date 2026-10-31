@@ -22,6 +22,7 @@ Status legend: ⛔ open · ⏳ in progress · ✅ done (evidence linked)
 | PP-09 | Production secrets from the secret manager: `JWT_ACCESS_SECRET`, `RATE_LIMIT_KEY_SECRET` (distinct, strength-checked at boot), DB passwords | deploy | A8 | ⛔ |
 | PP-10 | `UV_THREADPOOL_SIZE ≥ ARGON2_MAX_CONCURRENCY + 4` in the container spec (DEPLOYMENT.md §3.2) | deploy | A8 | ⛔ |
 | PP-11 | Repository private; full-history secret scan clean on all refs | owner + A1 | A1 | ⏳ (scan ✅ 2026-10-15, 60 commits, all refs; visibility change pending owner) |
+| PP-12 | Admin panel (D191, CONVENTIONS §10.54) security review before real team use: A7 review of the cookie session, CSRF, TOTP enrolment/recovery/lockout, the role × capability matrix and the private-picture route; `ADMIN_TOTP_KEY` from the secret manager; decide whether `KABSO_ADMIN_ALLOW_IPS` is required in production | D191 | A7 + owner | ⛔ built with e2e evidence (`test/d191-admin-panel.e2e-spec.ts`), not reviewed |
 
 ## Product / compliance
 

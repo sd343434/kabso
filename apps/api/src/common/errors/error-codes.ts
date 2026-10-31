@@ -163,6 +163,16 @@ export enum ErrorCode {
   HOST_FRAME_STYLE_FROM_GENDER = 'HOST_FRAME_STYLE_FROM_GENDER',
   /** v1.57-social (DRAFT, D188): the caller already got the month's maximum of task cherries. */
   TASK_MONTHLY_CAP_REACHED = 'TASK_MONTHLY_CAP_REACHED',
+  /** v1.60-social (DRAFT, D191): the admin panel is off (ADMIN_TOTP_KEY is not set on the server). */
+  ADMIN_PANEL_UNAVAILABLE = 'ADMIN_PANEL_UNAVAILABLE',
+  /** v1.60-social (DRAFT, D191): too many failed sign-in or code attempts; the admin account is locked a while. */
+  ADMIN_LOCKED = 'ADMIN_LOCKED',
+  /** v1.60-social (DRAFT, D191): the authenticator code (or recovery code) is wrong, expired or already used. */
+  ADMIN_TOTP_INVALID = 'ADMIN_TOTP_INVALID',
+  /** v1.60-social (DRAFT, D191): a panel change without the session's `X-CSRF-Token`. */
+  ADMIN_CSRF_INVALID = 'ADMIN_CSRF_INVALID',
+  /** v1.60-social (DRAFT, D191): the shared admin rule refused the action (the message says why; nothing changed). */
+  ADMIN_ACTION_REFUSED = 'ADMIN_ACTION_REFUSED',
 }
 
 /** HTTP status for every code (CONVENTIONS.md §4 table). */
@@ -259,6 +269,11 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.USERNAME_LOCKED]: 409,
   [ErrorCode.HOST_FRAME_STYLE_FROM_GENDER]: 409,
   [ErrorCode.TASK_MONTHLY_CAP_REACHED]: 409,
+  [ErrorCode.ADMIN_PANEL_UNAVAILABLE]: 503,
+  [ErrorCode.ADMIN_LOCKED]: 429,
+  [ErrorCode.ADMIN_TOTP_INVALID]: 403,
+  [ErrorCode.ADMIN_CSRF_INVALID]: 403,
+  [ErrorCode.ADMIN_ACTION_REFUSED]: 409,
 };
 
 /** Default developer-facing messages (clients localize by `code`, not by message). */
@@ -355,6 +370,11 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.USERNAME_LOCKED]: 'Your username is locked while your special username is active.',
   [ErrorCode.HOST_FRAME_STYLE_FROM_GENDER]: 'Your gender sets the colour of your host frame.',
   [ErrorCode.TASK_MONTHLY_CAP_REACHED]: 'You already got this month’s maximum of task rewards.',
+  [ErrorCode.ADMIN_PANEL_UNAVAILABLE]: 'The admin panel is not available.',
+  [ErrorCode.ADMIN_LOCKED]: 'Too many failed attempts. Try again later.',
+  [ErrorCode.ADMIN_TOTP_INVALID]: 'The code is not valid.',
+  [ErrorCode.ADMIN_CSRF_INVALID]: 'The request is missing a valid CSRF token.',
+  [ErrorCode.ADMIN_ACTION_REFUSED]: 'The action was refused.',
 };
 
 export interface ErrorDetail {

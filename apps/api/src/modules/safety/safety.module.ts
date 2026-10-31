@@ -16,5 +16,7 @@ import { SafetyService } from './safety.service.js';
   imports: [LiveModule, MediaModule, NotificationsModule, PostsModule, UsersModule],
   controllers: [SafetyController, AdminReportsController],
   providers: [SafetyService, AdminGuard, AdminPermissions],
+  // v1.60-social (D191): the admin panel's report queue.
+  exports: [SafetyService],
 })
 export class SafetyModule {}

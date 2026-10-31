@@ -1,3 +1,4 @@
+import { auditBy, CLI_VIA, type AdminVia } from '../../common/audit/admin-actor.js';
 import { AuditAction } from '../../common/audit/audit.service.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { Notifier } from '../notifications/notifier.js';
@@ -22,6 +23,7 @@ export async function removeAvatarByAdminIn(
   tx: Prisma.TransactionClient,
   username: string,
   reason: string | null,
+  by: AdminVia = CLI_VIA,
 ): Promise<AdminAvatarRemoval> {
   const name = username.trim().toLowerCase();
   if (!isValidUsername(name)) return { outcome: 'unknown_user' };
@@ -50,10 +52,11 @@ export async function removeAvatarByAdminIn(
   await new Notifier().system(tx, { type: 'AVATAR_REMOVED', recipientId: row.user_id });
   await tx.auditLog.create({
     data: {
+      ...auditBy(by),
       action: AuditAction.ADMIN_AVATAR_REMOVE,
       targetType: 'user',
       targetId: row.user_id,
-      metadata: { username: name, reason, hadAsset: row.avatar_media_id !== null, via: 'cli' },
+      metadata: { username: name, reason, hadAsset: row.avatar_media_id !== null, via: by.via },
     },
   });
   return { outcome: 'removed', userId: row.user_id, objectKeys };
