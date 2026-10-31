@@ -4294,7 +4294,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveCam2JoinPermissions =>
-      'سيطلب كابسو إذن الكاميرا والميكروفون. يبدأ الميكروفون مكتوماً، ولا تظهر الدردشة على هذا الجهاز.';
+      'سيطلب Kabso Live إذن الكاميرا والميكروفون. يبدأ الميكروفون مكتوماً، ولا تظهر الدردشة على هذا الجهاز.';
 
   @override
   String get liveCam2JoinButton => 'انضمام';
@@ -4311,7 +4311,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveCam2PermissionDenied =>
-      'اسمح لكابسو باستخدام الكاميرا والميكروفون من إعدادات الجهاز.';
+      'اسمح لتطبيق Kabso Live باستخدام الكاميرا والميكروفون من إعدادات الجهاز.';
 
   @override
   String get liveCam2OnAir => 'كاميرا ثانية · مباشر';
@@ -4350,7 +4350,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveMusicPickerNote =>
-      'يفتح منتقي الملفات في جهازك؛ لا يرى كابسو إلا الملفات التي تختارها، ولا تُرفع إلى الخادم.';
+      'يفتح منتقي الملفات في جهازك؛ لا يرى Kabso Live إلا الملفات التي تختارها، ولا تُرفع إلى الخادم.';
 
   @override
   String get liveMusicMixNote =>
@@ -4449,7 +4449,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveClipSaveFailed =>
-      'تعذّر الحفظ. اسمح لكابسو بإضافة الصور والفيديو من الإعدادات.';
+      'تعذّر الحفظ. اسمح لتطبيق Kabso Live بإضافة الصور والفيديو من الإعدادات.';
 
   @override
   String get liveClipPostReel => 'نشر كريلز';

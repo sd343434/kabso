@@ -4188,7 +4188,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveCam2Steps =>
-      'On the second device: sign in to the same account, open Go live, then “Join as second camera”, and enter the code.';
+      'On the second device: log in to the same account, open Go live, then “Join as second camera”, and enter the code.';
 
   @override
   String get liveCam2Layout =>
@@ -4263,11 +4263,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveCam2JoinIntro =>
-      'Sign in to the account you stream from, then enter the code shown in “Dual” on your main device.';
+      'Log in to the account you stream from, then enter the code shown in “Dual” on your main device.';
 
   @override
   String get liveCam2JoinPermissions =>
-      'Kabso will ask for the camera and the microphone. The microphone starts muted; this device shows no chat.';
+      'Kabso Live will ask for the camera and the microphone. The microphone starts muted; this device shows no chat.';
 
   @override
   String get liveCam2JoinButton => 'Join';

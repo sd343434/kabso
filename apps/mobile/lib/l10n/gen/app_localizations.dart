@@ -7571,7 +7571,7 @@ abstract class AppLocalizations {
   /// D201 live tools
   ///
   /// In ar, this message translates to:
-  /// **'سيطلب كابسو إذن الكاميرا والميكروفون. يبدأ الميكروفون مكتوماً، ولا تظهر الدردشة على هذا الجهاز.'**
+  /// **'سيطلب Kabso Live إذن الكاميرا والميكروفون. يبدأ الميكروفون مكتوماً، ولا تظهر الدردشة على هذا الجهاز.'**
   String get liveCam2JoinPermissions;
 
   /// D201 live tools
@@ -7601,7 +7601,7 @@ abstract class AppLocalizations {
   /// D201 live tools
   ///
   /// In ar, this message translates to:
-  /// **'اسمح لكابسو باستخدام الكاميرا والميكروفون من إعدادات الجهاز.'**
+  /// **'اسمح لتطبيق Kabso Live باستخدام الكاميرا والميكروفون من إعدادات الجهاز.'**
   String get liveCam2PermissionDenied;
 
   /// D201 live tools
@@ -7673,7 +7673,7 @@ abstract class AppLocalizations {
   /// D201 live tools
   ///
   /// In ar, this message translates to:
-  /// **'يفتح منتقي الملفات في جهازك؛ لا يرى كابسو إلا الملفات التي تختارها، ولا تُرفع إلى الخادم.'**
+  /// **'يفتح منتقي الملفات في جهازك؛ لا يرى Kabso Live إلا الملفات التي تختارها، ولا تُرفع إلى الخادم.'**
   String get liveMusicPickerNote;
 
   /// D201 live tools
@@ -7847,7 +7847,7 @@ abstract class AppLocalizations {
   /// D201 live tools
   ///
   /// In ar, this message translates to:
-  /// **'تعذّر الحفظ. اسمح لكابسو بإضافة الصور والفيديو من الإعدادات.'**
+  /// **'تعذّر الحفظ. اسمح لتطبيق Kabso Live بإضافة الصور والفيديو من الإعدادات.'**
   String get liveClipSaveFailed;
 
   /// D201 live tools
