@@ -37,11 +37,13 @@ import 'package:kabso_live/features/live/data/live_schedule_repository.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
+import 'package:kabso_live/features/live/domain/live_room_stats.dart';
 import 'package:kabso_live/features/live/go_live_screen.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_audio_setup.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_setup_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_data_now_page.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_end_summary.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_fill_light.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_host_parts.dart';
@@ -57,6 +59,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_watch_sheet.d
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_tools.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_games_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk_sheet.dart';
@@ -1929,7 +1932,8 @@ void main() {
           expect(find.byKey(KRoomChipsRow.numberKey), findsNothing);
           // No minimize at the top (D135: it is in ≡).
           expect(find.byKey(GoLiveScreen.minimizeKey), findsNothing);
-          // The owner's colourful PK and gift art, 33 pt, 48 pt targets.
+          // The owner's colourful PK and gift art, 48 pt targets; D199 (ref
+          // 275): inside the bar's 34.6 lp circles (74 % of them).
           for (final (key, art) in [
             (KHostBar.pkKey, 'assets/live_bar/bar_pk.png'),
             (KHostBar.giftKey, 'assets/live_bar/bar_gift.png'),
@@ -1941,7 +1945,7 @@ void main() {
               ),
             );
             expect((image.image as AssetImage).assetName, art);
-            expect(image.width, KViewerBarButton.artSize);
+            expect(image.width, closeTo(KHostBar.diameter * 0.74, 0.01));
             expect(
               tester.getSize(find.byKey(key)).width,
               greaterThanOrEqualTo(48),
@@ -2787,6 +2791,246 @@ void main() {
       await tester.tap(find.byKey(LivePersonToolKeys.admin));
       await tester.pumpAndSettle();
       expect(repo.seatCalls, contains('addModerator:huda'));
+      await _leave(tester);
+    });
+  });
+
+  group('D199 host video live (refs 273 / 274 / 275)', () {
+    List<String> order(WidgetTester tester, List<String> ids) {
+      final at = {
+        for (final id in ids)
+          id: tester.getCenter(find.byKey(GoLiveKeys.tool(id))),
+      };
+      final sorted = [...ids]
+        ..sort((a, b) {
+          final dy = at[a]!.dy - at[b]!.dy;
+          if (dy.abs() > 4) return dy.sign.toInt();
+          return (at[a]!.dx - at[b]!.dx).sign.toInt();
+        });
+      return sorted;
+    }
+
+    testWidgets('Room Tools in the reference order; tiles without a feature '
+        'say Soon and do nothing', (tester) async {
+      await _pump(tester);
+      await _goLive(tester);
+      await _openTools(tester);
+      final l10n = _l10n(tester);
+      const room = [
+        'share',
+        'fillLight',
+        'flip',
+        'dual',
+        'quality',
+        'sticker',
+        'mic',
+        'music',
+        'sounds',
+      ];
+      expect(order(tester, room), room);
+      const other = [
+        'topic',
+        'viewers',
+        'chat',
+        'management',
+        'assistance',
+        'program',
+        'recorder',
+        'newcomers',
+        'data',
+        'time',
+        'traffic',
+      ];
+      expect(order(tester, other), other);
+      // The reference's Room Tools come first, Kabso's own after them.
+      expect(
+        tester.getCenter(find.byKey(GoLiveKeys.tool('sounds'))).dy,
+        lessThanOrEqualTo(
+          tester.getCenter(find.byKey(GoLiveKeys.tool('minimize'))).dy,
+        ),
+      );
+      // HD is the quality tool; Flash is the light (the back camera's torch).
+      expect(
+        find.descendant(
+          of: find.byKey(GoLiveKeys.tool('quality')),
+          matching: find.text(l10n.liveToolHd),
+        ),
+        findsOneWidget,
+      );
+      for (final label in [
+        l10n.liveToolDual,
+        l10n.liveToolMusic,
+        l10n.liveToolRecorder,
+      ]) {
+        expect(
+          find.bySemanticsLabel('$label, ${l10n.liveSoon}'),
+          findsOneWidget,
+          reason: label,
+        );
+      }
+      // A «Soon» tile is disabled: the sheet stays open.
+      await tester.tap(find.byKey(GoLiveKeys.tool('dual')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(GoLiveKeys.tool('dual')), findsOneWidget);
+      for (final id in [
+        'share',
+        'fillLight',
+        'flip',
+        'quality',
+        'sticker',
+        'mic',
+        'sounds',
+        'topic',
+        'viewers',
+        'chat',
+        'management',
+        'assistance',
+        'program',
+        'newcomers',
+        'data',
+        'time',
+        'traffic',
+      ]) {
+        final semantics = tester.getSemantics(find.byKey(GoLiveKeys.tool(id)));
+        expect(
+          semantics.flagsCollection.isEnabled,
+          Tristate.isTrue,
+          reason: id,
+        );
+      }
+      await _leave(tester);
+    });
+
+    testWidgets(
+      'Flash says «Flash» on the back camera and turns its torch on',
+      (tester) async {
+        final (_, camera) = await _pump(tester);
+        await _goLive(tester);
+        await _openTools(tester);
+        await tester.tap(find.byKey(GoLiveScreen.flipKey));
+        await tester.pumpAndSettle();
+        await _openTools(tester);
+        final l10n = _l10n(tester);
+        expect(
+          find.descendant(
+            of: find.byKey(GoLiveKeys.tool('fillLight')),
+            matching: find.text(l10n.liveToolFlash),
+          ),
+          findsOneWidget,
+        );
+        expect(camera.flips, 1);
+        await _leave(tester);
+      },
+    );
+
+    testWidgets("Data Center: this live's numbers from the API, unique "
+        'viewers with the peak, the level and the Creator Center pill', (
+      tester,
+    ) async {
+      final repo = FakeLiveRepository(categories: _categories)
+        ..stats = LiveRoomStats(
+          roomId: 'room-host',
+          ended: false,
+          startedAt: DateTime.now().subtract(const Duration(seconds: 33)),
+          endedAt: null,
+          duration: const Duration(seconds: 33),
+          total: 1250,
+          tapPoints: 50,
+          supportPoints: 1200,
+          hostOwnPoints: 0,
+          supporters: 3,
+          topSupporters: const [],
+          giftCount: 7,
+          giftGivers: 4,
+          chatMessages: 2,
+          newFollowers: 5,
+          viewers: const LiveViewerStats(
+            unique: 21,
+            guests: 2,
+            peak: 9,
+            atEnd: 6,
+            averageWatch: Duration(seconds: 40),
+          ),
+          viewerCountries: const [],
+        );
+      await _pump(tester, repo: repo, levels: _Levels());
+      await _goLive(tester);
+      await _openTools(tester);
+      final l10n = _l10n(tester);
+      await tester.tap(find.byKey(GoLiveKeys.tool('data')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(LiveDataNowPage.pageKey), findsOneWidget);
+      expect(repo.statsCalls, greaterThanOrEqualTo(1));
+      String? label(String id) => tester
+          .widget<Semantics>(find.byKey(LiveDataNowPage.valueKey(id)))
+          .properties
+          .label;
+      expect(label('time'), startsWith('${l10n.liveDataNowLiveTime}: 00:00:3'));
+      expect(
+        label('viewers'),
+        '${l10n.liveDataNowViewers}: 21، ${l10n.liveDataNowViewersHint('9')}',
+      );
+      expect(label('cherries'), '${l10n.liveDataNowCherries}: 1,250');
+      expect(label('givers'), '${l10n.liveDataNowGivers}: 4');
+      expect(label('fans'), '${l10n.liveDataNowFans}: 5');
+      // The host's real charm level (12, `GET /levels/me`).
+      expect(
+        find.descendant(
+          of: find.byKey(LiveDataNowPage.levelKey),
+          matching: find.text(l10n.liveDataLevel('12')),
+        ),
+        findsOneWidget,
+      );
+      expect(find.byKey(LiveDataNowPage.creatorKey), findsOneWidget);
+      expect(find.byKey(LiveDataNowPage.historyKey), findsOneWidget);
+      // No invented «Live Quality» score or tutorials.
+      expect(find.textContaining('Skill'), findsNothing);
+      expect(find.textContaining('Learn'), findsNothing);
+      await tester.tap(find.byKey(LiveDataNowPage.closeKey));
+      await tester.pumpAndSettle();
+      expect(find.byKey(LiveDataNowPage.pageKey), findsNothing);
+      await _leave(tester);
+    });
+
+    testWidgets('the bar: chat, magic, ≡ | guests, PK, box, gift — the box '
+        'opens the games, PK the PK sheet', (tester) async {
+      await _pump(tester);
+      await _goLive(tester);
+      double x(Key k) => tester.getCenter(find.byKey(k)).dx;
+      final keys = [
+        GoLiveScreen.videoChatKey,
+        KHostBar.beautyKey,
+        KHostBar.toolsKey,
+        KHostBar.guestsKey,
+        KHostBar.pkKey,
+        KHostBar.boxKey,
+        KHostBar.giftKey,
+      ];
+      for (var i = 1; i < keys.length; i++) {
+        expect(x(keys[i]), greaterThan(x(keys[i - 1])), reason: '$i');
+      }
+      await tester.tap(find.byKey(KHostBar.boxKey));
+      await tester.pumpAndSettle();
+      expect(find.byKey(LiveGamesSheet.sheetKey), findsOneWidget);
+      await tester.tapAt(const Offset(200, 80));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(KHostBar.pkKey));
+      await tester.pumpAndSettle();
+      expect(find.byKey(LivePkSheet.sheetKey), findsOneWidget);
+      await _leave(tester);
+    });
+
+    testWidgets('Arabic: the bar mirrors (chat on the right)', (tester) async {
+      await _pump(tester, language: AppLanguage.ar);
+      await _goLive(tester);
+      expect(
+        tester.getCenter(find.byKey(GoLiveScreen.videoChatKey)).dx,
+        greaterThan(tester.getCenter(find.byKey(KHostBar.giftKey)).dx),
+      );
+      expect(
+        tester.getCenter(find.byKey(KHostBar.boxKey)).dx,
+        lessThan(tester.getCenter(find.byKey(KHostBar.pkKey)).dx),
+      );
       await _leave(tester);
     });
   });

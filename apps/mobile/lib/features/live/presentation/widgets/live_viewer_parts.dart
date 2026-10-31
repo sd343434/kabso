@@ -376,11 +376,20 @@ class KViewerBarButton extends StatelessWidget {
     this.icon,
     this.badge = false,
     this.art = false,
+    this.diameter = KViewerRoom.button,
+    this.artInCircle = false,
   }) : assert(asset != null || icon != null, 'an asset or an icon');
 
   /// D135 (owner's colourful PK and gift art): [asset] fills the circle's
   /// place (33 pt) with no dark circle behind it.
   final bool art;
+
+  /// D199 (ref 275, the host's video bar): the circle's size (34.6 lp
+  /// there) — the 48 lp touch target stays.
+  final double diameter;
+
+  /// D199 (ref 275): the colourful art sits in the same dark circle.
+  final bool artInCircle;
 
   /// The colourful art's size (D141: 37 pt, was 33).
   static const double artSize = 37;
@@ -411,9 +420,9 @@ class KViewerBarButton extends StatelessWidget {
         dimension: KSizes.minTouchTarget,
         child: Center(
           child: Container(
-            width: KViewerRoom.button,
-            height: KViewerRoom.button,
-            decoration: art
+            width: diameter,
+            height: diameter,
+            decoration: art && !artInCircle
                 ? null
                 : const BoxDecoration(
                     color: KViewerRoom.fill,
@@ -427,8 +436,12 @@ class KViewerBarButton extends StatelessWidget {
                 if (asset case final asset?)
                   Image.asset(
                     asset,
-                    width: art ? artSize : iconSize,
-                    height: art ? artSize : iconSize,
+                    width: art
+                        ? (artInCircle ? diameter * 0.74 : artSize)
+                        : iconSize,
+                    height: art
+                        ? (artInCircle ? diameter * 0.74 : artSize)
+                        : iconSize,
                     excludeFromSemantics: true,
                   )
                 else

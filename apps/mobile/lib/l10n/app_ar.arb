@@ -9809,21 +9809,6 @@
   "@pkUnmuteOpponent": {
     "description": "v1.43-live (D195): PK 1 v 1."
   },
-  "pkBoostAnnounce": "فعّل فريق {team} {booster} {multiplier}!",
-  "@pkBoostAnnounce": {
-    "description": "v1.43-live (D195): PK 1 v 1.",
-    "placeholders": {
-      "team": {
-        "type": "String"
-      },
-      "booster": {
-        "type": "String"
-      },
-      "multiplier": {
-        "type": "String"
-      }
-    }
-  },
   "pkBoosterDouble": "دبل",
   "@pkBoosterDouble": {
     "description": "v1.43-live (D195): PK 1 v 1."
@@ -9861,7 +9846,7 @@
       }
     }
   },
-  "pkResultWin": "فوز!",
+  "pkResultWin": "فوز",
   "@pkResultWin": {
     "description": "v1.43-live (D195): PK 1 v 1."
   },
@@ -9994,5 +9979,333 @@
         "type": "String"
       }
     }
+  },
+  "pkModeOneVsOne": "PK ثنائي",
+  "@pkModeOneVsOne": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "pkModeTeam": "PK الفرق",
+  "@pkModeTeam": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "pkModeMulti": "PK متعدد",
+  "@pkModeMulti": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "pkModeSoon": "{mode} قريباً — لم يُبنَ بعد",
+  "@pkModeSoon": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).",
+    "placeholders": {
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
+  "pkFriendsTab": "الأصدقاء",
+  "@pkFriendsTab": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "pkNoFriends": "لا يوجد أصدقاء لدعوتهم حالياً",
+  "@pkNoFriends": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "pkFriendsHelp": "الأصدقاء: مضيفون تتابعهم ويتابعونك، وفي بث فيديو مباشر الآن. ابحث عن أي مضيف آخر بالاسم، أو جرّب المطابقة العشوائية.",
+  "@pkFriendsHelp": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "pkHelpTitle": "ما هو PK؟",
+  "@pkHelpTitle": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "pkHelpBody": "تحدٍّ بين مضيفَين: هدايا مشاهدي كل غرفة أثناء الجولة تصير نقاط PK (قيمة الهدية × المضاعِف). الأعلى نقاطاً يفوز. المعزِّزات ×2 / ×3 / ×5 / ×10 تضاعف النقاط فقط، لا المال.",
+  "@pkHelpBody": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "pkHistoryTitle": "سجل PK",
+  "@pkHistoryTitle": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "pkHistoryEmpty": "لا توجد مباريات PK بعد",
+  "@pkHistoryEmpty": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "pkHistoryNotCounted": "غير محتسبة",
+  "@pkHistoryNotCounted": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "pkHistoryVoid": "ملغاة",
+  "@pkHistoryVoid": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "pkHistoryRounds": "الجولات {own}–{other}",
+  "@pkHistoryRounds": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).",
+    "placeholders": {
+      "own": {
+        "type": "String"
+      },
+      "other": {
+        "type": "String"
+      }
+    }
+  },
+  "pkHistoryVs": "ضد {name}",
+  "@pkHistoryVs": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "pkHistoryLoadError": "تعذّر تحميل سجل PK",
+  "@pkHistoryLoadError": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "pkSettingsTitle": "إعدادات PK",
+  "@pkSettingsTitle": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "pkSettingsLoadError": "تعذّر تحميل إعدادات PK",
+  "@pkSettingsLoadError": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "pkSettingMode": "وضع PK",
+  "@pkSettingMode": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "pkSettingModeHelp": "جولة واحدة: جولة واحدة تحسم النتيجة. الأفضل من ثلاث: حتى 3 جولات بالمدة المختارة، ومن يفوز بجولتين يفوز. لكل جولة نقاطها ومعزِّزاتها.",
+  "@pkSettingModeHelp": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "pkModeSingle": "جولة واحدة",
+  "@pkModeSingle": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "pkModeBestOfThree": "الأفضل من ثلاث",
+  "@pkModeBestOfThree": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "pkSettingTime": "المدة",
+  "@pkSettingTime": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "pkMinutes": "{minutes} د",
+  "@pkMinutes": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).",
+    "placeholders": {
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
+  "pkMinutesLong": "{minutes} دقائق",
+  "@pkMinutesLong": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).",
+    "placeholders": {
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
+  "pkSettingAutoStart": "بدء PK مباشرة بعد الاتصال",
+  "@pkSettingAutoStart": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "pkSettingGender": "تفضيل الجنس في المطابقة العشوائية",
+  "@pkSettingGender": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "pkGenderBoth": "الكل",
+  "@pkGenderBoth": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "pkGenderMale": "ذكور",
+  "@pkGenderMale": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "pkGenderFemale": "إناث",
+  "@pkGenderFemale": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "pkSettingRegion": "تفضيل المنطقة في المطابقة العشوائية",
+  "@pkSettingRegion": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "pkRegionGlobal": "عالمي",
+  "@pkRegionGlobal": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "pkRegionSame": "بلدي فقط",
+  "@pkRegionSame": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "pkSettingAutoMatch": "مطابقة تلقائية",
+  "@pkSettingAutoMatch": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "pkSettingAutoMatchHelp": "وأنت في بث فيديو ولست في PK، تدخل المطابقة العشوائية تلقائياً.",
+  "@pkSettingAutoMatchHelp": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "pkSettingRecommend": "السماح باقتراحي على المضيفين الآخرين",
+  "@pkSettingRecommend": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "pkSettingsNoteEffective": "1. PK فعّال: مجموع نقاط PK للطرفين ≥ {points} (يُحتسب في سجلك).",
+  "@pkSettingsNoteEffective": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).",
+    "placeholders": {
+      "points": {
+        "type": "String"
+      }
+    }
+  },
+  "pkSettingsNoteRandom": "2. إذا اختلفت إعدادات المضيفَين، يُختار إعداد أحدهما عشوائياً.",
+  "@pkSettingsNoteRandom": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "pkSettingsSoonTab": "هذا الوضع قريباً — لا إعدادات له بعد",
+  "@pkSettingsSoonTab": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "pkSettingSaveError": "تعذّر حفظ الإعداد",
+  "@pkSettingSaveError": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "pkStart": "ابدأ PK",
+  "@pkStart": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "pkConnectedHint": "تم الاتصال — يبدأ PK حين يضغط أحدكما «ابدأ PK»",
+  "@pkConnectedHint": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "pkRoundLabel": "الجولة {round}/3",
+  "@pkRoundLabel": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).",
+    "placeholders": {
+      "round": {
+        "type": "String"
+      }
+    }
+  },
+  "pkSettingsFromOther": "طُبِّقت إعدادات {name} (اختيار عشوائي)",
+  "@pkSettingsFromOther": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "pkBoostActivated": "فعّل فريق {host} {booster}",
+  "@pkBoostActivated": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).",
+    "placeholders": {
+      "host": {
+        "type": "String"
+      },
+      "booster": {
+        "type": "String"
+      }
+    }
+  },
+  "pkBoostGain": "+{points} ×{multiplier}",
+  "@pkBoostGain": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).",
+    "placeholders": {
+      "points": {
+        "type": "String"
+      },
+      "multiplier": {
+        "type": "String"
+      }
+    }
+  },
+  "pkBoostChipSemantics": "{booster} ×{multiplier}، يتبقى {seconds} ث",
+  "@pkBoostChipSemantics": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).",
+    "placeholders": {
+      "booster": {
+        "type": "String"
+      },
+      "multiplier": {
+        "type": "String"
+      },
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
+  "liveDataPageTitle": "بيانات البث",
+  "@liveDataPageTitle": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "liveDataNowLiveTime": "وقت البث",
+  "@liveDataNowLiveTime": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "liveDataNowViewers": "مشاهدون فريدون",
+  "@liveDataNowViewers": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "liveDataNowViewersHint": "الذروة {peak}",
+  "@liveDataNowViewersHint": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).",
+    "placeholders": {
+      "peak": {
+        "type": "String"
+      }
+    }
+  },
+  "liveDataNowCherries": "كرز جديد",
+  "@liveDataNowCherries": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "liveDataNowGivers": "داعمو الهدايا",
+  "@liveDataNowGivers": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "liveDataNowFans": "متابعون جدد",
+  "@liveDataNowFans": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "liveDataCreatorCenter": "مركز المبدعين",
+  "@liveDataCreatorCenter": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "liveDataLevel": "Lv.{level}",
+  "@liveDataLevel": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).",
+    "placeholders": {
+      "level": {
+        "type": "String"
+      }
+    }
+  },
+  "liveDataLevelHelp": "مستوى الجاذبية: يرتفع بقيمة الهدايا التي تصلك.",
+  "@liveDataLevelHelp": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "liveDataHistory": "إحصاءات الفترات السابقة",
+  "@liveDataHistory": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "liveDataNotLive": "تظهر بيانات البث أثناء بثّك المباشر.",
+  "@liveDataNotLive": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "liveToolHd": "HD",
+  "@liveToolHd": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "liveToolFlash": "فلاش",
+  "@liveToolFlash": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
+  },
+  "liveHostBox": "الألعاب",
+  "@liveHostBox": {
+    "description": "v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»)."
   }
 }

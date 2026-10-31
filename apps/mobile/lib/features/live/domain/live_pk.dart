@@ -25,11 +25,14 @@ enum PkBoosterKind {
 }
 
 enum PkMatchStatus {
+  /// v1.44-live (D199): the hosts are connected and wait for a start.
+  connected,
   battle,
   result,
   closed;
 
   static PkMatchStatus fromWire(Object? wire) => switch (wire) {
+    'CONNECTED' => connected,
     'BATTLE' => battle,
     'RESULT' => result,
     _ => closed,
@@ -42,6 +45,9 @@ enum PkEndReason {
   disconnect,
   away,
   admin,
+
+  /// v1.44-live (D199): a connected PK that never started.
+  cancelled,
   unknown;
 
   static PkEndReason? fromWire(Object? wire) => switch (wire) {
@@ -51,6 +57,7 @@ enum PkEndReason {
     'DISCONNECT' => disconnect,
     'AWAY' => away,
     'ADMIN' => admin,
+    'CANCELLED' => cancelled,
     _ => unknown,
   };
 }
@@ -158,6 +165,8 @@ class PkSide {
     required this.roomId,
     required this.host,
     required this.score,
+    this.totalScore,
+    this.roundsWon = 0,
     this.boost,
     this.boosterUses = const {},
     this.supporters = const [],
@@ -171,6 +180,8 @@ class PkSide {
       roomId: j['roomId']! as String,
       host: _user(j['host']),
       score: _int(j['score']),
+      totalScore: j['totalScore'] == null ? null : _int(j['totalScore']),
+      roundsWon: _int(j['roundsWon']),
       boost: j['boost'] == null
           ? null
           : PkActiveBoost.fromJson(j['boost']! as Map<String, dynamic>),
@@ -192,7 +203,15 @@ class PkSide {
 
   final String roomId;
   final UserSummary host;
+
+  /// The running round's PK points (the only round of a single PK).
   final int score;
+
+  /// v1.44-live (D199): every round's points (null from an older server).
+  final int? totalScore;
+
+  /// v1.44-live (D199): rounds won (best of three).
+  final int roundsWon;
   final PkActiveBoost? boost;
   final Map<PkBoosterKind, int> boosterUses;
   final List<PkSupporter> supporters;
@@ -223,6 +242,11 @@ class PkMatch {
     this.loserCauseRoomId,
     this.boosters = const [],
     this.random = false,
+    this.bestOfThree = false,
+    this.round = 1,
+    this.roundSeconds = 300,
+    this.settingsFromRoomId,
+    this.effective,
   });
 
   factory fromJson(Map<String, dynamic> j) {
@@ -248,6 +272,11 @@ class PkMatch {
           PkBoosterRule.fromJson(b as Map<String, dynamic>),
       ],
       random: j['source'] == 'RANDOM',
+      bestOfThree: j['mode'] == 'BEST_OF_THREE',
+      round: j['round'] == null ? 1 : _int(j['round']),
+      roundSeconds: j['roundSeconds'] == null ? 300 : _int(j['roundSeconds']),
+      settingsFromRoomId: j['settingsFromRoomId'] as String?,
+      effective: j['effective'] as bool?,
     );
   }
 
@@ -266,6 +295,22 @@ class PkMatch {
   final (PkSide, PkSide) sides;
   final List<PkBoosterRule> boosters;
   final bool random;
+
+  /// v1.44-live (D199): best of three (the first to win two rounds).
+  final bool bestOfThree;
+
+  /// The running (or last) round, 1–3.
+  final int round;
+  final int roundSeconds;
+
+  /// The room whose host's settings were used, when the two hosts' differed.
+  final String? settingsFromRoomId;
+
+  /// Whether the finished match counts in the records (null while open).
+  final bool? effective;
+
+  /// CONNECTED: no timer, no points until a host starts it.
+  bool get connected => status == PkMatchStatus.connected;
 
   bool get open => status != PkMatchStatus.closed;
 
@@ -400,6 +445,161 @@ class PkRecord {
   final int draws;
 
   int get total => wins + losses + draws;
+}
+
+/// v1.44-live (D199): «Single Round PK» / «Best of three PK».
+enum PkMode {
+  single('SINGLE'),
+  bestOfThree('BEST_OF_THREE');
+
+  new(this.wire);
+
+  final String wire;
+
+  static PkMode fromWire(Object? w) =>
+      w == 'BEST_OF_THREE' ? bestOfThree : single;
+}
+
+/// v1.44-live (D199): the random queue's gender preference.
+enum PkGenderPref {
+  both('BOTH'),
+  male('MALE'),
+  female('FEMALE');
+
+  new(this.wire);
+
+  final String wire;
+
+  static PkGenderPref fromWire(Object? w) =>
+      values.where((v) => v.wire == w).firstOrNull ?? both;
+}
+
+/// v1.44-live (D199): the random queue's region preference.
+enum PkRegionPref {
+  global('GLOBAL'),
+  sameCountry('SAME_COUNTRY');
+
+  new(this.wire);
+
+  final String wire;
+
+  static PkRegionPref fromWire(Object? w) =>
+      w == 'SAME_COUNTRY' ? sameCountry : global;
+}
+
+/// v1.44-live (D199) `MyLivePk`: the PK Setting page (1 v 1) and record.
+@immutable
+class PkSettings {
+  const new({
+    this.invitesEnabled = true,
+    this.mode = PkMode.single,
+    this.roundMinutes,
+    this.roundSeconds = 300,
+    this.autoStart = true,
+    this.randomGender = PkGenderPref.both,
+    this.randomRegion = PkRegionPref.global,
+    this.autoMatch = false,
+    this.recommendable = true,
+    this.effectiveMinPoints = 3000,
+    this.record = const PkRecord(),
+  });
+
+  factory fromJson(Map<String, dynamic> j) => PkSettings(
+    invitesEnabled: j['invitesEnabled'] != false,
+    mode: PkMode.fromWire(j['mode']),
+    roundMinutes: j['roundMinutes'] == null ? null : _int(j['roundMinutes']),
+    roundSeconds: j['roundSeconds'] == null ? 300 : _int(j['roundSeconds']),
+    autoStart: j['autoStart'] != false,
+    randomGender: PkGenderPref.fromWire(j['randomGender']),
+    randomRegion: PkRegionPref.fromWire(j['randomRegion']),
+    autoMatch: j['autoMatch'] == true,
+    recommendable: j['recommendable'] != false,
+    effectiveMinPoints: j['effectiveMinPoints'] == null
+        ? 3000
+        : _int(j['effectiveMinPoints']),
+    record: j['record'] is Map<String, dynamic>
+        ? PkRecord.fromJson(j['record']! as Map<String, dynamic>)
+        : const PkRecord(),
+  );
+
+  final bool invitesEnabled;
+  final PkMode mode;
+
+  /// 3, 5 or 10; null: the server's default ([roundSeconds]).
+  final int? roundMinutes;
+  final int roundSeconds;
+  final bool autoStart;
+  final PkGenderPref randomGender;
+  final PkRegionPref randomRegion;
+  final bool autoMatch;
+  final bool recommendable;
+
+  /// Both sides' PK points together from which a PK counts («PK فعّال»).
+  final int effectiveMinPoints;
+  final PkRecord record;
+
+  /// The round time shown («5 دقائق»).
+  int get minutes => roundMinutes ?? (roundSeconds / 60).round();
+}
+
+/// v1.44-live (D199) `PkHistoryItem`: one finished PK from the host's side.
+@immutable
+class PkHistoryItem {
+  const new({
+    required this.id,
+    required this.result,
+    required this.score,
+    required this.opponentScore,
+    required this.opponent,
+    required this.startedAt,
+    this.effective = true,
+    this.bestOfThree = false,
+    this.roundsWon = 0,
+    this.opponentRoundsWon = 0,
+  });
+
+  factory fromJson(Map<String, dynamic> j) => PkHistoryItem(
+    id: j['id']! as String,
+    result: j['result'] as String? ?? 'VOID',
+    score: _int(j['score']),
+    opponentScore: _int(j['opponentScore']),
+    opponent: _user(j['opponent']),
+    startedAt: _date(j['startedAt']) ?? DateTime.now(),
+    effective: j['effective'] != false,
+    bestOfThree: j['mode'] == 'BEST_OF_THREE',
+    roundsWon: _int(j['roundsWon']),
+    opponentRoundsWon: _int(j['opponentRoundsWon']),
+  );
+
+  final String id;
+
+  /// WIN, LOSS, DRAW or VOID.
+  final String result;
+  final int score;
+  final int opponentScore;
+  final UserSummary opponent;
+  final DateTime startedAt;
+  final bool effective;
+  final bool bestOfThree;
+  final int roundsWon;
+  final int opponentRoundsWon;
+}
+
+/// v1.44-live (D199): a host's record and last matches.
+@immutable
+class PkHistory {
+  const new({this.record = const PkRecord(), this.recent = const []});
+
+  factory fromJson(Map<String, dynamic> j) => PkHistory(
+    record: PkRecord.fromJson(j['record']! as Map<String, dynamic>),
+    recent: [
+      for (final r in (j['recent'] as List<dynamic>? ?? const []))
+        PkHistoryItem.fromJson(r as Map<String, dynamic>),
+    ],
+  );
+
+  final PkRecord record;
+  final List<PkHistoryItem> recent;
 }
 
 /// A `pk` data message (CONVENTIONS §10.58).

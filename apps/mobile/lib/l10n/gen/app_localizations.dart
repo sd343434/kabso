@@ -17517,12 +17517,6 @@ abstract class AppLocalizations {
   /// v1.43-live (D195): PK 1 v 1.
   ///
   /// In ar, this message translates to:
-  /// **'فعّل فريق {team} {booster} {multiplier}!'**
-  String pkBoostAnnounce(String team, String booster, String multiplier);
-
-  /// v1.43-live (D195): PK 1 v 1.
-  ///
-  /// In ar, this message translates to:
   /// **'دبل'**
   String get pkBoosterDouble;
 
@@ -17559,7 +17553,7 @@ abstract class AppLocalizations {
   /// v1.43-live (D195): PK 1 v 1.
   ///
   /// In ar, this message translates to:
-  /// **'فوز!'**
+  /// **'فوز'**
   String get pkResultWin;
 
   /// v1.43-live (D195): PK 1 v 1.
@@ -17687,6 +17681,382 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'ضيف {name}'**
   String pkGuestSemantics(String name);
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'PK ثنائي'**
+  String get pkModeOneVsOne;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'PK الفرق'**
+  String get pkModeTeam;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'PK متعدد'**
+  String get pkModeMulti;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'{mode} قريباً — لم يُبنَ بعد'**
+  String pkModeSoon(String mode);
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'الأصدقاء'**
+  String get pkFriendsTab;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد أصدقاء لدعوتهم حالياً'**
+  String get pkNoFriends;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'الأصدقاء: مضيفون تتابعهم ويتابعونك، وفي بث فيديو مباشر الآن. ابحث عن أي مضيف آخر بالاسم، أو جرّب المطابقة العشوائية.'**
+  String get pkFriendsHelp;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'ما هو PK؟'**
+  String get pkHelpTitle;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'تحدٍّ بين مضيفَين: هدايا مشاهدي كل غرفة أثناء الجولة تصير نقاط PK (قيمة الهدية × المضاعِف). الأعلى نقاطاً يفوز. المعزِّزات ×2 / ×3 / ×5 / ×10 تضاعف النقاط فقط، لا المال.'**
+  String get pkHelpBody;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'سجل PK'**
+  String get pkHistoryTitle;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد مباريات PK بعد'**
+  String get pkHistoryEmpty;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'غير محتسبة'**
+  String get pkHistoryNotCounted;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'ملغاة'**
+  String get pkHistoryVoid;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'الجولات {own}–{other}'**
+  String pkHistoryRounds(String own, String other);
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'ضد {name}'**
+  String pkHistoryVs(String name);
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل سجل PK'**
+  String get pkHistoryLoadError;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'إعدادات PK'**
+  String get pkSettingsTitle;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل إعدادات PK'**
+  String get pkSettingsLoadError;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'وضع PK'**
+  String get pkSettingMode;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'جولة واحدة: جولة واحدة تحسم النتيجة. الأفضل من ثلاث: حتى 3 جولات بالمدة المختارة، ومن يفوز بجولتين يفوز. لكل جولة نقاطها ومعزِّزاتها.'**
+  String get pkSettingModeHelp;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'جولة واحدة'**
+  String get pkModeSingle;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'الأفضل من ثلاث'**
+  String get pkModeBestOfThree;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'المدة'**
+  String get pkSettingTime;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'{minutes} د'**
+  String pkMinutes(String minutes);
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'{minutes} دقائق'**
+  String pkMinutesLong(String minutes);
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'بدء PK مباشرة بعد الاتصال'**
+  String get pkSettingAutoStart;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'تفضيل الجنس في المطابقة العشوائية'**
+  String get pkSettingGender;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'الكل'**
+  String get pkGenderBoth;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'ذكور'**
+  String get pkGenderMale;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'إناث'**
+  String get pkGenderFemale;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'تفضيل المنطقة في المطابقة العشوائية'**
+  String get pkSettingRegion;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'عالمي'**
+  String get pkRegionGlobal;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'بلدي فقط'**
+  String get pkRegionSame;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'مطابقة تلقائية'**
+  String get pkSettingAutoMatch;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'وأنت في بث فيديو ولست في PK، تدخل المطابقة العشوائية تلقائياً.'**
+  String get pkSettingAutoMatchHelp;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'السماح باقتراحي على المضيفين الآخرين'**
+  String get pkSettingRecommend;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'1. PK فعّال: مجموع نقاط PK للطرفين ≥ {points} (يُحتسب في سجلك).'**
+  String pkSettingsNoteEffective(String points);
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'2. إذا اختلفت إعدادات المضيفَين، يُختار إعداد أحدهما عشوائياً.'**
+  String get pkSettingsNoteRandom;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا الوضع قريباً — لا إعدادات له بعد'**
+  String get pkSettingsSoonTab;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر حفظ الإعداد'**
+  String get pkSettingSaveError;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'ابدأ PK'**
+  String get pkStart;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'تم الاتصال — يبدأ PK حين يضغط أحدكما «ابدأ PK»'**
+  String get pkConnectedHint;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'الجولة {round}/3'**
+  String pkRoundLabel(String round);
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'طُبِّقت إعدادات {name} (اختيار عشوائي)'**
+  String pkSettingsFromOther(String name);
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'فعّل فريق {host} {booster}'**
+  String pkBoostActivated(String host, String booster);
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'+{points} ×{multiplier}'**
+  String pkBoostGain(String points, String multiplier);
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'{booster} ×{multiplier}، يتبقى {seconds} ث'**
+  String pkBoostChipSemantics(
+    String booster,
+    String multiplier,
+    String seconds,
+  );
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'بيانات البث'**
+  String get liveDataPageTitle;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'وقت البث'**
+  String get liveDataNowLiveTime;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'مشاهدون فريدون'**
+  String get liveDataNowViewers;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'الذروة {peak}'**
+  String liveDataNowViewersHint(String peak);
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'كرز جديد'**
+  String get liveDataNowCherries;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'داعمو الهدايا'**
+  String get liveDataNowGivers;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'متابعون جدد'**
+  String get liveDataNowFans;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'مركز المبدعين'**
+  String get liveDataCreatorCenter;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'Lv.{level}'**
+  String liveDataLevel(String level);
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'مستوى الجاذبية: يرتفع بقيمة الهدايا التي تصلك.'**
+  String get liveDataLevelHelp;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'إحصاءات الفترات السابقة'**
+  String get liveDataHistory;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'تظهر بيانات البث أثناء بثّك المباشر.'**
+  String get liveDataNotLive;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'HD'**
+  String get liveToolHd;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'فلاش'**
+  String get liveToolFlash;
+
+  /// v1.44-live (D199): the host's live tools, PK sheet and PK Setting (owner «طبق تصميم 100%»).
+  ///
+  /// In ar, this message translates to:
+  /// **'الألعاب'**
+  String get liveHostBox;
 }
 
 class _AppLocalizationsDelegate

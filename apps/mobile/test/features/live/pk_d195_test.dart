@@ -15,6 +15,7 @@ import 'package:kabso_live/features/live/domain/live_pk.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_guest_tiles.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_pk_boost_fx.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk_stage.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
@@ -243,9 +244,15 @@ void main() {
     expect(find.byKey(LivePkStage.boostChipKey('room-0')), findsOneWidget);
     expect(find.byKey(LivePkStage.boostChipKey('room-b')), findsNothing);
     expect(find.byKey(LivePkStage.announcementKey), findsOneWidget);
+    // D199: the activation over that side's box, «فعّل» spelt with its
+    // «ع» and shadda in Baloo Bhaijaan 2, and the multiplier in big numerals.
+    final line = tester.widget<Text>(find.byKey(PkBoostBurst.lineKey));
+    expect(line.data, 'فعّل فريق \u2068سارة\u2069 تربل');
+    expect(line.data, contains('فعّل'));
+    expect(line.style?.fontFamily, PkBoostText.family);
     expect(
-      find.text('فعّل فريق \u2068سارة\u2069 تربل \u2066×5\u2069!'),
-      findsOneWidget,
+      tester.widget<Text>(find.byKey(PkBoostBurst.multiplierKey)).data,
+      '×5',
     );
     // The last minute: the timer reads «الجولة الأخيرة».
     expect(find.textContaining('الجولة الأخيرة'), findsOneWidget);
@@ -269,7 +276,7 @@ void main() {
       ).copyLoser('room-b'),
     );
     expect(find.byKey(LivePkStage.resultKey), findsOneWidget);
-    expect(find.text('فوز!'), findsOneWidget);
+    expect(find.text('فوز'), findsOneWidget);
     expect(find.text('انسحب كريم'), findsOneWidget);
     expect(find.byKey(LivePkStage.timerKey), findsNothing);
     engine.pk.add(
@@ -393,8 +400,6 @@ void main() {
 
     testWidgets('random match: waiting, then stop', (tester) async {
       final repo = await sheet(tester);
-      await tester.tap(find.byKey(LivePkSheet.randomTabKey));
-      await tester.pumpAndSettle();
       await tester.tap(find.byKey(LivePkSheet.randomKey));
       await tester.pumpAndSettle();
       expect(repo.calls, contains('random'));

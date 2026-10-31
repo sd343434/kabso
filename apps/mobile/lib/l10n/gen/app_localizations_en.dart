@@ -10230,11 +10230,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pkUnmuteOpponent => 'Unmute opponent';
 
   @override
-  String pkBoostAnnounce(String team, String booster, String multiplier) {
-    return 'Team $team activated $booster $multiplier!';
-  }
-
-  @override
   String get pkBoosterDouble => 'Double';
 
   @override
@@ -10257,7 +10252,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get pkResultWin => 'Victory!';
+  String get pkResultWin => 'Victory';
 
   @override
   String get pkResultLose => 'Defeat';
@@ -10338,4 +10333,228 @@ class AppLocalizationsEn extends AppLocalizations {
   String pkGuestSemantics(String name) {
     return 'Guest $name';
   }
+
+  @override
+  String get pkModeOneVsOne => '1v1 PK';
+
+  @override
+  String get pkModeTeam => 'Team PK';
+
+  @override
+  String get pkModeMulti => 'Multi PK';
+
+  @override
+  String pkModeSoon(String mode) {
+    return '$mode is coming soon — not built yet';
+  }
+
+  @override
+  String get pkFriendsTab => 'Friends';
+
+  @override
+  String get pkNoFriends => 'No friends to invite currently';
+
+  @override
+  String get pkFriendsHelp =>
+      'Friends are hosts you follow who follow you back and are in a video live now. Search any other host by name, or try a random match.';
+
+  @override
+  String get pkHelpTitle => 'What is PK?';
+
+  @override
+  String get pkHelpBody =>
+      'A battle between two hosts: each room\'s gifts during the round become PK points (the gift\'s value × the booster). The higher score wins. Boosters ×2 / ×3 / ×5 / ×10 multiply points only, never money.';
+
+  @override
+  String get pkHistoryTitle => 'PK history';
+
+  @override
+  String get pkHistoryEmpty => 'No PK battles yet';
+
+  @override
+  String get pkHistoryNotCounted => 'Not counted';
+
+  @override
+  String get pkHistoryVoid => 'Void';
+
+  @override
+  String pkHistoryRounds(String own, String other) {
+    return 'Rounds $own–$other';
+  }
+
+  @override
+  String pkHistoryVs(String name) {
+    return 'vs $name';
+  }
+
+  @override
+  String get pkHistoryLoadError => 'Couldn\'t load the PK history';
+
+  @override
+  String get pkSettingsTitle => 'PK Setting';
+
+  @override
+  String get pkSettingsLoadError => 'Couldn\'t load the PK settings';
+
+  @override
+  String get pkSettingMode => 'PK mode';
+
+  @override
+  String get pkSettingModeHelp =>
+      'Single round: one round decides. Best of three: up to 3 rounds of the chosen time; the first to win 2 rounds wins. Each round has its own points and boosters.';
+
+  @override
+  String get pkModeSingle => 'Single Round PK';
+
+  @override
+  String get pkModeBestOfThree => 'Best of three PK';
+
+  @override
+  String get pkSettingTime => 'Time';
+
+  @override
+  String pkMinutes(String minutes) {
+    return '${minutes}mins';
+  }
+
+  @override
+  String pkMinutesLong(String minutes) {
+    return '$minutes minutes';
+  }
+
+  @override
+  String get pkSettingAutoStart =>
+      'Will PK be opened directly after the connection';
+
+  @override
+  String get pkSettingGender => 'Random PK gender preference';
+
+  @override
+  String get pkGenderBoth => 'Both';
+
+  @override
+  String get pkGenderMale => 'Male';
+
+  @override
+  String get pkGenderFemale => 'Female';
+
+  @override
+  String get pkSettingRegion => 'Random PK region preference';
+
+  @override
+  String get pkRegionGlobal => 'Global';
+
+  @override
+  String get pkRegionSame => 'My country';
+
+  @override
+  String get pkSettingAutoMatch => 'Auto Match';
+
+  @override
+  String get pkSettingAutoMatchHelp =>
+      'While you are in a video live and not in a PK, you join random matching by yourself.';
+
+  @override
+  String get pkSettingRecommend => 'Allow to be recommended to other hosts';
+
+  @override
+  String pkSettingsNoteEffective(String points) {
+    return '1. An effective PK: both hosts\' PK points together ≥ $points (it counts in your record).';
+  }
+
+  @override
+  String get pkSettingsNoteRandom =>
+      '2. If the PK settings of matched hosts are different, one host\'s setting will be selected randomly.';
+
+  @override
+  String get pkSettingsSoonTab => 'This mode is coming soon — no settings yet';
+
+  @override
+  String get pkSettingSaveError => 'Couldn\'t save the setting';
+
+  @override
+  String get pkStart => 'Start PK';
+
+  @override
+  String get pkConnectedHint =>
+      'Connected — PK starts when either of you taps Start PK';
+
+  @override
+  String pkRoundLabel(String round) {
+    return 'Round $round/3';
+  }
+
+  @override
+  String pkSettingsFromOther(String name) {
+    return '$name\'s settings apply (picked at random)';
+  }
+
+  @override
+  String pkBoostActivated(String host, String booster) {
+    return '$host\'s team activated $booster';
+  }
+
+  @override
+  String pkBoostGain(String points, String multiplier) {
+    return '+$points ×$multiplier';
+  }
+
+  @override
+  String pkBoostChipSemantics(
+    String booster,
+    String multiplier,
+    String seconds,
+  ) {
+    return '$booster ×$multiplier, $seconds s left';
+  }
+
+  @override
+  String get liveDataPageTitle => 'Live Data';
+
+  @override
+  String get liveDataNowLiveTime => 'Live Time';
+
+  @override
+  String get liveDataNowViewers => 'Unique viewers';
+
+  @override
+  String liveDataNowViewersHint(String peak) {
+    return 'Peak $peak';
+  }
+
+  @override
+  String get liveDataNowCherries => 'New cherries';
+
+  @override
+  String get liveDataNowGivers => 'Gift-givers';
+
+  @override
+  String get liveDataNowFans => 'New fans';
+
+  @override
+  String get liveDataCreatorCenter => 'Creator Center';
+
+  @override
+  String liveDataLevel(String level) {
+    return 'Lv.$level';
+  }
+
+  @override
+  String get liveDataLevelHelp =>
+      'Charm level: it grows with the value of the gifts you receive.';
+
+  @override
+  String get liveDataHistory => 'Earlier periods';
+
+  @override
+  String get liveDataNotLive => 'Live data shows while you are live.';
+
+  @override
+  String get liveToolHd => 'HD';
+
+  @override
+  String get liveToolFlash => 'Flash';
+
+  @override
+  String get liveHostBox => 'Games';
 }

@@ -26,6 +26,7 @@ class KHostBar extends StatelessWidget {
     required this.onPk,
     required this.onGift,
     super.key,
+    this.onBox,
     this.beautyOn = false,
     this.requests = 0,
     this.chatKey = defaultChatKey,
@@ -37,6 +38,11 @@ class KHostBar extends StatelessWidget {
   final VoidCallback? onGuests;
   final VoidCallback? onPk;
   final VoidCallback? onGift;
+
+  /// D199 (ref 275): the box between PK and the gift — the live's games
+  /// (D173's honest «الألعاب قريباً» sheet, as on the other bars). Null:
+  /// no box (the audio host's bar has its own games button).
+  final VoidCallback? onBox;
   final bool beautyOn;
 
   /// Seat requests waiting (a dot on the guests button).
@@ -50,18 +56,26 @@ class KHostBar extends StatelessWidget {
   static const pkKey = Key('hostBar.pk');
   static const giftKey = Key('hostBar.gift');
 
+  /// D199 (ref 275): 34.6 lp circles, the art inside them.
+  static const double diameter = 34.6;
+  static const boxKey = Key('hostBar.box');
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     return Row(
       children: [
         KViewerBarButton(
+          diameter: diameter,
+          artInCircle: true,
           key: chatKey,
           asset: 'assets/live_bar/chat.png',
           label: l10n.goLiveChatPill,
           onTap: onChat,
         ),
         KViewerBarButton(
+          diameter: diameter,
+          artInCircle: true,
           key: beautyKey,
           icon: Icons.auto_fix_high_rounded,
           label: l10n.liveBeautyToolsTitle,
@@ -69,6 +83,8 @@ class KHostBar extends StatelessWidget {
           onTap: onBeauty,
         ),
         KViewerBarButton(
+          diameter: diameter,
+          artInCircle: true,
           key: toolsKey,
           asset: 'assets/live_bar/menu.png',
           label: l10n.liveHostTools,
@@ -76,6 +92,8 @@ class KHostBar extends StatelessWidget {
         ),
         const Spacer(),
         KViewerBarButton(
+          diameter: diameter,
+          artInCircle: true,
           key: guestsKey,
           icon: Icons.all_inclusive_rounded,
           label: l10n.liveHostGuests,
@@ -83,6 +101,8 @@ class KHostBar extends StatelessWidget {
           onTap: onGuests,
         ),
         KViewerBarButton(
+          diameter: diameter,
+          artInCircle: true,
           key: pkKey,
           // D135: the owner's colourful PK art (boxing gloves).
           asset: 'assets/live_bar/bar_pk.png',
@@ -90,7 +110,20 @@ class KHostBar extends StatelessWidget {
           label: l10n.goLivePk,
           onTap: onPk,
         ),
+        if (onBox != null)
+          KViewerBarButton(
+            diameter: diameter,
+            artInCircle: true,
+            key: boxKey,
+            // The owner's colourful controller art (D141), Kabso's own.
+            asset: 'assets/live_bar/bar_games.png',
+            art: true,
+            label: context.l10n.liveHostBox,
+            onTap: onBox,
+          ),
         KViewerBarButton(
+          diameter: diameter,
+          artInCircle: true,
           key: giftKey,
           // D135: the owner's colourful gift box.
           asset: 'assets/live_bar/bar_gift.png',

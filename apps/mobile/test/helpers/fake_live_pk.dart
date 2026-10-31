@@ -11,9 +11,19 @@ class FakeLivePkRepository implements LivePkRepository {
   new({this.snapshot = const PkState(), this.list = const []});
 
   PkState snapshot;
+
+  /// D199: builds the snapshot when it is read (countdowns that start then,
+  /// so a slow setup under load never moves a golden's seconds).
+  PkState Function()? snapshotOf;
   List<PkCandidate> list;
   PkMatch? matchOnAccept;
   PkMatch? matchOnRandom;
+
+  /// D199: the «Friends» list (null: the same as [list]).
+  List<PkCandidate>? friendList;
+  PkSettings current = const PkSettings();
+  PkHistory pkHistory = const PkHistory();
+  final List<Map<String, Object>> saved = [];
   final List<String> calls = [];
   Exception? failWith;
 
@@ -26,12 +36,17 @@ class FakeLivePkRepository implements LivePkRepository {
   @override
   Future<PkState> state(String roomId) async {
     calls.add('state');
-    return snapshot;
+    return snapshotOf?.call() ?? snapshot;
   }
 
   @override
-  Future<List<PkCandidate>> candidates(String roomId, {String? query}) async {
-    _call('candidates:${query ?? ''}');
+  Future<List<PkCandidate>> candidates(
+    String roomId, {
+    String? query,
+    bool friends = false,
+  }) async {
+    _call('candidates:${friends ? 'friends:' : ''}${query ?? ''}');
+    if (friends && friendList != null) return friendList!;
     return [
       for (final c in list)
         if (query == null ||
@@ -45,7 +60,10 @@ class FakeLivePkRepository implements LivePkRepository {
   @override
   Future<PkInvite> invite(String roomId, {required String toRoomId}) async {
     _call('invite:$toRoomId');
-    final to = list.firstWhere((c) => c.roomId == toRoomId).host;
+    final to = [
+      ...list,
+      ...?friendList,
+    ].firstWhere((c) => c.roomId == toRoomId).host;
     return PkInvite(
       id: 'invite-1',
       status: 'PENDING',
@@ -119,6 +137,51 @@ class FakeLivePkRepository implements LivePkRepository {
   Future<bool> setInvitesEnabled({required bool enabled}) async {
     _call('invites:$enabled');
     return enabled;
+  }
+
+  @override
+  Future<PkSettings> settings() async {
+    _call('settings');
+    return current;
+  }
+
+  @override
+  Future<PkSettings> saveSettings(Map<String, Object> changes) async {
+    _call('save:${changes.keys.join(',')}');
+    saved.add(changes);
+    final c = current;
+    return current = PkSettings(
+      invitesEnabled: changes['invitesEnabled'] as bool? ?? c.invitesEnabled,
+      mode: changes.containsKey('mode')
+          ? PkMode.fromWire(changes['mode'])
+          : c.mode,
+      roundMinutes: changes['roundMinutes'] as int? ?? c.roundMinutes,
+      roundSeconds: (changes['roundMinutes'] as int?) != null
+          ? (changes['roundMinutes']! as int) * 60
+          : c.roundSeconds,
+      autoStart: changes['autoStart'] as bool? ?? c.autoStart,
+      randomGender: changes.containsKey('randomGender')
+          ? PkGenderPref.fromWire(changes['randomGender'])
+          : c.randomGender,
+      randomRegion: changes.containsKey('randomRegion')
+          ? PkRegionPref.fromWire(changes['randomRegion'])
+          : c.randomRegion,
+      autoMatch: changes['autoMatch'] as bool? ?? c.autoMatch,
+      recommendable: changes['recommendable'] as bool? ?? c.recommendable,
+      record: c.record,
+    );
+  }
+
+  @override
+  Future<PkMatch> start(String roomId) async {
+    _call('start');
+    return snapshot.match!;
+  }
+
+  @override
+  Future<PkHistory> history(String username) async {
+    _call('history:$username');
+    return pkHistory;
   }
 }
 
@@ -204,6 +267,10 @@ PkMatch pkMatchFixture({
   int otherGuests = 0,
   int seq = 5,
   bool mutesOpponent = false,
+  bool bestOfThree = false,
+  int round = 1,
+  int ownRounds = 0,
+  int otherRounds = 0,
 }) {
   String n(String a, String e) => ar ? a : e;
   final multipliers = {
@@ -251,11 +318,14 @@ PkMatch pkMatchFixture({
     winnerRoomId: winner,
     seq: seq,
     serverTime: now,
+    bestOfThree: bestOfThree,
+    round: round,
     sides: (
       PkSide(
         roomId: ownRoom,
         host: pkUser(ownHostId, n('سارة', 'Sara')),
         score: ownScore,
+        roundsWon: ownRounds,
         boost: boost(ownBoost, 'boost-a'),
         supporters: [
           PkSupporter(user: pkUser('fan-1', names[0]), points: 6000),
@@ -269,6 +339,7 @@ PkMatch pkMatchFixture({
         roomId: 'room-b',
         host: pkUser('host-b', n('كريم', 'Karim')),
         score: otherScore,
+        roundsWon: otherRounds,
         boost: boost(otherBoost, 'boost-b'),
         supporters: [
           PkSupporter(user: pkUser('fan-4', names[3]), points: 5000),
