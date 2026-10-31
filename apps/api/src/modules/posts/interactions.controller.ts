@@ -7,7 +7,14 @@ import type { UserSummaryDto } from '../live/live-rooms.service.js';
 import { FeedService } from './feed.service.js';
 import { PostInteractionsService, type LikeStateDto } from './post-interactions.service.js';
 import type { PageDto, PostDto } from './post-views.js';
-import { feedQuerySchema, pageQuerySchema, type FeedQuery, type PageQuery } from './posts.schemas.js';
+import {
+  feedQuerySchema,
+  pageQuerySchema,
+  reelsFeedQuerySchema,
+  type FeedQuery,
+  type PageQuery,
+  type ReelsFeedQuery,
+} from './posts.schemas.js';
 
 const LIKE_LIMIT = { bucket: 'social:like', rule: 'likeUser', key: byUserId, replacesDefault: true } as const;
 const REPOST_LIMIT = {
@@ -34,14 +41,19 @@ export class InteractionsController {
     return this.feeds.feed(auth.userId, query, 'POST');
   }
 
-  /** v1.41-social (D162): reels for Moments (CONVENTIONS §11.14); the `social:feed` bucket. */
+  /**
+   * v1.41-social (D162): reels for Moments (CONVENTIONS §11.14); the `social:feed` bucket.
+   * v1.68-social (D202): `tab=nearby` — reels of authors from the caller's country (§11.15).
+   */
   @Get('feed/reels')
   @RateLimit({ bucket: 'social:feed', rule: 'feedUser', key: byUserId, replacesDefault: true })
   reels(
     @CurrentAuth() auth: AuthContext,
-    @Query(new ZodValidationPipe(feedQuerySchema)) query: FeedQuery,
+    @Query(new ZodValidationPipe(reelsFeedQuerySchema)) query: ReelsFeedQuery,
   ): Promise<PageDto<PostDto>> {
-    return this.feeds.feed(auth.userId, query, 'REEL');
+    return query.tab === 'nearby'
+      ? this.feeds.nearbyReels(auth.userId, query)
+      : this.feeds.feed(auth.userId, { ...query, tab: query.tab }, 'REEL');
   }
 
   @Put('posts/:postId/like')

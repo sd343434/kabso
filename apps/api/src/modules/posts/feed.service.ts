@@ -15,7 +15,7 @@ import {
   type PageDto,
   type PostDto,
 } from './post-views.js';
-import type { FeedFormat, FeedQuery, PageQuery } from './posts.schemas.js';
+import type { FeedFormat, FeedQuery, PageQuery, ReelsFeedQuery } from './posts.schemas.js';
 import { PostsService } from './posts.service.js';
 
 /** Trending (CONVENTIONS §11.3): window, snapshot size and lifetime, author spread. */
@@ -135,6 +135,51 @@ export class FeedService {
         hasMore,
         nextCursor:
           hasMore && last ? this.posts.cursors.encode(scope, { at: last.at, id: last.post_id }) : null,
+      },
+    };
+  }
+
+  /**
+   * v1.68-social (D202, CONVENTIONS §11.15): `GET /feed/reels?tab=nearby` — visible public reels of
+   * authors whose country is the caller's own (D133 `Me.country`; never inferred), newest first, not
+   * the caller's own, muted or hidden. A caller with no country gets an empty page (the app asks them
+   * to choose one). The cursor is bound to the caller and their country: after a country change an
+   * old cursor → 400 `cursor` / `invalid_value`.
+   */
+  async nearbyReels(viewerId: string, query: ReelsFeedQuery): Promise<PageDto<PostDto>> {
+    const profile = await this.prisma.userProfile.findUnique({
+      where: { userId: viewerId },
+      select: { countryCode: true },
+    });
+    const country = profile?.countryCode ?? null;
+    if (country === null) return { data: [], page: { hasMore: false, nextCursor: null } };
+    const scope = `feed-reels-nearby:${viewerId}:${country}`;
+    const after = this.posts.decode(query.cursor, scope);
+    const rows = await this.prisma.$queryRaw<{ id: string; at: Date }[]>`
+      SELECT p.id::text AS id, p.published_at AS at
+        FROM posts p
+        JOIN users a ON a.id = p.author_id
+        JOIN user_profiles ap ON ap.user_id = a.id AND ap.country_code = ${country}
+        LEFT JOIN user_settings s ON s.user_id = a.id
+       WHERE ${visiblePostSql(viewerId, { excludeMuted: true, excludeHidden: true })}
+         AND p.moderation = 'VISIBLE'::post_moderation
+         AND COALESCE(s.is_private, false) = false
+         AND p.author_id <> ${viewerId}::uuid
+         AND p.format = 'REEL'::post_format
+         ${after ? Prisma.sql`AND (p.published_at, p.id) < (${after.at}, ${after.id}::uuid)` : Prisma.empty}
+       ORDER BY p.published_at DESC, p.id DESC
+       LIMIT ${query.limit + 1}`;
+    const hasMore = rows.length > query.limit;
+    const pageRows = rows.slice(0, query.limit);
+    const last = pageRows[pageRows.length - 1];
+    return {
+      data: await this.views.load(
+        viewerId,
+        pageRows.map((r) => r.id),
+      ),
+      page: {
+        hasMore,
+        nextCursor: hasMore && last ? this.posts.cursors.encode(scope, { at: last.at, id: last.id }) : null,
       },
     };
   }

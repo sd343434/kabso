@@ -139,12 +139,22 @@ class InlineVideo extends ConsumerStatefulWidget {
     this.fit = BoxFit.cover,
     this.onDoubleTap,
     this.muteOnTop = false,
+    this.muteTop,
+    this.onState,
     super.key,
   });
+
+  /// D202: every change of the player's state (the reels' sound disc turns
+  /// with the playback position).
+  final ValueChanged<InlineVideoState>? onState;
 
   /// The speaker button in the top end corner (a reel: the rail holds the
   /// bottom end); otherwise the bottom end corner.
   final bool muteOnTop;
+
+  /// D202: with [muteOnTop], the button's distance from the top (the reels
+  /// page puts it beside its chips, under the header); default 8.
+  final double? muteTop;
 
   final String url;
   final ImageProvider? poster;
@@ -211,6 +221,7 @@ class _InlineVideoState extends ConsumerState<InlineVideo> {
   void _changed() {
     if (!mounted) return;
     if (_video?.state.failed ?? false) _failed = true;
+    if (_video case final v?) widget.onState?.call(v.state);
     setState(() {});
   }
 
@@ -369,7 +380,7 @@ class _InlineVideoState extends ConsumerState<InlineVideo> {
           if (!_failed)
             PositionedDirectional(
               end: KSpacing.xs,
-              top: widget.muteOnTop ? KSpacing.sm : null,
+              top: widget.muteOnTop ? widget.muteTop ?? KSpacing.sm : null,
               bottom: widget.muteOnTop ? null : KSpacing.xs,
               child: IconButton(
                 key: InlineVideo.muteKey,

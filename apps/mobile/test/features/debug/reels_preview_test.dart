@@ -1,6 +1,6 @@
 // D75 (owner): `/debug/reels-preview` is the real Reels tab's reels — the
-// Trending · Following tabs and the reel page — not a separate design with a
-// coin balance.
+// reels page's tabs (D202: Following · For You · Nearby) and the reel
+// page — not a separate design with a coin balance.
 
 import 'dart:io';
 
@@ -25,8 +25,10 @@ void main() {
     );
     await tester.pump(const Duration(seconds: 1));
     expect(find.byType(FeedScreen), findsOneWidget);
-    expect(find.text(l10n.homeFeedTrending), findsOneWidget);
+    // D202: the reels page's tabs Following · For You · Nearby.
     expect(find.text(l10n.feedTabFollowing), findsOneWidget);
+    expect(find.text(l10n.reelsTabForYou), findsOneWidget);
+    expect(find.text(l10n.liveHubFilterNearby), findsOneWidget);
     // No coin balance on the reels page.
     expect(find.byType(KabsoArtIcon), findsNothing);
   });

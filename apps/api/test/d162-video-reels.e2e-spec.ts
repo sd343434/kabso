@@ -425,7 +425,8 @@ describe('D162 video posts and reels', () => {
       const foreign = await feed(viewer, 'posts', 'following', cursor);
       expect(foreign.status).toBe(400);
       expect(foreign.body.error.details).toEqual([{ field: 'cursor', issue: 'invalid_value' }]);
-      const bad = await ctx.http.get('/api/v1/feed/reels').query({ tab: 'nearby' }).set(auth(viewer));
+      // D202 (v1.68-social) made `nearby` a real reels tab; an unknown tab is still refused.
+      const bad = await ctx.http.get('/api/v1/feed/reels').query({ tab: 'world' }).set(auth(viewer));
       expect(bad.status).toBe(400);
       expectContract(bad, 'listFeedReels');
       const anon = await ctx.http.get('/api/v1/feed/reels').query({ tab: 'following' });

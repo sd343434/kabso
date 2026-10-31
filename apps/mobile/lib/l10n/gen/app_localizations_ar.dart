@@ -10164,4 +10164,74 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get walletTopupWebsiteHint =>
       'اشحن بالبطاقة على موقع Kabso Live الرسمي';
+
+  @override
+  String get reelsChipStories => 'القصص';
+
+  @override
+  String get reelsChipRooms => 'الغرف';
+
+  @override
+  String get reelsOpenStories => 'فتح القصص';
+
+  @override
+  String get reelsOpenRooms => 'فتح الغرف الصوتية';
+
+  @override
+  String get reelsStoriesEmpty =>
+      'لا توجد قصص الآن. أضف قصتك أو تابع أشخاصاً لترى قصصهم.';
+
+  @override
+  String reelsShareLabel(String count) {
+    return 'مشاركة، $count';
+  }
+
+  @override
+  String reelsCommentsLabel(String count) {
+    return 'التعليقات، $count';
+  }
+
+  @override
+  String reelsShareText(String author, String caption) {
+    return '$author على Kabso Live: $caption';
+  }
+
+  @override
+  String reelsShareTextNoCaption(String author) {
+    return 'شاهد ريل $author على Kabso Live';
+  }
+
+  @override
+  String reelsOriginalSound(String name) {
+    return 'صوت أصلي · $name';
+  }
+
+  @override
+  String get reelsMore => 'المزيد';
+
+  @override
+  String reelsRequestFollow(String name) {
+    return 'طلب متابعة $name';
+  }
+
+  @override
+  String reelsFollowRequested(String name) {
+    return 'طلبت متابعة $name';
+  }
+
+  @override
+  String get reelsNearbyNoCountryTitle => 'اختر بلدك';
+
+  @override
+  String get reelsNearbyNoCountryBody =>
+      '«القريبة» تعرض ريلز من بلدك. اختر بلدك لتراها.';
+
+  @override
+  String get reelsNearbyChooseCountry => 'اختيار البلد';
+
+  @override
+  String get reelsNearbyEmptyTitle => 'لا توجد ريلز من بلدك بعد';
+
+  @override
+  String get reelsNearbyUnavailableTitle => 'تعذّر تحميل الريلز القريبة';
 }

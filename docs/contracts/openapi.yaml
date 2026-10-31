@@ -365,6 +365,9 @@ info:
     `updateAdminSiteSettings` (panel session); links in one form (`https://www.instagram.com/<handle>`,
     `https://www.tiktok.com/@<handle>`, `https://wa.me/<digits>`). The website reaches its two public operations
     same-origin through the root domain; `/topup` there redirects to D190's pages on `api.` (CONVENTIONS §10.55).
+    **D202 (DRAFT v1.68-social)**: the reels page after the owner's reference. `listFeedReels` gains `tab=nearby`
+    (reels of authors from the caller's own country, newest first; no country → an empty page; CONVENTIONS
+    §11.15). Additive; nothing else changes (like, comment, save and share reuse the posts interactions).
     **D196 (DRAFT v1.64-social)**: the OWNER enters the Stripe keys in the admin panel «الدفع (Stripe)» instead of
     the server environment. `getAdminPaymentSettings`, `updateAdminPaymentSettings` (PATCH; the code again and a
     reason), `testAdminPaymentKey` («اختبار الاتصال», Stripe `balance.retrieve`), `clearAdminPaymentKeys`
@@ -6650,7 +6653,7 @@ paths:
     get:
       tags: [feed]
       operationId: listFeedReels
-      summary: "Reels feed for Moments: following (newest) or trending (ranked) (v1.41-social, D162)"
+      summary: "Reels feed for Moments: following (newest), trending (ranked) or nearby (v1.41-social, D162; nearby v1.68-social, D202)"
       description: |
         CONVENTIONS §11.14. Posts with `format: REEL` only. `following`: reels of followed accounts
         and the caller's own, and reels reposted by followed
@@ -6658,11 +6661,16 @@ paths:
         last 7 days (not the caller's own, muted or hidden), frozen for 10 minutes (an expired
         cursor → 400 `cursor` / `invalid_value`). Not personalised (M5). Same rate limit bucket as
         `listFeedPosts`.
+        v1.68-social (D202, CONVENTIONS §11.15): `nearby` — visible public reels whose author's country
+        is the caller's own (`Me.country`, D133; never inferred), newest first, not the caller's own,
+        muted or hidden. A caller with no country gets 200 with an empty page. The cursor is bound to
+        the caller and their country (after a country change → 400 `cursor` / `invalid_value`).
+        `listFeedPosts` has no `nearby`.
       parameters:
         - name: tab
           in: query
           required: true
-          schema: { type: string, enum: [following, trending] }
+          schema: { type: string, enum: [following, trending, nearby] }
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
       responses:

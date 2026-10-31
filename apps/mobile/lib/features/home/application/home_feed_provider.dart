@@ -126,11 +126,46 @@ final FutureProviderFamily<FeedLoad<FeedReelData>, HomeFeed> homeReelsProvider =
       );
     });
 
+/// v1.68-social (D202): the reels page's «Nearby» (reels of authors from
+/// the caller's own country, paged by [nearbyReelsFeedProvider]). A caller
+/// without a country gets an empty page; the page asks them to choose one.
+final FutureProvider<FeedLoad<FeedReelData>> homeNearbyReelsProvider =
+    FutureProvider((ref) async {
+      if (watchDemo(ref)) {
+        return DemoData.reels(HomeFeed.trending, ar: DemoData.arabic(ref));
+      }
+      final page = await ref.watch(nearbyReelsFeedProvider.future);
+      final edits = ref.watch(postEditsProvider);
+      return FeedItems(
+        [
+          for (final post in page.items)
+            if ((edits[post.id] ?? post).video != null)
+              feedReelOf(edits[post.id] ?? post),
+        ],
+        hasMore: page.hasMore,
+        loadingMore: page.loadingMore,
+        loadMoreError: page.loadMoreError,
+      );
+    });
+
 /// A reel ([Post] with `format: REEL`) as Moments' pager shows it.
 FeedReelData feedReelOf(Post post) {
   final video = post.video!;
   return FeedReelData(
     postId: post.id,
+    authorId: post.author.id,
+    authorPremium: post.author.premiumTier != null,
+    liked: post.viewerHasLiked,
+    saved: post.viewerHasSaved,
+    hashtags: {for (final t in post.hashtags) t.toLowerCase()},
+    mentions: {for (final m in post.mentions) m.username.toLowerCase()},
+    premiumMentions: {
+      for (final m in post.mentions)
+        if (m.premiumTier != null) m.username.toLowerCase(),
+    },
+    commentsOpen:
+        post.isSelf ||
+        (post.commentsEnabled && post.whoCanComment != WhoCanComment.nobody),
     authorName: post.author.displayName.isEmpty
         ? post.author.username
         : post.author.displayName,

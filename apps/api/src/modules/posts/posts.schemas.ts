@@ -106,6 +106,17 @@ export const feedQuerySchema = z.strictObject({
 });
 export type FeedQuery = z.output<typeof feedQuerySchema>;
 
+/**
+ * v1.68-social (D202): `GET /feed/reels` also takes `tab=nearby` (reels of authors from the caller's own
+ * country, CONVENTIONS §11.15). `GET /feed/posts` keeps following | trending.
+ */
+export const reelsFeedQuerySchema = z.strictObject({
+  tab: z.string().pipe(z.enum(['following', 'trending', 'nearby'])),
+  cursor: z.string().min(1).max(512).optional(),
+  limit: limitSchema.optional().transform((v) => v ?? 20),
+});
+export type ReelsFeedQuery = z.output<typeof reelsFeedQuerySchema>;
+
 /** v1.41-social (D162): which posts a feed lists (`/feed/posts`: POST; `/feed/reels`: REEL). */
 export type FeedFormat = 'POST' | 'REEL';
 

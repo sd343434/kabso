@@ -383,7 +383,7 @@
   "reelsModeLabel": "Show reels or posts",
   "reelsModeReels": "Reels",
   "reelsModePosts": "Posts",
-  "reelsTabForYou": "For you",
+  "reelsTabForYou": "For You",
   "reelsTabFriends": "Friends",
   "reelsCoins": "Coin balance, {count}",
   "@reelsCoins": {
@@ -3211,5 +3211,23 @@
   "rechargeChooseCountry": "Choose a country",
   "rechargeStockAfterLabel": "Stock after the sale",
   "walletTopupWebsite": "Top up on the website",
-  "walletTopupWebsiteHint": "Pay by card on the official Kabso Live website"
+  "walletTopupWebsiteHint": "Pay by card on the official Kabso Live website",
+  "reelsChipStories": "Stories",
+  "reelsChipRooms": "Rooms",
+  "reelsOpenStories": "Open stories",
+  "reelsOpenRooms": "Open voice rooms",
+  "reelsStoriesEmpty": "No stories right now. Add yours, or follow people to see theirs.",
+  "reelsShareLabel": "Share, {count}",
+  "reelsCommentsLabel": "Comments, {count}",
+  "reelsShareText": "{author} on Kabso Live: {caption}",
+  "reelsShareTextNoCaption": "Watch {author}'s reel on Kabso Live",
+  "reelsOriginalSound": "Original sound · {name}",
+  "reelsMore": "more",
+  "reelsRequestFollow": "Request to follow {name}",
+  "reelsFollowRequested": "Follow request sent to {name}",
+  "reelsNearbyNoCountryTitle": "Choose your country",
+  "reelsNearbyNoCountryBody": "Nearby shows reels from your country. Choose your country to see them.",
+  "reelsNearbyChooseCountry": "Choose country",
+  "reelsNearbyEmptyTitle": "No reels from your country yet",
+  "reelsNearbyUnavailableTitle": "Couldn't load nearby reels"
 }

@@ -6,7 +6,9 @@ import 'package:kabso_live/core/network/network_providers.dart';
 import 'package:kabso_live/features/posts/domain/post_models.dart';
 
 /// Which feed (`GET /feed/posts?tab=`).
-enum PostsFeedTab { following, trending }
+/// The feeds' tabs. [nearby] (v1.68-social, D202) exists for reels only
+/// (`GET /feed/reels?tab=nearby`: authors from the caller's own country).
+enum PostsFeedTab { following, trending, nearby }
 
 /// Posts, feeds and interactions (docs/contracts/openapi.yaml v1.5-social
 /// DRAFT, tags `posts`, `feed` and `safety`; CONVENTIONS §11).
@@ -42,6 +44,11 @@ abstract interface class PostsRepository {
 
   /// `PUT`/`DELETE /posts/{postId}/save`.
   Future<bool> setSaved(String postId, {required bool saved});
+
+  /// `POST /posts/{postId}/shares` (`countPostShare`, v1.5-social): counts
+  /// an outside share (once per user, post and UTC day); returns the post's
+  /// share count.
+  Future<int> countShare(String postId);
 
   /// `PUT`/`DELETE /posts/{postId}/hide`: leaves the caller's feeds.
   Future<void> setHidden(String postId, {required bool hidden});
@@ -263,6 +270,14 @@ class PostsRepositoryImpl implements PostsRepository {
             : await _dio.delete<Map<String, dynamic>>(path);
         return res.data!['saved']! as bool;
       });
+
+  @override
+  Future<int> countShare(String postId) => guardApiCall(() async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/posts/${pathSegment(postId)}/shares',
+    );
+    return res.data!['shareCount']! as int;
+  });
 
   @override
   Future<void> setHidden(String postId, {required bool hidden}) =>
