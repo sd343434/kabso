@@ -26,6 +26,8 @@ export const SYSTEM_TYPES: readonly NotificationType[] = [
   'PREMIUM_USERNAME_EXPIRED',
   // v1.47-social (D175): a moderator removed the profile photo.
   'AVATAR_REMOVED',
+  // v1.60-social (D191): a moderator warned the person (from the panel's report queue).
+  'MODERATION_WARNING',
 ];
 
 /** Types that join one unread row per target (owner, D92). */
@@ -166,7 +168,8 @@ export class Notifier {
         | 'CONTENT_REMOVED'
         | 'PREMIUM_USERNAME_EXPIRING'
         | 'PREMIUM_USERNAME_EXPIRED'
-        | 'AVATAR_REMOVED';
+        | 'AVATAR_REMOVED'
+        | 'MODERATION_WARNING';
       recipientId: string;
     } & NotificationTargetRef,
   ): Promise<void> {

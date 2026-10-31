@@ -177,6 +177,27 @@ export enum AuditAction {
   // v1.29-live (DRAFT, D147): search trends, changed only by the search-admin CLI (§11.11).
   SEARCH_TERM_HIDE = 'search.term.hide',
   SEARCH_BLOCKED_WORD = 'search.blocked_word',
+  // v1.60-social (DRAFT, D191): the admin panel (CONVENTIONS §10.54). Sign-in and its second factor …
+  ADMIN_LOGIN_PASSWORD = 'admin.login.password',
+  ADMIN_LOGIN_FAILURE = 'admin.login.failure',
+  ADMIN_LOGIN_SUCCESS = 'admin.login.success',
+  ADMIN_LOCKED = 'admin.login.locked',
+  ADMIN_TOTP_ENROL = 'admin.totp.enrol',
+  ADMIN_TOTP_FAILURE = 'admin.totp.failure',
+  ADMIN_RECOVERY_CODE_USED = 'admin.recovery_code.used',
+  ADMIN_LOGOUT = 'admin.logout',
+  /** … the roles (`admin-admin grant|revoke|reset-2fa`) … */
+  ADMIN_ROLE_GRANT = 'admin.role.grant',
+  ADMIN_ROLE_REVOKE = 'admin.role.revoke',
+  ADMIN_TOTP_RESET = 'admin.totp.reset',
+  /** … and what the panel does that has no older action name. */
+  ADMIN_USER_VIEW = 'admin.user.view',
+  ADMIN_USER_BAN = 'admin.user.ban',
+  ADMIN_USER_UNBAN = 'admin.user.unban',
+  ADMIN_USER_WARN = 'admin.user.warn',
+  RECHARGE_PHOTO_VIEW = 'recharge.application.photo_view',
+  /** v1.60-social (D191/D192): the OWNER changed the public website's settings (before and after). */
+  SITE_SETTINGS_UPDATE = 'site.settings.update',
 }
 
 export interface AuditEntry {

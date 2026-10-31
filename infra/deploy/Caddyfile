@@ -22,6 +22,38 @@ api.{$KABSO_DOMAIN} {
 	reverse_proxy api:3000
 }
 
+# v1.60-social (D191, CONVENTIONS §10.54.7): the admin panel. The static build (infra/deploy/build-admin.sh, run by
+# update.sh) is served from /srv/admin/current with an SPA fallback; /api/* goes to the API on the same origin, so the
+# session cookie stays first-party (SameSite=Strict, __Host-). Optional allowlist: KABSO_ADMIN_ALLOW_IPS in kabso.env
+# (space-separated CIDRs; unset = everyone).
+admin.{$KABSO_DOMAIN} {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+		X-Frame-Options "DENY"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+		X-Robots-Tag "noindex, nofollow"
+		-Server
+	}
+	@blocked not remote_ip {$KABSO_ADMIN_ALLOW_IPS:0.0.0.0/0 ::/0}
+	@page not path /assets/* /api/*
+	header @page Cache-Control "no-store"
+	header /assets/* Cache-Control "public, max-age=31536000, immutable"
+	# `route` keeps this order: the allowlist, the internal paths, the API, then the static panel.
+	route {
+		respond @blocked "Forbidden" 403
+		respond /internal/* 404
+		# Caddy is the one proxy that appends X-Forwarded-For: TRUST_PROXY=1 (docs/DEPLOYMENT.md §3.1).
+		reverse_proxy /api/* api:3000
+		root * /srv/admin/current
+		try_files {path} /index.html
+		file_server
+	}
+}
+
 live.{$KABSO_DOMAIN} {
 	reverse_proxy livekit:7880
 }

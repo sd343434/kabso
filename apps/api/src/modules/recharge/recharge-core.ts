@@ -1,3 +1,4 @@
+import { auditBy, CLI_VIA, type AdminVia } from '../../common/audit/admin-actor.js';
 import { AuditAction } from '../../common/audit/audit.service.js';
 import type { Prisma, PrismaClient, RechargeStockReason } from '../../generated/prisma/client.js';
 import { uuidv7 } from '../levels/uuidv7.js';
@@ -57,10 +58,12 @@ async function audit(
   action: AuditAction,
   targetType: string,
   targetId: string,
-  metadata: Prisma.InputJsonValue,
-  actorUserId: string | null = null,
+  metadata: Prisma.InputJsonObject,
+  by: AdminVia,
 ): Promise<void> {
-  await tx.auditLog.create({ data: { actorUserId, action, targetType, targetId, metadata } });
+  await tx.auditLog.create({
+    data: { ...auditBy(by), action, targetType, targetId, metadata: { ...metadata, via: by.via } },
+  });
 }
 
 /** `recharge-admin approve`: a PENDING application becomes an APPROVED agent waiting for the first top-up. */
@@ -68,6 +71,7 @@ export async function approveApplicationIn(
   tx: Tx,
   applicationId: string,
   now: Date,
+  by: AdminVia = CLI_VIA,
 ): Promise<{ userId: string }> {
   const [app] = await tx.$queryRaw<
     { id: string; user_id: string; status: string; locations: unknown; payment_methods: unknown }[]
@@ -108,10 +112,14 @@ export async function approveApplicationIn(
     where: { employeeUserId: app.user_id, removedAt: null },
     data: { removedAt: now },
   });
-  await audit(tx, AuditAction.RECHARGE_APPLICATION_APPROVE, 'recharge_application', app.id, {
-    user: app.user_id,
-    via: 'cli',
-  });
+  await audit(
+    tx,
+    AuditAction.RECHARGE_APPLICATION_APPROVE,
+    'recharge_application',
+    app.id,
+    { user: app.user_id, before: 'PENDING', after: 'APPROVED' },
+    by,
+  );
   return { userId: app.user_id };
 }
 
@@ -121,16 +129,21 @@ export async function rejectApplicationIn(
   applicationId: string,
   reason: string,
   now: Date,
+  by: AdminVia = CLI_VIA,
 ): Promise<void> {
   const done = await tx.rechargeAgentApplication.updateMany({
     where: { id: applicationId, status: 'PENDING' },
     data: { status: 'REJECTED', decidedAt: now, rejectReason: reason },
   });
   if (done.count === 0) throw new RechargeAdminError(`No PENDING application ${applicationId}.`);
-  await audit(tx, AuditAction.RECHARGE_APPLICATION_REJECT, 'recharge_application', applicationId, {
-    reason,
-    via: 'cli',
-  });
+  await audit(
+    tx,
+    AuditAction.RECHARGE_APPLICATION_REJECT,
+    'recharge_application',
+    applicationId,
+    { reason, before: 'PENDING', after: 'REJECTED' },
+    by,
+  );
 }
 
 export interface TopUpResult {
@@ -158,6 +171,7 @@ export async function topUpIn(
   rules: { activationMinCoins: number; priceTiers: readonly PriceTier[]; currency: string },
   now: Date,
   specialGraceDays = 30,
+  by: AdminVia = CLI_VIA,
 ): Promise<TopUpResult> {
   if (coins <= 0n || coins > 1_000_000_000_000n)
     throw new RechargeAdminError('Coins must be 1 … 1 000 000 000 000.');
@@ -217,21 +231,28 @@ export async function topUpIn(
     // v1.58-social (D189, §10.52): through the agent-username rule — a host agent activated first keeps
     // `hostNN` shown and this code is kept reserved for the person.
     await specialIn(() => syncAgentUsernameIn(tx, agentUserId, now, specialGraceDays));
-    await audit(tx, AuditAction.RECHARGE_ACTIVATE, 'recharge_agent', agentUserId, { code, via: 'cli' });
+    await audit(tx, AuditAction.RECHARGE_ACTIVATE, 'recharge_agent', agentUserId, { code }, by);
   }
   const stock = await moveStockIn(tx, agentUserId, coins, 'TOPUP', topupId, now);
-  await audit(tx, AuditAction.RECHARGE_TOPUP, 'recharge_topup', topupId, {
-    agent: agentUserId,
-    coins: Number(coins),
-    tier: price.tier,
-    minorPerMillion: price.minorPerMillion,
-    expectedMinor: Number(price.expectedMinor),
-    paidMinor: Number(paidMinor),
-    currency: rules.currency,
-    first,
-    note,
-    via: 'cli',
-  });
+  await audit(
+    tx,
+    AuditAction.RECHARGE_TOPUP,
+    'recharge_topup',
+    topupId,
+    {
+      agent: agentUserId,
+      coins: Number(coins),
+      tier: price.tier,
+      minorPerMillion: price.minorPerMillion,
+      expectedMinor: Number(price.expectedMinor),
+      paidMinor: Number(paidMinor),
+      currency: rules.currency,
+      first,
+      note,
+      stockAfter: Number(stock!),
+    },
+    by,
+  );
   return {
     topupId,
     first,
@@ -263,7 +284,12 @@ export async function suspendIn(
   reason: string,
   now: Date,
   specialGraceDays = 30,
+  by: AdminVia = CLI_VIA,
 ): Promise<void> {
+  const before = await tx.rechargeAgent.findUnique({
+    where: { userId: agentUserId },
+    select: { status: true },
+  });
   const done = await tx.rechargeAgent.updateMany({
     where: { userId: agentUserId, status: { not: 'SUSPENDED' } },
     data: { status: 'SUSPENDED', suspendedAt: now, suspendReason: reason, updatedAt: now },
@@ -276,11 +302,14 @@ export async function suspendIn(
   // v1.54-social (D185): the person's own username is shown again; the code stays theirs (never reused).
   // v1.58-social (D189): unless they are also a host agent — then `hostNN` is shown.
   await specialIn(() => syncAgentUsernameIn(tx, agentUserId, now, specialGraceDays, { note: reason }));
-  await audit(tx, AuditAction.RECHARGE_SUSPEND, 'recharge_agent', agentUserId, {
-    reason,
-    cancelledRequests: cancelled.count,
-    via: 'cli',
-  });
+  await audit(
+    tx,
+    AuditAction.RECHARGE_SUSPEND,
+    'recharge_agent',
+    agentUserId,
+    { reason, cancelledRequests: cancelled.count, before: before?.status ?? null, after: 'SUSPENDED' },
+    by,
+  );
 }
 
 /** `recharge-admin reinstate`: back to ACTIVE (or APPROVED when it was never activated). */
@@ -289,6 +318,8 @@ export async function reinstateIn(
   agentUserId: string,
   now: Date,
   specialGraceDays = 30,
+  by: AdminVia = CLI_VIA,
+  reason: string | null = null,
 ): Promise<string> {
   const agent = await tx.rechargeAgent.findUnique({ where: { userId: agentUserId } });
   if (agent?.status !== 'SUSPENDED') throw new RechargeAdminError('Not a SUSPENDED agent.');
@@ -301,21 +332,46 @@ export async function reinstateIn(
     // v1.58-social (D189): the code comes back as the username unless a host code activated earlier is shown.
     await specialIn(() => syncAgentUsernameIn(tx, agentUserId, now, specialGraceDays));
   }
-  await audit(tx, AuditAction.RECHARGE_REINSTATE, 'recharge_agent', agentUserId, { status, via: 'cli' });
+  await audit(
+    tx,
+    AuditAction.RECHARGE_REINSTATE,
+    'recharge_agent',
+    agentUserId,
+    { status, before: 'SUSPENDED', after: status, ...(reason ? { reason } : {}) },
+    by,
+  );
   return status;
 }
 
 /** `recharge-admin set-cap`: the agent's daily cherry cap (null = the server default, 0 = no cap). */
-export async function setCapIn(tx: Tx, agentUserId: string, cap: bigint | null): Promise<void> {
+export async function setCapIn(
+  tx: Tx,
+  agentUserId: string,
+  cap: bigint | null,
+  by: AdminVia = CLI_VIA,
+  reason: string | null = null,
+): Promise<void> {
+  const before = await tx.rechargeAgent.findUnique({
+    where: { userId: agentUserId },
+    select: { dailyCherryCap: true },
+  });
   const done = await tx.rechargeAgent.updateMany({
     where: { userId: agentUserId },
     data: { dailyCherryCap: cap },
   });
   if (done.count === 0) throw new RechargeAdminError('Not an agent.');
-  await audit(tx, AuditAction.RECHARGE_CAP, 'recharge_agent', agentUserId, {
-    cap: cap === null ? null : Number(cap),
-    via: 'cli',
-  });
+  await audit(
+    tx,
+    AuditAction.RECHARGE_CAP,
+    'recharge_agent',
+    agentUserId,
+    {
+      cap: cap === null ? null : Number(cap),
+      before: before?.dailyCherryCap === null || before === null ? null : Number(before.dailyCherryCap),
+      ...(reason ? { reason } : {}),
+    },
+    by,
+  );
 }
 
 /**

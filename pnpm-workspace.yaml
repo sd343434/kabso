@@ -1,5 +1,7 @@
 packages:
   - apps/api
+  # v1.60-social (D191): the admin panel's static web app.
+  - apps/admin
 
 # pnpm 10 does not run dependency lifecycle scripts unless allow-listed.
 onlyBuiltDependencies:

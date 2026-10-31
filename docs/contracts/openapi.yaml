@@ -344,6 +344,19 @@ info:
     (403). `Wallet.coins` / `WalletLedgerEntry.balanceAfter` may be negative; ledger reasons `CARD_TOPUP`,
     `CARD_TOPUP_REVERSAL`, `CARD_TOPUP_RESTORE`; `RechargePackages.websiteTopupUrl` (null unless enabled)
     (CONVENTIONS §10.53).
+    **D191 (DRAFT v1.60-social, CP-034)**: the admin panel «لوحة الإدارة» (tag `admin-panel`, served at
+    admin.<domain>): `/admin/auth/*` signs an existing admin account in with its password and a mandatory
+    authenticator code (TOTP, enrolled with a QR code; ten hashed single-use recovery codes; lockout), into a
+    short-lived HttpOnly, Secure, SameSite=Strict cookie session (`adminSession`) whose changes also need
+    `X-CSRF-Token`. Roles OWNER, MODERATION («مشرف»), SUPPORT, FINANCE (new `AdminPermission` values, granted only by
+    `admin-admin grant`); every route checks its capability on the server and every change is audited. Sections:
+    the dashboard, users (search, profile, ban/unban, avatar removal, special usernames), recharge agents
+    (applications with their private pictures streamed and audited, approve/reject, top-up, suspend/reinstate, cap),
+    cherry withdrawals (pay/reject) and the report queue (dismiss, remove, warn, ban) — each the same shared rule as
+    its CLI; a top-up and a withdrawal decision need the code again. `NotificationType.MODERATION_WARNING`. The
+    website's settings: public `getSiteSettings` and the OWNER's `getAdminSiteSettings` / `updateAdminSiteSettings`
+    (with D192). Codes `ADMIN_PANEL_UNAVAILABLE` (503), `ADMIN_LOCKED` (429), `ADMIN_TOTP_INVALID`,
+    `ADMIN_CSRF_INVALID` (403), `ADMIN_ACTION_REFUSED` (409) (CONVENTIONS §10.54).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -408,6 +421,10 @@ tags:
     description: "Block, mute, hide, reports and privacy settings (v1.5-social DRAFT)."
   - name: admin-moderation
     description: "The report queue (admin permission MODERATION; v1.5-social DRAFT)."
+  - name: admin-panel
+    description: "(v1.60-social DRAFT, D191) The admin panel «لوحة الإدارة» at admin.<domain>: its own cookie session with a mandatory authenticator (TOTP) second factor, roles OWNER / MODERATION / SUPPORT / FINANCE (CONVENTIONS §10.54)."
+  - name: site
+    description: "(v1.60-social DRAFT, D191/D192) The public website's settings."
   - name: admin-levels
     description: "Level configuration, user progression, reconciliation and audit for admins (role ADMIN; v1.4-levels DRAFT, CP-005)."
 paths:
@@ -8138,13 +8155,777 @@ paths:
                   received: { type: boolean, const: true }
         '400': { $ref: '#/components/responses/Error' }
         '503': { $ref: '#/components/responses/Error' }
+  # ---- v1.60-social (DRAFT, D191, CP-034, CONVENTIONS §10.54): the admin panel «لوحة الإدارة» -------------------
+  /api/v1/admin/auth/login:
+    post:
+      tags: [admin-panel]
+      operationId: adminLogin
+      summary: "Panel sign-in, step 1: an admin account's email and password (sets the session cookie)"
+      description: "An ACTIVE account with `role = ADMIN` and at least one panel role (OWNER, MODERATION, SUPPORT, FINANCE). Every other case — unknown email, wrong password, not an admin, suspended — is the same 401 `AUTH_INVALID_CREDENTIALS`. Sets the HttpOnly, Secure, SameSite=Strict cookie `__Host-kabso_admin` of a session that only allows the second factor (`ADMIN_PENDING_SECONDS`). 429 `ADMIN_LOCKED` (`Retry-After`) after `ADMIN_LOCKOUT_ATTEMPTS` failed passwords for the email (the same for every email) or while the admin account is locked; 429 `RATE_LIMITED` per IP (`RATE_LIMIT_ADMIN_LOGIN_IP`); 503 `ADMIN_PANEL_UNAVAILABLE` while `ADMIN_TOTP_KEY` is not set. §10.54.2."
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminLoginRequest' }
+      responses:
+        '200':
+          description: The password was right; the second factor is next.
+          headers:
+            Set-Cookie: { description: "`__Host-kabso_admin=…; Path=/; HttpOnly; Secure; SameSite=Strict`", schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminLoginResponse' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/auth/totp/enrolment:
+    post:
+      tags: [admin-panel]
+      operationId: startAdminTotpEnrolment
+      summary: "First sign-in: a new authenticator secret to scan as a QR code (pending session)"
+      description: "Only between the password and the second factor, and only while the admin has no authenticator yet (409 `ADMIN_ACTION_REFUSED` otherwise). Replaces a secret not confirmed yet. The secret is stored encrypted with `ADMIN_TOTP_KEY`. Needs `X-CSRF-Token`."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      responses:
+        '200':
+          description: The secret (base32) and its `otpauth://` URI for the QR code.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminTotpEnrolment' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/auth/totp/enrolment/confirm:
+    post:
+      tags: [admin-panel]
+      operationId: confirmAdminTotpEnrolment
+      summary: "Confirms the authenticator with a code: ten recovery codes (shown once) and a signed-in session"
+      description: "403 `ADMIN_TOTP_INVALID` for a wrong code (counts towards the lockout; at the limit 429 `ADMIN_LOCKED`). On success the pending session ends and a new one starts (new cookie and CSRF token). Needs `X-CSRF-Token`."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminCodeRequest' }
+      responses:
+        '200':
+          description: Enrolled and signed in.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminEnrolmentResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/auth/totp/verify:
+    post:
+      tags: [admin-panel]
+      operationId: verifyAdminTotp
+      summary: "Panel sign-in, step 2: an authenticator code or one unused recovery code"
+      description: "A code works once (its 30-second step is consumed); a recovery code works once. 403 `ADMIN_TOTP_INVALID` for a wrong, reused or expired code (counts towards the lockout; at `ADMIN_LOCKOUT_ATTEMPTS` the account locks for `ADMIN_LOCKOUT_SECONDS`, every panel session of it ends: 429 `ADMIN_LOCKED`). On success a new signed-in session starts (new cookie and CSRF token). Needs `X-CSRF-Token`."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminSecondFactorRequest' }
+      responses:
+        '200':
+          description: Signed in.
+          headers:
+            Set-Cookie: { description: The new session's cookie., schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminSessionInfo' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/auth/session:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminSession
+      summary: "Who is signed in: roles, capabilities and the CSRF token for changes"
+      description: "401 when the cookie is missing, unknown, revoked or expired (idle `ADMIN_SESSION_IDLE_SECONDS`, at the latest `ADMIN_SESSION_MAX_SECONDS` after sign-in) or the person no longer holds a panel role."
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: The session.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminSessionInfo' }
+        '401': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/auth/logout:
+    post:
+      tags: [admin-panel]
+      operationId: adminLogout
+      summary: "Ends the panel session (audited; clears the cookie)"
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      responses:
+        '204': { description: Signed out. }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/dashboard:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminDashboard
+      summary: "Home: today's real aggregates and the pending queues (capability dashboard.view)"
+      description: "«Today» is the UTC day (`since`). Website top-ups are not counted (D190 not merged)."
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: The figures.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminDashboard' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/users:
+    get:
+      tags: [admin-panel]
+      operationId: searchAdminUsers
+      summary: "User search by shown, base or special username (also a prefix), email (prefix) or id (users.view)"
+      security: [{ adminSession: [] }]
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 254 }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+      responses:
+        '200':
+          description: Matches (at most `limit`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUserList' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/users/{userId}:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminUser
+      summary: "A user's profile for the panel (users.view; audited `admin.user.view`)"
+      description: "`balances` and `ledger` are null without the capability `users.balances` (OWNER, SUPPORT, FINANCE). The base username shows (it is audited)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminUserIdPath'
+      responses:
+        '200':
+          description: The profile.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUserDetail' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/users/{userId}/ban:
+    post:
+      tags: [admin-panel]
+      operationId: banAdminUser
+      summary: "Ban «حظر»: ACTIVE → SUSPENDED with the account-lifecycle side effects (users.ban; reason required; audited)"
+      description: "409 `ADMIN_ACTION_REFUSED` when the account is not ACTIVE or it is the caller's own; an account holding a panel role needs OWNER (403)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminUserIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReasonRequest' }
+      responses:
+        '200':
+          description: Banned.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUserStatusResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/users/{userId}/unban:
+    post:
+      tags: [admin-panel]
+      operationId: unbanAdminUser
+      summary: "Unban: SUSPENDED → ACTIVE (users.ban; reason required; audited)"
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminUserIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReasonRequest' }
+      responses:
+        '200':
+          description: Active again.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUserStatusResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/users/{userId}/avatar/remove:
+    post:
+      tags: [admin-panel]
+      operationId: removeAdminUserAvatar
+      summary: "Removes the profile photo — the `profile-admin remove-avatar` rule (users.avatar; reason required; audited)"
+      description: "The user is told (`AVATAR_REMOVED`); the files are deleted from storage after. 409 `ADMIN_ACTION_REFUSED` when there is no photo."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminUserIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReasonRequest' }
+      responses:
+        '200':
+          description: Removed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminAvatarRemoved' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/users/{userId}/special-username:
+    post:
+      tags: [admin-panel]
+      operationId: giftAdminSpecialUsername
+      summary: "Gives a special username «يوزر مميز» — the `username-admin gift` rule (users.special_username; audited)"
+      description: "For `days` days or `permanent`; reason required. 409 `ADMIN_ACTION_REFUSED` when the name is not allowed or taken (`coin`/`host` + digits are reserved for agents) or the person rents a premium username."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminUserIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminSpecialUsernameRequest' }
+      responses:
+        '200':
+          description: Given (shown at once).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminSpecialUsernameResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/users/{userId}/special-username/revoke:
+    post:
+      tags: [admin-panel]
+      operationId: revokeAdminSpecialUsername
+      summary: "Takes the special username back — the `username-admin revoke` rule (users.special_username; audited)"
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminUserIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReasonRequest' }
+      responses:
+        '200':
+          description: Revoked; the own username shows again.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminRevokedResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/recharge/applications:
+    get:
+      tags: [admin-panel]
+      operationId: listAdminRechargeApplications
+      summary: "Recharge-agent applications, newest first, without private fields (recharge.applications)"
+      security: [{ adminSession: [] }]
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: { type: string, enum: [PENDING, APPROVED, REJECTED] }
+        - $ref: '#/components/parameters/AdminCursor'
+        - $ref: '#/components/parameters/AdminLimit'
+      responses:
+        '200':
+          description: One page.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminRechargeApplicationPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/recharge/applications/{applicationId}:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminRechargeApplication
+      summary: "One application with its private fields (recharge.applications; every view audited `recharge.application.view`)"
+      description: "The private fields are null once purged (retention, D185). `photos` says which pictures can be fetched from `getAdminRechargeApplicationPhoto`."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminApplicationIdPath'
+      responses:
+        '200':
+          description: The application.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminRechargeApplication' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/recharge/applications/{applicationId}/photos/{which}:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminRechargeApplicationPhoto
+      summary: "A private picture (`photo` or `selfie`), streamed through the API (recharge.applications; every view audited)"
+      description: "Never a storage URL: the bytes come from the API with `Cache-Control: private, no-store`. 404 when purged or missing. MODERATION alone is refused (403)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminApplicationIdPath'
+        - name: which
+          in: path
+          required: true
+          schema: { type: string, enum: [photo, selfie] }
+      responses:
+        '200':
+          description: The WebP picture.
+          content:
+            image/webp:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/recharge/applications/{applicationId}/approve:
+    post:
+      tags: [admin-panel]
+      operationId: approveAdminRechargeApplication
+      summary: "Approves a PENDING application — the `recharge-admin approve` rule (recharge.decide; audited)"
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminApplicationIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      responses:
+        '200':
+          description: Approved; the first top-up activates the agent.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminStatusResult' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/recharge/applications/{applicationId}/reject:
+    post:
+      tags: [admin-panel]
+      operationId: rejectAdminRechargeApplication
+      summary: "Rejects a PENDING application with a reason — the `recharge-admin reject` rule (recharge.decide; audited)"
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminApplicationIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReasonRequest' }
+      responses:
+        '200':
+          description: Rejected.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminStatusResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/recharge/agents:
+    get:
+      tags: [admin-panel]
+      operationId: listAdminRechargeAgents
+      summary: "Recharge agents, newest approved first, with the owner's price tiers (recharge.agents)"
+      security: [{ adminSession: [] }]
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: { type: string, enum: [APPROVED, ACTIVE, SUSPENDED] }
+        - $ref: '#/components/parameters/AdminCursor'
+        - $ref: '#/components/parameters/AdminLimit'
+      responses:
+        '200':
+          description: One page.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminRechargeAgentPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/recharge/agents/{agentUserId}/topup:
+    post:
+      tags: [admin-panel]
+      operationId: topUpAdminRechargeAgent
+      summary: "Records a wholesale top-up paid outside the app — the `recharge-admin topup` rule (recharge.topup; code again; audited)"
+      description: "Financial: `totpCode` is the authenticator code again (403 `ADMIN_TOTP_INVALID`, counts towards the lockout). The tier price is the owner's (`pricing`); a paid amount other than the expected one needs `note`. The first top-up (≥ `activationMinCoins`) activates the agent with the next code. 409 `ADMIN_ACTION_REFUSED` for every refusal of the rule (not an agent, SUSPENDED, below the activation minimum, price without note)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminAgentUserIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminTopUpRequest' }
+      responses:
+        '200':
+          description: Recorded; the stock grew.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminTopUpResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/recharge/agents/{agentUserId}/suspend:
+    post:
+      tags: [admin-panel]
+      operationId: suspendAdminRechargeAgent
+      summary: "Suspends an agent — the `recharge-admin suspend` rule (recharge.status; reason required; audited)"
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminAgentUserIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReasonRequest' }
+      responses:
+        '200':
+          description: Suspended.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminStatusResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/recharge/agents/{agentUserId}/reinstate:
+    post:
+      tags: [admin-panel]
+      operationId: reinstateAdminRechargeAgent
+      summary: "Reinstates a SUSPENDED agent — the `recharge-admin reinstate` rule (recharge.status; reason required; audited)"
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminAgentUserIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReasonRequest' }
+      responses:
+        '200':
+          description: ACTIVE again (APPROVED when it was never activated).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminStatusResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/recharge/agents/{agentUserId}/cap:
+    post:
+      tags: [admin-panel]
+      operationId: setAdminRechargeAgentCap
+      summary: "Sets an agent's daily cherry cap — the `recharge-admin set-cap` rule (recharge.cap; reason required; audited)"
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminAgentUserIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminCapRequest' }
+      responses:
+        '200':
+          description: Set.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminCapResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/withdrawals:
+    get:
+      tags: [admin-panel]
+      operationId: listAdminWithdrawals
+      summary: "Cherry withdrawal requests (D179): PENDING oldest first, decided ones newest first (withdrawals.view)"
+      security: [{ adminSession: [] }]
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: { type: string, enum: [PENDING, PAID, REJECTED], default: PENDING }
+        - $ref: '#/components/parameters/AdminCursor'
+        - $ref: '#/components/parameters/AdminLimit'
+      responses:
+        '200':
+          description: One page.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminWithdrawalPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/withdrawals/{withdrawalId}/pay:
+    post:
+      tags: [admin-panel]
+      operationId: payAdminWithdrawal
+      summary: "Marks a request paid (money sent by hand) — the `economy-admin withdrawal-pay` rule (withdrawals.decide; code again; audited)"
+      description: "Financial: `totpCode` again. `reference` (and `note`) are kept as the decision note. 409 `ADMIN_ACTION_REFUSED` when the request is no longer PENDING."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminWithdrawalIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminWithdrawalPayRequest' }
+      responses:
+        '200':
+          description: PAID.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminWithdrawalDecision' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/withdrawals/{withdrawalId}/reject:
+    post:
+      tags: [admin-panel]
+      operationId: rejectAdminWithdrawal
+      summary: "Rejects a request with a reason; the held cherries go back — the `economy-admin withdrawal-reject` rule (withdrawals.decide; code again; audited)"
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminWithdrawalIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminWithdrawalRejectRequest' }
+      responses:
+        '200':
+          description: REJECTED, cherries refunded.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminWithdrawalDecision' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/moderation/reports:
+    get:
+      tags: [admin-panel]
+      operationId: listAdminPanelReports
+      summary: "The report queue with a preview of each target (reports.view)"
+      description: "Same order and cursor as `listAdminReports` (oldest first); every kind of target."
+      security: [{ adminSession: [] }]
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: { type: string, enum: [OPEN, ACTIONED, DISMISSED], default: OPEN }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminPanelReportPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/moderation/reports/{reportId}/actions:
+    post:
+      tags: [admin-panel]
+      operationId: actOnAdminPanelReport
+      summary: "DISMISS, REMOVE_TARGET, WARN the author or BAN the author (reports.act; audited)"
+      description: "DISMISS and REMOVE_TARGET are `actOnReport`'s rule. WARN sends the author `MODERATION_WARNING`; BAN suspends the author (AccountLifecycleService); both need `note` (the reason) and close every OPEN report on the target as ACTIONED. 409 `REPORT_ALREADY_RESOLVED`; 409 `ADMIN_ACTION_REFUSED` when the target has no author or the author is not ACTIVE (BAN)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminPanelReportActionRequest' }
+      responses:
+        '200':
+          description: The report after the action.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Report' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/site-settings:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminSiteSettings
+      summary: "The public website's settings «إعدادات الموقع» (site.settings: OWNER)"
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: The settings.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SiteSettings' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+    put:
+      tags: [admin-panel]
+      operationId: updateAdminSiteSettings
+      summary: "Replaces the website's social links and the top-up switch (site.settings: OWNER; audited with before and after)"
+      description: "Links: `https://instagram.com/<name>`, `https://www.tiktok.com/@<name>`, WhatsApp as an international number or `https://wa.me/<number>` (stored as `https://wa.me/<digits>`); null or empty clears. 400 `VALIDATION_FAILED` otherwise."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateSiteSettingsRequest' }
+      responses:
+        '200':
+          description: Saved.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SiteSettings' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+  /api/v1/site/settings:
+    get:
+      tags: [site]
+      operationId: getSiteSettings
+      summary: "What the public website shows: the social links and whether the top-up link is on (public; cached 60 s)"
+      description: "D192's website reads it at load and hides an icon whose link is null (also on error)."
+      security: []
+      responses:
+        '200':
+          description: The settings.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SiteSettings' }
+        '429': { $ref: '#/components/responses/Error' }
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+    adminSession:
+      type: apiKey
+      in: cookie
+      name: __Host-kabso_admin
+      description: "(v1.60-social, D191) The admin panel's session cookie (HttpOnly, Secure, SameSite=Strict), set by `adminLogin` and replaced by the second factor; changes also need `X-CSRF-Token` (CONVENTIONS §10.54.2)."
   parameters:
+    # v1.60-social (D191): the admin panel.
+    AdminCsrf:
+      name: X-CSRF-Token
+      in: header
+      required: true
+      description: "The session's `csrfToken` (`AdminSessionInfo`, or `AdminLoginResponse` before the second factor). Missing or wrong: 403 `ADMIN_CSRF_INVALID`."
+      schema: { type: string, maxLength: 128 }
+    AdminCursor:
+      name: cursor
+      in: query
+      required: false
+      description: "Opaque `page.nextCursor` of the previous page."
+      schema: { type: string, maxLength: 200 }
+    AdminLimit:
+      name: limit
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+    AdminUserIdPath:
+      name: userId
+      in: path
+      required: true
+      description: A malformed id is treated as not found (404).
+      schema: { type: string }
+    AdminApplicationIdPath:
+      name: applicationId
+      in: path
+      required: true
+      schema: { type: string }
+    AdminAgentUserIdPath:
+      name: agentUserId
+      in: path
+      required: true
+      description: The agent's user id.
+      schema: { type: string }
+    AdminWithdrawalIdPath:
+      name: withdrawalId
+      in: path
+      required: true
+      schema: { type: string }
     ProgramEventIdPath:
       name: eventId
       in: path
@@ -8319,6 +9100,489 @@ components:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorEnvelope' }
   schemas:
+    # ---- v1.60-social (DRAFT, D191, CONVENTIONS §10.54): the admin panel ------------------------------------------
+    AdminPanelRole:
+      type: string
+      description: "The panel's roles (values of the admin permissions): OWNER (everything), MODERATION (the moderator «مشرف»), SUPPORT «دعم», FINANCE «مالية». Granted only with `admin-admin grant`."
+      enum: [OWNER, MODERATION, SUPPORT, FINANCE]
+    AdminLoginRequest:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email: { type: string, minLength: 3, maxLength: 254 }
+        password: { type: string, minLength: 1, maxLength: 1024 }
+    AdminLoginResponse:
+      type: object
+      required: [next, csrfToken, expiresAt]
+      properties:
+        next: { type: string, enum: [TOTP_ENROL, TOTP_VERIFY], description: "First sign-in: set up the authenticator; later: enter a code." }
+        csrfToken: { type: string, description: "Send as `X-CSRF-Token` with the second-factor requests." }
+        expiresAt: { type: string, format: date-time, description: When the pending session ends. }
+    AdminTotpEnrolment:
+      type: object
+      required: [secret, otpauthUri]
+      properties:
+        secret: { type: string, description: "Base32 (for typing it in by hand)." }
+        otpauthUri: { type: string, description: "`otpauth://totp/Kabso%20Admin:<email>?secret=…&issuer=Kabso%20Admin&algorithm=SHA1&digits=6&period=30` — shown as a QR code." }
+    AdminCodeRequest:
+      type: object
+      additionalProperties: false
+      required: [code]
+      properties:
+        code: { type: string, pattern: '^[0-9]{6}$' }
+    AdminSecondFactorRequest:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [code]
+          properties:
+            code: { type: string, pattern: '^[0-9]{6}$' }
+        - type: object
+          additionalProperties: false
+          required: [recoveryCode]
+          properties:
+            recoveryCode: { type: string, minLength: 10, maxLength: 16, description: "`xxxxx-xxxxx`; works once." }
+    AdminSessionInfo:
+      type: object
+      required: [admin, roles, capabilities, csrfToken, expiresAt, idleSeconds]
+      properties:
+        admin:
+          type: object
+          required: [id, email, username, displayName]
+          properties:
+            id: { type: string, format: uuid }
+            email: { type: string }
+            username: { type: string }
+            displayName: { type: string }
+        roles: { type: array, items: { $ref: '#/components/schemas/AdminPanelRole' } }
+        capabilities:
+          type: array
+          description: "What the roles allow (CONVENTIONS §10.54.1), e.g. `users.ban`, `recharge.topup`, `site.settings`. The panel shows only these; the server checks them on every request."
+          items: { type: string }
+        csrfToken: { type: string, description: "Send as `X-CSRF-Token` on every change." }
+        expiresAt: { type: string, format: date-time, description: The session's absolute end. }
+        idleSeconds: { type: integer, description: The session ends after this long without a request. }
+    AdminEnrolmentResult:
+      type: object
+      required: [recoveryCodes, session]
+      properties:
+        recoveryCodes:
+          type: array
+          description: Ten single-use codes, shown only now (only their hashes are kept).
+          items: { type: string }
+        session: { $ref: '#/components/schemas/AdminSessionInfo' }
+    AdminReasonRequest:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 500, description: Kept in the audit log. }
+    AdminStatusResult:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string }
+    AdminUserStatusResult:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [ACTIVE, SUSPENDED] }
+    AdminDashboard:
+      type: object
+      required: [since, today, livesNow, pending]
+      properties:
+        since: { type: string, format: date-time, description: Start of today (UTC). }
+        today:
+          type: object
+          required: [newUsers, agentCoinsSold, agentSales, giftsSent, giftCoins]
+          properties:
+            newUsers: { type: integer }
+            agentCoinsSold: { type: integer, description: Coins recharge agents sold today. }
+            agentSales: { type: integer }
+            giftsSent: { type: integer }
+            giftCoins: { type: integer, description: The coin value of today's gifts. }
+        livesNow: { type: integer }
+        pending:
+          type: object
+          required: [rechargeApplications, withdrawals, reports]
+          properties:
+            rechargeApplications: { type: integer }
+            withdrawals: { type: integer }
+            reports: { type: integer }
+    AdminUserRow:
+      type: object
+      required: [id, username, displayName, email, status, avatarUrl, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string, description: The username shown now. }
+        displayName: { type: string }
+        email: { type: string }
+        status: { type: string, enum: [ACTIVE, SUSPENDED, DELETED] }
+        avatarUrl: { type: [string, 'null'] }
+        createdAt: { type: string, format: date-time }
+    AdminUserList:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/AdminUserRow' } }
+    AdminLedgerRow:
+      type: object
+      required: [id, delta, balanceAfter, reason, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        delta: { type: integer }
+        balanceAfter: { type: integer }
+        reason: { type: string }
+        createdAt: { type: string, format: date-time }
+    AdminUserDetail:
+      type: object
+      required: [user, specialUsername, adminRoles, balances, ledger, rechargeAgent, hostAgent, agencyHost, reports]
+      properties:
+        user:
+          type: object
+          required: [id, username, displayName, email, status, avatarUrl, createdAt, role, lastActiveAt, countryCode, bio, baseUsername]
+          properties:
+            id: { type: string, format: uuid }
+            username: { type: string }
+            displayName: { type: string }
+            email: { type: string }
+            status: { type: string, enum: [ACTIVE, SUSPENDED, DELETED] }
+            avatarUrl: { type: [string, 'null'] }
+            createdAt: { type: string, format: date-time }
+            role: { type: string, enum: [USER, ADMIN] }
+            lastActiveAt: { type: [string, 'null'], format: date-time }
+            countryCode: { type: [string, 'null'] }
+            bio: { type: [string, 'null'] }
+            baseUsername: { type: string, description: "The person's own username (behind an active special one)." }
+        specialUsername:
+          type: [object, 'null']
+          required: [username, source, expiresAt]
+          properties:
+            username: { type: string }
+            source: { type: string }
+            expiresAt: { type: [string, 'null'], format: date-time }
+        adminRoles: { type: array, items: { $ref: '#/components/schemas/AdminPanelRole' } }
+        balances:
+          type: [object, 'null']
+          description: Null without `users.balances`.
+          required: [coins, cherries, lockedTaskCherries]
+          properties:
+            coins: { type: integer }
+            cherries: { type: integer }
+            lockedTaskCherries: { type: integer, description: Task cherries not withdrawable yet (D184). }
+        ledger:
+          type: [object, 'null']
+          description: The 20 latest coin and cherry ledger rows; null without `users.balances`.
+          required: [coins, cherries]
+          properties:
+            coins: { type: array, items: { $ref: '#/components/schemas/AdminLedgerRow' } }
+            cherries: { type: array, items: { $ref: '#/components/schemas/AdminLedgerRow' } }
+        rechargeAgent:
+          type: [object, 'null']
+          required: [status, code, stockCoins, dailyCherryCap, suspendReason]
+          properties:
+            status: { type: string, enum: [APPROVED, ACTIVE, SUSPENDED] }
+            code: { type: [string, 'null'] }
+            stockCoins: { type: integer }
+            dailyCherryCap: { type: [integer, 'null'] }
+            suspendReason: { type: [string, 'null'] }
+        hostAgent:
+          type: [object, 'null']
+          description: The person owns a host agency (D179/D189).
+          required: [inviteCode, hostCode, rank, suspended]
+          properties:
+            inviteCode: { type: string }
+            hostCode: { type: [string, 'null'] }
+            rank: { type: string }
+            suspended: { type: boolean }
+        agencyHost:
+          type: [object, 'null']
+          required: [agencyInviteCode, status]
+          properties:
+            agencyInviteCode: { type: string }
+            status: { type: string }
+        reports:
+          type: object
+          required: [open, recent]
+          properties:
+            open: { type: integer, description: Open reports against the user. }
+            recent:
+              type: array
+              items:
+                type: object
+                required: [id, reason, status, targetType, createdAt]
+                properties:
+                  id: { type: string, format: uuid }
+                  reason: { $ref: '#/components/schemas/ReportReason' }
+                  status: { type: string, enum: [OPEN, ACTIONED, DISMISSED] }
+                  targetType: { type: string }
+                  createdAt: { type: string, format: date-time }
+    AdminAvatarRemoved:
+      type: object
+      required: [removed]
+      properties:
+        removed: { type: boolean }
+    AdminSpecialUsernameRequest:
+      type: object
+      additionalProperties: false
+      required: [username, reason]
+      description: Exactly one of `days` and `permanent`.
+      properties:
+        username: { type: string, minLength: 1, maxLength: 31 }
+        days: { type: integer, minimum: 1, maximum: 9999 }
+        permanent: { type: boolean, enum: [true] }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+    AdminSpecialUsernameResult:
+      type: object
+      required: [username, baseUsername, expiresAt]
+      properties:
+        username: { type: string }
+        baseUsername: { type: string }
+        expiresAt: { type: [string, 'null'], format: date-time }
+    AdminRevokedResult:
+      type: object
+      required: [revoked]
+      properties:
+        revoked: { type: boolean }
+    AdminUserRef:
+      type: object
+      required: [id, username, displayName]
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        displayName: { type: string }
+    AdminRechargeApplicationRow:
+      type: object
+      required: [id, status, createdAt, decidedAt, purged, user]
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [PENDING, APPROVED, REJECTED] }
+        createdAt: { type: string, format: date-time }
+        decidedAt: { type: [string, 'null'], format: date-time }
+        purged: { type: boolean }
+        user: { $ref: '#/components/schemas/AdminUserRef' }
+    AdminRechargeApplicationPage:
+      type: object
+      required: [data, page]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/AdminRechargeApplicationRow' } }
+        page: { $ref: '#/components/schemas/PageInfo' }
+    AdminRechargeApplication:
+      type: object
+      required: [id, status, createdAt, decidedAt, purgedAt, rejectReason, user, fullName, phone, locations, paymentMethods, photos]
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [PENDING, APPROVED, REJECTED] }
+        createdAt: { type: string, format: date-time }
+        decidedAt: { type: [string, 'null'], format: date-time }
+        purgedAt: { type: [string, 'null'], format: date-time }
+        rejectReason: { type: [string, 'null'] }
+        user:
+          type: object
+          required: [id, username, displayName, email]
+          properties:
+            id: { type: string, format: uuid }
+            username: { type: string }
+            displayName: { type: string }
+            email: { type: string }
+        fullName: { type: [string, 'null'] }
+        phone: { type: [string, 'null'] }
+        locations:
+          type: [array, 'null']
+          items:
+            type: object
+            properties:
+              country: { type: string }
+              cities: { type: array, items: { type: string } }
+        paymentMethods:
+          type: [array, 'null']
+          items:
+            type: object
+            properties:
+              country: { type: string }
+              type: { type: string }
+        photos:
+          type: object
+          required: [photo, selfie]
+          description: Which private pictures exist (fetched one by one, each view audited).
+          properties:
+            photo: { type: boolean }
+            selfie: { type: boolean }
+    AdminRechargePricing:
+      type: object
+      required: [activationMinCoins, priceTiers, currency]
+      properties:
+        activationMinCoins: { type: integer }
+        priceTiers:
+          type: array
+          items:
+            type: object
+            required: [minCoins, minorPerMillion]
+            properties:
+              minCoins: { type: integer }
+              minorPerMillion: { type: integer, description: USD cents per 1 000 000 coins. }
+        currency: { type: string, enum: [USD] }
+    AdminRechargeAgentRow:
+      type: object
+      required: [userId, code, status, stockCoins, dailyCherryCap, countries, approvedAt, activatedAt, suspendReason, username, displayName]
+      properties:
+        userId: { type: string, format: uuid }
+        code: { type: [string, 'null'] }
+        status: { type: string, enum: [APPROVED, ACTIVE, SUSPENDED] }
+        stockCoins: { type: integer }
+        dailyCherryCap: { type: [integer, 'null'] }
+        countries: { type: array, items: { type: string } }
+        approvedAt: { type: string, format: date-time }
+        activatedAt: { type: [string, 'null'], format: date-time }
+        suspendReason: { type: [string, 'null'] }
+        username: { type: string }
+        displayName: { type: string }
+    AdminRechargeAgentPage:
+      type: object
+      required: [data, page, pricing]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/AdminRechargeAgentRow' } }
+        page: { $ref: '#/components/schemas/PageInfo' }
+        pricing: { $ref: '#/components/schemas/AdminRechargePricing' }
+    AdminTopUpRequest:
+      type: object
+      additionalProperties: false
+      required: [coins, paidUsd, totpCode]
+      properties:
+        coins: { type: string, pattern: '^[1-9][0-9]{0,12}$', description: Whole coins. }
+        paidUsd: { type: string, pattern: '^[0-9]{1,10}(\.[0-9]{1,2})?$', description: "The USD received outside the app, e.g. `360.00`." }
+        note: { type: string, minLength: 1, maxLength: 500, description: Required when `paidUsd` differs from the tier price. }
+        totpCode: { type: string, pattern: '^[0-9]{6}$', description: The authenticator code again. }
+    AdminTopUpResult:
+      type: object
+      required: [topupId, first, code, stockCoins, tier, minorPerMillion, expectedMinor, paidMinor]
+      properties:
+        topupId: { type: string, format: uuid }
+        first: { type: boolean, description: This top-up activated the agent. }
+        code: { type: [string, 'null'] }
+        stockCoins: { type: integer }
+        tier: { type: string }
+        minorPerMillion: { type: integer }
+        expectedMinor: { type: integer }
+        paidMinor: { type: integer }
+    AdminCapRequest:
+      type: object
+      additionalProperties: false
+      required: [cap, reason]
+      properties:
+        cap: { type: [string, 'null'], pattern: '^(0|[1-9][0-9]{0,12})$', description: "Cherries a day; `0` = no cap; null = the server's default." }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+    AdminCapResult:
+      type: object
+      required: [dailyCherryCap]
+      properties:
+        dailyCherryCap: { type: [integer, 'null'] }
+    AdminWithdrawalRow:
+      type: object
+      required: [id, status, cherries, amountMinor, currency, payoutDetails, createdAt, decidedAt, decisionNote, user]
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [PENDING, PAID, REJECTED] }
+        cherries: { type: integer }
+        amountMinor: { type: integer }
+        currency: { type: string }
+        payoutDetails: { type: string, description: Where the person asked to be paid. }
+        createdAt: { type: string, format: date-time }
+        decidedAt: { type: [string, 'null'], format: date-time }
+        decisionNote: { type: [string, 'null'] }
+        user: { $ref: '#/components/schemas/AdminUserRef' }
+    AdminWithdrawalPage:
+      type: object
+      required: [data, page]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/AdminWithdrawalRow' } }
+        page: { $ref: '#/components/schemas/PageInfo' }
+    AdminWithdrawalPayRequest:
+      type: object
+      additionalProperties: false
+      required: [reference, totpCode]
+      properties:
+        reference: { type: string, minLength: 1, maxLength: 200 }
+        note: { type: string, minLength: 1, maxLength: 280 }
+        totpCode: { type: string, pattern: '^[0-9]{6}$' }
+    AdminWithdrawalRejectRequest:
+      type: object
+      additionalProperties: false
+      required: [reason, totpCode]
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 500 }
+        totpCode: { type: string, pattern: '^[0-9]{6}$' }
+    AdminWithdrawalDecision:
+      type: object
+      required: [status, cherries]
+      properties:
+        status: { type: string, enum: [PAID, REJECTED] }
+        cherries: { type: integer }
+    AdminReportPreview:
+      type: object
+      required: [text, mediaUrl, author, gone]
+      properties:
+        text: { type: [string, 'null'], description: "The post, comment, message or confession text, the live's title, the link, or the reported user's bio." }
+        mediaUrl: { type: [string, 'null'], description: "The story picture or the reported user's photo." }
+        author:
+          type: [object, 'null']
+          required: [id, username, displayName, status]
+          properties:
+            id: { type: string, format: uuid }
+            username: { type: string }
+            displayName: { type: string }
+            status: { type: string }
+        gone: { type: boolean, description: The item was already removed or deleted. }
+    AdminPanelReport:
+      allOf:
+        - $ref: '#/components/schemas/Report'
+        - type: object
+          required: [preview]
+          properties:
+            preview: { $ref: '#/components/schemas/AdminReportPreview' }
+    AdminPanelReportPage:
+      type: object
+      required: [data, page]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/AdminPanelReport' } }
+        page: { $ref: '#/components/schemas/PageInfo' }
+    AdminPanelReportActionRequest:
+      type: object
+      additionalProperties: false
+      required: [action]
+      properties:
+        action: { type: string, enum: [DISMISS, REMOVE_TARGET, WARN, BAN] }
+        note: { type: string, minLength: 1, maxLength: 500, description: Required for WARN and BAN (the reason). }
+    SiteSocials:
+      type: object
+      required: [instagram, tiktok, whatsapp]
+      properties:
+        instagram: { type: [string, 'null'], description: "`https://instagram.com/<name>`." }
+        tiktok: { type: [string, 'null'], description: "`https://www.tiktok.com/@<name>`." }
+        whatsapp: { type: [string, 'null'], description: "`https://wa.me/<digits>`." }
+    SiteSettings:
+      type: object
+      description: "(v1.60-social, D191/D192) The public website's settings (CONVENTIONS §10.54.6)."
+      required: [socials, topupEnabled]
+      properties:
+        socials: { $ref: '#/components/schemas/SiteSocials' }
+        topupEnabled: { type: boolean, description: "Show the «شحن العملات» link (off until D190 deploys)." }
+    UpdateSiteSettingsRequest:
+      type: object
+      additionalProperties: false
+      required: [socials, topupEnabled]
+      properties:
+        socials:
+          type: object
+          additionalProperties: false
+          required: [instagram, tiktok, whatsapp]
+          properties:
+            instagram: { type: [string, 'null'], maxLength: 200 }
+            tiktok: { type: [string, 'null'], maxLength: 200 }
+            whatsapp: { type: [string, 'null'], maxLength: 200, description: "An international number (`+9665…`) or `https://wa.me/<number>`." }
+        topupEnabled: { type: boolean }
+        reason: { type: string, minLength: 1, maxLength: 500 }
     HealthStatus:
       type: object
       required: [status]
@@ -10645,8 +11909,8 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     NotificationType:
       type: string
-      description: "`LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). Clients ignore values they do not know."
-      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST]
+      description: "`LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). (v1.60-social, D191) `MODERATION_WARNING` (system: a moderator warned you about content that breaks the rules; target POST when the warning is about a post, else none). Clients ignore values they do not know."
+      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST, MODERATION_WARNING]
     NotificationTarget:
       type: object
       required: [type, id, postId, thumbUrl, text]

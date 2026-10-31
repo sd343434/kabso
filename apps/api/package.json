@@ -18,6 +18,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --config vitest.config.ts",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
+    "smoke:admin-server": "vitest run --config vitest.smoke.config.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
@@ -38,7 +39,8 @@
     "economy:admin": "tsx src/cli/economy-admin.ts",
     "recharge:admin": "tsx src/cli/recharge-admin.ts",
     "username:admin": "tsx src/cli/username-admin.ts",
-    "payments:admin": "tsx src/cli/payments-admin.ts"
+    "payments:admin": "tsx src/cli/payments-admin.ts",
+    "admin:admin": "tsx src/cli/admin-admin.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1146.0",

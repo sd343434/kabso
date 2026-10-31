@@ -135,6 +135,12 @@ describe('ErrorCode', () => {
         // v1.59-social (DRAFT, D190)
         'TOPUP_UNAVAILABLE',
         'TOPUP_ACCOUNT_FROZEN',
+        // v1.60-social (D191).
+        'ADMIN_PANEL_UNAVAILABLE',
+        'ADMIN_LOCKED',
+        'ADMIN_TOTP_INVALID',
+        'ADMIN_CSRF_INVALID',
+        'ADMIN_ACTION_REFUSED',
       ].sort(),
     );
     expect(ERROR_HTTP_STATUS).toMatchObject({
@@ -215,6 +221,11 @@ describe('ErrorCode', () => {
       TASK_MONTHLY_CAP_REACHED: 409,
       TOPUP_UNAVAILABLE: 503,
       TOPUP_ACCOUNT_FROZEN: 403,
+      ADMIN_PANEL_UNAVAILABLE: 503,
+      ADMIN_LOCKED: 429,
+      ADMIN_TOTP_INVALID: 403,
+      ADMIN_CSRF_INVALID: 403,
+      ADMIN_ACTION_REFUSED: 409,
     });
   });
 

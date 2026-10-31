@@ -502,6 +502,10 @@ export const envSchema = z
     RATE_LIMIT_AUTHENTICATED_USER: rateLimit('600/900'),
     RATE_LIMIT_EMAIL_RESEND_USER: rateLimit('5/3600'),
     RATE_LIMIT_PUBLIC_IP: rateLimit('300/900'),
+    /** v1.60-social (D191, §10.54.2): panel sign-in, second factor and enrolment per IP. */
+    RATE_LIMIT_ADMIN_LOGIN_IP: rateLimit('30/900'),
+    /** v1.60-social (D191): every other cookie-authenticated panel request per IP. */
+    RATE_LIMIT_ADMIN_IP: rateLimit('1200/900'),
     // v1.2 (CONVENTIONS §7)
     RATE_LIMIT_REGISTER_EMAIL: rateLimit('3/3600'),
     RATE_LIMIT_REGISTER_VERIFY_IP: rateLimit('10/900'),
@@ -1008,6 +1012,27 @@ export const envSchema = z
     SPECIAL_USERNAME_GRACE_DAYS: intSetting(30, 1, 3650),
     SPECIAL_USERNAME_SWEEP_INTERVAL_SECONDS: intSetting(300, 0, 86_400),
     /**
+     * v1.60-social (D191, CONVENTIONS §10.54): the admin panel. ADMIN_TOTP_KEY is the source of the AES-256-GCM key
+     * (HKDF, info `admin-totp/v1`) that encrypts the admins' authenticator secrets; unset = the panel is off (503
+     * ADMIN_PANEL_UNAVAILABLE). Changing it makes every enrolled authenticator unreadable (`admin-admin reset-2fa`).
+     * In production it must pass the secret-strength checks and differ from the other secrets.
+     */
+    ADMIN_TOTP_KEY: z
+      .string()
+      .min(1)
+      .refine((v) => Buffer.byteLength(v, 'utf8') >= MIN_SECRET_BYTES, 'must be at least 32 bytes')
+      .optional(),
+    /** A panel session ends after this long without a request … */
+    ADMIN_SESSION_IDLE_SECONDS: intSetting(1800, 60, 86_400),
+    /** … and this long after sign-in at the latest. */
+    ADMIN_SESSION_MAX_SECONDS: intSetting(28_800, 300, 7 * 86_400),
+    /** The second factor (code or enrolment) must follow the password within this. */
+    ADMIN_PENDING_SECONDS: intSetting(300, 60, 3600),
+    /** Consecutive failed passwords or codes before the admin account locks … */
+    ADMIN_LOCKOUT_ATTEMPTS: intSetting(5, 3, 50),
+    /** … for this long. */
+    ADMIN_LOCKOUT_SECONDS: intSetting(900, 60, 86_400),
+    /**
      * v1.56-social (D187, CONVENTIONS §10.50): the daily recharge badges. The minimum coins recharged in one
      * calendar day for each of the five tiers (owner: 1 000 000, 10 000 001, 20 000 001, 40 000 001,
      * 70 000 001 — tier 1 is 1M–10M, tier 2 10.01M–20M …), the zone of that day (owner default Asia/Riyadh)
@@ -1443,6 +1468,22 @@ export const envSchema = z
             code: 'custom',
             path: ['REGISTRATION_CODE_KEY'],
             message: 'must differ from JWT_ACCESS_SECRET and RATE_LIMIT_KEY_SECRET',
+          });
+        }
+      }
+      if (env.ADMIN_TOTP_KEY !== undefined) {
+        const adminKeyProblem = productionSecretProblem(env.ADMIN_TOTP_KEY);
+        if (adminKeyProblem) {
+          ctx.addIssue({ code: 'custom', path: ['ADMIN_TOTP_KEY'], message: adminKeyProblem });
+        } else if (
+          [env.JWT_ACCESS_SECRET, env.RATE_LIMIT_KEY_SECRET, env.REGISTRATION_CODE_KEY].includes(
+            env.ADMIN_TOTP_KEY,
+          )
+        ) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['ADMIN_TOTP_KEY'],
+            message: 'must differ from JWT_ACCESS_SECRET, RATE_LIMIT_KEY_SECRET and REGISTRATION_CODE_KEY',
           });
         }
       }

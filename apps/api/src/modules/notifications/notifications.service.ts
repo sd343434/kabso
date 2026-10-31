@@ -142,6 +142,8 @@ function visibleNotificationWhere(me: string): Prisma.NotificationWhereInput {
       { type: { in: ['PREMIUM_USERNAME_EXPIRING', 'PREMIUM_USERNAME_EXPIRED'] } },
       // v1.47-social (D175): a moderator removed the caller's profile photo (system, no target).
       { type: 'AVATAR_REMOVED' },
+      // v1.60-social (D191): a moderator warned the caller (system; the post or comment when there is one).
+      { type: 'MODERATION_WARNING' },
       { type: 'POST_PUBLISHED', post: visiblePostWhere(me) },
       {
         type: { in: ACTOR_TYPES },

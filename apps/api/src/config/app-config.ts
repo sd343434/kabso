@@ -62,6 +62,9 @@ export interface AppConfig {
     readonly authenticatedUser: RateLimitRule;
     readonly emailResendUser: RateLimitRule;
     readonly publicIp: RateLimitRule;
+    /** v1.60-social (D191). */
+    readonly adminLoginIp: RateLimitRule;
+    readonly adminIp: RateLimitRule;
     readonly registerEmail: RateLimitRule;
     readonly registerVerifyIp: RateLimitRule;
     readonly registerVerifyEmail: RateLimitRule;
@@ -254,6 +257,15 @@ export interface AppConfig {
     readonly appLinkEnabled: boolean;
     readonly termsVersion: string;
   };
+  /** v1.60-social (D191, CONVENTIONS §10.54): the admin panel; `totpKey` null = the panel is off. */
+  readonly adminPanel: {
+    readonly totpKey: string | null;
+    readonly sessionIdleSeconds: number;
+    readonly sessionMaxSeconds: number;
+    readonly pendingSeconds: number;
+    readonly lockoutAttempts: number;
+    readonly lockoutSeconds: number;
+  };
   /** v1.54-social (D185): special usernames (CONVENTIONS §10.48.1). */
   readonly specialUsernames: {
     readonly graceDays: number;
@@ -441,6 +453,8 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       authenticatedUser: e.RATE_LIMIT_AUTHENTICATED_USER,
       emailResendUser: e.RATE_LIMIT_EMAIL_RESEND_USER,
       publicIp: e.RATE_LIMIT_PUBLIC_IP,
+      adminLoginIp: e.RATE_LIMIT_ADMIN_LOGIN_IP,
+      adminIp: e.RATE_LIMIT_ADMIN_IP,
       registerEmail: e.RATE_LIMIT_REGISTER_EMAIL,
       registerVerifyIp: e.RATE_LIMIT_REGISTER_VERIFY_IP,
       registerVerifyEmail: e.RATE_LIMIT_REGISTER_VERIFY_EMAIL,
@@ -619,6 +633,14 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       disputeAutoSubmit: e.STRIPE_DISPUTE_AUTO_SUBMIT,
       appLinkEnabled: e.TOPUP_APP_LINK_ENABLED,
       termsVersion: e.TOPUP_TERMS_VERSION,
+    },
+    adminPanel: {
+      totpKey: e.ADMIN_TOTP_KEY ?? null,
+      sessionIdleSeconds: e.ADMIN_SESSION_IDLE_SECONDS,
+      sessionMaxSeconds: e.ADMIN_SESSION_MAX_SECONDS,
+      pendingSeconds: e.ADMIN_PENDING_SECONDS,
+      lockoutAttempts: e.ADMIN_LOCKOUT_ATTEMPTS,
+      lockoutSeconds: e.ADMIN_LOCKOUT_SECONDS,
     },
     specialUsernames: {
       graceDays: e.SPECIAL_USERNAME_GRACE_DAYS,

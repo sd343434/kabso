@@ -96,6 +96,8 @@ services:
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ./site:/srv/site:ro
+      # v1.60-social (D191): the admin panel's build (build-admin.sh swaps admin/current; not in git).
+      - ./admin:/srv/admin:ro
       - caddy-data:/data
       - caddy-config:/config
     depends_on: [api, livekit]

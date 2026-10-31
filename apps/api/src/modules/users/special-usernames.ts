@@ -158,7 +158,9 @@ export async function grantSpecialIn(
     expiresAt: Date | null;
     reason: string | null;
     actorUserId?: string | null;
-    via: 'cli' | 'system';
+    /** v1.60-social (D191): `panel` = the admin panel (with the admin's IP). */
+    via: 'cli' | 'system' | 'panel';
+    ip?: string | null;
   },
   now: Date,
   graceDays: number,
@@ -231,6 +233,7 @@ export async function grantSpecialIn(
   await tx.auditLog.create({
     data: {
       actorUserId: opts.actorUserId ?? null,
+      ip: opts.ip?.slice(0, 64) ?? null,
       action: AuditAction.SPECIAL_USERNAME_GRANT,
       targetType: 'user',
       targetId: userId,
@@ -276,7 +279,12 @@ export async function endSpecialIn(
   reason: 'EXPIRED' | 'REVOKED' | 'SUSPENDED',
   now: Date,
   graceDays: number,
-  audit: { actorUserId?: string | null; via: 'cli' | 'system' | 'sweeper'; note?: string | null },
+  audit: {
+    actorUserId?: string | null;
+    via: 'cli' | 'system' | 'sweeper' | 'panel';
+    note?: string | null;
+    ip?: string | null;
+  },
 ): Promise<boolean> {
   await lockUser(tx, userId);
   const row = await activeSpecialOf(tx, userId);
@@ -287,6 +295,7 @@ export async function endSpecialIn(
   await tx.auditLog.create({
     data: {
       actorUserId: audit.actorUserId ?? null,
+      ip: audit.ip?.slice(0, 64) ?? null,
       action: AuditAction.SPECIAL_USERNAME_END,
       targetType: 'user',
       targetId: userId,

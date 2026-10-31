@@ -1,6 +1,8 @@
 import { Module, type DynamicModule } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
+import { AdminPanelModule } from './modules/admin-panel/admin-panel.module.js';
+import { SiteSettingsModule } from './modules/site-settings/site-settings.module.js';
 import { AuditModule } from './common/audit/audit.module.js';
 import { BackgroundTasksModule } from './common/background/background-tasks.js';
 import { AllExceptionsFilter } from './common/errors/all-exceptions.filter.js';
@@ -101,6 +103,9 @@ export class AppModule {
         RechargeModule,
         // v1.59-social (DRAFT, D190): card top-ups on the website through Stripe.
         TopupModule,
+        // v1.60-social (DRAFT, D191): the admin panel and the public website's settings.
+        AdminPanelModule,
+        SiteSettingsModule,
       ],
       providers: [
         { provide: APP_FILTER, useClass: AllExceptionsFilter },

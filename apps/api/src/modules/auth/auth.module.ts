@@ -24,6 +24,6 @@ import { VerificationTokensService } from './verification-tokens.service.js';
     RegistrationService,
     VerificationTokensService,
   ],
-  exports: [AccessTokenGuard, AccessTokenService, SessionsService],
+  exports: [AccessTokenGuard, AccessTokenService, SessionsService, PasswordHasher],
 })
 export class AuthModule {}

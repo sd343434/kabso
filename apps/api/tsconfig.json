@@ -28,7 +28,8 @@
     "prisma/**/*.ts",
     "prisma.config.ts",
     "vitest.config.ts",
-    "vitest.e2e.config.ts"
+    "vitest.e2e.config.ts",
+    "vitest.smoke.config.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }

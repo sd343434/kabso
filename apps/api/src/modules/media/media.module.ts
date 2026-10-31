@@ -8,6 +8,7 @@ import { S3ObjectStorage } from './s3-object-storage.js';
 @Module({
   controllers: [MediaController],
   providers: [MediaService, { provide: OBJECT_STORAGE, useClass: S3ObjectStorage }],
-  exports: [MediaService],
+  // v1.60-social (D191): the admin panel streams private pictures and deletes removed avatars' files.
+  exports: [MediaService, OBJECT_STORAGE],
 })
 export class MediaModule {}

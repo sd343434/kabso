@@ -167,6 +167,11 @@ All non-2xx responses use one envelope:
 | 409 | `TASK_MONTHLY_CAP_REACHED` | *(v1.57-social, DRAFT, D188)* A task claim (daily or weekly) after the caller already got the calendar month's cap of task cherries (`TASK_MONTHLY_CAP_MINOR` at `CHERRY_PAYOUT_RATE`, §10.51). Nothing was paid. Checked before `TASK_DAILY_CAP_REACHED`. |
 | 503 | `TOPUP_UNAVAILABLE` | *(v1.59-social, DRAFT, D190)* Card top-ups are not configured on this server: one of `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `TOPUP_PUBLIC_BASE_URL` is missing (the website shows «الشحن بالبطاقة غير مفعّل»). Not transient: no `Retry-After` (§10.53). |
 | 403 | `TOPUP_ACCOUNT_FROZEN` | *(v1.59-social, DRAFT, D190)* The caller's account is frozen from card purchases after a refund, an early-fraud warning or a dispute of an earlier purchase; the team lifts it (`payments-admin unfreeze`) or a won dispute that leaves nothing reversed does. Also every gift send (live, conversation, `BAG` source too) and bag transfer while the caller's coin balance is below 0 (§10.53). Nothing changed. |
+| 503 | `ADMIN_PANEL_UNAVAILABLE` | *(v1.60-social, DRAFT, D191)* An admin panel route (`/admin/auth/*` and every cookie-authenticated `/admin/*` route of §10.54) while `ADMIN_TOTP_KEY` is not set on the server: the panel is off. |
+| 429 | `ADMIN_LOCKED` | *(v1.60-social, DRAFT, D191)* Panel sign-in or second factor after `ADMIN_LOCKOUT_ATTEMPTS` consecutive failures: the admin account is locked for `ADMIN_LOCKOUT_SECONDS` (`Retry-After`). Checked before the password. §10.54.2. |
+| 403 | `ADMIN_TOTP_INVALID` | *(v1.60-social, DRAFT, D191)* A wrong, expired or already-used authenticator code or recovery code (sign-in, enrolment, or the code re-entered for a financial action, §10.54.3). Counts towards the lockout. |
+| 403 | `ADMIN_CSRF_INVALID` | *(v1.60-social, DRAFT, D191)* A panel change (POST/PUT/PATCH/DELETE) without the session's `X-CSRF-Token` header. Nothing changed. |
+| 409 | `ADMIN_ACTION_REFUSED` | *(v1.60-social, DRAFT, D191)* The admin rule shared with the CLI refused the action (e.g. the application is not PENDING, the agent is SUSPENDED, the withdrawal was already decided); `message` says why. Nothing changed. |
 | 403 | `DM_NOT_ALLOWED` | *(v1.40-social, DRAFT, D155)* The recipient's «who can message you» setting (`whoCanMessage`) does not allow the caller (§11.13). Nothing was stored or charged. The app says the person does not accept messages. |
 | 403 | `DM_REQUEST_LIMIT` | *(v1.40-social, DRAFT, D155)* The caller already sent `DM_REQUEST_MAX_MESSAGES` (3) messages in a message request the recipient has not accepted (§11.13). The app says to wait for a reply. |
 | 403 | `DM_REQUEST_TEXT_ONLY` | *(v1.40-social, DRAFT, D155)* A picture or voice message in a message request (only text, a pack emoji or a gift until the recipient accepts, §11.13). |
@@ -385,6 +390,8 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | Endpoint | Limit |
 | -------- | ----- |
 | `POST /auth/login` | 10 / 15 min per IP+account, 50 / 15 min per IP, **20 / 15 min per account across all IPs** (email and username of one account share the bucket; unknown identifiers are bucketed by normalized identifier). *(v1.2, SEC-023)* the account bucket counts **failed** attempts only, and a source (IPv4 / IPv6 /64) that logged into the account successfully within the last 30 days bypasses the account bucket (still subject to the IP+account bucket). |
+| `POST /admin/auth/login`, `…/totp/enrolment`, `…/totp/enrolment/confirm`, `…/totp/verify` *(v1.60-social, D191)* | 30 / 15 min per IP (bucket `admin_login:ip`, `RATE_LIMIT_ADMIN_LOGIN_IP`); plus the lockout of §10.54.2 (`ADMIN_LOCKOUT_ATTEMPTS` failures per email and per admin account → 429 `ADMIN_LOCKED`). **Replaces** the public default |
+| Every other cookie-authenticated `/admin/*` route of §10.54 *(v1.60-social, D191)* | 1200 / 15 min per IP (bucket `admin:ip`, `RATE_LIMIT_ADMIN_IP`). **Replaces** the public default |
 | `POST /auth/register` | 5 / hour per IP; *(v1.2)* 3 / hour per email |
 | `POST /auth/register/verify` *(v1.2)* | 10 / 15 min per IP; 5 attempts per code, *(v1.2.3)* 10 per pending registration and **15 / day per email** (SEC-027) |
 | `POST /auth/register/resend` *(v1.2)* | 3 / hour per email, 10 / hour per IP |
@@ -529,6 +536,8 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.57-social)* Task metric `GIFT_COINS_SENT`; server config `TASK_MONTHLY_CAP_MINOR`, `COIN_RETAIL_USD_PER_MILLION`; the rebalanced task defaults (migration `20261231130000_task_rewards_rebalance`) | Backend — `programs` module (caps, metrics, `task-admin`) | CTO |
 | *(v1.53-social)* Columns `task_definitions.reward_cherries`, `task_assignments.reward_cherries`, `task_claims.reward_amount`, `task_claims.reward_currency`; cherry ledger reason `TASK_REWARD`; server config `TASK_DAILY_CAP_CHERRIES`, `TASK_CHERRIES_UNLOCK_GIFT_MINOR` | Backend — `programs` module (claims) and `economy` module (`cherry-ledger.ts`: the credit and the lock) | CTO |
 | *(v1.54-social)* Tables `recharge_agent_applications`, `recharge_agents`, `recharge_agent_counter`, `recharge_stock_ledger`, `recharge_topups`, `recharge_sales`, `recharge_employees`, `recharge_cherry_requests`; column `notifications.recharge_sale_id`; table `special_usernames` (§10.48.1); ledger reasons `RECHARGE_PURCHASE` (coins), `RECHARGE_SALE` (cherries); media kinds `RECHARGE_AGENT_PHOTO`, `RECHARGE_AGENT_SELFIE` (private prefix `private/recharge-agents/`); server config `RECHARGE_AGENT_*`, `RATE_LIMIT_RECHARGE_*`, `SPECIAL_USERNAME_*`; CLI `username-admin` | Backend — `recharge` module (`RechargeService`; applications decided, top-ups, suspensions and caps changed only by the `recharge-admin` CLI; reads `cherry_ledger` through `economy/cherry-ledger.ts` and writes coins through `wallet/wallet-ledger.ts`) | CTO; Security (KYC data, money, the private prefix) |
+| *(v1.60-social)* Tables `admin_credentials`, `admin_recovery_codes`, `admin_sessions`; admin permissions `OWNER`, `SUPPORT`, `FINANCE`; server config `ADMIN_*`, `RATE_LIMIT_ADMIN_*`; CLI `admin-admin`; `apps/admin` | Backend — `admin-panel` module (reads other modules' tables for its views; changes them only through their shared rules, §10.54.4); web — `apps/admin` | CTO; Security (sign-in, second factor, sessions, private data) |
+| *(v1.60-social)* Table `site_settings` | Backend — `site-settings` module (public read; OWNER writes from the panel) | CTO |
 | *(v1.55-social)* Table `host_frame_choices`; bag source `HOST_ACTIVE`; catalogue rows `host_frame_blue`, `host_frame_pink` | Backend — `economy` module (`host-frames.ts`: given and taken by the agency sweeper and `economy-admin agency-evaluate`, on agency join / leave / a resolved complaint, on a gender change and a style choice; `bag-admin` refuses them) | CTO |
 | *(v1.56-social)* Tables `recharge_daily_totals`, `recharge_badges`; server config `RECHARGE_BADGE_*` | Backend — `recharge` module (`recharge-badges.ts`: `recordRechargeIn` is the only writer, called inside the transaction that credits a recharge — today the agent's sale; later the website top-up) | CTO |
 | *(v1.58-social)* Columns `agencies.host_code`, `host_code_number`, `host_code_at`, `suspended_at`, `suspend_reason`; table `host_agent_counter`; special-username source `HOST_AGENT` (§10.52) | Backend — `economy` module (`economy/host-agents.ts`; codes given and perks suspended only by the `economy-admin` CLI, older agencies' codes by the agency sweeper) and `users/agent-usernames.ts` (which agent code is the username) | CTO |
@@ -572,6 +581,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.60-social (draft) | 2026-10-31 | **D191 (owner: the admin panel «لوحة الإدارة», phase 1, CP-034):** tag `admin-panel` — `adminLogin`, `startAdminTotpEnrolment`, `confirmAdminTotpEnrolment`, `verifyAdminTotp`, `getAdminSession`, `adminLogout` (cookie `__Host-kabso_admin`, security scheme `adminSession`, header `X-CSRF-Token`), `getAdminDashboard`, `searchAdminUsers`, `getAdminUser`, `banAdminUser`, `unbanAdminUser`, `removeAdminUserAvatar`, `giftAdminSpecialUsername`, `revokeAdminSpecialUsername`, `listAdminRechargeApplications`, `getAdminRechargeApplication`, `getAdminRechargeApplicationPhoto`, `approveAdminRechargeApplication`, `rejectAdminRechargeApplication`, `listAdminRechargeAgents`, `topUpAdminRechargeAgent`, `suspendAdminRechargeAgent`, `reinstateAdminRechargeAgent`, `setAdminRechargeAgentCap`, `listAdminWithdrawals`, `payAdminWithdrawal`, `rejectAdminWithdrawal`, `listAdminPanelReports`, `actOnAdminPanelReport`, `getAdminSiteSettings`, `updateAdminSiteSettings`; tag `site` — `getSiteSettings` (with D192); `NotificationType.MODERATION_WARNING`; admin permissions `OWNER`, `SUPPORT`, `FINANCE` (with `MODERATION`: the panel roles); codes `ADMIN_PANEL_UNAVAILABLE` (503), `ADMIN_LOCKED` (429), `ADMIN_TOTP_INVALID`, `ADMIN_CSRF_INVALID` (403), `ADMIN_ACTION_REFUSED` (409); config `ADMIN_TOTP_KEY`, `ADMIN_SESSION_*`, `ADMIN_PENDING_SECONDS`, `ADMIN_LOCKOUT_*`, `RATE_LIMIT_ADMIN_*`; CLI `admin-admin`; migrations `20270104090000_admin_panel_enums`, `20270104100000_admin_panel` (`admin_credentials`, `admin_recovery_codes`, `admin_sessions`, `site_settings`). §4, §7, §8, §10.54. | **Additive** (new operations behind their own cookie session; a new notification type the app ignores until it knows it; the CLIs' audit rows gain `before`/`after` keys and the panel's carry the actor and IP). |
 | v1.59-social (draft) | 2026-10-31 | **D190 (owner: card top-ups on the Kabso WEBSITE only, never inside the app; Stripe Checkout with 3-D Secure; refunds / early-fraud warnings / disputes take the coins back, CP-033):** tag `topup` — `listTopupPackages` (public), `getMyTopupState`, `createTopupCheckout`, `getTopupOrder`, `receiveStripeWebhook` (signed, server to server); schemas `TopupPackages`, `TopupMe`, `TopupCheckoutRequest`, `TopupCheckout`, `TopupOrder`, `TopupOrderStatus`; codes `TOPUP_UNAVAILABLE` (503) and `TOPUP_ACCOUNT_FROZEN` (403, also on `sendLiveGift`, `sendDmGift`, `sendMyBagItem` while the balance is below 0); `Wallet.coins` and `WalletLedgerEntry.balanceAfter` may be **negative**; ledger reasons `CARD_TOPUP`, `CARD_TOPUP_REVERSAL`, `CARD_TOPUP_RESTORE`; `RechargePackages.websiteTopupUrl` (set while `TOPUP_APP_LINK_ENABLED`, on by default, and top-ups are on); the website pages `/topup`, `/topup/success`, `/topup/cancel` (outside `/api/v1`); CLI `payments-admin`; migrations `20270104090000_card_topups_enums`, `20270104100000_card_topups`, `20270104110000_topup_team_refunds`. Owner answers (CP-033 §3): bank transfers (US) and the app link on by default; a team refund never freezes; gifts again once the balance is ≥ 0. §4, §7, §8, §10.53. | **Additive** on the wire (new operations, codes, enum values, a nullable field); **behaviour change**: a coin balance can be below 0 (clients show it as is; strict clients accept negative numbers in the same change set). Off until the owner sets the Stripe secrets on the server. |
 | v1.58-social (draft) | 2026-10-30 | **D189 (owner: a host agent «وكيل مضيفين» gets the same kind of perks as a recharge agent, CP-032):** `UserSummary.hostAgent` (optional) and `PublicProfile.hostAgent` (required, nullable) — `HostAgentTag {code}`, `HostAgentCode` (`^host[0-9]{2,}$`) — present while the person owns an agency the team has not suspended (any rank) with an active account; `OwnAgency.hostAgent` (`OwnHostAgent`: `code`, `active`, `usernameShown`); `MeSpecialUsername.source` `HOST_AGENT`; `host` + digits reserved (§6); `economy-admin agency-create` activates the host agent (prints the host code), new `agency-suspend` / `agency-reinstate`; migrations `20270103090000_host_agent_perks_enums`, `20270103100000_host_agent_perks`. §6, §7, §10.52. | **Additive** (new optional/nullable fields; new required `PublicProfile.hostAgent` and `OwnAgency.hostAgent` — strict clients update their models in the same change set; an agency owner's shown username becomes `hostNN`). |
 | v1.57-social (draft) | 2026-10-30 | **D188 (owner: the task rewards came from wrong pricing — «300,000 كرزة» and the low «استقبل 1000 عملة» targets are absurd; anchors 1 000 000 coins = $12.50 retail, 1 000 000 cherries = $1.10 payout):** `ProgramTask.metric` + `GIFT_COINS_SENT` (the coin value of paid gifts sent, from the stored gift rows); `MyTasks.monthlyCapCherries`, `MyTasks.monthlyEarnedCherries` (required in responses); code `TASK_MONTHLY_CAP_REACHED` (409); weekly host tasks per level band (follow-up: a band-4 host reaches the $5 cap); config `TASK_DAILY_CAP_CHERRIES` 150 000 → **50 000**, new `TASK_MONTHLY_CAP_MINOR` (500 = $5 → 4 545 454 cherries a calendar month, daily + weekly), new `COIN_RETAIL_USD_PER_MILLION` (12.5; `task-admin` shows real money), `TASK_CHERRIES_UNLOCK_GIFT_MINOR` 5000 → **6000** ($60); migrations `20261231130000_task_rewards_rebalance` (stored defaults, the new metric in the CHECK, the days' offers re-priced) and `20261231140000_task_weekly_host_bands` (follow-up: daily host tasks ×2, weekly host tasks per band). §4, §8, §10.41.3, §10.46.1, §10.51. | **Behaviour change, additive on the wire** (a new enum value — the app shows an unknown metric generically; new required response fields the app reads in the same change set). Claims already paid keep what they paid. |
@@ -3576,6 +3586,140 @@ script, nothing framed; the access token lives in the tab's `sessionStorage` onl
 - **Migrations** `20270104090000_card_topups_enums` (the three ledger reasons), `20270104100000_card_topups` (tables,
   CHECKs, the wallet and ledger ranges below 0, the reason-sign rule), `20270104110000_topup_team_refunds` (the team
   refund columns).
+
+### 10.54 The admin panel «لوحة الإدارة» *(v1.60-social, DRAFT — D191, CP-034)*
+
+A web panel for the team at `https://admin.<domain>` (`apps/admin`, React + TypeScript + Vite, a static build served
+by Caddy, which proxies `/api/*` to the API on the same origin). It calls only the `admin-panel` operations below and
+`/admin/auth/*`; it has no data of its own. Arabic RTL first with an English toggle, light and dark.
+
+#### 10.54.1 Roles and capabilities
+
+The panel's roles are **values of the existing admin permissions** (`admin_permission`, CP-005 §9.8) held by an
+account whose `users.role` is `ADMIN`: `OWNER`, `MODERATION` (the moderator «مشرف»), `SUPPORT` «دعم», `FINANCE`
+«مالية». They are granted and revoked **only** with the CLI `admin-admin grant|revoke <email> <role>` (`MODERATOR` is
+accepted for `MODERATION`), which writes an audit row; a grant makes the account an admin when it is not one yet
+(how the first OWNER is bootstrapped). `admin-admin list` shows the panel admins; `admin-admin reset-2fa <email>`
+clears a lost authenticator (the next sign-in enrols again). Revoking the last panel role ends the person's panel
+sessions.
+
+Every panel route names one capability and the server checks it on **every request** against the roles held at that
+moment (a revoked role or a suspended account applies at once; 403 `AUTH_FORBIDDEN`). The panel only hides what the
+session's `capabilities` do not include.
+
+| Capability | OWNER | MODERATION | SUPPORT | FINANCE |
+|---|:-:|:-:|:-:|:-:|
+| `dashboard.view`, `users.view` | ✓ | ✓ | ✓ | ✓ |
+| `users.balances` (balances and the latest ledger rows in a profile) | ✓ | | ✓ | ✓ |
+| `users.ban`, `users.avatar`, `reports.view`, `reports.act` | ✓ | ✓ | | |
+| `users.special_username`, `recharge.applications` (private fields and pictures), `recharge.decide`, `recharge.status` | ✓ | | ✓ | |
+| `recharge.agents` | ✓ | | ✓ | ✓ |
+| `recharge.topup`, `recharge.cap`, `withdrawals.view`, `withdrawals.decide` | ✓ | | | ✓ |
+| `site.settings` | ✓ | | | |
+
+An account holding a panel role can be banned, unbanned or otherwise acted on only by an OWNER; nobody acts on their
+own account (409 `ADMIN_ACTION_REFUSED`).
+
+#### 10.54.2 Sign-in, session, CSRF, lockout
+
+- **Separate sign-in** — the app's tokens open nothing here. `adminLogin` (`POST /admin/auth/login` `{email,
+  password}`) checks an existing account's password (Argon2id, as `login`); an unknown email, a wrong password, a
+  non-admin, a suspended account and an admin without a panel role all get the same 401 `AUTH_INVALID_CREDENTIALS`.
+  It sets a **pending** session that allows only the second factor for `ADMIN_PENDING_SECONDS` (300).
+- **Mandatory TOTP** (RFC 6238: SHA-1, 30 s, 6 digits, ±1 step). First sign-in: `startAdminTotpEnrolment` returns a
+  new secret and its `otpauth://` URI (the panel draws the QR code itself); `confirmAdminTotpEnrolment` checks a code
+  and returns **ten recovery codes, shown once** (`xxxxx-xxxxx`; only their SHA-256 is stored; each works once).
+  Later sign-ins: `verifyAdminTotp` with `{code}` or `{recoveryCode}`. A code's time step is consumed: the same code
+  never works twice (also across concurrent requests). The secret is stored AES-256-GCM encrypted with a key derived
+  (HKDF-SHA-256, `admin-totp/v1`) from **`ADMIN_TOTP_KEY`** (server env, ≥ 32 bytes, strength-checked in
+  production). Without `ADMIN_TOTP_KEY` every panel route answers 503 `ADMIN_PANEL_UNAVAILABLE`. Changing the key makes
+  enrolled authenticators unreadable (`admin-admin reset-2fa`).
+- **Session**: the cookie `__Host-kabso_admin` — HttpOnly, Secure, SameSite=Strict, Path=/, no Domain (only
+  admin.<domain>); a 256-bit random value of which only the SHA-256 is stored (`admin_sessions`). The second factor
+  ends the pending session and starts a new one (new cookie: no fixation). Idle expiry `ADMIN_SESSION_IDLE_SECONDS`
+  (1800, sliding), absolute `ADMIN_SESSION_MAX_SECONDS` (28 800). `getAdminSession` returns who is signed in, the
+  roles, the capabilities and the **CSRF token**; `adminLogout` ends the session.
+- **CSRF**: every POST/PUT/PATCH/DELETE of a panel session needs `X-CSRF-Token` = the session's token (an HMAC of the
+  cookie, HKDF `admin-csrf/v1`; never stored) — else 403 `ADMIN_CSRF_INVALID`. With SameSite=Strict and the same
+  origin this is defence in depth.
+- **Lockout**: `ADMIN_LOCKOUT_ATTEMPTS` (5) failed passwords for an email lock that email for `ADMIN_LOCKOUT_SECONDS`
+  (900) — counted the same way for every email, so the lock reveals nothing. The same number of failed codes (sign-in,
+  enrolment, recovery or a financial re-entry) locks the admin account (`admin_credentials.locked_until`) and **ends
+  all its panel sessions**. Both answer 429 `ADMIN_LOCKED` with `Retry-After`. A right code resets the count.
+- **Rate limits** (§7): `RATE_LIMIT_ADMIN_LOGIN_IP` (30 / 15 min per IP) on sign-in and the second factor,
+  `RATE_LIMIT_ADMIN_IP` (1200 / 15 min per IP) on every other panel route; both replace the public default.
+- **Logs**: no password, code, secret, cookie or CSRF token is logged or audited; audit rows carry ids, roles and
+  reasons only.
+
+#### 10.54.3 Audit, reasons and the financial re-entry
+
+Every change from the panel writes an `audit_logs` row in its transaction with the admin as `actor_user_id`, the
+request IP and request id, the target, and `metadata.via = "panel"`, the reason and a before/after summary where
+there is a state change. Reasons are **required** for: ban, unban, avatar removal, special-username gift and revoke,
+application rejection, agent suspension, reinstatement and cap, withdrawal rejection, warn and ban from a report
+(`note`). Views of private data are audited too: `admin.user.view` (a profile: base username, balances),
+`recharge.application.view` (an application's private fields) and `recharge.application.photo_view` (each picture).
+Sign-in events: `admin.login.password|success|failure|locked`, `admin.totp.enrol|failure`,
+`admin.recovery_code.used`, `admin.logout`; roles: `admin.role.grant|revoke`, `admin.totp.reset` (CLI).
+
+**Financial actions need the authenticator code again** (`totpCode` in the body): `topUpAdminRechargeAgent`,
+`payAdminWithdrawal`, `rejectAdminWithdrawal` (it refunds the held cherries). A missing code is 400; a wrong or used
+one 403 `ADMIN_TOTP_INVALID` (counted towards the lockout); nothing changes.
+
+#### 10.54.4 One rule for the CLI and the panel
+
+The panel does not reimplement admin rules: it calls the same functions as the CLIs, which take an `AdminVia`
+(`{via: 'cli' | 'panel', actorUserId, ip}`) and write the same audit row (only `via` and the actor differ):
+`recharge-core.ts` (`recharge-admin` approve / reject / topup / suspend / reinstate / set-cap), `withdrawal-admin.ts`
+(`economy-admin withdrawal-pay | withdrawal-reject`, moved out of the CLI), `avatar-admin.ts` (`profile-admin
+remove-avatar`), `special-usernames.ts` (`username-admin gift | revoke`). Ban / unban use `AccountLifecycleService`
+(`suspendIn`, new `unsuspendIn`: live ended, seats freed, agent username synced); report actions use
+`SafetyService.act` (DISMISS, REMOVE_TARGET). A refusal of a shared rule is 409 `ADMIN_ACTION_REFUSED` with the rule's
+own message.
+
+#### 10.54.5 The sections (phase 1)
+
+1. **Home** `getAdminDashboard`: today's (UTC) new users, coins sold by recharge agents (and the number of sales),
+   gifts sent (and their coin value), lives live now, and the pending counts (applications, withdrawals, open reports)
+   — real aggregates. Website top-ups appear when D190 merges.
+2. **Users** `searchAdminUsers` (`q`: a UUID, an email prefix, or a username — shown, base or special, also as a
+   prefix), `getAdminUser` (profile, special username, panel roles, balances and the 20 latest coin and cherry ledger
+   rows by capability, recharge-agent / host-agent / agency-host status, reports against); actions ban / unban,
+   remove the profile photo, give / take back a special username.
+3. **Recharge agents** `listAdminRechargeApplications` (no private field), `getAdminRechargeApplication` (private
+   fields, audited), `getAdminRechargeApplicationPhoto` (the WebP bytes streamed by the API with
+   `Cache-Control: private, no-store` — never a storage URL; audited per view; the panel fetches a picture only when
+   asked), approve / reject; `listAdminRechargeAgents` (with the owner's `pricing`), top-up (tier price and paid USD,
+   a different amount needs a note; code again), suspend / reinstate, cap.
+4. **Withdrawals** (D179) `listAdminWithdrawals` (PENDING oldest first), mark paid with a payment reference (kept as
+   the decision note `ref: … — note`), reject with a reason (the cherries go back). Stripe cases appear when D190
+   merges.
+5. **Reports** `listAdminPanelReports` (every target kind with `preview`: text, picture, the author and whether it is
+   already gone) and `actOnAdminPanelReport`: DISMISS, REMOVE_TARGET, **WARN** (the author gets the new system
+   notification `MODERATION_WARNING`, target the post when there is one) and **BAN** (the author is suspended); WARN
+   and BAN need `note` and close every open report on the target as ACTIONED.
+6. **Website settings «إعدادات الموقع»** (OWNER) — §10.54.6.
+
+Lists are keyset-paginated (`cursor`, `limit` ≤ 100; reports use the `listAdminReports` cursor).
+
+#### 10.54.6 The public website's settings (with D192)
+
+Table `site_settings` (module `site-settings`; keys `socials`, `topupEnabled`). `getSiteSettings` (`GET
+/site/settings`, public, `Cache-Control: public, max-age=60`) returns `{socials: {instagram, tiktok, whatsapp},
+topupEnabled}` — links as full https URLs or null (the website hides the icon). `updateAdminSiteSettings` (`PUT
+/admin/site-settings`, capability `site.settings` = OWNER, audited `site.settings.update` with before and after)
+replaces the document: `https://instagram.com/<name>` (or www.), `https://www.tiktok.com/@<name>`, WhatsApp as an
+international number or `https://wa.me/<number>` (stored `https://wa.me/<digits>`); an empty link clears it; other
+hosts or schemes are 400. `getAdminSiteSettings` reads it for the form. D192 may build the same module; the
+integrator keeps one.
+
+#### 10.54.7 Serving (Caddy)
+
+`admin.{$KABSO_DOMAIN}` serves `infra/deploy/admin/` (the build, SPA fallback to `index.html`) and proxies `/api/*`
+to the API; `/internal/*` 404. Headers: a strict CSP (`default-src 'self'`; `img-src 'self' data: https:`;
+`frame-ancestors 'none'`; `form-action 'self'`; `base-uri 'none'`), HSTS, `X-Frame-Options: DENY`, `nosniff`,
+`Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex`. An optional IP allowlist (`KABSO_ADMIN_ALLOW_IPS`, space-separated
+CIDRs; unset = everyone, an empty value blocks everyone) answers 403 to other addresses. DNS: an A record `admin.<domain>` (DEPLOYMENT §11.6).
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 
