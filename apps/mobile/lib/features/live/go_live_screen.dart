@@ -87,6 +87,11 @@ import 'package:kabso_live/features/live/presentation/widgets/live_tap_layer.dar
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_viewer_parts.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_watch_card.dart';
+import 'package:kabso_live/features/live/tools/live_tools_stage.dart';
+import 'package:kabso_live/features/live/tools/music/live_music_sheet.dart';
+import 'package:kabso_live/features/live/tools/recorder/live_clip_controller.dart';
+import 'package:kabso_live/features/live/tools/recorder/live_clip_widgets.dart';
+import 'package:kabso_live/features/live/tools/second_camera/second_camera_sheet.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/features/recharge/presentation/live_recharge_entrance.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -687,7 +692,14 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     if (gate != null || ended) {
       background = ColoredBox(color: KPalette.dark.background);
     } else if (!seats) {
-      background = _camera(state);
+      // D201: the second camera's small picture and the REC badge on air.
+      background = videoOnAir && state.mode == LiveRoomMode.solo
+          ? LiveHostToolsStage(
+              roomId: room.id,
+              engine: engine,
+              camera: _camera(state),
+            )
+          : _camera(state);
     } else {
       background = audioOnAir && state.theme == LiveThemes.classic
           ? const LiveAudioRoomBackground()
@@ -1030,10 +1042,16 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                     ),
             ),
             ?byId['voice'],
-            GoLiveTool.soon(
+            // D201: music under the host's voice (Android; else the reason).
+            GoLiveTool(
               id: 'music',
               icon: Icons.music_note_rounded,
               label: l10n.liveToolMusic,
+              onTap: room == null || !live
+                  ? null
+                  : () => unawaited(
+                      showLiveMusic(context, ref, micEnabled: state.micEnabled),
+                    ),
             ),
             // D154: the host's free soundboard (quips' free sounds).
             GoLiveTool(
@@ -1777,6 +1795,16 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 )
               : null,
         ),
+        // D201: this device as the second camera of the account's live
+        // («الانضمام ككاميرا ثانية»).
+        GoLiveTool(
+          id: 'secondCamera',
+          icon: Icons.video_camera_front_outlined,
+          label: l10n.liveCam2JoinTile,
+          onTap: canAct
+              ? () => context.pushReplacement(AppRoutes.liveSecondCamera)
+              : null,
+        ),
       ],
     );
   }
@@ -1863,8 +1891,6 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             ),
           );
     final management = _managementTool(state, live ? room : null, liveSeats);
-    GoLiveTool soon(String id, IconData icon, String label) =>
-        GoLiveTool.soon(id: id, icon: icon, label: label);
     // D199: the reference's «Flash» — «فلاش» on the back camera (its torch),
     // the fill light's own name on the front camera.
     final flash = switch (byId['fillLight']) {
@@ -1899,7 +1925,19 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           // camera's fill light.
           ?flash,
           ?byId['flip'],
-          soon('dual', Icons.switch_video_rounded, l10n.liveToolDual),
+          // D201: a second device of the same account as a second camera.
+          GoLiveTool(
+            id: 'dual',
+            icon: Icons.switch_video_rounded,
+            label: l10n.liveToolDual,
+            onTap: () => unawaited(
+              showSecondCameraSheet(
+                context,
+                roomId: live ? room.id : null,
+                inPk: ref.read(livePkProvider(room.id)).match != null,
+              ),
+            ),
+          ),
           // D154g: «HD» (the quality and «السلاسة» in one tool).
           // D154g: «الجودة» (HD and «السلاسة» in one tool).
           GoLiveTool(
@@ -1921,7 +1959,17 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                       unawaited(showLiveStickerSheet(context, roomId: room.id)),
           ),
           ?byId['mic'],
-          soon('music', Icons.music_note_rounded, l10n.liveToolMusic),
+          // D201: music under the host's voice (Android; else the reason).
+          GoLiveTool(
+            id: 'music',
+            icon: Icons.music_note_rounded,
+            label: l10n.liveToolMusic,
+            onTap: !live
+                ? null
+                : () => unawaited(
+                    showLiveMusic(context, ref, micEnabled: state.micEnabled),
+                  ),
+          ),
           // D154: the host's free soundboard (quips' free sounds).
           GoLiveTool(
             id: 'sounds',
@@ -2000,7 +2048,25 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                     ),
                   ),
           ),
-          soon('recorder', Icons.videocam_outlined, l10n.liveToolRecorder),
+          // D201: a clip of at most 60 s (Android; else the reason).
+          GoLiveTool(
+            id: 'recorder',
+            icon: Icons.videocam_outlined,
+            label: l10n.liveToolRecorder,
+            toggled:
+                ref.watch(liveClipProvider(room.id)).phase ==
+                LiveClipPhase.recording,
+            onTap: !live
+                ? null
+                : () => unawaited(
+                    showLiveClipRecorder(
+                      context,
+                      ref,
+                      roomId: room.id,
+                      engine: engine,
+                    ),
+                  ),
+          ),
           // D154c: the newcomers in this live, with «رحّب».
           GoLiveTool(
             id: 'newcomers',

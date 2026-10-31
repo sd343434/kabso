@@ -4196,6 +4196,290 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveToolRecorder => 'التسجيل';
 
   @override
+  String get liveToolsFailed => 'تعذّر ذلك الآن. حاول مرة أخرى.';
+
+  @override
+  String get liveToolsCancel => 'إلغاء';
+
+  @override
+  String get liveToolsClose => 'إغلاق';
+
+  @override
+  String get liveCam2JoinTile => 'كاميرا ثانية';
+
+  @override
+  String get liveSecondCameraJoin => 'الانضمام ككاميرا ثانية';
+
+  @override
+  String get liveCam2Intro =>
+      'بُثّ من جهازين: هذا الهاتف، وكاميرا ثانية على هاتف أو جهاز لوحي آخر بالحساب نفسه.';
+
+  @override
+  String get liveCam2Steps =>
+      'على الجهاز الثاني: سجّل الدخول بالحساب نفسه، افتح «بث مباشر» ثم «الانضمام ككاميرا ثانية»، وأدخل الرمز.';
+
+  @override
+  String get liveCam2Layout =>
+      'يرى المشاهدون صورة كبيرة وصورة صغيرة يمكن سحبها، ويبدّلون بينهما بلمسة.';
+
+  @override
+  String get liveCam2CreateCode => 'إنشاء رمز الاقتران';
+
+  @override
+  String get liveCam2CodeLabel => 'رمز الاقتران';
+
+  @override
+  String liveCam2CodeExpires(String time) {
+    return 'ينتهي خلال $time';
+  }
+
+  @override
+  String get liveCam2CodeOnce => 'يُستخدم مرة واحدة، وبحسابك فقط.';
+
+  @override
+  String get liveCam2CodeExpired => 'انتهت صلاحية الرمز. أنشئ رمزاً جديداً.';
+
+  @override
+  String get liveCam2NewCode => 'رمز جديد';
+
+  @override
+  String get liveCam2Cancel => 'إلغاء الرمز';
+
+  @override
+  String get liveCam2Waiting => 'في انتظار اتصال الجهاز الثاني…';
+
+  @override
+  String get liveCam2Connected => 'الكاميرا الثانية متصلة';
+
+  @override
+  String get liveCam2MainLabel => 'الصورة الكبيرة للمشاهدين';
+
+  @override
+  String get liveCam2MainHost => 'هذا الهاتف';
+
+  @override
+  String get liveCam2MainSecond => 'الكاميرا الثانية';
+
+  @override
+  String get liveCam2MainNote =>
+      'يستطيع كل مشاهد التبديل بين الصورتين على شاشته.';
+
+  @override
+  String get liveCam2End => 'فصل الكاميرا الثانية';
+
+  @override
+  String get liveCam2NotLive => 'ابدأ البث أولاً، ثم وصّل جهازك الثاني.';
+
+  @override
+  String get liveCam2InPk =>
+      'الكاميرا الثانية غير متاحة أثناء PK. وصّلها من جديد بعد انتهاء PK.';
+
+  @override
+  String get liveCam2NotSolo =>
+      'الكاميرا الثانية متاحة في البث الفردي بالفيديو فقط.';
+
+  @override
+  String get liveCam2Busy => 'لهذا البث كاميرا ثانية بالفعل.';
+
+  @override
+  String get liveCam2Unavailable =>
+      'لا يمكن إضافة كاميرا ثانية لهذا البث الآن: انتهى البث أو هو في PK.';
+
+  @override
+  String get liveCam2Swap => 'تبديل الكاميرتين';
+
+  @override
+  String get liveCam2JoinIntro =>
+      'سجّل الدخول بالحساب نفسه الذي تبثّ منه، ثم أدخل الرمز الظاهر في «كاميرتان» على جهازك الرئيسي.';
+
+  @override
+  String get liveCam2JoinPermissions =>
+      'سيطلب كابسو إذن الكاميرا والميكروفون. يبدأ الميكروفون مكتوماً، ولا تظهر الدردشة على هذا الجهاز.';
+
+  @override
+  String get liveCam2JoinButton => 'انضمام';
+
+  @override
+  String get liveCam2CodeInvalid =>
+      'الرمز غير صحيح أو انتهت صلاحيته. أنشئ رمزاً جديداً على جهازك الرئيسي.';
+
+  @override
+  String get liveCam2TooMany => 'محاولات كثيرة. انتظر قليلاً ثم حاول مجدداً.';
+
+  @override
+  String get liveCam2Failed => 'تعذّر الاتصال. حاول مرة أخرى.';
+
+  @override
+  String get liveCam2PermissionDenied =>
+      'اسمح لكابسو باستخدام الكاميرا والميكروفون من إعدادات الجهاز.';
+
+  @override
+  String get liveCam2OnAir => 'كاميرا ثانية · مباشر';
+
+  @override
+  String get liveCam2Connecting => 'جارٍ الاتصال…';
+
+  @override
+  String get liveCam2Flip => 'قلب';
+
+  @override
+  String get liveCam2MicOn => 'تشغيل الصوت';
+
+  @override
+  String get liveCam2MicOff => 'كتم الصوت';
+
+  @override
+  String get liveCam2Leave => 'مغادرة';
+
+  @override
+  String get liveCam2Ended =>
+      'انتهت الكاميرا الثانية: انتهى البث أو فُصلت من الجهاز الرئيسي.';
+
+  @override
+  String get liveMusicRightsTitle => 'حقوق الموسيقى';
+
+  @override
+  String get liveMusicRightsBody =>
+      'تأكد أنك تملك حقوق تشغيل الموسيقى. يُمنع تشغيل موسيقى محمية بحقوق النشر بدون ترخيص.';
+
+  @override
+  String get liveMusicRightsAccept => 'أؤكد ذلك';
+
+  @override
+  String get liveMusicAdd => 'إضافة ملفات صوتية';
+
+  @override
+  String get liveMusicPickerNote =>
+      'يفتح منتقي الملفات في جهازك؛ لا يرى كابسو إلا الملفات التي تختارها، ولا تُرفع إلى الخادم.';
+
+  @override
+  String get liveMusicMixNote =>
+      'تُمزج الموسيقى تحت صوتك في بثك، وتنخفض حين تتكلم. لا تسمعها أنت من سماعة هاتفك، وكتم الميكروفون يكتمها أيضاً.';
+
+  @override
+  String get liveMusicEmpty =>
+      'لا توجد موسيقى بعد. لن يُشغَّل شيء حتى تختار ملفاً وتضغط تشغيل.';
+
+  @override
+  String get liveMusicNothing => 'لا شيء يُشغَّل';
+
+  @override
+  String get liveMusicPlay => 'تشغيل';
+
+  @override
+  String get liveMusicPause => 'إيقاف مؤقت';
+
+  @override
+  String get liveMusicNext => 'التالي';
+
+  @override
+  String get liveMusicRemove => 'إزالة';
+
+  @override
+  String get liveMusicVolume => 'مستوى الموسيقى';
+
+  @override
+  String get liveMusicDucking => 'خفض الموسيقى حين أتكلم';
+
+  @override
+  String liveMusicQueueFull(int max) {
+    return 'القائمة ممتلئة (حتى $max ملفاً).';
+  }
+
+  @override
+  String get liveMusicUnreadable => 'تعذّر تشغيل هذا الملف.';
+
+  @override
+  String get liveMusicMicOff => 'الميكروفون مكتوم: لن يسمع المشاهدون الموسيقى.';
+
+  @override
+  String get liveMusicUnsupportedIos =>
+      'الموسيقى غير متاحة على iOS في هذا الإصدار: مزج الملف داخل ميكروفون البث يحتاج وحدة صوت خاصة بـ iOS لم تُبنَ بعد.';
+
+  @override
+  String get liveMusicUnsupportedWeb =>
+      'الموسيقى غير متاحة في نسخة الويب. استخدم تطبيق أندرويد.';
+
+  @override
+  String get liveClipTitle => 'تسجيل مقطع';
+
+  @override
+  String get liveClipIntro =>
+      'سجّل حتى ٦٠ ثانية من بثك كما يراه المشاهدون: كاميرتك وصوتك. يمكنك الإيقاف قبل ذلك.';
+
+  @override
+  String get liveClipTransparency =>
+      'يرى المشاهدون «يتم التسجيل» أثناء التسجيل.';
+
+  @override
+  String get liveClipLimits =>
+      'لا يتضمّن المقطع الكاميرا الثانية ولا الموسيقى ولا التعليقات والهدايا على الشاشة.';
+
+  @override
+  String get liveClipStart => 'ابدأ التسجيل';
+
+  @override
+  String get liveClipStop => 'إيقاف التسجيل';
+
+  @override
+  String get liveClipRec => 'تسجيل';
+
+  @override
+  String liveClipRecSemantics(int seconds) {
+    return 'يتم التسجيل، بقي $seconds ثانية';
+  }
+
+  @override
+  String get liveClipViewerBadge => 'يتم التسجيل';
+
+  @override
+  String get liveClipPreviewTitle => 'مقطعك';
+
+  @override
+  String get liveClipCaption => 'وصف (اختياري)';
+
+  @override
+  String get liveClipSave => 'حفظ في الجهاز';
+
+  @override
+  String get liveClipSavedShort => 'محفوظ';
+
+  @override
+  String get liveClipSaved => 'حُفظ المقطع في معرض الصور.';
+
+  @override
+  String get liveClipSaveFailed =>
+      'تعذّر الحفظ. اسمح لكابسو بإضافة الصور والفيديو من الإعدادات.';
+
+  @override
+  String get liveClipPostReel => 'نشر كريلز';
+
+  @override
+  String get liveClipPostFailed => 'تعذّر النشر. المقطع باقٍ، حاول مجدداً.';
+
+  @override
+  String get liveClipDiscard => 'تجاهل';
+
+  @override
+  String get liveClipFailed => 'تعذّر بدء التسجيل على هذا الجهاز.';
+
+  @override
+  String get liveClipTooShort => 'المقطع أقصر من ثانية؛ سجّل مقطعاً أطول.';
+
+  @override
+  String get liveClipUnreadable => 'تعذّرت قراءة المقطع.';
+
+  @override
+  String get liveClipUnsupportedIos =>
+      'تسجيل المقاطع غير متاح على iOS في هذا الإصدار: مسجّل WebRTC هناك لا يلتقط صوت البث.';
+
+  @override
+  String get liveClipUnsupportedWeb => 'تسجيل المقاطع غير متاح في نسخة الويب.';
+
+  @override
+  String get liveClipNoCamera => 'شغّل الكاميرا لتسجيل مقطع.';
+
+  @override
   String get liveToolNewcomers => 'الجدد';
 
   @override

@@ -54,6 +54,7 @@ import 'package:kabso_live/features/live/go_live_screen.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_room_swipe.dart';
+import 'package:kabso_live/features/live/tools/second_camera/second_camera_screen.dart';
 import 'package:kabso_live/features/live/voice_rooms_screen.dart';
 import 'package:kabso_live/features/medals/presentation/medals_screen.dart';
 import 'package:kabso_live/features/medals/presentation/showcase_picker_screen.dart';
@@ -249,6 +250,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const NewReelScreen(),
       ),
       GoRoute(path: AppRoutes.goLive, builder: (_, _) => const GoLiveScreen()),
+      GoRoute(
+        path: AppRoutes.liveSecondCamera,
+        builder: (_, _) => const SecondCameraScreen(),
+      ),
       GoRoute(
         path: AppRoutes.voiceRooms,
         builder: (_, _) => const VoiceRoomsScreen(),

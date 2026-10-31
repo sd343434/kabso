@@ -4168,6 +4168,295 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveToolRecorder => 'Recorder';
 
   @override
+  String get liveToolsFailed => 'That did not work. Try again.';
+
+  @override
+  String get liveToolsCancel => 'Cancel';
+
+  @override
+  String get liveToolsClose => 'Close';
+
+  @override
+  String get liveCam2JoinTile => '2nd camera';
+
+  @override
+  String get liveSecondCameraJoin => 'Join as second camera';
+
+  @override
+  String get liveCam2Intro =>
+      'Stream from two devices: this phone, and a second camera on another phone or tablet signed in to the same account.';
+
+  @override
+  String get liveCam2Steps =>
+      'On the second device: sign in to the same account, open Go live, then “Join as second camera”, and enter the code.';
+
+  @override
+  String get liveCam2Layout =>
+      'Viewers see one camera full screen and the other as a small picture they can drag and tap to swap.';
+
+  @override
+  String get liveCam2CreateCode => 'Create pairing code';
+
+  @override
+  String get liveCam2CodeLabel => 'Pairing code';
+
+  @override
+  String liveCam2CodeExpires(String time) {
+    return 'Expires in $time';
+  }
+
+  @override
+  String get liveCam2CodeOnce => 'Works once, and only for your account.';
+
+  @override
+  String get liveCam2CodeExpired => 'The code expired. Create a new one.';
+
+  @override
+  String get liveCam2NewCode => 'New code';
+
+  @override
+  String get liveCam2Cancel => 'Cancel the code';
+
+  @override
+  String get liveCam2Waiting => 'Waiting for the second device…';
+
+  @override
+  String get liveCam2Connected => 'Second camera connected';
+
+  @override
+  String get liveCam2MainLabel => 'Full screen for viewers';
+
+  @override
+  String get liveCam2MainHost => 'This phone';
+
+  @override
+  String get liveCam2MainSecond => 'Second camera';
+
+  @override
+  String get liveCam2MainNote =>
+      'Each viewer can still swap the two on their own screen.';
+
+  @override
+  String get liveCam2End => 'Disconnect the second camera';
+
+  @override
+  String get liveCam2NotLive =>
+      'Go live first, then connect your second device.';
+
+  @override
+  String get liveCam2InPk =>
+      'The second camera is not available during a PK. Pair it again after the PK.';
+
+  @override
+  String get liveCam2NotSolo =>
+      'A second camera works in a solo video live only.';
+
+  @override
+  String get liveCam2Busy => 'This live already has a second camera.';
+
+  @override
+  String get liveCam2Unavailable =>
+      'This live cannot take a second camera now: it ended or is in a PK.';
+
+  @override
+  String get liveCam2Swap => 'Swap the cameras';
+
+  @override
+  String get liveCam2JoinIntro =>
+      'Sign in to the account you stream from, then enter the code shown in “Dual” on your main device.';
+
+  @override
+  String get liveCam2JoinPermissions =>
+      'Kabso will ask for the camera and the microphone. The microphone starts muted; this device shows no chat.';
+
+  @override
+  String get liveCam2JoinButton => 'Join';
+
+  @override
+  String get liveCam2CodeInvalid =>
+      'That code is wrong or expired. Create a new one on your main device.';
+
+  @override
+  String get liveCam2TooMany => 'Too many tries. Wait a little and try again.';
+
+  @override
+  String get liveCam2Failed => 'Could not connect. Try again.';
+
+  @override
+  String get liveCam2PermissionDenied =>
+      'Allow Kabso to use the camera and microphone in the device settings.';
+
+  @override
+  String get liveCam2OnAir => 'Second camera · live';
+
+  @override
+  String get liveCam2Connecting => 'Connecting…';
+
+  @override
+  String get liveCam2Flip => 'Flip';
+
+  @override
+  String get liveCam2MicOn => 'Unmute';
+
+  @override
+  String get liveCam2MicOff => 'Mute';
+
+  @override
+  String get liveCam2Leave => 'Leave';
+
+  @override
+  String get liveCam2Ended =>
+      'The second camera ended: the live ended or the main device disconnected it.';
+
+  @override
+  String get liveMusicRightsTitle => 'Music rights';
+
+  @override
+  String get liveMusicRightsBody =>
+      'Make sure you hold the rights to play this music. Playing copyrighted music without a licence is not allowed.';
+
+  @override
+  String get liveMusicRightsAccept => 'I confirm';
+
+  @override
+  String get liveMusicAdd => 'Add audio files';
+
+  @override
+  String get liveMusicPickerNote =>
+      'Opens your device’s file picker; Kabso sees only the files you choose, and they are never uploaded.';
+
+  @override
+  String get liveMusicMixNote =>
+      'The music is mixed under your voice in your live and dips while you speak. You don’t hear it from your phone, and muting the microphone mutes it too.';
+
+  @override
+  String get liveMusicEmpty =>
+      'No music yet. Nothing plays until you choose a file and press play.';
+
+  @override
+  String get liveMusicNothing => 'Nothing playing';
+
+  @override
+  String get liveMusicPlay => 'Play';
+
+  @override
+  String get liveMusicPause => 'Pause';
+
+  @override
+  String get liveMusicNext => 'Next';
+
+  @override
+  String get liveMusicRemove => 'Remove';
+
+  @override
+  String get liveMusicVolume => 'Music volume';
+
+  @override
+  String get liveMusicDucking => 'Lower the music while I speak';
+
+  @override
+  String liveMusicQueueFull(int max) {
+    return 'The queue is full (up to $max files).';
+  }
+
+  @override
+  String get liveMusicUnreadable => 'This file cannot be played.';
+
+  @override
+  String get liveMusicMicOff =>
+      'Your microphone is muted: viewers won’t hear the music.';
+
+  @override
+  String get liveMusicUnsupportedIos =>
+      'Music is not available on iOS in this version: mixing a file into the live microphone needs an iOS audio module that is not built yet.';
+
+  @override
+  String get liveMusicUnsupportedWeb =>
+      'Music is not available on the web. Use the Android app.';
+
+  @override
+  String get liveClipTitle => 'Record a clip';
+
+  @override
+  String get liveClipIntro =>
+      'Record up to 60 seconds of your live as viewers see it: your camera and your voice. You can stop earlier.';
+
+  @override
+  String get liveClipTransparency =>
+      'Viewers see “Recording” while you record.';
+
+  @override
+  String get liveClipLimits =>
+      'The clip has no second camera, music, comments or gifts on screen.';
+
+  @override
+  String get liveClipStart => 'Start recording';
+
+  @override
+  String get liveClipStop => 'Stop recording';
+
+  @override
+  String get liveClipRec => 'REC';
+
+  @override
+  String liveClipRecSemantics(int seconds) {
+    return 'Recording, $seconds seconds left';
+  }
+
+  @override
+  String get liveClipViewerBadge => 'Recording';
+
+  @override
+  String get liveClipPreviewTitle => 'Your clip';
+
+  @override
+  String get liveClipCaption => 'Caption (optional)';
+
+  @override
+  String get liveClipSave => 'Save to device';
+
+  @override
+  String get liveClipSavedShort => 'Saved';
+
+  @override
+  String get liveClipSaved => 'Saved to your gallery.';
+
+  @override
+  String get liveClipSaveFailed =>
+      'Could not save. Allow Kabso to add photos and videos in the settings.';
+
+  @override
+  String get liveClipPostReel => 'Post as reel';
+
+  @override
+  String get liveClipPostFailed =>
+      'Could not post. The clip is kept; try again.';
+
+  @override
+  String get liveClipDiscard => 'Discard';
+
+  @override
+  String get liveClipFailed => 'Recording could not start on this device.';
+
+  @override
+  String get liveClipTooShort =>
+      'The clip is shorter than a second; record a longer one.';
+
+  @override
+  String get liveClipUnreadable => 'The clip could not be read.';
+
+  @override
+  String get liveClipUnsupportedIos =>
+      'Clip recording is not available on iOS in this version: the WebRTC recorder there does not capture the live’s sound.';
+
+  @override
+  String get liveClipUnsupportedWeb =>
+      'Clip recording is not available on the web.';
+
+  @override
+  String get liveClipNoCamera => 'Turn the camera on to record a clip.';
+
+  @override
   String get liveToolNewcomers => 'Newcomers';
 
   @override

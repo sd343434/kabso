@@ -25,6 +25,11 @@
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
     <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED"/>
+    <!-- D201: «حفظ في الجهاز» of a live clip. Android 10+ adds it to
+         MediaStore without a permission; Android 7–9 need storage writing. -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28"/>
 
     <!-- Backup / transfer of auth data (SEC-019):
          - allowBackup=false: no cloud (or adb) backup of app data at all.

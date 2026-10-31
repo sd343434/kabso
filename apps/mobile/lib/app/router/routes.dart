@@ -74,6 +74,9 @@ abstract final class AppRoutes {
   /// CP-010: go live (camera preview, then on air).
   static const goLive = '/live/new';
 
+  /// D201: join the caller's own live as its second camera (device B).
+  static const liveSecondCamera = '/live/second-camera';
+
   /// D131: the voice rooms (the Live hub's party button), above the shell.
   static const voiceRooms = '/live/voice';
 
