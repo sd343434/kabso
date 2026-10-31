@@ -269,6 +269,8 @@ export interface AppConfig {
     readonly lockoutSeconds: number;
     /** IANA zone of the dashboard's «today» (default Asia/Riyadh). */
     readonly dashboardTimeZone: string;
+    /** v1.65-social (D197): the report's estimated card fees (basis points + fixed cents per order). */
+    readonly reportCardFee: { readonly bps: number; readonly fixedMinor: number };
   };
   /** v1.54-social (D185): special usernames (CONVENTIONS §10.48.1). */
   readonly specialUsernames: {
@@ -647,6 +649,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       lockoutAttempts: e.ADMIN_LOCKOUT_ATTEMPTS,
       lockoutSeconds: e.ADMIN_LOCKOUT_SECONDS,
       dashboardTimeZone: e.ADMIN_DASHBOARD_TIME_ZONE,
+      reportCardFee: { bps: e.ADMIN_REPORT_CARD_FEE_BPS, fixedMinor: e.ADMIN_REPORT_CARD_FEE_FIXED_MINOR },
     },
     specialUsernames: {
       graceDays: e.SPECIAL_USERNAME_GRACE_DAYS,

@@ -97,8 +97,9 @@ describe('admin panel v2', () => {
     );
     expect(capabilitiesOf(['MODERATION'])).not.toContain('finance.view');
     expect(capabilitiesOf(['FINANCE'])).not.toContain('lives.view');
-    expect(capabilitiesOf(['SUPPORT'])).toEqual(
-      expect.arrayContaining(['agencies.manage', 'items.grant', 'users.export']),
-    );
+    expect(capabilitiesOf(['SUPPORT'])).toEqual(expect.arrayContaining(['agencies.manage', 'items.grant']));
+    // Owner answer CP-039 Q2: the users CSV (with emails) is OWNER only.
+    expect(capabilitiesOf(['SUPPORT'])).not.toContain('users.export');
+    expect(CAPABILITIES['users.export']).toEqual(['OWNER']);
   });
 });

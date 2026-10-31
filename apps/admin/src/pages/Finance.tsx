@@ -25,6 +25,8 @@ interface ReportRow {
   cherriesReversed: number;
   cherriesSoldToAgents: number;
   cherriesIssuedValueMinor: number;
+  cardOrders: number;
+  estimatedCardFeesMinor: number;
   estimatedMarginMinor: number;
 }
 
@@ -35,6 +37,7 @@ interface ReportDto {
   timeZone: string;
   currency: string;
   rate: { cherries: number; minor: number };
+  cardFee: { bps: number; fixedMinor: number };
   rows: ReportRow[];
   totals: ReportRow;
 }
@@ -78,6 +81,8 @@ export function Report() {
     { key: 'repCardCoins', get: (r) => n(r.cardCoins) },
     { key: 'repCardRevenue', get: (r) => money(r.cardRevenueMinor) },
     { key: 'repCardRefunded', get: (r) => money(r.cardRefundedMinor) },
+    { key: 'repCardOrders', get: (r) => n(r.cardOrders) },
+    { key: 'repCardFees', get: (r) => money(r.estimatedCardFeesMinor) },
     { key: 'repHostPayouts', get: (r) => money(r.hostPayoutsMinor) },
     { key: 'repCherriesWithdrawn', get: (r) => n(r.cherriesWithdrawn) },
     { key: 'repCommissions', get: (r) => n(r.agencyCommissionCherries) },
@@ -190,6 +195,9 @@ export function Report() {
               </table>
             </div>
             <p className="muted small">{t('repRateNote', { cherries: n(data.rate.cherries), money: money(data.rate.minor), zone: data.timeZone })}</p>
+            <p className="muted small">
+              {t('repFeeNote', { percent: (data.cardFee.bps / 100).toFixed(2).replace(/\.?0+$/, ''), fixed: money(data.cardFee.fixedMinor) })}
+            </p>
           </section>
         </>
       )}

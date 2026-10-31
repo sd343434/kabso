@@ -58,8 +58,9 @@
   --c-gold: #d99a1e;
   --c-blue: #1a64bf;
   --c-green: #137a43;
-  --side-from: #b80710;
-  --side-to: #8a050c;
+  --side-bg: #ffffff;
+  --side-border: #dcdce2;
+  --side-active-bg: #fdecec;
   --shadow: 0 1px 2px rgba(11, 11, 13, 0.05), 0 10px 30px rgba(11, 11, 13, 0.06);
   --shadow-lg: 0 24px 60px rgba(11, 11, 13, 0.18);
   --r-sm: 8px;
@@ -89,8 +90,9 @@
   --c-gold: #f5c451;
   --c-blue: #4da3ff;
   --c-green: #2ecc71;
-  --side-from: #8a050c;
-  --side-to: #3a0306;
+  --side-bg: #16161a;
+  --side-border: #34343d;
+  --side-active-bg: #3a1216;
   --scrim: rgba(0, 0, 0, 0.7);
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.6);
@@ -232,18 +234,21 @@ p {
   min-height: 100vh;
 }
 .side {
+  /* Owner 2026-10-31: «الشريط الجانبي دعه ابيض في لايت واسود في دارك» — white in light, the dark surface in dark;
+     Kabso red only for the active item. */
   position: sticky;
   top: 12px;
   height: calc(100vh - 24px);
   margin: 12px;
   margin-inline-end: 0;
   border-radius: var(--r-xl);
-  background: linear-gradient(170deg, var(--side-from), var(--side-to));
-  color: #fff;
+  background: var(--side-bg);
+  color: var(--text);
+  border: 1px solid var(--side-border);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 18px 40px rgba(138, 5, 12, 0.25);
+  box-shadow: var(--shadow);
 }
 .brand {
   display: flex;
@@ -255,14 +260,14 @@ p {
   width: 42px;
   height: 42px;
   border-radius: 14px;
-  background: #fff;
-  color: var(--red-600);
+  background: linear-gradient(135deg, var(--red-400), var(--red-600));
+  color: #fff;
   display: grid;
   place-items: center;
   font-family: 'Inter', sans-serif;
   font-weight: 700;
   font-size: 22px;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--red-500) 30%, transparent);
 }
 .brand-text {
   display: grid;
@@ -276,19 +281,19 @@ p {
   letter-spacing: -0.02em;
 }
 .wordmark b {
-  font-weight: 400;
-  opacity: 0.85;
+  font-weight: 700;
+  color: var(--primary-text);
 }
 .brand-sub {
   font-size: 12px;
-  opacity: 0.8;
+  color: var(--text-3);
 }
 .nav {
   flex: 1;
   overflow-y: auto;
   padding: 6px 12px 18px;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+  scrollbar-color: var(--border) transparent;
 }
 .nav-group + .nav-group {
   margin-top: 10px;
@@ -297,35 +302,47 @@ p {
   font-size: 11.5px;
   font-weight: 600;
   letter-spacing: 0.02em;
-  opacity: 0.62;
+  color: var(--text-3);
   padding: 8px 12px 4px;
 }
 .nav a {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 9px 12px;
   border-radius: 14px;
-  color: rgba(255, 255, 255, 0.88);
+  color: var(--text-2);
   font-weight: 500;
   text-decoration: none;
   transition:
     background 0.15s,
     color 0.15s;
 }
+.nav a .icon {
+  color: var(--text-3);
+}
 .nav a:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
+  background: var(--surface);
+  color: var(--text);
 }
 .nav a[aria-current='page'] {
-  background: #fff;
-  color: var(--red-600);
+  background: var(--side-active-bg);
+  color: var(--primary-text);
   font-weight: 600;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.16);
 }
-:root[data-theme='dark'] .nav a[aria-current='page'] {
-  background: rgba(255, 255, 255, 0.95);
-  color: var(--red-700);
+.nav a[aria-current='page'] .icon {
+  color: var(--primary-text);
+}
+.nav a[aria-current='page']::before {
+  content: '';
+  position: absolute;
+  inset-block: 8px;
+  inset-inline-start: -12px;
+  width: 4px;
+  border-start-end-radius: 4px;
+  border-end-end-radius: 4px;
+  background: var(--primary);
 }
 .main-col {
   min-width: 0;
@@ -365,8 +382,8 @@ p {
   color: var(--primary-text);
 }
 .icon-btn.on-side {
-  background: rgba(255, 255, 255, 0.15);
-  color: #fff;
+  background: var(--surface);
+  color: var(--text-2);
   box-shadow: none;
 }
 .icon-btn .count {
@@ -1629,10 +1646,6 @@ ins {
   justify-content: center;
   color: var(--text);
   padding: 0 0 12px;
-}
-.auth-card .brand-mark {
-  background: linear-gradient(135deg, var(--red-400), var(--red-600));
-  color: #fff;
 }
 .auth-tools {
   display: flex;

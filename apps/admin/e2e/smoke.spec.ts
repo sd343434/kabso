@@ -178,7 +178,7 @@ test('admin panel smoke: TOTP sign-in, dashboard charts, users, agencies, end a 
 
     // Finance report.
     await go(page, 'التقرير المالي');
-    await expect(page.locator('.report-table tbody tr')).toHaveCount(15);
+    await expect(page.locator('.report-table tbody tr')).toHaveCount(17);
     await capture(page, '12-finance-report');
 
     // Team: grant SUPPORT with the code again.

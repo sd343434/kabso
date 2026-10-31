@@ -50,6 +50,8 @@ export interface ReportRow {
   cherriesReversed: number;
   cherriesSoldToAgents: number;
   cherriesIssuedValueMinor: number;
+  cardOrders: number;
+  estimatedCardFeesMinor: number;
   estimatedMarginMinor: number;
 }
 
@@ -59,7 +61,7 @@ export interface ReportRow {
  * early-fraud warnings, disputes) with the team refund (`payments-admin refund`'s rule, authenticator code again)
  * and closing a case, and the financial report by day or month (Asia/Riyadh): money in from agents and cards, host
  * payouts, agency commissions, cherries issued against withdrawn, and an **estimated** margin (cash in − card
- * refunds − host payouts; it ignores payment fees and the cherries not withdrawn yet, which are shown apart).
+ * refunds − estimated card fees − host payouts; the cherries not withdrawn yet are shown apart).
  */
 @Injectable()
 export class AdminMoneyService {
@@ -342,6 +344,10 @@ export class AdminMoneyService {
                      WHERE created_at >= ${gte} AND created_at < ${lt} AND reason = 'RECHARGE_SALE' GROUP BY 1`),
     ]);
     // Card refunds by the day the order was credited (what that period's sales gave back).
+    // Owner answer CP-039 Q3: the card orders credited per period (the fixed part of the estimated fees).
+    const orderCounts =
+      await q(Prisma.sql`SELECT ${p('credited_at')} AS period, count(*) AS a, 0 AS b FROM topup_orders
+                     WHERE credited_at IS NOT NULL AND credited_at >= ${gte} AND credited_at < ${lt} GROUP BY 1`);
     const refunds =
       await q(Prisma.sql`SELECT ${p('credited_at')} AS period, sum(GREATEST(refunded_minor, team_refunded_minor)) AS a, 0 AS b
                      FROM topup_orders WHERE credited_at IS NOT NULL AND credited_at >= ${gte} AND credited_at < ${lt} GROUP BY 1`);
@@ -357,6 +363,7 @@ export class AdminMoneyService {
       sales: map(sales, 'a'),
       cardCoins: map(cards, 'a'),
       cardMinor: map(cards, 'b'),
+      cardOrders: map(orderCounts, 'a'),
       refunds: map(refunds, 'a'),
       payouts: map(payouts, 'a'),
       withdrawn: map(payouts, 'b'),
@@ -366,6 +373,7 @@ export class AdminMoneyService {
       sold: map(sold, 'a'),
     };
     const { rateCherries, rateMinor } = this.config.economy;
+    const fee = this.config.adminPanel.reportCardFee;
     const row = (period: string): ReportRow => {
       const g = (x: Map<string, number>) => x.get(period) ?? 0;
       const agentRevenueMinor = g(m.topupPaid);
@@ -373,6 +381,10 @@ export class AdminMoneyService {
       const cardRefundedMinor = g(m.refunds);
       const hostPayoutsMinor = g(m.payouts);
       const cherriesIssued = g(m.issued);
+      const cardOrders = g(m.cardOrders);
+      // Owner answer CP-039 Q3: an ESTIMATE of the card fees (percent of the amount + a fixed fee per order).
+      const estimatedCardFeesMinor =
+        Math.round((cardRevenueMinor * fee.bps) / 10_000) + cardOrders * fee.fixedMinor;
       return {
         period,
         agentTopupCoins: g(m.topupCoins),
@@ -389,7 +401,14 @@ export class AdminMoneyService {
         cherriesReversed: g(m.reversed),
         cherriesSoldToAgents: g(m.sold),
         cherriesIssuedValueMinor: Number(cherriesValueMinor(BigInt(cherriesIssued), rateCherries, rateMinor)),
-        estimatedMarginMinor: agentRevenueMinor + cardRevenueMinor - cardRefundedMinor - hostPayoutsMinor,
+        cardOrders,
+        estimatedCardFeesMinor,
+        estimatedMarginMinor:
+          agentRevenueMinor +
+          cardRevenueMinor -
+          cardRefundedMinor -
+          estimatedCardFeesMinor -
+          hostPayoutsMinor,
       };
     };
     const periods = this.periods(granularity, gte, lt);
@@ -429,6 +448,7 @@ export class AdminMoneyService {
       timeZone: this.zone,
       currency: this.config.economy.currency,
       rate: { cherries: this.config.economy.rateCherries, minor: this.config.economy.rateMinor },
+      cardFee: this.config.adminPanel.reportCardFee,
       rows,
       totals,
     };

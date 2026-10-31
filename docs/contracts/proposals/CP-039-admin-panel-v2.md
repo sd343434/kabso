@@ -24,14 +24,14 @@
 | a | **Charts are hand-written SVG** (a sparkline and a two-axis line chart, ~250 lines, unit-tested geometry): three small charts do not justify a dependency, and the panel's CSP (`default-src 'self'`) and pinned, minimal dependency list stay as they are. The panel's JS is 437 kB (127 kB gzip) with no new package. | `apps/admin/src/ui/charts.tsx` |
 | b | The chart puts coins (sold, gifts) on one axis and new users on the other (different magnitudes), and runs right to left in Arabic. | `LineChart` |
 | c | «Lives now» and «pending» have no history: their cards show the state now as the big number and *lives started* / *new pending items* per day as the sparkline and the change. | `AdminStatsService.overview` |
-| d | Sixteen new capabilities (§10.60.1). SUPPORT manages agencies, items and exports users; MODERATION ends lives and signs devices out; FINANCE sees money only; the audit log, the team, the waitlist and catalogue changes are OWNER-only. | `admin-permissions.ts` |
-| e | **Team management from the panel needs a database change**: `user_admin_permissions` was read-only for the API's runtime role on purpose (D72). The panel writes panel roles only through a SECURITY DEFINER function that accepts the four panel roles and is executable only by the runtime group; `LEVELS_*` stay CLI-only. Each grant / revoke / reset needs OWNER, a reason and the authenticator code again; never one's own OWNER, never the last OWNER. **This widens what a compromised API process could do (grant itself a panel role)** — see question Q1. | migration `20270112100000_admin_v2`, `admin-roles.ts` |
+| d | Sixteen new capabilities (§10.60.1). SUPPORT manages agencies and items (the users CSV is OWNER only, Q2); MODERATION ends lives and signs devices out; FINANCE sees money only; the audit log, the team, the waitlist and catalogue changes are OWNER-only. | `admin-permissions.ts` |
+| e | **Team management from the panel needs a database change**: `user_admin_permissions` was read-only for the API's runtime role on purpose (D72). The panel writes panel roles only through a SECURITY DEFINER function that accepts the four panel roles and is executable only by the runtime group; `LEVELS_*` stay CLI-only. Each grant / revoke / reset needs OWNER, a reason and the authenticator code again; never one's own OWNER, never the last OWNER. **This widens what a compromised API process could do (grant itself a panel role)** — kept by the owner (Q1). | migration `20270112100000_admin_v2`, `admin-roles.ts` |
 | f | The CLI rules that were inline (`agency-create`, `complaint-resolve`, `event-admin create/end/hold/release`, the audit rows of `gift-admin`, `bag-admin`, `banner-admin`, the waitlist read) moved into shared modules with an `AdminVia`; the CLIs call them and write the same rows (`via: cli`). | `agency-admin.ts`, `gift-admin-rules.ts`, `bag-admin-rules.ts`, `event-admin-rules.ts`, `waitlist-admin.ts` |
 | g | A CSV export takes at most 5 000 rows and is audited `admin.export.csv` (table, count, filters — never the rows). The waitlist keeps its own `waitlist.view` row (as the CLI). | `admin-tables.ts` |
 | h | Ending a live uses the report action's rule (end reason `ADMIN`); the reason is in the audit row `admin.live.end`, not shown to the host. | `admin-lives.service.ts` |
 | i | Signing a user's devices out uses the app's session revocation with the new reason `ADMIN_REVOKED`. | `admin-people.service.ts` |
 | j | Gift art upload (`--image`, `--animation-file`) and new banners (a picture upload) stay with the CLIs: the panel has no file upload yet. | §10.60.4 |
-| k | The estimated margin is cash in (agents' top-ups + card orders) − card refunds − host payouts; payment fees and the value of cherries not withdrawn yet are shown apart, not deducted. | `admin-money.service.ts` |
+| k | The estimated margin is cash in (agents' top-ups + card orders) − card refunds − estimated card fees (Q3) − host payouts; the value of cherries not withdrawn yet is shown apart, not deducted. | `admin-money.service.ts` |
 
 ## 3. Hidden, and why
 
@@ -41,10 +41,11 @@
 - **Badges / medals grant** — no rule exists to grant one by hand (they are earned): the items page says so.
 - **Payments (Stripe keys) settings** — D196 builds it on its own branch; the sidebar has a slot under الإعدادات.
 
-## 4. Questions for the owner
+## 4. Owner answers (2026-10-31, via the coordinator)
 
-| # | Question | Default built |
-|---|----------|---------------|
-| Q1 | Team management in the panel lets the API's runtime role add panel roles (through a narrow function). Keep it, or keep role changes CLI-only (the page then lists the team read-only)? | Kept, OWNER + TOTP + reason, never the last OWNER. |
-| Q2 | Should SUPPORT export the users table (emails) as CSV? | Yes (OWNER, SUPPORT), audited. |
-| Q3 | The estimated margin: deduct Stripe fees (≈ 2.9 % + 30¢) and the liability of cherries issued but not withdrawn? | Not deducted; both shown apart. |
+| # | Question | Answer (built) |
+|---|----------|----------------|
+| Q1 | Team management in the panel lets the API's runtime role add panel roles (through a narrow function). Keep it? | **Keep** — OWNER, TOTP again, a reason, audited; never the last OWNER. |
+| Q2 | Should SUPPORT export the users table (emails) as CSV? | **No** — `users.export` is OWNER only. |
+| Q3 | Deduct payment fees from the estimated margin? | **Yes, as an estimate** — `ADMIN_REPORT_CARD_FEE_BPS` (290) of each credited card order + `ADMIN_REPORT_CARD_FEE_FIXED_MINOR` (30 cents) per order; the report labels it an estimate. |
+| — | The sidebar (owner feedback «الشريط الجانبي دعه ابيض في لايت واسود في دارك») | White in light mode, the dark surface in dark mode; Kabso red only for the active item; a border between the sidebar and the content; the phone drawer the same. |

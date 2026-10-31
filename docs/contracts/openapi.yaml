@@ -9057,7 +9057,7 @@ paths:
       - admin-panel
       operationId: listAdminUsersTable
       summary: 'The users table: pages, sort, filters (users.list)'
-      description: '(v1.65-social, D197) The CSV needs `users.export` (OWNER, SUPPORT). `format=csv`: the matching rows (≤ 5000) as `text/csv`, audited `admin.export.csv`.'
+      description: '(v1.65-social, D197) The CSV (with emails) needs `users.export`: OWNER only (owner answer CP-039 Q2). `format=csv`: the matching rows (≤ 5000) as `text/csv`, audited `admin.export.csv`.'
       security:
       - adminSession: []
       parameters:
@@ -14069,6 +14069,8 @@ components:
       - cherriesReversed
       - cherriesSoldToAgents
       - cherriesIssuedValueMinor
+      - cardOrders
+      - estimatedCardFeesMinor
       - estimatedMarginMinor
       properties:
         period:
@@ -14102,11 +14104,17 @@ components:
           type: integer
         cherriesIssuedValueMinor:
           type: integer
+        cardOrders:
+          type: integer
+          description: Card orders credited in the period.
+        estimatedCardFeesMinor:
+          type: integer
+          description: 'ESTIMATED card fees: `cardRevenueMinor` × `cardFee.bps` / 10 000 + `cardOrders` × `cardFee.fixedMinor` (owner answer CP-039 Q3, default 2.9 % + $0.30).'
         estimatedMarginMinor:
           type: integer
       description: '(v1.65-social, D197) Money in minor units (USD cents). `agentRevenueMinor`: what agents paid for their top-ups (`agentExpectedMinor`: at the tier price); `cardRevenueMinor`: card orders
         credited (`cardRefundedMinor`: refunded of those); `hostPayoutsMinor`: withdrawals paid; `cherriesIssued`: gifts, commissions and task rewards (`cherriesIssuedValueMinor` at the payout rate); `estimatedMarginMinor`
-        = agent + card revenue − card refunds − host payouts (no payment fees, no cherries not yet withdrawn).'
+        = agent + card revenue − card refunds − estimated card fees − host payouts (an estimate; cherries not yet withdrawn are not deducted).'
     AdminFinanceReport:
       type: object
       required:
@@ -14116,6 +14124,7 @@ components:
       - timeZone
       - currency
       - rate
+      - cardFee
       - rows
       - totals
       properties:
@@ -14141,6 +14150,17 @@ components:
             cherries:
               type: integer
             minor:
+              type: integer
+        cardFee:
+          type: object
+          description: The estimate's card fee (server settings `ADMIN_REPORT_CARD_FEE_BPS`, `ADMIN_REPORT_CARD_FEE_FIXED_MINOR`).
+          required:
+          - bps
+          - fixedMinor
+          properties:
+            bps:
+              type: integer
+            fixedMinor:
               type: integer
         rows:
           type: array

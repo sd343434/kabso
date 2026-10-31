@@ -40,7 +40,8 @@ export const CAPABILITIES = {
   // ---- v1.65-social (D197, CONVENTIONS §10.60): the panel v2 sections ---------------------------------------
   /** The users table and its CSV export (audited), a user's content tab. */
   'users.list': ['OWNER', 'MODERATION', 'SUPPORT', 'FINANCE'],
-  'users.export': ['OWNER', 'SUPPORT'],
+  /** Owner answer CP-039 Q2: the users table (with emails) as CSV is OWNER only. */
+  'users.export': ['OWNER'],
   /** A user's app sessions (devices) and signing them out. */
   'users.sessions': ['OWNER', 'MODERATION', 'SUPPORT'],
   /** Host agencies: the list, an agency's page and the complaints queue. */

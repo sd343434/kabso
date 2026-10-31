@@ -533,7 +533,9 @@ describe('D197 admin panel v2', { timeout: 600_000 }, () => {
       const q = await get(owner, `/admin/tables/users?q=${plain.username}`);
       expect(q.body.data.map((u: { id: string }) => u.id)).toEqual([plain.id]);
       expect((await get(owner, '/admin/tables/users?sort=password')).status).toBe(400);
-      const csv = await get(support, '/admin/tables/users?format=csv&role=ADMIN');
+      // Owner answer CP-039 Q2: SUPPORT may not export the users (emails); only the OWNER.
+      expect((await get(support, '/admin/tables/users?format=csv')).status).toBe(403);
+      const csv = await get(owner, '/admin/tables/users?format=csv&role=ADMIN');
       expect(csv.status).toBe(200);
       expect(csv.headers['content-type']).toMatch(/text\/csv/);
       expect(csv.headers['content-disposition']).toMatch(/attachment; filename="kabso-users-/);
@@ -541,7 +543,7 @@ describe('D197 admin panel v2', { timeout: 600_000 }, () => {
         'id,username,display_name,email,status,role,country,created_at,last_active_at',
       );
       expect(csv.text.split('\r\n').filter(Boolean)).toHaveLength(5);
-      const meta = await expectPanelAudit('admin.export.csv', 'users', support);
+      const meta = await expectPanelAudit('admin.export.csv', 'users', owner);
       expect(meta).toMatchObject({ table: 'users', count: 4, filters: { role: 'ADMIN' } });
     });
 
@@ -946,8 +948,12 @@ describe('D197 admin panel v2', { timeout: 600_000 }, () => {
         cardCoins: 5000,
         cardRevenueMinor: 6250,
         hostPayoutsMinor: 0,
-        estimatedMarginMinor: 6375,
+        cardOrders: 1,
+        // Owner answer CP-039 Q3: estimated card fees 2.9 % + 30 cents per order: 181 + 30.
+        estimatedCardFeesMinor: 211,
+        estimatedMarginMinor: 6375 - 211,
       });
+      expect(res.body.cardFee).toEqual({ bps: 290, fixedMinor: 30 });
       const month = await get(
         finance,
         `/admin/finance/report?granularity=month&from=${day.slice(0, 8)}01&to=${day}`,
