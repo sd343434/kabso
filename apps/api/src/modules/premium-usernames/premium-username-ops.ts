@@ -5,6 +5,7 @@
 import { randomInt } from 'node:crypto';
 import { AuditAction } from '../../common/audit/audit.service.js';
 import type { Prisma } from '../../generated/prisma/client.js';
+import { usernameHash } from '../users/account-deletion.js';
 import { isValidUsername } from '../users/username.js';
 import { isCodeReservedPremium, premiumTierOf, type PremiumTier } from './premium-username-rules.js';
 
@@ -96,7 +97,7 @@ export async function nameInUse(
   exceptUserId: string | null,
   now: Date,
 ): Promise<boolean> {
-  const [profiles, pending, held, special] = await Promise.all([
+  const [profiles, pending, held, special, quarantined] = await Promise.all([
     db.userProfile.count({
       where: { username: name, ...(exceptUserId ? { userId: { not: exceptUserId } } : {}) },
     }),
@@ -121,8 +122,10 @@ export async function nameInUse(
         ],
       },
     }),
+    // v1.62-social (D193, §10.56): the regular username of a purged account, during its quarantine.
+    db.deletedUsername.count({ where: { nameHash: usernameHash(name), until: { gt: now } } }),
   ]);
-  return profiles + pending + held + special > 0;
+  return profiles + pending + held + special + quarantined > 0;
 }
 
 /**

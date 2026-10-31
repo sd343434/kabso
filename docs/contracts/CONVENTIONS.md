@@ -165,6 +165,9 @@ All non-2xx responses use one envelope:
 | 409 | `USERNAME_LOCKED` | *(v1.54-social, DRAFT, D185)* A special username is active and locked (e.g. a recharge agent's `coin0007`): the username cannot be changed and no premium username rented until it ends (§10.48.1). |
 | 409 | `HOST_FRAME_STYLE_FROM_GENDER` | *(v1.55-social, DRAFT, D186)* `setMyHostFrameStyle` while the caller's gender is MALE or FEMALE: the gender sets the active-host frame's colour (§10.49). Nothing changed. |
 | 409 | `TASK_MONTHLY_CAP_REACHED` | *(v1.57-social, DRAFT, D188)* A task claim (daily or weekly) after the caller already got the calendar month's cap of task cherries (`TASK_MONTHLY_CAP_MINOR` at `CHERRY_PAYOUT_RATE`, §10.51). Nothing was paid. Checked before `TASK_DAILY_CAP_REACHED`. |
+| 403 | `REAUTH_FAILED` | *(v1.62-social, DRAFT, D193)* The password given to confirm a sensitive action (`requestAccountDeletion`) is not the account's. Audited `account.deletion.reauth_failed`. Never 401, so the client does not treat it as an ended session. |
+| 409 | `ACCOUNT_DELETION_BLOCKED` | *(v1.62-social, DRAFT, D193)* `requestAccountDeletion` while something must be settled first: one `details` entry `{field: "account", issue}` per blocker, in this order — `recharge_agent`, `host_agency`, `pending_withdrawal`, `pending_cherry_sale`, `negative_balance` (§10.56). Nothing changed. |
+| 409 | `ACCOUNT_DELETION_PENDING` | *(v1.62-social, DRAFT, D193)* `login` with the right password to an account in its deletion grace period; `details: [{field: "purgeAfter", issue: <ISO 8601 time>}]` (the one place where `issue` carries a value, not the vocabulary). `login` with `cancelDeletion: true` cancels the deletion and signs in (§10.56). |
 | 403 | `DM_NOT_ALLOWED` | *(v1.40-social, DRAFT, D155)* The recipient's «who can message you» setting (`whoCanMessage`) does not allow the caller (§11.13). Nothing was stored or charged. The app says the person does not accept messages. |
 | 403 | `DM_REQUEST_LIMIT` | *(v1.40-social, DRAFT, D155)* The caller already sent `DM_REQUEST_MAX_MESSAGES` (3) messages in a message request the recipient has not accepted (§11.13). The app says to wait for a reply. |
 | 403 | `DM_REQUEST_TEXT_ONLY` | *(v1.40-social, DRAFT, D155)* A picture or voice message in a message request (only text, a pack emoji or a gift until the recipient accepts, §11.13). |
@@ -226,6 +229,9 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
   `.` / `_` inside) is reserved too: the recharge agents' special usernames, given only by the system (§10.48.1).
   *(v1.58-social, D189)* So is `host` + digits (`host01`, also with `.` / `_`): the host agents' (§10.52). Accounts
   that already have such a name keep it (the activation skips that number).
+  *(v1.62-social, D193)* The regular username of a deleted account is unavailable for 90 days after the purge
+  (quarantine, `USERNAME_TAKEN`; §10.56); a tombstone's `deleted.` + hex name can never be taken (a dot never fits
+  a new regular or premium username).
   *(v1.28-live, D146)* **Stored shape** (lookups, paths, login, every response): `^[a-z0-9](?:[a-z0-9._]{0,28}[a-z0-9])?$`,
   **1–30** characters (1–2 character premium names). **New regular usernames** (registration and
   `PUT /me/username`): 6–30 of a–z, 0–9 and `_`, a letter **and** a digit, `_` never first or last,
@@ -390,6 +396,7 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `PUT` and `DELETE /me/avatar` *(v1.45-social, D168)* | 30 / hour per user (one bucket `me:avatar`, `RATE_LIMIT_AVATAR_USER`). **Replaces** the per-user default; the upload itself counts in the `POST /media/uploads` bucket |
 | `POST /me/follow-requests/{username}/accept` and `…/decline` *(v1.47-social, D175)* | 300 / hour per user (one bucket `follow-requests:answer`, `RATE_LIMIT_FOLLOW_REQUEST_ANSWER_USER`). **Replaces** the per-user default. A follow request itself is a `PUT /users/{username}/follow` and counts in the follow buckets |
 | `PUT /me/username` *(v1.28-live, D146)* | 5 / day per user (bucket `username:change`, `RATE_LIMIT_USERNAME_CHANGE_USER`). **Replaces** the per-user default |
+| `POST /me/account-deletion` *(v1.62-social, D193)* | 5 / 15 min per user (bucket `account_deletion:user`, `RATE_LIMIT_ACCOUNT_DELETION_USER`; the password is re-checked). **Replaces** the per-user default |
 | `POST /me/premium-username/rentals`, `DELETE /me/premium-username` *(v1.28-live, D146)* | 20 / hour per user (bucket `premium:rent`, `RATE_LIMIT_PREMIUM_RENT_USER`). **Replaces** the per-user default; `GET /premium-usernames`, `GET /premium-usernames/{username}` and `GET /me/premium-username` use the per-user default |
 | `POST /search/queries` *(v1.29-live, D147)* | 120 / hour per user (bucket `search:record`, `RATE_LIMIT_SEARCH_RECORD_USER`). **Replaces** the per-user default; `GET /search/trending` and `GET /search/trending-hashtags` use the per-user default |
 | `GET /live/rooms` *(v1.3)* | 300 / 15 min per user |
@@ -568,6 +575,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.62-social (draft) | 2026-10-31 | **D193 (owner: «حذف الحساب» inside the app, as Apple 5.1.1(v) and Google Play require, with a 30-day grace period, CP-036):** `getAccountDeletionInfo` (`GET /me/account-deletion`, `AccountDeletionInfo`, `AccountDeletionBlocker`), `requestAccountDeletion` (`POST /me/account-deletion`, `AccountDeletionRequestBody`, 202 `AccountDeletionRequest`); `LoginRequest.cancelDeletion`; `login` 409 `ACCOUNT_DELETION_PENDING`; `Earning.senderDeleted`, `CherryLedgerEntry.gift.senderDeleted` (optional); codes `REAUTH_FAILED` (403), `ACCOUNT_DELETION_BLOCKED` (409), `ACCOUNT_DELETION_PENDING` (409); rate limit `RATE_LIMIT_ACCOUNT_DELETION_USER`; config `ACCOUNT_DELETION_GRACE_DAYS` (30), `ACCOUNT_DELETION_USERNAME_QUARANTINE_DAYS` (90), `ACCOUNT_DELETION_SWEEP_INTERVAL_SECONDS` (3600, not 0 in production), `SUPPORT_EMAIL` (info@kabsolive.com); `account-admin` CLI; audit actions `account.deletion.*`; migrations `20270110090000_account_deletion_enums` (`user_status` `PENDING_DELETION`), `20270110100000_account_deletion` (`account_deletion_requests`, `deleted_usernames`). §4, §6, §7, §10.56. | **Additive** (new operations, an optional request field, optional response fields, new codes). A deleted account's rows stay under a tombstone; clients show «مستخدم محذوف» where `senderDeleted` is set. |
 | v1.58-social (draft) | 2026-10-30 | **D189 (owner: a host agent «وكيل مضيفين» gets the same kind of perks as a recharge agent, CP-032):** `UserSummary.hostAgent` (optional) and `PublicProfile.hostAgent` (required, nullable) — `HostAgentTag {code}`, `HostAgentCode` (`^host[0-9]{2,}$`) — present while the person owns an agency the team has not suspended (any rank) with an active account; `OwnAgency.hostAgent` (`OwnHostAgent`: `code`, `active`, `usernameShown`); `MeSpecialUsername.source` `HOST_AGENT`; `host` + digits reserved (§6); `economy-admin agency-create` activates the host agent (prints the host code), new `agency-suspend` / `agency-reinstate`; migrations `20270103090000_host_agent_perks_enums`, `20270103100000_host_agent_perks`. §6, §7, §10.52. | **Additive** (new optional/nullable fields; new required `PublicProfile.hostAgent` and `OwnAgency.hostAgent` — strict clients update their models in the same change set; an agency owner's shown username becomes `hostNN`). |
 | v1.57-social (draft) | 2026-10-30 | **D188 (owner: the task rewards came from wrong pricing — «300,000 كرزة» and the low «استقبل 1000 عملة» targets are absurd; anchors 1 000 000 coins = $12.50 retail, 1 000 000 cherries = $1.10 payout):** `ProgramTask.metric` + `GIFT_COINS_SENT` (the coin value of paid gifts sent, from the stored gift rows); `MyTasks.monthlyCapCherries`, `MyTasks.monthlyEarnedCherries` (required in responses); code `TASK_MONTHLY_CAP_REACHED` (409); weekly host tasks per level band (follow-up: a band-4 host reaches the $5 cap); config `TASK_DAILY_CAP_CHERRIES` 150 000 → **50 000**, new `TASK_MONTHLY_CAP_MINOR` (500 = $5 → 4 545 454 cherries a calendar month, daily + weekly), new `COIN_RETAIL_USD_PER_MILLION` (12.5; `task-admin` shows real money), `TASK_CHERRIES_UNLOCK_GIFT_MINOR` 5000 → **6000** ($60); migrations `20261231130000_task_rewards_rebalance` (stored defaults, the new metric in the CHECK, the days' offers re-priced) and `20261231140000_task_weekly_host_bands` (follow-up: daily host tasks ×2, weekly host tasks per band). §4, §8, §10.41.3, §10.46.1, §10.51. | **Behaviour change, additive on the wire** (a new enum value — the app shows an unknown metric generically; new required response fields the app reads in the same change set). Claims already paid keep what they paid. |
 | v1.56-social (draft) | 2026-10-30 | **D187 (owner: daily recharge badges «شارات الشحن اليومي», CP-030):** `RechargeBadge` (`tier` 1–5, `until`); optional `UserSummary.rechargeBadge` and `PublicProfile.rechargeBadge`, present only while the badge shows (also on the room host's summary, chat authors, join lines and viewers); tables `recharge_daily_totals`, `recharge_badges`; config `RECHARGE_BADGE_TIERS`, `RECHARGE_BADGE_TIME_ZONE`, `RECHARGE_BADGE_HOURS`; §10.50. (v1.55-social is D186's.) | **Additive** (optional fields; clients ignore them). |
@@ -3492,6 +3500,76 @@ are **derived from the agency** (no bag items), like D185's.
   code), `active` (not suspended), `usernameShown`.
 - **Migrations** `20270103090000_host_agent_perks_enums` (the enum value), `20270103100000_host_agent_perks`
   (columns, counter, index); no username changes in SQL.
+
+### 10.56 Account deletion «حذف الحساب» *(v1.62-social, DRAFT — D193, CP-036)*
+
+The person deletes their own account inside the app (Apple App Store Review Guideline 5.1.1(v); Google Play's
+account-deletion requirement), with a **30-day grace period** during which they can change their mind. The rules
+live in `users/account-deletion.ts` (shared by the API, the sweeper and the `account-admin` CLI).
+
+- **Flow (app):** Settings › Account › «حذف الحساب» → (1) an explanation — what is deleted, what is kept, the
+  grace period, that coins, cherries, bag items and premium time are forfeited — with what must be settled first
+  (`getAccountDeletionInfo.blockers`); (2) the password again (re-authentication; a forgotten password is reset by
+  email first — `forgotPassword` also works during the grace period); (3) the confirmation word «حذف» (or `DELETE`);
+  (4) `requestAccountDeletion` → 202.
+- **Blockers** (409 `ACCOUNT_DELETION_BLOCKED`, checked again inside the request's transaction): `recharge_agent` (a
+  recharge agent, §10.48, not suspended, or with coins left in the stock — the team settles the stock and suspends
+  it), `host_agency` (the owner of a host agency, §10.46/§10.52, not suspended by the team or still with hosts),
+  `pending_withdrawal` (a cherry withdrawal waiting to be paid), `pending_cherry_sale` (a cherry sale to a recharge
+  agent still open), `negative_balance` (a negative coin or cherry balance — a reversal or a dispute, checked
+  generically).
+- **At the request** (one transaction): `users.status` → `PENDING_DELETION`; a PENDING `account_deletion_requests`
+  row with `purge_after` = now + `ACCOUNT_DELETION_GRACE_DAYS`; every session revoked (`revoked_reason`
+  `ACCOUNT_DELETION`) with its push token; out of every live room (seats, requests, invitations, moderator roles).
+  Every `status = 'ACTIVE'` filter hides the account at once, as for a deactivated one: search, profile (404), follow
+  and member lists, live rooms (a LIVE room of theirs is hidden by the ACTIVE-host filter and ended by the room
+  sweeper), and the access-token guard refuses its tokens. Nothing else is removed yet. A notice is mailed
+  (`requested`, with the date) when mail is configured. Audit `account.deletion.requested`.
+- **During the grace period:** `login` with the right password answers 409 `ACCOUNT_DELETION_PENDING` (detail
+  `purgeAfter`; a wrong password still gets 401, so nothing is revealed); the app shows «طلب حذف قيد التنفيذ —
+  إلغاء الحذف؟». `login` with `cancelDeletion: true` cancels: ACTIVE again with everything it had (follows, content,
+  balances), the request CANCELLED, a notice mailed (`cancelled`), audit `account.deletion.cancelled`, and the
+  person is signed in.
+- **Purge** (the sweeper, every `ACCOUNT_DELETION_SWEEP_INTERVAL_SECONDS`, once `purge_after` passed; or
+  `account-admin purge-now`): the account becomes a **tombstone** — the same random user id, status DELETED,
+  `deleted_at` set, no personal data. Idempotent (a DELETED account is skipped).
+  - **Deleted:** email (→ `deleted+<id>@deleted.invalid`), password, profile fields (name → «مستخدم محذوف»,
+    username → `deleted.` + 16 hex digits, bio, photo, country, gender, category, links), settings, sessions,
+    verification and push tokens; posts and reels (with their likes, comments, media and reports), stories,
+    comments on others' posts (soft-deleted, text removed), likes, saves and reposts of others' posts (counters
+    adjusted), views and share events, mentions; direct messages they wrote (gift messages stay — they show the
+    gift), live-chat, family-chat and CP-confession messages they wrote, paid bullet texts (→ `·`), their
+    notifications and their part in others'; follows, follow requests, blocks and mutes both ways; their media
+    assets and uploads (files deleted from object storage after the commit; without storage settings the CLI prints
+    the keys, as `profile-admin remove-avatar` does); KYC data of recharge-agent applications (name, phone, photo,
+    selfie, places, payment methods; files deleted); hosting permission, schedule, featured slot, watch
+    suggestions; the family membership (a leader hands the family to the longest-serving deputy, else member; a
+    leader alone disbands it) and the CP couple (ended); a recharge-agent employment and an agency-host link end.
+  - **Kept, under the tombstone id, without personal data** — accounting, tax and fraud (records of money that
+    moved must stay complete and balanced: every ledger row has a `balance_after` chain; chargeback and
+    dispute evidence) and the security audit: wallets and the coin, cherry, family, CP and level ledgers; gifts sent
+    and received (others' gift history: the sender shows as «مستخدم محذوف», `senderDeleted`); lucky draws and the
+    18+ statement; boosts, bag items and transfers; premium-username leases and payments; recharge sales, stock and
+    cherry requests; agency rows, earnings and months; cherry withdrawals (the payout details cut to their last 4
+    characters, to match bank records); task, check-in and event rewards; live-room history and statistics; reports
+    made and received; special usernames; the deletion request (PURGED); the audit log (append-only; its IP column
+    follows the audit retention, PP-08).
+  - **Usernames:** the regular username (the base one behind a special or premium username) is **quarantined**
+    for `ACCOUNT_DELETION_USERNAME_QUARANTINE_DAYS` (90) — nobody can register or take it (only its SHA-256 is
+    kept, `deleted_usernames`, with no link to the tombstone) — then the sweeper frees it. `coin…` / `host…` system
+    codes are **never** released or reused (§10.48.1, §10.52: held for the tombstone forever); other special
+    usernames end with their usual grace; a premium lease ends (its name returns to the pool by the D146 rules).
+  - Audit `account.deletion.purged` (no username or email in it).
+- **Without the app** (Google Play needs a web path): the person writes to `SUPPORT_EMAIL` (info@kabsolive.com)
+  from the account's email address; the team checks it and runs `account-admin request <email> --reason …` (the
+  same grace period and notices; planned web page `https://kabsolive.com/delete-account` with these steps).
+- **CLI** `account-admin pending [<user>] | request | cancel | purge-now <user> --reason <text>` (migration role,
+  audited with the reason, `via: cli`). `request` and `purge-now` refuse while a blocker stands.
+- **Settings:** `ACCOUNT_DELETION_GRACE_DAYS` (30, 1–90), `ACCOUNT_DELETION_USERNAME_QUARANTINE_DAYS` (90, 0–3650),
+  `ACCOUNT_DELETION_SWEEP_INTERVAL_SECONDS` (3600; 0 off — refused in production), `SUPPORT_EMAIL`,
+  `RATE_LIMIT_ACCOUNT_DELETION_USER` (5/900).
+- **Migrations** `20270110090000_account_deletion_enums` (`user_status` `PENDING_DELETION`),
+  `20270110100000_account_deletion` (`account_deletion_requests`, `deleted_usernames`).
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 

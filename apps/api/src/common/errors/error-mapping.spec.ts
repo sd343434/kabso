@@ -132,6 +132,10 @@ describe('ErrorCode', () => {
         'WITHDRAWAL_PENDING',
         // v1.57-social (DRAFT, D188)
         'TASK_MONTHLY_CAP_REACHED',
+        // v1.62-social (D193)
+        'REAUTH_FAILED',
+        'ACCOUNT_DELETION_BLOCKED',
+        'ACCOUNT_DELETION_PENDING',
       ].sort(),
     );
     expect(ERROR_HTTP_STATUS).toMatchObject({

@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
+import { MediaModule } from '../media/media.module.js';
 import { UsersModule } from '../users/users.module.js';
+import { AccountDeletionController } from './account-deletion.controller.js';
+import { AccountDeletionService, AccountDeletionSweeper } from './account-deletion.service.js';
 import { AccessTokenGuard } from './access-token.guard.js';
 import { AccessTokenService } from './access-token.service.js';
 import { AuthController } from './auth.controller.js';
@@ -12,8 +15,8 @@ import { VerificationTokensService } from './verification-tokens.service.js';
 
 @Module({
   // Secrets and algorithms are passed explicitly per call in AccessTokenService.
-  imports: [JwtModule.register({}), UsersModule],
-  controllers: [AuthController],
+  imports: [JwtModule.register({}), UsersModule, MediaModule],
+  controllers: [AuthController, AccountDeletionController],
   providers: [
     AuthService,
     AccessTokenService,
@@ -23,6 +26,9 @@ import { VerificationTokensService } from './verification-tokens.service.js';
     SessionsService,
     RegistrationService,
     VerificationTokensService,
+    // v1.62-social (D193): account deletion.
+    AccountDeletionService,
+    AccountDeletionSweeper,
   ],
   exports: [AccessTokenGuard, AccessTokenService, SessionsService],
 })

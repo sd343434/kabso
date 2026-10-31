@@ -39,7 +39,8 @@ function acceptLanguage(req: AppRequest): 'ar' | 'en' | undefined {
   return primary === 'ar' || primary === 'en' ? primary : undefined;
 }
 
-function requestMeta(req: AppRequest): RequestMeta {
+/** Request metadata for sessions and audit rows (also used by the account-deletion routes, D193). */
+export function requestMeta(req: AppRequest): RequestMeta {
   return {
     ip: clientIp(req),
     ipBucket: clientIpBucket(req),

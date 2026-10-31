@@ -10134,4 +10134,149 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get rechargeStockAfterLabel => 'Stock after the sale';
+
+  @override
+  String get settingsDeleteAccount => 'Delete account';
+
+  @override
+  String get settingsDeleteAccountHint =>
+      'Deleted for good 30 days after you ask';
+
+  @override
+  String get deleteAccountTitle => 'Delete account';
+
+  @override
+  String deleteAccountStep(int step, int total) {
+    return 'Step $step of $total';
+  }
+
+  @override
+  String get deleteAccountIntroTitle => 'Before you delete your account';
+
+  @override
+  String get deleteAccountWhatGoes => 'What is deleted';
+
+  @override
+  String get deleteAccountWhatGoesBody =>
+      'Your profile, name and photo, your posts, reels and stories, your messages, who you follow and who follows you, and your email address.';
+
+  @override
+  String get deleteAccountForfeit => 'What you lose';
+
+  @override
+  String get deleteAccountForfeitBody =>
+      'Your coin and cherry balance, the items in your bag and your premium username time. They are not refunded or transferred.';
+
+  @override
+  String get deleteAccountKept => 'What we keep';
+
+  @override
+  String get deleteAccountKeptBody =>
+      'Records of payments and gifts that the law, accounting and fraud prevention require, with nothing that identifies you. Others will see “Deleted user” instead of your name.';
+
+  @override
+  String deleteAccountGrace(int days) {
+    return 'You have $days days to change your mind: sign in during that time and choose “Cancel deletion”. After that the account is deleted for good.';
+  }
+
+  @override
+  String get deleteAccountBlockedTitle => 'Settle this first';
+
+  @override
+  String get deleteAccountBlockerRechargeAgent =>
+      'You are a recharge agent: contact the team to settle your stock and close the agency.';
+
+  @override
+  String get deleteAccountBlockerHostAgency =>
+      'You own a host agency: contact the team to move your hosts and close the agency.';
+
+  @override
+  String get deleteAccountBlockerPendingWithdrawal =>
+      'You have a cherry withdrawal waiting: wait until it is paid.';
+
+  @override
+  String get deleteAccountBlockerPendingCherrySale =>
+      'You have an open cherry sale to a recharge agent: finish or cancel it.';
+
+  @override
+  String get deleteAccountBlockerNegativeBalance =>
+      'Your balance is negative: contact the team to settle it.';
+
+  @override
+  String get deleteAccountBlockerOther =>
+      'Something must be settled first: contact the team.';
+
+  @override
+  String deleteAccountContact(String email) {
+    return 'For help, write to $email';
+  }
+
+  @override
+  String get deleteAccountPasswordTitle => 'Confirm it’s you';
+
+  @override
+  String get deleteAccountPasswordBody =>
+      'Enter your account password to continue.';
+
+  @override
+  String get deleteAccountConfirmTitle => 'Final confirmation';
+
+  @override
+  String deleteAccountConfirmBody(String word) {
+    return 'Type “$word” to confirm deleting your account.';
+  }
+
+  @override
+  String get deleteAccountConfirmWord => 'DELETE';
+
+  @override
+  String get deleteAccountConfirmLabel => 'Confirmation word';
+
+  @override
+  String get deleteAccountConfirmMismatch => 'Type the word exactly.';
+
+  @override
+  String get deleteAccountSubmit => 'Delete my account';
+
+  @override
+  String get deleteAccountDoneBanner =>
+      'We received your request and signed you out on every device. You can cancel by signing in within 30 days.';
+
+  @override
+  String get deletionPendingTitle => 'Deletion in progress';
+
+  @override
+  String get deletionPendingQuestion => 'Cancel the deletion?';
+
+  @override
+  String deletionPendingBody(String date) {
+    return 'This account will be deleted for good on $date. Cancel the deletion to get your account back as it was.';
+  }
+
+  @override
+  String get deletionPendingBodyNoDate =>
+      'This account will be deleted for good soon. Cancel the deletion to get your account back as it was.';
+
+  @override
+  String get deletionPendingCancel => 'Cancel deletion';
+
+  @override
+  String get deletionPendingKeep => 'Keep the deletion';
+
+  @override
+  String get deletionPendingRestored => 'Deletion cancelled. Welcome back!';
+
+  @override
+  String get deletedUser => 'Deleted user';
+
+  @override
+  String get errorReauthFailed => 'The password is not correct.';
+
+  @override
+  String get errorAccountDeletionBlocked =>
+      'Some things must be settled before the account can be deleted.';
+
+  @override
+  String get errorAccountDeletionPending =>
+      'This account is scheduled for deletion.';
 }

@@ -23,6 +23,9 @@ enum UserStatus {
   ACTIVE
   SUSPENDED
   DELETED
+  /// v1.62-social (D193, CONVENTIONS §10.56): the person asked for the account to be deleted; hidden from everyone
+  /// and signed out for the grace period (30 days), then purged (status DELETED, a tombstone without personal data).
+  PENDING_DELETION
 
   @@map("user_status")
 }
@@ -212,6 +215,8 @@ model User {
   // v1.56-social (D187): the daily recharge badges.
   rechargeDailyTotals    RechargeDailyTotal[]
   rechargeBadge          RechargeBadge?
+  // v1.62-social (D193): account deletion requests «حذف الحساب».
+  deletionRequests       AccountDeletionRequest[]
 
   @@map("users")
 }
@@ -326,7 +331,7 @@ model Session {
   expiresAt                 DateTime  @map("expires_at") @db.Timestamptz(3)
   absoluteExpiresAt         DateTime  @map("absolute_expires_at") @db.Timestamptz(3)
   revokedAt                 DateTime? @map("revoked_at") @db.Timestamptz(3)
-  /// LOGOUT | USER_REVOKED | REFRESH_REUSE | PASSWORD_RESET | ADMIN
+  /// LOGOUT | USER_REVOKED | REFRESH_REUSE | PASSWORD_RESET | ADMIN | ACCOUNT_DELETION (D193)
   revokedReason             String?   @map("revoked_reason") @db.VarChar(32)
 
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -4025,4 +4030,54 @@ model RechargeBadge {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("recharge_badges")
+}
+
+// ---- v1.62-social (D193, CONVENTIONS §10.56): account deletion «حذف الحساب» --------------------------------------
+
+/// D193: PENDING (the grace period; the account is PENDING_DELETION), CANCELLED (the person signed in and cancelled,
+/// or the team cancelled it), PURGED (the account became a tombstone).
+enum AccountDeletionStatus {
+  PENDING
+  CANCELLED
+  PURGED
+
+  @@map("account_deletion_status")
+}
+
+/// D193: one deletion request. At most one PENDING per user (partial unique). Kept after the purge (no personal data:
+/// the user row is the tombstone) as the record of when and how the account was deleted.
+model AccountDeletionRequest {
+  id           String                @id @default(uuid(7)) @db.Uuid
+  userId       String                @map("user_id") @db.Uuid
+  status       AccountDeletionStatus @default(PENDING)
+  /// APP (the person, re-authenticated in the app) | ADMIN (`account-admin request`, e.g. an emailed request).
+  requestedVia String                @map("requested_via") @db.VarChar(10)
+  requestedAt  DateTime              @default(now()) @map("requested_at") @db.Timestamptz(3)
+  /// The earliest moment the sweeper purges the account (requested_at + ACCOUNT_DELETION_GRACE_DAYS).
+  purgeAfter   DateTime              @map("purge_after") @db.Timestamptz(3)
+  cancelledAt  DateTime?             @map("cancelled_at") @db.Timestamptz(3)
+  /// APP (signed in again and cancelled) | ADMIN (`account-admin cancel`).
+  cancelledVia String?               @map("cancelled_via") @db.VarChar(10)
+  purgedAt     DateTime?             @map("purged_at") @db.Timestamptz(3)
+  /// SWEEPER | ADMIN (`account-admin purge-now`).
+  purgedVia    String?               @map("purged_via") @db.VarChar(10)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId], map: "account_deletion_requests_one_pending", where: raw("status = 'PENDING'::account_deletion_status"))
+  @@index([purgeAfter], map: "account_deletion_requests_due_idx", where: raw("status = 'PENDING'::account_deletion_status"))
+  @@index([userId, requestedAt(sort: Desc)], map: "account_deletion_requests_user_idx")
+  @@map("account_deletion_requests")
+}
+
+/// D193: the regular username of a purged account, held for ACCOUNT_DELETION_USERNAME_QUARANTINE_DAYS so nobody can
+/// take it over at once (impersonation). Only its SHA-256 is kept (no link to the tombstone); the sweeper deletes the
+/// row when the quarantine ends. `coin`/`host` codes are never released (special_usernames).
+model DeletedUsername {
+  nameHash  String   @id @map("name_hash") @db.Char(64)
+  until     DateTime @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([until], map: "deleted_usernames_until_idx")
+  @@map("deleted_usernames")
 }

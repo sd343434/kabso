@@ -10157,4 +10157,146 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get rechargeStockAfterLabel => 'المخزون بعد البيع';
+
+  @override
+  String get settingsDeleteAccount => 'حذف الحساب';
+
+  @override
+  String get settingsDeleteAccountHint => 'يُحذف نهائياً بعد 30 يوماً من الطلب';
+
+  @override
+  String get deleteAccountTitle => 'حذف الحساب';
+
+  @override
+  String deleteAccountStep(int step, int total) {
+    return 'الخطوة $step من $total';
+  }
+
+  @override
+  String get deleteAccountIntroTitle => 'قبل أن تحذف حسابك';
+
+  @override
+  String get deleteAccountWhatGoes => 'ما سيُحذف';
+
+  @override
+  String get deleteAccountWhatGoesBody =>
+      'ملفك الشخصي واسمك وصورتك، منشوراتك ومقاطعك وقصصك، رسائلك، من تتابعهم ومن يتابعونك، وبريدك الإلكتروني.';
+
+  @override
+  String get deleteAccountForfeit => 'ما ستخسره';
+
+  @override
+  String get deleteAccountForfeitBody =>
+      'رصيد العملات والكرزات وما في حقيبتك ووقت اسم المستخدم المميز. لا تُسترد ولا تُحوَّل.';
+
+  @override
+  String get deleteAccountKept => 'ما نحتفظ به';
+
+  @override
+  String get deleteAccountKeptBody =>
+      'سجلات المدفوعات والهدايا التي يطلبها القانون والمحاسبة ومكافحة الاحتيال، دون أي بيانات تعرّف بك. سيرى الآخرون «مستخدم محذوف» مكان اسمك.';
+
+  @override
+  String deleteAccountGrace(int days) {
+    return 'لديك $days يوماً لتغيير رأيك: سجّل الدخول خلالها واختر «إلغاء الحذف». بعدها يُحذف الحساب نهائياً.';
+  }
+
+  @override
+  String get deleteAccountBlockedTitle => 'يجب تسوية هذا أولاً';
+
+  @override
+  String get deleteAccountBlockerRechargeAgent =>
+      'أنت وكيل شحن: تواصل مع الفريق لتسوية المخزون وإيقاف الوكالة.';
+
+  @override
+  String get deleteAccountBlockerHostAgency =>
+      'أنت مالك وكالة مضيفين: تواصل مع الفريق لنقل المضيفين وإيقاف الوكالة.';
+
+  @override
+  String get deleteAccountBlockerPendingWithdrawal =>
+      'لديك طلب سحب كرزات قيد التنفيذ: انتظر حتى يُدفع.';
+
+  @override
+  String get deleteAccountBlockerPendingCherrySale =>
+      'لديك طلب بيع كرزات لوكيل شحن لم يُغلق بعد: أكمله أو ألغِه.';
+
+  @override
+  String get deleteAccountBlockerNegativeBalance =>
+      'رصيدك سالب: تواصل مع الفريق لتسويته.';
+
+  @override
+  String get deleteAccountBlockerOther =>
+      'هناك أمر يجب تسويته أولاً: تواصل مع الفريق.';
+
+  @override
+  String deleteAccountContact(String email) {
+    return 'للمساعدة راسلنا على $email';
+  }
+
+  @override
+  String get deleteAccountPasswordTitle => 'أكّد أنه أنت';
+
+  @override
+  String get deleteAccountPasswordBody => 'أدخل كلمة مرور حسابك للمتابعة.';
+
+  @override
+  String get deleteAccountConfirmTitle => 'تأكيد أخير';
+
+  @override
+  String deleteAccountConfirmBody(String word) {
+    return 'اكتب «$word» لتأكيد حذف حسابك.';
+  }
+
+  @override
+  String get deleteAccountConfirmWord => 'حذف';
+
+  @override
+  String get deleteAccountConfirmLabel => 'كلمة التأكيد';
+
+  @override
+  String get deleteAccountConfirmMismatch => 'اكتب الكلمة كما هي.';
+
+  @override
+  String get deleteAccountSubmit => 'احذف حسابي';
+
+  @override
+  String get deleteAccountDoneBanner =>
+      'استلمنا طلب حذف حسابك وسجّلنا خروجك من كل الأجهزة. يمكنك إلغاء الحذف بتسجيل الدخول خلال 30 يوماً.';
+
+  @override
+  String get deletionPendingTitle => 'طلب حذف قيد التنفيذ';
+
+  @override
+  String get deletionPendingQuestion => 'إلغاء الحذف؟';
+
+  @override
+  String deletionPendingBody(String date) {
+    return 'سيُحذف هذا الحساب نهائياً في $date. ألغِ الحذف ليعود حسابك كما كان.';
+  }
+
+  @override
+  String get deletionPendingBodyNoDate =>
+      'سيُحذف هذا الحساب نهائياً قريباً. ألغِ الحذف ليعود حسابك كما كان.';
+
+  @override
+  String get deletionPendingCancel => 'إلغاء الحذف';
+
+  @override
+  String get deletionPendingKeep => 'متابعة الحذف';
+
+  @override
+  String get deletionPendingRestored => 'أُلغي الحذف. مرحباً بعودتك!';
+
+  @override
+  String get deletedUser => 'مستخدم محذوف';
+
+  @override
+  String get errorReauthFailed => 'كلمة المرور غير صحيحة.';
+
+  @override
+  String get errorAccountDeletionBlocked =>
+      'يجب تسوية بعض الأمور قبل حذف الحساب.';
+
+  @override
+  String get errorAccountDeletionPending => 'هذا الحساب في انتظار الحذف.';
 }

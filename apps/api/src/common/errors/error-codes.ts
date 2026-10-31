@@ -163,6 +163,18 @@ export enum ErrorCode {
   HOST_FRAME_STYLE_FROM_GENDER = 'HOST_FRAME_STYLE_FROM_GENDER',
   /** v1.57-social (DRAFT, D188): the caller already got the month's maximum of task cherries. */
   TASK_MONTHLY_CAP_REACHED = 'TASK_MONTHLY_CAP_REACHED',
+  /** v1.62-social (DRAFT, D193): the password given to confirm a sensitive action is not the account's. */
+  REAUTH_FAILED = 'REAUTH_FAILED',
+  /**
+   * v1.62-social (DRAFT, D193): the account cannot be deleted yet; `details[].issue` names each thing to settle first
+   * (`recharge_agent`, `host_agency`, `pending_withdrawal`, `pending_cherry_sale`, `negative_balance`).
+   */
+  ACCOUNT_DELETION_BLOCKED = 'ACCOUNT_DELETION_BLOCKED',
+  /**
+   * v1.62-social (DRAFT, D193): sign-in to an account in its deletion grace period (only after the right password);
+   * `details: [{field: 'purgeAfter', issue: <ISO time>}]`. Signing in with `cancelDeletion: true` cancels it.
+   */
+  ACCOUNT_DELETION_PENDING = 'ACCOUNT_DELETION_PENDING',
 }
 
 /** HTTP status for every code (CONVENTIONS.md §4 table). */
@@ -259,6 +271,9 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.USERNAME_LOCKED]: 409,
   [ErrorCode.HOST_FRAME_STYLE_FROM_GENDER]: 409,
   [ErrorCode.TASK_MONTHLY_CAP_REACHED]: 409,
+  [ErrorCode.REAUTH_FAILED]: 403,
+  [ErrorCode.ACCOUNT_DELETION_BLOCKED]: 409,
+  [ErrorCode.ACCOUNT_DELETION_PENDING]: 409,
 };
 
 /** Default developer-facing messages (clients localize by `code`, not by message). */
@@ -355,6 +370,9 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.USERNAME_LOCKED]: 'Your username is locked while your special username is active.',
   [ErrorCode.HOST_FRAME_STYLE_FROM_GENDER]: 'Your gender sets the colour of your host frame.',
   [ErrorCode.TASK_MONTHLY_CAP_REACHED]: 'You already got this month’s maximum of task rewards.',
+  [ErrorCode.REAUTH_FAILED]: 'The password is not correct.',
+  [ErrorCode.ACCOUNT_DELETION_BLOCKED]: 'Some things must be settled before this account can be deleted.',
+  [ErrorCode.ACCOUNT_DELETION_PENDING]: 'This account is scheduled for deletion.',
 };
 
 export interface ErrorDetail {

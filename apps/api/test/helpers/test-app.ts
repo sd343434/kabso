@@ -12,6 +12,7 @@ import { configureApp } from '../../src/app.setup.js';
 import { loadConfig, type AppConfig } from '../../src/config/app-config.js';
 import {
   MAIL_SENDER,
+  type AccountDeletionMail,
   type AccountExistsMail,
   type MailLocale,
   type MailSender,
@@ -22,7 +23,8 @@ import { PrismaClient } from '../../src/generated/prisma/client.js';
 import { PrismaService } from '../../src/prisma/prisma.service.js';
 import { BackgroundTasks } from '../../src/common/background/background-tasks.js';
 
-export type CapturedKind = 'verify' | 'reset' | 'code' | 'account_exists';
+export type CapturedKind =
+  'verify' | 'reset' | 'code' | 'account_exists' | 'deletion_requested' | 'deletion_cancelled';
 
 /** Every captured mail; fields that do not apply to a kind are empty strings. */
 export interface CapturedMail {
@@ -75,6 +77,19 @@ export class CapturingMailSender implements MailSender {
       token: '',
       link: '',
       code: '',
+    });
+    return Promise.resolve();
+  }
+
+  /** D193: the account-deletion notices (`code` carries the purge date, YYYY-MM-DD, of a `requested` one). */
+  sendAccountDeletionNotice(mail: AccountDeletionMail): Promise<void> {
+    this.sent.push({
+      kind: mail.kind === 'requested' ? 'deletion_requested' : 'deletion_cancelled',
+      to: mail.to,
+      locale: mail.locale,
+      token: '',
+      link: '',
+      code: mail.purgeAfter?.toISOString().slice(0, 10) ?? '',
     });
     return Promise.resolve();
   }
@@ -214,6 +229,9 @@ export function buildTestConfig(overrides: Record<string, string> = {}): AppConf
     // D155: specs call DmSweeper.sweep() with a fake clock; the DM limits are tested by their spec.
     DM_SWEEP_INTERVAL_SECONDS: '0',
     SPECIAL_USERNAME_SWEEP_INTERVAL_SECONDS: '0',
+    // D193: specs call AccountDeletionSweeper.sweep() with a later time.
+    ACCOUNT_DELETION_SWEEP_INTERVAL_SECONDS: '0',
+    RATE_LIMIT_ACCOUNT_DELETION_USER: GENEROUS,
     BAG_SWEEP_INTERVAL_SECONDS: '0',
     RATE_LIMIT_DM_SEND_USER: GENEROUS,
     RATE_LIMIT_DM_REQUEST_USER: GENEROUS,

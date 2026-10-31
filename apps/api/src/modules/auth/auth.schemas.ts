@@ -110,6 +110,11 @@ export const loginSchema = z.strictObject({
     .transform(normalizePassword)
     .refine((v) => [...v].length <= 128, { params: { issue: 'too_long' } }),
   device: deviceInfoSchema.optional(),
+  /**
+   * v1.62-social (D193, §10.56): `true` cancels a pending account deletion and signs in (otherwise signing in to an
+   * account in its grace period answers 409 ACCOUNT_DELETION_PENDING). Ignored for any other account.
+   */
+  cancelDeletion: z.boolean().optional(),
 });
 export type LoginInput = z.output<typeof loginSchema>;
 

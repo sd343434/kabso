@@ -35,6 +35,7 @@ Status legend: ⛔ open · ⏳ in progress · ✅ done (evidence linked)
 | PP-22 | First-launch language follows device locale; explicit preference persisted; emails in the correct locale | KL-018 | A6 + A7 | ✅ A7 PASS (KL-007c/d); A6 PASS incl. QA-011 fix (KL-006d) |
 | PP-23 | App identity, privacy/terms URLs, support contact | B7 | owner | ⛔ |
 | PP-24 | Brand assets | B8 | owner | ⛔ |
+| PP-35 | Account deletion (D193, Apple 5.1.1(v), Google Play account-deletion policy): in-app «حذف الحساب» built (v1.62-social, §10.56); before store submission — a public web URL for deletion requests in the Play Console Data-safety form (planned `https://kabsolive.com/delete-account`; until then the privacy policy and listing name info@kabsolive.com), the privacy-policy paragraph on deletion and retention published (D192 site), real mail for the notices (PP-20), the sweeper verified on the server (`ACCOUNT_DELETION_SWEEP_INTERVAL_SECONDS` > 0) with object-storage deletion checked, owner/legal sign-off on what is kept (ledgers, payout last-4, audit log) and on the 90-day username quarantine | D193 | owner + A7 | ⏳ built and tested, not deployed |
 | PP-25 | Release signing from CI secrets (Android `key.properties`, iOS certificates); release job deletes key material | deploy | A8 + A7 | ⛔ |
 
 ## Quality / release engineering

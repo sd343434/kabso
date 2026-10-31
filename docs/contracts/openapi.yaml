@@ -335,6 +335,17 @@ info:
     agency exists and the team has not suspended its host agent (any rank, LAPSED too). `OwnAgency.hostAgent`
     (`OwnHostAgent`): the code, whether the perks are on and whether the code is the username shown now (a person
     who is also a recharge agent shows the code activated first; the other stays reserved) (CONVENTIONS §10.52).
+    **D193 (DRAFT v1.62-social, CP-036)**: in-app account deletion «حذف الحساب» (Apple 5.1.1(v), Google Play):
+    `getAccountDeletionInfo` (`GET /me/account-deletion`, `AccountDeletionInfo`: the grace period, what must be
+    settled first, the support address) and `requestAccountDeletion` (`POST /me/account-deletion`,
+    `AccountDeletionRequestBody` — the password re-checked and the confirmation word «حذف» / `DELETE` — 202
+    `AccountDeletionRequest`). The account is hidden from everyone at once and signed out everywhere; for 30 days
+    (`ACCOUNT_DELETION_GRACE_DAYS`) `login` with the right password answers 409 `ACCOUNT_DELETION_PENDING` (detail
+    `purgeAfter`) and `login` with `cancelDeletion: true` cancels it and signs in; then the account becomes a
+    tombstone (personal data and content deleted, the financial and audit rows kept without personal data; others
+    see «مستخدم محذوف»). Codes `REAUTH_FAILED` (403), `ACCOUNT_DELETION_BLOCKED` (409, `details[].issue`
+    `recharge_agent`, `host_agency`, `pending_withdrawal`, `pending_cherry_sale`, `negative_balance`),
+    `ACCOUNT_DELETION_PENDING` (409) (CONVENTIONS §10.56).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -525,6 +536,10 @@ paths:
         `identifier` is an email or a username (any case). v1.54-social (D185, §10.48.1): a username is the one
         shown now or, while a special username is active, the person's own (base) username; a special username
         that ended (in its grace period) no longer signs in.
+        v1.62-social (D193, §10.56): an account in its deletion grace period answers — only after the right
+        password — 409 `ACCOUNT_DELETION_PENDING` with `details: [{field: purgeAfter, issue: <ISO time>}]`; the
+        same request with `cancelDeletion: true` cancels the deletion (the account is back as it was, a notice is
+        mailed) and signs in (200).
       security: []
       requestBody:
         required: true
@@ -540,6 +555,7 @@ paths:
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
   /api/v1/auth/refresh:
@@ -1146,6 +1162,53 @@ paths:
       responses:
         '204': { description: Removed (or there was none). }
         '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/me/account-deletion:
+    get:
+      tags: [me]
+      operationId: getAccountDeletionInfo
+      summary: "What deleting the account involves for the caller now (v1.62-social, D193)"
+      description: |
+        CONVENTIONS §10.56. The explanation screen's data: the grace period in days, what must be settled before
+        the account can be deleted (`blockers`, empty when nothing) and the support address.
+      responses:
+        '200':
+          description: The caller's deletion information.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccountDeletionInfo' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [me]
+      operationId: requestAccountDeletion
+      summary: "Ask for the caller's account to be deleted (re-authenticated; 30-day grace) (v1.62-social, D193)"
+      description: |
+        CONVENTIONS §10.56. Order after auth and the rate limit (5 / 15 minutes / user, replacing the default):
+        400 body (`confirmation` must be «حذف» or `DELETE`, case and surrounding spaces ignored) → 403
+        `REAUTH_FAILED` (the password is not the account's; audited) → 409 `ACCOUNT_DELETION_BLOCKED` (one
+        `details` entry `{field: account, issue}` per thing to settle first: `recharge_agent`, `host_agency`,
+        `pending_withdrawal`, `pending_cherry_sale`, `negative_balance`; audited) → 202. The account is hidden from
+        everyone at once (like a deactivated one: search, profile, lists, live rooms), every session including
+        this one is revoked with its push token, and a notice is mailed. Signing in again within the grace period
+        may cancel it (`login`, `cancelDeletion`). After it the account is deleted for good. Idempotent: a retry
+        for an account already pending returns the same request.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AccountDeletionRequestBody' }
+      responses:
+        '202':
+          description: The deletion is scheduled; the caller is signed out.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccountDeletionRequest' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
   /api/v1/users/username-availability:
@@ -8380,6 +8443,56 @@ components:
           description: Email address or username.
         password: { type: string, minLength: 1, maxLength: 128 }
         device: { $ref: '#/components/schemas/DeviceInfo' }
+        cancelDeletion:
+          type: boolean
+          description: |
+            v1.62-social (D193): `true` cancels a pending account deletion and signs in; without it an account in
+            its deletion grace period answers 409 `ACCOUNT_DELETION_PENDING`. Ignored for other accounts.
+    AccountDeletionInfo:
+      type: object
+      description: v1.62-social (D193, CONVENTIONS §10.56).
+      required: [graceDays, blockers, supportEmail]
+      additionalProperties: false
+      properties:
+        graceDays: { type: integer, minimum: 1, description: Days during which signing in may cancel the deletion. }
+        blockers:
+          type: array
+          description: What must be settled before the account can be deleted (empty when nothing), in this order.
+          items: { $ref: '#/components/schemas/AccountDeletionBlocker' }
+        supportEmail: { type: string, description: 'Where to write for help, or to ask for deletion without the app.' }
+    AccountDeletionBlocker:
+      type: string
+      description: |
+        v1.62-social (D193): `recharge_agent` (a recharge agent who is not suspended or still has stock),
+        `host_agency` (the owner of a host agency the team has not suspended, or that still has hosts),
+        `pending_withdrawal` (a cherry withdrawal waiting to be paid), `pending_cherry_sale` (a cherry sale to a
+        recharge agent still open), `negative_balance` (a negative coin or cherry balance). The same values are the
+        `details[].issue` of 409 `ACCOUNT_DELETION_BLOCKED`.
+      enum: [recharge_agent, host_agency, pending_withdrawal, pending_cherry_sale, negative_balance]
+    AccountDeletionRequestBody:
+      type: object
+      description: v1.62-social (D193).
+      required: [password, confirmation]
+      additionalProperties: false
+      properties:
+        password: { type: string, minLength: 1, maxLength: 128, description: The account's current password. }
+        confirmation:
+          type: string
+          minLength: 1
+          maxLength: 20
+          description: The word the person typed to confirm — «حذف» or `DELETE` (case and surrounding spaces ignored).
+    AccountDeletionRequest:
+      type: object
+      description: v1.62-social (D193).
+      required: [status, requestedAt, purgeAfter]
+      additionalProperties: false
+      properties:
+        status: { type: string, enum: [PENDING] }
+        requestedAt: { type: string, format: date-time }
+        purgeAfter:
+          type: string
+          format: date-time
+          description: When the account will be deleted for good unless the person signs in and cancels.
     TokenPair:
       type: object
       required: [accessToken, accessTokenExpiresAt, refreshToken, refreshTokenExpiresAt]
@@ -12344,6 +12457,11 @@ components:
             - $ref: '#/components/schemas/UserSummary'
             - type: 'null'
           description: Null when the sender's account is not active or a block stands between them.
+        senderDeleted:
+          type: boolean
+          description: |
+            v1.62-social (D193): present (true) only when the sender's account was deleted (`sender` is null); the
+            app shows «مستخدم محذوف» / "Deleted user" instead of an unavailable account.
     EarningPage:
       type: object
       required: [data, page]
@@ -12785,6 +12903,11 @@ components:
                   oneOf:
                     - $ref: '#/components/schemas/UserSummary'
                     - type: 'null'
+                senderDeleted:
+                  type: boolean
+                  description: |
+                    v1.62-social (D193): present (true) only when the sender's account was deleted (`sender` is
+                    null); the app shows «مستخدم محذوف» / "Deleted user".
             - type: 'null'
           description: The gift of a `GIFT_RECEIVED` / `GIFT_REVERSAL` row (null for other rows, or a send no longer stored).
     CherryLedgerPage:

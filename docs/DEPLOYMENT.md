@@ -1572,3 +1572,26 @@ the private-account switch with follow requests, and an admin tool to remove a p
   ```bash
   docker compose --profile jobs run --rm migrate node dist/cli/bag-admin.js grant someone@example.com emerald_wings 7
   ```
+
+### 5.29 Account deletion «حذف الحساب» (migrations `20270110090000_account_deletion_enums`, `20270110100000_account_deletion`; D193) — [IMPLEMENTED, draft contract v1.62-social; not deployed, not device-tested]
+
+- **What it is** (CONVENTIONS §10.56): Settings › Account › «حذف الحساب» → explanation, password, confirmation word →
+  the account is hidden and signed out at once; 30 days to cancel by signing in; then the sweeper purges it into a
+  tombstone (personal data and content deleted; ledgers and audit kept without personal data).
+- **Settings:** `ACCOUNT_DELETION_GRACE_DAYS` (30), `ACCOUNT_DELETION_USERNAME_QUARANTINE_DAYS` (90),
+  `ACCOUNT_DELETION_SWEEP_INTERVAL_SECONDS` (3600; refused as 0 in production), `SUPPORT_EMAIL`
+  (info@kabsolive.com), `RATE_LIMIT_ACCOUNT_DELETION_USER` (5/900). The notices need real mail (PP-20); without it
+  they go to the log adapter (development only).
+- **Object storage:** the sweeper deletes the purged account's files through the API's `S3_*` settings; a failure
+  is logged (`Media objects not deleted`) and the keys are not kept — check the log after the first purges.
+- **Admin CLI** `dist/cli/account-admin.js` (locally `pnpm account:admin …`), migration role:
+  `docker compose --profile jobs run --rm -e S3_ENDPOINT -e S3_REGION -e S3_BUCKET -e S3_ACCESS_KEY_ID
+  -e S3_SECRET_ACCESS_KEY -e S3_FORCE_PATH_STYLE migrate node dist/cli/account-admin.js pending`
+  (`request|cancel|purge-now <username|email|id> --reason <text>`; audited). Without the `S3_*` settings
+  `purge-now` prints the object keys to delete by hand.
+- **Deletion without the app (Google Play "web resource"):** until the page exists, the store listing and the
+  privacy policy name the address **info@kabsolive.com**: the person writes from the account's email; the team
+  replies to confirm, then runs `account-admin request <email> --reason "emailed request <date>"` (same 30-day
+  grace and notices). Planned page `https://kabsolive.com/delete-account` (static, `infra/deploy/site`): the in-app
+  steps, the email route, what is deleted and kept, the 30 days. Google Play Console › App content › Data safety
+  needs that URL (or the email page) before submission.

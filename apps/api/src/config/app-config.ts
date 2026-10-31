@@ -108,6 +108,8 @@ export interface AppConfig {
     /** v1.28-live (D146). */
     readonly premiumRentUser: RateLimitRule;
     readonly usernameChangeUser: RateLimitRule;
+    /** D193: account-deletion requests (the password is re-checked), per user. */
+    readonly accountDeletionUser: RateLimitRule;
     /** CP-021: CP space writes; new confessions (per user). */
     readonly cpSpaceWriteUser: RateLimitRule;
     readonly cpConfessionUser: RateLimitRule;
@@ -233,6 +235,15 @@ export interface AppConfig {
     readonly sweepIntervalSeconds: number;
     /** v1.56-social (D187, §10.50): the daily recharge badges. */
     readonly badges: RechargeBadgeRules;
+  };
+  /** v1.62-social (D193): account deletion (CONVENTIONS §10.56). */
+  readonly accountDeletion: {
+    readonly graceDays: number;
+    readonly usernameQuarantineDays: number;
+    /** SUPPORT_EMAIL: the contact address in the notices (and for requests without the app). */
+    readonly supportEmail: string;
+    /** 0 = sweeper disabled (tests; refused in production). */
+    readonly sweepIntervalSeconds: number;
   };
   /** v1.54-social (D185): special usernames (CONVENTIONS §10.48.1). */
   readonly specialUsernames: {
@@ -453,6 +464,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       liveLuckyGiftBurstUser: e.RATE_LIMIT_LIVE_LUCKY_GIFT_BURST_USER,
       premiumRentUser: e.RATE_LIMIT_PREMIUM_RENT_USER,
       usernameChangeUser: e.RATE_LIMIT_USERNAME_CHANGE_USER,
+      accountDeletionUser: e.RATE_LIMIT_ACCOUNT_DELETION_USER,
       cpSpaceWriteUser: e.RATE_LIMIT_CP_SPACE_WRITE_USER,
       cpConfessionUser: e.RATE_LIMIT_CP_CONFESSION_USER,
       familyChatUser: e.RATE_LIMIT_FAMILY_CHAT_USER,
@@ -572,6 +584,12 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
         timeZone: e.RECHARGE_BADGE_TIME_ZONE,
         hours: e.RECHARGE_BADGE_HOURS,
       },
+    },
+    accountDeletion: {
+      graceDays: e.ACCOUNT_DELETION_GRACE_DAYS,
+      usernameQuarantineDays: e.ACCOUNT_DELETION_USERNAME_QUARANTINE_DAYS,
+      supportEmail: e.SUPPORT_EMAIL,
+      sweepIntervalSeconds: e.ACCOUNT_DELETION_SWEEP_INTERVAL_SECONDS,
     },
     specialUsernames: {
       graceDays: e.SPECIAL_USERNAME_GRACE_DAYS,

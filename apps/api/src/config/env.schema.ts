@@ -544,6 +544,9 @@ export const envSchema = z
     // v1.28-live (D146, CONVENTIONS §7): premium usernames and the username change.
     RATE_LIMIT_PREMIUM_RENT_USER: rateLimit('20/3600'),
     RATE_LIMIT_USERNAME_CHANGE_USER: rateLimit('5/86400'),
+    // v1.62-social (D193, CONVENTIONS §7, §10.56): the account-deletion request re-checks the password, so it is
+    // limited like a login (per user, replacing the default authenticated bucket).
+    RATE_LIMIT_ACCOUNT_DELETION_USER: rateLimit('5/900'),
     // v1.24-live (CP-021, CONVENTIONS §7): CP space writes (check-in, task claims, confession
     // deletes) and new confessions, per user, each replacing the default authenticated bucket.
     RATE_LIMIT_CP_SPACE_WRITE_USER: rateLimit('60/60'),
@@ -995,6 +998,21 @@ export const envSchema = z
      * for the person this many days (a `coin` name: forever). The sweeper ends expired ones and releases names.
      */
     SPECIAL_USERNAME_GRACE_DAYS: intSetting(30, 1, 3650),
+    /**
+     * v1.62-social (D193, CONVENTIONS §10.56): account deletion. The grace period during which signing in again may
+     * cancel the request (owner: 30 days; Apple/Google allow a reasonable delay), how long a purged account's regular
+     * username stays unavailable (anti-impersonation quarantine) and the sweeper that purges due accounts.
+     */
+    ACCOUNT_DELETION_GRACE_DAYS: intSetting(30, 1, 90),
+    ACCOUNT_DELETION_USERNAME_QUARANTINE_DAYS: intSetting(90, 0, 3650),
+    ACCOUNT_DELETION_SWEEP_INTERVAL_SECONDS: intSetting(3600, 0, 86_400),
+    /** D193: the address shown in the deletion notices and used for deletion requests without the app. */
+    SUPPORT_EMAIL: z
+      .string()
+      .trim()
+      .regex(/^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/)
+      .max(254)
+      .default('info@kabsolive.com'),
     SPECIAL_USERNAME_SWEEP_INTERVAL_SECONDS: intSetting(300, 0, 86_400),
     /**
      * v1.56-social (D187, CONVENTIONS §10.50): the daily recharge badges. The minimum coins recharged in one
@@ -1228,6 +1246,14 @@ export const envSchema = z
           code: 'custom',
           path: ['SPECIAL_USERNAME_SWEEP_INTERVAL_SECONDS'],
           message: 'the special-username sweeper cannot be disabled in production',
+        });
+      }
+      // D193: a deletion request must be carried out when its grace period ends (store and privacy rules).
+      if (env.ACCOUNT_DELETION_SWEEP_INTERVAL_SECONDS === 0) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['ACCOUNT_DELETION_SWEEP_INTERVAL_SECONDS'],
+          message: 'the account-deletion sweeper cannot be disabled in production',
         });
       }
       // D179: agency ranks must be re-evaluated at each month start.

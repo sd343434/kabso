@@ -39,6 +39,8 @@ export interface EarningDto {
   shareBps: number;
   coins: number;
   sender: UserSummaryDto | null;
+  /** v1.62-social (D193): true (else absent) when the sender's account was deleted; `sender` is null then. */
+  senderDeleted?: true;
 }
 
 const DAY_MS = 86_400_000;
@@ -159,7 +161,9 @@ export class WalletHistoryService {
        LIMIT ${query.limit + 1}`;
     const hasMore = rows.length > query.limit;
     const page = rows.slice(0, query.limit);
-    const senders = await this.visibleSenders(me, [...new Set(page.map((r) => r.sender_id))]);
+    const senderIds = [...new Set(page.map((r) => r.sender_id))];
+    const senders = await this.visibleSenders(me, senderIds);
+    const deleted = await this.deletedSenders(senderIds);
     const last = page[page.length - 1];
     return {
       data: page.map((r) => ({
@@ -173,12 +177,23 @@ export class WalletHistoryService {
         shareBps: r.share_bps,
         coins: Number(r.coins),
         sender: senders.get(r.sender_id) ?? null,
+        ...(deleted.has(r.sender_id) ? { senderDeleted: true as const } : {}),
       })),
       page: {
         hasMore,
         nextCursor: hasMore && last ? this.cursors.encode(scope, { at: last.created_at, id: last.id }) : null,
       },
     };
+  }
+
+  /** v1.62-social (D193): the senders whose accounts were deleted (tombstones: «مستخدم محذوف»). */
+  private async deletedSenders(ids: string[]): Promise<Set<string>> {
+    if (ids.length === 0) return new Set();
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: ids }, status: 'DELETED' },
+      select: { id: true },
+    });
+    return new Set(users.map((u) => u.id));
   }
 
   /** The senders the caller may see: ACTIVE, and no block either way. */

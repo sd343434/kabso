@@ -1,4 +1,4 @@
-import type { MailLocale } from './mail-sender.js';
+import type { AccountDeletionMail, MailLocale } from './mail-sender.js';
 
 /**
  * Transactional email copy (ar + en). Plain text: adapters may wrap it in HTML later.
@@ -14,7 +14,14 @@ export type MailTemplate =
   | { readonly kind: 'registration_code'; readonly code: string; readonly minutes: number }
   | { readonly kind: 'account_exists'; readonly appUrl: string }
   | { readonly kind: 'email_verification'; readonly link: string }
-  | { readonly kind: 'password_reset'; readonly link: string; readonly minutes: number };
+  | { readonly kind: 'password_reset'; readonly link: string; readonly minutes: number }
+  | {
+      readonly kind: 'account_deletion_requested';
+      /** The purge date, already formatted for the locale (YYYY-MM-DD, UTC). */
+      readonly date: string;
+      readonly supportEmail: string;
+    }
+  | { readonly kind: 'account_deletion_cancelled'; readonly supportEmail: string };
 
 /** U+200F RIGHT-TO-LEFT MARK: keeps mixed Arabic/Latin lines right-aligned in plain text. */
 const RLM = '\u200f';
@@ -78,5 +85,46 @@ export function renderMail(template: MailTemplate, locale: MailLocale): Rendered
               `Open this link to reset your password (valid for ${template.minutes} minutes): ${template.link}\n` +
               `If you did not ask for this, ignore this email.`,
           };
+    case 'account_deletion_requested':
+      return ar
+        ? {
+            subject: 'طلب حذف حسابك في كابسو',
+            text:
+              `${RLM}استلمنا طلب حذف حسابك في كابسو. أُخفي حسابك وسُجّل خروجك من كل الأجهزة.\n` +
+              `${RLM}سيُحذف الحساب نهائياً في ${template.date}. حتى ذلك الوقت يمكنك إلغاء الحذف بتسجيل الدخول في التطبيق واختيار «إلغاء الحذف».\n` +
+              `${RLM}إذا لم تطلب ذلك، سجّل الدخول وألغِ الحذف ثم غيّر كلمة المرور، أو راسلنا على ${template.supportEmail}.`,
+          }
+        : {
+            subject: 'Your Kabso account deletion request',
+            text:
+              `We received a request to delete your Kabso account. Your account is hidden and you were signed out on every device.\n` +
+              `It will be deleted for good on ${template.date}. Until then you can cancel by signing in to the app and choosing "Cancel deletion".\n` +
+              `If this wasn't you, sign in, cancel the deletion and change your password, or write to ${template.supportEmail}.`,
+          };
+    case 'account_deletion_cancelled':
+      return ar
+        ? {
+            subject: 'أُلغي حذف حسابك في كابسو',
+            text:
+              `${RLM}أُلغي طلب حذف حسابك في كابسو، وعاد حسابك كما كان.\n` +
+              `${RLM}إذا لم تكن أنت، غيّر كلمة المرور أو راسلنا على ${template.supportEmail}.`,
+          }
+        : {
+            subject: 'Your Kabso account deletion was cancelled',
+            text:
+              `The request to delete your Kabso account was cancelled and your account is back as it was.\n` +
+              `If this wasn't you, change your password or write to ${template.supportEmail}.`,
+          };
   }
+}
+
+/** D193: the template of an account-deletion notice (the date in UTC, YYYY-MM-DD: unambiguous in both languages). */
+export function deletionTemplate(mail: AccountDeletionMail): MailTemplate {
+  return mail.kind === 'requested'
+    ? {
+        kind: 'account_deletion_requested',
+        date: (mail.purgeAfter ?? new Date()).toISOString().slice(0, 10),
+        supportEmail: mail.supportEmail,
+      }
+    : { kind: 'account_deletion_cancelled', supportEmail: mail.supportEmail };
 }

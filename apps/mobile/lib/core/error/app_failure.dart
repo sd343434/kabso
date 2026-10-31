@@ -247,6 +247,19 @@ enum ErrorCode {
   /// colour (only a host without a stated gender picks it).
   hostFrameStyleFromGender('HOST_FRAME_STYLE_FROM_GENDER'),
 
+  /// v1.62-social (D193, §10.56, 403): the password given to confirm the
+  /// account deletion is not the account's.
+  reauthFailed('REAUTH_FAILED'),
+
+  /// v1.62-social (D193, 409): something must be settled before the account
+  /// can be deleted (`details[].issue` names each blocker).
+  accountDeletionBlocked('ACCOUNT_DELETION_BLOCKED'),
+
+  /// v1.62-social (D193, 409): sign-in to an account in its deletion grace
+  /// period (`details` `purgeAfter`); the app offers to cancel. Also the
+  /// reason a session ends after the person asked for deletion.
+  accountDeletionPending('ACCOUNT_DELETION_PENDING'),
+
   /// Client-only: no connection could be established.
   networkOffline('NETWORK_OFFLINE'),
 
