@@ -86,12 +86,15 @@ class LevelSummary {
     required this.name,
     required this.description,
     required this.points,
+    BigInt? carriedPoints,
     this.level,
     this.nextLevel,
     this.pointsToNext,
     this.progressPercent,
     this.maxLevel = false,
-  });
+    // A named parameter cannot be private; null reads as zero (D194).
+    // ignore: prefer_initializing_formals
+  }) : _carriedPoints = carriedPoints;
 
   factory fromJson(Map<String, dynamic> json) {
     final status = json['status'];
@@ -107,6 +110,10 @@ class LevelSummary {
       name: json['name']! as String,
       description: json['description']! as String,
       points: _points(json['points']),
+      // v1.63-social (D194); "0" when an older server leaves it out.
+      carriedPoints: json.containsKey('carriedPoints')
+          ? _points(json['carriedPoints'])
+          : null,
       level: level == null ? null : LevelBrief.fromJson(level),
       nextLevel: next == null ? null : LevelBrief.fromJson(next),
       pointsToNext: _pointsOrNull(json['pointsToNext']),
@@ -123,6 +130,15 @@ class LevelSummary {
   final String name;
   final String description;
   final BigInt points;
+
+  /// Level points credited when a new ladder was published, so a kept level
+  /// sits at its new threshold (D194, `carriedPoints`); usually zero.
+  BigInt get carriedPoints => _carriedPoints ?? BigInt.zero;
+  final BigInt? _carriedPoints;
+
+  /// What the ladder is measured on: [points] + [carriedPoints] (D194). The
+  /// level screens show and compare this.
+  BigInt get levelPoints => points + carriedPoints;
   final LevelBrief? level;
   final LevelBrief? nextLevel;
   final BigInt? pointsToNext;

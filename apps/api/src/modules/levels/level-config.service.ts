@@ -12,7 +12,7 @@ import type {
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { loadAllCategories, loadCategory, type LevelDef, type LoadedCategory } from './level-catalog.js';
 import { versionConfigIssues, type LevelDefinitionInput } from './level-config.rules.js';
-import { levelFor } from './level-math.js';
+import { keptLevel, levelFor } from './level-math.js';
 import { LevelProgressService } from './level-progress.service.js';
 import { versionDto, VERSION_INCLUDE, type AdminLevelVersionDto, type VersionRow } from './levels.dto.js';
 import { LEVEL_CATEGORIES } from './levels.constants.js';
@@ -350,7 +350,8 @@ export class LevelConfigService {
     const counts = new Map<number, number>(levels.map((l) => [l.levelNumber, 0]));
     let changing = 0;
     for (const { total, current } of users.values()) {
-      const level = levelFor(levels, total)?.levelNumber ?? null;
+      // Levels are kept (owner D169, D194): the preview shows where everyone will stand.
+      const level = keptLevel(current, levelFor(levels, total)?.levelNumber ?? null);
       if (level !== null) counts.set(level, (counts.get(level) ?? 0) + 1);
       if (level !== current) changing++;
     }
@@ -403,7 +404,11 @@ export class LevelConfigService {
         const ordered = [...users.entries()].sort(([a], [b]) => a.localeCompare(b));
         let adjusted = 0;
         let changed = 0;
+        const oldLevels = before.version?.levels ?? [];
         for (const [userId, { total }] of ordered) {
+          // D194: every level is kept and the carried points are set for the new ladder first, so
+          // a RECOMPUTE adjustment below is measured on the new ladder.
+          const rebased = await this.progress.rebase(tx, category, userId, oldLevels, 'CONFIG_PUBLISHED');
           if (recalculation === 'RECOMPUTE_FROM_LEDGER') {
             const state = await tx.userLevelState.findUniqueOrThrow({
               where: { userId_categoryId: { userId, categoryId: category.id } },
@@ -421,12 +426,12 @@ export class LevelConfigService {
               });
               if (result.kind === 'applied') {
                 adjusted++;
-                if (result.state.currentLevel !== result.state.previousLevel) changed++;
+                if (rebased || result.state.currentLevel !== result.state.previousLevel) changed++;
                 continue;
               }
             }
           }
-          if (await this.progress.reevaluate(tx, category, userId, 'CONFIG_PUBLISHED')) changed++;
+          if (rebased) changed++;
         }
         await this.audit.recordIn(tx, {
           action: AuditAction.LEVELS_VERSION_PUBLISH,

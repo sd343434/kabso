@@ -27,6 +27,8 @@ export interface LevelSummaryDto {
   name: string;
   description: string;
   points: string;
+  /** v1.63-social (D194): level points carried from a ladder change; progress uses points + this. */
+  carriedPoints: string;
   level: LevelBriefDto | null;
   nextLevel: LevelBriefDto | null;
   pointsToNext: string | null;
@@ -41,6 +43,7 @@ export interface LevelDetailDto extends LevelSummaryDto {
 
 export interface StateSnapshot {
   readonly totalPoints: bigint;
+  readonly carriedPoints: bigint;
   readonly currentLevel: number | null;
   readonly versionId: string | null;
 }
@@ -64,11 +67,15 @@ export function summaryDto(
   lang: ContentLanguage,
 ): LevelSummaryDto {
   const points = state?.totalPoints ?? 0n;
+  // D194 (§10.57): the carry only counts on the version it was set for.
+  const sameVersion = state !== null && isAvailable(category) && state.versionId === category.version.id;
+  const carried = sameVersion ? state.carriedPoints : 0n;
   const base = {
     category: category.code,
     name: lang === 'en' ? category.nameEn : category.nameAr,
     description: lang === 'en' ? category.descriptionEn : category.descriptionAr,
     points: points.toString(),
+    carriedPoints: carried.toString(),
   };
   if (!isAvailable(category)) {
     return {
@@ -84,7 +91,7 @@ export function summaryDto(
   }
   const version = category.version;
   const floor = state && state.versionId === version.id ? state.currentLevel : null;
-  const progress = progressFor(version.levels, points, floor);
+  const progress = progressFor(version.levels, points + carried, floor);
   return {
     ...base,
     status: 'AVAILABLE',

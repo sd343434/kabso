@@ -846,7 +846,7 @@ describe('KL-058 levels', () => {
         expect(v.body.levels).toHaveLength(100);
         expect(v.body.levels[99]).toMatchObject({
           levelNumber: 100,
-          requiredPoints: '546090',
+          requiredPoints: '2000840500', // D194: 20 008 405 000 coins
           nameEn: 'Legend',
         });
         const check = await adminCall('post', `/versions/${id}/validate`).send();

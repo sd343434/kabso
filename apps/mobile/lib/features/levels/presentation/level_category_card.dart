@@ -412,9 +412,11 @@ class LevelCategoryCard extends StatelessWidget {
             level.levelNumber,
             iconKey: level.iconKey,
           );
-    final points = l10n.levelsPoints(formatPoints(s.points));
+    // D194: the level points (points + carried) the ladder is measured on;
+    // big amounts compact (5.6B / 5.6 مليار), a need rounded up.
+    final points = l10n.levelsPoints(formatPointsCompact(s.levelPoints, l10n));
     final x = s.available && !s.maxLevel && s.pointsToNext != null
-        ? formatPoints(s.pointsToNext!)
+        ? formatPointsCompact(s.pointsToNext!, l10n, roundUp: true)
         : null;
     final String title;
     final InlineSpan line;

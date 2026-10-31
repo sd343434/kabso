@@ -3493,6 +3493,52 @@ are **derived from the agency** (no bag items), like D185's.
 - **Migrations** `20270103090000_host_agent_perks_enums` (the enum value), `20270103100000_host_agent_perks`
   (columns, counter, index); no username changes in SQL.
 
+### 10.57 The level ladder repriced; carried points keep every level *(v1.63-social, DRAFT — D194)*
+
+Coins are cheap (retail 1 000 000 coins = $12.50, i.e. 80 000 coins per dollar), so the owner repriced the ladder
+(option B). Multiplier 0.1 is unchanged (1 point per 10 coins); the step between one level and the next, per band:
+
+| levels | coins per level | points per level | cumulative coins at the band's end | ≈ USD |
+| ------ | --------------- | ---------------- | ---------------------------------- | ----- |
+| 2–10 | 45 000 | 4 500 | 405 000 | 5.06 |
+| 11–20 | 200 000 | 20 000 | 2 405 000 | 30.06 |
+| 21–30 | 1 000 000 | 100 000 | 12 405 000 | 155.06 |
+| 31–40 | 3 600 000 | 360 000 | 48 405 000 | 605.06 |
+| 41–50 | 11 000 000 | 1 100 000 | 158 405 000 | 1 980.06 |
+| 51–60 | 32 000 000 | 3 200 000 | 478 405 000 | 5 980.06 |
+| 61–80 | 136 000 000 | 13 600 000 | 3 198 405 000 | 39 980.06 |
+| 81–99 | 590 000 000 | 59 000 000 | 14 408 405 000 | 180 105.06 |
+| 100 | 5 600 000 000 | 560 000 000 | 20 008 405 000 | 250 105.06 |
+
+Level 100 = 2 000 840 500 points (BIGINT holds 9.2 × 10^18). The ladder serves the four categories — all four are
+coin-valued (`valueUnit: COIN`): Charm (gifts received), Support (gifts sent), Wizard (lucky gifts sent), Gaming
+(game spend). Charm's live-tap credit (§10.18, 1 point per 10 counted taps, at most 1 000 per viewer per live) is
+not coin-valued and is unchanged; on the new ladder it is small.
+
+- **Publication.** Publishing stays an admin action (CP-005 §4); because the owner ordered this ladder, migration
+  `20270104090000_level_ladder_d194` publishes it **once** in every category as an audited system change
+  (`audit_logs` `levels.version.create` + `levels.version.publish`, actor NULL, `via: migration`,
+  `decision: D194`). The previous published version is archived; the on/off switch is not touched; open drafts stay
+  drafts (listed as `openDrafts` in the audit row — a draft cannot be archived). `levels:admin draft-preset` and
+  `publish-charm` write this ladder from now on.
+- **Levels are kept (§10.43).** `user_level_states.carried_points` (BIGINT ≥ 0, not in the ledger) is set at every
+  publish: with *n* the kept level, `carried = max(0, new(n) + inside − total)` where `inside` = the points the user
+  had already made inside *n* on the old ladder (`total + old carried − old(n)`, clamped to 0 … new step − 1), and 0
+  for whoever already reaches *n* on the new ladder. The level and the progress are measured on **level points =
+  total + carried**; `total_points` stays Σ ledger.
+- **Progress for a kept level.** The bar measures from the kept level's new threshold: level points − new(n) over
+  new(n+1) − new(n); `pointsToNext` = new(n+1) − level points. Right after the switch someone at level 50 with 410
+  points inside it shows 0.0 % and needs 3 200 000 − 410 points (32 000 000 coins − 4 100). A reversal below the
+  carried base keeps the level and shows 0 % (as before).
+- **Fraud.** A fraud deduction (§10.43) lowers the level to what the level points reach and takes the same share of
+  the carry: `carried × after / before` (floored); a deduction of everything leaves nothing carried.
+- **Contract.** `LevelSummary.carriedPoints` (PointsAmount, required, "0" while UNAVAILABLE or on another version).
+  `points` is unchanged. The app shows level points and compacts amounts from a million (`15.8M`, `5.6B`;
+  `15.8 مليون`, Latin digits, DESIGN_SYSTEM §3.3), a need rounded up.
+- **Unchanged by design.** Support tiers and their 21 frames, charm medals, the room level and the task bands (the
+  higher of Support and Charm, D176/D188) stay keyed to level numbers, so with the kept levels nobody loses a band
+  or a frame; each tier is now worth more.
+
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 
 Additive; no earlier rule changes. Reels and video (M2), stories (M3), notifications (M4),

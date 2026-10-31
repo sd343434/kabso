@@ -106,10 +106,22 @@ function page<R extends { id: string }, T>(
 }
 
 function snapshot(
-  row: { totalPoints: bigint; currentLevel: number | null; versionId: string | null } | undefined,
+  row:
+    | {
+        totalPoints: bigint;
+        carriedPoints: bigint;
+        currentLevel: number | null;
+        versionId: string | null;
+      }
+    | undefined,
 ): StateSnapshot | null {
   return row
-    ? { totalPoints: row.totalPoints, currentLevel: row.currentLevel, versionId: row.versionId }
+    ? {
+        totalPoints: row.totalPoints,
+        carriedPoints: row.carriedPoints,
+        currentLevel: row.currentLevel,
+        versionId: row.versionId,
+      }
     : null;
 }
 

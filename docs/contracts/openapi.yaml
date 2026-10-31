@@ -335,6 +335,11 @@ info:
     agency exists and the team has not suspended its host agent (any rank, LAPSED too). `OwnAgency.hostAgent`
     (`OwnHostAgent`): the code, whether the perks are on and whether the code is the username shown now (a person
     who is also a recharge agent shows the code activated first; the other stays reserved) (CONVENTIONS §10.52).
+    **D194 (DRAFT v1.63-social)**: the level ladder repriced for cheap coins (1 000 000 coins = $12.50; level 100 =
+    20 008 405 000 coins ≈ $250 105), published once by a migration as an audited system change. Levels are kept:
+    `LevelSummary.carriedPoints` (additive, required) is the level points credited at a ladder change so a kept
+    level sits at its new threshold; `pointsToNext` and `progressPercent` are measured on `points + carriedPoints`
+    (`points` stays Σ of the caller's ledger) (CONVENTIONS §10.57).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -9608,7 +9613,7 @@ components:
     LevelSummary:
       type: object
       required:
-        [category, status, name, description, points, level, nextLevel, pointsToNext, progressPercent, maxLevel, versionNumber]
+        [category, status, name, description, points, carriedPoints, level, nextLevel, pointsToNext, progressPercent, maxLevel, versionNumber]
       properties:
         category: { $ref: '#/components/schemas/LevelCategoryCode' }
         status:
@@ -9618,6 +9623,13 @@ components:
         name: { type: string, maxLength: 40 }
         description: { type: string, maxLength: 200 }
         points: { $ref: '#/components/schemas/PointsAmount' }
+        carriedPoints:
+          allOf: [{ $ref: '#/components/schemas/PointsAmount' }]
+          description: >-
+            v1.63-social (D194, CONVENTIONS §10.57): level points credited when a new ladder was published, so the
+            level the caller kept sits at its new threshold (plus what they had made inside it). "0" for most
+            people and while UNAVAILABLE. The level and progress are measured on `points + carriedPoints`; it is
+            not in the points history.
         level:
           oneOf:
             - { $ref: '#/components/schemas/LevelBrief' }
@@ -9631,7 +9643,7 @@ components:
             - { $ref: '#/components/schemas/PointsAmount' }
             - { type: 'null' }
         progressPercent:
-          description: Progress from the current level's threshold to the next one, 0–100 with one decimal; 100 at the top level; null when UNAVAILABLE.
+          description: Progress from the current level's threshold to the next one on `points + carriedPoints` (v1.63-social), 0–100 with one decimal, floored; 0 while a kept level is above what those points reach; 100 at the top level; null when UNAVAILABLE.
           type: [number, 'null']
           minimum: 0
           maximum: 100

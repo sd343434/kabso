@@ -10,7 +10,7 @@ import type {
 import { grantLevelRewardsIn, revokeLevelRewardsIn } from '../bag/bag-grants.js';
 import { awardCharmMedalsIn } from '../medals/medal-awards.js';
 import type { LoadedCategory } from './level-catalog.js';
-import { keptLevel, levelFor } from './level-math.js';
+import { carryAfterFraud, carryAtSwitch, keptLevel, levelFor, type LevelRow } from './level-math.js';
 import { addPoints, formatMultiplier } from './points-math.js';
 import { lostSupportFrames, supportFramesFor } from './support-tiers.js';
 import { uuidv7 } from './uuidv7.js';
@@ -21,6 +21,7 @@ interface StateRow {
   id: string;
   total_points: bigint;
   lifetime_earned_points: bigint;
+  carried_points: bigint;
   current_level: number | null;
   version_id: string | null;
 }
@@ -50,6 +51,8 @@ export interface EntryInput {
 export interface StateAfter {
   readonly totalPoints: bigint;
   readonly lifetimeEarnedPoints: bigint;
+  /** D194: level points carried from a ladder change (the level is measured on total + carried). */
+  readonly carriedPoints: bigint;
   readonly currentLevel: number | null;
   readonly previousLevel: number | null;
 }
@@ -91,7 +94,7 @@ export class LevelProgressService {
       INSERT INTO user_level_states (id, user_id, category_id, updated_at)
       VALUES (${uuidv7()}::uuid, ${userId}::uuid, ${categoryId}::uuid, now())
       ON CONFLICT (user_id, category_id) DO UPDATE SET updated_at = user_level_states.updated_at
-      RETURNING id, total_points, lifetime_earned_points, current_level, version_id`;
+      RETURNING id, total_points, lifetime_earned_points, carried_points, current_level, version_id`;
     const row = rows[0];
     if (!row) throw new Error('user_level_states row missing after insert');
     return row;
@@ -102,12 +105,19 @@ export class LevelProgressService {
    * never goes down — not with fewer points (reversals, refunds, admin deductions) and not under a
    * harder new version — so `current_level` is also the user's floor: the result is the higher of
    * the kept level and what the points reach. Only a fraud deduction (`fraud`) takes the level
-   * down to what the points reach.
+   * down to what the points reach. D194: the points are `total + carried`; a fraud deduction
+   * also takes its share of the carried points ({@link carryAfterFraud}).
    */
-  private levelAfter(category: LoadedCategory, state: StateRow, total: bigint, fraud: boolean) {
+  private levelAfter(
+    category: LoadedCategory,
+    state: StateRow,
+    total: bigint,
+    carried: bigint,
+    fraud: boolean,
+  ): number | null {
     const version = category.version;
     if (!version) return state.current_level;
-    const reached = levelFor(version.levels, total)?.levelNumber ?? null;
+    const reached = levelFor(version.levels, total + carried)?.levelNumber ?? null;
     if (fraud) return reached;
     return keptLevel(state.current_level, reached);
   }
@@ -157,13 +167,18 @@ export class LevelProgressService {
       input.entryType === 'EARN'
         ? addPoints(state.lifetime_earned_points, delta)
         : state.lifetime_earned_points;
-    const level = this.levelAfter(category, state, total, input.fraud === true);
+    const carried =
+      input.fraud === true
+        ? carryAfterFraud(state.carried_points, state.total_points, total)
+        : state.carried_points;
+    const level = this.levelAfter(category, state, total, carried, input.fraud === true);
     const now = this.clock.now();
     await tx.userLevelState.update({
       where: { id: state.id },
       data: {
         totalPoints: total,
         lifetimeEarnedPoints: lifetime,
+        carriedPoints: carried,
         currentLevel: level,
         versionId: version?.id ?? state.version_id,
         calculatedAt: now,
@@ -200,6 +215,7 @@ export class LevelProgressService {
       state: {
         totalPoints: total,
         lifetimeEarnedPoints: lifetime,
+        carriedPoints: carried,
         currentLevel: level,
         previousLevel: state.current_level,
       },
@@ -225,17 +241,31 @@ export class LevelProgressService {
     const total = sums[0]?.total ?? 0n;
     const lifetime = sums[0]?.lifetime ?? 0n;
     const clampedTotal = total < 0n ? 0n : total;
-    return this.writeState(tx, category, userId, state, clampedTotal, lifetime, reason, null);
+    return this.writeState(tx, category, userId, state, clampedTotal, lifetime, state.carried_points, reason);
   }
 
-  /** Re-evaluates the level for the current total (a new version was published). */
-  async reevaluate(
+  /**
+   * D194 (§10.57): a new version was published over `oldLevels` (the previous published ladder;
+   * empty when none). The level is kept and the carried points are set afresh for the new ladder
+   * ({@link carryAtSwitch}); the level never rises from the carry alone.
+   */
+  async rebase(
     tx: Tx,
     category: LoadedCategory,
     userId: string,
+    oldLevels: readonly LevelRow[],
     reason: LevelTransitionReason,
   ): Promise<boolean> {
     const state = await this.lockState(tx, userId, category.id);
+    const carried = category.version
+      ? carryAtSwitch({
+          oldLevels,
+          newLevels: category.version.levels,
+          total: state.total_points,
+          oldCarry: state.carried_points,
+          kept: state.current_level,
+        }).carried
+      : state.carried_points;
     return this.writeState(
       tx,
       category,
@@ -243,8 +273,8 @@ export class LevelProgressService {
       state,
       state.total_points,
       state.lifetime_earned_points,
+      carried,
       reason,
-      null,
     );
   }
 
@@ -255,17 +285,18 @@ export class LevelProgressService {
     state: StateRow,
     total: bigint,
     lifetime: bigint,
+    carried: bigint,
     reason: LevelTransitionReason,
-    ledgerEntryId: string | null,
   ): Promise<boolean> {
     const version = category.version;
     // Never lower (owner D169): a rebuild or a new version keeps the level reached.
     const level = version
-      ? keptLevel(state.current_level, levelFor(version.levels, total)?.levelNumber ?? null)
+      ? keptLevel(state.current_level, levelFor(version.levels, total + carried)?.levelNumber ?? null)
       : state.current_level;
     const changed =
       total !== state.total_points ||
       lifetime !== state.lifetime_earned_points ||
+      carried !== state.carried_points ||
       level !== state.current_level ||
       (version?.id ?? state.version_id) !== state.version_id;
     if (!changed) return false;
@@ -274,6 +305,7 @@ export class LevelProgressService {
       data: {
         totalPoints: total,
         lifetimeEarnedPoints: lifetime,
+        carriedPoints: carried,
         currentLevel: level,
         versionId: version?.id ?? state.version_id,
         calculatedAt: this.clock.now(),
@@ -288,7 +320,7 @@ export class LevelProgressService {
           newLevel: level,
           points: total,
           reason,
-          ledgerEntryId,
+          ledgerEntryId: null,
           versionId: version?.id ?? null,
         },
       });

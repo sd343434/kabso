@@ -41,8 +41,8 @@ export const NO_BADGES: LiveChatAuthorBadgesDto = Object.freeze({
 /**
  * A user's level number in one category, null while the category is unavailable (not enabled or
  * no published version). The same rule as the levels read side (`summaryDto`) and the room level
- * (`ROOM_LEVEL_SQL`, §10.18): the highest level of the published ladder the points reach, or the
- * level kept from that same version if higher.
+ * (`ROOM_LEVEL_SQL`, §10.18): the highest level of the published ladder the points (+ carried,
+ * D194) reach, or the level kept from that same version if higher.
  */
 function levelSql(code: 'ATTRACTIVENESS' | 'SUPPORT'): Prisma.Sql {
   return Prisma.sql`(
@@ -50,7 +50,8 @@ function levelSql(code: 'ATTRACTIVENESS' | 'SUPPORT'): Prisma.Sql {
                   GREATEST(
                     (SELECT max(ld.level_number) FROM level_definitions ld
                       WHERE ld.version_id = lc.published_version_id
-                        AND ld.required_points <= COALESCE(ls.total_points, 0)),
+                        AND ld.required_points <= COALESCE(ls.total_points, 0)
+                            + CASE WHEN ls.version_id = lc.published_version_id THEN ls.carried_points ELSE 0 END),
                     CASE WHEN ls.version_id = lc.published_version_id THEN ls.current_level END)
                 END
            FROM level_categories lc

@@ -1178,6 +1178,9 @@ model UserLevelState {
   totalPoints             BigInt    @default(0) @map("total_points")
   /// Σ of positive EARN deltas (refunds do not lower it).
   lifetimeEarnedPoints    BigInt    @default(0) @map("lifetime_earned_points")
+  /// D194 (§10.57): level points credited at a ladder change so a kept level sits at its new
+  /// threshold; CHECK >= 0. The level is measured on total + carried; not part of the ledger.
+  carriedPoints           BigInt    @default(0) @map("carried_points")
   /// Level number under `versionId`; null before any published version applied.
   currentLevel            Int?      @map("current_level")
   versionId               String?   @map("version_id") @db.Uuid

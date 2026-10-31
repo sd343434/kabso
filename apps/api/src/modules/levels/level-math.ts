@@ -71,3 +71,45 @@ export function progressFor<L extends LevelRow>(
     maxLevel: false,
   };
 }
+
+/**
+ * D194 (§10.57): a ladder change keeps every level (owner D169) — `carried` level points are
+ * credited so that `total + carried` sits at the kept level's threshold on the NEW ladder, plus the
+ * points the user had already made inside that level (`total + oldCarry` above its old
+ * threshold), capped one below the new step so the carry never lifts anyone a level. Progress then
+ * follows the new ladder from there. Whoever already reaches the level on the new ladder carries
+ * nothing. `kept` = the stored level (null = none yet).
+ */
+export function carryAtSwitch(input: {
+  readonly oldLevels: readonly LevelRow[];
+  readonly newLevels: readonly LevelRow[];
+  readonly total: bigint;
+  readonly oldCarry: bigint;
+  readonly kept: number | null;
+}): { readonly level: number | null; readonly carried: bigint } {
+  const reached = levelFor(input.newLevels, input.total)?.levelNumber ?? null;
+  const level = keptLevel(input.kept, reached);
+  const at = input.newLevels.findIndex((l) => l.levelNumber === level);
+  const here = input.newLevels[at];
+  // Nothing to carry for whoever already stands at the level on the new ladder.
+  if (level === null || !here || input.total >= here.requiredPoints) return { level, carried: 0n };
+  const next = input.newLevels[at + 1];
+  const old = input.oldLevels.find((l) => l.levelNumber === level);
+  let inside = 0n;
+  if (old && next) {
+    inside = input.total + input.oldCarry - old.requiredPoints;
+    const cap = next.requiredPoints - here.requiredPoints - 1n;
+    inside = inside < 0n ? 0n : inside > cap ? cap : inside;
+  }
+  const carried = here.requiredPoints + inside - input.total;
+  return { level, carried: carried > 0n ? carried : 0n };
+}
+
+/**
+ * D194: a fraud deduction takes the same share of the carried points as of the real ones
+ * (`carried × after / before`, floored), so a deduction of everything leaves nothing carried.
+ */
+export function carryAfterFraud(carried: bigint, before: bigint, after: bigint): bigint {
+  if (carried <= 0n || before <= 0n || after <= 0n) return 0n;
+  return after >= before ? carried : (carried * after) / before;
+}
