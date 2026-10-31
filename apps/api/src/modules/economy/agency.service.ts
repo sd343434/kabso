@@ -15,6 +15,7 @@ import { uuidv7 } from '../levels/uuidv7.js';
 import { MediaService } from '../media/media.service.js';
 import { Notifier } from '../notifications/notifier.js';
 import { syncAgentUsernameIn } from '../users/agent-usernames.js';
+import { cancelPendingHostApplicationIn } from '../host-applications/host-applications.core.js';
 import { USER_SUMMARY_SELECT, userSummary, type PageDto } from '../posts/post-views.js';
 import type { PageQuery } from '../posts/posts.schemas.js';
 import { SocialCursorCodec } from '../posts/social-cursor.js';
@@ -637,6 +638,8 @@ export class AgencyService implements OnModuleInit, OnModuleDestroy {
               },
             });
             await this.notifier.agency(tx, { type: 'AGENCY_OPENED', recipientId: me, agencyId });
+            // v1.73-social (D209, §10.68): an agency owner is not a direct host — a pending application goes.
+            await cancelPendingHostApplicationIn(tx, me, 'AGENCY', now);
             // The application's private fields never go to the audit trail (the name is public).
             await tx.auditLog.create({
               data: {
@@ -880,6 +883,8 @@ export class AgencyService implements OnModuleInit, OnModuleDestroy {
             metadata: { link: id, rank: agency.rank },
           },
         });
+        // v1.73-social (D209, §10.68): an agency host is not a direct host — a pending «كن مضيفاً مع الإدارة» goes.
+        await cancelPendingHostApplicationIn(tx, me, 'AGENCY', this.clock.now());
       });
     } catch (err) {
       // A concurrent join (the partial unique index `agency_hosts_one_active`).

@@ -51,6 +51,8 @@ export const EXPORT_SECTIONS = [
   'recharge_agent',
   // v1.70-social (D206): the «افتح وكالة» applications (the person's own KYC) and their pictures.
   'agency_applications',
+  // v1.73-social (D209): the «كن مضيفاً مع الإدارة» applications (the person's own KYC) and their pictures.
+  'host_applications',
   'consents',
   'devices',
 ] as const;
@@ -751,6 +753,48 @@ export async function buildDataExport(db: Db, o: BuildExportOptions): Promise<Ex
     });
   }
 
+  // -- v1.73-social (D209): the «كن مضيفاً مع الإدارة» applications and their pictures.
+  const hostApps = await db.hostApplication.findMany({
+    where: { userId: u },
+    orderBy: { createdAt: 'asc' },
+  });
+  const hostApplications = [];
+  for (const a of hostApps) {
+    const pictures: Record<string, string | null> = { idCard: null, selfie: null };
+    for (const [which, key] of [
+      ['idCard', a.photoKey],
+      ['selfie', a.selfieKey],
+    ] as const) {
+      if (!key) continue;
+      const bytes = o.storage ? await o.storage.get(key, MAX_FILE_BYTES).catch(() => null) : null;
+      if (bytes) {
+        const path = `files/host-application/${a.id}/${which}.webp`;
+        zip.add(path, bytes);
+        pictures[which] = path;
+        files++;
+      } else {
+        notIncluded.push(`host-application ${a.id} ${which}`);
+      }
+    }
+    hostApplications.push({
+      id: a.id,
+      status: a.status,
+      displayName: a.displayName,
+      country: a.country,
+      dateOfBirth: a.dateOfBirth ? a.dateOfBirth.toISOString().slice(0, 10) : null,
+      contactType: a.contactType,
+      contactValue: a.contactValue,
+      bio: a.bio,
+      links: a.links,
+      submittedAt: iso(a.createdAt),
+      rulesAcceptedAt: iso(a.rulesAcceptedAt),
+      decidedAt: iso(a.decidedAt),
+      rejectReason: a.rejectReason,
+      personalDataDeletedAt: iso(a.purgedAt),
+      pictures,
+    });
+  }
+
   // -- Consents (D198), the top-up terms (D190) and the lucky gifts' 18+ statement (D132).
   const consents = {
     acceptances: (
@@ -865,6 +909,7 @@ export async function buildDataExport(db: Db, o: BuildExportOptions): Promise<Ex
     topups,
     recharge_agent: rechargeAgent,
     agency_applications: agencyApplications,
+    host_applications: hostApplications,
     consents,
     devices,
   };
@@ -885,6 +930,7 @@ export async function buildDataExport(db: Db, o: BuildExportOptions): Promise<Ex
     topups: topups.length,
     recharge_agent: rechargeAgent.length,
     agency_applications: agencyApplications.length,
+    host_applications: hostApplications.length,
     consents: consents.acceptances.length + consents.topupTerms.length,
     devices: devices.sessions.length,
   } satisfies Record<ExportSection, number>;

@@ -153,6 +153,8 @@ function visibleNotificationWhere(me: string): Prisma.NotificationWhereInput {
       { type: 'DATA_EXPORT_READY' },
       // v1.70-social (D206): the caller's agency (owner) or the agency that released the caller (system).
       { type: { in: [...AGENCY_NOTIFICATION_TYPES] } },
+      // v1.73-social (D209): the caller's application «كن مضيفاً مع الإدارة» was decided (system, no target).
+      { type: { in: ['HOST_APPLICATION_APPROVED', 'HOST_APPLICATION_REJECTED'] } },
       { type: 'POST_PUBLISHED', post: visiblePostWhere(me) },
       {
         type: { in: ACTOR_TYPES },

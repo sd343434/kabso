@@ -287,6 +287,15 @@ info:
     itself when fewer than 3 hosts were activated (`MyAgency.closedAgency`, `openRule`); code
     `AGENCY_OPEN_NOT_ALLOWED`; notification types `AGENCY_*` with target `AGENCY`; the panel's application view
     and probation actions (CONVENTIONS §10.65).
+    **D209 (DRAFT v1.73-social)**: «كن مضيفاً مع الإدارة» — on «الوكالة», a person who is not a host and in no
+    agency applies to host directly with the Kabso team (no agency, no agency commission): `applyForHosting`
+    (Idempotency-Key; the name, country, date of birth ≥ 18, contact, bio, up to 3 links, the mandatory ID card +
+    selfie as the D185 private uploads, the host rules accepted), `getMyHostingApplication`,
+    `cancelMyHostingApplication`; one pending application per user; approving gives the hosting permission with
+    source `IDENTITY`; a rejection says why and when to apply again (`HOST_APPLICATION_REAPPLY_DAYS`, 30); code
+    `HOST_APPLICATION_NOT_ALLOWED`; notification types `HOST_APPLICATION_APPROVED` / `HOST_APPLICATION_REJECTED`;
+    the panel's «طلبات المضيفين» (`listAdminHostApplications`, `getAdminHostApplication(Photo)`,
+    `approveAdminHostApplication`, `rejectAdminHostApplication`) (CONVENTIONS §10.68).
     **D184 (DRAFT v1.53-social)**: the Task Center's rewards are cherries (the old coins ×10, then raised
     ×300: ≈ $5 a month at most), credited to the cherry ledger as `TASK_REWARD` under a daily cherry cap
     (`ProgramTask.rewardCherries` / `claimedCherries`, `MyTasks.dailyCapCherries` / `dailyEarnedCherries`,
@@ -5413,6 +5422,86 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/AgencyHostPage' }
         '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/hosting-application:
+    get:
+      tags: [agency]
+      operationId: getMyHostingApplication
+      summary: "«كن مضيفاً مع الإدارة»: the caller's hosting permission, latest application and whether they may apply (D209)"
+      description: |
+        v1.73-social, CONVENTIONS §10.68 (owner 2026-10-31). `host`: the caller's hosting permission now, any source
+        (`IDENTITY` = approved here, a host directly with the Kabso team). `application`: the caller's latest
+        application (any status; null: never applied). `rule.refusal` says why the caller may not apply now, in this
+        order: `ACCOUNT_NOT_ACTIVE`, `ALREADY_HOST`, `HOST_OF_AGENCY` (an ACTIVE host of an agency), `OWNS_AGENCY`
+        (an open agency), `PENDING` (one open application per user), `REAPPLY_COOLDOWN` (rejected less than
+        `rule.reapplyDays` ago — `application.reapplyAt`). Per-user default rate limit.
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyHostingApplication' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [agency]
+      operationId: applyForHosting
+      summary: "«كن مضيفاً مع الإدارة»: apply to host directly with the Kabso team — ID check, 18+ (D209)"
+      description: |
+        v1.73-social, CONVENTIONS §10.68. `photoUploadId` (the ID card) and `selfieUploadId` are pending private
+        uploads of kinds `RECHARGE_AGENT_PHOTO` and `RECHARGE_AGENT_SELFIE` (the D185 flow: `createMediaUpload` + PUT,
+        never completed); the application keeps them privately for the team (every view audited). The team approves
+        (the hosting permission with source `IDENTITY`; `HOST_APPLICATION_APPROVED`) or rejects with a reason
+        (`HOST_APPLICATION_REJECTED`). Joining or opening an agency cancels a pending application (`cancelReason`
+        `AGENCY`). Order after auth: 400 `Idempotency-Key` (required, a UUID) → 400 body → the same key again: 200 with
+        the same body, 409 `IDEMPOTENCY_CONFLICT` with another → 503 `MEDIA_UPLOADS_UNAVAILABLE` → 409
+        `HOST_APPLICATION_NOT_ALLOWED` with `details[0] = {field: application, issue}`, issue one of
+        `HostingApplyRefusal` or `UNDER_MIN_AGE` (younger than `rule.minAge`, `HOST_APPLICATION_MIN_AGE`, 18, on the
+        day of the request, UTC) → 400 `photoUploadId` / `selfieUploadId` `invalid_value` → 201. Rate limit
+        `RATE_LIMIT_HOST_APPLY_USER` (5 / 24 h per user, refused attempts count) → 429.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/HostingApplicationRequest' }
+      responses:
+        '201':
+          description: Submitted (`application.status` PENDING).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyHostingApplication' }
+        '200':
+          description: The same Idempotency-Key and body again.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyHostingApplication' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '409':
+          description: "`HOST_APPLICATION_NOT_ALLOWED` (with the reason) or `IDEMPOTENCY_CONFLICT`."
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/me/hosting-application/cancel:
+    post:
+      tags: [agency]
+      operationId: cancelMyHostingApplication
+      summary: "Cancels the caller's pending application «كن مضيفاً مع الإدارة» (D209)"
+      description: |
+        v1.73-social, CONVENTIONS §10.68. The pending application becomes CANCELLED (`cancelReason` USER; audited); the
+        caller may apply again at once. 404 when nothing is pending. Per-user default rate limit.
+      responses:
+        '200':
+          description: Cancelled; the caller's state now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyHostingApplication' }
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -10989,6 +11078,138 @@ paths:
           $ref: '#/components/responses/Error'
         '429':
           $ref: '#/components/responses/Error'
+  /api/v1/admin/host-applications:
+    get:
+      tags: [admin-panel]
+      operationId: listAdminHostApplications
+      summary: "«طلبات المضيفين»: the applications «كن مضيفاً مع الإدارة», no private field (hosts.applications)"
+      description: "(v1.73-social, D209, §10.68) `q`: the applicant's username or email prefix, or part of the name. `format=csv`: the matching rows (≤ 5000) as `text/csv`, audited `admin.export.csv`."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminPage'
+        - $ref: '#/components/parameters/AdminPageSize'
+        - $ref: '#/components/parameters/AdminOrder'
+        - $ref: '#/components/parameters/AdminQ'
+        - $ref: '#/components/parameters/AdminFormat'
+        - name: sort
+          in: query
+          required: false
+          schema: { type: string, enum: [createdAt, decidedAt], default: createdAt }
+        - name: status
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/HostApplicationStatus' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminHostApplicationPage' }
+            text/csv:
+              schema: { type: string }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/host-applications/{applicationId}:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminHostApplication
+      summary: "An application «كن مضيفاً مع الإدارة» with its private fields and the account summary (hosts.applications; every view audited)"
+      description: "(v1.73-social, D209, §10.68) Audited `host.application.view`. The date of birth, the contact, the bio and the links are null / empty once purged (account deletion)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminHostApplicationIdPath'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminHostApplication' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/host-applications/{applicationId}/photos/{which}:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminHostApplicationPhoto
+      summary: "The application's ID card (`photo`) or selfie, streamed through the API (hosts.applications.photos; every view audited)"
+      description: "(v1.73-social, D209) Never a storage URL: `Cache-Control: private, no-store`. Audited `host.application.photo.view`. 404 when purged or missing."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminHostApplicationIdPath'
+        - name: which
+          in: path
+          required: true
+          schema: { type: string, enum: [photo, selfie] }
+      responses:
+        '200':
+          description: The WebP picture.
+          content:
+            image/webp:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/host-applications/{applicationId}/approve:
+    post:
+      tags: [admin-panel]
+      operationId: approveAdminHostApplication
+      summary: "Approves a pending application — `host-admin approve` (hosts.applications.decide; audited; no authenticator code)"
+      description: "(v1.73-social, D209) The hosting permission with source `IDENTITY` and `grantedById` the admin (a person who got one another way meanwhile keeps it, `source` says which); the applicant gets `HOST_APPLICATION_APPROVED` (pushed). Audited `host.application.approve` and `live.host.grant`. 409 `ADMIN_ACTION_REFUSED`: not PENDING, the account not ACTIVE, or now in an agency."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminHostApplicationIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      responses:
+        '200':
+          description: Approved.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, source]
+                properties:
+                  status: { type: string, enum: [APPROVED] }
+                  source: { type: string, enum: [ADMIN, AGENCY, IDENTITY] }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/host-applications/{applicationId}/reject:
+    post:
+      tags: [admin-panel]
+      operationId: rejectAdminHostApplication
+      summary: "Rejects a pending application with a reason the applicant sees — `host-admin reject` (hosts.applications.decide; audited)"
+      description: "(v1.73-social, D209) The applicant gets `HOST_APPLICATION_REJECTED` and may apply again `HOST_APPLICATION_REAPPLY_DAYS` (30) later. 409 `ADMIN_ACTION_REFUSED` when not PENDING."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminHostApplicationIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReasonRequest' }
+      responses:
+        '200':
+          description: Rejected.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { type: string, enum: [REJECTED] }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/admin/live-hosts:
     get:
       tags:
@@ -12211,6 +12432,12 @@ components:
       description: "(v1.60-social, D191) The admin panel's session cookie (HttpOnly, Secure, SameSite=Strict), set by `adminLogin` and replaced by the second factor; changes also need `X-CSRF-Token` (CONVENTIONS §10.54.2)."
   parameters:
     # v1.60-social (D191): the admin panel.
+    AdminHostApplicationIdPath:
+      name: applicationId
+      in: path
+      required: true
+      description: (v1.73-social, D209) a «كن مضيفاً مع الإدارة» application.
+      schema: { type: string, format: uuid }
     AdminCsrf:
       name: X-CSRF-Token
       in: header
@@ -12778,6 +13005,192 @@ components:
           properties:
             photo: { type: boolean, description: The ID card is stored. }
             selfie: { type: boolean }
+    HostApplicationStatus:
+      type: string
+      description: (v1.73-social, D209) the state of an application «كن مضيفاً مع الإدارة».
+      enum: [PENDING, APPROVED, REJECTED, CANCELLED]
+    HostingApplyRefusal:
+      type: string
+      description: (v1.73-social, D209) why the caller may not apply now, in the order they are checked (§10.68).
+      enum: [ACCOUNT_NOT_ACTIVE, ALREADY_HOST, HOST_OF_AGENCY, OWNS_AGENCY, PENDING, REAPPLY_COOLDOWN]
+    HostingApplicationRequest:
+      type: object
+      additionalProperties: false
+      description: v1.73-social (D209). Text is trimmed; no control characters (line breaks allowed in the bio).
+      required: [displayName, country, dateOfBirth, contact, bio, acceptRules, photoUploadId, selfieUploadId]
+      properties:
+        displayName: { type: string, minLength: 1, maxLength: 100, description: "The name the person hosts under (the §6 display-name rules; the app fills in the profile's)." }
+        country: { type: string, pattern: '^[A-Za-z]{2}$', description: ISO 3166-1 alpha-2. }
+        dateOfBirth: { type: string, format: date, description: "YYYY-MM-DD; at least `rule.minAge` (18) years before today (UTC), else 409 `UNDER_MIN_AGE`." }
+        contact:
+          type: object
+          additionalProperties: false
+          required: [type, value]
+          properties:
+            type: { type: string, enum: [WHATSAPP, TELEGRAM, PHONE, EMAIL, OTHER] }
+            value: { type: string, minLength: 3, maxLength: 100 }
+        bio: { type: string, minLength: 10, maxLength: 300, description: A short bio — what the person will stream. }
+        links:
+          type: array
+          maxItems: 3
+          description: Optional links to the person's existing streaming accounts (https only).
+          items: { type: string, format: uri, maxLength: 200 }
+        acceptRules: { type: boolean, enum: [true], description: The host rules were read and accepted (the time is kept). }
+        photoUploadId: { type: string, format: uuid, description: "The ID card: a pending private upload of kind `RECHARGE_AGENT_PHOTO`." }
+        selfieUploadId: { type: string, format: uuid, description: "A pending private upload of kind `RECHARGE_AGENT_SELFIE`." }
+    HostingApplication:
+      type: object
+      description: (v1.73-social, D209) the caller's application (only the name and the country of its fields).
+      required: [id, status, displayName, country, createdAt, decidedAt, rejectReason, cancelReason, reapplyAt]
+      properties:
+        id: { type: string, format: uuid }
+        status: { $ref: '#/components/schemas/HostApplicationStatus' }
+        displayName: { type: string }
+        country: { type: string, pattern: '^[A-Z]{2}$' }
+        createdAt: { type: string, format: date-time }
+        decidedAt: { type: [string, 'null'], format: date-time, description: "When it was approved, rejected or cancelled." }
+        rejectReason: { type: [string, 'null'], description: REJECTED only — the team's reason. }
+        cancelReason: { type: [string, 'null'], enum: [USER, AGENCY, ACCOUNT, null], description: "CANCELLED only: the person, joining / opening an agency, account deletion." }
+        reapplyAt: { type: [string, 'null'], format: date-time, description: REJECTED only — when the person may apply again. }
+    MyHostingApplication:
+      type: object
+      description: (v1.73-social, D209) «كن مضيفاً مع الإدارة» for the caller.
+      required: [host, application, rule]
+      properties:
+        host:
+          description: The caller's hosting permission now (any source); null when they may not go live.
+          oneOf:
+            - type: object
+              required: [source, grantedAt]
+              properties:
+                source: { type: string, enum: [ADMIN, AGENCY, IDENTITY], description: "`IDENTITY`: approved here (a host directly with the Kabso team)." }
+                grantedAt: { type: string, format: date-time }
+            - type: 'null'
+        application:
+          description: The caller's latest application, or null.
+          oneOf:
+            - $ref: '#/components/schemas/HostingApplication'
+            - type: 'null'
+        rule:
+          type: object
+          required: [canApply, refusal, minAge, reapplyDays]
+          properties:
+            canApply: { type: boolean }
+            refusal:
+              oneOf:
+                - $ref: '#/components/schemas/HostingApplyRefusal'
+                - type: 'null'
+            minAge: { type: integer, minimum: 18, description: "`HOST_APPLICATION_MIN_AGE`." }
+            reapplyDays: { type: integer, minimum: 0, description: "`HOST_APPLICATION_REAPPLY_DAYS`." }
+    AdminHostApplicationRow:
+      type: object
+      description: (v1.73-social, D209) a row of «طلبات المضيفين» (no private field).
+      required: [id, status, displayName, country, user, decidedBy, createdAt, decidedAt, purged]
+      properties:
+        id: { type: string, format: uuid }
+        status: { $ref: '#/components/schemas/HostApplicationStatus' }
+        displayName: { type: string }
+        country: { type: string }
+        user: { $ref: '#/components/schemas/AdminPersonRef' }
+        decidedBy:
+          oneOf:
+            - $ref: '#/components/schemas/AdminPersonRef'
+            - type: 'null'
+        createdAt: { type: string, format: date-time }
+        decidedAt: { type: [string, 'null'], format: date-time }
+        purged: { type: boolean }
+    AdminHostApplicationPage:
+      type: object
+      required: [data, total, page, pageSize]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/AdminHostApplicationRow' }
+        total: { type: integer }
+        page: { type: integer }
+        pageSize: { type: integer }
+    AdminHostApplication:
+      type: object
+      description: (v1.73-social, D209) an application «كن مضيفاً مع الإدارة» with its private fields (audited) and the applicant's account summary.
+      required: [id, status, createdAt, decidedAt, decidedBy, rejectReason, cancelReason, purgedAt, reapplyAt, displayName, country, dateOfBirth, age, contact, bio, links, rulesAcceptedAt, photos, account, history]
+      properties:
+        id: { type: string, format: uuid }
+        status: { $ref: '#/components/schemas/HostApplicationStatus' }
+        createdAt: { type: string, format: date-time }
+        decidedAt: { type: [string, 'null'], format: date-time }
+        decidedBy:
+          oneOf:
+            - $ref: '#/components/schemas/AdminPersonRef'
+            - type: 'null'
+        rejectReason: { type: [string, 'null'] }
+        cancelReason: { type: [string, 'null'] }
+        purgedAt: { type: [string, 'null'], format: date-time }
+        reapplyAt: { type: [string, 'null'], format: date-time }
+        displayName: { type: string }
+        country: { type: string }
+        dateOfBirth: { type: [string, 'null'], format: date }
+        age: { type: [integer, 'null'], minimum: 0, description: Whole years today (UTC). }
+        contact:
+          type: object
+          required: [type, value]
+          properties:
+            type: { type: string, enum: [WHATSAPP, TELEGRAM, PHONE, EMAIL, OTHER] }
+            value: { type: [string, 'null'] }
+        bio: { type: [string, 'null'] }
+        links: { type: array, items: { type: string } }
+        rulesAcceptedAt: { type: string, format: date-time }
+        photos:
+          type: object
+          required: [photo, selfie]
+          properties:
+            photo: { type: boolean, description: The ID card is stored (read it with `getAdminHostApplicationPhoto`). }
+            selfie: { type: boolean }
+        account:
+          type: object
+          description: The applicant's account summary.
+          required: [id, username, displayName, avatarUrl, email, status, createdAt, accountAgeDays, profileCountry, openReports, totalReports, bans, warnings, host, agency]
+          properties:
+            id: { type: string, format: uuid }
+            username: { type: string }
+            displayName: { type: string }
+            avatarUrl: { type: [string, 'null'] }
+            email: { type: string }
+            status: { type: string, enum: [ACTIVE, SUSPENDED, DELETED, PENDING_DELETION] }
+            createdAt: { type: string, format: date-time }
+            accountAgeDays: { type: integer, minimum: 0 }
+            profileCountry: { type: [string, 'null'] }
+            openReports: { type: integer, minimum: 0, description: Reports against the account still OPEN. }
+            totalReports: { type: integer, minimum: 0 }
+            bans: { type: integer, minimum: 0, description: "Times banned from the panel (`admin.user.ban`)." }
+            warnings: { type: integer, minimum: 0, description: "Warnings from the panel (`admin.user.warn`)." }
+            host:
+              oneOf:
+                - type: object
+                  required: [source, grantedAt]
+                  properties:
+                    source: { type: string, enum: [ADMIN, AGENCY, IDENTITY] }
+                    grantedAt: { type: string, format: date-time }
+                - type: 'null'
+            agency:
+              oneOf:
+                - type: object
+                  required: [role, inviteCode]
+                  properties:
+                    role: { type: string, enum: [HOST, OWNER] }
+                    inviteCode: { type: string }
+                - type: 'null'
+        history:
+          type: array
+          description: The applicant's other applications, newest first (at most 10).
+          items:
+            type: object
+            required: [id, status, createdAt, decidedAt, rejectReason]
+            properties:
+              id: { type: string, format: uuid }
+              status: { $ref: '#/components/schemas/HostApplicationStatus' }
+              createdAt: { type: string, format: date-time }
+              decidedAt: { type: [string, 'null'], format: date-time }
+              rejectReason: { type: [string, 'null'] }
     AdminReasonRequest:
       type: object
       additionalProperties: false
@@ -19072,8 +19485,8 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     NotificationType:
       type: string
-      description: "`LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). (v1.60-social, D191) `MODERATION_WARNING` (system: a moderator warned you about content that breaks the rules; target POST when the warning is about a post, else none). (v1.66-social, D198) `DATA_EXPORT_READY` (system, no target: the data export «تنزيل بياناتي» is ready; the app opens Settings › Privacy). (v1.70-social, D206) system, target AGENCY: `AGENCY_OPENED` (your agency is open — also when the team reopens it), `AGENCY_PROBATION_REMINDER` (less than 24 h left with fewer activated hosts than needed; `activatedHosts` / `requiredHosts`), `AGENCY_PROBATION_PASSED`, `AGENCY_CLOSED` (with `activatedHosts` / `requiredHosts` when the probation failed; none when the team closed it), `AGENCY_HOST_RELEASED` (to each host of a closed agency: they are free). Clients ignore values they do not know."
-      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST, MODERATION_WARNING, DATA_EXPORT_READY, AGENCY_OPENED, AGENCY_PROBATION_REMINDER, AGENCY_PROBATION_PASSED, AGENCY_CLOSED, AGENCY_HOST_RELEASED]
+      description: "`LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). (v1.60-social, D191) `MODERATION_WARNING` (system: a moderator warned you about content that breaks the rules; target POST when the warning is about a post, else none). (v1.66-social, D198) `DATA_EXPORT_READY` (system, no target: the data export «تنزيل بياناتي» is ready; the app opens Settings › Privacy). (v1.70-social, D206) system, target AGENCY: `AGENCY_OPENED` (your agency is open — also when the team reopens it), `AGENCY_PROBATION_REMINDER` (less than 24 h left with fewer activated hosts than needed; `activatedHosts` / `requiredHosts`), `AGENCY_PROBATION_PASSED`, `AGENCY_CLOSED` (with `activatedHosts` / `requiredHosts` when the probation failed; none when the team closed it), `AGENCY_HOST_RELEASED` (to each host of a closed agency: they are free). (v1.73-social, D209) system, no target: `HOST_APPLICATION_APPROVED` (your application «كن مضيفاً مع الإدارة» was approved — you may go live), `HOST_APPLICATION_REJECTED` (it was rejected; the reason is in `getMyHostingApplication`); the app opens «الوكالة». Clients ignore values they do not know."
+      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST, MODERATION_WARNING, DATA_EXPORT_READY, AGENCY_OPENED, AGENCY_PROBATION_REMINDER, AGENCY_PROBATION_PASSED, AGENCY_CLOSED, AGENCY_HOST_RELEASED, HOST_APPLICATION_APPROVED, HOST_APPLICATION_REJECTED]
     NotificationTarget:
       type: object
       required: [type, id, postId, thumbUrl, text]

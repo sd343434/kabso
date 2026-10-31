@@ -263,6 +263,13 @@ export enum AuditAction {
   AGENCY_REOPEN = 'agency.reopen',
   AGENCY_APPLICATION_VIEW = 'agency.application.view',
   AGENCY_PHOTO_VIEW = 'agency.application.photo.view',
+  /** v1.73-social (D209, §10.68): «كن مضيفاً مع الإدارة» — submitted, cancelled, decided, and every panel view. */
+  HOST_APPLICATION_SUBMIT = 'host.application.submit',
+  HOST_APPLICATION_CANCEL = 'host.application.cancel',
+  HOST_APPLICATION_APPROVE = 'host.application.approve',
+  HOST_APPLICATION_REJECT = 'host.application.reject',
+  HOST_APPLICATION_VIEW = 'host.application.view',
+  HOST_APPLICATION_PHOTO_VIEW = 'host.application.photo.view',
   /** A live ended by the team from the panel {reason, hostUserId} (end reason ADMIN). */
   ADMIN_LIVE_END = 'admin.live.end',
   /** A user's app sessions signed out by the team {sessions, reason}. */

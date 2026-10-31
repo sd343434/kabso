@@ -42,6 +42,9 @@ export const SYSTEM_TYPES: readonly NotificationType[] = [
   'DATA_EXPORT_READY',
   // v1.70-social (D206): «افتح وكالة» — opened, probation reminder / passed, closed, a host released.
   ...AGENCY_NOTIFICATION_TYPES,
+  // v1.73-social (D209): «كن مضيفاً مع الإدارة» — the team approved / rejected the application (no target).
+  'HOST_APPLICATION_APPROVED',
+  'HOST_APPLICATION_REJECTED',
 ];
 
 /** Types that join one unread row per target (owner, D92). */
@@ -184,7 +187,9 @@ export class Notifier {
         | 'PREMIUM_USERNAME_EXPIRED'
         | 'AVATAR_REMOVED'
         | 'MODERATION_WARNING'
-        | 'DATA_EXPORT_READY';
+        | 'DATA_EXPORT_READY'
+        | 'HOST_APPLICATION_APPROVED'
+        | 'HOST_APPLICATION_REJECTED';
       recipientId: string;
     } & NotificationTargetRef,
   ): Promise<void> {

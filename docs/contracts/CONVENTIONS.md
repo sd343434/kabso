@@ -153,6 +153,7 @@ All non-2xx responses use one envelope:
 | 409 | `AGENCY_JOIN_NOT_ALLOWED` | *(v1.52-social, DRAFT, D179)* `joinAgency` by the owner of an agency (an agent is never a host of an agency, their own included). |
 | 409 | `AGENCY_LEAVE_WINDOW_CLOSED` | *(v1.52-social, DRAFT, D179)* `leaveAgency` after `AGENCY_LEAVE_DAYS` (14) from joining; only a complaint to the admin remains (§10.46). |
 | 409 | `AGENCY_OPEN_NOT_ALLOWED` | *(v1.70-social, DRAFT, D206)* `openAgency` refused — `details[0] = {field: agency, issue}`: `ACCOUNT_NOT_ACTIVE`, `OWNS_AGENCY` (an open agency, its probation included), `HOST_OF_AGENCY`, `REOPEN_COOLDOWN` (§10.65). |
+| 409 | `HOST_APPLICATION_NOT_ALLOWED` | *(v1.73-social, DRAFT, D209)* `applyForHosting` refused — `details[0] = {field: application, issue}`: `ACCOUNT_NOT_ACTIVE`, `ALREADY_HOST` (any hosting permission), `HOST_OF_AGENCY`, `OWNS_AGENCY` (an open agency), `PENDING` (one open application per user), `REAPPLY_COOLDOWN` (rejected less than `HOST_APPLICATION_REAPPLY_DAYS` ago), `UNDER_MIN_AGE` (§10.68). Nothing was kept. |
 | 409 | `INSUFFICIENT_CHERRIES` | *(v1.52-social, DRAFT, D179)* A withdrawal request larger than the caller's cherry balance (*v1.53-social, D184:* less the task cherries still locked, `withdrawableCherries`, §10.46.1). Nothing was held. |
 | 409 | `WITHDRAWAL_PENDING` | *(v1.52-social, DRAFT, D179)* A withdrawal request while another of the caller's requests waits to be paid (one at a time). |
 | 409 | `RECHARGE_APPLICATION_NOT_ALLOWED` | *(v1.54-social, DRAFT, D185)* A recharge-agent application while the caller has one pending, is already an agent (any status but rejected) or is an agent's employee (§10.48). |
@@ -474,6 +475,7 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `POST /topup/checkout` *(v1.59-social, D190)* | 20 / hour per user (bucket `topup:checkout`, `RATE_LIMIT_TOPUP_CHECKOUT_USER`). **Replaces** the per-user default; the other top-up reads use it; `POST /payments/stripe/webhook` has **no** rate limit (signed by Stripe) |
 | `PUT /me/host-frame/style` *(v1.55-social, D186)* | 60 / hour per user (bucket `host-frame:style`, the family-write numbers like `PUT /me/bag/equipped`). **Replaces** the per-user default; `GET /me/host-frame` uses the per-user default |
 | `POST /me/recharge-agent/application`, `PUT /me/recharge-agent/availability`, `POST`/`PUT`/`DELETE /me/recharge-agent/employees…`, `POST /recharge-cherry-requests`, `POST /recharge-cherry-requests/{id}/{action}` *(v1.54-social, D185)* | 60 / hour per user, one bucket (`recharge:write`, `RATE_LIMIT_RECHARGE_WRITE_USER`). **Replaces** the per-user default |
+| `POST /me/hosting-application` *(v1.73-social, D209)* | 5 / 24 h per user (bucket `host:apply`, `RATE_LIMIT_HOST_APPLY_USER`; refused attempts count), on top of the per-user default |
 | `POST /waitlist` *(v1.61-social, D192)* | 10 / hour per client IP (bucket `waitlist:ip`, `RATE_LIMIT_WAITLIST_IP`; invalid bodies count too). **Replaces** the public per-IP default; `GET /site/settings` uses the public per-IP default, `PUT /admin/site-settings` the per-user default |
 | `GET /live/rooms/{roomId}/chat` *(v1.9-live, CP-013)* | the per-user default; guests share the CP-010 guest read limit per IP |
 | `POST /live/rooms/{roomId}/seat-emoji` *(v1.27.5-live, D138)* | 120 / min per user (bucket `live:seat-emoji`, the taps rule `RATE_LIMIT_LIVE_TAPS_USER`), plus a counting rule of **one every 2 s per user** (429 with `Retry-After`). **Replaces** the per-user default |
@@ -615,6 +617,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.73-social (draft) | 2026-10-31 | **D209 (owner: «يمكن للشخص تفعيل حسابه مضيف مع الإدارة» — on «الوكالة», apply to host directly with the Kabso team, no agency):** tag `agency`: `getMyHostingApplication` (`GET /me/hosting-application`, `MyHostingApplication`: `host`, `application` (`HostingApplication`), `rule` with `HostingApplyRefusal`), `applyForHosting` (`POST /me/hosting-application`, `Idempotency-Key`, `HostingApplicationRequest`: displayName, country, dateOfBirth, contact, bio, links ≤ 3, acceptRules, the D185 private uploads `RECHARGE_AGENT_PHOTO` / `RECHARGE_AGENT_SELFIE`), `cancelMyHostingApplication` (`POST /me/hosting-application/cancel`); `HostApplicationStatus`; code `HOST_APPLICATION_NOT_ALLOWED` (409); notification types `HOST_APPLICATION_APPROVED`, `HOST_APPLICATION_REJECTED` (system, no target); tag `admin-panel` «طلبات المضيفين»: `listAdminHostApplications`, `getAdminHostApplication`, `getAdminHostApplicationPhoto`, `approveAdminHostApplication`, `rejectAdminHostApplication` (capabilities `hosts.applications`, `hosts.applications.photos`, `hosts.applications.decide`); `LiveHostSource.IDENTITY` is now given by an approval; config `HOST_APPLICATION_MIN_AGE` (18), `HOST_APPLICATION_REAPPLY_DAYS` (30), `RATE_LIMIT_HOST_APPLY_USER` (5/86400); migrations `20270202090000_host_applications_enums`, `20270202090100_host_applications`; CLI `host-admin applications\|view\|approve\|reject`; audit `host.application.*`; the data export gains `host_applications`. §4, §7, §10.68. | **Additive** (new operations, schemas, code and enum values; clients ignore unknown notification types). Behaviour: joining or opening an agency cancels a pending application. |
 | v1.70-social (draft) | 2026-10-31 | **D206 (owner: «افتح وكالة» — open a host agency yourself; free; ID card + selfie; created at once; 3 activated hosts in 7 days or it closes):** tag `agency`: `openAgency` (`POST /me/agency/open`, `Idempotency-Key`, `OpenAgencyRequest`: name, country, contact, expected hosts, bio, the D185 private uploads `RECHARGE_AGENT_PHOTO` / `RECHARGE_AGENT_SELFIE`); `OwnAgency.name`, `OwnAgency.probation` (`AgencyProbation`, `AgencyProbationHost`); `MyAgency.closedAgency` (`ClosedAgency`) and `MyAgency.openRule` (`AgencyOpenRule`); code `AGENCY_OPEN_NOT_ALLOWED` (409); notification types `AGENCY_OPENED`, `AGENCY_PROBATION_REMINDER`, `AGENCY_PROBATION_PASSED`, `AGENCY_CLOSED`, `AGENCY_HOST_RELEASED` with target `AGENCY` (`activatedHosts`, `requiredHosts`); tag `admin-panel`: `getAdminAgencyApplication`, `getAdminAgencyApplicationPhoto`, `extendAdminAgencyProbation`, `closeAdminAgency`, `reopenAdminAgency` (capabilities `agencies.applications`, `agencies.probation`), `listAdminAgencies` `state=probation\|closed` and `origin`, the row / detail gain name, origin, status, probation, closing and applications; config `AGENCY_PROBATION_DAYS` (7), `AGENCY_PROBATION_MIN_HOSTS` (3), `AGENCY_PROBATION_REMINDER_HOURS` (24), `AGENCY_REOPEN_COOLDOWN_DAYS` (30), `RATE_LIMIT_AGENCY_OPEN_USER` (5/86400); migrations `20270125090000_agency_open_enums`, `20270125090100_agency_open`; CLI `economy-admin agency-probation-extend\|agency-close\|agency-reopen\|agency-probation-sweep`; the data export gains `agency_applications`. §4, §10.46, §10.65. | **Additive** (new operation, fields, codes and enum values; clients ignore unknown notification / target types). Behaviour: a closed agency is never found, joined, evaluated or paid a commission; its owner's host-agent perks go while it is closed. |
 | v1.68-social (draft) | 2026-10-31 | **D202 (owner: the reels page after a reference, with like / comment / save / share made real):** `listFeedReels` `tab=nearby` — visible public reels of authors from the caller's own country (`Me.country`, D133), newest first, not the caller's own / muted / hidden; no country → an empty page; the cursor bound to the caller and the country (§11.15). | **Additive** (a new enum value on one operation; `listFeedPosts` unchanged). |
 | v1.67-social (draft) | 2026-10-31 | **D200 (owner: family levels and the family price repriced for 1 000 000 coins = $12.50):** `FamilyConfig.createCost` 1 000 000 (was 500) and `FamilyConfig.levels` 4 000 000 … 24 000 000 000 (examples and descriptions); `Family.nextLevelPoints` described for a family kept at its level (a stored level is a floor). §10.21 amendment. | **No shape change** (values only; a family never drops a level). |
@@ -4556,6 +4559,68 @@ owner's value as default. Nothing in §10.46 / §10.52 changes for the agencies 
   time, each view audited (`agency.application.view`, `agency.application.photo.view`), the pictures streamed by the
   API. Account deletion purges the contact, the bio and the pictures (the name, country and dates stay); the data
   export includes the person's applications and pictures (`agency_applications`).
+
+### 10.68 «كن مضيفاً مع الإدارة»: hosting directly with the Kabso team *(v1.73-social, DRAFT — D209)*
+
+Owner decision (2026-10-31, Arabic, via the coordinator): «بالاضافة يجب ان يكون بالصفحة يمكن للشخص تفعيل حسابه مضيف مع
+الإدارة» — on «الوكالة», next to «انضم إلى وكالة» and «افتح وكالة» (§10.46, §10.65), a third path: the person applies to
+host **directly with the administration**, in no agency (so no agency commission, §10.46). Every number is server
+config. Nothing in CP-010 (§10.8) changes: going live still needs a `live_hosts` row.
+
+- **The source.** `LiveHostSource.IDENTITY` existed since CP-010 for «identity checks» (owner D93: agencies and identity
+  checks in L1b) and no flow used it; it is **the permission given by approving an application here** (the person's ID
+  card and selfie checked by the team). `ADMIN` stays the team's hand grant (`grantAdminLiveHost`, `lives.manage`),
+  `AGENCY` is unused. No new value.
+- **Who may apply** — `getMyHostingApplication.rule` says it before; `applyForHosting` refuses with 409
+  `HOST_APPLICATION_NOT_ALLOWED`, `details[0] = {field: application, issue}`, checked in this order: `ACCOUNT_NOT_ACTIVE`,
+  `ALREADY_HOST` (a `live_hosts` row of **any** source — the app shows the host's status instead of the card),
+  `HOST_OF_AGENCY` (an ACTIVE host of an agency), `OWNS_AGENCY` (an open agency), `PENDING` (**one open application per
+  user**, also a partial unique index), `REAPPLY_COOLDOWN` (the latest application was rejected less than
+  `HOST_APPLICATION_REAPPLY_DAYS` (30) ago — `application.reapplyAt`), and, from the form, `UNDER_MIN_AGE`.
+- **The form** (`HostingApplicationRequest`): `displayName` — the name the person hosts under, the §6 display-name
+  rules (the app fills in the profile's: the «display name check»; the profile is not changed); `country` (ISO alpha-2);
+  `dateOfBirth` (a calendar day; the person must be at least `HOST_APPLICATION_MIN_AGE` (18, the site's minimum; the
+  server refuses a lower setting) on the day of the request in UTC — the 18th birthday itself is accepted); `contact`
+  (`WHATSAPP` / `TELEGRAM` / `PHONE` / `EMAIL` / `OTHER` + 3–100 characters); `bio` (10–300, what they will stream,
+  line breaks allowed); `links` (optional, at most 3 `https` URLs of existing streaming accounts, ≤ 200 each); the
+  **mandatory identity check** — pending private uploads of kinds `RECHARGE_AGENT_PHOTO` (the ID card) and
+  `RECHARGE_AGENT_SELFIE`, consumed into `private/host-applications/{applicationId}/…` (`private, no-store`, never a
+  public URL, never in a response or the audit trail), as D185 / D206 exactly; and `acceptRules: true` (the host rules,
+  a short text in the app; the time is kept as `rulesAcceptedAt`). `Idempotency-Key`: the same key with the same body →
+  200 (nothing new), with another body → 409 `IDEMPOTENCY_CONFLICT`. Rate limit `RATE_LIMIT_HOST_APPLY_USER` (5 per
+  24 h per user, refused attempts count). Audited `host.application.submit` (country and the number of links only).
+- **States** (`HostApplicationStatus`): `PENDING` → `APPROVED` | `REJECTED` (the team) | `CANCELLED` (`cancelReason`
+  `USER`: `cancelMyHostingApplication`, the person may apply again at once; `AGENCY`: they joined an agency or opened
+  one — an agency host is not a direct host; `ACCOUNT`: the account was deleted). Every change is audited
+  (`host.application.cancel` | `approve` | `reject`). `getMyHostingApplication.application` is the pending one if any,
+  else the newest; it shows only the name, the country, the dates, the reason and `reapplyAt`.
+- **Approval** (panel or `host-admin approve`): the applicant must still be ACTIVE and in no agency (else 409
+  `ADMIN_ACTION_REFUSED`). It writes the `live_hosts` row — source `IDENTITY`, `granted_by_id` the admin (null from the
+  CLI), a room number as every grant — audited `live.host.grant` {source IDENTITY, application} and
+  `host.application.approve`, and notifies `HOST_APPLICATION_APPROVED` (system, no target; pushed by the outbox, §11.12;
+  the app opens «الوكالة», which shows «أنت مضيف مع الإدارة ✓» and «ابدأ البث»). A person who got the permission
+  another way while pending keeps their row and its source (`existingSource` in the audit). Revoking later is the
+  ordinary `revokeAdminLiveHost`; the application stays APPROVED and the person may apply again.
+- **Rejection** (panel or `host-admin reject`): a reason (1–500) the person sees in the app; `HOST_APPLICATION_REJECTED`
+  (the push never carries the reason); they may apply again `HOST_APPLICATION_REAPPLY_DAYS` after the decision.
+- **With agencies.** (1) A direct host who **joins an agency later** keeps the permission: `joinAgency` never touches
+  `live_hosts`, so the source stays `IDENTITY` (and leaving the agency leaves it too). (2) In a D206 probation such a
+  host counts **exactly like any other host**: activation (§10.65) looks only at the agency link's window, the lives
+  started and the gifts received in it — never at the permission's source. (3) Joining or opening an agency cancels a
+  pending application (`AGENCY`), in the join's / opening's transaction.
+- **The team** — panel «طلبات المضيفين» under the hosts group: the list (`listAdminHostApplications`, the v2 table:
+  `status` filter, `q` the username / email prefix or part of the name, `sort` createdAt | decidedAt, CSV; no private
+  field) and an application (`getAdminHostApplication`: the fields with the age, and the applicant's account summary —
+  account age, status, open / all reports against them, bans and warnings from the panel, the hosting permission, an
+  agency — and their other applications), each read audited `host.application.view`; its pictures one at a time
+  (`getAdminHostApplicationPhoto`, streamed by the API, audited `host.application.photo.view`); approve / reject with
+  the CSRF header and, for a rejection, the reason — **no authenticator code again** (it moves no money). Capabilities
+  (§10.60.1): `hosts.applications` OWNER, SUPPORT, MODERATION (MODERATION may look); `hosts.applications.photos` and
+  `hosts.applications.decide` OWNER, SUPPORT. CLI `host-admin applications | view [--save] | approve | reject
+  --reason` (the migration role, `via: cli`, the same rules: `host-applications.core.ts`).
+- **Privacy.** Account deletion cancels a pending application and purges the date of birth, the contact, the bio, the
+  links and the pictures (the name, country, status and dates stay); the data export includes the person's
+  applications and pictures (`host_applications`).
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 

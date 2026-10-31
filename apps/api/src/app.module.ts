@@ -45,6 +45,7 @@ import { BagModule } from './modules/bag/bag.module.js';
 import { GiftsModule } from './modules/gifts/gifts.module.js';
 import { CpSpaceModule } from './modules/cp-space/cp-space.module.js';
 import { HomeModule } from './modules/home/home.module.js';
+import { HostApplicationsModule } from './modules/host-applications/host-applications.module.js';
 import { WaitlistModule } from './modules/waitlist/waitlist.module.js';
 import { ClockModule } from './common/time/clock.js';
 import { ConsentGuard } from './modules/privacy/consents.service.js';
@@ -107,6 +108,8 @@ export class AppModule {
         ProgramsModule,
         // v1.52-social (DRAFT, D179): cherries, host agencies, commissions and withdrawals.
         EconomyModule,
+        // v1.73-social (D209, §10.68): «كن مضيفاً مع الإدارة».
+        HostApplicationsModule,
         RechargeModule,
         // v1.59-social (DRAFT, D190): card top-ups on the website through Stripe; v1.64-social (DRAFT, D196): the
         // keys and options from the admin panel «الدفع (Stripe)» (over the env).
