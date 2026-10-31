@@ -1535,10 +1535,12 @@ DNS record, the certificate, `build-admin.sh` inside Docker on the server (no Do
 
 **How the server picks it up:** Caddy serves `infra/deploy/site/` straight from the checkout (`./site:/srv/site:ro`),
 so a merged change to the website is live as soon as `update.sh` fast-forwards `/opt/kabso` — no restart. A change to
-the Caddyfile (this one: security headers, the two API paths, the `/topup` redirect, `www`) needs a reload, which `update.sh` now does
-when the Caddyfile changed between the two commits (`caddy reload` in the running container). After the first
-deployment of D192: `docker compose -f /opt/kabso/infra/deploy/docker-compose.yml exec caddy caddy reload --config
-/etc/caddy/Caddyfile --adapter caddyfile` if the update ran before this script change was on the server.
+the Caddyfile (this one: security headers, the two API paths, the `/topup` redirect, `www`) needs Caddy to pick it up,
+which `update.sh` does when the Caddyfile changed between the two commits. *D205:* it recreates the Caddy container
+(`docker compose -f /opt/kabso/infra/deploy/docker-compose.yml up -d --force-recreate caddy`) instead of `caddy reload` —
+on the server a reload did not start serving the new `admin.` site block, while recreating the container did and the
+certificate was then obtained (certificates stay in the `caddy-data` volume). Run that command by hand if an update ran
+before this script change was on the server.
 
 **`infra/deploy/site/config.json` — the legal fields the owner owns** (shown on `/privacy`, `/terms`, `/contact`):
 `companyLegalName` (Kigofi LLC), `address` (30 N Gould St #7354, Sheridan, WY 82801, USA), `country` (United States),

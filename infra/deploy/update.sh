@@ -59,9 +59,11 @@ fi
 "${C[@]}" up -d --wait postgres redis
 "${C[@]}" --profile jobs run --rm migrate
 "${C[@]}" up -d --remove-orphans
-# The Caddyfile is a bind mount, so `up -d` does not restart Caddy when only its content changed (D192): reload it.
+# The Caddyfile is a bind mount, so `up -d` does not restart Caddy when only its content changed (D192). D205: on the
+# server a `caddy reload` did not start serving a new site block (`admin.`), while recreating the container did (and
+# its certificate was then obtained), so recreate it. Certificates live in the caddy-data volume and are kept.
 if [ "$before" != "$after" ] && ! git diff --quiet "$before" "$after" -- infra/deploy/Caddyfile; then
-  "${C[@]}" exec -T caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile && echo "Caddy reloaded"
+  "${C[@]}" up -d --force-recreate caddy && echo "Caddy recreated (Caddyfile changed)"
 fi
 
 for _ in $(seq 1 30); do
