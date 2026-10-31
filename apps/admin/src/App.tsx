@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, ApiError, setCsrfToken, setUnauthenticatedHandler } from './api';
 import { ErrorAlert } from './components';
+import { Cards, Report, AgentTopups } from './pages/Finance';
 import { Gifts, Items, Promo } from './pages/Catalog';
 import { Hosts, Lives } from './pages/Lives';
 import { AgencyDetail, Agencies, Complaints } from './pages/Agencies';
@@ -177,6 +178,15 @@ export function App() {
           break;
         case 'promo':
           page = <Promo />;
+          break;
+        case 'report':
+          page = <Report />;
+          break;
+        case 'topups':
+          page = <AgentTopups />;
+          break;
+        case 'cards':
+          page = <Cards />;
           break;
         case 'audit':
           page = <Audit />;
