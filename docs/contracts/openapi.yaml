@@ -335,6 +335,12 @@ info:
     agency exists and the team has not suspended its host agent (any rank, LAPSED too). `OwnAgency.hostAgent`
     (`OwnHostAgent`): the code, whether the perks are on and whether the code is the username shown now (a person
     who is also a recharge agent shows the code activated first; the other stays reserved) (CONVENTIONS §10.52).
+    **D192 (DRAFT v1.61-social, CP-035)**: the public website kabsolive.com. `joinWaitlist` (`POST /waitlist`,
+    public, `WaitlistSignupRequest`, always 202 `WaitlistAccepted` — never says whether the email was already
+    listed; per-IP limit), `getSiteSettings` (`GET /site/settings`, public, `SiteSettings`: the footer's social
+    links and whether the header shows the top-up link), `updateSiteSettings` (`PUT /admin/site-settings`,
+    admin permission `SITE_SETTINGS`, `UpdateSiteSettingsRequest`, audited; D191's admin panel is its UI). The
+    website reaches both public operations same-origin through the root domain (CONVENTIONS §10.55).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -399,6 +405,10 @@ tags:
     description: "The report queue (admin permission MODERATION; v1.5-social DRAFT)."
   - name: admin-levels
     description: "Level configuration, user progression, reconciliation and audit for admins (role ADMIN; v1.4-levels DRAFT, CP-005)."
+  - name: site
+    description: "The public website kabsolive.com: the launch waitlist and the website's settings (v1.61-social DRAFT, D192)."
+  - name: admin-site
+    description: "The website's settings for admins (admin permission SITE_SETTINGS; v1.61-social DRAFT, D192)."
 paths:
   /health/live:
     get:
@@ -7999,6 +8009,85 @@ paths:
               schema: { $ref: '#/components/schemas/RechargePackages' }
         '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  /api/v1/waitlist:
+    post:
+      tags: [site]
+      operationId: joinWaitlist
+      summary: "Join the launch waitlist «أبلغني عند الإطلاق» (non-enumerating; D192)"
+      description: |
+        v1.61-social (DRAFT, D192, CONVENTIONS §10.55). Public: the website's form. The email is trimmed and
+        lowercased; one row per email — a repeated sign-up changes nothing (the first date and language stay) and
+        gets exactly the same answer, so the response never says whether the email was already listed. No e-mail
+        is sent now. Rate limit: 10 / hour per client IP (bucket `waitlist:ip`, `RATE_LIMIT_WAITLIST_IP`;
+        replaces the public default; invalid bodies count too). Checks: 400 `VALIDATION_FAILED` (`email`
+        `invalid_email` / `too_long`, `locale` `invalid_value`, unknown fields), 429.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WaitlistSignupRequest' }
+            example: { email: 'layla@example.com', locale: ar }
+      responses:
+        '202':
+          description: Accepted — whether the email is new or already listed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaitlistAccepted' }
+        '400': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/site/settings:
+    get:
+      tags: [site]
+      operationId: getSiteSettings
+      summary: "The website's social links and top-up switch (public; D192)"
+      description: |
+        v1.61-social (DRAFT, D192, CONVENTIONS §10.55). Public; read by kabsolive.com at every load
+        (`Cache-Control: public, max-age=60`). A link that is not set is null (the website hides its icon);
+        `topupEnabled` false hides the header's «شحن العملات» link. Rate limit: the public per-IP default.
+      security: []
+      responses:
+        '200':
+          description: The settings.
+          headers:
+            Cache-Control: { schema: { type: string, example: 'public, max-age=60' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SiteSettings' }
+              example:
+                socials: { instagram: 'https://www.instagram.com/kabsolive', tiktok: null, whatsapp: 'https://wa.me/966500000000' }
+                topupEnabled: false
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/site-settings:
+    put:
+      tags: [admin-site]
+      operationId: updateSiteSettings
+      summary: "Admin: change the website's social links or top-up switch (D192)"
+      description: |
+        v1.61-social (DRAFT, D192, CONVENTIONS §10.55). `role = ADMIN` with the permission `SITE_SETTINGS` (the
+        owner's; D191's admin panel maps its OWNER role onto it), else 403. Partial: only the fields sent change;
+        a link `null` or `""` removes it. Links are checked and stored normalized — Instagram
+        `https://(www.)instagram.com/<handle>`, TikTok `https://(www.)tiktok.com/@<handle>`, WhatsApp
+        `https://wa.me/<digits>` or the number in international form (`+966 50 000 0000`), 8–15 digits — any
+        other host or shape → 400 `VALIDATION_FAILED` (`socials.<name>` `invalid_value`), nothing changed. An
+        empty body → 400 (`required`). Audited `site.settings.update` with the values before and after (no row
+        when nothing changed). Rate limit: the per-user default.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateSiteSettingsRequest' }
+            example: { socials: { instagram: 'https://instagram.com/kabsolive', whatsapp: '+966 50 000 0000' }, topupEnabled: true }
+      responses:
+        '200':
+          description: The settings after the change.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SiteSettings' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
 components:
   securitySchemes:
     bearerAuth:
@@ -8180,6 +8269,52 @@ components:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorEnvelope' }
   schemas:
+    WaitlistSignupRequest:
+      type: object
+      additionalProperties: false
+      description: "v1.61-social (D192). The website's «أبلغني عند الإطلاق» form."
+      required: [email, locale]
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+        locale: { type: string, enum: [ar, en], description: "The website's language: the launch e-mail's." }
+    WaitlistAccepted:
+      type: object
+      additionalProperties: false
+      description: "v1.61-social (D192). The one answer of `joinWaitlist`, new email or not."
+      required: [status]
+      properties:
+        status: { type: string, enum: [accepted] }
+    SiteSocials:
+      type: object
+      additionalProperties: false
+      description: "v1.61-social (D192). The website footer's links; null: not set (no icon)."
+      required: [instagram, tiktok, whatsapp]
+      properties:
+        instagram: { type: [string, 'null'], format: uri, pattern: '^https://www\.instagram\.com/[A-Za-z0-9._]{1,30}$' }
+        tiktok: { type: [string, 'null'], format: uri, pattern: '^https://www\.tiktok\.com/@[A-Za-z0-9._]{2,24}$' }
+        whatsapp: { type: [string, 'null'], format: uri, pattern: '^https://wa\.me/[1-9][0-9]{7,14}$' }
+    SiteSettings:
+      type: object
+      additionalProperties: false
+      description: "v1.61-social (D192, §10.55). The public website's settings."
+      required: [socials, topupEnabled]
+      properties:
+        socials: { $ref: '#/components/schemas/SiteSocials' }
+        topupEnabled: { type: boolean, description: "The header shows «شحن العملات» (the website top-up, D190)." }
+    UpdateSiteSettingsRequest:
+      type: object
+      additionalProperties: false
+      description: "v1.61-social (D192). Only the fields sent change; at least one."
+      minProperties: 1
+      properties:
+        socials:
+          type: object
+          additionalProperties: false
+          properties:
+            instagram: { type: [string, 'null'], maxLength: 200 }
+            tiktok: { type: [string, 'null'], maxLength: 200 }
+            whatsapp: { type: [string, 'null'], maxLength: 200, description: "A wa.me URL or the number in international form." }
+        topupEnabled: { type: boolean }
     HealthStatus:
       type: object
       required: [status]

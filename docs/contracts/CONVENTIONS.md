@@ -435,6 +435,7 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `POST /me/recharge-agent/sales` *(v1.54-social, D185)* | 120 / hour per user (bucket `recharge:sell`, `RATE_LIMIT_RECHARGE_SELL_USER`). **Replaces** the per-user default |
 | `PUT /me/host-frame/style` *(v1.55-social, D186)* | 60 / hour per user (bucket `host-frame:style`, the family-write numbers like `PUT /me/bag/equipped`). **Replaces** the per-user default; `GET /me/host-frame` uses the per-user default |
 | `POST /me/recharge-agent/application`, `PUT /me/recharge-agent/availability`, `POST`/`PUT`/`DELETE /me/recharge-agent/employees…`, `POST /recharge-cherry-requests`, `POST /recharge-cherry-requests/{id}/{action}` *(v1.54-social, D185)* | 60 / hour per user, one bucket (`recharge:write`, `RATE_LIMIT_RECHARGE_WRITE_USER`). **Replaces** the per-user default |
+| `POST /waitlist` *(v1.61-social, D192)* | 10 / hour per client IP (bucket `waitlist:ip`, `RATE_LIMIT_WAITLIST_IP`; invalid bodies count too). **Replaces** the public per-IP default; `GET /site/settings` uses the public per-IP default, `PUT /admin/site-settings` the per-user default |
 | `GET /live/rooms/{roomId}/chat` *(v1.9-live, CP-013)* | the per-user default; guests share the CP-010 guest read limit per IP |
 | `POST /live/rooms/{roomId}/seat-emoji` *(v1.27.5-live, D138)* | 120 / min per user (bucket `live:seat-emoji`, the taps rule `RATE_LIMIT_LIVE_TAPS_USER`), plus a counting rule of **one every 2 s per user** (429 with `Retry-After`). **Replaces** the per-user default |
 | `POST /live/rooms/{roomId}/sounds` *(v1.32-live, D154)* | 120 / min per user (bucket `live:sound`, the taps rule `RATE_LIMIT_LIVE_TAPS_USER`), plus a counting rule of **one sound every 2 s per user** (owner; 429 with `Retry-After`). **Replaces** the per-user default. Quips sent from the gift panel use the gift buckets above |
@@ -529,6 +530,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.55-social)* Table `host_frame_choices`; bag source `HOST_ACTIVE`; catalogue rows `host_frame_blue`, `host_frame_pink` | Backend — `economy` module (`host-frames.ts`: given and taken by the agency sweeper and `economy-admin agency-evaluate`, on agency join / leave / a resolved complaint, on a gender change and a style choice; `bag-admin` refuses them) | CTO |
 | *(v1.56-social)* Tables `recharge_daily_totals`, `recharge_badges`; server config `RECHARGE_BADGE_*` | Backend — `recharge` module (`recharge-badges.ts`: `recordRechargeIn` is the only writer, called inside the transaction that credits a recharge — today the agent's sale; later the website top-up) | CTO |
 | *(v1.58-social)* Columns `agencies.host_code`, `host_code_number`, `host_code_at`, `suspended_at`, `suspend_reason`; table `host_agent_counter`; special-username source `HOST_AGENT` (§10.52) | Backend — `economy` module (`economy/host-agents.ts`; codes given and perks suspended only by the `economy-admin` CLI, older agencies' codes by the agency sweeper) and `users/agent-usernames.ts` (which agent code is the username) | CTO |
+| *(v1.61-social)* Tables `waitlist_signups`, `site_settings`; admin permission `SITE_SETTINGS`; server config `RATE_LIMIT_WAITLIST_IP`; CLI `waitlist-admin`; the website `infra/deploy/site/` and the Caddy root-domain block (§10.55) | Backend — `waitlist` module (sign-ups; read only by the CLI) and `site-settings` module (`SiteSettingsService`; written only by `PUT /admin/site-settings`, whose UI is D191's admin panel); Ops — the website files and Caddy | CTO; Security (the waitlist's e-mails, the root domain's headers) |
 | `apps/api/**` | Backend | CTO review |
 | `apps/mobile/lib/app/router/**` (route registry) | Flutter | CTO review |
 | `apps/mobile/pubspec.yaml` | Flutter | CTO review |
@@ -569,6 +571,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
 | v1.58-social (draft) | 2026-10-30 | **D189 (owner: a host agent «وكيل مضيفين» gets the same kind of perks as a recharge agent, CP-032):** `UserSummary.hostAgent` (optional) and `PublicProfile.hostAgent` (required, nullable) — `HostAgentTag {code}`, `HostAgentCode` (`^host[0-9]{2,}$`) — present while the person owns an agency the team has not suspended (any rank) with an active account; `OwnAgency.hostAgent` (`OwnHostAgent`: `code`, `active`, `usernameShown`); `MeSpecialUsername.source` `HOST_AGENT`; `host` + digits reserved (§6); `economy-admin agency-create` activates the host agent (prints the host code), new `agency-suspend` / `agency-reinstate`; migrations `20270103090000_host_agent_perks_enums`, `20270103100000_host_agent_perks`. §6, §7, §10.52. | **Additive** (new optional/nullable fields; new required `PublicProfile.hostAgent` and `OwnAgency.hostAgent` — strict clients update their models in the same change set; an agency owner's shown username becomes `hostNN`). |
+| v1.61-social (draft) | 2026-10-31 | **D192 (owner: the public website kabsolive.com — the coming-soon page with a launch waitlist instead of store buttons, legal pages, AR/EN, footer social links managed from the admin panel; CP-035):** tags `site`, `admin-site`: `joinWaitlist` (`POST /waitlist`, `WaitlistSignupRequest`, 202 `WaitlistAccepted`, non-enumerating, idempotent per email), `getSiteSettings` (`GET /site/settings`, public, `SiteSettings`, `SiteSocials`), `updateSiteSettings` (`PUT /admin/site-settings`, `UpdateSiteSettingsRequest`, permission `SITE_SETTINGS`, audited `site.settings.update`); audit `waitlist.view` (CLI `waitlist-admin list\|export`); config `RATE_LIMIT_WAITLIST_IP`; migrations `20270106090000_website_enums`, `20270106100000_website`. The website and its Caddy block (same-origin `/api/v1/waitlist`, `/api/v1/site/settings`, `/topup*`; security headers; `www` → apex). §7, §10.55. | **Additive** (new operations, tags, an admin permission; nothing existing changes). |
 | v1.57-social (draft) | 2026-10-30 | **D188 (owner: the task rewards came from wrong pricing — «300,000 كرزة» and the low «استقبل 1000 عملة» targets are absurd; anchors 1 000 000 coins = $12.50 retail, 1 000 000 cherries = $1.10 payout):** `ProgramTask.metric` + `GIFT_COINS_SENT` (the coin value of paid gifts sent, from the stored gift rows); `MyTasks.monthlyCapCherries`, `MyTasks.monthlyEarnedCherries` (required in responses); code `TASK_MONTHLY_CAP_REACHED` (409); weekly host tasks per level band (follow-up: a band-4 host reaches the $5 cap); config `TASK_DAILY_CAP_CHERRIES` 150 000 → **50 000**, new `TASK_MONTHLY_CAP_MINOR` (500 = $5 → 4 545 454 cherries a calendar month, daily + weekly), new `COIN_RETAIL_USD_PER_MILLION` (12.5; `task-admin` shows real money), `TASK_CHERRIES_UNLOCK_GIFT_MINOR` 5000 → **6000** ($60); migrations `20261231130000_task_rewards_rebalance` (stored defaults, the new metric in the CHECK, the days' offers re-priced) and `20261231140000_task_weekly_host_bands` (follow-up: daily host tasks ×2, weekly host tasks per band). §4, §8, §10.41.3, §10.46.1, §10.51. | **Behaviour change, additive on the wire** (a new enum value — the app shows an unknown metric generically; new required response fields the app reads in the same change set). Claims already paid keep what they paid. |
 | v1.56-social (draft) | 2026-10-30 | **D187 (owner: daily recharge badges «شارات الشحن اليومي», CP-030):** `RechargeBadge` (`tier` 1–5, `until`); optional `UserSummary.rechargeBadge` and `PublicProfile.rechargeBadge`, present only while the badge shows (also on the room host's summary, chat authors, join lines and viewers); tables `recharge_daily_totals`, `recharge_badges`; config `RECHARGE_BADGE_TIERS`, `RECHARGE_BADGE_TIME_ZONE`, `RECHARGE_BADGE_HOURS`; §10.50. (v1.55-social is D186's.) | **Additive** (optional fields; clients ignore them). |
 | v1.55-social (draft) | 2026-10-30 | **D186 (owner: the active-host frames «إطار المضيف», CP-029):** bag source `HOST_ACTIVE` (`BagItemSource`); catalogue `host_frame_blue`, `host_frame_pink` (`AVATAR_FRAME`); `getMyHostFrame` (`GET /me/host-frame`, `HostFrame`, `HostFrameItem`), `setMyHostFrameStyle` (`PUT /me/host-frame/style`, `SetHostFrameStyleRequest`, `HostFrameStyle`); `PublicProfile.avatarFrame` (required, nullable) and `UserSummary.avatarFrame` (optional) (`AvatarFrame`); code `HOST_FRAME_STYLE_FROM_GENDER` (409); audit actions `host_frame.grant`, `.revoke`, `.swap`, `.choice`; migrations `20270102090000_host_frames_enums`, `20270102100000_host_frames`. §4, §7, §8, §10.49. | **Additive** (new operations; a new enum value clients treat as opaque; new required `PublicProfile.avatarFrame` — strict clients update their models in the same change set). |
@@ -3492,6 +3495,48 @@ are **derived from the agency** (no bag items), like D185's.
   code), `active` (not suspended), `usernameShown`.
 - **Migrations** `20270103090000_host_agent_perks_enums` (the enum value), `20270103100000_host_agent_perks`
   (columns, counter, index); no username changes in SQL.
+
+### 10.55 The public website kabsolive.com *(v1.61-social, DRAFT — D192, CP-035)*
+
+The root domain serves the owner's coming-soon page and the legal pages from `infra/deploy/site/` (static files,
+Caddy). Nothing on it is a product screen; it never shows user content.
+
+- **Waitlist «أبلغني عند الإطلاق»** (replaces the store buttons; small non-link «قريباً» badges for App Store and
+  Google Play stay): `POST /waitlist {email, locale}` — public, the email trimmed + lowercased (the registration
+  rules' `emailSchema`), `locale` `ar`|`en` (the language the website shows). One row per email in
+  `waitlist_signups` (`INSERT … ON CONFLICT DO NOTHING`): a repeated sign-up keeps the first row and gets **the
+  same 202 `{status: "accepted"}`** — the answer never reveals whether an email was listed. 10 / hour per client IP
+  (§7). No e-mail is sent now (the launch mailing is a later step, after the owner's approval). The e-mails are read
+  only with `waitlist-admin list [--limit N]` / `export [--locale ar|en]` (CSV, formulas neutralised), each run
+  audited `waitlist.view` {op, count} without addresses. No IP or user agent is stored with a sign-up.
+- **Settings** (`site_settings`, key → JSON; module `site-settings`): `socials.instagram`, `socials.tiktok`,
+  `socials.whatsapp` (normalized links: `https://www.instagram.com/<handle>`, `https://www.tiktok.com/@<handle>`,
+  `https://wa.me/<digits>`; anything else is refused, and a stored value is re-checked when read) and
+  `topup.enabled` (boolean, default false). `GET /site/settings` is public (`Cache-Control: public, max-age=60`);
+  `PUT /admin/site-settings` needs `role = ADMIN` + `SITE_SETTINGS` (the owner's permission — D191's OWNER role maps
+  onto it; until then `levels-admin grant <admin email> SITE_SETTINGS`, never part of `ALL`), is partial, all-or-nothing on validation, audited
+  `site.settings.update` with before/after. **Who owns what:** D192 the table, the service and both operations;
+  D191 the admin panel's «إعدادات الموقع» screen that calls the PUT.
+- **The website** fetches `/api/v1/site/settings` at load (kept 5 minutes in `sessionStorage`); on any error the
+  social icons stay hidden and the top-up link stays off. The footer shows Instagram / TikTok / WhatsApp icons only
+  for the links set. The header shows «شحن العملات» → `https://<domain>/topup` (D190's page) only while
+  `topupEnabled` is true.
+- **Legal pages** `/privacy`, `/terms`, `/contact` (Arabic and English on one page each): written from what the
+  product does (accounts, profiles, media, lives, DMs, gifts and coins, cherries, withdrawals, recharge-agent KYC with
+  its 90-day retention, push). The legal entity and contact come from `infra/deploy/site/config.json`
+  (`companyLegalName`, `address`, `country`, `governingLaw`, `supportEmail`, `minAge`, `legalReviewed`,
+  `lastUpdated`); an empty field renders «سيُضاف قريباً» / "To be added" and `/contact` lists only the filled ones;
+  every legal page shows the banner «مسودة — تحتاج مراجعة قانونية» while `legalReviewed` is false; `update.sh`
+  prints a warning listing empty fields. Minimum age 18 (owner, confirmed).
+- **Language:** Arabic RTL by default; `?lang=en` or the toggle (kept in `localStorage`, read in try/catch) switches
+  every text and `dir`.
+- **Caddy root block:** `/api/v1/waitlist`, `/api/v1/site/settings` and `/topup*` go to the API (same origin, so no
+  CORS); everything else is static, with `Content-Security-Policy` (`default-src 'self'`; Google Fonts for the
+  owner's Cairo/Inter; no inline script), `frame-ancestors 'none'`, `X-Content-Type-Options: nosniff`,
+  `Referrer-Policy: strict-origin-when-cross-origin`, HSTS (one year) and clean URLs (`/privacy` →
+  `privacy.html`). The proxied `/topup*` keeps the API's own headers (D190 sets its page's CSP). `www.<domain>`
+  redirects permanently to the apex.
+- **Migrations** `20270106090000_website_enums` (`SITE_SETTINGS`), `20270106100000_website` (the two tables).
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 
