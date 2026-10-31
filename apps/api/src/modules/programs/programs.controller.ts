@@ -57,7 +57,8 @@ export class ProgramsController {
 
   /**
    * v1.44-live (D199) `GET /live/hosts/{username}/targets`: a live host's «تارجت» chip — today's
-   * progress and top three supporters only (never longer totals). Anyone, guests included (per IP); an
+   * progress and supporters only (never longer totals; D199b: up to 20 per list and a signed-in caller's
+   * own place). Anyone, guests included (per IP); an
    * unknown or inactive user, someone who is not a host, or a block either way → 404.
    */
   @Get('live/hosts/:username/targets')
@@ -82,7 +83,7 @@ export class ProgramsController {
     ) {
       throw new AppException(ErrorCode.NOT_FOUND);
     }
-    return this.tasks.hostTargets(user.id);
+    return this.tasks.hostTargets(user.id, caller);
   }
 
   /** v1.44-live (D199) `GET /me/host-gift-stats?period=DAY|WEEK|MONTH|ALL`: the caller's own. */

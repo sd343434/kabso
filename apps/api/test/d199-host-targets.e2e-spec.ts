@@ -188,8 +188,36 @@ describe('D199 host targets and statistics', { timeout: 300_000 }, () => {
       fan2.id,
     ]);
     expect(res.body.topSupporters.map((s: { coins: number }) => s.coins)).toEqual([320, 150]);
-    // Viewers signed in see the same (today only).
-    expect((await targets(fan1)).body).toEqual(res.body);
+    // D199b: each row's cherries (the ledger of their sends) add up to the day's; the support level; the
+    // lucky list by coins; the end of the day; no own place for a guest.
+    const rows = res.body.topSupporters as { cherries: number; supportLevel: number | null }[];
+    expect(rows[0]!.cherries).toBeGreaterThan(rows[1]!.cherries);
+    expect(rows.reduce((a, r) => a + r.cherries, 0)).toBe(res.body.cherries.received);
+    for (const r of rows) expect(r.supportLevel === null || r.supportLevel >= 1).toBe(true);
+    expect(res.body.luckySupporters.map((s: { user: { id: string } }) => s.user.id)).toEqual([
+      fan2.id,
+      fan1.id,
+    ]);
+    expect(res.body.luckySupporters.map((s: { coins: number }) => s.coins)).toEqual([50, 20]);
+    // The end of the day in the tests' zone (UTC).
+    expect(res.body.endsAt).toBe('2027-01-14T00:00:00.000Z');
+    expect(res.body.me).toBeNull();
+    // A signed-in viewer sees the same lists and their own place in each.
+    const fan = await targets(fan1);
+    expectContract(fan, 'getLiveHostTargets');
+    const { me, ...rest } = fan.body as { me: unknown };
+    expect({ ...rest, me: null }).toEqual(res.body);
+    expect(me).toEqual({
+      cherries: { rank: 1, amount: rows[0]!.cherries },
+      lucky: { rank: 2, amount: 20 },
+    });
+    // Someone who sent nothing: no rank; the host: no own place.
+    const stranger = await signup();
+    expect((await targets(stranger)).body.me).toEqual({
+      cherries: { rank: null, amount: 0 },
+      lucky: { rank: null, amount: 0 },
+    });
+    expect((await targets(host)).body.me).toBeNull();
   });
 
   it('404 for a non-host, an unknown name and a block either way', async () => {

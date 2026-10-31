@@ -3652,6 +3652,19 @@ Owner «طبق تصميم 100%» (the PK sheet's gear → «PK Setting»). Exten
   assignment's, else the level's now. A task switched off → target 0. `GET /me/host-gift-stats?period=DAY|
   WEEK|MONTH|ALL` is the caller's own: cherries (the ledger's `GIFT_RECEIVED` + `GIFT_REVERSAL`), gift
   sends, givers, top three and a bar series; lucky value, sends, givers and top three; DAY adds the targets.
+- **The «تارجت» sheet as a ranking (D199b, owner «مطابق ١٠٠٪»).** The sheet becomes a contribution ranking, so the
+  lists grow and carry what a row shows. Additive (older clients ignore the new fields):
+  - `HostSupporter` gains `cherries` (the cherries the host got from that person's sends in the period: the
+    ledger's `GIFT_RECEIVED` + `GIFT_REVERSAL` rows whose `reference_id` is the send) and `supportLevel` (their
+    `SUPPORT` level number, null while that category is unavailable; the same rule as `LiveChatAuthorBadges`).
+  - Every supporters list holds up to **20** (was 3). A cherries list (`topSupporters`) is ordered by
+    `cherries` desc, then `coins` desc, then id; a lucky list (`lucky.topSupporters`, `luckySupporters`) by
+    `coins` desc, then id.
+  - `LiveHostTargets` gains `endsAt` (the end of the Riyadh day: the countdown), `luckySupporters` (today's
+    lucky list) and `me`: for a signed-in caller who is not the host, their own place today in each list
+    (`{cherries: {rank, amount}, lucky: {rank, amount}}`; `rank` null and `amount` 0 when they sent nothing;
+    `amount` is cherries in the cherries list, coins in the lucky list); null for guests and for the host.
+  - `HostGiftStats.to` is the end of the period (already sent): the host's countdown (none for ALL).
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 
