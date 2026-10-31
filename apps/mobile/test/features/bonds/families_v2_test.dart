@@ -9,6 +9,7 @@
 // directions, the activity card, the podium backdrop, the hero layout
 // (level chip left, number box right, emblem over the sheet's edge).
 
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
@@ -711,6 +712,113 @@ void main() {
       expect(find.byType(FamilyEmblem), findsOneWidget);
       expect(find.text(en.familyNumberLabel), findsOneWidget);
     });
+  });
+
+  group('D200 family levels: big numbers, the floor, honest progress', () {
+    Family big({required int level, required int points, int? next}) =>
+        Family.fromJson({
+          ...familyJson(points: points, nextLevelPoints: next),
+          'level': level,
+        });
+
+    Future<void> pumpAt(
+      WidgetTester tester,
+      Family family,
+      AppLanguage language, {
+      List<FamilyMember> members = const [],
+    }) async {
+      tester.view
+        ..physicalSize = const Size(360, 800) * 3
+        ..devicePixelRatio = 3;
+      tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      final fakes = BondFakes();
+      fakes.families
+        ..byId[_familyId] = family
+        ..memberList = members;
+      await pumpBonds(
+        tester,
+        const FamilyScreen(familyId: _familyId),
+        language: language,
+        fakes: fakes,
+      );
+      expect(tester.takeException(), isNull);
+    }
+
+    String isolated(String a, String b) => '\u2068$a\u2069 / \u2068$b\u2069';
+
+    double barFactor(WidgetTester tester) => tester
+        .widget<FractionallySizedBox>(
+          find.descendant(
+            of: find.ancestor(
+              of: find.byKey(FamilyScreen.levelPointsKey),
+              matching: find.byType(Row),
+            ),
+            matching: find.byType(FractionallySizedBox),
+          ),
+        )
+        .widthFactor!;
+
+    void fitsOneLine(WidgetTester tester) {
+      final paragraph = tester.renderObject<RenderParagraph>(
+        find.byKey(FamilyScreen.levelPointsKey),
+      );
+      expect(paragraph.didExceedMaxLines, isFalse);
+      // Shown whole (scaled down if needed), never past the 132 lp column.
+      final box = tester.getRect(
+        find.ancestor(
+          of: find.byKey(FamilyScreen.levelPointsKey),
+          matching: find.byType(FittedBox),
+        ),
+      );
+      expect(box.width, lessThanOrEqualTo(132));
+      expect(box.right, lessThanOrEqualTo(360));
+    }
+
+    for (final language in AppLanguage.values) {
+      final l10n = l10nFor(language);
+      final b = language == AppLanguage.ar ? '\u00a0مليار' : 'B';
+
+      testWidgets('${language.name}: billions are compact and fit at 360×800, '
+          'text scale 1.3', (tester) async {
+        await pumpAt(
+          tester,
+          big(level: 9, points: 23999999999, next: 24000000000),
+          language,
+          members: [_member('oz', 'LEADER', points: 24000000000, rank: 1)],
+        );
+        expect(find.text(isolated('23.9$b', '24$b')), findsOneWidget);
+        expect(find.text(l10n.familyToReach(10)), findsOneWidget);
+        fitsOneLine(tester);
+        expect(barFactor(tester), closeTo(1.0, 0.001));
+      });
+
+      testWidgets('${language.name}: level 10 shows the points alone', (
+        tester,
+      ) async {
+        await pumpAt(tester, big(level: 10, points: 24000000000), language);
+        expect(find.text('24$b'), findsOneWidget);
+        expect(find.text(l10n.familyTopLevel), findsOneWidget);
+        expect(barFactor(tester), 1.0);
+      });
+
+      testWidgets('${language.name}: a family kept at level 5 (the floor) '
+          'shows an honest bar near 0 %', (tester) async {
+        await pumpAt(
+          tester,
+          big(level: 5, points: 60000, next: 640000000),
+          language,
+        );
+        expect(find.text(l10n.familyLevelLong(5)), findsWidgets);
+        final k = language == AppLanguage.ar ? '\u00a0ألف' : 'K';
+        final m = language == AppLanguage.ar ? '\u00a0مليون' : 'M';
+        expect(find.text(isolated('60$k', '640$m')), findsOneWidget);
+        expect(find.text(l10n.familyToReach(6)), findsOneWidget);
+        expect(barFactor(tester), closeTo(60000 / 640000000, 1e-9));
+        fitsOneLine(tester);
+      });
+    }
   });
 
   group('Arabic and English, 393×852 and 360×800, text scale 1.3 and 2', () {

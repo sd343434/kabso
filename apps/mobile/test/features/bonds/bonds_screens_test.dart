@@ -55,7 +55,8 @@ void main() {
       final fakes = BondFakes();
       fakes.live.coins = 100;
       await pumpBonds(tester, const CreateFamilyScreen(), fakes: fakes);
-      final price = en.bondsCoins(500);
+      // D200: the price is the server's (1 000 000 coins).
+      final price = en.bondsCoins(1000000);
       expect(find.text(en.familyCreateCost(price)), findsOneWidget);
       expect(find.text(en.bondsBalance(en.bondsCoins(100))), findsOneWidget);
       expect(find.byKey(CreateFamilyScreen.notEnoughKey), findsOneWidget);
@@ -73,7 +74,7 @@ void main() {
       tester,
     ) async {
       final fakes = BondFakes();
-      fakes.live.coins = 600;
+      fakes.live.coins = 1000600;
       fakes.families.failNext['create'] = bondFailure(
         ErrorCode.insufficientCoins,
       );
@@ -90,7 +91,7 @@ void main() {
       tester,
     ) async {
       final fakes = BondFakes();
-      fakes.live.coins = 600;
+      fakes.live.coins = 1000600;
       fakes.families
         ..coinsAfterCreate = 100
         ..failNext['create'] = bondFailure(ErrorCode.familyNameTaken);
@@ -132,7 +133,7 @@ void main() {
       );
       expect(find.text('عائلة النجوم'), findsWidgets);
       expect(find.text('48213907'), findsOneWidget);
-      expect(find.text('500 / 1,000'), findsOneWidget);
+      expect(find.text('\u20681M\u2069 / \u20684M\u2069'), findsOneWidget);
       expect(find.text(en.familyToReach(2)), findsOneWidget);
       // Not a leader or deputy: no join requests tool.
       expect(find.byKey(FamilyScreen.requestsToolKey), findsNothing);

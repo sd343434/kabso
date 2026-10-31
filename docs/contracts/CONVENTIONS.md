@@ -584,6 +584,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.67-social (draft) | 2026-10-31 | **D200 (owner: family levels and the family price repriced for 1 000 000 coins = $12.50):** `FamilyConfig.createCost` 1 000 000 (was 500) and `FamilyConfig.levels` 4 000 000 … 24 000 000 000 (examples and descriptions); `Family.nextLevelPoints` described for a family kept at its level (a stored level is a floor). §10.21 amendment. | **No shape change** (values only; a family never drops a level). |
 | v1.64-social (draft) | 2026-10-31 | **D196 (owner: enter the Stripe keys in the admin panel instead of the server env):** tag `admin-panel` — `getAdminPaymentSettings`, `updateAdminPaymentSettings` (PATCH), `testAdminPaymentKey`, `clearAdminPaymentKeys` (capability `payments.settings`, OWNER); schemas `AdminPaymentSettings`, `PaymentKeyInfo`, `PaymentKeyPair`, `PaymentKeyCheck`, `UpdateAdminPaymentSettingsRequest`, `TestAdminPaymentKeyRequest`, `ClearAdminPaymentKeysRequest`; `updateAdminSiteSettings` gains 409 (`topupEnabled` `stripe_keys_missing`); audit `payment.settings.update|clear|test`; migration `20270111100000_payment_settings`. The secrets are write-only (fingerprints only), sealed AES-256-GCM with a key derived from `ADMIN_TOTP_KEY` (HKDF `payment-settings/v1`); panel keys override the env keys, which stay the fallback; the client follows a change without a restart; the previous webhook secret verifies for 10 minutes after a rotation. `TOPUP_PUBLIC_BASE_URL` may now be set alone (for the panel's keys). §4 (`TOPUP_UNAVAILABLE` text), §9, §10.53.1, §10.54.1/.3/.5/.6. | **Additive** (new operations and a 409 on one operation; env deployments unchanged). |
 | v1.61-social (draft) | 2026-10-31 | **D192 (owner: the public website kabsolive.com — the coming-soon page with a launch waitlist instead of store buttons, legal pages, AR/EN, footer social links managed from the admin panel; CP-035):** tag `site`: `joinWaitlist` (`POST /waitlist`, `WaitlistSignupRequest`, 202 `WaitlistAccepted`, non-enumerating, idempotent per email), the website's read of `getSiteSettings` (one settings module, table and contract with D191, §10.54.6: links in one stored form `https://www.instagram.com/<handle>`, `https://www.tiktok.com/@<handle>`, `https://wa.me/<digits>`, written only by D191's `updateAdminSiteSettings`; `SiteSocials` gains the patterns; D192's bearer `updateSiteSettings` and the `SITE_SETTINGS` permission were folded into D191's during integration, KL-069); audit `waitlist.view` (CLI `waitlist-admin list\|export`); config `RATE_LIMIT_WAITLIST_IP`; migration `20270106100000_website` (`waitlist_signups`). The website and its Caddy block (same-origin `/api/v1/waitlist`, `/api/v1/site/settings`; `/topup*` → 302 to D190's pages on `api.`; security headers; `www` → apex). §7, §10.55. | **Additive** (new operations and a tag; nothing existing changes). |
 | v1.60-social (draft) | 2026-10-31 | **D191 (owner: the admin panel «لوحة الإدارة», phase 1, CP-034):** tag `admin-panel` — `adminLogin`, `startAdminTotpEnrolment`, `confirmAdminTotpEnrolment`, `verifyAdminTotp`, `getAdminSession`, `adminLogout` (cookie `__Host-kabso_admin`, security scheme `adminSession`, header `X-CSRF-Token`), `getAdminDashboard`, `searchAdminUsers`, `getAdminUser`, `banAdminUser`, `unbanAdminUser`, `removeAdminUserAvatar`, `giftAdminSpecialUsername`, `revokeAdminSpecialUsername`, `listAdminRechargeApplications`, `getAdminRechargeApplication`, `getAdminRechargeApplicationPhoto`, `approveAdminRechargeApplication`, `rejectAdminRechargeApplication`, `listAdminRechargeAgents`, `topUpAdminRechargeAgent`, `suspendAdminRechargeAgent`, `reinstateAdminRechargeAgent`, `setAdminRechargeAgentCap`, `listAdminWithdrawals`, `payAdminWithdrawal`, `rejectAdminWithdrawal`, `listAdminPanelReports`, `actOnAdminPanelReport`, `getAdminSiteSettings`, `updateAdminSiteSettings`; tag `site` — `getSiteSettings` (with D192); `NotificationType.MODERATION_WARNING`; admin permissions `OWNER`, `SUPPORT`, `FINANCE` (with `MODERATION`: the panel roles); codes `ADMIN_PANEL_UNAVAILABLE` (503), `ADMIN_LOCKED` (429), `ADMIN_TOTP_INVALID`, `ADMIN_CSRF_INVALID` (403), `ADMIN_ACTION_REFUSED` (409); config `ADMIN_TOTP_KEY`, `ADMIN_SESSION_*`, `ADMIN_PENDING_SECONDS`, `ADMIN_LOCKOUT_*`, `RATE_LIMIT_ADMIN_*`; CLI `admin-admin`; migrations `20270104090000_admin_panel_enums`, `20270104100000_admin_panel` (`admin_credentials`, `admin_recovery_codes`, `admin_sessions`, `site_settings`). §4, §7, §8, §10.54. | **Additive** (new operations behind their own cookie session; a new notification type the app ignores until it knows it; the CLIs' audit rows gain `before`/`after` keys and the panel's carry the actor and IP). |
@@ -1459,7 +1460,8 @@ in place of the `Idempotency-Key` header, the ledger append-only.
 **Families (العائلة).**
 - **Create** `POST /families` `{name, emblemMediaId?, clientId}` → 201 `{family, coins}`; a retry
   with the same `clientId` → 200 with that family and the current balance (409
-  `IDEMPOTENCY_CONFLICT` when it was disbanded since). Costs **500 coins** *(owner)* (ledger
+  `IDEMPOTENCY_CONFLICT` when it was disbanded since). Costs **1 000 000 coins** ($12.50)
+  *(owner D200; 500 under D106)* — `FamilyConfig.createCost`, which the app shows (ledger
   `FAMILY_CREATE`, reference the family id); the caller becomes its **LEADER**. Order: 400 body →
   retry → 503 `MEDIA_UPLOADS_UNAVAILABLE` (an emblem while uploads are off) → 409
   `ALREADY_IN_FAMILY` → 400 `emblemMediaId` / `invalid_value` → 409 `FAMILY_NAME_TAKEN` → 409
@@ -1501,10 +1503,39 @@ in place of the `Idempotency-Key` header, the ledger append-only.
   **while in the family** is 1 family point: bullet messages, creating the family, CP gifts, and a
   CP request once it is **accepted** (until then its coins may come back). Admin revokes and
   refunds never count. Points are written with the debit (`family_points_ledger`, one row per
-  ledger row) and stay with the family when the member leaves. Ladder (CTO default): level 1 at
-  0, 2 at 1 000, 3 at 5 000, 4 at 20 000, 5 at 50 000, 6 at 100 000, 7 at 200 000, 8 at 500 000,
-  9 at 1 000 000, 10 at 2 000 000 (`GET /families/config`). `Family.points`, `level`,
+  ledger row) and stay with the family when the member leaves. Ladder *(owner D200, below;
+  D106's CTO default was 1 000 … 2 000 000)* in `GET /families/config`. `Family.points`, `level`,
   `nextLevelPoints`; `FamilyMember.points` is what that member gave.
+- **D200 amendment (v1.67-social, DRAFT, 2026-10-31) — families repriced for 1 000 000 coins =
+  $12.50 (D188/D190).** Points are still the coins members spend. The ladder *(owner)*:
+
+  | Level | Min family points | ≈ USD (retail) |
+  |---|---|---|
+  | 1 | 0 | $0 |
+  | 2 | 4 000 000 | $50 |
+  | 3 | 20 000 000 | $250 |
+  | 4 | 80 000 000 | $1 000 |
+  | 5 | 240 000 000 | $3 000 |
+  | 6 | 640 000 000 | $8 000 |
+  | 7 | 1 600 000 000 | $20 000 |
+  | 8 | 4 000 000 000 | $50 000 |
+  | 9 | 9 600 000 000 | $120 000 |
+  | 10 | 24 000 000 000 | $300 000 |
+
+  Creating a family costs 1 000 000 coins ($12.50), which are its first points (level 1).
+  **A family never drops a level:** the stored `families.level` is a floor — after every credit
+  `level = max(stored level, ladder level for points)` (`familyLevelAfter`; the same in the live
+  gift paths), and migration `20270113100000_family_levels_d200` only raises a level whose points
+  already pass a new threshold (none in practice), never lowers one. So a family that reached a
+  level under D106's cheap ladder keeps it, and its `points` may be far below that level's new
+  threshold. **Progress, honestly:** `nextLevelPoints` is always the current ladder's threshold
+  of `level + 1` (null at 10), and the app's bar is `points / nextLevelPoints` (clamped to 0–1) —
+  for a floored family it may show about 0 % until its points approach the next level; nothing is
+  credited or invented to fill it (unlike user levels, §10.57, families never had carried points).
+  The level badge, live chat badge (`LiveChatAuthor.family.level`) and the family boards read the
+  stored level. Values are 64-bit integers below 2^53 (`families.points` BIGINT, capped at
+  2^53 − 1; no int32 field in the contract). The monthly «هيبة العائلة» board (§10.25) is
+  unchanged. The app shows big numbers compactly (e.g. «24 مليار»).
 - **Reads:** `GET /families?q=` (by points, highest first; `q` a name fragment, or digits that
   also match the number; paged), `GET /families/{familyId}` (with `myRole` and `myRequestId`),
   `GET /families/me` → `{family | null}`, `GET /families/config`.

@@ -9,6 +9,7 @@ import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/error/failure_widgets.dart';
+import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/format/k_handle.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
@@ -60,6 +61,7 @@ class FamilyScreen extends ConsumerWidget {
   static const manageToolKey = Key('family.tool.manage');
   static const chatKey = Key('family.chat');
   static const inviteKey = Key('family.invite');
+  static const levelPointsKey = Key('family.levelPoints');
   static const shareKey = Key('family.share');
   static const numberKey = Key('family.number');
   static const heroArtKey = Key('family.heroArt');
@@ -619,7 +621,7 @@ class _FamilyBodyState extends ConsumerState<_FamilyBody> {
                   rank: c.rank,
                   user: c.user,
                   role: c.role,
-                  line: l10n.familyPoints(formatBondPoints(c.points)),
+                  line: l10n.familyPoints(familyCount(context, c.points)),
                 );
               }
               return value.loadMoreError == null
@@ -1140,6 +1142,12 @@ class _Top extends ConsumerWidget {
 
 /// "Level N" (left), the progress bar, "points / next" and "to reach
 /// level N+1" (right), as on the mockup.
+///
+/// D200: the bar is `points / nextLevelPoints` (the current ladder's
+/// threshold of level N+1). A family never drops a level, so one kept at a
+/// level its points no longer reach shows an honest bar near 0 %. The
+/// numbers are compact («24 مليار», "24B") so billions fit at 360 lp and
+/// text scale 1.3; each is a bidi isolate in the reading direction.
 class _LevelRow extends StatelessWidget {
   const new({required this.family});
 
@@ -1151,6 +1159,8 @@ class _LevelRow extends StatelessWidget {
     final p = context.palette;
     final t = context.textStyles;
     final next = family.nextLevelPoints;
+    final points = familyCount(context, family.points);
+    final nextPoints = next == null ? null : familyCount(context, next);
     final value = next == null || next <= 0
         ? 1.0
         : (family.points / next).clamp(0.0, 1.0);
@@ -1200,19 +1210,25 @@ class _LevelRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  next == null
-                      ? formatBondPoints(family.points)
-                      : '${formatBondPoints(family.points)} / '
-                            '${formatBondPoints(next)}',
-                  textDirection: TextDirection.ltr,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: t.bodyStrong.copyWith(
-                    color: p.textPrimary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    height: 1.25,
+                // Never cut: a long pair («23.9 مليار / 24 مليار» at text
+                // scale 1.3) shrinks to the column's width instead.
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: Text(
+                    next == null
+                        ? points
+                        : '${KFormat.bidiIsolate(points)} / '
+                              '${KFormat.bidiIsolate(nextPoints!)}',
+                    key: FamilyScreen.levelPointsKey,
+                    textDirection: Directionality.of(context),
+                    maxLines: 1,
+                    style: t.bodyStrong.copyWith(
+                      color: p.textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      height: 1.25,
+                    ),
                   ),
                 ),
                 Text(
@@ -1779,7 +1795,7 @@ class _MemberTile extends ConsumerWidget {
       rank: member.rank,
       user: user,
       role: member.role,
-      line: l10n.familyPoints(formatBondPoints(member.points)),
+      line: l10n.familyPoints(familyCount(context, member.points)),
       presence: FamilyPresenceLabel(presence: member.presence),
       trailing: PopupMenuButton<_MemberAction>(
         key: FamilyScreen.memberMenuKey(user.username),

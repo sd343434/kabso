@@ -53,8 +53,9 @@ abstract class FamilyLevelStep with _$FamilyLevelStep {
       _$FamilyLevelStepFromJson(json);
 }
 
-/// `FamilyConfig` (`GET /families/config`): what a family costs (500
-/// coins), how many people it holds and the level ladder.
+/// `FamilyConfig` (`GET /families/config`): what a family costs (the
+/// server's value, 1 000 000 coins since D200), how many people it holds
+/// and the level ladder.
 @freezed
 abstract class FamilyConfig with _$FamilyConfig {
   const factory({
