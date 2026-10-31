@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, ApiError, setCsrfToken, setUnauthenticatedHandler } from './api';
 import { ErrorAlert } from './components';
+import { Hosts, Lives } from './pages/Lives';
 import { AgencyDetail, Agencies, Complaints } from './pages/Agencies';
 import { CAP_OF_ROUTE } from './nav';
 import { Audit } from './pages/Audit';
@@ -160,6 +161,12 @@ export function App() {
           break;
         case 'complaints':
           page = <Complaints />;
+          break;
+        case 'lives':
+          page = <Lives />;
+          break;
+        case 'hosts':
+          page = <Hosts />;
           break;
         case 'audit':
           page = <Audit />;
