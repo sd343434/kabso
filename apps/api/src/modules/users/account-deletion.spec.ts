@@ -160,6 +160,13 @@ describe('endLedgerRetention', () => {
           return Promise.resolve({ count: 1 });
         },
       },
+      // v1.72-social (D208): the team's balance adjustments lose their reason text.
+      adminBalanceAdjustment: {
+        updateMany: (a: { where: { userId: string }; data: unknown }) => {
+          calls.push(`adjustments ${a.where.userId} ${JSON.stringify(a.data)}`);
+          return Promise.resolve({ count: 0 });
+        },
+      },
       accountDeletionRequest: {
         deleteMany: (a: { where: { userId: string } }) => {
           calls.push(`requests ${a.where.userId}`);
@@ -205,6 +212,7 @@ describe('endLedgerRetention', () => {
       'withdrawals tomb-1 {"payoutDetails":"…","decisionNote":null}',
       'age tomb-1',
       'consents tomb-1',
+      'adjustments tomb-1 {"reason":"…"}',
       'requests tomb-1',
     ]);
     expect(audits).toEqual([

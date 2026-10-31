@@ -1527,6 +1527,28 @@ KL-060 safety, KL-062 notifications), the Playwright smoke against the local API
 local Caddy run of the admin block (SPA fallback, headers, `/internal/*` 404, the allowlist). **Not verified:** the
 DNS record, the certificate, `build-admin.sh` inside Docker on the server (no Docker daemon here).
 
+**Account controls «تحكم كامل» (D208, contract v1.72-social, CONVENTIONS §10.67):** the migration
+`20270130090000_admin_control` runs with the next `update.sh` (new tables `account_restrictions` and
+`admin_balance_adjustments`, `users.password_change_required_at`, two notification columns, the ledgers' sign rules
+extended in place for `ADMIN_ADJUSTMENT`). Optional settings in `/etc/kabso/api.env`: `ADMIN_ADJUST_DAILY_CAP_COINS`
+and `ADMIN_ADJUST_DAILY_CAP_CHERRIES` (10 000 000 each; the most ONE admin may move per day; 0 = no adjustments). The
+CLI on the server (migration role; `via: cli` in the audit log, no actor):
+
+```bash
+cd /opt/kabso/infra/deploy
+sudo docker compose --profile jobs run --rm migrate node dist/cli/control-admin.js state user@example.com
+sudo docker compose --profile jobs run --rm migrate node dist/cli/control-admin.js lock user@example.com --days 3 --reason "…"
+sudo docker compose --profile jobs run --rm migrate node dist/cli/control-admin.js unlock user@example.com --reason "…"
+sudo docker compose --profile jobs run --rm migrate node dist/cli/control-admin.js restrict user@example.com CHAT_MUTE --days 7 --reason "…"
+sudo docker compose --profile jobs run --rm migrate node dist/cli/control-admin.js require-password-change user@example.com --reason "…"
+sudo docker compose --profile jobs run --rm migrate node dist/cli/control-admin.js adjust user@example.com coins +5000 --reason "…"
+```
+
+A CLI lock ends every session; a live the person hosts then ends by the room sweeper (no heartbeat), not at once
+as from the panel. **Merge note:** a branch that redefines `wallet_ledger_reason_sign` / `cherry_ledger_reason_sign`
+(e.g. D204's `RECHARGE_ORDER`) must run before this migration (an earlier timestamp) or keep `ADMIN_ADJUSTMENT` in its
+list; this migration extends whatever rule is in place.
+
 ### 11.7 The public website kabsolive.com (D192) — [IMPLEMENTED; checked locally through the committed Caddy block, not on the server yet]
 
 **DNS** (A records to the server's IP; Caddy gets every certificate itself): `kabsolive.com` (apex), **`www`**
