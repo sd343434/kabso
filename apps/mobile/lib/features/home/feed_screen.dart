@@ -73,8 +73,6 @@ class FeedScreen extends StatefulWidget {
   static const switchKey = Key('home.switch');
 
   /// D202: the reels page's chips and its third feed.
-  static const storiesChipKey = Key('home.reels.stories');
-  static const roomsChipKey = Key('home.reels.rooms');
   static const nearbyKey = Key('home.page.reels.nearby');
 
   /// The page of one mode, holding its two feeds.
@@ -249,14 +247,16 @@ abstract final class KReelsHeader {
   /// Search and the bell sit 12 dp from the edges.
   static const double sideInset = KSpacing.md;
 
-  /// The chips: 32 dp pills 22 dp under the bar (their 48 dp targets 14),
-  /// 8 apart, 14 from the start.
+  /// The chip: a 28 dp pill 22 dp under the bar (its 48 dp target 14),
+  /// 14 from the start. Owner 2026-10-31: «القصص» and «الغرف» removed, only
+  /// «المنشورات» kept, a little smaller (32 → 28 dp, icon 16 → 14).
   static const double chipsGap = 14;
-  static const double chipHeight = 32;
+  static const double chipHeight = 28;
   static const double chipSpacing = KSpacing.sm;
   static const double chipsStart = 14;
-  static const double chipIcon = 16;
+  static const double chipIcon = 14;
   static const double chipBorder = 1.5;
+  static const double chipFont = 12;
 
   /// The end of the chips row kept free for the video's speaker button.
   static const double muteSlot = KSizes.minTouchTarget + KSpacing.xs + 4;
@@ -392,26 +392,6 @@ class _ReelsHeader extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      _ReelsChip(
-                        key: FeedScreen.storiesChipKey,
-                        icon: Icons.motion_photos_on_rounded,
-                        iconColor: KBrandColors.red400,
-                        border: KBrandColors.red400,
-                        label: l10n.reelsChipStories,
-                        semanticLabel: l10n.reelsOpenStories,
-                        onTap: () => unawaited(showReelsStoriesSheet(context)),
-                      ),
-                      const SizedBox(width: KReelsHeader.chipSpacing),
-                      _ReelsChip(
-                        key: FeedScreen.roomsChipKey,
-                        asset: AppIcons.mic,
-                        iconColor: KBrandColors.gold,
-                        border: KBrandColors.gold,
-                        label: l10n.reelsChipRooms,
-                        semanticLabel: l10n.reelsOpenRooms,
-                        onTap: () => context.push(AppRoutes.voiceRooms),
-                      ),
-                      const SizedBox(width: KReelsHeader.chipSpacing),
                       // D53: the way back to Posts (the switch word's job on
                       // the Posts header).
                       _ReelsChip(
@@ -534,15 +514,13 @@ class _ReelsChip extends StatelessWidget {
     required this.iconColor,
     required this.border,
     required this.onTap,
-    this.icon,
-    this.asset,
+    required this.asset,
     super.key,
   });
 
   final String label;
   final String semanticLabel;
-  final IconData? icon;
-  final String? asset;
+  final String asset;
   final Color iconColor;
   final Color border;
   final VoidCallback onTap;
@@ -550,9 +528,7 @@ class _ReelsChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final white = KPalette.dark.textPrimary;
-    final glyph = asset != null
-        ? AppIcon(asset!, size: KReelsHeader.chipIcon, color: iconColor)
-        : Icon(icon, size: KReelsHeader.chipIcon, color: iconColor);
+    final glyph = AppIcon(asset, size: KReelsHeader.chipIcon, color: iconColor);
     return Semantics(
       button: true,
       label: semanticLabel,
@@ -589,91 +565,16 @@ class _ReelsChip extends StatelessWidget {
                     Text(
                       label,
                       maxLines: 1,
-                      style: context.textStyles.label.copyWith(color: white),
+                      style: context.textStyles.label.copyWith(
+                        color: white,
+                        fontSize: KReelsHeader.chipFont,
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-/// D202: «القصص» on the reels page — the stories tray (CP-008: your entry
-/// first, then the accounts you follow) in a sheet; a ring opens the
-/// viewer, your entry without a story adds one.
-Future<void> showReelsStoriesSheet(BuildContext context) {
-  // The page's router (the sheet sits on the root navigator).
-  final router = GoRouter.maybeOf(context);
-  return showModalBottomSheet<void>(
-    context: context,
-    useRootNavigator: true,
-    showDragHandle: true,
-    builder: (sheet) => ReelsStoriesSheet(
-      onGo: router == null ? null : (route) => unawaited(router.push(route)),
-    ),
-  );
-}
-
-class ReelsStoriesSheet extends ConsumerWidget {
-  const new({this.onGo, super.key});
-
-  /// Opens a route of the app (a story, «add a story») after the sheet
-  /// closes.
-  final ValueChanged<String>? onGo;
-
-  static const sheetKey = Key('reels.stories.sheet');
-  static const emptyKey = Key('reels.stories.empty');
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = context.l10n;
-    final t = context.textStyles;
-    final p = context.palette;
-    final stories = ref.watch(homeStoriesProvider);
-    void go(String route) {
-      Navigator.of(context).pop();
-      onGo?.call(route);
-    }
-
-    return SafeArea(
-      key: sheetKey,
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: KSpacing.lg),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsetsDirectional.symmetric(
-                horizontal: KSpacing.lg,
-              ),
-              child: Text(l10n.reelsChipStories, style: t.title),
-            ),
-            switch (stories) {
-              AsyncData(value: FeedItems(:final items)) when items.isNotEmpty =>
-                FeedStoriesTray(
-                  stories: items,
-                  onOpen: (s) => go(AppRoutes.stories(s.username!)),
-                  onAdd: () => go(AppRoutes.newStory),
-                ),
-              AsyncLoading() => const Padding(
-                padding: EdgeInsets.all(KSpacing.xl),
-                child: Center(child: CircularProgressIndicator()),
-              ),
-              _ => Padding(
-                key: emptyKey,
-                padding: const EdgeInsets.all(KSpacing.lg),
-                child: Text(
-                  l10n.reelsStoriesEmpty,
-                  style: t.body.copyWith(color: p.textSecondary),
-                ),
-              ),
-            },
-          ],
         ),
       ),
     );

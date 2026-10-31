@@ -204,20 +204,15 @@ void main() {
       );
       expect(_selected(tester, _en.reelsTabForYou), isTrue);
       expect(_selected(tester, _en.feedTabFollowing), isFalse);
-      final chips = [
-        FeedScreen.storiesChipKey,
-        FeedScreen.roomsChipKey,
-        FeedScreen.switchKey,
-      ].map((k) => tester.getRect(find.byKey(k))).toList();
-      for (final c in chips) {
-        expect(c.height, greaterThanOrEqualTo(KSizes.minTouchTarget));
-        expect(c.top, greaterThan(bell.bottom));
-      }
-      expect(chips[0].left, KReelsHeader.chipsStart);
-      expect(chips[0].right < chips[1].left, isTrue);
-      expect(chips[1].right < chips[2].left, isTrue);
-      expect(find.bySemanticsLabel(_en.reelsOpenStories), findsOneWidget);
-      expect(find.bySemanticsLabel(_en.reelsOpenRooms), findsOneWidget);
+      // Owner 2026-10-31: only the Posts chip stays («القصص», «الغرف» removed).
+      expect(find.bySemanticsLabel(_en.reelsOpenStories), findsNothing);
+      expect(find.bySemanticsLabel(_en.reelsOpenRooms), findsNothing);
+      final chip = tester.getRect(find.byKey(FeedScreen.switchKey));
+      expect(chip.height, greaterThanOrEqualTo(KSizes.minTouchTarget));
+      expect(chip.top, greaterThan(bell.bottom));
+      expect(chip.left, KReelsHeader.chipsStart);
+      expect(KReelsHeader.chipHeight, 28);
+      expect(KReelsHeader.chipIcon, 14);
       expect(find.bySemanticsLabel(_en.homeShowPosts), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
@@ -293,10 +288,6 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('route:/notifications'), findsOneWidget);
       await back();
-      await tester.tap(find.byKey(FeedScreen.roomsChipKey));
-      await tester.pumpAndSettle();
-      expect(find.text('route:/live/voice'), findsOneWidget);
-      await back();
       await tester.tapOnText(find.textRange.ofSubstring('#kabso'));
       await tester.pumpAndSettle();
       expect(find.text('route:/hashtags/kabso'), findsOneWidget);
@@ -309,20 +300,6 @@ void main() {
       await tester.tap(_onPage(find.byKey(HomeReelPage.authorKey)));
       await tester.pumpAndSettle();
       expect(find.text('route:/users/sara'), findsOneWidget);
-    });
-
-    testWidgets('Stories opens the stories tray; a ring opens the viewer', (
-      tester,
-    ) async {
-      await _pump(tester, router: _router());
-      await tester.tap(find.byKey(FeedScreen.storiesChipKey));
-      await tester.pumpAndSettle();
-      expect(find.byKey(ReelsStoriesSheet.sheetKey), findsOneWidget);
-      expect(find.byType(FeedStoriesTray), findsOneWidget);
-      await tester.tap(find.byKey(FeedStoriesTray.itemKey('omar')));
-      await tester.pumpAndSettle();
-      expect(find.byKey(ReelsStoriesSheet.sheetKey), findsNothing);
-      expect(find.text('route:/stories/omar'), findsOneWidget);
     });
 
     testWidgets('the Posts chip switches back to Posts', (tester) async {
