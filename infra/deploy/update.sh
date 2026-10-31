@@ -42,9 +42,22 @@ if [ "${1:-}" != "--force" ] && [ "$before" = "$after" ] && [ "$old_image" = "$n
 fi
 
 echo "deploying commit ${after:0:12}, API image ${new_image#sha256:}"
+# D192: the website's legal fields the owner still has to fill (infra/deploy/site/config.json; docs/DEPLOYMENT.md
+# §11.1). Caddy serves the site straight from the checkout, so a merged change is live without a restart.
+site_config=infra/deploy/site/config.json
+if [ -f "$site_config" ]; then
+  empty=$(grep -oE '"[A-Za-z]+": *("" *|null)' "$site_config" | cut -d'"' -f2 | paste -sd' ' - || true)
+  [ -n "$empty" ] && echo "warning: website legal fields still empty in $site_config: $empty" >&2
+  grep -qE '"legalReviewed": *true' "$site_config" ||
+    echo "warning: website legal pages not reviewed yet (legalReviewed is not true): they show the draft banner" >&2
+fi
 "${C[@]}" up -d --wait postgres redis
 "${C[@]}" --profile jobs run --rm migrate
 "${C[@]}" up -d --remove-orphans
+# The Caddyfile is a bind mount, so `up -d` does not restart Caddy when only its content changed (D192): reload it.
+if [ "$before" != "$after" ] && ! git diff --quiet "$before" "$after" -- infra/deploy/Caddyfile; then
+  "${C[@]}" exec -T caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile && echo "Caddy reloaded"
+fi
 
 for _ in $(seq 1 30); do
   if "${C[@]}" exec -T api node -e "fetch('http://127.0.0.1:3000/health/ready').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))" 2>/dev/null; then

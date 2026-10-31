@@ -4,10 +4,45 @@
 	email {$KABSO_ACME_EMAIL}
 }
 
+# The public website (D192, docs/contracts/CONVENTIONS.md §10.55): static files from infra/deploy/site, plus the
+# three paths that belong to the API on the same origin (no CORS): the waitlist form, the website's settings, and
+# D190's top-up page.
 {$KABSO_DOMAIN} {
-	root * /srv/site
-	file_server
 	encode zstd gzip
+
+	@api path /api/v1/waitlist /api/v1/site/settings /topup*
+	handle @api {
+		# Caddy appends X-Forwarded-For here too, so TRUST_PROXY=1 still holds (docs/DEPLOYMENT.md §3.1). The
+		# API sets its own headers (helmet: HSTS, nosniff, …; D190's top-up page its own CSP).
+		reverse_proxy api:3000
+	}
+
+	handle {
+		header {
+			Strict-Transport-Security "max-age=31536000; includeSubDomains"
+			Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; media-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
+			X-Content-Type-Options "nosniff"
+			X-Frame-Options "DENY"
+			Referrer-Policy "strict-origin-when-cross-origin"
+			Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+			Cross-Origin-Opener-Policy "same-origin"
+			-Server
+		}
+		# Art and fonts never change under the same name (a new file gets a new name); pages, CSS, JS and
+		# config.json are revalidated after 5 minutes (file_server sends ETag / Last-Modified).
+		@longCache path /assets/fonts/* /assets/characters/*
+		header @longCache Cache-Control "public, max-age=2592000"
+		@shortCache not path /assets/fonts/* /assets/characters/*
+		header @shortCache Cache-Control "public, max-age=300"
+		root * /srv/site
+		# Clean URLs: /privacy → privacy.html.
+		try_files {path} {path}.html
+		file_server
+	}
+}
+
+www.{$KABSO_DOMAIN} {
+	redir https://{$KABSO_DOMAIN}{uri} permanent
 }
 
 api.{$KABSO_DOMAIN} {

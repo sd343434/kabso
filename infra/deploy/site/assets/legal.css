@@ -1,0 +1,48 @@
+/* Kabso Live legal pages (D192): the coming-soon page's colours and fonts, a readable document column. */
+:root{--red:#C2000B;--red2:#FF2A36;--ink:#0F0F0F;--card:#171717;--line:rgba(255,255,255,.12);--mut:rgba(255,255,255,.66)}
+*{box-sizing:border-box;margin:0;padding:0}
+[hidden]{display:none!important}
+html{background:var(--ink)}
+body{min-height:100vh;background:radial-gradient(70vmax 40vmax at 50% -10%,rgba(194,0,11,.28),transparent 62%) no-repeat,var(--ink);color:#fff;font:600 16px/1.85 Cairo,Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+html[lang=en] body{font-family:Inter,Cairo,system-ui,sans-serif;font-weight:500;line-height:1.7}
+a{color:#FF8A92}
+a:hover{color:#fff}
+:focus-visible{outline:2px solid #fff;outline-offset:2px}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px clamp(16px,4vw,44px);max-width:1100px;margin:0 auto}
+.brand{display:flex;align-items:center;gap:8px;color:#fff;text-decoration:none;direction:ltr}
+.brand img{height:30px;width:auto}
+.brand b{font:900 17px Inter;letter-spacing:.02em}
+.brand small{display:block;font:600 7px Inter;letter-spacing:.38em;color:rgba(255,255,255,.7)}
+.hr{display:flex;gap:8px;align-items:center}
+.chip{display:inline-flex;align-items:center;height:32px;padding:0 12px;border-radius:999px;font:800 12px Cairo,Inter,sans-serif;color:#fff;text-decoration:none;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);cursor:pointer;white-space:nowrap}
+.chip:hover{background:rgba(255,255,255,.16);color:#fff}
+.chip.lang{font-family:Inter,Cairo,sans-serif}
+main{max-width:820px;margin:0 auto;padding:8px 16px 48px}
+.draft{margin:8px 0 20px;padding:10px 14px;border-radius:12px;background:rgba(255,193,7,.12);border:1px solid rgba(255,193,7,.45);color:#FFD866;font-weight:800;text-align:center}
+article{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:clamp(20px,4vw,40px)}
+h1{font:900 clamp(28px,5vw,40px)/1.3 Cairo,Inter,sans-serif;margin-bottom:6px}
+html[lang=en] h1{font-family:Inter,Cairo,sans-serif;font-weight:800;letter-spacing:-.01em}
+.meta{color:var(--mut);font-size:14px;margin-bottom:22px}
+h2{font:800 20px/1.5 Cairo,Inter,sans-serif;margin:28px 0 8px;color:#fff}
+html[lang=en] h2{font-family:Inter,Cairo,sans-serif;font-weight:700}
+h3{font-size:16px;margin:16px 0 4px}
+p,li{color:rgba(255,255,255,.86)}
+p+p{margin-top:10px}
+ul{padding-inline-start:22px;margin:8px 0}
+li{margin:4px 0}
+.missing{color:#FFD866;font-style:italic}
+.note{margin-top:10px;padding:10px 14px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid var(--line);font-size:14px}
+dl.contact{display:grid;gap:14px;margin-top:18px}
+dl.contact>div{padding:14px 16px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid var(--line)}
+dt{font-size:13px;color:var(--mut)}
+dd{font-weight:800;overflow-wrap:anywhere}
+.ltr{direction:ltr;unicode-bidi:isolate;display:inline-block}
+.socials{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+.social{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 14px 0 10px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid var(--line);color:#fff;text-decoration:none;font-weight:800;font-size:14px}
+.social:hover{background:rgba(255,255,255,.16);color:#fff}
+.social svg{width:18px;height:18px}
+footer{max-width:820px;margin:0 auto;padding:0 16px 32px;display:flex;flex-wrap:wrap;gap:6px 16px;justify-content:center;font:500 12px Inter,Cairo,sans-serif;color:rgba(255,255,255,.45)}
+footer a{color:rgba(255,255,255,.65);text-decoration:none}
+footer a:hover{color:#fff;text-decoration:underline}
+footer a[aria-current=page]{color:#fff}
+footer .copy{direction:ltr}
