@@ -1532,7 +1532,9 @@ DNS record, the certificate, `build-admin.sh` inside Docker on the server (no Do
 `admin_balance_adjustments`, `users.password_change_required_at`, two notification columns, the ledgers' sign rules
 extended in place for `ADMIN_ADJUSTMENT`). Optional settings in `/etc/kabso/api.env`: `ADMIN_ADJUST_DAILY_CAP_COINS`
 and `ADMIN_ADJUST_DAILY_CAP_CHERRIES` (10 000 000 each; the most ONE admin may move per day; 0 = no adjustments). The
-CLI on the server (migration role; `via: cli` in the audit log, no actor):
+`ADMIN_USERNAME_RENAME_HOLD_DAYS` (30): how long the old username stays held after a team rename (0 = none). The
+panel's ban now asks for the authenticator code. The CLI on the server (migration role; `via: cli` in the audit log,
+no actor):
 
 ```bash
 cd /opt/kabso/infra/deploy

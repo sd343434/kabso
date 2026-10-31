@@ -28,7 +28,7 @@ import {
 } from '../users/account-control.js';
 import { cancelDeletionIn, requestDeletionIn } from '../users/account-deletion.js';
 import { containsReservedTerm } from '../users/confusables.js';
-import { activeSpecialOf } from '../users/special-usernames.js';
+import { activeSpecialOf, specialHolderOf } from '../users/special-usernames.js';
 import { isReservedUsername } from '../users/username.js';
 import { dayStart } from '../recharge/recharge-rules.js';
 import { AdminAuthService, type AdminContext } from './admin-auth.service.js';
@@ -423,8 +423,11 @@ export class AdminControlService {
         data.premiumTier = null;
         note('username', before.username, name);
       }
+      let heldUntil: Date | null = null;
       if (fields.length === 0) return [];
       await tx.userProfile.update({ where: { userId: id }, data });
+      if (data.username !== undefined)
+        heldUntil = await this.holdOldUsernameIn(tx, id, before.username, data.username as string, now);
       if (data.gender !== undefined) {
         // The active-host frame follows the gender (D186), as when the person changes it.
         await syncHostFrameIn(tx, id, now, this.config.economy, this.config.live.rankingsTimeZone);
@@ -435,13 +438,65 @@ export class AdminControlService {
         actorUserId: ctx.userId,
         targetType: 'user',
         targetId: id,
-        metadata: { reason: body.reason, fields, before: was, after: now_, via: 'panel' },
+        metadata: {
+          reason: body.reason,
+          fields,
+          before: was,
+          after: now_,
+          ...(heldUntil ? { oldUsernameHeldUntil: heldUntil.toISOString() } : {}),
+          via: 'panel',
+        },
         ip: ctx.ip,
         requestId: ctx.requestId,
       });
       return fields;
     });
     return { changed };
+  }
+
+  /**
+   * v1.72-social (D208, owner 2026-10-31): the old username stays the person's for ADMIN_USERNAME_RENAME_HOLD_DAYS —
+   * the special-username hold (a GRACE row: every «taken» check honours it, old @mentions still lead to the person,
+   * the person may take it back, the sweeper releases it at `grace_until`). An own hold of the name is extended.
+   */
+  private async holdOldUsernameIn(
+    tx: Tx,
+    id: string,
+    old: string,
+    next: string,
+    now: Date,
+  ): Promise<Date | null> {
+    const days = this.config.adminPanel.renameHoldDays;
+    if (days <= 0) return null;
+    const until = new Date(now.getTime() + days * 86_400_000);
+    const own = await tx.specialUsername.findFirst({ where: { userId: id, username: old, status: 'GRACE' } });
+    if (own) {
+      await tx.specialUsername.update({
+        where: { id: own.id },
+        data: {
+          baseUsername: next,
+          graceUntil: own.graceUntil && own.graceUntil > until ? own.graceUntil : until,
+        },
+      });
+      return until;
+    }
+    if ((await specialHolderOf(tx, old, id)) !== null) return null;
+    await tx.specialUsername.create({
+      data: {
+        userId: id,
+        username: old,
+        baseUsername: next,
+        source: 'ADMIN_GIFT',
+        status: 'GRACE',
+        locked: true,
+        grantedAt: now,
+        endedAt: now,
+        endReason: 'RENAMED',
+        graceUntil: until,
+        reason: 'held after a rename by the team',
+      },
+    });
+    return until;
   }
 
   // ---- email -----------------------------------------------------------------------------------------------------

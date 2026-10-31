@@ -467,7 +467,18 @@ export function UserDetail({ id }: { id: string }) {
       {tab === 'sessions' && (
         <Sessions id={id} bump={bump} onRevoke={(sid) => setRevokeOne(sid)} />
       )}
-      {action === 'ban' && reasonAction('ban', t('ban'), true)}
+      {/* D208 (owner 2026-10-31): the permanent ban asks for the authenticator code again. */}
+      {action === 'ban' && (
+        <FormDialog
+          title={t('ban')}
+          fields={[reasonField(t), { ...codeField(t), hint: t('ctCodeHint') }]}
+          confirmLabel={t('ban')}
+          danger
+          submit={(v) => api.post(`/admin/users/${id}/ban`, { reason: v.reason, totpCode: v.totpCode })}
+          onClose={() => setAction(null)}
+          onDone={done}
+        />
+      )}
       {action === 'unban' && reasonAction('unban', t('unban'))}
       {action === 'avatar' && reasonAction('avatar/remove', t('removeAvatar'), true)}
       {action === 'revoke' && reasonAction('special-username/revoke', t('revokeSpecial'))}

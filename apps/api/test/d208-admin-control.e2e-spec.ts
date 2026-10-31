@@ -16,6 +16,7 @@ import { grantRoleIn } from '../src/modules/admin-panel/admin-roles.js';
 import { totpCode } from '../src/modules/admin-panel/totp.js';
 import { LIVE_MEDIA_PROVIDER } from '../src/modules/live/media/live-media.provider.js';
 import { OBJECT_STORAGE } from '../src/modules/media/object-storage.js';
+import { sweepSpecialUsernames } from '../src/modules/users/special-usernames.js';
 import { MemoryLiveMedia } from './helpers/memory-live-media.js';
 import { MemoryObjectStorage } from './helpers/memory-storage.js';
 import { expectContract, operations } from './helpers/openapi.js';
@@ -329,7 +330,14 @@ describe('D208 admin account controls', { timeout: 900_000 }, () => {
     expect((await post(support, `/admin/users/${moderator.id}/lock`, { days: 1, reason: 'x' })).status).toBe(
       403,
     );
-    expect((await post(owner, `/admin/users/${p.id}/ban`, { reason: 'ban test' })).status).toBe(200);
+    expect(
+      (
+        await post(owner, `/admin/users/${p.id}/ban`, {
+          reason: 'ban test',
+          totpCode: nextCode(owner.secret),
+        })
+      ).status,
+    ).toBe(200);
     const onBanned = await post(owner, `/admin/users/${p.id}/lock`, { days: 3, reason: 'x' });
     expect(onBanned.status).toBe(409);
     expect(onBanned.body.error.code).toBe('ADMIN_ACTION_REFUSED');
@@ -600,9 +608,39 @@ describe('D208 admin account controls', { timeout: 900_000 }, () => {
     expect(profile.status).toBe(200);
     expect(profile.body.displayName).toBe('Edited Name');
     expect((await notifications(p)).map((n) => n.type)).toContain('PROFILE_EDITED_BY_TEAM');
-    // The username rules: another account's → 409; a premium shape → 400; nothing to change → 400.
+    // The old username stays held for p for ADMIN_USERNAME_RENAME_HOLD_DAYS (30): nobody else may take it, old links
+    // still lead to p, and p may take it back (owner 2026-10-31).
+    expect(meta.oldUsernameHeldUntil).toBe(new Date(clock + 30 * DAY).toISOString());
+    const changeName = (who: Person, username: string) =>
+      ctx.http.put('/api/v1/me/username').set(bearer(who)).send({ username });
+    const grab = await changeName(other, p.username);
+    expect(grab.status).toBe(409);
+    expect(grab.body.error.code).toBe('USERNAME_TAKEN');
+    expect(
+      (await ctx.http.get(`/api/v1/users/username-availability?username=${p.username}`)).body.available,
+    ).toBe(false);
+    expect((await ctx.http.get(`/api/v1/users/${p.username}`).set(bearer(other))).body.username).toBe(name);
+    const back = await changeName(p, p.username);
+    expect(back.status, JSON.stringify(back.body)).toBe(200);
+    expect(back.body.username).toBe(p.username);
+    // Renamed again by the team: the same hold is extended (no second row).
+    const name2 = `again_${Math.floor(Math.random() * 1e6)}y`;
+    expect(
+      (await send('patch', moderator, `/admin/users/${p.id}/profile`, { username: name2, reason: 'again' }))
+        .status,
+    ).toBe(200);
+    expect(await ctx.prisma.specialUsername.count({ where: { userId: p.id, username: p.username } })).toBe(1);
+    expect((await changeName(other, p.username)).status).toBe(409);
+    // After the hold the sweeper releases it and anyone may take it.
+    advance(31 * DAY);
+    await sweepSpecialUsernames(ctx.prisma, new Date(clock), 30);
+    await fresh(other);
+    const freed = await changeName(other, p.username);
+    expect(freed.status, JSON.stringify(freed.body)).toBe(200);
+    await relogin(owner, moderator, support, finance);
+    // The username rules: another account's (p's old one, now other's) → 409; a premium shape → 400; nothing → 400.
     const taken = await send('patch', support, `/admin/users/${p.id}/profile`, {
-      username: other.username,
+      username: p.username,
       reason: 'x',
     });
     expect(taken.status).toBe(409);

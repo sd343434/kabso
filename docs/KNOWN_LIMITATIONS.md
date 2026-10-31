@@ -95,7 +95,8 @@
   the team must write them for the user.
 - **Temporary password:** shown once in the panel; the team hands it over outside the app (no SMS / email of it).
 - **Email change:** no notice is mailed to the OLD address (only the verification to the new one).
-- **Username change by the team:** the old username is free at once (not held), so old @mentions stop resolving.
+- **Username change by the team:** the old username is held for the person 30 days (`ADMIN_USERNAME_RENAME_HOLD_DAYS`)
+  as a GRACE special-username row, so it also appears in the panel's special-usernames list during that time.
 - **Deletion by the team** uses D193's grace period: the person can still cancel it by logging in (as with
   `account-admin request`). Whether a team deletion should be cancellable is an owner question.
 - **Comments** removed by the team cannot be restored (only posts, reels and stories can).

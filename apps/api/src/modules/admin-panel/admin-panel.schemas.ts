@@ -23,6 +23,8 @@ export const adminSecondFactorSchema = z.union([
 ]);
 
 export const reasonSchema = z.strictObject({ reason });
+/** v1.72-social (D208, owner 2026-10-31): a ban needs the authenticator code again. */
+export const banSchema = z.strictObject({ reason, totpCode });
 
 export const pageQuerySchema = z.strictObject({
   cursor: z.string().max(200).optional(),

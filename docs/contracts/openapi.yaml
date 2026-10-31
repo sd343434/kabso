@@ -9273,7 +9273,7 @@ paths:
       tags: [admin-panel]
       operationId: banAdminUser
       summary: "Ban «حظر»: ACTIVE → SUSPENDED with the account-lifecycle side effects (users.ban; reason required; audited)"
-      description: "409 `ADMIN_ACTION_REFUSED` when the account is not ACTIVE or it is the caller's own; an account holding a panel role needs OWNER (403)."
+      description: "409 `ADMIN_ACTION_REFUSED` when the account is not ACTIVE or it is the caller's own; an account holding a panel role needs OWNER (403). v1.72-social (D208, owner 2026-10-31): the authenticator code again (`totpCode`; 403 `ADMIN_TOTP_INVALID`) — the ban is permanent; a temporary lock is `lockAdminUser`. `unbanAdminUser` keeps the reason only."
       security: [{ adminSession: [] }]
       parameters:
         - $ref: '#/components/parameters/AdminUserIdPath'
@@ -9282,7 +9282,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/AdminReasonRequest' }
+            schema: { $ref: '#/components/schemas/AdminReasonCodeRequest' }
       responses:
         '200':
           description: Banned.

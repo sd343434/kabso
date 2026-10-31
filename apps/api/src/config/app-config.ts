@@ -335,6 +335,8 @@ export interface AppConfig {
     readonly reportCardFee: { readonly bps: number; readonly fixedMinor: number };
     /** v1.72-social (D208): the per-admin daily cap of balance adjustments (0 = none allowed). */
     readonly adjustDailyCap: { readonly coins: number; readonly cherries: number };
+    /** v1.72-social (D208): days the old username stays held after a team rename (0 = none). */
+    readonly renameHoldDays: number;
   };
   /** v1.62-social (D193): account deletion (CONVENTIONS §10.56). */
   readonly accountDeletion: {
@@ -749,6 +751,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       dashboardTimeZone: e.ADMIN_DASHBOARD_TIME_ZONE,
       reportCardFee: { bps: e.ADMIN_REPORT_CARD_FEE_BPS, fixedMinor: e.ADMIN_REPORT_CARD_FEE_FIXED_MINOR },
       adjustDailyCap: { coins: e.ADMIN_ADJUST_DAILY_CAP_COINS, cherries: e.ADMIN_ADJUST_DAILY_CAP_CHERRIES },
+      renameHoldDays: e.ADMIN_USERNAME_RENAME_HOLD_DAYS,
     },
     accountDeletion: {
       graceDays: e.ACCOUNT_DELETION_GRACE_DAYS,

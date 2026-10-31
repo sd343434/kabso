@@ -1149,6 +1149,11 @@ export const envSchema = z
     ADMIN_ADJUST_DAILY_CAP_COINS: intSetting(10_000_000, 0, 1_000_000_000_000),
     ADMIN_ADJUST_DAILY_CAP_CHERRIES: intSetting(10_000_000, 0, 1_000_000_000_000),
     /**
+     * v1.72-social (D208, owner 2026-10-31): after the team renames a username, the OLD one stays held for the person
+     * this many days (a GRACE special-username row: nobody else may take it, the person may take it back). 0 = no hold.
+     */
+    ADMIN_USERNAME_RENAME_HOLD_DAYS: intSetting(30, 0, 365),
+    /**
      * v1.56-social (D187, CONVENTIONS §10.50): the daily recharge badges. The minimum coins recharged in one
      * calendar day for each of the five tiers (owner: 1 000 000, 10 000 001, 20 000 001, 40 000 001,
      * 70 000 001 — tier 1 is 1M–10M, tier 2 10.01M–20M …), the zone of that day (owner default Asia/Riyadh)
