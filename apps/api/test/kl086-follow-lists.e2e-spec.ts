@@ -242,7 +242,8 @@ describe('KL-086 follow lists (D121)', () => {
       await ctx.prisma.userProfile.update({ where: { userId: u.id }, data: { username, displayName } });
       return { ...u, username };
     };
-    const tag = () => Math.random().toString(36).slice(2, 8);
+    // Starts with a digit so a tag can never extend a probe such as `omar_x` into a real prefix.
+    const tag = () => `0${Math.random().toString(36).slice(2, 8)}`;
 
     it('q keeps a case-insensitive prefix of the username or the display name', async () => {
       const t = tag();
