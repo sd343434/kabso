@@ -119,3 +119,158 @@ describe('QR', () => {
     expect(m[1]![1]).toBe(false);
   });
 });
+
+// ---- v1.65-social (D197): the panel v2's pure parts -----------------------------------------------------------
+import { attachmentName } from '../src/api';
+import { visibleNav, CAP_OF_ROUTE } from '../src/nav';
+import { diffOf, metaText } from '../src/pages/Audit';
+import { giftBody, type GiftDto } from '../src/pages/Catalog';
+import { deltaPercent, formatDay } from '../src/pages/Dashboard';
+import { defaultRange } from '../src/pages/Finance';
+import { onAir } from '../src/pages/Lives';
+import type { Capability } from '../src/types';
+import { areaPath, compact, linePath, nearestIndex, niceMax, xOf, yOf } from '../src/ui/charts';
+import { pageWindow } from '../src/ui/DataTable';
+
+describe('charts (hand-rolled SVG)', () => {
+  it('rounds the axis top up to 1, 2, 2.5 or 5 × 10ⁿ', () => {
+    expect(niceMax(0)).toBe(1);
+    expect(niceMax(7)).toBe(10);
+    expect(niceMax(12)).toBe(20);
+    expect(niceMax(21)).toBe(25);
+    expect(niceMax(16_226_647)).toBe(20_000_000);
+    expect(niceMax(25_000_000)).toBe(25_000_000);
+  });
+  it('maps values to the plot box and draws paths', () => {
+    expect(yOf(0, 10, 100)).toBe(100);
+    expect(yOf(10, 10, 100)).toBe(0);
+    expect(yOf(-5, 10, 100)).toBe(100);
+    expect(xOf(0, 3, 200)).toBe(0);
+    expect(xOf(2, 3, 200)).toBe(200);
+    expect(xOf(0, 1, 200)).toBe(100);
+    expect(linePath([0, 5, 10], 100, 50, 10)).toBe('M0.0 50.0 L50.0 25.0 L100.0 0.0');
+    expect(areaPath([0, 10], 100, 50, 10)).toBe('M0.0 50.0 L100.0 0.0 L100.0 50 L0.0 50 Z');
+    expect(areaPath([], 100, 50, 10)).toBe('');
+  });
+  it('finds the nearest point under the pointer and prints compact axis numbers', () => {
+    expect(nearestIndex(0, 30, 300)).toBe(0);
+    expect(nearestIndex(300, 30, 300)).toBe(29);
+    expect(nearestIndex(-20, 30, 300)).toBe(0);
+    expect(nearestIndex(151, 3, 300)).toBe(1);
+    expect(compact(2.5)).toBe('2.5');
+    expect(compact(950)).toBe('950');
+    expect(compact(12_500)).toBe('12.5K');
+    expect(compact(18_750_000)).toBe('18.8M');
+    expect(compact(2_000_000_000)).toBe('2B');
+  });
+});
+
+describe('table', () => {
+  it('shows a window of pages around the current one', () => {
+    expect(pageWindow(1, 1)).toEqual([1]);
+    expect(pageWindow(3, 7)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(pageWindow(1, 20)).toEqual([1, 2, '…', 20]);
+    expect(pageWindow(10, 20)).toEqual([1, '…', 9, 10, 11, '…', 20]);
+    expect(pageWindow(20, 20)).toEqual([1, '…', 19, 20]);
+  });
+  it('names the CSV download from the server header', () => {
+    expect(attachmentName('attachment; filename="kabso-users-2026-10-31.csv"', 'x.csv')).toBe('kabso-users-2026-10-31.csv');
+    expect(attachmentName(null, 'x.csv')).toBe('x.csv');
+  });
+});
+
+describe('dashboard and pages', () => {
+  it('computes the change against yesterday', () => {
+    expect(deltaPercent(12, 10)).toBe(20);
+    expect(deltaPercent(5, 10)).toBe(-50);
+    expect(deltaPercent(0, 0)).toBe(0);
+    expect(deltaPercent(3, 0)).toBeNull();
+  });
+  it('shows the dashboard day in Asia/Riyadh whatever the browser zone', () => {
+    // Riyadh midnight of 31 Oct 2026 is 21:00 UTC on the 30th.
+    expect(formatDay('2026-10-30T21:00:00.000Z', 'Asia/Riyadh', 'en')).toContain('31 October 2026');
+  });
+  it('counts time on air', () => {
+    expect(onAir('2026-10-31T10:00:00Z', Date.parse('2026-10-31T11:05:30Z'))).toBe('1:05');
+    expect(onAir('2026-10-31T10:00:00Z', Date.parse('2026-10-31T09:00:00Z'))).toBe('0:00');
+  });
+  it('a report range: the last 30 Riyadh days, or the last 12 months', () => {
+    const now = new Date('2026-10-31T12:00:00Z');
+    expect(defaultRange('day', now)).toEqual({ from: '2026-10-02', to: '2026-10-31' });
+    expect(defaultRange('month', now)).toEqual({ from: '2025-11-01', to: '2026-10-31' });
+  });
+});
+
+describe('gift form', () => {
+  const before: GiftDto = {
+    code: 'rose',
+    category: 'POPULAR',
+    nameAr: 'وردة',
+    nameEn: 'Rose',
+    priceCoins: 10,
+    priceUsd: '0.00',
+    assetKey: 'gifts/rose',
+    animationKey: null,
+    imageUrl: null,
+    hostedAnimation: false,
+    sortOrder: 0,
+    badge: 'NONE',
+    lucky: false,
+    tagCode: null,
+    tagNameAr: null,
+    tagNameEn: null,
+    soundKey: null,
+    soundMs: null,
+    quipText: null,
+    enabled: true,
+    sends: 0,
+    coinsSpent: 0,
+  };
+  const form = (over: Record<string, string>) => ({
+    ...Object.fromEntries(Object.entries(before).map(([k, v]) => [k, v === null ? '' : String(v)])),
+    ...over,
+  });
+  it('an edit sends only what changed, null for a cleared optional field', () => {
+    expect(giftBody(form({}), before)).toEqual({});
+    expect(giftBody(form({ priceCoins: '25', badge: 'NEW' }), before)).toEqual({ priceCoins: 25, badge: 'NEW' });
+    expect(giftBody(form({ animationKey: 'fx/rose' }), { ...before })).toEqual({ animationKey: 'fx/rose' });
+    expect(giftBody(form({ animationKey: '' }), { ...before, animationKey: 'fx/rose' })).toEqual({ animationKey: null });
+  });
+  it('a new gift sends every field that is set', () => {
+    expect(
+      giftBody({ category: 'LUCKY', nameAr: 'نجمة', nameEn: 'Star', priceCoins: '500', assetKey: 'gifts/star', badge: 'NONE', sortOrder: '0' }, null),
+    ).toEqual({ category: 'LUCKY', nameAr: 'نجمة', nameEn: 'Star', priceCoins: 500, assetKey: 'gifts/star', sortOrder: 0, badge: 'NONE' });
+  });
+});
+
+describe('audit viewer', () => {
+  it('shows before/after and a changes map as pairs', () => {
+    expect(diffOf({ before: 'ACTIVE', after: 'SUSPENDED', reason: 'x' })).toEqual([{ field: '', before: 'ACTIVE', after: 'SUSPENDED' }]);
+    expect(diffOf({ changes: { priceCoins: { from: 500, to: 750 } } })).toEqual([{ field: 'priceCoins', before: '500', after: '750' }]);
+    expect(diffOf({ reason: 'x' })).toEqual([]);
+    expect(metaText(null)).toBe('—');
+    expect(metaText({ a: 1 })).toBe('{"a":1}');
+  });
+});
+
+describe('navigation by role', () => {
+  const CAPS: Record<string, Capability[]> = {
+    MODERATION: ['dashboard.view', 'users.view', 'users.list', 'users.balances', 'users.ban', 'users.avatar', 'reports.view', 'reports.act', 'users.sessions', 'lives.view', 'lives.manage'],
+    FINANCE: ['dashboard.view', 'users.view', 'users.list', 'users.balances', 'users.ledger', 'recharge.agents', 'recharge.topup', 'recharge.cap', 'withdrawals.view', 'withdrawals.decide', 'agencies.view', 'catalog.view', 'finance.view', 'finance.refund', 'programs.view'],
+  };
+  const items = (role: string) => visibleNav((c) => CAPS[role]!.includes(c)).flatMap((g) => g.items.map((i) => i.to));
+  it('shows each role only what it can open (groups without items vanish)', () => {
+    expect(items('MODERATION')).toEqual(['/', '/users', '/lives', '/live-hosts', '/reports']);
+    expect(items('FINANCE')).toContain('/finance/report');
+    expect(items('FINANCE')).not.toContain('/team');
+    expect(items('FINANCE')).not.toContain('/reports');
+    expect(visibleNav((c) => CAPS.MODERATION!.includes(c)).map((g) => g.key)).not.toContain('navGroupMoney');
+  });
+  it('every v2 route has a capability', () => {
+    for (const r of ['agencies', 'agency', 'complaints', 'lives', 'hosts', 'gifts', 'items', 'promo', 'report', 'topups', 'cards', 'tasks', 'levels', 'waitlist', 'team', 'audit', 'specialUsernames']) {
+      expect(CAP_OF_ROUTE[r], r).toBeTruthy();
+    }
+    expect(matchPath('/agencies/abc')).toEqual({ name: 'agency', params: { id: 'abc' } });
+    expect(matchPath('/finance/report')?.name).toBe('report');
+  });
+});
