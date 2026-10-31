@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kabso_live/core/logging/app_logger.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/application/live_pk_controller.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
@@ -71,8 +72,23 @@ class _HostStageState extends ConsumerState<LiveHostToolsStage> {
     if (mounted) setState(() {});
   }
 
+  /// D210: a tool (music, PK) that failed: the stage is the host's plain
+  /// camera from then on — the live picture never goes.
+  bool _degraded = false;
+
   @override
   Widget build(BuildContext context) {
+    if (_degraded) return widget.camera;
+    try {
+      return _tools(context);
+    } on Object catch (e, stack) {
+      AppLogger.error('live: host tools stage off', e, stack);
+      _degraded = true;
+      return widget.camera;
+    }
+  }
+
+  Widget _tools(BuildContext context) {
     // The player lives as long as the live's stage (music stops with it).
     ref.watch(liveMusicProvider.select((s) => s.playing));
     final me = ref.watch(currentUserProvider)?.id;

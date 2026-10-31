@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart'
     show FutureProviderFamily, KeepAliveLink;
 import 'package:kabso_live/core/error/app_failure.dart';
+import 'package:kabso_live/core/logging/app_logger.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/features/live/application/live_background.dart';
 import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
@@ -166,6 +167,39 @@ int fitSeatCount(int count, List<int> allowed) {
   return sorted.firstWhere((c) => c > count, orElse: () => sorted.last);
 }
 
+/// D210: the step of going live that failed and what it failed with — the
+/// «تفاصيل» line under the generic error, so a device report names it.
+/// Never a message (it may carry a URL or a token): the step and the error
+/// type or the server's error code only.
+class LiveStartFailure {
+  const new(this.stage, this.kind);
+
+  /// [error] at [stage]; a [LivePublishException] names its own step.
+  factory of(String stage, Object error) {
+    if (error is LivePublishException) {
+      return LiveStartFailure.of(error.stage.name, error.cause);
+    }
+    final failure = toAppFailure(error);
+    final kind = failure is UnexpectedFailure
+        ? error.runtimeType.toString()
+        : failure.code.wire;
+    return LiveStartFailure(stage, kind);
+  }
+
+  /// `config`, `room`, `token`, `camera`, `publish`, or the publish's own
+  /// step: `connect`, `video`, `audio`.
+  final String stage;
+
+  /// The server's error code, or the exception's type.
+  final String kind;
+
+  /// What the screen shows, e.g. `GL-video:TrackPublishException`.
+  String get code => 'GL-$stage:$kind';
+
+  @override
+  String toString() => code;
+}
+
 /// D144a: the screen's rationale before the system's camera/microphone
 /// prompt; true when the person goes on ([camera] false: microphone only).
 typedef LivePermissionPrompt = Future<bool> Function({required bool camera});
@@ -188,6 +222,10 @@ class LiveHostController extends Notifier<GoLiveState> {
 
   /// The room on air (created and not yet ended by this screen).
   String? _onAir;
+
+  /// D210: why the last go-live failed (null once one succeeds).
+  LiveStartFailure? get lastStartFailure => _startFailure;
+  LiveStartFailure? _startFailure;
 
   /// The engine whose picture the screen shows.
   LiveMediaEngine get engine => _engine;
@@ -571,9 +609,12 @@ class LiveHostController extends Notifier<GoLiveState> {
     state = state.copyWith(phase: GoLivePhase.starting);
     // On air the session outlives the screen (minimized, owner D94).
     _alive ??= ref.keepAlive();
+    _startFailure = null;
     LiveRoom? room;
+    var stage = 'config';
+    final LiveConfig config;
     try {
-      final config = await _repo.getConfig();
+      config = await _repo.getConfig();
       // The count sent is the one previewed: a count the server no longer
       // allows moves to the next allowed one first (as D103 moved rooms).
       final allowed = switch (state.mode) {
@@ -588,6 +629,7 @@ class LiveHostController extends Notifier<GoLiveState> {
             ? state.copyWith(audioSeats: fitted)
             : state.copyWith(multiSeats: fitted);
       }
+      stage = 'room';
       room = await _repo.startRoom(
         title: title,
         categorySlug: categorySlug,
@@ -607,22 +649,25 @@ class LiveHostController extends Notifier<GoLiveState> {
         if (wished != null) room = wished;
       }
       if (ref.mounted) state = state.copyWith(room: room);
+      stage = 'token';
       final access = await _repo.mediaToken(room.id);
       // An audio room's media token allows the microphone only (CP-011): a
       // camera left running would be refused and the publish would fail.
+      stage = 'camera';
       if (state.mode == LiveRoomMode.audio && _engine.videoEnabled) {
         await _engine.startPreview(video: false);
       }
+      // The core of going live: joining the media room and publishing the
+      // camera and the microphone. Only these may fail it (D210).
+      stage = 'publish';
       await _engine.publish(access);
       if (!ref.mounted) return;
       state = state.copyWith(phase: GoLivePhase.live, liveSince: clock.now());
-      _heartbeat = Timer.periodic(
-        Duration(seconds: config.heartbeatIntervalSeconds),
-        (_) => unawaited(_beat()),
-      );
-      if (background != null) _holdBackground(background);
-    } on Object catch (e) {
+    } on Object catch (e, stack) {
       final failure = toAppFailure(e);
+      final why = LiveStartFailure.of(stage, e);
+      _startFailure = why;
+      AppLogger.error('live: go-live failed ($why)', e, stack);
       if (room != null && _onAir == room.id) {
         _onAir = null;
         _endQuietly(room.id);
@@ -647,6 +692,23 @@ class LiveHostController extends Notifier<GoLiveState> {
       }
       _release();
       throw failure;
+    }
+    // D210: on air. What follows is optional — it never ends the live.
+    try {
+      _heartbeat = Timer.periodic(
+        Duration(seconds: config.heartbeatIntervalSeconds),
+        (_) => unawaited(_beat()),
+      );
+    } on Object catch (e) {
+      AppLogger.warning('live: heartbeat timer not started (${e.runtimeType})');
+    }
+    if (background != null) {
+      try {
+        _holdBackground(background);
+      } on Object catch (e) {
+        // The live goes on in the foreground.
+        AppLogger.warning('live: background keeper off (${e.runtimeType})');
+      }
     }
   }
 

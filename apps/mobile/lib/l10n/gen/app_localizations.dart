@@ -19341,6 +19341,18 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'إغلاق'**
   String get liveTargetClose;
+
+  /// D210: under a failed go-live, the step and error type that failed (technical code, shown as is) so a device report names it
+  ///
+  /// In ar, this message translates to:
+  /// **'تفاصيل: {code}'**
+  String goLiveFailureDetails(String code);
+
+  /// D210: an optional live tool (PK, music, targets…) failed to start and was switched off; the live goes on
+  ///
+  /// In ar, this message translates to:
+  /// **'بعض أدوات البث لم تعمل وأُوقفت. البث مستمر.'**
+  String get goLiveToolsDegraded;
 }
 
 class _AppLocalizationsDelegate

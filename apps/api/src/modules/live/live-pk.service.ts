@@ -1846,10 +1846,19 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
       const dto = await this.inviteDto(id);
       if (dto) await this.tellInvite(dto, 'both');
     }
-    const waits = await this.prisma.$queryRaw<{ host_id: string; room_id: string }[]>`
-      DELETE FROM pk_queue WHERE expires_at <= ${iso(now)}::timestamptz
-       RETURNING host_id::text AS host_id, room_id::text AS room_id`;
+    // D210: a wait whose room is no longer LIVE (ended, timed out) is dropped at once and never
+    // messaged — its media room is gone (LiveKit answers "no response from servers"); a wait that
+    // timed out in a LIVE room is told once. Either way the row is deleted first: no retries.
+    const waits = await this.prisma.$queryRaw<{ host_id: string; room_id: string; live: boolean }[]>`
+      WITH gone AS (
+        DELETE FROM pk_queue q
+         WHERE q.expires_at <= ${iso(now)}::timestamptz
+            OR NOT EXISTS (SELECT 1 FROM live_rooms r WHERE r.id = q.room_id AND r.status = 'LIVE')
+        RETURNING q.host_id, q.room_id)
+      SELECT g.host_id::text AS host_id, g.room_id::text AS room_id, COALESCE(r.status = 'LIVE', false) AS live
+        FROM gone g LEFT JOIN live_rooms r ON r.id = g.room_id`;
     for (const w of waits) {
+      if (!w.live) continue;
       try {
         await this.media.sendData(
           w.room_id,
