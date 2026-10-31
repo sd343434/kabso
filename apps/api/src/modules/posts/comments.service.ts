@@ -20,6 +20,7 @@ import {
 import { createCommentSchema, type PageQuery } from './posts.schemas.js';
 import { PostsService } from './posts.service.js';
 import { parseMentions } from './text-entities.js';
+import { assertNotRestricted } from '../users/account-control.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -89,6 +90,8 @@ export class CommentsService {
     const parsed = createCommentSchema.safeParse(body ?? {});
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
     const input = parsed.data;
+    // v1.72-social (D208, §10.67): the team's restriction of the caller, if any (403 ACCOUNT_RESTRICTED).
+    await assertNotRestricted(this.prisma, authorId, 'CHAT_MUTE');
     const id = await this.prisma.$transaction(async (tx) => {
       if (!(await this.users.lockActiveById(tx, authorId)))
         throw new AppException(ErrorCode.AUTH_UNAUTHENTICATED);

@@ -17,6 +17,7 @@ import { LiveBlockedWordsService } from './live-blocked-words.service.js';
 import { LiveRoomsService, type UserSummaryDto } from './live-rooms.service.js';
 import { liveBulletSendSchema } from './live.schemas.js';
 import { LIVE_MEDIA_PROVIDER, type LiveMediaProvider } from './media/live-media.provider.js';
+import { assertNotRestricted } from '../users/account-control.js';
 
 // ---- Response shapes (openapi v1.19-live, CP-017) ----------------------------------------------
 
@@ -113,6 +114,8 @@ export class LiveBulletsService {
 
     const first = await this.byClientId(callerId, clientId);
     if (first) return { created: false, result: await this.replay(callerId, first, row.id) };
+    // v1.72-social (D208, §10.67): the team's restriction of the caller, if any (403 ACCOUNT_RESTRICTED).
+    await assertNotRestricted(this.prisma, callerId, 'CHAT_MUTE');
 
     if (callerId !== row.host_user_id) {
       // v1.20-live (D105, §10.20): kicked out of this live.

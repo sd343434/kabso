@@ -112,6 +112,17 @@ export function notificationBody(n: NotificationText, locale: PushLocale): strin
     case 'DATA_EXPORT_READY':
       // v1.66-social (D198): the push says only that it is ready (never what is inside).
       return ar ? 'نسخة بياناتك جاهزة للتنزيل' : 'Your data is ready to download';
+    // v1.72-social (D208): the team's account controls (the inbox row says what and until when).
+    case 'ACCOUNT_RESTRICTED':
+      return ar
+        ? 'فرض فريق Kabso قيداً مؤقتاً على حسابك'
+        : 'The Kabso team restricted your account for a while';
+    case 'ACCOUNT_RESTRICTION_LIFTED':
+      return ar ? 'رُفع القيد عن حسابك' : 'The restriction on your account was lifted';
+    case 'BALANCE_ADJUSTED':
+      return ar ? 'عدّل فريق Kabso رصيدك' : 'The Kabso team adjusted your balance';
+    case 'PROFILE_EDITED_BY_TEAM':
+      return ar ? 'عدّل فريق Kabso ملفك الشخصي' : 'The Kabso team edited your profile';
     default:
       return null;
   }

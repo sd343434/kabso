@@ -26,6 +26,7 @@ import {
   type LiveChatAuthorBadgesDto,
 } from './live-chat-badges.service.js';
 import { LIVE_MEDIA_PROVIDER, type LiveMediaProvider } from './media/live-media.provider.js';
+import { assertNotRestricted } from '../users/account-control.js';
 
 // ---- Response shapes (openapi v1.9-live, CP-013) -----------------------------------------------
 
@@ -251,6 +252,8 @@ export class LiveChatService implements OnModuleInit, OnModuleDestroy {
 
     const first = await this.byClientId(callerId, clientId);
     if (first) return { created: false, message: await this.withBadges(first) };
+    // v1.72-social (D208, §10.67): the team's restriction of the caller, if any (403 ACCOUNT_RESTRICTED).
+    await assertNotRestricted(this.prisma, callerId, 'CHAT_MUTE');
 
     const isHost = callerId === row.host_user_id;
     if (!isHost) {

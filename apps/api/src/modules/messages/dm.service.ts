@@ -33,6 +33,7 @@ import {
   type DmDeleteMessageQuery,
   type DmMessagesQuery,
 } from './dm.schemas.js';
+import { assertNotRestricted } from '../users/account-control.js';
 
 // ---- Response shapes (openapi v1.40-social, D155) -----------------------------------------------
 
@@ -721,6 +722,8 @@ export class DmService {
     const clientId = input.clientId.toLowerCase();
     const first = await this.byClientId(callerId, clientId);
     if (first) return { created: false, result: await this.result(callerId, first) };
+    // v1.72-social (D208, §10.67): the team's restriction of the caller, if any (403 ACCOUNT_RESTRICTED).
+    await assertNotRestricted(this.prisma, callerId, 'CHAT_MUTE');
     const to = await this.recipient(callerId, input.to, 'to');
     const kind = input.kind;
     const text = kind === 'TEXT' ? maskBlockedWords(input.text!, await this.blockedWordsFor(to.id)) : null;

@@ -15,6 +15,7 @@ import { canonical, PostsService } from '../posts/posts.service.js';
 import { parseMentions } from '../posts/text-entities.js';
 import { UsersService, violatedUniqueIndex } from '../users/users.service.js';
 import { createStorySchema, MAX_STORY_MENTIONS } from './stories.schemas.js';
+import { assertNotRestricted } from '../users/account-control.js';
 
 /** `Story` (openapi v1.5-social, CP-008). */
 export interface StoryDto {
@@ -133,6 +134,8 @@ export class StoriesService {
     const requestHash = createHash('sha256').update(canonical(input)).digest('hex');
     const replay = await this.findIdempotent(authorId, key, requestHash);
     if (replay) return replay;
+    // v1.72-social (D208, §10.67): the team's restriction of the caller, if any (403 ACCOUNT_RESTRICTED).
+    await assertNotRestricted(this.prisma, authorId, 'NO_POSTING');
     try {
       const id = await this.prisma.$transaction(async (tx) => {
         if (!(await this.users.lockActiveById(tx, authorId))) {

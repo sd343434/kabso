@@ -30,6 +30,11 @@ export const SYSTEM_TYPES: readonly NotificationType[] = [
   'MODERATION_WARNING',
   // v1.66-social (D198): the data export «تنزيل بياناتي» is ready.
   'DATA_EXPORT_READY',
+  // v1.72-social (D208): the team's account controls.
+  'ACCOUNT_RESTRICTED',
+  'ACCOUNT_RESTRICTION_LIFTED',
+  'BALANCE_ADJUSTED',
+  'PROFILE_EDITED_BY_TEAM',
 ];
 
 /** Types that join one unread row per target (owner, D92). */
@@ -172,7 +177,9 @@ export class Notifier {
         | 'PREMIUM_USERNAME_EXPIRED'
         | 'AVATAR_REMOVED'
         | 'MODERATION_WARNING'
-        | 'DATA_EXPORT_READY';
+        | 'DATA_EXPORT_READY'
+        // v1.72-social (D208): the team edited the profile (no target).
+        | 'PROFILE_EDITED_BY_TEAM';
       recipientId: string;
     } & NotificationTargetRef,
   ): Promise<void> {

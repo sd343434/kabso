@@ -1142,6 +1142,13 @@ export const envSchema = z
     ADMIN_REPORT_CARD_FEE_BPS: intSetting(290, 0, 5000),
     ADMIN_REPORT_CARD_FEE_FIXED_MINOR: intSetting(30, 0, 1000),
     /**
+     * v1.72-social (D208, CONVENTIONS §10.67): the most coins / cherries ONE admin may move by balance adjustments in
+     * a day (credits and debits added up as amounts, the ADMIN_DASHBOARD_TIME_ZONE day). 0 = no adjustment at all.
+     * Default 10 000 000 coins ($125 at the retail price) and 10 000 000 cherries.
+     */
+    ADMIN_ADJUST_DAILY_CAP_COINS: intSetting(10_000_000, 0, 1_000_000_000_000),
+    ADMIN_ADJUST_DAILY_CAP_CHERRIES: intSetting(10_000_000, 0, 1_000_000_000_000),
+    /**
      * v1.56-social (D187, CONVENTIONS §10.50): the daily recharge badges. The minimum coins recharged in one
      * calendar day for each of the five tiers (owner: 1 000 000, 10 000 001, 20 000 001, 40 000 001,
      * 70 000 001 — tier 1 is 1M–10M, tier 2 10.01M–20M …), the zone of that day (owner default Asia/Riyadh)

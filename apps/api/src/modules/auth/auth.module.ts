@@ -30,6 +30,7 @@ import { VerificationTokensService } from './verification-tokens.service.js';
     AccountDeletionService,
     AccountDeletionSweeper,
   ],
-  exports: [AccessTokenGuard, AccessTokenService, SessionsService, PasswordHasher],
+  // v1.72-social (D208): AuthService for the admin panel's reset link and verification resend.
+  exports: [AccessTokenGuard, AccessTokenService, SessionsService, PasswordHasher, AuthService],
 })
 export class AuthModule {}

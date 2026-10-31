@@ -25,7 +25,9 @@ export interface NotificationTargetDto {
     | 'MEDAL'
     | 'PREMIUM_USERNAME'
     | 'BAG_ITEM'
-    | 'RECHARGE_SALE';
+    | 'RECHARGE_SALE'
+    | 'ACCOUNT_RESTRICTION'
+    | 'BALANCE_ADJUSTMENT';
   id: string;
   postId: string | null;
   thumbUrl: string | null;
@@ -38,6 +40,11 @@ export interface NotificationTargetDto {
   bagCategory?: string;
   /** v1.54-social (D185) RECHARGE_SALE only: the coins bought. */
   coins?: number;
+  /** v1.72-social (D208) ACCOUNT_RESTRICTION only: what was switched off (LOCK, CHAT_MUTE …); `endsAt` its end. */
+  restriction?: string;
+  /** v1.72-social (D208) BALANCE_ADJUSTMENT only: COINS or CHERRIES and the signed amount. */
+  currency?: 'COINS' | 'CHERRIES';
+  amount?: number;
 }
 
 /** `Notification`. */
@@ -146,6 +153,17 @@ function visibleNotificationWhere(me: string): Prisma.NotificationWhereInput {
       { type: 'MODERATION_WARNING' },
       // v1.66-social (D198): the caller's data export is ready (system, no target).
       { type: 'DATA_EXPORT_READY' },
+      // v1.72-social (D208): the team's lock / restriction, its early end, a balance adjustment, a profile edit.
+      {
+        type: {
+          in: [
+            'ACCOUNT_RESTRICTED',
+            'ACCOUNT_RESTRICTION_LIFTED',
+            'BALANCE_ADJUSTED',
+            'PROFILE_EDITED_BY_TEAM',
+          ],
+        },
+      },
       { type: 'POST_PUBLISHED', post: visiblePostWhere(me) },
       {
         type: { in: ACTOR_TYPES },
@@ -183,6 +201,8 @@ function include(me: string) {
     premiumLease: { select: { username: true, expiresAt: true, graceUntil: true } },
     bagItem: { select: { category: true } },
     rechargeSale: { select: { coins: true } },
+    accountRestriction: { select: { kind: true, endsAt: true, reason: true } },
+    balanceAdjustment: { select: { currency: true, delta: true } },
   } satisfies Prisma.NotificationInclude;
 }
 type NotificationRow = Prisma.NotificationGetPayload<{ include: ReturnType<typeof include> }>;
@@ -329,6 +349,29 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
         thumbUrl: null,
         text: null,
         coins: Number(row.rechargeSale.coins),
+      };
+    }
+    // v1.72-social (D208): the team's lock or restriction (its end and reason) and a balance adjustment.
+    if (row.accountRestrictionId !== null && row.accountRestriction) {
+      return {
+        type: 'ACCOUNT_RESTRICTION',
+        id: row.accountRestrictionId,
+        postId: null,
+        thumbUrl: null,
+        text: excerpt(row.accountRestriction.reason),
+        restriction: row.accountRestriction.kind,
+        endsAt: row.accountRestriction.endsAt.toISOString(),
+      };
+    }
+    if (row.balanceAdjustmentId !== null && row.balanceAdjustment) {
+      return {
+        type: 'BALANCE_ADJUSTMENT',
+        id: row.balanceAdjustmentId,
+        postId: null,
+        thumbUrl: null,
+        text: null,
+        currency: row.balanceAdjustment.currency === 'CHERRIES' ? 'CHERRIES' : 'COINS',
+        amount: Number(row.balanceAdjustment.delta),
       };
     }
     if (row.medalCode !== null) {

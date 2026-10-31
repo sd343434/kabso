@@ -16,6 +16,7 @@ import { inCoinDebtIn } from '../wallet/wallet-ledger.js';
 import { addItemTimeIn, catalogueItemIn, lockItemHoldersIn } from './bag-grants.js';
 import { BAG_DAY_MS, isTransferable, type BagCategory, type BagItemSource } from './bag.catalogue.js';
 import type { BagQuery, EquipBody, SendBody } from './bag.schemas.js';
+import { assertNotRestricted } from '../users/account-control.js';
 
 /** `BagCatalogueItem`. */
 export interface BagCatalogueItemDto {
@@ -295,6 +296,8 @@ export class BagService implements OnModuleInit, OnModuleDestroy {
       if (await blockedEitherWayIn(tx, callerId, target.id)) throw new AppException(ErrorCode.NOT_FOUND);
       // v1.59-social (D190): no bag gift while the caller's coins are a debt (a reversed website purchase).
       if (await inCoinDebtIn(tx, callerId)) throw new AppException(ErrorCode.TOPUP_ACCOUNT_FROZEN);
+      // v1.72-social (D208, §10.67): the team's «منع إرسال الهدايا» (a bag item sent is a gift too).
+      await assertNotRestricted(tx, callerId, 'NO_GIFTS');
       const item = await catalogueItemIn(tx, body.code);
       if (!item) throw new AppException(ErrorCode.BAG_ITEM_NOT_OWNED);
       await lockItemHoldersIn(tx, item.code, [callerId, target.id]);

@@ -128,6 +128,11 @@ export const loginSchema = z.strictObject({
    * account in its grace period answers 409 ACCOUNT_DELETION_PENDING). Ignored for any other account.
    */
   cancelDeletion: z.boolean().optional(),
+  /**
+   * v1.72-social (D208, §10.67): the new password when the team requires one (a temporary password or «فرض تغيير كلمة
+   * المرور»; otherwise sign-in answers 403 PASSWORD_CHANGE_REQUIRED). Ignored for any other account.
+   */
+  newPassword: passwordSchema.optional(),
 });
 export type LoginInput = z.output<typeof loginSchema>;
 

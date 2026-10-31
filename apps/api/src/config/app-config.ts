@@ -333,6 +333,8 @@ export interface AppConfig {
     readonly dashboardTimeZone: string;
     /** v1.65-social (D197): the report's estimated card fees (basis points + fixed cents per order). */
     readonly reportCardFee: { readonly bps: number; readonly fixedMinor: number };
+    /** v1.72-social (D208): the per-admin daily cap of balance adjustments (0 = none allowed). */
+    readonly adjustDailyCap: { readonly coins: number; readonly cherries: number };
   };
   /** v1.62-social (D193): account deletion (CONVENTIONS §10.56). */
   readonly accountDeletion: {
@@ -746,6 +748,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       lockoutSeconds: e.ADMIN_LOCKOUT_SECONDS,
       dashboardTimeZone: e.ADMIN_DASHBOARD_TIME_ZONE,
       reportCardFee: { bps: e.ADMIN_REPORT_CARD_FEE_BPS, fixedMinor: e.ADMIN_REPORT_CARD_FEE_FIXED_MINOR },
+      adjustDailyCap: { coins: e.ADMIN_ADJUST_DAILY_CAP_COINS, cherries: e.ADMIN_ADJUST_DAILY_CAP_CHERRIES },
     },
     accountDeletion: {
       graceDays: e.ACCOUNT_DELETION_GRACE_DAYS,

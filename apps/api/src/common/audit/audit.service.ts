@@ -259,6 +259,33 @@ export enum AuditAction {
   ADMIN_LIVE_END = 'admin.live.end',
   /** A user's app sessions signed out by the team {sessions, reason}. */
   ADMIN_USER_SESSIONS_REVOKE = 'admin.user.sessions_revoke',
+  // v1.72-social (DRAFT, D208, CONVENTIONS §10.67): the account controls «تحكم كامل» (panel and `control-admin`).
+  // Every row has the reason, `via` and `before` / `after`; never a password, token or full email in the clear.
+  /** A temporary lock «قفل الحساب» {kind: LOCK, endsAt, sessions} and its early end. */
+  ADMIN_USER_LOCK = 'admin.user.lock',
+  ADMIN_USER_UNLOCK = 'admin.user.unlock',
+  /** A restriction (CHAT_MUTE, NO_LIVE, NO_GIFTS, NO_POSTING) {kind, endsAt} and its early end. */
+  ADMIN_USER_RESTRICT = 'admin.user.restrict',
+  ADMIN_USER_RESTRICTION_LIFT = 'admin.user.restriction_lift',
+  /** The password-reset email sent by the team (the existing flow). */
+  ADMIN_PASSWORD_RESET_LINK = 'admin.user.password_reset_link',
+  /** A temporary password set by the team {sessions} (the password itself is never recorded). */
+  ADMIN_PASSWORD_TEMPORARY = 'admin.user.password_temporary',
+  /** «فرض تغيير كلمة المرور في الدخول القادم» {sessions}. */
+  ADMIN_PASSWORD_REQUIRE_CHANGE = 'admin.user.password_require_change',
+  /** The person chose a new password at sign-in because the team required it. */
+  PASSWORD_CHANGED_AT_SIGN_IN = 'auth.password.changed_at_sign_in',
+  /** The profile edited by the team {fields, before, after}. */
+  ADMIN_PROFILE_EDIT = 'admin.user.profile_edit',
+  /** The email changed by the team {before, after (masked), verified}; a verification email resent. */
+  ADMIN_EMAIL_CHANGE = 'admin.user.email_change',
+  ADMIN_EMAIL_VERIFICATION_RESEND = 'admin.user.email_verification_resend',
+  /** A post, reel, story or comment hidden, restored or deleted by the team {contentType, contentId}. */
+  ADMIN_CONTENT_HIDE = 'admin.content.hide',
+  ADMIN_CONTENT_RESTORE = 'admin.content.restore',
+  ADMIN_CONTENT_DELETE = 'admin.content.delete',
+  /** A coin or cherry adjustment {currency, delta, before, after, adjustmentId}. */
+  ADMIN_BALANCE_ADJUST = 'admin.balance.adjust',
 }
 
 export interface AuditEntry {
