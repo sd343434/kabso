@@ -3640,6 +3640,18 @@ Owner «طبق تصميم 100%» (the PK sheet's gear → «PK Setting»). Exten
   The app's live-data page reads `getLiveRoomStats` for the running live: «وقت البث» `durationSeconds`, «المشاهدون»
   **unique viewers** (`viewers.unique`; the peak is shown under it), «كرز جديد» `score.total` (the live's
   cherries), «الداعمون بالهدايا» `giftGivers`, «متابعون جدد» `newFollowers`.
+- **The host's «تارجت»** (owner). `GET /live/hosts/{username}/targets` (anyone who can see the host; guests per
+  IP): today's (Riyadh) cherries received from gifts against a cherries target, the coin value of lucky gifts
+  received against a lucky target, and today's top three supporters — today only, never longer totals. The
+  cherries target = the band target of «استقبل هدايا في بثك» (`P_HOST_GIFTS`, coins) × `CHERRIES_PER_COIN`
+  (10) × the POPULAR host share (65 %), floored: 100 000 coins → 650 000 cherries. The lucky target = the
+  band target of the new fixed daily host task «استقبل هدايا الحظ» (`HOST_LUCKY_COINS`, metric
+  `HOST_LUCKY_COINS`: the coin value of received sends that have a stored lucky draw): bands 20 000 / 50 000
+  / 100 000 / 200 000 coins, rewards 1 000 / 2 000 / 4 000 / 6 000 cherries (owner-confirmable; ≤ 0.5 % of
+  the money behind the target, D188), inside the unchanged daily and monthly caps. The band: today's
+  assignment's, else the level's now. A task switched off → target 0. `GET /me/host-gift-stats?period=DAY|
+  WEEK|MONTH|ALL` is the caller's own: cherries (the ledger's `GIFT_RECEIVED` + `GIFT_REVERSAL`), gift
+  sends, givers, top three and a bar series; lucky value, sends, givers and top three; DAY adds the targets.
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 

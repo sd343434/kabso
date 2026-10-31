@@ -351,7 +351,9 @@ info:
     calls `startLivePk`; `CANCELLED` when it never starts), the random queue's gender and region preferences,
     **Auto Match**, being suggested to other hosts, the «effective PK» threshold (`PkMatch.effective`,
     `PkHistoryItem.effective`); the hosts' settings differ → one host's at random (`settingsFromRoomId`);
-    `listLivePkCandidates?friends=true` (mutual follows); `LiveRoomStats.giftGivers` (CONVENTIONS §10.62).
+    `listLivePkCandidates?friends=true` (mutual follows); `LiveRoomStats.giftGivers`; the host's «تارجت»
+    (`getLiveHostTargets`, `getMyHostGiftStats`) and the daily task «استقبل هدايا الحظ» (metric
+    `HOST_LUCKY_COINS`) (CONVENTIONS §10.62).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -3461,6 +3463,56 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/PkHostProfile' }
         '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/hosts/{username}/targets:
+    get:
+      tags: [live]
+      operationId: getLiveHostTargets
+      security: [{}, {bearerAuth: []}]
+      summary: "A live host's «تارجت» chip: today's cherries and lucky progress (v1.44-live, D199)"
+      description: |
+        v1.44-live, §10.62. Anyone who can see the host (guests per IP): today's progress only (Riyadh day,
+        `LIVE_RANKINGS_TIME_ZONE`) — cherries received from gifts against the band's «استقبل هدايا في بثك»
+        target in cherries (coins × CHERRIES_PER_COIN × the POPULAR host share, default 65 %), the coin
+        value of lucky gifts received against «استقبل هدايا الحظ», and today's top three supporters; never
+        longer periods (`getMyHostGiftStats` is the host's own). A target is 0 when its task is switched
+        off. Unknown or inactive user, not a host, or a block either way → 404.
+      parameters:
+        - $ref: '#/components/parameters/UsernamePath'
+      responses:
+        '200':
+          description: Today's targets.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveHostTargets' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/me/host-gift-stats:
+    get:
+      tags: [live]
+      operationId: getMyHostGiftStats
+      summary: "The caller's gifts received in a period: cherries and lucky gifts (v1.44-live, D199)"
+      description: |
+        v1.44-live, §10.62. The caller's own (no one else's): the Riyadh calendar day, ISO week (Monday),
+        month, or ALL. Cherries received (the cherry ledger: gifts net of reversals), gift sends and
+        different givers (other ACTIVE people), the top three supporters by coin value, and a bar series of
+        the cherries (hours of the day, days of the week or month, months of the last 12 for ALL); lucky
+        gifts: coin value, sends, givers and the top three. DAY also has today's `targets`.
+      parameters:
+        - name: period
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/HostStatsPeriod' }
+      responses:
+        '200':
+          description: The period's statistics.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HostGiftStats' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
   /api/v1/me/live-pk:
@@ -9670,6 +9722,83 @@ components:
         randomRegion: { $ref: '#/components/schemas/PkRegionPref' }
         autoMatch: { type: boolean }
         recommendable: { type: boolean }
+    HostStatsPeriod:
+      type: string
+      enum: [DAY, WEEK, MONTH, ALL]
+      default: DAY
+      description: v1.44-live (D199) — Riyadh calendar periods, like the tasks.
+    HostTarget:
+      type: object
+      required: [received, target, reached]
+      properties:
+        received: { type: integer, format: int64, minimum: 0 }
+        target: { type: integer, format: int64, minimum: 0, description: "0: no target (its task is switched off)." }
+        reached: { type: boolean }
+    HostSupporter:
+      type: object
+      required: [user, coins]
+      properties:
+        user: { $ref: '#/components/schemas/UserSummary' }
+        coins: { type: integer, format: int64, minimum: 1, description: The coin value of their gifts to the host in the period. }
+    LiveHostTargets:
+      type: object
+      required: [day, timeZone, band, cherries, lucky, topSupporters]
+      properties:
+        day: { type: string, format: date }
+        timeZone: { type: string, example: Asia/Riyadh }
+        band: { type: integer, minimum: 1, maximum: 4, description: The host's task band today. }
+        cherries: { $ref: '#/components/schemas/HostTarget' }
+        lucky:
+          allOf:
+            - $ref: '#/components/schemas/HostTarget'
+          description: In coins (the lucky gifts' value).
+        topSupporters:
+          type: array
+          maxItems: 3
+          items: { $ref: '#/components/schemas/HostSupporter' }
+    HostGiftStats:
+      type: object
+      required: [period, timeZone, from, to, cherries, lucky, targets]
+      properties:
+        period: { $ref: '#/components/schemas/HostStatsPeriod' }
+        timeZone: { type: string }
+        from: { type: [string, 'null'], format: date-time, description: "null for ALL." }
+        to: { type: string, format: date-time }
+        cherries:
+          type: object
+          required: [received, gifts, givers, topSupporters, series]
+          properties:
+            received: { type: integer, format: int64 }
+            gifts: { type: integer, minimum: 0 }
+            givers: { type: integer, minimum: 0 }
+            topSupporters:
+              type: array
+              maxItems: 3
+              items: { $ref: '#/components/schemas/HostSupporter' }
+            series:
+              type: array
+              items:
+                type: object
+                required: [start, cherries]
+                properties:
+                  start: { type: string, description: "The bucket's local wall-clock start (no zone), e.g. 2027-01-15T13:00:00." }
+                  cherries: { type: integer, format: int64 }
+        lucky:
+          type: object
+          required: [coins, gifts, givers, topSupporters]
+          properties:
+            coins: { type: integer, format: int64, minimum: 0 }
+            gifts: { type: integer, minimum: 0 }
+            givers: { type: integer, minimum: 0 }
+            topSupporters:
+              type: array
+              maxItems: 3
+              items: { $ref: '#/components/schemas/HostSupporter' }
+        targets:
+          description: DAY only.
+          oneOf:
+            - $ref: '#/components/schemas/LiveHostTargets'
+            - type: 'null'
     PkGenderPref:
       type: string
       enum: [BOTH, MALE, FEMALE]
@@ -13116,7 +13245,7 @@ components:
         period: { type: string, enum: [DAILY, WEEKLY] }
         metric:
           type: string
-          enum: [WATCH_LIVES, FOLLOWS, LIVE_CHAT_MESSAGES, GIFT_SENDS, HOST_LIVE_MINUTES, HOST_GIFT_COINS, WATCH_MINUTES, AUDIO_ROOMS, LIVE_TAPS, NEW_HOST_GIFTS, POSTS, REELS, STORIES, POST_COMMENTS, DM_FRIENDS, DM_VOICE_MESSAGES, HOST_GIFTS_RECEIVED, HOST_GUESTS, GIFT_COINS_SENT]
+          enum: [WATCH_LIVES, FOLLOWS, LIVE_CHAT_MESSAGES, GIFT_SENDS, HOST_LIVE_MINUTES, HOST_GIFT_COINS, WATCH_MINUTES, AUDIO_ROOMS, LIVE_TAPS, NEW_HOST_GIFTS, POSTS, REELS, STORIES, POST_COMMENTS, DM_FRIENDS, DM_VOICE_MESSAGES, HOST_GIFTS_RECEIVED, HOST_GUESTS, GIFT_COINS_SENT, HOST_LUCKY_COINS]
           description: |
             What is counted (the app picks where «اذهب» leads from it). v1.50-social (D176) adds the
             daily pool's metrics (CONVENTIONS §10.41.1); a client shows an unknown metric with a

@@ -221,7 +221,8 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
       }),
     );
     // The database is emptied for the tests: the migration's default tasks again.
-    expect(await seedDefaultTasksIn(ctx.prisma)).toBe(6);
+    // D199: «استقبل هدايا الحظ» is the seventh.
+    expect(await seedDefaultTasksIn(ctx.prisma)).toBe(7);
     expect(await seedDefaultTasksIn(ctx.prisma)).toBe(0);
     for (let i = 0; i < 11; i++) targets.push(await signup());
     targets = [...targets];

@@ -198,7 +198,7 @@ describe('D188 coin-value gift tasks, the defaults and the $60 unlock', { timeou
     );
     await gift('r188_rose', 10, 0);
     await gift('r188_gem', 5_000, 1);
-    expect(await seedDefaultTasksIn(ctx.prisma)).toBe(6);
+    expect(await seedDefaultTasksIn(ctx.prisma)).toBe(7); // D199: + «استقبل هدايا الحظ»
   });
   afterAll(async () => ctx?.close());
 
@@ -329,7 +329,7 @@ describe('D188 the monthly cap of task cherries', { timeout: 240_000 }, () => {
       },
       [{ token: Clock, value: clock }],
     );
-    expect(await seedDefaultTasksIn(ctx.prisma)).toBe(6);
+    expect(await seedDefaultTasksIn(ctx.prisma)).toBe(7); // D199: + «استقبل هدايا الحظ»
     // The team's settings for this test (task-admin set): one follow a day pays 4 000; a weekly task too.
     await ctx.prisma.taskDefinition.update({
       where: { code: 'FOLLOW_USERS' },
@@ -424,7 +424,7 @@ describe(
         { token: LIVE_MEDIA_PROVIDER, value: media },
         { token: Clock, value: clock },
       ]);
-      expect(await seedDefaultTasksIn(ctx.prisma)).toBe(6);
+      expect(await seedDefaultTasksIn(ctx.prisma)).toBe(7); // D199: + «استقبل هدايا الحظ»
       await seedDefaultTaskPoolIn(ctx.prisma);
       await ctx.prisma.$transaction((tx) =>
         addGiftIn(tx, 'max_crown', {
