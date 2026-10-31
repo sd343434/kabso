@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, ApiError, setCsrfToken, setUnauthenticatedHandler } from './api';
 import { ErrorAlert } from './components';
+import { Levels, SpecialUsernames, Tasks, Waitlist } from './pages/Programs';
 import { Team } from './pages/Team';
 import { Cards, Report, AgentTopups } from './pages/Finance';
 import { Gifts, Items, Promo } from './pages/Catalog';
@@ -191,6 +192,18 @@ export function App() {
           break;
         case 'team':
           page = <Team />;
+          break;
+        case 'specialUsernames':
+          page = <SpecialUsernames />;
+          break;
+        case 'tasks':
+          page = <Tasks />;
+          break;
+        case 'levels':
+          page = <Levels />;
+          break;
+        case 'waitlist':
+          page = <Waitlist />;
           break;
         case 'audit':
           page = <Audit />;
