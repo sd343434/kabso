@@ -11171,5 +11171,241 @@
   "errorAgencyOpenNotAllowed": "لا يمكنك فتح وكالة الآن",
   "@errorAgencyOpenNotAllowed": {
     "description": "v1.70-social (D206): AGENCY_OPEN_NOT_ALLOWED."
+  },
+  "hostApplyTitle": "كن مضيفاً مع الإدارة",
+  "@hostApplyTitle": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyIntro": "تبثّ مباشرة مع فريق Kabso Live، بلا وكالة وبلا عمولة وكالة. نراجع طلبك ونبلغك بالنتيجة.",
+  "@hostApplyIntro": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyButton": "قدّم الطلب",
+  "@hostApplyButton": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyPendingTitle": "طلبك قيد المراجعة",
+  "@hostApplyPendingTitle": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyPendingBody": "أرسلت طلبك في {date}. سنبلغك عند القرار.",
+  "@hostApplyPendingBody": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة».",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "hostApplyCancel": "إلغاء الطلب",
+  "@hostApplyCancel": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyCancelConfirmTitle": "إلغاء طلبك؟",
+  "@hostApplyCancelConfirmTitle": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyCancelConfirmBody": "يمكنك التقديم مرة أخرى في أي وقت.",
+  "@hostApplyCancelConfirmBody": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyCancelKeep": "إبقاء الطلب",
+  "@hostApplyCancelKeep": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyCancelled": "أُلغي طلبك",
+  "@hostApplyCancelled": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyApprovedTitle": "أنت مضيف مع الإدارة ✓",
+  "@hostApplyApprovedTitle": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyApprovedBody": "يمكنك البث الآن مباشرة مع فريق Kabso Live، بلا وكالة.",
+  "@hostApplyApprovedBody": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyGoLive": "ابدأ البث",
+  "@hostApplyGoLive": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyHostAgencyTitle": "لديك صلاحية البث",
+  "@hostApplyHostAgencyTitle": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyRejectedTitle": "لم تتم الموافقة على طلبك",
+  "@hostApplyRejectedTitle": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyRejectedReason": "السبب: {reason}",
+  "@hostApplyRejectedReason": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة».",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "hostApplyReapplyOn": "يمكنك التقديم مجدداً من {date}",
+  "@hostApplyReapplyOn": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة».",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "hostApplyReapplyNow": "يمكنك التقديم مجدداً الآن",
+  "@hostApplyReapplyNow": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyNotActive": "حسابك غير نشط الآن، فلا يمكنك التقديم",
+  "@hostApplyNotActive": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyFormTitle": "مضيف مع الإدارة",
+  "@hostApplyFormTitle": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyStepInfo": "بياناتك",
+  "@hostApplyStepInfo": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyName": "الاسم الظاهر في البث",
+  "@hostApplyName": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyNameHint": "تأكد أنه الاسم الذي تريد أن يراه المشاهدون",
+  "@hostApplyNameHint": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyNameError": "اكتب الاسم الظاهر",
+  "@hostApplyNameError": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyCountry": "البلد",
+  "@hostApplyCountry": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyCountryError": "اختر بلدك",
+  "@hostApplyCountryError": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyBirth": "تاريخ الميلاد",
+  "@hostApplyBirth": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyBirthPick": "اختر التاريخ",
+  "@hostApplyBirthPick": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyBirthError": "اختر تاريخ ميلادك",
+  "@hostApplyBirthError": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyMinAge": "البث مع الإدارة للبالغين فقط ({age}+)",
+  "@hostApplyMinAge": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة».",
+    "placeholders": {
+      "age": {
+        "type": "String"
+      }
+    }
+  },
+  "hostApplyContactType": "وسيلة التواصل",
+  "@hostApplyContactType": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyContactValue": "رقمك أو معرّفك",
+  "@hostApplyContactValue": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyContactError": "اكتب وسيلة تواصل نصل بها إليك",
+  "@hostApplyContactError": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyBio": "نبذة: ماذا ستبث؟",
+  "@hostApplyBio": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyBioHint": "مثال: طبخ، ألعاب، دردشة، موسيقى",
+  "@hostApplyBioHint": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyBioError": "اكتب نبذة قصيرة عمّا ستبثه",
+  "@hostApplyBioError": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyLinks": "حساباتك في منصات البث (اختياري)",
+  "@hostApplyLinks": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyAddLink": "إضافة رابط",
+  "@hostApplyAddLink": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyLinkError": "رابط يبدأ بـ https://",
+  "@hostApplyLinkError": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyStepId": "تحقق الهوية (إلزامي)",
+  "@hostApplyStepId": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyStepRules": "قواعد المضيفين",
+  "@hostApplyStepRules": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyRulesText": "• احترم المشاهدين، ولا تبث محتوى مسيئاً أو للبالغين.\n• لا تطلب الهدايا بالإكراه أو الخداع، ولا تبث محتوى غيرك دون حق.\n• حافظ على خصوصيتك وخصوصية الآخرين.\n• يسحب الفريق صلاحية البث عند مخالفة القواعد.",
+  "@hostApplyRulesText": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyRulesAccept": "قرأت قواعد المضيفين وأوافق عليها",
+  "@hostApplyRulesAccept": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyRulesError": "وافق على القواعد للمتابعة",
+  "@hostApplyRulesError": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyPrivacy": "صورك وبياناتك خاصة: يراها فريق المراجعة فقط، ولا تظهر لأي أحد.",
+  "@hostApplyPrivacy": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplySubmit": "أرسل الطلب",
+  "@hostApplySubmit": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplySent": "أُرسل طلبك. سنبلغك بالنتيجة",
+  "@hostApplySent": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyRefusedPending": "لديك طلب قيد المراجعة بالفعل",
+  "@hostApplyRefusedPending": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyRefusedHost": "لديك صلاحية البث بالفعل",
+  "@hostApplyRefusedHost": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyRefusedAgency": "أنت في وكالة: البث مع الإدارة لمن ليس في وكالة",
+  "@hostApplyRefusedAgency": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "hostApplyRefusedCooldown": "لا يمكنك التقديم مجدداً الآن",
+  "@hostApplyRefusedCooldown": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "notifHostApproved": "تمت الموافقة على طلبك: أنت الآن مضيف مع إدارة Kabso Live ويمكنك بدء البث",
+  "@notifHostApproved": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "notifHostRejected": "لم تتم الموافقة على طلبك لتكون مضيفاً مع الإدارة. افتح «الوكالة» لمعرفة السبب",
+  "@notifHostRejected": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
+  },
+  "errorHostApplicationNotAllowed": "لا يمكنك التقديم الآن",
+  "@errorHostApplicationNotAllowed": {
+    "description": "v1.73-social (D209): «كن مضيفاً مع الإدارة»."
   }
 }

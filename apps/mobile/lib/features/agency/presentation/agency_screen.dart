@@ -15,6 +15,7 @@ import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/agency/application/agency_providers.dart';
 import 'package:kabso_live/features/agency/data/agency_repository.dart';
+import 'package:kabso_live/features/agency/data/hosting_application.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/home/presentation/widgets/home_reel.dart'
     show reelSharerProvider;
@@ -77,6 +78,16 @@ class AgencyScreen extends ConsumerWidget {
   static const closedKey = Key('agency.closed');
   static Key probationHostKey(String id) => Key('agency.probation.host.$id');
 
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة» — the card, its button, the
+  /// pending / approved / rejected states.
+  static const hostCardKey = Key('agency.hostWithTeam');
+  static const hostApplyKey = Key('agency.hostWithTeam.apply');
+  static const hostPendingKey = Key('agency.hostWithTeam.pending');
+  static const hostCancelKey = Key('agency.hostWithTeam.cancel');
+  static const hostApprovedKey = Key('agency.hostWithTeam.approved');
+  static const hostGoLiveKey = Key('agency.hostWithTeam.goLive');
+  static const hostRejectedKey = Key('agency.hostWithTeam.rejected');
+
   static Key hostKey(String id) => Key('agency.host.$id');
   static Key subKey(String code) => Key('agency.sub.$code');
 
@@ -87,7 +98,8 @@ class AgencyScreen extends ConsumerWidget {
     Future<void> refresh() async {
       ref
         ..invalidate(myAgencyProvider)
-        ..invalidate(agencyHostsProvider);
+        ..invalidate(agencyHostsProvider)
+        ..invalidate(myHostingProvider);
       try {
         await ref.read(myAgencyProvider.future);
       } on Object {
@@ -112,6 +124,9 @@ class AgencyScreen extends ConsumerWidget {
             const SizedBox(height: KSpacing.md),
             _OpenCard(rule: rule),
           ],
+          // v1.73-social (D209): the third path — host directly with the
+          // team (no agency); or the person's host status (owner).
+          const _HostWithTeamCard(),
         ],
       ],
       AsyncValue(:final error?, isLoading: false) => [
@@ -1149,6 +1164,247 @@ class _OpenCard extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+/// v1.73-social (D209, §10.68): «كن مضيفاً مع الإدارة» — under «انضم إلى
+/// وكالة» and «افتح وكالة» for a person in no agency: host directly with the
+/// Kabso Live team (no agency, no agency commission). A host (any source)
+/// sees their host status with «ابدأ البث» instead; a pending application
+/// «طلبك قيد المراجعة» with cancel; a rejected one the reason and when they
+/// may apply again. Hidden on an older server or a failed read.
+class _HostWithTeamCard extends ConsumerStatefulWidget {
+  const new();
+
+  @override
+  ConsumerState<_HostWithTeamCard> createState() => _HostWithTeamCardState();
+}
+
+class _HostWithTeamCardState extends ConsumerState<_HostWithTeamCard> {
+  bool _busy = false;
+
+  Future<void> _cancel() async {
+    final l10n = context.l10n;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: Text(l10n.hostApplyCancelConfirmTitle),
+        content: Text(l10n.hostApplyCancelConfirmBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialog).pop(false),
+            child: Text(l10n.hostApplyCancelKeep),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialog).pop(true),
+            child: Text(l10n.hostApplyCancel),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      await ref.read(agencyRepositoryProvider).cancelHosting();
+      if (mounted) KSnack.success(context, l10n.hostApplyCancelled);
+    } on Object catch (e) {
+      if (mounted) KSnack.error(context, failureMessage(l10n, toAppFailure(e)));
+    } finally {
+      ref.invalidate(myHostingProvider);
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  void _goLive() {
+    // The session's copy of `Me.canHost` may predate the approval.
+    final user = ref.read(currentUserProvider);
+    if (user != null && !user.canHost) {
+      ref
+          .read(sessionControllerProvider.notifier)
+          .updateUser(user.copyWith(canHost: true));
+    }
+    unawaited(context.push(AppRoutes.goLive));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = switch (ref.watch(myHostingProvider)) {
+      AsyncData(:final value?) => value,
+      _ => null,
+    };
+    if (state == null) return const SizedBox.shrink();
+    final l10n = context.l10n;
+    final p = context.palette;
+    final t = context.textStyles;
+    final locale = Localizations.localeOf(context).toLanguageTag();
+    String date(DateTime d) =>
+        KFormat.bidiIsolate(KFormat.date(d.toLocal(), locale));
+    final app = state.application;
+
+    Widget title(IconData icon, Color color, String text) => Row(
+      children: [
+        Icon(icon, color: color),
+        const SizedBox(width: KSpacing.sm),
+        Expanded(
+          child: Text(text, style: t.title.copyWith(color: p.textPrimary)),
+        ),
+      ],
+    );
+
+    final Widget body;
+    if (state.host case final source?) {
+      // Already a host: the status instead of the card.
+      body = Container(
+        key: AgencyScreen.hostApprovedKey,
+        padding: const EdgeInsets.all(KSpacing.lg),
+        decoration: BoxDecoration(
+          color: p.success.withValues(alpha: 0.08),
+          border: Border.all(color: p.success.withValues(alpha: 0.4)),
+          borderRadius: BorderRadius.circular(KRadius.lg),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            title(
+              Icons.verified_rounded,
+              p.success,
+              source.withTheTeam
+                  ? l10n.hostApplyApprovedTitle
+                  : l10n.hostApplyHostAgencyTitle,
+            ),
+            if (source.withTheTeam) ...[
+              const SizedBox(height: KSpacing.xs),
+              Text(
+                l10n.hostApplyApprovedBody,
+                style: t.body.copyWith(color: p.textSecondary),
+              ),
+            ],
+            const SizedBox(height: KSpacing.md),
+            KButton(
+              key: AgencyScreen.hostGoLiveKey,
+              label: l10n.hostApplyGoLive,
+              icon: Icons.videocam_rounded,
+              onPressed: _goLive,
+            ),
+          ],
+        ),
+      );
+    } else if (state.refusal == HostingApplyRefusal.hostOfAgency ||
+        state.refusal == HostingApplyRefusal.ownsAgency) {
+      // In an agency: not this path (the page shows the agency).
+      return const SizedBox.shrink();
+    } else if (app != null && app.status == HostingApplicationStatus.pending) {
+      body = WalletSection(
+        key: AgencyScreen.hostPendingKey,
+        children: [
+          title(
+            Icons.hourglass_top_rounded,
+            KBrandColors.red400,
+            l10n.hostApplyPendingTitle,
+          ),
+          const SizedBox(height: KSpacing.xs),
+          Text(
+            l10n.hostApplyPendingBody(date(app.createdAt)),
+            style: t.body.copyWith(color: p.textSecondary),
+          ),
+          const SizedBox(height: KSpacing.sm),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton.icon(
+              key: AgencyScreen.hostCancelKey,
+              onPressed: _busy ? null : () => unawaited(_cancel()),
+              icon: const Icon(Icons.close_rounded),
+              label: Text(l10n.hostApplyCancel),
+            ),
+          ),
+        ],
+      );
+    } else {
+      final rejected =
+          app != null && app.status == HostingApplicationStatus.rejected;
+      final again = app?.reapplyAt;
+      final waiting = again != null && clock.now().isBefore(again);
+      body = WalletSection(
+        children: [
+          title(
+            Icons.verified_user_rounded,
+            KBrandColors.red400,
+            l10n.hostApplyTitle,
+          ),
+          const SizedBox(height: KSpacing.xs),
+          Text(
+            l10n.hostApplyIntro,
+            style: t.body.copyWith(color: p.textSecondary),
+          ),
+          if (rejected) ...[
+            const SizedBox(height: KSpacing.md),
+            Container(
+              key: AgencyScreen.hostRejectedKey,
+              padding: const EdgeInsets.all(KSpacing.md),
+              decoration: BoxDecoration(
+                color: p.error.withValues(alpha: 0.08),
+                border: Border.all(color: p.error.withValues(alpha: 0.4)),
+                borderRadius: BorderRadius.circular(KRadius.md),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l10n.hostApplyRejectedTitle,
+                    style: t.bodyStrong.copyWith(color: p.textPrimary),
+                  ),
+                  if (app.rejectReason case final reason?
+                      when reason.isNotEmpty) ...[
+                    const SizedBox(height: KSpacing.xxs),
+                    Text(
+                      l10n.hostApplyRejectedReason(reason),
+                      style: t.body.copyWith(color: p.textPrimary),
+                    ),
+                  ],
+                  const SizedBox(height: KSpacing.xxs),
+                  Text(
+                    waiting
+                        ? l10n.hostApplyReapplyOn(date(again))
+                        : l10n.hostApplyReapplyNow,
+                    style: t.caption.copyWith(
+                      color: waiting ? p.textSecondary : p.success,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: KSpacing.md),
+          KButton(
+            key: AgencyScreen.hostApplyKey,
+            label: l10n.hostApplyButton,
+            icon: Icons.verified_user_outlined,
+            onPressed: state.canApply
+                ? () => unawaited(
+                    context.push(
+                      AppRoutes.agencyHostApply,
+                      extra: state.minAge,
+                    ),
+                  )
+                : null,
+          ),
+          if (state.refusal == HostingApplyRefusal.accountNotActive) ...[
+            const SizedBox(height: KSpacing.xs),
+            Text(
+              l10n.hostApplyNotActive,
+              textAlign: TextAlign.center,
+              style: t.caption.copyWith(color: p.textTertiary),
+            ),
+          ],
+        ],
+      );
+    }
+    return Padding(
+      key: AgencyScreen.hostCardKey,
+      padding: const EdgeInsets.only(top: KSpacing.md),
+      child: body,
     );
   }
 }

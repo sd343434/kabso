@@ -19707,6 +19707,330 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'لا يمكنك فتح وكالة الآن'**
   String get errorAgencyOpenNotAllowed;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'كن مضيفاً مع الإدارة'**
+  String get hostApplyTitle;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'تبثّ مباشرة مع فريق Kabso Live، بلا وكالة وبلا عمولة وكالة. نراجع طلبك ونبلغك بالنتيجة.'**
+  String get hostApplyIntro;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'قدّم الطلب'**
+  String get hostApplyButton;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'طلبك قيد المراجعة'**
+  String get hostApplyPendingTitle;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'أرسلت طلبك في {date}. سنبلغك عند القرار.'**
+  String hostApplyPendingBody(String date);
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء الطلب'**
+  String get hostApplyCancel;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء طلبك؟'**
+  String get hostApplyCancelConfirmTitle;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنك التقديم مرة أخرى في أي وقت.'**
+  String get hostApplyCancelConfirmBody;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'إبقاء الطلب'**
+  String get hostApplyCancelKeep;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'أُلغي طلبك'**
+  String get hostApplyCancelled;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'أنت مضيف مع الإدارة ✓'**
+  String get hostApplyApprovedTitle;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنك البث الآن مباشرة مع فريق Kabso Live، بلا وكالة.'**
+  String get hostApplyApprovedBody;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'ابدأ البث'**
+  String get hostApplyGoLive;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'لديك صلاحية البث'**
+  String get hostApplyHostAgencyTitle;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تتم الموافقة على طلبك'**
+  String get hostApplyRejectedTitle;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'السبب: {reason}'**
+  String hostApplyRejectedReason(String reason);
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنك التقديم مجدداً من {date}'**
+  String hostApplyReapplyOn(String date);
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنك التقديم مجدداً الآن'**
+  String get hostApplyReapplyNow;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'حسابك غير نشط الآن، فلا يمكنك التقديم'**
+  String get hostApplyNotActive;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'مضيف مع الإدارة'**
+  String get hostApplyFormTitle;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'بياناتك'**
+  String get hostApplyStepInfo;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'الاسم الظاهر في البث'**
+  String get hostApplyName;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'تأكد أنه الاسم الذي تريد أن يراه المشاهدون'**
+  String get hostApplyNameHint;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب الاسم الظاهر'**
+  String get hostApplyNameError;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'البلد'**
+  String get hostApplyCountry;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر بلدك'**
+  String get hostApplyCountryError;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'تاريخ الميلاد'**
+  String get hostApplyBirth;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر التاريخ'**
+  String get hostApplyBirthPick;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر تاريخ ميلادك'**
+  String get hostApplyBirthError;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'البث مع الإدارة للبالغين فقط ({age}+)'**
+  String hostApplyMinAge(String age);
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'وسيلة التواصل'**
+  String get hostApplyContactType;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'رقمك أو معرّفك'**
+  String get hostApplyContactValue;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب وسيلة تواصل نصل بها إليك'**
+  String get hostApplyContactError;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'نبذة: ماذا ستبث؟'**
+  String get hostApplyBio;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'مثال: طبخ، ألعاب، دردشة، موسيقى'**
+  String get hostApplyBioHint;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب نبذة قصيرة عمّا ستبثه'**
+  String get hostApplyBioError;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'حساباتك في منصات البث (اختياري)'**
+  String get hostApplyLinks;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'إضافة رابط'**
+  String get hostApplyAddLink;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'رابط يبدأ بـ https://'**
+  String get hostApplyLinkError;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'تحقق الهوية (إلزامي)'**
+  String get hostApplyStepId;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'قواعد المضيفين'**
+  String get hostApplyStepRules;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'• احترم المشاهدين، ولا تبث محتوى مسيئاً أو للبالغين.\n• لا تطلب الهدايا بالإكراه أو الخداع، ولا تبث محتوى غيرك دون حق.\n• حافظ على خصوصيتك وخصوصية الآخرين.\n• يسحب الفريق صلاحية البث عند مخالفة القواعد.'**
+  String get hostApplyRulesText;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'قرأت قواعد المضيفين وأوافق عليها'**
+  String get hostApplyRulesAccept;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'وافق على القواعد للمتابعة'**
+  String get hostApplyRulesError;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'صورك وبياناتك خاصة: يراها فريق المراجعة فقط، ولا تظهر لأي أحد.'**
+  String get hostApplyPrivacy;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'أرسل الطلب'**
+  String get hostApplySubmit;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'أُرسل طلبك. سنبلغك بالنتيجة'**
+  String get hostApplySent;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'لديك طلب قيد المراجعة بالفعل'**
+  String get hostApplyRefusedPending;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'لديك صلاحية البث بالفعل'**
+  String get hostApplyRefusedHost;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'أنت في وكالة: البث مع الإدارة لمن ليس في وكالة'**
+  String get hostApplyRefusedAgency;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكنك التقديم مجدداً الآن'**
+  String get hostApplyRefusedCooldown;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'تمت الموافقة على طلبك: أنت الآن مضيف مع إدارة Kabso Live ويمكنك بدء البث'**
+  String get notifHostApproved;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تتم الموافقة على طلبك لتكون مضيفاً مع الإدارة. افتح «الوكالة» لمعرفة السبب'**
+  String get notifHostRejected;
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة».
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكنك التقديم الآن'**
+  String get errorHostApplicationNotAllowed;
 }
 
 class _AppLocalizationsDelegate

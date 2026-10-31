@@ -1904,3 +1904,25 @@ in the media bucket (`private, no-store`; never public) — the bucket policy mu
 the recharge agents (D185). Media uploads must be enabled (`MEDIA_UPLOADS_ENABLED`), or `openAgency` answers 503.
 Ship the API before (or with) the app: an older app shows no «افتح وكالة» (no `openRule`) and ignores the new
 notification types; an older API makes the new app hide the button.
+
+### 5.37 «كن مضيفاً مع الإدارة»: applications to host directly with the team (migrations `20270202090000_host_applications_enums`, `20270202090100_host_applications`; D209) — [IMPLEMENTED, draft contract v1.73-social; not deployed, not device-tested]
+
+CONVENTIONS §10.68. The first migration only adds the two `HOST_APPLICATION_*` notification types (a value added by
+`ALTER TYPE` cannot be used in its own transaction); the second adds `host_application_status` and `host_applications`
+(one PENDING per user: partial unique index `host_applications_one_pending`; CHECKs) — no backfill, no GRANT (default
+privileges). Numbering: §5.35 / §5.36 are left to D207 / D208 (in progress on other branches). Settings (no secret):
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `HOST_APPLICATION_MIN_AGE` | 18 | the applicant's minimum age on the day they apply (UTC); the server refuses a value below 18 |
+| `HOST_APPLICATION_REAPPLY_DAYS` | 30 | after a rejection, before the person may apply again (0 = at once) |
+| `RATE_LIMIT_HOST_APPLY_USER` | 5/86400 | «كن مضيفاً مع الإدارة» submissions per user (refused ones count) |
+
+The team decides in the panel («طلبات المضيفين», capabilities `hosts.applications` / `.photos` / `.decide`) or with
+`node dist/cli/host-admin.js applications [--status pending] | view <id> [--save <dir>] | approve <id> | reject <id>
+--reason …` (migration role, audited `via: cli`; `--save` needs the `S3_*` settings). Approving writes the
+`live_hosts` row with source `IDENTITY`. The ID card and the selfie are stored under `private/host-applications/` in the
+media bucket (`private, no-store`; never public) — the bucket policy must keep `private/` unreadable (as D185 / D206).
+Media uploads must be enabled (`MEDIA_UPLOADS_ENABLED`), or `applyForHosting` answers 503. Ship the API before (or
+with) the app: the new app hides the card on an older API (404), an older app ignores the new notification types.
+- Not verified on a device.

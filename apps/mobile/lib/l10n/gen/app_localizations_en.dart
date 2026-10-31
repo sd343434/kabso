@@ -11551,4 +11551,183 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get errorAgencyOpenNotAllowed => 'You cannot open an agency now';
+
+  @override
+  String get hostApplyTitle => 'Host with the Kabso Live team';
+
+  @override
+  String get hostApplyIntro =>
+      'You host directly with the Kabso Live team: no agency and no agency commission. We review your application and tell you the result.';
+
+  @override
+  String get hostApplyButton => 'Apply';
+
+  @override
+  String get hostApplyPendingTitle => 'Your application is under review';
+
+  @override
+  String hostApplyPendingBody(String date) {
+    return 'You applied on $date. We will tell you when it is decided.';
+  }
+
+  @override
+  String get hostApplyCancel => 'Cancel application';
+
+  @override
+  String get hostApplyCancelConfirmTitle => 'Cancel your application?';
+
+  @override
+  String get hostApplyCancelConfirmBody => 'You can apply again at any time.';
+
+  @override
+  String get hostApplyCancelKeep => 'Keep it';
+
+  @override
+  String get hostApplyCancelled => 'Your application was cancelled';
+
+  @override
+  String get hostApplyApprovedTitle => 'You host with the Kabso Live team ✓';
+
+  @override
+  String get hostApplyApprovedBody =>
+      'You can go live now, directly with the Kabso Live team, with no agency.';
+
+  @override
+  String get hostApplyGoLive => 'Go live';
+
+  @override
+  String get hostApplyHostAgencyTitle => 'You can go live';
+
+  @override
+  String get hostApplyRejectedTitle => 'Your application was not approved';
+
+  @override
+  String hostApplyRejectedReason(String reason) {
+    return 'Reason: $reason';
+  }
+
+  @override
+  String hostApplyReapplyOn(String date) {
+    return 'You can apply again from $date';
+  }
+
+  @override
+  String get hostApplyReapplyNow => 'You can apply again now';
+
+  @override
+  String get hostApplyNotActive =>
+      'Your account is not active, so you cannot apply';
+
+  @override
+  String get hostApplyFormTitle => 'Host with the team';
+
+  @override
+  String get hostApplyStepInfo => 'About you';
+
+  @override
+  String get hostApplyName => 'Your name on lives';
+
+  @override
+  String get hostApplyNameHint => 'Check it is the name viewers should see';
+
+  @override
+  String get hostApplyNameError => 'Enter your display name';
+
+  @override
+  String get hostApplyCountry => 'Country';
+
+  @override
+  String get hostApplyCountryError => 'Choose your country';
+
+  @override
+  String get hostApplyBirth => 'Date of birth';
+
+  @override
+  String get hostApplyBirthPick => 'Choose the date';
+
+  @override
+  String get hostApplyBirthError => 'Choose your date of birth';
+
+  @override
+  String hostApplyMinAge(String age) {
+    return 'Hosting with the team is for adults only ($age+)';
+  }
+
+  @override
+  String get hostApplyContactType => 'Contact method';
+
+  @override
+  String get hostApplyContactValue => 'Your number or handle';
+
+  @override
+  String get hostApplyContactError => 'Enter a contact we can reach you on';
+
+  @override
+  String get hostApplyBio => 'Short bio: what will you stream?';
+
+  @override
+  String get hostApplyBioHint => 'For example: cooking, games, chat, music';
+
+  @override
+  String get hostApplyBioError => 'Write a short bio of what you will stream';
+
+  @override
+  String get hostApplyLinks => 'Your streaming accounts (optional)';
+
+  @override
+  String get hostApplyAddLink => 'Add a link';
+
+  @override
+  String get hostApplyLinkError => 'A link starting with https://';
+
+  @override
+  String get hostApplyStepId => 'Identity check (required)';
+
+  @override
+  String get hostApplyStepRules => 'Host rules';
+
+  @override
+  String get hostApplyRulesText =>
+      '• Respect your viewers; no abusive or adult content.\n• Never pressure or trick anyone into sending gifts; do not stream others\' content without the right to.\n• Protect your privacy and other people\'s.\n• The team takes the hosting permission back when the rules are broken.';
+
+  @override
+  String get hostApplyRulesAccept => 'I have read and accept the host rules';
+
+  @override
+  String get hostApplyRulesError => 'Accept the rules to continue';
+
+  @override
+  String get hostApplyPrivacy =>
+      'Your pictures and details are private: only the review team sees them.';
+
+  @override
+  String get hostApplySubmit => 'Send application';
+
+  @override
+  String get hostApplySent => 'Application sent. We will tell you the result';
+
+  @override
+  String get hostApplyRefusedPending =>
+      'You already have an application under review';
+
+  @override
+  String get hostApplyRefusedHost => 'You can already go live';
+
+  @override
+  String get hostApplyRefusedAgency =>
+      'You are in an agency: hosting with the team is for people in no agency';
+
+  @override
+  String get hostApplyRefusedCooldown => 'You cannot apply again yet';
+
+  @override
+  String get notifHostApproved =>
+      'Your application was approved: you now host with the Kabso Live team and can go live';
+
+  @override
+  String get notifHostRejected =>
+      'Your application to host with the team was not approved. Open Agency to see why';
+
+  @override
+  String get errorHostApplicationNotAllowed => 'You cannot apply now';
 }

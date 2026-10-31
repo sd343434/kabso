@@ -227,6 +227,10 @@ enum ErrorCode {
   /// `details[0].issue` says why (`AgencyOpenRefusal`).
   agencyOpenNotAllowed('AGENCY_OPEN_NOT_ALLOWED'),
 
+  /// v1.73-social (D209, §10.68, 409): «كن مضيفاً مع الإدارة» refused —
+  /// `details[0].issue` says why (`HostingApplyRefusal`).
+  hostApplicationNotAllowed('HOST_APPLICATION_NOT_ALLOWED'),
+
   /// v1.52-social (D179, §10.46, 409): the cherry balance does not cover
   /// the withdrawal.
   insufficientCherries('INSUFFICIENT_CHERRIES'),

@@ -11564,4 +11564,181 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get errorAgencyOpenNotAllowed => 'لا يمكنك فتح وكالة الآن';
+
+  @override
+  String get hostApplyTitle => 'كن مضيفاً مع الإدارة';
+
+  @override
+  String get hostApplyIntro =>
+      'تبثّ مباشرة مع فريق Kabso Live، بلا وكالة وبلا عمولة وكالة. نراجع طلبك ونبلغك بالنتيجة.';
+
+  @override
+  String get hostApplyButton => 'قدّم الطلب';
+
+  @override
+  String get hostApplyPendingTitle => 'طلبك قيد المراجعة';
+
+  @override
+  String hostApplyPendingBody(String date) {
+    return 'أرسلت طلبك في $date. سنبلغك عند القرار.';
+  }
+
+  @override
+  String get hostApplyCancel => 'إلغاء الطلب';
+
+  @override
+  String get hostApplyCancelConfirmTitle => 'إلغاء طلبك؟';
+
+  @override
+  String get hostApplyCancelConfirmBody => 'يمكنك التقديم مرة أخرى في أي وقت.';
+
+  @override
+  String get hostApplyCancelKeep => 'إبقاء الطلب';
+
+  @override
+  String get hostApplyCancelled => 'أُلغي طلبك';
+
+  @override
+  String get hostApplyApprovedTitle => 'أنت مضيف مع الإدارة ✓';
+
+  @override
+  String get hostApplyApprovedBody =>
+      'يمكنك البث الآن مباشرة مع فريق Kabso Live، بلا وكالة.';
+
+  @override
+  String get hostApplyGoLive => 'ابدأ البث';
+
+  @override
+  String get hostApplyHostAgencyTitle => 'لديك صلاحية البث';
+
+  @override
+  String get hostApplyRejectedTitle => 'لم تتم الموافقة على طلبك';
+
+  @override
+  String hostApplyRejectedReason(String reason) {
+    return 'السبب: $reason';
+  }
+
+  @override
+  String hostApplyReapplyOn(String date) {
+    return 'يمكنك التقديم مجدداً من $date';
+  }
+
+  @override
+  String get hostApplyReapplyNow => 'يمكنك التقديم مجدداً الآن';
+
+  @override
+  String get hostApplyNotActive => 'حسابك غير نشط الآن، فلا يمكنك التقديم';
+
+  @override
+  String get hostApplyFormTitle => 'مضيف مع الإدارة';
+
+  @override
+  String get hostApplyStepInfo => 'بياناتك';
+
+  @override
+  String get hostApplyName => 'الاسم الظاهر في البث';
+
+  @override
+  String get hostApplyNameHint => 'تأكد أنه الاسم الذي تريد أن يراه المشاهدون';
+
+  @override
+  String get hostApplyNameError => 'اكتب الاسم الظاهر';
+
+  @override
+  String get hostApplyCountry => 'البلد';
+
+  @override
+  String get hostApplyCountryError => 'اختر بلدك';
+
+  @override
+  String get hostApplyBirth => 'تاريخ الميلاد';
+
+  @override
+  String get hostApplyBirthPick => 'اختر التاريخ';
+
+  @override
+  String get hostApplyBirthError => 'اختر تاريخ ميلادك';
+
+  @override
+  String hostApplyMinAge(String age) {
+    return 'البث مع الإدارة للبالغين فقط ($age+)';
+  }
+
+  @override
+  String get hostApplyContactType => 'وسيلة التواصل';
+
+  @override
+  String get hostApplyContactValue => 'رقمك أو معرّفك';
+
+  @override
+  String get hostApplyContactError => 'اكتب وسيلة تواصل نصل بها إليك';
+
+  @override
+  String get hostApplyBio => 'نبذة: ماذا ستبث؟';
+
+  @override
+  String get hostApplyBioHint => 'مثال: طبخ، ألعاب، دردشة، موسيقى';
+
+  @override
+  String get hostApplyBioError => 'اكتب نبذة قصيرة عمّا ستبثه';
+
+  @override
+  String get hostApplyLinks => 'حساباتك في منصات البث (اختياري)';
+
+  @override
+  String get hostApplyAddLink => 'إضافة رابط';
+
+  @override
+  String get hostApplyLinkError => 'رابط يبدأ بـ https://';
+
+  @override
+  String get hostApplyStepId => 'تحقق الهوية (إلزامي)';
+
+  @override
+  String get hostApplyStepRules => 'قواعد المضيفين';
+
+  @override
+  String get hostApplyRulesText =>
+      '• احترم المشاهدين، ولا تبث محتوى مسيئاً أو للبالغين.\n• لا تطلب الهدايا بالإكراه أو الخداع، ولا تبث محتوى غيرك دون حق.\n• حافظ على خصوصيتك وخصوصية الآخرين.\n• يسحب الفريق صلاحية البث عند مخالفة القواعد.';
+
+  @override
+  String get hostApplyRulesAccept => 'قرأت قواعد المضيفين وأوافق عليها';
+
+  @override
+  String get hostApplyRulesError => 'وافق على القواعد للمتابعة';
+
+  @override
+  String get hostApplyPrivacy =>
+      'صورك وبياناتك خاصة: يراها فريق المراجعة فقط، ولا تظهر لأي أحد.';
+
+  @override
+  String get hostApplySubmit => 'أرسل الطلب';
+
+  @override
+  String get hostApplySent => 'أُرسل طلبك. سنبلغك بالنتيجة';
+
+  @override
+  String get hostApplyRefusedPending => 'لديك طلب قيد المراجعة بالفعل';
+
+  @override
+  String get hostApplyRefusedHost => 'لديك صلاحية البث بالفعل';
+
+  @override
+  String get hostApplyRefusedAgency =>
+      'أنت في وكالة: البث مع الإدارة لمن ليس في وكالة';
+
+  @override
+  String get hostApplyRefusedCooldown => 'لا يمكنك التقديم مجدداً الآن';
+
+  @override
+  String get notifHostApproved =>
+      'تمت الموافقة على طلبك: أنت الآن مضيف مع إدارة Kabso Live ويمكنك بدء البث';
+
+  @override
+  String get notifHostRejected =>
+      'لم تتم الموافقة على طلبك لتكون مضيفاً مع الإدارة. افتح «الوكالة» لمعرفة السبب';
+
+  @override
+  String get errorHostApplicationNotAllowed => 'لا يمكنك التقديم الآن';
 }

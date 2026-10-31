@@ -4,6 +4,7 @@
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/features/agency/data/agency_repository.dart';
+import 'package:kabso_live/features/agency/data/hosting_application.dart';
 import 'package:kabso_live/features/wallet/data/cherry_repository.dart';
 import 'package:kabso_live/features/wallet/data/wallet_repository.dart';
 
@@ -342,8 +343,52 @@ List<AgencyHostRow> testHosts() => [
 ];
 
 class FakeAgencyRepository implements AgencyRepository {
-  new({MyAgency? mine, this.hostRows, this.fail = false, this.openFailure})
-    : current = mine ?? testMyAgency();
+  new({
+    MyAgency? mine,
+    this.hostRows,
+    this.fail = false,
+    this.openFailure,
+    this.hostingState,
+    this.applyFailure,
+  }) : current = mine ?? testMyAgency();
+
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة» now (null: an older server —
+  /// not offered).
+  MyHostingApplication? hostingState;
+
+  /// v1.73-social (D209): what `applyForHosting` throws (null: it is sent).
+  AppFailure? applyFailure;
+
+  /// The drafts `applyForHosting` received.
+  final List<HostingDraft> applied = [];
+
+  @override
+  Future<MyHostingApplication?> hosting() async {
+    calls.add('hosting');
+    return hostingState;
+  }
+
+  @override
+  Future<MyHostingApplication> applyForHosting(HostingDraft draft) async {
+    calls.add('applyForHosting ${draft.displayName}');
+    applied.add(draft);
+    if (applyFailure case final failure?) throw failure;
+    return hostingState = testHosting(
+      application: testHostingApplication(),
+      refusal: HostingApplyRefusal.pending,
+    );
+  }
+
+  @override
+  Future<MyHostingApplication> cancelHosting() async {
+    calls.add('cancelHosting');
+    return hostingState = testHosting(
+      application: testHostingApplication(
+        status: HostingApplicationStatus.cancelled,
+        cancelReason: 'USER',
+      ),
+    );
+  }
 
   MyAgency current;
   final List<AgencyHostRow>? hostRows;
@@ -425,3 +470,37 @@ class FakeAgencyRepository implements AgencyRepository {
     return (items: hostRows ?? testHosts(), next: null);
   }
 }
+
+/// v1.73-social (D209): «كن مضيفاً مع الإدارة» fixtures.
+MyHostingApplication testHosting({
+  HostingSource? host,
+  HostingApplication? application,
+  HostingApplyRefusal? refusal,
+}) => MyHostingApplication(
+  host: host,
+  hostSince: host == null ? null : economyAt.subtract(const Duration(days: 1)),
+  application: application,
+  canApply: refusal == null && host == null,
+  refusal: refusal ?? (host != null ? HostingApplyRefusal.alreadyHost : null),
+  minAge: 18,
+  reapplyDays: 30,
+);
+
+HostingApplication testHostingApplication({
+  HostingApplicationStatus status = HostingApplicationStatus.pending,
+  String? rejectReason,
+  String? cancelReason,
+  DateTime? reapplyAt,
+}) => HostingApplication(
+  id: '0190f3a0-0000-7000-8000-0000000009a1',
+  status: status,
+  displayName: 'Sara',
+  country: 'SA',
+  createdAt: economyAt.subtract(const Duration(hours: 5)),
+  decidedAt: status == HostingApplicationStatus.pending
+      ? null
+      : economyAt.subtract(const Duration(hours: 1)),
+  rejectReason: rejectReason,
+  cancelReason: cancelReason,
+  reapplyAt: reapplyAt,
+);

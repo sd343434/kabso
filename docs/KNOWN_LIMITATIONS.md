@@ -87,6 +87,22 @@
 - **Purchase VIP** (CP-024 §3) is not part of the approval: its hub card stays «قريباً».
 - Not verified on a device.
 
+## «كن مضيفاً مع الإدارة» — hosting directly with the team (v1.73-social draft, D209)
+
+- **No retention purge** of the applications' ID pictures and date of birth (rejected or cancelled ones included): they
+  stay for the team until the account is deleted (then purged). Owner/legal to set a period, as for D206.
+- The ID check and the age are **not automated**: the date of birth is the person's statement (no OCR, liveness or
+  face match); the team compares it with the ID picture.
+- Revoking a direct host later (`revokeAdminLiveHost`) leaves the application APPROVED and lets the person apply again
+  at once (no cooldown after a revocation).
+- A pending application is cancelled when the person joins or opens an agency; an agency the **team** creates for them
+  (`economy-admin agency-create`) does not cancel it — the approval then refuses («now in an agency»).
+- The panel's decision needs no authenticator code (owner: it moves no money); the pictures are OWNER + SUPPORT only,
+  MODERATION reads the fields (including the contact and the date of birth) — owner to confirm.
+- The rate limit's 429 for `applyForHosting` is configured but not covered by an e2e test (the suite raises the limit).
+- The host rules are a short fixed text in the app (not a versioned legal document); the acceptance time is kept.
+- Not verified on a device (the date picker, camera / gallery pickers were exercised with fakes only).
+
 ## «افتح وكالة» — self-opened agencies (v1.70-social draft, D206)
 
 - **No retention purge** of the agency applications' ID pictures yet (D185's recharge applications have one): they stay
