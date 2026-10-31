@@ -244,16 +244,19 @@ void main() {
     expect(find.byKey(LivePkStage.boostChipKey('room-0')), findsOneWidget);
     expect(find.byKey(LivePkStage.boostChipKey('room-b')), findsNothing);
     expect(find.byKey(LivePkStage.announcementKey), findsOneWidget);
-    // D199: the activation over that side's box, «فعّل» spelt with its
-    // «ع» and shadda in Baloo Bhaijaan 2, and the multiplier in big numerals.
-    final line = tester.widget<Text>(find.byKey(PkBoostBurst.lineKey));
+    // D199: the owner's banner (×5, «تربل») for both teams, and the line
+    // under it — «فعّل» spelt with its «ع» and shadda in Baloo Bhaijaan 2.
+    expect(
+      find.descendant(
+        of: find.byKey(LivePkStage.bannersKey),
+        matching: find.text('x5'),
+      ),
+      findsWidgets,
+    );
+    final line = tester.widget<Text>(find.byKey(PkBoostText.lineKey));
     expect(line.data, 'فعّل فريق \u2068سارة\u2069 تربل');
     expect(line.data, contains('فعّل'));
     expect(line.style?.fontFamily, PkBoostText.family);
-    expect(
-      tester.widget<Text>(find.byKey(PkBoostBurst.multiplierKey)).data,
-      '×5',
-    );
     // The last minute: the timer reads «الجولة الأخيرة».
     expect(find.textContaining('الجولة الأخيرة'), findsOneWidget);
     // The announcement goes after about 3 s.

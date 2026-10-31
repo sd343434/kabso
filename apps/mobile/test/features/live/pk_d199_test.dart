@@ -12,6 +12,10 @@ import 'package:kabso_live/features/live/presentation/widgets/live_pk_boost_fx.d
 import 'package:kabso_live/features/live/presentation/widgets/live_pk_pages.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk_stage.dart';
+import 'package:kabso_live/features/live/presentation/widgets/pk_power/pk_battle_bar.dart';
+import 'package:kabso_live/features/live/presentation/widgets/pk_power/pk_power_banner.dart';
+import 'package:kabso_live/features/live/presentation/widgets/pk_power/pk_power_layer.dart';
+import 'package:kabso_live/features/live/presentation/widgets/pk_power/pk_power_models.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -264,9 +268,8 @@ void main() {
       WidgetTester tester,
       PkMatch match, {
       VoidCallback? onStart,
-      double? burst,
-      double? gain,
       PkAnnouncement? announcement,
+      String roomId = 'room-0',
       bool reduceMotion = false,
     }) async {
       setViewport(tester, GoldenViewport.phone);
@@ -282,14 +285,12 @@ void main() {
             body: SingleChildScrollView(
               child: LivePkStage(
                 match: match,
-                roomId: 'room-0',
+                roomId: roomId,
                 ownVideo: null,
                 opponentVideo: null,
                 now: DateTime.now,
                 onStart: onStart,
                 announcement: announcement,
-                burstProgress: burst,
-                gainProgress: gain,
               ),
             ),
           ),
@@ -339,133 +340,152 @@ void main() {
       expect(find.textContaining('الجولة 2/3'), findsOneWidget);
     });
 
+    Set<String> assets(WidgetTester tester, Finder within) => {
+      for (final i in tester.widgetList<Image>(
+        find.descendant(of: within, matching: find.byType(Image)),
+      ))
+        if (i.image case final AssetImage a) a.assetName,
+    };
+
+    const mult = {
+      PkBoosterKind.double: 2,
+      PkBoosterKind.doubleTurbo: 3,
+      PkBoosterKind.triple: 5,
+      PkBoosterKind.tripleTurbo: 10,
+    };
+
+    testWidgets("no booster: the owner's bar with both neutral frames", (
+      tester,
+    ) async {
+      await stage(tester, pkMatchFixture(now: DateTime.now()));
+      final bar = find.byKey(LivePkStage.barKey);
+      expect(
+        assets(tester, bar),
+        containsAll([
+          'assets/pk/score_bar/parts/frame_neutral_L.png',
+          'assets/pk/score_bar/parts/frame_neutral_R.png',
+        ]),
+      );
+      expect(find.byKey(LivePkStage.bannersKey), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(LivePkStage.bannersKey),
+          matching: find.byType(PkPowerBanner),
+        ),
+        findsNothing,
+      );
+    });
+
     for (final kind in PkBoosterKind.values) {
-      for (final (phase, t) in [('start', 0.06), ('mid', 0.3), ('fly', 0.9)]) {
-        testWidgets('${kind.name} activation — $phase', (tester) async {
-          final now = DateTime.now();
+      final t = pkPowerTier(kind).index + 1;
+      testWidgets('${kind.name}: tier t$t frame on the boosted side, the '
+          "owner's banner centred at the pill's place for both rooms", (
+        tester,
+      ) async {
+        final now = DateTime.now();
+        for (final room in ['room-0', 'room-b']) {
+          await tester.pumpWidget(const SizedBox.shrink());
           await stage(
             tester,
             pkMatchFixture(now: now, ownBoost: kind),
-            burst: t,
+            roomId: room,
             announcement: PkAnnouncement(
               roomId: 'room-0',
               teamName: 'سارة',
               kind: kind,
-              multiplier: {
-                PkBoosterKind.double: 2,
-                PkBoosterKind.doubleTurbo: 3,
-                PkBoosterKind.triple: 5,
-                PkBoosterKind.tripleTurbo: 10,
-              }[kind]!,
+              multiplier: mult[kind]!,
               serial: 1,
             ),
           );
-          final burst = find.byKey(LivePkStage.announcementKey);
-          expect(burst, findsOneWidget);
-          // Only over this side's box (the reading start: the right in
-          // Arabic), never the other host.
-          final box = tester.getRect(burst);
-          expect(box.left, greaterThanOrEqualTo(393 / 2 - 1));
-          final line = tester.widget<Text>(find.byKey(PkBoostBurst.lineKey));
+          final bar = find.byKey(LivePkStage.barKey);
+          final art = assets(tester, bar);
+          expect(art, contains('assets/pk/score_bar/parts/frameL_t$t.png'));
+          expect(art, contains('assets/pk/score_bar/parts/emblem_t$t.png'));
+          final banner = find.byType(PkPowerBanner);
+          expect(banner, findsOneWidget, reason: room);
+          final rect = tester.getRect(banner);
+          expect(rect.center.dx, closeTo(393 / 2, 1));
+          expect(rect.width, closeTo(393 * PkStageBanner.widthFactor, 1));
+          expect(
+            find.descendant(of: banner, matching: find.text('x${mult[kind]}')),
+            findsWidgets,
+          );
+          expect(
+            assets(tester, banner),
+            contains(PkPowerTheme.of(pkPowerTier(kind)).asset),
+          );
+          final line = tester.widget<Text>(find.byKey(PkBoostText.lineKey));
           expect(line.data, startsWith('فعّل فريق'));
           expect(line.style?.fontFamily, PkBoostText.family);
-          final painter = tester
-              .widgetList<CustomPaint>(
-                find.descendant(of: burst, matching: find.byType(CustomPaint)),
-              )
-              .map((p) => p.painter)
-              .whereType<PkBoostFxPainter>()
-              .single;
-          final tier = PkBoostTier.of(kind);
-          expect(painter.tier, tier);
+          // Screen readers hear the running booster.
           expect(
-            tier.streaks,
-            kind == PkBoosterKind.doubleTurbo ||
-                kind == PkBoosterKind.tripleTurbo,
-          );
-          expect(
-            tier.sparks,
-            kind == PkBoosterKind.triple || kind == PkBoosterKind.tripleTurbo,
-          );
-          expect(tier.edgePulse, kind == PkBoosterKind.tripleTurbo);
-          // The active chip sits on this side with the art, ×N and a ring.
-          final chip = tester.widget<PkBoostChip>(
             find.byKey(LivePkStage.boostChipKey('room-0')),
+            findsOneWidget,
           );
-          expect(chip.kind, kind);
-          expect(chip.left.inSeconds, inInclusiveRange(13, 14));
-          expect(chip.total, isNot(Duration.zero));
-          expect(find.byKey(LivePkStage.glowKey('room-0')), findsOneWidget);
-          expect(
-            tester
-                .widget<PkBarGlow>(find.byKey(LivePkStage.glowKey('room-0')))
-                .active,
-            isTrue,
-          );
-          expect(
-            tester
-                .widget<PkBarGlow>(find.byKey(LivePkStage.glowKey('room-b')))
-                .active,
-            isFalse,
-          );
-        });
-      }
+        }
+      });
     }
 
-    testWidgets('reduced motion: the activation only fades', (tester) async {
+    testWidgets('own side on the right in Arabic: its tier frame is the '
+        'right one, the banner enters from the right', (tester) async {
       await stage(
         tester,
         pkMatchFixture(now: DateTime.now(), ownBoost: PkBoosterKind.triple),
-        burst: 0.5,
-        reduceMotion: true,
-        announcement: const PkAnnouncement(
-          roomId: 'room-0',
-          teamName: 'سارة',
-          kind: PkBoosterKind.triple,
-          multiplier: 5,
-          serial: 1,
-        ),
       );
-      expect(
-        find.descendant(
-          of: find.byKey(LivePkStage.announcementKey),
-          matching: find.byType(CustomPaint),
-        ),
-        findsNothing,
+      final layer = tester.widget<PkPowerLayer>(
+        find.byKey(LivePkStage.bannersKey),
       );
-      expect(find.byKey(PkBoostBurst.lineKey), findsOneWidget);
+      expect(layer.right?.tier, PkPowerTier.triple);
+      expect(layer.left, isNull);
+      final bar = tester.widget<PkBattleBar>(find.byType(PkBattleBar));
+      expect((bar.leftTier, bar.rightTier), (null, PkPowerTier.triple));
+      expect(bar.rightScore, 12500);
     });
 
-    testWidgets('each gift on the boosted side shows «+N ×5»; the glow fades '
-        'when the booster ends', (tester) async {
-      final now = DateTime.now();
-      await stage(
-        tester,
-        pkMatchFixture(now: now, ownBoost: PkBoosterKind.triple),
-        gain: 0.4,
-      );
+    testWidgets('both teams boosted: two banners, stacked', (tester) async {
       await stage(
         tester,
         pkMatchFixture(
-          now: now,
-          ownBoost: PkBoosterKind.triple,
-          ownScore: 12500 + 5000,
-          seq: 6,
+          now: DateTime.now(),
+          ownBoost: PkBoosterKind.double,
+          otherBoost: PkBoosterKind.tripleTurbo,
         ),
-        gain: 0.4,
       );
-      expect(find.byKey(LivePkStage.gainKey('room-0')), findsOneWidget);
-      expect(find.text('+5,000 ×5'), findsOneWidget);
-      expect(find.byKey(LivePkStage.gainKey('room-b')), findsNothing);
-      await tester.pump(PkGainFloat.duration);
-      expect(find.byKey(LivePkStage.gainKey('room-0')), findsNothing);
-      // The booster ends: the glow stays (fading), no longer active.
-      await stage(tester, pkMatchFixture(now: now, seq: 7));
-      final glow = tester.widget<PkBarGlow>(
-        find.byKey(LivePkStage.glowKey('room-0')),
+      final banners = find.byType(PkPowerBanner);
+      expect(banners, findsNWidgets(2));
+      final a = tester.getRect(banners.first);
+      final b = tester.getRect(banners.last);
+      expect(a.center.dx, closeTo(b.center.dx, 1));
+      expect((a.top - b.top).abs(), greaterThan(20));
+    });
+
+    testWidgets("the result: the winner's Kabi celebrates", (tester) async {
+      await stage(
+        tester,
+        pkMatchFixture(
+          now: DateTime.now(),
+          status: PkMatchStatus.result,
+          winner: 'room-0',
+        ),
       );
-      expect((glow.kind, glow.active), (PkBoosterKind.triple, false));
-      expect(find.byKey(LivePkStage.boostChipKey('room-0')), findsNothing);
+      final bar = tester.widget<PkBattleBar>(find.byType(PkBattleBar));
+      expect(bar.winner, PkPowerSide.right);
+      expect(
+        assets(tester, find.byKey(LivePkStage.barKey)),
+        contains('assets/pk/score_bar/kabi/kabi_win.png'),
+      );
+    });
+
+    testWidgets('reduced motion: the banner and bar still show', (
+      tester,
+    ) async {
+      await stage(
+        tester,
+        pkMatchFixture(now: DateTime.now(), ownBoost: PkBoosterKind.triple),
+        reduceMotion: true,
+      );
+      expect(find.byType(PkPowerBanner), findsOneWidget);
+      expect(find.byType(PkBattleBar), findsOneWidget);
     });
   });
 }

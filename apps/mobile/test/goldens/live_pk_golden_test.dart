@@ -6,9 +6,9 @@
 //
 // D199: the owner's layouts — the PK sheet (refs 276 / 277; Kabi when no
 // friends), the PK Setting page, the PK history, a connected PK and a best
-// of three round, the booster's activation per tier (mid-animation) and the
-// active state with «+N ×5», the host's Room Tools (ref 273 / B) and the
-// live's data page (ref 274).
+// of three round, the owner's battle bar and booster banner per tier (held
+// at 1.2 s, `flutter_test_config.dart`) and a score change while boosted,
+// the host's Room Tools (ref 273 / B) and the live's data page (ref 274).
 //
 // Regenerate on Linux with the pinned Flutter:
 //   flutter test --update-goldens test/goldens/live_pk_golden_test.dart
@@ -34,8 +34,8 @@ import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart
 import 'package:kabso_live/features/live/presentation/go_live/live_data_now_page.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_host_parts.dart';
 import 'package:kabso_live/features/live/presentation/widgets/kabso_pk_bar.dart';
-import 'package:kabso_live/features/live/presentation/widgets/live_pk_boost_fx.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk_sheet.dart';
+import 'package:kabso_live/features/live/presentation/widgets/pk_power/pk_power_banner.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 
 import '../fixtures/live/live_api_fixtures.dart';
@@ -188,6 +188,9 @@ List<PkCandidate> pkCandidates({required bool ar}) => [
 
 void main() {
   final now = DateTime.now();
+  // D199: the owner's banner countdown, pinned (see PkPowerBanner).
+  setUp(() => PkPowerBanner.debugRemaining = const Duration(seconds: 14));
+  tearDown(() => PkPowerBanner.debugRemaining = null);
   forEachLanguage((language) {
     final ar = language == AppLanguage.ar;
     group(language.name, () {
@@ -292,8 +295,6 @@ void main() {
       // ---- D199 -------------------------------------------------------------
       for (final kind in PkBoosterKind.values) {
         testWidgets('room.pk.activate.${kind.name}', (tester) async {
-          PkBoostBurst.debugProgress = 0.3;
-          addTearDown(() => PkBoostBurst.debugProgress = null);
           await pumpPkViewer(
             tester,
             language: language,
@@ -318,8 +319,6 @@ void main() {
       }
 
       testWidgets('room.pk.active_gain', (tester) async {
-        PkGainFloat.debugProgress = 0.35;
-        addTearDown(() => PkGainFloat.debugProgress = null);
         final boosted = pkMatchFixture(
           now: now,
           ar: ar,
