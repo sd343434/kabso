@@ -5,10 +5,10 @@ import { parseRole } from './admin-roles.js';
 import { readCookie } from './admin-session.guard.js';
 import { base32Decode, base32Encode, hotp, matchTotp, otpauthUri, totpCode, totpStep } from './totp.js';
 import {
-  instagramUrl,
-  tiktokUrl,
+  normalizeInstagram as instagramUrl,
+  normalizeTiktok as tiktokUrl,
+  normalizeWhatsapp as whatsappUrl,
   updateSiteSettingsSchema,
-  whatsappUrl,
 } from '../site-settings/site-settings.rules.js';
 
 describe('TOTP (RFC 6238 / RFC 4226)', () => {

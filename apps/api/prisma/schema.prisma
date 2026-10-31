@@ -4271,3 +4271,20 @@ model SiteSetting {
 
   @@map("site_settings")
 }
+
+// ---- v1.61-social (D192, CONVENTIONS §10.55): the public website kabsolive.com ---------------------------------
+// (The website's settings are `SiteSetting` above, D191/D192, §10.54.6.)
+
+/// D192: the website's «أبلغني عند الإطلاق» waitlist. One row per normalized email; a repeated sign-up changes
+/// nothing (the response never says whether the email was already there). Read only by the `waitlist-admin` CLI.
+model WaitlistSignup {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  /// Trimmed + lowercase.
+  email     String   @unique(map: "waitlist_signups_email_key") @db.VarChar(254)
+  /// `ar` or `en`: the language of the launch e-mail.
+  locale    String   @db.VarChar(8)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([createdAt], map: "waitlist_signups_created_at_idx")
+  @@map("waitlist_signups")
+}

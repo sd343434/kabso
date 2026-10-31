@@ -196,8 +196,11 @@ export enum AuditAction {
   ADMIN_USER_UNBAN = 'admin.user.unban',
   ADMIN_USER_WARN = 'admin.user.warn',
   RECHARGE_PHOTO_VIEW = 'recharge.application.photo_view',
-  /** v1.60-social (D191/D192): the OWNER changed the public website's settings (before and after). */
+  /** v1.60-social (D191/D192): the OWNER changed the public website's settings from the panel (before and after). */
   SITE_SETTINGS_UPDATE = 'site.settings.update',
+  // v1.61-social (DRAFT, D192): each read of the website waitlist's e-mails by the `waitlist-admin` CLI (`op`:
+  // list|export, the count).
+  WAITLIST_VIEW = 'waitlist.view',
 }
 
 export interface AuditEntry {

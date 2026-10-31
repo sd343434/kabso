@@ -6,13 +6,14 @@ import type { AdminContext } from '../admin-panel/admin-auth.service.js';
 import { AdminSessionGuard, CurrentAdmin, RequireCapability } from '../admin-panel/admin-session.guard.js';
 import { Public } from '../auth/public.decorator.js';
 import {
+  SITE_SETTINGS_CACHE_CONTROL,
   updateSiteSettingsSchema,
   type SiteSettingsDto,
   type UpdateSiteSettingsInput,
 } from './site-settings.rules.js';
 import { SiteSettingsService } from './site-settings.service.js';
 
-/** `GET /site/settings`: what the public website shows (D192 reads it at load; cached briefly). */
+/** `GET /site/settings`: what the public website shows (read at every load; cached 60 s). */
 @Public()
 @Controller('site')
 export class SiteSettingsController {
@@ -20,7 +21,7 @@ export class SiteSettingsController {
 
   @Get('settings')
   async get(@Res({ passthrough: true }) res: Response): Promise<SiteSettingsDto> {
-    res.setHeader('Cache-Control', 'public, max-age=60');
+    res.setHeader('Cache-Control', SITE_SETTINGS_CACHE_CONTROL);
     return this.settings.get();
   }
 }

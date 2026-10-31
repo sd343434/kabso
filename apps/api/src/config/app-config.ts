@@ -127,6 +127,8 @@ export interface AppConfig {
     readonly rechargeSellUser: RateLimitRule;
     readonly rechargeWriteUser: RateLimitRule;
     readonly topupCheckoutUser: RateLimitRule;
+    /** v1.61-social (D192): `POST /waitlist`, per client IP. */
+    readonly waitlistIp: RateLimitRule;
     readonly liveHeartbeatUser: RateLimitRule;
     readonly liveEndUser: RateLimitRule;
     readonly followHourUser: RateLimitRule;
@@ -497,6 +499,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       rechargeSellUser: e.RATE_LIMIT_RECHARGE_SELL_USER,
       rechargeWriteUser: e.RATE_LIMIT_RECHARGE_WRITE_USER,
       topupCheckoutUser: e.RATE_LIMIT_TOPUP_CHECKOUT_USER,
+      waitlistIp: e.RATE_LIMIT_WAITLIST_IP,
       liveHeartbeatUser: e.RATE_LIMIT_LIVE_HEARTBEAT_USER,
       liveEndUser: e.RATE_LIMIT_LIVE_END_USER,
       followHourUser: e.RATE_LIMIT_FOLLOW_HOUR_USER,

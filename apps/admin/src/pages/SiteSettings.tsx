@@ -67,7 +67,7 @@ export function SiteSettings() {
         <ErrorAlert error={saveError} />
         <div className="field">
           <label htmlFor="s-ig">{t('instagram')}</label>
-          <input id="s-ig" type="text" className="ltr" placeholder="https://instagram.com/…" value={form.instagram} onChange={set('instagram')} />
+          <input id="s-ig" type="text" className="ltr" placeholder="https://www.instagram.com/…" value={form.instagram} onChange={set('instagram')} />
         </div>
         <div className="field">
           <label htmlFor="s-tt">{t('tiktok')}</label>

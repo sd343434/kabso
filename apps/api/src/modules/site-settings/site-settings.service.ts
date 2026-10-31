@@ -3,7 +3,9 @@ import { AuditAction, AuditService } from '../../common/audit/audit.service.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import {
+  SETTING_KEYS,
   SITE_SETTINGS_DEFAULTS,
+  storedSocial,
   type SiteSettingsDto,
   type UpdateSiteSettingsInput,
 } from './site-settings.rules.js';
@@ -14,7 +16,11 @@ export interface SiteSettingsActor {
   readonly requestId: string | null;
 }
 
-/** Owns `site_settings` (v1.60-social, D191/D192, §10.54.6): one row per key, defaults when absent. */
+/**
+ * Owns `site_settings` (D191 + D192, one module, §10.54.6): one row per key (`socials`, `topupEnabled`), defaults
+ * when absent. Read by the website (`GET /site/settings`), written only by the OWNER from the panel
+ * (`PUT /admin/site-settings`, cookie session + CSRF), each change audited in the same transaction (before/after).
+ */
 @Injectable()
 export class SiteSettingsService {
   constructor(
@@ -23,17 +29,23 @@ export class SiteSettingsService {
   ) {}
 
   async get(db: Pick<Prisma.TransactionClient, 'siteSetting'> = this.prisma): Promise<SiteSettingsDto> {
-    const rows = await db.siteSetting.findMany({ where: { key: { in: ['socials', 'topupEnabled'] } } });
+    const rows = await db.siteSetting.findMany({
+      where: { key: { in: [SETTING_KEYS.socials, SETTING_KEYS.topupEnabled] } },
+    });
     const byKey = new Map(rows.map((r) => [r.key, r.value]));
-    const socials = (byKey.get('socials') ?? {}) as Partial<SiteSettingsDto['socials']>;
-    const str = (v: unknown) => (typeof v === 'string' && v !== '' ? v : null);
+    const raw = byKey.get(SETTING_KEYS.socials);
+    const socials = (raw !== null && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}) as Record<
+      string,
+      unknown
+    >;
+    // A row written by hand or by an older rule is re-checked: a link that no longer passes is not shown.
     return {
       socials: {
-        instagram: str(socials.instagram) ?? SITE_SETTINGS_DEFAULTS.socials.instagram,
-        tiktok: str(socials.tiktok) ?? SITE_SETTINGS_DEFAULTS.socials.tiktok,
-        whatsapp: str(socials.whatsapp) ?? SITE_SETTINGS_DEFAULTS.socials.whatsapp,
+        instagram: storedSocial('instagram', socials.instagram) ?? SITE_SETTINGS_DEFAULTS.socials.instagram,
+        tiktok: storedSocial('tiktok', socials.tiktok) ?? SITE_SETTINGS_DEFAULTS.socials.tiktok,
+        whatsapp: storedSocial('whatsapp', socials.whatsapp) ?? SITE_SETTINGS_DEFAULTS.socials.whatsapp,
       },
-      topupEnabled: byKey.get('topupEnabled') === true,
+      topupEnabled: byKey.get(SETTING_KEYS.topupEnabled) === true,
     };
   }
 
@@ -44,8 +56,8 @@ export class SiteSettingsService {
       const before = await this.get(tx);
       const after: SiteSettingsDto = { socials: input.socials, topupEnabled: input.topupEnabled };
       for (const [key, value] of [
-        ['socials', after.socials],
-        ['topupEnabled', after.topupEnabled],
+        [SETTING_KEYS.socials, after.socials],
+        [SETTING_KEYS.topupEnabled, after.topupEnabled],
       ] as const) {
         await tx.siteSetting.upsert({
           where: { key },

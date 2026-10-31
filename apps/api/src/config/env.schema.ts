@@ -575,6 +575,8 @@ export const envSchema = z
     RATE_LIMIT_RECHARGE_WRITE_USER: rateLimit('60/3600'),
     /** v1.59-social (D190, §10.53): card top-up checkouts started, per user. */
     RATE_LIMIT_TOPUP_CHECKOUT_USER: rateLimit('20/3600'),
+    /** v1.61-social (D192, §10.55): the website's waitlist sign-ups, per client IP (no account). */
+    RATE_LIMIT_WAITLIST_IP: rateLimit('10/3600'),
     RATE_LIMIT_FOLLOW_HOUR_USER: rateLimit('60/3600'),
     RATE_LIMIT_FOLLOW_DAY_USER: rateLimit('300/86400'),
     // v1.5-social (CONVENTIONS §11.8); every bucket is per user and replaces the default.

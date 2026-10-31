@@ -848,28 +848,51 @@ describe('D191 admin panel', { timeout: 300_000 }, () => {
           .set('Cookie', owner.cookie)
           .set('X-CSRF-Token', owner.csrf)
           .send(body);
-      expect(
-        (
-          await put({
-            socials: { instagram: 'https://evil.example/x', tiktok: null, whatsapp: null },
-            topupEnabled: false,
-          })
-        ).status,
-      ).toBe(400);
+      const none = { instagram: null, tiktok: null, whatsapp: null };
+      // Other hosts or shapes: 400 invalid_value on the field, nothing changed (D192's rules).
+      for (const [socials, field] of [
+        [{ ...none, instagram: 'https://evil.example/x' }, 'socials.instagram'],
+        [{ ...none, instagram: 'http://instagram.com/kabsolive' }, 'socials.instagram'],
+        [{ ...none, tiktok: 'https://www.tiktok.com/kabsolive' }, 'socials.tiktok'],
+        [{ ...none, whatsapp: 'https://api.whatsapp.com/send?phone=966500000000' }, 'socials.whatsapp'],
+        [{ ...none, whatsapp: '0500000000', instagram: 'https://instagram.com/ok' }, 'socials.whatsapp'],
+      ] as const) {
+        const bad = await put({ socials, topupEnabled: false });
+        expect(bad.status, JSON.stringify(socials)).toBe(400);
+        expectContract(bad, 'updateAdminSiteSettings');
+        expect(bad.body.error.details).toContainEqual({ field, issue: 'invalid_value' });
+      }
+      for (const body of [
+        {},
+        { socials: { ...none, facebook: 'https://facebook.com/x' }, topupEnabled: false },
+        { socials: none, topupEnabled: 'yes' },
+      ]) {
+        expect((await put(body)).status, JSON.stringify(body)).toBe(400);
+      }
+      expect((await ctx.http.get('/api/v1/site/settings')).body).toEqual(pub0.body);
       const ok = await put({
         socials: {
-          instagram: 'https://instagram.com/kabsolive',
-          tiktok: 'https://www.tiktok.com/@kabsolive',
-          whatsapp: '+966501234567',
+          instagram: 'https://instagram.com/kabsolive/',
+          tiktok: 'https://tiktok.com/@kabsolive',
+          whatsapp: '+966 50 123 4567',
         },
         topupEnabled: true,
         reason: 'launch',
       });
       expect(ok.status, JSON.stringify(ok.body)).toBe(200);
       expectContract(ok, 'updateAdminSiteSettings');
+      // One standard form, stored and served (what the website's common.js accepts).
+      const expected = {
+        socials: {
+          instagram: 'https://www.instagram.com/kabsolive',
+          tiktok: 'https://www.tiktok.com/@kabsolive',
+          whatsapp: 'https://wa.me/966501234567',
+        },
+        topupEnabled: true,
+      };
+      expect(ok.body).toEqual(expected);
       const pub = await ctx.http.get('/api/v1/site/settings');
-      expect(pub.body.socials.whatsapp).toBe('https://wa.me/966501234567');
-      expect(pub.body.topupEnabled).toBe(true);
+      expect(pub.body).toEqual(expected);
       expect(pub.headers['cache-control']).toBe('public, max-age=60');
       const [row] = await audits('site.settings.update');
       expect(row).toMatchObject({ actorUserId: owner.id });

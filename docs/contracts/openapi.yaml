@@ -357,6 +357,14 @@ info:
     website's settings: public `getSiteSettings` and the OWNER's `getAdminSiteSettings` / `updateAdminSiteSettings`
     (with D192). Codes `ADMIN_PANEL_UNAVAILABLE` (503), `ADMIN_LOCKED` (429), `ADMIN_TOTP_INVALID`,
     `ADMIN_CSRF_INVALID` (403), `ADMIN_ACTION_REFUSED` (409) (CONVENTIONS §10.54).
+    **D192 (DRAFT v1.61-social, CP-035)**: the public website kabsolive.com. `joinWaitlist` (`POST /waitlist`,
+    public, `WaitlistSignupRequest`, always 202 `WaitlistAccepted` — never says whether the email was already
+    listed; per-IP limit) and the website's read of D191's `getSiteSettings` (`GET /site/settings`, public,
+    `SiteSettings`: the footer's social links and whether the header shows the top-up link). One settings module,
+    table and contract for the website and the panel (CONVENTIONS §10.54.6): the OWNER changes them only with
+    `updateAdminSiteSettings` (panel session); links in one form (`https://www.instagram.com/<handle>`,
+    `https://www.tiktok.com/@<handle>`, `https://wa.me/<digits>`). The website reaches its two public operations
+    same-origin through the root domain; `/topup` there redirects to D190's pages on `api.` (CONVENTIONS §10.55).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -424,7 +432,7 @@ tags:
   - name: admin-panel
     description: "(v1.60-social DRAFT, D191) The admin panel «لوحة الإدارة» at admin.<domain>: its own cookie session with a mandatory authenticator (TOTP) second factor, roles OWNER / MODERATION / SUPPORT / FINANCE (CONVENTIONS §10.54)."
   - name: site
-    description: "(v1.60-social DRAFT, D191/D192) The public website's settings."
+    description: "(v1.60/v1.61-social DRAFT, D191/D192) The public website kabsolive.com: its settings and the launch waitlist."
   - name: admin-levels
     description: "Level configuration, user progression, reconciliation and audit for admins (role ADMIN; v1.4-levels DRAFT, CP-005)."
 paths:
@@ -8842,7 +8850,7 @@ paths:
       tags: [admin-panel]
       operationId: updateAdminSiteSettings
       summary: "Replaces the website's social links and the top-up switch (site.settings: OWNER; audited with before and after)"
-      description: "Links: `https://instagram.com/<name>`, `https://www.tiktok.com/@<name>`, WhatsApp as an international number or `https://wa.me/<number>` (stored as `https://wa.me/<digits>`); null or empty clears. 400 `VALIDATION_FAILED` otherwise."
+      description: "The one write route of the website's settings (D191 + D192; the panel session and its CSRF token — a bearer token is not a session: 401). The whole document. Links are checked and stored in one form: Instagram `https://(www.)instagram.com/<handle>` → `https://www.instagram.com/<handle>`, TikTok `https://(www.)tiktok.com/@<handle>` → `https://www.tiktok.com/@<handle>`, WhatsApp `https://wa.me/<digits>` or the number in international form (`+966 50 000 0000`, 8–15 digits) → `https://wa.me/<digits>`; null or empty clears. Any other host or shape → 400 `VALIDATION_FAILED` (`socials.<name>` `invalid_value`), nothing changed. Audited `site.settings.update` (before, after, `reason`)."
       security: [{ adminSession: [] }]
       parameters:
         - $ref: '#/components/parameters/AdminCsrf'
@@ -8865,14 +8873,50 @@ paths:
       tags: [site]
       operationId: getSiteSettings
       summary: "What the public website shows: the social links and whether the top-up link is on (public; cached 60 s)"
-      description: "D192's website reads it at load and hides an icon whose link is null (also on error)."
+      description: |
+        v1.60/v1.61-social (DRAFT, D191/D192, CONVENTIONS §10.54.6). Public; read by kabsolive.com at every load
+        (`Cache-Control: public, max-age=60`). A link that is not set is null (the website hides its icon, also on
+        error); `topupEnabled` false hides the header's «شحن العملات» link. A stored link that no longer passes the
+        rules is served as null. Rate limit: the public per-IP default.
       security: []
       responses:
         '200':
           description: The settings.
+          headers:
+            Cache-Control: { schema: { type: string, example: 'public, max-age=60' } }
           content:
             application/json:
               schema: { $ref: '#/components/schemas/SiteSettings' }
+              example:
+                socials: { instagram: 'https://www.instagram.com/kabsolive', tiktok: null, whatsapp: 'https://wa.me/966500000000' }
+                topupEnabled: false
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/waitlist:
+    post:
+      tags: [site]
+      operationId: joinWaitlist
+      summary: "Join the launch waitlist «أبلغني عند الإطلاق» (non-enumerating; D192)"
+      description: |
+        v1.61-social (DRAFT, D192, CONVENTIONS §10.55). Public: the website's form. The email is trimmed and
+        lowercased; one row per email — a repeated sign-up changes nothing (the first date and language stay) and
+        gets exactly the same answer, so the response never says whether the email was already listed. No e-mail
+        is sent now. Rate limit: 10 / hour per client IP (bucket `waitlist:ip`, `RATE_LIMIT_WAITLIST_IP`;
+        replaces the public default; invalid bodies count too). Checks: 400 `VALIDATION_FAILED` (`email`
+        `invalid_email` / `too_long`, `locale` `invalid_value`, unknown fields), 429.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WaitlistSignupRequest' }
+            example: { email: 'layla@example.com', locale: ar }
+      responses:
+        '202':
+          description: Accepted — whether the email is new or already listed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WaitlistAccepted' }
+        '400': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 components:
   securitySchemes:
@@ -9554,16 +9598,34 @@ components:
       properties:
         action: { type: string, enum: [DISMISS, REMOVE_TARGET, WARN, BAN] }
         note: { type: string, minLength: 1, maxLength: 500, description: Required for WARN and BAN (the reason). }
+    WaitlistSignupRequest:
+      type: object
+      additionalProperties: false
+      description: "v1.61-social (D192). The website's «أبلغني عند الإطلاق» form."
+      required: [email, locale]
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+        locale: { type: string, enum: [ar, en], description: "The website's language: the launch e-mail's." }
+    WaitlistAccepted:
+      type: object
+      additionalProperties: false
+      description: "v1.61-social (D192). The one answer of `joinWaitlist`, new email or not."
+      required: [status]
+      properties:
+        status: { type: string, enum: [accepted] }
     SiteSocials:
       type: object
+      additionalProperties: false
+      description: "(v1.60/v1.61-social, D191/D192) The website footer's links in their one stored form; null: not set (no icon)."
       required: [instagram, tiktok, whatsapp]
       properties:
-        instagram: { type: [string, 'null'], description: "`https://instagram.com/<name>`." }
-        tiktok: { type: [string, 'null'], description: "`https://www.tiktok.com/@<name>`." }
-        whatsapp: { type: [string, 'null'], description: "`https://wa.me/<digits>`." }
+        instagram: { type: [string, 'null'], format: uri, pattern: '^https://www\.instagram\.com/[A-Za-z0-9._]{1,30}$' }
+        tiktok: { type: [string, 'null'], format: uri, pattern: '^https://www\.tiktok\.com/@[A-Za-z0-9._]{2,24}$' }
+        whatsapp: { type: [string, 'null'], format: uri, pattern: '^https://wa\.me/[1-9][0-9]{7,14}$' }
     SiteSettings:
       type: object
-      description: "(v1.60-social, D191/D192) The public website's settings (CONVENTIONS §10.54.6)."
+      additionalProperties: false
+      description: "(v1.60/v1.61-social, D191/D192) The public website's settings (CONVENTIONS §10.54.6)."
       required: [socials, topupEnabled]
       properties:
         socials: { $ref: '#/components/schemas/SiteSocials' }

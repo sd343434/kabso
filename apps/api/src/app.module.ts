@@ -41,6 +41,7 @@ import { BagModule } from './modules/bag/bag.module.js';
 import { GiftsModule } from './modules/gifts/gifts.module.js';
 import { CpSpaceModule } from './modules/cp-space/cp-space.module.js';
 import { HomeModule } from './modules/home/home.module.js';
+import { WaitlistModule } from './modules/waitlist/waitlist.module.js';
 import { ClockModule } from './common/time/clock.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { RedisModule } from './redis/redis.module.js';
@@ -103,9 +104,11 @@ export class AppModule {
         RechargeModule,
         // v1.59-social (DRAFT, D190): card top-ups on the website through Stripe.
         TopupModule,
-        // v1.60-social (DRAFT, D191): the admin panel and the public website's settings.
+        // v1.60-social (DRAFT, D191): the admin panel and the public website's settings (one module, D191 + D192).
         AdminPanelModule,
         SiteSettingsModule,
+        // v1.61-social (DRAFT, D192): the public website's waitlist.
+        WaitlistModule,
       ],
       providers: [
         { provide: APP_FILTER, useClass: AllExceptionsFilter },
