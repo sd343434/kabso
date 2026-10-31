@@ -159,6 +159,9 @@ model User {
   pkRecord               PkHostRecord?
   pkSettings             PkHostSettings?
   pkSupports             PkSupporter[]
+  // v1.45-live (D201): the host's second camera and the one-time music-rights notice.
+  liveSecondCameras      LiveSecondCamera[]
+  liveMusicRights        LiveMusicRightsAcceptance?
   bagTransfersSent       BagTransfer[]              @relation("BagTransferSender")
   bagTransfersRecvd      BagTransfer[]              @relation("BagTransferRecipient")
   // v1.23-live (CP-020, D108): live gifts and the gift bag.
@@ -622,6 +625,8 @@ model LiveRoom {
   pkInvitesSent    PkInvite[]            @relation("PkInviteFromRoom")
   pkInvitesGot     PkInvite[]            @relation("PkInviteToRoom")
   pkQueueEntries   PkQueueEntry[]
+  /// v1.45-live (D201): second-camera pairings of this live.
+  secondCameras    LiveSecondCamera[]
 
   @@unique([hostUserId], map: "live_rooms_one_live_per_host", where: raw("status = 'LIVE'::live_room_status"))
   @@index([score(sort: Desc), startedAt(sort: Desc), id(sort: Desc)], map: "live_rooms_live_popular_idx", where: raw("status = 'LIVE'::live_room_status"))
@@ -4332,9 +4337,9 @@ model PkHostRecord {
 
 /// v1.43-live (D195): a host's PK settings (no row: invitations on).
 model PkHostSettings {
-  hostId         String   @id @map("host_id") @db.Uuid
-  invitesEnabled Boolean  @default(true) @map("invites_enabled")
-  updatedAt      DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+  hostId         String       @id @map("host_id") @db.Uuid
+  invitesEnabled Boolean      @default(true) @map("invites_enabled")
+  updatedAt      DateTime     @default(now()) @map("updated_at") @db.Timestamptz(3)
   /// v1.44-live (D199): the PK Setting page (1 v 1).
   mode           PkMode       @default(SINGLE)
   /// 3, 5 or 10; null: the server's PK_BATTLE_SECONDS.
@@ -4349,4 +4354,68 @@ model PkHostSettings {
 
   @@index([hostId], map: "pk_host_settings_auto_match_idx", where: raw("auto_match"))
   @@map("pk_host_settings")
+}
+
+/// v1.45-live (D201, CONVENTIONS §10.63): why a second camera (or its pairing code) ended.
+enum LiveSecondCameraEndReason {
+  /// The host (either device: the same account) ended it, or asked for a new code.
+  REVOKED
+  /// The code was not redeemed in time.
+  EXPIRED
+  /// The second device left the media session.
+  LEFT
+  /// The live ended.
+  ROOM_ENDED
+  /// A PK started (the second camera is not part of a PK).
+  PK
+
+  @@map("live_second_camera_end_reason")
+}
+
+/// v1.45-live (D201): which feed the viewers see full screen by default.
+enum LiveSecondCameraMain {
+  HOST
+  SECOND
+
+  @@map("live_second_camera_main")
+}
+
+/// v1.45-live (D201, CONVENTIONS §10.63): a second device of the host publishing a second camera into
+/// their SOLO video live (media identity `cam2:<hostUserId>`). A row starts as a pairing code (only its
+/// HMAC is stored), single use, valid `LIVE_SECOND_CAMERA_CODE_SECONDS`; redeemed by the SAME account it is
+/// the live's second camera until it ends. Partial unique indexes: one open code and one second camera
+/// per live. Never counted as a viewer.
+model LiveSecondCamera {
+  id          String                     @id @default(uuid(7)) @db.Uuid
+  roomId      String                     @map("room_id") @db.Uuid
+  hostUserId  String                     @map("host_user_id") @db.Uuid
+  /// HMAC-SHA256 (hex) of the code; the code itself is never stored or logged.
+  codeHash    String                     @map("code_hash") @db.Char(64)
+  createdAt   DateTime                   @default(now()) @map("created_at") @db.Timestamptz(3)
+  expiresAt   DateTime                   @map("expires_at") @db.Timestamptz(3)
+  redeemedAt  DateTime?                  @map("redeemed_at") @db.Timestamptz(3)
+  /// Set when the second device joined the media session (webhook or reconciliation).
+  connectedAt DateTime?                  @map("connected_at") @db.Timestamptz(3)
+  endedAt     DateTime?                  @map("ended_at") @db.Timestamptz(3)
+  endReason   LiveSecondCameraEndReason? @map("end_reason")
+  mainFeed    LiveSecondCameraMain       @default(HOST) @map("main_feed")
+
+  room LiveRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  host User     @relation(fields: [hostUserId], references: [id], onDelete: Cascade)
+
+  @@index([roomId, endedAt])
+  @@index([hostUserId, codeHash])
+  @@map("live_second_cameras")
+}
+
+/// v1.45-live (D201): the host accepted the music-rights notice once («تأكد أنك تملك حقوق تشغيل
+/// الموسيقى…»); the first acceptance is kept, with the notice's version.
+model LiveMusicRightsAcceptance {
+  userId        String   @id @map("user_id") @db.Uuid
+  noticeVersion Int      @map("notice_version") @db.SmallInt
+  acceptedAt    DateTime @default(now()) @map("accepted_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("live_music_rights_acceptances")
 }

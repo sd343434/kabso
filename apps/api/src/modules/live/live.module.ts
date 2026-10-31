@@ -43,6 +43,8 @@ import {
 } from './live.controller.js';
 import { LivePkController, MyLivePkController } from './live-pk.controller.js';
 import { LivePkService } from './live-pk.service.js';
+import { LiveToolsController } from './live-tools.controller.js';
+import { LiveToolsService } from './live-tools.service.js';
 import { LIVE_MEDIA_PROVIDER } from './media/live-media.provider.js';
 import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit-media.provider.js';
 
@@ -71,6 +73,8 @@ import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit
     // v1.43-live (D195, §10.58): PK 1 v 1.
     LivePkController,
     MyLivePkController,
+    // v1.45-live (D201, §10.63): the second camera, the recording indicator, the music-rights notice.
+    LiveToolsController,
   ],
   providers: [
     LiveCategoriesService,
@@ -106,6 +110,7 @@ import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit
     LiveGiftsService,
     // v1.43-live (D195, CP-038): PK 1 v 1 — matches, boosters, the PK tick (§10.58).
     LivePkService,
+    LiveToolsService,
     LiveLuckyTickerService,
     LiveGiftTickerService,
     // CP-016 D: taps credit the host's charm level inside the taps transaction (§10.18).

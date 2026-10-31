@@ -95,6 +95,17 @@ export enum AuditAction {
   LIVE_PK_END = 'live.pk.end',
   LIVE_PK_ADMIN_END = 'live.pk.admin_end',
   LIVE_PK_SETTINGS = 'live.pk.settings',
+  // v1.45-live (D201, §10.63): the host's live tools — a second-camera pairing code created, redeemed
+  // (or refused, with the reason, never the code), the second camera ended, the main feed chosen; the
+  // one-time music-rights notice accepted; a clip recording started or stopped (viewers are told).
+  LIVE_SECOND_CAMERA_CODE = 'live.second_camera.code',
+  LIVE_SECOND_CAMERA_REDEEM = 'live.second_camera.redeem',
+  LIVE_SECOND_CAMERA_REFUSED = 'live.second_camera.refused',
+  LIVE_SECOND_CAMERA_END = 'live.second_camera.end',
+  LIVE_SECOND_CAMERA_MAIN = 'live.second_camera.main',
+  LIVE_MUSIC_RIGHTS_ACCEPT = 'live.music.rights_accept',
+  LIVE_RECORDING_START = 'live.recording.start',
+  LIVE_RECORDING_STOP = 'live.recording.stop',
   /** v1.44-social (D166): events and tasks, changed only by the event-admin and task-admin CLIs. */
   EVENT_CREATE = 'event.create',
   EVENT_END = 'event.end',

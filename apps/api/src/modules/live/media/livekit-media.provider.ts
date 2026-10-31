@@ -73,6 +73,7 @@ export class LiveKitMediaProvider implements LiveMediaProvider {
       identity: input.identity,
       name: input.name,
       ttl: input.ttlSeconds,
+      ...(input.attributes ? { attributes: { ...input.attributes } } : {}),
     });
     // CP-011: a publisher with no source (an AUDIO guest muted by the host) is visible but may not
     // publish; LiveKit reads an empty source list as "any source", so it is never sent.
@@ -80,7 +81,7 @@ export class LiveKitMediaProvider implements LiveMediaProvider {
     token.addGrant({
       roomJoin: true,
       room: input.room,
-      canSubscribe: true,
+      canSubscribe: input.subscribe ?? true,
       canPublish: sources.length > 0,
       canPublishData: false,
       ...(sources.length > 0 ? { canPublishSources: sources.map(toTrackSource) } : {}),
@@ -154,6 +155,18 @@ export class LiveKitMediaProvider implements LiveMediaProvider {
 
   async broadcastData(room: string, topic: string, payload: string): Promise<void> {
     await this.rooms.sendData(room, new TextEncoder().encode(payload), DataPacket_Kind.RELIABLE, { topic });
+  }
+
+  async setParticipantAttributes(
+    room: string,
+    identity: string,
+    attributes: Readonly<Record<string, string>>,
+  ): Promise<void> {
+    try {
+      await this.rooms.updateParticipant(room, identity, { attributes: { ...attributes } });
+    } catch (err) {
+      if (!isNotFound(err)) throw err;
+    }
   }
 
   async closeRoom(room: string): Promise<void> {
@@ -244,6 +257,9 @@ export class UnconfiguredMediaProvider implements LiveMediaProvider {
     return Promise.resolve();
   }
   broadcastData(): Promise<void> {
+    return Promise.resolve();
+  }
+  setParticipantAttributes(): Promise<void> {
     return Promise.resolve();
   }
 }

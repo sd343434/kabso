@@ -177,6 +177,12 @@ export enum ErrorCode {
   PK_NOT_ACTIVE = 'PK_NOT_ACTIVE',
   /** v1.43-live (DRAFT, D195): a booster gift outside a battle, outside its window, over its per-match limit or not higher than the active one (detail issue). */
   PK_BOOSTER_UNAVAILABLE = 'PK_BOOSTER_UNAVAILABLE',
+  /** v1.45-live (DRAFT, D201): the pairing code is unknown, expired, used, revoked or of another account (one answer for all). */
+  SECOND_CAMERA_CODE_INVALID = 'SECOND_CAMERA_CODE_INVALID',
+  /** v1.45-live (DRAFT, D201): the live cannot take a second camera now (not the caller's LIVE SOLO video live, or in a PK). */
+  SECOND_CAMERA_UNAVAILABLE = 'SECOND_CAMERA_UNAVAILABLE',
+  /** v1.45-live (DRAFT, D201): the live already has a second camera (one at a time). */
+  SECOND_CAMERA_BUSY = 'SECOND_CAMERA_BUSY',
 }
 
 /** HTTP status for every code (CONVENTIONS.md §4 table). */
@@ -280,6 +286,9 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.PK_INVITE_CLOSED]: 409,
   [ErrorCode.PK_NOT_ACTIVE]: 409,
   [ErrorCode.PK_BOOSTER_UNAVAILABLE]: 409,
+  [ErrorCode.SECOND_CAMERA_CODE_INVALID]: 422,
+  [ErrorCode.SECOND_CAMERA_UNAVAILABLE]: 409,
+  [ErrorCode.SECOND_CAMERA_BUSY]: 409,
 };
 
 /** Default developer-facing messages (clients localize by `code`, not by message). */
@@ -383,6 +392,9 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.PK_INVITE_CLOSED]: 'This PK invitation is no longer open.',
   [ErrorCode.PK_NOT_ACTIVE]: 'There is no PK in this live now.',
   [ErrorCode.PK_BOOSTER_UNAVAILABLE]: 'That booster cannot be used now.',
+  [ErrorCode.SECOND_CAMERA_CODE_INVALID]: 'That pairing code is not valid.',
+  [ErrorCode.SECOND_CAMERA_UNAVAILABLE]: 'This live cannot take a second camera now.',
+  [ErrorCode.SECOND_CAMERA_BUSY]: 'This live already has a second camera.',
 };
 
 export interface ErrorDetail {

@@ -31,6 +31,9 @@ export class MemoryLiveMedia implements LiveMediaProvider {
   readonly broadcasts: { room: string; topic: string; payload: string }[] = [];
   /** CP-011: room → identity → current permission (unset: as the token granted, hidden viewer). */
   readonly current = new Map<string, Map<string, LiveMediaPermission>>();
+  /** v1.45-live (D201): room → identity → current participant attributes; every write, in order. */
+  readonly attributes = new Map<string, Map<string, Record<string, string>>>();
+  readonly attributeWrites: { room: string; identity: string; attributes: Record<string, string> }[] = [];
   /** CP-011: when set, every seat-related call fails (best-effort paths must survive it). */
   failing = false;
 
@@ -118,6 +121,21 @@ export class MemoryLiveMedia implements LiveMediaProvider {
   broadcastData(room: string, topic: string, payload: string): Promise<void> {
     if (this.failing) return Promise.reject(new Error('media server down'));
     this.broadcasts.push({ room, topic, payload });
+    return Promise.resolve();
+  }
+
+  setParticipantAttributes(
+    room: string,
+    identity: string,
+    attributes: Readonly<Record<string, string>>,
+  ): Promise<void> {
+    if (this.failing) return Promise.reject(new Error('media server down'));
+    this.attributeWrites.push({ room, identity, attributes: { ...attributes } });
+    const map = this.attributes.get(room) ?? new Map<string, Record<string, string>>();
+    const merged = { ...(map.get(identity) ?? {}), ...attributes };
+    for (const [k, v] of Object.entries(merged)) if (v === '') delete merged[k];
+    map.set(identity, merged);
+    this.attributes.set(room, map);
     return Promise.resolve();
   }
 

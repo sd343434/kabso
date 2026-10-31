@@ -25,6 +25,7 @@ import { LiveChatService } from './live-chat.service.js';
 import { LiveRoomMetadataService } from './live-metadata.service.js';
 import { LivePkService } from './live-pk.service.js';
 import { PK_IDENTITY_PREFIX } from './live-pk.js';
+import { LiveToolsService, SECOND_CAMERA_PREFIX } from './live-tools.service.js';
 import { hostSources, LiveSeatsService, seatPermission } from './live-seats.service.js';
 import {
   hasGuestSeats,
@@ -96,6 +97,7 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
     private readonly categories: LiveCategoriesService,
     private readonly metadata: LiveRoomMetadataService,
     private readonly pk: LivePkService,
+    private readonly tools: LiveToolsService,
     @Inject(LIVE_MEDIA_PROVIDER) private readonly media: LiveMediaProvider,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {
@@ -465,6 +467,11 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
       // v1.43-live (D195): a PK watcher of the other room is never a viewer here; a host leaving
       // their own media session during a PK battle starts the absence time.
       if (event.identity.startsWith(PK_IDENTITY_PREFIX)) return;
+      // v1.45-live (D201): a host's second camera is never a viewer; it leaving ends the camera.
+      if (event.identity.startsWith(SECOND_CAMERA_PREFIX)) {
+        await this.tools.onLeft(roomId, event.identity);
+        return;
+      }
       await this.pk.onHostMedia(roomId, event.identity, false);
       await closeVisits(this.prisma, roomId, [event.identity], this.clock.now());
       await this.prisma.liveRoomViewer.deleteMany({ where: { roomId, identity: event.identity } });
@@ -492,6 +499,11 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
       if (!room || room.status !== 'LIVE' || !(await this.pk.allowsWatcher(roomId, identity))) {
         await this.kick(roomId, identity);
       }
+      return;
+    }
+    // v1.45-live (D201): the host's second camera — kept or removed, never counted.
+    if (identity.startsWith(SECOND_CAMERA_PREFIX)) {
+      await this.tools.onJoined(roomId, identity);
       return;
     }
     const guestId = guestIdOf(identity);
@@ -559,6 +571,8 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
     }
     await closeVisits(this.prisma, roomId, null, this.clock.now());
     await this.prisma.liveRoomViewer.deleteMany({ where: { roomId } });
+    // v1.45-live (D201): the live's second-camera code and camera end with it.
+    await this.tools.onRoomClosed(roomId);
   }
 
   /**
@@ -611,6 +625,14 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
           if (isUuid(identity)) await this.seats.onLeft(name, identity.toLowerCase());
       }
       // CP-011: re-apply seat permissions and the seat version a failed call may have missed.
+      try {
+        await this.tools.reconcileRoom(name.toLowerCase(), connected);
+      } catch (err) {
+        this.logger.warn(
+          { error: safeErrorLog(err) },
+          'Could not reconcile the second camera of a media room',
+        );
+      }
       try {
         await this.seats.reconcileRoom(name.toLowerCase());
       } catch (err) {

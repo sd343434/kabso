@@ -27,6 +27,13 @@ export interface LiveMediaTokenInput {
    */
   readonly sources?: readonly LiveMediaSource[];
   readonly ttlSeconds: number;
+  /**
+   * v1.45-live (D201): false for a participant that only publishes (a host's second camera); it then
+   * receives nothing from the room. Default true.
+   */
+  readonly subscribe?: boolean;
+  /** v1.45-live (D201): participant attributes the room's clients read (§10.63). */
+  readonly attributes?: Readonly<Record<string, string>>;
 }
 
 /**
@@ -91,4 +98,16 @@ export interface LiveMediaProvider {
    * ignore.
    */
   broadcastData(room: string, topic: string, payload: string): Promise<void>;
+
+  // ---- v1.45-live (D201, live tools) ----------------------------------------------------------
+
+  /**
+   * Sets participant attributes of a connected participant (merged with the ones it has; an empty
+   * value removes a key, as LiveKit does). A missing participant or room is not an error.
+   */
+  setParticipantAttributes(
+    room: string,
+    identity: string,
+    attributes: Readonly<Record<string, string>>,
+  ): Promise<void>;
 }
