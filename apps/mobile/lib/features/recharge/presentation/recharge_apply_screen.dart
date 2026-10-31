@@ -198,73 +198,15 @@ class _RechargeApplyScreenState extends ConsumerState<RechargeApplyScreen> {
     required Uint8List? bytes,
     required IconData icon,
     required VoidCallback onPick,
-  }) {
-    final l10n = context.l10n;
-    final p = context.palette;
-    final t = context.textStyles;
-    final added = bytes != null;
-    final missing = _tried && !added;
-    return Semantics(
-      button: true,
-      label:
-          '$title. $hint. '
-          '${added ? l10n.rechargePhotoAdded : l10n.rechargePhotoRequired}',
-      excludeSemantics: true,
-      child: InkWell(
-        key: key,
-        onTap: onPick,
-        borderRadius: BorderRadius.circular(KRadius.md),
-        child: Container(
-          padding: const EdgeInsets.all(KSpacing.sm),
-          decoration: BoxDecoration(
-            color: p.surface,
-            border: Border.all(
-              color: missing
-                  ? p.error
-                  : added
-                  ? p.success
-                  : p.border,
-            ),
-            borderRadius: BorderRadius.circular(KRadius.md),
-          ),
-          child: Column(
-            children: [
-              SizedBox.square(
-                dimension: 72,
-                child: ClipOval(
-                  child: bytes == null
-                      ? ColoredBox(
-                          color: p.surfaceOverlay,
-                          child: Icon(icon, size: 32, color: p.textSecondary),
-                        )
-                      : Image.memory(bytes, fit: BoxFit.cover),
-                ),
-              ),
-              const SizedBox(height: KSpacing.xs),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: t.bodyStrong.copyWith(color: p.textPrimary),
-              ),
-              Text(
-                hint,
-                textAlign: TextAlign.center,
-                style: t.caption.copyWith(color: p.textSecondary),
-              ),
-              const SizedBox(height: KSpacing.xs),
-              RechargePill(
-                label: added
-                    ? l10n.rechargePhotoAdded
-                    : l10n.rechargePhotoRequired,
-                color: added ? p.success : (missing ? p.error : null),
-                dot: true,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  }) => RechargeIdPicture(
+    key: key,
+    title: title,
+    hint: hint,
+    bytes: bytes,
+    icon: icon,
+    onPick: onPick,
+    missing: _tried && bytes == null,
+  );
 
   /// A country dropdown over [rechargeCountries] (names in the app
   /// language).

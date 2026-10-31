@@ -8,6 +8,9 @@ import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/app/shell/app_shell.dart';
 import 'package:kabso_live/core/demo/demo_mode.dart';
 import 'package:kabso_live/core/network/consent_required.dart';
+import 'package:kabso_live/features/agency/data/agency_repository.dart'
+    show AgencyOpenRule;
+import 'package:kabso_live/features/agency/presentation/agency_open_screen.dart';
 import 'package:kabso_live/features/agency/presentation/agency_screen.dart';
 import 'package:kabso_live/features/auth/presentation/forgot_password_screen.dart';
 import 'package:kabso_live/features/auth/presentation/join_screen.dart';
@@ -419,6 +422,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       // D179: host agencies.
       GoRoute(path: AppRoutes.agency, builder: (_, _) => const AgencyScreen()),
+      // v1.70-social (D206): «افتح وكالة».
+      GoRoute(
+        path: AppRoutes.agencyOpen,
+        builder: (_, state) => switch (state.extra) {
+          final AgencyOpenRule rule => AgencyOpenScreen(
+            probationDays: rule.probationDays,
+            requiredHosts: rule.requiredHosts,
+          ),
+          _ => const AgencyOpenScreen(),
+        },
+      ),
       // D185: recharge agents.
       GoRoute(
         path: AppRoutes.recharge,

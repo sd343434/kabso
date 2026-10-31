@@ -762,3 +762,95 @@ class _RechargeAvailabilitySheetState
 final List<TextInputFormatter> rechargeDigits = [
   FilteringTextInputFormatter.digitsOnly,
 ];
+
+/// One identity picture of an application (D185; v1.70-social D206 reuses it
+/// for «افتح وكالة»): a round preview, the title and hint, and an
+/// «added / required» pill. Tapping it picks the picture.
+class RechargeIdPicture extends StatelessWidget {
+  const new({
+    required this.title,
+    required this.hint,
+    required this.bytes,
+    required this.icon,
+    required this.onPick,
+    required this.missing,
+    super.key,
+  });
+
+  final String title;
+  final String hint;
+  final Uint8List? bytes;
+  final IconData icon;
+  final VoidCallback onPick;
+
+  /// A submit was tried without it (drawn in the error colour).
+  final bool missing;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final p = context.palette;
+    final t = context.textStyles;
+    final bytes = this.bytes;
+    final added = bytes != null;
+    return Semantics(
+      button: true,
+      label:
+          '$title. $hint. '
+          '${added ? l10n.rechargePhotoAdded : l10n.rechargePhotoRequired}',
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onPick,
+        borderRadius: BorderRadius.circular(KRadius.md),
+        child: Container(
+          padding: const EdgeInsets.all(KSpacing.sm),
+          decoration: BoxDecoration(
+            color: p.surface,
+            border: Border.all(
+              color: missing
+                  ? p.error
+                  : added
+                  ? p.success
+                  : p.border,
+            ),
+            borderRadius: BorderRadius.circular(KRadius.md),
+          ),
+          child: Column(
+            children: [
+              SizedBox.square(
+                dimension: 72,
+                child: ClipOval(
+                  child: bytes == null
+                      ? ColoredBox(
+                          color: p.surfaceOverlay,
+                          child: Icon(icon, size: 32, color: p.textSecondary),
+                        )
+                      : Image.memory(bytes, fit: BoxFit.cover),
+                ),
+              ),
+              const SizedBox(height: KSpacing.xs),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: t.bodyStrong.copyWith(color: p.textPrimary),
+              ),
+              Text(
+                hint,
+                textAlign: TextAlign.center,
+                style: t.caption.copyWith(color: p.textSecondary),
+              ),
+              const SizedBox(height: KSpacing.xs),
+              RechargePill(
+                label: added
+                    ? l10n.rechargePhotoAdded
+                    : l10n.rechargePhotoRequired,
+                color: added ? p.success : (missing ? p.error : null),
+                dot: true,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

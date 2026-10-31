@@ -199,6 +199,10 @@ abstract final class AppRoutes {
   /// agent's dashboard). D172's Creator Center tab will host it on merge.
   static const agency = '/agency';
 
+  /// v1.70-social (D206): «افتح وكالة» (free; ID check; a 7-day probation).
+  /// `extra`: the `AgencyOpenRule` (its numbers), optional.
+  static const agencyOpen = '/agency/open';
+
   /// D185: recharge agents «وكيل الشحن»: the caller's page (apply, pending,
   /// the agent's dashboard or the employee's), the application, employees,
   /// the directory «وكلاء الشحن» and cherry sales between hosts and agents.

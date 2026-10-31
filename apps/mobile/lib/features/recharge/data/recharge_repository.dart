@@ -486,6 +486,32 @@ final class RechargeApplicationDraft {
   paymentMethods;
 }
 
+/// A private picture upload (D185 §10.48; v1.70-social D206 reuses it for
+/// «افتح وكالة»): the slot and the PUT only — the application that names the
+/// upload consumes it (never completed, never public). Returns the upload id.
+Future<String> uploadPrivateImage(
+  Dio api,
+  Dio storage,
+  Uint8List bytes,
+  String contentType,
+  String kind,
+) async {
+  final slot = (await api.post<Map<String, dynamic>>(
+    '/media/uploads',
+    data: {'kind': kind, 'contentType': contentType, 'byteSize': bytes.length},
+  )).data!;
+  final headers = {
+    for (final e in (slot['headers']! as Map<String, dynamic>).entries)
+      e.key: e.value as String,
+  };
+  await storage.put<void>(
+    slot['uploadUrl']! as String,
+    data: Stream.fromIterable([bytes]),
+    options: Options(headers: headers, contentType: headers['Content-Type']),
+  );
+  return slot['uploadId']! as String;
+}
+
 /// Recharge agents (openapi v1.54-social, D185). Every method throws an
 /// `AppFailure`.
 abstract interface class RechargeRepository {
@@ -544,26 +570,7 @@ class RechargeRepositoryImpl implements RechargeRepository {
     Uint8List bytes,
     String contentType,
     String kind,
-  ) async {
-    final slot = (await _dio.post<Map<String, dynamic>>(
-      '/media/uploads',
-      data: {
-        'kind': kind,
-        'contentType': contentType,
-        'byteSize': bytes.length,
-      },
-    )).data!;
-    final headers = {
-      for (final e in (slot['headers']! as Map<String, dynamic>).entries)
-        e.key: e.value as String,
-    };
-    await _storage.put<void>(
-      slot['uploadUrl']! as String,
-      data: Stream.fromIterable([bytes]),
-      options: Options(headers: headers, contentType: headers['Content-Type']),
-    );
-    return slot['uploadId']! as String;
-  }
+  ) => uploadPrivateImage(_dio, _storage, bytes, contentType, kind);
 
   @override
   Future<RechargeAgentMe> apply(RechargeApplicationDraft d) => guardApiCall(

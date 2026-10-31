@@ -66,6 +66,8 @@ class PushPayload {
     // D185.
     if (type == 'RECHARGE_COINS_RECEIVED') return AppRoutes.wallet;
     if (type == 'RECHARGE_CHERRY_REQUEST') return AppRoutes.rechargeCherries;
+    // D206: «افتح وكالة» — every agency notification opens «الوكالة».
+    if (type is String && type.startsWith('AGENCY_')) return AppRoutes.agency;
     if (id == null || id.isEmpty) return null;
     final postId = data['targetPostId'];
     final actor = data['actorUsername'];

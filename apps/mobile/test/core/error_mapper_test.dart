@@ -89,6 +89,7 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.agencyAlreadyMember: 409,
   ErrorCode.agencyJoinNotAllowed: 409,
   ErrorCode.agencyLeaveWindowClosed: 409,
+  ErrorCode.agencyOpenNotAllowed: 409,
   ErrorCode.insufficientCherries: 409,
   ErrorCode.withdrawalPending: 409,
   ErrorCode.rechargeApplicationNotAllowed: 409,
@@ -221,6 +222,7 @@ void main() {
           'AGENCY_ALREADY_MEMBER',
           'AGENCY_JOIN_NOT_ALLOWED',
           'AGENCY_LEAVE_WINDOW_CLOSED',
+          'AGENCY_OPEN_NOT_ALLOWED',
           'INSUFFICIENT_CHERRIES',
           'WITHDRAWAL_PENDING',
           // v1.54-social (D185).

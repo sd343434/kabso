@@ -11322,4 +11322,246 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveTargetClose => 'إغلاق';
+
+  @override
+  String agencyDaysCount(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days يوم',
+      many: '$days يومًا',
+      few: '$days أيام',
+      two: 'يومين',
+      one: 'يوم واحد',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String agencyHostsCount(int hosts) {
+    String _temp0 = intl.Intl.pluralLogic(
+      hosts,
+      locale: localeName,
+      other: '$hosts مضيف',
+      many: '$hosts مضيفًا',
+      few: '$hosts مضيفين',
+      two: 'مضيفَين',
+      one: 'مضيف واحد',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String agencyHoursCount(int hours) {
+    String _temp0 = intl.Intl.pluralLogic(
+      hours,
+      locale: localeName,
+      other: '$hours ساعة',
+      many: '$hours ساعة',
+      few: '$hours ساعات',
+      two: 'ساعتين',
+      one: 'ساعة واحدة',
+      zero: 'أقل من ساعة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get agencyOpenButton => 'افتح وكالة';
+
+  @override
+  String get agencyOpenButtonHint => 'مجانًا — تُنشأ وكالتك فورًا';
+
+  @override
+  String get agencyOpenTitle => 'افتح وكالة';
+
+  @override
+  String get agencyOpenFree => 'فتح الوكالة مجاني';
+
+  @override
+  String agencyOpenRule(String days, String hosts) {
+    return 'تُنشأ وكالتك فورًا بعد الإرسال. خلال $days يجب أن تفعّل $hosts على الأقل: ينضم المضيف إلى وكالتك ثم يفتح بثًا ويستلم هدايا. إن لم يتحقق ذلك تُغلق الوكالة تلقائيًا ويصلك إشعار بالسبب.';
+  }
+
+  @override
+  String get agencyOpenStepInfo => 'بيانات الوكالة';
+
+  @override
+  String get agencyOpenName => 'اسم الوكالة';
+
+  @override
+  String get agencyOpenNameError => 'اكتب اسمًا من حرفين إلى 40 حرفًا';
+
+  @override
+  String get agencyOpenCountry => 'البلد';
+
+  @override
+  String get agencyOpenCountryError => 'اختر البلد';
+
+  @override
+  String get agencyOpenContactType => 'وسيلة التواصل';
+
+  @override
+  String get agencyOpenContactValue => 'رقم أو معرّف التواصل';
+
+  @override
+  String get agencyOpenContactError => 'اكتب 3 أحرف على الأقل';
+
+  @override
+  String get agencyContactWhatsapp => 'واتساب';
+
+  @override
+  String get agencyContactTelegram => 'تيليجرام';
+
+  @override
+  String get agencyContactPhone => 'هاتف';
+
+  @override
+  String get agencyContactEmail => 'بريد إلكتروني';
+
+  @override
+  String get agencyContactOther => 'أخرى';
+
+  @override
+  String get agencyOpenExpected => 'عدد المضيفين المتوقع';
+
+  @override
+  String get agencyOpenExpectedError => 'من 1 إلى 10000';
+
+  @override
+  String get agencyOpenBio => 'نبذة قصيرة';
+
+  @override
+  String get agencyOpenBioHint => 'اختياري، حتى 300 حرف';
+
+  @override
+  String get agencyOpenStepId => 'التحقق من الهوية (إلزامي)';
+
+  @override
+  String get agencyOpenIdCard => 'صورة الهوية';
+
+  @override
+  String get agencyOpenIdCardHint => 'صورة واضحة لبطاقة الهوية أو جواز السفر';
+
+  @override
+  String get agencyOpenIdMissing => 'أضف صورة الهوية والسيلفي';
+
+  @override
+  String get agencyOpenPrivacy =>
+      'صور الهوية خاصة: لا يراها إلا فريق Kabso Live، وكل عرض لها يُسجَّل.';
+
+  @override
+  String get agencyOpenSubmit => 'افتح الوكالة مجانًا';
+
+  @override
+  String get agencyOpenDone => 'فُتحت وكالتك. فعّل مضيفيك خلال فترة التجربة';
+
+  @override
+  String get agencyOpenOwns => 'لديك وكالة بالفعل';
+
+  @override
+  String get agencyOpenIsHost => 'أنت مضيف في وكالة. غادرها أولًا لتفتح وكالة';
+
+  @override
+  String get agencyOpenNotActive => 'حسابك غير نشط';
+
+  @override
+  String agencyOpenCooldown(String date) {
+    return 'يمكنك فتح وكالة جديدة من $date';
+  }
+
+  @override
+  String get agencyProbationTitle => 'فترة التجربة';
+
+  @override
+  String agencyProbationLeft(String days, String hours) {
+    return 'متبقٍ: $days و$hours';
+  }
+
+  @override
+  String agencyProbationLeftHours(String hours) {
+    return 'متبقٍ: $hours';
+  }
+
+  @override
+  String get agencyProbationEnding => 'انتهت المدة، يجري التحقق الآن';
+
+  @override
+  String agencyProbationActivated(String count, String required) {
+    return 'المضيفون المفعّلون: $count / $required';
+  }
+
+  @override
+  String agencyProbationRuleShort(String hosts, String days) {
+    return 'فعّل $hosts خلال $days: ينضم المضيف ثم يبثّ ويستلم هدايا.';
+  }
+
+  @override
+  String get agencyProbationJoined => 'انضم';
+
+  @override
+  String get agencyProbationLive => 'بثّ';
+
+  @override
+  String get agencyProbationGifts => 'استلم هدايا';
+
+  @override
+  String get agencyProbationNoHosts =>
+      'لا مضيفين بعد. شارك رمز الدعوة ليبدأ المضيفون.';
+
+  @override
+  String get agencyProbationPassed => 'اجتازت وكالتك فترة التجربة';
+
+  @override
+  String get agencyShare => 'مشاركة';
+
+  @override
+  String agencyShareText(String code) {
+    return 'انضم إلى وكالتي على Kabso Live برمز الدعوة: $code';
+  }
+
+  @override
+  String get agencyClosedTitle => 'أُغلقت الوكالة';
+
+  @override
+  String agencyClosedProbation(String hosts, String count) {
+    return 'لم تفعّل $hosts (بثّ واستلام هدايا) خلال فترة التجربة. المفعّلون: $count';
+  }
+
+  @override
+  String get agencyClosedAdmin => 'أغلقها فريق Kabso Live';
+
+  @override
+  String agencyClosedOn(String date) {
+    return 'تاريخ الإغلاق: $date';
+  }
+
+  @override
+  String get agencyReopenNow => 'يمكنك فتح وكالة جديدة الآن';
+
+  @override
+  String get notifAgencyOpened => 'فُتحت وكالتك. فعّل مضيفيك خلال فترة التجربة';
+
+  @override
+  String notifAgencyReminder(String count, String required) {
+    return 'بقي أقل من يوم على نهاية فترة التجربة: المفعّلون $count / $required';
+  }
+
+  @override
+  String get notifAgencyPassed => 'اجتازت وكالتك فترة التجربة';
+
+  @override
+  String notifAgencyClosedProbation(String hosts, String count) {
+    return 'أُغلقت وكالتك لأنها لم تفعّل $hosts (بثّ واستلام هدايا) خلال فترة التجربة. المفعّلون: $count';
+  }
+
+  @override
+  String get notifAgencyClosedAdmin => 'أُغلقت وكالتك من قِبل فريق Kabso Live';
+
+  @override
+  String get notifAgencyHostReleased =>
+      'أُغلقت الوكالة التي كنت فيها، وأصبحت حرًا للانضمام إلى وكالة أخرى';
+
+  @override
+  String get errorAgencyOpenNotAllowed => 'لا يمكنك فتح وكالة الآن';
 }

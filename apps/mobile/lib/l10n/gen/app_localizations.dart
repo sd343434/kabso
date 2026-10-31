@@ -19341,6 +19341,372 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'إغلاق'**
   String get liveTargetClose;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'{days, plural, =1{يوم واحد} =2{يومين} few{{days} أيام} many{{days} يومًا} other{{days} يوم}}'**
+  String agencyDaysCount(int days);
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'{hosts, plural, =1{مضيف واحد} =2{مضيفَين} few{{hosts} مضيفين} many{{hosts} مضيفًا} other{{hosts} مضيف}}'**
+  String agencyHostsCount(int hosts);
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'{hours, plural, =0{أقل من ساعة} =1{ساعة واحدة} =2{ساعتين} few{{hours} ساعات} many{{hours} ساعة} other{{hours} ساعة}}'**
+  String agencyHoursCount(int hours);
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'افتح وكالة'**
+  String get agencyOpenButton;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'مجانًا — تُنشأ وكالتك فورًا'**
+  String get agencyOpenButtonHint;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'افتح وكالة'**
+  String get agencyOpenTitle;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'فتح الوكالة مجاني'**
+  String get agencyOpenFree;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'تُنشأ وكالتك فورًا بعد الإرسال. خلال {days} يجب أن تفعّل {hosts} على الأقل: ينضم المضيف إلى وكالتك ثم يفتح بثًا ويستلم هدايا. إن لم يتحقق ذلك تُغلق الوكالة تلقائيًا ويصلك إشعار بالسبب.'**
+  String agencyOpenRule(String days, String hosts);
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'بيانات الوكالة'**
+  String get agencyOpenStepInfo;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'اسم الوكالة'**
+  String get agencyOpenName;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب اسمًا من حرفين إلى 40 حرفًا'**
+  String get agencyOpenNameError;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'البلد'**
+  String get agencyOpenCountry;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر البلد'**
+  String get agencyOpenCountryError;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'وسيلة التواصل'**
+  String get agencyOpenContactType;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'رقم أو معرّف التواصل'**
+  String get agencyOpenContactValue;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب 3 أحرف على الأقل'**
+  String get agencyOpenContactError;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'واتساب'**
+  String get agencyContactWhatsapp;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'تيليجرام'**
+  String get agencyContactTelegram;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'هاتف'**
+  String get agencyContactPhone;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'بريد إلكتروني'**
+  String get agencyContactEmail;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'أخرى'**
+  String get agencyContactOther;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'عدد المضيفين المتوقع'**
+  String get agencyOpenExpected;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'من 1 إلى 10000'**
+  String get agencyOpenExpectedError;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'نبذة قصيرة'**
+  String get agencyOpenBio;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'اختياري، حتى 300 حرف'**
+  String get agencyOpenBioHint;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'التحقق من الهوية (إلزامي)'**
+  String get agencyOpenStepId;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'صورة الهوية'**
+  String get agencyOpenIdCard;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'صورة واضحة لبطاقة الهوية أو جواز السفر'**
+  String get agencyOpenIdCardHint;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'أضف صورة الهوية والسيلفي'**
+  String get agencyOpenIdMissing;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'صور الهوية خاصة: لا يراها إلا فريق Kabso Live، وكل عرض لها يُسجَّل.'**
+  String get agencyOpenPrivacy;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'افتح الوكالة مجانًا'**
+  String get agencyOpenSubmit;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'فُتحت وكالتك. فعّل مضيفيك خلال فترة التجربة'**
+  String get agencyOpenDone;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'لديك وكالة بالفعل'**
+  String get agencyOpenOwns;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'أنت مضيف في وكالة. غادرها أولًا لتفتح وكالة'**
+  String get agencyOpenIsHost;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'حسابك غير نشط'**
+  String get agencyOpenNotActive;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنك فتح وكالة جديدة من {date}'**
+  String agencyOpenCooldown(String date);
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'فترة التجربة'**
+  String get agencyProbationTitle;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'متبقٍ: {days} و{hours}'**
+  String agencyProbationLeft(String days, String hours);
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'متبقٍ: {hours}'**
+  String agencyProbationLeftHours(String hours);
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت المدة، يجري التحقق الآن'**
+  String get agencyProbationEnding;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'المضيفون المفعّلون: {count} / {required}'**
+  String agencyProbationActivated(String count, String required);
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'فعّل {hosts} خلال {days}: ينضم المضيف ثم يبثّ ويستلم هدايا.'**
+  String agencyProbationRuleShort(String hosts, String days);
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'انضم'**
+  String get agencyProbationJoined;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'بثّ'**
+  String get agencyProbationLive;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'استلم هدايا'**
+  String get agencyProbationGifts;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'لا مضيفين بعد. شارك رمز الدعوة ليبدأ المضيفون.'**
+  String get agencyProbationNoHosts;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'اجتازت وكالتك فترة التجربة'**
+  String get agencyProbationPassed;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'مشاركة'**
+  String get agencyShare;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'انضم إلى وكالتي على Kabso Live برمز الدعوة: {code}'**
+  String agencyShareText(String code);
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'أُغلقت الوكالة'**
+  String get agencyClosedTitle;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تفعّل {hosts} (بثّ واستلام هدايا) خلال فترة التجربة. المفعّلون: {count}'**
+  String agencyClosedProbation(String hosts, String count);
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'أغلقها فريق Kabso Live'**
+  String get agencyClosedAdmin;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'تاريخ الإغلاق: {date}'**
+  String agencyClosedOn(String date);
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنك فتح وكالة جديدة الآن'**
+  String get agencyReopenNow;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'فُتحت وكالتك. فعّل مضيفيك خلال فترة التجربة'**
+  String get notifAgencyOpened;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'بقي أقل من يوم على نهاية فترة التجربة: المفعّلون {count} / {required}'**
+  String notifAgencyReminder(String count, String required);
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'اجتازت وكالتك فترة التجربة'**
+  String get notifAgencyPassed;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'أُغلقت وكالتك لأنها لم تفعّل {hosts} (بثّ واستلام هدايا) خلال فترة التجربة. المفعّلون: {count}'**
+  String notifAgencyClosedProbation(String hosts, String count);
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'أُغلقت وكالتك من قِبل فريق Kabso Live'**
+  String get notifAgencyClosedAdmin;
+
+  /// v1.70-social (D206): «افتح وكالة».
+  ///
+  /// In ar, this message translates to:
+  /// **'أُغلقت الوكالة التي كنت فيها، وأصبحت حرًا للانضمام إلى وكالة أخرى'**
+  String get notifAgencyHostReleased;
+
+  /// v1.70-social (D206): AGENCY_OPEN_NOT_ALLOWED.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكنك فتح وكالة الآن'**
+  String get errorAgencyOpenNotAllowed;
 }
 
 class _AppLocalizationsDelegate

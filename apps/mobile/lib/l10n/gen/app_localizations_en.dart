@@ -11314,4 +11314,241 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveTargetClose => 'Close';
+
+  @override
+  String agencyDaysCount(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days days',
+      one: '$days day',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String agencyHostsCount(int hosts) {
+    String _temp0 = intl.Intl.pluralLogic(
+      hosts,
+      locale: localeName,
+      other: '$hosts hosts',
+      one: '$hosts host',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String agencyHoursCount(int hours) {
+    String _temp0 = intl.Intl.pluralLogic(
+      hours,
+      locale: localeName,
+      other: '$hours hours',
+      one: '$hours hour',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get agencyOpenButton => 'Open an agency';
+
+  @override
+  String get agencyOpenButtonHint => 'Free — your agency is created at once';
+
+  @override
+  String get agencyOpenTitle => 'Open an agency';
+
+  @override
+  String get agencyOpenFree => 'Opening an agency is free';
+
+  @override
+  String agencyOpenRule(String days, String hosts) {
+    return 'Your agency is created as soon as you send this. Within $days you must activate at least $hosts: a host joins your agency, then goes live and receives gifts. Otherwise the agency is closed automatically and you are told why.';
+  }
+
+  @override
+  String get agencyOpenStepInfo => 'Agency details';
+
+  @override
+  String get agencyOpenName => 'Agency name';
+
+  @override
+  String get agencyOpenNameError => 'Use 2 to 40 characters';
+
+  @override
+  String get agencyOpenCountry => 'Country';
+
+  @override
+  String get agencyOpenCountryError => 'Choose the country';
+
+  @override
+  String get agencyOpenContactType => 'Contact method';
+
+  @override
+  String get agencyOpenContactValue => 'Number or handle';
+
+  @override
+  String get agencyOpenContactError => 'Use at least 3 characters';
+
+  @override
+  String get agencyContactWhatsapp => 'WhatsApp';
+
+  @override
+  String get agencyContactTelegram => 'Telegram';
+
+  @override
+  String get agencyContactPhone => 'Phone';
+
+  @override
+  String get agencyContactEmail => 'Email';
+
+  @override
+  String get agencyContactOther => 'Other';
+
+  @override
+  String get agencyOpenExpected => 'Expected number of hosts';
+
+  @override
+  String get agencyOpenExpectedError => 'From 1 to 10000';
+
+  @override
+  String get agencyOpenBio => 'Short bio';
+
+  @override
+  String get agencyOpenBioHint => 'Optional, up to 300 characters';
+
+  @override
+  String get agencyOpenStepId => 'Identity check (required)';
+
+  @override
+  String get agencyOpenIdCard => 'ID card';
+
+  @override
+  String get agencyOpenIdCardHint =>
+      'A clear photo of your ID card or passport';
+
+  @override
+  String get agencyOpenIdMissing => 'Add the ID card and the selfie';
+
+  @override
+  String get agencyOpenPrivacy =>
+      'The ID pictures are private: only the Kabso Live team sees them, and every view is recorded.';
+
+  @override
+  String get agencyOpenSubmit => 'Open the agency for free';
+
+  @override
+  String get agencyOpenDone =>
+      'Your agency is open. Activate your hosts during the trial';
+
+  @override
+  String get agencyOpenOwns => 'You already have an agency';
+
+  @override
+  String get agencyOpenIsHost =>
+      'You are a host of an agency. Leave it first to open one';
+
+  @override
+  String get agencyOpenNotActive => 'Your account is not active';
+
+  @override
+  String agencyOpenCooldown(String date) {
+    return 'You can open a new agency from $date';
+  }
+
+  @override
+  String get agencyProbationTitle => 'Trial period';
+
+  @override
+  String agencyProbationLeft(String days, String hours) {
+    return 'Left: $days and $hours';
+  }
+
+  @override
+  String agencyProbationLeftHours(String hours) {
+    return 'Left: $hours';
+  }
+
+  @override
+  String get agencyProbationEnding => 'Time is up, checking now';
+
+  @override
+  String agencyProbationActivated(String count, String required) {
+    return 'Activated hosts: $count / $required';
+  }
+
+  @override
+  String agencyProbationRuleShort(String hosts, String days) {
+    return 'Activate $hosts within $days: a host joins, goes live and receives gifts.';
+  }
+
+  @override
+  String get agencyProbationJoined => 'Joined';
+
+  @override
+  String get agencyProbationLive => 'Went live';
+
+  @override
+  String get agencyProbationGifts => 'Got gifts';
+
+  @override
+  String get agencyProbationNoHosts =>
+      'No hosts yet. Share the invite code to get started.';
+
+  @override
+  String get agencyProbationPassed => 'Your agency passed its trial';
+
+  @override
+  String get agencyShare => 'Share';
+
+  @override
+  String agencyShareText(String code) {
+    return 'Join my agency on Kabso Live with the invite code: $code';
+  }
+
+  @override
+  String get agencyClosedTitle => 'The agency was closed';
+
+  @override
+  String agencyClosedProbation(String hosts, String count) {
+    return 'It did not activate $hosts (live + gifts) during the trial. Activated: $count';
+  }
+
+  @override
+  String get agencyClosedAdmin => 'Closed by the Kabso Live team';
+
+  @override
+  String agencyClosedOn(String date) {
+    return 'Closed on: $date';
+  }
+
+  @override
+  String get agencyReopenNow => 'You can open a new agency now';
+
+  @override
+  String get notifAgencyOpened =>
+      'Your agency is open. Activate your hosts during the trial';
+
+  @override
+  String notifAgencyReminder(String count, String required) {
+    return 'Less than a day left in your agency trial: $count / $required activated';
+  }
+
+  @override
+  String get notifAgencyPassed => 'Your agency passed its trial';
+
+  @override
+  String notifAgencyClosedProbation(String hosts, String count) {
+    return 'Your agency was closed because it did not activate $hosts (live + gifts) during the trial. Activated: $count';
+  }
+
+  @override
+  String get notifAgencyClosedAdmin =>
+      'Your agency was closed by the Kabso Live team';
+
+  @override
+  String get notifAgencyHostReleased =>
+      'Your agency was closed; you are free to join another agency';
+
+  @override
+  String get errorAgencyOpenNotAllowed => 'You cannot open an agency now';
 }
