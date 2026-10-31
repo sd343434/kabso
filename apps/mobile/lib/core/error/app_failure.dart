@@ -247,6 +247,14 @@ enum ErrorCode {
   /// colour (only a host without a stated gender picks it).
   hostFrameStyleFromGender('HOST_FRAME_STYLE_FROM_GENDER'),
 
+  /// v1.69-social (D204, §10.64): recharge orders (503 switched off; 409 the
+  /// rest).
+  rechargeOrdersUnavailable('RECHARGE_ORDERS_UNAVAILABLE'),
+  rechargeOrderOpenExists('RECHARGE_ORDER_OPEN_EXISTS'),
+  rechargeOrderStateChanged('RECHARGE_ORDER_STATE_CHANGED'),
+  rechargeOrderNoticeRequired('RECHARGE_ORDER_NOTICE_REQUIRED'),
+  rechargeOrderDisputeTooEarly('RECHARGE_ORDER_DISPUTE_TOO_EARLY'),
+
   /// Client-only: no connection could be established.
   networkOffline('NETWORK_OFFLINE'),
 

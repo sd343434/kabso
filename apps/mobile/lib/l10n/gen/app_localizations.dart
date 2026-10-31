@@ -17357,6 +17357,558 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'اشحن بالبطاقة على موقع Kabso Live الرسمي'**
   String get walletTopupWebsiteHint;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'طلبات الشحن'**
+  String get rechargeOrdersTitle;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'طلباتك من الوكلاء ومحادثة كل طلب'**
+  String get rechargeOrdersHint;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'مشترياتي'**
+  String get rechargeOrdersMine;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'الطلبات الواردة'**
+  String get rechargeOrdersIncoming;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} طلب ينتظرك · {coins} عملة مجمّدة'**
+  String rechargeOrdersIncomingHint(String count, String coins);
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد طلبات بعد'**
+  String get rechargeOrdersEmpty;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر وكيلاً من «وكلاء الشحن» ثم «اطلب شحن».'**
+  String get rechargeOrdersEmptyBody;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'اطلب شحن'**
+  String get rechargeOrderNew;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب شحن جديد'**
+  String get rechargeOrderNewTitle;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'عدد العملات'**
+  String get rechargeOrderCoins;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'من {min} إلى {max} عملة'**
+  String rechargeOrderCoinsRange(String min, String max);
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'السعر'**
+  String get rechargeOrderPrice;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'{amount} دولار'**
+  String rechargeOrderUsd(String amount);
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'≈ {amount} {currency} (1 دولار = {rate})'**
+  String rechargeOrderLocal(String amount, String currency, String rate);
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد سعر صرف لهذا البلد: السعر بالدولار فقط.'**
+  String get rechargeOrderUsdOnly;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'السعر يحسبه Kabso حسب السعر الموحد للعملات.'**
+  String get rechargeOrderPriceNote;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'طريقة الدفع'**
+  String get rechargeOrderPaymentMethod;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال الطلب'**
+  String get rechargeOrderSubmit;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'تدفع للوكيل خارج التطبيق. عند إرسال معلومات الدفع تُجمَّد العملات من رصيد الوكيل حتى يؤكد استلام المبلغ.'**
+  String get rechargeOrderOutsideNote;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب شحن'**
+  String get rechargeOrderTitle;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'بانتظار معلومات الدفع من الوكيل'**
+  String get rechargeOrderStatusRequested;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'بانتظار التحويل'**
+  String get rechargeOrderStatusAwaiting;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'تم الإرسال — بانتظار تأكيد الوكيل'**
+  String get rechargeOrderStatusPaid;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'نزاع — الإدارة تراجع الطلب'**
+  String get rechargeOrderStatusDisputed;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'مكتمل — أُضيفت العملات'**
+  String get rechargeOrderStatusCompleted;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'أُضيفت العملات بقرار الإدارة'**
+  String get rechargeOrderStatusByAdmin;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'أُعيدت العملات إلى الوكيل بقرار الإدارة'**
+  String get rechargeOrderStatusRefunded;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'ملغى'**
+  String get rechargeOrderStatusCancelled;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت مهلة الطلب'**
+  String get rechargeOrderStatusExpired;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب شحن'**
+  String get rechargeOrderStatusUnknown;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'{coins} عملة مجمّدة لهذا الطلب'**
+  String rechargeOrderFrozen(String coins);
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'{coins} عملة'**
+  String rechargeOrderCoinsLine(String coins);
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'تعليمات الحماية'**
+  String get rechargeOrderNoticeTitle;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'يرجى أخذ لقطة شاشة وتسجيل فيديو للشاشة منذ لحظة مغادرة المحادثة وحتى وصول الحوالة إلى المعلومات التي قدّمها الوكيل، لحمايتكم من أي خطأ أو احتيال. عند التحويل أرسل لقطة شاشة للحوالة واحتفظ بفيديو الشاشة حتى تصلك العملات.'**
+  String get rechargeOrderNotice;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'قرأت وفهمت'**
+  String get rechargeOrderNoticeAck;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'قمت بالإرسال'**
+  String get rechargeOrderSent;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'أرفق لقطة شاشة الحوالة'**
+  String get rechargeOrderSentTitle;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر لقطة شاشة التحويل؛ تُرسل في المحادثة كإثبات. احتفظ بفيديو الشاشة حتى تصلك العملات.'**
+  String get rechargeOrderSentBody;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'اختيار لقطة الشاشة'**
+  String get rechargeOrderPickScreenshot;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر صورة JPEG أو PNG أو WebP.'**
+  String get rechargeOrderBadImage;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنك فتح نزاع بعد {time}'**
+  String rechargeOrderCountdown(String time);
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'تحقّق من وصول الحوالة · {time} قبل أن يستطيع المشتري فتح نزاع'**
+  String rechargeOrderCountdownAgent(String time);
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت مدة الانتظار. إن لم تصلك العملات افتح نزاعاً.'**
+  String get rechargeOrderWaitOver;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت مدة الانتظار: يمكن للمشتري فتح نزاع الآن.'**
+  String get rechargeOrderWaitOverAgent;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'نزاع'**
+  String get rechargeOrderDispute;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'فتح نزاع'**
+  String get rechargeOrderDisputeTitle;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'تبقى العملات مجمّدة، وتدخل الإدارة المحادثة لمراجعة الإثباتات وتقرّر.'**
+  String get rechargeOrderDisputeBody;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'ماذا حدث؟ (اختياري)'**
+  String get rechargeOrderDisputeReason;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'استلمت'**
+  String get rechargeOrderReceived;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'تأكيد الاستلام'**
+  String get rechargeOrderReceivedTitle;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'تأكد أن المبلغ وصل فعلاً إلى حسابك. بعد التأكيد تُضاف {coins} عملة إلى المشتري ولا يمكن التراجع.'**
+  String rechargeOrderReceivedBody(String coins);
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال معلومات الدفع'**
+  String get rechargeOrderSendDetails;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'معلومات التحويل'**
+  String get rechargeOrderDetailsLabel;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'رقم المحفظة أو الحساب واسم المستلم'**
+  String get rechargeOrderDetailsHint;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'عند الإرسال تُجمَّد {coins} عملة من رصيدك لهذا الطلب حتى تؤكد الاستلام.'**
+  String rechargeOrderDetailsBody(String coins);
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء الطلب'**
+  String get rechargeOrderCancel;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'هل تريد إلغاء الطلب؟ تعود أي عملات مجمّدة إلى رصيد الوكيل.'**
+  String get rechargeOrderCancelBody;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'تراجع'**
+  String get rechargeOrderKeep;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب رسالة…'**
+  String get rechargeOrderChatHint;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'المحادثة مغلقة'**
+  String get rechargeOrderChatClosed;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'الإدارة'**
+  String get rechargeOrderRoleAdmin;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'معلومات الدفع · {method}'**
+  String rechargeOrderPaymentDetails(String method);
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'لقطة شاشة الحوالة'**
+  String get rechargeOrderProof;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'تم نسخ معلومات الدفع'**
+  String get rechargeOrderCopied;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'أُنشئ الطلب'**
+  String get rechargeOrderEventCreated;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'أرسل الوكيل معلومات الدفع وجُمّدت العملات'**
+  String get rechargeOrderEventDetails;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'أقرّ المشتري بتعليمات الحماية'**
+  String get rechargeOrderEventNotice;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'ضغط المشتري «قمت بالإرسال»'**
+  String get rechargeOrderEventPaid;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'أكّد الوكيل الاستلام وأُضيفت العملات'**
+  String get rechargeOrderEventCompleted;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'فتح المشتري نزاعاً'**
+  String get rechargeOrderEventDisputedBuyer;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'فتح الوكيل نزاعاً'**
+  String get rechargeOrderEventDisputedAgent;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'ألغى المشتري الطلب'**
+  String get rechargeOrderEventCancelledBuyer;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'ألغى الوكيل الطلب'**
+  String get rechargeOrderEventCancelledAgent;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت مهلة الطلب'**
+  String get rechargeOrderEventExpired;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'قرار الإدارة: العملات للمشتري'**
+  String get rechargeOrderEventForBuyer;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'قرار الإدارة: العملات تعود للوكيل'**
+  String get rechargeOrderEventForAgent;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'تحديث على الطلب'**
+  String get rechargeOrderEventOther;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب شحن جديد ينتظر معلومات الدفع ({coins} عملة)'**
+  String notifRechargeOrderCreated(String coins);
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'أرسل الوكيل معلومات الدفع لطلب الشحن'**
+  String get notifRechargeOrderDetails;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'أكّد المشتري إرسال المبلغ: تحقّق من وصول الحوالة'**
+  String get notifRechargeOrderPaid;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'أُضيفت {coins} عملة من طلب الشحن'**
+  String notifRechargeOrderCompleted(String coins);
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'فُتح نزاع على طلب الشحن'**
+  String get notifRechargeOrderDisputed;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'أُغلق النزاع وأُعيدت العملات إلى الوكيل'**
+  String get notifRechargeOrderRefunded;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'أُلغي طلب الشحن'**
+  String get notifRechargeOrderCancelled;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت مهلة طلب الشحن'**
+  String get notifRechargeOrderExpired;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'رسالة من الإدارة في طلب الشحن'**
+  String get notifRechargeOrderAdmin;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'رسالة جديدة في طلب الشحن'**
+  String get notifRechargeOrderMessage;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'طلبات الشحن غير متاحة حالياً.'**
+  String get errorRechargeOrdersUnavailable;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'لديك طلب مفتوح مع هذا الوكيل.'**
+  String get errorRechargeOrderOpenExists;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيّرت حالة الطلب. حدّث الصفحة.'**
+  String get errorRechargeOrderStateChanged;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'اقرأ تعليمات الحماية وأقرّ بها أولاً.'**
+  String get errorRechargeOrderNoticeRequired;
+
+  /// D204 recharge orders
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنك فتح نزاع بعد انتهاء مدة الانتظار.'**
+  String get errorRechargeOrderDisputeTooEarly;
 }
 
 class _AppLocalizationsDelegate

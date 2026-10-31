@@ -10141,4 +10141,338 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get walletTopupWebsiteHint =>
       'Pay by card on the official Kabso Live website';
+
+  @override
+  String get rechargeOrdersTitle => 'Recharge orders';
+
+  @override
+  String get rechargeOrdersHint =>
+      'Your orders with agents and each order\'s chat';
+
+  @override
+  String get rechargeOrdersMine => 'My orders';
+
+  @override
+  String get rechargeOrdersIncoming => 'Incoming orders';
+
+  @override
+  String rechargeOrdersIncomingHint(String count, String coins) {
+    return '$count waiting for you · $coins coins frozen';
+  }
+
+  @override
+  String get rechargeOrdersEmpty => 'No orders yet';
+
+  @override
+  String get rechargeOrdersEmptyBody =>
+      'Choose an agent in «Recharge agents», then «Order coins».';
+
+  @override
+  String get rechargeOrderNew => 'Order coins';
+
+  @override
+  String get rechargeOrderNewTitle => 'New recharge order';
+
+  @override
+  String get rechargeOrderCoins => 'Coins';
+
+  @override
+  String rechargeOrderCoinsRange(String min, String max) {
+    return 'From $min to $max coins';
+  }
+
+  @override
+  String get rechargeOrderPrice => 'Price';
+
+  @override
+  String rechargeOrderUsd(String amount) {
+    return '$amount USD';
+  }
+
+  @override
+  String rechargeOrderLocal(String amount, String currency, String rate) {
+    return '≈ $amount $currency (1 USD = $rate)';
+  }
+
+  @override
+  String get rechargeOrderUsdOnly =>
+      'No exchange rate for this country: the price is in USD only.';
+
+  @override
+  String get rechargeOrderPriceNote =>
+      'Kabso computes the price at the unified coin price.';
+
+  @override
+  String get rechargeOrderPaymentMethod => 'Payment method';
+
+  @override
+  String get rechargeOrderSubmit => 'Send the order';
+
+  @override
+  String get rechargeOrderOutsideNote =>
+      'You pay the agent outside the app. When the agent sends the payment details, the coins are frozen from the agent\'s stock until they confirm the payment.';
+
+  @override
+  String get rechargeOrderTitle => 'Recharge order';
+
+  @override
+  String get rechargeOrderStatusRequested =>
+      'Waiting for the agent\'s payment details';
+
+  @override
+  String get rechargeOrderStatusAwaiting => 'Waiting for the transfer';
+
+  @override
+  String get rechargeOrderStatusPaid => 'Sent — waiting for the agent';
+
+  @override
+  String get rechargeOrderStatusDisputed =>
+      'Disputed — the team is reviewing it';
+
+  @override
+  String get rechargeOrderStatusCompleted => 'Completed — the coins were added';
+
+  @override
+  String get rechargeOrderStatusByAdmin => 'The coins were added by the team';
+
+  @override
+  String get rechargeOrderStatusRefunded =>
+      'The coins went back to the agent (team decision)';
+
+  @override
+  String get rechargeOrderStatusCancelled => 'Cancelled';
+
+  @override
+  String get rechargeOrderStatusExpired => 'Expired';
+
+  @override
+  String get rechargeOrderStatusUnknown => 'Recharge order';
+
+  @override
+  String rechargeOrderFrozen(String coins) {
+    return '$coins coins frozen for this order';
+  }
+
+  @override
+  String rechargeOrderCoinsLine(String coins) {
+    return '$coins coins';
+  }
+
+  @override
+  String get rechargeOrderNoticeTitle => 'Protection notice';
+
+  @override
+  String get rechargeOrderNotice =>
+      'Please take a screenshot and record a screen video from the moment you leave this chat until the transfer reaches the details the agent gave you, to protect you from any mistake or fraud. When you transfer, send a screenshot of the transfer and keep the screen video until your coins arrive.';
+
+  @override
+  String get rechargeOrderNoticeAck => 'I have read and understood';
+
+  @override
+  String get rechargeOrderSent => 'I sent it';
+
+  @override
+  String get rechargeOrderSentTitle => 'Attach the transfer screenshot';
+
+  @override
+  String get rechargeOrderSentBody =>
+      'Choose the screenshot of the transfer; it is sent in the chat as proof. Keep the screen video until your coins arrive.';
+
+  @override
+  String get rechargeOrderPickScreenshot => 'Choose the screenshot';
+
+  @override
+  String get rechargeOrderBadImage => 'Choose a JPEG, PNG or WebP picture.';
+
+  @override
+  String rechargeOrderCountdown(String time) {
+    return 'You can open a dispute in $time';
+  }
+
+  @override
+  String rechargeOrderCountdownAgent(String time) {
+    return 'Check the transfer · $time before the buyer can open a dispute';
+  }
+
+  @override
+  String get rechargeOrderWaitOver =>
+      'The wait is over. If your coins have not arrived, open a dispute.';
+
+  @override
+  String get rechargeOrderWaitOverAgent =>
+      'The wait is over: the buyer can open a dispute now.';
+
+  @override
+  String get rechargeOrderDispute => 'Dispute';
+
+  @override
+  String get rechargeOrderDisputeTitle => 'Open a dispute';
+
+  @override
+  String get rechargeOrderDisputeBody =>
+      'The coins stay frozen; the team joins the chat, reviews the evidence and decides.';
+
+  @override
+  String get rechargeOrderDisputeReason => 'What happened? (optional)';
+
+  @override
+  String get rechargeOrderReceived => 'Received';
+
+  @override
+  String get rechargeOrderReceivedTitle => 'Confirm the payment';
+
+  @override
+  String rechargeOrderReceivedBody(String coins) {
+    return 'Make sure the money really reached your account. After you confirm, $coins coins go to the buyer; this cannot be undone.';
+  }
+
+  @override
+  String get rechargeOrderSendDetails => 'Send payment details';
+
+  @override
+  String get rechargeOrderDetailsLabel => 'Transfer details';
+
+  @override
+  String get rechargeOrderDetailsHint =>
+      'The wallet or account number and the recipient\'s name';
+
+  @override
+  String rechargeOrderDetailsBody(String coins) {
+    return 'When you send, $coins coins are frozen from your stock for this order until you confirm the payment.';
+  }
+
+  @override
+  String get rechargeOrderCancel => 'Cancel the order';
+
+  @override
+  String get rechargeOrderCancelBody =>
+      'Cancel the order? Any frozen coins go back to the agent\'s stock.';
+
+  @override
+  String get rechargeOrderKeep => 'Keep it';
+
+  @override
+  String get rechargeOrderChatHint => 'Write a message…';
+
+  @override
+  String get rechargeOrderChatClosed => 'The chat is closed';
+
+  @override
+  String get rechargeOrderRoleAdmin => 'Team';
+
+  @override
+  String rechargeOrderPaymentDetails(String method) {
+    return 'Payment details · $method';
+  }
+
+  @override
+  String get rechargeOrderProof => 'Transfer screenshot';
+
+  @override
+  String get rechargeOrderCopied => 'Payment details copied';
+
+  @override
+  String get rechargeOrderEventCreated => 'Order created';
+
+  @override
+  String get rechargeOrderEventDetails =>
+      'The agent sent the payment details; the coins are frozen';
+
+  @override
+  String get rechargeOrderEventNotice =>
+      'The buyer acknowledged the protection notice';
+
+  @override
+  String get rechargeOrderEventPaid => 'The buyer pressed «I sent it»';
+
+  @override
+  String get rechargeOrderEventCompleted =>
+      'The agent confirmed; the coins were added';
+
+  @override
+  String get rechargeOrderEventDisputedBuyer => 'The buyer opened a dispute';
+
+  @override
+  String get rechargeOrderEventDisputedAgent => 'The agent opened a dispute';
+
+  @override
+  String get rechargeOrderEventCancelledBuyer =>
+      'The buyer cancelled the order';
+
+  @override
+  String get rechargeOrderEventCancelledAgent =>
+      'The agent cancelled the order';
+
+  @override
+  String get rechargeOrderEventExpired => 'The order expired';
+
+  @override
+  String get rechargeOrderEventForBuyer =>
+      'Team decision: the coins go to the buyer';
+
+  @override
+  String get rechargeOrderEventForAgent =>
+      'Team decision: the coins go back to the agent';
+
+  @override
+  String get rechargeOrderEventOther => 'Order updated';
+
+  @override
+  String notifRechargeOrderCreated(String coins) {
+    return 'A new recharge order is waiting for your payment details ($coins coins)';
+  }
+
+  @override
+  String get notifRechargeOrderDetails =>
+      'The agent sent the payment details for your order';
+
+  @override
+  String get notifRechargeOrderPaid =>
+      'The buyer says the money was sent: check the transfer';
+
+  @override
+  String notifRechargeOrderCompleted(String coins) {
+    return '$coins coins of your recharge order were added';
+  }
+
+  @override
+  String get notifRechargeOrderDisputed =>
+      'A dispute was opened on the recharge order';
+
+  @override
+  String get notifRechargeOrderRefunded =>
+      'The dispute was closed; the coins went back to the agent';
+
+  @override
+  String get notifRechargeOrderCancelled => 'The recharge order was cancelled';
+
+  @override
+  String get notifRechargeOrderExpired => 'The recharge order expired';
+
+  @override
+  String get notifRechargeOrderAdmin =>
+      'A message from the team on the recharge order';
+
+  @override
+  String get notifRechargeOrderMessage => 'A new message on the recharge order';
+
+  @override
+  String get errorRechargeOrdersUnavailable =>
+      'Recharge orders are not available right now.';
+
+  @override
+  String get errorRechargeOrderOpenExists =>
+      'You already have an open order with this agent.';
+
+  @override
+  String get errorRechargeOrderStateChanged =>
+      'This order has changed. Refresh the page.';
+
+  @override
+  String get errorRechargeOrderNoticeRequired =>
+      'Read and acknowledge the protection notice first.';
+
+  @override
+  String get errorRechargeOrderDisputeTooEarly =>
+      'You can open a dispute when the wait is over.';
 }

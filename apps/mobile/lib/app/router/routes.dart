@@ -205,6 +205,19 @@ abstract final class AppRoutes {
   static const rechargeAgents = '/recharge/agents';
   static const rechargeCherries = '/recharge/cherries';
 
+  /// D204: recharge orders «طلبات الشحن» — the list (as buyer / for the
+  /// agent), a new order to an agent (`?agent=coin0007&country=EG`) and one
+  /// order's chat.
+  static const rechargeOrders = '/recharge/orders';
+  static const rechargeOrderNew = '/recharge/order-new';
+  static const rechargeOrderPattern = '/recharge/orders/:orderId';
+  static String rechargeOrder(String id) =>
+      '/recharge/orders/${Uri.encodeComponent(id)}';
+  static String rechargeOrderNewFor(String agentCode, String country) => Uri(
+    path: rechargeOrderNew,
+    queryParameters: {'agent': agentCode, 'country': country},
+  ).toString();
+
   /// D166: the Me hub's programs — the Task Center, the Event Center (and
   /// one event) and SVIP.
   static const taskCenter = '/tasks';

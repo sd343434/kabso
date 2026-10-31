@@ -102,6 +102,13 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
     ErrorCode.rechargeCherryCapReached => l10n.errorRechargeCherryCapReached,
     ErrorCode.usernameLocked => l10n.errorUsernameLocked,
     ErrorCode.hostFrameStyleFromGender => l10n.errorHostFrameStyleFromGender,
+    ErrorCode.rechargeOrdersUnavailable => l10n.errorRechargeOrdersUnavailable,
+    ErrorCode.rechargeOrderOpenExists => l10n.errorRechargeOrderOpenExists,
+    ErrorCode.rechargeOrderStateChanged => l10n.errorRechargeOrderStateChanged,
+    ErrorCode.rechargeOrderNoticeRequired =>
+      l10n.errorRechargeOrderNoticeRequired,
+    ErrorCode.rechargeOrderDisputeTooEarly =>
+      l10n.errorRechargeOrderDisputeTooEarly,
     ErrorCode.networkOffline => l10n.errorNetworkOffline,
     ErrorCode.networkTimeout => l10n.errorNetworkTimeout,
     ErrorCode.unknown => l10n.errorUnknown,

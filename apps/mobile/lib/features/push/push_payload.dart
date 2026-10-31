@@ -67,6 +67,8 @@ class PushPayload {
     if (type == 'RECHARGE_COINS_RECEIVED') return AppRoutes.wallet;
     if (type == 'RECHARGE_CHERRY_REQUEST') return AppRoutes.rechargeCherries;
     if (id == null || id.isEmpty) return null;
+    // D204: a recharge order's chat.
+    if (targetType == 'RECHARGE_ORDER') return AppRoutes.rechargeOrder(id);
     final postId = data['targetPostId'];
     final actor = data['actorUsername'];
     return switch (targetType) {

@@ -101,6 +101,11 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.rechargeCherryCapReached: 409,
   ErrorCode.usernameLocked: 409,
   ErrorCode.hostFrameStyleFromGender: 409,
+  ErrorCode.rechargeOrdersUnavailable: 503,
+  ErrorCode.rechargeOrderOpenExists: 409,
+  ErrorCode.rechargeOrderStateChanged: 409,
+  ErrorCode.rechargeOrderNoticeRequired: 409,
+  ErrorCode.rechargeOrderDisputeTooEarly: 409,
 };
 
 DioException _badResponse(
@@ -228,6 +233,12 @@ void main() {
           'USERNAME_LOCKED',
           // v1.55-social (D186).
           'HOST_FRAME_STYLE_FROM_GENDER',
+          // v1.69-social (D204).
+          'RECHARGE_ORDERS_UNAVAILABLE',
+          'RECHARGE_ORDER_OPEN_EXISTS',
+          'RECHARGE_ORDER_STATE_CHANGED',
+          'RECHARGE_ORDER_NOTICE_REQUIRED',
+          'RECHARGE_ORDER_DISPUTE_TOO_EARLY',
         ]),
       );
       expect(ErrorCode.networkOffline.wire, 'NETWORK_OFFLINE');

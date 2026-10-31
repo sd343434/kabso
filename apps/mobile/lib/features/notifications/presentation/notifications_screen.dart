@@ -301,6 +301,9 @@ class NotificationRow extends StatelessWidget {
     return switch (target.type) {
       NotificationTargetType.bagItem => AppRoutes.bag,
       NotificationTargetType.rechargeSale => AppRoutes.wallet,
+      NotificationTargetType.rechargeOrder => AppRoutes.rechargeOrder(
+        target.id,
+      ),
       NotificationTargetType.premiumUsername => AppRoutes.premium,
       NotificationTargetType.post => AppRoutes.post(target.id),
       NotificationTargetType.comment when target.postId != null =>
@@ -396,6 +399,11 @@ class NotificationRow extends StatelessWidget {
         KFormat.bidiIsolate(KFormat.grouped(item.target?.coins ?? 0)),
       ),
       NotificationType.rechargeCherryRequest => l10n.notifRechargeCherry(who),
+      NotificationType.rechargeOrderUpdate => rechargeOrderNotificationText(
+        l10n,
+        item.target?.orderEvent,
+        item.target?.coins ?? 0,
+      ),
       NotificationType.unknown => '',
     };
     return (text, item.type.isSystem ? null : who, name);
@@ -680,4 +688,25 @@ class NotificationSettingsScreen extends ConsumerWidget {
       },
     );
   }
+}
+
+/// v1.69-social (D204): the sentence of a recharge order's latest event.
+String rechargeOrderNotificationText(
+  AppLocalizations l10n,
+  String? event,
+  int coins,
+) {
+  final c = KFormat.bidiIsolate(KFormat.grouped(coins));
+  return switch (event) {
+    'CREATED' => l10n.notifRechargeOrderCreated(c),
+    'DETAILS_SENT' => l10n.notifRechargeOrderDetails,
+    'PAID' => l10n.notifRechargeOrderPaid,
+    'COMPLETED' || 'COMPLETED_BY_ADMIN' => l10n.notifRechargeOrderCompleted(c),
+    'DISPUTED' => l10n.notifRechargeOrderDisputed,
+    'REFUNDED_TO_AGENT' => l10n.notifRechargeOrderRefunded,
+    'CANCELLED' => l10n.notifRechargeOrderCancelled,
+    'EXPIRED' => l10n.notifRechargeOrderExpired,
+    'ADMIN_MESSAGE' => l10n.notifRechargeOrderAdmin,
+    _ => l10n.notifRechargeOrderMessage,
+  };
 }
