@@ -260,7 +260,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
         ),
       ),
       // D190: «الشحن من الموقع» — only when the server sends the website's
-      // URL (a config flag, off by default); it opens the browser.
+      // URL (a server flag, on by default); it opens the browser.
       if (offer.value?.websiteTopupUrl case final url?)
         Padding(
           padding: const EdgeInsets.only(top: KSpacing.sm),

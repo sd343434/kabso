@@ -437,14 +437,18 @@ void main() {
     });
 
     // D190: card top-ups live on the website only; the app's link is a
-    // server flag (TOPUP_APP_LINK_ENABLED), off by default.
-    testWidgets('no «الشحن من الموقع» link by default (no URL from the '
-        'server)', (tester) async {
-      await _pump(tester, AppRoutes.wallet, language: AppLanguage.ar);
-      expect(find.byKey(WalletScreen.agentsKey), findsOneWidget);
-      expect(find.byKey(WalletScreen.websiteTopupKey), findsNothing);
-      expect(find.text(_ar.walletTopupWebsite), findsNothing);
-    });
+    // server flag (TOPUP_APP_LINK_ENABLED, on by default): hidden without a
+    // URL.
+    testWidgets(
+      'no «الشحن من الموقع» link when the server sends no URL (switched '
+      'off)',
+      (tester) async {
+        await _pump(tester, AppRoutes.wallet, language: AppLanguage.ar);
+        expect(find.byKey(WalletScreen.agentsKey), findsOneWidget);
+        expect(find.byKey(WalletScreen.websiteTopupKey), findsNothing);
+        expect(find.text(_ar.walletTopupWebsite), findsNothing);
+      },
+    );
 
     testWidgets('the website link shows only with the server URL and opens '
         'the browser', (tester) async {

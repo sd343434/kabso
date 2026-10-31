@@ -1072,11 +1072,11 @@ export const envSchema = z
       .refine((list) => new Set(list).size === list.length, { message: 'must not repeat an amount' }),
     /**
      * Stripe bank transfers (`customer_balance` with bank-transfer funding instructions: push payments, no
-     * chargebacks) offered next to the card where the Stripe account supports them. Off by default.
+     * chargebacks) offered next to the card (owner CP-033 Q3: on at launch; Kigofi LLC is a US LLC → `us_bank_transfer`).
      */
     STRIPE_BANK_TRANSFER_ENABLED: z
       .enum(['true', 'false'], { error: 'must be "true" or "false"' })
-      .default('false')
+      .default('true')
       .transform((v) => v === 'true'),
     STRIPE_BANK_TRANSFER_TYPE: z
       .enum([
@@ -1102,12 +1102,12 @@ export const envSchema = z
       .default('true')
       .transform((v) => v === 'true'),
     /**
-     * The app's «الشحن من الموقع» link to the website (store policy decides; owner: off by default). When true
+     * The app's «الشحن من الموقع» link to the website (owner CP-033 Q4: shown; a per-environment switch). When true
      * and top-ups are on, `GET /wallet/recharge-packages` carries `websiteTopupUrl`.
      */
     TOPUP_APP_LINK_ENABLED: z
       .enum(['true', 'false'], { error: 'must be "true" or "false"' })
-      .default('false')
+      .default('true')
       .transform((v) => v === 'true'),
     /** The version of the «العملات رقمية وغير قابلة للاسترداد» statement recorded with every acceptance. */
     TOPUP_TERMS_VERSION: z

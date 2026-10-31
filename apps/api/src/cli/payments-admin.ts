@@ -10,7 +10,7 @@
  *   pnpm payments:admin case <case id>                             # the FIFO-attributed gifts, recipients, cherries
  *   pnpm payments:admin close-case <case id> --note <decision>     # after deciding (e.g. reverse-gift)
  *   pnpm payments:admin unfreeze <email> --note <reason>           # lifts the card-purchase freeze
- *   pnpm payments:admin refund <order id> --note <reason>          # refunds through Stripe (STRIPE_SECRET_KEY)
+ *   pnpm payments:admin refund <order id> --note <reason>          # team refund through Stripe; never freezes
  *
  * Host cherries are never taken back here: a case lists the sends funded by the purchase and the team decides with
  * `pnpm economy:admin reverse-gift <send id>` (D179). A refund made here only asks Stripe; the coins come back
@@ -21,7 +21,7 @@ import { parseArgs } from 'node:util';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../generated/prisma/client.js';
 import { AuditAction } from '../common/audit/audit.service.js';
-import { closeCaseIn } from '../modules/topup/topup-core.js';
+import { closeCaseIn, requestTeamRefund } from '../modules/topup/topup-core.js';
 import { createStripeApi } from '../modules/topup/stripe-api.js';
 
 function fail(message: string): never {
@@ -214,32 +214,17 @@ async function unfreeze(email: string, text: string): Promise<void> {
 async function refund(id: string, text: string): Promise<void> {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) fail('STRIPE_SECRET_KEY is not set: refunds go through Stripe.');
-  const o = await prisma.topupOrder.findUnique({ where: { id } });
-  if (!o) fail(`No order ${id}.`);
-  if (!o.stripePaymentIntentId || o.creditedAt === null)
-    fail(`Order ${id} was never paid; nothing to refund.`);
-  if (o.refundedMinor >= o.amountMinor) fail(`Order ${id} is already refunded in full.`);
-  const stripe = createStripeApi(key);
-  const result = await stripe.createRefund(
-    {
-      payment_intent: o.stripePaymentIntentId,
-      reason: 'requested_by_customer',
-      metadata: { kabso_order_id: o.id, kabso_reason: 'admin' },
-    },
-    `kabso-admin-refund-${o.id}`,
-  );
-  await prisma.auditLog.create({
-    data: {
-      action: AuditAction.TOPUP_ADMIN_REFUND,
-      targetType: 'topup_order',
-      targetId: o.id,
-      metadata: { refund: result.id, status: result.status ?? '', note: text, via: 'cli' },
-    },
-  });
-  out(`Refund ${result.id} (${result.status ?? '?'}) asked for order ${o.id}.`);
+  let result: { refundId: string; status: string | null; amountMinor: number };
+  try {
+    result = await requestTeamRefund(prisma, createStripeApi(key), id, text, new Date());
+  } catch (err) {
+    if (err instanceof RangeError) fail(`${err.message} Nothing changed.`);
+    throw err;
+  }
   out(
-    'The coins are taken back when Stripe sends charge.refunded (the buyer is then frozen and a case opens).',
+    `Refund ${result.refundId} (${result.status ?? '?'}) of ${money(result.amountMinor, 'USD')} asked for order ${id}.`,
   );
+  out('The coins are taken back when Stripe sends charge.refunded; a team refund never freezes the buyer.');
 }
 
 async function main(): Promise<void> {

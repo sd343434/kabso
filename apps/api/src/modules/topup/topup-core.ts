@@ -1,8 +1,9 @@
-import type { Prisma, TopupCaseKind, TopupOrder } from '../../generated/prisma/client.js';
+import type { Prisma, PrismaClient, TopupCaseKind, TopupOrder } from '../../generated/prisma/client.js';
 import { AuditAction } from '../../common/audit/audit.service.js';
 import { uuidv7 } from '../levels/uuidv7.js';
 import { recordRechargeIn, type RechargeBadgeRules } from '../recharge/recharge-badges.js';
 import { creditIn, reverseTopupIn } from '../wallet/wallet-ledger.js';
+import type { StripeApi } from './stripe-api.js';
 import { fifoAttribution, GIFT_SPEND_REASONS, targetReversal } from './topup-rules.js';
 
 /**
@@ -33,6 +34,7 @@ export async function reconcileOrderIn(
   referenceId: string,
   now: Date,
   actorUserId: string | null = null,
+  context: Record<string, string> = {},
 ): Promise<bigint> {
   if (order.creditedAt === null) return 0n;
   const target = targetReversal({
@@ -62,6 +64,7 @@ export async function reconcileOrderIn(
         coinsReversed: Number(target),
         balance: Number(change.coins),
         reference: referenceId,
+        ...context,
       },
     },
   });
@@ -349,4 +352,73 @@ export async function closeCaseIn(
     },
   });
   return true;
+}
+
+/** Marks a refund Kabso itself asked for (Stripe refund metadata), so `charge.refunded` never freezes for it. */
+export const KABSO_INITIATED = 'kabso_initiated';
+
+/**
+ * A refund the TEAM makes (`payments-admin refund`, e.g. goodwill; owner answer CP-033 Q2): the rest of the order
+ * not refunded yet. Recorded on the order (amount, reason) BEFORE the Stripe call — so a `charge.refunded` that
+ * arrives first already knows it is ours — and undone if Stripe refuses. The refund carries `kabso_initiated=true`
+ * and the reason in its metadata. The coins come back through the webhook like any refund, **without a freeze**.
+ */
+export async function requestTeamRefund(
+  prisma: PrismaClient,
+  api: StripeApi,
+  orderId: string,
+  reason: string,
+  now: Date,
+): Promise<{ refundId: string; status: string | null; amountMinor: number }> {
+  const planned = await prisma.$transaction(async (tx) => {
+    const order = await lockOrderIn(tx, orderId);
+    if (!order) throw new RangeError(`No order ${orderId}.`);
+    if (!order.stripePaymentIntentId || order.creditedAt === null) {
+      throw new RangeError(`Order ${orderId} was never paid; nothing to refund.`);
+    }
+    const already = Math.max(order.refundedMinor, order.teamRefundedMinor);
+    const amount = order.amountMinor - already;
+    if (amount <= 0) throw new RangeError(`Order ${orderId} is already refunded in full.`);
+    await tx.topupOrder.update({
+      where: { id: orderId },
+      data: { teamRefundedMinor: already + amount, teamRefundReason: reason.slice(0, 500), updatedAt: now },
+    });
+    return { pi: order.stripePaymentIntentId, amount, before: order.teamRefundedMinor, already };
+  });
+  let refund: { id: string; status: string | null };
+  try {
+    refund = await api.createRefund(
+      {
+        payment_intent: planned.pi,
+        amount: planned.amount,
+        reason: 'requested_by_customer',
+        metadata: {
+          kabso_order_id: orderId,
+          [KABSO_INITIATED]: 'true',
+          kabso_reason: 'team_refund',
+          kabso_note: reason.slice(0, 450),
+        },
+      },
+      `kabso-team-refund-${orderId}-${planned.already}`,
+    );
+  } catch (err) {
+    await prisma.topupOrder.update({ where: { id: orderId }, data: { teamRefundedMinor: planned.before } });
+    throw err;
+  }
+  await prisma.auditLog.create({
+    data: {
+      action: AuditAction.TOPUP_ADMIN_REFUND,
+      targetType: 'topup_order',
+      targetId: orderId,
+      metadata: {
+        refund: refund.id,
+        status: refund.status ?? '',
+        amountMinor: planned.amount,
+        reason,
+        initiatedBy: 'kabso',
+        via: 'cli',
+      },
+    },
+  });
+  return { refundId: refund.id, status: refund.status, amountMinor: planned.amount };
 }

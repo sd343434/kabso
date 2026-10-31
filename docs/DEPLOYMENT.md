@@ -1573,7 +1573,7 @@ the private-account switch with follow requests, and an admin tool to remove a p
   docker compose --profile jobs run --rm migrate node dist/cli/bag-admin.js grant someone@example.com emerald_wings 7
   ```
 
-### 5.29 Card top-ups on the website through Stripe (migrations `20270104090000_card_topups_enums`, `20270104100000_card_topups`; D190) — [IMPLEMENTED, draft contract v1.59-social; not deployed; no real Stripe call made]
+### 5.29 Card top-ups on the website through Stripe (migrations `20270104090000_card_topups_enums`, `20270104100000_card_topups`, `20270104110000_topup_team_refunds`; D190) — [IMPLEMENTED, draft contract v1.59-social; not deployed; no real Stripe call made]
 
 CONVENTIONS §10.53, CP-033. **Off until the owner sets the three Stripe settings below on the server**; until then
 every top-up operation answers 503 `TOPUP_UNAVAILABLE` and `https://api.<domain>/topup` says «الشحن بالبطاقة غير
@@ -1583,7 +1583,8 @@ Sheridan, WY 82801, USA.
 - **Migrations** with the usual `migrate` job (§5), in order: the first adds the coin ledger reasons `CARD_TOPUP`,
   `CARD_TOPUP_REVERSAL`, `CARD_TOPUP_RESTORE`; the second the tables `topup_terms_acceptances`, `topup_orders`,
   `topup_freezes`, `topup_cases`, `stripe_events`, `stripe_customers` and **widens `wallets.coins` and
-  `wallet_ledger.balance_after` to allow values below 0** (only a reversed purchase does that). No GRANT, no backfill.
+  `wallet_ledger.balance_after` to allow values below 0** (only a reversed purchase does that); the third adds
+  `topup_orders.team_refunded_minor` / `team_refund_reason` (team refunds). No GRANT, no backfill.
 - **Where it lives:** the API serves the pages (`/topup`, `/topup/success`, `/topup/cancel`) and the webhook
   (`/api/v1/payments/stripe/webhook`) on `api.<domain>`; the Caddyfile redirects `https://<domain>/topup…` there.
 
@@ -1594,9 +1595,12 @@ Sheridan, WY 82801, USA.
    descriptor `KABSO`). Optional dynamic suffix from the server: `STRIPE_STATEMENT_DESCRIPTOR_SUFFIX`.
 3. **Customer emails** (Settings → Customer emails): turn on *Successful payments* and *Refunds* receipts (the
    checkout passes the account's email as `receipt_email`).
-4. **Payment methods** (Settings → Payment methods): **Cards** on. For bank transfers turn on *Bank transfers*
-   (customer balance) where offered, then set `STRIPE_BANK_TRANSFER_ENABLED=true` (and `STRIPE_BANK_TRANSFER_TYPE`
-   if not `us_bank_transfer`). Leave other methods off: the checkout only allows `card` (+ `customer_balance`).
+4. **Payment methods** (Settings → Payment methods): **Cards** on and **Bank transfers** (customer balance, US) on —
+   the server offers them by default (owner answer CP-033 Q3: `STRIPE_BANK_TRANSFER_ENABLED=true`,
+   `STRIPE_BANK_TRANSFER_TYPE=us_bank_transfer`, Kigofi LLC being a US LLC). If the account cannot take bank
+   transfers yet, set `STRIPE_BANK_TRANSFER_ENABLED=false` until it can. Leave other methods off: the checkout only
+   allows `card` + `customer_balance`. A transfer is credited only by the webhook
+   (`checkout.session.async_payment_succeeded`); until then the order shows «بانتظار وصول التحويل البنكي».
 5. **3-D Secure:** nothing to switch — every session asks for it (`request_three_d_secure=any`). Optionally add the
    Radar rule *Request 3D Secure if 3D Secure is supported for card*.
 6. **Radar:** keep the default rules (on by default). Optional: *Block if :risk_level: = 'highest'*.
@@ -1622,10 +1626,10 @@ Put these in `/etc/kabso/api.env` (and `STRIPE_SECRET_KEY` also in `/etc/kabso/m
 | `STRIPE_WEBHOOK_SECRET` | `whsec_…` | Required: the webhook's signing secret (step 8) |
 | `TOPUP_PUBLIC_BASE_URL` | `https://api.<domain>` | Required: the origin that serves `/topup` (https in production) |
 | `TOPUP_PACKAGES` | `100000,500000,1000000,5000000,10000000,50000000` | Coin packages; prices from `COIN_RETAIL_USD_PER_MILLION` (12.5 → $12.50 per million) |
-| `STRIPE_BANK_TRANSFER_ENABLED` / `STRIPE_BANK_TRANSFER_TYPE` | `false` / `us_bank_transfer` | Bank transfers next to the card (step 4) |
+| `STRIPE_BANK_TRANSFER_ENABLED` / `STRIPE_BANK_TRANSFER_TYPE` | `true` / `us_bank_transfer` | US bank transfers next to the card (step 4; owner: on at launch) |
 | `STRIPE_STATEMENT_DESCRIPTOR_SUFFIX` | unset | Optional dynamic suffix (letters, digits, spaces; prefix + suffix ≤ 22) |
 | `STRIPE_DISPUTE_AUTO_SUBMIT` | `true` | Submit the dispute evidence at once; `false` stages it in the dashboard for review |
-| `TOPUP_APP_LINK_ENABLED` | `false` | The app's «الشحن من الموقع» link (store policy; leave off unless the stores allow it) |
+| `TOPUP_APP_LINK_ENABLED` | `true` | The app's «الشحن من الموقع» link (owner: shown). Set `false` per environment to hide it (e.g. a store-review build's server); review Google Play / App Store payment rules before the store release (PP-35) |
 | `TOPUP_TERMS_VERSION` | `2026-10-31` | Recorded with each acceptance; change it when the statement changes |
 | `RATE_LIMIT_TOPUP_CHECKOUT_USER` | `20/3600` | Checkouts started per user |
 
@@ -1649,5 +1653,7 @@ docker compose --profile jobs run --rm -e STRIPE_SECRET_KEY migrate node dist/cl
 ```
 
 Host cherries are **never** taken back automatically: a case lists the sends the purchase paid for and the team
-decides. A manual refund only asks Stripe; the coins come back through `charge.refunded` like any refund. Audit
+decides. A team refund (`refund`, e.g. goodwill) is recorded on the order and marked `kabso_initiated=true` in
+Stripe; its coins come back through `charge.refunded` **without freezing the buyer** (owner answer CP-033 Q2). Only
+Stripe-started events freeze: disputes, early-fraud warnings, refunds made outside Kabso (e.g. in the dashboard). Audit
 actions `topup.*` (no actor for webhook steps).

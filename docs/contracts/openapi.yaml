@@ -12803,7 +12803,7 @@ components:
         websiteTopupUrl:
           type: [string, 'null']
           format: uri
-          description: "v1.59-social (D190): the Kabso website's top-up page for the app's «الشحن من الموقع» link, only while `TOPUP_APP_LINK_ENABLED` (store policy; off by default) and card top-ups are on; else null. The app never takes a card payment itself."
+          description: "v1.59-social (D190): the Kabso website's top-up page for the app's «الشحن من الموقع» link, only while `TOPUP_APP_LINK_ENABLED` (on by default, a per-environment server switch) and card top-ups are on; else null. The app never takes a card payment itself."
         packages:
           type: array
           items:
@@ -12830,7 +12830,7 @@ components:
               id: { type: string, description: The package id a checkout sends (the coin amount as text). }
               coins: { type: integer, minimum: 1 }
               priceMinor: { type: integer, minimum: 50, description: USD cents. }
-        bankTransfer: { type: boolean, description: Stripe bank transfers are offered next to the card (STRIPE_BANK_TRANSFER_ENABLED). }
+        bankTransfer: { type: boolean, description: 'US bank transfers are offered next to the card (STRIPE_BANK_TRANSFER_ENABLED, on by default); credited only when the transfer arrives.' }
         terms:
           type: object
           required: [version, ar, en]

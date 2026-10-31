@@ -44,8 +44,12 @@ describe('D190 top-up config', () => {
   it('is off without the keys and prices the owner packages from $12.50 per million', () => {
     const c = loadConfig(base);
     expect(c.topup.stripe).toBeNull();
-    expect(c.topup.appLinkEnabled).toBe(false);
-    expect(c.topup.bankTransfer.enabled).toBe(false);
+    // Owner (CP-033 Q3, Q4): bank transfers (US) and the app link are on by default; each a server switch.
+    expect(c.topup.appLinkEnabled).toBe(true);
+    expect(c.topup.bankTransfer).toEqual({ enabled: true, type: 'us_bank_transfer' });
+    expect(
+      loadConfig({ ...base, TOPUP_APP_LINK_ENABLED: 'false', STRIPE_BANK_TRANSFER_ENABLED: 'false' }).topup,
+    ).toMatchObject({ appLinkEnabled: false, bankTransfer: { enabled: false } });
     expect(c.topup.packages).toEqual([
       { id: '100000', coins: 100_000, priceMinor: 125 },
       { id: '500000', coins: 500_000, priceMinor: 625 },

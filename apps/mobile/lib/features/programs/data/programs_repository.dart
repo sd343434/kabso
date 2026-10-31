@@ -603,7 +603,7 @@ final class RechargeOffer {
 
   /// v1.59-social (D190): the Kabso website's top-up page for the
   /// «الشحن من الموقع» link. Null (the default) unless the server switches
-  /// the link on (`TOPUP_APP_LINK_ENABLED`, store policy; off by default).
+  /// the link on (`TOPUP_APP_LINK_ENABLED`, on by default; a server switch).
   /// The app never takes a card payment itself.
   final String? websiteTopupUrl;
 }

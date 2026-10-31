@@ -16,6 +16,7 @@ import {
   closeCaseIn,
   creditOrderIn,
   freezeBuyerIn,
+  KABSO_INITIATED,
   liftFreezeIfClearIn,
   lockOrderIn,
   openCaseIn,
@@ -432,10 +433,29 @@ export class TopupService {
           where: { id: order.id },
           data: { refundedMinor: refunded, stripeChargeId: charge.id, updatedAt: now },
         });
-        const delta = await reconcileOrderIn(tx, fresh, event.id, now);
+        // Owner (CP-033 Q2): only a refund Kabso did NOT ask for freezes the buyer. Ours: the team's
+        // (`payments-admin refund`, recorded before the call) and the automatic one after a fraud warning (that
+        // warning already froze). When Stripe lists the refunds, their `kabso_initiated` metadata decides.
+        const listed = charge.refunds?.data ?? [];
+        const foreign =
+          listed.length > 0
+            ? listed
+                .filter((r) => r.metadata?.[KABSO_INITIATED] !== 'true')
+                .reduce((sum, r) => sum + (r.amount ?? 0), 0)
+            : Math.max(
+                0,
+                refunded - order.teamRefundedMinor - (order.autoRefundId !== null ? order.amountMinor : 0),
+              );
+        const initiatedBy = foreign > 0 ? 'stripe' : 'kabso';
+        const delta = await reconcileOrderIn(tx, fresh, event.id, now, null, {
+          cause: 'refund',
+          initiatedBy,
+          reason:
+            initiatedBy === 'kabso' ? (order.teamRefundReason ?? 'early_fraud_warning') : 'stripe_refund',
+        });
         const reversed = await tx.topupOrder.findUniqueOrThrow({ where: { id: order.id } });
         if (refunded > 0) {
-          await freezeBuyerIn(tx, reversed, 'REFUND', now);
+          if (foreign > 0) await freezeBuyerIn(tx, reversed, 'REFUND', now);
           // Our own refund after a fraud warning is already that warning's case.
           if (reversed.fraudWarningAt === null) await openCaseIn(tx, reversed, 'REFUND', charge.id, now);
         }
@@ -603,7 +623,11 @@ export class TopupService {
       {
         payment_intent: order.stripePaymentIntentId,
         reason: 'fraudulent',
-        metadata: { kabso_order_id: order.id, kabso_reason: 'early_fraud_warning' },
+        metadata: {
+          kabso_order_id: order.id,
+          [KABSO_INITIATED]: 'true',
+          kabso_reason: 'early_fraud_warning',
+        },
       },
       `kabso-efw-refund-${order.id}`,
     );

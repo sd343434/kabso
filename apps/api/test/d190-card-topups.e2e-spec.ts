@@ -8,6 +8,7 @@ import Stripe from 'stripe';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { addGiftIn } from '../src/modules/gifts/gift-catalogue.js';
 import { STRIPE_API, type StripeApi } from '../src/modules/topup/stripe-api.js';
+import { requestTeamRefund } from '../src/modules/topup/topup-core.js';
 import { creditIn } from '../src/modules/wallet/wallet-ledger.js';
 import { expectContract, operations } from './helpers/openapi.js';
 import { createTestApp, registerVerified, type TestContext } from './helpers/test-app.js';
@@ -55,8 +56,11 @@ class FakeStripe implements StripeApi {
     this.files.push({ name, data });
     return { id: `file_e2e_${this.files.length}` };
   }
+  readonly customers: string[] = [];
   async createCustomer() {
-    return { id: `cus_e2e_${randomBytes(4).toString('hex')}` };
+    const id = `cus_e2e_${randomBytes(4).toString('hex')}`;
+    this.customers.push(id);
+    return { id };
   }
 }
 
@@ -255,7 +259,6 @@ describe('D190 card top-ups', { timeout: 300_000 }, () => {
         STRIPE_SECRET_KEY: SECRET_KEY,
         STRIPE_WEBHOOK_SECRET: WEBHOOK_SECRET,
         TOPUP_PUBLIC_BASE_URL: PUBLIC,
-        TOPUP_APP_LINK_ENABLED: 'true',
         RATE_LIMIT_TOPUP_CHECKOUT_USER: '10000/900',
       },
       [{ token: STRIPE_API, value: stripe }],
@@ -297,8 +300,8 @@ describe('D190 card top-ups', { timeout: 300_000 }, () => {
       ar: 'العملات رقمية وغير قابلة للاسترداد',
       en: 'Coins are digital and non-refundable',
     });
-    expect(res.body.bankTransfer).toBe(false);
-    // The app link is on in this test server: the website's page.
+    expect(res.body.bankTransfer).toBe(true); // owner CP-033 Q3: on by default
+    // Owner CP-033 Q4: the app link is on by default (a server switch): the website's page.
     const u = await signup();
     const offer = await ctx.http.get('/api/v1/wallet/recharge-packages').set(auth(u));
     expect(offer.body.websiteTopupUrl).toBe(`${PUBLIC}/topup`);
@@ -372,7 +375,15 @@ describe('D190 card top-ups', { timeout: 300_000 }, () => {
         }),
       ]);
       expect(params.payment_method_options?.card?.request_three_d_secure).toBe('any');
-      expect(params.allowed_payment_method_types).toEqual(['card']);
+      // Owner CP-033 Q3: US bank transfers next to the card, through the buyer's Stripe customer.
+      expect(params.allowed_payment_method_types).toEqual(['card', 'customer_balance']);
+      expect(params.payment_method_options?.customer_balance).toEqual({
+        funding_type: 'bank_transfer',
+        bank_transfer: { type: 'us_bank_transfer' },
+      });
+      const customer = await ctx.prisma.stripeCustomer.findUniqueOrThrow({ where: { userId: u.id } });
+      expect(params.customer).toBe(customer.customerId);
+      expect(params.customer_email).toBeUndefined();
       expect(params.payment_intent_data?.receipt_email).toBe(u.email);
       expect(params.payment_intent_data?.metadata).toEqual({ kabso_order_id: order.id, kabso_user_id: u.id });
       expect(params.client_reference_id).toBe(order.id);
@@ -511,11 +522,136 @@ describe('D190 card top-ups', { timeout: 300_000 }, () => {
       expect(gift.res.status, JSON.stringify(gift.res.body)).toBe(403);
       expect(gift.res.body.error.code).toBe('TOPUP_ACCOUNT_FROZEN');
     }
+    // Owner CP-033 Q1: once the balance is back to ≥ 0 the buyer gifts again; card buying stays frozen.
+    await ctx.prisma.$transaction((tx) => creditIn(tx, u.id, 2500n, 'ADMIN_GRANT', randomUUID()));
+    expect(await coins(u)).toBe(1000n);
+    const back = await dmGift(u, host);
+    expect(back.res.status, JSON.stringify(back.res.body)).toBe(201);
+    expect(await me(u)).toEqual({ coins: 0, frozen: true });
+    expect((await checkout(u, { packageId: '1000000', ...terms })).body.error.code).toBe(
+      'TOPUP_ACCOUNT_FROZEN',
+    );
     const status = await ctx.http.get(`/api/v1/topup/orders/${o.orderId}`).set(auth(u));
     expect(status.body.coinsReversed).toBe(1_000_000);
     expect(await ctx.prisma.auditLog.count({ where: { action: 'topup.reverse', targetId: o.orderId } })).toBe(
       1,
     );
+  });
+
+  it('bank transfer: completed unpaid waits, async success credits once; one Stripe customer per buyer', async () => {
+    const u = await signup();
+    const o = await buy(u);
+    await buy(u, '100000'); // a second checkout reuses the customer
+    expect(await ctx.prisma.stripeCustomer.count({ where: { userId: u.id } })).toBe(1);
+    const sessions = stripe.sessions.slice(-2).map((x) => x.params.customer);
+    expect(sessions[0]).toBe(sessions[1]);
+    await ok(evt('checkout.session.completed', session(o, false)));
+    expect(await coins(u)).toBe(0n);
+    const waiting = await ctx.http.get(`/api/v1/topup/orders/${o.orderId}`).set(auth(u));
+    expect(waiting.body.status).toBe('AWAITING_FUNDS');
+    const funded = evt('checkout.session.async_payment_succeeded', session(o, true));
+    await ok(funded);
+    await ok(funded);
+    expect(await coins(u)).toBe(1_000_000n);
+    expect(await ctx.prisma.topupOrder.findUniqueOrThrow({ where: { id: o.orderId } })).toMatchObject({
+      status: 'PAID',
+      paymentMethodType: 'customer_balance',
+    });
+    // A transfer that never arrives: failed, nothing credited.
+    const late = await buy(u, '500000');
+    await ok(evt('checkout.session.completed', session(late, false)));
+    await ok(evt('checkout.session.async_payment_failed', session(late, false)));
+    expect(await ctx.prisma.topupOrder.findUniqueOrThrow({ where: { id: late.orderId } })).toMatchObject({
+      status: 'FAILED',
+      creditedAt: null,
+    });
+    expect(await coins(u)).toBe(1_000_000n);
+  });
+
+  it('a team refund (payments-admin) reverses the coins WITHOUT a freeze, marked and audited with its reason', async () => {
+    const u = await signup();
+    const o = await paidOrder(u);
+    const g = await dmGift(u, host);
+    expect(g.res.status).toBe(201);
+    // Stripe refuses: nothing recorded.
+    stripe.failRefunds = 1;
+    await expect(
+      requestTeamRefund(ctx.prisma, stripe, o.orderId, 'goodwill: duplicate purchase', new Date()),
+    ).rejects.toThrow();
+    expect(
+      (await ctx.prisma.topupOrder.findUniqueOrThrow({ where: { id: o.orderId } })).teamRefundedMinor,
+    ).toBe(0);
+    const done = await requestTeamRefund(
+      ctx.prisma,
+      stripe,
+      o.orderId,
+      'goodwill: duplicate purchase',
+      new Date(),
+    );
+    expect(done.amountMinor).toBe(o.amount);
+    const asked = stripe.refunds.at(-1)!;
+    expect(asked.params).toMatchObject({
+      payment_intent: o.pi,
+      amount: o.amount,
+      metadata: { kabso_order_id: o.orderId, kabso_initiated: 'true', kabso_reason: 'team_refund' },
+    });
+    // The webhook Stripe sends for it (the refund listed with our marker).
+    await ok(
+      evt('charge.refunded', {
+        ...charge(o, o.amount),
+        refunds: {
+          object: 'list',
+          data: [{ id: done.refundId, object: 'refund', amount: o.amount, metadata: asked.params.metadata }],
+        },
+      }),
+    );
+    expect(await coins(u)).toBe(-1000n);
+    expect(await me(u)).toEqual({ coins: -1000, frozen: false });
+    expect(await ctx.prisma.topupFreeze.findUnique({ where: { userId: u.id } })).toBeNull();
+    // Card buying stays open; gifts wait for the debt (balance below 0) like any spending.
+    expect((await checkout(u, { packageId: '100000', ...terms })).status).toBe(201);
+    expect((await dmGift(u, host)).res.status).toBe(403);
+    const audit = await ctx.prisma.auditLog.findMany({
+      where: { targetId: o.orderId, action: { in: ['topup.admin_refund', 'topup.reverse'] } },
+      orderBy: { createdAt: 'asc' },
+    });
+    expect(audit.map((a) => a.action)).toEqual(['topup.admin_refund', 'topup.reverse']);
+    expect(audit[0]!.metadata).toMatchObject({
+      reason: 'goodwill: duplicate purchase',
+      initiatedBy: 'kabso',
+    });
+    expect(audit[1]!.metadata).toMatchObject({
+      initiatedBy: 'kabso',
+      reason: 'goodwill: duplicate purchase',
+    });
+    // Nothing left to refund.
+    await expect(requestTeamRefund(ctx.prisma, stripe, o.orderId, 'again', new Date())).rejects.toThrow(
+      /in full/,
+    );
+  });
+
+  it('a team refund recognised from the order even when Stripe does not list the refunds; a foreign one freezes', async () => {
+    const u = await signup();
+    const o = await paidOrder(u, '100000');
+    await requestTeamRefund(ctx.prisma, stripe, o.orderId, 'goodwill', new Date());
+    await ok(evt('charge.refunded', charge(o, o.amount)));
+    expect(await me(u)).toEqual({ coins: 0, frozen: false });
+    // A refund made in the Stripe dashboard (no Kabso marker) on another purchase freezes.
+    const p = await paidOrder(u, '100000');
+    await ok(
+      evt('charge.refunded', {
+        ...charge(p, p.amount),
+        refunds: {
+          object: 'list',
+          data: [{ id: 're_dash', object: 'refund', amount: p.amount, metadata: {} }],
+        },
+      }),
+    );
+    expect(await me(u)).toEqual({ coins: 0, frozen: true });
+    const audit = await ctx.prisma.auditLog.findFirstOrThrow({
+      where: { targetId: p.orderId, action: 'topup.reverse' },
+    });
+    expect(audit.metadata).toMatchObject({ initiatedBy: 'stripe', reason: 'stripe_refund' });
   });
 
   it('a partial refund takes back its share, rounded up', async () => {
@@ -551,7 +687,7 @@ describe('D190 card top-ups', { timeout: 300_000 }, () => {
     expect(mine).toHaveLength(1);
     expect(mine[0]).toMatchObject({
       key: `kabso-efw-refund-${o.orderId}`,
-      params: { reason: 'fraudulent', metadata: { kabso_order_id: o.orderId } },
+      params: { reason: 'fraudulent', metadata: { kabso_order_id: o.orderId, kabso_initiated: 'true' } },
     });
     // Stripe then confirms our refund: nothing more is taken, no second case.
     await ok(evt('charge.refunded', charge(o, o.amount)));

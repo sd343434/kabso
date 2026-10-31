@@ -4111,6 +4111,10 @@ model TopupOrder {
   disputeAmountMinor    Int              @default(0) @map("dispute_amount_minor")
   evidenceSubmittedAt   DateTime?        @map("evidence_submitted_at") @db.Timestamptz(3)
   coinsReversed         BigInt           @default(0) @map("coins_reversed")
+  /// v1.59-social (owner answer CP-033 Q2): what the team itself refunded (`payments-admin refund`, cents,
+  /// recorded before the Stripe call) and why. Such a refund reverses its coins but never freezes the buyer.
+  teamRefundedMinor     Int              @default(0) @map("team_refunded_minor")
+  teamRefundReason      String?          @map("team_refund_reason") @db.VarChar(500)
   createdAt             DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt             DateTime         @default(now()) @map("updated_at") @db.Timestamptz(3)
 
