@@ -61,7 +61,7 @@ export async function agentCodeCandidatesIn(tx: Tx, userId: string): Promise<Age
     select: {
       status: true,
       rechargeAgent: { select: { status: true, code: true, activatedAt: true } },
-      ownedAgency: { select: { hostCode: true, hostCodeAt: true, suspendedAt: true } },
+      ownedAgency: { select: { hostCode: true, hostCodeAt: true, suspendedAt: true, status: true } },
     },
   });
   if (user?.status !== 'ACTIVE') return [];
@@ -71,7 +71,8 @@ export async function agentCodeCandidatesIn(tx: Tx, userId: string): Promise<Age
     out.push({ source: 'RECHARGE_AGENT', code: r.code, activatedAt: r.activatedAt ?? new Date(0) });
   }
   const h = user.ownedAgency;
-  if (h?.hostCode && h.hostCodeAt && h.suspendedAt === null) {
+  // v1.70-social (D206): a closed agency's code is not shown (it stays the person's).
+  if (h?.hostCode && h.hostCodeAt && h.suspendedAt === null && h.status === 'OPEN') {
     out.push({ source: 'HOST_AGENT', code: h.hostCode, activatedAt: h.hostCodeAt });
   }
   return out;

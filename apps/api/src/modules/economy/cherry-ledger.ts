@@ -136,8 +136,8 @@ export async function creditGiftCherriesIn(
            ah.commission_eligible AS eligible, a.rank::text AS rank, a.owner_user_id::text AS owner_id,
            p.id::text AS parent_id, p.rank::text AS parent_rank, p.owner_user_id::text AS parent_owner_id
       FROM agency_hosts ah
-      JOIN agencies a ON a.id = ah.agency_id
-      LEFT JOIN agencies p ON p.id = a.parent_agency_id
+      JOIN agencies a ON a.id = ah.agency_id AND a.status = 'OPEN'::agency_status
+      LEFT JOIN agencies p ON p.id = a.parent_agency_id AND p.status = 'OPEN'::agency_status
      WHERE ah.status = 'ACTIVE' AND ah.host_user_id = ANY(${recipients.map((r) => r.userId)}::uuid[])`;
 
   const movements: Movement[] = recipients.map((r) => ({

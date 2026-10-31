@@ -49,6 +49,8 @@ export const EXPORT_SECTIONS = [
   'withdrawals',
   'topups',
   'recharge_agent',
+  // v1.70-social (D206): the «افتح وكالة» applications (the person's own KYC) and their pictures.
+  'agency_applications',
   'consents',
   'devices',
 ] as const;
@@ -712,6 +714,43 @@ export async function buildDataExport(db: Db, o: BuildExportOptions): Promise<Ex
     });
   }
 
+  // -- v1.70-social (D206): the «افتح وكالة» applications and their pictures.
+  const agencyApps = await db.agencyApplication.findMany({
+    where: { userId: u },
+    orderBy: { createdAt: 'asc' },
+  });
+  const agencyApplications = [];
+  for (const a of agencyApps) {
+    const pictures: Record<string, string | null> = { idCard: null, selfie: null };
+    for (const [which, key] of [
+      ['idCard', a.photoKey],
+      ['selfie', a.selfieKey],
+    ] as const) {
+      if (!key) continue;
+      const bytes = o.storage ? await o.storage.get(key, MAX_FILE_BYTES).catch(() => null) : null;
+      if (bytes) {
+        const path = `files/agency-application/${a.id}/${which}.webp`;
+        zip.add(path, bytes);
+        pictures[which] = path;
+        files++;
+      } else {
+        notIncluded.push(`agency-application ${a.id} ${which}`);
+      }
+    }
+    agencyApplications.push({
+      id: a.id,
+      agencyName: a.name,
+      country: a.country,
+      contactType: a.contactType,
+      contactValue: a.contactValue,
+      expectedHosts: a.expectedHosts,
+      bio: a.bio,
+      submittedAt: iso(a.createdAt),
+      personalDataDeletedAt: iso(a.purgedAt),
+      pictures,
+    });
+  }
+
   // -- Consents (D198), the top-up terms (D190) and the lucky gifts' 18+ statement (D132).
   const consents = {
     acceptances: (
@@ -825,6 +864,7 @@ export async function buildDataExport(db: Db, o: BuildExportOptions): Promise<Ex
     withdrawals,
     topups,
     recharge_agent: rechargeAgent,
+    agency_applications: agencyApplications,
     consents,
     devices,
   };
@@ -844,6 +884,7 @@ export async function buildDataExport(db: Db, o: BuildExportOptions): Promise<Ex
     withdrawals: withdrawals.length,
     topups: topups.length,
     recharge_agent: rechargeAgent.length,
+    agency_applications: agencyApplications.length,
     consents: consents.acceptances.length + consents.topupTerms.length,
     devices: devices.sessions.length,
   } satisfies Record<ExportSection, number>;

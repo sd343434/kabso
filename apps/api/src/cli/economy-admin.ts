@@ -12,6 +12,10 @@
  *   pnpm economy:admin agency-parent <invite code> <parent invite code | none>
  *   pnpm economy:admin agency-list
  *   pnpm economy:admin agency-evaluate        # the rank evaluation and the active-host frames now (what the sweeper does)
+ *   pnpm economy:admin agency-probation-extend <invite code> <days> --note <reason>   # v1.70 (D206)
+ *   pnpm economy:admin agency-close <invite code> --note <reason>    # hosts released, the owner told
+ *   pnpm economy:admin agency-reopen <invite code> --note <reason>   # a self-opened agency gets a new probation
+ *   pnpm economy:admin agency-probation-sweep  # settles the running probations now (what the sweeper does)
  *   pnpm economy:admin complaints [--all]
  *   pnpm economy:admin complaint-resolve <complaint id> release|keep|move [--to <invite code>] [--note <text>]
  *   pnpm economy:admin withdrawals [--status pending|paid|rejected]
@@ -30,6 +34,13 @@ import { PrismaClient, type CherryWithdrawalStatus } from '../generated/prisma/c
 import { AuditAction } from '../common/audit/audit.service.js';
 import { envSchema } from '../config/env.schema.js';
 import { createAgencyByAdmin, resolveComplaintIn } from '../modules/economy/agency-admin.js';
+import {
+  closeAgencyByAdminIn,
+  extendProbationIn,
+  reopenAgencyIn,
+  sweepAgencyProbations,
+  type ProbationRules,
+} from '../modules/economy/agency-probation.js';
 import { evaluateAgencyRanks } from '../modules/economy/agency-ranks.js';
 import { HostAgentError, reinstateHostAgentIn, suspendHostAgentIn } from '../modules/economy/host-agents.js';
 import { syncHostFrames, type HostFrameChange } from '../modules/economy/host-frames.js';
@@ -50,7 +61,9 @@ const USAGE = [
   'Usage: pnpm economy:admin agency-create <owner email> [--parent <invite code>]',
   '       pnpm economy:admin agency-suspend <invite code> --note <reason> | agency-reinstate <invite code>',
   '       pnpm economy:admin agency-parent <invite code> <parent invite code | none>',
-  '       pnpm economy:admin agency-list | agency-evaluate',
+  '       pnpm economy:admin agency-list | agency-evaluate | agency-probation-sweep',
+  '       pnpm economy:admin agency-probation-extend <invite code> <days> --note <reason>',
+  '       pnpm economy:admin agency-close <invite code> --note <reason> | agency-reopen <invite code> --note <reason>',
   '       pnpm economy:admin complaints [--all]',
   '       pnpm economy:admin complaint-resolve <id> release|keep|move [--to <invite code>] [--note <text>]',
   '       pnpm economy:admin withdrawals [--status pending|paid|rejected]',
@@ -194,6 +207,10 @@ async function agencyList(): Promise<void> {
       rankMonth: true,
       hostCode: true,
       suspendedAt: true,
+      name: true,
+      status: true,
+      probationEndsAt: true,
+      probationPassedAt: true,
       parent: { select: { inviteCode: true } },
       owner: { select: { email: true } },
       _count: { select: { hosts: { where: { status: 'ACTIVE' } } } },
@@ -207,6 +224,8 @@ async function agencyList(): Promise<void> {
       `${a.inviteCode} ${a.rank} (${a.rankMonth?.toISOString().slice(0, 7) ?? 'not evaluated'}) owner ${a.owner.email}` +
         ` parent ${a.parent?.inviteCode ?? '-'} hosts ${String(a._count.hosts)}` +
         ` host code ${a.hostCode ?? '-'}${a.suspendedAt ? ' (SUSPENDED)' : ''}` +
+        `${a.name ? ` name ${JSON.stringify(a.name)}` : ''}${a.status === 'CLOSED' ? ' (CLOSED)' : ''}` +
+        `${a.probationEndsAt && !a.probationPassedAt && a.status === 'OPEN' ? ` probation until ${a.probationEndsAt.toISOString()}` : ''}` +
         ` month ${month.slice(0, 7)}: hosts' cherries ${(m?.hostCherries ?? 0n).toString()},` +
         ` commission ${(m?.commission ?? 0n).toString()}\n`,
     );
@@ -245,6 +264,65 @@ function activityRules() {
     activeHostMinHours: setting('AGENCY_ACTIVE_HOST_MIN_HOURS') as number,
     activeHostWindowDays: setting('AGENCY_ACTIVE_HOST_WINDOW_DAYS') as number,
   };
+}
+
+/** v1.70-social (D206): the probation rules from the environment. */
+function probationRules(): ProbationRules {
+  return {
+    probationDays: setting('AGENCY_PROBATION_DAYS') as number,
+    probationMinHosts: setting('AGENCY_PROBATION_MIN_HOSTS') as number,
+    probationReminderHours: setting('AGENCY_PROBATION_REMINDER_HOURS') as number,
+    reopenCooldownDays: setting('AGENCY_REOPEN_COOLDOWN_DAYS') as number,
+  };
+}
+
+async function syncReleased(hosts: readonly string[]): Promise<void> {
+  if (hosts.length === 0) return;
+  for (const f of await syncHostFrames(prisma, new Date(), activityRules(), zone(), hosts))
+    process.stdout.write(`${hostFrameLine(f)}\n`);
+}
+
+/** v1.70-social (D206, §10.65): `agency-probation-extend`, `agency-close`, `agency-reopen`, `agency-probation-sweep`. */
+async function agencyProbation(
+  op: 'extend' | 'close' | 'reopen',
+  code: string | undefined,
+  daysRaw: string | undefined,
+  reason: string,
+): Promise<void> {
+  const agency = await agencyByCode(code);
+  const now = new Date();
+  if (op === 'extend') {
+    const days = Number(daysRaw);
+    if (!Number.isInteger(days) || days < 1 || days > 90) fail('days must be a whole number 1–90.');
+    const r = await hostAgentStep(() =>
+      prisma.$transaction((tx) => extendProbationIn(tx, agency.id, days, reason, now)),
+    );
+    process.stdout.write(`${agency.inviteCode}: probation now ends ${r.endsAt}.\n`);
+  } else if (op === 'close') {
+    const r = await hostAgentStep(() =>
+      prisma.$transaction((tx) => closeAgencyByAdminIn(tx, agency.id, reason, now, graceDays())),
+    );
+    process.stdout.write(`${agency.inviteCode}: CLOSED, ${String(r.releasedHosts.length)} hosts released.\n`);
+    await syncReleased(r.releasedHosts);
+  } else {
+    const r = await hostAgentStep(() =>
+      prisma.$transaction((tx) => reopenAgencyIn(tx, agency.id, reason, now, probationRules(), graceDays())),
+    );
+    process.stdout.write(
+      `${agency.inviteCode}: OPEN${r.probationEndsAt ? `, probation until ${r.probationEndsAt}` : ''}.\n`,
+    );
+  }
+}
+
+async function agencyProbationSweep(): Promise<void> {
+  const r = await sweepAgencyProbations(prisma, new Date(), probationRules(), graceDays());
+  process.stdout.write(
+    `Probations: ${String(r.passed.length)} passed, ${String(r.closed.length)} closed, ` +
+      `${String(r.reminded.length)} reminded.\n`,
+  );
+  for (const x of r.passed) process.stdout.write(`passed ${x}\n`);
+  for (const x of r.closed) process.stdout.write(`closed ${x}\n`);
+  await syncReleased(r.releasedHosts);
 }
 
 async function complaints(all: boolean): Promise<void> {
@@ -378,6 +456,12 @@ try {
   else if (command === 'agency-reinstate') await agencySuspend(a, false, null);
   else if (command === 'agency-list') await agencyList();
   else if (command === 'agency-evaluate') await agencyEvaluate();
+  else if (command === 'agency-probation-sweep') await agencyProbationSweep();
+  else if (command === 'agency-probation-extend')
+    await agencyProbation('extend', a, b, note(values.note, true)!);
+  else if (command === 'agency-close') await agencyProbation('close', a, undefined, note(values.note, true)!);
+  else if (command === 'agency-reopen')
+    await agencyProbation('reopen', a, undefined, note(values.note, true)!);
   else if (command === 'complaints') await complaints(values.all === true);
   else if (command === 'complaint-resolve')
     await complaintResolve(id(a, 'The complaint'), b, values.to, note(values.note, false));

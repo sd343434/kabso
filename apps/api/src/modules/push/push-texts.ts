@@ -12,8 +12,13 @@ export interface NotificationText {
   readonly actorCount: number;
   readonly targetType: string | null;
   readonly targetId: string | null;
-  /** The family's name (FAMILY targets). */
+  /** The family's name (FAMILY targets); the agency's name (AGENCY). */
   readonly targetText: string | null;
+  /** v1.70-social (D206): AGENCY targets — the activated hosts reached and the hosts needed. */
+  readonly activatedHosts?: number | null;
+  readonly requiredHosts?: number | null;
+  /** v1.70-social (D206): AGENCY_PROBATION_DAYS (the closing's sentence). */
+  readonly probationDays?: number | null;
 }
 
 export type PushLocale = 'ar' | 'en';
@@ -109,6 +114,32 @@ export function notificationBody(n: NotificationText, locale: PushLocale): strin
       return ar
         ? `انتهت مدة يوزرك المميز @${n.targetId ?? ''}`
         : `Your premium username @${n.targetId ?? ''} has ended`;
+    // v1.70-social (D206, §10.65): «افتح وكالة».
+    case 'AGENCY_OPENED':
+      return ar
+        ? 'وكالتك مفتوحة الآن. فعّل مضيفيك خلال فترة التجربة'
+        : 'Your agency is open. Activate your hosts during the trial period';
+    case 'AGENCY_PROBATION_REMINDER': {
+      const x = n.activatedHosts ?? 0;
+      const y = n.requiredHosts ?? 0;
+      return ar
+        ? `بقي أقل من يوم على نهاية فترة التجربة: المضيفون المفعّلون ${x} / ${y}`
+        : `Less than a day left in your agency's trial: ${x} / ${y} hosts activated`;
+    }
+    case 'AGENCY_PROBATION_PASSED':
+      return ar ? 'اجتازت وكالتك فترة التجربة' : 'Your agency passed its trial period';
+    case 'AGENCY_CLOSED':
+      if (n.requiredHosts === null || n.requiredHosts === undefined) {
+        return ar ? 'أُغلقت وكالتك من قِبل فريق Kabso' : 'Your agency was closed by the Kabso team';
+      }
+      // The owner's sentence (2026-10-31), with the count reached.
+      return ar
+        ? `أُغلقت وكالتك لأنها لم تفعّل ${n.requiredHosts} مضيفين (بثّ واستلام هدايا) خلال ${n.probationDays ?? 7} أيام — المفعّلون: ${n.activatedHosts ?? 0}`
+        : `Your agency was closed because it did not activate ${n.requiredHosts} hosts (live + gifts) within ${n.probationDays ?? 7} days — activated: ${n.activatedHosts ?? 0}`;
+    case 'AGENCY_HOST_RELEASED':
+      return ar
+        ? 'أُغلقت الوكالة التي كنت فيها، وأصبحت حرًا للانضمام إلى وكالة أخرى'
+        : 'Your agency was closed; you are free to join another agency';
     case 'DATA_EXPORT_READY':
       // v1.66-social (D198): the push says only that it is ready (never what is inside).
       return ar ? 'نسخة بياناتك جاهزة للتنزيل' : 'Your data is ready to download';

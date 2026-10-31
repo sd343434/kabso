@@ -262,7 +262,8 @@ const ROOM_COLUMNS = Prisma.sql`
          p.display_name, p.avatar_url, p.premium_tier::text AS premium_tier,
          (SELECT ra.code FROM recharge_agents ra WHERE ra.user_id = r.host_user_id AND ra.status = 'ACTIVE') AS agent_code,
          (SELECT ag.host_code FROM agencies ag
-           WHERE ag.owner_user_id = r.host_user_id AND ag.suspended_at IS NULL) AS host_agent_code,
+           WHERE ag.owner_user_id = r.host_user_id AND ag.suspended_at IS NULL
+             AND ag.status = 'OPEN'::agency_status) AS host_agent_code,
          (SELECT b.item_code FROM user_bag_items b
            WHERE b.user_id = r.host_user_id AND b.category = 'AVATAR_FRAME' AND b.equipped
              AND (b.expires_at IS NULL OR b.expires_at > now())) AS host_frame_code,

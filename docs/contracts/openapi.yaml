@@ -281,6 +281,12 @@ info:
     `AGENCY_JOIN_NOT_ALLOWED`, `AGENCY_LEAVE_WINDOW_CLOSED`, `INSUFFICIENT_CHERRIES`,
     `WITHDRAWAL_PENDING` (CONVENTIONS §10.46). `getMyEarnings` / `listMyEarnings` (D164) stay for older
     apps but are deprecated: the cherry ledger is the source of truth.
+    **D206 (DRAFT v1.70-social)**: «افتح وكالة» — a person in no agency opens one themselves, free, with an ID card
+    and a selfie (the D185 private uploads): `openAgency` (Idempotency-Key); the agency exists at once with a
+    7-day probation (`OwnAgency.probation`: activated hosts = joined, went live and received gifts) and closes
+    itself when fewer than 3 hosts were activated (`MyAgency.closedAgency`, `openRule`); code
+    `AGENCY_OPEN_NOT_ALLOWED`; notification types `AGENCY_*` with target `AGENCY`; the panel's application view
+    and probation actions (CONVENTIONS §10.65).
     **D184 (DRAFT v1.53-social)**: the Task Center's rewards are cherries (the old coins ×10, then raised
     ×300: ≈ $5 a month at most), credited to the cherry ledger as `TASK_REWARD` under a daily cherry cap
     (`ProgramTask.rewardCherries` / `claimedCherries`, `MyTasks.dailyCapCherries` / `dailyEarnedCherries`,
@@ -5336,6 +5342,56 @@ paths:
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/agency/open:
+    post:
+      tags: [agency]
+      operationId: openAgency
+      summary: "«افتح وكالة»: open a host agency yourself — free, ID check, a 7-day probation (D206)"
+      description: |
+        v1.70-social, CONVENTIONS §10.65 (owner 2026-10-31). For a person in no agency: the agency is created at once
+        (no approval) exactly as the team's `economy-admin agency-create` makes one — its invite code, the owner's
+        host-agent code `hostNN`, rank NEW with its grace — plus `name` and a probation of `openRule.probationDays`
+        (`AGENCY_PROBATION_DAYS`, 7): it must activate `openRule.requiredHosts` (`AGENCY_PROBATION_MIN_HOSTS`, 3)
+        hosts before `probation.endsAt`, a host being *activated* when they joined, started a live of their own and
+        received a gift, all after joining and before the end; otherwise it is closed automatically (the hosts
+        released, the owner notified with the reason and the count). `photoUploadId` (the ID card) and
+        `selfieUploadId` are pending private uploads of kinds `RECHARGE_AGENT_PHOTO` and `RECHARGE_AGENT_SELFIE`
+        (the D185 flow: `createMediaUpload` + PUT, never completed); the application keeps them privately for the
+        team (every view audited). A person whose agency was closed opens the same agency again (same invite and host
+        code, a new probation) once `closedAgency.reopenAt` has passed. Order after auth: 400 `Idempotency-Key`
+        (required, a UUID) → 400 body → the same key again: 200 with the same body, 409 `IDEMPOTENCY_CONFLICT` with
+        another → 503 `MEDIA_UNAVAILABLE` → 409 `AGENCY_OPEN_NOT_ALLOWED` with `details[0] = {field: agency, issue}`,
+        issue `ACCOUNT_NOT_ACTIVE`, `OWNS_AGENCY` (an open agency, its probation included), `HOST_OF_AGENCY` or
+        `REOPEN_COOLDOWN` (`AGENCY_REOPEN_COOLDOWN_DAYS`, 30, after a closing) → 400 `photoUploadId` /
+        `selfieUploadId` `invalid_value` (not the caller's pending upload of that kind, expired, not an image) → 201.
+        Rate limit `RATE_LIMIT_AGENCY_OPEN_USER` (5 / 24 h per user, refused attempts count) → 429.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OpenAgencyRequest' }
+      responses:
+        '201':
+          description: Opened; the caller's agencies now (`ownAgency` with its `probation`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyAgency' }
+        '200':
+          description: The same Idempotency-Key and body again.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyAgency' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '409':
+          description: "`AGENCY_OPEN_NOT_ALLOWED` (with the reason) or `IDEMPOTENCY_CONFLICT`."
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
   /api/v1/me/agency/hosts:
     get:
       tags: [agency]
@@ -10411,11 +10467,23 @@ paths:
       - name: state
         in: query
         required: false
+        description: (v1.70-social, D206) `probation` = a running probation, `closed`; `active` = open and not suspended.
         schema:
           type: string
           enum:
           - active
           - suspended
+          - probation
+          - closed
+      - name: origin
+        in: query
+        required: false
+        description: (v1.70-social, D206) who made the agency.
+        schema:
+          type: string
+          enum:
+          - ADMIN
+          - SELF
       responses:
         '200':
           description: OK.
@@ -10561,6 +10629,147 @@ paths:
           $ref: '#/components/responses/Error'
         '429':
           $ref: '#/components/responses/Error'
+  /api/v1/admin/agencies/{agencyId}/applications/{applicationId}:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminAgencyApplication
+      summary: "A self-opened agency's application «افتح وكالة» with its private fields (agencies.applications; every view audited)"
+      description: "(v1.70-social, D206, §10.65) Audited `agency.application.view`. The contact and the bio are null once purged (account deletion)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminAgencyIdPath'
+        - name: applicationId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminAgencyApplication' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/agencies/{agencyId}/applications/{applicationId}/photos/{which}:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminAgencyApplicationPhoto
+      summary: "The application's ID card (`photo`) or selfie, streamed through the API (agencies.applications; every view audited)"
+      description: "(v1.70-social, D206) Never a storage URL: `Cache-Control: private, no-store`. Audited `agency.application.photo.view`. 404 when purged or missing."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminAgencyIdPath'
+        - name: applicationId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: which
+          in: path
+          required: true
+          schema: { type: string, enum: [photo, selfie] }
+      responses:
+        '200':
+          description: The WebP picture.
+          content:
+            image/webp:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/agencies/{agencyId}/probation/extend:
+    post:
+      tags: [admin-panel]
+      operationId: extendAdminAgencyProbation
+      summary: "Extends a running probation by `days` — `economy-admin agency-probation-extend` (agencies.probation: OWNER; reason + authenticator code; audited)"
+      description: "(v1.70-social, D206) From its end (or from now when the end passed and no sweep closed it yet); the 24 h reminder may come again. 403 `ADMIN_TOTP_INVALID`; 409 `ADMIN_ACTION_REFUSED` (no running probation)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminAgencyIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminAgencyProbationExtendRequest' }
+      responses:
+        '200':
+          description: The new end.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [endsAt]
+                properties:
+                  endsAt: { type: string, format: date-time }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/agencies/{agencyId}/close:
+    post:
+      tags: [admin-panel]
+      operationId: closeAdminAgency
+      summary: "Closes an open agency — `economy-admin agency-close` (agencies.probation: OWNER; reason + authenticator code; audited)"
+      description: "(v1.70-social, D206) Reason ADMIN: the hosts are released (each notified), the owner notified, the host-agent perks go; commissions already earned stay. 409 `ADMIN_ACTION_REFUSED` when already closed."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminAgencyIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReasonTotpRequest' }
+      responses:
+        '200':
+          description: Closed.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, releasedHosts]
+                properties:
+                  status: { type: string, enum: [CLOSED] }
+                  releasedHosts: { type: integer, minimum: 0 }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/agencies/{agencyId}/reopen:
+    post:
+      tags: [admin-panel]
+      operationId: reopenAdminAgency
+      summary: "Reopens a closed agency — `economy-admin agency-reopen` (agencies.probation: OWNER; reason + authenticator code; audited)"
+      description: "(v1.70-social, D206) Same invite and host code; the released hosts do not come back. A self-opened agency whose probation had not passed gets a new full probation from now. 409 `ADMIN_ACTION_REFUSED` (not closed, the owner not ACTIVE or now a host elsewhere)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminAgencyIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReasonTotpRequest' }
+      responses:
+        '200':
+          description: Open again.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, probationEndsAt]
+                properties:
+                  status: { type: string, enum: [OPEN] }
+                  probationEndsAt: { type: [string, 'null'], format: date-time }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/admin/agency-complaints:
     get:
       tags:
@@ -12520,6 +12729,55 @@ components:
           description: Ten single-use codes, shown only now (only their hashes are kept).
           items: { type: string }
         session: { $ref: '#/components/schemas/AdminSessionInfo' }
+    AdminReasonTotpRequest:
+      type: object
+      additionalProperties: false
+      description: (v1.70-social, D206) a reason and the authenticator code again.
+      required: [reason, totpCode]
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 500, description: Kept in the audit log. }
+        totpCode: { type: string, pattern: '^[0-9]{6}$' }
+    AdminAgencyProbationExtendRequest:
+      type: object
+      additionalProperties: false
+      required: [days, reason, totpCode]
+      properties:
+        days: { type: integer, minimum: 1, maximum: 90 }
+        reason: { type: string, minLength: 1, maxLength: 500, description: Kept in the audit log. }
+        totpCode: { type: string, pattern: '^[0-9]{6}$' }
+    AdminAgencyApplication:
+      type: object
+      description: (v1.70-social, D206) a «افتح وكالة» application (private).
+      required: [id, agencyId, createdAt, purgedAt, user, name, country, contact, expectedHosts, bio, photos]
+      properties:
+        id: { type: string, format: uuid }
+        agencyId: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+        purgedAt: { type: [string, 'null'], format: date-time }
+        user:
+          type: object
+          required: [id, username, displayName, email]
+          properties:
+            id: { type: string, format: uuid }
+            username: { type: string }
+            displayName: { type: string }
+            email: { type: string }
+        name: { type: string }
+        country: { type: string, pattern: '^[A-Z]{2}$' }
+        contact:
+          type: object
+          required: [type, value]
+          properties:
+            type: { type: string, enum: [WHATSAPP, TELEGRAM, PHONE, EMAIL, OTHER] }
+            value: { type: [string, 'null'] }
+        expectedHosts: { type: integer, minimum: 1, maximum: 10000 }
+        bio: { type: [string, 'null'] }
+        photos:
+          type: object
+          required: [photo, selfie]
+          properties:
+            photo: { type: boolean, description: The ID card is stored. }
+            selfie: { type: boolean }
     AdminReasonRequest:
       type: object
       additionalProperties: false
@@ -13613,6 +13871,10 @@ components:
           type: boolean
         wasEquipped:
           type: boolean
+    AdminAgencyProbationState:
+      type: string
+      description: "(v1.70-social, D206) NONE (no probation: made by the team), RUNNING, PASSED, FAILED (closed for it), STOPPED (closed by the team during it)."
+      enum: [NONE, RUNNING, PASSED, FAILED, STOPPED]
     AdminAgencyRow:
       type: object
       required:
@@ -13621,6 +13883,13 @@ components:
       - hostCode
       - rank
       - suspended
+      - name
+      - origin
+      - status
+      - probation
+      - probationEndsAt
+      - closedAt
+      - closeReason
       - owner
       - parentInviteCode
       - activeHosts
@@ -13632,6 +13901,13 @@ components:
         id:
           type: string
           format: uuid
+        name: { type: [string, 'null'], description: '(v1.70-social, D206)' }
+        origin: { type: string, enum: [ADMIN, SELF] }
+        status: { type: string, enum: [OPEN, CLOSED] }
+        probation: { $ref: '#/components/schemas/AdminAgencyProbationState' }
+        probationEndsAt: { type: [string, 'null'], format: date-time }
+        closedAt: { type: [string, 'null'], format: date-time }
+        closeReason: { type: [string, 'null'], enum: [PROBATION_FAILED, ADMIN, null] }
         inviteCode:
           type: string
         hostCode:
@@ -13686,6 +13962,14 @@ components:
       type: object
       required:
       - id
+      - name
+      - origin
+      - status
+      - closedAt
+      - closeReason
+      - closeNote
+      - probation
+      - applications
       - inviteCode
       - hostCode
       - rank
@@ -13705,6 +13989,45 @@ components:
         id:
           type: string
           format: uuid
+        name: { type: [string, 'null'], description: '(v1.70-social, D206)' }
+        origin: { type: string, enum: [ADMIN, SELF] }
+        status: { type: string, enum: [OPEN, CLOSED] }
+        closedAt: { type: [string, 'null'], format: date-time }
+        closeReason: { type: [string, 'null'], enum: [PROBATION_FAILED, ADMIN, null] }
+        closeNote: { type: [string, 'null'] }
+        probation:
+          description: (v1.70-social, D206) null without a probation; `hosts` only while it runs.
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [state, endsAt, passedAt, requiredHosts, activatedHosts, hosts]
+              properties:
+                state: { $ref: '#/components/schemas/AdminAgencyProbationState' }
+                endsAt: { type: string, format: date-time }
+                passedAt: { type: [string, 'null'], format: date-time }
+                requiredHosts: { type: integer, minimum: 1 }
+                activatedHosts: { type: [integer, 'null'], minimum: 0 }
+                hosts:
+                  type: array
+                  items:
+                    type: object
+                    required: [userId, joinedAt, wentLive, receivedGifts, activated]
+                    properties:
+                      userId: { type: string, format: uuid }
+                      joinedAt: { type: string, format: date-time }
+                      wentLive: { type: boolean }
+                      receivedGifts: { type: boolean }
+                      activated: { type: boolean }
+        applications:
+          description: (v1.70-social, D206) the «افتح وكالة» applications, newest first (their fields through `getAdminAgencyApplication`).
+          type: array
+          items:
+            type: object
+            required: [id, createdAt, purged]
+            properties:
+              id: { type: string, format: uuid }
+              createdAt: { type: string, format: date-time }
+              purged: { type: boolean }
         inviteCode:
           type: string
         hostCode:
@@ -18749,13 +19072,13 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     NotificationType:
       type: string
-      description: "`LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). (v1.60-social, D191) `MODERATION_WARNING` (system: a moderator warned you about content that breaks the rules; target POST when the warning is about a post, else none). (v1.66-social, D198) `DATA_EXPORT_READY` (system, no target: the data export «تنزيل بياناتي» is ready; the app opens Settings › Privacy). Clients ignore values they do not know."
-      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST, MODERATION_WARNING, DATA_EXPORT_READY]
+      description: "`LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). (v1.60-social, D191) `MODERATION_WARNING` (system: a moderator warned you about content that breaks the rules; target POST when the warning is about a post, else none). (v1.66-social, D198) `DATA_EXPORT_READY` (system, no target: the data export «تنزيل بياناتي» is ready; the app opens Settings › Privacy). (v1.70-social, D206) system, target AGENCY: `AGENCY_OPENED` (your agency is open — also when the team reopens it), `AGENCY_PROBATION_REMINDER` (less than 24 h left with fewer activated hosts than needed; `activatedHosts` / `requiredHosts`), `AGENCY_PROBATION_PASSED`, `AGENCY_CLOSED` (with `activatedHosts` / `requiredHosts` when the probation failed; none when the team closed it), `AGENCY_HOST_RELEASED` (to each host of a closed agency: they are free). Clients ignore values they do not know."
+      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST, MODERATION_WARNING, DATA_EXPORT_READY, AGENCY_OPENED, AGENCY_PROBATION_REMINDER, AGENCY_PROBATION_PASSED, AGENCY_CLOSED, AGENCY_HOST_RELEASED]
     NotificationTarget:
       type: object
       required: [type, id, postId, thumbUrl, text]
       properties:
-        type: { type: string, enum: [POST, COMMENT, STORY, USER, FAMILY, MEDAL, PREMIUM_USERNAME, BAG_ITEM, RECHARGE_SALE], description: "(v1.21-live) FAMILY and MEDAL are new; (v1.28-live, D146) PREMIUM_USERNAME; (v1.48-social, D171) BAG_ITEM; (v1.54-social, D185) RECHARGE_SALE; clients ignore target types they do not know." }
+        type: { type: string, enum: [POST, COMMENT, STORY, USER, FAMILY, MEDAL, PREMIUM_USERNAME, BAG_ITEM, RECHARGE_SALE, AGENCY], description: "(v1.21-live) FAMILY and MEDAL are new; (v1.28-live, D146) PREMIUM_USERNAME; (v1.48-social, D171) BAG_ITEM; (v1.54-social, D185) RECHARGE_SALE; (v1.70-social, D206) AGENCY (id the agency, `text` its name; the app opens «الوكالة»); clients ignore target types they do not know." }
         id: { type: string, description: "A post, comment or story id, a username for USER, a family id for FAMILY, a medal code for MEDAL, the username for PREMIUM_USERNAME, the item code for BAG_ITEM." }
         postId: { type: [string, 'null'], format: uuid, description: "For a COMMENT, its post." }
         thumbUrl: { type: [string, 'null'], format: uri, description: "The post or story photo (320 px), when it has one." }
@@ -18764,6 +19087,8 @@ components:
         endsAt: { type: string, format: date-time, description: "PREMIUM_USERNAME only (v1.28-live, D146): the end of the paid period (EXPIRING) or of the grace period (EXPIRED)." }
         bagCategory: { $ref: '#/components/schemas/BagCategory', description: "BAG_ITEM only (v1.48-social, D171): the item's category." }
         coins: { type: integer, format: int64, minimum: 1, description: "RECHARGE_SALE only (v1.54-social, D185): the coins bought." }
+        activatedHosts: { type: integer, minimum: 0, description: "AGENCY only (v1.70-social, D206): the activated hosts reached (reminder, passed, closed by the probation)." }
+        requiredHosts: { type: integer, minimum: 1, description: "AGENCY only (v1.70-social, D206): the activated hosts needed." }
     Notification:
       type: object
       required: [id, type, actors, actorCount, target, createdAt, read]
@@ -21185,7 +21510,7 @@ components:
     OwnAgency:
       type: object
       required: [inviteCode, rank, rankMonth, createdAt, timeZone, month, commissionRateBps, parent, progress, commission,
-                 parentCommission, subAgencies, hostAgent]
+                 parentCommission, subAgencies, hostAgent, name, probation]
       properties:
         inviteCode: { type: string, pattern: '^[A-HJ-NP-Z2-9]{8}$' }
         rank: { $ref: '#/components/schemas/AgencyRank' }
@@ -21219,9 +21544,85 @@ components:
           type: array
           items: { $ref: '#/components/schemas/AgencySubAgency' }
         hostAgent: { $ref: '#/components/schemas/OwnHostAgent' }
+        name: { type: [string, 'null'], maxLength: 40, description: "(v1.70-social, D206) the agency's name (null: made by the team before D206)." }
+        probation:
+          description: (v1.70-social, D206) a self-opened agency's probation; null when it has none (made by the team).
+          oneOf:
+            - $ref: '#/components/schemas/AgencyProbation'
+            - type: 'null'
+    AgencyProbation:
+      type: object
+      description: |
+        v1.70-social (D206, §10.65). RUNNING: the agency must activate `requiredHosts` hosts before `endsAt`; a host is
+        activated when, after joining and before `endsAt`, they started a live of their own AND received a gift
+        (`hosts` lists the members with the three steps; the server settles it on this read too). PASSED: done (the
+        D179 rank rules apply from now; `hosts` empty). A failed probation closes the agency (`MyAgency.closedAgency`).
+      required: [status, endsAt, passedAt, days, requiredHosts, activatedHosts, hosts]
+      properties:
+        status: { type: string, enum: [RUNNING, PASSED] }
+        endsAt: { type: string, format: date-time }
+        passedAt: { type: [string, 'null'], format: date-time }
+        days: { type: integer, minimum: 1, description: "`AGENCY_PROBATION_DAYS`." }
+        requiredHosts: { type: integer, minimum: 1 }
+        activatedHosts: { type: integer, minimum: 0 }
+        hosts:
+          type: array
+          maxItems: 100
+          items: { $ref: '#/components/schemas/AgencyProbationHost' }
+    AgencyProbationHost:
+      type: object
+      required: [user, joinedAt, wentLive, receivedGifts, activated]
+      properties:
+        user: { $ref: '#/components/schemas/UserSummary' }
+        joinedAt: { type: string, format: date-time }
+        wentLive: { type: boolean }
+        receivedGifts: { type: boolean }
+        activated: { type: boolean, description: wentLive and receivedGifts. }
+    ClosedAgency:
+      type: object
+      description: v1.70-social (D206). The caller's own agency, closed (then `ownAgency` is null).
+      required: [name, inviteCode, closedAt, reason, activatedHosts, requiredHosts, reopenAt]
+      properties:
+        name: { type: [string, 'null'] }
+        inviteCode: { type: string }
+        closedAt: { type: string, format: date-time }
+        reason: { type: string, enum: [PROBATION_FAILED, ADMIN] }
+        activatedHosts: { type: [integer, 'null'], minimum: 0, description: The count reached (PROBATION_FAILED only). }
+        requiredHosts: { type: [integer, 'null'], minimum: 1 }
+        reopenAt: { type: string, format: date-time, description: "When the caller may open an agency again (`AGENCY_REOPEN_COOLDOWN_DAYS`)." }
+    AgencyOpenRule:
+      type: object
+      description: v1.70-social (D206). «افتح وكالة» for the caller now (free).
+      required: [canOpen, refusal, free, probationDays, requiredHosts, reopenCooldownDays]
+      properties:
+        canOpen: { type: boolean }
+        refusal: { type: [string, 'null'], enum: [ACCOUNT_NOT_ACTIVE, OWNS_AGENCY, HOST_OF_AGENCY, REOPEN_COOLDOWN, null] }
+        free: { type: boolean, enum: [true] }
+        probationDays: { type: integer, minimum: 1 }
+        requiredHosts: { type: integer, minimum: 1 }
+        reopenCooldownDays: { type: integer, minimum: 0 }
+    OpenAgencyRequest:
+      type: object
+      additionalProperties: false
+      description: v1.70-social (D206). Text is trimmed; no control characters.
+      required: [name, country, contact, expectedHosts, photoUploadId, selfieUploadId]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 40 }
+        country: { type: string, pattern: '^[A-Za-z]{2}$', description: ISO 3166-1 alpha-2. }
+        contact:
+          type: object
+          additionalProperties: false
+          required: [type, value]
+          properties:
+            type: { type: string, enum: [WHATSAPP, TELEGRAM, PHONE, EMAIL, OTHER] }
+            value: { type: string, minLength: 3, maxLength: 100 }
+        expectedHosts: { type: integer, minimum: 1, maximum: 10000 }
+        bio: { type: string, maxLength: 300 }
+        photoUploadId: { type: string, format: uuid, description: "The ID card: a pending private upload of kind `RECHARGE_AGENT_PHOTO`." }
+        selfieUploadId: { type: string, format: uuid, description: "A pending private upload of kind `RECHARGE_AGENT_SELFIE`." }
     MyAgency:
       type: object
-      required: [membership, ownAgency, activeHostRule, leaveDays]
+      required: [membership, ownAgency, activeHostRule, leaveDays, closedAgency, openRule]
       properties:
         membership:
           oneOf:
@@ -21239,6 +21640,12 @@ components:
             minHours: { type: integer, minimum: 1 }
             windowDays: { type: integer, minimum: 1 }
         leaveDays: { type: integer, minimum: 0 }
+        closedAgency:
+          description: (v1.70-social, D206) the caller's own agency when it is closed.
+          oneOf:
+            - $ref: '#/components/schemas/ClosedAgency'
+            - type: 'null'
+        openRule: { $ref: '#/components/schemas/AgencyOpenRule' }
     AgencyHost:
       type: object
       required: [user, joinedAt, liveDays, liveSeconds, active, monthCherries, commissionEligible]

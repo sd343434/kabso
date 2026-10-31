@@ -255,6 +255,14 @@ export enum AuditAction {
   ADMIN_EXPORT_CSV = 'admin.export.csv',
   /** The agency rank evaluation run from the panel (what `economy-admin agency-evaluate` does). */
   AGENCY_EVALUATE = 'agency.evaluate',
+  /** v1.70-social (D206, §10.65): «افتح وكالة» — the opening, the probation and the closing / reopening. */
+  AGENCY_OPEN = 'agency.open',
+  AGENCY_PROBATION_PASS = 'agency.probation.pass',
+  AGENCY_PROBATION_EXTEND = 'agency.probation.extend',
+  AGENCY_CLOSE = 'agency.close',
+  AGENCY_REOPEN = 'agency.reopen',
+  AGENCY_APPLICATION_VIEW = 'agency.application.view',
+  AGENCY_PHOTO_VIEW = 'agency.application.photo.view',
   /** A live ended by the team from the panel {reason, hostUserId} (end reason ADMIN). */
   ADMIN_LIVE_END = 'admin.live.end',
   /** A user's app sessions signed out by the team {sessions, reason}. */

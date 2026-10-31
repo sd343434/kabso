@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { Inject, Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { z } from 'zod';
 import { AuditAction } from '../../common/audit/audit.service.js';
@@ -6,17 +7,41 @@ import { ErrorCode } from '../../common/errors/error-codes.js';
 import { Clock } from '../../common/time/clock.js';
 import { zodErrorToDetails } from '../../common/validation/zod-validation.pipe.js';
 import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
-import type { AgencyComplaint, AgencyRank } from '../../generated/prisma/client.js';
+import { Prisma, type Agency, type AgencyComplaint, type AgencyRank } from '../../generated/prisma/client.js';
 import { safeErrorLog } from '../../logging/redact-text.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { UserSummaryDto } from '../live/live-rooms.service.js';
 import { uuidv7 } from '../levels/uuidv7.js';
+import { MediaService } from '../media/media.service.js';
+import { Notifier } from '../notifications/notifier.js';
+import { syncAgentUsernameIn } from '../users/agent-usernames.js';
 import { USER_SUMMARY_SELECT, userSummary, type PageDto } from '../posts/post-views.js';
 import type { PageQuery } from '../posts/posts.schemas.js';
 import { SocialCursorCodec } from '../posts/social-cursor.js';
 import { agencyStandings, evaluateAgencyRanks, hostActivity, type RankChange } from './agency-ranks.js';
-import { addMonths, agencyRateBps, dateValue, monthKey, normalizeInviteCode } from './economy-math.js';
-import { assignMissingHostCodes, hostAgentPerksActive } from './host-agents.js';
+import {
+  DAY_MS as PROBATION_DAY_MS,
+  probationHostsAt,
+  probationInstant,
+  reopenAt,
+  settleProbation,
+  sweepAgencyProbations,
+  type ProbationRules,
+} from './agency-probation.js';
+import {
+  addMonths,
+  agencyRateBps,
+  dateValue,
+  monthKey,
+  newInviteCode,
+  normalizeInviteCode,
+} from './economy-math.js';
+import {
+  allocateHostCodeIn,
+  assignMissingHostCodes,
+  createAgencyIn,
+  hostAgentPerksActive,
+} from './host-agents.js';
 import { syncHostFrames, type HostFrameChange } from './host-frames.js';
 
 const DAY_MS = 86_400_000;
@@ -91,6 +116,53 @@ export interface OwnAgencyDto {
   subAgencies: AgencySubAgencyDto[];
   /** v1.58-social (D189, §10.52): the owner as a host agent «وكيل مضيفين». */
   hostAgent: OwnHostAgentDto;
+  /** v1.70-social (D206, §10.65): the agency's name (null: made by the team before D206). */
+  name: string | null;
+  /** v1.70-social (D206): the probation of a self-opened agency (null: none). */
+  probation: AgencyProbationDto | null;
+}
+
+/** v1.70-social (D206): one host of an agency in its probation. */
+export interface AgencyProbationHostDto {
+  user: UserSummaryDto;
+  joinedAt: string;
+  wentLive: boolean;
+  receivedGifts: boolean;
+  activated: boolean;
+}
+
+/** v1.70-social (D206): `AgencyProbation`. */
+export interface AgencyProbationDto {
+  status: 'RUNNING' | 'PASSED';
+  endsAt: string;
+  passedAt: string | null;
+  days: number;
+  requiredHosts: number;
+  activatedHosts: number;
+  hosts: AgencyProbationHostDto[];
+}
+
+/** v1.70-social (D206): `ClosedAgency` — the caller's own agency, closed. */
+export interface ClosedAgencyDto {
+  name: string | null;
+  inviteCode: string;
+  closedAt: string;
+  reason: 'PROBATION_FAILED' | 'ADMIN';
+  activatedHosts: number | null;
+  requiredHosts: number | null;
+  reopenAt: string;
+}
+
+export type AgencyOpenRefusal = 'ACCOUNT_NOT_ACTIVE' | 'HOST_OF_AGENCY' | 'OWNS_AGENCY' | 'REOPEN_COOLDOWN';
+
+/** v1.70-social (D206): `AgencyOpenRule` — «افتح وكالة» (free). */
+export interface AgencyOpenRuleDto {
+  canOpen: boolean;
+  refusal: AgencyOpenRefusal | null;
+  free: true;
+  probationDays: number;
+  requiredHosts: number;
+  reopenCooldownDays: number;
 }
 
 /** v1.58-social (D189, §10.52). */
@@ -109,6 +181,9 @@ export interface MyAgencyDto {
   ownAgency: OwnAgencyDto | null;
   activeHostRule: { minDays: number; minHours: number; windowDays: number };
   leaveDays: number;
+  /** v1.70-social (D206): the caller's own agency when it is closed (then `ownAgency` is null). */
+  closedAgency: ClosedAgencyDto | null;
+  openRule: AgencyOpenRuleDto;
 }
 
 /** `AgencyHost`: one host in the agent's list. */
@@ -124,6 +199,65 @@ export interface AgencyHostDto {
 
 export const joinBodySchema = z.strictObject({ inviteCode: z.string().min(1).max(32) });
 export const complaintBodySchema = z.strictObject({ text: z.string().trim().min(1).max(1000) });
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** No control characters (a name and a bio are shown to people). */
+const PLAIN = /^[^\p{Cc}\p{Cs}]*$/u;
+
+/** v1.70-social (D206, §10.65): `OpenAgencyRequest`. */
+export const openAgencyBodySchema = z.strictObject({
+  name: z.string().trim().min(2).max(40).regex(PLAIN),
+  country: z
+    .string()
+    .regex(/^[A-Za-z]{2}$/)
+    .transform((c) => c.toUpperCase()),
+  contact: z.strictObject({
+    type: z.enum(['WHATSAPP', 'TELEGRAM', 'PHONE', 'EMAIL', 'OTHER']),
+    value: z.string().trim().min(3).max(100).regex(PLAIN),
+  }),
+  expectedHosts: z.number().int().min(1).max(10_000),
+  bio: z
+    .string()
+    .trim()
+    .max(300)
+    // Line breaks are allowed in the bio; no other control character.
+    .refine((v) => PLAIN.test(v.replace(/\n/gu, ' ')))
+    .optional(),
+  photoUploadId: z.string().regex(UUID),
+  selfieUploadId: z.string().regex(UUID),
+});
+export type OpenAgencyBody = z.infer<typeof openAgencyBodySchema>;
+
+/** The private keys of an application's two pictures (never public, `private, no-store`). */
+export function agencyPictureKey(applicationId: string, which: 'photo' | 'selfie'): string {
+  return `private/agency-applications/${applicationId}/${which}.webp`;
+}
+
+function idempotencyKey(raw: string | undefined): string {
+  if (raw === undefined || raw === '')
+    throw AppException.validation([{ field: 'Idempotency-Key', issue: 'required' }]);
+  if (!UUID.test(raw)) throw AppException.validation([{ field: 'Idempotency-Key', issue: 'invalid_format' }]);
+  return raw.toLowerCase();
+}
+
+/** The request's fingerprint for the Idempotency-Key (the same key with another body → 409). */
+function requestHash(b: OpenAgencyBody): string {
+  const canonical = JSON.stringify([
+    b.name,
+    b.country,
+    b.contact.type,
+    b.contact.value,
+    b.expectedHosts,
+    b.bio ?? '',
+    b.photoUploadId.toLowerCase(),
+    b.selfieUploadId.toLowerCase(),
+  ]);
+  return createHash('sha256').update(canonical).digest('hex');
+}
+
+function isUniqueViolation(err: unknown): boolean {
+  return err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002';
+}
 
 function complaintDto(c: AgencyComplaint): AgencyComplaintDto {
   return {
@@ -147,12 +281,14 @@ function complaintDto(c: AgencyComplaint): AgencyComplaintDto {
 export class AgencyService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger('AgencyService');
   private readonly cursors: SocialCursorCodec;
+  private readonly notifier = new Notifier();
   private timer: NodeJS.Timeout | undefined;
   private inFlight: Promise<void> | null = null;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly clock: Clock,
+    private readonly media: MediaService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {
     this.cursors = new SocialCursorCodec(config.social.cursorKey);
@@ -169,7 +305,17 @@ export class AgencyService implements OnModuleInit, OnModuleDestroy {
 
   private schedule(): void {
     this.timer = setTimeout(() => {
-      this.inFlight = this.evaluate()
+      this.inFlight = this.sweepProbations()
+        .then((p) => {
+          const n = p.passed.length + p.closed.length + p.reminded.length;
+          if (n > 0) {
+            this.logger.log(
+              { passed: p.passed.length, closed: p.closed.length, reminded: p.reminded.length },
+              'Agency probations settled',
+            );
+          }
+        })
+        .then(() => this.evaluate())
         .then(async ({ ranks, frames }) => {
           if (ranks.length > 0) this.logger.log({ changes: ranks.length }, 'Agency ranks evaluated');
           if (frames.length > 0) this.logger.log({ changes: frames.length }, 'Host frames synced');
@@ -195,6 +341,33 @@ export class AgencyService implements OnModuleInit, OnModuleDestroy {
   /** v1.58-social (D189): the sweeper's backfill of host codes. */
   assignHostCodes(): Promise<number> {
     return assignMissingHostCodes(this.prisma, this.clock.now(), this.config.specialUsernames.graceDays);
+  }
+
+  /** v1.70-social (D206). */
+  get probationRules(): ProbationRules {
+    const e = this.config.economy;
+    return {
+      probationDays: e.probationDays,
+      probationMinHosts: e.probationMinHosts,
+      probationReminderHours: e.probationReminderHours,
+      reopenCooldownDays: e.reopenCooldownDays,
+    };
+  }
+
+  /**
+   * v1.70-social (D206, §10.65): every running probation is settled — passed (enough activated hosts), closed (the
+   * end came without them; hosts released) or reminded (the last day) — then the released hosts' frames follow.
+   * Also `economy-admin agency-probation-sweep`.
+   */
+  async sweepProbations(): Promise<{ passed: string[]; closed: string[]; reminded: string[] }> {
+    const r = await sweepAgencyProbations(
+      this.prisma,
+      this.clock.now(),
+      this.probationRules,
+      this.config.specialUsernames.graceDays,
+    );
+    if (r.releasedHosts.length > 0) await this.syncHostFrames(r.releasedHosts);
+    return { passed: r.passed, closed: r.closed, reminded: r.reminded };
   }
 
   /** The rank evaluation (also `economy-admin agency-evaluate`). */
@@ -223,11 +396,13 @@ export class AgencyService implements OnModuleInit, OnModuleDestroy {
       select: {
         inviteCode: true,
         rank: true,
+        status: true,
         owner: { select: { ...USER_SUMMARY_SELECT, status: true } },
         _count: { select: { hosts: { where: { status: 'ACTIVE' } } } },
       },
     });
-    if (!a || a.owner.status !== 'ACTIVE') return null;
+    // v1.70-social (D206): a closed agency cannot be found or joined.
+    if (!a || a.owner.status !== 'ACTIVE' || a.status !== 'OPEN') return null;
     return { inviteCode: a.inviteCode, owner: userSummary(a.owner), rank: a.rank, hostCount: a._count.hosts };
   }
 
@@ -241,10 +416,30 @@ export class AgencyService implements OnModuleInit, OnModuleDestroy {
     return preview;
   }
 
-  /** `GET /me/agency`. */
+  /**
+   * `GET /me/agency`. v1.70-social (D206): a running probation of the caller's agency is settled first (it passes
+   * as soon as enough hosts are activated; at its end it closes) — the same step as the sweeper's.
+   */
   async mine(me: string): Promise<MyAgencyDto> {
     const e = this.config.economy;
-    const [membership, ownAgency] = await Promise.all([this.membership(me), this.ownAgency(me)]);
+    const own = await this.prisma.agency.findUnique({ where: { ownerUserId: me } });
+    let agency: Agency | null = own;
+    if (own && own.status === 'OPEN' && own.probationEndsAt !== null && own.probationPassedAt === null) {
+      const r = await settleProbation(
+        this.prisma,
+        own.id,
+        this.clock.now(),
+        this.probationRules,
+        this.config.specialUsernames.graceDays,
+      );
+      if (r.releasedHosts.length > 0) await this.syncHostFrames(r.releasedHosts);
+      if (r.outcome !== null) agency = await this.prisma.agency.findUnique({ where: { id: own.id } });
+    }
+    const [membership, ownAgency, refusal] = await Promise.all([
+      this.membership(me),
+      agency?.status === 'OPEN' ? this.ownAgency(me, agency) : Promise.resolve(null),
+      this.openRefusal(me, agency),
+    ]);
     return {
       membership,
       ownAgency,
@@ -254,7 +449,238 @@ export class AgencyService implements OnModuleInit, OnModuleDestroy {
         windowDays: e.activeHostWindowDays,
       },
       leaveDays: e.leaveDays,
+      closedAgency: agency?.status === 'CLOSED' ? this.closedDto(agency) : null,
+      openRule: {
+        canOpen: refusal === null,
+        refusal,
+        free: true,
+        probationDays: e.probationDays,
+        requiredHosts: e.probationMinHosts,
+        reopenCooldownDays: e.reopenCooldownDays,
+      },
     };
+  }
+
+  private closedDto(a: Agency): ClosedAgencyDto {
+    const closedAt = a.closedAt ?? a.updatedAt;
+    return {
+      name: a.name,
+      inviteCode: a.inviteCode,
+      closedAt: closedAt.toISOString(),
+      reason: a.closeReason ?? 'ADMIN',
+      activatedHosts: a.closeReason === 'PROBATION_FAILED' ? (a.probationActivated ?? 0) : null,
+      requiredHosts: a.closeReason === 'PROBATION_FAILED' ? this.config.economy.probationMinHosts : null,
+      reopenAt: reopenAt(closedAt, this.probationRules).toISOString(),
+    };
+  }
+
+  /** v1.70-social (D206): why the caller may not open an agency now (null: they may). */
+  private async openRefusal(me: string, own: Agency | null): Promise<AgencyOpenRefusal | null> {
+    const [user, hostLinks] = await Promise.all([
+      this.prisma.user.findUnique({ where: { id: me }, select: { status: true, deletedAt: true } }),
+      this.prisma.agencyHost.count({ where: { hostUserId: me, status: 'ACTIVE' } }),
+    ]);
+    if (!user || user.deletedAt !== null || user.status !== 'ACTIVE') return 'ACCOUNT_NOT_ACTIVE';
+    if (own?.status === 'OPEN') return 'OWNS_AGENCY';
+    if (hostLinks > 0) return 'HOST_OF_AGENCY';
+    if (
+      own?.status === 'CLOSED' &&
+      this.clock.now() < reopenAt(own.closedAt ?? own.updatedAt, this.probationRules)
+    ) {
+      return 'REOPEN_COOLDOWN';
+    }
+    return null;
+  }
+
+  /**
+   * v1.70-social (D206, §10.65): `POST /me/agency/open` (Idempotency-Key) «افتح وكالة» — free; the ID card and the
+   * selfie are the D185 private uploads (`RECHARGE_AGENT_PHOTO` / `RECHARGE_AGENT_SELFIE`), consumed into this
+   * application's private keys. The agency exists at once (no approval): NEW, its invite code and `hostNN` as the
+   * team's agencies, with a probation of AGENCY_PROBATION_DAYS. A person whose agency closed opens the same row again
+   * after the cooldown (same invite and host code, a new probation). Order: 400 header / body → the same key again
+   * (200 the same body, 409 IDEMPOTENCY_CONFLICT another) → 503 MEDIA_UNAVAILABLE → 409 AGENCY_OPEN_NOT_ALLOWED
+   * (`details[0].issue` = the refusal) → 400 an upload that is not the caller's pending one → 201.
+   */
+  async open(
+    me: string,
+    rawKey: string | undefined,
+    body: unknown,
+  ): Promise<{ created: boolean; result: MyAgencyDto }> {
+    const key = idempotencyKey(rawKey);
+    const parsed = openAgencyBodySchema.safeParse(body ?? {});
+    if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
+    const input = parsed.data;
+    const hash = requestHash(input);
+    const replay = async () => {
+      const prior = await this.prisma.agencyApplication.findUnique({
+        where: { userId_clientKey: { userId: me, clientKey: key } },
+        select: { requestHash: true },
+      });
+      if (!prior) return null;
+      if (prior.requestHash !== hash) throw new AppException(ErrorCode.IDEMPOTENCY_CONFLICT);
+      return { created: false, result: await this.mine(me) };
+    };
+    const before = await replay();
+    if (before) return before;
+    this.media.assertEnabled();
+    const refused = (issue: AgencyOpenRefusal) =>
+      new AppException(ErrorCode.AGENCY_OPEN_NOT_ALLOWED, undefined, [{ field: 'agency', issue }]);
+    const own = await this.prisma.agency.findUnique({ where: { ownerUserId: me } });
+    const refusal = await this.openRefusal(me, own);
+    if (refusal) throw refused(refusal);
+
+    const applicationId = uuidv7();
+    const photoKey = agencyPictureKey(applicationId, 'photo');
+    const selfieKey = agencyPictureKey(applicationId, 'selfie');
+    if (!(await this.media.consumePrivateImage(me, input.photoUploadId, 'RECHARGE_AGENT_PHOTO', photoKey))) {
+      throw AppException.validation([{ field: 'photoUploadId', issue: 'invalid_value' }]);
+    }
+    if (
+      !(await this.media.consumePrivateImage(me, input.selfieUploadId, 'RECHARGE_AGENT_SELFIE', selfieKey))
+    ) {
+      await this.media.deletePrivateObjects([photoKey]).catch(() => undefined);
+      throw AppException.validation([{ field: 'selfieUploadId', issue: 'invalid_value' }]);
+    }
+    const now = this.clock.now();
+    const e = this.config.economy;
+    const grace = this.config.specialUsernames.graceDays;
+    const endsAt = new Date(now.getTime() + e.probationDays * PROBATION_DAY_MS);
+    const evaluateFrom = dateValue(addMonths(monthKey(now, this.zone), 2));
+    try {
+      for (let attempt = 0; ; attempt++) {
+        const code = own ? own.inviteCode : newInviteCode();
+        if (!own && (await this.prisma.agency.count({ where: { inviteCode: code } })) > 0) {
+          if (attempt >= 5) throw new Error('No free invite code');
+          continue;
+        }
+        try {
+          await this.prisma.$transaction(async (tx) => {
+            let agencyId: string;
+            let hostCode: string;
+            if (own) {
+              // The closed row is opened again (the owner-once index): checked again under its lock.
+              const [row] = await tx.$queryRaw<
+                { status: string; closed_at: Date | null; code: string | null }[]
+              >`
+                SELECT status::text AS status, closed_at, host_code AS code FROM agencies
+                 WHERE id = ${own.id}::uuid FOR UPDATE`;
+              if (
+                !row ||
+                row.status !== 'CLOSED' ||
+                now < reopenAt(row.closed_at ?? now, this.probationRules)
+              ) {
+                throw refused(row?.status === 'OPEN' ? 'OWNS_AGENCY' : 'REOPEN_COOLDOWN');
+              }
+              await tx.agency.update({
+                where: { id: own.id },
+                data: {
+                  name: input.name,
+                  origin: 'SELF',
+                  status: 'OPEN',
+                  closedAt: null,
+                  closeReason: null,
+                  closeNote: null,
+                  parentAgencyId: null,
+                  rank: 'NEW',
+                  rankMonth: null,
+                  evaluateFrom,
+                  probationEndsAt: endsAt,
+                  probationPassedAt: null,
+                  probationRemindedAt: null,
+                  probationActivated: null,
+                  updatedAt: now,
+                },
+              });
+              agencyId = own.id;
+              if (row.code === null) {
+                hostCode = await allocateHostCodeIn(tx, own.id, now, grace, { strict: false, via: 'app' });
+              } else {
+                hostCode = row.code;
+                await syncAgentUsernameIn(tx, me, now, grace, { strict: false });
+              }
+            } else {
+              const made = await createAgencyIn(
+                tx,
+                {
+                  ownerUserId: me,
+                  inviteCode: code,
+                  parentAgencyId: null,
+                  evaluateFrom,
+                  name: input.name,
+                  origin: 'SELF',
+                  probationEndsAt: endsAt,
+                },
+                now,
+                grace,
+                // A refused username grant (a rented premium username) keeps the code reserved (D189).
+                { strict: false, via: 'app' },
+              );
+              agencyId = made.agencyId;
+              hostCode = made.hostCode;
+            }
+            await tx.agencyApplication.create({
+              data: {
+                id: applicationId,
+                agencyId,
+                userId: me,
+                clientKey: key,
+                requestHash: hash,
+                name: input.name,
+                country: input.country,
+                contactType: input.contact.type,
+                contactValue: input.contact.value,
+                expectedHosts: input.expectedHosts,
+                bio: input.bio && input.bio !== '' ? input.bio : null,
+                photoKey,
+                selfieKey,
+                createdAt: now,
+              },
+            });
+            await this.notifier.agency(tx, { type: 'AGENCY_OPENED', recipientId: me, agencyId });
+            // The application's private fields never go to the audit trail (the name is public).
+            await tx.auditLog.create({
+              data: {
+                actorUserId: me,
+                action: AuditAction.AGENCY_OPEN,
+                targetType: 'agency',
+                targetId: agencyId,
+                metadata: {
+                  application: applicationId,
+                  inviteCode: code,
+                  hostCode,
+                  reopened: own !== null,
+                  country: input.country,
+                  expectedHosts: input.expectedHosts,
+                  probationEndsAt: endsAt.toISOString(),
+                  evaluateFrom: evaluateFrom.toISOString().slice(0, 10),
+                },
+              },
+            });
+          });
+          break;
+        } catch (err) {
+          // A raced invite code: another try with a new one.
+          if (!own && isUniqueViolation(err) && attempt < 5) {
+            const taken = await this.prisma.agency.count({ where: { inviteCode: code } });
+            if (taken > 0) continue;
+          }
+          throw err;
+        }
+      }
+    } catch (err) {
+      await this.media.deletePrivateObjects([photoKey, selfieKey]).catch(() => undefined);
+      if (isUniqueViolation(err)) {
+        // The same key raced, or the person's agency was made meanwhile.
+        const raced = await replay();
+        if (raced) return raced;
+        throw refused(
+          (await this.openRefusal(me, await this.prisma.agency.findUnique({ where: { ownerUserId: me } }))) ??
+            'OWNS_AGENCY',
+        );
+      }
+      throw err;
+    }
+    return { created: true, result: await this.mine(me) };
   }
 
   private async membership(me: string): Promise<AgencyMembershipDto | null> {
@@ -276,9 +702,7 @@ export class AgencyService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  private async ownAgency(me: string): Promise<OwnAgencyDto | null> {
-    const agency = await this.prisma.agency.findUnique({ where: { ownerUserId: me } });
-    if (!agency) return null;
+  private async ownAgency(me: string, agency: Agency): Promise<OwnAgencyDto> {
     const e = this.config.economy;
     const now = this.clock.now();
     const month = monthKey(now, this.zone);
@@ -351,6 +775,55 @@ export class AgencyService implements OnModuleInit, OnModuleDestroy {
         active: hostAgentPerksActive(agency),
         usernameShown: agency.hostCode !== null && profile?.username === agency.hostCode,
       },
+      name: agency.name,
+      probation: await this.probation(agency, now),
+    };
+  }
+
+  /** v1.70-social (D206): the probation card's data (the hosts as of `min(now, end)`). */
+  private async probation(agency: Agency, now: Date): Promise<AgencyProbationDto | null> {
+    if (agency.probationEndsAt === null) return null;
+    const e = this.config.economy;
+    if (agency.probationPassedAt !== null) {
+      return {
+        status: 'PASSED',
+        endsAt: agency.probationEndsAt.toISOString(),
+        passedAt: agency.probationPassedAt.toISOString(),
+        days: e.probationDays,
+        requiredHosts: e.probationMinHosts,
+        activatedHosts: agency.probationActivated ?? e.probationMinHosts,
+        hosts: [],
+      };
+    }
+    const hosts = (
+      await probationHostsAt(this.prisma, agency.id, probationInstant(now, agency.probationEndsAt))
+    ).slice(0, 100);
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: hosts.map((h) => h.userId) } },
+      select: USER_SUMMARY_SELECT,
+    });
+    const byId = new Map(users.map((u) => [u.id, u]));
+    return {
+      status: 'RUNNING',
+      endsAt: agency.probationEndsAt.toISOString(),
+      passedAt: null,
+      days: e.probationDays,
+      requiredHosts: e.probationMinHosts,
+      activatedHosts: hosts.filter((h) => h.activated).length,
+      hosts: hosts.flatMap((h) => {
+        const u = byId.get(h.userId);
+        return u
+          ? [
+              {
+                user: userSummary(u),
+                joinedAt: h.joinedAt.toISOString(),
+                wentLive: h.wentLive,
+                receivedGifts: h.receivedGifts,
+                activated: h.activated,
+              },
+            ]
+          : [];
+      }),
     };
   }
 
@@ -366,10 +839,13 @@ export class AgencyService implements OnModuleInit, OnModuleDestroy {
     if (code === null) throw new AppException(ErrorCode.NOT_FOUND);
     const agency = await this.prisma.agency.findUnique({
       where: { inviteCode: code },
-      select: { id: true, rank: true, owner: { select: { status: true } } },
+      select: { id: true, rank: true, status: true, owner: { select: { status: true } } },
     });
-    if (!agency || agency.owner.status !== 'ACTIVE') throw new AppException(ErrorCode.NOT_FOUND);
-    if ((await this.prisma.agency.count({ where: { ownerUserId: me } })) > 0) {
+    if (!agency || agency.owner.status !== 'ACTIVE' || agency.status !== 'OPEN') {
+      throw new AppException(ErrorCode.NOT_FOUND);
+    }
+    // v1.70-social (D206): the owner of a closed agency may be a host elsewhere.
+    if ((await this.prisma.agency.count({ where: { ownerUserId: me, status: 'OPEN' } })) > 0) {
       throw new AppException(ErrorCode.AGENCY_JOIN_NOT_ALLOWED);
     }
     const existing = async () => {
@@ -498,8 +974,11 @@ export class AgencyService implements OnModuleInit, OnModuleDestroy {
 
   /** `GET /me/agency/hosts`: the caller's agency's ACTIVE hosts, newest first (404 without an agency). */
   async hosts(me: string, query: PageQuery): Promise<PageDto<AgencyHostDto>> {
-    const agency = await this.prisma.agency.findUnique({ where: { ownerUserId: me }, select: { id: true } });
-    if (!agency) throw new AppException(ErrorCode.NOT_FOUND);
+    const agency = await this.prisma.agency.findUnique({
+      where: { ownerUserId: me },
+      select: { id: true, status: true },
+    });
+    if (!agency || agency.status !== 'OPEN') throw new AppException(ErrorCode.NOT_FOUND);
     const scope = `agency-hosts:${agency.id}`;
     let after = null;
     if (query.cursor !== undefined) {

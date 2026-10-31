@@ -120,7 +120,7 @@ export class PublicProfileService {
       }),
       // v1.58-social (D189): the agency's owner while not suspended (any rank).
       this.prisma.agency.findFirst({
-        where: { ownerUserId: user.id, suspendedAt: null, hostCode: { not: null } },
+        where: { ownerUserId: user.id, suspendedAt: null, status: 'OPEN', hostCode: { not: null } },
         select: { hostCode: true },
       }),
       // v1.55-social (D186): the worn avatar frame (e.g. the active-host frame).

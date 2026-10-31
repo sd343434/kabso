@@ -13,6 +13,7 @@ import { SocialCursorCodec } from '../posts/social-cursor.js';
 import { PushTokensService } from '../push/push-tokens.service.js';
 import { visibleStoryWhere } from '../stories/stories.service.js';
 import { markReadSchema, updateNotificationSettingsSchema } from './notifications.schemas.js';
+import { AGENCY_NOTIFICATION_TYPES } from './notifier.js';
 
 /** `NotificationTarget` (openapi v1.5-social, CP-009). */
 export interface NotificationTargetDto {
@@ -25,7 +26,8 @@ export interface NotificationTargetDto {
     | 'MEDAL'
     | 'PREMIUM_USERNAME'
     | 'BAG_ITEM'
-    | 'RECHARGE_SALE';
+    | 'RECHARGE_SALE'
+    | 'AGENCY';
   id: string;
   postId: string | null;
   thumbUrl: string | null;
@@ -38,6 +40,9 @@ export interface NotificationTargetDto {
   bagCategory?: string;
   /** v1.54-social (D185) RECHARGE_SALE only: the coins bought. */
   coins?: number;
+  /** v1.70-social (D206) AGENCY only: the activated hosts reached and the hosts needed (probation types). */
+  activatedHosts?: number;
+  requiredHosts?: number;
 }
 
 /** `Notification`. */
@@ -146,6 +151,8 @@ function visibleNotificationWhere(me: string): Prisma.NotificationWhereInput {
       { type: 'MODERATION_WARNING' },
       // v1.66-social (D198): the caller's data export is ready (system, no target).
       { type: 'DATA_EXPORT_READY' },
+      // v1.70-social (D206): the caller's agency (owner) or the agency that released the caller (system).
+      { type: { in: [...AGENCY_NOTIFICATION_TYPES] } },
       { type: 'POST_PUBLISHED', post: visiblePostWhere(me) },
       {
         type: { in: ACTOR_TYPES },
@@ -183,6 +190,7 @@ function include(me: string) {
     premiumLease: { select: { username: true, expiresAt: true, graceUntil: true } },
     bagItem: { select: { category: true } },
     rechargeSale: { select: { coins: true } },
+    agency: { select: { name: true } },
   } satisfies Prisma.NotificationInclude;
 }
 type NotificationRow = Prisma.NotificationGetPayload<{ include: ReturnType<typeof include> }>;
@@ -329,6 +337,18 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
         thumbUrl: null,
         text: null,
         coins: Number(row.rechargeSale.coins),
+      };
+    }
+    // v1.70-social (D206): the agency (the app opens «الوكالة»), its name and the probation's numbers.
+    if (row.agencyId !== null) {
+      return {
+        type: 'AGENCY',
+        id: row.agencyId,
+        postId: null,
+        thumbUrl: null,
+        text: excerpt(row.agency?.name),
+        ...(row.agencyActivated !== null ? { activatedHosts: row.agencyActivated } : {}),
+        ...(row.agencyRequired !== null ? { requiredHosts: row.agencyRequired } : {}),
       };
     }
     if (row.medalCode !== null) {

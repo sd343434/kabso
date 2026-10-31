@@ -43,9 +43,15 @@ export async function createAgencyByAdmin(
   });
   if (!owner || owner.deletedAt !== null) throw new HostAgentError('No such account.');
   if (owner.status !== 'ACTIVE') throw new HostAgentError('The account is not ACTIVE.');
-  if ((await prisma.agency.count({ where: { ownerUserId: owner.id } })) > 0) {
-    throw new HostAgentError('The account already has an agency.');
+  const existing = await prisma.agency.findUnique({
+    where: { ownerUserId: owner.id },
+    select: { status: true },
+  });
+  if (existing?.status === 'CLOSED') {
+    // v1.70-social (D206): the owner's closed agency opens again (`agency-reopen`), never a second row.
+    throw new HostAgentError('The account has a closed agency; reopen it (agency-reopen) instead.');
   }
+  if (existing) throw new HostAgentError('The account already has an agency.');
   if ((await prisma.agencyHost.count({ where: { hostUserId: owner.id, status: 'ACTIVE' } })) > 0) {
     throw new HostAgentError(
       'The account is a host of an agency; the host must leave it (or an admin release it) first.',

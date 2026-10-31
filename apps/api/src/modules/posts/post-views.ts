@@ -71,7 +71,7 @@ export function userSummary(
     /** v1.56-social (D187); absent in older selects. */
     rechargeBadge?: { tier: number; until: Date } | null;
     /** v1.58-social (D189); absent in older selects. */
-    ownedAgency?: { hostCode: string | null; suspendedAt: Date | null } | null;
+    ownedAgency?: { hostCode: string | null; suspendedAt: Date | null; status?: 'OPEN' | 'CLOSED' } | null;
   },
   now: Date = new Date(),
 ): UserSummaryDto {
@@ -105,7 +105,7 @@ export function userSummary(
  */
 export function hostAgentCodeOf(user: {
   status?: string;
-  ownedAgency?: { hostCode: string | null; suspendedAt: Date | null } | null;
+  ownedAgency?: { hostCode: string | null; suspendedAt: Date | null; status?: 'OPEN' | 'CLOSED' } | null;
 }): string | null {
   const agency = user.ownedAgency;
   if (!agency || !hostAgentPerksActive(agency)) return null;
@@ -147,7 +147,7 @@ export const USER_SUMMARY_SELECT = {
   status: true,
   rechargeAgent: { select: { status: true, code: true } },
   // v1.58-social (D189): the host-agent badge (`UserSummary.hostAgent`).
-  ownedAgency: { select: { hostCode: true, suspendedAt: true } },
+  ownedAgency: { select: { hostCode: true, suspendedAt: true, status: true } },
   // v1.55-social (D186): the avatar frame worn (`UserSummary.avatarFrame`; at most one per category).
   bagItems: {
     where: { category: 'AVATAR_FRAME', equipped: true },
