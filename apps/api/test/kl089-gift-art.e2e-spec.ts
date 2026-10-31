@@ -22,6 +22,8 @@ import { deflateSync } from 'node:zlib';
 import sharp from 'sharp';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { grantStockIn } from '../src/modules/gifts/gift-catalogue.js';
+import { mp3 } from './helpers/mp3.js';
+import { mp4 } from './helpers/mp4.js';
 import { expectContract } from './helpers/openapi.js';
 import {
   createTestApp,
@@ -279,9 +281,81 @@ describe('D126 gift art', { timeout: 180_000 }, () => {
     expect(v1).not.toBe(v0);
 
     const cleared = await giftAdmin(['update', code, '--image', 'none', '--animation-file', 'none']);
-    expect(cleared.out).toBe(`${code}: imageObjectKey, animationObjectKey, animationBytes updated.\n`);
+    expect(cleared.out).toBe(
+      `${code}: imageObjectKey, animationObjectKey, animationBytes, animationFormat updated.\n`,
+    );
     expect(await catalogueGift()).toMatchObject({ imageUrl: null, animationUrl: null, animationBytes: null });
     expect(await version()).not.toBe(v1);
     expect((await giftAdmin(['update', code, '--image', 'none'])).out).toBe(`${code}: nothing changed.\n`);
+  });
+  it('v1.46-live (D207): an MP4 effect of each kind (detected or --alpha) and an MP3 --sound-file', async () => {
+    const sbs = mp4({ durationMs: 4000, width: 1440, height: 720 });
+    const up = await giftAdmin([
+      'update',
+      code,
+      '--animation-file',
+      file('fx.mp4', sbs),
+      '--sound-file',
+      file('fx.mp3', mp3({ durationMs: 2000 })),
+    ]);
+    expect(up.status, up.err).toBe(0);
+    expect(up.out).toContain('MP4 1440×720 4000 ms; transparency side-by-side (detected)');
+    const mp4Key = `media/gifts/${code}/${sha(sbs)}.mp4`;
+    expect(s3.objects.get(mp4Key)?.headers['content-type']).toBe('video/mp4');
+    expect(s3.objects.get(mp4Key)?.headers['cache-control']).toBe('public, max-age=31536000, immutable');
+    const g = await catalogueGift();
+    expect(g).toMatchObject({
+      animationUrl: `${BASE}/${mp4Key}`,
+      animationFormat: 'MP4',
+      animationAlpha: 'SIDE_BY_SIDE',
+    });
+    expect(g?.audioUrl).toMatch(/\.mp3$/);
+    expect(g?.audioDurationMs).toBeGreaterThan(1900);
+    const mp3Key = String(g?.audioUrl).slice(BASE.length + 1);
+    expect(s3.objects.get(mp3Key)?.headers['content-type']).toBe('audio/mpeg');
+    // A plain video: detected NONE, or overridden with --alpha.
+    const plain = mp4({ durationMs: 3000, width: 720, height: 1280, dataBytes: 300 });
+    expect((await giftAdmin(['update', code, '--animation-file', file('plain.mp4', plain)])).out).toContain(
+      'transparency none (detected)',
+    );
+    expect(await catalogueGift()).toMatchObject({ animationFormat: 'MP4', animationAlpha: 'NONE' });
+    expect(
+      (
+        await giftAdmin([
+          'update',
+          code,
+          '--animation-file',
+          file('plain.mp4', plain),
+          '--alpha',
+          'side-by-side',
+        ])
+      ).status,
+    ).toBe(0);
+    expect(await catalogueGift()).toMatchObject({ animationAlpha: 'SIDE_BY_SIDE' });
+    expect((await giftAdmin(['list'])).out).toContain('transparency=side-by-side');
+    // Refused: not H.264, too long, --alpha with an SVGA; nothing uploaded.
+    const puts = s3.objects.size;
+    expect(
+      (
+        await giftAdmin([
+          'update',
+          code,
+          '--animation-file',
+          file('h.mp4', mp4({ durationMs: 3000, codec: 'hvc1' })),
+        ])
+      ).err,
+    ).toContain('H.264');
+    expect(
+      (await giftAdmin(['update', code, '--sound-file', file('l.mp3', mp3({ durationMs: 20_000 }))])).err,
+    ).toContain('15 s');
+    expect(s3.objects.size).toBe(puts);
+    const cleared = await giftAdmin(['update', code, '--animation-file', 'none', '--sound-file', 'none']);
+    expect(cleared.status, cleared.err).toBe(0);
+    expect(await catalogueGift()).toMatchObject({
+      animationUrl: null,
+      animationFormat: null,
+      animationAlpha: null,
+      audioUrl: null,
+    });
   });
 });

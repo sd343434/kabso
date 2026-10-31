@@ -2640,18 +2640,55 @@ model BagTransfer {
 
 // ---- v1.23-live (CP-020, D108): live gifts (CONVENTIONS §10.23) --------------------------------
 
-/// A catalogue tab of the gift panel.
-enum GiftCategory {
-  POPULAR
-  EVENT
-  FUN
-  /// v1.27-live (D132): lucky gifts (CONVENTIONS §10.27), listed only while LUCKY_GIFTS_ENABLED.
+/// v1.46-live (D207, CONVENTIONS §10.66): what a gift category does besides being a tab. NORMAL: a plain tab
+/// (any number, managed in the panel); LUCKY (§10.27, listed only while LUCKY_GIFTS_ENABLED) and QUIPS (§10.33) keep
+/// their special behaviour — at most one category of each (`gift_categories_special_kind_key`), its code equal to
+/// the kind (`gift_categories_kind_code`), never deleted.
+enum GiftCategoryKind {
+  NORMAL
   LUCKY
-  /// v1.32-live (D154): «إفيهات» quips — a sound (and a line of text) played to the whole room, one at a
-  /// time (CONVENTIONS §10.33). Price 0 = a free quip (one per viewer per live).
   QUIPS
 
-  @@map("gift_category")
+  @@map("gift_category_kind")
+}
+
+/// v1.46-live (D207): the format of a gift's hosted full-screen effect.
+enum GiftAnimationFormat {
+  SVGA
+  MP4
+
+  @@map("gift_animation_format")
+}
+
+/// v1.46-live (D207): how an MP4 effect carries transparency. NONE: a plain video (with its background) played
+/// full screen as is; SIDE_BY_SIDE: the left half is the colour, the right half the alpha mask.
+enum GiftVideoAlpha {
+  NONE
+  SIDE_BY_SIDE
+
+  @@map("gift_video_alpha")
+}
+
+/// v1.46-live (D207, CONVENTIONS §10.66): the gift panel's tabs, managed in the admin panel (and `gift-admin
+/// category-*`). Seeded with the five tabs that were the `gift_category` enum (POPULAR, EVENT, FUN, LUCKY, QUIPS).
+/// `code` never changes; a category is deleted only while no gift is in it (FK RESTRICT) and never when special.
+/// CHECKs `gift_categories_code_format`, `gift_categories_kind_code`, `gift_categories_names`,
+/// `gift_categories_sort_range`, `gift_categories_icon_key_format`.
+model GiftCategory {
+  code          String           @id @db.VarChar(40)
+  kind          GiftCategoryKind @default(NORMAL)
+  nameAr        String           @map("name_ar") @db.VarChar(30)
+  nameEn        String           @map("name_en") @db.VarChar(30)
+  sortOrder     Int              @default(0) @map("sort_order")
+  enabled       Boolean          @default(true)
+  /// The tab's optional icon (PNG/WebP, content-addressed under `media/gift-categories/<code>/`), or null.
+  iconObjectKey String?          @map("icon_object_key") @db.VarChar(200)
+  createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  gifts Gift[]
+
+  @@map("gift_categories")
 }
 
 /// The corner badge of a gift in the panel.
@@ -2674,44 +2711,55 @@ enum LiveGiftSource {
 /// The gift catalogue, managed only with the `gift-admin` CLI (no gift is seeded). Disabled, never
 /// deleted. CHECKs `gifts_code_format`, `gifts_price_range`, `gifts_names_present`.
 model Gift {
-  code               String         @id @db.VarChar(40)
-  category           GiftCategory
-  nameAr             String         @map("name_ar") @db.VarChar(60)
-  nameEn             String         @map("name_en") @db.VarChar(60)
-  priceCoins         Int            @map("price_coins")
+  code               String               @id @db.VarChar(40)
+  /// v1.46-live (D207): the code of its `gift_categories` row (was the `gift_category` enum).
+  category           String               @db.VarChar(40)
+  nameAr             String               @map("name_ar") @db.VarChar(60)
+  nameEn             String               @map("name_en") @db.VarChar(60)
+  priceCoins         Int                  @map("price_coins")
   /// The app's static image of the gift.
-  assetKey           String         @map("asset_key") @db.VarChar(80)
+  assetKey           String               @map("asset_key") @db.VarChar(80)
   /// The app's full-screen effect (SVGA), or null for none.
-  animationKey       String?        @map("animation_key") @db.VarChar(80)
-  sortOrder          Int            @default(0) @map("sort_order")
-  badge              GiftBadge      @default(NONE)
+  animationKey       String?              @map("animation_key") @db.VarChar(80)
+  sortOrder          Int                  @default(0) @map("sort_order")
+  badge              GiftBadge            @default(NONE)
   /// v1.24.3-live (D117): the optional sub-category (the panel's chips): all three null or all set
   /// (CHECK `gifts_tag_complete`; `gifts_tag_code_format`).
-  tagCode            String?        @map("tag_code") @db.VarChar(40)
-  tagNameAr          String?        @map("tag_name_ar") @db.VarChar(30)
-  tagNameEn          String?        @map("tag_name_en") @db.VarChar(30)
+  tagCode            String?              @map("tag_code") @db.VarChar(40)
+  tagNameAr          String?              @map("tag_name_ar") @db.VarChar(30)
+  tagNameEn          String?              @map("tag_name_en") @db.VarChar(30)
   /// v1.26.2-live (D126): the gift's art on the server, downloaded by the app on demand (object keys
   /// under `media/gifts/<code>/`, content-addressed; the API answers `MEDIA_PUBLIC_BASE_URL/<key>`).
   /// Null: the bundled `assetKey` / `animationKey` only. `animationBytes` is set exactly when
   /// `animationObjectKey` is (CHECK `gifts_animation_bytes_set`).
-  imageObjectKey     String?        @map("image_object_key") @db.VarChar(200)
-  animationObjectKey String?        @map("animation_object_key") @db.VarChar(200)
-  animationBytes     Int?           @map("animation_bytes")
+  imageObjectKey     String?              @map("image_object_key") @db.VarChar(200)
+  animationObjectKey String?              @map("animation_object_key") @db.VarChar(200)
+  animationBytes     Int?                 @map("animation_bytes")
+  /// v1.46-live (D207): the hosted effect's format (set exactly with `animationObjectKey`; `.svga` / `.mp4`) and,
+  /// for an MP4, its transparency (CHECK `gifts_animation_format_set`).
+  animationFormat    GiftAnimationFormat? @map("animation_format")
+  animationAlpha     GiftVideoAlpha?      @map("animation_alpha")
+  /// v1.46-live (D207): the gift's hosted MP3 sound (≤ 1 MiB, ≤ 15 s), played with the effect (or alone); the
+  /// three set together, never on a QUIPS gift (CHECK `gifts_audio_set`).
+  audioObjectKey     String?              @map("audio_object_key") @db.VarChar(200)
+  audioBytes         Int?                 @map("audio_bytes")
+  audioMs            Int?                 @map("audio_ms")
   /// v1.43-live (D195, §10.58): a PK booster's activation gift (DOUBLE ×2 … TRIPLE_TURBO ×10), or null.
   /// Never LUCKY or QUIPS, never free (CHECK `gifts_pk_booster_kind`). PK points only, never money.
-  pkBooster          PkBoosterKind? @map("pk_booster")
+  pkBooster          PkBoosterKind?       @map("pk_booster")
   /// v1.32-live (D154, §10.33): a QUIPS gift's bundled sound (app asset key), its length and its line
   /// of text (shown as a chat bubble while it plays). Set exactly for QUIPS (CHECK `gifts_quip_fields`).
-  soundKey           String?        @map("sound_key") @db.VarChar(80)
-  soundMs            Int?           @map("sound_ms")
-  quipText           String?        @map("quip_text") @db.VarChar(200)
-  enabled            Boolean        @default(true)
-  createdAt          DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt          DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  soundKey           String?              @map("sound_key") @db.VarChar(80)
+  soundMs            Int?                 @map("sound_ms")
+  quipText           String?              @map("quip_text") @db.VarChar(200)
+  enabled            Boolean              @default(true)
+  createdAt          DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  stock    UserGiftStock[]
-  pkBoosts PkBoost[]
-  sends    LiveGift[]
+  categoryRef GiftCategory    @relation(fields: [category], references: [code], onDelete: Restrict, onUpdate: Restrict, map: "gifts_category_fkey")
+  stock       UserGiftStock[]
+  pkBoosts    PkBoost[]
+  sends       LiveGift[]
 
   @@index([category, sortOrder], map: "gifts_category_sort_idx")
   @@map("gifts")

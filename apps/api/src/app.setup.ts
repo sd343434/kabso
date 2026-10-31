@@ -7,6 +7,7 @@ import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module.js';
 import { expressErrorHandler } from './common/errors/all-exceptions.filter.js';
 import { requestIdMiddleware } from './common/request-id/request-id.js';
+import { GIFT_UPLOAD_PATH } from './modules/admin-panel/admin-v2.controller.js';
 import { STRIPE_WEBHOOK_PATH } from './modules/topup/topup.controller.js';
 import type { AppConfig } from './config/app-config.js';
 
@@ -57,6 +58,14 @@ export function configureApp(app: NestExpressApplication, config: AppConfig): vo
   app.useBodyParser('raw', {
     type: (req: { url?: string }) => (req.url ?? '').split('?')[0] === STRIPE_WEBHOOK_PATH,
     limit: '1mb',
+  });
+  // v1.71-social (D207): the admin panel's gift file uploads are the raw bytes (an SVGA is at most 25 MiB); only that
+  // path, and only `application/octet-stream`.
+  app.useBodyParser('raw', {
+    type: (req: { url?: string; headers?: Record<string, string | string[] | undefined> }) =>
+      (req.url ?? '').split('?')[0] === GIFT_UPLOAD_PATH &&
+      String(req.headers?.['content-type'] ?? '').startsWith('application/octet-stream'),
+    limit: '26mb',
   });
   app.useBodyParser('json', { limit: config.http.bodyLimit, strict: true });
   // CP-010: the media server's signed webhook (`application/webhook+json`) is verified against

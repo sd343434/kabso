@@ -1,10 +1,18 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { ContentLanguage } from '../../common/http/content-language.js';
 import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
-import type { Gift, GiftBadge, GiftCategory, PkBoosterKind } from '../../generated/prisma/client.js';
+import type {
+  Gift,
+  GiftAnimationFormat,
+  GiftBadge,
+  GiftCategory,
+  GiftCategoryKind,
+  GiftVideoAlpha,
+  PkBoosterKind,
+} from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { giftArtUrl } from './gift-art.js';
-import { catalogueVersion, GIFT_CATEGORIES } from './gift-catalogue.js';
+import { catalogueVersion, QUIPS_CATEGORY, type GiftCategoryCode } from './gift-catalogue.js';
 
 /**
  * A send within this many seconds of the sender's previous send of the same gift to the same
@@ -24,8 +32,24 @@ export interface GiftTagDto {
 export interface GiftArtDto {
   imageUrl: string | null;
   animationUrl: string | null;
-  /** The SVGA's size in bytes when `animationUrl` is set (the app decides whether to prefetch). */
+  /** The effect's size in bytes when `animationUrl` is set (the app decides whether to prefetch). */
   animationBytes: number | null;
+  /** v1.46-live (D207): `animationUrl`'s format (SVGA or MP4), null exactly when it is. */
+  animationFormat: GiftAnimationFormat | null;
+  /** v1.46-live (D207): an MP4's transparency (NONE or SIDE_BY_SIDE), null for SVGA and without an effect. */
+  animationAlpha: GiftVideoAlpha | null;
+  /** v1.46-live (D207): the hosted MP3 sound played with the effect (or alone), its size and length, or null. */
+  audioUrl: string | null;
+  audioBytes: number | null;
+  audioDurationMs: number | null;
+}
+
+/** `GiftCategoryTab` (v1.46-live, D207): a tab of the gift panel, in the reader's language. */
+export interface GiftCategoryTabDto {
+  code: GiftCategoryCode;
+  kind: GiftCategoryKind;
+  name: string;
+  iconUrl: string | null;
 }
 
 /** `GiftQuip` (v1.32-live, D154): a QUIPS gift's sound and its line of text. */
@@ -40,7 +64,7 @@ export interface GiftQuipDto {
 /** `Gift` (openapi v1.23-live; `tag` v1.24.3-live; hosted art v1.26.2-live; `quip` v1.32-live). */
 export interface GiftDto extends GiftArtDto {
   code: string;
-  category: GiftCategory;
+  category: GiftCategoryCode;
   name: string;
   priceCoins: number;
   assetKey: string;
@@ -57,7 +81,10 @@ export interface GiftDto extends GiftArtDto {
 /** `GiftCatalogue`. */
 export interface GiftCatalogueDto {
   version: string;
-  categories: GiftCategory[];
+  /** The tab codes in order (kept for apps before v1.46-live). */
+  categories: GiftCategoryCode[];
+  /** v1.46-live (D207): the tabs with their names and icons, in order. */
+  tabs: GiftCategoryTabDto[];
   quantities: number[];
   maxRecipients: number;
   comboWindowSeconds: number;
@@ -93,14 +120,36 @@ export function giftTagDto(
  * the app then uses its bundled files). `animationBytes` only with an `animationUrl`.
  */
 export function giftArtDto(
-  gift: Pick<Gift, 'imageObjectKey' | 'animationObjectKey' | 'animationBytes'>,
+  gift: Pick<Gift, 'imageObjectKey' | 'animationObjectKey' | 'animationBytes'> &
+    Partial<Pick<Gift, 'animationFormat' | 'animationAlpha' | 'audioObjectKey' | 'audioBytes' | 'audioMs'>>,
   publicBaseUrl: string | undefined,
 ): GiftArtDto {
   const animationUrl = giftArtUrl(publicBaseUrl, gift.animationObjectKey);
+  const audioUrl = giftArtUrl(publicBaseUrl, gift.audioObjectKey ?? null);
+  const format = animationUrl === null ? null : (gift.animationFormat ?? 'SVGA');
   return {
     imageUrl: giftArtUrl(publicBaseUrl, gift.imageObjectKey),
     animationUrl,
     animationBytes: animationUrl === null ? null : gift.animationBytes,
+    animationFormat: format,
+    animationAlpha: format === 'MP4' ? (gift.animationAlpha ?? 'NONE') : null,
+    audioUrl,
+    audioBytes: audioUrl === null ? null : (gift.audioBytes ?? null),
+    audioDurationMs: audioUrl === null ? null : (gift.audioMs ?? null),
+  };
+}
+
+/** A category as a tab in `lang`. */
+export function giftCategoryTabDto(
+  row: Pick<GiftCategory, 'code' | 'kind' | 'nameAr' | 'nameEn' | 'iconObjectKey'>,
+  lang: ContentLanguage,
+  publicBaseUrl: string | undefined,
+): GiftCategoryTabDto {
+  return {
+    code: row.code,
+    kind: row.kind,
+    name: lang === 'ar' ? row.nameAr : row.nameEn,
+    iconUrl: giftArtUrl(publicBaseUrl, row.iconObjectKey),
   };
 }
 
@@ -124,7 +173,13 @@ export function giftDto(gift: Gift, lang: ContentLanguage, publicBaseUrl: string
   };
 }
 
-const CATALOGUE_ORDER = [{ category: 'asc' }, { sortOrder: 'asc' }, { code: 'asc' }] as const;
+/** v1.46-live (D207): by the category's tab order, then the gift's sort order and code. */
+const CATALOGUE_ORDER = [
+  { categoryRef: { sortOrder: 'asc' } },
+  { category: 'asc' },
+  { sortOrder: 'asc' },
+  { code: 'asc' },
+] as const;
 
 /**
  * Live gifts: the catalogue and the gift bag (CP-020, D108, CONVENTIONS §10.23). The catalogue is
@@ -149,24 +204,30 @@ export class GiftsService {
   }
 
   /**
-   * The tabs listed now: v1.27-live (D132) `LUCKY` only while lucky gifts are on, so a gift of it is
-   * neither listed nor sendable while they are off.
+   * The tabs listed now, in order: v1.46-live (D207) the enabled `gift_categories`; v1.27-live (D132) the LUCKY one
+   * only while lucky gifts are on, so a gift of it is neither listed nor sendable while they are off.
    */
-  get listedCategories(): readonly GiftCategory[] {
-    return this.config.lucky.enabled ? GIFT_CATEGORIES : GIFT_CATEGORIES.filter((c) => c !== 'LUCKY');
+  async listedCategories(): Promise<GiftCategory[]> {
+    const rows = await this.prisma.giftCategory.findMany({
+      where: { enabled: true, ...(this.config.lucky.enabled ? {} : { kind: { not: 'LUCKY' } }) },
+      orderBy: [{ sortOrder: 'asc' }, { code: 'asc' }],
+    });
+    return rows;
   }
 
-  /** `GET /gifts/catalogue`: enabled gifts by tab, then sort order, then code. */
+  /** `GET /gifts/catalogue`: enabled gifts of the listed tabs, by tab, then sort order, then code. */
   async catalogue(lang: ContentLanguage): Promise<GiftCatalogueDto> {
-    const categories = [...this.listedCategories];
+    const tabs = await this.listedCategories();
+    const categories = tabs.map((t) => t.code);
     const gifts = await this.prisma.gift.findMany({
       where: { enabled: true, category: { in: categories } },
       orderBy: [...CATALOGUE_ORDER],
     });
     const quantities = [...this.quantities];
     return {
-      version: catalogueVersion(gifts, quantities, LIVE_GIFT_COMBO_WINDOW_SECONDS, categories),
+      version: catalogueVersion(gifts, quantities, LIVE_GIFT_COMBO_WINDOW_SECONDS, tabs),
       categories,
+      tabs: tabs.map((t) => giftCategoryTabDto(t, lang, this.publicBaseUrl)),
       quantities,
       maxRecipients: LIVE_GIFT_MAX_RECIPIENTS,
       comboWindowSeconds: LIVE_GIFT_COMBO_WINDOW_SECONDS,
@@ -176,15 +237,21 @@ export class GiftsService {
 
   /** `GET /me/gifts/bag`: the caller's enabled gifts with a quantity above 0, in catalogue order. */
   async bag(userId: string, lang: ContentLanguage): Promise<GiftBagDto> {
+    const listed = (await this.listedCategories()).map((t) => t.code);
     const rows = await this.prisma.userGiftStock.findMany({
       where: {
         userId,
         quantity: { gt: 0 },
         // v1.32-live (D154): quips are sent with coins only, so never listed in the bag.
-        gift: { enabled: true, category: { in: this.listedCategories.filter((c) => c !== 'QUIPS') } },
+        gift: { enabled: true, category: { in: listed.filter((c) => c !== QUIPS_CATEGORY) } },
       },
       include: { gift: true },
-      orderBy: [{ gift: { category: 'asc' } }, { gift: { sortOrder: 'asc' } }, { giftCode: 'asc' }],
+      orderBy: [
+        { gift: { categoryRef: { sortOrder: 'asc' } } },
+        { gift: { category: 'asc' } },
+        { gift: { sortOrder: 'asc' } },
+        { giftCode: 'asc' },
+      ],
     });
     return {
       data: rows.map((r) => ({ ...giftDto(r.gift, lang, this.publicBaseUrl), quantity: r.quantity })),

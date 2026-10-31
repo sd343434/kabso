@@ -121,3 +121,59 @@ export async function downloadCsv(path: string, query: Query, fallback: string):
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+/** v1.71-social (D207): what `POST /admin/gift-uploads` answers for a stored file. */
+export interface GiftUpload {
+  kind: 'image' | 'animation' | 'sound' | 'icon';
+  key: string;
+  url: string | null;
+  bytes: number;
+  contentType: string;
+  format?: 'SVGA' | 'MP4';
+  width?: number;
+  height?: number;
+  durationMs?: number;
+  detectedAlpha?: 'NONE' | 'SIDE_BY_SIDE';
+}
+
+/**
+ * v1.71-social (D207, CONVENTIONS §10.66): uploads one gift file (or a category icon) as the raw request body, with
+ * the CSRF token, reporting progress (0 … 1). XMLHttpRequest because `fetch` has no upload progress. The server
+ * checks the file (409 with the reason) and stores it; the key goes into the gift / category form.
+ */
+export function uploadGiftFile(
+  kind: GiftUpload['kind'],
+  code: string,
+  file: Blob,
+  onProgress: (fraction: number) => void = () => undefined,
+): Promise<GiftUpload> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `/api/v1${withQuery('/admin/gift-uploads', { kind, code })}`);
+    xhr.withCredentials = true;
+    xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+    xhr.setRequestHeader('Accept', 'application/json');
+    if (csrfToken) xhr.setRequestHeader('X-CSRF-Token', csrfToken);
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && e.total > 0) onProgress(e.loaded / e.total);
+    };
+    xhr.onerror = () => reject(new ApiError(0, 'NETWORK', 'network'));
+    xhr.onload = () => {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(xhr.responseText);
+      } catch {
+        parsed = null;
+      }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        onProgress(1);
+        resolve(parsed as GiftUpload);
+        return;
+      }
+      const err = (parsed as ApiErrorBody | null)?.error;
+      if (xhr.status === 401) onUnauthenticated?.();
+      reject(new ApiError(xhr.status, err?.code ?? 'HTTP_ERROR', err?.message ?? xhr.statusText, null, err?.details ?? []));
+    };
+    xhr.send(file);
+  });
+}

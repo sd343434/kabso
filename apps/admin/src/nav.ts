@@ -48,6 +48,7 @@ export const NAV: NavGroup[] = [
     key: 'navGroupGifts',
     items: [
       { to: '/gifts', key: 'navGifts', icon: 'gift', cap: 'catalog.view', match: ['gifts'] },
+      { to: '/gift-categories', key: 'navGiftCategories', icon: 'list', cap: 'catalog.view', match: ['giftCategories'] },
       { to: '/items', key: 'navItems', icon: 'frame', cap: 'catalog.view', match: ['items'] },
       { to: '/promo', key: 'navPromo', icon: 'calendar', cap: 'catalog.view', match: ['promo'] },
     ],

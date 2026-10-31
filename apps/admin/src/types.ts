@@ -37,7 +37,9 @@ export type Capability =
   | 'audit.view'
   | 'team.manage'
   | 'programs.view'
-  | 'waitlist.view';
+  | 'waitlist.view'
+  // v1.71-social (D207)
+  | 'gifts.categories';
 
 export interface AdminSessionInfo {
   admin: { id: string; email: string; username: string; displayName: string };

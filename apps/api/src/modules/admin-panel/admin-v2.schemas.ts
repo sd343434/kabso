@@ -1,5 +1,15 @@
 import { z } from 'zod';
-import { GIFT_ASSET_KEY_PATTERN, GIFT_CODE_PATTERN } from '../gifts/gift-catalogue.js';
+import {
+  GIFT_ANIMATION_OBJECT_KEY_PATTERN,
+  GIFT_AUDIO_OBJECT_KEY_PATTERN,
+  GIFT_IMAGE_OBJECT_KEY_PATTERN,
+} from '../gifts/gift-art.js';
+import {
+  GIFT_ASSET_KEY_PATTERN,
+  GIFT_CATEGORY_CODE_PATTERN,
+  GIFT_CODE_PATTERN,
+} from '../gifts/gift-catalogue.js';
+import { GIFT_CATEGORY_ICON_KEY_PATTERN } from '../gifts/gift-categories.js';
 import { EVENT_METRICS, EVENT_TONES } from '../programs/event-admin-rules.js';
 import { PANEL_ROLES } from './admin-permissions.js';
 import { dayRange, tableQuery } from './admin-tables.js';
@@ -84,7 +94,8 @@ export const hostBody = z.strictObject({ username: z.string().trim().min(1).max(
 const name = z.string().trim().min(1).max(60);
 const assetKey = z.string().regex(GIFT_ASSET_KEY_PATTERN);
 const giftFields = {
-  category: z.enum(['POPULAR', 'EVENT', 'FUN', 'LUCKY', 'QUIPS']),
+  // v1.71-social (D207): any category code (gift_categories); the rule checks that it exists.
+  category: z.string().regex(GIFT_CATEGORY_CODE_PATTERN),
   nameAr: name,
   nameEn: name,
   priceCoins: z.number().int().min(0).max(1_000_000),
@@ -101,6 +112,11 @@ const giftFields = {
   soundKey: assetKey.nullable(),
   soundMs: z.number().int().min(200).max(15_000).nullable(),
   quipText: z.string().trim().min(1).max(200).nullable(),
+  // v1.71-social (D207): files uploaded with `POST /admin/gift-uploads` (keys it answered), or null to remove.
+  imageObjectKey: z.string().regex(GIFT_IMAGE_OBJECT_KEY_PATTERN).nullable(),
+  animationObjectKey: z.string().regex(GIFT_ANIMATION_OBJECT_KEY_PATTERN).nullable(),
+  animationAlpha: z.enum(['NONE', 'SIDE_BY_SIDE']),
+  audioObjectKey: z.string().regex(GIFT_AUDIO_OBJECT_KEY_PATTERN).nullable(),
 };
 
 export const createGiftBody = z.strictObject({
@@ -109,7 +125,12 @@ export const createGiftBody = z.strictObject({
   nameAr: giftFields.nameAr,
   nameEn: giftFields.nameEn,
   priceCoins: giftFields.priceCoins,
-  assetKey: giftFields.assetKey,
+  // v1.71-social (D207): the bundled image key is optional now (default: the gift's code); «صورة الهدية» is required.
+  assetKey: giftFields.assetKey.optional(),
+  imageObjectKey: giftFields.imageObjectKey.unwrap(),
+  animationObjectKey: giftFields.animationObjectKey.optional(),
+  animationAlpha: giftFields.animationAlpha.optional(),
+  audioObjectKey: giftFields.audioObjectKey.optional(),
   animationKey: giftFields.animationKey.optional(),
   sortOrder: giftFields.sortOrder.optional(),
   badge: giftFields.badge.optional(),
@@ -138,9 +159,67 @@ export const updateGiftBody = z
     soundKey: giftFields.soundKey.optional(),
     soundMs: giftFields.soundMs.optional(),
     quipText: giftFields.quipText.optional(),
+    imageObjectKey: giftFields.imageObjectKey.optional(),
+    animationObjectKey: giftFields.animationObjectKey.optional(),
+    animationAlpha: giftFields.animationAlpha.optional(),
+    audioObjectKey: giftFields.audioObjectKey.optional(),
     reason,
   })
   .refine((v) => Object.keys(v).length > 1, { message: 'nothing to change', path: ['reason'] });
+
+// ---- v1.71-social (D207, CONVENTIONS §10.66): gift categories and uploads -------------------------------------
+
+const categoryName = z.string().trim().min(1).max(30);
+const categorySort = z.number().int().min(0).max(1_000_000);
+const categoryIcon = z.string().regex(GIFT_CATEGORY_ICON_KEY_PATTERN).nullable();
+
+export const createGiftCategoryBody = z.strictObject({
+  code: z.string().regex(GIFT_CATEGORY_CODE_PATTERN),
+  nameAr: categoryName,
+  nameEn: categoryName,
+  sortOrder: categorySort.optional(),
+  enabled: z.boolean().optional(),
+  iconObjectKey: categoryIcon.optional(),
+  reason,
+});
+
+export const updateGiftCategoryBody = z
+  .strictObject({
+    nameAr: categoryName.optional(),
+    nameEn: categoryName.optional(),
+    sortOrder: categorySort.optional(),
+    iconObjectKey: categoryIcon.optional(),
+    reason,
+  })
+  .refine((v) => Object.keys(v).length > 1, { message: 'nothing to change', path: ['reason'] });
+
+export const removeGiftCategoryBody = z.strictObject({
+  /** Move the category's gifts to this NORMAL category first (required while it has gifts). */
+  moveTo: z.string().regex(GIFT_CATEGORY_CODE_PATTERN).optional(),
+  reason,
+});
+
+/** v1.71-social (D207): a stored gift file or category icon, read back for the panel's preview (same origin). */
+export const giftFileQuery = z.strictObject({
+  key: z
+    .string()
+    .max(200)
+    .refine(
+      (k) =>
+        GIFT_IMAGE_OBJECT_KEY_PATTERN.test(k) ||
+        GIFT_ANIMATION_OBJECT_KEY_PATTERN.test(k) ||
+        GIFT_AUDIO_OBJECT_KEY_PATTERN.test(k) ||
+        GIFT_CATEGORY_ICON_KEY_PATTERN.test(k),
+      { message: 'not a gift file key' },
+    ),
+});
+
+export const giftUploadQuery = z.strictObject({
+  /** image: «صورة الهدية»; animation: SVGA or MP4 «ملف العرض»; sound: MP3; icon: a category's icon. */
+  kind: z.enum(['image', 'animation', 'sound', 'icon']),
+  /** The gift's code (image, animation, sound) or the category's (icon): the files' folder. */
+  code: z.string().min(1).max(40),
+});
 
 export const bagGrantBody = z.strictObject({
   code: z.string().trim().min(1).max(40),

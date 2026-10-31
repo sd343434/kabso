@@ -161,6 +161,15 @@ const GIFT_INCLUDE = {
 } as const satisfies Prisma.LiveGiftInclude;
 type GiftRow = Prisma.LiveGiftGetPayload<{ include: typeof GIFT_INCLUDE }>;
 
+/**
+ * The recipients' share of a non-lucky gift's send by its category (`GIFT_HOST_SHARE_PERCENTS`). v1.46-live (D207): a
+ * category added in the panel has no setting of its own and takes the POPULAR share (an ordinary gift's, 65 %).
+ */
+export function hostShareBpsOf(config: AppConfig, category: string): number {
+  const shares = config.gifts.hostShareBps as Readonly<Record<string, number>>;
+  return shares[category] ?? config.gifts.hostShareBps.POPULAR;
+}
+
 function toDto(row: GiftRow, originRoomId: string, publicBaseUrl: string | undefined): LiveGiftDto {
   return {
     id: row.id,
@@ -284,8 +293,12 @@ export class LiveGiftsService {
     // D128 (owner): the caller may be among the recipients — the host, or someone seated, gifting
     // themself; a viewer who is not seated is refused below like any recipient who is not seated.
     const { recipients, people } = await this.resolveRecipients(callerId, input.recipients);
-    const gift = await this.prisma.gift.findUnique({ where: { code: input.giftCode } });
-    if (!gift?.enabled) throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
+    const gift = await this.prisma.gift.findUnique({
+      where: { code: input.giftCode },
+      include: { categoryRef: { select: { enabled: true } } },
+    });
+    // v1.46-live (D207): a gift of a disabled category is not listed, so not sendable either.
+    if (!gift?.enabled || !gift.categoryRef.enabled) throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
     // v1.27-live (D132, §10.27): a lucky gift — on, paid with coins, the caller's region and 18+.
     const isLucky = gift.category === 'LUCKY';
     // v1.32-live (D154, §10.33): a quip — paid with coins (or free), one at a time.
@@ -332,7 +345,7 @@ export class LiveGiftsService {
     const table = this.lucky.table;
     // v1.32-live (D154): the recipients' earnings share of this send, fixed now (§10.33).
     const hostShareBps =
-      gift.category === 'LUCKY' ? table.hostShareBps : this.config.gifts.hostShareBps[gift.category];
+      gift.category === 'LUCKY' ? table.hostShareBps : hostShareBpsOf(this.config, gift.category);
     let created: {
       dto: LiveGiftDto;
       coins: number | null;
@@ -767,8 +780,12 @@ export class LiveGiftsService {
     },
   ): Promise<{ extra: T; coins: number; bagQuantity: number; luckyResult: LuckyGiftResultDto | null }> {
     const clientId = input.clientId.toLowerCase();
-    const gift = await this.prisma.gift.findUnique({ where: { code: input.giftCode } });
-    if (!gift?.enabled) throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
+    const gift = await this.prisma.gift.findUnique({
+      where: { code: input.giftCode },
+      include: { categoryRef: { select: { enabled: true } } },
+    });
+    // v1.46-live (D207): a gift of a disabled category is not listed, so not sendable either.
+    if (!gift?.enabled || !gift.categoryRef.enabled) throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
     const isLucky = gift.category === 'LUCKY';
     // v1.32-live (D154, §10.33) in a conversation: a paid quip, COINS and one at a time (as in a
     // live); the free quip belongs to a live (one per viewer per live) and is refused here.

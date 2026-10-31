@@ -4,6 +4,7 @@ import { Dialog, ErrorAlert, FormDialog, reasonField, useAsync } from '../compon
 import { useApp } from '../context';
 import { formatDate, formatNumber } from '../format';
 import { Icon } from '../ui/icons';
+import { FileSlot, NO_FILE, previewUrl, type Alpha, type FileValue } from './GiftFiles';
 
 export interface GiftDto {
   code: string;
@@ -16,6 +17,16 @@ export interface GiftDto {
   animationKey: string | null;
   imageUrl: string | null;
   hostedAnimation: boolean;
+  /** v1.71-social (D207): the uploaded files. */
+  imageObjectKey: string | null;
+  animationObjectKey: string | null;
+  animationUrl: string | null;
+  animationFormat: 'SVGA' | 'MP4' | null;
+  animationAlpha: Alpha | null;
+  animationBytes: number | null;
+  audioObjectKey: string | null;
+  audioUrl: string | null;
+  audioMs: number | null;
   sortOrder: number;
   badge: string;
   lucky: boolean;
@@ -30,7 +41,63 @@ export interface GiftDto {
   coinsSpent: number;
 }
 
-const CATEGORIES = ['POPULAR', 'EVENT', 'FUN', 'LUCKY', 'QUIPS'] as const;
+/** v1.71-social (D207): a category as the gift list answers it (the form's choice and the tabs). */
+export interface GiftCategoryChoice {
+  code: string;
+  kind: 'NORMAL' | 'LUCKY' | 'QUIPS';
+  nameAr: string;
+  nameEn: string;
+  enabled: boolean;
+}
+
+export interface GiftListDto {
+  coinRetailUsdPerMillion: number;
+  categories: GiftCategoryChoice[];
+  uploads: { storage: boolean; publicUrls: boolean };
+  data: GiftDto[];
+}
+
+/** The form's files (D207). */
+export interface GiftFilesState {
+  image: FileValue;
+  animation: FileValue;
+  alpha: Alpha;
+  sound: FileValue;
+}
+
+export function filesOf(gift: GiftDto | null): GiftFilesState {
+  if (!gift) return { image: NO_FILE, animation: NO_FILE, alpha: 'NONE', sound: NO_FILE };
+  return {
+    image: { key: gift.imageObjectKey, url: previewUrl(gift.imageObjectKey) },
+    animation: { key: gift.animationObjectKey, url: previewUrl(gift.animationObjectKey), format: gift.animationFormat ?? undefined },
+    alpha: gift.animationAlpha ?? 'NONE',
+    sound: { key: gift.audioObjectKey, url: previewUrl(gift.audioObjectKey), durationMs: gift.audioMs },
+  };
+}
+
+/** The files' part of the body: on create what is set; on an edit only what changed (null: removed). */
+export function filesBody(files: GiftFilesState, before: GiftDto | null): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  const was = filesOf(before);
+  if (before === null) {
+    if (files.image.key) out.imageObjectKey = files.image.key;
+    if (files.animation.key) {
+      out.animationObjectKey = files.animation.key;
+      if (files.animation.key.endsWith('.mp4')) out.animationAlpha = files.alpha;
+    }
+    if (files.sound.key) out.audioObjectKey = files.sound.key;
+    return out;
+  }
+  if (files.image.key !== was.image.key && files.image.key) out.imageObjectKey = files.image.key;
+  const mp4 = files.animation.key?.endsWith('.mp4') ?? false;
+  if (files.animation.key !== was.animation.key) {
+    out.animationObjectKey = files.animation.key;
+    if (mp4) out.animationAlpha = files.alpha;
+  } else if (mp4 && files.alpha !== was.alpha) out.animationAlpha = files.alpha;
+  if (files.sound.key !== was.sound.key) out.audioObjectKey = files.sound.key;
+  return out;
+}
+
 const BADGES = ['NONE', 'NEW', 'EVENT'] as const;
 
 /** The gift form's fields → the request body: only what changed on an edit, nulls for cleared optional fields. */
@@ -44,7 +111,7 @@ export function giftBody(form: Record<string, string>, before: GiftDto | null): 
     ['nameAr', text('nameAr')],
     ['nameEn', text('nameEn')],
     ['priceCoins', Number(text('priceCoins'))],
-    ['assetKey', text('assetKey')],
+    ['assetKey', text('assetKey') === '' && before === null ? null : text('assetKey')],
     ['animationKey', opt('animationKey')],
     ['sortOrder', Number(text('sortOrder') || '0')],
     ['badge', text('badge') || 'NONE'],
@@ -63,8 +130,21 @@ export function giftBody(form: Record<string, string>, before: GiftDto | null): 
   return out;
 }
 
-function GiftForm({ gift, onClose, onDone }: { gift: GiftDto | null; onClose: () => void; onDone: () => void }) {
-  const { t } = useApp();
+function GiftForm({
+  gift,
+  categories,
+  uploads,
+  onClose,
+  onDone,
+}: {
+  gift: GiftDto | null;
+  categories: GiftCategoryChoice[];
+  uploads: GiftListDto['uploads'] | undefined;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const { t, lang } = useApp();
+  const [files, setFiles] = useState<GiftFilesState>(() => filesOf(gift));
   const [form, setForm] = useState<Record<string, string>>(() =>
     gift
       ? Object.fromEntries(Object.entries(gift).map(([k, v]) => [k, v === null || v === undefined ? '' : String(v)]))
@@ -74,8 +154,13 @@ function GiftForm({ gift, onClose, onDone }: { gift: GiftDto | null; onClose: ()
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
   const set = (k: string) => (e: { target: { value: string } }) => setForm((f) => ({ ...f, [k]: e.target.value }));
-  const body = giftBody(form, gift);
-  const ok = reason.trim() !== '' && (gift ? Object.keys(body).length > 0 : !!form.code && !!form.nameAr && !!form.nameEn && !!form.assetKey && form.priceCoins !== '');
+  const body = { ...giftBody(form, gift), ...filesBody(files, gift) };
+  const code = gift?.code ?? (/^[a-z0-9][a-z0-9_]{0,39}$/.test((form.code ?? '').trim()) ? (form.code ?? '').trim() : '');
+  const ok =
+    reason.trim() !== '' &&
+    (gift
+      ? Object.keys(body).length > 0
+      : !!code && !!form.nameAr && !!form.nameEn && !!files.image.key && form.priceCoins !== '');
   const input = (k: string, label: Parameters<typeof t>[0], props: Record<string, unknown> = {}) => (
     <div className="field">
       <label htmlFor={`gf-${k}`}>{t(label)}</label>
@@ -104,9 +189,10 @@ function GiftForm({ gift, onClose, onDone }: { gift: GiftDto | null; onClose: ()
         <div className="field">
           <label htmlFor="gf-category">{t('colCategory')}</label>
           <select id="gf-category" value={form.category} onChange={set('category')}>
-            {CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                {t(`giftCat${c}` as never)}
+            {categories.map((c) => (
+              <option key={c.code} value={c.code}>
+                {lang === 'ar' ? c.nameAr : c.nameEn}
+                {c.enabled ? '' : ` (${t('giftCategoryOff')})`}
               </option>
             ))}
           </select>
@@ -137,6 +223,40 @@ function GiftForm({ gift, onClose, onDone }: { gift: GiftDto | null; onClose: ()
             {input('quipText', 'giftQuipText', { maxLength: 200 })}
           </>
         )}
+        <fieldset className="span-2 form-grid file-group">
+          <legend>{t('giftFiles')}</legend>
+          {uploads && !uploads.storage && <p className="alert warn span-2">{t('giftStorageOff')}</p>}
+          {uploads && uploads.storage && !uploads.publicUrls && <p className="alert warn span-2">{t('giftPublicOff')}</p>}
+          <FileSlot
+            kind="image"
+            code={code}
+            label={t('giftImage')}
+            hint={t('giftImageHint')}
+            value={files.image}
+            removable={!gift}
+            onChange={(image) => setFiles((f) => ({ ...f, image }))}
+          />
+          <FileSlot
+            kind="animation"
+            code={code}
+            label={t('giftDisplayFile')}
+            hint={t('giftDisplayHint')}
+            value={files.animation}
+            alpha={files.alpha}
+            onAlpha={(alpha) => setFiles((f) => ({ ...f, alpha }))}
+            onChange={(animation) => setFiles((f) => ({ ...f, animation }))}
+          />
+          {form.category !== 'QUIPS' && (
+            <FileSlot
+              kind="sound"
+              code={code}
+              label={t('giftSoundFile')}
+              hint={t('giftSoundHint')}
+              value={files.sound}
+              onChange={(sound) => setFiles((f) => ({ ...f, sound }))}
+            />
+          )}
+        </fieldset>
         <div className="field span-2">
           <label htmlFor="gf-reason">{t('reason')}</label>
           <textarea id="gf-reason" maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} />
@@ -158,7 +278,7 @@ function GiftForm({ gift, onClose, onDone }: { gift: GiftDto | null; onClose: ()
 /** «الهدايا» (D197): the catalogue as cards — price in coins and USD, category (LUCKY), badge, use — with CRUD. */
 export function Gifts() {
   const { t, lang, can, toast } = useApp();
-  const { data, error, loading, reload } = useAsync(() => api.get<{ coinRetailUsdPerMillion: number; data: GiftDto[] }>('/admin/gifts'), []);
+  const { data, error, loading, reload } = useAsync(() => api.get<GiftListDto>('/admin/gifts'), []);
   const [cat, setCat] = useState<string>('');
   const [edit, setEdit] = useState<GiftDto | 'new' | null>(null);
   const [toggle, setToggle] = useState<GiftDto | null>(null);
@@ -181,9 +301,10 @@ export function Gifts() {
         <button className="tab" aria-pressed={cat === ''} onClick={() => setCat('')}>
           {t('all')}
         </button>
-        {CATEGORIES.map((c) => (
-          <button key={c} className="tab" aria-pressed={cat === c} onClick={() => setCat(c)}>
-            {t(`giftCat${c}` as never)}
+        {(data?.categories ?? []).map((c) => (
+          <button key={c.code} className="tab" aria-pressed={cat === c.code} onClick={() => setCat(c.code)}>
+            {lang === 'ar' ? c.nameAr : c.nameEn}
+            {c.enabled ? '' : ` · ${t('giftCategoryOff')}`}
           </button>
         ))}
       </div>
@@ -202,6 +323,8 @@ export function Gifts() {
               {g.imageUrl ? <img src={g.imageUrl} alt="" loading="lazy" /> : <Icon name="gift" size={36} />}
               {g.badge !== 'NONE' && <span className="badge warn corner">{t(`giftBadge${g.badge}` as never)}</span>}
               {g.lucky && <span className="badge info corner2">{t('giftCatLUCKY')}</span>}
+              {g.animationFormat && <span className="badge corner3 ltr">{g.animationFormat}{g.animationAlpha === 'SIDE_BY_SIDE' ? ' α' : ''}</span>}
+              {g.audioObjectKey && <span className="badge corner4 ltr">MP3</span>}
             </div>
             <div className="gift-name">{lang === 'ar' ? g.nameAr : g.nameEn}</div>
             <div className="mono small muted">{g.code}</div>
@@ -227,6 +350,8 @@ export function Gifts() {
       {edit && (
         <GiftForm
           gift={edit === 'new' ? null : edit}
+          categories={data?.categories ?? []}
+          uploads={data?.uploads}
           onClose={() => setEdit(null)}
           onDone={() => {
             setEdit(null);

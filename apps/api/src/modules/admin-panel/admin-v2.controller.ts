@@ -1,15 +1,27 @@
-import { Body, Controller, Get, HttpCode, Param, Patch, Post, Query, Res, UseGuards } from '@nestjs/common';
-import type { Response } from 'express';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
+import type { Request, Response } from 'express';
 import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
 import { byIp, RateLimit } from '../../common/rate-limit/rate-limit.decorator.js';
 import { ZodValidationPipe } from '../../common/validation/zod-validation.pipe.js';
 import { Public } from '../auth/public.decorator.js';
-import type { GiftBadge, GiftCategory, EventMetric } from '../../generated/prisma/client.js';
-import { GIFT_CODE_PATTERN } from '../gifts/gift-catalogue.js';
+import type { GiftBadge, EventMetric } from '../../generated/prisma/client.js';
+import { GIFT_CATEGORY_CODE_PATTERN, GIFT_CODE_PATTERN } from '../gifts/gift-catalogue.js';
 import type { AdminContext } from './admin-auth.service.js';
 import { AdminAgenciesService, type AgenciesQuery, type ComplaintsQuery } from './admin-agencies.service.js';
-import { AdminCatalogService } from './admin-catalog.service.js';
+import { AdminCatalogService, type GiftCategoryInput, type GiftUploadKind } from './admin-catalog.service.js';
 import { AdminLivesService } from './admin-lives.service.js';
 import { AdminMoneyService, type RangeQuery } from './admin-money.service.js';
 import { pathUuid } from './admin-panel.schemas.js';
@@ -32,6 +44,11 @@ import {
   createAgencyBody,
   createEventBody,
   createGiftBody,
+  createGiftCategoryBody,
+  giftFileQuery,
+  giftUploadQuery,
+  removeGiftCategoryBody,
+  updateGiftCategoryBody,
   hostBody,
   hostsQuery,
   ledgerQuery,
@@ -62,9 +79,18 @@ function giftCode(raw: string): string {
   return raw;
 }
 
+/** v1.71-social (D207): a category code in a path (404 for anything else). */
+function categoryCode(raw: string): string {
+  if (!GIFT_CATEGORY_CODE_PATTERN.test(raw)) throw new AppException(ErrorCode.NOT_FOUND);
+  return raw;
+}
+
+/** v1.71-social (D207): the raw upload route (its body is kept as bytes, app.setup). */
+export const GIFT_UPLOAD_PATH = '/api/v1/admin/gift-uploads';
+
 type Page = { page: number; pageSize: number };
 type GiftBody = {
-  category?: GiftCategory;
+  category?: string;
   badge?: GiftBadge;
   reason: string;
   [k: string]: unknown;
@@ -385,6 +411,98 @@ export class AdminV2Controller {
     @CurrentAdmin() admin: AdminContext,
   ) {
     return this.catalog.setGiftEnabled(giftCode(code), true, body.reason, admin);
+  }
+
+  // ---- v1.71-social (D207, §10.66): gift categories and the gift's files ----------------------------------------
+
+  @Get('gift-categories')
+  @RequireCapability('catalog.view')
+  giftCategories() {
+    return this.catalog.giftCategories();
+  }
+
+  @Post('gift-categories')
+  @HttpCode(201)
+  @RequireCapability('gifts.categories')
+  createGiftCategory(
+    @Body(new ZodValidationPipe(createGiftCategoryBody))
+    body: GiftCategoryInput & { code: string; reason: string },
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    const { code, ...rest } = body;
+    return this.catalog.createGiftCategory(code, rest, admin);
+  }
+
+  @Patch('gift-categories/:code')
+  @RequireCapability('gifts.categories')
+  updateGiftCategory(
+    @Param('code') code: string,
+    @Body(new ZodValidationPipe(updateGiftCategoryBody)) body: GiftCategoryInput & { reason: string },
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    return this.catalog.updateGiftCategory(categoryCode(code), body, admin);
+  }
+
+  @Post('gift-categories/:code/enable')
+  @HttpCode(200)
+  @RequireCapability('gifts.categories')
+  enableGiftCategory(
+    @Param('code') code: string,
+    @Body(new ZodValidationPipe(reasonBody)) body: { reason: string },
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    return this.catalog.setGiftCategoryEnabled(categoryCode(code), true, body.reason, admin);
+  }
+
+  @Post('gift-categories/:code/disable')
+  @HttpCode(200)
+  @RequireCapability('gifts.categories')
+  disableGiftCategory(
+    @Param('code') code: string,
+    @Body(new ZodValidationPipe(reasonBody)) body: { reason: string },
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    return this.catalog.setGiftCategoryEnabled(categoryCode(code), false, body.reason, admin);
+  }
+
+  @Post('gift-categories/:code/remove')
+  @HttpCode(200)
+  @RequireCapability('gifts.categories')
+  removeGiftCategory(
+    @Param('code') code: string,
+    @Body(new ZodValidationPipe(removeGiftCategoryBody)) body: { moveTo?: string; reason: string },
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    return this.catalog.removeGiftCategory(categoryCode(code), body.moveTo ?? null, body.reason, admin);
+  }
+
+  /**
+   * One file of a gift (image, SVGA / MP4 effect, MP3 sound) or a category's icon, the raw bytes as the body
+   * (`application/octet-stream`, at most 26 MB). catalog.manage; an icon gifts.categories.
+   */
+  @Post('gift-uploads')
+  @HttpCode(201)
+  @RequireCapability('catalog.manage')
+  uploadGiftFile(
+    @Query(new ZodValidationPipe(giftUploadQuery)) q: { kind: GiftUploadKind; code: string },
+    @Req() req: Request,
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    if (q.kind === 'icon' && !can(admin.roles, 'gifts.categories'))
+      throw new AppException(ErrorCode.AUTH_FORBIDDEN);
+    return this.catalog.upload(q.kind, q.code, req.body);
+  }
+
+  /** The bytes of an uploaded gift file / category icon, for the panel's preview (same origin; not cached). */
+  @Get('gift-files')
+  @RequireCapability('catalog.view')
+  async giftFile(
+    @Query(new ZodValidationPipe(giftFileQuery)) q: { key: string },
+    @Res({ passthrough: false }) res: Response,
+  ): Promise<void> {
+    const file = await this.catalog.file(q.key);
+    res.status(200).type(file.contentType).setHeader('Content-Length', String(file.body.length));
+    res.end(file.body);
   }
 
   @Post('gifts/:code/disable')

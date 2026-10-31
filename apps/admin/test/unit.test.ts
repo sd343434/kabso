@@ -124,7 +124,9 @@ describe('QR', () => {
 import { attachmentName } from '../src/api';
 import { visibleNav, CAP_OF_ROUTE } from '../src/nav';
 import { diffOf, metaText } from '../src/pages/Audit';
-import { giftBody, type GiftDto } from '../src/pages/Catalog';
+import { filesBody, filesOf, giftBody, type GiftDto } from '../src/pages/Catalog';
+import { categoryBody } from '../src/pages/GiftCategories';
+import { parseMovieEntity } from '../src/svga';
 import { deltaPercent, formatDay } from '../src/pages/Dashboard';
 import { defaultRange } from '../src/pages/Finance';
 import { onAir } from '../src/pages/Lives';
@@ -213,6 +215,15 @@ describe('gift form', () => {
     animationKey: null,
     imageUrl: null,
     hostedAnimation: false,
+    imageObjectKey: null,
+    animationObjectKey: null,
+    animationUrl: null,
+    animationFormat: null,
+    animationAlpha: null,
+    animationBytes: null,
+    audioObjectKey: null,
+    audioUrl: null,
+    audioMs: null,
     sortOrder: 0,
     badge: 'NONE',
     lucky: false,
@@ -240,6 +251,76 @@ describe('gift form', () => {
     expect(
       giftBody({ category: 'LUCKY', nameAr: 'نجمة', nameEn: 'Star', priceCoins: '500', assetKey: 'gifts/star', badge: 'NONE', sortOrder: '0' }, null),
     ).toEqual({ category: 'LUCKY', nameAr: 'نجمة', nameEn: 'Star', priceCoins: 500, assetKey: 'gifts/star', sortOrder: 0, badge: 'NONE' });
+  });
+});
+
+describe('gift files and categories (D207)', () => {
+  const key = (ext: string, n = 'a') => `media/gifts/rose/${n.repeat(32)}.${ext}`;
+  const gift = {
+    code: 'rose',
+    imageObjectKey: key('png'),
+    imageUrl: 'https://m/x.png',
+    animationObjectKey: key('mp4'),
+    animationUrl: 'https://m/x.mp4',
+    animationFormat: 'MP4',
+    animationAlpha: 'NONE',
+    audioObjectKey: null,
+    audioUrl: null,
+    audioMs: null,
+  } as unknown as GiftDto;
+  it('a new gift sends the uploaded keys (an MP4 with its transparency)', () => {
+    const files = filesOf(null);
+    expect(filesBody(files, null)).toEqual({});
+    expect(
+      filesBody(
+        { image: { key: key('png'), url: null }, animation: { key: key('mp4'), url: null }, alpha: 'SIDE_BY_SIDE', sound: { key: key('mp3'), url: null } },
+        null,
+      ),
+    ).toEqual({ imageObjectKey: key('png'), animationObjectKey: key('mp4'), animationAlpha: 'SIDE_BY_SIDE', audioObjectKey: key('mp3') });
+    expect(filesBody({ ...files, image: { key: key('png'), url: null }, animation: { key: key('svga'), url: null } }, null)).toEqual({
+      imageObjectKey: key('png'),
+      animationObjectKey: key('svga'),
+    });
+  });
+  it('an edit sends only what changed: the transparency alone, a removal as null', () => {
+    const was = filesOf(gift);
+    expect(filesBody(was, gift)).toEqual({});
+    expect(filesBody({ ...was, alpha: 'SIDE_BY_SIDE' }, gift)).toEqual({ animationAlpha: 'SIDE_BY_SIDE' });
+    expect(filesBody({ ...was, animation: { key: null, url: null } }, gift)).toEqual({ animationObjectKey: null });
+    expect(filesBody({ ...was, sound: { key: key('mp3'), url: null } }, gift)).toEqual({ audioObjectKey: key('mp3') });
+    expect(filesBody({ ...was, image: { key: key('png', 'b'), url: null } }, gift)).toEqual({ imageObjectKey: key('png', 'b') });
+  });
+  it('the category form: everything on create, only changes on an edit', () => {
+    const form = { code: 'SPORTS', nameAr: 'رياضة', nameEn: 'Sports', sortOrder: '60' };
+    expect(categoryBody(form, { key: null, url: null }, null)).toEqual({ code: 'SPORTS', nameAr: 'رياضة', nameEn: 'Sports', sortOrder: 60 });
+    const before = { code: 'SPORTS', kind: 'NORMAL', nameAr: 'رياضة', nameEn: 'Sports', sortOrder: 60, enabled: true, iconObjectKey: null, iconUrl: null, gifts: 0, enabledGifts: 0, special: false } as const;
+    expect(categoryBody(form, { key: null, url: null }, before)).toEqual({});
+    expect(categoryBody({ ...form, nameEn: 'Sport' }, { key: 'media/gift-categories/SPORTS/x.png', url: null }, before)).toEqual({
+      nameEn: 'Sport',
+      iconObjectKey: 'media/gift-categories/SPORTS/x.png',
+    });
+  });
+  it('reads an SVGA MovieEntity: params, images and sprite frames', () => {
+    // MovieEntity { version: "2.0", params { 300, 200, fps 20, frames 2 }, images { "a": [1,2,3] }, sprites [{ imageKey "a", frames [{ alpha 1, layout {0,0,10,10} }, {}] }] }
+    const f32 = (n: number) => {
+      const b = new Uint8Array(4);
+      new DataView(b.buffer).setFloat32(0, n, true);
+      return [...b];
+    };
+    const msg = (field: number, bytes: number[]) => [(field << 3) | 2, bytes.length, ...bytes];
+    const params = [0x0d, ...f32(300), 0x15, ...f32(200), 0x18, 20, 0x20, 2];
+    const image = [...msg(1, [0x61]), ...msg(2, [1, 2, 3])];
+    const layout = [0x0d, ...f32(0), 0x15, ...f32(0), 0x1d, ...f32(10), 0x25, ...f32(10)];
+    const frame1 = [0x0d, ...f32(1), ...msg(2, layout)];
+    const sprite = [...msg(1, [0x61]), ...msg(2, frame1), ...msg(2, [])];
+    const bytes = new Uint8Array([...msg(1, [0x32, 0x2e, 0x30]), ...msg(2, params), ...msg(3, image), ...msg(4, sprite)]);
+    const movie = parseMovieEntity(bytes);
+    expect(movie).toMatchObject({ version: '2.0', width: 300, height: 200, fps: 20, frames: 2, vectorSprites: 0 });
+    expect(movie.images.get('a')).toEqual(new Uint8Array([1, 2, 3]));
+    expect(movie.sprites[0]!.frames).toHaveLength(2);
+    expect(movie.sprites[0]!.frames[0]).toMatchObject({ alpha: 1, layout: { width: 10, height: 10 } });
+    expect(movie.sprites[0]!.frames[1]!.alpha).toBe(0);
+    expect(() => parseMovieEntity(new Uint8Array([0xff, 0xff]))).toThrow();
   });
 });
 

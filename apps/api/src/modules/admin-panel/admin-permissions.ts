@@ -56,8 +56,10 @@ export const CAPABILITIES = {
   'lives.manage': ['OWNER', 'MODERATION'],
   /** The gift catalogue, bag items, banners and events (read). */
   'catalog.view': ['OWNER', 'SUPPORT', 'FINANCE'],
-  /** Gift CRUD, banners, events. */
+  /** Gift CRUD (v1.71-social, D207: with uploading the gift's image / effect / sound), banners, events. */
   'catalog.manage': ['OWNER'],
+  /** v1.71-social (D207, §10.66): the gift categories — add, rename / reorder / icon, on / off, delete (move). */
+  'gifts.categories': ['OWNER'],
   /** Give / take back a bag item (frames, profile cards) to a user. */
   'items.grant': ['OWNER', 'SUPPORT'],
   /** Agent top-ups history, card orders, Stripe cases; the financial reports and their CSV. */

@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { inflateSync } from 'node:zlib';
 import sharp from 'sharp';
+import { inspectVideo, InvalidVideoError } from '../media/media-video.js';
 import type { ObjectStorage } from '../media/object-storage.js';
 
 /**
@@ -35,7 +36,33 @@ export const SVGA_CONTENT_TYPE = 'application/octet-stream';
 export const GIFT_IMAGE_OBJECT_KEY_PATTERN =
   /^media\/gifts\/[a-z0-9][a-z0-9_]{0,39}\/[0-9a-f]{32}\.(png|webp)$/;
 export const GIFT_ANIMATION_OBJECT_KEY_PATTERN =
-  /^media\/gifts\/[a-z0-9][a-z0-9_]{0,39}\/[0-9a-f]{32}\.svga$/;
+  /^media\/gifts\/[a-z0-9][a-z0-9_]{0,39}\/[0-9a-f]{32}\.(svga|mp4)$/;
+/** v1.46-live (D207): `gifts_audio_set`'s key format. */
+export const GIFT_AUDIO_OBJECT_KEY_PATTERN = /^media\/gifts\/[a-z0-9][a-z0-9_]{0,39}\/[0-9a-f]{32}\.mp3$/;
+
+// ---- v1.46-live (D207, CONVENTIONS §10.66): uploads from the admin panel ------------------------------------------
+
+/** The panel's «صورة الهدية»: PNG/WebP, square, at most 512 KiB, at least 128 px a side (owner brief D207). */
+export const PANEL_GIFT_IMAGE_MAX_BYTES = 512 * 1024;
+export const PANEL_GIFT_IMAGE_MIN_SIDE = 128;
+/** "Square": the sides differ by at most 2 % (an exporter's rounding). */
+export const PANEL_GIFT_IMAGE_MAX_RATIO = 1.02;
+/** An MP4 full-screen effect: H.264, at most 8 MiB and 15 s. */
+export const GIFT_VIDEO_MAX_BYTES = 8 * 1024 * 1024;
+export const GIFT_VIDEO_MAX_DURATION_MS = 15_000;
+export const GIFT_VIDEO_CODECS = ['avc1', 'avc3'] as const;
+/** Width ≥ this × height: suggested as side-by-side alpha (left colour, right alpha; e.g. 1440 × 1280 → no). */
+export const GIFT_VIDEO_SIDE_BY_SIDE_RATIO = 1.8;
+/** An MP3 sound: at most 1 MiB and 15 s (and at least 100 ms). */
+export const GIFT_AUDIO_MAX_BYTES = 1024 * 1024;
+export const GIFT_AUDIO_MAX_DURATION_MS = 15_000;
+export const GIFT_AUDIO_MIN_DURATION_MS = 100;
+/** Encoder padding accepted past 15 s and reported clipped (as voice clips and videos). */
+export const GIFT_MEDIA_DURATION_TOLERANCE_MS = 500;
+/** A category tab icon: PNG/WebP, square, 32 … 512 px, at most 256 KiB. */
+export const GIFT_CATEGORY_ICON_MAX_BYTES = 256 * 1024;
+export const GIFT_CATEGORY_ICON_MIN_SIDE = 32;
+export const GIFT_CATEGORY_ICON_MAX_SIDE = 512;
 
 /** A file refused by the checks below; the message says why (for the operator). */
 export class GiftArtError extends Error {}
@@ -48,9 +75,9 @@ export interface GiftArtFile {
   readonly size: number;
 }
 
-function contentKey(code: string, body: Buffer, ext: string): string {
+function contentKey(code: string, body: Buffer, ext: string, folder = 'gifts'): string {
   const digest = createHash('sha256').update(body).digest('hex').slice(0, 32);
-  return `media/gifts/${code}/${digest}.${ext}`;
+  return `media/${folder}/${code}/${digest}.${ext}`;
 }
 
 function imageKind(body: Buffer): { ext: 'png' | 'webp'; contentType: string } | null {
@@ -139,6 +166,230 @@ export function giftAnimationFile(code: string, body: Buffer): GiftArtFile {
     throw new GiftArtError('The animation is not an SVGA movie.');
   }
   return { key: contentKey(code, body, 'svga'), contentType: SVGA_CONTENT_TYPE, body, size: body.length };
+}
+
+/** A checked image's size (shared by the panel's image and the category icon). */
+async function squareImage(
+  body: Buffer,
+  limits: { maxBytes: number; minSide: number; maxSide: number; what: string },
+): Promise<{ ext: 'png' | 'webp'; contentType: string; width: number; height: number }> {
+  if (body.length === 0) throw new GiftArtError(`The ${limits.what} file is empty.`);
+  if (body.length > limits.maxBytes) {
+    throw new GiftArtError(
+      `The ${limits.what} is ${String(body.length)} bytes; at most ${String(limits.maxBytes / 1024)} KB.`,
+    );
+  }
+  const kind = imageKind(body);
+  if (!kind) throw new GiftArtError(`The ${limits.what} must be a PNG or WebP file.`);
+  let width: number | undefined;
+  let height: number | undefined;
+  try {
+    ({ width, height } = await sharp(body).metadata());
+  } catch {
+    throw new GiftArtError(`The ${limits.what} cannot be read (a broken PNG or WebP file).`);
+  }
+  if (!width || !height) throw new GiftArtError(`The ${limits.what} has no size.`);
+  const short = Math.min(width, height);
+  const long = Math.max(width, height);
+  if (short < limits.minSide || long > limits.maxSide) {
+    throw new GiftArtError(
+      `The ${limits.what} is ${String(width)} × ${String(height)} px; each side must be ${String(limits.minSide)}–${String(limits.maxSide)} px.`,
+    );
+  }
+  if (long > short * PANEL_GIFT_IMAGE_MAX_RATIO) {
+    throw new GiftArtError(
+      `The ${limits.what} is ${String(width)} × ${String(height)} px; it must be square.`,
+    );
+  }
+  return { ...kind, width, height };
+}
+
+/** v1.46-live (D207): the panel's «صورة الهدية» — PNG/WebP, square, ≥ 128 px, ≤ 512 KiB. */
+export async function panelGiftImageFile(
+  code: string,
+  body: Buffer,
+): Promise<GiftArtFile & { width: number; height: number }> {
+  const img = await squareImage(body, {
+    maxBytes: PANEL_GIFT_IMAGE_MAX_BYTES,
+    minSide: PANEL_GIFT_IMAGE_MIN_SIDE,
+    maxSide: GIFT_IMAGE_MAX_SIDE,
+    what: 'image',
+  });
+  return {
+    key: contentKey(code, body, img.ext),
+    contentType: img.contentType,
+    body,
+    size: body.length,
+    width: img.width,
+    height: img.height,
+  };
+}
+
+/** v1.46-live (D207): a category tab's icon — PNG/WebP, square, 32 … 512 px, ≤ 256 KiB, under `media/gift-categories/`. */
+export async function giftCategoryIconFile(
+  categoryCode: string,
+  body: Buffer,
+): Promise<GiftArtFile & { width: number; height: number }> {
+  const img = await squareImage(body, {
+    maxBytes: GIFT_CATEGORY_ICON_MAX_BYTES,
+    minSide: GIFT_CATEGORY_ICON_MIN_SIDE,
+    maxSide: GIFT_CATEGORY_ICON_MAX_SIDE,
+    what: 'icon',
+  });
+  return {
+    key: contentKey(categoryCode, body, img.ext, 'gift-categories'),
+    contentType: img.contentType,
+    body,
+    size: body.length,
+    width: img.width,
+    height: img.height,
+  };
+}
+
+/** The transparency of an MP4 effect: a plain video, or the left half colour / right half alpha. */
+export type GiftVideoAlphaKind = 'NONE' | 'SIDE_BY_SIDE';
+
+/** What a checked MP4 is (the panel shows it and suggests the transparency). */
+export interface GiftVideoFile extends GiftArtFile {
+  readonly width: number;
+  readonly height: number;
+  readonly durationMs: number;
+  readonly codec: string;
+  /** SIDE_BY_SIDE when width ≥ 1.8 × height (the admin may override it), else NONE. */
+  readonly detectedAlpha: GiftVideoAlphaKind;
+}
+
+/**
+ * v1.46-live (D207): checks an MP4 full-screen effect — an MPEG-4 file (not QuickTime) with an H.264 video track,
+ * 1 … 15 s, 16 … 4096 px a side, at most 8 MiB — by reading its boxes (`ftyp`, `moov/mvhd`, the video track's
+ * `tkhd` and `stsd`; the media module's parser, D162). The API image has no ffprobe, and the file is not decoded.
+ * Throws {@link GiftArtError}.
+ */
+export async function giftVideoFile(code: string, body: Buffer): Promise<GiftVideoFile> {
+  if (body.length === 0) throw new GiftArtError('The video file is empty.');
+  if (body.length > GIFT_VIDEO_MAX_BYTES) {
+    throw new GiftArtError(`The video is ${String(body.length)} bytes; at most 8 MB.`);
+  }
+  let info: { width: number; height: number; durationMs: number; codec: string };
+  try {
+    info = await inspectVideo(
+      (offset, length) => Promise.resolve(body.subarray(offset, offset + length)),
+      body.length,
+      'video/mp4',
+      'REEL_VIDEO',
+    );
+  } catch (err) {
+    if (err instanceof InvalidVideoError) {
+      const why = err.message;
+      if (why.startsWith('video codec')) {
+        throw new GiftArtError(`The video must be H.264 (it is ${why.slice('video codec '.length)}).`);
+      }
+      if (why.includes('too long')) throw new GiftArtError('The video must be at most 15 seconds.');
+      if (why.includes('shorter')) throw new GiftArtError('The video must be at least 1 second.');
+      throw new GiftArtError(`The file is not a playable MP4 video (${why}).`);
+    }
+    throw err;
+  }
+  if (!(GIFT_VIDEO_CODECS as readonly string[]).includes(info.codec)) {
+    throw new GiftArtError(`The video must be H.264 (it is ${info.codec}).`);
+  }
+  if (info.durationMs > GIFT_VIDEO_MAX_DURATION_MS + GIFT_MEDIA_DURATION_TOLERANCE_MS) {
+    throw new GiftArtError(
+      `The video is ${(info.durationMs / 1000).toFixed(1)} s; at most ${String(GIFT_VIDEO_MAX_DURATION_MS / 1000)} s.`,
+    );
+  }
+  return {
+    key: contentKey(code, body, 'mp4'),
+    contentType: 'video/mp4',
+    body,
+    size: body.length,
+    width: info.width,
+    height: info.height,
+    durationMs: Math.min(info.durationMs, GIFT_VIDEO_MAX_DURATION_MS),
+    codec: info.codec,
+    detectedAlpha: info.width >= info.height * GIFT_VIDEO_SIDE_BY_SIDE_RATIO ? 'SIDE_BY_SIDE' : 'NONE',
+  };
+}
+
+// MPEG audio Layer III: bit rates (kbit/s) by index for MPEG-1 and for MPEG-2 / 2.5, and sample rates (Hz).
+const MP3_BITRATES_V1 = [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 0];
+const MP3_BITRATES_V2 = [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160, 0];
+const MP3_SAMPLE_RATES: Record<number, readonly number[]> = {
+  3: [44_100, 48_000, 32_000],
+  2: [22_050, 24_000, 16_000],
+  0: [11_025, 12_000, 8_000],
+};
+/** Bytes after the last frame that are tolerated (an ID3v1 tag is 128, APE tags or padding a little more). */
+const MP3_MAX_TRAILING_BYTES = 8 * 1024;
+
+/** One Layer III frame header at `at`: its length in bytes and its samples, or null. */
+function mp3Frame(body: Buffer, at: number): { bytes: number; samples: number; rate: number } | null {
+  if (at + 4 > body.length) return null;
+  const b1 = body[at + 1]!;
+  const b2 = body[at + 2]!;
+  if (body[at] !== 0xff || (b1 & 0xe0) !== 0xe0) return null;
+  const version = (b1 >> 3) & 0x03; // 3: MPEG-1, 2: MPEG-2, 0: MPEG-2.5, 1: reserved
+  const layer = (b1 >> 1) & 0x03; // 1: Layer III
+  if (version === 1 || layer !== 1) return null;
+  const bitrate = (version === 3 ? MP3_BITRATES_V1 : MP3_BITRATES_V2)[(b2 >> 4) & 0x0f]!;
+  const rate = MP3_SAMPLE_RATES[version]?.[(b2 >> 2) & 0x03];
+  if (!bitrate || !rate) return null;
+  const padding = (b2 >> 1) & 0x01;
+  const samples = version === 3 ? 1152 : 576;
+  const bytes = Math.floor(((samples / 8) * bitrate * 1000) / rate) + padding;
+  return { bytes, samples, rate };
+}
+
+/** What a checked MP3 is. */
+export interface GiftAudioFile extends GiftArtFile {
+  readonly durationMs: number;
+}
+
+/**
+ * v1.46-live (D207): checks a gift's MP3 sound — an optional ID3v2 tag, then MPEG audio Layer III frames to the end
+ * (an ID3v1 / APE tag or a little padding allowed), 100 ms … 15 s by the frames' samples, at most 1 MiB. Throws
+ * {@link GiftArtError}.
+ */
+export function giftAudioFile(code: string, body: Buffer): GiftAudioFile {
+  if (body.length === 0) throw new GiftArtError('The sound file is empty.');
+  if (body.length > GIFT_AUDIO_MAX_BYTES) {
+    throw new GiftArtError(`The sound is ${String(body.length)} bytes; at most 1 MB.`);
+  }
+  let at = 0;
+  if (body.length >= 10 && body.toString('latin1', 0, 3) === 'ID3') {
+    const size =
+      ((body[6]! & 0x7f) << 21) | ((body[7]! & 0x7f) << 14) | ((body[8]! & 0x7f) << 7) | (body[9]! & 0x7f);
+    at = 10 + size + ((body[5]! & 0x10) !== 0 ? 10 : 0);
+  }
+  // Some encoders pad the tag with zeros.
+  while (at < body.length && at < 64 * 1024 && body[at] === 0) at += 1;
+  let frames = 0;
+  let seconds = 0;
+  for (;;) {
+    const frame = mp3Frame(body, at);
+    if (!frame || at + frame.bytes > body.length) break;
+    frames += 1;
+    seconds += frame.samples / frame.rate;
+    at += frame.bytes;
+  }
+  if (frames < 2) throw new GiftArtError('The sound must be an MP3 file (MPEG audio Layer III).');
+  if (body.length - at > MP3_MAX_TRAILING_BYTES) {
+    throw new GiftArtError('The sound is not a clean MP3 file (data after the audio).');
+  }
+  const durationMs = Math.round(seconds * 1000);
+  if (durationMs < GIFT_AUDIO_MIN_DURATION_MS) throw new GiftArtError('The sound is too short.');
+  if (durationMs > GIFT_AUDIO_MAX_DURATION_MS + GIFT_MEDIA_DURATION_TOLERANCE_MS) {
+    throw new GiftArtError(
+      `The sound is ${(durationMs / 1000).toFixed(1)} s; at most ${String(GIFT_AUDIO_MAX_DURATION_MS / 1000)} s.`,
+    );
+  }
+  return {
+    key: contentKey(code, body, 'mp3'),
+    contentType: 'audio/mpeg',
+    body,
+    size: body.length,
+    durationMs: Math.min(durationMs, GIFT_AUDIO_MAX_DURATION_MS),
+  };
 }
 
 /** Uploads a checked file (immutable, cached for a year). Uploading the same bytes again is harmless. */
