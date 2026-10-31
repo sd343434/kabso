@@ -163,6 +163,8 @@ flutter:
     # animationKey (owner-supplied; assets/gifts/PROVENANCE.md).
     - assets/gifts/
     - assets/gifts/anim/
+    # v1.43-live (D195): the four PK boosters' gift images (Kabso-made; assets/gifts/PROVENANCE.md).
+    - assets/gifts/pk/
   fonts:
     # D63 splash and D64 welcome wordmark (OFL, assets/fonts/OFL-Fredoka.txt).
     - family: Fredoka

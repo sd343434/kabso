@@ -535,6 +535,10 @@ export const envSchema = z
     RATE_LIMIT_LIVE_SEAT_ASK_USER: rateLimit('30/600'),
     RATE_LIMIT_LIVE_SEAT_ACTION_USER: rateLimit('300/3600'),
     RATE_LIMIT_LIVE_SEATS_READ_USER: rateLimit('600/900'),
+    // v1.43-live (D195, CONVENTIONS §7, §10.58): PK invitations sent, and every other PK action
+    // (answers, the random queue, ending, muting, the opponent's media token), per user.
+    RATE_LIMIT_LIVE_PK_INVITE_USER: rateLimit('30/600'),
+    RATE_LIMIT_LIVE_PK_ACTION_USER: rateLimit('300/600'),
     // CP-012 (CONVENTIONS §7): tap batches per user, replacing the default authenticated bucket.
     RATE_LIMIT_LIVE_TAPS_USER: rateLimit('120/60'),
     // CP-013 (CONVENTIONS §7): chat messages per user, replacing the default authenticated bucket
@@ -624,6 +628,46 @@ export const envSchema = z
      * background, the camera off) this long is ended by the sweeper with HOST_AWAY_TIMEOUT.
      */
     LIVE_HOST_AWAY_TIMEOUT_SECONDS: intSetting(300, 30, 86400),
+    /**
+     * v1.43-live (D195, CONVENTIONS §10.58): PK 1 v 1 between two SOLO video lives. Every value is an
+     * owner-confirmable default. PK_ENABLED off refuses new PKs and booster gifts (running ones end
+     * normally).
+     */
+    PK_ENABLED: z
+      .enum(['true', 'false'], { error: 'must be "true" or "false"' })
+      .default('true')
+      .transform((v) => v === 'true'),
+    PK_INVITE_TTL_SECONDS: intSetting(15, 5, 120),
+    PK_INVITE_COOLDOWN_SECONDS: intSetting(10, 0, 600),
+    PK_RANDOM_WAIT_SECONDS: intSetting(60, 10, 600),
+    PK_BATTLE_SECONDS: intSetting(300, 60, 3600),
+    PK_RESULT_SECONDS: intSetting(60, 5, 600),
+    /** A host out of the media session, without heartbeats or away (D170) this long loses the battle. */
+    PK_ABSENCE_GRACE_SECONDS: intSetting(30, 5, 600),
+    /** The PK tick (expiries, ends, pairing) in ms; 0 disables it (tests; refused in production). */
+    PK_TICK_MS: intSetting(1000, 0, 60000),
+    /** Score data messages per match at most once in this many ms (state changes go at once). */
+    PK_SCORE_BROADCAST_MS: intSetting(500, 0, 10000),
+    /**
+     * The four boosters, in the order DOUBLE, DOUBLE_TURBO, TRIPLE, TRIPLE_TURBO: multipliers (owner:
+     * ×2, ×3, ×5, ×10), active seconds, the battle's last N seconds when it may start (0: any time)
+     * and uses per side per match.
+     */
+    PK_BOOSTER_MULTIPLIERS: wholeNumberList('2,3,5,10'),
+    PK_BOOSTER_SECONDS: wholeNumberList('30,20,20,10'),
+    PK_BOOSTER_WINDOWS: z
+      .string()
+      .trim()
+      .default('0,120,60,60')
+      .transform((value, ctx): readonly number[] => {
+        const parts = value.split(',').map((p) => p.trim());
+        if (parts.length !== 4 || parts.some((p) => !/^(0|[1-9][0-9]{0,4})$/.test(p))) {
+          ctx.addIssue({ code: 'custom', message: `expected four whole numbers ≥ 0, got "${value}"` });
+          return z.NEVER;
+        }
+        return Object.freeze(parts.map(Number));
+      }),
+    PK_BOOSTER_LIMITS: wholeNumberList('2,2,2,2'),
     /**
      * CP-016 A (D99): the one region's time zone (IANA name). The popularity boards' day starts at
      * midnight and the week on Monday there; the hour is the same everywhere.
@@ -1250,6 +1294,24 @@ export const envSchema = z
     ARGON2_MAX_QUEUE: nonNegativeInt(availableParallelism() * 4),
   })
   .superRefine((env, ctx) => {
+    // v1.43-live (D195): one value per booster (DOUBLE, DOUBLE_TURBO, TRIPLE, TRIPLE_TURBO).
+    for (const key of ['PK_BOOSTER_MULTIPLIERS', 'PK_BOOSTER_SECONDS', 'PK_BOOSTER_LIMITS'] as const) {
+      if (env[key].length !== 4) {
+        ctx.addIssue({
+          code: 'custom',
+          path: [key],
+          message: 'expected four values (DOUBLE, DOUBLE_TURBO, TRIPLE, TRIPLE_TURBO)',
+        });
+      }
+    }
+    if (env.PK_BOOSTER_MULTIPLIERS.some((m, i, all) => m < 2 || (i > 0 && m <= all[i - 1]!))) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['PK_BOOSTER_MULTIPLIERS'],
+        message:
+          'expected strictly ascending multipliers of at least 2 (a higher booster replaces a lower one)',
+      });
+    }
     // v1.27-live (D132): the lucky-gift table must be valid whether or not lucky gifts are on.
     if (env.LUCKY_GIFT_RTP_SHARES !== undefined) {
       ctx.addIssue({
@@ -1594,6 +1656,14 @@ export const envSchema = z
           code: 'custom',
           path: ['LIVE_SWEEP_INTERVAL_SECONDS'],
           message: 'the stale-room sweeper cannot be disabled in production',
+        });
+      }
+      // v1.43-live (D195): PK expiries, battle ends and the random queue run on the PK tick.
+      if (env.PK_TICK_MS === 0) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['PK_TICK_MS'],
+          message: 'the PK tick cannot be disabled in production',
         });
       }
       // SEC-003a: hop counts above 3 and overly broad ranges trust client-supplied headers.

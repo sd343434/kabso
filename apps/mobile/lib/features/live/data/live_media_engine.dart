@@ -14,6 +14,7 @@ import 'package:kabso_live/features/live/data/live_camera_gate.dart';
 import 'package:kabso_live/features/live/data/live_voice_recorder.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
+import 'package:kabso_live/features/live/domain/live_pk.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:material_ui/material_ui.dart';
 
@@ -310,6 +311,10 @@ abstract interface class LiveMediaEngine implements LiveVoiceMic {
   /// CP-013: the server's chat data messages in the room (§10.11).
   Stream<LiveChatEvent> get chatEvents;
 
+  /// v1.43-live (D195, §10.58): the server's `pk` data messages in the room
+  /// (the match for both rooms; invitations and queue ends for the host).
+  Stream<PkEvent> get pkEvents;
+
   /// Notifies on any session change: participants, tracks, speakers,
   /// metadata, permissions, connection.
   Listenable get changes;
@@ -343,6 +348,7 @@ class LiveKitMediaEngine implements LiveMediaEngine {
   final _changes = _Changes();
   final _invites = StreamController<String>.broadcast();
   final _chat = StreamController<LiveChatEvent>.broadcast();
+  final _pk = StreamController<PkEvent>.broadcast();
   Set<String> _speaking = const {};
   int? _seatsVersion;
   int? _score;
@@ -898,6 +904,13 @@ class LiveKitMediaEngine implements LiveMediaEngine {
             if (roomId is String) _invites.add(roomId);
             return;
           }
+          // v1.43-live (D195): PK matches, invitations and queue ends.
+          if (e.topic == 'pk' ||
+              (message is Map && '${message['type']}'.startsWith('pk-'))) {
+            final pk = PkEvent.parse(message);
+            if (pk != null) _pk.add(pk);
+            return;
+          }
           final chat = LiveChatEvent.parse(message);
           if (chat != null) _chat.add(chat);
         } on FormatException {
@@ -1016,6 +1029,9 @@ class LiveKitMediaEngine implements LiveMediaEngine {
 
   @override
   Stream<LiveChatEvent> get chatEvents => _chat.stream;
+
+  @override
+  Stream<PkEvent> get pkEvents => _pk.stream;
 
   @override
   Listenable get changes => _changes;

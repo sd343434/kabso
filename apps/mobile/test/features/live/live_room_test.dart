@@ -67,6 +67,7 @@ import '../../helpers/component_harness.dart';
 import '../../helpers/fake_live_gift_repository.dart';
 import '../../helpers/fake_live_media_engine.dart';
 import '../../helpers/fake_live_permissions.dart';
+import '../../helpers/fake_live_pk.dart';
 import '../../helpers/fake_live_repository.dart';
 import '../../helpers/fake_profile_repository.dart';
 import '../../helpers/fake_safety_repository.dart';
@@ -276,6 +277,8 @@ void main() {
             profileRepositoryProvider.overrideWithValue(
               FakeProfileRepository(apiProfile()),
             ),
+            // v1.43-live (D195): never the network for the PK.
+            ...pkTestOverrides(),
             liveMediaEngineProvider.overrideWithValue(FakeLiveMediaEngine.new),
           ],
           child: MaterialApp.router(

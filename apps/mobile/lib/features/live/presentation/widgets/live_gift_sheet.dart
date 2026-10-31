@@ -21,8 +21,11 @@ import 'package:kabso_live/features/live/application/live_wallet_controller.dart
 import 'package:kabso_live/features/live/data/gift_art_cache.dart';
 import 'package:kabso_live/features/live/data/live_gift_repository.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
+import 'package:kabso_live/features/live/domain/live_pk.dart';
 import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_pk_sheet.dart'
+    show pkBoosterFailureMessage;
 import 'package:kabso_live/features/live/presentation/widgets/live_quip_art.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -40,6 +43,7 @@ class LiveGiftRoom {
     this.onSeatsStale,
     this.direct,
     this.soundboard,
+    this.pk,
   });
 
   /// D155: the panel inside a direct conversation — [host] is the person,
@@ -52,7 +56,8 @@ class LiveGiftRoom {
       onSeatsStale = null,
       direct = send,
       // D154 × D155: no soundboard in a conversation (no room to hear it).
-      soundboard = null;
+      soundboard = null,
+      pk = null;
 
   static List<UserSummary> _nobody(WidgetRef _) => const [];
 
@@ -68,6 +73,11 @@ class LiveGiftRoom {
   /// (read with the panel's `ref`): their free quips play from the
   /// soundboard (free, one every 2 s) instead of their one free quip.
   final bool Function(WidgetRef ref)? soundboard;
+
+  /// v1.43-live (D195): the room's PK match now (read with the panel's
+  /// `ref`), or null: no PK. During a battle the booster gifts are offered
+  /// in a «PK» tab (to the host, one at a time); otherwise never.
+  final PkMatch? Function(WidgetRef ref)? pk;
 }
 
 /// D155: a gift sent in a direct conversation; the balance, the bag and a
@@ -164,6 +174,9 @@ class KLiveGiftSheet extends ConsumerStatefulWidget {
 
   /// D131: the Recent tab (gifts sent from this phone).
   static const recentTab = 'RECENT';
+
+  /// v1.43-live (D195): the PK boosters' tab (during a PK battle only).
+  static const pkTab = 'PK';
   static const priceSortKey = Key('gift.priceSort');
   static const wealthKey = Key('gift.wealth');
 
@@ -295,9 +308,33 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
   /// them in a conversation with `GIFT_UNAVAILABLE`). Paid quips are sent
   /// like any gift there.
   bool _offered(Gift gift) =>
-      room.direct == null ||
-      gift.category != GiftCategory.quips ||
-      gift.priceCoins > 0;
+      // v1.43-live (D195): boosters only in the «PK» tab.
+      gift.pkBooster == null &&
+      (room.direct == null ||
+          gift.category != GiftCategory.quips ||
+          gift.priceCoins > 0);
+
+  /// v1.43-live (D195): the room's PK battle now, or null.
+  PkMatch? _battle() {
+    final match = room.pk?.call(ref);
+    return match?.status == PkMatchStatus.battle ? match : null;
+  }
+
+  /// v1.43-live (D195): the rule of the booster [intent] sends, or null.
+  PkBoosterRule? _ruleOf(_Intent intent) {
+    final kind = ref
+        .read(giftCatalogueProvider)
+        .value
+        ?.byCode(intent.code)
+        ?.pkBooster;
+    return kind == null ? null : room.pk?.call(ref)?.rule(kind);
+  }
+
+  /// v1.43-live (D195): the catalogue's booster gifts, in its order.
+  List<Gift> _boosters(GiftCatalogue catalogue) => [
+    for (final g in catalogue.data)
+      if (g.pkBooster != null) g,
+  ];
 
   /// The gifts of [category] this panel offers ([_offered]).
   List<Gift> _offeredOf(GiftCatalogue catalogue, GiftCategory category) => [
@@ -565,11 +602,14 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
           code == ErrorCode.validationFailed &&
           failure is ServerFailure &&
           failure.details.any((d) => d.field == 'recipients');
-      final message = code == ErrorCode.insufficientCoins
-          ? l10n.liveGiftNotEnoughCoins
-          : recipientsRefused
-          ? l10n.liveGiftRecipientRefused
-          : failureMessage(l10n, failure);
+      final booster = pkBoosterFailureMessage(l10n, e, rule: _ruleOf(intent));
+      final message =
+          booster ??
+          (code == ErrorCode.insufficientCoins
+              ? l10n.liveGiftNotEnoughCoins
+              : recipientsRefused
+              ? l10n.liveGiftRecipientRefused
+              : failureMessage(l10n, failure));
       setState(() {
         _error = message;
         _resetCombo();
@@ -713,7 +753,13 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
   /// lucky gifts, and the bag.
   List<String> _tabsOf(GiftCatalogue? catalogue) {
     final categories = catalogue?.categories ?? GiftCategory.values;
+    final pk =
+        catalogue != null &&
+        _battle() != null &&
+        _boosters(catalogue).isNotEmpty;
     return [
+      // v1.43-live (D195): the boosters first during a PK battle.
+      if (pk) KLiveGiftSheet.pkTab,
       if (categories.contains(GiftCategory.popular)) GiftCategory.popular.wire,
       KLiveGiftSheet.recentTab,
       for (final c in categories)
@@ -778,6 +824,7 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
           );
     final isBag = tab == KLiveGiftSheet.bagTab;
     final isRecent = tab == KLiveGiftSheet.recentTab;
+    final isPk = tab == KLiveGiftSheet.pkTab;
     final isLuckyTab = tab == GiftCategory.lucky.wire;
     final bagAsync = isBag ? ref.watch(giftBagProvider) : null;
     final recent = isRecent ? ref.watch(recentGiftsProvider) : const <String>[];
@@ -796,6 +843,11 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
       tabCells = [
         for (final item in bagAsync?.value ?? const <GiftBagItem>[])
           _Cell(item.gift, bagQuantity: item.quantity),
+      ];
+    } else if (isPk) {
+      tabCells = [
+        if (catalogue != null)
+          for (final g in _boosters(catalogue)) _Cell(g),
       ];
     } else if (isRecent) {
       // Gifts no longer in the catalogue drop out.
@@ -830,8 +882,10 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
     final selected = cells.where((c) => c.gift.code == _selected).firstOrNull;
     // D154: a quip is sent one at a time, with coins (or free).
     final quipSelected = selected?.gift.category == GiftCategory.quips;
+    // v1.43-live (D195): a booster goes to the host, one at a time.
+    final boosterSelected = selected?.gift.pkBooster != null;
     final isQuipsTab = tab == GiftCategory.quips.wire;
-    final quantities = quipSelected
+    final quantities = quipSelected || boosterSelected
         ? const [1]
         : catalogue?.quantities ?? const [1];
     final quantity = quantities.contains(_quantity)
@@ -874,10 +928,12 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
         : _Intent(
             code: selected.gift.code,
             quantity: quantity,
-            recipients: [
-              for (final c in candidates)
-                if (chosen.contains(c.username)) c.username,
-            ],
+            recipients: boosterSelected
+                ? [room.host.username]
+                : [
+                    for (final c in candidates)
+                      if (chosen.contains(c.username)) c.username,
+                  ],
             // A lucky gift is sent with coins only (§10.27); a quip too.
             source: isBag && !luckySelected && !quipSelected
                 ? LiveGiftSource.bag
@@ -1495,6 +1551,7 @@ class LiveGiftTabs extends StatelessWidget {
       GiftCategory.lucky => l10n.liveGiftTabLucky,
       GiftCategory.quips => l10n.liveGiftTabQuips,
       null when id == KLiveGiftSheet.recentTab => l10n.liveGiftTabRecent,
+      null when id == KLiveGiftSheet.pkTab => l10n.liveGiftTabPk,
       null => id,
     };
     final categories = [

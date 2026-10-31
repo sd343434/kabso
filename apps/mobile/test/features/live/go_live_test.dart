@@ -59,6 +59,7 @@ import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_pk_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_program_card.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
@@ -74,6 +75,7 @@ import '../../fixtures/live/live_gift_fixtures.dart';
 import '../../helpers/fake_live_blocked_words_repository.dart';
 import '../../helpers/fake_live_gift_repository.dart';
 import '../../helpers/fake_live_media_engine.dart';
+import '../../helpers/fake_live_pk.dart';
 import '../../helpers/fake_live_repository.dart';
 import '../../helpers/fake_live_schedule_repository.dart';
 import '../../helpers/fake_profile_repository.dart';
@@ -1272,6 +1274,8 @@ void main() {
           overrides: [
             sharedPreferencesProvider.overrideWithValue(prefs),
             liveRepositoryProvider.overrideWithValue(repo),
+            // v1.43-live (D195): never the network for the PK.
+            ...pkTestOverrides(),
             liveMediaEngineProvider.overrideWithValue(() => camera),
             currentUserProvider.overrideWithValue(
               testUser().copyWith(canHost: true),
@@ -2210,15 +2214,19 @@ void main() {
       await _leave(tester);
     });
 
-    testWidgets('PK says it is coming; D174: (solo) guests open the guests '
-        'tab (requests); 🎁 opens the gifts', (tester) async {
+    testWidgets('D195: PK opens the PK sheet (invite / random); D174: '
+        '(solo) guests open the guests tab (requests); 🎁 opens the gifts', (
+      tester,
+    ) async {
       await _pump(tester);
       await _goLive(tester);
       final l10n = _l10n(tester);
       await tester.tap(find.byKey(KHostBar.pkKey));
-      await tester.pump();
-      expect(find.text(l10n.goLivePkSoon), findsOneWidget);
-      await _snackGone(tester);
+      await tester.pumpAndSettle();
+      expect(find.byType(LivePkSheet), findsOneWidget);
+      expect(find.text(l10n.goLivePkSoon), findsNothing);
+      await tester.tapAt(const Offset(20, 20));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(KHostBar.guestsKey));
       await tester.pumpAndSettle();
       expect(find.byKey(SeatControlKeys.guestsTab), findsOneWidget);

@@ -22,6 +22,7 @@ import 'package:kabso_live/features/live/application/live_gift_effects.dart';
 import 'package:kabso_live/features/live/application/live_gift_ticker.dart';
 import 'package:kabso_live/features/live/application/live_host_controller.dart';
 import 'package:kabso_live/features/live/application/live_lucky_ticker.dart';
+import 'package:kabso_live/features/live/application/live_pk_controller.dart';
 import 'package:kabso_live/features/live/application/live_program.dart';
 import 'package:kabso_live/features/live/application/live_quips.dart';
 import 'package:kabso_live/features/live/application/live_seat_emojis.dart';
@@ -75,6 +76,8 @@ import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.da
 import 'package:kabso_live/features/live/presentation/widgets/live_guest_tiles.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_lucky_combo_button.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_pk_sheet.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_pk_stage.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_side_cards.dart';
@@ -153,6 +156,9 @@ class GoLiveScreen extends ConsumerStatefulWidget {
   static const scoreKey = Key('goLive.score');
   static const tapsKey = Key('goLive.taps');
   static const micOffKey = Key('goLive.micOff');
+
+  /// v1.43-live (D195): the host's PK stage.
+  static const pkStageKey = Key('goLive.pkStage');
   static Key categoryKey(String? slug) => GoLiveKeys.category(slug);
 
   /// The title limit (CONVENTIONS §10.3: 1–80 grapheme clusters).
@@ -395,6 +401,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       if (!mounted) return;
       // CP-020: the room's gifts, on the same media session.
       ref.read(liveGiftEffectsProvider(room.id).notifier).attach(engine);
+      // v1.43-live (D195): the room's PK (match, invitations, the queue).
+      if (room.mode == LiveRoomMode.solo) {
+        ref
+            .read(livePkProvider(room.id).notifier)
+            .attach(engine.pkEvents, host: true);
+      }
       // D138: the emojis people play on their seats.
       ref.read(liveSeatEmojisProvider(room.id).notifier).attach(engine);
       // D148: big lucky wins in other lives (the gold ticker).
@@ -1798,6 +1810,19 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         (_tapsRoom == room.id ? _tapParts?.tapPoints : null) ??
         room.scoreParts?.tapPoints;
     final hostName = user?.displayName ?? room.host.displayName;
+    // v1.43-live (D195): a PK puts both hosts side by side in the stage.
+    final pk = ref.watch(livePkProvider(room.id));
+    final pkStage = pk.match == null ? null : _hostPkStage(pk, room);
+    ref.listen(livePkProvider(room.id).select((p) => p.notice), (_, notice) {
+      if (notice == null) return;
+      ref.read(livePkProvider(room.id).notifier).clearNotice();
+      KSnack.info(context, switch (notice) {
+        PkNotice.declined => l10n.pkNoticeDeclined,
+        PkNotice.expired => l10n.pkNoticeExpired,
+        PkNotice.queueExpired => l10n.pkNoticeQueueExpired,
+        PkNotice.cancelled || PkNotice.unavailable => l10n.pkErrorUnavailable,
+      });
+    });
     final avatarUrl = user?.avatarUrl ?? room.host.avatarUrl;
     final viewers = ref.watch(liveViewersPreviewProvider(room.id)).value;
     void openSelf() => unawaited(
@@ -2027,7 +2052,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           (l) => l.category == LevelCategory.attractiveness && l.available,
         )
         .firstOrNull;
-    return KLiveRoomScaffold(
+    final incoming = pk.incoming;
+    final scaffold = KLiveRoomScaffold(
       // D145c: the gift strips keep above the chat text.
       onChatTop: (top) =>
           ref.read(liveChatTopProvider(room.id).notifier).set(top),
@@ -2035,7 +2061,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       video: Stack(
         fit: StackFit.expand,
         children: [
-          background,
+          if (pkStage != null)
+            const KLiveVideoPlaceholder(child: SizedBox.shrink())
+          else
+            background,
           LiveStickerLayer(roomId: room.id, editable: live),
         ],
       ),
@@ -2130,7 +2159,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         target: charm?.nextLevel?.requiredPoints.toInt(),
         elapsed: _HostElapsed(since: state.liveSince),
       ),
-      stage: stage,
+      stage: pkStage ?? stage,
       chat: Align(alignment: AlignmentDirectional.bottomStart, child: roomChat),
       actionBar:
           composer ??
@@ -2165,12 +2194,60 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                         _openViewers(room.id, liveSeats, guests: true),
                       )
                     : () => KSnack.info(context, l10n.liveHostGuestsSoon),
-                onPk: () => KSnack.info(context, l10n.goLivePkSoon),
+                // v1.43-live (D195): the PK sheet (invite, random, end).
+                onPk: live && room.mode == LiveRoomMode.solo
+                    ? () => unawaited(showLivePkSheet(context, roomId: room.id))
+                    : () => KSnack.info(context, l10n.goLivePkSoon),
                 onGift: () => unawaited(_openGifts(room)),
               ),
             ],
           ),
     );
+    if (incoming == null) return scaffold;
+    // v1.43-live (D195): «{name} يدعوك إلى تحدي PK» over the room.
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        scaffold,
+        Positioned(
+          left: 0,
+          right: 0,
+          top: MediaQuery.paddingOf(context).top + 96,
+          child: LivePkIncomingInvite(
+            key: ValueKey(incoming.id),
+            roomId: room.id,
+            invite: incoming,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// v1.43-live (D195): the host's PK stage — their own camera on the
+  /// reading start, the other host (and guests) from the PK connection.
+  Widget _hostPkStage(LivePkState pk, LiveRoom room) {
+    final engine = _host.engine;
+    final match = pk.match!;
+    final opponent = ref.read(livePkProvider(room.id).notifier).opponent;
+    final (_, other) = match.of(room.id);
+    Widget stage() => LivePkStage(
+      key: GoLiveScreen.pkStageKey,
+      match: match,
+      roomId: room.id,
+      now: pk.now,
+      ownVideo: engine.videoPaused ? null : engine.preview(),
+      opponentVideo: opponent?.video(other.host.id),
+      guestVideo: (id) => engine.remoteVideo(id) ?? opponent?.video(id),
+      speaking: {...engine.speaking, ...?opponent?.speaking},
+      announcement: pk.announcement,
+      onPerson: (u) => unawaited(_person(room.id, u.username)),
+    );
+    return opponent == null
+        ? stage()
+        : ListenableBuilder(
+            listenable: opponent.changes,
+            builder: (context, _) => stage(),
+          );
   }
 
   /// D174: a solo live's guests as tiles at the end over the chat (a tap:
@@ -2179,7 +2256,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     final combo = LuckyComboCluster.shows(ref, room.id)
         ? LuckyComboCluster(roomId: room.id)
         : null;
-    final guests = room.mode == LiveRoomMode.solo
+    // v1.43-live (D195): in a PK the guests are circles in the stage.
+    final inPk = ref.watch(livePkProvider(room.id)).match != null;
+    final guests = room.mode == LiveRoomMode.solo && !inPk
         ? (liveSeats?.seats ?? const <LiveSeat>[])
               .where((s) => s.state == LiveSeatState.taken)
               .toList()
@@ -2339,6 +2418,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           },
           // D154: the host's free quips are the soundboard's.
           soundboard: (_) => true,
+          // v1.43-live (D195): the boosters' «PK» tab during a battle.
+          pk: (ref) => ref.watch(livePkProvider(room.id)).match,
         ),
       );
 

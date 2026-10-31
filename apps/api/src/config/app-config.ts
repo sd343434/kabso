@@ -14,6 +14,41 @@ import type { RechargeBadgeRules } from '../modules/recharge/recharge-badges.js'
 
 export const APP_CONFIG = Symbol('APP_CONFIG');
 
+/** v1.43-live (D195): the four PK boosters, in order. */
+export type PkBoosterKindName = 'DOUBLE' | 'DOUBLE_TURBO' | 'TRIPLE' | 'TRIPLE_TURBO';
+export const PK_BOOSTER_KINDS: readonly PkBoosterKindName[] = [
+  'DOUBLE',
+  'DOUBLE_TURBO',
+  'TRIPLE',
+  'TRIPLE_TURBO',
+];
+
+/** v1.43-live (D195): one booster's rule. */
+export interface PkBoosterRule {
+  readonly kind: PkBoosterKindName;
+  readonly multiplier: number;
+  /** How long it is active. */
+  readonly durationSeconds: number;
+  /** It may start only in the battle's last N seconds; 0 = any time. */
+  readonly lastSeconds: number;
+  /** Uses per side per match. */
+  readonly limitPerMatch: number;
+}
+
+export interface PkConfig {
+  readonly enabled: boolean;
+  readonly inviteTtlSeconds: number;
+  readonly inviteCooldownSeconds: number;
+  readonly randomWaitSeconds: number;
+  readonly battleSeconds: number;
+  readonly resultSeconds: number;
+  readonly absenceGraceSeconds: number;
+  /** 0 = no tick (tests). */
+  readonly tickMs: number;
+  readonly scoreBroadcastMs: number;
+  readonly boosters: readonly PkBoosterRule[];
+}
+
 export interface AppConfig {
   readonly env: Env['NODE_ENV'];
   readonly isProduction: boolean;
@@ -93,6 +128,9 @@ export interface AppConfig {
     readonly liveSeatAskUser: RateLimitRule;
     readonly liveSeatActionUser: RateLimitRule;
     readonly liveSeatsReadUser: RateLimitRule;
+    /** v1.43-live (D195): PK invitations; every other PK action (per user). */
+    readonly livePkInviteUser: RateLimitRule;
+    readonly livePkActionUser: RateLimitRule;
     /** CP-012: tap batches (per user). */
     readonly liveTapsUser: RateLimitRule;
     /** CP-013: chat messages (per user). */
@@ -385,6 +423,8 @@ export interface AppConfig {
     /** Lower-case header name set by the edge, or null. */
     readonly countryHeader: string | null;
   };
+  /** v1.43-live (D195, CONVENTIONS §10.58): PK 1 v 1; every value an owner-confirmable default. */
+  readonly pk: PkConfig;
   /** Contract v1.3 live discovery (CONVENTIONS §10). */
   readonly live: {
     readonly hostingEnabled: boolean;
@@ -517,6 +557,8 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       liveSeatAskUser: e.RATE_LIMIT_LIVE_SEAT_ASK_USER,
       liveSeatActionUser: e.RATE_LIMIT_LIVE_SEAT_ACTION_USER,
       liveSeatsReadUser: e.RATE_LIMIT_LIVE_SEATS_READ_USER,
+      livePkInviteUser: e.RATE_LIMIT_LIVE_PK_INVITE_USER,
+      livePkActionUser: e.RATE_LIMIT_LIVE_PK_ACTION_USER,
       liveTapsUser: e.RATE_LIMIT_LIVE_TAPS_USER,
       liveChatUser: e.RATE_LIMIT_LIVE_CHAT_USER,
       familyWriteUser: e.RATE_LIMIT_FAMILY_WRITE_USER,
@@ -741,6 +783,24 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       dayTimeZone: e.LUCKY_GIFT_DAY_TIME_ZONE,
       disabledCountries: e.LUCKY_GIFTS_DISABLED_COUNTRIES,
       countryHeader: e.LUCKY_GIFTS_COUNTRY_HEADER ?? null,
+    },
+    pk: {
+      enabled: e.PK_ENABLED,
+      inviteTtlSeconds: e.PK_INVITE_TTL_SECONDS,
+      inviteCooldownSeconds: e.PK_INVITE_COOLDOWN_SECONDS,
+      randomWaitSeconds: e.PK_RANDOM_WAIT_SECONDS,
+      battleSeconds: e.PK_BATTLE_SECONDS,
+      resultSeconds: e.PK_RESULT_SECONDS,
+      absenceGraceSeconds: e.PK_ABSENCE_GRACE_SECONDS,
+      tickMs: e.PK_TICK_MS,
+      scoreBroadcastMs: e.PK_SCORE_BROADCAST_MS,
+      boosters: PK_BOOSTER_KINDS.map((kind, i) => ({
+        kind,
+        multiplier: e.PK_BOOSTER_MULTIPLIERS[i]!,
+        durationSeconds: e.PK_BOOSTER_SECONDS[i]!,
+        lastSeconds: e.PK_BOOSTER_WINDOWS[i]!,
+        limitPerMatch: e.PK_BOOSTER_LIMITS[i]!,
+      })),
     },
     live: {
       hostingEnabled: e.LIVE_HOSTING_ENABLED,

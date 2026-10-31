@@ -45,6 +45,7 @@ import 'fake_live_data_center_repository.dart';
 import 'fake_live_gift_repository.dart';
 import 'fake_live_media_engine.dart';
 import 'fake_live_newcomers_repository.dart';
+import 'fake_live_pk.dart';
 import 'fake_live_program_repository.dart';
 import 'fake_live_rankings_repository.dart';
 import 'fake_live_repository.dart';
@@ -128,6 +129,8 @@ Future<void> pumpKabsoApp(
         // Never the device plugin: Create offers the system picker.
         mediaLibraryProvider.overrideWithValue(const UnsupportedMediaLibrary()),
         // Never a camera or a media server: an in-memory engine.
+        // v1.43-live (D195): never the network for the PK.
+        ...pkTestOverrides(),
         liveMediaEngineProvider.overrideWithValue(
           liveMediaEngine == null
               ? FakeLiveMediaEngine.new
@@ -238,6 +241,8 @@ Future<void> pumpScreen(
   DmRepository? dmRepository,
   FakeInlineVideos? inlineVideos,
   RechargeRepository? rechargeRepository,
+  FakeLivePkRepository? livePkRepository,
+  FakePkOpponentMedia? pkOpponent,
 }) async {
   final prefs = await testPrefs(language: language.name);
   await tester.pumpWidget(
@@ -261,6 +266,8 @@ Future<void> pumpScreen(
         ),
         mediaLibraryProvider.overrideWithValue(const UnsupportedMediaLibrary()),
         // Never a camera or a media server: an in-memory engine.
+        // v1.43-live (D195): never the network for the PK.
+        ...pkOverrides(livePkRepository ?? FakeLivePkRepository(), pkOpponent),
         liveMediaEngineProvider.overrideWithValue(
           liveMediaEngine == null
               ? FakeLiveMediaEngine.new

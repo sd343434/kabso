@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { ContentLanguage } from '../../common/http/content-language.js';
 import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
-import type { Gift, GiftBadge, GiftCategory } from '../../generated/prisma/client.js';
+import type { Gift, GiftBadge, GiftCategory, PkBoosterKind } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { giftArtUrl } from './gift-art.js';
 import { catalogueVersion, GIFT_CATEGORIES } from './gift-catalogue.js';
@@ -50,6 +50,8 @@ export interface GiftDto extends GiftArtDto {
   tag: GiftTagDto | null;
   /** v1.32-live (D154): set exactly for a QUIPS gift. */
   quip: GiftQuipDto | null;
+  /** v1.43-live (D195): the PK booster this gift activates (shown in the «PK» tab during a PK only). */
+  pkBooster: PkBoosterKind | null;
 }
 
 /** `GiftCatalogue`. */
@@ -118,6 +120,7 @@ export function giftDto(gift: Gift, lang: ContentLanguage, publicBaseUrl: string
       gift.soundKey === null || gift.soundMs === null
         ? null
         : { soundKey: gift.soundKey, durationMs: gift.soundMs, text: gift.quipText },
+    pkBooster: gift.pkBooster,
   };
 }
 

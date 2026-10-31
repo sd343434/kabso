@@ -40,6 +40,7 @@ import 'package:material_ui/material_ui.dart';
 import '../fixtures/live/live_api_fixtures.dart';
 import '../fixtures/live/live_fixtures.dart';
 import '../helpers/fake_live_media_engine.dart';
+import '../helpers/fake_live_pk.dart';
 import '../helpers/fake_live_repository.dart';
 import '../helpers/fake_profile_repository.dart';
 import '../helpers/golden.dart';
@@ -107,6 +108,8 @@ void main() {
             FakeProfileRepository(apiProfile(ar: ar)),
           ),
           // CP-010: joined, the host not in the media session yet.
+          // v1.43-live (D195): never the network for the PK.
+          ...pkTestOverrides(),
           liveMediaEngineProvider.overrideWithValue(FakeLiveMediaEngine.new),
           currentUserProvider.overrideWithValue(null),
         ];

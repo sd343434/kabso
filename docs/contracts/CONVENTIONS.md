@@ -179,6 +179,13 @@ All non-2xx responses use one envelope:
 | 409 | `CONSENT_VERSION_MISMATCH` | *(v1.66-social, DRAFT, D198)* `acceptConsents` named a version that is not the one in force; `details: [{field, issue: <version in force or none>}]`. |
 | 429 | `DATA_EXPORT_LIMIT` | *(v1.66-social, DRAFT, D198)* `requestDataExport` within 24 hours of the last export (FAILED ones excepted); `Retry-After` and `details: [{field: "nextAllowedAt", issue: <ISO time>}]`. Audited. |
 | 410 | `DATA_EXPORT_LINK_INVALID` | *(v1.66-social, DRAFT, D198)* `createDataExportLink` / `downloadDataExport` for an export that is not the caller's, not READY, already downloaded, expired, or with a wrong token. Audited. |
+| 409 | `PK_UNAVAILABLE` | *(v1.43-live, DRAFT, D195)* The room cannot take part in a PK now (not a LIVE SOLO video live of the caller, the host away, or PK switched off). §10.58. |
+| 409 | `PK_HOST_BUSY` | *(v1.43-live, DRAFT, D195)* The caller or the other host is already in a PK, an open invitation or the random queue. §10.58. |
+| 409 | `PK_INVITES_OFF` | *(v1.43-live, DRAFT, D195)* The invited host switched PK invitations off. §10.58. |
+| 409 | `PK_INVITE_COOLDOWN` | *(v1.43-live, DRAFT, D195)* An invitation sooner than PK_INVITE_COOLDOWN_SECONDS after the previous one (Retry-After). §10.58. |
+| 409 | `PK_INVITE_CLOSED` | *(v1.43-live, DRAFT, D195)* The invitation was answered, cancelled or expired. §10.58. |
+| 409 | `PK_NOT_ACTIVE` | *(v1.43-live, DRAFT, D195)* No BATTLE or RESULT match in the room. §10.58. |
+| 409 | `PK_BOOSTER_UNAVAILABLE` | *(v1.43-live, DRAFT, D195)* A booster gift outside a battle, outside its window, over its per-match limit or not higher than the active one (detail issue). §10.58. |
 | 403 | `DM_NOT_ALLOWED` | *(v1.40-social, DRAFT, D155)* The recipient's «who can message you» setting (`whoCanMessage`) does not allow the caller (§11.13). Nothing was stored or charged. The app says the person does not accept messages. |
 | 403 | `DM_REQUEST_LIMIT` | *(v1.40-social, DRAFT, D155)* The caller already sent `DM_REQUEST_MAX_MESSAGES` (3) messages in a message request the recipient has not accepted (§11.13). The app says to wait for a reply. |
 | 403 | `DM_REQUEST_TEXT_ONLY` | *(v1.40-social, DRAFT, D155)* A picture or voice message in a message request (only text, a pack emoji or a gift until the recipient accepts, §11.13). |
@@ -415,6 +422,8 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `POST /me/premium-username/rentals`, `DELETE /me/premium-username` *(v1.28-live, D146)* | 20 / hour per user (bucket `premium:rent`, `RATE_LIMIT_PREMIUM_RENT_USER`). **Replaces** the per-user default; `GET /premium-usernames`, `GET /premium-usernames/{username}` and `GET /me/premium-username` use the per-user default |
 | `POST /search/queries` *(v1.29-live, D147)* | 120 / hour per user (bucket `search:record`, `RATE_LIMIT_SEARCH_RECORD_USER`). **Replaces** the per-user default; `GET /search/trending` and `GET /search/trending-hashtags` use the per-user default |
 | `GET /live/rooms` *(v1.3)* | 300 / 15 min per user |
+| `POST /live/rooms/{roomId}/pk/invites` *(v1.43-live, D195)* | 30 / 10 min per user (bucket `live:pk:invite`, `RATE_LIMIT_LIVE_PK_INVITE_USER`). **Replaces** the per-user default; the 10-second cooldown between two invitations is a separate rule (409 `PK_INVITE_COOLDOWN`, §10.58) |
+| The other PK host routes *(v1.43-live, D195)*: `…/pk/candidates`, `…/pk/invites/{inviteId}` (DELETE, accept, decline), `…/pk/random`, `…/pk/end`, `…/pk/mute-opponent`, `PUT /me/live-pk` | 300 / 10 min per user (one bucket `live:pk:action`, `RATE_LIMIT_LIVE_PK_ACTION_USER`). **Replaces** the per-user default; `GET …/pk` and `GET /live/pk/hosts/{username}` use `live:list` (guests per IP), `…/pk/media-token` the media-token limits |
 | `GET /users/{username}` *(v1.3)* | 300 / 15 min per user (profile scraping) |
 | `POST /live/rooms` *(v1.3)* | 10 / hour and 30 / day per user; counted **before** the `LIVE_HOSTING_ENABLED` check |
 | `POST /live/rooms/{roomId}/heartbeat` *(v1.3)* | 12 / min per user (expected cadence 1 / 15 s = 4 / min; 3× headroom for retries) |
@@ -538,6 +547,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.29-live)* Tables `search_terms`, `search_term_counts`, `search_blocked_words` | Backend — `posts` module (`SearchTrendsService`; changed by admins only with the `search-admin` CLI) | CTO; Security reviews the privacy rules (§11.11) |
 | *(v1.30-live)* Table `device_tokens`; column `notifications.pushed_at` | Backend — `push` module (tokens; the notifications module's push dispatcher sets `pushed_at`; the auth module's session revocation deletes the session's token) | CTO; Security reviews token handling (§11.12) |
 | *(v1.32-live)* Table `live_free_quips`; columns `gifts.sound_key`, `sound_ms`, `quip_text`, `live_gifts.host_share_bps`, `live_rooms.quip_busy_until`; server config `GIFT_HOST_SHARE_PERCENTS`, `QUIP_QUEUE_MAX_WAIT_SECONDS` | Backend — `gifts` module (catalogue, `quips.ts`) and `live` module (`LiveGiftsService` writes sends, free quips and the queue in the send's transaction; `LiveQuipsService` the soundboard) | CTO; Security (coin paths; the host share is a money rule, D149) |
+| *(v1.43-live)* Tables `pk_matches`, `pk_invites`, `pk_queue`, `pk_boosts`, `pk_gift_points`, `pk_supporters`, `pk_host_records`, `pk_host_settings`; column `gifts.pk_booster`; server config `PK_*` | Backend — `live` module (`LivePkService`; PK points written in the gift send's transaction by `LiveGiftsService`; `pk-admin` CLI for moderation) | CTO; Security (the gift path; PK points never touch money) |
 | *(v1.33-live)* Tables `live_boosts`, `live_boost_cards`; ledger reasons `LIVE_BOOST`, `LIVE_BOOST_REFUND`; server config `LIVE_BOOST_PRICES`, `LIVE_BOOST_SLOTS`, `LIVE_BOOST_MAX_WAIT_MINUTES` | Backend — `live` module (`LiveBoostsService`; cards granted only by the `boost-admin` CLI) | CTO; Security (coin paths, refunds) |
 | *(v1.35-live)* Table `live_summaries` | Backend — `live` module (`LiveDataCenterService`: written once per ended live by its summariser; reads `live_gifts`, `live_gift_recipients`, `live_room_audience`, `follows` read-only) | CTO |
 | *(v1.36-live)* Table `live_program_items` | Backend — `live` module (`LiveProgramService`; the host writes, the announcer marks `announced_at`) | CTO |
@@ -618,6 +628,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.49-social (draft) | 2026-10-30 | **D172 (owner: the Creator Center «مركز صنّاع المحتوى» in the layout of the owner's reference, whose stats card shows «بيانات أكتوبر» — the current month):** `getMyCreatorStats` takes `period=THIS_MONTH` — the current calendar month so far, from the 1st at 00:00 in `LIVE_RANKINGS_TIME_ZONE` (the region's zone, as the families' month, §10.21) until now; `CreatorStats.month` (`YYYY-MM` for `THIS_MONTH`, else null; required in responses). No migration. §10.40. | **Additive** (an enum value the app sends only when it knows it, and a response field older apps ignore). |
 | v1.48-social (draft) | 2026-10-29 | **D171 (owner: «الحقيبة تعرض العنصر الذي تم شراؤه أو استلامه كهدية … ارتداء / إزالة … إرسال … الوقت المتبقي»; amendment «يمكن أن تجزّئ المدة»):** `BagItem` gains `expiresAt` (null = permanent), `giftedBy` (`UserSummary` or null) and `transferable` (all **required** in responses); `BagItemSource` gains `GIFT`; `getMyBag` never lists expired items; new `sendMyBagItem` (`POST /me/bag/transfers`, `SendBagItemRequest {code, username, days?}`, 201 `BagTransfer`): the whole item or `days` of its remaining time to another user, stacking on the recipient's copy; codes `BAG_ITEM_NOT_TRANSFERABLE`, `BAG_SEND_PERMANENT_WHOLE_ONLY`, `BAG_SEND_EXCEEDS_REMAINING`, `BAG_RECIPIENT_HAS_PERMANENT` (409); notification type `BAG_ITEM_RECEIVED` (target `BAG_ITEM`, `NotificationTarget.bagCategory`). `bag-admin grant <email> <code> [<days>|forever]`. Migrations `20261216090000_bag_expiry_send_enums`, `20261216100000_bag_expiry_send`. Version number: v1.39–v1.47 are taken (live and social share one sequence), so this is v1.48-social. §4, §7, §8, §10.22, §10.45, §11.10. | **Additive** (an operation, codes, enum values clients treat as unknown-safe, required response fields strict clients add in the same change set). `GET /bag/catalogue` is unchanged (the app no longer shows items the user does not own). |
 | v1.47-social (draft) | 2026-10-30 | **D175 (owner, Arabic, answering D168's questions a–g; CP-025; v1.46-social left free for another branch):** profile fields, private accounts and follow requests. `Gender` (`MALE`, `FEMALE`, `UNDISCLOSED`) is **required** by `register` (`RegisterRequest.gender`) and editable with `updateMe` together with `showGender` (default false), `category` (`AccountCategory`: 11 values) and `links` (0–3 `ProfileLinkInput`, https only, normalised); `Me` gains `gender`, `showGender`, `category`, `links`; `PublicProfile` gains `gender` (only when shown), `category`, `links` (`ProfileLink` with `ProfileLinkPlatform`) and `followRequested`; `FollowState.isRequested`; `FollowListItem.requestedByMe`; `PrivacySettings.isPrivate` / `UpdatePrivacyRequest.isPrivate` (switching to public accepts every pending request); a new follow of a private account is a **follow request** (was 403); `listFollowRequests` (`GET /me/follow-requests`, `FollowRequestPage`, `FollowRequest`), `acceptFollowRequest` / `declineFollowRequest` (`POST /me/follow-requests/{username}/accept` → `FollowRequestAccepted`, `…/decline` → 204); `NotificationType` `FOLLOW_REQUEST`, `FOLLOW_REQUEST_ACCEPTED`, `AVATAR_REMOVED`; report `targetType: PROFILE_LINK` (`Report.linkSnapshot`, `ProfileLinkSnapshot`); code `FOLLOW_REQUEST_NOT_PENDING` (409); server config `RATE_LIMIT_FOLLOW_REQUEST_ANSWER_USER`; CLI `profile-admin remove-avatar`; audit `user.privacy.private`, `admin.avatar.remove`; migrations `20261215090000_profile_fields_enums`, `20261215100000_profile_fields_private_accounts`. §4, §7, §10.5, §10.6, §10.42, §10.47, §11.7, §11.10. | **Breaking for registration** (`gender` is required: an app without the gender step gets 400 `gender` / `required`; app and API ship together). **Behaviour change** for a new follow of a private account (200 with `isRequested: true` instead of 403; no app could make an account private before). Otherwise **additive** (new required response fields: strict clients update their models in the same change set; clients ignore unknown notification types and treat an unknown `ProfileLinkPlatform` as `OTHER`). |
+| v1.43-live (draft) | 2026-10-31 | **D195 (owner «فعّل PK ثنائي ولا تنسَ التربل والدبل», CP-038):** PK 1 v 1 between two SOLO video lives — `getLivePk`, `listLivePkCandidates`, `inviteLivePk`, `cancelLivePkInvite`, `acceptLivePkInvite`, `declineLivePkInvite`, `joinLivePkRandom`, `leaveLivePkRandom`, `endLivePk`, `muteLivePkOpponent`, `createLivePkMediaToken`, `getLivePkHost`, `getMyLivePk` / `setMyLivePk`; `Gift.pkBooster` (required, nullable) and `PkBoosterKind`; codes `PK_UNAVAILABLE`, `PK_HOST_BUSY`, `PK_INVITES_OFF`, `PK_INVITE_COOLDOWN`, `PK_INVITE_CLOSED`, `PK_NOT_ACTIVE`, `PK_BOOSTER_UNAVAILABLE` (409); data topic `pk`; config `PK_*`, `RATE_LIMIT_LIVE_PK_INVITE_USER` (30/600), `RATE_LIMIT_LIVE_PK_ACTION_USER` (300/600); migration `20270110090000_live_pk`; CLI `pk-admin`, `gift-admin --pk-booster` / `pk-boosters-seed`. §4, §7, §8, §10.58. | Additive; older apps show booster gifts as ordinary gifts (409 outside a PK) and see a PK room as a solo live. |
 | v1.42-live (draft) | 2026-10-29 | **D170 (owner: «في البث الصوتي أو المرئي» a live goes on in the background; a video host away 5 minutes closes the live):** `setLiveHostPresence` (`POST /live/rooms/{roomId}/host-presence` `{away: boolean}`, 204, host only; rate limit `live:host-presence`, the heartbeat rule); `LiveRoomEndReason.HOST_AWAY_TIMEOUT`; `live_rooms.host_away_since` (migrations `20261215090000_live_host_away_enums`, `20261215090100_live_host_away`); `LIVE_HOST_AWAY_TIMEOUT_SECONDS` (default 300, 30–86400), enforced by the live sweeper. §10.44. (Numbered v1.42-live at integration: D178 took v1.41-live.) | Additive; older apps show `HOST_AWAY_TIMEOUT` as a generic «انتهى البث». |
 | v1.41-live (draft) | 2026-10-30 | **D178 (owner: «عندما يلعب أحد هدايا الحظ لا يظهر المكسب في التكست، والشرائط يجب أن تكون ظاهرة عند الجميع حتى الصغيرة. والهدايا يجب أن تظهر في شريط في جميع البثوث»):** (1) every lucky win (`coinsWon > 0`) sends its room `lucky-win` on topic `lucky` (was only ≥ `LUCKY_GIFT_BIG_WIN_MULTIPLIER`, which now only decides the global `lucky-ticker`); (2) new data message **`gift-ticker`** on topic `gift`: `{"type":"gift-ticker","gift":LiveGift,"room":{"id","title","host":UserSummary}}` to every **other** LIVE room (≤ 5 000, newest first) for a send of at least `GIFT_GLOBAL_TICKER_MIN_COINS` coins (server config, default 1 000; the owner will set the value) — at most one every **3 s** for the whole service (Redis gate `gift:ticker:gate`), one waiting (`gift:ticker:pending`, ≤ 12 s), a newer send replaces it; quips excluded; its own room keeps the `gift` message. Gift and win chat lines are drawn by the apps from these messages (no stored chat line). §10.23, §10.27. | **Additive** for clients (a new data message type; more `lucky-win` messages of the same shape). |
 | v1.40-live (draft) | 2026-10-30 | **D174 (owner «نعم بالطبع»: viewers join a solo live as guests; PK design: at most 3):** a `SOLO` live has **3 guest seats** (indexes 1–3; `LiveSeats.mode` gains `SOLO`, `seatCount` reads 4, not settable) with the whole CP-011 flow — `requestLiveSeat` / accept / decline, `inviteToLiveSeat`, `leaveLiveSeat`, `muteLiveSeat`, `removeFromLiveSeat`, `lockLiveSeat`, moderators; a seated SOLO guest is a `SPEAKER` publishing camera and microphone (muted: camera). A 4th guest → 409 `LIVE_SEAT_UNAVAILABLE` (no seat free). No migration. §10.9. | **Additive for apps** (a new enum value; SOLO seat calls that were 409 now work). |
@@ -4044,6 +4055,92 @@ not coin-valued and is unchanged; on the new ladder it is small.
 - **Unchanged by design.** Support tiers and their 21 frames, charm medals, the room level and the task bands (the
   higher of Support and Charm, D176/D188) stay keyed to level numbers, so with the kept levels nobody loses a band
   or a frame; each tier is now worth more.
+
+### 10.58 PK 1 v 1 «PK ثنائي» — battles between two hosts, the four boosters *(v1.43-live, DRAFT — D195, CP-038)*
+
+Owner (2026-10-31, Arabic): «فعّل PK ثنائي ولا تنسَ التربل والدبل». Two hosts of **SOLO video** lives battle;
+viewers of each room see both hosts side by side with the PK score bar (`KabsoPkBar`, D73). Every number
+below is an **owner-confirmable default** (server config; D195 lists them).
+
+- **Who.** A LIVE `SOLO` room of the caller with a fresh heartbeat whose host is present (not away, D170) —
+  "eligible". `MULTI`, `AUDIO` and `PK`-mode rooms cannot start one (409 `PK_UNAVAILABLE`); `PK_ENABLED`
+  (default true) switches new PKs and booster gifts off (409 `PK_UNAVAILABLE` / `PK_BOOSTER_UNAVAILABLE`).
+  Room mode stays `SOLO` during a PK (the hub is unchanged in v1.43-live).
+- **Starting.** (a) **Invite** (`inviteLivePk`): a host picks another live host (`listLivePkCandidates`:
+  eligible, invitations on, not busy, no block either way; `q` searches, otherwise the busiest lives). The
+  invitation is open **`PK_INVITE_TTL_SECONDS` = 15**; the invited host accepts or declines; the inviter
+  may cancel; **`PK_INVITE_COOLDOWN_SECONDS` = 10** between two invitations of a host (409
+  `PK_INVITE_COOLDOWN`, `Retry-After`); rate limit 30 / 10 min. A host may switch invitations off
+  (`setMyLivePk`, default on). (b) **Random** «مطابقة عشوائية» (`joinLivePkRandom`): one serialized queue;
+  the host who waited longest with an eligible room and no block either way is paired at once, otherwise
+  the caller waits **`PK_RANDOM_WAIT_SECONDS` = 60**. "Busy" (409 `PK_HOST_BUSY`): a BATTLE / RESULT match,
+  an open invitation either way, or the random queue. Blocked hosts (either way) are never listed, invited
+  (404) or paired.
+- **The match** (`PkMatch`): `BATTLE` for **`PK_BATTLE_SECONDS` = 300**, then `RESULT` for
+  **`PK_RESULT_SECONDS` = 60** (the win / lose / draw animation and the top three supporters per side),
+  then `CLOSED`. Side A is the inviter (or the host who waited longest). At most one open match per room
+  (partial unique indexes plus advisory locks). End reasons: `TIME` (the higher score wins; equal → a
+  **draw**), `FORFEIT` (a host ends early with `endLivePk`, or ends the live), `DISCONNECT` (the host's
+  heartbeat stale, out of the media session, or the room ended otherwise, for
+  **`PK_ABSENCE_GRACE_SECONDS` = 30**), `AWAY` (D170 away for 30 s) — the other side wins; both absent → a
+  draw; `ADMIN` (a moderator, `pk-admin end <matchId> --reason`, audited `live.pk.admin_end`): **void** — no
+  winner, not counted. `endLivePk` during `RESULT` closes it. Every change bumps `seq`.
+- **Records.** `pk_host_records` (wins / losses / draws of finished, non-void matches) and the last 20
+  matches with scores, duration, result and top supporters (`getLivePkHost`). Rewards are non-monetary and
+  deferred.
+- **Score = PK points**: the **real coin value** of every paid gift sent in that room during the battle
+  (`live_gifts.total_coins`, any recipient — the host or a seated guest; lucky gifts their coin value; a free
+  quip 0) × the side's **active booster multiplier**, stored per send in `pk_gift_points` (one row per
+  send, so a retried send is never counted twice), the side's total in `pk_matches.score_a|b`, and per
+  supporter in `pk_supporters`. **Multipliers affect only PK points**: the wallet charge, host earnings and
+  cherries (D179), the live score, popularity boards, Contribution, charm and levels are written by the
+  send exactly as without PK — from the real value. Gifts after `battleEndsAt` (before the tick ends the
+  battle) count for nothing.
+- **Boosters** (`PkBoosterKind`), each activated by **its own catalogue gift** (`Gift.pkBooster`,
+  `gift-admin --pk-booster`, never LUCKY or QUIPS, never free; `gift-admin pk-boosters-seed` adds the four
+  with the suggested prices):
+
+  | Booster | Multiplier | Active | May start | Uses / side / match | Suggested gift price |
+  |---|---|---|---|---|---|
+  | «دبل» `DOUBLE` | ×2 | 30 s | any time | 2 | 5 000 coins (≈ $0.06) |
+  | «دبل تيربو» `DOUBLE_TURBO` | ×3 | 20 s | last 120 s | 2 | 20 000 coins (≈ $0.25) |
+  | «تربل» `TRIPLE` | ×5 | 20 s | last 60 s | 2 | 50 000 coins (≈ $0.63) |
+  | «تربل تيربو» `TRIPLE_TURBO` | ×10 | 10 s | last 60 s | 2 | 150 000 coins (≈ $1.88) |
+
+  (`PK_BOOSTER_MULTIPLIERS` `2,3,5,10`, `PK_BOOSTER_SECONDS` `30,20,20,10`, `PK_BOOSTER_WINDOWS` `0,120,60,60`,
+  `PK_BOOSTER_LIMITS` `2,2,2,2`; prices are the gifts' own, `gift-admin update`.) A booster gift is sent to
+  the host alone, quantity 1 (400 otherwise), during a battle; its own coin value counts as normal points
+  (×1) and its multiplier applies from the next send for its duration. **One active booster per side**; a
+  new one replaces the active one only when it is **higher** (the lower one ends at that moment). Refusals
+  roll the whole send back, nothing charged: 409 `PK_BOOSTER_UNAVAILABLE` with detail `giftCode` /
+  `no_match` (no battle, or PK off), `too_early` (outside its window), `limit_reached`, `active_higher`
+  (an equal or higher one is active). Both rooms see «فعّل فريق X تربل ×5!» and a countdown chip on that
+  side of the bar (`PkSideState.boost.endsAt`). The other owner tools (Fog, Freeze, Shield, Extra time,
+  MVP, Quick strike, Steal, Crit) are **not** in v1.43-live and are not shown.
+- **Real time.** Media data messages on topic **`pk`** to both rooms: `{type: "pk-match", event:
+  started|score|boost|ended|closed|mute, match: PkMatch, boost?: {roomId, kind, multiplier, endsAt}}` —
+  state changes at once, score changes at most every **`PK_SCORE_BROADCAST_MS` = 500**; `{type:
+  "pk-invite", invite}` to the invited host (and to the inviter when it is answered, cancelled or expires);
+  `{type: "pk-queue", status: "EXPIRED"}` to a host whose wait ran out. Apps keep the highest `seq` and read
+  `getLivePk` after joining, reconnecting or on a gap; the countdowns use `serverTime`. The server is the
+  only authority; a **PK tick** (`PK_TICK_MS` = 1000, refused 0 in production) expires invitations and waits,
+  ends battles (TIME and absences), closes result phases and announces moderator ends; every step is
+  idempotent under the rows' state guards.
+- **Media (design).** No new LiveKit room and no server-side forwarding: each viewer — and each host —
+  opens a **second, subscribe-only, hidden connection to the other room's media session**
+  (`createLivePkMediaToken`; identity `pk:<matchId>:<userId | guest:<guestId>>`, `canPublish` false). So
+  each room keeps its own chat, gifts, seats and viewer list (the media webhook never records `pk:`
+  identities as viewers: no count, no "joined" line; they are disconnected when the match closes or is not
+  open), viewers hear both hosts, and the hosts hear each other through the same connection. The app
+  ignores the other room's data messages on that connection. **Mute opponent** (`muteLivePkOpponent`):
+  the host turns the other host's sound off for their own room (`PkSideState.mutesOpponent`; the app does
+  not play it). Cost: one more participant per viewer in the other room (LiveKit participant minutes).
+- **PK guests.** The SOLO seats 1–3 (D174) are the PK guests: the same request / accept / mute / remove
+  flow; a 4th request → 409 `LIVE_SEAT_UNAVAILABLE`. `PkSideState.guests` lists them; the app draws them as
+  small circles at the bottom of their host's half, glowing while they speak (the other room's guests come
+  through the PK connection).
+- **Not in v1.43-live:** PK 2 v 2, the other PK tools, rewards, a PK mark on the hub's cards, an admin
+  HTTP route (the CLI only).
 
 ### 10.60 The admin panel v2 «لوحة الإدارة» — redesign and phase 2 *(v1.65-social, DRAFT — D197, CP-039)*
 

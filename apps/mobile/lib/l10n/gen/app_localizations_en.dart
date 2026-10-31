@@ -10426,4 +10426,208 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errorDataExportLinkInvalid =>
       'This download link is no longer valid.';
+
+  @override
+  String get liveGiftTabPk => 'PK';
+
+  @override
+  String get pkSheetTitle => 'PK battle';
+
+  @override
+  String get pkTabInvite => 'Invite a host';
+
+  @override
+  String get pkTabRandom => 'Random match';
+
+  @override
+  String get pkSearchHint => 'Search live hosts';
+
+  @override
+  String get pkLiveNow => 'Live now';
+
+  @override
+  String get pkNoCandidates => 'No hosts are free right now';
+
+  @override
+  String get pkInvite => 'Invite';
+
+  @override
+  String pkInviteSent(String name) {
+    return 'Invite sent to $name';
+  }
+
+  @override
+  String pkWaitingFor(String name, String seconds) {
+    return 'Waiting for $name… $seconds';
+  }
+
+  @override
+  String get pkCancel => 'Cancel';
+
+  @override
+  String get pkRandomStart => 'Find an opponent';
+
+  @override
+  String pkRandomSearching(String time) {
+    return 'Looking for an opponent… $time';
+  }
+
+  @override
+  String get pkRandomStop => 'Stop searching';
+
+  @override
+  String get pkRandomHint =>
+      'We pair you with a live host looking for a battle now.';
+
+  @override
+  String get pkInvitesSwitch => 'Accept PK invites';
+
+  @override
+  String get pkIncomingTitle => 'PK invite';
+
+  @override
+  String pkIncomingBody(String name) {
+    return '$name invites you to a PK battle';
+  }
+
+  @override
+  String get pkAccept => 'Accept';
+
+  @override
+  String get pkDecline => 'Decline';
+
+  @override
+  String get pkNoticeDeclined => 'Your invite was declined';
+
+  @override
+  String get pkNoticeExpired => 'The invite expired';
+
+  @override
+  String get pkNoticeQueueExpired => 'No opponent found. Try again.';
+
+  @override
+  String get pkEnd => 'End PK';
+
+  @override
+  String get pkEndConfirmTitle => 'End the PK now?';
+
+  @override
+  String get pkEndConfirmBody =>
+      'Ending early counts as a forfeit: your opponent wins.';
+
+  @override
+  String get pkMuteOpponent => 'Mute opponent';
+
+  @override
+  String get pkUnmuteOpponent => 'Unmute opponent';
+
+  @override
+  String pkBoostAnnounce(String team, String booster, String multiplier) {
+    return 'Team $team activated $booster $multiplier!';
+  }
+
+  @override
+  String get pkBoosterDouble => 'Double';
+
+  @override
+  String get pkBoosterDoubleTurbo => 'Double Turbo';
+
+  @override
+  String get pkBoosterTriple => 'Triple';
+
+  @override
+  String get pkBoosterTripleTurbo => 'Triple Turbo';
+
+  @override
+  String pkBoostChip(String multiplier, String time) {
+    return '×$multiplier $time';
+  }
+
+  @override
+  String pkRoundTimer(String time) {
+    return 'PK $time';
+  }
+
+  @override
+  String get pkResultWin => 'Victory!';
+
+  @override
+  String get pkResultLose => 'Defeat';
+
+  @override
+  String get pkResultDraw => 'Draw';
+
+  @override
+  String pkEndedForfeit(String name) {
+    return '$name forfeited';
+  }
+
+  @override
+  String pkEndedDisconnect(String name) {
+    return '$name disconnected';
+  }
+
+  @override
+  String pkEndedAway(String name) {
+    return '$name was away';
+  }
+
+  @override
+  String get pkEndedAdmin => 'A moderator ended the PK';
+
+  @override
+  String get pkBoosterNoMatch => 'Boosters work only during a PK battle';
+
+  @override
+  String pkBoosterTooEarly(String minutes) {
+    return 'Available in the last $minutes of the battle';
+  }
+
+  @override
+  String get pkBoosterLastMinute => 'minute';
+
+  @override
+  String get pkBoosterLastTwoMinutes => '2 minutes';
+
+  @override
+  String get pkBoosterLimit => 'This booster is used up for this battle';
+
+  @override
+  String get pkBoosterActiveHigher =>
+      'A booster as strong or stronger is active';
+
+  @override
+  String get pkErrorBusy => 'That host is busy with another PK or invite';
+
+  @override
+  String get pkErrorInvitesOff => 'This host doesn’t take PK invites';
+
+  @override
+  String get pkErrorCooldown => 'Wait a moment before inviting again';
+
+  @override
+  String get pkErrorUnavailable => 'A PK can’t start now';
+
+  @override
+  String get pkErrorInviteClosed => 'This invite is no longer open';
+
+  @override
+  String pkRecord(String wins, String losses, String draws) {
+    return 'PK: $wins W · $losses L · $draws D';
+  }
+
+  @override
+  String pkOpponentPane(String name) {
+    return 'Opponent $name';
+  }
+
+  @override
+  String pkOwnPane(String name) {
+    return 'Host $name';
+  }
+
+  @override
+  String pkGuestSemantics(String name) {
+    return 'Guest $name';
+  }
 }

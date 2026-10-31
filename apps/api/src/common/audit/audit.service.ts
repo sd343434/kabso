@@ -89,6 +89,12 @@ export enum AuditAction {
   LIVE_FEATURE_REMOVE = 'live.feature.remove',
   /** v1.33-live (D154b): traffic cards granted by the boost-admin CLI. */
   LIVE_BOOST_CARD_GRANT = 'live.boost_card.grant',
+  // v1.43-live (D195, §10.58): PK 1 v 1 — a match starts, its battle ends (with the reason), a
+  // moderator ends one (`pk-admin end`, with the reason), a host switches invitations.
+  LIVE_PK_START = 'live.pk.start',
+  LIVE_PK_END = 'live.pk.end',
+  LIVE_PK_ADMIN_END = 'live.pk.admin_end',
+  LIVE_PK_SETTINGS = 'live.pk.settings',
   /** v1.44-social (D166): events and tasks, changed only by the event-admin and task-admin CLIs. */
   EVENT_CREATE = 'event.create',
   EVENT_END = 'event.end',

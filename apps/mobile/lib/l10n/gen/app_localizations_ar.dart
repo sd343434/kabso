@@ -10442,4 +10442,206 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get errorDataExportLinkInvalid => 'رابط التنزيل لم يعد صالحاً.';
+
+  @override
+  String get liveGiftTabPk => 'PK';
+
+  @override
+  String get pkSheetTitle => 'تحدي PK';
+
+  @override
+  String get pkTabInvite => 'دعوة مضيف';
+
+  @override
+  String get pkTabRandom => 'مطابقة عشوائية';
+
+  @override
+  String get pkSearchHint => 'ابحث عن مضيف مباشر';
+
+  @override
+  String get pkLiveNow => 'مضيفون مباشرون الآن';
+
+  @override
+  String get pkNoCandidates => 'لا يوجد مضيفون متاحون الآن';
+
+  @override
+  String get pkInvite => 'دعوة';
+
+  @override
+  String pkInviteSent(String name) {
+    return 'أُرسلت الدعوة إلى $name';
+  }
+
+  @override
+  String pkWaitingFor(String name, String seconds) {
+    return 'بانتظار رد $name… $seconds';
+  }
+
+  @override
+  String get pkCancel => 'إلغاء';
+
+  @override
+  String get pkRandomStart => 'ابدأ المطابقة';
+
+  @override
+  String pkRandomSearching(String time) {
+    return 'جارٍ البحث عن خصم… $time';
+  }
+
+  @override
+  String get pkRandomStop => 'إيقاف البحث';
+
+  @override
+  String get pkRandomHint => 'نطابقك مع مضيف مباشر يبحث عن تحدٍ الآن.';
+
+  @override
+  String get pkInvitesSwitch => 'استقبال دعوات PK';
+
+  @override
+  String get pkIncomingTitle => 'دعوة PK';
+
+  @override
+  String pkIncomingBody(String name) {
+    return '$name يدعوك إلى تحدي PK';
+  }
+
+  @override
+  String get pkAccept => 'قبول';
+
+  @override
+  String get pkDecline => 'رفض';
+
+  @override
+  String get pkNoticeDeclined => 'رُفضت دعوتك';
+
+  @override
+  String get pkNoticeExpired => 'انتهت مهلة الدعوة';
+
+  @override
+  String get pkNoticeQueueExpired => 'لم نجد خصماً، حاول مجدداً';
+
+  @override
+  String get pkEnd => 'إنهاء التحدي';
+
+  @override
+  String get pkEndConfirmTitle => 'إنهاء التحدي الآن؟';
+
+  @override
+  String get pkEndConfirmBody =>
+      'إنهاء التحدي قبل وقته يُحتسب انسحاباً ويفوز الخصم.';
+
+  @override
+  String get pkMuteOpponent => 'كتم الخصم';
+
+  @override
+  String get pkUnmuteOpponent => 'إلغاء كتم الخصم';
+
+  @override
+  String pkBoostAnnounce(String team, String booster, String multiplier) {
+    return 'فعّل فريق $team $booster $multiplier!';
+  }
+
+  @override
+  String get pkBoosterDouble => 'دبل';
+
+  @override
+  String get pkBoosterDoubleTurbo => 'دبل تيربو';
+
+  @override
+  String get pkBoosterTriple => 'تربل';
+
+  @override
+  String get pkBoosterTripleTurbo => 'تربل تيربو';
+
+  @override
+  String pkBoostChip(String multiplier, String time) {
+    return '×$multiplier $time';
+  }
+
+  @override
+  String pkRoundTimer(String time) {
+    return 'PK $time';
+  }
+
+  @override
+  String get pkResultWin => 'فوز!';
+
+  @override
+  String get pkResultLose => 'خسارة';
+
+  @override
+  String get pkResultDraw => 'تعادل';
+
+  @override
+  String pkEndedForfeit(String name) {
+    return 'انسحب $name';
+  }
+
+  @override
+  String pkEndedDisconnect(String name) {
+    return 'انقطع اتصال $name';
+  }
+
+  @override
+  String pkEndedAway(String name) {
+    return 'غاب $name عن التحدي';
+  }
+
+  @override
+  String get pkEndedAdmin => 'أنهى المشرف التحدي';
+
+  @override
+  String get pkBoosterNoMatch => 'المعززات تعمل أثناء التحدي فقط';
+
+  @override
+  String pkBoosterTooEarly(String minutes) {
+    return 'متاح في آخر $minutes من التحدي';
+  }
+
+  @override
+  String get pkBoosterLastMinute => 'دقيقة';
+
+  @override
+  String get pkBoosterLastTwoMinutes => 'دقيقتين';
+
+  @override
+  String get pkBoosterLimit => 'استُخدم الحد الأقصى لهذا المعزز في هذا التحدي';
+
+  @override
+  String get pkBoosterActiveHigher => 'معزز مساوٍ أو أقوى فعّال الآن';
+
+  @override
+  String get pkErrorBusy => 'المضيف مشغول بتحدٍ أو دعوة أخرى';
+
+  @override
+  String get pkErrorInvitesOff => 'هذا المضيف لا يستقبل دعوات PK';
+
+  @override
+  String get pkErrorCooldown => 'انتظر قليلاً قبل دعوة أخرى';
+
+  @override
+  String get pkErrorUnavailable => 'لا يمكن بدء تحدٍ الآن';
+
+  @override
+  String get pkErrorInviteClosed => 'الدعوة لم تعد متاحة';
+
+  @override
+  String pkRecord(String wins, String losses, String draws) {
+    return 'PK: $wins فوز · $losses خسارة · $draws تعادل';
+  }
+
+  @override
+  String pkOpponentPane(String name) {
+    return 'الخصم $name';
+  }
+
+  @override
+  String pkOwnPane(String name) {
+    return 'المضيف $name';
+  }
+
+  @override
+  String pkGuestSemantics(String name) {
+    return 'ضيف $name';
+  }
 }

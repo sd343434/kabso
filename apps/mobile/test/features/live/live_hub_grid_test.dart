@@ -38,6 +38,7 @@ import '../../fixtures/live/live_api_fixtures.dart';
 import '../../helpers/component_harness.dart';
 import '../../helpers/fake_home_banners_repository.dart';
 import '../../helpers/fake_live_media_engine.dart';
+import '../../helpers/fake_live_pk.dart';
 import '../../helpers/fake_live_repository.dart';
 import '../../helpers/fake_notifications_repository.dart';
 import '../../helpers/fake_posts_repository.dart';
@@ -409,6 +410,8 @@ void main() {
             notificationsRepositoryProvider.overrideWithValue(
               FakeNotificationsRepository(),
             ),
+            // v1.43-live (D195): never the network for the PK.
+            ...pkTestOverrides(),
             liveMediaEngineProvider.overrideWithValue(FakeLiveMediaEngine.new),
             homeBannersRepositoryProvider.overrideWithValue(banners),
             currentUserProvider.overrideWithValue(

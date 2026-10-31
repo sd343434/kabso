@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { Gift, GiftBadge, GiftCategory, Prisma } from '../../generated/prisma/client.js';
+import type { Gift, GiftBadge, GiftCategory, PkBoosterKind, Prisma } from '../../generated/prisma/client.js';
 
 /**
  * The gift catalogue and the gift bag (CP-020, D108, CONVENTIONS §10.23), shared by the API and
@@ -14,6 +14,13 @@ import type { Gift, GiftBadge, GiftCategory, Prisma } from '../../generated/pris
  */
 export const GIFT_CATEGORIES: readonly GiftCategory[] = ['POPULAR', 'EVENT', 'FUN', 'LUCKY', 'QUIPS'];
 export const GIFT_BADGES: readonly GiftBadge[] = ['NONE', 'NEW', 'EVENT'];
+/** v1.43-live (D195): the PK boosters a gift may activate (`--pk-booster`). */
+export const GIFT_PK_BOOSTERS: readonly PkBoosterKind[] = [
+  'DOUBLE',
+  'DOUBLE_TURBO',
+  'TRIPLE',
+  'TRIPLE_TURBO',
+];
 
 /** `gifts_code_format`: lower-case letters, digits and `_`, 1–40 characters, not starting with `_`. */
 export const GIFT_CODE_PATTERN = /^[a-z0-9][a-z0-9_]{0,39}$/;
@@ -66,7 +73,40 @@ export interface GiftFields {
   readonly soundKey?: string | null;
   readonly soundMs?: number | null;
   readonly quipText?: string | null;
+  /**
+   * v1.43-live (D195, §10.58): the PK booster this gift activates (`gifts_pk_booster_kind`: never a
+   * LUCKY or QUIPS gift), or null / absent: an ordinary gift.
+   */
+  readonly pkBooster?: PkBoosterKind | null;
 }
+
+/**
+ * v1.43-live (D195, §10.58): the four PK boosters' activation gifts with the suggested default prices
+ * (owner-confirmable; 1 000 000 coins = $12.50 retail, D188): «دبل» ×2 5 000 coins (≈ $0.06), «دبل
+ * تيربو» ×3 20 000 (≈ $0.25), «تربل» ×5 50 000 (≈ $0.63), «تربل تيربو» ×10 150 000 (≈ $1.88). Category
+ * POPULAR (the host share of a normal gift, 65 %); the app draws them from its bundled `pk/booster_*`
+ * art. `gift-admin pk-boosters-seed` adds them.
+ */
+export const PK_BOOSTER_PACK: readonly (GiftFields & { readonly code: string })[] = [
+  ['pk_double', 'DOUBLE', 'دبل', 'Double', 5_000],
+  ['pk_double_turbo', 'DOUBLE_TURBO', 'دبل تيربو', 'Double Turbo', 20_000],
+  ['pk_triple', 'TRIPLE', 'تربل', 'Triple', 50_000],
+  ['pk_triple_turbo', 'TRIPLE_TURBO', 'تربل تيربو', 'Triple Turbo', 150_000],
+].map(([code, kind, nameAr, nameEn, price], i) => ({
+  code: code as string,
+  category: 'POPULAR' as const,
+  nameAr: nameAr as string,
+  nameEn: nameEn as string,
+  priceCoins: price as number,
+  assetKey: `pk/booster_${(kind as string).toLowerCase()}`,
+  animationKey: null,
+  sortOrder: 900 + i,
+  badge: 'NONE' as const,
+  tagCode: null,
+  tagNameAr: null,
+  tagNameEn: null,
+  pkBooster: kind as PkBoosterKind,
+}));
 
 /** Thrown when a change would leave a gift's fields invalid (e.g. a tag without its names). */
 export class GiftFieldsError extends Error {}
@@ -96,11 +136,26 @@ export function giftQuipProblem(
   return null;
 }
 
+/** v1.43-live (D195): a PK booster's gift is an ordinary paid gift (not LUCKY, not QUIPS), or null. */
+export function giftPkBoosterProblem(gift: Pick<GiftFields, 'category' | 'pkBooster'>): string | null {
+  if ((gift.pkBooster ?? null) === null) return null;
+  if (gift.category === 'LUCKY' || gift.category === 'QUIPS')
+    return 'a PK booster gift cannot be LUCKY or QUIPS';
+  return null;
+}
+
 /** Every problem with a gift's fields (empty: valid). Partial input checks only what is given. */
 export function giftFieldProblems(fields: Partial<GiftFields>): string[] {
   const problems: string[] = [];
   if (fields.category !== undefined && !GIFT_CATEGORIES.includes(fields.category)) {
     problems.push(`category must be one of ${GIFT_CATEGORIES.join(', ')}`);
+  }
+  if (
+    fields.pkBooster !== undefined &&
+    fields.pkBooster !== null &&
+    !GIFT_PK_BOOSTERS.includes(fields.pkBooster)
+  ) {
+    problems.push(`pk-booster must be one of ${GIFT_PK_BOOSTERS.join(', ')} (or none)`);
   }
   if (fields.badge !== undefined && !GIFT_BADGES.includes(fields.badge)) {
     problems.push(`badge must be one of ${GIFT_BADGES.join(', ')}`);
@@ -191,7 +246,7 @@ type Tx = Prisma.TransactionClient;
 
 /** Adds a gift (enabled). Returns false when the code exists (nothing changes). */
 export async function addGiftIn(tx: Tx, code: string, fields: GiftFields): Promise<boolean> {
-  const tagProblem = giftTagProblem(fields) ?? giftQuipProblem(fields);
+  const tagProblem = giftTagProblem(fields) ?? giftQuipProblem(fields) ?? giftPkBoosterProblem(fields);
   if (tagProblem !== null) throw new GiftFieldsError(tagProblem);
   const inserted = await tx.gift.createMany({
     data: [
@@ -214,6 +269,7 @@ export async function addGiftIn(tx: Tx, code: string, fields: GiftFields): Promi
         soundKey: fields.soundKey ?? null,
         soundMs: fields.soundMs ?? null,
         quipText: fields.quipText?.trim() ?? null,
+        pkBooster: fields.pkBooster ?? null,
       },
     ],
     skipDuplicates: true,
@@ -246,6 +302,11 @@ export async function updateGiftIn(
     quipText: fields.quipText !== undefined ? fields.quipText : before.quipText,
   });
   if (quipProblem !== null) throw new GiftFieldsError(quipProblem);
+  const boosterProblem = giftPkBoosterProblem({
+    category: fields.category ?? before.category,
+    pkBooster: fields.pkBooster !== undefined ? fields.pkBooster : before.pkBooster,
+  });
+  if (boosterProblem !== null) throw new GiftFieldsError(boosterProblem);
   const after = await tx.gift.update({
     where: { code },
     data: {

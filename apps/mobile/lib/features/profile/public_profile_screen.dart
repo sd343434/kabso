@@ -11,6 +11,7 @@ import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/cp/presentation/cp_special_frame.dart';
 import 'package:kabso_live/features/levels/presentation/profile_levels.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_pk_record.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/features/profile/application/public_profile_controller.dart';
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
@@ -512,6 +513,10 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                     ),
               actions: _actions(profile),
             ),
+          ),
+          // v1.43-live (D195): the host's PK record (after their first PK).
+          SliverToBoxAdapter(
+            child: LivePkRecordLine(username: profile.username),
           ),
           if (locked)
             SliverToBoxAdapter(
