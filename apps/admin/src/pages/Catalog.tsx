@@ -320,7 +320,12 @@ export function Gifts() {
         {shown.map((g) => (
           <div key={g.code} className={`gift-card${g.enabled ? '' : ' off'}`}>
             <div className="gift-art">
-              {g.imageUrl ? <img src={g.imageUrl} alt="" loading="lazy" /> : <Icon name="gift" size={36} />}
+              {/* D207: from the panel's own origin (the CDN may not be reachable from here). */}
+              {g.imageObjectKey || g.imageUrl ? (
+                <img src={previewUrl(g.imageObjectKey) ?? g.imageUrl ?? ''} alt="" loading="lazy" />
+              ) : (
+                <Icon name="gift" size={36} />
+              )}
               {g.badge !== 'NONE' && <span className="badge warn corner">{t(`giftBadge${g.badge}` as never)}</span>}
               {g.lucky && <span className="badge info corner2">{t('giftCatLUCKY')}</span>}
               {g.animationFormat && <span className="badge corner3 ltr">{g.animationFormat}{g.animationAlpha === 'SIDE_BY_SIDE' ? ' α' : ''}</span>}

@@ -241,6 +241,55 @@ void main() {
     expect(_cell('kabi_dance'), findsOneWidget);
   });
 
+  testWidgets('D207: the tabs come from the API — its order and names, a '
+      'managed category with its gifts, Recent after Popular, the bag last', (
+    tester,
+  ) async {
+    final gifts = FakeLiveGiftRepository(codes: giftFixtureCodes, ar: true)
+      ..categories = const ['SPORTS', 'POPULAR', 'EVENT', 'FUN']
+      ..tabs = [
+        {'code': 'SPORTS', 'kind': 'NORMAL', 'name': 'رياضة', 'iconUrl': null},
+        {
+          'code': 'POPULAR',
+          'kind': 'NORMAL',
+          'name': 'الأكثر',
+          'iconUrl': null,
+        },
+        {'code': 'EVENT', 'kind': 'NORMAL', 'name': 'مناسبات', 'iconUrl': null},
+        {'code': 'FUN', 'kind': 'NORMAL', 'name': 'مرح', 'iconUrl': null},
+      ]
+      ..extraGifts = [
+        {...giftJson('crown'), 'code': 'ball', 'category': 'SPORTS'},
+      ];
+    await _pump(tester, gifts: gifts, language: AppLanguage.ar);
+    // The server's names (a renamed Popular too), not the app's.
+    expect(find.text('رياضة'), findsOneWidget);
+    expect(find.text('الأكثر'), findsOneWidget);
+    expect(find.text(ar.liveGiftTabPopular), findsNothing);
+    // Order (RTL: the first tab is at the right): SPORTS, POPULAR, Recent,
+    // EVENT, FUN.
+    double x(String id) =>
+        tester.getCenter(find.byKey(KLiveGiftSheet.tabKey(id))).dx;
+    expect(x('SPORTS'), greaterThan(x('POPULAR')));
+    expect(x('POPULAR'), greaterThan(x(KLiveGiftSheet.recentTab)));
+    expect(x(KLiveGiftSheet.recentTab), greaterThan(x('EVENT')));
+    expect(x('EVENT'), greaterThan(x('FUN')));
+    // It opens on the first tab with gifts: the managed one.
+    expect(_cell('ball'), findsOneWidget);
+    expect(_cell('rose'), findsNothing);
+    await _tap(tester, find.byKey(KLiveGiftSheet.tabKey('POPULAR')));
+    expect(_cell('rose'), findsOneWidget);
+    expect(_cell('ball'), findsNothing);
+  });
+
+  testWidgets("D207: an older API (codes only) keeps the app's names", (
+    tester,
+  ) async {
+    await _pump(tester);
+    expect(find.text(en.liveGiftTabPopular), findsOneWidget);
+    expect(find.text(en.liveGiftTabEvent), findsOneWidget);
+  });
+
   testWidgets('D135: bigger gifts (70 pt, 4 columns, two rows showing), the '
       'gold coin on prices and the balance, 48 pt recipients that scroll', (
     tester,

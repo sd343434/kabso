@@ -5040,3 +5040,54 @@ are matched, with Kabso's colours, icons and data).
   universal-link setup — so no URL is invented; a reel link needs an owner decision (a public reel page or app links).
 - **Not in v1.68-social:** a verified badge (no verified flag exists), sounds / music pages (the disc and «صوت أصلي ·
   {author}» are display only), translation of captions, personalised or distance-based nearby ranking.
+
+### 10.66 Gift categories and the gift's files in the admin panel *(v1.46-live / v1.71-social, DRAFT — D207)*
+
+Owner (2026-10-31): «يجب ان يكون صلاحية لاضافة او حذف او تعديل تصنيف. وعند اضافة هدية … الملف الاساسي الذي سيعرض بصيغة
+mp4/mp3/svga وصورة لها». Owner answer: MP4 gift effects are of **both** kinds — a plain video (with its background,
+played full screen as is) and side-by-side alpha — chosen per gift. Replaces the fixed tab list of §10.23 / §10.27 /
+§10.33; nothing else of those sections changes.
+
+- **Categories are rows** of `gift_categories`: `code` (`^[A-Z][A-Z0-9_]{0,39}$`, never changes), `kind` (`NORMAL` |
+  `LUCKY` | `QUIPS`), `nameAr` / `nameEn` (1–30), `sortOrder` (0 … 10^6), `enabled`, an optional icon (PNG/WebP,
+  square, 32–512 px, ≤ 256 KB). The migration seeds the five former values with the app's names in the former order.
+  `gifts.category` is a foreign key to it. **Special kinds:** at most one LUCKY and one QUIPS category, each with the
+  code equal to its kind — so every rule written as `category = 'LUCKY' | 'QUIPS'` (lucky draws §10.27, quips §10.33,
+  boosters §10.58, the bag) keeps its meaning. A special category may be renamed, reordered and given an icon; it is
+  never turned off or deleted, and no gift is moved into it by a delete.
+- **Delete:** refused (409 `ADMIN_ACTION_REFUSED`, «… has N gift(s)») while gifts are in the category, unless the
+  request names `moveTo`, another NORMAL category: the gifts move there and the category is deleted in one transaction
+  (the category row is locked first); the audit row lists the moved gifts. An empty category is deleted at once.
+- **Off:** a disabled category is not a tab; its gifts are neither listed (`getGiftCatalogue`, `getMyGiftBag`, wishes)
+  nor sendable (409 `GIFT_UNAVAILABLE`), like a disabled gift.
+- **The app's tabs** are `GiftCatalogue.tabs` (code, kind, name in the reader's language, icon URL) in the categories'
+  sort order, enabled only (LUCKY only while `LUCKY_GIFTS_ENABLED`); `categories` stays as the codes for older apps.
+  The panel keeps its look: Recent after Popular (after the first tab when there is no Popular), Lucky / Quips only
+  when they have gifts, the bag last; the sub-category chips (§10.23) are unchanged. A category added in the panel
+  takes the POPULAR host share.
+- **Audit and permission:** every change needs a reason and writes `gift.category.add | update | enable | disable |
+  delete` with `via` (`panel` / `cli`), the actor and the reason. Capability `gifts.categories` (OWNER); reading is
+  `catalog.view`. `gift-admin category-*` runs the same rules.
+- **The gift's files** are uploaded from the add / edit form (`uploadAdminGiftFile`, the raw bytes, `catalog.manage`)
+  to content-addressed immutable keys under `media/gifts/<code>/`; the form then sends the keys and the gift change is
+  the audited step (the server checks each key belongs to that gift and is in storage, and reads the effect's size and
+  the sound's length itself):
+  - «صورة الهدية» — **required** to create a gift in the panel: PNG/WebP, square (sides within 2 %), ≥ 128 px,
+    ≤ 512 KB. It can be replaced, not removed. (`gift-admin --image` keeps D126's 1 MB / 64 px / 5:4 rule.)
+  - «ملف العرض» — optional: an **SVGA 2.x** (≤ 25 MB, the CLI's checks) or an **MP4**: an MPEG-4 file with an H.264
+    (`avc1` / `avc3`) video track, 1 … 15 s (+0.5 s encoder padding), ≤ 8 MB, 16–4096 px, read from its boxes (no
+    decode; no ffprobe in the API image). «الشفافية» `NONE` (a plain video) or `SIDE_BY_SIDE` (left half colour,
+    right half the alpha mask): the upload answers `detectedAlpha` (SIDE_BY_SIDE when width ≥ 1.8 × height), the
+    admin may change it, and it is stored per gift (`Gift.animationAlpha`; required with an MP4, refused with an SVGA).
+  - A sound — optional, alone or with either effect: an **MP3** (MPEG audio Layer III frames, ID3 allowed), 0.1 … 15 s,
+    ≤ 1 MB; never on a QUIPS gift (it has its bundled sound).
+  - «إزالة» clears the effect or the sound (`null`). The panel previews from `getAdminGiftFile` (same origin: the
+    image, the MP4 — side-by-side composited on a canvas —, the SVGA's bitmaps, the MP3).
+- **The app** downloads `animationUrl` / `audioUrl` on demand into the gift-art cache (D126; small ones prefetched when
+  the panel opens) and plays: an SVGA as before; an MP4 with `video_player` (already a dependency) from the cached
+  file, fitted like an SVGA (full width, on the bottom edge), a side-by-side one through the fragment shader
+  `shaders/gift_alpha_sbs.frag` (`ImageFilter.shader`, Impeller); the MP3 with the effect (or alone, for its length).
+  Sound — the SVGA's, the MP4's own (only when there is no MP3), the MP3 — plays only while «المؤثرات الصوتية» is on,
+  the live's local sound switch is not muted and the app is in the foreground. What the device cannot play (an
+  unknown format, side-by-side without shader support, a file that fails) is skipped: the strip's picture is all that
+  shows, never an error.

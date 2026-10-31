@@ -17,33 +17,81 @@ String? pkBoosterToJson(PkBoosterKind? kind) => kind?.wire;
 /// The person a gift panel opens with (their card's Gifts button).
 typedef LiveGiftPreselect = ({String username, String name});
 
-/// `GiftCategory`: a gift panel tab. Gifts of a category the app does not
-/// know are dropped by the repository (§10.23).
-enum GiftCategory {
-  @JsonValue('POPULAR')
-  popular('POPULAR'),
-  @JsonValue('EVENT')
-  event('EVENT'),
-  @JsonValue('FUN')
-  fun('FUN'),
+/// `GiftCategory`: a gift panel tab's code. v1.46-live (D207, §10.66): the
+/// categories are managed in the admin panel, so a code is any
+/// `^[A-Z][A-Z0-9_]{0,39}$` (the tab's name comes with it in
+/// [GiftCatalogue.tabs]); the five below are the ones seeded from the old
+/// fixed list. The special ones keep their codes: [lucky] (§10.27) and
+/// [quips] (§10.33). Gifts of a malformed code are dropped by the
+/// repository.
+abstract final class GiftCategory {
+  static const popular = 'POPULAR';
+  static const event = 'EVENT';
+  static const fun = 'FUN';
 
   /// v1.27-live (D132, §10.27): lucky gifts (listed only while they are on).
-  @JsonValue('LUCKY')
-  lucky('LUCKY'),
+  static const lucky = 'LUCKY';
 
   /// v1.32-live (D154, §10.33): «إفيهات» quips — a sound (and its line)
   /// played to the whole room, one at a time.
+  static const quips = 'QUIPS';
+
+  /// The seeded tabs, in their order (an older API's, and a guest's).
+  static const values = <String>[popular, event, fun, lucky, quips];
+
+  static final _code = RegExp(r'^[A-Z][A-Z0-9_]{0,39}$');
+
+  /// [wire] when it is a category code, else null.
+  static String? fromWire(Object? wire) =>
+      wire is String && _code.hasMatch(wire) ? wire : null;
+}
+
+/// `GiftCategoryKind` (v1.46-live, D207): what a tab does besides listing
+/// gifts; an unknown value is [normal].
+enum GiftCategoryKind {
+  @JsonValue('NORMAL')
+  normal,
+  @JsonValue('LUCKY')
+  lucky,
   @JsonValue('QUIPS')
-  quips('QUIPS');
+  quips,
+}
 
-  new(this.wire);
+/// `GiftCategoryTab` (v1.46-live, D207): a gift panel tab — its code, kind,
+/// name in the app language and optional icon.
+@freezed
+abstract class GiftTab with _$GiftTab {
+  const factory({
+    required String code,
+    @JsonKey(unknownEnumValue: GiftCategoryKind.normal)
+    @Default(GiftCategoryKind.normal)
+    GiftCategoryKind kind,
 
-  /// The exact string used on the wire.
-  final String wire;
+    /// Null only for a tab built from an older API's `categories`.
+    String? name,
+    String? iconUrl,
+  }) = _GiftTab;
 
-  /// The category named [wire], or null when the app does not know it.
-  static GiftCategory? fromWire(Object? wire) =>
-      values.where((c) => c.wire == wire).firstOrNull;
+  factory fromJson(Map<String, dynamic> json) => _$GiftTabFromJson(json);
+}
+
+/// `GiftAnimationFormat` (v1.46-live, D207): a hosted effect's format; a
+/// value the app does not know is [unknown] (never played: the image only).
+enum GiftAnimationFormat {
+  @JsonValue('SVGA')
+  svga,
+  @JsonValue('MP4')
+  mp4,
+  unknown,
+}
+
+/// `GiftVideoAlpha` (v1.46-live, D207): an MP4's transparency — a plain
+/// video played as is, or the left half colour and the right half alpha.
+enum GiftVideoAlpha {
+  @JsonValue('NONE')
+  none,
+  @JsonValue('SIDE_BY_SIDE')
+  sideBySide,
 }
 
 /// `GiftBadge`: the corner badge of a gift; unknown values show as [none].
@@ -94,7 +142,7 @@ abstract class GiftQuip with _$GiftQuip {
 abstract class Gift with _$Gift {
   const factory({
     required String code,
-    required GiftCategory category,
+    required String category,
     required String name,
     required int priceCoins,
     required String assetKey,
@@ -114,6 +162,17 @@ abstract class Gift with _$Gift {
     /// [animationUrl]'s size in bytes (whether to prefetch it), or null.
     int? animationBytes,
 
+    /// v1.46-live (D207): [animationUrl]'s format (null: an older API, an
+    /// SVGA), an MP4's transparency, and the hosted MP3 played with the
+    /// effect (or alone).
+    @JsonKey(unknownEnumValue: GiftAnimationFormat.unknown)
+    GiftAnimationFormat? animationFormat,
+    @JsonKey(unknownEnumValue: GiftVideoAlpha.none)
+    GiftVideoAlpha? animationAlpha,
+    String? audioUrl,
+    int? audioBytes,
+    int? audioDurationMs,
+
     /// v1.32-live (D154): a quip's sound and words; null for other gifts.
     GiftQuip? quip,
 
@@ -132,11 +191,15 @@ abstract class Gift with _$Gift {
 abstract class GiftCatalogue with _$GiftCatalogue {
   const factory({
     required String version,
-    required List<GiftCategory> categories,
+    required List<String> categories,
     required List<int> quantities,
     required int maxRecipients,
     required int comboWindowSeconds,
     required List<Gift> data,
+
+    /// v1.46-live (D207): the tabs with their names and icons, in order
+    /// (empty from an older API: [categories] with the app's names).
+    @Default(<GiftTab>[]) List<GiftTab> tabs,
   }) = _GiftCatalogue;
 
   factory fromJson(Map<String, dynamic> json) => _$GiftCatalogueFromJson(json);
@@ -148,10 +211,13 @@ extension GiftCatalogueLookup on GiftCatalogue {
 
   /// The distinct tags of [category]'s gifts, in the order they first
   /// appear (the panel's chips after "All"; empty: no chip row).
-  List<GiftTag> tagsOf(GiftCategory category) => giftTags(of(category));
+  List<GiftTag> tagsOf(String category) => giftTags(of(category));
+
+  /// v1.46-live (D207): the tab of [code], or null (an older API's).
+  GiftTab? tabOf(String code) => tabs.where((t) => t.code == code).firstOrNull;
 
   /// The catalogue's gifts of [category], in order.
-  List<Gift> of(GiftCategory category) => [
+  List<Gift> of(String category) => [
     for (final g in data)
       if (g.category == category) g,
   ];
@@ -216,6 +282,15 @@ abstract class LiveGift with _$LiveGift {
     String? imageUrl,
     String? animationUrl,
     int? animationBytes,
+
+    /// v1.46-live (D207): as in [Gift].
+    @JsonKey(unknownEnumValue: GiftAnimationFormat.unknown)
+    GiftAnimationFormat? animationFormat,
+    @JsonKey(unknownEnumValue: GiftVideoAlpha.none)
+    GiftVideoAlpha? animationAlpha,
+    String? audioUrl,
+    int? audioBytes,
+    int? audioDurationMs,
   }) = _LiveGift;
 
   factory fromJson(Map<String, dynamic> json) => _$LiveGiftFromJson(json);

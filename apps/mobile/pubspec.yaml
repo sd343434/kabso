@@ -83,6 +83,9 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   generate: true
+  # D207: a side-by-side alpha MP4 gift effect (left colour, right alpha), composited on the GPU.
+  shaders:
+    - shaders/gift_alpha_sbs.frag
   assets:
     - assets/icons/
     - assets/icons/nav/

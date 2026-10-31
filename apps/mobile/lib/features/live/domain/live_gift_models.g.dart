@@ -6,6 +6,32 @@ part of 'live_gift_models.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
+_GiftTab _$GiftTabFromJson(Map<String, dynamic> json) => _GiftTab(
+  code: json['code'] as String,
+  kind:
+      $enumDecodeNullable(
+        _$GiftCategoryKindEnumMap,
+        json['kind'],
+        unknownValue: GiftCategoryKind.normal,
+      ) ??
+      GiftCategoryKind.normal,
+  name: json['name'] as String?,
+  iconUrl: json['iconUrl'] as String?,
+);
+
+Map<String, dynamic> _$GiftTabToJson(_GiftTab instance) => <String, dynamic>{
+  'code': instance.code,
+  'kind': _$GiftCategoryKindEnumMap[instance.kind]!,
+  'name': instance.name,
+  'iconUrl': instance.iconUrl,
+};
+
+const _$GiftCategoryKindEnumMap = {
+  GiftCategoryKind.normal: 'NORMAL',
+  GiftCategoryKind.lucky: 'LUCKY',
+  GiftCategoryKind.quips: 'QUIPS',
+};
+
 _GiftTag _$GiftTagFromJson(Map<String, dynamic> json) =>
     _GiftTag(code: json['code'] as String, name: json['name'] as String);
 
@@ -28,7 +54,7 @@ Map<String, dynamic> _$GiftQuipToJson(_GiftQuip instance) => <String, dynamic>{
 
 _Gift _$GiftFromJson(Map<String, dynamic> json) => _Gift(
   code: json['code'] as String,
-  category: $enumDecode(_$GiftCategoryEnumMap, json['category']),
+  category: json['category'] as String,
   name: json['name'] as String,
   priceCoins: (json['priceCoins'] as num).toInt(),
   assetKey: json['assetKey'] as String,
@@ -45,6 +71,19 @@ _Gift _$GiftFromJson(Map<String, dynamic> json) => _Gift(
   imageUrl: json['imageUrl'] as String?,
   animationUrl: json['animationUrl'] as String?,
   animationBytes: (json['animationBytes'] as num?)?.toInt(),
+  animationFormat: $enumDecodeNullable(
+    _$GiftAnimationFormatEnumMap,
+    json['animationFormat'],
+    unknownValue: GiftAnimationFormat.unknown,
+  ),
+  animationAlpha: $enumDecodeNullable(
+    _$GiftVideoAlphaEnumMap,
+    json['animationAlpha'],
+    unknownValue: GiftVideoAlpha.none,
+  ),
+  audioUrl: json['audioUrl'] as String?,
+  audioBytes: (json['audioBytes'] as num?)?.toInt(),
+  audioDurationMs: (json['audioDurationMs'] as num?)?.toInt(),
   quip: json['quip'] == null
       ? null
       : GiftQuip.fromJson(json['quip'] as Map<String, dynamic>),
@@ -53,7 +92,7 @@ _Gift _$GiftFromJson(Map<String, dynamic> json) => _Gift(
 
 Map<String, dynamic> _$GiftToJson(_Gift instance) => <String, dynamic>{
   'code': instance.code,
-  'category': _$GiftCategoryEnumMap[instance.category]!,
+  'category': instance.category,
   'name': instance.name,
   'priceCoins': instance.priceCoins,
   'assetKey': instance.assetKey,
@@ -64,16 +103,13 @@ Map<String, dynamic> _$GiftToJson(_Gift instance) => <String, dynamic>{
   'imageUrl': instance.imageUrl,
   'animationUrl': instance.animationUrl,
   'animationBytes': instance.animationBytes,
+  'animationFormat': _$GiftAnimationFormatEnumMap[instance.animationFormat],
+  'animationAlpha': _$GiftVideoAlphaEnumMap[instance.animationAlpha],
+  'audioUrl': instance.audioUrl,
+  'audioBytes': instance.audioBytes,
+  'audioDurationMs': instance.audioDurationMs,
   'quip': instance.quip,
   'pkBooster': pkBoosterToJson(instance.pkBooster),
-};
-
-const _$GiftCategoryEnumMap = {
-  GiftCategory.popular: 'POPULAR',
-  GiftCategory.event: 'EVENT',
-  GiftCategory.fun: 'FUN',
-  GiftCategory.lucky: 'LUCKY',
-  GiftCategory.quips: 'QUIPS',
 };
 
 const _$GiftBadgeEnumMap = {
@@ -82,11 +118,22 @@ const _$GiftBadgeEnumMap = {
   GiftBadge.event: 'EVENT',
 };
 
+const _$GiftAnimationFormatEnumMap = {
+  GiftAnimationFormat.svga: 'SVGA',
+  GiftAnimationFormat.mp4: 'MP4',
+  GiftAnimationFormat.unknown: 'unknown',
+};
+
+const _$GiftVideoAlphaEnumMap = {
+  GiftVideoAlpha.none: 'NONE',
+  GiftVideoAlpha.sideBySide: 'SIDE_BY_SIDE',
+};
+
 _GiftCatalogue _$GiftCatalogueFromJson(Map<String, dynamic> json) =>
     _GiftCatalogue(
       version: json['version'] as String,
       categories: (json['categories'] as List<dynamic>)
-          .map((e) => $enumDecode(_$GiftCategoryEnumMap, e))
+          .map((e) => e as String)
           .toList(),
       quantities: (json['quantities'] as List<dynamic>)
           .map((e) => (e as num).toInt())
@@ -96,18 +143,22 @@ _GiftCatalogue _$GiftCatalogueFromJson(Map<String, dynamic> json) =>
       data: (json['data'] as List<dynamic>)
           .map((e) => Gift.fromJson(e as Map<String, dynamic>))
           .toList(),
+      tabs:
+          (json['tabs'] as List<dynamic>?)
+              ?.map((e) => GiftTab.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const <GiftTab>[],
     );
 
 Map<String, dynamic> _$GiftCatalogueToJson(_GiftCatalogue instance) =>
     <String, dynamic>{
       'version': instance.version,
-      'categories': instance.categories
-          .map((e) => _$GiftCategoryEnumMap[e]!)
-          .toList(),
+      'categories': instance.categories,
       'quantities': instance.quantities,
       'maxRecipients': instance.maxRecipients,
       'comboWindowSeconds': instance.comboWindowSeconds,
       'data': instance.data,
+      'tabs': instance.tabs,
     };
 
 _GiftBagItem _$GiftBagItemFromJson(Map<String, dynamic> json) => _GiftBagItem(
@@ -155,6 +206,19 @@ _LiveGift _$LiveGiftFromJson(Map<String, dynamic> json) => _LiveGift(
   imageUrl: json['imageUrl'] as String?,
   animationUrl: json['animationUrl'] as String?,
   animationBytes: (json['animationBytes'] as num?)?.toInt(),
+  animationFormat: $enumDecodeNullable(
+    _$GiftAnimationFormatEnumMap,
+    json['animationFormat'],
+    unknownValue: GiftAnimationFormat.unknown,
+  ),
+  animationAlpha: $enumDecodeNullable(
+    _$GiftVideoAlphaEnumMap,
+    json['animationAlpha'],
+    unknownValue: GiftVideoAlpha.none,
+  ),
+  audioUrl: json['audioUrl'] as String?,
+  audioBytes: (json['audioBytes'] as num?)?.toInt(),
+  audioDurationMs: (json['audioDurationMs'] as num?)?.toInt(),
 );
 
 Map<String, dynamic> _$LiveGiftToJson(_LiveGift instance) => <String, dynamic>{
@@ -174,6 +238,11 @@ Map<String, dynamic> _$LiveGiftToJson(_LiveGift instance) => <String, dynamic>{
   'imageUrl': instance.imageUrl,
   'animationUrl': instance.animationUrl,
   'animationBytes': instance.animationBytes,
+  'animationFormat': _$GiftAnimationFormatEnumMap[instance.animationFormat],
+  'animationAlpha': _$GiftVideoAlphaEnumMap[instance.animationAlpha],
+  'audioUrl': instance.audioUrl,
+  'audioBytes': instance.audioBytes,
+  'audioDurationMs': instance.audioDurationMs,
 };
 
 const _$LiveGiftSourceEnumMap = {

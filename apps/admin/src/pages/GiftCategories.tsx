@@ -247,7 +247,7 @@ export function GiftCategories() {
                   <td className="num">{formatNumber(c.sortOrder, lang)}</td>
                   <td>
                     <span className="cat-name">
-                      {c.iconUrl ? <img className="cat-icon" src={c.iconUrl} alt="" /> : <span className="cat-icon blank" />}
+                      {c.iconObjectKey ? <img className="cat-icon" src={previewUrl(c.iconObjectKey) ?? ''} alt="" /> : <span className="cat-icon blank" />}
                       {c.nameAr}
                       {c.special && <span className="badge info">{t(`giftCatKind${c.kind}` as never)}</span>}
                     </span>

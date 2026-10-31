@@ -1988,7 +1988,7 @@ void main() {
         final gift = find.byKey(LiveWishSheetKeys.gift(code));
         for (final c in GiftCategory.values) {
           if (gift.evaluate().isNotEmpty) break;
-          final tab = find.byKey(KLiveGiftSheet.tabKey(c.wire));
+          final tab = find.byKey(KLiveGiftSheet.tabKey(c));
           if (tab.evaluate().isEmpty) continue;
           await tester.tap(tab);
           await tester.pump();

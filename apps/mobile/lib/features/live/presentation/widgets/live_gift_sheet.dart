@@ -337,7 +337,7 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
   ];
 
   /// The gifts of [category] this panel offers ([_offered]).
-  List<Gift> _offeredOf(GiftCatalogue catalogue, GiftCategory category) => [
+  List<Gift> _offeredOf(GiftCatalogue catalogue, String category) => [
     for (final g in catalogue.of(category))
       if (_offered(g)) g,
   ];
@@ -748,30 +748,35 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
     );
   }
 
-  /// The ids of the tabs: the catalogue's categories in the reference's
-  /// order with Recent after Popular, Lucky only when the catalogue has
-  /// lucky gifts, and the bag.
+  /// The ids of the tabs: the catalogue's categories in the server's order
+  /// (v1.46-live, D207: managed in the admin panel) with Recent after
+  /// Popular (after the first tab without Popular), Lucky only when the
+  /// catalogue has lucky gifts, and the bag.
   List<String> _tabsOf(GiftCatalogue? catalogue) {
     final categories = catalogue?.categories ?? GiftCategory.values;
     final pk =
         catalogue != null &&
         _battle() != null &&
         _boosters(catalogue).isNotEmpty;
-    return [
-      // v1.43-live (D195): the boosters first during a PK battle.
-      if (pk) KLiveGiftSheet.pkTab,
-      if (categories.contains(GiftCategory.popular)) GiftCategory.popular.wire,
-      KLiveGiftSheet.recentTab,
+    final shown = [
       for (final c in categories)
-        if (c != GiftCategory.popular &&
-            (c != GiftCategory.lucky ||
+        if ((c != GiftCategory.lucky ||
                 (catalogue?.of(GiftCategory.lucky).isNotEmpty ?? false)) &&
             // D154: «إفيهات» only when the catalogue has quips (D155: in a
             // conversation, paid ones).
             (c != GiftCategory.quips ||
                 (catalogue != null &&
                     _offeredOf(catalogue, GiftCategory.quips).isNotEmpty)))
-          c.wire,
+          c,
+    ];
+    final popular = shown.indexOf(GiftCategory.popular);
+    final recentAt = popular >= 0 ? popular + 1 : (shown.isEmpty ? 0 : 1);
+    return [
+      // v1.43-live (D195): the boosters first during a PK battle.
+      if (pk) KLiveGiftSheet.pkTab,
+      ...shown.take(recentAt),
+      KLiveGiftSheet.recentTab,
+      ...shown.skip(recentAt),
       KLiveGiftSheet.bagTab,
     ];
   }
@@ -801,7 +806,7 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
       _wishApplied = true;
       if (widget.preselectGift case final code?) {
         if (catalogue.byCode(code) case final gift? when _offered(gift)) {
-          _tab = gift.category.wire;
+          _tab = gift.category;
           _selected = gift.code;
           if (gift.animationUrl case final url?) {
             GiftArtCache.instance.prefetch(url);
@@ -817,7 +822,7 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
         ? tabs.first
         : tabs.firstWhere(
             (id) => switch (GiftCategory.fromWire(id)) {
-              final c? => _offeredOf(catalogue, c).isNotEmpty,
+              final String c => _offeredOf(catalogue, c).isNotEmpty,
               null => false,
             },
             orElse: () => tabs.first,
@@ -825,7 +830,7 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
     final isBag = tab == KLiveGiftSheet.bagTab;
     final isRecent = tab == KLiveGiftSheet.recentTab;
     final isPk = tab == KLiveGiftSheet.pkTab;
-    final isLuckyTab = tab == GiftCategory.lucky.wire;
+    final isLuckyTab = tab == GiftCategory.lucky;
     final bagAsync = isBag ? ref.watch(giftBagProvider) : null;
     final recent = isRecent ? ref.watch(recentGiftsProvider) : const <String>[];
 
@@ -858,8 +863,7 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
     } else {
       tabCells = [
         if (catalogue != null)
-          for (final g in _offeredOf(catalogue, GiftCategory.fromWire(tab)!))
-            _Cell(g),
+          for (final g in _offeredOf(catalogue, tab)) _Cell(g),
       ];
     }
     final tags = isRecent
@@ -884,7 +888,7 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
     final quipSelected = selected?.gift.category == GiftCategory.quips;
     // v1.43-live (D195): a booster goes to the host, one at a time.
     final boosterSelected = selected?.gift.pkBooster != null;
-    final isQuipsTab = tab == GiftCategory.quips.wire;
+    final isQuipsTab = tab == GiftCategory.quips;
     final quantities = quipSelected || boosterSelected
         ? const [1]
         : catalogue?.quantities ?? const [1];
@@ -1118,8 +1122,16 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
         LiveGiftTabs(
           tabs: tabs,
           selected: tab,
+          names: {
+            for (final t in catalogue?.tabs ?? const <GiftTab>[])
+              t.code: ?t.name,
+          },
+          icons: {
+            for (final t in catalogue?.tabs ?? const <GiftTab>[])
+              t.code: ?t.iconUrl,
+          },
           hasTags: (id) => switch (GiftCategory.fromWire(id)) {
-            final c? => catalogue?.tagsOf(c).isNotEmpty ?? false,
+            final String c => catalogue?.tagsOf(c).isNotEmpty ?? false,
             null => false,
           },
           onTap: (id) => setState(() {
@@ -1515,12 +1527,19 @@ class LiveGiftTabs extends StatelessWidget {
     required this.hasTags,
     required this.onTap,
     super.key,
+    this.names = const {},
+    this.icons = const {},
   });
 
   final List<String> tabs;
   final String selected;
   final bool Function(String id) hasTags;
   final ValueChanged<String> onTap;
+
+  /// v1.46-live (D207): the server's tab names by code (the app's own for a
+  /// code missing here) and the optional tab icons.
+  final Map<String, String> names;
+  final Map<String, String> icons;
 
   static const double height = 34;
 
@@ -1530,30 +1549,39 @@ class LiveGiftTabs extends StatelessWidget {
   static List<String> categoriesOf(GiftCatalogue? catalogue) {
     final categories = catalogue?.categories ?? GiftCategory.values;
     return [
-      if (categories.contains(GiftCategory.popular)) GiftCategory.popular.wire,
       for (final c in categories)
-        if (c != GiftCategory.popular &&
-            // D154: a quip is not a wish (it is heard once, not given).
-            c != GiftCategory.quips &&
+        if (
+        // D154: a quip is not a wish (it is heard once, not given).
+        c != GiftCategory.quips &&
             (c != GiftCategory.lucky ||
                 (catalogue?.of(GiftCategory.lucky).isNotEmpty ?? false)))
-          c.wire,
+          c,
     ];
   }
+
+  /// v1.46-live (D207): the label of [id] — the server's name of the tab
+  /// ([names]), else the app's own for the seeded codes, Recent and PK.
+  static String labelOf(
+    AppLocalizations l10n,
+    String id, [
+    Map<String, String> names = const {},
+  ]) =>
+      names[id] ??
+      switch (id) {
+        GiftCategory.popular => l10n.liveGiftTabPopular,
+        GiftCategory.event => l10n.liveGiftTabEvent,
+        GiftCategory.fun => l10n.liveGiftTabFun,
+        GiftCategory.lucky => l10n.liveGiftTabLucky,
+        GiftCategory.quips => l10n.liveGiftTabQuips,
+        KLiveGiftSheet.recentTab => l10n.liveGiftTabRecent,
+        KLiveGiftSheet.pkTab => l10n.liveGiftTabPk,
+        _ => id,
+      };
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    String label(String id) => switch (GiftCategory.fromWire(id)) {
-      GiftCategory.popular => l10n.liveGiftTabPopular,
-      GiftCategory.event => l10n.liveGiftTabEvent,
-      GiftCategory.fun => l10n.liveGiftTabFun,
-      GiftCategory.lucky => l10n.liveGiftTabLucky,
-      GiftCategory.quips => l10n.liveGiftTabQuips,
-      null when id == KLiveGiftSheet.recentTab => l10n.liveGiftTabRecent,
-      null when id == KLiveGiftSheet.pkTab => l10n.liveGiftTabPk,
-      null => id,
-    };
+    String label(String id) => labelOf(l10n, id, names);
     final categories = [
       for (final id in tabs)
         if (id != KLiveGiftSheet.bagTab) id,
@@ -1577,6 +1605,7 @@ class LiveGiftTabs extends StatelessWidget {
                       label: label(id),
                       selected: id == selected,
                       caret: hasTags(id),
+                      iconUrl: icons[id],
                       onTap: () => onTap(id),
                     ),
                   ],
@@ -1607,11 +1636,15 @@ class _Tab extends StatelessWidget {
     super.key,
     this.caret = false,
     this.icon,
+    this.iconUrl,
   });
 
   final String label;
   final bool selected;
   final bool caret;
+
+  /// v1.46-live (D207): a managed tab's icon (hosted), before its label.
+  final String? iconUrl;
 
   /// Shown instead of the label (the bag), which stays for screen readers.
   final IconData? icon;
@@ -1630,6 +1663,17 @@ class _Tab extends StatelessWidget {
       content = Row(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (iconUrl case final url? when GiftArtCache.allowed(url)) ...[
+            Image(
+              image: GiftArtImage(url),
+              width: 14,
+              height: 14,
+              fit: BoxFit.contain,
+              excludeFromSemantics: true,
+              errorBuilder: (_, _, _) => const SizedBox.shrink(),
+            ),
+            const SizedBox(width: 3),
+          ],
           Text(
             label,
             maxLines: 1,

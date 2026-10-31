@@ -86,3 +86,28 @@
   configured events shows empty lists.
 - **Purchase VIP** (CP-024 §3) is not part of the approval: its hub card stays «قريباً».
 - Not verified on a device.
+
+## Gift categories and gift files in the admin panel (D207, v1.46-live / v1.71-social draft)
+
+- **Uploads need the media bucket.** The panel stores gift files in the API's S3/R2 bucket like every other upload;
+  without `S3_*` settings (the server today, B12 / PP-28) uploading answers 503, and since «صورة الهدية» is required,
+  no gift can be created in the panel there (`gift-admin add` without `--image` still can). No other storage exists.
+- **MP4 effects are checked, not decoded.** The server reads the MP4's boxes (H.264 sample entry, size, length); the API
+  image has no ffprobe/ffmpeg. A file whose boxes are valid but whose frames are broken passes and is skipped by the
+  app when it cannot play it. Side-by-side detection is a size rule (width ≥ 1.8 × height); the admin can override it.
+- **Side-by-side alpha needs Impeller.** The app composites it with a fragment shader through `ImageFilter.shader`,
+  which runs only on Impeller (Flutter's default on Android and iOS). Where it is not available (or the shader fails to
+  load) a transparent MP4 effect is skipped — the gift's picture in the strip is all that shows; the MP3 still plays.
+  Not verified on a device (no device or emulator in this environment): the shader's orientation on OpenGLES and the
+  video_player texture under `ImageFiltered` need a check on a real Android and iPhone.
+- **Sound.** An MP4's own audio track plays only when the gift has no MP3; the MP3 (and since D207 an SVGA's embedded
+  sound too) plays only while «المؤثرات الصوتية» is on and the live's local sound switch is not muted. On iOS the video
+  player adds `mixWithOthers` to the live's audio session (its category is only upgraded, never replaced).
+- **The panel's SVGA preview** draws the movie's bitmaps frame by frame (a small built-in reader); vector shapes,
+  mattes and the embedded audio are not previewed (the app shows them).
+- **Special categories** (LUCKY, QUIPS) can be renamed, reordered and given an icon, never turned off or deleted;
+  gifts cannot be moved into them when deleting a category. A category added in the panel uses the POPULAR host share
+  (`GIFT_HOST_SHARE_PERCENTS` has no entry for it).
+- **Orphaned files.** A file uploaded in the form and then not saved (or replaced later) stays in the bucket, as with
+  the CLI. Nothing deletes unused gift files yet.
+- **Older apps** see only the five seeded categories (by code, with their own names) and cannot play MP4 / MP3.

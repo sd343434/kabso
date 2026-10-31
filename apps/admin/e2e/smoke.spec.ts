@@ -171,10 +171,58 @@ test('admin panel smoke: TOTP sign-in, dashboard charts, users, agencies, end a 
     await dlg.getByLabel('الاسم بالإنجليزية').fill('Star');
     await dlg.getByLabel('السعر بالعملات').fill('520');
     await dlg.getByLabel('مفتاح الصورة').fill('gifts/star');
+    // D207: «صورة الهدية» is uploaded (required): a square PNG drawn here.
+    const png = await page.evaluate(() => {
+      const c = document.createElement('canvas');
+      c.width = 256;
+      c.height = 256;
+      const g = c.getContext('2d')!;
+      const grad = g.createRadialGradient(128, 110, 10, 128, 128, 128);
+      grad.addColorStop(0, '#ffe27a');
+      grad.addColorStop(1, '#e0367a');
+      g.fillStyle = grad;
+      g.beginPath();
+      for (let i = 0; i < 10; i++) {
+        const r = i % 2 === 0 ? 120 : 52;
+        const a = (Math.PI / 5) * i - Math.PI / 2;
+        g.lineTo(128 + r * Math.cos(a), 128 + r * Math.sin(a));
+      }
+      g.closePath();
+      g.fill();
+      return c.toDataURL('image/png').split(',')[1]!;
+    });
+    await dlg.locator('#slot-image').setInputFiles({ name: 'star.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') });
+    await expect(dlg.locator('[data-kind="image"] img')).toBeVisible();
+    // D207: with KABSO_GIFT_MEDIA_DIR (sbs.mp4: side-by-side alpha, beep.mp3) the effect and the sound too.
+    const media = process.env.KABSO_GIFT_MEDIA_DIR;
+    if (media) {
+      await dlg.locator('#slot-animation').setInputFiles(join(media, 'sbs.mp4'));
+      await expect(dlg.getByLabel('الشفافية')).toHaveValue('SIDE_BY_SIDE');
+      await expect(dlg.locator('[data-kind="animation"] canvas')).toBeVisible();
+      await dlg.locator('#slot-sound').setInputFiles(join(media, 'beep.mp3'));
+      await expect(dlg.locator('[data-kind="sound"] audio')).toBeVisible();
+      await page.waitForTimeout(800);
+    }
     await dlg.getByLabel('السبب').fill('هدية موسمية (اختبار)');
+    await capture(page, '11a-gift-form');
     await dlg.getByRole('button', { name: 'إضافة هدية' }).click();
     await expect(page.locator('.gift-card', { hasText: 'smoke_star' })).toBeVisible();
     await capture(page, '11-gifts');
+
+    // D207: the gift categories — add one, then the list.
+    await go(page, 'تصنيفات الهدايا');
+    await expect(page.locator('tbody tr')).toHaveCount(5);
+    await page.getByRole('button', { name: 'إضافة تصنيف' }).click();
+    const cat = page.getByRole('dialog');
+    await cat.getByLabel('الرمز (حروف لاتينية كبيرة)').fill('SPORTS');
+    await cat.getByLabel('الترتيب').fill('15');
+    await cat.getByLabel('الاسم بالعربية').fill('رياضة');
+    await cat.getByLabel('الاسم بالإنجليزية').fill('Sports');
+    await cat.getByLabel('السبب').fill('كأس العالم (اختبار)');
+    await cat.getByRole('button', { name: 'إضافة تصنيف' }).click();
+    await expect(page.locator('tbody tr')).toHaveCount(6);
+    await expect(page.locator('tbody tr').nth(1)).toContainText('رياضة');
+    await capture(page, '11b-gift-categories');
 
     // Finance report.
     await go(page, 'التقرير المالي');

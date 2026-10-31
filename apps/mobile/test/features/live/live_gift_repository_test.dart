@@ -119,7 +119,7 @@ void main() {
       expect(c.categories, hasLength(3));
     });
 
-    test('unknown categories and badges: dropped / NONE', () async {
+    test('malformed categories and unknown badges: dropped / NONE', () async {
       http.on(
         'GET',
         '$_base/gifts/catalogue',
@@ -127,9 +127,11 @@ void main() {
           200,
           body: giftCatalogueJson(
             codes: const ['rose'],
-            categories: const ['POPULAR', 'TREASURE', 'EVENT', 'FUN'],
+            // v1.46-live (D207): any category code is a tab now; only a
+            // malformed one is dropped.
+            categories: const ['POPULAR', 'treasure!', 'EVENT', 'FUN'],
             extra: [
-              {...giftJson('crown'), 'code': 'chest', 'category': 'TREASURE'},
+              {...giftJson('crown'), 'code': 'chest', 'category': 'treasure!'},
               {...giftJson('crown'), 'badge': 'HOT'},
             ],
           ),
@@ -142,7 +144,118 @@ void main() {
     });
   });
 
-  test('bag: items with quantities, unknown categories dropped', () async {
+  group('v1.46-live (D207): managed categories and MP4 / MP3 effects', () {
+    test('the tabs come from the API in order, with names and icons', () async {
+      http.on(
+        'GET',
+        '$_base/gifts/catalogue',
+        (_) => FakeResponse(
+          200,
+          body: {
+            ...giftCatalogueJson(
+              codes: const ['rose'],
+              categories: const ['SPORTS', 'POPULAR', 'QUIPS'],
+              extra: [
+                {...giftJson('crown'), 'code': 'ball', 'category': 'SPORTS'},
+              ],
+            ),
+            'tabs': [
+              {
+                'code': 'SPORTS',
+                'kind': 'NORMAL',
+                'name': 'رياضة',
+                'iconUrl':
+                    'https://media.example/media/gift-categories/SPORTS/a.png',
+              },
+              {
+                'code': 'POPULAR',
+                'kind': 'NORMAL',
+                'name': 'شائعة',
+                'iconUrl': null,
+              },
+              {
+                'code': 'QUIPS',
+                'kind': 'QUIPS',
+                'name': 'إفيهات',
+                'iconUrl': null,
+              },
+              {
+                'code': 'bad code',
+                'kind': 'NORMAL',
+                'name': 'x',
+                'iconUrl': null,
+              },
+              {
+                'code': 'FUTURE',
+                'kind': 'SOMETHING_NEW',
+                'name': 'جديد',
+                'iconUrl': null,
+              },
+            ],
+          },
+        ),
+      );
+      final c = await repo().catalogue();
+      expect(c.categories, ['SPORTS', 'POPULAR', 'QUIPS', 'FUTURE']);
+      expect(c.tabOf('SPORTS')!.name, 'رياضة');
+      expect(c.tabOf('SPORTS')!.iconUrl, endsWith('/SPORTS/a.png'));
+      expect(c.tabOf('QUIPS')!.kind, GiftCategoryKind.quips);
+      // An unknown kind is a plain tab.
+      expect(c.tabOf('FUTURE')!.kind, GiftCategoryKind.normal);
+      expect(c.of('SPORTS').map((g) => g.code), ['ball']);
+    });
+
+    test(
+      'an MP4 of each kind and an MP3 on the gift; unknown format kept apart',
+      () async {
+        http.on(
+          'GET',
+          '$_base/gifts/catalogue',
+          (_) => FakeResponse(
+            200,
+            body: giftCatalogueJson(
+              codes: const [],
+              extra: [
+                {
+                  ...giftJson('rose'),
+                  'animationUrl': 'https://m.example/media/gifts/rose/a.mp4',
+                  'animationBytes': 1000,
+                  'animationFormat': 'MP4',
+                  'animationAlpha': 'SIDE_BY_SIDE',
+                  'audioUrl': 'https://m.example/media/gifts/rose/b.mp3',
+                  'audioBytes': 900,
+                  'audioDurationMs': 3000,
+                },
+                {
+                  ...giftJson('crown'),
+                  'animationUrl': 'https://m.example/media/gifts/crown/a.mp4',
+                  'animationBytes': 1000,
+                  'animationFormat': 'MP4',
+                  'animationAlpha': 'NONE',
+                },
+                {
+                  ...giftJson('cake'),
+                  'animationUrl': 'https://m.example/media/gifts/cake/a.lottie',
+                  'animationBytes': 10,
+                  'animationFormat': 'LOTTIE',
+                },
+              ],
+            ),
+          ),
+        );
+        final c = await repo().catalogue();
+        final rose = c.byCode('rose')!;
+        expect(rose.animationFormat, GiftAnimationFormat.mp4);
+        expect(rose.animationAlpha, GiftVideoAlpha.sideBySide);
+        expect(rose.audioUrl, endsWith('b.mp3'));
+        expect(rose.audioDurationMs, 3000);
+        expect(c.byCode('crown')!.animationAlpha, GiftVideoAlpha.none);
+        expect(c.byCode('cake')!.animationFormat, GiftAnimationFormat.unknown);
+      },
+    );
+  });
+
+  test('bag: items with quantities, malformed categories dropped', () async {
     http.on(
       'GET',
       '$_base/me/gifts/bag',
@@ -151,7 +264,7 @@ void main() {
         body: {
           'data': [
             giftBagItemJson('rose', 99),
-            {...giftBagItemJson('crown', 2), 'category': 'TREASURE'},
+            {...giftBagItemJson('crown', 2), 'category': 'treasure!'},
           ],
         },
       ),

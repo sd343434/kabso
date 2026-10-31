@@ -1879,3 +1879,38 @@ family's stored level is a floor (`max(stored, ladder)`), so families that level
 their level. No schema change, no GRANT, no backfill of points; idempotent (a second run changes nothing). Ship the
 app with or after the API: the app reads the price and the ladder from `GET /families/config` and formats big values
 compactly; an older app shows the new values from the server too (its level line may be cut at billions).
+
+### 5.33 Gift categories and the gift's files from the admin panel (migration `20270127090000_gift_categories`; D207) — [IMPLEMENTED, draft contract v1.46-live / v1.71-social; not deployed, not device-tested]
+
+CONVENTIONS §10.66. The migration creates `gift_categories` (enum `gift_category_kind`), **seeds the five tabs** that
+were the `gift_category` enum with the names the app showed (POPULAR شائعة / Popular 10, EVENT مناسبات / Events 20,
+FUN مرح / Fun 30, LUCKY الحظ / Lucky 40, QUIPS إفيهات / Quips 50), turns `gifts.category` into a `VARCHAR(40)` foreign
+key to it (`ON DELETE / UPDATE RESTRICT`; the three CHECKs that compared it with enum literals are dropped and
+re-added with the same meaning) and drops the enum. Every existing gift keeps its category; it is one transaction,
+re-run safe through Prisma's ledger, and was applied over a kl-int6 database holding POPULAR / LUCKY / FUN / QUIPS
+gifts, a hosted SVGA and a PK booster (all kept; the hosted SVGA got `animation_format = SVGA`). It also adds
+`gifts.animation_format` / `animation_alpha` (enums `gift_animation_format`, `gift_video_alpha`) and
+`audio_object_key` / `audio_bytes` / `audio_ms`, and widens `gifts_animation_object_key_format` to `.svga|.mp4`
+(CHECKs `gifts_animation_format_set`, `gifts_audio_set`). No new GRANT: the runtime role's default privileges cover the
+new table (checked by the e2e suites running as `kabso_app_*`).
+
+- **Order:** API (with the migration) first, then the admin build, then the app. An app before D207 keeps working: it
+  reads `categories`, names the five seeded codes itself and drops gifts of categories it does not know (a new
+  category is invisible to it); it would hand an MP4 to its SVGA player, which fails and shows nothing (the strip
+  still shows the gift's picture), and ignores `audioUrl`.
+- **Storage:** the panel's uploads use the API's media bucket like every other upload (`S3_*`, DEPLOYMENT §5.3), keys
+  `media/gifts/<code>/<sha256 prefix>.png|webp|svga|mp4|mp3` and `media/gift-categories/<CODE>/…png|webp`, immutable,
+  one year of cache. **Without `S3_BUCKET` / keys the upload answers 503** and the form says so («تخزين الملفات غير
+  مُعدّ على الخادم»); without `MEDIA_PUBLIC_BASE_URL` the files are stored but the app gets null URLs. The server has
+  no other storage (the app's own media use the same bucket, still gated by PP-28 / B12), so on a server without S3
+  gifts cannot be created in the panel (the picture is required) — `gift-admin add` without `--image` still works.
+- **Body size:** `POST /api/v1/admin/gift-uploads` takes the raw file (`application/octet-stream`, ≤ 26 MB, the SVGA
+  limit); Caddy sets no body limit, so nothing to change there. The panel previews uploaded files from
+  `GET /api/v1/admin/gift-files` (same origin), so the admin site's CSP is unchanged.
+- **Permissions:** new capability `gifts.categories` (OWNER) for every category change; uploading gift files is
+  `catalog.manage` (OWNER) as before; reading the categories is `catalog.view`.
+- **CLI:** `gift-admin categories | category-add | category-update | category-enable | category-disable |
+  category-delete [--move-to]`, `--animation-file <file.mp4> [--alpha none|side-by-side]`, `--sound-file <file.mp3>`
+  (same S3 settings as `--image`, §5.7).
+- **Rollback:** the migration is not reversible by Prisma; to go back, restore the database backup taken before the
+  update (§7). Hosted MP4 / MP3 files and category icons stay in the bucket (only a storage cost).

@@ -25,18 +25,32 @@ abstract class GiftArtCache {
   /// download fails; a failed download is retried on the next call.
   Future<Uint8List> load(String url);
 
+  /// v1.46-live (D207): the path of [url]'s file on the device (downloaded
+  /// first when needed) — a video player reads an MP4 from a file. Throws
+  /// like [load]; a cache without files throws [UnsupportedError].
+  Future<String> path(String url) =>
+      Future.error(UnsupportedError('no files in this cache'));
+
   /// Starts downloading [url] if it is not on the device; never throws.
   void prefetch(String url) {
     unawaited(load(url).then((_) {}, onError: (Object _) {}));
   }
 
-  /// Prefetches the small animations of [catalogue] (the panel opened).
+  /// Prefetches the small animations of [catalogue] (the panel opened), and
+  /// (v1.46-live, D207) the small MP3 sounds.
   void prefetchSmallAnimations(GiftCatalogue catalogue) {
     for (final gift in catalogue.data) {
       final url = gift.animationUrl;
       final bytes = gift.animationBytes;
       if (url != null && bytes != null && bytes <= prefetchMaxBytes) {
         prefetch(url);
+      }
+      final sound = gift.audioUrl;
+      final soundBytes = gift.audioBytes;
+      if (sound != null &&
+          soundBytes != null &&
+          soundBytes <= prefetchMaxBytes) {
+        prefetch(sound);
       }
     }
   }
@@ -94,13 +108,17 @@ class DiskGiftArtCache extends GiftArtCache {
   /// The file of [url]: SHA-256 of the URL, plus the URL's extension.
   static String fileName(String url) {
     final path = Uri.tryParse(url)?.path ?? '';
-    final ext = RegExp(r'\.(png|webp|svga)$').firstMatch(path)?.group(0) ?? '';
+    final ext =
+        RegExp(r'\.(png|webp|svga|mp4|mp3)$').firstMatch(path)?.group(0) ?? '';
     return '${sha256.convert(url.codeUnits)}$ext';
   }
 
   @override
   Future<Uint8List> load(String url) =>
       _file(url).then((file) => file.readAsBytes());
+
+  @override
+  Future<String> path(String url) => _file(url).then((file) => file.path);
 
   Future<File> _file(String url) {
     if (!GiftArtCache.allowed(url)) {
