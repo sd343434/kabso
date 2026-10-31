@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { api } from '../api';
-import { ErrorAlert, FormDialog, Loading, reasonField, StatusBadge, useAsync, UserCell } from '../components';
+import { codeField, ErrorAlert, FormDialog, Loading, reasonField, StatusBadge, useAsync, UserCell } from '../components';
 import { useApp } from '../context';
 import { formatDate, formatNumber } from '../format';
 import { navigate } from '../router';
@@ -14,6 +14,11 @@ interface AgencyRow {
   hostCode: string | null;
   rank: string;
   suspended: boolean;
+  /** v1.70-social (D206). */
+  name: string | null;
+  origin: 'ADMIN' | 'SELF';
+  status: 'OPEN' | 'CLOSED';
+  probation: 'NONE' | 'RUNNING' | 'PASSED' | 'FAILED' | 'STOPPED';
   owner: PersonRef;
   parentInviteCode: string | null;
   activeHosts: number;
@@ -25,6 +30,22 @@ interface AgencyRow {
 
 interface AgencyDetailDto {
   id: string;
+  /** v1.70-social (D206): «افتح وكالة». */
+  name: string | null;
+  origin: 'ADMIN' | 'SELF';
+  status: 'OPEN' | 'CLOSED';
+  closedAt: string | null;
+  closeReason: 'PROBATION_FAILED' | 'ADMIN' | null;
+  closeNote: string | null;
+  probation: {
+    state: 'NONE' | 'RUNNING' | 'PASSED' | 'FAILED' | 'STOPPED';
+    endsAt: string;
+    passedAt: string | null;
+    requiredHosts: number;
+    activatedHosts: number | null;
+    hosts: { userId: string; joinedAt: string; wentLive: boolean; receivedGifts: boolean; activated: boolean }[];
+  } | null;
+  applications: { id: string; createdAt: string; purged: boolean }[];
   inviteCode: string;
   hostCode: string | null;
   rank: string;
@@ -107,7 +128,17 @@ export function Agencies() {
         onRowClick={(r) => navigate(`/agencies/${r.id}`)}
         filters={[
           { name: 'rank', label: 'colRank', options: ['NEW', 'AGENT', 'ADMIN', 'LAPSED'].map((r) => ({ value: r, label: `rank${r}` })) },
-          { name: 'state', label: 'colStatus', options: [{ value: 'active', label: 'statusACTIVE' }, { value: 'suspended', label: 'statusSUSPENDED' }] },
+          {
+            name: 'state',
+            label: 'colStatus',
+            options: [
+              { value: 'active', label: 'statusACTIVE' },
+              { value: 'suspended', label: 'statusSUSPENDED' },
+              { value: 'probation', label: 'statePROBATION' },
+              { value: 'closed', label: 'stateCLOSED' },
+            ],
+          },
+          { name: 'origin', label: 'colOrigin', options: [{ value: 'SELF', label: 'agencyOriginSELF' }, { value: 'ADMIN', label: 'agencyOriginADMIN' }] },
         ]}
         columns={[
           {
@@ -118,12 +149,15 @@ export function Agencies() {
               <span className="names">
                 <span className="mono">{r.hostCode ?? '—'}</span>
                 <span className="mono muted small">{r.inviteCode}</span>
+                {r.name && <span className="small">{r.name}</span>}
               </span>
             ),
           },
           { key: 'owner', label: 'colOwner', render: (r) => <UserCell username={r.owner.username} displayName={r.owner.displayName} avatarUrl={r.owner.avatarUrl} /> },
           { key: 'rank', label: 'colRank', sort: 'rank', render: (r) => <RankBadge rank={r.rank} /> },
-          { key: 'state', label: 'colStatus', render: (r) => <StatusBadge status={r.suspended ? 'SUSPENDED' : 'ACTIVE'} /> },
+          { key: 'state', label: 'colStatus', render: (r) => <StatusBadge status={r.status === 'CLOSED' ? 'CLOSED' : r.suspended ? 'SUSPENDED' : 'ACTIVE'} /> },
+          { key: 'probation', label: 'colProbation', render: (r) => (r.probation === 'NONE' ? <span className="muted">—</span> : <StatusBadge status={r.probation} />) },
+          { key: 'origin', label: 'colOrigin', optional: true, render: (r) => <span className="small">{t(r.origin === 'SELF' ? 'agencyOriginSELF' : 'agencyOriginADMIN')}</span> },
           { key: 'hosts', label: 'colHosts', numeric: true, render: (r) => n(r.activeHosts) },
           { key: 'subs', label: 'colSubAgencies', numeric: true, render: (r) => n(r.subAgencies) },
           { key: 'cherries', label: 'colMonthCherries', numeric: true, render: (r) => n(r.monthHostCherries) },
@@ -184,9 +218,12 @@ export function AgencyDetail({ id }: { id: string }) {
   const { t, lang, can, toast } = useApp();
   const { data, error, loading, reload } = useAsync(() => api.get<AgencyDetailDto>(`/admin/agencies/${id}`), [id]);
   const [dialog, setDialog] = useState<'suspend' | 'reinstate' | null>(null);
+  const [probationDialog, setProbationDialog] = useState<'extend' | 'close' | 'reopen' | null>(null);
   const n = (v: number) => formatNumber(v, lang);
   if (loading && !data) return <Loading />;
   if (!data) return <ErrorAlert error={error} />;
+  const closed = data.status === 'CLOSED';
+  const running = data.probation?.state === 'RUNNING';
   const maxMonth = Math.max(1, ...data.months.map((m) => m.hostCherries));
   return (
     <>
@@ -196,10 +233,12 @@ export function AgencyDetail({ id }: { id: string }) {
         </span>
         <div className="grow">
           <h1 className="mono">{data.hostCode ?? data.inviteCode}</h1>
+          {data.name && <p className="agency-name">{data.name}</p>}
           <div className="row small">
             <span className="mono muted">{data.inviteCode}</span>
             <RankBadge rank={data.rank} />
-            <StatusBadge status={data.suspended ? 'SUSPENDED' : 'ACTIVE'} />
+            <StatusBadge status={closed ? 'CLOSED' : data.suspended ? 'SUSPENDED' : 'ACTIVE'} />
+            <span className="badge">{t(data.origin === 'SELF' ? 'agencyOriginSELF' : 'agencyOriginADMIN')}</span>
             {data.parent && (
               <a href={`/agencies/${data.parent.id}`} onClick={(e) => (e.preventDefault(), navigate(`/agencies/${data.parent!.id}`))}>
                 {t('colParent')}: <span className="mono">{data.parent.inviteCode}</span>
@@ -207,9 +246,31 @@ export function AgencyDetail({ id }: { id: string }) {
             )}
           </div>
           {data.suspendReason && <p className="muted small">{data.suspendReason}</p>}
+          {closed && data.closedAt && (
+            <p className="small" data-agency-closed>
+              {t('agencyClosedOn', { date: formatDate(data.closedAt, lang) })} —{' '}
+              {t(data.closeReason === 'PROBATION_FAILED' ? 'agencyCloseReasonPROBATION_FAILED' : 'agencyCloseReasonADMIN')}
+              {data.closeNote ? ` · ${data.closeNote}` : ''}
+            </p>
+          )}
         </div>
         <div className="row actions-row">
-          {can('agencies.manage') && !data.suspended && (
+          {can('agencies.probation') && running && (
+            <button className="btn" onClick={() => setProbationDialog('extend')}>
+              {t('agencyExtend')}
+            </button>
+          )}
+          {can('agencies.probation') && !closed && (
+            <button className="btn danger" onClick={() => setProbationDialog('close')}>
+              {t('agencyClose')}
+            </button>
+          )}
+          {can('agencies.probation') && closed && (
+            <button className="btn primary" onClick={() => setProbationDialog('reopen')}>
+              {t('agencyReopen')}
+            </button>
+          )}
+          {can('agencies.manage') && !data.suspended && !closed && (
             <button className="btn danger" onClick={() => setDialog('suspend')}>
               {t('agencySuspend')}
             </button>
@@ -248,6 +309,12 @@ export function AgencyDetail({ id }: { id: string }) {
           <strong className="date">{data.evaluateFrom}</strong>
         </div>
       </div>
+      {(data.probation || data.applications.length > 0) && (
+        <div className="grid cols-2">
+          {data.probation && <ProbationCard data={data} />}
+          {data.applications.length > 0 && <ApplicationsCard agencyId={data.id} applications={data.applications} />}
+        </div>
+      )}
       <div className="grid cols-2">
         <div className="card">
           <h2>{t('agencyMonths')}</h2>
@@ -343,7 +410,178 @@ export function AgencyDetail({ id }: { id: string }) {
           }}
         />
       )}
+      {probationDialog && (
+        <FormDialog
+          title={t(PROBATION_ACTION[probationDialog])}
+          intro={<p className="muted small">{t(`${PROBATION_ACTION[probationDialog]}Intro` as never)}</p>}
+          fields={[
+            ...(probationDialog === 'extend' ? [{ name: 'days', label: t('agencyExtendDays'), maxLength: 2 }] : []),
+            reasonField(t),
+            codeField(t),
+          ]}
+          confirmLabel={t(PROBATION_ACTION[probationDialog])}
+          danger={probationDialog === 'close'}
+          submit={(v) =>
+            api.post(probationDialog === 'extend' ? `/admin/agencies/${id}/probation/extend` : `/admin/agencies/${id}/${probationDialog}`, {
+              ...(probationDialog === 'extend' ? { days: Number(v.days) } : {}),
+              reason: v.reason,
+              totpCode: v.totpCode,
+            })
+          }
+          onClose={() => setProbationDialog(null)}
+          onDone={() => {
+            setProbationDialog(null);
+            toast(t('done'));
+            reload();
+          }}
+        />
+      )}
     </>
+  );
+}
+
+const PROBATION_ACTION = { extend: 'agencyExtend', close: 'agencyClose', reopen: 'agencyReopen' } as const;
+
+/** v1.70-social (D206): the trial of a self-opened agency — the count, the end and each host's three steps. */
+function ProbationCard({ data }: { data: AgencyDetailDto }) {
+  const { t, lang } = useApp();
+  const p = data.probation!;
+  const people = new Map(data.hosts.map((h) => [h.user.id, h.user]));
+  const tick = (ok: boolean) => <span className={ok ? 'ok-text' : 'muted'}>{ok ? '✓' : '—'}</span>;
+  return (
+    <div className="card" data-agency-probation>
+      <div className="row">
+        <h2 className="grow">{t('agencyProbation')}</h2>
+        <StatusBadge status={p.state} />
+      </div>
+      <p className="num">
+        <strong>{t('agencyProbationCount', { x: p.activatedHosts ?? '—', y: p.requiredHosts })}</strong>
+      </p>
+      <p className="small">
+        {p.passedAt ? `${t('agencyProbationPassedAt')}: ${formatDate(p.passedAt, lang)}` : `${t('agencyProbationEnds')}: ${formatDate(p.endsAt, lang)}`}
+      </p>
+      <p className="muted small">{t('agencyProbationRule')}</p>
+      {p.hosts.length > 0 && (
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>{t('colUser')}</th>
+                <th>{t('agencyWentLive')}</th>
+                <th>{t('agencyGotGifts')}</th>
+                <th>{t('agencyActivated')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {p.hosts.map((h) => {
+                const u = people.get(h.userId);
+                return (
+                  <tr key={h.userId}>
+                    <td>{u ? <UserCell username={u.username} displayName={u.displayName} avatarUrl={u.avatarUrl} /> : <span className="mono small">{h.userId}</span>}</td>
+                    <td>{tick(h.wentLive)}</td>
+                    <td>{tick(h.receivedGifts)}</td>
+                    <td>{tick(h.activated)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface AgencyApplicationDto {
+  id: string;
+  createdAt: string;
+  purgedAt: string | null;
+  user: { id: string; username: string; displayName: string; email: string };
+  name: string;
+  country: string;
+  contact: { type: string; value: string | null };
+  expectedHosts: number;
+  bio: string | null;
+  photos: { photo: boolean; selfie: boolean };
+}
+
+/** v1.70-social (D206): the applications; the fields and the pictures are read one at a time (each view audited). */
+function ApplicationsCard({ agencyId, applications }: { agencyId: string; applications: AgencyDetailDto['applications'] }) {
+  const { t, lang, can } = useApp();
+  const [open, setOpen] = useState<string | null>(null);
+  return (
+    <div className="card" data-agency-applications>
+      <h2>{t('agencyApplications')}</h2>
+      <p className="muted small">{t('agencyApplicationNote')}</p>
+      <ul className="plain-list">
+        {applications.map((a) => (
+          <li key={a.id}>
+            <div className="row">
+              <span className="date small grow">{formatDate(a.createdAt, lang)}</span>
+              {a.purged && <span className="badge">{t('agencyPurged')}</span>}
+              {can('agencies.applications') && open !== a.id && (
+                <button className="btn" onClick={() => setOpen(a.id)}>
+                  {t('agencyApplicationShow')}
+                </button>
+              )}
+            </div>
+            {open === a.id && <ApplicationFields agencyId={agencyId} appId={a.id} />}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function ApplicationFields({ agencyId, appId }: { agencyId: string; appId: string }) {
+  const { t } = useApp();
+  const { data, error, loading } = useAsync(() => api.get<AgencyApplicationDto>(`/admin/agencies/${agencyId}/applications/${appId}`), [agencyId, appId]);
+  if (loading && !data) return <Loading />;
+  if (!data) return <ErrorAlert error={error} />;
+  return (
+    <div data-agency-application={appId}>
+      <dl className="kv">
+        <dt>{t('colOwner')}</dt>
+        <dd>
+          @{data.user.username} · {data.user.email}
+        </dd>
+        <dt>{t('agencyCountry')}</dt>
+        <dd className="mono">{data.country}</dd>
+        <dt>{t('agencyContact')}</dt>
+        <dd>
+          {data.contact.type} · <span dir="ltr">{data.contact.value ?? '—'}</span>
+        </dd>
+        <dt>{t('agencyExpectedHosts')}</dt>
+        <dd className="num">{data.expectedHosts}</dd>
+        <dt>{t('agencyBio')}</dt>
+        <dd>{data.bio ?? '—'}</dd>
+      </dl>
+      <div className="grid cols-2">
+        <AgencyPhoto agencyId={agencyId} appId={appId} which="photo" exists={data.photos.photo} label={t('agencyIdCard')} />
+        <AgencyPhoto agencyId={agencyId} appId={appId} which="selfie" exists={data.photos.selfie} label={t('agencySelfie')} />
+      </div>
+    </div>
+  );
+}
+
+function AgencyPhoto(props: { agencyId: string; appId: string; which: 'photo' | 'selfie'; exists: boolean; label: string }) {
+  const { t } = useApp();
+  const [shown, setShown] = useState(false);
+  return (
+    <div className="card">
+      <h3>{props.label}</h3>
+      <div className="photo-box" data-private-photo={props.which}>
+        {!props.exists ? (
+          <span className="muted">{t('photoMissing')}</span>
+        ) : shown ? (
+          <img src={`/api/v1/admin/agencies/${props.agencyId}/applications/${props.appId}/photos/${props.which}`} alt={props.label} referrerPolicy="no-referrer" />
+        ) : (
+          <button className="btn" onClick={() => setShown(true)}>
+            {t('showPhoto')}
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
 

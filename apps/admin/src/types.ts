@@ -27,6 +27,9 @@ export type Capability =
   | 'users.sessions'
   | 'agencies.view'
   | 'agencies.manage'
+  // v1.70-social (D206)
+  | 'agencies.applications'
+  | 'agencies.probation'
   | 'lives.view'
   | 'lives.manage'
   | 'catalog.view'
