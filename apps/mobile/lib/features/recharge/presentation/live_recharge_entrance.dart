@@ -144,8 +144,10 @@ class _LiveRechargeEntranceLayerState
         child: Align(
           // Above the CP entrance's place, under the gift banners:
           // anchored at the leading side, above the chat (clear of the
-          // seats and the host's video centre).
-          alignment: const AlignmentDirectional(-1, 0.26),
+          // seats and the host's video centre). D199: the chat now starts
+          // at the top of its area (the room's rules line first), so the
+          // bar sits over that top (≈ 54 % down; was 63 %).
+          alignment: const AlignmentDirectional(-1, 0.08),
           child: moving
               ? AnimatedBuilder(
                   animation: _clock,

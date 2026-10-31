@@ -31,6 +31,7 @@ import 'package:kabso_live/features/live/application/live_tap_batcher.dart';
 import 'package:kabso_live/features/live/application/live_watch.dart';
 import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
 import 'package:kabso_live/features/live/data/beauty/live_color_filter.dart';
+import 'package:kabso_live/features/live/data/live_host_targets_repository.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
@@ -75,6 +76,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_games_sheet.d
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_effects_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_guest_tiles.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_host_target_chip.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_lucky_combo_button.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk_sheet.dart';
@@ -2205,6 +2207,13 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         points: charm?.points.toInt(),
         target: charm?.nextLevel?.requiredPoints.toInt(),
         elapsed: _HostElapsed(since: state.liveSince),
+        // D199: the host's «تارجت» chip (the full gift stats on tap).
+        targetChip:
+            LiveHostTargetChip.shows(
+              ref.watch(liveHostTargetsProvider(room.host.username)).value,
+            )
+            ? LiveHostTargetChip(username: room.host.username, isHost: true)
+            : null,
       ),
       stage: pkStage ?? stage,
       chat: Align(alignment: AlignmentDirectional.bottomStart, child: roomChat),

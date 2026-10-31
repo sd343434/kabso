@@ -10557,4 +10557,94 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveHostBox => 'Games';
+
+  @override
+  String get liveTargetChip => 'Target';
+
+  @override
+  String liveTargetCherriesSemantics(String received, String target) {
+    return 'Cherries today: $received of $target';
+  }
+
+  @override
+  String liveTargetLuckySemantics(String received, String target) {
+    return 'Lucky gifts today: $received of $target coins';
+  }
+
+  @override
+  String get liveTargetReached => 'Target reached';
+
+  @override
+  String get liveTargetStatsTitle => 'Gift stats';
+
+  @override
+  String get liveTargetPublicTitle => 'Today’s target';
+
+  @override
+  String get liveTargetPeriodDay => 'Daily';
+
+  @override
+  String get liveTargetPeriodWeek => 'Weekly';
+
+  @override
+  String get liveTargetPeriodMonth => 'Monthly';
+
+  @override
+  String get liveTargetPeriodAll => 'All';
+
+  @override
+  String get liveTargetCherriesSection => 'Cherries';
+
+  @override
+  String get liveTargetLuckySection => 'Lucky gifts';
+
+  @override
+  String get liveTargetReceived => 'Received';
+
+  @override
+  String get liveTargetGifts => 'Gifts';
+
+  @override
+  String get liveTargetGivers => 'Givers';
+
+  @override
+  String get liveTargetLuckyValue => 'Value (coins)';
+
+  @override
+  String get liveTargetTopSupporters => 'Top supporters';
+
+  @override
+  String get liveTargetTopLucky => 'Top lucky supporters';
+
+  @override
+  String get liveTargetNoSupporters => 'No supporters yet';
+
+  @override
+  String get liveTargetToday => 'Today’s targets';
+
+  @override
+  String get liveTargetCherriesGoal => 'Cherries target';
+
+  @override
+  String get liveTargetLuckyGoal => 'Lucky gifts target (coins)';
+
+  @override
+  String get liveTargetNoTarget => 'No target today';
+
+  @override
+  String liveTargetConversion(int band) {
+    return 'The cherries target is your band’s ($band) «Receive gifts in your live» task target, converted to cherries at your gift share.';
+  }
+
+  @override
+  String get liveTargetTaskCenter => 'Task center';
+
+  @override
+  String get liveTargetChart => 'Cherries over the period';
+
+  @override
+  String get liveTargetLoadError => 'Couldn’t load the stats';
+
+  @override
+  String get liveTargetZoneHint => 'Periods follow Riyadh time.';
 }

@@ -10577,4 +10577,94 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveHostBox => 'الألعاب';
+
+  @override
+  String get liveTargetChip => 'تارجت';
+
+  @override
+  String liveTargetCherriesSemantics(String received, String target) {
+    return 'الكرز اليوم: $received من $target';
+  }
+
+  @override
+  String liveTargetLuckySemantics(String received, String target) {
+    return 'هدايا الحظ اليوم: $received من $target عملة';
+  }
+
+  @override
+  String get liveTargetReached => 'تم بلوغ الهدف';
+
+  @override
+  String get liveTargetStatsTitle => 'إحصاءات الهدايا';
+
+  @override
+  String get liveTargetPublicTitle => 'تارجت اليوم';
+
+  @override
+  String get liveTargetPeriodDay => 'يومي';
+
+  @override
+  String get liveTargetPeriodWeek => 'أسبوعي';
+
+  @override
+  String get liveTargetPeriodMonth => 'شهري';
+
+  @override
+  String get liveTargetPeriodAll => 'الكل';
+
+  @override
+  String get liveTargetCherriesSection => 'الكرز';
+
+  @override
+  String get liveTargetLuckySection => 'هدايا الحظ';
+
+  @override
+  String get liveTargetReceived => 'المستلم';
+
+  @override
+  String get liveTargetGifts => 'الهدايا';
+
+  @override
+  String get liveTargetGivers => 'الداعمون';
+
+  @override
+  String get liveTargetLuckyValue => 'القيمة (عملات)';
+
+  @override
+  String get liveTargetTopSupporters => 'أفضل الداعمين';
+
+  @override
+  String get liveTargetTopLucky => 'أفضل داعمي الحظ';
+
+  @override
+  String get liveTargetNoSupporters => 'لا يوجد داعمون بعد';
+
+  @override
+  String get liveTargetToday => 'أهداف اليوم';
+
+  @override
+  String get liveTargetCherriesGoal => 'هدف الكرز';
+
+  @override
+  String get liveTargetLuckyGoal => 'هدف هدايا الحظ (عملات)';
+
+  @override
+  String get liveTargetNoTarget => 'لا هدف اليوم';
+
+  @override
+  String liveTargetConversion(int band) {
+    return 'هدف الكرز هو هدف مهمة «استقبل هدايا في بثك» لفئتك ($band) محوّلًا إلى كرز بحصّتك من الهدايا.';
+  }
+
+  @override
+  String get liveTargetTaskCenter => 'مركز المهام';
+
+  @override
+  String get liveTargetChart => 'الكرز خلال الفترة';
+
+  @override
+  String get liveTargetLoadError => 'تعذّر تحميل الإحصاءات';
+
+  @override
+  String get liveTargetZoneHint => 'الفترات حسب توقيت الرياض.';
 }

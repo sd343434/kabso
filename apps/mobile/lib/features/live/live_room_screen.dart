@@ -32,6 +32,7 @@ import 'package:kabso_live/features/live/application/live_room_session.dart';
 import 'package:kabso_live/features/live/application/live_seat_emojis.dart';
 import 'package:kabso_live/features/live/application/live_stickers.dart';
 import 'package:kabso_live/features/live/application/live_watch.dart';
+import 'package:kabso_live/features/live/data/live_host_targets_repository.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_permissions.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
@@ -59,6 +60,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_games_sheet.d
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_effects_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_guest_tiles.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_host_target_chip.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_lucky_combo_button.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_boxes.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
@@ -1037,6 +1039,18 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                       key: LiveRoomScreen.scoreChipKey,
                       text: KFormat.compact(score, l10n),
                       label: l10n.liveScore(score, KFormat.grouped(score)),
+                    )
+                  : null,
+              // D199: the host's «تارجت» chip (today's progress on tap).
+              targetChip:
+                  LiveHostTargetChip.shows(
+                    ref
+                        .watch(liveHostTargetsProvider(room.host.username))
+                        .value,
+                  )
+                  ? LiveHostTargetChip(
+                      username: room.host.username,
+                      isHost: false,
                     )
                   : null,
             ),

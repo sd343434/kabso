@@ -16,6 +16,7 @@ import 'package:kabso_live/features/live/data/live_blocked_words_repository.dart
 import 'package:kabso_live/features/live/data/live_boost_repository.dart';
 import 'package:kabso_live/features/live/data/live_data_center_repository.dart';
 import 'package:kabso_live/features/live/data/live_gift_repository.dart';
+import 'package:kabso_live/features/live/data/live_host_targets_repository.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_newcomers_repository.dart';
 import 'package:kabso_live/features/live/data/live_program_repository.dart';
@@ -42,6 +43,7 @@ import 'fake_live_blocked_words_repository.dart';
 import 'fake_live_boost_repository.dart';
 import 'fake_live_data_center_repository.dart';
 import 'fake_live_gift_repository.dart';
+import 'fake_live_host_targets_repository.dart';
 import 'fake_live_media_engine.dart';
 import 'fake_live_newcomers_repository.dart';
 import 'fake_live_pk.dart';
@@ -92,6 +94,7 @@ Future<void> pumpKabsoApp(
   LiveBoostRepository? liveBoostRepository,
   LiveNewcomersRepository? liveNewcomersRepository,
   LiveDataCenterRepository? liveDataCenterRepository,
+  LiveHostTargetsRepository? liveHostTargetsRepository,
   LiveProgramRepository? liveProgramRepository,
   LiveStickerRepository? liveStickerRepository,
   LiveWatchRepository? liveWatchRepository,
@@ -171,6 +174,10 @@ Future<void> pumpKabsoApp(
         liveDataCenterRepositoryProvider.overrideWithValue(
           liveDataCenterRepository ?? FakeLiveDataCenterRepository(),
         ),
+        // D199: never the network (nobody is a host: no «تارجت» chip).
+        liveHostTargetsRepositoryProvider.overrideWithValue(
+          liveHostTargetsRepository ?? FakeLiveHostTargetsRepository(),
+        ),
         // D154e: never the network (no program).
         liveProgramRepositoryProvider.overrideWithValue(
           liveProgramRepository ?? FakeLiveProgramRepository(),
@@ -229,6 +236,7 @@ Future<void> pumpScreen(
   LiveBoostRepository? liveBoostRepository,
   LiveNewcomersRepository? liveNewcomersRepository,
   LiveDataCenterRepository? liveDataCenterRepository,
+  LiveHostTargetsRepository? liveHostTargetsRepository,
   LiveProgramRepository? liveProgramRepository,
   LiveStickerRepository? liveStickerRepository,
   LiveWatchRepository? liveWatchRepository,
@@ -294,6 +302,10 @@ Future<void> pumpScreen(
         // D154d: never the network (an empty data center).
         liveDataCenterRepositoryProvider.overrideWithValue(
           liveDataCenterRepository ?? FakeLiveDataCenterRepository(),
+        ),
+        // D199: never the network (nobody is a host: no «تارجت» chip).
+        liveHostTargetsRepositoryProvider.overrideWithValue(
+          liveHostTargetsRepository ?? FakeLiveHostTargetsRepository(),
         ),
         // D154e: never the network (no program).
         liveProgramRepositoryProvider.overrideWithValue(

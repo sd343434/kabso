@@ -46,9 +46,14 @@ class KRoomChipsRow extends StatelessWidget {
     this.target,
     this.elapsed,
     this.score,
+    this.targetChip,
   });
 
   final int? level;
+
+  /// D199: the «تارجت» chip (`LiveHostTargetChip`), right after the board
+  /// chip «ترتيب الغرف».
+  final Widget? targetChip;
 
   /// D173 (owner: «ولا يوجد في البث الحي الكرزات»): the viewer's cherry
   /// chip (the live's points), right after the board chip as in the audio
@@ -67,10 +72,39 @@ class KRoomChipsRow extends StatelessWidget {
   static const numberKey = Key('room.number');
   static const levelKey = Key('room.levelChip');
 
+  /// The score and level chips after the board (and target) chips.
+  List<Widget> _afterBoard({bool capped = false}) {
+    final level = this.level;
+    return [
+      if (score case final score?) ...[const SizedBox(width: 6), score],
+      if (level != null) ...[
+        const SizedBox(width: 6),
+        if (capped)
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 130),
+            child: LiveLevelTargetChip(
+              key: levelKey,
+              level: level,
+              points: points,
+              target: target,
+            ),
+          )
+        else
+          Flexible(
+            child: LiveLevelTargetChip(
+              key: levelKey,
+              level: level,
+              points: points,
+              target: target,
+            ),
+          ),
+      ],
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final level = this.level;
     final number = roomNumber;
     final elapsed = this.elapsed;
     // The header row's 48 pt target already leaves 8.5 pt under the 31 pt
@@ -82,28 +116,36 @@ class KRoomChipsRow extends StatelessWidget {
           // The start group keeps its natural width; only a narrow screen
           // shortens the board chip.
           Expanded(
-            child: Row(
-              children: [
-                const Flexible(
-                  child: LiveRankChip(icon: Icons.bar_chart_rounded),
-                ),
-                if (score case final score?) ...[
-                  const SizedBox(width: 6),
-                  score,
-                ],
-                if (level != null) ...[
-                  const SizedBox(width: 6),
-                  Flexible(
-                    child: LiveLevelTargetChip(
-                      key: levelKey,
-                      level: level,
-                      points: points,
-                      target: target,
+            child: targetChip == null
+                ? Row(
+                    children: [
+                      const Flexible(
+                        child: LiveRankChip(icon: Icons.bar_chart_rounded),
+                      ),
+                      ..._afterBoard(),
+                    ],
+                  )
+                // D199: with the «تارجت» chip every chip keeps its natural
+                // width (each capped) and a narrow screen scales the group
+                // down a little rather than cutting the labels.
+                : FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: AlignmentDirectional.centerStart,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 150),
+                          child: const LiveRankChip(
+                            icon: Icons.bar_chart_rounded,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        targetChip!,
+                        ..._afterBoard(capped: true),
+                      ],
                     ),
                   ),
-                ],
-              ],
-            ),
           ),
           if (elapsed != null) ...[
             const SizedBox(width: 6),

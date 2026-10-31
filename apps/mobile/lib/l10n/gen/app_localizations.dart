@@ -18057,6 +18057,174 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'الألعاب'**
   String get liveHostBox;
+
+  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'تارجت'**
+  String get liveTargetChip;
+
+  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'الكرز اليوم: {received} من {target}'**
+  String liveTargetCherriesSemantics(String received, String target);
+
+  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'هدايا الحظ اليوم: {received} من {target} عملة'**
+  String liveTargetLuckySemantics(String received, String target);
+
+  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم بلوغ الهدف'**
+  String get liveTargetReached;
+
+  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'إحصاءات الهدايا'**
+  String get liveTargetStatsTitle;
+
+  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'تارجت اليوم'**
+  String get liveTargetPublicTitle;
+
+  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'يومي'**
+  String get liveTargetPeriodDay;
+
+  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'أسبوعي'**
+  String get liveTargetPeriodWeek;
+
+  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'شهري'**
+  String get liveTargetPeriodMonth;
+
+  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'الكل'**
+  String get liveTargetPeriodAll;
+
+  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'الكرز'**
+  String get liveTargetCherriesSection;
+
+  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'هدايا الحظ'**
+  String get liveTargetLuckySection;
+
+  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'المستلم'**
+  String get liveTargetReceived;
+
+  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'الهدايا'**
+  String get liveTargetGifts;
+
+  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'الداعمون'**
+  String get liveTargetGivers;
+
+  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'القيمة (عملات)'**
+  String get liveTargetLuckyValue;
+
+  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'أفضل الداعمين'**
+  String get liveTargetTopSupporters;
+
+  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'أفضل داعمي الحظ'**
+  String get liveTargetTopLucky;
+
+  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد داعمون بعد'**
+  String get liveTargetNoSupporters;
+
+  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'أهداف اليوم'**
+  String get liveTargetToday;
+
+  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'هدف الكرز'**
+  String get liveTargetCherriesGoal;
+
+  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'هدف هدايا الحظ (عملات)'**
+  String get liveTargetLuckyGoal;
+
+  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا هدف اليوم'**
+  String get liveTargetNoTarget;
+
+  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'هدف الكرز هو هدف مهمة «استقبل هدايا في بثك» لفئتك ({band}) محوّلًا إلى كرز بحصّتك من الهدايا.'**
+  String liveTargetConversion(int band);
+
+  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'مركز المهام'**
+  String get liveTargetTaskCenter;
+
+  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'الكرز خلال الفترة'**
+  String get liveTargetChart;
+
+  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل الإحصاءات'**
+  String get liveTargetLoadError;
+
+  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'الفترات حسب توقيت الرياض.'**
+  String get liveTargetZoneHint;
 }
 
 class _AppLocalizationsDelegate
