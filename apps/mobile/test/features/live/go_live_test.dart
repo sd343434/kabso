@@ -11,6 +11,7 @@ import 'package:clock/clock.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/app.dart';
@@ -27,6 +28,7 @@ import 'package:kabso_live/features/emoji/emoji_panel.dart';
 import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/levels/data/levels_repository.dart';
 import 'package:kabso_live/features/levels/domain/level_models.dart';
+import 'package:kabso_live/features/live/application/home_banners_provider.dart';
 import 'package:kabso_live/features/live/application/live_host_controller.dart';
 import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
 import 'package:kabso_live/features/live/data/beauty/live_color_filter.dart';
@@ -34,6 +36,7 @@ import 'package:kabso_live/features/live/data/live_blocked_words_repository.dart
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/data/live_schedule_repository.dart';
+import 'package:kabso_live/features/live/domain/home_banner.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
@@ -123,6 +126,7 @@ Future<(FakeLiveRepository, FakeLiveMediaEngine)> _pump(
   LevelsRepository? levels,
   FakeLiveGiftRepository? gifts,
   FakeLiveScheduleRepository? schedule,
+  List<Override> overrides = const [],
 }) async {
   final live =
       repo ??
@@ -156,6 +160,7 @@ Future<(FakeLiveRepository, FakeLiveMediaEngine)> _pump(
         FakeProfileRepository(apiProfile()),
       ),
       if (levels != null) levelsRepositoryProvider.overrideWithValue(levels),
+      ...overrides,
     ],
   );
   await tester.pumpAndSettle();
@@ -3017,6 +3022,107 @@ void main() {
       await tester.tap(find.byKey(KHostBar.pkKey));
       await tester.pumpAndSettle();
       expect(find.byKey(LivePkSheet.sheetKey), findsOneWidget);
+      await _leave(tester);
+    });
+
+    testWidgets("host chat: the rules line at the chat area's top", (
+      tester,
+    ) async {
+      final (_, camera) = await _pump(tester);
+      await _goLive(tester);
+      await camera.setVideoPaused(paused: true);
+      await tester.pumpAndSettle();
+      final area = find.byKey(LiveRoomChatLines.topAnchorKey);
+      expect(area, findsOneWidget);
+      final notice = tester.getRect(find.byKey(LiveRoomChatLines.noticeKey));
+      expect(notice.top, closeTo(tester.getRect(area).top, 12));
+      await _leave(tester);
+    });
+
+    testWidgets('camera off: the host video is plain black', (tester) async {
+      final (_, camera) = await _pump(tester);
+      await _goLive(tester);
+      await camera.setVideoPaused(paused: true);
+      await tester.pumpAndSettle();
+      expect(find.byKey(FakeLiveMediaEngine.previewKey), findsNothing);
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is ColoredBox && w.color == KLiveVideoPlaceholder.black,
+        ),
+        findsWidgets,
+      );
+      await _leave(tester);
+    });
+
+    testWidgets("viewers' video placeholder is plain black", (tester) async {
+      await pumpScreen(tester, const KLiveVideoPlaceholder());
+      final box = tester.widget<ColoredBox>(
+        find.descendant(
+          of: find.byType(KLiveVideoPlaceholder),
+          matching: find.byType(ColoredBox),
+        ),
+      );
+      expect(box.color, const Color(0xFF000000));
+    });
+
+    testWidgets('promo cards sit under «ترتيب الغرف» (1–2 cards, real '
+        'banners only)', (tester) async {
+      for (final count in [0, 1, 3]) {
+        await tester.pumpWidget(const SizedBox.shrink());
+        await _pump(
+          tester,
+          language: AppLanguage.ar,
+          overrides: [
+            roomBannersProvider.overrideWith(
+              (_) async => [
+                for (var i = 0; i < count; i++)
+                  HomeBanner(
+                    id: 'b$i',
+                    imageUrl: 'https://cdn.test/b$i.png',
+                    link: '/events',
+                  ),
+              ],
+            ),
+          ],
+        );
+        await _goLive(tester);
+        final column = find.byKey(LiveRoomPromoColumn.columnKey);
+        if (count == 0) {
+          expect(column, findsNothing);
+          continue;
+        }
+        expect(
+          find.descendant(of: column, matching: find.byType(LiveRoomPromoBox)),
+          findsNWidgets(count >= 2 ? 2 : 1),
+        );
+        final card = tester.getRect(column);
+        // Under the room-info row, at the reading start (the right).
+        final info = tester.getRect(find.byType(KRoomChipsRow));
+        expect(card.top, greaterThanOrEqualTo(info.bottom - 1));
+        expect(card.top - info.bottom, lessThan(12));
+        expect(card.right, closeTo(393 - KSpacing.sm, 1));
+        expect(card.width, lessThanOrEqualTo(393 * 0.4));
+      }
+      await _leave(tester);
+    });
+
+    testWidgets('Room Tools: Beauty and the filters (Magic) open their real '
+        'sheets while live', (tester) async {
+      await _pump(tester);
+      await _goLive(tester);
+      await _openTools(tester);
+      expect(find.byKey(GoLiveKeys.tool('beauty')), findsOneWidget);
+      expect(find.byKey(GoLiveKeys.tool('magic')), findsOneWidget);
+      await tester.tap(find.byKey(GoLiveKeys.tool('magic')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(GoLiveKeys.filterUnsupported).evaluate().isNotEmpty ||
+            find
+                .byKey(GoLiveKeys.filter(LiveColorFilter.values.first))
+                .evaluate()
+                .isNotEmpty,
+        isTrue,
+      );
       await _leave(tester);
     });
 

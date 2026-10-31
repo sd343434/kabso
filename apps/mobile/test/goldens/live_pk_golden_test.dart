@@ -127,6 +127,7 @@ Future<ProviderContainer> pumpPkHost(
   FakeLivePkRepository? pkRepo,
   FakeLiveRepository? live,
   GoldenViewport viewport = GoldenViewport.phone,
+  List<Override> extra = const [],
 }) async {
   final ar = language == AppLanguage.ar;
   if (viewport == GoldenViewport.phone) {
@@ -148,6 +149,7 @@ Future<ProviderContainer> pumpPkHost(
         liveRepositoryProvider.overrideWithValue(live ?? FakeLiveRepository()),
         ...pkOverrides(repo),
         liveMediaEngineProvider.overrideWithValue(FakeLiveMediaEngine.new),
+        ...extra,
         currentUserProvider.overrideWithValue(
           testUser(displayName: ar ? 'سارة' : 'Sara').copyWith(canHost: true),
         ),

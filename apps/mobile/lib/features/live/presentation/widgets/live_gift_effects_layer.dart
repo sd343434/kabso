@@ -462,14 +462,19 @@ class LiveGiftStrips extends ConsumerWidget {
           ),
       ],
     );
-    final strips = AnimatedSize(
-      duration: KMotion.of(context, KMotion.base),
-      curve: KMotion.standard,
-      alignment: AlignmentDirectional.centerStart.resolve(
-        Directionality.of(context),
-      ),
-      child: column,
-    );
+    final duration = KMotion.of(context, KMotion.base);
+    // D199: reduced motion gives a zero duration; an AnimatedSize would then
+    // finish inside its own layout (a framework assertion) — no animation.
+    final strips = duration == Duration.zero
+        ? column
+        : AnimatedSize(
+            duration: duration,
+            curve: KMotion.standard,
+            alignment: AlignmentDirectional.centerStart.resolve(
+              Directionality.of(context),
+            ),
+            child: column,
+          );
     return onSender == null ? IgnorePointer(child: strips) : strips;
   }
 }

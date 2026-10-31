@@ -473,6 +473,40 @@ void main() {
     });
   }
 
+  testWidgets('D199 (owner, ref 275): in the video live the rules line is the '
+      'first line at the TOP of the chat area, faded out at the top as lines '
+      'arrive, and gone while typing', (tester) async {
+    final engine = await _room(tester, audio: false);
+    final notice = find.byKey(LiveRoomChatLines.noticeKey);
+    final area = find.byKey(LiveRoomChatLines.topAnchorKey);
+    expect(area, findsOne);
+    expect(tester.getRect(notice).top, closeTo(tester.getRect(area).top, 12));
+    // Above the composer by the area's empty rest, not right on it.
+    expect(
+      tester.getRect(area).bottom - tester.getRect(notice).bottom,
+      greaterThan(60),
+    );
+    // The chat's top edge fades (the list is masked).
+    expect(
+      find.descendant(
+        of: find.byKey(LiveRoomChatLines.listKey),
+        matching: find.byType(ShaderMask),
+      ),
+      findsOne,
+    );
+    engine.chat.add(LiveChatReceived(_entry('t0', 'hello')));
+    await tester.pump();
+    // Keyboard up: the rules line has scrolled away; the message stays.
+    tester.view.viewInsets = FakeViewPadding(
+      bottom: 300 * tester.view.devicePixelRatio,
+    );
+    addTearDown(tester.view.resetViewInsets);
+    await tester.pump();
+    expect(notice, findsNothing);
+    expect(_line('m:t0'), findsOne);
+    await _leave(tester);
+  });
+
   test('D135: the see-through rules line reads at 4.5:1 or more over the '
       'brightest backgrounds tested (a bright video frame, the bright room '
       'themes) and on dark ones', () {

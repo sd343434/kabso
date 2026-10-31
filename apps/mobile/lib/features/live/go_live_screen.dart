@@ -685,7 +685,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         state.mode != LiveRoomMode.audio;
     final Widget background;
     if (gate != null || ended) {
-      background = ColoredBox(color: KPalette.dark.background);
+      // D199 (owner, ref 275): no camera (permission refused) is black.
+      background = const ColoredBox(color: KLiveVideoPlaceholder.black);
     } else if (!seats) {
       background = _camera(state);
     } else {
@@ -1418,6 +1419,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           bubble: KLiveColors.chatScrim,
           onProfile: (username) => _person(room.id, username),
           inline: true,
+          // D199 (owner, ref 275): the chat starts at its top.
+          anchorTop: true,
         ),
         composer: chatComposer,
         openChat: openChat,
@@ -1955,7 +1958,11 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 ? null
                 : () => unawaited(showLiveWatchSheet(context, roomId: room.id)),
           ),
+          // D199 (owner): beauty and the filters (Magic: colour filters
+          // and effects) while live — the same sheets as before going live,
+          // applied to the live picture.
           ?byId['beauty'],
+          ?byId['magic'],
           ?byId['voice'],
           ?byId['theme'],
           ?byId['seats'],
@@ -2181,7 +2188,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         wishes: room.wishGifts,
         onEdit: live ? () => unawaited(_openWishSheet()) : null,
       ),
-      sidePromo: live ? LiveRoomPromoBox(roomId: room.id) : null,
+      // D199: under «ترتيب الغرف»; hidden during a PK (the bar's place).
+      sidePromo: live && pk.match == null
+          ? LiveRoomPromoColumn(roomId: room.id)
+          : null,
       // D145a: the lucky combo beside the chat, over the quick replies.
       chatEnd: _soloChatEnd(room, liveSeats),
       closeButtonKey: GoLiveScreen.closeKey,
@@ -2705,14 +2715,16 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   /// on and the front camera the picture itself is lifted (camera
   /// pipeline); only a device without one shows the thin edge glow.
   Widget _camera(GoLiveState state, {Widget? fallback}) {
-    final picture = state.phase == GoLivePhase.ended
+    // D199 (owner, ref 275): the camera off (paused while live) or not
+    // started shows plain black, as on the viewers' screens.
+    final picture = state.phase == GoLivePhase.ended || _host.engine.videoPaused
         ? null
         : _host.engine.preview();
     if (picture == null) {
       return fallback ??
           (state.phase == GoLivePhase.preparing
               ? const _Spinner()
-              : ColoredBox(color: KPalette.dark.surface));
+              : const ColoredBox(color: KLiveVideoPlaceholder.black));
     }
     return SizedBox.expand(
       key: ValueKey(state.frontCamera),

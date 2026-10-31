@@ -17,6 +17,49 @@ import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.da
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
+/// D199 (owner, ref 275): a video live's promo cards just under «ترتيب
+/// الغرف» at the reading start — a compact column 36 % of the screen wide
+/// holding one or two 3:4 cards side by side (two when the server has two or
+/// more ROOM banners; each rotates through its share). Real banners only
+/// (`placement=room`); nothing when there are none. The screens hide it
+/// during a PK (the battle bar takes that place).
+class LiveRoomPromoColumn extends ConsumerWidget {
+  const new({required this.roomId, super.key});
+
+  final String roomId;
+
+  static const double widthFactor = 0.36;
+  static const double gap = 6;
+  static const columnKey = Key('live.promoColumn');
+
+  /// The card width for a screen [width] (two cards fill the column).
+  static double cardWidth(double width) => (width * widthFactor - gap) / 2;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (!LiveRoomPromoBox.shows(ref, roomId)) return const SizedBox.shrink();
+    final count = ref.watch(roomBannersProvider).value?.length ?? 0;
+    final slots = count >= 2 ? 2 : 1;
+    final w = cardWidth(MediaQuery.sizeOf(context).width);
+    return Row(
+      key: columnKey,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 0; i < slots; i++) ...[
+          if (i > 0) const SizedBox(width: gap),
+          LiveRoomPromoBox(
+            key: i == 0 ? null : ValueKey('promo.slot.$i'),
+            roomId: roomId,
+            boxWidth: w,
+            slot: i,
+            slots: slots,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
 /// D136/D137/D141: where the floating cards of a video live sit: one
 /// column at the reading start (ref 158 §2 measured the wish list 16.2 pt
 /// from the edge at 393 pt). D141 (owner): the promo box sits right above
@@ -29,6 +72,14 @@ abstract final class KLiveSideCards {
   static const double promoTop = wishTop - gap - LiveRoomPromoBox.height;
   static const double promoStart =
       wishStart + (LiveWishCard.width - LiveRoomPromoBox.width) / 2;
+
+  /// D199: the promo column's top — under the header row (48 lp) and the
+  /// room-info row («ترتيب الغرف», 28 lp), 4 lp apart.
+  static double promoUnderInfoTop(double headerTop) =>
+      headerTop +
+      KSizes.minTouchTarget +
+      KMetrics.roomInfoChipHeight +
+      KSpacing.xs;
 }
 
 /// D136 (owner, ref 158 R5): the host's wish list — a see-through card of
@@ -555,9 +606,20 @@ class _SmallButton extends StatelessWidget {
 /// banner stays still. The audio rooms show it smaller ([audioWidth]) over
 /// the bar's gift button.
 class LiveRoomPromoBox extends ConsumerStatefulWidget {
-  const new({required this.roomId, super.key, this.boxWidth = width});
+  const new({
+    required this.roomId,
+    super.key,
+    this.boxWidth = width,
+    this.slot = 0,
+    this.slots = 1,
+  });
 
   final String roomId;
+
+  /// D199: with [slots] boxes side by side, this box rotates through the
+  /// banners whose index % [slots] == [slot].
+  final int slot;
+  final int slots;
 
   /// The box's width (3:4).
   final double boxWidth;
@@ -572,6 +634,9 @@ class LiveRoomPromoBox extends ConsumerStatefulWidget {
   static const Duration interval = Duration(seconds: 4);
 
   static const boxKey = Key('live.promoBox');
+
+  /// D199: the second card of the promo column.
+  static const box2Key = Key('live.promoBox.2');
   static const closeKey = Key('live.promoBox.close');
   static const dotsKey = Key('live.promoBox.dots');
 
@@ -637,13 +702,19 @@ class _LiveRoomPromoBoxState extends ConsumerState<LiveRoomPromoBox> {
     final l10n = context.l10n;
     final closed = ref.watch(closedRoomPromosProvider);
     if (closed.contains(widget.roomId)) return const SizedBox.shrink();
-    final banners = ref.watch(roomBannersProvider).value ?? const [];
+    final all = ref.watch(roomBannersProvider).value ?? const [];
+    final banners = [
+      for (final (i, b) in all.indexed)
+        if (i % widget.slots == widget.slot) b,
+    ];
     if (banners.isEmpty) return const SizedBox.shrink();
     _schedule(banners.length);
     final count = banners.length;
     if (_page >= count) _page = 0;
     return SizedBox(
-      key: LiveRoomPromoBox.boxKey,
+      key: widget.slot == 0
+          ? LiveRoomPromoBox.boxKey
+          : LiveRoomPromoBox.box2Key,
       width: widget.boxWidth,
       height: widget.boxWidth * 4 / 3,
       child: Stack(

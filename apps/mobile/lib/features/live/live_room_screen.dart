@@ -1052,7 +1052,10 @@ class _RoomViewState extends ConsumerState<_RoomView> {
             ),
       // D173 (owner: «يجب أن يظهر عند الجميع»): every viewer, signed in or
       // not (guests read the ROOM banners too, v1.39-live).
-      sidePromo: ended ? null : LiveRoomPromoBox(roomId: room.id),
+      // D199: under «ترتيب الغرف»; hidden during a PK (the bar's place).
+      sidePromo: ended || pkState?.match != null
+          ? null
+          : LiveRoomPromoColumn(roomId: room.id),
       // D145a: the lucky combo beside the chat, over the quick replies.
       // D174: a solo live's guests stacked at the end over the chat; D145a:
       // the lucky combo under them.
@@ -1067,6 +1070,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                 bubble: KLiveColors.chatScrim,
                 onProfile: _person,
                 inline: true,
+                // D199: the chat starts at its top (the rules line first).
+                anchorTop: true,
               ),
             ),
       actionBar: ended
