@@ -174,6 +174,19 @@ export enum AuditAction {
   PREMIUM_USERNAME_GRACE_END = 'premium_username.grace_end',
   PREMIUM_USERNAME_PRICE = 'premium_username.price',
   PREMIUM_USERNAME_RESERVE = 'premium_username.reserve',
+  // v1.62-social (DRAFT, D193): account deletion (CONVENTIONS §10.56). `requested`/`cancelled` by the person (or an
+  // admin, `via: 'cli'`), `purged` by the sweeper or `account-admin purge-now`; `blocked` = a refused request.
+  ACCOUNT_DELETION_REQUESTED = 'account.deletion.requested',
+  ACCOUNT_DELETION_BLOCKED = 'account.deletion.blocked',
+  ACCOUNT_DELETION_REAUTH_FAILED = 'account.deletion.reauth_failed',
+  ACCOUNT_DELETION_CANCELLED = 'account.deletion.cancelled',
+  ACCOUNT_DELETION_PURGED = 'account.deletion.purged',
+  // D193 (owner 2026-10-31): a legal hold (reported content of a purged account) read with `account-admin` (each view),
+  // deleted by the sweeper after REPORT_LEGAL_HOLD_DAYS; `retention_ended`: tombstones whose ledgers and audit rows
+  // reached DELETED_LEDGER_RETENTION_DAYS (one row per sweep, a count only).
+  ACCOUNT_DELETION_HOLD_VIEWED = 'account.deletion.hold_viewed',
+  ACCOUNT_DELETION_HOLD_EXPIRED = 'account.deletion.hold_expired',
+  ACCOUNT_DELETION_RETENTION_ENDED = 'account.deletion.retention_ended',
   // v1.29-live (DRAFT, D147): search trends, changed only by the search-admin CLI (§11.11).
   SEARCH_TERM_HIDE = 'search.term.hide',
   SEARCH_BLOCKED_WORD = 'search.blocked_word',

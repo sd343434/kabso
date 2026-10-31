@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,6 +17,7 @@ import 'package:kabso_live/features/auth/presentation/welcome_screen.dart';
 import 'package:kabso_live/features/auth/presentation/widgets/auth_widgets.dart';
 import 'package:kabso_live/features/auth/presentation/widgets/kabso_motion.dart';
 import 'package:kabso_live/features/debug/demo_entry.dart';
+import 'package:kabso_live/features/settings/account_deletion/account_deletion_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -210,12 +213,41 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     final l10n = context.l10n;
     final lp = KLoginPalette.of(context);
     final submission = ref.watch(authControllerProvider);
+    // D193: an account in its deletion grace period → «إلغاء الحذف؟».
+    ref.listen<FormSubmission>(authControllerProvider, (_, next) {
+      if (next is! SubmissionFailed ||
+          next.failure.code != ErrorCode.accountDeletionPending) {
+        return;
+      }
+      final failure = next.failure;
+      final raw = failure is ServerFailure
+          ? failure.details
+                .where((d) => d.field == 'purgeAfter')
+                .map((d) => d.issue)
+                .firstOrNull
+          : null;
+      ref
+          .read(pendingDeletionSignInProvider.notifier)
+          .value = PendingDeletionSignIn(
+        identifier: _identifier.text,
+        password: _password.text,
+        purgeAfter: raw == null ? null : DateTime.tryParse(raw),
+      );
+      _password.clear();
+      ref.read(authControllerProvider.notifier).reset();
+      final router = GoRouter.maybeOf(context);
+      if (router != null) {
+        unawaited(router.push<void>(AppRoutes.deletionPending));
+      }
+    });
     final session = ref.watch(sessionControllerProvider);
     final submitting = submission is SubmissionInProgress;
 
     final endedReason = session is Unauthenticated ? session.reason : null;
     final banner = switch (endedReason) {
       ErrorCode.accountSuspended => l10n.accountSuspendedBanner,
+      // D193: the person just asked for their account to be deleted.
+      ErrorCode.accountDeletionPending => l10n.deleteAccountDoneBanner,
       ErrorCode.authRefreshInvalid => l10n.sessionEndedBanner,
       _ => null,
     };

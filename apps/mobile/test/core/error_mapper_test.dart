@@ -101,6 +101,9 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.rechargeCherryCapReached: 409,
   ErrorCode.usernameLocked: 409,
   ErrorCode.hostFrameStyleFromGender: 409,
+  ErrorCode.reauthFailed: 403,
+  ErrorCode.accountDeletionBlocked: 409,
+  ErrorCode.accountDeletionPending: 409,
 };
 
 DioException _badResponse(
@@ -228,6 +231,9 @@ void main() {
           'USERNAME_LOCKED',
           // v1.55-social (D186).
           'HOST_FRAME_STYLE_FROM_GENDER',
+          'REAUTH_FAILED',
+          'ACCOUNT_DELETION_BLOCKED',
+          'ACCOUNT_DELETION_PENDING',
         ]),
       );
       expect(ErrorCode.networkOffline.wire, 'NETWORK_OFFLINE');

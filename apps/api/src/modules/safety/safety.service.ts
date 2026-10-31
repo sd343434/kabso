@@ -150,6 +150,8 @@ export function reportTargetId(report: Report): string | undefined {
 const REPORT_INCLUDE = {
   reporter: { select: USER_SUMMARY_SELECT },
   targetUser: { select: { profile: { select: { username: true } } } },
+  // D193: the content was deleted with its author's account and is under a legal hold (the hold keeps its id).
+  legalHold: { select: { targetId: true } },
 } satisfies Prisma.ReportInclude;
 
 type ReportRow = Prisma.ReportGetPayload<{ include: typeof REPORT_INCLUDE }>;
@@ -554,8 +556,18 @@ export class SafetyService {
         { id: string }[]
       >`SELECT id::text AS id FROM reports WHERE id = ${id}::uuid FOR UPDATE`;
       if (locked.length === 0) throw new AppException(ErrorCode.NOT_FOUND);
-      const report = await tx.report.findUniqueOrThrow({ where: { id } });
+      const report = await tx.report.findUniqueOrThrow({
+        where: { id },
+        include: { legalHold: { select: { targetId: true } } },
+      });
       if (report.status !== 'OPEN') throw new AppException(ErrorCode.REPORT_ALREADY_RESOLVED);
+      // D193: content deleted with its author's account and kept under a legal hold has no target row left (nothing
+      // to remove; the decision is recorded and every report of the hold closes together).
+      const heldOnly =
+        report.legalHoldId !== null &&
+        report.targetCommentId === null &&
+        report.targetDmMessageId === null &&
+        report.targetProfileLinkId === null;
       if (action === 'REMOVE_TARGET') {
         // §11.10: the author is told (CONTENT_REMOVED) when this action removed the item.
         if (report.targetPostId) {
@@ -632,7 +644,9 @@ export class SafetyService {
         }
         // USER: the decision is recorded only; suspension is a separate admin tool.
       }
-      const target = reportTargetWhere(report);
+      const target: Prisma.ReportWhereInput = heldOnly
+        ? { legalHoldId: report.legalHoldId }
+        : reportTargetWhere(report);
       const closed = await tx.report.updateMany({
         where: { ...target, status: 'OPEN' },
         data: {
@@ -646,12 +660,13 @@ export class SafetyService {
         action: AuditAction.MODERATION_REPORT_ACTION,
         actorUserId: actor.userId,
         targetType: report.targetType.toLowerCase(),
-        targetId: reportTargetId(report),
+        targetId: (report.legalHoldId ? report.legalHold?.targetId : undefined) ?? reportTargetId(report),
         metadata: {
           reportId: id,
           action,
           reportsClosed: closed.count,
           ...(actor.via ? { via: actor.via } : {}),
+          ...(report.legalHoldId ? { legalHoldId: report.legalHoldId } : {}),
         },
         ip: actor.ip,
         requestId: actor.requestId,
@@ -688,6 +703,7 @@ export class SafetyService {
         row.targetFamilyChatMessageId ??
         row.targetDmMessageId ??
         row.targetProfileLinkId ??
+        row.legalHold?.targetId ??
         row.targetUser?.profile?.username ??
         row.targetUserId ??
         '',

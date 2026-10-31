@@ -80,6 +80,8 @@ import 'package:kabso_live/features/recharge/presentation/recharge_directory_scr
 import 'package:kabso_live/features/recharge/presentation/recharge_employees_screen.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_hub_screen.dart';
 import 'package:kabso_live/features/safety/safety_screens.dart';
+import 'package:kabso_live/features/settings/account_deletion/account_deletion_screen.dart';
+import 'package:kabso_live/features/settings/account_deletion/deletion_pending_screen.dart';
 import 'package:kabso_live/features/settings/settings_screen.dart';
 import 'package:kabso_live/features/stories/presentation/new_story_screen.dart';
 import 'package:kabso_live/features/stories/presentation/story_archive_screen.dart';
@@ -343,6 +345,15 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.changeUsername,
         builder: (_, _) => const ChangeUsernameScreen(),
+      ),
+      // D193: the in-app account deletion and the grace-period sign-in.
+      GoRoute(
+        path: AppRoutes.deleteAccount,
+        builder: (_, _) => const AccountDeletionScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.deletionPending,
+        builder: (_, _) => const DeletionPendingScreen(),
       ),
       // D164: the Me hub's wallet, earnings and creator center.
       // D177: two tabs (gold coins, cherries); `/earnings` is the cherry tab.

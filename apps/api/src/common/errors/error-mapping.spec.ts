@@ -141,6 +141,10 @@ describe('ErrorCode', () => {
         'ADMIN_TOTP_INVALID',
         'ADMIN_CSRF_INVALID',
         'ADMIN_ACTION_REFUSED',
+        // v1.62-social (D193)
+        'REAUTH_FAILED',
+        'ACCOUNT_DELETION_BLOCKED',
+        'ACCOUNT_DELETION_PENDING',
       ].sort(),
     );
     expect(ERROR_HTTP_STATUS).toMatchObject({

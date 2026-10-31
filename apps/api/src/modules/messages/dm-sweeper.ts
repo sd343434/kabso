@@ -95,7 +95,10 @@ export class DmSweeper implements OnModuleInit, OnModuleDestroy {
     return { messages, media, snapshots };
   }
 
-  /** Clears text, token and file of `DM_MESSAGE` report snapshots resolved more than 30 days ago. */
+  /**
+   * Clears text, token and file of `DM_MESSAGE` report snapshots resolved more than 30 days ago. D193: not while the
+   * report is under a legal hold (its sender's account was purged; the hold deletes it, with the file, after 90 days).
+   */
   private async purgeSnapshots(now: Date): Promise<number> {
     const before = new Date(now.getTime() - DM_REPORT_SNAPSHOT_DAYS * 86_400_000);
     const rows = await this.prisma.$queryRaw<{ id: string; media_key: string | null }[]>`
@@ -103,6 +106,7 @@ export class DmSweeper implements OnModuleInit, OnModuleDestroy {
        WHERE target_type = 'DM_MESSAGE'::report_target_type AND status <> 'OPEN'::report_status
          AND resolved_at < ${before}::timestamptz
          AND dm_snapshot IS NOT NULL AND COALESCE((dm_snapshot->>'purged')::boolean, false) = false
+         AND legal_hold_id IS NULL
        LIMIT ${BATCH}`;
     if (rows.length === 0) return 0;
     await this.media.deleteObjects(rows.map((r) => r.media_key).filter((k): k is string => k !== null));
