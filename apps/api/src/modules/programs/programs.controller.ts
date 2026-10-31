@@ -1,4 +1,12 @@
 import { Controller, Get, Param, Post, Query, Req, Res } from '@nestjs/common';
+import { z } from 'zod';
+import { AppException } from '../../common/errors/app-exception.js';
+import { ErrorCode } from '../../common/errors/error-codes.js';
+import { byIp, RateLimit } from '../../common/rate-limit/rate-limit.decorator.js';
+import { zodErrorToDetails } from '../../common/validation/zod-validation.pipe.js';
+import { OptionalAuth } from '../auth/public.decorator.js';
+import { blockedEitherWayIn } from '../social/pair-lock.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
 import type { Response } from 'express';
 import { languageFromAcceptLanguage, type ContentLanguage } from '../../common/http/content-language.js';
 import type { AppRequest, AuthContext } from '../../common/http/request-context.js';
@@ -12,7 +20,10 @@ import {
 } from './events.service.js';
 import { SvipService, type SvipStatusDto } from './svip.service.js';
 import {
+  HOST_STATS_PERIODS,
   TasksService,
+  type HostGiftStatsDto,
+  type LiveHostTargetsDto,
   type CheckInResultDto,
   type MyTasksDto,
   type TaskClaimResultDto,
@@ -23,6 +34,17 @@ import {
  * Event Center and SVIP. Every route needs a signed-in caller and uses the per-user default rate limit;
  * names follow `Accept-Language`, else the caller's locale.
  */
+/** Guest reads (CP-010): per IP instead of per user (the same bucket as the live guest reads). */
+const GUEST_READ = {
+  bucket: 'live:guest:read',
+  rule: 'liveGuestReadIp',
+  key: byIp,
+  replacesDefault: true,
+  appliesTo: 'guest',
+} as const;
+
+const statsQuerySchema = z.object({ period: z.enum(HOST_STATS_PERIODS).default('DAY') });
+
 @Controller()
 export class ProgramsController {
   constructor(
@@ -30,7 +52,46 @@ export class ProgramsController {
     private readonly events: EventsService,
     private readonly svip: SvipService,
     private readonly users: UsersService,
+    private readonly prisma: PrismaService,
   ) {}
+
+  /**
+   * v1.44-live (D199) `GET /live/hosts/{username}/targets`: a live host's «تارجت» chip — today's
+   * progress and top three supporters only (never longer totals). Anyone, guests included (per IP); an
+   * unknown or inactive user, someone who is not a host, or a block either way → 404.
+   */
+  @Get('live/hosts/:username/targets')
+  @OptionalAuth()
+  @RateLimit(GUEST_READ)
+  async hostTargets(
+    @Req() req: AppRequest,
+    @Param('username') username: string,
+  ): Promise<LiveHostTargetsDto> {
+    const user = await this.users.findActivePublicUser(username);
+    if (!user) throw new AppException(ErrorCode.NOT_FOUND);
+    const host = await this.prisma.liveHost.findUnique({
+      where: { userId: user.id },
+      select: { userId: true },
+    });
+    if (!host) throw new AppException(ErrorCode.NOT_FOUND);
+    const caller = req.auth?.userId ?? null;
+    if (
+      caller !== null &&
+      caller !== user.id &&
+      (await this.prisma.$transaction((tx) => blockedEitherWayIn(tx, caller, user.id)))
+    ) {
+      throw new AppException(ErrorCode.NOT_FOUND);
+    }
+    return this.tasks.hostTargets(user.id);
+  }
+
+  /** v1.44-live (D199) `GET /me/host-gift-stats?period=DAY|WEEK|MONTH|ALL`: the caller's own. */
+  @Get('me/host-gift-stats')
+  async hostGiftStats(@CurrentAuth() auth: AuthContext, @Query() query: unknown): Promise<HostGiftStatsDto> {
+    const parsed = statsQuerySchema.safeParse(query ?? {});
+    if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
+    return this.tasks.hostGiftStats(auth.userId, parsed.data.period);
+  }
 
   private async language(req: AppRequest, auth: AuthContext): Promise<ContentLanguage> {
     return (

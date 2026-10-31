@@ -4367,6 +4367,69 @@ for the settings: strictly necessary), so there is no banner; CI job `site` (`sc
 when a tracker, cookie or third-party script is added — that needs a consent banner and a new policy version first.
 The «مسودة — تحتاج مراجعة قانونية» banner stays until `legalReviewed` is true.
 
+### 10.62 The PK Setting page, best of three, auto-start and auto match *(v1.44-live, DRAFT — D199)*
+
+Owner «طبق تصميم 100%» (the PK sheet's gear → «PK Setting»). Extends §10.58; nothing there changes unless said here.
+
+- **Settings** (`GET` / `PUT /me/live-pk`, `MyLivePk`; one row per host, no row = the defaults). `PUT` takes any of
+  the fields (at least one, 400 otherwise); audited `live.pk.settings` with the fields that changed.
+  | Field | Values (default) | Effect |
+  | --- | --- | --- |
+  | `mode` | `SINGLE` («Single Round PK») / `BEST_OF_THREE` (`SINGLE`) | see best of three below |
+  | `roundMinutes` | 3 / 5 / 10, or null (null = `PK_BATTLE_SECONDS`, 300) | one round's time |
+  | `autoStart` | on (on) | off: the match starts `CONNECTED` |
+  | `randomGender` | `BOTH` / `MALE` / `FEMALE` (`BOTH`) | random queue only |
+  | `randomRegion` | `GLOBAL` / `SAME_COUNTRY` (`GLOBAL`) | random queue only |
+  | `autoMatch` | on / off (off) | the tick queues the host while live and idle |
+  | `recommendable` | on / off (on) | off: left out of other hosts' suggestions |
+  | `invitesEnabled` | (§10.58) | |
+- **Whose settings.** `mode`, the round time and `autoStart` are copied into the match when it is created. Equal on
+  both hosts → those (`settingsFromRoomId` null). Different → one host's, picked at random (crypto random), and
+  `settingsFromRoomId` names that host's room (the app shows the owner's note «إذا اختلفت إعدادات المضيفَين يُختار
+  إعداد أحدهما عشوائياً»).
+- **Auto-start off → `CONNECTED`.** The hosts are connected (each room watches the other as in a battle: the media
+  token and `pk:` watchers work) but there is no timer and no PK points; booster gifts are refused (`no_match`).
+  `POST /live/rooms/{roomId}/pk/start` (either host; idempotent once running) starts round 1. `battleEndsAt` is the
+  start deadline (`PK_CONNECT_SECONDS`, 300) while `CONNECTED`. A host's End, a host gone (the §10.58 absence rules)
+  or the deadline → `CLOSED` at once with `endReason` `CANCELLED`: void, no result phase, never counted, not in the
+  history. Data message events: `connected`, then `started`.
+- **Best of three.** Each round lasts the round time and has its own scores (`score`), booster uses (limits per
+  round) and multipliers (a running booster ends with its round). At the round's end the higher score wins it
+  (equal: nobody). Two rounds won ends the match; after round 3 more rounds won, then more total points
+  (`totalScore`, all rounds), else a draw. Between rounds the next one starts at once (event `round`). A forfeit,
+  disconnect or absence in any round loses the whole match (§10.58). The supporters are the match's (all rounds).
+- **Effective PK.** A finished match counts in the hosts' records only when both sides' PK points of every round
+  together reach `PK_EFFECTIVE_MIN_POINTS` (default **3000 PK points**). Unit: PK points = gift coin value ×
+  booster. The owner's reference says «charm value ≥ 3000»; Kabso's charm grows 1 : 1 with the coin value
+  received, so with no booster 3000 PK points = 3000 charm. ADMIN and CANCELLED never count. `PkMatch.effective`,
+  `PkHistoryItem.effective` (matches before D199: counted unless ADMIN). Shown on the page: «PK فعّال: نقاط
+  الطرفين ≥ 3000».
+- **Random queue preferences.** Both hosts' preferences must hold, each way. Gender: D175 `user_profiles.gender`; a
+  host with no gender or `UNDISCLOSED` matches any preference. Region: D133 `country_code`; a host with
+  `SAME_COUNTRY` and no country of their own is treated as `GLOBAL`; a partner with `SAME_COUNTRY` needs the caller's
+  country to equal theirs.
+- **Auto Match.** Every PK tick: hosts with `autoMatch` on whose SOLO video live is eligible (§10.58) and idle — no
+  open match, no open invitation, not waiting, no PK of theirs closed in the last `PK_AUTO_MATCH_REST_SECONDS` (30)
+  — join the random queue as with «مطابقة عشوائية». Turning it off leaves the queue.
+- **Friends.** `listLivePkCandidates?friends=true`: only mutual follows (each follows the other).
+  `recommendable` off hides a host from the suggestions (no `q`, no `friends`), not from a search.
+- **Data Center** (`LiveRoomStats.giftGivers`): different people other than the host who sent a gift in the live.
+  The app's live-data page reads `getLiveRoomStats` for the running live: «وقت البث» `durationSeconds`, «المشاهدون»
+  **unique viewers** (`viewers.unique`; the peak is shown under it), «كرز جديد» `score.total` (the live's
+  cherries), «الداعمون بالهدايا» `giftGivers`, «متابعون جدد» `newFollowers`.
+- **The host's «تارجت»** (owner). `GET /live/hosts/{username}/targets` (anyone who can see the host; guests per
+  IP): today's (Riyadh) cherries received from gifts against a cherries target, the coin value of lucky gifts
+  received against a lucky target, and today's top three supporters — today only, never longer totals. The
+  cherries target = the band target of «استقبل هدايا في بثك» (`P_HOST_GIFTS`, coins) × `CHERRIES_PER_COIN`
+  (10) × the POPULAR host share (65 %), floored: 100 000 coins → 650 000 cherries. The lucky target = the
+  band target of the new fixed daily host task «استقبل هدايا الحظ» (`HOST_LUCKY_COINS`, metric
+  `HOST_LUCKY_COINS`: the coin value of received sends that have a stored lucky draw): bands 20 000 / 50 000
+  / 100 000 / 200 000 coins, rewards 1 000 / 2 000 / 4 000 / 6 000 cherries (owner-confirmable; ≤ 0.5 % of
+  the money behind the target, D188), inside the unchanged daily and monthly caps. The band: today's
+  assignment's, else the level's now. A task switched off → target 0. `GET /me/host-gift-stats?period=DAY|
+  WEEK|MONTH|ALL` is the caller's own: cherries (the ledger's `GIFT_RECEIVED` + `GIFT_REVERSAL`), gift
+  sends, givers, top three and a bar series; lucky value, sends, givers and top three; DAY adds the targets.
+
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 
 Additive; no earlier rule changes. Reels and video (M2), stories (M3), notifications (M4),

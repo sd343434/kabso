@@ -276,7 +276,7 @@ describe('D176 daily task pool', { timeout: 240_000 }, () => {
       }),
     );
     // The database is emptied for the tests: the migrations' defaults again (task-admin seed-defaults).
-    expect(await seedDefaultTasksIn(ctx.prisma)).toBe(6);
+    expect(await seedDefaultTasksIn(ctx.prisma)).toBe(7); // D199: + «استقبل هدايا الحظ»
     expect(await seedDefaultTaskPoolIn(ctx.prisma)).toBe(DEFAULT_POOL_TASKS.length);
     expect(await seedDefaultTaskPoolIn(ctx.prisma)).toBe(0);
     const level = (code: 'SUPPORT' | 'ATTRACTIVENESS') =>
@@ -377,6 +377,8 @@ describe('D176 daily task pool', { timeout: 240_000 }, () => {
     expect(mine.tasks.filter((t) => !t.pooled).map((t) => t.code)).toEqual([
       'HOST_LIVE_MINUTES',
       'HOST_GIFT_COINS',
+      // D199: the daily «استقبل هدايا الحظ» fixed host task.
+      'HOST_LUCKY_COINS',
     ]);
     const viewer = await signup();
     expect((await tasks(viewer)).tasks.some((t) => t.audience === 'HOSTS')).toBe(false);

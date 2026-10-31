@@ -157,8 +157,10 @@ void main() {
   });
 
   group('D137 promo box', () {
+    // D199: four banners — two cards side by side, each rotating through
+    // its share (0, 2 | 1, 3).
     final room = [
-      for (var i = 0; i < 2; i++)
+      for (var i = 0; i < 4; i++)
         HomeBanner(
           id: 'room-banner-$i',
           imageUrl: 'https://media.example.test/media/r$i/600.webp',
@@ -169,8 +171,8 @@ void main() {
     ];
 
     for (final language in AppLanguage.values) {
-      testWidgets('ROOM banners in a 3:4 box right above the wish note, in '
-          'the same column (D141); "–" hides it for this live '
+      testWidgets('ROOM banners in two 3:4 cards under «ترتيب الغرف» (D199, '
+          'ref 275); "–" hides it for this live '
           '(${language.name})', (tester) async {
         final banners = await _pump(
           tester,
@@ -181,20 +183,20 @@ void main() {
         final box = find.byKey(LiveRoomPromoBox.boxKey);
         expect(box, findsOneWidget);
         final rect = tester.getRect(box);
-        expect(rect.width, closeTo(LiveRoomPromoBox.width, 0.5));
-        expect(rect.height, closeTo(LiveRoomPromoBox.height, 0.5));
-        final wish = tester.getRect(find.byKey(LiveWishCard.cardKey));
-        // Directly above it (the note is turned a little), centred on it.
-        expect(rect.bottom, lessThanOrEqualTo(wish.top + 1));
-        expect(wish.top - rect.bottom, lessThan(KLiveSideCards.gap + 4));
-        expect((rect.center.dx - wish.center.dx).abs(), lessThan(4));
+        final w = LiveRoomPromoColumn.cardWidth(
+          tester.view.physicalSize.width / tester.view.devicePixelRatio,
+        );
+        expect(rect.width, closeTo(w, 0.5));
+        expect(rect.height, closeTo(w * 4 / 3, 0.5));
+        expect(find.byKey(LiveRoomPromoBox.box2Key), findsOneWidget);
         expect(find.byKey(LiveRoomPromoBox.pageKey('room-banner-0')), findsOne);
-        // Every 4 s the next one.
+        expect(find.byKey(LiveRoomPromoBox.pageKey('room-banner-1')), findsOne);
+        // Every 4 s the next one in each card.
         await tester.pump(LiveRoomPromoBox.interval);
         await tester.pumpAndSettle();
-        expect(find.byKey(LiveRoomPromoBox.pageKey('room-banner-1')), findsOne);
+        expect(find.byKey(LiveRoomPromoBox.pageKey('room-banner-2')), findsOne);
         expect(banners.calls, greaterThan(0));
-        await tester.tap(find.byKey(LiveRoomPromoBox.closeKey));
+        await tester.tap(find.byKey(LiveRoomPromoBox.closeKey).first);
         await tester.pump();
         expect(box, findsNothing);
         await _leave(tester);
@@ -207,7 +209,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
       final box = find.byKey(LiveRoomPromoBox.boxKey);
       final page0 = find.byKey(LiveRoomPromoBox.pageKey('room-banner-0'));
-      final page1 = find.byKey(LiveRoomPromoBox.pageKey('room-banner-1'));
+      final page1 = find.byKey(LiveRoomPromoBox.pageKey('room-banner-2'));
       final hold = await tester.startGesture(tester.getCenter(box));
       await tester.pump(LiveRoomPromoBox.interval * 2);
       await tester.pump(const Duration(milliseconds: 400));
@@ -239,7 +241,7 @@ void main() {
       expect(find.byKey(LiveRoomPromoBox.pageKey('room-banner-0')), findsOne);
       await tester.drag(box, const Offset(-70, 0));
       await tester.pumpAndSettle();
-      expect(find.byKey(LiveRoomPromoBox.pageKey('room-banner-1')), findsOne);
+      expect(find.byKey(LiveRoomPromoBox.pageKey('room-banner-2')), findsOne);
       await _leave(tester);
       tester.platformDispatcher.clearAccessibilityFeaturesTestValue();
       await _pump(tester, roomBanners: [room.first]);

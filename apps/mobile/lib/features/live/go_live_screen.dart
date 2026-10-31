@@ -31,6 +31,7 @@ import 'package:kabso_live/features/live/application/live_tap_batcher.dart';
 import 'package:kabso_live/features/live/application/live_watch.dart';
 import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
 import 'package:kabso_live/features/live/data/beauty/live_color_filter.dart';
+import 'package:kabso_live/features/live/data/live_host_targets_repository.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
@@ -45,6 +46,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.da
 import 'package:kabso_live/features/live/presentation/go_live/live_boost_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_cp_seats.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_data_center_sheet.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_data_now_page.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_end_summary.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_fill_light.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_glass.dart';
@@ -74,6 +76,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_games_sheet.d
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_effects_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_guest_tiles.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_host_target_chip.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_lucky_combo_button.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk_sheet.dart';
@@ -684,7 +687,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         state.mode != LiveRoomMode.audio;
     final Widget background;
     if (gate != null || ended) {
-      background = ColoredBox(color: KPalette.dark.background);
+      // D199 (owner, ref 275): no camera (permission refused) is black.
+      background = const ColoredBox(color: KLiveVideoPlaceholder.black);
     } else if (!seats) {
       background = _camera(state);
     } else {
@@ -1417,6 +1421,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           bubble: KLiveColors.chatScrim,
           onProfile: (username) => _person(room.id, username),
           inline: true,
+          // D199 (owner, ref 275): the chat starts at its top.
+          anchorTop: true,
         ),
         composer: chatComposer,
         openChat: openChat,
@@ -1864,26 +1870,28 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     final management = _managementTool(state, live ? room : null, liveSeats);
     GoLiveTool soon(String id, IconData icon, String label) =>
         GoLiveTool.soon(id: id, icon: icon, label: label);
+    // D199: the reference's «Flash» — «فلاش» on the back camera (its torch),
+    // the fill light's own name on the front camera.
+    final flash = switch (byId['fillLight']) {
+      final GoLiveTool t => GoLiveTool(
+        id: t.id,
+        icon: t.icon,
+        label: state.frontCamera ? t.label : l10n.liveToolFlash,
+        toggled: t.toggled,
+        onTap: t.onTap,
+      ),
+      null => null,
+    };
     void openTools() => unawaited(
       showLiveRoomTools(
         context,
-        // The recording's Room Tools in its order: ours where they exist,
-        // the rest "Soon" (D99); our other tools stay in the same sheet.
+        // D199 (owner's references 273 and B, «طبق تصميم 100%»): the Room
+        // Tools in the reference's order — Share, Flash, Flip, Dual, HD,
+        // Sticker, Muted, Music, Sounds — then Kabso's own room tools; the
+        // Other Tools likewise. Tools with no feature yet say «قريباً» (D81).
+        // D131 keeps every tool in ≡: beauty and the voice settings follow
+        // the reference's tiles, the guest viewers' switch ends the sheet.
         room: [
-          // D135 (owner: "minimize is in ≡ at the bottom, not at the top").
-          GoLiveTool(
-            id: 'minimize',
-            icon: Icons.picture_in_picture_alt_rounded,
-            label: l10n.goLiveMinimize,
-            onTap: live ? _minimize : null,
-          ),
-          // D136: the wish list.
-          GoLiveTool(
-            id: 'wish',
-            icon: Icons.card_giftcard_rounded,
-            label: l10n.liveToolWish,
-            onTap: !live ? null : () => unawaited(_openWishSheet()),
-          ),
           GoLiveTool(
             id: 'share',
             icon: Icons.share_rounded,
@@ -1892,14 +1900,17 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 ? null
                 : () => unawaited(_shareLive(room.title, user.username)),
           ),
-          ?byId['fillLight'],
+          // Flash: D143's light — the back camera's torch, or the front
+          // camera's fill light.
+          ?flash,
           ?byId['flip'],
           soon('dual', Icons.switch_video_rounded, l10n.liveToolDual),
+          // D154g: «HD» (the quality and «السلاسة» in one tool).
           // D154g: «الجودة» (HD and «السلاسة» in one tool).
           GoLiveTool(
             id: 'quality',
             icon: liveConnectionIcon(engine.connectionQuality),
-            label: l10n.liveToolQuality,
+            label: l10n.liveToolHd,
             onTap: engine.videoEnabled
                 ? () => unawaited(showLiveQualitySheet(context, engine: engine))
                 : null,
@@ -1925,6 +1936,20 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 ? null
                 : () => unawaited(showLiveSoundboard(context, roomId: room.id)),
           ),
+          // D135 (owner: "minimize is in ≡ at the bottom, not at the top").
+          GoLiveTool(
+            id: 'minimize',
+            icon: Icons.picture_in_picture_alt_rounded,
+            label: l10n.goLiveMinimize,
+            onTap: live ? _minimize : null,
+          ),
+          // D136: the wish list.
+          GoLiveTool(
+            id: 'wish',
+            icon: Icons.card_giftcard_rounded,
+            label: l10n.liveToolWish,
+            onTap: !live ? null : () => unawaited(_openWishSheet()),
+          ),
           // D160: YouTube watch-together in a video live too (a floating
           // window over the picture).
           GoLiveTool(
@@ -1935,7 +1960,11 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 ? null
                 : () => unawaited(showLiveWatchSheet(context, roomId: room.id)),
           ),
+          // D199 (owner): beauty and the filters (Magic: colour filters
+          // and effects) while live — the same sheets as before going live,
+          // applied to the live picture.
           ?byId['beauty'],
+          ?byId['magic'],
           ?byId['voice'],
           ?byId['theme'],
           ?byId['seats'],
@@ -1990,12 +2019,29 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 ? null
                 : () => unawaited(showLiveNewcomers(context, roomId: room.id)),
           ),
-          // D154d: the host's data center.
+          // D199: this live's data (ref 274); its «Earlier periods» row opens
+          // D154d's data center.
           GoLiveTool(
             id: 'data',
             icon: Icons.insights_outlined,
             label: l10n.liveToolDataCenter,
-            onTap: () => unawaited(showLiveDataCenter(context)),
+            onTap: () => unawaited(
+              showLiveDataNow(
+                context,
+                roomId: live ? room.id : null,
+                level: ref
+                    .read(myLevelsProvider)
+                    .value
+                    ?.where(
+                      (l) =>
+                          l.category == LevelCategory.attractiveness &&
+                          l.available,
+                    )
+                    .firstOrNull
+                    ?.level
+                    ?.levelNumber,
+              ),
+            ),
           ),
           // D141 (owner): the host's live schedule (D99 C), from the live.
           GoLiveTool(
@@ -2144,7 +2190,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         wishes: room.wishGifts,
         onEdit: live ? () => unawaited(_openWishSheet()) : null,
       ),
-      sidePromo: live ? LiveRoomPromoBox(roomId: room.id) : null,
+      // D199: under «ترتيب الغرف»; hidden during a PK (the bar's place).
+      sidePromo: live && pk.match == null
+          ? LiveRoomPromoColumn(roomId: room.id)
+          : null,
       // D145a: the lucky combo beside the chat, over the quick replies.
       chatEnd: _soloChatEnd(room, liveSeats),
       closeButtonKey: GoLiveScreen.closeKey,
@@ -2158,6 +2207,13 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         points: charm?.points.toInt(),
         target: charm?.nextLevel?.requiredPoints.toInt(),
         elapsed: _HostElapsed(since: state.liveSince),
+        // D199: the host's «تارجت» chip (the full gift stats on tap).
+        targetChip:
+            LiveHostTargetChip.shows(
+              ref.watch(liveHostTargetsProvider(room.host.username)).value,
+            )
+            ? LiveHostTargetChip(username: room.host.username, isHost: true)
+            : null,
       ),
       stage: pkStage ?? stage,
       chat: Align(alignment: AlignmentDirectional.bottomStart, child: roomChat),
@@ -2198,6 +2254,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 onPk: live && room.mode == LiveRoomMode.solo
                     ? () => unawaited(showLivePkSheet(context, roomId: room.id))
                     : () => KSnack.info(context, l10n.goLivePkSoon),
+                // D199 (ref 275): the box — the live's games (honest «قريباً»).
+                onBox: () => unawaited(showLiveGamesSheet(context)),
                 onGift: () => unawaited(_openGifts(room)),
               ),
             ],
@@ -2241,6 +2299,18 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       speaking: {...engine.speaking, ...?opponent?.speaking},
       announcement: pk.announcement,
       onPerson: (u) => unawaited(_person(room.id, u.username)),
+      // v1.44-live (D199): «ابدأ PK» on a connected PK.
+      onStart: match.connected
+          ? () => unawaited(
+              ref.read(livePkProvider(room.id).notifier).start().catchError((
+                Object e,
+              ) {
+                if (mounted) {
+                  KSnack.error(context, pkFailureMessage(context.l10n, e));
+                }
+              }),
+            )
+          : null,
     );
     return opponent == null
         ? stage()
@@ -2654,14 +2724,16 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   /// on and the front camera the picture itself is lifted (camera
   /// pipeline); only a device without one shows the thin edge glow.
   Widget _camera(GoLiveState state, {Widget? fallback}) {
-    final picture = state.phase == GoLivePhase.ended
+    // D199 (owner, ref 275): the camera off (paused while live) or not
+    // started shows plain black, as on the viewers' screens.
+    final picture = state.phase == GoLivePhase.ended || _host.engine.videoPaused
         ? null
         : _host.engine.preview();
     if (picture == null) {
       return fallback ??
           (state.phase == GoLivePhase.preparing
               ? const _Spinner()
-              : ColoredBox(color: KPalette.dark.surface));
+              : const ColoredBox(color: KLiveVideoPlaceholder.black));
     }
     return SizedBox.expand(
       key: ValueKey(state.frontCamera),

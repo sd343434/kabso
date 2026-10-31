@@ -42,6 +42,7 @@ class LiveRoomChatLines extends ConsumerWidget {
     super.key,
     this.bubble = KAudioRoom.bubble,
     this.inline = false,
+    this.anchorTop = false,
     this.brightNotice = false,
   });
 
@@ -64,7 +65,15 @@ class LiveRoomChatLines extends ConsumerWidget {
   /// The bubble colour (the audio room's purple, or the video scrim).
   final Color bubble;
 
+  /// D199 (owner, ref 275): the video live's chat area keeps its height
+  /// and starts at its top (the rules line first); the audio room's does
+  /// not.
+  final bool anchorTop;
+
   static const listKey = Key('liveChat.lines');
+
+  /// D199: the video live's top-anchored chat area.
+  static const topAnchorKey = Key('liveChat.topAnchor');
 
   /// Lines on screen at once (the newest).
   static const maxVisibleLines = 8;
@@ -83,9 +92,16 @@ class LiveRoomChatLines extends ConsumerWidget {
     // this visit — it shows at the bottom on entering and rises with the
     // messages until it fades out at the top like any old line. No "no
     // messages yet" line.
+    // D199 (owner, ref 275): while this person types, the rules line has
+    // scrolled away (it never stays pinned over the keyboard).
+    // The window's own insets: the room's scaffold takes the keyboard out
+    // of its children's MediaQuery.
+    final typing = View.of(context).viewInsets.bottom > 0;
     final items = [
       for (final it in chat.items)
-        if (inline || it is! LiveChatJoinItem) it,
+        if ((inline || it is! LiveChatJoinItem) &&
+            !(anchorTop && typing && it is LiveChatNoticeLine))
+          it,
     ];
     // D119: taller lines (picture, name, badges, bubble), so a little more
     // room than the 240 pt of one-line bubbles: about three messages.
@@ -130,6 +146,9 @@ class LiveRoomChatLines extends ConsumerWidget {
                   // of the chat): only whole lines are shown, the newest at
                   // the bottom; a line that no longer fits goes as a whole.
                   child: LiveChatWholeLines(
+                    // Only while no line has gone (the cap or the height).
+                    topAligned:
+                        anchorTop && !typing && items.length <= maxVisibleLines,
                     children: [
                       for (final item in visible)
                         Padding(
@@ -155,13 +174,27 @@ class LiveRoomChatLines extends ConsumerWidget {
     // The strip keeps its room: when the place is bounded (the video live)
     // the lines give way; in the audio room's scroll view they do not need
     // to.
+    // D199 (owner, ref 275): the video live's chat area keeps its height —
+    // the rules line is the first line at its TOP (not above the composer)
+    // and the next lines come under it; once full, the oldest rise and fade
+    // out at the top edge.
+    final placed = lines == null || !anchorTop || typing
+        ? lines
+        : SizedBox(
+            key: topAnchorKey,
+            height: maxHeight,
+            child: Align(
+              alignment: AlignmentDirectional.topStart,
+              child: lines,
+            ),
+          );
     return LayoutBuilder(
       builder: (context, box) => Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (lines != null)
-            if (box.hasBoundedHeight) Flexible(child: lines) else lines,
+          if (placed != null)
+            if (box.hasBoundedHeight) Flexible(child: placed) else placed,
           strip,
         ],
       ),
@@ -1820,19 +1853,23 @@ class _LiveChatInlineRowState extends State<LiveChatInlineRow> {
 /// start and sit at the bottom; the box takes the height it is given (when
 /// bounded) and hugs the widest shown line.
 class LiveChatWholeLines extends MultiChildRenderObjectWidget {
-  const new({super.key, super.children});
+  const new({super.key, super.children, this.topAligned = false});
+
+  /// D199: lines from the top of the area until it is full (then the
+  /// newest stay at the bottom as before).
+  final bool topAligned;
 
   @override
   RenderObject createRenderObject(BuildContext context) =>
-      _RenderWholeLines(Directionality.of(context));
+      _RenderWholeLines(Directionality.of(context))..topAligned = topAligned;
 
   @override
   void updateRenderObject(
     BuildContext context,
     covariant RenderBox renderObject,
-  ) => (renderObject as _RenderWholeLines).direction = Directionality.of(
-    context,
-  );
+  ) => (renderObject as _RenderWholeLines)
+    ..direction = Directionality.of(context)
+    ..topAligned = topAligned;
 }
 
 class _WholeLineData extends ContainerBoxParentData<RenderBox> {
@@ -1844,6 +1881,14 @@ class _RenderWholeLines extends RenderBox
         ContainerRenderObjectMixin<RenderBox, _WholeLineData>,
         RenderBoxContainerDefaultsMixin<RenderBox, _WholeLineData> {
   new(this._textDirection);
+
+  bool _topAligned = false;
+  bool get topAligned => _topAligned;
+  set topAligned(bool value) {
+    if (value == _topAligned) return;
+    _topAligned = value;
+    markNeedsLayout();
+  }
 
   TextDirection _textDirection;
   TextDirection get direction => _textDirection;
@@ -1887,7 +1932,9 @@ class _RenderWholeLines extends RenderBox
     // The whole height when it is bounded (the lines sit at its bottom and
     // the top fade stays at the top), else the lines' own.
     size = constraints.constrain(Size(widest, room.isFinite ? room : used));
-    var y = size.height - used;
+    // D199: from the top until a line has had to go; then, as before, the
+    // newest at the bottom.
+    var y = _topAligned && fits ? 0.0 : size.height - used;
     child = firstChild;
     while (child != null) {
       final data = child.parentData! as _WholeLineData;

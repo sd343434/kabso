@@ -7,6 +7,7 @@ import {
   CHECK_IN_CYCLE_DAYS,
   DEFAULT_POOL_TASKS,
   DEFAULT_TASKS,
+  cherriesForCoins,
   COIN_VALUE_METRICS,
   TASK_METRICS,
   cappedReward,
@@ -31,6 +32,9 @@ const base = {
   JWT_ACCESS_SECRET: randomBytes(48).toString('base64url'),
   APP_PUBLIC_URL: 'https://kabso.example/',
 };
+
+/** Default tasks added after D166's seed, each by a migration of its own (checked above). */
+const LATER_TASKS = ['HOST_LUCKY_COINS'];
 
 describe('D166 check-in rules', () => {
   it('counts a 7-day cycle and adds the bonus on every 7th day in a row', () => {
@@ -77,7 +81,7 @@ describe('D166 check-in rules', () => {
     expect(coinsUsd(1_000_000, 12.5)).toBe('$12.50');
     expect(coinsUsd(10_000, 12.5)).toBe('$0.125');
     expect(coinsUsd(5_000_000, 12.5)).toBe('$62.50');
-    expect(COIN_VALUE_METRICS).toEqual(['GIFT_COINS_SENT', 'HOST_GIFT_COINS']);
+    expect(COIN_VALUE_METRICS).toEqual(['GIFT_COINS_SENT', 'HOST_GIFT_COINS', 'HOST_LUCKY_COINS']);
   });
 
   it('D188: the defaults pay at most about 1 % of the money behind a coin target', () => {
@@ -109,6 +113,30 @@ describe('D166 check-in rules', () => {
     expect(addDays('2027-01-01', -1)).toBe('2026-12-31');
   });
 
+  it('D199: migration 20270115090200 seeds «استقبل هدايا الحظ» with the default values', () => {
+    const sql = readFileSync(
+      fileURLToPath(
+        new URL('../../../prisma/migrations/20270115090200_host_lucky_task/migration.sql', import.meta.url),
+      ),
+      'utf8',
+    ).replace(/\s+/g, ' ');
+    const t = DEFAULT_TASKS.find((x) => x.code === 'HOST_LUCKY_COINS')!;
+    expect(t).toMatchObject({ period: 'DAILY', metric: 'HOST_LUCKY_COINS', audience: 'HOSTS' });
+    expect([t.target, t.rewardCherries]).toEqual([t.bandTargets![3], t.bandRewards![3]]);
+    expect(sql).toContain(
+      `('${t.code}', '${t.period}', '${t.metric}', ${String(t.target)}, ${String(t.rewardCherries)}, ` +
+        `'${t.audience}', '${t.nameAr}', '${t.nameEn}', ${String(t.sortOrder)}, ` +
+        `ARRAY[${t.bandTargets!.join(', ')}], ARRAY[${t.bandRewards!.join(', ')}])`,
+    );
+    expect(t.bandTargets).toEqual([20_000, 50_000, 100_000, 200_000]);
+    expect(t.bandRewards).toEqual([1_000, 2_000, 4_000, 6_000]);
+  });
+
+  it('D199: a coin target in cherries — × CHERRIES_PER_COIN × the host share, floored', () => {
+    expect(cherriesForCoins(100_000, 10, 6_500)).toBe(650_000);
+    expect(cherriesForCoins(3, 10, 6_500)).toBe(19);
+  });
+
   it('the migration seeds exactly the default tasks', () => {
     const sql = readFileSync(
       fileURLToPath(
@@ -124,7 +152,7 @@ describe('D166 check-in rules', () => {
     // The seeded rows' identity (D166); D188 (v1.57-social) rebalanced their targets, rewards, metric and
     // names: migration 20261231130000_task_rewards_rebalance holds the defaults' values.
     expect(rows.map((m) => ({ code: m[1], period: m[2], audience: m[6], sortOrder: Number(m[9]) }))).toEqual(
-      DEFAULT_TASKS.map((t) => ({
+      DEFAULT_TASKS.filter((t) => !LATER_TASKS.includes(t.code)).map((t) => ({
         code: t.code,
         period: t.period,
         audience: t.audience,
@@ -151,6 +179,7 @@ describe('D166 check-in rules', () => {
       'utf8',
     ).replace(/\s+/g, ' ');
     for (const t of DEFAULT_TASKS) {
+      if (LATER_TASKS.includes(t.code)) continue;
       if (t.bandTargets && t.bandRewards) {
         expect(weekly).toContain(
           `('${t.code}', ARRAY[${t.bandTargets.join(', ')}], ARRAY[${t.bandRewards.join(', ')}], '${t.nameAr}', '${t.nameEn}')`,
@@ -179,8 +208,10 @@ describe('D166 check-in rules', () => {
       'HOST_LIVE_MINUTES',
       'HOST_GIFT_COINS',
     ]);
-    expect(TASK_METRICS).toHaveLength(19);
-    expect(TASK_METRICS.at(-1)).toBe('GIFT_COINS_SENT');
+    // D199 (v1.44-live): the lucky gifts received.
+    expect(TASK_METRICS).toHaveLength(20);
+    expect(TASK_METRICS.at(-2)).toBe('GIFT_COINS_SENT');
+    expect(TASK_METRICS.at(-1)).toBe('HOST_LUCKY_COINS');
     expect(isTaskMetric('FOLLOWS')).toBe(true);
     expect(isTaskMetric('SHARES')).toBe(false);
   });

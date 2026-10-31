@@ -19,6 +19,8 @@ import 'package:kabso_live/features/live/presentation/widgets/kabso_pk_bar.dart'
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk_stage.dart';
 import 'package:kabso_live/features/live/presentation/widgets/max_x_art.dart';
+import 'package:kabso_live/features/live/presentation/widgets/pk_power/pk_battle_bar.dart';
+import 'package:kabso_live/features/live/presentation/widgets/pk_power/pk_power_banner.dart';
 import 'package:kabso_live/features/profile_card/kabso_profile_header.dart';
 import 'package:kabso_live/features/push/notification_sounds.dart';
 import 'package:kabso_live/features/push/push_messaging.dart';
@@ -41,6 +43,10 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   KabsoPkBar.enabled = false;
   // D195: the PK countdowns' one-second rebuilds (frames would never settle).
   LivePkStage.ticks = false;
+  // D199: the owner's PK bar and banners hold one moment (frames settle;
+  // their own tests play them).
+  PkBattleBar.debugTimeMs = 1200;
+  PkPowerBanner.debugTimeMs = 1200;
   // D144a: the permission channel has no handler in tests.
   DeviceLivePermissions.enabled = false;
   // D152: no Firebase, no audio plugin, no permission channel in tests

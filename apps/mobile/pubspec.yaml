@@ -149,6 +149,10 @@ flutter:
     # D73 Kabi on the PK score bar (owner-supplied Lottie, markers idle,
     # push, fire, tense, win, cheer; not edited).
     - assets/pk/
+    # D199: the owner's PK score bar parts (frames t1–t4, neutral, emblems)
+    # and Kabi push / pull / win (assets/pk/PROVENANCE.md).
+    - assets/pk/score_bar/parts/
+    - assets/pk/score_bar/kabi/
     # Owner's profile-card header decorations (SVGA 750×280 + still).
     - assets/profile_card/
     # Owner's person-card box icons (family, CP, gift wall).

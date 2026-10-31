@@ -38,6 +38,8 @@ export interface LiveRoomStatsDto {
   /** v1.35-live (D154d): Σ `totalCoins` of the live's sends, and the host's share of those they received. */
   giftCoins: number;
   earningsCoins: number;
+  /** v1.44-live (D199): different people other than the host who sent a gift in this live. */
+  giftGivers: number;
   chatMessages: number;
   newFollowers: number;
   viewers: LiveRoomViewerStatsDto | null;
@@ -98,6 +100,11 @@ export class LiveStatsService {
         JOIN live_gift_recipients gr ON gr.gift_id = g.id AND gr.user_id = ${row.host_user_id}::uuid
        WHERE g.room_id = ${row.id}::uuid`;
 
+    // v1.44-live (D199): the Data Center's «Gift-givers».
+    const [givers] = await this.prisma.$queryRaw<{ n: number }[]>`
+      SELECT count(DISTINCT g.sender_id)::int AS n FROM live_gifts g
+       WHERE g.room_id = ${row.id}::uuid AND g.sender_id <> ${row.host_user_id}::uuid`;
+
     // Lives started before D140 have no audience record (`peak_viewer_count` NULL): no viewer stats.
     let viewers: LiveRoomViewerStatsDto | null = null;
     let viewerCountries: LiveViewerCountryDto[] = [];
@@ -145,6 +152,7 @@ export class LiveStatsService {
       giftCount: gifts._sum.quantity ?? 0,
       giftCoins: Number(gifts._sum.totalCoins ?? 0n),
       earningsCoins: Number(earnings?.coins ?? 0n),
+      giftGivers: givers?.n ?? 0,
       chatMessages,
       newFollowers,
       viewers,

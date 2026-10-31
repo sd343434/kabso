@@ -9,7 +9,7 @@ import {
   LivePkService,
   type PkCandidateDto,
   type PkHostProfileDto,
-  type PkHostRecordDto,
+  type PkSettingsDto,
   type PkInviteDto,
   type PkMatchDto,
   type PkMediaAccessDto,
@@ -139,7 +139,15 @@ export class LivePkController {
     await this.pk.leaveRandom(requireCaller(req), roomId);
   }
 
-  /** Ends early: a forfeit during the battle, closes the result phase after it. */
+  /** v1.44-live (D199): either host starts a CONNECTED PK (auto-start off). */
+  @Post('rooms/:roomId/pk/start')
+  @HttpCode(200)
+  @RateLimit(PK_ACTION)
+  start(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<PkMatchDto> {
+    return this.pk.start(requireCaller(req), roomId);
+  }
+
+  /** Ends early: a forfeit during the battle, closes the result phase after it (D199: cancels a CONNECTED one). */
   @Post('rooms/:roomId/pk/end')
   @HttpCode(200)
   @RateLimit(PK_ACTION)
@@ -198,23 +206,20 @@ export class LivePkController {
   }
 }
 
-/** v1.43-live: the caller's PK switch (invitations on / off) and record. */
+/** v1.43-live: the caller's PK switch (invitations on / off) and record; v1.44-live (D199): the PK Setting page. */
 @Controller('me/live-pk')
 export class MyLivePkController {
   constructor(private readonly pk: LivePkService) {}
 
   @Get()
-  get(@Req() req: AppRequest): Promise<{ invitesEnabled: boolean; record: PkHostRecordDto }> {
+  get(@Req() req: AppRequest): Promise<PkSettingsDto> {
     return this.pk.mySettings(requireCaller(req));
   }
 
   @Put()
   @HttpCode(200)
   @RateLimit(PK_ACTION)
-  set(
-    @Req() req: AppRequest,
-    @Body() body: unknown,
-  ): Promise<{ invitesEnabled: boolean; record: PkHostRecordDto }> {
+  set(@Req() req: AppRequest, @Body() body: unknown): Promise<PkSettingsDto> {
     return this.pk.setSettings(requireCaller(req), body, { ip: clientIp(req), requestId: getRequestId(req) });
   }
 }

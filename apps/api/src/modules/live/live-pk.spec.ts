@@ -5,9 +5,12 @@ import {
   absenceOf,
   boosterProblem,
   boosterRule,
+  isEffectivePk,
+  matchSettings,
   pkIdentity,
   pkMatchOfIdentity,
   pkPoints,
+  roundOutcome,
   winnerByScore,
   type PkSidePresence,
 } from './live-pk.js';
@@ -31,6 +34,9 @@ describe('D195 PK config (owner-confirmable defaults)', () => {
       randomWaitSeconds: 60,
       battleSeconds: 300,
       resultSeconds: 60,
+      effectiveMinPoints: 3000,
+      connectSeconds: 300,
+      autoMatchRestSeconds: 30,
       absenceGraceSeconds: 30,
       tickMs: 1000,
       scoreBroadcastMs: 500,
@@ -167,5 +173,59 @@ describe('D195 PK media identity', () => {
     expect(pkMatchOfIdentity('pk:nope:x')).toBeNull();
     expect(pkMatchOfIdentity('guest:abc')).toBeNull();
     expect(pkMatchOfIdentity(match)).toBeNull();
+  });
+});
+
+describe('D199 PK settings, best of three, effective PK', () => {
+  const single = { mode: 'SINGLE' as const, roundSeconds: 300, autoStart: true };
+
+  it("equal settings: no side named; different ones: one host's, picked by the coin", () => {
+    expect(matchSettings(single, { ...single }, () => true)).toEqual({ settings: single, from: null });
+    const bo3 = { mode: 'BEST_OF_THREE' as const, roundSeconds: 180, autoStart: false };
+    expect(matchSettings(single, bo3, () => true)).toEqual({ settings: single, from: 'A' });
+    expect(matchSettings(single, bo3, () => false)).toEqual({ settings: bo3, from: 'B' });
+    expect(matchSettings(single, { ...single, autoStart: false }, () => false).from).toBe('B');
+  });
+
+  const r = (round: number, roundsA: number, roundsB: number, a: number, b: number, ta = a, tb = b) =>
+    roundOutcome({
+      round,
+      roundsA,
+      roundsB,
+      scoreA: BigInt(a),
+      scoreB: BigInt(b),
+      totalA: BigInt(ta),
+      totalB: BigInt(tb),
+    });
+
+  it('a round won leads to the next; two rounds won end it', () => {
+    expect(r(1, 0, 0, 10, 5)).toEqual({ kind: 'next', roundsA: 1, roundsB: 0 });
+    expect(r(2, 1, 0, 10, 5)).toEqual({ kind: 'final', roundsA: 2, roundsB: 0, winner: 'A' });
+    expect(r(2, 1, 0, 1, 5)).toEqual({ kind: 'next', roundsA: 1, roundsB: 1 });
+    expect(r(3, 1, 1, 0, 7)).toEqual({ kind: 'final', roundsA: 1, roundsB: 2, winner: 'B' });
+  });
+
+  it('a drawn round counts for nobody; after round 3: rounds, then total points, else a draw', () => {
+    expect(r(1, 0, 0, 5, 5)).toEqual({ kind: 'next', roundsA: 0, roundsB: 0 });
+    expect(r(3, 1, 0, 4, 4, 30, 40)).toEqual({ kind: 'final', roundsA: 1, roundsB: 0, winner: 'A' });
+    expect(r(3, 0, 0, 4, 4, 30, 40)).toEqual({ kind: 'final', roundsA: 0, roundsB: 0, winner: 'B' });
+    expect(r(3, 1, 1, 4, 4, 40, 40)).toEqual({ kind: 'final', roundsA: 1, roundsB: 1, winner: null });
+  });
+
+  it('effective: both sides together ≥ the threshold; ADMIN and CANCELLED never', () => {
+    expect(isEffectivePk('TIME', 1500n, 1500n, 3000)).toBe(true);
+    expect(isEffectivePk('TIME', 1500n, 1499n, 3000)).toBe(false);
+    expect(isEffectivePk('FORFEIT', 3000n, 0n, 3000)).toBe(true);
+    expect(isEffectivePk('ADMIN', 9000n, 0n, 3000)).toBe(false);
+    expect(isEffectivePk('CANCELLED', 9000n, 0n, 0)).toBe(false);
+    expect(isEffectivePk('TIME', 0n, 0n, 0)).toBe(true);
+  });
+
+  it('config defaults: 3000 PK points, 300 s to start, 30 s rest', () => {
+    expect(loadConfig(base).pk).toMatchObject({
+      effectiveMinPoints: 3000,
+      connectSeconds: 300,
+      autoMatchRestSeconds: 30,
+    });
   });
 });

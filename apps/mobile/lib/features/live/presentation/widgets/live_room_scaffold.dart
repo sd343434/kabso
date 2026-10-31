@@ -250,10 +250,12 @@ class KLiveRoomScaffold extends StatelessWidget {
                 top: inset + KLiveSideCards.wishTop,
                 child: side,
               ),
+            // D199 (owner, ref 275): the promo cards just under the
+            // room-info row at the reading start.
             if (sidePromo case final side? when keyboard == 0)
               PositionedDirectional(
-                start: KLiveSideCards.promoStart,
-                top: inset + KLiveSideCards.promoTop,
+                start: KSpacing.sm,
+                top: KLiveSideCards.promoUnderInfoTop(headerTop(inset)),
                 child: side,
               ),
             ?cover,
@@ -415,19 +417,18 @@ class KLiveVideoPlaceholder extends StatelessWidget {
   /// Centred content (the honest "video unavailable" message, camera off).
   final Widget? child;
 
+  /// D199: the video area without a picture.
+  static const black = Color(0xFF000000);
+
   @override
   Widget build(BuildContext context) {
     const p = KPalette.dark;
     return Semantics(
       label: context.l10n.liveVideoPlaceholder,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [p.surfaceOverlay, p.background],
-          ),
-        ),
+      // D199 (owner, ref 275): no picture is plain black, as a camera that
+      // is off looks (host and viewers alike).
+      child: ColoredBox(
+        color: KLiveVideoPlaceholder.black,
         child: Center(
           child:
               child ??

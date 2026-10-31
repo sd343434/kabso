@@ -170,7 +170,7 @@ describe('D184 task rewards in cherries', { timeout: 240_000 }, () => {
       },
       [{ token: LIVE_MEDIA_PROVIDER, value: media }],
     );
-    expect(await seedDefaultTasksIn(ctx.prisma)).toBe(6);
+    expect(await seedDefaultTasksIn(ctx.prisma)).toBe(7); // D199: + «استقبل هدايا الحظ»
     for (let i = 0; i < 10; i++) targets.push(await signup());
     targets = [...targets];
     host = await signup();
@@ -197,10 +197,10 @@ describe('D184 task rewards in cherries', { timeout: 240_000 }, () => {
       ['SEND_GIFTS', 1_000, 0],
     ]);
     // The weekly host tasks too (D188 follow-up: per band; band 1 — 5 hours live → 180 000, 2 500 000 coins
-    // received → 220 000).
+    // received → 220 000), then D199's daily lucky task (band 1 → 1 000).
     const hostTasks = await tasks(host);
     expect(hostTasks.tasks.filter((t) => t.code.startsWith('HOST_')).map((t) => t.rewardCherries)).toEqual([
-      180_000, 220_000,
+      180_000, 220_000, 1_000,
     ]);
   });
 

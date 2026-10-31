@@ -24,6 +24,7 @@ final class LiveRoomStats {
     required this.viewers,
     required this.viewerCountries,
     this.giftCoins = 0,
+    this.giftGivers = 0,
     this.earningsCoins = 0,
   });
 
@@ -51,6 +52,8 @@ final class LiveRoomStats {
       giftCount: _int(json['giftCount']),
       // v1.35-live (D154d): absent from an older server → 0.
       giftCoins: json['giftCoins'] == null ? 0 : _int(json['giftCoins']),
+      // v1.44-live (D199): absent from an older server → 0.
+      giftGivers: json['giftGivers'] == null ? 0 : _int(json['giftGivers']),
       earningsCoins: json['earningsCoins'] == null
           ? 0
           : _int(json['earningsCoins']),
@@ -95,6 +98,10 @@ final class LiveRoomStats {
   /// v1.35-live (D154d): the gifts' value in coins, and the host's share
   /// of those they received (display only; 0 from an older server).
   final int giftCoins;
+
+  /// v1.44-live (D199): different people other than the host who sent a
+  /// gift in this live (the Data Center's «Gift-givers»).
+  final int giftGivers;
   final int earningsCoins;
   final int chatMessages;
 

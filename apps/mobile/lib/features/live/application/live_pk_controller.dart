@@ -368,6 +368,11 @@ class LivePkController extends Notifier<LivePkState> {
     _applyMatch(match.open ? match : null, replace: true);
   }
 
+  /// v1.44-live (D199): either host starts a CONNECTED PK.
+  Future<void> start() async {
+    _applyMatch(await _repo.start(roomId), replace: true);
+  }
+
   Future<void> setMuteOpponent({required bool muted}) async {
     _applyMatch(await _repo.muteOpponent(roomId, muted: muted), replace: true);
   }

@@ -10537,11 +10537,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get pkUnmuteOpponent => 'إلغاء كتم الخصم';
 
   @override
-  String pkBoostAnnounce(String team, String booster, String multiplier) {
-    return 'فعّل فريق $team $booster $multiplier!';
-  }
-
-  @override
   String get pkBoosterDouble => 'دبل';
 
   @override
@@ -10564,7 +10559,7 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
-  String get pkResultWin => 'فوز!';
+  String get pkResultWin => 'فوز';
 
   @override
   String get pkResultLose => 'خسارة';
@@ -10644,4 +10639,317 @@ class AppLocalizationsAr extends AppLocalizations {
   String pkGuestSemantics(String name) {
     return 'ضيف $name';
   }
+
+  @override
+  String get pkModeOneVsOne => 'PK ثنائي';
+
+  @override
+  String get pkModeTeam => 'PK الفرق';
+
+  @override
+  String get pkModeMulti => 'PK متعدد';
+
+  @override
+  String pkModeSoon(String mode) {
+    return '$mode قريباً — لم يُبنَ بعد';
+  }
+
+  @override
+  String get pkFriendsTab => 'الأصدقاء';
+
+  @override
+  String get pkNoFriends => 'لا يوجد أصدقاء لدعوتهم حالياً';
+
+  @override
+  String get pkFriendsHelp =>
+      'الأصدقاء: مضيفون تتابعهم ويتابعونك، وفي بث فيديو مباشر الآن. ابحث عن أي مضيف آخر بالاسم، أو جرّب المطابقة العشوائية.';
+
+  @override
+  String get pkHelpTitle => 'ما هو PK؟';
+
+  @override
+  String get pkHelpBody =>
+      'تحدٍّ بين مضيفَين: هدايا مشاهدي كل غرفة أثناء الجولة تصير نقاط PK (قيمة الهدية × المضاعِف). الأعلى نقاطاً يفوز. المعزِّزات ×2 / ×3 / ×5 / ×10 تضاعف النقاط فقط، لا المال.';
+
+  @override
+  String get pkHistoryTitle => 'سجل PK';
+
+  @override
+  String get pkHistoryEmpty => 'لا توجد مباريات PK بعد';
+
+  @override
+  String get pkHistoryNotCounted => 'غير محتسبة';
+
+  @override
+  String get pkHistoryVoid => 'ملغاة';
+
+  @override
+  String pkHistoryRounds(String own, String other) {
+    return 'الجولات $own–$other';
+  }
+
+  @override
+  String pkHistoryVs(String name) {
+    return 'ضد $name';
+  }
+
+  @override
+  String get pkHistoryLoadError => 'تعذّر تحميل سجل PK';
+
+  @override
+  String get pkSettingsTitle => 'إعدادات PK';
+
+  @override
+  String get pkSettingsLoadError => 'تعذّر تحميل إعدادات PK';
+
+  @override
+  String get pkSettingMode => 'وضع PK';
+
+  @override
+  String get pkSettingModeHelp =>
+      'جولة واحدة: جولة واحدة تحسم النتيجة. الأفضل من ثلاث: حتى 3 جولات بالمدة المختارة، ومن يفوز بجولتين يفوز. لكل جولة نقاطها ومعزِّزاتها.';
+
+  @override
+  String get pkModeSingle => 'جولة واحدة';
+
+  @override
+  String get pkModeBestOfThree => 'الأفضل من ثلاث';
+
+  @override
+  String get pkSettingTime => 'المدة';
+
+  @override
+  String pkMinutes(String minutes) {
+    return '$minutes د';
+  }
+
+  @override
+  String pkMinutesLong(String minutes) {
+    return '$minutes دقائق';
+  }
+
+  @override
+  String get pkSettingAutoStart => 'بدء PK مباشرة بعد الاتصال';
+
+  @override
+  String get pkSettingGender => 'تفضيل الجنس في المطابقة العشوائية';
+
+  @override
+  String get pkGenderBoth => 'الكل';
+
+  @override
+  String get pkGenderMale => 'ذكور';
+
+  @override
+  String get pkGenderFemale => 'إناث';
+
+  @override
+  String get pkSettingRegion => 'تفضيل المنطقة في المطابقة العشوائية';
+
+  @override
+  String get pkRegionGlobal => 'عالمي';
+
+  @override
+  String get pkRegionSame => 'بلدي فقط';
+
+  @override
+  String get pkSettingAutoMatch => 'مطابقة تلقائية';
+
+  @override
+  String get pkSettingAutoMatchHelp =>
+      'وأنت في بث فيديو ولست في PK، تدخل المطابقة العشوائية تلقائياً.';
+
+  @override
+  String get pkSettingRecommend => 'السماح باقتراحي على المضيفين الآخرين';
+
+  @override
+  String pkSettingsNoteEffective(String points) {
+    return '1. PK فعّال: مجموع نقاط PK للطرفين ≥ $points (يُحتسب في سجلك).';
+  }
+
+  @override
+  String get pkSettingsNoteRandom =>
+      '2. إذا اختلفت إعدادات المضيفَين، يُختار إعداد أحدهما عشوائياً.';
+
+  @override
+  String get pkSettingsSoonTab => 'هذا الوضع قريباً — لا إعدادات له بعد';
+
+  @override
+  String get pkSettingSaveError => 'تعذّر حفظ الإعداد';
+
+  @override
+  String get pkStart => 'ابدأ PK';
+
+  @override
+  String get pkConnectedHint =>
+      'تم الاتصال — يبدأ PK حين يضغط أحدكما «ابدأ PK»';
+
+  @override
+  String pkRoundLabel(String round) {
+    return 'الجولة $round/3';
+  }
+
+  @override
+  String pkSettingsFromOther(String name) {
+    return 'طُبِّقت إعدادات $name (اختيار عشوائي)';
+  }
+
+  @override
+  String pkBoostActivated(String host, String booster) {
+    return 'فعّل فريق $host $booster';
+  }
+
+  @override
+  String pkBoostGain(String points, String multiplier) {
+    return '+$points ×$multiplier';
+  }
+
+  @override
+  String pkBoostChipSemantics(
+    String booster,
+    String multiplier,
+    String seconds,
+  ) {
+    return '$booster ×$multiplier، يتبقى $seconds ث';
+  }
+
+  @override
+  String get liveDataPageTitle => 'بيانات البث';
+
+  @override
+  String get liveDataNowLiveTime => 'وقت البث';
+
+  @override
+  String get liveDataNowViewers => 'مشاهدون فريدون';
+
+  @override
+  String liveDataNowViewersHint(String peak) {
+    return 'الذروة $peak';
+  }
+
+  @override
+  String get liveDataNowCherries => 'كرز جديد';
+
+  @override
+  String get liveDataNowGivers => 'داعمو الهدايا';
+
+  @override
+  String get liveDataNowFans => 'متابعون جدد';
+
+  @override
+  String get liveDataCreatorCenter => 'مركز المبدعين';
+
+  @override
+  String liveDataLevel(String level) {
+    return 'Lv.$level';
+  }
+
+  @override
+  String get liveDataLevelHelp =>
+      'مستوى الجاذبية: يرتفع بقيمة الهدايا التي تصلك.';
+
+  @override
+  String get liveDataHistory => 'إحصاءات الفترات السابقة';
+
+  @override
+  String get liveDataNotLive => 'تظهر بيانات البث أثناء بثّك المباشر.';
+
+  @override
+  String get liveToolHd => 'HD';
+
+  @override
+  String get liveToolFlash => 'فلاش';
+
+  @override
+  String get liveHostBox => 'الألعاب';
+
+  @override
+  String get liveTargetChip => 'تارجت';
+
+  @override
+  String liveTargetCherriesSemantics(String received, String target) {
+    return 'الكرز اليوم: $received من $target';
+  }
+
+  @override
+  String liveTargetLuckySemantics(String received, String target) {
+    return 'هدايا الحظ اليوم: $received من $target عملة';
+  }
+
+  @override
+  String get liveTargetReached => 'تم بلوغ الهدف';
+
+  @override
+  String get liveTargetStatsTitle => 'إحصاءات الهدايا';
+
+  @override
+  String get liveTargetPublicTitle => 'تارجت اليوم';
+
+  @override
+  String get liveTargetPeriodDay => 'يومي';
+
+  @override
+  String get liveTargetPeriodWeek => 'أسبوعي';
+
+  @override
+  String get liveTargetPeriodMonth => 'شهري';
+
+  @override
+  String get liveTargetPeriodAll => 'الكل';
+
+  @override
+  String get liveTargetCherriesSection => 'الكرز';
+
+  @override
+  String get liveTargetLuckySection => 'هدايا الحظ';
+
+  @override
+  String get liveTargetReceived => 'المستلم';
+
+  @override
+  String get liveTargetGifts => 'الهدايا';
+
+  @override
+  String get liveTargetGivers => 'الداعمون';
+
+  @override
+  String get liveTargetLuckyValue => 'القيمة (عملات)';
+
+  @override
+  String get liveTargetTopSupporters => 'أفضل الداعمين';
+
+  @override
+  String get liveTargetTopLucky => 'أفضل داعمي الحظ';
+
+  @override
+  String get liveTargetNoSupporters => 'لا يوجد داعمون بعد';
+
+  @override
+  String get liveTargetToday => 'أهداف اليوم';
+
+  @override
+  String get liveTargetCherriesGoal => 'هدف الكرز';
+
+  @override
+  String get liveTargetLuckyGoal => 'هدف هدايا الحظ (عملات)';
+
+  @override
+  String get liveTargetNoTarget => 'لا هدف اليوم';
+
+  @override
+  String liveTargetConversion(int band) {
+    return 'هدف الكرز هو هدف مهمة «استقبل هدايا في بثك» لفئتك ($band) محوّلًا إلى كرز بحصّتك من الهدايا.';
+  }
+
+  @override
+  String get liveTargetTaskCenter => 'مركز المهام';
+
+  @override
+  String get liveTargetChart => 'الكرز خلال الفترة';
+
+  @override
+  String get liveTargetLoadError => 'تعذّر تحميل الإحصاءات';
+
+  @override
+  String get liveTargetZoneHint => 'الفترات حسب توقيت الرياض.';
 }

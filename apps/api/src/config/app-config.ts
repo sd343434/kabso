@@ -42,6 +42,12 @@ export interface PkConfig {
   readonly randomWaitSeconds: number;
   readonly battleSeconds: number;
   readonly resultSeconds: number;
+  /** v1.44-live (D199): combined PK points from which a match counts in the records. */
+  readonly effectiveMinPoints: number;
+  /** v1.44-live (D199): how long a CONNECTED PK may wait for a start. */
+  readonly connectSeconds: number;
+  /** v1.44-live (D199): Auto Match's rest after a PK closed. */
+  readonly autoMatchRestSeconds: number;
   readonly absenceGraceSeconds: number;
   /** 0 = no tick (tests). */
   readonly tickMs: number;
@@ -791,6 +797,9 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       randomWaitSeconds: e.PK_RANDOM_WAIT_SECONDS,
       battleSeconds: e.PK_BATTLE_SECONDS,
       resultSeconds: e.PK_RESULT_SECONDS,
+      effectiveMinPoints: e.PK_EFFECTIVE_MIN_POINTS,
+      connectSeconds: e.PK_CONNECT_SECONDS,
+      autoMatchRestSeconds: e.PK_AUTO_MATCH_REST_SECONDS,
       absenceGraceSeconds: e.PK_ABSENCE_GRACE_SECONDS,
       tickMs: e.PK_TICK_MS,
       scoreBroadcastMs: e.PK_SCORE_BROADCAST_MS,

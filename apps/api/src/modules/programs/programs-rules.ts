@@ -36,13 +36,19 @@ export const TASK_METRICS = [
   'HOST_GUESTS',
   // v1.57-social (D188): the coin value of the paid gifts the caller sent (stored gift rows).
   'GIFT_COINS_SENT',
+  // v1.44-live (D199): the coin value of the lucky gifts the caller received (stored lucky sends).
+  'HOST_LUCKY_COINS',
 ] as const;
 
 /**
  * v1.57-social (D188): the metrics whose target is a coin value (gifts sent or received, from the
  * stored gift rows), so `task-admin` shows the target's retail value next to it.
  */
-export const COIN_VALUE_METRICS: readonly TaskMetric[] = ['GIFT_COINS_SENT', 'HOST_GIFT_COINS'];
+export const COIN_VALUE_METRICS: readonly TaskMetric[] = [
+  'GIFT_COINS_SENT',
+  'HOST_GIFT_COINS',
+  'HOST_LUCKY_COINS',
+];
 
 /** A host counts as new for «ادعم مضيفاً جديداً» this many days after the hosting permission. */
 export const NEW_HOST_DAYS = 30;
@@ -287,7 +293,37 @@ export const DEFAULT_TASKS: readonly DefaultTask[] = [
     bandTargets: [2_500_000, 3_500_000, 4_500_000, 5_000_000],
     bandRewards: [220_000, 270_000, 290_000, 430_000],
   },
+  {
+    // v1.44-live (D199, owner «تارجت»): the host's daily lucky target — the coin value of the lucky gifts
+    // received, per level band (owner-confirmable). Rewards follow D188 (cherries ≈ 0.03–0.05 per coin of
+    // target, like «استقبل هدايا في بثك»), inside the unchanged daily and monthly caps.
+    code: 'HOST_LUCKY_COINS',
+    period: 'DAILY',
+    metric: 'HOST_LUCKY_COINS',
+    target: 200_000,
+    rewardCherries: 6_000,
+    audience: 'HOSTS',
+    nameAr: 'استقبل هدايا الحظ (بالعملات)',
+    nameEn: 'Receive lucky gifts (coins)',
+    sortOrder: 70,
+    bandTargets: [20_000, 50_000, 100_000, 200_000],
+    bandRewards: [1_000, 2_000, 4_000, 6_000],
+  },
 ];
+
+/** v1.44-live (D199): the daily pool template whose band target is the host's cherries target. */
+export const HOST_GIFTS_TARGET_TASK = 'P_HOST_GIFTS';
+
+/** v1.44-live (D199): the daily task whose band target is the host's lucky target. */
+export const HOST_LUCKY_TARGET_TASK = 'HOST_LUCKY_COINS';
+
+/**
+ * v1.44-live (D199): a coin-value target in cherries — what the host would receive for that value of
+ * ordinary gifts: coins × CHERRIES_PER_COIN × the POPULAR host share (65 % by default), floored.
+ */
+export function cherriesForCoins(coins: number, cherriesPerCoin: number, shareBps: number): number {
+  return Math.floor((coins * cherriesPerCoin * shareBps) / 10_000);
+}
 
 // ---- The daily task pool (v1.50-social, D176, CONVENTIONS §10.41.1) ---------------------------
 

@@ -11,8 +11,13 @@ abstract interface class LivePkRepository {
   /// `GET /live/rooms/{roomId}/pk`: the snapshot (host: invitation and queue).
   Future<PkState> state(String roomId);
 
-  /// `GET /live/rooms/{roomId}/pk/candidates?q`: hosts to invite.
-  Future<List<PkCandidate>> candidates(String roomId, {String? query});
+  /// `GET /live/rooms/{roomId}/pk/candidates?q&friends`: hosts to invite
+  /// (D199: [friends] keeps only mutual follows).
+  Future<List<PkCandidate>> candidates(
+    String roomId, {
+    String? query,
+    bool friends = false,
+  });
 
   /// `POST /live/rooms/{roomId}/pk/invites`.
   Future<PkInvite> invite(String roomId, {required String toRoomId});
@@ -46,6 +51,18 @@ abstract interface class LivePkRepository {
 
   /// `PUT /me/live-pk`: invitations on / off.
   Future<bool> setInvitesEnabled({required bool enabled});
+
+  /// v1.44-live (D199) `GET /me/live-pk`: the PK Setting page.
+  Future<PkSettings> settings();
+
+  /// v1.44-live (D199) `PUT /me/live-pk`: any of the page's fields.
+  Future<PkSettings> saveSettings(Map<String, Object> changes);
+
+  /// v1.44-live (D199) `POST /live/rooms/{roomId}/pk/start`.
+  Future<PkMatch> start(String roomId);
+
+  /// v1.44-live (D199) `GET /live/pk/hosts/{username}`: record and history.
+  Future<PkHistory> history(String username);
 }
 
 class LivePkRepositoryImpl implements LivePkRepository {
@@ -62,18 +79,24 @@ class LivePkRepositoryImpl implements LivePkRepository {
   });
 
   @override
-  Future<List<PkCandidate>> candidates(String roomId, {String? query}) =>
-      guardApiCall(() async {
-        final q = query?.trim();
-        final res = await _dio.get<Map<String, dynamic>>(
-          '${_room(roomId)}/candidates',
-          queryParameters: {if (q != null && q.isNotEmpty) 'q': q},
-        );
-        return [
-          for (final c in res.data!['data']! as List<dynamic>)
-            PkCandidate.fromJson(c as Map<String, dynamic>),
-        ];
-      });
+  Future<List<PkCandidate>> candidates(
+    String roomId, {
+    String? query,
+    bool friends = false,
+  }) => guardApiCall(() async {
+    final q = query?.trim();
+    final res = await _dio.get<Map<String, dynamic>>(
+      '${_room(roomId)}/candidates',
+      queryParameters: {
+        if (q != null && q.isNotEmpty) 'q': q,
+        if (friends) 'friends': 'true',
+      },
+    );
+    return [
+      for (final c in res.data!['data']! as List<dynamic>)
+        PkCandidate.fromJson(c as Map<String, dynamic>),
+    ];
+  });
 
   @override
   Future<PkInvite> invite(String roomId, {required String toRoomId}) =>
@@ -177,6 +200,36 @@ class LivePkRepositoryImpl implements LivePkRepository {
         );
         return res.data!['invitesEnabled'] == true;
       });
+
+  @override
+  Future<PkSettings> settings() => guardApiCall(() async {
+    final res = await _dio.get<Map<String, dynamic>>('/me/live-pk');
+    return PkSettings.fromJson(res.data!);
+  });
+
+  @override
+  Future<PkSettings> saveSettings(Map<String, Object> changes) =>
+      guardApiCall(() async {
+        final res = await _dio.put<Map<String, dynamic>>(
+          '/me/live-pk',
+          data: changes,
+        );
+        return PkSettings.fromJson(res.data!);
+      });
+
+  @override
+  Future<PkMatch> start(String roomId) => guardApiCall(() async {
+    final res = await _dio.post<Map<String, dynamic>>('${_room(roomId)}/start');
+    return PkMatch.fromJson(res.data!);
+  });
+
+  @override
+  Future<PkHistory> history(String username) => guardApiCall(() async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      '/live/pk/hosts/${pathSegment(username)}',
+    );
+    return PkHistory.fromJson(res.data!);
+  });
 }
 
 final livePkRepositoryProvider = Provider<LivePkRepository>(
