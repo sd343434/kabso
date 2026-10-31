@@ -39,6 +39,39 @@ export const CAPABILITIES = {
   'site.settings': ['OWNER'],
   /** v1.64-social (D196): the Stripe keys and top-up options «الدفع (Stripe)». */
   'payments.settings': ['OWNER'],
+  // ---- v1.65-social (D197, CONVENTIONS §10.60): the panel v2 sections ---------------------------------------
+  /** The users table and its CSV export (audited), a user's content tab. */
+  'users.list': ['OWNER', 'MODERATION', 'SUPPORT', 'FINANCE'],
+  /** Owner answer CP-039 Q2: the users table (with emails) as CSV is OWNER only. */
+  'users.export': ['OWNER'],
+  /** A user's app sessions (devices) and signing them out. */
+  'users.sessions': ['OWNER', 'MODERATION', 'SUPPORT'],
+  /** Host agencies: the list, an agency's page and the complaints queue. */
+  'agencies.view': ['OWNER', 'SUPPORT', 'FINANCE'],
+  /** Create, suspend / reinstate, resolve a complaint, run the rank evaluation. */
+  'agencies.manage': ['OWNER', 'SUPPORT'],
+  /** Lives now, a live's details, the hosting permissions. */
+  'lives.view': ['OWNER', 'MODERATION', 'SUPPORT'],
+  /** End a live with a reason; give / take back the hosting permission. */
+  'lives.manage': ['OWNER', 'MODERATION'],
+  /** The gift catalogue, bag items, banners and events (read). */
+  'catalog.view': ['OWNER', 'SUPPORT', 'FINANCE'],
+  /** Gift CRUD, banners, events. */
+  'catalog.manage': ['OWNER'],
+  /** Give / take back a bag item (frames, profile cards) to a user. */
+  'items.grant': ['OWNER', 'SUPPORT'],
+  /** Agent top-ups history, card orders, Stripe cases; the financial reports and their CSV. */
+  'finance.view': ['OWNER', 'FINANCE'],
+  /** A team refund of a card order (TOTP), closing a Stripe case. */
+  'finance.refund': ['OWNER', 'FINANCE'],
+  /** The audit log viewer (and a user's «السجل» tab). */
+  'audit.view': ['OWNER'],
+  /** The team: list, grant / revoke panel roles, reset an authenticator (TOTP + reason). */
+  'team.manage': ['OWNER'],
+  /** Tasks and levels (read, with USD values), special usernames list. */
+  'programs.view': ['OWNER', 'SUPPORT', 'FINANCE'],
+  /** The website's waitlist (personal data; every read audited). */
+  'waitlist.view': ['OWNER'],
 } as const satisfies Record<string, readonly PanelRole[]>;
 
 export type Capability = keyof typeof CAPABILITIES;

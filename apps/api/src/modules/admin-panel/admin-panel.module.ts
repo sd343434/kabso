@@ -1,5 +1,8 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module.js';
+import { EconomyModule } from '../economy/economy.module.js';
+import { LiveModule } from '../live/live.module.js';
+import { TopupModule } from '../topup/topup.module.js';
 import { MediaModule } from '../media/media.module.js';
 import { SafetyModule } from '../safety/safety.module.js';
 import { PublicProfileModule } from '../users/profiles/public-profile.module.js';
@@ -14,22 +17,58 @@ import {
 } from './admin-panel.controller.js';
 import { AdminSessionGuard } from './admin-session.guard.js';
 import { AdminUsersService } from './admin-users.service.js';
+import { AdminAgenciesService } from './admin-agencies.service.js';
+import { AdminCatalogService } from './admin-catalog.service.js';
+import { AdminLivesService } from './admin-lives.service.js';
+import { AdminMoneyService } from './admin-money.service.js';
+import { AdminPeopleService } from './admin-people.service.js';
+import { AdminProgramsService } from './admin-programs.service.js';
+import { AdminStatsService } from './admin-stats.service.js';
+import { AdminTeamService } from './admin-team.service.js';
+import { AdminV2Controller } from './admin-v2.controller.js';
 
 /**
  * v1.60-social (D191, CONVENTIONS §10.54): the admin panel «لوحة الإدارة» API behind its own cookie session with a
  * mandatory TOTP second factor. Owns `admin_credentials`, `admin_recovery_codes` and `admin_sessions`; reads the
  * other modules' tables for its views and changes them only through their shared rules (recharge-core,
  * withdrawal-admin, avatar-admin, special-usernames, AccountLifecycleService, SafetyService).
+ *
+ * v1.65-social (D197, CONVENTIONS §10.60): the panel v2 — statistics, search, tables with CSV, agencies, lives,
+ * gifts and items, money, the audit log and the team, programs — again only through the CLIs' rules (agency-admin,
+ * host-agents, gift-admin-rules, bag-admin-rules, home-banners, event-admin-rules, topup-core, admin-roles,
+ * waitlist-admin, LiveRoomsService / LiveMediaService, SessionsService).
  */
 @Module({
-  imports: [AuthModule, MediaModule, SafetyModule, PublicProfileModule],
-  controllers: [AdminAuthController, AdminUsersController, AdminFinanceController, AdminModerationController],
+  imports: [
+    AuthModule,
+    MediaModule,
+    SafetyModule,
+    PublicProfileModule,
+    EconomyModule,
+    LiveModule,
+    TopupModule,
+  ],
+  controllers: [
+    AdminAuthController,
+    AdminUsersController,
+    AdminFinanceController,
+    AdminModerationController,
+    AdminV2Controller,
+  ],
   providers: [
     AdminAuthService,
     AdminSessionGuard,
     AdminUsersService,
     AdminFinanceService,
     AdminModerationService,
+    AdminStatsService,
+    AdminPeopleService,
+    AdminAgenciesService,
+    AdminLivesService,
+    AdminCatalogService,
+    AdminMoneyService,
+    AdminTeamService,
+    AdminProgramsService,
   ],
   exports: [AdminAuthService, AdminSessionGuard],
 })

@@ -233,6 +233,15 @@ export enum AuditAction {
   // v1.61-social (DRAFT, D192): each read of the website waitlist's e-mails by the `waitlist-admin` CLI (`op`:
   // list|export, the count).
   WAITLIST_VIEW = 'waitlist.view',
+  // v1.65-social (DRAFT, D197, CONVENTIONS §10.60): the admin panel v2.
+  /** A table exported as CSV from the panel {table, count, total, filters} (never the rows). */
+  ADMIN_EXPORT_CSV = 'admin.export.csv',
+  /** The agency rank evaluation run from the panel (what `economy-admin agency-evaluate` does). */
+  AGENCY_EVALUATE = 'agency.evaluate',
+  /** A live ended by the team from the panel {reason, hostUserId} (end reason ADMIN). */
+  ADMIN_LIVE_END = 'admin.live.end',
+  /** A user's app sessions signed out by the team {sessions, reason}. */
+  ADMIN_USER_SESSIONS_REVOKE = 'admin.user.sessions_revoke',
 }
 
 export interface AuditEntry {

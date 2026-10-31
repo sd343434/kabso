@@ -29,13 +29,9 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient, type CherryWithdrawalStatus } from '../generated/prisma/client.js';
 import { AuditAction } from '../common/audit/audit.service.js';
 import { envSchema } from '../config/env.schema.js';
+import { createAgencyByAdmin, resolveComplaintIn } from '../modules/economy/agency-admin.js';
 import { evaluateAgencyRanks } from '../modules/economy/agency-ranks.js';
-import {
-  createAgencyIn,
-  HostAgentError,
-  reinstateHostAgentIn,
-  suspendHostAgentIn,
-} from '../modules/economy/host-agents.js';
+import { HostAgentError, reinstateHostAgentIn, suspendHostAgentIn } from '../modules/economy/host-agents.js';
 import { syncHostFrames, type HostFrameChange } from '../modules/economy/host-frames.js';
 import { reverseGiftCherriesIn } from '../modules/economy/cherry-ledger.js';
 import {
@@ -43,14 +39,7 @@ import {
   WithdrawalAdminError,
   type WithdrawalDecision,
 } from '../modules/economy/withdrawal-admin.js';
-import {
-  addMonths,
-  dateValue,
-  monthKey,
-  newInviteCode,
-  normalizeInviteCode,
-} from '../modules/economy/economy-math.js';
-import { uuidv7 } from '../modules/levels/uuidv7.js';
+import { dateValue, monthKey, normalizeInviteCode } from '../modules/economy/economy-math.js';
 
 function fail(message: string): never {
   process.stderr.write(`${message}\n`);
@@ -130,59 +119,18 @@ async function agencyByCode(
 
 async function agencyCreate(email: string | undefined, parentCode: string | undefined): Promise<void> {
   const owner = await userByEmail(email);
-  if (owner.status !== 'ACTIVE') fail(`${email ?? ''} is not an ACTIVE account.`);
-  if ((await prisma.agency.count({ where: { ownerUserId: owner.id } })) > 0)
-    fail(`${email ?? ''} already has an agency.`);
-  if ((await prisma.agencyHost.count({ where: { hostUserId: owner.id, status: 'ACTIVE' } })) > 0) {
-    fail(`${email ?? ''} is a host of an agency; the host must leave it (or an admin release it) first.`);
-  }
-  const parent = parentCode === undefined ? null : await agencyByCode(parentCode);
-  // A NEW agency keeps its commission until the month start two months after its creation month (its grace).
-  const evaluateFrom = addMonths(monthKey(new Date(), zone()), 2);
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const code = newInviteCode();
-    if ((await prisma.agency.count({ where: { inviteCode: code } })) > 0) continue;
-    const now = new Date();
-    // v1.58-social (D189, §10.52): creating the agency activates its owner as a host agent (code `hostNN`, which
-    // becomes their username per the agent-username rule) in the same transaction.
-    const { agencyId, hostCode } = await hostAgentStep(() =>
-      prisma.$transaction(async (tx) => {
-        const created = await createAgencyIn(
-          tx,
-          {
-            ownerUserId: owner.id,
-            inviteCode: code,
-            parentAgencyId: parent?.id ?? null,
-            evaluateFrom: dateValue(evaluateFrom),
-          },
-          now,
-          graceDays(),
-        );
-        await tx.auditLog.create({
-          data: {
-            action: AuditAction.AGENCY_CREATE,
-            targetType: 'agency',
-            targetId: created.agencyId,
-            metadata: {
-              owner: owner.id,
-              inviteCode: code,
-              parent: parent?.id ?? null,
-              evaluateFrom,
-              hostCode: created.hostCode,
-              via: 'cli',
-            },
-          },
-        });
-        return created;
-      }),
-    );
-    process.stdout.write(
-      `Agency ${agencyId} for ${email ?? ''}: invite code ${code}, host code ${hostCode}` +
-        ` (evaluated from ${evaluateFrom}).\n`,
-    );
-    return;
-  }
-  fail('Could not find a free invite code; try again.');
+  // v1.65-social (D197): the rule lives in agency-admin.ts, shared with the admin panel.
+  const created = await hostAgentStep(() =>
+    createAgencyByAdmin(
+      prisma,
+      { ownerUserId: owner.id, parentInviteCode: parentCode ?? null },
+      { timeZone: zone(), specialGraceDays: graceDays() },
+    ),
+  );
+  process.stdout.write(
+    `Agency ${created.agencyId} for ${email ?? ''}: invite code ${created.inviteCode}, host code ${created.hostCode}` +
+      ` (evaluated from ${created.evaluateFrom}).\n`,
+  );
 }
 
 /** v1.58-social (D189): `agency-suspend` / `agency-reinstate` — the host agent's perks only. */
@@ -325,61 +273,12 @@ async function complaintResolve(
   text: string | null,
 ): Promise<void> {
   if (action !== 'release' && action !== 'keep' && action !== 'move') fail(USAGE);
-  const target = action === 'move' ? await agencyByCode(to) : null;
   if (action === 'move' && to === undefined) fail('move needs --to <invite code>.');
-  const now = new Date();
-  const result = await prisma.$transaction(async (tx) => {
-    const [c] = await tx.$queryRaw<
-      { id: string; status: string; agency_host_id: string; host_user_id: string }[]
-    >`
-      SELECT id::text AS id, status::text AS status, agency_host_id::text AS agency_host_id,
-             host_user_id::text AS host_user_id
-        FROM agency_complaints WHERE id = ${complaintId}::uuid FOR UPDATE`;
-    if (!c) fail(`No complaint ${complaintId}.`);
-    if (c.status !== 'OPEN') fail(`Complaint ${complaintId} is ${c.status}; nothing changed.`);
-    const link = await tx.agencyHost.findUnique({ where: { id: c.agency_host_id } });
-    if (target && target.ownerUserId === c.host_user_id) fail('A host cannot be moved to their own agency.');
-    if (target && link && target.id === link.agencyId) fail('The host is already in that agency.');
-    if (action !== 'keep' && link?.status === 'ACTIVE') {
-      await tx.agencyHost.update({
-        where: { id: link.id },
-        data: { status: action === 'move' ? 'MOVED' : 'RELEASED', endedAt: now },
-      });
-    }
-    let newLink: string | null = null;
-    if (target) {
-      const rank = await tx.agency.findUnique({ where: { id: target.id }, select: { rank: true } });
-      newLink = uuidv7();
-      await tx.agencyHost.create({
-        data: {
-          id: newLink,
-          agencyId: target.id,
-          hostUserId: c.host_user_id,
-          commissionEligible: rank?.rank !== 'LAPSED',
-          activatedAt: now,
-        },
-      });
-    }
-    await tx.agencyComplaint.update({
-      where: { id: complaintId },
-      data: {
-        status: action === 'keep' ? 'REJECTED' : 'RESOLVED',
-        resolution: action === 'release' ? 'RELEASED' : action === 'move' ? 'MOVED' : 'KEPT',
-        note: text,
-        resolvedAt: now,
-      },
-    });
-    await tx.auditLog.create({
-      data: {
-        action: AuditAction.AGENCY_COMPLAINT_RESOLVE,
-        targetType: 'agency_complaint',
-        targetId: complaintId,
-        metadata: { action, link: link?.id ?? null, to: target?.id ?? null, newLink, note: text, via: 'cli' },
-      },
-    });
-    return { action, hostUserId: c.host_user_id };
-  });
-  process.stdout.write(`Complaint ${complaintId}: ${result.action}.\n`);
+  // v1.65-social (D197): the rule lives in agency-admin.ts, shared with the admin panel.
+  const result = await hostAgentStep(() =>
+    prisma.$transaction((tx) => resolveComplaintIn(tx, complaintId, action, to ?? null, text, new Date())),
+  );
+  process.stdout.write(`Complaint ${complaintId}: ${action}.\n`);
   // v1.55-social (D186): a released host is no longer an agency host (the frame follows at once).
   for (const f of await syncHostFrames(prisma, new Date(), activityRules(), zone(), [result.hostUserId]))
     process.stdout.write(`${hostFrameLine(f)}\n`);

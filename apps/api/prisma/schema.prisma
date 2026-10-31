@@ -233,6 +233,7 @@ model User {
   consents               UserConsent[]
   dataExports            DataExport[]
 
+  @@index([createdAt], map: "users_created_at_idx")
   @@map("users")
 }
 
@@ -346,7 +347,7 @@ model Session {
   expiresAt                 DateTime  @map("expires_at") @db.Timestamptz(3)
   absoluteExpiresAt         DateTime  @map("absolute_expires_at") @db.Timestamptz(3)
   revokedAt                 DateTime? @map("revoked_at") @db.Timestamptz(3)
-  /// LOGOUT | USER_REVOKED | REFRESH_REUSE | PASSWORD_RESET | ADMIN | ACCOUNT_DELETION (D193)
+  /// LOGOUT | USER_REVOKED | REFRESH_REUSE | PASSWORD_RESET | ADMIN | ACCOUNT_DELETION (D193) | ADMIN_REVOKED (D197)
   revokedReason             String?   @map("revoked_reason") @db.VarChar(32)
 
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -393,6 +394,7 @@ model AuditLog {
   @@index([actorUserId, createdAt(sort: Desc)], map: "audit_logs_actor_user_id_created_at_idx")
   @@index([action, createdAt(sort: Desc)], map: "audit_logs_action_created_at_idx")
   @@index([targetType, targetId], map: "audit_logs_target_idx")
+  @@index([createdAt(sort: Desc)], map: "audit_logs_created_at_idx")
   @@map("audit_logs")
 }
 
@@ -639,6 +641,7 @@ model LiveRoom {
   @@index([hostAwaySince], map: "live_rooms_live_host_away_idx", where: raw("status = 'LIVE'::live_room_status AND host_away_since IS NOT NULL"))
   @@index([hostUserId, startedAt(sort: Desc)], map: "live_rooms_host_started_idx")
   @@index([categoryId], map: "live_rooms_category_id_idx")
+  @@index([startedAt], map: "live_rooms_started_at_idx")
   @@map("live_rooms")
 }
 
@@ -2752,6 +2755,7 @@ model LiveGift {
   @@index([roomId, createdAt], map: "live_gifts_room_idx")
   @@index([giftCode], map: "live_gifts_gift_idx")
   @@index([dmConversationId], map: "live_gifts_dm_conversation_idx")
+  @@index([createdAt], map: "live_gifts_created_at_idx")
   @@map("live_gifts")
 }
 
@@ -3633,6 +3637,7 @@ model CherryLedgerEntry {
   @@index([userId, createdAt(sort: Desc), id(sort: Desc)], map: "cherry_ledger_user_created_idx")
   @@index([referenceId], map: "cherry_ledger_reference_idx")
   @@index([userId, reason], map: "cherry_ledger_user_reason_idx")
+  @@index([createdAt], map: "cherry_ledger_created_at_idx")
   @@map("cherry_ledger")
 }
 
@@ -3716,6 +3721,7 @@ model AgencyEarning {
   @@index([agencyId, month, hostUserId], map: "agency_earnings_agency_month_idx")
   @@index([agencyHostId], map: "agency_earnings_link_idx")
   @@index([parentAgencyId, month], map: "agency_earnings_parent_idx")
+  @@index([createdAt], map: "agency_earnings_created_at_idx")
   @@map("agency_earnings")
 }
 
@@ -3777,6 +3783,7 @@ model CherryWithdrawal {
   @@unique([userId], map: "cherry_withdrawals_one_pending", where: raw("status = 'PENDING'::cherry_withdrawal_status"))
   @@index([userId, createdAt(sort: Desc), id(sort: Desc)], map: "cherry_withdrawals_user_created_idx")
   @@index([status, createdAt], map: "cherry_withdrawals_status_idx")
+  @@index([decidedAt], map: "cherry_withdrawals_decided_at_idx", where: raw("(status = 'PAID'::cherry_withdrawal_status)"))
   @@map("cherry_withdrawals")
 }
 
@@ -3924,6 +3931,7 @@ model RechargeTopup {
   agent RechargeAgent @relation(fields: [agentUserId], references: [userId], onDelete: Cascade)
 
   @@index([agentUserId, createdAt(sort: Desc)], map: "recharge_topups_agent_idx")
+  @@index([createdAt], map: "recharge_topups_created_at_idx")
   @@map("recharge_topups")
 }
 
@@ -3946,6 +3954,7 @@ model RechargeSale {
   @@index([agentUserId, createdAt(sort: Desc), id(sort: Desc)], map: "recharge_sales_agent_created_idx")
   @@index([sellerUserId, createdAt(sort: Desc), id(sort: Desc)], map: "recharge_sales_seller_created_idx")
   @@index([buyerUserId], map: "recharge_sales_buyer_idx")
+  @@index([createdAt], map: "recharge_sales_created_at_idx")
   @@map("recharge_sales")
 }
 
@@ -4163,6 +4172,8 @@ model TopupOrder {
   @@unique([stripePaymentIntentId], map: "topup_orders_payment_intent_once")
   @@index([stripeChargeId], map: "topup_orders_charge_idx")
   @@index([userId, createdAt(sort: Desc)], map: "topup_orders_user_created_idx")
+  @@index([creditedAt], map: "topup_orders_credited_at_idx", where: raw("(credited_at IS NOT NULL)"))
+  @@index([createdAt], map: "topup_orders_created_at_idx")
   @@map("topup_orders")
 }
 

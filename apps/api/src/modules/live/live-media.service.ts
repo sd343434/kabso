@@ -604,10 +604,15 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
   // ---- Hosting permission ----------------------------------------------------------------------
 
   /** `PUT /admin/live/hosts/{username}` (LIVE_HOSTS): idempotent; audited when it changes. */
-  async grantHost(adminId: string, username: string, meta: RequestMeta): Promise<void> {
+  async grantHost(
+    adminId: string,
+    username: string,
+    meta: RequestMeta,
+    extra: { reason?: string; via?: 'panel' } = {},
+  ): Promise<boolean> {
     const user = await this.users.findActivePublicUser(username);
     if (!user) throw new AppException(ErrorCode.NOT_FOUND);
-    await this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx) => {
       // CP-016 G: the room number is drawn by the column default; `skipDuplicates` would also
       // skip a (rare) clash on it, so draw again while the host is still missing.
       let created = { count: 0 };
@@ -624,16 +629,22 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
           actorUserId: adminId,
           targetType: 'user',
           targetId: user.id,
-          metadata: { source: 'ADMIN' },
+          metadata: { source: 'ADMIN', ...extra },
           ip: meta.ip,
           requestId: meta.requestId,
         });
       }
+      return created.count > 0;
     });
   }
 
   /** `DELETE /admin/live/hosts/{username}`: also ends the user's LIVE room (`ADMIN`). */
-  async revokeHost(adminId: string, username: string, meta: RequestMeta): Promise<void> {
+  async revokeHost(
+    adminId: string,
+    username: string,
+    meta: RequestMeta,
+    extra: { reason?: string; via?: 'panel' } = {},
+  ): Promise<boolean> {
     const user = await this.users.findActivePublicUser(username);
     if (!user) throw new AppException(ErrorCode.NOT_FOUND);
     const ended = await this.prisma.$transaction(async (tx) => {
@@ -645,13 +656,14 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
           actorUserId: adminId,
           targetType: 'user',
           targetId: user.id,
-          metadata: { endedRooms: rooms.length },
+          metadata: { endedRooms: rooms.length, ...extra },
           ip: meta.ip,
           requestId: meta.requestId,
         });
       }
-      return rooms;
+      return { rooms, removed: removed.count > 0 };
     }, LIVE_TX_OPTIONS);
-    for (const roomId of ended) await this.closeMedia(roomId);
+    for (const roomId of ended.rooms) await this.closeMedia(roomId);
+    return ended.removed;
   }
 }

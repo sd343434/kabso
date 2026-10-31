@@ -14,6 +14,8 @@ export enum RevokedReason {
   PASSWORD_RESET = 'PASSWORD_RESET',
   /** v1.62-social (D193): the person asked for their account to be deleted (signed out everywhere). */
   ACCOUNT_DELETION = 'ACCOUNT_DELETION',
+  /** v1.65-social (D197): signed out by the team from the admin panel (reason in the audit row). */
+  ADMIN_REVOKED = 'ADMIN_REVOKED',
 }
 
 export interface SessionClient {

@@ -1074,6 +1074,13 @@ export const envSchema = z
     /** The zone of the panel dashboard's «today» (owner 2026-10-31: the Asia/Riyadh day, like the recharge badges). */
     ADMIN_DASHBOARD_TIME_ZONE: ianaTimeZone('Asia/Riyadh'),
     /**
+     * v1.65-social (D197, owner answer CP-039 Q3): the financial report's ESTIMATED card fees deducted from the
+     * margin — basis points of each credited card order's amount plus a fixed fee in cents per order (owner default
+     * 2.9 % + $0.30, Stripe's card list price). An estimate only: the real fees are in the Stripe dashboard.
+     */
+    ADMIN_REPORT_CARD_FEE_BPS: intSetting(290, 0, 5000),
+    ADMIN_REPORT_CARD_FEE_FIXED_MINOR: intSetting(30, 0, 1000),
+    /**
      * v1.56-social (D187, CONVENTIONS §10.50): the daily recharge badges. The minimum coins recharged in one
      * calendar day for each of the five tiers (owner: 1 000 000, 10 000 001, 20 000 001, 40 000 001,
      * 70 000 001 — tier 1 is 1M–10M, tier 2 10.01M–20M …), the zone of that day (owner default Asia/Riyadh)

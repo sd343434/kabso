@@ -14,7 +14,8 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../generated/prisma/client.js';
-import { AuditAction } from '../common/audit/audit.service.js';
+import { csvField } from '../common/csv/csv.js';
+import { auditWaitlistViewIn } from '../modules/waitlist/waitlist-admin.js';
 
 function fail(message: string): never {
   process.stderr.write(`${message}\n`);
@@ -26,11 +27,7 @@ const USAGE = [
   '       pnpm waitlist:admin export [--locale ar|en]',
 ].join('\n');
 
-/** RFC 4180 field: quoted when it holds a comma, quote or line break; a leading = + - @ is neutralised. */
-export function csvField(value: string): string {
-  const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
-  return /[",\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
-}
+export { csvField };
 
 function option(args: readonly string[], name: string): string | undefined {
   const i = args.indexOf(name);
@@ -83,9 +80,8 @@ async function main(): Promise<void> {
 }
 
 async function audit(prisma: PrismaClient, op: 'list' | 'export', count: number): Promise<void> {
-  await prisma.auditLog.create({
-    data: { action: AuditAction.WAITLIST_VIEW, targetType: 'waitlist', metadata: { op, count, via: 'cli' } },
-  });
+  // v1.65-social (D197): the same audit row as the admin panel's waitlist page.
+  await auditWaitlistViewIn(prisma, op, count);
 }
 
 if (process.argv[1]?.endsWith('waitlist-admin.ts') || process.argv[1]?.endsWith('waitlist-admin.js')) {

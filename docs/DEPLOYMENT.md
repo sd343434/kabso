@@ -1866,6 +1866,7 @@ CONVENTIONS §10.61, CP-040.
   EU/UK Art. 27 representative), `hostingProvider` and `emailProvider` (empty → «سيُضاف قريباً»; `update.sh` warns).
   The draft banner stays until `legalReviewed` is true. Adding analytics or any cookie fails CI (`site` job) until a
   consent banner and a new policy version exist.
+
 ### 5.32 Family levels and price repriced (migration `20270113100000_family_levels_d200`; D200) — [IMPLEMENTED, draft contract v1.67-social; not deployed]
 
 CONVENTIONS §10.21 (D200 amendment). Creating a family costs **1 000 000 coins** ($12.50; was 500) and the family

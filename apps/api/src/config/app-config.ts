@@ -283,6 +283,8 @@ export interface AppConfig {
     readonly lockoutSeconds: number;
     /** IANA zone of the dashboard's «today» (default Asia/Riyadh). */
     readonly dashboardTimeZone: string;
+    /** v1.65-social (D197): the report's estimated card fees (basis points + fixed cents per order). */
+    readonly reportCardFee: { readonly bps: number; readonly fixedMinor: number };
   };
   /** v1.62-social (D193): account deletion (CONVENTIONS §10.56). */
   readonly accountDeletion: {
@@ -686,6 +688,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       lockoutAttempts: e.ADMIN_LOCKOUT_ATTEMPTS,
       lockoutSeconds: e.ADMIN_LOCKOUT_SECONDS,
       dashboardTimeZone: e.ADMIN_DASHBOARD_TIME_ZONE,
+      reportCardFee: { bps: e.ADMIN_REPORT_CARD_FEE_BPS, fixedMinor: e.ADMIN_REPORT_CARD_FEE_FIXED_MINOR },
     },
     accountDeletion: {
       graceDays: e.ACCOUNT_DELETION_GRACE_DAYS,

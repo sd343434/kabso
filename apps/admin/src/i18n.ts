@@ -2,6 +2,8 @@
  * Arabic first (RTL), English on the toggle (LTR). Every visible string of the panel is here. `t(key, vars)`
  * replaces `{name}` placeholders.
  */
+import { AR_V2, EN_V2 } from './i18n-v2';
+
 export type Lang = 'ar' | 'en';
 
 const ar = {
@@ -292,6 +294,7 @@ const ar = {
   payErrNothingToClear: 'لا توجد مفاتيح محفوظة في اللوحة.',
   payErrKeysMissing: 'لا يمكن تفعيل «شحن العملات» قبل إدخال مفاتيح Stripe في «الدفع (Stripe)».',
   payErrUnreachable: 'تعذّر الوصول إلى Stripe. لم يُحفظ شيء؛ حاول لاحقاً.',
+  ...AR_V2,
 };
 
 export type Key = keyof typeof ar;
@@ -573,6 +576,7 @@ const en: Record<Key, string> = {
   payErrNothingToClear: 'No keys are saved in the panel.',
   payErrKeysMissing: '«Buy coins» cannot be turned on before the Stripe keys are entered in «Payments (Stripe)».',
   payErrUnreachable: 'Stripe could not be reached. Nothing was saved; try again later.',
+  ...EN_V2,
 };
 
 export const DICTIONARIES: Record<Lang, Record<Key, string>> = { ar, en };

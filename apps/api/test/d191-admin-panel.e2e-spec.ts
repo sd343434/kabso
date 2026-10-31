@@ -56,6 +56,13 @@ describe('D191 contract coverage', () => {
           o.path,
         ),
       )
+      // v1.65-social (D197): the panel v2's own operations are covered by d197-admin-v2.
+      .filter(
+        (o) =>
+          !(typeof o.spec.description === 'string' ? o.spec.description : '').startsWith(
+            '(v1.65-social, D197)',
+          ),
+      )
       .map((o) => o.operationId)
       .sort();
     expect(ops).toEqual(

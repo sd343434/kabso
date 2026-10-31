@@ -62,19 +62,22 @@ import {
   type GiftArtFile,
 } from '../modules/gifts/gift-art.js';
 import {
-  addGiftIn,
   compareGifts,
   GIFT_CODE_PATTERN,
   GIFT_STOCK_MAX,
   giftFieldProblems,
+  addGiftIn,
   GiftFieldsError,
   giftQuipProblem,
   giftTagProblem,
   grantStockIn,
-  setGiftEnabledIn,
-  updateGiftIn,
   type GiftFields,
 } from '../modules/gifts/gift-catalogue.js';
+import {
+  addGiftByAdminIn,
+  setGiftEnabledByAdminIn,
+  updateGiftByAdminIn,
+} from '../modules/gifts/gift-admin-rules.js';
 import { budgetLeft, percentToBps } from '../modules/gifts/lucky-odds.js';
 import { QUIP_PACK } from '../modules/gifts/quips.js';
 
@@ -308,20 +311,8 @@ async function add(code: string, args: readonly string[]): Promise<void> {
     fail(`A gift ${code} exists already; use update.`);
   }
   Object.assign(fields, await uploadArt(code, art));
-  const added = await prisma.$transaction(async (tx) => {
-    const created = await addGiftIn(tx, code, fields);
-    if (created) {
-      await tx.auditLog.create({
-        data: {
-          action: AuditAction.GIFT_ADD,
-          targetType: 'gift',
-          targetId: code,
-          metadata: { ...fields, via: 'cli' },
-        },
-      });
-    }
-    return created;
-  });
+  // v1.65-social (D197): the audited rule is shared with the admin panel (gift-admin-rules.ts).
+  const added = await prisma.$transaction((tx) => addGiftByAdminIn(tx, code, fields));
   if (!added) fail(`A gift ${code} exists already; use update.`);
   process.stdout.write(`+${code} (${fields.category}, ${String(fields.priceCoins)} coins).\n`);
 }
@@ -333,54 +324,22 @@ async function update(code: string, args: readonly string[]): Promise<void> {
   }
   if (!(await prisma.gift.findUnique({ where: { code }, select: { code: true } }))) fail(`No gift ${code}.`);
   const fields = { ...options, ...(await uploadArt(code, art)) };
-  const changed = await prisma.$transaction(async (tx) => {
-    let result: Awaited<ReturnType<typeof updateGiftIn>>;
-    try {
-      result = await updateGiftIn(tx, code, fields);
-    } catch (err) {
-      if (err instanceof GiftFieldsError) fail(`${err.message}.\n${USAGE}`);
-      throw err;
-    }
-    if (!result) fail(`No gift ${code}.`);
-    const changes: Record<string, { from: string | number | null; to: string | number | null }> = {};
-    for (const key of Object.keys(fields) as (keyof GiftFields)[]) {
-      if (result.before[key] !== result.after[key]) {
-        changes[key] = { from: result.before[key], to: result.after[key] };
-      }
-    }
-    if (Object.keys(changes).length > 0) {
-      await tx.auditLog.create({
-        data: {
-          action: AuditAction.GIFT_UPDATE,
-          targetType: 'gift',
-          targetId: code,
-          metadata: { changes, via: 'cli' },
-        },
-      });
-    }
-    return Object.keys(changes);
-  });
+  let changed: string[] | null;
+  try {
+    changed = await prisma.$transaction((tx) => updateGiftByAdminIn(tx, code, fields));
+  } catch (err) {
+    if (err instanceof GiftFieldsError) fail(`${err.message}.\n${USAGE}`);
+    throw err;
+  }
+  if (!changed) fail(`No gift ${code}.`);
   process.stdout.write(
     changed.length > 0 ? `${code}: ${changed.join(', ')} updated.\n` : `${code}: nothing changed.\n`,
   );
 }
 
 async function setEnabled(code: string, enabled: boolean): Promise<void> {
-  const changed = await prisma.$transaction(async (tx) => {
-    const result = await setGiftEnabledIn(tx, code, enabled);
-    if (result === null) fail(`No gift ${code}.`);
-    if (result) {
-      await tx.auditLog.create({
-        data: {
-          action: enabled ? AuditAction.GIFT_ENABLE : AuditAction.GIFT_DISABLE,
-          targetType: 'gift',
-          targetId: code,
-          metadata: { via: 'cli' },
-        },
-      });
-    }
-    return result;
-  });
+  const changed = await prisma.$transaction((tx) => setGiftEnabledByAdminIn(tx, code, enabled));
+  if (changed === null) fail(`No gift ${code}.`);
   const state = enabled ? 'enabled' : 'disabled';
   process.stdout.write(changed ? `${code}: ${state}.\n` : `${code} is already ${state}; nothing changed.\n`);
 }
