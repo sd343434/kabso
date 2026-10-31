@@ -108,6 +108,10 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.consentVersionMismatch: 409,
   ErrorCode.dataExportLimit: 429,
   ErrorCode.dataExportLinkInvalid: 410,
+  // v1.72-social (D208).
+  ErrorCode.accountLocked: 403,
+  ErrorCode.accountRestricted: 403,
+  ErrorCode.passwordChangeRequired: 403,
 };
 
 DioException _badResponse(
@@ -242,6 +246,10 @@ void main() {
           'CONSENT_VERSION_MISMATCH',
           'DATA_EXPORT_LIMIT',
           'DATA_EXPORT_LINK_INVALID',
+          // v1.72-social (D208).
+          'ACCOUNT_LOCKED',
+          'ACCOUNT_RESTRICTED',
+          'PASSWORD_CHANGE_REQUIRED',
         ]),
       );
       expect(ErrorCode.networkOffline.wire, 'NETWORK_OFFLINE');

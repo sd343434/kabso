@@ -3541,5 +3541,22 @@
   "liveTargetHelp": "A host has two targets each day: cherries (the cherries their gifts bring) and lucky gifts (the coin value of lucky gifts). They start again at midnight Riyadh time. The list ranks the supporters of the chosen period: by cherries under «Cherries», by coins under «Lucky gifts».",
   "liveTargetSupport": "Support",
   "liveTargetMyPlace": "Your place {rank}: {amount}",
-  "liveTargetClose": "Close"
+  "liveTargetClose": "Close",
+  "errorAccountLocked": "Your account is locked for a while by the Kabso team.",
+  "errorAccountLockedUntil": "Your account is locked until {date}. Reason: {reason}",
+  "errorAccountRestricted": "This is switched off for your account for a while.",
+  "errorAccountRestrictedUntil": "{what} is switched off for your account until {date}.",
+  "restrictionChatMute": "Sending messages and comments",
+  "restrictionNoLive": "Going live",
+  "restrictionNoGifts": "Sending gifts",
+  "restrictionNoPosting": "Posting",
+  "errorPasswordChangeRequired": "Choose a new password to continue.",
+  "passwordChangeTitle": "New password",
+  "passwordChangeBody": "The Kabso team asked for your account’s password to be changed. Choose a new password to log in; your other sessions will end.",
+  "passwordChangeNew": "New password",
+  "passwordChangeConfirm": "Confirm the password",
+  "passwordChangeMismatch": "The passwords do not match.",
+  "passwordChangeSame": "Choose a password different from the current one.",
+  "passwordChangeTooShort": "At least 8 characters.",
+  "passwordChangeSubmit": "Save and log in"
 }

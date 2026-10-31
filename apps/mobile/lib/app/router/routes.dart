@@ -244,6 +244,9 @@ abstract final class AppRoutes {
   /// period («طلب حذف قيد التنفيذ — إلغاء الحذف؟»). Public (no session yet).
   static const deletionPending = '/auth/deletion-pending';
 
+  /// v1.72-social (D208): the team requires a new password at this sign-in.
+  static const passwordChange = '/auth/password-change';
+
   /// CP-018: another user's medals.
   static const userMedalsPattern = '/users/:username/medals';
 
@@ -320,6 +323,7 @@ abstract final class AppRoutes {
     registerCode,
     forgotPassword,
     deletionPending,
+    passwordChange,
   };
 
   /// Shell branches, in navigation order (start → end). D86 (owner): Live ·

@@ -19341,6 +19341,108 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'إغلاق'**
   String get liveTargetClose;
+
+  /// v1.72-social (D208): the team's account controls.
+  ///
+  /// In ar, this message translates to:
+  /// **'حسابك مقفل مؤقتاً من فريق Kabso.'**
+  String get errorAccountLocked;
+
+  /// v1.72-social (D208): the team's account controls.
+  ///
+  /// In ar, this message translates to:
+  /// **'حسابك مقفل مؤقتاً حتى {date}. السبب: {reason}'**
+  String errorAccountLockedUntil(String date, String reason);
+
+  /// v1.72-social (D208): the team's account controls.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذه الميزة موقوفة لحسابك مؤقتاً.'**
+  String get errorAccountRestricted;
+
+  /// v1.72-social (D208): the team's account controls.
+  ///
+  /// In ar, this message translates to:
+  /// **'{what} موقوف لحسابك حتى {date}.'**
+  String errorAccountRestrictedUntil(String what, String date);
+
+  /// v1.72-social (D208): the team's account controls.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال الرسائل والتعليقات'**
+  String get restrictionChatMute;
+
+  /// v1.72-social (D208): the team's account controls.
+  ///
+  /// In ar, this message translates to:
+  /// **'البث المباشر'**
+  String get restrictionNoLive;
+
+  /// v1.72-social (D208): the team's account controls.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال الهدايا'**
+  String get restrictionNoGifts;
+
+  /// v1.72-social (D208): the team's account controls.
+  ///
+  /// In ar, this message translates to:
+  /// **'النشر'**
+  String get restrictionNoPosting;
+
+  /// v1.72-social (D208): the team's account controls.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر كلمة مرور جديدة للمتابعة.'**
+  String get errorPasswordChangeRequired;
+
+  /// v1.72-social (D208): the team's account controls.
+  ///
+  /// In ar, this message translates to:
+  /// **'كلمة مرور جديدة'**
+  String get passwordChangeTitle;
+
+  /// v1.72-social (D208): the team's account controls.
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب فريق Kabso تغيير كلمة مرور حسابك. اختر كلمة مرور جديدة لتسجيل الدخول؛ ستنتهي جلساتك الأخرى.'**
+  String get passwordChangeBody;
+
+  /// v1.72-social (D208): the team's account controls.
+  ///
+  /// In ar, this message translates to:
+  /// **'كلمة المرور الجديدة'**
+  String get passwordChangeNew;
+
+  /// v1.72-social (D208): the team's account controls.
+  ///
+  /// In ar, this message translates to:
+  /// **'تأكيد كلمة المرور'**
+  String get passwordChangeConfirm;
+
+  /// v1.72-social (D208): the team's account controls.
+  ///
+  /// In ar, this message translates to:
+  /// **'كلمتا المرور غير متطابقتين.'**
+  String get passwordChangeMismatch;
+
+  /// v1.72-social (D208): the team's account controls.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر كلمة مرور مختلفة عن الحالية.'**
+  String get passwordChangeSame;
+
+  /// v1.72-social (D208): the team's account controls.
+  ///
+  /// In ar, this message translates to:
+  /// **'٨ أحرف على الأقل.'**
+  String get passwordChangeTooShort;
+
+  /// v1.72-social (D208): the team's account controls.
+  ///
+  /// In ar, this message translates to:
+  /// **'حفظ وتسجيل الدخول'**
+  String get passwordChangeSubmit;
 }
 
 class _AppLocalizationsDelegate

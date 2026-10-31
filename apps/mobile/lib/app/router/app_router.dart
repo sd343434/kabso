@@ -13,6 +13,7 @@ import 'package:kabso_live/features/auth/presentation/forgot_password_screen.dar
 import 'package:kabso_live/features/auth/presentation/join_screen.dart';
 import 'package:kabso_live/features/auth/presentation/login_screen.dart';
 import 'package:kabso_live/features/auth/presentation/onboarding.dart';
+import 'package:kabso_live/features/auth/presentation/password_change_screen.dart';
 import 'package:kabso_live/features/auth/presentation/register_code_screen.dart';
 import 'package:kabso_live/features/auth/presentation/register_screen.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
@@ -382,6 +383,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.deletionPending,
         builder: (_, _) => const DeletionPendingScreen(),
+      ),
+      // D208: the team reset the password — choose a new one to sign in.
+      GoRoute(
+        path: AppRoutes.passwordChange,
+        builder: (_, _) => const PasswordChangeScreen(),
       ),
       // D198: «تنزيل بياناتي» and the consent screen.
       GoRoute(
