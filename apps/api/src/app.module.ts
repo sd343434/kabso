@@ -47,6 +47,8 @@ import { CpSpaceModule } from './modules/cp-space/cp-space.module.js';
 import { HomeModule } from './modules/home/home.module.js';
 import { WaitlistModule } from './modules/waitlist/waitlist.module.js';
 import { ClockModule } from './common/time/clock.js';
+import { ConsentGuard } from './modules/privacy/consents.service.js';
+import { PrivacyModule } from './modules/privacy/privacy.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { RedisModule } from './redis/redis.module.js';
 
@@ -116,12 +118,16 @@ export class AppModule {
         PaymentSettingsModule,
         // v1.61-social (DRAFT, D192): the public website's waitlist.
         WaitlistModule,
+        // v1.66-social (DRAFT, D198): privacy — legal documents, consents (the 428 gate) and the data export.
+        PrivacyModule,
       ],
       providers: [
         { provide: APP_FILTER, useClass: AllExceptionsFilter },
         // Order matters: authentication first, then rate limiting (which may key on the user).
         { provide: APP_GUARD, useExisting: AccessTokenGuard },
         { provide: APP_GUARD, useExisting: RateLimitGuard },
+        // v1.66-social (D198): 428 CONSENT_REQUIRED after authentication (and the rate limit).
+        { provide: APP_GUARD, useExisting: ConsentGuard },
       ],
     };
   }

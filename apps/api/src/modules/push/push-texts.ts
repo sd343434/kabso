@@ -109,6 +109,9 @@ export function notificationBody(n: NotificationText, locale: PushLocale): strin
       return ar
         ? `انتهت مدة يوزرك المميز @${n.targetId ?? ''}`
         : `Your premium username @${n.targetId ?? ''} has ended`;
+    case 'DATA_EXPORT_READY':
+      // v1.66-social (D198): the push says only that it is ready (never what is inside).
+      return ar ? 'نسخة بياناتك جاهزة للتنزيل' : 'Your data is ready to download';
     default:
       return null;
   }

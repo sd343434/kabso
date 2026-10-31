@@ -279,6 +279,10 @@ class NotificationRow extends StatelessWidget {
     if (item.type == NotificationType.followRequest) {
       return AppRoutes.followRequests;
     }
+    // D198: the data export is ready → the download screen.
+    if (item.type == NotificationType.dataExportReady) {
+      return AppRoutes.dataExport;
+    }
     // D185: coins from an agent → the wallet; a cherry sale to confirm →
     // the cherry requests.
     if (item.type == NotificationType.rechargeCoinsReceived) {
@@ -391,6 +395,7 @@ class NotificationRow extends StatelessWidget {
         who,
       ),
       NotificationType.avatarRemoved => l10n.notifAvatarRemoved,
+      NotificationType.dataExportReady => l10n.notifDataExportReady,
       NotificationType.rechargeCoinsReceived => l10n.notifRechargeCoins(
         who,
         KFormat.bidiIsolate(KFormat.grouped(item.target?.coins ?? 0)),

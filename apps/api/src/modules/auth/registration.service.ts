@@ -18,6 +18,7 @@ import { AuthService, type AuthResponseDto, type RequestMeta } from './auth.serv
 import { PasswordHasher } from './password-hasher.service.js';
 import { SessionsService } from './sessions.service.js';
 import { hashesEqual } from './tokens.js';
+import { recordRegistrationConsentsIn, type RegistrationConsent } from '../privacy/legal.js';
 
 /** Constant 202 body (contract v1.2 §6). */
 export const VERIFICATION_PENDING = { status: 'verification_pending' } as const;
@@ -47,6 +48,8 @@ interface ClaimedPending {
   device_name: string | null;
   platform: string | null;
   app_version: string | null;
+  /** v1.66-social (D198): what the person accepted at sign-up (`RegisterRequest.legal`), with the time, IP and UA. */
+  legal_consent: RegistrationConsent | null;
 }
 
 class VerifyFailed extends Error {
@@ -177,6 +180,18 @@ export class RegistrationService implements OnModuleInit, OnModuleDestroy {
             appVersion: input.device?.appVersion || null,
             ip: meta.ip?.slice(0, 64) ?? null,
             userAgent: meta.userAgent,
+            ...(input.legal
+              ? {
+                  legalConsent: {
+                    age18: input.legal.ageConfirmed,
+                    terms: input.legal.termsVersion ?? null,
+                    privacy: input.legal.privacyVersion ?? null,
+                    at: now.toISOString(),
+                    ip: meta.ip?.slice(0, 64) ?? null,
+                    userAgent: meta.userAgent?.slice(0, 512) ?? null,
+                  } satisfies RegistrationConsent,
+                }
+              : {}),
             codeHash: this.codeHash(input.email, code),
             expiresAt,
           },
@@ -232,7 +247,7 @@ export class RegistrationService implements OnModuleInit, OnModuleDestroy {
         WHERE "email" = ${input.email} AND "expires_at" > ${now}
           AND "attempts" < ${MAX_CODE_ATTEMPTS} AND "total_attempts" < ${MAX_TOTAL_ATTEMPTS}
         RETURNING "id", "code_hash", "attempts", "total_attempts", "username", "display_name", "gender"::text AS "gender", "locale",
-                  "password_hash", "device_name", "platform", "app_version"`;
+                  "password_hash", "device_name", "platform", "app_version", "legal_consent"`;
       const pending = rows[0];
       if (!pending) {
         // Lazy cleanup of an expired/exhausted row for this address.
@@ -347,6 +362,8 @@ export class RegistrationService implements OnModuleInit, OnModuleDestroy {
           locale: pending.locale === 'en' ? 'en' : 'ar',
           emailVerifiedAt: now,
         });
+        // v1.66-social (D198, §10.61.2): the terms, the privacy policy and the 18+ statement accepted at sign-up.
+        if (pending.legal_consent) await recordRegistrationConsentsIn(tx, created.id, pending.legal_consent);
         const issued = await this.sessions.create(tx, created.id, this.auth.client(device, meta), now);
         return { user: created, session: issued };
       });

@@ -35,7 +35,7 @@ export interface AdminUserRowDto {
   username: string;
   displayName: string;
   email: string;
-  status: 'ACTIVE' | 'SUSPENDED' | 'DELETED';
+  status: 'ACTIVE' | 'SUSPENDED' | 'PENDING_DELETION' | 'DELETED';
   avatarUrl: string | null;
   createdAt: string;
 }
@@ -59,7 +59,7 @@ const ROW_SELECT = {
 type RowUser = {
   id: string;
   email: string;
-  status: 'ACTIVE' | 'SUSPENDED' | 'DELETED';
+  status: 'ACTIVE' | 'SUSPENDED' | 'PENDING_DELETION' | 'DELETED';
   createdAt: Date;
   profile: { username: string; displayName: string; avatarUrl: string | null } | null;
 };

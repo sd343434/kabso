@@ -11,6 +11,7 @@ import { CurrentAuth } from '../auth/current-auth.decorator.js';
 import { Public } from '../auth/public.decorator.js';
 import { ProfileEditService, type AvatarDto, type ProfileEditMeta } from './profile-edit.service.js';
 import { UsersService, type MeDto } from './users.service.js';
+import { ConsentExempt } from '../privacy/consent-exempt.decorator.js';
 
 function meta(req: AppRequest): ProfileEditMeta {
   return { ip: clientIp(req), requestId: getRequestId(req) };
@@ -26,6 +27,7 @@ export class UsersController {
   ) {}
 
   @Get('me')
+  @ConsentExempt()
   async me(@CurrentAuth() auth: AuthContext): Promise<MeDto> {
     const me = await this.users.getMe(auth.userId);
     if (!me) throw new AppException(ErrorCode.AUTH_UNAUTHENTICATED);

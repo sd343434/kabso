@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/config/app_config.dart';
 import 'package:kabso_live/core/network/auth_tokens.dart';
+import 'package:kabso_live/core/network/consent_required.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/core/network/interceptors.dart';
 import 'package:kabso_live/core/network/token_manager.dart';
@@ -95,6 +96,14 @@ final apiDioProvider = Provider<Dio>((ref) {
   dio.interceptors.insert(
     2,
     AuthInterceptor(tokens: ref.watch(tokenManagerProvider), dio: dio),
+  );
+  // D198: a 428 CONSENT_REQUIRED sends the person to the consent screen.
+  dio.interceptors.insert(
+    3,
+    ConsentRequiredInterceptor(
+      onConsentRequired: () =>
+          ref.read(consentRequiredProvider.notifier).value = true,
+    ),
   );
   ref.onDispose(dio.close);
   return dio;

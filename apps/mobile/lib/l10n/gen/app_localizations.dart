@@ -17357,6 +17357,474 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'اشحن بالبطاقة على موقع Kabso Live الرسمي'**
   String get walletTopupWebsiteHint;
+
+  /// D193 account deletion
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف الحساب'**
+  String get settingsDeleteAccount;
+
+  /// D193 account deletion
+  ///
+  /// In ar, this message translates to:
+  /// **'يُحذف نهائياً بعد 30 يوماً من الطلب'**
+  String get settingsDeleteAccountHint;
+
+  /// D193 account deletion
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف الحساب'**
+  String get deleteAccountTitle;
+
+  /// D193 account deletion
+  ///
+  /// In ar, this message translates to:
+  /// **'الخطوة {step} من {total}'**
+  String deleteAccountStep(int step, int total);
+
+  /// D193 account deletion
+  ///
+  /// In ar, this message translates to:
+  /// **'قبل أن تحذف حسابك'**
+  String get deleteAccountIntroTitle;
+
+  /// D193 account deletion
+  ///
+  /// In ar, this message translates to:
+  /// **'ما سيُحذف'**
+  String get deleteAccountWhatGoes;
+
+  /// D193 account deletion
+  ///
+  /// In ar, this message translates to:
+  /// **'ملفك الشخصي واسمك وصورتك، منشوراتك ومقاطعك وقصصك، رسائلك، من تتابعهم ومن يتابعونك، وبريدك الإلكتروني.'**
+  String get deleteAccountWhatGoesBody;
+
+  /// D193 account deletion
+  ///
+  /// In ar, this message translates to:
+  /// **'ما ستخسره'**
+  String get deleteAccountForfeit;
+
+  /// D193 account deletion
+  ///
+  /// In ar, this message translates to:
+  /// **'رصيد العملات والكرزات وما في حقيبتك ووقت اسم المستخدم المميز. لا تُسترد ولا تُحوَّل.'**
+  String get deleteAccountForfeitBody;
+
+  /// D193 account deletion
+  ///
+  /// In ar, this message translates to:
+  /// **'ما نحتفظ به'**
+  String get deleteAccountKept;
+
+  /// D193 account deletion
+  ///
+  /// In ar, this message translates to:
+  /// **'سجلات المدفوعات والهدايا التي يطلبها القانون والمحاسبة ومكافحة الاحتيال، دون أي بيانات تعرّف بك. سيرى الآخرون «مستخدم محذوف» مكان اسمك.'**
+  String get deleteAccountKeptBody;
+
+  /// D193 account deletion
+  ///
+  /// In ar, this message translates to:
+  /// **'لديك {days} يوماً لتغيير رأيك: سجّل الدخول خلالها واختر «إلغاء الحذف». بعدها يُحذف الحساب نهائياً.'**
+  String deleteAccountGrace(int days);
+
+  /// D193 account deletion
+  ///
+  /// In ar, this message translates to:
+  /// **'يجب تسوية هذا أولاً'**
+  String get deleteAccountBlockedTitle;
+
+  /// D193 account deletion
+  ///
+  /// In ar, this message translates to:
+  /// **'أنت وكيل شحن: تواصل مع الفريق لتسوية المخزون وإيقاف الوكالة.'**
+  String get deleteAccountBlockerRechargeAgent;
+
+  /// D193 account deletion
+  ///
+  /// In ar, this message translates to:
+  /// **'أنت مالك وكالة مضيفين: تواصل مع الفريق لنقل المضيفين وإيقاف الوكالة.'**
+  String get deleteAccountBlockerHostAgency;
+
+  /// D193 account deletion
+  ///
+  /// In ar, this message translates to:
+  /// **'لديك طلب سحب كرزات قيد التنفيذ: انتظر حتى يُدفع.'**
+  String get deleteAccountBlockerPendingWithdrawal;
+
+  /// D193 account deletion
+  ///
+  /// In ar, this message translates to:
+  /// **'لديك طلب بيع كرزات لوكيل شحن لم يُغلق بعد: أكمله أو ألغِه.'**
+  String get deleteAccountBlockerPendingCherrySale;
+
+  /// D193 account deletion
+  ///
+  /// In ar, this message translates to:
+  /// **'رصيدك سالب: تواصل مع الفريق لتسويته.'**
+  String get deleteAccountBlockerNegativeBalance;
+
+  /// D193 account deletion
+  ///
+  /// In ar, this message translates to:
+  /// **'هناك أمر يجب تسويته أولاً: تواصل مع الفريق.'**
+  String get deleteAccountBlockerOther;
+
+  /// D193 account deletion
+  ///
+  /// In ar, this message translates to:
+  /// **'للمساعدة راسلنا على {email}'**
+  String deleteAccountContact(String email);
+
+  /// D193 account deletion
+  ///
+  /// In ar, this message translates to:
+  /// **'أكّد أنه أنت'**
+  String get deleteAccountPasswordTitle;
+
+  /// D193 account deletion
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل كلمة مرور حسابك للمتابعة.'**
+  String get deleteAccountPasswordBody;
+
+  /// D193 account deletion
+  ///
+  /// In ar, this message translates to:
+  /// **'تأكيد أخير'**
+  String get deleteAccountConfirmTitle;
+
+  /// D193 account deletion
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب «{word}» لتأكيد حذف حسابك.'**
+  String deleteAccountConfirmBody(String word);
+
+  /// D193 account deletion
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف'**
+  String get deleteAccountConfirmWord;
+
+  /// D193 account deletion
+  ///
+  /// In ar, this message translates to:
+  /// **'كلمة التأكيد'**
+  String get deleteAccountConfirmLabel;
+
+  /// D193 account deletion
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب الكلمة كما هي.'**
+  String get deleteAccountConfirmMismatch;
+
+  /// D193 account deletion
+  ///
+  /// In ar, this message translates to:
+  /// **'احذف حسابي'**
+  String get deleteAccountSubmit;
+
+  /// D193 account deletion
+  ///
+  /// In ar, this message translates to:
+  /// **'استلمنا طلب حذف حسابك وسجّلنا خروجك من كل الأجهزة. يمكنك إلغاء الحذف بتسجيل الدخول خلال 30 يوماً.'**
+  String get deleteAccountDoneBanner;
+
+  /// D193 account deletion
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب حذف قيد التنفيذ'**
+  String get deletionPendingTitle;
+
+  /// D193 account deletion
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء الحذف؟'**
+  String get deletionPendingQuestion;
+
+  /// D193 account deletion
+  ///
+  /// In ar, this message translates to:
+  /// **'سيُحذف هذا الحساب نهائياً في {date}. ألغِ الحذف ليعود حسابك كما كان.'**
+  String deletionPendingBody(String date);
+
+  /// D193 account deletion
+  ///
+  /// In ar, this message translates to:
+  /// **'سيُحذف هذا الحساب نهائياً قريباً. ألغِ الحذف ليعود حسابك كما كان.'**
+  String get deletionPendingBodyNoDate;
+
+  /// D193 account deletion
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء الحذف'**
+  String get deletionPendingCancel;
+
+  /// D193 account deletion
+  ///
+  /// In ar, this message translates to:
+  /// **'متابعة الحذف'**
+  String get deletionPendingKeep;
+
+  /// D193 account deletion
+  ///
+  /// In ar, this message translates to:
+  /// **'أُلغي الحذف. مرحباً بعودتك.'**
+  String get deletionPendingRestored;
+
+  /// D193 account deletion
+  ///
+  /// In ar, this message translates to:
+  /// **'مستخدم محذوف'**
+  String get deletedUser;
+
+  /// D193 account deletion
+  ///
+  /// In ar, this message translates to:
+  /// **'كلمة المرور غير صحيحة.'**
+  String get errorReauthFailed;
+
+  /// D193 account deletion
+  ///
+  /// In ar, this message translates to:
+  /// **'يجب تسوية بعض الأمور قبل حذف الحساب.'**
+  String get errorAccountDeletionBlocked;
+
+  /// D193 account deletion
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا الحساب في انتظار الحذف.'**
+  String get errorAccountDeletionPending;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'بياناتك'**
+  String get privacyDataTitle;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'تنزيل بياناتي'**
+  String get dataExportTitle;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'نسخة من بياناتك بصيغة يمكنك نقلها'**
+  String get dataExportTileHint;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'نجهّز لك ملف ZIP فيه بياناتك بصيغة JSON مع ملف توضيحي بالعربية والإنجليزية: ملفك وإعداداتك، منشوراتك وريلزك وقصصك، تعليقاتك، رسائلك، متابعاتك والحظر، سجلات العملات والكرز والمستويات، الهدايا، السحوبات، طلب وكيل الشحن، موافقاتك، وسجل الأجهزة وتسجيل الدخول.'**
+  String get dataExportIntro;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنك طلب نسخة واحدة كل 24 ساعة. عندما تجهز نرسل لك إشعاراً ورسالة بريد، والتنزيل يعمل مرة واحدة خلال 7 أيام.'**
+  String get dataExportRules;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يحوي الملف كلمة مرورك ولا بيانات خاصة لأشخاص آخرين.'**
+  String get dataExportNoSecrets;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب نسخة من بياناتي'**
+  String get dataExportRequest;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'تأكيد هويتك'**
+  String get dataExportPasswordTitle;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل كلمة مرور حسابك لطلب نسخة من بياناتك.'**
+  String get dataExportPasswordBody;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'كلمة المرور'**
+  String get dataExportPasswordLabel;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'متابعة'**
+  String get dataExportContinue;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'استلمنا طلبك. سنرسل لك إشعاراً عندما تجهز بياناتك.'**
+  String get dataExportRequested;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'نجهّز بياناتك… سنرسل لك إشعاراً عندما تجهز.'**
+  String get dataExportPreparing;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'بياناتك جاهزة. التنزيل متاح مرة واحدة حتى {date}.'**
+  String dataExportReady(String date);
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'تنزيل الملف'**
+  String get dataExportDownload;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'حُفظ الملف في: {path}'**
+  String dataExportSaved(String path);
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'نزّلت هذه النسخة في {date}.'**
+  String dataExportDownloaded(String date);
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت صلاحية آخر نسخة قبل تنزيلها.'**
+  String get dataExportExpired;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تجهيز آخر نسخة. يمكنك طلب نسخة جديدة.'**
+  String get dataExportFailed;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنك طلب نسخة جديدة بعد {date}.'**
+  String dataExportNextAt(String date);
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'تحديث'**
+  String get dataExportRefresh;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'حدّثنا الشروط وسياسة الخصوصية'**
+  String get consentTitle;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'اقرأ ملخص التغييرات، ثم وافق لتتابع استخدام Kabso Live.'**
+  String get consentBody;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'شروط الاستخدام'**
+  String get consentTermsName;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'سياسة الخصوصية'**
+  String get consentPrivacyName;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'الإصدار {version} · ساري من {date}'**
+  String consentVersion(String version, String date);
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'قراءة النص الكامل'**
+  String get consentReadFull;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'أوافق وأتابع'**
+  String get consentAccept;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توافق؟ يمكنك تنزيل بياناتك أو حذف حسابك أو تسجيل الخروج.'**
+  String get consentNotNow;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'تسجيل الخروج'**
+  String get consentLogout;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'شكراً، سُجّلت موافقتك.'**
+  String get consentAccepted;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'عمري 18 عاماً أو أكثر، وأوافق على شروط الاستخدام وسياسة الخصوصية.'**
+  String get registerLegalAccept;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'أكّد عمرك ووافق على الشروط للمتابعة.'**
+  String get registerLegalRequired;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'نسخة بياناتك جاهزة للتنزيل'**
+  String get notifDataExportReady;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'راجع الشروط وسياسة الخصوصية المحدّثة ووافق عليها للمتابعة.'**
+  String get errorConsentRequired;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'صدر إصدار أحدث للتو. راجعه من جديد.'**
+  String get errorConsentVersionMismatch;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنك طلب نسخة واحدة من بياناتك كل 24 ساعة.'**
+  String get errorDataExportLimit;
+
+  /// D198 privacy
+  ///
+  /// In ar, this message translates to:
+  /// **'رابط التنزيل لم يعد صالحاً.'**
+  String get errorDataExportLinkInvalid;
 }
 
 class _AppLocalizationsDelegate

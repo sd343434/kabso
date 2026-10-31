@@ -15,6 +15,7 @@ import {
   type ProfileLinkDto,
 } from './profile-fields.js';
 import { resolveUserIdByUsername } from './special-usernames.js';
+import { usernameHash } from './account-deletion.js';
 import { isReservedUsername, isValidUsername } from './username.js';
 
 /** `Me` response (openapi `#/components/schemas/Me`). */
@@ -362,7 +363,9 @@ export class UsersService {
           ],
         },
       }),
-    ]).then(([a, p, h, s]) => [a, p, h + s] as const);
+      // v1.62-social (D193, §10.56): the regular username of a purged account, during its quarantine.
+      this.prisma.deletedUsername.count({ where: { nameHash: usernameHash(username), until: { gt: now } } }),
+    ]).then(([a, p, h, s, q]) => [a, p, h + s + q] as const);
     return accounts > 0 || pending > 0 || held > 0;
   }
 

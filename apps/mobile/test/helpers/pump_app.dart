@@ -29,6 +29,7 @@ import 'package:kabso_live/features/messages/data/dm_repository.dart';
 import 'package:kabso_live/features/notifications/data/notifications_repository.dart';
 import 'package:kabso_live/features/posts/data/media_library.dart';
 import 'package:kabso_live/features/posts/data/posts_repository.dart';
+import 'package:kabso_live/features/privacy/privacy_repository.dart';
 import 'package:kabso_live/features/recharge/data/recharge_repository.dart';
 import 'package:kabso_live/features/stories/data/stories_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -52,6 +53,7 @@ import 'fake_live_sticker_repository.dart';
 import 'fake_live_watch_repository.dart';
 import 'fake_notifications_repository.dart';
 import 'fake_posts_repository.dart';
+import 'fake_privacy_repository.dart';
 import 'fake_recharge_repository.dart';
 import 'fake_splash_video.dart';
 import 'fake_stories_repository.dart';
@@ -106,6 +108,8 @@ Future<void> pumpKabsoApp(
         sharedPreferencesProvider.overrideWithValue(preferences),
         // D185: never the network for the recharge-agent state.
         rechargeRepositoryProvider.overrideWithValue(FakeRechargeRepository()),
+        // D198: never the network for the legal documents and consents.
+        privacyRepositoryProvider.overrideWithValue(FakePrivacyRepository()),
         // D156: never the video plugin (it has no test implementation).
         splashVideoFactoryProvider.overrideWithValue(
           splashVideo ?? (_) => FakeSplashVideo(endOnPlay: true),
@@ -245,6 +249,8 @@ Future<void> pumpScreen(
         rechargeRepositoryProvider.overrideWithValue(
           rechargeRepository ?? FakeRechargeRepository(),
         ),
+        // D198: never the network for the legal documents and consents.
+        privacyRepositoryProvider.overrideWithValue(FakePrivacyRepository()),
         // D162: post and reel videos without the plugin.
         inlineVideoFactoryProvider.overrideWithValue(
           (inlineVideos ?? FakeInlineVideos()).call,
@@ -326,7 +332,7 @@ AppLocalizations l10nFor(AppLanguage language) =>
     lookupAppLocalizations(language.locale);
 
 /// D175: Register needs a gender (required at sign-up); picks [gender],
-/// scrolling to it first.
+/// scrolling to it first. D198: also ticks the 18+ / terms statement.
 Future<void> chooseGender(
   WidgetTester tester, [
   Gender gender = Gender.undisclosed,
@@ -335,4 +341,15 @@ Future<void> chooseGender(
   await tester.ensureVisible(chip);
   await tester.tap(chip);
   await tester.pump();
+  // D198: the required 18+ statement and acceptance of the terms (ticked
+  // once; the helper is the one place every sign-up test goes through).
+  final legal = find.byKey(RegisterScreen.legalCheckKey);
+  if (legal.evaluate().isNotEmpty) {
+    final box = tester.widget<Checkbox>(legal);
+    if (box.value != true) {
+      await tester.ensureVisible(legal);
+      await tester.tap(legal);
+      await tester.pump();
+    }
+  }
 }

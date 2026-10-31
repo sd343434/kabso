@@ -29,6 +29,7 @@ import {
   reconcileOrderIn,
 } from './topup-core.js';
 import { buildEvidence, findPackage, simplePdf, TOPUP_TERMS, type TopupLocale } from './topup-rules.js';
+import { recordStatementConsentIn } from '../privacy/legal.js';
 
 /** `TopupPackages` (openapi v1.59-social). */
 export interface TopupPackagesDto {
@@ -195,6 +196,13 @@ export class TopupService {
           userAgent: info.userAgent?.slice(0, 512) ?? null,
           acceptedAt: now,
         },
+      });
+      // v1.66-social (D198, §10.61.2): the same acceptance in the consent records (IP truncated there).
+      await recordStatementConsentIn(tx, userId, 'TOPUP_TERMS', t.termsVersion, {
+        ip: info.ip,
+        userAgent: info.userAgent,
+        method: 'TOPUP_WEBSITE',
+        at: now,
       });
       await tx.topupOrder.create({
         data: {

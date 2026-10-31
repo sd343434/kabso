@@ -171,6 +171,7 @@ class RegisterRequestDto {
     required this.gender,
     this.locale,
     this.device,
+    this.legal,
   });
 
   factory fromJson(Map<String, dynamic> json) =>
@@ -187,6 +188,11 @@ class RegisterRequestDto {
   /// `ar | en`
   final String? locale;
   final DeviceInfoDto? device;
+
+  /// v1.66-social (D198) `RegistrationLegal`: `{ageConfirmed: true,
+  /// termsVersion?, privacyVersion?}` — the 18+ statement and the versions
+  /// of the terms and the privacy policy shown at sign-up.
+  final Map<String, dynamic>? legal;
 
   Map<String, dynamic> toJson() => _$RegisterRequestDtoToJson(this);
 }

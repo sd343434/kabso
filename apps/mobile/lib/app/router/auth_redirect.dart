@@ -10,7 +10,9 @@ import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 /// - Signed out → only the public auth routes; the welcome screen on the
 ///   first launch, login afterwards or when the session ended with a
 ///   reason to show (D64/D65).
-/// - Signed in → never the splash or the public auth routes.
+/// - Signed in → never the splash or the public auth routes; while a new
+///   version of the terms or the privacy policy waits ([consentRequired],
+///   D198), only the consent screen, the data export and the deletion.
 /// - Debug-only routes (labelled test data, never in release builds) open in
 ///   any state, so a test build can show the design previews without a
 ///   server or a session.
@@ -20,6 +22,7 @@ String? authRedirect(
   bool allowDebugRoutes = !kReleaseMode,
   bool introDone = true,
   bool welcomeSeen = false,
+  bool consentRequired = false,
 }) {
   if (allowDebugRoutes && location.startsWith(AppRoutes.debugPrefix)) {
     return null;
@@ -40,6 +43,15 @@ String? authRedirect(
       if (reason != null || welcomeSeen) return AppRoutes.login;
       return AppRoutes.welcome;
     case Authenticated():
+      // D198: a new version of the terms or the privacy policy waits to be
+      // accepted — only the consent screen, the data export and the account
+      // deletion are reachable until then.
+      if (consentRequired) {
+        return AppRoutes.consentAllowedRoutes.contains(location)
+            ? null
+            : AppRoutes.legalConsent;
+      }
+      if (location == AppRoutes.legalConsent) return AppRoutes.home;
       return isSplash || isPublicAuth ? AppRoutes.home : null;
   }
 }

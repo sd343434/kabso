@@ -12,6 +12,8 @@ export enum RevokedReason {
   USER_REVOKED = 'USER_REVOKED',
   REFRESH_REUSE = 'REFRESH_REUSE',
   PASSWORD_RESET = 'PASSWORD_RESET',
+  /** v1.62-social (D193): the person asked for their account to be deleted (signed out everywhere). */
+  ACCOUNT_DELETION = 'ACCOUNT_DELETION',
 }
 
 export interface SessionClient {

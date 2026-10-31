@@ -80,6 +80,8 @@ export interface CherryLedgerEntryDto {
     shareBps: number;
     context: 'LIVE' | 'DM';
     sender: UserSummaryDto | null;
+    /** v1.62-social (D193): true (else absent) when the sender's account was deleted. */
+    senderDeleted?: true;
   } | null;
 }
 
@@ -227,7 +229,20 @@ export class CherriesService {
               JOIN live_gift_recipients gr ON gr.gift_id = g.id AND gr.user_id = ${me}::uuid
              WHERE g.id = ANY(${giftIds}::uuid[])`;
     const byId = new Map(gifts.map((g) => [g.id, g]));
-    const senders = await this.visibleSenders(me, [...new Set(gifts.map((g) => g.sender_id))]);
+    const senderIds = [...new Set(gifts.map((g) => g.sender_id))];
+    const senders = await this.visibleSenders(me, senderIds);
+    // v1.62-social (D193): a deleted sender shows as «مستخدم محذوف».
+    const deleted =
+      senderIds.length === 0
+        ? new Set<string>()
+        : new Set(
+            (
+              await this.prisma.user.findMany({
+                where: { id: { in: senderIds }, status: 'DELETED' },
+                select: { id: true },
+              })
+            ).map((u) => u.id),
+          );
     const last = page[page.length - 1];
     return {
       data: page.map((r) => {
@@ -247,6 +262,7 @@ export class CherriesService {
                 shareBps: g.share_bps,
                 context: g.dm ? 'DM' : 'LIVE',
                 sender: senders.get(g.sender_id) ?? null,
+                ...(deleted.has(g.sender_id) ? { senderDeleted: true as const } : {}),
               }
             : null,
         };

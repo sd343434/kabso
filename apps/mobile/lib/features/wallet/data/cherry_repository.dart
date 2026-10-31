@@ -201,6 +201,7 @@ final class CherryGift {
     required this.shareBps,
     required this.context,
     this.sender,
+    this.senderDeleted = false,
   });
 
   factory fromJson(Map<String, dynamic> json) => CherryGift(
@@ -213,6 +214,7 @@ final class CherryGift {
     sender: json['sender'] == null
         ? null
         : UserSummary.fromJson(json['sender']! as Map<String, dynamic>),
+    senderDeleted: json['senderDeleted'] == true,
   );
 
   final String giftCode;
@@ -224,6 +226,10 @@ final class CherryGift {
 
   /// Null when not active or a block stands between them.
   final UserSummary? sender;
+
+  /// v1.62-social (D193): the sender's account was deleted ([sender] is
+  /// null): shown as «مستخدم محذوف».
+  final bool senderDeleted;
 }
 
 /// `CherryLedgerEntry`: one change of the caller's cherries.

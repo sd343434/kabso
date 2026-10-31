@@ -10,6 +10,7 @@ import { MAIL_SENDER, type MailLocale, type MailSender } from '../mail/mail-send
 import { normalizeEmail, normalizeUsername } from '../users/username.js';
 import { UsersService, type MeDto } from '../users/users.service.js';
 import { AccessTokenService } from './access-token.service.js';
+import { AccountDeletionService } from './account-deletion.service.js';
 import type { DeviceInfo, LoginInput } from './auth.schemas.js';
 import { PasswordHasher } from './password-hasher.service.js';
 import {
@@ -65,6 +66,7 @@ export class AuthService {
     private readonly accessTokens: AccessTokenService,
     private readonly audit: AuditService,
     private readonly rateLimits: RateLimitService,
+    private readonly deletion: AccountDeletionService,
     @Inject(MAIL_SENDER) private readonly mail: MailSender,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
@@ -101,6 +103,26 @@ export class AuthService {
     }
     // The password was right: this was not a failed guess (contract §7: failures only).
     await this.refundAccountAttempt(limits);
+    // v1.62-social (D193, §10.56): an account in its deletion grace period — only after the right password, so
+    // the answer reveals nothing to someone guessing. `cancelDeletion: true` cancels it and signs in.
+    if (candidate.status === 'PENDING_DELETION') {
+      if (input.cancelDeletion !== true) {
+        await this.audit.record({
+          action: AuditAction.LOGIN_FAILURE,
+          actorUserId: candidate.id,
+          metadata: { identifierType, reason: 'deletion_pending' },
+          ip: meta.ip,
+          requestId: meta.requestId,
+        });
+        const purgeAfter = await this.deletion.purgeAfterOf(candidate.id);
+        throw new AppException(
+          ErrorCode.ACCOUNT_DELETION_PENDING,
+          undefined,
+          purgeAfter ? [{ field: 'purgeAfter', issue: purgeAfter.toISOString() }] : undefined,
+        );
+      }
+      await this.deletion.cancelAtSignIn(candidate.id, meta);
+    }
     if (candidate.status === 'SUSPENDED') {
       await this.audit.record({
         action: AuditAction.LOGIN_FAILURE,
@@ -236,7 +258,8 @@ export class AuthService {
   async forgotPassword(email: string, meta: RequestMeta): Promise<void> {
     try {
       const user = await this.users.findMailRecipient({ email });
-      if (!user || user.status !== 'ACTIVE') return;
+      // v1.62-social (D193): a person in their deletion grace period may reset a forgotten password (to cancel).
+      if (!user || (user.status !== 'ACTIVE' && user.status !== 'PENDING_DELETION')) return;
       const token = await this.verificationTokens.issue(
         this.prisma,
         user.id,

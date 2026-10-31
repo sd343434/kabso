@@ -247,6 +247,33 @@ enum ErrorCode {
   /// colour (only a host without a stated gender picks it).
   hostFrameStyleFromGender('HOST_FRAME_STYLE_FROM_GENDER'),
 
+  /// v1.62-social (D193, §10.56, 403): the password given to confirm the
+  /// account deletion is not the account's.
+  reauthFailed('REAUTH_FAILED'),
+
+  /// v1.62-social (D193, 409): something must be settled before the account
+  /// can be deleted (`details[].issue` names each blocker).
+  accountDeletionBlocked('ACCOUNT_DELETION_BLOCKED'),
+
+  /// v1.62-social (D193, 409): sign-in to an account in its deletion grace
+  /// period (`details` `purgeAfter`); the app offers to cancel. Also the
+  /// reason a session ends after the person asked for deletion.
+  accountDeletionPending('ACCOUNT_DELETION_PENDING'),
+
+  /// v1.66-social (D198, §10.61.2, 428): a new version of the terms or the
+  /// privacy policy waits to be accepted; the app shows the consent screen.
+  consentRequired('CONSENT_REQUIRED'),
+
+  /// v1.66-social (D198, 409): the accepted version is no longer the one in
+  /// force (a newer one was published while the screen was open).
+  consentVersionMismatch('CONSENT_VERSION_MISMATCH'),
+
+  /// v1.66-social (D198, 429): one data export per 24 hours.
+  dataExportLimit('DATA_EXPORT_LIMIT'),
+
+  /// v1.66-social (D198, 410): the download link is used, wrong or expired.
+  dataExportLinkInvalid('DATA_EXPORT_LINK_INVALID'),
+
   /// Client-only: no connection could be established.
   networkOffline('NETWORK_OFFLINE'),
 

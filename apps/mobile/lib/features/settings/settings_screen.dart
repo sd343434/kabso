@@ -66,6 +66,7 @@ class SettingsScreen extends ConsumerWidget {
   static const baseUsernameKey = Key('settings.username.base');
   static const premiumKey = Key('settings.premium');
   static const soundEffectsKey = Key('settings.soundEffects');
+  static const deleteAccountKey = Key('settings.deleteAccount');
 
   static String _username(WidgetRef ref) =>
       ref.watch(currentUserProvider.select((u) => u?.username)) ?? '';
@@ -272,6 +273,18 @@ class SettingsScreen extends ConsumerWidget {
             leading: const Icon(Icons.military_tech_outlined),
             title: Text(l10n.levelsTitle),
             onTap: () => GoRouter.maybeOf(context)?.push(AppRoutes.levels),
+          ),
+          // D193: «حذف الحساب» (Apple 5.1.1(v), Google Play).
+          ListTile(
+            key: deleteAccountKey,
+            leading: Icon(
+              Icons.delete_forever_outlined,
+              color: context.palette.error,
+            ),
+            title: Text(l10n.settingsDeleteAccount),
+            subtitle: Text(l10n.settingsDeleteAccountHint),
+            onTap: () =>
+                GoRouter.maybeOf(context)?.push(AppRoutes.deleteAccount),
           ),
           ListTile(
             key: logoutKey,

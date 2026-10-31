@@ -41,7 +41,10 @@
     "username:admin": "tsx src/cli/username-admin.ts",
     "payments:admin": "tsx src/cli/payments-admin.ts",
     "admin:admin": "tsx src/cli/admin-admin.ts",
-    "waitlist:admin": "tsx src/cli/waitlist-admin.ts"
+    "waitlist:admin": "tsx src/cli/waitlist-admin.ts",
+    "account:admin": "tsx src/cli/account-admin.ts",
+    "legal:admin": "tsx src/cli/legal-admin.ts",
+    "privacy:admin": "tsx src/cli/privacy-admin.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1146.0",

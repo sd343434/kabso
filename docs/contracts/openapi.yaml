@@ -373,6 +373,30 @@ info:
     `ADMIN_TOTP_KEY`; they override `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET`, which stay the fallback (no
     restart). `updateAdminSiteSettings` refuses to turn `topupEnabled` on without keys (409). Additive (CONVENTIONS
     §10.53.1).
+    **D193 (DRAFT v1.62-social, CP-036)**: in-app account deletion «حذف الحساب» (Apple 5.1.1(v), Google Play):
+    `getAccountDeletionInfo` (`GET /me/account-deletion`, `AccountDeletionInfo`: the grace period, what must be
+    settled first, the support address) and `requestAccountDeletion` (`POST /me/account-deletion`,
+    `AccountDeletionRequestBody` — the password re-checked and the confirmation word «حذف» / `DELETE` — 202
+    `AccountDeletionRequest`). The account is hidden from everyone at once and signed out everywhere; for 30 days
+    (`ACCOUNT_DELETION_GRACE_DAYS`) `login` with the right password answers 409 `ACCOUNT_DELETION_PENDING` (detail
+    `purgeAfter`) and `login` with `cancelDeletion: true` cancels it and signs in; then the account becomes a
+    tombstone (personal data and content deleted, the financial and audit rows kept without personal data; others
+    see «مستخدم محذوف»). Codes `REAUTH_FAILED` (403), `ACCOUNT_DELETION_BLOCKED` (409, `details[].issue`
+    `recharge_agent`, `host_agency`, `pending_withdrawal`, `pending_cherry_sale`, `negative_balance`),
+    `ACCOUNT_DELETION_PENDING` (409) (CONVENTIONS §10.56).
+    **D198 (DRAFT v1.66-social, CP-040)**: privacy compliance for a GLOBAL app (GDPR, UK GDPR, CCPA/CPRA, LGPD, UAE
+    and Saudi PDPL). Tag `privacy`: versioned legal documents — `getLegalDocuments` (`GET /legal/documents`, public:
+    the terms and privacy policy in force, version, effective date, content hash, summary of changes) published only
+    by `legal-admin publish` — and consents: `getMyConsents` / `acceptConsents` (`/me/consents`);
+    `RegisterRequest.legal` records the 18+ statement and the versions accepted at sign-up. Once a new version is in
+    force, every signed-in route except accepting it, `logout`, the sessions, `getMe`, removing the push token,
+    account deletion and the data export answers **428 `CONSENT_REQUIRED`** (`details[]`: `{field: terms|privacy,
+    issue: <version>}`) until the person accepts. The data export «تنزيل بياناتي» (GDPR Art. 15/20, CCPA right to
+    know): `listMyDataExports`, `requestDataExport` (password again; one per 24 hours → 429 `DATA_EXPORT_LIMIT` with
+    `Retry-After`), `createDataExportLink` and `downloadDataExport` (the ZIP, once, within 7 days, bearer token + the
+    single-use token → 410 `DATA_EXPORT_LINK_INVALID`); `NotificationType.DATA_EXPORT_READY`. Codes
+    `CONSENT_REQUIRED` (428), `CONSENT_VERSION_MISMATCH` (409), `DATA_EXPORT_LIMIT` (429), `DATA_EXPORT_LINK_INVALID`
+    (410). Additive except the 428 gate, which applies only after the owner publishes a version (CONVENTIONS §10.61).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -385,6 +409,8 @@ tags:
     description: "Management of the caller's device sessions."
   - name: me
     description: "The authenticated user."
+  - name: privacy
+    description: "Legal documents in force, consents (the 428 gate) and the personal-data export «تنزيل بياناتي» (v1.66-social DRAFT, D198)."
   - name: users
     description: "Public user lookups, public profiles and follow."
   - name: live
@@ -569,6 +595,10 @@ paths:
         `identifier` is an email or a username (any case). v1.54-social (D185, §10.48.1): a username is the one
         shown now or, while a special username is active, the person's own (base) username; a special username
         that ended (in its grace period) no longer signs in.
+        v1.62-social (D193, §10.56): an account in its deletion grace period answers — only after the right
+        password — 409 `ACCOUNT_DELETION_PENDING` with `details: [{field: purgeAfter, issue: <ISO time>}]`; the
+        same request with `cancelDeletion: true` cancels the deletion (the account is back as it was, a notice is
+        mailed) and signs in (200).
       security: []
       requestBody:
         required: true
@@ -584,6 +614,7 @@ paths:
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
   /api/v1/auth/refresh:
@@ -1190,6 +1221,203 @@ paths:
       responses:
         '204': { description: Removed (or there was none). }
         '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/me/account-deletion:
+    get:
+      tags: [me]
+      operationId: getAccountDeletionInfo
+      summary: "What deleting the account involves for the caller now (v1.62-social, D193)"
+      description: |
+        CONVENTIONS §10.56. The explanation screen's data: the grace period in days, what must be settled before
+        the account can be deleted (`blockers`, empty when nothing) and the support address.
+      responses:
+        '200':
+          description: The caller's deletion information.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccountDeletionInfo' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [me]
+      operationId: requestAccountDeletion
+      summary: "Ask for the caller's account to be deleted (re-authenticated; 30-day grace) (v1.62-social, D193)"
+      description: |
+        CONVENTIONS §10.56. Order after auth and the rate limit (5 / 15 minutes / user, replacing the default):
+        400 body (`confirmation` must be «حذف» or `DELETE`, case and surrounding spaces ignored) → 403
+        `REAUTH_FAILED` (the password is not the account's; audited) → 409 `ACCOUNT_DELETION_BLOCKED` (one
+        `details` entry `{field: account, issue}` per thing to settle first: `recharge_agent`, `host_agency`,
+        `pending_withdrawal`, `pending_cherry_sale`, `negative_balance`; audited) → 202. The account is hidden from
+        everyone at once (like a deactivated one: search, profile, lists, live rooms), every session including
+        this one is revoked with its push token, and a notice is mailed. Signing in again within the grace period
+        may cancel it (`login`, `cancelDeletion`). After it the account is deleted for good. Idempotent: a retry
+        for an account already pending returns the same request.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AccountDeletionRequestBody' }
+      responses:
+        '202':
+          description: The deletion is scheduled; the caller is signed out.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccountDeletionRequest' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/legal/documents:
+    get:
+      tags: [privacy]
+      operationId: getLegalDocuments
+      summary: "The terms and the privacy policy in force (public; v1.66-social, D198)"
+      description: |
+        CONVENTIONS §10.61.2. One entry per kind that has a version in force (the latest published one whose
+        `effectiveAt` has passed); empty before the owner publishes any. The sign-up screen sends the versions it
+        showed in `RegisterRequest.legal`. `Cache-Control: public, max-age=60`. Rate limit: the public per-IP default.
+      security: []
+      responses:
+        '200':
+          description: The documents in force.
+          headers:
+            Cache-Control: { schema: { type: string, example: 'public, max-age=60' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LegalDocumentList' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/me/consents:
+    get:
+      tags: [privacy]
+      operationId: getMyConsents
+      summary: "What the caller must accept now, the versions in force and the caller's acceptances (v1.66-social, D198)"
+      description: |
+        CONVENTIONS §10.61.2. Works while consent is required (428 never applies here). `required` empty = nothing to
+        accept. The app reads it after sign-in and after any 428 `CONSENT_REQUIRED` to show the consent screen.
+      responses:
+        '200':
+          description: The consent status.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConsentStatus' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [privacy]
+      operationId: acceptConsents
+      summary: "Accept the versions in force of the terms and/or the privacy policy (v1.66-social, D198)"
+      description: |
+        CONVENTIONS §10.61.2. Each named version must be the one in force — 409 `CONSENT_VERSION_MISMATCH`
+        (`details: [{field: terms|privacy, issue: <the version in force or none>}]`) when a newer one took effect
+        while the screen was open. Records (user, document, version, time, IP truncated to /24 or /48, user agent,
+        method `IN_APP`); idempotent; audited `privacy.consent.accept`. Answers the new status.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AcceptConsentsRequest' }
+      responses:
+        '200':
+          description: Recorded.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConsentStatus' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/me/data-exports:
+    get:
+      tags: [privacy]
+      operationId: listMyDataExports
+      summary: "The caller's latest data exports «تنزيل بياناتي» (v1.66-social, D198)"
+      description: CONVENTIONS §10.61.1. The 10 latest jobs and when the next one may be asked for.
+      responses:
+        '200':
+          description: The caller's exports.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataExportList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [privacy]
+      operationId: requestDataExport
+      summary: "Ask for a copy of the caller's data (re-authenticated; one per 24 hours) (v1.66-social, D198)"
+      description: |
+        CONVENTIONS §10.61.1. Order after auth and the rate limit (5 / 15 minutes / user, replacing the default): 400
+        body → 403 `REAUTH_FAILED` (wrong password; audited) → 429 `DATA_EXPORT_LIMIT` (one export per 24 hours,
+        FAILED jobs not counted; `Retry-After` and `details: [{field: nextAllowedAt, issue: <ISO time>}]`; audited) →
+        202 with the PENDING job. The ZIP (JSON + README in Arabic and English) is built after the response; when it is
+        ready the caller gets a `DATA_EXPORT_READY` notification and an email (no link in it). Audited.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DataExportRequestBody' }
+      responses:
+        '202':
+          description: The export is being prepared.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataExport' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/me/data-exports/{exportId}/link:
+    post:
+      tags: [privacy]
+      operationId: createDataExportLink
+      summary: "A single-use download link for a READY export of the caller (v1.66-social, D198)"
+      description: |
+        CONVENTIONS §10.61.1. Mints a new single-use token (the previous one stops working); the link works until the
+        export's `expiresAt` (7 days after it was ready) and only with the caller's bearer token. 410
+        `DATA_EXPORT_LINK_INVALID` when the export is not the caller's, not READY, already downloaded or expired.
+      parameters:
+        - { name: exportId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: The link.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataExportLink' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '410': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/me/data-exports/{exportId}/file:
+    get:
+      tags: [privacy]
+      operationId: downloadDataExport
+      summary: "Download the export ZIP — once (v1.66-social, D198)"
+      description: |
+        CONVENTIONS §10.61.1. Needs the bearer token of the export's owner AND the single-use `token` from
+        `createDataExportLink`. The token is consumed before the bytes are read: a second request (even a racing one)
+        gets 410 `DATA_EXPORT_LINK_INVALID`, as does a wrong token, another person's export or an expired link
+        (audited `privacy.export.download_refused`). `Cache-Control: no-store`. Audited `privacy.export.downloaded`.
+      parameters:
+        - { name: exportId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: token, in: query, required: true, schema: { type: string, pattern: '^[A-Za-z0-9_-]{43}$' } }
+      responses:
+        '200':
+          description: The ZIP archive.
+          headers:
+            Content-Disposition: { schema: { type: string, example: 'attachment; filename="kabso-data-2026-11-01.zip"' } }
+            Cache-Control: { schema: { type: string, example: no-store } }
+          content:
+            application/zip:
+              schema: { type: string, format: binary }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '410': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
   /api/v1/users/username-availability:
@@ -9259,6 +9487,127 @@ components:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorEnvelope' }
   schemas:
+    # ---- v1.66-social (DRAFT, D198, CONVENTIONS §10.61): privacy ---------------------------------------------------
+    LegalDocumentKind:
+      type: string
+      enum: [TERMS, PRIVACY]
+    LegalVersion:
+      type: string
+      pattern: '^[0-9A-Za-z][0-9A-Za-z._-]{0,31}$'
+      description: A published version label (e.g. `2026-11-01`).
+    LegalDocument:
+      type: object
+      description: v1.66-social (D198). One published version of the terms or the privacy policy.
+      required: [kind, version, effectiveAt, url, contentHash, summaryAr, summaryEn]
+      additionalProperties: false
+      properties:
+        kind: { $ref: '#/components/schemas/LegalDocumentKind' }
+        version: { $ref: '#/components/schemas/LegalVersion' }
+        effectiveAt: { type: string, format: date-time }
+        url: { type: string, format: uri, description: The public page (kabsolive.com). }
+        contentHash: { type: string, pattern: '^[0-9a-f]{64}$', description: SHA-256 of the published page. }
+        summaryAr: { type: string, maxLength: 2000, description: 'What changed (Arabic), for the consent screen.' }
+        summaryEn: { type: string, maxLength: 2000 }
+    LegalDocumentList:
+      type: object
+      required: [documents]
+      additionalProperties: false
+      properties:
+        documents: { type: array, maxItems: 2, items: { $ref: '#/components/schemas/LegalDocument' } }
+    ConsentRecord:
+      type: object
+      required: [document, version, acceptedAt, method]
+      additionalProperties: false
+      properties:
+        document: { type: string, enum: [TERMS, PRIVACY, AGE_18, TOPUP_TERMS] }
+        version: { type: string, maxLength: 32 }
+        acceptedAt: { type: string, format: date-time }
+        method: { type: string, enum: [REGISTRATION, IN_APP, TOPUP_WEBSITE, LUCKY_GIFT] }
+    ConsentStatus:
+      type: object
+      description: v1.66-social (D198).
+      required: [required, current, accepted]
+      additionalProperties: false
+      properties:
+        required:
+          type: array
+          maxItems: 2
+          description: The versions in force the caller has not accepted (empty = nothing to do).
+          items: { $ref: '#/components/schemas/LegalDocument' }
+        current: { type: array, maxItems: 2, items: { $ref: '#/components/schemas/LegalDocument' } }
+        accepted:
+          type: array
+          maxItems: 50
+          description: The caller's latest acceptances, newest first.
+          items: { $ref: '#/components/schemas/ConsentRecord' }
+    AcceptConsentsRequest:
+      type: object
+      required: [accept]
+      additionalProperties: false
+      properties:
+        accept:
+          type: array
+          minItems: 1
+          maxItems: 2
+          description: Each kind at most once.
+          items:
+            type: object
+            required: [kind, version]
+            additionalProperties: false
+            properties:
+              kind: { $ref: '#/components/schemas/LegalDocumentKind' }
+              version: { $ref: '#/components/schemas/LegalVersion' }
+    RegistrationLegal:
+      type: object
+      description: |
+        v1.66-social (D198): the sign-up's «عمري 18 عاماً أو أكثر وأوافق على الشروط وسياسة الخصوصية». The versions shown
+        (from `getLegalDocuments`); omitted when none is published. Recorded at `register/verify`.
+      required: [ageConfirmed]
+      additionalProperties: false
+      properties:
+        ageConfirmed: { type: boolean, enum: [true] }
+        termsVersion: { $ref: '#/components/schemas/LegalVersion' }
+        privacyVersion: { $ref: '#/components/schemas/LegalVersion' }
+    DataExportRequestBody:
+      type: object
+      required: [password]
+      additionalProperties: false
+      properties:
+        password: { type: string, minLength: 1, maxLength: 128, description: The account's current password. }
+    DataExport:
+      type: object
+      description: |
+        v1.66-social (D198). PENDING (being prepared) → READY (downloadable once until `expiresAt`) → DOWNLOADED or
+        EXPIRED; FAILED after three failed builds (does not count towards the 24-hour limit).
+      required: [id, status, requestedAt, readyAt, expiresAt, downloadedAt, sizeBytes]
+      additionalProperties: false
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [PENDING, READY, DOWNLOADED, EXPIRED, FAILED] }
+        requestedAt: { type: string, format: date-time }
+        readyAt: { type: [string, 'null'], format: date-time }
+        expiresAt: { type: [string, 'null'], format: date-time, description: READY only. }
+        downloadedAt: { type: [string, 'null'], format: date-time }
+        sizeBytes: { type: [integer, 'null'], minimum: 0 }
+    DataExportList:
+      type: object
+      required: [items, nextAllowedAt]
+      additionalProperties: false
+      properties:
+        items: { type: array, maxItems: 10, items: { $ref: '#/components/schemas/DataExport' } }
+        nextAllowedAt:
+          type: [string, 'null']
+          format: date-time
+          description: When the next export may be asked for (null = now).
+    DataExportLink:
+      type: object
+      required: [path, expiresAt]
+      additionalProperties: false
+      properties:
+        path:
+          type: string
+          description: '`/api/v1/me/data-exports/{id}/file?token=…` on the API origin; works once, with the bearer token.'
+        expiresAt: { type: string, format: date-time }
     # ---- v1.60-social (DRAFT, D191, CONVENTIONS §10.54): the admin panel ------------------------------------------
     AdminPanelRole:
       type: string
@@ -9377,7 +9726,7 @@ components:
         username: { type: string, description: The username shown now. }
         displayName: { type: string }
         email: { type: string }
-        status: { type: string, enum: [ACTIVE, SUSPENDED, DELETED] }
+        status: { type: string, enum: [ACTIVE, SUSPENDED, PENDING_DELETION, DELETED], description: 'PENDING_DELETION (v1.62-social, D193): in its 30-day deletion grace period.' }
         avatarUrl: { type: [string, 'null'] }
         createdAt: { type: string, format: date-time }
     AdminUserList:
@@ -9406,7 +9755,7 @@ components:
             username: { type: string }
             displayName: { type: string }
             email: { type: string }
-            status: { type: string, enum: [ACTIVE, SUSPENDED, DELETED] }
+            status: { type: string, enum: [ACTIVE, SUSPENDED, PENDING_DELETION, DELETED] }
             avatarUrl: { type: [string, 'null'] }
             createdAt: { type: string, format: date-time }
             role: { type: string, enum: [USER, ADMIN] }
@@ -10029,6 +10378,7 @@ components:
           description: v1.47-social (D175). Required (owner); kept private unless the user shows it later.
         locale: { $ref: '#/components/schemas/Locale' }
         device: { $ref: '#/components/schemas/DeviceInfo' }
+        legal: { $ref: '#/components/schemas/RegistrationLegal' }
     DisplayName:
       type: string
       minLength: 1
@@ -10067,6 +10417,56 @@ components:
           description: Email address or username.
         password: { type: string, minLength: 1, maxLength: 128 }
         device: { $ref: '#/components/schemas/DeviceInfo' }
+        cancelDeletion:
+          type: boolean
+          description: |
+            v1.62-social (D193): `true` cancels a pending account deletion and signs in; without it an account in
+            its deletion grace period answers 409 `ACCOUNT_DELETION_PENDING`. Ignored for other accounts.
+    AccountDeletionInfo:
+      type: object
+      description: v1.62-social (D193, CONVENTIONS §10.56).
+      required: [graceDays, blockers, supportEmail]
+      additionalProperties: false
+      properties:
+        graceDays: { type: integer, minimum: 1, description: Days during which signing in may cancel the deletion. }
+        blockers:
+          type: array
+          description: What must be settled before the account can be deleted (empty when nothing), in this order.
+          items: { $ref: '#/components/schemas/AccountDeletionBlocker' }
+        supportEmail: { type: string, description: 'Where to write for help, or to ask for deletion without the app.' }
+    AccountDeletionBlocker:
+      type: string
+      description: |
+        v1.62-social (D193): `recharge_agent` (a recharge agent who is not suspended or still has stock),
+        `host_agency` (the owner of a host agency the team has not suspended, or that still has hosts),
+        `pending_withdrawal` (a cherry withdrawal waiting to be paid), `pending_cherry_sale` (a cherry sale to a
+        recharge agent still open), `negative_balance` (a negative coin or cherry balance). The same values are the
+        `details[].issue` of 409 `ACCOUNT_DELETION_BLOCKED`.
+      enum: [recharge_agent, host_agency, pending_withdrawal, pending_cherry_sale, negative_balance]
+    AccountDeletionRequestBody:
+      type: object
+      description: v1.62-social (D193).
+      required: [password, confirmation]
+      additionalProperties: false
+      properties:
+        password: { type: string, minLength: 1, maxLength: 128, description: The account's current password. }
+        confirmation:
+          type: string
+          minLength: 1
+          maxLength: 20
+          description: The word the person typed to confirm — «حذف» or `DELETE` (case and surrounding spaces ignored).
+    AccountDeletionRequest:
+      type: object
+      description: v1.62-social (D193).
+      required: [status, requestedAt, purgeAfter]
+      additionalProperties: false
+      properties:
+        status: { type: string, enum: [PENDING] }
+        requestedAt: { type: string, format: date-time }
+        purgeAfter:
+          type: string
+          format: date-time
+          description: When the account will be deleted for good unless the person signs in and cancels.
     TokenPair:
       type: object
       required: [accessToken, accessTokenExpiresAt, refreshToken, refreshTokenExpiresAt]
@@ -12193,8 +12593,8 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     NotificationType:
       type: string
-      description: "`LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). (v1.60-social, D191) `MODERATION_WARNING` (system: a moderator warned you about content that breaks the rules; target POST when the warning is about a post, else none). Clients ignore values they do not know."
-      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST, MODERATION_WARNING]
+      description: "`LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). (v1.60-social, D191) `MODERATION_WARNING` (system: a moderator warned you about content that breaks the rules; target POST when the warning is about a post, else none). (v1.66-social, D198) `DATA_EXPORT_READY` (system, no target: the data export «تنزيل بياناتي» is ready; the app opens Settings › Privacy). Clients ignore values they do not know."
+      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST, MODERATION_WARNING, DATA_EXPORT_READY]
     NotificationTarget:
       type: object
       required: [type, id, postId, thumbUrl, text]
@@ -14034,6 +14434,11 @@ components:
             - $ref: '#/components/schemas/UserSummary'
             - type: 'null'
           description: Null when the sender's account is not active or a block stands between them.
+        senderDeleted:
+          type: boolean
+          description: |
+            v1.62-social (D193): present (true) only when the sender's account was deleted (`sender` is null); the
+            app shows «مستخدم محذوف» / "Deleted user" instead of an unavailable account.
     EarningPage:
       type: object
       required: [data, page]
@@ -14542,6 +14947,11 @@ components:
                   oneOf:
                     - $ref: '#/components/schemas/UserSummary'
                     - type: 'null'
+                senderDeleted:
+                  type: boolean
+                  description: |
+                    v1.62-social (D193): present (true) only when the sender's account was deleted (`sender` is
+                    null); the app shows «مستخدم محذوف» / "Deleted user".
             - type: 'null'
           description: The gift of a `GIFT_RECEIVED` / `GIFT_REVERSAL` row (null for other rows, or a send no longer stored).
     CherryLedgerPage:

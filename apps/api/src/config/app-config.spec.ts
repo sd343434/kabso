@@ -676,6 +676,30 @@ describe('loadConfig — v1.5-social media and posts (CONVENTIONS §11)', () => 
     );
   });
 
+  it('D193: account deletion — 30-day grace, 90-day quarantine and legal hold, ledgers kept 7 years', () => {
+    expect(loadConfig(base).accountDeletion).toEqual({
+      graceDays: 30,
+      usernameQuarantineDays: 90,
+      supportEmail: 'info@kabsolive.com',
+      sweepIntervalSeconds: 3600,
+      legalHoldDays: 90,
+      ledgerRetentionDays: 2557,
+    });
+    const tuned = loadConfig({
+      ...base,
+      REPORT_LEGAL_HOLD_DAYS: '180',
+      DELETED_LEDGER_RETENTION_DAYS: '3653',
+    });
+    expect(tuned.accountDeletion).toMatchObject({ legalHoldDays: 180, ledgerRetentionDays: 3653 });
+    for (const [key, bad] of [
+      ['REPORT_LEGAL_HOLD_DAYS', '0'],
+      ['DELETED_LEDGER_RETENTION_DAYS', '0'],
+      ['DELETED_LEDGER_RETENTION_DAYS', 'seven years'],
+    ] as const) {
+      expect(() => loadConfig({ ...base, [key]: bad }), key).toThrow(new RegExp(key));
+    }
+  });
+
   it('D155: direct messages live 24 h; the sweeper runs by default and cannot be off in production', () => {
     expect(loadConfig(base).dm).toEqual({
       retentionHours: 24,

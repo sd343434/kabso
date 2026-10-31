@@ -21,6 +21,7 @@ abstract interface class AuthRepository {
     required String displayName,
     required Gender gender,
     required String locale,
+    Map<String, dynamic>? legal,
   });
 
   /// `POST /auth/register/verify` → 201: creates the account and stores the

@@ -1,3 +1,4 @@
+import { LEGAL_VERSION } from '../privacy/legal.js';
 import { z } from 'zod';
 import { isCountryCode } from '../users/country.js';
 import { regularUsernameIssue } from '../premium-usernames/premium-username-rules.js';
@@ -96,6 +97,18 @@ export const registerSchema = z.strictObject({
   gender: z.string().pipe(z.enum(GENDERS)),
   locale: localeSchema.optional(),
   device: deviceInfoSchema.optional(),
+  /**
+   * v1.66-social (D198, §10.61.2): the sign-up's «عمري 18 عاماً أو أكثر وأوافق على الشروط وسياسة الخصوصية» — the 18+
+   * statement and the versions of the terms and the privacy policy shown (from `getLegalDocuments`). Optional for
+   * older clients: without it nothing is recorded and the consent screen asks after sign-in.
+   */
+  legal: z
+    .strictObject({
+      ageConfirmed: z.literal(true),
+      termsVersion: z.string().regex(LEGAL_VERSION).optional(),
+      privacyVersion: z.string().regex(LEGAL_VERSION).optional(),
+    })
+    .optional(),
 });
 export type RegisterInput = z.output<typeof registerSchema>;
 
@@ -110,6 +123,11 @@ export const loginSchema = z.strictObject({
     .transform(normalizePassword)
     .refine((v) => [...v].length <= 128, { params: { issue: 'too_long' } }),
   device: deviceInfoSchema.optional(),
+  /**
+   * v1.62-social (D193, §10.56): `true` cancels a pending account deletion and signs in (otherwise signing in to an
+   * account in its grace period answers 409 ACCOUNT_DELETION_PENDING). Ignored for any other account.
+   */
+  cancelDeletion: z.boolean().optional(),
 });
 export type LoginInput = z.output<typeof loginSchema>;
 

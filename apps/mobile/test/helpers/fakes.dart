@@ -103,6 +103,9 @@ class FakeAuthRepository implements AuthRepository {
     return me;
   }
 
+  /// D198: the `legal` block of each register call.
+  final List<Map<String, dynamic>?> registerLegal = [];
+
   @override
   Future<void> register({
     required String email,
@@ -111,9 +114,11 @@ class FakeAuthRepository implements AuthRepository {
     required String displayName,
     required Gender gender,
     required String locale,
+    Map<String, dynamic>? legal,
   }) async {
     registerCalls++;
     registerLocales.add(locale);
+    registerLegal.add(legal);
     registerGenders.add(gender);
     final failure = registerFailure;
     if (failure != null) throw failure;

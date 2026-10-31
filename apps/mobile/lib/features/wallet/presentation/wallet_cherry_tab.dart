@@ -479,7 +479,9 @@ class _CherryTile extends StatelessWidget {
     final from = gift == null
         ? null
         : sender == null
-        ? l10n.earnFromHidden
+        ? (gift.senderDeleted
+              ? l10n.earnFrom(l10n.deletedUser)
+              : l10n.earnFromHidden)
         : l10n.earnFrom(
             KFormat.bidiIsolate(
               sender.displayName.isEmpty ? sender.username : sender.displayName,

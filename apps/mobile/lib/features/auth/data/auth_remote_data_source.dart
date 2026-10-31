@@ -12,10 +12,16 @@ class AuthRemoteDataSource {
 
   final Dio _dio;
 
-  Future<AuthResponseDto> login(LoginRequestDto body) => _guard(() async {
+  /// v1.62-social (D193): [cancelDeletion] cancels a pending account
+  /// deletion and signs in (otherwise such an account answers 409
+  /// `ACCOUNT_DELETION_PENDING`).
+  Future<AuthResponseDto> login(
+    LoginRequestDto body, {
+    bool cancelDeletion = false,
+  }) => _guard(() async {
     final res = await _dio.post<Map<String, dynamic>>(
       '/auth/login',
-      data: body.toJson(),
+      data: {...body.toJson(), if (cancelDeletion) 'cancelDeletion': true},
       options: publicEndpoint(),
     );
     return AuthResponseDto.fromJson(res.data!);

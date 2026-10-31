@@ -143,6 +143,15 @@ class SessionController extends Notifier<AuthState> {
     }
   }
 
+  /// v1.62-social (D193): the person asked for their account to be deleted;
+  /// the server already revoked every session and push token, so the local
+  /// session is only cleared. Login explains what happened and how to cancel.
+  Future<void> deletionRequested() async {
+    await ref.read(tokenManagerProvider).clear();
+    if (!ref.mounted) return;
+    state = const Unauthenticated(reason: ErrorCode.accountDeletionPending);
+  }
+
   Future<void> logout() async {
     final current = state;
     if (kDemoAvailable &&

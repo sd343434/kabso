@@ -414,6 +414,19 @@ jobs:
           REDOCLY_SUPPRESS_UPDATE_NOTICE: "true"
         run: tools/redocly/node_modules/.bin/redocly lint docs/contracts/openapi.yaml --format=github-actions
 
+  # D198: kabsolive.com has no tracking cookies or analytics, so it needs no consent banner. Adding analytics, a pixel
+  # or any cookie requires a consent banner and a new privacy-policy version first (scripts/check-site-no-tracking.sh).
+  site:
+    name: Website privacy (no trackers without a consent banner)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: No trackers, cookies or third-party scripts on kabsolive.com
+        run: scripts/check-site-no-tracking.sh
+
   secrets:
     name: Secret scan (gitleaks)
     runs-on: ubuntu-24.04
@@ -437,7 +450,7 @@ jobs:
   ci-ok:
     name: CI OK
     if: always()
-    needs: [changes, api, admin, mobile, android, ios, contracts, secrets]
+    needs: [changes, api, admin, mobile, android, ios, contracts, secrets, site]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:

@@ -10141,4 +10141,289 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get walletTopupWebsiteHint =>
       'Pay by card on the official Kabso Live website';
+
+  @override
+  String get settingsDeleteAccount => 'Delete account';
+
+  @override
+  String get settingsDeleteAccountHint =>
+      'Deleted for good 30 days after you ask';
+
+  @override
+  String get deleteAccountTitle => 'Delete account';
+
+  @override
+  String deleteAccountStep(int step, int total) {
+    return 'Step $step of $total';
+  }
+
+  @override
+  String get deleteAccountIntroTitle => 'Before you delete your account';
+
+  @override
+  String get deleteAccountWhatGoes => 'What is deleted';
+
+  @override
+  String get deleteAccountWhatGoesBody =>
+      'Your profile, name and photo, your posts, reels and stories, your messages, who you follow and who follows you, and your email address.';
+
+  @override
+  String get deleteAccountForfeit => 'What you lose';
+
+  @override
+  String get deleteAccountForfeitBody =>
+      'Your coin and cherry balance, the items in your bag and your premium username time. They are not refunded or transferred.';
+
+  @override
+  String get deleteAccountKept => 'What we keep';
+
+  @override
+  String get deleteAccountKeptBody =>
+      'Records of payments and gifts that the law, accounting and fraud prevention require, with nothing that identifies you. Others will see “Deleted user” instead of your name.';
+
+  @override
+  String deleteAccountGrace(int days) {
+    return 'You have $days days to change your mind: log in during that time and choose “Cancel deletion”. After that the account is deleted for good.';
+  }
+
+  @override
+  String get deleteAccountBlockedTitle => 'Settle this first';
+
+  @override
+  String get deleteAccountBlockerRechargeAgent =>
+      'You are a recharge agent: contact the team to settle your stock and close the agency.';
+
+  @override
+  String get deleteAccountBlockerHostAgency =>
+      'You own a host agency: contact the team to move your hosts and close the agency.';
+
+  @override
+  String get deleteAccountBlockerPendingWithdrawal =>
+      'You have a cherry withdrawal waiting: wait until it is paid.';
+
+  @override
+  String get deleteAccountBlockerPendingCherrySale =>
+      'You have an open cherry sale to a recharge agent: finish or cancel it.';
+
+  @override
+  String get deleteAccountBlockerNegativeBalance =>
+      'Your balance is negative: contact the team to settle it.';
+
+  @override
+  String get deleteAccountBlockerOther =>
+      'Something must be settled first: contact the team.';
+
+  @override
+  String deleteAccountContact(String email) {
+    return 'For help, write to $email';
+  }
+
+  @override
+  String get deleteAccountPasswordTitle => 'Confirm it’s you';
+
+  @override
+  String get deleteAccountPasswordBody =>
+      'Enter your account password to continue.';
+
+  @override
+  String get deleteAccountConfirmTitle => 'Final confirmation';
+
+  @override
+  String deleteAccountConfirmBody(String word) {
+    return 'Type “$word” to confirm deleting your account.';
+  }
+
+  @override
+  String get deleteAccountConfirmWord => 'DELETE';
+
+  @override
+  String get deleteAccountConfirmLabel => 'Confirmation word';
+
+  @override
+  String get deleteAccountConfirmMismatch => 'Type the word exactly.';
+
+  @override
+  String get deleteAccountSubmit => 'Delete my account';
+
+  @override
+  String get deleteAccountDoneBanner =>
+      'We received your request and signed you out on every device. You can cancel by signing in within 30 days.';
+
+  @override
+  String get deletionPendingTitle => 'Deletion in progress';
+
+  @override
+  String get deletionPendingQuestion => 'Cancel the deletion?';
+
+  @override
+  String deletionPendingBody(String date) {
+    return 'This account will be deleted for good on $date. Cancel the deletion to get your account back as it was.';
+  }
+
+  @override
+  String get deletionPendingBodyNoDate =>
+      'This account will be deleted for good soon. Cancel the deletion to get your account back as it was.';
+
+  @override
+  String get deletionPendingCancel => 'Cancel deletion';
+
+  @override
+  String get deletionPendingKeep => 'Keep the deletion';
+
+  @override
+  String get deletionPendingRestored => 'Deletion cancelled. Welcome back.';
+
+  @override
+  String get deletedUser => 'Deleted user';
+
+  @override
+  String get errorReauthFailed => 'The password is not correct.';
+
+  @override
+  String get errorAccountDeletionBlocked =>
+      'Some things must be settled before the account can be deleted.';
+
+  @override
+  String get errorAccountDeletionPending =>
+      'This account is scheduled for deletion.';
+
+  @override
+  String get privacyDataTitle => 'Your data';
+
+  @override
+  String get dataExportTitle => 'Download my data';
+
+  @override
+  String get dataExportTileHint => 'A copy of your data you can take elsewhere';
+
+  @override
+  String get dataExportIntro =>
+      'We prepare a ZIP file with your data as JSON and a short README in Arabic and English: your profile and settings, posts, reels and stories, comments, messages, follows and blocks, coin, cherry and level records, gifts, withdrawals, your recharge-agent application, your consents, and your device and sign-in history.';
+
+  @override
+  String get dataExportRules =>
+      'You can ask for one copy every 24 hours. When it is ready we send you a notification and an email; the download works once, within 7 days.';
+
+  @override
+  String get dataExportNoSecrets =>
+      'The file never contains your password or other people’s private data.';
+
+  @override
+  String get dataExportRequest => 'Request a copy of my data';
+
+  @override
+  String get dataExportPasswordTitle => 'Confirm it’s you';
+
+  @override
+  String get dataExportPasswordBody =>
+      'Enter your account password to ask for a copy of your data.';
+
+  @override
+  String get dataExportPasswordLabel => 'Password';
+
+  @override
+  String get dataExportContinue => 'Continue';
+
+  @override
+  String get dataExportRequested =>
+      'Request received. We will notify you when your data is ready.';
+
+  @override
+  String get dataExportPreparing =>
+      'Preparing your data… we will notify you when it is ready.';
+
+  @override
+  String dataExportReady(String date) {
+    return 'Your data is ready. You can download it once, until $date.';
+  }
+
+  @override
+  String get dataExportDownload => 'Download the file';
+
+  @override
+  String dataExportSaved(String path) {
+    return 'Saved to: $path';
+  }
+
+  @override
+  String dataExportDownloaded(String date) {
+    return 'You downloaded this copy on $date.';
+  }
+
+  @override
+  String get dataExportExpired =>
+      'The last copy expired before it was downloaded.';
+
+  @override
+  String get dataExportFailed =>
+      'We could not prepare the last copy. You can ask for a new one.';
+
+  @override
+  String dataExportNextAt(String date) {
+    return 'You can ask for a new copy after $date.';
+  }
+
+  @override
+  String get dataExportRefresh => 'Refresh';
+
+  @override
+  String get consentTitle => 'We updated our terms';
+
+  @override
+  String get consentBody =>
+      'Read the summary of the changes, then accept to keep using Kabso Live.';
+
+  @override
+  String get consentTermsName => 'Terms of Service';
+
+  @override
+  String get consentPrivacyName => 'Privacy Policy';
+
+  @override
+  String consentVersion(String version, String date) {
+    return 'Version $version · effective $date';
+  }
+
+  @override
+  String get consentReadFull => 'Read the full text';
+
+  @override
+  String get consentAccept => 'I agree and continue';
+
+  @override
+  String get consentNotNow =>
+      'Don’t agree? You can download your data, delete your account or log out.';
+
+  @override
+  String get consentLogout => 'Log out';
+
+  @override
+  String get consentAccepted => 'Thank you, your acceptance is recorded.';
+
+  @override
+  String get registerLegalAccept =>
+      'I am 18 or older, and I accept the Terms of Service and the Privacy Policy.';
+
+  @override
+  String get registerLegalRequired =>
+      'Confirm your age and accept the terms to continue.';
+
+  @override
+  String get notifDataExportReady => 'Your data is ready to download';
+
+  @override
+  String get errorConsentRequired =>
+      'Please review and accept the updated terms and privacy policy.';
+
+  @override
+  String get errorConsentVersionMismatch =>
+      'A newer version was just published. Please review it again.';
+
+  @override
+  String get errorDataExportLimit =>
+      'You can ask for one copy of your data every 24 hours.';
+
+  @override
+  String get errorDataExportLinkInvalid =>
+      'This download link is no longer valid.';
 }

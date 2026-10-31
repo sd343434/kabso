@@ -10164,4 +10164,282 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get walletTopupWebsiteHint =>
       'اشحن بالبطاقة على موقع Kabso Live الرسمي';
+
+  @override
+  String get settingsDeleteAccount => 'حذف الحساب';
+
+  @override
+  String get settingsDeleteAccountHint => 'يُحذف نهائياً بعد 30 يوماً من الطلب';
+
+  @override
+  String get deleteAccountTitle => 'حذف الحساب';
+
+  @override
+  String deleteAccountStep(int step, int total) {
+    return 'الخطوة $step من $total';
+  }
+
+  @override
+  String get deleteAccountIntroTitle => 'قبل أن تحذف حسابك';
+
+  @override
+  String get deleteAccountWhatGoes => 'ما سيُحذف';
+
+  @override
+  String get deleteAccountWhatGoesBody =>
+      'ملفك الشخصي واسمك وصورتك، منشوراتك ومقاطعك وقصصك، رسائلك، من تتابعهم ومن يتابعونك، وبريدك الإلكتروني.';
+
+  @override
+  String get deleteAccountForfeit => 'ما ستخسره';
+
+  @override
+  String get deleteAccountForfeitBody =>
+      'رصيد العملات والكرزات وما في حقيبتك ووقت اسم المستخدم المميز. لا تُسترد ولا تُحوَّل.';
+
+  @override
+  String get deleteAccountKept => 'ما نحتفظ به';
+
+  @override
+  String get deleteAccountKeptBody =>
+      'سجلات المدفوعات والهدايا التي يطلبها القانون والمحاسبة ومكافحة الاحتيال، دون أي بيانات تعرّف بك. سيرى الآخرون «مستخدم محذوف» مكان اسمك.';
+
+  @override
+  String deleteAccountGrace(int days) {
+    return 'لديك $days يوماً لتغيير رأيك: سجّل الدخول خلالها واختر «إلغاء الحذف». بعدها يُحذف الحساب نهائياً.';
+  }
+
+  @override
+  String get deleteAccountBlockedTitle => 'يجب تسوية هذا أولاً';
+
+  @override
+  String get deleteAccountBlockerRechargeAgent =>
+      'أنت وكيل شحن: تواصل مع الفريق لتسوية المخزون وإيقاف الوكالة.';
+
+  @override
+  String get deleteAccountBlockerHostAgency =>
+      'أنت مالك وكالة مضيفين: تواصل مع الفريق لنقل المضيفين وإيقاف الوكالة.';
+
+  @override
+  String get deleteAccountBlockerPendingWithdrawal =>
+      'لديك طلب سحب كرزات قيد التنفيذ: انتظر حتى يُدفع.';
+
+  @override
+  String get deleteAccountBlockerPendingCherrySale =>
+      'لديك طلب بيع كرزات لوكيل شحن لم يُغلق بعد: أكمله أو ألغِه.';
+
+  @override
+  String get deleteAccountBlockerNegativeBalance =>
+      'رصيدك سالب: تواصل مع الفريق لتسويته.';
+
+  @override
+  String get deleteAccountBlockerOther =>
+      'هناك أمر يجب تسويته أولاً: تواصل مع الفريق.';
+
+  @override
+  String deleteAccountContact(String email) {
+    return 'للمساعدة راسلنا على $email';
+  }
+
+  @override
+  String get deleteAccountPasswordTitle => 'أكّد أنه أنت';
+
+  @override
+  String get deleteAccountPasswordBody => 'أدخل كلمة مرور حسابك للمتابعة.';
+
+  @override
+  String get deleteAccountConfirmTitle => 'تأكيد أخير';
+
+  @override
+  String deleteAccountConfirmBody(String word) {
+    return 'اكتب «$word» لتأكيد حذف حسابك.';
+  }
+
+  @override
+  String get deleteAccountConfirmWord => 'حذف';
+
+  @override
+  String get deleteAccountConfirmLabel => 'كلمة التأكيد';
+
+  @override
+  String get deleteAccountConfirmMismatch => 'اكتب الكلمة كما هي.';
+
+  @override
+  String get deleteAccountSubmit => 'احذف حسابي';
+
+  @override
+  String get deleteAccountDoneBanner =>
+      'استلمنا طلب حذف حسابك وسجّلنا خروجك من كل الأجهزة. يمكنك إلغاء الحذف بتسجيل الدخول خلال 30 يوماً.';
+
+  @override
+  String get deletionPendingTitle => 'طلب حذف قيد التنفيذ';
+
+  @override
+  String get deletionPendingQuestion => 'إلغاء الحذف؟';
+
+  @override
+  String deletionPendingBody(String date) {
+    return 'سيُحذف هذا الحساب نهائياً في $date. ألغِ الحذف ليعود حسابك كما كان.';
+  }
+
+  @override
+  String get deletionPendingBodyNoDate =>
+      'سيُحذف هذا الحساب نهائياً قريباً. ألغِ الحذف ليعود حسابك كما كان.';
+
+  @override
+  String get deletionPendingCancel => 'إلغاء الحذف';
+
+  @override
+  String get deletionPendingKeep => 'متابعة الحذف';
+
+  @override
+  String get deletionPendingRestored => 'أُلغي الحذف. مرحباً بعودتك.';
+
+  @override
+  String get deletedUser => 'مستخدم محذوف';
+
+  @override
+  String get errorReauthFailed => 'كلمة المرور غير صحيحة.';
+
+  @override
+  String get errorAccountDeletionBlocked =>
+      'يجب تسوية بعض الأمور قبل حذف الحساب.';
+
+  @override
+  String get errorAccountDeletionPending => 'هذا الحساب في انتظار الحذف.';
+
+  @override
+  String get privacyDataTitle => 'بياناتك';
+
+  @override
+  String get dataExportTitle => 'تنزيل بياناتي';
+
+  @override
+  String get dataExportTileHint => 'نسخة من بياناتك بصيغة يمكنك نقلها';
+
+  @override
+  String get dataExportIntro =>
+      'نجهّز لك ملف ZIP فيه بياناتك بصيغة JSON مع ملف توضيحي بالعربية والإنجليزية: ملفك وإعداداتك، منشوراتك وريلزك وقصصك، تعليقاتك، رسائلك، متابعاتك والحظر، سجلات العملات والكرز والمستويات، الهدايا، السحوبات، طلب وكيل الشحن، موافقاتك، وسجل الأجهزة وتسجيل الدخول.';
+
+  @override
+  String get dataExportRules =>
+      'يمكنك طلب نسخة واحدة كل 24 ساعة. عندما تجهز نرسل لك إشعاراً ورسالة بريد، والتنزيل يعمل مرة واحدة خلال 7 أيام.';
+
+  @override
+  String get dataExportNoSecrets =>
+      'لا يحوي الملف كلمة مرورك ولا بيانات خاصة لأشخاص آخرين.';
+
+  @override
+  String get dataExportRequest => 'طلب نسخة من بياناتي';
+
+  @override
+  String get dataExportPasswordTitle => 'تأكيد هويتك';
+
+  @override
+  String get dataExportPasswordBody =>
+      'أدخل كلمة مرور حسابك لطلب نسخة من بياناتك.';
+
+  @override
+  String get dataExportPasswordLabel => 'كلمة المرور';
+
+  @override
+  String get dataExportContinue => 'متابعة';
+
+  @override
+  String get dataExportRequested =>
+      'استلمنا طلبك. سنرسل لك إشعاراً عندما تجهز بياناتك.';
+
+  @override
+  String get dataExportPreparing =>
+      'نجهّز بياناتك… سنرسل لك إشعاراً عندما تجهز.';
+
+  @override
+  String dataExportReady(String date) {
+    return 'بياناتك جاهزة. التنزيل متاح مرة واحدة حتى $date.';
+  }
+
+  @override
+  String get dataExportDownload => 'تنزيل الملف';
+
+  @override
+  String dataExportSaved(String path) {
+    return 'حُفظ الملف في: $path';
+  }
+
+  @override
+  String dataExportDownloaded(String date) {
+    return 'نزّلت هذه النسخة في $date.';
+  }
+
+  @override
+  String get dataExportExpired => 'انتهت صلاحية آخر نسخة قبل تنزيلها.';
+
+  @override
+  String get dataExportFailed => 'تعذّر تجهيز آخر نسخة. يمكنك طلب نسخة جديدة.';
+
+  @override
+  String dataExportNextAt(String date) {
+    return 'يمكنك طلب نسخة جديدة بعد $date.';
+  }
+
+  @override
+  String get dataExportRefresh => 'تحديث';
+
+  @override
+  String get consentTitle => 'حدّثنا الشروط وسياسة الخصوصية';
+
+  @override
+  String get consentBody =>
+      'اقرأ ملخص التغييرات، ثم وافق لتتابع استخدام Kabso Live.';
+
+  @override
+  String get consentTermsName => 'شروط الاستخدام';
+
+  @override
+  String get consentPrivacyName => 'سياسة الخصوصية';
+
+  @override
+  String consentVersion(String version, String date) {
+    return 'الإصدار $version · ساري من $date';
+  }
+
+  @override
+  String get consentReadFull => 'قراءة النص الكامل';
+
+  @override
+  String get consentAccept => 'أوافق وأتابع';
+
+  @override
+  String get consentNotNow =>
+      'لا توافق؟ يمكنك تنزيل بياناتك أو حذف حسابك أو تسجيل الخروج.';
+
+  @override
+  String get consentLogout => 'تسجيل الخروج';
+
+  @override
+  String get consentAccepted => 'شكراً، سُجّلت موافقتك.';
+
+  @override
+  String get registerLegalAccept =>
+      'عمري 18 عاماً أو أكثر، وأوافق على شروط الاستخدام وسياسة الخصوصية.';
+
+  @override
+  String get registerLegalRequired => 'أكّد عمرك ووافق على الشروط للمتابعة.';
+
+  @override
+  String get notifDataExportReady => 'نسخة بياناتك جاهزة للتنزيل';
+
+  @override
+  String get errorConsentRequired =>
+      'راجع الشروط وسياسة الخصوصية المحدّثة ووافق عليها للمتابعة.';
+
+  @override
+  String get errorConsentVersionMismatch =>
+      'صدر إصدار أحدث للتو. راجعه من جديد.';
+
+  @override
+  String get errorDataExportLimit =>
+      'يمكنك طلب نسخة واحدة من بياناتك كل 24 ساعة.';
+
+  @override
+  String get errorDataExportLinkInvalid => 'رابط التنزيل لم يعد صالحاً.';
 }

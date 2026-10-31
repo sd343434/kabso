@@ -2,13 +2,15 @@ import { Injectable } from '@nestjs/common';
 import { createTransport, type Transporter } from 'nodemailer';
 import type { AppConfig } from '../../config/app-config.js';
 import type {
+  AccountDeletionMail,
+  DataExportReadyMail,
   AccountExistsMail,
   MailLocale,
   MailSender,
   RegistrationCodeMail,
   TokenMail,
 } from './mail-sender.js';
-import { renderMail, type MailTemplate } from './mail-templates.js';
+import { dataExportTemplate, deletionTemplate, renderMail, type MailTemplate } from './mail-templates.js';
 
 type SmtpSettings = NonNullable<AppConfig['smtp']>;
 
@@ -59,6 +61,14 @@ export class SmtpMailSender implements MailSender {
 
   sendAccountExistsNotice(mail: AccountExistsMail): Promise<void> {
     return this.send(mail.to, mail.locale, { kind: 'account_exists', appUrl: mail.appUrl });
+  }
+
+  sendDataExportReady(mail: DataExportReadyMail): Promise<void> {
+    return this.send(mail.to, mail.locale, dataExportTemplate(mail));
+  }
+
+  sendAccountDeletionNotice(mail: AccountDeletionMail): Promise<void> {
+    return this.send(mail.to, mail.locale, deletionTemplate(mail));
   }
 
   private async send(to: string, locale: MailLocale, template: MailTemplate): Promise<void> {

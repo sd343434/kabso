@@ -144,6 +144,8 @@ function visibleNotificationWhere(me: string): Prisma.NotificationWhereInput {
       { type: 'AVATAR_REMOVED' },
       // v1.60-social (D191): a moderator warned the caller (system; the post or comment when there is one).
       { type: 'MODERATION_WARNING' },
+      // v1.66-social (D198): the caller's data export is ready (system, no target).
+      { type: 'DATA_EXPORT_READY' },
       { type: 'POST_PUBLISHED', post: visiblePostWhere(me) },
       {
         type: { in: ACTOR_TYPES },

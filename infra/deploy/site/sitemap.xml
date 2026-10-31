@@ -20,4 +20,9 @@
     <xhtml:link rel="alternate" hreflang="ar" href="https://kabsolive.com/contact"/>
     <xhtml:link rel="alternate" hreflang="en" href="https://kabsolive.com/contact?lang=en"/>
   </url>
+  <url>
+    <loc>https://kabsolive.com/delete-account</loc>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://kabsolive.com/delete-account"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://kabsolive.com/delete-account?lang=en"/>
+  </url>
 </urlset>

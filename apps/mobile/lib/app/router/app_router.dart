@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,6 +7,7 @@ import 'package:kabso_live/app/router/auth_redirect.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/app/shell/app_shell.dart';
 import 'package:kabso_live/core/demo/demo_mode.dart';
+import 'package:kabso_live/core/network/consent_required.dart';
 import 'package:kabso_live/features/agency/presentation/agency_screen.dart';
 import 'package:kabso_live/features/auth/presentation/forgot_password_screen.dart';
 import 'package:kabso_live/features/auth/presentation/join_screen.dart';
@@ -66,6 +69,9 @@ import 'package:kabso_live/features/posts/presentation/likers_screen.dart';
 import 'package:kabso_live/features/posts/presentation/post_screen.dart';
 import 'package:kabso_live/features/premium/presentation/change_username_screen.dart';
 import 'package:kabso_live/features/premium/presentation/premium_store_screen.dart';
+import 'package:kabso_live/features/privacy/consent_gate.dart';
+import 'package:kabso_live/features/privacy/consent_screen.dart';
+import 'package:kabso_live/features/privacy/data_export_screen.dart';
 import 'package:kabso_live/features/profile/edit_profile_screen.dart';
 import 'package:kabso_live/features/profile/me_hub_screen.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
@@ -80,6 +86,8 @@ import 'package:kabso_live/features/recharge/presentation/recharge_directory_scr
 import 'package:kabso_live/features/recharge/presentation/recharge_employees_screen.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_hub_screen.dart';
 import 'package:kabso_live/features/safety/safety_screens.dart';
+import 'package:kabso_live/features/settings/account_deletion/account_deletion_screen.dart';
+import 'package:kabso_live/features/settings/account_deletion/deletion_pending_screen.dart';
 import 'package:kabso_live/features/settings/settings_screen.dart';
 import 'package:kabso_live/features/stories/presentation/new_story_screen.dart';
 import 'package:kabso_live/features/stories/presentation/story_archive_screen.dart';
@@ -106,11 +114,23 @@ final routerProvider = Provider<GoRouter>((ref) {
     ref.read(sessionControllerProvider),
   );
   final introDone = ValueNotifier<bool>(ref.read(splashIntroProvider));
+  // D198: the consent screen after a new version of the terms or the policy.
+  final consentRequired = ValueNotifier<bool>(
+    ref.read(consentRequiredProvider),
+  );
   ref
-    ..listen<AuthState>(
-      sessionControllerProvider,
-      (_, next) => authState.value = next,
-    )
+    ..listen<AuthState>(sessionControllerProvider, (previous, next) {
+      authState.value = next;
+      if (next is Authenticated && previous is! Authenticated) {
+        unawaited(checkConsent(ref));
+      } else if (next is! Authenticated) {
+        ref.read(consentRequiredProvider.notifier).value = false;
+      }
+    })
+    ..listen<bool>(consentRequiredProvider, (_, next) {
+      consentRequired.value = next;
+    })
+    ..onDispose(consentRequired.dispose)
     ..listen<bool>(splashIntroProvider, (_, next) => introDone.value = next)
     ..onDispose(authState.dispose)
     ..onDispose(introDone.dispose);
@@ -124,12 +144,17 @@ final routerProvider = Provider<GoRouter>((ref) {
   final router = GoRouter(
     navigatorKey: rootNavigatorKey,
     initialLocation: ref.watch(initialLocationProvider),
-    refreshListenable: Listenable.merge([authState, introDone]),
+    refreshListenable: Listenable.merge([
+      authState,
+      introDone,
+      consentRequired,
+    ]),
     redirect: (context, state) => authRedirect(
       authState.value,
       state.matchedLocation,
       introDone: introDone.value,
       welcomeSeen: ref.read(welcomeSeenProvider),
+      consentRequired: consentRequired.value,
     ),
     routes: [
       GoRoute(path: '/', redirect: (_, _) => AppRoutes.home),
@@ -343,6 +368,24 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.changeUsername,
         builder: (_, _) => const ChangeUsernameScreen(),
+      ),
+      // D193: the in-app account deletion and the grace-period sign-in.
+      GoRoute(
+        path: AppRoutes.deleteAccount,
+        builder: (_, _) => const AccountDeletionScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.deletionPending,
+        builder: (_, _) => const DeletionPendingScreen(),
+      ),
+      // D198: «تنزيل بياناتي» and the consent screen.
+      GoRoute(
+        path: AppRoutes.dataExport,
+        builder: (_, _) => const DataExportScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.legalConsent,
+        builder: (_, _) => const ConsentScreen(),
       ),
       // D164: the Me hub's wallet, earnings and creator center.
       // D177: two tabs (gold coins, cherries); `/earnings` is the cherry tab.
