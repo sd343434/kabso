@@ -214,6 +214,8 @@ export function buildTestConfig(overrides: Record<string, string> = {}): AppConf
     // D155: specs call DmSweeper.sweep() with a fake clock; the DM limits are tested by their spec.
     DM_SWEEP_INTERVAL_SECONDS: '0',
     SPECIAL_USERNAME_SWEEP_INTERVAL_SECONDS: '0',
+    // D204: the recharge-order expiry sweeper (tests call it directly).
+    RECHARGE_ORDER_SWEEP_INTERVAL_SECONDS: '0',
     BAG_SWEEP_INTERVAL_SECONDS: '0',
     RATE_LIMIT_DM_SEND_USER: GENEROUS,
     RATE_LIMIT_DM_REQUEST_USER: GENEROUS,

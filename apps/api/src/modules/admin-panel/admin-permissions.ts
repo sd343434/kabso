@@ -37,6 +37,15 @@ export const CAPABILITIES = {
   'reports.view': ['OWNER', 'MODERATION'],
   'reports.act': ['OWNER', 'MODERATION'],
   'site.settings': ['OWNER'],
+  /**
+   * v1.69-social (D204): «نزاعات الشحن» — read a disputed order with its chat and pictures (audited) and post as
+   * «الإدارة»; the decision (coins to the buyer or back to the agent) needs `recharge.disputes.resolve` (the money
+   * roles, like a top-up or a withdrawal) and the code.
+   */
+  'recharge.disputes': ['OWNER', 'SUPPORT', 'FINANCE'],
+  'recharge.disputes.resolve': ['OWNER', 'FINANCE'],
+  /** v1.69-social (D204): the exchange rates per country «أسعار الصرف» (read by every recharge role). */
+  'recharge.rates': ['OWNER', 'FINANCE'],
   /** v1.64-social (D196): the Stripe keys and top-up options «الدفع (Stripe)». */
   'payments.settings': ['OWNER'],
 } as const satisfies Record<string, readonly PanelRole[]>;

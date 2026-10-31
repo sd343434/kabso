@@ -177,6 +177,16 @@ export enum ErrorCode {
   ADMIN_CSRF_INVALID = 'ADMIN_CSRF_INVALID',
   /** v1.60-social (DRAFT, D191): the shared admin rule refused the action (the message says why; nothing changed). */
   ADMIN_ACTION_REFUSED = 'ADMIN_ACTION_REFUSED',
+  /** v1.69-social (DRAFT, D204): recharge orders are switched off on this server (RECHARGE_ORDERS_ENABLED). */
+  RECHARGE_ORDERS_UNAVAILABLE = 'RECHARGE_ORDERS_UNAVAILABLE',
+  /** v1.69-social (DRAFT, D204): the buyer already has an open order with this agent. */
+  RECHARGE_ORDER_OPEN_EXISTS = 'RECHARGE_ORDER_OPEN_EXISTS',
+  /** v1.69-social (DRAFT, D204): the order's status no longer allows this action (it changed or ended). */
+  RECHARGE_ORDER_STATE_CHANGED = 'RECHARGE_ORDER_STATE_CHANGED',
+  /** v1.69-social (DRAFT, D204): the buyer must acknowledge the protection notice first. */
+  RECHARGE_ORDER_NOTICE_REQUIRED = 'RECHARGE_ORDER_NOTICE_REQUIRED',
+  /** v1.69-social (DRAFT, D204): the buyer can open a dispute only after the wait (15 minutes after «قمت بالإرسال»). */
+  RECHARGE_ORDER_DISPUTE_TOO_EARLY = 'RECHARGE_ORDER_DISPUTE_TOO_EARLY',
 }
 
 /** HTTP status for every code (CONVENTIONS.md §4 table). */
@@ -280,6 +290,11 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.ADMIN_TOTP_INVALID]: 403,
   [ErrorCode.ADMIN_CSRF_INVALID]: 403,
   [ErrorCode.ADMIN_ACTION_REFUSED]: 409,
+  [ErrorCode.RECHARGE_ORDERS_UNAVAILABLE]: 503,
+  [ErrorCode.RECHARGE_ORDER_OPEN_EXISTS]: 409,
+  [ErrorCode.RECHARGE_ORDER_STATE_CHANGED]: 409,
+  [ErrorCode.RECHARGE_ORDER_NOTICE_REQUIRED]: 409,
+  [ErrorCode.RECHARGE_ORDER_DISPUTE_TOO_EARLY]: 409,
 };
 
 /** Default developer-facing messages (clients localize by `code`, not by message). */
@@ -383,6 +398,11 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.ADMIN_TOTP_INVALID]: 'The code is not valid.',
   [ErrorCode.ADMIN_CSRF_INVALID]: 'The request is missing a valid CSRF token.',
   [ErrorCode.ADMIN_ACTION_REFUSED]: 'The action was refused.',
+  [ErrorCode.RECHARGE_ORDERS_UNAVAILABLE]: 'Recharge orders are not available.',
+  [ErrorCode.RECHARGE_ORDER_OPEN_EXISTS]: 'You already have an open order with this agent.',
+  [ErrorCode.RECHARGE_ORDER_STATE_CHANGED]: 'This order has changed. Refresh it.',
+  [ErrorCode.RECHARGE_ORDER_NOTICE_REQUIRED]: 'Read and acknowledge the protection notice first.',
+  [ErrorCode.RECHARGE_ORDER_DISPUTE_TOO_EARLY]: 'You can open a dispute when the wait is over.',
 };
 
 export interface ErrorDetail {

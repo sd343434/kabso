@@ -206,6 +206,23 @@ export enum AuditAction {
   // v1.61-social (DRAFT, D192): each read of the website waitlist's e-mails by the `waitlist-admin` CLI (`op`:
   // list|export, the count).
   WAITLIST_VIEW = 'waitlist.view',
+  // v1.69-social (DRAFT, D204): recharge orders with escrow — each state change (before/after, the coins moved), an
+  // admin's view of a disputed order and of its pictures, an admin's message «الإدارة», a dispute's decision, and an
+  // exchange rate set or cleared (OWNER / FINANCE, panel or CLI).
+  RECHARGE_ORDER_CREATE = 'recharge.order.create',
+  RECHARGE_ORDER_DETAILS = 'recharge.order.details',
+  RECHARGE_ORDER_NOTICE_ACK = 'recharge.order.notice_ack',
+  RECHARGE_ORDER_PAID = 'recharge.order.paid',
+  RECHARGE_ORDER_CONFIRM = 'recharge.order.confirm',
+  RECHARGE_ORDER_DISPUTE = 'recharge.order.dispute',
+  RECHARGE_ORDER_CANCEL = 'recharge.order.cancel',
+  RECHARGE_ORDER_EXPIRE = 'recharge.order.expire',
+  RECHARGE_ORDER_RESOLVE = 'recharge.order.resolve',
+  RECHARGE_ORDER_ADMIN_VIEW = 'recharge.order.admin_view',
+  RECHARGE_ORDER_IMAGE_VIEW = 'recharge.order.image_view',
+  RECHARGE_ORDER_ADMIN_MESSAGE = 'recharge.order.admin_message',
+  RECHARGE_RATE_SET = 'recharge.rate.set',
+  RECHARGE_RATE_CLEAR = 'recharge.rate.clear',
 }
 
 export interface AuditEntry {

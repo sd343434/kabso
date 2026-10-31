@@ -37,7 +37,9 @@ export type WalletLedgerReason =
    */
   | 'CARD_TOPUP'
   | 'CARD_TOPUP_REVERSAL'
-  | 'CARD_TOPUP_RESTORE';
+  | 'CARD_TOPUP_RESTORE'
+  /** v1.69-social (D204): the frozen coins of a recharge order credited to the buyer (reference: the order). */
+  | 'RECHARGE_ORDER';
 
 /** The largest balance (CONVENTIONS §3: exact as a JSON number; CHECK `wallets_coins_range`). */
 export const MAX_COINS = 9_007_199_254_740_991n;

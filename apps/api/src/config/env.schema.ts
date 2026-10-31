@@ -573,6 +573,9 @@ export const envSchema = z
     /** v1.54-social (D185, §10.48): coin sales by a recharge agent or employee, and the other recharge writes. */
     RATE_LIMIT_RECHARGE_SELL_USER: rateLimit('120/3600'),
     RATE_LIMIT_RECHARGE_WRITE_USER: rateLimit('60/3600'),
+    /** v1.69-social (D204): new recharge orders, and every other order write (messages, details, confirm …). */
+    RATE_LIMIT_RECHARGE_ORDER_USER: rateLimit('20/3600'),
+    RATE_LIMIT_RECHARGE_ORDER_ACTION_USER: rateLimit('600/3600'),
     /** v1.59-social (D190, §10.53): card top-up checkouts started, per user. */
     RATE_LIMIT_TOPUP_CHECKOUT_USER: rateLimit('20/3600'),
     /** v1.61-social (D192, §10.55): the website's waitlist sign-ups, per client IP (no account). */
@@ -1008,6 +1011,23 @@ export const envSchema = z
     RECHARGE_AGENT_KYC_RETENTION_DAYS: intSetting(90, 1, 3650),
     RECHARGE_AGENT_SWEEP_INTERVAL_SECONDS: intSetting(3600, 0, 86_400),
     /**
+     * v1.69-social (D204, CONVENTIONS §10.64): recharge orders with escrow. The switch (off: 503
+     * `RECHARGE_ORDERS_UNAVAILABLE`, the app hides the entry; direct selling stays), the smallest and largest order
+     * (coins), how long a REQUESTED order waits for the agent's payment details and an AWAITING_PAYMENT order for
+     * «قمت بالإرسال» before it expires (the hold is released), the buyer's wait after «قمت بالإرسال» before
+     * «نزاع» (owner: 15 minutes), and the expiry sweeper (0 = off, refused in production). PAID never expires.
+     */
+    RECHARGE_ORDERS_ENABLED: z
+      .enum(['true', 'false'], { error: 'must be "true" or "false"' })
+      .default('true')
+      .transform((v) => v === 'true'),
+    RECHARGE_ORDER_MIN_COINS: intSetting(10_000, 1),
+    RECHARGE_ORDER_MAX_COINS: intSetting(1_000_000_000, 1, 1_000_000_000_000),
+    RECHARGE_ORDER_REQUEST_TTL_MINUTES: intSetting(30, 1, 10_080),
+    RECHARGE_ORDER_PAYMENT_TTL_MINUTES: intSetting(60, 1, 10_080),
+    RECHARGE_ORDER_DISPUTE_AFTER_MINUTES: intSetting(15, 0, 1440),
+    RECHARGE_ORDER_SWEEP_INTERVAL_SECONDS: intSetting(60, 0, 3600),
+    /**
      * v1.54-social (D185, §10.48.1): special usernames («يوزر مميز»). After one ends, the name stays reserved
      * for the person this many days (a `coin` name: forever). The sweeper ends expired ones and releases names.
      */
@@ -1412,6 +1432,14 @@ export const envSchema = z
           code: 'custom',
           path: ['RECHARGE_AGENT_SWEEP_INTERVAL_SECONDS'],
           message: 'the recharge-agent sweeper (KYC retention) cannot be disabled in production',
+        });
+      }
+      // D204: an expired order must give the agent's frozen coins back on time.
+      if (env.RECHARGE_ORDER_SWEEP_INTERVAL_SECONDS === 0) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['RECHARGE_ORDER_SWEEP_INTERVAL_SECONDS'],
+          message: 'the recharge-order sweeper (expiries) cannot be disabled in production',
         });
       }
       // D185: an expired special username must give the person's own username back on time.

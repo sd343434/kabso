@@ -105,6 +105,8 @@ export function notificationBody(n: NotificationText, locale: PushLocale): strin
       return w && (ar ? `شحن لك ${w} عملات` : `${w} topped up your coins`);
     case 'RECHARGE_CHERRY_REQUEST':
       return w && (ar ? `${w} يطلب تأكيد بيع كرز` : `${w} asks you to confirm a cherry sale`);
+    case 'RECHARGE_ORDER_UPDATE':
+      return rechargeOrderBody(n.targetText, ar);
     case 'PREMIUM_USERNAME_EXPIRED':
       return ar
         ? `انتهت مدة يوزرك المميز @${n.targetId ?? ''}`
@@ -124,4 +126,41 @@ export function clip(text: string, max: number = PUSH_BODY_MAX): string {
         .slice(0, max - 1)
         .join('')
         .trimEnd()}…`;
+}
+
+/** v1.69-social (D204): the push of a recharge order's latest event (`targetText` carries the event). */
+function rechargeOrderBody(event: string | null, ar: boolean): string {
+  switch (event) {
+    case 'CREATED':
+      return ar
+        ? 'طلب شحن جديد ينتظر معلومات الدفع'
+        : 'A new recharge order is waiting for your payment details';
+    case 'DETAILS_SENT':
+      return ar
+        ? 'أرسل الوكيل معلومات الدفع لطلب الشحن'
+        : 'The agent sent the payment details for your order';
+    case 'PAID':
+      return ar
+        ? 'أكّد المشتري إرسال المبلغ: تحقّق من وصول الحوالة'
+        : 'The buyer says the money was sent: check the transfer';
+    case 'COMPLETED':
+    case 'COMPLETED_BY_ADMIN':
+      return ar ? 'تمت إضافة العملات من طلب الشحن' : 'The coins of your recharge order were added';
+    case 'REFUNDED_TO_AGENT':
+      return ar
+        ? 'أُغلق النزاع وأُعيدت العملات إلى الوكيل'
+        : 'The dispute was closed and the coins went back to the agent';
+    case 'DISPUTED':
+      return ar ? 'فُتح نزاع على طلب الشحن' : 'A dispute was opened on the recharge order';
+    case 'CANCELLED':
+      return ar ? 'أُلغي طلب الشحن' : 'The recharge order was cancelled';
+    case 'EXPIRED':
+      return ar ? 'انتهت مهلة طلب الشحن' : 'The recharge order expired';
+    case 'ADMIN_MESSAGE':
+      return ar ? 'رسالة من الإدارة في طلب الشحن' : 'A message from the team on the recharge order';
+    case 'IMAGE':
+      return ar ? 'صورة جديدة في طلب الشحن' : 'A new picture on the recharge order';
+    default:
+      return ar ? 'رسالة جديدة في طلب الشحن' : 'A new message on the recharge order';
+  }
 }

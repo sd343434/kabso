@@ -17,6 +17,8 @@ export interface NotificationTargetRef {
   /** v1.54-social (D185): the sale of RECHARGE_COINS_RECEIVED. */
   readonly rechargeSaleId?: string;
 }
+// v1.69-social (D204): RECHARGE_ORDER_UPDATE rows are written by `recharge-order-core.notifyOrderIn` (one unread row
+// per order and recipient, the latest event in `recharge_order_event`).
 
 /** Types without an actor: always on, never grouped, never hidden with their target. */
 export const SYSTEM_TYPES: readonly NotificationType[] = [
@@ -28,6 +30,8 @@ export const SYSTEM_TYPES: readonly NotificationType[] = [
   'AVATAR_REMOVED',
   // v1.60-social (D191): a moderator warned the person (from the panel's report queue).
   'MODERATION_WARNING',
+  // v1.69-social (D204): a recharge order changed or got a message (`recharge-order-core.notifyOrderIn`).
+  'RECHARGE_ORDER_UPDATE',
 ];
 
 /** Types that join one unread row per target (owner, D92). */

@@ -17,6 +17,12 @@
  *   pnpm recharge:admin set-cap <agent> <cherries | 0 | default>   # 0 = no cap; default = the server's (none)
  *   pnpm recharge:admin agents
  *   pnpm recharge:admin purge                                    # the retention step now
+ *   pnpm recharge:admin rates                                    # v1.69-social (D204): exchange rates per country
+ *   pnpm recharge:admin set-rate <CC> <CUR> <units per USD> --digits <0-3> --reason <text>
+ *   pnpm recharge:admin clear-rate <CC> --reason <text>          # the country goes back to USD only
+ *   pnpm recharge:admin disputes                                 # open disputes (no chat content)
+ *   pnpm recharge:admin resolve <order id> credit-buyer|refund-agent --reason <text>
+ *   pnpm recharge:admin expire-orders                            # the order expiry step now
  *
  * `<agent>` is a code (`coin0001`), an email or a username. Every change writes an audit row in its
  * transaction; a bad argument or a refused action exits 1 (nothing changed).
@@ -43,6 +49,13 @@ import {
   topUpIn,
 } from '../modules/recharge/recharge-core.js';
 import { normalizeAgentCode, parseMoneyMinor } from '../modules/recharge/recharge-rules.js';
+import {
+  clearExchangeRateIn,
+  expireDueOrders,
+  resolveDisputeIn,
+  setExchangeRateIn,
+} from '../modules/recharge/recharge-order-core.js';
+import { formatMinor, formatRate, parseRateMicro } from '../modules/recharge/recharge-order-rules.js';
 
 function fail(message: string): never {
   process.stderr.write(`${message}\n`);
@@ -57,6 +70,9 @@ const USAGE = [
   '       pnpm recharge:admin suspend <agent> --reason <text> | reinstate <agent>',
   '       pnpm recharge:admin set-cap <agent> <cherries | 0 | default>',
   '       pnpm recharge:admin agents | purge',
+  '       pnpm recharge:admin rates | set-rate <CC> <CUR> <units per USD> --digits <0-3> --reason <text>',
+  '       pnpm recharge:admin clear-rate <CC> --reason <text> | disputes | expire-orders',
+  '       pnpm recharge:admin resolve <order id> credit-buyer|refund-agent --reason <text>',
 ].join('\n');
 
 const url = process.env.MIGRATION_DATABASE_URL;
@@ -215,9 +231,10 @@ try {
       reason: { type: 'string' },
       paid: { type: 'string' },
       note: { type: 'string' },
+      digits: { type: 'string' },
     },
   });
-  const [command, a, b] = positionals;
+  const [command, a, b, c] = positionals;
   const now = new Date();
   switch (command) {
     case 'applications':
@@ -310,6 +327,85 @@ try {
       const days = setting('RECHARGE_AGENT_KYC_RETENTION_DAYS') as number;
       const n = await purgeApplications(prisma, (keys) => storage.delete(keys), now, days, 'cli');
       process.stdout.write(`Purged ${String(n)} application(s).\n`);
+      break;
+    }
+    // ---- v1.69-social (D204, §10.64): exchange rates and disputes ------------------------------------------
+    case 'rates': {
+      const rows = await prisma.rechargeExchangeRate.findMany({ orderBy: { country: 'asc' } });
+      for (const r of rows) {
+        process.stdout.write(
+          `${r.country}  ${r.currency}  ${formatRate(r.rateMicro)} per USD  (${String(r.digits)} decimals)  ${r.updatedAt.toISOString()}\n`,
+        );
+      }
+      if (rows.length === 0)
+        process.stdout.write('No exchange rates: every country is priced in USD only.\n');
+      break;
+    }
+    case 'set-rate': {
+      const country = (a ?? '').toUpperCase();
+      const currency = (b ?? '').toUpperCase();
+      const rateMicro = parseRateMicro(c ?? '');
+      if (!/^[A-Z]{2}$/.test(country) || !/^[A-Z]{3}$/.test(currency) || rateMicro === null) fail(USAGE);
+      const digits = values.digits === undefined ? 2 : Number(values.digits);
+      if (!Number.isInteger(digits) || digits < 0 || digits > 3) fail('--digits is 0 … 3.');
+      const reason = text(values.reason, '--reason');
+      await run(() =>
+        prisma.$transaction((tx) =>
+          setExchangeRateIn(tx, country, { currency, rateMicro, digits }, reason, now),
+        ),
+      );
+      process.stdout.write(`${country}: 1 USD = ${formatRate(rateMicro)} ${currency}.\n`);
+      break;
+    }
+    case 'clear-rate': {
+      const country = (a ?? '').toUpperCase();
+      if (!/^[A-Z]{2}$/.test(country)) fail(USAGE);
+      const reason = text(values.reason, '--reason');
+      await run(() => prisma.$transaction((tx) => clearExchangeRateIn(tx, country, reason)));
+      process.stdout.write(`${country}: USD only.\n`);
+      break;
+    }
+    case 'disputes': {
+      const rows = await prisma.rechargeOrder.findMany({
+        where: { status: 'DISPUTED' },
+        orderBy: { disputedAt: 'asc' },
+        take: 500,
+        select: { id: true, coins: true, usdMinor: true, disputedAt: true, disputedBy: true, country: true },
+      });
+      for (const r of rows) {
+        process.stdout.write(
+          `${r.id}  ${String(r.coins)} coins  $${formatMinor(r.usdMinor, 2)}  ${r.country}  by ${r.disputedBy ?? '?'}  ${r.disputedAt?.toISOString() ?? ''}\n`,
+        );
+      }
+      if (rows.length === 0) process.stdout.write('No open disputes.\n');
+      break;
+    }
+    case 'resolve': {
+      if (!a || !UUID.test(a) || (b !== 'credit-buyer' && b !== 'refund-agent')) fail(USAGE);
+      const reason = text(values.reason, '--reason');
+      const badges = {
+        tierMins: setting('RECHARGE_BADGE_TIERS') as number[],
+        timeZone: setting('RECHARGE_BADGE_TIME_ZONE') as string,
+        hours: setting('RECHARGE_BADGE_HOURS') as number,
+      };
+      const r = await run(() =>
+        prisma.$transaction((tx) =>
+          resolveDisputeIn(
+            tx,
+            a.toLowerCase(),
+            b === 'credit-buyer' ? 'CREDIT_BUYER' : 'REFUND_AGENT',
+            reason,
+            now,
+            badges,
+          ),
+        ),
+      );
+      process.stdout.write(`${r.status}${r.changed ? '' : ' (already decided; nothing moved)'}.\n`);
+      break;
+    }
+    case 'expire-orders': {
+      const n = await expireDueOrders(prisma, now);
+      process.stdout.write(`Expired ${String(n)} order(s).\n`);
       break;
     }
     default:

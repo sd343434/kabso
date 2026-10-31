@@ -126,6 +126,9 @@ export interface AppConfig {
     /** v1.54-social (D185). */
     readonly rechargeSellUser: RateLimitRule;
     readonly rechargeWriteUser: RateLimitRule;
+    /** v1.69-social (D204). */
+    readonly rechargeOrderUser: RateLimitRule;
+    readonly rechargeOrderActionUser: RateLimitRule;
     readonly topupCheckoutUser: RateLimitRule;
     /** v1.61-social (D192): `POST /waitlist`, per client IP. */
     readonly waitlistIp: RateLimitRule;
@@ -240,6 +243,16 @@ export interface AppConfig {
     readonly sweepIntervalSeconds: number;
     /** v1.56-social (D187, §10.50): the daily recharge badges. */
     readonly badges: RechargeBadgeRules;
+    /** v1.69-social (D204, §10.64): recharge orders with escrow. */
+    readonly orders: {
+      readonly enabled: boolean;
+      readonly minCoins: number;
+      readonly maxCoins: number;
+      readonly requestTtlMinutes: number;
+      readonly paymentTtlMinutes: number;
+      readonly disputeAfterMinutes: number;
+      readonly sweepIntervalSeconds: number;
+    };
   };
   /** v1.59-social (D190): card top-ups on the website through Stripe Checkout (CONVENTIONS §10.53). */
   readonly topup: {
@@ -509,6 +522,8 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       bagSendUser: e.RATE_LIMIT_BAG_SEND_USER,
       rechargeSellUser: e.RATE_LIMIT_RECHARGE_SELL_USER,
       rechargeWriteUser: e.RATE_LIMIT_RECHARGE_WRITE_USER,
+      rechargeOrderUser: e.RATE_LIMIT_RECHARGE_ORDER_USER,
+      rechargeOrderActionUser: e.RATE_LIMIT_RECHARGE_ORDER_ACTION_USER,
       topupCheckoutUser: e.RATE_LIMIT_TOPUP_CHECKOUT_USER,
       waitlistIp: e.RATE_LIMIT_WAITLIST_IP,
       liveHeartbeatUser: e.RATE_LIMIT_LIVE_HEARTBEAT_USER,
@@ -620,6 +635,15 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
         tierMins: e.RECHARGE_BADGE_TIERS,
         timeZone: e.RECHARGE_BADGE_TIME_ZONE,
         hours: e.RECHARGE_BADGE_HOURS,
+      },
+      orders: {
+        enabled: e.RECHARGE_ORDERS_ENABLED,
+        minCoins: e.RECHARGE_ORDER_MIN_COINS,
+        maxCoins: e.RECHARGE_ORDER_MAX_COINS,
+        requestTtlMinutes: e.RECHARGE_ORDER_REQUEST_TTL_MINUTES,
+        paymentTtlMinutes: e.RECHARGE_ORDER_PAYMENT_TTL_MINUTES,
+        disputeAfterMinutes: e.RECHARGE_ORDER_DISPUTE_AFTER_MINUTES,
+        sweepIntervalSeconds: e.RECHARGE_ORDER_SWEEP_INTERVAL_SECONDS,
       },
     },
     topup: {

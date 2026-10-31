@@ -36,6 +36,8 @@ export function notificationPushData(dto: NotificationDto): Record<string, strin
     data.targetType = dto.target.type;
     data.targetId = dto.target.id;
     if (dto.target.postId !== null) data.targetPostId = dto.target.postId;
+    // v1.69-social (D204): what happened on the recharge order (the push's wording and the app's route).
+    if (dto.target.orderEvent !== undefined) data.orderEvent = dto.target.orderEvent;
   }
   const actor = dto.actors[0];
   if (actor) data.actorUsername = actor.username;
@@ -120,7 +122,7 @@ export class NotificationPushDispatcher implements OnModuleInit, OnModuleDestroy
             actorCount: dto.actorCount,
             targetType: dto.target?.type ?? null,
             targetId: dto.target?.id ?? null,
-            targetText: dto.target?.text ?? null,
+            targetText: dto.target?.orderEvent ?? dto.target?.text ?? null,
           },
           locale,
         );

@@ -14,6 +14,7 @@ import {
 } from './admin-auth.service.js';
 import { AdminFinanceService } from './admin-finance.service.js';
 import { AdminModerationService } from './admin-moderation.service.js';
+import { AdminOrdersService } from './admin-orders.service.js';
 import {
   adminCodeSchema,
   adminLoginSchema,
@@ -21,6 +22,11 @@ import {
   agentsQuerySchema,
   applicationsQuerySchema,
   capSchema,
+  disputeResolveSchema,
+  disputesQuerySchema,
+  exchangeRateBodySchema,
+  orderAdminMessageSchema,
+  pathCountry,
   panelReportActionSchema,
   pathUuid,
   reasonSchema,
@@ -425,5 +431,101 @@ export class AdminModerationController {
     @CurrentAdmin() admin: AdminContext,
   ) {
     return this.moderation.act(pathUuid(id), body, admin);
+  }
+}
+
+/** v1.69-social (D204, §10.64.6): «نزاعات الشحن» and «أسعار الصرف». */
+@Public()
+@Controller('admin/recharge')
+@PANEL_LIMIT
+@UseGuards(AdminSessionGuard)
+export class AdminRechargeOrdersController {
+  constructor(private readonly orders: AdminOrdersService) {}
+
+  @Get('disputes')
+  @RequireCapability('recharge.disputes')
+  disputes(
+    @Query(new ZodValidationPipe(disputesQuerySchema))
+    query: {
+      status: 'OPEN' | 'RESOLVED';
+      cursor?: string;
+      limit: number;
+    },
+  ) {
+    return this.orders.disputes(query);
+  }
+
+  @Get('orders/:orderId')
+  @RequireCapability('recharge.disputes')
+  order(@Param('orderId') id: string, @CurrentAdmin() admin: AdminContext) {
+    return this.orders.order(pathUuid(id), admin);
+  }
+
+  @Get('orders/:orderId/messages/:messageId/image')
+  @RequireCapability('recharge.disputes')
+  async image(
+    @Param('orderId') id: string,
+    @Param('messageId') messageId: string,
+    @CurrentAdmin() admin: AdminContext,
+    @Res() res: Response,
+  ): Promise<void> {
+    const bytes = await this.orders.image(pathUuid(id), messageId, admin);
+    res.setHeader('Content-Type', 'image/webp');
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.setHeader('Content-Disposition', 'inline');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.status(200).end(bytes);
+  }
+
+  @Post('orders/:orderId/messages')
+  @HttpCode(201)
+  @RequireCapability('recharge.disputes')
+  post(
+    @Param('orderId') id: string,
+    @Body(new ZodValidationPipe(orderAdminMessageSchema)) body: { text: string },
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    return this.orders.post(pathUuid(id), body.text, admin);
+  }
+
+  @Post('orders/:orderId/resolve')
+  @HttpCode(200)
+  @RequireCapability('recharge.disputes.resolve')
+  resolve(
+    @Param('orderId') id: string,
+    @Body(new ZodValidationPipe(disputeResolveSchema))
+    body: { outcome: 'CREDIT_BUYER' | 'REFUND_AGENT'; reason: string; totpCode: string },
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    return this.orders.resolve(pathUuid(id), body, admin);
+  }
+
+  @Get('exchange-rates')
+  @RequireCapability('recharge.agents')
+  rates() {
+    return this.orders.rates();
+  }
+
+  @Post('exchange-rates/:country')
+  @HttpCode(200)
+  @RequireCapability('recharge.rates')
+  setRate(
+    @Param('country') country: string,
+    @Body(new ZodValidationPipe(exchangeRateBodySchema))
+    body: { currency: string; unitsPerUsd: string; digits: number; reason: string },
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    return this.orders.setRate(pathCountry(country), body, admin);
+  }
+
+  @Post('exchange-rates/:country/clear')
+  @HttpCode(200)
+  @RequireCapability('recharge.rates')
+  clearRate(
+    @Param('country') country: string,
+    @Body(new ZodValidationPipe(reasonSchema)) body: { reason: string },
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    return this.orders.clearRate(pathCountry(country), body.reason, admin);
   }
 }
