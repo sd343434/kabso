@@ -255,6 +255,62 @@ void main() {
       }
     });
 
+    test('D194: carriedPoints parses, defaults to 0, adds to levelPoints', () {
+      final d = LevelSummary.fromJson(d194SupportDetailJson());
+      expect(d.points, BigInt.from(16500));
+      expect(d.levelPoints, d194Thresholds()[49] + BigInt.from(410));
+      final old = LevelSummary.fromJson(
+        levelSummaryJson('SUPPORT')..remove('carriedPoints'),
+      );
+      expect(old.carriedPoints, BigInt.zero);
+      expect(
+        () => LevelSummary.fromJson({
+          ...levelSummaryJson('SUPPORT'),
+          'carriedPoints': 5,
+        }),
+        throwsFormatException,
+      );
+    });
+
+    test('D194: the ladder table reaches 2 000 840 500 points (20 billion '
+        'coins) at level 100', () {
+      final t = d194Thresholds();
+      expect(t, hasLength(100));
+      expect(t[9], BigInt.from(40500));
+      expect(t[99], BigInt.from(2000840500));
+      expect(t[99] * BigInt.from(10) >= BigInt.from(20000000000), isTrue);
+    });
+
+    test('D194: big points compact (M / B, ar مليون / مليار), a need rounds '
+        'up', () {
+      String en(int v, {bool up = false}) =>
+          formatPointsCompact(BigInt.from(v), _en, roundUp: up);
+      expect(en(0), '0');
+      expect(en(-5), '0');
+      expect(en(999999), '999,999');
+      expect(en(1000000), '1M');
+      expect(en(1599999), '1.5M');
+      expect(en(1599999, up: true), '1.6M');
+      expect(en(15840500), '15.8M');
+      expect(en(999999999), '999.9M');
+      expect(en(999999999, up: true), '1B');
+      expect(en(2000840500), '2B');
+      expect(en(2000840500, up: true), '2.1B');
+      expect(en(5600000000), '5.6B');
+      expect(
+        formatPointsCompact(BigInt.parse('9223372036854775807'), _en),
+        '9,223,372,036.8B',
+      );
+      expect(
+        formatPointsCompact(BigInt.from(5600000000), _ar),
+        '5.6\u00A0مليار',
+      );
+      expect(
+        formatPointsCompact(BigInt.from(15840500), _ar),
+        '15.8\u00A0مليون',
+      );
+    });
+
     test('points use separators and stay exact', () {
       expect(formatPoints(BigInt.zero), '0');
       expect(formatPoints(BigInt.from(999)), '999');
@@ -567,6 +623,57 @@ void main() {
             tester.getRect(find.byKey(LevelsScreen.tabKey(c))).top,
         };
         expect(tops, hasLength(1));
+        for (final c in LevelCategory.values) {
+          await tester.tap(find.byKey(LevelsScreen.tabKey(c)));
+          await tester.pumpAndSettle();
+          expect(tester.takeException(), isNull);
+        }
+      });
+    }
+
+    for (final language in AppLanguage.values) {
+      testWidgets('${language.name}: D194 billions at 360×800, text scale 1.3 '
+          '— compact, no overflow', (tester) async {
+        final arabic = language == AppLanguage.ar;
+        final l10n = arabic ? _ar : _en;
+        await _pumpRouted(
+          tester,
+          FakeLevelsRepository(
+            summaries: d194LevelsJson(arabic: arabic),
+            detail: d194SupportDetailJson(arabic: arabic),
+          ),
+          language: language,
+          viewport: GoldenViewport.android,
+          textScale: 1.3,
+          initial: AppRoutes.level('support'),
+        );
+        expect(tester.takeException(), isNull);
+        // The header: the level points (15.8M) and the need rounded up.
+        final card = find.byKey(LevelsScreen.headerKey);
+        String text(Finder f) => tester
+            .widgetList<RichText>(
+              find.descendant(of: f, matching: find.byType(RichText)),
+            )
+            .map((r) => r.text.toPlainText())
+            .join(' | ');
+        expect(
+          text(card),
+          contains(l10n.levelsPoints(l10n.compactMillion('15.8'))),
+        );
+        expect(text(card), contains(l10n.compactMillion('3.2')));
+        // Scroll the 21 tiers to the last one: «From 2B pts», no overflow.
+        final last = find.byKey(LevelTierGrid.frameKey(21));
+        await tester.scrollUntilVisible(
+          last,
+          400,
+          scrollable: find.byType(Scrollable).last,
+        );
+        expect(
+          text(last),
+          contains(l10n.levelsTierFrom(l10n.compactBillion('2'))),
+        );
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
         for (final c in LevelCategory.values) {
           await tester.tap(find.byKey(LevelsScreen.tabKey(c)));
           await tester.pumpAndSettle();

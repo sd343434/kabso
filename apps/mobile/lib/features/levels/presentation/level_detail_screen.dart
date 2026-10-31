@@ -149,14 +149,16 @@ class _TierCard extends StatelessWidget {
     final reached = tier <= current;
     final isCurrent = tier == current;
     final start = first?.requiredPoints;
-    final left = start == null || reached ? null : start - summary.points;
+    // D194: the ladder is measured on the points plus any carried points.
+    final points = summary.levelPoints;
+    final left = start == null || reached ? null : start - points;
     final InlineSpan line;
     if (!summary.available) {
       line = TextSpan(text: l10n.levelsUnavailable);
     } else if (reached) {
       line = TextSpan(text: l10n.levelsTierUnlocked);
     } else if (left != null && left > BigInt.zero) {
-      final x = formatPoints(left);
+      final x = formatPointsCompact(left, l10n, roundUp: true);
       line = levelCardStressed(l10n.levelsTierToUnlock(x), x);
     } else {
       line = const TextSpan();
@@ -167,7 +169,7 @@ class _TierCard extends StatelessWidget {
         ? 1.0
         : start == null || start == BigInt.zero
         ? 0.0
-        : (summary.points.toDouble() / start.toDouble()).clamp(0.0, 1.0);
+        : (points.toDouble() / start.toDouble()).clamp(0.0, 1.0);
     final pill = isCurrent
         ? LevelCardPill(l10n.levelsTierCurrent)
         : reached
@@ -176,7 +178,7 @@ class _TierCard extends StatelessWidget {
     // The starting points once the ladder is known (the title has the range).
     final caption = start == null
         ? ''
-        : l10n.levelsTierFrom(formatPoints(start));
+        : l10n.levelsTierFrom(formatPointsCompact(start, l10n));
     final frame = category == LevelCategory.support
         ? KLevelArt.supportFrame(tier)
         : null;

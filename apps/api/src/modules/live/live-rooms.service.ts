@@ -234,14 +234,16 @@ export interface RoomRow {
 /**
  * CP-016 D (§10.18): the host's charm (ATTRACTIVENESS) level, null while the category is
  * unavailable. The same rule as the levels read side (`summaryDto`): the highest level of the
- * published ladder the points reach, or the level kept from that same version if higher.
+ * published ladder the points reach (plus carried points, D194), or the level kept from that same
+ * version if higher.
  */
 const ROOM_LEVEL_SQL = Prisma.sql`(
          SELECT CASE WHEN lc.is_enabled AND lc.published_version_id IS NOT NULL THEN
                   GREATEST(
                     (SELECT max(ld.level_number) FROM level_definitions ld
                       WHERE ld.version_id = lc.published_version_id
-                        AND ld.required_points <= COALESCE(ls.total_points, 0)),
+                        AND ld.required_points <= COALESCE(ls.total_points, 0)
+                            + CASE WHEN ls.version_id = lc.published_version_id THEN ls.carried_points ELSE 0 END),
                     CASE WHEN ls.version_id = lc.published_version_id THEN ls.current_level END)
                 END
            FROM level_categories lc

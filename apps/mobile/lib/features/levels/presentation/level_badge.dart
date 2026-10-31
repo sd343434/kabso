@@ -1,5 +1,6 @@
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/levels/domain/level_models.dart';
+import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// The owner's level art (kabso_levels pack, D72): per category 11 tiers of
@@ -343,6 +344,39 @@ String formatPoints(BigInt value) {
     out.write(digits[i]);
   }
   return negative ? '-$out' : out.toString();
+}
+
+/// Points for the level screens (D194: the ladder reaches 2 000 840 500):
+/// exact with separators below a million (`999,999`), then one decimal with
+/// the ARB's million / billion suffix (`5.6B`, `5.6 مليار`; Latin digits,
+/// DESIGN_SYSTEM §3.3) — floored, or rounded up with [roundUp] for an amount
+/// still needed, so a need is never understated. Negative values show 0.
+String formatPointsCompact(
+  BigInt value,
+  AppLocalizations l10n, {
+  bool roundUp = false,
+}) {
+  if (value.isNegative) return '0';
+  final million = BigInt.from(1000000);
+  if (value < million) return formatPoints(value);
+  final billion = million * BigInt.from(1000);
+  // Rounding up can carry 999.95M over to 1,000.0M: then it is 1B.
+  BigInt tenths(BigInt divisor) {
+    final scaled = value * BigInt.from(10);
+    final q = scaled ~/ divisor;
+    return roundUp && scaled % divisor != BigInt.zero ? q + BigInt.one : q;
+  }
+
+  var divisor = value >= billion ? billion : million;
+  var t = tenths(divisor);
+  if (divisor == million && t >= BigInt.from(10000)) {
+    divisor = billion;
+    t = tenths(divisor);
+  }
+  final suffix = divisor == billion ? l10n.compactBillion : l10n.compactMillion;
+  final whole = formatPoints(t ~/ BigInt.from(10));
+  final decimal = (t % BigInt.from(10)).toInt();
+  return suffix(decimal == 0 ? whole : '$whole.$decimal');
 }
 
 /// A rounded progress bar in the tier's gem colour.

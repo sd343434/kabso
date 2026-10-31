@@ -25,6 +25,7 @@ Map<String, dynamic> levelSummaryJson(
   String category, {
   bool available = true,
   String points = '0',
+  String carriedPoints = '0',
   Map<String, dynamic>? level,
   Map<String, dynamic>? nextLevel,
   String? pointsToNext,
@@ -42,6 +43,7 @@ Map<String, dynamic> levelSummaryJson(
         ? 'يرتفع بقيمة النشاط المؤكد.'
         : 'Grows with confirmed activity.',
     'points': points,
+    'carriedPoints': available ? carriedPoints : '0',
     'level': available ? level : null,
     'nextLevel': available ? nextLevel : null,
     'pointsToNext': available ? pointsToNext : null,
@@ -127,3 +129,91 @@ Map<String, dynamic> supportDetailJson({bool arabic = false}) => {
     ),
   ],
 };
+
+/// D194: the repriced ladder's thresholds (points; 1 point per 10 coins),
+/// level 1 → 100: 0 … 2 000 840 500.
+List<BigInt> d194Thresholds() {
+  const bands = [
+    (10, 4500),
+    (20, 20000),
+    (30, 100000),
+    (40, 360000),
+    (50, 1100000),
+    (60, 3200000),
+    (80, 13600000),
+    (99, 59000000),
+    (100, 560000000),
+  ];
+  var required = BigInt.zero;
+  return [
+    for (var n = 1; n <= 100; n++)
+      required += n == 1
+          ? BigInt.zero
+          : BigInt.from(bands.firstWhere((b) => n <= b.$1).$2),
+  ];
+}
+
+/// D194: support kept at level 50 after the ladder change (16 500 earned
+/// points, the rest carried), with the whole 100-level ladder.
+Map<String, dynamic> d194SupportDetailJson({bool arabic = false}) {
+  final t = d194Thresholds();
+  final points = BigInt.from(16500);
+  final carried = t[49] + BigInt.from(410) - points;
+  return {
+    ...levelSummaryJson(
+      'SUPPORT',
+      arabic: arabic,
+      points: '$points',
+      carriedPoints: '$carried',
+      level: levelBriefJson(
+        50,
+        name: arabic ? 'زمردي' : 'Emerald',
+        requiredPoints: '${t[49]}',
+        iconKey: 'tier_06',
+      ),
+      nextLevel: levelBriefJson(
+        51,
+        name: arabic ? 'ياقوتي' : 'Sapphire',
+        requiredPoints: '${t[50]}',
+        iconKey: 'tier_06',
+      ),
+      pointsToNext: '${t[50] - t[49] - BigInt.from(410)}',
+      progressPercent: 0,
+    ),
+    'levels': [
+      for (var n = 1; n <= 100; n++)
+        levelBriefJson(
+          n,
+          name: arabic ? 'مستوى' : 'Level',
+          requiredPoints: '${t[n - 1]}',
+        ),
+    ],
+  };
+}
+
+/// D194: the four categories near the top of the new ladder (billions).
+List<Map<String, dynamic>> d194LevelsJson({bool arabic = false}) {
+  final t = d194Thresholds();
+  final support = d194SupportDetailJson(arabic: arabic)..remove('levels');
+  return [
+    levelSummaryJson(
+      'ATTRACTIVENESS',
+      arabic: arabic,
+      points: '${t[98] + BigInt.from(123456789)}',
+      level: levelBriefJson(99, requiredPoints: '${t[98]}'),
+      nextLevel: levelBriefJson(100, requiredPoints: '${t[99]}'),
+      pointsToNext: '${t[99] - t[98] - BigInt.from(123456789)}',
+      progressPercent: 22,
+    ),
+    support,
+    levelSummaryJson(
+      'WIZARD',
+      arabic: arabic,
+      points: '${t[99]}',
+      level: levelBriefJson(100, requiredPoints: '${t[99]}'),
+      progressPercent: 100,
+      maxLevel: true,
+    ),
+    levelSummaryJson('GAMING', arabic: arabic, available: false),
+  ];
+}

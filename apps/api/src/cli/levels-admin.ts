@@ -22,7 +22,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient, type AdminPermission } from '../generated/prisma/client.js';
 import { AuditAction } from '../common/audit/audit.service.js';
 import { LEVEL_CATEGORIES } from '../modules/levels/levels.constants.js';
-import { PRESET_MULTIPLIER, presetLadder } from '../modules/levels/level-preset.js';
+import { PRESET_ID, PRESET_MULTIPLIER, presetLadder } from '../modules/levels/level-preset.js';
 
 const PERMISSIONS: readonly AdminPermission[] = [
   'LEVELS_VIEW',
@@ -128,7 +128,7 @@ async function draftPreset(email: string): Promise<void> {
           actorUserId: actor,
           targetType: 'level_version',
           targetId: version.id,
-          metadata: { category: code, versionNumber: version.versionNumber, preset: 'owner-2026-10-20' },
+          metadata: { category: code, versionNumber: version.versionNumber, preset: PRESET_ID },
         },
       });
       return version;
@@ -187,7 +187,7 @@ async function publishCharm(email: string): Promise<void> {
           metadata: {
             category: 'ATTRACTIVENESS',
             versionNumber: draft.versionNumber,
-            preset: 'owner-2026-10-20',
+            preset: PRESET_ID,
           },
         },
       });

@@ -365,14 +365,6 @@ info:
     `updateAdminSiteSettings` (panel session); links in one form (`https://www.instagram.com/<handle>`,
     `https://www.tiktok.com/@<handle>`, `https://wa.me/<digits>`). The website reaches its two public operations
     same-origin through the root domain; `/topup` there redirects to D190's pages on `api.` (CONVENTIONS §10.55).
-    **D196 (DRAFT v1.64-social)**: the OWNER enters the Stripe keys in the admin panel «الدفع (Stripe)» instead of
-    the server environment. `getAdminPaymentSettings`, `updateAdminPaymentSettings` (PATCH; the code again and a
-    reason), `testAdminPaymentKey` («اختبار الاتصال», Stripe `balance.retrieve`), `clearAdminPaymentKeys`
-    (capability `payments.settings`, OWNER). The secret key and the webhook signing secret are **write-only** (only
-    `PaymentKeyInfo`: type, mode, last 4, who and when), stored AES-256-GCM sealed with a key derived from
-    `ADMIN_TOTP_KEY`; they override `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET`, which stay the fallback (no
-    restart). `updateAdminSiteSettings` refuses to turn `topupEnabled` on without keys (409). Additive (CONVENTIONS
-    §10.53.1).
     **D193 (DRAFT v1.62-social, CP-036)**: in-app account deletion «حذف الحساب» (Apple 5.1.1(v), Google Play):
     `getAccountDeletionInfo` (`GET /me/account-deletion`, `AccountDeletionInfo`: the grace period, what must be
     settled first, the support address) and `requestAccountDeletion` (`POST /me/account-deletion`,
@@ -384,6 +376,19 @@ info:
     see «مستخدم محذوف»). Codes `REAUTH_FAILED` (403), `ACCOUNT_DELETION_BLOCKED` (409, `details[].issue`
     `recharge_agent`, `host_agency`, `pending_withdrawal`, `pending_cherry_sale`, `negative_balance`),
     `ACCOUNT_DELETION_PENDING` (409) (CONVENTIONS §10.56).
+    **D194 (DRAFT v1.63-social)**: the level ladder repriced for cheap coins (1 000 000 coins = $12.50; level 100 =
+    20 008 405 000 coins ≈ $250 105), published once by a migration as an audited system change. Levels are kept:
+    `LevelSummary.carriedPoints` (additive, required) is the level points credited at a ladder change so a kept
+    level sits at its new threshold; `pointsToNext` and `progressPercent` are measured on `points + carriedPoints`
+    (`points` stays Σ of the caller's ledger) (CONVENTIONS §10.57).
+    **D196 (DRAFT v1.64-social)**: the OWNER enters the Stripe keys in the admin panel «الدفع (Stripe)» instead of
+    the server environment. `getAdminPaymentSettings`, `updateAdminPaymentSettings` (PATCH; the code again and a
+    reason), `testAdminPaymentKey` («اختبار الاتصال», Stripe `balance.retrieve`), `clearAdminPaymentKeys`
+    (capability `payments.settings`, OWNER). The secret key and the webhook signing secret are **write-only** (only
+    `PaymentKeyInfo`: type, mode, last 4, who and when), stored AES-256-GCM sealed with a key derived from
+    `ADMIN_TOTP_KEY`; they override `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET`, which stay the fallback (no
+    restart). `updateAdminSiteSettings` refuses to turn `topupEnabled` on without keys (409). Additive (CONVENTIONS
+    §10.53.1).
     **D198 (DRAFT v1.66-social, CP-040)**: privacy compliance for a GLOBAL app (GDPR, UK GDPR, CCPA/CPRA, LGPD, UAE
     and Saudi PDPL). Tag `privacy`: versioned legal documents — `getLegalDocuments` (`GET /legal/documents`, public:
     the terms and privacy policy in force, version, effective date, content hash, summary of changes) published only
@@ -11695,7 +11700,7 @@ components:
     LevelSummary:
       type: object
       required:
-        [category, status, name, description, points, level, nextLevel, pointsToNext, progressPercent, maxLevel, versionNumber]
+        [category, status, name, description, points, carriedPoints, level, nextLevel, pointsToNext, progressPercent, maxLevel, versionNumber]
       properties:
         category: { $ref: '#/components/schemas/LevelCategoryCode' }
         status:
@@ -11705,6 +11710,13 @@ components:
         name: { type: string, maxLength: 40 }
         description: { type: string, maxLength: 200 }
         points: { $ref: '#/components/schemas/PointsAmount' }
+        carriedPoints:
+          allOf: [{ $ref: '#/components/schemas/PointsAmount' }]
+          description: >-
+            v1.63-social (D194, CONVENTIONS §10.57): level points credited when a new ladder was published, so the
+            level the caller kept sits at its new threshold (plus what they had made inside it). "0" for most
+            people and while UNAVAILABLE. The level and progress are measured on `points + carriedPoints`; it is
+            not in the points history.
         level:
           oneOf:
             - { $ref: '#/components/schemas/LevelBrief' }
@@ -11718,7 +11730,7 @@ components:
             - { $ref: '#/components/schemas/PointsAmount' }
             - { type: 'null' }
         progressPercent:
-          description: Progress from the current level's threshold to the next one, 0–100 with one decimal; 100 at the top level; null when UNAVAILABLE.
+          description: Progress from the current level's threshold to the next one on `points + carriedPoints` (v1.63-social), 0–100 with one decimal, floored; 0 while a kept level is above what those points reach; 100 at the top level; null when UNAVAILABLE.
           type: [number, 'null']
           minimum: 0
           maximum: 100
