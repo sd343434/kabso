@@ -27,6 +27,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../helpers/fake_live_blocked_words_repository.dart';
 import '../../helpers/fake_live_media_engine.dart';
 import '../../helpers/fake_live_permissions.dart';
+import '../../helpers/fake_live_pk.dart';
 import '../../helpers/fake_live_repository.dart';
 import '../../helpers/fake_live_schedule_repository.dart';
 import '../../helpers/fakes.dart';
@@ -474,6 +475,8 @@ void main() {
         retry: (_, _) => null,
         overrides: [
           liveRepositoryProvider.overrideWithValue(FakeLiveRepository()),
+          // v1.43-live (D195): never the network for the PK.
+          ...pkTestOverrides(),
           liveMediaEngineProvider.overrideWithValue(() => engine),
           livePermissionsProvider.overrideWithValue(permissions),
           currentUserProvider.overrideWithValue(

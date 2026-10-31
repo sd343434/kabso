@@ -17345,6 +17345,348 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'المخزون بعد البيع'**
   String get rechargeStockAfterLabel;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'PK'**
+  String get liveGiftTabPk;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحدي PK'**
+  String get pkSheetTitle;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'دعوة مضيف'**
+  String get pkTabInvite;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'مطابقة عشوائية'**
+  String get pkTabRandom;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'ابحث عن مضيف مباشر'**
+  String get pkSearchHint;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'مضيفون مباشرون الآن'**
+  String get pkLiveNow;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد مضيفون متاحون الآن'**
+  String get pkNoCandidates;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'دعوة'**
+  String get pkInvite;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'أُرسلت الدعوة إلى {name}'**
+  String pkInviteSent(String name);
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'بانتظار رد {name}… {seconds}'**
+  String pkWaitingFor(String name, String seconds);
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء'**
+  String get pkCancel;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'ابدأ المطابقة'**
+  String get pkRandomStart;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'جارٍ البحث عن خصم… {time}'**
+  String pkRandomSearching(String time);
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'إيقاف البحث'**
+  String get pkRandomStop;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'نطابقك مع مضيف مباشر يبحث عن تحدٍ الآن.'**
+  String get pkRandomHint;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'استقبال دعوات PK'**
+  String get pkInvitesSwitch;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'دعوة PK'**
+  String get pkIncomingTitle;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'{name} يدعوك إلى تحدي PK'**
+  String pkIncomingBody(String name);
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'قبول'**
+  String get pkAccept;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'رفض'**
+  String get pkDecline;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'رُفضت دعوتك'**
+  String get pkNoticeDeclined;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت مهلة الدعوة'**
+  String get pkNoticeExpired;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم نجد خصماً، حاول مجدداً'**
+  String get pkNoticeQueueExpired;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'إنهاء التحدي'**
+  String get pkEnd;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'إنهاء التحدي الآن؟'**
+  String get pkEndConfirmTitle;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'إنهاء التحدي قبل وقته يُحتسب انسحاباً ويفوز الخصم.'**
+  String get pkEndConfirmBody;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'كتم الخصم'**
+  String get pkMuteOpponent;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء كتم الخصم'**
+  String get pkUnmuteOpponent;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'فعّل فريق {team} {booster} {multiplier}!'**
+  String pkBoostAnnounce(String team, String booster, String multiplier);
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'دبل'**
+  String get pkBoosterDouble;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'دبل تيربو'**
+  String get pkBoosterDoubleTurbo;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'تربل'**
+  String get pkBoosterTriple;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'تربل تيربو'**
+  String get pkBoosterTripleTurbo;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'×{multiplier} {time}'**
+  String pkBoostChip(String multiplier, String time);
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'PK {time}'**
+  String pkRoundTimer(String time);
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'فوز!'**
+  String get pkResultWin;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'خسارة'**
+  String get pkResultLose;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعادل'**
+  String get pkResultDraw;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'انسحب {name}'**
+  String pkEndedForfeit(String name);
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'انقطع اتصال {name}'**
+  String pkEndedDisconnect(String name);
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'غاب {name} عن التحدي'**
+  String pkEndedAway(String name);
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'أنهى المشرف التحدي'**
+  String get pkEndedAdmin;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'المعززات تعمل أثناء التحدي فقط'**
+  String get pkBoosterNoMatch;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'متاح في آخر {minutes} من التحدي'**
+  String pkBoosterTooEarly(String minutes);
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'دقيقة'**
+  String get pkBoosterLastMinute;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'دقيقتين'**
+  String get pkBoosterLastTwoMinutes;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'استُخدم الحد الأقصى لهذا المعزز في هذا التحدي'**
+  String get pkBoosterLimit;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'معزز مساوٍ أو أقوى فعّال الآن'**
+  String get pkBoosterActiveHigher;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'المضيف مشغول بتحدٍ أو دعوة أخرى'**
+  String get pkErrorBusy;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا المضيف لا يستقبل دعوات PK'**
+  String get pkErrorInvitesOff;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتظر قليلاً قبل دعوة أخرى'**
+  String get pkErrorCooldown;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن بدء تحدٍ الآن'**
+  String get pkErrorUnavailable;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'الدعوة لم تعد متاحة'**
+  String get pkErrorInviteClosed;
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'PK: {wins} فوز · {losses} خسارة · {draws} تعادل'**
+  String pkRecord(String wins, String losses, String draws);
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'الخصم {name}'**
+  String pkOpponentPane(String name);
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'المضيف {name}'**
+  String pkOwnPane(String name);
+
+  /// v1.43-live (D195): PK 1 v 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'ضيف {name}'**
+  String pkGuestSemantics(String name);
 }
 
 class _AppLocalizationsDelegate

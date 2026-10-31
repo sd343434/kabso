@@ -4,9 +4,15 @@
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
+import 'package:kabso_live/features/live/domain/live_pk.dart';
 
 part 'live_gift_models.freezed.dart';
 part 'live_gift_models.g.dart';
+
+/// v1.43-live (D195): `Gift.pkBooster` on the wire (an unknown value: none).
+PkBoosterKind? pkBoosterFromJson(Object? wire) => PkBoosterKind.fromWire(wire);
+
+String? pkBoosterToJson(PkBoosterKind? kind) => kind?.wire;
 
 /// The person a gift panel opens with (their card's Gifts button).
 typedef LiveGiftPreselect = ({String username, String name});
@@ -110,6 +116,11 @@ abstract class Gift with _$Gift {
 
     /// v1.32-live (D154): a quip's sound and words; null for other gifts.
     GiftQuip? quip,
+
+    /// v1.43-live (D195): the PK booster this gift activates (listed only
+    /// in the «PK» tab during a PK battle), or null: an ordinary gift.
+    @JsonKey(fromJson: pkBoosterFromJson, toJson: pkBoosterToJson)
+    PkBoosterKind? pkBooster,
   }) = _Gift;
 
   factory fromJson(Map<String, dynamic> json) => _$GiftFromJson(json);

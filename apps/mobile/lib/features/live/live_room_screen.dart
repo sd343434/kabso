@@ -24,6 +24,7 @@ import 'package:kabso_live/features/live/application/live_gift_ticker.dart';
 import 'package:kabso_live/features/live/application/live_host_controller.dart'
     show liveViewersPreviewProvider;
 import 'package:kabso_live/features/live/application/live_lucky_ticker.dart';
+import 'package:kabso_live/features/live/application/live_pk_controller.dart';
 import 'package:kabso_live/features/live/application/live_program.dart';
 import 'package:kabso_live/features/live/application/live_quips.dart';
 import 'package:kabso_live/features/live/application/live_room_provider.dart';
@@ -61,6 +62,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_guest_tiles.d
 import 'package:kabso_live/features/live/presentation/widgets/live_lucky_combo_button.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_boxes.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_pk_stage.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_states.dart';
@@ -408,6 +410,12 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       ref
           .read(liveGiftEffectsProvider(room.id).notifier)
           .attach(_session.engine);
+      // v1.43-live (D195): the room's PK (snapshot + `pk` data messages).
+      if (room.mode == LiveRoomMode.solo) {
+        ref
+            .read(livePkProvider(room.id).notifier)
+            .attach(_session.engine.pkEvents, host: false);
+      }
       // D138: the emojis people play on their seats.
       ref
           .read(liveSeatEmojisProvider(room.id).notifier)
@@ -929,6 +937,10 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     // D131 (owner): the host pill's second line takes turns between this
     // live's points (the cherry) and its taps (a heart), when known.
     final taps = session.scoreParts?.tapPoints ?? room.scoreParts?.tapPoints;
+    // v1.43-live (D195): a PK replaces the full-screen video with the split
+    // stage (both hosts, the bar, the boosters, the result).
+    final pkState = ended ? null : ref.watch(livePkProvider(room.id));
+    final pkStage = pkState?.match == null ? null : _pkStage(pkState!, engine);
     return KLiveRoomScaffold(
       // D145c: the gift strips keep above the chat text.
       onChatTop: (top) =>
@@ -944,13 +956,17 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                   // D131 (ref 159): the characters start 37 pt above the
                   // bar, right over the gift button.
                   laneBottomInset: 59,
-                  child: _video(session, engine),
+                  child: pkStage != null
+                      ? const KLiveVideoPlaceholder(child: SizedBox.shrink())
+                      : _video(session, engine),
                 ),
                 // D154h: the host's stickers (no touches here).
                 LiveStickerLayer(roomId: room.id),
               ],
             ),
-      stage: !ended && room.mode.hasSeats ? _stage(session, engine) : null,
+      stage:
+          pkStage ??
+          (!ended && room.mode.hasSeats ? _stage(session, engine) : null),
       header: KHostPill(
         // D141 (owner): the host's @username beside the name (copy on tap).
         username: host.username,
@@ -1655,7 +1671,9 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     final combo = LuckyComboCluster.shows(ref, room.id)
         ? LuckyComboCluster(roomId: room.id)
         : null;
-    final guests = room.mode == LiveRoomMode.solo
+    // v1.43-live (D195): in a PK the guests are circles in the stage.
+    final inPk = ref.watch(livePkProvider(room.id)).match != null;
+    final guests = room.mode == LiveRoomMode.solo && !inPk
         ? (session.seats?.seats ?? const <LiveSeat>[])
               .where((s) => s.state == LiveSeatState.taken)
               .toList()
@@ -1729,6 +1747,35 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       ClipboardData(text: l10n.goLiveShareText(title, handle)),
     );
     if (mounted) KSnack.success(context, l10n.goLiveShareCopied);
+  }
+
+  /// v1.43-live (D195): the PK stage: this room's host from the room's
+  /// session, the other host and their guests from the PK connection.
+  Widget _pkStage(LivePkState pk, LiveMediaEngine engine) {
+    final match = pk.match!;
+    final room = _room;
+    final opponent = ref.read(livePkProvider(room.id).notifier).opponent;
+    final (_, other) = match.of(room.id);
+    final me = ref.read(currentUserProvider)?.id;
+    Widget stage() => LivePkStage(
+      match: match,
+      roomId: room.id,
+      now: pk.now,
+      ownVideo: engine.remoteVideo(room.host.id),
+      opponentVideo: opponent?.video(other.host.id),
+      guestVideo: (id) => id == me
+          ? (engine.videoPaused ? null : engine.preview())
+          : engine.remoteVideo(id) ?? opponent?.video(id),
+      speaking: {...engine.speaking, ...?opponent?.speaking},
+      announcement: pk.announcement,
+      onPerson: (u) => _person(u.username),
+    );
+    return opponent == null
+        ? stage()
+        : ListenableBuilder(
+            listenable: opponent.changes,
+            builder: (context, _) => stage(),
+          );
   }
 
   /// SOLO: the host's video, "the host will be right back" while they are
@@ -1886,6 +1933,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       // D154: a moderator's free quips are the soundboard's.
       soundboard: (ref) =>
           ref.watch(liveRoomSessionProvider(widget.room.id)).canModerate,
+      // v1.43-live (D195): the boosters' «PK» tab during a battle.
+      pk: (ref) => ref.watch(livePkProvider(widget.room.id)).match,
     ),
   );
 }

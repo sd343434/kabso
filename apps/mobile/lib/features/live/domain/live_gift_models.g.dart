@@ -48,6 +48,7 @@ _Gift _$GiftFromJson(Map<String, dynamic> json) => _Gift(
   quip: json['quip'] == null
       ? null
       : GiftQuip.fromJson(json['quip'] as Map<String, dynamic>),
+  pkBooster: pkBoosterFromJson(json['pkBooster']),
 );
 
 Map<String, dynamic> _$GiftToJson(_Gift instance) => <String, dynamic>{
@@ -64,6 +65,7 @@ Map<String, dynamic> _$GiftToJson(_Gift instance) => <String, dynamic>{
   'animationUrl': instance.animationUrl,
   'animationBytes': instance.animationBytes,
   'quip': instance.quip,
+  'pkBooster': pkBoosterToJson(instance.pkBooster),
 };
 
 const _$GiftCategoryEnumMap = {

@@ -30,3 +30,12 @@ its place: a missing file never breaks the panel or the room.
 | File | Gift code | Supplied |
 | ---- | --------- | -------- |
 | *(none yet)* | | |
+
+## PK boosters (D195) — bundled
+
+`pk/booster_double.png`, `pk/booster_double_turbo.png`, `pk/booster_triple.png`,
+`pk/booster_triple_turbo.png` (192 × 192 RGBA PNG): the activation gifts of «دبل» ×2, «دبل تيربو» ×3,
+«تربل» ×5 and «تربل تيربو» ×10 (`gift-admin pk-boosters-seed` names them with `assetKey`
+`pk/booster_<kind>`). Drawn for Kabso by the team (2026-10-31, D195) with the bundled Fredoka Bold
+(OFL) — gradient discs with the multiplier; nothing copied from another product. The owner may replace
+them with hosted art (`gift-admin update --image`).

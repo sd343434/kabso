@@ -9673,5 +9673,326 @@
   "rechargeChooseCountry": "اختر الدولة",
   "@rechargeChooseCountry": {"description": "D185 recharge screens (owner polish)"},
   "rechargeStockAfterLabel": "المخزون بعد البيع",
-  "@rechargeStockAfterLabel": {"description": "D185 recharge screens (owner polish)"}
+  "@rechargeStockAfterLabel": {"description": "D185 recharge screens (owner polish)"},
+  "liveGiftTabPk": "PK",
+  "@liveGiftTabPk": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkSheetTitle": "تحدي PK",
+  "@pkSheetTitle": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkTabInvite": "دعوة مضيف",
+  "@pkTabInvite": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkTabRandom": "مطابقة عشوائية",
+  "@pkTabRandom": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkSearchHint": "ابحث عن مضيف مباشر",
+  "@pkSearchHint": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkLiveNow": "مضيفون مباشرون الآن",
+  "@pkLiveNow": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkNoCandidates": "لا يوجد مضيفون متاحون الآن",
+  "@pkNoCandidates": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkInvite": "دعوة",
+  "@pkInvite": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkInviteSent": "أُرسلت الدعوة إلى {name}",
+  "@pkInviteSent": {
+    "description": "v1.43-live (D195): PK 1 v 1.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "pkWaitingFor": "بانتظار رد {name}… {seconds}",
+  "@pkWaitingFor": {
+    "description": "v1.43-live (D195): PK 1 v 1.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
+  "pkCancel": "إلغاء",
+  "@pkCancel": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkRandomStart": "ابدأ المطابقة",
+  "@pkRandomStart": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkRandomSearching": "جارٍ البحث عن خصم… {time}",
+  "@pkRandomSearching": {
+    "description": "v1.43-live (D195): PK 1 v 1.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "pkRandomStop": "إيقاف البحث",
+  "@pkRandomStop": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkRandomHint": "نطابقك مع مضيف مباشر يبحث عن تحدٍ الآن.",
+  "@pkRandomHint": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkInvitesSwitch": "استقبال دعوات PK",
+  "@pkInvitesSwitch": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkIncomingTitle": "دعوة PK",
+  "@pkIncomingTitle": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkIncomingBody": "{name} يدعوك إلى تحدي PK",
+  "@pkIncomingBody": {
+    "description": "v1.43-live (D195): PK 1 v 1.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "pkAccept": "قبول",
+  "@pkAccept": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkDecline": "رفض",
+  "@pkDecline": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkNoticeDeclined": "رُفضت دعوتك",
+  "@pkNoticeDeclined": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkNoticeExpired": "انتهت مهلة الدعوة",
+  "@pkNoticeExpired": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkNoticeQueueExpired": "لم نجد خصماً، حاول مجدداً",
+  "@pkNoticeQueueExpired": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkEnd": "إنهاء التحدي",
+  "@pkEnd": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkEndConfirmTitle": "إنهاء التحدي الآن؟",
+  "@pkEndConfirmTitle": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkEndConfirmBody": "إنهاء التحدي قبل وقته يُحتسب انسحاباً ويفوز الخصم.",
+  "@pkEndConfirmBody": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkMuteOpponent": "كتم الخصم",
+  "@pkMuteOpponent": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkUnmuteOpponent": "إلغاء كتم الخصم",
+  "@pkUnmuteOpponent": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkBoostAnnounce": "فعّل فريق {team} {booster} {multiplier}!",
+  "@pkBoostAnnounce": {
+    "description": "v1.43-live (D195): PK 1 v 1.",
+    "placeholders": {
+      "team": {
+        "type": "String"
+      },
+      "booster": {
+        "type": "String"
+      },
+      "multiplier": {
+        "type": "String"
+      }
+    }
+  },
+  "pkBoosterDouble": "دبل",
+  "@pkBoosterDouble": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkBoosterDoubleTurbo": "دبل تيربو",
+  "@pkBoosterDoubleTurbo": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkBoosterTriple": "تربل",
+  "@pkBoosterTriple": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkBoosterTripleTurbo": "تربل تيربو",
+  "@pkBoosterTripleTurbo": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkBoostChip": "×{multiplier} {time}",
+  "@pkBoostChip": {
+    "description": "v1.43-live (D195): PK 1 v 1.",
+    "placeholders": {
+      "multiplier": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "pkRoundTimer": "PK {time}",
+  "@pkRoundTimer": {
+    "description": "v1.43-live (D195): PK 1 v 1.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "pkResultWin": "فوز!",
+  "@pkResultWin": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkResultLose": "خسارة",
+  "@pkResultLose": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkResultDraw": "تعادل",
+  "@pkResultDraw": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkEndedForfeit": "انسحب {name}",
+  "@pkEndedForfeit": {
+    "description": "v1.43-live (D195): PK 1 v 1.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "pkEndedDisconnect": "انقطع اتصال {name}",
+  "@pkEndedDisconnect": {
+    "description": "v1.43-live (D195): PK 1 v 1.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "pkEndedAway": "غاب {name} عن التحدي",
+  "@pkEndedAway": {
+    "description": "v1.43-live (D195): PK 1 v 1.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "pkEndedAdmin": "أنهى المشرف التحدي",
+  "@pkEndedAdmin": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkBoosterNoMatch": "المعززات تعمل أثناء التحدي فقط",
+  "@pkBoosterNoMatch": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkBoosterTooEarly": "متاح في آخر {minutes} من التحدي",
+  "@pkBoosterTooEarly": {
+    "description": "v1.43-live (D195): PK 1 v 1.",
+    "placeholders": {
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
+  "pkBoosterLastMinute": "دقيقة",
+  "@pkBoosterLastMinute": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkBoosterLastTwoMinutes": "دقيقتين",
+  "@pkBoosterLastTwoMinutes": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkBoosterLimit": "استُخدم الحد الأقصى لهذا المعزز في هذا التحدي",
+  "@pkBoosterLimit": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkBoosterActiveHigher": "معزز مساوٍ أو أقوى فعّال الآن",
+  "@pkBoosterActiveHigher": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkErrorBusy": "المضيف مشغول بتحدٍ أو دعوة أخرى",
+  "@pkErrorBusy": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkErrorInvitesOff": "هذا المضيف لا يستقبل دعوات PK",
+  "@pkErrorInvitesOff": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkErrorCooldown": "انتظر قليلاً قبل دعوة أخرى",
+  "@pkErrorCooldown": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkErrorUnavailable": "لا يمكن بدء تحدٍ الآن",
+  "@pkErrorUnavailable": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkErrorInviteClosed": "الدعوة لم تعد متاحة",
+  "@pkErrorInviteClosed": {
+    "description": "v1.43-live (D195): PK 1 v 1."
+  },
+  "pkRecord": "PK: {wins} فوز · {losses} خسارة · {draws} تعادل",
+  "@pkRecord": {
+    "description": "v1.43-live (D195): PK 1 v 1.",
+    "placeholders": {
+      "wins": {
+        "type": "String"
+      },
+      "losses": {
+        "type": "String"
+      },
+      "draws": {
+        "type": "String"
+      }
+    }
+  },
+  "pkOpponentPane": "الخصم {name}",
+  "@pkOpponentPane": {
+    "description": "v1.43-live (D195): PK 1 v 1.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "pkOwnPane": "المضيف {name}",
+  "@pkOwnPane": {
+    "description": "v1.43-live (D195): PK 1 v 1.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "pkGuestSemantics": "ضيف {name}",
+  "@pkGuestSemantics": {
+    "description": "v1.43-live (D195): PK 1 v 1.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  }
 }

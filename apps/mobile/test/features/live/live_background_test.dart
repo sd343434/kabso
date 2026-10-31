@@ -36,6 +36,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../fixtures/live/live_api_fixtures.dart';
 import '../../helpers/fake_dm_repository.dart';
 import '../../helpers/fake_live_media_engine.dart';
+import '../../helpers/fake_live_pk.dart';
 import '../../helpers/fake_live_repository.dart';
 import '../../helpers/fakes.dart';
 import '../../helpers/golden.dart';
@@ -165,6 +166,8 @@ _pumpApp(WidgetTester tester, GoRouter router) async {
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
         liveRepositoryProvider.overrideWithValue(repo),
+        // v1.43-live (D195): never the network for the PK.
+        ...pkTestOverrides(),
         liveMediaEngineProvider.overrideWithValue(() => camera),
         liveBackgroundServiceProvider.overrideWithValue(service),
         currentUserProvider.overrideWithValue(
@@ -557,6 +560,8 @@ void main() {
           retry: (_, _) => null,
           overrides: [
             liveRepositoryProvider.overrideWithValue(repo),
+            // v1.43-live (D195): never the network for the PK.
+            ...pkTestOverrides(),
             liveMediaEngineProvider.overrideWithValue(() => engine),
             liveBackgroundServiceProvider.overrideWithValue(service),
             currentUserProvider.overrideWithValue(testUser()),
@@ -628,6 +633,8 @@ void main() {
         retry: (_, _) => null,
         overrides: [
           liveRepositoryProvider.overrideWithValue(repo),
+          // v1.43-live (D195): never the network for the PK.
+          ...pkTestOverrides(),
           liveMediaEngineProvider.overrideWithValue(() => engine),
           liveBackgroundServiceProvider.overrideWithValue(service),
           currentUserProvider.overrideWithValue(testUser()),

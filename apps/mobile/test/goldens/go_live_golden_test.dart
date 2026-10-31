@@ -19,6 +19,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_mini_window.d
 import 'package:material_ui/material_ui.dart';
 
 import '../helpers/fake_live_media_engine.dart';
+import '../helpers/fake_live_pk.dart';
 import '../helpers/fake_live_repository.dart';
 import '../helpers/fakes.dart';
 import '../helpers/golden.dart';
@@ -53,6 +54,8 @@ Future<void> _pump(
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
         liveRepositoryProvider.overrideWithValue(repo),
+        // v1.43-live (D195): never the network for the PK.
+        ...pkTestOverrides(),
         liveMediaEngineProvider.overrideWithValue(
           filters
               ? FakeLiveMediaEngine.new
