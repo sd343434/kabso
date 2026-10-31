@@ -162,6 +162,15 @@ describe('KL-037 contract coverage', () => {
             o.path,
           ),
       )
+      .filter(
+        (o) =>
+          // v1.43-live (D195) PK 1 v 1 and v1.44-live (D199) PK Setting: d195-pk and d199-pk-settings cover them;
+          // D199's host targets: d199-host-targets; v1.45-live (D201) the second camera and the recording
+          // indicator: d201-live-tools — each with its own exact list.
+          !/^\/api\/v1\/live\/(rooms\/\{roomId\}\/(pk|second-camera|recording)|pk|second-camera|hosts\/\{username\}\/targets)(\/|$)/.test(
+            o.path,
+          ),
+      )
       .map((o) => o.operationId)
       .sort();
     expect(v13).toEqual(
