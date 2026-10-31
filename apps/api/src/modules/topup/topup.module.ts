@@ -16,6 +16,7 @@ import { TopupService } from './topup.service.js';
         config.topup.stripe ? createStripeApi(config.topup.stripe.secretKey) : null,
     },
   ],
-  exports: [TopupService],
+  // v1.65-social (D197): the admin panel's team refund uses the same Stripe client.
+  exports: [TopupService, STRIPE_API],
 })
 export class TopupModule {}

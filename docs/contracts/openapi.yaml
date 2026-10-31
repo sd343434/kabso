@@ -365,6 +365,15 @@ info:
     `updateAdminSiteSettings` (panel session); links in one form (`https://www.instagram.com/<handle>`,
     `https://www.tiktok.com/@<handle>`, `https://wa.me/<digits>`). The website reaches its two public operations
     same-origin through the root domain; `/topup` there redirects to D190's pages on `api.` (CONVENTIONS §10.55).
+    **D197 (DRAFT v1.65-social, CP-039)**: the admin panel v2 — a redesign and the phase-2 sections, all under the
+    D191 cookie session (`adminSession`, `X-CSRF-Token`) with one capability per operation (16 new). Read-only
+    statistics on the Asia/Riyadh day (`/admin/stats/*`) and a quick search; one table shape (`page`, `pageSize`,
+    `total`, whitelisted `sort`, `format=csv` audited `admin.export.csv`); a user's ledger, posts, audit rows and app
+    sessions (sign out); agencies (create, suspend / reinstate, complaints, rank evaluation); lives on air (end with a
+    reason) and the hosting permissions; gift CRUD, bag items, banners, events; agents' top-ups, card orders and
+    Stripe cases (team refund with the code again), the financial report; the audit viewer and the team (grant /
+    revoke / reset with the code again); tasks, levels, special usernames, the waitlist. Every change runs the CLI's
+    own rule with `via: panel`, the actor, the IP and the reason (CONVENTIONS §10.60).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -8918,6 +8927,2061 @@ paths:
               schema: { $ref: '#/components/schemas/WaitlistAccepted' }
         '400': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  # ---- v1.65-social (DRAFT, D197, CP-039, CONVENTIONS §10.60): the admin panel v2 ----------------------------------
+  /api/v1/admin/stats/overview:
+    get:
+      tags:
+      - admin-panel
+      operationId: getAdminStatsOverview
+      summary: 'Dashboard KPI cards: today, yesterday and a 14-day sparkline, Asia/Riyadh days (dashboard.view)'
+      description: (v1.65-social, D197) Real aggregates of indexed time columns grouped by the `ADMIN_DASHBOARD_TIME_ZONE` day.
+      security:
+      - adminSession: []
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminStatsOverview'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/stats/series:
+    get:
+      tags:
+      - admin-panel
+      operationId: getAdminStatsSeries
+      summary: 'Dashboard chart: new users, coins sold and gift coins per day (dashboard.view)'
+      description: '(v1.65-social, D197) '
+      security:
+      - adminSession: []
+      parameters:
+      - name: days
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - '7'
+          - '30'
+          - '90'
+          default: '30'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminStatsSeries'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/stats/attention:
+    get:
+      tags:
+      - admin-panel
+      operationId: getAdminStatsAttention
+      summary: '«يحتاج انتباهك» and the bell: the queues the admin can act on (dashboard.view)'
+      description: (v1.65-social, D197) Only the queues of the admin's capabilities. Account deletion requests are not in this base (D193).
+      security:
+      - adminSession: []
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminAttention'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/stats/activity:
+    get:
+      tags:
+      - admin-panel
+      operationId: getAdminStatsActivity
+      summary: 'Recent panel activity (OWNER: the team''s; others: their own) (dashboard.view)'
+      description: '(v1.65-social, D197) '
+      security:
+      - adminSession: []
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminActivity'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/search:
+    get:
+      tags:
+      - admin-panel
+      operationId: searchAdminEverything
+      summary: 'Top bar quick search: users, recharge agents (code), agencies (invite or host code) (users.view)'
+      description: (v1.65-social, D197) Agents need `recharge.agents`, agencies `agencies.view`; otherwise empty.
+      security:
+      - adminSession: []
+      parameters:
+      - name: q
+        in: query
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 254
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminSearchResult'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/tables/users:
+    get:
+      tags:
+      - admin-panel
+      operationId: listAdminUsersTable
+      summary: 'The users table: pages, sort, filters (users.list)'
+      description: '(v1.65-social, D197) The CSV needs `users.export` (OWNER, SUPPORT). `format=csv`: the matching rows (≤ 5000) as `text/csv`, audited `admin.export.csv`.'
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminPage'
+      - $ref: '#/components/parameters/AdminPageSize'
+      - $ref: '#/components/parameters/AdminOrder'
+      - $ref: '#/components/parameters/AdminQ'
+      - $ref: '#/components/parameters/AdminFormat'
+      - name: sort
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - createdAt
+          - lastActiveAt
+          - username
+          - email
+          default: createdAt
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - ACTIVE
+          - SUSPENDED
+          - DELETED
+      - name: role
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - USER
+          - ADMIN
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUsersTablePage'
+            text/csv:
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/users/{userId}/ledger:
+    get:
+      tags:
+      - admin-panel
+      operationId: listAdminUserLedger
+      summary: A user's coin or cherry ledger by pages (users.ledger)
+      description: '(v1.65-social, D197) '
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminUserIdPath'
+      - $ref: '#/components/parameters/AdminPage'
+      - $ref: '#/components/parameters/AdminPageSize'
+      - name: kind
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - coins
+          - cherries
+          default: coins
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminLedgerPage'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/users/{userId}/posts:
+    get:
+      tags:
+      - admin-panel
+      operationId: listAdminUserPosts
+      summary: A user's posts (any state) (users.view)
+      description: '(v1.65-social, D197) '
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminUserIdPath'
+      - $ref: '#/components/parameters/AdminPage'
+      - $ref: '#/components/parameters/AdminPageSize'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminPostPage'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/users/{userId}/audit:
+    get:
+      tags:
+      - admin-panel
+      operationId: listAdminUserAudit
+      summary: The audit rows about a user (audit.view)
+      description: '(v1.65-social, D197) '
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminUserIdPath'
+      - $ref: '#/components/parameters/AdminPage'
+      - $ref: '#/components/parameters/AdminPageSize'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminAuditPage'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/users/{userId}/sessions:
+    get:
+      tags:
+      - admin-panel
+      operationId: listAdminUserSessions
+      summary: A user's signed-in app sessions (devices) (users.sessions)
+      description: '(v1.65-social, D197) '
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminUserIdPath'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminAppSessions'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/users/{userId}/sessions/revoke:
+    post:
+      tags:
+      - admin-panel
+      operationId: revokeAdminUserSessions
+      summary: Signs a user out of one session or all (reason; audited) (users.sessions)
+      description: (v1.65-social, D197) A panel admin's account only by an OWNER; never one's own (409).
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminUserIdPath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminRevokeSessionsRequest'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminRevokeSessionsResult'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/users/{userId}/bag:
+    get:
+      tags:
+      - admin-panel
+      operationId: getAdminUserBag
+      summary: A user's bag (frames, profile cards) (items.grant)
+      description: '(v1.65-social, D197) '
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminUserIdPath'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserBag'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/users/{userId}/bag/grant:
+    post:
+      tags:
+      - admin-panel
+      operationId: grantAdminUserBagItem
+      summary: Gives a bag item — the `bag-admin grant` rule (reason; audited) (items.grant)
+      description: '(v1.65-social, D197) Active-host frames are refused (409): they follow the host''s activity (D186).'
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminUserIdPath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminBagGrantRequest'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminBagGrantResult'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/users/{userId}/bag/revoke:
+    post:
+      tags:
+      - admin-panel
+      operationId: revokeAdminUserBagItem
+      summary: Takes a bag item back — the `bag-admin revoke` rule (reason; audited) (items.grant)
+      description: '(v1.65-social, D197) '
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminUserIdPath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminBagRevokeRequest'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminBagRevokeResult'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/agencies:
+    get:
+      tags:
+      - admin-panel
+      operationId: listAdminAgencies
+      summary: 'Host agencies: owner, host code, rank, this month''s totals (agencies.view)'
+      description: '(v1.65-social, D197)  `format=csv`: the matching rows (≤ 5000) as `text/csv`, audited `admin.export.csv`.'
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminPage'
+      - $ref: '#/components/parameters/AdminPageSize'
+      - $ref: '#/components/parameters/AdminOrder'
+      - $ref: '#/components/parameters/AdminQ'
+      - $ref: '#/components/parameters/AdminFormat'
+      - name: sort
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - createdAt
+          - inviteCode
+          - rank
+          default: createdAt
+      - name: rank
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - NEW
+          - AGENT
+          - ADMIN
+          - LAPSED
+      - name: state
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - active
+          - suspended
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminAgencyPage'
+            text/csv:
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+    post:
+      tags:
+      - admin-panel
+      operationId: createAdminAgency
+      summary: Creates an agency and activates its host agent — the `economy-admin agency-create` rule (reason; audited) (agencies.manage)
+      description: (v1.65-social, D197) 409 `ADMIN_ACTION_REFUSED` with the rule's sentence (already an agency owner, a host of an agency, not ACTIVE …).
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminCreateAgencyRequest'
+      responses:
+        '201':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminCreatedAgency'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/agencies/{agencyId}:
+    get:
+      tags:
+      - admin-panel
+      operationId: getAdminAgency
+      summary: An agency's page (agencies.view)
+      description: '(v1.65-social, D197) '
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminAgencyIdPath'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminAgencyDetail'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/agencies/{agencyId}/suspend:
+    post:
+      tags:
+      - admin-panel
+      operationId: suspendAdminAgency
+      summary: Suspends the host agent (perks go) — `economy-admin agency-suspend` (reason; audited) (agencies.manage)
+      description: '(v1.65-social, D197) '
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminAgencyIdPath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminReasonRequest'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminAgencyState'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/agencies/{agencyId}/reinstate:
+    post:
+      tags:
+      - admin-panel
+      operationId: reinstateAdminAgency
+      summary: Reinstates the host agent — `economy-admin agency-reinstate` (reason; audited) (agencies.manage)
+      description: '(v1.65-social, D197) '
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminAgencyIdPath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminReasonRequest'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminAgencyState'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/agency-complaints:
+    get:
+      tags:
+      - admin-panel
+      operationId: listAdminAgencyComplaints
+      summary: Hosts' complaints about their agency (OPEN oldest first) (agencies.view)
+      description: '(v1.65-social, D197)  `format=csv`: the matching rows (≤ 5000) as `text/csv`, audited `admin.export.csv`.'
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminPage'
+      - $ref: '#/components/parameters/AdminPageSize'
+      - $ref: '#/components/parameters/AdminOrder'
+      - $ref: '#/components/parameters/AdminQ'
+      - $ref: '#/components/parameters/AdminFormat'
+      - name: sort
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - createdAt
+          default: createdAt
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - OPEN
+          - RESOLVED
+          - REJECTED
+          default: OPEN
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminComplaintPage'
+            text/csv:
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/agency-complaints/{complaintId}/resolve:
+    post:
+      tags:
+      - admin-panel
+      operationId: resolveAdminAgencyComplaint
+      summary: 'Resolves a complaint: release, keep or move — `economy-admin complaint-resolve` (reason; audited) (agencies.manage)'
+      description: '(v1.65-social, D197) '
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminComplaintIdPath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminResolveComplaintRequest'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminComplaintResult'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/agency-evaluation:
+    post:
+      tags:
+      - admin-panel
+      operationId: runAdminAgencyEvaluation
+      summary: Runs the rank evaluation and the active-host frames now — `economy-admin agency-evaluate` (reason; audited) (agencies.manage)
+      description: '(v1.65-social, D197) '
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminReasonRequest'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminEvaluationResult'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/lives:
+    get:
+      tags:
+      - admin-panel
+      operationId: listAdminLives
+      summary: Lives on air now (thumbnail, title, viewers) (lives.view)
+      description: '(v1.65-social, D197)  `format=csv`: the matching rows (≤ 5000) as `text/csv`, audited `admin.export.csv`.'
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminPage'
+      - $ref: '#/components/parameters/AdminPageSize'
+      - $ref: '#/components/parameters/AdminOrder'
+      - $ref: '#/components/parameters/AdminQ'
+      - $ref: '#/components/parameters/AdminFormat'
+      - name: sort
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - viewers
+          - startedAt
+          default: viewers
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminLivePage'
+            text/csv:
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/lives/{roomId}:
+    get:
+      tags:
+      - admin-panel
+      operationId: getAdminLive
+      summary: A live's details (lives.view)
+      description: '(v1.65-social, D197) '
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminRoomIdPath'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminLiveDetail'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/lives/{roomId}/end:
+    post:
+      tags:
+      - admin-panel
+      operationId: endAdminLive
+      summary: Ends a live now (end reason ADMIN; reason; audited `admin.live.end`) (lives.manage)
+      description: (v1.65-social, D197) The report action's rule (`endByAdminIn`); the media session closes after the commit. 409 when it is not on air.
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminRoomIdPath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminReasonRequest'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminLiveEnded'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/live-hosts:
+    get:
+      tags:
+      - admin-panel
+      operationId: listAdminLiveHosts
+      summary: The hosting permissions (`live_hosts`) (lives.view)
+      description: '(v1.65-social, D197)  `format=csv`: the matching rows (≤ 5000) as `text/csv`, audited `admin.export.csv`.'
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminPage'
+      - $ref: '#/components/parameters/AdminPageSize'
+      - $ref: '#/components/parameters/AdminOrder'
+      - $ref: '#/components/parameters/AdminQ'
+      - $ref: '#/components/parameters/AdminFormat'
+      - name: sort
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - grantedAt
+          default: grantedAt
+      - name: source
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - ADMIN
+          - AGENCY
+          - IDENTITY
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminHostPage'
+            text/csv:
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/live-hosts/grant:
+    post:
+      tags:
+      - admin-panel
+      operationId: grantAdminLiveHost
+      summary: Gives the hosting permission (CP-010 rule; reason; audited) (lives.manage)
+      description: '(v1.65-social, D197) '
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminHostRequest'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminHostResult'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/live-hosts/revoke:
+    post:
+      tags:
+      - admin-panel
+      operationId: revokeAdminLiveHost
+      summary: Takes the hosting permission back and ends their live (CP-010 rule; reason; audited) (lives.manage)
+      description: '(v1.65-social, D197) '
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminHostRequest'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminHostResult'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/gifts:
+    get:
+      tags:
+      - admin-panel
+      operationId: listAdminGifts
+      summary: The gift catalogue with prices in USD and use (catalog.view)
+      description: '(v1.65-social, D197) '
+      security:
+      - adminSession: []
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminGiftList'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+    post:
+      tags:
+      - admin-panel
+      operationId: createAdminGift
+      summary: Adds a gift — the `gift-admin add` rule (reason; audited) (catalog.manage)
+      description: '(v1.65-social, D197) '
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminCreateGiftRequest'
+      responses:
+        '201':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminGiftCreated'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/gifts/{code}:
+    patch:
+      tags:
+      - admin-panel
+      operationId: updateAdminGift
+      summary: Changes a gift — the `gift-admin update` rule (reason; audited with before/after) (catalog.manage)
+      description: '(v1.65-social, D197) '
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminGiftCodePath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUpdateGiftRequest'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminGiftUpdated'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/gifts/{code}/enable:
+    post:
+      tags:
+      - admin-panel
+      operationId: enableAdminGift
+      summary: Enables a gift (reason; audited) (catalog.manage)
+      description: '(v1.65-social, D197) '
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminGiftCodePath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminReasonRequest'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminGiftEnabled'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/gifts/{code}/disable:
+    post:
+      tags:
+      - admin-panel
+      operationId: disableAdminGift
+      summary: Disables a gift (reason; audited) (catalog.manage)
+      description: '(v1.65-social, D197) '
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminGiftCodePath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminReasonRequest'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminGiftEnabled'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/bag-items:
+    get:
+      tags:
+      - admin-panel
+      operationId: listAdminBagItems
+      summary: The bag catalogue (frames, profile cards) and how many hold each (catalog.view)
+      description: '(v1.65-social, D197) '
+      security:
+      - adminSession: []
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminBagCatalog'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/banners:
+    get:
+      tags:
+      - admin-panel
+      operationId: listAdminBanners
+      summary: Home / room / tasks / wallet banners (catalog.view)
+      description: '(v1.65-social, D197) New banners need a picture upload: `banner-admin add`.'
+      security:
+      - adminSession: []
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminBannerList'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/banners/{bannerId}/enable:
+    post:
+      tags:
+      - admin-panel
+      operationId: enableAdminBanner
+      summary: Turns a banner on (reason; audited) (catalog.manage)
+      description: '(v1.65-social, D197) '
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminBannerIdPath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminReasonRequest'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminBannerEnabled'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/banners/{bannerId}/disable:
+    post:
+      tags:
+      - admin-panel
+      operationId: disableAdminBanner
+      summary: Turns a banner off (reason; audited) (catalog.manage)
+      description: '(v1.65-social, D197) '
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminBannerIdPath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminReasonRequest'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminBannerEnabled'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/banners/{bannerId}/remove:
+    post:
+      tags:
+      - admin-panel
+      operationId: removeAdminBanner
+      summary: Deletes a banner and its picture (reason; audited) (catalog.manage)
+      description: '(v1.65-social, D197) '
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminBannerIdPath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminReasonRequest'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminRemoved'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/events:
+    get:
+      tags:
+      - admin-panel
+      operationId: listAdminEvents
+      summary: Event Center events with their state (catalog.view)
+      description: '(v1.65-social, D197) '
+      security:
+      - adminSession: []
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminEventList'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+    post:
+      tags:
+      - admin-panel
+      operationId: createAdminEvent
+      summary: Creates an event — the `event-admin create` rule (reason; audited) (catalog.manage)
+      description: '(v1.65-social, D197) '
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminCreateEventRequest'
+      responses:
+        '201':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminEventCreated'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/events/{eventId}/end:
+    post:
+      tags:
+      - admin-panel
+      operationId: endAdminEvent
+      summary: Ends a running event now — `event-admin end` (reason; audited) (catalog.manage)
+      description: '(v1.65-social, D197) '
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminEventIdPath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminReasonRequest'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminEventChanged'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/events/{eventId}/hold:
+    post:
+      tags:
+      - admin-panel
+      operationId: holdAdminEvent
+      summary: Stops the automatic prize payout — `event-admin hold` (reason; audited) (catalog.manage)
+      description: '(v1.65-social, D197) '
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminEventIdPath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminReasonRequest'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminEventChanged'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/events/{eventId}/release:
+    post:
+      tags:
+      - admin-panel
+      operationId: releaseAdminEvent
+      summary: Resumes the prize payout — `event-admin release` (reason; audited) (catalog.manage)
+      description: '(v1.65-social, D197) '
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminEventIdPath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminReasonRequest'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminEventChanged'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/finance/recharge-topups:
+    get:
+      tags:
+      - admin-panel
+      operationId: listAdminRechargeTopups
+      summary: 'Recharge agents'' top-ups: coins, tier price, paid (finance.view)'
+      description: '(v1.65-social, D197)  `format=csv`: the matching rows (≤ 5000) as `text/csv`, audited `admin.export.csv`.'
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminPage'
+      - $ref: '#/components/parameters/AdminPageSize'
+      - $ref: '#/components/parameters/AdminOrder'
+      - $ref: '#/components/parameters/AdminQ'
+      - $ref: '#/components/parameters/AdminFormat'
+      - $ref: '#/components/parameters/AdminFrom'
+      - $ref: '#/components/parameters/AdminTo'
+      - name: sort
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - createdAt
+          - paidMinor
+          - coins
+          default: createdAt
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminRechargeTopupPage'
+            text/csv:
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/finance/card-orders:
+    get:
+      tags:
+      - admin-panel
+      operationId: listAdminCardOrders
+      summary: Website card orders (D190) (finance.view)
+      description: '(v1.65-social, D197)  `format=csv`: the matching rows (≤ 5000) as `text/csv`, audited `admin.export.csv`.'
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminPage'
+      - $ref: '#/components/parameters/AdminPageSize'
+      - $ref: '#/components/parameters/AdminOrder'
+      - $ref: '#/components/parameters/AdminQ'
+      - $ref: '#/components/parameters/AdminFormat'
+      - $ref: '#/components/parameters/AdminFrom'
+      - $ref: '#/components/parameters/AdminTo'
+      - name: sort
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - createdAt
+          - amountMinor
+          default: createdAt
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - PENDING
+          - AWAITING_FUNDS
+          - PAID
+          - EXPIRED
+          - FAILED
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminCardOrderPage'
+            text/csv:
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/finance/card-orders/{orderId}/refund:
+    post:
+      tags:
+      - admin-panel
+      operationId: refundAdminCardOrder
+      summary: Team refund through Stripe — the `payments-admin refund` rule (code again; reason; audited) (finance.refund)
+      description: '(v1.65-social, D197) Money moves: `totpCode` again (403 `ADMIN_TOTP_INVALID`). The coins come back by the signed `charge.refunded` webhook, never freezing. 503 `TOPUP_UNAVAILABLE` without
+        the Stripe keys; 409 when never paid or already refunded.'
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminOrderIdPath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminRefundRequest'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminRefundResult'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/finance/cases:
+    get:
+      tags:
+      - admin-panel
+      operationId: listAdminTopupCases
+      summary: 'Stripe cases: refunds, early-fraud warnings, disputes (finance.view)'
+      description: '(v1.65-social, D197)  `format=csv`: the matching rows (≤ 5000) as `text/csv`, audited `admin.export.csv`.'
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminPage'
+      - $ref: '#/components/parameters/AdminPageSize'
+      - $ref: '#/components/parameters/AdminOrder'
+      - $ref: '#/components/parameters/AdminQ'
+      - $ref: '#/components/parameters/AdminFormat'
+      - name: sort
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - createdAt
+          default: createdAt
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - OPEN
+          - CLOSED
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminTopupCasePage'
+            text/csv:
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/finance/cases/{caseId}/close:
+    post:
+      tags:
+      - admin-panel
+      operationId: closeAdminTopupCase
+      summary: Closes a case with the decision — `payments-admin close-case` (audited) (finance.refund)
+      description: '(v1.65-social, D197) '
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminCaseIdPath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminCloseCaseRequest'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminCaseClosed'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/finance/report:
+    get:
+      tags:
+      - admin-panel
+      operationId: getAdminFinanceReport
+      summary: Financial report by day or month (Asia/Riyadh) (finance.view)
+      description: '(v1.65-social, D197) At most 400 days by day, about 36 months by month. The CSV has the rows and a `total` line. `format=csv`: the matching rows (≤ 5000) as `text/csv`, audited `admin.export.csv`.'
+      security:
+      - adminSession: []
+      parameters:
+      - name: granularity
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - day
+          - month
+          default: day
+      - name: from
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date
+      - name: to
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date
+      - $ref: '#/components/parameters/AdminFormat'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminFinanceReport'
+            text/csv:
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/audit:
+    get:
+      tags:
+      - admin-panel
+      operationId: listAdminAudit
+      summary: 'The audit log: filters actor, action (prefix), target, dates; before/after in `metadata` (audit.view)'
+      description: '(v1.65-social, D197)  `format=csv`: the matching rows (≤ 5000) as `text/csv`, audited `admin.export.csv`.'
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminPage'
+      - $ref: '#/components/parameters/AdminPageSize'
+      - $ref: '#/components/parameters/AdminOrder'
+      - $ref: '#/components/parameters/AdminQ'
+      - $ref: '#/components/parameters/AdminFormat'
+      - $ref: '#/components/parameters/AdminFrom'
+      - $ref: '#/components/parameters/AdminTo'
+      - name: sort
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - createdAt
+          default: createdAt
+      - name: actor
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 64
+        description: A user id or a username.
+      - name: action
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 64
+        description: An action or its prefix (`admin.`).
+      - name: targetType
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 32
+      - name: targetId
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 64
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminAuditPage'
+            text/csv:
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/audit/actions:
+    get:
+      tags:
+      - admin-panel
+      operationId: listAdminAuditActions
+      summary: Every audit action (the viewer's filter) (audit.view)
+      description: '(v1.65-social, D197) '
+      security:
+      - adminSession: []
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminAuditActions'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/team:
+    get:
+      tags:
+      - admin-panel
+      operationId: listAdminTeam
+      summary: 'The panel admins: roles, authenticator, lock, last sign-in (team.manage)'
+      description: '(v1.65-social, D197) '
+      security:
+      - adminSession: []
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminTeam'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/team/grant:
+    post:
+      tags:
+      - admin-panel
+      operationId: grantAdminTeamRole
+      summary: Grants a panel role — the `admin-admin grant` rule (code again; reason; audited) (team.manage)
+      description: (v1.65-social, D197) Through `kabso_admin_panel_role` (the only write the runtime role has on the roles).
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminTeamGrantRequest'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminTeamGrantResult'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/team/{userId}/revoke:
+    post:
+      tags:
+      - admin-panel
+      operationId: revokeAdminTeamRole
+      summary: Revokes a panel role — the `admin-admin revoke` rule (code again; reason; audited) (team.manage)
+      description: (v1.65-social, D197) Never one's own OWNER, never the last OWNER (409). The last role ends the person's panel sessions.
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminUserIdPath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminTeamRevokeRequest'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminTeamRevokeResult'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/team/{userId}/reset-2fa:
+    post:
+      tags:
+      - admin-panel
+      operationId: resetAdminTeamTotp
+      summary: Resets an admin's authenticator — `admin-admin reset-2fa` (code again; reason; audited) (team.manage)
+      description: '(v1.65-social, D197) '
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminUserIdPath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminTeamResetRequest'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminTeamResetResult'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/programs/tasks:
+    get:
+      tags:
+      - admin-panel
+      operationId: listAdminTasks
+      summary: Task Center tasks with USD values (programs.view)
+      description: '(v1.65-social, D197) '
+      security:
+      - adminSession: []
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminTasks'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/programs/levels:
+    get:
+      tags:
+      - admin-panel
+      operationId: listAdminPanelLevels
+      summary: The published level ladders with coins and USD (programs.view)
+      description: '(v1.65-social, D197) '
+      security:
+      - adminSession: []
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminPanelLevels'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/special-usernames:
+    get:
+      tags:
+      - admin-panel
+      operationId: listAdminSpecialUsernames
+      summary: Special usernames «اليوزرات المميزة» (programs.view)
+      description: '(v1.65-social, D197)  `format=csv`: the matching rows (≤ 5000) as `text/csv`, audited `admin.export.csv`.'
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminPage'
+      - $ref: '#/components/parameters/AdminPageSize'
+      - $ref: '#/components/parameters/AdminOrder'
+      - $ref: '#/components/parameters/AdminQ'
+      - $ref: '#/components/parameters/AdminFormat'
+      - name: sort
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - grantedAt
+          - username
+          default: grantedAt
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - ACTIVE
+          - GRACE
+          - ENDED
+      - name: source
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - RECHARGE_AGENT
+          - ADMIN_GIFT
+          - PURCHASE
+          - HOST_AGENT
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminSpecialUsernamePage'
+            text/csv:
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/waitlist:
+    get:
+      tags:
+      - admin-panel
+      operationId: listAdminWaitlist
+      summary: The website's launch waitlist «قائمة البريد» (personal data; every read audited `waitlist.view`) (waitlist.view)
+      description: '(v1.65-social, D197) Like `waitlist-admin list|export`: an audit row `waitlist.view` {op, count} per read (never the addresses). `format=csv`: the matching rows (≤ 5000) as `text/csv`,
+        audited `admin.export.csv`.'
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminPage'
+      - $ref: '#/components/parameters/AdminPageSize'
+      - $ref: '#/components/parameters/AdminOrder'
+      - $ref: '#/components/parameters/AdminQ'
+      - $ref: '#/components/parameters/AdminFormat'
+      - name: sort
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - createdAt
+          default: createdAt
+      - name: locale
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - ar
+          - en
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminWaitlistPage'
+            text/csv:
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
 components:
   securitySchemes:
     bearerAuth:
@@ -8970,6 +11034,112 @@ components:
       in: path
       required: true
       schema: { type: string }
+    # v1.65-social (D197): the panel v2.
+    AdminPage:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    AdminPageSize:
+      name: pageSize
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
+    AdminOrder:
+      name: order
+      in: query
+      required: false
+      schema:
+        type: string
+        enum:
+        - asc
+        - desc
+        default: desc
+    AdminQ:
+      name: q
+      in: query
+      required: false
+      description: Text search (prefix of a username, an email, a code …).
+      schema:
+        type: string
+        maxLength: 254
+    AdminFormat:
+      name: format
+      in: query
+      required: false
+      schema:
+        $ref: '#/components/schemas/AdminTableFormat'
+    AdminFrom:
+      name: from
+      in: query
+      required: false
+      description: First day (YYYY-MM-DD, Asia/Riyadh).
+      schema:
+        type: string
+        format: date
+    AdminTo:
+      name: to
+      in: query
+      required: false
+      description: Last day, inclusive.
+      schema:
+        type: string
+        format: date
+    AdminAgencyIdPath:
+      name: agencyId
+      in: path
+      required: true
+      schema:
+        type: string
+    AdminComplaintIdPath:
+      name: complaintId
+      in: path
+      required: true
+      schema:
+        type: string
+    AdminRoomIdPath:
+      name: roomId
+      in: path
+      required: true
+      schema:
+        type: string
+    AdminGiftCodePath:
+      name: code
+      in: path
+      required: true
+      schema:
+        type: string
+    AdminBannerIdPath:
+      name: bannerId
+      in: path
+      required: true
+      schema:
+        type: string
+    AdminEventIdPath:
+      name: eventId
+      in: path
+      required: true
+      schema:
+        type: string
+    AdminOrderIdPath:
+      name: orderId
+      in: path
+      required: true
+      schema:
+        type: string
+    AdminCaseIdPath:
+      name: caseId
+      in: path
+      required: true
+      schema:
+        type: string
     ProgramEventIdPath:
       name: eventId
       in: path
@@ -9598,6 +11768,2838 @@ components:
       properties:
         action: { type: string, enum: [DISMISS, REMOVE_TARGET, WARN, BAN] }
         note: { type: string, minLength: 1, maxLength: 500, description: Required for WARN and BAN (the reason). }
+    # ---- v1.65-social (DRAFT, D197, CONVENTIONS §10.60): the admin panel v2 ------------------------------------------
+    AdminPersonRef:
+      type: object
+      required:
+      - id
+      - username
+      - displayName
+      - avatarUrl
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        displayName:
+          type: string
+        avatarUrl:
+          type:
+          - string
+          - 'null'
+    AdminPersonName:
+      type: object
+      required:
+      - id
+      - username
+      - displayName
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        displayName:
+          type: string
+    AdminTableFormat:
+      type: string
+      enum:
+      - json
+      - csv
+      description: '(v1.65-social, D197) `csv`: the matching rows (at most 5000) as a CSV download, audited `admin.export.csv`.'
+    AdminKpi:
+      type: object
+      required:
+      - value
+      - today
+      - yesterday
+      - spark
+      properties:
+        value:
+          type: integer
+        today:
+          type: integer
+        yesterday:
+          type: integer
+        spark:
+          type: array
+          items:
+            type: integer
+          minItems: 14
+          maxItems: 14
+          description: The last 14 Asia/Riyadh days, oldest first, today last.
+      description: '(v1.65-social, D197) A KPI card: `value` (today, or the state now for lives / pending), today, yesterday (the delta) and the sparkline.'
+    AdminKpiCoins:
+      type: object
+      required:
+      - value
+      - today
+      - yesterday
+      - spark
+      - agentsToday
+      - websiteToday
+      properties:
+        value:
+          type: integer
+        today:
+          type: integer
+        yesterday:
+          type: integer
+        spark:
+          type: array
+          items:
+            type: integer
+          minItems: 14
+          maxItems: 14
+          description: The last 14 Asia/Riyadh days, oldest first, today last.
+        agentsToday:
+          type: integer
+        websiteToday:
+          type: integer
+    AdminKpiGifts:
+      type: object
+      required:
+      - value
+      - today
+      - yesterday
+      - spark
+      - giftsToday
+      properties:
+        value:
+          type: integer
+        today:
+          type: integer
+        yesterday:
+          type: integer
+        spark:
+          type: array
+          items:
+            type: integer
+          minItems: 14
+          maxItems: 14
+          description: The last 14 Asia/Riyadh days, oldest first, today last.
+        giftsToday:
+          type: integer
+    AdminStatsOverview:
+      type: object
+      required:
+      - since
+      - timeZone
+      - kpis
+      properties:
+        since:
+          type: string
+          format: date-time
+        timeZone:
+          type: string
+        kpis:
+          type: object
+          required:
+          - newUsers
+          - coinsSold
+          - giftCoins
+          - lives
+          - pending
+          properties:
+            newUsers:
+              $ref: '#/components/schemas/AdminKpi'
+            coinsSold:
+              $ref: '#/components/schemas/AdminKpiCoins'
+            giftCoins:
+              $ref: '#/components/schemas/AdminKpiGifts'
+            lives:
+              $ref: '#/components/schemas/AdminKpi'
+            pending:
+              $ref: '#/components/schemas/AdminKpi'
+      description: (v1.65-social, D197) The dashboard cards. `coinsSold` = coins sold by recharge agents + coins bought by card on the website; `lives.value` = on air now (`today` = lives started today); `pending.value`
+        = items waiting now (`today` = new items today).
+    AdminStatsDay:
+      type: object
+      required:
+      - day
+      - newUsers
+      - agentCoins
+      - websiteCoins
+      - coinsSold
+      - giftCoins
+      - giftsSent
+      - livesStarted
+      - newPending
+      properties:
+        day:
+          type: string
+          format: date
+        newUsers:
+          type: integer
+        agentCoins:
+          type: integer
+        websiteCoins:
+          type: integer
+        coinsSold:
+          type: integer
+        giftCoins:
+          type: integer
+        giftsSent:
+          type: integer
+        livesStarted:
+          type: integer
+        newPending:
+          type: integer
+    AdminStatsSeries:
+      type: object
+      required:
+      - timeZone
+      - days
+      properties:
+        timeZone:
+          type: string
+        days:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminStatsDay'
+    AdminAttention:
+      type: object
+      required:
+      - total
+      - items
+      properties:
+        total:
+          type: integer
+        items:
+          type: array
+          items:
+            type: object
+            required:
+            - kind
+            - count
+            - oldestAt
+            properties:
+              kind:
+                type: string
+                enum:
+                - RECHARGE_APPLICATIONS
+                - WITHDRAWALS
+                - REPORTS
+                - AGENCY_COMPLAINTS
+                - TOPUP_CASES
+              count:
+                type: integer
+              oldestAt:
+                type:
+                - string
+                - 'null'
+                format: date-time
+      description: (v1.65-social, D197) The queues the admin can act on (by capability); the bell shows `total`.
+    AdminActivity:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            required:
+            - id
+            - action
+            - targetType
+            - targetId
+            - createdAt
+            - actor
+            properties:
+              id:
+                type: string
+                format: uuid
+              action:
+                type: string
+              targetType:
+                type:
+                - string
+                - 'null'
+              targetId:
+                type:
+                - string
+                - 'null'
+              createdAt:
+                type: string
+                format: date-time
+              actor:
+                oneOf:
+                - $ref: '#/components/schemas/AdminPersonName'
+                - type: 'null'
+    AdminSearchResult:
+      type: object
+      required:
+      - users
+      - agents
+      - agencies
+      properties:
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminUserRow'
+        agents:
+          type: array
+          items:
+            type: object
+            required:
+            - userId
+            - code
+            - status
+            - username
+            - displayName
+            properties:
+              userId:
+                type: string
+                format: uuid
+              code:
+                type:
+                - string
+                - 'null'
+              status:
+                type: string
+              username:
+                type: string
+              displayName:
+                type: string
+        agencies:
+          type: array
+          items:
+            type: object
+            required:
+            - id
+            - inviteCode
+            - hostCode
+            - rank
+            - suspended
+            - ownerUsername
+            - ownerDisplayName
+            properties:
+              id:
+                type: string
+                format: uuid
+              inviteCode:
+                type: string
+              hostCode:
+                type:
+                - string
+                - 'null'
+              rank:
+                type: string
+              suspended:
+                type: boolean
+              ownerUsername:
+                type: string
+              ownerDisplayName:
+                type: string
+    AdminUsersTableRow:
+      type: object
+      required:
+      - id
+      - username
+      - displayName
+      - email
+      - status
+      - role
+      - avatarUrl
+      - countryCode
+      - createdAt
+      - lastActiveAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        displayName:
+          type: string
+        email:
+          type: string
+        status:
+          type: string
+          enum:
+          - ACTIVE
+          - SUSPENDED
+          - DELETED
+        role:
+          type: string
+          enum:
+          - USER
+          - ADMIN
+        avatarUrl:
+          type:
+          - string
+          - 'null'
+        countryCode:
+          type:
+          - string
+          - 'null'
+        createdAt:
+          type: string
+          format: date-time
+        lastActiveAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+    AdminUsersTablePage:
+      type: object
+      required:
+      - data
+      - total
+      - page
+      - pageSize
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminUsersTableRow'
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+    AdminLedgerPage:
+      type: object
+      required:
+      - data
+      - total
+      - page
+      - pageSize
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminLedgerRow'
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+    AdminPostRow:
+      type: object
+      required:
+      - id
+      - text
+      - format
+      - status
+      - moderation
+      - media
+      - likes
+      - comments
+      - views
+      - deleted
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        text:
+          type: string
+        format:
+          type: string
+        status:
+          type: string
+        moderation:
+          type: string
+        media:
+          type: integer
+        likes:
+          type: integer
+        comments:
+          type: integer
+        views:
+          type: integer
+        deleted:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+    AdminPostPage:
+      type: object
+      required:
+      - data
+      - total
+      - page
+      - pageSize
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminPostRow'
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+    AdminAuditRow:
+      type: object
+      required:
+      - id
+      - action
+      - targetType
+      - targetId
+      - metadata
+      - ip
+      - createdAt
+      - actor
+      properties:
+        id:
+          type: string
+          format: uuid
+        action:
+          type: string
+        targetType:
+          type:
+          - string
+          - 'null'
+        targetId:
+          type:
+          - string
+          - 'null'
+        metadata:
+          type: object
+          description: The row's metadata as written (reason, before / after, via …).
+        ip:
+          type:
+          - string
+          - 'null'
+        createdAt:
+          type: string
+          format: date-time
+        actor:
+          oneOf:
+          - $ref: '#/components/schemas/AdminPersonName'
+          - type: 'null'
+    AdminAuditPage:
+      type: object
+      required:
+      - data
+      - total
+      - page
+      - pageSize
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminAuditRow'
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+    AdminAuditActions:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          type: array
+          items:
+            type: string
+    AdminAppSessions:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            required:
+            - id
+            - deviceName
+            - platform
+            - appVersion
+            - ip
+            - createdAt
+            - lastUsedAt
+            properties:
+              id:
+                type: string
+                format: uuid
+              deviceName:
+                type:
+                - string
+                - 'null'
+              platform:
+                type:
+                - string
+                - 'null'
+              appVersion:
+                type:
+                - string
+                - 'null'
+              ip:
+                type:
+                - string
+                - 'null'
+              createdAt:
+                type: string
+                format: date-time
+              lastUsedAt:
+                type: string
+                format: date-time
+    AdminRevokeSessionsRequest:
+      type: object
+      required:
+      - reason
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Required; kept in the audit log.
+      description: (v1.65-social, D197) One session (`sessionId`) or all of them.
+      additionalProperties: false
+    AdminRevokeSessionsResult:
+      type: object
+      required:
+      - revoked
+      properties:
+        revoked:
+          type: integer
+    AdminUserBag:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            required:
+            - code
+            - category
+            - nameAr
+            - nameEn
+            - equipped
+            - source
+            - acquiredAt
+            - expiresAt
+            - expired
+            properties:
+              code:
+                type: string
+              category:
+                type: string
+                enum:
+                - PROFILE_CARD
+                - AVATAR_FRAME
+              nameAr:
+                type: string
+              nameEn:
+                type: string
+              equipped:
+                type: boolean
+              source:
+                type: string
+              acquiredAt:
+                type: string
+                format: date-time
+              expiresAt:
+                type:
+                - string
+                - 'null'
+                format: date-time
+              expired:
+                type: boolean
+    AdminBagGrantRequest:
+      type: object
+      required:
+      - code
+      - days
+      - reason
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 40
+        days:
+          type:
+          - integer
+          - 'null'
+          minimum: 1
+          maximum: 3650
+          description: Days, or null for ever (time is added to an item the user owns).
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Required; kept in the audit log.
+      additionalProperties: false
+    AdminBagGrantResult:
+      type: object
+      required:
+      - outcome
+      - expiresAt
+      properties:
+        outcome:
+          type: string
+          enum:
+          - added
+          - extended
+          - permanent
+        expiresAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+    AdminBagRevokeRequest:
+      type: object
+      required:
+      - code
+      - reason
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 40
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Required; kept in the audit log.
+      additionalProperties: false
+    AdminBagRevokeResult:
+      type: object
+      required:
+      - revoked
+      - wasEquipped
+      properties:
+        revoked:
+          type: boolean
+        wasEquipped:
+          type: boolean
+    AdminAgencyRow:
+      type: object
+      required:
+      - id
+      - inviteCode
+      - hostCode
+      - rank
+      - suspended
+      - owner
+      - parentInviteCode
+      - activeHosts
+      - subAgencies
+      - monthHostCherries
+      - monthCommission
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        inviteCode:
+          type: string
+        hostCode:
+          type:
+          - string
+          - 'null'
+        rank:
+          type: string
+          enum:
+          - NEW
+          - AGENT
+          - ADMIN
+          - LAPSED
+        suspended:
+          type: boolean
+        owner:
+          $ref: '#/components/schemas/AdminPersonRef'
+        parentInviteCode:
+          type:
+          - string
+          - 'null'
+        activeHosts:
+          type: integer
+        subAgencies:
+          type: integer
+        monthHostCherries:
+          type: integer
+        monthCommission:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+    AdminAgencyPage:
+      type: object
+      required:
+      - data
+      - total
+      - page
+      - pageSize
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminAgencyRow'
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+    AdminAgencyDetail:
+      type: object
+      required:
+      - id
+      - inviteCode
+      - hostCode
+      - rank
+      - rankMonth
+      - evaluateFrom
+      - suspended
+      - suspendReason
+      - createdAt
+      - owner
+      - parent
+      - subAgencies
+      - hosts
+      - months
+      - lifetime
+      - openComplaints
+      properties:
+        id:
+          type: string
+          format: uuid
+        inviteCode:
+          type: string
+        hostCode:
+          type:
+          - string
+          - 'null'
+        rank:
+          type: string
+          enum:
+          - NEW
+          - AGENT
+          - ADMIN
+          - LAPSED
+        rankMonth:
+          type:
+          - string
+          - 'null'
+        evaluateFrom:
+          type: string
+          format: date
+        suspended:
+          type: boolean
+        suspendReason:
+          type:
+          - string
+          - 'null'
+        createdAt:
+          type: string
+          format: date-time
+        owner:
+          $ref: '#/components/schemas/AdminPersonRef'
+        parent:
+          oneOf:
+          - type: object
+            required:
+            - id
+            - inviteCode
+            properties:
+              id:
+                type: string
+                format: uuid
+              inviteCode:
+                type: string
+          - type: 'null'
+        subAgencies:
+          type: array
+          items:
+            type: object
+            required:
+            - id
+            - inviteCode
+            - hostCode
+            - rank
+            - suspended
+            - owner
+            properties:
+              id:
+                type: string
+                format: uuid
+              inviteCode:
+                type: string
+              hostCode:
+                type:
+                - string
+                - 'null'
+              rank:
+                type: string
+                enum:
+                - NEW
+                - AGENT
+                - ADMIN
+                - LAPSED
+              suspended:
+                type: boolean
+              owner:
+                $ref: '#/components/schemas/AdminPersonRef'
+        hosts:
+          type: array
+          items:
+            type: object
+            required:
+            - linkId
+            - status
+            - commissionEligible
+            - activatedAt
+            - endedAt
+            - user
+            - monthCherries
+            - monthCommission
+            properties:
+              linkId:
+                type: string
+                format: uuid
+              status:
+                type: string
+              commissionEligible:
+                type: boolean
+              activatedAt:
+                type: string
+                format: date-time
+              endedAt:
+                type:
+                - string
+                - 'null'
+                format: date-time
+              user:
+                $ref: '#/components/schemas/AdminPersonRef'
+              monthCherries:
+                type: integer
+              monthCommission:
+                type: integer
+        months:
+          type: array
+          items:
+            type: object
+            required:
+            - month
+            - hostCherries
+            - commission
+            - parentCommission
+            properties:
+              month:
+                type: string
+              hostCherries:
+                type: integer
+              commission:
+                type: integer
+              parentCommission:
+                type: integer
+        lifetime:
+          type: object
+          required:
+          - hostCherries
+          - commission
+          - parentCommission
+          properties:
+            hostCherries:
+              type: integer
+            commission:
+              type: integer
+            parentCommission:
+              type: integer
+        openComplaints:
+          type: integer
+      description: '(v1.65-social, D197) An agency: owner, host code, rank, the last six months (cherries, commissions), hosts with this month''s cherries, sub-agencies.'
+    AdminCreateAgencyRequest:
+      type: object
+      required:
+      - reason
+      properties:
+        ownerUserId:
+          type: string
+          format: uuid
+        ownerEmail:
+          type: string
+          maxLength: 254
+        parentInviteCode:
+          type: string
+          maxLength: 12
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Required; kept in the audit log.
+      description: (v1.65-social, D197) Exactly one of `ownerUserId` / `ownerEmail`.
+      additionalProperties: false
+    AdminCreatedAgency:
+      type: object
+      required:
+      - agencyId
+      - inviteCode
+      - hostCode
+      - evaluateFrom
+      properties:
+        agencyId:
+          type: string
+          format: uuid
+        inviteCode:
+          type: string
+        hostCode:
+          type: string
+        evaluateFrom:
+          type: string
+    AdminAgencyState:
+      type: object
+      required:
+      - suspended
+      properties:
+        suspended:
+          type: boolean
+    AdminComplaintRow:
+      type: object
+      required:
+      - id
+      - status
+      - resolution
+      - text
+      - note
+      - createdAt
+      - resolvedAt
+      - host
+      - agency
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - OPEN
+          - RESOLVED
+          - REJECTED
+        resolution:
+          type:
+          - string
+          - 'null'
+        text:
+          type: string
+        note:
+          type:
+          - string
+          - 'null'
+        createdAt:
+          type: string
+          format: date-time
+        resolvedAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        host:
+          $ref: '#/components/schemas/AdminPersonRef'
+        agency:
+          type: object
+          required:
+          - id
+          - inviteCode
+          properties:
+            id:
+              type: string
+              format: uuid
+            inviteCode:
+              type: string
+    AdminComplaintPage:
+      type: object
+      required:
+      - data
+      - total
+      - page
+      - pageSize
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminComplaintRow'
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+    AdminResolveComplaintRequest:
+      type: object
+      required:
+      - decision
+      - note
+      properties:
+        decision:
+          type: string
+          enum:
+          - release
+          - keep
+          - move
+        toInviteCode:
+          type: string
+          maxLength: 12
+          description: Required for `move`.
+        note:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Required; kept in the audit log.
+      additionalProperties: false
+    AdminComplaintResult:
+      type: object
+      required:
+      - status
+      properties:
+        status:
+          type: string
+          enum:
+          - RESOLVED
+          - REJECTED
+    AdminEvaluationResult:
+      type: object
+      required:
+      - rankChanges
+      - frameChanges
+      properties:
+        rankChanges:
+          type: array
+          items:
+            type: object
+            required:
+            - agencyId
+            - from
+            - to
+            properties:
+              agencyId:
+                type: string
+                format: uuid
+              from:
+                type: string
+              to:
+                type: string
+        frameChanges:
+          type: integer
+    AdminLiveRow:
+      type: object
+      required:
+      - id
+      - title
+      - mode
+      - viewers
+      - startedAt
+      - coverUrl
+      - score
+      - categoryAr
+      - categoryEn
+      - host
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        mode:
+          type: string
+        viewers:
+          type: integer
+        startedAt:
+          type: string
+          format: date-time
+        coverUrl:
+          type:
+          - string
+          - 'null'
+        score:
+          type: integer
+        categoryAr:
+          type:
+          - string
+          - 'null'
+        categoryEn:
+          type:
+          - string
+          - 'null'
+        host:
+          $ref: '#/components/schemas/AdminPersonRef'
+    AdminLivePage:
+      type: object
+      required:
+      - data
+      - total
+      - page
+      - pageSize
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminLiveRow'
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+    AdminLiveDetail:
+      type: object
+      required:
+      - id
+      - title
+      - topic
+      - mode
+      - status
+      - endReason
+      - viewers
+      - peakViewers
+      - startedAt
+      - endedAt
+      - coverUrl
+      - chatEnabled
+      - allowGuests
+      - categoryAr
+      - categoryEn
+      - roomNumber
+      - host
+      - giftCoins
+      - giftsSent
+      - seatsTaken
+      - openReports
+      - moderators
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        topic:
+          type:
+          - string
+          - 'null'
+        mode:
+          type: string
+        status:
+          type: string
+        endReason:
+          type:
+          - string
+          - 'null'
+        viewers:
+          type: integer
+        peakViewers:
+          type: integer
+        startedAt:
+          type: string
+          format: date-time
+        endedAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        coverUrl:
+          type:
+          - string
+          - 'null'
+        chatEnabled:
+          type: boolean
+        allowGuests:
+          type: boolean
+        categoryAr:
+          type:
+          - string
+          - 'null'
+        categoryEn:
+          type:
+          - string
+          - 'null'
+        roomNumber:
+          type:
+          - integer
+          - 'null'
+        host:
+          $ref: '#/components/schemas/AdminPersonRef'
+        giftCoins:
+          type: integer
+        giftsSent:
+          type: integer
+        seatsTaken:
+          type: integer
+        openReports:
+          type: integer
+        moderators:
+          type: integer
+    AdminLiveEnded:
+      type: object
+      required:
+      - status
+      - endReason
+      properties:
+        status:
+          type: string
+          enum:
+          - ENDED
+        endReason:
+          type: string
+          enum:
+          - ADMIN
+    AdminHostRow:
+      type: object
+      required:
+      - userId
+      - username
+      - displayName
+      - avatarUrl
+      - status
+      - source
+      - grantedAt
+      - grantedBy
+      - roomNumber
+      - liveRoomId
+      properties:
+        userId:
+          type: string
+          format: uuid
+        username:
+          type: string
+        displayName:
+          type: string
+        avatarUrl:
+          type:
+          - string
+          - 'null'
+        status:
+          type: string
+        source:
+          type: string
+          enum:
+          - ADMIN
+          - AGENCY
+          - IDENTITY
+        grantedAt:
+          type: string
+          format: date-time
+        grantedBy:
+          type:
+          - string
+          - 'null'
+        roomNumber:
+          type: integer
+        liveRoomId:
+          type:
+          - string
+          - 'null'
+          format: uuid
+    AdminHostPage:
+      type: object
+      required:
+      - data
+      - total
+      - page
+      - pageSize
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminHostRow'
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+    AdminHostRequest:
+      type: object
+      required:
+      - username
+      - reason
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 31
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Required; kept in the audit log.
+      additionalProperties: false
+    AdminHostResult:
+      type: object
+      required:
+      - host
+      - changed
+      properties:
+        host:
+          type: boolean
+        changed:
+          type: boolean
+    AdminGift:
+      type: object
+      required:
+      - code
+      - category
+      - nameAr
+      - nameEn
+      - priceCoins
+      - priceUsd
+      - assetKey
+      - animationKey
+      - imageUrl
+      - hostedAnimation
+      - sortOrder
+      - badge
+      - lucky
+      - tagCode
+      - tagNameAr
+      - tagNameEn
+      - soundKey
+      - soundMs
+      - quipText
+      - enabled
+      - sends
+      - coinsSpent
+      properties:
+        code:
+          type: string
+        category:
+          type: string
+          enum:
+          - POPULAR
+          - EVENT
+          - FUN
+          - LUCKY
+          - QUIPS
+        nameAr:
+          type: string
+        nameEn:
+          type: string
+        priceCoins:
+          type: integer
+        priceUsd:
+          type: string
+          description: At the coins' retail price (COIN_RETAIL_USD_PER_MILLION).
+        assetKey:
+          type: string
+        animationKey:
+          type:
+          - string
+          - 'null'
+        imageUrl:
+          type:
+          - string
+          - 'null'
+        hostedAnimation:
+          type: boolean
+        sortOrder:
+          type: integer
+        badge:
+          type: string
+          enum:
+          - NONE
+          - NEW
+          - EVENT
+        lucky:
+          type: boolean
+          description: category LUCKY.
+        tagCode:
+          type:
+          - string
+          - 'null'
+        tagNameAr:
+          type:
+          - string
+          - 'null'
+        tagNameEn:
+          type:
+          - string
+          - 'null'
+        soundKey:
+          type:
+          - string
+          - 'null'
+        soundMs:
+          type:
+          - integer
+          - 'null'
+        quipText:
+          type:
+          - string
+          - 'null'
+        enabled:
+          type: boolean
+        sends:
+          type: integer
+        coinsSpent:
+          type: integer
+    AdminGiftList:
+      type: object
+      required:
+      - coinRetailUsdPerMillion
+      - data
+      properties:
+        coinRetailUsdPerMillion:
+          type: number
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminGift'
+    AdminCreateGiftRequest:
+      type: object
+      required:
+      - code
+      - category
+      - nameAr
+      - nameEn
+      - priceCoins
+      - assetKey
+      - reason
+      properties:
+        code:
+          type: string
+          pattern: ^[a-z0-9][a-z0-9_]{0,39}$
+        category:
+          type: string
+          enum:
+          - POPULAR
+          - EVENT
+          - FUN
+          - LUCKY
+          - QUIPS
+        nameAr:
+          type: string
+          minLength: 1
+          maxLength: 60
+        nameEn:
+          type: string
+          minLength: 1
+          maxLength: 60
+        priceCoins:
+          type: integer
+          minimum: 0
+          maximum: 1000000
+        assetKey:
+          type: string
+          maxLength: 80
+        animationKey:
+          type:
+          - string
+          - 'null'
+          maxLength: 80
+        sortOrder:
+          type: integer
+        badge:
+          type: string
+          enum:
+          - NONE
+          - NEW
+          - EVENT
+        tagCode:
+          type:
+          - string
+          - 'null'
+          maxLength: 40
+        tagNameAr:
+          type:
+          - string
+          - 'null'
+          maxLength: 30
+        tagNameEn:
+          type:
+          - string
+          - 'null'
+          maxLength: 30
+        soundKey:
+          type:
+          - string
+          - 'null'
+          maxLength: 80
+        soundMs:
+          type:
+          - integer
+          - 'null'
+          minimum: 200
+          maximum: 15000
+        quipText:
+          type:
+          - string
+          - 'null'
+          maxLength: 200
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Required; kept in the audit log.
+      description: (v1.65-social, D197) The `gift-admin add` fields (bundled keys; hosted art stays with the CLI's `--image` / `--animation-file`).
+      additionalProperties: false
+    AdminUpdateGiftRequest:
+      type: object
+      required:
+      - reason
+      properties:
+        category:
+          type: string
+          enum:
+          - POPULAR
+          - EVENT
+          - FUN
+          - LUCKY
+          - QUIPS
+        nameAr:
+          type: string
+          minLength: 1
+          maxLength: 60
+        nameEn:
+          type: string
+          minLength: 1
+          maxLength: 60
+        priceCoins:
+          type: integer
+          minimum: 0
+          maximum: 1000000
+        assetKey:
+          type: string
+          maxLength: 80
+        animationKey:
+          type:
+          - string
+          - 'null'
+          maxLength: 80
+        sortOrder:
+          type: integer
+        badge:
+          type: string
+          enum:
+          - NONE
+          - NEW
+          - EVENT
+        tagCode:
+          type:
+          - string
+          - 'null'
+          maxLength: 40
+        tagNameAr:
+          type:
+          - string
+          - 'null'
+          maxLength: 30
+        tagNameEn:
+          type:
+          - string
+          - 'null'
+          maxLength: 30
+        soundKey:
+          type:
+          - string
+          - 'null'
+          maxLength: 80
+        soundMs:
+          type:
+          - integer
+          - 'null'
+          minimum: 200
+          maximum: 15000
+        quipText:
+          type:
+          - string
+          - 'null'
+          maxLength: 200
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Required; kept in the audit log.
+      description: (v1.65-social, D197) Any of the fields (null clears an optional one), and the reason.
+      additionalProperties: false
+    AdminGiftCreated:
+      type: object
+      required:
+      - code
+      - created
+      properties:
+        code:
+          type: string
+        created:
+          type: boolean
+    AdminGiftUpdated:
+      type: object
+      required:
+      - code
+      - changed
+      properties:
+        code:
+          type: string
+        changed:
+          type: array
+          items:
+            type: string
+    AdminGiftEnabled:
+      type: object
+      required:
+      - code
+      - enabled
+      - changed
+      properties:
+        code:
+          type: string
+        enabled:
+          type: boolean
+        changed:
+          type: boolean
+    AdminBagCatalog:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            required:
+            - code
+            - category
+            - nameAr
+            - nameEn
+            - assetKey
+            - free
+            - automatic
+            - holders
+            properties:
+              code:
+                type: string
+              category:
+                type: string
+                enum:
+                - PROFILE_CARD
+                - AVATAR_FRAME
+              nameAr:
+                type: string
+              nameEn:
+                type: string
+              assetKey:
+                type: string
+              free:
+                type: boolean
+              automatic:
+                type: boolean
+                description: 'An active-host frame (D186): not grantable.'
+              holders:
+                type: integer
+    AdminBannerList:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            required:
+            - id
+            - placement
+            - titleAr
+            - titleEn
+            - link
+            - startsAt
+            - endsAt
+            - sortOrder
+            - enabled
+            - showing
+            - imageUrl
+            properties:
+              id:
+                type: string
+                format: uuid
+              placement:
+                type: string
+              titleAr:
+                type:
+                - string
+                - 'null'
+              titleEn:
+                type:
+                - string
+                - 'null'
+              link:
+                type: string
+              startsAt:
+                type: string
+                format: date-time
+              endsAt:
+                type:
+                - string
+                - 'null'
+                format: date-time
+              sortOrder:
+                type: integer
+              enabled:
+                type: boolean
+              showing:
+                type: boolean
+              imageUrl:
+                type:
+                - string
+                - 'null'
+    AdminBannerEnabled:
+      type: object
+      required:
+      - id
+      - enabled
+      - changed
+      properties:
+        id:
+          type: string
+          format: uuid
+        enabled:
+          type: boolean
+        changed:
+          type: boolean
+    AdminRemoved:
+      type: object
+      required:
+      - removed
+      properties:
+        removed:
+          type: boolean
+    AdminEventList:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            required:
+            - id
+            - titleAr
+            - titleEn
+            - metric
+            - audience
+            - startsAt
+            - endsAt
+            - permanent
+            - featured
+            - regions
+            - prizes
+            - tone
+            - state
+            - payoutHold
+            properties:
+              id:
+                type: string
+                format: uuid
+              titleAr:
+                type: string
+              titleEn:
+                type: string
+              metric:
+                type: string
+                enum:
+                - GIFT_COINS_RECEIVED
+                - GIFT_COINS_SENT
+                - LIVE_MINUTES
+                - TAPS_RECEIVED
+                - NEW_FOLLOWERS
+              audience:
+                type: string
+              startsAt:
+                type: string
+                format: date-time
+              endsAt:
+                type:
+                - string
+                - 'null'
+                format: date-time
+              permanent:
+                type: boolean
+              featured:
+                type: boolean
+              regions:
+                type: array
+                items:
+                  type: string
+              prizes:
+                type: integer
+              tone:
+                type:
+                - string
+                - 'null'
+              state:
+                type: string
+                enum:
+                - UPCOMING
+                - RUNNING
+                - PAID
+                - HELD
+                - IN_REVIEW
+                - ENDED
+              payoutHold:
+                type: boolean
+    AdminCreateEventRequest:
+      type: object
+      required:
+      - titleAr
+      - titleEn
+      - startsAt
+      - metric
+      - reason
+      properties:
+        titleAr:
+          type: string
+          minLength: 1
+          maxLength: 120
+        titleEn:
+          type: string
+          minLength: 1
+          maxLength: 120
+        rulesAr:
+          type: string
+          maxLength: 4000
+        rulesEn:
+          type: string
+          maxLength: 4000
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        permanent:
+          type: boolean
+        metric:
+          type: string
+          enum:
+          - GIFT_COINS_RECEIVED
+          - GIFT_COINS_SENT
+          - LIVE_MINUTES
+          - TAPS_RECEIVED
+          - NEW_FOLLOWERS
+        audience:
+          type: string
+          enum:
+          - EVERYONE
+          - HOSTS
+        regions:
+          type: array
+          items:
+            type: string
+            pattern: ^[A-Za-z]{2}$
+          maxItems: 50
+        featured:
+          type: boolean
+        bannerUrl:
+          type:
+          - string
+          - 'null'
+          maxLength: 2048
+        prizes:
+          type: string
+          maxLength: 500
+          description: Like `1:5000,2:3000,3-10:500` (coins per rank).
+        summaryAr:
+          type:
+          - string
+          - 'null'
+          maxLength: 80
+        summaryEn:
+          type:
+          - string
+          - 'null'
+          maxLength: 80
+        tone:
+          type:
+          - string
+          - 'null'
+          enum:
+          - RED
+          - GOLD
+          - TEAL
+          - BLUE
+          - PINK
+          - AMBER
+          - null
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Required; kept in the audit log.
+      description: (v1.65-social, D197) The `event-admin create` fields.
+      additionalProperties: false
+    AdminEventCreated:
+      type: object
+      required:
+      - id
+      properties:
+        id:
+          type: string
+          format: uuid
+    AdminEventChanged:
+      type: object
+      required:
+      - id
+      - changed
+      properties:
+        id:
+          type: string
+          format: uuid
+        changed:
+          type: boolean
+    AdminRechargeTopupRow:
+      type: object
+      required:
+      - id
+      - agent
+      - coins
+      - tier
+      - pricePerMillionMinor
+      - expectedMinor
+      - paidMinor
+      - currency
+      - first
+      - note
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        agent:
+          type: object
+          required:
+          - id
+          - username
+          - displayName
+          - code
+          properties:
+            id:
+              type: string
+              format: uuid
+            username:
+              type: string
+            displayName:
+              type: string
+            code:
+              type:
+              - string
+              - 'null'
+        coins:
+          type: integer
+        tier:
+          type: string
+        pricePerMillionMinor:
+          type: integer
+        expectedMinor:
+          type: integer
+        paidMinor:
+          type: integer
+        currency:
+          type: string
+        first:
+          type: boolean
+        note:
+          type:
+          - string
+          - 'null'
+        createdAt:
+          type: string
+          format: date-time
+    AdminRechargeTopupPage:
+      type: object
+      required:
+      - data
+      - total
+      - page
+      - pageSize
+      - totals
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminRechargeTopupRow'
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        totals:
+          type: object
+          required:
+          - coins
+          - paidMinor
+          - expectedMinor
+          properties:
+            coins:
+              type: integer
+            paidMinor:
+              type: integer
+            expectedMinor:
+              type: integer
+    AdminCardOrderRow:
+      type: object
+      required:
+      - id
+      - user
+      - coins
+      - amountMinor
+      - currency
+      - status
+      - paymentMethodType
+      - creditedAt
+      - refundedMinor
+      - teamRefundedMinor
+      - disputeStatus
+      - coinsReversed
+      - cases
+      - refundable
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        user:
+          $ref: '#/components/schemas/AdminPersonName'
+        coins:
+          type: integer
+        amountMinor:
+          type: integer
+        currency:
+          type: string
+        status:
+          type: string
+          enum:
+          - PENDING
+          - AWAITING_FUNDS
+          - PAID
+          - EXPIRED
+          - FAILED
+        paymentMethodType:
+          type:
+          - string
+          - 'null'
+        creditedAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        refundedMinor:
+          type: integer
+        teamRefundedMinor:
+          type: integer
+        disputeStatus:
+          type:
+          - string
+          - 'null'
+        coinsReversed:
+          type: integer
+        cases:
+          type: integer
+        refundable:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+    AdminCardOrderPage:
+      type: object
+      required:
+      - data
+      - total
+      - page
+      - pageSize
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminCardOrderRow'
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+    AdminTopupCaseRow:
+      type: object
+      required:
+      - id
+      - orderId
+      - kind
+      - status
+      - outcome
+      - coinsReversed
+      - amountMinor
+      - currency
+      - note
+      - user
+      - createdAt
+      - closedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum:
+          - REFUND
+          - EARLY_FRAUD_WARNING
+          - DISPUTE
+        status:
+          type: string
+          enum:
+          - OPEN
+          - CLOSED
+        outcome:
+          type:
+          - string
+          - 'null'
+        coinsReversed:
+          type: integer
+        amountMinor:
+          type: integer
+        currency:
+          type: string
+        note:
+          type:
+          - string
+          - 'null'
+        user:
+          $ref: '#/components/schemas/AdminPersonName'
+        createdAt:
+          type: string
+          format: date-time
+        closedAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+    AdminTopupCasePage:
+      type: object
+      required:
+      - data
+      - total
+      - page
+      - pageSize
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminTopupCaseRow'
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+    AdminRefundRequest:
+      type: object
+      required:
+      - reason
+      - totpCode
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Required; kept in the audit log.
+        totpCode:
+          type: string
+          pattern: ^[0-9]{6}$
+          description: The authenticator code again (§10.54.3).
+      additionalProperties: false
+    AdminRefundResult:
+      type: object
+      required:
+      - refundId
+      - status
+      - amountMinor
+      properties:
+        refundId:
+          type: string
+        status:
+          type:
+          - string
+          - 'null'
+        amountMinor:
+          type: integer
+    AdminCloseCaseRequest:
+      type: object
+      required:
+      - note
+      properties:
+        note:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Required; kept in the audit log.
+      additionalProperties: false
+    AdminCaseClosed:
+      type: object
+      required:
+      - status
+      properties:
+        status:
+          type: string
+          enum:
+          - CLOSED
+    AdminFinanceReportRow:
+      type: object
+      required:
+      - period
+      - agentTopupCoins
+      - agentRevenueMinor
+      - agentExpectedMinor
+      - agentSalesCoins
+      - cardCoins
+      - cardRevenueMinor
+      - cardRefundedMinor
+      - hostPayoutsMinor
+      - cherriesWithdrawn
+      - agencyCommissionCherries
+      - cherriesIssued
+      - cherriesReversed
+      - cherriesSoldToAgents
+      - cherriesIssuedValueMinor
+      - estimatedMarginMinor
+      properties:
+        period:
+          type: string
+          description: YYYY-MM-DD or YYYY-MM (Asia/Riyadh), or `total`.
+        agentTopupCoins:
+          type: integer
+        agentRevenueMinor:
+          type: integer
+        agentExpectedMinor:
+          type: integer
+        agentSalesCoins:
+          type: integer
+        cardCoins:
+          type: integer
+        cardRevenueMinor:
+          type: integer
+        cardRefundedMinor:
+          type: integer
+        hostPayoutsMinor:
+          type: integer
+        cherriesWithdrawn:
+          type: integer
+        agencyCommissionCherries:
+          type: integer
+        cherriesIssued:
+          type: integer
+        cherriesReversed:
+          type: integer
+        cherriesSoldToAgents:
+          type: integer
+        cherriesIssuedValueMinor:
+          type: integer
+        estimatedMarginMinor:
+          type: integer
+      description: '(v1.65-social, D197) Money in minor units (USD cents). `agentRevenueMinor`: what agents paid for their top-ups (`agentExpectedMinor`: at the tier price); `cardRevenueMinor`: card orders
+        credited (`cardRefundedMinor`: refunded of those); `hostPayoutsMinor`: withdrawals paid; `cherriesIssued`: gifts, commissions and task rewards (`cherriesIssuedValueMinor` at the payout rate); `estimatedMarginMinor`
+        = agent + card revenue − card refunds − host payouts (no payment fees, no cherries not yet withdrawn).'
+    AdminFinanceReport:
+      type: object
+      required:
+      - granularity
+      - from
+      - to
+      - timeZone
+      - currency
+      - rate
+      - rows
+      - totals
+      properties:
+        granularity:
+          type: string
+          enum:
+          - day
+          - month
+        from:
+          type: string
+        to:
+          type: string
+        timeZone:
+          type: string
+        currency:
+          type: string
+        rate:
+          type: object
+          required:
+          - cherries
+          - minor
+          properties:
+            cherries:
+              type: integer
+            minor:
+              type: integer
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminFinanceReportRow'
+        totals:
+          $ref: '#/components/schemas/AdminFinanceReportRow'
+    AdminTeam:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            required:
+            - id
+            - email
+            - username
+            - displayName
+            - avatarUrl
+            - status
+            - roles
+            - totpEnrolled
+            - lockedUntil
+            - lastSignInAt
+            properties:
+              id:
+                type: string
+                format: uuid
+              email:
+                type: string
+              username:
+                type: string
+              displayName:
+                type: string
+              avatarUrl:
+                type:
+                - string
+                - 'null'
+              status:
+                type: string
+              roles:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AdminPanelRole'
+              totpEnrolled:
+                type: boolean
+              lockedUntil:
+                type:
+                - string
+                - 'null'
+                format: date-time
+              lastSignInAt:
+                type:
+                - string
+                - 'null'
+                format: date-time
+    AdminTeamGrantRequest:
+      type: object
+      required:
+      - email
+      - role
+      - reason
+      - totpCode
+      properties:
+        email:
+          type: string
+          maxLength: 254
+        role:
+          $ref: '#/components/schemas/AdminPanelRole'
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Required; kept in the audit log.
+        totpCode:
+          type: string
+          pattern: ^[0-9]{6}$
+          description: The authenticator code again (§10.54.3).
+      additionalProperties: false
+    AdminTeamGrantResult:
+      type: object
+      required:
+      - userId
+      - role
+      - madeAdmin
+      - already
+      properties:
+        userId:
+          type: string
+          format: uuid
+        role:
+          $ref: '#/components/schemas/AdminPanelRole'
+        madeAdmin:
+          type: boolean
+        already:
+          type: boolean
+    AdminTeamRevokeRequest:
+      type: object
+      required:
+      - role
+      - reason
+      - totpCode
+      properties:
+        role:
+          $ref: '#/components/schemas/AdminPanelRole'
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Required; kept in the audit log.
+        totpCode:
+          type: string
+          pattern: ^[0-9]{6}$
+          description: The authenticator code again (§10.54.3).
+      additionalProperties: false
+    AdminTeamRevokeResult:
+      type: object
+      required:
+      - userId
+      - left
+      properties:
+        userId:
+          type: string
+          format: uuid
+        left:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminPanelRole'
+    AdminTeamResetRequest:
+      type: object
+      required:
+      - reason
+      - totpCode
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Required; kept in the audit log.
+        totpCode:
+          type: string
+          pattern: ^[0-9]{6}$
+          description: The authenticator code again (§10.54.3).
+      additionalProperties: false
+    AdminTeamResetResult:
+      type: object
+      required:
+      - reset
+      properties:
+        reset:
+          type: boolean
+    AdminTasks:
+      type: object
+      required:
+      - coinRetailUsdPerMillion
+      - payoutRate
+      - data
+      properties:
+        coinRetailUsdPerMillion:
+          type: number
+        payoutRate:
+          type: object
+          required:
+          - cherries
+          - minor
+          properties:
+            cherries:
+              type: integer
+            minor:
+              type: integer
+        data:
+          type: array
+          items:
+            type: object
+            required:
+            - code
+            - period
+            - metric
+            - audience
+            - nameAr
+            - nameEn
+            - enabled
+            - pool
+            - poolGroup
+            - target
+            - targetUsd
+            - rewardCherries
+            - rewardUsd
+            - bands
+            properties:
+              code:
+                type: string
+              period:
+                type: string
+              metric:
+                type: string
+              audience:
+                type: string
+              nameAr:
+                type: string
+              nameEn:
+                type: string
+              enabled:
+                type: boolean
+              pool:
+                type: boolean
+              poolGroup:
+                type:
+                - string
+                - 'null'
+              target:
+                type: integer
+              targetUsd:
+                type:
+                - string
+                - 'null'
+              rewardCherries:
+                type: integer
+              rewardUsd:
+                type: string
+              bands:
+                type: array
+                items:
+                  type: object
+                  required:
+                  - target
+                  - targetUsd
+                  - rewardCherries
+                  - rewardUsd
+                  properties:
+                    target:
+                      type: integer
+                    targetUsd:
+                      type:
+                      - string
+                      - 'null'
+                    rewardCherries:
+                      type: integer
+                    rewardUsd:
+                      type: string
+      description: (v1.65-social, D197) Rewards in cherries with their USD at the payout rate; coin-value targets with their USD at the retail price (D188).
+    AdminPanelLevels:
+      type: object
+      required:
+      - coinRetailUsdPerMillion
+      - data
+      properties:
+        coinRetailUsdPerMillion:
+          type: number
+        data:
+          type: array
+          items:
+            type: object
+            required:
+            - code
+            - nameAr
+            - nameEn
+            - enabled
+            - version
+            - multiplier
+            - valueUnit
+            - publishedAt
+            - levels
+            properties:
+              code:
+                type: string
+              nameAr:
+                type: string
+              nameEn:
+                type: string
+              enabled:
+                type: boolean
+              version:
+                type:
+                - integer
+                - 'null'
+              multiplier:
+                type:
+                - string
+                - 'null'
+              valueUnit:
+                type:
+                - string
+                - 'null'
+              publishedAt:
+                type:
+                - string
+                - 'null'
+                format: date-time
+              levels:
+                type: array
+                items:
+                  type: object
+                  required:
+                  - level
+                  - nameAr
+                  - nameEn
+                  - requiredPoints
+                  - coins
+                  - usd
+                  properties:
+                    level:
+                      type: integer
+                    nameAr:
+                      type: string
+                    nameEn:
+                      type: string
+                    requiredPoints:
+                      type: integer
+                    coins:
+                      type:
+                      - integer
+                      - 'null'
+                    usd:
+                      type:
+                      - string
+                      - 'null'
+      description: (v1.65-social, D197) The published ladders; `coins` = points ÷ multiplier (COIN unit), `usd` at the retail price.
+    AdminSpecialUsernameRow:
+      type: object
+      required:
+      - id
+      - userId
+      - username
+      - baseUsername
+      - displayName
+      - avatarUrl
+      - source
+      - status
+      - grantedAt
+      - expiresAt
+      - graceUntil
+      - endedAt
+      - reason
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        username:
+          type: string
+        baseUsername:
+          type: string
+        displayName:
+          type: string
+        avatarUrl:
+          type:
+          - string
+          - 'null'
+        source:
+          type: string
+        status:
+          type: string
+          enum:
+          - ACTIVE
+          - GRACE
+          - ENDED
+        grantedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        graceUntil:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        endedAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        reason:
+          type:
+          - string
+          - 'null'
+    AdminSpecialUsernamePage:
+      type: object
+      required:
+      - data
+      - total
+      - page
+      - pageSize
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminSpecialUsernameRow'
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+    AdminWaitlistRow:
+      type: object
+      required:
+      - id
+      - email
+      - locale
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        locale:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    AdminWaitlistPage:
+      type: object
+      required:
+      - data
+      - total
+      - page
+      - pageSize
+      - counts
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminWaitlistRow'
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        counts:
+          type: object
+          required:
+          - total
+          - byLocale
+          properties:
+            total:
+              type: integer
+            byLocale:
+              type: array
+              items:
+                type: object
+                required:
+                - locale
+                - count
+                properties:
+                  locale:
+                    type: string
+                  count:
+                    type: integer
     WaitlistSignupRequest:
       type: object
       additionalProperties: false

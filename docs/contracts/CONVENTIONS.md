@@ -583,6 +583,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.65-social (draft) | 2026-10-31 | **D197 (owner: «لوحة الإدارة تصميمها ضعيف وفيها كثير من نقص» — a professional redesign and the phase-2 sections, CP-039):** tag `admin-panel` gains 59 operations (all `(v1.65-social, D197)`, cookie session + CSRF, one capability each): statistics `getAdminStatsOverview`, `getAdminStatsSeries`, `getAdminStatsAttention`, `getAdminStatsActivity` and the quick search `searchAdminEverything`; the users table `listAdminUsersTable` and a user's tabs (`listAdminUserLedger`, `listAdminUserPosts`, `listAdminUserAudit`, `listAdminUserSessions`, `revokeAdminUserSessions`, `getAdminUserBag`, `grantAdminUserBagItem`, `revokeAdminUserBagItem`); agencies (`listAdminAgencies`, `createAdminAgency`, `getAdminAgency`, `suspendAdminAgency`, `reinstateAdminAgency`, `listAdminAgencyComplaints`, `resolveAdminAgencyComplaint`, `runAdminAgencyEvaluation`); lives (`listAdminLives`, `getAdminLive`, `endAdminLive`, `listAdminLiveHosts`, `grantAdminLiveHost`, `revokeAdminLiveHost`); gifts and items (`listAdminGifts`, `createAdminGift`, `updateAdminGift`, `enableAdminGift`, `disableAdminGift`, `listAdminBagItems`, `listAdminBanners`, `enableAdminBanner`, `disableAdminBanner`, `removeAdminBanner`, `listAdminEvents`, `createAdminEvent`, `endAdminEvent`, `holdAdminEvent`, `releaseAdminEvent`); money (`listAdminRechargeTopups`, `listAdminCardOrders`, `refundAdminCardOrder`, `listAdminTopupCases`, `closeAdminTopupCase`, `getAdminFinanceReport`); audit and team (`listAdminAudit`, `listAdminAuditActions`, `listAdminTeam`, `grantAdminTeamRole`, `revokeAdminTeamRole`, `resetAdminTeamTotp`); `listAdminTasks`, `listAdminPanelLevels`, `listAdminSpecialUsernames`, `listAdminWaitlist`. One table shape (`page`, `pageSize` ≤ 100, `total`, whitelisted `sort`, `format=csv` audited `admin.export.csv`). 16 new capabilities (§10.60.1). Audit actions `admin.export.csv`, `admin.live.end`, `admin.user.sessions_revoke`, `agency.evaluate`; the CLIs' rows of `agency.*`, `host_agent.*`, `gift.*`, `bag.*`, `banner.*`, `event.*`, `topup.case.close`, `topup.admin_refund`, `admin.role.*`, `admin.totp.reset`, `waitlist.view` carry `via` (`cli` \| `panel`), the actor and IP on the panel, the reason and before/after. Session revoke reason `ADMIN_REVOKED`. Migration `20270112100000_admin_v2` (eleven time-column indexes; SECURITY DEFINER `kabso_admin_panel_role` — the runtime role's only write to panel roles). §10.60. | **Additive** (new operations behind the existing admin session; new audit actions; new indexes; the CLIs behave as before). |
 | v1.61-social (draft) | 2026-10-31 | **D192 (owner: the public website kabsolive.com — the coming-soon page with a launch waitlist instead of store buttons, legal pages, AR/EN, footer social links managed from the admin panel; CP-035):** tag `site`: `joinWaitlist` (`POST /waitlist`, `WaitlistSignupRequest`, 202 `WaitlistAccepted`, non-enumerating, idempotent per email), the website's read of `getSiteSettings` (one settings module, table and contract with D191, §10.54.6: links in one stored form `https://www.instagram.com/<handle>`, `https://www.tiktok.com/@<handle>`, `https://wa.me/<digits>`, written only by D191's `updateAdminSiteSettings`; `SiteSocials` gains the patterns; D192's bearer `updateSiteSettings` and the `SITE_SETTINGS` permission were folded into D191's during integration, KL-069); audit `waitlist.view` (CLI `waitlist-admin list\|export`); config `RATE_LIMIT_WAITLIST_IP`; migration `20270106100000_website` (`waitlist_signups`). The website and its Caddy block (same-origin `/api/v1/waitlist`, `/api/v1/site/settings`; `/topup*` → 302 to D190's pages on `api.`; security headers; `www` → apex). §7, §10.55. | **Additive** (new operations and a tag; nothing existing changes). |
 | v1.60-social (draft) | 2026-10-31 | **D191 (owner: the admin panel «لوحة الإدارة», phase 1, CP-034):** tag `admin-panel` — `adminLogin`, `startAdminTotpEnrolment`, `confirmAdminTotpEnrolment`, `verifyAdminTotp`, `getAdminSession`, `adminLogout` (cookie `__Host-kabso_admin`, security scheme `adminSession`, header `X-CSRF-Token`), `getAdminDashboard`, `searchAdminUsers`, `getAdminUser`, `banAdminUser`, `unbanAdminUser`, `removeAdminUserAvatar`, `giftAdminSpecialUsername`, `revokeAdminSpecialUsername`, `listAdminRechargeApplications`, `getAdminRechargeApplication`, `getAdminRechargeApplicationPhoto`, `approveAdminRechargeApplication`, `rejectAdminRechargeApplication`, `listAdminRechargeAgents`, `topUpAdminRechargeAgent`, `suspendAdminRechargeAgent`, `reinstateAdminRechargeAgent`, `setAdminRechargeAgentCap`, `listAdminWithdrawals`, `payAdminWithdrawal`, `rejectAdminWithdrawal`, `listAdminPanelReports`, `actOnAdminPanelReport`, `getAdminSiteSettings`, `updateAdminSiteSettings`; tag `site` — `getSiteSettings` (with D192); `NotificationType.MODERATION_WARNING`; admin permissions `OWNER`, `SUPPORT`, `FINANCE` (with `MODERATION`: the panel roles); codes `ADMIN_PANEL_UNAVAILABLE` (503), `ADMIN_LOCKED` (429), `ADMIN_TOTP_INVALID`, `ADMIN_CSRF_INVALID` (403), `ADMIN_ACTION_REFUSED` (409); config `ADMIN_TOTP_KEY`, `ADMIN_SESSION_*`, `ADMIN_PENDING_SECONDS`, `ADMIN_LOCKOUT_*`, `RATE_LIMIT_ADMIN_*`; CLI `admin-admin`; migrations `20270104090000_admin_panel_enums`, `20270104100000_admin_panel` (`admin_credentials`, `admin_recovery_codes`, `admin_sessions`, `site_settings`). §4, §7, §8, §10.54. | **Additive** (new operations behind their own cookie session; a new notification type the app ignores until it knows it; the CLIs' audit rows gain `before`/`after` keys and the panel's carry the actor and IP). |
 | v1.59-social (draft) | 2026-10-31 | **D190 (owner: card top-ups on the Kabso WEBSITE only, never inside the app; Stripe Checkout with 3-D Secure; refunds / early-fraud warnings / disputes take the coins back, CP-033):** tag `topup` — `listTopupPackages` (public), `getMyTopupState`, `createTopupCheckout`, `getTopupOrder`, `receiveStripeWebhook` (signed, server to server); schemas `TopupPackages`, `TopupMe`, `TopupCheckoutRequest`, `TopupCheckout`, `TopupOrder`, `TopupOrderStatus`; codes `TOPUP_UNAVAILABLE` (503) and `TOPUP_ACCOUNT_FROZEN` (403, also on `sendLiveGift`, `sendDmGift`, `sendMyBagItem` while the balance is below 0); `Wallet.coins` and `WalletLedgerEntry.balanceAfter` may be **negative**; ledger reasons `CARD_TOPUP`, `CARD_TOPUP_REVERSAL`, `CARD_TOPUP_RESTORE`; `RechargePackages.websiteTopupUrl` (set while `TOPUP_APP_LINK_ENABLED`, on by default, and top-ups are on); the website pages `/topup`, `/topup/success`, `/topup/cancel` (outside `/api/v1`); CLI `payments-admin`; migrations `20270104090000_card_topups_enums`, `20270104100000_card_topups`, `20270104110000_topup_team_refunds`. Owner answers (CP-033 §3): bank transfers (US) and the app link on by default; a team refund never freezes; gifts again once the balance is ≥ 0. §4, §7, §8, §10.53. | **Additive** on the wire (new operations, codes, enum values, a nullable field); **behaviour change**: a coin balance can be below 0 (clients show it as is; strict clients accept negative numbers in the same change set). Off until the owner sets the Stripe secrets on the server. |
@@ -3771,6 +3772,144 @@ Caddy). Nothing on it is a product screen; it never shows user content.
   redirects permanently to the apex.
 - **Migration** `20270106100000_website` (`waitlist_signups`; `site_settings` is created by D191's
   `20270104100000_admin_panel`).
+
+### 10.60 The admin panel v2 «لوحة الإدارة» — redesign and phase 2 *(v1.65-social, DRAFT — D197, CP-039)*
+
+The owner's request of 2026-10-31 («لوحة الإدارة تصميمها ضعيف وفيها كثير من نقص»): a professional redesign of the
+panel (§10.54) and the phase-2 sections. Everything here is behind the same cookie session, CSRF header, rate limits
+and per-request capability check as §10.54; every operation's description starts with `(v1.65-social, D197)`.
+
+#### 10.60.1 Capabilities, statistics, search and the one table
+
+New capabilities (added to the §10.54.1 table; the session's `capabilities` lists them):
+
+| Capability | OWNER | MODERATION | SUPPORT | FINANCE |
+|---|:-:|:-:|:-:|:-:|
+| `users.list` (users table, a user's posts) | ✓ | ✓ | ✓ | ✓ |
+| `users.export` (the users table as CSV) | ✓ | | ✓ | |
+| `users.sessions` (a user's app sessions, sign out) | ✓ | ✓ | ✓ | |
+| `agencies.view` | ✓ | | ✓ | ✓ |
+| `agencies.manage` (create, suspend / reinstate, complaints, rank evaluation) | ✓ | | ✓ | |
+| `lives.view` | ✓ | ✓ | ✓ | |
+| `lives.manage` (end a live, hosting permission) | ✓ | ✓ | | |
+| `catalog.view` (gifts, bag items, banners, events) | ✓ | | ✓ | ✓ |
+| `catalog.manage` (gift CRUD, banners, events) | ✓ | | | |
+| `items.grant` (a user's frames and profile cards) | ✓ | | ✓ | |
+| `finance.view` (agent top-ups, card orders, Stripe cases, the report) | ✓ | | | ✓ |
+| `finance.refund` (team refund — code again — and closing a case) | ✓ | | | ✓ |
+| `audit.view` (audit viewer, a user's «السجل» tab) | ✓ | | | |
+| `team.manage` | ✓ | | | |
+| `programs.view` (tasks, levels, special usernames) | ✓ | | ✓ | ✓ |
+| `waitlist.view` | ✓ | | | |
+
+- **Statistics** (`dashboard.view`, read-only): `getAdminStatsOverview` — five KPI cards (new users; coins sold =
+  recharge agents' sales + card orders credited; gift coin value; lives on air now with the lives started per day;
+  items waiting now with the new ones per day), each with today, yesterday and a 14-day sparkline;
+  `getAdminStatsSeries?days=7|30|90` — one row per day; `getAdminStatsAttention` — the pending queues the admin's
+  roles can act on (applications, withdrawals, reports, host complaints, Stripe cases; account deletion requests
+  when D193 merges), with the oldest waiting item (also the bell); `getAdminStatsActivity` — the latest panel
+  changes (`via: panel`, no sign-ins or views): an OWNER sees the team's, anyone else only their own. Days are the
+  **Asia/Riyadh day** (`ADMIN_DASHBOARD_TIME_ZONE`). Each aggregate is a range scan of one indexed time column grouped
+  by the local day (migration `20270112100000_admin_v2`: `users.created_at`, `recharge_sales.created_at`,
+  `recharge_topups.created_at`, `live_gifts.created_at`, `live_rooms.started_at`, `topup_orders.credited_at`
+  (partial) and `.created_at`, `cherry_withdrawals.decided_at` (PAID), `agency_earnings.created_at`,
+  `cherry_ledger.created_at`, `audit_logs.created_at DESC`).
+- **Quick search** `searchAdminEverything?q=` (`users.view`): users as `searchAdminUsers`, recharge agents by code
+  prefix (`coin…`, needs `recharge.agents`), agencies by invite code or host code prefix (`host…`, `agencies.view`).
+- **The one table**: every list answers `{data, total, page, pageSize}` for `page` (1…), `pageSize` (≤ 100), a
+  whitelisted `sort` (else 400), `order`, `q` and its filters. The same query with `format=csv` answers `text/csv`
+  (`Content-Disposition: attachment`, `no-store`) with at most 5 000 matching rows; cells starting with `= + - @`
+  are neutralised with `'`; every export writes `admin.export.csv` {table, count, total, filters} (never the rows).
+  The users table's CSV needs `users.export`.
+
+#### 10.60.2 Users and agencies
+
+- A user's tabs: `listAdminUserLedger?kind=coins|cherries` (`users.ledger`), `listAdminUserPosts`, `listAdminUserAudit`
+  (`audit.view`: rows whose target is the user), `listAdminUserSessions` and `revokeAdminUserSessions` {sessionId?,
+  reason} (`users.sessions`; the app's own revocation — refresh token dead, push token dropped — reason
+  `ADMIN_REVOKED`; a panel admin's account only by an OWNER, never one's own; audited `admin.user.sessions_revoke`).
+- Agencies (D179/D189): `listAdminAgencies` (owner, `hostNN`, invite code, rank, suspended, active hosts,
+  sub-agencies, this month's host cherries and commission), `getAdminAgency` (six months of totals, lifetime
+  commissions, hosts with this month's cherries, sub-agencies, open complaints), `createAdminAgency` {ownerUserId |
+  ownerEmail, parentInviteCode?, reason}, `suspendAdminAgency` / `reinstateAdminAgency` {reason},
+  `listAdminAgencyComplaints?status=`, `resolveAdminAgencyComplaint` {decision release|keep|move, toInviteCode
+  (move), note}, `runAdminAgencyEvaluation` {reason}. Each is the `economy-admin` rule itself — `agency-create` and
+  `complaint-resolve` moved into `economy/agency-admin.ts`, `agency-suspend|reinstate` and `agency-evaluate`
+  (`AgencyService.evaluate`) — with the rule's refusal as 409 `ADMIN_ACTION_REFUSED`.
+
+#### 10.60.3 Hosts and lives
+
+`listAdminLives` (on air now, most viewers first: cover, title, viewers, host), `getAdminLive`, `endAdminLive`
+{reason} (`lives.manage`: `LiveRoomsService.endByAdminIn` — the report action's rule, end reason `ADMIN`, the media
+session closed after the commit; 409 when not on air; audited `admin.live.end` {reason, hostUserId, before LIVE,
+after ENDED}); the hosting permissions `listAdminLiveHosts`, `grantAdminLiveHost` / `revokeAdminLiveHost` {username,
+reason} (the CP-010 rule of `LiveMediaService`; revoking ends their live). **PK history is not in this base** (D195
+not merged): no operation, no page.
+
+#### 10.60.4 Gifts and items
+
+- Gifts: `listAdminGifts` (price in coins and USD at `COIN_RETAIL_USD_PER_MILLION`, category — `LUCKY` is the lucky
+  flag —, badge, sub-category, sends and coins spent), `createAdminGift`, `updateAdminGift` (PATCH, only the given
+  fields; null clears an optional one), `enableAdminGift` / `disableAdminGift` — the `gift-admin add|update|enable|
+  disable` rules (`gifts/gift-admin-rules.ts`: catalogue checks + the audit row with the changed fields as
+  before/after). Hosted art upload (`--image`, `--animation-file`) stays with the CLI.
+- Bag items: `listAdminBagItems`; a user's `getAdminUserBag`, `grantAdminUserBagItem` {code, days | null, reason},
+  `revokeAdminUserBagItem` {code, reason} — the `bag-admin` rules (`bag/bag-admin-rules.ts`); the active-host frames
+  (D186) are refused; not on one's own account. Badges and medals are earned, never granted by hand: no operation.
+- Banners: `listAdminBanners`, `enableAdminBanner`, `disableAdminBanner`, `removeAdminBanner` {reason}
+  (`home-banners.ts`; a new banner needs a picture upload: `banner-admin add`). Events: `listAdminEvents`,
+  `createAdminEvent`, `endAdminEvent`, `holdAdminEvent`, `releaseAdminEvent` (`programs/event-admin-rules.ts`, moved
+  out of `event-admin`).
+
+#### 10.60.5 Money (FINANCE, OWNER)
+
+`listAdminRechargeTopups` (each agent top-up: coins, tier, expected at the tier price, paid; totals of the filter),
+`listAdminCardOrders` and `listAdminTopupCases` (D190: orders, refunds, early-fraud warnings, disputes),
+`refundAdminCardOrder` {reason, totpCode} — `payments-admin refund`'s `requestTeamRefund` (**the code again**; the
+coins come back through the signed `charge.refunded` webhook, never freezing; 503 `TOPUP_UNAVAILABLE` without the
+Stripe keys; 409 when never paid or already refunded) — and `closeAdminTopupCase` {note}. The withdrawals queue
+(§10.54.5) moves to this group. **`getAdminFinanceReport?granularity=day|month&from&to`** (Asia/Riyadh days, ≤ 400
+days by day): per period the agents' top-up coins and revenue (paid, and expected at the tier price), coins sold by
+agents, card coins and revenue (credited) and their refunds, host payouts (withdrawals paid), agency commissions
+(cherries, not reversed), cherries issued (gifts, commissions, task rewards — and their value at the payout rate),
+reversed and sold to agents, and an **estimated margin** = agent revenue + card revenue − card refunds − host
+payouts (it ignores payment fees and the cherries not withdrawn yet); a `total` row; CSV.
+
+#### 10.60.6 The audit log and the team (OWNER)
+
+- `listAdminAudit` with filters `actor` (id or username; unknown = no rows), `action` (an action or a prefix such as
+  `admin.`), `targetType`, `targetId`, `from`, `to`; each row's `metadata` as written (reason, `before`/`after` or a
+  `changes` map, `via`); `listAdminAuditActions` (every action the code writes). CSV.
+- The team: `listAdminTeam` (panel admins, roles, authenticator set up, lock, last sign-in), `grantAdminTeamRole`
+  {email, role, reason, totpCode}, `revokeAdminTeamRole` {role, reason, totpCode}, `resetAdminTeamTotp` {reason,
+  totpCode} — the `admin-admin` rules (`admin-roles.ts`), **the code again** for each. Never one's own OWNER, never the
+  last OWNER, never one's own authenticator (409). The role rows are written only through the SECURITY DEFINER
+  function `kabso_admin_panel_role(user, role, grant, by)` (migration `20270112100000_admin_v2`): it accepts only the
+  four panel roles, is executable only by the database's runtime group, and `user_admin_permissions` stays
+  read-only for the runtime role (`LEVELS_*` stay CLI-only). `admin-admin grant|revoke|list|reset-2fa` stays (the
+  first OWNER is still bootstrapped there) and uses the same function.
+
+#### 10.60.7 Tasks, levels, special usernames, waitlist
+
+Read-only: `listAdminTasks` (rewards in cherries with their USD at `CHERRY_PAYOUT_RATE`, coin-value targets with
+their USD at the retail price, D188; changes stay with `task-admin`), `listAdminPanelLevels` (published ladders;
+coins = points ÷ multiplier, USD at the retail price), `listAdminSpecialUsernames` (D185; actions on the user's
+page), `listAdminWaitlist` (`waitlist.view`; every read and export writes `waitlist.view` {op, count} like
+`waitlist-admin`, whose logic is shared in `waitlist/waitlist-admin.ts`; the CSV is the CLI's `email,locale,
+created_at`). **Account deletion requests are not in this base** (D193 not merged): no operation, no page; the
+attention list gains them when it merges.
+
+#### 10.60.8 The web panel
+
+`apps/admin` redesigned on its own primitives (no new dependency): a rounded Kabso-red sidebar with icon navigation
+in groups (الرئيسية, المستخدمون, الوكالات, المضيفون والبث, الهدايا والعناصر, المال, المحتوى والبلاغات, المهام
+والمستويات, الإعدادات — each item only when the session has its capability; room for D196's «الدفع» settings item), a
+top bar (quick search, the bell with the pending counts, the admin menu with language and theme), coloured KPI cards
+with sparklines, a two-axis line chart (legend, tooltip, keyboard stepping, 7/30/90 days; time runs right to left in
+Arabic) drawn as **hand-written SVG** (no chart library: three small charts, CSP `default-src 'self'` unchanged),
+one data-table component (server pages, sort, filters, search, hideable columns remembered in the browser, CSV,
+skeleton / empty / error states), card grids (lives, gifts, banners, team). Kabso tokens only; light and dark; Arabic
+RTL first and English LTR with logical CSS properties; 390-px phones get a drawer.
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 

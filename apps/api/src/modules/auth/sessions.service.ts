@@ -12,6 +12,8 @@ export enum RevokedReason {
   USER_REVOKED = 'USER_REVOKED',
   REFRESH_REUSE = 'REFRESH_REUSE',
   PASSWORD_RESET = 'PASSWORD_RESET',
+  /** v1.65-social (D197): signed out by the team from the admin panel (reason in the audit row). */
+  ADMIN_REVOKED = 'ADMIN_REVOKED',
 }
 
 export interface SessionClient {
