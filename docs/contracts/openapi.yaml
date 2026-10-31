@@ -365,6 +365,14 @@ info:
     `updateAdminSiteSettings` (panel session); links in one form (`https://www.instagram.com/<handle>`,
     `https://www.tiktok.com/@<handle>`, `https://wa.me/<digits>`). The website reaches its two public operations
     same-origin through the root domain; `/topup` there redirects to D190's pages on `api.` (CONVENTIONS §10.55).
+    **D196 (DRAFT v1.64-social)**: the OWNER enters the Stripe keys in the admin panel «الدفع (Stripe)» instead of
+    the server environment. `getAdminPaymentSettings`, `updateAdminPaymentSettings` (PATCH; the code again and a
+    reason), `testAdminPaymentKey` («اختبار الاتصال», Stripe `balance.retrieve`), `clearAdminPaymentKeys`
+    (capability `payments.settings`, OWNER). The secret key and the webhook signing secret are **write-only** (only
+    `PaymentKeyInfo`: type, mode, last 4, who and when), stored AES-256-GCM sealed with a key derived from
+    `ADMIN_TOTP_KEY`; they override `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET`, which stay the fallback (no
+    restart). `updateAdminSiteSettings` refuses to turn `topupEnabled` on without keys (409). Additive (CONVENTIONS
+    §10.53.1).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -8850,7 +8858,7 @@ paths:
       tags: [admin-panel]
       operationId: updateAdminSiteSettings
       summary: "Replaces the website's social links and the top-up switch (site.settings: OWNER; audited with before and after)"
-      description: "The one write route of the website's settings (D191 + D192; the panel session and its CSRF token — a bearer token is not a session: 401). The whole document. Links are checked and stored in one form: Instagram `https://(www.)instagram.com/<handle>` → `https://www.instagram.com/<handle>`, TikTok `https://(www.)tiktok.com/@<handle>` → `https://www.tiktok.com/@<handle>`, WhatsApp `https://wa.me/<digits>` or the number in international form (`+966 50 000 0000`, 8–15 digits) → `https://wa.me/<digits>`; null or empty clears. Any other host or shape → 400 `VALIDATION_FAILED` (`socials.<name>` `invalid_value`), nothing changed. Audited `site.settings.update` (before, after, `reason`)."
+      description: "The one write route of the website's settings (D191 + D192; the panel session and its CSRF token — a bearer token is not a session: 401). The whole document. Links are checked and stored in one form: Instagram `https://(www.)instagram.com/<handle>` → `https://www.instagram.com/<handle>`, TikTok `https://(www.)tiktok.com/@<handle>` → `https://www.tiktok.com/@<handle>`, WhatsApp `https://wa.me/<digits>` or the number in international form (`+966 50 000 0000`, 8–15 digits) → `https://wa.me/<digits>`; null or empty clears. Any other host or shape → 400 `VALIDATION_FAILED` (`socials.<name>` `invalid_value`), nothing changed. Audited `site.settings.update` (before, after, `reason`). v1.64-social (D196): turning `topupEnabled` on while card top-ups have no Stripe keys (panel or env) is 409 `ADMIN_ACTION_REFUSED` (`topupEnabled` `stripe_keys_missing`), nothing changed."
       security: [{ adminSession: [] }]
       parameters:
         - $ref: '#/components/parameters/AdminCsrf'
@@ -8868,6 +8876,113 @@ paths:
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+  # ---- v1.64-social (DRAFT, D196, CONVENTIONS §10.53.1): the Stripe keys from the panel «الدفع (Stripe)» --------
+  /api/v1/admin/payment-settings:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminPaymentSettings
+      summary: "The Stripe keys (fingerprints only), the top-up options, the webhook URL and events «الدفع (Stripe)» (payments.settings: OWNER)"
+      description: "Never a secret: each key is a `PaymentKeyInfo` (type, live/test, last 4 characters, who set it and when). `source` says which keys card top-ups use now (`panel` over `env`; `none` = 503 `TOPUP_UNAVAILABLE`). `publicBaseUrl` (`TOPUP_PUBLIC_BASE_URL`) is the server's, read-only. `Cache-Control: no-store`."
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: The settings.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminPaymentSettings' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+    patch:
+      tags: [admin-panel]
+      operationId: updateAdminPaymentSettings
+      summary: "Saves the Stripe keys and / or the top-up options (payments.settings: OWNER; the code again + reason; audited with masked fingerprints)"
+      description: |
+        Only the fields sent change; an option set to null goes back to the server's value. Every change needs
+        `totpCode` (403 `ADMIN_TOTP_INVALID`, counts towards the lockout) and `reason`. The first keys come as a pair
+        (`secretKey` + `webhookSecret`; one alone is 400 `required` on the other). A new `secretKey` is tried on
+        Stripe first (`balance.retrieve`; a restricted key without the balance permission still passes): refused →
+        409 `ADMIN_ACTION_REFUSED` (`secretKey` `stripe_rejected`), Stripe unreachable → 503 `SERVICE_UNAVAILABLE`;
+        nothing saved. `skipConnectionTest: true` is allowed only for a TEST key when NODE_ENV is not production
+        (else 409 `connection_test_required`). A test key in production is 409 `test_key_in_production` unless the
+        server sets `STRIPE_ALLOW_TEST_KEYS_IN_PRODUCTION` (env only). A publishable key of the other mode: 409
+        `mode_mismatch`. A new webhook secret keeps the one in use until now valid for 10 minutes. Used by the next
+        request (no restart). Audited `payment.settings.update` (before / after as `rk_live_…AbCd`, `whsec_…wxYz`;
+        `changed`, `connectionTest`, `reason`).
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateAdminPaymentSettingsRequest' }
+      responses:
+        '200':
+          description: Saved; the settings as now (fingerprints only).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminPaymentSettings' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/payment-settings/test:
+    post:
+      tags: [admin-panel]
+      operationId: testAdminPaymentKey
+      summary: "«اختبار الاتصال»: asks Stripe with a key without saving it (payments.settings: OWNER; audited with the fingerprint)"
+      description: "A harmless `balance.retrieve`. 200 `PaymentKeyCheck` (fingerprint only); 409 `ADMIN_ACTION_REFUSED` `stripe_rejected` (unknown, revoked or expired key) or `test_key_in_production`; 503 `SERVICE_UNAVAILABLE` when Stripe cannot be reached. Audited `payment.settings.test` (`rk_live_…AbCd`, the outcome)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TestAdminPaymentKeyRequest' }
+      responses:
+        '200':
+          description: Stripe accepted the key.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaymentKeyCheck' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/payment-settings/clear-keys:
+    post:
+      tags: [admin-panel]
+      operationId: clearAdminPaymentKeys
+      summary: "Removes the panel's Stripe keys: the server's env keys apply again, or card top-ups are off (payments.settings: OWNER; code again + reason; audited)"
+      description: "409 `ADMIN_ACTION_REFUSED` (`nothing_to_clear`) when the panel has none. The panel's webhook secret still verifies for 10 minutes. Audited `payment.settings.clear` (masked before, `fallback` `env` / `none`, `reason`)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ClearAdminPaymentKeysRequest' }
+      responses:
+        '200':
+          description: Cleared; the settings as now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminPaymentSettings' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
   /api/v1/site/settings:
     get:
       tags: [site]
@@ -9202,7 +9317,7 @@ components:
         roles: { type: array, items: { $ref: '#/components/schemas/AdminPanelRole' } }
         capabilities:
           type: array
-          description: "What the roles allow (CONVENTIONS §10.54.1), e.g. `users.ban`, `recharge.topup`, `site.settings`. The panel shows only these; the server checks them on every request."
+          description: "What the roles allow (CONVENTIONS §10.54.1), e.g. `users.ban`, `recharge.topup`, `site.settings`, `payments.settings` (v1.64-social, D196). The panel shows only these; the server checks them on every request."
           items: { type: string }
         csrfToken: { type: string, description: "Send as `X-CSRF-Token` on every change." }
         expiresAt: { type: string, format: date-time, description: The session's absolute end. }
@@ -9644,6 +9759,113 @@ components:
             tiktok: { type: [string, 'null'], maxLength: 200 }
             whatsapp: { type: [string, 'null'], maxLength: 200, description: "An international number (`+9665…`) or `https://wa.me/<number>`." }
         topupEnabled: { type: boolean }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+    # ---- v1.64-social (DRAFT, D196, CONVENTIONS §10.53.1): the Stripe keys from the panel ------------------------
+    PaymentKeyInfo:
+      type: object
+      additionalProperties: false
+      description: "(v1.64-social, D196) All the panel ever shows of a Stripe secret: never the value."
+      required: [kind, mode, last4, source, setBy, setAt]
+      properties:
+        kind: { type: string, enum: [secret, restricted, webhook], description: "`sk_…`, `rk_…` or `whsec_…`." }
+        mode: { type: [string, 'null'], enum: [live, test, null], description: "Null for a webhook secret." }
+        last4: { type: string, minLength: 4, maxLength: 4 }
+        source: { type: string, enum: [panel, env] }
+        setBy:
+          type: [object, 'null']
+          additionalProperties: false
+          required: [id, displayName]
+          description: "Who saved it in the panel (null for the env's)."
+          properties:
+            id: { type: string, format: uuid }
+            displayName: { type: string }
+        setAt: { type: [string, 'null'], format: date-time }
+    PaymentKeyPair:
+      type: object
+      additionalProperties: false
+      required: [secretKey, webhookSecret]
+      properties:
+        secretKey: { $ref: '#/components/schemas/PaymentKeyInfo' }
+        webhookSecret: { $ref: '#/components/schemas/PaymentKeyInfo' }
+    AdminPaymentSettings:
+      type: object
+      additionalProperties: false
+      description: "(v1.64-social, D196) The «الدفع (Stripe)» section: fingerprints, options, the webhook to configure in Stripe."
+      required: [source, configured, mode, secretKey, webhookSecret, previousWebhookSecretValidUntil, panelKeys, envKeys, panelKeysIgnored, publishableKey, options, effective, publicBaseUrl, webhookUrl, webhookEvents, testKeysAllowed, connectionTestSkippable]
+      properties:
+        source: { type: string, enum: [panel, env, none], description: "Which keys card top-ups use now (`none`: 503 `TOPUP_UNAVAILABLE`)." }
+        configured: { type: boolean, description: "Keys and `TOPUP_PUBLIC_BASE_URL` are there: top-ups can run." }
+        mode: { type: [string, 'null'], enum: [live, test, null] }
+        secretKey: { oneOf: [{ $ref: '#/components/schemas/PaymentKeyInfo' }, { type: 'null' }], description: The key in use. }
+        webhookSecret: { oneOf: [{ $ref: '#/components/schemas/PaymentKeyInfo' }, { type: 'null' }], description: The signing secret in use. }
+        previousWebhookSecretValidUntil: { type: [string, 'null'], format: date-time, description: "After a rotation the previous signing secret still verifies until then (10 minutes)." }
+        panelKeys: { oneOf: [{ $ref: '#/components/schemas/PaymentKeyPair' }, { type: 'null' }], description: "The keys saved in the panel." }
+        envKeys: { oneOf: [{ $ref: '#/components/schemas/PaymentKeyPair' }, { type: 'null' }], description: "The server's `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` (the fallback)." }
+        panelKeysIgnored: { type: [string, 'null'], enum: [unreadable, test_key_in_production, null], description: "The panel's keys exist but are not used: sealed with another `ADMIN_TOTP_KEY`, or a test key in production." }
+        publishableKey: { type: [string, 'null'], description: "Optional; public by design (hosted Checkout does not need it)." }
+        options:
+          type: object
+          additionalProperties: false
+          description: "The panel's values; null = the server's (see `effective`)."
+          required: [bankTransferEnabled, statementDescriptorSuffix, disputeAutoSubmit, appLinkEnabled]
+          properties:
+            bankTransferEnabled: { type: [boolean, 'null'] }
+            statementDescriptorSuffix: { type: [string, 'null'], maxLength: 10, description: '"" = explicitly none.' }
+            disputeAutoSubmit: { type: [boolean, 'null'] }
+            appLinkEnabled: { type: [boolean, 'null'] }
+        effective:
+          type: object
+          additionalProperties: false
+          description: What top-ups use now.
+          required: [bankTransferEnabled, statementDescriptorSuffix, disputeAutoSubmit, appLinkEnabled]
+          properties:
+            bankTransferEnabled: { type: boolean }
+            statementDescriptorSuffix: { type: [string, 'null'] }
+            disputeAutoSubmit: { type: boolean }
+            appLinkEnabled: { type: boolean }
+        publicBaseUrl: { type: [string, 'null'], description: "`TOPUP_PUBLIC_BASE_URL` (server infrastructure, read-only)." }
+        webhookUrl: { type: [string, 'null'], description: "The endpoint to add in Stripe (Developers → Webhooks)." }
+        webhookEvents: { type: array, items: { type: string }, description: "The events to subscribe it to." }
+        testKeysAllowed: { type: boolean, description: "A `sk_test_` / `rk_test_` key can be saved here (not production, or the env switch)." }
+        connectionTestSkippable: { type: boolean, description: "NODE_ENV is not production: a test key may be saved without asking Stripe." }
+    UpdateAdminPaymentSettingsRequest:
+      type: object
+      additionalProperties: false
+      description: "(v1.64-social, D196) Only the fields sent change (at least one besides the code and reason)."
+      required: [totpCode, reason]
+      properties:
+        secretKey: { type: string, pattern: '^(sk|rk)_(test|live)_[A-Za-z0-9_]{8,250}$', writeOnly: true }
+        webhookSecret: { type: string, pattern: '^whsec_[A-Za-z0-9+/=_]{8,250}$', writeOnly: true }
+        publishableKey: { type: [string, 'null'], pattern: '^pk_(test|live)_[A-Za-z0-9_]{8,250}$' }
+        bankTransferEnabled: { type: [boolean, 'null'] }
+        statementDescriptorSuffix: { type: [string, 'null'], pattern: '^([A-Za-z0-9 ]{1,10})?$', description: 'Letters, digits, spaces; "" = none; null = the server value.' }
+        disputeAutoSubmit: { type: [boolean, 'null'] }
+        appLinkEnabled: { type: [boolean, 'null'], description: "The app's «الشحن من الموقع» link." }
+        skipConnectionTest: { type: boolean, description: "Only for a test key when NODE_ENV is not production." }
+        totpCode: { type: string, pattern: '^[0-9]{6}$', writeOnly: true }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+    TestAdminPaymentKeyRequest:
+      type: object
+      additionalProperties: false
+      required: [secretKey]
+      properties:
+        secretKey: { type: string, pattern: '^(sk|rk)_(test|live)_[A-Za-z0-9_]{8,250}$', writeOnly: true }
+    PaymentKeyCheck:
+      type: object
+      additionalProperties: false
+      required: [ok, kind, mode, last4, restricted]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        kind: { type: string, enum: [secret, restricted, webhook] }
+        mode: { type: [string, 'null'], enum: [live, test, null] }
+        last4: { type: string }
+        restricted: { type: boolean, description: "A restricted key without the balance permission (it still works)." }
+    ClearAdminPaymentKeysRequest:
+      type: object
+      additionalProperties: false
+      required: [totpCode, reason]
+      properties:
+        totpCode: { type: string, pattern: '^[0-9]{6}$', writeOnly: true }
         reason: { type: string, minLength: 1, maxLength: 500 }
     HealthStatus:
       type: object

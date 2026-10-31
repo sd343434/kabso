@@ -19,7 +19,8 @@ export type Capability =
   | 'withdrawals.decide'
   | 'reports.view'
   | 'reports.act'
-  | 'site.settings';
+  | 'site.settings'
+  | 'payments.settings';
 
 export interface AdminSessionInfo {
   admin: { id: string; email: string; username: string; displayName: string };
@@ -201,4 +202,56 @@ export interface PanelReport {
 export interface SiteSettings {
   socials: { instagram: string | null; tiktok: string | null; whatsapp: string | null };
   topupEnabled: boolean;
+}
+
+/** v1.64-social (D196): `PaymentKeyInfo` — all the panel ever sees of a Stripe secret. */
+export interface PaymentKeyInfo {
+  kind: 'secret' | 'restricted' | 'webhook';
+  mode: 'live' | 'test' | null;
+  last4: string;
+  source: 'panel' | 'env';
+  setBy: { id: string; displayName: string } | null;
+  setAt: string | null;
+}
+
+export interface PaymentOptions {
+  bankTransferEnabled: boolean | null;
+  statementDescriptorSuffix: string | null;
+  disputeAutoSubmit: boolean | null;
+  appLinkEnabled: boolean | null;
+}
+
+/** v1.64-social (D196): `AdminPaymentSettings` «الدفع (Stripe)». */
+export interface PaymentSettings {
+  source: 'panel' | 'env' | 'none';
+  configured: boolean;
+  mode: 'live' | 'test' | null;
+  secretKey: PaymentKeyInfo | null;
+  webhookSecret: PaymentKeyInfo | null;
+  previousWebhookSecretValidUntil: string | null;
+  panelKeys: { secretKey: PaymentKeyInfo; webhookSecret: PaymentKeyInfo } | null;
+  envKeys: { secretKey: PaymentKeyInfo; webhookSecret: PaymentKeyInfo } | null;
+  panelKeysIgnored: 'unreadable' | 'test_key_in_production' | null;
+  publishableKey: string | null;
+  options: PaymentOptions;
+  effective: {
+    bankTransferEnabled: boolean;
+    statementDescriptorSuffix: string | null;
+    disputeAutoSubmit: boolean;
+    appLinkEnabled: boolean;
+  };
+  publicBaseUrl: string | null;
+  webhookUrl: string | null;
+  webhookEvents: string[];
+  testKeysAllowed: boolean;
+  connectionTestSkippable: boolean;
+}
+
+/** `PaymentKeyCheck` («اختبار الاتصال»). */
+export interface PaymentKeyCheck {
+  ok: true;
+  kind: 'secret' | 'restricted' | 'webhook';
+  mode: 'live' | 'test' | null;
+  last4: string;
+  restricted: boolean;
 }

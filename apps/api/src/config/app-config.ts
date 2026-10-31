@@ -243,13 +243,22 @@ export interface AppConfig {
   };
   /** v1.59-social (D190): card top-ups on the website through Stripe Checkout (CONVENTIONS §10.53). */
   readonly topup: {
-    /** Null until the owner sets STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET and TOPUP_PUBLIC_BASE_URL (→ 503). */
+    /**
+     * The ENV keys: null until the owner sets STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET and TOPUP_PUBLIC_BASE_URL.
+     * D196: read through `PaymentSettingsStore`, where the panel's keys override these (both missing → 503).
+     */
     readonly stripe: {
       readonly secretKey: string;
       readonly webhookSecret: string;
       readonly publicBaseUrl: string;
       readonly testMode: boolean;
     } | null;
+    /**
+     * v1.64-social (D196): TOPUP_PUBLIC_BASE_URL on its own (the panel's keys use it when the env has no keys) and
+     * STRIPE_ALLOW_TEST_KEYS_IN_PRODUCTION (env only, applies to the panel's keys too).
+     */
+    readonly publicBaseUrl: string | null;
+    readonly allowTestKeysInProduction: boolean;
     /** The packages, prices computed from COIN_RETAIL_USD_PER_MILLION (id = the coin amount). */
     readonly packages: readonly { id: string; coins: number; priceMinor: number }[];
     readonly currency: 'USD';
@@ -625,6 +634,8 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
               testMode: /^(sk|rk)_test_/.test(e.STRIPE_SECRET_KEY),
             }
           : null,
+      publicBaseUrl: e.TOPUP_PUBLIC_BASE_URL ?? null,
+      allowTestKeysInProduction: e.STRIPE_ALLOW_TEST_KEYS_IN_PRODUCTION,
       packages: e.TOPUP_PACKAGES.map((coins) => ({
         id: String(coins),
         coins,

@@ -216,6 +216,10 @@ describe('D191 admin panel', { timeout: 300_000 }, () => {
         RATE_LIMIT_ADMIN_LOGIN_IP: '10000/900',
         RATE_LIMIT_ADMIN_IP: '10000/900',
         MEDIA_PUBLIC_BASE_URL: 'https://media.example.test',
+        // D196: turning the website's top-up switch on needs Stripe keys (made-up, built at run time).
+        STRIPE_SECRET_KEY: ['sk', 'test', randomUUID().replace(/-/g, '')].join('_'),
+        STRIPE_WEBHOOK_SECRET: ['whsec', randomUUID().replace(/-/g, '')].join('_'),
+        TOPUP_PUBLIC_BASE_URL: 'https://api.example.test',
         RECHARGE_AGENT_SWEEP_INTERVAL_SECONDS: '0',
         SPECIAL_USERNAME_SWEEP_INTERVAL_SECONDS: '0',
       },
@@ -414,6 +418,8 @@ describe('D191 admin panel', { timeout: 300_000 }, () => {
       'withdrawals.view': '/admin/withdrawals',
       'reports.view': '/admin/moderation/reports',
       'site.settings': '/admin/site-settings',
+      // v1.64-social (D196): the Stripe keys «الدفع (Stripe)».
+      'payments.settings': '/admin/payment-settings',
     };
     it('every role gets exactly its capabilities (server-side)', async () => {
       const byRole: Record<string, Admin> = {

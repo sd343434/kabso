@@ -1673,16 +1673,19 @@ the private-account switch with follow requests, and an admin tool to remove a p
 
 ### 5.29 Card top-ups on the website through Stripe (migrations `20270104090000_card_topups_enums`, `20270104100000_card_topups`, `20270104110000_topup_team_refunds`; D190) — [IMPLEMENTED, draft contract v1.59-social; not deployed; no real Stripe call made]
 
-CONVENTIONS §10.53, CP-033. **Off until the owner sets the three Stripe settings below on the server**; until then
-every top-up operation answers 503 `TOPUP_UNAVAILABLE` and `https://api.<domain>/topup` says «الشحن بالبطاقة غير
-مفعّل». Card payments happen **only on the website**, never inside the app. Seller: Kigofi LLC, 30 N Gould St #7354,
+CONVENTIONS §10.53, CP-033. **Off until the owner enters the Stripe keys** — since D196 (v1.64-social, §10.53.1) in
+the admin panel «الدفع (Stripe)», with only `TOPUP_PUBLIC_BASE_URL` on the server (the env keys below still work and
+are the fallback); until then every top-up operation answers 503 `TOPUP_UNAVAILABLE` and `https://api.<domain>/topup`
+says «الشحن بالبطاقة غير مفعّل». Card payments happen **only on the website**, never inside the app. Seller: Kigofi LLC, 30 N Gould St #7354,
 Sheridan, WY 82801, USA.
 
 - **Migrations** with the usual `migrate` job (§5), in order: the first adds the coin ledger reasons `CARD_TOPUP`,
   `CARD_TOPUP_REVERSAL`, `CARD_TOPUP_RESTORE`; the second the tables `topup_terms_acceptances`, `topup_orders`,
   `topup_freezes`, `topup_cases`, `stripe_events`, `stripe_customers` and **widens `wallets.coins` and
   `wallet_ledger.balance_after` to allow values below 0** (only a reversed purchase does that); the third adds
-  `topup_orders.team_refunded_minor` / `team_refund_reason` (team refunds). No GRANT, no backfill.
+  `topup_orders.team_refunded_minor` / `team_refund_reason` (team refunds). No GRANT, no backfill. D196 adds
+  `20270111100000_payment_settings` (the table `payment_settings`, one row: the keys the OWNER saves in the panel,
+  sealed; no row = the env keys as before). No GRANT, no backfill.
 - **Where it lives:** the API serves the pages (`/topup`, `/topup/success`, `/topup/cancel`) and the webhook
   (`/api/v1/payments/stripe/webhook`) on `api.<domain>`; the Caddyfile redirects `https://<domain>/topup…` there.
 
@@ -1713,16 +1716,44 @@ Sheridan, WY 82801, USA.
 9. **API key:** create a **restricted key** (`rk_live_…`) with *write* on Checkout Sessions, Refunds, Disputes,
    Files, Customers (read on the rest is not needed), or use the secret key.
 
-#### Server environment (the owner, on the server only — never in git, chat or a ticket)
+#### Enter the keys in the admin panel (the owner; D196 — no server access, no restart)
 
-Put these in `/etc/kabso/api.env` (and `STRIPE_SECRET_KEY` also in `/etc/kabso/migrate.env` for
-`payments-admin refund`), file mode 600, then recreate the API (`docker compose -f infra/deploy/docker-compose.yml up -d --force-recreate api`):
+Needs the admin panel on (D191: `ADMIN_TOTP_KEY` set, your OWNER account enrolled) and, once, on the server
+`TOPUP_PUBLIC_BASE_URL=https://api.<domain>` in `/etc/kabso/api.env` (infrastructure; shown read-only in the panel).
+
+1. Sign in at `https://admin.<domain>` and open **«الدفع (Stripe)»** (OWNER only).
+2. **Webhook:** copy «عنوان الـ Webhook» (`https://api.<domain>/api/v1/payments/stripe/webhook`) into Stripe →
+   Developers → Webhooks → *Add destination* (step 8 above) and tick the events the panel lists; copy the
+   destination's **signing secret** (`whsec_…`).
+3. Paste the **secret key** (or the restricted key of step 9) into «مفتاح سري جديد» and press **«اختبار الاتصال»**:
+   Stripe must accept it (a harmless `balance.retrieve`; a restricted key without the balance permission shows
+   «مفتاح مقيّد يعمل»). Paste the signing secret into «سرّ توقيع جديد».
+4. **«حفظ المفاتيح»**, give a reason and your authenticator code. The server tests the key again, stores both
+   encrypted (AES-256-GCM, key derived from `ADMIN_TOTP_KEY`) and uses them from the next request — no restart.
+   From then on the panel shows only their type (live / test), the last 4 characters, who saved them and when.
+5. Optional, same page: the publishable key, bank transfers, the statement descriptor suffix, the dispute
+   auto-submit and the app link (each «حسب الخادم» = the env value below). Every save asks for the code and a reason
+   and is audited (`payment.settings.update`, keys masked).
+6. Then turn on «إظهار رابط «شحن العملات» في الموقع» in «إعدادات الموقع» (refused while there are no keys).
+
+**Rotating:** paste only the new key or only the new signing secret and save; after a new signing secret the old one
+is still accepted for 10 minutes (deliveries Stripe already signed). **Removing:** «حذف مفاتيح اللوحة» (code +
+reason): the env keys apply again if the server has them, otherwise top-ups stop. **A new `ADMIN_TOTP_KEY`** makes the
+saved keys unreadable (the panel says so; the env keys apply): enter them again. `STRIPE_ALLOW_TEST_KEYS_IN_PRODUCTION`
+stays an env switch: without it production refuses a test key in the panel too.
+
+#### Server environment (fallback; the owner, on the server only — never in git, chat or a ticket)
+
+Before D196 this was the only way, and it still works unchanged: keys saved in the panel take precedence; with none
+saved, these apply. Put them in `/etc/kabso/api.env` (and `STRIPE_SECRET_KEY` also in `/etc/kabso/migrate.env` for
+`payments-admin refund`, unless the panel holds the key and `ADMIN_TOTP_KEY` is passed to the job), file mode 600, then
+recreate the API (`docker compose -f infra/deploy/docker-compose.yml up -d --force-recreate api`):
 
 | Variable | Value | Meaning |
 | --- | --- | --- |
-| `STRIPE_SECRET_KEY` | `rk_live_…` / `sk_live_…` | Required. A test key is refused in production unless `STRIPE_ALLOW_TEST_KEYS_IN_PRODUCTION=true` (a staging server only) |
-| `STRIPE_WEBHOOK_SECRET` | `whsec_…` | Required: the webhook's signing secret (step 8) |
-| `TOPUP_PUBLIC_BASE_URL` | `https://api.<domain>` | Required: the origin that serves `/topup` (https in production) |
+| `STRIPE_SECRET_KEY` | `rk_live_…` / `sk_live_…` | Without panel keys: required (with the webhook secret). A test key is refused in production unless `STRIPE_ALLOW_TEST_KEYS_IN_PRODUCTION=true` (a staging server only) |
+| `STRIPE_WEBHOOK_SECRET` | `whsec_…` | Without panel keys: the webhook's signing secret (step 8) |
+| `TOPUP_PUBLIC_BASE_URL` | `https://api.<domain>` | Required (also for the panel's keys; may be set alone): the origin that serves `/topup` (https in production) |
 | `TOPUP_PACKAGES` | `100000,500000,1000000,5000000,10000000,50000000` | Coin packages; prices from `COIN_RETAIL_USD_PER_MILLION` (12.5 → $12.50 per million) |
 | `STRIPE_BANK_TRANSFER_ENABLED` / `STRIPE_BANK_TRANSFER_TYPE` | `true` / `us_bank_transfer` | US bank transfers next to the card (step 4; owner: on at launch) |
 | `STRIPE_STATEMENT_DESCRIPTOR_SUFFIX` | unset | Optional dynamic suffix (letters, digits, spaces; prefix + suffix ≤ 22) |
@@ -1731,7 +1762,7 @@ Put these in `/etc/kabso/api.env` (and `STRIPE_SECRET_KEY` also in `/etc/kabso/m
 | `TOPUP_TERMS_VERSION` | `2026-10-31` | Recorded with each acceptance; change it when the statement changes |
 | `RATE_LIMIT_TOPUP_CHECKOUT_USER` | `20/3600` | Checkouts started per user |
 
-A partial set (a key without the webhook secret or the base URL) refuses to boot. **Test first** on a staging server
+A partial set (a key without the webhook secret or the base URL) refuses to boot; the base URL alone is fine (the panel's keys). **Test first** on a staging server
 with `sk_test_…`/`whsec_…` from test mode and `STRIPE_ALLOW_TEST_KEYS_IN_PRODUCTION=true`, the Stripe CLI
 (`stripe listen --forward-to https://api.<staging>/api/v1/payments/stripe/webhook`) and the test cards (3-D Secure
 `4000 0027 6000 3184`, dispute `4000 0000 0000 0259`, early-fraud warning `4000 0000 0000 5423`).
@@ -1748,6 +1779,8 @@ docker compose --profile jobs run --rm migrate node dist/cli/economy-admin.js re
 docker compose --profile jobs run --rm migrate node dist/cli/payments-admin.js close-case <case id> --note "<decision>"
 docker compose --profile jobs run --rm migrate node dist/cli/payments-admin.js unfreeze someone@example.com --note "<why>"
 docker compose --profile jobs run --rm -e STRIPE_SECRET_KEY migrate node dist/cli/payments-admin.js refund <order id> --note "<why>"
+# D196: with the key saved in the panel, pass ADMIN_TOTP_KEY instead of STRIPE_SECRET_KEY
+docker compose --profile jobs run --rm -e ADMIN_TOTP_KEY migrate node dist/cli/payments-admin.js refund <order id> --note "<why>"
 ```
 
 Host cherries are **never** taken back automatically: a case lists the sends the purchase paid for and the team

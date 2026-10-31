@@ -165,7 +165,7 @@ All non-2xx responses use one envelope:
 | 409 | `USERNAME_LOCKED` | *(v1.54-social, DRAFT, D185)* A special username is active and locked (e.g. a recharge agent's `coin0007`): the username cannot be changed and no premium username rented until it ends (§10.48.1). |
 | 409 | `HOST_FRAME_STYLE_FROM_GENDER` | *(v1.55-social, DRAFT, D186)* `setMyHostFrameStyle` while the caller's gender is MALE or FEMALE: the gender sets the active-host frame's colour (§10.49). Nothing changed. |
 | 409 | `TASK_MONTHLY_CAP_REACHED` | *(v1.57-social, DRAFT, D188)* A task claim (daily or weekly) after the caller already got the calendar month's cap of task cherries (`TASK_MONTHLY_CAP_MINOR` at `CHERRY_PAYOUT_RATE`, §10.51). Nothing was paid. Checked before `TASK_DAILY_CAP_REACHED`. |
-| 503 | `TOPUP_UNAVAILABLE` | *(v1.59-social, DRAFT, D190)* Card top-ups are not configured on this server: one of `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `TOPUP_PUBLIC_BASE_URL` is missing (the website shows «الشحن بالبطاقة غير مفعّل»). Not transient: no `Retry-After` (§10.53). |
+| 503 | `TOPUP_UNAVAILABLE` | *(v1.59-social, DRAFT, D190)* Card top-ups are not configured on this server: no Stripe keys (neither saved by the OWNER in the panel «الدفع (Stripe)», v1.64-social D196, §10.53.1, nor `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` in the env) or no `TOPUP_PUBLIC_BASE_URL` (the website shows «الشحن بالبطاقة غير مفعّل»). Not transient: no `Retry-After` (§10.53). |
 | 403 | `TOPUP_ACCOUNT_FROZEN` | *(v1.59-social, DRAFT, D190)* The caller's account is frozen from card purchases after a refund, an early-fraud warning or a dispute of an earlier purchase; the team lifts it (`payments-admin unfreeze`) or a won dispute that leaves nothing reversed does. Also every gift send (live, conversation, `BAG` source too) and bag transfer while the caller's coin balance is below 0 (§10.53). Nothing changed. |
 | 503 | `ADMIN_PANEL_UNAVAILABLE` | *(v1.60-social, DRAFT, D191)* An admin panel route (`/admin/auth/*` and every cookie-authenticated `/admin/*` route of §10.54) while `ADMIN_TOTP_KEY` is not set on the server: the panel is off. |
 | 429 | `ADMIN_LOCKED` | *(v1.60-social, DRAFT, D191)* Panel sign-in or second factor after `ADMIN_LOCKOUT_ATTEMPTS` consecutive failures: the admin account is locked for `ADMIN_LOCKOUT_SECONDS` (`Retry-After`). Checked before the password. §10.54.2. |
@@ -539,6 +539,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.54-social)* Tables `recharge_agent_applications`, `recharge_agents`, `recharge_agent_counter`, `recharge_stock_ledger`, `recharge_topups`, `recharge_sales`, `recharge_employees`, `recharge_cherry_requests`; column `notifications.recharge_sale_id`; table `special_usernames` (§10.48.1); ledger reasons `RECHARGE_PURCHASE` (coins), `RECHARGE_SALE` (cherries); media kinds `RECHARGE_AGENT_PHOTO`, `RECHARGE_AGENT_SELFIE` (private prefix `private/recharge-agents/`); server config `RECHARGE_AGENT_*`, `RATE_LIMIT_RECHARGE_*`, `SPECIAL_USERNAME_*`; CLI `username-admin` | Backend — `recharge` module (`RechargeService`; applications decided, top-ups, suspensions and caps changed only by the `recharge-admin` CLI; reads `cherry_ledger` through `economy/cherry-ledger.ts` and writes coins through `wallet/wallet-ledger.ts`) | CTO; Security (KYC data, money, the private prefix) |
 | *(v1.60-social)* Tables `admin_credentials`, `admin_recovery_codes`, `admin_sessions`; admin permissions `OWNER`, `SUPPORT`, `FINANCE`; server config `ADMIN_*`, `RATE_LIMIT_ADMIN_*`; CLI `admin-admin`; `apps/admin` | Backend — `admin-panel` module (reads other modules' tables for its views; changes them only through their shared rules, §10.54.4); web — `apps/admin` | CTO; Security (sign-in, second factor, sessions, private data) |
 | *(v1.60-social)* Table `site_settings` | Backend — `site-settings` module (public read; OWNER writes from the panel) | CTO |
+| *(v1.64-social)* Table `payment_settings` (the Stripe keys sealed, the top-up options); capability `payments.settings`; audit `payment.settings.*` (§10.53.1) | Backend — `payment-settings` module (`PaymentSettingsService` the only writer; `PaymentSettingsStore` the only reader, used by `topup`, `wallet`, `site-settings`); web — `apps/admin` «الدفع (Stripe)» | CTO; Security (Stripe keys, encryption at rest) |
 | *(v1.55-social)* Table `host_frame_choices`; bag source `HOST_ACTIVE`; catalogue rows `host_frame_blue`, `host_frame_pink` | Backend — `economy` module (`host-frames.ts`: given and taken by the agency sweeper and `economy-admin agency-evaluate`, on agency join / leave / a resolved complaint, on a gender change and a style choice; `bag-admin` refuses them) | CTO |
 | *(v1.56-social)* Tables `recharge_daily_totals`, `recharge_badges`; server config `RECHARGE_BADGE_*` | Backend — `recharge` module (`recharge-badges.ts`: `recordRechargeIn` is the only writer, called inside the transaction that credits a recharge — today the agent's sale; later the website top-up) | CTO |
 | *(v1.58-social)* Columns `agencies.host_code`, `host_code_number`, `host_code_at`, `suspended_at`, `suspend_reason`; table `host_agent_counter`; special-username source `HOST_AGENT` (§10.52) | Backend — `economy` module (`economy/host-agents.ts`; codes given and perks suspended only by the `economy-admin` CLI, older agencies' codes by the agency sweeper) and `users/agent-usernames.ts` (which agent code is the username) | CTO |
@@ -583,6 +584,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.64-social (draft) | 2026-10-31 | **D196 (owner: enter the Stripe keys in the admin panel instead of the server env):** tag `admin-panel` — `getAdminPaymentSettings`, `updateAdminPaymentSettings` (PATCH), `testAdminPaymentKey`, `clearAdminPaymentKeys` (capability `payments.settings`, OWNER); schemas `AdminPaymentSettings`, `PaymentKeyInfo`, `PaymentKeyPair`, `PaymentKeyCheck`, `UpdateAdminPaymentSettingsRequest`, `TestAdminPaymentKeyRequest`, `ClearAdminPaymentKeysRequest`; `updateAdminSiteSettings` gains 409 (`topupEnabled` `stripe_keys_missing`); audit `payment.settings.update|clear|test`; migration `20270111100000_payment_settings`. The secrets are write-only (fingerprints only), sealed AES-256-GCM with a key derived from `ADMIN_TOTP_KEY` (HKDF `payment-settings/v1`); panel keys override the env keys, which stay the fallback; the client follows a change without a restart; the previous webhook secret verifies for 10 minutes after a rotation. `TOPUP_PUBLIC_BASE_URL` may now be set alone (for the panel's keys). §4 (`TOPUP_UNAVAILABLE` text), §9, §10.53.1, §10.54.1/.3/.5/.6. | **Additive** (new operations and a 409 on one operation; env deployments unchanged). |
 | v1.61-social (draft) | 2026-10-31 | **D192 (owner: the public website kabsolive.com — the coming-soon page with a launch waitlist instead of store buttons, legal pages, AR/EN, footer social links managed from the admin panel; CP-035):** tag `site`: `joinWaitlist` (`POST /waitlist`, `WaitlistSignupRequest`, 202 `WaitlistAccepted`, non-enumerating, idempotent per email), the website's read of `getSiteSettings` (one settings module, table and contract with D191, §10.54.6: links in one stored form `https://www.instagram.com/<handle>`, `https://www.tiktok.com/@<handle>`, `https://wa.me/<digits>`, written only by D191's `updateAdminSiteSettings`; `SiteSocials` gains the patterns; D192's bearer `updateSiteSettings` and the `SITE_SETTINGS` permission were folded into D191's during integration, KL-069); audit `waitlist.view` (CLI `waitlist-admin list\|export`); config `RATE_LIMIT_WAITLIST_IP`; migration `20270106100000_website` (`waitlist_signups`). The website and its Caddy block (same-origin `/api/v1/waitlist`, `/api/v1/site/settings`; `/topup*` → 302 to D190's pages on `api.`; security headers; `www` → apex). §7, §10.55. | **Additive** (new operations and a tag; nothing existing changes). |
 | v1.60-social (draft) | 2026-10-31 | **D191 (owner: the admin panel «لوحة الإدارة», phase 1, CP-034):** tag `admin-panel` — `adminLogin`, `startAdminTotpEnrolment`, `confirmAdminTotpEnrolment`, `verifyAdminTotp`, `getAdminSession`, `adminLogout` (cookie `__Host-kabso_admin`, security scheme `adminSession`, header `X-CSRF-Token`), `getAdminDashboard`, `searchAdminUsers`, `getAdminUser`, `banAdminUser`, `unbanAdminUser`, `removeAdminUserAvatar`, `giftAdminSpecialUsername`, `revokeAdminSpecialUsername`, `listAdminRechargeApplications`, `getAdminRechargeApplication`, `getAdminRechargeApplicationPhoto`, `approveAdminRechargeApplication`, `rejectAdminRechargeApplication`, `listAdminRechargeAgents`, `topUpAdminRechargeAgent`, `suspendAdminRechargeAgent`, `reinstateAdminRechargeAgent`, `setAdminRechargeAgentCap`, `listAdminWithdrawals`, `payAdminWithdrawal`, `rejectAdminWithdrawal`, `listAdminPanelReports`, `actOnAdminPanelReport`, `getAdminSiteSettings`, `updateAdminSiteSettings`; tag `site` — `getSiteSettings` (with D192); `NotificationType.MODERATION_WARNING`; admin permissions `OWNER`, `SUPPORT`, `FINANCE` (with `MODERATION`: the panel roles); codes `ADMIN_PANEL_UNAVAILABLE` (503), `ADMIN_LOCKED` (429), `ADMIN_TOTP_INVALID`, `ADMIN_CSRF_INVALID` (403), `ADMIN_ACTION_REFUSED` (409); config `ADMIN_TOTP_KEY`, `ADMIN_SESSION_*`, `ADMIN_PENDING_SECONDS`, `ADMIN_LOCKOUT_*`, `RATE_LIMIT_ADMIN_*`; CLI `admin-admin`; migrations `20270104090000_admin_panel_enums`, `20270104100000_admin_panel` (`admin_credentials`, `admin_recovery_codes`, `admin_sessions`, `site_settings`). §4, §7, §8, §10.54. | **Additive** (new operations behind their own cookie session; a new notification type the app ignores until it knows it; the CLIs' audit rows gain `before`/`after` keys and the panel's carry the actor and IP). |
 | v1.59-social (draft) | 2026-10-31 | **D190 (owner: card top-ups on the Kabso WEBSITE only, never inside the app; Stripe Checkout with 3-D Secure; refunds / early-fraud warnings / disputes take the coins back, CP-033):** tag `topup` — `listTopupPackages` (public), `getMyTopupState`, `createTopupCheckout`, `getTopupOrder`, `receiveStripeWebhook` (signed, server to server); schemas `TopupPackages`, `TopupMe`, `TopupCheckoutRequest`, `TopupCheckout`, `TopupOrder`, `TopupOrderStatus`; codes `TOPUP_UNAVAILABLE` (503) and `TOPUP_ACCOUNT_FROZEN` (403, also on `sendLiveGift`, `sendDmGift`, `sendMyBagItem` while the balance is below 0); `Wallet.coins` and `WalletLedgerEntry.balanceAfter` may be **negative**; ledger reasons `CARD_TOPUP`, `CARD_TOPUP_REVERSAL`, `CARD_TOPUP_RESTORE`; `RechargePackages.websiteTopupUrl` (set while `TOPUP_APP_LINK_ENABLED`, on by default, and top-ups are on); the website pages `/topup`, `/topup/success`, `/topup/cancel` (outside `/api/v1`); CLI `payments-admin`; migrations `20270104090000_card_topups_enums`, `20270104100000_card_topups`, `20270104110000_topup_team_refunds`. Owner answers (CP-033 §3): bank transfers (US) and the app link on by default; a team refund never freezes; gifts again once the balance is ≥ 0. §4, §7, §8, §10.53. | **Additive** on the wire (new operations, codes, enum values, a nullable field); **behaviour change**: a coin balance can be below 0 (clients show it as is; strict clients accept negative numbers in the same change set). Off until the owner sets the Stripe secrets on the server. |
@@ -3523,7 +3525,9 @@ script, nothing framed; the access token lives in the tab's `sessionStorage` onl
   (a partial set refuses to boot); without them every top-up operation is 503 `TOPUP_UNAVAILABLE` (no `Retry-After`)
   and the page says «الشحن بالبطاقة غير مفعّل». Production refuses a test key (`sk_test_` / `rk_test_`) unless
   `STRIPE_ALLOW_TEST_KEYS_IN_PRODUCTION=true`, and needs an `https` base URL. The keys are set by the owner on the
-  server only — never in git or chat. Hosted Checkout needs no publishable key.
+  server only — never in git or chat. Hosted Checkout needs no publishable key. **v1.64-social (D196):** the OWNER
+  may instead enter the two secrets (and the options below) in the admin panel «الدفع (Stripe)» — they override the
+  env and need only `TOPUP_PUBLIC_BASE_URL` on the server (§10.53.1).
 - **Prices are the server's.** `TOPUP_PACKAGES` (default 100 000, 500 000, 1 000 000, 5 000 000, 10 000 000,
   50 000 000 coins; id = the amount) priced from `COIN_RETAIL_USD_PER_MILLION` (owner: 1 000 000 = **$12.50**), USD
   cents, each a whole number of cents ≥ 50. A checkout sends only `packageId` (a price or any other field is 400
@@ -3590,6 +3594,65 @@ script, nothing framed; the access token lives in the tab's `sessionStorage` onl
   CHECKs, the wallet and ledger ranges below 0, the reason-sign rule), `20270104110000_topup_team_refunds` (the team
   refund columns).
 
+#### 10.53.1 The Stripe keys from the admin panel «الدفع (Stripe)» *(v1.64-social, DRAFT — D196)*
+
+The OWNER enters the Stripe keys in the panel instead of the server environment (owner D196). Section «الدفع
+(Stripe)», capability **`payments.settings` (OWNER only)**; every route is behind the panel's cookie session + CSRF
+(§10.54.2); without `ADMIN_TOTP_KEY` it answers 503 `ADMIN_PANEL_UNAVAILABLE` like the rest of the panel.
+
+- **What it sets:** the Stripe **secret key or restricted key** (`sk_…` / `rk_…`), the **webhook signing secret**
+  (`whsec_…`), an optional **publishable key** (`pk_…`; public by design, shown in full; hosted Checkout does not use
+  it; it must have the secret key's mode), and the options **bank transfers** on/off, the **statement descriptor
+  suffix**, **dispute evidence auto-submit** on/off and the **app link** «الشحن من الموقع» on/off — each null = the
+  server's env value (`STRIPE_BANK_TRANSFER_ENABLED`, `STRIPE_STATEMENT_DESCRIPTOR_SUFFIX`,
+  `STRIPE_DISPUTE_AUTO_SUBMIT`, `TOPUP_APP_LINK_ENABLED`; a suffix `""` = explicitly none). `TOPUP_PUBLIC_BASE_URL`,
+  `STRIPE_BANK_TRANSFER_TYPE`, `TOPUP_PACKAGES` and `STRIPE_ALLOW_TEST_KEYS_IN_PRODUCTION` stay server settings; the
+  base URL is shown read-only.
+- **Secrets are write-only.** No response, log or audit row ever carries the secret key or the webhook secret:
+  `getAdminPaymentSettings` returns `PaymentKeyInfo` per key — `kind` (`secret` / `restricted` / `webhook`),
+  `mode` (`live` / `test`), `last4`, `source` (`panel` / `env`), `setBy` and `setAt` — for the keys in use, the
+  panel's and the env's (`Cache-Control: no-store`). At rest (`payment_settings`, one row, migration
+  `20270111100000_payment_settings`) each secret is **AES-256-GCM** sealed (`v1.<iv>.<tag>.<ciphertext>`, the column
+  name as additional data) with a key derived by HKDF-SHA-256 from `ADMIN_TOTP_KEY` with its own info string
+  **`payment-settings/v1`** (not the TOTP secrets' key); only the prefix (`rk_live`) and the last 4 characters are in
+  clear. In the process the values are wrapped so JSON, string conversion and `util.inspect` print `[redacted]`; the
+  log redaction also masks `sk_/rk_/whsec_` values and the `secretKey` / `webhookSecret` / `totpCode` fields. A new
+  `ADMIN_TOTP_KEY` makes the saved keys unreadable: they are then ignored (`panelKeysIgnored: unreadable`, the env
+  keys apply) until the OWNER enters them again.
+- **Every change** (`updateAdminPaymentSettings`, PATCH: only the fields sent; `clearAdminPaymentKeys`) needs the
+  **authenticator code again** (`totpCode`, §10.54.3: 400 missing, 403 `ADMIN_TOTP_INVALID` wrong or used, counted
+  towards the lockout) **and a reason**, and writes `payment.settings.update` / `payment.settings.clear` in its
+  transaction with before / after as **masked fingerprints** (`rk_live_…AbCd`, `whsec_…wxYz`, `pk_live_…`), the
+  options, `changed`, `connectionTest` (`stripe` / `skipped`), the reason and `via: panel`. The first keys come as a
+  pair (one alone: 400 `required` on the other); later either may be rotated alone.
+- **«اختبار الاتصال»** (`testAdminPaymentKey`) and **every save of a new secret key** first call Stripe with that key
+  (`balance.retrieve`, nothing read is shown; a restricted key without the balance permission still passes as
+  `restricted`). Refused by Stripe → 409 `ADMIN_ACTION_REFUSED` (`secretKey` `stripe_rejected`), Stripe unreachable →
+  503 `SERVICE_UNAVAILABLE`; nothing saved. The test is audited `payment.settings.test` (the fingerprint and the
+  outcome). `skipConnectionTest: true` saves without the call **only for a test key and only when NODE_ENV is not
+  production** (else 409 `connection_test_required`). A test key in production is refused (409
+  `test_key_in_production`) unless `STRIPE_ALLOW_TEST_KEYS_IN_PRODUCTION=true` — **env only**, never a panel switch; a
+  saved test key is also ignored at run time in production without it. The panel checks the code before it asks
+  Stripe anything.
+- **Source of truth:** the panel's keys when both are saved and readable, else the env keys
+  (`STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET`, still a pair, still needing `TOPUP_PUBLIC_BASE_URL`), else none
+  (503 `TOPUP_UNAVAILABLE`). Existing env deployments keep working unchanged. `PaymentSettingsStore` is the one
+  reader (top-ups, the wallet's `websiteTopupUrl`, the website switch): it re-reads the row at most every 5 seconds
+  (the instance that saved at once) and keeps one Stripe client per key — **a new key is used by the next request,
+  no restart**. `clearAdminPaymentKeys` removes the panel's keys (409 `nothing_to_clear` when there are none): the
+  env keys apply again, or top-ups are off. `payments-admin refund` uses the panel's key when `ADMIN_TOTP_KEY` is
+  passed to it, else `STRIPE_SECRET_KEY`.
+- **Webhook rotation:** the webhook verifies with the current signing secret and, for **10 minutes** after a change
+  (a new webhook secret, or a clear that ends the panel's), also with the one in use before
+  (`previousWebhookSecretValidUntil`), so deliveries Stripe signed before the change still apply.
+- **The webhook to configure in Stripe** is shown with a copy button: `webhookUrl` =
+  `${TOPUP_PUBLIC_BASE_URL}/api/v1/payments/stripe/webhook` and `webhookEvents` — `checkout.session.completed`,
+  `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`,
+  `charge.refunded`, `radar.early_fraud_warning.created`, `charge.dispute.created`, `charge.dispute.closed`.
+- **The website's switch:** `updateAdminSiteSettings` refuses to turn `topupEnabled` **on** while there are no keys
+  (409 `ADMIN_ACTION_REFUSED`, `topupEnabled` `stripe_keys_missing`, «enter them in «الدفع (Stripe)» first»); a
+  switch already on is not touched by a later clear (the website then shows «الشحن بالبطاقة غير مفعّل»).
+
 ### 10.54 The admin panel «لوحة الإدارة» *(v1.60-social, DRAFT — D191, CP-034)*
 
 A web panel for the team at `https://admin.<domain>` (`apps/admin`, React + TypeScript + Vite, a static build served
@@ -3620,6 +3683,7 @@ session's `capabilities` do not include.
 | `recharge.agents` | ✓ | | ✓ | ✓ |
 | `recharge.topup`, `recharge.cap`, `withdrawals.view`, `withdrawals.decide` | ✓ | | | ✓ |
 | `site.settings` | ✓ | | | |
+| `payments.settings` (v1.64-social, D196: the Stripe keys and top-up options, §10.53.1) | ✓ | | | |
 
 An account holding a panel role can be banned, unbanned or otherwise acted on only by an OWNER; nobody acts on their
 own account (409 `ADMIN_ACTION_REFUSED`).
@@ -3667,7 +3731,8 @@ Sign-in events: `admin.login.password|success|failure|locked`, `admin.totp.enrol
 `admin.recovery_code.used`, `admin.logout`; roles: `admin.role.grant|revoke`, `admin.totp.reset` (CLI).
 
 **Financial actions need the authenticator code again** (`totpCode` in the body): `topUpAdminRechargeAgent`,
-`payAdminWithdrawal`, `rejectAdminWithdrawal` (it refunds the held cherries). A missing code is 400; a wrong or used
+`payAdminWithdrawal`, `rejectAdminWithdrawal` (it refunds the held cherries); v1.64-social (D196):
+`updateAdminPaymentSettings` and `clearAdminPaymentKeys`, which also need a reason (§10.53.1). A missing code is 400; a wrong or used
 one 403 `ADMIN_TOTP_INVALID` (counted towards the lockout); nothing changes.
 
 #### 10.54.4 One rule for the CLI and the panel
@@ -3704,6 +3769,7 @@ own message.
    notification `MODERATION_WARNING`, target the post when there is one) and **BAN** (the author is suspended); WARN
    and BAN need `note` and close every open report on the target as ACTIONED.
 6. **Website settings «إعدادات الموقع»** (OWNER) — §10.54.6.
+7. **Payments «الدفع (Stripe)»** (OWNER; v1.64-social, D196) — §10.53.1.
 
 Lists are keyset-paginated (`cursor`, `limit` ≤ 100; reports use the `listAdminReports` cursor).
 
@@ -3724,7 +3790,7 @@ a missing key is its default). The website (D192, §10.55) and the panel both us
 - **One write route:** `updateAdminSiteSettings` (`PUT /admin/site-settings`, the panel's cookie session + CSRF,
   capability `site.settings` = OWNER) replaces the whole document (an empty link clears it; optional `reason`),
   audited `site.settings.update` with before, after, `reason` and `via: panel`. A bearer token opens nothing here
-  (401). There is no separate admin permission for it: OWNER is the website's editor.
+  (401). v1.64-social (D196): turning `topupEnabled` on without Stripe keys is 409 (`stripe_keys_missing`, §10.53.1). There is no separate admin permission for it: OWNER is the website's editor.
 
 #### 10.54.7 Serving (Caddy)
 

@@ -10,7 +10,13 @@ import type { Prisma, TopupOrder } from '../../generated/prisma/client.js';
 import { safeErrorLog } from '../../logging/redact-text.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { uuidv7 } from '../levels/uuidv7.js';
-import { STRIPE_API, verifyStripeEvent, type Stripe, type StripeApi } from './stripe-api.js';
+import {
+  webhookSecretsAt,
+  type ResolvedStripeKeys,
+  type TopupOptions,
+} from '../payment-settings/payment-settings.rules.js';
+import { PaymentSettingsStore } from '../payment-settings/payment-settings.store.js';
+import { verifyStripeEventWithAny, type Stripe, type StripeApi } from './stripe-api.js';
 import {
   attributionIn,
   closeCaseIn,
@@ -95,35 +101,32 @@ export class TopupService {
     private readonly prisma: PrismaService,
     private readonly clock: Clock,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
-    @Inject(STRIPE_API) private readonly stripe: StripeApi | null,
+    private readonly payments: PaymentSettingsStore,
   ) {}
 
-  /** The Stripe settings, or 503 TOPUP_UNAVAILABLE (keys missing). */
-  private enabled(): NonNullable<AppConfig['topup']['stripe']> & { api: StripeApi } {
-    const s = this.config.topup.stripe;
-    if (!s || !this.stripe) throw new AppException(ErrorCode.TOPUP_UNAVAILABLE);
-    return { ...s, api: this.stripe };
+  /**
+   * The keys, options and Stripe client in use now (D196: the panel's over the env, re-read without a restart),
+   * or 503 TOPUP_UNAVAILABLE (no keys).
+   */
+  private async enabled(): Promise<ResolvedStripeKeys & { api: StripeApi; options: TopupOptions }> {
+    const p = await this.payments.active();
+    if (!p.stripe || !p.api) throw new AppException(ErrorCode.TOPUP_UNAVAILABLE);
+    return { ...p.stripe, api: p.api, options: p.options };
   }
 
-  packages(): TopupPackagesDto {
-    this.enabled();
+  async packages(): Promise<TopupPackagesDto> {
+    const s = await this.enabled();
     const t = this.config.topup;
     return {
       currency: t.currency,
       packages: t.packages.map((p) => ({ ...p })),
-      bankTransfer: t.bankTransfer.enabled,
+      bankTransfer: s.options.bankTransfer.enabled,
       terms: { version: t.termsVersion, ar: TOPUP_TERMS.ar, en: TOPUP_TERMS.en },
     };
   }
 
-  /** The app's «الشحن من الموقع» link (store policy; off by default), or null. */
-  websiteUrl(): string | null {
-    const s = this.config.topup.stripe;
-    return this.config.topup.appLinkEnabled && s ? `${s.publicBaseUrl}/topup` : null;
-  }
-
   async me(userId: string): Promise<TopupMeDto> {
-    this.enabled();
+    await this.enabled();
     const [wallet, freeze] = await Promise.all([
       this.prisma.wallet.findUnique({ where: { userId }, select: { coins: true } }),
       this.prisma.topupFreeze.findUnique({ where: { userId }, select: { userId: true } }),
@@ -132,7 +135,7 @@ export class TopupService {
   }
 
   async order(userId: string, orderId: string): Promise<TopupOrderDto> {
-    this.enabled();
+    await this.enabled();
     const order = z.uuid().safeParse(orderId).success
       ? await this.prisma.topupOrder.findUnique({ where: { id: orderId } })
       : null;
@@ -157,7 +160,7 @@ export class TopupService {
    * package / terms not accepted / a stale terms version; 403 TOPUP_ACCOUNT_FROZEN; 503 TOPUP_UNAVAILABLE.
    */
   async checkout(userId: string, body: unknown, info: RequestInfo): Promise<TopupCheckoutDto> {
-    const s = this.enabled();
+    const s = await this.enabled();
     const parsed = checkoutSchema.safeParse(body ?? {}, { reportInput: true });
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
     const input = parsed.data;
@@ -173,8 +176,9 @@ export class TopupService {
       throw new AppException(ErrorCode.TOPUP_ACCOUNT_FROZEN);
     }
     const locale: TopupLocale = input.locale;
-    const methods = t.bankTransfer.enabled ? ['card', 'customer_balance'] : ['card'];
-    const customer = t.bankTransfer.enabled ? await this.customerFor(userId, user.email, s.api) : null;
+    const o = s.options;
+    const methods = o.bankTransfer.enabled ? ['card', 'customer_balance'] : ['card'];
+    const customer = o.bankTransfer.enabled ? await this.customerFor(userId, user.email, s.api) : null;
     const now = this.clock.now();
     const orderId = uuidv7();
     const termsId = uuidv7();
@@ -229,12 +233,12 @@ export class TopupService {
       allowed_payment_method_types: methods,
       payment_method_options: {
         card: { request_three_d_secure: 'any' },
-        ...(t.bankTransfer.enabled
+        ...(o.bankTransfer.enabled
           ? {
               customer_balance: {
                 funding_type: 'bank_transfer' as const,
                 bank_transfer: {
-                  type: t.bankTransfer.type,
+                  type: o.bankTransfer.type,
                 },
               },
             }
@@ -244,7 +248,7 @@ export class TopupService {
         receipt_email: user.email,
         description: `Kabso Live coins (${pkg.coins})`,
         metadata,
-        ...(t.statementDescriptorSuffix ? { statement_descriptor_suffix: t.statementDescriptorSuffix } : {}),
+        ...(o.statementDescriptorSuffix ? { statement_descriptor_suffix: o.statementDescriptorSuffix } : {}),
       },
       ...(customer ? { customer } : { customer_email: user.email }),
       success_url: `${s.publicBaseUrl}/topup/success?order=${orderId}&lang=${locale}`,
@@ -316,13 +320,14 @@ export class TopupService {
    * step is idempotent and changes nothing the second time.
    */
   async webhook(rawBody: unknown, signature: string | undefined): Promise<{ received: true }> {
-    const s = this.enabled();
+    const s = await this.enabled();
     if (!Buffer.isBuffer(rawBody) || rawBody.length === 0 || !signature) {
       throw AppException.validation([{ field: 'Stripe-Signature', issue: 'invalid_value' }]);
     }
     let event: Stripe.Event;
     try {
-      event = verifyStripeEvent(rawBody, signature, s.webhookSecret);
+      // D196: the current signing secret, and the previous one for 10 minutes after a rotation.
+      event = verifyStripeEventWithAny(rawBody, signature, webhookSecretsAt(s, this.clock.now()));
     } catch {
       this.logger.warn('Stripe webhook with a bad signature refused');
       throw AppException.validation([{ field: 'Stripe-Signature', issue: 'invalid_value' }]);
@@ -350,7 +355,7 @@ export class TopupService {
     try {
       for (const f of step.followUps) {
         if (f.kind === 'auto_refund') await this.autoRefund(f.orderId, event.id, s.api);
-        else await this.submitEvidence(f.orderId, f.disputeId, s.api);
+        else await this.submitEvidence(f.orderId, f.disputeId, s.api, s.options.disputeAutoSubmit);
       }
     } catch (err) {
       this.logger.error(
@@ -648,7 +653,12 @@ export class TopupService {
    * Builds and submits the dispute evidence: the buyer's own sign-ins (IPs, devices), what the purchase's coins
    * paid for (no recipient), the buyer's email, the terms acceptance and a receipt PDF. Never another user's data.
    */
-  private async submitEvidence(orderId: string, disputeId: string, api: StripeApi): Promise<void> {
+  private async submitEvidence(
+    orderId: string,
+    disputeId: string,
+    api: StripeApi,
+    submit: boolean,
+  ): Promise<void> {
     const order = await this.prisma.topupOrder.findUniqueOrThrow({ where: { id: orderId } });
     if (order.evidenceSubmittedAt !== null) return;
     const [user, terms, sessions, attribution] = await Promise.all([
@@ -721,7 +731,6 @@ export class TopupService {
       statementDescriptor: 'KABSO LIVE',
     });
     const receipt = await api.uploadEvidenceFile(`kabso-receipt-${order.id}.pdf`, simplePdf(receiptLines));
-    const submit = this.config.topup.disputeAutoSubmit;
     await api.updateDispute(disputeId, {
       evidence: { ...evidence, receipt: receipt.id },
       metadata: { kabso_order_id: order.id },

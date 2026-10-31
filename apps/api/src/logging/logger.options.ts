@@ -25,6 +25,13 @@ export const REDACT_PATHS = [
   '*.refreshToken',
   '*.accessToken',
   '*.secret',
+  // v1.64-social (D196): the Stripe keys the OWNER types into the panel and the code re-entered with them.
+  'secretKey',
+  'webhookSecret',
+  'totpCode',
+  '*.secretKey',
+  '*.webhookSecret',
+  '*.totpCode',
 ];
 
 export function buildLoggerOptions(config: AppConfig): Params {

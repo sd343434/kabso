@@ -8,6 +8,9 @@ const CENSOR = '[REDACTED]';
 const PATTERNS: readonly RegExp[] = [
   // `password: "…"`, `"refreshTokenHash": '…'`, `token=…` (Prisma invocation dumps, query strings)
   /((?:password|passwordhash|newpassword|token|tokenhash|refreshtoken|refreshtokenhash|accesstoken|secret|authorization)["']?\s*[:=]\s*)(?:"[^"]*"|'[^']*'|[^\s,})\]]+)/gi,
+  // Stripe secret / restricted keys and webhook signing secrets (D196: the panel takes them)
+  /\b(?:sk|rk)_(?:live|test)_[A-Za-z0-9_]{8,}/g,
+  /\bwhsec_[A-Za-z0-9+/=_]{8,}/g,
   // Bearer credentials
   /(bearer\s+)[A-Za-z0-9._~+/-]+=*/gi,
   // JWTs

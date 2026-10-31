@@ -5,19 +5,22 @@ import { createCipheriv, createDecipheriv, createHash, hkdfSync, randomBytes } f
  * key derived (HKDF-SHA-256, info `admin-totp/v1`) from ADMIN_TOTP_KEY; the stored form is
  * `v1.<iv>.<tag>.<ciphertext>` (base64url). Cookies, CSRF tokens and recovery codes are random and only their
  * SHA-256 is stored.
+ *
+ * v1.64-social (D196, §10.53.1): the same box with another HKDF info string (`payment-settings/v1`) seals the Stripe
+ * keys the OWNER enters in the panel — a separate key from the same source. `aad` binds a value to its column (a value
+ * moved to another column does not open).
  */
 export class AdminSecretBox {
   private readonly key: Buffer;
 
-  constructor(source: string) {
-    this.key = Buffer.from(
-      hkdfSync('sha256', Buffer.from(source, 'utf8'), Buffer.alloc(0), 'admin-totp/v1', 32),
-    );
+  constructor(source: string, info = 'admin-totp/v1') {
+    this.key = Buffer.from(hkdfSync('sha256', Buffer.from(source, 'utf8'), Buffer.alloc(0), info, 32));
   }
 
-  seal(plain: string): string {
+  seal(plain: string, aad?: string): string {
     const iv = randomBytes(12);
     const cipher = createCipheriv('aes-256-gcm', this.key, iv);
+    if (aad !== undefined) cipher.setAAD(Buffer.from(aad, 'utf8'));
     const data = Buffer.concat([cipher.update(plain, 'utf8'), cipher.final()]);
     return ['v1', iv, cipher.getAuthTag(), data]
       .map((p) => (typeof p === 'string' ? p : p.toString('base64url')))
@@ -25,12 +28,13 @@ export class AdminSecretBox {
   }
 
   /** Null when the value was sealed with another key (or tampered with). */
-  open(sealed: string): string | null {
+  open(sealed: string, aad?: string): string | null {
     const [version, iv, tag, data] = sealed.split('.');
     if (version !== 'v1' || !iv || !tag || data === undefined) return null;
     try {
       const decipher = createDecipheriv('aes-256-gcm', this.key, Buffer.from(iv, 'base64url'));
       decipher.setAuthTag(Buffer.from(tag, 'base64url'));
+      if (aad !== undefined) decipher.setAAD(Buffer.from(aad, 'utf8'));
       return Buffer.concat([decipher.update(Buffer.from(data, 'base64url')), decipher.final()]).toString(
         'utf8',
       );

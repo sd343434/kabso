@@ -28,7 +28,7 @@ export class TopupController {
 
   @Public()
   @Get('topup/packages')
-  packages(): TopupPackagesDto {
+  packages(): Promise<TopupPackagesDto> {
     return this.topup.packages();
   }
 

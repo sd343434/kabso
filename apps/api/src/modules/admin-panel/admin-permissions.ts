@@ -37,6 +37,8 @@ export const CAPABILITIES = {
   'reports.view': ['OWNER', 'MODERATION'],
   'reports.act': ['OWNER', 'MODERATION'],
   'site.settings': ['OWNER'],
+  /** v1.64-social (D196): the Stripe keys and top-up options «الدفع (Stripe)». */
+  'payments.settings': ['OWNER'],
 } as const satisfies Record<string, readonly PanelRole[]>;
 
 export type Capability = keyof typeof CAPABILITIES;

@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { AuditAction, AuditService } from '../../common/audit/audit.service.js';
+import { AppException } from '../../common/errors/app-exception.js';
+import { ErrorCode } from '../../common/errors/error-codes.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { PaymentSettingsStore } from '../payment-settings/payment-settings.store.js';
 import {
   SETTING_KEYS,
   SITE_SETTINGS_DEFAULTS,
@@ -26,6 +29,7 @@ export class SiteSettingsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly payments: PaymentSettingsStore,
   ) {}
 
   async get(db: Pick<Prisma.TransactionClient, 'siteSetting'> = this.prisma): Promise<SiteSettingsDto> {
@@ -49,11 +53,25 @@ export class SiteSettingsService {
     };
   }
 
-  /** The OWNER's change from the panel: both keys in one transaction with an audit row (before and after). */
+  /**
+   * The OWNER's change from the panel: both keys in one transaction with an audit row (before and after).
+   * v1.64-social (D196): turning `topupEnabled` on while card top-ups have no Stripe keys (panel or env) is refused
+   * (409 ADMIN_ACTION_REFUSED, `topupEnabled` `stripe_keys_missing`): the website would link to a page that says
+   * «الشحن بالبطاقة غير مفعّل».
+   */
   async update(input: UpdateSiteSettingsInput, actor: SiteSettingsActor): Promise<SiteSettingsDto> {
+    this.payments.invalidate();
+    const keysReady = (await this.payments.resolved()).stripe !== null;
     return this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('site_settings'))`;
       const before = await this.get(tx);
+      if (input.topupEnabled && !before.topupEnabled && !keysReady) {
+        throw new AppException(
+          ErrorCode.ADMIN_ACTION_REFUSED,
+          'Card top-ups have no Stripe keys yet: enter them in «الدفع (Stripe)» first (or set them on the server).',
+          [{ field: 'topupEnabled', issue: 'stripe_keys_missing' }],
+        );
+      }
       const after: SiteSettingsDto = { socials: input.socials, topupEnabled: input.topupEnabled };
       for (const [key, value] of [
         [SETTING_KEYS.socials, after.socials],

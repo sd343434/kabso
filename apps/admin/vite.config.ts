@@ -18,5 +18,5 @@ export default defineConfig({
     proxy: { '/api': { target: process.env.KABSO_API_URL ?? 'http://127.0.0.1:3000', changeOrigin: false } },
   },
   build: { outDir: 'dist', sourcemap: false, assetsInlineLimit: 0, target: 'es2022' },
-  test: { include: ['test/**/*.test.ts'], environment: 'node' },
+  test: { include: ['test/**/*.test.{ts,tsx}'], environment: 'node' },
 });

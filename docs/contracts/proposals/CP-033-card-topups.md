@@ -42,3 +42,18 @@ hook (`recordRechargeIn(…, WEBSITE_TOPUP)`) and D179's gift reversal (`economy
 3. Bank transfers **on at launch**: `STRIPE_BANK_TRANSFER_ENABLED=true`, `us_bank_transfer` (a US LLC); webhook-credited.
 4. The app link **shown**: `TOPUP_APP_LINK_ENABLED=true` by default, switchable per environment; Google Play / App
    Store payment rules reviewed before the store release (PRE_PRODUCTION PP-35).
+
+## 4. Amendment D196 (owner, 2026-10-31, via the coordinator) — the keys from the admin panel
+
+The owner enters the Stripe keys in the admin panel instead of the server environment (contract v1.64-social,
+CONVENTIONS §10.53.1, DEPLOYMENT §5.29). Additive: env deployments keep working; no new error code.
+
+| Topic | Decision |
+|-------|----------|
+| Where | Panel section «الدفع (Stripe)», capability `payments.settings`, **OWNER only** (D191 session + CSRF). |
+| What | Secret or restricted key, webhook signing secret, optional publishable key; bank transfers, statement descriptor suffix, dispute auto-submit, app link (null = the env value). `TOPUP_PUBLIC_BASE_URL` stays a server setting, shown read-only. |
+| Secrets | **Write-only**: responses and audit rows carry only type, mode, last 4, who and when. AES-256-GCM at rest, key HKDF-derived from `ADMIN_TOTP_KEY` with its own info `payment-settings/v1`; without that key the section is 503. Table `payment_settings` (migration `20270111100000_payment_settings`). |
+| Changes | The authenticator code again + a reason; audited `payment.settings.update|clear` with masked fingerprints; a new secret key is tried on Stripe (`balance.retrieve`) before it is saved — refused → nothing saved. Saving without the test only for a test key outside production. Production refuses test keys unless `STRIPE_ALLOW_TEST_KEYS_IN_PRODUCTION` (env only). |
+| Source of truth | Panel over env; env the fallback; clearing in the panel falls back to env or 503. The Stripe client follows the key without a restart. The previous webhook secret verifies for 10 minutes after a rotation. |
+| Webhook | The panel shows the URL to copy and the 8 events to subscribe. |
+| Website | `topupEnabled` cannot be turned on without keys (409 `stripe_keys_missing`). |

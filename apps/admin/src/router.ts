@@ -19,6 +19,7 @@ export const ROUTES: readonly { name: string; pattern: string }[] = [
   { name: 'withdrawals', pattern: '/withdrawals' },
   { name: 'reports', pattern: '/reports' },
   { name: 'site', pattern: '/site-settings' },
+  { name: 'payments', pattern: '/payments' },
 ];
 
 export function matchPath(path: string): Match | null {

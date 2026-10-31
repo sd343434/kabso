@@ -5,7 +5,7 @@
  * profile, an application's approval and a withdrawal marked paid. With KABSO_CAPTURE_DIR set it also saves the
  * owner's review captures (Arabic; desktop 1440×900 and one mobile 390×844; private pictures blurred).
  */
-import { createHmac } from 'node:crypto';
+import { createHmac, randomBytes } from 'node:crypto';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
@@ -115,7 +115,8 @@ test('admin panel smoke: sign-in with TOTP, dashboard, users, approve, mark paid
   await capture(page, '09-withdrawals');
   await page.getByRole('button', { name: 'تأكيد الدفع' }).click();
   await page.getByLabel('مرجع الدفع (رقم التحويل)').fill('TX-20261031-01');
-  await page.getByLabel('رمز تطبيق المصادقة').fill(totp(secret, Math.max(Date.now(), enrolAt + 30_000)));
+  const paidAt = Math.max(Date.now(), enrolAt + 30_000);
+  await page.getByLabel('رمز تطبيق المصادقة').fill(totp(secret, paidAt));
   await page.getByRole('dialog').getByRole('button', { name: 'تأكيد الدفع' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByText('لا توجد نتائج.')).toBeVisible();
@@ -124,6 +125,35 @@ test('admin panel smoke: sign-in with TOTP, dashboard, users, approve, mark paid
   await page.getByRole('link', { name: 'البلاغات' }).click();
   await expect(page.getByText('يرسل روابط مزعجة')).toBeVisible();
   await capture(page, '10-reports');
+
+  // D196 «الدفع (Stripe)»: enter the keys (made up; the smoke API's Stripe is a fake), test, save with a reason and a
+  // fresh code; afterwards the page shows only their type and last 4 characters.
+  await page.getByRole('link', { name: 'الدفع (Stripe)' }).click();
+  await expect(page.getByRole('heading', { name: 'الدفع (Stripe)', level: 1 })).toBeVisible();
+  await expect(page.getByTestId('pay-status')).toHaveText('غير مفعّل');
+  await expect(page.locator('#pay-url')).toHaveValue('https://api.kabsolive.com/api/v1/payments/stripe/webhook');
+  const sk = ['rk', 'live', `${randomBytes(12).toString('hex')}Kb7Q`].join('_');
+  const wh = ['whsec', `${randomBytes(12).toString('hex')}Ws3e`].join('_');
+  await page.getByLabel('مفتاح سري جديد').fill(sk);
+  await page.getByRole('button', { name: 'اختبار الاتصال' }).click();
+  await expect(page.getByText(/Stripe قبِل المفتاح/)).toBeVisible();
+  await page.getByLabel('سرّ توقيع جديد').fill(wh);
+  await page.getByRole('button', { name: 'حفظ المفاتيح' }).click();
+  await page.getByRole('dialog').getByLabel('السبب').fill('مفاتيح الإطلاق من لوحة Stripe');
+  // A step after the withdrawal's code (each step works once).
+  const lastStep = Math.floor(paidAt / 30_000);
+  while (Math.floor((Date.now() + 30_000) / 30_000) <= lastStep) await page.waitForTimeout(1000);
+  await page.getByLabel('رمز تطبيق المصادقة').fill(totp(secret, Math.max(Date.now(), (lastStep + 1) * 30_000)));
+  await page.getByRole('dialog').getByRole('button', { name: 'حفظ' }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByTestId('pay-status')).toHaveText('مفعّل — وضع حقيقي');
+  await expect(page.getByText('…Kb7Q')).toBeVisible();
+  await expect(page.getByText('…Ws3e')).toBeVisible();
+  expect(await page.content()).not.toContain(sk);
+  expect(await page.content()).not.toContain(wh);
+  await page.setViewportSize({ width: 1440, height: 1340 });
+  await capture(page, '12-payments');
+  await page.setViewportSize({ width: 1440, height: 900 });
 
   if (captureDir) {
     await page.setViewportSize({ width: 390, height: 844 });

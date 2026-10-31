@@ -41,7 +41,7 @@ export function withQuery(path: string, query: Query = {}): string {
 }
 
 export async function request<T>(
-  method: 'GET' | 'POST' | 'PUT',
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH',
   path: string,
   body?: unknown,
   opts: { auth?: boolean } = {},
@@ -82,4 +82,5 @@ export const api = {
   get: <T>(path: string, query?: Query) => request<T>('GET', withQuery(path, query)),
   post: <T>(path: string, body?: unknown) => request<T>('POST', path, body ?? {}),
   put: <T>(path: string, body: unknown) => request<T>('PUT', path, body),
+  patch: <T>(path: string, body: unknown) => request<T>('PATCH', path, body),
 };

@@ -198,6 +198,11 @@ export enum AuditAction {
   RECHARGE_PHOTO_VIEW = 'recharge.application.photo_view',
   /** v1.60-social (D191/D192): the OWNER changed the public website's settings from the panel (before and after). */
   SITE_SETTINGS_UPDATE = 'site.settings.update',
+  // v1.64-social (DRAFT, D196): the OWNER's «الدفع (Stripe)» section — a change (masked before/after, reason), the
+  // removal of the panel's keys (back to the env keys or off) and a «اختبار الاتصال» (the key's fingerprint only).
+  PAYMENT_SETTINGS_UPDATE = 'payment.settings.update',
+  PAYMENT_SETTINGS_CLEAR = 'payment.settings.clear',
+  PAYMENT_SETTINGS_TEST = 'payment.settings.test',
   // v1.61-social (DRAFT, D192): each read of the website waitlist's e-mails by the `waitlist-admin` CLI (`op`:
   // list|export, the count).
   WAITLIST_VIEW = 'waitlist.view',

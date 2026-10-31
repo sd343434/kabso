@@ -23,6 +23,7 @@ import { PrismaClient } from '../generated/prisma/client.js';
 import { AuditAction } from '../common/audit/audit.service.js';
 import { closeCaseIn, requestTeamRefund } from '../modules/topup/topup-core.js';
 import { createStripeApi } from '../modules/topup/stripe-api.js';
+import { AAD, newPaymentSecretBox } from '../modules/payment-settings/payment-settings.rules.js';
 
 function fail(message: string): never {
   process.stderr.write(`${message}\n`);
@@ -212,8 +213,21 @@ async function unfreeze(email: string, text: string): Promise<void> {
 }
 
 async function refund(id: string, text: string): Promise<void> {
-  const key = process.env.STRIPE_SECRET_KEY;
-  if (!key) fail('STRIPE_SECRET_KEY is not set: refunds go through Stripe.');
+  // D196 (§10.53.1): the key the OWNER saved in the panel (needs ADMIN_TOTP_KEY to open it), else the env's.
+  const row = await prisma.paymentSettings.findUnique({ where: { id: 1 } });
+  const box = newPaymentSecretBox(process.env.ADMIN_TOTP_KEY?.trim() || null);
+  const panelKey = row?.secretKeyEnc && box ? box.open(row.secretKeyEnc, AAD.secretKey) : null;
+  if (row?.secretKeyEnc && !panelKey) {
+    out(
+      'The panel has a Stripe key but ADMIN_TOTP_KEY is missing or different here; trying STRIPE_SECRET_KEY.',
+    );
+  }
+  const key = panelKey ?? process.env.STRIPE_SECRET_KEY;
+  if (!key) {
+    fail(
+      'No Stripe key: none saved in the panel «الدفع (Stripe)» (or ADMIN_TOTP_KEY not passed) and STRIPE_SECRET_KEY is not set.',
+    );
+  }
   let result: { refundId: string; status: string | null; amountMinor: number };
   try {
     result = await requestTeamRefund(prisma, createStripeApi(key), id, text, new Date());

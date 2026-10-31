@@ -3,6 +3,7 @@ import { languageFromAcceptLanguage } from '../../common/http/content-language.j
 import type { AppRequest, AuthContext } from '../../common/http/request-context.js';
 import { ZodValidationPipe } from '../../common/validation/zod-validation.pipe.js';
 import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
+import { PaymentSettingsStore } from '../payment-settings/payment-settings.store.js';
 import { CurrentAuth } from '../auth/current-auth.decorator.js';
 import type { PageDto } from '../posts/post-views.js';
 import { pageQuerySchema, type PageQuery } from '../posts/posts.schemas.js';
@@ -46,6 +47,7 @@ export class WalletController {
     private readonly history: WalletHistoryService,
     private readonly users: UsersService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    private readonly payments: PaymentSettingsStore,
   ) {}
 
   /**
@@ -54,13 +56,15 @@ export class WalletController {
    * (B5: no payment method and no legal review yet), so there is no purchase operation.
    */
   @Get('recharge-packages')
-  rechargePackages(): RechargePackagesDto {
+  async rechargePackages(): Promise<RechargePackagesDto> {
     const { rechargePackages, rechargeCurrency } = this.config.programs;
-    const topup = this.config.topup;
+    // D196: the keys and the app-link switch may come from the admin panel (over the env).
+    const topup = await this.payments.resolved();
     return {
       currency: rechargeCurrency,
       purchasesEnabled: false,
-      websiteTopupUrl: topup.appLinkEnabled && topup.stripe ? `${topup.stripe.publicBaseUrl}/topup` : null,
+      websiteTopupUrl:
+        topup.options.appLinkEnabled && topup.stripe ? `${topup.stripe.publicBaseUrl}/topup` : null,
       packages: rechargePackages.map((p) => ({ ...p })),
     };
   }

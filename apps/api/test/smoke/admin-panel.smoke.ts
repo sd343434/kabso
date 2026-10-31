@@ -3,7 +3,8 @@
  * PostgreSQL + Redis (the *_test database is reset), with the in-memory object storage. Seeds a not-yet-enrolled
  * OWNER (its email and password go to SMOKE_FILE), a pending recharge-agent application with its two private
  * pictures, a pending cherry withdrawal and two open reports, then listens on SMOKE_PORT (3000) until SMOKE_STOP_FILE
- * is removed (or an hour passes).
+ * is removed (or an hour passes). D196: TOPUP_PUBLIC_BASE_URL is set and Stripe is a fake (no network; a key with
+ * `Bad` in it is refused), so the «الدفع (Stripe)» section can test and save keys.
  */
 import { existsSync, writeFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
@@ -11,6 +12,7 @@ import sharp from 'sharp';
 import { expect, it } from 'vitest';
 import { grantRoleIn } from '../../src/modules/admin-panel/admin-roles.js';
 import { OBJECT_STORAGE } from '../../src/modules/media/object-storage.js';
+import { STRIPE_API_FACTORY, type StripeApi } from '../../src/modules/topup/stripe-api.js';
 import { privateKeyOf } from '../../src/modules/recharge/recharge-core.js';
 import { MemoryObjectStorage } from '../helpers/memory-storage.js';
 import { createTestApp, registerVerified, withMigrationClient } from '../helpers/test-app.js';
@@ -27,8 +29,12 @@ it('serves the admin panel smoke API', async () => {
       RATE_LIMIT_ADMIN_IP: '100000/900',
       MEDIA_PUBLIC_BASE_URL: 'http://localhost:5180/media-not-served',
       RECHARGE_AGENT_SWEEP_INTERVAL_SECONDS: '0',
+      TOPUP_PUBLIC_BASE_URL: 'https://api.kabsolive.com',
     },
-    [{ token: OBJECT_STORAGE, value: storage }],
+    [
+      { token: OBJECT_STORAGE, value: storage },
+      { token: STRIPE_API_FACTORY, value: fakeStripe },
+    ],
   );
   const signup = async (displayName: string) => {
     const { res, payload } = await registerVerified(ctx);
@@ -136,3 +142,19 @@ it('serves the admin panel smoke API', async () => {
   }
   await ctx.close();
 });
+
+/** D196: a Stripe that answers the key check only (the smoke makes no payment). */
+function fakeStripe(secretKey: string): StripeApi {
+  const none = () => Promise.reject(new Error('the smoke makes no Stripe payment'));
+  return {
+    createCheckoutSession: none,
+    createRefund: none,
+    updateDispute: none,
+    uploadEvidenceFile: none,
+    createCustomer: none,
+    checkKey: async () =>
+      secretKey.includes('Bad')
+        ? { ok: false, reason: 'rejected' }
+        : { ok: true, livemode: secretKey.includes('_live_'), restricted: false },
+  };
+}

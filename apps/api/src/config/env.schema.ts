@@ -1061,6 +1061,9 @@ export const envSchema = z
      * server environment: the secret key, the webhook signing secret and the public base URL of the website.
      * Never in git or chat. A test key (`sk_test_`/`rk_test_`) is refused in production unless
      * STRIPE_ALLOW_TEST_KEYS_IN_PRODUCTION=true. Hosted Checkout needs no publishable key.
+     * v1.64-social (D196, §10.53.1): the OWNER may instead enter the two secrets in the admin panel «الدفع (Stripe)»
+     * (stored encrypted, they override these); these stay the fallback. STRIPE_ALLOW_TEST_KEYS_IN_PRODUCTION is
+     * env only and applies to the panel's keys too.
      */
     STRIPE_SECRET_KEY: z
       .string()
@@ -1295,11 +1298,14 @@ export const envSchema = z
       }
     }
     // v1.59-social (D190): card top-ups are all or nothing (a key without the webhook secret would take payments
-    // that are never credited).
+    // that are never credited). v1.64-social (D196): the keys may instead come from the admin panel, so
+    // TOPUP_PUBLIC_BASE_URL alone is allowed (the panel's keys then use it); the two Stripe secrets stay a pair
+    // and need the base URL.
     {
       const topupKeys = ['STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'TOPUP_PUBLIC_BASE_URL'] as const;
-      const set = topupKeys.filter((k) => env[k] !== undefined);
-      if (set.length > 0 && set.length < topupKeys.length) {
+      const secrets = ['STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET'] as const;
+      const set = secrets.filter((k) => env[k] !== undefined);
+      if (set.length > 0 && (set.length < secrets.length || env.TOPUP_PUBLIC_BASE_URL === undefined)) {
         for (const key of topupKeys.filter((k) => env[k] === undefined)) {
           ctx.addIssue({
             code: 'custom',
@@ -1308,16 +1314,18 @@ export const envSchema = z
           });
         }
       }
+      // The packages are checked whenever top-ups can run: env keys, or a base URL for the panel's keys.
+      const topupsPossible = set.length > 0 || env.TOPUP_PUBLIC_BASE_URL !== undefined;
       const minorPerMillion = topupMinorPerMillion(env.COIN_RETAIL_USD_PER_MILLION);
       if (minorPerMillion === null) {
-        if (set.length > 0) {
+        if (topupsPossible) {
           ctx.addIssue({
             code: 'custom',
             path: ['COIN_RETAIL_USD_PER_MILLION'],
             message: 'must be a whole number of cents per 1 000 000 coins when card top-ups are on',
           });
         }
-      } else if (set.length > 0) {
+      } else if (topupsPossible) {
         // Only when card top-ups are on: COIN_RETAIL_USD_PER_MILLION also prices task rewards (D188).
         for (const coins of env.TOPUP_PACKAGES) {
           const minor = (coins * minorPerMillion) / 1_000_000;

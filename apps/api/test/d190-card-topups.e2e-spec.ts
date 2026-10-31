@@ -7,7 +7,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import Stripe from 'stripe';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { addGiftIn } from '../src/modules/gifts/gift-catalogue.js';
-import { STRIPE_API, type StripeApi } from '../src/modules/topup/stripe-api.js';
+import { STRIPE_API_FACTORY, type StripeApi } from '../src/modules/topup/stripe-api.js';
 import { requestTeamRefund } from '../src/modules/topup/topup-core.js';
 import { creditIn } from '../src/modules/wallet/wallet-ledger.js';
 import { expectContract, operations } from './helpers/openapi.js';
@@ -61,6 +61,9 @@ class FakeStripe implements StripeApi {
     const id = `cus_e2e_${randomBytes(4).toString('hex')}`;
     this.customers.push(id);
     return { id };
+  }
+  async checkKey() {
+    return { ok: true as const, livemode: false, restricted: false };
   }
 }
 
@@ -261,7 +264,7 @@ describe('D190 card top-ups', { timeout: 300_000 }, () => {
         TOPUP_PUBLIC_BASE_URL: PUBLIC,
         RATE_LIMIT_TOPUP_CHECKOUT_USER: '10000/900',
       },
-      [{ token: STRIPE_API, value: stripe }],
+      [{ token: STRIPE_API_FACTORY, value: () => stripe }],
     );
     await ctx.prisma.$transaction((tx) =>
       addGiftIn(tx, 'topup_big', {

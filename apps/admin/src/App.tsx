@@ -8,6 +8,7 @@ import { ApplicationDetail, Applications } from './pages/Applications';
 import { Dashboard } from './pages/Dashboard';
 import { Login } from './pages/Login';
 import { Reports } from './pages/Reports';
+import { Payments } from './pages/Payments';
 import { SiteSettings } from './pages/SiteSettings';
 import { UserDetail } from './pages/UserDetail';
 import { Withdrawals } from './pages/Withdrawals';
@@ -25,6 +26,7 @@ const NAV: { to: string; key: Key; cap: Capability; match: string[] }[] = [
   { to: '/withdrawals', key: 'navWithdrawals', cap: 'withdrawals.view', match: ['withdrawals'] },
   { to: '/reports', key: 'navReports', cap: 'reports.view', match: ['reports'] },
   { to: '/site-settings', key: 'navSite', cap: 'site.settings', match: ['site'] },
+  { to: '/payments', key: 'navPayments', cap: 'payments.settings', match: ['payments'] },
 ];
 
 const CAP_OF_ROUTE: Record<string, Capability> = Object.fromEntries(NAV.flatMap((n) => n.match.map((m) => [m, n.cap])));
@@ -159,6 +161,9 @@ export function App() {
           break;
         case 'site':
           page = <SiteSettings />;
+          break;
+        case 'payments':
+          page = <Payments />;
           break;
       }
     }

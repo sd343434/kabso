@@ -4272,6 +4272,38 @@ model SiteSetting {
   @@map("site_settings")
 }
 
+// ---- v1.64-social (D196, CONVENTIONS §10.53.1): the Stripe keys from the admin panel «الدفع (Stripe)» ------------
+
+/// D196: one row (id 1). The Stripe secret (or restricted) key and the webhook signing secret the OWNER enters in the
+/// panel, AES-256-GCM sealed with a key derived from ADMIN_TOTP_KEY (HKDF `payment-settings/v1`, the column as
+/// additional data); only their prefix and last 4 characters are kept in clear for the panel. Both or neither (a key
+/// without its webhook secret would take payments that are never credited). They override STRIPE_SECRET_KEY /
+/// STRIPE_WEBHOOK_SECRET; cleared, the env keys apply again. After a rotation the previous webhook secret verifies
+/// for 10 minutes. A null option = the server's env value. Written only by `PaymentSettingsService` (audited).
+model PaymentSettings {
+  id                         Int       @id @default(1) @db.SmallInt
+  secretKeyEnc               String?   @map("secret_key_enc")
+  secretKeyPrefix            String?   @map("secret_key_prefix") @db.VarChar(7)
+  secretKeyLast4             String?   @map("secret_key_last4") @db.VarChar(4)
+  secretKeySetById           String?   @map("secret_key_set_by_id") @db.Uuid
+  secretKeySetAt             DateTime? @map("secret_key_set_at") @db.Timestamptz(3)
+  webhookSecretEnc           String?   @map("webhook_secret_enc")
+  webhookSecretLast4         String?   @map("webhook_secret_last4") @db.VarChar(4)
+  webhookSecretSetById       String?   @map("webhook_secret_set_by_id") @db.Uuid
+  webhookSecretSetAt         DateTime? @map("webhook_secret_set_at") @db.Timestamptz(3)
+  previousWebhookSecretEnc   String?   @map("previous_webhook_secret_enc")
+  previousWebhookSecretUntil DateTime? @map("previous_webhook_secret_until") @db.Timestamptz(3)
+  publishableKey             String?   @map("publishable_key") @db.VarChar(260)
+  bankTransferEnabled        Boolean?  @map("bank_transfer_enabled")
+  statementDescriptorSuffix  String?   @map("statement_descriptor_suffix") @db.VarChar(10)
+  disputeAutoSubmit          Boolean?  @map("dispute_auto_submit")
+  appLinkEnabled             Boolean?  @map("app_link_enabled")
+  updatedAt                  DateTime  @default(now()) @map("updated_at") @db.Timestamptz(3)
+  updatedById                String?   @map("updated_by_id") @db.Uuid
+
+  @@map("payment_settings")
+}
+
 // ---- v1.61-social (D192, CONVENTIONS §10.55): the public website kabsolive.com ---------------------------------
 // (The website's settings are `SiteSetting` above, D191/D192, §10.54.6.)
 

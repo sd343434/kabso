@@ -3,6 +3,10 @@ import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
 import { AdminPanelModule } from './modules/admin-panel/admin-panel.module.js';
 import { SiteSettingsModule } from './modules/site-settings/site-settings.module.js';
+import {
+  PaymentSettingsCoreModule,
+  PaymentSettingsModule,
+} from './modules/payment-settings/payment-settings.module.js';
 import { AuditModule } from './common/audit/audit.module.js';
 import { BackgroundTasksModule } from './common/background/background-tasks.js';
 import { AllExceptionsFilter } from './common/errors/all-exceptions.filter.js';
@@ -102,11 +106,14 @@ export class AppModule {
         // v1.52-social (DRAFT, D179): cherries, host agencies, commissions and withdrawals.
         EconomyModule,
         RechargeModule,
-        // v1.59-social (DRAFT, D190): card top-ups on the website through Stripe.
+        // v1.59-social (DRAFT, D190): card top-ups on the website through Stripe; v1.64-social (DRAFT, D196): the
+        // keys and options from the admin panel «الدفع (Stripe)» (over the env).
+        PaymentSettingsCoreModule,
         TopupModule,
         // v1.60-social (DRAFT, D191): the admin panel and the public website's settings (one module, D191 + D192).
         AdminPanelModule,
         SiteSettingsModule,
+        PaymentSettingsModule,
         // v1.61-social (DRAFT, D192): the public website's waitlist.
         WaitlistModule,
       ],
