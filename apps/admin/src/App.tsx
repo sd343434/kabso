@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, ApiError, setCsrfToken, setUnauthenticatedHandler } from './api';
 import { ErrorAlert } from './components';
+import { AgencyDetail, Agencies, Complaints } from './pages/Agencies';
 import { CAP_OF_ROUTE } from './nav';
 import { Audit } from './pages/Audit';
 import { Shell } from './ui/Shell';
@@ -150,6 +151,15 @@ export function App() {
           break;
         case 'site':
           page = <SiteSettings />;
+          break;
+        case 'agencies':
+          page = <Agencies />;
+          break;
+        case 'agency':
+          page = <AgencyDetail id={match.params.id!} />;
+          break;
+        case 'complaints':
+          page = <Complaints />;
           break;
         case 'audit':
           page = <Audit />;
