@@ -1399,7 +1399,8 @@ the `deploy-image` job of `.github/workflows/ci.yml`.
 
 | Host | Service |
 | ---- | ------- |
-| `kabsolive.com` | Caddy, a static "coming soon" page (`infra/deploy/site`) |
+| `kabsolive.com` | Caddy, the public website (`infra/deploy/site`, D192 §11.1); `/api/v1/waitlist`, `/api/v1/site/settings`, `/topup*` → API |
+| `www.kabsolive.com` | Caddy, permanent redirect to `kabsolive.com` (D192) |
 | `api.kabsolive.com` | Caddy → API (`/internal/*` answers 404 from outside) |
 | `live.kabsolive.com` | Caddy → LiveKit signalling (`wss://`); media on 7881/tcp, 7882/udp |
 
@@ -1463,6 +1464,40 @@ and the API started as the runtime role with `/health/ready` 200; LiveKit 1.9.1 
 generated `livekit.yaml`; `caddy validate` (2.10.2) accepted the Caddyfile; `docker compose
 config` accepted the compose file; `ci.yml` parses as YAML (no actionlint available). **Not verified yet:** the timer's first automatic update, real mail delivery, and WebRTC media through the server's firewall (a TURN server may be needed for
 some mobile networks).
+
+### 11.1 The public website kabsolive.com (D192) — [IMPLEMENTED; checked locally through the committed Caddy block, not on the server yet]
+
+**DNS** (A records to the server's IP; Caddy gets every certificate itself): `kabsolive.com` (apex), **`www`**
+(new: redirects to the apex; until it exists Caddy only logs failed certificate attempts for it), `api`, `live`, and
+`admin` for D191's panel.
+
+**How the server picks it up:** Caddy serves `infra/deploy/site/` straight from the checkout (`./site:/srv/site:ro`),
+so a merged change to the website is live as soon as `update.sh` fast-forwards `/opt/kabso` — no restart. A change to
+the Caddyfile (this one: security headers, the three API paths, `www`) needs a reload, which `update.sh` now does
+when the Caddyfile changed between the two commits (`caddy reload` in the running container). After the first
+deployment of D192: `docker compose -f /opt/kabso/infra/deploy/docker-compose.yml exec caddy caddy reload --config
+/etc/caddy/Caddyfile --adapter caddyfile` if the update ran before this script change was on the server.
+
+**`infra/deploy/site/config.json` — the legal fields the owner owns** (shown on `/privacy`, `/terms`, `/contact`):
+`companyLegalName` (Kigofi LLC), `address` (30 N Gould St #7354, Sheridan, WY 82801, USA), `country` (United States),
+`governingLaw` (Wyoming, USA), `supportEmail` (info@kabsolive.com), `minAge` (18, confirmed), `lastUpdated`, and
+`legalReviewed` — **false until a lawyer has reviewed the texts**; while false every legal page shows «مسودة — تحتاج
+مراجعة قانونية». An empty field renders «سيُضاف قريباً»; `update.sh` prints a warning listing empty fields and the
+unreviewed state on each deployment. Change them by a commit (they are public text).
+
+**Social links and the top-up switch are not in config.json:** the owner sets them in D191's admin panel
+(«إعدادات الموقع» → `PUT /api/v1/admin/site-settings`, permission `SITE_SETTINGS`). Until the panel is deployed:
+`docker compose --profile jobs run --rm migrate node dist/cli/levels-admin.js grant <admin email> SITE_SETTINGS`
+for an ADMIN account, then call the PUT with that account's token. `topupEnabled` stays false until D190's `/topup`
+page is deployed and its keys are set.
+
+**Waitlist:** `docker compose --profile jobs run --rm migrate node dist/cli/waitlist-admin.js list` (count + newest)
+or `… export [--locale ar|en] > waitlist.csv` (delete the file after the launch mailing). Every run is audited.
+
+**Headers** on the static site: CSP `default-src 'self'` (no inline script; fonts self-hosted), `frame-ancestors
+'none'`, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, HSTS one year with
+subdomains, `Permissions-Policy` off for camera/microphone/geolocation/payment. Art and fonts are cached 30 days (a
+changed image gets a new file name); pages, CSS, JS and config.json 5 minutes.
 
 ### 5.25 Video posts and reels (migration `20261211090000_video_posts_reels`; D162) — [IMPLEMENTED, draft contract v1.41-social; not deployed, not device-tested]
 

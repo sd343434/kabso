@@ -33,7 +33,7 @@ Status legend: ⛔ open · ⏳ in progress · ✅ done (evidence linked)
 | PP-26 | displayName hardening residuals: SEC-033 (empty chunk breaks single-letter joining) and SEC-034 (non-ASCII digit zeros and CJK strokes as Latin look-alikes) | KL-026 | A7 | ⛔ Low, before public launch |
 | PP-28 | Media uploads (KL-052 conditions: SEC-041/042 Medium + SEC-043..045 Low fixed; R2 staging checks): storage provider credentials (B12), moderation provider and illegal-content process (B13), A7 review of the upload and image-processing pipeline, (D162) and of the video container checks (no decode, no transcoding) and video egress cost, before `MEDIA_UPLOADS_ENABLED=true` | KL-048, KL-049 | A7 + owner | ⛔ |
 | PP-22 | First-launch language follows device locale; explicit preference persisted; emails in the correct locale | KL-018 | A6 + A7 | ✅ A7 PASS (KL-007c/d); A6 PASS incl. QA-011 fix (KL-006d) |
-| PP-23 | App identity, privacy/terms URLs, support contact | B7 | owner | ⛔ |
+| PP-23 | App identity, privacy/terms URLs, support contact | B7, D192 | owner | ⏳ D192: https://kabsolive.com/privacy, /terms, /contact (AR+EN), support info@kabsolive.com, entity Kigofi LLC; drafts with a «مسودة» banner until a lawyer reviews them (`infra/deploy/site/config.json` `legalReviewed`) |
 | PP-24 | Brand assets | B8 | owner | ⛔ |
 | PP-25 | Release signing from CI secrets (Android `key.properties`, iOS certificates); release job deletes key material | deploy | A8 + A7 | ⛔ |
 
