@@ -14,6 +14,7 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/app/shell/feed_region.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
+import 'package:kabso_live/core/format/k_handle.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/core/storage/secure_token_store.dart';
@@ -125,12 +126,25 @@ Future<void> _pump(
   HomeTab initialTab = HomeTab.initial,
   GoldenViewport viewport = GoldenViewport.phone,
   bool showSearch = true,
+  Brightness brightness = Brightness.dark,
 }) async {
   setViewport(tester, viewport);
+  final screen = FeedScreen(initialTab: initialTab, showSearch: showSearch);
   await withClock(Clock.fixed(fixtureNow), () async {
     await pumpScreen(
       tester,
-      FeedScreen(initialTab: initialTab, showSearch: showSearch),
+      // D202: the light app theme too (pumpScreen is dark).
+      brightness == Brightness.dark
+          ? screen
+          : Builder(
+              builder: (context) => Theme(
+                data: buildAppTheme(
+                  brightness: brightness,
+                  locale: Localizations.localeOf(context),
+                ),
+                child: screen,
+              ),
+            ),
       language: language,
       overrides: overrides,
     );
@@ -417,7 +431,8 @@ void main() {
       // One build per source, however often the modes and feeds switch.
       await _selectFeed(tester, _en.feedTabFollowing);
       await _switch(tester);
-      await _selectFeed(tester, _en.homeFeedTrending);
+      // D202: Reels names Trending «For You» (the reels page's tabs).
+      await _selectFeed(tester, _en.reelsTabForYou);
       await _switch(tester);
       expect(_scroll(tester, HomeTab.posts).pixels, offset);
       expect(calls, {
@@ -437,19 +452,21 @@ void main() {
         initialTab: HomeTab.reels,
         overrides: _populated(AppLanguage.en),
       );
+      // D202: a reel shows its author's handle (`@layla`), not the name.
       final reels = feedReels(AppLanguage.en);
-      expect(find.text(reels[0].authorName), findsOneWidget);
+      Finder handle(int i) => find.text(KHandle.ltr(reels[i].handle));
+      expect(handle(0), findsOneWidget);
       await tester.fling(
-        find.byType(HomeReelsPager),
+        find.byType(HomeReelsPager).first,
         const Offset(0, -500),
         1500,
       );
       await tester.pumpAndSettle();
-      expect(find.text(reels[1].authorName), findsOneWidget);
+      expect(handle(1), findsOneWidget);
       await _switch(tester);
       await _switch(tester);
-      expect(find.text(reels[1].authorName), findsOneWidget);
-      expect(find.text(reels[0].authorName), findsNothing);
+      expect(handle(1), findsOneWidget);
+      expect(handle(0), findsNothing);
     });
   });
 
@@ -468,10 +485,12 @@ void main() {
       await _switch(tester);
       expect(_mode(tester), HomeTab.reels);
       expect(_selected(tester, _en.feedTabFollowing), isTrue);
-      // Reels · Following starts with the last reel of the fixture.
+      // Reels · Following starts with the last reel of the fixture (no
+      // username: its name is shown).
       expect(find.text('Hind'), findsOneWidget);
-      await _selectFeed(tester, _en.homeFeedTrending);
-      expect(find.text('Layla'), findsOneWidget);
+      // D202: Reels' Trending is «For You»; a reel shows the handle.
+      await _selectFeed(tester, _en.reelsTabForYou);
+      expect(find.text(KHandle.ltr('@layla')), findsOneWidget);
     });
 
     testWidgets('each feed keeps its own scroll position', (tester) async {
@@ -891,51 +910,52 @@ void main() {
   });
 
   group('Reels', () {
-    testWidgets('below the app-themed header (same mode as Posts), '
-        'author, time and caption; no play or count controls', (tester) async {
-      await _pump(
+    // D202 (owner reference): was "below the app-themed header, author,
+    // time and caption". The reels page is now full bleed and dark in both
+    // themes, under a floating header; a reel shows the handle, caption and
+    // the sound line (no time).
+    for (final brightness in Brightness.values) {
+      testWidgets('full bleed and dark under the floating header '
+          '(${brightness.name} app theme); handle, caption, sound line', (
         tester,
-        initialTab: HomeTab.reels,
-        overrides: _populated(AppLanguage.en),
-      );
-      final page = tester.getRect(find.byType(HomeReelPage).first);
-      expect(page.width, 393);
-      final header = tester.getRect(find.byKey(FeedScreen.headerKey));
-      expect(header.top, 0);
-      expect(page.top, moreOrLessEquals(header.bottom, epsilon: 1));
-      final label = find.descendant(
-        of: _feedTab(_en.homeFeedTrending),
-        matching: find.byType(RichText),
-      );
-      final context = tester.element(find.byType(FeedScreen));
-      expect(
-        tester.widget<RichText>(label).text.style?.color,
-        context.palette.textPrimary,
-      );
-      expect(
-        tester
-            .widget<AnnotatedRegion<SystemUiOverlayStyle>>(
-              find.byType(AnnotatedRegion<SystemUiOverlayStyle>).first,
-            )
-            .value,
-        Theme.of(context).brightness == Brightness.dark
-            ? SystemUiOverlayStyle.light
-            : SystemUiOverlayStyle.dark,
-      );
-      expect(find.text('Layla'), findsOneWidget);
-      expect(find.text(_en.relativeDaysAgo(2)), findsOneWidget);
-      expect(find.textContaining('evening walk'), findsOneWidget);
-      expect(
-        find.bySemanticsLabel(RegExp('^${_en.homeReelBy('Layla')}')),
-        findsOneWidget,
-      );
-      final reelsPage = find.byKey(FeedScreen.pageKey(HomeTab.reels));
-      expect(
-        find.descendant(of: reelsPage, matching: find.byType(IconButton)),
-        findsNothing,
-      );
-      expect(find.byIcon(Icons.play_arrow_rounded), findsNothing);
-    });
+      ) async {
+        await _pump(
+          tester,
+          initialTab: HomeTab.reels,
+          overrides: _populated(AppLanguage.en),
+          brightness: brightness,
+        );
+        final page = tester.getRect(find.byType(HomeReelPage).first);
+        expect(page, const Rect.fromLTWH(0, 0, 393, 852));
+        final header = tester.getRect(find.byKey(FeedScreen.headerKey));
+        expect(header.top, 0);
+        final label = find.descendant(
+          of: _feedTab(_en.reelsTabForYou),
+          matching: find.byType(RichText),
+        );
+        expect(
+          tester.widget<RichText>(label).text.style?.color,
+          KPalette.dark.textPrimary,
+        );
+        expect(
+          tester
+              .widget<AnnotatedRegion<SystemUiOverlayStyle>>(
+                find.byType(AnnotatedRegion<SystemUiOverlayStyle>).first,
+              )
+              .value,
+          SystemUiOverlayStyle.light,
+        );
+        expect(find.text(KHandle.ltr('@layla')), findsOneWidget);
+        expect(find.text(_en.relativeDaysAgo(2)), findsNothing);
+        expect(find.textContaining('evening walk'), findsOneWidget);
+        expect(find.text(_en.reelsOriginalSound('Layla')), findsOneWidget);
+        expect(
+          find.bySemanticsLabel(RegExp('^${_en.homeReelBy('Layla')}')),
+          findsOneWidget,
+        );
+        expect(find.byIcon(Icons.play_arrow_rounded), findsNothing);
+      });
+    }
 
     testWidgets('loading shows a skeleton, not a state', (tester) async {
       setViewport(tester, GoldenViewport.phone);

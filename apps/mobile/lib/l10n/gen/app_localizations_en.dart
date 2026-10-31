@@ -1129,7 +1129,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reelsModePosts => 'Posts';
 
   @override
-  String get reelsTabForYou => 'For you';
+  String get reelsTabForYou => 'For You';
 
   @override
   String get reelsTabFriends => 'Friends';
@@ -11228,4 +11228,74 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveTargetZoneHint => 'Periods follow Riyadh time.';
+
+  @override
+  String get reelsChipStories => 'Stories';
+
+  @override
+  String get reelsChipRooms => 'Rooms';
+
+  @override
+  String get reelsOpenStories => 'Open stories';
+
+  @override
+  String get reelsOpenRooms => 'Open voice rooms';
+
+  @override
+  String get reelsStoriesEmpty =>
+      'No stories right now. Add yours, or follow people to see theirs.';
+
+  @override
+  String reelsShareLabel(String count) {
+    return 'Share, $count';
+  }
+
+  @override
+  String reelsCommentsLabel(String count) {
+    return 'Comments, $count';
+  }
+
+  @override
+  String reelsShareText(String author, String caption) {
+    return '$author on Kabso Live: $caption';
+  }
+
+  @override
+  String reelsShareTextNoCaption(String author) {
+    return 'Watch $author\'s reel on Kabso Live';
+  }
+
+  @override
+  String reelsOriginalSound(String name) {
+    return 'Original sound · $name';
+  }
+
+  @override
+  String get reelsMore => 'more';
+
+  @override
+  String reelsRequestFollow(String name) {
+    return 'Request to follow $name';
+  }
+
+  @override
+  String reelsFollowRequested(String name) {
+    return 'Follow request sent to $name';
+  }
+
+  @override
+  String get reelsNearbyNoCountryTitle => 'Choose your country';
+
+  @override
+  String get reelsNearbyNoCountryBody =>
+      'Nearby shows reels from your country. Choose your country to see them.';
+
+  @override
+  String get reelsNearbyChooseCountry => 'Choose country';
+
+  @override
+  String get reelsNearbyEmptyTitle => 'No reels from your country yet';
+
+  @override
+  String get reelsNearbyUnavailableTitle => 'Couldn\'t load nearby reels';
 }

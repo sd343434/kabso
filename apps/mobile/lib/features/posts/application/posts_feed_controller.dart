@@ -81,10 +81,16 @@ extension on HomeFeed {
 /// Trending snapshot) reloads the feed from the first page once. A hidden or
 /// deleted post leaves the list at once.
 class PostsFeedController extends AsyncNotifier<FeedItems<Post>> {
-  new(this.feed, {this.reels = false});
+  new(this.feed, {this.reels = false, this.nearby = false});
 
   final HomeFeed feed;
   final bool reels;
+
+  /// v1.68-social (D202): the reels of authors from the caller's country
+  /// (`GET /feed/reels?tab=nearby`); [feed] is then ignored.
+  final bool nearby;
+
+  PostsFeedTab get _tab => nearby ? PostsFeedTab.nearby : feed.tab;
 
   String? _next;
   int _generation = 0;
@@ -96,14 +102,15 @@ class PostsFeedController extends AsyncNotifier<FeedItems<Post>> {
     ref
       ..watch(currentUserProvider.select((u) => u?.id))
       ..watch(postsRepositoryProvider);
+    if (nearby) ref.watch(currentUserProvider.select((u) => u?.country));
     _generation++;
     return _first();
   }
 
   Future<FeedItems<Post>> _first() async {
-    final page = reels
-        ? await _repo.reelsFeed(feed.tab)
-        : await _repo.feed(feed.tab);
+    final page = reels || nearby
+        ? await _repo.reelsFeed(_tab)
+        : await _repo.feed(_tab);
     _next = page.next;
     return FeedItems(_dedupe(const [], page.items), hasMore: _next != null);
   }
@@ -125,9 +132,9 @@ class PostsFeedController extends AsyncNotifier<FeedItems<Post>> {
       FeedItems(current.items, hasMore: true, loadingMore: true),
     );
     try {
-      final page = reels
-          ? await _repo.reelsFeed(feed.tab, cursor: cursor)
-          : await _repo.feed(feed.tab, cursor: cursor);
+      final page = reels || nearby
+          ? await _repo.reelsFeed(_tab, cursor: cursor)
+          : await _repo.feed(_tab, cursor: cursor);
       if (!ref.mounted || generation != _generation) return;
       _next = page.next;
       state = AsyncData(
@@ -217,6 +224,13 @@ reelsFeedProvider = AsyncNotifierProvider.family(
   (feed) => PostsFeedController(feed, reels: true),
 );
 
+/// v1.68-social (D202): the reels page's «Nearby» — reels of authors from
+/// the caller's own country (§11.15). Reloads when the country changes.
+final AsyncNotifierProvider<PostsFeedController, FeedItems<Post>>
+nearbyReelsFeedProvider = AsyncNotifierProvider(
+  () => PostsFeedController(HomeFeed.trending, nearby: true),
+);
+
 /// The latest version of posts the caller changed in this session (edit,
 /// pin): feeds and the post screen show it instead of what they loaded.
 class PostEdits extends Notifier<Map<String, Post>> {
@@ -259,5 +273,8 @@ void removePostFromFeeds(WidgetRef ref, String postId) {
     if (ref.exists(reelsFeedProvider(feed))) {
       ref.read(reelsFeedProvider(feed).notifier).remove(postId);
     }
+  }
+  if (ref.exists(nearbyReelsFeedProvider)) {
+    ref.read(nearbyReelsFeedProvider.notifier).remove(postId);
   }
 }

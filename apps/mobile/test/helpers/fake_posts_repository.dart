@@ -180,6 +180,15 @@ class FakePostsRepository implements PostsRepository {
     return saved;
   }
 
+  /// D202: share counts the server answers with (post id → count).
+  final Map<String, int> shareCounts = {};
+
+  @override
+  Future<int> countShare(String postId) async {
+    await _step('share:$postId');
+    return shareCounts.update(postId, (n) => n + 1, ifAbsent: () => 1);
+  }
+
   @override
   Future<void> setHidden(String postId, {required bool hidden}) =>
       _step('hide:$postId:$hidden');

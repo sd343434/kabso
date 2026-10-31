@@ -1,22 +1,32 @@
-import 'package:clock/clock.dart';
+import 'dart:async';
+import 'dart:math' as math;
+
+import 'package:flutter/foundation.dart' show ValueListenable;
+import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show FutureProviderFamily;
 import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/format/k_handle.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/media/inline_video.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/posts/data/posts_repository.dart';
+import 'package:kabso_live/features/posts/presentation/comments_sheet.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:share_plus/share_plus.dart';
 
 /// Input for one reel (a short vertical video). Production builds it from
 /// the reels API (`feedReelOf`, v1.41-social, D162) with a [postId] and a
 /// [videoUrl], which plays while the reel is the current page (muted at
 /// first; tap pauses, the speaker unmutes); the debug previews supply
-/// fixtures without a video (their [cover] only).
+/// fixtures without a video (their [cover] only) and without a [postId]
+/// (their rail is display only).
 @immutable
 class FeedReelData {
   const new({
@@ -29,18 +39,27 @@ class FeedReelData {
     this.pendingModeration = false,
     this.authorAvatar,
     this.authorUsername,
+    this.authorId,
+    this.authorPremium = false,
     this.isFollowingAuthor,
     this.caption,
     this.cover,
     this.likes,
     this.comments,
     this.shares,
+    this.liked = false,
+    this.saved = false,
+    this.hashtags = const {},
+    this.mentions = const {},
+    this.premiumMentions = const {},
+    this.commentsOpen = true,
   });
 
   final String authorName;
   final ImageProvider? authorAvatar;
 
-  /// The reel's post id (real reels only).
+  /// The reel's post id (real reels only): like, comment, save and share
+  /// work through the posts API only with it (D202).
   final String? postId;
 
   /// The video file (real reels only).
@@ -56,11 +75,18 @@ class FeedReelData {
   final bool pendingModeration;
 
   /// The author's username, the key of the follow API
-  /// (`PUT /users/{username}/follow`).
+  /// (`PUT /users/{username}/follow`) and of their profile.
   final String? authorUsername;
 
-  /// Whether the viewer follows the author; `null` when unknown (for
-  /// yourself, or a source without it). Follow is offered only for `false`.
+  /// The author's id: their comments carry the "creator" label.
+  final String? authorId;
+
+  /// D158: a premium username shows without «@».
+  final bool authorPremium;
+
+  /// Whether the viewer follows the author; `null` when the source does not
+  /// say (the reels API): the page then reads it from the author's profile
+  /// (`GET /users/{username}`, D202) before offering Follow.
   final bool? isFollowingAuthor;
 
   final DateTime postedAt;
@@ -69,29 +95,79 @@ class FeedReelData {
   /// The video's cover frame; `null` shows a dark surface.
   final ImageProvider? cover;
 
-  /// Counts from the API, drawn on the rail when all three are known.
-  /// Display-only until the like/comment/share APIs exist.
+  /// Counts from the API (`likeCount`, `commentCount`, `shareCount`).
   final int? likes;
   final int? comments;
   final int? shares;
+
+  /// The viewer's like and save (`viewerHasLiked`, `viewerHasSaved`).
+  final bool liked;
+  final bool saved;
+
+  /// The caption's linked hashtags and mentions (lower case, no `#`/`@`):
+  /// only these are tappable.
+  final Set<String> hashtags;
+  final Set<String> mentions;
+  final Set<String> premiumMentions;
+
+  /// Whether the viewer may comment (the sheet still opens to read).
+  final bool commentsOpen;
+
+  /// The handle shown at the bottom (`@layla`, a premium one bare), or the
+  /// name when the source has no username.
+  String get handle => switch (authorUsername) {
+    final u? => authorPremium ? u : '@$u',
+    null => authorName,
+  };
 }
 
-/// Reels geometry (D53, layout from the owner's reference): the author,
-/// time and caption at the bottom start; the rail (author photo with the
-/// follow badge, then the counts) at the bottom end.
+/// Reels geometry (D202), measured from the owner's reference at 393 dp
+/// (a third-party composite, kept out of git; layout and type scale only):
+/// the author, caption and sound at the bottom start; the rail (author
+/// photo with the follow badge, like, comment, save, share, the sound
+/// disc) at the bottom end.
 abstract final class KHomeReels {
-  static const double contentInset = 16;
-  static const double contentBottom = 20;
+  /// Side inset of the bottom block (avatar and caption start at 18).
+  static const double contentInset = 18;
 
-  /// The rail's width; the caption stops [KSpacing.sm] before it.
+  /// The sound line's bottom above the screen's bottom.
+  static const double contentBottom = 48;
+
+  /// The rail: 56 wide, 12 from the end edge, its disc 36 above the bottom.
   static const double railWidth = 56;
-  static const double railAvatar = 48;
-  static const double railGap = 20;
-  static const double railIcon = 32;
+  static const double railEnd = 12;
+  static const double railBottom = 36;
 
-  /// The red follow badge under the rail photo, centred in a 48 dp target.
+  /// The author photo (2 dp white ring included) and the block it sits in
+  /// (the badge hangs below it).
+  static const double railAvatar = 46;
+  static const double railAvatarBlock = 73;
+
+  /// Rail actions: a 28 dp icon over a 12 sp label, 14 apart.
+  static const double railIcon = 28;
+  static const double railGap = 14;
+
+  /// The spinning sound disc and its ring.
+  static const double disc = 48;
+  static const double discGap = 21;
+  static const double discRing = 3;
+
+  /// The follow badge under the rail photo, centred in a 48 dp target.
   static const double followBadge = 20;
   static const double followIcon = 14;
+
+  /// The author photo of the bottom block and the gap to the handle.
+  static const double authorAvatar = 34;
+  static const double authorGap = 8;
+
+  /// Caption: 14 sp, two lines before «المزيد»; gaps around it.
+  static const double captionGap = 14;
+  static const int captionLines = 2;
+  static const double soundGap = 16;
+  static const double soundIcon = 14;
+
+  /// The double-tap heart.
+  static const double burst = 96;
 }
 
 /// Full-screen vertical pager of reels: swipe up for the next one. Its
@@ -106,12 +182,17 @@ class HomeReelsPager extends StatefulWidget {
     required this.reels,
     required this.storageKey,
     this.onNearEnd,
+    this.muteTop,
     super.key,
   });
 
   final List<FeedReelData> reels;
   final String storageKey;
   final VoidCallback? onNearEnd;
+
+  /// D202: where the video's speaker button sits (below the page's header
+  /// and chips); `null` keeps the video's default.
+  final double? muteTop;
 
   @override
   State<HomeReelsPager> createState() => _HomeReelsPagerState();
@@ -129,118 +210,427 @@ class _HomeReelsPagerState extends State<HomeReelsPager> {
       setState(() => _current = i);
       if (i >= widget.reels.length - 2) widget.onNearEnd?.call();
     },
-    itemBuilder: (_, i) =>
-        HomeReelPage(reel: widget.reels[i], active: i == _current),
+    itemBuilder: (_, i) => HomeReelPage(
+      key: ValueKey('home.reel.${widget.reels[i].postId ?? i}'),
+      reel: widget.reels[i],
+      active: i == _current,
+      muteTop: widget.muteTop,
+    ),
   );
 }
 
-/// One reel, edge to edge: the cover frame under a bottom scrim, the
-/// author, time and caption at the bottom start, and the rail at the bottom
-/// end.
-class HomeReelPage extends StatelessWidget {
-  const new({required this.reel, this.active = false, super.key});
+/// D202: shares a reel through the system share sheet. Tests replace it.
+abstract interface class ReelSharer {
+  /// Opens the share sheet with [text]; `true` unless the person dismissed
+  /// it (a platform that cannot tell counts as shared).
+  Future<bool> share(String text, {Rect? origin});
+}
+
+class _SystemReelSharer implements ReelSharer {
+  const new();
+
+  @override
+  Future<bool> share(String text, {Rect? origin}) async {
+    final result = await SharePlus.instance.share(
+      ShareParams(text: text, sharePositionOrigin: origin),
+    );
+    return result.status != ShareResultStatus.dismissed;
+  }
+}
+
+final reelSharerProvider = Provider<ReelSharer>(
+  (ref) => const _SystemReelSharer(),
+);
+
+/// D202: whether the viewer follows a reel's author, read from the
+/// author's public profile when the reels API does not say (one read per
+/// author while the page is open).
+typedef ReelAuthorFollow = ({bool following, bool requested, bool self});
+
+final FutureProviderFamily<ReelAuthorFollow, String> reelAuthorFollowProvider =
+    FutureProvider.autoDispose.family<ReelAuthorFollow, String>((
+      ref,
+      username,
+    ) async {
+      final profile = await ref
+          .watch(profileRepositoryProvider)
+          .getProfile(username);
+      return (
+        following: profile.isFollowing,
+        requested: profile.followRequested,
+        self: profile.isSelf,
+      );
+    });
+
+/// One reel, edge to edge (D202): the video (tap pauses, double tap likes
+/// with a heart), a bottom scrim, the author / caption / sound at the
+/// bottom start and the rail at the bottom end. Like, comment, save and
+/// share use the posts API (CONVENTIONS §11.2–§11.5, §11.15) when the reel
+/// has a [FeedReelData.postId]; counts are the API's, updated at once and
+/// put back if the call fails.
+class HomeReelPage extends ConsumerStatefulWidget {
+  const new({required this.reel, this.active = false, this.muteTop, super.key});
 
   final FeedReelData reel;
 
   /// The current page: its video plays.
   final bool active;
 
-  static const pendingKey = Key('home.reel.pending');
+  /// See [HomeReelsPager.muteTop].
+  final double? muteTop;
 
+  static const pendingKey = Key('home.reel.pending');
   static const railKey = Key('home.reel.rail');
   static const countsKey = Key('home.reel.counts');
   static const authorKey = Key('home.reel.author');
+  static const handleKey = Key('home.reel.handle');
+  static const likeKey = Key('home.reel.like');
+  static const commentKey = Key('home.reel.comment');
+  static const saveKey = Key('home.reel.save');
+  static const shareKey = Key('home.reel.share');
+  static const discKey = Key('home.reel.disc');
+  static const soundKey = Key('home.reel.sound');
+  static const captionKey = Key('home.reel.caption');
+  static const moreKey = Key('home.reel.more');
+  static const burstKey = Key('home.reel.burst');
+  static const mediaKey = Key('home.reel.media');
+
+  @override
+  ConsumerState<HomeReelPage> createState() => _HomeReelPageState();
+}
+
+class _HomeReelPageState extends ConsumerState<HomeReelPage>
+    with SingleTickerProviderStateMixin {
+  late bool _liked = widget.reel.liked;
+  late int? _likes = widget.reel.likes;
+  late bool _saved = widget.reel.saved;
+  late int? _comments = widget.reel.comments;
+  late int? _shares = widget.reel.shares;
+  bool _liking = false;
+  bool _saving = false;
+  bool _sharing = false;
+
+  late final AnimationController _burst = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 800),
+  );
+
+  /// The sound disc's turns: it follows the playback position (one turn
+  /// per [_discPeriod] of video), so it stops when the video stops.
+  final ValueNotifier<double> _discTurns = ValueNotifier(0);
+  Duration _lastPosition = Duration.zero;
+  static const _discPeriod = Duration(seconds: 6);
+
+  void _onVideo(InlineVideoState state) {
+    final step = state.position - _lastPosition;
+    _lastPosition = state.position;
+    if (state.playing && step > Duration.zero && step < _discPeriod) {
+      _discTurns.value += step.inMilliseconds / _discPeriod.inMilliseconds;
+    }
+  }
+
+  FeedReelData get reel => widget.reel;
+
+  @override
+  void dispose() {
+    _burst.dispose();
+    _discTurns.dispose();
+    super.dispose();
+  }
+
+  PostsRepository get _posts => ref.read(postsRepositoryProvider);
+
+  void _fail(Object e) {
+    if (!mounted) return;
+    KSnack.error(context, failureMessage(context.l10n, toAppFailure(e)));
+  }
+
+  Future<void> _toggleLike() async {
+    final id = reel.postId;
+    if (id == null || _liking) return;
+    final (before, beforeCount) = (_liked, _likes);
+    final next = !_liked;
+    setState(() {
+      _liking = true;
+      _liked = next;
+      if (_likes case final n?) {
+        _likes = math.max(0, n + (next ? 1 : -1));
+      }
+    });
+    try {
+      final state = await _posts.setLiked(id, liked: next);
+      if (mounted) {
+        setState(() {
+          _liked = state.liked;
+          _likes = state.likeCount ?? _likes;
+        });
+      }
+    } on Object catch (e) {
+      if (mounted) {
+        setState(() {
+          _liked = before;
+          _likes = beforeCount;
+        });
+      }
+      _fail(e);
+    } finally {
+      if (mounted) setState(() => _liking = false);
+    }
+  }
+
+  /// A double tap on the video likes the reel (never unlikes) and shows the
+  /// heart; with reduced motion the heart is skipped.
+  void _doubleTap() {
+    if (reel.postId == null) return;
+    if (!MediaQuery.disableAnimationsOf(context)) {
+      _burst.forward(from: 0);
+    }
+    if (!_liked) unawaited(_toggleLike());
+  }
+
+  Future<void> _toggleSave() async {
+    final id = reel.postId;
+    if (id == null || _saving) return;
+    final next = !_saved;
+    setState(() {
+      _saving = true;
+      _saved = next;
+    });
+    try {
+      final saved = await _posts.setSaved(id, saved: next);
+      if (mounted) setState(() => _saved = saved);
+    } on Object catch (e) {
+      if (mounted) setState(() => _saved = !next);
+      _fail(e);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _openComments() async {
+    final id = reel.postId;
+    if (id == null) return;
+    await showCommentsSheet(
+      context,
+      CommentsTarget(
+        postId: id,
+        commentCount: _comments ?? 0,
+        authorId: reel.authorId,
+        isSelf: reel.isSelf,
+        commentsOpen: reel.commentsOpen,
+      ),
+      onCount: (n) {
+        if (mounted) setState(() => _comments = n);
+      },
+    );
+  }
+
+  /// The system share sheet with the author and the caption's first line
+  /// (no public reel link exists yet, CONVENTIONS §11.15); a share that was
+  /// not dismissed is counted (`POST /posts/{id}/shares`, once a day).
+  Future<void> _share(Rect? origin) async {
+    final id = reel.postId;
+    if (id == null || _sharing) return;
+    final l10n = context.l10n;
+    final caption = (reel.caption ?? '').trim().split('\n').first.trim();
+    final text = caption.isEmpty
+        ? l10n.reelsShareTextNoCaption(reel.handle)
+        : l10n.reelsShareText(reel.handle, caption);
+    setState(() => _sharing = true);
+    try {
+      final shared = await ref
+          .read(reelSharerProvider)
+          .share(text, origin: origin);
+      if (!shared) return;
+      final count = await _posts.countShare(id);
+      if (mounted) setState(() => _shares = count);
+    } on Object catch (e) {
+      _fail(e);
+    } finally {
+      if (mounted) setState(() => _sharing = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final t = context.textStyles;
-    final white = KPalette.dark.textPrimary;
-    final caption = reel.caption;
+    final interactive = reel.postId != null;
+    final media = switch (reel.videoUrl) {
+      final url? => InlineVideo(
+        key: ValueKey('home.reel.video.${reel.postId ?? url}'),
+        url: url,
+        poster: reel.cover,
+        autoplay: widget.active,
+        muteOnTop: true,
+        muteTop: widget.muteTop,
+        onState: _onVideo,
+        onDoubleTap: interactive ? _doubleTap : null,
+        fit: (reel.aspect ?? 0) > 1 ? BoxFit.contain : BoxFit.cover,
+      ),
+      null => GestureDetector(
+        onDoubleTap: interactive ? _doubleTap : null,
+        child: _Cover(image: reel.cover),
+      ),
+    };
     return Semantics(
       container: true,
       label: l10n.homeReelBy(reel.authorName),
       child: Stack(
         fit: StackFit.expand,
         children: [
-          switch (reel.videoUrl) {
-            final url? => InlineVideo(
-              key: ValueKey('home.reel.video.${reel.postId ?? url}'),
-              url: url,
-              poster: reel.cover,
-              autoplay: active,
-              muteOnTop: true,
-              fit: (reel.aspect ?? 0) > 1 ? BoxFit.contain : BoxFit.cover,
-            ),
-            null => _Cover(image: reel.cover),
-          },
+          KeyedSubtree(key: HomeReelPage.mediaKey, child: media),
           const IgnorePointer(
             child: DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  stops: [0, 0.25, 0.6, 1],
+                  stops: [0, 0.55, 1],
                   colors: [
-                    Color(0x66000000),
                     Color(0x00000000),
                     Color(0x00000000),
-                    Color(0xA6000000),
+                    Color(0xB3000000),
                   ],
                 ),
               ),
             ),
           ),
-          PositionedDirectional(
-            start: KHomeReels.contentInset,
-            end: KHomeReels.contentInset + KHomeReels.railWidth + KSpacing.sm,
-            bottom: KHomeReels.contentBottom,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  reel.authorName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: t.title.copyWith(color: white, shadows: _shadows),
-                ),
-                Text(
-                  _when(context, reel.postedAt),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: t.caption.copyWith(color: white, shadows: _shadows),
-                ),
-                if (reel.pendingModeration)
-                  Padding(
-                    key: HomeReelPage.pendingKey,
-                    padding: const EdgeInsets.only(top: KSpacing.xs),
-                    child: Text(
-                      l10n.feedPostPending,
-                      style: t.caption.copyWith(
-                        color: white,
-                        shadows: _shadows,
+          IgnorePointer(
+            child: Center(
+              child: AnimatedBuilder(
+                animation: _burst,
+                builder: (context, _) {
+                  final t = _burst.value;
+                  if (t == 0 || t == 1) return const SizedBox.shrink();
+                  final scale = t < 0.25 ? 0.6 + 1.6 * t : 1.0;
+                  final opacity = t < 0.7 ? 1.0 : (1 - t) / 0.3;
+                  return Opacity(
+                    key: HomeReelPage.burstKey,
+                    opacity: opacity.clamp(0, 1),
+                    child: Transform.scale(
+                      scale: scale,
+                      child: AppIcon(
+                        AppIcons.heartFilled,
+                        size: KHomeReels.burst,
+                        color: KPalette.dark.primaryText,
                       ),
                     ),
-                  ),
-                if (caption != null && caption.isNotEmpty) ...[
-                  const SizedBox(height: KSpacing.sm),
-                  Text(
-                    caption,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: t.body.copyWith(color: white, shadows: _shadows),
-                  ),
-                ],
-              ],
+                  );
+                },
+              ),
             ),
           ),
           PositionedDirectional(
-            end: KHomeReels.contentInset - (KHomeReels.railWidth - 48) / 2,
+            start: KHomeReels.contentInset,
+            end: KHomeReels.railEnd + KHomeReels.railWidth + KSpacing.sm,
             bottom: KHomeReels.contentBottom,
-            width: KHomeReels.railWidth,
-            child: _Rail(key: railKey, reel: reel),
+            child: _ReelInfo(reel: reel),
           ),
+          PositionedDirectional(
+            end: KHomeReels.railEnd,
+            bottom: KHomeReels.railBottom,
+            width: KHomeReels.railWidth,
+            child: MediaQuery.withClampedTextScaling(
+              maxScaleFactor: KMetrics.overlayMaxTextScale,
+              child: Column(
+                key: HomeReelPage.railKey,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _RailAuthor(reel: reel),
+                  if (interactive)
+                    ..._actions(context)
+                  else if (reel.likes != null &&
+                      reel.comments != null &&
+                      reel.shares != null)
+                    _displayCounts(context),
+                  const SizedBox(height: KHomeReels.discGap),
+                  _MusicDisc(reel: reel, turns: _discTurns),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _actions(BuildContext context) {
+    final l10n = context.l10n;
+    final likes = _likes;
+    final comments = _comments;
+    final shares = _shares;
+    String n(int v) => KFormat.compact(v, l10n);
+    const gap = SizedBox(height: KHomeReels.railGap);
+    return [
+      _RailAction(
+        key: HomeReelPage.likeKey,
+        icon: _liked ? AppIcons.heartFilled : AppIcons.heart,
+        iconColor: _liked ? KPalette.dark.primaryText : null,
+        label: likes == null ? null : n(likes),
+        semanticLabel: _liked ? l10n.feedPostUnlike : l10n.feedPostLike,
+        semanticValue: likes == null ? null : n(likes),
+        toggled: _liked,
+        onTap: _toggleLike,
+      ),
+      gap,
+      _RailAction(
+        key: HomeReelPage.commentKey,
+        icon: AppIcons.comment,
+        label: comments == null ? null : n(comments),
+        semanticLabel: l10n.reelsCommentsLabel(n(comments ?? 0)),
+        onTap: () => unawaited(_openComments()),
+      ),
+      gap,
+      _RailAction(
+        key: HomeReelPage.saveKey,
+        icon: _saved ? AppIcons.bookmarkFilled : AppIcons.bookmark,
+        label: _saved ? l10n.reelsSaved : l10n.reelsSave,
+        semanticLabel: _saved ? l10n.feedPostUnsave : l10n.feedPostSave,
+        toggled: _saved,
+        onTap: _toggleSave,
+      ),
+      gap,
+      Builder(
+        builder: (button) => _RailAction(
+          key: HomeReelPage.shareKey,
+          icon: AppIcons.share,
+          label: shares == null ? null : n(shares),
+          semanticLabel: l10n.reelsShareLabel(n(shares ?? 0)),
+          onTap: () {
+            final box = button.findRenderObject() as RenderBox?;
+            final origin = box == null || !box.hasSize
+                ? null
+                : box.localToGlobal(Offset.zero) & box.size;
+            unawaited(_share(origin));
+          },
+        ),
+      ),
+    ];
+  }
+
+  /// A fixture without a post id: the counts are shown, not buttons.
+  Widget _displayCounts(BuildContext context) {
+    final l10n = context.l10n;
+    final (likes, comments, shares) = (
+      reel.likes!,
+      reel.comments!,
+      reel.shares!,
+    );
+    String n(int v) => KFormat.compact(v, l10n);
+    const gap = SizedBox(height: KHomeReels.railGap);
+    return Semantics(
+      key: HomeReelPage.countsKey,
+      container: true,
+      label: l10n.feedPostCounts(n(likes), n(comments), n(shares)),
+      excludeSemantics: true,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _RailAction(icon: AppIcons.heart, label: n(likes)),
+          gap,
+          _RailAction(icon: AppIcons.comment, label: n(comments)),
+          gap,
+          _RailAction(icon: AppIcons.share, label: n(shares)),
         ],
       ),
     );
@@ -248,102 +638,143 @@ class HomeReelPage extends StatelessWidget {
 }
 
 const _shadows = [
-  Shadow(color: Color(0x99000000), blurRadius: 8, offset: Offset(0, 2)),
+  Shadow(color: Color(0x99000000), blurRadius: 8, offset: Offset(0, 1)),
 ];
 
-/// The rail: the author photo (with the follow badge when the viewer does
-/// not follow them yet), then like, comment and share with their counts.
-/// The counts are display-only: they are not buttons until those APIs
-/// exist, and they are drawn only when the source supplies them.
-class _Rail extends StatelessWidget {
-  const new({required this.reel, super.key});
+/// One rail action: a 28 dp icon over its label, a 48 dp target. Without
+/// [onTap] it is display only (a fixture's counts).
+class _RailAction extends StatelessWidget {
+  const new({
+    required this.icon,
+    this.label,
+    this.iconColor,
+    this.semanticLabel,
+    this.semanticValue,
+    this.toggled,
+    this.onTap,
+    super.key,
+  });
+
+  final String icon;
+  final String? label;
+  final Color? iconColor;
+  final String? semanticLabel;
+  final String? semanticValue;
+  final bool? toggled;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final white = KPalette.dark.textPrimary;
+    final text = label;
+    final body = ConstrainedBox(
+      constraints: const BoxConstraints(
+        minWidth: KSizes.minTouchTarget,
+        minHeight: KSizes.minTouchTarget,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AppIcon(icon, size: KHomeReels.railIcon, color: iconColor ?? white),
+          if (text != null) ...[
+            const SizedBox(height: KSpacing.xs),
+            Text(
+              text,
+              maxLines: 1,
+              overflow: TextOverflow.visible,
+              softWrap: false,
+              style: context.textStyles.caption.copyWith(
+                color: white,
+                fontWeight: FontWeight.w600,
+                height: 1.25,
+                shadows: _shadows,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+    final tap = onTap;
+    if (tap == null) return body;
+    return Semantics(
+      button: true,
+      toggled: toggled,
+      label: semanticLabel,
+      value: semanticValue,
+      onTap: tap,
+      excludeSemantics: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: tap,
+        child: body,
+      ),
+    );
+  }
+}
+
+/// The rail's author photo (opens the profile) with the follow badge
+/// below it while the viewer neither follows the author nor waits for a
+/// request (D175).
+class _RailAuthor extends ConsumerWidget {
+  const new({required this.reel});
 
   final FeedReelData reel;
 
   @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
+  Widget build(BuildContext context, WidgetRef ref) {
     final white = KPalette.dark.textPrimary;
     final username = reel.authorUsername;
-    final (likes, comments, shares) = (reel.likes, reel.comments, reel.shares);
-    Widget count(String icon, int value) => Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        AppIcon(icon, size: KHomeReels.railIcon, color: white),
-        const SizedBox(height: KSpacing.xxs),
-        Text(
-          KFormat.compact(value, l10n),
-          maxLines: 1,
-          style: context.textStyles.caption.copyWith(
-            color: white,
-            fontWeight: FontWeight.w600,
-            shadows: _shadows,
-          ),
-        ),
-      ],
-    );
-    return MediaQuery.withClampedTextScaling(
-      maxScaleFactor: KMetrics.overlayMaxTextScale,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+    // The source's answer first; a real reel without one asks the profile.
+    final follow = switch (reel.isFollowingAuthor) {
+      final f? => (following: f, requested: false, self: reel.isSelf),
+      null when username != null && reel.postId != null && !reel.isSelf =>
+        ref.watch(reelAuthorFollowProvider(username)).value,
+      null => null,
+    };
+    final offer =
+        username != null &&
+        follow != null &&
+        !follow.self &&
+        !reel.isSelf &&
+        !follow.following &&
+        !follow.requested;
+    return SizedBox(
+      width: KHomeReels.railWidth,
+      height: KHomeReels.railAvatarBlock,
+      child: Stack(
+        alignment: Alignment.topCenter,
+        clipBehavior: Clip.none,
         children: [
-          SizedBox(
-            width: KHomeReels.railWidth,
-            height: KHomeReels.railAvatar + KSizes.minTouchTarget / 2,
-            child: Stack(
-              alignment: Alignment.topCenter,
-              children: [
-                // D60: the photo opens the author's profile.
-                GestureDetector(
-                  key: HomeReelPage.authorKey,
-                  onTap: username == null
-                      ? null
-                      : () => context.push(AppRoutes.userProfile(username)),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: white, width: KMetrics.stroke),
-                    ),
-                    child: ExcludeSemantics(
-                      child: KAvatar(
-                        name: reel.authorName,
-                        image: reel.authorAvatar,
-                        size: KHomeReels.railAvatar - 2 * KMetrics.stroke,
-                      ),
-                    ),
-                  ),
+          // D60: the photo opens the author's profile.
+          Semantics(
+            button: username != null,
+            label: reel.authorName,
+            excludeSemantics: true,
+            child: GestureDetector(
+              key: HomeReelPage.authorKey,
+              onTap: username == null
+                  ? null
+                  : () => context.push(AppRoutes.userProfile(username)),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: white, width: KMetrics.stroke),
                 ),
-                if (username != null && reel.isFollowingAuthor == false)
-                  Positioned(
-                    bottom: 0,
-                    child: ReelFollowBadge(
-                      username: username,
-                      authorName: reel.authorName,
-                    ),
-                  ),
-              ],
+                child: KAvatar(
+                  name: reel.authorName,
+                  image: reel.authorAvatar,
+                  size: KHomeReels.railAvatar - 2 * KMetrics.stroke,
+                ),
+              ),
             ),
           ),
-          if (likes != null && comments != null && shares != null)
-            Semantics(
-              key: HomeReelPage.countsKey,
-              container: true,
-              label: l10n.feedPostCounts(
-                KFormat.compact(likes, l10n),
-                KFormat.compact(comments, l10n),
-                KFormat.compact(shares, l10n),
-              ),
-              excludeSemantics: true,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const SizedBox(height: KHomeReels.railGap / 2),
-                  count(AppIcons.heartFilled, likes),
-                  const SizedBox(height: KHomeReels.railGap),
-                  count(AppIcons.commentFilled, comments),
-                  const SizedBox(height: KHomeReels.railGap),
-                  count(AppIcons.shareFilled, shares),
-                ],
+          if (offer)
+            Positioned(
+              // The badge's centre sits 3 dp below the photo.
+              top: KHomeReels.railAvatar + 3 - KSizes.minTouchTarget / 2,
+              child: ReelFollowBadge(
+                username: username,
+                authorName: reel.authorName,
               ),
             ),
         ],
@@ -355,7 +786,8 @@ class _Rail extends StatelessWidget {
 /// Follow on the rail photo: a red "+" badge (48 dp target) that follows
 /// the author through the follow API (`PUT /users/{username}/follow`,
 /// CONVENTIONS §10.6). It turns into a check at once and stays so on
-/// success; on failure it comes back and a snack bar says why.
+/// success; a private account (D175) answers with a request, shown as a
+/// clock. On failure it comes back and a snack bar says why.
 class ReelFollowBadge extends ConsumerStatefulWidget {
   const new({required this.username, required this.authorName, super.key});
 
@@ -368,18 +800,36 @@ class ReelFollowBadge extends ConsumerStatefulWidget {
   ConsumerState<ReelFollowBadge> createState() => _ReelFollowBadgeState();
 }
 
+enum _Follow { none, following, requested }
+
 class _ReelFollowBadgeState extends ConsumerState<ReelFollowBadge> {
-  bool _followed = false;
+  _Follow _state = _Follow.none;
+  bool _busy = false;
 
   Future<void> _follow() async {
-    if (_followed) return;
-    setState(() => _followed = true);
+    if (_busy || _state != _Follow.none) return;
+    setState(() {
+      _busy = true;
+      _state = _Follow.following;
+    });
     try {
-      await ref.read(profileRepositoryProvider).follow(widget.username);
+      final result = await ref
+          .read(profileRepositoryProvider)
+          .follow(widget.username);
+      if (!mounted) return;
+      setState(
+        () => _state = result.isFollowing
+            ? _Follow.following
+            : result.isRequested
+            ? _Follow.requested
+            : _Follow.none,
+      );
     } on Object catch (e) {
       if (!mounted) return;
-      setState(() => _followed = false);
+      setState(() => _state = _Follow.none);
       KSnack.error(context, failureMessage(context.l10n, toAppFailure(e)));
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -387,17 +837,36 @@ class _ReelFollowBadgeState extends ConsumerState<ReelFollowBadge> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     const p = KPalette.dark;
+    final (label, icon, fill, ink) = switch (_state) {
+      _Follow.none => (
+        l10n.homeFollowAuthor(widget.authorName),
+        Icons.add_rounded,
+        p.primary,
+        p.onPrimary,
+      ),
+      _Follow.following => (
+        l10n.homeFollowingAuthor(widget.authorName),
+        Icons.check_rounded,
+        p.textPrimary,
+        p.primary,
+      ),
+      _Follow.requested => (
+        l10n.reelsFollowRequested(widget.authorName),
+        Icons.schedule_rounded,
+        p.surfaceOverlay,
+        p.textPrimary,
+      ),
+    };
+    final idle = _state == _Follow.none;
     return Semantics(
       container: true,
-      button: !_followed,
-      label: _followed
-          ? l10n.homeFollowingAuthor(widget.authorName)
-          : l10n.homeFollowAuthor(widget.authorName),
+      button: idle,
+      label: label,
       excludeSemantics: true,
       child: GestureDetector(
         key: ReelFollowBadge.badgeKey,
         behavior: HitTestBehavior.opaque,
-        onTap: _followed ? null : _follow,
+        onTap: idle ? _follow : null,
         child: SizedBox.square(
           dimension: KSizes.minTouchTarget,
           child: Center(
@@ -407,17 +876,351 @@ class _ReelFollowBadgeState extends ConsumerState<ReelFollowBadge> {
               height: KHomeReels.followBadge,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: _followed ? p.textPrimary : p.primary,
+                color: fill,
+                gradient: idle
+                    ? const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: KBrandColors.gradientLive,
+                      )
+                    : null,
               ),
-              child: Icon(
-                _followed ? Icons.check_rounded : Icons.add_rounded,
-                size: KHomeReels.followIcon,
-                color: _followed ? p.primary : p.onPrimary,
-              ),
+              child: Icon(icon, size: KHomeReels.followIcon, color: ink),
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// The sound disc: the author's photo inside a brand-red ring, turning
+/// with the video's playback (still with reduced motion). There is no
+/// sounds feature, so it is not a button (D202).
+class _MusicDisc extends StatelessWidget {
+  const new({required this.reel, required this.turns});
+
+  final FeedReelData reel;
+  final ValueListenable<double> turns;
+
+  @override
+  Widget build(BuildContext context) {
+    const inner = KHomeReels.disc - 2 * KHomeReels.discRing;
+    final still = MediaQuery.disableAnimationsOf(context);
+    return ExcludeSemantics(
+      child: Container(
+        key: HomeReelPage.discKey,
+        width: KHomeReels.disc,
+        height: KHomeReels.disc,
+        padding: const EdgeInsets.all(KHomeReels.discRing),
+        decoration: const BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: SweepGradient(
+            colors: [
+              KBrandColors.red400,
+              KBrandColors.red700,
+              KBrandColors.gold,
+              KBrandColors.red400,
+            ],
+          ),
+        ),
+        child: ValueListenableBuilder<double>(
+          valueListenable: turns,
+          builder: (context, value, child) => AnimatedRotation(
+            turns: still ? 0 : value,
+            duration: still ? Duration.zero : const Duration(milliseconds: 600),
+            child: child,
+          ),
+          child: Container(
+            width: inner,
+            height: inner,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: KPalette.dark.background,
+            ),
+            alignment: Alignment.center,
+            child: KAvatar(
+              name: reel.authorName,
+              image: reel.authorAvatar,
+              size: inner - 12,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The bottom block: the author's photo and handle (both open the
+/// profile), the caption (two lines, then «المزيد»; linked #tags and
+/// @mentions open their pages) and the sound line.
+class _ReelInfo extends StatelessWidget {
+  const new({required this.reel});
+
+  final FeedReelData reel;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final t = context.textStyles;
+    final white = KPalette.dark.textPrimary;
+    final username = reel.authorUsername;
+    final caption = reel.caption;
+    void openProfile() => context.push(AppRoutes.userProfile(username!));
+    return MediaQuery.withClampedTextScaling(
+      maxScaleFactor: KMetrics.overlayMaxTextScale,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Semantics(
+            button: username != null,
+            label: reel.authorName,
+            excludeSemantics: true,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: username == null ? null : openProfile,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  KAvatar(
+                    name: reel.authorName,
+                    image: reel.authorAvatar,
+                    size: KHomeReels.authorAvatar,
+                  ),
+                  const SizedBox(width: KHomeReels.authorGap),
+                  Flexible(
+                    child: Text(
+                      // A Latin handle keeps its «@» in front in Arabic.
+                      username == null
+                          ? reel.authorName
+                          : KHandle.ltr(reel.handle),
+                      key: HomeReelPage.handleKey,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: t.bodyStrong.copyWith(
+                        color: white,
+                        fontSize: 16,
+                        height: 1.3,
+                        shadows: _shadows,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (reel.pendingModeration)
+            Padding(
+              key: HomeReelPage.pendingKey,
+              padding: const EdgeInsets.only(top: KSpacing.xs),
+              child: Text(
+                l10n.feedPostPending,
+                style: t.caption.copyWith(color: white, shadows: _shadows),
+              ),
+            ),
+          if (caption != null && caption.isNotEmpty) ...[
+            const SizedBox(height: KHomeReels.captionGap),
+            _ReelCaption(
+              key: HomeReelPage.captionKey,
+              text: caption,
+              hashtags: reel.hashtags,
+              mentions: reel.mentions,
+              premiumMentions: reel.premiumMentions,
+            ),
+          ],
+          const SizedBox(height: KHomeReels.soundGap),
+          Row(
+            key: HomeReelPage.soundKey,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AppIcon(
+                AppIcons.musicNote,
+                size: KHomeReels.soundIcon,
+                color: white,
+              ),
+              const SizedBox(width: KSpacing.sm),
+              Flexible(
+                child: Text(
+                  l10n.reelsOriginalSound(reel.authorName),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: t.label.copyWith(color: white, shadows: _shadows),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The caption: [KHomeReels.captionLines] lines; a longer one ends in
+/// "… المزيد", which expands it in place. Linked `#tags` open the hashtag
+/// page and `@mentions` the profile (only the ones the API linked).
+class _ReelCaption extends StatefulWidget {
+  const new({
+    required this.text,
+    required this.hashtags,
+    required this.mentions,
+    required this.premiumMentions,
+    super.key,
+  });
+
+  final String text;
+  final Set<String> hashtags;
+  final Set<String> mentions;
+  final Set<String> premiumMentions;
+
+  @override
+  State<_ReelCaption> createState() => _ReelCaptionState();
+}
+
+class _ReelCaptionState extends State<_ReelCaption> {
+  bool _expanded = false;
+  final List<TapGestureRecognizer> _taps = [];
+
+  static final RegExp _entity = RegExp(
+    r'(?<![\p{L}\p{N}_])([#@])([\p{L}\p{M}\p{N}_.]+)',
+    unicode: true,
+  );
+
+  @override
+  void dispose() {
+    for (final t in _taps) {
+      t.dispose();
+    }
+    super.dispose();
+  }
+
+  List<InlineSpan> _spans(String s, TextStyle style) {
+    final out = <InlineSpan>[];
+    var last = 0;
+    final accent = style.copyWith(fontWeight: FontWeight.w700);
+    for (final m in _entity.allMatches(s)) {
+      final hash = m.group(1) == '#';
+      final name = hash
+          ? m.group(2)!
+          : m.group(2)!.replaceFirst(RegExp(r'\.+$'), '');
+      final linked = hash
+          ? widget.hashtags.contains(name.toLowerCase())
+          : widget.mentions.contains(name.toLowerCase());
+      if (!linked) continue;
+      if (m.start > last) out.add(TextSpan(text: s.substring(last, m.start)));
+      final tap = TapGestureRecognizer()
+        ..onTap = () => context.push(
+          hash ? AppRoutes.hashtag(name) : AppRoutes.userProfile(name),
+        );
+      _taps.add(tap);
+      out.add(
+        TextSpan(
+          text: hash
+              ? '#$name'
+              : KHandle.ltr(
+                  widget.premiumMentions.contains(name.toLowerCase())
+                      ? name
+                      : '@$name',
+                ),
+          style: accent,
+          recognizer: tap,
+        ),
+      );
+      last = m.start + 1 + name.length;
+    }
+    if (last < s.length) out.add(TextSpan(text: s.substring(last)));
+    return out;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    for (final t in _taps) {
+      t.dispose();
+    }
+    _taps.clear();
+    final style = DefaultTextStyle.of(context).style.merge(
+      context.textStyles.body.copyWith(
+        color: KPalette.dark.textPrimary,
+        fontSize: 14,
+        height: 1.4,
+        shadows: _shadows,
+      ),
+    );
+    if (_expanded) {
+      return Text.rich(
+        TextSpan(style: style, children: _spans(widget.text, style)),
+      );
+    }
+    final more = context.l10n.reelsMore;
+    final tail = TextSpan(
+      text: '… ',
+      children: [
+        TextSpan(
+          text: more,
+          style: style.copyWith(fontWeight: FontWeight.w700),
+        ),
+      ],
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final direction = Directionality.of(context);
+        final scaler = MediaQuery.textScalerOf(context);
+        final locale = Localizations.maybeLocaleOf(context);
+        bool fits(String s, {InlineSpan? end}) {
+          final painter = TextPainter(
+            text: TextSpan(
+              style: style,
+              children: [
+                TextSpan(text: s),
+                ?end,
+              ],
+            ),
+            textDirection: direction,
+            textScaler: scaler,
+            locale: locale,
+            maxLines: KHomeReels.captionLines,
+          )..layout(maxWidth: constraints.maxWidth);
+          final ok = !painter.didExceedMaxLines;
+          painter.dispose();
+          return ok;
+        }
+
+        if (fits(widget.text)) {
+          return Text.rich(
+            TextSpan(style: style, children: _spans(widget.text, style)),
+          );
+        }
+        var lo = 0;
+        var hi = widget.text.length;
+        while (lo < hi) {
+          final mid = (lo + hi + 1) ~/ 2;
+          if (fits(widget.text.substring(0, mid).trimRight(), end: tail)) {
+            lo = mid;
+          } else {
+            hi = mid - 1;
+          }
+        }
+        var shown = widget.text.substring(0, lo);
+        final space = shown.lastIndexOf(RegExp(r'\s'));
+        if (space > 0) shown = shown.substring(0, space);
+        shown = shown.trimRight();
+        return Semantics(
+          container: true,
+          button: true,
+          label: '${widget.text}. $more',
+          excludeSemantics: true,
+          child: GestureDetector(
+            key: HomeReelPage.moreKey,
+            behavior: HitTestBehavior.opaque,
+            onTap: () => setState(() => _expanded = true),
+            child: Text.rich(
+              TextSpan(style: style, children: [..._spans(shown, style), tail]),
+              maxLines: KHomeReels.captionLines,
+              overflow: TextOverflow.clip,
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -433,25 +1236,16 @@ class _Cover extends StatelessWidget {
     return ColoredBox(
       color: KPalette.dark.surfaceRaised,
       child: cover == null
-          ? null
+          ? const SizedBox.expand()
           : Image(
               image: cover,
               fit: BoxFit.cover,
+              width: double.infinity,
+              height: double.infinity,
               gaplessPlayback: true,
               excludeFromSemantics: true,
               errorBuilder: (_, _, _) => const SizedBox.expand(),
             ),
     );
   }
-}
-
-String _when(BuildContext context, DateTime at) {
-  final l10n = context.l10n;
-  return KFormat.relative(
-        at,
-        clock.now(),
-        l10n,
-        Localizations.localeOf(context).toLanguageTag(),
-      ) ??
-      l10n.feedPostJustNow;
 }

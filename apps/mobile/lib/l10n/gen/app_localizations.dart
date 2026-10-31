@@ -19215,6 +19215,114 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'الفترات حسب توقيت الرياض.'**
   String get liveTargetZoneHint;
+
+  /// D202 the reels page
+  ///
+  /// In ar, this message translates to:
+  /// **'القصص'**
+  String get reelsChipStories;
+
+  /// D202 the reels page
+  ///
+  /// In ar, this message translates to:
+  /// **'الغرف'**
+  String get reelsChipRooms;
+
+  /// D202 the reels page
+  ///
+  /// In ar, this message translates to:
+  /// **'فتح القصص'**
+  String get reelsOpenStories;
+
+  /// D202 the reels page
+  ///
+  /// In ar, this message translates to:
+  /// **'فتح الغرف الصوتية'**
+  String get reelsOpenRooms;
+
+  /// D202 the reels page
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد قصص الآن. أضف قصتك أو تابع أشخاصاً لترى قصصهم.'**
+  String get reelsStoriesEmpty;
+
+  /// D202 the reels page
+  ///
+  /// In ar, this message translates to:
+  /// **'مشاركة، {count}'**
+  String reelsShareLabel(String count);
+
+  /// D202 the reels page
+  ///
+  /// In ar, this message translates to:
+  /// **'التعليقات، {count}'**
+  String reelsCommentsLabel(String count);
+
+  /// D202 the reels page
+  ///
+  /// In ar, this message translates to:
+  /// **'{author} على Kabso Live: {caption}'**
+  String reelsShareText(String author, String caption);
+
+  /// D202 the reels page
+  ///
+  /// In ar, this message translates to:
+  /// **'شاهد ريل {author} على Kabso Live'**
+  String reelsShareTextNoCaption(String author);
+
+  /// D202 the reels page
+  ///
+  /// In ar, this message translates to:
+  /// **'صوت أصلي · {name}'**
+  String reelsOriginalSound(String name);
+
+  /// D202 the reels page
+  ///
+  /// In ar, this message translates to:
+  /// **'المزيد'**
+  String get reelsMore;
+
+  /// D202 the reels page
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب متابعة {name}'**
+  String reelsRequestFollow(String name);
+
+  /// D202 the reels page
+  ///
+  /// In ar, this message translates to:
+  /// **'طلبت متابعة {name}'**
+  String reelsFollowRequested(String name);
+
+  /// D202 the reels page
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر بلدك'**
+  String get reelsNearbyNoCountryTitle;
+
+  /// D202 the reels page
+  ///
+  /// In ar, this message translates to:
+  /// **'«القريبة» تعرض ريلز من بلدك. اختر بلدك لتراها.'**
+  String get reelsNearbyNoCountryBody;
+
+  /// D202 the reels page
+  ///
+  /// In ar, this message translates to:
+  /// **'اختيار البلد'**
+  String get reelsNearbyChooseCountry;
+
+  /// D202 the reels page
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد ريلز من بلدك بعد'**
+  String get reelsNearbyEmptyTitle;
+
+  /// D202 the reels page
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل الريلز القريبة'**
+  String get reelsNearbyUnavailableTitle;
 }
 
 class _AppLocalizationsDelegate
