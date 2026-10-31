@@ -704,11 +704,12 @@ export const envSchema = z
     SVIP_WINDOW_DAYS: intSetting(30, 1, 365),
     SVIP_STATUS_DAYS: intSetting(30, 1, 365),
     /**
-     * D166: the recharge screen's coin packages (placeholders from the owner's reference until the owner
-     * sets real ones) and their currency (ISO 4217). Purchases stay off (B5): no purchase endpoint.
+     * D166: the recharge screen's coin packages and their currency (ISO 4217). Purchases stay off (B5): no
+     * purchase endpoint. D203 (owner 2026-10-31): the same amounts as the website (TOPUP_PACKAGES) at the retail
+     * price $12.50 per 1 000 000 coins (COIN_RETAIL_USD_PER_MILLION), no bonus.
      */
     WALLET_RECHARGE_PACKAGES: rechargePackages(
-      '10+20:29,38+20:99,276+28:699:800,800+30:1999,2500+30:5999,4193+30:9999,5197+30:12999',
+      '100000+0:125,500000+0:625,1000000+0:1250,5000000+0:6250,10000000+0:12500,50000000+0:62500',
     ),
     WALLET_RECHARGE_CURRENCY: z
       .string()

@@ -64,8 +64,8 @@
 ## Me hub programs (v1.44-social draft, D166, CP-024 approved with defaults)
 
 - **Recharge is still blocked on B5.** The wallet's «شحن العملات» grid shows the packages from server
-  config `WALLET_RECHARGE_PACKAGES`; the default prices are **placeholders copied from the owner's
-  reference** (10+20 $0.29 … 5197+30 $129.99) **for the owner to set**. The button stays disabled with
+  config `WALLET_RECHARGE_PACKAGES`; the defaults (D203) are the website's amounts at $12.50 per
+  1 000 000 coins (100 000 $1.25 … 50 000 000 $625). The button stays disabled with
   «قريباً»; there is no purchase endpoint. No support banner is shown (no support destination exists).
 - **Values the owner can change without a release** (server config or the admin CLIs): the tasks and
   their rewards (`task-admin`), the daily cap 50, check-in 5 + 20 on day 7, SVIP thresholds

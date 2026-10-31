@@ -241,19 +241,23 @@ describe('D166 config', () => {
     expect(programs.svipWindowDays).toBe(30);
     expect(programs.svipStatusDays).toBe(30);
     expect(programs.rechargeCurrency).toBe('USD');
-    expect(programs.rechargePackages).toHaveLength(7);
+    // D203: the website's amounts at the retail price, $12.50 per 1 000 000 coins, no bonus.
+    expect(programs.rechargePackages).toHaveLength(6);
     expect(programs.rechargePackages[2]).toEqual({
       id: 'p3',
-      coins: 276,
-      bonusCoins: 28,
-      priceMinor: 699,
-      originalPriceMinor: 800,
-    });
-    expect(programs.rechargePackages[0]).toMatchObject({
-      coins: 10,
-      bonusCoins: 20,
+      coins: 1_000_000,
+      bonusCoins: 0,
+      priceMinor: 1250,
       originalPriceMinor: null,
     });
+    const retailMinorPerMillion = loadConfig(base).economy.coinRetailUsdPerMillion * 100;
+    expect(retailMinorPerMillion).toBe(1250);
+    for (const p of programs.rechargePackages) {
+      expect(p.priceMinor).toBe((p.coins * retailMinorPerMillion) / 1_000_000);
+    }
+    expect(programs.rechargePackages.map((p) => String(p.coins))).toEqual(
+      loadConfig(base).topup.packages.map((p) => p.id),
+    );
   });
 
   it('reads overrides and refuses bad values', () => {
