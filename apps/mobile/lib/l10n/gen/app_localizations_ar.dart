@@ -11322,4 +11322,13 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveTargetClose => 'إغلاق';
+
+  @override
+  String goLiveFailureDetails(String code) {
+    return 'تفاصيل: $code';
+  }
+
+  @override
+  String get goLiveToolsDegraded =>
+      'بعض أدوات البث لم تعمل وأُوقفت. البث مستمر.';
 }

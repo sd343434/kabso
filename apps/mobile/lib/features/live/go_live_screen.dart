@@ -6,9 +6,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/app/shell/shell_navigation.dart';
+import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/format/k_handle.dart';
+import 'package:kabso_live/core/logging/app_logger.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
@@ -123,6 +125,9 @@ class GoLiveScreen extends ConsumerStatefulWidget {
   static const closeKey = Key('goLive.close');
   static const Key titleKey = GoLiveKeys.title;
   static const countdownKey = Key('goLive.countdown');
+
+  /// D210: the «تفاصيل» line of the last failed go-live.
+  static const failureDetailsKey = Key('goLive.failureDetails');
   static const Key startKey = GoLiveKeys.start;
   static final Key flipKey = GoLiveKeys.tool('flip');
   static final Key micKey = GoLiveKeys.tool('mic');
@@ -184,6 +189,26 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   bool _writing = false;
   bool _emojiMode = false;
   String? _chatRoom;
+
+  /// D210: why the last go-live failed (shown until the next try).
+  LiveStartFailure? _startFailure;
+
+  /// D210: an optional tool failed to start in this live (said once).
+  bool _toolsDegradedShown = false;
+
+  /// D210: runs an optional live tool's start; a failure switches that tool
+  /// off (logged, said once) and never ends the live.
+  void _optional(String tool, void Function() start) {
+    try {
+      start();
+    } on Object catch (e, stack) {
+      AppLogger.error('live: optional tool "$tool" off', e, stack);
+      if (!mounted || _toolsDegradedShown) return;
+      _toolsDegradedShown = true;
+      KSnack.info(context, context.l10n.goLiveToolsDegraded);
+    }
+  }
+
   String? _category;
   bool _previewRequested = false;
   Timer? _tick;
@@ -320,13 +345,29 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       setState(() => _countdown = null);
     }
     final background = liveBackgroundTexts(l10n);
-    await _guard(
-      () => _host.goLive(
+    if (_startFailure != null) setState(() => _startFailure = null);
+    try {
+      await _host.goLive(
         title: title,
         categorySlug: _category,
         background: background,
-      ),
-    );
+      );
+    } on Object catch (e) {
+      if (!mounted) return;
+      // D210: the generic message names the failed step and error type.
+      final why = _host.lastStartFailure;
+      setState(() => _startFailure = why);
+      final failure = toAppFailure(e);
+      final message = failureMessage(context.l10n, failure);
+      // The generic message carries the details too; a known server answer
+      // reads as it is (the line over the preview names it either way).
+      KSnack.error(
+        context,
+        why == null || failure is! UnexpectedFailure
+            ? message
+            : '$message\n${context.l10n.goLiveFailureDetails(why.code)}',
+      );
+    }
   }
 
   /// 3, 2, 1 while an audio live is about to start; null otherwise.
@@ -407,45 +448,79 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     _chatRoom = room.id;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      // D210: each tool starts on its own; one that throws is switched off
+      // and the live (and the other tools) go on.
       // CP-020: the room's gifts, on the same media session.
-      ref.read(liveGiftEffectsProvider(room.id).notifier).attach(engine);
+      _optional(
+        'gifts',
+        () =>
+            ref.read(liveGiftEffectsProvider(room.id).notifier).attach(engine),
+      );
       // v1.43-live (D195): the room's PK (match, invitations, the queue).
       if (room.mode == LiveRoomMode.solo) {
-        ref
-            .read(livePkProvider(room.id).notifier)
-            .attach(engine.pkEvents, host: true);
+        _optional(
+          'pk',
+          () => ref
+              .read(livePkProvider(room.id).notifier)
+              .attach(engine.pkEvents, host: true),
+        );
       }
       // D138: the emojis people play on their seats.
-      ref.read(liveSeatEmojisProvider(room.id).notifier).attach(engine);
+      _optional(
+        'seatEmojis',
+        () => ref.read(liveSeatEmojisProvider(room.id).notifier).attach(engine),
+      );
       // D148: big lucky wins in other lives (the gold ticker).
-      ref.read(liveLuckyTickersProvider(room.id).notifier).attach(engine);
+      _optional(
+        'lucky',
+        () =>
+            ref.read(liveLuckyTickersProvider(room.id).notifier).attach(engine),
+      );
       // D178: the global gift strip.
-      ref.read(liveGiftTickersProvider(room.id).notifier).attach(engine);
+      _optional(
+        'giftTickers',
+        () =>
+            ref.read(liveGiftTickersProvider(room.id).notifier).attach(engine),
+      );
       // D154: the room's quips (one at a time, after their delay).
-      ref.read(liveQuipsProvider(room.id).notifier).attach(engine);
+      _optional(
+        'quips',
+        () => ref.read(liveQuipsProvider(room.id).notifier).attach(engine),
+      );
       // D154e: the live's program.
-      ref.read(liveProgramProvider(room.id).notifier).attach(engine);
+      _optional(
+        'program',
+        () => ref.read(liveProgramProvider(room.id).notifier).attach(engine),
+      );
       // D154h: the live's stickers.
-      ref.read(liveStickersProvider(room.id).notifier).attach(engine);
+      _optional(
+        'stickers',
+        () => ref.read(liveStickersProvider(room.id).notifier).attach(engine),
+      );
       // D154i: watch-together (the host's suggestions too).
-      ref.read(liveWatchProvider(room.id).notifier)
-        ..onSuggestion = (s) {
-          if (mounted) {
-            KSnack.info(
-              context,
-              context.l10n.liveWatchNewSuggestion(s.video.title),
-            );
+      _optional('watch', () {
+        ref.read(liveWatchProvider(room.id).notifier)
+          ..onSuggestion = (s) {
+            if (mounted) {
+              KSnack.info(
+                context,
+                context.l10n.liveWatchNewSuggestion(s.video.title),
+              );
+            }
           }
-        }
-        ..attach(engine, host: true);
+          ..attach(engine, host: true);
+      });
       // D154f: the host's assistant (hints on this phone only).
-      ref
-          .read(liveAssistantProvider(room.id).notifier)
-          .attach(
-            engine,
-            startedAt: room.startedAt,
-            selfId: ref.read(currentUserProvider)?.id,
-          );
+      _optional(
+        'assistant',
+        () => ref
+            .read(liveAssistantProvider(room.id).notifier)
+            .attach(
+              engine,
+              startedAt: room.startedAt,
+              selfId: ref.read(currentUserProvider)?.id,
+            ),
+      );
       unawaited(
         ref
             .read(liveChatProvider(room.id).notifier)
@@ -1701,6 +1776,38 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                     child: LiveFxDiagnostics(
                       load: engine.arDiagnostics,
                       status: engine.arStatus,
+                    ),
+                  ),
+                // D210: why the last go-live failed (step and error type),
+                // in every build, for the owner's screenshots; tap hides it.
+                if (_startFailure case final why?
+                    when state.phase == GoLivePhase.preview)
+                  PositionedDirectional(
+                    top: MediaQuery.paddingOf(context).top + 64,
+                    end: KSpacing.sm,
+                    child: GestureDetector(
+                      key: GoLiveScreen.failureDetailsKey,
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => setState(() => _startFailure = null),
+                      child: Container(
+                        constraints: const BoxConstraints(maxWidth: 260),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xB3000000),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          l10n.goLiveFailureDetails(why.code),
+                          style: const TextStyle(
+                            color: Color(0xFFFFFFFF),
+                            fontSize: 10.5,
+                            height: 1.35,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 if (_countdown case final n?)

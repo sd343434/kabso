@@ -3541,5 +3541,7 @@
   "liveTargetHelp": "A host has two targets each day: cherries (the cherries their gifts bring) and lucky gifts (the coin value of lucky gifts). They start again at midnight Riyadh time. The list ranks the supporters of the chosen period: by cherries under «Cherries», by coins under «Lucky gifts».",
   "liveTargetSupport": "Support",
   "liveTargetMyPlace": "Your place {rank}: {amount}",
-  "liveTargetClose": "Close"
+  "liveTargetClose": "Close",
+  "goLiveFailureDetails": "Details: {code}",
+  "goLiveToolsDegraded": "Some live tools didn’t start and were switched off. Your live goes on."
 }

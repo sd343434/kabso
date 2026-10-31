@@ -451,6 +451,20 @@ describe('D195 PK 1 v 1', { timeout: 300_000 }, () => {
     });
   });
 
+  it('D210: a wait whose live ended is dropped at the next tick and never messaged', async () => {
+    const c = await host();
+    const roomC = await goLive(c);
+    expect((await call('post', `live/rooms/${roomC}/pk/random`, c)).body.status).toBe('WAITING');
+    expect((await ctx.http.post(`/api/v1/live/rooms/${roomC}/end`).set(auth(c))).status).toBe(200);
+    const before = media.data.length;
+    await pk.tick();
+    expect(await ctx.prisma.pkQueueEntry.count({ where: { hostId: c.id } })).toBe(0);
+    // Long past the wait's own expiry: still nothing is sent to the ended room.
+    await advance(120);
+    await pk.tick();
+    expect(media.data.slice(before).filter((d) => d.room === roomC || d.identity === c.id)).toEqual([]);
+  });
+
   it('only a SOLO video live of the caller may start a PK', async () => {
     const [a, b] = [await host(), await host()];
     const audio = await goLive(a, { mode: 'AUDIO', seatCount: 10 });

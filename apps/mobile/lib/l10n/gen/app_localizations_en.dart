@@ -11314,4 +11314,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveTargetClose => 'Close';
+
+  @override
+  String goLiveFailureDetails(String code) {
+    return 'Details: $code';
+  }
+
+  @override
+  String get goLiveToolsDegraded =>
+      'Some live tools didn’t start and were switched off. Your live goes on.';
 }

@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:kabso_camera_fx/kabso_camera_fx.dart';
+import 'package:kabso_live/core/logging/app_logger.dart';
 import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
 import 'package:kabso_live/features/live/data/beauty/live_beauty.dart';
 import 'package:kabso_live/features/live/data/beauty/live_camera_fx.dart';
@@ -167,6 +168,39 @@ LiveLayerEncoding liveLayerEncoding(LiveVideoQuality quality, String? rid) =>
       (_, 'h') => (scaleDown: 2, maxBitrate: 450000, maxFramerate: 20),
       (_, _) => (scaleDown: 1, maxBitrate: 1700000, maxFramerate: 30),
     };
+
+/// D210: the steps of [LiveMediaEngine.publish] — joining the media room,
+/// then publishing the camera and the microphone (the core of going live).
+enum LivePublishStage { connect, video, audio }
+
+/// D210: [LiveMediaEngine.publish] failed at [stage] with [cause]; the
+/// go-live failure's «تفاصيل» names both, so a device report says exactly
+/// which step broke and with what.
+class LivePublishException implements Exception {
+  const new(this.stage, this.cause);
+
+  final LivePublishStage stage;
+  final Object cause;
+
+  @override
+  String toString() =>
+      'LivePublishException(${stage.name}: ${cause.runtimeType})';
+}
+
+/// Runs [step] as [stage]: its failure is rethrown as a
+/// [LivePublishException] (with the original stack).
+Future<T> livePublishStage<T>(
+  LivePublishStage stage,
+  Future<T> Function() step,
+) async {
+  try {
+    return await step();
+  } on LivePublishException {
+    rethrow;
+  } on Object catch (e, stack) {
+    Error.throwWithStackTrace(LivePublishException(stage, e), stack);
+  }
+}
 
 /// The camera, microphone and media session of the person going live
 /// (CP-010, LiveKit, D3), behind an interface so screens and tests do not
@@ -855,15 +889,30 @@ class LiveKitMediaEngine
     final video = _video;
     final audio = _audio;
     if (audio == null) throw StateError('startPreview() first');
-    final room = await _connect(access);
+    // D210: each step says which one failed (the go-live «تفاصيل» line).
+    final room = await livePublishStage(
+      LivePublishStage.connect,
+      () => _connect(access),
+    );
     if (video != null) {
-      await room.localParticipant!.publishVideoTrack(
-        video,
-        publishOptions: _quality == LiveVideoQuality.high ? _hdPublish : null,
+      await livePublishStage(
+        LivePublishStage.video,
+        () => room.localParticipant!.publishVideoTrack(
+          video,
+          publishOptions: _quality == LiveVideoQuality.high ? _hdPublish : null,
+        ),
       );
-      _startUplink();
+      // The uplink indicator is optional: it never fails the publish.
+      try {
+        _startUplink();
+      } on Object catch (e) {
+        AppLogger.warning('live: uplink stats off (${e.runtimeType})');
+      }
     }
-    await room.localParticipant!.publishAudioTrack(audio);
+    await livePublishStage(
+      LivePublishStage.audio,
+      () => room.localParticipant!.publishAudioTrack(audio),
+    );
   }
 
   Future<lk.Room> _connect(LiveMediaAccess access) async {
