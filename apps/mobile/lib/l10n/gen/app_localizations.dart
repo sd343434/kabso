@@ -21202,11 +21202,11 @@ abstract class AppLocalizations {
   /// **'متابعة'**
   String get liveCardFollow;
 
-  /// D220: the follow button once followed (a tap unfollows).
+  /// D220 (owner): the follow button once followed — a neutral «Unfollow» that asks first.
   ///
   /// In ar, this message translates to:
-  /// **'متابَع'**
-  String get liveCardFollowed;
+  /// **'إلغاء المتابعة'**
+  String get liveCardUnfollow;
 
   /// D220: the outline button that opens a direct conversation.
   ///

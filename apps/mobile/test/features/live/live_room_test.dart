@@ -593,9 +593,9 @@ void main() {
       for (final f in [follow, gift, mention, message]) {
         expect(f, findsOneWidget);
       }
-      // Followed: «Following» on the follow pill.
+      // Followed (owner): the pill offers «Unfollow».
       expect(
-        find.descendant(of: follow, matching: find.text(l10n.liveCardFollowed)),
+        find.descendant(of: follow, matching: find.text(l10n.liveCardUnfollow)),
         findsOneWidget,
       );
       // In reading order: Follow, Gift, Chat on one line; Mention above.
@@ -619,8 +619,8 @@ void main() {
       }
     });
 
-    testWidgets('D220: not followed — «+ Follow» follows and becomes '
-        '«Following» (a tap unfollows); Chat is always there; Mention puts '
+    testWidgets('D220: not followed — red «+ Follow» follows and becomes '
+        '«Unfollow» (asks first); Chat is always there; Mention puts '
         '@username in the chat box', (tester) async {
       final (_, profiles) = await _pumpRoom(
         tester,
@@ -642,10 +642,15 @@ void main() {
       await tester.pumpAndSettle();
       expect(profiles.calls.last, 'PUT host0');
       expect(
-        find.descendant(of: follow, matching: find.text(l10n.liveCardFollowed)),
+        find.descendant(of: follow, matching: find.text(l10n.liveCardUnfollow)),
         findsOneWidget,
       );
       await tester.tap(follow);
+      await tester.pumpAndSettle();
+      // The profile page's question first; nothing sent before it.
+      expect(profiles.calls.last, 'PUT host0');
+      expect(find.text(l10n.profileUnfollowConfirm('Sara')), findsOneWidget);
+      await tester.tap(find.byKey(PublicProfileScreen.unfollowKey));
       await tester.pumpAndSettle();
       expect(profiles.calls.last, 'DELETE host0');
       expect(

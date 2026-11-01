@@ -10,9 +10,11 @@
 import 'package:flutter_svga/flutter_svga.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/icons/kabso_art.dart';
 import 'package:kabso_live/core/models/premium_tier.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
+import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/bag/domain/bag_models.dart';
 import 'package:kabso_live/features/levels/application/levels_providers.dart';
 import 'package:kabso_live/features/levels/domain/level_models.dart';
@@ -22,6 +24,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.
 import 'package:kabso_live/features/medals/domain/medal_models.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
+import 'package:kabso_live/features/profile/public_profile_screen.dart';
 import 'package:kabso_live/features/profile_card/kabso_profile_header.dart';
 import 'package:kabso_live/features/safety/safety_repository.dart';
 import 'package:material_ui/material_ui.dart';
@@ -350,6 +353,15 @@ void main() {
         ),
       );
       final gift = find.byKey(LivePersonSheet.giftKey);
+      // Owner: the app's main gift icon (the live bar's), not a new art.
+      expect(
+        tester
+            .widget<KabsoArtIcon>(
+              find.descendant(of: gift, matching: find.byType(KabsoArtIcon)),
+            )
+            .art,
+        KabsoArt.mainGift,
+      );
       final size = tester.getSize(gift);
       expect(size.width, greaterThanOrEqualTo(48));
       expect(size.height, greaterThanOrEqualTo(48));
@@ -523,6 +535,110 @@ void main() {
       final dark = line();
       expect(light, isNot(dark));
       expect(light.a, 1);
+      // Owner: a little more visible in dark mode than the plain border.
+      final context = tester.element(find.byKey(LivePersonSheet.statsKey));
+      expect(
+        dark.computeLuminance(),
+        greaterThan(context.palette.border.computeLuminance()),
+      );
+    });
+
+    testWidgets('owner: «+ Follow» is filled brand red with white text '
+        '(≥ 4.5:1); followed, a neutral outline «Unfollow»', (tester) async {
+      BoxDecoration pill() =>
+          tester
+                  .widget<DecoratedBox>(
+                    find
+                        .descendant(
+                          of: find.byKey(LivePersonSheet.followKey),
+                          matching: find.byType(DecoratedBox),
+                        )
+                        .first,
+                  )
+                  .decoration
+              as BoxDecoration;
+      Color label(String text) => tester
+          .widget<Text>(
+            find.descendant(
+              of: find.byKey(LivePersonSheet.followKey),
+              matching: find.text(text),
+            ),
+          )
+          .style!
+          .color!;
+      for (final brightness in Brightness.values) {
+        await _card(tester, _profile(), brightness: brightness);
+        final context = tester.element(find.byKey(LivePersonSheet.followKey));
+        final red = context.palette.primary;
+        expect(pill().color, red);
+        // The theme's brand red (`primary`: #E50914 dark, #C8080F light).
+        expect(
+          red,
+          brightness == Brightness.dark
+              ? KBrandColors.red500
+              : const Color(0xFFC8080F),
+        );
+        final white = label(en.liveCardFollow);
+        expect(white, context.palette.onPrimary);
+        double lum(Color c) => c.computeLuminance();
+        final ratio = (lum(white) + 0.05) / (lum(red) + 0.05);
+        expect(ratio, greaterThanOrEqualTo(4.5), reason: '$brightness');
+      }
+      await _card(tester, _profile().copyWith(isFollowing: true));
+      expect(pill().color, isNull);
+      expect(pill().border, isNotNull);
+      expect(
+        label(en.liveCardUnfollow),
+        isNot(
+          tester.element(find.byKey(LivePersonSheet.followKey)).palette.primary,
+        ),
+      );
+    });
+
+    testWidgets('followed: «Unfollow» asks, then unfollows; cancelling keeps '
+        'the follow', (tester) async {
+      final profiles = FakeProfileRepository(
+        _profile().copyWith(isFollowing: true),
+      );
+      setViewport(tester, GoldenViewport.phone);
+      await pumpBonds(
+        tester,
+        Scaffold(
+          body: Builder(
+            builder: (context) => Center(
+              child: TextButton(
+                onPressed: () => showHostSheet(context, 'host0', scope: _scope),
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+        brightness: Brightness.light,
+        overrides: [
+          profileRepositoryProvider.overrideWithValue(profiles),
+          safetyRepositoryProvider.overrideWithValue(FakeSafetyRepository()),
+          profileLevelsProvider.overrideWith((ref, _) async => _levels(1)),
+        ],
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      final follow = find.byKey(LivePersonSheet.followKey);
+      await tester.tap(follow);
+      await tester.pumpAndSettle();
+      expect(find.text(en.profileUnfollowConfirm('Sara')), findsOneWidget);
+      // Dismissed: nothing sent.
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pumpAndSettle();
+      expect(profiles.calls.where((c) => c.startsWith('DELETE')), isEmpty);
+      await tester.tap(follow);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(PublicProfileScreen.unfollowKey));
+      await tester.pumpAndSettle();
+      expect(profiles.calls.last, 'DELETE host0');
+      expect(
+        find.descendant(of: follow, matching: find.text(en.liveCardFollow)),
+        findsOneWidget,
+      );
     });
 
     testWidgets('semantics: each number is read with its label', (

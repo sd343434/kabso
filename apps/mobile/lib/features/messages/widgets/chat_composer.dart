@@ -180,7 +180,7 @@ class _ChatComposerState extends State<ChatComposer> {
                         onPressed: enabled ? onGift : null,
                         padding: EdgeInsets.zero,
                         icon: KabsoArtIcon(
-                          KabsoArt.giftBox,
+                          KabsoArt.mainGift,
                           size: KChatComposer.button - 10,
                           dimmed: !enabled || onGift == null,
                         ),

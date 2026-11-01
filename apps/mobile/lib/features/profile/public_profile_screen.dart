@@ -77,6 +77,40 @@ class PublicProfileScreen extends ConsumerStatefulWidget {
 
 enum _More { copy, mute, unmute, block, report }
 
+/// Asks before unfollowing [name] (the profile page and, D220, the person
+/// card in a live): true when confirmed.
+Future<bool> confirmUnfollow(BuildContext context, String name) async {
+  final l10n = context.l10n;
+  final unfollow = await showModalBottomSheet<bool>(
+    context: context,
+    builder: (sheet) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(KSpacing.lg),
+            child: Text(
+              l10n.profileUnfollowConfirm(name),
+              textAlign: TextAlign.center,
+              style: sheet.textStyles.bodyStrong,
+            ),
+          ),
+          ListTile(
+            key: PublicProfileScreen.unfollowKey,
+            title: Text(
+              l10n.homeUnfollowAuthor(name),
+              textAlign: TextAlign.center,
+              style: TextStyle(color: sheet.palette.error),
+            ),
+            onTap: () => Navigator.of(sheet).pop(true),
+          ),
+        ],
+      ),
+    ),
+  );
+  return unfollow ?? false;
+}
+
 /// D175: asks before cancelling a pending follow request to [name] (the
 /// profile page and the live room). True when the person confirms.
 Future<bool> confirmCancelFollowRequest(
@@ -142,35 +176,9 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
   }
 
   Future<void> _confirmUnfollow(PublicProfile profile) async {
-    final l10n = context.l10n;
-    final unfollow = await showModalBottomSheet<bool>(
-      context: context,
-      builder: (sheet) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(KSpacing.lg),
-              child: Text(
-                l10n.profileUnfollowConfirm(profile.displayName),
-                textAlign: TextAlign.center,
-                style: sheet.textStyles.bodyStrong,
-              ),
-            ),
-            ListTile(
-              key: PublicProfileScreen.unfollowKey,
-              title: Text(
-                l10n.homeUnfollowAuthor(profile.displayName),
-                textAlign: TextAlign.center,
-                style: TextStyle(color: sheet.palette.error),
-              ),
-              onTap: () => Navigator.of(sheet).pop(true),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (unfollow ?? false) await _setFollowing(follow: false);
+    if (await confirmUnfollow(context, profile.displayName) && mounted) {
+      await _setFollowing(follow: false);
+    }
   }
 
   /// D62: the three dots: copy the username; mute, block and report the

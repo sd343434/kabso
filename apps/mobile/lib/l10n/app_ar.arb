@@ -12031,9 +12031,9 @@
   "@liveCardFollow": {
     "description": "D220: the wide follow button (with a plus)."
   },
-  "liveCardFollowed": "متابَع",
-  "@liveCardFollowed": {
-    "description": "D220: the follow button once followed (a tap unfollows)."
+  "liveCardUnfollow": "إلغاء المتابعة",
+  "@liveCardUnfollow": {
+    "description": "D220 (owner): the follow button once followed — a neutral «Unfollow» that asks first."
   },
   "liveCardChat": "دردشة",
   "@liveCardChat": {

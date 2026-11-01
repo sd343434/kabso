@@ -19,7 +19,13 @@ enum KabsoArt {
 
   /// Game cards (the owner's ticket). Nothing shows game cards yet.
   ticket('assets/currency/kabso_ticket.webp'),
-  giftBox('assets/art/kabso_gift_box.webp');
+  giftBox('assets/art/kabso_gift_box.webp'),
+
+  /// D220 (owner: «صندوق الهدايا اجعله نفس الايقونة الاساسية وحتى في الرسائل
+  /// نفس الايقونة»): the app's main gift icon — the colourful gift box of
+  /// the live bottom bar (`assets/live_bar/bar_gift.png`, PROVENANCE) — on
+  /// the person card and the conversation's gift button too.
+  mainGift('assets/live_bar/bar_gift.png');
 
   new(this.asset);
 

@@ -12422,7 +12422,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveCardFollow => 'متابعة';
 
   @override
-  String get liveCardFollowed => 'متابَع';
+  String get liveCardUnfollow => 'إلغاء المتابعة';
 
   @override
   String get liveCardChat => 'دردشة';

@@ -3852,7 +3852,7 @@
   "liveCardCherries": "Cherries received",
   "liveCardCoinsSent": "Coins sent",
   "liveCardFollow": "Follow",
-  "liveCardFollowed": "Following",
+  "liveCardUnfollow": "Unfollow",
   "liveCardChat": "Chat",
   "liveCardSendGift": "Send a gift",
   "liveCardEditProfile": "Edit profile",

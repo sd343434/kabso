@@ -8,6 +8,7 @@ import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/format/k_handle.dart';
+import 'package:kabso_live/core/icons/kabso_art.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
@@ -62,6 +63,7 @@ class _Look {
     required this.ink,
     required this.soft,
     required this.line,
+    required this.divider,
     required this.ring,
   });
 
@@ -73,6 +75,9 @@ class _Look {
             ink: p.textPrimary,
             soft: p.textSecondary,
             line: p.border,
+            // Owner: a little lighter than the border in dark mode, still
+            // subtle (the strong border token at 60 %).
+            divider: p.borderStrong.withValues(alpha: 0.6),
             ring: p.surfaceRaised,
           )
         : _Look(
@@ -81,6 +86,7 @@ class _Look {
             soft: const Color(0xFF9A9BA5),
             // The theme's divider token (lines, outlines).
             line: p.border,
+            divider: p.border,
             ring: const Color(0xFFFFFFFF),
           );
   }
@@ -89,6 +95,9 @@ class _Look {
   final Color ink;
   final Color soft;
   final Color line;
+
+  /// The thin line between two numbers.
+  final Color divider;
 
   /// The clean ring around a picture without a frame.
   final Color ring;
@@ -707,7 +716,7 @@ class _Body extends ConsumerWidget {
                       key: LivePersonSheet.statDividerKey(i),
                       width: 1,
                       height: LivePersonCardMetrics.statDivider,
-                      color: look.line,
+                      color: look.divider,
                     ),
                   ),
                 Expanded(
@@ -825,7 +834,11 @@ class _Body extends ConsumerWidget {
               children: [
                 Expanded(
                   flex: 11,
-                  child: _FollowPill(profile: profile, username: username),
+                  child: _FollowPill(
+                    profile: profile,
+                    username: username,
+                    look: look,
+                  ),
                 ),
                 // CP-020: the gift panel with this person chosen.
                 if (scope?.onGift case final onGift?) ...[
@@ -1143,29 +1156,35 @@ class _GiftWallPill extends StatelessWidget {
   }
 }
 
-/// «+ متابعة» (cyan, the reference's), «متابَع» once followed (a tap
-/// unfollows), and D175's «تم الطلب» for a private account (a tap asks, then
-/// cancels the request).
+/// Owner (2026-11-01, «اجعله احمر وعندما يكون متابع الشخص يكون زر الغاء
+/// المتابعة»): «+ متابعة» filled in the brand red (white text, the palette's
+/// `primary` / `onPrimary`); once followed, a neutral outline «إلغاء
+/// المتابعة» that asks first (as the profile page) and unfollows; D175's
+/// «تم الطلب» for a private account (a tap asks, then cancels the request).
 class _FollowPill extends ConsumerWidget {
-  const new({required this.profile, required this.username});
+  const new({
+    required this.profile,
+    required this.username,
+    required this.look,
+  });
 
   final PublicProfile profile;
   final String username;
-
-  static const _colors = [Color(0xFF00E3D9), Color(0xFF05D7E4)];
+  final _Look look;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
+    final palette = context.palette;
     final following = profile.isFollowing;
     final requested = profile.followRequested;
     final plain = following || requested;
     final label = following
-        ? l10n.liveCardFollowed
+        ? l10n.liveCardUnfollow
         : requested
         ? l10n.followRequested
         : l10n.liveCardFollow;
-    final ink = plain ? const Color(0xFF0B7F86) : const Color(0xFFFFFFFF);
+    final ink = plain ? look.ink : palette.onPrimary;
     return _Press(
       key: LivePersonSheet.followKey,
       label: label,
@@ -1177,20 +1196,27 @@ class _FollowPill extends ConsumerWidget {
           }
           return;
         }
-        await setHostFollowing(context, ref, username, follow: !following);
+        if (following) {
+          if (await confirmUnfollow(context, profile.displayName) &&
+              context.mounted) {
+            await setHostFollowing(context, ref, username, follow: false);
+          }
+          return;
+        }
+        await setHostFollowing(context, ref, username, follow: true);
       }()),
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(KRadius.pill),
-          gradient: plain ? null : const LinearGradient(colors: _colors),
-          color: plain ? const Color(0x1F00C8CF) : null,
+          color: plain ? null : palette.primary,
+          border: plain ? Border.all(color: look.line, width: 1.2) : null,
           boxShadow: plain
               ? null
-              : const [
+              : [
                   BoxShadow(
-                    color: Color(0x4400D2D9),
+                    color: palette.primary.withValues(alpha: 0.3),
                     blurRadius: 10,
-                    offset: Offset(0, 3),
+                    offset: const Offset(0, 3),
                   ),
                 ],
         ),
@@ -1202,7 +1228,7 @@ class _FollowPill extends ConsumerWidget {
               children: [
                 Icon(
                   following
-                      ? Icons.check_rounded
+                      ? Icons.person_remove_alt_1_rounded
                       : requested
                       ? Icons.hourglass_top_rounded
                       : Icons.add_rounded,
@@ -1219,11 +1245,6 @@ class _FollowPill extends ConsumerWidget {
                       color: ink,
                       fontSize: 15,
                       fontWeight: FontWeight.w800,
-                      shadows: plain
-                          ? null
-                          : const [
-                              Shadow(color: Color(0x40006B70), blurRadius: 2),
-                            ],
                     ),
                   ),
                 ),
@@ -1236,8 +1257,8 @@ class _FollowPill extends ConsumerWidget {
   }
 }
 
-/// The round gift button between Follow and Chat (pink to violet, the
-/// app's gift art).
+/// The gift button between Follow and Chat: the app's main gift icon (the
+/// live bar's colourful box, owner) in a 48 dp target.
 class _GiftButton extends StatelessWidget {
   const new({required this.onTap});
 
@@ -1248,31 +1269,9 @@ class _GiftButton extends StatelessWidget {
     key: LivePersonSheet.giftKey,
     label: context.l10n.liveCardSendGift,
     onTap: onTap,
-    child: Container(
-      width: LivePersonCardMetrics.action,
-      height: LivePersonCardMetrics.action,
-      alignment: Alignment.center,
-      decoration: const BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFFFF6FB1), Color(0xFF8952F2)],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x448952F2),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Image.asset(
-        'assets/live_bar/gift.png',
-        width: 32,
-        height: 32,
-        excludeFromSemantics: true,
-      ),
+    child: const SizedBox.square(
+      dimension: LivePersonCardMetrics.action,
+      child: Center(child: KabsoArtIcon(KabsoArt.mainGift, size: 44)),
     ),
   );
 }

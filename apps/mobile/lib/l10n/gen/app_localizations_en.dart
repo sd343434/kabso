@@ -12428,7 +12428,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveCardFollow => 'Follow';
 
   @override
-  String get liveCardFollowed => 'Following';
+  String get liveCardUnfollow => 'Unfollow';
 
   @override
   String get liveCardChat => 'Chat';
