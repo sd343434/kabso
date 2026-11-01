@@ -1580,6 +1580,24 @@ abstract class AppLocalizations {
   /// **'جارٍ إعادة الاتصال…'**
   String get liveRoomReconnecting;
 
+  /// D216: under «Reconnecting…» on the interruption card.
+  ///
+  /// In ar, this message translates to:
+  /// **'لحظات ويعود البث من حيث توقف.'**
+  String get liveRoomReconnectingBody;
+
+  /// D216: title of the card when the live's video could not connect (the reason follows).
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تشغيل البث'**
+  String get liveRoomJoinFailedTitle;
+
+  /// D216: under «The host will be right back» on the interruption card.
+  ///
+  /// In ar, this message translates to:
+  /// **'ابقَ هنا، سيُستأنف البث فور عودته.'**
+  String get liveHostAwayBody;
+
   /// No description provided for @liveRoomCameraOff.
   ///
   /// In ar, this message translates to:

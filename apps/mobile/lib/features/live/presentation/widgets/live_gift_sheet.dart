@@ -2163,8 +2163,30 @@ class _QuipTile extends StatelessWidget {
           ),
           child: Column(
             children: [
-              LiveQuipBadge(assetKey: gift.assetKey),
-              const SizedBox(height: 4),
+              // D216: Kabi's art, playing on the chosen quip.
+              AnimatedScale(
+                scale: selected ? 1.08 : 1,
+                duration: KMotion.of(context, KMotion.base),
+                curve: Curves.easeOutBack,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      if (selected)
+                        BoxShadow(
+                          color: KBrandColors.red500.withValues(alpha: 0.45),
+                          blurRadius: 14,
+                        ),
+                    ],
+                  ),
+                  child: LiveQuipBadge(
+                    assetKey: gift.assetKey,
+                    size: 44,
+                    play: selected,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 5),
               Expanded(
                 child: Text(
                   words,
@@ -2176,7 +2198,7 @@ class _QuipTile extends StatelessWidget {
                   textDirection: quip.text == null ? null : TextDirection.rtl,
                   style: text.caption.copyWith(
                     color: selected ? _Sheet.white : _Sheet.name,
-                    fontSize: 9.5,
+                    fontSize: 10,
                     height: 1.25,
                     fontWeight: FontWeight.w600,
                   ),
@@ -2191,15 +2213,27 @@ class _QuipTile extends StatelessWidget {
                       const KabsoArtIcon(KabsoArt.coin, size: 12),
                       const SizedBox(width: 3),
                     ],
-                    Text(
-                      price,
-                      style: text.caption.copyWith(
-                        color: free
-                            ? const Color(0xFF7FE3C8)
-                            : _Sheet.priceText,
-                        fontSize: 10,
-                        height: 1.21,
-                        fontWeight: FontWeight.w700,
+                    // D216: «free» on a soft mint pill.
+                    Container(
+                      padding: free
+                          ? const EdgeInsets.symmetric(horizontal: 6)
+                          : EdgeInsets.zero,
+                      decoration: free
+                          ? BoxDecoration(
+                              color: const Color(0x267FE3C8),
+                              borderRadius: BorderRadius.circular(KRadius.pill),
+                            )
+                          : null,
+                      child: Text(
+                        price,
+                        style: text.caption.copyWith(
+                          color: free
+                              ? const Color(0xFF7FE3C8)
+                              : _Sheet.priceText,
+                          fontSize: 10,
+                          height: 1.21,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ],

@@ -904,6 +904,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveRoomReconnecting => 'Reconnecting…';
 
   @override
+  String get liveRoomReconnectingBody =>
+      'Hang on, the live picks up where it stopped.';
+
+  @override
+  String get liveRoomJoinFailedTitle => 'The live couldn\'t play';
+
+  @override
+  String get liveHostAwayBody =>
+      'Stay here, the live resumes as soon as they\'re back.';
+
+  @override
   String get liveRoomCameraOff => 'Camera is off';
 
   @override

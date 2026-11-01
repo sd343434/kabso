@@ -689,6 +689,18 @@
   },
   "liveRoomWeakConnection": "اتصال ضعيف",
   "liveRoomReconnecting": "جارٍ إعادة الاتصال…",
+  "liveRoomReconnectingBody": "لحظات ويعود البث من حيث توقف.",
+  "@liveRoomReconnectingBody": {
+    "description": "D216: under «Reconnecting…» on the interruption card."
+  },
+  "liveRoomJoinFailedTitle": "تعذّر تشغيل البث",
+  "@liveRoomJoinFailedTitle": {
+    "description": "D216: title of the card when the live's video could not connect (the reason follows)."
+  },
+  "liveHostAwayBody": "ابقَ هنا، سيُستأنف البث فور عودته.",
+  "@liveHostAwayBody": {
+    "description": "D216: under «The host will be right back» on the interruption card."
+  },
   "liveRoomCameraOff": "الكاميرا متوقفة",
   "giftNameHeart": "قلب",
   "giftNameStar": "نجمة",

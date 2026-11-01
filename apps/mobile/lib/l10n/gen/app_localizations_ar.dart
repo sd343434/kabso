@@ -935,6 +935,15 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveRoomReconnecting => 'جارٍ إعادة الاتصال…';
 
   @override
+  String get liveRoomReconnectingBody => 'لحظات ويعود البث من حيث توقف.';
+
+  @override
+  String get liveRoomJoinFailedTitle => 'تعذّر تشغيل البث';
+
+  @override
+  String get liveHostAwayBody => 'ابقَ هنا، سيُستأنف البث فور عودته.';
+
+  @override
   String get liveRoomCameraOff => 'الكاميرا متوقفة';
 
   @override

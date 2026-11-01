@@ -17,7 +17,9 @@ import 'package:kabso_live/features/live/presentation/hub/live_grid_card.dart';
 import 'package:kabso_live/features/live/presentation/widgets/battle_emoji.dart';
 import 'package:kabso_live/features/live/presentation/widgets/kabso_pk_bar.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_interruption.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk_stage.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_quip_art.dart';
 import 'package:kabso_live/features/live/presentation/widgets/max_x_art.dart';
 import 'package:kabso_live/features/live/presentation/widgets/pk_power/pk_battle_bar.dart';
 import 'package:kabso_live/features/live/presentation/widgets/pk_power/pk_power_banner.dart';
@@ -55,6 +57,9 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   AudioplayersNotificationSounds.enabled = false;
   DevicePushPermissions.enabled = false;
   KLiveEqualizer.animate = false;
+  // D216: the interruption arc turns and the quip art loops forever.
+  KLiveInterruption.animate = false;
+  LiveQuipBadge.animate = false;
   // D146: the special-ID badge's light sweep loops; never in tests.
   KSpecialUsername.motion = false;
   // Visibility (post views) is reported at once instead of on a timer, so

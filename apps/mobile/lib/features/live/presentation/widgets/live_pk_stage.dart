@@ -751,16 +751,52 @@ class _ResultChip extends StatelessWidget {
                 color: const Color(0xFFFFFFFF),
               ),
             ),
+            // D216: why it ended, on a dark glass line with its icon (the
+            // interruption states' style).
             if (reason != null)
-              Text(
-                reason,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textScaler: MediaQuery.textScalerOf(context)
-                    .clamp(maxScaleFactor: KMetrics.overlayMaxTextScale),
-                style: context.textStyles.caption.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFFFFFFFF),
+              Container(
+                margin: const EdgeInsets.only(
+                  top: KSpacing.xxs,
+                  bottom: KSpacing.xxs,
+                ),
+                padding: const EdgeInsetsDirectional.fromSTEB(
+                  KSpacing.xs,
+                  KSpacing.xxs,
+                  KSpacing.sm,
+                  KSpacing.xxs,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0x59000000),
+                  borderRadius: BorderRadius.circular(KRadius.pill),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      switch (match.endReason) {
+                        PkEndReason.disconnect => Icons.wifi_off_rounded,
+                        PkEndReason.away => Icons.hourglass_bottom_rounded,
+                        _ => Icons.flag_rounded,
+                      },
+                      size: 13,
+                      color: const Color(0xFFFFFFFF),
+                    ),
+                    const SizedBox(width: KSpacing.xs),
+                    Flexible(
+                      child: Text(
+                        reason,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textScaler: MediaQuery.textScalerOf(
+                          context,
+                        ).clamp(maxScaleFactor: KMetrics.overlayMaxTextScale),
+                        style: context.textStyles.caption.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFFFFFFFF),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
           ],

@@ -65,6 +65,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_gift_effects_
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_guest_tiles.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_host_target_chip.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_interruption.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_lucky_combo_button.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_boxes.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
@@ -1350,6 +1351,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
               hostName: host.displayName,
               avatar: avatar,
               reason: endReasonText(l10n, room.endReason),
+              reasonIcon: endReasonIcon(room.endReason),
               onBack: widget.onClose,
               followAction: _endedOfferedFollow && canFollow
                   ? _FollowButton(
@@ -2004,8 +2006,11 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       return KLiveVideoPlaceholder(
         child: _StageNote(
           key: const Key('room.joinFailed'),
-          icon: Icons.videocam_off_outlined,
-          text: failureMessage(context.l10n, failure),
+          child: KLiveInterruption(
+            icon: Icons.videocam_off_rounded,
+            title: context.l10n.liveRoomJoinFailedTitle,
+            message: failureMessage(context.l10n, failure),
+          ),
         ),
       );
     }
@@ -2015,8 +2020,17 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       return KLiveVideoPlaceholder(
         child: _StageNote(
           key: const Key('room.hostAway'),
-          icon: Icons.hourglass_top_rounded,
-          text: context.l10n.liveHostAway,
+          child: KLiveInterruption(
+            leading: KAvatar(
+              name: room.host.displayName,
+              imageUrl: room.host.avatarUrl,
+              size: KLiveInterruption.picture,
+            ),
+            badgeIcon: Icons.hourglass_top_rounded,
+            busy: true,
+            title: context.l10n.liveHostAway,
+            message: context.l10n.liveHostAwayBody,
+          ),
         ),
       );
     }
@@ -2163,6 +2177,17 @@ String endReasonText(AppLocalizations l10n, LiveRoomEndReason? reason) =>
       LiveRoomEndReason.unknown ||
       null => l10n.liveRoomEndedOther,
     };
+
+/// D216: the badge on the host's picture saying why the live ended.
+IconData endReasonIcon(LiveRoomEndReason? reason) => switch (reason) {
+  LiveRoomEndReason.hostEnded => Icons.stop_rounded,
+  LiveRoomEndReason.heartbeatTimeout => Icons.wifi_off_rounded,
+  LiveRoomEndReason.hostAwayTimeout => Icons.hourglass_bottom_rounded,
+  LiveRoomEndReason.hostSuspended ||
+  LiveRoomEndReason.admin ||
+  LiveRoomEndReason.unknown ||
+  null => Icons.sensors_off_rounded,
+};
 
 /// Follows or unfollows the host through [publicProfileProvider]
 /// (optimistic); a failure has already been rolled back and shows a snack.
@@ -3113,36 +3138,21 @@ class _FollowButton extends StatelessWidget {
   }
 }
 
-/// The gift sheet's selection (sending is disabled; no combo counter).
+/// D216: an interruption card over the empty video, a little above the
+/// centre so the chat under it stays clear.
 class _StageNote extends StatelessWidget {
-  const new({required this.icon, required this.text, super.key});
+  const new({required this.child, super.key});
 
-  final IconData icon;
-  final String text;
+  final Widget child;
 
   @override
-  Widget build(BuildContext context) {
-    const p = KPalette.dark;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(KSpacing.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: KSpacing.xxxl, color: p.textSecondary),
-            const SizedBox(height: KSpacing.md),
-            Text(
-              text,
-              textAlign: TextAlign.center,
-              style: context.textStyles.bodyStrong.copyWith(
-                color: p.textPrimary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Align(
+    alignment: const Alignment(0, -0.25),
+    child: SingleChildScrollView(
+      padding: const EdgeInsets.all(KSpacing.xl),
+      child: child,
+    ),
+  );
 }
 
 /// The seat button of a MULTI or AUDIO room (CP-011): ask / cancel /
