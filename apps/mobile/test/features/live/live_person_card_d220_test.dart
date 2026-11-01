@@ -693,7 +693,7 @@ void main() {
       expect(find.byKey(LivePersonSheet.countryKey), findsNothing);
     });
 
-    testWidgets('someone you blocked: «Unblock» in Follow\'s place unblocks', (
+    testWidgets("someone you blocked: «Unblock» in Follow's place unblocks", (
       tester,
     ) async {
       final safety = FakeSafetyRepository();
