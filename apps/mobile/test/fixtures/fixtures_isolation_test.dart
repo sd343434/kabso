@@ -169,7 +169,17 @@ void main() {
       for (var i = 0; i < lines.length; i++) {
         final line = lines[i];
         if (line.trimLeft().startsWith('//')) continue;
-        if (literal.hasMatch(line) || price.hasMatch(line)) {
+        // D204: the recharge order's price is mapped from the API
+        // (`RechargePrice` in openapi `RechargeOrderQuote` / `RechargeOrder`),
+        // not a fixture; only that file's `fromJson` mapping is allowed.
+        final apiPrice =
+            file.path.endsWith(
+              'recharge/data/recharge_orders_repository.dart',
+            ) &&
+            line.trim() ==
+                "price: RechargePrice.fromJson(json['price']! "
+                    'as Map<String, dynamic>),';
+        if (literal.hasMatch(line) || (price.hasMatch(line) && !apiPrice)) {
           offenders.add('${file.path}:${i + 1}: ${line.trim()}');
         }
       }
