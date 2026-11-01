@@ -91,6 +91,10 @@ const OPTIONAL_AUTH_ALLOWLIST = [
   // v1.39-live (D173): the in-room promo banners (`placement=room`; `home` stays 401 without a
   // token), so a guest watching a live sees them too.
   'GET /api/v1/home/banners',
+  // v1.47-live (D212, §10.69): the hub's announced podcast episodes, read like the hub (security review
+  // int7b: per-IP guest bucket, block-filtered for a signed-in caller, ACTIVE hosting hosts only, UserSummary
+  // without email, 7 days / at most 20, no parameters).
+  'GET /api/v1/live/podcasts/scheduled',
 ].sort();
 
 interface RouteInfo {

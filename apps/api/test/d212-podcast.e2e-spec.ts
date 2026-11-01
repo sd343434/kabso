@@ -423,6 +423,70 @@ describe('D212 live categories and podcasts', () => {
     expect(mine(await listed())).toEqual([]);
   });
 
+  it('announced episodes, security review (int7b): guests and callers see only ACTIVE hosting hosts, no block either way, no private fields, 7 days, at most 20', async () => {
+    const now = clock.now().getTime();
+    const episode = (hostUserId: string, inMs: number, title = 'ep') =>
+      ctx.prisma.liveScheduleSlot.create({
+        data: { hostUserId, title, startsAt: new Date(now + inMs), mode: 'PODCAST', podcastTopic: 'tech' },
+      });
+    const list = async (u?: TestUser) => {
+      const req = ctx.http.get('/api/v1/live/podcasts/scheduled');
+      const res = await (u ? req.set(auth(u)) : req);
+      expect(res.status).toBe(200);
+      expectContract(res, 'listScheduledPodcasts');
+      return res.body.data as { id: string; startsAt: string; host: Record<string, unknown> }[];
+    };
+    const [open, suspended, pending, revoked, blockedByFan] = [
+      await host(),
+      await host(),
+      await host(),
+      await host(),
+      await host(),
+    ];
+    const fan = await signup();
+    const shown = await episode(open.id, 3600_000, 'shown');
+    const late = await episode(open.id, 8 * 24 * 3600_000, 'next week');
+    const hidden = [
+      await episode(suspended.id, 3600_000),
+      await episode(pending.id, 3600_000),
+      await episode(revoked.id, 3600_000),
+    ];
+    const fanBlocked = await episode(blockedByFan.id, 3600_000);
+    await ctx.prisma.user.update({ where: { id: suspended.id }, data: { status: 'SUSPENDED' } });
+    await ctx.prisma.user.update({ where: { id: pending.id }, data: { status: 'PENDING_DELETION' } });
+    await ctx.prisma.liveHost.delete({ where: { userId: revoked.id } });
+    await ctx.prisma.userBlock.create({ data: { blockerId: fan.id, blockedId: blockedByFan.id } });
+
+    const guest = await list();
+    const ids = new Set(guest.map((r) => r.id));
+    expect(ids.has(shown.id)).toBe(true);
+    expect(ids.has(late.id)).toBe(false);
+    for (const h of hidden) expect(ids.has(h.id)).toBe(false);
+    // Guests have no blocks; the caller who blocked the host does not see the episode.
+    expect(ids.has(fanBlocked.id)).toBe(true);
+    expect((await list(fan)).some((r) => r.id === fanBlocked.id)).toBe(false);
+    // Only UserSummary fields: no email or other private field anywhere in the answer.
+    const raw = JSON.stringify(guest);
+    expect(raw).not.toMatch(/email|dateOfBirth|phone|isPrivate/i);
+    expect(Object.keys(guest.find((r) => r.id === shown.id)!).sort()).toEqual([
+      'host',
+      'id',
+      'podcastTopic',
+      'reminder',
+      'startsAt',
+      'title',
+    ]);
+
+    // At most 20, soonest first (two more hosts, 10 each: 22 listable episodes in the window).
+    const [more1, more2] = [await host(), await host()];
+    for (let i = 0; i < 20; i += 1) await episode(i % 2 === 0 ? more1.id : more2.id, (2 + i) * 3600_000);
+    const capped = await list();
+    expect(capped).toHaveLength(20);
+    const starts = capped.map((r) => Date.parse(r.startsAt));
+    expect(starts).toEqual([...starts].sort((a, b) => a - b));
+    expect(starts.every((t) => t > clock.now().getTime() && t <= now + 7 * 24 * 3600_000)).toBe(true);
+  });
+
   it('chat: each join is a line with the gender the joiner shows (else null)', async () => {
     const h = await host();
     const roomId = await goLive(h, { mode: 'AUDIO', seatCount: 5 });
