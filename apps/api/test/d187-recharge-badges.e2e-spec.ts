@@ -268,7 +268,10 @@ describe('D187 daily recharge badges', { timeout: 300_000 }, () => {
   it('a higher tier from an earlier day still showing stays; an equal or higher one today replaces it', async () => {
     const f = await signup();
     const midnight = dayStart(new Date(), 'Asia/Riyadh');
-    const yesterday = new Date(midnight.getTime() - HOUR);
+    // The last second of yesterday: its badge then shows until 23:59:59 today. A sale an hour
+    // before midnight expired at 23:00 today, so this test failed whenever CI ran between
+    // 23:00 and 24:00 Riyadh time (run 41346880276 at 23:52). Same rule, no time-of-day window.
+    const yesterday = new Date(midnight.getTime() - 1000);
     await sell(f, 20_000_001, yesterday);
     const kept = { tier: 3, until: new Date(yesterday.getTime() + 24 * HOUR).toISOString() };
     expect(await profileBadge(f)).toEqual(kept);
