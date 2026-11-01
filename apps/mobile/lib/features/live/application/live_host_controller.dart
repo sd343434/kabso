@@ -12,6 +12,7 @@ import 'package:kabso_live/features/live/application/live_background.dart';
 import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
 import 'package:kabso_live/features/live/data/beauty/live_beauty.dart';
 import 'package:kabso_live/features/live/data/beauty/live_color_filter.dart';
+import 'package:kabso_live/features/live/data/beauty/live_fx_engine.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_permissions.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
@@ -281,10 +282,17 @@ class LiveHostController extends Notifier<GoLiveState> {
   /// giving new pictures, the licence was refused, it did not start). Magic
   /// shows None selected again — the picture is the plain camera — and says
   /// why ([LiveMediaEngine.arStatus]); picking the effect again retries.
+  ///
+  /// D228: the free engine likewise switches its beauty off (the sliders
+  /// keep their values for the next try).
   void _watchArStatus() {
     if (_engine.arStatus.value.state != LiveArState.unavailable) return;
-    if (state.beauty.effect == LiveArEffect.none) return;
-    final beauty = state.beauty.copyWith(effect: LiveArEffect.none);
+    final freeOn = state.beauty.free.on;
+    if (state.beauty.effect == LiveArEffect.none && !freeOn) return;
+    final beauty = state.beauty.copyWith(
+      effect: LiveArEffect.none,
+      free: state.beauty.free.copyWith(on: false),
+    );
     state = state.copyWith(beauty: beauty);
     unawaited(_engine.setBeauty(beauty).then((_) {}, onError: (_) {}));
   }
@@ -599,6 +607,18 @@ class LiveHostController extends Notifier<GoLiveState> {
   /// [LiveMediaEngine.arEffects] is ready).
   Future<void> setArEffect(LiveArEffect effect) =>
       setBeauty(state.beauty.copyWith(effect: effect));
+
+  /// D228: the free effects engine's beauty (Magic's sliders), on the
+  /// published picture while that engine runs.
+  Future<void> setFreeBeauty(LiveFreeBeauty free) =>
+      setBeauty(state.beauty.copyWith(free: free));
+
+  /// D228: the effects engine (the server's `cameraFxEngine`, or the debug
+  /// override). The picked effect and beauty carry over to it.
+  Future<void> setFxEngine(LiveFxEngine engine) async {
+    if (_engine.fxEngine == engine) return;
+    await _engine.setFxEngine(engine);
+  }
 
   /// D143 fill light. The front camera (D157): a soft exposure lift with a
   /// warm tint at [level] (or the last level) on the published picture.

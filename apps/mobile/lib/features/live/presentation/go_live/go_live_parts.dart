@@ -4,6 +4,7 @@ import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
 import 'package:kabso_live/features/live/data/beauty/live_beauty.dart';
 import 'package:kabso_live/features/live/data/beauty/live_color_filter.dart';
+import 'package:kabso_live/features/live/data/beauty/live_fx_engine.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_glass.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_room_style.dart';
@@ -39,6 +40,14 @@ abstract final class GoLiveKeys {
 
   /// D144a: why the picked effect is off now, or that it is starting.
   static const effectStatus = Key('goLive.effect.status');
+
+  /// D228 (free engine): the engine line, the beauty on/off chips, each
+  /// slider and why beauty is unavailable.
+  static const effectsEngineFree = Key('goLive.effect.engineFree');
+  static const freeBeautyOn = Key('goLive.freeBeauty.on');
+  static const freeBeautyOff = Key('goLive.freeBeauty.off');
+  static Key freeBeautySlider(String kind) => Key('goLive.freeBeauty.$kind');
+  static const freeBeautyUnavailable = Key('goLive.freeBeauty.unavailable');
 
   /// D157 fill light: one chip per level, and the line saying where the
   /// light goes (the published picture, or the screen only).
@@ -1140,6 +1149,12 @@ class LiveSheetFrame extends StatelessWidget {
 ///
 /// D144a: [effectStatus] (DeepAR on the device) — an effect DeepAR had to
 /// switch off shows None selected and an honest «المؤثر غير متاح الآن: …».
+///
+/// D228: with [fxEngine] free (ML Kit + MediaPipe on the device) the same
+/// Effects section says which engine runs, and **Beauty** follows: off/on
+/// and four sliders 0 … 100 (smooth skin, brighten, slim face, bigger eyes;
+/// [freeBeauty], [onFreeBeauty]). The sheet scrolls then. With DeepAR the
+/// sheet is exactly as before.
 Future<void> showLiveFilterSheet(
   BuildContext context, {
   required LiveColorFilter selected,
@@ -1150,86 +1165,118 @@ Future<void> showLiveFilterSheet(
   LiveArEffect effect = LiveArEffect.none,
   ValueChanged<LiveArEffect>? onEffect,
   ValueListenable<LiveArStatus>? effectStatus,
+  LiveFxEngine fxEngine = LiveFxEngine.deepAr,
+  LiveFreeBeauty freeBeauty = const LiveFreeBeauty(),
+  ValueChanged<LiveFreeBeauty>? onFreeBeauty,
 }) => showModalBottomSheet<void>(
   context: context,
   backgroundColor: const Color(0x00000000),
   // The picture stays visible above the sheet while choosing.
   barrierColor: const Color(0x22000000),
+  // D228: the free engine's sliders make the sheet taller (it scrolls).
+  isScrollControlled: fxEngine == LiveFxEngine.free,
   builder: (sheet) {
     var value = selected;
     var effectValue = effect;
+    var freeValue = freeBeauty;
+    final free =
+        fxEngine == LiveFxEngine.free && effects != LiveArSupport.unsupported;
     return StatefulBuilder(
       builder: (context, setState) {
         final l10n = context.l10n;
         final text = context.textStyles;
-        return LiveSheetFrame(
-          title: l10n.liveFilterTitle,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (!supported)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    KSpacing.lg,
-                    0,
-                    KSpacing.lg,
-                    KSpacing.md,
-                  ),
-                  child: Text(
-                    l10n.liveFilterUnsupported,
-                    key: GoLiveKeys.filterUnsupported,
-                    textAlign: TextAlign.center,
-                    style: text.caption.copyWith(
-                      color: _white.withValues(alpha: 0.75),
-                    ),
-                  ),
+        final content = Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (!supported)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  KSpacing.lg,
+                  0,
+                  KSpacing.lg,
+                  KSpacing.md,
                 ),
-              SizedBox(
-                height: KLiveStyle.filterSwatch + 40,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: KSpacing.md),
-                  children: [
-                    for (final f in LiveColorFilter.values)
-                      _FilterSwatch(
-                        key: GoLiveKeys.filter(f),
-                        filter: f,
-                        label: liveFilterLabel(l10n, f),
-                        selected: f == value,
-                        accent: accent,
-                        onTap: supported
-                            ? () {
-                                setState(() => value = f);
-                                onChanged(f);
-                              }
-                            : null,
-                      ),
-                  ],
+                child: Text(
+                  l10n.liveFilterUnsupported,
+                  key: GoLiveKeys.filterUnsupported,
+                  textAlign: TextAlign.center,
+                  style: text.caption.copyWith(
+                    color: _white.withValues(alpha: 0.75),
+                  ),
                 ),
               ),
-              if (effects != LiveArSupport.unsupported)
-                ValueListenableBuilder<LiveArStatus>(
-                  valueListenable: effectStatus ?? _noEffectStatus,
-                  builder: (context, status, _) => _EffectsSection(
-                    selected: status.state == LiveArState.unavailable
-                        ? LiveArEffect.none
-                        : effectValue,
-                    status:
-                        effectValue == LiveArEffect.none &&
-                            status.state != LiveArState.unavailable
-                        ? LiveArStatus.off
-                        : status,
-                    ready: effects == LiveArSupport.ready && onEffect != null,
-                    accent: accent,
-                    onChanged: (e) {
-                      setState(() => effectValue = e);
-                      onEffect?.call(e);
-                    },
-                  ),
+            SizedBox(
+              height: KLiveStyle.filterSwatch + 40,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: KSpacing.md),
+                children: [
+                  for (final f in LiveColorFilter.values)
+                    _FilterSwatch(
+                      key: GoLiveKeys.filter(f),
+                      filter: f,
+                      label: liveFilterLabel(l10n, f),
+                      selected: f == value,
+                      accent: accent,
+                      onTap: supported
+                          ? () {
+                              setState(() => value = f);
+                              onChanged(f);
+                            }
+                          : null,
+                    ),
+                ],
+              ),
+            ),
+            if (effects != LiveArSupport.unsupported)
+              ValueListenableBuilder<LiveArStatus>(
+                valueListenable: effectStatus ?? _noEffectStatus,
+                builder: (context, status, _) => _EffectsSection(
+                  selected: status.state == LiveArState.unavailable
+                      ? LiveArEffect.none
+                      : effectValue,
+                  status:
+                      effectValue == LiveArEffect.none &&
+                          status.state != LiveArState.unavailable
+                      ? LiveArStatus.off
+                      : status,
+                  ready: effects == LiveArSupport.ready && onEffect != null,
+                  accent: accent,
+                  engineNote: free ? l10n.liveEffectsEngineFree : null,
+                  onChanged: (e) {
+                    setState(() => effectValue = e);
+                    onEffect?.call(e);
+                  },
                 ),
-            ],
-          ),
+              ),
+            if (free && effects == LiveArSupport.ready)
+              ValueListenableBuilder<LiveArStatus>(
+                valueListenable: effectStatus ?? _noEffectStatus,
+                builder: (context, status, _) => _FreeBeautySection(
+                  value: freeValue,
+                  status: status,
+                  accent: accent,
+                  onChanged: onFreeBeauty == null
+                      ? null
+                      : (b) {
+                          setState(() => freeValue = b);
+                          onFreeBeauty(b);
+                        },
+                ),
+              ),
+          ],
+        );
+        return LiveSheetFrame(
+          title: l10n.liveFilterTitle,
+          child: free
+              ? ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.sizeOf(context).height * 0.62,
+                  ),
+                  child: SingleChildScrollView(child: content),
+                )
+              : content,
         );
       },
     );
@@ -1334,6 +1381,7 @@ String? liveEffectStatusText(AppLocalizations l10n, LiveArStatus status) =>
         LiveArProblem.licence => l10n.liveEffectUnavailableLicence,
         LiveArProblem.stopped => l10n.liveEffectUnavailableStopped,
         LiveArProblem.blackPicture => l10n.liveEffectUnavailableBlack,
+        LiveArProblem.tooSlow => l10n.liveEffectUnavailableSlow,
         LiveArProblem.failed || null => l10n.liveEffectUnavailableFailed,
       },
     };
@@ -1346,7 +1394,11 @@ class _EffectsSection extends StatelessWidget {
     required this.accent,
     required this.onChanged,
     this.status = LiveArStatus.off,
+    this.engineNote,
   });
+
+  /// D228: which engine runs (the free one); null: DeepAR, nothing shown.
+  final String? engineNote;
 
   final LiveArEffect selected;
   final LiveArStatus status;
@@ -1379,6 +1431,16 @@ class _EffectsSection extends StatelessWidget {
               ),
             ),
           ),
+          if (engineNote case final note?) ...[
+            const SizedBox(height: KSpacing.xs),
+            Text(
+              note,
+              key: GoLiveKeys.effectsEngineFree,
+              style: text.caption.copyWith(
+                color: _white.withValues(alpha: 0.75),
+              ),
+            ),
+          ],
           if (!ready) ...[
             const SizedBox(height: KSpacing.xs),
             Text(
@@ -1422,6 +1484,153 @@ class _EffectsSection extends StatelessWidget {
                 ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// D228 Magic → Beauty (free engine): off/on, then four sliders 0 … 100.
+class _FreeBeautySection extends StatelessWidget {
+  const new({
+    required this.value,
+    required this.status,
+    required this.accent,
+    required this.onChanged,
+  });
+
+  final LiveFreeBeauty value;
+  final LiveArStatus status;
+  final Color accent;
+  final ValueChanged<LiveFreeBeauty>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final text = context.textStyles;
+    final change = onChanged;
+    final sliders = <(String, String, int, LiveFreeBeauty Function(int))>[
+      (
+        'smooth',
+        l10n.liveFreeBeautySmooth,
+        value.smooth,
+        (v) => value.copyWith(smooth: v),
+      ),
+      (
+        'brighten',
+        l10n.liveFreeBeautyBrighten,
+        value.brighten,
+        (v) => value.copyWith(brighten: v),
+      ),
+      (
+        'slim',
+        l10n.liveFreeBeautySlim,
+        value.slim,
+        (v) => value.copyWith(slim: v),
+      ),
+      (
+        'eyes',
+        l10n.liveFreeBeautyEyes,
+        value.eyes,
+        (v) => value.copyWith(eyes: v),
+      ),
+    ];
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        KSpacing.lg,
+        KSpacing.md,
+        KSpacing.lg,
+        0,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Semantics(
+            header: true,
+            child: Text(
+              l10n.liveFreeBeautyTitle,
+              style: text.label.copyWith(
+                color: _white,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(height: KSpacing.xs),
+          Text(
+            status.beautyUnavailable
+                ? l10n.liveFreeBeautyUnavailable
+                : l10n.liveFreeBeautyNote,
+            key: status.beautyUnavailable
+                ? GoLiveKeys.freeBeautyUnavailable
+                : null,
+            style: text.caption.copyWith(
+              color: status.beautyUnavailable
+                  ? const Color(0xFFFFC2C2)
+                  : _white.withValues(alpha: 0.75),
+            ),
+          ),
+          const SizedBox(height: KSpacing.sm),
+          Wrap(
+            spacing: KSpacing.sm,
+            runSpacing: KSpacing.sm,
+            children: [
+              _EffectChip(
+                key: GoLiveKeys.freeBeautyOff,
+                icon: Icons.block_rounded,
+                label: l10n.liveEffectNone,
+                selected: !value.on,
+                accent: accent,
+                onTap: change == null
+                    ? null
+                    : () => change(value.copyWith(on: false)),
+              ),
+              _EffectChip(
+                key: GoLiveKeys.freeBeautyOn,
+                icon: Icons.face_retouching_natural_rounded,
+                label: l10n.liveFreeBeautyOn,
+                selected: value.on,
+                accent: accent,
+                onTap: change == null
+                    ? null
+                    : () => change(value.copyWith(on: true)),
+              ),
+            ],
+          ),
+          if (value.on)
+            for (final (kind, label, current, apply) in sliders) ...[
+              const SizedBox(height: KSpacing.sm),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: text.caption.copyWith(color: _white),
+                    ),
+                  ),
+                  Text(
+                    '$current',
+                    style: text.caption.copyWith(
+                      color: _white,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ],
+              ),
+              Slider(
+                key: GoLiveKeys.freeBeautySlider(kind),
+                value: current.toDouble(),
+                max: 100,
+                divisions: 20,
+                activeColor: accent,
+                inactiveColor: _white.withValues(alpha: 0.25),
+                label: '$current',
+                semanticFormatterCallback: (v) => '$label ${v.round()}',
+                onChanged: change == null
+                    ? null
+                    : (v) => change(apply(v.round())),
+              ),
+            ],
         ],
       ),
     );

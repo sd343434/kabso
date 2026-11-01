@@ -7391,6 +7391,40 @@ class AppLocalizationsAr extends AppLocalizations {
       'المؤثر غير متاح الآن: خرجت صورته سوداء، فعادت الكاميرا من دونه قبل أن يراها المشاهدون. جرّبه مرة أخرى لاحقاً.';
 
   @override
+  String get liveEffectUnavailableSlow =>
+      'المؤثر غير متاح الآن: كان أبطأ من أن يواكب الكاميرا على هذا الجهاز، فعادت الكاميرا من دونه.';
+
+  @override
+  String get liveEffectsEngineFree =>
+      'المحرك: المجاني، على الجهاز (⁦ML Kit + MediaPipe⁩)';
+
+  @override
+  String get liveFreeBeautyTitle => 'التجميل';
+
+  @override
+  String get liveFreeBeautyOn => 'تجميل الوجه';
+
+  @override
+  String get liveFreeBeautyNote =>
+      'يُنزَّل نموذج الوجه (3.6 ميغابايت) مرة واحدة عند أول استخدام، ثم يعمل كل شيء على الجهاز.';
+
+  @override
+  String get liveFreeBeautyUnavailable =>
+      'التجميل غير متاح الآن: تعذّر تحميل نموذج الوجه. تحقّق من الاتصال وجرّب مرة أخرى.';
+
+  @override
+  String get liveFreeBeautySmooth => 'تنعيم البشرة';
+
+  @override
+  String get liveFreeBeautyBrighten => 'تفتيح';
+
+  @override
+  String get liveFreeBeautySlim => 'نحت الوجه';
+
+  @override
+  String get liveFreeBeautyEyes => 'تكبير العينين';
+
+  @override
   String get liveLuckyBigWin => 'فوز كبير';
 
   @override

@@ -292,6 +292,8 @@ describe('KL-037 live discovery and host lifecycle (hosting enabled)', () => {
           questionSeconds: [60, 120, 180, 300],
           defaultQuestionSeconds: 120,
         },
+        // v1.49-live (D228): the camera effects engine, DeepAR by default.
+        cameraFxEngine: 'DEEPAR',
       });
     });
 

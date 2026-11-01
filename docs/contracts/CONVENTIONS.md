@@ -5274,6 +5274,23 @@ every other session at once. PHASE1_SCREENS §9.3 had left it out («No revoke a
   "Log out of all other devices" while another session exists; it asks for the password in a confirm dialog,
   then refreshes the list and says how many devices were signed out.
 
+### 10.79 The app's camera effects engine: DeepAR or the free on-device engine *(v1.49-live, DRAFT — D228)*
+
+The owner compares two engines for Magic's effects on Android (2026-11-01: «لا تستبدل لكن ضعهم لارى وان لم يعجبني
+نقوم بازالتهم»): DeepAR (D144) and a free one (Google ML Kit selfie segmentation + MediaPipe Face Landmarker, GLSL on
+the GPU, everything on the device). One server switch picks it for every host:
+
+- `LiveConfig.cameraFxEngine` (`getLiveConfig`, required in answers): `DEEPAR` (default; no row) or `FREE`. A client
+  reads any other value as `DEEPAR`; an older server sends nothing and the app keeps DeepAR.
+- Stored as one `site_settings` row, key `cameraFxEngine` (migration `20270215090000_camera_fx_engine` adds the key to
+  the table's CHECK); only the exact string `FREE` selects the free engine; a failed read serves `DEEPAR`.
+- `getAdminCameraFx` / `updateAdminCameraFx` (`GET|PUT /admin/camera-fx`, panel session + CSRF, capability
+  `site.settings`: OWNER only), body `{cameraFxEngine, reason?}`; audited `site.settings.update` (`metadata.key`
+  `cameraFxEngine`, `before`, `after`, `reason`, `via: panel`). The public `getSiteSettings` does not carry it.
+- Debug/profile builds of the app may override it on the phone (never a release build).
+- What the free engine does and what is unverified: docs/AI_WORKFORCE_BOARD.md D228; how to remove it:
+  docs/KNOWN_LIMITATIONS.md (D228).
+
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 
 Additive; no earlier rule changes. Reels and video (M2), stories (M3), notifications (M4),

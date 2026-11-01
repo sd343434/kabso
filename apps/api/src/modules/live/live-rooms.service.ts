@@ -1,4 +1,5 @@
 import { performance } from 'node:perf_hooks';
+import { readCameraFxEngine, type CameraFxEngine } from '../site-settings/camera-fx.rules.js';
 import { StorageSettingsStore } from '../storage-settings/storage-settings.store.js';
 import { Inject, Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { AuditAction, AuditService, type AuditEntry } from '../../common/audit/audit.service.js';
@@ -189,6 +190,8 @@ export interface LiveConfigDto {
     questionSeconds: number[];
     defaultQuestionSeconds: number;
   };
+  /** v1.49-live (D228, §10.79): the Android camera effects engine, `DEEPAR` (default) or `FREE`. */
+  cameraFxEngine: CameraFxEngine;
 }
 
 /**
@@ -575,7 +578,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     this.sweepTimer.unref();
   }
 
-  getConfig(): LiveConfigDto {
+  async getConfig(): Promise<LiveConfigDto> {
     return {
       hostingEnabled: this.config.live.hostingEnabled,
       heartbeatIntervalSeconds: this.config.live.heartbeatIntervalSeconds,
@@ -588,6 +591,8 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
         questionSeconds: [...PODCAST_QUESTION_SECONDS],
         defaultQuestionSeconds: DEFAULT_PODCAST_QUESTION_SECONDS,
       },
+      // D228: the OWNER's switch (a `site_settings` row; DEEPAR when absent or unreadable).
+      cameraFxEngine: await readCameraFxEngine(this.prisma),
     };
   }
 

@@ -11,6 +11,7 @@ import 'package:kabso_live/core/logging/app_logger.dart';
 import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
 import 'package:kabso_live/features/live/data/beauty/live_beauty.dart';
 import 'package:kabso_live/features/live/data/beauty/live_camera_fx.dart';
+import 'package:kabso_live/features/live/data/beauty/live_fx_engine.dart';
 import 'package:kabso_live/features/live/data/live_camera_gate.dart';
 import 'package:kabso_live/features/live/data/live_media_extras.dart';
 import 'package:kabso_live/features/live/data/live_voice_recorder.dart';
@@ -244,6 +245,15 @@ abstract interface class LiveMediaEngine implements LiveVoiceMic {
 
   /// Whether Magic's AR effects can run here (D144).
   LiveArSupport get arEffects;
+
+  /// D228: the camera effects engine (DeepAR or the free one) on this
+  /// device's processor; [LiveFxEngine.deepAr] where there is none.
+  LiveFxEngine get fxEngine;
+
+  /// D228: switches the effects engine (the server's `cameraFxEngine`, or
+  /// the debug override); what was picked carries over. A no-op where there
+  /// is no camera processor.
+  Future<void> setFxEngine(LiveFxEngine engine);
 
   /// D144a: the picked AR effect's state on the device — DeepAR switches
   /// it off by itself (and says why) rather than freeze the picture.
@@ -612,6 +622,13 @@ class LiveKitMediaEngine
 
   @override
   LiveArSupport get arEffects => _fx.effects;
+
+  @override
+  LiveFxEngine get fxEngine => _fx.engine;
+
+  @override
+  Future<void> setFxEngine(LiveFxEngine engine) =>
+      kIsWeb ? Future.value() : _fx.setEngine(engine);
 
   @override
   ValueListenable<LiveArStatus> get arStatus => _fx.status;

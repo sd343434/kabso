@@ -5,6 +5,7 @@ import 'package:kabso_camera_fx/kabso_camera_fx.dart';
 import 'package:kabso_live/core/config/deepar_config.dart';
 import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
 import 'package:kabso_live/features/live/data/beauty/live_beauty.dart';
+import 'package:kabso_live/features/live/data/beauty/live_fx_engine.dart';
 
 /// D144: the native camera processor (`kabso_camera_fx`) on the host's
 /// published camera, Android only in phase 1: D143's colour filters and
@@ -25,6 +26,11 @@ import 'package:kabso_live/features/live/data/beauty/live_beauty.dart';
 /// «جارٍ تشغيل المؤثر…» for ever even if the native side goes quiet. And
 /// [release] names this camera's track, so a camera stopping late (the last
 /// go-live screen) never frees the processor the next camera now has.
+///
+/// D228: [setEngine] picks the effects engine. With [LiveFxEngine.free] the
+/// effect and [LiveBeauty.free] go to the native free engine (no licence
+/// key; DeepAR is never initialized), so [effects] is ready wherever the
+/// processor exists; with [LiveFxEngine.deepAr] everything is as in D144.
 class LiveCameraFx {
   new({KabsoCameraFx? bridge, String? licenseKey})
     : _bridge = bridge ?? KabsoCameraFx(),
@@ -61,6 +67,10 @@ class LiveCameraFx {
   /// stays silent).
   static const Duration startTimeout = Duration(seconds: 12);
 
+  /// D228: the free engine's backstop — its native start watch allows 20 s
+  /// (the face model's first download included).
+  static const Duration freeStartTimeout = Duration(seconds: 25);
+
   /// The code [status] carries when the backstop fired.
   static const String startTimeoutCode = 'start_timeout';
 
@@ -70,18 +80,21 @@ class LiveCameraFx {
   void _armStart() {
     _startTimer?.cancel();
     _timedOut = false;
-    _startTimer = Timer(startTimeout, () {
-      if (_status.value.state == LiveArState.running ||
-          _status.value.state == LiveArState.unavailable) {
-        return;
-      }
-      _timedOut = true;
-      _status.value = const LiveArStatus(
-        LiveArState.unavailable,
-        problem: LiveArProblem.failed,
-        code: startTimeoutCode,
-      );
-    });
+    _startTimer = Timer(
+      _engine == LiveFxEngine.free ? freeStartTimeout : startTimeout,
+      () {
+        if (_status.value.state == LiveArState.running ||
+            _status.value.state == LiveArState.unavailable) {
+          return;
+        }
+        _timedOut = true;
+        _status.value = const LiveArStatus(
+          LiveArState.unavailable,
+          problem: LiveArProblem.failed,
+          code: startTimeoutCode,
+        );
+      },
+    );
   }
 
   LiveBeauty _wanted = const LiveBeauty();
@@ -92,11 +105,31 @@ class LiveCameraFx {
   LiveArEffect? _sentEffect;
   bool _keySent = false;
 
+  // D228: the engine wanted, and what the native side was last told.
+  LiveFxEngine _engine = LiveFxEngine.deepAr;
+  LiveFxEngine? _sentEngine;
+  KabsoFreeFx? _sentFree;
+
+  /// D228: the effects engine in use.
+  LiveFxEngine get engine => _engine;
+
+  /// D228: picks the effects engine; what was picked moves to it (DeepAR's
+  /// effect off when the free engine takes over, and back).
+  Future<void> setEngine(LiveFxEngine engine) async {
+    if (engine == _engine) return;
+    _engine = engine;
+    _startTimer?.cancel();
+    if (!_bridge.isSupported) return;
+    await _sync();
+  }
+
   /// Colour filters (and D157's fill light) run here.
   bool get filtersSupported => _bridge.isSupported;
 
   LiveArSupport get effects {
     if (!_bridge.isSupported) return LiveArSupport.unsupported;
+    // D228: the free engine needs no key.
+    if (_engine == LiveFxEngine.free) return LiveArSupport.ready;
     if (_licenseKey.isEmpty) return LiveArSupport.unlicensed;
     return LiveArSupport.ready;
   }
@@ -129,6 +162,16 @@ class LiveCameraFx {
       await _bridge.setColorMatrix(matrix);
       _sentMatrix = matrix;
     }
+    if (_engine == LiveFxEngine.free) {
+      await _syncFree();
+      return;
+    }
+    if (_sentEngine == LiveFxEngine.free) {
+      // Back to DeepAR: the native side turns the free engine off.
+      await _bridge.setEngine(KabsoCameraFxEngine.deepAr);
+      _sentEngine = LiveFxEngine.deepAr;
+      _sentFree = null;
+    }
     final effect = effects == LiveArSupport.ready
         ? _wanted.effect
         : LiveArEffect.none;
@@ -147,11 +190,35 @@ class LiveCameraFx {
     }
   }
 
+  /// D228: the free engine gets the blur and the beauty sliders; DeepAR is
+  /// switched off by the native side (never initialized).
+  Future<void> _syncFree() async {
+    if (_sentEngine != LiveFxEngine.free) {
+      await _bridge.setEngine(KabsoCameraFxEngine.free);
+      _sentEngine = LiveFxEngine.free;
+      _sentEffect = LiveArEffect.none;
+      _sentFree = null;
+    }
+    final want = _wanted.free.toNative(
+      backgroundBlur: _wanted.effect == LiveArEffect.backgroundBlur,
+    );
+    if (want == _sentFree) return;
+    _listen();
+    final starting = (_sentFree?.isNone ?? true) && !want.isNone;
+    await _bridge.setFreeFx(want);
+    _sentFree = want;
+    if (want.isNone) {
+      _startTimer?.cancel();
+    } else if (starting) {
+      _armStart();
+    }
+  }
+
   /// The camera stopped (the live ended, off the seat): processor off,
   /// DeepAR released. What was picked is kept for the next [attach].
   Future<void> release() async {
     if (!_bridge.isSupported) return;
-    final wasInUse = _trackId != null || _keySent;
+    final wasInUse = _trackId != null || _keySent || _sentFree != null;
     final trackId = _trackId;
     _startTimer?.cancel();
     _timedOut = false;
@@ -159,6 +226,10 @@ class LiveCameraFx {
     _sentMatrix = null;
     _sentEffect = null;
     _keySent = false;
+    // D228: the native release forgets the engine (back to DeepAR); the
+    // wanted one is sent again on the next attach.
+    _sentEngine = null;
+    _sentFree = null;
     _status.value = LiveArStatus.off;
     await _statusSub?.cancel();
     _statusSub = null;

@@ -39,6 +39,10 @@ import org.webrtc.VideoSource
  * a camera opened twice), and `release` with a `trackId` only releases the
  * processor if it is still on that track — a go-live screen closing after the
  * next one opened its camera must not take the new one's processor away.
+ *
+ * D228: `setEngine` (`deepar` | `free`) and `setFreeFx` (`{blur, smooth,
+ * brighten, slim, eyes}`, strengths 0 … 1) steer the free engine
+ * ([FreeFxStage]); kept like the rest for a processor created later.
  */
 class KabsoCameraFxPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHandler {
     private var channel: MethodChannel? = null
@@ -56,6 +60,8 @@ class KabsoCameraFxPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCa
     private var licenseKey: String? = null
     private var colorMatrix: FloatArray? = null
     private var effect: DeepArStage.Effect? = null
+    private var engine = CameraFxProcessor.Engine.DEEPAR
+    private var freeFx = FreeFxParams.NONE
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         channel = MethodChannel(binding.binaryMessenger, CHANNEL).also {
@@ -133,6 +139,20 @@ class KabsoCameraFxPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCa
                 processor?.setEffect(effect)
                 result.success(null)
             }
+            "setEngine" -> {
+                engine = if (call.argument<String>("engine") == "free") {
+                    CameraFxProcessor.Engine.FREE
+                } else {
+                    CameraFxProcessor.Engine.DEEPAR
+                }
+                processor?.setEngine(engine)
+                result.success(null)
+            }
+            "setFreeFx" -> {
+                freeFx = FreeFxParams.fromMap(call.arguments as? Map<*, *>)
+                processor?.setFreeFx(freeFx)
+                result.success(null)
+            }
             "diagnostics" -> {
                 val diagnostics = processor?.diagnostics() ?: (lastStatus + mapOf(
                     "licencePresent" to !licenseKey.isNullOrEmpty(),
@@ -153,6 +173,8 @@ class KabsoCameraFxPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCa
                 releaseProcessor()
                 colorMatrix = null
                 effect = null
+                freeFx = FreeFxParams.NONE
+                engine = CameraFxProcessor.Engine.DEEPAR
                 lastStatus = mapOf("state" to "off", "reason" to null)
                 result.success(null)
             }
@@ -173,7 +195,8 @@ class KabsoCameraFxPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCa
         val current = processor ?: CameraFxProcessor(host, ::onStatus).also { created ->
             licenseKey?.let(created::setLicenseKey)
             created.setColorMatrix(colorMatrix)
-            created.setEffect(effect)
+            created.setEngine(engine)
+            if (engine == CameraFxProcessor.Engine.FREE) created.setFreeFx(freeFx) else created.setEffect(effect)
             processor = created
         }
         attachedTrack?.let { previous -> current.detachFrom(previous) }

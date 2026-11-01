@@ -20,7 +20,10 @@ mixin _$LiveConfig {
  List<String> get themes;/// CP-011: allowed seat counts per mode, the host's tile included.
  LiveSeatCounts get seatCounts;/// v1.47-live (D212): the podcast setup's choices (defaults from an
 /// older server).
- LivePodcastConfig get podcast;
+ LivePodcastConfig get podcast;/// v1.49-live (D228): the camera effects engine on Android — `DEEPAR`
+/// (default; also for an older server) or `FREE` (ML Kit + MediaPipe).
+/// Read through `LiveFxEngine.parse`.
+ String get cameraFxEngine;
 /// Create a copy of LiveConfig
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -34,20 +37,20 @@ $LiveConfigCopyWith<LiveConfig> get copyWith => _$LiveConfigCopyWithImpl<LiveCon
 @override
 bool operator ==(Object other) {
   final _this = this as LiveConfig;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveConfig&&(identical(other.hostingEnabled, _this.hostingEnabled) || other.hostingEnabled == _this.hostingEnabled)&&(identical(other.heartbeatIntervalSeconds, _this.heartbeatIntervalSeconds) || other.heartbeatIntervalSeconds == _this.heartbeatIntervalSeconds)&&(identical(other.heartbeatStaleAfterSeconds, _this.heartbeatStaleAfterSeconds) || other.heartbeatStaleAfterSeconds == _this.heartbeatStaleAfterSeconds)&&const DeepCollectionEquality().equals(other.themes, _this.themes)&&(identical(other.seatCounts, _this.seatCounts) || other.seatCounts == _this.seatCounts)&&(identical(other.podcast, _this.podcast) || other.podcast == _this.podcast));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveConfig&&(identical(other.hostingEnabled, _this.hostingEnabled) || other.hostingEnabled == _this.hostingEnabled)&&(identical(other.heartbeatIntervalSeconds, _this.heartbeatIntervalSeconds) || other.heartbeatIntervalSeconds == _this.heartbeatIntervalSeconds)&&(identical(other.heartbeatStaleAfterSeconds, _this.heartbeatStaleAfterSeconds) || other.heartbeatStaleAfterSeconds == _this.heartbeatStaleAfterSeconds)&&const DeepCollectionEquality().equals(other.themes, _this.themes)&&(identical(other.seatCounts, _this.seatCounts) || other.seatCounts == _this.seatCounts)&&(identical(other.podcast, _this.podcast) || other.podcast == _this.podcast)&&(identical(other.cameraFxEngine, _this.cameraFxEngine) || other.cameraFxEngine == _this.cameraFxEngine));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as LiveConfig;
-  return Object.hash(runtimeType,_this.hostingEnabled,_this.heartbeatIntervalSeconds,_this.heartbeatStaleAfterSeconds,const DeepCollectionEquality().hash(_this.themes),_this.seatCounts,_this.podcast);
+  return Object.hash(runtimeType,_this.hostingEnabled,_this.heartbeatIntervalSeconds,_this.heartbeatStaleAfterSeconds,const DeepCollectionEquality().hash(_this.themes),_this.seatCounts,_this.podcast,_this.cameraFxEngine);
 }
 
 @override
 String toString() {
   final _this = this as LiveConfig;
-  return 'LiveConfig(hostingEnabled: ${_this.hostingEnabled}, heartbeatIntervalSeconds: ${_this.heartbeatIntervalSeconds}, heartbeatStaleAfterSeconds: ${_this.heartbeatStaleAfterSeconds}, themes: ${_this.themes}, seatCounts: ${_this.seatCounts}, podcast: ${_this.podcast})';
+  return 'LiveConfig(hostingEnabled: ${_this.hostingEnabled}, heartbeatIntervalSeconds: ${_this.heartbeatIntervalSeconds}, heartbeatStaleAfterSeconds: ${_this.heartbeatStaleAfterSeconds}, themes: ${_this.themes}, seatCounts: ${_this.seatCounts}, podcast: ${_this.podcast}, cameraFxEngine: ${_this.cameraFxEngine})';
 }
 
 
@@ -58,7 +61,7 @@ abstract mixin class $LiveConfigCopyWith<$Res>  {
   factory $LiveConfigCopyWith(LiveConfig value, $Res Function(LiveConfig) _then) = _$LiveConfigCopyWithImpl;
 @useResult
 $Res call({
- bool hostingEnabled, int heartbeatIntervalSeconds, int heartbeatStaleAfterSeconds, List<String> themes, LiveSeatCounts seatCounts, LivePodcastConfig podcast
+ bool hostingEnabled, int heartbeatIntervalSeconds, int heartbeatStaleAfterSeconds, List<String> themes, LiveSeatCounts seatCounts, LivePodcastConfig podcast, String cameraFxEngine
 });
 
 
@@ -75,7 +78,7 @@ class _$LiveConfigCopyWithImpl<$Res>
 
 /// Create a copy of LiveConfig
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? hostingEnabled = null,Object? heartbeatIntervalSeconds = null,Object? heartbeatStaleAfterSeconds = null,Object? themes = null,Object? seatCounts = null,Object? podcast = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? hostingEnabled = null,Object? heartbeatIntervalSeconds = null,Object? heartbeatStaleAfterSeconds = null,Object? themes = null,Object? seatCounts = null,Object? podcast = null,Object? cameraFxEngine = null,}) {
   return _then(LiveConfig(
 hostingEnabled: null == hostingEnabled ? _self.hostingEnabled : hostingEnabled // ignore: cast_nullable_to_non_nullable
 as bool,heartbeatIntervalSeconds: null == heartbeatIntervalSeconds ? _self.heartbeatIntervalSeconds : heartbeatIntervalSeconds // ignore: cast_nullable_to_non_nullable
@@ -83,7 +86,8 @@ as int,heartbeatStaleAfterSeconds: null == heartbeatStaleAfterSeconds ? _self.he
 as int,themes: null == themes ? _self.themes : themes // ignore: cast_nullable_to_non_nullable
 as List<String>,seatCounts: null == seatCounts ? _self.seatCounts : seatCounts // ignore: cast_nullable_to_non_nullable
 as LiveSeatCounts,podcast: null == podcast ? _self.podcast : podcast // ignore: cast_nullable_to_non_nullable
-as LivePodcastConfig,
+as LivePodcastConfig,cameraFxEngine: null == cameraFxEngine ? _self.cameraFxEngine : cameraFxEngine // ignore: cast_nullable_to_non_nullable
+as String,
   ));
 }
 /// Create a copy of LiveConfig
@@ -186,10 +190,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool hostingEnabled,  int heartbeatIntervalSeconds,  int heartbeatStaleAfterSeconds,  List<String> themes,  LiveSeatCounts seatCounts,  LivePodcastConfig podcast)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool hostingEnabled,  int heartbeatIntervalSeconds,  int heartbeatStaleAfterSeconds,  List<String> themes,  LiveSeatCounts seatCounts,  LivePodcastConfig podcast,  String cameraFxEngine)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _LiveConfig() when $default != null:
-return $default(_that.hostingEnabled,_that.heartbeatIntervalSeconds,_that.heartbeatStaleAfterSeconds,_that.themes,_that.seatCounts,_that.podcast);case _:
+return $default(_that.hostingEnabled,_that.heartbeatIntervalSeconds,_that.heartbeatStaleAfterSeconds,_that.themes,_that.seatCounts,_that.podcast,_that.cameraFxEngine);case _:
   return orElse();
 
 }
@@ -207,10 +211,10 @@ return $default(_that.hostingEnabled,_that.heartbeatIntervalSeconds,_that.heartb
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool hostingEnabled,  int heartbeatIntervalSeconds,  int heartbeatStaleAfterSeconds,  List<String> themes,  LiveSeatCounts seatCounts,  LivePodcastConfig podcast)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool hostingEnabled,  int heartbeatIntervalSeconds,  int heartbeatStaleAfterSeconds,  List<String> themes,  LiveSeatCounts seatCounts,  LivePodcastConfig podcast,  String cameraFxEngine)  $default,) {final _that = this;
 switch (_that) {
 case _LiveConfig():
-return $default(_that.hostingEnabled,_that.heartbeatIntervalSeconds,_that.heartbeatStaleAfterSeconds,_that.themes,_that.seatCounts,_that.podcast);case _:
+return $default(_that.hostingEnabled,_that.heartbeatIntervalSeconds,_that.heartbeatStaleAfterSeconds,_that.themes,_that.seatCounts,_that.podcast,_that.cameraFxEngine);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -227,10 +231,10 @@ return $default(_that.hostingEnabled,_that.heartbeatIntervalSeconds,_that.heartb
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool hostingEnabled,  int heartbeatIntervalSeconds,  int heartbeatStaleAfterSeconds,  List<String> themes,  LiveSeatCounts seatCounts,  LivePodcastConfig podcast)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool hostingEnabled,  int heartbeatIntervalSeconds,  int heartbeatStaleAfterSeconds,  List<String> themes,  LiveSeatCounts seatCounts,  LivePodcastConfig podcast,  String cameraFxEngine)?  $default,) {final _that = this;
 switch (_that) {
 case _LiveConfig() when $default != null:
-return $default(_that.hostingEnabled,_that.heartbeatIntervalSeconds,_that.heartbeatStaleAfterSeconds,_that.themes,_that.seatCounts,_that.podcast);case _:
+return $default(_that.hostingEnabled,_that.heartbeatIntervalSeconds,_that.heartbeatStaleAfterSeconds,_that.themes,_that.seatCounts,_that.podcast,_that.cameraFxEngine);case _:
   return null;
 
 }
@@ -242,7 +246,7 @@ return $default(_that.hostingEnabled,_that.heartbeatIntervalSeconds,_that.heartb
 @JsonSerializable()
 
 class _LiveConfig implements LiveConfig {
-  const _LiveConfig({required this.hostingEnabled, required this.heartbeatIntervalSeconds, required this.heartbeatStaleAfterSeconds,  List<String> themes = const <String>[LiveThemes.classic], this.seatCounts = const LiveSeatCounts(), this.podcast = const LivePodcastConfig()}): _themes = themes;
+  const _LiveConfig({required this.hostingEnabled, required this.heartbeatIntervalSeconds, required this.heartbeatStaleAfterSeconds,  List<String> themes = const <String>[LiveThemes.classic], this.seatCounts = const LiveSeatCounts(), this.podcast = const LivePodcastConfig(), this.cameraFxEngine = 'DEEPAR'}): _themes = themes;
   factory _LiveConfig.fromJson(Map<String, dynamic> json) => _$LiveConfigFromJson(json);
 
 @override final  bool hostingEnabled;
@@ -262,6 +266,10 @@ class _LiveConfig implements LiveConfig {
 /// v1.47-live (D212): the podcast setup's choices (defaults from an
 /// older server).
 @override@JsonKey() final  LivePodcastConfig podcast;
+/// v1.49-live (D228): the camera effects engine on Android — `DEEPAR`
+/// (default; also for an older server) or `FREE` (ML Kit + MediaPipe).
+/// Read through `LiveFxEngine.parse`.
+@override@JsonKey() final  String cameraFxEngine;
 
 /// Create a copy of LiveConfig
 /// with the given fields replaced by the non-null parameter values.
@@ -276,18 +284,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveConfig&&(identical(other.hostingEnabled, hostingEnabled) || other.hostingEnabled == hostingEnabled)&&(identical(other.heartbeatIntervalSeconds, heartbeatIntervalSeconds) || other.heartbeatIntervalSeconds == heartbeatIntervalSeconds)&&(identical(other.heartbeatStaleAfterSeconds, heartbeatStaleAfterSeconds) || other.heartbeatStaleAfterSeconds == heartbeatStaleAfterSeconds)&&const DeepCollectionEquality().equals(other.themes, _themes)&&(identical(other.seatCounts, seatCounts) || other.seatCounts == seatCounts)&&(identical(other.podcast, podcast) || other.podcast == podcast));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveConfig&&(identical(other.hostingEnabled, hostingEnabled) || other.hostingEnabled == hostingEnabled)&&(identical(other.heartbeatIntervalSeconds, heartbeatIntervalSeconds) || other.heartbeatIntervalSeconds == heartbeatIntervalSeconds)&&(identical(other.heartbeatStaleAfterSeconds, heartbeatStaleAfterSeconds) || other.heartbeatStaleAfterSeconds == heartbeatStaleAfterSeconds)&&const DeepCollectionEquality().equals(other.themes, _themes)&&(identical(other.seatCounts, seatCounts) || other.seatCounts == seatCounts)&&(identical(other.podcast, podcast) || other.podcast == podcast)&&(identical(other.cameraFxEngine, cameraFxEngine) || other.cameraFxEngine == cameraFxEngine));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,hostingEnabled,heartbeatIntervalSeconds,heartbeatStaleAfterSeconds,const DeepCollectionEquality().hash(_themes),seatCounts,podcast);
+    return Object.hash(runtimeType,hostingEnabled,heartbeatIntervalSeconds,heartbeatStaleAfterSeconds,const DeepCollectionEquality().hash(_themes),seatCounts,podcast,cameraFxEngine);
 }
 
 @override
 String toString() {
-    return 'LiveConfig(hostingEnabled: $hostingEnabled, heartbeatIntervalSeconds: $heartbeatIntervalSeconds, heartbeatStaleAfterSeconds: $heartbeatStaleAfterSeconds, themes: $themes, seatCounts: $seatCounts, podcast: $podcast)';
+    return 'LiveConfig(hostingEnabled: $hostingEnabled, heartbeatIntervalSeconds: $heartbeatIntervalSeconds, heartbeatStaleAfterSeconds: $heartbeatStaleAfterSeconds, themes: $themes, seatCounts: $seatCounts, podcast: $podcast, cameraFxEngine: $cameraFxEngine)';
 }
 
 
@@ -298,7 +306,7 @@ abstract mixin class _$LiveConfigCopyWith<$Res> implements $LiveConfigCopyWith<$
   factory _$LiveConfigCopyWith(_LiveConfig value, $Res Function(_LiveConfig) _then) = __$LiveConfigCopyWithImpl;
 @override @useResult
 $Res call({
- bool hostingEnabled, int heartbeatIntervalSeconds, int heartbeatStaleAfterSeconds, List<String> themes, LiveSeatCounts seatCounts, LivePodcastConfig podcast
+ bool hostingEnabled, int heartbeatIntervalSeconds, int heartbeatStaleAfterSeconds, List<String> themes, LiveSeatCounts seatCounts, LivePodcastConfig podcast, String cameraFxEngine
 });
 
 
@@ -315,7 +323,7 @@ class __$LiveConfigCopyWithImpl<$Res>
 
 /// Create a copy of LiveConfig
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? hostingEnabled = null,Object? heartbeatIntervalSeconds = null,Object? heartbeatStaleAfterSeconds = null,Object? themes = null,Object? seatCounts = null,Object? podcast = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? hostingEnabled = null,Object? heartbeatIntervalSeconds = null,Object? heartbeatStaleAfterSeconds = null,Object? themes = null,Object? seatCounts = null,Object? podcast = null,Object? cameraFxEngine = null,}) {
   return _then(_LiveConfig(
 hostingEnabled: null == hostingEnabled ? _self.hostingEnabled : hostingEnabled // ignore: cast_nullable_to_non_nullable
 as bool,heartbeatIntervalSeconds: null == heartbeatIntervalSeconds ? _self.heartbeatIntervalSeconds : heartbeatIntervalSeconds // ignore: cast_nullable_to_non_nullable
@@ -323,7 +331,8 @@ as int,heartbeatStaleAfterSeconds: null == heartbeatStaleAfterSeconds ? _self.he
 as int,themes: null == themes ? _self._themes : themes // ignore: cast_nullable_to_non_nullable
 as List<String>,seatCounts: null == seatCounts ? _self.seatCounts : seatCounts // ignore: cast_nullable_to_non_nullable
 as LiveSeatCounts,podcast: null == podcast ? _self.podcast : podcast // ignore: cast_nullable_to_non_nullable
-as LivePodcastConfig,
+as LivePodcastConfig,cameraFxEngine: null == cameraFxEngine ? _self.cameraFxEngine : cameraFxEngine // ignore: cast_nullable_to_non_nullable
+as String,
   ));
 }
 

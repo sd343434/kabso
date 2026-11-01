@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:kabso_camera_fx/kabso_camera_fx.dart';
 import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
 import 'package:kabso_live/features/live/data/beauty/live_beauty.dart';
+import 'package:kabso_live/features/live/data/beauty/live_fx_engine.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_media_extras.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
@@ -71,6 +72,19 @@ class FakeLiveMediaEngine implements LiveMediaEngine, LivePlaybackControls {
 
   @override
   LiveArSupport get arEffects => arSupport;
+
+  /// D228: the engine the app picked last ([setFxEngine]) and every pick.
+  LiveFxEngine engineValue = LiveFxEngine.deepAr;
+  final List<LiveFxEngine> enginePicks = [];
+
+  @override
+  LiveFxEngine get fxEngine => engineValue;
+
+  @override
+  Future<void> setFxEngine(LiveFxEngine engine) async {
+    enginePicks.add(engine);
+    engineValue = engine;
+  }
 
   /// What [arStatus] holds (D144a): set its value to play DeepAR's reports.
   final ValueNotifier<LiveArStatus> arStatusValue = ValueNotifier(

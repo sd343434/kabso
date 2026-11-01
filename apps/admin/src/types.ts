@@ -261,6 +261,12 @@ export interface SiteSettings {
   topupEnabled: boolean;
 }
 
+/** v1.49-live (D228): `CameraFxSettings` — the app's camera effects engine. */
+export type CameraFxEngine = 'DEEPAR' | 'FREE';
+export interface CameraFxSettings {
+  cameraFxEngine: CameraFxEngine;
+}
+
 /** v1.64-social (D196): `PaymentKeyInfo` — all the panel ever sees of a Stripe secret. */
 export interface PaymentKeyInfo {
   kind: 'secret' | 'restricted' | 'webhook';
