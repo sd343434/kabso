@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui' show ImageFilter;
 
 import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/design_system/design_system.dart';
@@ -11,8 +10,8 @@ import 'package:material_ui/material_ui.dart';
 /// open, a camera that is off.
 ///
 /// D221 (owner's design «اقتراح عند انقطاع البث وانتهائه», measured in
-/// docs/design/d221-live-interruption-spec.md): a dark wine glass card with
-/// a bright edge, a soft red glow and a red light wave along the bottom; the
+/// docs/design/d221-live-interruption-spec.md; the owner then dropped the
+/// glass card: the content stands on the screen's dark background): the
 /// host's picture (or the state's icon) in a glowing red ring with a faint
 /// outer ring and red sound-wave bars on both sides; a red reason badge on
 /// the picture; a red status pill over the bottom of the ring; the host's
@@ -73,8 +72,8 @@ class KLiveInterruption extends StatelessWidget {
   /// Buttons under the text, one per line (only actions that exist).
   final List<Widget> actions;
 
-  /// The glass card around it; off where the emblem stands on its own (a
-  /// video tile).
+  /// The full spacing of the (former) card; off where the emblem stands on
+  /// its own (a video tile). D221: no card is drawn either way.
   final bool framed;
 
   /// A smaller emblem and the title only (a camera-off tile).
@@ -132,7 +131,7 @@ class KLiveInterruption extends StatelessWidget {
           color: p.textPrimary,
           fontSize: compact ? null : 22,
           height: compact ? null : 1.35,
-          shadows: framed ? null : KLiveColors.glassShadow,
+          shadows: KLiveColors.glassShadow,
         ),
       ),
     );
@@ -250,18 +249,19 @@ class KLiveInterruption extends StatelessWidget {
         ),
       );
     }
+    // D221 (owner: «حاول ازالة بطاقة الكريستال هذه»): no card — the
+    // content stands on the screen's own dark background, with the card's
+    // spacing kept.
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: maxWidth),
-      child: _Glass(
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(
-            28,
-            12,
-            28,
-            actions.isEmpty ? KSpacing.xl + KSpacing.xs : 23,
-          ),
-          child: content,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          28,
+          12,
+          28,
+          actions.isEmpty ? KSpacing.xl + KSpacing.xs : 23,
         ),
+        child: content,
       ),
     );
   }
@@ -433,149 +433,6 @@ class _KLiveInterruptionButtonState extends State<KLiveInterruptionButton> {
       ),
     );
   }
-}
-
-/// The card: dark wine glass with a bright top edge, a red-pink bottom
-/// edge, a soft red glow and the red light wave along the bottom.
-class _Glass extends StatelessWidget {
-  const new({required this.child});
-
-  final Widget child;
-
-  static const double _radius = KRadius.xl;
-
-  @override
-  Widget build(BuildContext context) {
-    final shape = BorderRadius.circular(_radius);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: shape,
-        boxShadow: const [
-          BoxShadow(color: Color(0x47E50914), blurRadius: 30, spreadRadius: -6),
-          BoxShadow(
-            color: Color(0x59000000),
-            blurRadius: 24,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: shape,
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-          child: CustomPaint(
-            painter: const _GlassPainter(radius: _radius),
-            foregroundPainter: const _EdgePainter(radius: _radius),
-            child: child,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// The body: the wine gradient, a red bloom at the bottom and the wave.
-class _GlassPainter extends CustomPainter {
-  const new({required this.radius});
-
-  final double radius;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Offset.zero & size;
-    final w = size.width;
-    final h = size.height;
-    canvas
-      ..drawRect(
-        rect,
-        Paint()
-          ..shader = const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xF2321220), Color(0xF52A0A16), Color(0xF71A0C18)],
-            stops: [0, 0.45, 1],
-          ).createShader(rect),
-      )
-      // The red bloom along the bottom edge.
-      ..drawRect(
-        rect,
-        Paint()
-          ..shader = const LinearGradient(
-            begin: Alignment.bottomCenter,
-            end: Alignment.topCenter,
-            colors: [Color(0x99B0081A), Color(0x00B0081A)],
-            stops: [0, 0.22],
-          ).createShader(rect),
-      );
-    // The light wave: a crest rising from the bottom edge near the start
-    // and falling back by the middle (measured 22 → 81 → 147 dp of 320).
-    final crest = Path()
-      ..moveTo(0.02 * w, h + 2)
-      ..cubicTo(0.15 * w, h - 6, 0.18 * w, h - 23, 0.255 * w, h - 23)
-      ..cubicTo(0.33 * w, h - 23, 0.38 * w, h - 6, 0.52 * w, h + 2);
-    final fill = Path.from(crest)..close();
-    canvas
-      ..drawPath(
-        fill,
-        Paint()
-          ..shader = const LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0x66E50914), Color(0xB3E50914)],
-          ).createShader(Rect.fromLTWH(0, h - 22, w, 22)),
-      )
-      ..drawPath(
-        crest,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 4
-          ..color = const Color(0x80FF3B47)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
-      )
-      ..drawPath(
-        crest,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.2
-          ..color = const Color(0xFFFF5A66),
-      );
-  }
-
-  @override
-  bool shouldRepaint(_GlassPainter oldDelegate) => oldDelegate.radius != radius;
-}
-
-/// The 1 dp edge: bright white-pink at the top, dim at the sides, red-pink
-/// at the bottom.
-class _EdgePainter extends CustomPainter {
-  const new({required this.radius});
-
-  final double radius;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = (Offset.zero & size).deflate(0.5);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(rect, Radius.circular(radius - 0.5)),
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1
-        ..shader = const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Color(0xE6FFF0F8),
-            Color(0x47FFFFFF),
-            Color(0x29FFFFFF),
-            Color(0xD9FF8C99),
-          ],
-          stops: [0, 0.18, 0.75, 1],
-        ).createShader(rect),
-    );
-  }
-
-  @override
-  bool shouldRepaint(_EdgePainter oldDelegate) => oldDelegate.radius != radius;
 }
 
 /// «• انتهى البث»: the state in a red pill.

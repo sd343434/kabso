@@ -41,3 +41,7 @@ E = estimate.
 - The badge keeps D216's reason→icon mapping (connection lost = `wifi_off`, the reference
   shows a muted microphone).
 - The crown shows only for a status the app really knows; no production caller has one yet.
+
+**Owner follow-up (2026-11-01): «ادمجها غيرت رأي لكن حاول ازالة بطاقة الكريستال هذه».** The
+card rows above (card, body, edge, light wave) are no longer drawn: the content keeps the card's
+spacing and sizes and stands centred on the screen's own dark background. The ring's glow stays.
