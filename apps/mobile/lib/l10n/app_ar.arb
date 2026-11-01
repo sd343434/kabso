@@ -12002,7 +12002,7 @@
   "@inviteTitle": {"description": "D217 (invite friends «دعوة الأصدقاء»)."},
   "inviteRulesTooltip": "القواعد",
   "@inviteRulesTooltip": {"description": "D217 (invite friends «دعوة الأصدقاء»)."},
-  "inviteHeroLine": "ادعُ أصدقاءك واربح حتى",
+  "inviteHeroLine": "ادعُ أصدقاءك واربح حتى",
   "@inviteHeroLine": {"description": "D217 (invite friends «دعوة الأصدقاء»)."},
   "inviteMoneyHint": "≈ {money}",
   "@inviteMoneyHint": {"description": "D217 (invite friends «دعوة الأصدقاء»).", "placeholders": {"money": {"type": "String"}}},

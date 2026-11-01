@@ -682,5 +682,52 @@ void main() {
       );
       await _capture(tester, '04-new.ar.light');
     });
+
+    testWidgets('en 393×852 @3x: light and dark, top and milestones', (
+      tester,
+    ) async {
+      if (_captureDir.isEmpty) return;
+      for (final brightness in Brightness.values) {
+        await _pump(
+          tester,
+          repo: _FakeReferrals(page: _referral(), items: _ticker),
+          language: AppLanguage.en,
+          brightness: brightness,
+        );
+        final b = brightness.name;
+        await _capture(tester, '06-top.en.$b');
+        await _scrollTo(
+          tester,
+          find.byKey(InviteFriendsScreen.milestoneKey(15)),
+        );
+        await _capture(tester, '07-milestones.en.$b');
+      }
+    });
+  });
+
+  group('goldens', () {
+    forEachLanguage((language) {
+      for (final brightness in Brightness.values) {
+        testWidgets(
+          'invite friends page (${language.name}, ${brightness.name})',
+          tags: [goldenTag],
+          (tester) async {
+            await _pump(
+              tester,
+              repo: _FakeReferrals(page: _referral(), items: _ticker),
+              language: language,
+              brightness: brightness,
+            );
+            await expectLater(
+              find.byKey(_boundary),
+              matchesGoldenFile(
+                '../../goldens/png/invite_friends.${brightness.name}.'
+                '${language.name}.phone.png',
+              ),
+            );
+          },
+        );
+      }
+    });
   });
 }

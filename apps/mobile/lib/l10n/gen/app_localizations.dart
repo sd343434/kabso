@@ -21175,7 +21175,7 @@ abstract class AppLocalizations {
   /// D217 (invite friends «دعوة الأصدقاء»).
   ///
   /// In ar, this message translates to:
-  /// **'ادعُ أصدقاءك واربح حتى'**
+  /// **'ادعُ أصدقاءك واربح حتى'**
   String get inviteHeroLine;
 
   /// D217 (invite friends «دعوة الأصدقاء»).

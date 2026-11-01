@@ -12405,7 +12405,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get inviteRulesTooltip => 'القواعد';
 
   @override
-  String get inviteHeroLine => 'ادعُ أصدقاءك واربح حتى';
+  String get inviteHeroLine => 'ادعُ أصدقاءك واربح حتى';
 
   @override
   String inviteMoneyHint(String money) {
