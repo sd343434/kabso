@@ -137,6 +137,8 @@ export enum ErrorCode {
   AGENCY_JOIN_NOT_ALLOWED = 'AGENCY_JOIN_NOT_ALLOWED',
   /** v1.52-social (DRAFT, D179): the leave window is over; only a complaint to the admin remains. */
   AGENCY_LEAVE_WINDOW_CLOSED = 'AGENCY_LEAVE_WINDOW_CLOSED',
+  /** v1.70-social (D206): «افتح وكالة» refused — `details[0].issue` says why (§10.65). */
+  AGENCY_OPEN_NOT_ALLOWED = 'AGENCY_OPEN_NOT_ALLOWED',
   /** v1.52-social (DRAFT, D179): the cherry balance does not cover the withdrawal. */
   INSUFFICIENT_CHERRIES = 'INSUFFICIENT_CHERRIES',
   /** v1.52-social (DRAFT, D179): the caller already has a withdrawal waiting to be paid. */
@@ -314,6 +316,7 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.AGENCY_ALREADY_MEMBER]: 409,
   [ErrorCode.AGENCY_JOIN_NOT_ALLOWED]: 409,
   [ErrorCode.AGENCY_LEAVE_WINDOW_CLOSED]: 409,
+  [ErrorCode.AGENCY_OPEN_NOT_ALLOWED]: 409,
   [ErrorCode.INSUFFICIENT_CHERRIES]: 409,
   [ErrorCode.WITHDRAWAL_PENDING]: 409,
   [ErrorCode.RECHARGE_APPLICATION_NOT_ALLOWED]: 409,
@@ -439,6 +442,7 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.AGENCY_ALREADY_MEMBER]: 'You are already a host of another agency.',
   [ErrorCode.AGENCY_JOIN_NOT_ALLOWED]: 'An agency owner cannot join an agency as a host.',
   [ErrorCode.AGENCY_LEAVE_WINDOW_CLOSED]: 'The leave window is over; send a complaint to the admin.',
+  [ErrorCode.AGENCY_OPEN_NOT_ALLOWED]: 'You cannot open an agency now.',
   [ErrorCode.INSUFFICIENT_CHERRIES]: 'Not enough cherries for that withdrawal.',
   [ErrorCode.WITHDRAWAL_PENDING]: 'You already have a withdrawal waiting to be paid.',
   [ErrorCode.RECHARGE_APPLICATION_NOT_ALLOWED]: 'You cannot apply to be a recharge agent now.',

@@ -75,6 +75,16 @@ enum NotificationType {
   /// v1.69-social (D204, system): a recharge order you take part in changed
   /// or got a message (target RECHARGE_ORDER with `orderEvent`).
   rechargeOrderUpdate('RECHARGE_ORDER_UPDATE'),
+
+  /// v1.70-social (D206, system; target AGENCY): «افتح وكالة» — your agency
+  /// is open, a day left in its trial (with the count), it passed, it was
+  /// closed (with the count when the trial failed), or the agency you were in
+  /// was closed and you are free. All open «الوكالة».
+  agencyOpened('AGENCY_OPENED'),
+  agencyProbationReminder('AGENCY_PROBATION_REMINDER'),
+  agencyProbationPassed('AGENCY_PROBATION_PASSED'),
+  agencyClosed('AGENCY_CLOSED'),
+  agencyHostReleased('AGENCY_HOST_RELEASED'),
   unknown('');
 
   new(this.wire);
@@ -95,7 +105,16 @@ enum NotificationType {
       this == premiumUsernameExpired ||
       this == avatarRemoved ||
       this == dataExportReady ||
-      this == rechargeOrderUpdate;
+      this == rechargeOrderUpdate ||
+      isAgency;
+
+  /// v1.70-social (D206): one of the agency's system notifications.
+  bool get isAgency =>
+      this == agencyOpened ||
+      this == agencyProbationReminder ||
+      this == agencyProbationPassed ||
+      this == agencyClosed ||
+      this == agencyHostReleased;
 }
 
 /// `NotificationTarget.type`.
@@ -121,7 +140,11 @@ enum NotificationTargetType {
   rechargeSale('RECHARGE_SALE'),
 
   /// v1.69-social (D204): a recharge order (its id; `coins`, `orderEvent`).
-  rechargeOrder('RECHARGE_ORDER');
+  rechargeOrder('RECHARGE_ORDER'),
+
+  /// v1.70-social (D206): an agency (its id; `text` its name;
+  /// `activatedHosts` / `requiredHosts`).
+  agency('AGENCY');
 
   new(this.wire);
 
@@ -148,6 +171,8 @@ class NotificationTarget {
     this.bagCategory,
     this.coins,
     this.orderEvent,
+    this.activatedHosts,
+    this.requiredHosts,
   });
 
   factory fromJson(Map<String, dynamic> json) => NotificationTarget(
@@ -167,6 +192,8 @@ class NotificationTarget {
     bagCategory: json['bagCategory'] as String?,
     coins: (json['coins'] as num?)?.toInt(),
     orderEvent: json['orderEvent'] as String?,
+    activatedHosts: (json['activatedHosts'] as num?)?.toInt(),
+    requiredHosts: (json['requiredHosts'] as num?)?.toInt(),
   );
 
   final NotificationTargetType type;
@@ -201,6 +228,11 @@ class NotificationTarget {
 
   /// RECHARGE_ORDER only (v1.69-social, D204): the latest event.
   final String? orderEvent;
+
+  /// AGENCY only (v1.70-social, D206): the activated hosts reached and the
+  /// hosts needed (the trial's reminder, pass and failure).
+  final int? activatedHosts;
+  final int? requiredHosts;
 }
 
 /// `Notification`. Likes and reposts on one item group while unread

@@ -20,6 +20,16 @@ export interface NotificationTargetRef {
 // v1.69-social (D204): RECHARGE_ORDER_UPDATE rows are written by `recharge-order-core.notifyOrderIn` (one unread row
 // per order and recipient, the latest event in `recharge_order_event`).
 
+/** v1.70-social (D206, §10.65): the agency's system notifications (target AGENCY). */
+export const AGENCY_NOTIFICATION_TYPES = [
+  'AGENCY_OPENED',
+  'AGENCY_PROBATION_REMINDER',
+  'AGENCY_PROBATION_PASSED',
+  'AGENCY_CLOSED',
+  'AGENCY_HOST_RELEASED',
+] as const satisfies readonly NotificationType[];
+export type AgencyNotificationType = (typeof AGENCY_NOTIFICATION_TYPES)[number];
+
 /** Types without an actor: always on, never grouped, never hidden with their target. */
 export const SYSTEM_TYPES: readonly NotificationType[] = [
   'POST_PUBLISHED',
@@ -34,6 +44,8 @@ export const SYSTEM_TYPES: readonly NotificationType[] = [
   'DATA_EXPORT_READY',
   // v1.69-social (D204): a recharge order changed or got a message (`recharge-order-core.notifyOrderIn`).
   'RECHARGE_ORDER_UPDATE',
+  // v1.70-social (D206): «افتح وكالة» — opened, probation reminder / passed, closed, a host released.
+  ...AGENCY_NOTIFICATION_TYPES,
 ];
 
 /** Types that join one unread row per target (owner, D92). */
@@ -187,6 +199,36 @@ export class Notifier {
         type: input.type,
         ...targetWhere(input),
         premiumLeaseId: input.premiumLeaseId ?? null,
+        createdAt: now,
+        updatedAt: now,
+      },
+    });
+  }
+
+  /**
+   * v1.70-social (D206): an agency's system notification (no actor) to its owner or to a released host, with the
+   * probation's numbers when there are some. Only to an ACTIVE account.
+   */
+  async agency(
+    tx: Tx,
+    input: {
+      type: AgencyNotificationType;
+      recipientId: string;
+      agencyId: string;
+      activated?: number | null;
+      required?: number | null;
+    },
+  ): Promise<void> {
+    const active = await tx.user.count({ where: { id: input.recipientId, status: 'ACTIVE' } });
+    if (active === 0) return;
+    const now = new Date();
+    await tx.notification.create({
+      data: {
+        recipientId: input.recipientId,
+        type: input.type,
+        agencyId: input.agencyId,
+        agencyActivated: input.activated ?? null,
+        agencyRequired: input.required ?? null,
         createdAt: now,
         updatedAt: now,
       },

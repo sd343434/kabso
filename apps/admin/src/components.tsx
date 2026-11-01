@@ -89,6 +89,12 @@ const TONES: Record<string, string> = {
   PENDING: 'warn',
   OPEN: 'warn',
   DISMISSED: '',
+  // v1.70-social (D206): an agency's state and its probation.
+  CLOSED: 'bad',
+  RUNNING: 'warn',
+  PASSED: 'ok',
+  FAILED: 'bad',
+  STOPPED: 'bad',
 };
 
 export function StatusBadge({ status }: { status: string }) {

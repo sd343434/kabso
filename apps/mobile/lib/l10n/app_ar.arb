@@ -11034,5 +11034,340 @@
   "errorRechargeOrderNoticeRequired": "اقرأ تعليمات الحماية وأقرّ بها أولاً.",
   "@errorRechargeOrderNoticeRequired": {"description": "D204 recharge orders"},
   "errorRechargeOrderDisputeTooEarly": "يمكنك فتح نزاع بعد انتهاء مدة الانتظار.",
-  "@errorRechargeOrderDisputeTooEarly": {"description": "D204 recharge orders"}
+  "@errorRechargeOrderDisputeTooEarly": {"description": "D204 recharge orders"},
+  "agencyDaysCount": "{days, plural, =1{يوم واحد} =2{يومين} few{{days} أيام} many{{days} يومًا} other{{days} يوم}}",
+  "@agencyDaysCount": {
+    "description": "v1.70-social (D206): «افتح وكالة».",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "agencyHostsCount": "{hosts, plural, =1{مضيف واحد} =2{مضيفَين} few{{hosts} مضيفين} many{{hosts} مضيفًا} other{{hosts} مضيف}}",
+  "@agencyHostsCount": {
+    "description": "v1.70-social (D206): «افتح وكالة».",
+    "placeholders": {
+      "hosts": {
+        "type": "int"
+      }
+    }
+  },
+  "agencyHoursCount": "{hours, plural, =0{أقل من ساعة} =1{ساعة واحدة} =2{ساعتين} few{{hours} ساعات} many{{hours} ساعة} other{{hours} ساعة}}",
+  "@agencyHoursCount": {
+    "description": "v1.70-social (D206): «افتح وكالة».",
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "agencyOpenButton": "افتح وكالة",
+  "@agencyOpenButton": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "agencyOpenButtonHint": "مجانًا — تُنشأ وكالتك فورًا",
+  "@agencyOpenButtonHint": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "agencyOpenTitle": "افتح وكالة",
+  "@agencyOpenTitle": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "agencyOpenFree": "فتح الوكالة مجاني",
+  "@agencyOpenFree": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "agencyOpenRule": "تُنشأ وكالتك فورًا بعد الإرسال. خلال {days} يجب أن تفعّل {hosts} على الأقل: ينضم المضيف إلى وكالتك ثم يفتح بثًا ويستلم هدايا. إن لم يتحقق ذلك تُغلق الوكالة تلقائيًا ويصلك إشعار بالسبب.",
+  "@agencyOpenRule": {
+    "description": "v1.70-social (D206): «افتح وكالة».",
+    "placeholders": {
+      "days": {
+        "type": "String"
+      },
+      "hosts": {
+        "type": "String"
+      }
+    }
+  },
+  "agencyOpenStepInfo": "بيانات الوكالة",
+  "@agencyOpenStepInfo": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "agencyOpenName": "اسم الوكالة",
+  "@agencyOpenName": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "agencyOpenNameError": "اكتب اسمًا من حرفين إلى 40 حرفًا",
+  "@agencyOpenNameError": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "agencyOpenCountry": "البلد",
+  "@agencyOpenCountry": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "agencyOpenCountryError": "اختر البلد",
+  "@agencyOpenCountryError": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "agencyOpenContactType": "وسيلة التواصل",
+  "@agencyOpenContactType": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "agencyOpenContactValue": "رقم أو معرّف التواصل",
+  "@agencyOpenContactValue": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "agencyOpenContactError": "اكتب 3 أحرف على الأقل",
+  "@agencyOpenContactError": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "agencyContactWhatsapp": "واتساب",
+  "@agencyContactWhatsapp": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "agencyContactTelegram": "تيليجرام",
+  "@agencyContactTelegram": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "agencyContactPhone": "هاتف",
+  "@agencyContactPhone": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "agencyContactEmail": "بريد إلكتروني",
+  "@agencyContactEmail": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "agencyContactOther": "أخرى",
+  "@agencyContactOther": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "agencyOpenExpected": "عدد المضيفين المتوقع",
+  "@agencyOpenExpected": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "agencyOpenExpectedError": "من 1 إلى 10000",
+  "@agencyOpenExpectedError": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "agencyOpenBio": "نبذة قصيرة",
+  "@agencyOpenBio": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "agencyOpenBioHint": "اختياري، حتى 300 حرف",
+  "@agencyOpenBioHint": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "agencyOpenStepId": "التحقق من الهوية (إلزامي)",
+  "@agencyOpenStepId": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "agencyOpenIdCard": "صورة الهوية",
+  "@agencyOpenIdCard": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "agencyOpenIdCardHint": "صورة واضحة لبطاقة الهوية أو جواز السفر",
+  "@agencyOpenIdCardHint": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "agencyOpenIdMissing": "أضف صورة الهوية والسيلفي",
+  "@agencyOpenIdMissing": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "agencyOpenPrivacy": "صور الهوية خاصة: لا يراها إلا فريق Kabso Live، وكل عرض لها يُسجَّل.",
+  "@agencyOpenPrivacy": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "agencyOpenSubmit": "افتح الوكالة مجانًا",
+  "@agencyOpenSubmit": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "agencyOpenDone": "فُتحت وكالتك. فعّل مضيفيك خلال فترة التجربة",
+  "@agencyOpenDone": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "agencyOpenOwns": "لديك وكالة بالفعل",
+  "@agencyOpenOwns": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "agencyOpenIsHost": "أنت مضيف في وكالة. غادرها أولًا لتفتح وكالة",
+  "@agencyOpenIsHost": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "agencyOpenNotActive": "حسابك غير نشط",
+  "@agencyOpenNotActive": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "agencyOpenCooldown": "يمكنك فتح وكالة جديدة من {date}",
+  "@agencyOpenCooldown": {
+    "description": "v1.70-social (D206): «افتح وكالة».",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "agencyProbationTitle": "فترة التجربة",
+  "@agencyProbationTitle": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "agencyProbationLeft": "متبقٍ: {days} و{hours}",
+  "@agencyProbationLeft": {
+    "description": "v1.70-social (D206): «افتح وكالة».",
+    "placeholders": {
+      "days": {
+        "type": "String"
+      },
+      "hours": {
+        "type": "String"
+      }
+    }
+  },
+  "agencyProbationLeftHours": "متبقٍ: {hours}",
+  "@agencyProbationLeftHours": {
+    "description": "v1.70-social (D206): «افتح وكالة».",
+    "placeholders": {
+      "hours": {
+        "type": "String"
+      }
+    }
+  },
+  "agencyProbationEnding": "انتهت المدة، يجري التحقق الآن",
+  "@agencyProbationEnding": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "agencyProbationActivated": "المضيفون المفعّلون: {count} / {required}",
+  "@agencyProbationActivated": {
+    "description": "v1.70-social (D206): «افتح وكالة».",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "required": {
+        "type": "String"
+      }
+    }
+  },
+  "agencyProbationRuleShort": "فعّل {hosts} خلال {days}: ينضم المضيف ثم يبثّ ويستلم هدايا.",
+  "@agencyProbationRuleShort": {
+    "description": "v1.70-social (D206): «افتح وكالة».",
+    "placeholders": {
+      "hosts": {
+        "type": "String"
+      },
+      "days": {
+        "type": "String"
+      }
+    }
+  },
+  "agencyProbationJoined": "انضم",
+  "@agencyProbationJoined": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "agencyProbationLive": "بثّ",
+  "@agencyProbationLive": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "agencyProbationGifts": "استلم هدايا",
+  "@agencyProbationGifts": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "agencyProbationNoHosts": "لا مضيفين بعد. شارك رمز الدعوة ليبدأ المضيفون.",
+  "@agencyProbationNoHosts": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "agencyProbationPassed": "اجتازت وكالتك فترة التجربة",
+  "@agencyProbationPassed": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "agencyShare": "مشاركة",
+  "@agencyShare": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "agencyShareText": "انضم إلى وكالتي على Kabso Live برمز الدعوة: {code}",
+  "@agencyShareText": {
+    "description": "v1.70-social (D206): «افتح وكالة».",
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "agencyClosedTitle": "أُغلقت الوكالة",
+  "@agencyClosedTitle": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "agencyClosedProbation": "لم تفعّل {hosts} (بثّ واستلام هدايا) خلال فترة التجربة. المفعّلون: {count}",
+  "@agencyClosedProbation": {
+    "description": "v1.70-social (D206): «افتح وكالة».",
+    "placeholders": {
+      "hosts": {
+        "type": "String"
+      },
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "agencyClosedAdmin": "أغلقها فريق Kabso Live",
+  "@agencyClosedAdmin": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "agencyClosedOn": "تاريخ الإغلاق: {date}",
+  "@agencyClosedOn": {
+    "description": "v1.70-social (D206): «افتح وكالة».",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "agencyReopenNow": "يمكنك فتح وكالة جديدة الآن",
+  "@agencyReopenNow": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "notifAgencyOpened": "فُتحت وكالتك. فعّل مضيفيك خلال فترة التجربة",
+  "@notifAgencyOpened": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "notifAgencyReminder": "بقي أقل من يوم على نهاية فترة التجربة: المفعّلون {count} / {required}",
+  "@notifAgencyReminder": {
+    "description": "v1.70-social (D206): «افتح وكالة».",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "required": {
+        "type": "String"
+      }
+    }
+  },
+  "notifAgencyPassed": "اجتازت وكالتك فترة التجربة",
+  "@notifAgencyPassed": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "notifAgencyClosedProbation": "أُغلقت وكالتك لأنها لم تفعّل {hosts} (بثّ واستلام هدايا) خلال فترة التجربة. المفعّلون: {count}",
+  "@notifAgencyClosedProbation": {
+    "description": "v1.70-social (D206): «افتح وكالة».",
+    "placeholders": {
+      "hosts": {
+        "type": "String"
+      },
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "notifAgencyClosedAdmin": "أُغلقت وكالتك من قِبل فريق Kabso Live",
+  "@notifAgencyClosedAdmin": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "notifAgencyHostReleased": "أُغلقت الوكالة التي كنت فيها، وأصبحت حرًا للانضمام إلى وكالة أخرى",
+  "@notifAgencyHostReleased": {
+    "description": "v1.70-social (D206): «افتح وكالة»."
+  },
+  "errorAgencyOpenNotAllowed": "لا يمكنك فتح وكالة الآن",
+  "@errorAgencyOpenNotAllowed": {
+    "description": "v1.70-social (D206): AGENCY_OPEN_NOT_ALLOWED."
+  }
 }

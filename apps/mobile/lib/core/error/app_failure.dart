@@ -223,6 +223,10 @@ enum ErrorCode {
   /// complaint to the admin remains.
   agencyLeaveWindowClosed('AGENCY_LEAVE_WINDOW_CLOSED'),
 
+  /// v1.70-social (D206, §10.65, 409): «افتح وكالة» refused —
+  /// `details[0].issue` says why (`AgencyOpenRefusal`).
+  agencyOpenNotAllowed('AGENCY_OPEN_NOT_ALLOWED'),
+
   /// v1.52-social (D179, §10.46, 409): the cherry balance does not cover
   /// the withdrawal.
   insufficientCherries('INSUFFICIENT_CHERRIES'),

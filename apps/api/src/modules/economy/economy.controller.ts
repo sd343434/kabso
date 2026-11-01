@@ -123,6 +123,23 @@ export class EconomyController {
     return result;
   }
 
+  /**
+   * v1.70-social (D206, §10.65): «افتح وكالة» (Idempotency-Key). 201 opened now, 200 the same key again. 5 / day per
+   * user (bucket `agency:open`, refused attempts count) on top of the per-user default.
+   */
+  @Post('me/agency/open')
+  @RateLimit({ bucket: 'agency:open', rule: 'agencyOpenUser', key: byUserId })
+  async open(
+    @CurrentAuth() auth: AuthContext,
+    @Headers('idempotency-key') key: string | undefined,
+    @Body() body: unknown,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<MyAgencyDto> {
+    const { created, result } = await this.agencies.open(auth.userId, key, body);
+    res.status(created ? 201 : 200);
+    return result;
+  }
+
   @Get('me/agency/hosts')
   hosts(
     @CurrentAuth() auth: AuthContext,

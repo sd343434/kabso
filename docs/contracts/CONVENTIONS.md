@@ -152,6 +152,7 @@ All non-2xx responses use one envelope:
 | 409 | `AGENCY_ALREADY_MEMBER` | *(v1.52-social, DRAFT, D179)* `joinAgency` while the caller is an ACTIVE host of another agency (§10.46). |
 | 409 | `AGENCY_JOIN_NOT_ALLOWED` | *(v1.52-social, DRAFT, D179)* `joinAgency` by the owner of an agency (an agent is never a host of an agency, their own included). |
 | 409 | `AGENCY_LEAVE_WINDOW_CLOSED` | *(v1.52-social, DRAFT, D179)* `leaveAgency` after `AGENCY_LEAVE_DAYS` (14) from joining; only a complaint to the admin remains (§10.46). |
+| 409 | `AGENCY_OPEN_NOT_ALLOWED` | *(v1.70-social, DRAFT, D206)* `openAgency` refused — `details[0] = {field: agency, issue}`: `ACCOUNT_NOT_ACTIVE`, `OWNS_AGENCY` (an open agency, its probation included), `HOST_OF_AGENCY`, `REOPEN_COOLDOWN` (§10.65). |
 | 409 | `INSUFFICIENT_CHERRIES` | *(v1.52-social, DRAFT, D179)* A withdrawal request larger than the caller's cherry balance (*v1.53-social, D184:* less the task cherries still locked, `withdrawableCherries`, §10.46.1). Nothing was held. |
 | 409 | `WITHDRAWAL_PENDING` | *(v1.52-social, DRAFT, D179)* A withdrawal request while another of the caller's requests waits to be paid (one at a time). |
 | 409 | `RECHARGE_APPLICATION_NOT_ALLOWED` | *(v1.54-social, DRAFT, D185)* A recharge-agent application while the caller has one pending, is already an agent (any status but rejected) or is an agent's employee (§10.48). |
@@ -622,6 +623,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.70-social (draft) | 2026-10-31 | **D206 (owner: «افتح وكالة» — open a host agency yourself; free; ID card + selfie; created at once; 3 activated hosts in 7 days or it closes):** tag `agency`: `openAgency` (`POST /me/agency/open`, `Idempotency-Key`, `OpenAgencyRequest`: name, country, contact, expected hosts, bio, the D185 private uploads `RECHARGE_AGENT_PHOTO` / `RECHARGE_AGENT_SELFIE`); `OwnAgency.name`, `OwnAgency.probation` (`AgencyProbation`, `AgencyProbationHost`); `MyAgency.closedAgency` (`ClosedAgency`) and `MyAgency.openRule` (`AgencyOpenRule`); code `AGENCY_OPEN_NOT_ALLOWED` (409); notification types `AGENCY_OPENED`, `AGENCY_PROBATION_REMINDER`, `AGENCY_PROBATION_PASSED`, `AGENCY_CLOSED`, `AGENCY_HOST_RELEASED` with target `AGENCY` (`activatedHosts`, `requiredHosts`); tag `admin-panel`: `getAdminAgencyApplication`, `getAdminAgencyApplicationPhoto`, `extendAdminAgencyProbation`, `closeAdminAgency`, `reopenAdminAgency` (capabilities `agencies.applications`, `agencies.probation`), `listAdminAgencies` `state=probation\|closed` and `origin`, the row / detail gain name, origin, status, probation, closing and applications; config `AGENCY_PROBATION_DAYS` (7), `AGENCY_PROBATION_MIN_HOSTS` (3), `AGENCY_PROBATION_REMINDER_HOURS` (24), `AGENCY_REOPEN_COOLDOWN_DAYS` (30), `RATE_LIMIT_AGENCY_OPEN_USER` (5/86400); migrations `20270125090000_agency_open_enums`, `20270125090100_agency_open`; CLI `economy-admin agency-probation-extend\|agency-close\|agency-reopen\|agency-probation-sweep`; the data export gains `agency_applications`. §4, §10.46, §10.65. | **Additive** (new operation, fields, codes and enum values; clients ignore unknown notification / target types). Behaviour: a closed agency is never found, joined, evaluated or paid a commission; its owner's host-agent perks go while it is closed. |
 | v1.69-social (draft) | 2026-10-31 | **D204 (owner: the buyer asks an agent for coins; escrow, the order chat, the 15-minute wait and disputes):** tag `recharge` — `quoteRechargeOrder`, `createRechargeOrder` (`Idempotency-Key`), `listMyRechargeOrders`, `getRechargeOrder`, `listRechargeOrderMessages`, `postRechargeOrderMessage`, `getRechargeOrderMessageImage`, `sendRechargeOrderPaymentDetails`, `acknowledgeRechargeOrderNotice`, `markRechargeOrderPaid`, `confirmRechargeOrder`, `disputeRechargeOrder`, `cancelRechargeOrder`; tag `admin-panel` — `listAdminRechargeDisputes`, `getAdminRechargeOrder`, `postAdminRechargeOrderMessage`, `getAdminRechargeOrderMessageImage`, `resolveAdminRechargeDispute`, `listAdminRechargeExchangeRates`, `setAdminRechargeExchangeRate`, `clearAdminRechargeExchangeRate` (capabilities `recharge.disputes`, `recharge.disputes.resolve`, `recharge.rates`); `RechargeAgentDashboard.heldCoins` / `openOrders` and `RechargeRules.orders` (required — strict clients update their models in the same change set); `MediaKind.RECHARGE_ORDER_IMAGE`; `NotificationType.RECHARGE_ORDER_UPDATE` (target `RECHARGE_ORDER` with `coins`, `orderEvent`, `orderStatus`); `WalletLedgerReason.RECHARGE_ORDER`; five codes (`RECHARGE_ORDERS_UNAVAILABLE` 503, `RECHARGE_ORDER_OPEN_EXISTS`, `RECHARGE_ORDER_STATE_CHANGED`, `RECHARGE_ORDER_NOTICE_REQUIRED`, `RECHARGE_ORDER_DISPUTE_TOO_EARLY` 409); config `RECHARGE_ORDERS_ENABLED`, `RECHARGE_ORDER_MIN_COINS` / `_MAX_COINS` / `_REQUEST_TTL_MINUTES` / `_PAYMENT_TTL_MINUTES` / `_DISPUTE_AFTER_MINUTES` / `_SWEEP_INTERVAL_SECONDS`, `RATE_LIMIT_RECHARGE_ORDER_USER` / `_ACTION_USER`; CLI `recharge-admin rates | set-rate | clear-rate | disputes | resolve | expire-orders`; migrations `20270118090000_recharge_orders_enums`, `20270118100000_recharge_orders`. §4, §7, §8, §10.64. (v1.65–v1.68 are D197, D198, D200, D202.) | **Additive** (new operations; two new required fields on the agent's own dashboard; clients ignore unknown notification and target types). |
 | v1.68-social (draft) | 2026-10-31 | **D202 (owner: the reels page after a reference, with like / comment / save / share made real):** `listFeedReels` `tab=nearby` — visible public reels of authors from the caller's own country (`Me.country`, D133), newest first, not the caller's own / muted / hidden; no country → an empty page; the cursor bound to the caller and the country (§11.15). | **Additive** (a new enum value on one operation; `listFeedPosts` unchanged). |
 | v1.67-social (draft) | 2026-10-31 | **D200 (owner: family levels and the family price repriced for 1 000 000 coins = $12.50):** `FamilyConfig.createCost` 1 000 000 (was 500) and `FamilyConfig.levels` 4 000 000 … 24 000 000 000 (examples and descriptions); `Family.nextLevelPoints` described for a family kept at its level (a stored level is a floor). §10.21 amendment. | **No shape change** (values only; a family never drops a level). |
@@ -4614,6 +4616,69 @@ the decision with a reason and the authenticator code again (§10.54.3): `CREDIT
 of `recharge-admin resolve` — audited with before/after, the reason, actor, IP and `via`; both sides notified. The same
 decision again → `changed: false`; any other → 409 `ADMIN_ACTION_REFUSED`. An order that was never disputed is 404 in
 the panel. `recharge.rates` (OWNER, FINANCE) changes the exchange rates; `recharge.agents` reads them.
+
+### 10.65 «افتح وكالة»: a self-opened host agency, its ID check and the 7-day probation *(v1.70-social, DRAFT — D206)*
+
+Owner decisions (2026-10-31, Arabic, via the coordinator) are marked *(owner)*; every number is server config with the
+owner's value as default. Nothing in §10.46 / §10.52 changes for the agencies the team makes.
+
+- **Who and what** *(owner)*. In «الوكالة», a person in no agency keeps «انضم إلى وكالة» and gets «افتح وكالة» under
+  it. Opening is **free**. The form: the agency's name (2–40 characters), the country (ISO alpha-2), a contact method
+  (`WHATSAPP` / `TELEGRAM` / `PHONE` / `EMAIL` / `OTHER` + 3–100 characters), the expected number of hosts (1–10 000), a
+  short bio (≤ 300, line breaks allowed) and the **mandatory identity check** — a photo of the ID card and a selfie,
+  as the recharge agents' D185 flow exactly: pending private uploads of kinds `RECHARGE_AGENT_PHOTO` (the ID card) and
+  `RECHARGE_AGENT_SELFIE`, consumed by `openAgency` into `private/agency-applications/{applicationId}/…` (`private,
+  no-store`, never a public URL), never completed, never in a response or the audit trail.
+- **Created at once** *(owner)*. No approval: `openAgency` makes the agency with the same step as `economy-admin
+  agency-create` (`createAgencyIn`): an invite code, the owner's host-agent code `hostNN` (§10.52: the username, frame,
+  badge, entrance — a refused grant, e.g. a rented premium username, keeps the code reserved), rank `NEW` with the D179
+  grace (evaluated from the month start two months after the creation month), no parent; `origin` `SELF`, the `name`
+  and `probationEndsAt` = now + `AGENCY_PROBATION_DAYS` (7). The application row (`agency_applications`) is kept with
+  the agency for the team. The owner gets `AGENCY_OPENED`. `Idempotency-Key`: the same key with the same body → 200
+  (nothing new), with another body → 409 `IDEMPOTENCY_CONFLICT`.
+- **Refusals** — 409 `AGENCY_OPEN_NOT_ALLOWED` with the reason (`MyAgency.openRule` shows it before): `OWNS_AGENCY`
+  (an open agency, in probation or not), `HOST_OF_AGENCY` (an ACTIVE host of an agency — leave it first),
+  `REOPEN_COOLDOWN` (the person's agency closed less than `AGENCY_REOPEN_COOLDOWN_DAYS` (30, *proposal*) ago),
+  `ACCOUNT_NOT_ACTIVE`; rate limit `RATE_LIMIT_AGENCY_OPEN_USER` (5 per 24 h, refused attempts count).
+- **Activated host — the one rule** *(owner: «يفعل ٣ مضيفين … فتح لايف و استلام هدايا»)*. At an instant `at`, a host is
+  activated when one of their links to the agency was a membership at `at` (`activated_at < at`, not ended before
+  `at`) and, in that link's window `[activated_at, at)`, they **started a live of their own** (`live_rooms.started_at`)
+  **and received a gift** (a `GIFT_RECEIVED` cherry-ledger row with no `GIFT_REVERSAL` for it). Lives and gifts before
+  joining never count. A probation is judged at `min(now, probationEndsAt)`: **anything at or after `probationEndsAt`
+  — a join, a live, a gift — does not count**, and a sweep that runs late decides exactly as an on-time one.
+- **Passing.** As soon as `AGENCY_PROBATION_MIN_HOSTS` (3) hosts are activated the probation passes — at the next sweep
+  or on any `getMyAgency` of the owner (the same locked step) — `probationPassedAt`, `AGENCY_PROBATION_PASSED`. From
+  then on the D179 rank and grace rules apply unchanged.
+- **Probation and the NEW grace.** The probation (7 days) lies inside the NEW grace (≥ 1 month). While it runs the
+  rank evaluator leaves the agency alone (it stays `NEW`, not even promoted); after it passes the agency is evaluated
+  like any other from its `evaluateFrom` (counted from the creation, not from the passing). The probation is the only
+  test in its first days; the grace is the only protection after.
+- **Failing** *(owner)*. A sweep at or after `probationEndsAt` with fewer activated hosts closes the agency: status
+  `CLOSED`, `close_reason` `PROBATION_FAILED`, the count kept (`probation_activated`). Its ACTIVE hosts are
+  **released free** (`RELEASED`, as if they had left; an open complaint resolved) and each gets
+  `AGENCY_HOST_RELEASED`; the owner gets `AGENCY_CLOSED` with the count — the push says the owner's sentence
+  «أُغلقت وكالتك لأنها لم تفعّل ٣ مضيفين (بثّ واستلام هدايا) خلال ٧ أيام» with the numbers from config and the count
+  reached. **Commission already earned stays with the owner** (nothing is reversed). The host-agent perks go while it
+  is closed (the code stays the person's). 24 h before the end (`AGENCY_PROBATION_REMINDER_HOURS`), still below the
+  count, the owner gets `AGENCY_PROBATION_REMINDER` once (again after an extension). The closing is idempotent (one
+  conditional `UPDATE … WHERE status = 'OPEN'` under the row lock) and audited `agency.close`.
+- **A closed agency** is never found (`getAgencyByCode` 404), joined, listed as the owner's dashboard, rank-evaluated,
+  counted as a parent's qualified sub-agency, or paid a commission (its own or as a parent). Its row stays (the
+  earnings history; `agencies_owner_once` unchanged). `getMyAgency` returns `ownAgency: null` and `closedAgency` (the
+  reason, the date, the count, `reopenAt`). Its owner may join another agency as a host. After the cooldown
+  «افتح وكالة» opens **the same row** again (same invite and host code, the new name, rank `NEW` with a new grace, a new
+  probation; released hosts do not come back). The team's `agency-create` refuses the owner of a closed agency
+  (`agency-reopen` instead).
+- **The team** — panel (`agencies.probation`, OWNER, reason + the authenticator code again) and `economy-admin`:
+  extend a running probation by 1–90 days (from its end, or from now when it already passed without a sweep), close an
+  open agency (reason `ADMIN`; the same release and notifications, no count), reopen a closed one (a self-opened
+  agency whose probation had not passed gets a new full probation from now; the owner gets `AGENCY_OPENED`). Every
+  action is audited (`agency.probation.extend`, `agency.close`, `agency.reopen`, `via` cli / panel / sweeper). The
+  agencies list filters `state=probation|closed` and `origin`; an agency's page shows the probation, its hosts and
+  the applications; an application's fields and pictures (`agencies.applications`: OWNER, SUPPORT) are read one at a
+  time, each view audited (`agency.application.view`, `agency.application.photo.view`), the pictures streamed by the
+  API. Account deletion purges the contact, the bio and the pictures (the name, country and dates stay); the data
+  export includes the person's applications and pictures (`agency_applications`).
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 

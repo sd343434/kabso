@@ -105,3 +105,18 @@
 - An agent suspended while an order is open keeps it: the buyer can still be paid by «استلمت» or a dispute decision;
   new details cannot be sent.
 - Not verified on a device (camera / gallery pick of the screenshot, pushes, the countdown on a real phone).
+
+## «افتح وكالة» — self-opened agencies (v1.70-social draft, D206)
+
+- **No retention purge** of the agency applications' ID pictures yet (D185's recharge applications have one): they stay
+  for the team until the account is deleted (then the contact, bio and pictures are purged). Owner/legal to set a period.
+- The ID check is **not automated**: no OCR, liveness or face match — the agency opens at once and the team reviews
+  the pictures in the panel when it wants (and may close the agency).
+- A host counts as activated only for a live **they hosted** (`live_rooms.host_user_id`); being a guest on someone
+  else's seat does not count. Gifts are counted from the cherry ledger (`GIFT_RECEIVED` not reversed), any source.
+- The panel's probation actions are OWNER only (`agencies.probation`); the application view is OWNER and SUPPORT.
+- The rate limit's 429 for `openAgency` is configured but not covered by an e2e test (the suite raises the limit).
+- The in-app closing notification says «خلال فترة التجربة» (the app has no probation days in the notification); the
+  push sentence names the days.
+- Not verified on a device (the form's camera / gallery pickers and the share sheet were exercised with fakes only).
+

@@ -658,6 +658,11 @@ describe('loadConfig — v1.5-social media and posts (CONVENTIONS §11)', () => 
       activeHostWindowDays: 30,
       leaveDays: 14,
       sweepIntervalSeconds: 3600,
+      // v1.70-social (D206): «افتح وكالة» — 7 days, 3 hosts, the 24 h reminder, 30 days before opening again.
+      probationDays: 7,
+      probationMinHosts: 3,
+      probationReminderHours: 24,
+      reopenCooldownDays: 30,
       rateCherries: 1_000_000,
       rateMinor: 110,
       currency: 'USD',

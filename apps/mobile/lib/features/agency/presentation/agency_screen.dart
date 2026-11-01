@@ -1,7 +1,10 @@
 import 'dart:async';
 
+import 'package:clock/clock.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/error/failure_widgets.dart';
@@ -13,6 +16,8 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/agency/application/agency_providers.dart';
 import 'package:kabso_live/features/agency/data/agency_repository.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/home/presentation/widgets/home_reel.dart'
+    show reelSharerProvider;
 import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
 import 'package:kabso_live/features/wallet/presentation/me_page_parts.dart';
 import 'package:kabso_live/features/wallet/presentation/wallet_cherry_tab.dart'
@@ -60,6 +65,18 @@ class AgencyScreen extends ConsumerWidget {
   static const commissionKey = Key('agency.commission');
   static const hostsEmptyKey = Key('agency.hosts.empty');
 
+  /// v1.70-social (D206): «افتح وكالة», the probation card, the closed state.
+  static const openKey = Key('agency.open');
+  static const openNoteKey = Key('agency.open.note');
+  static const probationKey = Key('agency.probation');
+  static const probationLeftKey = Key('agency.probation.left');
+  static const probationCountKey = Key('agency.probation.count');
+  static const probationPassedKey = Key('agency.probation.passed');
+  static const probationShareKey = Key('agency.probation.share');
+  static const probationCopyKey = Key('agency.probation.copy');
+  static const closedKey = Key('agency.closed');
+  static Key probationHostKey(String id) => Key('agency.probation.host.$id');
+
   static Key hostKey(String id) => Key('agency.host.$id');
   static Key subKey(String code) => Key('agency.sub.$code');
 
@@ -84,8 +101,18 @@ class AgencyScreen extends ConsumerWidget {
           ..._agentSections(context, ref, value, own),
         if (value.membership case final m?)
           _MembershipCard(mine: value, membership: m),
-        if (value.ownAgency == null && value.membership == null)
+        // v1.70-social (D206): the caller's own agency was closed.
+        if (value.closedAgency case final closed? when value.ownAgency == null)
+          _ClosedCard(closed: closed, rule: value.openRule),
+        if (value.ownAgency == null && value.membership == null) ...[
+          if (value.closedAgency != null) const SizedBox(height: KSpacing.md),
           _JoinCard(leaveDays: value.leaveDays),
+          // «انضم إلى وكالة» stays; «افتح وكالة» under it (owner).
+          if (value.openRule case final rule?) ...[
+            const SizedBox(height: KSpacing.md),
+            _OpenCard(rule: rule),
+          ],
+        ],
       ],
       AsyncValue(:final error?, isLoading: false) => [
         FailureErrorState(
@@ -180,6 +207,44 @@ class AgencyScreen extends ConsumerWidget {
         own.subAgencies.isNotEmpty ||
         own.parentCommission.total > 0;
     return [
+      // v1.70-social (D206): the probation of a self-opened agency, on top.
+      if (own.probation case final probation? when probation.running) ...[
+        _ProbationCard(probation: probation, inviteCode: own.inviteCode),
+        const SizedBox(height: KSpacing.md),
+      ] else if (own.probation case final probation?
+          when probation.passedAt != null &&
+              clock.now().difference(probation.passedAt!) <
+                  const Duration(days: 7)) ...[
+        Container(
+          key: probationPassedKey,
+          padding: const EdgeInsets.all(KSpacing.md),
+          decoration: BoxDecoration(
+            color: p.success.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(KRadius.lg),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.verified_rounded, color: p.success),
+              const SizedBox(width: KSpacing.sm),
+              Expanded(
+                child: Text(
+                  l10n.agencyProbationPassed,
+                  style: t.bodyStrong.copyWith(color: p.textPrimary),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: KSpacing.md),
+      ],
+      if (own.name case final name? when name.isNotEmpty) ...[
+        Text(
+          name,
+          textAlign: TextAlign.center,
+          style: t.title.copyWith(color: p.textPrimary),
+        ),
+        const SizedBox(height: KSpacing.sm),
+      ],
       // The invite code card.
       WalletBalanceCard(
         key: inviteKey,
@@ -1026,6 +1091,427 @@ class _ComplaintSheetState extends State<_ComplaintSheet> {
               onPressed: _text.text.trim().isEmpty
                   ? null
                   : () => Navigator.of(context).pop(_text.text.trim()),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// v1.70-social (D206): «افتح وكالة» under «انضم إلى وكالة» — free; opens the
+/// form, or says why not now (the cooldown after a closing, a host).
+class _OpenCard extends StatelessWidget {
+  const new({required this.rule});
+
+  final AgencyOpenRule rule;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final p = context.palette;
+    final t = context.textStyles;
+    final note = switch (rule.refusal) {
+      AgencyOpenRefusal.hostOfAgency => l10n.agencyOpenIsHost,
+      AgencyOpenRefusal.ownsAgency => l10n.agencyOpenOwns,
+      AgencyOpenRefusal.accountNotActive => l10n.agencyOpenNotActive,
+      // The closed card says when (with the date).
+      AgencyOpenRefusal.reopenCooldown || null => null,
+    };
+    return WalletSection(
+      children: [
+        Text(
+          l10n.agencyProbationRuleShort(
+            l10n.agencyHostsCount(rule.requiredHosts),
+            l10n.agencyDaysCount(rule.probationDays),
+          ),
+          style: t.body.copyWith(color: p.textSecondary),
+        ),
+        const SizedBox(height: KSpacing.md),
+        KButton(
+          key: AgencyScreen.openKey,
+          label: l10n.agencyOpenButton,
+          icon: Icons.add_business_rounded,
+          onPressed: rule.canOpen
+              ? () => unawaited(context.push(AppRoutes.agencyOpen, extra: rule))
+              : null,
+        ),
+        // Disabled by the cooldown: the closed card above says until when.
+        if (note != null || rule.canOpen) ...[
+          const SizedBox(height: KSpacing.xs),
+          Text(
+            note ?? l10n.agencyOpenButtonHint,
+            key: AgencyScreen.openNoteKey,
+            textAlign: TextAlign.center,
+            style: t.caption.copyWith(
+              color: note == null ? p.success : p.textTertiary,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// v1.70-social (D206): the caller's agency was closed — why, when, and when
+/// they may open one again.
+class _ClosedCard extends StatelessWidget {
+  const new({required this.closed, required this.rule});
+
+  final ClosedAgency closed;
+  final AgencyOpenRule? rule;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final p = context.palette;
+    final t = context.textStyles;
+    final locale = Localizations.localeOf(context).toLanguageTag();
+    String date(DateTime d) =>
+        KFormat.bidiIsolate(KFormat.date(d.toLocal(), locale));
+    final canReopen = !clock.now().isBefore(closed.reopenAt);
+    return Container(
+      key: AgencyScreen.closedKey,
+      padding: const EdgeInsets.all(KSpacing.lg),
+      decoration: BoxDecoration(
+        color: p.error.withValues(alpha: 0.08),
+        border: Border.all(color: p.error.withValues(alpha: 0.4)),
+        borderRadius: BorderRadius.circular(KRadius.lg),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.store_mall_directory_outlined, color: p.error),
+              const SizedBox(width: KSpacing.sm),
+              Expanded(
+                child: Text(
+                  l10n.agencyClosedTitle,
+                  style: t.title.copyWith(color: p.textPrimary),
+                ),
+              ),
+            ],
+          ),
+          if (closed.name case final name? when name.isNotEmpty) ...[
+            const SizedBox(height: KSpacing.xs),
+            Text(name, style: t.bodyStrong.copyWith(color: p.textSecondary)),
+          ],
+          const SizedBox(height: KSpacing.sm),
+          Text(
+            closed.probationFailed
+                ? l10n.agencyClosedProbation(
+                    l10n.agencyHostsCount(
+                      closed.requiredHosts ?? rule?.requiredHosts ?? 3,
+                    ),
+                    KFormat.bidiIsolate('${closed.activatedHosts ?? 0}'),
+                  )
+                : l10n.agencyClosedAdmin,
+            style: t.body.copyWith(color: p.textPrimary),
+          ),
+          const SizedBox(height: KSpacing.xs),
+          Text(
+            l10n.agencyClosedOn(date(closed.closedAt)),
+            style: t.caption.copyWith(color: p.textSecondary),
+          ),
+          Text(
+            canReopen
+                ? l10n.agencyReopenNow
+                : l10n.agencyOpenCooldown(date(closed.reopenAt)),
+            style: t.caption.copyWith(
+              color: canReopen ? p.success : p.textSecondary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// v1.70-social (D206): the probation card on top of the owner's dashboard —
+/// the time left (days and hours, refreshed each minute), «المضيفون
+/// المفعّلون: X / 3», each host's three steps and the invite code to copy and
+/// share.
+class _ProbationCard extends ConsumerStatefulWidget {
+  const new({required this.probation, required this.inviteCode});
+
+  final AgencyProbation probation;
+  final String inviteCode;
+
+  @override
+  ConsumerState<_ProbationCard> createState() => _ProbationCardState();
+}
+
+class _ProbationCardState extends ConsumerState<_ProbationCard> {
+  Timer? _tick;
+
+  @override
+  void initState() {
+    super.initState();
+    _tick = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _tick?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final p = context.palette;
+    final t = context.textStyles;
+    final pr = widget.probation;
+    final left = pr.endsAt.difference(clock.now());
+    final days = left.inDays;
+    final hours = left.inHours - days * 24;
+    final leftText = left.isNegative || left == Duration.zero
+        ? l10n.agencyProbationEnding
+        : days > 0
+        ? l10n.agencyProbationLeft(
+            l10n.agencyDaysCount(days),
+            l10n.agencyHoursCount(hours),
+          )
+        : l10n.agencyProbationLeftHours(l10n.agencyHoursCount(hours));
+    final count = l10n.agencyProbationActivated(
+      KFormat.bidiIsolate('${pr.activatedHosts}'),
+      KFormat.bidiIsolate('${pr.requiredHosts}'),
+    );
+    return Container(
+      key: AgencyScreen.probationKey,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: AlignmentDirectional.topStart,
+          end: AlignmentDirectional.bottomEnd,
+          colors: [
+            KBrandColors.red400.withValues(alpha: 0.16),
+            p.surfaceRaised,
+          ],
+        ),
+        border: Border.all(color: KBrandColors.red400.withValues(alpha: 0.35)),
+        borderRadius: BorderRadius.circular(KRadius.lg),
+      ),
+      padding: const EdgeInsets.all(KSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.hourglass_top_rounded,
+                color: KBrandColors.red400,
+              ),
+              const SizedBox(width: KSpacing.sm),
+              Expanded(
+                child: Text(
+                  l10n.agencyProbationTitle,
+                  style: t.title.copyWith(color: p.textPrimary),
+                ),
+              ),
+              Flexible(
+                child: Text(
+                  leftText,
+                  key: AgencyScreen.probationLeftKey,
+                  textAlign: TextAlign.end,
+                  style: t.label.copyWith(
+                    color: KBrandColors.red400,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: KSpacing.md),
+          KeyedSubtree(
+            key: AgencyScreen.probationCountKey,
+            child: _Progress(
+              label: count,
+              value: pr.activatedHosts,
+              target: pr.requiredHosts,
+            ),
+          ),
+          Text(
+            l10n.agencyProbationRuleShort(
+              l10n.agencyHostsCount(pr.requiredHosts),
+              l10n.agencyDaysCount(pr.days),
+            ),
+            style: t.caption.copyWith(color: p.textSecondary),
+          ),
+          const SizedBox(height: KSpacing.md),
+          if (pr.hosts.isEmpty)
+            Text(
+              l10n.agencyProbationNoHosts,
+              style: t.body.copyWith(color: p.textSecondary),
+            )
+          else
+            for (final h in pr.hosts) _ProbationHostRow(host: h),
+          const SizedBox(height: KSpacing.md),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: p.surface,
+              borderRadius: BorderRadius.circular(KRadius.md),
+            ),
+            child: Padding(
+              padding: const EdgeInsetsDirectional.fromSTEB(
+                KSpacing.md,
+                KSpacing.xs,
+                KSpacing.xs,
+                KSpacing.xs,
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          l10n.agencyInviteCode,
+                          style: t.caption.copyWith(color: p.textSecondary),
+                        ),
+                        Text(
+                          widget.inviteCode,
+                          textDirection: TextDirection.ltr,
+                          style: t.title.copyWith(
+                            color: p.textPrimary,
+                            letterSpacing: 2,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    key: AgencyScreen.probationCopyKey,
+                    tooltip: l10n.agencyCopy,
+                    icon: const Icon(Icons.copy_rounded),
+                    onPressed: () {
+                      unawaited(
+                        Clipboard.setData(
+                          ClipboardData(text: widget.inviteCode),
+                        ),
+                      );
+                      KSnack.info(context, l10n.agencyCopied);
+                    },
+                  ),
+                  IconButton(
+                    key: AgencyScreen.probationShareKey,
+                    tooltip: l10n.agencyShare,
+                    icon: const Icon(Icons.share_rounded),
+                    onPressed: () => unawaited(
+                      ref
+                          .read(reelSharerProvider)
+                          .share(l10n.agencyShareText(widget.inviteCode)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One host in the probation: joined ✓ / went live ✓ / received gifts ✓.
+class _ProbationHostRow extends StatelessWidget {
+  const new({required this.host});
+
+  final AgencyProbationHost host;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final p = context.palette;
+    final t = context.textStyles;
+    Widget step(String label, {required bool done}) => Padding(
+      padding: const EdgeInsetsDirectional.only(end: KSpacing.xs),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        decoration: BoxDecoration(
+          color: done ? p.success.withValues(alpha: 0.14) : p.surface,
+          borderRadius: BorderRadius.circular(KRadius.pill),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              done ? Icons.check_rounded : Icons.remove_rounded,
+              size: 14,
+              color: done ? p.success : p.textTertiary,
+            ),
+            const SizedBox(width: 2),
+            Text(
+              label,
+              style: t.caption.copyWith(
+                color: done ? p.success : p.textTertiary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    final name = host.user.displayName.isEmpty
+        ? host.user.username
+        : host.user.displayName;
+    return Semantics(
+      container: true,
+      label: [
+        name,
+        '${l10n.agencyProbationJoined} ✓',
+        '${l10n.agencyProbationLive} ${host.wentLive ? '✓' : '—'}',
+        '${l10n.agencyProbationGifts} ${host.receivedGifts ? '✓' : '—'}',
+      ].join(', '),
+      excludeSemantics: true,
+      child: Padding(
+        key: AgencyScreen.probationHostKey(host.user.id),
+        padding: const EdgeInsets.symmetric(vertical: KSpacing.xs),
+        child: Row(
+          children: [
+            KAvatar(
+              name: host.user.displayName,
+              imageUrl: host.user.avatarUrl,
+              size: 36,
+            ),
+            const SizedBox(width: KSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: t.bodyStrong.copyWith(color: p.textPrimary),
+                        ),
+                      ),
+                      if (host.activated) ...[
+                        const SizedBox(width: KSpacing.xs),
+                        Icon(
+                          Icons.verified_rounded,
+                          size: 16,
+                          color: p.success,
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Wrap(
+                    runSpacing: 4,
+                    children: [
+                      step(l10n.agencyProbationJoined, done: true),
+                      step(l10n.agencyProbationLive, done: host.wentLive),
+                      step(l10n.agencyProbationGifts, done: host.receivedGifts),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ],
         ),

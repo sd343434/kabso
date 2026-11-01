@@ -283,6 +283,8 @@ class NotificationRow extends StatelessWidget {
     if (item.type == NotificationType.dataExportReady) {
       return AppRoutes.dataExport;
     }
+    // D206: every agency notification → «الوكالة».
+    if (item.type.isAgency) return AppRoutes.agency;
     // D185: coins from an agent → the wallet; a cherry sale to confirm →
     // the cherry requests.
     if (item.type == NotificationType.rechargeCoinsReceived) {
@@ -308,6 +310,7 @@ class NotificationRow extends StatelessWidget {
       NotificationTargetType.rechargeOrder => AppRoutes.rechargeOrder(
         target.id,
       ),
+      NotificationTargetType.agency => AppRoutes.agency,
       NotificationTargetType.premiumUsername => AppRoutes.premium,
       NotificationTargetType.post => AppRoutes.post(target.id),
       NotificationTargetType.comment when target.postId != null =>
@@ -409,6 +412,20 @@ class NotificationRow extends StatelessWidget {
         item.target?.orderEvent,
         item.target?.coins ?? 0,
       ),
+      NotificationType.agencyOpened => l10n.notifAgencyOpened,
+      NotificationType.agencyProbationReminder => l10n.notifAgencyReminder(
+        KFormat.bidiIsolate('${item.target?.activatedHosts ?? 0}'),
+        KFormat.bidiIsolate('${item.target?.requiredHosts ?? 0}'),
+      ),
+      NotificationType.agencyProbationPassed => l10n.notifAgencyPassed,
+      NotificationType.agencyClosed => switch (item.target?.requiredHosts) {
+        final int required => l10n.notifAgencyClosedProbation(
+          l10n.agencyHostsCount(required),
+          KFormat.bidiIsolate('${item.target?.activatedHosts ?? 0}'),
+        ),
+        null => l10n.notifAgencyClosedAdmin,
+      },
+      NotificationType.agencyHostReleased => l10n.notifAgencyHostReleased,
       NotificationType.unknown => '',
     };
     return (text, item.type.isSystem ? null : who, name);
@@ -510,6 +527,8 @@ class NotificationRow extends StatelessWidget {
               item.type == NotificationType.contentRemoved ||
                       item.type == NotificationType.avatarRemoved
                   ? Icons.gpp_maybe_outlined
+                  : item.type.isAgency
+                  ? Icons.business_center_rounded
                   : item.type.isSystem &&
                         item.type != NotificationType.postPublished
                   ? Icons.workspace_premium_rounded

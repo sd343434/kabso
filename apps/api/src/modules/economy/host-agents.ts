@@ -30,8 +30,13 @@ export function hostAgentCode(number: number): string {
  * agency exists and the team has not suspended it — the rank does not matter. The account must also be ACTIVE
  * (checked where the perks are read).
  */
-export function hostAgentPerksActive(agency: { hostCode: string | null; suspendedAt: Date | null }): boolean {
-  return agency.hostCode !== null && agency.suspendedAt === null;
+export function hostAgentPerksActive(agency: {
+  hostCode: string | null;
+  suspendedAt: Date | null;
+  status?: 'OPEN' | 'CLOSED';
+}): boolean {
+  // v1.70-social (D206): a closed agency gives no perks (they come back when it reopens).
+  return agency.hostCode !== null && agency.suspendedAt === null && agency.status !== 'CLOSED';
 }
 
 /** A refused special-username step as the CLI's error (the whole transaction rolls back). */
@@ -56,7 +61,7 @@ export async function allocateHostCodeIn(
   agencyId: string,
   now: Date,
   specialGraceDays: number,
-  opts: { strict?: boolean } = {},
+  opts: { strict?: boolean; via?: string } = {},
 ): Promise<string> {
   const [agency] = await tx.$queryRaw<{ owner: string; code: string | null }[]>`
     SELECT owner_user_id::text AS owner, host_code AS code FROM agencies WHERE id = ${agencyId}::uuid FOR UPDATE`;
@@ -89,7 +94,7 @@ export async function allocateHostCodeIn(
       action: AuditAction.HOST_AGENT_ACTIVATE,
       targetType: 'agency',
       targetId: agencyId,
-      metadata: { owner: agency.owner, code, via: opts.strict === false ? 'sweeper' : 'cli' },
+      metadata: { owner: agency.owner, code, via: opts.via ?? (opts.strict === false ? 'sweeper' : 'cli') },
     },
   });
   return code;
@@ -97,13 +102,24 @@ export async function allocateHostCodeIn(
 
 /**
  * `economy-admin agency-create`: the agency and, in the same transaction, its owner's activation as a host
- * agent (D189 a: activation = the agency's creation). The caller checked the owner and the parent.
+ * agent (D189 a: activation = the agency's creation). The caller checked the owner and the parent. v1.70-social
+ * (D206): «افتح وكالة» makes its agency with this same step (`origin` SELF, the name and the probation's end), so a
+ * self-opened agency is identical to one the team made (invite code, `hostNN`, NEW with its grace).
  */
 export async function createAgencyIn(
   tx: Tx,
-  input: { ownerUserId: string; inviteCode: string; parentAgencyId: string | null; evaluateFrom: Date },
+  input: {
+    ownerUserId: string;
+    inviteCode: string;
+    parentAgencyId: string | null;
+    evaluateFrom: Date;
+    name?: string | null;
+    origin?: 'ADMIN' | 'SELF';
+    probationEndsAt?: Date | null;
+  },
   now: Date,
   specialGraceDays: number,
+  opts: { strict?: boolean; via?: string } = {},
 ): Promise<{ agencyId: string; hostCode: string }> {
   const agencyId = uuidv7();
   await tx.agency.create({
@@ -114,9 +130,12 @@ export async function createAgencyIn(
       parentAgencyId: input.parentAgencyId,
       evaluateFrom: input.evaluateFrom,
       createdAt: now,
+      name: input.name ?? null,
+      origin: input.origin ?? 'ADMIN',
+      probationEndsAt: input.probationEndsAt ?? null,
     },
   });
-  const hostCode = await allocateHostCodeIn(tx, agencyId, now, specialGraceDays);
+  const hostCode = await allocateHostCodeIn(tx, agencyId, now, specialGraceDays, opts);
   return { agencyId, hostCode };
 }
 
@@ -194,7 +213,7 @@ export async function assignMissingHostCodes(
   specialGraceDays: number,
 ): Promise<number> {
   const due = await prisma.agency.findMany({
-    where: { hostCode: null },
+    where: { hostCode: null, status: 'OPEN' },
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     select: { id: true },
     take: 100,

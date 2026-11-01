@@ -42,9 +42,19 @@ export const revokeSessionsBody = z.strictObject({ sessionId: uuid.optional(), r
 export const agenciesQuery = tableQuery(['createdAt', 'inviteCode', 'rank'], 'createdAt')
   .extend({
     rank: z.enum(['NEW', 'AGENT', 'ADMIN', 'LAPSED']).optional(),
-    state: z.enum(['active', 'suspended']).optional(),
+    // v1.70-social (D206): `probation` (a running probation), `closed`; `origin` who made it.
+    state: z.enum(['active', 'suspended', 'probation', 'closed']).optional(),
+    origin: z.enum(['ADMIN', 'SELF']).optional(),
   })
   .strict();
+
+/** v1.70-social (D206, §10.65): the probation / closing / reopening of an agency (OWNER, authenticator code again). */
+export const agencyProbationExtendBody = z.strictObject({
+  days: z.number().int().min(1).max(90),
+  reason,
+  totpCode,
+});
+export const reasonTotpBody = z.strictObject({ reason, totpCode });
 
 export const createAgencyBody = z
   .strictObject({

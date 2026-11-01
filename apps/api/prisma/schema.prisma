@@ -218,6 +218,8 @@ model User {
   cherryWallet           CherryWallet?
   cherryLedger           CherryLedgerEntry[]
   ownedAgency            Agency?
+  /// v1.70-social (D206): the person's applications «افتح وكالة».
+  agencyApplications     AgencyApplication[]
   agencyLinks            AgencyHost[]
   cherryWithdrawals      CherryWithdrawal[]
   // v1.54-social (D185): recharge agents.
@@ -2012,6 +2014,17 @@ enum NotificationType {
   DATA_EXPORT_READY
   /// v1.69-social (D204, system): something happened on a recharge order you take part in (target the order).
   RECHARGE_ORDER_UPDATE
+  /// v1.70-social (D206, system; target the agency): the agency the person opened «افتح وكالة» is open (also an
+  /// admin's reopening).
+  AGENCY_OPENED
+  /// v1.70-social (D206, system): 24 h before the probation's end, still fewer activated hosts than needed.
+  AGENCY_PROBATION_REMINDER
+  /// v1.70-social (D206, system): the probation passed (enough activated hosts).
+  AGENCY_PROBATION_PASSED
+  /// v1.70-social (D206, system): the agency was closed (the probation failed, or the team closed it).
+  AGENCY_CLOSED
+  /// v1.70-social (D206, system): the host's agency was closed; the host is free (released).
+  AGENCY_HOST_RELEASED
 
   @@map("notification_type")
 }
@@ -2042,6 +2055,11 @@ model Notification {
   /// v1.69-social (D204): the order of RECHARGE_ORDER_UPDATE and the latest event on it.
   rechargeOrderId    String?          @map("recharge_order_id") @db.Uuid
   rechargeOrderEvent String?          @map("recharge_order_event") @db.VarChar(24)
+  /// v1.70-social (D206): the agency of AGENCY_* notifications, with the activated hosts reached and the hosts
+  /// needed at the time (the probation's numbers; NULL for the other types).
+  agencyId           String?          @map("agency_id") @db.Uuid
+  agencyActivated    Int?             @map("agency_activated")
+  agencyRequired     Int?             @map("agency_required")
   groupKey           String?          @map("group_key") @db.VarChar(80)
   readAt             DateTime?        @map("read_at") @db.Timestamptz(3)
   /// v1.30-live (D152): the `updated_at` the push dispatcher last handled (pushed or skipped);
@@ -2061,9 +2079,11 @@ model Notification {
   bagItem       BagItem?              @relation(fields: [bagItemCode], references: [code], onDelete: Cascade, onUpdate: Cascade)
   rechargeSale  RechargeSale?         @relation(fields: [rechargeSaleId], references: [id], onDelete: Cascade)
   rechargeOrder RechargeOrder?        @relation(fields: [rechargeOrderId], references: [id], onDelete: Cascade)
+  agency        Agency?               @relation(fields: [agencyId], references: [id], onDelete: Cascade)
   actors        NotificationActor[]
 
   @@index([recipientId, updatedAt(sort: Desc), id(sort: Desc)], map: "notifications_recipient_updated_idx")
+  @@index([agencyId], map: "notifications_agency_idx", where: raw("agency_id IS NOT NULL"))
   @@index([recipientId, groupKey], map: "notifications_unread_group_idx", where: raw("read_at IS NULL AND group_key IS NOT NULL"))
   @@index([recipientId], map: "notifications_unread_idx", where: raw("read_at IS NULL"))
   @@index([premiumLeaseId], map: "notifications_premium_lease_idx", where: raw("premium_lease_id IS NOT NULL"))
@@ -3621,6 +3641,30 @@ enum AgencyRank {
   @@map("agency_rank")
 }
 
+/// v1.70-social (D206): an agency is OPEN or CLOSED (closed rows stay: the earnings history, the reopening).
+enum AgencyStatus {
+  OPEN
+  CLOSED
+
+  @@map("agency_status")
+}
+
+/// v1.70-social (D206): who made the agency — the team (D179 `agency-create`) or the person «افتح وكالة».
+enum AgencyOrigin {
+  ADMIN
+  SELF
+
+  @@map("agency_origin")
+}
+
+/// v1.70-social (D206): why an agency was closed.
+enum AgencyCloseReason {
+  PROBATION_FAILED
+  ADMIN
+
+  @@map("agency_close_reason")
+}
+
 enum AgencyHostStatus {
   ACTIVE
   LEFT
@@ -3681,36 +3725,84 @@ model CherryLedgerEntry {
 /// D179: a host agency (created by an admin); `rankMonth` = the month of the last month-start
 /// evaluation, `evaluateFrom` = the first month start at which a NEW agency is evaluated.
 model Agency {
-  id             String     @id @default(uuid(7)) @db.Uuid
-  ownerUserId    String     @map("owner_user_id") @db.Uuid
-  inviteCode     String     @map("invite_code") @db.VarChar(12)
-  parentAgencyId String?    @map("parent_agency_id") @db.Uuid
-  rank           AgencyRank @default(NEW)
-  rankMonth      DateTime?  @map("rank_month") @db.Date
-  evaluateFrom   DateTime   @map("evaluate_from") @db.Date
-  createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt      DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id                  String             @id @default(uuid(7)) @db.Uuid
+  ownerUserId         String             @map("owner_user_id") @db.Uuid
+  inviteCode          String             @map("invite_code") @db.VarChar(12)
+  parentAgencyId      String?            @map("parent_agency_id") @db.Uuid
+  rank                AgencyRank         @default(NEW)
+  rankMonth           DateTime?          @map("rank_month") @db.Date
+  evaluateFrom        DateTime           @map("evaluate_from") @db.Date
+  createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
   /// v1.58-social (D189): the host agent's code `hostNN` (their special username), given at activation.
-  hostCode       String?    @map("host_code") @db.VarChar(30)
-  hostCodeNumber Int?       @map("host_code_number")
-  hostCodeAt     DateTime?  @map("host_code_at") @db.Timestamptz(3)
+  hostCode            String?            @map("host_code") @db.VarChar(30)
+  hostCodeNumber      Int?               @map("host_code_number")
+  hostCodeAt          DateTime?          @map("host_code_at") @db.Timestamptz(3)
   /// v1.58-social (D189): the team suspended the host agent (every perk removed at once).
-  suspendedAt    DateTime?  @map("suspended_at") @db.Timestamptz(3)
-  suspendReason  String?    @map("suspend_reason") @db.VarChar(500)
+  suspendedAt         DateTime?          @map("suspended_at") @db.Timestamptz(3)
+  suspendReason       String?            @map("suspend_reason") @db.VarChar(500)
+  /// v1.70-social (D206, §10.65): the agency's name (agencies made by the team before D206 have none).
+  name                String?            @db.VarChar(40)
+  origin              AgencyOrigin       @default(ADMIN)
+  status              AgencyStatus       @default(OPEN)
+  /// v1.70-social (D206): a self-opened agency's probation — it must activate AGENCY_PROBATION_MIN_HOSTS hosts
+  /// before `probationEndsAt`; `probationPassedAt` once it did (NULL both: no probation, e.g. made by the team).
+  probationEndsAt     DateTime?          @map("probation_ends_at") @db.Timestamptz(3)
+  probationPassedAt   DateTime?          @map("probation_passed_at") @db.Timestamptz(3)
+  /// The 24-hours-left reminder was sent for the current `probationEndsAt`.
+  probationRemindedAt DateTime?          @map("probation_reminded_at") @db.Timestamptz(3)
+  /// The activated hosts counted when the probation passed or failed.
+  probationActivated  Int?               @map("probation_activated")
+  closedAt            DateTime?          @map("closed_at") @db.Timestamptz(3)
+  closeReason         AgencyCloseReason? @map("close_reason")
+  closeNote           String?            @map("close_note") @db.VarChar(500)
 
-  owner       User            @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
-  parent      Agency?         @relation("AgencyParent", fields: [parentAgencyId], references: [id], onDelete: SetNull)
-  subAgencies Agency[]        @relation("AgencyParent")
-  hosts       AgencyHost[]
-  earnings    AgencyEarning[]
-  months      AgencyMonth[]
+  owner         User                @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  parent        Agency?             @relation("AgencyParent", fields: [parentAgencyId], references: [id], onDelete: SetNull)
+  subAgencies   Agency[]            @relation("AgencyParent")
+  hosts         AgencyHost[]
+  earnings      AgencyEarning[]
+  months        AgencyMonth[]
+  applications  AgencyApplication[]
+  notifications Notification[]
 
   @@unique([ownerUserId], map: "agencies_owner_once")
   @@unique([inviteCode], map: "agencies_invite_code_key")
   @@unique([hostCode], map: "agencies_host_code_key")
   @@unique([hostCodeNumber], map: "agencies_host_code_number_key")
   @@index([parentAgencyId], map: "agencies_parent_idx")
+  @@index([probationEndsAt], map: "agencies_probation_running_idx", where: raw("status = 'OPEN'::agency_status AND probation_ends_at IS NOT NULL AND probation_passed_at IS NULL"))
+  @@index([status, closedAt], map: "agencies_status_closed_idx")
   @@map("agencies")
+}
+
+/// v1.70-social (D206, §10.65): an application «افتح وكالة» — kept with the agency for the team (the agency is
+/// made at once; no approval). PRIVATE: the fields and the two pictures (the D185 private uploads) are read only in
+/// the panel, every view audited. `(user, clientKey)` once: the `Idempotency-Key`.
+model AgencyApplication {
+  id            String    @id @default(uuid(7)) @db.Uuid
+  agencyId      String    @map("agency_id") @db.Uuid
+  userId        String    @map("user_id") @db.Uuid
+  clientKey     String    @map("client_key") @db.Uuid
+  requestHash   String    @map("request_hash") @db.Char(64)
+  name          String    @db.VarChar(40)
+  country       String    @db.Char(2)
+  contactType   String    @map("contact_type") @db.VarChar(16)
+  contactValue  String?   @map("contact_value") @db.VarChar(100)
+  expectedHosts Int       @map("expected_hosts")
+  bio           String?   @db.VarChar(300)
+  photoKey      String?   @map("photo_key") @db.VarChar(256)
+  selfieKey     String?   @map("selfie_key") @db.VarChar(256)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  purgedAt      DateTime? @map("purged_at") @db.Timestamptz(3)
+
+  agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, clientKey], map: "agency_applications_client_once")
+  @@index([agencyId, createdAt(sort: Desc)], map: "agency_applications_agency_idx")
+  @@index([userId, createdAt(sort: Desc)], map: "agency_applications_user_idx")
+  @@map("agency_applications")
 }
 
 /// D179: a host's link to an agency (one ACTIVE per host, partial unique `agency_hosts_one_active`).

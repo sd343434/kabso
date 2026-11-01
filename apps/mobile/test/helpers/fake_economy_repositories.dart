@@ -171,15 +171,87 @@ const AgencyPreview testAgencyPreview = AgencyPreview(
   hostCount: 12,
 );
 
-MyAgency testMyAgency({AgencyMembership? membership, OwnAgency? own}) =>
-    MyAgency(
-      membership: membership,
-      ownAgency: own,
-      activeMinDays: 7,
-      activeMinHours: 10,
-      activeWindowDays: 30,
-      leaveDays: 14,
-    );
+MyAgency testMyAgency({
+  AgencyMembership? membership,
+  OwnAgency? own,
+  ClosedAgency? closed,
+  AgencyOpenRule? openRule,
+}) => MyAgency(
+  membership: membership,
+  ownAgency: own,
+  closedAgency: closed,
+  openRule: openRule,
+  activeMinDays: 7,
+  activeMinHours: 10,
+  activeWindowDays: 30,
+  leaveDays: 14,
+);
+
+/// v1.70-social (D206): «افتح وكالة» allowed (or refused with [refusal]).
+AgencyOpenRule testOpenRule({AgencyOpenRefusal? refusal}) => AgencyOpenRule(
+  canOpen: refusal == null,
+  refusal: refusal,
+  probationDays: 7,
+  requiredHosts: 3,
+  reopenCooldownDays: 30,
+);
+
+const UserSummary testProbationHost1 = UserSummary(
+  id: 'u-h1',
+  username: 'sara.live',
+  displayName: 'سارة',
+  avatarUrl: null,
+);
+const UserSummary testProbationHost2 = UserSummary(
+  id: 'u-h2',
+  username: 'lina.k',
+  displayName: 'Lina',
+  avatarUrl: null,
+);
+
+/// v1.70-social (D206): a running probation ending [left] after
+/// [economyAt]: Sara activated, Lina went live only.
+AgencyProbation testProbation({
+  Duration left = const Duration(days: 5, hours: 6),
+  bool hosts = true,
+}) => AgencyProbation(
+  running: true,
+  endsAt: economyAt.add(left),
+  days: 7,
+  requiredHosts: 3,
+  activatedHosts: hosts ? 1 : 0,
+  hosts: hosts
+      ? [
+          AgencyProbationHost(
+            user: testProbationHost1,
+            joinedAt: economyAt,
+            wentLive: true,
+            receivedGifts: true,
+            activated: true,
+          ),
+          AgencyProbationHost(
+            user: testProbationHost2,
+            joinedAt: economyAt,
+            wentLive: true,
+            receivedGifts: false,
+            activated: false,
+          ),
+        ]
+      : const [],
+);
+
+/// v1.70-social (D206): the caller's agency closed by its probation.
+ClosedAgency testClosedAgency({bool reopenable = false}) => ClosedAgency(
+  name: 'وكالة النجوم',
+  inviteCode: 'KAB5Q7XZ',
+  closedAt: economyAt.subtract(const Duration(days: 2)),
+  probationFailed: true,
+  activatedHosts: 2,
+  requiredHosts: 3,
+  reopenAt: reopenable
+      ? economyAt.subtract(const Duration(days: 1))
+      : economyAt.add(const Duration(days: 28)),
+);
 
 AgencyMembership testMembership({
   bool canLeave = true,
@@ -198,7 +270,11 @@ OwnAgency testOwnAgency({
   String? hostAgentCode,
   bool hostAgentActive = true,
   bool hostAgentUsernameShown = true,
+  String? name,
+  AgencyProbation? probation,
 }) => OwnAgency(
+  name: name,
+  probation: probation,
   hostAgentCode: hostAgentCode,
   hostAgentActive: hostAgentActive,
   hostAgentUsernameShown: hostAgentUsernameShown,
@@ -266,13 +342,34 @@ List<AgencyHostRow> testHosts() => [
 ];
 
 class FakeAgencyRepository implements AgencyRepository {
-  new({MyAgency? mine, this.hostRows, this.fail = false})
+  new({MyAgency? mine, this.hostRows, this.fail = false, this.openFailure})
     : current = mine ?? testMyAgency();
 
   MyAgency current;
   final List<AgencyHostRow>? hostRows;
   final bool fail;
   final List<String> calls = [];
+
+  /// v1.70-social (D206): what `open` throws (null: it opens).
+  AppFailure? openFailure;
+
+  /// The drafts `open` received.
+  final List<AgencyOpenDraft> opened = [];
+
+  @override
+  Future<MyAgency> open(AgencyOpenDraft draft) async {
+    calls.add('open ${draft.name}');
+    opened.add(draft);
+    if (openFailure case final failure?) throw failure;
+    return current = testMyAgency(
+      own: testOwnAgency(
+        rank: AgencyRank.newAgency,
+        name: draft.name,
+        probation: testProbation(left: const Duration(days: 7), hosts: false),
+      ),
+      openRule: testOpenRule(refusal: AgencyOpenRefusal.ownsAgency),
+    );
+  }
 
   @override
   Future<MyAgency> mine() async {

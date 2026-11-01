@@ -387,6 +387,80 @@ it('serves the admin panel smoke API', async () => {
         });
       }
     }
+    // v1.70-social (D206): a self-opened agency in its probation, with its application (drawn pictures).
+    {
+      const opened = await createAgencyByAdmin(
+        ctx.prisma,
+        { ownerUserId: people[53]!, parentInviteCode: null, reason: 'smoke seed (self-opened)' },
+        { timeZone: 'Asia/Riyadh', specialGraceDays: 30 },
+      );
+      await ctx.prisma.agency.update({
+        where: { id: opened.agencyId },
+        data: {
+          origin: 'SELF',
+          name: 'وكالة النجوم',
+          probationEndsAt: new Date(now + 5 * 86_400_000 + 6 * 3_600_000),
+        },
+      });
+      const app = randomUUID();
+      const key = (w: string) => `private/agency-applications/${app}/${w}.webp`;
+      storage.putRaw(key('photo'), await picture('#3b6b5a'), 'image/webp');
+      storage.putRaw(key('selfie'), await picture('#8a5b3b'), 'image/webp');
+      await ctx.prisma.agencyApplication.create({
+        data: {
+          id: app,
+          agencyId: opened.agencyId,
+          userId: people[53]!,
+          clientKey: randomUUID(),
+          requestHash: '0'.repeat(64),
+          name: 'وكالة النجوم',
+          country: 'SA',
+          contactType: 'WHATSAPP',
+          contactValue: '+966500000000',
+          expectedHosts: 25,
+          bio: 'نبحث عن مضيفين موهوبين للبث اليومي',
+          photoKey: key('photo'),
+          selfieKey: key('selfie'),
+        },
+      });
+      for (const [h, done] of [
+        [30, true],
+        [31, false],
+      ] as const) {
+        await ctx.prisma.agencyHost.create({
+          data: {
+            agencyId: opened.agencyId,
+            hostUserId: people[h]!,
+            commissionEligible: true,
+            activatedAt: new Date(now - 3_600_000),
+          },
+        });
+        await ctx.prisma.liveRoom.create({
+          data: {
+            hostUserId: people[h]!,
+            title: 'بث تجريبي',
+            status: 'ENDED',
+            endReason: 'HOST_ENDED',
+            startedAt: new Date(now - 1_800_000),
+            lastHeartbeatAt: new Date(now - 600_000),
+            endedAt: new Date(now - 600_000),
+          },
+        });
+        if (done) {
+          await ctx.prisma.cherryLedgerEntry.create({
+            data: {
+              userId: people[h]!,
+              delta: 1000n,
+              balanceAfter: 1000n,
+              reason: 'GIFT_RECEIVED',
+              referenceId: randomUUID(),
+              createdAt: new Date(now - 900_000),
+            },
+          });
+        }
+      }
+      extra = { ...extra, selfAgency: opened.agencyId };
+    }
     const link = await ctx.prisma.agencyHost.findFirstOrThrow({ where: { agencyId: agencyIds[0]! } });
     await ctx.prisma.agencyComplaint.create({
       data: {
@@ -460,7 +534,7 @@ it('serves the admin panel smoke API', async () => {
       const email = `seed${i}@example.test`;
       await withMigrationClient((db) => db.$transaction((tx) => grantRoleIn(tx, email, role)));
     }
-    extra = { teamRecruit: 'seed59@example.test', liveTitle: titles[0]! };
+    extra = { ...extra, teamRecruit: 'seed59@example.test', liveTitle: titles[0]! };
   }
 
   // D204: a disputed recharge order (the real API all the way) and an exchange rate.

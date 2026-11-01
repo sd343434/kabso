@@ -1910,3 +1910,28 @@ confirms or the team decides a dispute).
   وكيل» (D150: off in store builds until legal confirms). Direct APKs (staging) show it when the server allows.
 - **Check after deploy:** `GET /api/v1/me/recharge-agent` has `rules.orders.enabled: true`; the API log shows no
   «Recharge order sweep failed».
+
+### 5.34 «افتح وكالة»: self-opened agencies and their probation (migrations `20270125090000_agency_open_enums`, `20270125090100_agency_open`; D206) — [IMPLEMENTED, draft contract v1.70-social; not deployed, not device-tested]
+
+CONVENTIONS §10.65. The first migration only adds the five `AGENCY_*` notification types (a value added by `ALTER TYPE`
+cannot be used in its own transaction); the second adds the agency's `name`, `origin` (existing rows: ADMIN), `status`
+(existing rows: OPEN), the probation and closing columns, `agency_applications` and `notifications.agency_*` — no
+backfill, no GRANT (default privileges). Settings (all with the owner's defaults, no secret):
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `AGENCY_PROBATION_DAYS` | 7 | a self-opened agency's probation |
+| `AGENCY_PROBATION_MIN_HOSTS` | 3 | activated hosts needed (joined + went live + received a gift, before the end) |
+| `AGENCY_PROBATION_REMINDER_HOURS` | 24 | the owner's reminder before the end |
+| `AGENCY_REOPEN_COOLDOWN_DAYS` | 30 | after a closing, before the person may open again (proposal) |
+| `RATE_LIMIT_AGENCY_OPEN_USER` | 5/86400 | «افتح وكالة» attempts per user |
+
+The probations are settled by the existing agency sweeper (`AGENCY_SWEEP_INTERVAL_SECONDS`, 3600 — refused at 0 in
+production): it passes, reminds or closes; a closing at the next sweep after the end is decided by the state at the
+end (a late sweep decides the same). By hand: `node dist/cli/economy-admin.js agency-probation-sweep`, and
+`agency-probation-extend <invite code> <days> --note …`, `agency-close <invite code> --note …`, `agency-reopen <invite
+code> --note …` (migration role, audited). The ID card and the selfie are stored under `private/agency-applications/`
+in the media bucket (`private, no-store`; never public) — the bucket policy must keep `private/` unreadable, as for
+the recharge agents (D185). Media uploads must be enabled (`MEDIA_UPLOADS_ENABLED`), or `openAgency` answers 503.
+Ship the API before (or with) the app: an older app shows no «افتح وكالة» (no `openRule`) and ignores the new
+notification types; an older API makes the new app hide the button.

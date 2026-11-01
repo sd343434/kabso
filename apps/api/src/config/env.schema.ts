@@ -591,6 +591,8 @@ export const envSchema = z
     /** v1.69-social (D204): new recharge orders, and every other order write (messages, details, confirm …). */
     RATE_LIMIT_RECHARGE_ORDER_USER: rateLimit('20/3600'),
     RATE_LIMIT_RECHARGE_ORDER_ACTION_USER: rateLimit('600/3600'),
+    /** v1.70-social (D206): «افتح وكالة» attempts per user (also refused ones). */
+    RATE_LIMIT_AGENCY_OPEN_USER: rateLimit('5/86400'),
     /** v1.59-social (D190, §10.53): card top-up checkouts started, per user. */
     RATE_LIMIT_TOPUP_CHECKOUT_USER: rateLimit('20/3600'),
     /** v1.61-social (D192, §10.55): the website's waitlist sign-ups, per client IP (no account). */
@@ -989,6 +991,16 @@ export const envSchema = z
     AGENCY_ACTIVE_HOST_WINDOW_DAYS: intSetting(30, 1, 365),
     AGENCY_LEAVE_DAYS: intSetting(14, 0, 365),
     AGENCY_SWEEP_INTERVAL_SECONDS: intSetting(3600, 0, 86_400),
+    /**
+     * v1.70-social (D206, §10.65): «افتح وكالة» — a self-opened agency must activate AGENCY_PROBATION_MIN_HOSTS hosts
+     * (joined, went live and received gifts) within AGENCY_PROBATION_DAYS of its opening, or it is closed; the
+     * owner is reminded AGENCY_PROBATION_REMINDER_HOURS before the end; after a closing the person may open again
+     * AGENCY_REOPEN_COOLDOWN_DAYS later (0 = at once).
+     */
+    AGENCY_PROBATION_DAYS: intSetting(7, 1, 90),
+    AGENCY_PROBATION_MIN_HOSTS: intSetting(3, 1, 1000),
+    AGENCY_PROBATION_REMINDER_HOURS: intSetting(24, 1, 720),
+    AGENCY_REOPEN_COOLDOWN_DAYS: intSetting(30, 0, 365),
     /**
      * D179: withdrawals (paid by hand, no provider yet): CHERRY_PAYOUT_RATE = `cherries:minor` (owner:
      * 1 000 000 cherries = $1.10 → `1000000:110`), the currency, the smallest request in minor units

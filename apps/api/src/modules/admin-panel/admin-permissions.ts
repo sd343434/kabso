@@ -59,6 +59,10 @@ export const CAPABILITIES = {
   'agencies.view': ['OWNER', 'SUPPORT', 'FINANCE'],
   /** Create, suspend / reinstate, resolve a complaint, run the rank evaluation. */
   'agencies.manage': ['OWNER', 'SUPPORT'],
+  /** v1.70-social (D206): a self-opened agency's application (private fields + pictures, every view audited). */
+  'agencies.applications': ['OWNER', 'SUPPORT'],
+  /** v1.70-social (D206): extend a probation, close or reopen an agency (with the authenticator code again). */
+  'agencies.probation': ['OWNER'],
   /** Lives now, a live's details, the hosting permissions. */
   'lives.view': ['OWNER', 'MODERATION', 'SUPPORT'],
   /** End a live with a reason; give / take back the hosting permission. */

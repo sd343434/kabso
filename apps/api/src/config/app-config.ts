@@ -182,6 +182,8 @@ export interface AppConfig {
     /** v1.69-social (D204). */
     readonly rechargeOrderUser: RateLimitRule;
     readonly rechargeOrderActionUser: RateLimitRule;
+    /** v1.70-social (D206). */
+    readonly agencyOpenUser: RateLimitRule;
     readonly topupCheckoutUser: RateLimitRule;
     /** v1.61-social (D192): `POST /waitlist`, per client IP. */
     readonly waitlistIp: RateLimitRule;
@@ -267,6 +269,11 @@ export interface AppConfig {
     readonly activeHostWindowDays: number;
     readonly leaveDays: number;
     readonly sweepIntervalSeconds: number;
+    /** v1.70-social (D206, §10.65): the probation of a self-opened agency and the reopening cooldown. */
+    readonly probationDays: number;
+    readonly probationMinHosts: number;
+    readonly probationReminderHours: number;
+    readonly reopenCooldownDays: number;
     /** `rateCherries` cherries are paid `rateMinor` minor units of `currency`. */
     readonly rateCherries: number;
     readonly rateMinor: number;
@@ -611,6 +618,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       rechargeWriteUser: e.RATE_LIMIT_RECHARGE_WRITE_USER,
       rechargeOrderUser: e.RATE_LIMIT_RECHARGE_ORDER_USER,
       rechargeOrderActionUser: e.RATE_LIMIT_RECHARGE_ORDER_ACTION_USER,
+      agencyOpenUser: e.RATE_LIMIT_AGENCY_OPEN_USER,
       topupCheckoutUser: e.RATE_LIMIT_TOPUP_CHECKOUT_USER,
       waitlistIp: e.RATE_LIMIT_WAITLIST_IP,
       liveHeartbeatUser: e.RATE_LIMIT_LIVE_HEARTBEAT_USER,
@@ -699,6 +707,10 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       activeHostWindowDays: e.AGENCY_ACTIVE_HOST_WINDOW_DAYS,
       leaveDays: e.AGENCY_LEAVE_DAYS,
       sweepIntervalSeconds: e.AGENCY_SWEEP_INTERVAL_SECONDS,
+      probationDays: e.AGENCY_PROBATION_DAYS,
+      probationMinHosts: e.AGENCY_PROBATION_MIN_HOSTS,
+      probationReminderHours: e.AGENCY_PROBATION_REMINDER_HOURS,
+      reopenCooldownDays: e.AGENCY_REOPEN_COOLDOWN_DAYS,
       rateCherries: e.CHERRY_PAYOUT_RATE.cherries,
       rateMinor: e.CHERRY_PAYOUT_RATE.minor,
       currency: e.CHERRY_PAYOUT_CURRENCY,

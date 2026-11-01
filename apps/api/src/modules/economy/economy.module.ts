@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { MediaModule } from '../media/media.module.js';
 import { UsersModule } from '../users/users.module.js';
 import { AgencyService } from './agency.service.js';
 import { CherriesService } from './cherries.service.js';
@@ -13,7 +14,7 @@ import { HostFrameService } from './host-frame.service.js';
  * active-host frame (`HostFrameService`, `host-frames.ts`), synced by the agency sweeper.
  */
 @Module({
-  imports: [UsersModule],
+  imports: [UsersModule, MediaModule],
   controllers: [EconomyController],
   providers: [CherriesService, AgencyService, HostFrameService],
   exports: [AgencyService],

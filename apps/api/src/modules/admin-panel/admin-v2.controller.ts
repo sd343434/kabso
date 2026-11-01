@@ -22,6 +22,7 @@ import { sendTable, type TableQuery } from './admin-tables.js';
 import { AdminTeamService, type AuditQuery } from './admin-team.service.js';
 import {
   agenciesQuery,
+  agencyProbationExtendBody,
   auditQuery,
   bagGrantBody,
   bagRevokeBody,
@@ -38,6 +39,7 @@ import {
   livesQuery,
   pageOnlyQuery,
   reasonBody,
+  reasonTotpBody,
   rechargeTopupsQuery,
   refundBody,
   reportQuery,
@@ -254,6 +256,70 @@ export class AdminV2Controller {
     @CurrentAdmin() admin: AdminContext,
   ) {
     return this.agencies.reinstate(pathUuid(id), body.reason, admin);
+  }
+
+  // ---- v1.70-social (D206, §10.65): «افتح وكالة» --------------------------------------------------------------
+
+  @Get('agencies/:agencyId/applications/:applicationId')
+  @RequireCapability('agencies.applications')
+  agencyApplication(
+    @Param('agencyId') id: string,
+    @Param('applicationId') appId: string,
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    return this.agencies.application(pathUuid(id), pathUuid(appId), admin);
+  }
+
+  @Get('agencies/:agencyId/applications/:applicationId/photos/:which')
+  @RequireCapability('agencies.applications')
+  async agencyApplicationPhoto(
+    @Param('agencyId') id: string,
+    @Param('applicationId') appId: string,
+    @Param('which') which: string,
+    @CurrentAdmin() admin: AdminContext,
+    @Res() res: Response,
+  ): Promise<void> {
+    if (which !== 'photo' && which !== 'selfie') throw new AppException(ErrorCode.NOT_FOUND);
+    const bytes = await this.agencies.applicationPhoto(pathUuid(id), pathUuid(appId), which, admin);
+    res.setHeader('Content-Type', 'image/webp');
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.setHeader('Content-Disposition', 'inline');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.status(200).end(bytes);
+  }
+
+  @Post('agencies/:agencyId/probation/extend')
+  @HttpCode(200)
+  @RequireCapability('agencies.probation')
+  extendAgencyProbation(
+    @Param('agencyId') id: string,
+    @Body(new ZodValidationPipe(agencyProbationExtendBody))
+    body: { days: number; reason: string; totpCode: string },
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    return this.agencies.extendProbation(pathUuid(id), body, admin);
+  }
+
+  @Post('agencies/:agencyId/close')
+  @HttpCode(200)
+  @RequireCapability('agencies.probation')
+  closeAgency(
+    @Param('agencyId') id: string,
+    @Body(new ZodValidationPipe(reasonTotpBody)) body: { reason: string; totpCode: string },
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    return this.agencies.close(pathUuid(id), body, admin);
+  }
+
+  @Post('agencies/:agencyId/reopen')
+  @HttpCode(200)
+  @RequireCapability('agencies.probation')
+  reopenAgency(
+    @Param('agencyId') id: string,
+    @Body(new ZodValidationPipe(reasonTotpBody)) body: { reason: string; totpCode: string },
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    return this.agencies.reopen(pathUuid(id), body, admin);
   }
 
   @Get('agency-complaints')

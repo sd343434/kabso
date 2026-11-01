@@ -123,6 +123,9 @@ export class NotificationPushDispatcher implements OnModuleInit, OnModuleDestroy
             targetType: dto.target?.type ?? null,
             targetId: dto.target?.id ?? null,
             targetText: dto.target?.orderEvent ?? dto.target?.text ?? null,
+            activatedHosts: dto.target?.activatedHosts ?? null,
+            requiredHosts: dto.target?.requiredHosts ?? null,
+            probationDays: this.config.economy.probationDays,
           },
           locale,
         );

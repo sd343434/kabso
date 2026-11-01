@@ -112,12 +112,14 @@ export async function agencyStandings(
   const month = monthKey(now, timeZone);
   const previous = addMonths(month, -1);
   // `only`: these agencies and their sub-agencies (an agency's dashboard), else every agency.
+  // v1.70-social (D206): a closed agency is not counted (nor as a parent's qualified sub-agency).
   const scope =
     only === null
       ? Prisma.empty
-      : Prisma.sql`WHERE id = ANY(${[...only]}::uuid[]) OR parent_agency_id = ANY(${[...only]}::uuid[])`;
+      : Prisma.sql`AND (id = ANY(${[...only]}::uuid[]) OR parent_agency_id = ANY(${[...only]}::uuid[]))`;
   const agencies = await db.$queryRaw<{ id: string; parent_id: string | null }[]>`
-    SELECT id::text AS id, parent_agency_id::text AS parent_id FROM agencies ${scope}`;
+    SELECT id::text AS id, parent_agency_id::text AS parent_id FROM agencies
+     WHERE status = 'OPEN'::agency_status ${scope}`;
   const ids = only === null ? null : agencies.map((a) => a.id);
   const activity = await hostActivity(db, ids, now, rules, timeZone);
   const monthScope = ids === null ? Prisma.empty : Prisma.sql`AND agency_id = ANY(${ids}::uuid[])`;
@@ -182,7 +184,10 @@ export async function evaluateAgencyRanks(
   >`
     SELECT id::text AS id, rank::text AS rank, to_char(rank_month, 'YYYY-MM-DD') AS rank_month,
            to_char(evaluate_from, 'YYYY-MM-DD') AS evaluate_from
-      FROM agencies ORDER BY id`;
+      FROM agencies
+     -- v1.70-social (D206, §10.65): never a closed agency; a running probation keeps NEW (decided by the probation).
+     WHERE status = 'OPEN'::agency_status AND NOT (probation_ends_at IS NOT NULL AND probation_passed_at IS NULL)
+     ORDER BY id`;
   const changes: RankChange[] = [];
   for (const a of agencies) {
     const standing = standings.get(a.id);

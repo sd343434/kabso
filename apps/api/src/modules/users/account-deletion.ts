@@ -86,7 +86,11 @@ export async function deletionBlockersIn(db: Tx | PrismaClient, userId: string):
     db.rechargeAgent.findUnique({ where: { userId }, select: { status: true, stockCoins: true } }),
     db.agency.findUnique({
       where: { ownerUserId: userId },
-      select: { suspendedAt: true, _count: { select: { hosts: { where: { status: 'ACTIVE' } } } } },
+      select: {
+        suspendedAt: true,
+        status: true,
+        _count: { select: { hosts: { where: { status: 'ACTIVE' } } } },
+      },
     }),
     db.cherryWithdrawal.count({ where: { userId, status: 'PENDING' } }),
     db.rechargeCherryRequest.count({ where: { hostUserId: userId, status: 'PENDING' } }),
@@ -95,7 +99,10 @@ export async function deletionBlockersIn(db: Tx | PrismaClient, userId: string):
   ]);
   const blockers: DeletionBlocker[] = [];
   if (agent && (agent.status !== 'SUSPENDED' || agent.stockCoins > 0n)) blockers.push('recharge_agent');
-  if (agency && (agency.suspendedAt === null || agency._count.hosts > 0)) blockers.push('host_agency');
+  // v1.70-social (D206): a closed agency has no hosts and no perks — it does not block.
+  if (agency && agency.status === 'OPEN' && (agency.suspendedAt === null || agency._count.hosts > 0)) {
+    blockers.push('host_agency');
+  }
   if (withdrawals > 0) blockers.push('pending_withdrawal');
   if (cherrySales > 0) blockers.push('pending_cherry_sale');
   if ((wallet && wallet.coins < 0n) || (cherryWallet && cherryWallet.cherries < 0n))
@@ -417,6 +424,16 @@ export async function purgeAccountIn(
        SET full_name = NULL, phone = NULL, photo_key = NULL, selfie_key = NULL, locations = NULL,
            payment_methods = NULL, purged_at = COALESCE(purged_at, ${at}::timestamptz)
      WHERE user_id = ${u}`;
+  // -- KYC: v1.70-social (D206) the «افتح وكالة» applications keep the agency's name, country and dates only.
+  const agencyKyc = await tx.agencyApplication.findMany({
+    where: { userId },
+    select: { photoKey: true, selfieKey: true },
+  });
+  await tx.$executeRaw`
+    UPDATE agency_applications
+       SET contact_value = NULL, bio = NULL, photo_key = NULL, selfie_key = NULL,
+           purged_at = COALESCE(purged_at, ${at}::timestamptz)
+     WHERE user_id = ${u}`;
   // Withdrawals stay for accounting; the payout details keep only their last 4 characters (to match bank records).
   await tx.$executeRaw`
     UPDATE cherry_withdrawals
@@ -490,6 +507,7 @@ export async function purgeAccountIn(
     ...assets.flatMap((a) => [a.large_key, a.thumb_key, ...(a.poster_key ? [a.poster_key] : [])]),
     ...uploads.map((x) => x.object_key),
     ...kyc.flatMap((k) => [k.photoKey, k.selfieKey]).filter((k): k is string => k !== null),
+    ...agencyKyc.flatMap((k) => [k.photoKey, k.selfieKey]).filter((k): k is string => k !== null),
     ...familyKeys,
     ...exports.flatMap((x) => (x.object_key ? [x.object_key] : [])),
   ].filter((k) => !holds.objectKeys.has(k)); // files under a legal hold stay until the hold ends

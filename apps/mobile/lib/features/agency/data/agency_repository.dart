@@ -1,9 +1,15 @@
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show immutable;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/api_call.dart';
 import 'package:kabso_live/core/network/network_providers.dart';
+import 'package:kabso_live/features/posts/data/media_repository.dart'
+    show storageDioProvider;
+import 'package:kabso_live/features/recharge/data/recharge_repository.dart'
+    show uploadPrivateImage;
 import 'package:kabso_live/features/wallet/data/wallet_repository.dart';
 
 int _int(Object? v) => (v as num?)?.toInt() ?? 0;
@@ -169,6 +175,8 @@ final class OwnAgency {
     this.hostAgentCode,
     this.hostAgentActive = false,
     this.hostAgentUsernameShown = false,
+    this.name,
+    this.probation,
   });
 
   factory fromJson(Map<String, dynamic> json) {
@@ -208,6 +216,11 @@ final class OwnAgency {
       },
       hostAgentActive: host['active'] == true,
       hostAgentUsernameShown: host['usernameShown'] == true,
+      name: json['name'] as String?,
+      probation: switch (json['probation']) {
+        final Map<String, dynamic> pr => AgencyProbation.fromJson(pr),
+        _ => null,
+      },
     );
   }
 
@@ -243,6 +256,201 @@ final class OwnAgency {
   /// The code is the username shown now (false: suspended, or a recharge
   /// code activated first is shown and this one is kept reserved).
   final bool hostAgentUsernameShown;
+
+  /// v1.70-social (D206): the agency's name (null: made by the team before
+  /// D206 or an older server).
+  final String? name;
+
+  /// v1.70-social (D206): the probation of a self-opened agency (null: none).
+  final AgencyProbation? probation;
+}
+
+/// v1.70-social (D206, §10.65): one host in a probation and the three steps.
+@immutable
+final class AgencyProbationHost {
+  const new({
+    required this.user,
+    required this.joinedAt,
+    required this.wentLive,
+    required this.receivedGifts,
+    required this.activated,
+  });
+
+  factory fromJson(Map<String, dynamic> json) => AgencyProbationHost(
+    user: UserSummary.fromJson(json['user']! as Map<String, dynamic>),
+    joinedAt: DateTime.parse(json['joinedAt']! as String),
+    wentLive: json['wentLive'] == true,
+    receivedGifts: json['receivedGifts'] == true,
+    activated: json['activated'] == true,
+  );
+
+  final UserSummary user;
+  final DateTime joinedAt;
+  final bool wentLive;
+  final bool receivedGifts;
+  final bool activated;
+}
+
+/// v1.70-social (D206): `AgencyProbation`.
+@immutable
+final class AgencyProbation {
+  const new({
+    required this.running,
+    required this.endsAt,
+    required this.days,
+    required this.requiredHosts,
+    required this.activatedHosts,
+    required this.hosts,
+    this.passedAt,
+  });
+
+  factory fromJson(Map<String, dynamic> json) => AgencyProbation(
+    running: json['status'] == 'RUNNING',
+    endsAt: DateTime.parse(json['endsAt']! as String),
+    passedAt: switch (json['passedAt']) {
+      final String at => DateTime.parse(at),
+      _ => null,
+    },
+    days: _int(json['days']),
+    requiredHosts: _int(json['requiredHosts']),
+    activatedHosts: _int(json['activatedHosts']),
+    hosts: [
+      for (final h in (json['hosts'] as List<dynamic>?) ?? const [])
+        AgencyProbationHost.fromJson(h as Map<String, dynamic>),
+    ],
+  );
+
+  /// RUNNING (false: PASSED).
+  final bool running;
+  final DateTime endsAt;
+  final DateTime? passedAt;
+  final int days;
+  final int requiredHosts;
+  final int activatedHosts;
+  final List<AgencyProbationHost> hosts;
+}
+
+/// v1.70-social (D206): `ClosedAgency` — the caller's own agency, closed.
+@immutable
+final class ClosedAgency {
+  const new({
+    required this.inviteCode,
+    required this.closedAt,
+    required this.probationFailed,
+    required this.reopenAt,
+    this.name,
+    this.activatedHosts,
+    this.requiredHosts,
+  });
+
+  factory fromJson(Map<String, dynamic> json) => ClosedAgency(
+    name: json['name'] as String?,
+    inviteCode: json['inviteCode']! as String,
+    closedAt: DateTime.parse(json['closedAt']! as String),
+    probationFailed: json['reason'] == 'PROBATION_FAILED',
+    activatedHosts: (json['activatedHosts'] as num?)?.toInt(),
+    requiredHosts: (json['requiredHosts'] as num?)?.toInt(),
+    reopenAt: DateTime.parse(json['reopenAt']! as String),
+  );
+
+  final String? name;
+  final String inviteCode;
+  final DateTime closedAt;
+
+  /// PROBATION_FAILED (false: the team closed it).
+  final bool probationFailed;
+  final int? activatedHosts;
+  final int? requiredHosts;
+  final DateTime reopenAt;
+}
+
+/// v1.70-social (D206): why «افتح وكالة» is not offered now.
+enum AgencyOpenRefusal {
+  accountNotActive('ACCOUNT_NOT_ACTIVE'),
+  ownsAgency('OWNS_AGENCY'),
+  hostOfAgency('HOST_OF_AGENCY'),
+  reopenCooldown('REOPEN_COOLDOWN');
+
+  new(this.wire);
+
+  final String wire;
+
+  static AgencyOpenRefusal? fromWire(Object? wire) =>
+      values.where((r) => r.wire == wire).firstOrNull;
+}
+
+/// v1.70-social (D206): `AgencyOpenRule`. An older server sends none: the
+/// app does not offer «افتح وكالة» there.
+@immutable
+final class AgencyOpenRule {
+  const new({
+    required this.canOpen,
+    required this.probationDays,
+    required this.requiredHosts,
+    required this.reopenCooldownDays,
+    this.refusal,
+  });
+
+  factory fromJson(Map<String, dynamic> json) => AgencyOpenRule(
+    canOpen: json['canOpen'] == true,
+    refusal: AgencyOpenRefusal.fromWire(json['refusal']),
+    probationDays: _int(json['probationDays']),
+    requiredHosts: _int(json['requiredHosts']),
+    reopenCooldownDays: _int(json['reopenCooldownDays']),
+  );
+
+  final bool canOpen;
+  final AgencyOpenRefusal? refusal;
+  final int probationDays;
+  final int requiredHosts;
+  final int reopenCooldownDays;
+}
+
+/// v1.70-social (D206): the contact method of `OpenAgencyRequest`.
+enum AgencyContactType {
+  whatsapp('WHATSAPP'),
+  telegram('TELEGRAM'),
+  phone('PHONE'),
+  email('EMAIL'),
+  other('OTHER');
+
+  new(this.wire);
+
+  final String wire;
+}
+
+/// v1.70-social (D206): «افتح وكالة» as filled in.
+@immutable
+final class AgencyOpenDraft {
+  const new({
+    required this.name,
+    required this.country,
+    required this.contactType,
+    required this.contactValue,
+    required this.expectedHosts,
+    required this.bio,
+    required this.idCard,
+    required this.idCardType,
+    required this.selfie,
+    required this.selfieType,
+    required this.idempotencyKey,
+  });
+
+  final String name;
+
+  /// ISO alpha-2.
+  final String country;
+  final AgencyContactType contactType;
+  final String contactValue;
+  final int expectedHosts;
+  final String bio;
+  final Uint8List idCard;
+  final String idCardType;
+  final Uint8List selfie;
+  final String selfieType;
+
+  /// One per attempt of the form (a retry after a lost answer reuses it).
+  final String idempotencyKey;
 }
 
 /// `MyAgency`.
@@ -255,6 +463,8 @@ final class MyAgency {
     required this.leaveDays,
     this.membership,
     this.ownAgency,
+    this.closedAgency,
+    this.openRule,
   });
 
   factory fromJson(Map<String, dynamic> json) {
@@ -272,11 +482,26 @@ final class MyAgency {
       activeMinHours: _int(rule['minHours']),
       activeWindowDays: _int(rule['windowDays']),
       leaveDays: _int(json['leaveDays']),
+      closedAgency: switch (json['closedAgency']) {
+        final Map<String, dynamic> c => ClosedAgency.fromJson(c),
+        _ => null,
+      },
+      openRule: switch (json['openRule']) {
+        final Map<String, dynamic> r => AgencyOpenRule.fromJson(r),
+        _ => null,
+      },
     );
   }
 
   final AgencyMembership? membership;
   final OwnAgency? ownAgency;
+
+  /// v1.70-social (D206): the caller's own agency when it is closed.
+  final ClosedAgency? closedAgency;
+
+  /// v1.70-social (D206): «افتح وكالة» for the caller (null: an older
+  /// server — not offered).
+  final AgencyOpenRule? openRule;
   final int activeMinDays;
   final int activeMinHours;
   final int activeWindowDays;
@@ -335,12 +560,51 @@ abstract interface class AgencyRepository {
 
   /// `GET /me/agency/hosts`.
   Future<WalletPage<AgencyHostRow>> hosts({String? cursor});
+
+  /// v1.70-social (D206): `POST /me/agency/open` — the two pictures go up as
+  /// D185 private uploads first.
+  Future<MyAgency> open(AgencyOpenDraft draft);
 }
 
 class AgencyRepositoryImpl implements AgencyRepository {
-  new(this._dio);
+  new(this._dio, [Dio? storage]) : _storage = storage ?? _dio;
 
   final Dio _dio;
+
+  /// The object store's client (presigned PUTs).
+  final Dio _storage;
+
+  @override
+  Future<MyAgency> open(AgencyOpenDraft d) => guardApiCall(() async {
+    final idCard = await uploadPrivateImage(
+      _dio,
+      _storage,
+      d.idCard,
+      d.idCardType,
+      'RECHARGE_AGENT_PHOTO',
+    );
+    final selfie = await uploadPrivateImage(
+      _dio,
+      _storage,
+      d.selfie,
+      d.selfieType,
+      'RECHARGE_AGENT_SELFIE',
+    );
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/me/agency/open',
+      data: {
+        'name': d.name,
+        'country': d.country,
+        'contact': {'type': d.contactType.wire, 'value': d.contactValue},
+        'expectedHosts': d.expectedHosts,
+        if (d.bio.isNotEmpty) 'bio': d.bio,
+        'photoUploadId': idCard,
+        'selfieUploadId': selfie,
+      },
+      options: Options(headers: {'Idempotency-Key': d.idempotencyKey}),
+    );
+    return MyAgency.fromJson(res.data!);
+  });
 
   @override
   Future<MyAgency> mine() => guardApiCall(() async {
@@ -400,5 +664,8 @@ class AgencyRepositoryImpl implements AgencyRepository {
 }
 
 final agencyRepositoryProvider = Provider<AgencyRepository>(
-  (ref) => AgencyRepositoryImpl(ref.watch(apiDioProvider)),
+  (ref) => AgencyRepositoryImpl(
+    ref.watch(apiDioProvider),
+    ref.watch(storageDioProvider),
+  ),
 );
