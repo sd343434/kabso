@@ -198,6 +198,8 @@ export interface LoginCandidate {
   id: string;
   passwordHash: string;
   status: UserStatus;
+  /** v1.72-social (D208): the team requires a new password at this sign-in. */
+  passwordChangeRequiredAt: Date | null;
 }
 
 export interface MailRecipient {
@@ -291,7 +293,7 @@ export class UsersService {
   async findLoginCandidate(
     identifier: { email: string } | { username: string },
   ): Promise<LoginCandidate | null> {
-    const select = { id: true, passwordHash: true, status: true } as const;
+    const select = { id: true, passwordHash: true, status: true, passwordChangeRequiredAt: true } as const;
     if ('email' in identifier) {
       return this.prisma.user.findUnique({ where: { email: identifier.email }, select });
     }

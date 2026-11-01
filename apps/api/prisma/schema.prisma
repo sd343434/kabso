@@ -60,6 +60,10 @@ model User {
   /// online = within the last 5 minutes. Shown only as CONVENTIONS §10.25 allows.
   lastActiveAt    DateTime?  @map("last_active_at") @db.Timestamptz(3)
 
+  /// v1.72-social (D208, CONVENTIONS §10.67): set by the team (a temporary password or «فرض تغيير كلمة المرور»);
+  /// the next sign-in must choose a new password (`login` with `newPassword`), which clears it.
+  passwordChangeRequiredAt DateTime? @map("password_change_required_at") @db.Timestamptz(3)
+
   profile                UserProfile?
   settings               UserSettings?
   sessions               Session[]
@@ -248,6 +252,13 @@ model User {
   // v1.66-social (D198): consent records and personal-data exports «تنزيل بياناتي».
   consents               UserConsent[]
   dataExports            DataExport[]
+
+  // v1.72-social (D208): the team's temporary locks and restrictions, and balance adjustments.
+  accountRestrictions       AccountRestriction[]     @relation("RestrictedUser")
+  accountRestrictionsBy     AccountRestriction[]     @relation("RestrictionCreatedBy")
+  accountRestrictionsLifted AccountRestriction[]     @relation("RestrictionLiftedBy")
+  balanceAdjustments        AdminBalanceAdjustment[] @relation("AdjustedUser")
+  balanceAdjustmentsBy      AdminBalanceAdjustment[] @relation("AdjustedBy")
 
   @@index([createdAt], map: "users_created_at_idx")
   @@map("users")
@@ -929,6 +940,9 @@ enum WalletLedgerReason {
   CARD_TOPUP_RESTORE
   /// v1.69-social (D204): the frozen coins of a recharge order credited to the buyer (reference: the order).
   RECHARGE_ORDER
+  /// v1.72-social (D208): a credit or debit by the team from the admin panel or `control-admin` (reference: the
+  /// `admin_balance_adjustments` row; its reason text is there).
+  ADMIN_ADJUSTMENT
 
   @@map("wallet_ledger_reason")
 }
@@ -2025,6 +2039,12 @@ enum NotificationType {
   AGENCY_CLOSED
   /// v1.70-social (D206, system): the host's agency was closed; the host is free (released).
   AGENCY_HOST_RELEASED
+  /// v1.72-social (D208): the team locked or restricted the account (target ACCOUNT_RESTRICTION), lifted it early,
+  /// adjusted a balance (target BALANCE_ADJUSTMENT) or edited the profile (no target).
+  ACCOUNT_RESTRICTED
+  ACCOUNT_RESTRICTION_LIFTED
+  BALANCE_ADJUSTED
+  PROFILE_EDITED_BY_TEAM
 
   @@map("notification_type")
 }
@@ -2067,6 +2087,12 @@ model Notification {
   pushedAt           DateTime?        @map("pushed_at") @db.Timestamptz(3)
   createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt          DateTime         @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  /// v1.72-social (D208): ACCOUNT_RESTRICTED / ACCOUNT_RESTRICTION_LIFTED and BALANCE_ADJUSTED.
+  accountRestrictionId String?                 @map("account_restriction_id") @db.Uuid
+  balanceAdjustmentId  String?                 @map("balance_adjustment_id") @db.Uuid
+  accountRestriction   AccountRestriction?     @relation(fields: [accountRestrictionId], references: [id], onDelete: Cascade)
+  balanceAdjustment    AdminBalanceAdjustment? @relation(fields: [balanceAdjustmentId], references: [id], onDelete: Cascade)
 
   recipient     User                  @relation(fields: [recipientId], references: [id], onDelete: Cascade)
   post          Post?                 @relation(fields: [postId], references: [id], onDelete: Cascade)
@@ -3668,6 +3694,8 @@ enum CherryLedgerReason {
   TASK_REWARD
   /// v1.54-social (D185): cherries sold to a recharge agent (reference: the request).
   RECHARGE_SALE
+  /// v1.72-social (D208): a credit or debit by the team (reference: the `admin_balance_adjustments` row).
+  ADMIN_ADJUSTMENT
 
   @@map("cherry_ledger_reason")
 }
@@ -5201,4 +5229,71 @@ model LiveMusicRightsAcceptance {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("live_music_rights_acceptances")
+}
+
+/// v1.72-social (D208, CONVENTIONS §10.67): what the team may switch off for a while.
+enum AccountRestrictionKind {
+  /// «قفل الحساب»: no sign-in until `ends_at` (every session ended when it starts).
+  LOCK
+  /// «كتم الدردشة»: no live chat, bullet, comment or direct message.
+  CHAT_MUTE
+  /// «منع البث»: no going live (a current live ends).
+  NO_LIVE
+  /// «منع إرسال الهدايا»: no gift (live, direct, bag).
+  NO_GIFTS
+  /// «منع النشر»: no post, reel or story.
+  NO_POSTING
+
+  @@map("account_restriction_kind")
+}
+
+/// v1.72-social (D208, §10.67): a temporary lock or restriction set by the team (panel or `control-admin`). Active
+/// while `lifted_at` is null and `starts_at <= now < ends_at`; a new one of the same kind lifts the open one
+/// («replaced»). The reason is shown to the person. Never deleted except with the account.
+model AccountRestriction {
+  id          String                 @id @default(uuid(7)) @db.Uuid
+  userId      String                 @map("user_id") @db.Uuid
+  kind        AccountRestrictionKind
+  reason      String                 @db.VarChar(500)
+  startsAt    DateTime               @default(now()) @map("starts_at") @db.Timestamptz(3)
+  endsAt      DateTime               @map("ends_at") @db.Timestamptz(3)
+  createdById String?                @map("created_by_id") @db.Uuid
+  via         String                 @db.VarChar(10)
+  liftedAt    DateTime?              @map("lifted_at") @db.Timestamptz(3)
+  liftedById  String?                @map("lifted_by_id") @db.Uuid
+  liftReason  String?                @map("lift_reason") @db.VarChar(500)
+  createdAt   DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user          User           @relation("RestrictedUser", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy     User?          @relation("RestrictionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  liftedBy      User?          @relation("RestrictionLiftedBy", fields: [liftedById], references: [id], onDelete: SetNull)
+  notifications Notification[]
+
+  @@index([userId, kind, endsAt(sort: Desc)], map: "account_restrictions_open_idx", where: raw("lifted_at IS NULL"))
+  @@index([userId, createdAt(sort: Desc)], map: "account_restrictions_user_idx")
+  @@map("account_restrictions")
+}
+
+/// v1.72-social (D208, §10.67): a balance adjustment by the team (coins or cherries, credit > 0 or debit < 0), with
+/// the ledger row it wrote (`ADMIN_ADJUSTMENT`, reference = this id). The per-admin daily cap sums |delta| here.
+model AdminBalanceAdjustment {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  actorUserId   String?  @map("actor_user_id") @db.Uuid
+  currency      String   @db.VarChar(10)
+  delta         BigInt
+  balanceBefore BigInt   @map("balance_before")
+  balanceAfter  BigInt   @map("balance_after")
+  allowNegative Boolean  @default(false) @map("allow_negative")
+  reason        String   @db.VarChar(500)
+  via           String   @db.VarChar(10)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user          User           @relation("AdjustedUser", fields: [userId], references: [id], onDelete: Cascade)
+  actor         User?          @relation("AdjustedBy", fields: [actorUserId], references: [id], onDelete: SetNull)
+  notifications Notification[]
+
+  @@index([actorUserId, createdAt], map: "admin_balance_adjustments_actor_idx")
+  @@index([userId, createdAt(sort: Desc)], map: "admin_balance_adjustments_user_idx")
+  @@map("admin_balance_adjustments")
 }

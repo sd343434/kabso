@@ -20,6 +20,7 @@ import {
   adminLoginSchema,
   adminSecondFactorSchema,
   agentsQuerySchema,
+  banSchema,
   applicationsQuerySchema,
   capSchema,
   disputeResolveSchema,
@@ -198,10 +199,10 @@ export class AdminUsersController {
   @RequireCapability('users.ban')
   ban(
     @Param('userId') userId: string,
-    @Body(new ZodValidationPipe(reasonSchema)) body: { reason: string },
+    @Body(new ZodValidationPipe(banSchema)) body: { reason: string; totpCode: string },
     @CurrentAdmin() admin: AdminContext,
   ) {
-    return this.users.ban(pathUuid(userId), body.reason, admin);
+    return this.users.ban(pathUuid(userId), body.reason, admin, body.totpCode);
   }
 
   @Post('users/:userId/unban')

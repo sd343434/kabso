@@ -8,6 +8,7 @@ import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { MAIL_SENDER, type MailLocale, type MailSender } from '../mail/mail-sender.js';
 import { normalizeEmail, normalizeUsername } from '../users/username.js';
+import { activeRestrictionOf } from '../users/account-control.js';
 import { UsersService, type MeDto } from '../users/users.service.js';
 import { AccessTokenService } from './access-token.service.js';
 import { AccountDeletionService } from './account-deletion.service.js';
@@ -133,8 +134,63 @@ export class AuthService {
       });
       throw new AppException(ErrorCode.ACCOUNT_SUSPENDED);
     }
+    // v1.72-social (D208, §10.67): a temporary lock by the team — told only after the right password, with its end
+    // and the team's reason (the person sees them on the sign-in screen).
+    const lock = await activeRestrictionOf(this.prisma, candidate.id, 'LOCK');
+    if (lock) {
+      await this.audit.record({
+        action: AuditAction.LOGIN_FAILURE,
+        actorUserId: candidate.id,
+        metadata: { identifierType, reason: 'locked', lockedUntil: lock.endsAt.toISOString() },
+        ip: meta.ip,
+        requestId: meta.requestId,
+      });
+      throw new AppException(ErrorCode.ACCOUNT_LOCKED, undefined, [
+        { field: 'lockedUntil', issue: lock.endsAt.toISOString() },
+        { field: 'reason', issue: lock.reason },
+      ]);
+    }
+    // v1.72-social (D208): the team requires a new password (a temporary one, or «فرض تغيير كلمة المرور»).
+    let changedPassword = false;
+    if (candidate.passwordChangeRequiredAt !== null) {
+      if (input.newPassword === undefined) {
+        await this.audit.record({
+          action: AuditAction.LOGIN_FAILURE,
+          actorUserId: candidate.id,
+          metadata: { identifierType, reason: 'password_change_required' },
+          ip: meta.ip,
+          requestId: meta.requestId,
+        });
+        throw new AppException(ErrorCode.PASSWORD_CHANGE_REQUIRED);
+      }
+      if (input.newPassword === input.password) {
+        throw AppException.validation([{ field: 'newPassword', issue: 'same_as_current' }]);
+      }
+      const hash = await this.passwords.hash(input.newPassword);
+      const revoked = await this.prisma.$transaction(async (tx) => {
+        await tx.user.update({
+          where: { id: candidate.id },
+          data: { passwordHash: hash, passwordChangeRequiredAt: null },
+        });
+        await tx.verificationToken.updateMany({
+          where: { userId: candidate.id, purpose: 'PASSWORD_RESET', consumedAt: null },
+          data: { consumedAt: new Date() },
+        });
+        return this.sessions.revokeAllForUser(tx, candidate.id, RevokedReason.PASSWORD_RESET);
+      });
+      await this.audit.record({
+        action: AuditAction.PASSWORD_CHANGED_AT_SIGN_IN,
+        actorUserId: candidate.id,
+        targetType: 'user',
+        targetId: candidate.id,
+        metadata: { revokedSessions: revoked },
+        ip: meta.ip,
+        requestId: meta.requestId,
+      });
+      changedPassword = true;
+    }
 
-    if (this.passwords.needsRehash(candidate.passwordHash)) {
+    if (!changedPassword && this.passwords.needsRehash(candidate.passwordHash)) {
       await this.users.updatePasswordHash(
         this.prisma,
         candidate.id,

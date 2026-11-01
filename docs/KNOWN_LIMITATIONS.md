@@ -144,3 +144,25 @@
 - **Orphaned files.** A file uploaded in the form and then not saved (or replaced later) stays in the bucket, as with
   the CLI. Nothing deletes unused gift files yet.
 - **Older apps** see only the five seeded categories (by code, with their own names) and cannot play MP4 / MP3.
+
+## Admin account controls (v1.72-social draft, D208)
+
+- **Lock vs ban:** a lock is temporary and never changes `users.status`; the ban stays the permanent SUSPENDED status.
+  A banned account cannot be locked; unbanning does not end a running lock.
+- **Reasons are shown to the person** for locks and restrictions (log-in refusal, notification). The dialogs say so;
+  the team must write them for the user.
+- **Temporary password:** shown once in the panel; the team hands it over outside the app (no SMS / email of it).
+- **Email change:** no notice is mailed to the OLD address (only the verification to the new one).
+- **Username change by the team:** the old username is held for the person 30 days (`ADMIN_USERNAME_RENAME_HOLD_DAYS`)
+  as a GRACE special-username row, so it also appears in the panel's special-usernames list during that time.
+- **Deletion by the team** uses D193's grace period: the person can still cancel it by logging in (as with
+  `account-admin request`). Whether a team deletion should be cancellable is an owner question.
+- **Comments** removed by the team cannot be restored (only posts, reels and stories can).
+- **Daily cap** counts the amounts of one admin's adjustments per `ADMIN_DASHBOARD_TIME_ZONE` day; the CLI has no cap.
+- **Timeline query:** `listAdminUserAudit` matches the team's content actions through the audit row's
+  `metadata.authorId` (no index on it); fine at today's sizes, to revisit with a large audit log.
+- **CLI lock:** a live the person hosts ends by the sweeper, not at once.
+- **App:** the four new notification types (`ACCOUNT_RESTRICTED`, `ACCOUNT_RESTRICTION_LIFTED`, `BALANCE_ADJUSTED`,
+  `PROFILE_EDITED_BY_TEAM`) are not rendered by this build of the app (it ignores unknown types; their push texts
+  exist server-side, not checked end to end). The locked-account message, the restriction messages and the «كلمة مرور جديدة» screen are done.
+- Not verified on a device or on the server.

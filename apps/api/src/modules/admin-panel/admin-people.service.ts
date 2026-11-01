@@ -221,9 +221,19 @@ export class AdminPeopleService {
     };
   }
 
-  /** The audit rows whose target is this user, newest first. */
+  /**
+   * The user's timeline: the audit rows whose target is this user, and (v1.72-social, D208) the rows this account did
+   * itself (sign-ins, its own changes …) and the team's actions on its content (`targetType` post / story / comment
+   * with `metadata.authorId`), newest first.
+   */
   async auditOf(id: string, page: number, pageSize: number) {
-    const where = { targetType: 'user', targetId: id };
+    const where: Prisma.AuditLogWhereInput = {
+      OR: [
+        { targetType: 'user', targetId: id },
+        { actorUserId: id },
+        { targetType: { in: ['post', 'story', 'comment'] }, metadata: { path: ['authorId'], equals: id } },
+      ],
+    };
     const [rows, total] = await Promise.all([
       this.prisma.auditLog.findMany({
         where,

@@ -233,6 +233,21 @@ export enum ErrorCode {
   RECHARGE_ORDER_NOTICE_REQUIRED = 'RECHARGE_ORDER_NOTICE_REQUIRED',
   /** v1.69-social (DRAFT, D204): the buyer can open a dispute only after the wait (15 minutes after «قمت بالإرسال»). */
   RECHARGE_ORDER_DISPUTE_TOO_EARLY = 'RECHARGE_ORDER_DISPUTE_TOO_EARLY',
+  /**
+   * v1.72-social (DRAFT, D208): sign-in to an account the team locked for a while (only after the right password);
+   * `details: [{field: 'lockedUntil', issue: <ISO time>}, {field: 'reason', issue: <the team's reason>}]`.
+   */
+  ACCOUNT_LOCKED = 'ACCOUNT_LOCKED',
+  /**
+   * v1.72-social (DRAFT, D208): the team switched this off for the caller for a while;
+   * `details: [{field: 'restriction', issue: CHAT_MUTE|NO_LIVE|NO_GIFTS|NO_POSTING}, {field: 'until', issue: <ISO>}]`.
+   */
+  ACCOUNT_RESTRICTED = 'ACCOUNT_RESTRICTED',
+  /**
+   * v1.72-social (DRAFT, D208): the right password, but the team requires a new one first — sign in again with
+   * `newPassword` (the old one stays until then).
+   */
+  PASSWORD_CHANGE_REQUIRED = 'PASSWORD_CHANGE_REQUIRED',
 }
 
 /** HTTP status for every code (CONVENTIONS.md §4 table). */
@@ -359,6 +374,9 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.RECHARGE_ORDER_STATE_CHANGED]: 409,
   [ErrorCode.RECHARGE_ORDER_NOTICE_REQUIRED]: 409,
   [ErrorCode.RECHARGE_ORDER_DISPUTE_TOO_EARLY]: 409,
+  [ErrorCode.ACCOUNT_LOCKED]: 403,
+  [ErrorCode.ACCOUNT_RESTRICTED]: 403,
+  [ErrorCode.PASSWORD_CHANGE_REQUIRED]: 403,
 };
 
 /** Default developer-facing messages (clients localize by `code`, not by message). */
@@ -485,6 +503,9 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.RECHARGE_ORDER_STATE_CHANGED]: 'This order has changed. Refresh it.',
   [ErrorCode.RECHARGE_ORDER_NOTICE_REQUIRED]: 'Read and acknowledge the protection notice first.',
   [ErrorCode.RECHARGE_ORDER_DISPUTE_TOO_EARLY]: 'You can open a dispute when the wait is over.',
+  [ErrorCode.ACCOUNT_LOCKED]: 'This account is locked for a while.',
+  [ErrorCode.ACCOUNT_RESTRICTED]: 'This is switched off for your account for a while.',
+  [ErrorCode.PASSWORD_CHANGE_REQUIRED]: 'Choose a new password to continue.',
 };
 
 export interface ErrorDetail {

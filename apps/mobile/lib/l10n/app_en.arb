@@ -3696,5 +3696,22 @@
   "notifAgencyClosedProbation": "Your agency was closed because it did not activate {hosts} (live + gifts) during the trial. Activated: {count}",
   "notifAgencyClosedAdmin": "Your agency was closed by the Kabso Live team",
   "notifAgencyHostReleased": "Your agency was closed; you are free to join another agency",
-  "errorAgencyOpenNotAllowed": "You cannot open an agency now"
+  "errorAgencyOpenNotAllowed": "You cannot open an agency now",
+  "errorAccountLocked": "Your account is locked for a while by the Kabso team.",
+  "errorAccountLockedUntil": "Your account is locked until {date}. Reason: {reason}",
+  "errorAccountRestricted": "This is switched off for your account for a while.",
+  "errorAccountRestrictedUntil": "{what} is switched off for your account until {date}.",
+  "restrictionChatMute": "Sending messages and comments",
+  "restrictionNoLive": "Going live",
+  "restrictionNoGifts": "Sending gifts",
+  "restrictionNoPosting": "Posting",
+  "errorPasswordChangeRequired": "Choose a new password to continue.",
+  "passwordChangeTitle": "New password",
+  "passwordChangeBody": "The Kabso team asked for your account’s password to be changed. Choose a new password to log in; your other sessions will end.",
+  "passwordChangeNew": "New password",
+  "passwordChangeConfirm": "Confirm the password",
+  "passwordChangeMismatch": "The passwords do not match.",
+  "passwordChangeSame": "Choose a password different from the current one.",
+  "passwordChangeTooShort": "At least 8 characters.",
+  "passwordChangeSubmit": "Save and log in"
 }

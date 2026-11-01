@@ -114,6 +114,10 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.rechargeOrderStateChanged: 409,
   ErrorCode.rechargeOrderNoticeRequired: 409,
   ErrorCode.rechargeOrderDisputeTooEarly: 409,
+  // v1.72-social (D208).
+  ErrorCode.accountLocked: 403,
+  ErrorCode.accountRestricted: 403,
+  ErrorCode.passwordChangeRequired: 403,
 };
 
 DioException _badResponse(
@@ -255,6 +259,10 @@ void main() {
           'RECHARGE_ORDER_STATE_CHANGED',
           'RECHARGE_ORDER_NOTICE_REQUIRED',
           'RECHARGE_ORDER_DISPUTE_TOO_EARLY',
+          // v1.72-social (D208).
+          'ACCOUNT_LOCKED',
+          'ACCOUNT_RESTRICTED',
+          'PASSWORD_CHANGE_REQUIRED',
         ]),
       );
       expect(ErrorCode.networkOffline.wire, 'NETWORK_OFFLINE');

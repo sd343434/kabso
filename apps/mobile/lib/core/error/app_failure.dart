@@ -286,6 +286,18 @@ enum ErrorCode {
   rechargeOrderNoticeRequired('RECHARGE_ORDER_NOTICE_REQUIRED'),
   rechargeOrderDisputeTooEarly('RECHARGE_ORDER_DISPUTE_TOO_EARLY'),
 
+  /// v1.72-social (D208): sign-in to an account the team locked for a while
+  /// (403; `details` `lockedUntil` and `reason`, shown on the sign-in screen).
+  accountLocked('ACCOUNT_LOCKED'),
+
+  /// v1.72-social (D208): the team switched this off for the caller for a
+  /// while (403; `details` `restriction` and `until`).
+  accountRestricted('ACCOUNT_RESTRICTED'),
+
+  /// v1.72-social (D208): the right password, but the team requires a new
+  /// one (403): the app opens the «كلمة مرور جديدة» screen.
+  passwordChangeRequired('PASSWORD_CHANGE_REQUIRED'),
+
   /// Client-only: no connection could be established.
   networkOffline('NETWORK_OFFLINE'),
 

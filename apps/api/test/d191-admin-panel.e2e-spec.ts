@@ -57,12 +57,11 @@ describe('D191 contract coverage', () => {
         ),
       )
       // v1.65-social (D197): the panel v2's own operations are covered by d197-admin-v2.
-      .filter(
-        (o) =>
-          !(typeof o.spec.description === 'string' ? o.spec.description : '').startsWith(
-            '(v1.65-social, D197)',
-          ),
-      )
+      // v1.72-social (D208): the account controls are covered by d208-admin-control.
+      .filter((o) => {
+        const d = typeof o.spec.description === 'string' ? o.spec.description : '';
+        return !d.startsWith('(v1.65-social, D197)') && !d.startsWith('(v1.72-social, D208');
+      })
       .map((o) => o.operationId)
       .sort();
     expect(ops).toEqual(
@@ -391,14 +390,14 @@ describe('D191 admin panel', { timeout: 300_000 }, () => {
       const noToken = await ctx.http
         .post(`/api/v1/admin/users/${target.id}/ban`)
         .set('Cookie', owner.cookie)
-        .send({ reason: 'spam' });
+        .send({ reason: 'spam', totpCode: '000000' });
       expect(noToken.status).toBe(403);
       expect(noToken.body.error.code).toBe('ADMIN_CSRF_INVALID');
       const wrong = await ctx.http
         .post(`/api/v1/admin/users/${target.id}/ban`)
         .set('Cookie', owner.cookie)
         .set('X-CSRF-Token', moderator.csrf)
-        .send({ reason: 'spam' });
+        .send({ reason: 'spam', totpCode: '000000' });
       expect(wrong.status).toBe(403);
       expect(wrong.body.error.code).toBe('ADMIN_CSRF_INVALID');
       expect((await ctx.prisma.user.findUniqueOrThrow({ where: { id: target.id } })).status).toBe('ACTIVE');
@@ -539,16 +538,35 @@ describe('D191 admin panel', { timeout: 300_000 }, () => {
         [finance.id, moderator.id].sort(),
       );
 
-      const ban = await post(moderator, `/admin/users/${u.id}/ban`, { reason: 'spam account' });
+      // v1.72-social (D208, owner 2026-10-31): a ban needs the authenticator code again.
+      expect((await post(moderator, `/admin/users/${u.id}/ban`, { reason: 'spam account' })).status).toBe(
+        400,
+      );
+      const wrongCode = await post(moderator, `/admin/users/${u.id}/ban`, {
+        reason: 'spam account',
+        totpCode: '000000',
+      });
+      expect(wrongCode.status).toBe(403);
+      expect(wrongCode.body.error.code).toBe('ADMIN_TOTP_INVALID');
+      expect((await ctx.prisma.user.findUniqueOrThrow({ where: { id: u.id } })).status).toBe('ACTIVE');
+      const ban = await post(moderator, `/admin/users/${u.id}/ban`, {
+        reason: 'spam account',
+        totpCode: nextCode(moderator.secret),
+      });
       expect(ban.status).toBe(200);
       expectContract(ban, 'banAdminUser');
       // The app session dies at once.
       expect([401, 403]).toContain(
         (await ctx.http.get('/api/v1/me').set('Authorization', `Bearer ${u.token}`)).status,
       );
-      expect((await post(moderator, `/admin/users/${u.id}/ban`, { reason: 'again' })).body.error.code).toBe(
-        'ADMIN_ACTION_REFUSED',
-      );
+      expect(
+        (
+          await post(moderator, `/admin/users/${u.id}/ban`, {
+            reason: 'again',
+            totpCode: nextCode(moderator.secret),
+          })
+        ).body.error.code,
+      ).toBe('ADMIN_ACTION_REFUSED');
       expect((await post(moderator, `/admin/users/${u.id}/ban`, {})).status).toBe(400);
       const unban = await post(owner, `/admin/users/${u.id}/unban`, { reason: 'appeal accepted' });
       expect(unban.body.status).toBe('ACTIVE');
@@ -563,8 +581,9 @@ describe('D191 admin panel', { timeout: 300_000 }, () => {
       });
 
       // A moderator may not ban another admin; nobody bans themself.
-      expect((await post(moderator, `/admin/users/${support.id}/ban`, { reason: 'x' })).status).toBe(403);
-      expect((await post(owner, `/admin/users/${owner.id}/ban`, { reason: 'x' })).body.error.code).toBe(
+      const code = { reason: 'x', totpCode: '000000' };
+      expect((await post(moderator, `/admin/users/${support.id}/ban`, code)).status).toBe(403);
+      expect((await post(owner, `/admin/users/${owner.id}/ban`, code)).body.error.code).toBe(
         'ADMIN_ACTION_REFUSED',
       );
 

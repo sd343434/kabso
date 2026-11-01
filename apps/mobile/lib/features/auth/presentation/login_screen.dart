@@ -11,6 +11,7 @@ import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/domain/validators.dart';
 import 'package:kabso_live/features/auth/presentation/auth_controller.dart';
+import 'package:kabso_live/features/auth/presentation/password_change_screen.dart';
 import 'package:kabso_live/features/auth/presentation/registration_flow.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/auth/presentation/welcome_screen.dart';
@@ -214,6 +215,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     final lp = KLoginPalette.of(context);
     final submission = ref.watch(authControllerProvider);
     // D193: an account in its deletion grace period → «إلغاء الحذف؟».
+    // D208: the team reset the password → «كلمة مرور جديدة».
+    ref.listen<FormSubmission>(authControllerProvider, (_, next) {
+      if (next is! SubmissionFailed ||
+          next.failure.code != ErrorCode.passwordChangeRequired) {
+        return;
+      }
+      ref
+          .read(pendingPasswordChangeProvider.notifier)
+          .value = PendingPasswordChange(
+        identifier: _identifier.text,
+        password: _password.text,
+      );
+      _password.clear();
+      ref.read(authControllerProvider.notifier).reset();
+      final router = GoRouter.maybeOf(context);
+      if (router != null) {
+        unawaited(router.push<void>(AppRoutes.passwordChange));
+      }
+    });
     ref.listen<FormSubmission>(authControllerProvider, (_, next) {
       if (next is! SubmissionFailed ||
           next.failure.code != ErrorCode.accountDeletionPending) {

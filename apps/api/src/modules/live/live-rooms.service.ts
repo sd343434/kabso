@@ -34,6 +34,7 @@ import {
   startLiveRoomSchema,
   type ListLiveRoomsQuery,
 } from './live.schemas.js';
+import { assertNotRestricted } from '../users/account-control.js';
 
 // ---- Response shapes (openapi v1.3) ------------------------------------------------------------
 
@@ -1052,6 +1053,8 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     if ((await this.prisma.liveHost.count({ where: { userId: callerId } })) === 0) {
       throw new AppException(ErrorCode.LIVE_HOSTING_NOT_ALLOWED);
     }
+    // v1.72-social (D208, §10.67): the team's restriction of the caller, if any (403 ACCOUNT_RESTRICTED).
+    await assertNotRestricted(this.prisma, callerId, 'NO_LIVE');
     const parsed = startLiveRoomSchema.safeParse(body, { reportInput: true });
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
     const input = parsed.data;

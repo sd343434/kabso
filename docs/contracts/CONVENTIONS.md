@@ -195,6 +195,9 @@ All non-2xx responses use one envelope:
 | 409 | `RECHARGE_ORDER_STATE_CHANGED` | *(v1.69-social, DRAFT, D204)* The order's status no longer allows this action (another action, an expiry or a dispute came first, §10.64); nothing changed — read the order again. |
 | 409 | `RECHARGE_ORDER_NOTICE_REQUIRED` | *(v1.69-social, DRAFT, D204)* «قمت بالإرسال» before the buyer acknowledged the protection notice. |
 | 409 | `RECHARGE_ORDER_DISPUTE_TOO_EARLY` | *(v1.69-social, DRAFT, D204)* The buyer opened a dispute before the wait after «قمت بالإرسال» (`RECHARGE_ORDER_DISPUTE_AFTER_MINUTES`, owner 15) ended. |
+| 403 | `ACCOUNT_LOCKED` | *(v1.72-social, DRAFT, D208)* `login` with the right password to an account the team locked for a while; `details: [{field: "lockedUntil", issue: <ISO 8601 time>}, {field: "reason", issue: <the team's reason>}]` (values, like `purgeAfter`). The wrong password still answers 401. §10.67. |
+| 403 | `ACCOUNT_RESTRICTED` | *(v1.72-social, DRAFT, D208)* The team switched the action off for the caller for a while (live chat, bullets, comments and direct messages: `CHAT_MUTE`; going live: `NO_LIVE`; live, direct and bag gifts: `NO_GIFTS`; posts, reels and stories: `NO_POSTING`); `details: [{field: "restriction", issue: <kind>}, {field: "until", issue: <ISO 8601 time>}]`. Nothing was stored or charged. §10.67. |
+| 403 | `PASSWORD_CHANGE_REQUIRED` | *(v1.72-social, DRAFT, D208)* `login` with the right password while the team requires a new one (a temporary password, or «فرض تغيير كلمة المرور»); the same request with `newPassword` sets it and signs in. §10.67. |
 | 403 | `DM_NOT_ALLOWED` | *(v1.40-social, DRAFT, D155)* The recipient's «who can message you» setting (`whoCanMessage`) does not allow the caller (§11.13). Nothing was stored or charged. The app says the person does not accept messages. |
 | 403 | `DM_REQUEST_LIMIT` | *(v1.40-social, DRAFT, D155)* The caller already sent `DM_REQUEST_MAX_MESSAGES` (3) messages in a message request the recipient has not accepted (§11.13). The app says to wait for a reply. |
 | 403 | `DM_REQUEST_TEXT_ONLY` | *(v1.40-social, DRAFT, D155)* A picture or voice message in a message request (only text, a pack emoji or a gift until the recipient accepts, §11.13). |
@@ -623,6 +626,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.72-social (draft) | 2026-10-31 | **D208 (owner: «اجعله يملك صلاحية لكل شيء مثل قفل حساب شخص او حظره او تغير كلمة المرور»):** the admin panel's account controls — `getAdminUserControl`, `lockAdminUser` / `unlockAdminUser`, `restrictAdminUser` / `liftAdminUserRestriction`, `sendAdminUserPasswordResetLink`, `setAdminUserTemporaryPassword`, `requireAdminUserPasswordChange`, `changeAdminUserEmail`, `resendAdminUserVerification`, `editAdminUserProfile`, `listAdminUserContent`, `moderateAdminContent`, `adjustAdminUserBalance`, `requestAdminUserDeletion` / `cancelAdminUserDeletion`; capabilities `users.control_view`, `users.lock`, `users.restrict`, `users.password`, `users.email`, `users.profile_edit`, `users.content`, `users.balance_adjust`, `users.delete`; `LoginRequest.newPassword`; `login` 403 `ACCOUNT_LOCKED` / `PASSWORD_CHANGE_REQUIRED`; 403 `ACCOUNT_RESTRICTED` on the restricted actions; notification types `ACCOUNT_RESTRICTED`, `ACCOUNT_RESTRICTION_LIFTED`, `BALANCE_ADJUSTED`, `PROFILE_EDITED_BY_TEAM` and targets `ACCOUNT_RESTRICTION`, `BALANCE_ADJUSTMENT` (`restriction`, `currency`, `amount`); ledger reason `ADMIN_ADJUSTMENT` (coins and cherries, either sign); `listAdminUserAudit` also lists what the account did and the team's actions on its content; config `ADMIN_ADJUST_DAILY_CAP_COINS` / `_CHERRIES` (10 000 000 each), `ADMIN_USERNAME_RENAME_HOLD_DAYS` (30: a team rename holds the old username for the person); `banAdminUser` now takes `totpCode` (`AdminReasonCodeRequest`; owner answer — a breaking change for the panel only, shipped with it); `control-admin` CLI; audit actions `admin.user.lock|unlock|restrict|restriction_lift|password_*|profile_edit|email_*`, `admin.content.hide|restore|delete`, `admin.balance.adjust`, `auth.password.changed_at_sign_in`; migration `20270130090000_admin_control` (`account_restrictions`, `admin_balance_adjustments`, `users.password_change_required_at`, `notifications.account_restriction_id` / `balance_adjustment_id`, the ledgers' sign rules extended in place). §4, §10.67. | **Additive** (new operations, an optional request field, new codes on existing operations only after the right password or for restricted accounts, new notification types that older clients ignore). |
 | v1.70-social (draft) | 2026-10-31 | **D206 (owner: «افتح وكالة» — open a host agency yourself; free; ID card + selfie; created at once; 3 activated hosts in 7 days or it closes):** tag `agency`: `openAgency` (`POST /me/agency/open`, `Idempotency-Key`, `OpenAgencyRequest`: name, country, contact, expected hosts, bio, the D185 private uploads `RECHARGE_AGENT_PHOTO` / `RECHARGE_AGENT_SELFIE`); `OwnAgency.name`, `OwnAgency.probation` (`AgencyProbation`, `AgencyProbationHost`); `MyAgency.closedAgency` (`ClosedAgency`) and `MyAgency.openRule` (`AgencyOpenRule`); code `AGENCY_OPEN_NOT_ALLOWED` (409); notification types `AGENCY_OPENED`, `AGENCY_PROBATION_REMINDER`, `AGENCY_PROBATION_PASSED`, `AGENCY_CLOSED`, `AGENCY_HOST_RELEASED` with target `AGENCY` (`activatedHosts`, `requiredHosts`); tag `admin-panel`: `getAdminAgencyApplication`, `getAdminAgencyApplicationPhoto`, `extendAdminAgencyProbation`, `closeAdminAgency`, `reopenAdminAgency` (capabilities `agencies.applications`, `agencies.probation`), `listAdminAgencies` `state=probation\|closed` and `origin`, the row / detail gain name, origin, status, probation, closing and applications; config `AGENCY_PROBATION_DAYS` (7), `AGENCY_PROBATION_MIN_HOSTS` (3), `AGENCY_PROBATION_REMINDER_HOURS` (24), `AGENCY_REOPEN_COOLDOWN_DAYS` (30), `RATE_LIMIT_AGENCY_OPEN_USER` (5/86400); migrations `20270125090000_agency_open_enums`, `20270125090100_agency_open`; CLI `economy-admin agency-probation-extend\|agency-close\|agency-reopen\|agency-probation-sweep`; the data export gains `agency_applications`. §4, §10.46, §10.65. | **Additive** (new operation, fields, codes and enum values; clients ignore unknown notification / target types). Behaviour: a closed agency is never found, joined, evaluated or paid a commission; its owner's host-agent perks go while it is closed. |
 | v1.69-social (draft) | 2026-10-31 | **D204 (owner: the buyer asks an agent for coins; escrow, the order chat, the 15-minute wait and disputes):** tag `recharge` — `quoteRechargeOrder`, `createRechargeOrder` (`Idempotency-Key`), `listMyRechargeOrders`, `getRechargeOrder`, `listRechargeOrderMessages`, `postRechargeOrderMessage`, `getRechargeOrderMessageImage`, `sendRechargeOrderPaymentDetails`, `acknowledgeRechargeOrderNotice`, `markRechargeOrderPaid`, `confirmRechargeOrder`, `disputeRechargeOrder`, `cancelRechargeOrder`; tag `admin-panel` — `listAdminRechargeDisputes`, `getAdminRechargeOrder`, `postAdminRechargeOrderMessage`, `getAdminRechargeOrderMessageImage`, `resolveAdminRechargeDispute`, `listAdminRechargeExchangeRates`, `setAdminRechargeExchangeRate`, `clearAdminRechargeExchangeRate` (capabilities `recharge.disputes`, `recharge.disputes.resolve`, `recharge.rates`); `RechargeAgentDashboard.heldCoins` / `openOrders` and `RechargeRules.orders` (required — strict clients update their models in the same change set); `MediaKind.RECHARGE_ORDER_IMAGE`; `NotificationType.RECHARGE_ORDER_UPDATE` (target `RECHARGE_ORDER` with `coins`, `orderEvent`, `orderStatus`); `WalletLedgerReason.RECHARGE_ORDER`; five codes (`RECHARGE_ORDERS_UNAVAILABLE` 503, `RECHARGE_ORDER_OPEN_EXISTS`, `RECHARGE_ORDER_STATE_CHANGED`, `RECHARGE_ORDER_NOTICE_REQUIRED`, `RECHARGE_ORDER_DISPUTE_TOO_EARLY` 409); config `RECHARGE_ORDERS_ENABLED`, `RECHARGE_ORDER_MIN_COINS` / `_MAX_COINS` / `_REQUEST_TTL_MINUTES` / `_PAYMENT_TTL_MINUTES` / `_DISPUTE_AFTER_MINUTES` / `_SWEEP_INTERVAL_SECONDS`, `RATE_LIMIT_RECHARGE_ORDER_USER` / `_ACTION_USER`; CLI `recharge-admin rates | set-rate | clear-rate | disputes | resolve | expire-orders`; migrations `20270118090000_recharge_orders_enums`, `20270118100000_recharge_orders`. §4, §7, §8, §10.64. (v1.65–v1.68 are D197, D198, D200, D202.) | **Additive** (new operations; two new required fields on the agent's own dashboard; clients ignore unknown notification and target types). |
 | v1.68-social (draft) | 2026-10-31 | **D202 (owner: the reels page after a reference, with like / comment / save / share made real):** `listFeedReels` `tab=nearby` — visible public reels of authors from the caller's own country (`Me.country`, D133), newest first, not the caller's own / muted / hidden; no country → an empty page; the cursor bound to the caller and the country (§11.15). | **Additive** (a new enum value on one operation; `listFeedPosts` unchanged). |
@@ -4679,6 +4683,100 @@ owner's value as default. Nothing in §10.46 / §10.52 changes for the agencies 
   time, each view audited (`agency.application.view`, `agency.application.photo.view`), the pictures streamed by the
   API. Account deletion purges the contact, the bio and the pictures (the name, country and dates stay); the data
   export includes the person's applications and pictures (`agency_applications`).
+
+### 10.67 The admin panel's account controls «تحكم كامل» *(v1.72-social, DRAFT — D208)*
+
+The owner's request of 2026-10-31 («حاول دراسة لوحة الادمن واجعله يملك صلاحية لكل شيء مثل قفل حساب شخص او حظره او
+تغير كلمة المرور والخ»). The audit of every area (what a user can do, what the panel and the CLIs can do, the gaps with
+P1 / P2 / P3) is `docs/admin/ADMIN_CAPABILITY_AUDIT.md`; this section is the P1 contract. Everything runs behind the
+§10.54 cookie session, CSRF header, rate limits and per-request capability check; every operation's description starts
+with `(v1.72-social, D208`. The rules live in `apps/api/src/modules/users/account-control.ts`, shared by the panel and
+the `control-admin` CLI (`via: cli`, no actor), so both write the same rows.
+
+#### 10.67.1 Capabilities
+
+| Capability | OWNER | MODERATION | SUPPORT | FINANCE |
+|---|:-:|:-:|:-:|:-:|
+| `users.control_view` (the state: locks, restrictions, password / email, deletion, adjustments) | ✓ | ✓ | ✓ | ✓ |
+| `users.lock` (lock for a while, unlock) | ✓ | ✓ | ✓ | |
+| `users.restrict` (chat mute, no live, no gifts, no posting; lift) | ✓ | ✓ | | |
+| `users.password` (reset email, temporary password ⚿, forced change) | ✓ | | ✓ | |
+| `users.email` (change ⚿ — marking it verified OWNER only —, resend verification) | ✓ | | ✓ | |
+| `users.profile_edit` (name, username, bio, country, gender) | ✓ | ✓ | ✓ | |
+| `users.content` (hide / restore posts, reels, stories; remove comments; delete for good ⚿) | ✓ | ✓ | | |
+| `users.balance_adjust` (coins and cherries ⚿; «allow negative» OWNER only) | ✓ | | | ✓ |
+| `users.delete` (the D193 deletion ⚿ and its cancel) | ✓ | | | |
+
+⚿ = the authenticator code again (`totpCode`, §10.54.3): destructive or money. Every change needs a `reason` (1–500)
+and writes one audit row with the actor, the IP, `via: panel`, the reason and `before` / `after`. Never on one's own
+account; a panel admin's account only by an OWNER (403). Passwords, tokens and full addresses are never audited
+(addresses masked `a***@domain`).
+
+#### 10.67.2 Lock and restrictions (`account_restrictions`)
+
+- **Kinds:** `LOCK` «قفل الحساب», `CHAT_MUTE` «كتم الدردشة» (every live chat, bullets, comments, direct messages),
+  `NO_LIVE` «منع البث» (`startLiveRoom`; a current live ends with reason ADMIN), `NO_GIFTS` «منع الهدايا» (live, direct
+  and bag gifts), `NO_POSTING` «منع النشر» (posts, reels, stories).
+- **Duration:** `days` (the panel offers 1 / 3 / 7 / 30) or `until` (in the future, ≤ 365 days). A row is active while
+  `lifted_at` is null and `starts_at ≤ now < ends_at` — it ends by itself, no sweeper. A new one of the same kind
+  replaces the open one (`lift_reason = 'replaced'`). Lifting early: `unlockAdminUser` / `liftAdminUserRestriction`.
+- **The reason is shown to the person** (the dialogs say so): in `login`'s 403 `ACCOUNT_LOCKED` details and in the
+  `ACCOUNT_RESTRICTED` notification's `text`.
+- **LOCK** ends every session (and push token) when it starts, ends a live and frees seats; `login` with the right
+  password answers 403 `ACCOUNT_LOCKED` `[{lockedUntil}, {reason}]` until the end. Only an ACTIVE account. It is
+  **not the ban**: the ban (`banAdminUser`, D191) is `users.status = SUSPENDED`, permanent until unbanned; a lock never
+  changes the status. **The ban now asks for the authenticator code too** (`banAdminUser` `{reason, totpCode}`, owner
+  2026-10-31; `unbanAdminUser` keeps the reason only). A banned account cannot be locked (409); unbanning leaves a lock that is still running; the
+  D193 deletion is refused for a non-ACTIVE account as before.
+- **Enforcement:** 403 `ACCOUNT_RESTRICTED` `[{restriction: kind}, {until}]` before anything is stored or charged (an
+  idempotent replay of an earlier send still answers as before).
+- **Notifications** (system, no actor): `ACCOUNT_RESTRICTED` and `ACCOUNT_RESTRICTION_LIFTED` with the target
+  `ACCOUNT_RESTRICTION` (`restriction`, `endsAt`, `text` = the reason).
+
+#### 10.67.3 Password and email
+
+- **Reset email** «إرسال رابط إعادة تعيين»: the existing `forgotPassword` email (D24 rules); the admin never sees the link.
+- **Temporary password** «تعيين كلمة مرور مؤقتة» ⚿: 4 groups of 4 characters without look-alikes (≈ 91 bits), generated
+  by the server, returned ONCE (`Cache-Control: no-store`), stored only as its Argon2 hash; every session ends, open
+  reset links stop working, and `users.password_change_required_at` is set.
+- **Forced change** «فرض تغيير كلمة المرور في الدخول القادم»: sets the same flag (`endSessions`, default true, signs
+  out now). While it is set, `login` with the right password answers 403 `PASSWORD_CHANGE_REQUIRED`; the same request
+  with `newPassword` (§6 rules; equal to `password` → 400 `same_as_current`) sets it, clears the flag, ends the other
+  sessions and signs in (audited `auth.password.changed_at_sign_in`). The order of `login`'s answers after the right
+  password: deletion pending (409) → suspended (403) → locked (403) → password change (403).
+- **Email** ⚿: the new address (another account's → 409) gets the existing verification email; `markVerified` (OWNER
+  only) marks it verified instead. Every outstanding verification and reset link ends. `resendAdminUserVerification`.
+
+#### 10.67.4 Profile, content, money, deletion, timeline
+
+- **Profile:** `displayName` (§6, reserved terms), `username` (the D146 regular rule — 400 for a premium shape; 409
+  `USERNAME_TAKEN` when reserved, `coin`/`host` codes, another account's, pending, held or quarantined; 409 while a
+  special or premium username is shown), `bio`, `country`, `gender` (the active-host frame follows, D186). There is
+  no profile cover or background in the app (the photo: `removeAdminUserAvatar`). The person gets
+  `PROFILE_EDITED_BY_TEAM`. **The old username stays held for the person** for `ADMIN_USERNAME_RENAME_HOLD_DAYS`
+  (30; 0 = no hold; owner 2026-10-31) with the special-username hold (a GRACE `special_usernames` row, source
+  `ADMIN_GIFT`, `end_reason = RENAMED`, `grace_until` = the end): nobody else may take it (409 `USERNAME_TAKEN`), old
+  @mentions and links still lead to the person, the person may take it back (`changeUsername`), and the special-
+  username sweeper releases it at the end. A second team rename extends the same hold. Audited `oldUsernameHeldUntil`.
+- **Content** (`moderateAdminContent`): `hide` a post / reel (`moderation = REMOVED`) or story (`removed_at`) —
+  restorable with `restore`; `hide` a comment removes it with its replies (not restorable); `delete` ⚿ a post or story
+  for good (`deleted_at`, as the author's own delete). Hide and delete close the item's OPEN reports (ACTIONED) and
+  send `CONTENT_REMOVED`. `listAdminUserContent` lists stories and comments (posts and reels: `listAdminUserPosts`).
+- **Money** ⚿: `adjustAdminUserBalance` `{currency, direction, amount}` writes `admin_balance_adjustments` and one
+  ledger row `ADMIN_ADJUSTMENT` (reference = the adjustment id). Never below 0 unless `allowNegative` (OWNER, a debit:
+  a reversal; a negative coin balance freezes gifts as in D190). Per admin per day (`ADMIN_DASHBOARD_TIME_ZONE`), the
+  amounts of `COINS` and of `CHERRIES` adjustments may not pass `ADMIN_ADJUST_DAILY_CAP_COINS` /
+  `ADMIN_ADJUST_DAILY_CAP_CHERRIES` (10 000 000 each; 0 = none) → 409 `daily_cap`. The person gets
+  `BALANCE_ADJUSTED` (target `BALANCE_ADJUSTMENT`: `currency`, signed `amount`). The CLI has no cap.
+- **Deletion** ⚿: `requestAdminUserDeletion` runs D193's `requestDeletionIn` (grace period, sessions end, a live ends;
+  409 `ACCOUNT_DELETION_BLOCKED` with the blockers); `cancelAdminUserDeletion` its cancel. Audited
+  `account.deletion.requested|cancelled` with `via: panel`. As in D193, the person can still cancel by signing in.
+- **Timeline** (`listAdminUserAudit`, OWNER): the rows about the account, the rows it did itself, and the team's
+  content actions on its posts, stories and comments.
+- **Privacy limit:** the panel never reads private direct messages; a DM is seen only as the snapshot attached to a
+  report (§11.13). D208 adds no DM reading.
+- **Purge (D193):** the account's `account_restrictions` are deleted; its balance adjustments stay with the ledgers
+  (their reason text blanked when the ledgers' retention ends).
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 

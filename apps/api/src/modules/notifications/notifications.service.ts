@@ -28,7 +28,9 @@ export interface NotificationTargetDto {
     | 'BAG_ITEM'
     | 'RECHARGE_SALE'
     | 'RECHARGE_ORDER'
-    | 'AGENCY';
+    | 'AGENCY'
+    | 'ACCOUNT_RESTRICTION'
+    | 'BALANCE_ADJUSTMENT';
   id: string;
   postId: string | null;
   thumbUrl: string | null;
@@ -47,6 +49,11 @@ export interface NotificationTargetDto {
   /** v1.70-social (D206) AGENCY only: the activated hosts reached and the hosts needed (probation types). */
   activatedHosts?: number;
   requiredHosts?: number;
+  /** v1.72-social (D208) ACCOUNT_RESTRICTION only: what was switched off (LOCK, CHAT_MUTE …); `endsAt` its end. */
+  restriction?: string;
+  /** v1.72-social (D208) BALANCE_ADJUSTMENT only: COINS or CHERRIES and the signed amount. */
+  currency?: 'COINS' | 'CHERRIES';
+  amount?: number;
 }
 
 /** `Notification`. */
@@ -159,6 +166,17 @@ function visibleNotificationWhere(me: string): Prisma.NotificationWhereInput {
       { type: 'RECHARGE_ORDER_UPDATE', rechargeOrderId: { not: null } },
       // v1.70-social (D206): the caller's agency (owner) or the agency that released the caller (system).
       { type: { in: [...AGENCY_NOTIFICATION_TYPES] } },
+      // v1.72-social (D208): the team's lock / restriction, its early end, a balance adjustment, a profile edit.
+      {
+        type: {
+          in: [
+            'ACCOUNT_RESTRICTED',
+            'ACCOUNT_RESTRICTION_LIFTED',
+            'BALANCE_ADJUSTED',
+            'PROFILE_EDITED_BY_TEAM',
+          ],
+        },
+      },
       { type: 'POST_PUBLISHED', post: visiblePostWhere(me) },
       {
         type: { in: ACTOR_TYPES },
@@ -198,6 +216,8 @@ function include(me: string) {
     rechargeSale: { select: { coins: true } },
     rechargeOrder: { select: { coins: true, status: true } },
     agency: { select: { name: true } },
+    accountRestriction: { select: { kind: true, endsAt: true, reason: true } },
+    balanceAdjustment: { select: { currency: true, delta: true } },
   } satisfies Prisma.NotificationInclude;
 }
 type NotificationRow = Prisma.NotificationGetPayload<{ include: ReturnType<typeof include> }>;
@@ -369,6 +389,29 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
         text: excerpt(row.agency?.name),
         ...(row.agencyActivated !== null ? { activatedHosts: row.agencyActivated } : {}),
         ...(row.agencyRequired !== null ? { requiredHosts: row.agencyRequired } : {}),
+      };
+    }
+    // v1.72-social (D208): the team's lock or restriction (its end and reason) and a balance adjustment.
+    if (row.accountRestrictionId !== null && row.accountRestriction) {
+      return {
+        type: 'ACCOUNT_RESTRICTION',
+        id: row.accountRestrictionId,
+        postId: null,
+        thumbUrl: null,
+        text: excerpt(row.accountRestriction.reason),
+        restriction: row.accountRestriction.kind,
+        endsAt: row.accountRestriction.endsAt.toISOString(),
+      };
+    }
+    if (row.balanceAdjustmentId !== null && row.balanceAdjustment) {
+      return {
+        type: 'BALANCE_ADJUSTMENT',
+        id: row.balanceAdjustmentId,
+        postId: null,
+        thumbUrl: null,
+        text: null,
+        currency: row.balanceAdjustment.currency === 'CHERRIES' ? 'CHERRIES' : 'COINS',
+        amount: Number(row.balanceAdjustment.delta),
       };
     }
     if (row.medalCode !== null) {

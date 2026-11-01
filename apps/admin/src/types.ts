@@ -46,7 +46,17 @@ export type Capability =
   | 'recharge.disputes.resolve'
   | 'recharge.rates'
   // v1.71-social (D207)
-  | 'gifts.categories';
+  | 'gifts.categories'
+  // v1.72-social (D208)
+  | 'users.control_view'
+  | 'users.lock'
+  | 'users.restrict'
+  | 'users.password'
+  | 'users.email'
+  | 'users.profile_edit'
+  | 'users.content'
+  | 'users.balance_adjust'
+  | 'users.delete';
 
 export interface AdminSessionInfo {
   admin: { id: string; email: string; username: string; displayName: string };
@@ -80,7 +90,8 @@ export interface Dashboard {
   pending: { rechargeApplications: number; withdrawals: number; reports: number };
 }
 
-export type UserStatus = 'ACTIVE' | 'SUSPENDED' | 'DELETED';
+/** v1.62-social (D193): PENDING_DELETION during the deletion grace period (shown by D208's account group). */
+export type UserStatus = 'ACTIVE' | 'SUSPENDED' | 'PENDING_DELETION' | 'DELETED';
 
 export interface UserRow {
   id: string;
@@ -419,4 +430,43 @@ export interface ExchangeRateRow {
   digits: number;
   unitsPerUsd: string | null;
   updatedAt: string | null;
+}
+
+// ---- v1.72-social (D208, CONVENTIONS §10.67): the account controls -------------------------------------------------
+export type RestrictionKind = 'LOCK' | 'CHAT_MUTE' | 'NO_LIVE' | 'NO_GIFTS' | 'NO_POSTING';
+
+export interface Restriction {
+  id: string;
+  kind: RestrictionKind;
+  reason: string;
+  startsAt: string;
+  endsAt: string;
+  via: 'panel' | 'cli';
+  active: boolean;
+  liftedAt: string | null;
+  liftReason: string | null;
+  createdAt: string;
+}
+
+export interface UserControl {
+  status: 'ACTIVE' | 'SUSPENDED' | 'PENDING_DELETION' | 'DELETED';
+  lock: Restriction | null;
+  restrictions: Restriction[];
+  history: Restriction[];
+  password: { changeRequired: boolean };
+  email: { address: string; verified: boolean };
+  gender: 'MALE' | 'FEMALE' | 'UNDISCLOSED' | null;
+  cover: null;
+  deletion: { requestedAt: string; purgeAfter: string; requestedVia: 'APP' | 'ADMIN' } | null;
+  adjustToday: { coins: number; cherries: number; capCoins: number; capCherries: number };
+  adjustments: {
+    id: string;
+    currency: 'COINS' | 'CHERRIES';
+    delta: number;
+    before: number;
+    after: number;
+    reason: string;
+    actor: string | null;
+    createdAt: string;
+  }[];
 }

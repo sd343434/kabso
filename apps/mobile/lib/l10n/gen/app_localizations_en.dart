@@ -11894,4 +11894,64 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get errorAgencyOpenNotAllowed => 'You cannot open an agency now';
+
+  @override
+  String get errorAccountLocked =>
+      'Your account is locked for a while by the Kabso team.';
+
+  @override
+  String errorAccountLockedUntil(String date, String reason) {
+    return 'Your account is locked until $date. Reason: $reason';
+  }
+
+  @override
+  String get errorAccountRestricted =>
+      'This is switched off for your account for a while.';
+
+  @override
+  String errorAccountRestrictedUntil(String what, String date) {
+    return '$what is switched off for your account until $date.';
+  }
+
+  @override
+  String get restrictionChatMute => 'Sending messages and comments';
+
+  @override
+  String get restrictionNoLive => 'Going live';
+
+  @override
+  String get restrictionNoGifts => 'Sending gifts';
+
+  @override
+  String get restrictionNoPosting => 'Posting';
+
+  @override
+  String get errorPasswordChangeRequired =>
+      'Choose a new password to continue.';
+
+  @override
+  String get passwordChangeTitle => 'New password';
+
+  @override
+  String get passwordChangeBody =>
+      'The Kabso team asked for your account’s password to be changed. Choose a new password to log in; your other sessions will end.';
+
+  @override
+  String get passwordChangeNew => 'New password';
+
+  @override
+  String get passwordChangeConfirm => 'Confirm the password';
+
+  @override
+  String get passwordChangeMismatch => 'The passwords do not match.';
+
+  @override
+  String get passwordChangeSame =>
+      'Choose a password different from the current one.';
+
+  @override
+  String get passwordChangeTooShort => 'At least 8 characters.';
+
+  @override
+  String get passwordChangeSubmit => 'Save and log in';
 }

@@ -87,6 +87,25 @@ export const CAPABILITIES = {
   'programs.view': ['OWNER', 'SUPPORT', 'FINANCE'],
   /** The website's waitlist (personal data; every read audited). */
   'waitlist.view': ['OWNER'],
+  // ---- v1.72-social (D208, CONVENTIONS §10.67): the account controls «تحكم كامل» --------------------------------
+  /** A user's control state: locks, restrictions, password / email state, deletion, adjustments. */
+  'users.control_view': ['OWNER', 'MODERATION', 'SUPPORT', 'FINANCE'],
+  /** Lock «قفل» for a while and unlock early. */
+  'users.lock': ['OWNER', 'MODERATION', 'SUPPORT'],
+  /** Chat mute, no live, no gifts, no posting for a while; lift early. */
+  'users.restrict': ['OWNER', 'MODERATION'],
+  /** Send the reset link, a temporary password (code again), force a change at the next sign-in. */
+  'users.password': ['OWNER', 'SUPPORT'],
+  /** Change the email (code again; mark it verified: OWNER only), resend the verification. */
+  'users.email': ['OWNER', 'SUPPORT'],
+  /** Edit the display name, username, bio, country, gender. */
+  'users.profile_edit': ['OWNER', 'MODERATION', 'SUPPORT'],
+  /** Hide / restore a post, reel, story; remove a comment; delete a post or story for good (code again). */
+  'users.content': ['OWNER', 'MODERATION'],
+  /** Coin and cherry adjustments (code again, daily cap). */
+  'users.balance_adjust': ['OWNER', 'FINANCE'],
+  /** Start the account's deletion (D193 grace period, code again) and cancel it. */
+  'users.delete': ['OWNER'],
 } as const satisfies Record<string, readonly PanelRole[]>;
 
 export type Capability = keyof typeof CAPABILITIES;

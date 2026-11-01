@@ -54,6 +54,7 @@ import { quipSlot } from '../gifts/quips.js';
 import { LiveQuipsService, type LiveQuipDto } from './live-quips.service.js';
 import { LivePkService, type PkGiftCredit } from './live-pk.service.js';
 import { LIVE_MEDIA_PROVIDER, type LiveMediaProvider } from './media/live-media.provider.js';
+import { assertNotRestricted } from '../users/account-control.js';
 
 // ---- Response shapes (openapi v1.23-live, CP-020) ----------------------------------------------
 
@@ -461,6 +462,10 @@ export class LiveGiftsService {
 
           // v1.59-social (D190): a buyer whose website purchase was reversed into a debt sends no gift.
           if (await inCoinDebtIn(tx, callerId)) throw new AppException(ErrorCode.TOPUP_ACCOUNT_FROZEN);
+          // v1.72-social (D208, §10.67): the team's «منع إرسال الهدايا».
+          await assertNotRestricted(tx, callerId, 'NO_GIFTS');
+          // v1.72-social (D208, §10.67): the team's «منع إرسال الهدايا».
+          await assertNotRestricted(tx, callerId, 'NO_GIFTS');
           // The bag (BAG): its own statement, refused before anything is written.
           let bagQuantity: number | null = null;
           if (!isCoins) {

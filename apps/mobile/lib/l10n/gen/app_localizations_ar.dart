@@ -11894,4 +11894,60 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get errorAgencyOpenNotAllowed => 'لا يمكنك فتح وكالة الآن';
+
+  @override
+  String get errorAccountLocked => 'حسابك مقفل مؤقتاً من فريق Kabso.';
+
+  @override
+  String errorAccountLockedUntil(String date, String reason) {
+    return 'حسابك مقفل مؤقتاً حتى $date. السبب: $reason';
+  }
+
+  @override
+  String get errorAccountRestricted => 'هذه الميزة موقوفة لحسابك مؤقتاً.';
+
+  @override
+  String errorAccountRestrictedUntil(String what, String date) {
+    return '$what موقوف لحسابك حتى $date.';
+  }
+
+  @override
+  String get restrictionChatMute => 'إرسال الرسائل والتعليقات';
+
+  @override
+  String get restrictionNoLive => 'البث المباشر';
+
+  @override
+  String get restrictionNoGifts => 'إرسال الهدايا';
+
+  @override
+  String get restrictionNoPosting => 'النشر';
+
+  @override
+  String get errorPasswordChangeRequired => 'اختر كلمة مرور جديدة للمتابعة.';
+
+  @override
+  String get passwordChangeTitle => 'كلمة مرور جديدة';
+
+  @override
+  String get passwordChangeBody =>
+      'طلب فريق Kabso تغيير كلمة مرور حسابك. اختر كلمة مرور جديدة لتسجيل الدخول؛ ستنتهي جلساتك الأخرى.';
+
+  @override
+  String get passwordChangeNew => 'كلمة المرور الجديدة';
+
+  @override
+  String get passwordChangeConfirm => 'تأكيد كلمة المرور';
+
+  @override
+  String get passwordChangeMismatch => 'كلمتا المرور غير متطابقتين.';
+
+  @override
+  String get passwordChangeSame => 'اختر كلمة مرور مختلفة عن الحالية.';
+
+  @override
+  String get passwordChangeTooShort => '٨ أحرف على الأقل.';
+
+  @override
+  String get passwordChangeSubmit => 'حفظ وتسجيل الدخول';
 }

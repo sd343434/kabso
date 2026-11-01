@@ -54,6 +54,8 @@ export interface DeletionActor {
   readonly reason?: string | null;
   readonly ip?: string | null;
   readonly requestId?: string | null;
+  /** v1.72-social (D208): the audit row's `via` for an ADMIN actor — `cli` (default) or `panel` (the admin panel). */
+  readonly auditVia?: 'cli' | 'panel';
 }
 
 /** SHA-256 (hex) of a lower-cased username: the quarantine key (the name itself is not kept). */
@@ -136,7 +138,7 @@ function auditRow(
     targetType: 'user',
     targetId: userId,
     metadata: {
-      via: actor.via === 'APP' ? 'app' : 'cli',
+      via: actor.via === 'APP' ? 'app' : (actor.auditVia ?? 'cli'),
       ...(actor.reason ? { reason: actor.reason } : {}),
       ...metadata,
     },
@@ -465,6 +467,9 @@ export async function purgeAccountIn(
   await tx.$executeRaw`DELETE FROM privacy_settings WHERE user_id = ${u}`;
   await tx.$executeRaw`DELETE FROM notification_settings WHERE user_id = ${u}`;
   await tx.$executeRaw`DELETE FROM sessions WHERE user_id = ${u}`;
+  // v1.72-social (D208): the team's locks and restrictions (their reasons are free text about the person); the audit
+  // rows keep what was done. Balance adjustments are financial and stay (blanked with the ledgers' retention).
+  await tx.$executeRaw`DELETE FROM account_restrictions WHERE user_id = ${u}`;
   await tx.$executeRaw`DELETE FROM verification_tokens WHERE user_id = ${u}`;
   await tx.$executeRaw`DELETE FROM device_tokens WHERE user_id = ${u}`;
   // v1.66-social (D198): data exports are deleted with their files; consent records stay as the record of what was
@@ -476,7 +481,8 @@ export async function purgeAccountIn(
     UPDATE users
        SET email = ${`deleted+${userId}@deleted.invalid`}, email_verified_at = NULL,
            password_hash = ${TOMBSTONE_PASSWORD_HASH}, status = 'DELETED', role = 'USER',
-           deleted_at = ${at}::timestamptz, last_active_at = NULL, updated_at = ${at}::timestamptz
+           deleted_at = ${at}::timestamptz, last_active_at = NULL, password_change_required_at = NULL,
+           updated_at = ${at}::timestamptz
      WHERE id = ${u}`;
   // The audit log stays (7 years) without the IP addresses (dropped, not truncated: a /24 still narrows a home
   // connection down) and without usernames, emails or names in its metadata. audit_logs is append-only for the runtime
@@ -1045,6 +1051,8 @@ export async function endLedgerRetention(
       await tx.luckyGiftAgeConfirmation.deleteMany({ where: { userId } });
       // v1.66-social (D198): the consent records go with the rest of the trail.
       await tx.userConsent.deleteMany({ where: { userId } });
+      // v1.72-social (D208): the team's balance adjustments keep their amounts; the reason text goes.
+      await tx.adminBalanceAdjustment.updateMany({ where: { userId }, data: { reason: '…' } });
       await tx.accountDeletionRequest.deleteMany({ where: { userId } });
       return true;
     });

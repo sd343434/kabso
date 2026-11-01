@@ -482,6 +482,13 @@ info:
     gift's image, SVGA / MP4 effect, MP3 sound, or a category icon) and `getAdminGiftFile` (its bytes back, for the
     panel's same-origin preview); the gift create / update bodies take the
     uploaded keys, and «صورة الهدية» is required to create a gift in the panel (CONVENTIONS §10.66).
+    **D208 (DRAFT v1.72-social)**: the admin panel's account controls «تحكم كامل» (tag `admin-panel`, CONVENTIONS
+    §10.67): a temporary lock (`lockAdminUser` / `unlockAdminUser`; `login` → 403 `ACCOUNT_LOCKED` with the end and
+    the reason), restrictions with an end (`restrictAdminUser` / `liftAdminUserRestriction`: CHAT_MUTE, NO_LIVE,
+    NO_GIFTS, NO_POSTING → 403 `ACCOUNT_RESTRICTED` on those actions), the password (the reset email, a temporary
+    password shown once, a forced change: `login` → 403 `PASSWORD_CHANGE_REQUIRED`, then `LoginRequest.newPassword`),
+    the email, the profile, content (hide / restore / delete), coin and cherry adjustments (`ADMIN_ADJUSTMENT`,
+    per-admin daily cap), the D193 deletion and its cancel, and `getAdminUserControl`; four system notification types.
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -684,6 +691,11 @@ paths:
         password — 409 `ACCOUNT_DELETION_PENDING` with `details: [{field: purgeAfter, issue: <ISO time>}]`; the
         same request with `cancelDeletion: true` cancels the deletion (the account is back as it was, a notice is
         mailed) and signs in (200).
+        v1.72-social (D208, §10.67), again only after the right password: an account the team locked answers 403
+        `ACCOUNT_LOCKED` with `details: [{field: lockedUntil, issue: <ISO time>}, {field: reason, issue: <text>}]`;
+        an account whose password the team reset (a temporary password, or «فرض تغيير كلمة المرور») answers 403
+        `PASSWORD_CHANGE_REQUIRED` — the same request with `newPassword` sets it (every other session ends, reset
+        links stop working) and signs in (200); `newPassword` equal to `password` → 400 `same_as_current`.
       security: []
       requestBody:
         required: true
@@ -9354,7 +9366,7 @@ paths:
       tags: [admin-panel]
       operationId: banAdminUser
       summary: "Ban «حظر»: ACTIVE → SUSPENDED with the account-lifecycle side effects (users.ban; reason required; audited)"
-      description: "409 `ADMIN_ACTION_REFUSED` when the account is not ACTIVE or it is the caller's own; an account holding a panel role needs OWNER (403)."
+      description: "409 `ADMIN_ACTION_REFUSED` when the account is not ACTIVE or it is the caller's own; an account holding a panel role needs OWNER (403). v1.72-social (D208, owner 2026-10-31): the authenticator code again (`totpCode`; 403 `ADMIN_TOTP_INVALID`) — the ban is permanent; a temporary lock is `lockAdminUser`. `unbanAdminUser` keeps the reason only."
       security: [{ adminSession: [] }]
       parameters:
         - $ref: '#/components/parameters/AdminUserIdPath'
@@ -9363,7 +9375,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/AdminReasonRequest' }
+            schema: { $ref: '#/components/schemas/AdminReasonCodeRequest' }
       responses:
         '200':
           description: Banned.
@@ -10366,6 +10378,488 @@ paths:
           $ref: '#/components/responses/Error'
         '429':
           $ref: '#/components/responses/Error'
+  /api/v1/admin/users/{userId}/control:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminUserControl
+      summary: "A user’s control state: lock, restrictions with history, password, email, deletion, adjustments (users.control_view)"
+      description: |
+        (v1.72-social, D208, §10.67) What the user page's action groups show. `adjustToday` is the CALLING admin's
+        adjustments of the day against the cap.
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminUserIdPath'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUserControl' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/users/{userId}/lock:
+    post:
+      tags: [admin-panel]
+      operationId: lockAdminUser
+      summary: "Lock the account for a while «قفل الحساب» (users.lock)"
+      description: |
+        (v1.72-social, D208, §10.67) `days` (1, 3, 7, 30 … ≤ 365) or `until`. Sign-in is refused with 403 `ACCOUNT_LOCKED`
+        (the end and this reason, which the person sees); every session ends; a live the person hosts ends (ADMIN); the
+        person gets `ACCOUNT_RESTRICTED`. A new lock replaces the open one. Separate from the permanent ban
+        (`banAdminUser`): only an ACTIVE account, the status does not change. Audited `admin.user.lock`.
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminUserIdPath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminLockRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminRestrictionResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/users/{userId}/unlock:
+    post:
+      tags: [admin-panel]
+      operationId: unlockAdminUser
+      summary: "End a lock early (users.lock)"
+      description: |
+        (v1.72-social, D208) 409 when not locked. The person gets `ACCOUNT_RESTRICTION_LIFTED`. Audited `admin.user.unlock`.
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminUserIdPath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReasonRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminRestrictionLifted' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/users/{userId}/restrictions:
+    post:
+      tags: [admin-panel]
+      operationId: restrictAdminUser
+      summary: "Restrict for a while: chat mute, no live, no gifts, no posting (users.restrict)"
+      description: |
+        (v1.72-social, D208, §10.67) `CHAT_MUTE` (live chat, bullets, comments, direct messages), `NO_LIVE` (going live;
+        a current live ends), `NO_GIFTS` (live, direct and bag gifts), `NO_POSTING` (posts, reels, stories) — refused
+        with 403 `ACCOUNT_RESTRICTED` until the end. Audited `admin.user.restrict`.
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminUserIdPath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminRestrictRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminRestrictionResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/users/{userId}/restrictions/lift:
+    post:
+      tags: [admin-panel]
+      operationId: liftAdminUserRestriction
+      summary: "End a restriction early (users.restrict)"
+      description: |
+        (v1.72-social, D208) Not `LOCK` (use `unlockAdminUser`). Audited `admin.user.restriction_lift`.
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminUserIdPath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminLiftRestrictionRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminRestrictionLifted' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/users/{userId}/password/reset-link:
+    post:
+      tags: [admin-panel]
+      operationId: sendAdminUserPasswordResetLink
+      summary: "Send the password-reset email «إرسال رابط إعادة تعيين» (users.password)"
+      description: |
+        (v1.72-social, D208) The existing `forgotPassword` email to the account's address; the admin never sees the link.
+        Audited `admin.user.password_reset_link`.
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminUserIdPath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReasonRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminMailSent' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/users/{userId}/password/temporary:
+    post:
+      tags: [admin-panel]
+      operationId: setAdminUserTemporaryPassword
+      summary: "Set a temporary password «تعيين كلمة مرور مؤقتة» (users.password, code again)"
+      description: |
+        (v1.72-social, D208, §10.67) Generated by the server and returned ONCE (`Cache-Control: no-store`; never stored in
+        the clear, never logged or audited). Every session ends; the next sign-in answers 403 `PASSWORD_CHANGE_REQUIRED`
+        until it sends `newPassword`. Outstanding reset links stop working. Audited `admin.user.password_temporary`.
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminUserIdPath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReasonCodeRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminTemporaryPassword' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/users/{userId}/password/require-change:
+    post:
+      tags: [admin-panel]
+      operationId: requireAdminUserPasswordChange
+      summary: "Force a new password at the next sign-in (users.password)"
+      description: |
+        (v1.72-social, D208) `endSessions` (default true) signs the person out now. Audited
+        `admin.user.password_require_change`.
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminUserIdPath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminRequirePasswordChangeRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminPasswordChangeRequired' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/users/{userId}/email:
+    post:
+      tags: [admin-panel]
+      operationId: changeAdminUserEmail
+      summary: "Change the email (users.email, code again; markVerified: OWNER)"
+      description: |
+        (v1.72-social, D208) The new address gets the verification email unless `markVerified` (OWNER only, else 403).
+        Another account's address → 409. Outstanding verification and reset links end. Audited `admin.user.email_change`
+        (addresses masked).
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminUserIdPath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminEmailChangeRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminEmailChanged' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/users/{userId}/email/resend-verification:
+    post:
+      tags: [admin-panel]
+      operationId: resendAdminUserVerification
+      summary: "Resend the verification email (users.email)"
+      description: |
+        (v1.72-social, D208) 409 when already verified or not ACTIVE.
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminUserIdPath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReasonRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminMailSent' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/users/{userId}/profile:
+    patch:
+      tags: [admin-panel]
+      operationId: editAdminUserProfile
+      summary: "Edit the profile (users.profile_edit)"
+      description: |
+        (v1.72-social, D208, §10.67) `displayName` (§6 rules, reserved terms), `username` (the D146 regular rule; 409
+        `USERNAME_TAKEN` when reserved or anyone else's; 409 `ADMIN_ACTION_REFUSED` while a special or premium username
+        is shown), `bio`, `country`, `gender`. There is no cover / profile background (only the photo:
+        `removeAdminUserAvatar`). The person gets `PROFILE_EDITED_BY_TEAM`. Audited `admin.user.profile_edit` with
+        before / after.
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminUserIdPath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminProfileEditRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminProfileEdited' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/users/{userId}/content:
+    get:
+      tags: [admin-panel]
+      operationId: listAdminUserContent
+      summary: "A user’s stories or comments, any state (users.view)"
+      description: |
+        (v1.72-social, D208) Posts and reels are `listAdminUserPosts`.
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminUserIdPath'
+      - { name: kind, in: query, required: true, schema: { type: string, enum: [stories, comments] } }
+      - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+      - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 10 } }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUserContentPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/users/{userId}/balance-adjustments:
+    post:
+      tags: [admin-panel]
+      operationId: adjustAdminUserBalance
+      summary: "Credit or debit coins or cherries (users.balance_adjust, code again)"
+      description: |
+        (v1.72-social, D208, §10.67) Ledger reason `ADMIN_ADJUSTMENT` (reference: the adjustment). A debit never takes
+        the balance below 0 unless `allowNegative` (OWNER only, a reversal). ADMIN_ADJUST_DAILY_CAP_COINS /
+        _CHERRIES per admin per day (|amount| added up) → 409. The person gets `BALANCE_ADJUSTED`. Audited
+        `admin.balance.adjust`.
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminUserIdPath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminAdjustRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminAdjustResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/users/{userId}/deletion:
+    post:
+      tags: [admin-panel]
+      operationId: requestAdminUserDeletion
+      summary: "Start the account’s deletion (D193 grace period) (users.delete, code again)"
+      description: |
+        (v1.72-social, D208) As `account-admin request`: PENDING_DELETION, every session ends, the live ends, purge after
+        ACCOUNT_DELETION_GRACE_DAYS. 409 `ACCOUNT_DELETION_BLOCKED` with the blockers. Audited
+        `account.deletion.requested` (`via: panel`).
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminUserIdPath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReasonCodeRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminDeletionStarted' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/users/{userId}/deletion/cancel:
+    post:
+      tags: [admin-panel]
+      operationId: cancelAdminUserDeletion
+      summary: "Cancel a pending deletion (users.delete)"
+      description: |
+        (v1.72-social, D208) The account is ACTIVE again with everything it had. 409 when none is pending.
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminUserIdPath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReasonRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminDeletionCancelled' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/content/{contentType}/{contentId}/{op}:
+    post:
+      tags: [admin-panel]
+      operationId: moderateAdminContent
+      summary: "Hide, restore or delete a post, reel, story or comment (users.content)"
+      description: |
+        (v1.72-social, D208, §10.67) `hide`: a post / reel (moderation REMOVED) or story leaves every list and can be
+        restored; a comment is removed (with its replies; comments cannot be restored). `restore`: a hidden post or
+        story back. `delete`: a post or story for good (as the author's own delete) — the authenticator code again.
+        Hide and delete close the item's OPEN reports (ACTIONED) and tell the author (`CONTENT_REMOVED`). A panel
+        admin's content only by an OWNER. Audited `admin.content.hide|restore|delete`.
+      security:
+      - adminSession: []
+      parameters:
+      - { name: contentType, in: path, required: true, schema: { type: string, enum: [post, story, comment] } }
+      - { name: contentId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: op, in: path, required: true, schema: { type: string, enum: [hide, restore, delete] } }
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminContentActionRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminContentActionResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/admin/users/{userId}/bag:
     get:
       tags:
@@ -14616,6 +15110,245 @@ components:
               lastUsedAt:
                 type: string
                 format: date-time
+    # ---- v1.72-social (DRAFT, D208, CONVENTIONS §10.67): the account controls ----------------------------------
+    AccountRestrictionKind:
+      type: string
+      description: "(v1.72-social, D208) LOCK «قفل الحساب», CHAT_MUTE «كتم الدردشة», NO_LIVE «منع البث», NO_GIFTS «منع الهدايا», NO_POSTING «منع النشر»."
+      enum: [LOCK, CHAT_MUTE, NO_LIVE, NO_GIFTS, NO_POSTING]
+    AdminRestriction:
+      type: object
+      required: [id, kind, reason, startsAt, endsAt, via, active, liftedAt, liftReason, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { $ref: '#/components/schemas/AccountRestrictionKind' }
+        reason: { type: string, description: Shown to the person. }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        via: { type: string, enum: [panel, cli] }
+        active: { type: boolean }
+        liftedAt: { type: [string, 'null'], format: date-time }
+        liftReason: { type: [string, 'null'], description: "The early end's reason, or `replaced` by a newer one." }
+        createdAt: { type: string, format: date-time }
+    AdminUserControl:
+      type: object
+      required: [status, lock, restrictions, history, password, email, gender, cover, deletion, adjustToday, adjustments]
+      properties:
+        status: { type: string, enum: [ACTIVE, SUSPENDED, PENDING_DELETION, DELETED] }
+        lock: { oneOf: [{ $ref: '#/components/schemas/AdminRestriction' }, { type: 'null' }] }
+        restrictions: { type: array, items: { $ref: '#/components/schemas/AdminRestriction' } }
+        history: { type: array, maxItems: 50, items: { $ref: '#/components/schemas/AdminRestriction' } }
+        password:
+          type: object
+          required: [changeRequired]
+          properties: { changeRequired: { type: boolean } }
+        email:
+          type: object
+          required: [address, verified]
+          properties: { address: { type: string }, verified: { type: boolean } }
+        gender: { type: [string, 'null'], enum: [MALE, FEMALE, UNDISCLOSED, null] }
+        cover: { type: 'null', description: There is no profile cover or background in the app (only the photo). }
+        deletion:
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [requestedAt, purgeAfter, requestedVia]
+              properties:
+                requestedAt: { type: string, format: date-time }
+                purgeAfter: { type: string, format: date-time }
+                requestedVia: { type: string, enum: [APP, ADMIN] }
+        adjustToday:
+          type: object
+          description: The calling admin's adjustments of the day (ADMIN_DASHBOARD_TIME_ZONE) and the caps.
+          required: [coins, cherries, capCoins, capCherries]
+          properties:
+            coins: { type: integer, format: int64 }
+            cherries: { type: integer, format: int64 }
+            capCoins: { type: integer, format: int64 }
+            capCherries: { type: integer, format: int64 }
+        adjustments:
+          type: array
+          maxItems: 20
+          items:
+            type: object
+            required: [id, currency, delta, before, after, reason, actor, createdAt]
+            properties:
+              id: { type: string, format: uuid }
+              currency: { type: string, enum: [COINS, CHERRIES] }
+              delta: { type: integer, format: int64 }
+              before: { type: integer, format: int64 }
+              after: { type: integer, format: int64 }
+              reason: { type: string }
+              actor: { type: [string, 'null'], description: The admin's username (null from the CLI). }
+              createdAt: { type: string, format: date-time }
+    AdminReasonCodeRequest:
+      type: object
+      additionalProperties: false
+      required: [reason, totpCode]
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 500, description: Required; kept in the audit log. }
+        totpCode: { type: string, pattern: '^[0-9]{6}$', description: The authenticator code again. }
+    AdminLockRequest:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      description: Exactly one of `days` or `until`.
+      properties:
+        days: { type: integer, minimum: 1, maximum: 365, description: "1, 3, 7 or 30 in the panel." }
+        until: { type: string, format: date-time, description: "In the future, at most 365 days away." }
+        reason: { type: string, minLength: 1, maxLength: 500, description: Shown to the person and kept in the audit log. }
+    AdminRestrictRequest:
+      type: object
+      additionalProperties: false
+      required: [kind, reason]
+      description: Exactly one of `days` or `until`.
+      properties:
+        kind: { type: string, enum: [CHAT_MUTE, NO_LIVE, NO_GIFTS, NO_POSTING] }
+        days: { type: integer, minimum: 1, maximum: 365 }
+        until: { type: string, format: date-time }
+        reason: { type: string, minLength: 1, maxLength: 500, description: Shown to the person and kept in the audit log. }
+    AdminLiftRestrictionRequest:
+      type: object
+      additionalProperties: false
+      required: [kind, reason]
+      properties:
+        kind: { type: string, enum: [CHAT_MUTE, NO_LIVE, NO_GIFTS, NO_POSTING] }
+        reason: { type: string, minLength: 1, maxLength: 500, description: Required; kept in the audit log. }
+    AdminRestrictionResult:
+      type: object
+      required: [restriction, replaced, sessions, livesEnded]
+      properties:
+        restriction: { $ref: '#/components/schemas/AdminRestriction' }
+        replaced: { oneOf: [{ $ref: '#/components/schemas/AdminRestriction' }, { type: 'null' }] }
+        sessions: { type: integer, minimum: 0, description: Sessions ended (a lock). }
+        livesEnded: { type: integer, minimum: 0 }
+    AdminRestrictionLifted:
+      type: object
+      required: [restriction]
+      properties:
+        restriction: { $ref: '#/components/schemas/AdminRestriction' }
+    AdminMailSent:
+      type: object
+      required: [sent, to]
+      properties:
+        sent: { type: boolean, const: true }
+        to: { type: string, description: 'The address, masked (a***@example.com).' }
+    AdminTemporaryPassword:
+      type: object
+      required: [temporaryPassword, sessions]
+      properties:
+        temporaryPassword: { type: string, pattern: '^[A-Za-z0-9]{4}(-[A-Za-z0-9]{4}){3}$', description: Shown ONCE to hand over. }
+        sessions: { type: integer, minimum: 0 }
+    AdminRequirePasswordChangeRequest:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 500, description: Required; kept in the audit log. }
+        endSessions: { type: boolean, default: true }
+    AdminPasswordChangeRequired:
+      type: object
+      required: [changeRequired, sessions]
+      properties:
+        changeRequired: { type: boolean, const: true }
+        sessions: { type: integer, minimum: 0 }
+    AdminEmailChangeRequest:
+      type: object
+      additionalProperties: false
+      required: [email, reason, totpCode]
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+        markVerified: { type: boolean, default: false, description: OWNER only. }
+        reason: { type: string, minLength: 1, maxLength: 500, description: Required; kept in the audit log. }
+        totpCode: { type: string, pattern: '^[0-9]{6}$' }
+    AdminEmailChanged:
+      type: object
+      required: [email, verified, verificationSent]
+      properties:
+        email: { type: string }
+        verified: { type: boolean }
+        verificationSent: { type: boolean }
+    AdminProfileEditRequest:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      description: At least one field besides `reason`.
+      properties:
+        displayName: { type: string, description: The §6 display-name rules. }
+        username: { $ref: '#/components/schemas/RegularUsername' }
+        bio: { type: [string, 'null'], description: '≤ 300 code points, ≤ 4 line breaks; null or empty clears it.' }
+        country: { type: [string, 'null'], pattern: '^[A-Za-z]{2}$' }
+        gender: { type: string, enum: [MALE, FEMALE, UNDISCLOSED] }
+        reason: { type: string, minLength: 1, maxLength: 500, description: Required; kept in the audit log. }
+    AdminProfileEdited:
+      type: object
+      required: [changed]
+      properties:
+        changed: { type: array, items: { type: string, enum: [displayName, bio, country, gender, username] } }
+    AdminUserContentPage:
+      type: object
+      required: [data, total, page, pageSize]
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            required: [id, text, state, createdAt]
+            properties:
+              id: { type: string, format: uuid }
+              text: { type: string }
+              state: { type: string, enum: [VISIBLE, HIDDEN, DELETED] }
+              postId: { type: string, format: uuid, description: Comments only. }
+              expiresAt: { type: string, format: date-time, description: Stories only. }
+              createdAt: { type: string, format: date-time }
+        total: { type: integer }
+        page: { type: integer }
+        pageSize: { type: integer }
+    AdminContentActionRequest:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 500, description: Required; kept in the audit log. }
+        totpCode: { type: string, pattern: '^[0-9]{6}$', description: Required for `delete`. }
+    AdminContentActionResult:
+      type: object
+      required: [state, reportsClosed]
+      properties:
+        state: { type: string, enum: [VISIBLE, REMOVED, HIDDEN, DELETED] }
+        reportsClosed: { type: integer, minimum: 0 }
+    AdminAdjustRequest:
+      type: object
+      additionalProperties: false
+      required: [currency, direction, amount, reason, totpCode]
+      properties:
+        currency: { type: string, enum: [COINS, CHERRIES] }
+        direction: { type: string, enum: [CREDIT, DEBIT] }
+        amount: { type: string, pattern: '^[1-9][0-9]{0,9}$', description: Whole units (≤ 10^9). }
+        allowNegative: { type: boolean, default: false, description: OWNER only; a debit only (a reversal). }
+        reason: { type: string, minLength: 1, maxLength: 500, description: Required; kept in the audit log. }
+        totpCode: { type: string, pattern: '^[0-9]{6}$' }
+    AdminAdjustResult:
+      type: object
+      required: [adjustmentId, currency, delta, before, after, usedToday]
+      properties:
+        adjustmentId: { type: string, format: uuid }
+        currency: { type: string, enum: [COINS, CHERRIES] }
+        delta: { type: integer, format: int64 }
+        before: { type: integer, format: int64 }
+        after: { type: integer, format: int64 }
+        usedToday: { type: integer, format: int64, description: The calling admin's total of the day with this one. }
+    AdminDeletionStarted:
+      type: object
+      required: [purgeAfter, sessions, livesEnded]
+      properties:
+        purgeAfter: { type: string, format: date-time }
+        sessions: { type: integer, minimum: 0 }
+        livesEnded: { type: integer, minimum: 0 }
+    AdminDeletionCancelled:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, const: ACTIVE }
     AdminRevokeSessionsRequest:
       type: object
       required:
@@ -17526,6 +18259,13 @@ components:
           description: |
             v1.62-social (D193): `true` cancels a pending account deletion and signs in; without it an account in
             its deletion grace period answers 409 `ACCOUNT_DELETION_PENDING`. Ignored for other accounts.
+        newPassword:
+          type: string
+          minLength: 8
+          maxLength: 128
+          description: |
+            v1.72-social (D208): the new password when the team requires one (otherwise 403
+            `PASSWORD_CHANGE_REQUIRED`). Ignored for other accounts.
     AccountDeletionInfo:
       type: object
       description: v1.62-social (D193, CONVENTIONS §10.56).
@@ -20161,13 +20901,13 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     NotificationType:
       type: string
-      description: "`LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). (v1.60-social, D191) `MODERATION_WARNING` (system: a moderator warned you about content that breaks the rules; target POST when the warning is about a post, else none). (v1.66-social, D198) `DATA_EXPORT_READY` (system, no target: the data export «تنزيل بياناتي» is ready; the app opens Settings › Privacy). (v1.69-social, D204) `RECHARGE_ORDER_UPDATE` (system: a recharge order you take part in changed or got a message; target RECHARGE_ORDER with `coins`, `orderEvent` and `orderStatus`; one unread row per order, moved up by each event). (v1.70-social, D206) system, target AGENCY: `AGENCY_OPENED` (your agency is open — also when the team reopens it), `AGENCY_PROBATION_REMINDER` (less than 24 h left with fewer activated hosts than needed; `activatedHosts` / `requiredHosts`), `AGENCY_PROBATION_PASSED`, `AGENCY_CLOSED` (with `activatedHosts` / `requiredHosts` when the probation failed; none when the team closed it), `AGENCY_HOST_RELEASED` (to each host of a closed agency: they are free). Clients ignore values they do not know."
-      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST, MODERATION_WARNING, DATA_EXPORT_READY, RECHARGE_ORDER_UPDATE, AGENCY_OPENED, AGENCY_PROBATION_REMINDER, AGENCY_PROBATION_PASSED, AGENCY_CLOSED, AGENCY_HOST_RELEASED]
+      description: "`LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). (v1.60-social, D191) `MODERATION_WARNING` (system: a moderator warned you about content that breaks the rules; target POST when the warning is about a post, else none). (v1.66-social, D198) `DATA_EXPORT_READY` (system, no target: the data export «تنزيل بياناتي» is ready; the app opens Settings › Privacy). (v1.69-social, D204) `RECHARGE_ORDER_UPDATE` (system: a recharge order you take part in changed or got a message; target RECHARGE_ORDER with `coins`, `orderEvent` and `orderStatus`; one unread row per order, moved up by each event). (v1.70-social, D206) system, target AGENCY: `AGENCY_OPENED` (your agency is open — also when the team reopens it), `AGENCY_PROBATION_REMINDER` (less than 24 h left with fewer activated hosts than needed; `activatedHosts` / `requiredHosts`), `AGENCY_PROBATION_PASSED`, `AGENCY_CLOSED` (with `activatedHosts` / `requiredHosts` when the probation failed; none when the team closed it), `AGENCY_HOST_RELEASED` (to each host of a closed agency: they are free). (v1.72-social, D208) `ACCOUNT_RESTRICTED` / `ACCOUNT_RESTRICTION_LIFTED` (system, target ACCOUNT_RESTRICTION: `restriction`, `endsAt`, `text` = the team's reason), `BALANCE_ADJUSTED` (system, target BALANCE_ADJUSTMENT: `currency`, `amount` signed), `PROFILE_EDITED_BY_TEAM` (system, no target). Clients ignore values they do not know."
+      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST, MODERATION_WARNING, DATA_EXPORT_READY, RECHARGE_ORDER_UPDATE, AGENCY_OPENED, AGENCY_PROBATION_REMINDER, AGENCY_PROBATION_PASSED, AGENCY_CLOSED, AGENCY_HOST_RELEASED, ACCOUNT_RESTRICTED, ACCOUNT_RESTRICTION_LIFTED, BALANCE_ADJUSTED, PROFILE_EDITED_BY_TEAM]
     NotificationTarget:
       type: object
       required: [type, id, postId, thumbUrl, text]
       properties:
-        type: { type: string, enum: [POST, COMMENT, STORY, USER, FAMILY, MEDAL, PREMIUM_USERNAME, BAG_ITEM, RECHARGE_SALE, RECHARGE_ORDER, AGENCY], description: "(v1.21-live) FAMILY and MEDAL are new; (v1.28-live, D146) PREMIUM_USERNAME; (v1.48-social, D171) BAG_ITEM; (v1.54-social, D185) RECHARGE_SALE; (v1.69-social, D204) RECHARGE_ORDER (`id` the order); (v1.70-social, D206) AGENCY (id the agency, `text` its name; the app opens «الوكالة»); clients ignore target types they do not know." }
+        type: { type: string, enum: [POST, COMMENT, STORY, USER, FAMILY, MEDAL, PREMIUM_USERNAME, BAG_ITEM, RECHARGE_SALE, RECHARGE_ORDER, AGENCY, ACCOUNT_RESTRICTION, BALANCE_ADJUSTMENT], description: "(v1.21-live) FAMILY and MEDAL are new; (v1.28-live, D146) PREMIUM_USERNAME; (v1.48-social, D171) BAG_ITEM; (v1.54-social, D185) RECHARGE_SALE; (v1.69-social, D204) RECHARGE_ORDER (`id` the order); (v1.70-social, D206) AGENCY (id the agency, `text` its name; the app opens «الوكالة»); (v1.72-social, D208) ACCOUNT_RESTRICTION and BALANCE_ADJUSTMENT; clients ignore target types they do not know." }
         id: { type: string, description: "A post, comment or story id, a username for USER, a family id for FAMILY, a medal code for MEDAL, the username for PREMIUM_USERNAME, the item code for BAG_ITEM." }
         postId: { type: [string, 'null'], format: uuid, description: "For a COMMENT, its post." }
         thumbUrl: { type: [string, 'null'], format: uri, description: "The post or story photo (320 px), when it has one." }
@@ -20180,6 +20920,9 @@ components:
         orderStatus: { $ref: '#/components/schemas/RechargeOrderStatus' }
         activatedHosts: { type: integer, minimum: 0, description: "AGENCY only (v1.70-social, D206): the activated hosts reached (reminder, passed, closed by the probation)." }
         requiredHosts: { type: integer, minimum: 1, description: "AGENCY only (v1.70-social, D206): the activated hosts needed." }
+        restriction: { $ref: '#/components/schemas/AccountRestrictionKind', description: "ACCOUNT_RESTRICTION only (v1.72-social, D208); `endsAt` is its end." }
+        currency: { type: string, enum: [COINS, CHERRIES], description: "BALANCE_ADJUSTMENT only (v1.72-social, D208)." }
+        amount: { type: integer, format: int64, description: "BALANCE_ADJUSTMENT only (v1.72-social, D208): > 0 credited, < 0 debited." }
     Notification:
       type: object
       required: [id, type, actors, actorCount, target, createdAt, read]

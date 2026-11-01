@@ -42,6 +42,10 @@ describe('ErrorCode', () => {
         'SECOND_CAMERA_CODE_INVALID',
         'SECOND_CAMERA_UNAVAILABLE',
         'SECOND_CAMERA_BUSY',
+        // v1.72-social (D208)
+        'ACCOUNT_LOCKED',
+        'ACCOUNT_RESTRICTED',
+        'PASSWORD_CHANGE_REQUIRED',
         // v1.54-social (D185).
         'RECHARGE_APPLICATION_NOT_ALLOWED',
         'RECHARGE_AGENT_NOT_ACTIVE',
@@ -270,6 +274,9 @@ describe('ErrorCode', () => {
       RECHARGE_ORDER_STATE_CHANGED: 409,
       RECHARGE_ORDER_NOTICE_REQUIRED: 409,
       RECHARGE_ORDER_DISPUTE_TOO_EARLY: 409,
+      ACCOUNT_LOCKED: 403,
+      ACCOUNT_RESTRICTED: 403,
+      PASSWORD_CHANGE_REQUIRED: 403,
     });
   });
 

@@ -117,6 +117,9 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
       l10n.errorRechargeOrderNoticeRequired,
     ErrorCode.rechargeOrderDisputeTooEarly =>
       l10n.errorRechargeOrderDisputeTooEarly,
+    ErrorCode.accountLocked => l10n.errorAccountLocked,
+    ErrorCode.accountRestricted => l10n.errorAccountRestricted,
+    ErrorCode.passwordChangeRequired => l10n.errorPasswordChangeRequired,
     ErrorCode.networkOffline => l10n.errorNetworkOffline,
     ErrorCode.networkTimeout => l10n.errorNetworkTimeout,
     ErrorCode.unknown => l10n.errorUnknown,
@@ -151,7 +154,48 @@ String failureMessage(
           : l10n.errorServiceBusyRetryIn(wait);
     }
   }
+  // v1.72-social (D208): a lock or restriction by the team, with its end.
+  if (failure is ServerFailure) {
+    final locked = _accountControlMessage(l10n, failure);
+    if (locked != null) return locked;
+  }
   return errorCodeMessage(l10n, failure.code);
+}
+
+/// The end of a lock or restriction: the date and the time (it may end today).
+String _when(DateTime at, String locale) =>
+    '${KFormat.date(at, locale)} ${KFormat.time(at, locale)}';
+
+String? _detail(ServerFailure f, String field) =>
+    f.details.where((d) => d.field == field).map((d) => d.issue).firstOrNull;
+
+/// «حسابك مقفل حتى …. السبب: …» / «… موقوف لحسابك حتى …» (D208), or null.
+String? _accountControlMessage(AppLocalizations l10n, ServerFailure f) {
+  if (f.code == ErrorCode.accountLocked) {
+    final until = DateTime.tryParse(_detail(f, 'lockedUntil') ?? '');
+    final reason = _detail(f, 'reason');
+    if (until == null) return null;
+    return l10n.errorAccountLockedUntil(
+      _when(until, l10n.localeName),
+      reason == null || reason.trim().isEmpty ? '—' : reason.trim(),
+    );
+  }
+  if (f.code == ErrorCode.accountRestricted) {
+    final until = DateTime.tryParse(_detail(f, 'until') ?? '');
+    final what = switch (_detail(f, 'restriction')) {
+      'CHAT_MUTE' => l10n.restrictionChatMute,
+      'NO_LIVE' => l10n.restrictionNoLive,
+      'NO_GIFTS' => l10n.restrictionNoGifts,
+      'NO_POSTING' => l10n.restrictionNoPosting,
+      _ => null,
+    };
+    if (until == null || what == null) return null;
+    return l10n.errorAccountRestrictedUntil(
+      what,
+      _when(until, l10n.localeName),
+    );
+  }
+  return null;
 }
 
 /// The request id to show as a selectable "Error ID" (PHASE1_SCREENS §10):

@@ -15,13 +15,22 @@ class AuthRemoteDataSource {
   /// v1.62-social (D193): [cancelDeletion] cancels a pending account
   /// deletion and signs in (otherwise such an account answers 409
   /// `ACCOUNT_DELETION_PENDING`).
+  ///
+  /// v1.72-social (D208): [newPassword] answers 403
+  /// `PASSWORD_CHANGE_REQUIRED` (the team reset the password): it becomes the
+  /// account's password and the sign-in goes on.
   Future<AuthResponseDto> login(
     LoginRequestDto body, {
     bool cancelDeletion = false,
+    String? newPassword,
   }) => _guard(() async {
     final res = await _dio.post<Map<String, dynamic>>(
       '/auth/login',
-      data: {...body.toJson(), if (cancelDeletion) 'cancelDeletion': true},
+      data: {
+        ...body.toJson(),
+        if (cancelDeletion) 'cancelDeletion': true,
+        'newPassword': ?newPassword,
+      },
       options: publicEndpoint(),
     );
     return AuthResponseDto.fromJson(res.data!);

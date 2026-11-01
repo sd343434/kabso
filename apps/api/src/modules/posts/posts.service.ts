@@ -22,6 +22,7 @@ import {
 } from './posts.schemas.js';
 import { SocialCursorCodec } from './social-cursor.js';
 import { parseHashtags, parseMentions } from './text-entities.js';
+import { assertNotRestricted } from '../users/account-control.js';
 
 /** At most 3 pinned posts per user (§11.2). */
 export const MAX_PINS = 3;
@@ -101,6 +102,8 @@ export class PostsService implements OnModuleInit, OnModuleDestroy {
 
     const replay = await this.findIdempotent(authorId, key, requestHash);
     if (replay) return replay;
+    // v1.72-social (D208, §10.67): the team's restriction of the caller, if any (403 ACCOUNT_RESTRICTED).
+    await assertNotRestricted(this.prisma, authorId, 'NO_POSTING');
     this.checkCreateRules(input);
 
     try {
