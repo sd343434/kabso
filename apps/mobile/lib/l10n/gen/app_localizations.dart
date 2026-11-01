@@ -1508,6 +1508,48 @@ abstract class AppLocalizations {
   /// **'الفئة: {category}'**
   String liveRoomCategory(String category);
 
+  /// D221: the red status pill on the interruption card of a live that ended.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهى البث'**
+  String get liveStatusEnded;
+
+  /// D221: the status pill while the live reconnects.
+  ///
+  /// In ar, this message translates to:
+  /// **'انقطع الاتصال'**
+  String get liveStatusConnectionLost;
+
+  /// D221: the status pill while the host is away.
+  ///
+  /// In ar, this message translates to:
+  /// **'المضيف بعيد'**
+  String get liveStatusHostAway;
+
+  /// D221: the status pill when the live's video could not connect or the room failed to open.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر الاتصال'**
+  String get liveStatusCantConnect;
+
+  /// D221: the status pill when the viewer is offline.
+  ///
+  /// In ar, this message translates to:
+  /// **'غير متصل'**
+  String get liveStatusOffline;
+
+  /// D221: the status pill when the live (or its video) is not available.
+  ///
+  /// In ar, this message translates to:
+  /// **'غير متاح'**
+  String get liveStatusUnavailable;
+
+  /// D221: the status pill when the viewer was removed from the live.
+  ///
+  /// In ar, this message translates to:
+  /// **'تمت إزالتك'**
+  String get liveStatusRemoved;
+
   /// No description provided for @liveRoomEndedTitle.
   ///
   /// In ar, this message translates to:

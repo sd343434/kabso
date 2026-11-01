@@ -866,6 +866,27 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get liveStatusEnded => 'Live ended';
+
+  @override
+  String get liveStatusConnectionLost => 'Connection lost';
+
+  @override
+  String get liveStatusHostAway => 'Host away';
+
+  @override
+  String get liveStatusCantConnect => 'Can\'t connect';
+
+  @override
+  String get liveStatusOffline => 'Offline';
+
+  @override
+  String get liveStatusUnavailable => 'Unavailable';
+
+  @override
+  String get liveStatusRemoved => 'Removed';
+
+  @override
   String get liveRoomEndedTitle => 'This live has ended';
 
   @override

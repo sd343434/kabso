@@ -182,6 +182,7 @@ class LiveRoomScreen extends ConsumerWidget {
         key: kickedKey,
         icon: Icons.logout_rounded,
         iconColor: KPalette.dark.textSecondary,
+        status: l10n.liveStatusRemoved,
         title: l10n.liveKickedTitle,
         message: l10n.liveKickedBody,
         onClose: close,
@@ -199,6 +200,7 @@ class LiveRoomScreen extends ConsumerWidget {
         key: const Key('room.notFound'),
         icon: Icons.sensors_off_outlined,
         iconColor: p.textSecondary,
+        status: l10n.liveStatusUnavailable,
         title: l10n.liveRoomNotFoundTitle,
         message: l10n.liveRoomNotFoundBody,
         onClose: close,
@@ -209,6 +211,7 @@ class LiveRoomScreen extends ConsumerWidget {
         key: const Key('room.offline'),
         icon: Icons.wifi_off_rounded,
         iconColor: p.textSecondary,
+        status: l10n.liveStatusOffline,
         title: l10n.feedOfflineTitle,
         message: l10n.feedOfflineBody,
         onClose: close,
@@ -220,6 +223,7 @@ class LiveRoomScreen extends ConsumerWidget {
       key: const Key('room.error'),
       icon: Icons.error_outline_rounded,
       iconColor: p.error,
+      status: l10n.liveStatusCantConnect,
       title: l10n.liveRoomErrorTitle,
       message: failureMessage(l10n, failure),
       detail: id == null ? null : l10n.errorIdLabel(id),
@@ -2008,6 +2012,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
           key: const Key('room.joinFailed'),
           child: KLiveInterruption(
             icon: Icons.videocam_off_rounded,
+            status: context.l10n.liveStatusCantConnect,
             title: context.l10n.liveRoomJoinFailedTitle,
             message: failureMessage(context.l10n, failure),
           ),
@@ -2021,13 +2026,13 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         child: _StageNote(
           key: const Key('room.hostAway'),
           child: KLiveInterruption(
-            leading: KAvatar(
-              name: room.host.displayName,
+            leading: KLiveHostPicture(
               imageUrl: room.host.avatarUrl,
               size: KLiveInterruption.picture,
             ),
             badgeIcon: Icons.hourglass_top_rounded,
             busy: true,
+            status: context.l10n.liveStatusHostAway,
             title: context.l10n.liveHostAway,
             message: context.l10n.liveHostAwayBody,
           ),
@@ -3117,7 +3122,9 @@ class _FollowButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    return KButton(
+    // D221: the ended card's full-width red «متابعة» with a boxed plus;
+    // following / requested keep the dark one (still a toggle, as before).
+    return KLiveInterruptionButton(
       key: const Key('room.follow'),
       label: following
           ? l10n.liveFollowing
@@ -3128,12 +3135,9 @@ class _FollowButton extends StatelessWidget {
           ? Icons.check_rounded
           : requested
           ? Icons.hourglass_top_rounded
-          : Icons.add_rounded,
-      variant: following || requested
-          ? KButtonVariant.secondary
-          : KButtonVariant.primary,
+          : Icons.add_box_outlined,
+      primary: !following && !requested,
       onPressed: onPressed,
-      expand: false,
     );
   }
 }
