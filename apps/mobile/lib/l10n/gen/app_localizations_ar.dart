@@ -12481,4 +12481,13 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get profileTabSavedWord => 'محفوظات';
+
+  @override
+  String get profileBondFamily => 'العائلة';
+
+  @override
+  String get profileBondCouple => 'العلاقة';
+
+  @override
+  String get profileBondMedals => 'الميداليات';
 }

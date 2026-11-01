@@ -12487,4 +12487,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profileTabSavedWord => 'Saved';
+
+  @override
+  String get profileBondFamily => 'Family';
+
+  @override
+  String get profileBondCouple => 'Couple';
+
+  @override
+  String get profileBondMedals => 'Medals';
 }

@@ -21303,6 +21303,24 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'محفوظات'**
   String get profileTabSavedWord;
+
+  /// D218: the profile's bond card title (short: it never truncates).
+  ///
+  /// In ar, this message translates to:
+  /// **'العائلة'**
+  String get profileBondFamily;
+
+  /// D218: the profile's bond card title (short: it never truncates).
+  ///
+  /// In ar, this message translates to:
+  /// **'العلاقة'**
+  String get profileBondCouple;
+
+  /// D218: the profile's bond card title (short: it never truncates).
+  ///
+  /// In ar, this message translates to:
+  /// **'الميداليات'**
+  String get profileBondMedals;
 }
 
 class _AppLocalizationsDelegate

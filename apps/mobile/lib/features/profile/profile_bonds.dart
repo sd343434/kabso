@@ -92,7 +92,14 @@ VoidCallback? bondAction(
 }
 
 /// The family, relationship and medals of a profile (CP-018) as three
-/// small tiles under the header: each says what exists and opens it.
+/// cards under the header: each says what exists and opens it.
+///
+/// D218 (owner: «ضعها في صناديق واعد تصميمها بشكل احترافي»): three equal
+/// cards in one row, 8 dp apart, in both themes — rounded 14 dp, a hairline
+/// border and (light) a soft shadow; the art (or the family's emblem / the
+/// partner's photo) in a small tinted circle at the reading start, then the
+/// title (never cut: it scales down instead) over the value (which may be
+/// cut). The whole card is the 48 dp+ target.
 class ProfileBondsRow extends ConsumerWidget {
   const new({required this.profile, super.key});
 
@@ -101,6 +108,9 @@ class ProfileBondsRow extends ConsumerWidget {
   static const familyKey = Key('profile.bonds.family');
   static const cpKey = Key('profile.bonds.cp');
   static const medalsKey = Key('profile.bonds.medals');
+
+  /// Each card's title (tests: never cut).
+  static const Key titleKey = _Tile.titleKey;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -119,7 +129,10 @@ class ProfileBondsRow extends ConsumerWidget {
               child: _Tile(
                 key: familyKey,
                 icon: 'assets/leaderboard/rank_shield_1.webp',
-                title: l10n.liveUserFamily,
+                tint: const Color(0xFFB8860B),
+                photoUrl: family?.emblemUrl,
+                photoName: family?.name,
+                title: l10n.profileBondFamily,
                 value: family == null
                     ? l10n.liveUserNone
                     : l10n.familyBoxValue(family.name, family.level),
@@ -131,7 +144,14 @@ class ProfileBondsRow extends ConsumerWidget {
               child: _Tile(
                 key: cpKey,
                 icon: 'assets/leaderboard/heart.webp',
-                title: l10n.liveUserCp,
+                tint: KBrandColors.red400,
+                photoUrl: cp?.partner.avatarUrl,
+                photoName: cp == null
+                    ? null
+                    : cp.partner.displayName.isEmpty
+                    ? cp.partner.username
+                    : cp.partner.displayName,
+                title: l10n.profileBondCouple,
                 value: cp != null
                     ? l10n.cpBoxValue(
                         cp.partner.displayName.isEmpty
@@ -150,7 +170,8 @@ class ProfileBondsRow extends ConsumerWidget {
               child: _Tile(
                 key: medalsKey,
                 iconData: Icons.military_tech_rounded,
-                title: l10n.liveUserMedals,
+                tint: const Color(0xFFB8860B),
+                title: l10n.profileBondMedals,
                 value: l10n.medalsOwned(
                   profile.medals.owned,
                   profile.medals.total,
@@ -169,74 +190,153 @@ class ProfileBondsRow extends ConsumerWidget {
   }
 }
 
+/// D218 geometry of the bond cards.
+abstract final class KBondCard {
+  static const double radius = 14;
+  static const double minHeight = 68;
+  static const double circle = 32;
+  static const double art = 20;
+  static const double titleFont = 13;
+  static const double valueFont = 12;
+
+  /// The cards keep their shape with large text: their words grow up to
+  /// this scale, then the title shrinks to fit (never cut).
+  static const double maxTextScale = 1.3;
+}
+
 class _Tile extends StatelessWidget {
   const new({
     required this.title,
     required this.value,
     required this.onTap,
+    required this.tint,
     super.key,
     this.icon,
     this.iconData,
+    this.photoUrl,
+    this.photoName,
   });
 
   final String title;
   final String value;
   final String? icon;
   final IconData? iconData;
+  final Color tint;
+
+  /// The family's emblem or the partner's photo, shown instead of the art.
+  final String? photoUrl;
+  final String? photoName;
   final VoidCallback? onTap;
+
+  static const Key titleKey = ValueKey('profile.bonds.title');
 
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
     final t = context.textStyles;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final radius = BorderRadius.circular(KBondCard.radius);
+    final photo = photoUrl;
+    final Widget mark = photo != null
+        ? KAvatar(
+            name: photoName ?? title,
+            imageUrl: photo,
+            size: KBondCard.circle,
+          )
+        : Container(
+            width: KBondCard.circle,
+            height: KBondCard.circle,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: tint.withValues(alpha: dark ? 0.22 : 0.12),
+            ),
+            child: icon != null
+                ? Image.asset(
+                    icon!,
+                    width: KBondCard.art,
+                    height: KBondCard.art,
+                    excludeFromSemantics: true,
+                  )
+                : Icon(iconData, size: KBondCard.art, color: tint),
+          );
     return Semantics(
       button: onTap != null,
       label: '$title, $value',
       excludeSemantics: true,
-      child: Material(
-        color: p.surfaceRaised,
-        borderRadius: BorderRadius.circular(KRadius.md),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(KRadius.md),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(KSpacing.sm),
-            child: Row(
-              children: [
-                if (icon case final icon?)
-                  Image.asset(
-                    icon,
-                    width: 24,
-                    height: 24,
-                    excludeFromSemantics: true,
-                  )
-                else
-                  Icon(iconData, size: 24, color: const Color(0xFFB8860B)),
-                const SizedBox(width: KSpacing.xs),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: dark ? p.surfaceOverlay : p.surface,
+          borderRadius: radius,
+          border: Border.all(color: p.border),
+          boxShadow: dark
+              ? null
+              : const [
+                  BoxShadow(
+                    color: Color(0x0F000000),
+                    blurRadius: 8,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+        ),
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            borderRadius: radius,
+            onTap: onTap,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: KBondCard.minHeight),
+              child: Padding(
+                padding: const EdgeInsetsDirectional.fromSTEB(
+                  KSpacing.sm,
+                  KSpacing.sm,
+                  KSpacing.sm - 2,
+                  KSpacing.sm,
+                ),
+                child: MediaQuery.withClampedTextScaling(
+                  maxScaleFactor: KBondCard.maxTextScale,
+                  child: Row(
                     children: [
-                      Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: t.caption.copyWith(
-                          color: p.textPrimary,
-                          fontWeight: FontWeight.w700,
+                      mark,
+                      const SizedBox(width: KSpacing.xs + 2),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            // The title is never cut: it shrinks to fit.
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: AlignmentDirectional.centerStart,
+                              child: Text(
+                                title,
+                                key: titleKey,
+                                maxLines: 1,
+                                softWrap: false,
+                                style: t.label.copyWith(
+                                  color: p.textPrimary,
+                                  fontSize: KBondCard.titleFont,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: KSpacing.xxs),
+                            Text(
+                              value,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: t.caption.copyWith(
+                                color: p.textSecondary,
+                                fontSize: KBondCard.valueFont,
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                      Text(
-                        value,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: t.caption.copyWith(color: p.textSecondary),
                       ),
                     ],
                   ),
                 ),
-              ],
+              ),
             ),
           ),
         ),
@@ -300,6 +400,7 @@ class ProfileBondsBlock extends StatelessWidget {
               child: _Tile(
                 key: bagKey,
                 iconData: Icons.backpack_rounded,
+                tint: const Color(0xFFB8860B),
                 title: context.l10n.bagTitle,
                 value: context.l10n.bagTileValue,
                 onTap: () => context.push(AppRoutes.bag),
@@ -312,6 +413,7 @@ class ProfileBondsBlock extends StatelessWidget {
               child: _Tile(
                 key: premiumKey,
                 iconData: Icons.workspace_premium_rounded,
+                tint: const Color(0xFFB8860B),
                 title: context.l10n.premiumTitle,
                 value: context.l10n.premiumTileValue,
                 onTap: () => context.push(AppRoutes.premium),
