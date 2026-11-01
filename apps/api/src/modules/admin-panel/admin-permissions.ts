@@ -63,6 +63,14 @@ export const CAPABILITIES = {
   'agencies.applications': ['OWNER', 'SUPPORT'],
   /** v1.70-social (D206): extend a probation, close or reopen an agency (with the authenticator code again). */
   'agencies.probation': ['OWNER'],
+  /**
+   * v1.73-social (D209, §10.68): the applications «كن مضيفاً مع الإدارة» — the list and an application's fields
+   * (every view audited). MODERATION may look; the ID pictures and the decision are OWNER + SUPPORT (no
+   * authenticator code again: it moves no money).
+   */
+  'hosts.applications': ['OWNER', 'SUPPORT', 'MODERATION'],
+  'hosts.applications.photos': ['OWNER', 'SUPPORT'],
+  'hosts.applications.decide': ['OWNER', 'SUPPORT'],
   /** Lives now, a live's details, the hosting permissions. */
   'lives.view': ['OWNER', 'MODERATION', 'SUPPORT'],
   /** End a live with a reason; give / take back the hosting permission. */

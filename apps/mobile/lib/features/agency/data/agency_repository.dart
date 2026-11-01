@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/api_call.dart';
 import 'package:kabso_live/core/network/network_providers.dart';
+import 'package:kabso_live/features/agency/data/hosting_application.dart';
 import 'package:kabso_live/features/posts/data/media_repository.dart'
     show storageDioProvider;
 import 'package:kabso_live/features/recharge/data/recharge_repository.dart'
@@ -564,6 +565,17 @@ abstract interface class AgencyRepository {
   /// v1.70-social (D206): `POST /me/agency/open` — the two pictures go up as
   /// D185 private uploads first.
   Future<MyAgency> open(AgencyOpenDraft draft);
+
+  /// v1.73-social (D209): `GET /me/hosting-application` — «كن مضيفاً مع
+  /// الإدارة». Null from an older server (404): the page does not offer it.
+  Future<MyHostingApplication?> hosting();
+
+  /// v1.73-social (D209): `POST /me/hosting-application` — the two pictures
+  /// go up as D185 private uploads first.
+  Future<MyHostingApplication> applyForHosting(HostingDraft draft);
+
+  /// v1.73-social (D209): `POST /me/hosting-application/cancel`.
+  Future<MyHostingApplication> cancelHosting();
 }
 
 class AgencyRepositoryImpl implements AgencyRepository {
@@ -604,6 +616,63 @@ class AgencyRepositoryImpl implements AgencyRepository {
       options: Options(headers: {'Idempotency-Key': d.idempotencyKey}),
     );
     return MyAgency.fromJson(res.data!);
+  });
+
+  @override
+  Future<MyHostingApplication?> hosting() => guardApiCall(() async {
+    try {
+      final res = await _dio.get<Map<String, dynamic>>(
+        '/me/hosting-application',
+      );
+      return MyHostingApplication.fromJson(res.data!);
+    } on DioException catch (e) {
+      // An older server has no such route: «كن مضيفاً مع الإدارة» is hidden.
+      if (e.response?.statusCode == 404) return null;
+      rethrow;
+    }
+  });
+
+  @override
+  Future<MyHostingApplication> applyForHosting(HostingDraft d) =>
+      guardApiCall(() async {
+        final idCard = await uploadPrivateImage(
+          _dio,
+          _storage,
+          d.idCard,
+          d.idCardType,
+          'RECHARGE_AGENT_PHOTO',
+        );
+        final selfie = await uploadPrivateImage(
+          _dio,
+          _storage,
+          d.selfie,
+          d.selfieType,
+          'RECHARGE_AGENT_SELFIE',
+        );
+        final res = await _dio.post<Map<String, dynamic>>(
+          '/me/hosting-application',
+          data: {
+            'displayName': d.displayName,
+            'country': d.country,
+            'dateOfBirth': d.dateOfBirthWire,
+            'contact': {'type': d.contactType.wire, 'value': d.contactValue},
+            'bio': d.bio,
+            if (d.links.isNotEmpty) 'links': d.links,
+            'acceptRules': true,
+            'photoUploadId': idCard,
+            'selfieUploadId': selfie,
+          },
+          options: Options(headers: {'Idempotency-Key': d.idempotencyKey}),
+        );
+        return MyHostingApplication.fromJson(res.data!);
+      });
+
+  @override
+  Future<MyHostingApplication> cancelHosting() => guardApiCall(() async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/me/hosting-application/cancel',
+    );
+    return MyHostingApplication.fromJson(res.data!);
   });
 
   @override

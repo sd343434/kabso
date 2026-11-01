@@ -2,6 +2,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { AuditAction } from '../../common/audit/audit.service.js';
 import { Prisma, type PrismaClient } from '../../generated/prisma/client.js';
 import { releaseUserIn } from '../live/live-seats.store.js';
+import { cancelPendingHostApplicationIn } from '../host-applications/host-applications.core.js';
 import { isValidUsername } from './username.js';
 
 /**
@@ -436,6 +437,18 @@ export async function purgeAccountIn(
        SET contact_value = NULL, bio = NULL, photo_key = NULL, selfie_key = NULL,
            purged_at = COALESCE(purged_at, ${at}::timestamptz)
      WHERE user_id = ${u}`;
+  // -- KYC: v1.73-social (D209) «كن مضيفاً مع الإدارة» — a pending application is cancelled; every application keeps
+  // its status, country and dates only.
+  await cancelPendingHostApplicationIn(tx, userId, 'ACCOUNT', now);
+  const hostKyc = await tx.hostApplication.findMany({
+    where: { userId },
+    select: { photoKey: true, selfieKey: true },
+  });
+  await tx.$executeRaw`
+    UPDATE host_applications
+       SET date_of_birth = NULL, contact_value = NULL, bio = NULL, links = '{}', photo_key = NULL,
+           selfie_key = NULL, purged_at = COALESCE(purged_at, ${at}::timestamptz)
+     WHERE user_id = ${u}`;
   // Withdrawals stay for accounting; the payout details keep only their last 4 characters (to match bank records).
   await tx.$executeRaw`
     UPDATE cherry_withdrawals
@@ -514,6 +527,7 @@ export async function purgeAccountIn(
     ...uploads.map((x) => x.object_key),
     ...kyc.flatMap((k) => [k.photoKey, k.selfieKey]).filter((k): k is string => k !== null),
     ...agencyKyc.flatMap((k) => [k.photoKey, k.selfieKey]).filter((k): k is string => k !== null),
+    ...hostKyc.flatMap((k) => [k.photoKey, k.selfieKey]).filter((k): k is string => k !== null),
     ...familyKeys,
     ...exports.flatMap((x) => (x.object_key ? [x.object_key] : [])),
   ].filter((k) => !holds.objectKeys.has(k)); // files under a legal hold stay until the hold ends

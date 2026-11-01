@@ -177,6 +177,8 @@ function visibleNotificationWhere(me: string): Prisma.NotificationWhereInput {
           ],
         },
       },
+      // v1.73-social (D209): the caller's application «كن مضيفاً مع الإدارة» was decided (system, no target).
+      { type: { in: ['HOST_APPLICATION_APPROVED', 'HOST_APPLICATION_REJECTED'] } },
       { type: 'POST_PUBLISHED', post: visiblePostWhere(me) },
       {
         type: { in: ACTOR_TYPES },

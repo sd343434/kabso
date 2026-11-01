@@ -203,6 +203,11 @@ abstract final class AppRoutes {
   /// `extra`: the `AgencyOpenRule` (its numbers), optional.
   static const agencyOpen = '/agency/open';
 
+  /// v1.73-social (D209): «كن مضيفاً مع الإدارة» — the application to host
+  /// directly with the Kabso Live team (ID check, 18+, the host rules).
+  /// `extra`: the minimum age (`int`), optional.
+  static const agencyHostApply = '/agency/host-apply';
+
   /// D185: recharge agents «وكيل الشحن»: the caller's page (apply, pending,
   /// the agent's dashboard or the employee's), the application, employees,
   /// the directory «وكلاء الشحن» and cherry sales between hosts and agents.

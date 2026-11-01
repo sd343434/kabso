@@ -184,6 +184,8 @@ export interface AppConfig {
     readonly rechargeOrderActionUser: RateLimitRule;
     /** v1.70-social (D206). */
     readonly agencyOpenUser: RateLimitRule;
+    /** v1.73-social (D209). */
+    readonly hostApplyUser: RateLimitRule;
     readonly topupCheckoutUser: RateLimitRule;
     /** v1.61-social (D192): `POST /waitlist`, per client IP. */
     readonly waitlistIp: RateLimitRule;
@@ -274,6 +276,9 @@ export interface AppConfig {
     readonly probationMinHosts: number;
     readonly probationReminderHours: number;
     readonly reopenCooldownDays: number;
+    /** v1.73-social (D209, §10.68): «كن مضيفاً مع الإدارة» — the minimum age and the wait after a rejection. */
+    readonly hostApplyMinAge: number;
+    readonly hostApplyReapplyDays: number;
     /** `rateCherries` cherries are paid `rateMinor` minor units of `currency`. */
     readonly rateCherries: number;
     readonly rateMinor: number;
@@ -623,6 +628,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       rechargeOrderUser: e.RATE_LIMIT_RECHARGE_ORDER_USER,
       rechargeOrderActionUser: e.RATE_LIMIT_RECHARGE_ORDER_ACTION_USER,
       agencyOpenUser: e.RATE_LIMIT_AGENCY_OPEN_USER,
+      hostApplyUser: e.RATE_LIMIT_HOST_APPLY_USER,
       topupCheckoutUser: e.RATE_LIMIT_TOPUP_CHECKOUT_USER,
       waitlistIp: e.RATE_LIMIT_WAITLIST_IP,
       liveHeartbeatUser: e.RATE_LIMIT_LIVE_HEARTBEAT_USER,
@@ -715,6 +721,8 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       probationMinHosts: e.AGENCY_PROBATION_MIN_HOSTS,
       probationReminderHours: e.AGENCY_PROBATION_REMINDER_HOURS,
       reopenCooldownDays: e.AGENCY_REOPEN_COOLDOWN_DAYS,
+      hostApplyMinAge: e.HOST_APPLICATION_MIN_AGE,
+      hostApplyReapplyDays: e.HOST_APPLICATION_REAPPLY_DAYS,
       rateCherries: e.CHERRY_PAYOUT_RATE.cherries,
       rateMinor: e.CHERRY_PAYOUT_RATE.minor,
       currency: e.CHERRY_PAYOUT_CURRENCY,

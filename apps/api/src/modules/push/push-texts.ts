@@ -142,6 +142,15 @@ export function notificationBody(n: NotificationText, locale: PushLocale): strin
       return ar
         ? 'أُغلقت الوكالة التي كنت فيها، وأصبحت حرًا للانضمام إلى وكالة أخرى'
         : 'Your agency was closed; you are free to join another agency';
+    // v1.73-social (D209, §10.68): «كن مضيفاً مع الإدارة» (the reason of a rejection is in the app, not the push).
+    case 'HOST_APPLICATION_APPROVED':
+      return ar
+        ? 'تمت الموافقة على طلبك: أنت الآن مضيف مع إدارة Kabso Live ويمكنك بدء البث'
+        : 'Your application was approved: you now host with the Kabso Live team and can go live';
+    case 'HOST_APPLICATION_REJECTED':
+      return ar
+        ? 'لم تتم الموافقة على طلبك لتكون مضيفاً مع الإدارة. افتح «الوكالة» لمعرفة السبب'
+        : 'Your application to host with the Kabso Live team was not approved. Open Agency to see why';
     case 'DATA_EXPORT_READY':
       // v1.66-social (D198): the push says only that it is ready (never what is inside).
       return ar ? 'نسخة بياناتك جاهزة للتنزيل' : 'Your data is ready to download';

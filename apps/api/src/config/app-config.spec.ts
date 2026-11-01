@@ -663,6 +663,9 @@ describe('loadConfig — v1.5-social media and posts (CONVENTIONS §11)', () => 
       probationMinHosts: 3,
       probationReminderHours: 24,
       reopenCooldownDays: 30,
+      // v1.73-social (D209): «كن مضيفاً مع الإدارة» — 18 or older, 30 days after a rejection.
+      hostApplyMinAge: 18,
+      hostApplyReapplyDays: 30,
       rateCherries: 1_000_000,
       rateMinor: 110,
       currency: 'USD',

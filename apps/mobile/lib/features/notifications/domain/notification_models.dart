@@ -85,6 +85,11 @@ enum NotificationType {
   agencyProbationPassed('AGENCY_PROBATION_PASSED'),
   agencyClosed('AGENCY_CLOSED'),
   agencyHostReleased('AGENCY_HOST_RELEASED'),
+
+  /// v1.73-social (D209, system, no target): «كن مضيفاً مع الإدارة» — the
+  /// team approved / rejected the application. Both open «الوكالة».
+  hostApplicationApproved('HOST_APPLICATION_APPROVED'),
+  hostApplicationRejected('HOST_APPLICATION_REJECTED'),
   unknown('');
 
   new(this.wire);
@@ -106,7 +111,12 @@ enum NotificationType {
       this == avatarRemoved ||
       this == dataExportReady ||
       this == rechargeOrderUpdate ||
-      isAgency;
+      isAgency ||
+      isHostApplication;
+
+  /// v1.73-social (D209): the decision on «كن مضيفاً مع الإدارة».
+  bool get isHostApplication =>
+      this == hostApplicationApproved || this == hostApplicationRejected;
 
   /// v1.70-social (D206): one of the agency's system notifications.
   bool get isAgency =>

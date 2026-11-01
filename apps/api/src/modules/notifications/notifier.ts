@@ -51,6 +51,9 @@ export const SYSTEM_TYPES: readonly NotificationType[] = [
   'ACCOUNT_RESTRICTION_LIFTED',
   'BALANCE_ADJUSTED',
   'PROFILE_EDITED_BY_TEAM',
+  // v1.73-social (D209): «كن مضيفاً مع الإدارة» — the team approved / rejected the application (no target).
+  'HOST_APPLICATION_APPROVED',
+  'HOST_APPLICATION_REJECTED',
 ];
 
 /** Types that join one unread row per target (owner, D92). */
@@ -195,7 +198,9 @@ export class Notifier {
         | 'MODERATION_WARNING'
         | 'DATA_EXPORT_READY'
         // v1.72-social (D208): the team edited the profile (no target).
-        | 'PROFILE_EDITED_BY_TEAM';
+        | 'PROFILE_EDITED_BY_TEAM'
+        | 'HOST_APPLICATION_APPROVED'
+        | 'HOST_APPLICATION_REJECTED';
       recipientId: string;
     } & NotificationTargetRef,
   ): Promise<void> {

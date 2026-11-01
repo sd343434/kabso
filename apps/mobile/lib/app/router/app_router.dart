@@ -12,6 +12,7 @@ import 'package:kabso_live/features/agency/data/agency_repository.dart'
     show AgencyOpenRule;
 import 'package:kabso_live/features/agency/presentation/agency_open_screen.dart';
 import 'package:kabso_live/features/agency/presentation/agency_screen.dart';
+import 'package:kabso_live/features/agency/presentation/host_apply_screen.dart';
 import 'package:kabso_live/features/auth/presentation/forgot_password_screen.dart';
 import 'package:kabso_live/features/auth/presentation/join_screen.dart';
 import 'package:kabso_live/features/auth/presentation/login_screen.dart';
@@ -440,6 +441,14 @@ final routerProvider = Provider<GoRouter>((ref) {
             requiredHosts: rule.requiredHosts,
           ),
           _ => const AgencyOpenScreen(),
+        },
+      ),
+      // v1.73-social (D209): «كن مضيفاً مع الإدارة».
+      GoRoute(
+        path: AppRoutes.agencyHostApply,
+        builder: (_, state) => switch (state.extra) {
+          final int minAge => HostApplyScreen(minAge: minAge),
+          _ => const HostApplyScreen(),
         },
       ),
       // D185: recharge agents.

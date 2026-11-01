@@ -593,6 +593,8 @@ export const envSchema = z
     RATE_LIMIT_RECHARGE_ORDER_ACTION_USER: rateLimit('600/3600'),
     /** v1.70-social (D206): «افتح وكالة» attempts per user (also refused ones). */
     RATE_LIMIT_AGENCY_OPEN_USER: rateLimit('5/86400'),
+    /** v1.73-social (D209): «كن مضيفاً مع الإدارة» submissions per user (also refused ones). */
+    RATE_LIMIT_HOST_APPLY_USER: rateLimit('5/86400'),
     /** v1.59-social (D190, §10.53): card top-up checkouts started, per user. */
     RATE_LIMIT_TOPUP_CHECKOUT_USER: rateLimit('20/3600'),
     /** v1.61-social (D192, §10.55): the website's waitlist sign-ups, per client IP (no account). */
@@ -1001,6 +1003,12 @@ export const envSchema = z
     AGENCY_PROBATION_MIN_HOSTS: intSetting(3, 1, 1000),
     AGENCY_PROBATION_REMINDER_HOURS: intSetting(24, 1, 720),
     AGENCY_REOPEN_COOLDOWN_DAYS: intSetting(30, 0, 365),
+    /**
+     * v1.73-social (D209, §10.68): «كن مضيفاً مع الإدارة» — the applicant's minimum age on the day they apply (the
+     * site's minimum, 18; never lower), and the days after a rejection before they may apply again (0 = at once).
+     */
+    HOST_APPLICATION_MIN_AGE: intSetting(18, 18, 120),
+    HOST_APPLICATION_REAPPLY_DAYS: intSetting(30, 0, 365),
     /**
      * D179: withdrawals (paid by hand, no provider yet): CHERRY_PAYOUT_RATE = `cherries:minor` (owner:
      * 1 000 000 cherries = $1.10 → `1000000:110`), the currency, the smallest request in minor units

@@ -87,6 +87,7 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
     ErrorCode.agencyJoinNotAllowed => l10n.errorAgencyJoinNotAllowed,
     ErrorCode.agencyLeaveWindowClosed => l10n.errorAgencyLeaveWindowClosed,
     ErrorCode.agencyOpenNotAllowed => l10n.errorAgencyOpenNotAllowed,
+    ErrorCode.hostApplicationNotAllowed => l10n.errorHostApplicationNotAllowed,
     ErrorCode.insufficientCherries => l10n.errorInsufficientCherries,
     ErrorCode.withdrawalPending => l10n.errorWithdrawalPending,
     ErrorCode.rechargeApplicationNotAllowed =>

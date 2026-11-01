@@ -68,6 +68,10 @@ class PushPayload {
     if (type == 'RECHARGE_CHERRY_REQUEST') return AppRoutes.rechargeCherries;
     // D206: «افتح وكالة» — every agency notification opens «الوكالة».
     if (type is String && type.startsWith('AGENCY_')) return AppRoutes.agency;
+    // D209: «كن مضيفاً مع الإدارة» decided.
+    if (type is String && type.startsWith('HOST_APPLICATION_')) {
+      return AppRoutes.agency;
+    }
     if (id == null || id.isEmpty) return null;
     // D204: a recharge order's chat.
     if (targetType == 'RECHARGE_ORDER') return AppRoutes.rechargeOrder(id);

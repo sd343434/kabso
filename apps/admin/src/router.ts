@@ -27,6 +27,9 @@ export const ROUTES: readonly { name: string; pattern: string }[] = [
   { name: 'complaints', pattern: '/agency-complaints' },
   { name: 'lives', pattern: '/lives' },
   { name: 'hosts', pattern: '/live-hosts' },
+  // v1.73-social (D209): «طلبات المضيفين».
+  { name: 'hostApplications', pattern: '/host-applications' },
+  { name: 'hostApplication', pattern: '/host-applications/:id' },
   { name: 'gifts', pattern: '/gifts' },
   { name: 'giftCategories', pattern: '/gift-categories' },
   { name: 'items', pattern: '/items' },

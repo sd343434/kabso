@@ -224,6 +224,9 @@ model User {
   ownedAgency            Agency?
   /// v1.70-social (D206): the person's applications «افتح وكالة».
   agencyApplications     AgencyApplication[]
+  /// v1.73-social (D209): the person's applications «كن مضيفاً مع الإدارة», and those a team member decided.
+  hostApplications       HostApplication[]          @relation("HostApplicant")
+  hostAppsDecided        HostApplication[]          @relation("HostApplicationDecider")
   agencyLinks            AgencyHost[]
   cherryWithdrawals      CherryWithdrawal[]
   // v1.54-social (D185): recharge agents.
@@ -515,6 +518,8 @@ model LiveCategory {
 
 /// A live room is metadata plus a host heartbeat (no media in v1.3, B1).
 /// CP-010: where a hosting permission came from (owner D93: agencies and identity checks in L1b).
+/// v1.73-social (D209, §10.68): `IDENTITY` is the permission given by approving an application «كن مضيفاً مع
+/// الإدارة» (the person's ID card and selfie checked by the team): a host directly with Kabso, in no agency.
 enum LiveHostSource {
   ADMIN
   AGENCY
@@ -2045,6 +2050,10 @@ enum NotificationType {
   ACCOUNT_RESTRICTION_LIFTED
   BALANCE_ADJUSTED
   PROFILE_EDITED_BY_TEAM
+  /// v1.73-social (D209, system): the caller's application «كن مضيفاً مع الإدارة» was approved (they may go live).
+  HOST_APPLICATION_APPROVED
+  /// v1.73-social (D209, system): the application was rejected (the reason is in `getMyHostingApplication`).
+  HOST_APPLICATION_REJECTED
 
   @@map("notification_type")
 }
@@ -5296,4 +5305,52 @@ model AdminBalanceAdjustment {
   @@index([actorUserId, createdAt], map: "admin_balance_adjustments_actor_idx")
   @@index([userId, createdAt(sort: Desc)], map: "admin_balance_adjustments_user_idx")
   @@map("admin_balance_adjustments")
+}
+
+/// v1.73-social (D209, §10.68): the state of an application «كن مضيفاً مع الإدارة».
+enum HostApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+
+  @@map("host_application_status")
+}
+
+/// v1.73-social (D209, §10.68): an application to host directly with the Kabso team (no agency). PRIVATE: the
+/// date of birth, the contact, the bio, the links and the two pictures (the D185 private uploads) are read only in
+/// the panel, every view audited. At most one PENDING per user (partial unique `host_applications_one_pending`);
+/// `(user, clientKey)` once: the `Idempotency-Key`. Approving gives the `live_hosts` row with source IDENTITY.
+model HostApplication {
+  id              String                @id @default(uuid(7)) @db.Uuid
+  userId          String                @map("user_id") @db.Uuid
+  status          HostApplicationStatus @default(PENDING)
+  clientKey       String                @map("client_key") @db.Uuid
+  requestHash     String                @map("request_hash") @db.Char(64)
+  displayName     String                @map("display_name") @db.VarChar(100)
+  country         String                @db.Char(2)
+  dateOfBirth     DateTime?             @map("date_of_birth") @db.Date
+  contactType     String                @map("contact_type") @db.VarChar(16)
+  contactValue    String?               @map("contact_value") @db.VarChar(100)
+  bio             String?               @db.VarChar(300)
+  links           String[]              @default([]) @db.VarChar(200)
+  photoKey        String?               @map("photo_key") @db.VarChar(256)
+  selfieKey       String?               @map("selfie_key") @db.VarChar(256)
+  rulesAcceptedAt DateTime              @map("rules_accepted_at") @db.Timestamptz(3)
+  createdAt       DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  decidedAt       DateTime?             @map("decided_at") @db.Timestamptz(3)
+  decidedById     String?               @map("decided_by_id") @db.Uuid
+  rejectReason    String?               @map("reject_reason") @db.VarChar(500)
+  /// CANCELLED only: `USER` (the person), `AGENCY` (they joined or opened an agency), `ACCOUNT` (deletion).
+  cancelReason    String?               @map("cancel_reason") @db.VarChar(16)
+  purgedAt        DateTime?             @map("purged_at") @db.Timestamptz(3)
+
+  user      User  @relation("HostApplicant", fields: [userId], references: [id], onDelete: Cascade)
+  decidedBy User? @relation("HostApplicationDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@unique([userId, clientKey], map: "host_applications_client_once")
+  @@index([userId, createdAt(sort: Desc)], map: "host_applications_user_idx")
+  @@index([status, createdAt(sort: Desc)], map: "host_applications_status_idx")
+  @@index([decidedById], map: "host_applications_decided_by_idx")
+  @@map("host_applications")
 }

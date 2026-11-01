@@ -7,6 +7,7 @@ import { Cards, Report, AgentTopups } from './pages/Finance';
 import { Gifts, Items, Promo } from './pages/Catalog';
 import { GiftCategories } from './pages/GiftCategories';
 import { Hosts, Lives } from './pages/Lives';
+import { HostApplicationDetail, HostApplications } from './pages/HostApplications';
 import { AgencyDetail, Agencies, Complaints } from './pages/Agencies';
 import { CAP_OF_ROUTE } from './nav';
 import { Audit } from './pages/Audit';
@@ -178,6 +179,12 @@ export function App() {
           break;
         case 'hosts':
           page = <Hosts />;
+          break;
+        case 'hostApplications':
+          page = <HostApplications />;
+          break;
+        case 'hostApplication':
+          page = <HostApplicationDetail id={match.params.id!} />;
           break;
         case 'gifts':
           page = <Gifts />;

@@ -31,6 +31,8 @@ import { AdminTeamService } from './admin-team.service.js';
 import { AdminV2Controller } from './admin-v2.controller.js';
 import { AdminControlController } from './admin-control.controller.js';
 import { AdminControlService } from './admin-control.service.js';
+import { AdminHostApplicationsController } from './admin-host-applications.controller.js';
+import { AdminHostApplicationsService } from './admin-host-applications.service.js';
 
 /**
  * v1.60-social (D191, CONVENTIONS §10.54): the admin panel «لوحة الإدارة» API behind its own cookie session with a
@@ -63,6 +65,8 @@ import { AdminControlService } from './admin-control.service.js';
     AdminRechargeOrdersController,
     // v1.72-social (D208, §10.67): the account controls.
     AdminControlController,
+    // v1.73-social (D209, §10.68): «طلبات المضيفين».
+    AdminHostApplicationsController,
   ],
   providers: [
     AdminAuthService,
@@ -80,6 +84,7 @@ import { AdminControlService } from './admin-control.service.js';
     AdminProgramsService,
     AdminOrdersService,
     AdminControlService,
+    AdminHostApplicationsService,
   ],
   exports: [AdminAuthService, AdminSessionGuard],
 })

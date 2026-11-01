@@ -284,7 +284,10 @@ class NotificationRow extends StatelessWidget {
       return AppRoutes.dataExport;
     }
     // D206: every agency notification → «الوكالة».
-    if (item.type.isAgency) return AppRoutes.agency;
+    // D209: «كن مضيفاً مع الإدارة» decided → «الوكالة» (the state, the reason).
+    if (item.type.isAgency || item.type.isHostApplication) {
+      return AppRoutes.agency;
+    }
     // D185: coins from an agent → the wallet; a cherry sale to confirm →
     // the cherry requests.
     if (item.type == NotificationType.rechargeCoinsReceived) {
@@ -426,6 +429,8 @@ class NotificationRow extends StatelessWidget {
         null => l10n.notifAgencyClosedAdmin,
       },
       NotificationType.agencyHostReleased => l10n.notifAgencyHostReleased,
+      NotificationType.hostApplicationApproved => l10n.notifHostApproved,
+      NotificationType.hostApplicationRejected => l10n.notifHostRejected,
       NotificationType.unknown => '',
     };
     return (text, item.type.isSystem ? null : who, name);
@@ -529,6 +534,8 @@ class NotificationRow extends StatelessWidget {
                   ? Icons.gpp_maybe_outlined
                   : item.type.isAgency
                   ? Icons.business_center_rounded
+                  : item.type.isHostApplication
+                  ? Icons.verified_user_rounded
                   : item.type.isSystem &&
                         item.type != NotificationType.postPublished
                   ? Icons.workspace_premium_rounded
