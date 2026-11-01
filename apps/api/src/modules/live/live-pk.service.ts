@@ -493,13 +493,15 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Whether a room or its host is busy: a BATTLE / RESULT match, an open invitation either way (an
-   * expired one is closed here first) or the host in the random queue. Under the rooms' PK locks.
+   * expired one is closed here first) or the host in the random queue — not with `ignoreQueue`
+   * (v1.48-live, D215: an invited host may be waiting there). Under the rooms' PK locks.
    */
   private async busyIn(
     tx: Prisma.TransactionClient,
     roomId: string,
     hostId: string,
     now: Date,
+    opts: { ignoreQueue?: boolean } = {},
   ): Promise<boolean> {
     await tx.$executeRaw`
       UPDATE pk_invites SET status = 'EXPIRED', handled_at = expires_at
@@ -510,7 +512,8 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
                         AND (room_a_id = ${roomId}::uuid OR room_b_id = ${roomId}::uuid))
           OR EXISTS (SELECT 1 FROM pk_invites WHERE status = 'PENDING'
                         AND (from_room_id = ${roomId}::uuid OR to_room_id = ${roomId}::uuid))
-          OR EXISTS (SELECT 1 FROM pk_queue WHERE host_id = ${hostId}::uuid AND expires_at > ${iso(now)}::timestamptz)
+          OR (NOT ${opts.ignoreQueue === true}
+              AND EXISTS (SELECT 1 FROM pk_queue WHERE host_id = ${hostId}::uuid AND expires_at > ${iso(now)}::timestamptz))
           AS busy`;
     return row?.busy ?? false;
   }
@@ -747,9 +750,12 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * `GET /live/rooms/{roomId}/pk/candidates`: hosts live now whom the caller (this room's host) may
-   * invite — SOLO video lives with a fresh heartbeat, present, invitations on, not busy, no block
-   * either way. `q` matches the start of the username or any part of the display name; without it,
-   * the busiest lives first (suggestions).
+   * invite — SOLO video lives with a fresh heartbeat, present, invitations on, not in a PK or an open
+   * invitation, no block either way. `q` matches the start of the username or any part of the
+   * display name; without it, the busiest lives first (suggestions). v1.48-live (D215): a host
+   * waiting in the random queue (or kept there by Auto Match) is idle and is listed — before, a
+   * friend who had tapped «مطابقة عشوائية» vanished from «الأصدقاء» and only the random match
+   * found them.
    */
   async candidates(callerId: string, roomId: string, query: unknown): Promise<{ data: PkCandidateDto[] }> {
     this.assertPkOn();
@@ -779,8 +785,6 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
          AND NOT EXISTS (SELECT 1 FROM pk_invites i WHERE i.status = 'PENDING'
                           AND i.expires_at > ${iso(now)}::timestamptz
                           AND (i.from_room_id = r.id OR i.to_room_id = r.id))
-         AND NOT EXISTS (SELECT 1 FROM pk_queue w WHERE w.host_id = r.host_user_id
-                          AND w.expires_at > ${iso(now)}::timestamptz)
          AND (${q} = '' OR lower(p.username) LIKE ${q} || '%' OR lower(p.display_name) LIKE '%' || ${q} || '%')
          AND (${q} <> '' OR ${friends} OR COALESCE(s.recommendable, true))
          AND (NOT ${friends} OR (
@@ -845,9 +849,11 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
     const id = uuidv7();
     await this.prisma.$transaction(async (tx) => {
       await this.lockRooms(tx, [own.id, targetRow.id]);
+      // v1.48-live (D215): the invited host may be waiting in the random queue (the invitation
+      // keeps them out of random matches while it is open; accepted, both waits end).
       if (
         (await this.busyIn(tx, own.id, callerId, now)) ||
-        (await this.busyIn(tx, targetRow.id, targetRow.host_user_id, now))
+        (await this.busyIn(tx, targetRow.id, targetRow.host_user_id, now, { ignoreQueue: true }))
       ) {
         throw new AppException(ErrorCode.PK_HOST_BUSY);
       }

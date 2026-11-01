@@ -180,7 +180,7 @@ All non-2xx responses use one envelope:
 | 429 | `DATA_EXPORT_LIMIT` | *(v1.66-social, DRAFT, D198)* `requestDataExport` within 24 hours of the last export (FAILED ones excepted); `Retry-After` and `details: [{field: "nextAllowedAt", issue: <ISO time>}]`. Audited. |
 | 410 | `DATA_EXPORT_LINK_INVALID` | *(v1.66-social, DRAFT, D198)* `createDataExportLink` / `downloadDataExport` for an export that is not the caller's, not READY, already downloaded, expired, or with a wrong token. Audited. |
 | 409 | `PK_UNAVAILABLE` | *(v1.43-live, DRAFT, D195)* The room cannot take part in a PK now (not a LIVE SOLO video live of the caller, the host away, or PK switched off). §10.58. |
-| 409 | `PK_HOST_BUSY` | *(v1.43-live, DRAFT, D195)* The caller or the other host is already in a PK, an open invitation or the random queue. §10.58. |
+| 409 | `PK_HOST_BUSY` | *(v1.43-live, DRAFT, D195)* The caller or the other host is already in a PK, an open invitation or the random queue (v1.48-live, D215: the invited host's random wait no longer counts). §10.58, §10.70. |
 | 409 | `PK_INVITES_OFF` | *(v1.43-live, DRAFT, D195)* The invited host switched PK invitations off. §10.58. |
 | 409 | `PK_INVITE_COOLDOWN` | *(v1.43-live, DRAFT, D195)* An invitation sooner than PK_INVITE_COOLDOWN_SECONDS after the previous one (Retry-After). §10.58. |
 | 409 | `PK_INVITE_CLOSED` | *(v1.43-live, DRAFT, D195)* The invitation was answered, cancelled or expired. §10.58. |
@@ -636,6 +636,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.49-social (draft) | 2026-10-30 | **D172 (owner: the Creator Center «مركز صنّاع المحتوى» in the layout of the owner's reference, whose stats card shows «بيانات أكتوبر» — the current month):** `getMyCreatorStats` takes `period=THIS_MONTH` — the current calendar month so far, from the 1st at 00:00 in `LIVE_RANKINGS_TIME_ZONE` (the region's zone, as the families' month, §10.21) until now; `CreatorStats.month` (`YYYY-MM` for `THIS_MONTH`, else null; required in responses). No migration. §10.40. | **Additive** (an enum value the app sends only when it knows it, and a response field older apps ignore). |
 | v1.48-social (draft) | 2026-10-29 | **D171 (owner: «الحقيبة تعرض العنصر الذي تم شراؤه أو استلامه كهدية … ارتداء / إزالة … إرسال … الوقت المتبقي»; amendment «يمكن أن تجزّئ المدة»):** `BagItem` gains `expiresAt` (null = permanent), `giftedBy` (`UserSummary` or null) and `transferable` (all **required** in responses); `BagItemSource` gains `GIFT`; `getMyBag` never lists expired items; new `sendMyBagItem` (`POST /me/bag/transfers`, `SendBagItemRequest {code, username, days?}`, 201 `BagTransfer`): the whole item or `days` of its remaining time to another user, stacking on the recipient's copy; codes `BAG_ITEM_NOT_TRANSFERABLE`, `BAG_SEND_PERMANENT_WHOLE_ONLY`, `BAG_SEND_EXCEEDS_REMAINING`, `BAG_RECIPIENT_HAS_PERMANENT` (409); notification type `BAG_ITEM_RECEIVED` (target `BAG_ITEM`, `NotificationTarget.bagCategory`). `bag-admin grant <email> <code> [<days>|forever]`. Migrations `20261216090000_bag_expiry_send_enums`, `20261216100000_bag_expiry_send`. Version number: v1.39–v1.47 are taken (live and social share one sequence), so this is v1.48-social. §4, §7, §8, §10.22, §10.45, §11.10. | **Additive** (an operation, codes, enum values clients treat as unknown-safe, required response fields strict clients add in the same change set). `GET /bag/catalogue` is unchanged (the app no longer shows items the user does not own). |
 | v1.47-social (draft) | 2026-10-30 | **D175 (owner, Arabic, answering D168's questions a–g; CP-025; v1.46-social left free for another branch):** profile fields, private accounts and follow requests. `Gender` (`MALE`, `FEMALE`, `UNDISCLOSED`) is **required** by `register` (`RegisterRequest.gender`) and editable with `updateMe` together with `showGender` (default false), `category` (`AccountCategory`: 11 values) and `links` (0–3 `ProfileLinkInput`, https only, normalised); `Me` gains `gender`, `showGender`, `category`, `links`; `PublicProfile` gains `gender` (only when shown), `category`, `links` (`ProfileLink` with `ProfileLinkPlatform`) and `followRequested`; `FollowState.isRequested`; `FollowListItem.requestedByMe`; `PrivacySettings.isPrivate` / `UpdatePrivacyRequest.isPrivate` (switching to public accepts every pending request); a new follow of a private account is a **follow request** (was 403); `listFollowRequests` (`GET /me/follow-requests`, `FollowRequestPage`, `FollowRequest`), `acceptFollowRequest` / `declineFollowRequest` (`POST /me/follow-requests/{username}/accept` → `FollowRequestAccepted`, `…/decline` → 204); `NotificationType` `FOLLOW_REQUEST`, `FOLLOW_REQUEST_ACCEPTED`, `AVATAR_REMOVED`; report `targetType: PROFILE_LINK` (`Report.linkSnapshot`, `ProfileLinkSnapshot`); code `FOLLOW_REQUEST_NOT_PENDING` (409); server config `RATE_LIMIT_FOLLOW_REQUEST_ANSWER_USER`; CLI `profile-admin remove-avatar`; audit `user.privacy.private`, `admin.avatar.remove`; migrations `20261215090000_profile_fields_enums`, `20261215100000_profile_fields_private_accounts`. §4, §7, §10.5, §10.6, §10.42, §10.47, §11.7, §11.10. | **Breaking for registration** (`gender` is required: an app without the gender step gets 400 `gender` / `required`; app and API ship together). **Behaviour change** for a new follow of a private account (200 with `isRequested: true` instead of 403; no app could make an account private before). Otherwise **additive** (new required response fields: strict clients update their models in the same change set; clients ignore unknown notification types and treat an unknown `ProfileLinkPlatform` as `OTHER`). |
+| v1.48-live (draft) | 2026-11-01 | **D215 (owner, two Android phones on staging: «لا يظهر صديق في بيكيه فقط بالعشوائي»):** a host waiting in the PK random queue (tapped «مطابقة عشوائية», or kept there by Auto Match) is idle, not busy, for others: `listLivePkCandidates` (suggestions, search and `friends=true`) lists them, and `inviteLivePk` may invite them (no 409 `PK_HOST_BUSY` for that wait). While the invitation is open they are not random-matched; accepted, both hosts' waits end (as for any match); declined, cancelled or expired, they keep waiting. The caller's own wait still makes the caller busy (409 `PK_HOST_BUSY`). No shape change. §10.58, §10.70. | Behavioural, compatible: older apps simply see more hosts; an invitation reaches a waiting host's app as any other (`pk-invite`). |
 | v1.45-live (draft) | 2026-10-31 | **D201 (owner: «كاميرتان», «موسيقى», «التسجيل» — make the Room Tools real):** a host's **second camera** (a second device of the same account, media identity `cam2:<hostUserId>`, paired with a 6-digit single-use code) — `getLiveSecondCamera`, `createLiveSecondCameraCode`, `redeemLiveSecondCameraCode`, `setLiveSecondCameraMain`, `endLiveSecondCamera`; the **recording** indicator `setLiveRecording`; the one-time **music-rights** notice `getMyLiveMusicRights` / `acceptMyLiveMusicRights`; codes `SECOND_CAMERA_CODE_INVALID` (422), `SECOND_CAMERA_UNAVAILABLE`, `SECOND_CAMERA_BUSY` (409); participant attributes `kabso.mainFeed`, `kabso.recordingUntil`; config `LIVE_SECOND_CAMERA_CODE_SECONDS` (120), `RATE_LIMIT_LIVE_SECOND_CAMERA_CODE_USER` / `…_REDEEM_USER` (10/600), `RATE_LIMIT_LIVE_TOOLS_USER` (120/600); migration `20270120090000_live_tools`. §4, §7, §10.63. | Additive; older apps never see a `cam2:` participant's video (they render the host's identity only) and show no recording indicator. |
 | v1.44-live (draft) | 2026-10-31 | **D199 (owner: the host's video live after ten reference screenshots — PK Setting, best of three, auto-start, auto match):** `getMyLivePk` / `setMyLivePk` (`MyLivePk`: single round or best of three — `PkMatch.round` / `rounds`, `PkSideState.roundsWon` / `totalScore`, the `round` event — round time 3 / 5 / 10 min, auto-start (off: `CONNECTED` until `startLivePk`; `CANCELLED` when it never starts), random-queue gender and region preferences, Auto Match, being suggested, the «effective PK» threshold `PkMatch.effective` / `PkHistoryItem.effective`; differing settings → one host's at random, `settingsFromRoomId`); `listLivePkCandidates?friends=true`; `LiveRoomStats.giftGivers`; the host's «تارجت» (`getLiveHostTargets`, `getMyHostGiftStats`) and the daily task «استقبل هدايا الحظ» (metric `HOST_LUCKY_COINS`). *D199b amendment (additive):* the «تارجت» sheet as a ranking — up to 20 supporters per list, `HostSupporter.cherries` / `supportLevel`, today's lucky list, the end of the day and the caller's own place (`me`). §10.62. *(Row added at integration, kl-int6: D199 had no row.)* |
 | v1.43-live (draft) | 2026-10-31 | **D195 (owner «فعّل PK ثنائي ولا تنسَ التربل والدبل», CP-038):** PK 1 v 1 between two SOLO video lives — `getLivePk`, `listLivePkCandidates`, `inviteLivePk`, `cancelLivePkInvite`, `acceptLivePkInvite`, `declineLivePkInvite`, `joinLivePkRandom`, `leaveLivePkRandom`, `endLivePk`, `muteLivePkOpponent`, `createLivePkMediaToken`, `getLivePkHost`, `getMyLivePk` / `setMyLivePk`; `Gift.pkBooster` (required, nullable) and `PkBoosterKind`; codes `PK_UNAVAILABLE`, `PK_HOST_BUSY`, `PK_INVITES_OFF`, `PK_INVITE_COOLDOWN`, `PK_INVITE_CLOSED`, `PK_NOT_ACTIVE`, `PK_BOOSTER_UNAVAILABLE` (409); data topic `pk`; config `PK_*`, `RATE_LIMIT_LIVE_PK_INVITE_USER` (30/600), `RATE_LIMIT_LIVE_PK_ACTION_USER` (300/600); migration `20270110090000_live_pk`; CLI `pk-admin`, `gift-admin --pk-booster` / `pk-boosters-seed`. §4, §7, §8, §10.58. | Additive; older apps show booster gifts as ordinary gifts (409 outside a PK) and see a PK room as a solo live. |
@@ -4077,14 +4078,16 @@ below is an **owner-confirmable default** (server config; D195 lists them).
   (default true) switches new PKs and booster gifts off (409 `PK_UNAVAILABLE` / `PK_BOOSTER_UNAVAILABLE`).
   Room mode stays `SOLO` during a PK (the hub is unchanged in v1.43-live).
 - **Starting.** (a) **Invite** (`inviteLivePk`): a host picks another live host (`listLivePkCandidates`:
-  eligible, invitations on, not busy, no block either way; `q` searches, otherwise the busiest lives). The
+  eligible, invitations on, not busy — v1.48-live (§10.70): a host waiting in the random queue is listed and
+  may be invited — no block either way; `q` searches, otherwise the busiest lives). The
   invitation is open **`PK_INVITE_TTL_SECONDS` = 15**; the invited host accepts or declines; the inviter
   may cancel; **`PK_INVITE_COOLDOWN_SECONDS` = 10** between two invitations of a host (409
   `PK_INVITE_COOLDOWN`, `Retry-After`); rate limit 30 / 10 min. A host may switch invitations off
   (`setMyLivePk`, default on). (b) **Random** «مطابقة عشوائية» (`joinLivePkRandom`): one serialized queue;
   the host who waited longest with an eligible room and no block either way is paired at once, otherwise
   the caller waits **`PK_RANDOM_WAIT_SECONDS` = 60**. "Busy" (409 `PK_HOST_BUSY`): a BATTLE / RESULT match,
-  an open invitation either way, or the random queue. Blocked hosts (either way) are never listed, invited
+  an open invitation either way, or the random queue (the caller's own wait; since v1.48-live not the invited
+  host's, §10.70). Blocked hosts (either way) are never listed, invited
   (404) or paired.
 - **The match** (`PkMatch`): `BATTLE` for **`PK_BATTLE_SECONDS` = 300**, then `RESULT` for
   **`PK_RESULT_SECONDS` = 60** (the win / lose / draw animation and the top three supporters per side),
@@ -4421,8 +4424,10 @@ Owner «طبق تصميم 100%» (the PK sheet's gear → «PK Setting»). Exten
 - **Auto Match.** Every PK tick: hosts with `autoMatch` on whose SOLO video live is eligible (§10.58) and idle — no
   open match, no open invitation, not waiting, no PK of theirs closed in the last `PK_AUTO_MATCH_REST_SECONDS` (30)
   — join the random queue as with «مطابقة عشوائية». Turning it off leaves the queue.
-- **Friends.** `listLivePkCandidates?friends=true`: only mutual follows (each follows the other).
-  `recommendable` off hides a host from the suggestions (no `q`, no `friends`), not from a search.
+- **Friends.** `listLivePkCandidates?friends=true`: only mutual follows (each follows the other: two `follows`
+  rows; a pending follow request to a private account is not a follow). `recommendable` off hides a host from
+  the suggestions (no `q`, no `friends`), not from a search. v1.48-live (§10.70): a friend waiting in the random
+  queue is listed too.
 - **Data Center** (`LiveRoomStats.giftGivers`): different people other than the host who sent a gift in the live.
   The app's live-data page reads `getLiveRoomStats` for the running live: «وقت البث» `durationSeconds`, «المشاهدون»
   **unique viewers** (`viewers.unique`; the peak is shown under it), «كرز جديد» `score.total` (the live's
@@ -4491,6 +4496,29 @@ Owner: the D199 Room Tools «كاميرتان», «موسيقى» and «التس
   `setLiveRecording` `{active: true}`: the host's participant attribute `kabso.recordingUntil` = now + 61 s, so
   every viewer shows «يتم التسجيل» until then or until `{active: false}` removes it. Audited `live.recording.start` /
   `.stop`. An AUDIO room → 400.
+
+### 10.70 PK friends who are waiting for a random match *(v1.48-live, DRAFT — D215)*
+
+Owner, two Android phones on staging, both live and following each other: «لا يظهر صديق في بيكيه فقط بالعشوائي»
+— the PK sheet's «الأصدقاء» did not show the other host; only «مطابقة عشوائية» found them. Reproduced end to end
+(`d215-pk-friends`): two mutual followers, both live with fresh heartbeats, are each other's friend while idle;
+once one of them waits in the random queue (they tapped «مطابقة عشوائية» first, or Auto Match keeps them
+there), v1.43-live left them out of every candidate list and refused an invitation (409 `PK_HOST_BUSY`) — so
+the other phone saw «لا يوجد أصدقاء» and the random match, which pairs exactly those two, was the only way.
+
+- **Who is listed.** `listLivePkCandidates` (suggestions, `q`, `friends=true`) no longer leaves out a host
+  because they wait in the random queue. Every other rule of §10.58 / §10.62 holds (eligible, invitations on,
+  no open PK or invitation either way, no block; `recommendable`; friends = mutual follows).
+- **Inviting a waiting host.** `inviteLivePk` checks the invited host as busy only for an open match or an open
+  invitation. While the invitation is open the waiting host is not paired at random (as before: an open
+  invitation makes a queued room busy for the matcher). Accepted → the battle starts and both hosts' waits are
+  deleted (any match does that); declined, cancelled or expired → the waiting host keeps their wait until it
+  expires (`PK_RANDOM_WAIT_SECONDS`).
+- **Unchanged.** The caller's own wait still makes the caller busy: a host waiting for a random match cannot
+  send an invitation (409 `PK_HOST_BUSY`; the app shows «جارٍ البحث…» with «إيقاف» instead of the list).
+- **The app.** The sheet's list reloads every 10 s while it shows (and on pull), so a friend who goes live or
+  becomes free appears without reopening it; a failed load is shown with «إعادة المحاولة» (never as «لا يوجد
+  أصدقاء») and logged.
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 
