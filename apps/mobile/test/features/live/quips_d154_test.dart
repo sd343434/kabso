@@ -336,7 +336,8 @@ void main() {
           .read(liveQuipsProvider('room-0').notifier)
           .receive(_quip('a'));
       await tester.pump(const Duration(milliseconds: 10));
-      expect(find.text('😍 إيه الجمال ده! تحفة بجد!'), findsOneWidget);
+      // D216: the words, with Kabi's art beside them.
+      expect(find.text('إيه الجمال ده! تحفة بجد!'), findsOneWidget);
       await tester.tap(find.byKey(LiveQuipBubble.muteKey));
       await tester.pump();
       expect(h.container.read(quipsMutedProvider), isTrue);
