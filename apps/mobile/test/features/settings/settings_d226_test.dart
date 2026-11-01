@@ -7,7 +7,7 @@
 // 3. «اللغة: العربية»: one switch, العربية ↔ English, stored and synced.
 // 4. «مستوياتي» and «اليوزرات المميزة» are no longer in Settings (they stay
 //    in the «أنا» hub: me_hub_screen_test).
-// 5. Demo data and the component gallery stay in test builds only.
+// 5. Demo data stays in test builds only; the component gallery is gone.
 // Layout: ar/en × 393×852 / 360×800 × text 1.0 / 1.3 × light/dark.
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -388,13 +388,13 @@ void main() {
     }
   });
 
-  testWidgets('5. test builds: Demo data and the component gallery stay '
-      '(gated by !kReleaseMode)', (tester) async {
+  testWidgets('5. test builds: Demo data stays (gated by !kReleaseMode); '
+      'the component gallery row is gone', (tester) async {
     await _pump(tester);
-    final gallery = find.byKey(const Key('settings.debug.components'));
-    await tester.scrollUntilVisible(gallery, 200);
-    expect(gallery, findsOneWidget);
-    expect(find.byKey(DemoDataTile.tileKey), findsOneWidget);
+    final demo = find.byKey(DemoDataTile.tileKey);
+    await tester.scrollUntilVisible(demo, 200);
+    expect(demo, findsOneWidget);
+    expect(find.byKey(const Key('settings.debug.components')), findsNothing);
   });
 
   group('layout: no overflow', () {
@@ -417,7 +417,7 @@ void main() {
               expect(_appBrightness(tester), device);
               // Every row of the screen, top to bottom.
               await tester.scrollUntilVisible(
-                find.byKey(const Key('settings.debug.components')),
+                find.byKey(DemoDataTile.tileKey),
                 200,
               );
               expect(tester.takeException(), isNull);

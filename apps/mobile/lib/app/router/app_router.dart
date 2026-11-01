@@ -32,7 +32,6 @@ import 'package:kabso_live/features/create/create_screen.dart';
 import 'package:kabso_live/features/create/new_reel_screen.dart';
 import 'package:kabso_live/features/creator/presentation/creator_center_screen.dart';
 import 'package:kabso_live/features/creator/presentation/creator_stats_screen.dart';
-import 'package:kabso_live/features/debug/component_gallery_screen.dart';
 import 'package:kabso_live/features/debug/conversations_preview_screen.dart';
 import 'package:kabso_live/features/debug/demo_data.dart';
 import 'package:kabso_live/features/debug/discover_preview_screen.dart';
@@ -513,12 +512,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: AppRoutes.svip, builder: (_, _) => const SvipScreen()),
       // Debug/profile only; `kReleaseMode` is a compile-time constant, so
-      // the route and the gallery are tree-shaken out of release builds.
-      if (!kReleaseMode)
-        GoRoute(
-          path: AppRoutes.debugComponents,
-          builder: (_, _) => const ComponentGalleryScreen(),
-        ),
+      // the routes and the previews are tree-shaken out of release builds.
+      // D226: the KL-022 component gallery route is removed.
       if (!kReleaseMode)
         GoRoute(
           path: AppRoutes.debugFeedPreview,

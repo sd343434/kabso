@@ -35,7 +35,6 @@ void main() {
         l10n.previewsHubFeed,
         l10n.previewsHubLive,
         l10n.previewsHubMessages,
-        l10n.previewsHubComponents,
       ]) {
         // The list outgrew one screen (D57–D60 previews): scroll to each.
         await tester.scrollUntilVisible(find.text(label), 100);

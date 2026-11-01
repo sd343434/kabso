@@ -1190,12 +1190,6 @@ abstract class AppLocalizations {
   /// **'{value} مليار'**
   String compactBillion(String value);
 
-  /// Debug builds only.
-  ///
-  /// In ar, this message translates to:
-  /// **'معرض المكونات'**
-  String get debugComponentGallery;
-
   /// v1.2.3 SEC-025: 409 USERNAME_TAKEN for the username the user reserved in this flow.
   ///
   /// In ar, this message translates to:
@@ -1837,12 +1831,6 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'الرسائل'**
   String get previewsHubMessages;
-
-  /// No description provided for @previewsHubComponents.
-  ///
-  /// In ar, this message translates to:
-  /// **'المكوّنات'**
-  String get previewsHubComponents;
 
   /// Author name shown on the viewer's own new comment and composer avatar.
   ///

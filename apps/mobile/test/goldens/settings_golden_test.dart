@@ -4,8 +4,8 @@
 //   «عرض الكل (4)».
 // - settings.dark: an explicit dark choice (switch on, «اتباع الجهاز»).
 // - settings.account: the end of the list — no «مستوياتي» or «اليوزرات
-//   المميزة» (they are in the «أنا» hub); Demo data and the component
-//   gallery are there because goldens run in a test build (!kReleaseMode).
+//   المميزة» (they are in the «أنا» hub), no component gallery (removed);
+//   Demo data is there because goldens run in a test build (!kReleaseMode).
 // - sessions.all: the full list. Test data only.
 @Tags(['golden'])
 library;
@@ -18,6 +18,7 @@ import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/features/auth/data/auth_repository_impl.dart';
 import 'package:kabso_live/features/auth/domain/entities.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/debug/demo_entry.dart';
 import 'package:kabso_live/features/settings/sessions/sessions_screen.dart';
 import 'package:kabso_live/features/settings/settings_screen.dart';
 import 'package:material_ui/material_ui.dart';
@@ -117,10 +118,7 @@ void main() {
           language: language,
           brightness: Brightness.dark,
         );
-        await tester.scrollUntilVisible(
-          find.byKey(const Key('settings.debug.components')),
-          300,
-        );
+        await tester.scrollUntilVisible(find.byKey(DemoDataTile.tileKey), 300);
         await tester.pumpAndSettle();
         await expectScreenGolden('settings.account', language: language);
       });

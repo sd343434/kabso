@@ -295,9 +295,6 @@ abstract final class AppRoutes {
   /// Registered only when `!kReleaseMode`.
   static const debugPreviews = '/debug/previews';
 
-  /// KL-022 component gallery. Registered only when `!kReleaseMode`.
-  static const debugComponents = '/debug/components';
-
   /// KL-056 full-screen vertical feed preview with labelled test data.
   /// Registered only when `!kReleaseMode`.
   static const debugFeedPreview = '/debug/feed-preview';

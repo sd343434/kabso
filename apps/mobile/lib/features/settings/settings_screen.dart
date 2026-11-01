@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
@@ -308,16 +307,8 @@ class SettingsScreen extends ConsumerWidget {
           ),
           // D86: Demo data (test builds only; nothing in release).
           const DemoDataTile(),
-          // KL-022: developer entry to the component gallery (never in
-          // release builds).
-          if (!kReleaseMode)
-            ListTile(
-              key: const Key('settings.debug.components'),
-              leading: const Icon(Icons.widgets_outlined),
-              title: Text(l10n.debugComponentGallery),
-              onTap: () =>
-                  GoRouter.maybeOf(context)?.push(AppRoutes.debugComponents),
-            ),
+          // D226 (owner «وازل معرض المكونات»): the KL-022 component
+          // gallery is removed from the app (no row, no route, no screen).
         ],
       ),
     );

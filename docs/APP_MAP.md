@@ -38,7 +38,8 @@ moves.
 ## Developer routes (`/debug/*`, never in release)
 
 `/debug/previews` lists every design preview (feed, live solo/PK, messages,
-conversations, discover, profile, user, chat) and the component gallery.
+conversations, discover, profile, user, chat). The KL-022 component gallery
+(`/debug/components`) was removed (D226, owner).
 They keep their state switchers for design review.
 
 ## Builds
