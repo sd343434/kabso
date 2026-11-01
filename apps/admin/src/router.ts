@@ -20,6 +20,8 @@ export const ROUTES: readonly { name: string; pattern: string }[] = [
   { name: 'reports', pattern: '/reports' },
   { name: 'site', pattern: '/site-settings' },
   { name: 'payments', pattern: '/payments' },
+  // v1.75-social (D222): «التخزين (R2 / S3)».
+  { name: 'storage', pattern: '/storage' },
   // v1.65-social (D197): the panel v2 sections.
   { name: 'specialUsernames', pattern: '/special-usernames' },
   { name: 'agencies', pattern: '/agencies' },

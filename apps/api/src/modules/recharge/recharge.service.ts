@@ -437,7 +437,7 @@ export class RechargeService implements OnModuleInit, OnModuleDestroy {
 
   /** `POST /me/recharge-agent/application`. */
   async apply(userId: string, body: unknown): Promise<RechargeAgentMeDto> {
-    this.media.assertEnabled();
+    await this.media.assertEnabled();
     const input = parse(applicationSchema, body);
     const [pending, agent, job] = await Promise.all([
       this.prisma.rechargeAgentApplication.count({ where: { userId, status: 'PENDING' } }),

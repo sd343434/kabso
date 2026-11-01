@@ -653,7 +653,7 @@ export class RechargeOrdersService implements OnModuleInit, OnModuleDestroy {
 
   /** Consumes a private image upload into the order's prefix (re-encoded, metadata stripped), or 400. */
   private async consumeImage(userId: string, orderId: string, uploadId: string, field: string) {
-    this.media.assertEnabled();
+    await this.media.assertEnabled();
     const messageId = uuidv7();
     const key = orderImageKey(orderId, messageId);
     if (!(await this.media.consumePrivateImage(userId, uploadId, ORDER_IMAGE_KIND, key))) {

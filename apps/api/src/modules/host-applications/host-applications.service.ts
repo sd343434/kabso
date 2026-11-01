@@ -251,7 +251,7 @@ export class HostApplicationsService {
     };
     const before = await replay();
     if (before) return before;
-    this.media.assertEnabled();
+    await this.media.assertEnabled();
     const refused = (issue: HostingApplySubmitRefusal) =>
       new AppException(ErrorCode.HOST_APPLICATION_NOT_ALLOWED, undefined, [{ field: 'application', issue }]);
     const refusal = await this.refusal(me, await this.latest(me));

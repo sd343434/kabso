@@ -6,7 +6,8 @@ import type { Capability } from './types';
  * The sidebar (D197): grouped sections, each item shown only when the session's capabilities include its own (the
  * server checks every request again). `match` lists the route names that light the item up.
  *
- * Settings also holds D196's «الدفع (Stripe)» page (capability `payments.settings`, OWNER).
+ * Settings also holds D196's «الدفع (Stripe)» page (capability `payments.settings`, OWNER) and D222's «التخزين (R2 / S3)»
+ * (`storage.settings`, OWNER).
  */
 export interface NavItem {
   to: string;
@@ -82,6 +83,8 @@ export const NAV: NavGroup[] = [
     items: [
       { to: '/site-settings', key: 'navSite', icon: 'globe', cap: 'site.settings', match: ['site'] },
       { to: '/payments', key: 'navPayments', icon: 'money', cap: 'payments.settings', match: ['payments'] },
+      // v1.75-social (D222): «التخزين (R2 / S3)».
+      { to: '/storage', key: 'navStorage', icon: 'storage', cap: 'storage.settings', match: ['storage'] },
       { to: '/waitlist', key: 'navWaitlist', icon: 'mail', cap: 'waitlist.view', match: ['waitlist'] },
       { to: '/team', key: 'navTeam', icon: 'shield', cap: 'team.manage', match: ['team'] },
       { to: '/audit', key: 'navAudit', icon: 'clock', cap: 'audit.view', match: ['audit'] },

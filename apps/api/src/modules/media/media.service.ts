@@ -33,6 +33,7 @@ import {
   type VideoInfo,
   type VideoKind,
 } from './media-video.js';
+import { StorageSettingsStore } from '../storage-settings/storage-settings.store.js';
 import { OBJECT_STORAGE, type ObjectStorage } from './object-storage.js';
 
 /** `MediaAsset` (openapi v1.5-social; `AUDIO` and `durationMs`, CP-017; `VIDEO`, v1.41-social). */
@@ -176,6 +177,7 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
     private readonly prisma: PrismaService,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    private readonly storageSettings: StorageSettingsStore,
   ) {}
 
   onModuleInit(): void {
@@ -187,17 +189,26 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
     await this.sweepInFlight?.catch(() => undefined);
   }
 
-  assertEnabled(): void {
-    if (!this.config.media.uploadsEnabled) throw new AppException(ErrorCode.MEDIA_UPLOADS_UNAVAILABLE);
+  /**
+   * 503 `MEDIA_UPLOADS_UNAVAILABLE` («التخزين غير مفعّل») unless the storage is on: the panel's «التخزين (R2 / S3)»
+   * switch (v1.75-social, D222) or, when it is off, `MEDIA_UPLOADS_ENABLED` as before.
+   */
+  async assertEnabled(): Promise<void> {
+    if (!(await this.storageSettings.resolved()).uploadsEnabled) {
+      throw new AppException(ErrorCode.MEDIA_UPLOADS_UNAVAILABLE);
+    }
   }
 
-  /** `MEDIA_PUBLIC_BASE_URL` (D155: report snapshots build their file's URL from it). */
+  /**
+   * The base of public media URLs (D155: report snapshots build their file's URL from it): the panel's public base
+   * URL when its storage is on (D222), else `MEDIA_PUBLIC_BASE_URL`.
+   */
   get publicBaseUrl(): string | undefined {
-    return this.config.media.publicBaseUrl;
+    return this.storageSettings.current().publicBaseUrl;
   }
 
   private publicUrl(key: string): string {
-    return `${this.config.media.publicBaseUrl ?? ''}/${key}`;
+    return `${this.publicBaseUrl ?? ''}/${key}`;
   }
 
   toDto(
@@ -311,7 +322,7 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
 
   /** `POST /media/uploads` (the rate limit was counted by the guard, before this check). */
   async createUpload(userId: string, body: unknown): Promise<MediaUploadDto> {
-    this.assertEnabled();
+    await this.assertEnabled();
     const parsed = createMediaUploadSchema.safeParse(body ?? {});
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
     const { kind, contentType, byteSize } = parsed.data;
@@ -336,7 +347,7 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
    * (D162): `body` is `{posterId}` for a video upload and empty for every other kind.
    */
   async completeUpload(userId: string, uploadId: string, body?: unknown): Promise<MediaAssetDto> {
-    this.assertEnabled();
+    await this.assertEnabled();
     if (!isUuid(uploadId)) throw new AppException(ErrorCode.NOT_FOUND);
     const upload = await this.prisma.mediaUpload.findFirst({
       where: { id: uploadId.toLowerCase(), userId },

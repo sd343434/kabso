@@ -1,4 +1,5 @@
 import { performance } from 'node:perf_hooks';
+import { StorageSettingsStore } from '../storage-settings/storage-settings.store.js';
 import { Inject, Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { AuditAction, AuditService, type AuditEntry } from '../../common/audit/audit.service.js';
 import { AppException } from '../../common/errors/app-exception.js';
@@ -493,6 +494,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     private readonly rankings: LiveRankingsService,
     private readonly schedule: LiveScheduleService,
+    private readonly storageSettings: StorageSettingsStore,
   ) {
     this.cursors = new LiveCursorCodec(config.live.cursorKey);
   }
@@ -899,7 +901,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
       hostId: row.host_user_id,
       codes: row.wish_gifts,
       lang,
-      publicBaseUrl: this.config.media.publicBaseUrl,
+      publicBaseUrl: this.storageSettings.current().publicBaseUrl,
       luckyEnabled: this.config.lucky.enabled,
     });
     return {

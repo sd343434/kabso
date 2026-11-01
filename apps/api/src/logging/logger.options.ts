@@ -32,6 +32,11 @@ export const REDACT_PATHS = [
   '*.secretKey',
   '*.webhookSecret',
   '*.totpCode',
+  // v1.75-social (D222): the object-storage keys the OWNER types into «التخزين (R2 / S3)».
+  'accessKeyId',
+  'secretAccessKey',
+  '*.accessKeyId',
+  '*.secretAccessKey',
 ];
 
 export function buildLoggerOptions(config: AppConfig): Params {

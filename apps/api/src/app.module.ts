@@ -7,6 +7,10 @@ import {
   PaymentSettingsCoreModule,
   PaymentSettingsModule,
 } from './modules/payment-settings/payment-settings.module.js';
+import {
+  StorageSettingsCoreModule,
+  StorageSettingsModule,
+} from './modules/storage-settings/storage-settings.module.js';
 import { AuditModule } from './common/audit/audit.module.js';
 import { BackgroundTasksModule } from './common/background/background-tasks.js';
 import { AllExceptionsFilter } from './common/errors/all-exceptions.filter.js';
@@ -77,6 +81,8 @@ export class AppModule {
         SocialModule,
         // v1.4-levels (DRAFT, CP-005).
         LevelsModule,
+        // v1.75-social (DRAFT, D222): the media storage from the panel «التخزين (R2 / S3)» (over the env S3_*).
+        StorageSettingsCoreModule,
         MediaModule,
         PostsModule,
         SafetyModule,
@@ -119,6 +125,7 @@ export class AppModule {
         AdminPanelModule,
         SiteSettingsModule,
         PaymentSettingsModule,
+        StorageSettingsModule,
         // v1.61-social (DRAFT, D192): the public website's waitlist.
         WaitlistModule,
         // v1.66-social (DRAFT, D198): privacy — legal documents, consents (the 428 gate) and the data export.

@@ -104,7 +104,7 @@ All non-2xx responses use one envelope:
 | 503 | `LIVE_HOSTING_UNAVAILABLE` | *(v1.3)* Going live (or heartbeating) is disabled by server config `LIVE_HOSTING_ENABLED=false` (no media provider yet, B1). Not transient: no `Retry-After`; the client shows "not available yet" instead of a generic error. |
 | 422 | `LEVEL_CONFIG_INVALID` | *(v1.4-levels, DRAFT, CP-005)* A level configuration breaks the publication rules (CP-005 §4); `details` list every problem. |
 | 409 | `LEVEL_VERSION_NOT_DRAFT` | *(v1.4-levels, DRAFT, CP-005)* A published or archived level version cannot change. |
-| 503 | `MEDIA_UPLOADS_UNAVAILABLE` | *(v1.5-social, DRAFT, CP-006)* Uploads are disabled by server config `MEDIA_UPLOADS_ENABLED=false` (no storage credentials yet, B12). Not transient: no `Retry-After`. |
+| 503 | `MEDIA_UPLOADS_UNAVAILABLE` | *(v1.5-social, DRAFT, CP-006)* Uploads are disabled by server config `MEDIA_UPLOADS_ENABLED=false` (no storage credentials yet, B12). *(v1.75-social, D222)* — or, more precisely, no storage is on: neither the OWNER's «التخزين (R2 / S3)» in the panel (§10.72) nor `MEDIA_UPLOADS_ENABLED` with `S3_*`; the apps say «التخزين غير مفعّل» / their per-feature «unavailable» text. Not transient: no `Retry-After`. |
 | 422 | `MEDIA_INVALID` | *(v1.5-social, DRAFT)* The uploaded object is missing, does not match the declared type or size, or is not a decodable image within the limits (§11.1). |
 | 409 | `PIN_LIMIT_REACHED` | *(v1.5-social, DRAFT)* The caller already has 3 pinned posts. |
 | 409 | `REPORT_ALREADY_RESOLVED` | *(v1.5-social, DRAFT)* An admin acted on a report that is no longer OPEN. |
@@ -582,6 +582,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.54-social)* Tables `recharge_agent_applications`, `recharge_agents`, `recharge_agent_counter`, `recharge_stock_ledger`, `recharge_topups`, `recharge_sales`, `recharge_employees`, `recharge_cherry_requests`; column `notifications.recharge_sale_id`; table `special_usernames` (§10.48.1); ledger reasons `RECHARGE_PURCHASE` (coins), `RECHARGE_SALE` (cherries); media kinds `RECHARGE_AGENT_PHOTO`, `RECHARGE_AGENT_SELFIE` (private prefix `private/recharge-agents/`); server config `RECHARGE_AGENT_*`, `RATE_LIMIT_RECHARGE_*`, `SPECIAL_USERNAME_*`; CLI `username-admin` | Backend — `recharge` module (`RechargeService`; applications decided, top-ups, suspensions and caps changed only by the `recharge-admin` CLI; reads `cherry_ledger` through `economy/cherry-ledger.ts` and writes coins through `wallet/wallet-ledger.ts`) | CTO; Security (KYC data, money, the private prefix) |
 | *(v1.60-social)* Tables `admin_credentials`, `admin_recovery_codes`, `admin_sessions`; admin permissions `OWNER`, `SUPPORT`, `FINANCE`; server config `ADMIN_*`, `RATE_LIMIT_ADMIN_*`; CLI `admin-admin`; `apps/admin` | Backend — `admin-panel` module (reads other modules' tables for its views; changes them only through their shared rules, §10.54.4); web — `apps/admin` | CTO; Security (sign-in, second factor, sessions, private data) |
 | *(v1.60-social)* Table `site_settings` | Backend — `site-settings` module (public read; OWNER writes from the panel) | CTO |
+| *(v1.75-social)* Table `storage_settings` (the object-storage keys sealed, the two buckets, the switch, the last test); capability `storage.settings`; audit `storage.settings.*` (§10.72) | Backend — `storage-settings` module (`StorageSettingsService` the only writer; `StorageSettingsStore` the only reader: the media storage `OBJECT_STORAGE`, the upload switch and every public media URL); web — `apps/admin` «التخزين (R2 / S3)» | CTO; Security (storage keys, encryption at rest, the private bucket) |
 | *(v1.64-social)* Table `payment_settings` (the Stripe keys sealed, the top-up options); capability `payments.settings`; audit `payment.settings.*` (§10.53.1) | Backend — `payment-settings` module (`PaymentSettingsService` the only writer; `PaymentSettingsStore` the only reader, used by `topup`, `wallet`, `site-settings`); web — `apps/admin` «الدفع (Stripe)» | CTO; Security (Stripe keys, encryption at rest) |
 | *(v1.66-social)* Tables `legal_documents`, `user_consents`, `data_exports`; column `pending_registrations.legal_consent`; notification type `DATA_EXPORT_READY`; the 428 gate (`ConsentGuard`); server config `DATA_EXPORT_*`, `RATE_LIMIT_DATA_EXPORT_*`; CLIs `legal-admin`, `privacy-admin`; private prefix `private/data-exports/`; `scripts/check-site-no-tracking.sh` (§10.61) | Backend — `privacy` module (`legal.ts` and `data-export.ts` shared with the CLIs; `auth`, `topup` and `gifts` record consents through `legal.ts`; D193's purge deletes exports and clears consents' IP/UA) | CTO; Security (the export's content, the download token); Legal (the documents' text and versions) |
 | *(v1.55-social)* Table `host_frame_choices`; bag source `HOST_ACTIVE`; catalogue rows `host_frame_blue`, `host_frame_pink` | Backend — `economy` module (`host-frames.ts`: given and taken by the agency sweeper and `economy-admin agency-evaluate`, on agency join / leave / a resolved complaint, on a gender change and a style choice; `bag-admin` refuses them) | CTO |
@@ -629,6 +630,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.75-social (draft) | 2026-11-01 | **D222 (owner: «Storage = Cloudflare R2» and «اجعل تفعيل من لوحة الادمن» — the OWNER enters and turns on the media storage in the panel, not in server env files):** tag `admin-panel` — `getAdminStorageSettings`, `updateAdminStorageSettings` (PATCH), `testAdminStorageSettings` («اختبار الاتصال»), `clearAdminStorageSettings` (capability `storage.settings`, OWNER); schemas `AdminStorageSettings`, `StorageKeyInfo`, `StorageTarget`, `StorageTestStep`, `StorageTestReport`, `StorageLastTest`, `UpdateAdminStorageSettingsRequest`, `TestAdminStorageSettingsRequest`, `ClearAdminStorageSettingsRequest`; audit `storage.settings.update\|clear\|test`; migration `20270208090000_storage_settings`. D196's pattern and code: the access key id and secret write-only (last 4 only), sealed AES-256-GCM with a key derived from `ADMIN_TOTP_KEY` (HKDF `storage-settings/v1`); two buckets (public `media/`, private `uploads/` + `private/`); on, the panel overrides `S3_*` / `MEDIA_PUBLIC_BASE_URL` / `MEDIA_UPLOADS_ENABLED`, which stay the fallback; the S3 client follows a change without a restart. §4 (`MEDIA_UPLOADS_UNAVAILABLE` text), §9, §10.54.1, §10.72, §11.1. | **Additive** (new operations; env deployments and CI unchanged; no app change). |
 | v1.73-social (draft) | 2026-10-31 | **D209 (owner: «يمكن للشخص تفعيل حسابه مضيف مع الإدارة» — on «الوكالة», apply to host directly with the Kabso team, no agency):** tag `agency`: `getMyHostingApplication` (`GET /me/hosting-application`, `MyHostingApplication`: `host`, `application` (`HostingApplication`), `rule` with `HostingApplyRefusal`), `applyForHosting` (`POST /me/hosting-application`, `Idempotency-Key`, `HostingApplicationRequest`: displayName, country, dateOfBirth, contact, bio, links ≤ 3, acceptRules, the D185 private uploads `RECHARGE_AGENT_PHOTO` / `RECHARGE_AGENT_SELFIE`), `cancelMyHostingApplication` (`POST /me/hosting-application/cancel`); `HostApplicationStatus`; code `HOST_APPLICATION_NOT_ALLOWED` (409); notification types `HOST_APPLICATION_APPROVED`, `HOST_APPLICATION_REJECTED` (system, no target); tag `admin-panel` «طلبات المضيفين»: `listAdminHostApplications`, `getAdminHostApplication`, `getAdminHostApplicationPhoto`, `approveAdminHostApplication`, `rejectAdminHostApplication` (capabilities `hosts.applications`, `hosts.applications.photos`, `hosts.applications.decide`); `LiveHostSource.IDENTITY` is now given by an approval; config `HOST_APPLICATION_MIN_AGE` (18), `HOST_APPLICATION_REAPPLY_DAYS` (30), `RATE_LIMIT_HOST_APPLY_USER` (5/86400); migrations `20270202090000_host_applications_enums`, `20270202090100_host_applications`; CLI `host-admin applications\|view\|approve\|reject`; audit `host.application.*`; the data export gains `host_applications`. §4, §7, §10.68. | **Additive** (new operations, schemas, code and enum values; clients ignore unknown notification types). Behaviour: joining or opening an agency cancels a pending application. |
 | v1.72-social (draft) | 2026-10-31 | **D208 (owner: «اجعله يملك صلاحية لكل شيء مثل قفل حساب شخص او حظره او تغير كلمة المرور»):** the admin panel's account controls — `getAdminUserControl`, `lockAdminUser` / `unlockAdminUser`, `restrictAdminUser` / `liftAdminUserRestriction`, `sendAdminUserPasswordResetLink`, `setAdminUserTemporaryPassword`, `requireAdminUserPasswordChange`, `changeAdminUserEmail`, `resendAdminUserVerification`, `editAdminUserProfile`, `listAdminUserContent`, `moderateAdminContent`, `adjustAdminUserBalance`, `requestAdminUserDeletion` / `cancelAdminUserDeletion`; capabilities `users.control_view`, `users.lock`, `users.restrict`, `users.password`, `users.email`, `users.profile_edit`, `users.content`, `users.balance_adjust`, `users.delete`; `LoginRequest.newPassword`; `login` 403 `ACCOUNT_LOCKED` / `PASSWORD_CHANGE_REQUIRED`; 403 `ACCOUNT_RESTRICTED` on the restricted actions; notification types `ACCOUNT_RESTRICTED`, `ACCOUNT_RESTRICTION_LIFTED`, `BALANCE_ADJUSTED`, `PROFILE_EDITED_BY_TEAM` and targets `ACCOUNT_RESTRICTION`, `BALANCE_ADJUSTMENT` (`restriction`, `currency`, `amount`); ledger reason `ADMIN_ADJUSTMENT` (coins and cherries, either sign); `listAdminUserAudit` also lists what the account did and the team's actions on its content; config `ADMIN_ADJUST_DAILY_CAP_COINS` / `_CHERRIES` (10 000 000 each), `ADMIN_USERNAME_RENAME_HOLD_DAYS` (30: a team rename holds the old username for the person); `banAdminUser` now takes `totpCode` (`AdminReasonCodeRequest`; owner answer — a breaking change for the panel only, shipped with it); `control-admin` CLI; audit actions `admin.user.lock|unlock|restrict|restriction_lift|password_*|profile_edit|email_*`, `admin.content.hide|restore|delete`, `admin.balance.adjust`, `auth.password.changed_at_sign_in`; migration `20270130090000_admin_control` (`account_restrictions`, `admin_balance_adjustments`, `users.password_change_required_at`, `notifications.account_restriction_id` / `balance_adjustment_id`, the ledgers' sign rules extended in place). §4, §10.67. | **Additive** (new operations, an optional request field, new codes on existing operations only after the right password or for restricted accounts, new notification types that older clients ignore). |
 | v1.70-social (draft) | 2026-10-31 | **D206 (owner: «افتح وكالة» — open a host agency yourself; free; ID card + selfie; created at once; 3 activated hosts in 7 days or it closes):** tag `agency`: `openAgency` (`POST /me/agency/open`, `Idempotency-Key`, `OpenAgencyRequest`: name, country, contact, expected hosts, bio, the D185 private uploads `RECHARGE_AGENT_PHOTO` / `RECHARGE_AGENT_SELFIE`); `OwnAgency.name`, `OwnAgency.probation` (`AgencyProbation`, `AgencyProbationHost`); `MyAgency.closedAgency` (`ClosedAgency`) and `MyAgency.openRule` (`AgencyOpenRule`); code `AGENCY_OPEN_NOT_ALLOWED` (409); notification types `AGENCY_OPENED`, `AGENCY_PROBATION_REMINDER`, `AGENCY_PROBATION_PASSED`, `AGENCY_CLOSED`, `AGENCY_HOST_RELEASED` with target `AGENCY` (`activatedHosts`, `requiredHosts`); tag `admin-panel`: `getAdminAgencyApplication`, `getAdminAgencyApplicationPhoto`, `extendAdminAgencyProbation`, `closeAdminAgency`, `reopenAdminAgency` (capabilities `agencies.applications`, `agencies.probation`), `listAdminAgencies` `state=probation\|closed` and `origin`, the row / detail gain name, origin, status, probation, closing and applications; config `AGENCY_PROBATION_DAYS` (7), `AGENCY_PROBATION_MIN_HOSTS` (3), `AGENCY_PROBATION_REMINDER_HOURS` (24), `AGENCY_REOPEN_COOLDOWN_DAYS` (30), `RATE_LIMIT_AGENCY_OPEN_USER` (5/86400); migrations `20270125090000_agency_open_enums`, `20270125090100_agency_open`; CLI `economy-admin agency-probation-extend\|agency-close\|agency-reopen\|agency-probation-sweep`; the data export gains `agency_applications`. §4, §10.46, §10.65. | **Additive** (new operation, fields, codes and enum values; clients ignore unknown notification / target types). Behaviour: a closed agency is never found, joined, evaluated or paid a commission; its owner's host-agent perks go while it is closed. |
@@ -3775,6 +3777,7 @@ session's `capabilities` do not include.
 | `recharge.topup`, `recharge.cap`, `withdrawals.view`, `withdrawals.decide` | ✓ | | | ✓ |
 | `site.settings` | ✓ | | | |
 | `payments.settings` (v1.64-social, D196: the Stripe keys and top-up options, §10.53.1) | ✓ | | | |
+| `storage.settings` (v1.75-social, D222: the media storage R2 / S3 keys, buckets and switch, §10.72) | ✓ | | | |
 | `recharge.disputes` (v1.69-social, D204: «نزاعات الشحن» — a disputed order, its chat and pictures, «الإدارة» lines, §10.64.9) | ✓ | | ✓ | ✓ |
 | `recharge.disputes.resolve`, `recharge.rates` (v1.69-social, D204: a dispute's decision, the exchange rates) | ✓ | | | ✓ |
 
@@ -3825,7 +3828,8 @@ Sign-in events: `admin.login.password|success|failure|locked`, `admin.totp.enrol
 
 **Financial actions need the authenticator code again** (`totpCode` in the body): `topUpAdminRechargeAgent`,
 `payAdminWithdrawal`, `rejectAdminWithdrawal` (it refunds the held cherries); v1.64-social (D196):
-`updateAdminPaymentSettings` and `clearAdminPaymentKeys`, which also need a reason (§10.53.1). A missing code is 400; a wrong or used
+`updateAdminPaymentSettings` and `clearAdminPaymentKeys`, which also need a reason (§10.53.1); v1.75-social (D222):
+`updateAdminStorageSettings` and `clearAdminStorageSettings`, with a reason too (§10.72). A missing code is 400; a wrong or used
 one 403 `ADMIN_TOTP_INVALID` (counted towards the lockout); nothing changes.
 
 #### 10.54.4 One rule for the CLI and the panel
@@ -3863,6 +3867,7 @@ own message.
    and BAN need `note` and close every open report on the target as ACTIONED.
 6. **Website settings «إعدادات الموقع»** (OWNER) — §10.54.6.
 7. **Payments «الدفع (Stripe)»** (OWNER; v1.64-social, D196) — §10.53.1.
+8. **Storage «التخزين (R2 / S3)»** (OWNER; v1.75-social, D222) — §10.72.
 
 Lists are keyset-paginated (`cursor`, `limit` ≤ 100; reports use the `listAdminReports` cursor).
 
@@ -4927,6 +4932,67 @@ the other phone saw «لا يوجد أصدقاء» and the random match, which p
   becomes free appears without reopening it; a failed load is shown with «إعادة المحاولة» (never as «لا يوجد
   أصدقاء») and logged.
 
+### 10.72 The media storage from the admin panel «التخزين (R2 / S3)» *(v1.75-social, DRAFT — D222)*
+
+Owner decision 2026-11-01: «Storage = Cloudflare R2» and «اجعل تفعيل من لوحة الادمن» — the OWNER enters and turns on
+the object storage in the panel, not in server env files. It follows D196 (§10.53.1) and reuses its code: the same
+`AdminSecretBox` with its own HKDF info, the same `Secret` wrapper, the same «panel over env, env as the fallback».
+
+- **Who.** Capability `storage.settings`, OWNER only (§10.54.1). Operations `getAdminStorageSettings`,
+  `updateAdminStorageSettings`, `testAdminStorageSettings`, `clearAdminStorageSettings` under the panel's cookie session
+  + CSRF; every response `Cache-Control: no-store`. Without `ADMIN_TOTP_KEY` the section is 503
+  `ADMIN_PANEL_UNAVAILABLE` (like the rest of the panel).
+- **Fields.** `provider` `R2` (default) or `S3`. R2: `accountId` (32 hex) → the endpoint
+  `https://<accountId>.r2.cloudflarestorage.com`, region `auto`. S3: `endpoint` (empty = AWS), `region`,
+  `forcePathStyle` (MinIO). `accessKeyId`, `secretAccessKey` (**write-only**); `publicBucket` with `publicBaseUrl`
+  (the R2 public development URL or a custom domain such as `https://media.kabsolive.com`; every media URL is
+  `<publicBaseUrl>/media/…`); `privateBucket` (must differ). There is no upload-size setting: the limits stay the
+  §11.1 / §11.14 constants.
+- **Two buckets.** With the panel's storage on, keys are routed by prefix: `media/` (processed images, videos, posters,
+  voice clips, gift art, banners) → the public bucket; everything else — `uploads/` (raw client uploads, presigned PUT)
+  and `private/` (ID photos and selfies D185 / D206 / D209, recharge-order pictures D204, data exports D198) → the
+  private bucket, served only through the API's existing authorised / proxied reads, never a URL. The env layout
+  (`S3_BUCKET`) stays one bucket with the prefix rules of §11.1 / DEPLOYMENT §5.3. A video's `uploads/` → `media/` copy
+  is a server-side copy between the two buckets of the same account.
+- **Secrets.** The two keys are sealed AES-256-GCM (`v1.<iv>.<tag>.<ct>`) with a key derived from `ADMIN_TOTP_KEY`
+  (HKDF-SHA-256, info `storage-settings/v1`; a value bound to its column by AAD); only their last 4 characters are kept
+  in clear. Responses (`StorageKeyInfo`: last 4, who, when) and audit rows (`…AbCd`) never carry more; logs redact
+  `accessKeyId` / `secretAccessKey` fields. Keys sealed under another `ADMIN_TOTP_KEY` are ignored (`panelIgnored:
+  unreadable`, the env applies) until entered again.
+- **Every change** (`updateAdminStorageSettings`, `clearAdminStorageSettings`) needs `totpCode` again (403
+  `ADMIN_TOTP_INVALID`, counted towards the lockout) and a `reason`; audited `storage.settings.update` (before / after
+  without keys, `changed`, `connectionTest` `ok|skipped`, `reason`, `via: panel`) / `storage.settings.clear`
+  (`fallback` `env|none`). Refusals are 409 `ADMIN_ACTION_REFUSED` with `details[0].issue`: `same_bucket`,
+  `storage_incomplete` (one detail per missing field), `storage_test_failed`, `storage_test_required` (skip asked in
+  production), `https_required` (production: both URLs https on a domain name, no IP literal or localhost),
+  `storage_nothing_to_clear`.
+- **«اختبار الاتصال»** (`testAdminStorageSettings`, no code: nothing but the result is saved; audited
+  `storage.settings.test` with the target, `…last4` and the outcome). The values typed, the rest and the keys from what
+  is saved; for each bucket under `_healthcheck/`: `put` a tiny text object, `head` it, `get` it back with the key; the
+  public bucket: `public_read` it from `<publicBaseUrl>/_healthcheck/…` without a key (same bytes); the private bucket:
+  `not_public` — neither the public base URL nor an anonymous GET to the S3 endpoint reads it; `delete` it (and check it
+  is gone). Each step at most 10 s, one attempt. The report (`StorageTestReport`: per step `ok`, `ms`, `issue`
+  `bad_credentials|access_denied|no_such_bucket|unreachable|mismatch|not_public|publicly_readable|http_status|error`,
+  a short `detail`) is kept as the section's last test (who, when) and shown in Arabic.
+- **«تفعيل».** `enabled: true` needs every required field (`accountId` for R2, both keys, both buckets, the public base
+  URL) and runs the round trip first with the merged values (also whenever a connection field changes while on); a
+  failed step saves nothing (409 `storage_test_failed`, the failed report becomes the last test).
+  `skipConnectionTest` only when NODE_ENV is not production. Off → the server's env storage, or 503
+  `MEDIA_UPLOADS_UNAVAILABLE` «التخزين غير مفعّل» as before.
+- **Precedence, no restart.** `StorageSettingsStore` (global) resolves the panel's row (switch on, keys readable,
+  complete) over `S3_*` / `MEDIA_PUBLIC_BASE_URL` / `MEDIA_UPLOADS_ENABLED`; it is read at start, cached 5 s, re-read
+  at once on this instance after a change (another instance within 5 s). One S3 client per settings: the production
+  `OBJECT_STORAGE` (`ActiveObjectStorage`) takes the current one per call, so a call already running finishes on the
+  client it started with (the old client is dropped, never destroyed mid-request). The upload switch
+  (`MediaService.assertEnabled`) and every public media URL (posts, reels, stories, avatars, gifts, banners, DM / report
+  snapshots, the panel's previews, the data export) read it. Changing the buckets does not move objects already stored
+  (KNOWN_LIMITATIONS).
+- **Status** (`AdminStorageSettings.status`): `active` (the panel's storage), `env` (the server's `S3_*` with uploads
+  on), `off` (panel settings saved, switch off, no env storage), `not_configured`.
+- **CORS.** Not needed: the mobile app uploads to the presigned URL directly (not a browser), and the admin panel's
+  uploads (D207) go through the API. A future browser client uploading with a presigned PUT needs an R2 CORS rule
+  allowing `PUT` from its origin with the `Content-Type` header (DEPLOYMENT §5.40).
+
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 
 Additive; no earlier rule changes. Reels and video (M2), stories (M3), notifications (M4),
@@ -4939,6 +5005,9 @@ are §11.14.
 - Server config `MEDIA_UPLOADS_ENABLED` (default `false`, B12) gates `createMediaUpload` and
   `completeMediaUpload`: off → 503 `MEDIA_UPLOADS_UNAVAILABLE` (no `Retry-After`, like
   `LIVE_HOSTING_UNAVAILABLE`). Storage is S3-compatible (`S3_*`; MinIO locally, R2 in the cloud).
+  *(v1.75-social, D222)* The OWNER's «التخزين (R2 / S3)» in the admin panel, when on, replaces both (the switch, the
+  buckets, the public base URL) without a restart; with two buckets, `uploads/` and `private/` live in the private one
+  and only `media/` in the public one (§10.72).
 - Accepted types: JPEG, PNG and WebP (the bytes decide, not the declared type: both must agree).
   HEIC/HEIF is refused at `createMediaUpload` (the app converts it to JPEG on the device).
 - Objects go to `uploads/{userId}/{uploadId}` (private). Completing verifies the object (HEAD

@@ -170,7 +170,7 @@ export class ProfileEditService {
    * the last 24 hours).
    */
   async setAvatar(userId: string, body: unknown, meta: ProfileEditMeta): Promise<AvatarDto> {
-    this.media.assertEnabled();
+    await this.media.assertEnabled();
     const parsed = setAvatarSchema.safeParse(body ?? {});
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
     const mediaId = parsed.data.mediaId.toLowerCase();

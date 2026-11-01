@@ -523,7 +523,7 @@ export class AgencyService implements OnModuleInit, OnModuleDestroy {
     };
     const before = await replay();
     if (before) return before;
-    this.media.assertEnabled();
+    await this.media.assertEnabled();
     const refused = (issue: AgencyOpenRefusal) =>
       new AppException(ErrorCode.AGENCY_OPEN_NOT_ALLOWED, undefined, [{ field: 'agency', issue }]);
     const own = await this.prisma.agency.findUnique({ where: { ownerUserId: me } });

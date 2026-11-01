@@ -255,6 +255,11 @@ export enum AuditAction {
   PAYMENT_SETTINGS_UPDATE = 'payment.settings.update',
   PAYMENT_SETTINGS_CLEAR = 'payment.settings.clear',
   PAYMENT_SETTINGS_TEST = 'payment.settings.test',
+  // v1.75-social (DRAFT, D222): the OWNER's «التخزين (R2 / S3)» section — a change (before/after with the keys' last 4
+  // only, reason, the connection test's outcome), the removal of the panel's settings and a «اختبار الاتصال».
+  STORAGE_SETTINGS_UPDATE = 'storage.settings.update',
+  STORAGE_SETTINGS_CLEAR = 'storage.settings.clear',
+  STORAGE_SETTINGS_TEST = 'storage.settings.test',
   // v1.61-social (DRAFT, D192): each read of the website waitlist's e-mails by the `waitlist-admin` CLI (`op`:
   // list|export, the count).
   WAITLIST_VIEW = 'waitlist.view',

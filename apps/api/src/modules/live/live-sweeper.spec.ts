@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { StorageSettingsStore } from '../storage-settings/storage-settings.store.js';
 import type { AuditService } from '../../common/audit/audit.service.js';
 import { Clock } from '../../common/time/clock.js';
 import { loadConfig } from '../../config/app-config.js';
@@ -70,6 +71,7 @@ function service(prisma: unknown, batchSize = 10) {
     config,
     {} as LiveRankingsService,
     {} as LiveScheduleService,
+    {} as StorageSettingsStore,
   );
   return { rooms, audit };
 }

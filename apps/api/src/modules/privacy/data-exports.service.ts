@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import { StorageSettingsStore } from '../storage-settings/storage-settings.store.js';
 import { Inject, Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { z } from 'zod';
 import { AuditAction, AuditService } from '../../common/audit/audit.service.js';
@@ -83,6 +84,7 @@ export class DataExportsService {
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
     @Inject(MAIL_SENDER) private readonly mail: MailSender,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    private readonly storageSettings: StorageSettingsStore,
   ) {}
 
   /** `GET /me/data-exports`. */
@@ -201,7 +203,7 @@ export class DataExportsService {
       const result = await buildDataExport(this.prisma, {
         userId: job.userId,
         now,
-        mediaBaseUrl: this.config.media.publicBaseUrl ?? '',
+        mediaBaseUrl: this.storageSettings.current().publicBaseUrl ?? '',
         supportEmail: this.config.accountDeletion.supportEmail,
         storage: this.storage,
       });

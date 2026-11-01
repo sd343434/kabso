@@ -21,6 +21,8 @@ export type Capability =
   | 'reports.act'
   | 'site.settings'
   | 'payments.settings'
+  // v1.75-social (D222)
+  | 'storage.settings'
   // v1.65-social (D197)
   | 'users.list'
   | 'users.export'
@@ -526,4 +528,91 @@ export interface HostApplicationDetail {
     agency: { role: 'HOST' | 'OWNER'; inviteCode: string } | null;
   };
   history: { id: string; status: HostApplicationRow['status']; createdAt: string; decidedAt: string | null; rejectReason: string | null }[];
+}
+
+// ---- v1.75-social (D222): «التخزين (R2 / S3)» ---------------------------------------------------------------
+
+export interface StorageKeyInfo {
+  last4: string;
+  setBy: { id: string; displayName: string } | null;
+  setAt: string | null;
+}
+
+export type StorageProvider = 'R2' | 'S3';
+
+export interface StorageTarget {
+  provider: StorageProvider;
+  accountId: string | null;
+  endpoint: string | null;
+  region: string;
+  forcePathStyle: boolean;
+  publicBucket: string | null;
+  publicBaseUrl: string | null;
+  privateBucket: string | null;
+}
+
+export type StorageStepName = 'put' | 'head' | 'get' | 'public_read' | 'not_public' | 'delete';
+export type StorageIssue =
+  | 'bad_credentials'
+  | 'access_denied'
+  | 'no_such_bucket'
+  | 'unreachable'
+  | 'mismatch'
+  | 'not_public'
+  | 'publicly_readable'
+  | 'http_status'
+  | 'error';
+
+export interface StorageTestStep {
+  bucket: 'public' | 'private';
+  step: StorageStepName;
+  ok: boolean;
+  ms: number;
+  issue: StorageIssue | null;
+  detail: string | null;
+}
+
+export interface StorageTestReport {
+  ok: boolean;
+  at: string;
+  target: StorageTarget;
+  accessKeyIdLast4: string | null;
+  steps: StorageTestStep[];
+}
+
+/** `AdminStorageSettings`. */
+export interface StorageSettings {
+  status: 'active' | 'env' | 'off' | 'not_configured';
+  source: 'panel' | 'env' | 'none';
+  uploadsEnabled: boolean;
+  publicBaseUrl: string | null;
+  enabled: boolean;
+  panel: {
+    provider: StorageProvider;
+    accountId: string | null;
+    endpoint: string | null;
+    region: string | null;
+    forcePathStyle: boolean;
+    publicBucket: string | null;
+    publicBaseUrl: string | null;
+    privateBucket: string | null;
+    accessKeyId: StorageKeyInfo | null;
+    secretAccessKey: StorageKeyInfo | null;
+    missing: string[];
+    updatedAt: string | null;
+  };
+  env: {
+    configured: boolean;
+    uploadsEnabled: boolean;
+    endpoint: string | null;
+    region: string;
+    bucket: string | null;
+    publicBaseUrl: string | null;
+    accessKeyIdLast4: string | null;
+  };
+  panelIgnored: 'unreadable' | null;
+  lastTest: (StorageTestReport & { by: { id: string; displayName: string } | null }) | null;
+  publicPrefix: string;
+  healthcheckPrefix: string;
+  connectionTestSkippable: boolean;
 }
