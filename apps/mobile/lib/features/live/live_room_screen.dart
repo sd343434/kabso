@@ -847,6 +847,12 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     final host = room.host;
     final me = ref.watch(currentUserProvider)?.id;
     final seats = session.seats?.seats ?? const <LiveSeat>[];
+    // D225: the emojis played on the speaker seats (D138), drawn on them.
+    final seatOverlay = seatEmojiOverlay(
+      ref,
+      room.id,
+      picture: KPodcast.speaker,
+    );
     final speakers = <PodcastSpeakerData>[
       PodcastSpeakerData(
         userId: host.id,
@@ -856,6 +862,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         host: true,
         speaking: engine.speaking.contains(host.id),
         onTap: () => _person(host.username),
+        overlay: seatOverlay(0),
       ),
       for (var i = 1; i < 4; i++)
         switch (seats.where((s) => s.index == i).firstOrNull) {
@@ -869,6 +876,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
             demoteAt: seat.demoteAt,
             seatIndex: i,
             onTap: () => onSeat(i),
+            overlay: seatOverlay(i),
           ),
           _ => PodcastSpeakerData.empty(i, onTap: () => onSeat(i)),
         },

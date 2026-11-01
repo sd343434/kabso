@@ -152,6 +152,9 @@ class GoLiveScreen extends ConsumerStatefulWidget {
   static const videoChatKey = Key('goLive.videoChat');
   static const audioChatKey = Key('goLive.audio.chat');
   static const audioMoreKey = Key('goLive.audio.more');
+
+  /// D225: the host's microphone on the bar (every mode).
+  static const barMicKey = Key('goLive.barMic');
   static const audioPkKey = Key('goLive.audio.pk');
 
   /// D141: the games button (in place of the toolbox, which repeated ≡).
@@ -1257,7 +1260,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               label: l10n.liveToolTopic,
               onTap: openRoomInfo,
             ),
-            byId['seats']!,
+            // D225 (urgent): a podcast has 4 fixed seats (the server refuses
+            // a count), so no «المقاعد».
+            if (state.mode != LiveRoomMode.podcast) byId['seats']!,
             byId['theme']!,
           ],
           other: [
@@ -1368,21 +1373,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         onHost: room == null
             ? byId['mic']!.onTap
             : () => unawaited(
-                _person(
-                  room.id,
-                  room.host.username,
-                  selfMic: (
-                    enabled: state.micEnabled,
-                    set: ({required enabled}) async {
-                      final host = ref.read(liveHostControllerProvider);
-                      if (host.micEnabled != enabled) {
-                        await ref
-                            .read(liveHostControllerProvider.notifier)
-                            .toggleMic();
-                      }
-                    },
-                  ),
-                ),
+                _person(room.id, room.host.username, selfMic: _selfMic(state)),
               ),
         hostTapLabel: room != null
             ? l10n.liveUserViewProfile
@@ -1557,6 +1548,23 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             label: l10n.livePreviewMore,
             onTap: openTools,
           ),
+          // D225 (urgent): the podcast host's microphone, one tap away.
+          if (state.mode == LiveRoomMode.podcast)
+            LiveRoundButton(
+              key: GoLiveScreen.barMicKey,
+              icon: state.micEnabled
+                  ? Icons.mic_rounded
+                  : Icons.mic_off_rounded,
+              bare: true,
+              label: state.micEnabled
+                  ? l10n.goLiveMuteMic
+                  : l10n.goLiveUnmuteMic,
+              onTap: live
+                  ? () => unawaited(
+                      _guard(() => _setMic(enabled: !state.micEnabled)),
+                    )
+                  : null,
+            ),
         ],
         barEnd: [
           if (state.mode == LiveRoomMode.podcast)
@@ -2090,19 +2098,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     final avatarUrl = user?.avatarUrl ?? room.host.avatarUrl;
     final viewers = ref.watch(liveViewersPreviewProvider(room.id)).value;
     void openSelf() => unawaited(
-      _person(
-        room.id,
-        room.host.username,
-        selfMic: (
-          enabled: state.micEnabled,
-          set: ({required enabled}) async {
-            final host = ref.read(liveHostControllerProvider);
-            if (host.micEnabled != enabled) {
-              await ref.read(liveHostControllerProvider.notifier).toggleMic();
-            }
-          },
-        ),
-      ),
+      _person(room.id, room.host.username, selfMic: _selfMic(state)),
     );
     final openRoomInfo = !live
         ? null
@@ -2676,6 +2672,18 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     engine.changes.addListener(onChange);
   }
 
+  /// The host's own microphone on their person card (and, D225, the bar's
+  /// mic button and the settings row): on or off as asked.
+  ({bool enabled, Future<void> Function({required bool enabled}) set}) _selfMic(
+    GoLiveState state,
+  ) => (enabled: state.micEnabled, set: _setMic);
+
+  /// D225: the host's microphone on or off (a no-op when it already is).
+  Future<void> _setMic({required bool enabled}) async {
+    if (ref.read(liveHostControllerProvider).micEnabled == enabled) return;
+    await _host.toggleMic();
+  }
+
   Future<void> _afterSeatChange(String roomId) async =>
       ref.invalidate(liveSeatsProvider(roomId));
 
@@ -2921,6 +2929,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     final state = ref.read(liveHostControllerProvider);
     final host = room.host;
     final seats = liveSeats?.seats ?? const <LiveSeat>[];
+    // D225: the emojis played on the speaker seats (D138), drawn on them.
+    final seatOverlay = seatEmojiOverlay(
+      ref,
+      room.id,
+      picture: KPodcast.speaker,
+    );
     final speakers = <PodcastSpeakerData>[
       PodcastSpeakerData(
         userId: host.id,
@@ -2930,7 +2944,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         host: true,
         muted: !state.micEnabled,
         speaking: engine.speaking.contains(host.id),
-        onTap: () => unawaited(_person(room.id, host.username)),
+        // D225 (urgent): the host's own tile opens their card with the mic
+        // button, as in the audio room (it had none: no way to mute).
+        onTap: () => unawaited(
+          _person(room.id, host.username, selfMic: _selfMic(state)),
+        ),
+        overlay: seatOverlay(0),
       ),
       for (var i = 1; i < 4; i++)
         switch (seats.where((s) => s.index == i).firstOrNull) {
@@ -2944,6 +2963,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             demoteAt: seat.demoteAt,
             seatIndex: i,
             onTap: onSeat == null ? null : () => onSeat(i),
+            overlay: seatOverlay(i),
           ),
           _ => PodcastSpeakerData.empty(
             i,

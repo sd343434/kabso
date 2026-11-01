@@ -829,6 +829,8 @@ class LiveKitMediaEngine
   @override
   Future<void> setMicEnabled({required bool enabled}) async {
     _mic = enabled;
+    // D225: the room redraws its mic badges (a speaker's own seat).
+    _changes.ping();
     final audio = _audio;
     // While a voice clip records, the choice applies when it ends.
     if (audio == null || _clipHold) return;
