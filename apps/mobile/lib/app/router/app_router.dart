@@ -32,7 +32,6 @@ import 'package:kabso_live/features/create/create_screen.dart';
 import 'package:kabso_live/features/create/new_reel_screen.dart';
 import 'package:kabso_live/features/creator/presentation/creator_center_screen.dart';
 import 'package:kabso_live/features/creator/presentation/creator_stats_screen.dart';
-import 'package:kabso_live/features/debug/component_gallery_screen.dart';
 import 'package:kabso_live/features/debug/conversations_preview_screen.dart';
 import 'package:kabso_live/features/debug/demo_data.dart';
 import 'package:kabso_live/features/debug/discover_preview_screen.dart';
@@ -98,6 +97,7 @@ import 'package:kabso_live/features/referrals/presentation/invite_friends_screen
 import 'package:kabso_live/features/safety/safety_screens.dart';
 import 'package:kabso_live/features/settings/account_deletion/account_deletion_screen.dart';
 import 'package:kabso_live/features/settings/account_deletion/deletion_pending_screen.dart';
+import 'package:kabso_live/features/settings/sessions/sessions_screen.dart';
 import 'package:kabso_live/features/settings/settings_screen.dart';
 import 'package:kabso_live/features/stories/presentation/new_story_screen.dart';
 import 'package:kabso_live/features/stories/presentation/story_archive_screen.dart';
@@ -190,6 +190,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.settings,
         builder: (_, _) => const SettingsScreen(),
+      ),
+      // D226: the full list of active sessions.
+      GoRoute(
+        path: AppRoutes.sessions,
+        builder: (_, _) => const SessionsScreen(),
       ),
       // D86: Discover and search open above the tabs (search buttons).
       GoRoute(
@@ -513,12 +518,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: AppRoutes.svip, builder: (_, _) => const SvipScreen()),
       // Debug/profile only; `kReleaseMode` is a compile-time constant, so
-      // the route and the gallery are tree-shaken out of release builds.
-      if (!kReleaseMode)
-        GoRoute(
-          path: AppRoutes.debugComponents,
-          builder: (_, _) => const ComponentGalleryScreen(),
-        ),
+      // the routes and the previews are tree-shaken out of release builds.
+      // D226: the KL-022 component gallery route is removed.
       if (!kReleaseMode)
         GoRoute(
           path: AppRoutes.debugFeedPreview,

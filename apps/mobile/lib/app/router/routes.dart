@@ -120,6 +120,9 @@ abstract final class AppRoutes {
 
   static const settings = '/settings';
 
+  /// D226: every active session (Settings shows the two most recent).
+  static const sessions = '/settings/sessions';
+
   /// KL-060: privacy settings and blocked accounts.
   static const privacy = '/settings/privacy';
   static const blockedAccounts = '/settings/blocked';
@@ -295,9 +298,6 @@ abstract final class AppRoutes {
   /// built with `--dart-define=KABSO_START_ROUTE=/debug/previews`).
   /// Registered only when `!kReleaseMode`.
   static const debugPreviews = '/debug/previews';
-
-  /// KL-022 component gallery. Registered only when `!kReleaseMode`.
-  static const debugComponents = '/debug/components';
 
   /// KL-056 full-screen vertical feed preview with labelled test data.
   /// Registered only when `!kReleaseMode`.

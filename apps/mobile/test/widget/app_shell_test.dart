@@ -142,7 +142,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(SettingsScreen), findsOneWidget);
 
-      await tester.tap(find.text('العربية'));
+      // D226: one switch, English → العربية.
+      await tester.tap(find.byKey(SettingsScreen.languageKey));
       await tester.pumpAndSettle();
       final ar = l10nFor(AppLanguage.ar);
       expect(find.text(ar.settingsTitle), findsOneWidget);

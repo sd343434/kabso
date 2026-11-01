@@ -21,6 +21,10 @@ export enum AuditAction {
   PASSWORD_RESET_REQUESTED = 'auth.password.reset_requested',
   PASSWORD_RESET = 'auth.password.reset',
   SESSION_REVOKED = 'auth.session.revoke',
+  /** v1.79-social (D226, §10.76): every other session signed out; `metadata.count`. */
+  SESSIONS_REVOKED_OTHERS = 'auth.sessions.revoke_others',
+  /** v1.79-social (D226): the password re-check of «sign out of all other devices» failed. */
+  SESSIONS_REVOKE_OTHERS_REAUTH_FAILED = 'auth.sessions.revoke_others.reauth_failed',
   // Contract v1.3 (CONVENTIONS §10.3). Heartbeats are not audited.
   LIVE_ROOM_START = 'live.room.start',
   /** Host end or suspension; `metadata.reason` carries the end reason. */

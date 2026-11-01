@@ -788,6 +788,78 @@ abstract class AppLocalizations {
   /// **'حسابك مسجَّل الدخول على هذا الجهاز فقط.'**
   String get sessionsNoOthers;
 
+  /// D226: the one Settings switch, light ↔ dark.
+  ///
+  /// In ar, this message translates to:
+  /// **'الوضع الداكن'**
+  String get settingsDarkMode;
+
+  /// D226: the dark mode switch's subtitle while the app still follows the device (no explicit choice yet).
+  ///
+  /// In ar, this message translates to:
+  /// **'يتبع إعداد الجهاز'**
+  String get settingsThemeFollowsDevice;
+
+  /// D226: the small link that drops the explicit choice and follows the device again.
+  ///
+  /// In ar, this message translates to:
+  /// **'اتباع الجهاز'**
+  String get settingsThemeFollowDevice;
+
+  /// D226: the language switch's title with the current language (its own name, isolated).
+  ///
+  /// In ar, this message translates to:
+  /// **'اللغة: {language}'**
+  String settingsLanguageCurrent(String language);
+
+  /// D226: the language switch's subtitle, the other language (its own name, isolated).
+  ///
+  /// In ar, this message translates to:
+  /// **'التبديل إلى {language}'**
+  String settingsLanguageSwitchTo(String language);
+
+  /// D226: the row under the two most recent sessions that opens the full list; count = all active sessions.
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض الكل ({count})'**
+  String sessionsShowAll(int count);
+
+  /// D226: the red text button under the sessions (only while another session exists).
+  ///
+  /// In ar, this message translates to:
+  /// **'تسجيل الخروج من كل الأجهزة الأخرى'**
+  String get sessionsRevokeOthers;
+
+  /// No description provided for @sessionsRevokeOthersTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'تسجيل الخروج من كل الأجهزة الأخرى؟'**
+  String get sessionsRevokeOthersTitle;
+
+  /// D226: the confirm dialog; n = the other sessions in the list.
+  ///
+  /// In ar, this message translates to:
+  /// **'{n, plural, =1{سيتم تسجيل الخروج من جهاز آخر على الفور.} =2{سيتم تسجيل الخروج من جهازين آخرين على الفور.} few{سيتم تسجيل الخروج من {n} أجهزة أخرى على الفور.} many{سيتم تسجيل الخروج من {n} جهازًا آخر على الفور.} other{سيتم تسجيل الخروج من {n} جهاز آخر على الفور.}}'**
+  String sessionsRevokeOthersBody(int n);
+
+  /// No description provided for @sessionsRevokeOthersPasswordHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل كلمة المرور للتأكيد.'**
+  String get sessionsRevokeOthersPasswordHint;
+
+  /// No description provided for @sessionsRevokeOthersConfirm.
+  ///
+  /// In ar, this message translates to:
+  /// **'تسجيل الخروج'**
+  String get sessionsRevokeOthersConfirm;
+
+  /// D226: the snackbar after revokeOtherSessions; n = revoked.
+  ///
+  /// In ar, this message translates to:
+  /// **'{n, plural, =0{لا توجد أجهزة أخرى مسجَّلة الدخول} =1{تم تسجيل الخروج من جهاز آخر} =2{تم تسجيل الخروج من جهازين آخرين} few{تم تسجيل الخروج من {n} أجهزة أخرى} many{تم تسجيل الخروج من {n} جهازًا آخر} other{تم تسجيل الخروج من {n} جهاز آخر}}'**
+  String sessionsRevokedOthers(int n);
+
   /// No description provided for @platformAndroid.
   ///
   /// In ar, this message translates to:
@@ -1153,12 +1225,6 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'{value} مليار'**
   String compactBillion(String value);
-
-  /// Debug builds only.
-  ///
-  /// In ar, this message translates to:
-  /// **'معرض المكونات'**
-  String get debugComponentGallery;
 
   /// v1.2.3 SEC-025: 409 USERNAME_TAKEN for the username the user reserved in this flow.
   ///
@@ -1843,12 +1909,6 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'الرسائل'**
   String get previewsHubMessages;
-
-  /// No description provided for @previewsHubComponents.
-  ///
-  /// In ar, this message translates to:
-  /// **'المكوّنات'**
-  String get previewsHubComponents;
 
   /// Author name shown on the viewer's own new comment and composer avatar.
   ///

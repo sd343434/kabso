@@ -58,4 +58,9 @@ abstract interface class AuthRepository {
   Future<List<Session>> listSessions();
 
   Future<void> revokeSession(String sessionId);
+
+  /// v1.79-social (D226): ends every other session of the caller
+  /// (`POST /auth/sessions/revoke-others`, the password re-checked; 403
+  /// `REAUTH_FAILED` when wrong). Returns how many were ended.
+  Future<int> revokeOtherSessions(String password);
 }

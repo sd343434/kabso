@@ -443,6 +443,71 @@ class AppLocalizationsAr extends AppLocalizations {
   String get sessionsNoOthers => 'حسابك مسجَّل الدخول على هذا الجهاز فقط.';
 
   @override
+  String get settingsDarkMode => 'الوضع الداكن';
+
+  @override
+  String get settingsThemeFollowsDevice => 'يتبع إعداد الجهاز';
+
+  @override
+  String get settingsThemeFollowDevice => 'اتباع الجهاز';
+
+  @override
+  String settingsLanguageCurrent(String language) {
+    return 'اللغة: $language';
+  }
+
+  @override
+  String settingsLanguageSwitchTo(String language) {
+    return 'التبديل إلى $language';
+  }
+
+  @override
+  String sessionsShowAll(int count) {
+    return 'عرض الكل ($count)';
+  }
+
+  @override
+  String get sessionsRevokeOthers => 'تسجيل الخروج من كل الأجهزة الأخرى';
+
+  @override
+  String get sessionsRevokeOthersTitle => 'تسجيل الخروج من كل الأجهزة الأخرى؟';
+
+  @override
+  String sessionsRevokeOthersBody(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: 'سيتم تسجيل الخروج من $n جهاز آخر على الفور.',
+      many: 'سيتم تسجيل الخروج من $n جهازًا آخر على الفور.',
+      few: 'سيتم تسجيل الخروج من $n أجهزة أخرى على الفور.',
+      two: 'سيتم تسجيل الخروج من جهازين آخرين على الفور.',
+      one: 'سيتم تسجيل الخروج من جهاز آخر على الفور.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get sessionsRevokeOthersPasswordHint => 'أدخل كلمة المرور للتأكيد.';
+
+  @override
+  String get sessionsRevokeOthersConfirm => 'تسجيل الخروج';
+
+  @override
+  String sessionsRevokedOthers(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: 'تم تسجيل الخروج من $n جهاز آخر',
+      many: 'تم تسجيل الخروج من $n جهازًا آخر',
+      few: 'تم تسجيل الخروج من $n أجهزة أخرى',
+      two: 'تم تسجيل الخروج من جهازين آخرين',
+      one: 'تم تسجيل الخروج من جهاز آخر',
+      zero: 'لا توجد أجهزة أخرى مسجَّلة الدخول',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get platformAndroid => 'أندرويد';
 
   @override
@@ -675,9 +740,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String compactBillion(String value) {
     return '$value مليار';
   }
-
-  @override
-  String get debugComponentGallery => 'معرض المكونات';
 
   @override
   String get registerUsernameReservedHint =>
@@ -1087,9 +1149,6 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get previewsHubMessages => 'الرسائل';
-
-  @override
-  String get previewsHubComponents => 'المكوّنات';
 
   @override
   String get commentsYou => 'أنت';

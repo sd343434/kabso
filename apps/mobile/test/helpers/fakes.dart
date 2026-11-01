@@ -200,4 +200,10 @@ class FakeAuthRepository implements AuthRepository {
 
   @override
   Future<void> revokeSession(String sessionId) async {}
+
+  /// D226: what [revokeOtherSessions] answers by default.
+  int revokeOthersResult = 0;
+
+  @override
+  Future<int> revokeOtherSessions(String password) async => revokeOthersResult;
 }

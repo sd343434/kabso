@@ -81,11 +81,7 @@ void main() {
   });
 
   group('debug-only routes', () {
-    const debug = [
-      AppRoutes.debugPreviews,
-      AppRoutes.debugFeedPreview,
-      AppRoutes.debugComponents,
-    ];
+    const debug = [AppRoutes.debugPreviews, AppRoutes.debugFeedPreview];
     final states = <AuthState>[
       const AuthRestoring(),
       const AuthRestoreFailed(NetworkFailure.offline()),

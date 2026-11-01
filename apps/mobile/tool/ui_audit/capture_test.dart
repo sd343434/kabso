@@ -239,25 +239,7 @@ void main() {
           await _capture(tester, 'home-light.$l');
         });
       });
-
-      testWidgets('debug component gallery (3 viewports)', (tester) async {
-        await run(tester, () async {
-          await _pumpApp(
-            tester,
-            language: language,
-            initialLocation: AppRoutes.debugComponents,
-          );
-          await _capture(tester, 'gallery-1.$l');
-          for (final page in [2, 3]) {
-            await tester.drag(
-              find.byType(Scrollable).first,
-              const Offset(0, -700),
-            );
-            await _settle(tester);
-            await _capture(tester, 'gallery-$page.$l');
-          }
-        });
-      });
+      // D226: the component gallery was removed from the app.
     });
   }
 }

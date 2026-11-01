@@ -177,9 +177,8 @@ openapi.yaml (`test/helpers/contract_fixtures.dart`); widget tests override prov
   flutter test --update-goldens test/goldens/live_components_golden_test.dart
   ```
 
-- Component gallery (debug/profile builds only): Settings → "Component gallery", or route
-  `/debug/components`. It is registered behind `!kReleaseMode`, so release builds contain
-  neither the route nor the screen.
+- The KL-022 component gallery (`/debug/components`) was removed from the app (D226, owner).
+  Components are reviewed through their widget tests and goldens (`test/goldens/`).
 
 ## What cannot be built or verified here
 

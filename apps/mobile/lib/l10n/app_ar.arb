@@ -261,6 +261,62 @@
   "sessionsRevoked": "تم إنهاء الجلسة",
   "sessionsAlreadyEnded": "كانت هذه الجلسة منتهية بالفعل",
   "sessionsNoOthers": "حسابك مسجَّل الدخول على هذا الجهاز فقط.",
+  "settingsDarkMode": "الوضع الداكن",
+  "@settingsDarkMode": {"description": "D226: the one Settings switch, light ↔ dark."},
+  "settingsThemeFollowsDevice": "يتبع إعداد الجهاز",
+  "@settingsThemeFollowsDevice": {"description": "D226: the dark mode switch's subtitle while the app still follows the device (no explicit choice yet)."},
+  "settingsThemeFollowDevice": "اتباع الجهاز",
+  "@settingsThemeFollowDevice": {"description": "D226: the small link that drops the explicit choice and follows the device again."},
+  "settingsLanguageCurrent": "اللغة: {language}",
+  "@settingsLanguageCurrent": {
+    "description": "D226: the language switch's title with the current language (its own name, isolated).",
+    "placeholders": {
+      "language": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsLanguageSwitchTo": "التبديل إلى {language}",
+  "@settingsLanguageSwitchTo": {
+    "description": "D226: the language switch's subtitle, the other language (its own name, isolated).",
+    "placeholders": {
+      "language": {
+        "type": "String"
+      }
+    }
+  },
+  "sessionsShowAll": "عرض الكل ({count})",
+  "@sessionsShowAll": {
+    "description": "D226: the row under the two most recent sessions that opens the full list; count = all active sessions.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sessionsRevokeOthers": "تسجيل الخروج من كل الأجهزة الأخرى",
+  "@sessionsRevokeOthers": {"description": "D226: the red text button under the sessions (only while another session exists)."},
+  "sessionsRevokeOthersTitle": "تسجيل الخروج من كل الأجهزة الأخرى؟",
+  "sessionsRevokeOthersBody": "{n, plural, =1{سيتم تسجيل الخروج من جهاز آخر على الفور.} =2{سيتم تسجيل الخروج من جهازين آخرين على الفور.} few{سيتم تسجيل الخروج من {n} أجهزة أخرى على الفور.} many{سيتم تسجيل الخروج من {n} جهازًا آخر على الفور.} other{سيتم تسجيل الخروج من {n} جهاز آخر على الفور.}}",
+  "@sessionsRevokeOthersBody": {
+    "description": "D226: the confirm dialog; n = the other sessions in the list.",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "sessionsRevokeOthersPasswordHint": "أدخل كلمة المرور للتأكيد.",
+  "sessionsRevokeOthersConfirm": "تسجيل الخروج",
+  "sessionsRevokedOthers": "{n, plural, =0{لا توجد أجهزة أخرى مسجَّلة الدخول} =1{تم تسجيل الخروج من جهاز آخر} =2{تم تسجيل الخروج من جهازين آخرين} few{تم تسجيل الخروج من {n} أجهزة أخرى} many{تم تسجيل الخروج من {n} جهازًا آخر} other{تم تسجيل الخروج من {n} جهاز آخر}}",
+  "@sessionsRevokedOthers": {
+    "description": "D226: the snackbar after revokeOtherSessions; n = revoked.",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
   "platformAndroid": "أندرويد",
   "platformIos": "iOS",
   "platformWeb": "الويب",
@@ -468,10 +524,6 @@
         "type": "String"
       }
     }
-  },
-  "debugComponentGallery": "معرض المكونات",
-  "@debugComponentGallery": {
-    "description": "Debug builds only."
   },
   "registerUsernameReservedHint": "إذا كنت قد بدأت التسجيل بهذا البريد واسم المستخدم، فقد يظل رمزك صالحًا. اطلب رمزًا جديدًا للمتابعة، أو اختر اسم مستخدم آخر.",
   "@registerUsernameReservedHint": {
@@ -818,7 +870,6 @@
   "previewsHubFeed": "المنشورات",
   "previewsHubLive": "غرفة البث",
   "previewsHubMessages": "الرسائل",
-  "previewsHubComponents": "المكوّنات",
   "commentsYou": "أنت",
   "@commentsYou": {
     "description": "Author name shown on the viewer's own new comment and composer avatar."

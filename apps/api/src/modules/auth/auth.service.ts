@@ -278,6 +278,43 @@ export class AuthService {
     });
   }
 
+  /**
+   * `POST /auth/sessions/revoke-others` (v1.79-social, D226, §10.76). Order after auth and the rate limit: 400 body →
+   * 403 `REAUTH_FAILED` (the password is not the account's; audited) → 200 with the number of sessions ended
+   * (0 when there was no other; audited either way). The caller's own session stays.
+   */
+  async revokeOtherSessions(
+    userId: string,
+    currentSessionId: string,
+    password: string,
+    meta: RequestMeta,
+  ): Promise<{ revoked: number }> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { passwordHash: true } });
+    if (!user) throw new AppException(ErrorCode.AUTH_UNAUTHENTICATED);
+    if (!(await this.passwords.verify(user.passwordHash, password))) {
+      await this.audit.record({
+        action: AuditAction.SESSIONS_REVOKE_OTHERS_REAUTH_FAILED,
+        actorUserId: userId,
+        targetType: 'user',
+        targetId: userId,
+        ip: meta.ip,
+        requestId: meta.requestId,
+      });
+      throw new AppException(ErrorCode.REAUTH_FAILED);
+    }
+    const revoked = await this.sessions.revokeOthers(userId, currentSessionId, RevokedReason.USER_REVOKED);
+    await this.audit.record({
+      action: AuditAction.SESSIONS_REVOKED_OTHERS,
+      actorUserId: userId,
+      targetType: 'session',
+      targetId: currentSessionId,
+      metadata: { count: revoked },
+      ip: meta.ip,
+      requestId: meta.requestId,
+    });
+    return { revoked };
+  }
+
   async verifyEmail(token: string, meta: RequestMeta): Promise<void> {
     const now = new Date();
     const userId = await this.prisma.$transaction(async (tx) => {

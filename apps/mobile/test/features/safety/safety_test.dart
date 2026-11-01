@@ -317,6 +317,9 @@ void main() {
         mutedUsers: [_user('loud'), _user('busy')],
       );
       final (_, _, router) = await pump(tester, safety: safety);
+      // D226: the switch rows push the safety rows further down.
+      await tester.ensureVisible(find.byKey(SettingsScreen.mutedKey));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(SettingsScreen.mutedKey));
       await tester.pumpAndSettle();
       expect(router.state.uri.path, AppRoutes.mutedAccounts);

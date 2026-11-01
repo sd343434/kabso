@@ -420,6 +420,65 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionsNoOthers => 'You\'re signed in on this device only.';
 
   @override
+  String get settingsDarkMode => 'Dark mode';
+
+  @override
+  String get settingsThemeFollowsDevice => 'Following your device';
+
+  @override
+  String get settingsThemeFollowDevice => 'Follow device';
+
+  @override
+  String settingsLanguageCurrent(String language) {
+    return 'Language: $language';
+  }
+
+  @override
+  String settingsLanguageSwitchTo(String language) {
+    return 'Switch to $language';
+  }
+
+  @override
+  String sessionsShowAll(int count) {
+    return 'Show all ($count)';
+  }
+
+  @override
+  String get sessionsRevokeOthers => 'Log out of all other devices';
+
+  @override
+  String get sessionsRevokeOthersTitle => 'Log out of all other devices?';
+
+  @override
+  String sessionsRevokeOthersBody(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n other devices will be logged out right away.',
+      one: '$n other device will be logged out right away.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get sessionsRevokeOthersPasswordHint =>
+      'Enter your password to confirm.';
+
+  @override
+  String get sessionsRevokeOthersConfirm => 'Log out';
+
+  @override
+  String sessionsRevokedOthers(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n other devices logged out',
+      one: '$n other device logged out',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get platformAndroid => 'Android';
 
   @override
@@ -651,9 +710,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String compactBillion(String value) {
     return '${value}B';
   }
-
-  @override
-  String get debugComponentGallery => 'Component gallery';
 
   @override
   String get registerUsernameReservedHint =>
@@ -1055,9 +1111,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get previewsHubMessages => 'Messages';
-
-  @override
-  String get previewsHubComponents => 'Components';
 
   @override
   String get commentsYou => 'You';

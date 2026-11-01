@@ -118,6 +118,15 @@ class AuthRemoteDataSource {
     () => _dio.delete<void>('/auth/sessions/${Uri.encodeComponent(sessionId)}'),
   );
 
+  /// v1.79-social (D226): `revokeOtherSessions` → `{revoked}`.
+  Future<int> revokeOtherSessions(String password) => _guard(() async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/auth/sessions/revoke-others',
+      data: {'password': password},
+    );
+    return res.data!['revoked'] as int;
+  });
+
   Future<T> _guard<T>(Future<T> Function() call) async {
     try {
       return await call();

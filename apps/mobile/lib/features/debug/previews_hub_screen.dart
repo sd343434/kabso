@@ -47,7 +47,6 @@ class PreviewsHubScreen extends StatelessWidget {
         l10n.previewsHubMessages,
         AppRoutes.debugMessagesPreview,
       ),
-      (FeedGlyph.more, l10n.previewsHubComponents, AppRoutes.debugComponents),
     ];
     return Scaffold(
       backgroundColor: p.background,
