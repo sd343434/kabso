@@ -391,64 +391,15 @@ class ProfileHeaderView extends StatelessWidget {
     );
     final agentCode = this.agentCode;
     final hostCode = hostAgentCode;
-    // D189 d + D186: recharge-agent frame > host-agent frame > the worn bag
-    // frame > the CP frame.
-    final frameKind = agentFrameKindFor(
-      rechargeCode: agentCode,
-      hostCode: hostCode,
+    final avatar = ProfileAvatar(
+      displayName: displayName,
+      avatarUrl: avatarUrl,
+      live: live,
+      cpFrame: cpFrame,
+      agentCode: agentCode,
+      hostAgentCode: hostCode,
+      avatarFrame: avatarFrame,
     );
-    final frameArt = AvatarFrameArt.of(avatarFrame);
-    // Owner (after D189): every frame in one box — the recharge frame's —
-    // the photo in each art's measured circle.
-    final box = AvatarFrameBox.aroundAvatar(KProfile.avatar);
-    final avatar = frameKind == AgentFrameKind.recharge && !live
-        ? box.place(
-            RechargeAgentFrame(
-              key: agentFrameKey,
-              width: AgentFrameGeometry.widthIn(frameKind!, box),
-              name: displayName,
-              code: agentCode!,
-              imageUrl: avatarUrl,
-            ),
-          )
-        : frameKind == AgentFrameKind.host && !live
-        ? box.place(
-            HostAgentFrame(
-              key: agentFrameKey,
-              width: AgentFrameGeometry.widthIn(frameKind!, box),
-              name: displayName,
-              imageUrl: avatarUrl,
-            ),
-          )
-        : frameArt != null && !live
-        ? box.place(
-            FramedAvatar(
-              key: avatarFrameKey,
-              art: frameArt,
-              picture: frameArt.pictureForWidth(box.square),
-              layout: true,
-              child: KAvatar(
-                name: displayName,
-                imageUrl: avatarUrl,
-                size: frameArt.pictureForWidth(box.square),
-              ),
-            ),
-          )
-        : cpFrame && !live
-        ? box.place(
-            CpSpecialFrameAvatar(
-              key: cpFrameKey,
-              width: box.fit(CpSpecialFrameAvatar.paintAspect).width,
-              name: displayName,
-              imageUrl: avatarUrl,
-            ),
-          )
-        : KAvatar(
-            name: displayName,
-            imageUrl: avatarUrl,
-            size: KProfile.avatar,
-            ring: live ? KAvatarRing.live : KAvatarRing.none,
-          );
     return Padding(
       padding: const EdgeInsetsDirectional.fromSTEB(
         KProfile.inset,
@@ -532,6 +483,117 @@ class ProfileHeaderView extends StatelessWidget {
   }
 }
 
+/// The profile photo with whichever frame wins (D189 d + D186: the
+/// recharge-agent frame > the host-agent frame > the worn bag frame > the
+/// CP frame; while [live], the live ring with its badge wins over all), in
+/// the recharge frame's box around a [KProfile.avatar] photo. Shared by the
+/// own profile's header and (D218) the public profile's cover header.
+class ProfileAvatar extends StatelessWidget {
+  const new({
+    required this.displayName,
+    super.key,
+    this.avatarUrl,
+    this.live = false,
+    this.cpFrame = false,
+    this.agentCode,
+    this.hostAgentCode,
+    this.avatarFrame,
+    this.outline,
+  });
+
+  final String displayName;
+  final String? avatarUrl;
+  final bool live;
+  final bool cpFrame;
+  final String? agentCode;
+  final String? hostAgentCode;
+  final AvatarFrame? avatarFrame;
+
+  /// D218: a plain photo (no frame, not live) gets a 3 dp ring of this
+  /// colour (the page's, over the cover).
+  final Color? outline;
+
+  static const Key agentFrameKey = ProfileHeaderView.agentFrameKey;
+  static const Key avatarFrameKey = ProfileHeaderView.avatarFrameKey;
+  static const Key cpFrameKey = ProfileHeaderView.cpFrameKey;
+
+  @override
+  Widget build(BuildContext context) {
+    final agentCode = this.agentCode;
+    final hostCode = hostAgentCode;
+    // D189 d + D186: recharge-agent frame > host-agent frame > the worn bag
+    // frame > the CP frame.
+    final frameKind = agentFrameKindFor(
+      rechargeCode: agentCode,
+      hostCode: hostCode,
+    );
+    final frameArt = AvatarFrameArt.of(avatarFrame);
+    // Owner (after D189): every frame in one box — the recharge frame's —
+    // the photo in each art's measured circle.
+    final box = AvatarFrameBox.aroundAvatar(KProfile.avatar);
+    return frameKind == AgentFrameKind.recharge && !live
+        ? box.place(
+            RechargeAgentFrame(
+              key: agentFrameKey,
+              width: AgentFrameGeometry.widthIn(frameKind!, box),
+              name: displayName,
+              code: agentCode!,
+              imageUrl: avatarUrl,
+            ),
+          )
+        : frameKind == AgentFrameKind.host && !live
+        ? box.place(
+            HostAgentFrame(
+              key: agentFrameKey,
+              width: AgentFrameGeometry.widthIn(frameKind!, box),
+              name: displayName,
+              imageUrl: avatarUrl,
+            ),
+          )
+        : frameArt != null && !live
+        ? box.place(
+            FramedAvatar(
+              key: avatarFrameKey,
+              art: frameArt,
+              picture: frameArt.pictureForWidth(box.square),
+              layout: true,
+              child: KAvatar(
+                name: displayName,
+                imageUrl: avatarUrl,
+                size: frameArt.pictureForWidth(box.square),
+              ),
+            ),
+          )
+        : cpFrame && !live
+        ? box.place(
+            CpSpecialFrameAvatar(
+              key: cpFrameKey,
+              width: box.fit(CpSpecialFrameAvatar.paintAspect).width,
+              name: displayName,
+              imageUrl: avatarUrl,
+            ),
+          )
+        : outline != null && !live
+        ? DecoratedBox(
+            decoration: BoxDecoration(shape: BoxShape.circle, color: outline),
+            child: Padding(
+              padding: const EdgeInsets.all(KMetrics.strokeLarge),
+              child: KAvatar(
+                name: displayName,
+                imageUrl: avatarUrl,
+                size: KProfile.avatar - 2 * KMetrics.strokeLarge,
+              ),
+            ),
+          )
+        : KAvatar(
+            name: displayName,
+            imageUrl: avatarUrl,
+            size: KProfile.avatar,
+            ring: live ? KAvatarRing.live : KAvatarRing.none,
+          );
+  }
+}
+
 /// The pinned tab bar of a profile: one icon per tab in [tabs].
 class ProfileTabsDelegate extends SliverPersistentHeaderDelegate {
   const new({
@@ -539,12 +601,17 @@ class ProfileTabsDelegate extends SliverPersistentHeaderDelegate {
     required this.tab,
     required this.background,
     required this.onSelect,
+    this.text = false,
   });
 
   final List<ProfileTab> tabs;
   final ProfileTab tab;
   final Color background;
   final ValueChanged<ProfileTab> onSelect;
+
+  /// D218 (the owner's reference, public profile): words instead of icons
+  /// — the selected one bold with a 2 dp underline, the others tertiary.
+  final bool text;
 
   @override
   double get minExtent => KSizes.minTouchTarget;
@@ -578,11 +645,26 @@ class ProfileTabsDelegate extends SliverPersistentHeaderDelegate {
                 ),
               ),
               child: Center(
-                child: AppIcon(
-                  selected ? filled : outline,
-                  size: KMetrics.iconMd,
-                  color: selected ? p.textPrimary : p.textTertiary,
-                ),
+                child: text
+                    ? Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textScaler: MediaQuery.textScalerOf(context)
+                            .clamp(maxScaleFactor: KMetrics.topBarMaxTextScale),
+                        style: context.textStyles.label.copyWith(
+                          fontSize: 14,
+                          fontWeight: selected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          color: selected ? p.textPrimary : p.textTertiary,
+                        ),
+                      )
+                    : AppIcon(
+                        selected ? filled : outline,
+                        size: KMetrics.iconMd,
+                        color: selected ? p.textPrimary : p.textTertiary,
+                      ),
               ),
             ),
           ),
@@ -601,19 +683,19 @@ class ProfileTabsDelegate extends SliverPersistentHeaderDelegate {
                 t,
                 AppIcons.grid,
                 AppIcons.gridFilled,
-                l10n.homeTabPosts,
+                text ? l10n.profileTabPostsWord : l10n.homeTabPosts,
               ),
               ProfileTab.reels => item(
                 t,
                 AppIcons.reels,
                 AppIcons.reelsFilled,
-                l10n.homeTabReels,
+                text ? l10n.profileTabReelsWord : l10n.homeTabReels,
               ),
               ProfileTab.reposts => item(
                 t,
                 AppIcons.repost,
                 AppIcons.repost,
-                l10n.profileReposts,
+                text ? l10n.profileTabRepostsWord : l10n.profileReposts,
               ),
               ProfileTab.saved => item(
                 t,
@@ -629,7 +711,10 @@ class ProfileTabsDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   bool shouldRebuild(ProfileTabsDelegate old) =>
-      old.tab != tab || old.background != background || old.tabs != tabs;
+      old.tab != tab ||
+      old.background != background ||
+      old.tabs != tabs ||
+      old.text != text;
 }
 
 /// The selected tab's grid of [username], or its state. [own] picks the

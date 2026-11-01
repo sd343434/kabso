@@ -113,12 +113,10 @@ bool _selected(WidgetTester tester, Finder finder) =>
 
 /// D52: shows [tab] on the Reels shell tab with the header switch.
 Future<void> _showHomeMode(WidgetTester tester, HomeTab tab) async {
-  final l10n = AppLocalizations.of(tester.element(find.byType(FeedScreen)));
-  final word = find.descendant(
-    of: find.byKey(FeedScreen.switchKey),
-    matching: find.text(l10n.homeTabReels),
-  );
-  final showing = word.evaluate().isNotEmpty ? HomeTab.posts : HomeTab.reels;
+  // D218: only Reels has feed tabs (Posts' «Reels» is a disc).
+  final showing = find.byKey(FeedScreen.tabsKey).evaluate().isEmpty
+      ? HomeTab.posts
+      : HomeTab.reels;
   if (showing != tab) {
     await tester.ensureVisible(find.byKey(FeedScreen.switchKey));
     await tester.pumpAndSettle();
@@ -296,8 +294,9 @@ void main() {
       await _pumpHome(
         tester,
         overrides: [
-          homePostsProvider.overrideWith(
-            (ref, _) => Completer<FeedLoad<FeedPostData>>().future,
+          // D218: the posts page reads the mix.
+          homeMixedPostsProvider.overrideWith(
+            (ref) => Completer<FeedLoad<FeedPostData>>().future,
           ),
         ],
       );
@@ -329,7 +328,7 @@ void main() {
         await _pumpHome(
           tester,
           overrides: [
-            homePostsProvider.overrideWith((ref, _) {
+            homeMixedPostsProvider.overrideWith((ref) {
               calls++;
               if (fail) throw failure;
               return FeedItems<FeedPostData>(feedPosts(AppLanguage.en));
@@ -359,8 +358,8 @@ void main() {
       await _pumpHome(
         tester,
         overrides: [
-          homePostsProvider.overrideWith(
-            (ref, _) => const FeedItems<FeedPostData>([]),
+          homeMixedPostsProvider.overrideWith(
+            (ref) => const FeedItems<FeedPostData>([]),
           ),
           homeReelsProvider.overrideWith(
             (ref, _) => const FeedItems<FeedReelData>([]),
@@ -1057,7 +1056,8 @@ void main() {
         expect(region.bottom, lessThanOrEqualTo(nav.top));
         final header = tester.getRect(
           key == const Key('nav.reels')
-              ? find.byKey(FeedScreen.tabsKey)
+              // D218: Posts' top bar (Search is its first disc).
+              ? find.byKey(FeedScreen.searchKey)
               : find.byType(LiveHubFilterBar).first,
         );
         expect(header.top, greaterThanOrEqualTo(59));

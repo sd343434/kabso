@@ -7,6 +7,7 @@ import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/app/shell/feed_region.dart';
 import 'package:kabso_live/app/shell/shell_navigation.dart';
 import 'package:kabso_live/core/demo/demo_mode.dart';
+import 'package:kabso_live/core/format/k_handle.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/design_system/design_system.dart';
@@ -22,8 +23,17 @@ import 'package:kabso_live/features/stories/application/stories_controller.dart'
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// `/reels`, the fourth shell tab (D48/D52/D53): Posts (default) and Reels,
-/// each with the feeds Trending (default) and Following.
+/// `/reels`, the fourth shell tab (D48/D52/D53): Posts (default) and Reels.
+///
+/// D218 (owner, after a reference: «بهذا التصميم حرفياً مع اضافة ميزاتنا»):
+/// Posts' top bar is the person's own avatar, name and handle (to their
+/// profile), then Search, the notifications bell (with the unread count)
+/// and «ريلز», which switches to Reels. Posts has one feed: the server's
+/// 1 Following : 2 Trending mix (`GET /feed/posts?tab=mixed`, CONVENTIONS
+/// §10.73). The stories tray sits above every posts state (D218: it was
+/// drawn only above a non-empty feed, so a new account never saw it).
+/// What follows below describes Reels, which keeps Following · For You ·
+/// Nearby:
 ///
 /// - Posts' header has three words in the centre (D53): the feed tabs
 ///   Trending · Following and, past a short divider, "Reels", which
@@ -103,7 +113,7 @@ class _FeedScreenState extends State<FeedScreen> {
     final p = context.palette;
     final reels = _tab == HomeTab.reels;
     final belowHeader = EdgeInsets.only(
-      top: KTopInset.of(context) + KMetrics.topBarHeight,
+      top: KTopInset.of(context) + KPostsTopBar.height,
     );
     final Widget header;
     if (reels) {
@@ -131,15 +141,10 @@ class _FeedScreenState extends State<FeedScreen> {
         key: FeedScreen.headerKey,
         color: p.background,
         child: KTopSafeArea(
-          child: _FeedHeader(
-            tab: _tab,
-            feed: _feed,
+          child: _PostsTopBar(
             showSearch: widget.showSearch,
             showNotifications: widget.showNotifications,
             onSwitch: () => setState(() => _tab = _tab.other),
-            onFeed: (feed) {
-              if (feed != _feed) setState(() => _feed = feed);
-            },
           ),
         ),
       );
@@ -162,7 +167,7 @@ class _FeedScreenState extends State<FeedScreen> {
                     key: FeedScreen.pageKey(HomeTab.posts),
                     child: Padding(
                       padding: belowHeader,
-                      child: _feeds(HomeTab.posts, (f) => _PostsPage(feed: f)),
+                      child: const _PostsPage(),
                     ),
                   ),
                   // D202: reels are full bleed and always dark (video).
@@ -202,17 +207,6 @@ class _FeedScreenState extends State<FeedScreen> {
       ),
     );
   }
-
-  /// The two feeds of [tab], both kept alive.
-  Widget _feeds(HomeTab tab, Widget Function(HomeFeed feed) page) =>
-      IndexedStack(
-        index: _feed.index,
-        sizing: StackFit.expand,
-        children: [
-          for (final feed in HomeFeed.values)
-            KeyedSubtree(key: FeedScreen.feedKey(tab, feed), child: page(feed)),
-        ],
-      );
 }
 
 /// D202: the reels page is dark in both app themes (it sits on video).
@@ -581,94 +575,6 @@ class _ReelsChip extends StatelessWidget {
   }
 }
 
-class _FeedHeader extends StatelessWidget {
-  const new({
-    required this.tab,
-    required this.feed,
-    required this.showSearch,
-    required this.showNotifications,
-    required this.onSwitch,
-    required this.onFeed,
-  });
-
-  final HomeTab tab;
-  final HomeFeed feed;
-  final bool showSearch;
-  final bool showNotifications;
-  final VoidCallback onSwitch;
-  final ValueChanged<HomeFeed> onFeed;
-
-  /// Equal side insets keep the words centred on the screen; Search, when
-  /// shown, sits in the start one and the bell in the end one.
-  static const double _searchSlot = KSizes.minTouchTarget + KSpacing.xs;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final p = context.palette;
-    final reels = tab == HomeTab.reels;
-    return SizedBox(
-      height: KMetrics.topBarHeight,
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: showSearch || showNotifications
-                    ? _searchSlot
-                    : KSpacing.xs,
-              ),
-              child: KPrimaryTabs(
-                key: FeedScreen.tabsKey,
-                centered: true,
-                labels: [l10n.homeFeedTrending, l10n.feedTabFollowing],
-                selectedIndex: feed.index,
-                onSelected: (i) => onFeed(HomeFeed.values[i]),
-                // The other mode's name switches to it (D53).
-                action: KTabAction(
-                  key: FeedScreen.switchKey,
-                  label: reels ? l10n.homeTabPosts : l10n.homeTabReels,
-                  semanticLabel: reels
-                      ? l10n.homeShowPosts
-                      : l10n.homeShowReels,
-                  onTap: onSwitch,
-                ),
-              ),
-            ),
-          ),
-          if (showSearch)
-            PositionedDirectional(
-              start: KSpacing.xs,
-              top: 0,
-              bottom: 0,
-              child: IconButton(
-                key: FeedScreen.searchKey,
-                tooltip: l10n.feedSearch,
-                constraints: const BoxConstraints.tightFor(
-                  width: KSizes.minTouchTarget,
-                  height: KSizes.minTouchTarget,
-                ),
-                onPressed: () => context.push(AppRoutes.discover),
-                icon: AppIcon(
-                  AppIcons.search,
-                  size: KMetrics.iconMd,
-                  color: p.textPrimary,
-                ),
-              ),
-            ),
-          if (showNotifications)
-            const PositionedDirectional(
-              end: KSpacing.xs,
-              top: 0,
-              bottom: 0,
-              child: NotificationsBell(),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
 /// The way forward from an empty or unavailable feed: "Watch live
 /// streams" opens Home (the live hub) on Popular; from Following, "See
 /// who's live" opens it on Following.
@@ -696,37 +602,208 @@ Widget _postsSkeleton(BuildContext context) => SliverList.separated(
   separatorBuilder: (_, _) => _postGap,
 );
 
-class _PostsPage extends ConsumerWidget {
-  const new({required this.feed});
+/// D218 geometry of the posts top bar (the owner's reference, E at ≈0.81
+/// px/dp, logical width 393 assumed): a 56 dp row, the own avatar 38 dp
+/// with a thin story ring, the name 15 sp bold over the handle 12 sp, and
+/// three 36 dp grey discs (Search, the bell, «ريلز») 8 dp apart.
+abstract final class KPostsTopBar {
+  static const double height = KSizes.minTouchTarget + KSpacing.sm;
+  static const double avatar = 38;
+  static const double disc = 36;
+  static const double discGap = KSpacing.sm;
+  static const double nameFont = 15;
+  static const double handleFont = 12;
+}
 
-  final HomeFeed feed;
+/// D218: the posts page's top bar — from the reading start: the person's
+/// avatar, display name and handle (opens their profile), then Search, the
+/// notifications bell with its unread count and «ريلز» (the reels page).
+/// No messages icon: messages stay in the bottom bar.
+class _PostsTopBar extends ConsumerWidget {
+  const new({
+    required this.showSearch,
+    required this.showNotifications,
+    required this.onSwitch,
+  });
+
+  final bool showSearch;
+  final bool showNotifications;
+  final VoidCallback onSwitch;
+
+  static const meKey = Key('home.posts.me');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-    final (actionLabel, action) = _liveAction(context, ref, feed);
-    final following = feed == HomeFeed.following;
+    final p = context.palette;
+    final t = context.textStyles;
+    final me = ref.watch(currentUserProvider);
+    final disc = SizedBox(
+      width: KSizes.minTouchTarget,
+      height: KSizes.minTouchTarget,
+      child: Center(
+        child: Container(
+          width: KPostsTopBar.disc,
+          height: KPostsTopBar.disc,
+          decoration: BoxDecoration(
+            color: p.surfaceOverlay,
+            shape: BoxShape.circle,
+          ),
+        ),
+      ),
+    );
+    Widget overDisc(Widget button) =>
+        Stack(alignment: Alignment.center, children: [disc, button]);
+    return MediaQuery.withClampedTextScaling(
+      maxScaleFactor: KMetrics.topBarMaxTextScale,
+      child: SizedBox(
+        height: KPostsTopBar.height,
+        child: Padding(
+          padding: const EdgeInsetsDirectional.only(
+            start: KSpacing.lg,
+            end: KSpacing.sm,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: me == null
+                    ? const SizedBox.shrink()
+                    : Semantics(
+                        button: true,
+                        label: l10n.postsTopBarMe(
+                          me.displayName.isEmpty ? me.username : me.displayName,
+                        ),
+                        excludeSemantics: true,
+                        child: InkWell(
+                          key: meKey,
+                          borderRadius: BorderRadius.circular(KRadius.md),
+                          onTap: () => context.push(AppRoutes.myProfile),
+                          child: Row(
+                            children: [
+                              KAvatar(
+                                name: me.displayName,
+                                imageUrl: me.avatarUrl,
+                                size: KPostsTopBar.avatar - 2 * KMetrics.stroke,
+                                ring: KAvatarRing.storyUnseen,
+                              ),
+                              const SizedBox(width: KSpacing.sm),
+                              Flexible(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      me.displayName.isEmpty
+                                          ? me.username
+                                          : me.displayName,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: t.bodyStrong.copyWith(
+                                        color: p.textPrimary,
+                                        fontSize: KPostsTopBar.nameFont,
+                                        fontWeight: FontWeight.w700,
+                                        height: 1.25,
+                                      ),
+                                    ),
+                                    Text(
+                                      KHandle.isolated(
+                                        me.username,
+                                        premiumTier: me.premiumTier,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: t.caption.copyWith(
+                                        color: p.textTertiary,
+                                        fontSize: KPostsTopBar.handleFont,
+                                        height: 1.25,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+              ),
+              if (showSearch)
+                overDisc(
+                  IconButton(
+                    key: FeedScreen.searchKey,
+                    tooltip: l10n.feedSearch,
+                    constraints: const BoxConstraints.tightFor(
+                      width: KSizes.minTouchTarget,
+                      height: KSizes.minTouchTarget,
+                    ),
+                    onPressed: () => context.push(AppRoutes.discover),
+                    icon: AppIcon(
+                      AppIcons.search,
+                      size: KMetrics.iconMd - 2,
+                      color: p.textPrimary,
+                    ),
+                  ),
+                ),
+              if (showNotifications) overDisc(const NotificationsBell()),
+              // The reference's third disc: «ريلز» opens the reels page.
+              overDisc(
+                IconButton(
+                  key: FeedScreen.switchKey,
+                  tooltip: l10n.homeShowReels,
+                  constraints: const BoxConstraints.tightFor(
+                    width: KSizes.minTouchTarget,
+                    height: KSizes.minTouchTarget,
+                  ),
+                  onPressed: onSwitch,
+                  icon: AppIcon(
+                    AppIcons.reels,
+                    size: KMetrics.iconMd - 2,
+                    color: p.textPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// D218: the posts page — the stories tray above the server's 1 Following
+/// : 2 Trending mix, in every state of the feed.
+class _PostsPage extends ConsumerWidget {
+  const new();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final (actionLabel, action) = _liveAction(context, ref, HomeFeed.trending);
     final stories = ref.watch(homeStoriesProvider).value;
-    final source = homePostsProvider(feed);
+    final source = homeMixedPostsProvider;
     final content = ref.watch(source);
     return FeedRegion<FeedPostData>(
-      key: PageStorageKey('home.posts.${feed.name}'),
+      key: const PageStorageKey('home.posts.mixed'),
       content: content,
+      leading: switch (stories) {
+        FeedItems(:final items) when items.isNotEmpty => SliverToBoxAdapter(
+          child: FeedStoriesTray(
+            stories: items,
+            onOpen: (s) => context.push(AppRoutes.stories(s.username!)),
+            onAdd: () => context.push(AppRoutes.newStory),
+            onOpenLive: (room) => context.push(AppRoutes.liveRoom(room)),
+          ),
+        ),
+        _ => null,
+      },
       copy: FeedRegionCopy(
         unavailableIcon: Icons.dynamic_feed_outlined,
-        unavailableTitle: following
-            ? l10n.homeFollowingUnavailableTitle
-            : l10n.homePopularUnavailableTitle,
-        unavailableBody: following
-            ? l10n.homeFollowingUnavailableBody
-            : l10n.homePopularUnavailableBody,
+        unavailableTitle: l10n.homePopularUnavailableTitle,
+        unavailableBody: l10n.homePopularUnavailableBody,
         unavailableActionLabel: actionLabel,
         unavailableActionIcon: Icons.sensors_rounded,
         onUnavailableAction: action,
         emptyIcon: Icons.dynamic_feed_outlined,
-        emptyTitle: following
-            ? l10n.homeFollowingEmptyTitle
-            : l10n.homeEmptyTitle,
+        emptyTitle: l10n.homeEmptyTitle,
         emptyBody: l10n.feedPullToRefresh,
         emptyActionLabel: actionLabel,
         emptyActionIcon: Icons.sensors_rounded,
@@ -737,45 +814,31 @@ class _PostsPage extends ConsumerWidget {
       onRefresh: () {
         ref
           ..invalidate(storyTrayProvider)
+          ..invalidate(followedLiveNowProvider)
           ..invalidate(homeStoriesProvider)
-          ..invalidate(postsFeedProvider(feed));
+          ..invalidate(mixedPostsFeedProvider);
         return ref.refresh(source.future);
       },
       onRetry: () => ref
-        ..invalidate(postsFeedProvider(feed))
+        ..invalidate(mixedPostsFeedProvider)
         ..invalidate(source),
       // Only a real paginated source has a next page (fixtures never do).
       onLoadMore: () {
         if (content.value case FeedItems(hasMore: true)) {
-          unawaited(ref.read(postsFeedProvider(feed).notifier).loadMore());
+          unawaited(ref.read(mixedPostsFeedProvider.notifier).loadMore());
         }
       },
       onRetryLoadMore: () =>
-          unawaited(ref.read(postsFeedProvider(feed).notifier).retryLoadMore()),
+          unawaited(ref.read(mixedPostsFeedProvider.notifier).retryLoadMore()),
       footerLoadingSliver: const SliverToBoxAdapter(child: FeedPostSkeleton()),
       loadingSliver: _postsSkeleton(context),
-      itemsSliver: (posts) => SliverMainAxisGroup(
-        slivers: [
-          if (stories case FeedItems(:final items) when items.isNotEmpty)
-            SliverToBoxAdapter(
-              child: FeedStoriesTray(
-                stories: items,
-                onOpen: (s) => context.push(AppRoutes.stories(s.username!)),
-                onAdd: () => context.push(AppRoutes.newStory),
-              ),
-            ),
-          SliverPadding(
-            padding: const EdgeInsets.only(
-              top: KSpacing.xs,
-              bottom: KSpacing.lg,
-            ),
-            sliver: SliverList.separated(
-              itemCount: posts.length,
-              itemBuilder: (_, i) => FeedPostTile(post: posts[i]),
-              separatorBuilder: (_, _) => _postGap,
-            ),
-          ),
-        ],
+      itemsSliver: (posts) => SliverPadding(
+        padding: const EdgeInsets.only(bottom: KSpacing.lg),
+        sliver: SliverList.separated(
+          itemCount: posts.length,
+          itemBuilder: (_, i) => FeedPostTile(post: posts[i]),
+          separatorBuilder: (_, _) => _postGap,
+        ),
       ),
     );
   }

@@ -12,6 +12,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/app.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
+import 'package:kabso_live/core/format/k_handle.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/core/storage/preferences.dart';
@@ -63,32 +64,49 @@ Future<FakeProfileRepository> _pump(
 }
 
 void main() {
-  testWidgets('header from GET /users/{username}: @username, photo with the '
-      'live ring and badge, counts, name, bio; Follow and Watch live', (
-    tester,
-  ) async {
+  testWidgets('header from GET /users/{username} (D218 layout): the cover '
+      '(or the Kabso gradient) with back and dots, the photo with the live '
+      'ring and badge over it (a tap opens the room), name, handle, counts, '
+      'bio; a wide Follow pill and a round Message button', (tester) async {
     final repo = await _pump(tester);
     expect(repo.calls, ['GET host0']);
-    expect(find.text('@host0'), findsOneWidget);
+    expect(find.text(KHandle.isolated('host0')), findsOneWidget);
     expect(find.text('Sara'), findsOneWidget);
     expect(find.text('Arabic music every evening'), findsOneWidget);
-    expect(find.text('1,234'), findsOneWidget);
-    expect(find.text('40'), findsOneWidget);
+    expect(find.textContaining('1,234'), findsOneWidget);
+    expect(find.textContaining('40'), findsWidgets);
     final avatar = tester.widget<KAvatar>(find.byType(KAvatar).first);
     expect(avatar.ring, KAvatarRing.live);
     expect(find.byType(KBadge), findsOneWidget);
+    // No cover yet: the Kabso gradient, with back and dots over it.
+    expect(find.byKey(PublicProfileScreen.coverFallbackKey), findsOneWidget);
+    final cover = tester.getRect(
+      find.byKey(PublicProfileScreen.coverFallbackKey),
+    );
+    expect(cover.top, 0);
+    expect(cover.width, 393);
+    final photo = tester.getRect(find.byKey(ProfileHeaderView.avatarKey));
+    expect(photo.top, lessThan(cover.bottom));
+    expect(photo.bottom, greaterThan(cover.bottom));
+    for (final key in [
+      PublicProfileScreen.backKey,
+      PublicProfileScreen.moreKey,
+    ]) {
+      expect(tester.getRect(find.byKey(key)).bottom, lessThan(cover.bottom));
+    }
     expect(find.byKey(PublicProfileScreen.followKey), findsOneWidget);
     expect(find.byKey(PublicProfileScreen.watchLiveKey), findsOneWidget);
     expect(find.bySemanticsLabel(_en.profileWatchLive), findsWidgets);
     expect(find.text(_en.liveFollow), findsOneWidget);
-    // D61: Message beside Follow; the LIVE button stays compact.
+    // D218: the Follow pill fills the row; Message is a round button after it.
     final follow = tester.getRect(find.byKey(PublicProfileScreen.followKey));
     final message = tester.getRect(find.byKey(PublicProfileScreen.messageKey));
-    final live = tester.getRect(find.byKey(PublicProfileScreen.watchLiveKey));
-    expect(message.width, moreOrLessEquals(follow.width, epsilon: 0.5));
-    expect(live.width, lessThan(follow.width));
+    expect(message.width, moreOrLessEquals(message.height, epsilon: 0.5));
+    expect(follow.width, greaterThan(4 * message.width));
     expect(follow.right, lessThan(message.left));
-    expect(message.right, lessThan(live.left));
+    // The words «Posts | Reels | Reposts» (no subscribers tab, no Saved).
+    expect(find.text(_en.profileTabPostsWord), findsOneWidget);
+    expect(find.text(_en.profileTabRepostsWord), findsOneWidget);
     // Posts and Reels only: Saved is private.
     expect(find.byKey(ProfileScreen.tabKey(ProfileTab.posts)), findsOneWidget);
     expect(find.byKey(ProfileScreen.tabKey(ProfileTab.reels)), findsOneWidget);
@@ -108,7 +126,7 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.text('1,235'), findsOneWidget);
+    expect(find.textContaining('1,235'), findsOneWidget);
     await tester.tap(find.byKey(PublicProfileScreen.followKey));
     await tester.pumpAndSettle();
     expect(find.text(_en.profileUnfollowConfirm('Sara')), findsOneWidget);
@@ -345,7 +363,7 @@ void main() {
       await tester.pumpAndSettle();
     });
     expect(find.byType(PublicProfileScreen), findsOneWidget);
-    expect(find.text('@host0'), findsOneWidget);
+    expect(find.text(KHandle.isolated('host0')), findsOneWidget);
   });
 
   testWidgets('D61: Message opens the conversation with the user', (

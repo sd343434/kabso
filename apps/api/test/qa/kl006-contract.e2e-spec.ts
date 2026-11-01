@@ -23,6 +23,8 @@ const ISO_Z = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 const ME_REQUIRED = [
+  // v1.76-social (D218): the profile cover (nullable, always present).
+  'coverUrl',
   'id',
   'email',
   'emailVerified',

@@ -73,6 +73,9 @@ abstract final class AppIcons {
   static const String clock = '$_p/clock.svg';
   static const String location = '$_p/location.svg';
   static const String eyeOff = '$_p/eye_off.svg';
+
+  /// D218: a post's views in the feed's action row.
+  static const String eye = '$_p/eye_outline.svg';
   static const String flag = '$_p/flag_outline.svg';
 
   // D56 additions from the owner's set.

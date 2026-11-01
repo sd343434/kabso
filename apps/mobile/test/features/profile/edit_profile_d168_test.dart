@@ -113,6 +113,22 @@ class _FakeProfileEdit implements ProfileEditRepository {
     _fail();
     user = user.copyWith(avatarUrl: null);
   }
+
+  @override
+  Future<String> setCover(String mediaId) async {
+    calls.add('cover:$mediaId');
+    _fail();
+    final url = 'https://media.example.test/media/$mediaId/1080.webp';
+    user = user.copyWith(coverUrl: url);
+    return url;
+  }
+
+  @override
+  Future<void> removeCover() async {
+    calls.add('removeCover');
+    _fail();
+    user = user.copyWith(coverUrl: null);
+  }
 }
 
 class _FakePicker implements AvatarPhotoPicker {

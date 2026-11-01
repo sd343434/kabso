@@ -84,6 +84,14 @@ abstract interface class MediaRepository {
     void Function(double progress)? onProgress,
   });
 
+  /// v1.76-social (D218, §10.73.3): the profile cover (`PROFILE_COVER`,
+  /// processed like a post image, never cropped).
+  Future<MediaAsset> uploadCover(
+    Uint8List bytes,
+    String contentType, {
+    void Function(double progress)? onProgress,
+  });
+
   /// v1.41-social (D162, CONVENTIONS §11.14): a post's video
   /// (`POST_VIDEO`) or, with [reel], a reel's (`REEL_VIDEO`). The poster
   /// goes first (`VIDEO_POSTER`), then the file is streamed to its slot and
@@ -158,6 +166,18 @@ class MediaRepositoryImpl implements MediaRepository {
     String contentType, {
     void Function(double progress)? onProgress,
   }) => _upload(bytes, contentType, kind: 'AVATAR', onProgress: onProgress);
+
+  @override
+  Future<MediaAsset> uploadCover(
+    Uint8List bytes,
+    String contentType, {
+    void Function(double progress)? onProgress,
+  }) => _upload(
+    bytes,
+    contentType,
+    kind: 'PROFILE_COVER',
+    onProgress: onProgress,
+  );
 
   @override
   Future<MediaAsset> uploadVideo(

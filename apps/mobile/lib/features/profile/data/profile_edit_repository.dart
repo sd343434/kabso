@@ -32,6 +32,14 @@ abstract interface class ProfileEditRepository {
 
   /// `DELETE /me/avatar` (idempotent; works while uploads are off).
   Future<void> removeAvatar();
+
+  /// v1.76-social (D218, §10.73.3): `PUT /me/cover {mediaId}` (a
+  /// `PROFILE_COVER` asset); the cover's URL.
+  Future<String> setCover(String mediaId);
+
+  /// v1.76-social (D218): `DELETE /me/cover` (idempotent; works while
+  /// uploads are off).
+  Future<void> removeCover();
 }
 
 class ProfileEditRepositoryImpl implements ProfileEditRepository {
@@ -67,6 +75,19 @@ class ProfileEditRepositoryImpl implements ProfileEditRepository {
   @override
   Future<void> removeAvatar() =>
       guardApiCall(() => _api.delete<void>('/me/avatar'));
+
+  @override
+  Future<String> setCover(String mediaId) => guardApiCall(() async {
+    final res = await _api.put<Map<String, dynamic>>(
+      '/me/cover',
+      data: {'mediaId': mediaId},
+    );
+    return res.data!['coverUrl']! as String;
+  });
+
+  @override
+  Future<void> removeCover() =>
+      guardApiCall(() => _api.delete<void>('/me/cover'));
 }
 
 /// One link as sent to the server (`ProfileLinkInput`).

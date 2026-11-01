@@ -14,6 +14,7 @@ class FeedStoryData {
     this.username,
     this.isSelf = false,
     this.hasStory = true,
+    this.liveRoomId,
   });
 
   final String authorName;
@@ -27,8 +28,13 @@ class FeedStoryData {
   final bool isSelf;
 
   /// `false` for the caller's entry while they have no active story: a
-  /// tap adds one.
+  /// tap adds one. D218: also `false` for someone who is only live.
   final bool hasStory;
+
+  /// D218: the account is live now in this room: the live ring with its
+  /// red «مباشر / LIVE» badge under the photo (`KAvatarRing.live`); a tap
+  /// opens the room, not the story.
+  final String? liveRoomId;
 }
 
 /// Geometry of the stories tray (D52, layout from the owner's reference;
@@ -37,6 +43,9 @@ abstract final class KStoriesTray {
   /// One item: the 68 dp ring plus room for a short name.
   static const double itemWidth = KSizes.storyRing + KSpacing.xs;
   static const double gap = KSpacing.md;
+
+  /// The «+» badge of «قصتك».
+  static const double addBadge = 22;
 }
 
 /// The horizontal stories tray above the posts: story rings with the
@@ -44,11 +53,20 @@ abstract final class KStoriesTray {
 /// and the caller's entry without one calls [onAdd] ("Your story" with a
 /// "+"); fixtures without callbacks are display only (no inert controls).
 class FeedStoriesTray extends StatelessWidget {
-  const new({required this.stories, super.key, this.onOpen, this.onAdd});
+  const new({
+    required this.stories,
+    super.key,
+    this.onOpen,
+    this.onAdd,
+    this.onOpenLive,
+  });
 
   final List<FeedStoryData> stories;
   final ValueChanged<FeedStoryData>? onOpen;
   final VoidCallback? onAdd;
+
+  /// D218: a live entry's tap: opens the room.
+  final ValueChanged<String>? onOpenLive;
 
   static const trayKey = Key('feed.stories');
   static Key itemKey(String username) => Key('feed.stories.$username');
@@ -71,6 +89,9 @@ class FeedStoriesTray extends StatelessWidget {
             _TrayItem(
               story: story,
               onTap: switch (story) {
+                FeedStoryData(liveRoomId: final room?)
+                    when onOpenLive != null =>
+                  () => onOpenLive!(room),
                 FeedStoryData(isSelf: true, hasStory: false) => onAdd,
                 FeedStoryData(username: _?) when onOpen != null =>
                   () => onOpen!(story),
@@ -96,6 +117,7 @@ class _TrayItem extends StatelessWidget {
     final p = context.palette;
     final l10n = context.l10n;
     final adding = story.isSelf && !story.hasStory;
+    final live = story.liveRoomId != null;
     final label = story.isSelf ? l10n.storyYourStory : story.authorName;
     final item = SizedBox(
       width: KStoriesTray.itemWidth,
@@ -107,8 +129,10 @@ class _TrayItem extends StatelessWidget {
               KAvatar.story(
                 name: story.authorName,
                 image: story.authorAvatar,
-                ring: adding
-                    ? KAvatarRing.none
+                ring: live
+                    ? KAvatarRing.live
+                    : adding
+                    ? KAvatarRing.storySeen
                     : story.seen
                     ? KAvatarRing.storySeen
                     : KAvatarRing.storyUnseen,
@@ -118,8 +142,8 @@ class _TrayItem extends StatelessWidget {
                   end: 0,
                   bottom: 0,
                   child: Container(
-                    width: 22,
-                    height: 22,
+                    width: KStoriesTray.addBadge,
+                    height: KStoriesTray.addBadge,
                     decoration: BoxDecoration(
                       color: p.primary,
                       shape: BoxShape.circle,
@@ -141,7 +165,9 @@ class _TrayItem extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
-              style: t.caption.copyWith(color: p.textPrimary),
+              style: t.caption.copyWith(
+                color: story.isSelf ? p.textSecondary : p.textPrimary,
+              ),
             ),
           ),
         ],
@@ -151,7 +177,9 @@ class _TrayItem extends StatelessWidget {
     if (tap == null) return item;
     return Semantics(
       button: true,
-      label: adding
+      label: live
+          ? l10n.storyWatchLive(label)
+          : adding
           ? l10n.storyAdd
           : story.isSelf
           ? l10n.storyOpenOwn

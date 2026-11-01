@@ -409,6 +409,8 @@ class _HomeDemo extends StatelessWidget {
     return ProviderScope(
       overrides: [
         homePostsProvider.overrideWith((ref, _) => FeedItems(posts)),
+        // D218: the posts page shows the mix.
+        homeMixedPostsProvider.overrideWith((ref) => FeedItems(posts)),
         homeReelsProvider.overrideWith((ref, _) => FeedItems(reels)),
       ],
       child: const FeedScreen(showNotifications: false),

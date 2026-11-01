@@ -94,6 +94,12 @@ class EditProfileScreen extends ConsumerWidget {
   static const photoRemoveKey = Key('profile.edit.photo.remove');
   static const photoProgressKey = Key('profile.edit.photo.progress');
 
+  /// v1.76-social (D218): the profile cover row and its sheet.
+  static const coverKey = Key('profile.edit.cover');
+  static const coverLibraryKey = Key('profile.edit.cover.library');
+  static const coverCameraKey = Key('profile.edit.cover.camera');
+  static const coverRemoveKey = Key('profile.edit.cover.remove');
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
@@ -102,6 +108,7 @@ class EditProfileScreen extends ConsumerWidget {
     final me = ref.watch(meProvider);
     final user = ref.watch(currentUserProvider) ?? me.value;
     final photo = ref.watch(profilePhotoControllerProvider);
+    final cover = ref.watch(profileCoverControllerProvider);
     Widget divider() => Divider(
       height: KMetrics.hairline,
       thickness: KMetrics.hairline,
@@ -207,6 +214,24 @@ class EditProfileScreen extends ConsumerWidget {
                   // D146: the username has its own rules and screen.
                   onTap: () =>
                       GoRouter.maybeOf(context)?.push(AppRoutes.changeUsername),
+                ),
+                // D218: the cover across the top of the profile.
+                _Row(
+                  key: coverKey,
+                  label: l10n.profileEditCover,
+                  value: cover.busy
+                      ? l10n.profileEditPhotoUploading
+                      : user.coverUrl != null
+                      ? l10n.profileEditCoverSet
+                      : '',
+                  placeholder: l10n.profileEditNotSet,
+                  onTap: cover.busy
+                      ? null
+                      : () => _changeCover(
+                          context,
+                          ref,
+                          hasCover: user.coverUrl != null,
+                        ),
                 ),
                 _Row(
                   key: bioKey,
@@ -388,6 +413,95 @@ class EditProfileScreen extends ConsumerWidget {
 }
 
 enum _PhotoAction { library, camera, remove }
+
+/// v1.76-social (D218, §10.73.3): choose, take or remove the profile cover.
+/// The picture is uploaded whole (no crop): the profile covers its banner
+/// with it.
+Future<void> _changeCover(
+  BuildContext context,
+  WidgetRef ref, {
+  required bool hasCover,
+}) async {
+  final l10n = context.l10n;
+  final action = await showModalBottomSheet<_PhotoAction>(
+    context: context,
+    builder: (sheet) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(KSpacing.lg),
+            child: Text(
+              l10n.profileEditCover,
+              style: sheet.textStyles.bodyStrong,
+            ),
+          ),
+          ListTile(
+            key: EditProfileScreen.coverLibraryKey,
+            leading: const Icon(Icons.photo_library_outlined),
+            title: Text(l10n.profileEditPhotoLibrary),
+            onTap: () => Navigator.of(sheet).pop(_PhotoAction.library),
+          ),
+          ListTile(
+            key: EditProfileScreen.coverCameraKey,
+            leading: const Icon(Icons.photo_camera_outlined),
+            title: Text(l10n.profileEditPhotoCamera),
+            onTap: () => Navigator.of(sheet).pop(_PhotoAction.camera),
+          ),
+          if (hasCover)
+            ListTile(
+              key: EditProfileScreen.coverRemoveKey,
+              leading: Icon(Icons.delete_outline, color: sheet.palette.error),
+              title: Text(
+                l10n.profileEditCoverRemove,
+                style: TextStyle(color: sheet.palette.error),
+              ),
+              onTap: () => Navigator.of(sheet).pop(_PhotoAction.remove),
+            ),
+        ],
+      ),
+    ),
+  );
+  if (!context.mounted || action == null) return;
+  final controller = ref.read(profileCoverControllerProvider.notifier);
+  try {
+    switch (action) {
+      case _PhotoAction.library || _PhotoAction.camera:
+        final bytes = await ref
+            .read(avatarPhotoPickerProvider)
+            .pick(
+              action == _PhotoAction.camera
+                  ? AvatarSource.camera
+                  : AvatarSource.library,
+            );
+        if (!context.mounted || bytes == null) return;
+        final type = sniffImageType(bytes);
+        if (type == null) {
+          KSnack.error(context, l10n.createPhotoUnsupported);
+          return;
+        }
+        if (bytes.length > maxPhotoBytes) {
+          KSnack.error(context, l10n.createPhotoTooLarge);
+          return;
+        }
+        await controller.change(bytes, type);
+        if (context.mounted) {
+          KSnack.success(context, l10n.profileEditCoverUpdated);
+        }
+      case _PhotoAction.remove:
+        await controller.remove();
+        if (context.mounted) {
+          KSnack.success(context, l10n.profileEditCoverRemoved);
+        }
+    }
+  } on PlatformException {
+    if (context.mounted) KSnack.error(context, l10n.createPhotoAccessDenied);
+  } on Object catch (e) {
+    if (context.mounted) {
+      KSnack.error(context, failureMessage(l10n, toAppFailure(e)));
+    }
+  }
+}
 
 /// The grid row (D175): the label and how to pin posts; not a button.
 class _PinHintRow extends StatelessWidget {

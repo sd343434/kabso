@@ -168,8 +168,9 @@ void main() {
             screen: const FeedScreen(),
             navIndex: _reelsIndex,
             overrides: [
-              homePostsProvider.overrideWith(
-                (ref, _) => FeedItems<FeedPostData>(feedPosts(language)),
+              // D218: the posts page shows the server's mix.
+              homeMixedPostsProvider.overrideWith(
+                (ref) => FeedItems<FeedPostData>(feedPosts(language)),
               ),
               homeStoriesProvider.overrideWith(
                 (ref) => FeedItems<FeedStoryData>(feedStories(language)),
@@ -186,8 +187,9 @@ void main() {
             screen: const FeedScreen(),
             navIndex: _reelsIndex,
             overrides: [
-              homePostsProvider.overrideWith(
-                (ref, _) => FeedItems<FeedPostData>(feedPosts(language)),
+              // D218: the posts page shows the server's mix.
+              homeMixedPostsProvider.overrideWith(
+                (ref) => FeedItems<FeedPostData>(feedPosts(language)),
               ),
             ],
           );

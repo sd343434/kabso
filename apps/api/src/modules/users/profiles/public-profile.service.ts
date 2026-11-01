@@ -63,6 +63,8 @@ export interface PublicProfileDto {
   country: string | null;
   /** v1.76-social (D218): the month the account was created, `YYYY-MM` (UTC). */
   joinedMonth: string;
+  /** v1.76-social (D218): the caller blocked this user (the profile's «إلغاء الحظر»); false when isSelf. */
+  blockedByMe: boolean;
 }
 
 /**
@@ -93,6 +95,15 @@ export class PublicProfileService {
     return row !== null;
   }
 
+  /** Whether [callerId] blocked [targetId] (primary-key lookup). */
+  private async blocked(callerId: string, targetId: string): Promise<boolean> {
+    const row = await this.prisma.userBlock.findUnique({
+      where: { blockerId_blockedId: { blockerId: callerId, blockedId: targetId } },
+      select: { blockerId: true },
+    });
+    return row !== null;
+  }
+
   async get(callerId: string, username: string, lang: ContentLanguage): Promise<PublicProfileDto> {
     const user = await this.users.findActivePublicUser(username);
     // Malformed, unknown, pending-only, SUSPENDED and DELETED: the same 404 body.
@@ -112,6 +123,7 @@ export class PublicProfileService {
       hostAgency,
       avatarFrame,
       badge,
+      blockedByMe,
     ] = await Promise.all([
       this.follows.counts(user.id),
       isSelf ? Promise.resolve(false) : this.follows.isFollowing(callerId, user.id),
@@ -139,6 +151,8 @@ export class PublicProfileService {
         where: { userId: user.id, user: { rechargeAgent: { is: null } } },
         select: { tier: true, until: true },
       }),
+      // v1.76-social (D218): the caller's own block of this user.
+      isSelf ? Promise.resolve(false) : this.blocked(callerId, user.id),
     ]);
     const shown = activeRechargeBadge(badge, new Date());
     return {
@@ -170,6 +184,7 @@ export class PublicProfileService {
       coverUrl: user.coverUrl,
       country: user.country,
       joinedMonth: user.joinedMonth,
+      blockedByMe,
     };
   }
 }

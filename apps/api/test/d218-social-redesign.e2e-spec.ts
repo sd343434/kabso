@@ -164,9 +164,14 @@ describe('D218 social redesign', { timeout: 120_000 }, () => {
     });
 
     it('never lists the caller own posts (also when reposted), muted, hidden or blocked authors', async () => {
-      const [me, friend, muted, blocked, blocker, hiddenBy] = await Promise.all(
-        Array.from({ length: 6 }, () => signup()),
-      );
+      const [me, friend, muted, blocked, blocker, hiddenBy] = [
+        await signup(),
+        await signup(),
+        await signup(),
+        await signup(),
+        await signup(),
+        await signup(),
+      ];
       await follow(me, friend);
       const mine = await post(me, 'my own');
       expect((await ctx.http.put(`/api/v1/posts/${mine}/repost`).set(auth(friend))).status).toBe(200);
@@ -369,6 +374,23 @@ describe('D218 social redesign', { timeout: 120_000 }, () => {
       expect((await ctx.http.patch('/api/v1/me').set(auth(u)).send({ country: 'JO' })).status).toBe(200);
       const after = await ctx.http.get(`/api/v1/users/${u.username}`).set(auth(viewer));
       expect(after.body.country).toBe('JO');
+    });
+
+    it('blockedByMe: only the caller sees their own block (the profile offers «إلغاء الحظر»)', async () => {
+      const [me, them] = [await signup(), await signup()];
+      const read = async (viewer: TestUser, of: TestUser) => {
+        const res = await ctx.http.get(`/api/v1/users/${of.username}`).set(auth(viewer));
+        expect(res.status).toBe(200);
+        expectContract(res, 'getPublicProfile');
+        return res.body.blockedByMe as boolean;
+      };
+      expect(await read(me, them)).toBe(false);
+      expect((await ctx.http.put(`/api/v1/users/${them.username}/block`).set(auth(me))).status).toBe(200);
+      expect(await read(me, them)).toBe(true);
+      expect(await read(them, me)).toBe(false);
+      expect(await read(me, me)).toBe(false);
+      expect((await ctx.http.delete(`/api/v1/users/${them.username}/block`).set(auth(me))).status).toBe(200);
+      expect(await read(me, them)).toBe(false);
     });
   });
 

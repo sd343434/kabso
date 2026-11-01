@@ -933,6 +933,11 @@ describe('KL-037 public profile and follow', () => {
       rechargeAgent: null,
       hostAgent: null,
       avatarFrame: null,
+      // v1.76-social (D218): no cover, no country chosen, the month joined only, not blocked by the caller.
+      coverUrl: null,
+      country: null,
+      joinedMonth: expect.stringMatching(/^\d{4}-\d{2}$/),
+      blockedByMe: false,
     });
     const self = await profile(target, target.username);
     expectContract(self, 'getPublicProfile');

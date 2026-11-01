@@ -21159,6 +21159,150 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'الميكروفون مغلق'**
   String get podcastMuted;
+
+  /// D218 (the owner's social redesign, CONVENTIONS §10.73).
+  ///
+  /// In ar, this message translates to:
+  /// **'ملفك الشخصي، {name}'**
+  String postsTopBarMe(String name);
+
+  /// D218 (the owner's social redesign, CONVENTIONS §10.73).
+  ///
+  /// In ar, this message translates to:
+  /// **'مقترح لك'**
+  String get feedSuggested;
+
+  /// D218 (the owner's social redesign, CONVENTIONS §10.73).
+  ///
+  /// In ar, this message translates to:
+  /// **'المزيد'**
+  String get feedPostSeeMore;
+
+  /// D218 (the owner's social redesign, CONVENTIONS §10.73).
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} مشاهدة'**
+  String feedPostViewCount(String count);
+
+  /// D218 (the owner's social redesign, CONVENTIONS §10.73).
+  ///
+  /// In ar, this message translates to:
+  /// **'شاهد بث {name} المباشر'**
+  String storyWatchLive(String name);
+
+  /// D218 (the owner's social redesign, CONVENTIONS §10.73).
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب رسالة…'**
+  String get storyReplyHint;
+
+  /// D218 (the owner's social redesign, CONVENTIONS §10.73).
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال'**
+  String get storyReplySend;
+
+  /// D218 (the owner's social redesign, CONVENTIONS §10.73).
+  ///
+  /// In ar, this message translates to:
+  /// **'أُرسلت إلى الرسائل'**
+  String get storyReplySent;
+
+  /// D218 (the owner's social redesign, CONVENTIONS §10.73).
+  ///
+  /// In ar, this message translates to:
+  /// **'أعجبتني قصة {name}'**
+  String storyReact(String name);
+
+  /// D218 (the owner's social redesign, CONVENTIONS §10.73).
+  ///
+  /// In ar, this message translates to:
+  /// **'أزال فريق الإشراف صورة غلاف ملفك لمخالفتها الإرشادات'**
+  String get notifCoverRemoved;
+
+  /// D218 (the owner's social redesign, CONVENTIONS §10.73).
+  ///
+  /// In ar, this message translates to:
+  /// **'صورة الغلاف'**
+  String get profileEditCover;
+
+  /// D218 (the owner's social redesign, CONVENTIONS §10.73).
+  ///
+  /// In ar, this message translates to:
+  /// **'مضبوطة'**
+  String get profileEditCoverSet;
+
+  /// D218 (the owner's social redesign, CONVENTIONS §10.73).
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف صورة الغلاف'**
+  String get profileEditCoverRemove;
+
+  /// D218 (the owner's social redesign, CONVENTIONS §10.73).
+  ///
+  /// In ar, this message translates to:
+  /// **'تم تحديث صورة الغلاف'**
+  String get profileEditCoverUpdated;
+
+  /// D218 (the owner's social redesign, CONVENTIONS §10.73).
+  ///
+  /// In ar, this message translates to:
+  /// **'حُذفت صورة الغلاف'**
+  String get profileEditCoverRemoved;
+
+  /// D218 (the owner's social redesign, CONVENTIONS §10.73).
+  ///
+  /// In ar, this message translates to:
+  /// **'صورة غلاف {name}'**
+  String profileCoverOf(String name);
+
+  /// D218 (the owner's social redesign, CONVENTIONS §10.73).
+  ///
+  /// In ar, this message translates to:
+  /// **'منشورات'**
+  String get profileTabPostsWord;
+
+  /// D218 (the owner's social redesign, CONVENTIONS §10.73).
+  ///
+  /// In ar, this message translates to:
+  /// **'ريلز'**
+  String get profileTabReelsWord;
+
+  /// D218 (the owner's social redesign, CONVENTIONS §10.73).
+  ///
+  /// In ar, this message translates to:
+  /// **'إعادات'**
+  String get profileTabRepostsWord;
+
+  /// D218 (the owner's social redesign, CONVENTIONS §10.73). After the follower count: «1.2K متابِع».
+  ///
+  /// In ar, this message translates to:
+  /// **'متابِع'**
+  String get profileFollowerWord;
+
+  /// D218 (the owner's social redesign, CONVENTIONS §10.73).
+  ///
+  /// In ar, this message translates to:
+  /// **'متابَع'**
+  String get profileFollowingWord;
+
+  /// D218 (the owner's social redesign, CONVENTIONS §10.73).
+  ///
+  /// In ar, this message translates to:
+  /// **'انضم في {date}'**
+  String profileJoined(String date);
+
+  /// D218 (the owner's social redesign, CONVENTIONS §10.73).
+  ///
+  /// In ar, this message translates to:
+  /// **'حظرت هذا الحساب'**
+  String get profileBlockedTitle;
+
+  /// D218 (the owner's social redesign, CONVENTIONS §10.73).
+  ///
+  /// In ar, this message translates to:
+  /// **'لن ترى منشوراته ولن يتمكن من مراسلتك. ألغِ الحظر لتراها.'**
+  String get profileBlockedBody;
 }
 
 class _AppLocalizationsDelegate

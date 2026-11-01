@@ -32,6 +32,8 @@ class PostsPreviewScreen extends StatelessWidget {
     final fixture = postsPreviewFixture(ar: ar, now: now);
     return ProviderScope(
       overrides: [
+        // D218: the posts page shows the mix.
+        homeMixedPostsProvider.overrideWith((ref) => FeedItems(fixture)),
         // Following shows a smaller feed than Trending.
         homePostsProvider.overrideWith(
           (ref, feed) => FeedItems(

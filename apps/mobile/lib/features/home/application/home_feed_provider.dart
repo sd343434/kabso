@@ -1,12 +1,15 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show FutureProviderFamily;
 import 'package:kabso_live/core/demo/demo_mode.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/debug/demo_data.dart';
 import 'package:kabso_live/features/home/presentation/widgets/feed_post_tile.dart';
 import 'package:kabso_live/features/home/presentation/widgets/feed_stories_tray.dart';
 import 'package:kabso_live/features/home/presentation/widgets/home_reel.dart';
+import 'package:kabso_live/features/live/data/live_repository.dart';
+import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/posts/application/posts_feed_controller.dart';
 import 'package:kabso_live/features/posts/domain/post_models.dart';
 import 'package:kabso_live/features/stories/application/stories_controller.dart';
@@ -58,10 +61,53 @@ final FutureProviderFamily<FeedLoad<FeedPostData>, HomeFeed> homePostsProvider =
       );
     });
 
+/// v1.76-social (D218): the posts page's only feed — `GET /feed/posts?
+/// tab=mixed` (1 Following : 2 Trending, CONVENTIONS §10.73.1), paged by
+/// [mixedPostsFeedProvider].
+final FutureProvider<FeedLoad<FeedPostData>> homeMixedPostsProvider =
+    FutureProvider((ref) async {
+      if (watchDemo(ref)) {
+        return DemoData.posts(HomeFeed.trending, ar: DemoData.arabic(ref));
+      }
+      final page = await ref.watch(mixedPostsFeedProvider.future);
+      final edits = ref.watch(postEditsProvider);
+      return FeedItems(
+        [
+          for (final post in page.items)
+            feedPostOf(edits[post.id] ?? post, repostedBy: post.repostedBy),
+        ],
+        hasMore: page.hasMore,
+        loadingMore: page.loadingMore,
+        loadMoreError: page.loadMoreError,
+      );
+    });
+
+/// D218: the followed accounts that are live now (`GET /live/rooms?tab=
+/// following`, the first page), host id → room id, for the stories tray's
+/// «LIVE» pill. Empty when the list fails: a pill is never guessed.
+final FutureProvider<Map<String, ({String roomId, UserSummary host})>>
+followedLiveNowProvider = FutureProvider((ref) async {
+  ref.watch(currentUserProvider.select((u) => u?.id));
+  try {
+    final page = await ref
+        .watch(liveRepositoryProvider)
+        .listRooms(tab: LiveRoomsTab.following, limit: storyTrayLimit);
+    return {
+      for (final room in page.data)
+        room.host.id: (roomId: room.id, host: room.host),
+    };
+  } on Object {
+    return const {};
+  }
+});
+
 /// Stories above the posts (CP-008, `GET /feed/stories`): the caller's
-/// own entry first — their stories, or "Your story" to add one — then the
-/// followed accounts with active stories, unseen first. A failed tray
-/// loads as unavailable: it never hides the posts.
+/// own entry first — their stories, or "Your story" to add one — then
+/// (D218) the followed accounts that are live now (a «LIVE» pill; a tap
+/// opens the room), then the followed accounts with active stories, unseen
+/// first. A failed tray loads as unavailable: it never hides the posts.
+/// D218 (owner: «Hide the tray when it is empty»): a tray with nothing but
+/// an empty «قصتك» is empty.
 final FutureProvider<FeedLoad<FeedStoryData>> homeStoriesProvider =
     FutureProvider((ref) async {
       if (watchDemo(ref)) return DemoData.stories(ar: DemoData.arabic(ref));
@@ -72,6 +118,7 @@ final FutureProvider<FeedLoad<FeedStoryData>> homeStoriesProvider =
       } on Object {
         return const FeedUnavailable<FeedStoryData>();
       }
+      final live = await ref.watch(followedLiveNowProvider.future);
       FeedStoryData entry(StoryTrayItem i) => FeedStoryData(
         authorName: i.user.displayName.isEmpty
             ? i.user.username
@@ -83,12 +130,30 @@ final FutureProvider<FeedLoad<FeedStoryData>> homeStoriesProvider =
         seen: !i.hasUnseen,
         username: i.user.username,
         isSelf: i.user.id == me?.id,
+        liveRoomId: i.user.id == me?.id ? null : live[i.user.id]?.roomId,
       );
+      final storyUsers = {for (final i in tray) i.user.id};
+      final liveOnly = [
+        for (final MapEntry(key: id, value: l) in live.entries)
+          if (id != me?.id && !storyUsers.contains(id))
+            FeedStoryData(
+              authorName: l.host.displayName.isEmpty
+                  ? l.host.username
+                  : l.host.displayName,
+              authorAvatar: switch (l.host.avatarUrl) {
+                final url? => NetworkImage(url),
+                null => null,
+              },
+              username: l.host.username,
+              hasStory: false,
+              liveRoomId: l.roomId,
+            ),
+      ];
       final own = [
         for (final i in tray)
           if (i.user.id == me?.id) entry(i),
       ];
-      return FeedItems([
+      final items = [
         if (own.isNotEmpty)
           ...own
         else if (me != null)
@@ -102,9 +167,17 @@ final FutureProvider<FeedLoad<FeedStoryData>> homeStoriesProvider =
             isSelf: true,
             hasStory: false,
           ),
+        // D218: who is live now first (also those with stories), then the
+        // rest of the tray in its order.
         for (final i in tray)
-          if (i.user.id != me?.id) entry(i),
-      ]);
+          if (i.user.id != me?.id && live.containsKey(i.user.id)) entry(i),
+        ...liveOnly,
+        for (final i in tray)
+          if (i.user.id != me?.id && !live.containsKey(i.user.id)) entry(i),
+      ];
+      // Nothing to watch: no own story, no followed story, nobody live.
+      final empty = items.every((s) => s.isSelf && !s.hasStory);
+      return FeedItems(empty ? const <FeedStoryData>[] : items);
     });
 
 /// Reels: full-screen vertical short videos, per [HomeFeed] (D162: the

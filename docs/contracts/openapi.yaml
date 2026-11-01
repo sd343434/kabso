@@ -302,7 +302,8 @@ info:
     Trending for 10 minutes); `Post.viewerFollowsAuthor` (the card's «متابعة» pill); the profile cover «صورة
     الغلاف» (`setMyCover` / `removeMyCover`, media kind `PROFILE_COVER`, `Me.coverUrl`, `PublicProfile.coverUrl`;
     the panel's `removeAdminUserCover` and `profile-admin remove-cover`, notification type `COVER_REMOVED`);
-    `PublicProfile.country` and `PublicProfile.joinedMonth` («انضم في <شهر سنة>») (CONVENTIONS §10.73).
+    `PublicProfile.country`, `PublicProfile.joinedMonth` («انضم في <شهر سنة>») and `PublicProfile.blockedByMe`
+    («إلغاء الحظر») (CONVENTIONS §10.73).
     **D184 (DRAFT v1.53-social)**: the Task Center's rewards are cherries (the old coins ×10, then raised
     ×300: ≈ $5 a month at most), credited to the cherry ledger as `TASK_REWARD` under a daily cherry cap
     (`ProgramTask.rewardCherries` / `claimedCherries`, `MyTasks.dailyCapCherries` / `dailyEarnedCherries`,
@@ -1682,6 +1683,7 @@ paths:
                     coverUrl: null
                     country: SA
                     joinedMonth: '2026-10'
+                    blockedByMe: false
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -19015,7 +19017,7 @@ components:
           description: "v1.56-social (D187, §10.50) — present only while the user's daily recharge badge shows (`until` in the future); never for a recharge agent. The app shows it next to the name in live rooms like the level badge and hides it itself once `until` passes."
     PublicProfile:
       type: object
-      required: [id, username, displayName, avatarUrl, bio, isPrivate, followerCount, followingCount, isFollowing, followRequested, isMuted, isSelf, liveRoomId, family, cp, medals, profileCard, gender, category, links, rechargeAgent, hostAgent, avatarFrame, coverUrl, country, joinedMonth]
+      required: [id, username, displayName, avatarUrl, bio, isPrivate, followerCount, followingCount, isFollowing, followRequested, isMuted, isSelf, liveRoomId, family, cp, medals, profileCard, gender, category, links, rechargeAgent, hostAgent, avatarFrame, coverUrl, country, joinedMonth, blockedByMe]
       properties:
         id: { type: string, format: uuid }
         username: { $ref: '#/components/schemas/Username' }
@@ -19114,6 +19116,9 @@ components:
           type: string
           pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$'
           description: "v1.76-social (D218). The month the account was created (UTC), `YYYY-MM` — «انضم في <شهر سنة>». Never the exact time."
+        blockedByMe:
+          type: boolean
+          description: "v1.76-social (D218). The caller blocked this user (always false when isSelf): the profile shows «إلغاء الحظر» instead of Follow and no posts. Only the caller sees their own block; the blocked user is never told."
     FollowState:
       type: object
       required: [isFollowing, isRequested, followerCount]

@@ -277,15 +277,14 @@ void main() {
       final repo = await _pump(tester, [
         for (var i = 0; i < 6; i++) testPost('p$i', text: 'Post $i'),
       ], pageSize: 3);
-      // D162: the Reels mode (kept alive) reads its own feed too.
+      // D218: the posts page reads the server's mix only (one feed).
       expect(repo.calls.where((c) => c.startsWith('feed:')), [
-        'feed:trending:',
-        'feed:following:',
-        'feed:trending:3',
+        'feed:mixed:',
+        'feed:mixed:3',
       ]);
       final content = ProviderScope.containerOf(
         tester.element(find.byType(FeedScreen)),
-      ).read(homePostsProvider(HomeFeed.trending)).requireValue;
+      ).read(homeMixedPostsProvider).requireValue;
       final items = (content as FeedItems<FeedPostData>).items;
       expect(items.map((p) => p.postId), ['p0', 'p1', 'p2', 'p3', 'p4', 'p5']);
       expect(content.hasMore, isFalse);
