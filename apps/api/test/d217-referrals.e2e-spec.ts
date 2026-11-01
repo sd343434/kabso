@@ -14,8 +14,10 @@ import sharp from 'sharp';
 import type request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { grantRoleIn } from '../src/modules/admin-panel/admin-roles.js';
+import { holdCherriesIn } from '../src/modules/economy/cherry-ledger.js';
 import { totpCode } from '../src/modules/admin-panel/totp.js';
 import { OBJECT_STORAGE } from '../src/modules/media/object-storage.js';
+import { notificationBody } from '../src/modules/push/push-texts.js';
 import { topUpIn } from '../src/modules/recharge/recharge-core.js';
 import { ReferralSweeper } from '../src/modules/referrals/referrals.service.js';
 import { creditOrderIn, reconcileOrderIn } from '../src/modules/topup/topup-core.js';
@@ -76,7 +78,11 @@ describe('D217 contract coverage', () => {
       ]),
     );
     const schemas = (openapi.components as { schemas: Record<string, Record<string, unknown>> }).schemas;
-    expect((schemas.CherryLedgerReason as { enum: string[] }).enum).toContain('REFERRAL_REWARD');
+    expect((schemas.CherryLedgerReason as { enum: string[] }).enum).toEqual(
+      expect.arrayContaining(['REFERRAL_REWARD', 'REFERRAL_REVERSAL']),
+    );
+    expect((schemas.NotificationType as { enum: string[] }).enum).toContain('REFERRAL_REWARD_REVERSED');
+    expect((schemas.ReferralRewardStatus as { enum: string[] }).enum).toContain('REVERSED');
     expect(Object.keys(schemas.RegisterRequest!.properties as object)).toContain('referralCode');
     expect(Object.keys(schemas.DeviceInfo!.properties as object)).toContain('installId');
     for (const o of operations().filter((x) => x.path.startsWith('/api/v1/admin/referral'))) {
@@ -85,6 +91,19 @@ describe('D217 contract coverage', () => {
     }
     const ticker = operations().find((o) => o.operationId === 'listRecentReferralRewards')!;
     expect(ticker.spec.security).toEqual([]);
+  });
+
+  it('the claw-back push text exists in both languages', () => {
+    const n = {
+      type: 'REFERRAL_REWARD_REVERSED',
+      actorName: null,
+      actorCount: 0,
+      targetType: null,
+      targetId: null,
+      targetText: null,
+    };
+    expect(notificationBody(n as never, 'ar')).toContain('Kabso');
+    expect(notificationBody(n as never, 'en')).toContain('Kabso');
   });
 });
 
@@ -736,7 +755,13 @@ describe('D217 «دعوة الأصدقاء»', { timeout: 900_000 }, () => {
     });
     expect(voided.status, JSON.stringify(voided.body)).toBe(200);
     expectContract(voided, 'voidAdminReferral');
-    expect(voided.body).toEqual({ status: 'VOID', changed: true, voidedRewards: 1, creditedKept: 0 });
+    expect(voided.body).toEqual({
+      status: 'VOID',
+      changed: true,
+      voidedRewards: 1,
+      reversedCherries: 0,
+      shortfall: 0,
+    });
     await sweep(clock + 25 * HOUR);
     expect(await cherriesOf(a)).toBe(70_000n);
     for (const action of ['referral.approve', 'referral.void']) {
@@ -778,6 +803,141 @@ describe('D217 «دعوة الأصدقاء»', { timeout: 900_000 }, () => {
       totpCode: nextCode(owner.secret),
     });
     expect(back.status).toBe(200);
+  });
+
+  it('void after credit: the cherries are taken back (once), a shortfall is a debt that blocks withdrawals', async () => {
+    const finance = await makeAdmin(['FINANCE']);
+    const voidIt = (id: string) =>
+      awrite(finance, 'post', `/admin/referrals/${id}/void`, {
+        reason: 'fake friends',
+        totpCode: nextCode(finance.secret),
+      });
+    const reversals = (u: TestUser) =>
+      ctx.prisma.cherryLedgerEntry.findMany({
+        where: { userId: u.id, reason: 'REFERRAL_REVERSAL' },
+        orderBy: { createdAt: 'asc' },
+      });
+
+    // 1. Enough cherries: sign-up 20 000 + milestone 1 (50 000) + the first recharge's 5 %, all credited.
+    const a = await signup();
+    const b = await signup({ code: (await mine(a)).code });
+    await cardTopup(b, 1_000_000n);
+    await sweep(clock + 24 * HOUR + 1000);
+    const share = (1_000_000n * BigInt(ctx.config.economy.cherriesPerCoin) * 500n) / 10_000n;
+    const total = 70_000n + share;
+    expect(await cherriesOf(a)).toBe(total);
+    const ref = (await referralOf(b))!;
+    expect(ref.status).toBe('QUALIFIED');
+
+    // The panel shows what «إلغاء» takes back before the team confirms.
+    const preview = await aget(finance, `/admin/referrals/${ref.id}`);
+    expect(preview.status).toBe(200);
+    expectContract(preview, 'getAdminReferral');
+    expect(preview.body.voidClawback).toEqual({
+      cherries: Number(total),
+      shortfall: 0,
+      rewards: 3,
+      people: [{ userId: a.id, cherries: Number(total), balance: Number(total), shortfall: 0 }],
+    });
+
+    const v = await voidIt(ref.id);
+    expect(v.status, JSON.stringify(v.body)).toBe(200);
+    expectContract(v, 'voidAdminReferral');
+    expect(v.body).toEqual({
+      status: 'VOID',
+      changed: true,
+      voidedRewards: 0,
+      reversedCherries: Number(total),
+      shortfall: 0,
+    });
+    expect(await cherriesOf(a)).toBe(0n);
+    const rewards = await rewardsOf(a);
+    expect(rewards.map((w) => [w.kind, w.status, w.reversalShortfall]).sort()).toEqual(
+      [
+        ['FIRST_RECHARGE', 'REVERSED', 0n],
+        ['MILESTONE', 'REVERSED', 0n],
+        ['SIGNUP_INVITER', 'REVERSED', 0n],
+      ].sort(),
+    );
+    // One REFERRAL_REVERSAL row per reward, reference = the reward.
+    expect((await reversals(a)).map((e) => [e.delta, e.referenceId]).sort()).toEqual(
+      rewards.map((w) => [-w.cherries, w.id]).sort(),
+    );
+    expect(
+      await ctx.prisma.notification.count({ where: { recipientId: a.id, type: 'REFERRAL_REWARD_REVERSED' } }),
+    ).toBe(1);
+    const inbox = await ctx.http.get('/api/v1/notifications').set(auth(a));
+    expect(inbox.status).toBe(200);
+    expectContract(inbox, 'listNotifications');
+    expect(inbox.body.data.map((n: { type: string }) => n.type)).toContain('REFERRAL_REWARD_REVERSED');
+    expect(
+      await ctx.prisma.auditLog.count({
+        where: { action: 'referral.reward.reverse', actorUserId: finance.id },
+      }),
+    ).toBe(3);
+    const page = await mine(a);
+    expect(page.counts).toMatchObject({ qualified: 0 });
+    expect(page.rewards).toEqual({ pendingCherries: 0, creditedCherries: 0 });
+    expect(page.milestones[0]!.state).toBe('LOCKED');
+    // The cherry history shows the claw-back.
+    const history = await ctx.http.get('/api/v1/wallet/me/cherries/ledger').set(auth(a));
+    expect(history.status).toBe(200);
+    expectContract(history, 'listMyCherryLedger');
+    expect(history.body.data.map((e: { reason: string }) => e.reason)).toContain('REFERRAL_REVERSAL');
+
+    // A second void changes nothing (no second debit, no second notification).
+    const again = await voidIt(ref.id);
+    expect(again.body).toEqual({
+      status: 'VOID',
+      changed: false,
+      voidedRewards: 0,
+      reversedCherries: 0,
+      shortfall: 0,
+    });
+    expect(await cherriesOf(a)).toBe(0n);
+    expect(await reversals(a)).toHaveLength(3);
+
+    // The team approves it again: new reward rows are credited (the reversed ones stay as history).
+    const re = await awrite(finance, 'post', `/admin/referrals/${ref.id}/approve`, {
+      reason: 'it was a real friend',
+      totpCode: nextCode(finance.secret),
+    });
+    expect(re.status, JSON.stringify(re.body)).toBe(200);
+    expect(re.body).toMatchObject({ changed: true, creditedCherries: Number(total) });
+    expect(await cherriesOf(a)).toBe(total);
+    expect((await rewardsOf(a)).filter((w) => w.status === 'CREDITED')).toHaveLength(3);
+
+    // 2. Not enough cherries: 60 000 already withdrawn (held) → the balance goes to −60 000 (the shortfall).
+    const c = await signup();
+    const d = await signup({ code: (await mine(c)).code });
+    await sweep(clock + 24 * HOUR + 1000);
+    expect(await cherriesOf(c)).toBe(70_000n);
+    await ctx.prisma.$transaction((tx) => holdCherriesIn(tx, c.id, 60_000n, randomUUID(), now()));
+    const refD = (await referralOf(d))!;
+    const shown = await aget(finance, `/admin/referrals/${refD.id}`);
+    expect(shown.body.voidClawback).toMatchObject({ cherries: 70_000, shortfall: 60_000 });
+    const short = await voidIt(refD.id);
+    expect(short.body).toMatchObject({ changed: true, reversedCherries: 70_000, shortfall: 60_000 });
+    expect(await cherriesOf(c)).toBe(-60_000n);
+    const cRewards = await rewardsOf(c);
+    expect(cRewards.reduce((t, w) => t + (w.reversalShortfall ?? 0n), 0n)).toBe(60_000n);
+    const audit = await ctx.prisma.auditLog.findFirstOrThrow({
+      where: { action: 'referral.void', targetId: refD.id },
+    });
+    expect(audit.metadata).toMatchObject({ reversedCherries: 70_000, shortfall: 60_000 });
+    // Withdrawals are refused while the balance is below 0.
+    const wallet = await ctx.http.get('/api/v1/wallet/me/cherries').set(auth(c));
+    expect(wallet.status).toBe(200);
+    expect(wallet.body.cherries).toBe(-60_000);
+    const withdraw = await ctx.http
+      .post('/api/v1/wallet/me/cherries/withdrawals')
+      .set(auth(c))
+      .set('Idempotency-Key', randomUUID())
+      .send({ amountMinor: 1000, payoutDetails: 'Bank: IBAN SA00 0000' });
+    expect([withdraw.status, withdraw.body.error?.code]).toEqual([409, 'INSUFFICIENT_CHERRIES']);
+    expect(
+      await ctx.prisma.$transaction((tx) => holdCherriesIn(tx, c.id, 1n, randomUUID(), now())),
+    ).toBeNull();
   });
 
   it('switched off: the page says so, no referral at sign-up, apply 503, no recharge share, empty ticker', async () => {

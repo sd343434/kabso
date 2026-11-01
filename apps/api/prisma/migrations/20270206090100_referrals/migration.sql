@@ -6,9 +6,9 @@
 -- CreateEnum
 CREATE TYPE "referral_status" AS ENUM ('PENDING', 'QUALIFIED', 'REJECTED', 'VOID');
 CREATE TYPE "referral_reward_kind" AS ENUM ('SIGNUP_INVITER', 'SIGNUP_INVITEE', 'FIRST_RECHARGE', 'MILESTONE');
-CREATE TYPE "referral_reward_status" AS ENUM ('PENDING', 'CREDITED', 'VOID');
+CREATE TYPE "referral_reward_status" AS ENUM ('PENDING', 'CREDITED', 'VOID', 'REVERSED');
 
--- The ledgers' sign rule: REFERRAL_REWARD is a credit. Extended in place (read from the catalogue, not restated), as
+-- The ledgers' sign rule: REFERRAL_REWARD is a credit, REFERRAL_REVERSAL (the claw-back) a debit. Extended in place (read from the catalogue, not restated), as
 -- 20270130090000_admin_control did, so a branch that changed the list before keeps its change.
 DO $$
 DECLARE
@@ -18,8 +18,8 @@ BEGIN
     FROM pg_constraint c
    WHERE c.conrelid = 'cherry_ledger'::regclass AND c.conname = 'cherry_ledger_reason_sign';
   ALTER TABLE "cherry_ledger" DROP CONSTRAINT "cherry_ledger_reason_sign";
-  EXECUTE format('ALTER TABLE cherry_ledger ADD CONSTRAINT cherry_ledger_reason_sign CHECK ((%s) OR (reason::text = %L AND delta > 0))',
-                 substring(def FROM '^CHECK \((.*)\)$'), 'REFERRAL_REWARD');
+  EXECUTE format('ALTER TABLE cherry_ledger ADD CONSTRAINT cherry_ledger_reason_sign CHECK ((%s) OR (reason::text = %L AND delta > 0) OR (reason::text = %L AND delta < 0))',
+                 substring(def FROM '^CHECK \((.*)\)$'), 'REFERRAL_REWARD', 'REFERRAL_REVERSAL');
 END
 $$;
 
@@ -118,7 +118,10 @@ ALTER TABLE "referrals" ADD CONSTRAINT "referrals_shape" CHECK (
 
 -- A reward: to the inviter for the sign-up, to the invitee (0 by default: none), to the inviter for the invitee's
 -- first recharge (a percentage of its coin value in cherries), or a milestone bonus (no referral). PENDING until
--- `hold_until`, then CREDITED (one ledger row REFERRAL_REWARD, reference = the reward id) or VOID.
+-- `hold_until`, then CREDITED (one ledger row REFERRAL_REWARD, reference = the reward id) or VOID. REVERSED: credited,
+-- then taken back when the team voided the referral (one ledger row REFERRAL_REVERSAL, reference = the reward id; the
+-- balance may go below 0 — `reversal_shortfall` is the part the balance did not cover, a debt that blocks withdrawals
+-- until it is earned back). A REVERSED row frees its kind (or milestone) for a new reward if the team approves again.
 CREATE TABLE "referral_rewards" (
     "id" UUID NOT NULL,
     "referral_id" UUID,
@@ -134,15 +137,17 @@ CREATE TABLE "referral_rewards" (
     "milestone_friends" INTEGER,
     "credited_at" TIMESTAMPTZ(3),
     "voided_at" TIMESTAMPTZ(3),
+    "reversed_at" TIMESTAMPTZ(3),
+    "reversal_shortfall" BIGINT,
     "void_reason" VARCHAR(500),
     "created_at" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "referral_rewards_pkey" PRIMARY KEY ("id")
 );
 CREATE UNIQUE INDEX "referral_rewards_referral_kind_key" ON "referral_rewards"("referral_id", "kind")
-  WHERE referral_id IS NOT NULL;
+  WHERE referral_id IS NOT NULL AND status <> 'REVERSED';
 CREATE UNIQUE INDEX "referral_rewards_milestone_key" ON "referral_rewards"("user_id", "milestone_friends")
-  WHERE kind = 'MILESTONE';
+  WHERE kind = 'MILESTONE' AND status <> 'REVERSED';
 CREATE INDEX "referral_rewards_user_idx" ON "referral_rewards"("user_id", "created_at" DESC);
 CREATE INDEX "referral_rewards_due_idx" ON "referral_rewards"("hold_until") WHERE status = 'PENDING';
 CREATE INDEX "referral_rewards_credited_idx" ON "referral_rewards"("credited_at" DESC) WHERE status = 'CREDITED';
@@ -155,5 +160,7 @@ ALTER TABLE "referral_rewards" ADD CONSTRAINT "referral_rewards_shape" CHECK (
   AND ((kind = 'MILESTONE') = (referral_id IS NULL))
   AND ((kind = 'MILESTONE') = (milestone_friends IS NOT NULL))
   AND ((kind = 'FIRST_RECHARGE') = (base_coins IS NOT NULL AND rate_bps IS NOT NULL AND recharge_reference IS NOT NULL))
-  AND ((status = 'CREDITED') = (credited_at IS NOT NULL))
-  AND ((status = 'VOID') = (voided_at IS NOT NULL)));
+  AND ((status IN ('CREDITED', 'REVERSED')) = (credited_at IS NOT NULL))
+  AND ((status = 'VOID') = (voided_at IS NOT NULL))
+  AND ((status = 'REVERSED') = (reversed_at IS NOT NULL AND reversal_shortfall IS NOT NULL))
+  AND (reversal_shortfall IS NULL OR reversal_shortfall BETWEEN 0 AND cherries));

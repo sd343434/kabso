@@ -2094,6 +2094,8 @@ enum NotificationType {
   HOST_APPLICATION_APPROVED
   /// v1.73-social (D209, system): the application was rejected (the reason is in `getMyHostingApplication`).
   HOST_APPLICATION_REJECTED
+  /// v1.74-social (D217): the team voided a referral and took back its credited cherries (system, no target).
+  REFERRAL_REWARD_REVERSED
 
   @@map("notification_type")
 }
@@ -3751,6 +3753,9 @@ enum CherryLedgerReason {
   ADMIN_ADJUSTMENT
   /// v1.74-social (D217): a referral reward credited after its hold (reference: the `referral_rewards` row).
   REFERRAL_REWARD
+  /// v1.74-social (D217, owner 2026-11-01): that reward taken back when the team voided the referral (reference: the
+  /// same `referral_rewards` row; the balance may go below 0 — a debt that blocks withdrawals).
+  REFERRAL_REVERSAL
 
   @@map("cherry_ledger_reason")
 }
@@ -5427,6 +5432,8 @@ enum ReferralRewardStatus {
   PENDING
   CREDITED
   VOID
+  /// Credited, then taken back (`REFERRAL_REVERSAL`) when the team voided the referral.
+  REVERSED
 
   @@map("referral_reward_status")
 }
@@ -5514,14 +5521,17 @@ model ReferralReward {
   milestoneFriends  Int?                 @map("milestone_friends")
   creditedAt        DateTime?            @map("credited_at") @db.Timestamptz(3)
   voidedAt          DateTime?            @map("voided_at") @db.Timestamptz(3)
+  reversedAt        DateTime?            @map("reversed_at") @db.Timestamptz(3)
+  /// REVERSED: the part of the claw-back the balance did not cover (a debt).
+  reversalShortfall BigInt?              @map("reversal_shortfall")
   voidReason        String?              @map("void_reason") @db.VarChar(500)
   createdAt         DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
 
   referral Referral? @relation(fields: [referralId], references: [id], onDelete: Cascade)
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([referralId, kind], map: "referral_rewards_referral_kind_key", where: raw("referral_id IS NOT NULL"))
-  @@unique([userId, milestoneFriends], map: "referral_rewards_milestone_key", where: raw("kind = 'MILESTONE'::referral_reward_kind"))
+  @@unique([referralId, kind], map: "referral_rewards_referral_kind_key", where: raw("(referral_id IS NOT NULL) AND (status <> 'REVERSED'::referral_reward_status)"))
+  @@unique([userId, milestoneFriends], map: "referral_rewards_milestone_key", where: raw("(kind = 'MILESTONE'::referral_reward_kind) AND (status <> 'REVERSED'::referral_reward_status)"))
   @@index([userId, createdAt(sort: Desc)], map: "referral_rewards_user_idx")
   @@index([holdUntil], map: "referral_rewards_due_idx", where: raw("status = 'PENDING'::referral_reward_status"))
   @@index([creditedAt(sort: Desc)], map: "referral_rewards_credited_idx", where: raw("status = 'CREDITED'::referral_reward_status"))

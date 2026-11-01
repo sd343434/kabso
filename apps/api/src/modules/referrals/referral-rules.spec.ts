@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { loadConfig } from '../../config/app-config.js';
 import { envSchema } from '../../config/env.schema.js';
+import { referralShortfall } from '../economy/cherry-ledger.js';
 import {
   adminReferralSettingsBody,
   canonicalEmail,
@@ -74,6 +75,14 @@ describe('D217 amounts and milestones', () => {
     expect(firstRechargeCherries(7n, 10, 500)).toBe(3n);
     expect(firstRechargeCherries(1000n, 10, 0)).toBe(0n);
     expect(firstRechargeCherries(0n, 10, 500)).toBe(0n);
+  });
+
+  it('claw-back shortfall: the part of the debit the balance did not cover', () => {
+    expect(referralShortfall(70_000n, 0n)).toBe(0n);
+    expect(referralShortfall(70_000n, 5n)).toBe(0n);
+    expect(referralShortfall(70_000n, -60_000n)).toBe(60_000n);
+    // Already in debt before: the whole debit is uncovered.
+    expect(referralShortfall(70_000n, -100_000n)).toBe(70_000n);
   });
 
   it('the totals the page shows come from the settings', () => {

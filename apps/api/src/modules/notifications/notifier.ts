@@ -54,6 +54,8 @@ export const SYSTEM_TYPES: readonly NotificationType[] = [
   // v1.73-social (D209): «كن مضيفاً مع الإدارة» — the team approved / rejected the application (no target).
   'HOST_APPLICATION_APPROVED',
   'HOST_APPLICATION_REJECTED',
+  // v1.74-social (D217): the team voided a referral and took its credited cherries back (no target).
+  'REFERRAL_REWARD_REVERSED',
 ];
 
 /** Types that join one unread row per target (owner, D92). */
@@ -200,7 +202,8 @@ export class Notifier {
         // v1.72-social (D208): the team edited the profile (no target).
         | 'PROFILE_EDITED_BY_TEAM'
         | 'HOST_APPLICATION_APPROVED'
-        | 'HOST_APPLICATION_REJECTED';
+        | 'HOST_APPLICATION_REJECTED'
+        | 'REFERRAL_REWARD_REVERSED';
       recipientId: string;
     } & NotificationTargetRef,
   ): Promise<void> {

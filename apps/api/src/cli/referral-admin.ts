@@ -193,7 +193,8 @@ try {
       const r = await run(() => prisma.$transaction((tx) => voidReferralIn(tx, rid, reason, now)));
       process.stdout.write(
         r.changed
-          ? `Voided: ${r.voidedRewards} pending reward(s) voided; ${r.creditedKept} already credited kept.\n`
+          ? `Voided: ${r.voidedRewards} pending reward(s) voided; ${r.reversedCherries} credited cherries taken back` +
+              (r.shortfall > 0n ? ` (${r.shortfall} not covered by the balance: a debt).\n` : '.\n')
           : 'Already void; nothing changed.\n',
       );
       break;

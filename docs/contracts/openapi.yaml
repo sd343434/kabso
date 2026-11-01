@@ -306,7 +306,10 @@ info:
     the code again); `getMyReferral`, the public ticker `listRecentReferralRewards`, the panel's «الدعوات»
     (`listAdminReferrals`, `getAdminReferral`, `approveAdminReferral`, `voidAdminReferral`,
     `get/updateAdminReferralSettings`); codes `REFERRAL_UNAVAILABLE`, `REFERRAL_CODE_INVALID`,
-    `REFERRAL_NOT_ALLOWED` (CONVENTIONS §10.71).
+    `REFERRAL_NOT_ALLOWED` (CONVENTIONS §10.71). When the team voids a referral, the cherries it already credited
+    are taken back at once (owner 2026-11-01: ledger reason `REFERRAL_REVERSAL`, reward status `REVERSED`,
+    notification `REFERRAL_REWARD_REVERSED`; a balance that does not cover it goes below 0 — a debt that blocks
+    withdrawals; `AdminReferral.voidClawback` shows the amount before the team confirms).
     **D184 (DRAFT v1.53-social)**: the Task Center's rewards are cherries (the old coins ×10, then raised
     ×300: ≈ $5 a month at most), credited to the cherry ledger as `TASK_REWARD` under a daily cherry cap
     (`ProgramTask.rewardCherries` / `claimedCherries`, `MyTasks.dailyCapCherries` / `dailyEarnedCherries`,
@@ -11953,7 +11956,7 @@ paths:
       tags: [admin-panel]
       operationId: approveAdminReferral
       summary: "Approves a referral and credits its rewards now — `referral-admin approve` (referrals.decide; the code again; audited)"
-      description: "(v1.74-social, D217, §10.71) A PENDING referral skips its hold; a REJECTED or VOID one is overruled. It becomes QUALIFIED; its rewards still PENDING or VOID are credited (`REFERRAL_REWARD`), the sign-up rewards a rejected referral never got are made at the current amounts and credited, then the inviter's milestones. Already QUALIFIED: `changed` false, nothing moves. Audited `referral.approve` with the reason."
+      description: "(v1.74-social, D217, §10.71) A PENDING referral skips its hold; a REJECTED or VOID one is overruled. It becomes QUALIFIED; its rewards still PENDING or VOID are credited (`REFERRAL_REWARD`), a REVERSED one (taken back by an earlier void) is made again as a new reward and credited, the sign-up rewards a rejected referral never got are made at the current amounts and credited, then the inviter's milestones. Already QUALIFIED: `changed` false, nothing moves. Audited `referral.approve` with the reason."
       security: [{ adminSession: [] }]
       parameters:
         - $ref: '#/components/parameters/AdminReferralIdPath'
@@ -11985,8 +11988,8 @@ paths:
     post:
       tags: [admin-panel]
       operationId: voidAdminReferral
-      summary: "Voids a referral and its pending rewards — `referral-admin void` (referrals.decide; the code again; audited)"
-      description: "(v1.74-social, D217, §10.71) Rewards already credited stay (taking cherries back is a balance adjustment, D208); `creditedKept` says how many. Already VOID: `changed` false. 409 `ADMIN_ACTION_REFUSED` for an unknown id. Audited `referral.void` with the reason."
+      summary: "Voids a referral, its pending rewards, and takes back the cherries it credited — `referral-admin void` (referrals.decide; the code again; audited)"
+      description: "(v1.74-social, D217, §10.71; owner 2026-11-01) Its PENDING rewards are voided. Every reward it already CREDITED (to the inviter, and to the friend when there was one) — plus, for a QUALIFIED referral, each milestone bonus the inviter no longer reaches with one qualified friend fewer — is taken back at once: the reward becomes REVERSED and one `REFERRAL_REVERSAL` cherry ledger row (reference = the reward) debits it, so never twice. A balance that does not cover it goes below 0: `shortfall` is the part it did not cover (a debt, also on the reward as `reversalShortfall`); withdrawals and cherry sales answer `INSUFFICIENT_CHERRIES` until it is earned back. Each person who lost cherries gets `REFERRAL_REWARD_REVERSED`. `AdminReferral.voidClawback` gives the same amounts before the team confirms. Already VOID: `changed` false, nothing moves. 409 `ADMIN_ACTION_REFUSED` for an unknown id. Audited `referral.void` (with `reversedCherries`, `shortfall`) and `referral.reward.reverse` per reward."
       security: [{ adminSession: [] }]
       parameters:
         - $ref: '#/components/parameters/AdminReferralIdPath'
@@ -12004,12 +12007,13 @@ paths:
               schema:
                 type: object
                 additionalProperties: false
-                required: [status, changed, voidedRewards, creditedKept]
+                required: [status, changed, voidedRewards, reversedCherries, shortfall]
                 properties:
                   status: { type: string, enum: [VOID] }
                   changed: { type: boolean }
                   voidedRewards: { type: integer, minimum: 0 }
-                  creditedKept: { type: integer, minimum: 0 }
+                  reversedCherries: { type: integer, format: int64, minimum: 0, description: The cherries taken back. }
+                  shortfall: { type: integer, format: int64, minimum: 0, description: "The part the balances did not cover (they went below 0)." }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
@@ -14465,7 +14469,8 @@ components:
       enum: [SIGNUP_INVITER, SIGNUP_INVITEE, FIRST_RECHARGE, MILESTONE]
     ReferralRewardStatus:
       type: string
-      enum: [PENDING, CREDITED, VOID]
+      description: "(v1.74-social) REVERSED: credited, then taken back when the team voided the referral (`REFERRAL_REVERSAL`)."
+      enum: [PENDING, CREDITED, VOID, REVERSED]
     ReferralMilestoneState:
       type: string
       description: "LOCKED: fewer friends than the threshold; UNLOCKED: reached counting friends still in their hold; CLAIMED: the bonus was credited."
@@ -14624,7 +14629,7 @@ components:
     AdminReferralReward:
       type: object
       additionalProperties: false
-      required: [id, userId, kind, status, cherries, holdUntil, baseCoins, rateBps, rechargeReason, creditedAt, voidedAt, voidReason]
+      required: [id, userId, kind, status, cherries, holdUntil, baseCoins, rateBps, rechargeReason, creditedAt, voidedAt, voidReason, reversedAt, reversalShortfall]
       properties:
         id: { type: string, format: uuid }
         userId: { type: string, format: uuid }
@@ -14638,10 +14643,12 @@ components:
         creditedAt: { type: [string, 'null'], format: date-time }
         voidedAt: { type: [string, 'null'], format: date-time }
         voidReason: { type: [string, 'null'], description: "DAILY_CAP, REFERRAL_VOID, RECHARGE_REVERSED, BANNED|DELETED|FLAGGED, INVITEE_…" }
+        reversedAt: { type: [string, 'null'], format: date-time, description: REVERSED only. }
+        reversalShortfall: { type: [integer, 'null'], format: int64, minimum: 0, description: "REVERSED only: the part of the claw-back the balance did not cover (a debt)." }
     AdminReferral:
       type: object
       additionalProperties: false
-      required: [id, status, source, code, rejectReason, voidReason, inviter, invitee, decidedBy, holdUntil, firstRechargeAt, qualifiedAt, voidedAt, createdAt, signals, rewards]
+      required: [id, status, source, code, rejectReason, voidReason, inviter, invitee, decidedBy, holdUntil, firstRechargeAt, qualifiedAt, voidedAt, createdAt, signals, rewards, voidClawback]
       properties:
         id: { type: string, format: uuid }
         status: { $ref: '#/components/schemas/ReferralStatus' }
@@ -14669,6 +14676,26 @@ components:
         rewards:
           type: array
           items: { $ref: '#/components/schemas/AdminReferralReward' }
+        voidClawback:
+          type: object
+          description: "What `voidAdminReferral` would take back now (0 for a VOID referral): the cherries, how many rewards, and per person the amount, the balance now and the part it does not cover (`shortfall`: the balance would go below 0)."
+          additionalProperties: false
+          required: [cherries, shortfall, rewards, people]
+          properties:
+            cherries: { type: integer, format: int64, minimum: 0 }
+            shortfall: { type: integer, format: int64, minimum: 0 }
+            rewards: { type: integer, minimum: 0 }
+            people:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required: [userId, cherries, balance, shortfall]
+                properties:
+                  userId: { type: string, format: uuid }
+                  cherries: { type: integer, format: int64, minimum: 1 }
+                  balance: { type: integer, format: int64 }
+                  shortfall: { type: integer, format: int64, minimum: 0 }
     ReferralMilestoneSetting:
       type: object
       additionalProperties: false
@@ -22026,8 +22053,8 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     NotificationType:
       type: string
-      description: "`LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). (v1.60-social, D191) `MODERATION_WARNING` (system: a moderator warned you about content that breaks the rules; target POST when the warning is about a post, else none). (v1.66-social, D198) `DATA_EXPORT_READY` (system, no target: the data export «تنزيل بياناتي» is ready; the app opens Settings › Privacy). (v1.69-social, D204) `RECHARGE_ORDER_UPDATE` (system: a recharge order you take part in changed or got a message; target RECHARGE_ORDER with `coins`, `orderEvent` and `orderStatus`; one unread row per order, moved up by each event). (v1.70-social, D206) system, target AGENCY: `AGENCY_OPENED` (your agency is open — also when the team reopens it), `AGENCY_PROBATION_REMINDER` (less than 24 h left with fewer activated hosts than needed; `activatedHosts` / `requiredHosts`), `AGENCY_PROBATION_PASSED`, `AGENCY_CLOSED` (with `activatedHosts` / `requiredHosts` when the probation failed; none when the team closed it), `AGENCY_HOST_RELEASED` (to each host of a closed agency: they are free). (v1.72-social, D208) `ACCOUNT_RESTRICTED` / `ACCOUNT_RESTRICTION_LIFTED` (system, target ACCOUNT_RESTRICTION: `restriction`, `endsAt`, `text` = the team's reason), `BALANCE_ADJUSTED` (system, target BALANCE_ADJUSTMENT: `currency`, `amount` signed), `PROFILE_EDITED_BY_TEAM` (system, no target). (v1.73-social, D209) system, no target: `HOST_APPLICATION_APPROVED` (your application «كن مضيفاً مع الإدارة» was approved — you may go live), `HOST_APPLICATION_REJECTED` (it was rejected; the reason is in `getMyHostingApplication`); the app opens «الوكالة». Clients ignore values they do not know."
-      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST, MODERATION_WARNING, DATA_EXPORT_READY, RECHARGE_ORDER_UPDATE, AGENCY_OPENED, AGENCY_PROBATION_REMINDER, AGENCY_PROBATION_PASSED, AGENCY_CLOSED, AGENCY_HOST_RELEASED, ACCOUNT_RESTRICTED, ACCOUNT_RESTRICTION_LIFTED, BALANCE_ADJUSTED, PROFILE_EDITED_BY_TEAM, HOST_APPLICATION_APPROVED, HOST_APPLICATION_REJECTED]
+      description: "`LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). (v1.60-social, D191) `MODERATION_WARNING` (system: a moderator warned you about content that breaks the rules; target POST when the warning is about a post, else none). (v1.66-social, D198) `DATA_EXPORT_READY` (system, no target: the data export «تنزيل بياناتي» is ready; the app opens Settings › Privacy). (v1.69-social, D204) `RECHARGE_ORDER_UPDATE` (system: a recharge order you take part in changed or got a message; target RECHARGE_ORDER with `coins`, `orderEvent` and `orderStatus`; one unread row per order, moved up by each event). (v1.70-social, D206) system, target AGENCY: `AGENCY_OPENED` (your agency is open — also when the team reopens it), `AGENCY_PROBATION_REMINDER` (less than 24 h left with fewer activated hosts than needed; `activatedHosts` / `requiredHosts`), `AGENCY_PROBATION_PASSED`, `AGENCY_CLOSED` (with `activatedHosts` / `requiredHosts` when the probation failed; none when the team closed it), `AGENCY_HOST_RELEASED` (to each host of a closed agency: they are free). (v1.72-social, D208) `ACCOUNT_RESTRICTED` / `ACCOUNT_RESTRICTION_LIFTED` (system, target ACCOUNT_RESTRICTION: `restriction`, `endsAt`, `text` = the team's reason), `BALANCE_ADJUSTED` (system, target BALANCE_ADJUSTMENT: `currency`, `amount` signed), `PROFILE_EDITED_BY_TEAM` (system, no target). (v1.73-social, D209) system, no target: `HOST_APPLICATION_APPROVED` (your application «كن مضيفاً مع الإدارة» was approved — you may go live), `HOST_APPLICATION_REJECTED` (it was rejected; the reason is in `getMyHostingApplication`); the app opens «الوكالة». (v1.74-social, D217) `REFERRAL_REWARD_REVERSED` (system, no target): the team voided a referral and took back the cherries it had credited (the amount is in the cherry ledger, `REFERRAL_REVERSAL`); the app opens the cherry wallet. Clients ignore values they do not know."
+      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST, MODERATION_WARNING, DATA_EXPORT_READY, RECHARGE_ORDER_UPDATE, AGENCY_OPENED, AGENCY_PROBATION_REMINDER, AGENCY_PROBATION_PASSED, AGENCY_CLOSED, AGENCY_HOST_RELEASED, ACCOUNT_RESTRICTED, ACCOUNT_RESTRICTION_LIFTED, BALANCE_ADJUSTED, PROFILE_EDITED_BY_TEAM, HOST_APPLICATION_APPROVED, HOST_APPLICATION_REJECTED, REFERRAL_REWARD_REVERSED]
     NotificationTarget:
       type: object
       required: [type, id, postId, thumbUrl, text]
@@ -24367,10 +24394,12 @@ components:
         Task Center reward (locked for withdrawal until the unlock rule passes, §10.46.1). *(v1.54-social, D185)*
         `RECHARGE_SALE` (debit): cherries sold to a recharge agent (§10.48). *(v1.74-social, D217)*
         `REFERRAL_REWARD` (credit): a «دعوة الأصدقاء» reward credited after its hold (reference: the reward; §10.71).
+        `REFERRAL_REVERSAL` (debit): that reward taken back when the team voided the referral (reference: the same
+        reward; the balance may go below 0).
         New values may appear later.
       enum: [GIFT_RECEIVED, AGENCY_COMMISSION, PARENT_COMMISSION, GIFT_REVERSAL, AGENCY_COMMISSION_REVERSAL,
              PARENT_COMMISSION_REVERSAL, WITHDRAWAL_HOLD, WITHDRAWAL_REFUND, TASK_REWARD, RECHARGE_SALE,
-             REFERRAL_REWARD]
+             REFERRAL_REWARD, REFERRAL_REVERSAL]
     CherryPayoutRules:
       type: object
       description: "`rateCherries` cherries are paid `rateMinor` minor units of `currency` (owner: 1 000 000 = 110, $1.10)."
@@ -24417,7 +24446,7 @@ components:
       required: [cherries, valueMinor, heldCherries, earnedTotal, earnedLast7Days, earnedLast30Days, commissionTotal,
                  taskRewardTotal, lockedTaskCherries, withdrawableCherries, taskUnlock, payout, pendingWithdrawal]
       properties:
-        cherries: { type: integer, format: int64, description: "The available balance (below 0 only after an admin reversal: a debt)." }
+        cherries: { type: integer, format: int64, description: "The available balance (below 0 only after an admin reversal or a referral claw-back: a debt)." }
         valueMinor: { type: integer, format: int64, minimum: 0, description: What the available cherries are worth at the payout rate (rounded down). }
         heldCherries: { type: integer, format: int64, minimum: 0, description: Held by the pending withdrawal. }
         earnedTotal: { type: integer, format: int64, description: "Gift cherries received (reversals subtracted), all time." }

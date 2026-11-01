@@ -290,6 +290,8 @@ export enum AuditAction {
   REFERRAL_REWARD_CREATE = 'referral.reward.create',
   REFERRAL_REWARD_CREDIT = 'referral.reward.credit',
   REFERRAL_REWARD_VOID = 'referral.reward.void',
+  /** A credited reward taken back when the team voided its referral {user, cherries, shortfall, balanceAfter}. */
+  REFERRAL_REWARD_REVERSE = 'referral.reward.reverse',
   REFERRAL_VIEW = 'referral.view',
   REFERRAL_SETTINGS_UPDATE = 'referral.settings.update',
   /** A live ended by the team from the panel {reason, hostUserId} (end reason ADMIN). */

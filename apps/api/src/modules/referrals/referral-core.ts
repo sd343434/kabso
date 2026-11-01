@@ -8,7 +8,8 @@ import type {
   ReferralRewardKind,
   ReferralStatus,
 } from '../../generated/prisma/client.js';
-import { creditReferralCherriesIn } from '../economy/cherry-ledger.js';
+import { creditReferralCherriesIn, reverseReferralCherriesIn } from '../economy/cherry-ledger.js';
+import { Notifier } from '../notifications/notifier.js';
 import { uuidv7 } from '../levels/uuidv7.js';
 import {
   canonicalEmail,
@@ -466,7 +467,7 @@ export async function milestonesIn(tx: Tx, inviterId: string, now: Date): Promis
   const given = new Set(
     (
       await tx.referralReward.findMany({
-        where: { userId: inviterId, kind: 'MILESTONE' },
+        where: { userId: inviterId, kind: 'MILESTONE', status: { not: 'REVERSED' } },
         select: { milestoneFriends: true },
       })
     ).map((r) => r.milestoneFriends),
@@ -683,9 +684,16 @@ export async function approveReferralIn(
       decidedById: by.actorUserId,
     },
   });
-  const existing = await tx.referralReward.findMany({ where: { referralId } });
+  // A REVERSED reward (taken back by an earlier void) is not credited again: a new row of its kind is made.
+  const all = await tx.referralReward.findMany({ where: { referralId } });
+  const existing = all.filter((r) => r.status !== 'REVERSED');
   const kinds = new Set(existing.map((r) => r.kind));
-  const missing: { kind: ReferralRewardKind; userId: string; cherries: bigint }[] = [];
+  const missing: { kind: ReferralRewardKind; userId: string; cherries: bigint; base?: ReferralReward }[] = [];
+  for (const old of all) {
+    if (old.status !== 'REVERSED' || kinds.has(old.kind)) continue;
+    kinds.add(old.kind);
+    missing.push({ kind: old.kind, userId: old.userId, cherries: old.cherries, base: old });
+  }
   if (!kinds.has('SIGNUP_INVITER') && settings.inviterSignupCherries > 0n) {
     missing.push({
       kind: 'SIGNUP_INVITER',
@@ -711,6 +719,14 @@ export async function approveReferralIn(
           kind: m.kind,
           cherries: m.cherries,
           holdUntil: now,
+          ...(m.base?.kind === 'FIRST_RECHARGE'
+            ? {
+                baseCoins: m.base.baseCoins,
+                rateBps: m.base.rateBps,
+                rechargeReason: m.base.rechargeReason,
+                rechargeReference: m.base.rechargeReference,
+              }
+            : {}),
           createdAt: now,
         },
       }),
@@ -741,9 +757,86 @@ export async function approveReferralIn(
   return { changed: true, credited };
 }
 
+/** One credited reward the claw-back takes back, and what it leaves. */
+export interface ClawbackItem {
+  readonly rewardId: string;
+  readonly userId: string;
+  readonly kind: ReferralRewardKind;
+  readonly cherries: bigint;
+}
+
+/** What voiding a referral takes back (the panel shows it before the team confirms). */
+export interface ClawbackPlan {
+  readonly items: readonly ClawbackItem[];
+  readonly cherries: bigint;
+  /** Per person: the amount, the balance now and the part it does not cover (a debt). */
+  readonly people: readonly { userId: string; cherries: bigint; balance: bigint; shortfall: bigint }[];
+  readonly shortfall: bigint;
+}
+
 /**
- * The team voids a referral (panel: FINANCE / OWNER with the code again; CLI): its PENDING rewards are voided; rewards
- * already credited stay (taking cherries back is a balance adjustment, D208). A VOID referral: nothing changes.
+ * The claw-back of voiding `referralId` (owner 2026-11-01): every reward of the referral already CREDITED (to the
+ * inviter, and to the friend when `inviteeSignupCherries` > 0), plus — when the referral is QUALIFIED — each milestone
+ * bonus the inviter no longer reaches without this friend (one qualified friend fewer). A VOID referral: nothing.
+ */
+export async function clawbackPlanIn(db: Db, referralId: string): Promise<ClawbackPlan> {
+  const referral = await db.referral.findUnique({ where: { id: referralId } });
+  if (!referral || referral.status === 'VOID') return { items: [], cherries: 0n, people: [], shortfall: 0n };
+  const credited = await db.referralReward.findMany({
+    where: { referralId, status: 'CREDITED' },
+    orderBy: { createdAt: 'asc' },
+  });
+  const milestones =
+    referral.status === 'QUALIFIED'
+      ? await db.referralReward.findMany({
+          where: {
+            userId: referral.inviterUserId,
+            kind: 'MILESTONE',
+            status: 'CREDITED',
+            milestoneFriends: {
+              gt:
+                (await db.referral.count({
+                  where: { inviterUserId: referral.inviterUserId, status: 'QUALIFIED' },
+                })) - 1,
+            },
+          },
+          orderBy: { milestoneFriends: 'asc' },
+        })
+      : [];
+  const items = [...credited, ...milestones].map((r) => ({
+    rewardId: r.id,
+    userId: r.userId,
+    kind: r.kind,
+    cherries: r.cherries,
+  }));
+  const perUser = new Map<string, bigint>();
+  for (const i of items) perUser.set(i.userId, (perUser.get(i.userId) ?? 0n) + i.cherries);
+  const ids = [...perUser.keys()].sort();
+  const wallets = await db.cherryWallet.findMany({
+    where: { userId: { in: ids } },
+    select: { userId: true, cherries: true },
+  });
+  const balanceOf = new Map(wallets.map((w) => [w.userId, w.cherries]));
+  const people = ids.map((userId) => {
+    const cherries = perUser.get(userId)!;
+    const balance = balanceOf.get(userId) ?? 0n;
+    const covered = balance > 0n ? (balance < cherries ? balance : cherries) : 0n;
+    return { userId, cherries, balance, shortfall: cherries - covered };
+  });
+  return {
+    items,
+    cherries: items.reduce((t, i) => t + i.cherries, 0n),
+    people,
+    shortfall: people.reduce((t, p) => t + p.shortfall, 0n),
+  };
+}
+
+/**
+ * The team voids a referral (panel: FINANCE / OWNER with the code again; CLI): its PENDING rewards are voided, and
+ * the cherries already credited are taken back at once (owner 2026-11-01; `clawbackPlanIn`): each reward becomes
+ * REVERSED with one `REFERRAL_REVERSAL` ledger row (reference = the reward, so never twice). A balance that does not
+ * cover it goes below 0 — the shortfall is recorded on the reward and in the audit, and withdrawals are refused until
+ * it is earned back. Each person who lost cherries gets `REFERRAL_REWARD_REVERSED`. A VOID referral: nothing changes.
  */
 export async function voidReferralIn(
   tx: Tx,
@@ -751,26 +844,68 @@ export async function voidReferralIn(
   reason: string,
   now: Date,
   by: AdminVia = CLI_VIA,
-): Promise<{ changed: boolean; voidedRewards: number; creditedKept: number }> {
+): Promise<{ changed: boolean; voidedRewards: number; reversedCherries: bigint; shortfall: bigint }> {
   const [locked] = await tx.$queryRaw<{ status: ReferralStatus }[]>`
     SELECT status::text AS status FROM referrals WHERE id = ${referralId}::uuid FOR UPDATE`;
   if (!locked) throw new ReferralAdminError(`No referral ${referralId}.`);
-  if (locked.status === 'VOID') return { changed: false, voidedRewards: 0, creditedKept: 0 };
+  if (locked.status === 'VOID') {
+    return { changed: false, voidedRewards: 0, reversedCherries: 0n, shortfall: 0n };
+  }
+  const plan = await clawbackPlanIn(tx, referralId);
   await tx.referral.update({
     where: { id: referralId },
     data: { status: 'VOID', voidedAt: now, voidReason: reason.slice(0, 500), decidedById: by.actorUserId },
   });
   const pending = await tx.referralReward.findMany({ where: { referralId, status: 'PENDING' } });
   for (const r of pending) await voidRewardIn(tx, r, 'REFERRAL_VOID', now, by);
-  const creditedKept = await tx.referralReward.count({ where: { referralId, status: 'CREDITED' } });
+  let shortfall = 0n;
+  const losers = new Set<string>();
+  for (const item of plan.items) {
+    const back = await reverseReferralCherriesIn(tx, item.userId, item.cherries, item.rewardId, now);
+    shortfall += back.shortfall;
+    losers.add(item.userId);
+    await tx.referralReward.update({
+      where: { id: item.rewardId },
+      data: { status: 'REVERSED', reversedAt: now, reversalShortfall: back.shortfall },
+    });
+    await tx.auditLog.create({
+      data: {
+        ...auditBy(by),
+        action: AuditAction.REFERRAL_REWARD_REVERSE,
+        targetType: 'referral_reward',
+        targetId: item.rewardId,
+        metadata: {
+          via: by.via,
+          referral: referralId,
+          user: item.userId,
+          kind: item.kind,
+          cherries: Number(item.cherries),
+          shortfall: Number(back.shortfall),
+          balanceAfter: Number(back.balanceAfter),
+        },
+      },
+    });
+  }
+  const notifier = new Notifier();
+  for (const userId of [...losers].sort()) {
+    await notifier.system(tx, { type: 'REFERRAL_REWARD_REVERSED', recipientId: userId });
+  }
   await tx.auditLog.create({
     data: {
       ...auditBy(by),
       action: AuditAction.REFERRAL_VOID,
       targetType: 'referral',
       targetId: referralId,
-      metadata: { via: by.via, reason, before: locked.status, voidedRewards: pending.length, creditedKept },
+      metadata: {
+        via: by.via,
+        reason,
+        before: locked.status,
+        voidedRewards: pending.length,
+        reversedRewards: plan.items.length,
+        reversedCherries: Number(plan.cherries),
+        shortfall: Number(shortfall),
+      },
     },
   });
-  return { changed: true, voidedRewards: pending.length, creditedKept };
+  return { changed: true, voidedRewards: pending.length, reversedCherries: plan.cherries, shortfall };
 }

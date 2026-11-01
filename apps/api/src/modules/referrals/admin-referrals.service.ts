@@ -9,6 +9,7 @@ import { tableResult, window, type TableQuery } from '../admin-panel/admin-table
 import { refused, viaOf } from '../admin-panel/admin-users.service.js';
 import {
   approveReferralIn,
+  clawbackPlanIn,
   ReferralAdminError,
   referralSettingsIn,
   updateReferralSettingsIn,
@@ -175,6 +176,8 @@ export class AdminReferralsService {
       },
     });
     if (!r) throw new AppException(ErrorCode.NOT_FOUND);
+    // What «إلغاء» would take back now (the dialog shows it before the team confirms).
+    const clawback = await clawbackPlanIn(this.prisma, r.id);
     // The same install id or mailbox elsewhere (the duplicate signals the rules used).
     const [sameDevice, sameEmail] = await Promise.all([
       r.inviteeInstallId
@@ -227,7 +230,20 @@ export class AdminReferralsService {
         creditedAt: w.creditedAt?.toISOString() ?? null,
         voidedAt: w.voidedAt?.toISOString() ?? null,
         voidReason: w.voidReason,
+        reversedAt: w.reversedAt?.toISOString() ?? null,
+        reversalShortfall: w.reversalShortfall === null ? null : Number(w.reversalShortfall),
       })),
+      voidClawback: {
+        cherries: Number(clawback.cherries),
+        shortfall: Number(clawback.shortfall),
+        rewards: clawback.items.length,
+        people: clawback.people.map((p) => ({
+          userId: p.userId,
+          cherries: Number(p.cherries),
+          balance: Number(p.balance),
+          shortfall: Number(p.shortfall),
+        })),
+      },
     };
   }
 
@@ -244,7 +260,13 @@ export class AdminReferralsService {
     const r = await rule(() =>
       this.prisma.$transaction((tx) => voidReferralIn(tx, id, body.reason, new Date(), viaOf(ctx))),
     );
-    return { status: 'VOID' as const, ...r };
+    return {
+      status: 'VOID' as const,
+      changed: r.changed,
+      voidedRewards: r.voidedRewards,
+      reversedCherries: Number(r.reversedCherries),
+      shortfall: Number(r.shortfall),
+    };
   }
 
   async settings() {
