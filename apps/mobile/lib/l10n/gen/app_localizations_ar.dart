@@ -12422,12 +12422,12 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String inviteStepSignup(String amount) {
-    return 'يسجّل صديقك ويؤكد كود دعوتك، فتحصل على $amount كرزة.';
+    return 'يسجّل صديقك بكودك: تحصل على $amount كرزة.';
   }
 
   @override
   String inviteStepRecharge(String percent) {
-    return 'عند أول شحن لصديقك تحصل على $percent من قيمته بالكرز.';
+    return 'أول شحن لصديقك: تحصل على $percent من قيمته بالكرز.';
   }
 
   @override
@@ -12590,8 +12590,9 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
-  String get inviteRuleMilestones =>
-      'تُضاف مكافآت المراحل عندما يصل عدد أصدقائك المؤهلين إلى كل مرحلة.';
+  String inviteRuleMilestones(String list) {
+    return 'مكافآت المراحل، مرة واحدة لكل مرحلة، حسب عدد أصدقائك المؤهلين:\n$list';
+  }
 
   @override
   String get inviteRuleWithdraw =>
@@ -12639,4 +12640,25 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get cherryReasonReferral => 'مكافأة دعوة';
+
+  @override
+  String inviteStepMilestones(String list) {
+    return 'مكافآت إضافية حسب عدد أصدقائك المؤهلين:\n$list';
+  }
+
+  @override
+  String inviteMilestoneItem(String friends, String amount) {
+    return '$friends: $amount كرزة';
+  }
+
+  @override
+  String get inviteRuleClawback =>
+      'إذا ألغى فريق Kabso دعوة غير صالحة يُسترجع الكرز الذي أُضيف بسببها، وإن لم يكفِ رصيدك يصبح سالباً ولا يمكن السحب حتى يُسدَّد.';
+
+  @override
+  String get cherryReasonReferralReversal => 'استرجاع مكافأة دعوة';
+
+  @override
+  String get notifReferralReversed =>
+      'ألغى فريق Kabso دعوة غير صالحة واسترجع كرز مكافأتها. افتح محفظة الكرز للتفاصيل';
 }

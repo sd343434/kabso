@@ -26,6 +26,8 @@ import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/core/storage/secure_token_store.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/notifications/domain/notification_models.dart';
+import 'package:kabso_live/features/push/push_payload.dart';
 import 'package:kabso_live/features/referrals/application/referral_providers.dart';
 import 'package:kabso_live/features/referrals/data/referral_repository.dart';
 import 'package:kabso_live/features/referrals/presentation/invite_friends_screen.dart';
@@ -332,6 +334,18 @@ void main() {
                 _textContains(tester, _plain(l10n.inviteStepRecharge('5%'))),
                 isTrue,
               );
+              // The third reward: the milestones, from the server's values.
+              expect(
+                _textContains(
+                  tester,
+                  _plain(
+                    l10n.inviteStepMilestones(
+                      referralMilestoneList(l10n, _referral().milestones),
+                    ),
+                  ),
+                ),
+                isTrue,
+              );
               expect(
                 find.byKey(InviteFriendsScreen.shareBarKey),
                 findsOneWidget,
@@ -510,16 +524,33 @@ void main() {
       await tester.tap(find.byKey(InviteFriendsScreen.helpKey));
       await tester.pumpAndSettle();
       expect(find.text(_ar.inviteRulesTitle), findsOneWidget);
-      for (final rule in [
+      final milestones = _ar.inviteRuleMilestones(
+        'صديق واحد: 50,000 كرزة\n5 أصدقاء: 300,000 كرزة\n'
+        '15 صديقاً: 1,000,000 كرزة',
+      );
+      final ordered = [
         _ar.inviteRuleSignup('20,000'),
         _ar.inviteRuleRecharge('5%'),
+        milestones,
+      ];
+      for (final rule in [
+        ...ordered,
         _ar.inviteRuleHold('24'),
         _ar.inviteRuleCap('20'),
         _ar.inviteRuleLater('7'),
         _ar.inviteRuleFair,
+        _ar.inviteRuleClawback,
       ]) {
         expect(_textContains(tester, _plain(rule)), isTrue, reason: rule);
       }
+      // The three rewards come first, in this order (owner 2026-11-01).
+      final tops = [
+        for (final rule in ordered)
+          tester
+              .getTopLeft(find.textContaining(_plain(rule).substring(0, 12)))
+              .dy,
+      ];
+      expect(tops, [...tops]..sort());
       await _capture(tester, '05-rules.ar');
     });
 
@@ -650,6 +681,23 @@ void main() {
       expect(find.byKey(ReferralCodeSheet.fieldKey), findsNothing);
       expect(find.byKey(ReferralCodeSheet.closedKey), findsOneWidget);
       expect(find.text(_ar.referralApplied), findsOneWidget);
+    });
+  });
+
+  group('claw-back (the team voided a referral)', () {
+    test('the notification opens the cherry wallet (inbox and push)', () {
+      final type = NotificationType.fromWire('REFERRAL_REWARD_REVERSED');
+      expect(type, NotificationType.referralRewardReversed);
+      expect(type.isSystem, isTrue);
+      expect(
+        const PushPayload({
+          'kind': 'notification',
+          'type': 'REFERRAL_REWARD_REVERSED',
+        }).route(),
+        AppRoutes.walletCherries,
+      );
+      expect(_ar.notifReferralReversed, contains('Kabso'));
+      expect(_en.notifReferralReversed, contains('cherry wallet'));
     });
   });
 

@@ -21199,13 +21199,13 @@ abstract class AppLocalizations {
   /// D217 (invite friends «دعوة الأصدقاء»).
   ///
   /// In ar, this message translates to:
-  /// **'يسجّل صديقك ويؤكد كود دعوتك، فتحصل على {amount} كرزة.'**
+  /// **'يسجّل صديقك بكودك: تحصل على {amount} كرزة.'**
   String inviteStepSignup(String amount);
 
   /// D217 (invite friends «دعوة الأصدقاء»).
   ///
   /// In ar, this message translates to:
-  /// **'عند أول شحن لصديقك تحصل على {percent} من قيمته بالكرز.'**
+  /// **'أول شحن لصديقك: تحصل على {percent} من قيمته بالكرز.'**
   String inviteStepRecharge(String percent);
 
   /// D217 (invite friends «دعوة الأصدقاء»).
@@ -21445,8 +21445,8 @@ abstract class AppLocalizations {
   /// D217 (invite friends «دعوة الأصدقاء»).
   ///
   /// In ar, this message translates to:
-  /// **'تُضاف مكافآت المراحل عندما يصل عدد أصدقائك المؤهلين إلى كل مرحلة.'**
-  String get inviteRuleMilestones;
+  /// **'مكافآت المراحل، مرة واحدة لكل مرحلة، حسب عدد أصدقائك المؤهلين:\n{list}'**
+  String inviteRuleMilestones(String list);
 
   /// D217 (invite friends «دعوة الأصدقاء»).
   ///
@@ -21531,6 +21531,36 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'مكافأة دعوة'**
   String get cherryReasonReferral;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'مكافآت إضافية حسب عدد أصدقائك المؤهلين:\n{list}'**
+  String inviteStepMilestones(String list);
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'{friends}: {amount} كرزة'**
+  String inviteMilestoneItem(String friends, String amount);
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'إذا ألغى فريق Kabso دعوة غير صالحة يُسترجع الكرز الذي أُضيف بسببها، وإن لم يكفِ رصيدك يصبح سالباً ولا يمكن السحب حتى يُسدَّد.'**
+  String get inviteRuleClawback;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'استرجاع مكافأة دعوة'**
+  String get cherryReasonReferralReversal;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'ألغى فريق Kabso دعوة غير صالحة واسترجع كرز مكافأتها. افتح محفظة الكرز للتفاصيل'**
+  String get notifReferralReversed;
 }
 
 class _AppLocalizationsDelegate

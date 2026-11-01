@@ -2042,9 +2042,10 @@ touched tables).
 
 ### 5.39 «دعوة الأصدقاء»: referral rewards in cherries (migrations `20270206090000_referrals_enums`, `20270206090100_referrals`; D217) — [IMPLEMENTED, draft contract v1.74-social; not deployed, not device-tested]
 
-CONVENTIONS §10.71. The first migration only adds `REFERRAL_REWARD` to `cherry_ledger_reason` (an enum value cannot be
-used in the transaction that adds it); the second extends the cherry ledger's sign rule in place (read from the
-catalogue), adds nullable `sessions.install_id` (+ partial index), `pending_registrations.install_id` /
+CONVENTIONS §10.71. The first migration only adds enum values — `REFERRAL_REWARD` and `REFERRAL_REVERSAL` to
+`cherry_ledger_reason`, `REFERRAL_REWARD_REVERSED` to `notification_type` (an enum value cannot be used in the
+transaction that adds it); the second extends the cherry ledger's sign rule in place (read from the catalogue;
+`REFERRAL_REWARD` > 0, `REFERRAL_REVERSAL` < 0), adds nullable `sessions.install_id` (+ partial index), `pending_registrations.install_id` /
 `referral_code`, and the tables `referral_settings` (one row, inserted with the defaults), `referral_codes`,
 `referrals`, `referral_rewards` (CHECKs, partial unique indexes). No backfill, no GRANT (default privileges). Checked
 on a database migrated to `claude/kl-int7` (`prisma migrate deploy`, then `prisma migrate diff` shows no drift on the
@@ -2061,5 +2062,8 @@ FINANCE, the authenticator code again) or `node dist/cli/referral-admin.js setti
 (migration role, audited `via: cli`); the defaults are listed in KNOWN_LIMITATIONS for the owner to confirm. **The
 programme is on after the migration.** The website's Caddyfile gains `rewrite /i/* /invite.html` (the invite link
 page, `infra/deploy/site/invite.html` + `assets/invite.js`). Order: API (migrations) and Caddy/site first, then the
-app; an older app sends no install id and ignores `REFERRAL_REWARD` in the history («أخرى»).
+app; an older app sends no install id, shows `REFERRAL_REWARD` / `REFERRAL_REVERSAL` in the history as «أخرى» and
+ignores the `REFERRAL_REWARD_REVERSED` notification (the push text still reaches it). Voiding a referral after its
+cherries were credited takes them back at once (owner 2026-11-01); a cherry balance may then be below 0 (a debt that
+blocks withdrawals), as after a gift reversal.
 - Not verified on a device or a server.

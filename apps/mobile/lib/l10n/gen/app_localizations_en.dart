@@ -12428,12 +12428,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String inviteStepSignup(String amount) {
-    return 'Your friend signs up with your invite code and you get $amount cherries.';
+    return 'Your friend signs up with your code: you get $amount cherries.';
   }
 
   @override
   String inviteStepRecharge(String percent) {
-    return 'On your friend\'s first recharge you get $percent of its value in cherries.';
+    return 'Your friend\'s first recharge: you get $percent of its value in cherries.';
   }
 
   @override
@@ -12595,8 +12595,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get inviteRuleMilestones =>
-      'Milestone rewards are added when your qualified friends reach each milestone.';
+  String inviteRuleMilestones(String list) {
+    return 'Milestone bonuses, once each, by the number of your qualified friends:\n$list';
+  }
 
   @override
   String get inviteRuleWithdraw =>
@@ -12644,4 +12645,25 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cherryReasonReferral => 'Referral reward';
+
+  @override
+  String inviteStepMilestones(String list) {
+    return 'Extra rewards by the number of your qualified friends:\n$list';
+  }
+
+  @override
+  String inviteMilestoneItem(String friends, String amount) {
+    return '$friends: $amount cherries';
+  }
+
+  @override
+  String get inviteRuleClawback =>
+      'If the Kabso team voids an invalid invite, the cherries it brought are taken back; if your balance does not cover them it goes below 0 and withdrawals wait until it is earned back.';
+
+  @override
+  String get cherryReasonReferralReversal => 'Referral reward taken back';
+
+  @override
+  String get notifReferralReversed =>
+      'The Kabso team voided an invalid invite and took back its cherries. Open the cherry wallet for details';
 }

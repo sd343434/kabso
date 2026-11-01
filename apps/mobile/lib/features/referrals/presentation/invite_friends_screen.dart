@@ -60,6 +60,20 @@ String referralPercent(int bps) => NumberFormat.decimalPercentPattern(
 /// Cherries as a grouped number, isolated for mixed-direction text.
 String _n(int value) => KFormat.bidiIsolate(KFormat.grouped(value));
 
+/// The milestones from the server's values, one per line («صديق واحد:
+/// 50,000 كرزة», «5 أصدقاء: 300,000 كرزة», …).
+String referralMilestoneList(
+  AppLocalizations l10n,
+  List<ReferralMilestone> milestones,
+) => milestones
+    .map(
+      (m) => l10n.inviteMilestoneItem(
+        l10n.inviteMilestoneFriends(m.friends),
+        _n(m.cherries),
+      ),
+    )
+    .join('\n');
+
 /// `/invite-friends` «دعوة صديق» (v1.74-social, D217, CONVENTIONS §10.71),
 /// behind the Me hub's «اربح المال». The layout follows the owner's
 /// reference (a third-party app's «Invite friend», layout only) in Kabso's
@@ -548,6 +562,13 @@ class _Steps extends StatelessWidget {
                       KFormat.bidiIsolate(
                         referralPercent(rules.firstRechargeBps),
                       ),
+                    ),
+                  ),
+                if (referral.milestones.isNotEmpty)
+                  line(
+                    Icons.emoji_events_outlined,
+                    l10n.inviteStepMilestones(
+                      referralMilestoneList(l10n, referral.milestones),
                     ),
                   ),
                 line(
@@ -1103,12 +1124,18 @@ class _RulesSheet extends StatelessWidget {
         l10n.inviteRuleRecharge(
           KFormat.bidiIsolate(referralPercent(r.firstRechargeBps)),
         ),
+      // The three rewards first (owner 2026-11-01): sign-up, first
+      // recharge, milestones.
+      if (referral.milestones.isNotEmpty)
+        l10n.inviteRuleMilestones(
+          referralMilestoneList(l10n, referral.milestones),
+        ),
       l10n.inviteRuleHold(_n(r.holdHours)),
       l10n.inviteRuleFair,
       if (r.dailySignupCap > 0) l10n.inviteRuleCap(_n(r.dailySignupCap)),
       l10n.inviteRuleLater(_n(r.applyWindowDays)),
-      if (referral.milestones.isNotEmpty) l10n.inviteRuleMilestones,
       l10n.inviteRuleWithdraw,
+      l10n.inviteRuleClawback,
     ];
     return SafeArea(
       child: SingleChildScrollView(

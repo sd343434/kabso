@@ -213,8 +213,11 @@
   and families share Wi-Fi, so real friends can be refused; the team can approve them. Whether to keep the rule on is
   an owner question (`selfIpWindowHours` 0 turns it off).
 - **No phone rule:** Kabso has no phone numbers.
-- **Voiding after crediting:** the team's «إلغاء» voids only held rewards; cherries already credited stay (a D208
-  balance adjustment takes them back).
+- **Voiding after crediting** (owner 2026-11-01): the team's «إلغاء» takes the credited cherries back at once
+  (`REFERRAL_REVERSAL`). A balance that does not cover it goes below 0 (a debt, like a gift reversal's); the app shows
+  the negative balance and the history row, but has no special message about the debt — a withdrawal simply answers
+  «insufficient cherries» until it is earned back. Milestone bonuses the inviter no longer reaches are taken back too;
+  whether the owner wants that is to confirm.
 - **Deep links:** the app has no deep-link package; the link `/i/<code>` opens the website, which shows the code to copy.
   The sign-up field is not pre-filled from the link.
 - **No notifications** for a friend who joined or a reward credited (the page and the cherry history show them).

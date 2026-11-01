@@ -196,6 +196,39 @@ void main() {
       expect(find.byKey(WalletCherryTab.pendingKey), findsOneWidget);
     });
 
+    // D217 (owner 2026-11-01): a referral the team voided takes its cherries
+    // back; the history names it, and a balance below 0 (a debt) shows.
+    testWidgets('a referral claw-back: its history row, a balance below 0', (
+      tester,
+    ) async {
+      final cherries = FakeCherryRepository(
+        wallet: testCherryWallet(cherries: -60000),
+        entries: [
+          CherryLedgerEntry(
+            id: 'rv1',
+            reason: CherryLedgerReason.fromWire('REFERRAL_REVERSAL'),
+            delta: -70000,
+            balanceAfter: -60000,
+            createdAt: economyAt,
+          ),
+          ...testCherryLedger(),
+        ],
+      );
+      await _pump(tester, AppRoutes.walletCherries, cherries: cherries);
+      expect(tester.takeException(), isNull);
+      await tester.scrollUntilVisible(
+        find.byKey(WalletCherryTab.entryKey('rv1')),
+        100,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(WalletCherryTab.entryKey('rv1')),
+          matching: find.text(_en.cherryReasonReferralReversal),
+        ),
+        findsOneWidget,
+      );
+    });
+
     // D184 (CONVENTIONS §10.46.1): task cherries wait for the owner's
     // earnings condition; the tab says so and the sheet offers only the rest.
     testWidgets('locked task cherries: the line on the card, the history '

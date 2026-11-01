@@ -72,6 +72,8 @@ class PushPayload {
     if (type is String && type.startsWith('HOST_APPLICATION_')) {
       return AppRoutes.agency;
     }
+    // D217: a referral's cherries taken back.
+    if (type == 'REFERRAL_REWARD_REVERSED') return AppRoutes.walletCherries;
     if (id == null || id.isEmpty) return null;
     // D204: a recharge order's chat.
     if (targetType == 'RECHARGE_ORDER') return AppRoutes.rechargeOrder(id);
