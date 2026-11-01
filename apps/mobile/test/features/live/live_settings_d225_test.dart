@@ -270,23 +270,40 @@ void main() {
       await _leave(tester);
     });
 
-    testWidgets('AUDIO: «إعدادات البث», YouTube, music, sounds, seat emoji, '
-        'program, topic, wishes; no screen share, singing, seats or theme '
-        'tiles; the bar: ≡, mic … ∞, games, gift (the «قريباً» PK gone: the '
-        'bar stays one row at 393 and 360 dp)', (tester) async {
+    testWidgets('AUDIO: «إعدادات البث», the mic (D225b), YouTube, music, '
+        'sounds, seat emoji, program, topic, wishes; no screen share, '
+        'singing, seats or theme tiles; the bar: ≡ … ∞, PK «قريباً», games, '
+        'gift — no mic (D225b)', (tester) async {
       final (_, engine) = await _hostOnAir(tester, mode: LiveRoomMode.audio);
-      expect(find.byKey(GoLiveScreen.barMicKey), findsOneWidget);
-      expect(find.byKey(GoLiveScreen.audioPkKey), findsNothing);
+      final l10n = _l10n(tester, GoLiveScreen);
+      // D225b (owner: «ضع زر المايك في ادوات الغرفة وارجع pk هذا
+      // للمضيف»): the bar's PK is back as before D225, the mic is in ≡.
+      expect(find.byKey(GoLiveScreen.barMicKey), findsNothing);
+      expect(find.byKey(GoLiveScreen.audioPkKey), findsOneWidget);
       expect(find.byKey(LiveAudioRoomLayout.crowdedBarKey), findsNothing);
       expect(find.byKey(GoLiveScreen.audioGamesKey), findsOneWidget);
-      await tester.tap(find.byKey(GoLiveScreen.barMicKey));
+      await tester.tap(find.byKey(GoLiveScreen.audioPkKey));
+      await tester.pump();
+      expect(find.text(l10n.goLivePkSoon), findsOneWidget);
+      ScaffoldMessenger.of(tester.element(find.byType(GoLiveScreen)))
+          .removeCurrentSnackBar();
       await tester.pumpAndSettle();
-      expect(engine.micEnabled, isFalse);
       await _capture(tester, 'audio.bar.ar');
       await _openTools(tester, LiveRoomMode.audio);
+      // The mic tile, toggled while the mic is on; a tap mutes.
+      final mic = _tile('mic');
+      expect(
+        tester.getSemantics(mic).flagsCollection.isToggled,
+        ui.Tristate.isTrue,
+      );
+      expect(
+        find.descendant(of: mic, matching: find.text(l10n.goLiveMicrophone)),
+        findsOneWidget,
+      );
       final ids = _toolIds(tester);
-      expect(ids.take(8), [
+      expect(ids.take(9), [
         'liveSettings',
+        'mic',
         'youtube',
         'music',
         'sounds',
@@ -310,6 +327,19 @@ void main() {
       // «التسجيل» stays where it was, an honest «قريباً».
       expect(ids, contains('recorder'));
       await _capture(tester, 'audio.tools.ar');
+      // A tap on the mic tile mutes (the sheet closes); the tile then says
+      // so the next time ≡ opens.
+      await tester.tap(mic);
+      await tester.pumpAndSettle();
+      expect(engine.micEnabled, isFalse);
+      await _openTools(tester, LiveRoomMode.audio);
+      expect(
+        tester.getSemantics(_tile('mic')).flagsCollection.isToggled,
+        ui.Tristate.isFalse,
+      );
+      await tester.tap(_tile('mic'));
+      await tester.pumpAndSettle();
+      expect(engine.micEnabled, isTrue);
       await _leave(tester);
     });
 
@@ -501,6 +531,24 @@ void main() {
             expect(tester.takeException(), isNull);
             // Every bar button is on screen (a crowded voice bar scrolls).
             expect(find.byKey(LiveAudioRoomLayout.crowdedBarKey), findsNothing);
+            if (mode.isVoice) {
+              // D225b: the audio room's PK is back; the gift stays on screen.
+              final gift = tester.getRect(
+                find.byKey(GoLiveScreen.audioGiftKey),
+              );
+              final width =
+                  tester.view.physicalSize.width / tester.view.devicePixelRatio;
+              expect(gift.left, greaterThanOrEqualTo(0));
+              expect(gift.right, lessThanOrEqualTo(width));
+              expect(
+                find.byKey(GoLiveScreen.audioPkKey),
+                mode == LiveRoomMode.audio ? findsOneWidget : findsNothing,
+              );
+              expect(
+                find.byKey(GoLiveScreen.barMicKey),
+                mode == LiveRoomMode.podcast ? findsOneWidget : findsNothing,
+              );
+            }
             await _openSettings(tester, mode);
             expect(tester.takeException(), isNull);
             await tester.fling(

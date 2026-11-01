@@ -1137,6 +1137,22 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           context,
           room: [
             _settingsTool(room, byId, accent: art.accent),
+            // D225b (owner: «ضع زر المايك في ادوات الغرفة»): the audio room
+            // host's mic (off the bar); «إعدادات البث» keeps its mic row.
+            if (!podcastMode)
+              GoLiveTool(
+                id: 'mic',
+                icon: state.micEnabled
+                    ? Icons.mic_rounded
+                    : Icons.mic_off_rounded,
+                label: l10n.goLiveMicrophone,
+                toggled: state.micEnabled,
+                onTap: live
+                    ? () => unawaited(
+                        _guard(() => _setMic(enabled: !state.micEnabled)),
+                      )
+                    : null,
+              ),
             if (podcastMode)
               GoLiveTool(
                 id: 'hands',
@@ -1507,18 +1523,25 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             onTap: openTools,
           ),
           // D225 (owner): the host's microphone, one tap away (the podcast
-          // host had no way to mute on air).
-          LiveRoundButton(
-            key: GoLiveScreen.barMicKey,
-            icon: state.micEnabled ? Icons.mic_rounded : Icons.mic_off_rounded,
-            bare: true,
-            label: state.micEnabled ? l10n.goLiveMuteMic : l10n.goLiveUnmuteMic,
-            onTap: live
-                ? () => unawaited(
-                    _guard(() => _setMic(enabled: !state.micEnabled)),
-                  )
-                : null,
-          ),
+          // host had no way to mute on air). D225b (owner: «ضع زر المايك في
+          // ادوات الغرفة وارجع pk هذا للمضيف»): not on the audio room's bar
+          // — its mic is a tile in ≡ — which keeps its PK button.
+          if (podcastMode)
+            LiveRoundButton(
+              key: GoLiveScreen.barMicKey,
+              icon: state.micEnabled
+                  ? Icons.mic_rounded
+                  : Icons.mic_off_rounded,
+              bare: true,
+              label: state.micEnabled
+                  ? l10n.goLiveMuteMic
+                  : l10n.goLiveUnmuteMic,
+              onTap: live
+                  ? () => unawaited(
+                      _guard(() => _setMic(enabled: !state.micEnabled)),
+                    )
+                  : null,
+            ),
         ],
         barEnd: [
           if (state.mode == LiveRoomMode.podcast)
@@ -1547,10 +1570,21 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               },
               badge: liveSeats?.pendingRequests ?? 0,
             ),
-          // D225: no PK on the voice bars — a podcast has none (owner), and
-          // the audio room's was an honest «قريباً» (the audit's «PK (قريباً
-          // / إخفاء)»): with the mic added it pushed the gift button off a
-          // 393 or 360 dp bar (the bar scrolls sideways when crowded).
+          // D225: no PK on the podcast bar (owner). D225b (owner: «ارجع pk
+          // هذا للمضيف»): the audio room's host keeps it as before D225 —
+          // PK is not in the contract for voice rooms yet: the button says
+          // so.
+          if (!podcastMode)
+            LiveRoundButton(
+              key: GoLiveScreen.audioPkKey,
+              icon: Icons.sports_mma_rounded,
+              // D135/D141: the owner's colourful PK art, as on the video bar.
+              asset: 'assets/live_bar/bar_pk.png',
+              art: true,
+              bare: true,
+              label: l10n.goLivePk,
+              onTap: () => KSnack.info(context, l10n.goLivePkSoon),
+            ),
           // D141 (owner): games, with the owner's controller art, where
           // the toolbox was (it repeated ≡). There are no games yet: the
           // button says so (no list is shown).

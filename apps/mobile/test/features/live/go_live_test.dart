@@ -826,10 +826,10 @@ void main() {
       expect(find.bySemanticsLabel(RegExp(l10n.goLiveHostTag)), findsOneWidget);
       expect(find.byKey(AudioSeatRing.seatKey(8)), findsOneWidget);
       // Owner (2026-10-26): the host mutes and unmutes on their own picture;
-      // D225 (owner): and with the bar's mic. D141: games (in place of the
-      // toolbox) and the gift box show.
+      // D225b (owner): and with the mic tile in ≡ — not on the audio bar.
+      // D141: games (in place of the toolbox) and the gift box show.
       expect(find.byKey(GoLiveScreen.micKey), findsNothing);
-      expect(find.byKey(GoLiveScreen.barMicKey), findsOneWidget);
+      expect(find.byKey(GoLiveScreen.barMicKey), findsNothing);
       expect(find.byKey(GoLiveScreen.audioGamesKey), findsOneWidget);
       expect(find.byKey(GoLiveScreen.audioGiftKey), findsOneWidget);
       // CP-020: the host's gift panel (to people on the mic; the catalogue
@@ -950,9 +950,15 @@ void main() {
       expect(find.text(l10n.liveScoreTaps), findsOneWidget);
       await tester.tapAt(const Offset(10, 10));
       await tester.pumpAndSettle();
-      // D225: no PK placeholder on the voice bars; the mic is there.
-      expect(find.byKey(GoLiveScreen.audioPkKey), findsNothing);
-      expect(find.byKey(GoLiveScreen.barMicKey), findsOneWidget);
+      // D225b (owner: «ارجع pk هذا للمضيف»): PK is back on the audio
+      // room's bar as before D225 — not in the contract yet: it says so.
+      expect(find.byKey(GoLiveScreen.barMicKey), findsNothing);
+      await tester.tap(find.byKey(GoLiveScreen.audioPkKey));
+      await tester.pump();
+      expect(find.text(l10n.goLivePkSoon), findsOneWidget);
+      ScaffoldMessenger.of(tester.element(find.byType(GoLiveScreen)))
+          .removeCurrentSnackBar();
+      await tester.pumpAndSettle();
       // D225: the seats, the visitors, the chat switch (CP-013) and the
       // theme are in «إعدادات البث», the first tile of ≡.
       await tester.tap(find.byKey(GoLiveScreen.audioMoreKey));
@@ -1034,7 +1040,7 @@ void main() {
         GoLiveScreen.shareKey,
         GoLiveScreen.audioMoreKey,
         GoLiveScreen.audioChatKey,
-        GoLiveScreen.barMicKey,
+        GoLiveScreen.audioPkKey,
         GoLiveKeys.tool('requests'),
       ]) {
         expect(
@@ -1555,10 +1561,10 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text(l10n.liveGamesSoon), findsOneWidget);
         await closeSheet(tester);
-        // D225: the mic on the bar mutes the host.
-        await tester.tap(find.byKey(GoLiveScreen.barMicKey));
-        await tester.pumpAndSettle();
-        expect(camera.micEnabled, isTrue);
+        // D225b: the audio room's PK button is back (still «قريباً»).
+        await tester.tap(find.byKey(GoLiveScreen.audioPkKey));
+        await tester.pump();
+        expect(find.text(l10n.goLivePkSoon), findsOneWidget);
         await _leave(tester);
       });
     }
@@ -1659,7 +1665,8 @@ void main() {
       await audioLive(tester, repo);
       for (final (key, art) in [
         (GoLiveScreen.audioGiftKey, 'assets/live_bar/bar_gift.png'),
-        // D225: no PK placeholder on the voice bars.
+        // D225b: the audio room's PK is back, with its art.
+        (GoLiveScreen.audioPkKey, 'assets/live_bar/bar_pk.png'),
         (GoLiveScreen.audioGamesKey, 'assets/live_bar/bar_games.png'),
       ]) {
         final image = tester.widget<Image>(

@@ -265,6 +265,6 @@
 - **Data saver** disables the received video publications of this live's own connection; a PK opponent's video
   (a second connection) is still received.
 - **«التسجيل»** in the voice rooms stays an honest «قريباً».
-- The AUDIO host bar's «قريباً» PK button was removed with the mic added (the bar would otherwise scroll at 393 and
-  360 dp); a podcast has no PK by the owner's decision.
+- The AUDIO host bar keeps its «قريباً» PK button (D225b, owner): its mic is a tile in ≡ (and the «إعدادات البث» row),
+  not on the bar, so the bar fits 393 and 360 dp; a podcast has no PK by the owner's decision (its bar has the mic).
 - Not verified on a device (remote volume, the data saver, the camera off seen by viewers).
