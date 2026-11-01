@@ -156,6 +156,27 @@ class GoLiveScreen extends ConsumerStatefulWidget {
   static const audioChatKey = Key('goLive.audio.chat');
   static const audioMoreKey = Key('goLive.audio.more');
 
+  /// D212: the themes offered for [mode]. D212b (owner: «البودكاست تظهر له
+  /// ثيمات البث الصوتي وهذا خطأ ازلها»): a podcast offers only its three
+  /// backgrounds (the setup, ≡ and «إعدادات البث» alike); the other modes
+  /// never offer them. Client only: the server accepts any theme in any
+  /// mode.
+  static List<String> themesFor(LiveRoomMode mode, LiveConfig? cfg) {
+    final all = cfg?.themes ?? const [LiveThemes.classic];
+    if (mode == LiveRoomMode.podcast) {
+      final podcast = [
+        for (final t in all)
+          if (LiveThemeArt.podcastThemes.contains(t)) t,
+      ];
+      // A server without them (older config): the app's own three.
+      return podcast.isEmpty ? LiveThemeArt.podcastThemes : podcast;
+    }
+    return [
+      for (final t in all)
+        if (!LiveThemeArt.podcastThemes.contains(t)) t,
+    ];
+  }
+
   /// D225: the host's microphone on the bar (every mode).
   static const barMicKey = Key('goLive.barMic');
   static const audioPkKey = Key('goLive.audio.pk');
@@ -964,7 +985,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               ? () => unawaited(
                   showLiveThemeSheet(
                     context,
-                    themes: _themesFor(state.mode, cfg),
+                    themes: GoLiveScreen.themesFor(state.mode, cfg),
                     selected: state.theme,
                     onSelect: (t) => unawaited(_guard(() => _host.setTheme(t))),
                   ),
@@ -1037,7 +1058,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                   context,
                   // D212: a podcast offers the owner's podcast backgrounds
                   // first, then the room themes.
-                  themes: _themesFor(state.mode, cfg),
+                  themes: GoLiveScreen.themesFor(state.mode, cfg),
                   selected: state.theme,
                   onSelect: (t) => unawaited(_guard(() => _host.setTheme(t))),
                 ),
@@ -3304,20 +3325,6 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         seconds: seconds,
       ),
     );
-  }
-
-  /// D212: the themes offered for [mode]: a podcast's backgrounds first.
-  static List<String> _themesFor(LiveRoomMode mode, LiveConfig? cfg) {
-    final all = cfg?.themes ?? const [LiveThemes.classic];
-    final podcast = [
-      for (final t in all)
-        if (LiveThemeArt.podcastThemes.contains(t)) t,
-    ];
-    final rooms = [
-      for (final t in all)
-        if (!LiveThemeArt.podcastThemes.contains(t)) t,
-    ];
-    return mode == LiveRoomMode.podcast ? [...podcast, ...rooms] : rooms;
   }
 
   Future<void> _openRequests(String roomId) {

@@ -4893,6 +4893,9 @@ the podcast mockup (Clubhouse / Spaces style, built on the audio room's own elem
   card's avatar stack). Themes: the room themes (§10.9) plus the owner's podcast backgrounds `podcast-studio`
   (the PODCAST default when `theme` is absent), `podcast-majlis` and `podcast-library` (appended to `LiveConfig.themes`;
   the art ships in the app, cover-fit from the top centre; a new background is an asset plus a theme slug).
+  D212b (owner 2026-11-01, app only): the app offers a PODCAST only these three (setup, ≡, «إعدادات البث») and never
+  offers them to the other modes; the server does not validate a theme per mode (any `LiveConfig.themes` slug is
+  accepted in any mode) — unchanged, no contract change.
 - **Raised hands = seat requests.** A podcast's `requestLiveSeat` is a hand: optional `question` (1–80 code points,
   the chat text rules), queued even while the 3 seats are full, refused 409 `LIVE_QUESTIONS_CLOSED` while the host
   has closed the hands (hands already up stay). Lowering = `cancelLiveSeatRequest`. The host's sheet lists
