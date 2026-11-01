@@ -569,7 +569,7 @@ export class FamiliesService implements OnModuleInit, OnModuleDestroy {
 
     const replay = await this.replayCreate(callerId, clientId);
     if (replay) return { created: false, result: replay };
-    if (emblemId !== null) this.media.assertEnabled();
+    if (emblemId !== null) await this.media.assertEnabled();
 
     for (let attempt = 1; ; attempt++) {
       try {
@@ -703,7 +703,7 @@ export class FamiliesService implements OnModuleInit, OnModuleDestroy {
       input.emblemMediaId === undefined ? undefined : (input.emblemMediaId?.toLowerCase() ?? null);
     const coverId =
       input.coverMediaId === undefined ? undefined : (input.coverMediaId?.toLowerCase() ?? null);
-    if (emblemId || coverId) this.media.assertEnabled();
+    if (emblemId || coverId) await this.media.assertEnabled();
     const oldKeys = await this.prisma.$transaction(async (tx) => {
       const family = await this.lockFamily(tx, familyId);
       if ((await this.roleIn(tx, family.id, callerId)) !== 'LEADER')

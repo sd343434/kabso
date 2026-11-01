@@ -50,7 +50,7 @@ export class LiveCoverService {
    * unless it is a READY, unattached `LIVE_COVER` of the caller from the last 24 hours).
    */
   async setCover(userId: string, body: unknown, meta: RequestMeta): Promise<LiveCoverDto> {
-    this.media.assertEnabled();
+    await this.media.assertEnabled();
     await this.assertHost(userId);
     const parsed = setLiveCoverSchema.safeParse(body ?? {});
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));

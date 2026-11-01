@@ -2063,3 +2063,88 @@ ins {
 .row.end {
   justify-content: flex-end;
 }
+
+/* ---- v1.75-social (D222): «التخزين (R2 / S3)» --------------------------------------------------------------- */
+fieldset.plain {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.switch-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.switch-row input[type='checkbox'] {
+  appearance: none;
+  width: 48px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--border);
+  position: relative;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  flex: none;
+}
+.switch-row input[type='checkbox']::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  inset-inline-start: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--raised);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: inset-inline-start 0.15s ease;
+}
+.switch-row input[type='checkbox']:checked {
+  background: var(--success);
+}
+.switch-row input[type='checkbox']:checked::after {
+  inset-inline-start: 23px;
+}
+.switch-row input[type='checkbox']:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.switch-row input[type='checkbox']:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.st-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin: 12px 0;
+}
+.st-steps h3 {
+  margin: 0 0 6px;
+}
+.st-steps ol {
+  margin: 0;
+  padding-inline-start: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+.st-steps li {
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.st-steps li.bad {
+  border-color: var(--error);
+}
+.st-steps code {
+  font-size: 12px;
+}
+.st-guide {
+  padding-inline-start: 20px;
+  display: grid;
+  gap: 6px;
+}

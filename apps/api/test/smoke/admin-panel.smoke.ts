@@ -22,7 +22,8 @@ import { setExchangeRateIn } from '../../src/modules/recharge/recharge-order-cor
 import { MemoryObjectStorage } from '../helpers/memory-storage.js';
 import { createTestApp, registerVerified, withMigrationClient } from '../helpers/test-app.js';
 
-it('serves the admin panel smoke API', async () => {
+// D222: `SMOKE_STORAGE=1` serves storage-settings.smoke.ts instead (one server on SMOKE_PORT at a time).
+it.skipIf(process.env.SMOKE_STORAGE === '1')('serves the admin panel smoke API', async () => {
   const port = Number(process.env.SMOKE_PORT ?? 3000);
   const file = process.env.SMOKE_FILE ?? 'admin-smoke.json';
   const stop = process.env.SMOKE_STOP_FILE;

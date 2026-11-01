@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { StorageSettingsStore } from '../storage-settings/storage-settings.store.js';
 import { AuditService } from '../../common/audit/audit.service.js';
 import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
@@ -128,6 +129,7 @@ export class AdminCatalogService {
     private readonly audit: AuditService,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    private readonly storageSettings: StorageSettingsStore,
   ) {}
 
   private usd(coins: number): string {
@@ -143,7 +145,8 @@ export class AdminCatalogService {
       this.prisma.giftCategory.findMany({ orderBy: [{ sortOrder: 'asc' }, { code: 'asc' }] }),
     ]);
     const used = new Map(sends.map((s) => [s.giftCode, s]));
-    const base = this.config.media.publicBaseUrl;
+    const storage = await this.storageSettings.resolved();
+    const base = storage.publicBaseUrl;
     const order = tabs.map((t) => t.code);
     return {
       coinRetailUsdPerMillion: this.config.economy.coinRetailUsdPerMillion,
@@ -156,12 +159,9 @@ export class AdminCatalogService {
         enabled: t.enabled,
       })),
       // v1.71-social (D207): whether uploads can be stored (S3 settings present) and shown (public URL set).
+      // v1.75-social (D222): the panel's «التخزين» when it is on, else the server's S3_*.
       uploads: {
-        storage: Boolean(
-          this.config.media.s3.bucket &&
-          this.config.media.s3.accessKeyId &&
-          this.config.media.s3.secretAccessKey,
-        ),
+        storage: storage.s3 !== null,
         publicUrls: base !== undefined,
       },
       data: rows
@@ -280,7 +280,7 @@ export class AdminCatalogService {
     if (!pattern.test(code)) {
       throw AppException.validation([{ field: 'code', issue: 'invalid_format' }]);
     }
-    const base = this.config.media.publicBaseUrl;
+    const base = this.storageSettings.current().publicBaseUrl;
     try {
       switch (kind) {
         case 'image': {
@@ -374,7 +374,7 @@ export class AdminCatalogService {
 
   async giftCategories() {
     const rows = await giftCategoriesWithCounts(this.prisma);
-    const base = this.config.media.publicBaseUrl;
+    const base = this.storageSettings.current().publicBaseUrl;
     return {
       data: rows.map((c) => ({
         code: c.code,
@@ -594,7 +594,7 @@ export class AdminCatalogService {
       this.prisma.homeBanner.findMany({ where: activeBannerWhere(now), select: { id: true } }),
     ]);
     const on = new Set(active.map((b) => b.id));
-    const base = this.config.media.publicBaseUrl;
+    const base = this.storageSettings.current().publicBaseUrl;
     return {
       data: rows.map((b) => ({
         id: b.id,

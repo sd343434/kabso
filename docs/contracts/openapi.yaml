@@ -512,6 +512,16 @@ info:
     `friends=true`) and may be invited (`inviteLivePk`): the invited host's wait no longer makes them
     `PK_HOST_BUSY`; while the invitation is open they are not paired at random; accepted, both waits end. The
     caller's own wait still makes the caller busy. No shape change (CONVENTIONS §10.70).
+    **D222 (DRAFT v1.75-social)**: the OWNER enters and turns on the media storage (Cloudflare R2, or any
+    S3-compatible service) in the admin panel «التخزين (R2 / S3)» instead of the server environment.
+    `getAdminStorageSettings`, `updateAdminStorageSettings` (PATCH; the code again and a reason),
+    `testAdminStorageSettings` («اختبار الاتصال»: a real round trip on both buckets under `_healthcheck/`),
+    `clearAdminStorageSettings` (capability `storage.settings`, OWNER). The access key id and the secret are
+    **write-only** (only the last 4, who and when), sealed AES-256-GCM with a key derived from `ADMIN_TOTP_KEY`
+    (`storage-settings/v1`); two buckets — `media/` in the PUBLIC one (served from the public base URL), raw uploads
+    and private pictures (`uploads/`, `private/`) in the PRIVATE one. On, they override `S3_*` /
+    `MEDIA_PUBLIC_BASE_URL` / `MEDIA_UPLOADS_ENABLED`, which stay the fallback (no restart); off and no env storage:
+    uploads stay 503 `MEDIA_UPLOADS_UNAVAILABLE`. Additive (CONVENTIONS §10.72).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -7538,7 +7548,8 @@ paths:
       summary: "Start an image upload (presigned PUT, v1.5-social draft)"
       description: |
         CONVENTIONS §11.1. Check order: auth → rate limit (counted before the switch, like
-        go-live) → `MEDIA_UPLOADS_ENABLED` (503 `MEDIA_UPLOADS_UNAVAILABLE`) → body. Only `POST_IMAGE` exists in M1 (video
+        go-live) → `MEDIA_UPLOADS_ENABLED` (503 `MEDIA_UPLOADS_UNAVAILABLE`; v1.75-social, D222: or the panel's
+        «التخزين» switch, which wins when on) → body. Only `POST_IMAGE` exists in M1 (video
         and stories arrive with M2/M3). The URL is valid for 10 minutes; the client sends the bytes
         with exactly `method` and `headers`, then calls `completeMediaUpload`. CP-017: a
         `LIVE_CHAT_VOICE` upload is `audio/mp4` of at most 1 MiB (CONVENTIONS §11.1).
@@ -10145,6 +10156,117 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/AdminPaymentSettings' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  # ---- v1.75-social (DRAFT, D222, CONVENTIONS §10.72): the media storage from the panel «التخزين (R2 / S3)» --------
+  /api/v1/admin/storage-settings:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminStorageSettings
+      summary: "The media storage (R2 / S3) settings — keys as last 4 only —, its switch, status and last test «التخزين» (storage.settings: OWNER)"
+      description: "Never a key: `accessKeyId` / `secretAccessKey` are `StorageKeyInfo` (last 4, who, when). `source` says which storage uploads use now (`panel` over `env`; `none` with `uploadsEnabled: false` = 503 `MEDIA_UPLOADS_UNAVAILABLE`). `env` describes the server's `S3_*` (the fallback; read-only). `Cache-Control: no-store`."
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: The settings.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminStorageSettings' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+    patch:
+      tags: [admin-panel]
+      operationId: updateAdminStorageSettings
+      summary: "Saves the storage settings and / or turns it on or off «تفعيل» (storage.settings: OWNER; the code again + reason; audited with the last 4 only)"
+      description: |
+        Only the fields sent change (null clears an optional field). Every change needs `totpCode` (403
+        `ADMIN_TOTP_INVALID`, counts towards the lockout) and `reason`. The same bucket as public and private: 409
+        `ADMIN_ACTION_REFUSED` (`privateBucket` `same_bucket`). Turning on needs every required field (409, one detail
+        per missing field, issue `storage_incomplete`: `accountId` for R2, the keys, both buckets, the public base
+        URL). Turning on, or changing a connection field while on, first runs the same round trip as
+        `testAdminStorageSettings` with the merged values (the result is kept as the last test); a failed step → 409
+        `storage_test_failed` (`enabled`), nothing saved. `skipConnectionTest: true` only when NODE_ENV is not
+        production (else 409 `storage_test_required`). In production both URLs must be https on a domain name (409
+        `https_required`). Used by the next request on this instance and within 5 s on the others (no restart).
+        Audited `storage.settings.update` (before / after with `…last4`; `changed`, `connectionTest`, `reason`).
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateAdminStorageSettingsRequest' }
+      responses:
+        '200':
+          description: Saved; the settings as now (last 4 only).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminStorageSettings' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/storage-settings/test:
+    post:
+      tags: [admin-panel]
+      operationId: testAdminStorageSettings
+      summary: "«اختبار الاتصال»: a real round trip on both buckets with the values typed (the rest and the keys from what is saved) — nothing saved but the result (storage.settings: OWNER)"
+      description: |
+        For each bucket, under `_healthcheck/`: `put` a tiny object, `head` it, `get` it back; for the public bucket
+        `public_read` it from the public base URL without a key; for the private bucket check `not_public` (neither
+        the public base URL nor an anonymous request to the S3 endpoint reads it); `delete` it. 200
+        `StorageTestReport` whatever the outcome (`ok` false + the failed step's `issue`); 400 `required` for a missing
+        field; 409 `same_bucket` / `https_required`. Each step at most 10 s. Audited `storage.settings.test` (the
+        target, `…last4`, the outcome).
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TestAdminStorageSettingsRequest' }
+      responses:
+        '200':
+          description: The steps and their outcome.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StorageTestReport' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/storage-settings/clear:
+    post:
+      tags: [admin-panel]
+      operationId: clearAdminStorageSettings
+      summary: "Removes the panel's storage settings and keys: the server's env storage applies again, or uploads are off (storage.settings: OWNER; code again + reason; audited)"
+      description: "409 `ADMIN_ACTION_REFUSED` (`storage_nothing_to_clear`) when the panel has none. The last test is kept. Objects already stored are not touched. Audited `storage.settings.clear` (masked before, `fallback` `env` / `none`, `reason`)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ClearAdminStorageSettingsRequest' }
+      responses:
+        '200':
+          description: Cleared; the settings as now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminStorageSettings' }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
@@ -18533,6 +18655,167 @@ components:
         last4: { type: string }
         restricted: { type: boolean, description: "A restricted key without the balance permission (it still works)." }
     ClearAdminPaymentKeysRequest:
+      type: object
+      additionalProperties: false
+      required: [totpCode, reason]
+      properties:
+        totpCode: { type: string, pattern: '^[0-9]{6}$', writeOnly: true }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+    # ---- v1.75-social (DRAFT, D222, CONVENTIONS §10.72): the media storage from the panel -------------------------
+    StorageKeyInfo:
+      type: object
+      additionalProperties: false
+      description: "(v1.75-social, D222) All the panel ever shows of a storage key: never the value."
+      required: [last4, setBy, setAt]
+      properties:
+        last4: { type: string, minLength: 4, maxLength: 4 }
+        setBy:
+          type: [object, 'null']
+          additionalProperties: false
+          required: [id, displayName]
+          properties:
+            id: { type: string, format: uuid }
+            displayName: { type: string }
+        setAt: { type: [string, 'null'], format: date-time }
+    StorageTarget:
+      type: object
+      additionalProperties: false
+      description: "(v1.75-social, D222) Where a test connected (no key). For R2 the endpoint is derived from the account id and the region is `auto`."
+      required: [provider, accountId, endpoint, region, forcePathStyle, publicBucket, publicBaseUrl, privateBucket]
+      properties:
+        provider: { type: string, enum: [R2, S3] }
+        accountId: { type: [string, 'null'] }
+        endpoint: { type: [string, 'null'] }
+        region: { type: string }
+        forcePathStyle: { type: boolean }
+        publicBucket: { type: [string, 'null'] }
+        publicBaseUrl: { type: [string, 'null'] }
+        privateBucket: { type: [string, 'null'] }
+    StorageTestStep:
+      type: object
+      additionalProperties: false
+      required: [bucket, step, ok, ms, issue, detail]
+      properties:
+        bucket: { type: string, enum: [public, private] }
+        step: { type: string, enum: [put, head, get, public_read, not_public, delete] }
+        ok: { type: boolean }
+        ms: { type: integer, minimum: 0 }
+        issue:
+          type: [string, 'null']
+          enum: [bad_credentials, access_denied, no_such_bucket, unreachable, mismatch, not_public, publicly_readable, http_status, error, null]
+          description: "Why the step failed: wrong key / secret, the token lacks the bucket, no such bucket, the server cannot be reached, different bytes, the public URL does not serve the public bucket, the private bucket is readable without a key."
+        detail: { type: [string, 'null'], maxLength: 80, description: "A short technical hint (S3 error name, HTTP status, host); never a key." }
+    StorageTestReport:
+      type: object
+      additionalProperties: false
+      description: "(v1.75-social, D222) «اختبار الاتصال»."
+      required: [ok, at, target, accessKeyIdLast4, steps]
+      properties:
+        ok: { type: boolean }
+        at: { type: string, format: date-time }
+        target: { $ref: '#/components/schemas/StorageTarget' }
+        accessKeyIdLast4: { type: [string, 'null'] }
+        steps: { type: array, items: { $ref: '#/components/schemas/StorageTestStep' } }
+    StorageLastTest:
+      type: object
+      additionalProperties: false
+      description: "(v1.75-social, D222) A `StorageTestReport` with who ran it."
+      required: [ok, at, target, accessKeyIdLast4, steps, by]
+      properties:
+        ok: { type: boolean }
+        at: { type: string, format: date-time }
+        target: { $ref: '#/components/schemas/StorageTarget' }
+        accessKeyIdLast4: { type: [string, 'null'] }
+        steps: { type: array, items: { $ref: '#/components/schemas/StorageTestStep' } }
+        by:
+          type: [object, 'null']
+          additionalProperties: false
+          required: [id, displayName]
+          properties:
+            id: { type: string, format: uuid }
+            displayName: { type: string }
+    AdminStorageSettings:
+      type: object
+      additionalProperties: false
+      description: "(v1.75-social, D222) The «التخزين (R2 / S3)» section."
+      required: [status, source, uploadsEnabled, publicBaseUrl, enabled, panel, env, panelIgnored, lastTest, publicPrefix, healthcheckPrefix, connectionTestSkippable]
+      properties:
+        status: { type: string, enum: [active, env, off, not_configured], description: "`active`: the panel's storage is on; `env`: the server's `S3_*` is used; `off`: settings saved but the switch is off (and no env storage); `not_configured`." }
+        source: { type: string, enum: [panel, env, none] }
+        uploadsEnabled: { type: boolean, description: "False: every upload is 503 `MEDIA_UPLOADS_UNAVAILABLE`." }
+        publicBaseUrl: { type: [string, 'null'], description: "The base of public media URLs now." }
+        enabled: { type: boolean, description: "The panel's «تفعيل» switch." }
+        panel:
+          type: object
+          additionalProperties: false
+          required: [provider, accountId, endpoint, region, forcePathStyle, publicBucket, publicBaseUrl, privateBucket, accessKeyId, secretAccessKey, missing, updatedAt]
+          properties:
+            provider: { type: string, enum: [R2, S3] }
+            accountId: { type: [string, 'null'] }
+            endpoint: { type: [string, 'null'], description: "For R2: `https://<accountId>.r2.cloudflarestorage.com`." }
+            region: { type: [string, 'null'] }
+            forcePathStyle: { type: boolean }
+            publicBucket: { type: [string, 'null'] }
+            publicBaseUrl: { type: [string, 'null'] }
+            privateBucket: { type: [string, 'null'] }
+            accessKeyId: { oneOf: [{ $ref: '#/components/schemas/StorageKeyInfo' }, { type: 'null' }] }
+            secretAccessKey: { oneOf: [{ $ref: '#/components/schemas/StorageKeyInfo' }, { type: 'null' }] }
+            missing: { type: array, items: { type: string }, description: "The fields still needed to turn it on." }
+            updatedAt: { type: [string, 'null'], format: date-time }
+        env:
+          type: object
+          additionalProperties: false
+          description: "The server's `S3_*` (the fallback; read-only)."
+          required: [configured, uploadsEnabled, endpoint, region, bucket, publicBaseUrl, accessKeyIdLast4]
+          properties:
+            configured: { type: boolean }
+            uploadsEnabled: { type: boolean, description: "`MEDIA_UPLOADS_ENABLED`." }
+            endpoint: { type: [string, 'null'] }
+            region: { type: string }
+            bucket: { type: [string, 'null'] }
+            publicBaseUrl: { type: [string, 'null'] }
+            accessKeyIdLast4: { type: [string, 'null'] }
+        panelIgnored: { type: [string, 'null'], enum: [unreadable, null], description: "The switch is on but the keys were sealed with another `ADMIN_TOTP_KEY`: the env applies." }
+        lastTest: { oneOf: [{ $ref: '#/components/schemas/StorageLastTest' }, { type: 'null' }], description: "The last «اختبار الاتصال» (also the one a save ran)." }
+        publicPrefix: { type: string, description: "`media/`: the only prefix in the public bucket." }
+        healthcheckPrefix: { type: string, description: "`_healthcheck/`: where the test writes." }
+        connectionTestSkippable: { type: boolean, description: "NODE_ENV is not production: may be saved without the round trip." }
+    UpdateAdminStorageSettingsRequest:
+      type: object
+      additionalProperties: false
+      description: "(v1.75-social, D222) Only the fields sent change (at least one besides the code and reason)."
+      required: [totpCode, reason]
+      properties:
+        provider: { type: string, enum: [R2, S3] }
+        accountId: { type: [string, 'null'], pattern: '^[A-Fa-f0-9]{32}$', description: "Cloudflare R2 account id." }
+        endpoint: { type: [string, 'null'], maxLength: 300, description: "S3 only (R2 derives it). https in production." }
+        region: { type: [string, 'null'], pattern: '^[a-z0-9-]{2,64}$', description: "S3 only (R2: `auto`)." }
+        forcePathStyle: { type: boolean, description: "S3 only (`true` for MinIO)." }
+        accessKeyId: { type: string, pattern: '^[A-Za-z0-9+/=_.-]{8,128}$', writeOnly: true }
+        secretAccessKey: { type: string, pattern: '^[A-Za-z0-9+/=_.-]{16,256}$', writeOnly: true }
+        publicBucket: { type: [string, 'null'], pattern: '^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$' }
+        publicBaseUrl: { type: [string, 'null'], maxLength: 300, description: "The R2 public development URL or a custom domain (`https://media.kabsolive.com`); no query; a trailing slash is dropped." }
+        privateBucket: { type: [string, 'null'], pattern: '^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$', description: "Never public; must differ from `publicBucket`." }
+        enabled: { type: boolean, description: "«تفعيل»." }
+        skipConnectionTest: { type: boolean, description: "Only when NODE_ENV is not production." }
+        totpCode: { type: string, pattern: '^[0-9]{6}$', writeOnly: true }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+    TestAdminStorageSettingsRequest:
+      type: object
+      additionalProperties: false
+      description: "(v1.75-social, D222) The values typed so far; any field left out (and the keys) comes from what is saved."
+      properties:
+        provider: { type: string, enum: [R2, S3] }
+        accountId: { type: [string, 'null'], pattern: '^[A-Fa-f0-9]{32}$' }
+        endpoint: { type: [string, 'null'], maxLength: 300 }
+        region: { type: [string, 'null'], pattern: '^[a-z0-9-]{2,64}$' }
+        forcePathStyle: { type: boolean }
+        accessKeyId: { type: string, pattern: '^[A-Za-z0-9+/=_.-]{8,128}$', writeOnly: true }
+        secretAccessKey: { type: string, pattern: '^[A-Za-z0-9+/=_.-]{16,256}$', writeOnly: true }
+        publicBucket: { type: [string, 'null'], pattern: '^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$' }
+        publicBaseUrl: { type: [string, 'null'], maxLength: 300 }
+        privateBucket: { type: [string, 'null'], pattern: '^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$' }
+    ClearAdminStorageSettingsRequest:
       type: object
       additionalProperties: false
       required: [totpCode, reason]

@@ -1,7 +1,6 @@
-import { inspect } from 'node:util';
 import { z } from 'zod';
 import type { AppConfig } from '../../config/app-config.js';
-import { AdminSecretBox } from '../admin-panel/admin-crypto.js';
+import { AdminSecretBox, Secret } from '../admin-panel/admin-crypto.js';
 
 /**
  * v1.64-social (D196, CONVENTIONS §10.53.1): the Stripe keys and options the OWNER enters in the admin panel
@@ -38,28 +37,8 @@ export const WEBHOOK_SECRET_PATTERN = /^whsec_[A-Za-z0-9+/=_]{8,250}$/;
 export const PUBLISHABLE_KEY_PATTERN = /^pk_(test|live)_[A-Za-z0-9_]{8,250}$/;
 export const DESCRIPTOR_SUFFIX_PATTERN = /^[A-Za-z0-9 ]{1,10}$/;
 
-/**
- * A secret value that never leaves by accident: JSON, string conversion and `util.inspect` (what loggers use) all
- * give `[redacted]`. Only {@link Secret.reveal} returns the value, where a Stripe call needs it.
- */
-export class Secret {
-  readonly #value: string;
-  constructor(value: string) {
-    this.#value = value;
-  }
-  reveal(): string {
-    return this.#value;
-  }
-  toJSON(): string {
-    return '[redacted]';
-  }
-  toString(): string {
-    return '[redacted]';
-  }
-  [inspect.custom](): string {
-    return '[redacted]';
-  }
-}
+/** `Secret` moved to admin-crypto (D222 «التخزين» uses it too); re-exported for D196's callers. */
+export { Secret };
 
 export type KeyMode = 'live' | 'test';
 export type KeyKind = 'secret' | 'restricted' | 'webhook';

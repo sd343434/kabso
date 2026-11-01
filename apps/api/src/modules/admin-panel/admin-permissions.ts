@@ -48,6 +48,8 @@ export const CAPABILITIES = {
   'recharge.rates': ['OWNER', 'FINANCE'],
   /** v1.64-social (D196): the Stripe keys and top-up options «الدفع (Stripe)». */
   'payments.settings': ['OWNER'],
+  /** v1.75-social (D222, §10.72): the media storage (R2 / S3) keys, buckets and switch «التخزين (R2 / S3)». */
+  'storage.settings': ['OWNER'],
   // ---- v1.65-social (D197, CONVENTIONS §10.60): the panel v2 sections ---------------------------------------
   /** The users table and its CSV export (audited), a user's content tab. */
   'users.list': ['OWNER', 'MODERATION', 'SUPPORT', 'FINANCE'],

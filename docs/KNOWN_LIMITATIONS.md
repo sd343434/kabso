@@ -14,7 +14,7 @@
 | B9 | Registration reveals whether an email is registered (`EMAIL_TAKEN`) | Account enumeration via sign-up | **Decided (D24): not acceptable.** Verify-first registration specified in contract v1.2, implementation KL-019; real delivery needs B2 |
 | B11 | CAPTCHA / step-up provider for login abuse (SEC-023 residual) | Account-bucket 429 can link an email to a public username | Provider choice (e.g. hCaptcha, Turnstile, App Attest/Play Integrity) before public launch |
 | B10 | Least-privilege runtime DB role (SEC-011) | Implemented in KL-013 (`466b66b`) and verified by A7 in KL-007f: PASS WITH CONDITIONS. KL7F-01/02/09 must be fixed in KL-013b before the first deployment | Nothing from you; engineering follow-up KL-013b |
-| B12 | Media storage credentials (owner chose Cloudflare R2, D45) | Avatar, cover and post photo uploads stay disabled (`MEDIA_UPLOADS_ENABLED=false`); the upload code exists (KL-060) and is verified against an S3-compatible test server | R2 account, bucket, custom domain, API token via the secret manager; cost approval |
+| B12 | Media storage credentials (owner chose Cloudflare R2, D45) | Avatar, cover and post photo uploads stay disabled (`MEDIA_UPLOADS_ENABLED=false`); the upload code exists (KL-060) and is verified against an S3-compatible test server | R2 account, bucket, custom domain, API token via the secret manager; cost approval *(D222: the R2 account, the two buckets, the custom domain and the token can now be entered and turned on by the OWNER in the admin panel «التخزين (R2 / S3)» — DEPLOYMENT §5.40; still needed: the account and the token themselves.)* |
 | B13 | Image moderation provider; legal duty for illegal content (e.g. CSAM detection and reporting) | Uploaded images are visible only to their owner | Provider choice (e.g. Rekognition, SafeSearch, Hive) + legal review before public launch |
 | B8 | Brand assets (logo, app icon) | App uses a text wordmark placeholder | Official Kabso Live assets |
 
@@ -198,3 +198,27 @@
 - **Join lines:** the server sends at most one per 200 ms per room; a burst above 5 a second loses lines (recharge
   and host agents' joins are never dropped). Gender comes only from people who show it on their profile.
 - Not verified on a device (LiveKit active speaker, mic permissions, the sweeper's demotion on a real server).
+
+## Media storage from the admin panel «التخزين (R2 / S3)» (v1.75-social draft, D222)
+
+- **No real R2 call was made.** The round trip, the uploads, the cross-bucket copy and «not public» were verified with
+  the production adapter (AWS SDK v3) against a local S3-compatible test server (`test/helpers/fake-s3.ts`) and against
+  moto 5.2 (`S3_TEST_ENDPOINT`); Cloudflare R2 itself (its public r2.dev / custom-domain serving, a token limited to two
+  buckets, a CopyObject between the two buckets of one account) is not verified here.
+- **Changing a bucket or the public URL does not move stored files.** Media saved earlier keep their keys; their URLs
+  are built from the public base URL in force now, so after a switch of public bucket or domain the old files are not
+  found unless copied (with rclone or the R2 dashboard) to the new bucket. Choose the buckets and the domain once.
+- **An upload slot signed just before a change of the PRIVATE bucket** (or of the account / keys) puts its bytes into
+  the old bucket; its `complete` then looks in the new one and answers 422 `MEDIA_INVALID` (the app asks to try
+  again). A change of the public bucket only is safe (shown by the e2e). Calls already running finish on their client.
+- **Another API instance** sees a change within 5 s (the cache), on its next request.
+- **The CLIs that touch files** (`gift-admin`, `banner-admin`, `profile-admin`, `host-admin`, `recharge-admin`,
+  `account-admin`, `privacy-admin`) still use the env `S3_*` (one bucket) only, not the panel's settings.
+- **No upload-size settings** in the section: the limits stay the API's constants (images 15 MiB, voice 1 MiB, videos
+  per D162); the brief allowed them only if a config existed, and none does.
+- **The env layout is one bucket.** Only the panel's settings have a separate private bucket; on the env fallback the
+  `uploads/` and `private/` prefixes stay in the one bucket under the §5.3 rule (only `media/` may be public — which R2's
+  bucket-wide public access cannot express: with R2, use the panel's two buckets).
+- **The admin panel's capture** of the section used the local test server as «S3 متوافق» (an R2 account id cannot be
+  tested offline); the R2 form itself was rendered and filled but not tested.
+

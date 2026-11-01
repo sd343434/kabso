@@ -4709,6 +4709,40 @@ model PaymentSettings {
   @@map("payment_settings")
 }
 
+// ---- v1.75-social (D222, CONVENTIONS §10.72): the media storage from the panel «التخزين (R2 / S3)» --------------
+
+/// D222: the OWNER's object-storage settings (one row, id 1). The access key id and the secret are AES-256-GCM sealed
+/// (HKDF `storage-settings/v1` from ADMIN_TOTP_KEY), only their last 4 in clear. `enabled` on → used over the env.
+model StorageSettings {
+  id                      Int       @id @default(1) @db.SmallInt
+  enabled                 Boolean   @default(false)
+  /// `R2` | `S3`.
+  provider                String    @default("R2") @db.VarChar(8)
+  accountId               String?   @map("account_id") @db.VarChar(32)
+  endpoint                String?   @db.VarChar(300)
+  region                  String?   @db.VarChar(64)
+  forcePathStyle          Boolean   @default(false) @map("force_path_style")
+  accessKeyIdEnc          String?   @map("access_key_id_enc")
+  accessKeyIdLast4        String?   @map("access_key_id_last4") @db.VarChar(4)
+  accessKeyIdSetById      String?   @map("access_key_id_set_by_id") @db.Uuid
+  accessKeyIdSetAt        DateTime? @map("access_key_id_set_at") @db.Timestamptz(3)
+  secretAccessKeyEnc      String?   @map("secret_access_key_enc")
+  secretAccessKeyLast4    String?   @map("secret_access_key_last4") @db.VarChar(4)
+  secretAccessKeySetById  String?   @map("secret_access_key_set_by_id") @db.Uuid
+  secretAccessKeySetAt    DateTime? @map("secret_access_key_set_at") @db.Timestamptz(3)
+  publicBucket            String?   @map("public_bucket") @db.VarChar(63)
+  publicBaseUrl           String?   @map("public_base_url") @db.VarChar(300)
+  privateBucket           String?   @map("private_bucket") @db.VarChar(63)
+  lastTestAt              DateTime? @map("last_test_at") @db.Timestamptz(3)
+  lastTestOk              Boolean?  @map("last_test_ok")
+  lastTestById            String?   @map("last_test_by_id") @db.Uuid
+  lastTest                Json?     @map("last_test")
+  updatedAt               DateTime  @default(now()) @map("updated_at") @db.Timestamptz(3)
+  updatedById             String?   @map("updated_by_id") @db.Uuid
+
+  @@map("storage_settings")
+}
+
 // ---- v1.61-social (D192, CONVENTIONS §10.55): the public website kabsolive.com ---------------------------------
 // (The website's settings are `SiteSetting` above, D191/D192, §10.54.6.)
 

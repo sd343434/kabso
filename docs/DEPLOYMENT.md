@@ -539,6 +539,9 @@ a `CONNECTION LIMIT`.
 - **Missing before uploads can be turned on anywhere but locally:** the R2 account, bucket,
   custom domain and API token (B12), and an image-moderation provider (B13; until then photo
   posts are visible only to their author, CONVENTIONS §11.2).
+- **D222 (v1.75-social):** the OWNER can now enter and turn on R2 (or any S3) in the admin panel «التخزين (R2 / S3)»
+  instead of these env settings — two buckets (public `media/`, private `uploads/` + `private/`), panel over env, no
+  restart. Steps (Arabic and English): §5.40.
 
 ### 5.4 Coins (migration `20261108090000_wallet_and_bullets`, CP-017, D104) — [IMPLEMENTED, draft contract]
 
@@ -2039,3 +2042,80 @@ touched tables).
   apps show an unknown theme as classic.
 - **Order:** API first (an older app shows a PODCAST as a camera-less SOLO room and never sends the new fields); then
   the app. The admin panel's mode chips need the API's `mode` filter.
+
+### 5.40 Media storage from the admin panel «التخزين (R2 / S3)» (migration `20270208090000_storage_settings`; D222) — [IMPLEMENTED, draft contract v1.75-social; not deployed; no real R2 call made]
+
+CONVENTIONS §10.72. Additive: one new table (`storage_settings`, one row at most); DML for the runtime role comes from
+the default privileges (no GRANT); no backfill. Without a row, or with the switch off, the server's `S3_*` /
+`MEDIA_PUBLIC_BASE_URL` / `MEDIA_UPLOADS_ENABLED` apply exactly as in §5.3, so existing deployments and CI are
+unchanged. Needs the admin panel on (D191: `ADMIN_TOTP_KEY` set, the OWNER enrolled): the keys are sealed with a key
+derived from it — **a new `ADMIN_TOTP_KEY` makes them unreadable** (the panel says so and the env applies): enter them
+again. Nothing to set on the server for R2 itself.
+
+**Layout with the panel's storage:** two buckets. The PUBLIC one holds only `media/` (processed images, videos and
+posters, voice clips, gift art, banners) and is served from the public base URL; the PRIVATE one holds `uploads/`
+(raw client uploads, minutes) and `private/` (ID photos and selfies, recharge-order pictures, data exports) and is
+**never** public — the API reads it with the key and serves those files only to who may see them. **CORS:** none
+needed (the app uploads with the presigned URL directly and is not a browser; the panel's uploads go through the
+API). If a browser client ever uploads with presigned PUTs, add to the PRIVATE bucket (R2 → bucket → Settings → CORS
+policy) a rule allowing `PUT` from that origin with header `Content-Type`, e.g.
+`[{"AllowedOrigins":["https://app.kabsolive.com"],"AllowedMethods":["PUT"],"AllowedHeaders":["Content-Type"],"MaxAgeSeconds":3600}]`.
+**Lifecycle (recommended, private bucket):** delete `uploads/` older than 2 days and `private/data-exports/` older than
+10 days (R2 → bucket → Settings → Object lifecycle rules), as §5.3 / §5.31.
+
+#### The owner's steps — بالعربية
+
+1. **الحساب:** ادخل إلى dash.cloudflare.com وأنشئ حساباً (أو استخدم حساب نطاق kabsolive.com إن كان على Cloudflare).
+2. **تفعيل R2:** من القائمة الجانبية «R2 Object Storage» ← «Purchase R2 Plan» / «Enable». يطلب وسيلة دفع؛ أول 10 GB
+   تخزين شهرياً مجانية ولا رسوم على التنزيل (egress).
+3. **الحاويتان:** «Create bucket» مرتين: `kabso-media` (العامة) و`kabso-private` (الخاصة). Location: «Automatic» واترك
+   «Jurisdiction» على الافتراضي (إن اخترت EU فنقطة الاتصال تصبح `https://<account>.eu.r2.cloudflarestorage.com`:
+   اختر حينها في اللوحة «S3 متوافق» وأدخلها مع المنطقة `auto`).
+4. **الوصول العام للحاوية العامة فقط:** افتح `kabso-media` ← Settings ← «Public access»:
+   - للإنتاج: «Custom Domains» ← «Connect Domain» ← `media.kabsolive.com` (النطاق يجب أن يكون على Cloudflare) ← انتظر
+     حتى تصبح الحالة «Active». الرابط العام = `https://media.kabsolive.com`.
+   - للتجربة فقط: «R2.dev subdomain» ← «Allow» ← انسخ الرابط `https://pub-….r2.dev` (محدود السرعة؛ لا يُعتمد للإنتاج).
+   - **لا تفعّل أي وصول عام لـ `kabso-private`** (لا r2.dev ولا نطاق).
+5. **مفتاح API:** صفحة R2 ← «Manage API tokens» (أو «API Tokens») ← «Create API token» (Account API token):
+   - Permissions: **Object Read & Write**.
+   - Specify bucket(s): **Apply to specific buckets only** ← اختر `kabso-media` و`kabso-private` فقط.
+   - TTL: Forever (أو مدة تجددها لاحقاً) ← «Create API Token».
+   - انسخ فوراً **Access Key ID** و**Secret Access Key** (السر يظهر مرة واحدة فقط). لا ترسلهما في محادثة أو بريد.
+6. **معرّف الحساب:** في صفحة R2 الرئيسية، يمين الشاشة «Account Details» ← **Account ID** (32 حرفاً). انسخه.
+7. **CORS:** لا حاجة لأي قاعدة (التطبيق ليس متصفحاً ولوحة الإدارة ترفع عبر الخادم).
+8. **في لوحة الإدارة:** ادخل `https://admin.kabsolive.com` ← «التخزين (R2 / S3)»:
+   - المزوّد: Cloudflare R2؛ معرّف الحساب؛ معرّف المفتاح والمفتاح السري؛ الحاوية العامة `kabso-media` ورابطها العام
+     (`https://media.kabsolive.com` أو رابط r2.dev)؛ الحاوية الخاصة `kabso-private`.
+   - اضغط **«اختبار الاتصال»**: يجب أن تظهر كل الخطوات العشر «تم» (رفع ملف صغير في `_healthcheck/`، التحقق منه، قراءته،
+     قراءته من الرابط العام للحاوية العامة، التأكد أن ملف الحاوية الخاصة غير مكشوف، حذفه). إن فشلت خطوة يظهر السبب
+     بالعربية (مفتاح خاطئ، صلاحية ناقصة، حاوية غير موجودة، الرابط العام لا يعرض الحاوية…).
+   - «حفظ الإعدادات» ← السبب + رمز تطبيق المصادقة. ثم مفتاح **«تفعيل»** ← السبب + رمز جديد: يُعاد الاختبار ثم يبدأ الرفع
+     فوراً دون إعادة تشغيل الخادم. الحالة تصبح «مفعّل».
+9. **التأكد:** من التطبيق ارفع صورة منشور: يجب أن تظهر، ورابطها يبدأ بالرابط العام.
+
+#### The owner's steps — English
+
+1. Create a Cloudflare account (or use the one holding kabsolive.com). 2. Enable **R2 Object Storage** (a payment
+method is asked; 10 GB-month free, no egress fees). 3. Create two buckets, `kabso-media` (public) and `kabso-private`
+(private); location Automatic, default jurisdiction (an EU jurisdiction has the endpoint
+`https://<account>.eu.r2.cloudflarestorage.com`: then choose «S3-compatible» in the panel with that endpoint and region
+`auto`). 4. **Public bucket only:** Settings → Public access → Custom Domains → Connect `media.kabsolive.com`
+(production), or R2.dev subdomain → Allow (testing only; rate-limited). Never public access on `kabso-private`.
+5. R2 → Manage API tokens → Create API token: **Object Read & Write**, **specific buckets only** (the two), copy the
+Access Key ID and the Secret Access Key (shown once). 6. Copy the **Account ID** (R2 overview → Account Details).
+7. No CORS rule is needed. 8. Admin panel → «التخزين (R2 / S3)»: provider Cloudflare R2, account id, the two keys, the
+public bucket and its public URL, the private bucket → **«اختبار الاتصال»** (all ten steps «تم») → «حفظ الإعدادات»
+(reason + code) → **«تفعيل»** (reason + a fresh code; tested again; uploads work at once, no restart). 9. Upload a post
+picture from the app and open its URL.
+
+**Rotating the token:** create the new token, paste only the new key id and secret, test, save (while on, the save
+tests first). **Turning off:** «تفعيل» off (code + reason): the env storage applies if the server has one, otherwise
+every upload is 503 «التخزين غير مفعّل»; stored files are not touched. **Removing:** «إزالة إعدادات اللوحة».
+**Changing a bucket** does not move the objects already stored: existing URLs point at the old public base (see
+KNOWN_LIMITATIONS); choose the buckets and the domain once.
+
+**Not covered by the panel (env only):** the CLIs that touch files — `gift-admin` (`--image` …), `banner-admin`,
+`profile-admin`, `host-admin`, `recharge-admin`, `account-admin`, `privacy-admin` — still build their storage from the
+env `S3_*` (one bucket) and `MEDIA_PUBLIC_BASE_URL`. With the storage only in the panel, run them with the same values
+as env (and the private bucket's objects are not reachable through them), or use the panel's own sections (gifts and
+their files D207, users, applications).

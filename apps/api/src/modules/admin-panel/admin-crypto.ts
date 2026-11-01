@@ -1,4 +1,5 @@
 import { createCipheriv, createDecipheriv, createHash, hkdfSync, randomBytes } from 'node:crypto';
+import { inspect } from 'node:util';
 
 /**
  * Secrets of the admin panel (v1.60-social, D191, §10.54.2). The authenticator secret is AES-256-GCM encrypted with a
@@ -9,6 +10,8 @@ import { createCipheriv, createDecipheriv, createHash, hkdfSync, randomBytes } f
  * v1.64-social (D196, §10.53.1): the same box with another HKDF info string (`payment-settings/v1`) seals the Stripe
  * keys the OWNER enters in the panel — a separate key from the same source. `aad` binds a value to its column (a value
  * moved to another column does not open).
+ *
+ * v1.75-social (D222, §10.72): again with `storage-settings/v1` for the OWNER's object-storage keys «التخزين (R2 / S3)».
  */
 export class AdminSecretBox {
   private readonly key: Buffer;
@@ -41,6 +44,29 @@ export class AdminSecretBox {
     } catch {
       return null;
     }
+  }
+}
+
+/**
+ * A secret value that never leaves by accident (D196; D222): JSON, string conversion and `util.inspect` (what loggers use) all
+ * give `[redacted]`. Only {@link Secret.reveal} returns the value, where a Stripe call needs it.
+ */
+export class Secret {
+  readonly #value: string;
+  constructor(value: string) {
+    this.#value = value;
+  }
+  reveal(): string {
+    return this.#value;
+  }
+  toJSON(): string {
+    return '[redacted]';
+  }
+  toString(): string {
+    return '[redacted]';
+  }
+  [inspect.custom](): string {
+    return '[redacted]';
   }
 }
 

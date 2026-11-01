@@ -10,6 +10,13 @@ const REFUSAL_KEYS: Record<string, Key> = {
   mode_mismatch: 'payErrModeMismatch',
   nothing_to_clear: 'payErrNothingToClear',
   stripe_keys_missing: 'payErrKeysMissing',
+  // D222 «التخزين (R2 / S3)».
+  same_bucket: 'stErrSameBucket',
+  storage_incomplete: 'stErrIncomplete',
+  storage_test_required: 'stErrTestRequired',
+  storage_test_failed: 'stErrTestFailed',
+  https_required: 'stErrHttps',
+  storage_nothing_to_clear: 'stErrNothingToClear',
 };
 
 function refusalKey(err: ApiError): Key | null {

@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { StorageSettingsStore } from '../storage-settings/storage-settings.store.js';
 import type { ContentLanguage } from '../../common/http/content-language.js';
 import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import type {
@@ -191,11 +192,12 @@ export class GiftsService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    private readonly storageSettings: StorageSettingsStore,
   ) {}
 
-  /** Where the hosted gift art is served (`MEDIA_PUBLIC_BASE_URL`), or undefined. */
+  /** Where the hosted gift art is served (the panel's «التخزين» base URL when on, D222, else `MEDIA_PUBLIC_BASE_URL`). */
   get publicBaseUrl(): string | undefined {
-    return this.config.media.publicBaseUrl;
+    return this.storageSettings.current().publicBaseUrl;
   }
 
   /** The quantities a send may use (`LIVE_GIFT_QUANTITIES`), ascending. */
