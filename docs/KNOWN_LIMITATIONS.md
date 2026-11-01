@@ -329,8 +329,12 @@
 - **Slow phones.** A frame whose GPU work is not done in 40 ms goes out raw; 3 slow frames in a row → 30 frames raw;
   3 such back-offs without 90 good frames between them → the effect switches off (`too_slow`, Magic says why).
 - **Usage metrics to Google.** ML Kit and MediaPipe send Google their own usage/performance metrics (never the
-  picture). Not turned off; mention it in the privacy policy / Play Data safety if the engine stays.
-- **APK size:** about +36 MB of native code per ABI (arm64, uncompressed); see docs/DEPLOYMENT.md §9.2.
+  picture). Not turned off. Owner approved disclosing it (2026-11-01): the privacy policy text has the line (§2 and
+  §5 of `infra/deploy/site/privacy.html`, ar + en), **not yet published as a new version** (the owner publishes);
+  the Play Data safety answers are PP-39 — the Google pages behind them could not be opened from the authoring
+  environment and must be re-read when the form is filled.
+- **APK size:** about +36 MB of native code per ABI (arm64, uncompressed, ~12 MB compressed; approved by the owner
+  2026-11-01); see docs/DEPLOYMENT.md §9.2.
 - **One engine for every host.** The server switch is global; the per-phone override exists only in debug/profile
   builds. iOS is unchanged (no camera processor there yet).
 
@@ -360,6 +364,8 @@
    (`CameraFxEngine`, `CameraFxSettings`, `UpdateCameraFxRequest`, the two operations, the `LiveConfig` field,
    CONVENTIONS §10.79) through a contract change; a new migration may delete the `cameraFxEngine` row and restore the
    CHECK.
-5. On phones: the downloaded model (`files/kabso_camera_fx/face_landmarker.task`, 3.6 MB) is deleted with the app's
+5. Privacy and store: remove the camera-effects paragraph and the Google (ML Kit / MediaPipe) processor line from
+   `infra/deploy/site/privacy.html` (publish as a new version) and drop PP-39 / its Data safety answers.
+6. On phones: the downloaded model (`files/kabso_camera_fx/face_landmarker.task`, 3.6 MB) is deleted with the app's
    data; an update that removes the engine leaves it until then (harmless).
 

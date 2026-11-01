@@ -1388,13 +1388,17 @@ slim face, bigger eyes; sliders 0–100, default 40), all GLSL on the GPU inside
   under it — `srv` (follow the server), `DeepAR`, `Free`; kept on the phone. Not in release builds.
 - **Face model:** downloaded once (3.6 MB) from Google's model storage on first beauty use, SHA-256 pinned; not in the
   APK. No network → blur still works, beauty says why.
-- **APK size (measured from the AARs, not from a built APK):** native code per ABI, uncompressed —
+- **APK size (measured from the AARs, not from a built APK; owner approved the increase 2026-11-01):** native code
+  per ABI, uncompressed —
   arm64-v8a 36.0 MB (MediaPipe 14.4 + ML Kit 21.6), armeabi-v7a 26.1 MB, x86_64 37.7 MB, x86 40.6 MB; about 12 MB
   per ABI after compression (arm64 gzip: 6.6 + 5.7 MB), plus ~0.25 MB model asset and ~2.5 MB of classes before R8.
   A universal (all-ABI) debug APK grows by roughly 140 MB; a per-ABI release/app bundle by ~36 MB on the phone and
   ~12 MB to download for arm64.
 - **Privacy:** the picture stays on the phone; both SDKs send Google usage/performance metrics (see the plugin's
-  `THIRD_PARTY_NOTICES.md`) — the privacy policy / Play Data safety need a line if the engine is kept.
+  `THIRD_PARTY_NOTICES.md`). **Owner approved the disclosure (2026-11-01):** the privacy policy text now says so
+  (`infra/deploy/site/privacy.html` §2 «مؤثرات الكاميرا في البث» / “Camera effects in lives” and §5 Google, Arabic
+  and English) — the version was **not** bumped: the owner publishes it (`legal-admin publish privacy`). The Play
+  Data safety answers for these SDKs are PRE_PRODUCTION_CHECKLIST **PP-39**.
 - **Removal:** docs/KNOWN_LIMITATIONS.md («The free camera effects engine», D228).
 - **Not verified:** see docs/KNOWN_LIMITATIONS.md (D228) — fps, quality, memory, heat and the release (R8) build have
   not run anywhere; CI's Android job is the first full build.

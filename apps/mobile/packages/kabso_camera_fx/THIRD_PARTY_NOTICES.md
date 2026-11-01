@@ -32,8 +32,8 @@ send that input data to Google servers"). However, **both SDKs send Google usage
 Google's `datatransport` (MediaPipe Tasks: `RemoteLoggingClient`, log source `COREML_ON_DEVICE_SOLUTIONS`; ML Kit
 likewise depends on `transport-backend-cct`). MediaPipe's notice: "You are responsible for obtaining informed consent
 from your app users about Google's processing of MediaPipe metrics data as required by applicable law." Not
-disabled by this change; the privacy policy and the Play Data safety form must mention it if the free engine is
-kept. The face model download is a plain GET of a public file (no identifiers sent by us).
+disabled. The owner approved disclosing it (2026-11-01): the privacy policy text says so (`infra/deploy/site/privacy.html`
+§2 and §5); the Play Data safety answers are PRE_PRODUCTION_CHECKLIST PP-39. The face model download is a plain GET of a public file (no identifiers sent by us).
 
 ## WebRTC (`io.github.webrtc-sdk:android`, via flutter_webrtc)
 
