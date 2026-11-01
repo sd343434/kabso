@@ -45,7 +45,8 @@ describe('D202 contract coverage', () => {
         (p) => p.name === 'tab',
       )?.schema?.enum;
     expect(tab(reels)).toEqual(['following', 'trending', 'nearby']);
-    expect(tab(posts)).toEqual(['following', 'trending']);
+    // v1.76-social (D218): listFeedPosts gained `mixed` (never `nearby`).
+    expect(tab(posts)).toEqual(['following', 'trending', 'mixed']);
   });
 });
 

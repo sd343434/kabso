@@ -296,6 +296,13 @@ info:
     `HOST_APPLICATION_NOT_ALLOWED`; notification types `HOST_APPLICATION_APPROVED` / `HOST_APPLICATION_REJECTED`;
     the panel's «طلبات المضيفين» (`listAdminHostApplications`, `getAdminHostApplication(Photo)`,
     `approveAdminHostApplication`, `rejectAdminHostApplication`) (CONVENTIONS §10.68).
+    **D218 (DRAFT v1.76-social)**: the owner's social redesign — the app's home posts feed is
+    `listFeedPosts?tab=mixed` (1 post from Following, then 2 from Trending, again and again; a source that runs out
+    leaves its turns to the other; each post once; never the caller's own, muted, hidden or blocked; frozen like
+    Trending for 10 minutes); `Post.viewerFollowsAuthor` (the card's «متابعة» pill); the profile cover «صورة
+    الغلاف» (`setMyCover` / `removeMyCover`, media kind `PROFILE_COVER`, `Me.coverUrl`, `PublicProfile.coverUrl`;
+    the panel's `removeAdminUserCover` and `profile-admin remove-cover`, notification type `COVER_REMOVED`);
+    `PublicProfile.country` and `PublicProfile.joinedMonth` («انضم في <شهر سنة>») (CONVENTIONS §10.73).
     **D184 (DRAFT v1.53-social)**: the Task Center's rewards are cherries (the old coins ×10, then raised
     ×300: ≈ $5 a month at most), credited to the cherry ledger as `TASK_REWARD` under a daily cherry cap
     (`ProgramTask.rewardCherries` / `claimedCherries`, `MyTasks.dailyCapCherries` / `dailyEarnedCherries`,
@@ -1343,6 +1350,45 @@ paths:
         '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
+  /api/v1/me/cover:
+    put:
+      tags: [me]
+      operationId: setMyCover
+      summary: "Set the caller's profile cover «صورة الغلاف» (v1.76-social, D218)"
+      description: |
+        CONVENTIONS §10.73.3. The rules of `setMyAvatar` (own bucket, same 30 / hour / user): `MEDIA_UPLOADS_ENABLED`
+        (503 `MEDIA_UPLOADS_UNAVAILABLE`) → body → the asset: a READY, unattached `PROFILE_COVER` asset of the caller
+        from the last 24 hours, else 400 `mediaId` / `invalid_value`. The cover replaces the previous one (whose asset
+        is deleted) and is `Me.coverUrl` and `PublicProfile.coverUrl` from the next read. Setting the current cover
+        again changes nothing. Visible to everyone at once like the photo; reports and moderators handle abuse
+        (`removeAdminUserCover`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetCoverRequest' }
+      responses:
+        '200':
+          description: The cover now in use.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProfileCover' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [me]
+      operationId: removeMyCover
+      summary: "Remove the caller's profile cover; the Kabso gradient shows again (v1.76-social, idempotent)"
+      description: |
+        CONVENTIONS §10.73.3. `coverUrl` becomes null and the `PROFILE_COVER` asset is deleted. Works while uploads
+        are off. No cover → 204 too. Same rate limit as `setMyCover`.
+      responses:
+        '204': { description: Removed (or there was none). }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
   /api/v1/me/account-deletion:
     get:
       tags: [me]
@@ -1633,6 +1679,9 @@ paths:
                     rechargeAgent: { code: coin0001 }
                     hostAgent: null
                     avatarFrame: { code: host_frame_pink, assetKey: host_frame_pink }
+                    coverUrl: null
+                    country: SA
+                    joinedMonth: '2026-10'
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -7786,18 +7835,24 @@ paths:
     get:
       tags: [feed]
       operationId: listFeedPosts
-      summary: "Posts feed: following (newest) or trending (ranked)"
+      summary: "Posts feed: following (newest), trending (ranked) or mixed (1 : 2, the app's home feed)"
       description: |
         CONVENTIONS §11.3. `following`: published posts and reposts of followed accounts, newest
         first (a reposted post carries `repostedBy`). (v1.41-social, D162) `format: POST` only;
         reels are in `listFeedReels`. `trending`: visible public posts of the last
         7 days ranked by the global score; the first page freezes a snapshot for 10 minutes, so
         later pages never repeat or skip (an expired cursor → 400 `cursor` / `invalid_value`).
+        v1.76-social (D218, CONVENTIONS §10.73.1): `mixed` — the app's home feed: one entry from `following`
+        (the newest 500 entries), then two from `trending`, again and again; when one runs out the other
+        continues. A post is listed once (a post that is also in `following` only at its `following` place,
+        with its `repostedBy`). Never the caller's own posts (also not when a followed account reposted them),
+        nor muted, hidden or blocked authors. Frozen like `trending` (10 minutes; an expired or other-tab cursor →
+        400 `cursor` / `invalid_value`, the app then reloads the first page).
       parameters:
         - name: tab
           in: query
           required: true
-          schema: { type: string, enum: [following, trending] }
+          schema: { type: string, enum: [following, trending, mixed] }
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
       responses:
@@ -9600,6 +9655,32 @@ paths:
         '403': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/users/{userId}/cover/remove:
+    post:
+      tags: [admin-panel]
+      operationId: removeAdminUserCover
+      summary: "Removes the profile cover — the `profile-admin remove-cover` rule (users.avatar; reason required; audited) (v1.76-social, D218)"
+      description: "(v1.76-social, D218) CONVENTIONS §10.73.3. The user is told (`COVER_REMOVED`); the profile shows the Kabso gradient; the files are deleted from storage after. Audited `admin.cover.remove`. 409 `ADMIN_ACTION_REFUSED` when there is no cover."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminUserIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReasonRequest' }
+      responses:
+        '200':
+          description: Removed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminAvatarRemoved' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
   /api/v1/admin/users/{userId}/special-username:
     post:
       tags: [admin-panel]
@@ -10844,8 +10925,8 @@ paths:
       description: |
         (v1.72-social, D208, §10.67) `displayName` (§6 rules, reserved terms), `username` (the D146 regular rule; 409
         `USERNAME_TAKEN` when reserved or anyone else's; 409 `ADMIN_ACTION_REFUSED` while a special or premium username
-        is shown), `bio`, `country`, `gender`. There is no cover / profile background (only the photo:
-        `removeAdminUserAvatar`). The person gets `PROFILE_EDITED_BY_TEAM`. Audited `admin.user.profile_edit` with
+        is shown), `bio`, `country`, `gender`. (v1.76-social, D218) The profile cover is removed with
+        `removeAdminUserCover`, the photo with `removeAdminUserAvatar`. The person gets `PROFILE_EDITED_BY_TEAM`. Audited `admin.user.profile_edit` with
         before / after.
       security:
       - adminSession: []
@@ -18813,7 +18894,7 @@ components:
         tokens: { $ref: '#/components/schemas/TokenPair' }
     Me:
       type: object
-      required: [id, email, emailVerified, username, displayName, locale, role, isPrivate, createdAt, canHost, liveCoverUrl, country, gender, showGender, category, links]
+      required: [id, email, emailVerified, username, displayName, locale, role, isPrivate, createdAt, canHost, liveCoverUrl, country, gender, showGender, category, links, coverUrl]
       properties:
         id: { type: string, format: uuid }
         email: { type: string, format: email }
@@ -18859,6 +18940,10 @@ components:
           maxItems: 3
           description: v1.47-social (D175). The profile links, in order.
           items: { $ref: '#/components/schemas/ProfileLink' }
+        coverUrl:
+          type: [string, 'null']
+          format: uri
+          description: "v1.76-social (D218, §10.73.3). The caller's profile cover (`setMyCover`), or null (the app shows the Kabso gradient)."
         specialUsername:
           $ref: '#/components/schemas/MeSpecialUsername'
           description: |
@@ -18930,7 +19015,7 @@ components:
           description: "v1.56-social (D187, §10.50) — present only while the user's daily recharge badge shows (`until` in the future); never for a recharge agent. The app shows it next to the name in live rooms like the level badge and hides it itself once `until` passes."
     PublicProfile:
       type: object
-      required: [id, username, displayName, avatarUrl, bio, isPrivate, followerCount, followingCount, isFollowing, followRequested, isMuted, isSelf, liveRoomId, family, cp, medals, profileCard, gender, category, links, rechargeAgent, hostAgent, avatarFrame]
+      required: [id, username, displayName, avatarUrl, bio, isPrivate, followerCount, followingCount, isFollowing, followRequested, isMuted, isSelf, liveRoomId, family, cp, medals, profileCard, gender, category, links, rechargeAgent, hostAgent, avatarFrame, coverUrl, country, joinedMonth]
       properties:
         id: { type: string, format: uuid }
         username: { $ref: '#/components/schemas/Username' }
@@ -19017,6 +19102,18 @@ components:
         rechargeBadge:
           $ref: '#/components/schemas/RechargeBadge'
           description: "v1.56-social (D187, §10.50) — present only while the user's daily recharge badge shows; absent otherwise (never for a recharge agent). Shown beside the name on the profile like the level badge."
+        coverUrl:
+          type: [string, 'null']
+          format: uri
+          description: "v1.76-social (D218, §10.73.3). The profile cover across the top of the profile, or null (the app shows the Kabso gradient). Also on a private account (like the photo)."
+        country:
+          type: [string, 'null']
+          pattern: '^[A-Z]{2}$'
+          description: "v1.76-social (D218). The country the user chose (`Me.country`, D133; ISO 3166-1 alpha-2), or null. Never inferred."
+        joinedMonth:
+          type: string
+          pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$'
+          description: "v1.76-social (D218). The month the account was created (UTC), `YYYY-MM` — «انضم في <شهر سنة>». Never the exact time."
     FollowState:
       type: object
       required: [isFollowing, isRequested, followerCount]
@@ -20993,7 +21090,7 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     MediaKind:
       type: string
-      enum: [POST_IMAGE, STORY_IMAGE, LIVE_COVER, LIVE_CHAT_IMAGE, LIVE_CHAT_VOICE, FAMILY_EMBLEM, FAMILY_COVER, HOME_BANNER, DM_IMAGE, DM_VOICE, POST_VIDEO, REEL_VIDEO, VIDEO_POSTER, AVATAR, RECHARGE_AGENT_PHOTO, RECHARGE_AGENT_SELFIE, RECHARGE_ORDER_IMAGE]
+      enum: [POST_IMAGE, STORY_IMAGE, LIVE_COVER, LIVE_CHAT_IMAGE, LIVE_CHAT_VOICE, FAMILY_EMBLEM, FAMILY_COVER, HOME_BANNER, DM_IMAGE, DM_VOICE, POST_VIDEO, REEL_VIDEO, VIDEO_POSTER, AVATAR, RECHARGE_AGENT_PHOTO, RECHARGE_AGENT_SELFIE, RECHARGE_ORDER_IMAGE, PROFILE_COVER]
       description: |
         Images for posts, (CP-008) for stories and (CP-015) for the host's live cover; (CP-017)
         a picture or a voice clip (`audio/mp4`, ≤ 30 s, ≤ 1 MiB) for a live chat message;
@@ -21010,7 +21107,8 @@ components:
         (a post, a story, the live cover, a live chat message, a family, a reel, a video or the
         profile photo). (v1.54-social, D185) `RECHARGE_AGENT_PHOTO` / `RECHARGE_AGENT_SELFIE`: private images of
         a recharge-agent application, consumed only by `applyForRechargeAgent` (`completeMediaUpload` answers 404
-        for them: they never become an asset nor get a URL; §10.48).
+        for them: they never become an asset nor get a URL; §10.48). (v1.76-social, D218) `PROFILE_COVER`: the
+        profile cover, processed like a post image (long side ≤ 1 080 px, never cropped), attached only by `setMyCover`.
     CreateMediaUploadRequest:
       type: object
       additionalProperties: false
@@ -21184,6 +21282,17 @@ components:
       required: [avatarUrl]
       properties:
         avatarUrl: { type: string, format: uri, description: "v1.45-social (D168). WebP, 640 px square (smaller if the photo was)." }
+    SetCoverRequest:
+      type: object
+      additionalProperties: false
+      required: [mediaId]
+      properties:
+        mediaId: { type: string, format: uuid, description: "v1.76-social (D218). A READY, unattached PROFILE_COVER asset of the caller." }
+    ProfileCover:
+      type: object
+      required: [coverUrl]
+      properties:
+        coverUrl: { type: string, format: uri, description: "v1.76-social (D218). WebP, long side 1 080 px (smaller if the picture was); the app covers the banner area." }
     PostText:
       type: string
       maxLength: 2200
@@ -21240,7 +21349,7 @@ components:
         settings: { $ref: '#/components/schemas/PostSettingsPatch' }
     Post:
       type: object
-      required: [id, format, author, text, media, location, hashtags, mentions, status, createdAt, publishAt, publishedAt, editedAt, pinned, likeCount, commentCount, shareCount, repostCount, viewCount, viewerHasLiked, viewerHasSaved, viewerHasReposted, isSelf, settings, moderation, repostedBy]
+      required: [id, format, author, text, media, location, hashtags, mentions, status, createdAt, publishAt, publishedAt, editedAt, pinned, likeCount, commentCount, shareCount, repostCount, viewCount, viewerHasLiked, viewerHasSaved, viewerHasReposted, isSelf, viewerFollowsAuthor, settings, moderation, repostedBy]
       properties:
         id: { type: string, format: uuid }
         format: { type: string, enum: [POST, REEL], description: "(v1.41-social, D162) `REEL`: a reel (one vertical video and a caption, listed by `listFeedReels`)." }
@@ -21274,6 +21383,9 @@ components:
         viewerHasSaved: { type: boolean }
         viewerHasReposted: { type: boolean }
         isSelf: { type: boolean }
+        viewerFollowsAuthor:
+          type: boolean
+          description: "v1.76-social (D218, §10.73.2). The caller follows the author (false on the caller's own post): the feed card's «متابعة» pill shows when false."
         settings: { $ref: '#/components/schemas/PostSettings' }
         moderation:
           type: string
@@ -21503,7 +21615,7 @@ components:
     NotificationType:
       type: string
       description: "`LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). (v1.60-social, D191) `MODERATION_WARNING` (system: a moderator warned you about content that breaks the rules; target POST when the warning is about a post, else none). (v1.66-social, D198) `DATA_EXPORT_READY` (system, no target: the data export «تنزيل بياناتي» is ready; the app opens Settings › Privacy). (v1.69-social, D204) `RECHARGE_ORDER_UPDATE` (system: a recharge order you take part in changed or got a message; target RECHARGE_ORDER with `coins`, `orderEvent` and `orderStatus`; one unread row per order, moved up by each event). (v1.70-social, D206) system, target AGENCY: `AGENCY_OPENED` (your agency is open — also when the team reopens it), `AGENCY_PROBATION_REMINDER` (less than 24 h left with fewer activated hosts than needed; `activatedHosts` / `requiredHosts`), `AGENCY_PROBATION_PASSED`, `AGENCY_CLOSED` (with `activatedHosts` / `requiredHosts` when the probation failed; none when the team closed it), `AGENCY_HOST_RELEASED` (to each host of a closed agency: they are free). (v1.72-social, D208) `ACCOUNT_RESTRICTED` / `ACCOUNT_RESTRICTION_LIFTED` (system, target ACCOUNT_RESTRICTION: `restriction`, `endsAt`, `text` = the team's reason), `BALANCE_ADJUSTED` (system, target BALANCE_ADJUSTMENT: `currency`, `amount` signed), `PROFILE_EDITED_BY_TEAM` (system, no target). (v1.73-social, D209) system, no target: `HOST_APPLICATION_APPROVED` (your application «كن مضيفاً مع الإدارة» was approved — you may go live), `HOST_APPLICATION_REJECTED` (it was rejected; the reason is in `getMyHostingApplication`); the app opens «الوكالة». Clients ignore values they do not know."
-      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST, MODERATION_WARNING, DATA_EXPORT_READY, RECHARGE_ORDER_UPDATE, AGENCY_OPENED, AGENCY_PROBATION_REMINDER, AGENCY_PROBATION_PASSED, AGENCY_CLOSED, AGENCY_HOST_RELEASED, ACCOUNT_RESTRICTED, ACCOUNT_RESTRICTION_LIFTED, BALANCE_ADJUSTED, PROFILE_EDITED_BY_TEAM, HOST_APPLICATION_APPROVED, HOST_APPLICATION_REJECTED]
+      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST, MODERATION_WARNING, DATA_EXPORT_READY, RECHARGE_ORDER_UPDATE, AGENCY_OPENED, AGENCY_PROBATION_REMINDER, AGENCY_PROBATION_PASSED, AGENCY_CLOSED, AGENCY_HOST_RELEASED, ACCOUNT_RESTRICTED, ACCOUNT_RESTRICTION_LIFTED, BALANCE_ADJUSTED, PROFILE_EDITED_BY_TEAM, HOST_APPLICATION_APPROVED, HOST_APPLICATION_REJECTED, COVER_REMOVED]
     NotificationTarget:
       type: object
       required: [type, id, postId, thumbUrl, text]

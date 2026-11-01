@@ -13,7 +13,10 @@ import { type AccountCategory, type ProfileLinkDto } from '../profile-fields.js'
 import { activeRechargeBadge, type RechargeBadgeDto } from '../../recharge/recharge-badges.js';
 import { UsersService } from '../users.service.js';
 
-/** `PublicProfile` (openapi v1.3). Never an email, role, status, locale or created-at time. */
+/**
+ * `PublicProfile` (openapi v1.3). Never an email, role, status, locale or created-at time (D218: only the month
+ * the account was created, `joinedMonth`).
+ */
 export interface PublicProfileDto {
   id: string;
   username: string;
@@ -54,6 +57,12 @@ export interface PublicProfileDto {
   avatarFrame: { code: string; assetKey: string } | null;
   /** v1.56-social (D187, §10.50): present only while the daily recharge badge is showing. */
   rechargeBadge?: RechargeBadgeDto;
+  /** v1.76-social (D218, §10.73.3): the profile cover (1 080 px), or null (the app's Kabso gradient). */
+  coverUrl: string | null;
+  /** v1.76-social (D218): the country the user chose (D133, ISO alpha-2), or null. */
+  country: string | null;
+  /** v1.76-social (D218): the month the account was created, `YYYY-MM` (UTC). */
+  joinedMonth: string;
 }
 
 /**
@@ -158,6 +167,9 @@ export class PublicProfileService {
       hostAgent: hostAgency?.hostCode ? { code: hostAgency.hostCode } : null,
       avatarFrame,
       ...(shown ? { rechargeBadge: shown } : {}),
+      coverUrl: user.coverUrl,
+      country: user.country,
+      joinedMonth: user.joinedMonth,
     };
   }
 }

@@ -428,6 +428,7 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `POST /auth/register/resend` *(v1.2)* | 3 / hour per email, 10 / hour per IP |
 | `PATCH /me` *(v1.2)* | 30 / hour per user |
 | `PUT` and `DELETE /me/avatar` *(v1.45-social, D168)* | 30 / hour per user (one bucket `me:avatar`, `RATE_LIMIT_AVATAR_USER`). **Replaces** the per-user default; the upload itself counts in the `POST /media/uploads` bucket |
+| `PUT` and `DELETE /me/cover` *(v1.76-social, D218)* | 30 / hour per user — the avatar's rule (`RATE_LIMIT_AVATAR_USER`) in its own bucket `me:cover`. **Replaces** the per-user default; the upload itself counts in the `POST /media/uploads` bucket |
 | `POST /me/follow-requests/{username}/accept` and `…/decline` *(v1.47-social, D175)* | 300 / hour per user (one bucket `follow-requests:answer`, `RATE_LIMIT_FOLLOW_REQUEST_ANSWER_USER`). **Replaces** the per-user default. A follow request itself is a `PUT /users/{username}/follow` and counts in the follow buckets |
 | `PUT /me/username` *(v1.28-live, D146)* | 5 / day per user (bucket `username:change`, `RATE_LIMIT_USERNAME_CHANGE_USER`). **Replaces** the per-user default |
 | `POST /me/account-deletion` *(v1.62-social, D193)* | 5 / 15 min per user (bucket `account_deletion:user`, `RATE_LIMIT_ACCOUNT_DELETION_USER`; the password is re-checked). **Replaces** the per-user default |
@@ -630,6 +631,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
 | v1.73-social (draft) | 2026-10-31 | **D209 (owner: «يمكن للشخص تفعيل حسابه مضيف مع الإدارة» — on «الوكالة», apply to host directly with the Kabso team, no agency):** tag `agency`: `getMyHostingApplication` (`GET /me/hosting-application`, `MyHostingApplication`: `host`, `application` (`HostingApplication`), `rule` with `HostingApplyRefusal`), `applyForHosting` (`POST /me/hosting-application`, `Idempotency-Key`, `HostingApplicationRequest`: displayName, country, dateOfBirth, contact, bio, links ≤ 3, acceptRules, the D185 private uploads `RECHARGE_AGENT_PHOTO` / `RECHARGE_AGENT_SELFIE`), `cancelMyHostingApplication` (`POST /me/hosting-application/cancel`); `HostApplicationStatus`; code `HOST_APPLICATION_NOT_ALLOWED` (409); notification types `HOST_APPLICATION_APPROVED`, `HOST_APPLICATION_REJECTED` (system, no target); tag `admin-panel` «طلبات المضيفين»: `listAdminHostApplications`, `getAdminHostApplication`, `getAdminHostApplicationPhoto`, `approveAdminHostApplication`, `rejectAdminHostApplication` (capabilities `hosts.applications`, `hosts.applications.photos`, `hosts.applications.decide`); `LiveHostSource.IDENTITY` is now given by an approval; config `HOST_APPLICATION_MIN_AGE` (18), `HOST_APPLICATION_REAPPLY_DAYS` (30), `RATE_LIMIT_HOST_APPLY_USER` (5/86400); migrations `20270202090000_host_applications_enums`, `20270202090100_host_applications`; CLI `host-admin applications\|view\|approve\|reject`; audit `host.application.*`; the data export gains `host_applications`. §4, §7, §10.68. | **Additive** (new operations, schemas, code and enum values; clients ignore unknown notification types). Behaviour: joining or opening an agency cancels a pending application. |
+| v1.76-social (draft) | 2026-11-01 | **D218 (owner: «بهذا التصميم حرفياً مع اضافة ميزاتنا وجعلها مناسبة لنا» — the posts feed, the story viewer and the public profile after a reference; v1.74-social and v1.75-social are taken by D217 and D222):** `listFeedPosts` `tab=mixed` (the app's home feed: 1 Following : 2 Trending, §10.73.1); `Post.viewerFollowsAuthor` (required; §10.73.2); the profile cover — `setMyCover` / `removeMyCover` (`PUT` / `DELETE /me/cover`, `SetCoverRequest`, `ProfileCover`), `MediaKind.PROFILE_COVER`, `Me.coverUrl` and `PublicProfile.coverUrl` (required, nullable), the panel's `removeAdminUserCover` (capability `users.avatar`), CLI `profile-admin remove-cover`, `NotificationType.COVER_REMOVED`, audit `user.cover.update` / `admin.cover.remove`; `PublicProfile.country` (required, nullable) and `PublicProfile.joinedMonth` (required, `YYYY-MM`); migrations `20270209090000_profile_cover_enums`, `20270209090100_profile_cover`. §7, §10.73, §11.3. | **Additive** (a new `tab` value; new operations; new required response fields — strict clients update their models in the same change set; clients ignore unknown notification types). |
 | v1.72-social (draft) | 2026-10-31 | **D208 (owner: «اجعله يملك صلاحية لكل شيء مثل قفل حساب شخص او حظره او تغير كلمة المرور»):** the admin panel's account controls — `getAdminUserControl`, `lockAdminUser` / `unlockAdminUser`, `restrictAdminUser` / `liftAdminUserRestriction`, `sendAdminUserPasswordResetLink`, `setAdminUserTemporaryPassword`, `requireAdminUserPasswordChange`, `changeAdminUserEmail`, `resendAdminUserVerification`, `editAdminUserProfile`, `listAdminUserContent`, `moderateAdminContent`, `adjustAdminUserBalance`, `requestAdminUserDeletion` / `cancelAdminUserDeletion`; capabilities `users.control_view`, `users.lock`, `users.restrict`, `users.password`, `users.email`, `users.profile_edit`, `users.content`, `users.balance_adjust`, `users.delete`; `LoginRequest.newPassword`; `login` 403 `ACCOUNT_LOCKED` / `PASSWORD_CHANGE_REQUIRED`; 403 `ACCOUNT_RESTRICTED` on the restricted actions; notification types `ACCOUNT_RESTRICTED`, `ACCOUNT_RESTRICTION_LIFTED`, `BALANCE_ADJUSTED`, `PROFILE_EDITED_BY_TEAM` and targets `ACCOUNT_RESTRICTION`, `BALANCE_ADJUSTMENT` (`restriction`, `currency`, `amount`); ledger reason `ADMIN_ADJUSTMENT` (coins and cherries, either sign); `listAdminUserAudit` also lists what the account did and the team's actions on its content; config `ADMIN_ADJUST_DAILY_CAP_COINS` / `_CHERRIES` (10 000 000 each), `ADMIN_USERNAME_RENAME_HOLD_DAYS` (30: a team rename holds the old username for the person); `banAdminUser` now takes `totpCode` (`AdminReasonCodeRequest`; owner answer — a breaking change for the panel only, shipped with it); `control-admin` CLI; audit actions `admin.user.lock|unlock|restrict|restriction_lift|password_*|profile_edit|email_*`, `admin.content.hide|restore|delete`, `admin.balance.adjust`, `auth.password.changed_at_sign_in`; migration `20270130090000_admin_control` (`account_restrictions`, `admin_balance_adjustments`, `users.password_change_required_at`, `notifications.account_restriction_id` / `balance_adjustment_id`, the ledgers' sign rules extended in place). §4, §10.67. | **Additive** (new operations, an optional request field, new codes on existing operations only after the right password or for restricted accounts, new notification types that older clients ignore). |
 | v1.70-social (draft) | 2026-10-31 | **D206 (owner: «افتح وكالة» — open a host agency yourself; free; ID card + selfie; created at once; 3 activated hosts in 7 days or it closes):** tag `agency`: `openAgency` (`POST /me/agency/open`, `Idempotency-Key`, `OpenAgencyRequest`: name, country, contact, expected hosts, bio, the D185 private uploads `RECHARGE_AGENT_PHOTO` / `RECHARGE_AGENT_SELFIE`); `OwnAgency.name`, `OwnAgency.probation` (`AgencyProbation`, `AgencyProbationHost`); `MyAgency.closedAgency` (`ClosedAgency`) and `MyAgency.openRule` (`AgencyOpenRule`); code `AGENCY_OPEN_NOT_ALLOWED` (409); notification types `AGENCY_OPENED`, `AGENCY_PROBATION_REMINDER`, `AGENCY_PROBATION_PASSED`, `AGENCY_CLOSED`, `AGENCY_HOST_RELEASED` with target `AGENCY` (`activatedHosts`, `requiredHosts`); tag `admin-panel`: `getAdminAgencyApplication`, `getAdminAgencyApplicationPhoto`, `extendAdminAgencyProbation`, `closeAdminAgency`, `reopenAdminAgency` (capabilities `agencies.applications`, `agencies.probation`), `listAdminAgencies` `state=probation\|closed` and `origin`, the row / detail gain name, origin, status, probation, closing and applications; config `AGENCY_PROBATION_DAYS` (7), `AGENCY_PROBATION_MIN_HOSTS` (3), `AGENCY_PROBATION_REMINDER_HOURS` (24), `AGENCY_REOPEN_COOLDOWN_DAYS` (30), `RATE_LIMIT_AGENCY_OPEN_USER` (5/86400); migrations `20270125090000_agency_open_enums`, `20270125090100_agency_open`; CLI `economy-admin agency-probation-extend\|agency-close\|agency-reopen\|agency-probation-sweep`; the data export gains `agency_applications`. §4, §10.46, §10.65. | **Additive** (new operation, fields, codes and enum values; clients ignore unknown notification / target types). Behaviour: a closed agency is never found, joined, evaluated or paid a commission; its owner's host-agent perks go while it is closed. |
 | v1.69-social (draft) | 2026-10-31 | **D204 (owner: the buyer asks an agent for coins; escrow, the order chat, the 15-minute wait and disputes):** tag `recharge` — `quoteRechargeOrder`, `createRechargeOrder` (`Idempotency-Key`), `listMyRechargeOrders`, `getRechargeOrder`, `listRechargeOrderMessages`, `postRechargeOrderMessage`, `getRechargeOrderMessageImage`, `sendRechargeOrderPaymentDetails`, `acknowledgeRechargeOrderNotice`, `markRechargeOrderPaid`, `confirmRechargeOrder`, `disputeRechargeOrder`, `cancelRechargeOrder`; tag `admin-panel` — `listAdminRechargeDisputes`, `getAdminRechargeOrder`, `postAdminRechargeOrderMessage`, `getAdminRechargeOrderMessageImage`, `resolveAdminRechargeDispute`, `listAdminRechargeExchangeRates`, `setAdminRechargeExchangeRate`, `clearAdminRechargeExchangeRate` (capabilities `recharge.disputes`, `recharge.disputes.resolve`, `recharge.rates`); `RechargeAgentDashboard.heldCoins` / `openOrders` and `RechargeRules.orders` (required — strict clients update their models in the same change set); `MediaKind.RECHARGE_ORDER_IMAGE`; `NotificationType.RECHARGE_ORDER_UPDATE` (target `RECHARGE_ORDER` with `coins`, `orderEvent`, `orderStatus`); `WalletLedgerReason.RECHARGE_ORDER`; five codes (`RECHARGE_ORDERS_UNAVAILABLE` 503, `RECHARGE_ORDER_OPEN_EXISTS`, `RECHARGE_ORDER_STATE_CHANGED`, `RECHARGE_ORDER_NOTICE_REQUIRED`, `RECHARGE_ORDER_DISPUTE_TOO_EARLY` 409); config `RECHARGE_ORDERS_ENABLED`, `RECHARGE_ORDER_MIN_COINS` / `_MAX_COINS` / `_REQUEST_TTL_MINUTES` / `_PAYMENT_TTL_MINUTES` / `_DISPUTE_AFTER_MINUTES` / `_SWEEP_INTERVAL_SECONDS`, `RATE_LIMIT_RECHARGE_ORDER_USER` / `_ACTION_USER`; CLI `recharge-admin rates | set-rate | clear-rate | disputes | resolve | expire-orders`; migrations `20270118090000_recharge_orders_enums`, `20270118100000_recharge_orders`. §4, §7, §8, §10.64. (v1.65–v1.68 are D197, D198, D200, D202.) | **Additive** (new operations; two new required fields on the agent's own dashboard; clients ignore unknown notification and target types). |
@@ -4927,6 +4929,72 @@ the other phone saw «لا يوجد أصدقاء» and the random match, which p
   becomes free appears without reopening it; a failed load is shown with «إعادة المحاولة» (never as «لا يوجد
   أصدقاء») and logged.
 
+### 10.73 The social redesign: the home feed, the profile cover and the profile's facts *(v1.76-social, DRAFT — D218)*
+
+Owner, 2026-11-01, with a third-party marketing composite of three phones (kept out of git, D40): «بهذا التصميم حرفياً
+مع اضافة ميزاتنا وجعلها مناسبة لنا». The app's posts page, story viewer and public profile take the reference's
+layout; the server gives them what the layout needs. Nothing is copied from the reference but layout.
+
+#### 10.73.1 The home feed `GET /feed/posts?tab=mixed`
+
+- **The rule.** One entry from Following (§11.3: posts of followed accounts and posts they reposted, newest entry
+  first, a reposted post with `repostedBy`), then two from Trending (§11.3: the global score over visible public
+  posts of the last 7 days, authors spread), then one from Following, two from Trending, and so on (1 : 2).
+- **Exhaustion.** When one source has nothing left its turns go to the other, so the feed ends only when both
+  are empty. Following contributes its newest 500 entries; Trending its 500-entry snapshot.
+- **Each post once.** A post that is in both lists is listed at its Following place only (with its reposter); the
+  Trending copy is skipped and Trending's own order is kept.
+- **Left out.** The caller's own posts (also when a followed account reposted them), muted authors and reposters,
+  hidden posts, and authors who blocked the caller or whom the caller blocked (both sources already apply
+  §11.2 / §11.7; every page re-checks visibility, so a post that stopped being visible since leaves the page).
+- **Pagination.** The first page merges both sources into one frozen list (Redis, 10 minutes, per caller — the
+  Trending snapshot of §11.3 with entries `[postId, reposterId]`); later pages read it by offset, so they never
+  repeat or skip and new posts do not shift them. An expired, foreign or other-tab cursor → 400 `cursor` /
+  `invalid_value`; the app reloads the first page once.
+- **Why the server.** Doing it in the app would page two feeds in lock step and could repeat posts across pages;
+  the server owns ranking (§11.3) and reuses it unchanged. The `following` and `trending` tabs stay as they were.
+
+#### 10.73.2 `Post.viewerFollowsAuthor`
+
+The caller follows the post's author (false on the caller's own post). The feed card shows «متابعة» only when it is
+false (and the post is not the caller's), and «مقترح لك» under the name for such a post. One extra indexed read of
+`follows` per page.
+
+#### 10.73.3 The profile cover «صورة الغلاف»
+
+- **Upload.** Media kind `PROFILE_COVER` (§11.1 pipeline; processed like a post image: the long side at most
+  1 080 px, never cropped — the app covers the banner area with the picture). Set with `PUT /me/cover`
+  (`{mediaId}`: a READY, unattached `PROFILE_COVER` asset of the caller from the last 24 hours, else 400 `mediaId`
+  / `invalid_value`; uploads off → 503 `MEDIA_UPLOADS_UNAVAILABLE`), removed with `DELETE /me/cover` (idempotent;
+  works while uploads are off). The replaced or removed asset is deleted in the same transaction, its objects
+  after commit. Audited `user.cover.update` (`set` / `removed`, never the URL). Rate limit: §7.
+- **Who sees it.** `Me.coverUrl` and `PublicProfile.coverUrl` — public like the photo (also on a private
+  account's profile). Null: the app draws a Kabso brand gradient (never a stock photo).
+- **Moderation.** The panel's «إزالة الغلاف» (`removeAdminUserCover`, capability `users.avatar`, reason required)
+  and `profile-admin remove-cover <username> --reason <text>`: the cover goes, the user gets `COVER_REMOVED`
+  (system), `admin.cover.remove` is audited with the reason, the files are deleted after commit. No cover → the
+  panel answers 409 `ADMIN_ACTION_REFUSED`, the CLI changes nothing.
+- **Account deletion** clears the cover with the photo (§10.56).
+
+#### 10.73.4 The profile's facts row
+
+`PublicProfile.country` — the country the user chose (D133 `Me.country`, never inferred), or null — and
+`PublicProfile.joinedMonth` — the month the account was created, `YYYY-MM` in UTC, never the exact time. The app
+shows «🌍 <country> · 📅 انضم في <شهر سنة>» under the bio. (Before v1.76-social the profile carried neither.)
+
+#### 10.73.5 What the app does with them (no further API)
+
+- **Posts page.** Its top bar is the person's avatar, name and handle (to Me), then Search, the notifications bell
+  (with the unread count) and «ريلز» (the reels page). It lists `tab=mixed` only (the Trending / Following tabs
+  are gone from posts; the reels page keeps its own). No messages icon: messages stay in the bottom bar.
+- **Stories tray.** «قصتك» first (with «+»), then followed accounts that are **live now** (`GET /live/rooms?tab=
+  following`; a red «LIVE» pill, a tap opens the room), then followed accounts with stories (a ring while unseen,
+  grey once seen). It is drawn above every posts state (also when the feed is empty or failed) and hidden only
+  when it holds nobody but an empty «قصتك» (no story of the caller's, no followed story, nobody live) or when the
+  stories API fails.
+- **Story viewer.** A reply «اكتب رسالة…» and the heart («❤️») go to the author as direct messages (§11.13,
+  `POST /dm/messages`); the DM carries no reference to the story (a later contract can add one).
+
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 
 Additive; no earlier rule changes. Reels and video (M2), stories (M3), notifications (M4),
@@ -4978,6 +5046,8 @@ are §11.14.
   `POST_IMAGE` and are consumed by the video they are the poster of.
 - *(v1.45-social, D168)* `AVATAR` uploads are processed like `LIVE_COVER` (centre-cropped squares,
   640 and 320 px) and attach only as the uploader's profile photo (§10.42).
+- *(v1.76-social, D218)* `PROFILE_COVER` uploads are processed like `POST_IMAGE` (never cropped) and
+  attach only as the uploader's profile cover (§10.73.3).
 - Asset URLs are served from `MEDIA_PUBLIC_BASE_URL` (a CDN or bucket domain). An asset is
   attachable once, only by its owner, within 24 hours; unattached assets and expired slots are
   deleted by a sweeper.
@@ -5024,6 +5094,8 @@ are §11.14.
   server config), excluding the caller's own, muted and hidden posts, at most 2 per author in
   any 10. The ranked ids (≤ 500) are frozen for 10 minutes; later pages read the snapshot, so
   they never repeat or skip. An expired or foreign snapshot → 400 `cursor` / `invalid_value`.
+- *(v1.76-social, D218)* `mixed`: 1 `following` entry, then 2 `trending`, again and again, as one
+  frozen list — the app's home feed (§10.73.1).
 
 ### 11.4 Views
 

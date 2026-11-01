@@ -48,6 +48,55 @@ export function spreadAuthors<T extends { authorId: string }>(ranked: readonly T
   return out;
 }
 
+/**
+ * v1.76-social (D218, CONVENTIONS §10.73): the home feed `tab=mixed` — one post from Following, then
+ * two from Trending, again and again. When one source runs out the other continues; a post is listed
+ * once (the Following entry wins). The newest {@link MIXED_FOLLOWING_CANDIDATES} Following entries
+ * and the Trending snapshot are merged into one frozen list (see {@link FeedService.rankedPage}).
+ */
+export const MIXED_PATTERN = { following: 1, trending: 2 } as const;
+const MIXED_FOLLOWING_CANDIDATES = 500;
+
+/** A ranked list's entry: a post id, or (D218) a post id with who reposted it into Following. */
+export type RankedEntry = string | { readonly id: string; readonly by: string | null };
+
+/**
+ * D218: interleaves `following` and `trending` in the {@link MIXED_PATTERN} (1 : 2), Following first.
+ * A source that runs out leaves its turns to the other; a post is listed once — one that is also in
+ * Following only at its Following place — and each list keeps its own order. At most `limit` entries.
+ */
+export function interleaveMixed<T extends { readonly id: string }>(
+  following: readonly T[],
+  trending: readonly T[],
+  limit: number,
+): T[] {
+  const out: T[] = [];
+  const seen = new Set<string>();
+  // A post in both lists is listed at its Following place (with its reposter), never as Trending.
+  const inFollowing = new Set(following.map((e) => e.id));
+  const cycle = MIXED_PATTERN.following + MIXED_PATTERN.trending;
+  let f = 0;
+  let t = 0;
+  let turn = 0;
+  while (out.length < limit) {
+    while (f < following.length && seen.has(following[f]!.id)) f += 1;
+    while (t < trending.length && (seen.has(trending[t]!.id) || inFollowing.has(trending[t]!.id))) t += 1;
+    const followingLeft = f < following.length;
+    const trendingLeft = t < trending.length;
+    if (!followingLeft && !trendingLeft) break;
+    const followingTurn = turn % cycle < MIXED_PATTERN.following;
+    const entry = (followingTurn ? followingLeft : !trendingLeft) ? following[f++]! : trending[t++]!;
+    seen.add(entry.id);
+    out.push(entry);
+    turn += 1;
+  }
+  return out;
+}
+
+function entryId(entry: RankedEntry): string {
+  return typeof entry === 'string' ? entry : entry.id;
+}
+
 /** Feeds and the post lists of interactions: Following, Trending, saved, a user's reposts. */
 @Injectable()
 export class FeedService {
@@ -63,9 +112,31 @@ export class FeedService {
    * CONVENTIONS §11.14). Cursors and snapshots are bound to the list.
    */
   feed(viewerId: string, query: FeedQuery, format: FeedFormat = 'POST'): Promise<PageDto<PostDto>> {
+    if (query.tab === 'mixed' && format === 'POST') return this.mixed(viewerId, query);
     return query.tab === 'following'
       ? this.following(viewerId, query, format)
       : this.trending(viewerId, query, format);
+  }
+
+  /**
+   * v1.76-social (D218, CONVENTIONS §10.73): `GET /feed/posts?tab=mixed` — {@link interleaveMixed} of
+   * the caller's Following entries (newest first, reposts with `repostedBy`) and Trending (§11.3), frozen
+   * like Trending for 10 minutes. Never the caller's own posts (also not when reposted into Following),
+   * nor muted, hidden or blocked authors (both sources already leave them out; every page re-checks
+   * visibility).
+   */
+  private mixed(viewerId: string, query: FeedQuery): Promise<PageDto<PostDto>> {
+    return this.rankedPage(viewerId, 'mixed', query, async () => {
+      const [following, trending] = await Promise.all([
+        this.followingEntries(viewerId, 'POST', null, MIXED_FOLLOWING_CANDIDATES),
+        this.rankTrending(viewerId, 'POST'),
+      ]);
+      return interleaveMixed(
+        following.filter((r) => r.author_id !== viewerId).map((r) => ({ id: r.post_id, by: r.reposter_id })),
+        trending.map((id) => ({ id, by: null })),
+        TRENDING_SNAPSHOT_SIZE + MIXED_FOLLOWING_CANDIDATES,
+      );
+    });
   }
 
   /**
@@ -77,7 +148,46 @@ export class FeedService {
     const reels = format === 'REEL';
     const scope = reels ? `feed-reels-following:${viewerId}` : `feed-following:${viewerId}`;
     const after = this.posts.decode(query.cursor, scope);
-    const rows = await this.prisma.$queryRaw<{ post_id: string; at: Date; reposter_id: string | null }[]>`
+    const rows = await this.followingEntries(viewerId, format, after, query.limit + 1);
+    const hasMore = rows.length > query.limit;
+    const pageRows = rows.slice(0, query.limit);
+    const reposters = await this.summaries(pageRows.flatMap((r) => (r.reposter_id ? [r.reposter_id] : [])));
+    const repostedBy = new Map(
+      pageRows.flatMap((r) => {
+        const by = r.reposter_id ? reposters.get(r.reposter_id) : undefined;
+        return by ? [[r.post_id, by] as const] : [];
+      }),
+    );
+    const last = pageRows[pageRows.length - 1];
+    return {
+      data: await this.views.load(
+        viewerId,
+        pageRows.map((r) => r.post_id),
+        repostedBy,
+      ),
+      page: {
+        hasMore,
+        nextCursor:
+          hasMore && last ? this.posts.cursors.encode(scope, { at: last.at, id: last.post_id }) : null,
+      },
+    };
+  }
+
+  /**
+   * The Following entries (newest first, after `after`): posts of followed accounts (D162: for reels
+   * also the caller's own) and posts they reposted, each post once at its newest entry; muted and
+   * hidden left out.
+   */
+  private followingEntries(
+    viewerId: string,
+    format: FeedFormat,
+    after: { at: Date; id: string } | null,
+    limit: number,
+  ): Promise<{ post_id: string; at: Date; reposter_id: string | null; author_id: string }[]> {
+    const reels = format === 'REEL';
+    return this.prisma.$queryRaw<
+      { post_id: string; at: Date; reposter_id: string | null; author_id: string }[]
+    >`
       WITH entries AS (
         SELECT p.id AS post_id, p.published_at AS at, NULL::uuid AS reposter_id
           FROM follows f JOIN posts p ON p.author_id = f.followee_id
@@ -105,7 +215,7 @@ export class FeedService {
         SELECT DISTINCT ON (post_id) post_id, at, reposter_id
           FROM entries ORDER BY post_id, at DESC, reposter_id NULLS FIRST
       )
-      SELECT n.post_id::text AS post_id, n.at, n.reposter_id::text AS reposter_id
+      SELECT n.post_id::text AS post_id, n.at, n.reposter_id::text AS reposter_id, p.author_id::text AS author_id
         FROM newest n
         JOIN posts p ON p.id = n.post_id
         JOIN users a ON a.id = p.author_id
@@ -114,29 +224,7 @@ export class FeedService {
          AND p.format = ${format}::post_format
          ${after ? Prisma.sql`AND (n.at, n.post_id) < (${after.at}, ${after.id}::uuid)` : Prisma.empty}
        ORDER BY n.at DESC, n.post_id DESC
-       LIMIT ${query.limit + 1}`;
-    const hasMore = rows.length > query.limit;
-    const pageRows = rows.slice(0, query.limit);
-    const reposters = await this.summaries(pageRows.flatMap((r) => (r.reposter_id ? [r.reposter_id] : [])));
-    const repostedBy = new Map(
-      pageRows.flatMap((r) => {
-        const by = r.reposter_id ? reposters.get(r.reposter_id) : undefined;
-        return by ? [[r.post_id, by] as const] : [];
-      }),
-    );
-    const last = pageRows[pageRows.length - 1];
-    return {
-      data: await this.views.load(
-        viewerId,
-        pageRows.map((r) => r.post_id),
-        repostedBy,
-      ),
-      page: {
-        hasMore,
-        nextCursor:
-          hasMore && last ? this.posts.cursors.encode(scope, { at: last.at, id: last.post_id }) : null,
-      },
-    };
+       LIMIT ${limit}`;
   }
 
   /**
@@ -201,32 +289,38 @@ export class FeedService {
     viewerId: string,
     list: string,
     query: PageQuery,
-    rank: () => Promise<string[]>,
+    rank: () => Promise<readonly RankedEntry[]>,
   ): Promise<PageDto<PostDto>> {
     const scope = `ranked:${list}:${viewerId}`;
     const after = this.posts.decode(query.cursor, scope);
     let snapshotId: string;
     let createdAt: Date;
-    let ids: string[];
+    let entries: RankedEntry[];
     const offset = after?.n ?? 0;
     if (after) {
       snapshotId = after.id;
       createdAt = after.at;
       const stored = await this.redis.get(this.snapshotKey(viewerId, snapshotId));
       if (stored === null) throw AppException.validation([{ field: 'cursor', issue: 'invalid_value' }]);
-      ids = JSON.parse(stored) as string[];
+      // D218: an entry with a reposter is stored as `[id, reposterId]`, a plain one as its id.
+      entries = (JSON.parse(stored) as (string | [string, string | null])[]).map((e) =>
+        typeof e === 'string' ? e : { id: e[0], by: e[1] },
+      );
     } else {
       snapshotId = randomUUID();
       createdAt = new Date();
-      ids = await rank();
+      entries = [...(await rank())];
       await this.redis.set(
         this.snapshotKey(viewerId, snapshotId),
-        JSON.stringify(ids),
+        JSON.stringify(
+          entries.map((e) => (typeof e === 'string' || e.by === null ? entryId(e) : [e.id, e.by])),
+        ),
         'EX',
         TRENDING_SNAPSHOT_SECONDS,
       );
     }
-    const slice = ids.slice(offset, offset + query.limit);
+    const sliceEntries = entries.slice(offset, offset + query.limit);
+    const slice = sliceEntries.map(entryId);
     const visible = new Set(
       (
         await this.prisma.post.findMany({
@@ -235,12 +329,21 @@ export class FeedService {
         })
       ).map((p) => p.id),
     );
-    const next = offset + slice.length;
-    const hasMore = next < ids.length;
+    const reposterIds = sliceEntries.flatMap((e) => (typeof e !== 'string' && e.by !== null ? [e.by] : []));
+    const reposters = await this.summaries(reposterIds);
+    const repostedBy = new Map(
+      sliceEntries.flatMap((e) => {
+        const by = typeof e !== 'string' && e.by !== null ? reposters.get(e.by) : undefined;
+        return by ? [[entryId(e), by] as const] : [];
+      }),
+    );
+    const next = offset + sliceEntries.length;
+    const hasMore = next < entries.length;
     return {
       data: await this.views.load(
         viewerId,
         slice.filter((id) => visible.has(id)),
+        repostedBy,
       ),
       page: {
         hasMore,

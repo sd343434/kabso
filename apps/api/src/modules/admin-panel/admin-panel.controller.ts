@@ -227,6 +227,18 @@ export class AdminUsersController {
     return this.users.removeAvatar(pathUuid(userId), body.reason, admin);
   }
 
+  /** v1.76-social (D218, §10.73.3): take a violating profile cover down (the avatar's capability). */
+  @Post('users/:userId/cover/remove')
+  @HttpCode(200)
+  @RequireCapability('users.avatar')
+  removeCover(
+    @Param('userId') userId: string,
+    @Body(new ZodValidationPipe(reasonSchema)) body: { reason: string },
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    return this.users.removeCover(pathUuid(userId), body.reason, admin);
+  }
+
   @Post('users/:userId/special-username')
   @HttpCode(200)
   @RequireCapability('users.special_username')

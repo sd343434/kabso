@@ -9,7 +9,12 @@ import { ZodValidationPipe } from '../../common/validation/zod-validation.pipe.j
 import { updateMeSchema, usernameSchema } from '../auth/auth.schemas.js';
 import { CurrentAuth } from '../auth/current-auth.decorator.js';
 import { Public } from '../auth/public.decorator.js';
-import { ProfileEditService, type AvatarDto, type ProfileEditMeta } from './profile-edit.service.js';
+import {
+  ProfileEditService,
+  type AvatarDto,
+  type CoverDto,
+  type ProfileEditMeta,
+} from './profile-edit.service.js';
 import { UsersService, type MeDto } from './users.service.js';
 import { ConsentExempt } from '../privacy/consent-exempt.decorator.js';
 
@@ -90,5 +95,37 @@ export class AvatarController {
   @RateLimit(AVATAR)
   async removeAvatar(@CurrentAuth() auth: AuthContext, @Req() req: AppRequest): Promise<void> {
     await this.profiles.removeAvatar(auth.userId, meta(req));
+  }
+}
+
+/** v1.76-social (D218, §7): `PUT` and `DELETE /me/cover` share the avatar's rule (30 / hour per user) in their own bucket. */
+const COVER = {
+  bucket: 'me:cover',
+  rule: 'avatarUser',
+  key: byUserId,
+  replacesDefault: true,
+} as const;
+
+/** The caller's profile cover (v1.76-social, D218, CONVENTIONS §10.73.3). */
+@Controller('me/cover')
+export class CoverController {
+  constructor(private readonly profiles: ProfileEditService) {}
+
+  @Put()
+  @HttpCode(200)
+  @RateLimit(COVER)
+  setCover(
+    @CurrentAuth() auth: AuthContext,
+    @Req() req: AppRequest,
+    @Body() body: unknown,
+  ): Promise<CoverDto> {
+    return this.profiles.setCover(auth.userId, body, meta(req));
+  }
+
+  @Delete()
+  @HttpCode(204)
+  @RateLimit(COVER)
+  async removeCover(@CurrentAuth() auth: AuthContext, @Req() req: AppRequest): Promise<void> {
+    await this.profiles.removeCover(auth.userId, meta(req));
   }
 }

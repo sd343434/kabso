@@ -278,6 +278,10 @@ model UserProfile {
   /// v1.45-social (D168): the user's profile photo when it was uploaded (an `AVATAR` asset); its
   /// 640 px URL is `avatarUrl`. CHECK `user_profiles_avatar_media_has_url`.
   avatarMediaId String?              @unique @map("avatar_media_id") @db.Uuid
+  /// v1.76-social (D218, §10.73.3): the profile cover (a `PROFILE_COVER` asset) and its 1 080 px URL; both null
+  /// (the app's Kabso gradient) or both set (CHECK `user_profiles_cover_media_has_url`).
+  coverMediaId  String?              @unique @map("cover_media_id") @db.Uuid
+  coverUrl      String?              @map("cover_url") @db.VarChar(2048)
   locale        String               @default("ar") @db.VarChar(8)
   /// v1.27.1-live (D133): the user's own country (ISO 3166-1 alpha-2, upper case), or null (none set;
   /// never inferred). CHECK `user_profiles_country_code_format`. Decides `scope=nearby` (§10.28).
@@ -296,6 +300,7 @@ model UserProfile {
 
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   avatarMedia MediaAsset? @relation("ProfileAvatar", fields: [avatarMediaId], references: [id], onDelete: NoAction)
+  coverMedia  MediaAsset? @relation("ProfileCover", fields: [coverMediaId], references: [id], onDelete: NoAction)
 
   @@map("user_profiles")
 }
@@ -1591,6 +1596,8 @@ model MediaAsset {
   dmMessage     DmMessage?
   /// D168: a profile photo.
   profileAvatar UserProfile?     @relation("ProfileAvatar")
+  /// D218: a profile cover.
+  profileCover  UserProfile?     @relation("ProfileCover")
 
   @@index([createdAt], map: "media_assets_unattached_idx", where: raw("attached_at IS NULL"))
   @@map("media_assets")
@@ -2082,6 +2089,8 @@ enum NotificationType {
   HOST_APPLICATION_APPROVED
   /// v1.73-social (D209, system): the application was rejected (the reason is in `getMyHostingApplication`).
   HOST_APPLICATION_REJECTED
+  /// v1.76-social (D218): a moderator removed the profile cover (system).
+  COVER_REMOVED
 
   @@map("notification_type")
 }

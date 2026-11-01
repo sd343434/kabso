@@ -94,6 +94,9 @@ export const MEDIA_KINDS = [
   // v1.45-social (D168): the profile photo (a centre-cropped square, like the live cover); attached
   // only by `PUT /me/avatar`.
   'AVATAR',
+  // v1.76-social (D218, §10.73.3): the profile cover (processed like a post image, never cropped); attached only
+  // by `PUT /me/cover`.
+  'PROFILE_COVER',
   // v1.54-social (D185, §10.48): the private pictures of a recharge-agent application; never completed (404),
   // consumed by the application into the private prefix (no asset, no URL).
   'RECHARGE_AGENT_PHOTO',

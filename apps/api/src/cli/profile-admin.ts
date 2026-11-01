@@ -8,12 +8,15 @@
  * (docs/DEPLOYMENT.md), locally with `pnpm profile:admin …`.
  *
  *   pnpm profile:admin remove-avatar <username> --reason <text>
+ *   pnpm profile:admin remove-cover <username> --reason <text>     (v1.76-social, D218, §10.73.3)
  *
  * The profile goes back to the initial, the photo's `AVATAR` asset row is deleted in the same
  * transaction as an `admin.avatar.remove` audit row (with the reason) and an `AVATAR_REMOVED`
  * notification to the user; its files are deleted from object storage afterwards (needs the `S3_*`
  * settings; without them the keys are printed for manual deletion). A user without a photo changes
- * nothing (exit 0); an unknown username or a missing reason exits 1.
+ * nothing (exit 0); an unknown username or a missing reason exits 1. `remove-cover` does the same for the
+ * profile cover (`PROFILE_COVER` asset, `admin.cover.remove`, `COVER_REMOVED`); the profile shows the Kabso
+ * gradient again.
  */
 import 'dotenv/config';
 import { parseArgs } from 'node:util';
@@ -22,14 +25,14 @@ import { PrismaClient } from '../generated/prisma/client.js';
 import type { AppConfig } from '../config/app-config.js';
 import type { ObjectStorage } from '../modules/media/object-storage.js';
 import { S3ObjectStorage } from '../modules/media/s3-object-storage.js';
-import { removeAvatarByAdminIn } from '../modules/users/avatar-admin.js';
+import { removeAvatarByAdminIn, removeCoverByAdminIn } from '../modules/users/avatar-admin.js';
 
 function fail(message: string): never {
   process.stderr.write(`${message}\n`);
   process.exit(1);
 }
 
-const USAGE = 'Usage: pnpm profile:admin remove-avatar <username> --reason <text>';
+const USAGE = 'Usage: pnpm profile:admin remove-avatar|remove-cover <username> --reason <text>';
 
 const url = process.env.MIGRATION_DATABASE_URL;
 if (!url) fail('MIGRATION_DATABASE_URL is not set (the migration role changes profiles).');
@@ -50,6 +53,37 @@ function storageFromEnv(): ObjectStorage | null {
     },
   };
   return new S3ObjectStorage({ media } as unknown as AppConfig);
+}
+
+/** Deletes `keys` from object storage after the commit, or prints them when that is not possible here. */
+async function deleteFiles(username: string, what: string, keys: string[]): Promise<void> {
+  const storage = storageFromEnv();
+  if (!storage) {
+    process.stdout.write(
+      `@${username}: ${what} removed. S3 is not configured here; delete these objects: ${keys.join(' ')}\n`,
+    );
+    return;
+  }
+  try {
+    await storage.delete(keys);
+  } catch {
+    process.stdout.write(
+      `@${username}: ${what} removed. Its objects could not be deleted: ${keys.join(' ')}\n`,
+    );
+    return;
+  }
+  process.stdout.write(`@${username}: ${what} removed and its files deleted.\n`);
+}
+
+/** v1.76-social (D218): `remove-cover`. */
+async function removeCover(username: string, reason: string): Promise<void> {
+  const result = await prisma.$transaction((tx) => removeCoverByAdminIn(tx, username, reason));
+  if (result.outcome === 'unknown_user') fail(`No user @${username}.`);
+  if (result.outcome === 'no_cover') {
+    process.stdout.write(`@${username} has no profile cover; nothing changed.\n`);
+    return;
+  }
+  await deleteFiles(username, 'cover', result.objectKeys);
 }
 
 async function removeAvatar(username: string, reason: string): Promise<void> {
@@ -88,11 +122,13 @@ try {
     options: { reason: { type: 'string' } },
   });
   const [command, username] = positionals;
-  if (command !== 'remove-avatar' || !username || positionals.length !== 2) fail(USAGE);
+  if ((command !== 'remove-avatar' && command !== 'remove-cover') || !username || positionals.length !== 2)
+    fail(USAGE);
   const reason = values.reason?.trim();
   if (!reason) fail(`${USAGE}\nA reason is required (it is kept in the audit log).`);
   if ([...reason].length > 500) fail('The reason is at most 500 characters.');
-  await removeAvatar(username.replace(/^@/, ''), reason);
+  if (command === 'remove-cover') await removeCover(username.replace(/^@/, ''), reason);
+  else await removeAvatar(username.replace(/^@/, ''), reason);
 } catch (err) {
   if (err instanceof TypeError) fail(`${err.message}\n${USAGE}`);
   throw err;

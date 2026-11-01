@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { spreadAuthors } from './feed.service.js';
+import { interleaveMixed, MIXED_PATTERN, spreadAuthors } from './feed.service.js';
 
 const ranked = (authors: string) => [...authors].map((authorId, i) => ({ id: `${i}`, authorId }));
 
@@ -31,5 +31,47 @@ describe('spreadAuthors', () => {
     const out = spreadAuthors(many, 5);
     expect(out).toHaveLength(5);
     expect(respectsSpread(spreadAuthors(many, 100))).toBe(true);
+  });
+});
+
+const ids = (prefix: string, n: number) => Array.from({ length: n }, (_, i) => ({ id: `${prefix}${i}` }));
+const order = (list: readonly { id: string }[]) => list.map((e) => e.id).join(' ');
+
+/** v1.76-social (D218, CONVENTIONS §10.73): the home feed's 1 Following : 2 Trending. */
+describe('interleaveMixed', () => {
+  it('is 1 : 2, Following first', () => {
+    expect(MIXED_PATTERN).toEqual({ following: 1, trending: 2 });
+    expect(order(interleaveMixed(ids('f', 3), ids('t', 6), 100))).toBe('f0 t0 t1 f1 t2 t3 f2 t4 t5');
+  });
+
+  it('continues with the other source when one runs out', () => {
+    expect(order(interleaveMixed(ids('f', 1), ids('t', 4), 100))).toBe('f0 t0 t1 t2 t3');
+    expect(order(interleaveMixed(ids('f', 4), ids('t', 2), 100))).toBe('f0 t0 t1 f1 f2 f3');
+    expect(order(interleaveMixed([], ids('t', 3), 100))).toBe('t0 t1 t2');
+    expect(order(interleaveMixed(ids('f', 2), [], 100))).toBe('f0 f1');
+    expect(interleaveMixed([], [], 100)).toEqual([]);
+  });
+
+  it('lists a post once (its Following entry wins) and keeps each source in order', () => {
+    const following = [{ id: 'a' }, { id: 'b' }];
+    const trending = [{ id: 'b' }, { id: 'x' }, { id: 'a' }, { id: 'y' }, { id: 'z' }];
+    const out = interleaveMixed(following, trending, 100);
+    expect(order(out)).toBe('a x y b z');
+    expect(new Set(out.map((e) => e.id)).size).toBe(out.length);
+  });
+
+  it('keeps the entry it took (with its reposter) and honours the limit', () => {
+    const out = interleaveMixed(
+      [{ id: 'p', by: 'r' }],
+      [
+        { id: 'p', by: null },
+        { id: 'q', by: null },
+      ],
+      2,
+    );
+    expect(out).toEqual([
+      { id: 'p', by: 'r' },
+      { id: 'q', by: null },
+    ]);
   });
 });

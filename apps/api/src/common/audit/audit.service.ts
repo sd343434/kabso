@@ -190,6 +190,10 @@ export enum AuditAction {
   PRIVACY_PRIVATE = 'user.privacy.private',
   /** v1.47-social (D175): an admin removed a user's profile photo (`profile-admin remove-avatar`). */
   ADMIN_AVATAR_REMOVE = 'admin.avatar.remove',
+  /** v1.76-social (D218): the caller set or removed their profile cover. */
+  COVER_UPDATE = 'user.cover.update',
+  /** v1.76-social (D218): an admin removed a user's profile cover (panel or `profile-admin remove-cover`). */
+  ADMIN_COVER_REMOVE = 'admin.cover.remove',
   PREMIUM_USERNAME_RENT = 'premium_username.rent',
   PREMIUM_USERNAME_RENEW = 'premium_username.renew',
   PREMIUM_USERNAME_GRANT = 'premium_username.grant',

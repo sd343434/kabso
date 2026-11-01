@@ -33,6 +33,8 @@ export interface PostDto {
   viewerHasSaved: boolean;
   viewerHasReposted: boolean;
   isSelf: boolean;
+  /** v1.76-social (D218): the caller follows the author (false on the caller's own post). */
+  viewerFollowsAuthor: boolean;
   settings: {
     commentsEnabled: boolean;
     whoCanComment: 'EVERYONE' | 'FOLLOWERS' | 'NOBODY';
@@ -285,9 +287,22 @@ export class PostViews {
     if (ids.length === 0) return [];
     const rows = await db.post.findMany({ where: { id: { in: [...ids] } }, include: include(viewerId) });
     const byId = new Map(rows.map((r) => [r.id, r]));
+    // D218: whom of these authors the caller follows (the feed's «متابعة» pill).
+    const authorIds = [...new Set(rows.map((r) => r.authorId).filter((a) => a !== viewerId))];
+    const followed =
+      authorIds.length === 0
+        ? new Set<string>()
+        : new Set(
+            (
+              await db.follow.findMany({
+                where: { followerId: viewerId, followeeId: { in: authorIds } },
+                select: { followeeId: true },
+              })
+            ).map((f) => f.followeeId),
+          );
     return ids.flatMap((id) => {
       const row = byId.get(id);
-      return row ? [this.toDto(viewerId, row, repostedBy.get(id) ?? null)] : [];
+      return row ? [this.toDto(viewerId, row, repostedBy.get(id) ?? null, followed.has(row.authorId))] : [];
     });
   }
 
@@ -297,7 +312,12 @@ export class PostViews {
     return dto;
   }
 
-  private toDto(viewerId: string, row: PostRow, repostedBy: UserSummaryDto | null): PostDto {
+  private toDto(
+    viewerId: string,
+    row: PostRow,
+    repostedBy: UserSummaryDto | null,
+    followsAuthor: boolean,
+  ): PostDto {
     const isSelf = row.authorId === viewerId;
     // Order follows the text; only linked (stored) entities are returned.
     const storedTags = new Set(row.hashtags.map((h) => h.hashtag.tag));
@@ -329,6 +349,7 @@ export class PostViews {
       viewerHasSaved: row.saves.length > 0,
       viewerHasReposted: row.reposts.length > 0,
       isSelf,
+      viewerFollowsAuthor: !isSelf && followsAuthor,
       settings: {
         commentsEnabled: row.commentsEnabled,
         whoCanComment: row.whoCanComment,
