@@ -125,7 +125,14 @@ export interface UserDetail {
   };
   specialUsername: { username: string; source: string; expiresAt: string | null } | null;
   adminRoles: PanelRole[];
-  balances: { coins: number; cherries: number; lockedTaskCherries: number } | null;
+  /** D220: `cherriesReceived` / `coinsSent` are the person card's lifetime totals (also when hidden in the app). */
+  balances: {
+    coins: number;
+    cherries: number;
+    lockedTaskCherries: number;
+    cherriesReceived: number;
+    coinsSent: number;
+  } | null;
   ledger: { coins: LedgerRow[]; cherries: LedgerRow[] } | null;
   rechargeAgent: {
     status: string;

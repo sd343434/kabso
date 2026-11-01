@@ -526,13 +526,25 @@ describe('D191 admin panel', { timeout: 300_000 }, () => {
       const detail = await get(finance, `/admin/users/${u.id}`);
       expect(detail.status).toBe(200);
       expectContract(detail, 'getAdminUser');
-      expect(detail.body.balances).toEqual({ coins: 0, cherries: 0, lockedTaskCherries: 0 });
+      expect(detail.body.balances).toEqual({
+        coins: 0,
+        cherries: 0,
+        lockedTaskCherries: 0,
+        cherriesReceived: 0,
+        coinsSent: 0,
+      });
       expect(detail.body.ledger).not.toBeNull();
       // Owner 2026-10-31: the moderator «مشرف» sees the balances (read-only), not the ledger rows.
       const modView = await get(moderator, `/admin/users/${u.id}`);
       expect(modView.status).toBe(200);
       expectContract(modView, 'getAdminUser');
-      expect(modView.body.balances).toEqual({ coins: 0, cherries: 0, lockedTaskCherries: 0 });
+      expect(modView.body.balances).toEqual({
+        coins: 0,
+        cherries: 0,
+        lockedTaskCherries: 0,
+        cherriesReceived: 0,
+        coinsSent: 0,
+      });
       expect(modView.body.ledger).toBeNull();
       expect((await audits('admin.user.view', u.id)).map((a) => a.actorUserId).sort()).toEqual(
         [finance.id, moderator.id].sort(),

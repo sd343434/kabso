@@ -12403,4 +12403,55 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get podcastMuted => 'mic off';
+
+  @override
+  String liveCardId(String id) {
+    return 'ID: $id';
+  }
+
+  @override
+  String get liveCardReport => 'Report';
+
+  @override
+  String get liveCardFollowers => 'Followers';
+
+  @override
+  String get liveCardFollowing => 'Following';
+
+  @override
+  String get liveCardCherries => 'Cherries received';
+
+  @override
+  String get liveCardCoinsSent => 'Coins sent';
+
+  @override
+  String get liveCardFollow => 'Follow';
+
+  @override
+  String get liveCardFollowed => 'Following';
+
+  @override
+  String get liveCardChat => 'Chat';
+
+  @override
+  String get liveCardSendGift => 'Send a gift';
+
+  @override
+  String get liveCardEditProfile => 'Edit profile';
+
+  @override
+  String get liveCardFamilyNone => 'No family';
+
+  @override
+  String get privacyCardStatsTitle => 'Numbers on your card';
+
+  @override
+  String get privacyHideCherries => 'Hide cherries received';
+
+  @override
+  String get privacyHideCoins => 'Hide coins sent';
+
+  @override
+  String get privacyCardStatsHint =>
+      'A hidden number is not shown to anyone else on your card in lives or on your profile. You and the Kabso team still see it.';
 }

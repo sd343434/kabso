@@ -102,6 +102,10 @@ export interface PrivacyDto {
   whoCanMessage: 'EVERYONE' | 'FOLLOWING' | 'NOBODY';
   /** v1.47-social (D175, §10.47): a private account (follow requests; content for followers only). */
   isPrivate: boolean;
+  /** v1.77-social (D220, §10.74): others do not get `PublicProfile.cherriesReceived` (default false). */
+  hideCherriesReceived: boolean;
+  /** v1.77-social (D220, §10.74): others do not get `PublicProfile.coinsSent` (default false). */
+  hideCoinsSent: boolean;
 }
 
 /**
@@ -736,6 +740,8 @@ export class SafetyService {
       showActivityStatus: row?.showActivityStatus ?? true,
       whoCanMessage: row?.whoCanMessage ?? 'EVERYONE',
       isPrivate: settings?.isPrivate ?? false,
+      hideCherriesReceived: row?.hideCherriesReceived ?? false,
+      hideCoinsSent: row?.hideCoinsSent ?? false,
     };
   }
 

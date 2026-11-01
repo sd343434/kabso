@@ -71,6 +71,9 @@ export const updatePrivacySchema = z
     whoCanMessage: z.enum(['EVERYONE', 'FOLLOWING', 'NOBODY']).optional(),
     // v1.47-social (D175): a private account (§10.47).
     isPrivate: z.boolean().optional(),
+    // v1.77-social (D220, §10.74): leave the lifetime totals out of the card and profile for others.
+    hideCherriesReceived: z.boolean().optional(),
+    hideCoinsSent: z.boolean().optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: 'too_small', params: { issue: 'too_small' } });
 

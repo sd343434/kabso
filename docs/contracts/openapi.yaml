@@ -296,6 +296,12 @@ info:
     `HOST_APPLICATION_NOT_ALLOWED`; notification types `HOST_APPLICATION_APPROVED` / `HOST_APPLICATION_REJECTED`;
     the panel's «طلبات المضيفين» (`listAdminHostApplications`, `getAdminHostApplication(Photo)`,
     `approveAdminHostApplication`, `rejectAdminHostApplication`) (CONVENTIONS §10.68).
+    **D220 (DRAFT v1.77-social)**: the in-live person card's four numbers — `PublicProfile.cherriesReceived`
+    (lifetime cherries received from gifts) and `PublicProfile.coinsSent` (lifetime coins paid for gifts sent),
+    beside the follower counts; two privacy switches `PrivacySettings.hideCherriesReceived` /
+    `hideCoinsSent` (default false = shown): a hidden total is left out of `getPublicProfile` for everyone but
+    the user (enforced by the server, the value is not sent), and the panel's `AdminUserDetail.balances` keeps
+    both (CONVENTIONS §10.74).
     **D184 (DRAFT v1.53-social)**: the Task Center's rewards are cherries (the old coins ×10, then raised
     ×300: ≈ $5 a month at most), credited to the cherry ledger as `TASK_REWARD` under a daily cherry cap
     (`ProgramTask.rewardCherries` / `claimedCherries`, `MyTasks.dailyCapCherries` / `dailyEarnedCherries`,
@@ -1582,7 +1588,9 @@ paths:
         v1.21-live (CP-018, §10.21): `family`, `cp` and `medals` for the person card; CP tier and
         medal names follow `Accept-Language`, else the caller's locale. v1.22-live (CP-019,
         §10.22): `profileCard`, the profile card the user wears (null when none). v1.55-social (D186,
-        §10.49): `avatarFrame`, the avatar frame the user wears (null when none).
+        §10.49): `avatarFrame`, the avatar frame the user wears (null when none). v1.77-social (D220,
+        §10.74): `cherriesReceived` and `coinsSent`, each left out when the user hides it and the caller is
+        someone else.
       parameters:
         - $ref: '#/components/parameters/UsernamePath'
       responses:
@@ -14731,11 +14739,13 @@ components:
         balances:
           type: [object, 'null']
           description: Null without `users.balances`.
-          required: [coins, cherries, lockedTaskCherries]
+          required: [coins, cherries, lockedTaskCherries, cherriesReceived, coinsSent]
           properties:
             coins: { type: integer }
             cherries: { type: integer }
             lockedTaskCherries: { type: integer, description: Task cherries not withdrawable yet (D184). }
+            cherriesReceived: { type: integer, minimum: 0, description: "v1.77-social (D220, §10.74): the lifetime cherries received from gifts (`PublicProfile.cherriesReceived`), also when the user hides it from others." }
+            coinsSent: { type: integer, minimum: 0, description: "v1.77-social (D220, §10.74): the lifetime coins sent on gifts (`PublicProfile.coinsSent`), also when the user hides it from others." }
         ledger:
           type: [object, 'null']
           description: The 20 latest coin and cherry ledger rows; null without `users.ledger`.
@@ -19017,6 +19027,16 @@ components:
         rechargeBadge:
           $ref: '#/components/schemas/RechargeBadge'
           description: "v1.56-social (D187, §10.50) — present only while the user's daily recharge badge shows; absent otherwise (never for a recharge agent). Shown beside the name on the profile like the level badge."
+        cherriesReceived:
+          type: integer
+          format: int64
+          minimum: 0
+          description: "v1.77-social (D220, §10.74) — the lifetime cherries the user's received gifts credited (cherry ledger `GIFT_RECEIVED` minus `GIFT_REVERSAL`; never below 0; commissions, task rewards and adjustments are not counted). Absent when the user hides it (`PrivacySettings.hideCherriesReceived`) and the caller is not the user: the server does not send it. Always present on the caller's own profile."
+        coinsSent:
+          type: integer
+          format: int64
+          minimum: 0
+          description: "v1.77-social (D220, §10.74) — the lifetime coins the user paid for gifts they sent (lives and direct messages, lucky gifts included; a gift from the bag adds 0). Absent when the user hides it (`PrivacySettings.hideCoinsSent`) and the caller is not the user. Always present on the caller's own profile."
     FollowState:
       type: object
       required: [isFollowing, isRequested, followerCount]
@@ -21664,13 +21684,15 @@ components:
         note: { type: string, maxLength: 500 }
     PrivacySettings:
       type: object
-      required: [whoCanMention, defaultWhoCanComment, showActivityStatus, whoCanMessage, isPrivate]
+      required: [whoCanMention, defaultWhoCanComment, showActivityStatus, whoCanMessage, isPrivate, hideCherriesReceived, hideCoinsSent]
       properties:
         isPrivate: { type: boolean, description: "(v1.47-social, D175) A private account (CONVENTIONS §10.47); the same value as `Me.isPrivate`." }
         whoCanMessage: { type: string, enum: [EVERYONE, FOLLOWING, NOBODY], description: "(v1.40-social, D155) Who may send the user direct messages (default EVERYONE; FOLLOWING = accounts the user follows), CONVENTIONS §11.13." }
         whoCanMention: { type: string, enum: [EVERYONE, FOLLOWING, NOBODY] }
         defaultWhoCanComment: { type: string, enum: [EVERYONE, FOLLOWERS, NOBODY] }
         showActivityStatus: { type: boolean, description: "(v1.25-live, CP-022) Others may see when the user was last active (default true, CONVENTIONS §10.25)." }
+        hideCherriesReceived: { type: boolean, description: "(v1.77-social, D220) «إخفاء الكرز المستلم»: others do not get `PublicProfile.cherriesReceived` (default false = shown; CONVENTIONS §10.74). The user and the admin panel still see it." }
+        hideCoinsSent: { type: boolean, description: "(v1.77-social, D220) «إخفاء الكوينز المرسلة»: others do not get `PublicProfile.coinsSent` (default false = shown; CONVENTIONS §10.74). The user and the admin panel still see it." }
     UpdatePrivacyRequest:
       type: object
       additionalProperties: false
@@ -21686,6 +21708,8 @@ components:
             (v1.47-social, D175, CONVENTIONS §10.47) Make the account private (follow requests; posts, reels and
             stories for followers only) or public. Switching to public accepts every pending follow request.
             Existing followers are kept. Audited `user.privacy.private` when it changes.
+        hideCherriesReceived: { type: boolean, description: "(v1.77-social, D220, CONVENTIONS §10.74) Hide the lifetime cherries received from others." }
+        hideCoinsSent: { type: boolean, description: "(v1.77-social, D220, CONVENTIONS §10.74) Hide the lifetime coins sent from others." }
     # ---- v1.21-live (DRAFT, CP-018, D106) — families, CP couples and medals ---------------------
     FamilyRole:
       type: string

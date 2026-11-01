@@ -120,6 +120,9 @@ const ar = {
   coins: 'العملات',
   cherries: 'الكرز',
   lockedTaskCherries: 'كرز المهام المقفل',
+  // D220: the person card's lifetime totals (shown here even when the user hides them in the app).
+  cherriesReceivedLifetime: 'الكرز المستلم (الإجمالي)',
+  coinsSentLifetime: 'الكوينز المرسلة (الإجمالي)',
   balancesHidden: 'الأرصدة متاحة لأدوار المالك والدعم والمالية.',
   ledgerCoins: 'آخر حركات العملات',
   ledgerCherries: 'آخر حركات الكرز',
@@ -489,6 +492,8 @@ const en: Record<Key, string> = {
   coins: 'Coins',
   cherries: 'Cherries',
   lockedTaskCherries: 'Locked task cherries',
+  cherriesReceivedLifetime: 'Cherries received (lifetime)',
+  coinsSentLifetime: 'Coins sent (lifetime)',
   balancesHidden: 'Balances are shown to the owner, support and finance roles.',
   ledgerCoins: 'Latest coin movements',
   ledgerCherries: 'Latest cherry movements',

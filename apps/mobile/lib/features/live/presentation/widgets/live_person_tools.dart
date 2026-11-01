@@ -103,6 +103,10 @@ abstract final class LivePersonToolKeys {
   static const admin = Key('room.userCard.admin');
   static const more = Key('room.userCard.more');
   static const report = Key('room.userCard.report');
+
+  /// D220: «إبلاغ» at the start of the card's top row (the reference's
+  /// REPORT); ⋯ keeps report and block.
+  static const reportQuick = Key('room.userCard.reportQuick');
   static const block = Key('room.userCard.block');
   static const pointsPopover = Key('room.userCard.pointsPopover');
 }
@@ -115,7 +119,8 @@ typedef LivePersonTarget = ({String id, String username, String name});
 /// may be acted on), make or remove moderator (the host) — and at the end,
 /// next to ⋯ (report, block), the two mutes (owner, 2026-10-26): the mic of
 /// a seated person or guest, and writing in the chat. On your own card:
-/// points only.
+/// points only. D220: «إبلاغ» first at the start (signed in, not your own
+/// card).
 /// [middle] keeps the picture's place free between the two groups.
 class LivePersonTools extends ConsumerStatefulWidget {
   const new({
@@ -383,6 +388,40 @@ class _LivePersonToolsState extends ConsumerState<LivePersonTools> {
     ),
   );
 
+  /// D220: the flag and «إبلاغ» (the reference's REPORT), in grey.
+  Widget _reportButton(AppLocalizations l10n) => Semantics(
+    button: true,
+    label: l10n.safetyReportUser,
+    excludeSemantics: true,
+    child: InkWell(
+      key: LivePersonToolKeys.reportQuick,
+      borderRadius: BorderRadius.circular(KRadius.pill),
+      onTap: _busy
+          ? null
+          : () => unawaited(reportUser(context, ref, userId: widget.person.id)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 36),
+        child: Padding(
+          padding: const EdgeInsetsDirectional.fromSTEB(2, 0, 8, 0),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.flag_outlined, size: 16, color: _ink),
+              const SizedBox(width: 3),
+              Text(
+                l10n.liveCardReport,
+                style: context.textStyles.caption.copyWith(
+                  color: _ink,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -390,6 +429,7 @@ class _LivePersonToolsState extends ConsumerState<LivePersonTools> {
     final muted = _muted ?? false;
     final moderator = _target == LivePersonRole.moderator;
     final start = [
+      if (!widget.self && _signedIn) _reportButton(l10n),
       _button(
         key: LivePersonToolKeys.points,
         icon: Icons.bar_chart_rounded,

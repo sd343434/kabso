@@ -398,6 +398,9 @@ describe('KL-060 safety', () => {
         whoCanMessage: 'EVERYONE',
         // v1.47-social (D175): every account starts public.
         isPrivate: false,
+        // v1.77-social (D220): the card's lifetime totals are shown by default.
+        hideCherriesReceived: false,
+        hideCoinsSent: false,
       });
       const updated = await ctx.http
         .patch('/api/v1/me/privacy')
@@ -411,6 +414,8 @@ describe('KL-060 safety', () => {
         showActivityStatus: true,
         whoCanMessage: 'EVERYONE',
         isPrivate: false,
+        hideCherriesReceived: false,
+        hideCoinsSent: false,
       });
       const partial = await ctx.http
         .patch('/api/v1/me/privacy')
@@ -422,6 +427,8 @@ describe('KL-060 safety', () => {
         showActivityStatus: true,
         whoCanMessage: 'EVERYONE',
         isPrivate: false,
+        hideCherriesReceived: false,
+        hideCoinsSent: false,
       });
       const created = await ctx.http.get(`/api/v1/posts/${await post(me)}`).set(auth(me));
       expect(created.body.settings.whoCanComment).toBe('FOLLOWERS');

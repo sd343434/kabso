@@ -11997,5 +11997,74 @@
   "podcastMuted": "الميكروفون مغلق",
   "@podcastMuted": {
     "description": "D212 (live categories and the podcast live)."
+  },
+  "liveCardId": "ID: {id}",
+  "@liveCardId": {
+    "description": "D220: the ID line under the name on a person's card in a live (the username).",
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "liveCardReport": "إبلاغ",
+  "@liveCardReport": {
+    "description": "D220: the report button at the start of the card's top row."
+  },
+  "liveCardFollowers": "المتابِعون",
+  "@liveCardFollowers": {
+    "description": "D220: the card's first number."
+  },
+  "liveCardFollowing": "المتابَعون",
+  "@liveCardFollowing": {
+    "description": "D220: the card's second number (accounts they follow)."
+  },
+  "liveCardCherries": "الكرز المستلم",
+  "@liveCardCherries": {
+    "description": "D220: the card's third number (lifetime cherries received from gifts)."
+  },
+  "liveCardCoinsSent": "الكوينز المرسلة",
+  "@liveCardCoinsSent": {
+    "description": "D220: the card's fourth number (lifetime coins sent on gifts)."
+  },
+  "liveCardFollow": "متابعة",
+  "@liveCardFollow": {
+    "description": "D220: the wide follow button (with a plus)."
+  },
+  "liveCardFollowed": "متابَع",
+  "@liveCardFollowed": {
+    "description": "D220: the follow button once followed (a tap unfollows)."
+  },
+  "liveCardChat": "دردشة",
+  "@liveCardChat": {
+    "description": "D220: the outline button that opens a direct conversation."
+  },
+  "liveCardSendGift": "إرسال هدية",
+  "@liveCardSendGift": {
+    "description": "D220: the round gift button's label for screen readers."
+  },
+  "liveCardEditProfile": "تعديل الملف",
+  "@liveCardEditProfile": {
+    "description": "D220: the button on your own card."
+  },
+  "liveCardFamilyNone": "بلا عائلة",
+  "@liveCardFamilyNone": {
+    "description": "D220: the family part of the card's gradient pill when the person has no family."
+  },
+  "privacyCardStatsTitle": "الأرقام في بطاقتك",
+  "@privacyCardStatsTitle": {
+    "description": "D220: the privacy section with the two switches."
+  },
+  "privacyHideCherries": "إخفاء الكرز المستلم",
+  "@privacyHideCherries": {
+    "description": "D220: privacy switch."
+  },
+  "privacyHideCoins": "إخفاء الكوينز المرسلة",
+  "@privacyHideCoins": {
+    "description": "D220: privacy switch."
+  },
+  "privacyCardStatsHint": "الرقم المخفي لا يظهر لغيرك في بطاقتك داخل البث ولا في ملفك. أنت وفريق Kabso تستطيعون رؤيته.",
+  "@privacyCardStatsHint": {
+    "description": "D220: under the two switches."
   }
 }

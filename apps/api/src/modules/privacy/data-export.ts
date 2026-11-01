@@ -202,6 +202,8 @@ export async function buildDataExport(db: Db, o: BuildExportOptions): Promise<Ex
           defaultWhoCanComment: true,
           showActivityStatus: true,
           whoCanMessage: true,
+          hideCherriesReceived: true,
+          hideCoinsSent: true,
         },
       },
       notificationPrefs: {

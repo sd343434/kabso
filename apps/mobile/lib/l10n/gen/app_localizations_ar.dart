@@ -12397,4 +12397,55 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get podcastMuted => 'الميكروفون مغلق';
+
+  @override
+  String liveCardId(String id) {
+    return 'ID: $id';
+  }
+
+  @override
+  String get liveCardReport => 'إبلاغ';
+
+  @override
+  String get liveCardFollowers => 'المتابِعون';
+
+  @override
+  String get liveCardFollowing => 'المتابَعون';
+
+  @override
+  String get liveCardCherries => 'الكرز المستلم';
+
+  @override
+  String get liveCardCoinsSent => 'الكوينز المرسلة';
+
+  @override
+  String get liveCardFollow => 'متابعة';
+
+  @override
+  String get liveCardFollowed => 'متابَع';
+
+  @override
+  String get liveCardChat => 'دردشة';
+
+  @override
+  String get liveCardSendGift => 'إرسال هدية';
+
+  @override
+  String get liveCardEditProfile => 'تعديل الملف';
+
+  @override
+  String get liveCardFamilyNone => 'بلا عائلة';
+
+  @override
+  String get privacyCardStatsTitle => 'الأرقام في بطاقتك';
+
+  @override
+  String get privacyHideCherries => 'إخفاء الكرز المستلم';
+
+  @override
+  String get privacyHideCoins => 'إخفاء الكوينز المرسلة';
+
+  @override
+  String get privacyCardStatsHint =>
+      'الرقم المخفي لا يظهر لغيرك في بطاقتك داخل البث ولا في ملفك. أنت وفريق Kabso تستطيعون رؤيته.';
 }

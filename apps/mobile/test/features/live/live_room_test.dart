@@ -566,8 +566,8 @@ void main() {
       expect(_label(l10n.liveFollow), findsOneWidget);
     });
 
-    testWidgets("D135: the card's bottom row — Gift, Mention, Message for "
-        'someone I follow', (tester) async {
+    testWidgets("D220: the card's bottom row — Follow (followed), the round "
+        'gift and Chat; Mention above it', (tester) async {
       await _pumpRoom(
         tester,
         profile: apiProfile(isFollowing: true),
@@ -579,36 +579,49 @@ void main() {
       await tester.pumpAndSettle();
       final sheet = find.byKey(const Key('room.hostSheet'));
       expect(sheet, findsOneWidget);
-      expect(find.text('@host0'), findsOneWidget);
+      // «ID: username» (the reference's ID line).
+      expect(
+        find.text(l10n.liveCardId(KFormat.bidiIsolate('host0'))),
+        findsOneWidget,
+      );
       expect(find.text('Arabic music every evening'), findsOneWidget);
       _expectNoDimming(tester);
+      final follow = find.byKey(const Key('room.userCard.follow'));
       final gift = find.byKey(const Key('room.userCard.gift'));
       final mention = find.byKey(const Key('room.userCard.mention'));
       final message = find.byKey(const Key('room.userCard.message'));
-      expect(gift, findsOneWidget);
-      expect(mention, findsOneWidget);
-      expect(message, findsOneWidget);
-      expect(find.byKey(const Key('room.userCard.follow')), findsNothing);
-      // In reading order: Gift, Mention, Message.
+      for (final f in [follow, gift, mention, message]) {
+        expect(f, findsOneWidget);
+      }
+      // Followed: «Following» on the follow pill.
+      expect(
+        find.descendant(of: follow, matching: find.text(l10n.liveCardFollowed)),
+        findsOneWidget,
+      );
+      // In reading order: Follow, Gift, Chat on one line; Mention above.
       final ar = Directionality.of(tester.element(sheet)) == TextDirection.rtl;
       final xs = [
-        for (final f in [gift, mention, message]) tester.getCenter(f).dx,
+        for (final f in [follow, gift, message]) tester.getCenter(f).dx,
       ];
       expect(
         ar ? xs[0] > xs[1] && xs[1] > xs[2] : xs[0] < xs[1] && xs[1] < xs[2],
         isTrue,
       );
-      for (final f in [gift, mention, message]) {
+      expect(
+        tester.getCenter(follow).dy,
+        closeTo(tester.getCenter(message).dy, 0.5),
+      );
+      expect(tester.getCenter(mention).dy, lessThan(tester.getCenter(gift).dy));
+      for (final f in [follow, gift, mention, message]) {
         final size = tester.getSize(f);
         expect(size.height, greaterThanOrEqualTo(48));
         expect(size.width, greaterThanOrEqualTo(48));
       }
     });
 
-    testWidgets("D135: not followed — Follow in Message's place; it follows "
-        'and turns into Message; Mention puts @username in the chat box', (
-      tester,
-    ) async {
+    testWidgets('D220: not followed — «+ Follow» follows and becomes '
+        '«Following» (a tap unfollows); Chat is always there; Mention puts '
+        '@username in the chat box', (tester) async {
       final (_, profiles) = await _pumpRoom(
         tester,
         profile: apiProfile(),
@@ -618,14 +631,27 @@ void main() {
       await tester.pumpAndSettle();
       final follow = find.byKey(const Key('room.userCard.follow'));
       expect(follow, findsOneWidget);
-      expect(find.byKey(const Key('room.userCard.message')), findsNothing);
+      expect(
+        find.descendant(of: follow, matching: find.text(l10n.liveCardFollow)),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('room.userCard.message')), findsOneWidget);
       await tester.ensureVisible(follow);
       await tester.pumpAndSettle();
       await tester.tap(follow);
       await tester.pumpAndSettle();
       expect(profiles.calls.last, 'PUT host0');
-      expect(follow, findsNothing);
-      expect(find.byKey(const Key('room.userCard.message')), findsOneWidget);
+      expect(
+        find.descendant(of: follow, matching: find.text(l10n.liveCardFollowed)),
+        findsOneWidget,
+      );
+      await tester.tap(follow);
+      await tester.pumpAndSettle();
+      expect(profiles.calls.last, 'DELETE host0');
+      expect(
+        find.descendant(of: follow, matching: find.text(l10n.liveCardFollow)),
+        findsOneWidget,
+      );
       // Mention closes the card and opens the chat box with "@host0 ".
       final mention = find.byKey(const Key('room.userCard.mention'));
       await tester.ensureVisible(mention);
@@ -648,6 +674,8 @@ void main() {
       for (final k in ['gift', 'mention', 'message', 'follow']) {
         expect(find.byKey(Key('room.userCard.$k')), findsNothing, reason: k);
       }
+      // D220: «Edit profile» instead.
+      expect(find.byKey(const Key('room.userCard.edit')), findsOneWidget);
     });
   });
 
@@ -1529,11 +1557,12 @@ void main() {
       expect(find.byKey(LivePersonToolKeys.mute), findsNothing);
       expect(find.byKey(LivePersonToolKeys.admin), findsNothing);
       expect(find.byKey(const Key('room.userCard.invite')), findsNothing);
-      // D135: not followed — Gift, Mention and Follow (Message once
-      // followed); the picture opens the profile.
+      // D220: not followed — «+ Follow», Mention and Chat (Chat always);
+      // «Report» on the top row; the picture opens the profile.
       expect(find.byKey(const Key('room.userCard.follow')), findsOneWidget);
       expect(find.byKey(const Key('room.userCard.mention')), findsOneWidget);
-      expect(find.byKey(const Key('room.userCard.message')), findsNothing);
+      expect(find.byKey(const Key('room.userCard.message')), findsOneWidget);
+      expect(find.byKey(LivePersonToolKeys.reportQuick), findsOneWidget);
       expect(find.byKey(const Key('room.userCard.profile')), findsOneWidget);
       // Family, relationship, gift wall and medals do not exist yet: each
       // says so.
@@ -2527,7 +2556,8 @@ void main() {
         // CP-018: Sara has no family and no partner; the signed-in viewer
         // (not Sara) may send her a CP request; the gift wall is coming.
         await card(tester, viewer: LivePersonRole.viewer);
-        expect(find.text(l10n.liveUserNone), findsOneWidget);
+        // D220: the family and the couple share the gradient pill.
+        expect(find.text(l10n.liveCardFamilyNone), findsOneWidget);
         expect(find.text(l10n.cpSendShort), findsOneWidget);
         expect(find.text(l10n.liveUserGiftWall), findsOneWidget);
         // Medals are not a box (owner): they sit in a row under the levels,

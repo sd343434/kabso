@@ -1,0 +1,481 @@
+// D220 (owner 2026-11-01): the person card in a live, after the owner's
+// reference (layout only): a compact sheet under the live, the picture over
+// its top edge in the worn frame or a clean ring, «Report», the name and
+// «ID: username», the badge pills, the four numbers (two hideable — the
+// server leaves them out, the rest re-centre), the family/couple and gift
+// wall pills, «+ Follow», the round gift and «Chat»; «Edit profile» on your
+// own card. Arabic and English, 393×852 and 360×800 at text ×1.3, light and
+// dark, long names, many badges, reduced motion.
+
+import 'package:flutter_svga/flutter_svga.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/models/premium_tier.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
+import 'package:kabso_live/core/preferences/app_preferences.dart';
+import 'package:kabso_live/features/bag/domain/bag_models.dart';
+import 'package:kabso_live/features/levels/application/levels_providers.dart';
+import 'package:kabso_live/features/levels/domain/level_models.dart';
+import 'package:kabso_live/features/live/live_room_screen.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_person_card.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
+import 'package:kabso_live/features/medals/domain/medal_models.dart';
+import 'package:kabso_live/features/profile/data/profile_repository.dart';
+import 'package:kabso_live/features/profile/domain/profile_models.dart';
+import 'package:kabso_live/features/profile_card/kabso_profile_header.dart';
+import 'package:kabso_live/features/safety/safety_repository.dart';
+import 'package:material_ui/material_ui.dart';
+
+import '../../fixtures/live/live_api_fixtures.dart';
+import '../../helpers/fake_profile_repository.dart';
+import '../../helpers/fake_safety_repository.dart';
+import '../../helpers/golden.dart';
+import '../../helpers/pump_app.dart';
+import '../bonds/bonds_harness.dart';
+
+const _scope = LivePersonScope(roomId: 'room-0');
+
+PublicProfile _profile({
+  bool ar = false,
+  bool self = false,
+  int? cherries = 5830000,
+  int? coins = 33200,
+  String name = '',
+  AvatarFrame? frame,
+}) => apiProfile(ar: ar, isSelf: self, followerCount: 1510000).copyWith(
+  displayName: name.isEmpty ? (ar ? 'سارة' : 'Sara') : name,
+  followingCount: 59400,
+  cherriesReceived: cherries,
+  coinsSent: coins,
+  avatarFrame: frame,
+);
+
+List<PublicLevel> _levels(int extra) => [
+  PublicLevel(
+    category: LevelCategory.attractiveness,
+    name: 'Charm',
+    level: LevelBrief(levelNumber: 32, name: 'x', requiredPoints: BigInt.zero),
+  ),
+  for (final (i, c) in [
+    LevelCategory.support,
+    LevelCategory.gaming,
+    LevelCategory.wizard,
+  ].indexed.take(extra))
+    PublicLevel(
+      category: c,
+      name: c.name,
+      level: LevelBrief(
+        levelNumber: 10 + i,
+        name: 'x',
+        requiredPoints: BigInt.zero,
+      ),
+    ),
+];
+
+Future<BondFakes> _card(
+  WidgetTester tester,
+  PublicProfile profile, {
+  AppLanguage language = AppLanguage.en,
+  GoldenViewport viewport = GoldenViewport.phone,
+  Brightness brightness = Brightness.light,
+  LivePersonScope? scope = _scope,
+  int levels = 1,
+  KabsoProfileHeader? header,
+  FakeSafetyRepository? safety,
+}) async {
+  setViewport(tester, viewport);
+  await tester.pumpWidget(const SizedBox.shrink());
+  final fakes = await pumpBonds(
+    tester,
+    Scaffold(
+      backgroundColor: const Color(0xFF3A2A5A),
+      body: Builder(
+        builder: (context) => Center(
+          child: TextButton(
+            onPressed: () =>
+                showHostSheet(context, 'host0', scope: scope, header: header),
+            child: const Text('open'),
+          ),
+        ),
+      ),
+    ),
+    language: language,
+    brightness: brightness,
+    overrides: [
+      profileRepositoryProvider.overrideWithValue(
+        FakeProfileRepository(profile),
+      ),
+      safetyRepositoryProvider.overrideWithValue(
+        safety ?? FakeSafetyRepository(),
+      ),
+      profileLevelsProvider.overrideWith((ref, _) async => _levels(levels)),
+    ],
+  );
+  await tester.tap(find.text('open'));
+  await tester.pumpAndSettle();
+  return fakes;
+}
+
+Finder _stat(LivePersonStat s) => find.byKey(LivePersonSheet.statKey(s));
+
+void main() {
+  final en = l10nFor(AppLanguage.en);
+
+  group('D220 person card', () {
+    testWidgets('four numbers in order, compact, with their labels', (
+      tester,
+    ) async {
+      await _card(tester, _profile());
+      for (final (stat, value, label) in [
+        (LivePersonStat.followers, '1.5M', en.liveCardFollowers),
+        (LivePersonStat.following, '59.4K', en.liveCardFollowing),
+        (LivePersonStat.cherries, '5.8M', en.liveCardCherries),
+        (LivePersonStat.coins, '33.2K', en.liveCardCoinsSent),
+      ]) {
+        expect(_stat(stat), findsOneWidget, reason: stat.name);
+        expect(
+          find.descendant(of: _stat(stat), matching: find.text(value)),
+          findsOneWidget,
+          reason: stat.name,
+        );
+        expect(
+          find.descendant(of: _stat(stat), matching: find.text(label)),
+          findsOneWidget,
+          reason: stat.name,
+        );
+      }
+      final xs = <double>[
+        for (final s in LivePersonStat.values) tester.getCenter(_stat(s)).dx,
+      ];
+      expect(xs, orderedEquals(List<double>.of(xs)..sort()));
+    });
+
+    for (final (hidden, count) in [
+      ((cherries: true, coins: false), 3),
+      ((cherries: false, coins: true), 3),
+      ((cherries: true, coins: true), 2),
+    ]) {
+      testWidgets('hidden by the person (cherries ${hidden.cherries}, coins '
+          '${hidden.coins}): $count numbers, spread evenly', (tester) async {
+        await _card(
+          tester,
+          _profile(
+            cherries: hidden.cherries ? null : 1,
+            coins: hidden.coins ? null : 2,
+          ),
+        );
+        final shown = [
+          for (final s in LivePersonStat.values)
+            if (_stat(s).evaluate().isNotEmpty) s,
+        ];
+        expect(shown, hasLength(count));
+        expect(
+          _stat(LivePersonStat.cherries).evaluate().isEmpty,
+          hidden.cherries,
+        );
+        expect(_stat(LivePersonStat.coins).evaluate().isEmpty, hidden.coins);
+        // Equal cells across the row, centred under the card.
+        final rects = [for (final s in shown) tester.getRect(_stat(s))];
+        final width = rects.first.width;
+        for (final r in rects) {
+          expect(r.width, closeTo(width, 0.5));
+        }
+        final row = tester.getRect(find.byKey(LivePersonSheet.statsKey));
+        final screen = tester.view.physicalSize / tester.view.devicePixelRatio;
+        expect(row.center.dx, closeTo(screen.width / 2, 0.5));
+      });
+    }
+
+    testWidgets('Arabic: the numbers read from the right, followers first', (
+      tester,
+    ) async {
+      await _card(tester, _profile(ar: true), language: AppLanguage.ar);
+      final xs = <double>[
+        for (final s in LivePersonStat.values) tester.getCenter(_stat(s)).dx,
+      ];
+      expect(
+        xs,
+        orderedEquals(List<double>.of(xs)..sort((a, b) => b.compareTo(a))),
+      );
+      // «إبلاغ» at the reading start (the right).
+      final report = tester.getCenter(
+        find.byKey(LivePersonToolKeys.reportQuick),
+      );
+      final picture = tester.getCenter(
+        find.byKey(const Key('room.userCard.profile')),
+      );
+      expect(report.dx, greaterThan(picture.dx));
+    });
+
+    testWidgets('the name and «ID: username» sit under the picture, which '
+        'overlaps the top edge', (tester) async {
+      await _card(tester, _profile());
+      final sheet = tester.getRect(find.byKey(LivePersonSheet.sheetKey));
+      final picture = tester.getRect(find.byKey(LivePersonSheet.ringKey));
+      final name = tester.getRect(find.byKey(LivePersonSheet.nameKey));
+      expect(
+        find.text(en.liveCardId(KFormat.bidiIsolate('host0'))),
+        findsOneWidget,
+      );
+      expect(picture.top, closeTo(sheet.top, 0.5));
+      // The sheet's white starts at the picture's middle.
+      final white = tester.getRect(
+        find
+            .descendant(
+              of: find.byKey(LivePersonSheet.sheetKey),
+              matching: find.byType(DecoratedBox),
+            )
+            .first,
+      );
+      expect(white.top, closeTo(picture.center.dy, 0.5));
+      expect(name.top, greaterThan(picture.bottom));
+      expect(name.center.dx, closeTo(picture.center.dx, 1));
+    });
+
+    testWidgets('no frame: a clean white ring; a worn bag frame is drawn '
+        'around the picture instead', (tester) async {
+      await _card(tester, _profile());
+      expect(find.byKey(LivePersonSheet.ringKey), findsOneWidget);
+      expect(find.byKey(LivePersonSheet.bagFrameKey), findsNothing);
+      await _card(
+        tester,
+        _profile(
+          frame: const AvatarFrame(
+            code: 'host_frame_pink',
+            assetKey: 'host_frame_pink',
+          ),
+        ),
+      );
+      expect(find.byKey(LivePersonSheet.bagFrameKey), findsOneWidget);
+      expect(find.byKey(LivePersonSheet.ringKey), findsNothing);
+      // A frame this app has no art for: the ring.
+      await _card(
+        tester,
+        _profile(
+          frame: const AvatarFrame(code: 'future', assetKey: 'future_frame'),
+        ),
+      );
+      expect(find.byKey(LivePersonSheet.ringKey), findsOneWidget);
+    });
+
+    testWidgets('the recharge-agent frame wins over the bag frame', (
+      tester,
+    ) async {
+      await _card(
+        tester,
+        _profile(
+          frame: const AvatarFrame(
+            code: 'host_frame_blue',
+            assetKey: 'host_frame_blue',
+          ),
+        ).copyWith(rechargeAgentCode: 'K7Q2'),
+      );
+      expect(find.byKey(LivePersonSheet.agentFrameKey), findsOneWidget);
+      expect(find.byKey(LivePersonSheet.bagFrameKey), findsNothing);
+    });
+
+    testWidgets('«Report» asks for a reason and reports the person', (
+      tester,
+    ) async {
+      final safety = FakeSafetyRepository();
+      await _card(tester, _profile(), safety: safety);
+      await tester.tap(find.byKey(LivePersonToolKeys.reportQuick));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('feed.post.report.spam')));
+      await tester.pumpAndSettle();
+      expect(safety.calls, ['reportUser:user-0:SPAM']);
+      // ⋯ keeps report and block.
+      expect(find.byKey(LivePersonToolKeys.more), findsOneWidget);
+    });
+
+    testWidgets('your own card: «Edit profile», your numbers, no follow, '
+        'chat, gift or report', (tester) async {
+      final fakes = await _card(
+        tester,
+        _profile(self: true),
+        scope: LivePersonScope(roomId: 'room-0', onGift: (_) {}),
+      );
+      for (final k in [
+        LivePersonSheet.followKey,
+        LivePersonSheet.messageKey,
+        LivePersonSheet.giftKey,
+        LivePersonToolKeys.reportQuick,
+      ]) {
+        expect(find.byKey(k), findsNothing, reason: '$k');
+      }
+      expect(_stat(LivePersonStat.cherries), findsOneWidget);
+      expect(_stat(LivePersonStat.coins), findsOneWidget);
+      await tester.tap(find.byKey(LivePersonSheet.editKey));
+      await tester.pumpAndSettle();
+      expect(fakes.visited, ['/profile/edit']);
+    });
+
+    testWidgets('Chat opens the conversation; the name opens the profile', (
+      tester,
+    ) async {
+      var fakes = await _card(tester, _profile());
+      await tester.tap(find.byKey(LivePersonSheet.messageKey));
+      await tester.pumpAndSettle();
+      expect(fakes.visited, ['/messages/host0']);
+      fakes = await _card(tester, _profile());
+      await tester.tap(find.byKey(LivePersonSheet.nameKey));
+      await tester.pumpAndSettle();
+      expect(fakes.visited, ['/users/host0']);
+    });
+
+    testWidgets('the round gift opens the gift panel for this person', (
+      tester,
+    ) async {
+      LiveGiftPreselectSeen? seen;
+      await _card(
+        tester,
+        _profile(),
+        scope: LivePersonScope(
+          roomId: 'room-0',
+          onGift: (p) => seen = (username: p.username, name: p.name),
+        ),
+      );
+      final gift = find.byKey(LivePersonSheet.giftKey);
+      final size = tester.getSize(gift);
+      expect(size.width, greaterThanOrEqualTo(48));
+      expect(size.height, greaterThanOrEqualTo(48));
+      await tester.tap(gift);
+      await tester.pumpAndSettle();
+      expect(seen, (username: 'host0', name: 'Sara'));
+      expect(find.byKey(LivePersonSheet.sheetKey), findsNothing);
+    });
+
+    testWidgets('light: a white sheet; dark: the app surface', (tester) async {
+      Color sheet() {
+        final box = tester.widget<Container>(
+          find
+              .descendant(
+                of: find.byKey(LivePersonSheet.sheetKey),
+                matching: find.byType(Container),
+              )
+              .first,
+        );
+        return (box.decoration! as BoxDecoration).color!;
+      }
+
+      await _card(tester, _profile());
+      expect(sheet(), const Color(0xFFFFFFFF));
+      await _card(tester, _profile(), brightness: Brightness.dark);
+      expect(sheet(), isNot(const Color(0xFFFFFFFF)));
+    });
+
+    for (final language in AppLanguage.values) {
+      for (final viewport in GoldenViewport.values) {
+        testWidgets('${language.name} ${viewport.name} ×1.3: a long name, '
+            'many badges, a premium ID, a frame — nothing overflows', (
+          tester,
+        ) async {
+          tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+          addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+          final ar = language == AppLanguage.ar;
+          await _card(
+            tester,
+            _profile(
+              ar: ar,
+              name: ar
+                  ? 'سارة عبد الرحمن الهاشمية من مدينة الإسكندرية الجميلة'
+                  : 'Sara Abdulrahman Al-Hashimi from beautiful Alexandria',
+              frame: const AvatarFrame(
+                code: 'host_frame_pink',
+                assetKey: 'host_frame_pink',
+              ),
+            ).copyWith(
+              premiumTier: PremiumTier.gold,
+              medals: ProfileMedals(
+                owned: 6,
+                total: 9,
+                showcase: [
+                  for (final c in ['A', 'B', 'C', 'D', 'E', 'F'])
+                    ProfileMedal(code: c, name: c, iconKey: 'medal_$c'),
+                ],
+              ),
+            ),
+            language: language,
+            viewport: viewport,
+            levels: 3,
+            scope: const LivePersonScope(
+              roomId: 'room-0',
+              viewer: LivePersonRole.host,
+              target: LivePersonRole.moderator,
+            ),
+          );
+          expect(tester.takeException(), isNull);
+          // The name keeps one line with an ellipsis at its end.
+          final name = tester.widget<Text>(
+            find.descendant(
+              of: find.byKey(LivePersonSheet.nameKey),
+              matching: find.byType(Text),
+            ),
+          );
+          expect(name.maxLines, 1);
+          expect(name.overflow, TextOverflow.ellipsis);
+          // Every part of the card is reachable (it scrolls with large
+          // text) and inside the screen's width.
+          final screen =
+              tester.view.physicalSize / tester.view.devicePixelRatio;
+          for (final k in [
+            LivePersonSheet.badgesKey,
+            LivePersonSheet.statsKey,
+            LivePersonSheet.followKey,
+            LivePersonSheet.messageKey,
+          ]) {
+            await tester.ensureVisible(find.byKey(k));
+            await tester.pumpAndSettle();
+            final r = tester.getRect(find.byKey(k));
+            expect(r.left, greaterThanOrEqualTo(0), reason: '$k');
+            expect(r.right, lessThanOrEqualTo(screen.width), reason: '$k');
+          }
+          expect(tester.takeException(), isNull);
+        });
+      }
+    }
+
+    testWidgets('reduced motion: the profile card header stays still', (
+      tester,
+    ) async {
+      final animate = KabsoProfileHeaderArt.animate;
+      KabsoProfileHeaderArt.animate = true;
+      addTearDown(() => KabsoProfileHeaderArt.animate = animate);
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+      await _card(
+        tester,
+        _profile().copyWith(
+          profileCard: const ProfileCard(
+            code: 'emerald_wings',
+            assetKey: 'header_emerald_wings',
+          ),
+        ),
+      );
+      expect(find.byKey(const Key('room.userCard.header')), findsOneWidget);
+      expect(find.byType(SVGAImage), findsNothing);
+      expect(tester.takeException(), isNull);
+      // The picture stays above the sheet with the header behind it.
+      expect(find.byKey(LivePersonSheet.ringKey), findsOneWidget);
+    });
+
+    testWidgets('semantics: each number is read with its label', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      await _card(tester, _profile());
+      expect(
+        find.bySemanticsLabel('${en.liveCardCherries} 5.8M'),
+        findsOneWidget,
+      );
+      expect(find.bySemanticsLabel(en.liveCardSendGift), findsNothing);
+      handle.dispose();
+    });
+  });
+}
+
+/// What the gift button handed to the panel.
+typedef LiveGiftPreselectSeen = ({String username, String name});

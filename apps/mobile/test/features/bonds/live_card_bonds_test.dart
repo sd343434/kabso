@@ -141,9 +141,10 @@ void main() {
         ),
         findsOneWidget,
       );
-      // The gift wall still says it is coming.
-      expect(find.text(en.liveUserSoon), findsOneWidget);
-      expect(find.text(en.liveUserNone), findsNothing);
+      // D220: the gift wall pill (it still says it is coming on a tap);
+      // the family and the couple fill the gradient pill.
+      expect(find.text(en.liveUserGiftWall), findsOneWidget);
+      expect(find.text(en.liveCardFamilyNone), findsNothing);
     });
 
     testWidgets('the family box opens the family page', (tester) async {
@@ -198,7 +199,9 @@ void main() {
         tester,
         _profile(self: true, family: false, cp: false),
       );
-      expect(find.text(en.liveUserNone), findsNWidgets(2));
+      // D220: «No family» and the couple's plain label in the gradient pill.
+      expect(find.text(en.liveCardFamilyNone), findsOneWidget);
+      expect(find.text(en.liveUserCp), findsOneWidget);
       var box = find.byKey(LivePersonBoxes.boxKey(0));
       await _show(tester, box);
       await tester.tap(box);
@@ -277,7 +280,8 @@ void main() {
     testWidgets('a guest sees no CP request offer', (tester) async {
       await _card(tester, _profile(cp: false), signedIn: false);
       expect(find.text(en.cpSendShort), findsNothing);
-      expect(find.text(en.liveUserNone), findsOneWidget);
+      // D220: the couple's half shows its plain label.
+      expect(find.text(en.liveUserCp), findsOneWidget);
     });
 
     testWidgets('the medal row: six icons under the levels, in order', (
