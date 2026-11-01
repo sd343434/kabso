@@ -18,6 +18,7 @@ import 'package:kabso_live/features/live/application/live_wallet_controller.dart
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
+import 'package:kabso_live/features/referrals/application/referral_providers.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -186,7 +187,14 @@ class MeHubScreen extends ConsumerWidget {
         icon: Icons.payments_rounded,
         hue: _Hues.blue,
         label: l10n.meHubEarn,
-        onTap: () => push(AppRoutes.walletCherries),
+        // D217 (owner): «اربح المال» opens «دعوة صديق»; the cherry wallet
+        // when the programme was found off (the invite page also gives way
+        // to it when it finds the programme off).
+        onTap: () => push(
+          ref.read(referralEnabledProvider) == false
+              ? AppRoutes.walletCherries
+              : AppRoutes.inviteFriends,
+        ),
       ),
     ];
 

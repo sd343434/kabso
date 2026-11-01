@@ -19,6 +19,7 @@ import 'package:kabso_live/features/auth/presentation/country_picker.dart';
 import 'package:kabso_live/features/auth/presentation/locale_sync.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/debug/demo_entry.dart';
+import 'package:kabso_live/features/referrals/presentation/referral_code_sheet.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -67,6 +68,9 @@ class SettingsScreen extends ConsumerWidget {
   static const premiumKey = Key('settings.premium');
   static const soundEffectsKey = Key('settings.soundEffects');
   static const deleteAccountKey = Key('settings.deleteAccount');
+
+  /// D217: a friend's invite code entered after sign-up.
+  static const referralKey = Key('settings.referral');
 
   static String _username(WidgetRef ref) =>
       ref.watch(currentUserProvider.select((u) => u?.username)) ?? '';
@@ -266,6 +270,14 @@ class SettingsScreen extends ConsumerWidget {
             title: Text(l10n.premiumTitle),
             subtitle: Text(l10n.premiumTileValue),
             onTap: () => GoRouter.maybeOf(context)?.push(AppRoutes.premium),
+          ),
+          // D217: a friend's invite code after sign-up (the sheet says when
+          // it can no longer be entered).
+          ListTile(
+            key: referralKey,
+            leading: const Icon(Icons.card_giftcard_rounded),
+            title: Text(l10n.referralApplyRow),
+            onTap: () => showReferralCodeSheet(context),
           ),
           // D72: the caller's four levels.
           ListTile(

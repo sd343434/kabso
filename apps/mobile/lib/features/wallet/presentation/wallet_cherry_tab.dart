@@ -449,6 +449,7 @@ class _CherryTile extends StatelessWidget {
         CherryLedgerReason.withdrawalHold => l10n.cherryReasonWithdrawal,
         CherryLedgerReason.withdrawalRefund => l10n.cherryReasonRefund,
         CherryLedgerReason.taskReward => l10n.cherryReasonTask,
+        CherryLedgerReason.referralReward => l10n.cherryReasonReferral,
         CherryLedgerReason.other => l10n.cherryReasonOther,
       };
 
@@ -462,6 +463,7 @@ class _CherryTile extends StatelessWidget {
     CherryLedgerReason.withdrawalHold ||
     CherryLedgerReason.withdrawalRefund => Icons.account_balance_rounded,
     CherryLedgerReason.taskReward => Icons.task_alt_rounded,
+    CherryLedgerReason.referralReward => Icons.group_add_rounded,
     CherryLedgerReason.other => Icons.swap_vert_rounded,
   };
 

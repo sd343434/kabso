@@ -188,6 +188,10 @@ abstract final class AppRoutes {
   static const earnings = '/earnings';
   static const walletCherries = '/wallet?tab=cherries';
 
+  /// v1.74-social (D217): «دعوة صديق», behind the Me hub's «اربح المال»
+  /// (the cherry wallet when the programme is off).
+  static const inviteFriends = '/invite-friends';
+
   /// D177: the coin history (D164's ledger), behind the gold card's button.
   static const walletHistory = '/wallet/history';
   static const creatorCenter = '/creator';

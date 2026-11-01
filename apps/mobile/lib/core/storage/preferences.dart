@@ -36,4 +36,8 @@ abstract final class PreferenceKeys {
   /// D152: the notification permission's rationale was shown once (it is
   /// never shown by itself again; Settings offers it). Not sensitive.
   static const pushPermissionAsked = 'pref.pushPermissionAsked';
+
+  /// D217: this install's random id (`DeviceInfo.installId`, the referral
+  /// device check). Wiped on uninstall. Not sensitive.
+  static const installId = 'pref.installId';
 }

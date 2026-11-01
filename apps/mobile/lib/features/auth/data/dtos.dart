@@ -132,7 +132,7 @@ class AuthResponseDto {
 /// `DeviceInfo`
 @JsonSerializable(includeIfNull: false)
 class DeviceInfoDto {
-  const new({this.name, this.platform, this.appVersion});
+  const new({this.name, this.platform, this.appVersion, this.installId});
 
   factory fromJson(Map<String, dynamic> json) => _$DeviceInfoDtoFromJson(json);
 
@@ -141,6 +141,10 @@ class DeviceInfoDto {
   /// `android | ios | web | other`
   final String? platform;
   final String? appVersion;
+
+  /// v1.74-social (D217): this install's random id (the referral device
+  /// check; `installIdProvider`).
+  final String? installId;
 
   Map<String, dynamic> toJson() => _$DeviceInfoDtoToJson(this);
 }
@@ -172,6 +176,7 @@ class RegisterRequestDto {
     this.locale,
     this.device,
     this.legal,
+    this.referralCode,
   });
 
   factory fromJson(Map<String, dynamic> json) =>
@@ -193,6 +198,9 @@ class RegisterRequestDto {
   /// termsVersion?, privacyVersion?}` — the 18+ statement and the versions
   /// of the terms and the privacy policy shown at sign-up.
   final Map<String, dynamic>? legal;
+
+  /// v1.74-social (D217): the invite code typed at sign-up (optional).
+  final String? referralCode;
 
   Map<String, dynamic> toJson() => _$RegisterRequestDtoToJson(this);
 }

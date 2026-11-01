@@ -235,6 +235,16 @@ enum ErrorCode {
   /// `details[0].issue` says why (`HostingApplyRefusal`).
   hostApplicationNotAllowed('HOST_APPLICATION_NOT_ALLOWED'),
 
+  /// v1.74-social (D217, §10.71, 503): «دعوة الأصدقاء» is switched off.
+  referralUnavailable('REFERRAL_UNAVAILABLE'),
+
+  /// v1.74-social (D217, 422): no such invite code (or the caller's own).
+  referralCodeInvalid('REFERRAL_CODE_INVALID'),
+
+  /// v1.74-social (D217, 409): a code was already entered, or the days to
+  /// enter one are over (`details[0].issue`).
+  referralNotAllowed('REFERRAL_NOT_ALLOWED'),
+
   /// v1.52-social (D179, §10.46, 409): the cherry balance does not cover
   /// the withdrawal.
   insufficientCherries('INSUFFICIENT_CHERRIES'),

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/config/app_config.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
+import 'package:kabso_live/core/ids/install_id.dart';
 import 'package:kabso_live/core/logging/app_logger.dart';
 import 'package:kabso_live/core/models/profile_fields.dart';
 import 'package:kabso_live/core/network/network_providers.dart';
@@ -50,7 +51,9 @@ class AuthRepositoryImpl implements AuthRepository {
     required Gender gender,
     required String locale,
     Map<String, dynamic>? legal,
+    String? referralCode,
   }) async {
+    final code = referralCode?.trim();
     await _remote.register(
       RegisterRequestDto(
         email: AuthValidators.normalizeEmail(email),
@@ -61,6 +64,7 @@ class AuthRepositoryImpl implements AuthRepository {
         locale: locale,
         device: _device,
         legal: legal,
+        referralCode: code == null || code.isEmpty ? null : code,
       ),
     );
   }
@@ -151,6 +155,8 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
     device: DeviceInfoDto(
       platform: clientPlatform(),
       appVersion: config.appVersion,
+      // v1.74-social (D217): the referral device check.
+      installId: ref.watch(installIdProvider),
     ),
   );
 });

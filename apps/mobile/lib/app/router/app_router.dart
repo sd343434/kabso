@@ -94,6 +94,7 @@ import 'package:kabso_live/features/recharge/presentation/recharge_hub_screen.da
 import 'package:kabso_live/features/recharge/presentation/recharge_order_new_screen.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_order_screen.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_orders_screen.dart';
+import 'package:kabso_live/features/referrals/presentation/invite_friends_screen.dart';
 import 'package:kabso_live/features/safety/safety_screens.dart';
 import 'package:kabso_live/features/settings/account_deletion/account_deletion_screen.dart';
 import 'package:kabso_live/features/settings/account_deletion/deletion_pending_screen.dart';
@@ -432,6 +433,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       // D179: host agencies.
       GoRoute(path: AppRoutes.agency, builder: (_, _) => const AgencyScreen()),
+      // v1.74-social (D217): «دعوة صديق».
+      GoRoute(
+        path: AppRoutes.inviteFriends,
+        builder: (_, _) => const InviteFriendsScreen(),
+      ),
       // v1.70-social (D206): «افتح وكالة».
       GoRoute(
         path: AppRoutes.agencyOpen,

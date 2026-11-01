@@ -89,6 +89,9 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
     ErrorCode.agencyLeaveWindowClosed => l10n.errorAgencyLeaveWindowClosed,
     ErrorCode.agencyOpenNotAllowed => l10n.errorAgencyOpenNotAllowed,
     ErrorCode.hostApplicationNotAllowed => l10n.errorHostApplicationNotAllowed,
+    ErrorCode.referralUnavailable => l10n.errorReferralUnavailable,
+    ErrorCode.referralCodeInvalid => l10n.errorReferralCodeInvalid,
+    ErrorCode.referralNotAllowed => l10n.errorReferralNotAllowed,
     ErrorCode.insufficientCherries => l10n.errorInsufficientCherries,
     ErrorCode.withdrawalPending => l10n.errorWithdrawalPending,
     ErrorCode.rechargeApplicationNotAllowed =>

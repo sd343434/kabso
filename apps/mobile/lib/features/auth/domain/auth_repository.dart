@@ -22,6 +22,9 @@ abstract interface class AuthRepository {
     required Gender gender,
     required String locale,
     Map<String, dynamic>? legal,
+
+    /// v1.74-social (D217): an invite code typed at sign-up (optional).
+    String? referralCode,
   });
 
   /// `POST /auth/register/verify` → 201: creates the account and stores the

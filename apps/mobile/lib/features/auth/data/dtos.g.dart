@@ -66,6 +66,7 @@ DeviceInfoDto _$DeviceInfoDtoFromJson(Map<String, dynamic> json) =>
       name: json['name'] as String?,
       platform: json['platform'] as String?,
       appVersion: json['appVersion'] as String?,
+      installId: json['installId'] as String?,
     );
 
 Map<String, dynamic> _$DeviceInfoDtoToJson(DeviceInfoDto instance) =>
@@ -73,6 +74,7 @@ Map<String, dynamic> _$DeviceInfoDtoToJson(DeviceInfoDto instance) =>
       'name': ?instance.name,
       'platform': ?instance.platform,
       'appVersion': ?instance.appVersion,
+      'installId': ?instance.installId,
     };
 
 LoginRequestDto _$LoginRequestDtoFromJson(Map<String, dynamic> json) =>
@@ -103,6 +105,7 @@ RegisterRequestDto _$RegisterRequestDtoFromJson(Map<String, dynamic> json) =>
           ? null
           : DeviceInfoDto.fromJson(json['device'] as Map<String, dynamic>),
       legal: json['legal'] as Map<String, dynamic>?,
+      referralCode: json['referralCode'] as String?,
     );
 
 Map<String, dynamic> _$RegisterRequestDtoToJson(RegisterRequestDto instance) =>
@@ -115,6 +118,7 @@ Map<String, dynamic> _$RegisterRequestDtoToJson(RegisterRequestDto instance) =>
       'locale': ?instance.locale,
       'device': ?instance.device?.toJson(),
       'legal': ?instance.legal,
+      'referralCode': ?instance.referralCode,
     };
 
 SessionInfoDto _$SessionInfoDtoFromJson(Map<String, dynamic> json) =>
