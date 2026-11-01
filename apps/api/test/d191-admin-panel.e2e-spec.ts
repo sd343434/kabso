@@ -99,6 +99,15 @@ describe('D191 contract coverage', () => {
         'getAdminSiteSettings',
         'updateAdminSiteSettings',
         'getSiteSettings',
+        // v1.69-social (D204): «نزاعات الشحن» and «أسعار الصرف».
+        'listAdminRechargeDisputes',
+        'getAdminRechargeOrder',
+        'postAdminRechargeOrderMessage',
+        'getAdminRechargeOrderMessageImage',
+        'resolveAdminRechargeDispute',
+        'listAdminRechargeExchangeRates',
+        'setAdminRechargeExchangeRate',
+        'clearAdminRechargeExchangeRate',
       ].sort(),
     );
   });
@@ -427,6 +436,8 @@ describe('D191 admin panel', { timeout: 300_000 }, () => {
       'site.settings': '/admin/site-settings',
       // v1.64-social (D196): the Stripe keys «الدفع (Stripe)».
       'payments.settings': '/admin/payment-settings',
+      // v1.69-social (D204): the dispute queue.
+      'recharge.disputes': '/admin/recharge/disputes',
     };
     it('every role gets exactly its capabilities (server-side)', async () => {
       const byRole: Record<string, Admin> = {

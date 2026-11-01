@@ -231,6 +231,8 @@ model User {
   // v1.56-social (D187): the daily recharge badges.
   rechargeDailyTotals    RechargeDailyTotal[]
   rechargeBadge          RechargeBadge?
+  // v1.69-social (D204): recharge orders a buyer asked an agent for.
+  rechargeOrdersBought   RechargeOrder[]            @relation("RechargeOrderBuyer")
   // v1.59-social (D190): card top-ups on the website.
   topupTermsAcceptances  TopupTermsAcceptance[]
   topupOrders            TopupOrder[]
@@ -923,6 +925,8 @@ enum WalletLedgerReason {
   CARD_TOPUP
   CARD_TOPUP_REVERSAL
   CARD_TOPUP_RESTORE
+  /// v1.69-social (D204): the frozen coins of a recharge order credited to the buyer (reference: the order).
+  RECHARGE_ORDER
 
   @@map("wallet_ledger_reason")
 }
@@ -2006,6 +2010,8 @@ enum NotificationType {
   MODERATION_WARNING
   /// v1.66-social (D198, system): the personal-data export «تنزيل بياناتي» is ready (no target).
   DATA_EXPORT_READY
+  /// v1.69-social (D204, system): something happened on a recharge order you take part in (target the order).
+  RECHARGE_ORDER_UPDATE
 
   @@map("notification_type")
 }
@@ -2015,43 +2021,47 @@ enum NotificationType {
 /// set on unread likes and reposts so new actors join the same row; `updated_at` is the latest
 /// activity (the list order and the 30-day retention).
 model Notification {
-  id             String           @id @default(uuid(7)) @db.Uuid
-  recipientId    String           @map("recipient_id") @db.Uuid
-  type           NotificationType
-  postId         String?          @map("post_id") @db.Uuid
-  commentId      String?          @map("comment_id") @db.Uuid
-  storyId        String?          @map("story_id") @db.Uuid
+  id                 String           @id @default(uuid(7)) @db.Uuid
+  recipientId        String           @map("recipient_id") @db.Uuid
+  type               NotificationType
+  postId             String?          @map("post_id") @db.Uuid
+  commentId          String?          @map("comment_id") @db.Uuid
+  storyId            String?          @map("story_id") @db.Uuid
   /// CP-016 C: the scheduled live a `LIVE_SCHEDULED_SOON` reminds of (deleted with it).
-  liveScheduleId String?          @map("live_schedule_id") @db.Uuid
+  liveScheduleId     String?          @map("live_schedule_id") @db.Uuid
   /// CP-018: the family of FAMILY_JOIN_ACCEPTED / FAMILY_JOIN_DECLINED.
-  familyId       String?          @map("family_id") @db.Uuid
+  familyId           String?          @map("family_id") @db.Uuid
   /// CP-018: the medal of MEDAL_AWARDED.
-  medalCode      String?          @map("medal_code") @db.VarChar(40)
+  medalCode          String?          @map("medal_code") @db.VarChar(40)
   /// D146: the premium username lease of PREMIUM_USERNAME_EXPIRING / _EXPIRED.
-  premiumLeaseId String?          @map("premium_lease_id") @db.Uuid
+  premiumLeaseId     String?          @map("premium_lease_id") @db.Uuid
   /// v1.48-social (D171): the bag item of BAG_ITEM_RECEIVED.
-  bagItemCode    String?          @map("bag_item_code") @db.VarChar(40)
+  bagItemCode        String?          @map("bag_item_code") @db.VarChar(40)
   /// v1.54-social (D185): the sale of RECHARGE_COINS_RECEIVED.
-  rechargeSaleId String?          @map("recharge_sale_id") @db.Uuid
-  groupKey       String?          @map("group_key") @db.VarChar(80)
-  readAt         DateTime?        @map("read_at") @db.Timestamptz(3)
+  rechargeSaleId     String?          @map("recharge_sale_id") @db.Uuid
+  /// v1.69-social (D204): the order of RECHARGE_ORDER_UPDATE and the latest event on it.
+  rechargeOrderId    String?          @map("recharge_order_id") @db.Uuid
+  rechargeOrderEvent String?          @map("recharge_order_event") @db.VarChar(24)
+  groupKey           String?          @map("group_key") @db.VarChar(80)
+  readAt             DateTime?        @map("read_at") @db.Timestamptz(3)
   /// v1.30-live (D152): the `updated_at` the push dispatcher last handled (pushed or skipped);
   /// NULL or older than `updated_at` = waiting (an outbox, `notifications_push_pending_idx`).
-  pushedAt       DateTime?        @map("pushed_at") @db.Timestamptz(3)
-  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt      DateTime         @default(now()) @map("updated_at") @db.Timestamptz(3)
+  pushedAt           DateTime?        @map("pushed_at") @db.Timestamptz(3)
+  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime         @default(now()) @map("updated_at") @db.Timestamptz(3)
 
-  recipient    User                  @relation(fields: [recipientId], references: [id], onDelete: Cascade)
-  post         Post?                 @relation(fields: [postId], references: [id], onDelete: Cascade)
-  comment      Comment?              @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  story        Story?                @relation(fields: [storyId], references: [id], onDelete: Cascade)
-  liveSchedule LiveScheduleSlot?     @relation(fields: [liveScheduleId], references: [id], onDelete: Cascade)
-  family       Family?               @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  medal        Medal?                @relation(fields: [medalCode], references: [code], onDelete: Cascade)
-  premiumLease PremiumUsernameLease? @relation(fields: [premiumLeaseId], references: [id], onDelete: Cascade)
-  bagItem      BagItem?              @relation(fields: [bagItemCode], references: [code], onDelete: Cascade, onUpdate: Cascade)
-  rechargeSale RechargeSale?         @relation(fields: [rechargeSaleId], references: [id], onDelete: Cascade)
-  actors       NotificationActor[]
+  recipient     User                  @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  post          Post?                 @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment       Comment?              @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  story         Story?                @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  liveSchedule  LiveScheduleSlot?     @relation(fields: [liveScheduleId], references: [id], onDelete: Cascade)
+  family        Family?               @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  medal         Medal?                @relation(fields: [medalCode], references: [code], onDelete: Cascade)
+  premiumLease  PremiumUsernameLease? @relation(fields: [premiumLeaseId], references: [id], onDelete: Cascade)
+  bagItem       BagItem?              @relation(fields: [bagItemCode], references: [code], onDelete: Cascade, onUpdate: Cascade)
+  rechargeSale  RechargeSale?         @relation(fields: [rechargeSaleId], references: [id], onDelete: Cascade)
+  rechargeOrder RechargeOrder?        @relation(fields: [rechargeOrderId], references: [id], onDelete: Cascade)
+  actors        NotificationActor[]
 
   @@index([recipientId, updatedAt(sort: Desc), id(sort: Desc)], map: "notifications_recipient_updated_idx")
   @@index([recipientId, groupKey], map: "notifications_unread_group_idx", where: raw("read_at IS NULL AND group_key IS NOT NULL"))
@@ -2066,6 +2076,7 @@ model Notification {
   @@index([familyId], map: "notifications_family_id_idx")
   @@index([medalCode], map: "notifications_medal_code_idx")
   @@index([rechargeSaleId], map: "notifications_recharge_sale_idx", where: raw("recharge_sale_id IS NOT NULL"))
+  @@index([recipientId, rechargeOrderId], map: "notifications_recharge_order_idx", where: raw("recharge_order_id IS NOT NULL"))
   @@map("notifications")
 }
 
@@ -3835,6 +3846,10 @@ enum RechargeStockReason {
   TOPUP
   SALE
   CHERRY_PURCHASE
+  /// v1.69-social (D204): coins frozen for an order when the payment details are sent (reference: the order),
+  /// and frozen coins given back to the stock (a cancellation, an expiry or a dispute refunded to the agent).
+  ORDER_HOLD
+  ORDER_RELEASE
 
   @@map("recharge_stock_reason")
 }
@@ -3902,6 +3917,7 @@ model RechargeAgent {
   sales          RechargeSale[]
   employees      RechargeEmployee[]
   cherryRequests RechargeCherryRequest[]
+  orders         RechargeOrder[]
 
   @@index([countries], map: "recharge_agents_countries_idx", type: Gin)
   @@map("recharge_agents")
@@ -4026,6 +4042,127 @@ model RechargeCherryRequest {
   @@index([hostUserId, createdAt(sort: Desc), id(sort: Desc)], map: "recharge_cherry_requests_host_idx")
   @@index([agentUserId, hostUserId, status], map: "recharge_cherry_requests_pair_idx")
   @@map("recharge_cherry_requests")
+}
+
+// ---- v1.69-social (D204, CONVENTIONS §10.64): recharge orders with escrow «طلبات الشحن» ---------------------
+
+enum RechargeOrderStatus {
+  REQUESTED
+  AWAITING_PAYMENT
+  PAID
+  DISPUTED
+  COMPLETED
+  COMPLETED_BY_ADMIN
+  REFUNDED_TO_AGENT
+  CANCELLED
+  EXPIRED
+
+  @@map("recharge_order_status")
+}
+
+enum RechargeOrderMessageKind {
+  TEXT
+  IMAGE
+  PAYMENT_DETAILS
+  TRANSFER_PROOF
+  SYSTEM
+
+  @@map("recharge_order_message_kind")
+}
+
+enum RechargeOrderRole {
+  BUYER
+  AGENT
+  EMPLOYEE
+  ADMIN
+  SYSTEM
+
+  @@map("recharge_order_role")
+}
+
+/// D204: the admin-set exchange rate of a country's currency (units of `currency` per 1 USD, × 1 000 000). No row:
+/// the country is shown in USD only.
+model RechargeExchangeRate {
+  country   String   @id @db.Char(2)
+  currency  String   @db.Char(3)
+  /// Units of `currency` per 1 USD × 1 000 000 (e.g. EGP 50.5 → 50 500 000).
+  rateMicro BigInt   @map("rate_micro")
+  /// Decimal places of `currency` (EGP 2, KWD 3, IQD 0).
+  digits    Int      @db.SmallInt
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+  updatedBy String?  @map("updated_by") @db.Uuid
+
+  @@map("recharge_exchange_rates")
+}
+
+/// D204: a buyer's order to an agent. The price is fixed at creation (retail USD and the local amount at the rate in
+/// force). Coins are frozen from the agent's stock (ORDER_HOLD) from the payment details until a confirmation (to
+/// the buyer), a cancellation / expiry (back to the stock, ORDER_RELEASE) or a dispute decision.
+model RechargeOrder {
+  id             String              @id @default(uuid(7)) @db.Uuid
+  buyerUserId    String              @map("buyer_user_id") @db.Uuid
+  agentUserId    String              @map("agent_user_id") @db.Uuid
+  clientId       String              @map("client_id") @db.Uuid
+  country        String              @db.Char(2)
+  coins          BigInt
+  usdMinor       BigInt              @map("usd_minor")
+  localCurrency  String?             @map("local_currency") @db.Char(3)
+  localRateMicro BigInt?             @map("local_rate_micro")
+  localMinor     BigInt?             @map("local_minor")
+  localDigits    Int?                @map("local_digits") @db.SmallInt
+  paymentType    String              @map("payment_type") @db.VarChar(16)
+  status         RechargeOrderStatus @default(REQUESTED)
+  /// The coins frozen from the agent's stock right now (0 or `coins`).
+  heldCoins      BigInt              @default(0) @map("held_coins")
+  detailsAt      DateTime?           @map("details_at") @db.Timestamptz(3)
+  noticeAckAt    DateTime?           @map("notice_ack_at") @db.Timestamptz(3)
+  paidAt         DateTime?           @map("paid_at") @db.Timestamptz(3)
+  disputedAt     DateTime?           @map("disputed_at") @db.Timestamptz(3)
+  disputedBy     RechargeOrderRole?  @map("disputed_by")
+  closedAt       DateTime?           @map("closed_at") @db.Timestamptz(3)
+  closedBy       String?             @map("closed_by") @db.Uuid
+  closeReason    String?             @map("close_reason") @db.VarChar(500)
+  /// When REQUESTED or AWAITING_PAYMENT ends by itself (the sweeper; null afterwards).
+  expiresAt      DateTime?           @map("expires_at") @db.Timestamptz(3)
+  createdAt      DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime            @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  buyer         User                   @relation("RechargeOrderBuyer", fields: [buyerUserId], references: [id], onDelete: Cascade)
+  agent         RechargeAgent          @relation(fields: [agentUserId], references: [userId], onDelete: Cascade)
+  messages      RechargeOrderMessage[]
+  notifications Notification[]
+
+  @@unique([buyerUserId, clientId], map: "recharge_orders_client_once")
+  @@unique([buyerUserId, agentUserId], map: "recharge_orders_one_open", where: raw("status = ANY (ARRAY['REQUESTED'::recharge_order_status, 'AWAITING_PAYMENT'::recharge_order_status, 'PAID'::recharge_order_status, 'DISPUTED'::recharge_order_status])"))
+  @@index([buyerUserId, createdAt(sort: Desc), id(sort: Desc)], map: "recharge_orders_buyer_idx")
+  @@index([agentUserId, createdAt(sort: Desc), id(sort: Desc)], map: "recharge_orders_agent_idx")
+  @@index([status, updatedAt], map: "recharge_orders_status_idx")
+  @@index([expiresAt], map: "recharge_orders_expiry_idx", where: raw("expires_at IS NOT NULL"))
+  @@map("recharge_orders")
+}
+
+/// D204: the order's own chat «محادثة الطلب» — kept as evidence (never edited or deleted by a participant).
+model RechargeOrderMessage {
+  id           String                   @id @default(uuid(7)) @db.Uuid
+  /// The chat's order (a sequence: several lines of one transaction share `createdAt`).
+  seq          BigInt                   @unique(map: "recharge_order_messages_seq_key") @default(autoincrement())
+  orderId      String                   @map("order_id") @db.Uuid
+  authorUserId String?                  @map("author_user_id") @db.Uuid
+  role         RechargeOrderRole
+  kind         RechargeOrderMessageKind
+  text         String?                  @db.VarChar(1000)
+  /// PAYMENT_DETAILS: the method type.
+  method       String?                  @db.VarChar(16)
+  /// IMAGE / TRANSFER_PROOF: the private object (`private/recharge-orders/<order>/<message>.webp`).
+  imageKey     String?                  @map("image_key") @db.VarChar(256)
+  /// SYSTEM: the event (`CREATED`, `DETAILS_SENT`, `PAID`, …).
+  event        String?                  @db.VarChar(24)
+  createdAt    DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  order RechargeOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, seq], map: "recharge_order_messages_order_idx")
+  @@map("recharge_order_messages")
 }
 
 // ---- v1.54-social (D185, CONVENTIONS §10.48.1): the special-username layer «يوزر مميز» --------------------

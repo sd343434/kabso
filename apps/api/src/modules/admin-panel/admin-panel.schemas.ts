@@ -85,6 +85,38 @@ export const withdrawalPaySchema = z.strictObject({
 
 export const withdrawalRejectSchema = z.strictObject({ reason, totpCode });
 
+/** v1.69-social (D204): the dispute queue «نزاعات الشحن». */
+export const disputesQuerySchema = pageQuerySchema.extend({
+  status: z.enum(['OPEN', 'RESOLVED']).default('OPEN'),
+});
+
+export const orderAdminMessageSchema = z.strictObject({
+  text: z
+    .string()
+    .transform((t) => t.replace(/\r\n?/g, '\n').trim())
+    .pipe(z.string().min(1).max(1000)),
+});
+
+export const disputeResolveSchema = z.strictObject({
+  outcome: z.enum(['CREDIT_BUYER', 'REFUND_AGENT']),
+  reason,
+  totpCode,
+});
+
+export const exchangeRateBodySchema = z.strictObject({
+  currency: z.string().regex(/^[A-Z]{3}$/),
+  /** Units of the currency per 1 USD, e.g. `50.5`. */
+  unitsPerUsd: z.string().regex(/^[0-9]{1,9}(\.[0-9]{1,6})?$/),
+  digits: z.number().int().min(0).max(3),
+  reason,
+});
+
+/** A country path segment (ISO 3166 alpha-2, upper case), else 404. */
+export function pathCountry(value: string): string {
+  if (!/^[A-Za-z]{2}$/.test(value)) throw new AppException(ErrorCode.NOT_FOUND);
+  return value.toUpperCase();
+}
+
 export const panelReportsQuerySchema = pageQuerySchema.extend({
   status: z.enum(['OPEN', 'ACTIONED', 'DISMISSED']).default('OPEN'),
 });

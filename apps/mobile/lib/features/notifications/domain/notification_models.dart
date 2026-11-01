@@ -71,6 +71,10 @@ enum NotificationType {
   /// v1.66-social (D198, system): the data export «تنزيل بياناتي» is ready
   /// (no target; opens the export screen).
   dataExportReady('DATA_EXPORT_READY'),
+
+  /// v1.69-social (D204, system): a recharge order you take part in changed
+  /// or got a message (target RECHARGE_ORDER with `orderEvent`).
+  rechargeOrderUpdate('RECHARGE_ORDER_UPDATE'),
   unknown('');
 
   new(this.wire);
@@ -90,7 +94,8 @@ enum NotificationType {
       this == premiumUsernameExpiring ||
       this == premiumUsernameExpired ||
       this == avatarRemoved ||
-      this == dataExportReady;
+      this == dataExportReady ||
+      this == rechargeOrderUpdate;
 }
 
 /// `NotificationTarget.type`.
@@ -113,7 +118,10 @@ enum NotificationTargetType {
   bagItem('BAG_ITEM'),
 
   /// v1.54-social (D185): coins bought from a recharge agent (`coins`).
-  rechargeSale('RECHARGE_SALE');
+  rechargeSale('RECHARGE_SALE'),
+
+  /// v1.69-social (D204): a recharge order (its id; `coins`, `orderEvent`).
+  rechargeOrder('RECHARGE_ORDER');
 
   new(this.wire);
 
@@ -139,6 +147,7 @@ class NotificationTarget {
     this.endsAt,
     this.bagCategory,
     this.coins,
+    this.orderEvent,
   });
 
   factory fromJson(Map<String, dynamic> json) => NotificationTarget(
@@ -157,6 +166,7 @@ class NotificationTarget {
     },
     bagCategory: json['bagCategory'] as String?,
     coins: (json['coins'] as num?)?.toInt(),
+    orderEvent: json['orderEvent'] as String?,
   );
 
   final NotificationTargetType type;
@@ -185,8 +195,12 @@ class NotificationTarget {
   /// D171 [NotificationTargetType.bagItem]: the item's category (wire).
   final String? bagCategory;
 
-  /// RECHARGE_SALE only (v1.54-social, D185): the coins bought.
+  /// RECHARGE_SALE only (v1.54-social, D185): the coins bought; RECHARGE_ORDER
+  /// (v1.69-social, D204): the order's coins.
   final int? coins;
+
+  /// RECHARGE_ORDER only (v1.69-social, D204): the latest event.
+  final String? orderEvent;
 }
 
 /// `Notification`. Likes and reposts on one item group while unread

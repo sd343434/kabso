@@ -38,6 +38,9 @@ export const ROUTES: readonly { name: string; pattern: string }[] = [
   { name: 'waitlist', pattern: '/waitlist' },
   { name: 'team', pattern: '/team' },
   { name: 'audit', pattern: '/audit' },
+  { name: 'disputes', pattern: '/recharge/disputes' },
+  { name: 'dispute', pattern: '/recharge/disputes/:id' },
+  { name: 'rates', pattern: '/recharge/exchange-rates' },
 ];
 
 export function matchPath(path: string): Match | null {

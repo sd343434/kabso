@@ -134,12 +134,16 @@ final class RechargeAgentDashboard {
     required this.sales,
     this.code,
     this.activatedAt,
+    this.heldCoins = 0,
+    this.openOrders = 0,
   });
 
   factory fromJson(Map<String, dynamic> json) => RechargeAgentDashboard(
     code: json['code'] as String?,
     status: RechargeAgentStatus.fromWire(json['status']),
     stockCoins: _int(json['stockCoins']),
+    heldCoins: _int(json['heldCoins']),
+    openOrders: _int(json['openOrders']),
     activatedAt: _date(json['activatedAt']),
     dailyCherryCap: _int(json['dailyCherryCap']),
     todayCherries: _int(json['todayCherries']),
@@ -152,6 +156,11 @@ final class RechargeAgentDashboard {
   final String? code;
   final RechargeAgentStatus status;
   final int stockCoins;
+
+  /// v1.69-social (D204): coins frozen in open orders (not in [stockCoins])
+  /// and the orders waiting for the agent.
+  final int heldCoins;
+  final int openOrders;
   final DateTime? activatedAt;
   final int dailyCherryCap;
   final int todayCherries;
@@ -201,11 +210,22 @@ final class RechargeRules {
     required this.payoutRateCherries,
     required this.payoutRateMinor,
     required this.currency,
+    this.ordersEnabled = false,
+    this.orderMinCoins = 1,
+    this.orderMaxCoins = 1000000000,
+    this.disputeAfterMinutes = 15,
   });
 
   factory fromJson(Map<String, dynamic> json) {
     final payout = json['payout']! as Map<String, dynamic>;
+    final orders = json['orders'] as Map<String, dynamic>?;
     return RechargeRules(
+      ordersEnabled: orders?['enabled'] == true,
+      orderMinCoins: orders == null ? 1 : _int(orders['minCoins']),
+      orderMaxCoins: orders == null ? 1000000000 : _int(orders['maxCoins']),
+      disputeAfterMinutes: orders == null
+          ? 15
+          : _int(orders['disputeAfterMinutes']),
       activationMinCoins: _int(json['activationMinCoins']),
       cherryUnit: _int(json['cherryUnit']),
       coinsPerCherryUnit: _int(json['coinsPerCherryUnit']),
@@ -227,6 +247,13 @@ final class RechargeRules {
   final int payoutRateCherries;
   final int payoutRateMinor;
   final String currency;
+
+  /// v1.69-social (D204, §10.64): recharge orders are on (the server's
+  /// `RECHARGE_ORDERS_ENABLED`), their limits and the buyer's wait.
+  final bool ordersEnabled;
+  final int orderMinCoins;
+  final int orderMaxCoins;
+  final int disputeAfterMinutes;
 
   /// What the agent's stock gets for [cherries] (the server's floor).
   int coinsFor(int cherries) =>

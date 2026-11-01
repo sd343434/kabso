@@ -4,6 +4,7 @@ import { EconomyModule } from '../economy/economy.module.js';
 import { LiveModule } from '../live/live.module.js';
 import { TopupModule } from '../topup/topup.module.js';
 import { MediaModule } from '../media/media.module.js';
+import { RechargeModule } from '../recharge/recharge.module.js';
 import { SafetyModule } from '../safety/safety.module.js';
 import { PublicProfileModule } from '../users/profiles/public-profile.module.js';
 import { AdminAuthService } from './admin-auth.service.js';
@@ -13,8 +14,10 @@ import {
   AdminAuthController,
   AdminFinanceController,
   AdminModerationController,
+  AdminRechargeOrdersController,
   AdminUsersController,
 } from './admin-panel.controller.js';
+import { AdminOrdersService } from './admin-orders.service.js';
 import { AdminSessionGuard } from './admin-session.guard.js';
 import { AdminUsersService } from './admin-users.service.js';
 import { AdminAgenciesService } from './admin-agencies.service.js';
@@ -47,6 +50,7 @@ import { AdminV2Controller } from './admin-v2.controller.js';
     EconomyModule,
     LiveModule,
     TopupModule,
+    RechargeModule,
   ],
   controllers: [
     AdminAuthController,
@@ -54,6 +58,7 @@ import { AdminV2Controller } from './admin-v2.controller.js';
     AdminFinanceController,
     AdminModerationController,
     AdminV2Controller,
+    AdminRechargeOrdersController,
   ],
   providers: [
     AdminAuthService,
@@ -69,6 +74,7 @@ import { AdminV2Controller } from './admin-v2.controller.js';
     AdminMoneyService,
     AdminTeamService,
     AdminProgramsService,
+    AdminOrdersService,
   ],
   exports: [AdminAuthService, AdminSessionGuard],
 })

@@ -86,3 +86,22 @@
   configured events shows empty lists.
 - **Purchase VIP** (CP-024 §3) is not part of the approval: its hub card stays «قريباً».
 - Not verified on a device.
+
+## Recharge orders with escrow (v1.69-social draft, D204)
+
+- **No money is handled in the app.** The buyer pays the agent outside Kabso (mobile wallet, bank, cash …); the app
+  only records the agent's payment details, the buyer's «قمت بالإرسال» with a screenshot, and freezes / moves
+  **coins**. Kabso cannot see, verify, reverse or refund the money itself; a dispute is decided by the team on the
+  chat's evidence (screenshots, the buyer's screen video kept outside the app).
+- A screenshot can be faked; the protection notice asks the buyer to keep a screen video, but the app does not
+  record, upload or check videos (pictures only in the chat).
+- PAID orders never resolve by themselves: an agent who never answers keeps the coins frozen until the buyer opens a
+  dispute (after 15 minutes) and the team decides.
+- The chat's pictures and transfer screenshots are kept with the order (evidence) — there is no retention period or
+  purge yet (owner question).
+- Exchange rates are entered by hand by OWNER / FINANCE (no rate feed); a country without a rate is priced in USD.
+- Pushes: one notification row per order and person, moved up by each event (not one per chat message); a push for a
+  quick second event may be held back by the per-notification push throttle.
+- An agent suspended while an order is open keeps it: the buyer can still be paid by «استلمت» or a dispute decision;
+  new details cannot be sent.
+- Not verified on a device (camera / gallery pick of the screenshot, pushes, the countdown on a real phone).

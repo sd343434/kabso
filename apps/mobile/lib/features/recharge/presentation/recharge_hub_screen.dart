@@ -14,6 +14,7 @@ import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/posts/application/compose_controller.dart'
     show newIdempotencyKey;
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
+import 'package:kabso_live/features/recharge/application/recharge_orders_providers.dart';
 import 'package:kabso_live/features/recharge/application/recharge_providers.dart';
 import 'package:kabso_live/features/recharge/data/recharge_repository.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
@@ -50,6 +51,7 @@ class RechargeHubScreen extends ConsumerWidget {
   static const availabilityKey = Key('recharge.availability');
   static const cherriesKey = Key('recharge.cherries');
   static const directoryKey = Key('recharge.directory');
+  static const ordersKey = Key('recharge.orders');
   static const employmentKey = Key('recharge.employment');
   static const cherryTodayKey = Key('recharge.cherryToday');
 
@@ -98,8 +100,29 @@ class RechargeHubScreen extends ConsumerWidget {
     final l10n = context.l10n;
     final agent = me.agent;
     final job = me.employment;
+    // D204: the orders (as buyer; an agent's or employee's incoming ones).
+    final ordersOn = me.rules.ordersEnabled && !ref.watch(storeBuildProvider);
+    final serves = agent != null || job != null;
     Widget linkRows({required bool inGroup}) => RechargeNavGroup(
       children: [
+        if (ordersOn)
+          RechargeNavRow(
+            key: ordersKey,
+            inGroup: inGroup,
+            icon: Icons.receipt_long_rounded,
+            title: l10n.rechargeOrdersTitle,
+            subtitle: serves && agent != null
+                ? l10n.rechargeOrdersIncomingHint(
+                    KFormat.bidiIsolate(KFormat.grouped(agent.openOrders)),
+                    KFormat.bidiIsolate(KFormat.grouped(agent.heldCoins)),
+                  )
+                : l10n.rechargeOrdersHint,
+            onTap: () => context.push(
+              serves
+                  ? '${AppRoutes.rechargeOrders}?incoming=1'
+                  : AppRoutes.rechargeOrders,
+            ),
+          ),
         RechargeNavRow(
           key: directoryKey,
           inGroup: inGroup,

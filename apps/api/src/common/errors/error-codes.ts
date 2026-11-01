@@ -221,6 +221,16 @@ export enum ErrorCode {
   SECOND_CAMERA_UNAVAILABLE = 'SECOND_CAMERA_UNAVAILABLE',
   /** v1.45-live (DRAFT, D201): the live already has a second camera (one at a time). */
   SECOND_CAMERA_BUSY = 'SECOND_CAMERA_BUSY',
+  /** v1.69-social (DRAFT, D204): recharge orders are switched off on this server (RECHARGE_ORDERS_ENABLED). */
+  RECHARGE_ORDERS_UNAVAILABLE = 'RECHARGE_ORDERS_UNAVAILABLE',
+  /** v1.69-social (DRAFT, D204): the buyer already has an open order with this agent. */
+  RECHARGE_ORDER_OPEN_EXISTS = 'RECHARGE_ORDER_OPEN_EXISTS',
+  /** v1.69-social (DRAFT, D204): the order's status no longer allows this action (it changed or ended). */
+  RECHARGE_ORDER_STATE_CHANGED = 'RECHARGE_ORDER_STATE_CHANGED',
+  /** v1.69-social (DRAFT, D204): the buyer must acknowledge the protection notice first. */
+  RECHARGE_ORDER_NOTICE_REQUIRED = 'RECHARGE_ORDER_NOTICE_REQUIRED',
+  /** v1.69-social (DRAFT, D204): the buyer can open a dispute only after the wait (15 minutes after «قمت بالإرسال»). */
+  RECHARGE_ORDER_DISPUTE_TOO_EARLY = 'RECHARGE_ORDER_DISPUTE_TOO_EARLY',
 }
 
 /** HTTP status for every code (CONVENTIONS.md §4 table). */
@@ -341,6 +351,11 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.SECOND_CAMERA_CODE_INVALID]: 422,
   [ErrorCode.SECOND_CAMERA_UNAVAILABLE]: 409,
   [ErrorCode.SECOND_CAMERA_BUSY]: 409,
+  [ErrorCode.RECHARGE_ORDERS_UNAVAILABLE]: 503,
+  [ErrorCode.RECHARGE_ORDER_OPEN_EXISTS]: 409,
+  [ErrorCode.RECHARGE_ORDER_STATE_CHANGED]: 409,
+  [ErrorCode.RECHARGE_ORDER_NOTICE_REQUIRED]: 409,
+  [ErrorCode.RECHARGE_ORDER_DISPUTE_TOO_EARLY]: 409,
 };
 
 /** Default developer-facing messages (clients localize by `code`, not by message). */
@@ -461,6 +476,11 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.SECOND_CAMERA_CODE_INVALID]: 'That pairing code is not valid.',
   [ErrorCode.SECOND_CAMERA_UNAVAILABLE]: 'This live cannot take a second camera now.',
   [ErrorCode.SECOND_CAMERA_BUSY]: 'This live already has a second camera.',
+  [ErrorCode.RECHARGE_ORDERS_UNAVAILABLE]: 'Recharge orders are not available.',
+  [ErrorCode.RECHARGE_ORDER_OPEN_EXISTS]: 'You already have an open order with this agent.',
+  [ErrorCode.RECHARGE_ORDER_STATE_CHANGED]: 'This order has changed. Refresh it.',
+  [ErrorCode.RECHARGE_ORDER_NOTICE_REQUIRED]: 'Read and acknowledge the protection notice first.',
+  [ErrorCode.RECHARGE_ORDER_DISPUTE_TOO_EARLY]: 'You can open a dispute when the wait is over.',
 };
 
 export interface ErrorDetail {

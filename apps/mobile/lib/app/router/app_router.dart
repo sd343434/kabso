@@ -86,6 +86,9 @@ import 'package:kabso_live/features/recharge/presentation/recharge_cherry_screen
 import 'package:kabso_live/features/recharge/presentation/recharge_directory_screen.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_employees_screen.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_hub_screen.dart';
+import 'package:kabso_live/features/recharge/presentation/recharge_order_new_screen.dart';
+import 'package:kabso_live/features/recharge/presentation/recharge_order_screen.dart';
+import 'package:kabso_live/features/recharge/presentation/recharge_orders_screen.dart';
 import 'package:kabso_live/features/safety/safety_screens.dart';
 import 'package:kabso_live/features/settings/account_deletion/account_deletion_screen.dart';
 import 'package:kabso_live/features/settings/account_deletion/deletion_pending_screen.dart';
@@ -439,6 +442,25 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.rechargeCherries,
         builder: (_, _) => const RechargeCherryScreen(),
+      ),
+      // D204: recharge orders with escrow.
+      GoRoute(
+        path: AppRoutes.rechargeOrders,
+        builder: (_, state) => RechargeOrdersScreen(
+          incoming: state.uri.queryParameters['incoming'] == '1',
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.rechargeOrderPattern,
+        builder: (_, state) =>
+            RechargeOrderScreen(orderId: state.pathParameters['orderId']!),
+      ),
+      GoRoute(
+        path: AppRoutes.rechargeOrderNew,
+        builder: (_, state) => RechargeOrderNewScreen(
+          agentCode: state.uri.queryParameters['agent'] ?? '',
+          country: (state.uri.queryParameters['country'] ?? 'EG').toUpperCase(),
+        ),
       ),
       // D166: the Me hub's Task Center, Event Center and SVIP.
       GoRoute(

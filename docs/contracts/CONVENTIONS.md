@@ -189,6 +189,11 @@ All non-2xx responses use one envelope:
 | 422 | `SECOND_CAMERA_CODE_INVALID` | *(v1.45-live, DRAFT, D201)* The second-camera pairing code is unknown, expired, used, replaced or another account's — one answer for all. §10.63. |
 | 409 | `SECOND_CAMERA_UNAVAILABLE` | *(v1.45-live, DRAFT, D201)* The live cannot take a second camera now: not the caller's LIVE SOLO video live, or in a PK. §10.63. |
 | 409 | `SECOND_CAMERA_BUSY` | *(v1.45-live, DRAFT, D201)* The live already has a second camera (one at a time). §10.63. |
+| 503 | `RECHARGE_ORDERS_UNAVAILABLE` | *(v1.69-social, DRAFT, D204)* Recharge orders are switched off on this server (`RECHARGE_ORDERS_ENABLED=false`); no `Retry-After`. Direct selling (D185) is not affected. |
+| 409 | `RECHARGE_ORDER_OPEN_EXISTS` | *(v1.69-social, DRAFT, D204)* The buyer already has an open order (REQUESTED, AWAITING_PAYMENT, PAID or DISPUTED) with this agent. |
+| 409 | `RECHARGE_ORDER_STATE_CHANGED` | *(v1.69-social, DRAFT, D204)* The order's status no longer allows this action (another action, an expiry or a dispute came first, §10.64); nothing changed — read the order again. |
+| 409 | `RECHARGE_ORDER_NOTICE_REQUIRED` | *(v1.69-social, DRAFT, D204)* «قمت بالإرسال» before the buyer acknowledged the protection notice. |
+| 409 | `RECHARGE_ORDER_DISPUTE_TOO_EARLY` | *(v1.69-social, DRAFT, D204)* The buyer opened a dispute before the wait after «قمت بالإرسال» (`RECHARGE_ORDER_DISPUTE_AFTER_MINUTES`, owner 15) ended. |
 | 403 | `DM_NOT_ALLOWED` | *(v1.40-social, DRAFT, D155)* The recipient's «who can message you» setting (`whoCanMessage`) does not allow the caller (§11.13). Nothing was stored or charged. The app says the person does not accept messages. |
 | 403 | `DM_REQUEST_LIMIT` | *(v1.40-social, DRAFT, D155)* The caller already sent `DM_REQUEST_MAX_MESSAGES` (3) messages in a message request the recipient has not accepted (§11.13). The app says to wait for a reply. |
 | 403 | `DM_REQUEST_TEXT_ONLY` | *(v1.40-social, DRAFT, D155)* A picture or voice message in a message request (only text, a pack emoji or a gift until the recipient accepts, §11.13). |
@@ -473,6 +478,8 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `POST /topup/checkout` *(v1.59-social, D190)* | 20 / hour per user (bucket `topup:checkout`, `RATE_LIMIT_TOPUP_CHECKOUT_USER`). **Replaces** the per-user default; the other top-up reads use it; `POST /payments/stripe/webhook` has **no** rate limit (signed by Stripe) |
 | `PUT /me/host-frame/style` *(v1.55-social, D186)* | 60 / hour per user (bucket `host-frame:style`, the family-write numbers like `PUT /me/bag/equipped`). **Replaces** the per-user default; `GET /me/host-frame` uses the per-user default |
 | `POST /me/recharge-agent/application`, `PUT /me/recharge-agent/availability`, `POST`/`PUT`/`DELETE /me/recharge-agent/employees…`, `POST /recharge-cherry-requests`, `POST /recharge-cherry-requests/{id}/{action}` *(v1.54-social, D185)* | 60 / hour per user, one bucket (`recharge:write`, `RATE_LIMIT_RECHARGE_WRITE_USER`). **Replaces** the per-user default |
+| `POST /recharge-orders` *(v1.69-social, D204)* | 20 / hour per user (bucket `recharge:order`, `RATE_LIMIT_RECHARGE_ORDER_USER`). **Replaces** the per-user default |
+| Every other `POST /recharge-orders/{id}/…` (messages, payment details, notice, paid, confirm, dispute, cancel) *(v1.69-social, D204)* | 600 / hour per user, one bucket (`recharge:order_action`, `RATE_LIMIT_RECHARGE_ORDER_ACTION_USER`). **Replaces** the per-user default |
 | `POST /waitlist` *(v1.61-social, D192)* | 10 / hour per client IP (bucket `waitlist:ip`, `RATE_LIMIT_WAITLIST_IP`; invalid bodies count too). **Replaces** the public per-IP default; `GET /site/settings` uses the public per-IP default, `PUT /admin/site-settings` the per-user default |
 | `GET /live/rooms/{roomId}/chat` *(v1.9-live, CP-013)* | the per-user default; guests share the CP-010 guest read limit per IP |
 | `POST /live/rooms/{roomId}/seat-emoji` *(v1.27.5-live, D138)* | 120 / min per user (bucket `live:seat-emoji`, the taps rule `RATE_LIMIT_LIVE_TAPS_USER`), plus a counting rule of **one every 2 s per user** (429 with `Retry-After`). **Replaces** the per-user default |
@@ -572,6 +579,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.66-social)* Tables `legal_documents`, `user_consents`, `data_exports`; column `pending_registrations.legal_consent`; notification type `DATA_EXPORT_READY`; the 428 gate (`ConsentGuard`); server config `DATA_EXPORT_*`, `RATE_LIMIT_DATA_EXPORT_*`; CLIs `legal-admin`, `privacy-admin`; private prefix `private/data-exports/`; `scripts/check-site-no-tracking.sh` (§10.61) | Backend — `privacy` module (`legal.ts` and `data-export.ts` shared with the CLIs; `auth`, `topup` and `gifts` record consents through `legal.ts`; D193's purge deletes exports and clears consents' IP/UA) | CTO; Security (the export's content, the download token); Legal (the documents' text and versions) |
 | *(v1.55-social)* Table `host_frame_choices`; bag source `HOST_ACTIVE`; catalogue rows `host_frame_blue`, `host_frame_pink` | Backend — `economy` module (`host-frames.ts`: given and taken by the agency sweeper and `economy-admin agency-evaluate`, on agency join / leave / a resolved complaint, on a gender change and a style choice; `bag-admin` refuses them) | CTO |
 | *(v1.56-social)* Tables `recharge_daily_totals`, `recharge_badges`; server config `RECHARGE_BADGE_*` | Backend — `recharge` module (`recharge-badges.ts`: `recordRechargeIn` is the only writer, called inside the transaction that credits a recharge — today the agent's sale; later the website top-up) | CTO |
+| *(v1.69-social)* Tables `recharge_orders`, `recharge_order_messages`, `recharge_exchange_rates`; columns `notifications.recharge_order_id`, `notifications.recharge_order_event`; stock reasons `ORDER_HOLD`, `ORDER_RELEASE`; coin reason `RECHARGE_ORDER`; media kind `RECHARGE_ORDER_IMAGE` (private prefix `private/recharge-orders/`); server config `RECHARGE_ORDER*`, `RATE_LIMIT_RECHARGE_ORDER_*` (§10.64) | Backend — `recharge` module (`recharge-order-core.ts` is the only writer of the order's coins: stock through `moveStockIn`, the buyer through `wallet/wallet-ledger.ts` and the badge hook; the panel and the `recharge-admin` CLI decide disputes and rates through it) | CTO; Security (money, the private prefix, dispute evidence) |
 | *(v1.58-social)* Columns `agencies.host_code`, `host_code_number`, `host_code_at`, `suspended_at`, `suspend_reason`; table `host_agent_counter`; special-username source `HOST_AGENT` (§10.52) | Backend — `economy` module (`economy/host-agents.ts`; codes given and perks suspended only by the `economy-admin` CLI, older agencies' codes by the agency sweeper) and `users/agent-usernames.ts` (which agent code is the username) | CTO |
 | *(v1.59-social)* Tables `topup_terms_acceptances`, `topup_orders`, `topup_freezes`, `topup_cases`, `stripe_events`, `stripe_customers`; coin ledger reasons `CARD_TOPUP`, `CARD_TOPUP_REVERSAL`, `CARD_TOPUP_RESTORE`; `wallets.coins` may be below 0; server config `STRIPE_*`, `TOPUP_*`; the `/topup` website pages; CLI `payments-admin` (§10.53) | Backend — `topup` module (`topup-core.ts` is the only writer of the tables; coins only through `wallet/wallet-ledger.ts` — `reverseTopupIn` is the only debit that may go below 0 — and the badge hook `recharge/recharge-badges.ts`) | CTO; Security (money, Stripe keys, dispute evidence) |
 | *(v1.61-social)* Table `waitlist_signups` (`site_settings` is D191's, §10.54.6); server config `RATE_LIMIT_WAITLIST_IP`; CLI `waitlist-admin`; the website `infra/deploy/site/` and the Caddy root-domain block (§10.55) | Backend — `waitlist` module (sign-ups; read only by the CLI) (the `site-settings` module is D191's, shared with the website); Ops — the website files and Caddy | CTO; Security (the waitlist's e-mails, the root domain's headers) |
@@ -614,6 +622,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.69-social (draft) | 2026-10-31 | **D204 (owner: the buyer asks an agent for coins; escrow, the order chat, the 15-minute wait and disputes):** tag `recharge` — `quoteRechargeOrder`, `createRechargeOrder` (`Idempotency-Key`), `listMyRechargeOrders`, `getRechargeOrder`, `listRechargeOrderMessages`, `postRechargeOrderMessage`, `getRechargeOrderMessageImage`, `sendRechargeOrderPaymentDetails`, `acknowledgeRechargeOrderNotice`, `markRechargeOrderPaid`, `confirmRechargeOrder`, `disputeRechargeOrder`, `cancelRechargeOrder`; tag `admin-panel` — `listAdminRechargeDisputes`, `getAdminRechargeOrder`, `postAdminRechargeOrderMessage`, `getAdminRechargeOrderMessageImage`, `resolveAdminRechargeDispute`, `listAdminRechargeExchangeRates`, `setAdminRechargeExchangeRate`, `clearAdminRechargeExchangeRate` (capabilities `recharge.disputes`, `recharge.disputes.resolve`, `recharge.rates`); `RechargeAgentDashboard.heldCoins` / `openOrders` and `RechargeRules.orders` (required — strict clients update their models in the same change set); `MediaKind.RECHARGE_ORDER_IMAGE`; `NotificationType.RECHARGE_ORDER_UPDATE` (target `RECHARGE_ORDER` with `coins`, `orderEvent`, `orderStatus`); `WalletLedgerReason.RECHARGE_ORDER`; five codes (`RECHARGE_ORDERS_UNAVAILABLE` 503, `RECHARGE_ORDER_OPEN_EXISTS`, `RECHARGE_ORDER_STATE_CHANGED`, `RECHARGE_ORDER_NOTICE_REQUIRED`, `RECHARGE_ORDER_DISPUTE_TOO_EARLY` 409); config `RECHARGE_ORDERS_ENABLED`, `RECHARGE_ORDER_MIN_COINS` / `_MAX_COINS` / `_REQUEST_TTL_MINUTES` / `_PAYMENT_TTL_MINUTES` / `_DISPUTE_AFTER_MINUTES` / `_SWEEP_INTERVAL_SECONDS`, `RATE_LIMIT_RECHARGE_ORDER_USER` / `_ACTION_USER`; CLI `recharge-admin rates | set-rate | clear-rate | disputes | resolve | expire-orders`; migrations `20270118090000_recharge_orders_enums`, `20270118100000_recharge_orders`. §4, §7, §8, §10.64. (v1.65–v1.68 are D197, D198, D200, D202.) | **Additive** (new operations; two new required fields on the agent's own dashboard; clients ignore unknown notification and target types). |
 | v1.68-social (draft) | 2026-10-31 | **D202 (owner: the reels page after a reference, with like / comment / save / share made real):** `listFeedReels` `tab=nearby` — visible public reels of authors from the caller's own country (`Me.country`, D133), newest first, not the caller's own / muted / hidden; no country → an empty page; the cursor bound to the caller and the country (§11.15). | **Additive** (a new enum value on one operation; `listFeedPosts` unchanged). |
 | v1.67-social (draft) | 2026-10-31 | **D200 (owner: family levels and the family price repriced for 1 000 000 coins = $12.50):** `FamilyConfig.createCost` 1 000 000 (was 500) and `FamilyConfig.levels` 4 000 000 … 24 000 000 000 (examples and descriptions); `Family.nextLevelPoints` described for a family kept at its level (a stored level is a floor). §10.21 amendment. | **No shape change** (values only; a family never drops a level). |
 | v1.66-social (draft) | 2026-10-31 | **D198 (owner: Kabso Live is a GLOBAL app — privacy compliance, CP-040):** tag `privacy` — `getLegalDocuments` (public), `getMyConsents`, `acceptConsents`, `listMyDataExports`, `requestDataExport`, `createDataExportLink`, `downloadDataExport`; `RegisterRequest.legal` (`RegistrationLegal`); `NotificationType.DATA_EXPORT_READY`; codes `CONSENT_REQUIRED` (428), `CONSENT_VERSION_MISMATCH` (409), `DATA_EXPORT_LIMIT` (429), `DATA_EXPORT_LINK_INVALID` (410); `AdminUserRow.status` gains `PENDING_DELETION` (D191 × D193 integration); rate limits `RATE_LIMIT_DATA_EXPORT_USER`, `RATE_LIMIT_DATA_EXPORT_DOWNLOAD_USER`; config `DATA_EXPORT_MIN_INTERVAL_HOURS` (24), `DATA_EXPORT_LINK_DAYS` (7), `DATA_EXPORT_SWEEP_INTERVAL_SECONDS` (300, not 0 in production); CLIs `legal-admin`, `privacy-admin`; audit `legal.document.publish`, `privacy.consent.accept`, `privacy.export.*`; migrations `20270115090000_privacy_enums`, `20270115100000_privacy`. §4, §7, §8, §10.61. | **Additive** except the 428 gate, which starts only when the owner publishes a document version with `legal-admin publish` (older apps then get 428 on every call: ship the app with the consent screen first). |
@@ -3754,6 +3763,8 @@ session's `capabilities` do not include.
 | `recharge.topup`, `recharge.cap`, `withdrawals.view`, `withdrawals.decide` | ✓ | | | ✓ |
 | `site.settings` | ✓ | | | |
 | `payments.settings` (v1.64-social, D196: the Stripe keys and top-up options, §10.53.1) | ✓ | | | |
+| `recharge.disputes` (v1.69-social, D204: «نزاعات الشحن» — a disputed order, its chat and pictures, «الإدارة» lines, §10.64.9) | ✓ | | ✓ | ✓ |
+| `recharge.disputes.resolve`, `recharge.rates` (v1.69-social, D204: a dispute's decision, the exchange rates) | ✓ | | | ✓ |
 
 An account holding a panel role can be banned, unbanned or otherwise acted on only by an OWNER; nobody acts on their
 own account (409 `ADMIN_ACTION_REFUSED`).
@@ -4491,6 +4502,118 @@ Owner: the D199 Room Tools «كاميرتان», «موسيقى» and «التس
   `setLiveRecording` `{active: true}`: the host's participant attribute `kabso.recordingUntil` = now + 61 s, so
   every viewer shows «يتم التسجيل» until then or until `{active: false}` removes it. Audited `live.recording.start` /
   `.stop`. An AUDIO room → 400.
+
+### 10.64 Recharge orders with escrow «طلبات الشحن» *(v1.69-social, DRAFT — D204)*
+
+The owner's flow (2026-10-31) on top of D185's direct selling, which stays as it is: the **buyer** asks an agent for
+coins, the agent sends where to pay, the buyer pays **outside the app** and says so with the transfer's screenshot,
+and the agent confirms. From the payment details until the agent's «استلمت» (or an admin's decision) the coins are
+**frozen** from the agent's stock, so the buyer never pays for coins the agent no longer has. No money passes
+through Kabso (KNOWN_LIMITATIONS). Statuses:
+
+```
+REQUESTED ──details──▶ AWAITING_PAYMENT ──«قمت بالإرسال»──▶ PAID ──«استلمت»──▶ COMPLETED
+   │ cancel (either)         │ cancel (buyer) / 60 min            │ «نزاع» (agent any time,
+   │ 30 min ▶ EXPIRED        ▼   ▶ CANCELLED / EXPIRED (released) │  buyer after 15 min)
+   ▼                                                              ▼
+CANCELLED                                               DISPUTED ──admin──▶ COMPLETED_BY_ADMIN | REFUNDED_TO_AGENT
+```
+
+PAID never expires and never releases by itself: only «استلمت» or an admin's decision moves its coins.
+`RECHARGE_ORDERS_ENABLED=false` → 503 `RECHARGE_ORDERS_UNAVAILABLE` (`RechargeRules.orders.enabled` tells the app,
+which then hides the order entry; direct selling is not affected). The app also hides the agent flow in store builds
+(D150, `KABSO_STORE_BUILD`), until legal confirms.
+
+#### 10.64.1 The price and the exchange rates
+
+`coins` × the **retail** price (`COIN_RETAIL_USD_PER_MILLION`, owner $12.50 per 1 000 000) in US cents rounded half
+up; the agent's wholesale tiers (§10.48) are never the buyer's price. When OWNER / FINANCE set an exchange rate for
+the country (`recharge_exchange_rates`: currency, units per 1 USD × 1 000 000, decimals 0–3; panel «أسعار الصرف» or
+`recharge-admin set-rate`, audited with before/after and the reason) the local amount is shown too, rounded half up
+in the currency's decimals; without a rate the country is USD only. USD is always shown. The price — USD, currency,
+rate and local amount — is **stored with the order at creation**; a later rate change never touches it.
+`RECHARGE_ORDER_MIN_COINS` (10 000) … `RECHARGE_ORDER_MAX_COINS` (1 000 000 000) per order.
+
+#### 10.64.2 Creating an order
+
+The buyer picks the country (default `Me.country`), an ACTIVE agent there (`listRechargeAgents?country=`), the
+coins and one of the agent's payment-method **types** for that country. Refused: yourself, an employee of that agent,
+a block either way (404), a type the agent does not offer there, a stock that does not cover the coins now (a hint;
+the authoritative check is at the details), and a second open order for the same buyer and agent (unique partial
+index; 409 `RECHARGE_ORDER_OPEN_EXISTS`). `Idempotency-Key` per buyer. The order starts REQUESTED with
+`expiresAt` = now + `RECHARGE_ORDER_REQUEST_TTL_MINUTES` (30).
+
+#### 10.64.3 The order's chat
+
+Every order has its own thread `recharge_order_messages` — not a direct conversation (§11.13): it is evidence and is
+never edited or deleted by a participant (it goes only with the order). Kinds: TEXT (≤ 1000, line breaks kept),
+IMAGE and TRANSFER_PROOF (a private `RECHARGE_ORDER_IMAGE` upload consumed into
+`private/recharge-orders/<order>/<message>.webp`, re-encoded with the metadata stripped, `private, no-store`; read
+only through `getRechargeOrderMessageImage` by the buyer, the agent and the agent's employees, and through the panel
+by admins — each admin view audited), PAYMENT_DETAILS (method + details) and SYSTEM lines for every state change
+(`event`). The order is `seq`-ordered. Roles: BUYER, AGENT, EMPLOYEE, ADMIN («الإدارة»: no name, no author), SYSTEM.
+Writing is closed on CANCELLED / EXPIRED orders; it stays open on DISPUTED and decided ones. Each event and message
+updates one unread `RECHARGE_ORDER_UPDATE` notification per order and person (system type: a block never hides an
+order's state), pushed through the outbox (§11.12).
+
+#### 10.64.4 The payment details freeze the coins
+
+The agent, or an employee **on shift** (§10.48: else 409 `RECHARGE_OFF_SHIFT`; employees read at any time), sends
+`method` (one of the agent's types there) and `details`. In one transaction on the locked order: the order's coins
+leave the stock (`recharge_stock_ledger` `ORDER_HOLD`, conditional UPDATE: 409 `RECHARGE_STOCK_INSUFFICIENT` and
+nothing changes when the stock is short), `held_coins` = coins, AWAITING_PAYMENT, `expiresAt` = now +
+`RECHARGE_ORDER_PAYMENT_TTL_MINUTES` (60). An ACTIVE agent only.
+
+#### 10.64.5 The protection notice and «قمت بالإرسال»
+
+The app shows the buyer the owner's notice as a prominent card that must be acknowledged
+(`acknowledgeRechargeOrderNotice`, recorded once with a system line) before «قمت بالإرسال» is enabled (409
+`RECHARGE_ORDER_NOTICE_REQUIRED` otherwise):
+
+> «يرجى أخذ لقطة شاشة وتسجيل فيديو للشاشة منذ لحظة مغادرة المحادثة وحتى وصول الحوالة إلى المعلومات التي قدّمها
+> الوكيل، لحمايتكم من أي خطأ أو احتيال. عند التحويل أرسل لقطة شاشة للحوالة واحتفظ بفيديو الشاشة حتى تصلك العملات.»
+>
+> "Please take a screenshot and record a screen video from the moment you leave this chat until the transfer reaches
+> the details the agent gave you, to protect you from any mistake or fraud. When you transfer, send a screenshot of
+> the transfer and keep the screen video until your coins arrive."
+
+«قمت بالإرسال» needs the transfer's screenshot (`proofUploadId`) → PAID, `paidAt`, no expiry; `disputeOpensAt` =
+`paidAt` + `RECHARGE_ORDER_DISPUTE_AFTER_MINUTES` (owner 15). Both sides see the countdown to it.
+
+#### 10.64.6 «استلمت»
+
+On PAID, the agent's side (with a confirmation in the app): the frozen coins go to the buyer's wallet
+(`wallet_ledger` `RECHARGE_ORDER`, reference the order; the daily recharge badge counts them, §10.50) → COMPLETED.
+The stock already left at the hold, so no stock row is written here; the hold row and the credit row share the
+order's id. Idempotent (COMPLETED again → 200, nothing moves).
+
+#### 10.64.7 «نزاع»
+
+On PAID: the agent at any time («لم يصلني»), the buyer from `disputeOpensAt` (409
+`RECHARGE_ORDER_DISPUTE_TOO_EARLY` before) → DISPUTED (`disputedBy`). The coins stay frozen, both sides keep adding
+evidence, and admins may now open the order. Again → 200, no change.
+
+#### 10.64.8 Cancellations, expiries and races
+
+The buyer cancels REQUESTED or AWAITING_PAYMENT, the agent's side REQUESTED only; after the details the hold goes
+back (`ORDER_RELEASE`, once per order — unique `(agent, reason, reference)`). A sweeper
+(`RECHARGE_ORDER_SWEEP_INTERVAL_SECONDS`, 60; 0 refused in production; `recharge-admin expire-orders`) expires due
+REQUESTED / AWAITING_PAYMENT orders (releasing the hold); every read and action applies a due expiry first. Every
+transition locks the order row (`FOR UPDATE`) and re-checks the status, so of confirm, dispute, cancel, expiry and an
+admin's decision exactly one wins; the loser gets 409 `RECHARGE_ORDER_STATE_CHANGED` and nothing moves. A CHECK keeps
+`held_coins` ∈ {0, coins} and > 0 exactly in AWAITING_PAYMENT / PAID / DISPUTED.
+
+#### 10.64.9 The panel «نزاعات الشحن»
+
+Capabilities (§10.54.1): `recharge.disputes` (OWNER, SUPPORT, FINANCE) — the queue (DISPUTED oldest first; decided
+newest first), the order with its whole chat and pictures (each view audited `recharge.order.admin_view` /
+`recharge.order.image_view`, actor, IP, `via: panel`), and «الإدارة» lines in the chat (`recharge.order.admin_message`;
+users never see the admin's name); `recharge.disputes.resolve` (OWNER, FINANCE — the money roles, like a top-up) —
+the decision with a reason and the authenticator code again (§10.54.3): `CREDIT_BUYER` → COMPLETED_BY_ADMIN (wallet
+`RECHARGE_ORDER`) or `REFUND_AGENT` → REFUNDED_TO_AGENT (stock `ORDER_RELEASE`), through `resolveDisputeIn` — the rule
+of `recharge-admin resolve` — audited with before/after, the reason, actor, IP and `via`; both sides notified. The same
+decision again → `changed: false`; any other → 409 `ADMIN_ACTION_REFUSED`. An order that was never disputed is 404 in
+the panel. `recharge.rates` (OWNER, FINANCE) changes the exchange rates; `recharge.agents` reads them.
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 

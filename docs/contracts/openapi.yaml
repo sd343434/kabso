@@ -449,6 +449,20 @@ info:
     **D202 (DRAFT v1.68-social)**: the reels page after the owner's reference. `listFeedReels` gains `tab=nearby`
     (reels of authors from the caller's own country, newest first; no country → an empty page; CONVENTIONS
     §11.15). Additive; nothing else changes (like, comment, save and share reuse the posts interactions).
+    **D204 (DRAFT v1.69-social)**: recharge orders with escrow «طلبات الشحن» (CONVENTIONS §10.64). The buyer asks an
+    ACTIVE agent of a country for coins at the server's price (`quoteRechargeOrder`: retail USD and the local amount at
+    the admin's exchange rate) → `createRechargeOrder` (REQUESTED) with the order's own chat
+    (`listRechargeOrderMessages`, `postRechargeOrderMessage`, `getRechargeOrderMessageImage`; private
+    `RECHARGE_ORDER_IMAGE` uploads) → `sendRechargeOrderPaymentDetails` freezes the coins from the agent's stock
+    (AWAITING_PAYMENT) → `acknowledgeRechargeOrderNotice` (the protection notice) → `markRechargeOrderPaid`
+    («قمت بالإرسال» with the transfer's screenshot; PAID, the 15-minute wait) → `confirmRechargeOrder` («استلمت»: the
+    coins to the buyer) or `disputeRechargeOrder` («نزاع»); `cancelRechargeOrder`, expiries, `listMyRechargeOrders`,
+    `getRechargeOrder`. The panel: `listAdminRechargeDisputes`, `getAdminRechargeOrder`,
+    `postAdminRechargeOrderMessage` («الإدارة»), `getAdminRechargeOrderMessageImage`, `resolveAdminRechargeDispute`
+    (the code again) and the exchange rates (`listAdminRechargeExchangeRates`, `setAdminRechargeExchangeRate`,
+    `clearAdminRechargeExchangeRate`). `RechargeAgentDashboard.heldCoins` / `openOrders`, `RechargeRules.orders`,
+    `NotificationType.RECHARGE_ORDER_UPDATE` (target `RECHARGE_ORDER`), `WalletLedgerReason.RECHARGE_ORDER`, five
+    codes. Additive; no money is handled in the app (the payment happens outside it).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -482,7 +496,7 @@ tags:
   - name: agency
     description: "Host agencies: join with an invite code, leave or complain, the agent's dashboard (v1.52-social DRAFT, D179); the active-host frame (v1.55-social DRAFT, D186)."
   - name: recharge
-    description: "Recharge agents «وكلاء الشحن»: the application, the agent's coin stock and sales, employees, availability, the directory and cherry sales from hosts (v1.54-social DRAFT, D185)."
+    description: "Recharge agents «وكلاء الشحن»: the application, the agent's coin stock and sales, employees, availability, the directory and cherry sales from hosts (v1.54-social DRAFT, D185); recharge orders with escrow, their chat and disputes (v1.69-social DRAFT, D204)."
   - name: premium-usernames
     description: "Premium usernames rented monthly with coins, and the username change (v1.28-live DRAFT, D146). Prices, the reserved list and grants are managed by the premium-admin CLI."
   - name: families
@@ -11989,6 +12003,525 @@ paths:
           $ref: '#/components/responses/Error'
         '403':
           $ref: '#/components/responses/Error'
+  /api/v1/recharge-orders/quote:
+    get:
+      tags: [recharge]
+      operationId: quoteRechargeOrder
+      summary: "The server's price of an order to an agent: retail USD and the local amount (D204)"
+      description: |
+        v1.69-social, CONVENTIONS §10.64.1. `coins` × the retail price (`COIN_RETAIL_USD_PER_MILLION`, owner $12.50 per
+        1 000 000) in USD cents, rounded half up, and — when an admin set an exchange rate for `country` — the amount in
+        the country's currency at that rate (`local`; null = USD only). The agent's own wholesale tiers are not used.
+        Checks: 503 `RECHARGE_ORDERS_UNAVAILABLE`; 400 (query; `coins` outside `minCoins` … `maxCoins` → `out_of_range`);
+        404 (no ACTIVE agent with that code); 400 `country` `invalid_value` (the agent does not serve the country).
+      parameters:
+        - { name: agentCode, in: query, required: true, schema: { type: string, maxLength: 16 } }
+        - { name: country, in: query, required: true, schema: { type: string, pattern: '^[A-Za-z]{2}$' } }
+        - { name: coins, in: query, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+      responses:
+        '200':
+          description: The quote.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RechargeOrderQuote' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/recharge-orders:
+    get:
+      tags: [recharge]
+      operationId: listMyRechargeOrders
+      summary: "My recharge orders, as buyer or for the agent I am or work for (D204)"
+      description: |
+        v1.69-social, CONVENTIONS §10.64. Newest first. `role=agent`: the agent's orders (an employee sees their
+        agent's). `state` open (REQUESTED, AWAITING_PAYMENT, PAID, DISPUTED) / closed / all. 404 `role=agent` for a
+        person who is neither an agent nor an employee.
+      parameters:
+        - { name: role, in: query, required: false, schema: { type: string, enum: [buyer, agent], default: buyer } }
+        - { name: state, in: query, required: false, schema: { type: string, enum: [open, closed, all], default: all } }
+        - $ref: '#/components/parameters/Cursor'
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+      responses:
+        '200':
+          description: One page.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RechargeOrderPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [recharge]
+      operationId: createRechargeOrder
+      summary: "Asks an agent for coins: the order «طلب شحن» with the server's price (D204)"
+      description: |
+        v1.69-social, CONVENTIONS §10.64.2. The buyer chooses the country, an ACTIVE agent serving it, the coins and
+        one of the agent's payment-method types there; the price is fixed now (USD and the local amount). The order is
+        REQUESTED with its own chat (a `CREATED` system line); the agent and the employees get a
+        `RECHARGE_ORDER_UPDATE`. Nothing is frozen yet. Order after auth: 503 `RECHARGE_ORDERS_UNAVAILABLE` → 400
+        `Idempotency-Key`, body → the same key again → 200 with that order (409 `IDEMPOTENCY_CONFLICT` when the body
+        differs) → 400 `coins` `out_of_range` → 404 agent (unknown or not ACTIVE) → 400 `country` → 400 `agentCode`
+        (yourself, or your own agent's employee) → 404 (a block either way) → 400 `paymentType` (not one of the agent's
+        types there) → 409 `RECHARGE_STOCK_INSUFFICIENT` (the stock does not cover the coins now) → 409
+        `RECHARGE_ORDER_OPEN_EXISTS` (one open order per buyer and agent) → 201. 20 / hour per user (`recharge:order`).
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RechargeOrderCreateRequest' }
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RechargeOrder' }
+        '200':
+          description: A retry with the same `Idempotency-Key`; the first order.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RechargeOrder' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/recharge-orders/{orderId}:
+    get:
+      tags: [recharge]
+      operationId: getRechargeOrder
+      summary: "One recharge order with what the caller may do now (D204)"
+      description: |
+        v1.69-social, CONVENTIONS §10.64. The buyer, the agent and the agent's employees only (else 404). A REQUESTED or
+        AWAITING_PAYMENT order past `expiresAt` is expired first (the hold goes back).
+      parameters:
+        - $ref: '#/components/parameters/RechargeOrderIdPath'
+      responses:
+        '200':
+          description: The order.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RechargeOrder' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/recharge-orders/{orderId}/messages:
+    get:
+      tags: [recharge]
+      operationId: listRechargeOrderMessages
+      summary: "The order's chat, newest first (D204)"
+      description: |
+        v1.69-social, CONVENTIONS §10.64.3. Text, pictures (`hasImage`: read them with `getRechargeOrderMessageImage`),
+        the payment details, the transfer's screenshot and a system line for every state change; «الإدارة» lines have no
+        author. Kept as evidence: never edited or deleted.
+      parameters:
+        - $ref: '#/components/parameters/RechargeOrderIdPath'
+        - $ref: '#/components/parameters/Cursor'
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+      responses:
+        '200':
+          description: One page.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RechargeOrderMessagePage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [recharge]
+      operationId: postRechargeOrderMessage
+      summary: "Writes in the order's chat: text or a picture (D204)"
+      description: |
+        v1.69-social, CONVENTIONS §10.64.3. Exactly one of `text` (1 … 1000, line breaks kept) or `imageUploadId` (a
+        `RECHARGE_ORDER_IMAGE` upload of the caller, sent and not completed; re-encoded, metadata stripped and stored
+        privately — never a URL). Not on a CANCELLED or EXPIRED order (409 `RECHARGE_ORDER_STATE_CHANGED`); an employee
+        only on shift (409 `RECHARGE_OFF_SHIFT`). The other side gets a `RECHARGE_ORDER_UPDATE`. 600 / hour per user
+        (`recharge:order_action`, every order write).
+      parameters:
+        - $ref: '#/components/parameters/RechargeOrderIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RechargeOrderMessageRequest' }
+      responses:
+        '201':
+          description: Written.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RechargeOrderMessage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/recharge-orders/{orderId}/messages/{messageId}/image:
+    get:
+      tags: [recharge]
+      operationId: getRechargeOrderMessageImage
+      summary: "A picture of the order's chat (the order's people only; D204)"
+      description: "v1.69-social, CONVENTIONS §10.64.3. `image/webp`, `Cache-Control: private, no-store`. 404 for anyone else, or a message without a picture."
+      parameters:
+        - $ref: '#/components/parameters/RechargeOrderIdPath'
+        - $ref: '#/components/parameters/RechargeOrderMessageIdPath'
+      responses:
+        '200':
+          description: The picture.
+          content:
+            image/webp:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/recharge-orders/{orderId}/payment-details:
+    post:
+      tags: [recharge]
+      operationId: sendRechargeOrderPaymentDetails
+      summary: "The agent sends the payment details: the coins are frozen now (D204)"
+      description: |
+        v1.69-social, CONVENTIONS §10.64.4. The agent, or an employee on shift, sends a structured message (`method`, one
+        of the agent's types in the order's country, and `details`); in the same transaction the order's coins are taken
+        from the stock (`recharge_stock_ledger` `ORDER_HOLD`) and the order becomes AWAITING_PAYMENT (`expiresAt` =
+        now + `RECHARGE_ORDER_PAYMENT_TTL_MINUTES`). The buyer gets a `RECHARGE_ORDER_UPDATE`. 404 (not the agent's side);
+        409 `RECHARGE_OFF_SHIFT`, `RECHARGE_ORDER_STATE_CHANGED` (not REQUESTED), `RECHARGE_AGENT_NOT_ACTIVE`,
+        `RECHARGE_STOCK_INSUFFICIENT` (nothing changed); 400 `method`.
+      parameters:
+        - $ref: '#/components/parameters/RechargeOrderIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RechargeOrderPaymentDetailsRequest' }
+      responses:
+        '200':
+          description: The order.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RechargeOrder' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/recharge-orders/{orderId}/notice-ack:
+    post:
+      tags: [recharge]
+      operationId: acknowledgeRechargeOrderNotice
+      summary: "The buyer acknowledges the protection notice (D204)"
+      description: |
+        v1.69-social, CONVENTIONS §10.64.5. Needed before `markRechargeOrderPaid`; recorded once (a system line), again =
+        no change. 404 (not the buyer); 409 `RECHARGE_ORDER_STATE_CHANGED` (not AWAITING_PAYMENT).
+      parameters:
+        - $ref: '#/components/parameters/RechargeOrderIdPath'
+      responses:
+        '200':
+          description: The order.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RechargeOrder' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/recharge-orders/{orderId}/paid:
+    post:
+      tags: [recharge]
+      operationId: markRechargeOrderPaid
+      summary: "«قمت بالإرسال»: the buyer says the money was sent, with the transfer's screenshot (D204)"
+      description: |
+        v1.69-social, CONVENTIONS §10.64.5. `proofUploadId` is a `RECHARGE_ORDER_IMAGE` upload of the buyer (kept
+        privately in the chat as `TRANSFER_PROOF`). The order becomes PAID: it never expires and never releases by itself;
+        `disputeOpensAt` = now + `RECHARGE_ORDER_DISPUTE_AFTER_MINUTES` (owner 15). The agent's side gets a
+        `RECHARGE_ORDER_UPDATE`. 404 (not the buyer); 409 `RECHARGE_ORDER_STATE_CHANGED`, `RECHARGE_ORDER_NOTICE_REQUIRED`;
+        400 `proofUploadId`.
+      parameters:
+        - $ref: '#/components/parameters/RechargeOrderIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RechargeOrderPaidRequest' }
+      responses:
+        '200':
+          description: The order.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RechargeOrder' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/recharge-orders/{orderId}/confirm:
+    post:
+      tags: [recharge]
+      operationId: confirmRechargeOrder
+      summary: "«استلمت»: the agent received the money; the frozen coins go to the buyer (D204)"
+      description: |
+        v1.69-social, CONVENTIONS §10.64.6. On a PAID order: the buyer's wallet gets the coins (`wallet_ledger`
+        `RECHARGE_ORDER`, the daily recharge badge counts them) and the order is COMPLETED, in one transaction on the locked
+        row. Idempotent: on a COMPLETED order → 200, nothing moves again. A dispute, an admin's decision or a cancellation
+        that came first → 409 `RECHARGE_ORDER_STATE_CHANGED`. 404 (not the agent's side); 409 `RECHARGE_OFF_SHIFT`.
+      parameters:
+        - $ref: '#/components/parameters/RechargeOrderIdPath'
+      responses:
+        '200':
+          description: The order.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RechargeOrder' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/recharge-orders/{orderId}/dispute:
+    post:
+      tags: [recharge]
+      operationId: disputeRechargeOrder
+      summary: "«نزاع»: the coins stay frozen and the team can join the chat (D204)"
+      description: |
+        v1.69-social, CONVENTIONS §10.64.7. On a PAID order: the agent at any time, the buyer once `disputeOpensAt` has
+        passed (else 409 `RECHARGE_ORDER_DISPUTE_TOO_EARLY`). An optional `reason` is written in the chat. The order is
+        DISPUTED (again → 200, no change); both sides keep writing; it appears in the panel's «نزاعات الشحن». A confirmation
+        that came first → 409 `RECHARGE_ORDER_STATE_CHANGED`.
+      parameters:
+        - $ref: '#/components/parameters/RechargeOrderIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RechargeOrderReasonRequest' }
+      responses:
+        '200':
+          description: The order.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RechargeOrder' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/recharge-orders/{orderId}/cancel:
+    post:
+      tags: [recharge]
+      operationId: cancelRechargeOrder
+      summary: "Cancels an order: the buyer before PAID, the agent before the details (D204)"
+      description: |
+        v1.69-social, CONVENTIONS §10.64.8. After the details (AWAITING_PAYMENT) the frozen coins go back to the stock
+        (`ORDER_RELEASE`). CANCELLED; both sides notified. Otherwise 409 `RECHARGE_ORDER_STATE_CHANGED`.
+      parameters:
+        - $ref: '#/components/parameters/RechargeOrderIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RechargeOrderReasonRequest' }
+      responses:
+        '200':
+          description: The order.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RechargeOrder' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/recharge/disputes:
+    get:
+      tags: [admin-panel]
+      operationId: listAdminRechargeDisputes
+      summary: "«نزاعات الشحن»: disputed recharge orders, open ones oldest first (recharge.disputes)"
+      description: "v1.69-social, CONVENTIONS §10.64.9. `OPEN` (DISPUTED, the queue) or `RESOLVED` (COMPLETED_BY_ADMIN / REFUNDED_TO_AGENT, newest first). No chat content in the list."
+      security: [{ adminSession: [] }]
+      parameters:
+        - { name: status, in: query, required: false, schema: { type: string, enum: [OPEN, RESOLVED], default: OPEN } }
+        - $ref: '#/components/parameters/AdminCursor'
+        - $ref: '#/components/parameters/AdminLimit'
+      responses:
+        '200':
+          description: One page.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminRechargeDisputePage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/recharge/orders/{orderId}:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminRechargeOrder
+      summary: "A disputed order with its whole chat (recharge.disputes; audited)"
+      description: "v1.69-social, CONVENTIONS §10.64.9. Only an order that was disputed (else 404: before a dispute the chat is the buyer's and the agent's). Each view writes `recharge.order.admin_view` (actor, IP, `via: panel`)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminOrderIdPath'
+      responses:
+        '200':
+          description: The order.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminRechargeOrder' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/recharge/orders/{orderId}/messages:
+    post:
+      tags: [admin-panel]
+      operationId: postAdminRechargeOrderMessage
+      summary: "Writes in a disputed order's chat as «الإدارة» (recharge.disputes; audited)"
+      description: "v1.69-social, CONVENTIONS §10.64.9. The line is shown to the buyer and the agent as «الإدارة» (never the admin's name); both get a `RECHARGE_ORDER_UPDATE`."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminOrderIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminRechargeOrderMessageRequest' }
+      responses:
+        '201':
+          description: Written.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminRechargeOrderMessage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/recharge/orders/{orderId}/messages/{messageId}/image:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminRechargeOrderMessageImage
+      summary: "A picture of a disputed order's chat (recharge.disputes; audited per view)"
+      description: "v1.69-social, CONVENTIONS §10.64.9. `image/webp`, `private, no-store`; each view writes `recharge.order.image_view`."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminOrderIdPath'
+        - $ref: '#/components/parameters/RechargeOrderMessageIdPath'
+      responses:
+        '200':
+          description: The picture.
+          content:
+            image/webp:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/recharge/orders/{orderId}/resolve:
+    post:
+      tags: [admin-panel]
+      operationId: resolveAdminRechargeDispute
+      summary: "Decides a dispute: the frozen coins to the buyer or back to the agent (recharge.disputes.resolve; code again; audited)"
+      description: "v1.69-social, CONVENTIONS §10.64.9 — the `recharge-admin resolve` rule. Financial: `totpCode` again (403 `ADMIN_TOTP_INVALID`). `CREDIT_BUYER` → COMPLETED_BY_ADMIN (wallet `RECHARGE_ORDER`), `REFUND_AGENT` → REFUNDED_TO_AGENT (stock `ORDER_RELEASE`); audited with the reason, before / after, actor, IP and `via: panel`; both sides notified. The same decision again → 200 `changed: false`; any other state → 409 `ADMIN_ACTION_REFUSED`."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminOrderIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminRechargeDisputeResolveRequest' }
+      responses:
+        '200':
+          description: Decided.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminRechargeDisputeResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/recharge/exchange-rates:
+    get:
+      tags: [admin-panel]
+      operationId: listAdminRechargeExchangeRates
+      summary: "«أسعار الصرف»: the exchange rate per country used to price recharge orders (recharge.agents)"
+      description: "v1.69-social, CONVENTIONS §10.64.1. The 22 Arab League countries (D150) and any other country with a rate; `unitsPerUsd` null = USD only."
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: The rates.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminRechargeExchangeRates' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/recharge/exchange-rates/{country}:
+    post:
+      tags: [admin-panel]
+      operationId: setAdminRechargeExchangeRate
+      summary: "Sets a country's exchange rate (recharge.rates: OWNER, FINANCE; reason; audited)"
+      description: "v1.69-social, CONVENTIONS §10.64.1 — the `recharge-admin set-rate` rule; audited with before / after. New orders use it; an order keeps the rate it was created with."
+      security: [{ adminSession: [] }]
+      parameters:
+        - { name: country, in: path, required: true, schema: { type: string, pattern: '^[A-Za-z]{2}$' } }
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminRechargeExchangeRateRequest' }
+      responses:
+        '200':
+          description: Saved.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminRechargeExchangeRate' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/recharge/exchange-rates/{country}/clear:
+    post:
+      tags: [admin-panel]
+      operationId: clearAdminRechargeExchangeRate
+      summary: "Removes a country's rate: USD only (recharge.rates; reason; audited)"
+      description: "v1.69-social, CONVENTIONS §10.64.1 — the `recharge-admin clear-rate` rule. 409 `ADMIN_ACTION_REFUSED` when there is no rate."
+      security: [{ adminSession: [] }]
+      parameters:
+        - { name: country, in: path, required: true, schema: { type: string, pattern: '^[A-Za-z]{2}$' } }
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReasonRequest' }
+      responses:
+        '200':
+          description: Cleared.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminRechargeExchangeRate' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
 components:
   securitySchemes:
     bearerAuth:
@@ -12001,6 +12534,23 @@ components:
       name: __Host-kabso_admin
       description: "(v1.60-social, D191) The admin panel's session cookie (HttpOnly, Secure, SameSite=Strict), set by `adminLogin` and replaced by the second factor; changes also need `X-CSRF-Token` (CONVENTIONS §10.54.2)."
   parameters:
+    # v1.69-social (D204): recharge orders.
+    RechargeOrderIdPath:
+      name: orderId
+      in: path
+      required: true
+      schema: { type: string }
+    RechargeOrderMessageIdPath:
+      name: messageId
+      in: path
+      required: true
+      schema: { type: string }
+    AdminOrderIdPath:
+      name: orderId
+      in: path
+      required: true
+      description: The recharge order's id.
+      schema: { type: string }
     # v1.60-social (D191): the admin panel.
     AdminCsrf:
       name: X-CSRF-Token
@@ -18266,7 +18816,7 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     MediaKind:
       type: string
-      enum: [POST_IMAGE, STORY_IMAGE, LIVE_COVER, LIVE_CHAT_IMAGE, LIVE_CHAT_VOICE, FAMILY_EMBLEM, FAMILY_COVER, HOME_BANNER, DM_IMAGE, DM_VOICE, POST_VIDEO, REEL_VIDEO, VIDEO_POSTER, AVATAR, RECHARGE_AGENT_PHOTO, RECHARGE_AGENT_SELFIE]
+      enum: [POST_IMAGE, STORY_IMAGE, LIVE_COVER, LIVE_CHAT_IMAGE, LIVE_CHAT_VOICE, FAMILY_EMBLEM, FAMILY_COVER, HOME_BANNER, DM_IMAGE, DM_VOICE, POST_VIDEO, REEL_VIDEO, VIDEO_POSTER, AVATAR, RECHARGE_AGENT_PHOTO, RECHARGE_AGENT_SELFIE, RECHARGE_ORDER_IMAGE]
       description: |
         Images for posts, (CP-008) for stories and (CP-015) for the host's live cover; (CP-017)
         a picture or a voice clip (`audio/mp4`, ≤ 30 s, ≤ 1 MiB) for a live chat message;
@@ -18749,13 +19299,13 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     NotificationType:
       type: string
-      description: "`LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). (v1.60-social, D191) `MODERATION_WARNING` (system: a moderator warned you about content that breaks the rules; target POST when the warning is about a post, else none). (v1.66-social, D198) `DATA_EXPORT_READY` (system, no target: the data export «تنزيل بياناتي» is ready; the app opens Settings › Privacy). Clients ignore values they do not know."
-      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST, MODERATION_WARNING, DATA_EXPORT_READY]
+      description: "`LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). (v1.60-social, D191) `MODERATION_WARNING` (system: a moderator warned you about content that breaks the rules; target POST when the warning is about a post, else none). (v1.66-social, D198) `DATA_EXPORT_READY` (system, no target: the data export «تنزيل بياناتي» is ready; the app opens Settings › Privacy). (v1.69-social, D204) `RECHARGE_ORDER_UPDATE` (system: a recharge order you take part in changed or got a message; target RECHARGE_ORDER with `coins`, `orderEvent` and `orderStatus`; one unread row per order, moved up by each event). Clients ignore values they do not know."
+      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST, MODERATION_WARNING, DATA_EXPORT_READY, RECHARGE_ORDER_UPDATE]
     NotificationTarget:
       type: object
       required: [type, id, postId, thumbUrl, text]
       properties:
-        type: { type: string, enum: [POST, COMMENT, STORY, USER, FAMILY, MEDAL, PREMIUM_USERNAME, BAG_ITEM, RECHARGE_SALE], description: "(v1.21-live) FAMILY and MEDAL are new; (v1.28-live, D146) PREMIUM_USERNAME; (v1.48-social, D171) BAG_ITEM; (v1.54-social, D185) RECHARGE_SALE; clients ignore target types they do not know." }
+        type: { type: string, enum: [POST, COMMENT, STORY, USER, FAMILY, MEDAL, PREMIUM_USERNAME, BAG_ITEM, RECHARGE_SALE, RECHARGE_ORDER], description: "(v1.21-live) FAMILY and MEDAL are new; (v1.28-live, D146) PREMIUM_USERNAME; (v1.48-social, D171) BAG_ITEM; (v1.54-social, D185) RECHARGE_SALE; (v1.69-social, D204) RECHARGE_ORDER (`id` the order); clients ignore target types they do not know." }
         id: { type: string, description: "A post, comment or story id, a username for USER, a family id for FAMILY, a medal code for MEDAL, the username for PREMIUM_USERNAME, the item code for BAG_ITEM." }
         postId: { type: [string, 'null'], format: uuid, description: "For a COMMENT, its post." }
         thumbUrl: { type: [string, 'null'], format: uri, description: "The post or story photo (320 px), when it has one." }
@@ -18763,7 +19313,9 @@ components:
         startsAt: { type: string, format: date-time, description: "LIVE_SCHEDULED_SOON only (v1.14-live): when the live is planned to start." }
         endsAt: { type: string, format: date-time, description: "PREMIUM_USERNAME only (v1.28-live, D146): the end of the paid period (EXPIRING) or of the grace period (EXPIRED)." }
         bagCategory: { $ref: '#/components/schemas/BagCategory', description: "BAG_ITEM only (v1.48-social, D171): the item's category." }
-        coins: { type: integer, format: int64, minimum: 1, description: "RECHARGE_SALE only (v1.54-social, D185): the coins bought." }
+        coins: { type: integer, format: int64, minimum: 1, description: "RECHARGE_SALE only (v1.54-social, D185): the coins bought; RECHARGE_ORDER (v1.69-social, D204): the order's coins." }
+        orderEvent: { type: string, description: "RECHARGE_ORDER only (v1.69-social, D204): the latest event — CREATED, DETAILS_SENT, PAID, COMPLETED, DISPUTED, CANCELLED, EXPIRED, COMPLETED_BY_ADMIN, REFUNDED_TO_AGENT, MESSAGE, IMAGE, ADMIN_MESSAGE." }
+        orderStatus: { $ref: '#/components/schemas/RechargeOrderStatus' }
     Notification:
       type: object
       required: [id, type, actors, actorCount, target, createdAt, read]
@@ -20546,6 +21098,7 @@ components:
         - CARD_TOPUP
         - CARD_TOPUP_REVERSAL
         - CARD_TOPUP_RESTORE
+        - RECHARGE_ORDER
     WalletLedgerEntry:
       type: object
       required: [id, reason, delta, balanceAfter, createdAt]
@@ -21412,7 +21965,7 @@ components:
         rejectReason: { type: [string, 'null'], maxLength: 500 }
     RechargeAgentDashboard:
       type: object
-      required: [code, status, stockCoins, activatedAt, dailyCherryCap, todayCherries, availability, sales]
+      required: [code, status, stockCoins, heldCoins, openOrders, activatedAt, dailyCherryCap, todayCherries, availability, sales]
       properties:
         code:
           oneOf:
@@ -21420,6 +21973,8 @@ components:
             - type: 'null'
         status: { type: string, enum: [APPROVED, ACTIVE, SUSPENDED] }
         stockCoins: { type: integer, format: int64, minimum: 0 }
+        heldCoins: { type: integer, format: int64, minimum: 0, description: "(v1.69-social, D204) Coins frozen in open orders (already out of `stockCoins`)." }
+        openOrders: { type: integer, minimum: 0, description: "(v1.69-social, D204) Orders waiting for the agent (REQUESTED, PAID or DISPUTED)." }
         activatedAt: { type: [string, 'null'], format: date-time }
         dailyCherryCap: { type: integer, format: int64, minimum: 0, description: "The most cherries the agent may buy from hosts per day; 0 = no cap (the default since the owner's «حد وكيل مفتوح», D185 follow-up)." }
         todayCherries: { type: integer, format: int64, minimum: 0, description: "Cherries bought today (confirmed)." }
@@ -21441,7 +21996,7 @@ components:
         onShiftNow: { type: boolean }
     RechargeRules:
       type: object
-      required: [activationMinCoins, cherryUnit, coinsPerCherryUnit, minCherries, stepCherries, requestTtlMinutes, payout]
+      required: [activationMinCoins, cherryUnit, coinsPerCherryUnit, minCherries, stepCherries, requestTtlMinutes, payout, orders]
       properties:
         activationMinCoins: { type: integer, format: int64, description: "The first top-up that activates an agent (owner: 30 000 000)." }
         cherryUnit: { type: integer, format: int64, description: "1 000 000 cherries …" }
@@ -21450,6 +22005,7 @@ components:
         stepCherries: { type: integer, format: int64 }
         requestTtlMinutes: { type: integer }
         payout: { $ref: '#/components/schemas/CherryPayoutRules' }
+        orders: { $ref: '#/components/schemas/RechargeOrderRules' }
     RechargeAgentMe:
       type: object
       required: [status, canApply, application, agent, employment, rules]
@@ -21591,5 +22147,263 @@ components:
           type: array
           items: { $ref: '#/components/schemas/RechargeCherryRequest' }
         page: { $ref: '#/components/schemas/PageInfo' }
+    # ---- v1.69-social (D204, CONVENTIONS §10.64): recharge orders with escrow «طلبات الشحن» ----
+    RechargeOrderStatus:
+      type: string
+      description: "REQUESTED → AWAITING_PAYMENT (details sent, coins frozen) → PAID («قمت بالإرسال») → COMPLETED («استلمت») or DISPUTED → COMPLETED_BY_ADMIN / REFUNDED_TO_AGENT; CANCELLED and EXPIRED before PAID. Clients show an unknown value as a generic state."
+      enum: [REQUESTED, AWAITING_PAYMENT, PAID, DISPUTED, COMPLETED, COMPLETED_BY_ADMIN, REFUNDED_TO_AGENT, CANCELLED, EXPIRED]
+    RechargeOrderAction:
+      type: string
+      description: "What the caller may do now (the server checks again): MESSAGE, SEND_DETAILS, ACK_NOTICE, MARK_PAID, CONFIRM, DISPUTE, CANCEL."
+      enum: [MESSAGE, SEND_DETAILS, ACK_NOTICE, MARK_PAID, CONFIRM, DISPUTE, CANCEL]
+    RechargePrice:
+      type: object
+      required: [usdMinor, usd, local]
+      properties:
+        usdMinor: { type: integer, format: int64, minimum: 0, description: "US cents (coins × the retail price, rounded half up)." }
+        usd: { type: string, pattern: '^[0-9]+\.[0-9]{2}$', description: "e.g. `12.50`." }
+        local:
+          description: "The amount in the country's currency at the admin's rate; null = USD only."
+          oneOf:
+            - type: object
+              required: [currency, minor, digits, amount, rate]
+              properties:
+                currency: { type: string, pattern: '^[A-Z]{3}$' }
+                minor: { type: integer, format: int64, minimum: 0 }
+                digits: { type: integer, minimum: 0, maximum: 3 }
+                amount: { type: string, description: "e.g. `631.25` (EGP)." }
+                rate: { type: string, description: "Units per 1 USD, e.g. `50.5`." }
+            - type: 'null'
+    RechargeOrderQuote:
+      type: object
+      required: [agentCode, country, coins, price, paymentMethodTypes, minCoins, maxCoins]
+      properties:
+        agentCode: { $ref: '#/components/schemas/RechargeAgentCode' }
+        country: { type: string, pattern: '^[A-Z]{2}$' }
+        coins: { type: integer, format: int64, minimum: 1 }
+        price: { $ref: '#/components/schemas/RechargePrice' }
+        paymentMethodTypes:
+          type: array
+          items: { $ref: '#/components/schemas/RechargePaymentMethodType' }
+        minCoins: { type: integer, format: int64 }
+        maxCoins: { type: integer, format: int64 }
+    RechargeOrderCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [agentCode, country, coins, paymentType]
+      properties:
+        agentCode: { type: string, minLength: 1, maxLength: 16 }
+        country: { type: string, pattern: '^[A-Za-z]{2}$' }
+        coins: { type: integer, format: int64, minimum: 1, maximum: 1000000000000 }
+        paymentType: { $ref: '#/components/schemas/RechargePaymentMethodType' }
+    RechargeOrder:
+      type: object
+      required: [id, status, viewerRole, buyer, agent, agentCode, country, coins, price, paymentType, heldCoins, noticeAcknowledged, detailsAt, paidAt, disputeOpensAt, disputedAt, disputedBy, closedAt, closeReason, expiresAt, actions, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        status: { $ref: '#/components/schemas/RechargeOrderStatus' }
+        viewerRole: { type: string, enum: [BUYER, AGENT, EMPLOYEE] }
+        buyer: { $ref: '#/components/schemas/UserSummary' }
+        agent: { $ref: '#/components/schemas/UserSummary' }
+        agentCode: { type: string }
+        country: { type: string, pattern: '^[A-Z]{2}$' }
+        coins: { type: integer, format: int64, minimum: 1 }
+        price: { $ref: '#/components/schemas/RechargePrice' }
+        paymentType: { $ref: '#/components/schemas/RechargePaymentMethodType' }
+        heldCoins: { type: integer, format: int64, minimum: 0, description: "The coins frozen from the agent's stock now (0 or `coins`)." }
+        noticeAcknowledged: { type: boolean }
+        detailsAt: { type: [string, 'null'], format: date-time }
+        paidAt: { type: [string, 'null'], format: date-time }
+        disputeOpensAt: { type: [string, 'null'], format: date-time, description: "From when the buyer may open a dispute (`paidAt` + the wait)." }
+        disputedAt: { type: [string, 'null'], format: date-time }
+        disputedBy: { type: [string, 'null'], enum: [BUYER, AGENT, null] }
+        closedAt: { type: [string, 'null'], format: date-time }
+        closeReason: { type: [string, 'null'], maxLength: 500 }
+        expiresAt: { type: [string, 'null'], format: date-time, description: "When a REQUESTED / AWAITING_PAYMENT order ends by itself." }
+        actions:
+          type: array
+          items: { $ref: '#/components/schemas/RechargeOrderAction' }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    RechargeOrderPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/RechargeOrder' }
+        page: { $ref: '#/components/schemas/PageInfo' }
+    RechargeOrderMessage:
+      type: object
+      required: [id, kind, role, author, text, method, event, hasImage, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string, enum: [TEXT, IMAGE, PAYMENT_DETAILS, TRANSFER_PROOF, SYSTEM] }
+        role: { type: string, enum: [BUYER, AGENT, EMPLOYEE, ADMIN, SYSTEM], description: "ADMIN lines are shown as «الإدارة»." }
+        author:
+          oneOf:
+            - $ref: '#/components/schemas/UserSummary'
+            - type: 'null'
+        text: { type: [string, 'null'], maxLength: 1000, description: "TEXT, the PAYMENT_DETAILS' details, or a SYSTEM line's reason." }
+        method:
+          oneOf:
+            - $ref: '#/components/schemas/RechargePaymentMethodType'
+            - type: 'null'
+        event: { type: [string, 'null'], description: "SYSTEM only: CREATED, DETAILS_SENT, NOTICE_ACKNOWLEDGED, PAID, COMPLETED, DISPUTED_BY_BUYER, DISPUTED_BY_AGENT, CANCELLED_BY_BUYER, CANCELLED_BY_AGENT, EXPIRED, RESOLVED_FOR_BUYER, RESOLVED_FOR_AGENT (clients show an unknown one generically)." }
+        hasImage: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    RechargeOrderMessagePage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/RechargeOrderMessage' }
+        page: { $ref: '#/components/schemas/PageInfo' }
+    RechargeOrderMessageRequest:
+      type: object
+      additionalProperties: false
+      description: "Exactly one of `text` and `imageUploadId`."
+      properties:
+        text: { type: string, minLength: 1, maxLength: 1000 }
+        imageUploadId: { type: string, format: uuid, description: "A `RECHARGE_ORDER_IMAGE` upload of the caller." }
+    RechargeOrderPaymentDetailsRequest:
+      type: object
+      additionalProperties: false
+      required: [method, details]
+      properties:
+        method: { $ref: '#/components/schemas/RechargePaymentMethodType' }
+        details: { type: string, minLength: 1, maxLength: 500, description: "Where to send the money (line breaks kept)." }
+    RechargeOrderPaidRequest:
+      type: object
+      additionalProperties: false
+      required: [proofUploadId]
+      properties:
+        proofUploadId: { type: string, format: uuid, description: "The transfer's screenshot: a `RECHARGE_ORDER_IMAGE` upload of the buyer." }
+    RechargeOrderReasonRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 500 }
+    RechargeOrderRules:
+      type: object
+      required: [enabled, minCoins, maxCoins, requestTtlMinutes, paymentTtlMinutes, disputeAfterMinutes]
+      properties:
+        enabled: { type: boolean, description: "RECHARGE_ORDERS_ENABLED: false hides «شحن عبر وكيل» orders (direct selling stays)." }
+        minCoins: { type: integer, format: int64 }
+        maxCoins: { type: integer, format: int64 }
+        requestTtlMinutes: { type: integer }
+        paymentTtlMinutes: { type: integer }
+        disputeAfterMinutes: { type: integer }
+    AdminRechargeDispute:
+      type: object
+      required: [id, status, coins, country, price, disputedAt, disputedBy, closedAt, buyer, agent]
+      properties:
+        id: { type: string, format: uuid }
+        status: { $ref: '#/components/schemas/RechargeOrderStatus' }
+        coins: { type: integer, format: int64 }
+        country: { type: string }
+        price: { $ref: '#/components/schemas/RechargePrice' }
+        disputedAt: { type: string, format: date-time }
+        disputedBy: { type: [string, 'null'], enum: [BUYER, AGENT, EMPLOYEE, ADMIN, SYSTEM, null] }
+        closedAt: { type: [string, 'null'], format: date-time }
+        buyer: { $ref: '#/components/schemas/AdminOrderPerson' }
+        agent: { $ref: '#/components/schemas/AdminOrderPerson' }
+    AdminOrderPerson:
+      type: object
+      required: [id, username, displayName]
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        displayName: { type: string }
+        email: { type: [string, 'null'] }
+        code: { type: [string, 'null'] }
+        stockCoins: { type: integer, format: int64 }
+    AdminRechargeDisputePage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/AdminRechargeDispute' }
+        page: { $ref: '#/components/schemas/PageInfo' }
+    AdminRechargeOrderMessage:
+      allOf:
+        - $ref: '#/components/schemas/RechargeOrderMessage'
+        - type: object
+          required: [adminUserId]
+          properties:
+            adminUserId: { type: [string, 'null'], format: uuid, description: "The panel only: which admin wrote a «الإدارة» line." }
+    AdminRechargeOrder:
+      type: object
+      required: [id, status, coins, heldCoins, country, price, paymentType, createdAt, detailsAt, noticeAcknowledgedAt, paidAt, disputedAt, disputedBy, closedAt, closeReason, buyer, agent, messages]
+      properties:
+        id: { type: string, format: uuid }
+        status: { $ref: '#/components/schemas/RechargeOrderStatus' }
+        coins: { type: integer, format: int64 }
+        heldCoins: { type: integer, format: int64 }
+        country: { type: string }
+        price: { $ref: '#/components/schemas/RechargePrice' }
+        paymentType: { type: string }
+        createdAt: { type: string, format: date-time }
+        detailsAt: { type: [string, 'null'], format: date-time }
+        noticeAcknowledgedAt: { type: [string, 'null'], format: date-time }
+        paidAt: { type: [string, 'null'], format: date-time }
+        disputedAt: { type: string, format: date-time }
+        disputedBy: { type: [string, 'null'], enum: [BUYER, AGENT, EMPLOYEE, ADMIN, SYSTEM, null] }
+        closedAt: { type: [string, 'null'], format: date-time }
+        closeReason: { type: [string, 'null'] }
+        buyer: { $ref: '#/components/schemas/AdminOrderPerson' }
+        agent: { $ref: '#/components/schemas/AdminOrderPerson' }
+        messages:
+          type: array
+          description: "Oldest first (at most 1000)."
+          items: { $ref: '#/components/schemas/AdminRechargeOrderMessage' }
+    AdminRechargeOrderMessageRequest:
+      type: object
+      additionalProperties: false
+      required: [text]
+      properties:
+        text: { type: string, minLength: 1, maxLength: 1000 }
+    AdminRechargeDisputeResolveRequest:
+      type: object
+      additionalProperties: false
+      required: [outcome, reason, totpCode]
+      properties:
+        outcome: { type: string, enum: [CREDIT_BUYER, REFUND_AGENT] }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+        totpCode: { type: string, pattern: '^[0-9]{6}$' }
+    AdminRechargeDisputeResult:
+      type: object
+      required: [status, changed]
+      properties:
+        status: { $ref: '#/components/schemas/RechargeOrderStatus' }
+        changed: { type: boolean, description: "false: the same decision was already taken (nothing moved)." }
+    AdminRechargeExchangeRate:
+      type: object
+      required: [country, unitsPerUsd]
+      properties:
+        country: { type: string, pattern: '^[A-Z]{2}$' }
+        currency: { type: [string, 'null'], pattern: '^[A-Z]{3}$' }
+        digits: { type: integer, minimum: 0, maximum: 3 }
+        unitsPerUsd: { type: [string, 'null'], description: "null = USD only." }
+        updatedAt: { type: [string, 'null'], format: date-time }
+    AdminRechargeExchangeRates:
+      type: object
+      required: [retailUsdPerMillion, data]
+      properties:
+        retailUsdPerMillion: { type: number, description: "COIN_RETAIL_USD_PER_MILLION (owner 12.5)." }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/AdminRechargeExchangeRate' }
+    AdminRechargeExchangeRateRequest:
+      type: object
+      additionalProperties: false
+      required: [currency, unitsPerUsd, digits, reason]
+      properties:
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
+        unitsPerUsd: { type: string, pattern: '^[0-9]{1,9}(\.[0-9]{1,6})?$' }
+        digits: { type: integer, minimum: 0, maximum: 3 }
+        reason: { type: string, minLength: 1, maxLength: 500 }
 security:
   - bearerAuth: []

@@ -108,6 +108,11 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.consentVersionMismatch: 409,
   ErrorCode.dataExportLimit: 429,
   ErrorCode.dataExportLinkInvalid: 410,
+  ErrorCode.rechargeOrdersUnavailable: 503,
+  ErrorCode.rechargeOrderOpenExists: 409,
+  ErrorCode.rechargeOrderStateChanged: 409,
+  ErrorCode.rechargeOrderNoticeRequired: 409,
+  ErrorCode.rechargeOrderDisputeTooEarly: 409,
 };
 
 DioException _badResponse(
@@ -242,6 +247,12 @@ void main() {
           'CONSENT_VERSION_MISMATCH',
           'DATA_EXPORT_LIMIT',
           'DATA_EXPORT_LINK_INVALID',
+          // v1.69-social (D204).
+          'RECHARGE_ORDERS_UNAVAILABLE',
+          'RECHARGE_ORDER_OPEN_EXISTS',
+          'RECHARGE_ORDER_STATE_CHANGED',
+          'RECHARGE_ORDER_NOTICE_REQUIRED',
+          'RECHARGE_ORDER_DISPUTE_TOO_EARLY',
         ]),
       );
       expect(ErrorCode.networkOffline.wire, 'NETWORK_OFFLINE');

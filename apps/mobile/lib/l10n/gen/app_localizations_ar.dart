@@ -11331,4 +11331,325 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get goLiveToolsDegraded =>
       'بعض أدوات البث لم تعمل وأُوقفت. البث مستمر.';
+
+  @override
+  String get rechargeOrdersTitle => 'طلبات الشحن';
+
+  @override
+  String get rechargeOrdersHint => 'طلباتك من الوكلاء ومحادثة كل طلب';
+
+  @override
+  String get rechargeOrdersMine => 'مشترياتي';
+
+  @override
+  String get rechargeOrdersIncoming => 'الطلبات الواردة';
+
+  @override
+  String rechargeOrdersIncomingHint(String count, String coins) {
+    return '$count طلب ينتظرك · $coins عملة مجمّدة';
+  }
+
+  @override
+  String get rechargeOrdersEmpty => 'لا توجد طلبات بعد';
+
+  @override
+  String get rechargeOrdersEmptyBody =>
+      'اختر وكيلاً من «وكلاء الشحن» ثم «اطلب شحن».';
+
+  @override
+  String get rechargeOrderNew => 'اطلب شحن';
+
+  @override
+  String get rechargeOrderNewTitle => 'طلب شحن جديد';
+
+  @override
+  String get rechargeOrderCoins => 'عدد العملات';
+
+  @override
+  String rechargeOrderCoinsRange(String min, String max) {
+    return 'من $min إلى $max عملة';
+  }
+
+  @override
+  String get rechargeOrderPrice => 'السعر';
+
+  @override
+  String rechargeOrderUsd(String amount) {
+    return '$amount دولار';
+  }
+
+  @override
+  String rechargeOrderLocal(String amount, String currency, String rate) {
+    return '≈ $amount $currency (1 دولار = $rate)';
+  }
+
+  @override
+  String get rechargeOrderUsdOnly =>
+      'لا يوجد سعر صرف لهذا البلد: السعر بالدولار فقط.';
+
+  @override
+  String get rechargeOrderPriceNote =>
+      'السعر يحسبه Kabso حسب السعر الموحد للعملات.';
+
+  @override
+  String get rechargeOrderPaymentMethod => 'طريقة الدفع';
+
+  @override
+  String get rechargeOrderSubmit => 'إرسال الطلب';
+
+  @override
+  String get rechargeOrderOutsideNote =>
+      'تدفع للوكيل خارج التطبيق. عند إرسال معلومات الدفع تُجمَّد العملات من رصيد الوكيل حتى يؤكد استلام المبلغ.';
+
+  @override
+  String get rechargeOrderTitle => 'طلب شحن';
+
+  @override
+  String get rechargeOrderStatusRequested => 'بانتظار معلومات الدفع من الوكيل';
+
+  @override
+  String get rechargeOrderStatusAwaiting => 'بانتظار التحويل';
+
+  @override
+  String get rechargeOrderStatusPaid => 'تم الإرسال — بانتظار تأكيد الوكيل';
+
+  @override
+  String get rechargeOrderStatusDisputed => 'نزاع — الإدارة تراجع الطلب';
+
+  @override
+  String get rechargeOrderStatusCompleted => 'مكتمل — أُضيفت العملات';
+
+  @override
+  String get rechargeOrderStatusByAdmin => 'أُضيفت العملات بقرار الإدارة';
+
+  @override
+  String get rechargeOrderStatusRefunded =>
+      'أُعيدت العملات إلى الوكيل بقرار الإدارة';
+
+  @override
+  String get rechargeOrderStatusCancelled => 'ملغى';
+
+  @override
+  String get rechargeOrderStatusExpired => 'انتهت مهلة الطلب';
+
+  @override
+  String get rechargeOrderStatusUnknown => 'طلب شحن';
+
+  @override
+  String rechargeOrderFrozen(String coins) {
+    return '$coins عملة مجمّدة لهذا الطلب';
+  }
+
+  @override
+  String rechargeOrderCoinsLine(String coins) {
+    return '$coins عملة';
+  }
+
+  @override
+  String get rechargeOrderNoticeTitle => 'تعليمات الحماية';
+
+  @override
+  String get rechargeOrderNotice =>
+      'يرجى أخذ لقطة شاشة وتسجيل فيديو للشاشة منذ لحظة مغادرة المحادثة وحتى وصول الحوالة إلى المعلومات التي قدّمها الوكيل، لحمايتكم من أي خطأ أو احتيال. عند التحويل أرسل لقطة شاشة للحوالة واحتفظ بفيديو الشاشة حتى تصلك العملات.';
+
+  @override
+  String get rechargeOrderNoticeAck => 'قرأت وفهمت';
+
+  @override
+  String get rechargeOrderSent => 'قمت بالإرسال';
+
+  @override
+  String get rechargeOrderSentTitle => 'أرفق لقطة شاشة الحوالة';
+
+  @override
+  String get rechargeOrderSentBody =>
+      'اختر لقطة شاشة التحويل؛ تُرسل في المحادثة كإثبات. احتفظ بفيديو الشاشة حتى تصلك العملات.';
+
+  @override
+  String get rechargeOrderPickScreenshot => 'اختيار لقطة الشاشة';
+
+  @override
+  String get rechargeOrderBadImage => 'اختر صورة JPEG أو PNG أو WebP.';
+
+  @override
+  String rechargeOrderCountdown(String time) {
+    return 'يمكنك فتح نزاع بعد $time';
+  }
+
+  @override
+  String rechargeOrderCountdownAgent(String time) {
+    return 'تحقّق من وصول الحوالة · $time قبل أن يستطيع المشتري فتح نزاع';
+  }
+
+  @override
+  String get rechargeOrderWaitOver =>
+      'انتهت مدة الانتظار. إن لم تصلك العملات افتح نزاعاً.';
+
+  @override
+  String get rechargeOrderWaitOverAgent =>
+      'انتهت مدة الانتظار: يمكن للمشتري فتح نزاع الآن.';
+
+  @override
+  String get rechargeOrderDispute => 'نزاع';
+
+  @override
+  String get rechargeOrderDisputeTitle => 'فتح نزاع';
+
+  @override
+  String get rechargeOrderDisputeBody =>
+      'تبقى العملات مجمّدة، وتدخل الإدارة المحادثة لمراجعة الإثباتات وتقرّر.';
+
+  @override
+  String get rechargeOrderDisputeReason => 'ماذا حدث؟ (اختياري)';
+
+  @override
+  String get rechargeOrderReceived => 'استلمت';
+
+  @override
+  String get rechargeOrderReceivedTitle => 'تأكيد الاستلام';
+
+  @override
+  String rechargeOrderReceivedBody(String coins) {
+    return 'تأكد أن المبلغ وصل فعلاً إلى حسابك. بعد التأكيد تُضاف $coins عملة إلى المشتري ولا يمكن التراجع.';
+  }
+
+  @override
+  String get rechargeOrderSendDetails => 'إرسال معلومات الدفع';
+
+  @override
+  String get rechargeOrderDetailsLabel => 'معلومات التحويل';
+
+  @override
+  String get rechargeOrderDetailsHint => 'رقم المحفظة أو الحساب واسم المستلم';
+
+  @override
+  String rechargeOrderDetailsBody(String coins) {
+    return 'عند الإرسال تُجمَّد $coins عملة من رصيدك لهذا الطلب حتى تؤكد الاستلام.';
+  }
+
+  @override
+  String get rechargeOrderCancel => 'إلغاء الطلب';
+
+  @override
+  String get rechargeOrderCancelBody =>
+      'هل تريد إلغاء الطلب؟ تعود أي عملات مجمّدة إلى رصيد الوكيل.';
+
+  @override
+  String get rechargeOrderKeep => 'تراجع';
+
+  @override
+  String get rechargeOrderChatHint => 'اكتب رسالة…';
+
+  @override
+  String get rechargeOrderChatClosed => 'المحادثة مغلقة';
+
+  @override
+  String get rechargeOrderRoleAdmin => 'الإدارة';
+
+  @override
+  String rechargeOrderPaymentDetails(String method) {
+    return 'معلومات الدفع · $method';
+  }
+
+  @override
+  String get rechargeOrderProof => 'لقطة شاشة الحوالة';
+
+  @override
+  String get rechargeOrderCopied => 'تم نسخ معلومات الدفع';
+
+  @override
+  String get rechargeOrderEventCreated => 'أُنشئ الطلب';
+
+  @override
+  String get rechargeOrderEventDetails =>
+      'أرسل الوكيل معلومات الدفع وجُمّدت العملات';
+
+  @override
+  String get rechargeOrderEventNotice => 'أقرّ المشتري بتعليمات الحماية';
+
+  @override
+  String get rechargeOrderEventPaid => 'ضغط المشتري «قمت بالإرسال»';
+
+  @override
+  String get rechargeOrderEventCompleted =>
+      'أكّد الوكيل الاستلام وأُضيفت العملات';
+
+  @override
+  String get rechargeOrderEventDisputedBuyer => 'فتح المشتري نزاعاً';
+
+  @override
+  String get rechargeOrderEventDisputedAgent => 'فتح الوكيل نزاعاً';
+
+  @override
+  String get rechargeOrderEventCancelledBuyer => 'ألغى المشتري الطلب';
+
+  @override
+  String get rechargeOrderEventCancelledAgent => 'ألغى الوكيل الطلب';
+
+  @override
+  String get rechargeOrderEventExpired => 'انتهت مهلة الطلب';
+
+  @override
+  String get rechargeOrderEventForBuyer => 'قرار الإدارة: العملات للمشتري';
+
+  @override
+  String get rechargeOrderEventForAgent => 'قرار الإدارة: العملات تعود للوكيل';
+
+  @override
+  String get rechargeOrderEventOther => 'تحديث على الطلب';
+
+  @override
+  String notifRechargeOrderCreated(String coins) {
+    return 'طلب شحن جديد ينتظر معلومات الدفع ($coins عملة)';
+  }
+
+  @override
+  String get notifRechargeOrderDetails =>
+      'أرسل الوكيل معلومات الدفع لطلب الشحن';
+
+  @override
+  String get notifRechargeOrderPaid =>
+      'أكّد المشتري إرسال المبلغ: تحقّق من وصول الحوالة';
+
+  @override
+  String notifRechargeOrderCompleted(String coins) {
+    return 'أُضيفت $coins عملة من طلب الشحن';
+  }
+
+  @override
+  String get notifRechargeOrderDisputed => 'فُتح نزاع على طلب الشحن';
+
+  @override
+  String get notifRechargeOrderRefunded =>
+      'أُغلق النزاع وأُعيدت العملات إلى الوكيل';
+
+  @override
+  String get notifRechargeOrderCancelled => 'أُلغي طلب الشحن';
+
+  @override
+  String get notifRechargeOrderExpired => 'انتهت مهلة طلب الشحن';
+
+  @override
+  String get notifRechargeOrderAdmin => 'رسالة من الإدارة في طلب الشحن';
+
+  @override
+  String get notifRechargeOrderMessage => 'رسالة جديدة في طلب الشحن';
+
+  @override
+  String get errorRechargeOrdersUnavailable => 'طلبات الشحن غير متاحة حالياً.';
+
+  @override
+  String get errorRechargeOrderOpenExists => 'لديك طلب مفتوح مع هذا الوكيل.';
+
+  @override
+  String get errorRechargeOrderStateChanged =>
+      'تغيّرت حالة الطلب. حدّث الصفحة.';
+
+  @override
+  String get errorRechargeOrderNoticeRequired =>
+      'اقرأ تعليمات الحماية وأقرّ بها أولاً.';
+
+  @override
+  String get errorRechargeOrderDisputeTooEarly =>
+      'يمكنك فتح نزاع بعد انتهاء مدة الانتظار.';
 }

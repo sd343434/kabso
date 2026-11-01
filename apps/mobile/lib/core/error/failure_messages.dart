@@ -109,6 +109,13 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
     ErrorCode.consentVersionMismatch => l10n.errorConsentVersionMismatch,
     ErrorCode.dataExportLimit => l10n.errorDataExportLimit,
     ErrorCode.dataExportLinkInvalid => l10n.errorDataExportLinkInvalid,
+    ErrorCode.rechargeOrdersUnavailable => l10n.errorRechargeOrdersUnavailable,
+    ErrorCode.rechargeOrderOpenExists => l10n.errorRechargeOrderOpenExists,
+    ErrorCode.rechargeOrderStateChanged => l10n.errorRechargeOrderStateChanged,
+    ErrorCode.rechargeOrderNoticeRequired =>
+      l10n.errorRechargeOrderNoticeRequired,
+    ErrorCode.rechargeOrderDisputeTooEarly =>
+      l10n.errorRechargeOrderDisputeTooEarly,
     ErrorCode.networkOffline => l10n.errorNetworkOffline,
     ErrorCode.networkTimeout => l10n.errorNetworkTimeout,
     ErrorCode.unknown => l10n.errorUnknown,

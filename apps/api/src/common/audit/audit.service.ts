@@ -259,6 +259,23 @@ export enum AuditAction {
   ADMIN_LIVE_END = 'admin.live.end',
   /** A user's app sessions signed out by the team {sessions, reason}. */
   ADMIN_USER_SESSIONS_REVOKE = 'admin.user.sessions_revoke',
+  // v1.69-social (DRAFT, D204): recharge orders with escrow — each state change (before/after, the coins moved), an
+  // admin's view of a disputed order and of its pictures, an admin's message «الإدارة», a dispute's decision, and an
+  // exchange rate set or cleared (OWNER / FINANCE, panel or CLI).
+  RECHARGE_ORDER_CREATE = 'recharge.order.create',
+  RECHARGE_ORDER_DETAILS = 'recharge.order.details',
+  RECHARGE_ORDER_NOTICE_ACK = 'recharge.order.notice_ack',
+  RECHARGE_ORDER_PAID = 'recharge.order.paid',
+  RECHARGE_ORDER_CONFIRM = 'recharge.order.confirm',
+  RECHARGE_ORDER_DISPUTE = 'recharge.order.dispute',
+  RECHARGE_ORDER_CANCEL = 'recharge.order.cancel',
+  RECHARGE_ORDER_EXPIRE = 'recharge.order.expire',
+  RECHARGE_ORDER_RESOLVE = 'recharge.order.resolve',
+  RECHARGE_ORDER_ADMIN_VIEW = 'recharge.order.admin_view',
+  RECHARGE_ORDER_IMAGE_VIEW = 'recharge.order.image_view',
+  RECHARGE_ORDER_ADMIN_MESSAGE = 'recharge.order.admin_message',
+  RECHARGE_RATE_SET = 'recharge.rate.set',
+  RECHARGE_RATE_CLEAR = 'recharge.rate.clear',
 }
 
 export interface AuditEntry {

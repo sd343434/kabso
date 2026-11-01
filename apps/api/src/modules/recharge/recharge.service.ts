@@ -20,6 +20,7 @@ import type { PageQuery } from '../posts/posts.schemas.js';
 import { SocialCursorCodec, type SocialPosition } from '../posts/social-cursor.js';
 import { creditIn } from '../wallet/wallet-ledger.js';
 import { recordRechargeIn } from './recharge-badges.js';
+import { RechargeOrdersService } from './recharge-orders.service.js';
 import { moveStockIn, privateKeyOf, purgeApplications } from './recharge-core.js';
 import {
   applicationSchema,
@@ -63,6 +64,9 @@ export interface RechargeAgentMeDto {
     code: string | null;
     status: 'APPROVED' | 'ACTIVE' | 'SUSPENDED';
     stockCoins: number;
+    /** v1.69-social (D204): coins frozen in open orders (not in `stockCoins`) and the orders waiting for the agent. */
+    heldCoins: number;
+    openOrders: number;
     activatedAt: string | null;
     dailyCherryCap: number;
     todayCherries: number;
@@ -89,6 +93,15 @@ export interface RechargeAgentMeDto {
       rateMinor: number;
       minAmountMinor: number;
       payoutDays: number;
+    };
+    /** v1.69-social (D204, §10.64): recharge orders with escrow. */
+    orders: {
+      enabled: boolean;
+      minCoins: number;
+      maxCoins: number;
+      requestTtlMinutes: number;
+      paymentTtlMinutes: number;
+      disputeAfterMinutes: number;
     };
   };
 }
@@ -191,6 +204,7 @@ export class RechargeService implements OnModuleInit, OnModuleDestroy {
     private readonly prisma: PrismaService,
     private readonly clock: Clock,
     private readonly media: MediaService,
+    private readonly orders: RechargeOrdersService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {
     this.cursors = new SocialCursorCodec(config.social.cursorKey);
@@ -293,6 +307,14 @@ export class RechargeService implements OnModuleInit, OnModuleDestroy {
         minAmountMinor: e.minWithdrawalMinor,
         payoutDays: e.payoutDays,
       },
+      orders: {
+        enabled: r.orders.enabled,
+        minCoins: r.orders.minCoins,
+        maxCoins: r.orders.maxCoins,
+        requestTtlMinutes: r.orders.requestTtlMinutes,
+        paymentTtlMinutes: r.orders.paymentTtlMinutes,
+        disputeAfterMinutes: r.orders.disputeAfterMinutes,
+      },
     };
   }
 
@@ -363,14 +385,17 @@ export class RechargeService implements OnModuleInit, OnModuleDestroy {
     const status: Status = agent ? agent.status : app ? app.status : 'NONE';
     let agentDto: RechargeAgentMeDto['agent'] = null;
     if (agent) {
-      const [sales, today] = await Promise.all([
+      const [sales, today, totals] = await Promise.all([
         this.salesStats(Prisma.sql`agent_user_id = ${userId}::uuid`),
         this.todayCherries(this.prisma, userId),
+        this.orders.agentTotals(userId),
       ]);
       agentDto = {
         code: agent.code,
         status: agent.status,
         stockCoins: Number(agent.stockCoins),
+        heldCoins: totals.heldCoins,
+        openOrders: totals.openOrders,
         activatedAt: agent.activatedAt?.toISOString() ?? null,
         dailyCherryCap: Number(this.capOf(agent)),
         todayCherries: Number(today),

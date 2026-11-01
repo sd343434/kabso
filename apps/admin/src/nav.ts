@@ -58,6 +58,9 @@ export const NAV: NavGroup[] = [
       { to: '/finance/report', key: 'navReport', icon: 'money', cap: 'finance.view', match: ['report'] },
       { to: '/recharge/applications', key: 'navApplications', icon: 'inbox', cap: 'recharge.applications', match: ['applications', 'application'] },
       { to: '/recharge/agents', key: 'navAgents', icon: 'coins', cap: 'recharge.agents', match: ['agents'] },
+      // v1.69-social (D204): «نزاعات الشحن» and «أسعار الصرف».
+      { to: '/recharge/disputes', key: 'navDisputes', icon: 'alert', cap: 'recharge.disputes', match: ['disputes', 'dispute'] },
+      { to: '/recharge/exchange-rates', key: 'navRates', icon: 'globe', cap: 'recharge.agents', match: ['rates'] },
       { to: '/finance/topups', key: 'navAgentTopups', icon: 'list', cap: 'finance.view', match: ['topups'] },
       { to: '/withdrawals', key: 'navWithdrawals', icon: 'download', cap: 'withdrawals.view', match: ['withdrawals'] },
       { to: '/finance/cards', key: 'navCards', icon: 'shield', cap: 'finance.view', match: ['cards'] },

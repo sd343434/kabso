@@ -1879,3 +1879,34 @@ family's stored level is a floor (`max(stored, ladder)`), so families that level
 their level. No schema change, no GRANT, no backfill of points; idempotent (a second run changes nothing). Ship the
 app with or after the API: the app reads the price and the ladder from `GET /families/config` and formats big values
 compactly; an older app shows the new values from the server too (its level line may be cut at billions).
+
+### 5.33 Recharge orders with escrow «طلبات الشحن» (migrations `20270118090000_recharge_orders_enums`, `20270118100000_recharge_orders`; D204) — [IMPLEMENTED, draft contract v1.69-social; not deployed, not device-tested]
+
+CONVENTIONS §10.64. The buyer asks a recharge agent for coins inside the app; **the money is paid outside the app**
+(Kabso never receives, holds or moves money — only coins, which are frozen from the agent's stock until the agent
+confirms or the team decides a dispute).
+
+- **Migrations** with the usual `migrate` job (§5), in order: the first adds the stock reasons `ORDER_HOLD` /
+  `ORDER_RELEASE`, the coin reason `RECHARGE_ORDER` and the notification type `RECHARGE_ORDER_UPDATE`; the second
+  the tables `recharge_orders`, `recharge_order_messages`, `recharge_exchange_rates`, the columns
+  `notifications.recharge_order_id` / `recharge_order_event`, and widens the stock and coin ledger sign CHECKs. No
+  GRANT (default privileges), no backfill; additive.
+- **Config** (all optional; defaults = the owner's proposals): `RECHARGE_ORDERS_ENABLED=true` (false: 503, the app
+  hides the entry; direct selling stays), `RECHARGE_ORDER_MIN_COINS=10000`, `RECHARGE_ORDER_MAX_COINS=1000000000`,
+  `RECHARGE_ORDER_REQUEST_TTL_MINUTES=30`, `RECHARGE_ORDER_PAYMENT_TTL_MINUTES=60`,
+  `RECHARGE_ORDER_DISPUTE_AFTER_MINUTES=15`, `RECHARGE_ORDER_SWEEP_INTERVAL_SECONDS=60` (0 is refused in production:
+  the sweeper gives expired orders' frozen coins back), `RATE_LIMIT_RECHARGE_ORDER_USER=20/3600`,
+  `RATE_LIMIT_RECHARGE_ORDER_ACTION_USER=600/3600`. The buyer's price uses `COIN_RETAIL_USD_PER_MILLION` (12.5).
+- **Exchange rates** (OWNER / FINANCE): the panel «أسعار الصرف» (every change needs a reason, audited), or on the
+  server `docker compose --profile jobs run --rm migrate node dist/cli/recharge-admin.js set-rate EG EGP 50.5
+  --digits 2 --reason "…"` / `clear-rate EG --reason "…"` / `rates`. No rate = the country is priced in USD only.
+- **Disputes:** the panel «نزاعات الشحن» (OWNER / SUPPORT / FINANCE read and write as «الإدارة»; OWNER / FINANCE decide
+  with the authenticator code). CLI fallback: `recharge-admin disputes`, `recharge-admin resolve <order>
+  credit-buyer|refund-agent --reason "…"`, `recharge-admin expire-orders`.
+- **Storage:** the chat's pictures and transfer screenshots are private objects under `private/recharge-orders/`
+  (same bucket, never public; `private, no-store`). They are kept with the order (evidence); there is no retention
+  sweep yet (KNOWN_LIMITATIONS).
+- **Store builds:** build the Play / App Store app with `--dart-define=KABSO_STORE_BUILD=true` — it hides «شحن عبر
+  وكيل» (D150: off in store builds until legal confirms). Direct APKs (staging) show it when the server allows.
+- **Check after deploy:** `GET /api/v1/me/recharge-agent` has `rules.orders.enabled: true`; the API log shows no
+  «Recharge order sweep failed».

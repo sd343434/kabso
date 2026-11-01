@@ -98,12 +98,17 @@ export const MEDIA_KINDS = [
   // consumed by the application into the private prefix (no asset, no URL).
   'RECHARGE_AGENT_PHOTO',
   'RECHARGE_AGENT_SELFIE',
+  // v1.69-social (D204, §10.64): a picture of a recharge order's chat or the transfer's screenshot; private like the
+  // two above (consumed into `private/recharge-orders/<order>/`, shown only to the order's people and to admins).
+  'RECHARGE_ORDER_IMAGE',
 ] as const;
 export type MediaKind = (typeof MEDIA_KINDS)[number];
 
 /** v1.54-social (D185): kinds consumed privately (never completed into a public asset). */
 export function isPrivateKind(kind: string): boolean {
-  return kind === 'RECHARGE_AGENT_PHOTO' || kind === 'RECHARGE_AGENT_SELFIE';
+  return (
+    kind === 'RECHARGE_AGENT_PHOTO' || kind === 'RECHARGE_AGENT_SELFIE' || kind === 'RECHARGE_ORDER_IMAGE'
+  );
 }
 
 /** The voice-clip kinds (CP-017 pipeline: `audio/mp4`, ≤ 1 MiB, ≤ 30 s). */

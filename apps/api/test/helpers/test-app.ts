@@ -255,6 +255,8 @@ export function buildTestConfig(overrides: Record<string, string> = {}): AppConf
     DATA_EXPORT_SWEEP_INTERVAL_SECONDS: '0',
     RATE_LIMIT_DATA_EXPORT_USER: GENEROUS,
     RATE_LIMIT_DATA_EXPORT_DOWNLOAD_USER: GENEROUS,
+    // D204: the recharge-order expiry sweeper (tests call it directly).
+    RECHARGE_ORDER_SWEEP_INTERVAL_SECONDS: '0',
     BAG_SWEEP_INTERVAL_SECONDS: '0',
     RATE_LIMIT_DM_SEND_USER: GENEROUS,
     RATE_LIMIT_DM_REQUEST_USER: GENEROUS,

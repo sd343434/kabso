@@ -25,7 +25,8 @@ export interface NotificationTargetDto {
     | 'MEDAL'
     | 'PREMIUM_USERNAME'
     | 'BAG_ITEM'
-    | 'RECHARGE_SALE';
+    | 'RECHARGE_SALE'
+    | 'RECHARGE_ORDER';
   id: string;
   postId: string | null;
   thumbUrl: string | null;
@@ -36,8 +37,11 @@ export interface NotificationTargetDto {
   endsAt?: string;
   /** v1.48-social (D171) BAG_ITEM only: the item's category. */
   bagCategory?: string;
-  /** v1.54-social (D185) RECHARGE_SALE only: the coins bought. */
+  /** v1.54-social (D185) RECHARGE_SALE only: the coins bought. v1.69-social (D204) RECHARGE_ORDER: the order's coins. */
   coins?: number;
+  /** v1.69-social (D204) RECHARGE_ORDER only: the latest event (`CREATED`, `DETAILS_SENT`, `PAID`, …) and the status. */
+  orderEvent?: string;
+  orderStatus?: string;
 }
 
 /** `Notification`. */
@@ -146,6 +150,8 @@ function visibleNotificationWhere(me: string): Prisma.NotificationWhereInput {
       { type: 'MODERATION_WARNING' },
       // v1.66-social (D198): the caller's data export is ready (system, no target).
       { type: 'DATA_EXPORT_READY' },
+      // v1.69-social (D204): a recharge order the caller takes part in (system; the order is the target).
+      { type: 'RECHARGE_ORDER_UPDATE', rechargeOrderId: { not: null } },
       { type: 'POST_PUBLISHED', post: visiblePostWhere(me) },
       {
         type: { in: ACTOR_TYPES },
@@ -183,6 +189,7 @@ function include(me: string) {
     premiumLease: { select: { username: true, expiresAt: true, graceUntil: true } },
     bagItem: { select: { category: true } },
     rechargeSale: { select: { coins: true } },
+    rechargeOrder: { select: { coins: true, status: true } },
   } satisfies Prisma.NotificationInclude;
 }
 type NotificationRow = Prisma.NotificationGetPayload<{ include: ReturnType<typeof include> }>;
@@ -329,6 +336,19 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
         thumbUrl: null,
         text: null,
         coins: Number(row.rechargeSale.coins),
+      };
+    }
+    // v1.69-social (D204): a recharge order the person takes part in (the app opens the order's chat).
+    if (row.rechargeOrderId !== null && row.rechargeOrder) {
+      return {
+        type: 'RECHARGE_ORDER',
+        id: row.rechargeOrderId,
+        postId: null,
+        thumbUrl: null,
+        text: null,
+        coins: Number(row.rechargeOrder.coins),
+        orderEvent: row.rechargeOrderEvent ?? 'UPDATED',
+        orderStatus: row.rechargeOrder.status,
       };
     }
     if (row.medalCode !== null) {

@@ -18,6 +18,7 @@ import 'package:kabso_live/features/profile/profile_fields_view.dart';
 import 'package:kabso_live/features/programs/application/programs_providers.dart';
 import 'package:kabso_live/features/programs/data/programs_repository.dart';
 import 'package:kabso_live/features/programs/presentation/program_parts.dart';
+import 'package:kabso_live/features/recharge/application/recharge_orders_providers.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_widgets.dart';
 import 'package:kabso_live/features/wallet/application/wallet_providers.dart';
 import 'package:kabso_live/features/wallet/presentation/wallet_cherry_tab.dart';
@@ -71,6 +72,7 @@ class WalletScreen extends ConsumerStatefulWidget {
 
   /// D185: «الشحن عبر وكيل» → the agents' directory.
   static const agentsKey = Key('wallet.agents');
+  static const ordersKey = Key('wallet.rechargeOrders');
 
   /// D190: «الشحن من الموقع» (hidden unless the server sends the URL).
   static const websiteTopupKey = Key('wallet.websiteTopup');
@@ -249,16 +251,30 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
         ),
       WalletSection(title: l10n.walletRechargeTitle, children: packages),
       // D185: buying coins from a recharge agent (paid outside the app).
-      Padding(
-        padding: const EdgeInsets.only(top: KSpacing.sm),
-        child: RechargeNavRow(
-          key: WalletScreen.agentsKey,
-          icon: Icons.storefront_rounded,
-          title: l10n.rechargeBuyViaAgent,
-          subtitle: l10n.rechargeDirectoryHint,
-          onTap: () => context.push(AppRoutes.rechargeAgents),
+      // D150 / D204: never in store builds (until legal confirms).
+      if (!ref.watch(storeBuildProvider))
+        Padding(
+          padding: const EdgeInsets.only(top: KSpacing.sm),
+          child: RechargeNavRow(
+            key: WalletScreen.agentsKey,
+            icon: Icons.storefront_rounded,
+            title: l10n.rechargeBuyViaAgent,
+            subtitle: l10n.rechargeDirectoryHint,
+            onTap: () => context.push(AppRoutes.rechargeAgents),
+          ),
         ),
-      ),
+      // D204: the buyer's recharge orders and their chats.
+      if (ref.watch(rechargeOrdersVisibleProvider).value ?? false)
+        Padding(
+          padding: const EdgeInsets.only(top: KSpacing.sm),
+          child: RechargeNavRow(
+            key: WalletScreen.ordersKey,
+            icon: Icons.receipt_long_rounded,
+            title: l10n.rechargeOrdersTitle,
+            subtitle: l10n.rechargeOrdersHint,
+            onTap: () => context.push(AppRoutes.rechargeOrders),
+          ),
+        ),
       // D190: «الشحن من الموقع» — only when the server sends the website's
       // URL (a server flag, on by default); it opens the browser.
       if (offer.value?.websiteTopupUrl case final url?)

@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/failure_widgets.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
@@ -9,6 +11,7 @@ import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/profile/profile_fields_view.dart';
+import 'package:kabso_live/features/recharge/application/recharge_orders_providers.dart';
 import 'package:kabso_live/features/recharge/application/recharge_providers.dart';
 import 'package:kabso_live/features/recharge/data/recharge_repository.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_apply_screen.dart'
@@ -40,6 +43,7 @@ class RechargeDirectoryScreen extends ConsumerStatefulWidget {
   static const emptyKey = Key('recharge.directory.empty');
   static Key cardKey(String code) => Key('recharge.agent.$code');
   static Key contactKey(String code) => Key('recharge.agent.$code.contact');
+  static Key orderKey(String code) => Key('recharge.agent.$code.order');
   static Key countryKey(String c) => Key('recharge.country.$c');
 
   @override
@@ -211,6 +215,8 @@ class _AgentCard extends ConsumerWidget {
     ];
     // An agent who is not available now is shown muted.
     final ink = now ? p.textPrimary : p.textSecondary;
+    // D204: «اطلب شحن» when the server allows orders (never in store builds).
+    final orders = ref.watch(rechargeOrdersVisibleProvider).value ?? false;
     return Padding(
       key: RechargeDirectoryScreen.cardKey(agent.code),
       padding: const EdgeInsets.only(bottom: KSpacing.sm),
@@ -335,7 +341,7 @@ class _AgentCard extends ConsumerWidget {
                     ],
                   ),
                 ),
-                if (now) ...[
+                if (now && !orders) ...[
                   const SizedBox(width: KSpacing.sm),
                   FilledButton.icon(
                     key: RechargeDirectoryScreen.contactKey(agent.code),
@@ -356,6 +362,52 @@ class _AgentCard extends ConsumerWidget {
                 ],
               ],
             ),
+            // D204: with orders on, «تواصل» and «اطلب شحن» get a row.
+            if (orders) ...[
+              const SizedBox(height: KSpacing.sm),
+              Row(
+                children: [
+                  if (now)
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        key: RechargeDirectoryScreen.contactKey(agent.code),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(0, KSizes.minTouchTarget - 4),
+                          tapTargetSize: MaterialTapTargetSize.padded,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(KRadius.pill),
+                          ),
+                        ),
+                        onPressed: () => unawaited(_contact(context, ref)),
+                        icon: const Icon(Icons.chat_rounded, size: 18),
+                        label: Text(l10n.rechargeContact),
+                      ),
+                    ),
+                  if (now && orders) const SizedBox(width: KSpacing.sm),
+                  if (orders)
+                    Expanded(
+                      child: FilledButton.icon(
+                        key: RechargeDirectoryScreen.orderKey(agent.code),
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size(0, KSizes.minTouchTarget - 4),
+                          tapTargetSize: MaterialTapTargetSize.padded,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(KRadius.pill),
+                          ),
+                        ),
+                        onPressed: () => context.push(
+                          AppRoutes.rechargeOrderNewFor(agent.code, country),
+                        ),
+                        icon: const Icon(
+                          Icons.add_shopping_cart_rounded,
+                          size: 18,
+                        ),
+                        label: Text(l10n.rechargeOrderNew),
+                      ),
+                    ),
+                ],
+              ),
+            ],
           ],
         ),
       ),

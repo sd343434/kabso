@@ -16,6 +16,8 @@ import { translate, type Lang } from './i18n';
 import { Agents } from './pages/Agents';
 import { ApplicationDetail, Applications } from './pages/Applications';
 import { Dashboard } from './pages/Dashboard';
+import { DisputeDetail, Disputes } from './pages/Disputes';
+import { Rates } from './pages/Rates';
 import { Login } from './pages/Login';
 import { Reports } from './pages/Reports';
 import { Payments } from './pages/Payments';
@@ -211,6 +213,15 @@ export function App() {
           break;
         case 'audit':
           page = <Audit />;
+          break;
+        case 'disputes':
+          page = <Disputes />;
+          break;
+        case 'dispute':
+          page = <DisputeDetail id={match.params.id!} />;
+          break;
+        case 'rates':
+          page = <Rates />;
           break;
       }
     }
