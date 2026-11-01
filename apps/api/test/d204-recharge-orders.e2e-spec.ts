@@ -275,7 +275,10 @@ describe('D204 recharge orders', { timeout: 600_000 }, () => {
   const apost = (a: Admin, path: string, body: object = {}) =>
     ctx.http.post(`/api/v1${path}`).set('Cookie', a.cookie).set('X-CSRF-Token', a.csrf).send(body);
 
-  const badges = () => ctx.config.recharge.badges;
+  const badges = () => ({
+    ...ctx.config.recharge.badges,
+    cherriesPerCoin: ctx.config.economy.cherriesPerCoin,
+  });
 
   beforeAll(async () => {
     vi.useFakeTimers({ toFake: ['Date'], now: clock });

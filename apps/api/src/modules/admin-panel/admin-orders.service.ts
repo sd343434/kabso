@@ -240,7 +240,7 @@ export class AdminOrdersService {
           body.outcome,
           body.reason,
           new Date(),
-          this.config.recharge.badges,
+          { ...this.config.recharge.badges, cherriesPerCoin: this.config.economy.cherriesPerCoin },
           viaOf(ctx),
         ),
       ),

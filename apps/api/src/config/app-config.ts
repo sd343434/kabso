@@ -186,6 +186,9 @@ export interface AppConfig {
     readonly agencyOpenUser: RateLimitRule;
     /** v1.73-social (D209). */
     readonly hostApplyUser: RateLimitRule;
+    /** v1.74-social (D217): a later invite code (per user); the public rewards ticker (per IP). */
+    readonly referralApplyUser: RateLimitRule;
+    readonly referralTickerIp: RateLimitRule;
     readonly topupCheckoutUser: RateLimitRule;
     /** v1.61-social (D192): `POST /waitlist`, per client IP. */
     readonly waitlistIp: RateLimitRule;
@@ -362,6 +365,13 @@ export interface AppConfig {
     readonly adjustDailyCap: { readonly coins: number; readonly cherries: number };
     /** v1.72-social (D208): days the old username stays held after a team rename (0 = none). */
     readonly renameHoldDays: number;
+  };
+  /**
+   * v1.74-social (D217, CONVENTIONS §10.71): «دعوة الأصدقاء». The amounts and rules live in `referral_settings` (the
+   * panel); only the sweeper's interval is a server setting (0 = off: tests; refused in production).
+   */
+  readonly referrals: {
+    readonly sweepIntervalSeconds: number;
   };
   /** v1.62-social (D193): account deletion (CONVENTIONS §10.56). */
   readonly accountDeletion: {
@@ -629,6 +639,8 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       rechargeOrderActionUser: e.RATE_LIMIT_RECHARGE_ORDER_ACTION_USER,
       agencyOpenUser: e.RATE_LIMIT_AGENCY_OPEN_USER,
       hostApplyUser: e.RATE_LIMIT_HOST_APPLY_USER,
+      referralApplyUser: e.RATE_LIMIT_REFERRAL_APPLY_USER,
+      referralTickerIp: e.RATE_LIMIT_REFERRAL_TICKER_IP,
       topupCheckoutUser: e.RATE_LIMIT_TOPUP_CHECKOUT_USER,
       waitlistIp: e.RATE_LIMIT_WAITLIST_IP,
       liveHeartbeatUser: e.RATE_LIMIT_LIVE_HEARTBEAT_USER,
@@ -796,6 +808,9 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       reportCardFee: { bps: e.ADMIN_REPORT_CARD_FEE_BPS, fixedMinor: e.ADMIN_REPORT_CARD_FEE_FIXED_MINOR },
       adjustDailyCap: { coins: e.ADMIN_ADJUST_DAILY_CAP_COINS, cherries: e.ADMIN_ADJUST_DAILY_CAP_CHERRIES },
       renameHoldDays: e.ADMIN_USERNAME_RENAME_HOLD_DAYS,
+    },
+    referrals: {
+      sweepIntervalSeconds: e.REFERRAL_SWEEP_INTERVAL_SECONDS,
     },
     accountDeletion: {
       graceDays: e.ACCOUNT_DELETION_GRACE_DAYS,

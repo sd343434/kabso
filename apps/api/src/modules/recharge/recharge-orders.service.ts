@@ -858,7 +858,10 @@ export class RechargeOrdersService implements OnModuleInit, OnModuleDestroy {
     if (a.side !== 'AGENT') throw new AppException(ErrorCode.NOT_FOUND);
     this.requireAct(a);
     const row = await this.onLocked(a.order.id, async (tx, o) => {
-      await confirmIn(tx, o, userId, this.clock.now(), this.config.recharge.badges);
+      await confirmIn(tx, o, userId, this.clock.now(), {
+        ...this.config.recharge.badges,
+        cherriesPerCoin: this.config.economy.cherriesPerCoin,
+      });
       return tx.rechargeOrder.findUniqueOrThrow({ where: { id: o.id } });
     });
     return this.orderDto(row, userId);

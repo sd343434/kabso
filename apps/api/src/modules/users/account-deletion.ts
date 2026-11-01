@@ -449,6 +449,9 @@ export async function purgeAccountIn(
        SET date_of_birth = NULL, contact_value = NULL, bio = NULL, links = '{}', photo_key = NULL,
            selfie_key = NULL, purged_at = COALESCE(purged_at, ${at}::timestamptz)
      WHERE user_id = ${u}`;
+  // v1.74-social (D217): a referral keeps the install id and the mailbox hash (the one-reward-per-device and alias
+  // checks), never the IP.
+  await tx.$executeRaw`UPDATE referrals SET invitee_ip = NULL WHERE invitee_user_id = ${u}`;
   // Withdrawals stay for accounting; the payout details keep only their last 4 characters (to match bank records).
   await tx.$executeRaw`
     UPDATE cherry_withdrawals

@@ -47,7 +47,8 @@
     "privacy:admin": "tsx src/cli/privacy-admin.ts",
     "pk:admin": "tsx src/cli/pk-admin.ts",
     "control:admin": "tsx src/cli/control-admin.ts",
-    "host:admin": "tsx src/cli/host-admin.ts"
+    "host:admin": "tsx src/cli/host-admin.ts",
+    "referral:admin": "tsx src/cli/referral-admin.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1146.0",

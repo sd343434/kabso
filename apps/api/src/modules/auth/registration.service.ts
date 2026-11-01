@@ -19,6 +19,7 @@ import { PasswordHasher } from './password-hasher.service.js';
 import { SessionsService } from './sessions.service.js';
 import { hashesEqual } from './tokens.js';
 import { recordRegistrationConsentsIn, type RegistrationConsent } from '../privacy/legal.js';
+import { attachReferralIn } from '../referrals/referral-core.js';
 
 /** Constant 202 body (contract v1.2 §6). */
 export const VERIFICATION_PENDING = { status: 'verification_pending' } as const;
@@ -50,6 +51,9 @@ interface ClaimedPending {
   app_version: string | null;
   /** v1.66-social (D198): what the person accepted at sign-up (`RegisterRequest.legal`), with the time, IP and UA. */
   legal_consent: RegistrationConsent | null;
+  /** v1.74-social (D217): the app's install id and the invite code typed at sign-up. */
+  install_id: string | null;
+  referral_code: string | null;
 }
 
 class VerifyFailed extends Error {
@@ -178,6 +182,8 @@ export class RegistrationService implements OnModuleInit, OnModuleDestroy {
             deviceName: input.device?.name || null,
             platform: input.device?.platform ?? null,
             appVersion: input.device?.appVersion || null,
+            installId: input.device?.installId ?? null,
+            referralCode: input.referralCode ?? null,
             ip: meta.ip?.slice(0, 64) ?? null,
             userAgent: meta.userAgent,
             ...(input.legal
@@ -247,7 +253,8 @@ export class RegistrationService implements OnModuleInit, OnModuleDestroy {
         WHERE "email" = ${input.email} AND "expires_at" > ${now}
           AND "attempts" < ${MAX_CODE_ATTEMPTS} AND "total_attempts" < ${MAX_TOTAL_ATTEMPTS}
         RETURNING "id", "code_hash", "attempts", "total_attempts", "username", "display_name", "gender"::text AS "gender", "locale",
-                  "password_hash", "device_name", "platform", "app_version", "legal_consent"`;
+                  "password_hash", "device_name", "platform", "app_version", "legal_consent",
+                  "install_id", "referral_code"`;
       const pending = rows[0];
       if (!pending) {
         // Lazy cleanup of an expired/exhausted row for this address.
@@ -343,6 +350,7 @@ export class RegistrationService implements OnModuleInit, OnModuleDestroy {
       ...(pending.device_name ? { name: pending.device_name } : {}),
       ...(pending.platform ? { platform: pending.platform as 'android' | 'ios' | 'web' | 'other' } : {}),
       ...(pending.app_version ? { appVersion: pending.app_version } : {}),
+      ...(pending.install_id ? { installId: pending.install_id } : {}),
     };
     try {
       const { user, session } = await this.prisma.$transaction(async (tx) => {
@@ -367,6 +375,8 @@ export class RegistrationService implements OnModuleInit, OnModuleDestroy {
         const issued = await this.sessions.create(tx, created.id, this.auth.client(device, meta), now);
         return { user: created, session: issued };
       });
+      if (pending.referral_code)
+        await this.attachReferral(user.id, input.email, pending, device.installId, meta, now);
       return { user: toMeDto(user), tokens: await this.auth.tokenPair(user.id, session) };
     } catch (err) {
       const emailConflict =
@@ -389,6 +399,40 @@ export class RegistrationService implements OnModuleInit, OnModuleDestroy {
         await this.prisma.pendingRegistration.deleteMany({ where: { id: pending.id } });
       }
       throw err;
+    }
+  }
+
+  /**
+   * v1.74-social (D217, §10.71): the invite code typed at sign-up, applied once the account exists — in a transaction
+   * of its own after the account's, so no referral problem can ever fail a sign-up (an unknown code, the programme
+   * switched off or a database error is logged and the account is created without a referral; a fraud rule records
+   * a REJECTED referral).
+   */
+  private async attachReferral(
+    userId: string,
+    email: string,
+    pending: ClaimedPending,
+    installId: string | undefined,
+    meta: RequestMeta,
+    now: Date,
+  ): Promise<void> {
+    try {
+      const result = await this.prisma.$transaction((tx) =>
+        attachReferralIn(tx, {
+          inviteeUserId: userId,
+          code: pending.referral_code!,
+          source: 'SIGNUP',
+          installId: installId ?? pending.install_id ?? null,
+          ip: meta.ip,
+          email,
+          now,
+          requestId: meta.requestId,
+        }),
+      );
+      if (result.kind !== 'ATTACHED')
+        this.logger.log({ result: result.kind }, 'Sign-up invite code not attached');
+    } catch (err) {
+      this.logger.error({ error: safeErrorLog(err) }, 'Sign-up invite code failed');
     }
   }
 

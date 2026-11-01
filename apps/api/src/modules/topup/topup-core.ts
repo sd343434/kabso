@@ -2,7 +2,8 @@ import type { Prisma, PrismaClient, TopupCaseKind, TopupOrder } from '../../gene
 import { auditBy, CLI_VIA, type AdminVia } from '../../common/audit/admin-actor.js';
 import { AuditAction } from '../../common/audit/audit.service.js';
 import { uuidv7 } from '../levels/uuidv7.js';
-import { recordRechargeIn, type RechargeBadgeRules } from '../recharge/recharge-badges.js';
+import { recordRechargeIn, type RechargeCreditRules } from '../recharge/recharge-badges.js';
+import { referralRechargeIn } from '../referrals/referral-core.js';
 import { creditIn, reverseTopupIn } from '../wallet/wallet-ledger.js';
 import type { StripeApi } from './stripe-api.js';
 import { fifoAttribution, GIFT_SPEND_REASONS, targetReversal } from './topup-rules.js';
@@ -81,7 +82,7 @@ export async function creditOrderIn(
   tx: Tx,
   order: TopupOrder,
   now: Date,
-  badges: RechargeBadgeRules,
+  badges: RechargeCreditRules,
   referenceId: string,
   paymentMethodType: string | null,
 ): Promise<boolean> {
@@ -91,6 +92,12 @@ export async function creditOrderIn(
     tx,
     { userId: order.userId, coins: order.coins, source: 'WEBSITE_TOPUP', now },
     badges,
+  );
+  // v1.74-social (D217): the invitee's first recharge pays the inviter a share (held).
+  await referralRechargeIn(
+    tx,
+    { userId: order.userId, coins: order.coins, reason: 'CARD_TOPUP', reference: order.id, now },
+    badges.cherriesPerCoin,
   );
   const updated = await tx.topupOrder.update({
     where: { id: order.id },

@@ -252,6 +252,15 @@ export enum ErrorCode {
    * `newPassword` (the old one stays until then).
    */
   PASSWORD_CHANGE_REQUIRED = 'PASSWORD_CHANGE_REQUIRED',
+  /** v1.74-social (DRAFT, D217): «دعوة الأصدقاء» is switched off (`referral_settings.enabled`). */
+  REFERRAL_UNAVAILABLE = 'REFERRAL_UNAVAILABLE',
+  /** v1.74-social (DRAFT, D217): no such invite code (or it is the caller's own, or its owner cannot invite now). */
+  REFERRAL_CODE_INVALID = 'REFERRAL_CODE_INVALID',
+  /**
+   * v1.74-social (DRAFT, D217): the caller may not enter a code now —
+   * `details: [{field: 'referral', issue: ALREADY_REFERRED|WINDOW_CLOSED}]`.
+   */
+  REFERRAL_NOT_ALLOWED = 'REFERRAL_NOT_ALLOWED',
 }
 
 /** HTTP status for every code (CONVENTIONS.md §4 table). */
@@ -383,6 +392,9 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.ACCOUNT_LOCKED]: 403,
   [ErrorCode.ACCOUNT_RESTRICTED]: 403,
   [ErrorCode.PASSWORD_CHANGE_REQUIRED]: 403,
+  [ErrorCode.REFERRAL_UNAVAILABLE]: 503,
+  [ErrorCode.REFERRAL_CODE_INVALID]: 422,
+  [ErrorCode.REFERRAL_NOT_ALLOWED]: 409,
 };
 
 /** Default developer-facing messages (clients localize by `code`, not by message). */
@@ -514,6 +526,9 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.ACCOUNT_LOCKED]: 'This account is locked for a while.',
   [ErrorCode.ACCOUNT_RESTRICTED]: 'This is switched off for your account for a while.',
   [ErrorCode.PASSWORD_CHANGE_REQUIRED]: 'Choose a new password to continue.',
+  [ErrorCode.REFERRAL_UNAVAILABLE]: 'Inviting friends is not available now.',
+  [ErrorCode.REFERRAL_CODE_INVALID]: 'This invite code is not valid.',
+  [ErrorCode.REFERRAL_NOT_ALLOWED]: 'You cannot enter an invite code now.',
 };
 
 export interface ErrorDetail {

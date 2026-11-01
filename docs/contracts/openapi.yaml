@@ -296,6 +296,17 @@ info:
     `HOST_APPLICATION_NOT_ALLOWED`; notification types `HOST_APPLICATION_APPROVED` / `HOST_APPLICATION_REJECTED`;
     the panel's «طلبات المضيفين» (`listAdminHostApplications`, `getAdminHostApplication(Photo)`,
     `approveAdminHostApplication`, `rejectAdminHostApplication`) (CONVENTIONS §10.68).
+    **D217 (DRAFT v1.74-social)**: «دعوة الأصدقاء» behind the Me hub's «اربح المال» — every person has a stable invite
+    code and link (`<site>/i/<code>`); a friend enters it at sign-up (`RegisterRequest.referralCode`) or later
+    (`applyReferralCode`, once, within the configured days). Rewards are **withdrawable cherries** (ledger reason
+    `REFERRAL_REWARD`): the inviter's sign-up reward, the friend's (0 by default), a share of the friend's FIRST
+    recharge on any path, and milestone bonuses for 1 / 5 / 15 qualified friends — each HELD (default 24 h) and
+    re-checked before it is credited; fraud rules (device `DeviceInfo.installId`, mailbox aliases, the inviter's
+    IP, a daily cap) refuse or void it. Every amount is a server setting the panel edits (`referrals.settings`,
+    the code again); `getMyReferral`, the public ticker `listRecentReferralRewards`, the panel's «الدعوات»
+    (`listAdminReferrals`, `getAdminReferral`, `approveAdminReferral`, `voidAdminReferral`,
+    `get/updateAdminReferralSettings`); codes `REFERRAL_UNAVAILABLE`, `REFERRAL_CODE_INVALID`,
+    `REFERRAL_NOT_ALLOWED` (CONVENTIONS §10.71).
     **D184 (DRAFT v1.53-social)**: the Task Center's rewards are cherries (the old coins ×10, then raised
     ×300: ≈ $5 a month at most), credited to the cherry ledger as `TASK_REWARD` under a daily cherry cap
     (`ProgramTask.rewardCherries` / `claimedCherries`, `MyTasks.dailyCapCherries` / `dailyEarnedCherries`,
@@ -544,6 +555,8 @@ tags:
     description: "Card top-ups on the Kabso website through Stripe Checkout (v1.59-social DRAFT, D190, CONVENTIONS §10.53). Never inside the app (store rules)."
   - name: agency
     description: "Host agencies: join with an invite code, leave or complain, the agent's dashboard (v1.52-social DRAFT, D179); the active-host frame (v1.55-social DRAFT, D186)."
+  - name: referrals
+    description: "(v1.74-social DRAFT, D217) «دعوة الأصدقاء»: the person's invite code and link, the configured rewards in withdrawable cherries, their invitees and rewards, a code entered later, and the public ticker of real rewards (CONVENTIONS §10.71)."
   - name: recharge
     description: "Recharge agents «وكلاء الشحن»: the application, the agent's coin stock and sales, employees, availability, the directory and cherry sales from hosts (v1.54-social DRAFT, D185); recharge orders with escrow, their chat and disputes (v1.69-social DRAFT, D204)."
   - name: premium-usernames
@@ -5541,6 +5554,75 @@ paths:
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/referral:
+    get:
+      tags: [referrals]
+      operationId: getMyReferral
+      summary: "«دعوة الأصدقاء»: the caller's invite code and link, the configured rewards, invitees, rewards and milestones (D217)"
+      description: |
+        v1.74-social, CONVENTIONS §10.71 (owner 2026-11-01). The code is made on the first read and never changes.
+        Every amount comes from the server's settings (the panel edits them); the app shows them as they are.
+        `enabled` false: the programme is switched off — the app hides the page and «اربح المال» opens the cherry
+        wallet instead (the code, the counts and the rewards stay readable). `invitees`: the newest 20, masked
+        names, no ids. `canApply`: the caller may still enter a code (`applyReferralCode`) until `applyUntil`.
+        Per-user default rate limit.
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyReferral' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/referral/apply:
+    post:
+      tags: [referrals]
+      operationId: applyReferralCode
+      summary: "«دعوة الأصدقاء»: enter a friend's invite code later — once, within the configured days of sign-up (D217)"
+      description: |
+        v1.74-social, CONVENTIONS §10.71. Order after auth: 400 body (`code` `invalid_format`) → 503
+        `REFERRAL_UNAVAILABLE` (switched off) → 409 `REFERRAL_NOT_ALLOWED` with `details[0] = {field: referral,
+        issue}`, issue `ALREADY_REFERRED` (one inviter per person, ever) or `WINDOW_CLOSED` (more than
+        `rules.applyWindowDays` after the account was created) → 422 `REFERRAL_CODE_INVALID` (no such code, the
+        caller's own, or its owner cannot invite now) → 200 with the page: `invitedBy.status` PENDING, or REJECTED
+        when a fraud rule matched (no reward is paid; the team may approve it). Rate limit
+        `RATE_LIMIT_REFERRAL_APPLY_USER` (10 / 24 h per user, refused attempts count) → 429.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ApplyReferralCodeRequest' }
+      responses:
+        '200':
+          description: Applied (see `invitedBy`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyReferral' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/referrals/recent-rewards:
+    get:
+      tags: [referrals]
+      operationId: listRecentReferralRewards
+      summary: "The ticker of real referral rewards credited in the last 30 days, masked names (public; D217)"
+      description: |
+        v1.74-social, CONVENTIONS §10.71. Public. At most 20 rewards credited in the last 30 days to active
+        accounts, newest first: the masked display name (first and last character), the cherries and the kind. Only
+        real data — empty when there is none or the programme is off (the app hides the ticker). `Cache-Control:
+        public, max-age=60`. Rate limit `RATE_LIMIT_REFERRAL_TICKER_IP` (60 / 10 min per IP; replaces the public
+        default) → 429.
+      security: []
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReferralTickerPage' }
         '429': { $ref: '#/components/responses/Error' }
   /api/v1/me/hosting-application:
     get:
@@ -11814,6 +11896,164 @@ paths:
         '403': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/referrals:
+    get:
+      tags: [admin-panel]
+      operationId: listAdminReferrals
+      summary: "«الدعوات»: the referrals with their rewards' totals (referrals.view)"
+      description: "(v1.74-social, D217, §10.71) `q`: the inviter's or the invitee's username prefix, or an invite code. `format=csv`: the matching rows (≤ 5000) as `text/csv`, audited `admin.export.csv`."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminPage'
+        - $ref: '#/components/parameters/AdminPageSize'
+        - $ref: '#/components/parameters/AdminOrder'
+        - $ref: '#/components/parameters/AdminQ'
+        - $ref: '#/components/parameters/AdminFormat'
+        - name: sort
+          in: query
+          required: false
+          schema: { type: string, enum: [createdAt, holdUntil], default: createdAt }
+        - name: status
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/ReferralStatus' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminReferralPage' }
+            text/csv:
+              schema: { type: string }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/referrals/{referralId}:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminReferral
+      summary: "A referral with its rewards and the fraud signals (referrals.view; every view audited)"
+      description: "(v1.74-social, D217, §10.71) Audited `referral.view`. `signals`: whether the app sent an install id, the invitee's IP at the time (cleared when the account is purged), and how many other referrals share the install id or the mailbox."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminReferralIdPath'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminReferral' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/referrals/{referralId}/approve:
+    post:
+      tags: [admin-panel]
+      operationId: approveAdminReferral
+      summary: "Approves a referral and credits its rewards now — `referral-admin approve` (referrals.decide; the code again; audited)"
+      description: "(v1.74-social, D217, §10.71) A PENDING referral skips its hold; a REJECTED or VOID one is overruled. It becomes QUALIFIED; its rewards still PENDING or VOID are credited (`REFERRAL_REWARD`), the sign-up rewards a rejected referral never got are made at the current amounts and credited, then the inviter's milestones. Already QUALIFIED: `changed` false, nothing moves. Audited `referral.approve` with the reason."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminReferralIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReasonCodeRequest' }
+      responses:
+        '200':
+          description: Approved.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [status, changed, creditedCherries]
+                properties:
+                  status: { type: string, enum: [QUALIFIED] }
+                  changed: { type: boolean }
+                  creditedCherries: { type: integer, format: int64, minimum: 0 }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/referrals/{referralId}/void:
+    post:
+      tags: [admin-panel]
+      operationId: voidAdminReferral
+      summary: "Voids a referral and its pending rewards — `referral-admin void` (referrals.decide; the code again; audited)"
+      description: "(v1.74-social, D217, §10.71) Rewards already credited stay (taking cherries back is a balance adjustment, D208); `creditedKept` says how many. Already VOID: `changed` false. 409 `ADMIN_ACTION_REFUSED` for an unknown id. Audited `referral.void` with the reason."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminReferralIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReasonCodeRequest' }
+      responses:
+        '200':
+          description: Voided.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [status, changed, voidedRewards, creditedKept]
+                properties:
+                  status: { type: string, enum: [VOID] }
+                  changed: { type: boolean }
+                  voidedRewards: { type: integer, minimum: 0 }
+                  creditedKept: { type: integer, minimum: 0 }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/referral-settings:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminReferralSettings
+      summary: "«الدعوات»: the amounts and rules of the programme (referrals.view)"
+      description: "(v1.74-social, D217, §10.71)"
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminReferralSettings' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    put:
+      tags: [admin-panel]
+      operationId: updateAdminReferralSettings
+      summary: "Changes the amounts and rules — `referral-admin settings --set` (referrals.settings: OWNER, FINANCE; the code again; audited)"
+      description: "(v1.74-social, D217, §10.71) Any subset of the settings (at least one) with a reason and the authenticator code again. Audited `referral.settings.update` with before and after. A change applies to rewards made from now on (a reward keeps the amount it was made with)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateAdminReferralSettingsRequest' }
+      responses:
+        '200':
+          description: The settings now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminReferralSettings' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/admin/live-hosts:
     get:
       tags:
@@ -13876,6 +14116,12 @@ components:
       required: true
       description: (v1.73-social, D209) a «كن مضيفاً مع الإدارة» application.
       schema: { type: string, format: uuid }
+    AdminReferralIdPath:
+      name: referralId
+      in: path
+      required: true
+      description: (v1.74-social, D217) a referral of «دعوة الأصدقاء».
+      schema: { type: string, format: uuid }
     AdminCsrf:
       name: X-CSRF-Token
       in: header
@@ -14209,6 +14455,268 @@ components:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorEnvelope' }
   schemas:
+    # ---- v1.74-social (DRAFT, D217, CONVENTIONS §10.71): «دعوة الأصدقاء» --------------------------------------------
+    ReferralStatus:
+      type: string
+      description: "PENDING: in its hold; QUALIFIED: passed the hold's checks (counts for milestones); REJECTED: refused at the start by a fraud rule (no reward); VOID: voided later (the hold's re-check or the team)."
+      enum: [PENDING, QUALIFIED, REJECTED, VOID]
+    ReferralRewardKind:
+      type: string
+      enum: [SIGNUP_INVITER, SIGNUP_INVITEE, FIRST_RECHARGE, MILESTONE]
+    ReferralRewardStatus:
+      type: string
+      enum: [PENDING, CREDITED, VOID]
+    ReferralMilestoneState:
+      type: string
+      description: "LOCKED: fewer friends than the threshold; UNLOCKED: reached counting friends still in their hold; CLAIMED: the bonus was credited."
+      enum: [LOCKED, UNLOCKED, CLAIMED]
+    ReferralMilestone:
+      type: object
+      additionalProperties: false
+      required: [friends, cherries, state]
+      properties:
+        friends: { type: integer, minimum: 1 }
+        cherries: { type: integer, format: int64, minimum: 1 }
+        state: { $ref: '#/components/schemas/ReferralMilestoneState' }
+    ReferralInvitee:
+      type: object
+      additionalProperties: false
+      required: [name, status, joinedAt, firstRecharge]
+      properties:
+        name: { type: string, description: 'The masked display name (first and last character, e.g. «س***ة»).' }
+        status: { $ref: '#/components/schemas/ReferralStatus' }
+        joinedAt: { type: string, format: date-time, description: When the code was applied. }
+        firstRecharge: { type: boolean, description: The friend has made their first recharge. }
+    MyReferral:
+      type: object
+      description: v1.74-social (D217, §10.71). Cherry amounts are integers; `payout` converts them to money (as the cherry wallet).
+      additionalProperties: false
+      required: [enabled, code, link, rules, upTo, payout, counts, rewards, milestones, invitees, invitedBy, canApply, applyUntil]
+      properties:
+        enabled: { type: boolean }
+        code: { type: string, pattern: '^[A-Z0-9]{6,16}$' }
+        link: { type: string, format: uri, description: "`<APP_PUBLIC_URL>/i/<code>` (the website shows the code and how to get the app)." }
+        rules:
+          type: object
+          additionalProperties: false
+          required: [inviterSignupCherries, inviteeSignupCherries, firstRechargeBps, holdHours, applyWindowDays, dailySignupCap]
+          properties:
+            inviterSignupCherries: { type: integer, format: int64, minimum: 0, description: What the inviter gets when a friend signs up with the code. }
+            inviteeSignupCherries: { type: integer, format: int64, minimum: 0, description: What the friend gets (0 = nothing). }
+            firstRechargeBps: { type: integer, minimum: 0, maximum: 5000, description: "The inviter's share of the friend's first recharge, in basis points of its coin value in cherries (500 = 5 %)." }
+            holdHours: { type: integer, minimum: 0, description: How long a reward is held before it is credited. }
+            applyWindowDays: { type: integer, minimum: 0, description: How long after sign-up a code may still be entered. }
+            dailySignupCap: { type: integer, minimum: 0, description: "Sign-up rewards per inviter in 24 hours (0 = no cap)." }
+        upTo:
+          type: object
+          additionalProperties: false
+          required: [total, milestones]
+          properties:
+            total: { type: integer, format: int64, minimum: 0, description: "«اربح حتى N»: the sign-up reward × the last milestone's friends + every milestone (the recharge share is on top)." }
+            milestones: { type: integer, format: int64, minimum: 0, description: "«ادعُ أصدقاء جدداً واربح حتى Z»: the milestones' total." }
+        payout: { $ref: '#/components/schemas/ReferralPayout' }
+        counts:
+          type: object
+          additionalProperties: false
+          required: [invited, qualified, pending]
+          properties:
+            invited: { type: integer, minimum: 0, description: Everyone who applied the caller's code (any status). }
+            qualified: { type: integer, minimum: 0 }
+            pending: { type: integer, minimum: 0 }
+        rewards:
+          type: object
+          additionalProperties: false
+          required: [pendingCherries, creditedCherries]
+          properties:
+            pendingCherries: { type: integer, format: int64, minimum: 0 }
+            creditedCherries: { type: integer, format: int64, minimum: 0 }
+        milestones:
+          type: array
+          maxItems: 5
+          items: { $ref: '#/components/schemas/ReferralMilestone' }
+        invitees:
+          type: array
+          maxItems: 20
+          items: { $ref: '#/components/schemas/ReferralInvitee' }
+        invitedBy:
+          type: [object, 'null']
+          additionalProperties: false
+          required: [status, source, at]
+          properties:
+            status: { $ref: '#/components/schemas/ReferralStatus' }
+            source: { type: string, enum: [SIGNUP, LATER] }
+            at: { type: string, format: date-time }
+        canApply: { type: boolean }
+        applyUntil: { type: [string, 'null'], format: date-time, description: Null once the caller has an inviter. }
+    ReferralPayout:
+      type: object
+      description: "`rateCherries` cherries are paid `rateMinor` minor units of `currency` (the cherry wallet's rate)."
+      additionalProperties: false
+      required: [currency, rateCherries, rateMinor]
+      properties:
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
+        rateCherries: { type: integer, format: int64, minimum: 1 }
+        rateMinor: { type: integer, minimum: 1 }
+    ApplyReferralCodeRequest:
+      type: object
+      additionalProperties: false
+      required: [code]
+      properties:
+        code: { type: string, maxLength: 200, description: "A code or an invite link (spaces and dashes ignored, upper-cased)." }
+        installId: { type: string, pattern: '^[A-Za-z0-9-]{8,64}$', description: "The app's install id (`DeviceInfo.installId`); else the caller's latest session's." }
+    ReferralTickerItem:
+      type: object
+      additionalProperties: false
+      required: [name, cherries, kind, at]
+      properties:
+        name: { type: string, description: The masked display name. }
+        cherries: { type: integer, format: int64, minimum: 1 }
+        kind: { $ref: '#/components/schemas/ReferralRewardKind' }
+        at: { type: string, format: date-time }
+    ReferralTickerPage:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          type: array
+          maxItems: 20
+          items: { $ref: '#/components/schemas/ReferralTickerItem' }
+    AdminReferralPerson:
+      type: object
+      additionalProperties: false
+      required: [id, username, displayName, avatarUrl, status]
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        displayName: { type: string }
+        avatarUrl: { type: [string, 'null'] }
+        status: { type: string, enum: [ACTIVE, SUSPENDED, PENDING_DELETION, DELETED] }
+    AdminReferralRow:
+      type: object
+      additionalProperties: false
+      required: [id, status, source, code, rejectReason, voidReason, inviter, invitee, holdUntil, firstRecharge, pendingCherries, creditedCherries, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        status: { $ref: '#/components/schemas/ReferralStatus' }
+        source: { type: string, enum: [SIGNUP, LATER] }
+        code: { type: string }
+        rejectReason: { type: [string, 'null'], description: "SELF_EMAIL, SELF_DEVICE, SELF_IP, DUPLICATE_DEVICE, DUPLICATE_EMAIL (kept after the team approves or voids)." }
+        voidReason: { type: [string, 'null'], description: "INVITEE_BANNED|DELETED|FLAGGED, INVITER_…, or the team's reason." }
+        inviter: { $ref: '#/components/schemas/AdminReferralPerson' }
+        invitee: { $ref: '#/components/schemas/AdminReferralPerson' }
+        holdUntil: { type: string, format: date-time }
+        firstRecharge: { type: boolean }
+        pendingCherries: { type: integer, format: int64, minimum: 0 }
+        creditedCherries: { type: integer, format: int64, minimum: 0 }
+        createdAt: { type: string, format: date-time }
+    AdminReferralPage:
+      type: object
+      additionalProperties: false
+      required: [data, total, page, pageSize]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/AdminReferralRow' }
+        total: { type: integer, minimum: 0 }
+        page: { type: integer, minimum: 1 }
+        pageSize: { type: integer, minimum: 1, maximum: 100 }
+    AdminReferralReward:
+      type: object
+      additionalProperties: false
+      required: [id, userId, kind, status, cherries, holdUntil, baseCoins, rateBps, rechargeReason, creditedAt, voidedAt, voidReason]
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        kind: { $ref: '#/components/schemas/ReferralRewardKind' }
+        status: { $ref: '#/components/schemas/ReferralRewardStatus' }
+        cherries: { type: integer, format: int64, minimum: 1 }
+        holdUntil: { type: string, format: date-time }
+        baseCoins: { type: [integer, 'null'], format: int64, description: FIRST_RECHARGE only. }
+        rateBps: { type: [integer, 'null'] }
+        rechargeReason: { type: [string, 'null'], enum: [CARD_TOPUP, RECHARGE_PURCHASE, RECHARGE_ORDER, null] }
+        creditedAt: { type: [string, 'null'], format: date-time }
+        voidedAt: { type: [string, 'null'], format: date-time }
+        voidReason: { type: [string, 'null'], description: "DAILY_CAP, REFERRAL_VOID, RECHARGE_REVERSED, BANNED|DELETED|FLAGGED, INVITEE_…" }
+    AdminReferral:
+      type: object
+      additionalProperties: false
+      required: [id, status, source, code, rejectReason, voidReason, inviter, invitee, decidedBy, holdUntil, firstRechargeAt, qualifiedAt, voidedAt, createdAt, signals, rewards]
+      properties:
+        id: { type: string, format: uuid }
+        status: { $ref: '#/components/schemas/ReferralStatus' }
+        source: { type: string, enum: [SIGNUP, LATER] }
+        code: { type: string }
+        rejectReason: { type: [string, 'null'] }
+        voidReason: { type: [string, 'null'] }
+        inviter: { $ref: '#/components/schemas/AdminReferralPerson' }
+        invitee: { $ref: '#/components/schemas/AdminReferralPerson' }
+        decidedBy: { oneOf: [{ $ref: '#/components/schemas/AdminReferralPerson' }, { type: 'null' }] }
+        holdUntil: { type: string, format: date-time }
+        firstRechargeAt: { type: [string, 'null'], format: date-time }
+        qualifiedAt: { type: [string, 'null'], format: date-time }
+        voidedAt: { type: [string, 'null'], format: date-time }
+        createdAt: { type: string, format: date-time }
+        signals:
+          type: object
+          additionalProperties: false
+          required: [installId, ip, sameDeviceReferrals, sameEmailReferrals]
+          properties:
+            installId: { type: boolean, description: The app sent an install id. }
+            ip: { type: [string, 'null'] }
+            sameDeviceReferrals: { type: integer, minimum: 0 }
+            sameEmailReferrals: { type: integer, minimum: 0 }
+        rewards:
+          type: array
+          items: { $ref: '#/components/schemas/AdminReferralReward' }
+    ReferralMilestoneSetting:
+      type: object
+      additionalProperties: false
+      required: [friends, cherries]
+      properties:
+        friends: { type: integer, minimum: 1, maximum: 1000 }
+        cherries: { type: integer, format: int64, minimum: 1, maximum: 100000000 }
+    AdminReferralSettings:
+      type: object
+      description: "(v1.74-social, D217) Defaults (to confirm with the owner): on; inviter 20 000 cherries per sign-up, friend 0; 5 % of the first recharge; milestones 1 / 5 / 15 friends → 50 000 / 300 000 / 1 000 000; 20 sign-up rewards per inviter in 24 h; held 24 h; a code may be entered for 7 days; the inviter's IP within 24 h counts as self-referral."
+      additionalProperties: false
+      required: [enabled, inviterSignupCherries, inviteeSignupCherries, firstRechargeBps, milestones, dailySignupCap, holdHours, applyWindowDays, selfIpWindowHours, updatedAt, updatedById]
+      properties:
+        enabled: { type: boolean }
+        inviterSignupCherries: { type: integer, format: int64, minimum: 0, maximum: 100000000 }
+        inviteeSignupCherries: { type: integer, format: int64, minimum: 0, maximum: 100000000 }
+        firstRechargeBps: { type: integer, minimum: 0, maximum: 5000 }
+        milestones:
+          type: array
+          maxItems: 5
+          description: Increasing `friends`.
+          items: { $ref: '#/components/schemas/ReferralMilestoneSetting' }
+        dailySignupCap: { type: integer, minimum: 0, maximum: 1000, description: 0 = no cap. }
+        holdHours: { type: integer, minimum: 0, maximum: 720 }
+        applyWindowDays: { type: integer, minimum: 0, maximum: 90 }
+        selfIpWindowHours: { type: integer, minimum: 0, maximum: 720, description: 0 = the IP rule is off. }
+        updatedAt: { type: string, format: date-time }
+        updatedById: { type: [string, 'null'], format: uuid }
+    UpdateAdminReferralSettingsRequest:
+      type: object
+      additionalProperties: false
+      required: [reason, totpCode]
+      minProperties: 3
+      properties:
+        enabled: { type: boolean }
+        inviterSignupCherries: { type: integer, format: int64, minimum: 0, maximum: 100000000 }
+        inviteeSignupCherries: { type: integer, format: int64, minimum: 0, maximum: 100000000 }
+        firstRechargeBps: { type: integer, minimum: 0, maximum: 5000 }
+        milestones:
+          type: array
+          maxItems: 5
+          items: { $ref: '#/components/schemas/ReferralMilestoneSetting' }
+        dailySignupCap: { type: integer, minimum: 0, maximum: 1000 }
+        holdHours: { type: integer, minimum: 0, maximum: 720 }
+        applyWindowDays: { type: integer, minimum: 0, maximum: 90 }
+        selfIpWindowHours: { type: integer, minimum: 0, maximum: 720 }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+        totpCode: { type: string, pattern: '^[0-9]{6}$' }
     # ---- v1.66-social (DRAFT, D198, CONVENTIONS §10.61): privacy ---------------------------------------------------
     LegalDocumentKind:
       type: string
@@ -18687,6 +19195,13 @@ components:
         name: { type: string, maxLength: 100, example: Pixel 9 }
         platform: { type: string, enum: [android, ios, web, other] }
         appVersion: { type: string, maxLength: 32 }
+        installId:
+          type: string
+          pattern: '^[A-Za-z0-9-]{8,64}$'
+          description: |
+            v1.74-social (D217, CONVENTIONS §10.71). A random id the app keeps for this install (until it is
+            uninstalled); kept with the session and used only by the referral fraud checks (one reward per device, no
+            self-referral). Optional.
     RegisterRequest:
       type: object
       required: [email, password, username, displayName, gender]
@@ -18702,6 +19217,15 @@ components:
         locale: { $ref: '#/components/schemas/Locale' }
         device: { $ref: '#/components/schemas/DeviceInfo' }
         legal: { $ref: '#/components/schemas/RegistrationLegal' }
+        referralCode:
+          type: string
+          maxLength: 200
+          description: |
+            v1.74-social (D217, CONVENTIONS §10.71). An invite code (or invite link `…/i/<code>`) typed at sign-up;
+            spaces and dashes are ignored, letters are read in upper case. Only its format is checked here (400
+            `referralCode` `invalid_format`); the answer stays the same 202 whether the code exists or not. It is
+            applied when the account is created (`registerVerify`): an unknown code, or the programme switched off,
+            creates the account without a referral; a fraud rule records a REJECTED referral (no reward).
     DisplayName:
       type: string
       minLength: 1
@@ -23841,9 +24365,12 @@ components:
         `AGENCY_COMMISSION_REVERSAL`, `PARENT_COMMISSION_REVERSAL` (an admin reversed a send),
         `WITHDRAWAL_HOLD` (held by a withdrawal request). *(v1.53-social, D184)* `TASK_REWARD` (credit): a
         Task Center reward (locked for withdrawal until the unlock rule passes, §10.46.1). *(v1.54-social, D185)*
-        `RECHARGE_SALE` (debit): cherries sold to a recharge agent (§10.48). New values may appear later.
+        `RECHARGE_SALE` (debit): cherries sold to a recharge agent (§10.48). *(v1.74-social, D217)*
+        `REFERRAL_REWARD` (credit): a «دعوة الأصدقاء» reward credited after its hold (reference: the reward; §10.71).
+        New values may appear later.
       enum: [GIFT_RECEIVED, AGENCY_COMMISSION, PARENT_COMMISSION, GIFT_REVERSAL, AGENCY_COMMISSION_REVERSAL,
-             PARENT_COMMISSION_REVERSAL, WITHDRAWAL_HOLD, WITHDRAWAL_REFUND, TASK_REWARD, RECHARGE_SALE]
+             PARENT_COMMISSION_REVERSAL, WITHDRAWAL_HOLD, WITHDRAWAL_REFUND, TASK_REWARD, RECHARGE_SALE,
+             REFERRAL_REWARD]
     CherryPayoutRules:
       type: object
       description: "`rateCherries` cherries are paid `rateMinor` minor units of `currency` (owner: 1 000 000 = 110, $1.10)."

@@ -399,3 +399,18 @@ export async function taskCherryLockIn(
     rules.rateMinor,
   );
 }
+
+/**
+ * v1.74-social (D217, CONVENTIONS §10.71): a referral reward credited after its hold — `cherries` (> 0) as one
+ * `REFERRAL_REWARD` row, reference = the `referral_rewards` row, so a reward is credited at most once (a second
+ * call fails on `cherry_ledger_reference_once` and rolls the caller back).
+ */
+export async function creditReferralCherriesIn(
+  tx: Tx,
+  userId: string,
+  cherries: bigint,
+  rewardId: string,
+  now: Date,
+): Promise<void> {
+  await applyMovementsIn(tx, [{ userId, reason: 'REFERRAL_REWARD', delta: cherries }], rewardId, now);
+}

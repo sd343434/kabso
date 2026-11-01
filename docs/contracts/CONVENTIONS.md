@@ -200,6 +200,9 @@ All non-2xx responses use one envelope:
 | 403 | `ACCOUNT_RESTRICTED` | *(v1.72-social, DRAFT, D208)* The team switched the action off for the caller for a while (live chat, bullets, comments and direct messages: `CHAT_MUTE`; going live: `NO_LIVE`; live, direct and bag gifts: `NO_GIFTS`; posts, reels and stories: `NO_POSTING`); `details: [{field: "restriction", issue: <kind>}, {field: "until", issue: <ISO 8601 time>}]`. Nothing was stored or charged. §10.67. |
 | 403 | `PASSWORD_CHANGE_REQUIRED` | *(v1.72-social, DRAFT, D208)* `login` with the right password while the team requires a new one (a temporary password, or «فرض تغيير كلمة المرور»); the same request with `newPassword` sets it and signs in. §10.67. |
 | 409 | `LIVE_QUESTIONS_CLOSED` | *(v1.47-live, DRAFT, D212)* A raised hand in a PODCAST whose host closed the hands (`questionsOpen` false). §10.69. |
+| 503 | `REFERRAL_UNAVAILABLE` | *(v1.74-social, DRAFT, D217)* «دعوة الأصدقاء» is switched off (`referral_settings.enabled`); `applyReferralCode` changes nothing. §10.71. |
+| 422 | `REFERRAL_CODE_INVALID` | *(v1.74-social, DRAFT, D217)* `applyReferralCode` with no such invite code, the caller's own, or a code whose owner cannot invite now (not ACTIVE). §10.71. |
+| 409 | `REFERRAL_NOT_ALLOWED` | *(v1.74-social, DRAFT, D217)* The caller may not enter a code now; `details: [{field: "referral", issue: "ALREADY_REFERRED" \| "WINDOW_CLOSED"}]` (one inviter per person, ever; within `applyWindowDays` of sign-up). §10.71. |
 | 403 | `DM_NOT_ALLOWED` | *(v1.40-social, DRAFT, D155)* The recipient's «who can message you» setting (`whoCanMessage`) does not allow the caller (§11.13). Nothing was stored or charged. The app says the person does not accept messages. |
 | 403 | `DM_REQUEST_LIMIT` | *(v1.40-social, DRAFT, D155)* The caller already sent `DM_REQUEST_MAX_MESSAGES` (3) messages in a message request the recipient has not accepted (§11.13). The app says to wait for a reply. |
 | 403 | `DM_REQUEST_TEXT_ONLY` | *(v1.40-social, DRAFT, D155)* A picture or voice message in a message request (only text, a pack emoji or a gift until the recipient accepts, §11.13). |
@@ -487,6 +490,8 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `POST /recharge-orders` *(v1.69-social, D204)* | 20 / hour per user (bucket `recharge:order`, `RATE_LIMIT_RECHARGE_ORDER_USER`). **Replaces** the per-user default |
 | Every other `POST /recharge-orders/{id}/…` (messages, payment details, notice, paid, confirm, dispute, cancel) *(v1.69-social, D204)* | 600 / hour per user, one bucket (`recharge:order_action`, `RATE_LIMIT_RECHARGE_ORDER_ACTION_USER`). **Replaces** the per-user default |
 | `POST /me/hosting-application` *(v1.73-social, D209)* | 5 / 24 h per user (bucket `host:apply`, `RATE_LIMIT_HOST_APPLY_USER`; refused attempts count), on top of the per-user default |
+| `POST /me/referral/apply` *(v1.74-social, D217)* | 10 / 24 h per user (bucket `referral:apply`, `RATE_LIMIT_REFERRAL_APPLY_USER`; refused attempts count), on top of the per-user default |
+| `GET /referrals/recent-rewards` *(v1.74-social, D217, public)* | 60 / 10 min per client IP (bucket `referral:ticker`, `RATE_LIMIT_REFERRAL_TICKER_IP`; replaces the public default) |
 | `POST /waitlist` *(v1.61-social, D192)* | 10 / hour per client IP (bucket `waitlist:ip`, `RATE_LIMIT_WAITLIST_IP`; invalid bodies count too). **Replaces** the public per-IP default; `GET /site/settings` uses the public per-IP default, `PUT /admin/site-settings` the per-user default |
 | `GET /live/rooms/{roomId}/chat` *(v1.9-live, CP-013)* | the per-user default; guests share the CP-010 guest read limit per IP |
 | `POST /live/rooms/{roomId}/seat-emoji` *(v1.27.5-live, D138)* | 120 / min per user (bucket `live:seat-emoji`, the taps rule `RATE_LIMIT_LIVE_TAPS_USER`), plus a counting rule of **one every 2 s per user** (429 with `Retry-After`). **Replaces** the per-user default |
@@ -629,6 +634,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.74-social (draft) | 2026-11-01 | **D217 (owner: «زر اربح المال يجب ان يفتح على هذه الصفحة الخاصة بالدعوة»; decisions: withdrawable cherries, registration + the friend's first recharge, milestones 1 / 5 / 15, strong fraud protection, every amount a server setting):** new tag `referrals`: `getMyReferral` (`GET /me/referral`, `MyReferral`, `ReferralInvitee`, `ReferralMilestone` / `ReferralMilestoneState`, `ReferralPayout`), `applyReferralCode` (`POST /me/referral/apply`, `ApplyReferralCodeRequest`), the public `listRecentReferralRewards` (`GET /referrals/recent-rewards`, `ReferralTickerPage`); `RegisterRequest.referralCode`; `DeviceInfo.installId`; `ReferralStatus`, `ReferralRewardKind`, `ReferralRewardStatus`; `CherryLedgerReason.REFERRAL_REWARD`; codes `REFERRAL_UNAVAILABLE` (503), `REFERRAL_CODE_INVALID` (422), `REFERRAL_NOT_ALLOWED` (409); tag `admin-panel` «الدعوات»: `listAdminReferrals`, `getAdminReferral`, `approveAdminReferral`, `voidAdminReferral`, `getAdminReferralSettings`, `updateAdminReferralSettings` (capabilities `referrals.view`, `referrals.decide`, `referrals.settings`; money actions with the code again); config `REFERRAL_SWEEP_INTERVAL_SECONDS` (300; 0 refused in production), `RATE_LIMIT_REFERRAL_APPLY_USER` (10/86400), `RATE_LIMIT_REFERRAL_TICKER_IP` (60/600); every amount in `referral_settings` (the panel); migrations `20270206090000_referrals_enums`, `20270206090100_referrals`; CLI `referral-admin list\|view\|approve\|void\|settings\|sweep`; audit `referral.*`. §4, §7, §10.71. | **Additive** (new operations, optional request fields, new codes and enum values; an older app ignores the ledger reason as «other» and sends no install id). |
 | v1.73-social (draft) | 2026-10-31 | **D209 (owner: «يمكن للشخص تفعيل حسابه مضيف مع الإدارة» — on «الوكالة», apply to host directly with the Kabso team, no agency):** tag `agency`: `getMyHostingApplication` (`GET /me/hosting-application`, `MyHostingApplication`: `host`, `application` (`HostingApplication`), `rule` with `HostingApplyRefusal`), `applyForHosting` (`POST /me/hosting-application`, `Idempotency-Key`, `HostingApplicationRequest`: displayName, country, dateOfBirth, contact, bio, links ≤ 3, acceptRules, the D185 private uploads `RECHARGE_AGENT_PHOTO` / `RECHARGE_AGENT_SELFIE`), `cancelMyHostingApplication` (`POST /me/hosting-application/cancel`); `HostApplicationStatus`; code `HOST_APPLICATION_NOT_ALLOWED` (409); notification types `HOST_APPLICATION_APPROVED`, `HOST_APPLICATION_REJECTED` (system, no target); tag `admin-panel` «طلبات المضيفين»: `listAdminHostApplications`, `getAdminHostApplication`, `getAdminHostApplicationPhoto`, `approveAdminHostApplication`, `rejectAdminHostApplication` (capabilities `hosts.applications`, `hosts.applications.photos`, `hosts.applications.decide`); `LiveHostSource.IDENTITY` is now given by an approval; config `HOST_APPLICATION_MIN_AGE` (18), `HOST_APPLICATION_REAPPLY_DAYS` (30), `RATE_LIMIT_HOST_APPLY_USER` (5/86400); migrations `20270202090000_host_applications_enums`, `20270202090100_host_applications`; CLI `host-admin applications\|view\|approve\|reject`; audit `host.application.*`; the data export gains `host_applications`. §4, §7, §10.68. | **Additive** (new operations, schemas, code and enum values; clients ignore unknown notification types). Behaviour: joining or opening an agency cancels a pending application. |
 | v1.72-social (draft) | 2026-10-31 | **D208 (owner: «اجعله يملك صلاحية لكل شيء مثل قفل حساب شخص او حظره او تغير كلمة المرور»):** the admin panel's account controls — `getAdminUserControl`, `lockAdminUser` / `unlockAdminUser`, `restrictAdminUser` / `liftAdminUserRestriction`, `sendAdminUserPasswordResetLink`, `setAdminUserTemporaryPassword`, `requireAdminUserPasswordChange`, `changeAdminUserEmail`, `resendAdminUserVerification`, `editAdminUserProfile`, `listAdminUserContent`, `moderateAdminContent`, `adjustAdminUserBalance`, `requestAdminUserDeletion` / `cancelAdminUserDeletion`; capabilities `users.control_view`, `users.lock`, `users.restrict`, `users.password`, `users.email`, `users.profile_edit`, `users.content`, `users.balance_adjust`, `users.delete`; `LoginRequest.newPassword`; `login` 403 `ACCOUNT_LOCKED` / `PASSWORD_CHANGE_REQUIRED`; 403 `ACCOUNT_RESTRICTED` on the restricted actions; notification types `ACCOUNT_RESTRICTED`, `ACCOUNT_RESTRICTION_LIFTED`, `BALANCE_ADJUSTED`, `PROFILE_EDITED_BY_TEAM` and targets `ACCOUNT_RESTRICTION`, `BALANCE_ADJUSTMENT` (`restriction`, `currency`, `amount`); ledger reason `ADMIN_ADJUSTMENT` (coins and cherries, either sign); `listAdminUserAudit` also lists what the account did and the team's actions on its content; config `ADMIN_ADJUST_DAILY_CAP_COINS` / `_CHERRIES` (10 000 000 each), `ADMIN_USERNAME_RENAME_HOLD_DAYS` (30: a team rename holds the old username for the person); `banAdminUser` now takes `totpCode` (`AdminReasonCodeRequest`; owner answer — a breaking change for the panel only, shipped with it); `control-admin` CLI; audit actions `admin.user.lock|unlock|restrict|restriction_lift|password_*|profile_edit|email_*`, `admin.content.hide|restore|delete`, `admin.balance.adjust`, `auth.password.changed_at_sign_in`; migration `20270130090000_admin_control` (`account_restrictions`, `admin_balance_adjustments`, `users.password_change_required_at`, `notifications.account_restriction_id` / `balance_adjustment_id`, the ledgers' sign rules extended in place). §4, §10.67. | **Additive** (new operations, an optional request field, new codes on existing operations only after the right password or for restricted accounts, new notification types that older clients ignore). |
 | v1.70-social (draft) | 2026-10-31 | **D206 (owner: «افتح وكالة» — open a host agency yourself; free; ID card + selfie; created at once; 3 activated hosts in 7 days or it closes):** tag `agency`: `openAgency` (`POST /me/agency/open`, `Idempotency-Key`, `OpenAgencyRequest`: name, country, contact, expected hosts, bio, the D185 private uploads `RECHARGE_AGENT_PHOTO` / `RECHARGE_AGENT_SELFIE`); `OwnAgency.name`, `OwnAgency.probation` (`AgencyProbation`, `AgencyProbationHost`); `MyAgency.closedAgency` (`ClosedAgency`) and `MyAgency.openRule` (`AgencyOpenRule`); code `AGENCY_OPEN_NOT_ALLOWED` (409); notification types `AGENCY_OPENED`, `AGENCY_PROBATION_REMINDER`, `AGENCY_PROBATION_PASSED`, `AGENCY_CLOSED`, `AGENCY_HOST_RELEASED` with target `AGENCY` (`activatedHosts`, `requiredHosts`); tag `admin-panel`: `getAdminAgencyApplication`, `getAdminAgencyApplicationPhoto`, `extendAdminAgencyProbation`, `closeAdminAgency`, `reopenAdminAgency` (capabilities `agencies.applications`, `agencies.probation`), `listAdminAgencies` `state=probation\|closed` and `origin`, the row / detail gain name, origin, status, probation, closing and applications; config `AGENCY_PROBATION_DAYS` (7), `AGENCY_PROBATION_MIN_HOSTS` (3), `AGENCY_PROBATION_REMINDER_HOURS` (24), `AGENCY_REOPEN_COOLDOWN_DAYS` (30), `RATE_LIMIT_AGENCY_OPEN_USER` (5/86400); migrations `20270125090000_agency_open_enums`, `20270125090100_agency_open`; CLI `economy-admin agency-probation-extend\|agency-close\|agency-reopen\|agency-probation-sweep`; the data export gains `agency_applications`. §4, §10.46, §10.65. | **Additive** (new operation, fields, codes and enum values; clients ignore unknown notification / target types). Behaviour: a closed agency is never found, joined, evaluated or paid a commission; its owner's host-agent perks go while it is closed. |
@@ -4205,6 +4211,9 @@ New capabilities (added to the §10.54.1 table; the session's `capabilities` lis
 | `team.manage` | ✓ | | | |
 | `programs.view` (tasks, levels, special usernames) | ✓ | | ✓ | ✓ |
 | `waitlist.view` | ✓ | | | |
+| `referrals.view` *(v1.74-social, D217)* | ✓ | | ✓ | ✓ |
+| `referrals.decide` *(D217; the code again)* | ✓ | | | ✓ |
+| `referrals.settings` *(D217; the code again)* | ✓ | | | ✓ |
 
 - **Statistics** (`dashboard.view`, read-only): `getAdminStatsOverview` — five KPI cards (new users; coins sold =
   recharge agents' sales + card orders credited; gift coin value; lives on air now with the lives started per day;
@@ -4926,6 +4935,77 @@ the other phone saw «لا يوجد أصدقاء» and the random match, which p
 - **The app.** The sheet's list reloads every 10 s while it shows (and on pull), so a friend who goes live or
   becomes free appears without reopening it; a failed load is shown with «إعادة المحاولة» (never as «لا يوجد
   أصدقاء») and logged.
+
+### 10.71 «دعوة الأصدقاء»: invite codes and referral rewards in cherries *(v1.74-social, DRAFT — D217)*
+
+Owner (2026-11-01): «زر اربح المال يجب ان يفتح على هذه الصفحة الخاصة بالدعوة» — the Me hub's «اربح المال» opens an
+invite page laid out like the owner's reference (a third-party app's «Invite friend»; layout only, Kabso art and
+identity). Owner decisions: rewards are **withdrawable cherries** (real money: the cherry ledger and the existing
+withdrawal rules); a reward for the friend's sign-up with the code and for the friend's **first** recharge (any
+path, a percentage of its coin value); milestone bonuses at 1 / 5 / 15 qualified friends; **strong** fraud
+protection; every amount a server setting the panel edits; switched off, «اربح المال» opens the cherry wallet.
+
+- **Code and link.** Every person gets one invite code on the first `getMyReferral`: 8 characters from
+  `23456789ABCDEFGHJKMNPQRSTVWXYZ` (no look-alikes), unique, never changed. The link is `APP_PUBLIC_URL/i/<code>`;
+  the website's `/i/<code>` page shows the code and how to get the app (no deep-link package in the app yet, so the
+  code is typed or pasted). A typed code ignores spaces and dashes and is read in upper case; a pasted link works.
+- **Applying.** At sign-up (`RegisterRequest.referralCode`; only its format is checked by `register`, whose answer
+  stays the same 202 — the code is applied by `registerVerify` in its own transaction after the account's, so a
+  referral problem never fails a sign-up), or later with `applyReferralCode` — **once** (one inviter per person,
+  ever), within `applyWindowDays` (7) of the account's creation. An unknown or own code: 422 at the later entry, no
+  referral at sign-up. Switched off: 503 later, no referral at sign-up.
+- **Fraud rules (strong).** In order; the first that matches records the referral as **REJECTED** with
+  `rejectReason` (no reward; the team may approve it): `SELF_EMAIL` — the same mailbox as the inviter after
+  folding aliases (lower case; `+tag` removed at the big providers; Gmail dots removed, `googlemail.com` =
+  `gmail.com`); `SELF_DEVICE` — the invitee's install id is one of the inviter's sessions' (or the inviter's own
+  referral's); `SELF_IP` — the invitee's IP is an IP of one of the inviter's sessions used within
+  `selfIpWindowHours` (24; 0 = off); `DUPLICATE_DEVICE` — the install id was already referred (one reward per
+  device); `DUPLICATE_EMAIL` — the mailbox was already referred. The install id is `DeviceInfo.installId`, a random
+  id the app keeps per install (until it is uninstalled) sent at sign-in, sign-up and later entry; the server had no
+  device id before D217. There is no phone number in Kabso, so no phone rule. The mailbox is kept as the SHA-256
+  of its canonical form, the IP until the account is purged (D193).
+- **Rewards and the hold.** A referral that passes is PENDING until `holdUntil` = now + `holdHours` (24). Its
+  rewards: `SIGNUP_INVITER` (`inviterSignupCherries`) and `SIGNUP_INVITEE` (`inviteeSignupCherries`, 0 = none),
+  made PENDING with the same hold. The **daily cap**: an inviter's sign-up rewards in the last 24 hours (not void)
+  at most `dailySignupCap` (20; 0 = no cap) — past it the reward is made VOID `DAILY_CAP` (the friend still counts).
+  The friend's **first recharge** — a website top-up (`CARD_TOPUP`), an agent's sale (`RECHARGE_PURCHASE`) or a
+  recharge order (`RECHARGE_ORDER`) — marks the referral once (in the recharge's transaction) and, when the
+  referral is PENDING or QUALIFIED and the programme is on, makes a `FIRST_RECHARGE` reward of floor(coins ×
+  CHERRIES_PER_COIN × `firstRechargeBps` / 10 000) cherries (500 = 5 %), held `holdHours`. A friend who recharged
+  before entering a code later has no first recharge left. A reward keeps the amount it was made with.
+- **The sweeper** (`REFERRAL_SWEEP_INTERVAL_SECONDS`, 300; `referral-admin sweep`): each due PENDING referral is
+  re-checked — the friend and the inviter must be ACTIVE (not banned, not deleted or being deleted) and not locked
+  by the team (D208 LOCK): it becomes **QUALIFIED**, else **VOID** (`INVITEE_BANNED|DELETED|FLAGGED`,
+  `INVITER_…`) with its pending rewards. Then each due reward: its referral still PENDING → later; VOID / REJECTED →
+  VOID `REFERRAL_VOID`; a first-recharge reward whose friend is no longer in good standing → VOID, whose website
+  top-up was taken back (refund, fraud warning, dispute: `coinsReversed` > 0) → VOID `RECHARGE_REVERSED`; the
+  beneficiary not in good standing → VOID; else **CREDITED**: one cherry ledger row `REFERRAL_REWARD` (reference =
+  the reward id, so once). **Milestones**: after a qualification, each `milestones[i]` whose `friends` ≤ the
+  inviter's QUALIFIED referrals and not given yet is made and credited at once (their friends already passed the
+  hold); a milestone is given once per person (unique). Credited cherries are ordinary cherries: the withdrawal rules
+  of §10.46 apply (they are not task cherries, §10.46.1). Every step is audited (`referral.attach`,
+  `referral.qualify`, `referral.void`, `referral.reward.create|credit|void`).
+- **The page** (`getMyReferral`): the code and link; `rules` and the totals `upTo` (hero «اربح حتى N» = the sign-up
+  reward × the last milestone's friends + every milestone; «ادعُ أصدقاء جدداً واربح حتى Z» = the milestones' total);
+  `payout` (the cherry wallet's rate, for a money hint); `counts` (invited = every status, qualified, pending);
+  `rewards` (pending and credited cherries); `milestones` with `LOCKED` / `UNLOCKED` (reached counting friends in
+  their hold) / `CLAIMED`; the newest 20 `invitees` with masked names (first and last grapheme), status and whether
+  they recharged; `invitedBy`, `canApply`, `applyUntil`. The app hard-codes no number.
+- **The ticker** (`listRecentReferralRewards`, public): at most 20 rewards credited in the last 30 days to ACTIVE
+  accounts, masked names, cherries and kind; real data only (empty → the app hides it); empty when switched off.
+- **Settings** (`referral_settings`, one row, inserted by the migration): `enabled` (true), `inviterSignupCherries`
+  (20 000 ≈ $0.02 at the default payout rate), `inviteeSignupCherries` (0), `firstRechargeBps` (500 = 5 %),
+  `milestones` ([1 → 50 000, 5 → 300 000, 15 → 1 000 000] ≈ $0.06 / $0.33 / $1.10), `dailySignupCap` (20),
+  `holdHours` (24), `applyWindowDays` (7), `selfIpWindowHours` (24). **Conservative defaults for the owner to
+  confirm.** Changed in the panel (`updateAdminReferralSettings`: FINANCE or OWNER, the authenticator code again) or
+  `referral-admin settings --set k=v --reason …`; audited `referral.settings.update` with before / after.
+- **The panel «الدعوات»** (capabilities, added to §10.60.1): `referrals.view` (OWNER, SUPPORT, FINANCE) — the table
+  (status filter, CSV), a referral with its rewards and signals (audited `referral.view`), the settings;
+  `referrals.decide` (OWNER, FINANCE; the code again) — **approve** (a PENDING one skips its hold; a REJECTED or
+  VOID one is overruled: QUALIFIED, its pending / void rewards and the missing sign-up rewards credited now, then the
+  milestones) and **void** (its pending rewards voided; credited rewards stay — taking cherries back is a D208
+  balance adjustment); `referrals.settings` (OWNER, FINANCE; the code again). Every decision carries a reason and is
+  audited `via: panel` (`via: cli` from `referral-admin`).
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 
