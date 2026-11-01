@@ -212,7 +212,7 @@ export class ProfileEditService {
    * the same transaction, its objects after commit. Setting the current cover again changes nothing.
    */
   async setCover(userId: string, body: unknown, meta: ProfileEditMeta): Promise<CoverDto> {
-    this.media.assertEnabled();
+    await this.media.assertEnabled();
     const parsed = setAvatarSchema.safeParse(body ?? {});
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
     const mediaId = parsed.data.mediaId.toLowerCase();
