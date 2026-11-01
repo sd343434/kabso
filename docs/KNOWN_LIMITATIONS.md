@@ -338,6 +338,20 @@
 - **One engine for every host.** The server switch is global; the per-phone override exists only in debug/profile
   builds. iOS is unchanged (no camera processor there yet).
 
+- **DeepAR in the privacy policy (owner approved 2026-11-01).** `privacy.html` §2 and §5 now name DeepAR
+  (I Love Ice Cream Ltd., UK). *Verified:* DeepAR's FAQ (docs.deepar.ai/faq, read 2026-11-01) — camera processing on
+  the device, not stored on its servers; non-personal device data (app ID, screen resolution, OS version, a random
+  seed, date) kept for licence validation and MAU, "not restricted to" that list; the company name from deepar.ai's
+  privacy notice and docs footer; in the 5.6.22 AAR, a Java `sendRequest` HTTP POST and, in `libnative-lib.so`, the
+  Google Analytics Measurement Protocol endpoint with DeepAR's tracking ID `UA-109020681-1` (`AnalyticsAndroid::
+  trackApp/trackEvent`). *Not verified:* what DeepAR actually sends at run time (no device, no traffic capture),
+  whether the analytics events still fire (Universal Analytics is retired by Google) and what they contain, and the
+  exact licence-validation request. The policy is therefore worded conservatively ("such as …", "contains code that
+  sends usage events"); confirm by capturing the phone's traffic with DeepAR on before the policy version is
+  published. DeepAR's own privacy notice covers only its website, not SDK end users — ask DeepAR for a DPA / SDK data
+  statement. Note: the D144 comment in `KabsoCameraFxPlugin.kt` says DeepAR validates its licence "through a WebView";
+  no WebView use appears in the SDK's Java classes (the comment is left as it is; not re-tested).
+
 ### Removing the free engine (if the owner does not like it)
 
 1. `apps/mobile/packages/kabso_camera_fx/android/`: delete `src/main/kotlin/com/kabso/kabso_camera_fx/FreeFxStage.kt`,

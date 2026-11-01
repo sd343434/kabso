@@ -82,6 +82,7 @@
   <p>لا نستخدم موقعك الجغرافي الدقيق. ميزة «القريبون» تعتمد فقط على الدولة التي تختارها في ملفك.</p>
   <h3>مؤثرات الكاميرا في البث</h3>
   <p>مؤثرات الكاميرا (مثل تمويه الخلفية وتجميل الوجه) تعمل على جهازك نفسه، <b>ولا تغادر صورة الكاميرا هاتفك</b> لأجلها؛ يرى مشاهدوك البث كما يُنشر عادةً. لتشغيل بعض هذه المؤثرات يستخدم التطبيق مكتبات تعلّم آلي من Google تعمل على الجهاز (<span class="ltr">ML Kit</span> و<span class="ltr">MediaPipe</span>)، وقد ترسل هذه المكتبات إلى Google إحصاءات استخدام وأداء مجهولة الهوية عنها (مثل نوع الجهاز ونظامه وأوقات المعالجة)، لا تتضمن صورتك ولا محتوى البث. عند أول استخدام لتجميل الوجه يُنزَّل نموذج الوجه مرة واحدة من خوادم Google.</p>
+  <p>ويستخدم التطبيق أيضاً حزمة <span class="ltr">DeepAR</span> (من شركة <span class="ltr">I Love Ice Cream Ltd.</span> في المملكة المتحدة) لمؤثرات مثل تمويه الخلفية على كاميرا المضيف. تُعالَج صورة الكاميرا على الجهاز ولا تُرسَل إلى <span class="ltr">DeepAR</span>. لا تعمل هذه الحزمة إلا عندما يختار المضيف أحد مؤثراتها، وعندها تُرسل إلى <span class="ltr">DeepAR</span> بيانات تقنية عن التطبيق والجهاز للتحقق من ترخيصنا ولعدّ المستخدمين الشهريين، مثل معرّف التطبيق ودقة الشاشة وإصدار نظام التشغيل ورقماً عشوائياً وتاريخ الاستخدام. وتحتوي الحزمة كذلك على شيفرة لإرسال أحداث استخدام إلى خدمة إحصاءات تابعة لـ<span class="ltr">DeepAR</span> (<span class="ltr">Google Analytics</span>). لا تتضمن هذه البيانات صورتك ولا محتوى البث ولا اسمك أو بريدك.</p>
   <h3>الموافقات</h3>
   <p>إصدار الشروط وسياسة الخصوصية الذي وافقت عليه، ووقت الموافقة وطريقتها (التسجيل أو داخل التطبيق أو صفحة الشحن)، ونوع التطبيق أو المتصفح، وعنوان IP مختصراً (الجزء الذي يحدد الشبكة فقط)، وإقرار بلوغك ١٨ عاماً.</p>
   <h3>الموقع kabsolive.com</h3>
@@ -111,6 +112,7 @@
    <li><b>البث المباشر (LiveKit)</b>: نشغّل خادم البث على خوادمنا (استضافة ذاتية) فلا يمر البث عبر طرف ثالث، ولا نسجّله. إذا انتقلنا إلى خدمة LiveKit Cloud سنحدّث هذه السياسة.</li>
    <li><b>مزوّد البريد الإلكتروني</b>: إرسال رموز التأكيد والإشعارات — <span data-cfg="emailProvider">سيُضاف قريباً</span>.</li>
    <li><b>Google Firebase Cloud Messaging</b>: إيصال الإشعارات إلى جهازك (رمز الجهاز ونص الإشعار فقط).</li>
+   <li><b><span class="ltr">DeepAR</span> — <span class="ltr">I Love Ice Cream Ltd.</span></b> (المملكة المتحدة): حزمة مؤثرات الكاميرا؛ بيانات تقنية عن التطبيق والجهاز للتحقق من الترخيص وعدّ المستخدمين الشهريين، وأحداث استخدام للحزمة. صورة الكاميرا لا تُرسل (البند ٢، «مؤثرات الكاميرا في البث»).</li>
    <li><b>Google (<span class="ltr">ML Kit</span> و<span class="ltr">MediaPipe</span>)</b>: مكتبات مؤثرات الكاميرا العاملة على الجهاز قد ترسل إلى Google إحصاءات استخدام وأداء مجهولة الهوية فقط؛ صورة الكاميرا لا تُرسل (البند ٢، «مؤثرات الكاميرا في البث»).</li>
    <li>وكلاء الشحن المستقلون: يرون ما يلزم لإتمام عملية الشحن لك (مثل اسم المستخدم).</li>
    <li>الجهات الرسمية عندما يفرض القانون ذلك، أو لحماية الأشخاص من ضرر جسيم.</li>
@@ -212,6 +214,7 @@
   <p>We do not use your precise location. “Nearby” only uses the country you choose in your profile.</p>
   <h3>Camera effects in lives</h3>
   <p>Camera effects (such as background blur and face beauty) run on your device itself, and <b>the camera image never leaves your phone</b> for them; your viewers see the live as it is normally published. To run some of these effects the app uses Google’s on-device machine-learning libraries (ML Kit and MediaPipe), which may send Google anonymous usage and performance statistics about them (such as the device type, its operating system and processing times) — never your image or the content of your live. The first time you use face beauty, the face model is downloaded once from Google’s servers.</p>
+  <p>The app also uses the DeepAR SDK (from I Love Ice Cream Ltd., United Kingdom) for effects such as background blur on the host’s camera. The camera image is processed on the device and is not sent to DeepAR. The SDK only runs when a host picks one of its effects; it then sends DeepAR technical data about the app and the device to validate our licence and count monthly active users — such as the app’s ID, the screen resolution, the operating-system version, a randomly generated number and the date of use. The SDK also contains code that sends usage events to an analytics service used by DeepAR (Google Analytics). This data does not include your image, the content of your live, or your name or email.</p>
   <h3>Consents</h3>
   <p>The version of the terms and the privacy policy you accepted, when and how (sign-up, in the app or on the top-up page), your app or browser type, a shortened IP address (only the part that identifies the network), and your statement that you are 18 or older.</p>
   <h3>The kabsolive.com website</h3>
@@ -241,6 +244,7 @@
    <li><b>Live streaming (LiveKit)</b>: we run the streaming server on our own servers (self-hosted), so lives do not pass through a third party, and we do not record them. If we move to LiveKit Cloud, we will update this policy.</li>
    <li><b>Our email provider</b>: sending confirmation codes and notices — <span data-cfg="emailProvider">To be added soon</span>.</li>
    <li><b>Google Firebase Cloud Messaging</b>: delivering notifications to your device (the device token and the notification text only).</li>
+   <li><b>DeepAR — I Love Ice Cream Ltd.</b> (United Kingdom): the camera-effects SDK; technical data about the app and the device to validate the licence and count monthly active users, and usage events about the SDK. The camera image is never sent (section 2, “Camera effects in lives”).</li>
    <li><b>Google (ML Kit and MediaPipe)</b>: the on-device camera-effect libraries may send Google anonymous usage and performance statistics only; the camera image is never sent (section 2, “Camera effects in lives”).</li>
    <li>Independent recharge agents: they see what they need to complete your top-up (such as your username).</li>
    <li>Authorities, when the law requires it or to protect people from serious harm.</li>

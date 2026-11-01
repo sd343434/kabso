@@ -7,6 +7,11 @@ licence key (see `docs/DEPLOYMENT.md` §9.1). It is downloaded at build time fro
 Maven repository; none of its files are in this repository. Phase 1 uses only the SDK's
 built-in background blur, so no DeepAR effect files are redistributed.
 
+What DeepAR sends (owner approved disclosing it in the privacy policy, 2026-11-01; details and what is unverified in
+docs/KNOWN_LIMITATIONS.md, D228): per its FAQ, non-personal device data for licence validation and MAU counting
+(app ID, screen resolution, OS version, a random seed, date); its native library also contains Google Analytics
+(Measurement Protocol, `UA-109020681-1`) usage-event code. The camera image is processed on the device.
+
 ## D228 — the free effects engine (FreeFxStage.kt, FreeFxGl.kt, FreeFxRules.kt)
 
 Added beside DeepAR so the owner can compare the two; removable on its own (docs/KNOWN_LIMITATIONS.md, D228). Both
