@@ -49,7 +49,7 @@ const detail: UserDetail = {
   },
   specialUsername: null,
   adminRoles: [],
-  balances: { coins: 12500, cherries: 300, lockedTaskCherries: 0 },
+  balances: { coins: 12500, cherries: 300, lockedTaskCherries: 0, cherriesReceived: 6500, coinsSent: 1200 },
   ledger: null,
   rechargeAgent: null,
   hostAgent: null,

@@ -2173,3 +2173,19 @@ setup; `prisma migrate diff` shows no drift on the touched tables).
   needs `removeAdminUserCover`.
 - Not verified on a device or a server (the cover upload against R2, the mixed feed on production data).
 
+
+### 5.42 The person card's lifetime totals and their privacy switches (migration `20270212090000_profile_stats_privacy`; D220) — [IMPLEMENTED, draft contract v1.77-social; not deployed, not device-tested]
+
+CONVENTIONS §10.74. (§5.39–§5.41 are D217's, D222's and D218's, on their own branches.) One migration: two
+`privacy_settings` columns, `hide_cherries_received` and `hide_coins_sent`, `BOOLEAN NOT NULL DEFAULT false`. No new
+table, so no GRANT; constant defaults, so no table rewrite and no backfill (a user without a row reads both as
+false).
+
+- **No new setting, no new job.** The totals are summed per `GET /users/{username}` through existing indexes
+  (`cherry_ledger_user_reason_idx`, `live_gifts_sender_room_idx`); the request already has its own rate limit
+  (`users:profile`). Two indexed aggregate reads per profile view; watch `GET /users/{username}` latency for very
+  heavy senders after deploy.
+- **Order:** API first. An older app ignores the new fields and the new privacy keys; the new app treats a missing
+  total as hidden (an older API shows the card with two numbers) and shows the two switches only when the server
+  sends them. The admin panel's two numbers need this API.
+- Not verified on a device or a server.

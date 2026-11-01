@@ -391,6 +391,14 @@ export function UserDetail({ id }: { id: string }) {
                   <span className="muted small">{t('lockedTaskCherries')}</span>
                   <strong className="num">{n(data.balances.lockedTaskCherries)}</strong>
                 </div>
+                <div className="mini-stat">
+                  <span className="muted small">{t('cherriesReceivedLifetime')}</span>
+                  <strong className="num">{n(data.balances.cherriesReceived)}</strong>
+                </div>
+                <div className="mini-stat">
+                  <span className="muted small">{t('coinsSentLifetime')}</span>
+                  <strong className="num">{n(data.balances.coinsSent)}</strong>
+                </div>
               </>
             ) : (
               <p className="muted small">{t('balancesHidden')}</p>

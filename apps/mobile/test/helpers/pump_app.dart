@@ -251,6 +251,9 @@ Future<void> pumpScreen(
   RechargeRepository? rechargeRepository,
   FakeLivePkRepository? livePkRepository,
   FakePkOpponentMedia? pkOpponent,
+  // D220: the person card is white in light mode, dark in dark mode.
+  Brightness brightness = Brightness.dark,
+  bool disableAnimations = false,
 }) async {
   final prefs = await testPrefs(language: language.name);
   await tester.pumpWidget(
@@ -337,10 +340,13 @@ Future<void> pumpScreen(
           AppLocalizations.delegate,
           ...GlobalMaterialLocalizations.delegates,
         ],
-        theme: buildAppTheme(
-          brightness: Brightness.dark,
-          locale: language.locale,
-        ),
+        theme: buildAppTheme(brightness: brightness, locale: language.locale),
+        builder: disableAnimations
+            ? (context, app) => MediaQuery(
+                data: MediaQuery.of(context).copyWith(disableAnimations: true),
+                child: app!,
+              )
+            : null,
         home: screen,
       ),
     ),

@@ -4035,5 +4035,21 @@
   "profileTabSavedWord": "Saved",
   "profileBondFamily": "Family",
   "profileBondCouple": "Couple",
-  "profileBondMedals": "Medals"
+  "profileBondMedals": "Medals",
+  "liveCardId": "ID: {id}",
+  "liveCardReport": "Report",
+  "liveCardFollowers": "Followers",
+  "liveCardFollowing": "Following",
+  "liveCardCherries": "Cherries received",
+  "liveCardCoinsSent": "Coins sent",
+  "liveCardFollow": "Follow",
+  "liveCardUnfollow": "Unfollow",
+  "liveCardChat": "Chat",
+  "liveCardSendGift": "Send a gift",
+  "liveCardEditProfile": "Edit profile",
+  "liveCardFamilyNone": "No family",
+  "privacyCardStatsTitle": "Numbers on your card",
+  "privacyHideCherries": "Hide cherries received",
+  "privacyHideCoins": "Hide coins sent",
+  "privacyCardStatsHint": "A hidden number is not shown to anyone else on your card in lives or on your profile. You and the Kabso team still see it."
 }

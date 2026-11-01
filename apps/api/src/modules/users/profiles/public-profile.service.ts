@@ -12,6 +12,7 @@ import { FollowsService } from '../../social/follows.service.js';
 import { type AccountCategory, type ProfileLinkDto } from '../profile-fields.js';
 import { activeRechargeBadge, type RechargeBadgeDto } from '../../recharge/recharge-badges.js';
 import { UsersService } from '../users.service.js';
+import { profileStatsTotals } from './profile-stats.js';
 
 /**
  * `PublicProfile` (openapi v1.3). Never an email, role, status, locale or created-at time (D218: only the month
@@ -65,6 +66,13 @@ export interface PublicProfileDto {
   joinedMonth: string;
   /** v1.76-social (D218): the caller blocked this user (the profile's «إلغاء الحظر»); false when isSelf. */
   blockedByMe: boolean;
+  /**
+   * v1.77-social (D220, §10.74): the lifetime cherries received from gifts. Absent when the user hides it
+   * (`PrivacySettings.hideCherriesReceived`) and the caller is someone else: the value is not computed or sent.
+   */
+  cherriesReceived?: number;
+  /** v1.77-social (D220, §10.74): the lifetime coins sent on gifts; absent like `cherriesReceived` (`hideCoinsSent`). */
+  coinsSent?: number;
 }
 
 /**
@@ -85,6 +93,25 @@ export class PublicProfileService {
     private readonly medals: MedalsService,
     private readonly bag: BagService,
   ) {}
+
+  /**
+   * v1.77-social (D220, §10.74): the card's lifetime totals the caller may see — both for the user themself; for
+   * anyone else only those the user does not hide. A hidden total is not even read.
+   */
+  private async statsFor(
+    userId: string,
+    isSelf: boolean,
+  ): Promise<{ cherriesReceived?: number; coinsSent?: number }> {
+    const hidden = isSelf
+      ? null
+      : await this.prisma.privacySettings.findUnique({
+          where: { userId },
+          select: { hideCherriesReceived: true, hideCoinsSent: true },
+        });
+    const which = { cherries: !hidden?.hideCherriesReceived, coins: !hidden?.hideCoinsSent };
+    if (!which.cherries && !which.coins) return {};
+    return profileStatsTotals(this.prisma, userId, which);
+  }
 
   /** Whether [callerId] muted [targetId] (primary-key lookup). */
   private async isMuted(callerId: string, targetId: string): Promise<boolean> {
@@ -124,6 +151,7 @@ export class PublicProfileService {
       avatarFrame,
       badge,
       blockedByMe,
+      stats,
     ] = await Promise.all([
       this.follows.counts(user.id),
       isSelf ? Promise.resolve(false) : this.follows.isFollowing(callerId, user.id),
@@ -153,6 +181,8 @@ export class PublicProfileService {
       }),
       // v1.76-social (D218): the caller's own block of this user.
       isSelf ? Promise.resolve(false) : this.blocked(callerId, user.id),
+      // v1.77-social (D220): the card's lifetime totals, minus what the user hides from others.
+      this.statsFor(user.id, isSelf),
     ]);
     const shown = activeRechargeBadge(badge, new Date());
     return {
@@ -185,6 +215,7 @@ export class PublicProfileService {
       country: user.country,
       joinedMonth: user.joinedMonth,
       blockedByMe,
+      ...stats,
     };
   }
 }

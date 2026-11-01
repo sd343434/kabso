@@ -395,6 +395,46 @@ void main() {
       expect(tester.widget<SwitchListTile>(activity).value, isFalse);
     });
 
+    testWidgets('D220: the two card numbers can be hidden (off by default); '
+        'an older server without the switches shows none', (tester) async {
+      final safety = FakeSafetyRepository()
+        ..privacySettings = const PrivacySettings(
+          whoCanMention: MentionPolicy.everyone,
+          defaultWhoCanComment: WhoCanComment.everyone,
+          hideCherriesReceived: false,
+          hideCoinsSent: false,
+        );
+      await pump(tester, initial: AppRoutes.privacy, safety: safety);
+      final cherries = find.byKey(PrivacyScreen.hideCherriesKey);
+      final coins = find.byKey(PrivacyScreen.hideCoinsKey);
+      await tester.scrollUntilVisible(coins, 100);
+      await tester.pumpAndSettle();
+      expect(find.text(_en.privacyHideCherries), findsOneWidget);
+      expect(find.text(_en.privacyHideCoins), findsOneWidget);
+      expect(tester.widget<SwitchListTile>(cherries).value, isFalse);
+      expect(tester.widget<SwitchListTile>(coins).value, isFalse);
+      await tester.tap(cherries);
+      await tester.pumpAndSettle();
+      expect(safety.calls, contains('updatePrivacy:::hideCh=true'));
+      expect(tester.widget<SwitchListTile>(cherries).value, isTrue);
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+      await tester.tap(coins);
+      await tester.pumpAndSettle();
+      expect(safety.calls, contains('updatePrivacy:::hideCoins=true'));
+      expect(tester.widget<SwitchListTile>(coins).value, isTrue);
+
+      // An older API (no switches in its answer): no section.
+      await tester.pumpWidget(const SizedBox.shrink());
+      await pump(tester, initial: AppRoutes.privacy);
+      await tester.scrollUntilVisible(
+        find.byKey(PrivacyScreen.dataExportKey),
+        100,
+      );
+      expect(find.byKey(PrivacyScreen.hideCherriesKey), findsNothing);
+      expect(find.text(_en.privacyCardStatsTitle), findsNothing);
+    });
+
     testWidgets('blocked accounts: Unblock removes them; none says so', (
       tester,
     ) async {

@@ -35,6 +35,8 @@ class PrivacyController extends AsyncNotifier<PrivacySettings> {
     bool? showActivityStatus,
     MentionPolicy? whoCanMessage,
     bool? isPrivate,
+    bool? hideCherriesReceived,
+    bool? hideCoinsSent,
   }) async {
     final next = await ref
         .read(safetyRepositoryProvider)
@@ -44,6 +46,8 @@ class PrivacyController extends AsyncNotifier<PrivacySettings> {
           showActivityStatus: showActivityStatus,
           whoCanMessage: whoCanMessage,
           isPrivate: isPrivate,
+          hideCherriesReceived: hideCherriesReceived,
+          hideCoinsSent: hideCoinsSent,
         );
     // D175: the session's user (Me, Edit profile) shows the new state.
     if (isPrivate != null) {
@@ -72,6 +76,10 @@ class PrivacyScreen extends ConsumerWidget {
   static Key mentionKey(MentionPolicy p) => Key('privacy.mention.${p.name}');
   static Key commentKey(WhoCanComment w) => Key('privacy.comment.${w.name}');
   static const activityKey = Key('privacy.activityStatus');
+
+  /// D220: hide the card's lifetime cherries received / coins sent.
+  static const hideCherriesKey = Key('privacy.hideCherriesReceived');
+  static const hideCoinsKey = Key('privacy.hideCoinsSent');
 
   /// D175: the private-account switch and the follow-requests row.
   static const privateKey = Key('privacy.private');
@@ -265,6 +273,48 @@ class PrivacyScreen extends ConsumerWidget {
                 ),
               ),
             ),
+            // v1.77-social (D220, §10.74): the two numbers of the person
+            // card others may not see (off = shown). Only when the server
+            // has the switches.
+            if (value.hideCherriesReceived != null ||
+                value.hideCoinsSent != null) ...[
+              header(l10n.privacyCardStatsTitle),
+              if (value.hideCherriesReceived case final hidden?)
+                SwitchListTile(
+                  key: hideCherriesKey,
+                  value: hidden,
+                  title: Text(l10n.privacyHideCherries),
+                  onChanged: (v) => unawaited(
+                    save(
+                      () => ref
+                          .read(privacyProvider.notifier)
+                          .change(hideCherriesReceived: v),
+                    ),
+                  ),
+                ),
+              if (value.hideCoinsSent case final hidden?)
+                SwitchListTile(
+                  key: hideCoinsKey,
+                  value: hidden,
+                  title: Text(l10n.privacyHideCoins),
+                  onChanged: (v) => unawaited(
+                    save(
+                      () => ref
+                          .read(privacyProvider.notifier)
+                          .change(hideCoinsSent: v),
+                    ),
+                  ),
+                ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: KSpacing.lg),
+                child: Text(
+                  l10n.privacyCardStatsHint,
+                  style: context.textStyles.caption.copyWith(
+                    color: p.textSecondary,
+                  ),
+                ),
+              ),
+            ],
             // v1.66-social (D198, §10.61.1): a copy of the person's data.
             header(l10n.privacyDataTitle),
             ListTile(

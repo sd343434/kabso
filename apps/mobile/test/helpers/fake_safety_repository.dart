@@ -96,13 +96,17 @@ class FakeSafetyRepository implements SafetyRepository {
     bool? showActivityStatus,
     MentionPolicy? whoCanMessage,
     bool? isPrivate,
+    bool? hideCherriesReceived,
+    bool? hideCoinsSent,
   }) async {
     _step(
       'updatePrivacy:${whoCanMention?.wire ?? ''}:'
       '${defaultWhoCanComment?.wire ?? ''}'
       '${showActivityStatus == null ? '' : ':activity=$showActivityStatus'}'
       '${whoCanMessage == null ? '' : ':message=${whoCanMessage.wire}'}'
-      '${isPrivate == null ? '' : ':private=$isPrivate'}',
+      '${isPrivate == null ? '' : ':private=$isPrivate'}'
+      '${hideCherriesReceived == null ? '' : ':hideCh=$hideCherriesReceived'}'
+      '${hideCoinsSent == null ? '' : ':hideCoins=$hideCoinsSent'}',
     );
     return privacySettings = PrivacySettings(
       whoCanMention: whoCanMention ?? privacySettings.whoCanMention,
@@ -112,6 +116,9 @@ class FakeSafetyRepository implements SafetyRepository {
           showActivityStatus ?? privacySettings.showActivityStatus,
       whoCanMessage: whoCanMessage ?? privacySettings.whoCanMessage,
       isPrivate: isPrivate ?? privacySettings.isPrivate,
+      hideCherriesReceived:
+          hideCherriesReceived ?? privacySettings.hideCherriesReceived,
+      hideCoinsSent: hideCoinsSent ?? privacySettings.hideCoinsSent,
     );
   }
 }

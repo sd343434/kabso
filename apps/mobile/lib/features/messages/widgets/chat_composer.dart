@@ -12,6 +12,9 @@ import 'package:material_ui/material_ui.dart';
 /// colours are Kabso's).
 abstract final class KChatComposer {
   static const double button = 44;
+
+  /// The gift art inside its 44 dp circle (≈ 62 %).
+  static const double giftArt = 28;
   static const double fieldMinHeight = 44;
   static const double icon = 22;
 }
@@ -179,9 +182,20 @@ class _ChatComposerState extends State<ChatComposer> {
                             : l10n.giftSendComingSoon,
                         onPressed: enabled ? onGift : null,
                         padding: EdgeInsets.zero,
+                        // Owner: the main gift art inside a circle, like
+                        // the "+" beside it (outline) with a subtle fill.
+                        style: IconButton.styleFrom(
+                          shape: CircleBorder(
+                            side: BorderSide(color: context.palette.border),
+                          ),
+                          backgroundColor:
+                              Theme.of(context).brightness == Brightness.dark
+                              ? context.palette.surfaceOverlay
+                              : context.palette.surface,
+                        ),
                         icon: KabsoArtIcon(
-                          KabsoArt.giftBox,
-                          size: KChatComposer.button - 10,
+                          KabsoArt.mainGift,
+                          size: KChatComposer.giftArt,
                           dimmed: !enabled || onGift == null,
                         ),
                       ),

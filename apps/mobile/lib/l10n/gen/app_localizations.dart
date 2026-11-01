@@ -22053,6 +22053,102 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'الميداليات'**
   String get profileBondMedals;
+
+  /// D220: the ID line under the name on a person's card in a live (the username).
+  ///
+  /// In ar, this message translates to:
+  /// **'ID: {id}'**
+  String liveCardId(String id);
+
+  /// D220: the report button at the start of the card's top row.
+  ///
+  /// In ar, this message translates to:
+  /// **'إبلاغ'**
+  String get liveCardReport;
+
+  /// D220: the card's first number.
+  ///
+  /// In ar, this message translates to:
+  /// **'المتابِعون'**
+  String get liveCardFollowers;
+
+  /// D220: the card's second number (accounts they follow).
+  ///
+  /// In ar, this message translates to:
+  /// **'المتابَعون'**
+  String get liveCardFollowing;
+
+  /// D220: the card's third number (lifetime cherries received from gifts).
+  ///
+  /// In ar, this message translates to:
+  /// **'الكرز المستلم'**
+  String get liveCardCherries;
+
+  /// D220: the card's fourth number (lifetime coins sent on gifts).
+  ///
+  /// In ar, this message translates to:
+  /// **'الكوينز المرسلة'**
+  String get liveCardCoinsSent;
+
+  /// D220: the wide follow button (with a plus).
+  ///
+  /// In ar, this message translates to:
+  /// **'متابعة'**
+  String get liveCardFollow;
+
+  /// D220 (owner): the follow button once followed — a neutral «Unfollow» that asks first.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء المتابعة'**
+  String get liveCardUnfollow;
+
+  /// D220: the outline button that opens a direct conversation.
+  ///
+  /// In ar, this message translates to:
+  /// **'دردشة'**
+  String get liveCardChat;
+
+  /// D220: the round gift button's label for screen readers.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال هدية'**
+  String get liveCardSendGift;
+
+  /// D220: the button on your own card.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعديل الملف'**
+  String get liveCardEditProfile;
+
+  /// D220: the family part of the card's gradient pill when the person has no family.
+  ///
+  /// In ar, this message translates to:
+  /// **'بلا عائلة'**
+  String get liveCardFamilyNone;
+
+  /// D220: the privacy section with the two switches.
+  ///
+  /// In ar, this message translates to:
+  /// **'الأرقام في بطاقتك'**
+  String get privacyCardStatsTitle;
+
+  /// D220: privacy switch.
+  ///
+  /// In ar, this message translates to:
+  /// **'إخفاء الكرز المستلم'**
+  String get privacyHideCherries;
+
+  /// D220: privacy switch.
+  ///
+  /// In ar, this message translates to:
+  /// **'إخفاء الكوينز المرسلة'**
+  String get privacyHideCoins;
+
+  /// D220: under the two switches.
+  ///
+  /// In ar, this message translates to:
+  /// **'الرقم المخفي لا يظهر لغيرك في بطاقتك داخل البث ولا في ملفك. أنت وفريق Kabso تستطيعون رؤيته.'**
+  String get privacyCardStatsHint;
 }
 
 class _AppLocalizationsDelegate

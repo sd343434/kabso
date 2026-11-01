@@ -125,6 +125,15 @@ abstract class PublicProfile with _$PublicProfile {
     /// v1.76-social (D218): the caller blocked this user — «إلغاء الحظر»
     /// instead of Follow, and no posts.
     @Default(false) bool blockedByMe,
+
+    /// v1.77-social (D220, §10.74): the lifetime cherries received from
+    /// gifts. Null when the user hides it from the caller (the server does
+    /// not send it) or the server is older; never null on your own profile.
+    @JsonKey(includeIfNull: false) int? cherriesReceived,
+
+    /// v1.77-social (D220, §10.74): the lifetime coins sent on gifts; null
+    /// like [cherriesReceived].
+    @JsonKey(includeIfNull: false) int? coinsSent,
   }) = _PublicProfile;
 
   const new _();

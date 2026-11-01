@@ -1979,6 +1979,11 @@ model PrivacySettings {
   showActivityStatus   Boolean       @default(true) @map("show_activity_status")
   /// v1.40-social (D155): who may send this user direct messages (§11.13).
   whoCanMessage        WhoCanMessage @default(EVERYONE) @map("who_can_message")
+  /// v1.77-social (D220, §10.74): the person card and profile leave out the lifetime cherries received for
+  /// everyone but the user (and the admin panel); default shown.
+  hideCherriesReceived Boolean       @default(false) @map("hide_cherries_received")
+  /// v1.77-social (D220, §10.74): the same for the lifetime coins sent on gifts.
+  hideCoinsSent        Boolean       @default(false) @map("hide_coins_sent")
   updatedAt            DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

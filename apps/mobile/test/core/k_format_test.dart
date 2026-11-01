@@ -150,4 +150,33 @@ void main() {
       expect(KFormat.inputDirection('🙂'), isNull);
     });
   });
+
+  group('KFormat.compactLatin (D220: the person card, every language)', () {
+    String bare(int v) =>
+        KFormat.compactLatin(v).replaceAll(RegExp('[\u2066\u2069]'), '');
+
+    test('Latin short forms: tenths cut, ".0" dropped', () {
+      for (final (v, out) in [
+        (0, '0'),
+        (-5, '0'),
+        (999, '999'),
+        (1000, '1K'),
+        (1234, '1.2K'),
+        (5940, '5.9K'),
+        (59400, '59.4K'),
+        (999999, '999.9K'),
+        (1000000, '1M'),
+        (1510000, '1.5M'),
+        (5830000, '5.8M'),
+        (1000000000, '1B'),
+        (2250000000, '2.2B'),
+      ]) {
+        expect(bare(v), out, reason: '$v');
+      }
+    });
+
+    test('isolated left to right (keeps its order in Arabic text)', () {
+      expect(KFormat.compactLatin(1510000), '\u20661.5M\u2069');
+    });
+  });
 }

@@ -31,6 +31,8 @@ class PrivacySettings {
     this.showActivityStatus = true,
     this.whoCanMessage = MentionPolicy.everyone,
     this.isPrivate = false,
+    this.hideCherriesReceived,
+    this.hideCoinsSent,
   });
 
   factory fromJson(Map<String, dynamic> json) => PrivacySettings(
@@ -43,6 +45,9 @@ class PrivacySettings {
         : MentionPolicy.fromWire(json['whoCanMessage']),
     // v1.47-social (D175); absent from older servers: public.
     isPrivate: json['isPrivate'] as bool? ?? false,
+    // v1.77-social (D220); absent from older servers: no switch shown.
+    hideCherriesReceived: json['hideCherriesReceived'] as bool?,
+    hideCoinsSent: json['hideCoinsSent'] as bool?,
   );
 
   final MentionPolicy whoCanMention;
@@ -63,6 +68,15 @@ class PrivacySettings {
   /// v1.47-social (D175, §10.47): a private account — following it is a
   /// request; posts, reels and stories are for followers only.
   final bool isPrivate;
+
+  /// v1.77-social (D220, §10.74): «إخفاء الكرز المستلم» — others do not
+  /// see the lifetime cherries received on the caller's card. Null: the
+  /// server does not have the switch (older API), so it is not shown.
+  final bool? hideCherriesReceived;
+
+  /// v1.77-social (D220, §10.74): «إخفاء الكوينز المرسلة»; null like
+  /// [hideCherriesReceived].
+  final bool? hideCoinsSent;
 }
 
 /// Block, mute, reports of users and privacy (docs/contracts/openapi.yaml
@@ -98,6 +112,8 @@ abstract interface class SafetyRepository {
     bool? showActivityStatus,
     MentionPolicy? whoCanMessage,
     bool? isPrivate,
+    bool? hideCherriesReceived,
+    bool? hideCoinsSent,
   });
 }
 
@@ -183,6 +199,8 @@ class SafetyRepositoryImpl implements SafetyRepository {
     bool? showActivityStatus,
     MentionPolicy? whoCanMessage,
     bool? isPrivate,
+    bool? hideCherriesReceived,
+    bool? hideCoinsSent,
   }) => guardApiCall(() async {
     final res = await _dio.patch<Map<String, dynamic>>(
       '/me/privacy',
@@ -192,6 +210,8 @@ class SafetyRepositoryImpl implements SafetyRepository {
         'showActivityStatus': ?showActivityStatus,
         'whoCanMessage': ?whoCanMessage?.wire,
         'isPrivate': ?isPrivate,
+        'hideCherriesReceived': ?hideCherriesReceived,
+        'hideCoinsSent': ?hideCoinsSent,
       },
     );
     return PrivacySettings.fromJson(res.data!);

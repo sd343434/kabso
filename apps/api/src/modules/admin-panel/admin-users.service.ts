@@ -12,6 +12,7 @@ import { OBJECT_STORAGE, type ObjectStorage } from '../media/object-storage.js';
 import { dayStart } from '../recharge/recharge-rules.js';
 import { removeAvatarByAdminIn, removeCoverByAdminIn } from '../users/avatar-admin.js';
 import { AccountLifecycleService } from '../users/profiles/account-lifecycle.service.js';
+import { profileStatsTotals } from '../users/profiles/profile-stats.js';
 import {
   endSpecialIn,
   grantSpecialIn,
@@ -220,10 +221,17 @@ export class AdminUsersService {
         select: { id: true, reason: true, status: true, createdAt: true, targetType: true },
       }),
     ]);
-    let balances: { coins: number; cherries: number; lockedTaskCherries: number } | null = null;
+    // v1.77-social (D220, §10.74): the lifetime totals of the person card, whatever the user hides from others.
+    let balances: {
+      coins: number;
+      cherries: number;
+      lockedTaskCherries: number;
+      cherriesReceived: number;
+      coinsSent: number;
+    } | null = null;
     let ledger: { coins: LedgerRowDto[]; cherries: LedgerRowDto[] } | null = null;
     if (withBalances) {
-      const [wallet, cherryWallet, lock, coins, cherries] = await Promise.all([
+      const [wallet, cherryWallet, lock, coins, cherries, totals] = await Promise.all([
         this.prisma.wallet.findUnique({ where: { userId: id }, select: { coins: true } }),
         this.prisma.cherryWallet.findUnique({ where: { userId: id }, select: { cherries: true } }),
         taskCherryLockIn(this.prisma, id, this.config.economy),
@@ -237,11 +245,14 @@ export class AdminUsersService {
           orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
           take: 20,
         }),
+        profileStatsTotals(this.prisma, id),
       ]);
       balances = {
         coins: Number(wallet?.coins ?? 0n),
         cherries: Number(cherryWallet?.cherries ?? 0n),
         lockedTaskCherries: Number(lock.lockedCherries),
+        cherriesReceived: totals.cherriesReceived ?? 0,
+        coinsSent: totals.coinsSent ?? 0,
       };
       const row = (r: {
         id: string;
