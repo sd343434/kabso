@@ -20,6 +20,7 @@ import { LIVE_MEDIA_PROVIDER } from '../src/modules/live/media/live-media.provid
 import { creditIn } from '../src/modules/wallet/wallet-ledger.js';
 import type { Redis } from 'ioredis';
 import { REDIS } from '../src/redis/redis.module.js';
+import { RateLimitService } from '../src/common/rate-limit/rate-limit.service.js';
 import { MemoryLiveMedia } from './helpers/memory-live-media.js';
 import { expectContract, operations } from './helpers/openapi.js';
 import { createTestApp, registerVerified, settle, type TestContext } from './helpers/test-app.js';
@@ -444,37 +445,8 @@ describe('D132 lucky gifts (on)', { timeout: 180_000 }, () => {
     it('D145d load: 100 lucky sends a second from one user — 3 rounds of 100 started 10 ms apart all succeed (no 429); sequential sends measured too', async () => {
       await loadCheck(ctx, f, 'D145d load');
     });
-
-    it('a 101st lucky send in one second → 429 with Retry-After, nothing charged; a retry with the same clientId is not counted; normal gifts keep 120 / min', async () => {
-      const { h, viewer, roomId } = await f.scene();
-      const code = await f.gift();
-      const before = await f.wallet(viewer);
-      // A burst past 100 / s, all at once: refused with Retry-After, nothing charged for it.
-      const burst = [];
-      for (let i = 0; i < 101; i++) burst.push(f.body(code, [h]));
-      const answers = await Promise.all(burst.map((b) => f.send(roomId, viewer, b)));
-      const limited = answers.filter((r) => r.status === 429);
-      expect(limited.length).toBeGreaterThanOrEqual(1);
-      expect(answers.filter((r) => r.status === 201).length).toBe(101 - limited.length);
-      expectError(limited[0]!, 429, 'RATE_LIMITED');
-      expect(Number(limited[0]!.headers['retry-after'])).toBeGreaterThanOrEqual(1);
-      const sent = 101 - limited.length;
-      expect(await ctx.prisma.liveGift.count({ where: { senderId: viewer.id } })).toBe(sent);
-      expect(await f.wallet(viewer)).toBe(before - sent * 10);
-      // The same clientId once the window passed: sent (and a retry of a done one is free).
-      await new Promise((r) => setTimeout(r, 1100));
-      const lastBody = burst[answers.indexOf(limited[0]!)]!;
-      expect((await f.send(roomId, viewer, lastBody)).status).toBe(201);
-      const replays = await Promise.all(Array.from({ length: 120 }, () => f.send(roomId, viewer, lastBody)));
-      expect(replays.every((r) => r.status === 200)).toBe(true);
-
-      // Normal gifts keep their own bucket (120 / min, RATE_LIMIT_LIVE_GIFT_USER).
-      const normal = await f.gift({ category: 'POPULAR' });
-      const normals = [];
-      for (let i = 0; i < 121; i++) normals.push((await f.send(roomId, h, f.body(normal, [h]))).status);
-      expect(normals.slice(0, 120).every((s) => s === 201)).toBe(true);
-      expect(normals[120]).toBe(429);
-    });
+    // The burst limit itself (the (N+1)th lucky send in one window is refused) is checked against
+    // its own app with a small configured window: «D145c / D145d burst limit is enforced» below.
   });
 
   describe('gates', () => {
@@ -853,6 +825,88 @@ describe('D132 lucky gifts (on)', { timeout: 180_000 }, () => {
         out: '2001-01-01: no lucky gifts.\n',
       });
     });
+  });
+});
+
+/**
+ * D145c / D145d: the lucky burst limit is enforced. The defaults (100 / s, checked in
+ * app-config.spec) cannot be exceeded deterministically over HTTP — in a loaded full run, 101
+ * parallel sends take longer than the one-second window, so none is refused. This app keeps the
+ * same code path with a configured limit of 5 per 60 s, so the 6th lucky send is always in the
+ * window; "the window passed" is the window's Redis key expiring, which the test does directly.
+ */
+describe('D145c / D145d lucky burst limit is enforced (own app, 5 / 60 s)', { timeout: 120_000 }, () => {
+  const BURST = 5;
+  const clock = new FakeClock();
+  const media = new MemoryLiveMedia();
+  const rng = new ScriptedRng();
+  let ctx: TestContext;
+  const f = fixtures(() => ctx, clock);
+
+  beforeAll(async () => {
+    ctx = await createTestApp(
+      {
+        LIVE_HOSTING_ENABLED: 'true',
+        LIVE_HEARTBEAT_STALE_SECONDS: '3600',
+        LUCKY_GIFTS_ENABLED: 'true',
+        LUCKY_PITY_AFTER: '0',
+        RATE_LIMIT_LIVE_LUCKY_GIFT_BURST_USER: `${BURST}/60`,
+      },
+      [
+        { token: Clock, value: clock },
+        { token: LIVE_MEDIA_PROVIDER, value: media },
+        { token: LUCKY_RNG, value: rng },
+      ],
+    );
+  });
+  afterAll(async () => ctx?.close());
+
+  it('the (N+1)th lucky send in the window → 429 with Retry-After, nothing charged; a retry with the same clientId is not counted; normal gifts keep 120 / min', async () => {
+    expect(ctx.config.rateLimits.liveLuckyGiftBurstUser).toEqual({ max: BURST, windowSeconds: 60 });
+    const { h, viewer, roomId } = await f.scene();
+    const code = await f.gift();
+    const before = await f.wallet(viewer);
+    // N sends are accepted, the (N+1)th (and every further one in the window) is refused.
+    const bodies = Array.from({ length: BURST + 2 }, () => f.body(code, [h]));
+    const answers = [];
+    for (const b of bodies) answers.push(await f.send(roomId, viewer, b));
+    expect(answers.slice(0, BURST).map((r) => r.status)).toEqual(Array(BURST).fill(201));
+    for (const refused of answers.slice(BURST)) {
+      expect(refused.status, JSON.stringify(refused.body)).toBe(429);
+      expect(refused.body.error.code).toBe('RATE_LIMITED');
+      expectContract(refused, 'sendLiveGift');
+      expect(Number(refused.headers['retry-after'])).toBeGreaterThanOrEqual(1);
+      expect(Number(refused.headers['retry-after'])).toBeLessThanOrEqual(60);
+    }
+    // Nothing charged for the refused ones.
+    expect(await ctx.prisma.liveGift.count({ where: { senderId: viewer.id } })).toBe(BURST);
+    expect(await f.wallet(viewer)).toBe(before - BURST * 10);
+    // A retry of an accepted send (same clientId) is answered before the limiter: not counted.
+    const replays = await Promise.all(
+      Array.from({ length: 3 * BURST }, () => f.send(roomId, viewer, bodies[0]!)),
+    );
+    expect(replays.every((r) => r.status === 200)).toBe(true);
+    expect((await f.send(roomId, viewer, f.body(code, [h]))).status).toBe(429);
+
+    // The window passes (its Redis key expires): the refused clientId is sent once, then its
+    // retries are free.
+    const limiter = ctx.app.get(RateLimitService);
+    expect(await ctx.app.get<Redis>(REDIS).del(limiter.keyFor('live:gift:lucky', viewer.id))).toBe(1);
+    const refusedBody = bodies[BURST]!;
+    expect((await f.send(roomId, viewer, refusedBody)).status).toBe(201);
+    const again = await Promise.all(
+      Array.from({ length: 3 * BURST }, () => f.send(roomId, viewer, refusedBody)),
+    );
+    expect(again.every((r) => r.status === 200)).toBe(true);
+    expect(await ctx.prisma.liveGift.count({ where: { senderId: viewer.id } })).toBe(BURST + 1);
+    expect(await f.wallet(viewer)).toBe(before - (BURST + 1) * 10);
+
+    // Normal gifts keep their own bucket (120 / min, RATE_LIMIT_LIVE_GIFT_USER).
+    const normal = await f.gift({ category: 'POPULAR' });
+    const normals = [];
+    for (let i = 0; i < 121; i++) normals.push((await f.send(roomId, h, f.body(normal, [h]))).status);
+    expect(normals.slice(0, 120).every((s) => s === 201)).toBe(true);
+    expect(normals[120]).toBe(429);
   });
 });
 
