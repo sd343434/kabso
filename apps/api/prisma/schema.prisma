@@ -2782,6 +2782,10 @@ model GiftCategory {
 
   gifts Gift[]
 
+  // Created by 20270127090000_gift_categories; declared here (the partial one with the `partialIndexes` preview
+  // feature) so `migrate diff` / `migrate dev` see no drift.
+  @@unique([kind], map: "gift_categories_special_kind_key", where: raw("kind <> 'NORMAL'::gift_category_kind"))
+  @@index([sortOrder, code], map: "gift_categories_sort_idx")
   @@map("gift_categories")
 }
 
@@ -5377,6 +5381,8 @@ model HostApplication {
   decidedBy User? @relation("HostApplicationDecider", fields: [decidedById], references: [id], onDelete: SetNull)
 
   @@unique([userId, clientKey], map: "host_applications_client_once")
+  // Created by 20270202090100_host_applications; declared with the `partialIndexes` preview feature (no drift).
+  @@unique([userId], map: "host_applications_one_pending", where: raw("status = 'PENDING'::host_application_status"))
   @@index([userId, createdAt(sort: Desc)], map: "host_applications_user_idx")
   @@index([status, createdAt(sort: Desc)], map: "host_applications_status_idx")
   @@index([decidedById], map: "host_applications_decided_by_idx")
