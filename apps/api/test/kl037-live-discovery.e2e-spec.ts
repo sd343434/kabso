@@ -938,6 +938,9 @@ describe('KL-037 public profile and follow', () => {
       country: null,
       joinedMonth: expect.stringMatching(/^\d{4}-\d{2}$/),
       blockedByMe: false,
+      // v1.77-social (D220): the lifetime totals the user does not hide (nothing received or sent yet).
+      cherriesReceived: 0,
+      coinsSent: 0,
     });
     const self = await profile(target, target.username);
     expectContract(self, 'getPublicProfile');
