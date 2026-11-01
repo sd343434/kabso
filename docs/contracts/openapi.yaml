@@ -512,6 +512,9 @@ info:
     `friends=true`) and may be invited (`inviteLivePk`): the invited host's wait no longer makes them
     `PK_HOST_BUSY`; while the invitation is open they are not paired at random; accepted, both waits end. The
     caller's own wait still makes the caller busy. No shape change (CONVENTIONS §10.70).
+    **D226 (DRAFT v1.79-social)**: «تسجيل الخروج من كل الأجهزة الأخرى» — `revokeOtherSessions`
+    (`POST /auth/sessions/revoke-others`, password re-checked) ends every session of the caller except the one making
+    the call and answers how many were ended (CONVENTIONS §10.76). Additive.
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -872,6 +875,35 @@ paths:
                     type: array
                     items: { $ref: '#/components/schemas/SessionInfo' }
         '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/auth/sessions/revoke-others:
+    post:
+      tags: [sessions]
+      operationId: revokeOtherSessions
+      summary: "Sign out of all other devices (re-authenticated) (v1.79-social, D226)"
+      description: |
+        CONVENTIONS §10.76. Order after auth and the rate limit (5 / 15 minutes / user in its own bucket, the
+        re-authentication rule of `requestAccountDeletion`, replacing the default): 400 body → 403 `REAUTH_FAILED` (the
+        password is not the account's; audited `auth.sessions.revoke_others.reauth_failed`) → 200. Every session of the
+        caller except the one making the call is revoked at once with its push token: their access tokens answer 401
+        on the next request and their refresh tokens answer 401 `AUTH_REFRESH_INVALID`. The caller's session stays.
+        `revoked` is how many were ended (0 when there was no other). Audited `auth.sessions.revoke_others` with the
+        count. Allowed while consent is required (like the other session operations).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RevokeOtherSessionsRequest' }
+      responses:
+        '200':
+          description: The other sessions are ended.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RevokeOtherSessionsResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
   /api/v1/auth/sessions/{sessionId}:
@@ -18886,6 +18918,20 @@ components:
           format: date-time
           description: When it ends (the base username is shown again); null = permanent.
         locked: { type: boolean, description: "True: `changeUsername` is refused with `USERNAME_LOCKED`." }
+    RevokeOtherSessionsRequest:
+      type: object
+      description: v1.79-social (D226).
+      required: [password]
+      additionalProperties: false
+      properties:
+        password: { type: string, minLength: 1, maxLength: 128, description: The account's current password. }
+    RevokeOtherSessionsResult:
+      type: object
+      description: v1.79-social (D226).
+      required: [revoked]
+      additionalProperties: false
+      properties:
+        revoked: { type: integer, minimum: 0, description: How many other sessions were ended. }
     SessionInfo:
       type: object
       required: [id, current, createdAt, lastUsedAt]

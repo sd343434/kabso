@@ -487,6 +487,9 @@ Screen states: Loading → Skeleton of 3 ListTiles; Error → ErrorState; Offlin
 `offline` (no cache for sessions — security data must be fresh). Pull-to-refresh supported.
 No "revoke all" in Phase 1 (no endpoint; tell users to use password reset to sign out
 everywhere — `sessionsAllHint`).
+*D226 (v1.79-social, CONVENTIONS §10.76):* «تسجيل الخروج من كل الأجهزة الأخرى» is added — a red text
+button under the list (and under the two-session preview in Settings) while another session exists → dialog
+with the password → `revokeOtherSessions` → list refreshed, snackbar with the count.
 
 ### 9.4 Logout
 

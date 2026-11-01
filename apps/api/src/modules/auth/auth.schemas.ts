@@ -209,4 +209,15 @@ export const updateMeSchema = z
   });
 export const resetPasswordSchema = z.strictObject({ token: opaqueToken, newPassword: passwordSchema });
 
+/** `RevokeOtherSessionsRequest` (openapi v1.79-social, D226): the account's current password, re-checked. */
+export const revokeOtherSessionsSchema = z.strictObject({
+  password: z
+    .string()
+    .min(1)
+    .max(512)
+    .transform(normalizePassword)
+    .refine((v) => [...v].length <= 128, { params: { issue: 'too_long' } }),
+});
+export type RevokeOtherSessionsInput = z.output<typeof revokeOtherSessionsSchema>;
+
 export type DeviceInfo = z.output<typeof deviceInfoSchema>;

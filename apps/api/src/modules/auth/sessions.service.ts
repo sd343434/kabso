@@ -253,6 +253,27 @@ export class SessionsService {
     await tx.deviceToken.deleteMany({ where });
   }
 
+  /**
+   * v1.79-social (D226, §10.76): ends every live session of [userId] except [currentSessionId], with their push
+   * tokens. Their access tokens fail at once (the guard checks the session) and their refresh tokens answer
+   * `AUTH_REFRESH_INVALID`. Returns how many were ended.
+   */
+  async revokeOthers(
+    userId: string,
+    currentSessionId: string,
+    reason: RevokedReason,
+    now: Date = new Date(),
+  ): Promise<number> {
+    return this.prisma.$transaction(async (tx) => {
+      const result = await tx.session.updateMany({
+        where: { userId, revokedAt: null, id: { not: currentSessionId } },
+        data: { revokedAt: now, revokedReason: reason },
+      });
+      await tx.deviceToken.deleteMany({ where: { userId, sessionId: { not: currentSessionId } } });
+      return result.count;
+    });
+  }
+
   async revokeAllForUser(
     tx: Prisma.TransactionClient | PrismaService,
     userId: string,
