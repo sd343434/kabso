@@ -788,6 +788,42 @@ abstract class AppLocalizations {
   /// **'حسابك مسجَّل الدخول على هذا الجهاز فقط.'**
   String get sessionsNoOthers;
 
+  /// D226: the one Settings switch, light ↔ dark.
+  ///
+  /// In ar, this message translates to:
+  /// **'الوضع الداكن'**
+  String get settingsDarkMode;
+
+  /// D226: the dark mode switch's subtitle while the app still follows the device (no explicit choice yet).
+  ///
+  /// In ar, this message translates to:
+  /// **'يتبع إعداد الجهاز'**
+  String get settingsThemeFollowsDevice;
+
+  /// D226: the small link that drops the explicit choice and follows the device again.
+  ///
+  /// In ar, this message translates to:
+  /// **'اتباع الجهاز'**
+  String get settingsThemeFollowDevice;
+
+  /// D226: the language switch's title with the current language (its own name, isolated).
+  ///
+  /// In ar, this message translates to:
+  /// **'اللغة: {language}'**
+  String settingsLanguageCurrent(String language);
+
+  /// D226: the language switch's subtitle, the other language (its own name, isolated).
+  ///
+  /// In ar, this message translates to:
+  /// **'التبديل إلى {language}'**
+  String settingsLanguageSwitchTo(String language);
+
+  /// D226: the row under the two most recent sessions that opens the full list; count = all active sessions.
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض الكل ({count})'**
+  String sessionsShowAll(int count);
+
   /// No description provided for @platformAndroid.
   ///
   /// In ar, this message translates to:

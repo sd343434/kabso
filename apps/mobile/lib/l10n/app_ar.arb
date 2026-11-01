@@ -261,6 +261,39 @@
   "sessionsRevoked": "تم إنهاء الجلسة",
   "sessionsAlreadyEnded": "كانت هذه الجلسة منتهية بالفعل",
   "sessionsNoOthers": "حسابك مسجَّل الدخول على هذا الجهاز فقط.",
+  "settingsDarkMode": "الوضع الداكن",
+  "@settingsDarkMode": {"description": "D226: the one Settings switch, light ↔ dark."},
+  "settingsThemeFollowsDevice": "يتبع إعداد الجهاز",
+  "@settingsThemeFollowsDevice": {"description": "D226: the dark mode switch's subtitle while the app still follows the device (no explicit choice yet)."},
+  "settingsThemeFollowDevice": "اتباع الجهاز",
+  "@settingsThemeFollowDevice": {"description": "D226: the small link that drops the explicit choice and follows the device again."},
+  "settingsLanguageCurrent": "اللغة: {language}",
+  "@settingsLanguageCurrent": {
+    "description": "D226: the language switch's title with the current language (its own name, isolated).",
+    "placeholders": {
+      "language": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsLanguageSwitchTo": "التبديل إلى {language}",
+  "@settingsLanguageSwitchTo": {
+    "description": "D226: the language switch's subtitle, the other language (its own name, isolated).",
+    "placeholders": {
+      "language": {
+        "type": "String"
+      }
+    }
+  },
+  "sessionsShowAll": "عرض الكل ({count})",
+  "@sessionsShowAll": {
+    "description": "D226: the row under the two most recent sessions that opens the full list; count = all active sessions.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "platformAndroid": "أندرويد",
   "platformIos": "iOS",
   "platformWeb": "الويب",

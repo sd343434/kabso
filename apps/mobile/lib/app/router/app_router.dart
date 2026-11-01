@@ -97,6 +97,7 @@ import 'package:kabso_live/features/recharge/presentation/recharge_orders_screen
 import 'package:kabso_live/features/safety/safety_screens.dart';
 import 'package:kabso_live/features/settings/account_deletion/account_deletion_screen.dart';
 import 'package:kabso_live/features/settings/account_deletion/deletion_pending_screen.dart';
+import 'package:kabso_live/features/settings/sessions/sessions_screen.dart';
 import 'package:kabso_live/features/settings/settings_screen.dart';
 import 'package:kabso_live/features/stories/presentation/new_story_screen.dart';
 import 'package:kabso_live/features/stories/presentation/story_archive_screen.dart';
@@ -189,6 +190,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.settings,
         builder: (_, _) => const SettingsScreen(),
+      ),
+      // D226: the full list of active sessions.
+      GoRoute(
+        path: AppRoutes.sessions,
+        builder: (_, _) => const SessionsScreen(),
       ),
       // D86: Discover and search open above the tabs (search buttons).
       GoRoute(

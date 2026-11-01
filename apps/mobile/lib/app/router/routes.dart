@@ -120,6 +120,9 @@ abstract final class AppRoutes {
 
   static const settings = '/settings';
 
+  /// D226: every active session (Settings shows the two most recent).
+  static const sessions = '/settings/sessions';
+
   /// KL-060: privacy settings and blocked accounts.
   static const privacy = '/settings/privacy';
   static const blockedAccounts = '/settings/blocked';

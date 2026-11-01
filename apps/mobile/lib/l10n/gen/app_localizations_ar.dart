@@ -443,6 +443,30 @@ class AppLocalizationsAr extends AppLocalizations {
   String get sessionsNoOthers => 'حسابك مسجَّل الدخول على هذا الجهاز فقط.';
 
   @override
+  String get settingsDarkMode => 'الوضع الداكن';
+
+  @override
+  String get settingsThemeFollowsDevice => 'يتبع إعداد الجهاز';
+
+  @override
+  String get settingsThemeFollowDevice => 'اتباع الجهاز';
+
+  @override
+  String settingsLanguageCurrent(String language) {
+    return 'اللغة: $language';
+  }
+
+  @override
+  String settingsLanguageSwitchTo(String language) {
+    return 'التبديل إلى $language';
+  }
+
+  @override
+  String sessionsShowAll(int count) {
+    return 'عرض الكل ($count)';
+  }
+
+  @override
   String get platformAndroid => 'أندرويد';
 
   @override

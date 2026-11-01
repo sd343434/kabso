@@ -420,6 +420,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionsNoOthers => 'You\'re signed in on this device only.';
 
   @override
+  String get settingsDarkMode => 'Dark mode';
+
+  @override
+  String get settingsThemeFollowsDevice => 'Following your device';
+
+  @override
+  String get settingsThemeFollowDevice => 'Follow device';
+
+  @override
+  String settingsLanguageCurrent(String language) {
+    return 'Language: $language';
+  }
+
+  @override
+  String settingsLanguageSwitchTo(String language) {
+    return 'Switch to $language';
+  }
+
+  @override
+  String sessionsShowAll(int count) {
+    return 'Show all ($count)';
+  }
+
+  @override
   String get platformAndroid => 'Android';
 
   @override
