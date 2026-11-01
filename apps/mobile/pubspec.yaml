@@ -164,6 +164,8 @@ flutter:
     - assets/pk/score_bar/kabi/
     # Owner's profile-card header decorations (SVGA 750×280 + still).
     - assets/profile_card/
+    # D218: the owner's bond pills (family, couple, medals).
+    - assets/profile/bonds/
     # Owner's person-card box icons (family, CP, gift wall).
     - assets/card_boxes/
     # D113 CP seat frames per CP level, cut from the owner's art
