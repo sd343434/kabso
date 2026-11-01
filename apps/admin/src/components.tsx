@@ -99,6 +99,7 @@ const TONES: Record<string, string> = {
   QUALIFIED: 'ok',
   CREDITED: 'ok',
   VOID: 'bad',
+  REVERSED: 'bad',
 };
 
 export function StatusBadge({ status }: { status: string }) {

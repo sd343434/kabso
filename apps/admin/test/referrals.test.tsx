@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { AppContext, type AppState } from '../src/context';
 import { DICTIONARIES, translate, type Lang } from '../src/i18n';
 import { AR_D217, EN_D217 } from '../src/i18n-d217';
-import { milestonesValid, ReferralSettingsForm, ReferralView, settingsChanges } from '../src/pages/Referrals';
+import { ClawbackNotice, milestonesValid, ReferralSettingsForm, ReferralView, settingsChanges } from '../src/pages/Referrals';
 import type { Capability, ReferralDetail, ReferralSettings } from '../src/types';
 import { CAPABILITY_ROLES } from './capabilities';
 
@@ -41,6 +41,7 @@ function detail(over: Partial<ReferralDetail> = {}): ReferralDetail {
     createdAt: '2026-11-01T09:00:00.000Z',
     signals: { installId: true, ip: '198.51.100.7', sameDeviceReferrals: 2, sameEmailReferrals: 0 },
     rewards: [],
+    voidClawback: { cherries: 0, shortfall: 0, rewards: 0, people: [] },
     ...over,
   };
 }
@@ -101,8 +102,9 @@ describe('D217 «الدعوات»', () => {
         data={detail({
           status: 'QUALIFIED',
           rewards: [
-            { id: 'r1', userId: 'u', kind: 'SIGNUP_INVITER', status: 'CREDITED', cherries: 20000, holdUntil: '2026-11-02T09:00:00.000Z', baseCoins: null, rateBps: null, rechargeReason: null, creditedAt: '2026-11-02T09:00:00.000Z', voidedAt: null, voidReason: null },
-            { id: 'r2', userId: 'u', kind: 'FIRST_RECHARGE', status: 'VOID', cherries: 500, holdUntil: '2026-11-02T09:00:00.000Z', baseCoins: 1000, rateBps: 500, rechargeReason: 'CARD_TOPUP', creditedAt: null, voidedAt: '2026-11-02T09:00:00.000Z', voidReason: 'RECHARGE_REVERSED' },
+            { id: 'r1', userId: 'u', kind: 'SIGNUP_INVITER', status: 'CREDITED', cherries: 20000, holdUntil: '2026-11-02T09:00:00.000Z', baseCoins: null, rateBps: null, rechargeReason: null, creditedAt: '2026-11-02T09:00:00.000Z', voidedAt: null, voidReason: null, reversedAt: null, reversalShortfall: null },
+            { id: 'r3', userId: 'u', kind: 'MILESTONE', status: 'REVERSED', cherries: 50000, holdUntil: '2026-11-02T09:00:00.000Z', baseCoins: null, rateBps: null, rechargeReason: null, creditedAt: '2026-11-02T09:00:00.000Z', voidedAt: null, voidReason: null, reversedAt: '2026-11-03T09:00:00.000Z', reversalShortfall: 30000 },
+            { id: 'r2', userId: 'u', kind: 'FIRST_RECHARGE', status: 'VOID', cherries: 500, holdUntil: '2026-11-02T09:00:00.000Z', baseCoins: 1000, rateBps: 500, rechargeReason: 'CARD_TOPUP', creditedAt: null, voidedAt: '2026-11-02T09:00:00.000Z', voidReason: 'RECHARGE_REVERSED', reversedAt: null, reversalShortfall: null },
           ],
         })}
         onApprove={() => undefined}
@@ -114,6 +116,33 @@ describe('D217 «الدعوات»', () => {
     expect(html).toContain('20,000');
     expect(html).toContain('RECHARGE_REVERSED');
     expect(html).toContain('Credited');
+    expect(html).toContain('Taken back');
+    expect(html).toContain('Debt 30,000');
+  });
+
+  it('the void dialog says what is taken back before the team confirms, with any debt', () => {
+    const inviter = person('1');
+    const invitee = person('2');
+    const data = detail({
+      status: 'QUALIFIED',
+      voidClawback: {
+        cherries: 70000,
+        shortfall: 60000,
+        rewards: 2,
+        people: [{ userId: inviter.id, cherries: 70000, balance: 10000, shortfall: 60000 }],
+      },
+    });
+    const ar = render('ar', capsOf('FINANCE'), <ClawbackNotice data={data} />);
+    expect(ar).toContain('سيُسترجع 70,000 كرزة (2 مكافأة)');
+    expect(ar).toContain(`@${inviter.username}: 70,000 كرزة — الرصيد الآن 10,000`);
+    expect(ar).toContain('نقص 60,000');
+    expect(ar).not.toContain(invitee.username);
+    const en = render('en', capsOf('FINANCE'), <ClawbackNotice data={data} />);
+    expect(en).toContain('70,000 cherries will be taken back (2 reward(s)).');
+    expect(en).toContain('60,000 short: becomes a debt, withdrawals blocked until settled');
+    const covered = render('en', capsOf('FINANCE'), <ClawbackNotice data={detail({ voidClawback: { cherries: 20000, shortfall: 0, rewards: 1, people: [{ userId: inviter.id, cherries: 20000, balance: 90000, shortfall: 0 }] } })} />);
+    expect(covered).not.toContain('data-clawback-shortfall');
+    expect(render('en', capsOf('FINANCE'), <ClawbackNotice data={detail()} />)).toContain('nothing is taken back');
   });
 
   it('settings: read-only for SUPPORT, editable for FINANCE, only the changed fields are sent', () => {

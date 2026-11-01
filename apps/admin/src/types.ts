@@ -566,7 +566,7 @@ export interface ReferralReward {
   id: string;
   userId: string;
   kind: ReferralRewardKind;
-  status: 'PENDING' | 'CREDITED' | 'VOID';
+  status: 'PENDING' | 'CREDITED' | 'VOID' | 'REVERSED';
   cherries: number;
   holdUntil: string;
   baseCoins: number | null;
@@ -575,6 +575,17 @@ export interface ReferralReward {
   creditedAt: string | null;
   voidedAt: string | null;
   voidReason: string | null;
+  /** REVERSED: taken back when the team voided the referral; the part the balance did not cover. */
+  reversedAt: string | null;
+  reversalShortfall: number | null;
+}
+
+/** `AdminReferral.voidClawback`: what «إلغاء الدعوة» would take back now. */
+export interface ReferralClawback {
+  cherries: number;
+  shortfall: number;
+  rewards: number;
+  people: { userId: string; cherries: number; balance: number; shortfall: number }[];
 }
 
 /** `AdminReferral` */
@@ -595,6 +606,7 @@ export interface ReferralDetail {
   createdAt: string;
   signals: { installId: boolean; ip: string | null; sameDeviceReferrals: number; sameEmailReferrals: number };
   rewards: ReferralReward[];
+  voidClawback: ReferralClawback;
 }
 
 /** `AdminReferralSettings` */

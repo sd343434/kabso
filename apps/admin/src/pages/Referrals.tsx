@@ -174,12 +174,51 @@ export function ReferralView({ data, onApprove, onVoid }: { data: Detail; onAppr
                   </span>
                 )}
                 {w.voidReason && <span className="muted">{reasonText(w.voidReason)}</span>}
-                <span className="date muted">{formatDate(w.creditedAt ?? w.voidedAt ?? w.holdUntil, lang)}</span>
+                {w.reversalShortfall !== null && w.reversalShortfall > 0 && (
+                  <span className="badge bad">{t('refShortfall', { n: formatNumber(w.reversalShortfall, lang) })}</span>
+                )}
+                <span className="date muted">{formatDate(w.reversedAt ?? w.creditedAt ?? w.voidedAt ?? w.holdUntil, lang)}</span>
               </li>
             ))}
           </ul>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * What «إلغاء الدعوة» takes back (owner 2026-11-01), shown in the dialog before the team confirms: the cherries, and per
+ * person the balance and the part it does not cover (the balance goes below 0: a debt that blocks withdrawals).
+ */
+export function ClawbackNotice({ data }: { data: Detail }) {
+  const { t, lang } = useApp();
+  const c = data.voidClawback;
+  if (c.cherries === 0) return <p className="small" data-clawback="none">{t('refClawbackNone')}</p>;
+  const nameOf = (userId: string) =>
+    userId === data.inviter.id ? `@${data.inviter.username}` : userId === data.invitee.id ? `@${data.invitee.username}` : userId;
+  return (
+    <div className="small" data-clawback={c.cherries}>
+      <p>
+        <strong>{t('refClawback', { n: formatNumber(c.cherries, lang), r: formatNumber(c.rewards, lang) })}</strong>
+      </p>
+      <ul className="plain-list">
+        {c.people.map((p) => (
+          <li key={p.userId} data-clawback-person={p.userId}>
+            {t('refClawbackPerson', {
+              who: nameOf(p.userId),
+              n: formatNumber(p.cherries, lang),
+              balance: formatNumber(p.balance, lang),
+            })}
+            {p.shortfall > 0 && (
+              <span className="badge bad" data-clawback-shortfall={p.shortfall}>
+                {' '}
+                {t('refClawbackShortfall', { n: formatNumber(p.shortfall, lang) })}
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -208,7 +247,12 @@ export function ReferralDetail({ id }: { id: string }) {
       {action && (
         <FormDialog
           title={t(action === 'approve' ? 'refApprove' : 'refVoid')}
-          intro={<p className="muted small">{t(action === 'approve' ? 'refApproveIntro' : 'refVoidIntro')}</p>}
+          intro={
+            <>
+              <p className="muted small">{t(action === 'approve' ? 'refApproveIntro' : 'refVoidIntro')}</p>
+              {action === 'void' && <ClawbackNotice data={data} />}
+            </>
+          }
           fields={[reasonField(t), codeField(t)]}
           confirmLabel={t(action === 'approve' ? 'refApprove' : 'refVoid')}
           danger={action === 'void'}
@@ -217,8 +261,19 @@ export function ReferralDetail({ id }: { id: string }) {
               const r = await api.post<{ changed: boolean; creditedCherries: number }>(`/admin/referrals/${id}/approve`, v);
               toast(r.changed ? t('refApproved', { n: formatNumber(r.creditedCherries, lang) }) : t('refAlreadyQualified'));
             } else {
-              const r = await api.post<{ changed: boolean; voidedRewards: number }>(`/admin/referrals/${id}/void`, v);
-              toast(r.changed ? t('refVoided', { n: r.voidedRewards }) : t('refAlreadyVoid'));
+              const r = await api.post<{ changed: boolean; voidedRewards: number; reversedCherries: number; shortfall: number }>(
+                `/admin/referrals/${id}/void`,
+                v,
+              );
+              toast(
+                r.changed
+                  ? t('refVoided', {
+                      n: r.voidedRewards,
+                      c: formatNumber(r.reversedCherries, lang),
+                      s: formatNumber(r.shortfall, lang),
+                    })
+                  : t('refAlreadyVoid'),
+              );
             }
           }}
           onClose={() => setAction(null)}
