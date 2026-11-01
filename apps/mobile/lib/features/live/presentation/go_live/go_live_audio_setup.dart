@@ -851,32 +851,19 @@ class _ModeTabs extends StatelessWidget {
       );
     }
 
-    Widget side(List<(LiveRoomMode, String)> items, {required bool before}) =>
-        ClipRect(
-          child: OverflowBox(
-            maxWidth: double.infinity,
-            alignment: before
-                ? AlignmentDirectional.centerEnd
-                : AlignmentDirectional.centerStart,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (final m in items) tab(m),
-                if (!before) const GoLiveStreamerTab(fontSize: 15),
-              ],
-            ),
-          ),
-        );
-    return SizedBox(
-      height: 34,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(child: side(modes.sublist(0, at), before: true)),
-          tab(modes[at]),
-          Expanded(child: side(modes.sublist(at + 1), before: false)),
-        ],
-      ),
+    // D224 (owner): the row scrolls sideways; the chosen one comes to the
+    // middle (as the cut-off sides of D212 showed it).
+    // The chosen label (18 sp, 1.2 lines) grows with the text size: the
+    // row with it (34 pt at 1×), so a large text never overflows.
+    final grow = MediaQuery.textScalerOf(context).scale(18) - 18;
+    return GoLiveModeScroller(
+      height: 34 + (grow * 1.2).ceilToDouble(),
+      selected: at,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final m in modes) tab(m),
+        const GoLiveStreamerTab(fontSize: 15),
+      ],
     );
   }
 }
