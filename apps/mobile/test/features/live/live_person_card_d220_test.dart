@@ -362,6 +362,26 @@ void main() {
             .art,
         KabsoArt.mainGift,
       );
+      // Owner: inside a circle as high as Follow / Chat, art ≈ 62 %.
+      final circle = tester.widget<Container>(
+        find.descendant(of: gift, matching: find.byType(Container)).first,
+      );
+      final deco = circle.decoration! as BoxDecoration;
+      expect(deco.shape, BoxShape.circle);
+      expect(deco.border, isNotNull);
+      expect(deco.color, isNotNull);
+      final art = tester.getSize(
+        find.descendant(of: gift, matching: find.byType(KabsoArtIcon)),
+      );
+      final ring = tester.getSize(gift);
+      expect(art.width / ring.width, inInclusiveRange(0.58, 0.68));
+      expect(
+        ring.height,
+        closeTo(
+          tester.getSize(find.byKey(LivePersonSheet.messageKey)).height,
+          0.5,
+        ),
+      );
       final size = tester.getSize(gift);
       expect(size.width, greaterThanOrEqualTo(48));
       expect(size.height, greaterThanOrEqualTo(48));

@@ -64,6 +64,7 @@ class _Look {
     required this.soft,
     required this.line,
     required this.divider,
+    required this.fill,
     required this.ring,
   });
 
@@ -78,6 +79,7 @@ class _Look {
             // Owner: a little lighter than the border in dark mode, still
             // subtle (the strong border token at 60 %).
             divider: p.borderStrong.withValues(alpha: 0.6),
+            fill: p.surfaceOverlay,
             ring: p.surfaceRaised,
           )
         : _Look(
@@ -87,6 +89,7 @@ class _Look {
             // The theme's divider token (lines, outlines).
             line: p.border,
             divider: p.border,
+            fill: p.surface,
             ring: const Color(0xFFFFFFFF),
           );
   }
@@ -98,6 +101,9 @@ class _Look {
 
   /// The thin line between two numbers.
   final Color divider;
+
+  /// A subtle neutral fill (the gift circle).
+  final Color fill;
 
   /// The clean ring around a picture without a frame.
   final Color ring;
@@ -116,6 +122,9 @@ abstract final class LivePersonCardMetrics {
 
   /// Number over label: the four numbers' row.
   static const double statNumber = 17;
+
+  /// The gift art inside its circle (≈ 62 % of [action]).
+  static const double giftArt = 30;
 
   /// The thin grey line between two numbers (≈ 60 % of the row).
   static const double statDivider = 22;
@@ -844,6 +853,7 @@ class _Body extends ConsumerWidget {
                 if (scope?.onGift case final onGift?) ...[
                   const SizedBox(width: 8),
                   _GiftButton(
+                    look: look,
                     onTap: () => _close(
                       context,
                       () => onGift((
@@ -1257,21 +1267,37 @@ class _FollowPill extends ConsumerWidget {
   }
 }
 
-/// The gift button between Follow and Chat: the app's main gift icon (the
-/// live bar's colourful box, owner) in a 48 dp target.
+/// The gift button between Follow and Chat (owner: «اجعل ايقونة الهدايا
+/// بداخل دائرة»): the app's main gift icon (the live bar's colourful box)
+/// centred at ≈ 62 % inside a circle as high as the pills beside it, with a
+/// subtle neutral fill and the outline of the Chat pill.
 class _GiftButton extends StatelessWidget {
-  const new({required this.onTap});
+  const new({required this.onTap, required this.look});
 
   final VoidCallback onTap;
+  final _Look look;
+
+  static const circleKey = Key('room.userCard.gift.circle');
 
   @override
   Widget build(BuildContext context) => _Press(
     key: LivePersonSheet.giftKey,
     label: context.l10n.liveCardSendGift,
     onTap: onTap,
-    child: const SizedBox.square(
-      dimension: LivePersonCardMetrics.action,
-      child: Center(child: KabsoArtIcon(KabsoArt.mainGift, size: 44)),
+    child: Container(
+      key: circleKey,
+      width: LivePersonCardMetrics.action,
+      height: LivePersonCardMetrics.action,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: look.fill,
+        border: Border.all(color: look.line, width: 1.2),
+      ),
+      child: const KabsoArtIcon(
+        KabsoArt.mainGift,
+        size: LivePersonCardMetrics.giftArt,
+      ),
     ),
   );
 }

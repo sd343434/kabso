@@ -1,6 +1,7 @@
 // D220 (owner: «صندوق الهدايا اجعله نفس الايقونة الاساسية وحتى في الرسائل نفس
 // الايقونة»): the conversation's gift button shows the app's main gift icon,
-// the live bar's colourful box (`assets/live_bar/bar_gift.png`), and still
+// the live bar's colourful box (`assets/live_bar/bar_gift.png`) inside a
+// circle, and still
 // opens the gifts; a 48 dp target.
 
 import 'package:flutter_test/flutter_test.dart';
@@ -35,6 +36,13 @@ void main() {
       find.descendant(of: gift, matching: find.byType(KabsoArtIcon)),
     );
     expect(art.art, KabsoArt.mainGift);
+    // Owner: inside a circle, like the "+" beside it.
+    final button = tester.widget<IconButton>(gift);
+    expect(button.style!.shape!.resolve({}), isA<CircleBorder>());
+    final ratio =
+        tester.getSize(find.byType(KabsoArtIcon)).width /
+        tester.getSize(gift).width;
+    expect(ratio, inInclusiveRange(0.58, 0.68));
     expect(KabsoArt.mainGift.asset, 'assets/live_bar/bar_gift.png');
     expect(
       find.descendant(
