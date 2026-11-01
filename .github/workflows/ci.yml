@@ -186,6 +186,11 @@ jobs:
       - name: Apply migrations (migrate deploy, migration role)
         run: pnpm --filter ./apps/api prisma:migrate:deploy
       - name: Lint
+        # Type-aware lint loads the whole TS program (~2 900 files, the generated Prisma client of 180 models
+        # included) and peaks at ~3.3 GB RSS, above Node's default old-space limit (2.2 GB measured on a
+        # 15 GB machine; the 16 GB runner is alike): OOM without this. This step only.
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: pnpm --filter ./apps/api lint
       - name: Format check
         run: pnpm --filter ./apps/api format:check
