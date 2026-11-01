@@ -2,23 +2,63 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show NotifierProviderFamily;
+import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/features/live/application/live_chat_controller.dart';
 import 'package:kabso_live/features/live/application/live_gift_providers.dart';
+import 'package:kabso_live/features/live/application/live_quips.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:material_ui/material_ui.dart' show immutable;
 
+/// One strip of a live's gift column: a gift combo or, D224, a quip.
+sealed class LiveStrip {
+  const new();
+
+  /// The strip's identity: one per combo (a later send of the combo
+  /// updates it), one per quip.
+  String get key;
+
+  UserSummary get sender;
+}
+
+/// A gift combo's strip ([gift] is the combo's latest send).
+final class LiveGiftStrip extends LiveStrip {
+  const new(this.gift);
+
+  final LiveGift gift;
+
+  @override
+  String get key => '${gift.sender.id}:${gift.combo.id}';
+
+  @override
+  UserSummary get sender => gift.sender;
+}
+
+/// D224 (owner: «الافيهات ارى ان يكون شريط. ارسالها كشريط الهدايا
+/// الاخرى»): a quip's strip, in the gifts' column, queue and time.
+final class LiveQuipStrip extends LiveStrip {
+  const new(this.quip);
+
+  final LiveQuip quip;
+
+  @override
+  String get key => 'quip:${quip.id}';
+
+  @override
+  UserSummary get sender => quip.sender;
+}
+
 /// What a live shows of the gifts sent in it now (CP-020, §10.23): up to
-/// [LiveGiftEffects.maxBanners] banners (one per combo, updated in place)
-/// and one full-screen effect for a gift with an animation (D145c: never
-/// the gift's still picture blown up).
+/// [LiveGiftEffects.maxBanners] banners (one per combo, updated in place;
+/// D224: one per quip as it plays) and one full-screen effect for a gift
+/// with an animation (D145c: never the gift's still picture blown up).
 @immutable
 class LiveGiftEffectsState {
   const new({this.banners = const [], this.big, this.lucky});
 
   /// The banners on screen, oldest first.
-  final List<LiveGift> banners;
+  final List<LiveStrip> banners;
 
   /// The animated gift playing now, or null.
   final LiveGift? big;
@@ -72,7 +112,7 @@ class LiveGiftEffects extends Notifier<LiveGiftEffectsState> {
 
   StreamSubscription<LiveChatEvent>? _events;
   final _seen = <String>{};
-  final _waiting = <LiveGift>[];
+  final _waiting = <LiveStrip>[];
   final _waitingBig = <LiveGift>[];
   final _timers = <String, Timer>{};
   Timer? _bigTimer;
@@ -89,6 +129,13 @@ class LiveGiftEffects extends Notifier<LiveGiftEffectsState> {
       _timers.clear();
       _bigTimer?.cancel();
       _luckyTimer?.cancel();
+    });
+    // D224: each quip, as it starts to play (its sound, in the room's quip
+    // queue), gets a gift strip and a chat line. Listening also keeps the
+    // room's quips alive while its gifts are shown (the D216 banner that
+    // watched them is gone).
+    ref.listen(liveQuipsProvider(roomId), (before, now) {
+      if (now != null && now.id != before?.id) showQuip(now);
     });
     return const LiveGiftEffectsState();
   }
@@ -172,8 +219,15 @@ class LiveGiftEffects extends Notifier<LiveGiftEffectsState> {
     }
   }
 
-  /// One combo, one banner: the same sender's combo continues it.
-  static String _comboKey(LiveGift g) => '${g.sender.id}:${g.combo.id}';
+  /// D224: [quip] (playing now) as a strip in the gifts' column — the same
+  /// queue and [bannerTime] as a gift — and its line in this live's chat.
+  /// Once per quip.
+  void showQuip(LiveQuip quip) {
+    if (!ref.mounted || quip.roomId != roomId) return;
+    if (!_seen.add('quip:${quip.id}')) return;
+    _banner(LiveQuipStrip(quip));
+    _chat((chat) => chat.addQuip(quip));
+  }
 
   /// Plays [gift] (a message or the caller's own answer).
   void show(LiveGift gift) {
@@ -185,7 +239,7 @@ class LiveGiftEffects extends Notifier<LiveGiftEffectsState> {
     }
     // D145c (owner): the strip comes first, for every gift, on every
     // device — the sender's own answer included (and a gift to oneself).
-    _banner(gift);
+    _banner(LiveGiftStrip(gift));
     // D178: and its line in this live's chat.
     _chat((chat) => chat.addGift(gift));
     // Only a gift with an SVGA / MP4 (or an MP3, D207) plays the full-screen
@@ -225,15 +279,24 @@ class LiveGiftEffects extends Notifier<LiveGiftEffectsState> {
     _bigDone();
   }
 
-  void _banner(LiveGift gift) {
-    final key = _comboKey(gift);
+  /// Whether [strip] is a later send than [shown] (a combo's messages may
+  /// come out of order); a quip is never sent twice.
+  static bool _later(LiveStrip strip, LiveStrip shown) =>
+      switch ((strip, shown)) {
+        (LiveGiftStrip(:final gift), LiveGiftStrip(gift: final old)) =>
+          gift.combo.count >= old.combo.count,
+        _ => false,
+      };
+
+  void _banner(LiveStrip strip) {
+    final key = strip.key;
     final banners = state.banners;
-    final i = banners.indexWhere((b) => _comboKey(b) == key);
+    final i = banners.indexWhere((b) => b.key == key);
     if (i >= 0) {
       // A later send of the combo (messages may come out of order).
-      if (gift.combo.count >= banners[i].combo.count) {
+      if (_later(strip, banners[i])) {
         state = LiveGiftEffectsState(
-          banners: [...banners]..[i] = gift,
+          banners: [...banners]..[i] = strip,
           big: state.big,
           lucky: state.lucky,
         );
@@ -241,20 +304,20 @@ class LiveGiftEffects extends Notifier<LiveGiftEffectsState> {
       _hold(key);
       return;
     }
-    final w = _waiting.indexWhere((b) => _comboKey(b) == key);
+    final w = _waiting.indexWhere((b) => b.key == key);
     if (w >= 0) {
-      if (gift.combo.count >= _waiting[w].combo.count) _waiting[w] = gift;
+      if (_later(strip, _waiting[w])) _waiting[w] = strip;
       return;
     }
     if (banners.length < maxBanners) {
       state = LiveGiftEffectsState(
-        banners: [...banners, gift],
+        banners: [...banners, strip],
         big: state.big,
         lucky: state.lucky,
       );
       _hold(key);
     } else if (_waiting.length < maxWaiting) {
-      _waiting.add(gift);
+      _waiting.add(strip);
     }
   }
 
@@ -268,12 +331,12 @@ class LiveGiftEffects extends Notifier<LiveGiftEffectsState> {
     if (!ref.mounted) return;
     final banners = [
       for (final b in state.banners)
-        if (_comboKey(b) != key) b,
+        if (b.key != key) b,
     ];
     if (_waiting.isNotEmpty && banners.length < maxBanners) {
       final next = _waiting.removeAt(0);
       banners.add(next);
-      _hold(_comboKey(next));
+      _hold(next.key);
     }
     state = LiveGiftEffectsState(
       banners: banners,

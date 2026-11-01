@@ -2,7 +2,8 @@
 // (paid lines, the free sound, quantity 1, the free-quip refusal, the
 // host's and moderators' soundboard), the room's quip player (one at a
 // time after the server's delay; the Sound effects setting and the local
-// mute; duplicates and blocked senders), the quip bubble, and the host's
+// mute; duplicates and blocked senders), the quip's gift strip (D224), and
+// the host's
 // soundboard sheet — Arabic RTL and English at 360×800.
 
 import 'dart:async';
@@ -17,6 +18,7 @@ import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_soundboard_sheet.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_gift_effects_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_quip_art.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -91,13 +93,14 @@ class _Room extends ConsumerWidget {
             ),
           ],
         ),
+        // D224: a quip that plays is a strip in the gifts' column.
         const Positioned(
-          top: LiveQuipBubble.top,
+          top: 140,
           left: 16,
           right: 16,
           child: Align(
-            alignment: Alignment.topCenter,
-            child: LiveQuipBubble(roomId: 'room-0'),
+            alignment: AlignmentDirectional.topStart,
+            child: LiveGiftStrips(roomId: 'room-0'),
           ),
         ),
       ],
@@ -189,12 +192,12 @@ void main() {
         expect(h.gifts.sends.single.quantity, 1);
         expect(h.gifts.sends.single.source, LiveGiftSource.coins);
         await tester.pump(const Duration(milliseconds: 50));
-        // Heard at once and shown as a bubble with its words.
+        // Heard at once and shown as a strip with its words (D224).
         expect(h.audio.played, ['kabi/ghazal_01']);
-        expect(find.byKey(LiveQuipBubble.bubbleKey), findsOneWidget);
+        expect(find.byType(LiveGiftBanner), findsOneWidget);
         await tester.pump(const Duration(milliseconds: 4400));
         await tester.pumpAndSettle();
-        expect(find.byKey(LiveQuipBubble.bubbleKey), findsNothing);
+        expect(find.byType(LiveGiftBanner), findsNothing);
         expect(tester.takeException(), isNull);
       });
     });
@@ -276,14 +279,14 @@ void main() {
     expect(h.container.read(quipsMutedProvider), isTrue);
     expect(h.audio.stops, 1);
     await tester.pump(const Duration(seconds: 3));
-    // The bubble's way out ends.
+    // The strip's time ends.
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.byKey(LiveSoundboardSheet.soundKey('quip_clap')));
     await tester.pump(const Duration(milliseconds: 50));
-    // Muted: the bubble shows, nothing is heard.
+    // Muted: the strip shows, nothing is heard.
     expect(h.audio.played, ['room/clap']);
-    expect(find.byKey(LiveQuipBubble.bubbleKey), findsOneWidget);
+    expect(find.byType(LiveGiftBanner), findsOneWidget);
     await tester.pump(const Duration(seconds: 3));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
@@ -312,7 +315,7 @@ void main() {
       expect(h.container.read(liveQuipsProvider('room-0')), isNull);
     });
 
-    testWidgets('Sound effects off in Settings: the bubble shows, no sound', (
+    testWidgets('Sound effects off in Settings: the strip shows, no sound', (
       tester,
     ) async {
       final h = await _pump(tester);
@@ -322,13 +325,12 @@ void main() {
           .receive(_quip('a'));
       await tester.pump(const Duration(milliseconds: 10));
       expect(h.audio.played, isEmpty);
-      expect(find.byKey(LiveQuipBubble.bubbleKey), findsOneWidget);
-      expect(find.byIcon(Icons.volume_off_rounded), findsOneWidget);
+      expect(find.byType(LiveGiftBanner), findsOneWidget);
       await tester.pump(const Duration(seconds: 5));
       await tester.pumpAndSettle();
     });
 
-    testWidgets("the bubble's speaker mutes quips on this phone", (
+    testWidgets('D224: the quip is a gift strip with its words and art', (
       tester,
     ) async {
       final h = await _pump(tester, language: AppLanguage.ar);
@@ -336,12 +338,19 @@ void main() {
           .read(liveQuipsProvider('room-0').notifier)
           .receive(_quip('a'));
       await tester.pump(const Duration(milliseconds: 10));
-      // D216: the words, with Kabi's art beside them.
-      expect(find.text('إيه الجمال ده! تحفة بجد!'), findsOneWidget);
-      await tester.tap(find.byKey(LiveQuipBubble.muteKey));
-      await tester.pump();
-      expect(h.container.read(quipsMutedProvider), isTrue);
-      expect(h.audio.stops, 1);
+      final strip = find.byKey(LiveGiftEffectsLayer.quipKey('a'));
+      expect(strip, findsOneWidget);
+      expect(
+        find.descendant(
+          of: strip,
+          matching: find.textContaining('إيه الجمال ده! تحفة بجد!'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: strip, matching: find.byType(LiveQuipArt)),
+        findsOneWidget,
+      );
       await tester.pump(const Duration(seconds: 5));
       await tester.pumpAndSettle();
     });

@@ -69,8 +69,16 @@ class LiveRoomChatLines extends ConsumerWidget {
   /// Opens a user's profile card.
   final void Function(String username) onProfile;
 
-  /// The bubble colour (the audio room's purple, or the video scrim).
+  /// The bubble colour (the audio room's purple, or the video scrim) of
+  /// the join, gift and quip lines. D224: never a message's — a message is
+  /// plain text on no background ([plain]) unless its author wears a
+  /// bubble (the CP Exclusive Chat Bubble).
   final Color bubble;
+
+  /// D224 (owner: «اطار التكست للاشخاص بدون ان يكون يرتدي فقاعة دردشة عادي
+  /// بدون اي شيء خلفية بشفافية كما كان قبل»): a message line's background
+  /// in every live category (video, audio, podcast, multi) — none.
+  static const plain = Color(0x00000000);
 
   /// D199 (owner, ref 275): the video live's chat area keeps its height
   /// and starts at its top (the rules line first); the audio room's does
@@ -316,7 +324,10 @@ class LiveRoomChatLines extends ConsumerWidget {
       // D118/D135: the room's rules, a see-through system line (not
       // tappable), the first line of this visit.
       // D178: a gift or a lucky win of this live.
-      LiveChatGiftLine() || LiveChatLuckyLine() => LiveChatGiftLineView(
+      // D224: a quip's line, the same way.
+      LiveChatGiftLine() ||
+      LiveChatLuckyLine() ||
+      LiveChatQuipLine() => LiveChatGiftLineView(
         item: item,
         color: bubble,
         maxWidth: boxMax,
@@ -358,7 +369,7 @@ class LiveRoomChatLines extends ConsumerWidget {
           hostAgentCode: entry.author.hostAgentCode,
           rechargeBadge: entry.author.rechargeBadge,
           maxWidth: max,
-          color: bubble,
+          color: plain,
           cp: entry.cpBubble,
           mediaInside: true,
           label: voice
@@ -384,7 +395,7 @@ class LiveRoomChatLines extends ConsumerWidget {
           hostAgentCode: entry.author.hostAgentCode,
           rechargeBadge: entry.author.rechargeBadge,
           maxWidth: max,
-          color: bubble,
+          color: plain,
           cp: entry.cpBubble,
           label: l10n.liveChatLineLabel(
             entry.author.displayName,
@@ -405,7 +416,7 @@ class LiveRoomChatLines extends ConsumerWidget {
           child: LiveChatInlineRow(
             name: authorName,
             maxWidth: max,
-            color: bubble,
+            color: plain,
             label: [
               l10n.liveChatLineLabel(authorName, kabiSpokenText(text, l10n)),
               if (failed && tooFast)
@@ -443,8 +454,9 @@ class LiveRoomChatLines extends ConsumerWidget {
           hostAgentCode: join.user.hostAgentCode,
           rechargeBadge: join.user.rechargeBadge,
         );
-      case LiveChatGiftLine() || LiveChatLuckyLine():
-        // D178: a gift or a lucky win of this live, as a row.
+      case LiveChatGiftLine() || LiveChatLuckyLine() || LiveChatQuipLine():
+        // D178: a gift or a lucky win of this live, as a row (D224: and a
+        // quip).
         return LiveChatGiftLineView(
           item: item,
           color: bubble,
@@ -480,10 +492,9 @@ class LiveRoomChatLines extends ConsumerWidget {
     );
   }
 
-  /// D119: message boxes in the audio room take the reference's grey
-  /// glass; on video they keep the caller's scrim (camera behind).
-  Color get _messageBubble =>
-      bubble == KAudioRoom.bubble ? LiveChatAuthoredLine.audioBubble : bubble;
+  /// D224 (owner): a message has no default box in any room (D119's grey
+  /// glass and the video scrim are gone); a worn bubble (CP) still draws.
+  static const Color _messageBubble = plain;
 
   Widget _mediaLine(
     BuildContext context,
@@ -575,6 +586,8 @@ class LiveRoomChatLines extends ConsumerWidget {
               height: 1.3,
               color: KAudioRoom.text,
               fontWeight: FontWeight.w500,
+              // D224: no box behind it (unless a worn bubble).
+              shadows: cp ? null : KLiveColors.glassShadow,
             ),
             children: [
               ...kabiIsolatedSpans(text, size: size * KKabiEmoji.inlineScale),
@@ -758,9 +771,6 @@ class LiveChatAuthoredLine extends StatelessWidget {
   static const double badgeRowHeight = 18;
   static const EdgeInsetsDirectional boxPadding =
       EdgeInsetsDirectional.fromSTEB(8, 8, 12, 8);
-
-  /// The reference's glass: a half-see-through grey over the room.
-  static const audioBubble = Color(0x8C4A4754);
 
   /// The name: muted white.
   static const nameColor = Color(0xB3FFFFFF);
@@ -1567,7 +1577,11 @@ class _LiveChatInlineRowState extends State<LiveChatInlineRow> {
       height: LiveChatInlineRow.lineHeight,
       color: KAudioRoom.text,
       fontWeight: FontWeight.w500,
-      shadows: const [Shadow(color: Color(0x4D000000), blurRadius: 2)],
+      // D224: a plain line (no box) reads on bright video with the live
+      // glass's text shadow.
+      shadows: w.color.a == 0 && !w.cp
+          ? KLiveColors.glassShadow
+          : const [Shadow(color: Color(0x4D000000), blurRadius: 2)],
     );
     final badges = LiveChatBadgeRow(
       role: w.role,

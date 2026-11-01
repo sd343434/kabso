@@ -144,6 +144,19 @@ final class LiveChatGiftLine extends LiveChatItem {
   String get key => 'g:${gift.id}';
 }
 
+/// D224 (owner: «الافيهات … ارسالها كشريط الهدايا الاخرى وتظهر على
+/// التكست»): a quip played in this live, as a chat line the way a gift's
+/// line shows («سارة أرسل إفيه: إيه الجمال ده!»), once per quip, when it
+/// starts to play (with its strip).
+final class LiveChatQuipLine extends LiveChatItem {
+  const new(this.quip);
+
+  final LiveQuip quip;
+
+  @override
+  String get key => 'q:${quip.id}';
+}
+
 /// D178 (owner: «لا يظهر المكسب في التكست»): a lucky win in this live, as a
 /// chat line («فلان ربح ×5 = 50 عملة من هدية الحظ»), from the room's
 /// `lucky-win` message (every win, v1.41-live) or the sender's own answer.
@@ -478,8 +491,10 @@ class LiveChatController extends Notifier<LiveChatState> {
         // CP-020: LiveGiftEffects plays gifts and lucky wins and, D178,
         // puts their lines in this chat (addGift / addLuckyWin: the
         // sender's own answer too, once); D138's seat emojis play on the
-        // seats (LiveSeatEmojis); D154's quips play in LiveQuips (their
-        // own bubble); D154e's program has its own card (LivePrograms).
+        // seats (LiveSeatEmojis); D154's quips play in LiveQuips (D224:
+        // LiveGiftEffects gives each its gift strip and its line here when
+        // it plays — addQuip); D154e's program has its own card
+        // (LivePrograms).
         break;
     }
   }
@@ -526,6 +541,19 @@ class LiveChatController extends Notifier<LiveChatState> {
     }
     state = state.copyWith(
       items: _trim([...state.items, LiveChatLuckyLine(win)]),
+    );
+  }
+
+  /// D224: [quip]'s chat line (once), when it plays.
+  void addQuip(LiveQuip quip) {
+    if (!ref.mounted) return;
+    if (state.items.any(
+      (it) => it is LiveChatQuipLine && it.quip.id == quip.id,
+    )) {
+      return;
+    }
+    state = state.copyWith(
+      items: _trim([...state.items, LiveChatQuipLine(quip)]),
     );
   }
 

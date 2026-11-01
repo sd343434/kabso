@@ -62,6 +62,9 @@ class LiveGiftEffectsLayer extends ConsumerWidget {
       : KSpacing.sm;
 
   static Key bannerKey(String comboId) => Key('gift.banner.$comboId');
+
+  /// D224: a quip's strip.
+  static Key quipKey(String quipId) => Key('gift.quip.$quipId');
   static const effectKey = Key('gift.effect');
 
   /// D132: the lucky win announcement (D159: the owner's tier banner).
@@ -179,16 +182,8 @@ class LiveGiftEffectsLayer extends ConsumerWidget {
           end: KSpacing.sm,
           child: LiveProgramCard(roomId: roomId),
         ),
-        // D154: the quip playing now, as a bubble with its words.
-        Positioned(
-          top: MediaQuery.paddingOf(context).top + LiveQuipBubble.top,
-          left: KSpacing.md,
-          right: KSpacing.md,
-          child: Align(
-            alignment: Alignment.topCenter,
-            child: LiveQuipBubble(roomId: roomId),
-          ),
-        ),
+        // D224: the quip playing now is a strip in the gifts' column
+        // (LiveGiftEffects.showQuip); D216's quip banner is gone.
       ],
     );
   }
@@ -439,8 +434,9 @@ class _StripsLayout extends SingleChildLayoutDelegate {
 
 /// D145/D145a: the gift strips of a live — up to
 /// [LiveGiftEffects.maxBanners], the newest on top, each a [LiveGiftBanner]
-/// that opens the sender's card on a tap ([onSender]). Nothing while no
-/// gift is being shown; the column grows and shrinks smoothly.
+/// that opens the sender's card on a tap ([onSender]); D224: a quip that
+/// plays is one of them. Nothing while no gift is being shown; the column
+/// grows and shrinks smoothly.
 class LiveGiftStrips extends ConsumerWidget {
   const new({required this.roomId, super.key, this.onSender});
 
@@ -462,19 +458,26 @@ class LiveGiftStrips extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // The newest on top.
-        for (final gift in banners.reversed)
+        for (final strip in banners.reversed)
           Padding(
-            key: ValueKey('strip.${gift.combo.id}'),
+            key: ValueKey('strip.${strip.key}'),
             padding: const EdgeInsets.only(bottom: KSpacing.xxs),
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onTap: onSender == null ? null : () => onSender(gift.sender),
-              child: LiveGiftBanner(
-                key: LiveGiftEffectsLayer.bannerKey(gift.combo.id),
-                gift: gift,
-                name: catalogue?.byCode(gift.giftCode)?.name,
-                imageUrl: gift.imageUrl ?? _art(catalogue, gift)?.imageUrl,
-              ),
+              onTap: onSender == null ? null : () => onSender(strip.sender),
+              child: switch (strip) {
+                LiveGiftStrip(:final gift) => LiveGiftBanner(
+                  key: LiveGiftEffectsLayer.bannerKey(gift.combo.id),
+                  gift: gift,
+                  name: catalogue?.byCode(gift.giftCode)?.name,
+                  imageUrl: gift.imageUrl ?? _art(catalogue, gift)?.imageUrl,
+                ),
+                LiveQuipStrip(:final quip) => LiveGiftBanner.quip(
+                  key: LiveGiftEffectsLayer.quipKey(quip.id),
+                  quip: quip,
+                  gift: catalogue?.byCode(quip.giftCode),
+                ),
+              },
             ),
           ),
       ],
@@ -520,10 +523,33 @@ String giftRecipientsText(AppLocalizations l10n, List<UserSummary> recipients) {
 /// the gift and ONE count (D145a): ×N, the gifts each recipient got in this
 /// combo so far (`combo.quantity`: 10 roses sent 7 times → ×70), the same
 /// number the combo button shows. Compact: 36 pt tall.
+///
+/// D224 (owner: «الافيهات … ارسالها كشريط الهدايا الاخرى»): the same strip
+/// for a quip as it plays ([LiveGiftBanner.quip]) — the sender's picture
+/// and name, «أرسل إفيه: ‹its words›» and its Kabi art (D216), no count.
 class LiveGiftBanner extends StatelessWidget {
-  const new({required this.gift, required this.name, super.key, this.imageUrl});
+  const new({
+    required LiveGift this.gift,
+    required this.name,
+    super.key,
+    this.imageUrl,
+  }) : quip = null,
+       quipGift = null;
 
-  final LiveGift gift;
+  /// D224: [quip]'s strip; [gift] is its catalogue entry when loaded.
+  const new quip({required LiveQuip this.quip, super.key, Gift? gift})
+    : quipGift = gift,
+      gift = null,
+      name = null,
+      imageUrl = null;
+
+  final LiveGift? gift;
+
+  /// D224: the quip of a quip strip.
+  final LiveQuip? quip;
+
+  /// D224: the quip's catalogue gift (its art and name), or null.
+  final Gift? quipGift;
 
   /// The gift's hosted image (D126), or null: the bundled one.
   final String? imageUrl;
@@ -535,13 +561,28 @@ class LiveGiftBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final text = context.textStyles;
-    final sender = KFormat.bidiIsolate(gift.sender.displayName);
-    final line = l10n.liveGiftBannerSent(
-      KFormat.bidiIsolate(name ?? l10n.liveGiftGeneric),
-      giftRecipientsText(l10n, gift.recipients),
-    );
-    final count = gift.combo.quantity;
-    final quantity = l10n.giftCombo(count);
+    final gift = this.gift;
+    final quip = this.quip;
+    final sentBy = gift?.sender ?? quip!.sender;
+    final sender = KFormat.bidiIsolate(sentBy.displayName);
+    final String line;
+    final Widget art;
+    final int? count;
+    if (gift != null) {
+      line = l10n.liveGiftBannerSent(
+        KFormat.bidiIsolate(name ?? l10n.liveGiftGeneric),
+        giftRecipientsText(l10n, gift.recipients),
+      );
+      art = KGiftImage(gift.assetKey, imageUrl: imageUrl, size: 32);
+      count = gift.combo.quantity;
+    } else {
+      line = l10n.liveQuipBannerSent(
+        KFormat.bidiIsolate(quipWordsOf(l10n, quip!, quipGift)),
+      );
+      art = LiveQuipArt(assetKey: quipAssetKeyOf(quip, quipGift), size: 32);
+      count = null;
+    }
+    final quantity = count == null ? null : l10n.giftCombo(count);
     final scaler = MediaQuery.textScalerOf(context)
         .clamp(maxScaleFactor: KMetrics.overlayMaxTextScale);
     final duration = KMotion.of(context, KMotion.base);
@@ -570,8 +611,8 @@ class LiveGiftBanner extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           KAvatar(
-            name: gift.sender.displayName,
-            imageUrl: gift.sender.avatarUrl,
+            name: sentBy.displayName,
+            imageUrl: sentBy.avatarUrl,
             size: 30,
           ),
           const SizedBox(width: KSpacing.xs),
@@ -601,18 +642,20 @@ class LiveGiftBanner extends StatelessWidget {
             ),
           ),
           const SizedBox(width: KSpacing.xs),
-          KGiftImage(gift.assetKey, imageUrl: imageUrl, size: 32),
-          const SizedBox(width: KSpacing.xxs),
-          MediaQuery(
-            data: MediaQuery.of(context).copyWith(textScaler: scaler),
-            child: KGiftComboCounter(count: count),
-          ),
+          art,
+          if (count != null) ...[
+            const SizedBox(width: KSpacing.xxs),
+            MediaQuery(
+              data: MediaQuery.of(context).copyWith(textScaler: scaler),
+              child: KGiftComboCounter(count: count),
+            ),
+          ],
         ],
       ),
     );
     return Semantics(
       liveRegion: true,
-      label: '$sender $line $quantity',
+      label: [sender, line, ?quantity].join(' '),
       excludeSemantics: true,
       child: TweenAnimationBuilder<double>(
         tween: Tween(begin: 0, end: 1),

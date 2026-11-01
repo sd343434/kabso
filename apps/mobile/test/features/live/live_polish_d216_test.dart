@@ -1,19 +1,14 @@
 // D216 (owner): the interrupted-live states share one card in Kabso's
-// identity (KLiveInterruption), and a sent quip shows as a joyful banner
-// (pop in, Kabi art, the sender, the words, a time line, lift away). Checked
+// identity (KLiveInterruption); the quips' Kabi art. (D224 replaced D216's
+// quip banner with the gift strip: live_polish2_d224_test.) Checked
 // in Arabic RTL and English LTR at 393×852 and 360×800 with text scale 1.3:
 // no overflow; motion stops with reduced motion; the room's behaviour (when
 // each state shows, the quip queue and the mute) is unchanged.
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
-import 'package:kabso_live/features/auth/presentation/session_controller.dart';
-import 'package:kabso_live/features/emoji/kabi_emoji.dart';
-import 'package:kabso_live/features/live/application/live_quips.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
-import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_interruption.dart';
@@ -23,26 +18,10 @@ import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../fixtures/live/live_api_fixtures.dart';
-import '../../fixtures/live/live_gift_fixtures.dart';
-import '../../helpers/fake_live_gift_repository.dart';
 import '../../helpers/fake_live_media_engine.dart';
 import '../../helpers/fake_live_repository.dart';
-import '../../helpers/fakes.dart';
 import '../../helpers/golden.dart';
 import '../../helpers/pump_app.dart';
-
-class _Audio implements QuipAudio {
-  final played = <String>[];
-
-  @override
-  Future<void> play(String soundKey) async => played.add(soundKey);
-
-  @override
-  Future<void> stop() async {}
-
-  @override
-  Future<void> dispose() async {}
-}
 
 /// [child] at [scale] with motion on or off.
 Widget _scaled(Widget child, {double scale = 1.3, bool still = false}) =>
@@ -55,9 +34,6 @@ Widget _scaled(Widget child, {double scale = 1.3, bool still = false}) =>
         child: child,
       ),
     );
-
-LiveQuip _quip(String id, {String code = 'quip_ghazal_01'}) =>
-    LiveQuip.fromJson(liveQuipJson(id: id, code: code));
 
 void main() {
   for (final language in AppLanguage.values) {
@@ -196,114 +172,6 @@ void main() {
           expect(inAway(find.text(l10n.liveHostAway)), findsOneWidget);
           expect(inAway(find.text(l10n.liveHostAwayBody)), findsOneWidget);
           expect(tester.takeException(), isNull);
-        });
-      });
-
-      group('quip banner ($tag, text ×1.3)', () {
-        Future<(ProviderContainer, _Audio)> pump(
-          WidgetTester tester, {
-          bool still = false,
-        }) async {
-          setViewport(tester, viewport);
-          final audio = _Audio();
-          await pumpScreen(
-            tester,
-            _scaled(
-              const Scaffold(
-                body: Stack(
-                  children: [
-                    Positioned(
-                      top: LiveQuipBubble.top,
-                      left: 16,
-                      right: 16,
-                      child: Align(
-                        alignment: Alignment.topCenter,
-                        child: LiveQuipBubble(roomId: 'room-0'),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              still: still,
-            ),
-            language: language,
-            liveGiftRepository: FakeLiveGiftRepository(
-              codes: [...giftFixtureCodes, ...quipFixtureCodes],
-              ar: ar,
-            ),
-            overrides: [
-              liveRepositoryProvider.overrideWithValue(FakeLiveRepository()),
-              currentUserProvider.overrideWithValue(testUser()),
-              quipAudioProvider.overrideWithValue(audio),
-            ],
-          );
-          final container = ProviderScope.containerOf(
-            tester.element(find.byType(LiveQuipBubble)),
-          )..listen(liveQuipsProvider('room-0'), (_, _) {});
-          return (container, audio);
-        }
-
-        testWidgets('pops in with the Kabi art, the sender and the words, '
-            'then lifts away; the next quip in the queue follows', (
-          tester,
-        ) async {
-          final (container, audio) = await pump(tester);
-          container.read(liveQuipsProvider('room-0').notifier)
-            ..receive(_quip('a'))
-            ..receive(_quip('b', code: 'quip_clap'));
-          await tester.pump(const Duration(milliseconds: 16));
-          expect(find.byKey(LiveQuipBubble.bubbleKey), findsOneWidget);
-          // The entrance is running.
-          expect(tester.hasRunningAnimations, isTrue);
-          final art = tester.widget<KabiEmoji>(find.byType(KabiEmoji));
-          expect(art.emoji, KabsoEmoji.kabi('kiss'));
-          expect(find.text('إيه الجمال ده! تحفة بجد!'), findsOneWidget);
-          expect(find.textContaining('لينا'), findsOneWidget);
-          await tester.pump(LiveQuipBubble.enter);
-          expect(tester.takeException(), isNull);
-          // a ends (4362 ms): b (the clap, Kiki's art) takes its place.
-          await tester.pump(const Duration(milliseconds: 4362));
-          await tester.pump(LiveQuipBubble.enter);
-          expect(audio.played, ['kabi/ghazal_01', 'room/clap']);
-          expect(
-            tester.widget<KabiEmoji>(find.byType(KabiEmoji)).emoji,
-            KabsoEmoji.byKey('kiki_clap'),
-          );
-          await tester.pump(const Duration(milliseconds: 2038));
-          await tester.pumpAndSettle();
-          expect(find.byKey(LiveQuipBubble.bubbleKey), findsNothing);
-          expect(tester.takeException(), isNull);
-        });
-
-        testWidgets('reduced motion: it simply appears and goes', (
-          tester,
-        ) async {
-          final (container, _) = await pump(tester, still: true);
-          container
-              .read(liveQuipsProvider('room-0').notifier)
-              .receive(_quip('a'));
-          await tester.pump(const Duration(milliseconds: 10));
-          expect(find.byKey(LiveQuipBubble.bubbleKey), findsOneWidget);
-          expect(tester.hasRunningAnimations, isFalse);
-          await tester.pump(const Duration(milliseconds: 4362));
-          await tester.pump();
-          expect(find.byKey(LiveQuipBubble.bubbleKey), findsNothing);
-        });
-
-        testWidgets('the speaker still mutes quips on this phone', (
-          tester,
-        ) async {
-          final (container, _) = await pump(tester);
-          container
-              .read(liveQuipsProvider('room-0').notifier)
-              .receive(_quip('a'));
-          await tester.pump(LiveQuipBubble.enter);
-          await tester.tap(find.byKey(LiveQuipBubble.muteKey));
-          await tester.pump();
-          expect(container.read(quipsMutedProvider), isTrue);
-          expect(find.byIcon(Icons.volume_off_rounded), findsOneWidget);
-          await tester.pump(const Duration(seconds: 5));
-          await tester.pumpAndSettle();
         });
       });
     }

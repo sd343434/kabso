@@ -5,6 +5,7 @@ import 'package:kabso_live/features/live/application/live_chat_controller.dart';
 import 'package:kabso_live/features/live/application/live_gift_providers.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_quip_art.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -12,7 +13,8 @@ import 'package:material_ui/material_ui.dart';
 /// «لا يظهر المكسب في التكست»): a gift or a lucky win as a line of the
 /// room's chat — the gift's picture, then «فلان أرسل وردة ×3 إلى سارة» or
 /// «فلان ربح ×5 = 50 عملة من هدية الحظ» (the win in gold). A tap on the
-/// line opens the sender's card ([onProfile]).
+/// line opens the sender's card ([onProfile]). D224: a quip's line the same
+/// way — its Kabi art, then «فلان أرسل إفيه: ‹its words›».
 class LiveChatGiftLineView extends ConsumerWidget {
   const new({
     required this.item,
@@ -21,8 +23,10 @@ class LiveChatGiftLineView extends ConsumerWidget {
     required this.onProfile,
     super.key,
   }) : assert(
-         item is LiveChatGiftLine || item is LiveChatLuckyLine,
-         'a gift or a lucky win line',
+         item is LiveChatGiftLine ||
+             item is LiveChatLuckyLine ||
+             item is LiveChatQuipLine,
+         'a gift, a lucky win or a quip line',
        );
 
   final LiveChatItem item;
@@ -75,6 +79,16 @@ class LiveChatGiftLineView extends ConsumerWidget {
             ? const Icon(Icons.casino_rounded, size: 20, color: gold)
             : KGiftImage(g.assetKey, imageUrl: g.imageUrl, size: 22);
         win = true;
+      case LiveChatQuipLine(:final quip):
+        final g = catalogue?.byCode(quip.giftCode);
+        sender = quip.sender.displayName;
+        username = quip.sender.username;
+        text = l10n.liveChatQuipLine(
+          KFormat.bidiIsolate(sender),
+          KFormat.bidiIsolate(quipWordsOf(l10n, quip, g)),
+        );
+        art = LiveQuipArt(assetKey: quipAssetKeyOf(quip, g), size: 22);
+        win = false;
       default:
         return const SizedBox.shrink();
     }

@@ -24,10 +24,11 @@ import 'package:material_ui/material_ui.dart';
 /// measured at 393 × 852 pt (spec in the D199b fidelity report):
 ///
 /// - a white sheet (the dark surface in the dark theme), 75 % of the screen,
-///   16 pt corners; the tab row «الكرز» | «هدايا الحظ» (the selected bold
-///   with a 7 × 2.6 pt mark under it) and ✕ at the end;
-/// - the period pills يومي / أسبوعي / شهري / الكل (the selected on a light
-///   grey pill, bold) and «?» at the end; a viewer has today only (the
+///   16 pt corners; the tab row «الكرز» | «هدايا الحظ» (D224: the selected
+///   bold on the theme's pill, [_Ink.chosen]) and ✕ at the end;
+/// - the period pills يومي / أسبوعي / شهري / الكل (D224: the selected on
+///   the same pill — white in the light theme, black in the dark one —
+///   bold) and «?» at the end; a viewer has today only (the
 ///   public endpoint never shows longer totals), so a single pill;
 /// - «العد التنازلي» to the period's reset (Riyadh; none for الكل) and the
 ///   period on the far side; on the daily tab today's two targets, compact;
@@ -58,6 +59,9 @@ class HostTargetSheet extends ConsumerStatefulWidget {
   static const closeKey = Key('targetSheet.close');
   static const helpKey = Key('targetSheet.help');
   static const countdownKey = Key('targetSheet.countdown');
+
+  /// D224: the selected «الكرز» / «هدايا الحظ» tab's pill.
+  static const chosenTabKey = Key('targetSheet.chosenTab');
   static const rangeKey = Key('targetSheet.range');
   static const targetsKey = Key('targetSheet.targets');
   static const meKey = Key('targetSheet.me');
@@ -90,9 +94,8 @@ abstract final class _G {
   static const tabsHeight = 44.0; // M: tab text centre 22 pt down
   static const tabFont = 15.5; // E (cap 11.1 pt)
   static const tabGap = 24.5; // M
-  static const markWidth = 7.2; // M
-  static const markHeight = 2.6; // M
-  static const markTop = 32.8; // M (from the sheet's top)
+  /// D224: the selected tab's pill (the mark under it is gone).
+  static const tabPill = 30.0;
   static const closeGlyph = 11.2; // M: 12.8 with the 1.6 pt stroke
   static const pillsTop = 8.2; // M: pill top 52.2 pt down
   static const pillHeight = 27.25; // M
@@ -136,11 +139,12 @@ class _Ink {
     required this.sheet,
     required this.strong,
     required this.soft,
-    required this.pill,
-    required this.mark,
     required this.hairline,
     required this.track,
     required this.arrow,
+    required this.chosen,
+    required this.chosenText,
+    required this.chosenEdge,
   });
 
   factory of(BuildContext context) {
@@ -150,32 +154,41 @@ class _Ink {
             sheet: p.surfaceRaised,
             strong: p.textPrimary,
             soft: p.textTertiary,
-            pill: p.surfaceOverlay,
-            mark: p.textPrimary,
             hairline: p.border,
             track: p.surfaceOverlay,
             arrow: p.textTertiary,
+            chosen: p.background,
+            chosenText: p.textPrimary,
+            chosenEdge: p.border,
           )
-        : const _Ink(
-            sheet: Color(0xFFFFFFFF),
-            strong: Color(0xFF26282A), // M
-            soft: Color(0xFF88898E), // M
-            pill: Color(0xFFF4F6F8), // M
-            mark: Color(0xFF2F3231), // M
-            hairline: Color(0xFFF0F0F0), // M
-            track: Color(0xFFF4F6F8),
-            arrow: Color(0xFFC1C1C1), // M
+        : _Ink(
+            sheet: const Color(0xFFFFFFFF),
+            strong: const Color(0xFF26282A), // M
+            soft: const Color(0xFF88898E), // M
+            hairline: const Color(0xFFF0F0F0), // M
+            track: const Color(0xFFF4F6F8),
+            arrow: const Color(0xFFC1C1C1), // M
+            chosen: p.background,
+            chosenText: p.textPrimary,
+            chosenEdge: p.border,
           );
   }
 
   final Color sheet;
   final Color strong;
   final Color soft;
-  final Color pill;
-  final Color mark;
   final Color hairline;
   final Color track;
   final Color arrow;
+
+  /// D224 (owner: «التارجت تصنيفات تكون حسب نظام مختار لونها ابيض في لايت
+  /// مود واسود في دارك مود»): the selected tab's and period's pill — the
+  /// theme's page colour (white in the light theme, black in the dark one)
+  /// with its strongest text and a hairline edge (a white pill on the
+  /// white sheet stays visible).
+  final Color chosen;
+  final Color chosenText;
+  final Color chosenEdge;
 
   static const amount = Color(0xFFF5BD15); // M
   static const ctaStart = Color(0xFF29E6DD); // M
@@ -362,6 +375,16 @@ class _HostTargetSheetState extends ConsumerState<HostTargetSheet> {
     );
   }
 
+  /// D224: the selected tab's / period's pill ([_Ink.chosen]) of [height].
+  static BoxDecoration _chosen(_Ink ink, double height) => BoxDecoration(
+    color: ink.chosen,
+    borderRadius: BorderRadius.circular(height / 2),
+    border: Border.all(color: ink.chosenEdge, width: 0.8),
+    boxShadow: const [
+      BoxShadow(color: Color(0x14000000), blurRadius: 4, offset: Offset(0, 1)),
+    ],
+  );
+
   Widget _tabs(BuildContext context, _Ink ink) {
     final l10n = context.l10n;
     final t = context.textStyles;
@@ -376,33 +399,25 @@ class _HostTargetSheetState extends ConsumerState<HostTargetSheet> {
           onTap: () => setState(() => _tab = tab),
           child: SizedBox(
             height: _G.tabsHeight,
-            child: Stack(
-              clipBehavior: Clip.none,
-              alignment: Alignment.center,
-              children: [
-                Text(
+            child: Center(
+              child: Container(
+                key: selected ? HostTargetSheet.chosenTabKey : null,
+                height: _G.tabPill,
+                // The unselected tab keeps its place and look (no pill).
+                padding: const EdgeInsets.symmetric(horizontal: _G.pillPad),
+                alignment: Alignment.center,
+                decoration: selected ? _chosen(ink, _G.tabPill) : null,
+                child: Text(
                   label,
                   maxLines: 1,
                   style: t.body.copyWith(
                     fontSize: _G.tabFont,
                     height: 1.2,
                     fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                    color: selected ? ink.strong : ink.soft,
+                    color: selected ? ink.chosenText : ink.soft,
                   ),
                 ),
-                if (selected)
-                  Positioned(
-                    top: _G.markTop,
-                    child: Container(
-                      width: _G.markWidth,
-                      height: _G.markHeight,
-                      decoration: BoxDecoration(
-                        color: ink.mark,
-                        borderRadius: BorderRadius.circular(_G.markHeight),
-                      ),
-                    ),
-                  ),
-              ],
+              ),
             ),
           ),
         ),
@@ -419,7 +434,8 @@ class _HostTargetSheetState extends ConsumerState<HostTargetSheet> {
               child: Row(
                 children: [
                   tab(TargetTab.cherries, l10n.liveTargetCherriesSection),
-                  const SizedBox(width: _G.tabGap),
+                  // D224: the pills' padding takes part of the gap.
+                  const SizedBox(width: _G.tabGap - 2 * _G.pillPad),
                   tab(TargetTab.lucky, l10n.liveTargetLuckySection),
                 ],
               ),
@@ -487,12 +503,9 @@ class _HostTargetSheetState extends ConsumerState<HostTargetSheet> {
                             horizontal: _G.pillPad,
                           ),
                           alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: p == _period ? ink.pill : null,
-                            borderRadius: BorderRadius.circular(
-                              _G.pillHeight / 2,
-                            ),
-                          ),
+                          decoration: p == _period
+                              ? _chosen(ink, _G.pillHeight)
+                              : null,
                           child: Text(
                             labels[p]!,
                             maxLines: 1,
@@ -502,7 +515,7 @@ class _HostTargetSheetState extends ConsumerState<HostTargetSheet> {
                               fontWeight: p == _period
                                   ? FontWeight.w700
                                   : FontWeight.w500,
-                              color: p == _period ? ink.strong : ink.soft,
+                              color: p == _period ? ink.chosenText : ink.soft,
                             ),
                           ),
                         ),

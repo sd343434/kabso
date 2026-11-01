@@ -12913,11 +12913,17 @@ abstract class AppLocalizations {
   /// **'في الدور — يبدأ بعد {seconds} ث'**
   String liveQuipQueued(int seconds);
 
-  /// D154: screen reader label of the quip bubble.
+  /// D224: the line under the sender's name on a quip's gift strip.
   ///
   /// In ar, this message translates to:
-  /// **'{name}: {words}'**
-  String liveQuipBubbleSemantics(String name, String words);
+  /// **'أرسل إفيه: {words}'**
+  String liveQuipBannerSent(String words);
+
+  /// D224: a quip's line in the live chat, like a gift's line.
+  ///
+  /// In ar, this message translates to:
+  /// **'{sender} أرسل إفيه: {words}'**
+  String liveChatQuipLine(String sender, String words);
 
   /// Error QUIP_FREE_USED.
   ///
