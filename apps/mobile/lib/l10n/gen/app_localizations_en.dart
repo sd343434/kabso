@@ -12637,6 +12637,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get errorReferralNotAllowed => 'You cannot enter an invite code now';
 
   @override
+  String get errorDeviceAccountLimit =>
+      'You cannot create more than 2 accounts on the same device. You can log in to your existing accounts.';
+
+  @override
+  String errorDeviceAccountLimitCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: ' $count accounts',
+      one: ' one account',
+    );
+    return 'You cannot create more than$_temp0 on the same device. You can log in to your existing accounts.';
+  }
+
+  @override
   String get registerReferralLabel => 'Invite code (optional)';
 
   @override

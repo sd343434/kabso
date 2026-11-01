@@ -12116,6 +12116,13 @@
   "@errorReferralCodeInvalid": {"description": "D217 (invite friends «دعوة الأصدقاء»)."},
   "errorReferralNotAllowed": "لا يمكنك إدخال كود دعوة الآن",
   "@errorReferralNotAllowed": {"description": "D217 (invite friends «دعوة الأصدقاء»)."},
+  "errorDeviceAccountLimit": "لا يمكن إنشاء أكثر من حسابين من نفس الجهاز. يمكنك تسجيل الدخول إلى حساباتك الحالية.",
+  "@errorDeviceAccountLimit": {"description": "D223 (owner copy): DEVICE_ACCOUNT_LIMIT — this device already created its 2 accounts; signing in is still possible."},
+  "errorDeviceAccountLimitCount": "{count, plural, =1{لا يمكن إنشاء أكثر من حساب واحد من نفس الجهاز.} =2{لا يمكن إنشاء أكثر من حسابين من نفس الجهاز.} few{لا يمكن إنشاء أكثر من {count} حسابات من نفس الجهاز.} many{لا يمكن إنشاء أكثر من {count} حسابًا من نفس الجهاز.} other{لا يمكن إنشاء أكثر من {count} حساب من نفس الجهاز.}} يمكنك تسجيل الدخول إلى حساباتك الحالية.",
+  "@errorDeviceAccountLimitCount": {
+    "description": "D223: DEVICE_ACCOUNT_LIMIT with the device's own limit (details[0].issue; an OWNER exception may differ from 2). T4: Arabic plural via ICU.",
+    "placeholders": {"count": {"type": "int"}}
+  },
   "registerReferralLabel": "كود الدعوة (اختياري)",
   "@registerReferralLabel": {"description": "D217 (invite friends «دعوة الأصدقاء»)."},
   "registerReferralHelper": "إن دعاك صديق، اكتب كوده أو الصق رابط الدعوة",

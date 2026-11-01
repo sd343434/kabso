@@ -12632,6 +12632,24 @@ class AppLocalizationsAr extends AppLocalizations {
   String get errorReferralNotAllowed => 'لا يمكنك إدخال كود دعوة الآن';
 
   @override
+  String get errorDeviceAccountLimit =>
+      'لا يمكن إنشاء أكثر من حسابين من نفس الجهاز. يمكنك تسجيل الدخول إلى حساباتك الحالية.';
+
+  @override
+  String errorDeviceAccountLimitCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'لا يمكن إنشاء أكثر من $count حساب من نفس الجهاز.',
+      many: 'لا يمكن إنشاء أكثر من $count حسابًا من نفس الجهاز.',
+      few: 'لا يمكن إنشاء أكثر من $count حسابات من نفس الجهاز.',
+      two: 'لا يمكن إنشاء أكثر من حسابين من نفس الجهاز.',
+      one: 'لا يمكن إنشاء أكثر من حساب واحد من نفس الجهاز.',
+    );
+    return '$_temp0 يمكنك تسجيل الدخول إلى حساباتك الحالية.';
+  }
+
+  @override
   String get registerReferralLabel => 'كود الدعوة (اختياري)';
 
   @override

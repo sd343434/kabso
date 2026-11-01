@@ -96,6 +96,7 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.referralUnavailable: 503,
   ErrorCode.referralCodeInvalid: 422,
   ErrorCode.referralNotAllowed: 409,
+  ErrorCode.deviceAccountLimit: 409,
   ErrorCode.insufficientCherries: 409,
   ErrorCode.withdrawalPending: 409,
   ErrorCode.rechargeApplicationNotAllowed: 409,
@@ -245,6 +246,8 @@ void main() {
           'REFERRAL_UNAVAILABLE',
           'REFERRAL_CODE_INVALID',
           'REFERRAL_NOT_ALLOWED',
+          // v1.78-social (D223).
+          'DEVICE_ACCOUNT_LIMIT',
           'INSUFFICIENT_CHERRIES',
           'WITHDRAWAL_PENDING',
           // v1.54-social (D185).
