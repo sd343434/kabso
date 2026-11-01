@@ -221,5 +221,5 @@
 - **The ticker** shows masked names of people who got a reward in the last 30 days, regardless of their privacy
   settings (only the masked name and the amount).
 - **Data export (D198)** does not include the referral rows yet.
-- **The Flutter tests of D217 were written but not run** in this session (the disk was full; see the board row). Not
-  verified on a device or on the server; no captures.
+- **Not verified on a device or on the server.** The Flutter tests ran (full suite) and the page has goldens and
+  @3x test captures (fake data), not device captures.
