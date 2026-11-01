@@ -94,6 +94,13 @@ List<Override> _populated(
   void count(String source) =>
       calls?.update(source, (n) => n + 1, ifAbsent: () => 1);
   return [
+    // D218: Posts lists the server's 1 Following : 2 Trending mix.
+    homeMixedPostsProvider.overrideWith((ref) {
+      count('posts.mixed');
+      return FeedItems<FeedPostData>(
+        posts ?? [for (var i = 0; i < postCopies; i++) ...feedPosts(language)],
+      );
+    }),
     homePostsProvider.overrideWith((ref, feed) {
       count('posts.${feed.name}');
       final all =
@@ -235,12 +242,16 @@ void main() {
     );
   });
 
-  test('KL-060: production posts come from the posts API, per feed, as '
-      'real (interactive) posts', () async {
+  test('KL-060 / D218: production posts come from the posts API (the '
+      'page reads tab=mixed), as real (interactive) posts', () async {
     final repo = FakePostsRepository(
       feeds: {
         PostsFeedTab.trending: [testPost('p1', likes: 3, liked: true)],
         PostsFeedTab.following: const [],
+        PostsFeedTab.mixed: [
+          testPost('m1', viewerFollowsAuthor: true),
+          testPost('m2', viewerFollowsAuthor: false),
+        ],
       },
     );
     final container = ProviderContainer.test(
@@ -262,77 +273,71 @@ void main() {
       homePostsProvider(HomeFeed.following).future,
     );
     expect((following as FeedItems<FeedPostData>).items, isEmpty);
-    expect(repo.calls, ['feed:trending:', 'feed:following:']);
+    final mixed = await container.read(homeMixedPostsProvider.future);
+    final mix = (mixed as FeedItems<FeedPostData>).items;
+    expect([for (final p in mix) p.postId], ['m1', 'm2']);
+    // The card's «متابعة» pill and «مقترح لك» read the server's flag.
+    expect([for (final p in mix) p.isFollowingAuthor], [true, false]);
+    expect(repo.calls, ['feed:trending:', 'feed:following:', 'feed:mixed:']);
   });
 
-  group('header', () {
-    testWidgets('48 dp: Trending · Following · "Reels" centred (Trending '
-        'selected; the third word switches mode); no Create (the '
-        'bottom bar has it); Search at the start (D55)', (tester) async {
-      await _pump(tester);
-      expect(find.byKey(FeedScreen.searchKey), findsOneWidget);
-      expect(find.byTooltip(_en.feedSearch), findsOneWidget);
+  group('header (D218 follow-up: the bar of before)', () {
+    testWidgets('48 dp: Search at the start, the bell at the end (48 dp '
+        'targets), «Posts» centred with the «Reels» switch word after it; no '
+        'avatar or name, no Create', (tester) async {
+      await _pump(
+        tester,
+        overrides: [currentUserProvider.overrideWithValue(testUser())],
+      );
       final header = tester.getRect(find.byKey(FeedScreen.headerKey));
       expect(header.height, _topInset(tester) + KMetrics.topBarHeight);
       expect(_mode(tester), HomeTab.posts);
-      expect(_selected(tester, _en.homeFeedTrending), isTrue);
-      expect(_selected(tester, _en.feedTabFollowing), isFalse);
-      final trending = tester.getRect(_feedTab(_en.homeFeedTrending));
-      final following = tester.getRect(_feedTab(_en.feedTabFollowing));
+      expect(_selected(tester, _en.homeTabPosts), isTrue);
       final word = find.byKey(FeedScreen.switchKey);
-      expect(trending.right, lessThan(following.left));
-      expect(following.right, lessThan(tester.getRect(word).left));
       expect(
         find.descendant(of: word, matching: find.text(_en.homeTabReels)),
         findsOneWidget,
       );
-      expect(find.bySemanticsLabel(_en.homeShowReels), findsOneWidget);
       expect(
-        tester.getSize(word).height,
-        greaterThanOrEqualTo(KSizes.minTouchTarget),
+        tester.getRect(_feedTab(_en.homeTabPosts)).right,
+        lessThan(tester.getRect(word).left),
       );
-      // The words fill the space between equal side insets: centred on
-      // the screen.
       final tabs = tester.getRect(find.byKey(FeedScreen.tabsKey));
       expect(tabs.center.dx, moreOrLessEquals(393 / 2, epsilon: 0.5));
-      // The icon buttons are Search (start) and, since CP-009, the
-      // notifications bell (end), each a 48 dp target in an equal inset.
       expect(
-        find.descendant(
-          of: find.byKey(FeedScreen.headerKey),
-          matching: find.byType(IconButton),
+        tester.getRect(find.byKey(FeedScreen.searchKey)),
+        Rect.fromLTWH(
+          KSpacing.xs,
+          header.bottom - KMetrics.topBarHeight,
+          KSizes.minTouchTarget,
+          KSizes.minTouchTarget,
         ),
-        findsNWidgets(2),
       );
       final bell = tester.getRect(find.byKey(NotificationsBell.bellKey));
       expect(bell.size, const Size.square(KSizes.minTouchTarget));
       expect(bell.right, moreOrLessEquals(393 - KSpacing.xs));
-      expect(bell.left, greaterThanOrEqualTo(tabs.right));
+      // No person in the bar (owner: «ازل صورة والاسم في الاعلى»).
+      expect(
+        find.descendant(
+          of: find.byKey(FeedScreen.headerKey),
+          matching: find.byType(KAvatar),
+        ),
+        findsNothing,
+      );
+      expect(find.text(testUser().displayName), findsNothing);
       expect(find.byTooltip(_en.navCreate), findsNothing);
       expect(find.byType(AppBar), findsNothing);
-      expect(find.byType(KLogo), findsNothing);
-      // KL-060: the posts API with no posts yet.
       expect(find.text(_en.homeEmptyTitle), findsOneWidget);
     });
 
-    // With the real fonts (not the test font), every word fits at 360 and
-    // 393 dp in both languages at normal text size: the spacing tightens
-    // before anything is cut (English at 360 used to clip "Reels").
     for (final language in AppLanguage.values) {
       for (final viewport in GoldenViewport.values) {
-        testWidgets('real fonts, ${language.name} ${viewport.name}: '
-            'Trending, Following and the switch word all fit', (tester) async {
+        testWidgets('real fonts, ${language.name} ${viewport.name}: «Posts» '
+            'and the switch word fit between Search and the bell', (
+          tester,
+        ) async {
           await loadAppFonts();
           await _pump(tester, language: language, viewport: viewport);
-          final scroll = tester.state<ScrollableState>(
-            find
-                .descendant(
-                  of: find.byKey(FeedScreen.tabsKey),
-                  matching: find.byType(Scrollable),
-                )
-                .first,
-          );
-          expect(scroll.position.maxScrollExtent, 0);
           final tabs = tester.getRect(find.byKey(FeedScreen.tabsKey));
           final word = tester.getRect(find.byKey(FeedScreen.switchKey));
           expect(word.left, greaterThanOrEqualTo(tabs.left));
@@ -343,32 +348,18 @@ void main() {
     }
 
     for (final language in AppLanguage.values) {
-      testWidgets('mirrors in ${language.name}: Search at the '
-          'reading start; Trending, Following, then the switch word in the '
-          'reading order', (tester) async {
+      testWidgets('mirrors in ${language.name}: Search at the reading start, '
+          'the bell at the end', (tester) async {
         await _pump(tester, language: language);
-        final l10n = l10nFor(language);
-        final trending = tester.getCenter(_feedTab(l10n.homeFeedTrending)).dx;
-        final following = tester.getCenter(_feedTab(l10n.feedTabFollowing)).dx;
-        expect(
-          trending < following,
-          language == AppLanguage.en,
-          reason: 'Trending at the reading start',
-        );
-        expect(
-          tester.getSize(find.byKey(FeedScreen.searchKey)),
-          const Size.square(KSizes.minTouchTarget),
-        );
-        expect(find.byTooltip(l10nFor(language).feedSearch), findsOneWidget);
         final search = tester.getCenter(find.byKey(FeedScreen.searchKey)).dx;
-        final word = tester.getCenter(find.byKey(FeedScreen.switchKey)).dx;
+        final bell = tester.getCenter(find.byKey(NotificationsBell.bellKey)).dx;
         const edge = KSpacing.xs + KSizes.minTouchTarget / 2;
         if (language == AppLanguage.ar) {
           expect(search, 393 - edge);
-          expect(word, lessThan(following));
+          expect(bell, edge);
         } else {
           expect(search, edge);
-          expect(word, greaterThan(following));
+          expect(bell, 393 - edge);
         }
       });
     }
@@ -406,7 +397,6 @@ void main() {
         );
         await tester.pumpAndSettle();
         expect(_mode(tester), HomeTab.posts);
-        expect(_selected(tester, _en.homeFeedTrending), isTrue);
       }
     });
 
@@ -429,15 +419,14 @@ void main() {
       await _switch(tester);
       expect(_scroll(tester, HomeTab.posts).pixels, offset);
       // One build per source, however often the modes and feeds switch.
-      await _selectFeed(tester, _en.feedTabFollowing);
       await _switch(tester);
+      await _selectFeed(tester, _en.feedTabFollowing);
       // D202: Reels names Trending «For You» (the reels page's tabs).
       await _selectFeed(tester, _en.reelsTabForYou);
       await _switch(tester);
       expect(_scroll(tester, HomeTab.posts).pixels, offset);
       expect(calls, {
-        'posts.trending': 1,
-        'posts.following': 1,
+        'posts.mixed': 1,
         'stories': 1,
         'reels.trending': 1,
         'reels.following': 1,
@@ -470,60 +459,36 @@ void main() {
     });
   });
 
-  group('feeds (D53)', () {
-    testWidgets('Following shows its own feed; the selected feed is kept '
-        'across a mode switch', (tester) async {
-      await _pump(tester, overrides: _populated(AppLanguage.en));
-      final cards = find.byType(FeedPostTile);
-      expect(find.text('Sara'), findsWidgets);
-      await _selectFeed(tester, _en.feedTabFollowing);
-      expect(_selected(tester, _en.feedTabFollowing), isTrue);
-      expect(
-        find.descendant(of: cards, matching: find.text('Sara')),
-        findsNothing,
+  group('feeds (D53, Reels only since D218)', () {
+    testWidgets('Reels · Following shows its own feed; the selected feed is '
+        'kept across a mode switch', (tester) async {
+      await _pump(
+        tester,
+        initialTab: HomeTab.reels,
+        overrides: _populated(AppLanguage.en),
       );
-      await _switch(tester);
-      expect(_mode(tester), HomeTab.reels);
+      await _selectFeed(tester, _en.feedTabFollowing);
       expect(_selected(tester, _en.feedTabFollowing), isTrue);
       // Reels · Following starts with the last reel of the fixture (no
       // username: its name is shown).
       expect(find.text('Hind'), findsOneWidget);
+      await _switch(tester);
+      expect(_mode(tester), HomeTab.posts);
+      await _switch(tester);
+      expect(_selected(tester, _en.feedTabFollowing), isTrue);
       // D202: Reels' Trending is «For You»; a reel shows the handle.
       await _selectFeed(tester, _en.reelsTabForYou);
       expect(find.text(KHandle.ltr('@layla')), findsOneWidget);
     });
 
-    testWidgets('each feed keeps its own scroll position', (tester) async {
-      await _pump(tester, overrides: _populated(AppLanguage.en, postCopies: 4));
-      await tester.drag(
-        find.byKey(FeedScreen.pageKey(HomeTab.posts)),
-        const Offset(0, -500),
-      );
-      await tester.pumpAndSettle();
-      final trending = _scroll(tester, HomeTab.posts).pixels;
+    testWidgets('reels · Following with nothing to show: its own copy and '
+        '"See who\'s live"', (tester) async {
+      await _pump(tester, initialTab: HomeTab.reels);
       await _selectFeed(tester, _en.feedTabFollowing);
-      expect(_scroll(tester, HomeTab.posts).pixels, 0);
-      await _selectFeed(tester, _en.homeFeedTrending);
-      expect(_scroll(tester, HomeTab.posts).pixels, trending);
+      expect(find.text(_en.homeReelsFollowingEmptyTitle), findsOneWidget);
+      expect(find.text(_en.homeSeeWhoIsLive), findsOneWidget);
+      expect(find.text(_en.homeWatchLive), findsNothing);
     });
-
-    for (final (tab, title) in [
-      // KL-060: posts have an API (empty here); D162: reels too.
-      (HomeTab.posts, _en.homeFollowingEmptyTitle),
-      (HomeTab.reels, _en.homeReelsFollowingEmptyTitle),
-    ]) {
-      testWidgets(
-        '${tab.name} · Following with nothing to show: its own copy and '
-        '"See who\'s live"',
-        (tester) async {
-          await _pump(tester, initialTab: tab);
-          await _selectFeed(tester, _en.feedTabFollowing);
-          expect(find.text(title), findsOneWidget);
-          expect(find.text(_en.homeSeeWhoIsLive), findsOneWidget);
-          expect(find.text(_en.homeWatchLive), findsNothing);
-        },
-      );
-    }
   });
 
   group('reel rail (D53)', () {
@@ -612,9 +577,9 @@ void main() {
   });
 
   group('Posts', () {
-    testWidgets('stories tray above flat, full-width posts (D54): author, '
-        'edge-to-edge media with the video mark, display-only action row, '
-        'caption led by the name, then the time', (tester) async {
+    testWidgets('stories tray above flat, full-width posts (D54; D218 '
+        'order): author, caption (no name before it), time, edge-to-edge '
+        'media with the video mark, then the action row', (tester) async {
       await _pump(tester, overrides: _populated(AppLanguage.en));
       final tray = find.byKey(FeedStoriesTray.trayKey);
       expect(tray, findsOneWidget);
@@ -624,7 +589,10 @@ void main() {
         findsNWidgets(stories.length),
       );
       final first = find.byType(FeedPostTile).first;
-      expect(tester.getRect(tray).bottom, lessThan(tester.getRect(first).top));
+      expect(
+        tester.getRect(tray).bottom,
+        lessThanOrEqualTo(tester.getRect(first).top),
+      );
       final post = tester.getRect(first);
       expect(post.left, 0);
       expect(post.right, 393);
@@ -643,23 +611,20 @@ void main() {
         ),
       );
       final time = tester.getRect(find.text(_en.relativeMinutesAgo(12)));
-      expect(name.bottom, lessThanOrEqualTo(media.top));
+      expect(name.bottom, lessThanOrEqualTo(time.top));
+      expect(time.bottom, lessThanOrEqualTo(media.top));
       expect(counts.top, greaterThanOrEqualTo(media.bottom));
-      expect(time.top, greaterThan(counts.bottom));
-      // The caption starts with the author's name.
-      final caption = tester.widget<RichText>(
-        find
-            .descendant(
-              of: first,
-              matching: find.byWidgetPredicate(
-                (w) =>
-                    w is RichText &&
-                    w.text.toPlainText().startsWith('Sara First time'),
-              ),
-            )
-            .first,
+      // D218: the caption no longer repeats the author's name.
+      expect(
+        find.descendant(
+          of: first,
+          matching: find.byWidgetPredicate(
+            (w) =>
+                w is RichText && w.text.toPlainText().startsWith('First time'),
+          ),
+        ),
+        findsWidgets,
       );
-      expect(caption.text.toPlainText(), startsWith('Sara '));
       expect(
         find.bySemanticsLabel(_en.feedPostCounts('105', '15', '50')),
         findsOneWidget,
@@ -840,7 +805,7 @@ void main() {
       expect(find.byKey(FeedStoriesTray.trayKey), findsNothing);
       expect(
         tester.getRect(find.byType(FeedPostTile).first).top,
-        _topInset(tester) + KMetrics.topBarHeight + KSpacing.xs,
+        _topInset(tester) + KMetrics.topBarHeight,
       );
     });
 
@@ -878,11 +843,11 @@ void main() {
           find.descendant(of: more, matching: find.byType(RichText)),
         );
         final plain = rich.text.toPlainText();
-        expect(plain, startsWith('Sara '));
-        expect(plain, endsWith('… ${l10n.feedSeeMore}'));
+        // D218: no name before the caption; «… المزيد» / "… more".
+        expect(plain, endsWith('… ${l10n.feedPostSeeMore}'));
         final shown = plain.substring(
-          'Sara '.length,
-          plain.length - 2 - l10n.feedSeeMore.length,
+          0,
+          plain.length - 2 - l10n.feedPostSeeMore.length,
         );
         expect(shown.length, lessThan(long.length));
         // Cut at a word boundary.
@@ -892,7 +857,7 @@ void main() {
         final line = tester
             .getSize(
               find.byWidgetPredicate(
-                (w) => w is RichText && w.text.toPlainText() == 'Omar Short',
+                (w) => w is RichText && w.text.toPlainText() == 'Short',
               ),
             )
             .height;
@@ -901,7 +866,7 @@ void main() {
         await tester.pumpAndSettle();
         expect(more, findsNothing);
         final full = find.byWidgetPredicate(
-          (w) => w is RichText && w.text.toPlainText() == 'Sara $long',
+          (w) => w is RichText && w.text.toPlainText() == long,
         );
         expect(full, findsOneWidget);
         expect(tester.getSize(full).height, greaterThan(collapsed));
@@ -1061,7 +1026,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(FeedScreen), findsOneWidget);
       expect(_mode(tester), HomeTab.posts);
-      expect(_selected(tester, _en.homeFeedTrending), isTrue);
+      expect(_selected(tester, _en.homeTabPosts), isTrue);
     });
 
     testWidgets('Search opens Discover (D55)', (tester) async {

@@ -273,7 +273,8 @@ class NotificationRow extends StatelessWidget {
   String? routeTo() {
     // D175: a removed photo leads to Edit profile (to choose another); a
     // follow request to the list of requests.
-    if (item.type == NotificationType.avatarRemoved) {
+    if (item.type == NotificationType.avatarRemoved ||
+        item.type == NotificationType.coverRemoved) {
       return AppRoutes.editProfile;
     }
     if (item.type == NotificationType.followRequest) {
@@ -408,6 +409,7 @@ class NotificationRow extends StatelessWidget {
         who,
       ),
       NotificationType.avatarRemoved => l10n.notifAvatarRemoved,
+      NotificationType.coverRemoved => l10n.notifCoverRemoved,
       NotificationType.dataExportReady => l10n.notifDataExportReady,
       NotificationType.rechargeCoinsReceived => l10n.notifRechargeCoins(
         who,
@@ -535,7 +537,8 @@ class NotificationRow extends StatelessWidget {
             ),
             child: Icon(
               item.type == NotificationType.contentRemoved ||
-                      item.type == NotificationType.avatarRemoved
+                      item.type == NotificationType.avatarRemoved ||
+                      item.type == NotificationType.coverRemoved
                   ? Icons.gpp_maybe_outlined
                   : item.type.isAgency
                   ? Icons.business_center_rounded
@@ -547,7 +550,8 @@ class NotificationRow extends StatelessWidget {
                   : Icons.schedule_rounded,
               color:
                   item.type == NotificationType.contentRemoved ||
-                      item.type == NotificationType.avatarRemoved
+                      item.type == NotificationType.avatarRemoved ||
+                      item.type == NotificationType.coverRemoved
                   ? p.error
                   : p.primary,
             ),

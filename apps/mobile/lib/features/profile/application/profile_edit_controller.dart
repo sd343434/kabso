@@ -5,6 +5,7 @@ import 'package:kabso_live/features/auth/presentation/auth_controller.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/posts/data/media_repository.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
+import 'package:kabso_live/features/profile/application/public_profile_controller.dart';
 import 'package:kabso_live/features/profile/data/profile_edit_repository.dart';
 
 /// Where a photo change is: idle, or [busy] with the upload's [progress]
@@ -79,6 +80,66 @@ final NotifierProvider<ProfilePhotoController, ProfilePhotoState>
 profilePhotoControllerProvider =
     NotifierProvider.autoDispose<ProfilePhotoController, ProfilePhotoState>(
       ProfilePhotoController.new,
+    );
+
+/// v1.76-social (D218, §10.73.3): the profile cover — uploaded as a
+/// `PROFILE_COVER` (not cropped: the profile covers its banner with it),
+/// then set; or removed (the Kabso gradient shows again). The session's
+/// user shows the change at once; errors are rethrown as `AppFailure`.
+class ProfileCoverController extends Notifier<ProfilePhotoState> {
+  @override
+  ProfilePhotoState build() => const ProfilePhotoState();
+
+  Future<void> change(Uint8List bytes, String contentType) async {
+    if (state.busy) return;
+    state = const ProfilePhotoState(busy: true, progress: 0);
+    try {
+      final asset = await ref
+          .read(mediaRepositoryProvider)
+          .uploadCover(
+            bytes,
+            contentType,
+            onProgress: (p) {
+              if (state.busy) {
+                state = ProfilePhotoState(
+                  busy: true,
+                  progress: p >= 1 ? null : p,
+                );
+              }
+            },
+          );
+      final url = await ref
+          .read(profileEditRepositoryProvider)
+          .setCover(asset.id);
+      _show(url);
+    } finally {
+      if (ref.mounted) state = const ProfilePhotoState();
+    }
+  }
+
+  Future<void> remove() async {
+    if (state.busy) return;
+    state = const ProfilePhotoState(busy: true);
+    try {
+      await ref.read(profileEditRepositoryProvider).removeCover();
+      _show(null);
+    } finally {
+      if (ref.mounted) state = const ProfilePhotoState();
+    }
+  }
+
+  void _show(String? url) {
+    final user = ref.read(currentUserProvider);
+    if (user == null) return;
+    showUpdatedProfile(ref, user.copyWith(coverUrl: url));
+    ref.invalidate(publicProfileProvider(user.username));
+  }
+}
+
+final NotifierProvider<ProfileCoverController, ProfilePhotoState>
+profileCoverControllerProvider =
+    NotifierProvider.autoDispose<ProfileCoverController, ProfilePhotoState>(
+      ProfileCoverController.new,
     );
 
 /// Puts [user] in the session and reads `GET /me` and the own profile again.

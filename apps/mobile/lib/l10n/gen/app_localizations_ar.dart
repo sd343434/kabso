@@ -12858,4 +12858,97 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get notifReferralReversed =>
       'ألغى فريق Kabso دعوة غير صالحة واسترجع كرز مكافأتها. افتح محفظة الكرز للتفاصيل';
+
+  @override
+  String get feedSuggested => 'مقترح لك';
+
+  @override
+  String get feedPostSeeMore => 'المزيد';
+
+  @override
+  String feedPostViewCount(String count) {
+    return '$count مشاهدة';
+  }
+
+  @override
+  String storyWatchLive(String name) {
+    return 'شاهد بث $name المباشر';
+  }
+
+  @override
+  String get storyReplyHint => 'اكتب رسالة…';
+
+  @override
+  String get storyReplySend => 'إرسال';
+
+  @override
+  String get storyReplySent => 'أُرسلت إلى الرسائل';
+
+  @override
+  String storyReact(String name) {
+    return 'أعجبتني قصة $name';
+  }
+
+  @override
+  String get notifCoverRemoved =>
+      'أزال فريق الإشراف صورة غلاف ملفك لمخالفتها الإرشادات';
+
+  @override
+  String get profileEditCover => 'صورة الغلاف';
+
+  @override
+  String get profileEditCoverSet => 'مضبوطة';
+
+  @override
+  String get profileEditCoverRemove => 'حذف صورة الغلاف';
+
+  @override
+  String get profileEditCoverUpdated => 'تم تحديث صورة الغلاف';
+
+  @override
+  String get profileEditCoverRemoved => 'حُذفت صورة الغلاف';
+
+  @override
+  String profileCoverOf(String name) {
+    return 'صورة غلاف $name';
+  }
+
+  @override
+  String get profileTabPostsWord => 'منشورات';
+
+  @override
+  String get profileTabReelsWord => 'ريلز';
+
+  @override
+  String get profileTabRepostsWord => 'إعادات';
+
+  @override
+  String get profileFollowerWord => 'متابِع';
+
+  @override
+  String get profileFollowingWord => 'متابَع';
+
+  @override
+  String profileJoined(String date) {
+    return 'انضم في $date';
+  }
+
+  @override
+  String get profileBlockedTitle => 'حظرت هذا الحساب';
+
+  @override
+  String get profileBlockedBody =>
+      'لن ترى منشوراته ولن يتمكن من مراسلتك. ألغِ الحظر لتراها.';
+
+  @override
+  String get profileTabSavedWord => 'محفوظات';
+
+  @override
+  String get profileBondFamily => 'العائلة';
+
+  @override
+  String get profileBondCouple => 'العلاقة';
+
+  @override
+  String get profileBondMedals => 'الميداليات';
 }

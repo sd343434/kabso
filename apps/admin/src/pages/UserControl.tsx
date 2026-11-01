@@ -31,6 +31,7 @@ export type ControlAction =
   | 'signout'
   | 'profile'
   | 'avatar'
+  | 'cover'
   | 'gift'
   | 'revokeSpecial'
   | 'restrict'
@@ -127,9 +128,11 @@ export function ControlGroups({
           </button>
         )}
       </Group>
-      <Group icon="users" title={t('ctGroupProfile')} state={<span className="muted small">{t('ctNoCover')}</span>}>
+      <Group icon="users" title={t('ctGroupProfile')}>
         {btn(t('ctEditProfile'), 'profile', { show: can('users.profile_edit') })}
         {btn(t('removeAvatar'), 'avatar', { danger: true, show: can('users.avatar') && u.avatarUrl !== null })}
+        {/* D218 (v1.76-social): the profile cover; the server answers 409 when there is none. */}
+        {btn(t('ctRemoveCover'), 'cover', { danger: true, show: can('users.avatar') })}
         {btn(t('giftSpecial'), 'gift', { show: can('users.special_username') })}
         {btn(t('revokeSpecial'), 'revokeSpecial', { show: can('users.special_username') && detail.specialUsername !== null })}
       </Group>

@@ -7,10 +7,13 @@ import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/home/application/home_feed_provider.dart';
+import 'package:kabso_live/features/messages/data/dm_repository.dart';
+import 'package:kabso_live/features/messages/domain/dm_models.dart';
 import 'package:kabso_live/features/posts/presentation/comments_sheet.dart';
 import 'package:kabso_live/features/posts/presentation/report_sheet.dart';
 import 'package:kabso_live/features/safety/safety_actions.dart';
@@ -28,9 +31,18 @@ abstract final class KStoryViewer {
 
   /// The share of the width, on the reading-start side, that goes back.
   static const double backZone = 0.3;
-  static const double barHeight = 2.5;
-  static const double barGap = 3;
-  static const double avatar = 32;
+
+  /// D218 (the owner's reference, E at ≈0.81 px/dp, 393 dp wide assumed):
+  /// 3 dp bars 4 dp apart, a 38 dp avatar with the name over the time (no
+  /// line under it: owner «وازل الخط اسفل الايقونات»), and at the bottom a
+  /// 44 dp «اكتب رسالة» pill with a heart and send (28 dp glyphs in 48 dp
+  /// targets).
+  static const double barHeight = 3;
+  static const double barGap = 4;
+  static const double avatar = 38;
+  static const double replyHeight = 44;
+  static const double replyBorder = 1.2;
+  static const double replyIcon = 28;
 
   /// A downward fling faster than this closes the viewer.
   static const double closeVelocity = 400;
@@ -46,6 +58,11 @@ abstract final class KStoryViewer {
 /// - Your own: who saw it (48 hours) and delete. Someone else's: report
 ///   and mute.
 /// - An account whose stories are gone or no longer visible is skipped.
+/// - D218 (the owner's reference): someone else's story has «اكتب رسالة…»,
+///   a heart and send at the bottom; the reply and the heart («❤️») go to
+///   the author as direct messages (`POST /dm/messages`, CONVENTIONS
+///   §10.73.5); the story pauses while the field is in use. Your own keeps
+///   who saw it, delete and (D218) the archive.
 class StoryViewerScreen extends ConsumerStatefulWidget {
   const new({required String this.username, super.key})
     : stories = null,
@@ -68,6 +85,11 @@ class StoryViewerScreen extends ConsumerStatefulWidget {
   static const muteKey = Key('story.more.mute');
   static const deleteConfirmKey = Key('story.delete.confirm');
   static const textKey = Key('story.text');
+  static const archiveKey = Key('story.more.archive');
+  static const replyFieldKey = Key('story.reply.field');
+  static const replySendKey = Key('story.reply.send');
+  static const heartKey = Key('story.reply.heart');
+  static const photoKey = Key('story.photo');
   static Key storyKey(String id) => Key('story.$id');
 
   @override
@@ -248,6 +270,12 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
               mainAxisSize: MainAxisSize.min,
               children: story.isSelf
                   ? [
+                      // D218: the owner's «الأرشيف» next to delete.
+                      item(
+                        StoryViewerScreen.archiveKey,
+                        Icons.history_rounded,
+                        l10n.storyArchiveTitle,
+                      ),
                       item(
                         StoryViewerScreen.deleteKey,
                         Icons.delete_outline,
@@ -273,7 +301,9 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
       ),
     );
     if (!mounted || choice == null) return;
-    if (choice == StoryViewerScreen.deleteKey) {
+    if (choice == StoryViewerScreen.archiveKey) {
+      await _paused(() => context.push<void>(AppRoutes.storyArchive));
+    } else if (choice == StoryViewerScreen.deleteKey) {
       await _delete(story);
     } else if (choice == StoryViewerScreen.reportKey) {
       await _report(story);
@@ -440,6 +470,13 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
               onClose: _close,
               onMore: () => _more(s),
               onViewers: () => _viewers(s),
+              reply: s.isSelf
+                  ? null
+                  : _StoryReplyBar(
+                      key: ValueKey('story.reply.${s.author.username}'),
+                      story: s,
+                      onActive: _hold,
+                    ),
             ),
             null => switch (source) {
               AsyncError(:final error) when stories == null => _Failure(
@@ -469,6 +506,7 @@ class _StoryPage extends StatelessWidget {
     required this.onMore,
     required this.onViewers,
     super.key,
+    this.reply,
   });
 
   final Story story;
@@ -478,6 +516,9 @@ class _StoryPage extends StatelessWidget {
   final VoidCallback onClose;
   final VoidCallback onMore;
   final VoidCallback onViewers;
+
+  /// D218: the reply bar under someone else's story.
+  final Widget? reply;
 
   @override
   Widget build(BuildContext context) {
@@ -498,9 +539,13 @@ class _StoryPage extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
+        // Owner (D218): «اجعل الصورة كاملة ولا تقص منها» — the whole photo,
+        // never cropped (contain); the header and the reply bar only lie
+        // over it on soft scrims.
         Center(
           child: Image.network(
             story.media.url,
+            key: StoryViewerScreen.photoKey,
             fit: BoxFit.contain,
             gaplessPlayback: true,
             semanticLabel: l10n.storyPhotoOf(name),
@@ -529,48 +574,56 @@ class _StoryPage extends StatelessWidget {
         ),
         Positioned(
           top: KSpacing.sm,
-          left: KSpacing.sm,
-          right: KSpacing.sm,
+          left: KSpacing.sm + 2,
+          right: KSpacing.sm + 2,
           child: Column(
             children: [
               _Bars(count: count, index: index, progress: progress),
-              const SizedBox(height: KSpacing.sm),
+              const SizedBox(height: KSpacing.md),
               Row(
                 children: [
                   ExcludeSemantics(
                     child: KAvatar(
                       name: name,
                       imageUrl: story.author.avatarUrl,
-                      size: KStoryViewer.avatar,
+                      size: KStoryViewer.avatar - 2 * (KMetrics.stroke + 1),
+                      ring: KAvatarRing.storyUnseen,
                     ),
                   ),
                   const SizedBox(width: KSpacing.sm),
-                  Flexible(
-                    flex: 2,
-                    child: Text(
-                      name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: t.bodyStrong.copyWith(color: white),
+                  // D218: the name over the time (D167: either may be long).
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: t.bodyStrong.copyWith(
+                            color: white,
+                            fontWeight: FontWeight.w700,
+                            shadows: KLiveColors.glassShadow,
+                          ),
+                        ),
+                        Text(
+                          when,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: t.caption.copyWith(
+                            color: const Color(0xCCFFFFFF),
+                            shadows: KLiveColors.glassShadow,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: KSpacing.sm),
-                  // D167: after 7 days the label becomes a full date, which
-                  // at large text scales no longer fits beside the name.
-                  Flexible(
-                    child: Text(
-                      when,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: t.caption.copyWith(color: const Color(0xCCFFFFFF)),
-                    ),
-                  ),
-                  const Spacer(),
                   IconButton(
                     key: StoryViewerScreen.moreKey,
                     tooltip: l10n.storyMore,
                     onPressed: onMore,
-                    icon: const Icon(Icons.more_horiz_rounded, color: white),
+                    icon: const Icon(Icons.more_vert_rounded, color: white),
                   ),
                   IconButton(
                     key: StoryViewerScreen.closeKey,
@@ -583,6 +636,26 @@ class _StoryPage extends StatelessWidget {
             ],
           ),
         ),
+        // Keeps the reply bar readable over a bright photo (a scrim, never
+        // a band that hides the photo).
+        if (reply != null)
+          const Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: 140,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [Color(0x80000000), Color(0x00000000)],
+                  ),
+                ),
+              ),
+            ),
+          ),
         Positioned(
           left: KSpacing.md,
           right: KSpacing.md,
@@ -617,7 +690,173 @@ class _StoryPage extends StatelessWidget {
                   label: Text(l10n.storyViewCount(story.viewCount ?? 0)),
                 ),
               ],
+              if (reply case final reply?) ...[
+                const SizedBox(height: KSpacing.md),
+                reply,
+              ],
             ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// D218: «اكتب رسالة…», a heart and send under someone else's story. The
+/// text and the heart («❤️») go to the author as direct messages (§11.13);
+/// the story is paused ([onActive]) while the field has focus.
+class _StoryReplyBar extends ConsumerStatefulWidget {
+  const new({required this.story, required this.onActive, super.key});
+
+  final Story story;
+  final ValueChanged<bool> onActive;
+
+  @override
+  ConsumerState<_StoryReplyBar> createState() => _StoryReplyBarState();
+}
+
+class _StoryReplyBarState extends ConsumerState<_StoryReplyBar> {
+  final _text = TextEditingController();
+  final _focus = FocusNode();
+  bool _sending = false;
+  bool _hearted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _focus.addListener(() => widget.onActive(_focus.hasFocus));
+    _text.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _text.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  Future<bool> _send(String text) async {
+    if (_sending) return false;
+    setState(() => _sending = true);
+    final l10n = context.l10n;
+    try {
+      await ref
+          .read(dmRepositoryProvider)
+          .send(
+            widget.story.author.username,
+            DmOutgoingText(text),
+            clientId: _clientId(),
+          );
+      if (mounted) KSnack.success(context, l10n.storyReplySent);
+      return true;
+    } on Object catch (e) {
+      if (mounted) KSnack.error(context, failureMessage(l10n, toAppFailure(e)));
+      return false;
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  static String _clientId() {
+    final now = clock.now().microsecondsSinceEpoch;
+    return 'story-$now';
+  }
+
+  Future<void> _sendText() async {
+    final text = _text.text.trim();
+    if (text.isEmpty) return;
+    if (await _send(text) && mounted) {
+      _text.clear();
+      _focus.unfocus();
+    }
+  }
+
+  Future<void> _heart() async {
+    if (_hearted) return;
+    if (await _send('\u2764\uFE0F') && mounted) {
+      setState(() => _hearted = true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final t = context.textStyles;
+    const white = Color(0xFFFFFFFF);
+    final name = widget.story.author.displayName.isEmpty
+        ? widget.story.author.username
+        : widget.story.author.displayName;
+    final canSend = _text.text.trim().isNotEmpty && !_sending;
+    return Row(
+      children: [
+        Expanded(
+          child: SizedBox(
+            height: KStoryViewer.replyHeight,
+            child: TextField(
+              key: StoryViewerScreen.replyFieldKey,
+              controller: _text,
+              focusNode: _focus,
+              enabled: !_sending,
+              maxLength: 1000,
+              textInputAction: TextInputAction.send,
+              onSubmitted: (_) => _sendText(),
+              style: t.body.copyWith(color: white),
+              cursorColor: white,
+              decoration: InputDecoration(
+                counterText: '',
+                hintText: l10n.storyReplyHint,
+                hintStyle: t.body.copyWith(color: const Color(0xCCFFFFFF)),
+                filled: true,
+                fillColor: const Color(0x26000000),
+                isDense: true,
+                contentPadding: const EdgeInsetsDirectional.symmetric(
+                  horizontal: KSpacing.lg,
+                  vertical: KSpacing.sm + 2,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(KRadius.pill),
+                  borderSide: const BorderSide(
+                    color: Color(0xB3FFFFFF),
+                    width: KStoryViewer.replyBorder,
+                  ),
+                ),
+                disabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(KRadius.pill),
+                  borderSide: const BorderSide(
+                    color: Color(0x66FFFFFF),
+                    width: KStoryViewer.replyBorder,
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(KRadius.pill),
+                  borderSide: const BorderSide(
+                    color: white,
+                    width: KStoryViewer.replyBorder,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        IconButton(
+          key: StoryViewerScreen.heartKey,
+          tooltip: l10n.storyReact(name),
+          isSelected: _hearted,
+          onPressed: _sending ? null : _heart,
+          icon: AppIcon(
+            _hearted ? AppIcons.heartFilled : AppIcons.heart,
+            size: KStoryViewer.replyIcon,
+            color: _hearted ? KLiveColors.badge : white,
+          ),
+        ),
+        IconButton(
+          key: StoryViewerScreen.replySendKey,
+          tooltip: l10n.storyReplySend,
+          onPressed: canSend ? _sendText : null,
+          icon: AppIcon(
+            AppIcons.send,
+            size: KStoryViewer.replyIcon,
+            color: canSend ? white : const Color(0x99FFFFFF),
           ),
         ),
       ],

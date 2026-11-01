@@ -109,8 +109,11 @@ void main() {
         overrides: [
           currentUserProvider.overrideWithValue(user),
           meProvider.overrideWith((ref) => user),
+          // D218: the own profile shows the live ring when live (it wins
+          // over frames); not live here, so the agent frame shows.
           profileStatsProvider.overrideWith(
-            (ref, username) => apiProfile(isSelf: true),
+            (ref, username) =>
+                apiProfile(isSelf: true).copyWith(liveRoomId: null),
           ),
           profileGridProvider.overrideWith(
             (ref, _) => const FeedUnavailable<ProfileGridItem>(),

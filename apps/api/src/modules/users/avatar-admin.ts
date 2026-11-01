@@ -61,3 +61,52 @@ export async function removeAvatarByAdminIn(
   });
   return { outcome: 'removed', userId: row.user_id, objectKeys };
 }
+
+/** What `profile-admin remove-cover` (and the panel) did. */
+export type AdminCoverRemoval =
+  | { readonly outcome: 'unknown_user' }
+  | { readonly outcome: 'no_cover'; readonly userId: string }
+  | { readonly outcome: 'removed'; readonly userId: string; readonly objectKeys: string[] };
+
+/**
+ * v1.76-social (D218, CONVENTIONS §10.73.3): removes a user's profile cover for moderation, inside the caller's
+ * transaction — the rules of {@link removeAvatarByAdminIn}: the profile goes back to the Kabso gradient
+ * (`cover_url` and `cover_media_id` null), the `PROFILE_COVER` asset row is deleted (its object keys are returned
+ * for deletion after commit), the user gets a `COVER_REMOVED` notification (system) and `admin.cover.remove` is
+ * audited with the reason. A user without a cover changes nothing.
+ */
+export async function removeCoverByAdminIn(
+  tx: Prisma.TransactionClient,
+  username: string,
+  reason: string | null,
+  by: AdminVia = CLI_VIA,
+): Promise<AdminCoverRemoval> {
+  const name = username.trim().toLowerCase();
+  if (!isValidUsername(name)) return { outcome: 'unknown_user' };
+  const [row] = await tx.$queryRaw<{ user_id: string; cover_media_id: string | null }[]>`
+    SELECT p.user_id::text AS user_id, p.cover_media_id::text AS cover_media_id
+      FROM user_profiles p JOIN users u ON u.id = p.user_id
+     WHERE p.username = ${name} AND u.status <> 'DELETED'::user_status
+       FOR UPDATE OF p`;
+  if (!row) return { outcome: 'unknown_user' };
+  if (row.cover_media_id === null) return { outcome: 'no_cover', userId: row.user_id };
+  await tx.userProfile.update({
+    where: { userId: row.user_id },
+    data: { coverUrl: null, coverMediaId: null },
+  });
+  const gone = await tx.mediaAsset.delete({
+    where: { id: row.cover_media_id },
+    select: { largeKey: true, thumbKey: true },
+  });
+  await new Notifier().system(tx, { type: 'COVER_REMOVED', recipientId: row.user_id });
+  await tx.auditLog.create({
+    data: {
+      ...auditBy(by),
+      action: AuditAction.ADMIN_COVER_REMOVE,
+      targetType: 'user',
+      targetId: row.user_id,
+      metadata: { username: name, reason, via: by.via },
+    },
+  });
+  return { outcome: 'removed', userId: row.user_id, objectKeys: [gone.largeKey, gone.thumbKey] };
+}

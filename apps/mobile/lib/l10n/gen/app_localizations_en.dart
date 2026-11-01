@@ -12859,4 +12859,97 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get notifReferralReversed =>
       'The Kabso team voided an invalid invite and took back its cherries. Open the cherry wallet for details';
+
+  @override
+  String get feedSuggested => 'Suggested for you';
+
+  @override
+  String get feedPostSeeMore => 'more';
+
+  @override
+  String feedPostViewCount(String count) {
+    return '$count views';
+  }
+
+  @override
+  String storyWatchLive(String name) {
+    return 'Watch $name\'s live';
+  }
+
+  @override
+  String get storyReplyHint => 'Send a message…';
+
+  @override
+  String get storyReplySend => 'Send';
+
+  @override
+  String get storyReplySent => 'Sent to messages';
+
+  @override
+  String storyReact(String name) {
+    return 'Like $name\'s story';
+  }
+
+  @override
+  String get notifCoverRemoved =>
+      'The moderation team removed your profile cover for breaking the guidelines';
+
+  @override
+  String get profileEditCover => 'Cover photo';
+
+  @override
+  String get profileEditCoverSet => 'Set';
+
+  @override
+  String get profileEditCoverRemove => 'Remove cover photo';
+
+  @override
+  String get profileEditCoverUpdated => 'Cover photo updated';
+
+  @override
+  String get profileEditCoverRemoved => 'Cover photo removed';
+
+  @override
+  String profileCoverOf(String name) {
+    return '$name\'s cover photo';
+  }
+
+  @override
+  String get profileTabPostsWord => 'Posts';
+
+  @override
+  String get profileTabReelsWord => 'Reels';
+
+  @override
+  String get profileTabRepostsWord => 'Reposts';
+
+  @override
+  String get profileFollowerWord => 'Followers';
+
+  @override
+  String get profileFollowingWord => 'Following';
+
+  @override
+  String profileJoined(String date) {
+    return 'Joined $date';
+  }
+
+  @override
+  String get profileBlockedTitle => 'You blocked this account';
+
+  @override
+  String get profileBlockedBody =>
+      'You won\'t see their posts and they can\'t message you. Unblock to see them.';
+
+  @override
+  String get profileTabSavedWord => 'Saved';
+
+  @override
+  String get profileBondFamily => 'Family';
+
+  @override
+  String get profileBondCouple => 'Couple';
+
+  @override
+  String get profileBondMedals => 'Medals';
 }

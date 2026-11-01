@@ -2147,3 +2147,29 @@ KNOWN_LIMITATIONS); choose the buckets and the domain once.
 env `S3_*` (one bucket) and `MEDIA_PUBLIC_BASE_URL`. With the storage only in the panel, run them with the same values
 as env (and the private bucket's objects are not reachable through them), or use the panel's own sections (gifts and
 their files D207, users, applications).
+
+### 5.41 The social redesign: home feed `tab=mixed`, the profile cover (migrations `20270209090000_profile_cover_enums`, `20270209090100_profile_cover`; D218) — [IMPLEMENTED, draft contract v1.76-social; not deployed, not device-tested]
+
+CONVENTIONS §10.73. (§5.39 and §5.40 are D217's and D222's, on their own branches.) Two migrations, in order: the
+first only adds `COVER_REMOVED` to `notification_type` (an enum value cannot be used in the transaction that adds
+it); the second adds nullable `user_profiles.cover_media_id` (unique, FK to `media_assets` NO ACTION) and
+`cover_url`, the CHECK `user_profiles_cover_media_has_url` (both null or both set) and re-creates
+`media_assets_kind_known` with `PROFILE_COVER`. No new table, so no GRANT; no backfill (every existing row has both
+null). Checked on a database migrated to `claude/kl-int7` + this branch (`prisma migrate deploy` from the e2e global
+setup; `prisma migrate diff` shows no drift on the touched tables).
+
+- **No new setting.** `PUT` / `DELETE /me/cover` reuse `RATE_LIMIT_AVATAR_USER` in their own bucket (`me:cover`).
+  The mixed feed reuses Trending's snapshot (Redis, 10 minutes, ≤ 1 000 entries per caller) and the `social:feed`
+  rate limit.
+- **Uploads:** covers are object-storage uploads like the photo: with uploads off `PUT /me/cover` answers 503 and the
+  app says so; removing still works.
+- **Moderation:** the panel's «حذف صورة الغلاف» (user page, capability `users.avatar`) or
+  `docker compose --profile jobs run --rm -e S3_ENDPOINT -e S3_REGION -e S3_BUCKET -e S3_ACCESS_KEY_ID
+  -e S3_SECRET_ACCESS_KEY -e S3_FORCE_PATH_STYLE migrate node dist/cli/profile-admin.js remove-cover <username>
+  --reason <text>`.
+- **Order:** API first (an older app ignores `tab=mixed`, `viewerFollowsAuthor`, `coverUrl`, `country`,
+  `joinedMonth`, `blockedByMe` and the `COVER_REMOVED` notification); then the app — the new app needs the API's
+  `tab=mixed` (an older API answers 400 and the posts page shows its error state); the admin panel's cover button
+  needs `removeAdminUserCover`.
+- Not verified on a device or a server (the cover upload against R2, the mixed feed on production data).
+

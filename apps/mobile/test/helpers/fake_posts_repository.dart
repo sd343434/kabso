@@ -52,7 +52,13 @@ class FakePostsRepository implements PostsRepository {
     int? limit,
   }) async {
     await _step('feed:${tab.name}:${cursor ?? ''}');
-    return _slice(feeds[tab] ?? const [], cursor);
+    // D218: the posts page reads `tab=mixed`; a test that seeds only
+    // Trending gets those posts for the mix (the server's interleave is
+    // tested in the API's e2e suite).
+    final list =
+        feeds[tab] ??
+        (tab == PostsFeedTab.mixed ? feeds[PostsFeedTab.trending] : null);
+    return _slice(list ?? const [], cursor);
   }
 
   /// D162a: new posts with media come back `PENDING` (default: VISIBLE).
@@ -613,6 +619,7 @@ Post testPost(
   WhoCanComment whoCanComment = WhoCanComment.everyone,
   bool reel = false,
   bool video = false,
+  bool? viewerFollowsAuthor,
 }) => Post(
   id: id,
   author: UserSummary(
@@ -665,6 +672,7 @@ Post testPost(
   whoCanComment: whoCanComment,
   hideLikeCount: hideLikeCount,
   pendingModeration: pending,
+  viewerFollowsAuthor: viewerFollowsAuthor,
 );
 
 /// A contract-shaped `Post` body (tests only).

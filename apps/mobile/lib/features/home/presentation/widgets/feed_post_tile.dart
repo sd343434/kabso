@@ -47,6 +47,7 @@ class FeedPostData {
     this.likes,
     this.comments,
     this.shares,
+    this.views,
     this.postId,
     this.liked = false,
     this.saved = false,
@@ -105,6 +106,9 @@ class FeedPostData {
   final int? comments;
   final int? shares;
 
+  /// D218: `viewCount`, after repost in the action row (real posts only).
+  final int? views;
+
   /// The API id: set for real posts only. With it, like and save are
   /// buttons and the "more" sheet offers hide, report or delete.
   final String? postId;
@@ -144,15 +148,28 @@ class FeedPostData {
   final Set<String> premiumMentions;
 }
 
-/// Geometry of a post (D54, layout from the owner's reference; sizes on
-/// the Kabso scale): flat and full width, no card.
+/// Geometry of a post (D54; D218 the owner's second reference, E at ≈0.81
+/// px/dp — logical width 393 assumed; sizes on the Kabso scale): flat and
+/// full width, no card; posts are separated by a hairline and 8 dp.
 abstract final class KPostCard {
   /// Side padding of the author row, actions, caption and time.
   static const double inset = KSpacing.md;
 
-  /// Gap between two posts.
-  static const double gap = KSpacing.lg;
-  static const double avatar = 32;
+  /// Gap between two posts (D218: a hairline divider sits in it).
+  static const double gap = KSpacing.sm;
+  static const double avatar = 40;
+
+  /// D218: the «متابعة» pill (32 dp tall, 16 dp side padding, fully round).
+  static const double followPillHeight = 32;
+
+  /// D218: the action row's counts (13 sp, medium).
+  static const double countFont = 13;
+
+  /// Owner (after D218): the media is square (1:1, cover-cropped, centred).
+  static const double mediaAspect = 1;
+
+  /// The dots under a carousel (owner: like Instagram): a 20 dp row.
+  static const double dotsRow = 20;
 
   /// Collapsed caption before "see more".
   static const int collapsedLines = 2;
@@ -164,17 +181,18 @@ abstract final class KPostCard {
   /// The filled "Follow" box in the author row.
   static const double followHeight = KSpacing.xxl;
 
-  /// The action icons and the gap after each count.
-  static const double actionIcon = 26;
-  static const double actionGap = KSpacing.lg;
+  /// The action icons and the gap after each count (D218: 22 dp icons).
+  static const double actionIcon = 22;
+  static const double actionGap = 6;
 }
 
-/// One post, flat and full width (D54): the author row (avatar, name and,
-/// when known, the location under it), the media edge to edge at its own
-/// aspect ratio (a video cover carries a play mark), the like, comment and
-/// share icons with their counts and the save icon at the end, the caption
-/// led by the author's name, collapsed to two lines with an inline "see
-/// more" that expands it in place, then the relative time.
+/// One post, flat and full width (D54; D218 the owner's reference order):
+/// the author row (avatar, name and «مقترح لك» / the location under it, the
+/// «متابعة» pill, ⋮), the caption collapsed to two lines with an inline
+/// «… المزيد» that expands it in place (hashtags and mentions in the brand
+/// colour), the relative time, the media edge to edge at its own aspect
+/// ratio (a video cover carries a play mark), then the action row: like,
+/// comment, share, repost and views with their counts and save at the end.
 ///
 /// When the source gives the follow state, a filled "Follow" box sits at
 /// the end of the author row for authors the viewer does not follow
@@ -272,11 +290,37 @@ class _FeedPostTileState extends State<FeedPostTile> {
               style: t.caption.copyWith(color: p.textSecondary),
             ),
           ),
+        if (text != null && text.isNotEmpty)
+          Padding(
+            padding: inset,
+            child: _ExpandableText(
+              text,
+              style: t.body,
+              hashtags: post.hashtags,
+              mentions: post.mentions,
+              premiumMentions: post.premiumMentions,
+            ),
+          ),
+        Padding(
+          padding: inset.add(
+            const EdgeInsets.only(top: KSpacing.xxs, bottom: KSpacing.sm),
+          ),
+          child: Text(
+            post.edited ? l10n.feedPostTimeEdited(when) : when,
+            key: post.edited ? FeedPostTile.editedKey : null,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: t.caption.copyWith(color: p.textTertiary),
+          ),
+        ),
+        // Owner (after D218): «صورة البوست اجعلها مربعة ويمكن ان تكون سكرول
+        // مثل الانستقرام» — square media (cover-cropped, centred), several
+        // photos swipe with a counter and dots under them.
         if (media != null)
-          AspectRatio(
-            aspectRatio: post.mediaAspect ?? KMetrics.feedMediaAspect,
-            child: switch (post.videoUrl) {
-              final url? when post.isVideo => InlineVideo(
+          switch (post.videoUrl) {
+            final url? when post.isVideo => AspectRatio(
+              aspectRatio: KPostCard.mediaAspect,
+              child: InlineVideo(
                 key: FeedPostTile.videoKey,
                 url: url,
                 poster: media,
@@ -284,23 +328,20 @@ class _FeedPostTileState extends State<FeedPostTile> {
                     ? null
                     : () => _actions.currentState?.likeFromMedia(),
               ),
-              _ => _MediaPager(
-                images: post.gallery.length > 1 ? post.gallery : [media],
-                isVideo: post.isVideo,
-                onDoubleTap: post.postId == null
-                    ? null
-                    : () => _actions.currentState?.likeFromMedia(),
-              ),
-            },
-          ),
+            ),
+            _ => _MediaPager(
+              images: post.gallery.length > 1 ? post.gallery : [media],
+              isVideo: post.isVideo,
+              onDoubleTap: post.postId == null
+                  ? null
+                  : () => _actions.currentState?.likeFromMedia(),
+            ),
+          },
         if (post.postId case final id?)
           Padding(
-            padding: const EdgeInsetsDirectional.fromSTEB(
-              KPostCard.inset,
-              KSpacing.xs,
-              KSpacing.xs,
-              0,
-            ),
+            // The 48 dp targets carry their own air: the row starts and
+            // ends close to the edges so like … views fit on one line.
+            padding: const EdgeInsetsDirectional.only(start: KSpacing.xs),
             child: _Actions(key: _actions, postId: id, post: post),
           )
         else if (likes != null && comments != null && shares != null)
@@ -313,26 +354,13 @@ class _FeedPostTileState extends State<FeedPostTile> {
             ),
             child: _Counts(likes: likes, comments: comments, shares: shares),
           ),
-        if (text != null && text.isNotEmpty)
-          Padding(
-            padding: inset.add(const EdgeInsets.only(top: KSpacing.sm)),
-            child: _ExpandableText(
-              text,
-              lead: post.authorName,
-              style: t.body,
-              hashtags: post.hashtags,
-              mentions: post.mentions,
-              premiumMentions: post.premiumMentions,
-            ),
-          ),
+        // D218: a hairline closes the post (the reference's divider).
         Padding(
-          padding: inset.add(const EdgeInsets.only(top: KSpacing.xs)),
-          child: Text(
-            post.edited ? l10n.feedPostTimeEdited(when) : when,
-            key: post.edited ? FeedPostTile.editedKey : null,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: t.caption.copyWith(color: p.textTertiary),
+          padding: const EdgeInsets.only(top: KSpacing.xs),
+          child: Divider(
+            height: KMetrics.hairline,
+            thickness: KMetrics.hairline,
+            color: p.border,
           ),
         ),
       ],
@@ -622,6 +650,12 @@ class _AuthorRowState extends ConsumerState<_AuthorRow> {
     final location = post.location;
     final username = post.authorUsername;
     final known = username != null && _following != null;
+    // D218: «مقترح لك» under the name for an author the viewer does not
+    // follow (the mix's Trending side), with the location when there is one.
+    final subline = [
+      if (known && widget.post.isFollowingAuthor == false) l10n.feedSuggested,
+      if (location != null && location.isNotEmpty) location,
+    ].join(' · ');
     return Padding(
       // The end inset is smaller: the dots' 48 dp target is mostly air.
       padding: const EdgeInsetsDirectional.fromSTEB(
@@ -660,14 +694,17 @@ class _AuthorRowState extends ConsumerState<_AuthorRow> {
                             post.authorName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: t.bodyStrong.copyWith(color: p.textPrimary),
+                            style: t.bodyStrong.copyWith(
+                              color: p.textPrimary,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
-                          if (location != null && location.isNotEmpty)
+                          if (subline.isNotEmpty)
                             Text(
-                              location,
+                              subline,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: t.caption.copyWith(color: p.textSecondary),
+                              style: t.caption.copyWith(color: p.textTertiary),
                             ),
                         ],
                       ),
@@ -691,18 +728,18 @@ class _AuthorRowState extends ConsumerState<_AuthorRow> {
                     minWidth: KSizes.minTouchTarget,
                     minHeight: KSizes.minTouchTarget,
                   ),
-                  // A filled box inside the 48 dp target.
+                  // D218: a filled pill inside the 48 dp target.
                   child: Center(
                     widthFactor: 1,
                     child: Container(
-                      height: KPostCard.followHeight,
+                      height: KPostCard.followPillHeight,
                       padding: const EdgeInsetsDirectional.symmetric(
-                        horizontal: KSpacing.md,
+                        horizontal: KSpacing.lg,
                       ),
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
                         color: p.primary,
-                        borderRadius: BorderRadius.circular(KRadius.sm),
+                        borderRadius: BorderRadius.circular(KRadius.pill),
                       ),
                       child: Text(
                         l10n.liveFollow,
@@ -725,8 +762,9 @@ class _AuthorRowState extends ConsumerState<_AuthorRow> {
                 height: KSizes.minTouchTarget,
               ),
               onPressed: _busy ? null : _openMore,
-              icon: AppIcon(
-                AppIcons.moreHoriz,
+              // D218: the reference's vertical dots.
+              icon: Icon(
+                Icons.more_vert_rounded,
                 size: KMetrics.iconMd,
                 color: p.textPrimary,
               ),
@@ -737,16 +775,15 @@ class _AuthorRowState extends ConsumerState<_AuthorRow> {
   }
 }
 
-/// A post's caption: the author's name in bold, then the text, collapsed
-/// to [KPostCard.collapsedLines] lines. When it does not fit, the last line
-/// ends in "… see more" (tertiary colour); tapping it expands the caption
-/// in place. A short caption is shown as is. Linked `#tags` and
-/// `@mentions` are in the brand colour; once the whole caption shows, a
-/// tap opens the hashtag page or the profile.
+/// A post's caption (D218: without the author's name, which the header
+/// shows), collapsed to [KPostCard.collapsedLines] lines. When it does not
+/// fit, the last line ends in «… المزيد» (tertiary colour); tapping it
+/// expands the caption in place. A short caption is shown as is. Linked
+/// `#tags` and `@mentions` are in the brand colour; once the whole caption
+/// shows, a tap opens the hashtag page or the profile.
 class _ExpandableText extends StatefulWidget {
   const new(
     this.text, {
-    required this.lead,
     required this.style,
     this.hashtags = const {},
     this.mentions = const {},
@@ -754,7 +791,6 @@ class _ExpandableText extends StatefulWidget {
   });
 
   final String text;
-  final String lead;
   final TextStyle style;
   final Set<String> hashtags;
   final Set<String> mentions;
@@ -841,21 +877,16 @@ class _ExpandableTextState extends State<_ExpandableText> {
     // with ours, the locale's font fallback and the text scale.
     final style = DefaultTextStyle.of(context).style
         .merge(widget.style.copyWith(color: context.palette.textPrimary));
-    final lead = TextSpan(
-      text: '${widget.lead} ',
-      style: style.copyWith(fontWeight: FontWeight.w600),
-    );
     InlineSpan caption(String s, {InlineSpan? tail, bool links = false}) =>
         TextSpan(
           style: style,
           children: [
-            lead,
             ..._entities(s, style, links: links),
             ?tail,
           ],
         );
     if (_expanded) return Text.rich(caption(widget.text, links: true));
-    final seeMore = context.l10n.feedSeeMore;
+    final seeMore = context.l10n.feedPostSeeMore;
     final tail = TextSpan(
       text: _ellipsis,
       children: [
@@ -907,7 +938,7 @@ class _ExpandableTextState extends State<_ExpandableText> {
         return Semantics(
           container: true,
           button: true,
-          label: '${widget.lead} ${widget.text}. $seeMore',
+          label: '${widget.text}. $seeMore',
           excludeSemantics: true,
           child: GestureDetector(
             key: FeedPostTile.seeMoreKey,
@@ -1007,7 +1038,7 @@ class _MediaPagerState extends State<_MediaPager>
       );
     }
     final pill = KStatusColors.onStatus.withValues(alpha: 0.6);
-    return Stack(
+    final square = Stack(
       fit: StackFit.expand,
       children: [
         if (widget.onDoubleTap == null)
@@ -1048,41 +1079,6 @@ class _MediaPagerState extends State<_MediaPager>
               ),
             ),
           ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: KSpacing.sm,
-            child: IgnorePointer(
-              child: ExcludeSemantics(
-                child: Row(
-                  key: FeedPostTile.mediaDotsKey,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    for (var i = 0; i < count; i++)
-                      AnimatedContainer(
-                        duration: MediaQuery.disableAnimationsOf(context)
-                            ? Duration.zero
-                            : const Duration(milliseconds: 180),
-                        width: i == page ? 7 : 6,
-                        height: i == page ? 7 : 6,
-                        margin: const EdgeInsets.symmetric(horizontal: 2.5),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: i == page
-                              ? context.palette.primary
-                              : KPalette.dark.textPrimary.withValues(
-                                  alpha: 0.6,
-                                ),
-                          boxShadow: const [
-                            BoxShadow(color: Color(0x40000000), blurRadius: 2),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          ),
         ],
         if (widget.onDoubleTap != null)
           IgnorePointer(
@@ -1111,6 +1107,40 @@ class _MediaPagerState extends State<_MediaPager>
               ),
             ),
           ),
+      ],
+    );
+    final box = AspectRatio(aspectRatio: KPostCard.mediaAspect, child: square);
+    if (!many) return box;
+    final p = context.palette;
+    // Owner (after D218, like Instagram): the dots sit under the photos.
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        box,
+        SizedBox(
+          height: KPostCard.dotsRow,
+          child: ExcludeSemantics(
+            child: Row(
+              key: FeedPostTile.mediaDotsKey,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                for (var i = 0; i < count; i++)
+                  AnimatedContainer(
+                    duration: MediaQuery.disableAnimationsOf(context)
+                        ? Duration.zero
+                        : const Duration(milliseconds: 180),
+                    width: i == page ? 7 : 6,
+                    height: i == page ? 7 : 6,
+                    margin: const EdgeInsets.symmetric(horizontal: 2.5),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: i == page ? p.primary : p.borderStrong,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -1353,7 +1383,12 @@ class _ActionsState extends ConsumerState<_Actions> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final p = context.palette;
-    final style = context.textStyles.bodyStrong.copyWith(color: p.textPrimary);
+    // D218: 13 sp medium counts beside 22 dp icons.
+    final style = context.textStyles.label.copyWith(
+      color: p.textPrimary,
+      fontSize: KPostCard.countFont,
+      fontWeight: FontWeight.w500,
+    );
     final likes = _likes;
     Widget count(int value) => Text(KFormat.compact(value, l10n), style: style);
     Widget shown(String asset, int value, String label) => Semantics(
@@ -1470,6 +1505,13 @@ class _ActionsState extends ConsumerState<_Actions> {
                   ),
                 ),
               ),
+              shown(
+                AppIcons.send,
+                widget.post.shares ?? 0,
+                l10n.feedPostShareCount(
+                  KFormat.compact(widget.post.shares ?? 0, l10n),
+                ),
+              ),
               if (!widget.post.isSelf)
                 Semantics(
                   button: true,
@@ -1510,13 +1552,13 @@ class _ActionsState extends ConsumerState<_Actions> {
                     ),
                   ),
                 ),
-              shown(
-                AppIcons.send,
-                widget.post.shares ?? 0,
-                l10n.feedPostShareCount(
-                  KFormat.compact(widget.post.shares ?? 0, l10n),
+              // D218: views close the row (`viewCount`).
+              if (widget.post.views case final views?)
+                shown(
+                  AppIcons.eye,
+                  views,
+                  l10n.feedPostViewCount(KFormat.compact(views, l10n)),
                 ),
-              ),
             ],
           ),
         ),

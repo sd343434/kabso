@@ -117,6 +117,12 @@ class _FakeEdit implements ProfileEditRepository {
 
   @override
   Future<void> removeAvatar() async {}
+
+  @override
+  Future<String> setCover(String mediaId) async => '';
+
+  @override
+  Future<void> removeCover() async {}
 }
 
 class _FakeOpener implements ExternalLinkOpener {

@@ -10,7 +10,7 @@ import { taskCherryLockIn } from '../economy/cherry-ledger.js';
 import { isUuid } from '../live/live.schemas.js';
 import { OBJECT_STORAGE, type ObjectStorage } from '../media/object-storage.js';
 import { dayStart } from '../recharge/recharge-rules.js';
-import { removeAvatarByAdminIn } from '../users/avatar-admin.js';
+import { removeAvatarByAdminIn, removeCoverByAdminIn } from '../users/avatar-admin.js';
 import { AccountLifecycleService } from '../users/profiles/account-lifecycle.service.js';
 import {
   endSpecialIn,
@@ -397,6 +397,28 @@ export class AdminUsersService {
         // The photo is already gone from the profile; the orphaned files are only a storage cost.
         this.logger.warn({ error: safeErrorLog(err), userId: id }, 'Avatar files could not be deleted');
       }
+    }
+    return { removed: true };
+  }
+
+  /**
+   * v1.76-social (D218, §10.73.3): the `profile-admin remove-cover` rule — the cover goes (the Kabso gradient
+   * shows), the user is told (`COVER_REMOVED`), its files are deleted after.
+   */
+  async removeCover(id: string, reason: string, ctx: AdminContext): Promise<{ removed: boolean }> {
+    const user = await this.target(id, ctx);
+    const username = user.profile?.username;
+    if (!username) throw new AppException(ErrorCode.NOT_FOUND);
+    const result = await this.prisma.$transaction((tx) =>
+      removeCoverByAdminIn(tx, username, reason, viaOf(ctx)),
+    );
+    if (result.outcome === 'unknown_user') throw new AppException(ErrorCode.NOT_FOUND);
+    if (result.outcome === 'no_cover') throw refused('The user has no profile cover.');
+    try {
+      await this.storage.delete(result.objectKeys);
+    } catch (err) {
+      // The cover is already gone from the profile; the orphaned files are only a storage cost.
+      this.logger.warn({ error: safeErrorLog(err), userId: id }, 'Cover files could not be deleted');
     }
     return { removed: true };
   }

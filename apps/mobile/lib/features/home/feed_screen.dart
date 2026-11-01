@@ -22,8 +22,17 @@ import 'package:kabso_live/features/stories/application/stories_controller.dart'
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// `/reels`, the fourth shell tab (D48/D52/D53): Posts (default) and Reels,
-/// each with the feeds Trending (default) and Following.
+/// `/reels`, the fourth shell tab (D48/D52/D53): Posts (default) and Reels.
+///
+/// D218 (owner, after a reference: «بهذا التصميم حرفياً مع اضافة ميزاتنا»):
+/// Posts keeps its bar of before (Search, the centred words, the bell —
+/// owner's follow-up «واجعل زر البحث والاشعارات مثل ما كانو بالاول»); the
+/// words are «المنشورات» and the switch «الريلز». Posts has one feed: the
+/// server's 1 Following : 2 Trending mix (`GET /feed/posts?tab=mixed`, CONVENTIONS
+/// §10.73). The stories tray sits above every posts state (D218: it was
+/// drawn only above a non-empty feed, so a new account never saw it).
+/// What follows below describes Reels, which keeps Following · For You ·
+/// Nearby:
 ///
 /// - Posts' header has three words in the centre (D53): the feed tabs
 ///   Trending · Following and, past a short divider, "Reels", which
@@ -131,15 +140,10 @@ class _FeedScreenState extends State<FeedScreen> {
         key: FeedScreen.headerKey,
         color: p.background,
         child: KTopSafeArea(
-          child: _FeedHeader(
-            tab: _tab,
-            feed: _feed,
+          child: _PostsTopBar(
             showSearch: widget.showSearch,
             showNotifications: widget.showNotifications,
             onSwitch: () => setState(() => _tab = _tab.other),
-            onFeed: (feed) {
-              if (feed != _feed) setState(() => _feed = feed);
-            },
           ),
         ),
       );
@@ -162,7 +166,7 @@ class _FeedScreenState extends State<FeedScreen> {
                     key: FeedScreen.pageKey(HomeTab.posts),
                     child: Padding(
                       padding: belowHeader,
-                      child: _feeds(HomeTab.posts, (f) => _PostsPage(feed: f)),
+                      child: const _PostsPage(),
                     ),
                   ),
                   // D202: reels are full bleed and always dark (video).
@@ -202,17 +206,6 @@ class _FeedScreenState extends State<FeedScreen> {
       ),
     );
   }
-
-  /// The two feeds of [tab], both kept alive.
-  Widget _feeds(HomeTab tab, Widget Function(HomeFeed feed) page) =>
-      IndexedStack(
-        index: _feed.index,
-        sizing: StackFit.expand,
-        children: [
-          for (final feed in HomeFeed.values)
-            KeyedSubtree(key: FeedScreen.feedKey(tab, feed), child: page(feed)),
-        ],
-      );
 }
 
 /// D202: the reels page is dark in both app themes (it sits on video).
@@ -581,32 +574,58 @@ class _ReelsChip extends StatelessWidget {
   }
 }
 
-class _FeedHeader extends StatelessWidget {
+/// The way forward from an empty or unavailable feed: "Watch live
+/// streams" opens Home (the live hub) on Popular; from Following, "See
+/// who's live" opens it on Following.
+(String, VoidCallback) _liveAction(
+  BuildContext context,
+  WidgetRef ref,
+  HomeFeed feed,
+) => switch (feed) {
+  HomeFeed.trending => (
+    context.l10n.homeWatchLive,
+    () => openLiveHub(context, ref, FeedTab.popular),
+  ),
+  HomeFeed.following => (
+    context.l10n.homeSeeWhoIsLive,
+    () => openLiveHub(context, ref, FeedTab.following),
+  ),
+};
+
+/// Gap between two posts.
+const _postGap = SizedBox(height: KPostCard.gap);
+
+Widget _postsSkeleton(BuildContext context) => SliverList.separated(
+  itemCount: 3,
+  itemBuilder: (_, _) => const FeedPostSkeleton(),
+  separatorBuilder: (_, _) => _postGap,
+);
+
+/// The posts top bar — owner (after D218): «ازل صورة والاسم في الاعلى واجعل
+/// زر البحث والاشعارات مثل ما كانو بالاول». The bar of before D218: a 48 dp
+/// row with Search at the reading start and the notifications bell at the
+/// end, each a 48 dp target in an equal inset; between them, centred, the
+/// page's word «المنشورات» (selected; Posts has one feed since D218, the
+/// server's mix) and, where the old bar had its third control, the switch
+/// word «الريلز» that opens Reels (D53).
+class _PostsTopBar extends StatelessWidget {
   const new({
-    required this.tab,
-    required this.feed,
     required this.showSearch,
     required this.showNotifications,
     required this.onSwitch,
-    required this.onFeed,
   });
 
-  final HomeTab tab;
-  final HomeFeed feed;
   final bool showSearch;
   final bool showNotifications;
   final VoidCallback onSwitch;
-  final ValueChanged<HomeFeed> onFeed;
 
-  /// Equal side insets keep the words centred on the screen; Search, when
-  /// shown, sits in the start one and the bell in the end one.
+  /// Equal side insets keep the words centred on the screen.
   static const double _searchSlot = KSizes.minTouchTarget + KSpacing.xs;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final p = context.palette;
-    final reels = tab == HomeTab.reels;
     return SizedBox(
       height: KMetrics.topBarHeight,
       child: Stack(
@@ -621,16 +640,14 @@ class _FeedHeader extends StatelessWidget {
               child: KPrimaryTabs(
                 key: FeedScreen.tabsKey,
                 centered: true,
-                labels: [l10n.homeFeedTrending, l10n.feedTabFollowing],
-                selectedIndex: feed.index,
-                onSelected: (i) => onFeed(HomeFeed.values[i]),
+                labels: [l10n.homeTabPosts],
+                selectedIndex: 0,
+                onSelected: (_) {},
                 // The other mode's name switches to it (D53).
                 action: KTabAction(
                   key: FeedScreen.switchKey,
-                  label: reels ? l10n.homeTabPosts : l10n.homeTabReels,
-                  semanticLabel: reels
-                      ? l10n.homeShowPosts
-                      : l10n.homeShowReels,
+                  label: l10n.homeTabReels,
+                  semanticLabel: l10n.homeShowReels,
                   onTap: onSwitch,
                 ),
               ),
@@ -669,64 +686,41 @@ class _FeedHeader extends StatelessWidget {
   }
 }
 
-/// The way forward from an empty or unavailable feed: "Watch live
-/// streams" opens Home (the live hub) on Popular; from Following, "See
-/// who's live" opens it on Following.
-(String, VoidCallback) _liveAction(
-  BuildContext context,
-  WidgetRef ref,
-  HomeFeed feed,
-) => switch (feed) {
-  HomeFeed.trending => (
-    context.l10n.homeWatchLive,
-    () => openLiveHub(context, ref, FeedTab.popular),
-  ),
-  HomeFeed.following => (
-    context.l10n.homeSeeWhoIsLive,
-    () => openLiveHub(context, ref, FeedTab.following),
-  ),
-};
-
-/// Gap between two posts.
-const _postGap = SizedBox(height: KPostCard.gap);
-
-Widget _postsSkeleton(BuildContext context) => SliverList.separated(
-  itemCount: 3,
-  itemBuilder: (_, _) => const FeedPostSkeleton(),
-  separatorBuilder: (_, _) => _postGap,
-);
-
+/// D218: the posts page — the stories tray above the server's 1 Following
+/// : 2 Trending mix, in every state of the feed.
 class _PostsPage extends ConsumerWidget {
-  const new({required this.feed});
-
-  final HomeFeed feed;
+  const new();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-    final (actionLabel, action) = _liveAction(context, ref, feed);
-    final following = feed == HomeFeed.following;
+    final (actionLabel, action) = _liveAction(context, ref, HomeFeed.trending);
     final stories = ref.watch(homeStoriesProvider).value;
-    final source = homePostsProvider(feed);
+    final source = homeMixedPostsProvider;
     final content = ref.watch(source);
     return FeedRegion<FeedPostData>(
-      key: PageStorageKey('home.posts.${feed.name}'),
+      key: const PageStorageKey('home.posts.mixed'),
       content: content,
+      leading: switch (stories) {
+        FeedItems(:final items) when items.isNotEmpty => SliverToBoxAdapter(
+          child: FeedStoriesTray(
+            stories: items,
+            onOpen: (s) => context.push(AppRoutes.stories(s.username!)),
+            onAdd: () => context.push(AppRoutes.newStory),
+            onOpenLive: (room) => context.push(AppRoutes.liveRoom(room)),
+          ),
+        ),
+        _ => null,
+      },
       copy: FeedRegionCopy(
         unavailableIcon: Icons.dynamic_feed_outlined,
-        unavailableTitle: following
-            ? l10n.homeFollowingUnavailableTitle
-            : l10n.homePopularUnavailableTitle,
-        unavailableBody: following
-            ? l10n.homeFollowingUnavailableBody
-            : l10n.homePopularUnavailableBody,
+        unavailableTitle: l10n.homePopularUnavailableTitle,
+        unavailableBody: l10n.homePopularUnavailableBody,
         unavailableActionLabel: actionLabel,
         unavailableActionIcon: Icons.sensors_rounded,
         onUnavailableAction: action,
         emptyIcon: Icons.dynamic_feed_outlined,
-        emptyTitle: following
-            ? l10n.homeFollowingEmptyTitle
-            : l10n.homeEmptyTitle,
+        emptyTitle: l10n.homeEmptyTitle,
         emptyBody: l10n.feedPullToRefresh,
         emptyActionLabel: actionLabel,
         emptyActionIcon: Icons.sensors_rounded,
@@ -737,45 +731,31 @@ class _PostsPage extends ConsumerWidget {
       onRefresh: () {
         ref
           ..invalidate(storyTrayProvider)
+          ..invalidate(followedLiveNowProvider)
           ..invalidate(homeStoriesProvider)
-          ..invalidate(postsFeedProvider(feed));
+          ..invalidate(mixedPostsFeedProvider);
         return ref.refresh(source.future);
       },
       onRetry: () => ref
-        ..invalidate(postsFeedProvider(feed))
+        ..invalidate(mixedPostsFeedProvider)
         ..invalidate(source),
       // Only a real paginated source has a next page (fixtures never do).
       onLoadMore: () {
         if (content.value case FeedItems(hasMore: true)) {
-          unawaited(ref.read(postsFeedProvider(feed).notifier).loadMore());
+          unawaited(ref.read(mixedPostsFeedProvider.notifier).loadMore());
         }
       },
       onRetryLoadMore: () =>
-          unawaited(ref.read(postsFeedProvider(feed).notifier).retryLoadMore()),
+          unawaited(ref.read(mixedPostsFeedProvider.notifier).retryLoadMore()),
       footerLoadingSliver: const SliverToBoxAdapter(child: FeedPostSkeleton()),
       loadingSliver: _postsSkeleton(context),
-      itemsSliver: (posts) => SliverMainAxisGroup(
-        slivers: [
-          if (stories case FeedItems(:final items) when items.isNotEmpty)
-            SliverToBoxAdapter(
-              child: FeedStoriesTray(
-                stories: items,
-                onOpen: (s) => context.push(AppRoutes.stories(s.username!)),
-                onAdd: () => context.push(AppRoutes.newStory),
-              ),
-            ),
-          SliverPadding(
-            padding: const EdgeInsets.only(
-              top: KSpacing.xs,
-              bottom: KSpacing.lg,
-            ),
-            sliver: SliverList.separated(
-              itemCount: posts.length,
-              itemBuilder: (_, i) => FeedPostTile(post: posts[i]),
-              separatorBuilder: (_, _) => _postGap,
-            ),
-          ),
-        ],
+      itemsSliver: (posts) => SliverPadding(
+        padding: const EdgeInsets.only(bottom: KSpacing.lg),
+        sliver: SliverList.separated(
+          itemCount: posts.length,
+          itemBuilder: (_, i) => FeedPostTile(post: posts[i]),
+          separatorBuilder: (_, _) => _postGap,
+        ),
       ),
     );
   }

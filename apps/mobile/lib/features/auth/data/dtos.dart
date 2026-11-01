@@ -33,6 +33,7 @@ class MeDto {
     this.category,
     this.links = const [],
     this.specialUsername,
+    this.coverUrl,
   });
 
   factory fromJson(Map<String, dynamic> json) => _$MeDtoFromJson(json);
@@ -89,6 +90,9 @@ class MeDto {
   )
   final SpecialUsername? specialUsername;
 
+  /// v1.76-social (D218, §10.73.3): the profile cover, or null.
+  final String? coverUrl;
+
   Map<String, dynamic> toJson() => _$MeDtoToJson(this);
 
   User toEntity() => User(
@@ -112,6 +116,7 @@ class MeDto {
     category: category,
     links: links,
     specialUsername: specialUsername,
+    coverUrl: coverUrl,
   );
 }
 

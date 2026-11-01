@@ -268,3 +268,26 @@
 - The AUDIO host bar keeps its «قريباً» PK button (D225b, owner): its mic is a tile in ≡ (and the «إعدادات البث» row),
   not on the bar, so the bar fits 393 and 360 dp; a podcast has no PK by the owner's decision (its bar has the mic).
 - Not verified on a device (remote volume, the data saver, the camera off seen by viewers).
+
+## The social redesign (v1.76-social draft, D218)
+
+- **Feed mix.** `tab=mixed` merges the newest 500 Following entries with Trending's 500-entry snapshot; past those
+  1 000 entries the feed ends (pull to refresh starts a new snapshot). Visibility is re-checked per page (posts that
+  became invisible leave the page; new posts wait for the next snapshot).
+- **The posts page has one feed.** The Trending / Following tabs left Posts (the owner's top bar); the API keeps both
+  tabs and the reels page keeps Following · For You · Nearby.
+- **«مقترح لك»** means «you do not follow the author» (`Post.viewerFollowsAuthor` false), not a recommendation model.
+- **Stories tray LIVE pills** come from the first page of `GET /live/rooms?tab=following` (up to 50 followed hosts
+  live now); a host beyond it gets no pill. The tray hides when it has no story and nobody live (owner: «Hide the
+  tray when it is empty»), so an account without stories and without live friends sees no «قصتك» there — the
+  Create button still adds a story.
+- **Story replies** go to the author's DMs as plain text («❤️» for the heart) with no reference to the story; the DM
+  rules apply (the app shows the server's refusal).
+- **Profile cover:** no crop step (the picture is uploaded whole and covers the banner); no report reason specific to
+  covers (a report of the user covers it); the panel's «حذف صورة الغلاف» shows for every user and answers «no cover»
+  when there is none (the panel's user view does not carry the cover yet).
+- **Country and «انضم في»** are public on the profile from this version (the owner asked for the row); there is no
+  switch to hide the country yet.
+- **No verification badge** (owner: decided later).
+- Not verified on a device (the keyboard over the story reply, the cover under the status bar on notched phones).
+

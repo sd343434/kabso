@@ -47,6 +47,9 @@ FeedPostData feedPostOf(Post post, {UserSummary? repostedBy}) {
     likes: post.likeCount,
     comments: post.commentCount,
     shares: post.shareCount,
+    views: post.viewCount,
+    // D218: the card's «متابعة» pill and «مقترح لك» (never on your own).
+    isFollowingAuthor: post.isSelf ? null : post.viewerFollowsAuthor,
     liked: post.viewerHasLiked,
     saved: post.viewerHasSaved,
     reposted: post.viewerHasReposted,
@@ -81,7 +84,7 @@ extension on HomeFeed {
 /// Trending snapshot) reloads the feed from the first page once. A hidden or
 /// deleted post leaves the list at once.
 class PostsFeedController extends AsyncNotifier<FeedItems<Post>> {
-  new(this.feed, {this.reels = false, this.nearby = false});
+  new(this.feed, {this.reels = false, this.nearby = false, this.mixed = false});
 
   final HomeFeed feed;
   final bool reels;
@@ -90,7 +93,16 @@ class PostsFeedController extends AsyncNotifier<FeedItems<Post>> {
   /// (`GET /feed/reels?tab=nearby`); [feed] is then ignored.
   final bool nearby;
 
-  PostsFeedTab get _tab => nearby ? PostsFeedTab.nearby : feed.tab;
+  /// v1.76-social (D218, CONVENTIONS §10.73.1): the posts page's home feed
+  /// (`GET /feed/posts?tab=mixed`, 1 Following : 2 Trending, frozen like
+  /// Trending); [feed] is then ignored.
+  final bool mixed;
+
+  PostsFeedTab get _tab => nearby
+      ? PostsFeedTab.nearby
+      : mixed
+      ? PostsFeedTab.mixed
+      : feed.tab;
 
   String? _next;
   int _generation = 0;
@@ -231,6 +243,13 @@ nearbyReelsFeedProvider = AsyncNotifierProvider(
   () => PostsFeedController(HomeFeed.trending, nearby: true),
 );
 
+/// v1.76-social (D218): the posts page's only feed — 1 Following : 2
+/// Trending, interleaved by the server (§10.73.1).
+final AsyncNotifierProvider<PostsFeedController, FeedItems<Post>>
+mixedPostsFeedProvider = AsyncNotifierProvider(
+  () => PostsFeedController(HomeFeed.trending, mixed: true),
+);
+
 /// The latest version of posts the caller changed in this session (edit,
 /// pin): feeds and the post screen show it instead of what they loaded.
 class PostEdits extends Notifier<Map<String, Post>> {
@@ -276,5 +295,8 @@ void removePostFromFeeds(WidgetRef ref, String postId) {
   }
   if (ref.exists(nearbyReelsFeedProvider)) {
     ref.read(nearbyReelsFeedProvider.notifier).remove(postId);
+  }
+  if (ref.exists(mixedPostsFeedProvider)) {
+    ref.read(mixedPostsFeedProvider.notifier).remove(postId);
   }
 }

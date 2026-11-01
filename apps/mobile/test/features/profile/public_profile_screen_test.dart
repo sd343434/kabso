@@ -12,11 +12,13 @@ import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/app.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
+import 'package:kabso_live/core/format/k_handle.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/home/presentation/widgets/feed_post_tile.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_pk_record.dart';
 import 'package:kabso_live/features/messages/chat_screen.dart';
 import 'package:kabso_live/features/messages/data/dm_repository.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
@@ -63,32 +65,71 @@ Future<FakeProfileRepository> _pump(
 }
 
 void main() {
-  testWidgets('header from GET /users/{username}: @username, photo with the '
-      'live ring and badge, counts, name, bio; Follow and Watch live', (
-    tester,
-  ) async {
+  testWidgets('header from GET /users/{username} (D218 layout): the old '
+      'top bar (@username, dots), the cover (or the Kabso gradient) under '
+      'it, the photo with the live '
+      'ring and badge over it (a tap opens the room), name, handle, counts, '
+      'bio; a wide Follow pill and a round Message button', (tester) async {
     final repo = await _pump(tester);
     expect(repo.calls, ['GET host0']);
+    // Owner (after D218): the @username only in the top bar; under the
+    // name the level badges; no PK record pill on the profile.
+    expect(find.text(KHandle.isolated('host0')), findsNothing);
     expect(find.text('@host0'), findsOneWidget);
     expect(find.text('Sara'), findsOneWidget);
+    final name = tester.getRect(find.byKey(const Key('profile.displayName')));
+    final levels = tester.getRect(find.byKey(PublicProfileScreen.levelsKey));
+    expect(levels.top, greaterThanOrEqualTo(name.bottom));
+    expect(find.byType(LivePkRecordLine), findsNothing);
     expect(find.text('Arabic music every evening'), findsOneWidget);
-    expect(find.text('1,234'), findsOneWidget);
-    expect(find.text('40'), findsOneWidget);
+    expect(find.textContaining('1,234'), findsOneWidget);
+    expect(find.textContaining('40'), findsWidgets);
     final avatar = tester.widget<KAvatar>(find.byType(KAvatar).first);
     expect(avatar.ring, KAvatarRing.live);
     expect(find.byType(KBadge), findsOneWidget);
+    // The top bar of before D218 (owner: «ارجعهم مثل ما كانو»): the
+    // centred @username and the three dots in the app bar; no buttons
+    // over the cover.
+    final bar = find.byType(AppBar);
+    expect(bar, findsOneWidget);
+    expect(
+      find.descendant(of: bar, matching: find.text('@host0')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: bar,
+        matching: find.byKey(PublicProfileScreen.moreKey),
+      ),
+      findsOneWidget,
+    );
+    final title = tester.getCenter(
+      find.descendant(of: bar, matching: find.text('@host0')),
+    );
+    expect(title.dx, moreOrLessEquals(393 / 2, epsilon: 1));
+    // No cover yet: the Kabso gradient, right under the bar.
+    expect(find.byKey(PublicProfileScreen.coverFallbackKey), findsOneWidget);
+    final cover = tester.getRect(
+      find.byKey(PublicProfileScreen.coverFallbackKey),
+    );
+    expect(cover.top, tester.getRect(bar).bottom);
+    expect(cover.width, 393);
+    final photo = tester.getRect(find.byKey(ProfileHeaderView.avatarKey));
+    expect(photo.top, lessThan(cover.bottom));
+    expect(photo.bottom, greaterThan(cover.bottom));
     expect(find.byKey(PublicProfileScreen.followKey), findsOneWidget);
     expect(find.byKey(PublicProfileScreen.watchLiveKey), findsOneWidget);
     expect(find.bySemanticsLabel(_en.profileWatchLive), findsWidgets);
     expect(find.text(_en.liveFollow), findsOneWidget);
-    // D61: Message beside Follow; the LIVE button stays compact.
+    // D218: the Follow pill fills the row; Message is a round button after it.
     final follow = tester.getRect(find.byKey(PublicProfileScreen.followKey));
     final message = tester.getRect(find.byKey(PublicProfileScreen.messageKey));
-    final live = tester.getRect(find.byKey(PublicProfileScreen.watchLiveKey));
-    expect(message.width, moreOrLessEquals(follow.width, epsilon: 0.5));
-    expect(live.width, lessThan(follow.width));
+    expect(message.width, moreOrLessEquals(message.height, epsilon: 0.5));
+    expect(follow.width, greaterThan(4 * message.width));
     expect(follow.right, lessThan(message.left));
-    expect(message.right, lessThan(live.left));
+    // The words «Posts | Reels | Reposts» (no subscribers tab, no Saved).
+    expect(find.text(_en.profileTabPostsWord), findsOneWidget);
+    expect(find.text(_en.profileTabRepostsWord), findsOneWidget);
     // Posts and Reels only: Saved is private.
     expect(find.byKey(ProfileScreen.tabKey(ProfileTab.posts)), findsOneWidget);
     expect(find.byKey(ProfileScreen.tabKey(ProfileTab.reels)), findsOneWidget);
@@ -108,7 +149,7 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.text('1,235'), findsOneWidget);
+    expect(find.textContaining('1,235'), findsOneWidget);
     await tester.tap(find.byKey(PublicProfileScreen.followKey));
     await tester.pumpAndSettle();
     expect(find.text(_en.profileUnfollowConfirm('Sara')), findsOneWidget);

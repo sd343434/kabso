@@ -44,6 +44,11 @@ export interface AvatarDto {
   avatarUrl: string;
 }
 
+/** `ProfileCover` (v1.76-social, D218). */
+export interface CoverDto {
+  coverUrl: string;
+}
+
 /**
  * Editing the own profile (v1.45-social, D168, CONVENTIONS §10.42): the display name and bio of
  * `PATCH /me`, and the profile photo (`PUT` / `DELETE /me/avatar`) on the media pipeline's `AVATAR`
@@ -198,6 +203,87 @@ export class ProfileEditService {
       return this.applyIn(tx, userId, old, null, meta);
     });
     await this.media.deleteObjects(oldKeys);
+  }
+
+  /**
+   * v1.76-social (D218, CONVENTIONS §10.73.3): `PUT /me/cover`. The avatar's rules: uploads switch (503) →
+   * body (`SetAvatarRequest`'s shape) → the asset (400 `mediaId` / `invalid_value` unless it is a READY,
+   * unattached `PROFILE_COVER` of the caller from the last 24 hours). The old cover's asset is deleted in
+   * the same transaction, its objects after commit. Setting the current cover again changes nothing.
+   */
+  async setCover(userId: string, body: unknown, meta: ProfileEditMeta): Promise<CoverDto> {
+    this.media.assertEnabled();
+    const parsed = setAvatarSchema.safeParse(body ?? {});
+    if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
+    const mediaId = parsed.data.mediaId.toLowerCase();
+    let coverUrl = '';
+    const oldKeys = await this.prisma.$transaction(async (tx) => {
+      const old = await this.lockCover(tx, userId);
+      if (old.cover_media_id === mediaId && old.cover_url !== null) {
+        coverUrl = old.cover_url;
+        return [];
+      }
+      const claimed = await this.media.claimAssetsIn(tx, userId, [mediaId], 'PROFILE_COVER');
+      if (!claimed) throw AppException.validation([{ field: 'mediaId', issue: 'invalid_value' }]);
+      coverUrl = this.media.largeUrl(claimed[0]!);
+      return this.applyCoverIn(tx, userId, old, { mediaId, url: coverUrl }, meta);
+    });
+    await this.media.deleteObjects(oldKeys);
+    return { coverUrl };
+  }
+
+  /** v1.76-social (D218): `DELETE /me/cover` — back to the Kabso gradient; idempotent; uploads may be off. */
+  async removeCover(userId: string, meta: ProfileEditMeta): Promise<void> {
+    const oldKeys = await this.prisma.$transaction(async (tx) => {
+      const old = await this.lockCover(tx, userId);
+      if (old.cover_media_id === null) return [];
+      return this.applyCoverIn(tx, userId, old, null, meta);
+    });
+    await this.media.deleteObjects(oldKeys);
+  }
+
+  private async lockCover(
+    tx: Prisma.TransactionClient,
+    userId: string,
+  ): Promise<{ cover_media_id: string | null; cover_url: string | null }> {
+    const [row] = await tx.$queryRaw<{ cover_media_id: string | null; cover_url: string | null }[]>`
+      SELECT cover_media_id::text AS cover_media_id, cover_url
+        FROM user_profiles WHERE user_id = ${userId}::uuid
+         FOR UPDATE`;
+    if (!row) throw new AppException(ErrorCode.AUTH_UNAUTHENTICATED);
+    return row;
+  }
+
+  /** Sets (or clears) the cover, deletes the replaced asset's row; returns its object keys. */
+  private async applyCoverIn(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    old: { cover_media_id: string | null },
+    next: { mediaId: string; url: string } | null,
+    meta: ProfileEditMeta,
+  ): Promise<string[]> {
+    await tx.userProfile.update({
+      where: { userId },
+      data: { coverMediaId: next?.mediaId ?? null, coverUrl: next?.url ?? null },
+    });
+    let oldKeys: string[] = [];
+    if (old.cover_media_id !== null) {
+      const gone = await tx.mediaAsset.delete({
+        where: { id: old.cover_media_id },
+        select: { largeKey: true, thumbKey: true },
+      });
+      oldKeys = [gone.largeKey, gone.thumbKey];
+    }
+    await this.audit.recordIn(tx, {
+      action: AuditAction.COVER_UPDATE,
+      actorUserId: userId,
+      targetType: 'user',
+      targetId: userId,
+      metadata: { cover: next === null ? 'removed' : 'set' },
+      ip: meta.ip,
+      requestId: meta.requestId,
+    });
+    return oldKeys;
   }
 
   private async lockProfile(

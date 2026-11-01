@@ -48,6 +48,8 @@ export interface MeDto {
   links: ProfileLinkDto[];
   /** v1.54-social (D185): the caller's active special username; absent when none. */
   specialUsername?: MeSpecialUsernameDto;
+  /** v1.76-social (D218, §10.73.3): the caller's profile cover (1 080 px), or null (the Kabso gradient). */
+  coverUrl: string | null;
 }
 
 /** Public identity fields of an ACTIVE user (contract v1.3 `PublicProfile` / `UserSummary`). */
@@ -64,6 +66,10 @@ export interface PublicUser {
   gender: 'MALE' | 'FEMALE' | null;
   category: AccountCategory | null;
   links: ProfileLinkDto[];
+  /** v1.76-social (D218, §10.73.3): the cover, the country the user chose (D133) and the month they joined. */
+  coverUrl: string | null;
+  country: string | null;
+  joinedMonth: string;
 }
 
 /** A follow target locked for the duration of the caller's transaction. */
@@ -124,6 +130,8 @@ export interface UserWithProfile {
     gender?: Gender | null;
     showGender?: boolean;
     category?: AccountCategory | null;
+    /** v1.76-social (D218). Absent in older selects: null. */
+    coverUrl?: string | null;
   } | null;
   /** v1.47-social (D175): `ME_INCLUDE` reads them. */
   profileLinks?: { id: string; url: string; label: string | null }[];
@@ -164,6 +172,7 @@ export function toMeDto(user: UserWithProfile): MeDto {
     category: user.profile.category ?? null,
     links: (user.profileLinks ?? []).map(profileLinkDto),
     ...specialOf(user),
+    coverUrl: user.profile.coverUrl ?? null,
   };
 }
 
@@ -424,7 +433,15 @@ export class UsersService {
         gender: true,
         showGender: true,
         category: true,
-        user: { select: { settings: { select: { isPrivate: true } }, profileLinks: PROFILE_LINKS_SELECT } },
+        coverUrl: true,
+        countryCode: true,
+        user: {
+          select: {
+            createdAt: true,
+            settings: { select: { isPrivate: true } },
+            profileLinks: PROFILE_LINKS_SELECT,
+          },
+        },
       },
     });
     if (!profile) return null;
@@ -439,6 +456,10 @@ export class UsersService {
       gender: publicGender(profile.gender, profile.showGender),
       category: profile.category,
       links: profile.user.profileLinks.map(profileLinkDto),
+      coverUrl: profile.coverUrl,
+      country: profile.countryCode,
+      // D218: the month only («انضم في <شهر سنة>»), never the exact time (UTC).
+      joinedMonth: profile.user.createdAt.toISOString().slice(0, 7),
     };
   }
 

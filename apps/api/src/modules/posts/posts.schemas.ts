@@ -99,8 +99,9 @@ export const recordViewsSchema = z.strictObject({
     .max(50),
 });
 
+/** v1.76-social (D218, CONVENTIONS §10.73): `mixed` — 1 Following : 2 Trending, the app's home feed. */
 export const feedQuerySchema = z.strictObject({
-  tab: z.string().pipe(z.enum(['following', 'trending'])),
+  tab: z.string().pipe(z.enum(['following', 'trending', 'mixed'])),
   cursor: z.string().min(1).max(512).optional(),
   limit: limitSchema.optional().transform((v) => v ?? 20),
 });
@@ -108,7 +109,7 @@ export type FeedQuery = z.output<typeof feedQuerySchema>;
 
 /**
  * v1.68-social (D202): `GET /feed/reels` also takes `tab=nearby` (reels of authors from the caller's own
- * country, CONVENTIONS §11.15). `GET /feed/posts` keeps following | trending.
+ * country, CONVENTIONS §11.15). `GET /feed/posts` has following | trending | (D218) mixed instead.
  */
 export const reelsFeedQuerySchema = z.strictObject({
   tab: z.string().pipe(z.enum(['following', 'trending', 'nearby'])),

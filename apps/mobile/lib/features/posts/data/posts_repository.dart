@@ -8,7 +8,10 @@ import 'package:kabso_live/features/posts/domain/post_models.dart';
 /// Which feed (`GET /feed/posts?tab=`).
 /// The feeds' tabs. [nearby] (v1.68-social, D202) exists for reels only
 /// (`GET /feed/reels?tab=nearby`: authors from the caller's own country).
-enum PostsFeedTab { following, trending, nearby }
+/// The `tab` of `GET /feed/posts` / `GET /feed/reels`. v1.76-social (D218,
+/// CONVENTIONS §10.73.1): [mixed] — 1 Following : 2 Trending, the posts
+/// page's only feed (posts only).
+enum PostsFeedTab { following, trending, nearby, mixed }
 
 /// Posts, feeds and interactions (docs/contracts/openapi.yaml v1.5-social
 /// DRAFT, tags `posts`, `feed` and `safety`; CONVENTIONS §11).

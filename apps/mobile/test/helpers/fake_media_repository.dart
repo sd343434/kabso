@@ -121,6 +121,33 @@ class FakeMediaRepository implements MediaRepository {
     );
   }
 
+  /// D218: every profile-cover upload, e.g. `image/jpeg:1234`.
+  final List<String> profileCoverUploads = [];
+
+  @override
+  Future<MediaAsset> uploadCover(
+    Uint8List bytes,
+    String contentType, {
+    void Function(double progress)? onProgress,
+  }) async {
+    onProgress?.call(0);
+    if (gate case final g?) await g.future;
+    if (failWith case final e?) {
+      failWith = null;
+      throw e;
+    }
+    onProgress?.call(1);
+    profileCoverUploads.add('$contentType:${bytes.length}');
+    final id = 'cv${profileCoverUploads.length}';
+    return MediaAsset(
+      id: id,
+      url: 'https://media.example.test/media/$id/1080.webp',
+      thumbUrl: 'https://media.example.test/media/$id/320.webp',
+      width: 1080,
+      height: 608,
+    );
+  }
+
   /// D155: every direct message upload, e.g. `voice:audio/mp4:1234`.
   final List<String> dmUploads = [];
 

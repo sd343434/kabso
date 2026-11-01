@@ -117,6 +117,7 @@ class Post {
     this.publishedAt,
     this.editedAt,
     this.repostedBy,
+    this.viewerFollowsAuthor,
   });
 
   factory fromJson(Map<String, dynamic> json) {
@@ -161,6 +162,7 @@ class Post {
         final Map<String, dynamic> by => UserSummary.fromJson(by),
         _ => null,
       },
+      viewerFollowsAuthor: json['viewerFollowsAuthor'] as bool?,
     );
   }
 
@@ -204,6 +206,11 @@ class Post {
   MediaAsset? get video =>
       media.length == 1 && media.first.isVideo ? media.first : null;
   final UserSummary? repostedBy;
+
+  /// v1.76-social (D218): the caller follows the author (false on the
+  /// caller's own post); null when the server did not say (older servers,
+  /// a locally edited copy). The feed card's «متابعة» shows only when false.
+  final bool? viewerFollowsAuthor;
 }
 
 /// One page of a list (`PostPage`, `UserSummaryPage`, …).

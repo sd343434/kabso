@@ -11,9 +11,11 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/storage/preferences.dart';
+import 'package:kabso_live/core/storage/secure_token_store.dart';
 import 'package:kabso_live/features/debug/posts_preview_screen.dart';
 import 'package:kabso_live/features/home/application/home_feed_provider.dart';
 
+import '../helpers/fakes.dart';
 import '../helpers/golden.dart';
 import '../helpers/pump_app.dart';
 
@@ -36,6 +38,10 @@ void main() {
                 overrides: [
                   sharedPreferencesProvider.overrideWithValue(
                     await testPrefs(language: language.name),
+                  ),
+                  // D218: Posts' top bar reads the session (none here).
+                  secureTokenStoreProvider.overrideWithValue(
+                    InMemoryTokenStore(),
                   ),
                 ],
                 child: PostsPreviewScreen(initialTab: tab),

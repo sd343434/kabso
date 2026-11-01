@@ -12,8 +12,11 @@ import 'package:kabso_live/core/storage/secure_token_store.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/domain/entities.dart';
 import 'package:kabso_live/features/auth/presentation/auth_controller.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_pk_record.dart';
 import 'package:kabso_live/features/posts/data/posts_repository.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
+import 'package:kabso_live/features/profile/edit_profile_screen.dart';
+import 'package:kabso_live/features/profile/profile_cover_header.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -89,41 +92,111 @@ void main() {
     );
   });
 
-  testWidgets('header: @username title, photo with the counts beside it, '
-      'then the name, the bio and "Edit profile"', (tester) async {
+  testWidgets('D218 («وحدهما»): the bar unchanged (@username, drafts, '
+      'settings); the cover under it with the photo over its edge; the name, '
+      'the level badges under it, the counts, the bio; a wide «Edit profile» '
+      'pill; no @username beside the name, no PK record', (tester) async {
     await _pump(tester);
     expect(
       tester.widget<Text>(find.byKey(const Key('profile.title'))).data,
       '@layla.k',
     );
-    final avatar = tester.getRect(find.byType(KAvatar).first);
+    expect(find.text('@layla.k'), findsOneWidget);
+    expect(find.byKey(ProfileScreen.draftsButtonKey), findsOneWidget);
+    expect(find.byKey(ProfileScreen.settingsButtonKey), findsOneWidget);
+    final bar = tester.getRect(find.byType(AppBar));
+    final cover = tester.getRect(
+      find.byKey(ProfileCoverHeader.coverFallbackKey),
+    );
+    expect(cover.top, bar.bottom);
+    expect(cover.width, 393);
+    final photo = tester.getRect(find.byKey(ProfileHeaderView.avatarKey));
+    expect(photo.top, lessThan(cover.bottom));
+    expect(photo.bottom, greaterThan(cover.bottom));
+    final name = tester.getRect(find.byKey(const Key('profile.displayName')));
+    expect(name.top, greaterThanOrEqualTo(photo.bottom));
+    final levels = tester.getRect(find.byKey(ProfileInfoBlock.levelsKey));
+    expect(levels.top, greaterThanOrEqualTo(name.bottom));
     final stats = tester.getRect(find.byKey(ProfileScreen.statsKey));
-    expect(stats.left, greaterThan(avatar.right));
-    expect(stats.center.dy, moreOrLessEquals(avatar.center.dy, epsilon: 8));
-    expect(find.text('5,600'), findsOneWidget);
-    expect(find.text('40'), findsOneWidget);
-    expect(find.text(_en.profileFollowers), findsOneWidget);
-    expect(find.text(_en.profileFollowingCount), findsOneWidget);
-    final name = tester.getRect(find.text('Layla'));
-    expect(name.top, greaterThan(avatar.bottom));
+    expect(stats.top, greaterThanOrEqualTo(levels.bottom));
+    expect(find.textContaining('5,600'), findsOneWidget);
+    expect(find.textContaining(_en.profileFollowerWord), findsOneWidget);
     expect(find.text('Music every evening'), findsOneWidget);
-    expect(find.byKey(ProfileScreen.editButtonKey), findsOneWidget);
+    final edit = find.byKey(ProfileScreen.editButtonKey);
     expect(
-      find.descendant(
-        of: find.byKey(ProfileScreen.editButtonKey),
-        matching: find.text(_en.profileEditTitle),
-      ),
+      find.descendant(of: edit, matching: find.text(_en.profileEditTitle)),
       findsOneWidget,
     );
-    expect(
-      tester.getSize(find.byKey(ProfileScreen.editButtonKey)).width,
-      393 - 2 * KProfile.inset,
-    );
+    expect(tester.getSize(edit).width, 393 - 2 * KProfile.inset);
+    expect(tester.getSize(edit).height, KPublicProfile.buttonHeight);
+    expect(find.byType(LivePkRecordLine), findsNothing);
   });
+
+  testWidgets('a tap on the cover opens «Cover photo» (choose, take)', (
+    tester,
+  ) async {
+    await _pump(tester);
+    await tester.tap(find.byKey(ProfileCoverHeader.coverButtonKey));
+    await tester.pumpAndSettle();
+    expect(find.byKey(EditProfileScreen.coverLibraryKey), findsOneWidget);
+    expect(find.byKey(EditProfileScreen.coverCameraKey), findsOneWidget);
+    // No cover yet: nothing to remove.
+    expect(find.byKey(EditProfileScreen.coverRemoveKey), findsNothing);
+  });
+
+  testWidgets('the four text tabs: Posts · Reels · Reposts · Saved', (
+    tester,
+  ) async {
+    await _pump(tester);
+    for (final word in [
+      _en.profileTabPostsWord,
+      _en.profileTabReelsWord,
+      _en.profileTabRepostsWord,
+      _en.profileTabSavedWord,
+    ]) {
+      expect(
+        find.descendant(
+          of: find.byKey(ProfileScreen.tabsKey),
+          matching: find.text(word),
+        ),
+        findsOneWidget,
+      );
+    }
+  });
+
+  for (final brightness in Brightness.values) {
+    testWidgets('${brightness.name}: the edit pill is neutral (surface, '
+        'text colour), never the brand colour', (tester) async {
+      setViewport(tester, GoldenViewport.phone);
+      await pumpScreen(
+        tester,
+        Builder(
+          builder: (context) => Theme(
+            data: buildAppTheme(
+              brightness: brightness,
+              locale: Localizations.localeOf(context),
+            ),
+            child: const ProfileScreen(),
+          ),
+        ),
+        overrides: _overrides(),
+      );
+      await tester.pumpAndSettle();
+      final palette = brightness == Brightness.dark
+          ? KPalette.dark
+          : KPalette.light;
+      final style = tester
+          .widget<OutlinedButton>(find.byKey(ProfileScreen.editButtonKey))
+          .style!;
+      expect(style.backgroundColor!.resolve({}), palette.surface);
+      expect(style.foregroundColor!.resolve({}), palette.textPrimary);
+      expect(tester.takeException(), isNull);
+    });
+  }
 
   testWidgets('a failed count shows a dash, not a skeleton', (tester) async {
     await _pump(tester, overrides: _overrides(statsFail: true));
-    expect(find.text('–'), findsNWidgets(2));
+    expect(find.textContaining('\u2013'), findsNWidgets(2));
     expect(
       find.descendant(
         of: find.byKey(ProfileScreen.statsKey),
@@ -232,14 +305,17 @@ void main() {
     );
   });
 
-  testWidgets('RTL: the photo at the right, the counts to its left', (
+  testWidgets('RTL: the photo at the right, the counts under the name', (
     tester,
   ) async {
     await _pump(tester, language: AppLanguage.ar);
-    final avatar = tester.getRect(find.byType(KAvatar).first);
+    // D218: the photo over the cover at the reading start (right), the
+    // counts under the name.
+    final avatar = tester.getRect(find.byKey(ProfileHeaderView.avatarKey));
     final stats = tester.getRect(find.byKey(ProfileScreen.statsKey));
     expect(avatar.right, moreOrLessEquals(393 - KProfile.inset, epsilon: 1));
-    expect(stats.right, lessThan(avatar.left));
+    expect(stats.top, greaterThan(avatar.bottom));
+    expect(stats.right, moreOrLessEquals(393 - KProfile.inset, epsilon: 1));
   });
 
   for (final language in AppLanguage.values) {

@@ -109,6 +109,22 @@ abstract class PublicProfile with _$PublicProfile {
       toJson: rechargeBadgeToJson,
     )
     RechargeBadge? rechargeBadge,
+
+    /// v1.76-social (D218, §10.73.3): the profile cover across the top, or
+    /// null (the Kabso gradient).
+    String? coverUrl,
+
+    /// v1.76-social (D218): the country the user chose (ISO alpha-2), or
+    /// null.
+    String? country,
+
+    /// v1.76-social (D218): the month the account was created,
+    /// `YYYY-MM` (UTC), or null on older servers.
+    String? joinedMonth,
+
+    /// v1.76-social (D218): the caller blocked this user — «إلغاء الحظر»
+    /// instead of Follow, and no posts.
+    @Default(false) bool blockedByMe,
   }) = _PublicProfile;
 
   const new _();

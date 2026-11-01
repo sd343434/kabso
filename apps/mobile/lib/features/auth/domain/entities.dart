@@ -54,6 +54,9 @@ abstract class User with _$User {
     /// v1.54-social (D185, §10.48.1): the active special username (the
     /// shown [username] while set) and the person's own base username.
     SpecialUsername? specialUsername,
+
+    /// v1.76-social (D218, §10.73.3): the profile cover, or null.
+    String? coverUrl,
   }) = _User;
 }
 

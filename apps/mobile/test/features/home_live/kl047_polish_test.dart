@@ -296,8 +296,9 @@ void main() {
       await _pumpHome(
         tester,
         overrides: [
-          homePostsProvider.overrideWith(
-            (ref, _) => Completer<FeedLoad<FeedPostData>>().future,
+          // D218: the posts page reads the mix.
+          homeMixedPostsProvider.overrideWith(
+            (ref) => Completer<FeedLoad<FeedPostData>>().future,
           ),
         ],
       );
@@ -329,7 +330,7 @@ void main() {
         await _pumpHome(
           tester,
           overrides: [
-            homePostsProvider.overrideWith((ref, _) {
+            homeMixedPostsProvider.overrideWith((ref) {
               calls++;
               if (fail) throw failure;
               return FeedItems<FeedPostData>(feedPosts(AppLanguage.en));
@@ -359,8 +360,8 @@ void main() {
       await _pumpHome(
         tester,
         overrides: [
-          homePostsProvider.overrideWith(
-            (ref, _) => const FeedItems<FeedPostData>([]),
+          homeMixedPostsProvider.overrideWith(
+            (ref) => const FeedItems<FeedPostData>([]),
           ),
           homeReelsProvider.overrideWith(
             (ref, _) => const FeedItems<FeedReelData>([]),

@@ -9,21 +9,33 @@ import 'package:kabso_live/core/format/k_handle.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
-import 'package:kabso_live/features/cp/presentation/cp_special_frame.dart';
-import 'package:kabso_live/features/levels/presentation/profile_levels.dart';
-import 'package:kabso_live/features/live/presentation/widgets/live_pk_record.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/features/profile/application/public_profile_controller.dart';
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
-import 'package:kabso_live/features/profile/profile_bonds.dart';
-import 'package:kabso_live/features/profile/profile_fields_view.dart';
+import 'package:kabso_live/features/profile/profile_cover_header.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
 import 'package:kabso_live/features/safety/safety_actions.dart';
+import 'package:kabso_live/features/safety/safety_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// `/users/:username` (D60): another user's public profile, from
-/// `GET /users/{username}` (v1.3), in the layout of the own profile (D57):
+/// `GET /users/{username}` (v1.3).
+///
+/// D218 (owner, after a reference: «بهذا التصميم حرفياً مع اضافة ميزاتنا»):
+/// the top bar of before (back, the centred @username, the three dots —
+/// owner: «ارجعهم مثل ما كانو»), then a cover (`coverUrl`, or a Kabso
+/// gradient); the photo overlapping the cover (the live ring and «يبث
+/// الآن» while live — a tap opens the room); the name (no
+/// verification mark: the owner decides on one later); «N متابِع · N
+/// متابَع» (the lists); the bio; the country and «انضم في <شهر سنة>»; the
+/// links; a wide Follow pill (متابَع / تم الطلب / إلغاء الحظر) and a round
+/// Message button; then our features — medals, family and relationship
+/// (`ProfileBondsBlock`). Owner, later: the @username only in the top bar
+/// (beside the name: room for a verification mark), the level badges right
+/// under the name, no PK record pill. The words
+/// «منشورات | ريلز | إعادات» over the 3-column grid (1 px gaps). Private
+/// and blocked accounts keep their honest states. Before D218:
 ///
 /// - top bar: back, @username in the centre, and the three dots (D62):
 ///   copy the username, mute, block and report (KL-060, §11.7); copy link
@@ -50,7 +62,7 @@ class PublicProfileScreen extends ConsumerStatefulWidget {
   final String username;
 
   static const followKey = Key('profile.public.follow');
-  static const watchLiveKey = Key('profile.public.watchLive');
+  static const Key watchLiveKey = ProfileCoverHeader.watchLiveKey;
   static const messageKey = Key('profile.public.message');
   static const moreKey = Key('profile.public.more');
   static const copyUsernameKey = Key('profile.public.copyUsername');
@@ -63,6 +75,12 @@ class PublicProfileScreen extends ConsumerStatefulWidget {
   static const cancelRequestKey = Key('profile.public.cancelRequest');
   static const privateKey = Key('profile.public.private');
   static const notFoundKey = Key('profile.public.notFound');
+  static const Key coverKey = ProfileCoverHeader.coverKey;
+  static const Key coverFallbackKey = ProfileCoverHeader.coverFallbackKey;
+  static const unblockKey = Key('profile.public.unblock');
+  static const blockedKey = Key('profile.public.blocked');
+  static const Key factsKey = ProfileInfoBlock.factsKey;
+  static const Key levelsKey = ProfileInfoBlock.levelsKey;
 
   static const List<ProfileTab> tabs = [
     ProfileTab.posts,
@@ -287,24 +305,68 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     }
   }
 
+  /// D218: unblocks the account (the profile stays: its posts show again).
+  Future<void> _unblock(PublicProfile profile) async {
+    final l10n = context.l10n;
+    try {
+      await ref
+          .read(safetyRepositoryProvider)
+          .setBlocked(profile.username, blocked: false);
+      ref.invalidate(publicProfileProvider(widget.username));
+      if (mounted) {
+        KSnack.success(context, l10n.safetyUnblocked(profile.displayName));
+      }
+    } on Object catch (e) {
+      if (mounted) {
+        KSnack.error(context, failureMessage(l10n, toAppFailure(e)));
+      }
+    }
+  }
+
+  /// D218: the wide Follow pill (black in light, inverted in dark) and the
+  /// round Message button; your own profile gets Edit profile.
   Widget _actions(PublicProfile profile) {
     final l10n = context.l10n;
     final p = context.palette;
     final t = context.textStyles;
+    final pill = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(KRadius.pill),
+    );
+    final quiet = OutlinedButton.styleFrom(
+      foregroundColor: p.textPrimary,
+      backgroundColor: p.background,
+      side: BorderSide(color: p.borderStrong),
+      shape: pill,
+      textStyle: t.bodyStrong,
+    );
+    final strong = FilledButton.styleFrom(
+      backgroundColor: p.textPrimary,
+      foregroundColor: p.background,
+      shape: pill,
+      textStyle: t.bodyStrong,
+    );
     if (profile.isSelf) {
       return SizedBox(
-        height: KProfile.buttonHeight,
+        height: KPublicProfile.buttonHeight,
+        width: double.infinity,
         child: OutlinedButton(
-          style: profileSecondaryButtonStyle(context),
+          style: quiet,
           onPressed: () => context.push(AppRoutes.editProfile),
           child: Text(l10n.profileEditTitle),
         ),
       );
     }
-    final follow = profile.isFollowing
+    final main = profile.blockedByMe
+        ? FilledButton(
+            key: PublicProfileScreen.unblockKey,
+            style: strong,
+            onPressed: () => _unblock(profile),
+            child: Text(l10n.safetyUnblock),
+          )
+        : profile.isFollowing
         ? OutlinedButton(
             key: PublicProfileScreen.followKey,
-            style: profileSecondaryButtonStyle(context),
+            style: quiet,
             onPressed: () => _confirmUnfollow(profile),
             child: Text(l10n.liveFollowing),
           )
@@ -312,68 +374,53 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
         // D175: a request to a private account waits for its answer.
         ? OutlinedButton(
             key: PublicProfileScreen.followKey,
-            style: profileSecondaryButtonStyle(context),
+            style: quiet,
             onPressed: () => _confirmCancelRequest(profile),
             child: Text(l10n.followRequested),
           )
         : FilledButton(
             key: PublicProfileScreen.followKey,
-            style: FilledButton.styleFrom(
-              backgroundColor: p.primary,
-              foregroundColor: p.onPrimary,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(KRadius.sm),
-              ),
-              textStyle: t.bodyStrong,
-            ),
+            style: strong,
             // D175: a private account gets a follow request (§10.47).
             onPressed: profile.canFollowOrRequest
                 ? () => _setFollowing(follow: true)
                 : null,
             child: Text(l10n.liveFollow),
           );
-    final room = profile.liveRoomId;
     return SizedBox(
-      height: KProfile.buttonHeight,
+      height: KPublicProfile.buttonHeight,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(child: follow),
-          const SizedBox(width: KSpacing.sm),
-          Expanded(
-            child: OutlinedButton(
-              key: PublicProfileScreen.messageKey,
-              style: profileSecondaryButtonStyle(context),
-              onPressed: () => context.push(
-                AppRoutes.chat(profile.username),
-                extra: (
-                  displayName: profile.displayName,
-                  premiumTier: profile.premiumTier,
-                ),
-              ),
-              child: Text(l10n.profileMessage),
-            ),
-          ),
-          if (room != null) ...[
-            const SizedBox(width: KSpacing.sm),
-            // Compact while live: Follow and Message keep the width.
-            Semantics(
-              label: l10n.profileWatchLive,
-              button: true,
-              excludeSemantics: true,
-              child: OutlinedButton.icon(
-                key: PublicProfileScreen.watchLiveKey,
-                style: profileSecondaryButtonStyle(context),
-                onPressed: () => context.push(AppRoutes.liveRoom(room)),
-                icon: Container(
-                  width: KSpacing.sm,
-                  height: KSpacing.sm,
-                  decoration: const BoxDecoration(
-                    color: KLiveColors.badge,
-                    shape: BoxShape.circle,
+          Expanded(child: main),
+          if (!profile.blockedByMe) ...[
+            const SizedBox(width: KSpacing.md),
+            SizedBox(
+              width: KPublicProfile.buttonHeight,
+              child: Tooltip(
+                message: l10n.profileMessage,
+                child: OutlinedButton(
+                  key: PublicProfileScreen.messageKey,
+                  style: quiet.copyWith(
+                    padding: const WidgetStatePropertyAll(EdgeInsets.zero),
+                    shape: const WidgetStatePropertyAll(CircleBorder()),
+                  ),
+                  onPressed: () => context.push(
+                    AppRoutes.chat(profile.username),
+                    extra: (
+                      displayName: profile.displayName,
+                      premiumTier: profile.premiumTier,
+                    ),
+                  ),
+                  child: Semantics(
+                    label: l10n.profileMessage,
+                    child: AppIcon(
+                      AppIcons.send,
+                      size: KMetrics.iconMd - 2,
+                      color: p.textPrimary,
+                    ),
                   ),
                 ),
-                label: Text(l10n.liveBadge),
               ),
             ),
           ],
@@ -387,6 +434,27 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     final l10n = context.l10n;
     final p = context.palette;
     final load = ref.watch(publicProfileProvider(widget.username));
+    final body = switch (load) {
+      AsyncValue(:final value?) => _body(value),
+      AsyncValue(:final error?, isLoading: false) when _notFound(error) =>
+        Center(
+          key: PublicProfileScreen.notFoundKey,
+          child: KEmptyState(
+            icon: Icons.person_off_outlined,
+            title: l10n.profileNotFoundTitle,
+            message: l10n.profileNotFoundBody,
+          ),
+        ),
+      AsyncValue(:final error?, isLoading: false) => FailureErrorState(
+        title: l10n.errorTitle,
+        failure: toAppFailure(error),
+        onRetry: () => ref.invalidate(publicProfileProvider(widget.username)),
+      ),
+      _ => const ProfileSkeleton(),
+    };
+    // Owner (after D218): «ارجعهم مثل ما كانو» — the bar of before D218:
+    // back, the centred @username (a premium one with its badge) and the
+    // three dots, on the page colour; the cover starts under it.
     return Scaffold(
       backgroundColor: p.background,
       appBar: KAppBar(
@@ -422,24 +490,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
           ),
         ],
       ),
-      body: switch (load) {
-        AsyncValue(:final value?) => _body(value),
-        AsyncValue(:final error?, isLoading: false) when _notFound(error) =>
-          Center(
-            key: PublicProfileScreen.notFoundKey,
-            child: KEmptyState(
-              icon: Icons.person_off_outlined,
-              title: l10n.profileNotFoundTitle,
-              message: l10n.profileNotFoundBody,
-            ),
-          ),
-        AsyncValue(:final error?, isLoading: false) => FailureErrorState(
-          title: l10n.errorTitle,
-          failure: toAppFailure(error),
-          onRetry: () => ref.invalidate(publicProfileProvider(widget.username)),
-        ),
-        _ => const ProfileSkeleton(),
-      },
+      body: body,
     );
   }
 
@@ -451,8 +502,8 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
   Widget _body(PublicProfile profile) {
     final l10n = context.l10n;
     final p = context.palette;
-    final room = profile.liveRoomId;
     final locked = profile.locked;
+    final hidden = locked || profile.blockedByMe;
     return RefreshIndicator(
       onRefresh: () {
         ref.invalidate(profileGridProvider);
@@ -461,64 +512,37 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
       child: CustomScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
+          SliverToBoxAdapter(child: ProfileCoverHeader(profile: profile)),
           SliverToBoxAdapter(
-            child: ProfileHeaderView(
-              displayName: profile.displayName,
-              avatarUrl: profile.avatarUrl,
-              bio: profile.bio,
-              followers: profile.followerCount,
-              following: profile.followingCount,
-              live: room != null,
-              onOpenLive: room == null
-                  ? null
-                  : () => context.push(AppRoutes.liveRoom(room)),
-              levels: ProfileBondsBlock(
-                levels: ProfileLevels(
-                  username: profile.isSelf ? null : profile.username,
-                  onOpen: profile.isSelf
-                      ? () => context.push(AppRoutes.levels)
-                      : null,
-                ),
-                profile: profile,
-              ),
-              cpFrame: cpWearsSpecialFrame(profile.cp),
-              // D185: an ACTIVE recharge agent's frame and badge.
-              agentCode: profile.rechargeAgentCode,
-              // D189: a host agent's frame and badge.
-              hostAgentCode: profile.hostAgentCode,
-              // D186: the avatar frame the person wears.
-              avatarFrame: profile.avatarFrame,
-              // D187: the daily recharge badge while it shows.
-              rechargeBadge: profile.rechargeBadge,
-              // D175: the category (and a gender the person shows) under
-              // the name; the links after the bio — on a private profile
-              // too (the profile itself is public, §10.47).
-              subtitle: ProfileFieldsLine(
-                category: profile.category,
-                gender: profile.gender,
-              ),
-              about: ProfileLinksRow(
-                links: profile.links,
-                reportable: !profile.isSelf,
-              ),
+            child: ProfileInfoBlock(
+              profile: profile,
+              actions: _actions(profile),
               // D121: the lists; a private account's are its followers'
               // only, so a locked profile keeps the counts plain.
-              onOpenFollowers: locked
+              onOpenFollowers: hidden
                   ? null
                   : () => context.push(AppRoutes.userFollows(profile.username)),
-              onOpenFollowing: locked
+              onOpenFollowing: hidden
                   ? null
                   : () => context.push(
                       AppRoutes.userFollows(profile.username, following: true),
                     ),
-              actions: _actions(profile),
             ),
           ),
-          // v1.43-live (D195): the host's PK record (after their first PK).
-          SliverToBoxAdapter(
-            child: LivePkRecordLine(username: profile.username),
-          ),
-          if (locked)
+          if (profile.blockedByMe)
+            SliverToBoxAdapter(
+              child: Padding(
+                key: PublicProfileScreen.blockedKey,
+                padding: const EdgeInsets.symmetric(vertical: KSpacing.xl),
+                child: KEmptyState(
+                  icon: Icons.block_rounded,
+                  title: l10n.profileBlockedTitle,
+                  message: l10n.profileBlockedBody,
+                  compact: true,
+                ),
+              ),
+            )
+          else if (locked)
             SliverToBoxAdapter(
               child: Padding(
                 key: PublicProfileScreen.privateKey,
@@ -538,6 +562,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                 tabs: PublicProfileScreen.tabs,
                 tab: _tab,
                 background: p.background,
+                text: true,
                 onSelect: (t) => setState(() => _tab = t),
               ),
             ),

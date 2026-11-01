@@ -71,6 +71,8 @@ describe('POST /auth/register', () => {
       showGender: false,
       category: null,
       links: [],
+      // v1.76-social (D218): no profile cover yet.
+      coverUrl: null,
     });
     const { tokens } = res.body as AuthBody;
     expect(tokens.accessToken.split('.')).toHaveLength(3);

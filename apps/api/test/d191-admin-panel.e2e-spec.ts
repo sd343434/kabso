@@ -58,9 +58,14 @@ describe('D191 contract coverage', () => {
       )
       // v1.65-social (D197): the panel v2's own operations are covered by d197-admin-v2.
       // v1.72-social (D208): the account controls are covered by d208-admin-control.
+      // v1.76-social (D218): the cover removal is covered by d218-social-redesign.
       .filter((o) => {
         const d = typeof o.spec.description === 'string' ? o.spec.description : '';
-        return !d.startsWith('(v1.65-social, D197)') && !d.startsWith('(v1.72-social, D208');
+        return (
+          !d.startsWith('(v1.65-social, D197)') &&
+          !d.startsWith('(v1.72-social, D208') &&
+          !d.startsWith('(v1.76-social, D218)')
+        );
       })
       .map((o) => o.operationId)
       .sort();
