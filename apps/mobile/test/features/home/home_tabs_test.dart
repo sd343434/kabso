@@ -53,12 +53,19 @@ final AppLocalizations _en = l10nFor(AppLanguage.en);
 double _topInset(WidgetTester tester) =>
     KTopInset.of(tester.element(find.byType(FeedScreen)));
 
-/// The mode on screen: only Reels has feed tabs (D218: Posts has one feed,
-/// the server's mix, and a top bar with the person and three discs).
-HomeTab _mode(WidgetTester tester) =>
-    find.byKey(FeedScreen.tabsKey).evaluate().isEmpty
-    ? HomeTab.posts
-    : HomeTab.reels;
+/// The mode on screen, read from the switch word (it names the other mode).
+HomeTab _mode(WidgetTester tester) {
+  final word = tester
+      .widget<Text>(
+        find.descendant(
+          of: find.byKey(FeedScreen.switchKey),
+          matching: find.byType(Text),
+        ),
+      )
+      .data;
+  final posts = {for (final l in AppLanguage.values) l10nFor(l).homeTabPosts};
+  return posts.contains(word) ? HomeTab.reels : HomeTab.posts;
+}
 
 Finder _feedTab(String label) => find.descendant(
   of: find.byKey(FeedScreen.tabsKey),
@@ -274,82 +281,88 @@ void main() {
     expect(repo.calls, ['feed:trending:', 'feed:following:', 'feed:mixed:']);
   });
 
-  group('header (D218)', () {
-    testWidgets('the person (avatar, name, handle) at the reading start, '
-        'then Search, the bell and «Reels» as 36 dp discs in 48 dp targets; '
-        'no feed tabs, no Create, no messages icon', (tester) async {
+  group('header (D218 follow-up: the bar of before)', () {
+    testWidgets('48 dp: Search at the start, the bell at the end (48 dp '
+        'targets), «Posts» centred with the «Reels» switch word after it; no '
+        'avatar or name, no Create', (tester) async {
       await _pump(
         tester,
         overrides: [currentUserProvider.overrideWithValue(testUser())],
       );
-      final me = testUser();
       final header = tester.getRect(find.byKey(FeedScreen.headerKey));
-      expect(header.height, _topInset(tester) + KPostsTopBar.height);
+      expect(header.height, _topInset(tester) + KMetrics.topBarHeight);
       expect(_mode(tester), HomeTab.posts);
-      expect(find.byKey(FeedScreen.tabsKey), findsNothing);
-      expect(find.text(me.displayName), findsOneWidget);
-      expect(find.text(KHandle.isolated(me.username)), findsOneWidget);
-      final search = tester.getRect(find.byKey(FeedScreen.searchKey));
+      expect(_selected(tester, _en.homeTabPosts), isTrue);
+      final word = find.byKey(FeedScreen.switchKey);
+      expect(
+        find.descendant(of: word, matching: find.text(_en.homeTabReels)),
+        findsOneWidget,
+      );
+      expect(
+        tester.getRect(_feedTab(_en.homeTabPosts)).right,
+        lessThan(tester.getRect(word).left),
+      );
+      final tabs = tester.getRect(find.byKey(FeedScreen.tabsKey));
+      expect(tabs.center.dx, moreOrLessEquals(393 / 2, epsilon: 0.5));
+      expect(
+        tester.getRect(find.byKey(FeedScreen.searchKey)),
+        Rect.fromLTWH(
+          KSpacing.xs,
+          header.bottom - KMetrics.topBarHeight,
+          KSizes.minTouchTarget,
+          KSizes.minTouchTarget,
+        ),
+      );
       final bell = tester.getRect(find.byKey(NotificationsBell.bellKey));
-      final reels = tester.getRect(find.byKey(FeedScreen.switchKey));
-      for (final r in [search, bell, reels]) {
-        expect(r.size, const Size.square(KSizes.minTouchTarget));
-      }
-      expect(search.right, lessThanOrEqualTo(bell.left));
-      expect(bell.right, lessThanOrEqualTo(reels.left));
-      expect(reels.right, moreOrLessEquals(393 - KSpacing.sm));
-      expect(find.byTooltip(_en.homeShowReels), findsOneWidget);
+      expect(bell.size, const Size.square(KSizes.minTouchTarget));
+      expect(bell.right, moreOrLessEquals(393 - KSpacing.xs));
+      // No person in the bar (owner: «ازل صورة والاسم في الاعلى»).
+      expect(
+        find.descendant(
+          of: find.byKey(FeedScreen.headerKey),
+          matching: find.byType(KAvatar),
+        ),
+        findsNothing,
+      );
+      expect(find.text(testUser().displayName), findsNothing);
       expect(find.byTooltip(_en.navCreate), findsNothing);
       expect(find.byType(AppBar), findsNothing);
-      // KL-060: the posts API with no posts yet.
       expect(find.text(_en.homeEmptyTitle), findsOneWidget);
     });
 
     for (final language in AppLanguage.values) {
       for (final viewport in GoldenViewport.values) {
-        testWidgets('real fonts, ${language.name} ${viewport.name}: the '
-            'name and handle shrink before the discs move', (tester) async {
+        testWidgets('real fonts, ${language.name} ${viewport.name}: «Posts» '
+            'and the switch word fit between Search and the bell', (
+          tester,
+        ) async {
           await loadAppFonts();
-          await _pump(
-            tester,
-            language: language,
-            viewport: viewport,
-            overrides: [
-              currentUserProvider.overrideWithValue(
-                testUser().copyWith(
-                  displayName: 'A very long display name for the bar',
-                ),
-              ),
-            ],
-          );
-          final width =
-              tester.view.physicalSize.width / tester.view.devicePixelRatio;
-          final reels = tester.getRect(find.byKey(FeedScreen.switchKey));
-          final me = tester.getRect(find.byKey(const Key('home.posts.me')));
-          final search = tester.getRect(find.byKey(FeedScreen.searchKey));
-          if (language == AppLanguage.ar) {
-            expect(reels.left, moreOrLessEquals(KSpacing.sm));
-            expect(me.left, greaterThanOrEqualTo(search.right));
-            expect(me.right, lessThanOrEqualTo(width - KSpacing.lg + 0.5));
-          } else {
-            expect(reels.right, moreOrLessEquals(width - KSpacing.sm));
-            expect(me.right, lessThanOrEqualTo(search.left));
-          }
-          expect(tester.takeException(), isNull);
+          await _pump(tester, language: language, viewport: viewport);
+          final tabs = tester.getRect(find.byKey(FeedScreen.tabsKey));
+          final word = tester.getRect(find.byKey(FeedScreen.switchKey));
+          expect(word.left, greaterThanOrEqualTo(tabs.left));
+          expect(word.right, lessThanOrEqualTo(tabs.right));
+          expect(word.width, greaterThanOrEqualTo(KSizes.minTouchTarget));
         });
       }
     }
 
-    testWidgets('the person opens their own profile', (tester) async {
-      await _pump(
-        tester,
-        overrides: [currentUserProvider.overrideWithValue(testUser())],
-      );
-      expect(
-        find.bySemanticsLabel(_en.postsTopBarMe(testUser().displayName)),
-        findsOneWidget,
-      );
-    });
+    for (final language in AppLanguage.values) {
+      testWidgets('mirrors in ${language.name}: Search at the reading start, '
+          'the bell at the end', (tester) async {
+        await _pump(tester, language: language);
+        final search = tester.getCenter(find.byKey(FeedScreen.searchKey)).dx;
+        final bell = tester.getCenter(find.byKey(NotificationsBell.bellKey)).dx;
+        const edge = KSpacing.xs + KSizes.minTouchTarget / 2;
+        if (language == AppLanguage.ar) {
+          expect(search, 393 - edge);
+          expect(bell, edge);
+        } else {
+          expect(search, edge);
+          expect(bell, 393 - edge);
+        }
+      });
+    }
   });
 
   group('switching', () {
@@ -371,8 +384,7 @@ void main() {
       await _switch(tester);
       expect(_mode(tester), HomeTab.posts);
       expect(find.text(_en.homeEmptyTitle), findsOneWidget);
-      // D218: Posts' «Reels» is a disc (its tooltip names it).
-      expect(find.byTooltip(_en.homeShowReels), findsOneWidget);
+      expect(find.bySemanticsLabel(_en.homeShowReels), findsOneWidget);
     });
 
     testWidgets('a horizontal swipe does not switch', (tester) async {
@@ -793,7 +805,7 @@ void main() {
       expect(find.byKey(FeedStoriesTray.trayKey), findsNothing);
       expect(
         tester.getRect(find.byType(FeedPostTile).first).top,
-        _topInset(tester) + KPostsTopBar.height,
+        _topInset(tester) + KMetrics.topBarHeight,
       );
     });
 
@@ -1014,8 +1026,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(FeedScreen), findsOneWidget);
       expect(_mode(tester), HomeTab.posts);
-      // D218: the person's own name at the top of Posts.
-      expect(find.text(testUser().displayName), findsWidgets);
+      expect(_selected(tester, _en.homeTabPosts), isTrue);
     });
 
     testWidgets('Search opens Discover (D55)', (tester) async {

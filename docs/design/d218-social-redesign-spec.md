@@ -24,7 +24,7 @@ font file, glyphs ≈ 8 px tall).
 
 | Region | Reference | Spec (dp) | Tag |
 | --- | --- | --- | --- |
-| Top bar | avatar + name + handle at the start; 3 grey discs at the end | 56 dp row under the status bar | E |
+| Top bar | avatar + name + handle at the start; 3 grey discs at the end | **owner override (after D218): the bar of before** — 48 dp, Search at the start, centred «المنشورات» + the «الريلز» switch word, the bell (badge) at the end; no avatar or name | owner |
 | Own avatar | 43×33 px box with its ring | 38 dp incl. a thin story ring (image 32) | M (≈40) / E |
 | Name / handle | bold over grey | 15 sp w700 / 12 sp `textTertiary` | E |
 | Discs | search 31×30 px, light grey fill | 36 dp discs, `surfaceOverlay`, 8 dp apart, 48 dp targets | M (37–38) |
@@ -38,7 +38,7 @@ font file, glyphs ≈ 8 px tall).
 | Dots | vertical ⋮ | `Icons.more_vert_rounded` | E |
 | Caption | 2 lines, «…», hashtags blue | 2 lines, «… المزيد», hashtags/mentions `primaryText` | E |
 | Time | grey under the caption | 12 sp `textTertiary` | E |
-| Media | edge to edge, own ratio | unchanged (D54) | M (black from y 304 px) |
+| Media | edge to edge, own ratio | **square 1:1, cover-cropped, centred** (owner after D218); several photos swipe (RTL-aware), «1/3» in the top corner, dots under the media | owner |
 | Action row | heart+count, bubble+count, share; bookmark at the end | 22 dp icons, 13 sp w500 counts: like, comment, share, **repost, views** (ours), save at the end | M (icon box ≈30 lp incl. AA) / E |
 | Separator | hairline | `border` hairline + 8 dp | E |
 | Bottom bar | the reference's own | **not changed** (owner): لايف · منشورات · + · رسائل · أنا | owner |
@@ -49,16 +49,17 @@ font file, glyphs ≈ 8 px tall).
 | --- | --- | --- | --- |
 | Bars | 2 bars, white / 35 % white | 3 dp tall, 4 dp gap, 10 dp side insets | M (3.75 lp tall, 352 lp span) |
 | Header | ringed avatar, name over «3 hours ago», ✕ | avatar 38 with ring, name 14 sp w700, time 12 sp 80 % white, ⋮ (ours) then ✕ | E |
-| Header rule | faint line under the header | white 20 % hairline | E |
+| Header rule | faint line under the header | **none** (owner: «وازل الخط اسفل الايقونات») | owner |
 | Reply | outlined pill «Type your message», heart, send | 44 dp pill, 1.2 dp white 70 % outline, black 15 % fill; heart and send 28 dp in 48 dp targets | M (pill 282×50 lp incl. AA) / E |
+| Photo | full-bleed photo | **whole photo, contain, never cropped** (owner: «اجعل الصورة كاملة ولا تقص منها»); bars, header and reply bar lie over it on soft scrims | owner |
 | Own story | — | keeps «who saw it», delete and (D218) the archive; no reply bar | owner |
 
 ## 3. Public profile seen by others (right phone)
 
 | Region | Reference | Spec (dp) | Tag |
 | --- | --- | --- | --- |
-| Cover | photo from the top to ≈195 dp | 140 dp under the status bar; `coverUrl` or the Kabso red gradient (never a stock photo) | E |
-| Back / ⋮ | white 32 dp rounded squares, ≈16 dp in | `surface` squares 32 dp, radius 8, 48 dp targets | M (37 lp box) / E |
+| Top bar | back and ⋮ squares over the photo | **owner override (after D218): the bar of before** — back, centred «@username», ⋯ — on the page colour; no squares over the cover | owner |
+| Cover | photo from the top to ≈195 dp | 140 dp under the top bar; `coverUrl` or the Kabso red gradient (never a stock photo) | E |
 | Avatar | ≈75 dp, white ring, half over the cover | `KProfile.avatar` 88 dp with a 3 dp page-colour ring (frames, live ring as before) | E |
 | Name line | name, blue verified mark, @handle | name 18 sp w700, our badges, handle 13 sp; **no verification mark** (owner) | owner / E |
 | Counts | «36K Follower 600 Following» | «N متابِع · N متابَع», bold numbers, tappable (lists) | E |

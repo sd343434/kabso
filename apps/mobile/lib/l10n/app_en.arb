@@ -3845,7 +3845,6 @@
   "errorLiveQuestionsClosed": "The host isn’t taking questions now.",
   "podcastSpeaking": "speaking",
   "podcastMuted": "mic off",
-  "postsTopBarMe": "Your profile, {name}",
   "feedSuggested": "Suggested for you",
   "feedPostSeeMore": "more",
   "feedPostViewCount": "{count} views",

@@ -12405,11 +12405,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get podcastMuted => 'mic off';
 
   @override
-  String postsTopBarMe(String name) {
-    return 'Your profile, $name';
-  }
-
-  @override
   String get feedSuggested => 'Suggested for you';
 
   @override

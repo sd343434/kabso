@@ -7,7 +7,6 @@ import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/app/shell/feed_region.dart';
 import 'package:kabso_live/app/shell/shell_navigation.dart';
 import 'package:kabso_live/core/demo/demo_mode.dart';
-import 'package:kabso_live/core/format/k_handle.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/design_system/design_system.dart';
@@ -26,10 +25,10 @@ import 'package:material_ui/material_ui.dart';
 /// `/reels`, the fourth shell tab (D48/D52/D53): Posts (default) and Reels.
 ///
 /// D218 (owner, after a reference: «بهذا التصميم حرفياً مع اضافة ميزاتنا»):
-/// Posts' top bar is the person's own avatar, name and handle (to their
-/// profile), then Search, the notifications bell (with the unread count)
-/// and «ريلز», which switches to Reels. Posts has one feed: the server's
-/// 1 Following : 2 Trending mix (`GET /feed/posts?tab=mixed`, CONVENTIONS
+/// Posts keeps its bar of before (Search, the centred words, the bell —
+/// owner's follow-up «واجعل زر البحث والاشعارات مثل ما كانو بالاول»); the
+/// words are «المنشورات» and the switch «الريلز». Posts has one feed: the
+/// server's 1 Following : 2 Trending mix (`GET /feed/posts?tab=mixed`, CONVENTIONS
 /// §10.73). The stories tray sits above every posts state (D218: it was
 /// drawn only above a non-empty feed, so a new account never saw it).
 /// What follows below describes Reels, which keeps Following · For You ·
@@ -113,7 +112,7 @@ class _FeedScreenState extends State<FeedScreen> {
     final p = context.palette;
     final reels = _tab == HomeTab.reels;
     final belowHeader = EdgeInsets.only(
-      top: KTopInset.of(context) + KPostsTopBar.height,
+      top: KTopInset.of(context) + KMetrics.topBarHeight,
     );
     final Widget header;
     if (reels) {
@@ -602,24 +601,14 @@ Widget _postsSkeleton(BuildContext context) => SliverList.separated(
   separatorBuilder: (_, _) => _postGap,
 );
 
-/// D218 geometry of the posts top bar (the owner's reference, E at ≈0.81
-/// px/dp, logical width 393 assumed): a 56 dp row, the own avatar 38 dp
-/// with a thin story ring, the name 15 sp bold over the handle 12 sp, and
-/// three 36 dp grey discs (Search, the bell, «ريلز») 8 dp apart.
-abstract final class KPostsTopBar {
-  static const double height = KSizes.minTouchTarget + KSpacing.sm;
-  static const double avatar = 38;
-  static const double disc = 36;
-  static const double discGap = KSpacing.sm;
-  static const double nameFont = 15;
-  static const double handleFont = 12;
-}
-
-/// D218: the posts page's top bar — from the reading start: the person's
-/// avatar, display name and handle (opens their profile), then Search, the
-/// notifications bell with its unread count and «ريلز» (the reels page).
-/// No messages icon: messages stay in the bottom bar.
-class _PostsTopBar extends ConsumerWidget {
+/// The posts top bar — owner (after D218): «ازل صورة والاسم في الاعلى واجعل
+/// زر البحث والاشعارات مثل ما كانو بالاول». The bar of before D218: a 48 dp
+/// row with Search at the reading start and the notifications bell at the
+/// end, each a 48 dp target in an equal inset; between them, centred, the
+/// page's word «المنشورات» (selected; Posts has one feed since D218, the
+/// server's mix) and, where the old bar had its third control, the switch
+/// word «الريلز» that opens Reels (D53).
+class _PostsTopBar extends StatelessWidget {
   const new({
     required this.showSearch,
     required this.showNotifications,
@@ -630,140 +619,68 @@ class _PostsTopBar extends ConsumerWidget {
   final bool showNotifications;
   final VoidCallback onSwitch;
 
-  static const meKey = Key('home.posts.me');
+  /// Equal side insets keep the words centred on the screen.
+  static const double _searchSlot = KSizes.minTouchTarget + KSpacing.xs;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final l10n = context.l10n;
     final p = context.palette;
-    final t = context.textStyles;
-    final me = ref.watch(currentUserProvider);
-    final disc = SizedBox(
-      width: KSizes.minTouchTarget,
-      height: KSizes.minTouchTarget,
-      child: Center(
-        child: Container(
-          width: KPostsTopBar.disc,
-          height: KPostsTopBar.disc,
-          decoration: BoxDecoration(
-            color: p.surfaceOverlay,
-            shape: BoxShape.circle,
-          ),
-        ),
-      ),
-    );
-    Widget overDisc(Widget button) =>
-        Stack(alignment: Alignment.center, children: [disc, button]);
-    return MediaQuery.withClampedTextScaling(
-      maxScaleFactor: KMetrics.topBarMaxTextScale,
-      child: SizedBox(
-        height: KPostsTopBar.height,
-        child: Padding(
-          padding: const EdgeInsetsDirectional.only(
-            start: KSpacing.lg,
-            end: KSpacing.sm,
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: me == null
-                    ? const SizedBox.shrink()
-                    : Semantics(
-                        button: true,
-                        label: l10n.postsTopBarMe(
-                          me.displayName.isEmpty ? me.username : me.displayName,
-                        ),
-                        excludeSemantics: true,
-                        child: InkWell(
-                          key: meKey,
-                          borderRadius: BorderRadius.circular(KRadius.md),
-                          onTap: () => context.push(AppRoutes.myProfile),
-                          child: Row(
-                            children: [
-                              KAvatar(
-                                name: me.displayName,
-                                imageUrl: me.avatarUrl,
-                                size: KPostsTopBar.avatar - 2 * KMetrics.stroke,
-                                ring: KAvatarRing.storyUnseen,
-                              ),
-                              const SizedBox(width: KSpacing.sm),
-                              Flexible(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      me.displayName.isEmpty
-                                          ? me.username
-                                          : me.displayName,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: t.bodyStrong.copyWith(
-                                        color: p.textPrimary,
-                                        fontSize: KPostsTopBar.nameFont,
-                                        fontWeight: FontWeight.w700,
-                                        height: 1.25,
-                                      ),
-                                    ),
-                                    Text(
-                                      KHandle.isolated(
-                                        me.username,
-                                        premiumTier: me.premiumTier,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: t.caption.copyWith(
-                                        color: p.textTertiary,
-                                        fontSize: KPostsTopBar.handleFont,
-                                        height: 1.25,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
+    return SizedBox(
+      height: KMetrics.topBarHeight,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: showSearch || showNotifications
+                    ? _searchSlot
+                    : KSpacing.xs,
               ),
-              if (showSearch)
-                overDisc(
-                  IconButton(
-                    key: FeedScreen.searchKey,
-                    tooltip: l10n.feedSearch,
-                    constraints: const BoxConstraints.tightFor(
-                      width: KSizes.minTouchTarget,
-                      height: KSizes.minTouchTarget,
-                    ),
-                    onPressed: () => context.push(AppRoutes.discover),
-                    icon: AppIcon(
-                      AppIcons.search,
-                      size: KMetrics.iconMd - 2,
-                      color: p.textPrimary,
-                    ),
-                  ),
-                ),
-              if (showNotifications) overDisc(const NotificationsBell()),
-              // The reference's third disc: «ريلز» opens the reels page.
-              overDisc(
-                IconButton(
+              child: KPrimaryTabs(
+                key: FeedScreen.tabsKey,
+                centered: true,
+                labels: [l10n.homeTabPosts],
+                selectedIndex: 0,
+                onSelected: (_) {},
+                // The other mode's name switches to it (D53).
+                action: KTabAction(
                   key: FeedScreen.switchKey,
-                  tooltip: l10n.homeShowReels,
-                  constraints: const BoxConstraints.tightFor(
-                    width: KSizes.minTouchTarget,
-                    height: KSizes.minTouchTarget,
-                  ),
-                  onPressed: onSwitch,
-                  icon: AppIcon(
-                    AppIcons.reels,
-                    size: KMetrics.iconMd - 2,
-                    color: p.textPrimary,
-                  ),
+                  label: l10n.homeTabReels,
+                  semanticLabel: l10n.homeShowReels,
+                  onTap: onSwitch,
                 ),
               ),
-            ],
+            ),
           ),
-        ),
+          if (showSearch)
+            PositionedDirectional(
+              start: KSpacing.xs,
+              top: 0,
+              bottom: 0,
+              child: IconButton(
+                key: FeedScreen.searchKey,
+                tooltip: l10n.feedSearch,
+                constraints: const BoxConstraints.tightFor(
+                  width: KSizes.minTouchTarget,
+                  height: KSizes.minTouchTarget,
+                ),
+                onPressed: () => context.push(AppRoutes.discover),
+                icon: AppIcon(
+                  AppIcons.search,
+                  size: KMetrics.iconMd,
+                  color: p.textPrimary,
+                ),
+              ),
+            ),
+          if (showNotifications)
+            const PositionedDirectional(
+              end: KSpacing.xs,
+              top: 0,
+              bottom: 0,
+              child: NotificationsBell(),
+            ),
+        ],
       ),
     );
   }

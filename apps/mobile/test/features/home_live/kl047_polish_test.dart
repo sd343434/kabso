@@ -113,10 +113,12 @@ bool _selected(WidgetTester tester, Finder finder) =>
 
 /// D52: shows [tab] on the Reels shell tab with the header switch.
 Future<void> _showHomeMode(WidgetTester tester, HomeTab tab) async {
-  // D218: only Reels has feed tabs (Posts' «Reels» is a disc).
-  final showing = find.byKey(FeedScreen.tabsKey).evaluate().isEmpty
-      ? HomeTab.posts
-      : HomeTab.reels;
+  final l10n = AppLocalizations.of(tester.element(find.byType(FeedScreen)));
+  final word = find.descendant(
+    of: find.byKey(FeedScreen.switchKey),
+    matching: find.text(l10n.homeTabReels),
+  );
+  final showing = word.evaluate().isNotEmpty ? HomeTab.posts : HomeTab.reels;
   if (showing != tab) {
     await tester.ensureVisible(find.byKey(FeedScreen.switchKey));
     await tester.pumpAndSettle();
@@ -1056,8 +1058,7 @@ void main() {
         expect(region.bottom, lessThanOrEqualTo(nav.top));
         final header = tester.getRect(
           key == const Key('nav.reels')
-              // D218: Posts' top bar (Search is its first disc).
-              ? find.byKey(FeedScreen.searchKey)
+              ? find.byKey(FeedScreen.tabsKey)
               : find.byType(LiveHubFilterBar).first,
         );
         expect(header.top, greaterThanOrEqualTo(59));

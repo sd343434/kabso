@@ -21163,12 +21163,6 @@ abstract class AppLocalizations {
   /// D218 (the owner's social redesign, CONVENTIONS §10.73).
   ///
   /// In ar, this message translates to:
-  /// **'ملفك الشخصي، {name}'**
-  String postsTopBarMe(String name);
-
-  /// D218 (the owner's social redesign, CONVENTIONS §10.73).
-  ///
-  /// In ar, this message translates to:
   /// **'مقترح لك'**
   String get feedSuggested;
 

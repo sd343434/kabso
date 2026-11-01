@@ -309,9 +309,14 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(FeedScreen.switchKey));
       await tester.pumpAndSettle();
-      // D218: Posts' «Reels» disc (its tooltip names it); no feed tabs.
-      expect(find.byTooltip(_en.homeShowReels), findsOneWidget);
-      expect(find.byKey(FeedScreen.tabsKey), findsNothing);
+      // Posts' header names the other mode: «Reels».
+      expect(
+        find.descendant(
+          of: find.byKey(FeedScreen.switchKey),
+          matching: find.text(_en.homeTabReels),
+        ),
+        findsOneWidget,
+      );
     });
   });
 

@@ -12399,11 +12399,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get podcastMuted => 'الميكروفون مغلق';
 
   @override
-  String postsTopBarMe(String name) {
-    return 'ملفك الشخصي، $name';
-  }
-
-  @override
   String get feedSuggested => 'مقترح لك';
 
   @override

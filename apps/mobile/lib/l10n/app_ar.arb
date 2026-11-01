@@ -11998,8 +11998,6 @@
   "@podcastMuted": {
     "description": "D212 (live categories and the podcast live)."
   },
-  "postsTopBarMe": "ملفك الشخصي، {name}",
-  "@postsTopBarMe": {"description": "D218 (the owner's social redesign, CONVENTIONS §10.73).", "placeholders": {"name": {"type": "String"}}},
   "feedSuggested": "مقترح لك",
   "@feedSuggested": {"description": "D218 (the owner's social redesign, CONVENTIONS §10.73)."},
   "feedPostSeeMore": "المزيد",
