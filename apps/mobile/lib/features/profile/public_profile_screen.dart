@@ -32,8 +32,9 @@ import 'package:material_ui/material_ui.dart';
 /// `GET /users/{username}` (v1.3).
 ///
 /// D218 (owner, after a reference: «بهذا التصميم حرفياً مع اضافة ميزاتنا»):
-/// a cover across the top (`coverUrl`, or a Kabso gradient) with back and
-/// ⋮ over it; the photo overlapping the cover (the live ring and «يبث
+/// the top bar of before (back, the centred @username, the three dots —
+/// owner: «ارجعهم مثل ما كانو»), then a cover (`coverUrl`, or a Kabso
+/// gradient); the photo overlapping the cover (the live ring and «يبث
 /// الآن» while live — a tap opens the room); the name and the handle (no
 /// verification mark: the owner decides on one later); «N متابِع · N
 /// متابَع» (the lists); the bio; the country and «انضم في <شهر سنة>»; the
@@ -81,7 +82,6 @@ class PublicProfileScreen extends ConsumerStatefulWidget {
   static const cancelRequestKey = Key('profile.public.cancelRequest');
   static const privateKey = Key('profile.public.private');
   static const notFoundKey = Key('profile.public.notFound');
-  static const backKey = Key('profile.public.back');
   static const coverKey = Key('profile.public.cover');
   static const coverFallbackKey = Key('profile.public.cover.gradient');
   static const unblockKey = Key('profile.public.unblock');
@@ -458,32 +458,45 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
       ),
       _ => const ProfileSkeleton(),
     };
-    final loaded = load.value != null;
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      // D218: the cover runs under the status bar (a scrim keeps it legible).
-      value: loaded
-          ? SystemUiOverlayStyle.light
-          : Theme.of(context).brightness == Brightness.dark
-          ? SystemUiOverlayStyle.light
-          : SystemUiOverlayStyle.dark,
-      child: Scaffold(
+    // Owner (after D218): «ارجعهم مثل ما كانو» — the bar of before D218:
+    // back, the centred @username (a premium one with its badge) and the
+    // three dots, on the page colour; the cover starts under it.
+    return Scaffold(
+      backgroundColor: p.background,
+      appBar: KAppBar(
         backgroundColor: p.background,
-        // While loading or failed there is no cover: a plain bar with back.
-        appBar: loaded
-            ? null
-            : KAppBar(
-                backgroundColor: p.background,
-                centerTitle: true,
-                title: Text(
-                  l10n.profileUsername(widget.username),
-                  textDirection: TextDirection.ltr,
-                  style: context.textStyles.title.copyWith(
-                    color: p.textPrimary,
-                  ),
-                ),
-              ),
-        body: body,
+        centerTitle: true,
+        // D146: a premium username wears its special-ID badge.
+        title: switch (load.value?.premiumTier) {
+          final tier? => KSpecialUsername(
+            username: load.value!.username,
+            tier: tier,
+            height: 24,
+          ),
+          null => Text(
+            l10n.profileUsername(widget.username),
+            textDirection: TextDirection.ltr,
+            style: context.textStyles.title.copyWith(color: p.textPrimary),
+          ),
+        },
+        actions: [
+          IconButton(
+            key: PublicProfileScreen.moreKey,
+            tooltip: l10n.feedPostMore,
+            // Needs the loaded profile (its id and whether it is you).
+            onPressed: switch (load) {
+              AsyncValue(:final value?) => () => _openMore(value),
+              _ => null,
+            },
+            icon: AppIcon(
+              AppIcons.moreHoriz,
+              size: KMetrics.iconMd,
+              color: p.textPrimary,
+            ),
+          ),
+        ],
       ),
+      body: body,
     );
   }
 
@@ -505,15 +518,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
       child: CustomScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
-          SliverToBoxAdapter(
-            child: _CoverHeader(
-              profile: profile,
-              onBack: () => context.canPop()
-                  ? context.pop()
-                  : context.go(AppRoutes.reels),
-              onMore: () => _openMore(profile),
-            ),
-          ),
+          SliverToBoxAdapter(child: _CoverHeader(profile: profile)),
           SliverToBoxAdapter(
             child: _ProfileInfo(
               profile: profile,
@@ -576,37 +581,30 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
 }
 
 /// D218 geometry of the public profile (the owner's reference, right
-/// phone; E at ≈0.81 px/dp, 393 dp wide assumed): the cover 140 dp under
-/// the status bar, 32 dp light squares (radius 8) 16 dp in, the photo
-/// overlapping the cover by half, 44 dp pill buttons.
+/// phone; E at ≈0.81 px/dp, 393 dp wide assumed): the cover 140 dp (under
+/// the restored top bar, owner after D218), the photo overlapping the cover
+/// by half, 44 dp pill buttons.
 abstract final class KPublicProfile {
   static const double coverHeight = 140;
-  static const double coverButton = 32;
-  static const double coverButtonRadius = KRadius.sm;
   static const double buttonHeight = 44;
   static const double nameFont = 18;
   static const double factIcon = 16;
 }
 
-/// D218: the cover (or the Kabso gradient), back and ⋮ over it, and the
-/// photo overlapping its lower edge at the reading start.
+/// D218: the cover (or the Kabso gradient) under the top bar, and the photo
+/// overlapping its lower edge at the reading start. (The reference's back
+/// and ⋮ squares over the cover were removed: owner, «ارجعهم مثل ما كانو».)
 class _CoverHeader extends StatelessWidget {
-  const new({
-    required this.profile,
-    required this.onBack,
-    required this.onMore,
-  });
+  const new({required this.profile});
 
   final PublicProfile profile;
-  final VoidCallback onBack;
-  final VoidCallback onMore;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final p = context.palette;
-    final top = KTopInset.of(context);
-    final coverHeight = top + KPublicProfile.coverHeight;
+    // Under the restored bar (owner, after D218): no status-bar inset here.
+    const coverHeight = KPublicProfile.coverHeight;
     const avatarBox = KProfile.avatar + 2 * KMetrics.strokeLarge;
     final room = profile.liveRoomId;
     final live = room != null;
@@ -621,37 +619,6 @@ class _CoverHeader extends StatelessWidget {
             KBrandColors.red500,
             KBrandColors.red400.withValues(alpha: 0.85),
           ],
-        ),
-      ),
-    );
-    Widget square({
-      required Key key,
-      required String tooltip,
-      required Widget icon,
-      required VoidCallback onTap,
-    }) => SizedBox(
-      width: KSizes.minTouchTarget,
-      height: KSizes.minTouchTarget,
-      child: Center(
-        child: Material(
-          color: p.surface,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(
-              KPublicProfile.coverButtonRadius,
-            ),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            key: key,
-            onTap: onTap,
-            child: Tooltip(
-              message: tooltip,
-              child: SizedBox.square(
-                dimension: KPublicProfile.coverButton,
-                child: Center(child: icon),
-              ),
-            ),
-          ),
         ),
       ),
     );
@@ -677,53 +644,6 @@ class _CoverHeader extends StatelessWidget {
               ),
               null => fallback,
             },
-          ),
-          // The status bar and the two buttons stay legible on any cover.
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: top + KSizes.minTouchTarget + KSpacing.lg,
-            child: const IgnorePointer(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Color(0x66000000), Color(0x00000000)],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          PositionedDirectional(
-            top: top + KSpacing.xs,
-            start: KSpacing.sm,
-            child: square(
-              key: PublicProfileScreen.backKey,
-              tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-              onTap: onBack,
-              // Mirrored in Arabic (Material's matchTextDirection).
-              icon: Icon(
-                Icons.arrow_back_ios_new_rounded,
-                size: KMetrics.iconMd - 6,
-                color: p.textPrimary,
-              ),
-            ),
-          ),
-          PositionedDirectional(
-            top: top + KSpacing.xs,
-            end: KSpacing.sm,
-            child: square(
-              key: PublicProfileScreen.moreKey,
-              tooltip: l10n.feedPostMore,
-              onTap: onMore,
-              icon: Icon(
-                Icons.more_vert_rounded,
-                size: KMetrics.iconMd - 4,
-                color: p.textPrimary,
-              ),
-            ),
           ),
           PositionedDirectional(
             top: coverHeight - avatarBox / 2,

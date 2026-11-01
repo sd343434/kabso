@@ -33,9 +33,10 @@ abstract final class KStoryViewer {
   static const double backZone = 0.3;
 
   /// D218 (the owner's reference, E at ≈0.81 px/dp, 393 dp wide assumed):
-  /// 3 dp bars 4 dp apart, a 38 dp avatar with the name over the time, a
-  /// hairline under the header, and at the bottom a 44 dp «اكتب رسالة»
-  /// pill with a heart and send (28 dp glyphs in 48 dp targets).
+  /// 3 dp bars 4 dp apart, a 38 dp avatar with the name over the time (no
+  /// line under it: owner «وازل الخط اسفل الايقونات»), and at the bottom a
+  /// 44 dp «اكتب رسالة» pill with a heart and send (28 dp glyphs in 48 dp
+  /// targets).
   static const double barHeight = 3;
   static const double barGap = 4;
   static const double avatar = 38;
@@ -88,6 +89,7 @@ class StoryViewerScreen extends ConsumerStatefulWidget {
   static const replyFieldKey = Key('story.reply.field');
   static const replySendKey = Key('story.reply.send');
   static const heartKey = Key('story.reply.heart');
+  static const photoKey = Key('story.photo');
   static Key storyKey(String id) => Key('story.$id');
 
   @override
@@ -537,9 +539,13 @@ class _StoryPage extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
+        // Owner (D218): «اجعل الصورة كاملة ولا تقص منها» — the whole photo,
+        // never cropped (contain); the header and the reply bar only lie
+        // over it on soft scrims.
         Center(
           child: Image.network(
             story.media.url,
+            key: StoryViewerScreen.photoKey,
             fit: BoxFit.contain,
             gaplessPlayback: true,
             semanticLabel: l10n.storyPhotoOf(name),
@@ -627,16 +633,29 @@ class _StoryPage extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: KSpacing.xs),
-              // D218: the reference's hairline under the header.
-              const Divider(
-                height: KMetrics.hairline,
-                thickness: KMetrics.hairline,
-                color: Color(0x33FFFFFF),
-              ),
             ],
           ),
         ),
+        // Keeps the reply bar readable over a bright photo (a scrim, never
+        // a band that hides the photo).
+        if (reply != null)
+          const Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: 140,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [Color(0x80000000), Color(0x00000000)],
+                  ),
+                ),
+              ),
+            ),
+          ),
         Positioned(
           left: KSpacing.md,
           right: KSpacing.md,

@@ -64,8 +64,9 @@ Future<FakeProfileRepository> _pump(
 }
 
 void main() {
-  testWidgets('header from GET /users/{username} (D218 layout): the cover '
-      '(or the Kabso gradient) with back and dots, the photo with the live '
+  testWidgets('header from GET /users/{username} (D218 layout): the old '
+      'top bar (@username, dots), the cover (or the Kabso gradient) under '
+      'it, the photo with the live '
       'ring and badge over it (a tap opens the room), name, handle, counts, '
       'bio; a wide Follow pill and a round Message button', (tester) async {
     final repo = await _pump(tester);
@@ -78,22 +79,36 @@ void main() {
     final avatar = tester.widget<KAvatar>(find.byType(KAvatar).first);
     expect(avatar.ring, KAvatarRing.live);
     expect(find.byType(KBadge), findsOneWidget);
-    // No cover yet: the Kabso gradient, with back and dots over it.
+    // The top bar of before D218 (owner: «ارجعهم مثل ما كانو»): the
+    // centred @username and the three dots in the app bar; no buttons
+    // over the cover.
+    final bar = find.byType(AppBar);
+    expect(bar, findsOneWidget);
+    expect(
+      find.descendant(of: bar, matching: find.text('@host0')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: bar,
+        matching: find.byKey(PublicProfileScreen.moreKey),
+      ),
+      findsOneWidget,
+    );
+    final title = tester.getCenter(
+      find.descendant(of: bar, matching: find.text('@host0')),
+    );
+    expect(title.dx, moreOrLessEquals(393 / 2, epsilon: 1));
+    // No cover yet: the Kabso gradient, right under the bar.
     expect(find.byKey(PublicProfileScreen.coverFallbackKey), findsOneWidget);
     final cover = tester.getRect(
       find.byKey(PublicProfileScreen.coverFallbackKey),
     );
-    expect(cover.top, 0);
+    expect(cover.top, tester.getRect(bar).bottom);
     expect(cover.width, 393);
     final photo = tester.getRect(find.byKey(ProfileHeaderView.avatarKey));
     expect(photo.top, lessThan(cover.bottom));
     expect(photo.bottom, greaterThan(cover.bottom));
-    for (final key in [
-      PublicProfileScreen.backKey,
-      PublicProfileScreen.moreKey,
-    ]) {
-      expect(tester.getRect(find.byKey(key)).bottom, lessThan(cover.bottom));
-    }
     expect(find.byKey(PublicProfileScreen.followKey), findsOneWidget);
     expect(find.byKey(PublicProfileScreen.watchLiveKey), findsOneWidget);
     expect(find.bySemanticsLabel(_en.profileWatchLive), findsWidgets);
