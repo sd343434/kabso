@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
+import 'package:kabso_live/core/countries/countries.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/format/k_handle.dart';
@@ -28,6 +29,7 @@ import 'package:kabso_live/features/profile/public_profile_screen.dart';
 import 'package:kabso_live/features/profile_card/kabso_profile_header.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
+import 'package:kabso_live/features/safety/safety_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -210,6 +212,12 @@ class LivePersonSheet extends ConsumerWidget {
 
   /// D220: «تعديل الملف» on your own card.
   static const editKey = Key('room.userCard.edit');
+
+  /// D218 × D220: the person's country flag before «ID: username».
+  static const countryKey = Key('room.userCard.country');
+
+  /// D218 × D220: «إلغاء الحظر» in Follow's place for someone you blocked.
+  static const unblockKey = Key('room.userCard.unblock');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -497,6 +505,8 @@ class _Body extends ConsumerWidget {
       profile,
       signedIn: ref.watch(currentUserProvider) != null,
     );
+    // D218: the country the person chose (PublicProfile.country).
+    final country = KCountries.byCode(profile.country);
 
     final badges = <Widget>[
       // Everyone sees that the person is the host or a moderator here.
@@ -644,6 +654,19 @@ class _Body extends ConsumerWidget {
               textDirection: TextDirection.ltr,
               mainAxisSize: MainAxisSize.min,
               children: [
+                if (country != null) ...[
+                  Text(
+                    KCountries.flag(country.code),
+                    key: LivePersonSheet.countryKey,
+                    semanticsLabel: KCountries.name(
+                      country,
+                      arabic:
+                          Localizations.localeOf(context).languageCode == 'ar',
+                    ),
+                    style: text.caption.copyWith(fontSize: 13),
+                  ),
+                  const SizedBox(width: 4),
+                ],
                 // D146: a premium username wears its special-ID badge.
                 if (profile.premiumTier case final tier?)
                   KSpecialUsername(
@@ -1182,23 +1205,49 @@ class _FollowPill extends ConsumerWidget {
   final String username;
   final _Look look;
 
+  /// D218: unblocks the person (as on their profile) and reloads the card.
+  Future<void> _unblock(BuildContext context, WidgetRef ref) async {
+    final l10n = context.l10n;
+    try {
+      await ref
+          .read(safetyRepositoryProvider)
+          .setBlocked(profile.username, blocked: false);
+      ref.invalidate(publicProfileProvider(username));
+      if (context.mounted) {
+        KSnack.success(context, l10n.safetyUnblocked(profile.displayName));
+      }
+    } on Object catch (e) {
+      if (context.mounted) {
+        KSnack.error(context, failureMessage(l10n, toAppFailure(e)));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final palette = context.palette;
-    final following = profile.isFollowing;
-    final requested = profile.followRequested;
+    // D218: someone you blocked gets «إلغاء الحظر» instead of Follow.
+    final blocked = profile.blockedByMe;
+    final following = !blocked && profile.isFollowing;
+    final requested = !blocked && profile.followRequested;
     final plain = following || requested;
-    final label = following
+    final label = blocked
+        ? l10n.safetyUnblock
+        : following
         ? l10n.liveCardUnfollow
         : requested
         ? l10n.followRequested
         : l10n.liveCardFollow;
     final ink = plain ? look.ink : palette.onPrimary;
     return _Press(
-      key: LivePersonSheet.followKey,
+      key: blocked ? LivePersonSheet.unblockKey : LivePersonSheet.followKey,
       label: label,
       onTap: () => unawaited(() async {
+        if (blocked) {
+          await _unblock(context, ref);
+          return;
+        }
         if (requested) {
           if (await confirmCancelFollowRequest(context, profile.displayName) &&
               context.mounted) {
@@ -1237,7 +1286,9 @@ class _FollowPill extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  following
+                  blocked
+                      ? Icons.lock_open_rounded
+                      : following
                       ? Icons.person_remove_alt_1_rounded
                       : requested
                       ? Icons.hourglass_top_rounded

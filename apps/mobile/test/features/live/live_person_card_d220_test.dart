@@ -673,6 +673,46 @@ void main() {
       expect(find.bySemanticsLabel(en.liveCardSendGift), findsNothing);
       handle.dispose();
     });
+
+    // D218 × D220 (int9): PublicProfile.country and blockedByMe on the card.
+    testWidgets('the country flag sits before «ID: username»; none without '
+        'a country', (tester) async {
+      final handle = tester.ensureSemantics();
+      await _card(tester, _profile().copyWith(country: 'JO'));
+      final flag = find.byKey(LivePersonSheet.countryKey);
+      expect(flag, findsOneWidget);
+      expect(tester.widget<Text>(flag).data, '\u{1F1EF}\u{1F1F4}');
+      // Read inside the copy button's merged label.
+      expect(find.bySemanticsLabel(RegExp('Jordan')), findsOneWidget);
+      expect(
+        tester.getCenter(flag).dx,
+        lessThan(tester.getCenter(find.byKey(LivePersonSheet.copyKey)).dx),
+      );
+      handle.dispose();
+      await _card(tester, _profile());
+      expect(find.byKey(LivePersonSheet.countryKey), findsNothing);
+    });
+
+    testWidgets('someone you blocked: «Unblock» in Follow\'s place unblocks', (
+      tester,
+    ) async {
+      final safety = FakeSafetyRepository();
+      final profile = _profile().copyWith(blockedByMe: true, isFollowing: true);
+      await _card(tester, profile, safety: safety);
+      expect(find.byKey(LivePersonSheet.followKey), findsNothing);
+      final unblock = find.byKey(LivePersonSheet.unblockKey);
+      expect(
+        find.descendant(of: unblock, matching: find.text(en.safetyUnblock)),
+        findsOneWidget,
+      );
+      await tester.tap(unblock);
+      await tester.pumpAndSettle();
+      expect(safety.calls, contains('block:${profile.username}:false'));
+      expect(
+        find.text(en.safetyUnblocked(profile.displayName)),
+        findsOneWidget,
+      );
+    });
   });
 }
 

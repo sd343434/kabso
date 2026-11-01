@@ -54,7 +54,9 @@ honest loading / error states, and «تعديل الملف» instead of follow /
 - Owner follow-up (2026-11-01, «الارقام كبيرة اكتب ١ مليون هكذا 1M … وبين كل فئة مثل خط بلون رمادي صغير»): the card's
   numbers are short Latin in both languages (1.5M, 59.4K, 999) — other screens keep the localized compact words —
   smaller, with thin grey dividers.
-- No country flag: `PublicProfile` has no country on this base (D218 adds one on its own branch).
+- The country flag (integration int9, D218's `PublicProfile.country`): the person's flag before «ID: username»
+  (read as the country name), nothing without a country. Someone you blocked (`blockedByMe`) gets «إلغاء الحظر» in
+  Follow's place, as on their profile.
 
 ## Verification
 
