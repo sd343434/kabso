@@ -2039,3 +2039,27 @@ touched tables).
   apps show an unknown theme as classic.
 - **Order:** API first (an older app shows a PODCAST as a camera-less SOLO room and never sends the new fields); then
   the app. The admin panel's mode chips need the API's `mode` filter.
+
+### 5.39 «دعوة الأصدقاء»: referral rewards in cherries (migrations `20270206090000_referrals_enums`, `20270206090100_referrals`; D217) — [IMPLEMENTED, draft contract v1.74-social; not deployed, not device-tested]
+
+CONVENTIONS §10.71. The first migration only adds `REFERRAL_REWARD` to `cherry_ledger_reason` (an enum value cannot be
+used in the transaction that adds it); the second extends the cherry ledger's sign rule in place (read from the
+catalogue), adds nullable `sessions.install_id` (+ partial index), `pending_registrations.install_id` /
+`referral_code`, and the tables `referral_settings` (one row, inserted with the defaults), `referral_codes`,
+`referrals`, `referral_rewards` (CHECKs, partial unique indexes). No backfill, no GRANT (default privileges). Checked
+on a database migrated to `claude/kl-int7` (`prisma migrate deploy`, then `prisma migrate diff` shows no drift on the
+touched tables).
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `REFERRAL_SWEEP_INTERVAL_SECONDS` | 300 | how often held referrals / rewards are settled (0 refused in production) |
+| `RATE_LIMIT_REFERRAL_APPLY_USER` | 10/86400 | a code entered later, per user (refused attempts count) |
+| `RATE_LIMIT_REFERRAL_TICKER_IP` | 60/600 | the public ticker, per client IP |
+
+Every amount lives in `referral_settings` and is changed in the panel («إعدادات الدعوات», `referrals.settings`: OWNER,
+FINANCE, the authenticator code again) or `node dist/cli/referral-admin.js settings --set key=value --reason …`
+(migration role, audited `via: cli`); the defaults are listed in KNOWN_LIMITATIONS for the owner to confirm. **The
+programme is on after the migration.** The website's Caddyfile gains `rewrite /i/* /invite.html` (the invite link
+page, `infra/deploy/site/invite.html` + `assets/invite.js`). Order: API (migrations) and Caddy/site first, then the
+app; an older app sends no install id and ignores `REFERRAL_REWARD` in the history («أخرى»).
+- Not verified on a device or a server.

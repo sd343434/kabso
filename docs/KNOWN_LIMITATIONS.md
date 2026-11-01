@@ -198,3 +198,28 @@
 - **Join lines:** the server sends at most one per 200 ms per room; a burst above 5 a second loses lines (recharge
   and host agents' joins are never dropped). Gender comes only from people who show it on their profile.
 - Not verified on a device (LiveKit active speaker, mic permissions, the sweeper's demotion on a real server).
+
+## «دعوة الأصدقاء» — referral rewards in cherries (v1.74-social draft, D217)
+
+- **Amounts are defaults to confirm** (owner gave none): inviter 20 000 cherries per sign-up (≈ $0.02 at the default
+  payout rate), friend 0, 5 % of the first recharge, milestones 1 / 5 / 15 → 50 000 / 300 000 / 1 000 000, 20
+  sign-up rewards a day per inviter, held 24 h, a code may be entered 7 days after sign-up, self-IP window 24 h. The
+  programme is **on** after the migration; switch it off in the panel («إعدادات الدعوات») or with
+  `referral-admin settings --set enabled=false --reason …` before the owner confirms, if wanted.
+- **Device id:** the server had no device id before D217. `DeviceInfo.installId` is a random id the app keeps per
+  install (shared preferences): uninstalling the app gives a new one, and older apps send none — then only the
+  mailbox, IP and daily-cap rules apply. Not a hardware id.
+- **Same-IP rule:** an invitee on the inviter's IP (seen within 24 h) is REJECTED. Mobile carriers share IPs (CGNAT)
+  and families share Wi-Fi, so real friends can be refused; the team can approve them. Whether to keep the rule on is
+  an owner question (`selfIpWindowHours` 0 turns it off).
+- **No phone rule:** Kabso has no phone numbers.
+- **Voiding after crediting:** the team's «إلغاء» voids only held rewards; cherries already credited stay (a D208
+  balance adjustment takes them back).
+- **Deep links:** the app has no deep-link package; the link `/i/<code>` opens the website, which shows the code to copy.
+  The sign-up field is not pre-filled from the link.
+- **No notifications** for a friend who joined or a reward credited (the page and the cherry history show them).
+- **The ticker** shows masked names of people who got a reward in the last 30 days, regardless of their privacy
+  settings (only the masked name and the amount).
+- **Data export (D198)** does not include the referral rows yet.
+- **The Flutter tests of D217 were written but not run** in this session (the disk was full; see the board row). Not
+  verified on a device or on the server; no captures.

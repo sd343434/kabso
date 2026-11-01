@@ -289,7 +289,7 @@ Future<void> _scrollTo(WidgetTester tester, Finder finder) async {
   await tester.pumpAndSettle();
 }
 
-String _plain(String s) => s.replaceAll(RegExp('[⁦-⁩]'), '');
+String _plain(String s) => s.replaceAll(RegExp('[\u2066-\u2069]'), '');
 
 bool _textContains(WidgetTester tester, String part) => tester
     .widgetList<Text>(find.byType(Text))
@@ -304,7 +304,7 @@ void main() {
         for (final textScale in [1.0, 1.3]) {
           for (final brightness in Brightness.values) {
             testWidgets('${language.name} ${viewport.name} ×$textScale '
-                '${brightness.name}: every part, the server\'s numbers, no '
+                '${brightness.name}: every part, the server numbers, no '
                 'overflow', (tester) async {
               final l10n = language == AppLanguage.ar ? _ar : _en;
               await _pump(
@@ -605,7 +605,7 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('a wrong code: the server\'s message stays in the sheet', (
+    testWidgets('a wrong code: the server message stays in the sheet', (
       tester,
     ) async {
       final repo = _FakeReferrals(
