@@ -1794,12 +1794,13 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       announcement: pk.announcement,
       onPerson: (u) => _person(u.username),
     );
-    return opponent == null
-        ? stage()
-        : ListenableBuilder(
-            listenable: opponent.changes,
-            builder: (context, _) => stage(),
-          );
+    // D215: the same subtree with or without the other room's connection
+    // (the stage and its video renderers are not rebuilt from scratch when
+    // the connection comes up mid-PK).
+    return ListenableBuilder(
+      listenable: opponent?.changes ?? const AlwaysStoppedAnimation<double>(0),
+      builder: (context, _) => stage(),
+    );
   }
 
   /// SOLO: the host's video, "the host will be right back" while they are

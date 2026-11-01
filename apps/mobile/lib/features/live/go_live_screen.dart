@@ -2485,12 +2485,13 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             )
           : null,
     );
-    return opponent == null
-        ? stage()
-        : ListenableBuilder(
-            listenable: opponent.changes,
-            builder: (context, _) => stage(),
-          );
+    // D215: the same subtree with or without the other room's connection
+    // (the stage and its video renderers are not rebuilt from scratch when
+    // the connection comes up mid-PK).
+    return ListenableBuilder(
+      listenable: opponent?.changes ?? const AlwaysStoppedAnimation<double>(0),
+      builder: (context, _) => stage(),
+    );
   }
 
   /// D174: a solo live's guests as tiles at the end over the chat (a tap:

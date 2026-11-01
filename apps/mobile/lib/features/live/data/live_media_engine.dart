@@ -636,6 +636,15 @@ class LiveKitMediaEngine
   static Future<lk.LocalVideoTrack> Function(lk.CameraCaptureOptions options)
   createCamera = lk.LocalVideoTrack.createCameraTrack;
 
+  /// D215: opens the microphone; a seam for tests.
+  @visibleForTesting
+  static Future<lk.LocalAudioTrack> Function(lk.AudioCaptureOptions options)
+  createMicrophone = lk.LocalAudioTrack.create;
+
+  /// D215: a new media room; a seam for tests.
+  @visibleForTesting
+  static lk.Room Function() createRoom = lk.Room.new;
+
   Future<void>? _previewing;
 
   /// D144b: one start at a time per engine. Two overlapping starts both saw
@@ -680,11 +689,11 @@ class LiveKitMediaEngine
       } else if (!video && _video != null) {
         await _stopVideo();
       }
-      if (_audio == null) {
-        final audio = await lk.LocalAudioTrack.create(_audioOptions);
-        _audio = audio;
-        if (!_mic) await audio.mute();
-      }
+      // D215: the preview's microphone track is never muted — LiveKit's
+      // mute of a track not yet published stops and disposes its capture,
+      // and publishing that track then failed («GL-publish:audio»). A muted
+      // host's choice is applied when the track is published ([_publishMic]).
+      _audio ??= await createMicrophone(_audioOptions);
     } on Object catch (e) {
       await stop();
       final text = e.toString().toLowerCase();
@@ -718,13 +727,12 @@ class LiveKitMediaEngine
       await audio.restartTrack(_audioOptions);
       return;
     }
-    // Preview only: a new microphone track with the new processing.
+    // Preview only: a new microphone track with the new processing (never
+    // muted before it is published, D215).
     _audio = null;
     await audio.stop();
     await audio.dispose();
-    final fresh = await lk.LocalAudioTrack.create(_audioOptions);
-    _audio = fresh;
-    if (!_mic) await fresh.mute();
+    _audio = await createMicrophone(_audioOptions);
   }
 
   @override
@@ -824,11 +832,46 @@ class LiveKitMediaEngine
     final audio = _audio;
     // While a voice clip records, the choice applies when it ends.
     if (audio == null || _clipHold) return;
+    if (audio.sender == null) {
+      // D215: not published yet (the setup screen): nothing is sent, so
+      // only the choice is kept — [_publishMic] applies it. A track muted
+      // the old way (its capture stopped) is replaced by a fresh one.
+      if (audio.muted) {
+        _audio = null;
+        await audio.dispose();
+        _audio = await createMicrophone(_audioOptions);
+      }
+      return;
+    }
     if (enabled) {
       await audio.unmute();
     } else {
       await audio.mute();
     }
+  }
+
+  /// D215: publishes the microphone as the host chose it. Off: the track is
+  /// started and disabled first (silent from its first frame), published,
+  /// then muted the LiveKit way (the others see the microphone off; the
+  /// capture stops) — turning it on later restarts it on the same sender.
+  /// A failure is a real one and is thrown (the «GL-publish:audio» line).
+  Future<void> _publishMic(lk.LocalParticipant local) async {
+    var audio = _audio;
+    if (audio == null) throw StateError('startPreview() first');
+    if (audio.muted) {
+      // Its capture was stopped by a mute before publishing: a fresh one.
+      _audio = null;
+      await audio.dispose();
+      audio = await createMicrophone(_audioOptions);
+      _audio = audio;
+    }
+    final off = !_mic;
+    if (off) {
+      await audio.start();
+      await audio.disable();
+    }
+    await local.publishAudioTrack(audio);
+    if (off) await audio.mute();
   }
 
   @override
@@ -887,8 +930,7 @@ class LiveKitMediaEngine
   @override
   Future<void> publish(LiveMediaAccess access) async {
     final video = _video;
-    final audio = _audio;
-    if (audio == null) throw StateError('startPreview() first');
+    if (_audio == null) throw StateError('startPreview() first');
     // D210: each step says which one failed (the go-live «تفاصيل» line).
     final room = await livePublishStage(
       LivePublishStage.connect,
@@ -911,12 +953,12 @@ class LiveKitMediaEngine
     }
     await livePublishStage(
       LivePublishStage.audio,
-      () => room.localParticipant!.publishAudioTrack(audio),
+      () => _publishMic(room.localParticipant!),
     );
   }
 
   Future<lk.Room> _connect(LiveMediaAccess access) async {
-    final room = lk.Room();
+    final room = createRoom();
     _room = room;
     _removed = false;
     _listen(room);
@@ -1020,12 +1062,11 @@ class LiveKitMediaEngine
     final local = _room?.localParticipant;
     if (local == null) return;
     final camera = _video;
-    final audio = _audio;
     if (camera != null && local.videoTrackPublications.isEmpty) {
       await local.publishVideoTrack(camera);
     }
-    if (audio != null && local.audioTrackPublications.isEmpty) {
-      await local.publishAudioTrack(audio);
+    if (_audio != null && local.audioTrackPublications.isEmpty) {
+      await _publishMic(local);
     }
     _changes.ping();
   }

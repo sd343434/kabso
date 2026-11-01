@@ -1,6 +1,8 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kabso_live/core/logging/app_logger.dart';
 import 'package:kabso_live/features/live/domain/live_pk.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:material_ui/material_ui.dart';
@@ -61,7 +63,11 @@ class LiveKitPkOpponentMedia implements LivePkOpponentMedia {
       })
       ..on<lk.TrackSubscribedEvent>((e) {
         if (e.track is lk.RemoteAudioTrack && _audioMuted) {
-          unawaited(e.track.disable());
+          unawaited(
+            e.track.disable().catchError((Object err, StackTrace stack) {
+              AppLogger.error('live: PK opponent sound not muted', err, stack);
+            }),
+          );
         }
         _changes.ping();
       })
@@ -71,7 +77,14 @@ class LiveKitPkOpponentMedia implements LivePkOpponentMedia {
       ..on<lk.TrackMutedEvent>((_) => _changes.ping())
       ..on<lk.TrackUnmutedEvent>((_) => _changes.ping())
       ..on<lk.RoomDisconnectedEvent>((_) => _changes.ping());
-    await room.connect(access.url, access.token);
+    try {
+      await room.connect(access.url, access.token);
+    } on Object {
+      // D215: a connection that failed is released at once (the caller
+      // logs it and tries again later with a new one).
+      await leave();
+      rethrow;
+    }
     _changes.ping();
   }
 
@@ -83,10 +96,36 @@ class LiveKitPkOpponentMedia implements LivePkOpponentMedia {
     _listener = null;
     _speaking = const {};
     if (room != null) {
-      await room.disconnect();
-      await room.dispose();
+      // D215: LiveKit stops Android's audio session (mode, focus, routing)
+      // whenever ANY room disconnects — also this hidden one, while the
+      // live's own room still sends the host's voice. The session is held
+      // while this room goes and handed back to LiveKit after, which
+      // applies it again for the live's room.
+      final hold = defaultTargetPlatform == TargetPlatform.android && !kIsWeb;
+      if (hold) await _holdAudioSession(manual: true);
+      try {
+        await room.disconnect();
+        await room.dispose();
+      } finally {
+        if (hold) await _holdAudioSession(manual: false);
+      }
     }
     _changes.ping();
+  }
+
+  // LiveKit's audio session switch is its only public way to keep the
+  // session (marked experimental in livekit_client 2.13.1; pinned).
+  // ignore_for_file: experimental_member_use
+  static Future<void> _holdAudioSession({required bool manual}) async {
+    try {
+      await lk.AudioManager.instance.setAudioSessionManagementMode(
+        manual
+            ? lk.AudioSessionManagementMode.manual
+            : lk.AudioSessionManagementMode.automatic,
+      );
+    } on Object catch (e, stack) {
+      AppLogger.error('live: PK audio session not held', e, stack);
+    }
   }
 
   @override
