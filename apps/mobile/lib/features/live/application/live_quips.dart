@@ -14,10 +14,11 @@ import 'package:material_ui/material_ui.dart'
     show AppLifecycleState, WidgetsBinding;
 
 /// D154 (owner: «a local mute»): quips play no sound on this phone while
-/// on, in every live (the bubble with the words still shows). Off by
-/// default. The switch is in the quips tab of the gift panel, on the quip
-/// bubble, in the host's soundboard and (D225) in the viewer's
-/// «إعدادات المشاهدة»; D225 keeps it on this device (was the app session).
+/// on, in every live (D224: the quip's gift strip and chat line still
+/// show). Off by default. The switch is in the quips tab of the gift panel,
+/// in the host's soundboard and (D225) in the viewer's «إعدادات المشاهدة»
+/// (D224 removed the quip bubble that also had it); D225 keeps it on this
+/// device (was the app session).
 class QuipsMuted extends Notifier<bool> {
   static const prefKey = 'pref.live.quipsMuted';
 

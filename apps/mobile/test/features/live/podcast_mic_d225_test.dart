@@ -60,6 +60,9 @@ Future<(FakeLiveRepository, FakeLiveMediaEngine)> _podcastOnAir(
     ],
   );
   await tester.pumpAndSettle();
+  // D224: the type row scrolls sideways (the podcast may be off screen).
+  await tester.ensureVisible(find.byKey(GoLiveKeys.mode(LiveRoomMode.podcast)));
+  await tester.pumpAndSettle();
   await tester.tap(find.byKey(GoLiveKeys.mode(LiveRoomMode.podcast)));
   await tester.pumpAndSettle();
   await tester.enterText(find.byKey(GoLiveScreen.titleKey), 'حلقة');

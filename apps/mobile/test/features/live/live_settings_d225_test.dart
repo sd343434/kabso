@@ -115,6 +115,9 @@ Future<(FakeLiveRepository, FakeLiveMediaEngine)> _hostOnAir(
   );
   await tester.pumpAndSettle();
   if (mode != LiveRoomMode.solo) {
+    // D224: the type row scrolls sideways (the podcast may be off screen).
+    await tester.ensureVisible(find.byKey(GoLiveKeys.mode(mode)));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(GoLiveKeys.mode(mode)));
     await tester.pumpAndSettle();
   }
