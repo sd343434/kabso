@@ -34,6 +34,7 @@ import 'package:kabso_live/features/live/application/live_tap_batcher.dart';
 import 'package:kabso_live/features/live/application/live_watch.dart';
 import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
 import 'package:kabso_live/features/live/data/beauty/live_color_filter.dart';
+import 'package:kabso_live/features/live/data/live_blocked_words_repository.dart';
 import 'package:kabso_live/features/live/data/live_host_targets_repository.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
@@ -47,6 +48,7 @@ import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart
 import 'package:kabso_live/features/live/presentation/go_live/go_live_setup_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_assistant_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_blocked_words_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_boost_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_cp_seats.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_data_center_sheet.dart';
@@ -67,6 +69,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_schedule_shee
 import 'package:kabso_live/features/live/presentation/go_live/live_score_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_emoji.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_settings_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_soundboard_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_sticker_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
@@ -555,19 +558,22 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         'stickers',
         () => ref.read(liveStickersProvider(room.id).notifier).attach(engine),
       );
-      // D154i: watch-together (the host's suggestions too).
-      _optional('watch', () {
-        ref.read(liveWatchProvider(room.id).notifier)
-          ..onSuggestion = (s) {
-            if (mounted) {
-              KSnack.info(
-                context,
-                context.l10n.liveWatchNewSuggestion(s.video.title),
-              );
+      // D154i: watch-together (the host's suggestions too). D225 (owner):
+      // YouTube is for the audio room only.
+      if (room.mode == LiveRoomMode.audio) {
+        _optional('watch', () {
+          ref.read(liveWatchProvider(room.id).notifier)
+            ..onSuggestion = (s) {
+              if (mounted) {
+                KSnack.info(
+                  context,
+                  context.l10n.liveWatchNewSuggestion(s.video.title),
+                );
+              }
             }
-          }
-          ..attach(engine, host: true);
-      });
+            ..attach(engine, host: true);
+        });
+      }
       // D154f: the host's assistant (hints on this phone only).
       _optional(
         'assistant',
@@ -997,35 +1003,6 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               : null,
         ),
       ],
-      if (onAir)
-        GoLiveTool(
-          id: 'guests',
-          icon: state.allowGuests
-              ? Icons.groups_rounded
-              : Icons.no_accounts_rounded,
-          label: l10n.goLiveGuests,
-          toggled: state.allowGuests,
-          onTap: state.phase == GoLivePhase.live
-              ? () => unawaited(_toggleGuests(state))
-              : null,
-        ),
-      // In the room tools sheet (audio and, D131, video).
-      if (onAir)
-        GoLiveTool(
-          id: 'voice',
-          icon: Icons.tune_rounded,
-          label: l10n.liveToolsVoice,
-          onTap: state.phase == GoLivePhase.live
-              ? () => unawaited(
-                  showLiveVoiceSheet(
-                    context,
-                    noiseReduction: state.noiseReduction,
-                    enhance: state.voiceEnhance,
-                    onChanged: _host.setVoice,
-                  ),
-                )
-              : null,
-        ),
       if (onAir && seats && room != null)
         GoLiveTool(
           id: 'viewers',
@@ -1033,21 +1010,6 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           label: l10n.liveToolsViewers,
           onTap: state.phase == GoLivePhase.live
               ? () => unawaited(_openViewers(room.id, liveSeats))
-              : null,
-        ),
-      if (onAir && room != null)
-        GoLiveTool(
-          id: 'chat',
-          icon: chat?.enabled ?? true
-              ? Icons.chat_rounded
-              : Icons.speaker_notes_off_rounded,
-          // Short in the tools bar; on/off shows on the button.
-          label: l10n.liveChatTool,
-          toggled: chat?.enabled ?? true,
-          onTap: state.phase == GoLivePhase.live
-              ? () => unawaited(
-                  _toggleChat(room.id, enabled: chat?.enabled ?? true),
-                )
               : null,
         ),
     ];
@@ -1158,47 +1120,47 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 context,
                 hostName: hostName,
                 hostAvatarUrl: user?.avatarUrl,
-                onSettings: () => unawaited(
-                  showLiveSetupSettings(
-                    context,
-                    onWishList: () => unawaited(_openWishSheet()),
-                    wishCount: _wishCount(state),
-                    allowGuests: state.allowGuests,
-                    onAllowGuests: (_) => unawaited(_toggleGuests(state)),
-                    onShare: user == null
-                        ? null
-                        : () =>
-                              unawaited(_shareLive(room.title, user.username)),
-                  ),
-                ),
+                // D225: «إعدادات الغرفة» is the live's one settings page.
+                onSettings: () =>
+                    unawaited(_openSettings(room, byId, accent: art.accent)),
               ),
             );
       // ≡ and the toolbox open the room tools (owner, 2026-10-26).
+      // D225 (owner): «إعدادات البث» first; what moved there (the voice,
+      // the seats, the theme, the chat, the visitors, the schedule) is not
+      // repeated here. YouTube is the audio room's only; a podcast has the
+      // raised hands instead. «مشاركة الشاشة» and «غناء» are gone (screen
+      // sharing is the Streamer's, D213).
+      final podcastMode = state.mode == LiveRoomMode.podcast;
       void openTools() => unawaited(
         showLiveRoomTools(
           context,
-          // Ref 84's tools in its order: ours where they exist (the
-          // voice in the mixer's place, viewers as users, chat as
-          // comments), the rest greyed with "Soon" (owner D99).
           room: [
-            // D138: the host plays an emoji on their own tile (0).
-            GoLiveTool(
-              id: 'seatEmoji',
-              icon: Icons.add_reaction_rounded,
-              label: l10n.liveSeatEmoji,
-              onTap: room == null || !live
-                  ? null
-                  : () => unawaited(
-                      showSeatEmojiSheet(
-                        context,
-                        ref,
-                        roomId: room.id,
-                        seat: 0,
+            _settingsTool(room, byId, accent: art.accent),
+            if (podcastMode)
+              GoLiveTool(
+                id: 'hands',
+                icon: Icons.front_hand_rounded,
+                label: l10n.podcastHandsTitle,
+                badge: (liveSeats?.pendingRequests ?? 0) > 0,
+                onTap: room?.podcast == null || !live
+                    ? null
+                    : () => unawaited(_openHands(room!, liveSeats)),
+              )
+            else
+              // D154i: YouTube watch-together (the official player).
+              GoLiveTool(
+                id: 'youtube',
+                icon: Icons.smart_display_outlined,
+                label: l10n.liveToolYoutube,
+                onTap: room == null || !live
+                    ? null
+                    : () => unawaited(
+                        showLiveWatchSheet(context, roomId: room.id),
                       ),
-                    ),
-            ),
-            ?byId['voice'],
+              ),
             // D201: music under the host's voice (Android; else the reason).
+            // D225: a podcast keeps it for the intro and the outro.
             GoLiveTool(
               id: 'music',
               icon: Icons.music_note_rounded,
@@ -1219,6 +1181,23 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                   : () =>
                         unawaited(showLiveSoundboard(context, roomId: room.id)),
             ),
+            // D138: the host plays an emoji on their own tile (0); D225:
+            // drawn on the podcast's speaker seats too.
+            GoLiveTool(
+              id: 'seatEmoji',
+              icon: Icons.add_reaction_rounded,
+              label: l10n.liveSeatEmoji,
+              onTap: room == null || !live
+                  ? null
+                  : () => unawaited(
+                      showSeatEmojiSheet(
+                        context,
+                        ref,
+                        roomId: room.id,
+                        seat: 0,
+                      ),
+                    ),
+            ),
             // D154e: the live's program (everyone sees its card).
             GoLiveTool(
               id: 'program',
@@ -1234,40 +1213,24 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                       ),
                     ),
             ),
-            GoLiveTool.soon(
-              id: 'screen',
-              icon: Icons.screen_share_outlined,
-              label: l10n.liveToolShareScreen,
-            ),
-            // D154i: YouTube watch-together (the official player).
-            GoLiveTool(
-              id: 'youtube',
-              icon: Icons.smart_display_outlined,
-              label: l10n.liveToolYoutube,
-              onTap: room == null || !live
-                  ? null
-                  : () =>
-                        unawaited(showLiveWatchSheet(context, roomId: room.id)),
-            ),
-            GoLiveTool.soon(
-              id: 'singing',
-              icon: Icons.mic_external_on_outlined,
-              label: l10n.liveToolSinging,
-            ),
             GoLiveTool(
               id: 'topic',
               icon: Icons.forum_outlined,
               label: l10n.liveToolTopic,
               onTap: openRoomInfo,
             ),
-            // D225 (urgent): a podcast has 4 fixed seats (the server refuses
-            // a count), so no «المقاعد».
-            if (state.mode != LiveRoomMode.podcast) byId['seats']!,
-            byId['theme']!,
+            // D136 / D225: the wish list from ≡ in the voice rooms too.
+            GoLiveTool(
+              id: 'wish',
+              icon: Icons.card_giftcard_rounded,
+              label: l10n.liveToolWish,
+              onTap: room == null || !live
+                  ? null
+                  : () => unawaited(_openWishSheet()),
+            ),
           ],
           other: [
             ?byId['viewers'],
-            ?byId['chat'],
             // D143: the same User management as video rooms (moderators
             // included: the audio room has seats).
             _managementTool(state, live ? room : null, liveSeats),
@@ -1278,6 +1241,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               label: l10n.liveToolAssistance,
               onTap: () => unawaited(showLiveAssistantSettings(context)),
             ),
+            // D225 (owner): stays where it is, an honest «قريباً».
             GoLiveTool.soon(
               id: 'recorder',
               icon: Icons.videocam_outlined,
@@ -1300,14 +1264,6 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               label: l10n.liveToolDataCenter,
               onTap: () => unawaited(showLiveDataCenter(context)),
             ),
-            // D141 (owner): the host's live schedule (D99 C), from the
-            // live itself.
-            GoLiveTool(
-              id: 'time',
-              icon: Icons.alarm_rounded,
-              label: l10n.liveToolLiveTime,
-              onTap: () => unawaited(showLiveSchedule(context)),
-            ),
             // D154b: the traffic card (a paid «مميز» slot for this room).
             GoLiveTool(
               id: 'traffic',
@@ -1318,14 +1274,16 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                   : () =>
                         unawaited(showLiveBoostSheet(context, roomId: room.id)),
             ),
-            byId['guests']!,
           ],
         ),
       );
       // The chat box opens from 💬 and 🙂 (CP-013).
       // D173: YouTube together turns the room into the owner's cinema.
       final cinema =
-          live && room != null && LiveWatchScreen.shows(ref, room.id);
+          live &&
+          room != null &&
+          state.mode == LiveRoomMode.audio &&
+          LiveWatchScreen.shows(ref, room.id);
       // D212: a podcast's stage — the episode card, four speakers, the
       // listeners (the guests picked in the setup are invited on arrival).
       final podcastInfo = room?.podcast;
@@ -1548,23 +1506,19 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             label: l10n.livePreviewMore,
             onTap: openTools,
           ),
-          // D225 (urgent): the podcast host's microphone, one tap away.
-          if (state.mode == LiveRoomMode.podcast)
-            LiveRoundButton(
-              key: GoLiveScreen.barMicKey,
-              icon: state.micEnabled
-                  ? Icons.mic_rounded
-                  : Icons.mic_off_rounded,
-              bare: true,
-              label: state.micEnabled
-                  ? l10n.goLiveMuteMic
-                  : l10n.goLiveUnmuteMic,
-              onTap: live
-                  ? () => unawaited(
-                      _guard(() => _setMic(enabled: !state.micEnabled)),
-                    )
-                  : null,
-            ),
+          // D225 (owner): the host's microphone, one tap away (the podcast
+          // host had no way to mute on air).
+          LiveRoundButton(
+            key: GoLiveScreen.barMicKey,
+            icon: state.micEnabled ? Icons.mic_rounded : Icons.mic_off_rounded,
+            bare: true,
+            label: state.micEnabled ? l10n.goLiveMuteMic : l10n.goLiveUnmuteMic,
+            onTap: live
+                ? () => unawaited(
+                    _guard(() => _setMic(enabled: !state.micEnabled)),
+                  )
+                : null,
+          ),
         ],
         barEnd: [
           if (state.mode == LiveRoomMode.podcast)
@@ -1593,17 +1547,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               },
               badge: liveSeats?.pendingRequests ?? 0,
             ),
-          // PK is not in the contract yet: the button says so.
-          LiveRoundButton(
-            key: GoLiveScreen.audioPkKey,
-            icon: Icons.sports_mma_rounded,
-            // D135/D141: the owner's colourful PK art, as on the video bar.
-            asset: 'assets/live_bar/bar_pk.png',
-            art: true,
-            bare: true,
-            label: l10n.goLivePk,
-            onTap: () => KSnack.info(context, l10n.goLivePkSoon),
-          ),
+          // D225: no PK on the voice bars — a podcast has none (owner), and
+          // the audio room's was an honest «قريباً» (the audit's «PK (قريباً
+          // / إخفاء)»): with the mic added it pushed the gift button off a
+          // 393 or 360 dp bar (the bar scrolls sideways when crowded).
           // D141 (owner): games, with the owner's controller art, where
           // the toolbox was (it repeated ≡). There are no games yet: the
           // button says so (no list is shown).
@@ -1879,14 +1826,13 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                         ? LuckyComboLayer.audioBottom
                         : LuckyComboLayer.videoBottom,
                   ),
-                // D154i: the video the live watches together.
-                if (room != null && state.phase == GoLivePhase.live)
-                  LiveWatchLayer(
-                    roomId: room.id,
-                    host: true,
-                    // D160: a floating window in a video live.
-                    pip: !state.mode.isVoice,
-                  ),
+                // D154i: the video the live watches together. D225 (owner):
+                // the audio room only (D160's floating window in a video
+                // live is gone).
+                if (room != null &&
+                    state.phase == GoLivePhase.live &&
+                    state.mode == LiveRoomMode.audio)
+                  LiveWatchLayer(roomId: room.id, host: true),
                 // D154f: the assistant's hint, for the host only.
                 if (room != null && state.phase == GoLivePhase.live)
                   LiveAssistantHintLayer(roomId: room.id),
@@ -2107,16 +2053,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               context,
               hostName: hostName,
               hostAvatarUrl: avatarUrl,
+              // D225: «إعدادات الغرفة» is the live's one settings page.
               onSettings: () => unawaited(
-                showLiveSetupSettings(
-                  context,
-                  onWishList: () => unawaited(_openWishSheet()),
-                  wishCount: _wishCount(state),
-                  allowGuests: state.allowGuests,
-                  onAllowGuests: (_) => unawaited(_toggleGuests(state)),
-                  onShare: user == null
-                      ? null
-                      : () => unawaited(_shareLive(room.title, user.username)),
+                _openSettings(
+                  room,
+                  byId,
+                  accent: LiveThemeArt.of(state.theme).accent,
                 ),
               ),
             ),
@@ -2144,6 +2086,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         // D131 keeps every tool in ≡: beauty and the voice settings follow
         // the reference's tiles, the guest viewers' switch ends the sheet.
         room: [
+          // D225 (owner): the live's settings page, first in every mode.
+          _settingsTool(
+            room,
+            byId,
+            accent: LiveThemeArt.of(state.theme).accent,
+          ),
           GoLiveTool(
             id: 'share',
             icon: Icons.share_rounded,
@@ -2189,7 +2137,6 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 : () =>
                       unawaited(showLiveStickerSheet(context, roomId: room.id)),
           ),
-          ?byId['mic'],
           // D201: music under the host's voice (Android; else the reason).
           GoLiveTool(
             id: 'music',
@@ -2224,24 +2171,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             label: l10n.liveToolWish,
             onTap: !live ? null : () => unawaited(_openWishSheet()),
           ),
-          // D160: YouTube watch-together in a video live too (a floating
-          // window over the picture).
-          GoLiveTool(
-            id: 'youtube',
-            icon: Icons.smart_display_outlined,
-            label: l10n.liveToolYoutube,
-            onTap: !live
-                ? null
-                : () => unawaited(showLiveWatchSheet(context, roomId: room.id)),
-          ),
-          // D199 (owner): beauty and the filters (Magic: colour filters
-          // and effects) while live — the same sheets as before going live,
-          // applied to the live picture.
-          ?byId['beauty'],
-          ?byId['magic'],
-          ?byId['voice'],
-          ?byId['theme'],
-          ?byId['seats'],
+          // D225 (owner): no YouTube in a video live (the audio room's
+          // only); beauty and the filters are on ✨; the microphone, the
+          // voice, the theme and the seats moved to «إعدادات البث».
           ?byId['requests'],
         ],
         other: [
@@ -2259,7 +2191,6 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 ? null
                 : () => unawaited(_openAudience(room, liveSeats)),
           ),
-          ?byId['chat'],
           management,
           // D154f: the host's rule-based assistant (its settings).
           GoLiveTool(
@@ -2335,14 +2266,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               ),
             ),
           ),
-          // D141 (owner): the host's live schedule (D99 C), from the live.
-          GoLiveTool(
-            id: 'time',
-            icon: Icons.alarm_rounded,
-            label: l10n.liveToolLiveTime,
-            onTap: () => unawaited(showLiveSchedule(context)),
-          ),
           // D154b: the traffic card (a paid «مميز» slot for this live).
+          // D225: the schedule («وقت البث» = «جدول البث») and the visitors
+          // are in «إعدادات البث».
           GoLiveTool(
             id: 'traffic',
             icon: Icons.confirmation_number_outlined,
@@ -2351,7 +2277,6 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 ? null
                 : () => unawaited(showLiveBoostSheet(context, roomId: room.id)),
           ),
-          ?byId['guests'],
         ],
       ),
     );
@@ -2363,21 +2288,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           ?byId['beauty'],
           ?byId['magic'],
           ?byId['fillLight'],
-          GoLiveTool(
-            id: 'mixer',
-            icon: Icons.tune_rounded,
-            label: l10n.liveToolMixer,
-            onTap: !live
-                ? null
-                : () => unawaited(
-                    showLiveVoiceSheet(
-                      context,
-                      noiseReduction: state.noiseReduction,
-                      enhance: state.voiceEnhance,
-                      onChanged: _host.setVoice,
-                    ),
-                  ),
-          ),
+          // D225: the voice («الصوت») is in «إعدادات البث» (it was twice).
         ],
       ),
     );
@@ -2532,6 +2443,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 onChat: openChat,
                 onBeauty: openBeauty,
                 onTools: openTools,
+                // D225 (owner): the host's microphone on the bar too.
+                onMic: () {
+                  if (!live) return;
+                  unawaited(_guard(() => _setMic(enabled: !state.micEnabled)));
+                },
+                micOn: state.micEnabled,
                 beautyOn: state.beauty.enabled,
                 requests: liveSeats?.pendingRequests ?? 0,
                 // In a multi-guest live: requests and seats; a solo live has no
@@ -2670,6 +2587,336 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     }
 
     engine.changes.addListener(onChange);
+  }
+
+  /// D225 (owner): «إعدادات البث», the first tile of ≡ Room Tools in every
+  /// mode. Greyed until the room is on air.
+  GoLiveTool _settingsTool(
+    LiveRoom? room,
+    Map<String, GoLiveTool> byId, {
+    required Color accent,
+  }) => GoLiveTool(
+    id: 'liveSettings',
+    icon: Icons.settings_rounded,
+    label: context.l10n.liveBroadcastSettings,
+    onTap:
+        room == null ||
+            ref.read(liveHostControllerProvider).phase != GoLivePhase.live
+        ? null
+        : () => unawaited(_openSettings(room, byId, accent: accent)),
+  );
+
+  /// D225 (owner): the live's one settings page — what fits [room]'s mode
+  /// only (audit §3.2): the sound (the microphone, noise reduction, voice
+  /// enhancement); the camera (video lives: on/off, flip, quality, light);
+  /// the seats (AUDIO, MULTI: the count, mute everyone) or the questions
+  /// (a podcast: open or closed, the time, mute the speakers); the room
+  /// (the theme, the chat, blocked words, the visitors, the wish list) and
+  /// the schedule. Every row reads the live's state as it is now.
+  Future<void> _openSettings(
+    LiveRoom room,
+    Map<String, GoLiveTool> byId, {
+    required Color accent,
+  }) {
+    final l10n = context.l10n;
+    final mode = room.mode;
+    final video = !mode.isVoice;
+    final podcast = mode == LiveRoomMode.podcast;
+    final seated = mode == LiveRoomMode.audio || mode == LiveRoomMode.multi;
+    return showLiveSettingsSheet(
+      context,
+      title: l10n.liveBroadcastSettings,
+      groups: (sheet, sheetRef) {
+        final state = sheetRef.watch(liveHostControllerProvider);
+        final live = state.phase == GoLivePhase.live;
+        final current = state.room ?? room;
+        final chat = sheetRef.watch(liveChatProvider(room.id));
+        final seats = mode.hasSeats
+            ? sheetRef.watch(liveSeatsProvider(room.id)).value
+            : null;
+        final engine = _host.engine;
+        final cfg = sheetRef.watch(liveConfigProvider).value;
+        final podcastInfo = current.podcast;
+        final seconds = podcastInfo?.questionSeconds;
+        final choices = podcastQuestionChoices(
+          cfg?.podcast ?? const LivePodcastConfig(),
+        );
+        return [
+          LiveSettingsGroup(
+            title: l10n.liveSettingsSound,
+            items: [
+              LiveSettingsSwitch(
+                id: 'mic',
+                icon: state.micEnabled
+                    ? Icons.mic_rounded
+                    : Icons.mic_off_rounded,
+                label: l10n.goLiveMicrophone,
+                hint: l10n.goLiveMicrophoneHint,
+                value: state.micEnabled,
+                onChanged: live
+                    ? (on) => unawaited(_guard(() => _setMic(enabled: on)))
+                    : null,
+              ),
+              LiveSettingsSwitch(
+                id: 'noise',
+                icon: Icons.noise_aware_rounded,
+                label: l10n.goLiveNoiseReduction,
+                hint: l10n.goLiveNoiseReductionHint,
+                value: state.noiseReduction,
+                onChanged: (on) =>
+                    unawaited(_guard(() => _host.setVoice(noiseReduction: on))),
+              ),
+              LiveSettingsSwitch(
+                id: 'enhance',
+                icon: Icons.graphic_eq_rounded,
+                label: l10n.goLiveVoiceEnhance,
+                hint: l10n.goLiveVoiceEnhanceHint,
+                value: state.voiceEnhance,
+                onChanged: (on) =>
+                    unawaited(_guard(() => _host.setVoice(enhance: on))),
+              ),
+            ],
+          ),
+          if (video)
+            LiveSettingsGroup(
+              title: l10n.liveSettingsCamera,
+              items: [
+                LiveSettingsSwitch(
+                  id: 'camera',
+                  icon: state.cameraOff
+                      ? Icons.videocam_off_rounded
+                      : Icons.videocam_rounded,
+                  label: l10n.liveSettingsCamera,
+                  hint: l10n.liveSettingsCameraHint,
+                  value: !state.cameraOff,
+                  onChanged: live
+                      ? (on) => unawaited(
+                          _guard(() => _host.setCameraOff(off: !on)),
+                        )
+                      : null,
+                ),
+                LiveSettingsLink(
+                  id: 'flip',
+                  icon: Icons.flip_camera_ios_rounded,
+                  label: l10n.liveSettingsFlip,
+                  onTap: engine.videoEnabled && !state.cameraOff
+                      ? () => unawaited(_guard(_host.flipCamera))
+                      : null,
+                ),
+                LiveSettingsLink(
+                  id: 'quality',
+                  icon: liveConnectionIcon(engine.connectionQuality),
+                  label: l10n.liveSettingsQuality,
+                  onTap: engine.videoEnabled
+                      ? () => unawaited(
+                          showLiveQualitySheet(context, engine: engine),
+                        )
+                      : null,
+                ),
+                if (byId['fillLight'] case final light?)
+                  LiveSettingsLink(
+                    id: 'light',
+                    icon: light.icon,
+                    label: state.frontCamera ? light.label : l10n.liveToolFlash,
+                    onTap: !state.cameraOff ? light.onTap : null,
+                  ),
+              ],
+            ),
+          if (seated)
+            LiveSettingsGroup(
+              title: l10n.liveSeats,
+              items: [
+                if (byId['seats'] case final seatsTool?)
+                  LiveSettingsLink(
+                    id: 'seatCount',
+                    icon: Icons.weekend_rounded,
+                    label: l10n.liveSettingsSeatCount,
+                    trailing: switch (seats?.seatCount ?? current.seatCount) {
+                      final n? => '$n',
+                      null => null,
+                    },
+                    onTap: live ? seatsTool.onTap : null,
+                  ),
+                LiveSettingsLink(
+                  id: 'muteAll',
+                  icon: Icons.volume_off_rounded,
+                  label: l10n.liveMuteAll,
+                  hint: l10n.liveMuteAllHint,
+                  onTap: live ? () => unawaited(_muteAll(room.id)) : null,
+                ),
+              ],
+            ),
+          if (podcast && podcastInfo != null)
+            LiveSettingsGroup(
+              title: l10n.liveSettingsQuestions,
+              items: [
+                LiveSettingsSwitch(
+                  id: 'questions',
+                  icon: Icons.front_hand_rounded,
+                  label: l10n.podcastQuestionsOpen,
+                  value: podcastInfo.questionsOpen,
+                  onChanged: live
+                      ? (on) => unawaited(
+                          _guard(
+                            () => _host.setPodcastSettings(questionsOpen: on),
+                          ),
+                        )
+                      : null,
+                ),
+                LiveSettingsLink(
+                  id: 'questionTime',
+                  icon: Icons.timer_outlined,
+                  label: l10n.podcastQuestionTime,
+                  trailing: podcastQuestionLabel(l10n, seconds),
+                  onTap: live
+                      ? () => unawaited(() async {
+                          final picked = await showLiveSettingsPicker(
+                            context,
+                            title: l10n.podcastQuestionTime,
+                            options: [
+                              for (final c in choices)
+                                podcastQuestionLabel(l10n, c),
+                            ],
+                            selected: choices.indexOf(seconds),
+                          );
+                          if (picked == null || !mounted) return;
+                          final value = choices[picked];
+                          await _guard(
+                            () =>
+                                _host.setPodcastSettings(seconds: () => value),
+                          );
+                        }())
+                      : null,
+                ),
+                LiveSettingsLink(
+                  id: 'muteAll',
+                  icon: Icons.volume_off_rounded,
+                  label: l10n.liveMuteAll,
+                  hint: l10n.liveMuteAllHint,
+                  onTap: live ? () => unawaited(_muteAll(room.id)) : null,
+                ),
+              ],
+            ),
+          LiveSettingsGroup(
+            title: l10n.liveSettingsRoom,
+            items: [
+              if (byId['theme'] case final theme?)
+                LiveSettingsLink(
+                  id: 'theme',
+                  icon: Icons.palette_rounded,
+                  label: l10n.goLiveTheme,
+                  onTap: live ? theme.onTap : null,
+                ),
+              LiveSettingsSwitch(
+                id: 'chat',
+                icon: chat.enabled
+                    ? Icons.chat_rounded
+                    : Icons.speaker_notes_off_rounded,
+                label: l10n.liveChatTool,
+                value: chat.enabled,
+                onChanged: live
+                    ? (_) =>
+                          unawaited(_toggleChat(room.id, enabled: chat.enabled))
+                    : null,
+              ),
+              LiveSettingsLink(
+                id: 'blockedWords',
+                icon: Icons.block_rounded,
+                label: l10n.liveSettingsBlockedWords,
+                trailing: sheetRef
+                    .watch(liveBlockedWordsProvider)
+                    .value
+                    ?.length
+                    .toString(),
+                onTap: () => unawaited(showLiveBlockedWords(context)),
+              ),
+              LiveSettingsSwitch(
+                id: 'guests',
+                icon: state.allowGuests
+                    ? Icons.groups_rounded
+                    : Icons.no_accounts_rounded,
+                label: l10n.goLiveGuests,
+                hint: state.allowGuests
+                    ? l10n.goLiveWatchEveryoneHint
+                    : l10n.goLiveWatchSignedInHint,
+                value: state.allowGuests,
+                onChanged: live ? (_) => unawaited(_toggleGuests(state)) : null,
+              ),
+              LiveSettingsLink(
+                id: 'wish',
+                icon: Icons.card_giftcard_rounded,
+                label: l10n.liveWishTitle,
+                trailing: '${_wishCodes(state).length}/4',
+                onTap: live ? () => unawaited(_openWishSheet()) : null,
+              ),
+            ],
+          ),
+          LiveSettingsGroup(
+            title: l10n.liveSettingsGeneral,
+            items: [
+              LiveSettingsLink(
+                id: 'schedule',
+                icon: Icons.alarm_rounded,
+                label: l10n.liveSettingsSchedule,
+                trailing: sheetRef
+                    .watch(liveScheduleProvider)
+                    .value
+                    ?.length
+                    .toString(),
+                onTap: () => unawaited(showLiveSchedule(context)),
+              ),
+            ],
+          ),
+        ];
+      },
+    );
+  }
+
+  /// D225 (owner): «كتم الجميع» — every person on a seat (not the host) is
+  /// muted with the seat mute the host already has (`POST …/seats/{index}/
+  /// mute`, one call a seat: each one is checked and logged by the server
+  /// as a seat action). Seats already muted are skipped.
+  Future<void> _muteAll(String roomId) async {
+    final l10n = context.l10n;
+    final LiveSeats seats;
+    try {
+      seats = await ref.refresh(liveSeatsProvider(roomId).future);
+    } on Object catch (e) {
+      if (mounted) {
+        KSnack.error(context, failureMessage(l10n, toAppFailure(e)));
+      }
+      return;
+    }
+    if (!mounted) return;
+    final me = ref.read(currentUserProvider)?.id;
+    final targets = [
+      for (final seat in seats.seats)
+        if (seat.index != 0 &&
+            seat.user != null &&
+            seat.user!.id != me &&
+            !seat.mutedByHost)
+          seat.index,
+    ];
+    if (targets.isEmpty) {
+      KSnack.info(context, l10n.liveMuteAllNone);
+      return;
+    }
+    final repo = ref.read(liveRepositoryProvider);
+    Object? failed;
+    for (final index in targets) {
+      try {
+        await repo.muteSeat(roomId, index, muted: true);
+      } on Object catch (e) {
+        failed ??= e;
+      }
+    }
+    await _afterSeatChange(roomId);
+    if (!mounted) return;
+    if (failed != null) {
+      KSnack.error(context, failureMessage(l10n, toAppFailure(failed)));
+    } else {
+      KSnack.success(context, l10n.liveMuteAllDone);
+    }
   }
 
   /// The host's own microphone on their person card (and, D225, the bar's
@@ -3094,8 +3341,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   }
 
   /// The host's User management (D131; D143 audio rooms too): muted,
-  /// removed, the moderators (assign from the viewers, remove here) and
-  /// signed-in viewers only. Greyed until [room] is on air.
+  /// removed and the moderators (assign from the viewers, remove here);
+  /// D225: signed-in viewers only («الزوار») moved to «إعدادات البث».
+  /// Greyed until [room] is on air.
   GoLiveTool _managementTool(
     GoLiveState state,
     LiveRoom? room,
@@ -3113,9 +3361,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 context,
                 roomId: room.id,
                 hasSeats: seats,
-                allowGuests: state.allowGuests,
-                onAllowGuests: ({required allow}) =>
-                    _host.setAllowGuests(allow: allow),
+                // D225: the visitors' switch lives in «إعدادات البث» only.
                 onChanged: seats
                     ? () => unawaited(_afterSeatChange(room.id))
                     : null,

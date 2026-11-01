@@ -10841,7 +10841,7 @@ abstract class AppLocalizations {
   /// Beautification tools: Magic — the colour filters (D143).
   ///
   /// In ar, this message translates to:
-  /// **'مؤثرات'**
+  /// **'الفلاتر'**
   String get liveToolMagic;
 
   /// Fill light (D143/D157): a soft light on the picture with the front camera, the torch with the back camera.
@@ -11604,6 +11604,228 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'شاشة نظيفة'**
   String get liveToolClearScreen;
+
+  /// D225: the live settings pages (host «إعدادات البث», viewer «إعدادات المشاهدة»).
+  ///
+  /// In ar, this message translates to:
+  /// **'إعدادات البث'**
+  String get liveBroadcastSettings;
+
+  /// D225: the live settings pages (host «إعدادات البث», viewer «إعدادات المشاهدة»).
+  ///
+  /// In ar, this message translates to:
+  /// **'الصوت'**
+  String get liveSettingsSound;
+
+  /// D225: the live settings pages (host «إعدادات البث», viewer «إعدادات المشاهدة»).
+  ///
+  /// In ar, this message translates to:
+  /// **'الكاميرا'**
+  String get liveSettingsCamera;
+
+  /// D225: the live settings pages (host «إعدادات البث», viewer «إعدادات المشاهدة»).
+  ///
+  /// In ar, this message translates to:
+  /// **'عند إيقافها يرى الآخرون صورتك'**
+  String get liveSettingsCameraHint;
+
+  /// D225: the live settings pages (host «إعدادات البث», viewer «إعدادات المشاهدة»).
+  ///
+  /// In ar, this message translates to:
+  /// **'قلب الكاميرا'**
+  String get liveSettingsFlip;
+
+  /// D225: the live settings pages (host «إعدادات البث», viewer «إعدادات المشاهدة»).
+  ///
+  /// In ar, this message translates to:
+  /// **'الجودة'**
+  String get liveSettingsQuality;
+
+  /// D225: the live settings pages (host «إعدادات البث», viewer «إعدادات المشاهدة»).
+  ///
+  /// In ar, this message translates to:
+  /// **'عدد المقاعد'**
+  String get liveSettingsSeatCount;
+
+  /// D225: the live settings pages (host «إعدادات البث», viewer «إعدادات المشاهدة»).
+  ///
+  /// In ar, this message translates to:
+  /// **'الأسئلة'**
+  String get liveSettingsQuestions;
+
+  /// D225: the live settings pages (host «إعدادات البث», viewer «إعدادات المشاهدة»).
+  ///
+  /// In ar, this message translates to:
+  /// **'الغرفة'**
+  String get liveSettingsRoom;
+
+  /// D225: the live settings pages (host «إعدادات البث», viewer «إعدادات المشاهدة»).
+  ///
+  /// In ar, this message translates to:
+  /// **'عام'**
+  String get liveSettingsGeneral;
+
+  /// D225: the live settings pages (host «إعدادات البث», viewer «إعدادات المشاهدة»).
+  ///
+  /// In ar, this message translates to:
+  /// **'المشاهدة دون حساب'**
+  String get liveSettingsGuestsHint;
+
+  /// D225: the live settings pages (host «إعدادات البث», viewer «إعدادات المشاهدة»).
+  ///
+  /// In ar, this message translates to:
+  /// **'كتم الجميع'**
+  String get liveMuteAll;
+
+  /// D225: the live settings pages (host «إعدادات البث», viewer «إعدادات المشاهدة»).
+  ///
+  /// In ar, this message translates to:
+  /// **'يكتم مايك كل من على المقاعد'**
+  String get liveMuteAllHint;
+
+  /// D225: the live settings pages (host «إعدادات البث», viewer «إعدادات المشاهدة»).
+  ///
+  /// In ar, this message translates to:
+  /// **'تم كتم كل من على المقاعد'**
+  String get liveMuteAllDone;
+
+  /// D225: the live settings pages (host «إعدادات البث», viewer «إعدادات المشاهدة»).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا أحد على المقاعد لكتمه'**
+  String get liveMuteAllNone;
+
+  /// D225: the live settings pages (host «إعدادات البث», viewer «إعدادات المشاهدة»).
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إيقاف الكاميرا'**
+  String get liveCameraOff;
+
+  /// D225: the live settings pages (host «إعدادات البث», viewer «إعدادات المشاهدة»).
+  ///
+  /// In ar, this message translates to:
+  /// **'إعدادات المشاهدة'**
+  String get liveViewerSettings;
+
+  /// D225: the live settings pages (host «إعدادات البث», viewer «إعدادات المشاهدة»).
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا البث'**
+  String get liveViewerThisLive;
+
+  /// D225: the live settings pages (host «إعدادات البث», viewer «إعدادات المشاهدة»).
+  ///
+  /// In ar, this message translates to:
+  /// **'الهدايا والتأثيرات'**
+  String get liveViewerEffects;
+
+  /// D225: the live settings pages (host «إعدادات البث», viewer «إعدادات المشاهدة»).
+  ///
+  /// In ar, this message translates to:
+  /// **'العرض'**
+  String get liveViewerDisplay;
+
+  /// D225: the live settings pages (host «إعدادات البث», viewer «إعدادات المشاهدة»).
+  ///
+  /// In ar, this message translates to:
+  /// **'كتم صوت البث عندي'**
+  String get liveViewerMuteLive;
+
+  /// D225: the live settings pages (host «إعدادات البث», viewer «إعدادات المشاهدة»).
+  ///
+  /// In ar, this message translates to:
+  /// **'لهذا البث فقط، ولا يتغيّر شيء عند غيرك'**
+  String get liveViewerMuteLiveHint;
+
+  /// D225: the live settings pages (host «إعدادات البث», viewer «إعدادات المشاهدة»).
+  ///
+  /// In ar, this message translates to:
+  /// **'مستوى الصوت'**
+  String get liveViewerVolume;
+
+  /// D225: the live settings pages (host «إعدادات البث», viewer «إعدادات المشاهدة»).
+  ///
+  /// In ar, this message translates to:
+  /// **'كتم أصوات الهدايا'**
+  String get liveViewerGiftSounds;
+
+  /// D225: the live settings pages (host «إعدادات البث», viewer «إعدادات المشاهدة»).
+  ///
+  /// In ar, this message translates to:
+  /// **'إخفاء مؤثرات الهدايا'**
+  String get liveViewerGiftEffects;
+
+  /// D225: the live settings pages (host «إعدادات البث», viewer «إعدادات المشاهدة»).
+  ///
+  /// In ar, this message translates to:
+  /// **'يبقى شريط الهدية في الدردشة'**
+  String get liveViewerGiftEffectsHint;
+
+  /// D225: the live settings pages (host «إعدادات البث», viewer «إعدادات المشاهدة»).
+  ///
+  /// In ar, this message translates to:
+  /// **'كتم أصوات الإفيهات'**
+  String get liveViewerQuipSounds;
+
+  /// D225: the live settings pages (host «إعدادات البث», viewer «إعدادات المشاهدة»).
+  ///
+  /// In ar, this message translates to:
+  /// **'إخفاء تأثيرات الدخول'**
+  String get liveViewerEntrances;
+
+  /// D225: the live settings pages (host «إعدادات البث», viewer «إعدادات المشاهدة»).
+  ///
+  /// In ar, this message translates to:
+  /// **'يخفي الدردشة والبطاقات، اضغط «إظهار الكل» للعودة'**
+  String get liveViewerCleanHint;
+
+  /// D225: the live settings pages (host «إعدادات البث», viewer «إعدادات المشاهدة»).
+  ///
+  /// In ar, this message translates to:
+  /// **'إظهار الكل'**
+  String get liveViewerCleanRestore;
+
+  /// D225: the live settings pages (host «إعدادات البث», viewer «إعدادات المشاهدة»).
+  ///
+  /// In ar, this message translates to:
+  /// **'حجم خط الدردشة'**
+  String get liveViewerChatText;
+
+  /// D225: the live settings pages (host «إعدادات البث», viewer «إعدادات المشاهدة»).
+  ///
+  /// In ar, this message translates to:
+  /// **'صغير'**
+  String get liveViewerChatSmall;
+
+  /// D225: the live settings pages (host «إعدادات البث», viewer «إعدادات المشاهدة»).
+  ///
+  /// In ar, this message translates to:
+  /// **'عادي'**
+  String get liveViewerChatNormal;
+
+  /// D225: the live settings pages (host «إعدادات البث», viewer «إعدادات المشاهدة»).
+  ///
+  /// In ar, this message translates to:
+  /// **'كبير'**
+  String get liveViewerChatLarge;
+
+  /// D225: the live settings pages (host «إعدادات البث», viewer «إعدادات المشاهدة»).
+  ///
+  /// In ar, this message translates to:
+  /// **'توفير البيانات'**
+  String get liveViewerDataSaver;
+
+  /// D225: the live settings pages (host «إعدادات البث», viewer «إعدادات المشاهدة»).
+  ///
+  /// In ar, this message translates to:
+  /// **'الصوت فقط، دون فيديو'**
+  String get liveViewerDataSaverHint;
+
+  /// D225: the live settings pages (host «إعدادات البث», viewer «إعدادات المشاهدة»).
+  ///
+  /// In ar, this message translates to:
+  /// **'توفير البيانات: الصوت فقط'**
+  String get liveViewerDataSaverOn;
 
   /// D173: the ≡ menu of the live bar for everyone (viewer and moderator items).
   ///

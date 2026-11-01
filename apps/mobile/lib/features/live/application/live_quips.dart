@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show NotifierProviderFamily;
 import 'package:kabso_live/core/preferences/app_preferences.dart';
+import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/features/live/application/live_chat_controller.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
@@ -14,14 +15,32 @@ import 'package:material_ui/material_ui.dart'
 
 /// D154 (owner: «a local mute»): quips play no sound on this phone while
 /// on, in every live (the bubble with the words still shows). Off by
-/// default; kept for the app session. The switch is in the quips tab of the
-/// gift panel, on the quip bubble and in the host's soundboard (the
-/// viewer's ≡ sheet of D151 does not exist yet).
+/// default. The switch is in the quips tab of the gift panel, on the quip
+/// bubble, in the host's soundboard and (D225) in the viewer's
+/// «إعدادات المشاهدة»; D225 keeps it on this device (was the app session).
 class QuipsMuted extends Notifier<bool> {
-  @override
-  bool build() => false;
+  static const prefKey = 'pref.live.quipsMuted';
 
-  void toggle() => state = !state;
+  @override
+  bool build() {
+    try {
+      return ref.read(sharedPreferencesProvider).getBool(prefKey) ?? false;
+    } on Object {
+      // No preferences (some tests): off, kept in memory.
+      return false;
+    }
+  }
+
+  void toggle() => set(muted: !state);
+
+  void set({required bool muted}) {
+    state = muted;
+    try {
+      unawaited(ref.read(sharedPreferencesProvider).setBool(prefKey, muted));
+    } on Object {
+      // Kept in memory only.
+    }
+  }
 }
 
 final NotifierProvider<QuipsMuted, bool> quipsMutedProvider =

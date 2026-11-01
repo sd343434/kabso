@@ -211,22 +211,25 @@ void main() {
 
   group('D173 ≡ for everyone', () {
     const viewerTools = [
+      // D225 (owner): «إعدادات المشاهدة» first.
+      'viewerSettings',
       'share',
       'follow',
       'viewers',
       'contributions',
       'rankings',
       'games',
-      'suggestVideo',
       'report',
       // D181 (owner «زر التصغير لا يظهر للمشاهد»): minimize works now.
       'minimize',
     ];
-    const soonTools = ['giftSounds', 'giftEffects', 'clearScreen'];
+    // D225: the gift sounds, the gift effects and the clean screen work now
+    // (in «إعدادات المشاهدة»): no «قريباً» tile is left in ≡.
+    const goneTools = ['giftSounds', 'giftEffects', 'clearScreen'];
     for (final mode in [LiveRoomMode.solo, LiveRoomMode.audio]) {
       for (final language in AppLanguage.values) {
         testWidgets("${mode.name}: a viewer's ≡ lists only what works for "
-            'them, the rest greyed «Soon»; no moderator tools '
+            'them; no moderator tools '
             '(${language.name}, 360 dp, text 1.3)', (tester) async {
           await _pump(
             tester,
@@ -241,19 +244,17 @@ void main() {
           await tester.tap(find.byKey(key));
           await tester.pumpAndSettle();
           expect(tester.takeException(), isNull);
-          for (final id in [...viewerTools, ...soonTools]) {
+          for (final id in viewerTools) {
             expect(find.byKey(GoLiveKeys.tool(id)), findsOneWidget, reason: id);
           }
-          for (final id in soonTools) {
-            expect(
-              tester
-                  .getSemantics(find.byKey(GoLiveKeys.tool(id)))
-                  .getSemanticsData()
-                  .label,
-              contains(l10nFor(language).liveSoon),
-              reason: id,
-            );
+          for (final id in goneTools) {
+            expect(find.byKey(GoLiveKeys.tool(id)), findsNothing, reason: id);
           }
+          // D225 (owner): YouTube is the audio room's only.
+          expect(
+            find.byKey(GoLiveKeys.tool('suggestVideo')),
+            mode == LiveRoomMode.audio ? findsOneWidget : findsNothing,
+          );
           expect(find.byKey(GoLiveKeys.tool('newcomers')), findsNothing);
           expect(find.text(l10nFor(language).liveToolsModerator), findsNothing);
           // Games opens the honest sheet.

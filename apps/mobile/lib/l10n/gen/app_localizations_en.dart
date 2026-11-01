@@ -6247,7 +6247,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveToolTrafficCard => 'Traffic card';
 
   @override
-  String get liveToolMagic => 'Magic';
+  String get liveToolMagic => 'Filters';
 
   @override
   String get liveToolFillLight => 'Fill light';
@@ -6684,6 +6684,120 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveToolClearScreen => 'Clear screen';
+
+  @override
+  String get liveBroadcastSettings => 'Live settings';
+
+  @override
+  String get liveSettingsSound => 'Sound';
+
+  @override
+  String get liveSettingsCamera => 'Camera';
+
+  @override
+  String get liveSettingsCameraHint =>
+      'When it is off, the others see your picture';
+
+  @override
+  String get liveSettingsFlip => 'Flip camera';
+
+  @override
+  String get liveSettingsQuality => 'Quality';
+
+  @override
+  String get liveSettingsSeatCount => 'Number of seats';
+
+  @override
+  String get liveSettingsQuestions => 'Questions';
+
+  @override
+  String get liveSettingsRoom => 'Room';
+
+  @override
+  String get liveSettingsGeneral => 'General';
+
+  @override
+  String get liveSettingsGuestsHint => 'Watching without an account';
+
+  @override
+  String get liveMuteAll => 'Mute everyone';
+
+  @override
+  String get liveMuteAllHint => 'Mutes the mic of everyone on a seat';
+
+  @override
+  String get liveMuteAllDone => 'Everyone on a seat is muted';
+
+  @override
+  String get liveMuteAllNone => 'No one on a seat to mute';
+
+  @override
+  String get liveCameraOff => 'Camera turned off';
+
+  @override
+  String get liveViewerSettings => 'Viewing settings';
+
+  @override
+  String get liveViewerThisLive => 'This live';
+
+  @override
+  String get liveViewerEffects => 'Gifts and effects';
+
+  @override
+  String get liveViewerDisplay => 'Display';
+
+  @override
+  String get liveViewerMuteLive => 'Mute this live on my phone';
+
+  @override
+  String get liveViewerMuteLiveHint =>
+      'This live only; nothing changes for anyone else';
+
+  @override
+  String get liveViewerVolume => 'Volume';
+
+  @override
+  String get liveViewerGiftSounds => 'Mute gift sounds';
+
+  @override
+  String get liveViewerGiftEffects => 'Hide gift effects';
+
+  @override
+  String get liveViewerGiftEffectsHint => 'The gift\'s strip still shows';
+
+  @override
+  String get liveViewerQuipSounds => 'Mute quip sounds';
+
+  @override
+  String get liveViewerEntrances => 'Hide entrance effects';
+
+  @override
+  String get liveViewerCleanHint =>
+      'Hides the chat and cards; tap «Show all» to bring them back';
+
+  @override
+  String get liveViewerCleanRestore => 'Show all';
+
+  @override
+  String get liveViewerChatText => 'Chat text size';
+
+  @override
+  String get liveViewerChatSmall => 'Small';
+
+  @override
+  String get liveViewerChatNormal => 'Normal';
+
+  @override
+  String get liveViewerChatLarge => 'Large';
+
+  @override
+  String get liveViewerDataSaver => 'Data saver';
+
+  @override
+  String get liveViewerDataSaverHint => 'Sound only, no video';
+
+  @override
+  String get liveViewerDataSaverOn => 'Data saver: sound only';
 
   @override
   String get liveToolSeatRequests => 'Seat requests';

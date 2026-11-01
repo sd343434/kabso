@@ -12,6 +12,7 @@ import 'package:kabso_live/features/live/application/live_background.dart';
 import 'package:kabso_live/features/live/application/live_chat_controller.dart';
 import 'package:kabso_live/features/live/application/live_tap_batcher.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
+import 'package:kabso_live/features/live/data/live_media_extras.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
@@ -29,7 +30,16 @@ class LiveRoomSessionState {
     this.disconnected = false,
     this.room,
     this.kicked = false,
+    this.soundMuted = false,
+    this.volume = 1,
   });
+
+  /// D225 (owner, decision 7): «كتم صوت البث عندي» — this live's sound is off
+  /// on this phone only, for this visit (a new visit starts with it on).
+  final bool soundMuted;
+
+  /// D225: this live's volume on this phone (0–1), for this visit.
+  final double volume;
 
   /// v1.20-live (D105, §10.20): the host or a moderator kicked this person
   /// out of the live (`LiveRoom.kicked`, the kick data message naming them,
@@ -85,7 +95,11 @@ class LiveRoomSessionState {
     bool? disconnected,
     LiveRoom? room,
     bool? kicked,
+    bool? soundMuted,
+    double? volume,
   }) => LiveRoomSessionState(
+    soundMuted: soundMuted ?? this.soundMuted,
+    volume: volume ?? this.volume,
     joined: joined ?? this.joined,
     joinFailure: joinFailure ?? this.joinFailure,
     seats: seats ?? this.seats,
@@ -202,6 +216,39 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
       if (toAppFailure(e).code == ErrorCode.liveKicked) markKicked();
     },
   )).tap();
+
+  /// D225: this live's sound on this phone only (nothing is sent).
+  Future<void> setSoundMuted({required bool muted}) async {
+    state = state.copyWith(soundMuted: muted);
+    await _applyVolume();
+  }
+
+  /// D225: this live's volume on this phone only (0–1).
+  Future<void> setVolume(double volume) async {
+    state = state.copyWith(volume: volume.clamp(0, 1).toDouble());
+    await _applyVolume();
+  }
+
+  Future<void> _applyVolume() async {
+    if (_engine case final LivePlaybackControls controls) {
+      try {
+        await controls.setPlaybackVolume(state.soundMuted ? 0 : state.volume);
+      } on Object {
+        // Best effort: the live plays on.
+      }
+    }
+  }
+
+  /// D225: the data saver (the others' video is not received).
+  Future<void> setReceiveVideo({required bool receive}) async {
+    if (_engine case final LivePlaybackControls controls) {
+      try {
+        await controls.setReceiveVideo(receive: receive);
+      } on Object {
+        // Best effort.
+      }
+    }
+  }
 
   /// Joins the media session of [room] (once).
   ///

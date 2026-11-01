@@ -61,3 +61,17 @@ bool liveRecordingNow(Map<String, String> attributes, DateTime now) {
   final until = DateTime.tryParse(attributes[liveAttrRecordingUntil] ?? '');
   return until != null && until.isAfter(now);
 }
+
+/// D225 (owner, «إعدادات المشاهدة»): what a viewer changes on this phone only
+/// — the live's sound and its video. Nothing is sent: the others hear and
+/// see the live as before. Kept apart from `LiveMediaEngine` like the other
+/// extras (a screen checks `engine is LivePlaybackControls`).
+abstract interface class LivePlaybackControls {
+  /// The live's sound here: 0 (muted) to 1 (as sent). It applies to the
+  /// tracks playing now and to the ones that start later in this session.
+  Future<void> setPlaybackVolume(double volume);
+
+  /// Data saver: the other participants' video is not received (sound
+  /// only); off receives it again.
+  Future<void> setReceiveVideo({required bool receive});
+}

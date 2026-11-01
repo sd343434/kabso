@@ -299,10 +299,10 @@ class KGiftMovieFrame extends StatelessWidget {
 /// a plain video played as is, or side-by-side alpha composited by a shader
 /// ([GiftVideoView]) — and the gift may have an MP3 ([audioUrl]) played with
 /// it, or alone. Every sound (the SVGA's own, the MP4's, the MP3) plays only
-/// while [soundOn] (the viewer's «المؤثرات الصوتية» setting and the live's
-/// sound switch) and the app is in the foreground. What the device cannot
-/// play (an unknown format, side-by-side without shader support, a broken
-/// file) is skipped: the strip's picture is all that shows.
+/// while [soundOn] (the viewer's «المؤثرات الصوتية» setting and, D225,
+/// «كتم أصوات الهدايا») and the app is in the foreground. What the device
+/// cannot play (an unknown format, side-by-side without shader support, a
+/// broken file) is skipped: the strip's picture is all that shows.
 class KGiftEffect extends StatefulWidget {
   const new({
     required this.animationKey,

@@ -240,56 +240,8 @@ class _RoomInfoSheet extends ConsumerWidget {
                     )
                   : null,
             ),
-            const SizedBox(height: 7.5),
-            divider(),
-            const SizedBox(height: 10),
-            // CP-014 part C (boost) waits for L3: shown, never pretending.
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Semantics(
-                button: true,
-                enabled: false,
-                label: '${l10n.liveRoomBoost}, ${l10n.liveSoon}',
-                excludeSemantics: true,
-                child: Opacity(
-                  key: LiveRoomInfoKeys.boost,
-                  opacity: 0.45,
-                  child: Container(
-                    height: 51.2,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(25.6),
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFFECA67), Color(0xFFFEA254)],
-                      ),
-                    ),
-                    alignment: Alignment.center,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.bolt_rounded,
-                          color: Color(0xFFFFFFFF),
-                          size: 22,
-                        ),
-                        const SizedBox(width: 8),
-                        Flexible(
-                          child: Text(
-                            '${l10n.liveRoomBoost} · ${l10n.liveSoon}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: text.title.copyWith(
-                              color: const Color(0xFFFFFFFF),
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
+            // D225: the stale «تعزيز غرفتي · قريباً» is gone — the same
+            // feature works as «بطاقة الزيارات» in ≡ Room Tools (D154b).
             const SizedBox(height: 11),
           ],
         ),

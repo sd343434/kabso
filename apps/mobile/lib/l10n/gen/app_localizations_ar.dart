@@ -6265,7 +6265,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveToolTrafficCard => 'بطاقة الزيارات';
 
   @override
-  String get liveToolMagic => 'مؤثرات';
+  String get liveToolMagic => 'الفلاتر';
 
   @override
   String get liveToolFillLight => 'إضاءة';
@@ -6697,6 +6697,118 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveToolClearScreen => 'شاشة نظيفة';
+
+  @override
+  String get liveBroadcastSettings => 'إعدادات البث';
+
+  @override
+  String get liveSettingsSound => 'الصوت';
+
+  @override
+  String get liveSettingsCamera => 'الكاميرا';
+
+  @override
+  String get liveSettingsCameraHint => 'عند إيقافها يرى الآخرون صورتك';
+
+  @override
+  String get liveSettingsFlip => 'قلب الكاميرا';
+
+  @override
+  String get liveSettingsQuality => 'الجودة';
+
+  @override
+  String get liveSettingsSeatCount => 'عدد المقاعد';
+
+  @override
+  String get liveSettingsQuestions => 'الأسئلة';
+
+  @override
+  String get liveSettingsRoom => 'الغرفة';
+
+  @override
+  String get liveSettingsGeneral => 'عام';
+
+  @override
+  String get liveSettingsGuestsHint => 'المشاهدة دون حساب';
+
+  @override
+  String get liveMuteAll => 'كتم الجميع';
+
+  @override
+  String get liveMuteAllHint => 'يكتم مايك كل من على المقاعد';
+
+  @override
+  String get liveMuteAllDone => 'تم كتم كل من على المقاعد';
+
+  @override
+  String get liveMuteAllNone => 'لا أحد على المقاعد لكتمه';
+
+  @override
+  String get liveCameraOff => 'تم إيقاف الكاميرا';
+
+  @override
+  String get liveViewerSettings => 'إعدادات المشاهدة';
+
+  @override
+  String get liveViewerThisLive => 'هذا البث';
+
+  @override
+  String get liveViewerEffects => 'الهدايا والتأثيرات';
+
+  @override
+  String get liveViewerDisplay => 'العرض';
+
+  @override
+  String get liveViewerMuteLive => 'كتم صوت البث عندي';
+
+  @override
+  String get liveViewerMuteLiveHint => 'لهذا البث فقط، ولا يتغيّر شيء عند غيرك';
+
+  @override
+  String get liveViewerVolume => 'مستوى الصوت';
+
+  @override
+  String get liveViewerGiftSounds => 'كتم أصوات الهدايا';
+
+  @override
+  String get liveViewerGiftEffects => 'إخفاء مؤثرات الهدايا';
+
+  @override
+  String get liveViewerGiftEffectsHint => 'يبقى شريط الهدية في الدردشة';
+
+  @override
+  String get liveViewerQuipSounds => 'كتم أصوات الإفيهات';
+
+  @override
+  String get liveViewerEntrances => 'إخفاء تأثيرات الدخول';
+
+  @override
+  String get liveViewerCleanHint =>
+      'يخفي الدردشة والبطاقات، اضغط «إظهار الكل» للعودة';
+
+  @override
+  String get liveViewerCleanRestore => 'إظهار الكل';
+
+  @override
+  String get liveViewerChatText => 'حجم خط الدردشة';
+
+  @override
+  String get liveViewerChatSmall => 'صغير';
+
+  @override
+  String get liveViewerChatNormal => 'عادي';
+
+  @override
+  String get liveViewerChatLarge => 'كبير';
+
+  @override
+  String get liveViewerDataSaver => 'توفير البيانات';
+
+  @override
+  String get liveViewerDataSaverHint => 'الصوت فقط، دون فيديو';
+
+  @override
+  String get liveViewerDataSaverOn => 'توفير البيانات: الصوت فقط';
 
   @override
   String get liveToolSeatRequests => 'طلبات المقاعد';

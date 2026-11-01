@@ -198,3 +198,22 @@
 - **Join lines:** the server sends at most one per 200 ms per room; a burst above 5 a second loses lines (recharge
   and host agents' joins are never dropped). Gender comes only from people who show it on their profile.
 - Not verified on a device (LiveKit active speaker, mic permissions, the sweeper's demotion on a real server).
+
+## Live settings per live type (D225, client only)
+
+- **The host's camera off** mutes the published camera track (as a seated guest's, D174a). Viewers see the host's
+  picture, but with the D170 «المضيف سيعود قريباً» line: the app cannot tell a camera turned off from a host whose
+  app is in the background without a server signal (a participant attribute), which does not exist yet. The live is
+  not ended for it (no away report is sent).
+- **«كتم الجميع»** is one `POST …/seats/{index}/mute` per taken seat (no bulk endpoint): each one is checked and
+  logged by the server as a seat action. A seat that fails is said once; the others stay muted.
+- **YouTube** is hidden in every mode but the audio room on the client; the server still accepts a watch session in
+  any mode (there is no per-mode flag in `/live/config`).
+- **The viewer's sound and volume** (`LivePlaybackControls`) use `RemoteAudioTrack.disable()` for 0 and flutter_webrtc's
+  `Helper.setVolume` on Android/iOS (the web has mute only; the slider's partial volume is not applied there).
+- **Data saver** disables the received video publications of this live's own connection; a PK opponent's video
+  (a second connection) is still received.
+- **«التسجيل»** in the voice rooms stays an honest «قريباً».
+- The AUDIO host bar's «قريباً» PK button was removed with the mic added (the bar would otherwise scroll at 393 and
+  360 dp); a podcast has no PK by the owner's decision.
+- Not verified on a device (remote volume, the data saver, the camera off seen by viewers).

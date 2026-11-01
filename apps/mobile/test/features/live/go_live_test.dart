@@ -58,6 +58,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_room_info_she
 import 'package:kabso_live/features/live/presentation/go_live/live_schedule_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_emoji.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_settings_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_watch_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
@@ -206,6 +207,35 @@ Future<void> _snackGone(WidgetTester tester) async {
 /// D131: the host's ≡ (room tools) on a video live.
 Future<void> _openTools(WidgetTester tester) async {
   await tester.tap(find.byKey(KHostBar.toolsKey));
+  await tester.pumpAndSettle();
+}
+
+/// D225: scrolls the settings page until row [id] shows.
+Future<void> _settingsRow(WidgetTester tester, String id) async {
+  final row = find.byKey(LiveSettingsSheet.itemKey(id));
+  await tester.scrollUntilVisible(
+    row,
+    60,
+    scrollable: find.descendant(
+      of: find.byKey(LiveSettingsSheet.sheetKey),
+      matching: find.byType(Scrollable),
+    ),
+  );
+  await tester.ensureVisible(row);
+  await tester.pumpAndSettle();
+  expect(row, findsOneWidget, reason: id);
+}
+
+/// D225: ≡ → «إعدادات البث» (the first tile), on a video live or, with
+/// [audio], a voice room.
+Future<void> _openSettings(WidgetTester tester, {bool audio = false}) async {
+  if (audio) {
+    await tester.tap(find.byKey(GoLiveScreen.audioMoreKey));
+    await tester.pumpAndSettle();
+  } else {
+    await _openTools(tester);
+  }
+  await tester.tap(find.byKey(GoLiveKeys.tool('liveSettings')));
   await tester.pumpAndSettle();
 }
 
@@ -463,8 +493,10 @@ void main() {
       final (repo, _) = await _pump(tester);
       final l10n = _l10n(tester);
       await _goLive(tester);
-      await _openTools(tester);
-      await tester.tap(find.byKey(GoLiveScreen.liveGuestsKey));
+      // D225: the visitors' one home is «إعدادات البث».
+      await _openSettings(tester);
+      await _settingsRow(tester, 'guests');
+      await tester.tap(find.byKey(LiveSettingsSheet.itemKey('guests')));
       await tester.pump();
       expect(repo.guestUpdates, [(roomId: 'room-host', allow: false)]);
       expect(find.text(l10n.goLiveGuestsOff), findsOneWidget);
@@ -475,13 +507,13 @@ void main() {
       final (repo, _) = await _pump(tester);
       await _goLive(tester);
       repo.guestsFailure = _internal;
-      await _openTools(tester);
-      await tester.tap(find.byKey(GoLiveScreen.liveGuestsKey));
+      await _openSettings(tester);
+      await _settingsRow(tester, 'guests');
+      await tester.tap(find.byKey(LiveSettingsSheet.itemKey('guests')));
       await tester.pumpAndSettle();
       await _snackGone(tester);
-      await _openTools(tester);
       final semantics = tester.getSemantics(
-        find.byKey(GoLiveScreen.liveGuestsKey),
+        find.byKey(LiveSettingsSheet.itemKey('guests')),
       );
       expect(semantics.flagsCollection.isToggled, Tristate.isTrue);
       await _leave(tester);
@@ -793,10 +825,11 @@ void main() {
       // The host's seat ("Host"), then numbered empty seats with +.
       expect(find.bySemanticsLabel(RegExp(l10n.goLiveHostTag)), findsOneWidget);
       expect(find.byKey(AudioSeatRing.seatKey(8)), findsOneWidget);
-      // Owner (2026-10-26): no mic button in the bar; the host mutes and
-      // unmutes on their own picture. D141: games (in place of the
+      // Owner (2026-10-26): the host mutes and unmutes on their own picture;
+      // D225 (owner): and with the bar's mic. D141: games (in place of the
       // toolbox) and the gift box show.
       expect(find.byKey(GoLiveScreen.micKey), findsNothing);
+      expect(find.byKey(GoLiveScreen.barMicKey), findsOneWidget);
       expect(find.byKey(GoLiveScreen.audioGamesKey), findsOneWidget);
       expect(find.byKey(GoLiveScreen.audioGiftKey), findsOneWidget);
       // CP-020: the host's gift panel (to people on the mic; the catalogue
@@ -816,11 +849,22 @@ void main() {
       expect(camera.micEnabled, isTrue);
       final selfMic = find.byKey(LivePersonToolKeys.selfMic);
       expect(selfMic, findsOneWidget);
-      expect(find.byTooltip(l10n.goLiveMuteMic), findsOneWidget);
+      // D225: the bar's mic has the same tooltip; the card's is checked.
+      final card = find.byKey(const Key('room.hostSheet'));
+      expect(
+        find.descendant(of: card, matching: find.byTooltip(l10n.goLiveMuteMic)),
+        findsOneWidget,
+      );
       await tester.tap(selfMic);
       await tester.pumpAndSettle();
       expect(camera.micEnabled, isFalse);
-      expect(find.byTooltip(l10n.goLiveUnmuteMic), findsOneWidget);
+      expect(
+        find.descendant(
+          of: card,
+          matching: find.byTooltip(l10n.goLiveUnmuteMic),
+        ),
+        findsOneWidget,
+      );
       await tester.tap(selfMic);
       await tester.pumpAndSettle();
       expect(camera.micEnabled, isTrue);
@@ -906,47 +950,43 @@ void main() {
       expect(find.text(l10n.liveScoreTaps), findsOneWidget);
       await tester.tapAt(const Offset(10, 10));
       await tester.pumpAndSettle();
-      // PK is not in the contract yet: the button says so.
-      await tester.tap(find.byKey(GoLiveScreen.audioPkKey));
-      await tester.pump();
-      expect(find.text(l10n.goLivePkSoon), findsOneWidget);
-      ScaffoldMessenger.of(tester.element(find.byType(GoLiveScreen)))
-          .removeCurrentSnackBar();
-      await tester.pumpAndSettle();
-      // The mixer holds seats, guests, the chat switch (CP-013) and theme.
+      // D225: no PK placeholder on the voice bars; the mic is there.
+      expect(find.byKey(GoLiveScreen.audioPkKey), findsNothing);
+      expect(find.byKey(GoLiveScreen.barMicKey), findsOneWidget);
+      // D225: the seats, the visitors, the chat switch (CP-013) and the
+      // theme are in «إعدادات البث», the first tile of ≡.
       await tester.tap(find.byKey(GoLiveScreen.audioMoreKey));
       await tester.pumpAndSettle();
-      expect(find.byKey(GoLiveKeys.tool('seats')), findsOneWidget);
-      expect(find.byKey(GoLiveScreen.liveGuestsKey), findsOneWidget);
-      expect(find.byKey(GoLiveScreen.themeKey), findsOneWidget);
-      expect(find.text(l10n.liveChatTool), findsOneWidget);
-      await tester.tap(find.byKey(GoLiveKeys.tool('chat')));
+      expect(find.byKey(GoLiveKeys.tool('liveSettings')), findsOneWidget);
+      expect(find.byKey(GoLiveKeys.tool('seats')), findsNothing);
+      for (final id in ['guests', 'theme', 'chat', 'voice']) {
+        expect(find.byKey(GoLiveKeys.tool(id)), findsNothing, reason: id);
+      }
+      expect(find.text(l10n.liveToolsRoom), findsOneWidget);
+      expect(find.text(l10n.liveToolsOther), findsOneWidget);
+      expect(find.byKey(GoLiveKeys.tool('viewers')), findsOneWidget);
+      await tester.tap(find.byKey(GoLiveKeys.tool('liveSettings')));
+      await tester.pumpAndSettle();
+      // The voice settings work while live.
+      await tester.tap(find.byKey(LiveSettingsSheet.itemKey('noise')));
+      await tester.pumpAndSettle();
+      expect(camera.voice.noiseReduction, isFalse);
+      for (final id in ['seatCount', 'theme', 'guests']) {
+        await _settingsRow(tester, id);
+      }
+      // The chat switch (CP-013) turns the room chat off.
+      await _settingsRow(tester, 'chat');
+      await tester.tap(find.byKey(LiveSettingsSheet.itemKey('chat')));
       await tester.pumpAndSettle();
       expect(repo.chatCalls, contains('enabled:false'));
       expect(find.text(l10n.liveChatTurnedOff), findsOneWidget);
       ScaffoldMessenger.of(tester.element(find.byType(GoLiveScreen)))
           .removeCurrentSnackBar();
       await tester.pumpAndSettle();
-      // The sheet closed with the choice.
-      expect(find.byKey(GoLiveKeys.tool('chat')), findsNothing);
-      // The tools sheet (owner's reference): room tools and other tools;
-      // voice settings work while live.
-      await tester.tap(find.byKey(GoLiveScreen.audioMoreKey));
-      await tester.pumpAndSettle();
-      expect(find.text(l10n.liveToolsRoom), findsOneWidget);
-      expect(find.text(l10n.liveToolsOther), findsOneWidget);
-      expect(find.byKey(GoLiveKeys.tool('viewers')), findsOneWidget);
-      // Chat is off: the tool says so to screen readers (no extra text on
-      // screen, as in the reference).
-      expect(
-        find.bySemanticsLabel('${l10n.liveChatTool}, ${l10n.liveToolOff}'),
-        findsOneWidget,
+      final chatRow = tester.getSemantics(
+        find.byKey(LiveSettingsSheet.itemKey('chat')),
       );
-      await tester.tap(find.byKey(GoLiveKeys.tool('voice')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('liveVoice.noise')));
-      await tester.pumpAndSettle();
-      expect(camera.voice.noiseReduction, isFalse);
+      expect(chatRow.flagsCollection.isToggled, Tristate.isFalse);
       await tester.tapAt(const Offset(10, 10));
       await tester.pumpAndSettle();
       // 💬 opens the chat box in place of the buttons; the host's message
@@ -994,7 +1034,7 @@ void main() {
         GoLiveScreen.shareKey,
         GoLiveScreen.audioMoreKey,
         GoLiveScreen.audioChatKey,
-        GoLiveScreen.audioPkKey,
+        GoLiveScreen.barMicKey,
         GoLiveKeys.tool('requests'),
       ]) {
         expect(
@@ -1506,7 +1546,8 @@ void main() {
         await closeSheet(tester);
         await tester.tap(find.byKey(GoLiveScreen.audioMoreKey));
         await tester.pumpAndSettle();
-        expect(find.byKey(GoLiveKeys.tool('seats')), findsOneWidget);
+        // D225: the seat count is in «إعدادات البث».
+        expect(find.byKey(GoLiveKeys.tool('liveSettings')), findsOneWidget);
         await closeSheet(tester);
         // D141: games are not there yet — the button says so, no list
         // (D173: in the same sheet as the viewers' bars).
@@ -1514,9 +1555,10 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text(l10n.liveGamesSoon), findsOneWidget);
         await closeSheet(tester);
-        await tester.tap(find.byKey(GoLiveScreen.audioPkKey));
-        await tester.pump();
-        expect(find.text(l10n.goLivePkSoon), findsOneWidget);
+        // D225: the mic on the bar mutes the host.
+        await tester.tap(find.byKey(GoLiveScreen.barMicKey));
+        await tester.pumpAndSettle();
+        expect(camera.micEnabled, isTrue);
         await _leave(tester);
       });
     }
@@ -1560,7 +1602,7 @@ void main() {
     }
 
     for (final audio in [false, true]) {
-      testWidgets('D141: ≡ «Live time» is a working host tool '
+      testWidgets('D141 / D225: «Live time» («جدول البث», in «إعدادات البث») '
           '(${audio ? 'audio' : 'video'}): it opens the live schedule, which '
           'adds and removes a slot', (tester) async {
         final schedule = FakeLiveScheduleRepository([
@@ -1573,21 +1615,14 @@ void main() {
         final (repo, _) = await _pump(tester, schedule: schedule);
         if (audio) {
           await audioLive(tester, repo);
-          await tester.tap(find.byKey(GoLiveScreen.audioMoreKey));
-          await tester.pumpAndSettle();
         } else {
           await _goLive(tester);
-          await _openTools(tester);
         }
-        final l10n = _l10n(tester);
-        final tool = find.byKey(GoLiveKeys.tool('time'));
-        expect(tool, findsOneWidget);
-        // No "Soon" any more.
-        expect(
-          find.bySemanticsLabel('${l10n.liveToolLiveTime}, ${l10n.liveSoon}'),
-          findsNothing,
-        );
-        await tester.ensureVisible(tool);
+        await _openSettings(tester, audio: audio);
+        // D225: one home («وقت البث» was the same schedule).
+        expect(find.byKey(GoLiveKeys.tool('time')), findsNothing);
+        final tool = find.byKey(LiveSettingsSheet.itemKey('schedule'));
+        await _settingsRow(tester, 'schedule');
         await tester.tap(tool);
         await tester.pumpAndSettle();
         expect(find.byKey(LiveScheduleKeys.count), findsOneWidget);
@@ -1624,7 +1659,7 @@ void main() {
       await audioLive(tester, repo);
       for (final (key, art) in [
         (GoLiveScreen.audioGiftKey, 'assets/live_bar/bar_gift.png'),
-        (GoLiveScreen.audioPkKey, 'assets/live_bar/bar_pk.png'),
+        // D225: no PK placeholder on the voice bars.
         (GoLiveScreen.audioGamesKey, 'assets/live_bar/bar_games.png'),
       ]) {
         final image = tester.widget<Image>(
@@ -1705,7 +1740,9 @@ void main() {
     });
 
     testWidgets('room info (ref 73): title, tag and announcement go to '
-        'PATCH; level and boost wait ("Soon")', (tester) async {
+        'PATCH; the level waits ("Soon"); D225: no stale boost row', (
+      tester,
+    ) async {
       final (repo, _) = await _pump(tester);
       final l10n = _l10n(tester);
       await audioLive(tester, repo);
@@ -1726,10 +1763,8 @@ void main() {
         find.bySemanticsLabel('${l10n.liveRoomLevel}, ${l10n.liveSoon}'),
         findsOneWidget,
       );
-      expect(
-        find.bySemanticsLabel('${l10n.liveRoomBoost}, ${l10n.liveSoon}'),
-        findsOneWidget,
-      );
+      // D225: «تعزيز غرفتي · قريباً» is gone (it works as «بطاقة الزيارات»).
+      expect(find.byKey(LiveRoomInfoKeys.boost), findsNothing);
 
       await tester.tap(find.byKey(LiveRoomInfoKeys.editTitle));
       await tester.pumpAndSettle();
@@ -1768,10 +1803,10 @@ void main() {
       ));
       expect(find.text('Be kind'), findsOneWidget);
 
-      // Room settings opens the settings sheet.
+      // Room settings opens the live's one settings page (D225).
       await tester.tap(find.byKey(LiveRoomInfoKeys.settings));
       await tester.pumpAndSettle();
-      expect(find.byKey(LiveSettingsRow.shareKey), findsOneWidget);
+      expect(find.byKey(LiveSettingsSheet.sheetKey), findsOneWidget);
       await _leave(tester);
     });
 
@@ -2020,72 +2055,74 @@ void main() {
       await _leave(tester);
     });
 
-    testWidgets('≡ keeps every tool: flip and mic work; the missing ones say '
-        'Soon', (tester) async {
-      final (_, camera) = await _pump(tester);
-      await _goLive(tester);
-      await _openTools(tester);
-      for (final id in [
-        'share',
-        'flip',
-        'mic',
-        'beauty',
-        'voice',
-        'topic',
-        'viewers',
-        'chat',
-        'management',
-        'guests',
-        // D143: Fill light replaces the "Flash" that said Soon.
-        'fillLight',
-        // D154a/D154b: the soundboard and the traffic card work now.
-        'sounds',
-        'traffic',
-        // D154e/D154f: the program list and the assistant work now.
-        'program',
-        'assistance',
-        // D154g: «الجودة» replaces HD (and audio rooms' Fluent).
-        'quality',
-        // D154h: stickers.
-        'sticker',
-      ]) {
-        expect(find.byKey(GoLiveKeys.tool(id)), findsOneWidget, reason: id);
-      }
-      final l10n = _l10n(tester);
-      for (final label in [
-        l10n.liveToolSounds,
-        l10n.liveToolTrafficCard,
-        l10n.liveToolProgramList,
-        l10n.liveToolAssistance,
-        l10n.liveToolSticker,
-      ]) {
-        expect(
-          find.bySemanticsLabel('$label, ${l10n.liveSoon}'),
-          findsNothing,
-          reason: label,
-        );
-      }
-      expect(find.byKey(GoLiveKeys.tool('hd')), findsNothing);
-      expect(find.byKey(GoLiveKeys.tool('fluent')), findsNothing);
-      // D201: Dual is a real tool now (the second camera).
-      for (final label in [l10n.liveToolDual]) {
-        expect(
-          find.bySemanticsLabel('$label, ${l10n.liveSoon}'),
-          findsNothing,
-          reason: label,
-        );
-      }
-      await tester.tap(find.byKey(GoLiveScreen.flipKey));
-      await tester.pumpAndSettle();
-      expect(camera.flips, 1);
-      await _openTools(tester);
-      await tester.tap(find.byKey(GoLiveScreen.micKey));
-      await tester.pumpAndSettle();
-      expect(camera.micEnabled, isFalse);
-      // Muted: the host pill says so.
-      expect(find.byKey(GoLiveScreen.micOffKey), findsOneWidget);
-      await _leave(tester);
-    });
+    testWidgets(
+      '≡ keeps every tool (D225: once — the settings page holds the '
+      'mic, the voice, the chat and the visitors); flip and the bar mic work',
+      (tester) async {
+        final (_, camera) = await _pump(tester);
+        await _goLive(tester);
+        await _openTools(tester);
+        for (final id in ['mic', 'beauty', 'voice', 'chat', 'guests']) {
+          expect(find.byKey(GoLiveKeys.tool(id)), findsNothing, reason: id);
+        }
+        for (final id in [
+          'liveSettings',
+          'share',
+          'flip',
+          'topic',
+          'viewers',
+          'management',
+          // D143: Fill light replaces the "Flash" that said Soon.
+          'fillLight',
+          // D154a/D154b: the soundboard and the traffic card work now.
+          'sounds',
+          'traffic',
+          // D154e/D154f: the program list and the assistant work now.
+          'program',
+          'assistance',
+          // D154g: «الجودة» replaces HD (and audio rooms' Fluent).
+          'quality',
+          // D154h: stickers.
+          'sticker',
+        ]) {
+          expect(find.byKey(GoLiveKeys.tool(id)), findsOneWidget, reason: id);
+        }
+        final l10n = _l10n(tester);
+        for (final label in [
+          l10n.liveToolSounds,
+          l10n.liveToolTrafficCard,
+          l10n.liveToolProgramList,
+          l10n.liveToolAssistance,
+          l10n.liveToolSticker,
+        ]) {
+          expect(
+            find.bySemanticsLabel('$label, ${l10n.liveSoon}'),
+            findsNothing,
+            reason: label,
+          );
+        }
+        expect(find.byKey(GoLiveKeys.tool('hd')), findsNothing);
+        expect(find.byKey(GoLiveKeys.tool('fluent')), findsNothing);
+        // D201: Dual is a real tool now (the second camera).
+        for (final label in [l10n.liveToolDual]) {
+          expect(
+            find.bySemanticsLabel('$label, ${l10n.liveSoon}'),
+            findsNothing,
+            reason: label,
+          );
+        }
+        await tester.tap(find.byKey(GoLiveScreen.flipKey));
+        await tester.pumpAndSettle();
+        expect(camera.flips, 1);
+        // D225: the host's mic on the bar.
+        await tester.tap(find.byKey(KHostBar.micKey));
+        await tester.pumpAndSettle();
+        expect(camera.micEnabled, isFalse);
+        // Muted: the host pill says so.
+        expect(find.byKey(GoLiveScreen.micOffKey), findsOneWidget);
+        await _leave(tester);
+      },
+    );
 
     testWidgets('D154g: «الجودة» shows the connection and switches to '
         'Smooth; a weak connection for 20 s suggests it', (tester) async {
@@ -2182,29 +2219,13 @@ void main() {
       await _leave(tester);
     });
 
-    testWidgets('D160: «يوتيوب» in a video live — the floating window over '
-        'the picture, clear of the chat and the bar; ✕ stops it', (
-      tester,
-    ) async {
+    testWidgets('D225 (owner): no «يوتيوب» in a video live (D160 removed: '
+        "YouTube is the audio room's only)", (tester) async {
       await _pump(tester);
       await _goLive(tester);
       await _openTools(tester);
-      await tester.tap(find.byKey(GoLiveKeys.tool('youtube')));
-      await tester.pumpAndSettle();
-      await tester.enterText(
-        find.byKey(LiveWatchSheet.linkKey),
-        'https://youtu.be/aaaaaaaaaaa',
-      );
-      await tester.tap(find.byKey(LiveWatchSheet.sendKey));
-      await tester.pumpAndSettle();
-      expect(find.byKey(LiveWatchLayer.cardKey), findsNothing);
-      final pip = tester.getRect(find.byKey(LiveWatchLayer.pipKey));
-      final bar = tester.getRect(find.byKey(KHostBar.toolsKey));
-      expect(pip.bottom, lessThan(bar.top));
-      expect(pip.overlaps(bar), isFalse);
-      await tester.tap(find.byKey(LiveWatchLayer.closeKey));
-      await tester.pumpAndSettle();
-      expect(find.byKey(LiveWatchLayer.pipKey), findsNothing);
+      expect(find.byKey(GoLiveKeys.tool('youtube')), findsNothing);
+      expect(find.byType(LiveWatchLayer), findsNothing);
       await _leave(tester);
     });
 
@@ -2251,8 +2272,10 @@ void main() {
       await _leave(tester);
     });
 
-    testWidgets('Beautification: Beauty, Magic, Fill light and Mixer all '
-        'work (D143: no longer Soon)', (tester) async {
+    testWidgets('Beautification: Beauty, Magic and Fill light work (D143: no '
+        'longer Soon); D225: the voice is in «إعدادات البث» only', (
+      tester,
+    ) async {
       await _pump(tester);
       await _goLive(tester);
       final l10n = _l10n(tester);
@@ -2268,15 +2291,12 @@ void main() {
       }
       expect(find.byKey(GoLiveKeys.tool('magic')), findsOneWidget);
       expect(find.byKey(GoLiveKeys.tool('fillLight')), findsOneWidget);
-      await tester.tap(find.byKey(GoLiveKeys.tool('mixer')));
-      await tester.pumpAndSettle();
       expect(find.byKey(GoLiveKeys.tool('mixer')), findsNothing);
-      expect(find.byType(Switch), findsWidgets);
       await _leave(tester);
     });
 
-    testWidgets('User management: muted, removed, moderators (solo: how), '
-        'and signed-in only', (tester) async {
+    testWidgets('User management: muted, removed, moderators (solo: how); '
+        'D225: no signed-in-only switch', (tester) async {
       final repo = FakeLiveRepository(categories: _categories)
         ..chatMuteList = [
           LiveChatMute(user: someone, mutedAt: DateTime.utc(2026, 10, 27)),
@@ -2306,9 +2326,8 @@ void main() {
       expect(repo.kickCalls, contains('unkick:mona'));
       await tester.tap(find.byKey(LiveManageKeys.back));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(LiveManageKeys.signedInOnly));
-      await tester.pumpAndSettle();
-      expect(repo.guestUpdates, [(roomId: 'room-host', allow: false)]);
+      // D225: «الزوار» (signed-in only) is in «إعدادات البث», not here.
+      expect(find.byKey(LiveManageKeys.signedInOnly), findsNothing);
       await _leave(tester);
     });
 
@@ -2687,10 +2706,8 @@ void main() {
       await _leave(tester);
     });
 
-    testWidgets('audio room ≡ (D154): the built tools work, the blocked ones '
-        'say Soon, Fluent is gone; YouTube shows a pasted link', (
-      tester,
-    ) async {
+    testWidgets('audio room ≡ (D154): the built tools work, the recorder says '
+        'Soon, Fluent is gone; YouTube shows a pasted link', (tester) async {
       await _pump(tester);
       await tester.tap(find.byKey(GoLiveKeys.mode(LiveRoomMode.audio)));
       await tester.pumpAndSettle();
@@ -2721,16 +2738,14 @@ void main() {
         find.bySemanticsLabel('${l10n.liveToolMusic}, ${l10n.liveSoon}'),
         findsNothing,
       );
-      for (final label in [
-        l10n.liveToolSinging,
-        l10n.liveToolShareScreen,
-        l10n.liveToolRecorder,
-      ]) {
-        expect(
-          find.bySemanticsLabel('$label, ${l10n.liveSoon}'),
-          findsOneWidget,
-          reason: label,
-        );
+      // D225 (owner): «غناء» and «مشاركة الشاشة» are gone from the audio
+      // room (screen sharing is the Streamer's); «التسجيل» stays «قريباً».
+      expect(
+        find.bySemanticsLabel('${l10n.liveToolRecorder}, ${l10n.liveSoon}'),
+        findsOneWidget,
+      );
+      for (final id in ['singing', 'screen']) {
+        expect(find.byKey(GoLiveKeys.tool(id)), findsNothing, reason: id);
       }
       expect(find.byKey(GoLiveKeys.tool('fluent')), findsNothing);
       await tester.tap(find.byKey(GoLiveKeys.tool('youtube')));
@@ -2831,14 +2846,16 @@ void main() {
       await _goLive(tester);
       await _openTools(tester);
       final l10n = _l10n(tester);
+      // D225 (owner): «إعدادات البث» first; the mic («Muted»), the chat and
+      // «وقت البث» moved into it.
       const room = [
+        'liveSettings',
         'share',
         'fillLight',
         'flip',
         'dual',
         'quality',
         'sticker',
-        'mic',
         'music',
         'sounds',
       ];
@@ -2846,14 +2863,12 @@ void main() {
       const other = [
         'topic',
         'viewers',
-        'chat',
         'management',
         'assistance',
         'program',
         'recorder',
         'newcomers',
         'data',
-        'time',
         'traffic',
       ];
       expect(order(tester, other), other);
@@ -2892,17 +2907,15 @@ void main() {
         'recorder',
         'quality',
         'sticker',
-        'mic',
+        'liveSettings',
         'sounds',
         'topic',
         'viewers',
-        'chat',
         'management',
         'assistance',
         'program',
         'newcomers',
         'data',
-        'time',
         'traffic',
       ]) {
         final semantics = tester.getSemantics(find.byKey(GoLiveKeys.tool(id)));
@@ -3115,11 +3128,19 @@ void main() {
       await _leave(tester);
     });
 
-    testWidgets('Room Tools: Beauty and the filters (Magic) open their real '
-        'sheets while live', (tester) async {
+    testWidgets('✨: Beauty and the filters (Magic) open their real sheets '
+        'while live (D225: once, on ✨ — no longer repeated in ≡)', (
+      tester,
+    ) async {
       await _pump(tester);
       await _goLive(tester);
       await _openTools(tester);
+      expect(find.byKey(GoLiveKeys.tool('beauty')), findsNothing);
+      expect(find.byKey(GoLiveKeys.tool('magic')), findsNothing);
+      await tester.tapAt(const Offset(20, 20));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(KHostBar.beautyKey));
+      await tester.pumpAndSettle();
       expect(find.byKey(GoLiveKeys.tool('beauty')), findsOneWidget);
       expect(find.byKey(GoLiveKeys.tool('magic')), findsOneWidget);
       await tester.tap(find.byKey(GoLiveKeys.tool('magic')));
