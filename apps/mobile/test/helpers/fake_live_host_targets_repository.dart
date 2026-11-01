@@ -15,6 +15,9 @@ class FakeLiveHostTargetsRepository implements LiveHostTargetsRepository {
   final List<String> askedTargets = [];
   final List<HostStatsPeriod> askedStats = [];
 
+  /// D214 tests: while set, `targets` waits for it (the data still loading).
+  Future<void>? hold;
+
   static HostGiftStats empty(HostStatsPeriod period) => HostGiftStats(
     period: period,
     cherries: 0,
@@ -31,6 +34,7 @@ class FakeLiveHostTargetsRepository implements LiveHostTargetsRepository {
   @override
   Future<LiveHostTargets?> targets(String username) async {
     askedTargets.add(username);
+    if (hold case final wait?) await wait;
     return byHost[username];
   }
 

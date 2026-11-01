@@ -1577,6 +1577,26 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                                 ),
                               ),
                             ],
+                            // D214: the host's «تارجت» chip in every live
+                            // (voice too; the ranking sheet on tap).
+                            if (LiveHostTargetChip.shows(
+                              ref
+                                  .watch(
+                                    liveHostTargetsProvider(room.host.username),
+                                  )
+                                  .value,
+                            )) ...[
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: LiveHostTargetChip(
+                                  username: room.host.username,
+                                  isHost: false,
+                                  onSupport: signedIn
+                                      ? () => unawaited(_openGifts())
+                                      : null,
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),

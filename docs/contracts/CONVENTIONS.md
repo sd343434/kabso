@@ -4461,6 +4461,12 @@ Owner «طبق تصميم 100%» (the PK sheet's gear → «PK Setting»). Exten
   assignment's, else the level's now. A task switched off → target 0. `GET /me/host-gift-stats?period=DAY|
   WEEK|MONTH|ALL` is the caller's own: cherries (the ledger's `GIFT_RECEIVED` + `GIFT_REVERSAL`), gift
   sends, givers, top three and a bar series; lucky value, sends, givers and top three; DAY adds the targets.
+- **D214 (owner): the chip is always shown.** Once `getLiveHostTargets` has answered (not while it loads; a 404
+  — not a host, hidden — still shows nothing), every live (video, multi, audio, podcast; the host's screen and the
+  viewer's) shows the «تارجت» chip beside «ترتيب الغرف» with both faces turning — 🍒 the cherries and the wizard
+  hat the lucky value received today, «0» when nothing was — also when no target is set today (`target` 0). The
+  check and the glow only when a target exists and is reached. The sheet shows the targets block only for a
+  target that exists (no progress bar against 0). App only; no contract change.
 - **The «تارجت» sheet as a ranking (D199b, owner «مطابق ١٠٠٪»).** The sheet becomes a contribution ranking, so the
   lists grow and carry what a row shows. Additive (older clients ignore the new fields):
   - `HostSupporter` gains `cherries` (the cherries the host got from that person's sends in the period: the

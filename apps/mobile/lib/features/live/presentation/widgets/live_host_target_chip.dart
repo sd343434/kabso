@@ -22,6 +22,13 @@ import 'package:material_ui/material_ui.dart';
 /// target itself is in the sheet the tap opens (the host's
 /// [showHostGiftStats], a viewer's [showHostTargetsPublic], both the
 /// ranking sheet [HostTargetSheet]). Not a host (or not visible): nothing.
+///
+/// D214 (owner): the chip is ALWAYS shown once the targets have loaded, in
+/// every live (video, multi, audio, podcast; the host's screen and the
+/// viewer's) — both faces turning as before, each with what was received
+/// today, «0» when nothing was, also with no target set today. The check and
+/// the glow only for a target that exists and is reached. While loading, or
+/// for a 404 (not a host / hidden): nothing.
 class LiveHostTargetChip extends ConsumerStatefulWidget {
   const new({
     required this.username,
@@ -43,12 +50,15 @@ class LiveHostTargetChip extends ConsumerStatefulWidget {
   static const luckyKey = Key('target.lucky');
   static const reachedKey = Key('target.reached');
 
-  /// Whether the chip has anything to show (a host with a target today):
-  /// the rooms add it to the chips row only then, so the row is unchanged
-  /// for everyone else.
-  static bool shows(LiveHostTargets? targets) =>
-      targets != null &&
-      (targets.cherries.hasTarget || targets.lucky.hasTarget);
+  /// Whether the rooms add the chip to their chips row (D214: whenever the
+  /// targets data exists — loaded, not a 404 — with or without a target
+  /// today; never a placeholder while loading).
+  static bool shows(LiveHostTargets? targets) => targets != null;
+
+  /// D214: a face's check and glow — only for a target that exists today
+  /// and is reached.
+  static bool reachedOf(HostTarget target) =>
+      target.hasTarget && target.reached;
 
   /// Tests may shorten the turn.
   static Duration rotateEvery = const Duration(seconds: 4);
@@ -116,11 +126,8 @@ class _LiveHostTargetChipState extends ConsumerState<LiveHostTargetChip> {
   Widget build(BuildContext context) {
     final targets = ref.watch(liveHostTargetsProvider(widget.username)).value;
     if (targets == null) return const SizedBox.shrink();
-    final kinds = [
-      if (targets.cherries.hasTarget) _Kind.cherries,
-      if (targets.lucky.hasTarget) _Kind.lucky,
-    ];
-    if (kinds.isEmpty) return const SizedBox.shrink();
+    // D214: both faces always (0 received shows «0»).
+    const kinds = _Kind.values;
     final l10n = context.l10n;
     final still = _still(context);
     HostTarget of(_Kind k) =>
@@ -131,13 +138,15 @@ class _LiveHostTargetChipState extends ConsumerState<LiveHostTargetChip> {
       final text = k == _Kind.cherries
           ? l10n.liveTargetCherriesSemantics(r)
           : l10n.liveTargetLuckySemantics(r);
-      return t.reached ? '$text, ${l10n.liveTargetReached}' : text;
+      return LiveHostTargetChip.reachedOf(t)
+          ? '$text, ${l10n.liveTargetReached}'
+          : text;
     }
 
     final Widget content;
     final bool glow;
-    if (still || kinds.length == 1) {
-      glow = kinds.any((k) => of(k).reached);
+    if (still) {
+      glow = kinds.any((k) => LiveHostTargetChip.reachedOf(of(k)));
       content = Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -151,7 +160,7 @@ class _LiveHostTargetChipState extends ConsumerState<LiveHostTargetChip> {
       );
     } else {
       final k = kinds[_turn % kinds.length];
-      glow = of(k).reached;
+      glow = LiveHostTargetChip.reachedOf(of(k));
       content = AnimatedSwitcher(
         duration: const Duration(milliseconds: 320),
         transitionBuilder: (child, animation) => FadeTransition(
@@ -179,7 +188,7 @@ class _LiveHostTargetChipState extends ConsumerState<LiveHostTargetChip> {
           duration: still ? Duration.zero : const Duration(milliseconds: 320),
           height: KViewerRoom.chipHeight,
           constraints: BoxConstraints(
-            maxWidth: still && kinds.length > 1
+            maxWidth: still
                 ? LiveHostTargetChip.maxWidthBoth
                 : LiveHostTargetChip.maxWidth,
           ),
@@ -239,7 +248,7 @@ class _Face extends StatelessWidget {
             ),
           ),
         ),
-        if (target.reached) ...[
+        if (LiveHostTargetChip.reachedOf(target)) ...[
           const SizedBox(width: 3),
           Container(
             key: LiveHostTargetChip.reachedKey,

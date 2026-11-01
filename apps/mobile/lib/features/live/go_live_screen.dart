@@ -1490,6 +1490,21 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                                 unawaited(showLiveScoreSheet(context, room.id)),
                     ),
                   ],
+                  // D214: the host's «تارجت» chip in every live (voice too).
+                  if (room != null &&
+                      LiveHostTargetChip.shows(
+                        ref
+                            .watch(liveHostTargetsProvider(room.host.username))
+                            .value,
+                      )) ...[
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: LiveHostTargetChip(
+                        username: room.host.username,
+                        isHost: true,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

@@ -7,6 +7,11 @@
 // the daily tab, the ranked supporters and the caller's own bar with
 // «مركز المهام» (host) or «ادعم» (viewer). Arabic and English at 360×800,
 // text 1.3.
+// D214: the chip is always shown once the targets have loaded — both faces,
+// «0» when nothing was received, also with no target today (no check, no
+// glow); nothing while loading or for a 404.
+
+import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -158,12 +163,13 @@ Future<FakeLiveHostTargetsRepository> _pump(
   bool signedIn = true,
   VoidCallback? onSupport,
   GoldenViewport viewport = GoldenViewport.android,
+  Future<void>? hold,
 }) async {
   setViewport(tester, viewport);
   final repo = FakeLiveHostTargetsRepository(
     byHost: noHost ? {} : {'host': targets ?? targetsFixture()},
     stats: {for (final p in HostStatsPeriod.values) p: statsFixture(p)},
-  );
+  )..hold = hold;
   final router = GoRouter(
     routes: [
       GoRoute(
@@ -279,12 +285,109 @@ void main() {
     expect(find.byKey(LiveHostTargetChip.reachedKey), findsNothing);
   });
 
-  testWidgets('a target switched off is left out (no turning)', (tester) async {
-    await _pump(tester, targets: targetsFixture(luckyTarget: 0));
+  testWidgets('D214: a target switched off still turns, showing what was '
+      'received (no check)', (tester) async {
+    await _pump(tester, targets: targetsFixture(luckyTarget: 0, lucky: 25_000));
+    expect(find.byKey(LiveHostTargetChip.cherriesKey), findsOneWidget);
     await tester.pump(const Duration(seconds: 4));
     await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byKey(LiveHostTargetChip.luckyKey), findsOneWidget);
+    expect(find.text('25K'), findsOneWidget);
+    expect(find.byKey(LiveHostTargetChip.reachedKey), findsNothing);
+  });
+
+  LiveHostTargets zeroTargets() => targetsFixture(
+    cherries: 0,
+    cherriesTarget: 0,
+    lucky: 0,
+    luckyTarget: 0,
+    supporters: 0,
+  );
+
+  testWidgets('D214: nothing received and no target today — the chip still '
+      'shows, both faces «0», no check or glow', (tester) async {
+    await _pump(tester, targets: zeroTargets());
+    expect(find.byKey(LiveHostTargetChip.chipKey), findsOneWidget);
     expect(find.byKey(LiveHostTargetChip.cherriesKey), findsOneWidget);
-    expect(find.byKey(LiveHostTargetChip.luckyKey), findsNothing);
+    expect(find.text('0'), findsOneWidget);
+    expect(find.byKey(LiveHostTargetChip.reachedKey), findsNothing);
+    final box = tester.widget<AnimatedContainer>(
+      find.descendant(
+        of: find.byKey(LiveHostTargetChip.chipKey),
+        matching: find.byType(AnimatedContainer),
+      ),
+    );
+    expect((box.decoration! as BoxDecoration).boxShadow, isNull);
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byKey(LiveHostTargetChip.luckyKey), findsOneWidget);
+    expect(find.byType(KWizardHatIcon), findsOneWidget);
+    expect(find.text('0'), findsOneWidget);
+    expect(
+      find.bySemanticsLabel(
+        'Target: Cherries today: 0 · Lucky gifts today: 0 coins',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('D214: reduced motion with no target — both faces «0»', (
+    tester,
+  ) async {
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(disableAnimations: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+    await _pump(tester, targets: zeroTargets());
+    expect(find.byKey(LiveHostTargetChip.cherriesKey), findsOneWidget);
+    expect(find.byKey(LiveHostTargetChip.luckyKey), findsOneWidget);
+    expect(find.text('0'), findsNWidgets(2));
+  });
+
+  testWidgets('D214: a reached flag without a target shows no check', (
+    tester,
+  ) async {
+    final odd = LiveHostTargets.fromJson(const {
+      'day': '2026-10-31',
+      'timeZone': 'Asia/Riyadh',
+      'endsAt': '2026-10-31T21:00:00.000Z',
+      'band': 1,
+      'cherries': {'received': 0, 'target': 0, 'reached': true},
+      'lucky': {'received': 0, 'target': 0, 'reached': true},
+      'topSupporters': <Object?>[],
+      'luckySupporters': <Object?>[],
+      'me': null,
+    });
+    await _pump(tester, targets: odd);
+    expect(find.byKey(LiveHostTargetChip.chipKey), findsOneWidget);
+    expect(find.byKey(LiveHostTargetChip.reachedKey), findsNothing);
+  });
+
+  testWidgets('D214: while the targets load, nothing (no fake 0)', (
+    tester,
+  ) async {
+    final gate = Completer<void>();
+    await _pump(tester, targets: zeroTargets(), hold: gate.future);
+    expect(find.byKey(LiveHostTargetChip.chipKey), findsNothing);
+    expect(find.text('0'), findsNothing);
+    gate.complete();
+    await tester.pump();
+    await tester.pump();
+    expect(find.byKey(LiveHostTargetChip.chipKey), findsOneWidget);
+  });
+
+  test('D214: shows() only needs the data', () {
+    expect(LiveHostTargetChip.shows(null), isFalse);
+    expect(LiveHostTargetChip.shows(zeroTargets()), isTrue);
+  });
+
+  testWidgets('D214: a viewer opens the sheet with no target today — no '
+      'targets block, no progress, nothing thrown', (tester) async {
+    await _pump(tester, isHost: false, targets: zeroTargets());
+    await _open(tester);
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(HostTargetSheet.sheetKey), findsOneWidget);
+    expect(find.byKey(HostTargetSheet.targetsKey), findsNothing);
+    expect(find.byType(LinearProgressIndicator), findsNothing);
   });
 
   testWidgets('the host: tabs, periods, countdown, targets, ranked list, '
@@ -407,6 +510,23 @@ void main() {
   });
 
   for (final language in AppLanguage.values) {
+    testWidgets('D214 ${language.name} at 360×800, text 1.3: the zero chip '
+        'fits, both faces', (tester) async {
+      tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await _pump(tester, language: language, targets: zeroTargets());
+      expect(tester.takeException(), isNull);
+      expect(find.byKey(LiveHostTargetChip.cherriesKey), findsOneWidget);
+      expect(find.text('0'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(tester.takeException(), isNull);
+      expect(find.byKey(LiveHostTargetChip.luckyKey), findsOneWidget);
+      expect(find.text('0'), findsOneWidget);
+      await _open(tester);
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('${language.name} at 360×800, text 1.3: chip and sheet fit', (
       tester,
     ) async {
