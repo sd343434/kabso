@@ -75,6 +75,7 @@
   <ul>
    <li>الجلسات: اسم الجهاز ونظامه وإصدار التطبيق وعنوان IP ونوع المتصفح/التطبيق.</li>
    <li>رمز الإشعارات للجهاز (عبر Firebase Cloud Messaging من Google) لإرسال الإشعارات التي تختارها.</li>
+   <li>معرّفات الجهاز لمنع إساءة الاستخدام: معرّف عشوائي لكل تثبيت للتطبيق (لقواعد الدعوات)، ومعرّف ثابت للجهاز عند إنشاء الحساب فقط (لأن الجهاز الواحد لا يُنشئ أكثر من حسابين). لا يغادر المعرّف الأصلي هاتفك: يرسل التطبيق بصمة مشفّرة منه (تجزئة SHA-256)، ونحفظ نحن تجزئة أخرى منها بمفتاح سرّي لدينا، ولا نستخدمها لأي إعلان أو تتبّع.</li>
    <li>سجلات أمنية: تسجيل الدخول، الحدّ من المحاولات المتكررة، وسجل تدقيق لإجراءات الفريق.</li>
    <li>البلاغات والحظر والكتم.</li>
   </ul>
@@ -123,6 +124,7 @@
    <li><b>طلبات وكيل الشحن المرفوضة</b>: <b>٩٠ يوماً</b> بعد القرار.</li>
    <li>الرسائل المباشرة: ٢٤ ساعة (عدا المُبلَّغ عنها). القصص: ٢٤ ساعة للعرض، وتبقى في أرشيفك حتى تحذفها أو تحذف حسابك.</li>
    <li>سجلات الموافقة: ما دام الحساب قائماً، ثم دون عنوان IP ونوع الجهاز حتى نهاية فترة السبع سنوات.</li>
+   <li><b>بصمة الجهاز الذي أُنشئ منه الحساب</b> ومعرّف التثبيت المرتبط بالدعوات: تبقى بعد حذف الحساب مع سجلّه المجهول الهوية، حتى لا يُستعمل الحذف لتجاوز حدّ الحسابين لكل جهاز أو قواعد الدعوات.</li>
    <li>ملف «تنزيل بياناتي»: يُحذف بعد تنزيله أو بعد ٧ أيام.</li>
    <li><b>قائمة «أبلغني عند الإطلاق»</b>: حتى إرسال رسالة الإطلاق أو حتى تلغي اشتراكك.</li>
   </ul>
@@ -200,6 +202,7 @@
   <ul>
    <li>Sessions: device name, platform, app version, IP address and user agent.</li>
    <li>Your device's push token (Firebase Cloud Messaging by Google), to send the notifications you choose.</li>
+   <li>Device identifiers against abuse: a random id for each install of the app (for the invite rules), and a stable device id when an account is created only (one device creates at most two accounts). The original id never leaves your phone: the app sends a one-way hash of it (SHA-256) and we keep a further hash of that under a secret key of ours; we never use it for advertising or tracking.</li>
    <li>Security logs: sign-ins, rate limiting, and an audit trail of our team's actions.</li>
    <li>Reports, blocks and mutes.</li>
   </ul>
@@ -248,6 +251,7 @@
    <li><b>Rejected recharge-agent applications</b>: <b>90 days</b> after the decision.</li>
    <li>Direct messages: 24 hours (except reported ones). Stories: shown for 24 hours, kept in your archive until you delete them or your account.</li>
    <li>Consent records: while the account exists, then without the IP address and device type until the end of the 7-year period.</li>
+   <li><b>The hash of the device an account was created on</b>, and the install id kept with an invite: kept after the account is deleted, with its anonymised record, so deleting an account cannot be used to get around the two-accounts-per-device limit or the invite rules.</li>
    <li>“Download my data” files: deleted once downloaded, or after 7 days.</li>
    <li><b>The launch waitlist</b>: until the launch email is sent or you unsubscribe.</li>
   </ul>

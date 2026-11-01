@@ -2067,3 +2067,28 @@ ignores the `REFERRAL_REWARD_REVERSED` notification (the push text still reaches
 cherries were credited takes them back at once (owner 2026-11-01); a cherry balance may then be below 0 (a debt that
 blocks withdrawals), as after a gift reversal.
 - Not verified on a device or a server.
+
+### 5.43 At most 2 accounts created per device (migration `20270211090000_device_signups`; D223) — [IMPLEMENTED, draft contract v1.78-social; not deployed, not device-tested]
+
+CONVENTIONS §10.75. The migration adds nullable `pending_registrations.device_hash` and the tables `device_signups`
+(one row per account created with a device key: the server's HMAC of the app's key, the platform, the time; FK to
+`users` ON DELETE CASCADE — a purged account keeps its tombstone row, so its device row stays) and
+`device_signup_exceptions` (an OWNER's per-device limit, with the reason and who granted it). CHECKs on the hash shape
+and `max_accounts` 1–100. No backfill (accounts made before have no device and never count), no GRANT (default
+privileges). Checked on a database migrated from `claude/kl-217-invite-friends` (`prisma migrate deploy`, then
+`prisma migrate diff` shows no drift on the touched tables).
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `SIGNUP_MAX_ACCOUNTS_PER_DEVICE` | 2 | accounts one device may create, deleted ones included (1–100); an OWNER may raise it per device in the panel |
+| `SIGNUP_DEVICE_KEY` | unset | optional source of the HMAC key the device keys are stored under (≥ 32 bytes; in production a strong value different from the other secrets); unset → derived from `RATE_LIMIT_KEY_SECRET` (label `signup-device/v1`) |
+
+**Changing `SIGNUP_DEVICE_KEY`, or `RATE_LIMIT_KEY_SECRET` while it is unset, makes every device start again from 0
+accounts** — set it once before the release if a dedicated key is wanted, and keep it. Signing in is never limited. The
+app needs the new build (the `com.kabso/device_id` channel in `MainActivity.kt` / `AppDelegate.swift`, no new
+package): an older app, the website and any client that sends no `device.deviceKey` are not counted. Order: API first
+(an older server rejects the unknown `deviceKey` field as `unknown_field` — **ship the API before the app**), then the
+app. The panel's user page gains the tab «الجهاز» (`users.device_view`: OWNER, SUPPORT; the exception:
+`users.device_exception`, OWNER, the authenticator code again).
+- Not verified on a device or a server (ANDROID_ID across reinstalls, the iOS Keychain across reinstalls, the panel
+  on a server).
