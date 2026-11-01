@@ -104,13 +104,28 @@ describe('gift art (v1.26.2-live, D126)', () => {
         { imageObjectKey: null, animationObjectKey: key, animationBytes: 42 },
         'https://cdn.example',
       ),
-    ).toEqual({ imageUrl: null, animationUrl: `https://cdn.example/${key}`, animationBytes: 42 });
+    ).toEqual({
+      imageUrl: null,
+      animationUrl: `https://cdn.example/${key}`,
+      animationBytes: 42,
+      // v1.46-live (D207): a key without a stored format is an SVGA (D126's rows); no sound.
+      animationFormat: 'SVGA',
+      animationAlpha: null,
+      audioUrl: null,
+      audioBytes: null,
+      audioDurationMs: null,
+    });
     expect(
       giftArtDto({ imageObjectKey: null, animationObjectKey: key, animationBytes: 42 }, undefined),
     ).toEqual({
       imageUrl: null,
       animationUrl: null,
       animationBytes: null,
+      animationFormat: null,
+      animationAlpha: null,
+      audioUrl: null,
+      audioBytes: null,
+      audioDurationMs: null,
     });
   });
 

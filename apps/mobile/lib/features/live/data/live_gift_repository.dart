@@ -7,7 +7,9 @@ import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 /// Live gifts (docs/contracts/openapi.yaml v1.23-live DRAFT, tag `gifts`
 /// and `sendLiveGift`, CP-020; CONVENTIONS §10.23). The catalogue is managed
 /// on the server and starts empty; the gift bag is filled by an admin.
-/// Gifts and tabs of a category the app does not know are dropped here.
+/// Gifts and tabs of a malformed category code are dropped here (v1.46-live,
+/// D207: the categories are managed in the admin panel, so any code is a
+/// tab; its name comes in `tabs`).
 ///
 /// Every method throws an `AppFailure`.
 abstract interface class LiveGiftRepository {
@@ -57,12 +59,26 @@ class LiveGiftRepositoryImpl implements LiveGiftRepository {
   Future<GiftCatalogue> catalogue() => guardApiCall(() async {
     final res = await _dio.get<Map<String, dynamic>>('/gifts/catalogue');
     final body = res.data!;
+    // v1.46-live (D207): the tabs with their names, when the API sends them
+    // (an older API: the codes only, named by the app).
+    final tabs = switch (body['tabs']) {
+      final List<dynamic> list => [
+        for (final t in list)
+          if (t is Map<String, dynamic> &&
+              GiftCategory.fromWire(t['code']) != null)
+            t,
+      ],
+      _ => null,
+    };
     return GiftCatalogue.fromJson({
       ...body,
-      'categories': [
-        for (final c in body['categories']! as List<dynamic>)
-          if (GiftCategory.fromWire(c) != null) c,
-      ],
+      'categories': tabs != null
+          ? [for (final t in tabs) t['code']]
+          : [
+              for (final c in body['categories']! as List<dynamic>)
+                if (GiftCategory.fromWire(c) != null) c,
+            ],
+      'tabs': tabs ?? const <Object>[],
       'data': [
         for (final item in body['data']! as List<dynamic>)
           if (_known(item)) item,

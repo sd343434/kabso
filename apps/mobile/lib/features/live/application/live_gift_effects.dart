@@ -188,16 +188,25 @@ class LiveGiftEffects extends Notifier<LiveGiftEffectsState> {
     _banner(gift);
     // D178: and its line in this live's chat.
     _chat((chat) => chat.addGift(gift));
-    // Only a gift with an SVGA plays the full-screen effect: the still
-    // picture is never blown up mid-screen (it is in the strip).
+    // Only a gift with an SVGA / MP4 (or an MP3, D207) plays the full-screen
+    // effect: the still picture is never blown up mid-screen (it is in the
+    // strip).
     if (_animated(gift)) _big(gift);
   }
 
+  /// Whether [g] plays a full-screen effect: an SVGA or (v1.46-live, D207)
+  /// an MP4, or only its hosted MP3 (the effect then draws nothing).
   bool _animated(LiveGift g) {
-    if (g.animationKey != null || g.animationUrl != null) return true;
+    if (g.animationKey != null ||
+        g.animationUrl != null ||
+        g.audioUrl != null) {
+      return true;
+    }
     // An older server's message without the hosted art (D126).
     final art = ref.read(giftCatalogueProvider).value?.byCode(g.giftCode);
-    return art?.animationUrl != null || art?.animationKey != null;
+    return art?.animationUrl != null ||
+        art?.animationKey != null ||
+        art?.audioUrl != null;
   }
 
   /// The large effect of send [id] fetches or plays an SVGA: it stays

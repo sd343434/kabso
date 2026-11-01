@@ -290,12 +290,26 @@ export async function withMigrationClient<T>(fn: (client: PrismaClient) => Promi
 }
 
 /**
+ * v1.46-live (D207): the gift categories the migration seeds (`20270127090000_gift_categories`), put back after every
+ * reset — gifts reference them, as on a real database.
+ */
+export const SEED_GIFT_CATEGORIES_SQL = `
+  INSERT INTO gift_categories (code, kind, name_ar, name_en, sort_order) VALUES
+    ('POPULAR', 'NORMAL', 'شائعة', 'Popular', 10),
+    ('EVENT', 'NORMAL', 'مناسبات', 'Events', 20),
+    ('FUN', 'NORMAL', 'مرح', 'Fun', 30),
+    ('LUCKY', 'LUCKY', 'الحظ', 'Lucky', 40),
+    ('QUIPS', 'QUIPS', 'إفيهات', 'Quips', 50)
+  ON CONFLICT (code) DO NOTHING`;
+
+/**
  * Removes every table row (the e2e database is dedicated to tests). Every application table is
- * truncated, so tables added by later migrations are covered without editing this list.
+ * truncated, so tables added by later migrations are covered without editing this list; the seeded
+ * gift categories (D207) are put back.
  */
 export async function resetDatabase(): Promise<void> {
-  await withMigrationClient((client) =>
-    client.$executeRawUnsafe(`
+  await withMigrationClient(async (client) => {
+    await client.$executeRawUnsafe(`
       DO $$
       DECLARE tables text;
       BEGIN
@@ -306,8 +320,9 @@ export async function resetDatabase(): Promise<void> {
           EXECUTE 'TRUNCATE TABLE ' || tables || ' CASCADE';
         END IF;
       END
-      $$`),
-  );
+      $$`);
+    await client.$executeRawUnsafe(SEED_GIFT_CATEGORIES_SQL);
+  });
 }
 
 async function deleteRedisKeys(url: string, prefix: string): Promise<void> {

@@ -7,8 +7,11 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_svga/flutter_svga.dart';
 import 'package:kabso_live/core/icons/kabso_art.dart';
 import 'package:kabso_live/features/live/data/gift_art_cache.dart';
+import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/presentation/widgets/gift_effect_sound.dart';
+import 'package:kabso_live/features/live/presentation/widgets/gift_video_effect.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:video_player/video_player.dart';
 
 /// Where the owner's gift files go (CP-020, assets/gifts/PROVENANCE.md):
 /// the server's `assetKey` / `animationKey` name them. Keys outside the
@@ -291,19 +294,48 @@ class KGiftMovieFrame extends StatelessWidget {
 /// (the effect then lasts until it ends); [onDone] runs once when the
 /// effect is over; the decoded frames and the sound are released on
 /// dispose. Never takes taps.
+///
+/// v1.46-live (D207, CONVENTIONS §10.66): the hosted effect may be an MP4 —
+/// a plain video played as is, or side-by-side alpha composited by a shader
+/// ([GiftVideoView]) — and the gift may have an MP3 ([audioUrl]) played with
+/// it, or alone. Every sound (the SVGA's own, the MP4's, the MP3) plays only
+/// while [soundOn] (the viewer's «المؤثرات الصوتية» setting and the live's
+/// sound switch) and the app is in the foreground. What the device cannot
+/// play (an unknown format, side-by-side without shader support, a broken
+/// file) is skipped: the strip's picture is all that shows.
 class KGiftEffect extends StatefulWidget {
   const new({
     required this.animationKey,
     super.key,
     this.animationUrl,
+    this.animationFormat,
+    this.animationAlpha,
+    this.audioUrl,
+    this.audioDurationMs,
+    this.soundOn = true,
     this.onHold,
     this.onDone,
   });
 
   final String? animationKey;
   final String? animationUrl;
+
+  /// v1.46-live (D207): [animationUrl]'s format (null: an older API, SVGA)
+  /// and an MP4's transparency.
+  final GiftAnimationFormat? animationFormat;
+  final GiftVideoAlpha? animationAlpha;
+
+  /// v1.46-live (D207): the gift's hosted MP3 and its length.
+  final String? audioUrl;
+  final int? audioDurationMs;
+
+  /// Whether sound may play (the settings and the live's switch).
+  final bool soundOn;
   final VoidCallback? onHold;
   final VoidCallback? onDone;
+
+  /// How long a sound-only effect lasts without a length from the server.
+  static const soundOnlyTime = Duration(seconds: 5);
 
   /// How long the effect waits for the SVGA before it gives up on it.
   static const animationWait = Duration(seconds: 8);
@@ -321,8 +353,20 @@ class _KGiftEffectState extends State<KGiftEffect>
   SVGAAnimationController? _svga;
   Rect? _bounds;
   GiftEffectSound? _sound;
+  GiftEffectSound? _mp3;
+  VideoPlayerController? _video;
+  ui.FragmentShader? _shader;
+  Timer? _soundTimer;
   bool _started = false;
   bool _done = false;
+
+  GiftEffectKind get _kind => giftEffectKind(
+    animationUrl: widget.animationUrl,
+    animationFormat: widget.animationFormat,
+    animationAlpha: widget.animationAlpha,
+    hasBundledSvga: KGiftAssets.animation(widget.animationKey) != null,
+    audioUrl: widget.audioUrl,
+  );
 
   @override
   void initState() {
@@ -333,7 +377,11 @@ class _KGiftEffectState extends State<KGiftEffect>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // The sound never plays in the background (the picture may go on).
-    if (state != AppLifecycleState.resumed) unawaited(_sound?.stop());
+    if (state != AppLifecycleState.resumed) {
+      unawaited(_sound?.stop());
+      unawaited(_mp3?.stop());
+      unawaited(_video?.setVolume(0));
+    }
   }
 
   @override
@@ -343,23 +391,139 @@ class _KGiftEffectState extends State<KGiftEffect>
     _started = true;
     // Tests: the room's timer ends the effect ([LiveGiftEffects.bigTime]).
     if (!KGiftEffect.animate) return;
-    final hasMovie =
-        widget.animationUrl != null ||
-        KGiftAssets.animation(widget.animationKey) != null;
-    if (MediaQuery.disableAnimationsOf(context) || !hasMovie) {
+    final kind = _kind;
+    final still = MediaQuery.disableAnimationsOf(context);
+    if (kind == GiftEffectKind.none ||
+        (still && kind != GiftEffectKind.soundOnly)) {
       // Nothing to play (reduced motion: the strip says it).
       WidgetsBinding.instance.addPostFrameCallback((_) => _finish());
       return;
     }
     widget.onHold?.call();
-    unawaited(_loadMovie());
+    unawaited(switch (kind) {
+      GiftEffectKind.svga => _loadMovie(),
+      GiftEffectKind.mp4 || GiftEffectKind.mp4Alpha => _loadVideo(
+        alpha: kind == GiftEffectKind.mp4Alpha,
+      ),
+      GiftEffectKind.soundOnly => _soundOnly(),
+      GiftEffectKind.none => Future<void>.value(),
+    });
   }
 
   void _finish() {
     if (_done || !mounted) return;
     _done = true;
+    _soundTimer?.cancel();
     unawaited(_sound?.stop());
+    unawaited(_mp3?.stop());
     widget.onDone?.call();
+  }
+
+  /// v1.46-live (D207): starts the gift's MP3 (from the device cache or
+  /// downloaded now) when sound may play; never throws.
+  Future<void> _startMp3() async {
+    final url = widget.audioUrl;
+    if (url == null || !widget.soundOn) return;
+    try {
+      final bytes = await GiftArtCache.instance
+          .load(url)
+          .timeout(KGiftEffect.animationWait);
+      if (!mounted || _done) return;
+      final sound = GiftEffectSound([
+        GiftSoundClip(key: url, startFrame: 0, endFrame: 1 << 30, bytes: bytes),
+      ]);
+      _mp3 = sound;
+      sound.onFrame(0);
+    } on Object catch (e) {
+      debugPrint('KGiftEffect($url): $e');
+    }
+  }
+
+  /// v1.46-live (D207): a gift with only an MP3 — nothing drawn; the effect
+  /// lasts the sound's length.
+  Future<void> _soundOnly() async {
+    if (!widget.soundOn) return _finish();
+    await _startMp3();
+    if (!mounted || _done) return;
+    final ms = widget.audioDurationMs;
+    _soundTimer = Timer(
+      ms == null ? KGiftEffect.soundOnlyTime : Duration(milliseconds: ms),
+      _finish,
+    );
+  }
+
+  /// v1.46-live (D207): an MP4 effect from the device cache (downloaded now
+  /// when needed), played once; side by side through the alpha shader, or
+  /// skipped where the shader cannot run.
+  Future<void> _loadVideo({required bool alpha}) async {
+    final url = widget.animationUrl!;
+    VideoPlayerController? video;
+    try {
+      ui.FragmentShader? shader;
+      if (alpha) {
+        final program = await GiftAlphaShader.load();
+        if (program == null) {
+          // No compositing here: no black box over the room (the picture is
+          // in the strip); the sound still plays.
+          await _startMp3();
+          _soundTimer = Timer(
+            Duration(milliseconds: widget.audioDurationMs ?? 0),
+            _finish,
+          );
+          return;
+        }
+        shader = program.fragmentShader();
+      }
+      final path = await GiftArtCache.instance
+          .path(url)
+          .timeout(KGiftEffect.animationWait);
+      if (!mounted) {
+        shader?.dispose();
+        return;
+      }
+      video = giftVideoController(path);
+      await video.initialize().timeout(KGiftEffect.animationWait);
+      if (!mounted || _done) {
+        shader?.dispose();
+        await video.dispose();
+        return;
+      }
+      // The MP4's own sound only when the gift has no MP3 (the MP3 is the
+      // gift's sound then).
+      await video.setVolume(
+        widget.soundOn &&
+                widget.audioUrl == null &&
+                (WidgetsBinding.instance.lifecycleState ??
+                        AppLifecycleState.resumed) ==
+                    AppLifecycleState.resumed
+            ? 1
+            : 0,
+      );
+      final controller = video;
+      controller.addListener(() {
+        final v = controller.value;
+        if (v.hasError) {
+          _finish();
+        } else if (v.isInitialized &&
+            !v.isPlaying &&
+            v.duration > Duration.zero &&
+            v.position >= v.duration) {
+          _finish();
+        }
+      });
+      setState(() {
+        _video = controller;
+        _shader = shader;
+      });
+      unawaited(_startMp3());
+      await controller.play();
+    } on Object catch (e) {
+      // Not playable on this device (or not downloaded in time): the strip
+      // has shown the gift.
+      debugPrint('KGiftEffect($url): $e');
+      if (_video == null) await video?.dispose();
+      _finish();
+    }
   }
 
   Future<Uint8List?> _movieBytes() async {
@@ -392,7 +556,13 @@ class _KGiftEffectState extends State<KGiftEffect>
         movie.dispose();
         return;
       }
-      final sound = GiftEffectSound.fromMovie(movie);
+      final embedded = GiftEffectSound.fromMovie(movie);
+      // v1.46-live (D207): the SVGA's own sound only while sound may play
+      // and the gift has no MP3 of its own.
+      final sound = widget.soundOn && widget.audioUrl == null
+          ? embedded
+          : GiftEffectSound(const []);
+      unawaited(_startMp3());
       final svga = SVGAAnimationController(vsync: this)
         ..muted = true
         ..videoItem = movie;
@@ -419,6 +589,10 @@ class _KGiftEffectState extends State<KGiftEffect>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _soundTimer?.cancel();
+    unawaited(_mp3?.stop());
+    unawaited(_video?.dispose());
+    _shader?.dispose();
     unawaited(_sound?.stop());
     // Releases the decoded frames (the movie is auto-released).
     _svga?.dispose();
@@ -427,6 +601,17 @@ class _KGiftEffectState extends State<KGiftEffect>
 
   @override
   Widget build(BuildContext context) {
+    final video = _video;
+    if (video != null && video.value.isInitialized) {
+      final size = video.value.size;
+      final sideBySide = _shader != null;
+      return IgnorePointer(
+        child: KGiftMovieFrame(
+          viewBox: giftVideoViewBox(size, sideBySide: sideBySide),
+          child: GiftVideoView(controller: video, shader: _shader),
+        ),
+      );
+    }
     final svga = _svga;
     final params = svga?.videoItem?.params;
     if (svga == null || params == null) return const SizedBox.shrink();

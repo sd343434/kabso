@@ -1,5 +1,13 @@
 import { createHash } from 'node:crypto';
-import type { Gift, GiftBadge, GiftCategory, PkBoosterKind, Prisma } from '../../generated/prisma/client.js';
+import type {
+  Gift,
+  GiftAnimationFormat,
+  GiftBadge,
+  GiftCategoryKind,
+  GiftVideoAlpha,
+  PkBoosterKind,
+  Prisma,
+} from '../../generated/prisma/client.js';
 
 /**
  * The gift catalogue and the gift bag (CP-020, D108, CONVENTIONS §10.23), shared by the API and
@@ -9,10 +17,26 @@ import type { Gift, GiftBadge, GiftCategory, PkBoosterKind, Prisma } from '../..
  */
 
 /**
- * The catalogue tabs, in display order (شائعة, مناسبات, مرح; v1.27-live, D132: حظ, listed only while
- * LUCKY_GIFTS_ENABLED; v1.32-live, D154: إفيهات). The bag (الحقيبة) is the last tab.
+ * v1.46-live (D207, CONVENTIONS §10.66): a gift's category is the code of a `gift_categories` row (the panel's tab),
+ * managed in the admin panel; it was the fixed enum POPULAR, EVENT, FUN, LUCKY, QUIPS, which the migration seeded.
+ * The special categories' codes equal their kind (CHECK `gift_categories_kind_code`), so `category === 'LUCKY'` /
+ * `'QUIPS'` still names the lucky / quips behaviour. The bag (الحقيبة) is the last tab (not a category).
  */
-export const GIFT_CATEGORIES: readonly GiftCategory[] = ['POPULAR', 'EVENT', 'FUN', 'LUCKY', 'QUIPS'];
+export type GiftCategoryCode = string;
+/** The codes of the special categories (their kind). */
+export const LUCKY_CATEGORY: GiftCategoryCode = 'LUCKY';
+export const QUIPS_CATEGORY: GiftCategoryCode = 'QUIPS';
+/** `gift_categories_code_format`: upper-case letters, digits and `_`, 1–40 characters, starting with a letter. */
+export const GIFT_CATEGORY_CODE_PATTERN = /^[A-Z][A-Z0-9_]{0,39}$/;
+/** The five categories the migration seeded, in their order (tests and the CLI's help). */
+export const SEEDED_GIFT_CATEGORIES: readonly GiftCategoryCode[] = [
+  'POPULAR',
+  'EVENT',
+  'FUN',
+  'LUCKY',
+  'QUIPS',
+];
+export const GIFT_CATEGORY_KINDS: readonly GiftCategoryKind[] = ['NORMAL', 'LUCKY', 'QUIPS'];
 export const GIFT_BADGES: readonly GiftBadge[] = ['NONE', 'NEW', 'EVENT'];
 /** v1.43-live (D195): the PK boosters a gift may activate (`--pk-booster`). */
 export const GIFT_PK_BOOSTERS: readonly PkBoosterKind[] = [
@@ -44,7 +68,7 @@ export const QUIP_SOUND_MS_MAX = 15_000;
 export const QUIP_TEXT_MAX = 200;
 
 export interface GiftFields {
-  readonly category: GiftCategory;
+  readonly category: GiftCategoryCode;
   readonly nameAr: string;
   readonly nameEn: string;
   readonly priceCoins: number;
@@ -66,6 +90,15 @@ export interface GiftFields {
   readonly imageObjectKey?: string | null;
   readonly animationObjectKey?: string | null;
   readonly animationBytes?: number | null;
+  /**
+   * v1.46-live (D207): the hosted effect's format (with `animationObjectKey`) and an MP4's transparency, and the
+   * hosted MP3 sound (key, bytes, length; never on QUIPS). Absent: unchanged / none.
+   */
+  readonly animationFormat?: GiftAnimationFormat | null;
+  readonly animationAlpha?: GiftVideoAlpha | null;
+  readonly audioObjectKey?: string | null;
+  readonly audioBytes?: number | null;
+  readonly audioMs?: number | null;
   /**
    * v1.32-live (D154): a QUIPS gift's bundled sound (an app asset key like `asset` keys), its length
    * in ms and its optional line of text. Set exactly for QUIPS (`gifts_quip_fields`).
@@ -125,7 +158,7 @@ export function giftTagProblem(tag: Pick<GiftFields, 'tagCode' | 'tagNameAr' | '
 export function giftQuipProblem(
   gift: Pick<GiftFields, 'category' | 'priceCoins' | 'soundKey' | 'soundMs' | 'quipText'>,
 ): string | null {
-  const quips = gift.category === 'QUIPS';
+  const quips = gift.category === QUIPS_CATEGORY;
   const sound = (gift.soundKey ?? null) !== null && (gift.soundMs ?? null) !== null;
   if (quips && !sound) return 'a QUIPS gift needs --sound and --sound-ms';
   if (!quips && ((gift.soundKey ?? null) !== null || (gift.soundMs ?? null) !== null)) {
@@ -139,16 +172,49 @@ export function giftQuipProblem(
 /** v1.43-live (D195): a PK booster's gift is an ordinary paid gift (not LUCKY, not QUIPS), or null. */
 export function giftPkBoosterProblem(gift: Pick<GiftFields, 'category' | 'pkBooster'>): string | null {
   if ((gift.pkBooster ?? null) === null) return null;
-  if (gift.category === 'LUCKY' || gift.category === 'QUIPS')
+  if (gift.category === LUCKY_CATEGORY || gift.category === QUIPS_CATEGORY)
     return 'a PK booster gift cannot be LUCKY or QUIPS';
+  return null;
+}
+
+/**
+ * v1.46-live (D207): the problem with a whole gift's hosted effect and sound — the format goes with the key (and its
+ * extension), the transparency exactly with an MP4, the sound's three fields together and never on QUIPS — or null.
+ */
+export function giftMediaProblem(
+  gift: Pick<
+    GiftFields,
+    | 'category'
+    | 'animationObjectKey'
+    | 'animationFormat'
+    | 'animationAlpha'
+    | 'audioObjectKey'
+    | 'audioBytes'
+    | 'audioMs'
+  >,
+): string | null {
+  const key = gift.animationObjectKey ?? null;
+  const format = gift.animationFormat ?? null;
+  const alpha = gift.animationAlpha ?? null;
+  if (key === null && (format !== null || alpha !== null)) return 'an effect format needs an effect file';
+  if (key !== null) {
+    if (format === null) return 'the effect file needs its format (SVGA or MP4)';
+    if (!key.endsWith(format === 'MP4' ? '.mp4' : '.svga')) return `the effect file is not an ${format}`;
+    if ((format === 'MP4') !== (alpha !== null))
+      return 'only an MP4 effect has a transparency (none or side-by-side)';
+  }
+  const audio = [gift.audioObjectKey ?? null, gift.audioBytes ?? null, gift.audioMs ?? null];
+  const set = audio.filter((v) => v !== null).length;
+  if (set !== 0 && set !== 3) return 'the sound needs its file, size and length';
+  if (set === 3 && gift.category === QUIPS_CATEGORY) return 'a QUIPS gift has its own sound; no MP3 sound';
   return null;
 }
 
 /** Every problem with a gift's fields (empty: valid). Partial input checks only what is given. */
 export function giftFieldProblems(fields: Partial<GiftFields>): string[] {
   const problems: string[] = [];
-  if (fields.category !== undefined && !GIFT_CATEGORIES.includes(fields.category)) {
-    problems.push(`category must be one of ${GIFT_CATEGORIES.join(', ')}`);
+  if (fields.category !== undefined && !GIFT_CATEGORY_CODE_PATTERN.test(fields.category)) {
+    problems.push('category must be a category code (A-Z, 0-9 and _, starting with a letter)');
   }
   if (
     fields.pkBooster !== undefined &&
@@ -172,7 +238,7 @@ export function giftFieldProblems(fields: Partial<GiftFields>): string[] {
     fields.priceCoins !== undefined &&
     (!Number.isInteger(fields.priceCoins) ||
       fields.priceCoins < 0 ||
-      (fields.priceCoins < GIFT_MIN_PRICE && fields.category !== 'QUIPS') ||
+      (fields.priceCoins < GIFT_MIN_PRICE && fields.category !== QUIPS_CATEGORY) ||
       fields.priceCoins > GIFT_MAX_PRICE)
   ) {
     problems.push(
@@ -246,8 +312,13 @@ type Tx = Prisma.TransactionClient;
 
 /** Adds a gift (enabled). Returns false when the code exists (nothing changes). */
 export async function addGiftIn(tx: Tx, code: string, fields: GiftFields): Promise<boolean> {
-  const tagProblem = giftTagProblem(fields) ?? giftQuipProblem(fields) ?? giftPkBoosterProblem(fields);
+  const tagProblem =
+    giftTagProblem(fields) ??
+    giftQuipProblem(fields) ??
+    giftPkBoosterProblem(fields) ??
+    giftMediaProblem(fields);
   if (tagProblem !== null) throw new GiftFieldsError(tagProblem);
+  await assertCategoryExistsIn(tx, fields.category);
   const inserted = await tx.gift.createMany({
     data: [
       {
@@ -266,6 +337,11 @@ export async function addGiftIn(tx: Tx, code: string, fields: GiftFields): Promi
         imageObjectKey: fields.imageObjectKey ?? null,
         animationObjectKey: fields.animationObjectKey ?? null,
         animationBytes: fields.animationBytes ?? null,
+        animationFormat: fields.animationFormat ?? (fields.animationObjectKey ? 'SVGA' : null),
+        animationAlpha: fields.animationAlpha ?? null,
+        audioObjectKey: fields.audioObjectKey ?? null,
+        audioBytes: fields.audioBytes ?? null,
+        audioMs: fields.audioMs ?? null,
         soundKey: fields.soundKey ?? null,
         soundMs: fields.soundMs ?? null,
         quipText: fields.quipText?.trim() ?? null,
@@ -307,6 +383,21 @@ export async function updateGiftIn(
     pkBooster: fields.pkBooster !== undefined ? fields.pkBooster : before.pkBooster,
   });
   if (boosterProblem !== null) throw new GiftFieldsError(boosterProblem);
+  const pick = <K extends keyof GiftFields & keyof Gift>(k: K) =>
+    (fields[k] !== undefined ? fields[k] : before[k]) as Gift[K];
+  const mediaProblem = giftMediaProblem({
+    category: fields.category ?? before.category,
+    animationObjectKey: pick('animationObjectKey'),
+    animationFormat: pick('animationFormat'),
+    animationAlpha: pick('animationAlpha'),
+    audioObjectKey: pick('audioObjectKey'),
+    audioBytes: pick('audioBytes'),
+    audioMs: pick('audioMs'),
+  });
+  if (mediaProblem !== null) throw new GiftFieldsError(mediaProblem);
+  if (fields.category !== undefined && fields.category !== before.category) {
+    await assertCategoryExistsIn(tx, fields.category);
+  }
   const after = await tx.gift.update({
     where: { code },
     data: {
@@ -319,6 +410,12 @@ export async function updateGiftIn(
     },
   });
   return { before, after };
+}
+
+/** v1.46-live (D207): a gift's category must exist (the FK would refuse it less helpfully). */
+async function assertCategoryExistsIn(tx: Tx, code: string): Promise<void> {
+  const found = await tx.giftCategory.findUnique({ where: { code }, select: { code: true } });
+  if (!found) throw new GiftFieldsError(`there is no gift category ${code}`);
 }
 
 /** Enables or disables a gift; returns whether it changed, or null when it does not exist. */
@@ -380,12 +477,20 @@ export async function stockOf(db: Pick<Tx, 'userGiftStock'>, userId: string, cod
   return row?.quantity ?? 0;
 }
 
-/** The catalogue order: tab (POPULAR, EVENT, FUN, LUCKY, QUIPS), then sort order, then code. */
+/**
+ * The catalogue order: tab (v1.46-live, D207: the categories' order, `tabs` — codes not in it last), then sort order,
+ * then code.
+ */
 export function compareGifts(
   a: Pick<Gift, 'category' | 'sortOrder' | 'code'>,
   b: Pick<Gift, 'category' | 'sortOrder' | 'code'>,
+  tabs: readonly GiftCategoryCode[] = SEEDED_GIFT_CATEGORIES,
 ): number {
-  const tab = GIFT_CATEGORIES.indexOf(a.category) - GIFT_CATEGORIES.indexOf(b.category);
+  const at = (c: string) => {
+    const i = tabs.indexOf(c);
+    return i < 0 ? tabs.length : i;
+  };
+  const tab = at(a.category) - at(b.category);
   if (tab !== 0) return tab;
   if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
   return a.code < b.code ? -1 : a.code > b.code ? 1 : 0;
@@ -397,7 +502,7 @@ export function compareGifts(
  * reader's language. 16 hex characters of SHA-256.
  */
 export function catalogueVersion(
-  gifts: readonly Pick<
+  gifts: readonly (Pick<
     Gift,
     | 'code'
     | 'category'
@@ -416,16 +521,22 @@ export function catalogueVersion(
     | 'soundKey'
     | 'soundMs'
     | 'quipText'
-  >[],
+  > &
+    Partial<Pick<Gift, 'animationFormat' | 'animationAlpha' | 'audioObjectKey'>>)[],
   quantities: readonly number[],
   comboWindowSeconds: number,
-  categories?: readonly GiftCategory[],
+  tabs?: readonly {
+    readonly code: string;
+    readonly nameAr: string;
+    readonly nameEn: string;
+    readonly iconObjectKey: string | null;
+  }[],
 ): string {
   const canonical = JSON.stringify({
     q: quantities,
     c: comboWindowSeconds,
-    // v1.27-live (D132): the tabs, only when LUCKY is among them (so the hash is unchanged otherwise).
-    ...(categories?.includes('LUCKY') ? { t: categories } : {}),
+    // v1.27-live (D132): the tabs; v1.46-live (D207): with both names and the icon (they are managed now).
+    ...(tabs ? { t: tabs.map((t) => [t.code, t.nameAr, t.nameEn, t.iconObjectKey]) } : {}),
     g: gifts.map((g) => [
       g.code,
       g.category,
@@ -444,6 +555,9 @@ export function catalogueVersion(
         : ['art', g.imageObjectKey, g.animationObjectKey]),
       // v1.32-live (D154): a quip's sound and text (appended only when set).
       ...(g.soundKey === null ? [] : ['quip', g.soundKey, g.soundMs, g.quipText]),
+      // v1.46-live (D207): an MP4 effect's transparency and the hosted MP3 (appended only when set).
+      ...(g.animationFormat === 'MP4' ? ['mp4', g.animationAlpha] : []),
+      ...(g.audioObjectKey ? ['mp3', g.audioObjectKey] : []),
     ]),
   });
   return createHash('sha256').update(canonical).digest('hex').slice(0, 16);

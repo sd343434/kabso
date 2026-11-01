@@ -213,6 +213,13 @@ describe('CP-020 live gifts', { timeout: 120_000 }, () => {
         version: expect.stringMatching(/^[0-9a-f]{16}$/),
         // v1.32-live (D154): the quips tab is listed too (empty here).
         categories: ['POPULAR', 'EVENT', 'FUN', 'QUIPS'],
+        // v1.46-live (D207): the tabs with their names (the seeded categories; LUCKY is off here).
+        tabs: [
+          { code: 'POPULAR', kind: 'NORMAL', name: 'Popular', iconUrl: null },
+          { code: 'EVENT', kind: 'NORMAL', name: 'Events', iconUrl: null },
+          { code: 'FUN', kind: 'NORMAL', name: 'Fun', iconUrl: null },
+          { code: 'QUIPS', kind: 'QUIPS', name: 'Quips', iconUrl: null },
+        ],
         quantities: [1, 10, 66, 99, 188, 520, 1314],
         maxRecipients: 25,
         comboWindowSeconds: 5,
@@ -356,6 +363,12 @@ describe('CP-020 live gifts', { timeout: 120_000 }, () => {
           imageUrl: null,
           animationUrl: null,
           animationBytes: null,
+          // v1.46-live (D207): no hosted MP4 / MP3 either.
+          animationFormat: null,
+          animationAlpha: null,
+          audioUrl: null,
+          audioBytes: null,
+          audioDurationMs: null,
           unitPrice: 5,
           quantity: 10,
           source: 'COINS',

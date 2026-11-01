@@ -371,6 +371,10 @@ class _WishSheetState extends ConsumerState<_WishSheet> {
                 LiveGiftTabs(
                   tabs: tabs,
                   selected: tab,
+                  names: {
+                    for (final t in catalogue?.tabs ?? const <GiftTab>[])
+                      t.code: ?t.name,
+                  },
                   hasTags: (_) => false,
                   onTap: (id) => setState(() => _tab = id),
                 ),

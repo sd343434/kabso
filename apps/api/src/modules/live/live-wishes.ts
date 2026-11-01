@@ -30,7 +30,7 @@ export async function availableWishCodes(
 ): Promise<Set<string>> {
   if (codes.length === 0) return new Set();
   const gifts = await db.gift.findMany({
-    where: { code: { in: [...codes] }, enabled: true },
+    where: { code: { in: [...codes] }, enabled: true, categoryRef: { enabled: true } },
     select: { code: true, category: true },
   });
   return new Set(gifts.filter((g) => g.category !== 'LUCKY' || luckyEnabled).map((g) => g.code));
@@ -53,7 +53,9 @@ export async function wishGiftsOf(
 ): Promise<LiveWishGiftDto[]> {
   const { codes } = input;
   if (codes.length === 0) return [];
-  const gifts = await db.gift.findMany({ where: { code: { in: [...codes] }, enabled: true } });
+  const gifts = await db.gift.findMany({
+    where: { code: { in: [...codes] }, enabled: true, categoryRef: { enabled: true } },
+  });
   const byCode = new Map(
     gifts.filter((g) => g.category !== 'LUCKY' || input.luckyEnabled).map((g) => [g.code, g]),
   );

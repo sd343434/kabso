@@ -28,6 +28,7 @@ export const ROUTES: readonly { name: string; pattern: string }[] = [
   { name: 'lives', pattern: '/lives' },
   { name: 'hosts', pattern: '/live-hosts' },
   { name: 'gifts', pattern: '/gifts' },
+  { name: 'giftCategories', pattern: '/gift-categories' },
   { name: 'items', pattern: '/items' },
   { name: 'promo', pattern: '/promo' },
   { name: 'report', pattern: '/finance/report' },

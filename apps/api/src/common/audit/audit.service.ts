@@ -77,6 +77,12 @@ export enum AuditAction {
   GIFT_DISABLE = 'gift.disable',
   GIFT_ENABLE = 'gift.enable',
   GIFT_GRANT = 'gift.grant',
+  /** v1.46-live (D207, §10.66): the gift categories (panel tabs), changed in the panel or with `gift-admin category-*`. */
+  GIFT_CATEGORY_ADD = 'gift.category.add',
+  GIFT_CATEGORY_UPDATE = 'gift.category.update',
+  GIFT_CATEGORY_ENABLE = 'gift.category.enable',
+  GIFT_CATEGORY_DISABLE = 'gift.category.disable',
+  GIFT_CATEGORY_DELETE = 'gift.category.delete',
   // D124 (v1.26-live): home banners, changed only by the banner-admin CLI.
   BANNER_ADD = 'banner.add',
   BANNER_ENABLE = 'banner.enable',

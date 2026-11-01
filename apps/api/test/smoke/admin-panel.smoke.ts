@@ -35,7 +35,8 @@ it('serves the admin panel smoke API', async () => {
       MEDIA_PUBLIC_BASE_URL: 'http://localhost:5180/media-not-served',
       RECHARGE_AGENT_SWEEP_INTERVAL_SECONDS: '0',
       TOPUP_PUBLIC_BASE_URL: 'https://api.kabsolive.com',
-      // D204: the order's pictures go through the private upload.
+      // D204: the order's pictures go through the private upload. D207: the panel's gift uploads go to the in-memory
+      // storage below; these say storage is configured (both use the same in-memory OBJECT_STORAGE).
       MEDIA_UPLOADS_ENABLED: 'true',
       S3_BUCKET: 'kabso-media-smoke',
       S3_ACCESS_KEY_ID: 'smoke',

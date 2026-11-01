@@ -469,6 +469,19 @@ info:
     `clearAdminRechargeExchangeRate`). `RechargeAgentDashboard.heldCoins` / `openOrders`, `RechargeRules.orders`,
     `NotificationType.RECHARGE_ORDER_UPDATE` (target `RECHARGE_ORDER`), `WalletLedgerReason.RECHARGE_ORDER`, five
     codes. Additive; no money is handled in the app (the payment happens outside it).
+    **D207 (DRAFT v1.46-live / v1.71-social)**: gift categories managed in the admin panel, and a gift's files
+    uploaded from it. `GiftCategory` is now any category code (`^[A-Z][A-Z0-9_]{0,39}$`, a `gift_categories` row;
+    the five former values stay, LUCKY and QUIPS keep their behaviour); `GiftCatalogue.tabs` gives the tabs in
+    order with their names in the reader's language and an optional icon (only enabled categories; a gift of a
+    disabled one is neither listed nor sendable). `Gift.animationFormat` (SVGA | MP4) and `animationAlpha` (NONE |
+    SIDE_BY_SIDE, an MP4's transparency: left colour / right alpha) and `audioUrl` / `audioBytes` /
+    `audioDurationMs` (a hosted MP3 played with the effect, or alone). Panel (capability `gifts.categories`,
+    OWNER): `listAdminGiftCategories`, `createAdminGiftCategory`, `updateAdminGiftCategory`,
+    `enableAdminGiftCategory`, `disableAdminGiftCategory`, `removeAdminGiftCategory` (refused while it has gifts
+    unless `moveTo`; LUCKY / QUIPS only renamed, reordered or given an icon); `uploadAdminGiftFile` (raw bytes: the
+    gift's image, SVGA / MP4 effect, MP3 sound, or a category icon) and `getAdminGiftFile` (its bytes back, for the
+    panel's same-origin preview); the gift create / update bodies take the
+    uploaded keys, and «صورة الهدية» is required to create a gift in the panel (CONVENTIONS §10.66).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -3168,6 +3181,11 @@ paths:
                   imageUrl: null
                   animationUrl: null
                   animationBytes: null
+                  animationFormat: null
+                  animationAlpha: null
+                  audioUrl: null
+                  audioBytes: null
+                  audioDurationMs: null
                   unitPrice: 1
                   quantity: 10
                   source: COINS
@@ -7276,15 +7294,20 @@ paths:
               schema: { $ref: '#/components/schemas/GiftCatalogue' }
               example:
                 version: 3f2a9c0d81b4e6a7
-                categories: [POPULAR, EVENT, FUN]
+                categories: [POPULAR, EVENT, FUN, QUIPS]
+                tabs:
+                  - { code: POPULAR, kind: NORMAL, name: شائعة, iconUrl: null }
+                  - { code: EVENT, kind: NORMAL, name: مناسبات, iconUrl: null }
+                  - { code: FUN, kind: NORMAL, name: مرح, iconUrl: null }
+                  - { code: QUIPS, kind: QUIPS, name: إفيهات, iconUrl: null }
                 quantities: [1, 10, 66, 99, 188, 520, 1314]
                 maxRecipients: 25
                 comboWindowSeconds: 5
                 data:
-                  - { code: rose, category: POPULAR, name: وردة, priceCoins: 1, assetKey: gift_rose, animationKey: null, imageUrl: null, animationUrl: null, animationBytes: null, sortOrder: 10, badge: NONE, tag: { code: love, name: حب }, quip: null, pkBooster: null }
-                  - { code: sports_car, category: POPULAR, name: سيارة رياضية, priceCoins: 5000, assetKey: gift_sports_car, animationKey: fx_sports_car, imageUrl: null, animationUrl: null, animationBytes: null, sortOrder: 20, badge: NEW, tag: null, quip: null, pkBooster: null }
-                  - { code: angel_warrior, category: FUN, name: الملاك المحارب, priceCoins: 50, assetKey: gift_angel_warrior, animationKey: null, imageUrl: 'https://media.kabso.example/media/gifts/angel_warrior/1eaf9644281e113f96c7cb40293572e6.png', animationUrl: 'https://media.kabso.example/media/gifts/angel_warrior/d1c23c640419becb8269caa182e98891.svga', animationBytes: 16830815, sortOrder: 10, badge: NEW, tag: { code: luxury, name: فخامة }, quip: null, pkBooster: null }
-                  - { code: quip_ghazal_01, category: QUIPS, name: غزل ١, priceCoins: 99, assetKey: quips/ghazal, animationKey: null, imageUrl: null, animationUrl: null, animationBytes: null, sortOrder: 101, badge: NONE, tag: { code: ghazal, name: غزل }, quip: { soundKey: kabi/ghazal_01, durationMs: 4362, text: 'إيه الجمال ده! تحفة بجد!' }, pkBooster: null }
+                  - { code: rose, category: POPULAR, name: وردة, priceCoins: 1, assetKey: gift_rose, animationKey: null, imageUrl: null, animationUrl: null, animationBytes: null, animationFormat: null, animationAlpha: null, audioUrl: null, audioBytes: null, audioDurationMs: null, sortOrder: 10, badge: NONE, tag: { code: love, name: حب }, quip: null, pkBooster: null }
+                  - { code: sports_car, category: POPULAR, name: سيارة رياضية, priceCoins: 5000, assetKey: gift_sports_car, animationKey: fx_sports_car, imageUrl: null, animationUrl: 'https://media.kabso.example/media/gifts/sports_car/4b1e0c9a7d2f35e8a6c1b0f9e2d3c4a5.mp4', animationBytes: 2483112, animationFormat: MP4, animationAlpha: SIDE_BY_SIDE, audioUrl: 'https://media.kabso.example/media/gifts/sports_car/9c8b7a6f5e4d3c2b1a0f9e8d7c6b5a49.mp3', audioBytes: 96211, audioDurationMs: 6000, sortOrder: 20, badge: NEW, tag: null, quip: null, pkBooster: null }
+                  - { code: angel_warrior, category: FUN, name: الملاك المحارب, priceCoins: 50, assetKey: gift_angel_warrior, animationKey: null, imageUrl: 'https://media.kabso.example/media/gifts/angel_warrior/1eaf9644281e113f96c7cb40293572e6.png', animationUrl: 'https://media.kabso.example/media/gifts/angel_warrior/d1c23c640419becb8269caa182e98891.svga', animationBytes: 16830815, animationFormat: SVGA, animationAlpha: null, audioUrl: null, audioBytes: null, audioDurationMs: null, sortOrder: 10, badge: NEW, tag: { code: luxury, name: فخامة }, quip: null, pkBooster: null }
+                  - { code: quip_ghazal_01, category: QUIPS, name: غزل ١, priceCoins: 99, assetKey: quips/ghazal, animationKey: null, imageUrl: null, animationUrl: null, animationBytes: null, animationFormat: null, animationAlpha: null, audioUrl: null, audioBytes: null, audioDurationMs: null, sortOrder: 101, badge: NONE, tag: { code: ghazal, name: غزل }, quip: { soundKey: kabi/ghazal_01, durationMs: 4362, text: 'إيه الجمال ده! تحفة بجد!' }, pkBooster: null }
         '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
   /api/v1/me/lucky-gifts/age-confirmation:
@@ -7331,7 +7354,7 @@ paths:
               schema: { $ref: '#/components/schemas/GiftBag' }
               example:
                 data:
-                  - { code: rose, category: POPULAR, name: وردة, priceCoins: 1, assetKey: gift_rose, animationKey: null, imageUrl: null, animationUrl: null, animationBytes: null, sortOrder: 10, badge: NONE, tag: { code: love, name: حب }, quip: null, quantity: 99, pkBooster: null }
+                  - { code: rose, category: POPULAR, name: وردة, priceCoins: 1, assetKey: gift_rose, animationKey: null, imageUrl: null, animationUrl: null, animationBytes: null, animationFormat: null, animationAlpha: null, audioUrl: null, audioBytes: null, audioDurationMs: null, sortOrder: 10, badge: NONE, tag: { code: love, name: حب }, quip: null, quantity: 99, pkBooster: null }
         '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
   /api/v1/media/uploads:
@@ -11281,6 +11304,304 @@ paths:
           $ref: '#/components/responses/Error'
         '429':
           $ref: '#/components/responses/Error'
+  /api/v1/admin/gift-categories:
+    get:
+      tags:
+      - admin-panel
+      operationId: listAdminGiftCategories
+      summary: The gift categories (panel tabs) in order, with their gift counts (catalog.view)
+      description: '(v1.71-social, D207) '
+      security:
+      - adminSession: []
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminGiftCategoryList'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+    post:
+      tags:
+      - admin-panel
+      operationId: createAdminGiftCategory
+      summary: Adds a NORMAL gift category (reason; audited) (gifts.categories)
+      description: '(v1.71-social, D207) '
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminCreateGiftCategoryRequest'
+      responses:
+        '201':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminGiftCategoryCreated'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/gift-categories/{code}:
+    patch:
+      tags:
+      - admin-panel
+      operationId: updateAdminGiftCategory
+      summary: Renames / reorders a category or sets its icon (reason; audited with before/after) (gifts.categories)
+      description: '(v1.71-social, D207) '
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminGiftCategoryCodePath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUpdateGiftCategoryRequest'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminGiftCategoryUpdated'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/gift-categories/{code}/enable:
+    post:
+      tags:
+      - admin-panel
+      operationId: enableAdminGiftCategory
+      summary: Shows a NORMAL category again (reason; audited) (gifts.categories)
+      description: '(v1.71-social, D207) '
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminGiftCategoryCodePath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminReasonRequest'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminGiftCategoryEnabled'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/gift-categories/{code}/disable:
+    post:
+      tags:
+      - admin-panel
+      operationId: disableAdminGiftCategory
+      summary: Hides a NORMAL category — not a tab, its gifts not listed nor sendable (reason; audited; 409 for LUCKY / QUIPS) (gifts.categories)
+      description: '(v1.71-social, D207) '
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminGiftCategoryCodePath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminReasonRequest'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminGiftCategoryEnabled'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/gift-categories/{code}/remove:
+    post:
+      tags:
+      - admin-panel
+      operationId: removeAdminGiftCategory
+      summary: Deletes a NORMAL category; with gifts only by moving them to `moveTo` first (reason; audited) (gifts.categories)
+      description: '(v1.71-social, D207) '
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminGiftCategoryCodePath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminRemoveGiftCategoryRequest'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminGiftCategoryRemoved'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/gift-files:
+    get:
+      tags:
+      - admin-panel
+      operationId: getAdminGiftFile
+      summary: The bytes of an uploaded gift file or category icon, for the panel's preview (catalog.view)
+      description: |
+        (v1.71-social, D207) Streams the stored object named by `key` (a gift image / effect / sound or a category
+        icon key) with its type (`image/png`, `image/webp`, `video/mp4`, `audio/mpeg`, or `application/octet-stream`
+        for SVGA), so the panel previews from its own origin (its CSP allows media from 'self' only, and compositing a
+        side-by-side MP4 on a canvas needs same-origin pixels). Not cached (`no-store`). 404 for a key not in storage.
+      security:
+      - adminSession: []
+      parameters:
+      - name: key
+        in: query
+        required: true
+        schema:
+          type: string
+          maxLength: 200
+      responses:
+        '200':
+          description: The file.
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/gift-uploads:
+    post:
+      tags:
+      - admin-panel
+      operationId: uploadAdminGiftFile
+      summary: Checks and stores one gift file or category icon, the raw bytes as the body (catalog.manage; an icon gifts.categories)
+      description: |
+        (v1.71-social, D207) The body is the file itself (`application/octet-stream`, at most 26 MB). By `kind`:
+        `image` «صورة الهدية» PNG/WebP, square, at least 128 px, at most 512 KB; `animation` «ملف العرض» an SVGA 2.x
+        (at most 25 MB, as `gift-admin --animation-file`) or an MP4 (H.264 in an MPEG-4 file, 1 … 15 s, at most 8 MB;
+        read from its boxes, not decoded), answering `detectedAlpha` (SIDE_BY_SIDE when the width is ≥ 1.8 × the
+        height, else NONE); `sound` an MP3 (MPEG audio Layer III, 0.1 … 15 s, at most 1 MB); `icon` a category's icon
+        (PNG/WebP, square, 32 … 512 px, at most 256 KB). The file is stored at a content-addressed, immutable key under
+        `media/gifts/<code>/` (`media/gift-categories/<code>/` for an icon) in the media bucket; the gift / category
+        change that names the key is the audited step. 409 `ADMIN_ACTION_REFUSED` with the reason for a refused file
+        (nothing stored); 503 without object storage settings.
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminCsrf'
+      - name: kind
+        in: query
+        required: true
+        schema:
+          type: string
+          enum: [image, animation, sound, icon]
+      - name: code
+        in: query
+        required: true
+        description: The gift's code (image, animation, sound) or the category's (icon).
+        schema:
+          type: string
+          maxLength: 40
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '201':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminGiftUpload'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '413':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
   /api/v1/admin/bag-items:
     get:
       tags:
@@ -12882,6 +13203,14 @@ components:
       required: true
       schema:
         type: string
+    AdminGiftCategoryCodePath:
+      name: code
+      in: path
+      required: true
+      description: (v1.71-social, D207) a gift category's code.
+      schema:
+        type: string
+        pattern: ^[A-Z][A-Z0-9_]{0,39}$
     AdminBannerIdPath:
       name: bannerId
       in: path
@@ -15160,6 +15489,15 @@ components:
       - animationKey
       - imageUrl
       - hostedAnimation
+      - imageObjectKey
+      - animationObjectKey
+      - animationUrl
+      - animationFormat
+      - animationAlpha
+      - animationBytes
+      - audioObjectKey
+      - audioUrl
+      - audioMs
       - sortOrder
       - badge
       - lucky
@@ -15177,12 +15515,8 @@ components:
           type: string
         category:
           type: string
-          enum:
-          - POPULAR
-          - EVENT
-          - FUN
-          - LUCKY
-          - QUIPS
+          pattern: ^[A-Z][A-Z0-9_]{0,39}$
+          description: (v1.71-social, D207) a category code (`AdminGiftCategory.code`).
         nameAr:
           type: string
         nameEn:
@@ -15204,6 +15538,51 @@ components:
           - 'null'
         hostedAnimation:
           type: boolean
+        imageObjectKey:
+          type:
+          - string
+          - 'null'
+          description: (v1.71-social, D207) the uploaded image's key.
+        animationObjectKey:
+          type:
+          - string
+          - 'null'
+        animationUrl:
+          type:
+          - string
+          - 'null'
+        animationFormat:
+          type:
+          - string
+          - 'null'
+          enum:
+          - SVGA
+          - MP4
+          - null
+        animationAlpha:
+          type:
+          - string
+          - 'null'
+          enum:
+          - NONE
+          - SIDE_BY_SIDE
+          - null
+        animationBytes:
+          type:
+          - integer
+          - 'null'
+        audioObjectKey:
+          type:
+          - string
+          - 'null'
+        audioUrl:
+          type:
+          - string
+          - 'null'
+        audioMs:
+          type:
+          - integer
+          - 'null'
         sortOrder:
           type: integer
         badge:
@@ -15249,10 +15628,31 @@ components:
       type: object
       required:
       - coinRetailUsdPerMillion
+      - categories
+      - uploads
       - data
       properties:
         coinRetailUsdPerMillion:
           type: number
+        categories:
+          type: array
+          description: (v1.71-social, D207) the categories in tab order, for the form's choice.
+          items:
+            type: object
+            required: [code, kind, nameAr, nameEn, enabled]
+            properties:
+              code: { type: string }
+              kind: { type: string, enum: [NORMAL, LUCKY, QUIPS] }
+              nameAr: { type: string }
+              nameEn: { type: string }
+              enabled: { type: boolean }
+        uploads:
+          type: object
+          description: (v1.71-social, D207) whether the API has object storage settings (uploads can be stored) and a public media URL (the app can see them).
+          required: [storage, publicUrls]
+          properties:
+            storage: { type: boolean }
+            publicUrls: { type: boolean }
         data:
           type: array
           items:
@@ -15265,7 +15665,7 @@ components:
       - nameAr
       - nameEn
       - priceCoins
-      - assetKey
+      - imageObjectKey
       - reason
       properties:
         code:
@@ -15273,12 +15673,8 @@ components:
           pattern: ^[a-z0-9][a-z0-9_]{0,39}$
         category:
           type: string
-          enum:
-          - POPULAR
-          - EVENT
-          - FUN
-          - LUCKY
-          - QUIPS
+          pattern: ^[A-Z][A-Z0-9_]{0,39}$
+          description: (v1.71-social, D207) an existing category's code.
         nameAr:
           type: string
           minLength: 1
@@ -15294,6 +15690,29 @@ components:
         assetKey:
           type: string
           maxLength: 80
+          description: (v1.71-social, D207) optional; default the gift's code (the app shows the uploaded image).
+        imageObjectKey:
+          type: string
+          pattern: ^media/gifts/[a-z0-9][a-z0-9_]{0,39}/[0-9a-f]{32}\.(png|webp)$
+          description: (v1.71-social, D207) «صورة الهدية», a key `uploadAdminGiftFile` answered for this gift (kind image).
+        animationObjectKey:
+          type:
+          - string
+          - 'null'
+          pattern: ^media/gifts/[a-z0-9][a-z0-9_]{0,39}/[0-9a-f]{32}\.(svga|mp4)$
+          description: (v1.71-social, D207) «ملف العرض», an uploaded SVGA or MP4 (kind animation); null removes it.
+        animationAlpha:
+          type: string
+          enum:
+          - NONE
+          - SIDE_BY_SIDE
+          description: (v1.71-social, D207) «الشفافية» of an MP4 (required with one; refused with an SVGA). Alone on update, it changes the current MP4's.
+        audioObjectKey:
+          type:
+          - string
+          - 'null'
+          pattern: ^media/gifts/[a-z0-9][a-z0-9_]{0,39}/[0-9a-f]{32}\.mp3$
+          description: (v1.71-social, D207) an uploaded MP3 sound (kind sound); null removes it. Not for QUIPS.
         animationKey:
           type:
           - string
@@ -15343,7 +15762,7 @@ components:
           minLength: 1
           maxLength: 500
           description: Required; kept in the audit log.
-      description: (v1.65-social, D197) The `gift-admin add` fields (bundled keys; hosted art stays with the CLI's `--image` / `--animation-file`).
+      description: '(v1.65-social, D197) The `gift-admin add` fields. v1.71-social (D207): with the uploaded files'' keys; the picture is required.'
       additionalProperties: false
     AdminUpdateGiftRequest:
       type: object
@@ -15352,12 +15771,8 @@ components:
       properties:
         category:
           type: string
-          enum:
-          - POPULAR
-          - EVENT
-          - FUN
-          - LUCKY
-          - QUIPS
+          pattern: ^[A-Z][A-Z0-9_]{0,39}$
+          description: (v1.71-social, D207) an existing category's code.
         nameAr:
           type: string
           minLength: 1
@@ -15373,6 +15788,28 @@ components:
         assetKey:
           type: string
           maxLength: 80
+        imageObjectKey:
+          type: string
+          pattern: ^media/gifts/[a-z0-9][a-z0-9_]{0,39}/[0-9a-f]{32}\.(png|webp)$
+          description: (v1.71-social, D207) «صورة الهدية» (replace only; it cannot be removed), a key `uploadAdminGiftFile` answered for this gift (kind image).
+        animationObjectKey:
+          type:
+          - string
+          - 'null'
+          pattern: ^media/gifts/[a-z0-9][a-z0-9_]{0,39}/[0-9a-f]{32}\.(svga|mp4)$
+          description: (v1.71-social, D207) «ملف العرض», an uploaded SVGA or MP4 (kind animation); null removes it.
+        animationAlpha:
+          type: string
+          enum:
+          - NONE
+          - SIDE_BY_SIDE
+          description: (v1.71-social, D207) «الشفافية» of an MP4 (required with one; refused with an SVGA). Alone on update, it changes the current MP4's.
+        audioObjectKey:
+          type:
+          - string
+          - 'null'
+          pattern: ^media/gifts/[a-z0-9][a-z0-9_]{0,39}/[0-9a-f]{32}\.mp3$
+          description: (v1.71-social, D207) an uploaded MP3 sound (kind sound); null removes it. Not for QUIPS.
         animationKey:
           type:
           - string
@@ -15459,6 +15896,108 @@ components:
           type: boolean
         changed:
           type: boolean
+    AdminGiftCategory:
+      type: object
+      description: (v1.71-social, D207) A gift category (a gift panel tab).
+      required: [code, kind, nameAr, nameEn, sortOrder, enabled, iconObjectKey, iconUrl, gifts, enabledGifts, special]
+      properties:
+        code: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,39}$' }
+        kind: { type: string, enum: [NORMAL, LUCKY, QUIPS] }
+        nameAr: { type: string }
+        nameEn: { type: string }
+        sortOrder: { type: integer, minimum: 0, maximum: 1000000 }
+        enabled: { type: boolean }
+        iconObjectKey: { type: [string, 'null'] }
+        iconUrl: { type: [string, 'null'] }
+        gifts: { type: integer, minimum: 0, description: 'Gifts in it, enabled or not.' }
+        enabledGifts: { type: integer, minimum: 0 }
+        special: { type: boolean, description: 'LUCKY or QUIPS — renamed, reordered or given an icon only.' }
+    AdminGiftCategoryList:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/AdminGiftCategory' }
+    AdminCreateGiftCategoryRequest:
+      type: object
+      additionalProperties: false
+      description: (v1.71-social, D207) A NORMAL category (`gift-admin category-add`).
+      required: [code, nameAr, nameEn, reason]
+      properties:
+        code: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,39}$', description: Never changes. }
+        nameAr: { type: string, minLength: 1, maxLength: 30 }
+        nameEn: { type: string, minLength: 1, maxLength: 30 }
+        sortOrder: { type: integer, minimum: 0, maximum: 1000000, description: Default 0. }
+        enabled: { type: boolean, description: Default true. }
+        iconObjectKey:
+          type: [string, 'null']
+          pattern: '^media/gift-categories/[A-Z][A-Z0-9_]{0,39}/[0-9a-f]{32}\.(png|webp)$'
+          description: An icon `uploadAdminGiftFile` answered for this code (kind icon).
+        reason: { type: string, minLength: 1, maxLength: 500, description: Required; kept in the audit log. }
+    AdminUpdateGiftCategoryRequest:
+      type: object
+      additionalProperties: false
+      description: (v1.71-social, D207) Any of the fields (`iconObjectKey` null removes the icon), and the reason.
+      required: [reason]
+      properties:
+        nameAr: { type: string, minLength: 1, maxLength: 30 }
+        nameEn: { type: string, minLength: 1, maxLength: 30 }
+        sortOrder: { type: integer, minimum: 0, maximum: 1000000 }
+        iconObjectKey:
+          type: [string, 'null']
+          pattern: '^media/gift-categories/[A-Z][A-Z0-9_]{0,39}/[0-9a-f]{32}\.(png|webp)$'
+        reason: { type: string, minLength: 1, maxLength: 500 }
+    AdminRemoveGiftCategoryRequest:
+      type: object
+      additionalProperties: false
+      description: "(v1.71-social, D207) «نقل الهدايا إلى تصنيف آخر ثم الحذف»: `moveTo` (another NORMAL category) is required while the category has gifts (409 otherwise)."
+      required: [reason]
+      properties:
+        moveTo: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,39}$' }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+    AdminGiftCategoryCreated:
+      type: object
+      required: [code, created]
+      properties:
+        code: { type: string }
+        created: { type: boolean }
+    AdminGiftCategoryUpdated:
+      type: object
+      required: [code, changed]
+      properties:
+        code: { type: string }
+        changed: { type: array, items: { type: string } }
+    AdminGiftCategoryEnabled:
+      type: object
+      required: [code, enabled, changed]
+      properties:
+        code: { type: string }
+        enabled: { type: boolean }
+        changed: { type: boolean }
+    AdminGiftCategoryRemoved:
+      type: object
+      required: [code, removed, movedTo, movedGifts]
+      properties:
+        code: { type: string }
+        removed: { type: boolean }
+        movedTo: { type: [string, 'null'] }
+        movedGifts: { type: array, items: { type: string }, description: The gifts moved to `movedTo` (also in the audit row). }
+    AdminGiftUpload:
+      type: object
+      description: (v1.71-social, D207) A stored file — put `key` in the gift / category body.
+      required: [kind, key, url, bytes, contentType]
+      properties:
+        kind: { type: string, enum: [image, animation, sound, icon] }
+        key: { type: string }
+        url: { type: [string, 'null'], description: The public URL (null without MEDIA_PUBLIC_BASE_URL). }
+        bytes: { type: integer, minimum: 1 }
+        contentType: { type: string }
+        format: { type: string, enum: [SVGA, MP4], description: Kind animation. }
+        width: { type: integer, description: 'Images, icons and MP4.' }
+        height: { type: integer }
+        durationMs: { type: integer, description: MP4 and MP3. }
+        detectedAlpha: { type: string, enum: [NONE, SIDE_BY_SIDE], description: MP4 — the suggested «الشفافية» (the admin may override it). }
     AdminBagCatalog:
       type: object
       required:
@@ -20628,15 +21167,45 @@ components:
     # ---- v1.23-live (DRAFT, CP-020): live gifts -----------------------------------------------
     GiftCategory:
       type: string
-      enum: [POPULAR, EVENT, FUN, LUCKY, QUIPS]
-      description: "A gift panel tab: POPULAR (شائعة), EVENT (مناسبات), FUN (مرح); v1.27-live (D132) LUCKY (حظ): lucky gifts (CONVENTIONS §10.27), listed only while lucky gifts are on; v1.32-live (D154) QUIPS (إفيهات): a sound and its line played to the whole room (CONVENTIONS §10.33). The bag (الحقيبة) is `getMyGiftBag`. Clients ignore gifts of categories they do not know."
+      pattern: '^[A-Z][A-Z0-9_]{0,39}$'
+      example: POPULAR
+      description: "A gift panel tab's code. Until v1.46-live the fixed values POPULAR (شائعة), EVENT (مناسبات), FUN (مرح); v1.27-live (D132) LUCKY (الحظ): lucky gifts (CONVENTIONS §10.27), listed only while lucky gifts are on; v1.32-live (D154) QUIPS (إفيهات): a sound and its line played to the whole room (CONVENTIONS §10.33). v1.46-live (D207, §10.66): any code of a category managed in the admin panel (`GiftCatalogue.tabs` names it); the special ones keep the codes LUCKY and QUIPS (their `kind`). The bag (الحقيبة) is `getMyGiftBag`. Clients ignore gifts of categories they do not know."
+    GiftCategoryKind:
+      type: string
+      enum: [NORMAL, LUCKY, QUIPS]
+      description: v1.46-live (D207). What a tab does besides listing gifts. NORMAL a plain tab; LUCKY lucky gifts (§10.27); QUIPS quips (§10.33). Unknown values are NORMAL.
+    GiftCategoryTab:
+      type: object
+      description: v1.46-live (D207, CONVENTIONS §10.66). A gift panel tab, managed in the admin panel.
+      required: [code, kind, name, iconUrl]
+      properties:
+        code: { $ref: '#/components/schemas/GiftCategory' }
+        kind: { $ref: '#/components/schemas/GiftCategoryKind' }
+        name:
+          type: string
+          minLength: 1
+          maxLength: 30
+          description: "Localized by `Accept-Language`, else the caller's locale."
+          example: شائعة
+        iconUrl:
+          type: [string, 'null']
+          format: uri
+          description: The tab's optional icon (PNG/WebP, square), content-addressed and immutable like `Gift.imageUrl`; null for none.
+    GiftAnimationFormat:
+      type: string
+      enum: [SVGA, MP4]
+      description: v1.46-live (D207). The format of `Gift.animationUrl`'s file.
+    GiftVideoAlpha:
+      type: string
+      enum: [NONE, SIDE_BY_SIDE]
+      description: "v1.46-live (D207). How an MP4 effect carries transparency: NONE a plain video (with its background), played full screen as is; SIDE_BY_SIDE the left half is the colour and the right half the alpha mask (the app composites them: the effect's shown width is half the file's)."
     GiftBadge:
       type: string
       enum: [NONE, NEW, EVENT]
       description: The corner badge of a gift in the panel; unknown values show as NONE.
     Gift:
       type: object
-      required: [code, category, name, priceCoins, assetKey, animationKey, imageUrl, animationUrl, animationBytes, sortOrder, badge, tag, quip, pkBooster]
+      required: [code, category, name, priceCoins, assetKey, animationKey, imageUrl, animationUrl, animationBytes, animationFormat, animationAlpha, audioUrl, audioBytes, audioDurationMs, sortOrder, badge, tag, quip, pkBooster]
       properties:
         code: { type: string, pattern: '^[a-z0-9][a-z0-9_]{0,39}$', example: rose }
         category: { $ref: '#/components/schemas/GiftCategory' }
@@ -20669,6 +21238,36 @@ components:
           minimum: 1
           maximum: 26214400
           description: v1.26.2-live (D126). The size of `animationUrl`'s file in bytes (null exactly when `animationUrl` is), so the app can decide whether to prefetch it.
+        animationFormat:
+          description: |
+            v1.46-live (D207): `animationUrl`'s format — SVGA (as before) or MP4 (H.264, at most 8 MB and 15 s) — null
+            exactly when `animationUrl` is. An app that cannot play MP4 shows the image only. Always present; older
+            apps ignore it (and would hand an MP4 to their SVGA player, which fails and falls back to the image).
+          oneOf:
+            - $ref: '#/components/schemas/GiftAnimationFormat'
+            - type: 'null'
+        animationAlpha:
+          description: v1.46-live (D207). An MP4 effect's transparency; null for SVGA and without an effect.
+          oneOf:
+            - $ref: '#/components/schemas/GiftVideoAlpha'
+            - type: 'null'
+        audioUrl:
+          type: [string, 'null']
+          format: uri
+          description: |
+            v1.46-live (D207): the gift's hosted MP3 sound (at most 1 MB and 15 s), played with the effect — or alone
+            when there is none — when the room's sound and the viewer's «مؤثرات الصوت» are on. Content-addressed and
+            immutable like `imageUrl`; null for none (and always for QUIPS, which have `quip`).
+        audioBytes:
+          type: [integer, 'null']
+          minimum: 1
+          maximum: 1048576
+          description: v1.46-live (D207). The size of `audioUrl`'s file (null exactly when it is).
+        audioDurationMs:
+          type: [integer, 'null']
+          minimum: 1
+          maximum: 15000
+          description: v1.46-live (D207). The sound's length (null exactly when `audioUrl` is).
         sortOrder: { type: integer, minimum: 0 }
         badge: { $ref: '#/components/schemas/GiftBadge' }
         tag:
@@ -20720,7 +21319,7 @@ components:
           example: Treasure Box
     GiftCatalogue:
       type: object
-      required: [version, categories, quantities, maxRecipients, comboWindowSeconds, data]
+      required: [version, categories, tabs, quantities, maxRecipients, comboWindowSeconds, data]
       properties:
         version:
           type: string
@@ -20729,7 +21328,13 @@ components:
         categories:
           type: array
           items: { $ref: '#/components/schemas/GiftCategory' }
-          description: The tabs, in display order.
+          description: 'The tabs'' codes, in display order (v1.46-live, D207 — the same as `tabs[].code`; kept for older apps).'
+        tabs:
+          type: array
+          items: { $ref: '#/components/schemas/GiftCategoryTab' }
+          description: |
+            v1.46-live (D207): the tabs in display order (the categories' sort order), only enabled ones (LUCKY only
+            while lucky gifts are on). The app shows `name` (and `iconUrl` when set); the bag is always last.
         quantities:
           type: array
           minItems: 1
@@ -20795,7 +21400,7 @@ components:
     LiveGift:
       type: object
       description: One send, as the response and the `gift` data message carry it (no name; the app takes it from its catalogue).
-      required: [id, roomId, giftCode, assetKey, animationKey, imageUrl, animationUrl, animationBytes, unitPrice, quantity, source, totalCoins, sender, recipients, combo, createdAt]
+      required: [id, roomId, giftCode, assetKey, animationKey, imageUrl, animationUrl, animationBytes, animationFormat, animationAlpha, audioUrl, audioBytes, audioDurationMs, unitPrice, quantity, source, totalCoins, sender, recipients, combo, createdAt]
       properties:
         id: { type: string, format: uuid }
         roomId: { type: string, format: uuid }
@@ -20805,6 +21410,11 @@ components:
         imageUrl: { type: [string, 'null'], format: uri, description: "v1.26.2-live (D126): the gift's hosted image now, as `Gift.imageUrl`." }
         animationUrl: { type: [string, 'null'], format: uri, description: "v1.26.2-live (D126): the gift's hosted SVGA now, as `Gift.animationUrl` (viewers who never opened the panel download it from here)." }
         animationBytes: { type: [integer, 'null'], minimum: 1, maximum: 26214400, description: v1.26.2-live (D126). As `Gift.animationBytes`. }
+        animationFormat: { description: "v1.46-live (D207). As `Gift.animationFormat`.", oneOf: [{ $ref: '#/components/schemas/GiftAnimationFormat' }, { type: 'null' }] }
+        animationAlpha: { description: "v1.46-live (D207). As `Gift.animationAlpha`.", oneOf: [{ $ref: '#/components/schemas/GiftVideoAlpha' }, { type: 'null' }] }
+        audioUrl: { type: [string, 'null'], format: uri, description: "v1.46-live (D207). As `Gift.audioUrl`." }
+        audioBytes: { type: [integer, 'null'], minimum: 1, maximum: 1048576 }
+        audioDurationMs: { type: [integer, 'null'], minimum: 1, maximum: 15000 }
         unitPrice: { type: integer, minimum: 0, description: "The gift's price in coins when it was sent (0: a free quip, v1.32-live)." }
         quantity: { type: integer, minimum: 1, description: Gifts each recipient received. }
         source: { $ref: '#/components/schemas/LiveGiftSource' }
@@ -21256,7 +21866,7 @@ components:
     DmGift:
       type: object
       description: A gift sent in the conversation (the app takes the name from its catalogue).
-      required: [giftCode, assetKey, animationKey, imageUrl, animationUrl, animationBytes, unitPrice, quantity, totalCoins, lucky]
+      required: [giftCode, assetKey, animationKey, imageUrl, animationUrl, animationBytes, animationFormat, animationAlpha, audioUrl, audioBytes, audioDurationMs, unitPrice, quantity, totalCoins, lucky]
       properties:
         giftCode: { type: string, maxLength: 40 }
         assetKey: { type: string, maxLength: 80 }
@@ -21264,6 +21874,11 @@ components:
         imageUrl: { type: [string, 'null'], format: uri }
         animationUrl: { type: [string, 'null'], format: uri }
         animationBytes: { type: [integer, 'null'], minimum: 1 }
+        animationFormat: { description: "v1.46-live (D207). As `Gift.animationFormat`.", oneOf: [{ $ref: '#/components/schemas/GiftAnimationFormat' }, { type: 'null' }] }
+        animationAlpha: { description: "v1.46-live (D207). As `Gift.animationAlpha`.", oneOf: [{ $ref: '#/components/schemas/GiftVideoAlpha' }, { type: 'null' }] }
+        audioUrl: { type: [string, 'null'], format: uri, description: "v1.46-live (D207). As `Gift.audioUrl`." }
+        audioBytes: { type: [integer, 'null'], minimum: 1, maximum: 1048576 }
+        audioDurationMs: { type: [integer, 'null'], minimum: 1, maximum: 15000 }
         unitPrice: { type: integer, minimum: 1 }
         quantity: { type: integer, minimum: 1 }
         totalCoins: { type: integer, format: int64, minimum: 1 }

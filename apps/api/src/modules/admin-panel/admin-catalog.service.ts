@@ -3,15 +3,36 @@ import { AuditService } from '../../common/audit/audit.service.js';
 import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
 import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
-import type { GiftBadge, GiftCategory, EventMetric } from '../../generated/prisma/client.js';
+import type { GiftBadge, EventMetric } from '../../generated/prisma/client.js';
 import { safeErrorLog } from '../../logging/redact-text.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { BagAdminError, grantBagItemByAdminIn, revokeBagItemByAdminIn } from '../bag/bag-admin-rules.js';
 import { HOST_FRAME_CODES } from '../bag/bag.catalogue.js';
 import { addGiftByAdminIn, setGiftEnabledByAdminIn, updateGiftByAdminIn } from '../gifts/gift-admin-rules.js';
-import { giftArtUrl } from '../gifts/gift-art.js';
+import {
+  GiftArtError,
+  giftAnimationFile,
+  giftArtUrl,
+  giftAudioFile,
+  giftCategoryIconFile,
+  GIFT_ANIMATION_MAX_BYTES,
+  GIFT_AUDIO_MAX_BYTES,
+  giftVideoFile,
+  panelGiftImageFile,
+  uploadGiftArt,
+} from '../gifts/gift-art.js';
+import {
+  addGiftCategoryIn,
+  deleteGiftCategoryIn,
+  GiftCategoryError,
+  giftCategoriesWithCounts,
+  setGiftCategoryEnabledIn,
+  updateGiftCategoryIn,
+} from '../gifts/gift-categories.js';
 import {
   compareGifts,
+  GIFT_CATEGORY_CODE_PATTERN,
+  GIFT_CODE_PATTERN,
   giftFieldProblems,
   GiftFieldsError,
   type GiftFields,
@@ -33,7 +54,13 @@ async function rule<T>(step: () => Promise<T>): Promise<T> {
   try {
     return await step();
   } catch (err) {
-    if (err instanceof GiftFieldsError || err instanceof BagAdminError || err instanceof EventAdminError) {
+    if (
+      err instanceof GiftFieldsError ||
+      err instanceof GiftCategoryError ||
+      err instanceof GiftArtError ||
+      err instanceof BagAdminError ||
+      err instanceof EventAdminError
+    ) {
       throw refused(err.message);
     }
     throw err;
@@ -41,7 +68,7 @@ async function rule<T>(step: () => Promise<T>): Promise<T> {
 }
 
 export interface GiftInput {
-  category?: GiftCategory | undefined;
+  category?: string | undefined;
   nameAr?: string | undefined;
   nameEn?: string | undefined;
   priceCoins?: number | undefined;
@@ -55,11 +82,33 @@ export interface GiftInput {
   soundKey?: string | null | undefined;
   soundMs?: number | null | undefined;
   quipText?: string | null | undefined;
+  /** v1.71-social (D207): uploaded files (`POST /admin/gift-uploads`); null removes. */
+  imageObjectKey?: string | null | undefined;
+  animationObjectKey?: string | null | undefined;
+  animationAlpha?: 'NONE' | 'SIDE_BY_SIDE' | undefined;
+  audioObjectKey?: string | null | undefined;
 }
+
+export interface GiftCategoryInput {
+  nameAr?: string | undefined;
+  nameEn?: string | undefined;
+  sortOrder?: number | undefined;
+  enabled?: boolean | undefined;
+  iconObjectKey?: string | null | undefined;
+}
+
+export type GiftUploadKind = 'image' | 'animation' | 'sound' | 'icon';
 
 /** The fields given (undefined = not given), as the catalogue's `Partial<GiftFields>`. */
 function given(input: GiftInput): Partial<GiftFields> {
-  return Object.fromEntries(Object.entries(input).filter(([, v]) => v !== undefined));
+  const {
+    imageObjectKey: _i,
+    animationObjectKey: _a,
+    animationAlpha: _al,
+    audioObjectKey: _s,
+    ...rest
+  } = input;
+  return Object.fromEntries(Object.entries(rest).filter(([, v]) => v !== undefined));
 }
 
 /**
@@ -88,39 +137,316 @@ export class AdminCatalogService {
   // ---- gifts ----------------------------------------------------------------------------------------------------
 
   async gifts() {
-    const [rows, sends] = await Promise.all([
+    const [rows, sends, tabs] = await Promise.all([
       this.prisma.gift.findMany(),
       this.prisma.liveGift.groupBy({ by: ['giftCode'], _count: true, _sum: { totalCoins: true } }),
+      this.prisma.giftCategory.findMany({ orderBy: [{ sortOrder: 'asc' }, { code: 'asc' }] }),
     ]);
     const used = new Map(sends.map((s) => [s.giftCode, s]));
     const base = this.config.media.publicBaseUrl;
+    const order = tabs.map((t) => t.code);
     return {
       coinRetailUsdPerMillion: this.config.economy.coinRetailUsdPerMillion,
-      data: rows.sort(compareGifts).map((g) => ({
-        code: g.code,
-        category: g.category,
-        nameAr: g.nameAr,
-        nameEn: g.nameEn,
-        priceCoins: g.priceCoins,
-        priceUsd: this.usd(g.priceCoins),
-        assetKey: g.assetKey,
-        animationKey: g.animationKey,
-        imageUrl: giftArtUrl(base, g.imageObjectKey),
-        hostedAnimation: g.animationObjectKey !== null,
-        sortOrder: g.sortOrder,
-        badge: g.badge,
-        lucky: g.category === 'LUCKY',
-        tagCode: g.tagCode,
-        tagNameAr: g.tagNameAr,
-        tagNameEn: g.tagNameEn,
-        soundKey: g.soundKey,
-        soundMs: g.soundMs,
-        quipText: g.quipText,
-        enabled: g.enabled,
-        sends: used.get(g.code)?._count ?? 0,
-        coinsSpent: Number(used.get(g.code)?._sum.totalCoins ?? 0n),
+      // v1.71-social (D207): the categories (for the form's choice), in tab order.
+      categories: tabs.map((t) => ({
+        code: t.code,
+        kind: t.kind,
+        nameAr: t.nameAr,
+        nameEn: t.nameEn,
+        enabled: t.enabled,
+      })),
+      // v1.71-social (D207): whether uploads can be stored (S3 settings present) and shown (public URL set).
+      uploads: {
+        storage: Boolean(
+          this.config.media.s3.bucket &&
+          this.config.media.s3.accessKeyId &&
+          this.config.media.s3.secretAccessKey,
+        ),
+        publicUrls: base !== undefined,
+      },
+      data: rows
+        .sort((a, b) => compareGifts(a, b, order))
+        .map((g) => ({
+          code: g.code,
+          category: g.category,
+          nameAr: g.nameAr,
+          nameEn: g.nameEn,
+          priceCoins: g.priceCoins,
+          priceUsd: this.usd(g.priceCoins),
+          assetKey: g.assetKey,
+          animationKey: g.animationKey,
+          imageUrl: giftArtUrl(base, g.imageObjectKey),
+          hostedAnimation: g.animationObjectKey !== null,
+          imageObjectKey: g.imageObjectKey,
+          animationObjectKey: g.animationObjectKey,
+          animationUrl: giftArtUrl(base, g.animationObjectKey),
+          animationFormat: g.animationObjectKey === null ? null : (g.animationFormat ?? 'SVGA'),
+          animationAlpha: g.animationAlpha,
+          animationBytes: g.animationBytes,
+          audioObjectKey: g.audioObjectKey,
+          audioUrl: giftArtUrl(base, g.audioObjectKey),
+          audioMs: g.audioMs,
+          sortOrder: g.sortOrder,
+          badge: g.badge,
+          lucky: g.category === 'LUCKY',
+          tagCode: g.tagCode,
+          tagNameAr: g.tagNameAr,
+          tagNameEn: g.tagNameEn,
+          soundKey: g.soundKey,
+          soundMs: g.soundMs,
+          quipText: g.quipText,
+          enabled: g.enabled,
+          sends: used.get(g.code)?._count ?? 0,
+          coinsSpent: Number(used.get(g.code)?._sum.totalCoins ?? 0n),
+        })),
+    };
+  }
+
+  /**
+   * v1.71-social (D207): the gift fields set by uploaded files named in a create / update body — each key must be
+   * one `POST /admin/gift-uploads` answered for this gift (its folder) and exist in storage; the effect's format
+   * comes from its extension and its size from storage, the sound's length from re-reading it. null removes.
+   */
+  private async mediaFields(code: string, input: GiftInput): Promise<Partial<GiftFields>> {
+    const fields: { -readonly [K in keyof GiftFields]?: GiftFields[K] } = {};
+    const folder = `media/gifts/${code}/`;
+    const own = (key: string) => {
+      if (!key.startsWith(folder)) throw refused('That file was uploaded for another gift.');
+    };
+    const missing = () => refused('The uploaded file is not in storage any more; upload it again.');
+    if (input.imageObjectKey !== undefined) {
+      if (input.imageObjectKey !== null) {
+        own(input.imageObjectKey);
+        if (!(await this.storage.head(input.imageObjectKey))) throw missing();
+      }
+      fields.imageObjectKey = input.imageObjectKey;
+    }
+    if (input.animationObjectKey !== undefined) {
+      if (input.animationObjectKey === null) {
+        Object.assign(fields, {
+          animationObjectKey: null,
+          animationBytes: null,
+          animationFormat: null,
+          animationAlpha: null,
+        });
+      } else {
+        own(input.animationObjectKey);
+        const head = await this.storage.head(input.animationObjectKey);
+        if (!head) throw missing();
+        const mp4 = input.animationObjectKey.endsWith('.mp4');
+        if (mp4 && input.animationAlpha === undefined) {
+          throw refused('Choose the MP4 transparency (none or side-by-side).');
+        }
+        if (!mp4 && input.animationAlpha !== undefined)
+          throw refused('Only an MP4 effect has a transparency.');
+        Object.assign(fields, {
+          animationObjectKey: input.animationObjectKey,
+          animationBytes: head.size,
+          animationFormat: mp4 ? 'MP4' : 'SVGA',
+          animationAlpha: mp4 ? input.animationAlpha : null,
+        });
+      }
+    } else if (input.animationAlpha !== undefined) {
+      // Only the transparency of the gift's current MP4 changes.
+      fields.animationAlpha = input.animationAlpha;
+    }
+    if (input.audioObjectKey !== undefined) {
+      if (input.audioObjectKey === null) {
+        Object.assign(fields, { audioObjectKey: null, audioBytes: null, audioMs: null });
+      } else {
+        own(input.audioObjectKey);
+        const body = await this.storage.get(input.audioObjectKey, GIFT_AUDIO_MAX_BYTES);
+        if (!body) throw missing();
+        const file = giftAudioFile(code, body);
+        Object.assign(fields, {
+          audioObjectKey: input.audioObjectKey,
+          audioBytes: file.size,
+          audioMs: file.durationMs,
+        });
+      }
+    }
+    return fields;
+  }
+
+  /**
+   * v1.71-social (D207): checks one uploaded file (the body's bytes) for `kind` and stores it at its content-addressed
+   * key; answers the key, its public URL (null without MEDIA_PUBLIC_BASE_URL) and what was read from it. Nothing is
+   * stored for a refused file (409 with the reason); without storage settings 503. The gift / category change that
+   * names the key is the audited step.
+   */
+  async upload(kind: GiftUploadKind, code: string, body: unknown) {
+    if (!Buffer.isBuffer(body) || body.length === 0) throw refused('The file is empty.');
+    const pattern = kind === 'icon' ? GIFT_CATEGORY_CODE_PATTERN : GIFT_CODE_PATTERN;
+    if (!pattern.test(code)) {
+      throw AppException.validation([{ field: 'code', issue: 'invalid_format' }]);
+    }
+    const base = this.config.media.publicBaseUrl;
+    try {
+      switch (kind) {
+        case 'image': {
+          const file = await panelGiftImageFile(code, body);
+          await uploadGiftArt(this.storage, file);
+          return {
+            kind,
+            key: file.key,
+            url: giftArtUrl(base, file.key),
+            bytes: file.size,
+            contentType: file.contentType,
+            width: file.width,
+            height: file.height,
+          };
+        }
+        case 'icon': {
+          const file = await giftCategoryIconFile(code, body);
+          await uploadGiftArt(this.storage, file);
+          return {
+            kind,
+            key: file.key,
+            url: giftArtUrl(base, file.key),
+            bytes: file.size,
+            contentType: file.contentType,
+            width: file.width,
+            height: file.height,
+          };
+        }
+        case 'sound': {
+          const file = giftAudioFile(code, body);
+          await uploadGiftArt(this.storage, file);
+          return {
+            kind,
+            key: file.key,
+            url: giftArtUrl(base, file.key),
+            bytes: file.size,
+            contentType: file.contentType,
+            durationMs: file.durationMs,
+          };
+        }
+        case 'animation': {
+          if (body.length >= 8 && body.toString('latin1', 4, 8) === 'ftyp') {
+            const file = await giftVideoFile(code, body);
+            await uploadGiftArt(this.storage, file);
+            return {
+              kind,
+              key: file.key,
+              url: giftArtUrl(base, file.key),
+              bytes: file.size,
+              contentType: file.contentType,
+              format: 'MP4' as const,
+              width: file.width,
+              height: file.height,
+              durationMs: file.durationMs,
+              detectedAlpha: file.detectedAlpha,
+            };
+          }
+          const file = giftAnimationFile(code, body);
+          await uploadGiftArt(this.storage, file);
+          return {
+            kind,
+            key: file.key,
+            url: giftArtUrl(base, file.key),
+            bytes: file.size,
+            contentType: file.contentType,
+            format: 'SVGA' as const,
+          };
+        }
+      }
+    } catch (err) {
+      if (err instanceof GiftArtError) throw refused(err.message);
+      throw err;
+    }
+  }
+
+  /**
+   * v1.71-social (D207): a stored gift file's bytes and type, for the panel's preview from its own origin (the panel's
+   * CSP allows media only from 'self'; the canvas that composites a side-by-side MP4 needs same-origin pixels).
+   */
+  async file(key: string): Promise<{ body: Buffer; contentType: string }> {
+    const body = await this.storage.get(key, GIFT_ANIMATION_MAX_BYTES);
+    if (!body) throw new AppException(ErrorCode.NOT_FOUND);
+    const ext = key.slice(key.lastIndexOf('.') + 1);
+    const contentType =
+      { png: 'image/png', webp: 'image/webp', mp4: 'video/mp4', mp3: 'audio/mpeg' }[ext] ??
+      'application/octet-stream';
+    return { body, contentType };
+  }
+
+  // ---- gift categories (v1.71-social, D207, §10.66) ----------------------------------------------------------
+
+  async giftCategories() {
+    const rows = await giftCategoriesWithCounts(this.prisma);
+    const base = this.config.media.publicBaseUrl;
+    return {
+      data: rows.map((c) => ({
+        code: c.code,
+        kind: c.kind,
+        nameAr: c.nameAr,
+        nameEn: c.nameEn,
+        sortOrder: c.sortOrder,
+        enabled: c.enabled,
+        iconObjectKey: c.iconObjectKey,
+        iconUrl: giftArtUrl(base, c.iconObjectKey),
+        gifts: c.gifts,
+        enabledGifts: c.enabledGifts,
+        special: c.kind !== 'NORMAL',
       })),
     };
+  }
+
+  private async iconOk(code: string, key: string | null | undefined): Promise<void> {
+    if (key === undefined || key === null) return;
+    if (!key.startsWith(`media/gift-categories/${code}/`))
+      throw refused('That icon was uploaded for another category.');
+    if (!(await this.storage.head(key)))
+      throw refused('The uploaded icon is not in storage any more; upload it again.');
+  }
+
+  async createGiftCategory(code: string, input: GiftCategoryInput & { reason: string }, ctx: AdminContext) {
+    await this.iconOk(code, input.iconObjectKey);
+    const row = await rule(() =>
+      this.prisma.$transaction((tx) =>
+        addGiftCategoryIn(
+          tx,
+          code,
+          {
+            nameAr: input.nameAr!,
+            nameEn: input.nameEn!,
+            sortOrder: input.sortOrder ?? 0,
+            ...(input.enabled !== undefined ? { enabled: input.enabled } : {}),
+            iconObjectKey: input.iconObjectKey ?? null,
+          },
+          viaOf(ctx),
+          input.reason,
+        ),
+      ),
+    );
+    return { code: row.code, created: true };
+  }
+
+  async updateGiftCategory(code: string, input: GiftCategoryInput & { reason: string }, ctx: AdminContext) {
+    await this.iconOk(code, input.iconObjectKey);
+    const { reason, enabled: _e, ...rest } = input;
+    const fields = Object.fromEntries(Object.entries(rest).filter(([, v]) => v !== undefined));
+    const changed = await rule(() =>
+      this.prisma.$transaction((tx) => updateGiftCategoryIn(tx, code, fields, viaOf(ctx), reason)),
+    );
+    if (changed === null) throw new AppException(ErrorCode.NOT_FOUND);
+    return { code, changed };
+  }
+
+  async setGiftCategoryEnabled(code: string, enabled: boolean, reason: string, ctx: AdminContext) {
+    const changed = await rule(() =>
+      this.prisma.$transaction((tx) => setGiftCategoryEnabledIn(tx, code, enabled, viaOf(ctx), reason)),
+    );
+    if (changed === null) throw new AppException(ErrorCode.NOT_FOUND);
+    return { code, enabled, changed };
+  }
+
+  async removeGiftCategory(code: string, moveTo: string | null, reason: string, ctx: AdminContext) {
+    const done = await rule(() =>
+      this.prisma.$transaction((tx) => deleteGiftCategoryIn(tx, code, moveTo, viaOf(ctx), reason)),
+    );
+    if (done === null) throw new AppException(ErrorCode.NOT_FOUND);
+    return { code, removed: true, movedTo: done.moved.length > 0 ? moveTo : null, movedGifts: done.moved };
   }
 
   async createGift(code: string, input: GiftInput & { reason: string }, ctx: AdminContext) {
@@ -130,7 +456,8 @@ export class AdminCatalogService {
       nameAr: rest.nameAr!,
       nameEn: rest.nameEn!,
       priceCoins: rest.priceCoins!,
-      assetKey: rest.assetKey!,
+      // v1.71-social (D207): without a bundled key the gift's code (the app then shows the hosted image).
+      assetKey: rest.assetKey ?? code,
       animationKey: rest.animationKey ?? null,
       sortOrder: rest.sortOrder ?? 0,
       badge: rest.badge ?? 'NONE',
@@ -143,6 +470,8 @@ export class AdminCatalogService {
     };
     const problems = giftFieldProblems(fields);
     if (problems.length > 0) throw refused(problems.join('; '));
+    if (!rest.imageObjectKey) throw refused('The gift needs its picture «صورة الهدية».');
+    Object.assign(fields, await rule(() => this.mediaFields(code, rest)));
     const created = await rule(() =>
       this.prisma.$transaction((tx) => addGiftByAdminIn(tx, code, fields, viaOf(ctx), reason)),
     );
@@ -155,6 +484,9 @@ export class AdminCatalogService {
     const fields = given(rest);
     const problems = giftFieldProblems(fields);
     if (problems.length > 0) throw refused(problems.join('; '));
+    if (rest.imageObjectKey === null)
+      throw refused('The gift needs its picture «صورة الهدية»; replace it instead.');
+    Object.assign(fields, await rule(() => this.mediaFields(code, rest)));
     const changed = await rule(() =>
       this.prisma.$transaction((tx) => updateGiftByAdminIn(tx, code, fields, viaOf(ctx), reason)),
     );

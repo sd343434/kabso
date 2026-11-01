@@ -9,6 +9,7 @@
 import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { promisify } from 'node:util';
+import sharp from 'sharp';
 import type request from 'supertest';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { CAPABILITIES, PANEL_ROLES, type Capability } from '../src/modules/admin-panel/admin-permissions.js';
@@ -746,6 +747,18 @@ describe('D197 admin panel v2', { timeout: 600_000 }, () => {
 
   describe('gifts and items', () => {
     it('gift CRUD through the gift-admin rule, each change audited with before/after and the reason', async () => {
+      // v1.71-social (D207): «صورة الهدية» is uploaded first and required to create a gift in the panel.
+      const picture = await ctx.http
+        .post('/api/v1/admin/gift-uploads?kind=image&code=d197_star')
+        .set('Cookie', owner.cookie)
+        .set('X-CSRF-Token', owner.csrf)
+        .set('Content-Type', 'application/octet-stream')
+        .send(
+          await sharp({ create: { width: 160, height: 160, channels: 3, background: '#c39' } })
+            .png()
+            .toBuffer(),
+        );
+      expect(picture.status, JSON.stringify(picture.body)).toBe(201);
       const body = {
         code: 'd197_star',
         category: 'LUCKY',
@@ -753,6 +766,7 @@ describe('D197 admin panel v2', { timeout: 600_000 }, () => {
         nameEn: 'Star',
         priceCoins: 500,
         assetKey: 'gifts/star',
+        imageObjectKey: picture.body.key as string,
         badge: 'NEW',
         reason: 'autumn drop',
       };

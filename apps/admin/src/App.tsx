@@ -5,6 +5,7 @@ import { Levels, SpecialUsernames, Tasks, Waitlist } from './pages/Programs';
 import { Team } from './pages/Team';
 import { Cards, Report, AgentTopups } from './pages/Finance';
 import { Gifts, Items, Promo } from './pages/Catalog';
+import { GiftCategories } from './pages/GiftCategories';
 import { Hosts, Lives } from './pages/Lives';
 import { AgencyDetail, Agencies, Complaints } from './pages/Agencies';
 import { CAP_OF_ROUTE } from './nav';
@@ -180,6 +181,9 @@ export function App() {
           break;
         case 'gifts':
           page = <Gifts />;
+          break;
+        case 'giftCategories':
+          page = <GiftCategories />;
           break;
         case 'items':
           page = <Items />;

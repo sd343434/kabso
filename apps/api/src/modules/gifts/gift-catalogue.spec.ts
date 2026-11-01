@@ -3,12 +3,12 @@ import { describe, expect, it } from 'vitest';
 import {
   catalogueVersion,
   compareGifts,
-  GIFT_CATEGORIES,
   GIFT_CODE_PATTERN,
   GIFT_TAG_CODE_PATTERN,
   giftFieldProblems,
   giftQuipProblem,
   giftTagProblem,
+  SEEDED_GIFT_CATEGORIES,
 } from './gift-catalogue.js';
 
 const migration = readFileSync(
@@ -66,7 +66,7 @@ describe('gift catalogue (CP-020)', () => {
     expect(luckyMigration).toContain(`ALTER TYPE "gift_category" ADD VALUE 'LUCKY';`);
     // v1.32-live (D154): QUIPS likewise, after LUCKY.
     expect(quipsEnumMigration).toContain(`ALTER TYPE "gift_category" ADD VALUE 'QUIPS';`);
-    expect(GIFT_CATEGORIES).toEqual(['POPULAR', 'EVENT', 'FUN', 'LUCKY', 'QUIPS']);
+    expect(SEEDED_GIFT_CATEGORIES).toEqual(['POPULAR', 'EVENT', 'FUN', 'LUCKY', 'QUIPS']);
     expect(migration).toContain(`CHECK (code ~ '${GIFT_CODE_PATTERN.source}')`);
   });
 
@@ -81,7 +81,7 @@ describe('gift catalogue (CP-020)', () => {
     expect(giftFieldProblems({ assetKey: 'bad key' })).toHaveLength(1);
     expect(giftFieldProblems({ animationKey: null })).toEqual([]);
     expect(giftFieldProblems({ animationKey: 'fx/rose.svga' })).toEqual([]);
-    expect(giftFieldProblems({ category: 'HATS' as never, badge: 'HOT' as never })).toHaveLength(2);
+    expect(giftFieldProblems({ category: 'hats', badge: 'HOT' as never })).toHaveLength(2);
     expect(giftFieldProblems({ sortOrder: -1 })).toHaveLength(1);
   });
 

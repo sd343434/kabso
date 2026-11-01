@@ -44,7 +44,9 @@ export type Capability =
   // v1.69-social (D204).
   | 'recharge.disputes'
   | 'recharge.disputes.resolve'
-  | 'recharge.rates';
+  | 'recharge.rates'
+  // v1.71-social (D207)
+  | 'gifts.categories';
 
 export interface AdminSessionInfo {
   admin: { id: string; email: string; username: string; displayName: string };

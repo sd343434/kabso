@@ -46,6 +46,15 @@
  * readable where the CLI runs (on the server: mounted into the job container, DEPLOYMENT §5.7).
  * The bundled `--asset` / `--animation` stay the fallback. Replaced files stay in the bucket.
  *
+ * v1.46-live (D207, CONVENTIONS §10.66): the categories (the panel's tabs) are rows of `gift_categories`, managed
+ * here and in the admin panel: `categories` lists them, `category-add <CODE> --name-ar --name-en [--sort n]
+ * [--icon <file>] [--disabled]`, `category-update <CODE> [--name-ar] [--name-en] [--sort n] [--icon <file>|none]`,
+ * `category-enable|category-disable <CODE>` (not LUCKY / QUIPS) and `category-delete <CODE> [--move-to <CODE>]`
+ * (refused while it has gifts, unless they are moved to another NORMAL category first; never LUCKY / QUIPS).
+ * `--category` takes any category code. `--animation-file` takes an SVGA 2.x or an MP4 (H.264, ≤ 8 MB, ≤ 15 s;
+ * `--alpha none|side-by-side`, default detected: side-by-side when the width is ≥ 1.8 × the height), and
+ * `--sound-file <file.mp3>|none` a hosted MP3 sound (≤ 1 MB, ≤ 15 s; not for QUIPS).
+ *
  * Every change writes an audit_logs row in the same transaction (`gift.add`, `gift.update`,
  * `gift.disable`, `gift.enable`, `gift.grant`). A command that changes nothing exits 0 and says so;
  * a bad argument or an unknown gift or user exits 1.
@@ -54,12 +63,7 @@ import 'dotenv/config';
 import { readFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 import { PrismaPg } from '@prisma/adapter-pg';
-import {
-  PrismaClient,
-  type GiftBadge,
-  type GiftCategory,
-  type PkBoosterKind,
-} from '../generated/prisma/client.js';
+import { PrismaClient, type GiftBadge, type PkBoosterKind } from '../generated/prisma/client.js';
 import { AuditAction } from '../common/audit/audit.service.js';
 import type { AppConfig } from '../config/app-config.js';
 import type { ObjectStorage } from '../modules/media/object-storage.js';
@@ -68,17 +72,31 @@ import {
   GiftArtError,
   giftAnimationFile,
   giftArtUrl,
+  giftAudioFile,
+  giftCategoryIconFile,
   giftImageFile,
+  giftVideoFile,
   uploadGiftArt,
   type GiftArtFile,
 } from '../modules/gifts/gift-art.js';
 import {
+  addGiftCategoryIn,
+  deleteGiftCategoryIn,
+  GiftCategoryError,
+  giftCategoriesWithCounts,
+  setGiftCategoryEnabledIn,
+  updateGiftCategoryIn,
+  type GiftCategoryFields,
+} from '../modules/gifts/gift-categories.js';
+import {
   compareGifts,
+  GIFT_CATEGORY_CODE_PATTERN,
   GIFT_CODE_PATTERN,
   GIFT_STOCK_MAX,
   giftFieldProblems,
   addGiftIn,
   GiftFieldsError,
+  giftMediaProblem,
   giftPkBoosterProblem,
   giftQuipProblem,
   PK_BOOSTER_PACK,
@@ -100,12 +118,18 @@ function fail(message: string): never {
 }
 
 const USAGE = [
-  'Usage: pnpm gift:admin add <code> --category POPULAR|EVENT|FUN|LUCKY --name-ar <text> --name-en <text>',
+  'Usage: pnpm gift:admin add <code> --category <CATEGORY> --name-ar <text> --name-en <text>',
   '         --price <coins> --asset <assetKey> [--animation <key>] [--sort <n>] [--badge NONE|NEW|EVENT]',
   '         [--tag <tagCode> --tag-ar <text> --tag-en <text>]',
-  '         [--image <file.png|webp>] [--animation-file <file.svga>]',
+  '         [--image <file.png|webp>] [--animation-file <file.svga|mp4> [--alpha none|side-by-side]]',
+  '         [--sound-file <file.mp3>]',
   '       pnpm gift:admin update <code> [options of add; --animation none / --tag none /',
-  '         --image none / --animation-file none remove them]',
+  '         --image none / --animation-file none / --sound-file none remove them]',
+  '       pnpm gift:admin categories',
+  '       pnpm gift:admin category-add <CODE> --name-ar <text> --name-en <text> [--sort <n>] [--icon <file>] [--disabled]',
+  '       pnpm gift:admin category-update <CODE> [--name-ar <text>] [--name-en <text>] [--sort <n>] [--icon <file>|none]',
+  '       pnpm gift:admin category-enable|category-disable <CODE>',
+  '       pnpm gift:admin category-delete <CODE> [--move-to <CODE>]',
   '       pnpm gift:admin disable|enable <code>',
   '       pnpm gift:admin list',
   '       pnpm gift:admin grant <email> <code> <quantity>',
@@ -136,6 +160,8 @@ const OPTIONS = {
   'tag-en': { type: 'string' },
   image: { type: 'string' },
   'animation-file': { type: 'string' },
+  alpha: { type: 'string' },
+  'sound-file': { type: 'string' },
   sound: { type: 'string' },
   'sound-ms': { type: 'string' },
   'quip-text': { type: 'string' },
@@ -146,6 +172,9 @@ const OPTIONS = {
 interface ArtOptions {
   readonly image?: string;
   readonly animationFile?: string;
+  /** v1.46-live (D207): an MP4's transparency (`none` | `side-by-side`); default: detected. */
+  readonly alpha?: string;
+  readonly soundFile?: string;
 }
 
 /** Object storage from the API's own settings, or null when they are not all set. */
@@ -195,11 +224,50 @@ async function uploadArt(code: string, art: ArtOptions): Promise<Partial<GiftFie
     if (art.animationFile === 'none') {
       fields.animationObjectKey = null;
       fields.animationBytes = null;
+      fields.animationFormat = null;
+      fields.animationAlpha = null;
     } else if (art.animationFile !== undefined) {
-      const file = giftAnimationFile(code, await readArt(art.animationFile, 'animation'));
-      files.push({ file, what: 'animation' });
-      fields.animationObjectKey = file.key;
-      fields.animationBytes = file.size;
+      const body = await readArt(art.animationFile, 'animation');
+      // v1.46-live (D207): an MP4 (an `ftyp` box first) or an SVGA.
+      if (body.length >= 8 && body.toString('latin1', 4, 8) === 'ftyp') {
+        const file = await giftVideoFile(code, body);
+        files.push({ file, what: 'animation' });
+        fields.animationObjectKey = file.key;
+        fields.animationBytes = file.size;
+        fields.animationFormat = 'MP4';
+        fields.animationAlpha =
+          art.alpha === undefined
+            ? file.detectedAlpha
+            : art.alpha === 'side-by-side'
+              ? 'SIDE_BY_SIDE'
+              : 'NONE';
+        process.stdout.write(
+          `MP4 ${String(file.width)}×${String(file.height)} ${String(file.durationMs)} ms; transparency ` +
+            `${fields.animationAlpha === 'SIDE_BY_SIDE' ? 'side-by-side' : 'none'}` +
+            `${art.alpha === undefined ? ' (detected)' : ''}\n`,
+        );
+      } else {
+        if (art.alpha !== undefined) fail('--alpha is for an MP4 effect.');
+        const file = giftAnimationFile(code, body);
+        files.push({ file, what: 'animation' });
+        fields.animationObjectKey = file.key;
+        fields.animationBytes = file.size;
+        fields.animationFormat = 'SVGA';
+        fields.animationAlpha = null;
+      }
+    } else if (art.alpha !== undefined) {
+      fail('--alpha goes with --animation-file <file.mp4>.');
+    }
+    if (art.soundFile === 'none') {
+      fields.audioObjectKey = null;
+      fields.audioBytes = null;
+      fields.audioMs = null;
+    } else if (art.soundFile !== undefined) {
+      const file = giftAudioFile(code, await readArt(art.soundFile, 'sound'));
+      files.push({ file, what: 'sound' });
+      fields.audioObjectKey = file.key;
+      fields.audioBytes = file.size;
+      fields.audioMs = file.durationMs;
     }
   } catch (err) {
     if (err instanceof GiftArtError) fail(err.message);
@@ -209,7 +277,7 @@ async function uploadArt(code: string, art: ArtOptions): Promise<Partial<GiftFie
   const storage = storageFromEnv();
   if (!storage) {
     fail(
-      '--image / --animation-file need S3_BUCKET, S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY ' +
+      '--image / --animation-file / --sound-file / --icon need S3_BUCKET, S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY ' +
         '(and S3_ENDPOINT for R2/MinIO), as the API has them.',
     );
   }
@@ -248,7 +316,7 @@ function optionsFrom(args: readonly string[]): { fields: Partial<GiftFields>; ar
     fail(`${err instanceof Error ? err.message : String(err)}\n${USAGE}`);
   }
   const fields: { -readonly [K in keyof GiftFields]?: GiftFields[K] } = {};
-  if (values.category !== undefined) fields.category = values.category as GiftCategory;
+  if (values.category !== undefined) fields.category = values.category;
   if (values['name-ar'] !== undefined) fields.nameAr = values['name-ar'];
   if (values['name-en'] !== undefined) fields.nameEn = values['name-en'];
   if (values.price !== undefined) fields.priceCoins = wholeNumber(values.price, 'The price');
@@ -279,11 +347,22 @@ function optionsFrom(args: readonly string[]): { fields: Partial<GiftFields>; ar
     fields.pkBooster = values['pk-booster'] === 'none' ? null : (values['pk-booster'] as PkBoosterKind);
   }
   const problems = giftFieldProblems(fields);
-  for (const option of ['image', 'animation-file'] as const) {
+  if (values.alpha !== undefined && values.alpha !== 'none' && values.alpha !== 'side-by-side') {
+    problems.push('--alpha is none or side-by-side');
+  }
+  for (const option of ['image', 'animation-file', 'sound-file'] as const) {
     if (values[option] === '') problems.push(`--${option} needs a file (or none)`);
   }
   if (problems.length > 0) fail(problems.join('\n'));
-  return { fields, art: { image: values.image, animationFile: values['animation-file'] } };
+  return {
+    fields,
+    art: {
+      image: values.image,
+      animationFile: values['animation-file'],
+      alpha: values.alpha,
+      soundFile: values['sound-file'],
+    },
+  };
 }
 
 function giftCode(raw: string | undefined): string {
@@ -307,7 +386,9 @@ async function add(code: string, args: readonly string[]): Promise<void> {
     (k) => options[k] === undefined,
   );
   if (missing.length > 0) fail(`Missing: ${missing.join(', ')}.\n${USAGE}`);
-  if (art.image === 'none' || art.animationFile === 'none') fail(`none is for update.\n${USAGE}`);
+  if (art.image === 'none' || art.animationFile === 'none' || art.soundFile === 'none') {
+    fail(`none is for update.\n${USAGE}`);
+  }
   const fields: GiftFields = {
     category: options.category!,
     nameAr: options.nameAr!,
@@ -330,16 +411,35 @@ async function add(code: string, args: readonly string[]): Promise<void> {
   if (await prisma.gift.findUnique({ where: { code }, select: { code: true } })) {
     fail(`A gift ${code} exists already; use update.`);
   }
+  if (!(await prisma.giftCategory.findUnique({ where: { code: fields.category }, select: { code: true } }))) {
+    fail(`There is no gift category ${fields.category} (see: gift-admin categories).`);
+  }
+  if (art.soundFile !== undefined && fields.category === 'QUIPS') {
+    fail('A QUIPS gift has its own --sound; no --sound-file.');
+  }
   Object.assign(fields, await uploadArt(code, art));
+  const mediaProblem = giftMediaProblem(fields);
+  if (mediaProblem !== null) fail(`${mediaProblem}.\n${USAGE}`);
   // v1.65-social (D197): the audited rule is shared with the admin panel (gift-admin-rules.ts).
-  const added = await prisma.$transaction((tx) => addGiftByAdminIn(tx, code, fields));
+  let added: boolean;
+  try {
+    added = await prisma.$transaction((tx) => addGiftByAdminIn(tx, code, fields));
+  } catch (err) {
+    if (err instanceof GiftFieldsError) fail(`${err.message}.\n${USAGE}`);
+    throw err;
+  }
   if (!added) fail(`A gift ${code} exists already; use update.`);
   process.stdout.write(`+${code} (${fields.category}, ${String(fields.priceCoins)} coins).\n`);
 }
 
 async function update(code: string, args: readonly string[]): Promise<void> {
   const { fields: options, art } = optionsFrom(args);
-  if (Object.keys(options).length === 0 && art.image === undefined && art.animationFile === undefined) {
+  if (
+    Object.keys(options).length === 0 &&
+    art.image === undefined &&
+    art.animationFile === undefined &&
+    art.soundFile === undefined
+  ) {
     fail(`Nothing to update.\n${USAGE}`);
   }
   if (!(await prisma.gift.findUnique({ where: { code }, select: { code: true } }))) fail(`No gift ${code}.`);
@@ -364,8 +464,18 @@ async function setEnabled(code: string, enabled: boolean): Promise<void> {
   process.stdout.write(changed ? `${code}: ${state}.\n` : `${code} is already ${state}; nothing changed.\n`);
 }
 
+/** v1.46-live (D207): the category codes in tab order (for sorting lists). */
+async function tabOrder(): Promise<string[]> {
+  const rows = await prisma.giftCategory.findMany({
+    orderBy: [{ sortOrder: 'asc' }, { code: 'asc' }],
+    select: { code: true },
+  });
+  return rows.map((r) => r.code);
+}
+
 async function list(): Promise<void> {
-  const gifts = (await prisma.gift.findMany()).sort(compareGifts);
+  const tabs = await tabOrder();
+  const gifts = (await prisma.gift.findMany()).sort((a, b) => compareGifts(a, b, tabs));
   if (gifts.length === 0) {
     process.stdout.write('No gifts.\n');
     return;
@@ -378,6 +488,10 @@ async function list(): Promise<void> {
         `tag=${g.tagCode === null ? 'none' : `${g.tagCode} "${g.tagNameAr ?? ''}" / "${g.tagNameEn ?? ''}"`} ` +
         `image=${g.imageObjectKey ?? 'none'} ` +
         `animation-file=${g.animationObjectKey === null ? 'none' : `${g.animationObjectKey} (${String(g.animationBytes)} bytes)`}` +
+        (g.animationFormat === 'MP4'
+          ? ` transparency=${g.animationAlpha === 'SIDE_BY_SIDE' ? 'side-by-side' : 'none'}`
+          : '') +
+        (g.audioObjectKey === null ? '' : ` sound-file=${g.audioObjectKey} (${String(g.audioMs)} ms)`) +
         (g.pkBooster === null ? '' : ` pk-booster=${g.pkBooster}`) +
         (g.soundKey === null
           ? ''
@@ -427,7 +541,8 @@ async function bag(email: string): Promise<void> {
     process.stdout.write(`${email}: no gifts.\n`);
     return;
   }
-  rows.sort((a, b) => compareGifts(a.gift, b.gift));
+  const tabs = await tabOrder();
+  rows.sort((a, b) => compareGifts(a.gift, b.gift, tabs));
   for (const r of rows) {
     process.stdout.write(`${r.gift.enabled ? ' ' : '-'} ${r.giftCode} ${String(r.quantity)}\n`);
   }
@@ -487,6 +602,146 @@ async function pkBoostersSeed(): Promise<void> {
   process.stdout.write(
     `pk boosters: ${String(added.length)} added${added.length > 0 ? ` (${added.join(', ')})` : ''}, ` +
       `${String(PK_BOOSTER_PACK.length - added.length)} already there (unchanged).\n`,
+  );
+}
+
+// ---- v1.46-live (D207, §10.66): the categories ----------------------------------------------------------------
+
+const CATEGORY_OPTIONS = {
+  'name-ar': { type: 'string' },
+  'name-en': { type: 'string' },
+  sort: { type: 'string' },
+  icon: { type: 'string' },
+  disabled: { type: 'boolean' },
+  'move-to': { type: 'string' },
+} as const;
+
+function categoryCode(raw: string | undefined): string {
+  if (raw === undefined) fail(USAGE);
+  if (!GIFT_CATEGORY_CODE_PATTERN.test(raw)) {
+    fail('A category code is 1–40 characters: A-Z, 0-9 and _, starting with a letter.');
+  }
+  return raw;
+}
+
+function categoryOptions(
+  args: readonly string[],
+  allowed: readonly (keyof typeof CATEGORY_OPTIONS)[],
+): { [K in keyof typeof CATEGORY_OPTIONS]?: K extends 'disabled' ? boolean : string } {
+  let values: Record<string, string | boolean | undefined>;
+  try {
+    ({ values } = parseArgs({
+      args: [...args],
+      options: CATEGORY_OPTIONS,
+      strict: true,
+      allowPositionals: false,
+    }));
+  } catch (err) {
+    fail(`${err instanceof Error ? err.message : String(err)}\n${USAGE}`);
+  }
+  for (const key of Object.keys(values)) {
+    if (!(allowed as readonly string[]).includes(key))
+      fail(`--${key} is not an option of this command.\n${USAGE}`);
+  }
+  return values;
+}
+
+function categoryError(err: unknown): never {
+  if (err instanceof GiftCategoryError) fail(err.message);
+  throw err;
+}
+
+/** Checks and uploads `--icon <file>`; the key it sets (`none`: null), or undefined when not given. */
+async function uploadIcon(code: string, icon: string | undefined): Promise<string | null | undefined> {
+  if (icon === undefined) return undefined;
+  if (icon === 'none') return null;
+  let file: GiftArtFile;
+  try {
+    file = await giftCategoryIconFile(code, await readArt(icon, 'icon'));
+  } catch (err) {
+    if (err instanceof GiftArtError) fail(err.message);
+    throw err;
+  }
+  const storage = storageFromEnv();
+  if (!storage)
+    fail('--icon needs S3_BUCKET, S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY, as the API has them.');
+  await uploadGiftArt(storage, file);
+  process.stdout.write(
+    `uploaded icon ${giftArtUrl(process.env.MEDIA_PUBLIC_BASE_URL, file.key) ?? file.key}\n`,
+  );
+  return file.key;
+}
+
+async function categories(): Promise<void> {
+  const rows = await giftCategoriesWithCounts(prisma);
+  for (const c of rows) {
+    process.stdout.write(
+      `${c.enabled ? ' ' : '-'} ${String(c.sortOrder)} ${c.code} ${c.kind} "${c.nameAr}" / "${c.nameEn}" ` +
+        `gifts=${String(c.gifts)} (enabled ${String(c.enabledGifts)}) icon=${c.iconObjectKey ?? 'none'}\n`,
+    );
+  }
+}
+
+async function categoryAdd(code: string, args: readonly string[]): Promise<void> {
+  const v = categoryOptions(args, ['name-ar', 'name-en', 'sort', 'icon', 'disabled']);
+  if (v['name-ar'] === undefined || v['name-en'] === undefined)
+    fail(`Missing: --name-ar, --name-en.\n${USAGE}`);
+  if (v.icon === 'none') fail('none is for category-update.');
+  if (await prisma.giftCategory.findUnique({ where: { code }, select: { code: true } })) {
+    fail(`A gift category ${code} exists already; use category-update.`);
+  }
+  const fields: GiftCategoryFields & { enabled: boolean } = {
+    nameAr: v['name-ar'],
+    nameEn: v['name-en'],
+    sortOrder: v.sort === undefined ? 0 : wholeNumber(v.sort, 'The sort order'),
+    enabled: v.disabled !== true,
+  };
+  const iconObjectKey = await uploadIcon(code, v.icon);
+  await prisma
+    .$transaction((tx) => addGiftCategoryIn(tx, code, { ...fields, iconObjectKey: iconObjectKey ?? null }))
+    .catch(categoryError);
+  process.stdout.write(`+category ${code} "${fields.nameAr}" / "${fields.nameEn}".\n`);
+}
+
+async function categoryUpdate(code: string, args: readonly string[]): Promise<void> {
+  const v = categoryOptions(args, ['name-ar', 'name-en', 'sort', 'icon']);
+  if (Object.keys(v).length === 0) fail(`Nothing to update.\n${USAGE}`);
+  if (!(await prisma.giftCategory.findUnique({ where: { code }, select: { code: true } }))) {
+    fail(`No gift category ${code}.`);
+  }
+  const iconObjectKey = await uploadIcon(code, v.icon);
+  const fields: { -readonly [K in keyof GiftCategoryFields]?: GiftCategoryFields[K] } = {};
+  if (v['name-ar'] !== undefined) fields.nameAr = v['name-ar'];
+  if (v['name-en'] !== undefined) fields.nameEn = v['name-en'];
+  if (v.sort !== undefined) fields.sortOrder = wholeNumber(v.sort, 'The sort order');
+  if (iconObjectKey !== undefined) fields.iconObjectKey = iconObjectKey;
+  const changed = await prisma
+    .$transaction((tx) => updateGiftCategoryIn(tx, code, fields))
+    .catch(categoryError);
+  if (changed === null) fail(`No gift category ${code}.`);
+  process.stdout.write(
+    changed.length > 0 ? `${code}: ${changed.join(', ')} updated.\n` : `${code}: nothing changed.\n`,
+  );
+}
+
+async function categorySetEnabled(code: string, enabled: boolean): Promise<void> {
+  const changed = await prisma
+    .$transaction((tx) => setGiftCategoryEnabledIn(tx, code, enabled))
+    .catch(categoryError);
+  if (changed === null) fail(`No gift category ${code}.`);
+  const state = enabled ? 'enabled' : 'disabled';
+  process.stdout.write(changed ? `${code}: ${state}.\n` : `${code} is already ${state}; nothing changed.\n`);
+}
+
+async function categoryDelete(code: string, args: readonly string[]): Promise<void> {
+  const v = categoryOptions(args, ['move-to']);
+  const moveTo = v['move-to'] === undefined ? null : categoryCode(v['move-to']);
+  const done = await prisma.$transaction((tx) => deleteGiftCategoryIn(tx, code, moveTo)).catch(categoryError);
+  if (done === null) fail(`No gift category ${code}.`);
+  process.stdout.write(
+    `-category ${code}` +
+      (done.moved.length > 0 ? `; ${String(done.moved.length)} gift(s) moved to ${String(moveTo)}` : '') +
+      '.\n',
   );
 }
 
@@ -589,6 +844,24 @@ try {
     case 'pk-boosters-seed':
       if (first !== undefined) fail(USAGE);
       await pkBoostersSeed();
+      break;
+    case 'categories':
+      if (first !== undefined) fail(USAGE);
+      await categories();
+      break;
+    case 'category-add':
+      await categoryAdd(categoryCode(first), rest);
+      break;
+    case 'category-update':
+      await categoryUpdate(categoryCode(first), rest);
+      break;
+    case 'category-enable':
+    case 'category-disable':
+      if (rest.length > 0) fail(USAGE);
+      await categorySetEnabled(categoryCode(first), command === 'category-enable');
+      break;
+    case 'category-delete':
+      await categoryDelete(categoryCode(first), rest);
       break;
     default:
       fail(command ? `Unknown command ${command}.\n${USAGE}` : USAGE);

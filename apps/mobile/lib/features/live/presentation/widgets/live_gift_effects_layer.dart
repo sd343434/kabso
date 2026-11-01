@@ -3,10 +3,12 @@ import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
+import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/application/live_gift_effects.dart';
 import 'package:kabso_live/features/live/application/live_gift_providers.dart';
 import 'package:kabso_live/features/live/application/live_lucky_ticker.dart';
+import 'package:kabso_live/features/live/application/live_quips.dart';
 import 'package:kabso_live/features/live/application/max_x.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
@@ -105,6 +107,21 @@ class LiveGiftEffectsLayer extends ConsumerWidget {
                         big.animationKey ?? _art(catalogue, big)?.animationKey,
                     animationUrl:
                         big.animationUrl ?? _art(catalogue, big)?.animationUrl,
+                    // v1.46-live (D207): the format and transparency go with
+                    // the URL they describe; the MP3 likewise.
+                    animationFormat: big.animationUrl != null
+                        ? big.animationFormat
+                        : _art(catalogue, big)?.animationFormat,
+                    animationAlpha: big.animationUrl != null
+                        ? big.animationAlpha
+                        : _art(catalogue, big)?.animationAlpha,
+                    audioUrl: big.audioUrl ?? _art(catalogue, big)?.audioUrl,
+                    audioDurationMs: big.audioUrl != null
+                        ? big.audioDurationMs
+                        : _art(catalogue, big)?.audioDurationMs,
+                    soundOn:
+                        ref.watch(soundEffectsProvider) &&
+                        !ref.watch(quipsMutedProvider),
                     onHold: () => ref
                         .read(liveGiftEffectsProvider(roomId).notifier)
                         .bigHold(big.id),

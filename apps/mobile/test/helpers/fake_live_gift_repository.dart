@@ -35,6 +35,11 @@ class FakeLiveGiftRepository implements LiveGiftRepository {
 
   /// The catalogue's tabs (add `LUCKY` with a lucky gift, D132).
   List<String> categories = const ['POPULAR', 'EVENT', 'FUN'];
+
+  /// v1.46-live (D207): the catalogue's `tabs` (null: an older API's
+  /// codes only) and gifts beyond [codes] (e.g. of a managed category).
+  List<Map<String, Object?>>? tabs;
+  List<Map<String, Object?>> extraGifts = const [];
   final Map<String, int> held;
   int coins;
   final bool ar;
@@ -86,9 +91,15 @@ class FakeLiveGiftRepository implements LiveGiftRepository {
   @override
   Future<GiftCatalogue> catalogue() async {
     _record('catalogue');
-    return GiftCatalogue.fromJson(
-      giftCatalogueJson(codes: codes, ar: ar, categories: categories),
-    );
+    return GiftCatalogue.fromJson({
+      ...giftCatalogueJson(
+        codes: codes,
+        ar: ar,
+        categories: categories,
+        extra: extraGifts,
+      ),
+      'tabs': ?tabs,
+    });
   }
 
   @override
