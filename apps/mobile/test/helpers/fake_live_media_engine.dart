@@ -5,6 +5,7 @@ import 'package:kabso_camera_fx/kabso_camera_fx.dart';
 import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
 import 'package:kabso_live/features/live/data/beauty/live_beauty.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
+import 'package:kabso_live/features/live/data/live_media_extras.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/domain/live_pk.dart';
@@ -12,7 +13,7 @@ import 'package:material_ui/material_ui.dart';
 
 /// In-memory [LiveMediaEngine]: no camera, no media server. Records every
 /// call; [previewProblem] / [publishFailure] make them fail.
-class FakeLiveMediaEngine implements LiveMediaEngine {
+class FakeLiveMediaEngine implements LiveMediaEngine, LivePlaybackControls {
   static const previewKey = Key('fakeCamera');
 
   LiveCaptureProblem? previewProblem;
@@ -243,9 +244,27 @@ class FakeLiveMediaEngine implements LiveMediaEngine {
   /// background): present, but no picture.
   final Set<String> videoMutedIds = {};
 
+  /// D225: the viewer's playback volume and data saver, as last set.
+  double playbackVolume = 1;
+  bool receiveVideo = true;
+  final List<double> volumeCalls = [];
+
   @override
-  Widget? remoteVideo(String identity) =>
-      present.contains(identity) && !videoMutedIds.contains(identity)
+  Future<void> setPlaybackVolume(double volume) async {
+    volumeCalls.add(volume);
+    playbackVolume = volume;
+  }
+
+  @override
+  Future<void> setReceiveVideo({required bool receive}) async {
+    receiveVideo = receive;
+    _changes.notifyListeners();
+  }
+
+  @override
+  Widget? remoteVideo(String identity) => !receiveVideo
+      ? null
+      : present.contains(identity) && !videoMutedIds.contains(identity)
       ? ColoredBox(key: Key('remote.$identity'), color: const Color(0xFF304050))
       : null;
 

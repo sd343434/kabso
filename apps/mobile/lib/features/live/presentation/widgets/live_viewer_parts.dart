@@ -420,7 +420,12 @@ class KViewerBarButton extends StatelessWidget {
     this.art = false,
     this.diameter = KViewerRoom.button,
     this.artInCircle = false,
+    this.target = KSizes.minTouchTarget,
   }) : assert(asset != null || icon != null, 'an asset or an icon');
+
+  /// The touch target's width and height (48 lp; D225: a full host bar on
+  /// a narrow phone shares the width, never less than the circle).
+  final double target;
 
   /// D135 (owner's colourful PK and gift art): [asset] fills the circle's
   /// place (33 pt) with no dark circle behind it.
@@ -457,9 +462,10 @@ class KViewerBarButton extends StatelessWidget {
     child: GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
-      child: SizedBox.square(
+      child: SizedBox(
         // A 48 pt target around the 34.8 pt circle.
-        dimension: KSizes.minTouchTarget,
+        width: target,
+        height: KSizes.minTouchTarget,
         child: Center(
           child: Container(
             width: diameter,

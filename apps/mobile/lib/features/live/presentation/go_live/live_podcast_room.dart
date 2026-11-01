@@ -255,11 +255,13 @@ class PodcastSpeakerData {
     this.demoteAt,
     this.seatIndex,
     this.onTap,
+    this.overlay,
   });
 
   /// An empty speaker seat ([seatIndex] 1–3).
   const new empty(int this.seatIndex, {this.onTap})
-    : name = '',
+    : overlay = null,
+      name = '',
       userId = null,
       avatarUrl = null,
       points = 0,
@@ -284,6 +286,10 @@ class PodcastSpeakerData {
   /// 1–3 (null for the host's place).
   final int? seatIndex;
   final VoidCallback? onTap;
+
+  /// D225: what plays over the picture now — an emoji played on this seat
+  /// («إيموجي على مقعدي», D138); null: nothing.
+  final Widget? overlay;
 
   bool get isEmpty => userId == null && !host;
 }
@@ -438,6 +444,8 @@ class _Speaker extends StatelessWidget {
                         ),
                       ),
                     ),
+                  if (d.overlay case final overlay?)
+                    Positioned.fill(child: IgnorePointer(child: overlay)),
                   PositionedDirectional(
                     top: -2,
                     start: -2,

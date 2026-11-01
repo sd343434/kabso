@@ -32,6 +32,7 @@ import 'package:kabso_live/features/live/application/live_room_provider.dart';
 import 'package:kabso_live/features/live/application/live_room_session.dart';
 import 'package:kabso_live/features/live/application/live_seat_emojis.dart';
 import 'package:kabso_live/features/live/application/live_stickers.dart';
+import 'package:kabso_live/features/live/application/live_viewer_prefs.dart';
 import 'package:kabso_live/features/live/application/live_watch.dart';
 import 'package:kabso_live/features/live/data/live_host_targets_repository.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
@@ -52,6 +53,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_room_tools.da
 import 'package:kabso_live/features/live/presentation/go_live/live_score_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_emoji.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_settings_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_watch_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
@@ -128,6 +130,12 @@ class LiveRoomScreen extends ConsumerWidget {
 
   /// D173: ≡, the room menu of everyone (viewer and moderator items).
   static const menuKey = Key('room.menu');
+
+  /// D225: «إظهار الكل» while the screen is clean.
+  static const cleanRestoreKey = Key('room.cleanRestore');
+
+  /// D225: the host's picture in place of the video (data saver).
+  static const dataSaverKey = Key('room.dataSaver');
 
   /// D173: the video bar's games (joystick) and guest (∞) buttons, and the
   /// cherry chip beside the board chip.
@@ -648,22 +656,76 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     sendLiveChatFrom(context, ref, roomId: widget.room.id, field: _chat),
   );
 
-  Widget _roomChat(LiveRoomSessionState session, {Color? bubble}) =>
-      LiveRoomChatLines(
-        // D135: a bright theme darkens the rules line's fill a little.
-        brightNotice: LiveRoomRulesNotice.isBrightTheme(_room.theme),
-        roomId: widget.room.id,
-        role: _chatRole(session),
-        // D212: a podcast's chat is the mockup's one-line bubbles.
-        inline: _room.mode == LiveRoomMode.podcast,
-        compact: _room.mode == LiveRoomMode.podcast,
-        bubble:
-            bubble ??
-            (_room.mode == LiveRoomMode.podcast
-                ? KPodcast.chatBubble
-                : KAudioRoom.bubble),
-        onProfile: _person,
-      );
+  Widget _roomChat(LiveRoomSessionState session, {Color? bubble}) => _chatText(
+    LiveRoomChatLines(
+      // D135: a bright theme darkens the rules line's fill a little.
+      brightNotice: LiveRoomRulesNotice.isBrightTheme(_room.theme),
+      roomId: widget.room.id,
+      role: _chatRole(session),
+      // D212: a podcast's chat is the mockup's one-line bubbles.
+      inline: _room.mode == LiveRoomMode.podcast,
+      compact: _room.mode == LiveRoomMode.podcast,
+      bubble:
+          bubble ??
+          (_room.mode == LiveRoomMode.podcast
+              ? KPodcast.chatBubble
+              : KAudioRoom.bubble),
+      onProfile: _person,
+    ),
+  );
+
+  /// D225: «حجم خط الدردشة» — the chat's text size on this phone.
+  Widget _chatText(Widget chat) {
+    final scale = ref.watch(liveViewerPrefsProvider).chatTextSize.scale;
+    if (scale == 1) return chat;
+    final media = MediaQuery.of(context);
+    return MediaQuery(
+      data: media.copyWith(
+        textScaler: TextScaler.linear(media.textScaler.scale(1) * scale),
+      ),
+      child: chat,
+    );
+  }
+
+  /// D225: «شاشة نظيفة» — the chat and the cards are hidden for this visit;
+  /// «إظهار الكل» brings them back.
+  bool _clean = false;
+
+  Widget _cleanRestore() => Align(
+    alignment: AlignmentDirectional.bottomStart,
+    child: Semantics(
+      button: true,
+      child: GestureDetector(
+        key: LiveRoomScreen.cleanRestoreKey,
+        onTap: () => setState(() => _clean = false),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          decoration: BoxDecoration(
+            color: KLiveColors.chatScrim,
+            borderRadius: BorderRadius.circular(KRadius.pill),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.visibility_rounded,
+                size: 16,
+                color: Color(0xFFFFFFFF),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                context.l10n.liveViewerCleanRestore,
+                style: context.textStyles.caption.copyWith(
+                  color: const Color(0xFFFFFFFF),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
 
   /// The chat box while writing; it closes by itself when this person may
   /// no longer write (muted, or the host turned the chat off), so the pill
@@ -851,6 +913,12 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     final host = room.host;
     final me = ref.watch(currentUserProvider)?.id;
     final seats = session.seats?.seats ?? const <LiveSeat>[];
+    // D225: the emojis played on the speaker seats (D138), drawn on them.
+    final seatOverlay = seatEmojiOverlay(
+      ref,
+      room.id,
+      picture: KPodcast.speaker,
+    );
     final speakers = <PodcastSpeakerData>[
       PodcastSpeakerData(
         userId: host.id,
@@ -860,6 +928,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         host: true,
         speaking: engine.speaking.contains(host.id),
         onTap: () => _person(host.username),
+        overlay: seatOverlay(0),
       ),
       for (var i = 1; i < 4; i++)
         switch (seats.where((s) => s.index == i).firstOrNull) {
@@ -873,6 +942,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
             demoteAt: seat.demoteAt,
             seatIndex: i,
             onTap: () => onSeat(i),
+            overlay: seatOverlay(i),
           ),
           _ => PodcastSpeakerData.empty(i, onTap: () => onSeat(i)),
         },
@@ -978,6 +1048,9 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       return LiveRoomScreen.kickedMessage(l10n, widget.onClose);
     }
     final engine = _session.engine;
+    final viewerPrefs = ref.watch(liveViewerPrefsProvider);
+    final entrancesHidden = viewerPrefs.entrancesHidden;
+    _syncDataSaver(room, viewerPrefs.dataSaver);
     // D131: Back asks before leaving like ✕ (the leave prompt).
     ref.watch(publicProfileProvider(_username));
     final ask = _askBeforeLeaving;
@@ -1011,14 +1084,11 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                           LiveRoomPromoBox.shows(ref, room.id)),
                 ),
               ),
-            // D154i: the video the live watches together.
-            if (room.status == LiveRoomStatus.live)
-              LiveWatchLayer(
-                roomId: room.id,
-                host: false,
-                // D160: a floating window in a video live.
-                pip: !room.mode.isVoice,
-              ),
+            // D154i: the video the live watches together. D225 (owner):
+            // the audio room only.
+            if (room.status == LiveRoomStatus.live &&
+                room.mode == LiveRoomMode.audio)
+              LiveWatchLayer(roomId: room.id, host: false),
             // D145: the lucky combo button after a lucky gift is sent.
             if (room.status == LiveRoomStatus.live)
               LuckyComboLayer(
@@ -1030,11 +1100,12 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                     ? LuckyComboLayer.audioBottom
                     : LuckyComboLayer.videoBottom,
               ),
-            // CP-021 (D112): the CP Entrance Effect.
-            if (room.status == LiveRoomStatus.live)
+            // CP-021 (D112): the CP Entrance Effect. D225: hidden on this
+            // phone with «إخفاء تأثيرات الدخول».
+            if (room.status == LiveRoomStatus.live && !entrancesHidden)
               LiveCpEntranceLayer(roomId: room.id),
             // D185: a recharge agent's entrance bar.
-            LiveRechargeEntranceLayer(roomId: room.id),
+            if (!entrancesHidden) LiveRechargeEntranceLayer(roomId: room.id),
           ],
         ),
       ),
@@ -1206,7 +1277,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
             ),
       // D136: the host's wish list (a row opens the gift panel with that
       // gift and the host); D137: the promo box.
-      sideStart: ended
+      sideStart: ended || _clean
           ? null
           : LiveWishCard(
               wishes: room.wishGifts,
@@ -1217,25 +1288,29 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       // D173 (owner: «يجب أن يظهر عند الجميع»): every viewer, signed in or
       // not (guests read the ROOM banners too, v1.39-live).
       // D199: under «ترتيب الغرف»; hidden during a PK (the bar's place).
-      sidePromo: ended || pkState?.match != null
+      sidePromo: ended || _clean || pkState?.match != null
           ? null
           : LiveRoomPromoColumn(roomId: room.id),
       // D145a: the lucky combo beside the chat, over the quick replies.
       // D174: a solo live's guests stacked at the end over the chat; D145a:
       // the lucky combo under them.
-      chatEnd: ended ? null : _chatEnd(session, engine, room),
+      chatEnd: ended || _clean ? null : _chatEnd(session, engine, room),
       chat: ended
           ? null
+          : _clean
+          ? _cleanRestore()
           : Align(
               alignment: AlignmentDirectional.bottomStart,
-              child: LiveRoomChatLines(
-                roomId: widget.room.id,
-                role: _chatRole(session),
-                bubble: KLiveColors.chatScrim,
-                onProfile: _person,
-                inline: true,
-                // D199: the chat starts at its top (the rules line first).
-                anchorTop: true,
+              child: _chatText(
+                LiveRoomChatLines(
+                  roomId: widget.room.id,
+                  role: _chatRole(session),
+                  bubble: KLiveColors.chatScrim,
+                  onProfile: _person,
+                  inline: true,
+                  // D199: the chat starts at its top (the rules line first).
+                  anchorTop: true,
+                ),
               ),
             ),
       actionBar: ended
@@ -1263,7 +1338,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                 ],
                 // D131 (ref 158): quick replies over the bar, for someone
                 // who may write.
-                if (composer.canWrite && !_writing) ...[
+                if (composer.canWrite && !_writing && !_clean) ...[
                   KQuickReplies(
                     onSend: (text) => unawaited(
                       sendLiveChatText(
@@ -1440,7 +1515,9 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       }
     }
     // D173: YouTube together turns the room into the owner's cinema.
-    final cinema = LiveWatchScreen.shows(ref, room.id);
+    // D225 (owner): YouTube together is the audio room's only.
+    final cinema =
+        room.mode == LiveRoomMode.audio && LiveWatchScreen.shows(ref, room.id);
     final stage = _stage(session, engine);
     return KLiveSurface(
       child: Material(
@@ -1467,6 +1544,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                 // D173: for everyone in the room, signed in or not.
                 promo:
                     room.status != LiveRoomStatus.ended &&
+                        !_clean &&
                         LiveRoomPromoBox.shows(ref, room.id)
                     ? LiveRoomPromoBox(
                         roomId: room.id,
@@ -1494,7 +1572,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                     : null,
                 cinemaSeats: room.seatCount ?? 0,
                 // D173: the host's wish list (D136), over the promo box.
-                wish: room.wishGifts.isEmpty
+                wish: room.wishGifts.isEmpty || _clean
                     ? null
                     : LiveWishCard(
                         wishes: room.wishGifts,
@@ -1612,7 +1690,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                   ],
                 ),
                 stage: stage,
-                chat: [_roomChat(session)],
+                chat: [if (_clean) _cleanRestore() else _roomChat(session)],
                 composer: _chatComposer(composer),
                 // Ref 83/147: chat and emoji on one side; the seat, requests,
                 // gifts and the mic on the other.
@@ -1711,6 +1789,158 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       room.status == LiveRoomStatus.live &&
       !ref.read(liveRoomSessionProvider(room.id)).kicked;
 
+  /// D225: the data saver follows the setting on this phone (video lives).
+  bool? _dataSaverSent;
+
+  void _syncDataSaver(LiveRoom room, bool on) {
+    final want = on && !room.mode.isVoice;
+    if (_dataSaverSent == want) return;
+    _dataSaverSent = want;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(_session.setReceiveVideo(receive: !want));
+    });
+  }
+
+  /// D225 (owner): «إعدادات المشاهدة» — all on this phone only (nothing is
+  /// sent, nobody else is affected): this live's sound (muted for this
+  /// visit, decision 7) and its volume; the gift sounds and effects, the
+  /// quips' sounds and the entrance effects (kept on this device); the
+  /// clean screen; the chat's text size; the data saver (video lives);
+  /// minimize and report.
+  Future<void> _openViewerSettings() {
+    final l10n = context.l10n;
+    final room = _room;
+    final me = ref.read(currentUserProvider);
+    return showLiveSettingsSheet(
+      context,
+      title: l10n.liveViewerSettings,
+      groups: (sheet, sheetRef) {
+        final session = sheetRef.watch(liveRoomSessionProvider(room.id));
+        final prefs = sheetRef.watch(liveViewerPrefsProvider);
+        final prefsCtl = sheetRef.read(liveViewerPrefsProvider.notifier);
+        final quipsMuted = sheetRef.watch(quipsMutedProvider);
+        return [
+          LiveSettingsGroup(
+            title: l10n.liveViewerThisLive,
+            items: [
+              LiveSettingsSwitch(
+                id: 'muteLive',
+                icon: session.soundMuted
+                    ? Icons.volume_off_rounded
+                    : Icons.volume_up_rounded,
+                label: l10n.liveViewerMuteLive,
+                hint: l10n.liveViewerMuteLiveHint,
+                value: session.soundMuted,
+                onChanged: (on) => unawaited(_session.setSoundMuted(muted: on)),
+              ),
+              LiveSettingsSlider(
+                id: 'volume',
+                icon: Icons.volume_down_rounded,
+                label: l10n.liveViewerVolume,
+                value: session.volume,
+                onChanged: session.soundMuted
+                    ? null
+                    : (v) => unawaited(_session.setVolume(v)),
+              ),
+            ],
+          ),
+          LiveSettingsGroup(
+            title: l10n.liveViewerEffects,
+            items: [
+              LiveSettingsSwitch(
+                id: 'giftSounds',
+                icon: Icons.music_off_rounded,
+                label: l10n.liveViewerGiftSounds,
+                value: prefs.giftSoundsMuted,
+                onChanged: (on) => prefsCtl.setGiftSoundsMuted(muted: on),
+              ),
+              LiveSettingsSwitch(
+                id: 'giftEffects',
+                icon: Icons.auto_awesome_rounded,
+                label: l10n.liveViewerGiftEffects,
+                hint: l10n.liveViewerGiftEffectsHint,
+                value: prefs.giftEffectsHidden,
+                onChanged: (on) => prefsCtl.setGiftEffectsHidden(hidden: on),
+              ),
+              LiveSettingsSwitch(
+                id: 'quipSounds',
+                icon: Icons.campaign_outlined,
+                label: l10n.liveViewerQuipSounds,
+                value: quipsMuted,
+                onChanged: (on) =>
+                    sheetRef.read(quipsMutedProvider.notifier).set(muted: on),
+              ),
+              LiveSettingsSwitch(
+                id: 'entrances',
+                icon: Icons.door_front_door_outlined,
+                label: l10n.liveViewerEntrances,
+                value: prefs.entrancesHidden,
+                onChanged: (on) => prefsCtl.setEntrancesHidden(hidden: on),
+              ),
+            ],
+          ),
+          LiveSettingsGroup(
+            title: l10n.liveViewerDisplay,
+            items: [
+              LiveSettingsLink(
+                id: 'clean',
+                icon: Icons.fullscreen_rounded,
+                label: l10n.liveToolClearScreen,
+                hint: l10n.liveViewerCleanHint,
+                closes: true,
+                onTap: () => setState(() => _clean = true),
+              ),
+              LiveSettingsChoice(
+                id: 'chatText',
+                icon: Icons.format_size_rounded,
+                label: l10n.liveViewerChatText,
+                options: [
+                  l10n.liveViewerChatSmall,
+                  l10n.liveViewerChatNormal,
+                  l10n.liveViewerChatLarge,
+                ],
+                selected: prefs.chatTextSize.index,
+                onSelected: (i) =>
+                    prefsCtl.setChatTextSize(LiveChatTextSize.values[i]),
+              ),
+              if (!room.mode.isVoice)
+                LiveSettingsSwitch(
+                  id: 'dataSaver',
+                  icon: Icons.data_saver_on_rounded,
+                  label: l10n.liveViewerDataSaver,
+                  hint: l10n.liveViewerDataSaverHint,
+                  value: prefs.dataSaver,
+                  onChanged: (on) => prefsCtl.setDataSaver(on: on),
+                ),
+            ],
+          ),
+          LiveSettingsGroup(
+            title: l10n.liveSettingsGeneral,
+            items: [
+              if (_canMinimize(room))
+                LiveSettingsLink(
+                  id: 'minimize',
+                  icon: Icons.picture_in_picture_alt_rounded,
+                  label: l10n.goLiveMinimize,
+                  closes: true,
+                  onTap: _minimize,
+                ),
+              if (me != null && me.id != room.host.id)
+                LiveSettingsLink(
+                  id: 'report',
+                  icon: Icons.flag_outlined,
+                  label: l10n.liveToolReportHost,
+                  closes: true,
+                  onTap: () =>
+                      unawaited(reportUser(context, ref, userId: room.host.id)),
+                ),
+            ],
+          ),
+        ];
+      },
+    );
+  }
+
   /// D173 (owner: «ضع زر الثلاث شخطات عند الجميع، لكن إعدادات المضيف تختلف
   /// عن إعدادات المشاهد»): the ≡ menu of everyone in the room — the host has
   /// the Room Tools on their own screen; here viewers, seated guests and
@@ -1725,7 +1955,16 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     final me = ref.read(currentUserProvider);
     final profile = ref.read(publicProfileProvider(_username)).value;
     final watch = ref.read(liveWatchProvider(room.id));
+    // D225 (owner): YouTube is the audio room's only.
+    final audio = room.mode == LiveRoomMode.audio;
     final viewer = <GoLiveTool>[
+      // D225 (owner): «إعدادات المشاهدة» first — this phone only.
+      GoLiveTool(
+        id: 'viewerSettings',
+        icon: Icons.tune_rounded,
+        label: l10n.liveViewerSettings,
+        onTap: () => unawaited(_openViewerSettings()),
+      ),
       GoLiveTool(
         id: 'share',
         icon: Icons.share_rounded,
@@ -1776,7 +2015,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         label: l10n.liveGames,
         onTap: () => unawaited(showLiveGamesSheet(context)),
       ),
-      if (me != null && room.status == LiveRoomStatus.live)
+      if (audio && me != null && room.status == LiveRoomStatus.live)
         GoLiveTool(
           id: 'suggestVideo',
           icon: Icons.add_link_rounded,
@@ -1784,7 +2023,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
           onTap: () =>
               unawaited(showLiveWatchSuggestSheet(context, roomId: room.id)),
         ),
-      if (watch.watch?.video != null)
+      if (audio && watch.watch?.video != null)
         GoLiveTool(
           id: 'video',
           icon: Icons.smart_display_rounded,
@@ -1814,22 +2053,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
           label: l10n.goLiveMinimize,
           onTap: _minimize,
         ),
-      // Not built for viewers yet: shown, greyed «قريباً».
-      GoLiveTool.soon(
-        id: 'giftSounds',
-        icon: Icons.volume_off_rounded,
-        label: l10n.liveToolGiftSounds,
-      ),
-      GoLiveTool.soon(
-        id: 'giftEffects',
-        icon: Icons.auto_awesome_rounded,
-        label: l10n.liveToolGiftEffects,
-      ),
-      GoLiveTool.soon(
-        id: 'clearScreen',
-        icon: Icons.fullscreen_rounded,
-        label: l10n.liveToolClearScreen,
-      ),
+      // D225: the gift sounds, the gift effects and the clean screen (were
+      // «قريباً») work now, in «إعدادات المشاهدة».
     ];
     final moderator = <GoLiveTool>[
       if (session.canModerate) ...[
@@ -2005,6 +2230,24 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         picture: SizedBox.expand(child: picture),
       );
     }
+    // D225: the data saver on this phone: the host's picture, no video.
+    if (_dataSaverSent ?? false) {
+      return KLiveVideoPlaceholder(
+        child: _StageNote(
+          key: LiveRoomScreen.dataSaverKey,
+          child: KLiveInterruption(
+            leading: KAvatar(
+              name: room.host.displayName,
+              imageUrl: room.host.avatarUrl,
+              size: KLiveInterruption.picture,
+            ),
+            badgeIcon: Icons.data_saver_on_rounded,
+            title: context.l10n.liveViewerDataSaverOn,
+            liveRegion: false,
+          ),
+        ),
+      );
+    }
     final failure = session.joinFailure;
     if (failure != null) {
       return KLiveVideoPlaceholder(
@@ -2110,7 +2353,9 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       count: count,
       // D173: the cinema rows under the YouTube screen (big rooms).
       // D173: no points pills on the cinema's seats.
-      compact: LiveWatchScreen.shows(ref, room.id),
+      compact:
+          room.mode == LiveRoomMode.audio &&
+          LiveWatchScreen.shows(ref, room.id),
       seats: seats?.seats ?? const [],
       // D111: CP partners on adjacent seats are drawn joined.
       cpPairs: cpSeatPairs(seats, hostId: host.id),

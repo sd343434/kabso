@@ -8,7 +8,7 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/application/live_gift_effects.dart';
 import 'package:kabso_live/features/live/application/live_gift_providers.dart';
 import 'package:kabso_live/features/live/application/live_lucky_ticker.dart';
-import 'package:kabso_live/features/live/application/live_quips.dart';
+import 'package:kabso_live/features/live/application/live_viewer_prefs.dart';
 import 'package:kabso_live/features/live/application/max_x.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
@@ -74,7 +74,16 @@ class LiveGiftEffectsLayer extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final effects = ref.watch(liveGiftEffectsProvider(roomId));
     final catalogue = ref.watch(giftCatalogueProvider).value;
-    final big = effects.big;
+    // D225: «إخفاء مؤثرات الهدايا» on this phone — the big animation is
+    // skipped (marked done so the queue goes on); the strips still show.
+    final prefs = ref.watch(liveViewerPrefsProvider);
+    final effect = effects.big;
+    if (effect != null && prefs.giftEffectsHidden) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(liveGiftEffectsProvider(roomId).notifier).bigDone(effect.id);
+      });
+    }
+    final big = prefs.giftEffectsHidden ? null : effect;
     final safeTop = MediaQuery.paddingOf(context).top;
     final bannerWidth = LiveWinBanner.widthOn(MediaQuery.sizeOf(context).width);
     return Stack(
@@ -122,9 +131,10 @@ class LiveGiftEffectsLayer extends ConsumerWidget {
                     audioDurationMs: big.audioUrl != null
                         ? big.audioDurationMs
                         : _art(catalogue, big)?.audioDurationMs,
+                    // D225: the gifts' own switch («كتم أصوات الهدايا»).
                     soundOn:
                         ref.watch(soundEffectsProvider) &&
-                        !ref.watch(quipsMutedProvider),
+                        !prefs.giftSoundsMuted,
                     onHold: () => ref
                         .read(liveGiftEffectsProvider(roomId).notifier)
                         .bigHold(big.id),

@@ -64,7 +64,13 @@ class GoLiveState {
     this.fillLightLevel = LiveFillLight.medium,
     this.podcast = const PodcastSetup(topic: PodcastTopic.business),
     this.podcastGuests = const [],
+    this.cameraOff = false,
   });
+
+  /// D225 (owner): the host turned their camera off on air (the video track
+  /// is muted; the others see the host's picture). The return from the
+  /// background does not turn it on again.
+  final bool cameraOff;
 
   /// D212: the podcast setup (topic, hands, question time), sent with a
   /// PODCAST room.
@@ -152,7 +158,9 @@ class GoLiveState {
     LiveFillLight? fillLightLevel,
     PodcastSetup? podcast,
     List<UserSummary>? podcastGuests,
+    bool? cameraOff,
   }) => GoLiveState(
+    cameraOff: cameraOff ?? this.cameraOff,
     podcast: podcast ?? this.podcast,
     podcastGuests: podcastGuests ?? this.podcastGuests,
     fillLight: fillLight ?? this.fillLight,
@@ -647,6 +655,16 @@ class LiveHostController extends Notifier<GoLiveState> {
     await _syncLight();
   }
 
+  /// D225: the host's camera off or on while live (a video live). The
+  /// published camera track is muted (as a seated guest's, D174a, and the
+  /// background pause, D123): nothing new on the server.
+  Future<void> setCameraOff({required bool off}) async {
+    if (state.mode.isVoice) return;
+    await _engine.setVideoPaused(paused: off);
+    if (!ref.mounted) return;
+    state = state.copyWith(cameraOff: off);
+  }
+
   Future<void> toggleMic() async {
     final enabled = !state.micEnabled;
     await _engine.setMicEnabled(enabled: enabled);
@@ -813,7 +831,8 @@ class LiveHostController extends Notifier<GoLiveState> {
           : null,
       onForeground: () {
         if (video) {
-          unawaited(_pauseVideo(paused: false));
+          // D225: a camera the host turned off stays off.
+          if (!state.cameraOff) unawaited(_pauseVideo(paused: false));
           unawaited(_reportAway(away: false));
         }
         unawaited(beatNow());

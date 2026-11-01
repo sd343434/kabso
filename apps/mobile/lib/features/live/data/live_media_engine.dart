@@ -368,7 +368,11 @@ class _Changes extends ChangeNotifier {
 /// [LiveMediaEngine] on `livekit_client` (its defaults: 720p, simulcast).
 /// D201: also the live tools' attributes and the clip recorder.
 class LiveKitMediaEngine
-    implements LiveMediaEngine, LiveParticipantAttributes, LiveClipCapture {
+    implements
+        LiveMediaEngine,
+        LiveParticipantAttributes,
+        LiveClipCapture,
+        LivePlaybackControls {
   lk.LocalVideoTrack? _video;
   lk.LocalAudioTrack? _audio;
   lk.Room? _room;
@@ -829,6 +833,8 @@ class LiveKitMediaEngine
   @override
   Future<void> setMicEnabled({required bool enabled}) async {
     _mic = enabled;
+    // D225: the room redraws its mic badges (a speaker's own seat).
+    _changes.ping();
     final audio = _audio;
     // While a voice clip records, the choice applies when it ends.
     if (audio == null || _clipHold) return;
@@ -1013,7 +1019,12 @@ class LiveKitMediaEngine
       })
       ..on<lk.ParticipantConnectedEvent>((_) => _changes.ping())
       ..on<lk.ParticipantDisconnectedEvent>((_) => _changes.ping())
-      ..on<lk.TrackSubscribedEvent>((_) => _changes.ping())
+      ..on<lk.TrackSubscribedEvent>((_) {
+        // D225: a track that starts later plays as the viewer set it.
+        unawaited(_applyPlayback());
+        _changes.ping();
+      })
+      ..on<lk.TrackPublishedEvent>((_) => unawaited(_applyPlayback()))
       ..on<lk.TrackUnsubscribedEvent>((_) => _changes.ping())
       ..on<lk.TrackMutedEvent>((_) => _changes.ping())
       ..on<lk.TrackUnmutedEvent>((_) => _changes.ping())
@@ -1083,10 +1094,69 @@ class LiveKitMediaEngine
     _changes.ping();
   }
 
+  /// D225: the viewer's own volume (0–1) and data saver, applied to every
+  /// remote track (now and as they arrive).
+  double _playbackVolume = 1;
+  bool _receiveVideo = true;
+
+  @override
+  Future<void> setPlaybackVolume(double volume) async {
+    _playbackVolume = volume.clamp(0, 1).toDouble();
+    await _applyPlayback();
+  }
+
+  @override
+  Future<void> setReceiveVideo({required bool receive}) async {
+    _receiveVideo = receive;
+    await _applyPlayback();
+    _changes.ping();
+  }
+
+  Future<void> _applyPlayback() async {
+    final room = _room;
+    if (room == null) return;
+    for (final participant in room.remoteParticipants.values) {
+      for (final publication in participant.audioTrackPublications) {
+        final track = publication.track;
+        if (track == null) continue;
+        try {
+          if (_playbackVolume <= 0) {
+            await track.disable();
+          } else {
+            await track.enable();
+            // The web plays remote audio through its own element; native
+            // WebRTC takes a per-track volume.
+            if (!kIsWeb) {
+              await rtc.Helper.setVolume(
+                _playbackVolume,
+                track.mediaStreamTrack,
+              );
+            }
+          }
+        } on Object catch (e) {
+          AppLogger.warning('live: playback volume (${e.runtimeType})');
+        }
+      }
+      for (final publication in participant.videoTrackPublications) {
+        try {
+          if (_receiveVideo && !publication.enabled) {
+            await publication.enable();
+          } else if (!_receiveVideo && publication.enabled) {
+            await publication.disable();
+          }
+        } on Object catch (e) {
+          AppLogger.warning('live: data saver (${e.runtimeType})');
+        }
+      }
+    }
+  }
+
   @override
   Widget? remoteVideo(String identity) {
     final participant = _room?.remoteParticipants[identity];
     if (participant == null) return null;
+    // D225: the data saver shows no video (the picture stands in).
+    if (!_receiveVideo) return null;
     for (final publication in participant.videoTrackPublications) {
       final track = publication.track;
       if (track != null && !publication.muted) {

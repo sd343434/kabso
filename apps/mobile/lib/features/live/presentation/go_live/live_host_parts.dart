@@ -30,7 +30,15 @@ class KHostBar extends StatelessWidget {
     this.beautyOn = false,
     this.requests = 0,
     this.chatKey = defaultChatKey,
+    this.onMic,
+    this.micOn = true,
   });
+
+  /// D225 (owner): the host's microphone, one tap away (after ≡); null: no
+  /// button.
+  final VoidCallback? onMic;
+  final bool micOn;
+  static const micKey = Key('hostBar.mic');
 
   final VoidCallback? onChat;
   final VoidCallback? onBeauty;
@@ -61,48 +69,79 @@ class KHostBar extends StatelessWidget {
   static const boxKey = Key('hostBar.box');
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final count = 6 + (onBox != null ? 1 : 0) + (onMic != null ? 1 : 0);
+      // D225: eight buttons need 384 lp; a narrower bar shares its width.
+      final target = constraints.maxWidth.isFinite
+          ? (constraints.maxWidth / count).clamp(
+              diameter + 4,
+              KSizes.minTouchTarget,
+            )
+          : KSizes.minTouchTarget;
+      return _row(context, target);
+    },
+  );
+
+  Widget _row(BuildContext context, double target) {
     final l10n = context.l10n;
+    KViewerBarButton button({
+      required Key key,
+      required String label,
+      required VoidCallback? onTap,
+      String? asset,
+      IconData? icon,
+      bool art = false,
+      bool badge = false,
+    }) => KViewerBarButton(
+      key: key,
+      diameter: diameter,
+      artInCircle: true,
+      target: target,
+      asset: asset,
+      icon: icon,
+      art: art,
+      badge: badge,
+      label: label,
+      onTap: onTap,
+    );
     return Row(
       children: [
-        KViewerBarButton(
-          diameter: diameter,
-          artInCircle: true,
+        button(
           key: chatKey,
           asset: 'assets/live_bar/chat.png',
           label: l10n.goLiveChatPill,
           onTap: onChat,
         ),
-        KViewerBarButton(
-          diameter: diameter,
-          artInCircle: true,
+        button(
           key: beautyKey,
           icon: Icons.auto_fix_high_rounded,
           label: l10n.liveBeautyToolsTitle,
           badge: beautyOn,
           onTap: onBeauty,
         ),
-        KViewerBarButton(
-          diameter: diameter,
-          artInCircle: true,
+        button(
           key: toolsKey,
           asset: 'assets/live_bar/menu.png',
           label: l10n.liveHostTools,
           onTap: onTools,
         ),
+        if (onMic != null)
+          button(
+            key: micKey,
+            icon: micOn ? Icons.mic_rounded : Icons.mic_off_rounded,
+            label: micOn ? l10n.goLiveMuteMic : l10n.goLiveUnmuteMic,
+            onTap: onMic,
+          ),
         const Spacer(),
-        KViewerBarButton(
-          diameter: diameter,
-          artInCircle: true,
+        button(
           key: guestsKey,
           icon: Icons.all_inclusive_rounded,
           label: l10n.liveHostGuests,
           badge: requests > 0,
           onTap: onGuests,
         ),
-        KViewerBarButton(
-          diameter: diameter,
-          artInCircle: true,
+        button(
           key: pkKey,
           // D135: the owner's colourful PK art (boxing gloves).
           asset: 'assets/live_bar/bar_pk.png',
@@ -111,19 +150,15 @@ class KHostBar extends StatelessWidget {
           onTap: onPk,
         ),
         if (onBox != null)
-          KViewerBarButton(
-            diameter: diameter,
-            artInCircle: true,
+          button(
             key: boxKey,
             // The owner's colourful controller art (D141), Kabso's own.
             asset: 'assets/live_bar/bar_games.png',
             art: true,
-            label: context.l10n.liveHostBox,
+            label: l10n.liveHostBox,
             onTap: onBox,
           ),
-        KViewerBarButton(
-          diameter: diameter,
-          artInCircle: true,
+        button(
           key: giftKey,
           // D135: the owner's colourful gift box.
           asset: 'assets/live_bar/bar_gift.png',
@@ -157,8 +192,9 @@ Future<void> showLiveUserManagement(
   BuildContext context, {
   required String roomId,
   required bool hasSeats,
-  required bool allowGuests,
-  required Future<void> Function({required bool allow}) onAllowGuests,
+  bool allowGuests = true,
+  // D225: null hides the switch (its one home is «إعدادات البث»).
+  Future<void> Function({required bool allow})? onAllowGuests,
   VoidCallback? onChanged,
   VoidCallback? onAddModerator,
 }) => showModalBottomSheet<void>(
@@ -195,7 +231,7 @@ class _ManageSheet extends ConsumerStatefulWidget {
   final String roomId;
   final bool hasSeats;
   final bool allowGuests;
-  final Future<void> Function({required bool allow}) onAllowGuests;
+  final Future<void> Function({required bool allow})? onAllowGuests;
   final VoidCallback? onChanged;
 
   @override
@@ -264,7 +300,7 @@ class _ManageSheetState extends ConsumerState<_ManageSheet> {
       _allowGuests = !on;
     });
     try {
-      await widget.onAllowGuests(allow: !on);
+      await widget.onAllowGuests?.call(allow: !on);
     } on Object catch (e) {
       if (mounted) {
         setState(() => _allowGuests = on);
@@ -413,21 +449,22 @@ class _ManageSheetState extends ConsumerState<_ManageSheet> {
               style: t.caption.copyWith(color: _soft),
             ),
           ),
-        SwitchListTile(
-          key: LiveManageKeys.signedInOnly,
-          title: Text(
-            l10n.liveManageSignedInOnly,
-            style: t.body.copyWith(color: _ink),
+        if (widget.onAllowGuests != null)
+          SwitchListTile(
+            key: LiveManageKeys.signedInOnly,
+            title: Text(
+              l10n.liveManageSignedInOnly,
+              style: t.body.copyWith(color: _ink),
+            ),
+            subtitle: Text(
+              l10n.liveManageSignedInOnlyBody,
+              style: t.caption.copyWith(color: _soft),
+            ),
+            value: !_allowGuests,
+            onChanged: _savingGuests
+                ? null
+                : (on) => unawaited(_setSignedInOnly(on)),
           ),
-          subtitle: Text(
-            l10n.liveManageSignedInOnlyBody,
-            style: t.caption.copyWith(color: _soft),
-          ),
-          value: !_allowGuests,
-          onChanged: _savingGuests
-              ? null
-              : (on) => unawaited(_setSignedInOnly(on)),
-        ),
       ],
     );
   }
