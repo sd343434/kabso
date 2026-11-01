@@ -12414,7 +12414,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String inviteTickerLine(String name, String amount) {
-    return '$name ربح $amount كرزة، مبروك!';
+    return '$name ربح $amount كرزة، مبروك';
   }
 
   @override
@@ -12537,7 +12537,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String inviteShareText(String code, String link) {
-    return 'انضم إليّ في كابسو لايف! استخدم كود دعوتي $code عند التسجيل: $link';
+    return 'انضم إليّ في Kabso Live. استخدم كود دعوتي $code عند التسجيل: $link';
   }
 
   @override

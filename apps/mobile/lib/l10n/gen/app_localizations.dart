@@ -21187,7 +21187,7 @@ abstract class AppLocalizations {
   /// D217 (invite friends «دعوة الأصدقاء»).
   ///
   /// In ar, this message translates to:
-  /// **'{name} ربح {amount} كرزة، مبروك!'**
+  /// **'{name} ربح {amount} كرزة، مبروك'**
   String inviteTickerLine(String name, String amount);
 
   /// D217 (invite friends «دعوة الأصدقاء»).
@@ -21367,7 +21367,7 @@ abstract class AppLocalizations {
   /// D217 (invite friends «دعوة الأصدقاء»).
   ///
   /// In ar, this message translates to:
-  /// **'انضم إليّ في كابسو لايف! استخدم كود دعوتي {code} عند التسجيل: {link}'**
+  /// **'انضم إليّ في Kabso Live. استخدم كود دعوتي {code} عند التسجيل: {link}'**
   String inviteShareText(String code, String link);
 
   /// D217 (invite friends «دعوة الأصدقاء»).

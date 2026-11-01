@@ -1129,7 +1129,21 @@ class _RulesSheet extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('•  ', style: text.body),
+                    // The bullet: a dot drawn in the text colour.
+                    Padding(
+                      padding: const EdgeInsetsDirectional.only(
+                        top: 9,
+                        end: KSpacing.sm,
+                      ),
+                      child: Container(
+                        width: 5,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: text.body.color,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
                     Expanded(child: Text(rule, style: text.body)),
                   ],
                 ),

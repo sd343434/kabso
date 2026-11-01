@@ -12420,7 +12420,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String inviteTickerLine(String name, String amount) {
-    return '$name earned $amount cherries, congratulations!';
+    return '$name earned $amount cherries, congratulations';
   }
 
   @override
@@ -12485,7 +12485,7 @@ class AppLocalizationsEn extends AppLocalizations {
       count,
       locale: localeName,
       other: '$count friends',
-      one: '1 friend',
+      one: '$count friend',
     );
     return '$_temp0';
   }
@@ -12541,7 +12541,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String inviteShareText(String code, String link) {
-    return 'Join me on Kabso Live! Use my invite code $code when you sign up: $link';
+    return 'Join me on Kabso Live. Use my invite code $code when you sign up: $link';
   }
 
   @override
