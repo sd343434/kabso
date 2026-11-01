@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
+import { purgeKycIn } from '../kyc/kyc-core.js';
 import { AuditAction } from '../../common/audit/audit.service.js';
 import { Prisma, type PrismaClient } from '../../generated/prisma/client.js';
 import { releaseUserIn } from '../live/live-seats.store.js';
@@ -449,6 +450,9 @@ export async function purgeAccountIn(
        SET date_of_birth = NULL, contact_value = NULL, bio = NULL, links = '{}', photo_key = NULL,
            selfie_key = NULL, purged_at = COALESCE(purged_at, ${at}::timestamptz)
      WHERE user_id = ${u}`;
+  // v1.80-kyc (D227): the identity checks (Didit) are deleted — the minimum we kept (name, birth date, document country,
+  // document hash, reasons) goes with them; Didit's own copy follows the retention set in Didit's console.
+  await purgeKycIn(tx, userId);
   // v1.74-social (D217): a referral keeps the install id and the mailbox hash (the one-reward-per-device and alias
   // checks), never the IP.
   await tx.$executeRaw`UPDATE referrals SET invitee_ip = NULL WHERE invitee_user_id = ${u}`;

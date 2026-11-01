@@ -11,6 +11,7 @@
  * hashes, verification tokens, push tokens, TOTP secrets and recovery codes, admin notes, payment-provider ids and any
  * internal fraud or risk signal (fraud flags, early-fraud warnings, disputes, freezes, cases).
  */
+import { exportKycIn } from '../kyc/kyc-core.js';
 import { createHash } from 'node:crypto';
 import type { Prisma, PrismaClient } from '../../generated/prisma/client.js';
 import type { ObjectStorage } from '../media/object-storage.js';
@@ -53,6 +54,8 @@ export const EXPORT_SECTIONS = [
   'agency_applications',
   // v1.73-social (D209): the «كن مضيفاً مع الإدارة» applications (the person's own KYC) and their pictures.
   'host_applications',
+  // v1.80-kyc (D227): the identity checks with Didit (status, decision, reasons, name, birth date, country).
+  'kyc_checks',
   'consents',
   'devices',
 ] as const;
@@ -799,6 +802,9 @@ export async function buildDataExport(db: Db, o: BuildExportOptions): Promise<Ex
     });
   }
 
+  // -- v1.80-kyc (D227): the identity checks with Didit (never the document hash; images stay with Didit).
+  const kycChecks = await exportKycIn(db, u);
+
   // -- Consents (D198), the top-up terms (D190) and the lucky gifts' 18+ statement (D132).
   const consents = {
     acceptances: (
@@ -924,6 +930,7 @@ export async function buildDataExport(db: Db, o: BuildExportOptions): Promise<Ex
     recharge_agent: rechargeAgent,
     agency_applications: agencyApplications,
     host_applications: hostApplications,
+    kyc_checks: kycChecks,
     consents,
     devices,
   };
@@ -945,6 +952,7 @@ export async function buildDataExport(db: Db, o: BuildExportOptions): Promise<Ex
     recharge_agent: rechargeAgent.length,
     agency_applications: agencyApplications.length,
     host_applications: hostApplications.length,
+    kyc_checks: kycChecks.length,
     consents: consents.acceptances.length + consents.topupTerms.length,
     devices: devices.sessions.length,
   } satisfies Record<ExportSection, number>;

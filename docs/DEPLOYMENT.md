@@ -2214,3 +2214,85 @@ app. The panel's user page gains the tab «الجهاز» (`users.device_view`: 
 `users.device_exception`, OWNER, the authenticator code again).
 - Not verified on a device or a server (ANDROID_ID across reinstalls, the iOS Keychain across reinstalls, the panel
   on a server).
+
+### 5.44 Identity verification with Didit «التحقق من الهوية (Didit)» (migrations `20270214090000_kyc_enums`, `20270214090100_kyc_checks`; D227) — [IMPLEMENTED, draft contract v1.80-kyc; not deployed; no real Didit call made, not device-tested]
+
+CONVENTIONS §10.77. Additive: three new notification values (their own migration), the tables `kyc_settings` (one row
+at most), `kyc_checks`, `kyc_webhook_events`; DML for the runtime role from the default privileges (no GRANT); no
+backfill. The second migration also **relaxes** `recharge_agent_applications_shape` (the two picture keys may now be
+missing — both or neither) so a recharge application can be made with Didit on. Without a row, or with the switch
+off, nothing changes: the applications keep the manual ID card + selfie (§5.33, §5.34, §5.37). Needs the admin panel on
+(D191: `ADMIN_TOTP_KEY` set, the OWNER enrolled): the Didit API key and webhook secret are sealed with a key derived
+from it, and the document numbers are hashed with another key derived from it — **a new `ADMIN_TOTP_KEY` makes the
+saved secrets unreadable (enter them again) and makes old document hashes no longer match new ones (the duplicate
+flag only sees checks made after the change).** The Didit keys are never server settings.
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `API_PUBLIC_URL` | `https://api.kabsolive.com` | only shown in the panel: the webhook address is `<API_PUBLIC_URL>/api/v1/kyc/didit/webhook` (set it on staging) |
+| `RATE_LIMIT_KYC_START_USER` | `20/86400` | session starts per user (the OWNER's daily limit in the panel is separate, default 3) |
+| `RATE_LIMIT_KYC_SYNC_USER` | `60/3600` | «sync» reads of a decision per user |
+
+Caddy: nothing to add — `api.kabsolive.com` already proxies `/api/v1/*`; the webhook path is public (no auth) and
+verified by its signature. Order: API (with the migrations) first, then the panel, then the app (an older app sends
+the ID pictures and keeps working while Didit is off; with Didit on, an older app's form still sends pictures, which
+are ignored, and it cannot run «تأكيد الهوية» — release the app before turning Didit on).
+
+#### The owner's steps — بالعربية
+
+1. **إنشاء الحساب:** ادخل إلى `https://business.didit.me` وأنشئ حساباً (بريد العمل)، ثم أنشئ المؤسسة (Organization)
+   والتطبيق (Application) باسم «Kabso Live». أول 500 تحقق شهرياً مجانية، وبعدها نحو 0.33 دولار للتحقق الكامل.
+2. **إنشاء سير العمل (Workflow):** من القائمة «Workflows» ← «Create workflow» ← اختر نوع KYC وفعّل:
+   - **ID Verification** (وثيقة الهوية: بطاقة/جواز/رخصة)،
+   - **Liveness** واختر **Passive** (التحقق من أن الشخص حقيقي دون حركات)،
+   - **Face Match** (مطابقة الوجه مع صورة الوثيقة 1:1).
+   - لا تضف AML أو غيره إلا إذا أردت (كل ميزة تضيف تكلفة). اضبط الحد الأدنى للعمر إن وُجد على 18.
+   - احفظ ثم **انشر (Publish)** سير العمل، وانسخ **Workflow ID** (معرّف بصيغة UUID مثل `xxxxxxxx-xxxx-…`).
+   - (اختياري) يمكنك إنشاء سير عمل مختلف لكل طلب (مضيف / وكالة / وكيل شحن)؛ إن استخدمت سيراً واحداً للجميع فتحقق
+     واحد مقبول يكفي الشخص للطلبات الثلاثة.
+3. **المفتاح وسر الـ Webhook:** «Settings» ← «API & Webhooks»:
+   - انسخ **API Key** (يُرسل في كل طلب من الخادم؛ لا تضعه في التطبيق ولا ترسله في محادثة).
+   - في خانة **Webhook URL** ضع: `https://api.kabsolive.com/api/v1/kyc/didit/webhook`
+     (للتجربة على خادم الاختبار استخدم العنوان الذي تعرضه لوحة الإدارة في قسم Didit).
+   - اترك إصدار الـ Webhook على الافتراضي (v3) واحفظ، ثم انسخ **Webhook Secret Key**.
+4. **مدة الاحتفاظ بالبيانات لدى Didit:** «App Settings» ← «Data» ← اختر مدة (ننصح بـ **سنة واحدة**: نحتاج الصور مدة
+   مراجعة الطلبات والنزاعات فقط) ← Save. لا تفعّل «Retain biometric template» إلا إذا قررت ذلك صراحة.
+5. **في لوحة الإدارة:** ادخل `https://admin.kabsolive.com` ← «التحقق من الهوية (Didit)»:
+   - الصق **مفتاح API** و**سر الـ Webhook** و**معرّف سير العمل الافتراضي** (والمعرّفات الخاصة بكل طلب إن وُجدت)، واختر
+     «عدد الجلسات في اليوم لكل شخص» (الافتراضي 3).
+   - اضغط **«اختبار الاتصال»**: يجب أن يظهر «المفتاح يعمل» وكل سير عمل «منشور». إن ظهر «مفتاح خاطئ» أو «سير العمل غير
+     موجود/غير منشور» فصحّح ثم أعد الاختبار.
+   - «حفظ» ← السبب + رمز تطبيق المصادقة. ثم مفتاح **«تفعيل»** ← السبب + رمز جديد: يُعاد الاختبار ويبدأ العمل فوراً.
+   - المفاتيح لا تظهر بعد الحفظ إطلاقاً (آخر 4 أحرف فقط)، وكل تغيير مسجّل في سجل التدقيق.
+6. **التجربة:** من التطبيق: «الوكالة» ← «كن مضيفاً مع الإدارة» ← خطوة «تأكيد الهوية» ← «ابدأ التحقق»: صوّر الوثيقة
+   ثم وجهك. بعد الانتهاء تظهر الحالة (مقبول / قيد المراجعة / مرفوض مع السبب) ويصلك إشعار. في لوحة الإدارة افتح الطلب:
+   يظهر قسم «التحقق من الهوية» بالحالة والاسم وتاريخ الميلاد ودولة الوثيقة، وزر «عرض الصور» (روابط مؤقتة من Didit) أو
+   رقم الجلسة للبحث عنه في لوحة Didit. لا يمكن قبول طلب المضيف أو تفعيل وكيل الشحن أو فتح وكالة قبل تحقق مقبول.
+7. **إيقاف مؤقت:** مفتاح «تفعيل» إلى إيقاف: تعود الطلبات إلى رفع صورة الهوية والسيلفي يدوياً كما كانت.
+
+#### The owner's steps — English
+
+1. Create an account at `https://business.didit.me`, then the organization and an application «Kabso Live» (500 free
+   checks a month, then about $0.33 a full check). 2. **Workflows → Create workflow** (KYC): **ID Verification**,
+   **Liveness — Passive**, **Face Match**; nothing else unless wanted (each feature costs); minimum age 18 if offered;
+   save, **Publish**, copy the **Workflow ID** (a UUID). Optionally one workflow per application; with one workflow for
+   all, one approved check serves the three applications. 3. **Settings → API & Webhooks:** copy the **API Key**; set
+   **Webhook URL** to `https://api.kabsolive.com/api/v1/kyc/didit/webhook` (staging: the address the panel shows);
+   keep the webhook version (v3); save; copy the **Webhook Secret Key**. Never put the key in the app or in a chat.
+   4. **App Settings → Data:** a retention window (we suggest **1 year**); leave «Retain biometric template» off unless
+   decided. 5. **Admin panel → «التحقق من الهوية (Didit)»:** paste the API key, the webhook secret, the default
+   workflow id (and per-application ones if any), the sessions per person per day (default 3); **«اختبار الاتصال»**
+   (the key works, each workflow published); **Save** (reason + authenticator code); then **«تفعيل»** (reason + a new
+   code; the test runs again). Saved secrets are never shown again (last 4 only); every change is audited. 6. **Test:**
+   in the app, «الوكالة» → «كن مضيفاً مع الإدارة» → «تأكيد الهوية» → document, then face; the result shows in the app
+   with a notification and in the application's page in the panel (state, name, birth date, document country,
+   «عرض الصور» = Didit's short-lived links, the session number for Didit's console). A host application cannot be
+   approved, a recharge agent cannot be activated (first top-up) and an agency cannot be opened without an approved
+   check. 7. Switching «تفعيل» off brings back the manual ID card + selfie.
+
+- **Privacy:** add Didit to the published privacy policy with `legal-admin publish privacy` when the text in
+  `infra/deploy/site/privacy.html` (Didit added as a processor, AR + EN, this change) is reviewed — the version was
+  NOT bumped (PP-40).
+- Not verified: a real Didit account, key, workflow or webhook delivery (Didit was faked in every test); the hosted
+  flow inside the Android / iOS WebView with a real camera; the exact wording of Didit's console menus (taken from
+  docs.didit.me on 2026-11-01).

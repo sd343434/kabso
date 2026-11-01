@@ -84,8 +84,10 @@ describe('D209 contract coverage', () => {
     );
     const schemas = (openapi.components as { schemas: Record<string, Record<string, unknown>> }).schemas;
     expect(schemas.HostingApplicationRequest!.required).toEqual(
-      expect.arrayContaining(['dateOfBirth', 'acceptRules', 'photoUploadId', 'selfieUploadId']),
+      expect.arrayContaining(['dateOfBirth', 'acceptRules']),
     );
+    // v1.80-kyc (D227): the ID pictures are required only while Didit is off (checked by the server, 400 `required`).
+    expect(schemas.HostingApplicationRequest!.required).not.toContain('photoUploadId');
     expect((schemas.NotificationType as { enum: string[] }).enum).toEqual(
       expect.arrayContaining(['HOST_APPLICATION_APPROVED', 'HOST_APPLICATION_REJECTED']),
     );

@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { adminKycSummaryIn } from '../kyc/kyc-core.js';
 import { AuditAction, AuditService } from '../../common/audit/audit.service.js';
 import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
@@ -26,7 +27,7 @@ async function rule<T>(step: () => Promise<T>): Promise<T> {
   try {
     return await step();
   } catch (err) {
-    if (err instanceof HostApplicationError) throw refused(err.message);
+    if (err instanceof HostApplicationError) throw refused(err.message, err.issue);
     throw err;
   }
 }
@@ -234,6 +235,14 @@ export class AdminHostApplicationsService {
             ? { role: 'OWNER' as const, inviteCode: ownedAgency.inviteCode }
             : null,
       },
+      // v1.80-kyc (D227): the person's identity check — approved is required before «موافقة» while Didit is on.
+      kyc: await adminKycSummaryIn(
+        this.prisma,
+        userId,
+        'HOST_APPLICATION',
+        now,
+        ctx.capabilities.includes('kyc.view'),
+      ),
       history: history.map((h) => ({
         id: h.id,
         status: h.status,

@@ -88,6 +88,8 @@ export const NAV: NavGroup[] = [
       { to: '/payments', key: 'navPayments', icon: 'money', cap: 'payments.settings', match: ['payments'] },
       // v1.75-social (D222): «التخزين (R2 / S3)».
       { to: '/storage', key: 'navStorage', icon: 'storage', cap: 'storage.settings', match: ['storage'] },
+      // v1.80-kyc (D227): «التحقق من الهوية (Didit)».
+      { to: '/kyc-settings', key: 'navKyc', icon: 'shield', cap: 'kyc.settings', match: ['kycSettings'] },
       { to: '/waitlist', key: 'navWaitlist', icon: 'mail', cap: 'waitlist.view', match: ['waitlist'] },
       { to: '/team', key: 'navTeam', icon: 'shield', cap: 'team.manage', match: ['team'] },
       { to: '/audit', key: 'navAudit', icon: 'clock', cap: 'audit.view', match: ['audit'] },

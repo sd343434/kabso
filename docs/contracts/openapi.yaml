@@ -562,6 +562,22 @@ info:
     **D226 (DRAFT v1.79-social)**: «تسجيل الخروج من كل الأجهزة الأخرى» — `revokeOtherSessions`
     (`POST /auth/sessions/revoke-others`, password re-checked) ends every session of the caller except the one making
     the call and answers how many were ended (CONVENTIONS §10.76). Additive.
+    **D227 (DRAFT v1.80-kyc)**: identity verification with Didit «تأكيد الهوية» for the applicants «كن مضيفاً مع
+    الإدارة» (D209), «افتح وكالة» (D206) and recharge agents (D185). Tag `kyc`: `getMyKyc`, `startKycSession` (a Didit
+    session for a purpose → its hosted-flow `url` and the `callbackUrl` the app's WebView stops at), `syncKycCheck`
+    (reads the decision from Didit after the flow), `receiveDiditWebhook` (Didit's signed `status.updated`:
+    `X-Timestamp` ±300 s, `X-Signature-V2` / `X-Signature`, once per `event_id`). Tag `admin-panel`:
+    `getAdminKycSettings`, `updateAdminKycSettings` (PATCH; the code again and a reason), `testAdminKycSettings`
+    («اختبار الاتصال»), `clearAdminKycSettings` (capability `kyc.settings`, OWNER; the API key and the webhook secret
+    are write-only, sealed with `kyc-settings/v1`, last 4 only), `getAdminKycCheck` and `getAdminKycCheckMedia`
+    (capability `kyc.view`, OWNER + SUPPORT; audited; the images are Didit's short-lived links, never stored).
+    `AdminHostApplication`, `AdminAgencyApplication` and `AdminRechargeApplication` gain `kyc` (`AdminKycSummary`).
+    With Didit on: the three applications no longer need `photoUploadId` / `selfieUploadId` (optional now; ignored);
+    approving a host application and the recharge agent's first top-up are refused 409 `ADMIN_ACTION_REFUSED`
+    `kyc_required` and «افتح وكالة» 409 `AGENCY_OPEN_NOT_ALLOWED` `KYC_REQUIRED` until an approved check. Codes
+    `KYC_NOT_ALLOWED` (409), `KYC_UNAVAILABLE` (503); notification types `KYC_APPROVED`, `KYC_DECLINED`,
+    `KYC_IN_REVIEW`. Additive except that the two upload ids became optional (older clients still send them)
+    (CONVENTIONS §10.77).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -594,6 +610,8 @@ tags:
     description: "Card top-ups on the Kabso website through Stripe Checkout (v1.59-social DRAFT, D190, CONVENTIONS §10.53). Never inside the app (store rules)."
   - name: agency
     description: "Host agencies: join with an invite code, leave or complain, the agent's dashboard (v1.52-social DRAFT, D179); the active-host frame (v1.55-social DRAFT, D186)."
+  - name: kyc
+    description: "(v1.80-kyc DRAFT, D227) «تأكيد الهوية»: identity checks with Didit (ID document, passive liveness, 1:1 face match) for the host, agency and recharge-agent applications, and Didit's signed decision webhook (CONVENTIONS §10.77)."
   - name: referrals
     description: "(v1.74-social DRAFT, D217) «دعوة الأصدقاء»: the person's invite code and link, the configured rewards in withdrawable cherries, their invitees and rewards, a code entered later, and the public ticker of real rewards (CONVENTIONS §10.71)."
   - name: recharge
@@ -10386,6 +10404,285 @@ paths:
         '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
         '503': { $ref: '#/components/responses/Error' }
+  # ---- v1.80-kyc (DRAFT, D227, CONVENTIONS §10.77): identity verification with Didit «تأكيد الهوية» ----------------
+  /api/v1/me/kyc:
+    get:
+      tags: [kyc]
+      operationId: getMyKyc
+      summary: "«تأكيد الهوية»: whether Didit is on, and per application purpose the caller's check and whether they may start one (D227)"
+      description: |
+        v1.80-kyc, CONVENTIONS §10.77. `enabled`: Didit is on (the OWNER's panel switch). One `KycPurposeState` per
+        purpose, in the order `HOST_APPLICATION`, `AGENCY_OPEN`, `RECHARGE_AGENT`: `approved` — an APPROVED check
+        counts for it (made for it, or on the workflow the purpose runs on now: with one workflow for all, one approval
+        serves the three); `check` — that approved check, else the newest one made for the purpose; `refusal` — why a
+        new session cannot start: `ACCOUNT_NOT_ACTIVE`, `ALREADY_APPROVED`, `IN_REVIEW` (wait for the review),
+        `DAILY_LIMIT` (`startedLast24h` ≥ `maxSessionsPerDay`; an unfinished session is opened again and does not
+        count). `canStart` is also false while Didit is off. No personal field. Per-user default rate limit.
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyKyc' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/kyc/sessions:
+    post:
+      tags: [kyc]
+      operationId: startKycSession
+      summary: "Starts (or opens again) a Didit session for an application purpose → the hosted flow's URL (D227)"
+      description: |
+        v1.80-kyc, §10.77. Creates a Didit session (`POST /v3/session/` with the purpose's workflow, `vendor_data` =
+        the caller's id, `callback` = `callbackUrl`, `metadata.purpose`, `language`) and answers its hosted-flow `url`
+        (`https://verify.didit.me/…`; open it in a WebView that grants the camera, and close it when it navigates to
+        `callbackUrl`, to which Didit appends `verificationSessionId` and `status`). Didit returns the session still
+        unfinished for the same person and workflow: then 200 with the same check (not counted again). Order: 400 body
+        → 503 `KYC_UNAVAILABLE` (Didit off) → 409 `KYC_NOT_ALLOWED` (`details[0] = {field: purpose, issue}`, issue
+        a `KycRefusal`) → 503 `SERVICE_UNAVAILABLE` (Didit unreachable or refused) → 201. Audited
+        `kyc.session.start`. Rate limit: the per-user default plus `kyc:start` (`RATE_LIMIT_KYC_START_USER`, 20 / 24 h;
+        refused attempts count). `Cache-Control: no-store`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StartKycSessionRequest' }
+      responses:
+        '200':
+          description: The unfinished session opened again.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KycSessionStart' }
+        '201':
+          description: A new session.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KycSessionStart' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/me/kyc/checks/{checkId}/sync:
+    post:
+      tags: [kyc]
+      operationId: syncKycCheck
+      summary: "Reads the caller's check's decision from Didit now and applies it (after the hosted flow; D227)"
+      description: |
+        v1.80-kyc, §10.77. `GET /v3/session/{id}/decision/` at Didit, applied exactly like the webhook (the minimum
+        kept, the 18+ rule, the duplicate flag, the notification on a change). For a webhook that is late or lost.
+        404 not the caller's check; 503 `KYC_UNAVAILABLE` (Didit off) or `SERVICE_UNAVAILABLE` (unreachable). Rate
+        limit `kyc:sync` (`RATE_LIMIT_KYC_SYNC_USER`, 60 / h).
+      parameters:
+        - name: checkId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: The check as now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KycCheck' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/kyc/didit/webhook:
+    post:
+      tags: [kyc]
+      operationId: receiveDiditWebhook
+      summary: "Didit's signed decision events (server to server; not for clients) (D227)"
+      description: |
+        v1.80-kyc, §10.77. The address the OWNER sets in Didit (Settings › API & Webhooks). Verified with the webhook
+        secret saved in the panel: `X-Timestamp` (Unix seconds) within 300 s of now — a replay or an old delivery is
+        refused —, then `X-Signature-V2` (HMAC-SHA-256 hex of the canonical JSON: keys sorted recursively, compact,
+        Unicode kept) or `X-Signature` (HMAC-SHA-256 hex of the raw body); constant-time. The deprecated
+        `X-Signature-Simple` is not accepted. Failed → 401 `AUTH_UNAUTHENTICATED` (`details[0].issue`
+        `missing_timestamp` / `stale_timestamp` / `missing_signature` / `invalid_signature`) and nothing changes. Each
+        `event_id` is applied once (a retry answers 200 and changes nothing); `status.updated` and `data.updated` are
+        applied (`status` and `decision`), other types acknowledged and ignored, an unknown session acknowledged and
+        dropped, an event older than the last one applied ignored. 503 `KYC_UNAVAILABLE` when no webhook secret is
+        saved (Didit retries). No rate limit.
+      security: []
+      parameters:
+        - name: X-Timestamp
+          in: header
+          required: true
+          schema: { type: string }
+        - name: X-Signature-V2
+          in: header
+          required: false
+          schema: { type: string }
+        - name: X-Signature
+          in: header
+          required: false
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, description: "A Didit webhook (`event_id`, `webhook_type`, `session_id`, `status`, `decision`, …)." }
+      responses:
+        '200':
+          description: Received (applied, a duplicate, or ignored).
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [received]
+                properties:
+                  received: { type: boolean, const: true }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/kyc-settings:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminKycSettings
+      summary: "«التحقق من الهوية (Didit)»: the settings — secrets as last 4 only —, the switch, the webhook address and the last test (kyc.settings: OWNER)"
+      description: "Never a secret: `apiKey` / `webhookSecret` are `KycKeyInfo` (last 4, who, when). `webhookUrl` is the address to set in Didit; `callbackUrl` the hosted flow's return address. Not from the server environment (owner D227). `Cache-Control: no-store`."
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: The settings.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminKycSettings' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+    patch:
+      tags: [admin-panel]
+      operationId: updateAdminKycSettings
+      summary: "Saves the Didit settings and / or turns it on or off «تفعيل» (kyc.settings: OWNER; the code again + reason; audited with the last 4 only)"
+      description: |
+        Only the fields sent change (null clears a workflow). Every change needs `totpCode` (403 `ADMIN_TOTP_INVALID`,
+        counts towards the lockout) and `reason`. Turning on needs the API key, the webhook secret and the default
+        workflow (409 `ADMIN_ACTION_REFUSED`, one detail per missing field, issue `kyc_incomplete`). Turning on, or a
+        new key / workflow while on, first runs `testAdminKycSettings` with the merged values (kept as the last test); a
+        failure → 409 `kyc_test_failed` (`enabled`), nothing saved. `skipConnectionTest: true` only when NODE_ENV is not
+        production (else 409 `kyc_test_required`). Used within 5 s on every instance (no restart). Audited
+        `kyc.settings.update` (before / after with `…last4`, `changed`, `connectionTest`, `reason`).
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateAdminKycSettingsRequest' }
+      responses:
+        '200':
+          description: Saved; the settings as now (last 4 only).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminKycSettings' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/kyc-settings/test:
+    post:
+      tags: [admin-panel]
+      operationId: testAdminKycSettings
+      summary: "«اختبار الاتصال»: the API key against Didit and every workflow id (typed or saved) — nothing saved but the result (kyc.settings: OWNER)"
+      description: "`GET /v3/workflows/` at Didit with the key (401 / 403 → `bad_api_key`, network → `unreachable`); each workflow id must be one of the application's, published and not archived (`workflow_not_found` / `workflow_not_published` / `workflow_archived`). 200 `KycTestReport` whatever the outcome; 400 `required` when there is no key or no default workflow. Audited `kyc.settings.test` (`…last4`, the outcome)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TestAdminKycSettingsRequest' }
+      responses:
+        '200':
+          description: The outcome.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KycTestReport' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/kyc-settings/clear:
+    post:
+      tags: [admin-panel]
+      operationId: clearAdminKycSettings
+      summary: "Removes the panel's Didit settings and secrets: Didit is off, the manual ID pictures apply again (kyc.settings: OWNER; code again + reason; audited)"
+      description: "409 `ADMIN_ACTION_REFUSED` (`kyc_nothing_to_clear`) when nothing is saved. The checks already made stay (an approved one keeps counting). Audited `kyc.settings.clear` (masked before, `reason`)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ClearAdminKycSettingsRequest' }
+      responses:
+        '200':
+          description: Cleared.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminKycSettings' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/kyc/checks/{checkId}:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminKycCheck
+      summary: "A person's identity check: the state, reasons, name, birth date, document country and the accounts with the same document (kyc.view: OWNER, SUPPORT; audited)"
+      description: "Audited `kyc.check.view`. Never the document number or its hash, never an image (`getAdminKycCheckMedia`, or Didit's console at `consoleUrl` with `sessionNumber`). `Cache-Control: no-store`."
+      security: [{ adminSession: [] }]
+      parameters:
+        - name: checkId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: The check.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminKycCheck' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/kyc/checks/{checkId}/media:
+    post:
+      tags: [admin-panel]
+      operationId: getAdminKycCheckMedia
+      summary: "The check's images as Didit's short-lived links, fetched now and never stored (kyc.view: OWNER, SUPPORT; audited per fetch)"
+      description: "Reads `GET /v3/session/{id}/decision/` at Didit and answers only its presigned image links (they expire within minutes; ask again for fresh ones). Audited `kyc.check.media.view` before the fetch. 404 unknown here or at Didit; 503 `KYC_UNAVAILABLE` (no API key saved) or `SERVICE_UNAVAILABLE`. `Cache-Control: no-store`."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+        - name: checkId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: The links (null when Didit has none).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminKycMedia' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
   # ---- v1.75-social (DRAFT, D222, CONVENTIONS §10.72): the media storage from the panel «التخزين (R2 / S3)» --------
   /api/v1/admin/storage-settings:
     get:
@@ -15299,7 +15596,7 @@ components:
     AdminAgencyApplication:
       type: object
       description: (v1.70-social, D206) a «افتح وكالة» application (private).
-      required: [id, agencyId, createdAt, purgedAt, user, name, country, contact, expectedHosts, bio, photos]
+      required: [id, agencyId, createdAt, purgedAt, user, name, country, contact, expectedHosts, bio, photos, kyc]
       properties:
         id: { type: string, format: uuid }
         agencyId: { type: string, format: uuid }
@@ -15329,6 +15626,7 @@ components:
           properties:
             photo: { type: boolean, description: The ID card is stored. }
             selfie: { type: boolean }
+        kyc: { $ref: '#/components/schemas/AdminKycSummary' }
     HostApplicationStatus:
       type: string
       description: (v1.73-social, D209) the state of an application «كن مضيفاً مع الإدارة».
@@ -15341,7 +15639,7 @@ components:
       type: object
       additionalProperties: false
       description: v1.73-social (D209). Text is trimmed; no control characters (line breaks allowed in the bio).
-      required: [displayName, country, dateOfBirth, contact, bio, acceptRules, photoUploadId, selfieUploadId]
+      required: [displayName, country, dateOfBirth, contact, bio, acceptRules]
       properties:
         displayName: { type: string, minLength: 1, maxLength: 100, description: "The name the person hosts under (the §6 display-name rules; the app fills in the profile's)." }
         country: { type: string, pattern: '^[A-Za-z]{2}$', description: ISO 3166-1 alpha-2. }
@@ -15360,7 +15658,7 @@ components:
           description: Optional links to the person's existing streaming accounts (https only).
           items: { type: string, format: uri, maxLength: 200 }
         acceptRules: { type: boolean, enum: [true], description: The host rules were read and accepted (the time is kept). }
-        photoUploadId: { type: string, format: uuid, description: "The ID card: a pending private upload of kind `RECHARGE_AGENT_PHOTO`." }
+        photoUploadId: { type: string, format: uuid, description: "The ID card: a pending private upload of kind `RECHARGE_AGENT_PHOTO`. (v1.80-kyc, D227) Required only while Didit is off (400 `required`); with Didit on it is ignored (the identity check replaces it), as is `selfieUploadId`." }
         selfieUploadId: { type: string, format: uuid, description: "A pending private upload of kind `RECHARGE_AGENT_SELFIE`." }
     HostingApplication:
       type: object
@@ -15436,8 +15734,9 @@ components:
     AdminHostApplication:
       type: object
       description: (v1.73-social, D209) an application «كن مضيفاً مع الإدارة» with its private fields (audited) and the applicant's account summary.
-      required: [id, status, createdAt, decidedAt, decidedBy, rejectReason, cancelReason, purgedAt, reapplyAt, displayName, country, dateOfBirth, age, contact, bio, links, rulesAcceptedAt, photos, account, history]
+      required: [id, status, createdAt, decidedAt, decidedBy, rejectReason, cancelReason, purgedAt, reapplyAt, displayName, country, dateOfBirth, age, contact, bio, links, rulesAcceptedAt, photos, account, history, kyc]
       properties:
+        kyc: { $ref: '#/components/schemas/AdminKycSummary' }
         id: { type: string, format: uuid }
         status: { $ref: '#/components/schemas/HostApplicationStatus' }
         createdAt: { type: string, format: date-time }
@@ -15715,8 +16014,9 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     AdminRechargeApplication:
       type: object
-      required: [id, status, createdAt, decidedAt, purgedAt, rejectReason, user, fullName, phone, locations, paymentMethods, photos]
+      required: [id, status, createdAt, decidedAt, purgedAt, rejectReason, user, fullName, phone, locations, paymentMethods, photos, kyc]
       properties:
+        kyc: { $ref: '#/components/schemas/AdminKycSummary' }
         id: { type: string, format: uuid }
         status: { type: string, enum: [PENDING, APPROVED, REJECTED] }
         createdAt: { type: string, format: date-time }
@@ -15747,10 +16047,11 @@ components:
             properties:
               country: { type: string }
               type: { type: string }
+              details: { type: string, description: "(declared in v1.80-kyc; already returned since D191) the payment details the applicant typed." }
         photos:
           type: object
           required: [photo, selfie]
-          description: Which private pictures exist (fetched one by one, each view audited).
+          description: Which private pictures exist (fetched one by one, each view audited). (v1.80-kyc) Both false when the application was made with Didit on.
           properties:
             photo: { type: boolean }
             selfie: { type: boolean }
@@ -19472,6 +19773,250 @@ components:
       properties:
         totpCode: { type: string, pattern: '^[0-9]{6}$', writeOnly: true }
         reason: { type: string, minLength: 1, maxLength: 500 }
+    # ---- v1.80-kyc (DRAFT, D227, CONVENTIONS §10.77): identity verification with Didit -----------------------------
+    KycPurpose:
+      type: string
+      description: "(v1.80-kyc, D227) The application a check is for: «كن مضيفاً مع الإدارة», «افتح وكالة», a recharge agent."
+      enum: [HOST_APPLICATION, AGENCY_OPEN, RECHARGE_AGENT]
+    KycStatus:
+      type: string
+      description: "(v1.80-kyc, D227) Didit's status mapped: `Not Started` → NOT_STARTED; `In Progress` / `Awaiting User` / `Resubmitted` → IN_PROGRESS; `In Review`; `Approved` (18+ by the document's date of birth, else DECLINED with `UNDER_MIN_AGE` / `DATE_OF_BIRTH_MISSING`); `Declined`; `Expired` / `Kyc Expired` → EXPIRED; `Abandoned`."
+      enum: [NOT_STARTED, IN_PROGRESS, IN_REVIEW, APPROVED, DECLINED, EXPIRED, ABANDONED]
+    KycRefusal:
+      type: string
+      description: "(v1.80-kyc, D227) Why a session cannot start now (§10.77)."
+      enum: [ACCOUNT_NOT_ACTIVE, ALREADY_APPROVED, IN_REVIEW, DAILY_LIMIT]
+    KycCheck:
+      type: object
+      additionalProperties: false
+      description: "(v1.80-kyc, D227) A check as the person sees it (no personal field)."
+      required: [id, purpose, status, reasons, createdAt, decidedAt]
+      properties:
+        id: { type: string, format: uuid }
+        purpose: { $ref: '#/components/schemas/KycPurpose' }
+        status: { $ref: '#/components/schemas/KycStatus' }
+        reasons:
+          type: array
+          maxItems: 20
+          items: { type: string, pattern: '^[A-Z0-9_]+$' }
+          description: "DECLINED / IN_REVIEW only: Didit's warning codes (`risk`, e.g. `LIVENESS_FACE_ATTACK`, `NO_FACE_DETECTED`, `DOCUMENT_EXPIRED`) and ours (`UNDER_MIN_AGE`, `DATE_OF_BIRTH_MISSING`); the app shows a sentence per known code and a general one otherwise."
+        createdAt: { type: string, format: date-time }
+        decidedAt: { type: [string, 'null'], format: date-time }
+    KycPurposeState:
+      type: object
+      additionalProperties: false
+      required: [purpose, approved, check, canStart, refusal]
+      properties:
+        purpose: { $ref: '#/components/schemas/KycPurpose' }
+        approved: { type: boolean }
+        check: { oneOf: [{ $ref: '#/components/schemas/KycCheck' }, { type: 'null' }] }
+        canStart: { type: boolean }
+        refusal: { oneOf: [{ $ref: '#/components/schemas/KycRefusal' }, { type: 'null' }] }
+    MyKyc:
+      type: object
+      additionalProperties: false
+      description: "(v1.80-kyc, D227) `getMyKyc`."
+      required: [enabled, maxSessionsPerDay, startedLast24h, purposes]
+      properties:
+        enabled: { type: boolean, description: "Didit is on: the applications need an approved check and no ID pictures." }
+        maxSessionsPerDay: { type: integer, minimum: 1, maximum: 10 }
+        startedLast24h: { type: integer, minimum: 0 }
+        purposes: { type: array, items: { $ref: '#/components/schemas/KycPurposeState' } }
+    StartKycSessionRequest:
+      type: object
+      additionalProperties: false
+      required: [purpose]
+      properties:
+        purpose: { $ref: '#/components/schemas/KycPurpose' }
+        language: { type: string, enum: [ar, en], description: "The hosted flow's language (Didit detects the browser's otherwise)." }
+    KycSessionStart:
+      type: object
+      additionalProperties: false
+      description: "(v1.80-kyc, D227) `startKycSession`."
+      required: [check, url, callbackUrl]
+      properties:
+        check: { $ref: '#/components/schemas/KycCheck' }
+        url: { type: string, format: uri, description: "Didit's hosted flow (personal: never cache or share it)." }
+        callbackUrl: { type: string, description: "`kabsolive://kyc/done`: the WebView closes when the flow navigates here (Didit appends `verificationSessionId` and `status`)." }
+    KycKeyInfo:
+      type: object
+      additionalProperties: false
+      description: "(v1.80-kyc, D227) All the panel ever shows of a Didit secret: never the value."
+      required: [last4, setBy, setAt]
+      properties:
+        last4: { type: string, minLength: 4, maxLength: 4 }
+        setBy:
+          type: [object, 'null']
+          additionalProperties: false
+          required: [id, displayName]
+          properties:
+            id: { type: string, format: uuid }
+            displayName: { type: string }
+        setAt: { type: [string, 'null'], format: date-time }
+    KycTestWorkflow:
+      type: object
+      additionalProperties: false
+      required: [field, workflowId, ok, label, features, issue]
+      properties:
+        field: { type: string, enum: [workflowId, workflowIdHost, workflowIdAgency, workflowIdRecharge] }
+        workflowId: { type: string, format: uuid }
+        ok: { type: boolean }
+        label: { type: [string, 'null'] }
+        features: { type: [string, 'null'], description: "Didit's features list, e.g. `OCR + LIVENESS + FACE_MATCH`." }
+        issue: { type: [string, 'null'], enum: [bad_api_key, unreachable, workflow_not_found, workflow_not_published, workflow_archived, error, null] }
+    KycTestReport:
+      type: object
+      additionalProperties: false
+      description: "(v1.80-kyc, D227) «اختبار الاتصال»."
+      required: [ok, at, apiKeyLast4, apiKey, workflows]
+      properties:
+        ok: { type: boolean }
+        at: { type: string, format: date-time }
+        apiKeyLast4: { type: [string, 'null'] }
+        apiKey:
+          type: object
+          additionalProperties: false
+          required: [ok, issue, ms]
+          properties:
+            ok: { type: boolean }
+            issue: { type: [string, 'null'], enum: [bad_api_key, unreachable, error, null] }
+            ms: { type: integer, minimum: 0 }
+        workflows: { type: array, items: { $ref: '#/components/schemas/KycTestWorkflow' } }
+    KycLastTest:
+      type: object
+      additionalProperties: false
+      required: [ok, at, apiKeyLast4, apiKey, workflows, by]
+      properties:
+        ok: { type: boolean }
+        at: { type: string, format: date-time }
+        apiKeyLast4: { type: [string, 'null'] }
+        apiKey:
+          type: object
+          additionalProperties: false
+          required: [ok, issue, ms]
+          properties:
+            ok: { type: boolean }
+            issue: { type: [string, 'null'], enum: [bad_api_key, unreachable, error, null] }
+            ms: { type: integer, minimum: 0 }
+        workflows: { type: array, items: { $ref: '#/components/schemas/KycTestWorkflow' } }
+        by:
+          type: [object, 'null']
+          additionalProperties: false
+          required: [id, displayName]
+          properties:
+            id: { type: string, format: uuid }
+            displayName: { type: string }
+    AdminKycSettings:
+      type: object
+      additionalProperties: false
+      description: "(v1.80-kyc, D227) The «التحقق من الهوية (Didit)» section."
+      required: [status, enabled, apiKey, webhookSecret, workflowId, workflowIdHost, workflowIdAgency, workflowIdRecharge, maxSessionsPerDay, missing, updatedAt, panelIgnored, lastTest, webhookUrl, callbackUrl, consoleUrl, connectionTestSkippable]
+      properties:
+        status: { type: string, enum: [active, off, not_configured] }
+        enabled: { type: boolean }
+        apiKey: { oneOf: [{ $ref: '#/components/schemas/KycKeyInfo' }, { type: 'null' }] }
+        webhookSecret: { oneOf: [{ $ref: '#/components/schemas/KycKeyInfo' }, { type: 'null' }] }
+        workflowId: { type: [string, 'null'], format: uuid, description: "The default workflow (every purpose without its own)." }
+        workflowIdHost: { type: [string, 'null'], format: uuid }
+        workflowIdAgency: { type: [string, 'null'], format: uuid }
+        workflowIdRecharge: { type: [string, 'null'], format: uuid }
+        maxSessionsPerDay: { type: integer, minimum: 1, maximum: 10 }
+        missing: { type: array, items: { type: string, enum: [apiKey, webhookSecret, workflowId] } }
+        updatedAt: { type: [string, 'null'], format: date-time }
+        panelIgnored: { type: [string, 'null'], enum: [unreadable, null], description: "On, but a secret was sealed with another `ADMIN_TOTP_KEY`: no session can start." }
+        lastTest: { oneOf: [{ $ref: '#/components/schemas/KycLastTest' }, { type: 'null' }] }
+        webhookUrl: { type: string, description: "`<API_PUBLIC_URL>/api/v1/kyc/didit/webhook` (default `https://api.kabsolive.com/…`)." }
+        callbackUrl: { type: string }
+        consoleUrl: { type: string }
+        connectionTestSkippable: { type: boolean }
+    UpdateAdminKycSettingsRequest:
+      type: object
+      additionalProperties: false
+      description: "(v1.80-kyc, D227) Only the fields sent change (at least one besides the code and reason)."
+      required: [totpCode, reason]
+      properties:
+        apiKey: { type: string, pattern: '^[A-Za-z0-9_.:+/=-]{16,256}$', writeOnly: true }
+        webhookSecret: { type: string, pattern: '^[A-Za-z0-9_.:+/=-]{16,256}$', writeOnly: true }
+        workflowId: { type: [string, 'null'], format: uuid }
+        workflowIdHost: { type: [string, 'null'], format: uuid }
+        workflowIdAgency: { type: [string, 'null'], format: uuid }
+        workflowIdRecharge: { type: [string, 'null'], format: uuid }
+        maxSessionsPerDay: { type: integer, minimum: 1, maximum: 10 }
+        enabled: { type: boolean }
+        skipConnectionTest: { type: boolean, description: "Only when NODE_ENV is not production." }
+        totpCode: { type: string, pattern: '^[0-9]{6}$', writeOnly: true }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+    TestAdminKycSettingsRequest:
+      type: object
+      additionalProperties: false
+      description: "(v1.80-kyc, D227) The key and workflows typed so far; what is left out comes from what is saved."
+      properties:
+        apiKey: { type: string, pattern: '^[A-Za-z0-9_.:+/=-]{16,256}$', writeOnly: true }
+        workflowId: { type: [string, 'null'], format: uuid }
+        workflowIdHost: { type: [string, 'null'], format: uuid }
+        workflowIdAgency: { type: [string, 'null'], format: uuid }
+        workflowIdRecharge: { type: [string, 'null'], format: uuid }
+    ClearAdminKycSettingsRequest:
+      type: object
+      additionalProperties: false
+      required: [totpCode, reason]
+      properties:
+        totpCode: { type: string, pattern: '^[0-9]{6}$', writeOnly: true }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+    AdminKycPerson:
+      type: object
+      additionalProperties: false
+      required: [id, username, displayName]
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        displayName: { type: string }
+    AdminKycCheck:
+      type: object
+      additionalProperties: false
+      description: "(v1.80-kyc, D227) A check as the team sees it. Without `kyc.view` (in an application page) the personal fields are null and `duplicates` empty."
+      required: [id, purpose, status, providerStatus, reasons, sessionId, sessionNumber, workflowId, fullName, dateOfBirth, age, documentCountry, duplicateDocument, duplicates, createdAt, decidedAt, consoleUrl]
+      properties:
+        id: { type: string, format: uuid }
+        purpose: { $ref: '#/components/schemas/KycPurpose' }
+        status: { $ref: '#/components/schemas/KycStatus' }
+        providerStatus: { type: string, description: "Didit's status string as last received." }
+        reasons: { type: array, items: { type: string } }
+        sessionId: { type: string, format: uuid }
+        sessionNumber: { type: [integer, 'null'], description: "The number to search in Didit's console." }
+        workflowId: { type: string, format: uuid }
+        fullName: { type: [string, 'null'] }
+        dateOfBirth: { type: [string, 'null'], format: date }
+        age: { type: [integer, 'null'] }
+        documentCountry: { type: [string, 'null'], pattern: '^[A-Z]{3}$' }
+        duplicateDocument: { type: boolean, description: "The same document (by its hash) is on another account's check — for the team to look at; never an automatic decline." }
+        duplicates: { type: array, maxItems: 10, items: { $ref: '#/components/schemas/AdminKycPerson' } }
+        createdAt: { type: string, format: date-time }
+        decidedAt: { type: [string, 'null'], format: date-time }
+        consoleUrl: { type: string, description: "Didit's console (`https://business.didit.me`)." }
+    AdminKycSummary:
+      type: object
+      additionalProperties: false
+      description: "(v1.80-kyc, D227) The applicant's identity check on an application page: `required` while Didit is on; `satisfied` an approved check counts for this application's purpose; `approved` that check; `latest` the person's newest check (any purpose)."
+      required: [enabled, required, satisfied, workflowId, approved, latest]
+      properties:
+        enabled: { type: boolean }
+        required: { type: boolean }
+        satisfied: { type: boolean }
+        workflowId: { type: [string, 'null'], format: uuid }
+        approved: { oneOf: [{ $ref: '#/components/schemas/AdminKycCheck' }, { type: 'null' }] }
+        latest: { oneOf: [{ $ref: '#/components/schemas/AdminKycCheck' }, { type: 'null' }] }
+    AdminKycMedia:
+      type: object
+      additionalProperties: false
+      description: "(v1.80-kyc, D227) Didit's presigned image links, fetched now (short-lived; never stored)."
+      required: [portrait, front, back, liveness, fetchedAt]
+      properties:
+        portrait: { type: [string, 'null'], format: uri }
+        front: { type: [string, 'null'], format: uri }
+        back: { type: [string, 'null'], format: uri }
+        liveness: { type: [string, 'null'], format: uri }
+        fetchedAt: { type: string, format: date-time }
     # ---- v1.75-social (DRAFT, D222, CONVENTIONS §10.72): the media storage from the panel -------------------------
     StorageKeyInfo:
       type: object
@@ -22679,8 +23224,8 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     NotificationType:
       type: string
-      description: "`LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). (v1.60-social, D191) `MODERATION_WARNING` (system: a moderator warned you about content that breaks the rules; target POST when the warning is about a post, else none). (v1.66-social, D198) `DATA_EXPORT_READY` (system, no target: the data export «تنزيل بياناتي» is ready; the app opens Settings › Privacy). (v1.69-social, D204) `RECHARGE_ORDER_UPDATE` (system: a recharge order you take part in changed or got a message; target RECHARGE_ORDER with `coins`, `orderEvent` and `orderStatus`; one unread row per order, moved up by each event). (v1.70-social, D206) system, target AGENCY: `AGENCY_OPENED` (your agency is open — also when the team reopens it), `AGENCY_PROBATION_REMINDER` (less than 24 h left with fewer activated hosts than needed; `activatedHosts` / `requiredHosts`), `AGENCY_PROBATION_PASSED`, `AGENCY_CLOSED` (with `activatedHosts` / `requiredHosts` when the probation failed; none when the team closed it), `AGENCY_HOST_RELEASED` (to each host of a closed agency: they are free). (v1.72-social, D208) `ACCOUNT_RESTRICTED` / `ACCOUNT_RESTRICTION_LIFTED` (system, target ACCOUNT_RESTRICTION: `restriction`, `endsAt`, `text` = the team's reason), `BALANCE_ADJUSTED` (system, target BALANCE_ADJUSTMENT: `currency`, `amount` signed), `PROFILE_EDITED_BY_TEAM` (system, no target). (v1.73-social, D209) system, no target: `HOST_APPLICATION_APPROVED` (your application «كن مضيفاً مع الإدارة» was approved — you may go live), `HOST_APPLICATION_REJECTED` (it was rejected; the reason is in `getMyHostingApplication`); the app opens «الوكالة». (v1.74-social, D217) `REFERRAL_REWARD_REVERSED` (system, no target): the team voided a referral and took back the cherries it had credited (the amount is in the cherry ledger, `REFERRAL_REVERSAL`); the app opens the cherry wallet. Clients ignore values they do not know."
-      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST, MODERATION_WARNING, DATA_EXPORT_READY, RECHARGE_ORDER_UPDATE, AGENCY_OPENED, AGENCY_PROBATION_REMINDER, AGENCY_PROBATION_PASSED, AGENCY_CLOSED, AGENCY_HOST_RELEASED, ACCOUNT_RESTRICTED, ACCOUNT_RESTRICTION_LIFTED, BALANCE_ADJUSTED, PROFILE_EDITED_BY_TEAM, HOST_APPLICATION_APPROVED, HOST_APPLICATION_REJECTED, REFERRAL_REWARD_REVERSED, COVER_REMOVED]
+      description: "`LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). (v1.60-social, D191) `MODERATION_WARNING` (system: a moderator warned you about content that breaks the rules; target POST when the warning is about a post, else none). (v1.66-social, D198) `DATA_EXPORT_READY` (system, no target: the data export «تنزيل بياناتي» is ready; the app opens Settings › Privacy). (v1.69-social, D204) `RECHARGE_ORDER_UPDATE` (system: a recharge order you take part in changed or got a message; target RECHARGE_ORDER with `coins`, `orderEvent` and `orderStatus`; one unread row per order, moved up by each event). (v1.70-social, D206) system, target AGENCY: `AGENCY_OPENED` (your agency is open — also when the team reopens it), `AGENCY_PROBATION_REMINDER` (less than 24 h left with fewer activated hosts than needed; `activatedHosts` / `requiredHosts`), `AGENCY_PROBATION_PASSED`, `AGENCY_CLOSED` (with `activatedHosts` / `requiredHosts` when the probation failed; none when the team closed it), `AGENCY_HOST_RELEASED` (to each host of a closed agency: they are free). (v1.72-social, D208) `ACCOUNT_RESTRICTED` / `ACCOUNT_RESTRICTION_LIFTED` (system, target ACCOUNT_RESTRICTION: `restriction`, `endsAt`, `text` = the team's reason), `BALANCE_ADJUSTED` (system, target BALANCE_ADJUSTMENT: `currency`, `amount` signed), `PROFILE_EDITED_BY_TEAM` (system, no target). (v1.73-social, D209) system, no target: `HOST_APPLICATION_APPROVED` (your application «كن مضيفاً مع الإدارة» was approved — you may go live), `HOST_APPLICATION_REJECTED` (it was rejected; the reason is in `getMyHostingApplication`); the app opens «الوكالة». (v1.74-social, D217) `REFERRAL_REWARD_REVERSED` (system, no target): the team voided a referral and took back the cherries it had credited (the amount is in the cherry ledger, `REFERRAL_REVERSAL`); the app opens the cherry wallet. (v1.80-kyc, D227) system, no target: `KYC_APPROVED` (your identity check «تأكيد الهوية» was approved), `KYC_DECLINED` (declined — the reasons and the retry are in `getMyKyc`), `KYC_IN_REVIEW` (sent to a manual review); the app opens the application that asked for it. Clients ignore values they do not know."
+      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST, MODERATION_WARNING, DATA_EXPORT_READY, RECHARGE_ORDER_UPDATE, AGENCY_OPENED, AGENCY_PROBATION_REMINDER, AGENCY_PROBATION_PASSED, AGENCY_CLOSED, AGENCY_HOST_RELEASED, ACCOUNT_RESTRICTED, ACCOUNT_RESTRICTION_LIFTED, BALANCE_ADJUSTED, PROFILE_EDITED_BY_TEAM, HOST_APPLICATION_APPROVED, HOST_APPLICATION_REJECTED, REFERRAL_REWARD_REVERSED, COVER_REMOVED, KYC_APPROVED, KYC_DECLINED, KYC_IN_REVIEW]
     NotificationTarget:
       type: object
       required: [type, id, postId, thumbUrl, text]
@@ -25303,7 +25848,7 @@ components:
       type: object
       additionalProperties: false
       description: v1.70-social (D206). Text is trimmed; no control characters.
-      required: [name, country, contact, expectedHosts, photoUploadId, selfieUploadId]
+      required: [name, country, contact, expectedHosts]
       properties:
         name: { type: string, minLength: 2, maxLength: 40 }
         country: { type: string, pattern: '^[A-Za-z]{2}$', description: ISO 3166-1 alpha-2. }
@@ -25316,7 +25861,7 @@ components:
             value: { type: string, minLength: 3, maxLength: 100 }
         expectedHosts: { type: integer, minimum: 1, maximum: 10000 }
         bio: { type: string, maxLength: 300 }
-        photoUploadId: { type: string, format: uuid, description: "The ID card: a pending private upload of kind `RECHARGE_AGENT_PHOTO`." }
+        photoUploadId: { type: string, format: uuid, description: "The ID card: a pending private upload of kind `RECHARGE_AGENT_PHOTO`. (v1.80-kyc, D227) Required only while Didit is off (400 `required`); with Didit on it is ignored (the identity check replaces it), as is `selfieUploadId`." }
         selfieUploadId: { type: string, format: uuid, description: "A pending private upload of kind `RECHARGE_AGENT_SELFIE`." }
     MyAgency:
       type: object
@@ -25489,7 +26034,7 @@ components:
     RechargeAgentApplicationRequest:
       type: object
       additionalProperties: false
-      required: [fullName, phone, whatsapp, photoUploadId, selfieUploadId, locations, paymentMethods]
+      required: [fullName, phone, whatsapp, locations, paymentMethods]
       properties:
         fullName: { type: string, minLength: 8, maxLength: 120, description: "The full four-part name (at least four words)." }
         phone: { type: string, pattern: '^\+[1-9][0-9]{7,14}$', description: "E.164." }

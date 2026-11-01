@@ -27,8 +27,13 @@ export function viaOf(ctx: AdminContext): AdminVia {
   return { via: 'panel', actorUserId: ctx.userId, ip: ctx.ip, requestId: ctx.requestId };
 }
 
-export function refused(message: string): AppException {
-  return new AppException(ErrorCode.ADMIN_ACTION_REFUSED, message);
+export function refused(message: string, issue?: string): AppException {
+  // v1.80-kyc (D227): a refusal with a machine-readable reason (`kyc_required`) carries it as the first detail.
+  return new AppException(
+    ErrorCode.ADMIN_ACTION_REFUSED,
+    message,
+    issue ? [{ field: 'kyc', issue }] : undefined,
+  );
 }
 
 export interface AdminUserRowDto {

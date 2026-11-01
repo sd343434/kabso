@@ -13,7 +13,8 @@ import { grantRoleIn } from '../../src/modules/admin-panel/admin-roles.js';
 import { FakeS3 } from '../helpers/fake-s3.js';
 import { createTestApp, registerVerified, withMigrationClient } from '../helpers/test-app.js';
 
-it.skipIf(process.env.SMOKE_STORAGE !== '1')('serves the storage settings smoke API', async () => {
+const off = process.env.SMOKE_STORAGE !== '1' || process.env.SMOKE_KYC === '1';
+it.skipIf(off)('serves the storage settings smoke API', async () => {
   const port = Number(process.env.SMOKE_PORT ?? 3000);
   const file = process.env.SMOKE_FILE ?? 'admin-smoke.json';
   const stop = process.env.SMOKE_STOP_FILE;

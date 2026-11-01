@@ -37,6 +37,11 @@ export const REDACT_PATHS = [
   'secretAccessKey',
   '*.accessKeyId',
   '*.secretAccessKey',
+  // v1.80-kyc (D227): the Didit API key the OWNER types into «التحقق من الهوية (Didit)» (the webhook secret is above),
+  // and Didit's header should a request object ever be logged.
+  'apiKey',
+  '*.apiKey',
+  'req.headers["x-api-key"]',
 ];
 
 export function buildLoggerOptions(config: AppConfig): Params {

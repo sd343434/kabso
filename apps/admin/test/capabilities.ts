@@ -22,6 +22,8 @@ export const CAPABILITY_ROLES: Partial<Record<Capability, readonly PanelRole[]>>
   'site.settings': ['OWNER'],
   'payments.settings': ['OWNER'],
   'storage.settings': ['OWNER'],
+  'kyc.settings': ['OWNER'],
+  'kyc.view': ['OWNER', 'SUPPORT'],
   'users.list': ['OWNER', 'MODERATION', 'SUPPORT', 'FINANCE'],
   'users.export': ['OWNER'],
   'users.sessions': ['OWNER', 'MODERATION', 'SUPPORT'],

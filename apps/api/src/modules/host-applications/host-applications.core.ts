@@ -1,3 +1,4 @@
+import { assertKycForDecisionIn, KycRequiredError } from '../kyc/kyc-core.js';
 import { auditBy, CLI_VIA, type AdminVia } from '../../common/audit/admin-actor.js';
 import { AuditAction } from '../../common/audit/audit.service.js';
 import type { LiveHostSource, Prisma } from '../../generated/prisma/client.js';
@@ -12,7 +13,15 @@ import { Notifier } from '../notifications/notifier.js';
 type Tx = Prisma.TransactionClient;
 
 /** A refused admin action (the CLI prints the message and exits 1; the panel answers 409; nothing changed). */
-export class HostApplicationError extends Error {}
+export class HostApplicationError extends Error {
+  /** v1.80-kyc (D227): `kyc_required` when the identity check is missing (the panel's `details[0].issue`). */
+  constructor(
+    message: string,
+    readonly issue?: string,
+  ) {
+    super(message);
+  }
+}
 
 /** Why a pending application was cancelled. */
 export type HostApplicationCancelReason = 'USER' | 'AGENCY' | 'ACCOUNT';
@@ -29,6 +38,16 @@ export function ageOn(dateOfBirth: Date, now: Date): number {
     now.getUTCMonth() < dateOfBirth.getUTCMonth() ||
     (now.getUTCMonth() === dateOfBirth.getUTCMonth() && now.getUTCDate() < dateOfBirth.getUTCDate());
   return beforeBirthday ? y - 1 : y;
+}
+
+/** v1.80-kyc (D227): the identity-check gate of an approval, as this module's error (CLI and panel). */
+async function kycGateOrThrow(tx: Tx, userId: string, hasPictures: boolean): Promise<void> {
+  try {
+    await assertKycForDecisionIn(tx, userId, 'HOST_APPLICATION', hasPictures);
+  } catch (err) {
+    if (err instanceof KycRequiredError) throw new HostApplicationError(err.message, err.issue);
+    throw err;
+  }
 }
 
 async function audit(
@@ -86,6 +105,12 @@ export async function approveHostApplicationIn(
     tx.agency.count({ where: { ownerUserId: app.user_id, status: 'OPEN' } }),
   ]);
   if (links > 0 || owned > 0) throw new HostApplicationError('The applicant is now in an agency.');
+  // v1.80-kyc (D227): Didit on → an approved identity check first; off → the manual ID pictures (or a check).
+  const pictures = await tx.hostApplication.findUniqueOrThrow({
+    where: { id: app.id },
+    select: { photoKey: true, selfieKey: true },
+  });
+  await kycGateOrThrow(tx, app.user_id, !!pictures.photoKey && !!pictures.selfieKey);
 
   const existing = await tx.liveHost.findUnique({ where: { userId: app.user_id }, select: { source: true } });
   let source: LiveHostSource = existing?.source ?? 'IDENTITY';

@@ -7,6 +7,7 @@ import { navigate } from '../router';
 import type { HostApplicationDetail as Detail, HostApplicationRow } from '../types';
 import { DataTable } from '../ui/DataTable';
 import { StatusTabs } from './Applications';
+import { KycBlock } from './Kyc';
 
 /**
  * «طلبات المضيفين» (v1.73-social, D209, CONVENTIONS §10.68): the applications «كن مضيفاً مع الإدارة» — people who
@@ -159,7 +160,7 @@ export function HostApplicationView({ data, busy, onApprove, onReject }: { data:
           {decide && (
             <>
               <div className="row" style={{ marginTop: 16 }}>
-                <button className="btn primary" disabled={busy} onClick={onApprove} data-host-approve>
+                <button className="btn primary" disabled={busy || (data.kyc?.required === true && !data.kyc.satisfied)} onClick={onApprove} data-host-approve>
                   {t('hostAppApprove')}
                 </button>
                 <button className="btn danger" disabled={busy} onClick={onReject} data-host-reject>
@@ -167,6 +168,7 @@ export function HostApplicationView({ data, busy, onApprove, onReject }: { data:
                 </button>
               </div>
               <p className="muted small">{t('hostAppApproveNote')}</p>
+              {data.kyc?.required === true && !data.kyc.satisfied && <p className="small" data-kyc-needed>{t('kycErrRequired')}</p>}
             </>
           )}
         </div>
@@ -220,8 +222,14 @@ export function HostApplicationView({ data, busy, onApprove, onReject }: { data:
         </div>
       </div>
       <div className="grid">
-        <HostPhoto appId={data.id} which="photo" exists={data.photos.photo} label={t('hostAppIdCard')} />
-        <HostPhoto appId={data.id} which="selfie" exists={data.photos.selfie} label={t('hostAppSelfie')} />
+        <KycBlock summary={data.kyc} />
+        {/* D227: with Didit on and no manual pictures, the check above replaces the two empty boxes. */}
+        {(data.photos.photo || data.photos.selfie || !data.kyc?.required) && (
+          <>
+            <HostPhoto appId={data.id} which="photo" exists={data.photos.photo} label={t('hostAppIdCard')} />
+            <HostPhoto appId={data.id} which="selfie" exists={data.photos.selfie} label={t('hostAppSelfie')} />
+          </>
+        )}
       </div>
     </div>
   );

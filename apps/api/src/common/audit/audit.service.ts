@@ -268,6 +268,18 @@ export enum AuditAction {
   STORAGE_SETTINGS_UPDATE = 'storage.settings.update',
   STORAGE_SETTINGS_CLEAR = 'storage.settings.clear',
   STORAGE_SETTINGS_TEST = 'storage.settings.test',
+  // v1.80-kyc (DRAFT, D227): the OWNER's «التحقق من الهوية (Didit)» section — a change (before/after with the secrets'
+  // last 4 only, reason, the connection test's outcome), the removal of the panel's settings and a «اختبار الاتصال».
+  KYC_SETTINGS_UPDATE = 'kyc.settings.update',
+  KYC_SETTINGS_CLEAR = 'kyc.settings.clear',
+  KYC_SETTINGS_TEST = 'kyc.settings.test',
+  /** v1.80-kyc (D227): a person started (or reopened) a Didit session; its outcome; the same document elsewhere. */
+  KYC_SESSION_START = 'kyc.session.start',
+  KYC_CHECK_DECISION = 'kyc.check.decision',
+  KYC_DUPLICATE_DOCUMENT = 'kyc.check.duplicate_document',
+  /** v1.80-kyc (D227): every panel view of a check, and each short-lived fetch of its images from Didit. */
+  KYC_CHECK_VIEW = 'kyc.check.view',
+  KYC_MEDIA_VIEW = 'kyc.check.media.view',
   // v1.61-social (DRAFT, D192): each read of the website waitlist's e-mails by the `waitlist-admin` CLI (`op`:
   // list|export, the count).
   WAITLIST_VIEW = 'waitlist.view',

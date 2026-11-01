@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { adminKycSummaryIn } from '../kyc/kyc-core.js';
 import { AuditAction, AuditService } from '../../common/audit/audit.service.js';
 import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
@@ -443,6 +444,14 @@ export class AdminAgenciesService {
       expectedHosts: app.expectedHosts,
       bio: purged ? null : app.bio,
       photos: { photo: !purged && app.photoKey !== null, selfie: !purged && app.selfieKey !== null },
+      // v1.80-kyc (D227): the person's identity check (personal fields with `kyc.view` only).
+      kyc: await adminKycSummaryIn(
+        this.prisma,
+        app.user.id,
+        'AGENCY_OPEN',
+        new Date(),
+        ctx.capabilities.includes('kyc.view'),
+      ),
     };
   }
 

@@ -11,6 +11,7 @@ import {
   StorageSettingsCoreModule,
   StorageSettingsModule,
 } from './modules/storage-settings/storage-settings.module.js';
+import { KycCoreModule, KycModule } from './modules/kyc/kyc.module.js';
 import { AuditModule } from './common/audit/audit.module.js';
 import { BackgroundTasksModule } from './common/background/background-tasks.js';
 import { AllExceptionsFilter } from './common/errors/all-exceptions.filter.js';
@@ -84,6 +85,8 @@ export class AppModule {
         LevelsModule,
         // v1.75-social (DRAFT, D222): the media storage from the panel «التخزين (R2 / S3)» (over the env S3_*).
         StorageSettingsCoreModule,
+        // v1.80-kyc (DRAFT, D227): identity checks with Didit (the settings store, read by the applications).
+        KycCoreModule,
         MediaModule,
         PostsModule,
         SafetyModule,
@@ -129,6 +132,8 @@ export class AppModule {
         SiteSettingsModule,
         PaymentSettingsModule,
         StorageSettingsModule,
+        // v1.80-kyc (DRAFT, D227): «تأكيد الهوية» (Didit), its webhook and the panel's «التحقق من الهوية (Didit)».
+        KycModule,
         // v1.61-social (DRAFT, D192): the public website's waitlist.
         WaitlistModule,
         // v1.66-social (DRAFT, D198): privacy — legal documents, consents (the 428 gate) and the data export.

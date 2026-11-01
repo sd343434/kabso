@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { KycBlock } from './Kyc';
 import { api } from '../api';
 import { ErrorAlert, FormDialog, Loading, Pager, reasonField, StatusBadge, useAsync, useCursorPages, UserCell } from '../components';
 import { useApp } from '../context';
@@ -202,8 +203,13 @@ export function ApplicationDetail({ id }: { id: string }) {
           )}
         </div>
         <div className="grid">
-          <PrivatePhoto appId={id} which="photo" exists={data.photos.photo} />
-          <PrivatePhoto appId={id} which="selfie" exists={data.photos.selfie} />
+          <KycBlock summary={data.kyc} />
+          {(data.photos.photo || data.photos.selfie || !data.kyc?.required) && (
+            <>
+              <PrivatePhoto appId={id} which="photo" exists={data.photos.photo} />
+              <PrivatePhoto appId={id} which="selfie" exists={data.photos.selfie} />
+            </>
+          )}
         </div>
       </div>
       {rejecting && (

@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto';
+import { kycOn, kycSettingsIn } from '../kyc/kyc-core.js';
+import { takeIdPictures } from '../kyc/id-pictures.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { AuditAction } from '../../common/audit/audit.service.js';
@@ -80,8 +82,9 @@ export const hostingApplicationBodySchema = z.strictObject({
     .max(3)
     .optional(),
   acceptRules: z.literal(true),
-  photoUploadId: z.string().regex(UUID),
-  selfieUploadId: z.string().regex(UUID),
+  /** v1.80-kyc (D227): required only while Didit is off (with Didit on, ignored: the identity check replaces them). */
+  photoUploadId: z.string().regex(UUID).optional(),
+  selfieUploadId: z.string().regex(UUID).optional(),
 });
 export type HostingApplicationBody = z.infer<typeof hostingApplicationBodySchema>;
 
@@ -129,8 +132,8 @@ function requestHash(b: HostingApplicationBody): string {
     b.contact.value,
     b.bio,
     b.links ?? [],
-    b.photoUploadId.toLowerCase(),
-    b.selfieUploadId.toLowerCase(),
+    (b.photoUploadId ?? '').toLowerCase(),
+    (b.selfieUploadId ?? '').toLowerCase(),
   ]);
   return createHash('sha256').update(canonical).digest('hex');
 }
@@ -251,7 +254,9 @@ export class HostApplicationsService {
     };
     const before = await replay();
     if (before) return before;
-    await this.media.assertEnabled();
+    // v1.80-kyc (D227): with Didit on the ID pictures are not asked (the identity check replaces them).
+    const kyc = kycOn(await kycSettingsIn(this.prisma));
+    if (!kyc) await this.media.assertEnabled();
     const refused = (issue: HostingApplySubmitRefusal) =>
       new AppException(ErrorCode.HOST_APPLICATION_NOT_ALLOWED, undefined, [{ field: 'application', issue }]);
     const refusal = await this.refusal(me, await this.latest(me));
@@ -260,17 +265,13 @@ export class HostApplicationsService {
     if (ageOn(input.dateOfBirth, now) < this.config.economy.hostApplyMinAge) throw refused('UNDER_MIN_AGE');
 
     const id = uuidv7();
-    const photoKey = hostApplicationPictureKey(id, 'photo');
-    const selfieKey = hostApplicationPictureKey(id, 'selfie');
-    if (!(await this.media.consumePrivateImage(me, input.photoUploadId, 'RECHARGE_AGENT_PHOTO', photoKey))) {
-      throw AppException.validation([{ field: 'photoUploadId', issue: 'invalid_value' }]);
-    }
-    if (
-      !(await this.media.consumePrivateImage(me, input.selfieUploadId, 'RECHARGE_AGENT_SELFIE', selfieKey))
-    ) {
-      await this.media.deletePrivateObjects([photoKey]).catch(() => undefined);
-      throw AppException.validation([{ field: 'selfieUploadId', issue: 'invalid_value' }]);
-    }
+    const { photoKey, selfieKey } = await takeIdPictures(
+      this.media,
+      me,
+      input,
+      { photo: hostApplicationPictureKey(id, 'photo'), selfie: hostApplicationPictureKey(id, 'selfie') },
+      kyc,
+    );
     try {
       await this.prisma.$transaction(async (tx) => {
         await tx.hostApplication.create({
@@ -299,12 +300,18 @@ export class HostApplicationsService {
             action: AuditAction.HOST_APPLICATION_SUBMIT,
             targetType: 'host_application',
             targetId: id,
-            metadata: { country: input.country, links: (input.links ?? []).length, after: 'PENDING' },
+            metadata: {
+              country: input.country,
+              links: (input.links ?? []).length,
+              idCheck: kyc ? 'didit' : 'pictures',
+              after: 'PENDING',
+            },
           },
         });
       });
     } catch (err) {
-      await this.media.deletePrivateObjects([photoKey, selfieKey]).catch(() => undefined);
+      const taken = [photoKey, selfieKey].filter((k): k is string => k !== null);
+      if (taken.length > 0) await this.media.deletePrivateObjects(taken).catch(() => undefined);
       if (isUniqueViolation(err)) {
         // The same key raced (→ its answer), or another submit made the one pending application meanwhile.
         const raced = await replay();

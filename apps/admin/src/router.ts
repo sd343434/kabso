@@ -22,6 +22,8 @@ export const ROUTES: readonly { name: string; pattern: string }[] = [
   { name: 'payments', pattern: '/payments' },
   // v1.75-social (D222): «التخزين (R2 / S3)».
   { name: 'storage', pattern: '/storage' },
+  // v1.80-kyc (D227): «التحقق من الهوية (Didit)».
+  { name: 'kycSettings', pattern: '/kyc-settings' },
   // v1.65-social (D197): the panel v2 sections.
   { name: 'specialUsernames', pattern: '/special-usernames' },
   { name: 'agencies', pattern: '/agencies' },

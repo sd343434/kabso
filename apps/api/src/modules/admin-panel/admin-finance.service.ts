@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { adminKycSummaryIn } from '../kyc/kyc-core.js';
 import { AuditAction, AuditService } from '../../common/audit/audit.service.js';
 import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
@@ -32,7 +33,8 @@ async function shared<T>(step: () => Promise<T>): Promise<T> {
   try {
     return await step();
   } catch (err) {
-    if (err instanceof RechargeAdminError || err instanceof WithdrawalAdminError) throw refused(err.message);
+    if (err instanceof RechargeAdminError) throw refused(err.message, err.issue);
+    if (err instanceof WithdrawalAdminError) throw refused(err.message);
     throw err;
   }
 }
@@ -137,6 +139,14 @@ export class AdminFinanceService {
         photo: !purged && app.photoKey !== null,
         selfie: !purged && app.selfieKey !== null,
       },
+      // v1.80-kyc (D227): the person's identity check (needed before the first top-up activates the agent).
+      kyc: await adminKycSummaryIn(
+        this.prisma,
+        app.user.id,
+        'RECHARGE_AGENT',
+        new Date(),
+        ctx.capabilities.includes('kyc.view'),
+      ),
     };
   }
 

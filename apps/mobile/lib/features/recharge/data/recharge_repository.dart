@@ -494,20 +494,23 @@ final class RechargeApplicationDraft {
   const new({
     required this.fullName,
     required this.phone,
-    required this.photo,
-    required this.photoType,
-    required this.selfie,
-    required this.selfieType,
     required this.locations,
     required this.paymentMethods,
+    this.photo,
+    this.photoType,
+    this.selfie,
+    this.selfieType,
   });
 
   final String fullName;
   final String phone;
-  final Uint8List photo;
-  final String photoType;
-  final Uint8List selfie;
-  final String selfieType;
+
+  /// v1.80-kyc (D227): null while Didit is on (the identity check replaces
+  /// the manual ID pictures; nothing is uploaded).
+  final Uint8List? photo;
+  final String? photoType;
+  final Uint8List? selfie;
+  final String? selfieType;
   final List<RechargeLocation> locations;
   final List<({String country, RechargePaymentType type, String details})>
   paymentMethods;
@@ -602,24 +605,29 @@ class RechargeRepositoryImpl implements RechargeRepository {
   @override
   Future<RechargeAgentMe> apply(RechargeApplicationDraft d) => guardApiCall(
     () async {
-      final photo = await _privateUpload(
-        d.photo,
-        d.photoType,
-        'RECHARGE_AGENT_PHOTO',
-      );
-      final selfie = await _privateUpload(
-        d.selfie,
-        d.selfieType,
-        'RECHARGE_AGENT_SELFIE',
-      );
+      final pictures = d.photo != null && d.selfie != null;
+      final photo = pictures
+          ? await _privateUpload(
+              d.photo!,
+              d.photoType ?? 'image/jpeg',
+              'RECHARGE_AGENT_PHOTO',
+            )
+          : null;
+      final selfie = pictures
+          ? await _privateUpload(
+              d.selfie!,
+              d.selfieType ?? 'image/jpeg',
+              'RECHARGE_AGENT_SELFIE',
+            )
+          : null;
       final res = await _dio.post<Map<String, dynamic>>(
         '/me/recharge-agent/application',
         data: {
           'fullName': d.fullName,
           'phone': d.phone,
           'whatsapp': true,
-          'photoUploadId': photo,
-          'selfieUploadId': selfie,
+          'photoUploadId': ?photo,
+          'selfieUploadId': ?selfie,
           'locations': [
             for (final l in d.locations)
               {'country': l.country, 'cities': l.cities},

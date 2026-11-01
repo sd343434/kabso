@@ -175,11 +175,11 @@ final class HostingDraft {
     required this.contactValue,
     required this.bio,
     required this.links,
-    required this.idCard,
-    required this.idCardType,
-    required this.selfie,
-    required this.selfieType,
     required this.idempotencyKey,
+    this.idCard,
+    this.idCardType,
+    this.selfie,
+    this.selfieType,
   });
 
   final String displayName;
@@ -195,10 +195,13 @@ final class HostingDraft {
 
   /// At most 3 `https` links (empty: none).
   final List<String> links;
-  final Uint8List idCard;
-  final String idCardType;
-  final Uint8List selfie;
-  final String selfieType;
+
+  /// v1.80-kyc (D227): null while Didit is on (the identity check replaces
+  /// the manual ID pictures; nothing is uploaded).
+  final Uint8List? idCard;
+  final String? idCardType;
+  final Uint8List? selfie;
+  final String? selfieType;
 
   /// One per attempt of the form (a retry after a lost answer reuses it).
   final String idempotencyKey;

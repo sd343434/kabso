@@ -13018,4 +13018,132 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get privacyCardStatsHint =>
       'A hidden number is not shown to anyone else on your card in lives or on your profile. You and the Kabso team still see it.';
+
+  @override
+  String get kycStepTitle => 'Confirm your identity';
+
+  @override
+  String get kycStepIntro =>
+      'We confirm your identity with Didit: a photo of your ID document, then of your face. No manual ID card or selfie upload is needed.';
+
+  @override
+  String get kycStatusNotStarted => 'Not started yet';
+
+  @override
+  String get kycStatusNotStartedHint =>
+      'Photograph your ID document (card, passport or licence), then your face. It takes about two minutes.';
+
+  @override
+  String get kycStatusInProgress => 'Not finished';
+
+  @override
+  String get kycStatusInProgressHint =>
+      'Continue where you stopped; the result shows here when you finish.';
+
+  @override
+  String get kycStatusInReview => 'Under review';
+
+  @override
+  String get kycStatusInReviewHint =>
+      'Your check is being reviewed; we will notify you of the result.';
+
+  @override
+  String get kycStatusApproved => 'Identity confirmed';
+
+  @override
+  String get kycStatusApprovedHint =>
+      'Your identity is confirmed; you can send the application.';
+
+  @override
+  String get kycStatusDeclined => 'Identity not confirmed';
+
+  @override
+  String get kycStatusDeclinedHint =>
+      'You can try again, keeping the reason in mind:';
+
+  @override
+  String get kycStatusExpired => 'The session expired';
+
+  @override
+  String get kycStatusExpiredHint =>
+      'The session ended before it was finished. Start again.';
+
+  @override
+  String get kycStart => 'Start verification';
+
+  @override
+  String get kycContinue => 'Continue verification';
+
+  @override
+  String get kycRetry => 'Try again';
+
+  @override
+  String kycWhatHappens(String provider) {
+    return 'Verification opens inside the app with $provider. We do not keep pictures of your document or face.';
+  }
+
+  @override
+  String get kycRefusedDailyLimit =>
+      'You reached today\'s limit of verification attempts. Try again tomorrow.';
+
+  @override
+  String get kycUnavailable =>
+      'Identity verification is not available right now. Try again later.';
+
+  @override
+  String get kycRequiredToSubmit => 'Finish «Confirm your identity» first.';
+
+  @override
+  String get kycRequiredApproved =>
+      'Your identity must be confirmed (approved) before opening an agency.';
+
+  @override
+  String get kycReasonUnderAge => 'The document shows you are under 18.';
+
+  @override
+  String get kycReasonNoBirthDate =>
+      'The date of birth could not be read. Photograph the document clearly.';
+
+  @override
+  String get kycReasonDocumentExpired =>
+      'The document has expired. Use a valid one.';
+
+  @override
+  String get kycReasonNoFace =>
+      'Your face was not clear. Take the photo in good light.';
+
+  @override
+  String get kycReasonLiveness =>
+      'The liveness check failed. Show your real face, not a photo or a screen.';
+
+  @override
+  String get kycReasonFaceMatch =>
+      'Your face does not match the document photo.';
+
+  @override
+  String get kycReasonOther => 'One of the verification steps did not pass.';
+
+  @override
+  String get kycClose => 'Close';
+
+  @override
+  String get kycOpenInBrowser => 'Open in the browser';
+
+  @override
+  String get notifKycApproved => 'Your identity was verified';
+
+  @override
+  String get notifKycDeclined =>
+      'Your identity could not be verified. Open the application to see why and try again';
+
+  @override
+  String get notifKycInReview =>
+      'Your identity check is being reviewed; we will tell you the result';
+
+  @override
+  String get errorKycNotAllowed => 'Verification cannot start now';
+
+  @override
+  String get agencyOpenRefusedKyc =>
+      'Confirm your identity first (the «Confirm your identity» step).';
 }

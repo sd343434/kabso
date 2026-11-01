@@ -9,6 +9,7 @@ import { expressErrorHandler } from './common/errors/all-exceptions.filter.js';
 import { requestIdMiddleware } from './common/request-id/request-id.js';
 import { GIFT_UPLOAD_PATH } from './modules/admin-panel/admin-v2.controller.js';
 import { STRIPE_WEBHOOK_PATH } from './modules/topup/topup.controller.js';
+import { KYC_WEBHOOK_PATH } from './modules/kyc/kyc.rules.js';
 import type { AppConfig } from './config/app-config.js';
 
 export const API_PREFIX = 'api/v1';
@@ -57,6 +58,12 @@ export function configureApp(app: NestExpressApplication, config: AppConfig): vo
   // before the JSON parser, which then skips the already-read body). Stripe events stay far below 1 MB.
   app.useBodyParser('raw', {
     type: (req: { url?: string }) => (req.url ?? '').split('?')[0] === STRIPE_WEBHOOK_PATH,
+    limit: '1mb',
+  });
+  // v1.80-kyc (D227): Didit signs its webhook (`X-Signature` over the raw bytes, `X-Signature-V2` over the canonical
+  // JSON), so that one path keeps a raw Buffer too; the service parses it. Didit's events stay far below 1 MB.
+  app.useBodyParser('raw', {
+    type: (req: { url?: string }) => (req.url ?? '').split('?')[0] === KYC_WEBHOOK_PATH,
     limit: '1mb',
   });
   // v1.71-social (D207): the admin panel's gift file uploads are the raw bytes (an SVGA is at most 25 MiB); only that

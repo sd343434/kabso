@@ -183,6 +183,8 @@ function visibleNotificationWhere(me: string): Prisma.NotificationWhereInput {
       { type: { in: ['HOST_APPLICATION_APPROVED', 'HOST_APPLICATION_REJECTED'] } },
       // v1.74-social (D217): the team voided a referral and took its credited cherries back (system, no target).
       { type: 'REFERRAL_REWARD_REVERSED' },
+      // v1.80-kyc (D227): the identity check's result (system, no target).
+      { type: { in: ['KYC_APPROVED', 'KYC_DECLINED', 'KYC_IN_REVIEW'] } },
       { type: 'POST_PUBLISHED', post: visiblePostWhere(me) },
       {
         type: { in: ACTOR_TYPES },
