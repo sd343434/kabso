@@ -25,6 +25,9 @@ abstract final class GoLiveKeys {
 
   /// D212: the «بث ستريمر» tab (D213: «قريباً»).
   static const streamer = Key('goLive.mode.streamer');
+
+  /// D224: the live-type row that scrolls sideways.
+  static const modeRow = Key('goLive.mode.row');
   static Key theme(String slug) => Key('goLive.theme.$slug');
   static const beautySwitch = Key('goLive.beauty.switch');
   static const beautySmooth = Key('goLive.beauty.smooth');
@@ -1597,4 +1600,102 @@ class _FilterSwatch extends StatelessWidget {
       ),
     );
   }
+}
+
+/// D224 (owner: «عند فتح بث اجعل شريط اختيار نوع البث يمكن سحبه يمين ويسار
+/// ليسهل التنقل»): the go-live setup's live-type row as a strip that
+/// scrolls sideways under a finger (from the reading start: right to left
+/// in Arabic, left to right in English). The chosen type [selected] (an
+/// index into [children]) is brought to the middle on open and whenever it
+/// changes (a jump with reduced motion); every type can reach the middle
+/// (half the width of free space at each end). A tap still chooses (the
+/// tabs' own gestures).
+class GoLiveModeScroller extends StatefulWidget {
+  const new({
+    required this.children,
+    required this.selected,
+    required this.height,
+    super.key,
+    this.crossAxisAlignment = CrossAxisAlignment.center,
+  });
+
+  final List<Widget> children;
+  final int selected;
+  final double height;
+  final CrossAxisAlignment crossAxisAlignment;
+
+  static const Duration settle = Duration(milliseconds: 260);
+
+  @override
+  State<GoLiveModeScroller> createState() => _GoLiveModeScrollerState();
+}
+
+class _GoLiveModeScrollerState extends State<GoLiveModeScroller> {
+  final _controller = ScrollController();
+  var _keys = <GlobalKey>[];
+
+  @override
+  void initState() {
+    super.initState();
+    _sync();
+    _centre(animate: false);
+  }
+
+  @override
+  void didUpdateWidget(GoLiveModeScroller old) {
+    super.didUpdateWidget(old);
+    if (old.children.length != widget.children.length) _sync();
+    if (old.selected != widget.selected) _centre(animate: true);
+  }
+
+  void _sync() =>
+      _keys = [for (var i = 0; i < widget.children.length; i++) GlobalKey()];
+
+  /// The chosen type to the middle, after this frame's layout.
+  void _centre({required bool animate}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final i = widget.selected;
+      if (i < 0 || i >= _keys.length) return;
+      final target = _keys[i].currentContext;
+      if (target == null) return;
+      final still = MediaQuery.disableAnimationsOf(context);
+      Scrollable.ensureVisible(
+        target,
+        alignment: 0.5,
+        duration: animate && !still ? GoLiveModeScroller.settle : Duration.zero,
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    key: GoLiveKeys.modeRow,
+    height: widget.height,
+    child: LayoutBuilder(
+      builder: (context, box) => SingleChildScrollView(
+        controller: _controller,
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        // Room for the first and the last type to stand in the middle.
+        padding: EdgeInsets.symmetric(
+          horizontal: (box.maxWidth / 2 - 24).clamp(0.0, double.infinity),
+        ),
+        child: Row(
+          crossAxisAlignment: widget.crossAxisAlignment,
+          children: [
+            for (final (i, child) in widget.children.indexed)
+              KeyedSubtree(key: _keys[i], child: child),
+          ],
+        ),
+      ),
+    ),
+  );
 }

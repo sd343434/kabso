@@ -2506,9 +2506,11 @@ Owner decisions (2026-10-28, D154 items 5, 5b–5f) are marked *(owner)*.
   giftCode, soundKey, durationMs, text, free, sender: UserSummary, startsAt, delayMs, createdAt}`.
   **App:** plays it `delayMs` after the message arrives (so every phone plays the queue in the same
   order without a shared clock), one at a time, from the bundled file; shows `text` (or the quip's name
-  with its emoji when `text` is null) as a bubble with the sender for the sound's length; plays nothing
-  when the app's **Sound effects** setting is off or the viewer muted quips in this live (the bubble
-  still shows); a quip from someone the reader blocked is skipped.
+  when `text` is null) with the sender when it starts to play — D224: as a **gift strip** (the gifts'
+  column, queue and 3 s) and a **chat line** like a gift's («فلان أرسل إفيه: …»), both made by the app
+  from this message (no extra server event); plays nothing when the app's **Sound effects** setting is
+  off or the viewer muted quips in this live (the strip and line still show); a quip from someone the
+  reader blocked is skipped.
 - **The soundboard** *(owner: host and moderators keep a free soundboard, 1 per 2 s)*:
   `playLiveSound` (`POST /live/rooms/{roomId}/sounds`, `{"soundCode"}` = an enabled **free** QUIPS
   gift). Checks: 401; 429 from the route's bucket; 404 (cannot see the room); 409 `LIVE_ROOM_ENDED`;

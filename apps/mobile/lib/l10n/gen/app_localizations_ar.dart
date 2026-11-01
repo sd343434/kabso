@@ -7543,8 +7543,13 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
-  String liveQuipBubbleSemantics(String name, String words) {
-    return '$name: $words';
+  String liveQuipBannerSent(String words) {
+    return 'أرسل إفيه: $words';
+  }
+
+  @override
+  String liveChatQuipLine(String sender, String words) {
+    return '$sender أرسل إفيه: $words';
   }
 
   @override

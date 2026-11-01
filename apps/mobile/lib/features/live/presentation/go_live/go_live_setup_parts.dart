@@ -575,6 +575,7 @@ class GoLiveStartPill extends StatelessWidget {
 
 /// The modes (ref 164) on a black band: Multi-guest · LIVE · Audio LIVE in
 /// a row centred on the chosen one, which is white and bold over a dot.
+/// D224: the row scrolls sideways ([GoLiveModeScroller]).
 class GoLiveModePager extends StatelessWidget {
   const new({required this.selected, required this.onSelect, super.key});
 
@@ -640,32 +641,19 @@ class GoLiveModePager extends StatelessWidget {
       );
     }
 
-    // The chosen mode sits in the middle: the row is shifted by the
-    // difference of the labels on either side (E: equal widths assumed).
-    final rtl = Directionality.of(context) == TextDirection.rtl;
-    // D212: five tabs (the streamer tab last) — centred on the chosen one.
-    final shift = ((modes.length) / 2 - i) * (rtl ? -1 : 1);
+    // D212: five tabs (the streamer tab last). D224 (owner): the row
+    // scrolls sideways; the chosen one comes to the middle.
     return ColoredBox(
       color: const Color(0xFF000000),
       child: SafeArea(
         top: false,
-        child: SizedBox(
+        child: GoLiveModeScroller(
           height: KSizes.minTouchTarget + 14,
-          child: Center(
-            child: FractionalTranslation(
-              translation: Offset(shift * 0.24, 0),
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    for (final (m, label) in modes) mode(m, label),
-                    const GoLiveStreamerTab(),
-                  ],
-                ),
-              ),
-            ),
-          ),
+          selected: i,
+          children: [
+            for (final (m, label) in modes) mode(m, label),
+            const GoLiveStreamerTab(),
+          ],
         ),
       ),
     );

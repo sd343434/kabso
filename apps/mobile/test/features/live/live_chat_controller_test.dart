@@ -69,6 +69,8 @@ List<String> _texts(
         LiveChatGiftLine(:final gift, :final count) =>
           '%${gift.giftCode}×$count',
         LiveChatLuckyLine(:final win) => '\$×${win.multiplier}',
+        // D224: a quip's line.
+        LiveChatQuipLine(:final quip) => '~${quip.id}',
       },
 ];
 
