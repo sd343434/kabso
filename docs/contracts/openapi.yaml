@@ -13680,7 +13680,7 @@ paths:
       description: "v1.69-social, CONVENTIONS §10.64.9. Only an order that was disputed (else 404: before a dispute the chat is the buyer's and the agent's). Each view writes `recharge.order.admin_view` (actor, IP, `via: panel`)."
       security: [{ adminSession: [] }]
       parameters:
-        - $ref: '#/components/parameters/AdminOrderIdPath'
+        - $ref: '#/components/parameters/AdminRechargeOrderIdPath'
       responses:
         '200':
           description: The order.
@@ -13699,7 +13699,7 @@ paths:
       description: "v1.69-social, CONVENTIONS §10.64.9. The line is shown to the buyer and the agent as «الإدارة» (never the admin's name); both get a `RECHARGE_ORDER_UPDATE`."
       security: [{ adminSession: [] }]
       parameters:
-        - $ref: '#/components/parameters/AdminOrderIdPath'
+        - $ref: '#/components/parameters/AdminRechargeOrderIdPath'
         - $ref: '#/components/parameters/AdminCsrf'
       requestBody:
         required: true
@@ -13725,7 +13725,7 @@ paths:
       description: "v1.69-social, CONVENTIONS §10.64.9. `image/webp`, `private, no-store`; each view writes `recharge.order.image_view`."
       security: [{ adminSession: [] }]
       parameters:
-        - $ref: '#/components/parameters/AdminOrderIdPath'
+        - $ref: '#/components/parameters/AdminRechargeOrderIdPath'
         - $ref: '#/components/parameters/RechargeOrderMessageIdPath'
       responses:
         '200':
@@ -13745,7 +13745,7 @@ paths:
       description: "v1.69-social, CONVENTIONS §10.64.9 — the `recharge-admin resolve` rule. Financial: `totpCode` again (403 `ADMIN_TOTP_INVALID`). `CREDIT_BUYER` → COMPLETED_BY_ADMIN (wallet `RECHARGE_ORDER`), `REFUND_AGENT` → REFUNDED_TO_AGENT (stock `ORDER_RELEASE`); audited with the reason, before / after, actor, IP and `via: panel`; both sides notified. The same decision again → 200 `changed: false`; any other state → 409 `ADMIN_ACTION_REFUSED`."
       security: [{ adminSession: [] }]
       parameters:
-        - $ref: '#/components/parameters/AdminOrderIdPath'
+        - $ref: '#/components/parameters/AdminRechargeOrderIdPath'
         - $ref: '#/components/parameters/AdminCsrf'
       requestBody:
         required: true
@@ -13857,7 +13857,7 @@ components:
       in: path
       required: true
       schema: { type: string }
-    AdminOrderIdPath:
+    AdminRechargeOrderIdPath:
       name: orderId
       in: path
       required: true
