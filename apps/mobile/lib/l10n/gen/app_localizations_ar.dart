@@ -12478,4 +12478,7 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get profileBlockedBody =>
       'لن ترى منشوراته ولن يتمكن من مراسلتك. ألغِ الحظر لتراها.';
+
+  @override
+  String get profileTabSavedWord => 'محفوظات';
 }

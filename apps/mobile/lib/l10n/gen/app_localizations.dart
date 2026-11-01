@@ -21297,6 +21297,12 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'لن ترى منشوراته ولن يتمكن من مراسلتك. ألغِ الحظر لتراها.'**
   String get profileBlockedBody;
+
+  /// D218 (owner: «وحدهما»): the own profile's Saved tab in the text tabs.
+  ///
+  /// In ar, this message translates to:
+  /// **'محفوظات'**
+  String get profileTabSavedWord;
 }
 
 class _AppLocalizationsDelegate

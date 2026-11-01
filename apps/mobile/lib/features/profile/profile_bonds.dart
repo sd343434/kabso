@@ -250,10 +250,19 @@ class _Tile extends StatelessWidget {
 /// are chosen), the family, relationship and medals tiles and, on your own
 /// profile, the bag. Only the levels while [profile] is not loaded.
 class ProfileBondsBlock extends StatelessWidget {
-  const new({required this.levels, required this.profile, super.key});
+  const new({
+    required this.levels,
+    required this.profile,
+    super.key,
+    this.ownTiles = true,
+  });
 
   final Widget levels;
   final PublicProfile? profile;
+
+  /// The bag and premium-username tiles of the own profile; D218 (owner:
+  /// the own profile like the public one) leaves them to the Me hub.
+  final bool ownTiles;
 
   /// The bag tile (own profile only, CP-019).
   static const bagKey = Key('profile.bonds.bag');
@@ -285,7 +294,7 @@ class ProfileBondsBlock extends StatelessWidget {
           ProfileBondsRow(profile: profile),
           // CP-019: your own bag (the profile card you wear, and more
           // categories later).
-          if (profile.isSelf)
+          if (profile.isSelf && ownTiles)
             Padding(
               padding: const EdgeInsets.only(top: KSpacing.sm),
               child: _Tile(
@@ -297,7 +306,7 @@ class ProfileBondsBlock extends StatelessWidget {
               ),
             ),
           // D146: premium usernames (the store, and the person's own one).
-          if (profile.isSelf)
+          if (profile.isSelf && ownTiles)
             Padding(
               padding: const EdgeInsets.only(top: KSpacing.sm),
               child: _Tile(

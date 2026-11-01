@@ -12484,4 +12484,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get profileBlockedBody =>
       'You won\'t see their posts and they can\'t message you. Unblock to see them.';
+
+  @override
+  String get profileTabSavedWord => 'Saved';
 }

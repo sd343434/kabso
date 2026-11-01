@@ -3867,5 +3867,6 @@
   "profileFollowingWord": "Following",
   "profileJoined": "Joined {date}",
   "profileBlockedTitle": "You blocked this account",
-  "profileBlockedBody": "You won't see their posts and they can't message you. Unblock to see them."
+  "profileBlockedBody": "You won't see their posts and they can't message you. Unblock to see them.",
+  "profileTabSavedWord": "Saved"
 }

@@ -227,7 +227,7 @@ class EditProfileScreen extends ConsumerWidget {
                   placeholder: l10n.profileEditNotSet,
                   onTap: cover.busy
                       ? null
-                      : () => _changeCover(
+                      : () => changeProfileCover(
                           context,
                           ref,
                           hasCover: user.coverUrl != null,
@@ -416,8 +416,8 @@ enum _PhotoAction { library, camera, remove }
 
 /// v1.76-social (D218, §10.73.3): choose, take or remove the profile cover.
 /// The picture is uploaded whole (no crop): the profile covers its banner
-/// with it.
-Future<void> _changeCover(
+/// with it. Also the own profile's cover tap (owner: «وحدهما»).
+Future<void> changeProfileCover(
   BuildContext context,
   WidgetRef ref, {
   required bool hasCover,

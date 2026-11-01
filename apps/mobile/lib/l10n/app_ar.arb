@@ -12043,5 +12043,7 @@
   "profileBlockedTitle": "حظرت هذا الحساب",
   "@profileBlockedTitle": {"description": "D218 (the owner's social redesign, CONVENTIONS §10.73)."},
   "profileBlockedBody": "لن ترى منشوراته ولن يتمكن من مراسلتك. ألغِ الحظر لتراها.",
-  "@profileBlockedBody": {"description": "D218 (the owner's social redesign, CONVENTIONS §10.73)."}
+  "@profileBlockedBody": {"description": "D218 (the owner's social redesign, CONVENTIONS §10.73)."},
+  "profileTabSavedWord": "محفوظات",
+  "@profileTabSavedWord": {"description": "D218 (owner: «وحدهما»): the own profile's Saved tab in the text tabs."}
 }
