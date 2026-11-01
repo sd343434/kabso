@@ -25,6 +25,7 @@ class KRoomVideoUnavailable extends StatelessWidget {
       child: _StageMessage(
         key: const Key('room.videoUnavailable'),
         icon: Icons.videocam_off_outlined,
+        status: l10n.liveStatusUnavailable,
         title: l10n.liveRoomVideoUnavailableTitle,
         body: l10n.liveRoomVideoUnavailableBody,
       ),
@@ -46,8 +47,7 @@ class KRoomCameraOff extends StatelessWidget {
     color: KPalette.dark.surface,
     child: Center(
       child: KLiveInterruption(
-        leading: KAvatar(
-          name: hostName,
+        leading: KLiveHostPicture(
           image: avatar,
           size: KLiveInterruption.pictureCompact,
         ),
@@ -151,6 +151,7 @@ class KRoomReconnecting extends StatelessWidget {
             child: KLiveInterruption(
               icon: Icons.wifi_rounded,
               busy: true,
+              status: l10n.liveStatusConnectionLost,
               title: l10n.liveRoomReconnecting,
               message: l10n.liveRoomReconnectingBody,
             ),
@@ -175,6 +176,7 @@ class KRoomEndedOverlay extends StatelessWidget {
     this.avatarUrl,
     this.reasonIcon = Icons.stop_rounded,
     this.followAction,
+    this.crowned = false,
   });
 
   final String hostName;
@@ -191,6 +193,10 @@ class KRoomEndedOverlay extends StatelessWidget {
   /// The follow button, only when the viewer may follow and does not yet.
   final Widget? followAction;
 
+  /// D221: a crown before the host's name, only for a status the app
+  /// really knows (none yet in production).
+  final bool crowned;
+
   @override
   Widget build(BuildContext context) {
     const p = KPalette.dark;
@@ -204,25 +210,25 @@ class KRoomEndedOverlay extends StatelessWidget {
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(KSpacing.xl),
             child: KLiveInterruption(
-              leading: KAvatar(
-                name: hostName,
+              leading: KLiveHostPicture(
                 image: avatar,
                 imageUrl: avatarUrl,
                 size: KLiveInterruption.picture,
               ),
               badgeIcon: reasonIcon,
+              status: l10n.liveStatusEnded,
               eyebrow: hostName,
+              crowned: crowned,
               title: l10n.liveRoomEndedTitle,
               message: reason,
               actions: [
                 ?followAction,
-                KButton(
+                KLiveInterruptionButton(
                   key: const Key('room.back'),
                   label: l10n.liveRoomBackToLive,
+                  icon: Icons.replay_rounded,
                   onPressed: onBack,
-                  variant: followAction == null
-                      ? KButtonVariant.primary
-                      : KButtonVariant.secondary,
+                  primary: followAction == null,
                 ),
               ],
             ),
@@ -245,6 +251,7 @@ class KRoomMessage extends StatelessWidget {
     this.detail,
     this.onRetry,
     this.iconColor,
+    this.status,
   });
 
   final IconData icon;
@@ -256,6 +263,9 @@ class KRoomMessage extends StatelessWidget {
 
   /// Kept for callers; the emblem is always on the brand ring (D216).
   final Color? iconColor;
+
+  /// D221: the state in the card's red pill («غير متصل»).
+  final String? status;
 
   @override
   Widget build(BuildContext context) {
@@ -273,22 +283,23 @@ class KRoomMessage extends StatelessWidget {
                     padding: const EdgeInsets.all(KSpacing.xl),
                     child: KLiveInterruption(
                       icon: icon,
+                      status: status,
                       title: title,
                       message: message,
                       detail: detail,
                       actions: [
-                        KButton(
-                          label: onRetry != null
-                              ? l10n.actionRetry
-                              : l10n.liveRoomBackToLive,
-                          onPressed: onRetry ?? onClose,
-                        ),
                         if (onRetry != null)
-                          KButton(
-                            label: l10n.liveRoomBackToLive,
-                            onPressed: onClose,
-                            variant: KButtonVariant.secondary,
+                          KLiveInterruptionButton(
+                            label: l10n.actionRetry,
+                            icon: Icons.refresh_rounded,
+                            onPressed: onRetry,
                           ),
+                        KLiveInterruptionButton(
+                          label: l10n.liveRoomBackToLive,
+                          icon: Icons.replay_rounded,
+                          onPressed: onClose,
+                          primary: onRetry == null,
+                        ),
                       ],
                     ),
                   ),
@@ -319,15 +330,22 @@ class _StageMessage extends StatelessWidget {
     required this.title,
     required this.body,
     super.key,
+    this.status,
   });
 
   final IconData icon;
   final String title;
   final String body;
+  final String? status;
 
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.all(KSpacing.xl),
-    child: KLiveInterruption(icon: icon, title: title, message: body),
+    child: KLiveInterruption(
+      icon: icon,
+      status: status,
+      title: title,
+      message: body,
+    ),
   );
 }

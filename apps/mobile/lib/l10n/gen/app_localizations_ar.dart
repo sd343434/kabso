@@ -898,6 +898,27 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
+  String get liveStatusEnded => 'انتهى البث';
+
+  @override
+  String get liveStatusConnectionLost => 'انقطع الاتصال';
+
+  @override
+  String get liveStatusHostAway => 'المضيف بعيد';
+
+  @override
+  String get liveStatusCantConnect => 'تعذّر الاتصال';
+
+  @override
+  String get liveStatusOffline => 'غير متصل';
+
+  @override
+  String get liveStatusUnavailable => 'غير متاح';
+
+  @override
+  String get liveStatusRemoved => 'تمت إزالتك';
+
+  @override
   String get liveRoomEndedTitle => 'انتهى هذا البث';
 
   @override
