@@ -426,6 +426,7 @@ void main() {
           mode: LiveRoomMode.solo,
           seatCount: null,
           theme: null,
+          podcast: null,
         ),
       ]);
       expect(repo.tokenRequests, [(roomId: 'room-host', guestId: null)]);
@@ -1666,7 +1667,9 @@ void main() {
         );
       }
       // CP-016 C: the live schedule has its server now (not "Soon").
-      expect(find.text(l10n.liveSoon), findsNWidgets(2));
+      // D212: the third «Soon» is the mode row's «بث ستريمر» (D213).
+      expect(find.text(l10n.liveSoon), findsNWidgets(3));
+      expect(find.byKey(GoLiveKeys.streamer), findsOneWidget);
       expect(
         find.bySemanticsLabel('${l10n.liveSettingsSchedule}, ${l10n.liveSoon}'),
         findsNothing,

@@ -19,17 +19,29 @@ const Duration liveScheduleMaxLead = Duration(days: 30);
 /// `LiveScheduleSlot`: a live the host announced.
 @immutable
 class LiveScheduleSlot {
-  const new({required this.id, required this.title, required this.startsAt});
+  const new({
+    required this.id,
+    required this.title,
+    required this.startsAt,
+    this.podcastTopic,
+  });
 
   factory fromJson(Map<String, dynamic> json) => LiveScheduleSlot(
     id: json['id']! as String,
     title: json['title']! as String,
     startsAt: DateTime.parse(json['startsAt']! as String),
+    podcastTopic: json['mode'] == 'PODCAST'
+        ? json['podcastTopic'] as String?
+        : null,
   );
 
   final String id;
   final String title;
   final DateTime startsAt;
+
+  /// v1.47-live (D212): an announced podcast episode's topic slug; null
+  /// for a plain announcement.
+  final String? podcastTopic;
 }
 
 /// The host's live schedule (CP-016 C, CONVENTIONS §10.16): followers are
@@ -39,10 +51,12 @@ abstract interface class LiveScheduleRepository {
   /// `GET /me/live-schedule`: the upcoming slots, soonest first.
   Future<List<LiveScheduleSlot>> list();
 
-  /// `POST /me/live-schedule`.
+  /// `POST /me/live-schedule`. D212: [podcastTopic] announces a podcast
+  /// episode (mode PODCAST).
   Future<LiveScheduleSlot> create({
     required String title,
     required DateTime startsAt,
+    String? podcastTopic,
   });
 
   /// `DELETE /me/live-schedule/{slotId}`.
@@ -67,10 +81,18 @@ class LiveScheduleRepositoryImpl implements LiveScheduleRepository {
   Future<LiveScheduleSlot> create({
     required String title,
     required DateTime startsAt,
+    String? podcastTopic,
   }) => guardApiCall(() async {
     final res = await _api.post<Map<String, dynamic>>(
       '/me/live-schedule',
-      data: {'title': title, 'startsAt': startsAt.toUtc().toIso8601String()},
+      data: {
+        'title': title,
+        'startsAt': startsAt.toUtc().toIso8601String(),
+        if (podcastTopic != null) ...{
+          'mode': 'PODCAST',
+          'podcastTopic': podcastTopic,
+        },
+      },
     );
     return LiveScheduleSlot.fromJson(res.data!);
   });

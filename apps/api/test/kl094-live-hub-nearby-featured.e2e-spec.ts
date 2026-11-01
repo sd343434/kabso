@@ -53,7 +53,11 @@ describe('D133 contract coverage', () => {
   it('openapi declares scope, featured and the new kinds on listLiveRooms, and Me.country', () => {
     const op = operations().find((o) => o.operationId === 'listLiveRooms');
     const params = (op?.spec as { parameters?: { name?: string; schema?: unknown }[] }).parameters ?? [];
-    expect(params.find((p) => p.name === 'kind')?.schema).toEqual({ type: 'string', enum: [...KINDS] });
+    // v1.47-live (D212) adds `podcast` (d212-podcast covers it).
+    expect(params.find((p) => p.name === 'kind')?.schema).toEqual({
+      type: 'string',
+      enum: [...KINDS, 'podcast'],
+    });
     expect(params.find((p) => p.name === 'scope')?.schema).toEqual({ type: 'string', enum: ['nearby'] });
     expect(params.find((p) => p.name === 'featured')?.schema).toEqual({
       type: 'string',
@@ -443,7 +447,7 @@ describe('D133 nearby, featured and kinds', { timeout: 240_000 }, () => {
           ).toBe(400);
         }
       }
-      for (const bad of ['pk', 'AUDIO', 'podcast', '']) {
+      for (const bad of ['pk', 'AUDIO', 'PODCAST', '']) {
         const res = await list(`tab=popular&kind=${bad}`);
         expect(res.status, bad).toBe(400);
         expect(res.body.error.details[0].field).toBe('kind');

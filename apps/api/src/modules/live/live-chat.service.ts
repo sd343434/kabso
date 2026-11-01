@@ -64,8 +64,12 @@ export const LIVE_CHAT_TOPIC = 'chat';
 export const LIVE_CHAT_LIST_MAX = 50;
 /** Counting rule: at most one message a second per user and room (CONVENTIONS §7, §10.11). */
 export const LIVE_CHAT_SEND_INTERVAL_MS = 1_000;
-/** At most one "joined" line a second per room; extras are dropped (owner D96). */
-export const LIVE_CHAT_JOIN_INTERVAL_MS = 1_000;
+/**
+ * At most one "joined" line per this interval per room; extras are dropped. Owner D96: one a second;
+ * owner D212 («دخول الأشخاص … كل واحد برسالة»): every join is its own line, so up to 5 a second —
+ * only a burst above that (a raid, a big host going live) loses lines (§10.69).
+ */
+export const LIVE_CHAT_JOIN_INTERVAL_MS = 200;
 /** CP-017 (owner D104): voice clips and images vanish 60 s after sending. */
 export const LIVE_CHAT_MEDIA_TTL_MS = 60_000;
 /** The asset kind a VOICE or IMAGE message takes (CONVENTIONS §11.1). */
@@ -81,7 +85,16 @@ const MEDIA_SWEEP_MAX_BATCHES = 20;
 export type LiveChatData =
   | { readonly type: 'chat'; readonly message: LiveChatMessageDto }
   | { readonly type: 'chat-delete'; readonly id: string }
-  | { readonly type: 'join'; readonly user: UserSummaryDto; readonly cp: LiveJoinCpDto | null }
+  | {
+      readonly type: 'join';
+      readonly user: UserSummaryDto;
+      readonly cp: LiveJoinCpDto | null;
+      /**
+       * v1.47-live (D212): the joiner's gender for the line's grammar («دخل» / «دخلت») — only when
+       * they show it on their profile (D175: private by default); else null (a neutral line).
+       */
+      readonly gender: 'MALE' | 'FEMALE' | null;
+    }
   | { readonly type: 'chat-state'; readonly enabled: boolean };
 
 const MESSAGE_INCLUDE = { user: { select: USER_SUMMARY_SELECT }, media: true } as const;
@@ -461,6 +474,14 @@ export class LiveChatService implements OnModuleInit, OnModuleDestroy {
     try {
       const user = await this.prisma.user.findUnique({ where: { id: userId }, select: USER_SUMMARY_SELECT });
       if (!user) return;
+      const shown = await this.prisma.userProfile.findUnique({
+        where: { userId },
+        select: { gender: true, showGender: true },
+      });
+      const gender =
+        shown?.showGender === true && (shown.gender === 'MALE' || shown.gender === 'FEMALE')
+          ? shown.gender
+          : null;
       // v1.54-social (D185, §10.48): an ACTIVE recharge agent's join (its entrance bar) is never dropped;
       // v1.58-social (D189, §10.52): nor a host agent's.
       const agent = rechargeAgentCodeOf(user) !== null || hostAgentCodeOf(user) !== null;
@@ -473,7 +494,7 @@ export class LiveChatService implements OnModuleInit, OnModuleDestroy {
       if (waitMs > 0 && !agent) return;
       // v1.24-live (CP-021, §10.24): the couple's Entrance Effect ("X ❤ Y entered").
       const cp = await cpEntranceOf(this.prisma, userId);
-      await this.broadcast(roomId, { type: 'join', user: userSummary(user), cp });
+      await this.broadcast(roomId, { type: 'join', user: userSummary(user), cp, gender });
     } catch (err) {
       this.logger.warn({ error: safeErrorLog(err) }, 'Could not announce a join in the live chat');
     }

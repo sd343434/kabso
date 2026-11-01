@@ -20,6 +20,10 @@ abstract class LiveConfig with _$LiveConfig {
 
     /// CP-011: allowed seat counts per mode, the host's tile included.
     @Default(LiveSeatCounts()) LiveSeatCounts seatCounts,
+
+    /// v1.47-live (D212): the podcast setup's choices (defaults from an
+    /// older server).
+    @Default(LivePodcastConfig()) LivePodcastConfig podcast,
   }) = _LiveConfig;
 
   factory fromJson(Map<String, dynamic> json) => _$LiveConfigFromJson(json);
@@ -34,6 +38,116 @@ abstract class LiveSeatCounts with _$LiveSeatCounts {
   }) = _LiveSeatCounts;
 
   factory fromJson(Map<String, dynamic> json) => _$LiveSeatCountsFromJson(json);
+}
+
+/// `LiveConfig.podcast` (v1.47-live, D212).
+@freezed
+abstract class LivePodcastConfig with _$LivePodcastConfig {
+  const factory({
+    /// Speakers including the host.
+    @Default(4) int speakers,
+    @Default(PodcastTopic.values) List<PodcastTopic> topics,
+
+    /// A question's speaking time in seconds (null = no limit is always
+    /// offered too).
+    @Default(<int>[60, 120, 180, 300]) List<int> questionSeconds,
+    @Default(120) int defaultQuestionSeconds,
+  }) = _LivePodcastConfig;
+
+  factory fromJson(Map<String, dynamic> json) =>
+      _$LivePodcastConfigFromJson(json);
+}
+
+/// `StartLiveRoomRequest.podcast` (v1.47-live, D212).
+@immutable
+class PodcastSetup {
+  const new({
+    required this.topic,
+    this.questionsOpen = true,
+    this.questionSeconds = 120,
+  });
+
+  final PodcastTopic topic;
+  final bool questionsOpen;
+
+  /// null = no limit.
+  final int? questionSeconds;
+
+  Map<String, dynamic> toJson() => {
+    'topic': topic.wire,
+    'questionsOpen': questionsOpen,
+    'questionSeconds': questionSeconds,
+  };
+}
+
+/// `PodcastTopic` (v1.47-live, D212): the setup's topic chips.
+enum PodcastTopic {
+  @JsonValue('business')
+  business,
+  @JsonValue('tech')
+  tech,
+  @JsonValue('sports')
+  sports,
+  @JsonValue('religion')
+  religion,
+  @JsonValue('society')
+  society,
+  @JsonValue('entertainment')
+  entertainment,
+  @JsonValue('other')
+  other;
+
+  String get wire => name;
+}
+
+/// `LivePodcastSpeaker` (v1.47-live, D212): a speaker on a hub card.
+@freezed
+abstract class LivePodcastSpeaker with _$LivePodcastSpeaker {
+  const factory({
+    required String id,
+    required String username,
+    required String displayName,
+    String? avatarUrl,
+  }) = _LivePodcastSpeaker;
+
+  factory fromJson(Map<String, dynamic> json) =>
+      _$LivePodcastSpeakerFromJson(json);
+}
+
+/// `LivePodcast` (v1.47-live, D212): a podcast live's episode facts.
+@freezed
+abstract class LivePodcast with _$LivePodcast {
+  const factory({
+    required int episodeNumber,
+    @JsonKey(unknownEnumValue: PodcastTopic.other) required PodcastTopic topic,
+    @Default(true) bool questionsOpen,
+
+    /// An accepted hand's speaking time; null = no limit.
+    int? questionSeconds,
+    @Default(<LivePodcastSpeaker>[]) List<LivePodcastSpeaker> speakers,
+  }) = _LivePodcast;
+
+  factory fromJson(Map<String, dynamic> json) => _$LivePodcastFromJson(json);
+}
+
+/// `LiveScheduledPodcast` (v1.47-live, D212): an announced episode in the
+/// hub's podcast tab (a dashed card with «ذكّرني»).
+@freezed
+abstract class LiveScheduledPodcast with _$LiveScheduledPodcast {
+  const factory({
+    required String id,
+    required String title,
+    required DateTime startsAt,
+    @JsonKey(unknownEnumValue: PodcastTopic.other)
+    required PodcastTopic podcastTopic,
+    required UserSummary host,
+
+    /// The person will be reminded (they follow the host).
+    @Default(false) bool reminder,
+  }) = _LiveScheduledPodcast;
+
+  factory fromJson(Map<String, dynamic> json) =>
+      _$LiveScheduledPodcastFromJson(json);
 }
 
 /// Theme slugs (CP-011). The server's list is in `LiveConfig.themes`.
@@ -59,7 +173,12 @@ enum LiveRoomMode {
   @JsonValue('MULTI')
   multi,
   @JsonValue('AUDIO')
-  audio;
+  audio,
+
+  /// v1.47-live (D212): an audio-only podcast — the host and up to 3
+  /// speakers; listeners raise a hand.
+  @JsonValue('PODCAST')
+  podcast;
 
   /// The wire value (requests).
   String get wire => switch (this) {
@@ -67,10 +186,14 @@ enum LiveRoomMode {
     pk => 'PK',
     multi => 'MULTI',
     audio => 'AUDIO',
+    podcast => 'PODCAST',
   };
 
-  /// MULTI and AUDIO rooms have seats.
-  bool get hasSeats => this == multi || this == audio;
+  /// MULTI, AUDIO and (D212) PODCAST rooms have seats.
+  bool get hasSeats => this == multi || this == audio || this == podcast;
+
+  /// D212: voice only (no camera for anyone): AUDIO rooms and podcasts.
+  bool get isVoice => this == audio || this == podcast;
 
   /// D174: rooms with guest seats — MULTI and AUDIO, and a SOLO live's 3
   /// guests (v1.40-live).
@@ -128,6 +251,9 @@ abstract class LiveRoomSummary with _$LiveRoomSummary {
 
     /// CP-014: the host's one-line topic, or null.
     String? topic,
+
+    /// v1.47-live (D212): a podcast's episode facts; null otherwise.
+    LivePodcast? podcast,
   }) = _LiveRoomSummary;
 
   factory fromJson(Map<String, dynamic> json) =>
@@ -188,6 +314,9 @@ abstract class LiveRoom with _$LiveRoom {
     /// v1.27.3-live (D136, §10.29): the host's wish list, as shown (older
     /// servers send none).
     @Default(<LiveWishGift>[]) List<LiveWishGift> wishGifts,
+
+    /// v1.47-live (D212): a podcast's episode facts; null otherwise.
+    LivePodcast? podcast,
   }) = _LiveRoom;
 
   factory fromJson(Map<String, dynamic> json) => _$LiveRoomFromJson(json);
@@ -300,8 +429,8 @@ enum LiveRoomsTab {
 }
 
 /// The hub's room kind (`kind` of `GET /live/rooms`, v1.26.4-live, D129):
-/// voice rooms (`AUDIO`; there is no podcast type, a podcast is a voice
-/// room) or video lives (`SOLO`, `PK`, `MULTI`).
+/// voice rooms (`AUDIO`) or video lives (`SOLO`, `PK`, `MULTI`); D212
+/// adds `podcast` (`PODCAST`, in no other kind).
 enum LiveRoomsKind {
   audio('audio'),
   video('video'),
@@ -313,20 +442,27 @@ enum LiveRoomsKind {
   multi('multi'),
 
   /// v1.27.1-live (D133): `AUDIO` and `MULTI`.
-  party('party');
+  party('party'),
+
+  /// v1.47-live (D212): `PODCAST`.
+  podcast('podcast');
 
   new(this.wire);
 
   final String wire;
 
   /// The kind a room of [mode] is listed under (audio or video).
-  static LiveRoomsKind of(LiveRoomMode mode) =>
-      mode == LiveRoomMode.audio ? audio : video;
+  static LiveRoomsKind of(LiveRoomMode mode) => switch (mode) {
+    LiveRoomMode.audio => audio,
+    LiveRoomMode.podcast => podcast,
+    _ => video,
+  };
 
   /// Whether a room of [mode] is listed under this kind.
   bool includes(LiveRoomMode mode) => switch (this) {
     audio => mode == LiveRoomMode.audio,
-    video => mode != LiveRoomMode.audio,
+    video => !mode.isVoice,
+    podcast => mode == LiveRoomMode.podcast,
     solo => mode == LiveRoomMode.solo || mode == LiveRoomMode.pk,
     multi => mode == LiveRoomMode.multi,
     party => mode == LiveRoomMode.audio || mode == LiveRoomMode.multi,
@@ -403,6 +539,10 @@ abstract class LiveSeat with _$LiveSeat {
     /// v1.27.2-live (D135): the gift points this seated person received in
     /// this live (0 for empty and locked seats, and from older servers).
     @Default(0) int points,
+
+    /// v1.47-live (D212): a podcast speaker's question end (they go back
+    /// to the listeners then); null = no limit.
+    DateTime? demoteAt,
   }) = _LiveSeat;
 
   factory fromJson(Map<String, dynamic> json) => _$LiveSeatFromJson(json);
@@ -425,6 +565,12 @@ abstract class LiveSeatRequest with _$LiveSeatRequest {
     required UserSummary user,
     required int? seatIndex,
     required DateTime createdAt,
+
+    /// v1.47-live (D212): a podcast hand's short question.
+    String? question,
+
+    /// v1.47-live (D212): the host said «لاحقاً».
+    @Default(false) bool deferred,
   }) = _LiveSeatRequest;
 
   factory fromJson(Map<String, dynamic> json) =>
@@ -503,6 +649,9 @@ abstract class LiveSeats with _$LiveSeats {
 
     /// Host and moderators only.
     int? pendingRequests,
+
+    /// v1.47-live (D212): a podcast's raised hands (user ids, queue order).
+    @Default(<String>[]) List<String> handsUp,
 
     /// Signed-in callers only.
     LiveSeatsMine? mine,

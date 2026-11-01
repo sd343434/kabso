@@ -33,6 +33,8 @@ export enum AuditAction {
   LIVE_ROOM_GUESTS = 'live.room.guests',
   // v1.9-live (DRAFT, CP-013): the host turned the room chat off or on.
   LIVE_ROOM_CHAT = 'live.room.chat',
+  /** v1.47-live (D212): a podcast's hands opened / closed or its question duration changed. */
+  LIVE_ROOM_PODCAST = 'live.room.podcast',
   // v1.10-live (DRAFT, CP-014): the host edited the live's title, category or topic.
   LIVE_ROOM_EDIT = 'live.room.edit',
   // v1.11-live (DRAFT, CP-015): the host set or removed the live cover.

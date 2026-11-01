@@ -157,6 +157,7 @@ sealed class LiveChatEvent {
         'join' => LiveChatJoined(
           UserSummary.fromJson(json['user']! as Map<String, dynamic>),
           cp: LiveJoinCp.tryParse(json['cp']),
+          gender: LiveJoinGender.tryParse(json['gender']),
         ),
         'chat-state' => LiveChatStateChanged(enabled: json['enabled']! as bool),
         'bullet' => LiveBulletReceived(
@@ -221,10 +222,26 @@ final class LiveChatDeleted extends LiveChatEvent {
   final String id;
 }
 
+/// v1.47-live (D212): the joiner's gender for the line's grammar, sent
+/// only when they show it on their profile (D175).
+enum LiveJoinGender {
+  male,
+  female;
+
+  static LiveJoinGender? tryParse(Object? wire) => switch (wire) {
+    'MALE' => male,
+    'FEMALE' => female,
+    _ => null,
+  };
+}
+
 final class LiveChatJoined extends LiveChatEvent {
-  const new(this.user, {this.cp});
+  const new(this.user, {this.cp, this.gender});
 
   final UserSummary user;
+
+  /// v1.47-live (D212): «دخل» / «دخلت»; null = a neutral line.
+  final LiveJoinGender? gender;
 
   /// v1.24-live (CP-021, §10.24): the joiner's couple, when it unlocked the
   /// Entrance Effect; null for a normal join.

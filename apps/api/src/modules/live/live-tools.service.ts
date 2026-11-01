@@ -567,7 +567,9 @@ export class LiveToolsService {
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
     const room = await this.ownRoom(callerId, roomId);
     if (room.status !== 'LIVE') throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
-    if (room.mode === 'AUDIO') throw AppException.validation([{ field: 'active', issue: 'invalid_value' }]);
+    // D212: a podcast is voice only too (no camera clip).
+    if (room.mode === 'AUDIO' || room.mode === 'PODCAST')
+      throw AppException.validation([{ field: 'active', issue: 'invalid_value' }]);
     const active = parsed.data.active;
     const until = active ? new Date(this.clock.now().getTime() + (RECORDING_MAX_SECONDS + 1) * 1000) : null;
     await this.audit.record({

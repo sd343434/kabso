@@ -119,4 +119,4 @@ export const SEAT_EMOJI_INTERVAL_MS = 2_000;
 export const SEAT_EMOJI_TOPIC = 'seat-emoji';
 
 /** The room modes with seats (the host is tile 0). */
-export const SEAT_EMOJI_MODES: ReadonlySet<string> = new Set(['AUDIO', 'MULTI']);
+export const SEAT_EMOJI_MODES: ReadonlySet<string> = new Set(['AUDIO', 'MULTI', 'PODCAST']);

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/data/live_blocked_words_repository.dart';
 import 'package:kabso_live/features/live/data/live_schedule_repository.dart';
@@ -10,6 +11,8 @@ import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_blocked_words_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_cover_picture.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_podcast_room.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_podcast_sheets.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_room_tools.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_schedule_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
@@ -54,7 +57,40 @@ class GoLiveAudioSetup extends StatelessWidget {
     required this.hostAvatarUrl,
     super.key,
     this.onShare,
+    this.mode = LiveRoomMode.audio,
+    this.podcast = const PodcastSetup(topic: PodcastTopic.business),
+    this.onPodcast,
+    this.podcastConfig = const LivePodcastConfig(),
+    this.podcastGuests = const [],
+    this.onGuests,
+    this.schedule = false,
+    this.onSchedule,
   });
+
+  /// D212: AUDIO or PODCAST (the podcast's own setup).
+  final LiveRoomMode mode;
+
+  /// D212: the podcast's topic, hands and question time.
+  final PodcastSetup podcast;
+  final ValueChanged<PodcastSetup>? onPodcast;
+  final LivePodcastConfig podcastConfig;
+
+  /// D212: the picked guests (up to 3) and the picker.
+  final List<UserSummary> podcastGuests;
+  final VoidCallback? onGuests;
+
+  /// D212: «جدولة» chosen instead of «الآن» (the start button schedules).
+  final bool schedule;
+  final ValueChanged<bool>? onSchedule;
+
+  bool get _podcast => mode == LiveRoomMode.podcast;
+
+  static Key topicKey(PodcastTopic t) => Key('goLive.podcast.topic.${t.name}');
+  static const questionsKey = Key('goLive.podcast.questions');
+  static const guestsPickKey = Key('goLive.podcast.guests');
+  static const nowKey = Key('goLive.podcast.now');
+  static const scheduleKey = Key('goLive.podcast.schedule');
+  static const podcastPanelKey = Key('goLive.podcast.panel');
 
   final TextEditingController controller;
   final FocusNode focusNode;
@@ -171,32 +207,52 @@ class GoLiveAudioSetup extends StatelessWidget {
                   enabled: enabled,
                   hostName: hostName,
                   hostAvatarUrl: hostAvatarUrl,
-                  categories: categories,
+                  // D212: a podcast has a topic, not a category.
+                  categories: _podcast ? const [] : categories,
                   category: category,
                   onCategory: onCategory,
                 ),
               ),
-              const SizedBox(height: _seatsGap),
-              _SeatsPreview(count: seatCount),
-              const Spacer(),
+              if (_podcast)
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(14.9, 14, 14.9, 8),
+                    child: _PodcastPanel(
+                      key: podcastPanelKey,
+                      setup: podcast,
+                      config: podcastConfig,
+                      onSetup: enabled ? onPodcast : null,
+                      guests: podcastGuests,
+                      onGuests: enabled ? onGuests : null,
+                      schedule: schedule,
+                      onSchedule: enabled ? onSchedule : null,
+                    ),
+                  ),
+                )
+              else ...[
+                const SizedBox(height: _seatsGap),
+                _SeatsPreview(count: seatCount),
+                const Spacer(),
+              ],
               _Tools(
                 children: [
-                  _Tool(
-                    key: seatsKey,
-                    icon: SvgPicture.asset(
-                      'assets/live_room_icons/seat_outline.svg',
-                      width: 23.6,
+                  if (!_podcast)
+                    _Tool(
+                      key: seatsKey,
+                      icon: SvgPicture.asset(
+                        'assets/live_room_icons/seat_outline.svg',
+                        width: 23.6,
+                      ),
+                      label: l10n.liveSeats,
+                      onTap: onSeatCount == null
+                          ? null
+                          : () => showLiveSeatCountPicker(
+                              context,
+                              counts: seatCounts,
+                              selected: seatCount,
+                              onSelect: onSeatCount!,
+                            ),
                     ),
-                    label: l10n.liveSeats,
-                    onTap: onSeatCount == null
-                        ? null
-                        : () => showLiveSeatCountPicker(
-                            context,
-                            counts: seatCounts,
-                            selected: seatCount,
-                            onSelect: onSeatCount!,
-                          ),
-                  ),
                   _Tool(
                     key: themeKey,
                     icon: const Icon(
@@ -256,13 +312,17 @@ class GoLiveAudioSetup extends StatelessWidget {
               const SizedBox(height: 26.9),
               Center(
                 child: _GoLiveButton(
-                  label: busy ? l10n.goLiveStarting : l10n.goLiveStart,
+                  label: busy
+                      ? l10n.goLiveStarting
+                      : _podcast && schedule
+                      ? l10n.podcastSetupScheduleAction
+                      : l10n.goLiveStart,
                   busy: busy,
                   onPressed: onStart,
                 ),
               ),
               const SizedBox(height: 29.1),
-              _ModeTabs(selected: LiveRoomMode.audio, onSelect: onMode),
+              _ModeTabs(selected: mode, onSelect: onMode),
               const SizedBox(height: 24.9),
             ],
           ),
@@ -739,6 +799,8 @@ class _ModeTabs extends StatelessWidget {
       (LiveRoomMode.multi, l10n.goLiveModeMulti),
       (LiveRoomMode.solo, l10n.goLiveModeSolo),
       (LiveRoomMode.audio, l10n.goLiveModeAudio),
+      // D212: the podcast (the streamer tab follows, «قريباً»).
+      (LiveRoomMode.podcast, l10n.goLiveModePodcast),
     ];
     final at = modes.indexWhere((m) => m.$1 == selected);
     Widget tab((LiveRoomMode, String) m) {
@@ -798,7 +860,10 @@ class _ModeTabs extends StatelessWidget {
                 : AlignmentDirectional.centerStart,
             child: Row(
               mainAxisSize: MainAxisSize.min,
-              children: [for (final m in items) tab(m)],
+              children: [
+                for (final m in items) tab(m),
+                if (!before) const GoLiveStreamerTab(fontSize: 15),
+              ],
             ),
           ),
         );
@@ -1026,6 +1091,184 @@ class LiveSettingsRow extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// D212: the podcast's setup under the title card — the topic chips, the
+/// guests (up to 3), questions open or closed with the question time, and
+/// now or a scheduled episode (the CP-016 C schedule and its reminder).
+class _PodcastPanel extends StatelessWidget {
+  const new({
+    required this.setup,
+    required this.config,
+    required this.onSetup,
+    required this.guests,
+    required this.onGuests,
+    required this.schedule,
+    required this.onSchedule,
+    super.key,
+  });
+
+  final PodcastSetup setup;
+  final LivePodcastConfig config;
+  final ValueChanged<PodcastSetup>? onSetup;
+  final List<UserSummary> guests;
+  final VoidCallback? onGuests;
+  final bool schedule;
+  final ValueChanged<bool>? onSchedule;
+
+  static const _white = Color(0xFFFFFFFF);
+  static const _glass = Color(0x33000000);
+  static const _on = Color(0xFFE50914);
+
+  PodcastSetup _with({PodcastTopic? topic, bool? open, int? Function()? s}) =>
+      PodcastSetup(
+        topic: topic ?? setup.topic,
+        questionsOpen: open ?? setup.questionsOpen,
+        questionSeconds: s == null ? setup.questionSeconds : s(),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final text = context.textStyles;
+    final label = text.bodyStrong.copyWith(color: _white, fontSize: 14);
+    Widget chip(
+      String text0,
+      VoidCallback? onTap, {
+      required bool on,
+      Key? key,
+    }) => Semantics(
+      button: true,
+      selected: on,
+      label: text0,
+      excludeSemantics: true,
+      child: GestureDetector(
+        key: key,
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: KSizes.minTouchTarget),
+          child: Center(
+            widthFactor: 1,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: on ? _on : _glass,
+                borderRadius: BorderRadius.circular(KRadius.pill),
+                border: Border.all(
+                  color: on ? _on : _white.withValues(alpha: 0.35),
+                ),
+              ),
+              child: Text(
+                text0,
+                style: text.label.copyWith(
+                  color: _white,
+                  fontWeight: on ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    final set = onSetup;
+    final topics = config.topics.isEmpty ? PodcastTopic.values : config.topics;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(l10n.podcastSetupTopic, style: label),
+        Wrap(
+          spacing: 8,
+          children: [
+            for (final t in topics)
+              chip(
+                podcastTopicLabel(l10n, t),
+                set == null ? null : () => set(_with(topic: t)),
+                on: t == setup.topic,
+                key: GoLiveAudioSetup.topicKey(t),
+              ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(child: Text(l10n.podcastSetupGuests, style: label)),
+            for (final g in guests)
+              Padding(
+                padding: const EdgeInsetsDirectional.only(end: 4),
+                child: PodcastAvatar(
+                  name: g.displayName,
+                  url: g.avatarUrl,
+                  size: 30,
+                ),
+              ),
+            IconButton(
+              key: GoLiveAudioSetup.guestsPickKey,
+              tooltip: l10n.podcastSetupAddGuest,
+              onPressed: onGuests,
+              icon: const Icon(Icons.person_add_alt_1_rounded, color: _white),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            Expanded(child: Text(l10n.podcastSetupQuestions, style: label)),
+            chip(
+              l10n.podcastSetupOpen,
+              set == null ? null : () => set(_with(open: true)),
+              on: setup.questionsOpen,
+              key: GoLiveAudioSetup.questionsKey,
+            ),
+            const SizedBox(width: 6),
+            chip(
+              l10n.podcastSetupClosed,
+              set == null ? null : () => set(_with(open: false)),
+              on: !setup.questionsOpen,
+            ),
+          ],
+        ),
+        if (setup.questionsOpen) ...[
+          Text(
+            l10n.podcastQuestionTime,
+            style: label.copyWith(fontSize: 12.5, fontWeight: FontWeight.w500),
+          ),
+          Wrap(
+            spacing: 8,
+            children: [
+              for (final sec in podcastQuestionChoices(config))
+                chip(
+                  podcastQuestionLabel(l10n, sec),
+                  set == null ? null : () => set(_with(s: () => sec)),
+                  on: sec == setup.questionSeconds,
+                  key: PodcastHandsSheet.secondsKey(sec),
+                ),
+            ],
+          ),
+        ],
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            Expanded(child: Text(l10n.podcastSetupWhen, style: label)),
+            chip(
+              l10n.podcastSetupNow,
+              onSchedule == null ? null : () => onSchedule!(false),
+              on: !schedule,
+              key: GoLiveAudioSetup.nowKey,
+            ),
+            const SizedBox(width: 6),
+            chip(
+              l10n.podcastSetupSchedule,
+              onSchedule == null ? null : () => onSchedule!(true),
+              on: schedule,
+              key: GoLiveAudioSetup.scheduleKey,
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

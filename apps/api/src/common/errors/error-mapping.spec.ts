@@ -46,6 +46,8 @@ describe('ErrorCode', () => {
         'ACCOUNT_LOCKED',
         'ACCOUNT_RESTRICTED',
         'PASSWORD_CHANGE_REQUIRED',
+        // v1.47-live (D212).
+        'LIVE_QUESTIONS_CLOSED',
         // v1.54-social (D185).
         'RECHARGE_APPLICATION_NOT_ALLOWED',
         'RECHARGE_AGENT_NOT_ACTIVE',
@@ -279,6 +281,7 @@ describe('ErrorCode', () => {
       ACCOUNT_LOCKED: 403,
       ACCOUNT_RESTRICTED: 403,
       PASSWORD_CHANGE_REQUIRED: 403,
+      LIVE_QUESTIONS_CLOSED: 409,
     });
   });
 

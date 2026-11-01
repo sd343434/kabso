@@ -166,8 +166,9 @@ describe('KL-037 contract coverage', () => {
         (o) =>
           // v1.43-live (D195) PK 1 v 1 and v1.44-live (D199) PK Setting: d195-pk and d199-pk-settings cover them;
           // D199's host targets: d199-host-targets; v1.45-live (D201) the second camera and the recording
-          // indicator: d201-live-tools — each with its own exact list.
-          !/^\/api\/v1\/live\/(rooms\/\{roomId\}\/(pk|second-camera|recording)|pk|second-camera|hosts\/\{username\}\/targets)(\/|$)/.test(
+          // indicator: d201-live-tools — each with its own exact list. v1.47-live (D212): the announced
+          // podcasts, d212-podcast.
+          !/^\/api\/v1\/live\/(rooms\/\{roomId\}\/(pk|second-camera|recording)|pk|second-camera|podcasts|hosts\/\{username\}\/targets)(\/|$)/.test(
             o.path,
           ),
       )
@@ -278,8 +279,19 @@ describe('KL-037 live discovery and host lifecycle (hosting enabled)', () => {
           'game-arena',
           'heart-garden',
           'galaxy',
+          // v1.47-live (D212): the podcast backgrounds.
+          'podcast-studio',
+          'podcast-majlis',
+          'podcast-library',
         ],
         seatCounts: { MULTI: [4, 6, 9, 12], AUDIO: [5, 10, 15, 20] },
+        // v1.47-live (D212): the podcast setup's choices.
+        podcast: {
+          speakers: 4,
+          topics: ['business', 'tech', 'sports', 'religion', 'society', 'entertainment', 'other'],
+          questionSeconds: [60, 120, 180, 300],
+          defaultQuestionSeconds: 120,
+        },
       });
     });
 
@@ -349,6 +361,8 @@ describe('KL-037 live discovery and host lifecycle (hosting enabled)', () => {
         theme: 'classic',
         // CP-012 (v1.8-live): a new live starts at 0 points.
         score: 0,
+        // v1.47-live (D212): not a podcast.
+        podcast: null,
         scoreParts: { total: 0, tapPoints: 0, supportPoints: 0 },
         // CP-013 (v1.9-live): a new live starts with the chat on; the host is never muted.
         chatEnabled: true,

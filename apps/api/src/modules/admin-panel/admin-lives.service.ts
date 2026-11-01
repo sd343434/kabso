@@ -35,10 +35,15 @@ export class AdminLivesService {
     private readonly media: LiveMediaService,
   ) {}
 
-  async now(q: TableQuery, ctx: AdminContext) {
+  async now(
+    q: TableQuery & { mode?: 'SOLO' | 'PK' | 'MULTI' | 'AUDIO' | 'PODCAST' | undefined },
+    ctx: AdminContext,
+  ) {
     const text = q.q?.trim().toLowerCase().replace(/^@/, '');
     const where: Prisma.LiveRoomWhereInput = {
       status: 'LIVE',
+      // v1.47-live (D212): the mode filter (the panel's category chips).
+      ...(q.mode ? { mode: q.mode } : {}),
       ...(text
         ? {
             OR: [
@@ -88,13 +93,23 @@ export class AdminLivesService {
         avatarUrl: r.host.profile?.avatarUrl ?? null,
       },
     }));
-    return tableResult(this.audit, ctx, 'lives', q, data, total, [
-      ['id', (r) => r.id],
-      ['title', (r) => r.title],
-      ['host', (r) => r.host.username],
-      ['viewers', (r) => r.viewers],
-      ['started_at', (r) => r.startedAt],
-    ]);
+    return tableResult(
+      this.audit,
+      ctx,
+      'lives',
+      q,
+      data,
+      total,
+      [
+        ['id', (r) => r.id],
+        ['title', (r) => r.title],
+        ['host', (r) => r.host.username],
+        ['mode', (r) => r.mode],
+        ['viewers', (r) => r.viewers],
+        ['started_at', (r) => r.startedAt],
+      ],
+      q.mode ? { mode: q.mode } : {},
+    );
   }
 
   async detail(id: string) {

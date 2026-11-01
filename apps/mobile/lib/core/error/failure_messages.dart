@@ -40,6 +40,7 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
     ErrorCode.reportAlreadyResolved => l10n.errorReportAlreadyResolved,
     ErrorCode.insufficientCoins => l10n.errorInsufficientCoins,
     ErrorCode.liveKicked => l10n.errorLiveKicked,
+    ErrorCode.liveQuestionsClosed => l10n.errorLiveQuestionsClosed,
     ErrorCode.alreadyInFamily => l10n.errorAlreadyInFamily,
     ErrorCode.familyFull => l10n.errorFamilyFull,
     ErrorCode.familyNameTaken => l10n.errorFamilyNameTaken,

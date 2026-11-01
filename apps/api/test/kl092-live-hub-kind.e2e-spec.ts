@@ -36,8 +36,8 @@ describe('D129 contract coverage', () => {
       expect.objectContaining({
         in: 'query',
         required: false,
-        // v1.27.1-live (D133) adds solo, multi and party (kl094 covers them).
-        schema: { type: 'string', enum: ['audio', 'video', 'solo', 'multi', 'party'] },
+        // v1.27.1-live (D133) adds solo, multi and party (kl094 covers them); v1.47-live (D212) podcast.
+        schema: { type: 'string', enum: ['audio', 'video', 'solo', 'multi', 'party', 'podcast'] },
       }),
     );
   });
@@ -176,8 +176,8 @@ describe('D129 the hub kind filter and the per-live ranking', { timeout: 120_000
     expect((await list(`tab=new&kind=audio&limit=1&cursor=${plainCursor}`)).status).toBe(400);
   });
 
-  it('rejects an unknown kind (podcast is not a kind: it is a voice room)', async () => {
-    for (const bad of ['podcast', 'AUDIO', 'all', '']) {
+  it('rejects an unknown kind (D212: `podcast` is one now, d212-podcast covers it)', async () => {
+    for (const bad of ['PODCAST', 'AUDIO', 'all', '']) {
       const res = await list(`tab=popular&kind=${bad}`);
       expect(res.status).toBe(400);
       expect(res.body.error.code).toBe('VALIDATION_FAILED');

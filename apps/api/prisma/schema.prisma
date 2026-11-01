@@ -483,6 +483,9 @@ enum LiveRoomMode {
   MULTI
   /// CP-011 (D94): voice only, with seats.
   AUDIO
+  /// v1.47-live (D212, CONVENTIONS §10.69): an audio-only podcast episode — the host and up to 3
+  /// speakers (seat count 4), listeners raise a hand to ask a question.
+  PODCAST
 
   @@map("live_room_mode")
 }
@@ -637,6 +640,16 @@ model LiveRoom {
   /// v1.42-live (D170, §10.44): since when the host of a video (SOLO / MULTI) live has been away
   /// (the app in the background, the camera off); null while present and always null for AUDIO.
   hostAwaySince   DateTime?          @map("host_away_since") @db.Timestamptz(3)
+  /// v1.47-live (D212, §10.69): a PODCAST's episode number, per host (1, 2, …); null for other
+  /// modes (CHECK `live_rooms_podcast_fields`).
+  episodeNumber   Int?               @map("episode_number")
+  /// v1.47-live (D212): a PODCAST's topic chip (a slug of PODCAST_TOPICS); null for other modes.
+  podcastTopic    String?            @map("podcast_topic") @db.VarChar(32)
+  /// v1.47-live (D212): listeners may raise a hand (PODCAST; true for other modes, unused).
+  questionsOpen   Boolean            @default(true) @map("questions_open")
+  /// v1.47-live (D212): how long an accepted hand speaks before going back to the listeners
+  /// (60, 120, 180 or 300 s); null = no limit. PODCAST only.
+  questionSeconds Int?               @map("question_seconds") @db.SmallInt
   createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -673,6 +686,7 @@ model LiveRoom {
   secondCameras    LiveSecondCamera[]
 
   @@unique([hostUserId], map: "live_rooms_one_live_per_host", where: raw("status = 'LIVE'::live_room_status"))
+  @@unique([hostUserId, episodeNumber], map: "live_rooms_host_episode_key")
   @@index([score(sort: Desc), startedAt(sort: Desc), id(sort: Desc)], map: "live_rooms_live_popular_idx", where: raw("status = 'LIVE'::live_room_status"))
   @@index([startedAt(sort: Desc), id(sort: Desc)], map: "live_rooms_live_new_idx", where: raw("status = 'LIVE'::live_room_status"))
   @@index([categoryId, score(sort: Desc), startedAt(sort: Desc), id(sort: Desc)], map: "live_rooms_live_cat_popular_idx", where: raw("status = 'LIVE'::live_room_status"))
@@ -689,18 +703,22 @@ model LiveRoom {
 /// no row. Seats are numbered 1 … seat_count-1 (the host is 0). CHECKs `live_room_seats_index`
 /// and `live_room_seats_locked_or_taken` (migration 20261027090000_live_seats).
 model LiveRoomSeat {
-  roomId      String   @map("room_id") @db.Uuid
-  seatIndex   Int      @map("seat_index") @db.SmallInt
-  locked      Boolean  @default(false)
-  userId      String?  @map("user_id") @db.Uuid
-  mutedByHost Boolean  @default(false) @map("muted_by_host")
-  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+  roomId      String    @map("room_id") @db.Uuid
+  seatIndex   Int       @map("seat_index") @db.SmallInt
+  locked      Boolean   @default(false)
+  userId      String?   @map("user_id") @db.Uuid
+  mutedByHost Boolean   @default(false) @map("muted_by_host")
+  updatedAt   DateTime  @default(now()) @map("updated_at") @db.Timestamptz(3)
+  /// v1.47-live (D212, §10.69): a PODCAST question's end — the sweeper moves the speaker back to the
+  /// listeners at this time; null = no limit (and always null outside PODCAST).
+  demoteAt    DateTime? @map("demote_at") @db.Timestamptz(3)
 
   room LiveRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
   user User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([roomId, seatIndex], map: "live_room_seats_pkey")
   @@unique([roomId, userId], map: "live_room_seats_one_per_user")
+  @@index([demoteAt], map: "live_room_seats_demote_idx", where: raw("demote_at IS NOT NULL"))
   @@index([userId], map: "live_room_seats_user_idx")
   @@map("live_room_seats")
 }
@@ -719,13 +737,17 @@ enum LiveSeatOfferStatus {
 
 /// CP-011: a viewer asks for a seat. At most one PENDING per room and user.
 model LiveSeatRequest {
-  id        String              @id @default(uuid(7)) @db.Uuid
-  roomId    String              @map("room_id") @db.Uuid
-  userId    String              @map("user_id") @db.Uuid
-  seatIndex Int?                @map("seat_index") @db.SmallInt
-  status    LiveSeatOfferStatus @default(PENDING)
-  createdAt DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
-  handledAt DateTime?           @map("handled_at") @db.Timestamptz(3)
+  id         String              @id @default(uuid(7)) @db.Uuid
+  roomId     String              @map("room_id") @db.Uuid
+  userId     String              @map("user_id") @db.Uuid
+  seatIndex  Int?                @map("seat_index") @db.SmallInt
+  status     LiveSeatOfferStatus @default(PENDING)
+  createdAt  DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  handledAt  DateTime?           @map("handled_at") @db.Timestamptz(3)
+  /// v1.47-live (D212, §10.69): a PODCAST hand's short question (1–80 code points), or null.
+  question   String?             @db.VarChar(320)
+  /// v1.47-live (D212): the host said «لاحقاً» — still PENDING, listed after the others.
+  deferredAt DateTime?           @map("deferred_at") @db.Timestamptz(3)
 
   room LiveRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
   user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -807,18 +829,24 @@ model LiveHostPointsHourly {
 /// `LIVE_SCHEDULED_SOON` 15 minutes before `startsAt`; `remindedAt` marks that the sweeper sent it
 /// (once). Deleted 30 days after the start. CHECKs in migration 20261103090000_live_schedule.
 model LiveScheduleSlot {
-  id         String    @id @default(uuid(7)) @db.Uuid
-  hostUserId String    @map("host_user_id") @db.Uuid
-  title      String    @db.VarChar(60)
-  startsAt   DateTime  @map("starts_at") @db.Timestamptz(3)
-  remindedAt DateTime? @map("reminded_at") @db.Timestamptz(3)
-  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  id           String        @id @default(uuid(7)) @db.Uuid
+  hostUserId   String        @map("host_user_id") @db.Uuid
+  title        String        @db.VarChar(60)
+  startsAt     DateTime      @map("starts_at") @db.Timestamptz(3)
+  remindedAt   DateTime?     @map("reminded_at") @db.Timestamptz(3)
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  /// v1.47-live (D212, §10.69): PODCAST for an announced podcast episode (listed in the hub's
+  /// «بودكاست» tab); null = a plain announcement.
+  mode         LiveRoomMode?
+  /// v1.47-live (D212): the episode's topic slug (PODCAST only).
+  podcastTopic String?       @map("podcast_topic") @db.VarChar(32)
 
   host          User           @relation("LiveScheduleSlots", fields: [hostUserId], references: [id], onDelete: Cascade)
   notifications Notification[]
 
   @@index([hostUserId, startsAt], map: "live_schedule_slots_host_starts_idx")
   @@index([startsAt], map: "live_schedule_slots_due_idx", where: raw("reminded_at IS NULL"))
+  @@index([mode, startsAt], map: "live_schedule_slots_mode_starts_idx", where: raw("mode IS NOT NULL"))
   @@map("live_schedule_slots")
 }
 

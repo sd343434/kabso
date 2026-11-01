@@ -589,6 +589,8 @@ class GoLiveModePager extends StatelessWidget {
       (LiveRoomMode.multi, l10n.goLiveModeMulti),
       (LiveRoomMode.solo, l10n.goLiveModeSolo),
       (LiveRoomMode.audio, l10n.goLiveModeAudio),
+      // D212: the podcast, then the streamer («قريباً», D213).
+      (LiveRoomMode.podcast, l10n.goLiveModePodcast),
     ];
     final i = modes.indexWhere((m) => m.$1 == selected);
     Widget mode(LiveRoomMode m, String label) {
@@ -641,7 +643,8 @@ class GoLiveModePager extends StatelessWidget {
     // The chosen mode sits in the middle: the row is shifted by the
     // difference of the labels on either side (E: equal widths assumed).
     final rtl = Directionality.of(context) == TextDirection.rtl;
-    final shift = (1 - i).toDouble() * (rtl ? -1 : 1);
+    // D212: five tabs (the streamer tab last) — centred on the chosen one.
+    final shift = ((modes.length) / 2 - i) * (rtl ? -1 : 1);
     return ColoredBox(
       color: const Color(0xFF000000),
       child: SafeArea(
@@ -655,7 +658,10 @@ class GoLiveModePager extends StatelessWidget {
                 fit: BoxFit.scaleDown,
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
-                  children: [for (final (m, label) in modes) mode(m, label)],
+                  children: [
+                    for (final (m, label) in modes) mode(m, label),
+                    const GoLiveStreamerTab(),
+                  ],
                 ),
               ),
             ),

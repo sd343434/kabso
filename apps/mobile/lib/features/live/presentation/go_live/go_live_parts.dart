@@ -22,6 +22,9 @@ abstract final class GoLiveKeys {
   static Key seatCount(int count) => Key('goLive.seats.$count');
   static Key tool(String id) => Key('goLive.tool.$id');
   static Key mode(LiveRoomMode mode) => Key('goLive.mode.${mode.name}');
+
+  /// D212: the «بث ستريمر» tab (D213: «قريباً»).
+  static const streamer = Key('goLive.mode.streamer');
   static Key theme(String slug) => Key('goLive.theme.$slug');
   static const beautySwitch = Key('goLive.beauty.switch');
   static const beautySmooth = Key('goLive.beauty.smooth');
@@ -650,7 +653,69 @@ class GoLiveModeBar extends StatelessWidget {
           mode(LiveRoomMode.multi, l10n.goLiveModeMulti),
           mode(LiveRoomMode.solo, l10n.goLiveModeSolo),
           mode(LiveRoomMode.audio, l10n.goLiveModeAudio),
+          mode(LiveRoomMode.podcast, l10n.goLiveModePodcast),
+          const GoLiveStreamerTab(),
         ],
+      ),
+    );
+  }
+}
+
+/// D212 (owner): «بث ستريمر» in the go-live modes — greyed with «قريباً»
+/// until D213 (phone screen share); a tap says so and starts nothing.
+class GoLiveStreamerTab extends StatelessWidget {
+  const new({super.key, this.fontSize = 12.5});
+
+  final double fontSize;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final text = context.textStyles;
+    const white = Color(0xFFFFFFFF);
+    return Semantics(
+      button: true,
+      enabled: false,
+      label: '${l10n.goLiveModeStreamer} · ${l10n.liveSoon}',
+      excludeSemantics: true,
+      child: GestureDetector(
+        key: GoLiveKeys.streamer,
+        behavior: HitTestBehavior.opaque,
+        onTap: () => KSnack.info(context, l10n.liveStreamerSoonTitle),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minHeight: KSizes.minTouchTarget,
+            minWidth: KSizes.minTouchTarget,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 7.5),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  l10n.goLiveModeStreamer,
+                  maxLines: 1,
+                  softWrap: false,
+                  style: text.bodyStrong.copyWith(
+                    color: white.withValues(alpha: 0.4),
+                    fontSize: fontSize,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  l10n.liveSoon,
+                  maxLines: 1,
+                  style: text.caption.copyWith(
+                    color: white.withValues(alpha: 0.55),
+                    fontSize: 9,
+                    height: 1.1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

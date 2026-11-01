@@ -68,9 +68,12 @@ final class LiveChatPending extends LiveChatItem {
 /// the join strip pinned under the chat ([LiveChatState.latestJoin]), each
 /// join replacing the one before.
 final class LiveChatJoinLine {
-  const new(this.user, this.serial, {this.cp, this.burst = 0});
+  const new(this.user, this.serial, {this.cp, this.burst = 0, this.gender});
 
   final UserSummary user;
+
+  /// v1.47-live (D212): the line's grammar (null: neutral).
+  final LiveJoinGender? gender;
 
   /// Grows with every join of this visit (a new join, even of the same
   /// person, is a new strip).
@@ -107,8 +110,11 @@ final class LiveChatBulletLine extends LiveChatItem {
 }
 
 /// Owner (2026-10-26, D118): the room's rules, a system line shown once
-/// each time a live opens (host and viewers), in red. Local only: never
-/// sent, never stored, never from a user; the text is the app's (l10n).
+/// each time a live opens (host and viewers), in red. D212 (owner: «رسالة
+/// النظام … تختفي عند الكتابة»): it is gone as soon as the first chat
+/// message of the visit is written, by anyone ([LiveChatState.written]).
+/// Local only: never sent, never stored, never from a user; the text is the
+/// app's (l10n).
 final class LiveChatNoticeLine extends LiveChatItem {
   const new();
 
@@ -169,6 +175,23 @@ class LiveChatState {
 
   /// Oldest first.
   final List<LiveChatItem> items;
+
+  /// D212: someone wrote in this chat during the visit (a message, this
+  /// person's own line on its way, or a public message) — the rules line
+  /// is gone for the rest of the visit.
+  /// Messages from before the visit (above the rules line) do not count.
+  bool get written {
+    final at = items.indexWhere((it) => it is LiveChatNoticeLine);
+    if (at < 0) return true;
+    return items
+        .skip(at + 1)
+        .any(
+          (it) =>
+              it is LiveChatPosted ||
+              it is LiveChatPending ||
+              it is LiveChatBulletLine,
+        );
+  }
 
   /// The host has not turned the chat off.
   final bool enabled;
@@ -409,7 +432,7 @@ class LiveChatController extends Notifier<LiveChatState> {
               if (it is! LiveChatPosted || it.entry.id != id) it,
           ],
         );
-      case LiveChatJoined(:final user, :final cp):
+      case LiveChatJoined(:final user, :final cp, :final gender):
         if (_blocked.contains(user.id) || user.id == me?.id) return;
         // D119: the newest join replaces the one before (never a line);
         // joins less than a second apart add up as "+N".
@@ -424,10 +447,13 @@ class LiveChatController extends Notifier<LiveChatState> {
           _serial++,
           cp: cp == null || _blocked.contains(cp.partner.id) ? null : cp,
           burst: quick && before != null ? before.burst + 1 : 0,
+          gender: gender,
         );
         state = state.copyWith(
           latestJoin: join,
-          // D131: also a line (the video live shows joins as rows).
+          // D131: also a line (the video live shows joins as rows); D212:
+          // every room shows each join as its own line (the server sends at
+          // most 5 a second per room).
           items: _trim([...state.items, LiveChatJoinItem(join)]),
         );
       case LiveChatStateChanged(:final enabled):

@@ -873,7 +873,7 @@ describe('CP-013 live room chat', () => {
   });
 
   describe('"joined" lines', () => {
-    it('signed-in viewers are announced (webhook and reconciliation), at most one a second per room', async () => {
+    it('signed-in viewers are announced (webhook and reconciliation), at most one per 200 ms per room (D212)', async () => {
       const owner = await host();
       const [a, b, c, d] = [await signup(), await signup(), await signup(), await signup()];
       const roomId = await goLive(owner);
@@ -885,10 +885,15 @@ describe('CP-013 live room chat', () => {
 
       await join(roomId, a);
       expect(joins()).toEqual([
-        { type: 'join', user: expect.objectContaining({ id: a.id, username: a.username }), cp: null },
+        {
+          type: 'join',
+          user: expect.objectContaining({ id: a.id, username: a.username }),
+          cp: null,
+          gender: null,
+        },
       ]);
       expect(media.broadcasts.filter((x) => x.room === roomId).every((x) => x.topic === 'chat')).toBe(true);
-      await join(roomId, b); // same second: dropped
+      await join(roomId, b); // same instant: dropped (D212: up to 5 a second)
       await join(roomId, a); // a repeated webhook is not a new join
       expect(joins()).toHaveLength(1);
       tick();
@@ -1105,6 +1110,7 @@ describe.skipIf(!url)('CP-013 chat delivery on a real LiveKit server', () => {
           type: 'join',
           user: expect.objectContaining({ id: viewer.id, username: viewer.username }),
           cp: null,
+          gender: null,
         },
         { type: 'chat', message },
         { type: 'chat', message: own },

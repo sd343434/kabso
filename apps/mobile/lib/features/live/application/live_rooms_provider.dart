@@ -55,9 +55,9 @@ class LiveRoomsQuery {
 
   final FeedTab tab;
 
-  /// The server's `kind` filter: the hub lists `video`, the Voice rooms
-  /// screen `audio`.
-  final LiveRoomsKind kind;
+  /// The server's `kind` filter: the Voice rooms screen lists `audio`;
+  /// D212: the hub's category tabs pick one (`null`: «الكل», every room).
+  final LiveRoomsKind? kind;
 
   /// A category slug (`null`: every category).
   final String? category;
@@ -67,6 +67,15 @@ class LiveRoomsQuery {
 
   /// D133 `featured=true`: featured hosts, by feature rank.
   final bool featured;
+
+  /// D212: the same list in another category ([kind] `null`: all).
+  LiveRoomsQuery withKind(LiveRoomsKind? kind) => LiveRoomsQuery(
+    tab: tab,
+    kind: kind,
+    category: category,
+    nearby: nearby,
+    featured: featured,
+  );
 
   LiveRoomsQuery copyWith({FeedTab? tab, String? Function()? category}) =>
       LiveRoomsQuery(
@@ -91,7 +100,7 @@ class LiveRoomsQuery {
 
   @override
   String toString() =>
-      'LiveRoomsQuery(${tab.name}, ${kind.wire}, $category, '
+      'LiveRoomsQuery(${tab.name}, ${kind?.wire ?? 'all'}, $category, '
       'nearby: $nearby, featured: $featured)';
 }
 

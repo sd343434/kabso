@@ -2016,3 +2016,26 @@ media bucket (`private, no-store`; never public) — the bucket policy must keep
 Media uploads must be enabled (`MEDIA_UPLOADS_ENABLED`), or `applyForHosting` answers 503. Ship the API before (or
 with) the app: the new app hides the card on an older API (404), an older app ignores the new notification types.
 - Not verified on a device.
+
+### 5.38 Live categories and the podcast live (migrations `20270205090000_podcast_mode_enum`, `20270205090100_podcast`; D212) — [IMPLEMENTED, draft contract v1.47-live; not deployed, not device-tested]
+
+CONVENTIONS §10.69. Two migrations, in order: the first only adds `PODCAST` to `live_room_mode` (an enum value
+cannot be used in the transaction that adds it); the second adds nullable / defaulted columns only — `live_rooms`
+(`episode_number`, `podcast_topic`, `questions_open` default true, `question_seconds`; CHECK
+`live_rooms_podcast_fields`; unique `live_rooms_host_episode_key`; `live_rooms_seat_count_mode` re-created with
+`PODCAST` = 4), `live_room_seats.demote_at` (+ partial index), `live_seat_requests.question` / `deferred_at`,
+`live_schedule_slots.mode` / `podcast_topic` (CHECK `live_schedule_slots_podcast_fields`, partial index). No new
+table, so no GRANT; no backfill (existing rows satisfy every CHECK: their new columns are NULL / true). Checked on a
+database migrated to `claude/kl-int6b` (`prisma migrate deploy`, then `prisma migrate diff` shows no drift on the
+touched tables).
+
+- **No new setting.** Timed questions are demoted by the live media reconciliation that already runs every
+  `LIVE_SWEEP_INTERVAL_SECONDS` (15 s) when LiveKit is configured; a speaker's own app also leaves at the end.
+- **Chat:** `join` lines are now limited to one per 200 ms per room (was 1 s): more lines on the data channel of a
+  busy room (≤ 5 / s / room).
+- **Rate limits:** the existing seat buckets (`RATE_LIMIT_LIVE_SEAT_*`): a raised hand is a seat request, «لاحقاً» a seat
+  action. `GET /live/podcasts/scheduled` takes the guest-read bucket.
+- **Themes:** `LiveConfig.themes` gains `podcast-studio`, `podcast-majlis`, `podcast-library` (art in the app). Older
+  apps show an unknown theme as classic.
+- **Order:** API first (an older app shows a PODCAST as a camera-less SOLO room and never sends the new fields); then
+  the app. The admin panel's mode chips need the API's `mode` filter.

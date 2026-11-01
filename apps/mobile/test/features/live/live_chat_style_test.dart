@@ -437,16 +437,13 @@ void main() {
   });
 
   for (final audio in [true, false]) {
-    testWidgets('D135: the rules line is the first line of the visit: at the '
-        'bottom on entering, it rises with the messages and leaves at the top '
-        'like any line; no "no messages" line (${audio ? 'audio' : 'video'})', (
-      tester,
-    ) async {
+    testWidgets('D212 (owner, every category): the rules line shows on '
+        'entering and is gone at the first message of the visit; no "no '
+        'messages" line (${audio ? 'audio' : 'video'})', (tester) async {
       final engine = await _room(tester, audio: audio);
       final notice = find.byKey(LiveRoomChatLines.noticeKey);
       expect(notice, findsOne);
       expect(find.textContaining('No messages yet'), findsNothing);
-      // A line of the list, its newest so far.
       expect(
         find.descendant(
           of: find.byKey(LiveRoomChatLines.listKey),
@@ -454,21 +451,15 @@ void main() {
         ),
         findsOne,
       );
+      // A join is not writing: the rules line stays.
+      engine.chat.add(const LiveChatJoined(_huda));
+      await tester.pump();
+      expect(notice, findsOne);
       engine.chat.add(LiveChatReceived(_entry('n0', 'message 0')));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
-      // The new message comes under it.
-      expect(
-        tester.getRect(_line('m:n0')).top,
-        greaterThanOrEqualTo(tester.getRect(notice).bottom - 0.5),
-      );
-      for (var i = 1; i < LiveRoomChatLines.maxVisibleLines + 2; i++) {
-        engine.chat.add(LiveChatReceived(_entry('n$i', 'message $i')));
-        await tester.pump();
-      }
-      await tester.pump(const Duration(seconds: 1));
-      // Pushed out at the top like an old line.
       expect(notice, findsNothing);
+      expect(_line('m:n0'), findsOne);
       await _leave(tester);
     });
   }
@@ -550,12 +541,12 @@ void main() {
     expect(LiveRoomRulesNotice.isBrightTheme('classic'), isFalse);
   });
 
-  testWidgets('system lines stay compact: the rules notice has no picture; '
-      'a join is not a line', (tester) async {
+  testWidgets('system lines stay compact: the rules notice and a join have '
+      'no picture; D212: each join is its own line', (tester) async {
     final engine = await _room(tester);
     engine.chat.add(const LiveChatJoined(_huda));
     await tester.pump();
-    await tester.pump(LiveChatJoinStrip.swap);
+    await tester.pump(const Duration(milliseconds: 100));
     expect(find.byKey(LiveRoomChatLines.noticeKey), findsOne);
     expect(
       find.descendant(
@@ -567,83 +558,44 @@ void main() {
     expect(
       find.descendant(
         of: find.byKey(LiveRoomChatLines.listKey),
-        matching: find.textContaining('joined'),
+        matching: find.byType(LiveChatJoinBubble),
       ),
-      findsNothing,
+      findsOne,
     );
     await _leave(tester);
   });
 
   for (final language in AppLanguage.values) {
-    testWidgets('the join strip: pinned under the newest message, the latest '
-        'join replaces it, +N for quick joins, hides after 4 s '
-        '(${language.name})', (tester) async {
+    testWidgets('D212: joins are lines in order, the newest at the bottom, '
+        'by the shown gender (${language.name})', (tester) async {
       final l10n = l10nFor(language);
       final engine = await _room(tester, language: language);
-      Finder strip(String name) => find.descendant(
-        of: find.byKey(LiveChatJoinStrip.stripKey),
-        matching: find.text(l10n.chatJoined('\u2068$name\u2069')),
-      );
       engine.chat
         ..add(LiveChatReceived(_entry('m1', 'hello', badges: _full)))
-        ..add(const LiveChatJoined(_huda));
+        ..add(const LiveChatJoined(_huda, gender: LiveJoinGender.female))
+        ..add(const LiveChatJoined(_mixed));
       await tester.pump();
-      await tester.pump(LiveChatJoinStrip.swap);
-      expect(strip('Huda'), findsOne);
-      // Under the newest message, at the reading start.
-      final box = tester.getRect(find.byKey(LiveChatJoinStrip.stripKey).first);
-      final line = tester.getRect(_line('m:m1'));
-      expect(box.top, greaterThanOrEqualTo(line.bottom));
-      expect(
-        language == AppLanguage.ar
-            ? (box.right - line.right).abs() < 1
-            : (box.left - line.left).abs() < 1,
-        isTrue,
+      await tester.pump(const Duration(milliseconds: 100));
+      final first = find.textContaining(
+        l10n.chatJoinedFemale('\u2068Huda\u2069'),
+        findRichText: true,
       );
-      // The next join replaces it (quick: "+1").
-      engine.chat.add(const LiveChatJoined(_mixed));
-      await tester.pump();
-      await tester.pump(LiveChatJoinStrip.swap);
-      expect(strip('Huda'), findsNothing);
-      expect(strip('نور Star 99'), findsOne);
-      expect(
-        find.descendant(
-          of: find.byKey(LiveChatJoinStrip.stripKey),
-          matching: find.text('+1'),
-        ),
-        findsOne,
+      final second = find.textContaining(
+        l10n.chatJoined('\u2068نور Star 99\u2069'),
+        findRichText: true,
       );
-      expect(find.byKey(LiveChatJoinStrip.stripKey), findsOne);
-      // Gone 4 s after the last join; messages are untouched.
-      await tester.pump(const Duration(seconds: 3));
-      expect(find.byKey(LiveChatJoinStrip.stripKey), findsOne);
-      await tester.pump(const Duration(seconds: 1));
-      await tester.pumpAndSettle();
-      expect(find.byKey(LiveChatJoinStrip.stripKey), findsNothing);
-      expect(_line('m:m1'), findsOne);
+      expect(first, findsOne);
+      expect(second, findsOne);
+      expect(
+        tester.getRect(second).top,
+        greaterThan(tester.getRect(first).top),
+      );
+      // Lines stay (no 4 s strip any more).
+      await tester.pump(const Duration(seconds: 5));
+      expect(first, findsOne);
       await _leave(tester);
     });
   }
-
-  testWidgets('the join strip swaps at once with reduced motion', (
-    tester,
-  ) async {
-    tester.platformDispatcher.accessibilityFeaturesTestValue =
-        const FakeAccessibilityFeatures(disableAnimations: true);
-    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
-    final engine = await _room(tester);
-    engine.chat.add(const LiveChatJoined(_huda));
-    await tester.pump();
-    expect(find.byType(FadeTransition), findsWidgets);
-    await tester.pump();
-    final strip = find.byKey(LiveChatJoinStrip.stripKey);
-    expect(strip, findsOne);
-    final fade = tester.widget<FadeTransition>(
-      find.ancestor(of: strip, matching: find.byType(FadeTransition)).first,
-    );
-    expect(fade.opacity.value, 1);
-    await _leave(tester);
-  });
 
   testWidgets('the picture and the name open the person card; the bubble '
       'opens the actions', (tester) async {

@@ -31,6 +31,8 @@ import {
   liveSeatInviteBodySchema,
   liveSeatLockBodySchema,
   liveSeatMuteBodySchema,
+  isVoiceMode,
+  liveSeatAskBodySchema,
   liveSeatRequestBodySchema,
   parseSeatIndexPath,
   type GuestSeatMode,
@@ -51,6 +53,11 @@ export interface LiveSeatDto {
   mutedByHost: boolean;
   /** v1.27.2-live (D135): gift points the seated person received in this live (0 unless TAKEN). */
   points: number;
+  /**
+   * v1.47-live (D212, §10.69): PODCAST rooms only — when this speaker's question ends (they go back
+   * to the listeners then); null = no limit (the host's guests, or questions without a limit).
+   */
+  demoteAt?: string | null;
 }
 
 export interface LiveSeatRequestDto {
@@ -58,6 +65,10 @@ export interface LiveSeatRequestDto {
   user: UserSummaryDto;
   seatIndex: number | null;
   createdAt: string;
+  /** v1.47-live (D212): PODCAST rooms only — the raised hand's short question, or null. */
+  question?: string | null;
+  /** v1.47-live (D212): PODCAST rooms only — the host said «لاحقاً» (listed after the others). */
+  deferred?: boolean;
 }
 
 export interface LiveSeatInviteDto {
@@ -93,6 +104,11 @@ export interface LiveSeatsDto {
   moderators: UserSummaryDto[];
   couples: LiveSeatCoupleDto[];
   pendingRequests?: number;
+  /**
+   * v1.47-live (D212, §10.69): PODCAST rooms only, for everyone — the ids of the listeners whose hand
+   * is up, in queue order (deferred last), at most {@link HANDS_UP_MAX}.
+   */
+  handsUp?: string[];
   mine?: {
     role: LiveSeatRole;
     seatIndex: number | null;
@@ -118,27 +134,33 @@ export const SEAT_INVITE_TTL_SECONDS = 60;
 /** Up to 5 moderators per room (owner D94). */
 export const MAX_ROOM_MODERATORS = 5;
 const REQUEST_PAGE_MAX = 50;
+/** v1.47-live (D212): at most this many raised hands are named in `LiveSeats.handsUp`. */
+export const HANDS_UP_MAX = 50;
 
 /** The media permission of a guest on a seat of `mode` (§10.9). */
 export function seatPermission(mode: GuestSeatMode, mutedByHost: boolean): LiveMediaPermission {
-  // D174: a SOLO live's guests are on camera like a multi-guest live's.
-  const sources: LiveMediaSource[] =
-    mode !== 'AUDIO'
-      ? mutedByHost
-        ? ['camera']
-        : ['camera', 'microphone']
-      : mutedByHost
-        ? []
-        : ['microphone'];
+  // D174: a SOLO live's guests are on camera like a multi-guest live's. D212: a PODCAST is voice only.
+  const sources: LiveMediaSource[] = !isVoiceMode(mode)
+    ? mutedByHost
+      ? ['camera']
+      : ['camera', 'microphone']
+    : mutedByHost
+      ? []
+      : ['microphone'];
   return { visible: true, sources };
 }
 
 /** A viewer: hidden, publishing nothing. */
 export const VIEWER_PERMISSION: LiveMediaPermission = { visible: false, sources: [] };
 
-/** What the host of a room of `mode` may publish (CP-011: an AUDIO host the microphone only). */
+/** What the host of a room of `mode` may publish (CP-011: an AUDIO host — D212: and a PODCAST host — the microphone only). */
 export function hostSources(mode: LiveRoomMode): LiveMediaSource[] {
-  return mode === 'AUDIO' ? ['microphone'] : ['camera', 'microphone'];
+  return isVoiceMode(mode) ? ['microphone'] : ['camera', 'microphone'];
+}
+
+/** v1.47-live (D212): 409 LIVE_QUESTIONS_CLOSED — the podcast's host closed the hands. */
+function questionsClosed(): AppException {
+  return new AppException(ErrorCode.LIVE_QUESTIONS_CLOSED);
 }
 
 /** 422 `VALIDATION_FAILED` (openapi `addLiveModerator`: the moderator limit and a bad target). */
@@ -190,6 +212,10 @@ interface LockedRoom {
   /** The room's own seat count (what a cinema gives back when it closes). */
   roomSeatCount: number;
   cinema: boolean;
+  /** v1.47-live (D212): PODCAST — listeners may raise a hand. */
+  questionsOpen: boolean;
+  /** v1.47-live (D212): PODCAST — an accepted hand's speaking time in seconds; null = no limit. */
+  questionSeconds: number | null;
 }
 
 /** Media work to do after a seat transaction commits (best effort). */
@@ -247,10 +273,19 @@ export class LiveSeatsService {
   /** Locks the room row; it must still be LIVE (a concurrent end → 409 LIVE_ROOM_ENDED). */
   private async lockRoom(tx: Prisma.TransactionClient, roomId: string): Promise<LockedRoom> {
     const [room] = await tx.$queryRaw<
-      { id: string; host_user_id: string; mode: string; seat_count: number | null; status: string }[]
+      {
+        id: string;
+        host_user_id: string;
+        mode: string;
+        seat_count: number | null;
+        status: string;
+        questions_open: boolean;
+        question_seconds: number | null;
+      }[]
     >`
       SELECT id::text AS id, host_user_id::text AS host_user_id, mode::text AS mode,
-             seat_count::int AS seat_count, status::text AS status
+             seat_count::int AS seat_count, status::text AS status, questions_open,
+             question_seconds::int AS question_seconds
         FROM live_rooms WHERE id = ${roomId}::uuid FOR UPDATE`;
     if (!room) throw notFound();
     if (room.status !== 'LIVE') throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
@@ -265,6 +300,8 @@ export class LiveSeatsService {
       seatCount: cinema ? Math.min(count, CINEMA_SEAT_COUNT) : count,
       roomSeatCount: count,
       cinema,
+      questionsOpen: room.questions_open,
+      questionSeconds: room.question_seconds,
     };
   }
 
@@ -363,16 +400,28 @@ export class LiveSeatsService {
     return seat?.seatIndex ?? null;
   }
 
-  /** Seats `userId` and closes their pending request and invitation (ACCEPTED). */
+  /**
+   * Seats `userId` and closes their pending request and invitation (ACCEPTED). `demoteAt` (D212): a
+   * podcast question's end.
+   */
   private async seatUserIn(
     tx: Prisma.TransactionClient,
     room: LockedRoom,
     userId: string,
     seatIndex: number,
     now: Date,
+    demoteAt: Date | null = null,
   ): Promise<Effect> {
     await tx.liveRoomSeat.create({
-      data: { roomId: room.id, seatIndex, userId, locked: false, mutedByHost: false, updatedAt: now },
+      data: {
+        roomId: room.id,
+        seatIndex,
+        userId,
+        locked: false,
+        mutedByHost: false,
+        updatedAt: now,
+        demoteAt,
+      },
     });
     await tx.liveSeatRequest.updateMany({
       where: { roomId: room.id, userId, status: 'PENDING' },
@@ -481,6 +530,7 @@ export class LiveSeatsService {
           user: userSummary(row.user),
           mutedByHost: row.mutedByHost,
           points: points.get(row.user.id) ?? 0,
+          ...(mode === 'PODCAST' ? { demoteAt: row.demoteAt?.toISOString() ?? null } : {}),
         });
       } else if (row?.locked) {
         seats.push({ index, state: 'LOCKED', user: null, mutedByHost: false, points: 0 });
@@ -498,6 +548,8 @@ export class LiveSeatsService {
       moderators: moderators.map((m) => userSummary(m.user)),
       couples: await this.seatedCouples(room.hostUserId, seats, lang),
     };
+    if (mode === 'PODCAST')
+      dto.handsUp = (await this.queue(roomId, null, HANDS_UP_MAX)).map((r) => r.user_id);
     if (callerId === null) return dto;
 
     const isHost = callerId === room.hostUserId;
@@ -521,7 +573,7 @@ export class LiveSeatsService {
     dto.mine = {
       role: isHost ? 'HOST' : isModerator ? 'MODERATOR' : mySeat !== null ? 'SEATED' : 'VIEWER',
       seatIndex: mySeat,
-      request: request ? requestDto(request) : null,
+      request: request ? requestDto(request, mode) : null,
       invite: invite ? inviteDto(invite) : null,
     };
     return dto;
@@ -608,29 +660,46 @@ export class LiveSeatsService {
     roomId: string,
     body: unknown,
   ): Promise<{ created: boolean; request: LiveSeatRequestDto }> {
-    const input = parseBody(liveSeatRequestBodySchema, body);
+    const input = parseBody(liveSeatAskBodySchema, body);
     const row = await this.seatedRoom(roomId, callerId);
     // v1.20-live (D105, §10.20): nobody kicked out of this live asks for a seat in it.
     if (row.kicked) throw new AppException(ErrorCode.LIVE_KICKED);
+    // v1.47-live (D212): a question goes with a podcast hand only.
+    if (input.question !== undefined && row.mode !== 'PODCAST') {
+      throw AppException.validation([{ field: 'question', issue: 'invalid_value' }]);
+    }
     const outcome = await this.change(row.id, async (tx, now) => {
       const room = await this.lockRoom(tx, row.id);
       if (callerId === room.hostUserId) throw seatUnavailable();
+      // v1.47-live (D212, §10.69): the host closed the hands.
+      if (room.mode === 'PODCAST' && !room.questionsOpen) throw questionsClosed();
       if ((await this.seatOf(tx, room.id, callerId)) !== null) throw seatUnavailable();
       const pending = await tx.liveSeatRequest.findFirst({
         where: { roomId: room.id, userId: callerId, status: 'PENDING' },
         include: { user: { select: USER_SUMMARY_SELECT } },
       });
       if (pending)
-        return { result: { created: false, request: requestDto(pending) }, version: null, effects: [] };
+        return {
+          result: { created: false, request: requestDto(pending, room.mode) },
+          version: null,
+          effects: [],
+        };
       const asked = input.seatIndex ?? null;
       if (asked !== null && asked >= room.seatCount) throw seatUnavailable();
-      await this.pickSeat(tx, room, asked, null);
+      // D212: a podcast hand waits even while the 3 speaker seats are full (it is a queue).
+      if (room.mode !== 'PODCAST' || asked !== null) await this.pickSeat(tx, room, asked, null);
       const created = await tx.liveSeatRequest.create({
-        data: { roomId: room.id, userId: callerId, seatIndex: asked, createdAt: now },
+        data: {
+          roomId: room.id,
+          userId: callerId,
+          seatIndex: asked,
+          createdAt: now,
+          question: input.question ?? null,
+        },
         include: { user: { select: USER_SUMMARY_SELECT } },
       });
       return {
-        result: { created: true, request: requestDto(created) },
+        result: { created: true, request: requestDto(created, room.mode) },
         version: await this.bump(tx, room.id),
         effects: [],
       };
@@ -671,32 +740,79 @@ export class LiveSeatsService {
       if (!after) throw AppException.validation([{ field: 'cursor', issue: 'invalid_value' }]);
     }
     const limit = Math.min(query.limit, REQUEST_PAGE_MAX);
-    const rows =
-      row.status === 'LIVE' && hasGuestSeats(row.mode)
-        ? await this.prisma.liveSeatRequest.findMany({
-            where: {
-              roomId: row.id,
-              status: 'PENDING',
-              user: { status: 'ACTIVE' },
-              ...(after
-                ? { OR: [{ createdAt: { gt: after.at } }, { createdAt: after.at, id: { gt: after.id } }] }
-                : {}),
-            },
-            orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-            take: limit + 1,
-            include: { user: { select: USER_SUMMARY_SELECT } },
-          })
-        : [];
+    // v1.47-live (D212): queue order — by `deferred_at` when the host said «لاحقاً», else by
+    // `created_at` (so a deferred hand goes after those waiting then); never deferred outside PODCAST.
+    const keys =
+      row.status === 'LIVE' && hasGuestSeats(row.mode) ? await this.queue(row.id, after, limit + 1) : [];
+    const found = await this.prisma.liveSeatRequest.findMany({
+      where: { id: { in: keys.map((k) => k.id) } },
+      include: { user: { select: USER_SUMMARY_SELECT } },
+    });
+    const byId = new Map(found.map((r) => [r.id, r]));
+    const rows = keys.flatMap((k) => {
+      const r = byId.get(k.id);
+      return r ? [{ row: r, at: k.queued_at }] : [];
+    });
     const hasMore = rows.length > limit;
     const page = rows.slice(0, limit);
     const last = page.at(-1);
     return {
-      data: page.map(requestDto),
+      data: page.map((r) => requestDto(r.row, row.mode)),
       page: {
         hasMore,
-        nextCursor: hasMore && last ? this.cursors.encode(scope, { at: last.createdAt, id: last.id }) : null,
+        nextCursor: hasMore && last ? this.cursors.encode(scope, { at: last.at, id: last.row.id }) : null,
       },
     };
+  }
+
+  /**
+   * The pending requests of a room in queue order (`COALESCE(deferred_at, created_at)`, then id),
+   * ACTIVE requesters only, after the keyset position `after`.
+   */
+  private async queue(
+    roomId: string,
+    after: { at: Date; id: string } | null,
+    take: number,
+  ): Promise<{ id: string; user_id: string; queued_at: Date }[]> {
+    const keyset = after
+      ? Prisma.sql`AND (COALESCE(q.deferred_at, q.created_at), q.id) > (${after.at}::timestamptz, ${after.id}::uuid)`
+      : Prisma.empty;
+    return this.prisma.$queryRaw<{ id: string; user_id: string; queued_at: Date }[]>`
+      SELECT q.id::text AS id, q.user_id::text AS user_id, COALESCE(q.deferred_at, q.created_at) AS queued_at
+        FROM live_seat_requests q
+        JOIN users u ON u.id = q.user_id AND u.status = 'ACTIVE'
+       WHERE q.room_id = ${roomId}::uuid AND q.status = 'PENDING' ${keyset}
+       ORDER BY COALESCE(q.deferred_at, q.created_at), q.id
+       LIMIT ${take}`;
+  }
+
+  /**
+   * v1.47-live (D212, §10.69): `POST …/seat-requests/{requestId}/defer` — the host's «لاحقاً» on a
+   * podcast hand (host or moderator): the hand stays up and goes to the end of the queue. Not a
+   * podcast → 409 LIVE_SEAT_UNAVAILABLE; already handled → 409 LIVE_REQUEST_NOT_PENDING.
+   */
+  async deferRequest(
+    callerId: string,
+    roomId: string,
+    requestId: string,
+    lang: ContentLanguage,
+  ): Promise<LiveSeatsDto> {
+    if (!isUuid(requestId)) throw notFound();
+    const row = await this.seatedRoom(roomId, callerId);
+    await this.change(row.id, async (tx, now) => {
+      const room = await this.lockRoom(tx, row.id);
+      const privilege = await this.privilege(tx, room, callerId);
+      if (room.mode !== 'PODCAST') throw seatUnavailable();
+      const request = await tx.liveSeatRequest.findFirst({
+        where: { id: requestId.toLowerCase(), roomId: room.id },
+      });
+      if (!request) throw notFound();
+      if (request.status !== 'PENDING') throw notPending();
+      await this.assertMayActOn(tx, room, callerId, privilege, request.userId);
+      await tx.liveSeatRequest.update({ where: { id: request.id }, data: { deferredAt: now } });
+      return { result: undefined, version: await this.bump(tx, room.id), effects: [] };
+    });
+    return this.seatsOf(row.id, callerId, lang);
   }
 
   /** `POST …/seat-requests/{requestId}/accept` (host or moderator). */
@@ -735,7 +851,12 @@ export class LiveSeatsService {
       }
       if (input.seatIndex !== undefined && input.seatIndex >= room.seatCount) throw seatUnavailable();
       const seatIndex = await this.pickSeat(tx, room, input.seatIndex ?? null, request.seatIndex);
-      const effect = await this.seatUserIn(tx, room, request.userId, seatIndex, now);
+      // v1.47-live (D212): an accepted podcast hand speaks for the room's question time.
+      const demoteAt =
+        room.mode === 'PODCAST' && room.questionSeconds !== null
+          ? new Date(now.getTime() + room.questionSeconds * 1000)
+          : null;
+      const effect = await this.seatUserIn(tx, room, request.userId, seatIndex, now, demoteAt);
       return { result: undefined, version: await this.bump(tx, room.id), effects: [effect] };
     });
     return this.seatsOf(row.id, callerId, lang);
@@ -1220,6 +1341,51 @@ export class LiveSeatsService {
   }
 
   /**
+   * v1.47-live (D212, §10.69), sweeper: every podcast speaker whose question time is over goes back
+   * to the listeners (the seat is freed, their permission becomes a viewer's). One transaction per
+   * room under its lock, like the host's «remove» (no audit: seat actions are not audited). Returns
+   * how many speakers were moved.
+   */
+  async demoteExpired(): Promise<number> {
+    const now = this.clock.now();
+    const due = await this.prisma.liveRoomSeat.findMany({
+      where: { demoteAt: { lte: now }, userId: { not: null }, room: { status: 'LIVE' } },
+      select: { roomId: true },
+      distinct: ['roomId'],
+      take: 100,
+    });
+    let moved = 0;
+    for (const { roomId } of due) {
+      try {
+        moved += await this.change(roomId, async (tx, at) => {
+          await this.lockRoom(tx, roomId);
+          const seats = await tx.liveRoomSeat.findMany({
+            where: { roomId, demoteAt: { lte: at }, userId: { not: null } },
+            select: { seatIndex: true, userId: true },
+          });
+          if (seats.length === 0) return { result: 0, version: null, effects: [] };
+          await tx.liveRoomSeat.deleteMany({
+            where: { roomId, seatIndex: { in: seats.map((s) => s.seatIndex) } },
+          });
+          return {
+            result: seats.length,
+            version: await this.bump(tx, roomId),
+            effects: seats.map((s): Effect => ({
+              kind: 'permission',
+              identity: s.userId!,
+              permission: VIEWER_PERMISSION,
+            })),
+          };
+        });
+      } catch (err) {
+        // An ended room, a lock timeout: the next run tries again.
+        this.logger.warn({ error: safeErrorLog(err) }, 'Could not end a podcast question');
+      }
+    }
+    return moved;
+  }
+
+  /**
    * Reconciliation of one LIVE room with seats (§10.9): every connected participant other than the
    * host gets the permission its seat implies (repairing a failed or missed change), and the room
    * metadata carries the current version. Returns the number of repairs.
@@ -1274,17 +1440,26 @@ function samePermission(a: LiveMediaPermission, b: LiveMediaPermission): boolean
   return a.visible === b.visible && [...a.sources].sort().join(',') === [...b.sources].sort().join(',');
 }
 
-function requestDto(row: {
-  id: string;
-  seatIndex: number | null;
-  createdAt: Date;
-  user: { id: string; profile: { username: string; displayName: string; avatarUrl: string | null } | null };
-}): LiveSeatRequestDto {
+function requestDto(
+  row: {
+    id: string;
+    seatIndex: number | null;
+    createdAt: Date;
+    question?: string | null;
+    deferredAt?: Date | null;
+    user: { id: string; profile: { username: string; displayName: string; avatarUrl: string | null } | null };
+  },
+  mode: string,
+): LiveSeatRequestDto {
   return {
     id: row.id,
     user: userSummary(row.user),
     seatIndex: row.seatIndex,
     createdAt: row.createdAt.toISOString(),
+    // v1.47-live (D212): a podcast hand's question and «لاحقاً».
+    ...(mode === 'PODCAST'
+      ? { question: row.question ?? null, deferred: (row.deferredAt ?? null) !== null }
+      : {}),
   };
 }
 

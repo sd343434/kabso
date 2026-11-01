@@ -461,6 +461,16 @@ info:
     one-time rights notice (`getMyLiveMusicRights` / `acceptMyLiveMusicRights`); music is mixed into the host's
     microphone track on the phone. Codes `SECOND_CAMERA_CODE_INVALID` (422), `SECOND_CAMERA_UNAVAILABLE`,
     `SECOND_CAMERA_BUSY` (409) (CONVENTIONS §10.63).
+    **D212 (DRAFT v1.47-live)**: five live categories and the **podcast** live. `LiveRoomMode.PODCAST` (audio only;
+    the host and up to 3 speakers, `seatCount` 4); `StartLiveRoomRequest.podcast` (`topic`, `questionsOpen`,
+    `questionSeconds`); `LiveRoomSummary.podcast` (`LivePodcast`: per-host `episodeNumber`, topic, the hands switch,
+    the question time, the seated speakers); `UpdateLiveRoomRequest.questionsOpen` / `questionSeconds`;
+    `listLiveRooms?kind=podcast`; a podcast's seat request is a raised hand (`LiveSeatAskBody.question`, a queue even
+    while the speaker seats are full; `LiveSeatRequest.question` / `deferred`; `deferLiveSeatRequest` «لاحقاً»;
+    `LiveSeats.handsUp`; `LiveSeat.demoteAt` — an accepted hand goes back to the listeners when its time ends);
+    `LiveConfig.podcast`; announced episodes (`CreateLiveScheduleSlotRequest.mode` / `podcastTopic`,
+    `listScheduledPodcasts`); code `LIVE_QUESTIONS_CLOSED` (409); the chat's `join` message carries `gender`
+    (CONVENTIONS §10.69).
     **D202 (DRAFT v1.68-social)**: the reels page after the owner's reference. `listFeedReels` gains `tab=nearby`
     (reels of authors from the caller's own country, newest first; no country → an empty page; CONVENTIONS
     §11.15). Additive; nothing else changes (like, comment, save and share reuse the posts interactions).
@@ -1873,8 +1883,9 @@ paths:
                 hostingEnabled: false
                 heartbeatIntervalSeconds: 15
                 heartbeatStaleAfterSeconds: 45
-                themes: [classic, ice-palace, desert-night, rose-garden, sunset-sky, moon-palace, ocean-depths, golden-hall, game-arena, heart-garden, galaxy]
+                themes: [classic, ice-palace, desert-night, rose-garden, sunset-sky, moon-palace, ocean-depths, golden-hall, game-arena, heart-garden, galaxy, podcast-studio, podcast-majlis, podcast-library]
                 seatCounts: { MULTI: [4, 6, 9, 12], AUDIO: [5, 10, 15, 20] }
+                podcast: { speakers: 4, topics: [business, tech, sports, religion, society, entertainment, other], questionSeconds: [60, 120, 180, 300], defaultQuestionSeconds: 120 }
         '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
@@ -2029,8 +2040,8 @@ paths:
         - name: kind
           in: query
           required: false
-          description: '(v1.26.4-live, D129) `audio`: voice rooms (`mode` `AUDIO`); `video`: `SOLO`, `PK` and `MULTI`. (v1.27.1-live, D133) `solo`: `SOLO` and `PK`; `multi`: `MULTI`; `party`: `AUDIO` and `MULTI`. Absent: every room. Another value → 400 `VALIDATION_FAILED` (`field "kind"`).'
-          schema: { type: string, enum: [audio, video, solo, multi, party] }
+          description: '(v1.26.4-live, D129) `audio`: voice rooms (`mode` `AUDIO`); `video`: `SOLO`, `PK` and `MULTI`. (v1.27.1-live, D133) `solo`: `SOLO` and `PK`; `multi`: `MULTI`; `party`: `AUDIO` and `MULTI`. (v1.47-live, D212) `podcast`: `PODCAST` (in no other kind). Absent: every room. Another value → 400 `VALIDATION_FAILED` (`field "kind"`).'
+          schema: { type: string, enum: [audio, video, solo, multi, party, podcast] }
         - name: scope
           in: query
           required: false
@@ -2130,6 +2141,32 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /api/v1/live/podcasts/scheduled:
+    get:
+      tags: [live]
+      operationId: listScheduledPodcasts
+      summary: Announced podcast episodes (v1.47-live, D212)
+      description: |
+        CONVENTIONS §10.69. Episodes announced with `createLiveScheduleSlot` mode PODCAST that start within
+        the next 7 days and have not started, soonest first, at most 20; ACTIVE hosts who still hold the
+        hosting permission; none across a block with the caller. A bearer token is optional.
+      security: [{ bearerAuth: [] }, {}]
+      responses:
+        '200':
+          description: The episodes.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    maxItems: 20
+                    items: { $ref: '#/components/schemas/LiveScheduledPodcast' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
 
   /api/v1/live/rooms/{roomId}:
     get:
@@ -4165,13 +4202,17 @@ paths:
         D174; a SOLO live had no seats before).
         The request ends when the caller leaves the media session or the room ends.
         v1.20-live (D105): a caller kicked out of this live → 403 `LIVE_KICKED`.
+        v1.47-live (D212, §10.69): in a PODCAST the request is a **raised hand**: it may carry a short
+        `question`, it waits in the queue even while the 3 speaker seats are full, and the host's closed
+        hands (`questionsOpen` false) → 409 `LIVE_QUESTIONS_CLOSED`. `question` outside a PODCAST → 400.
+        Lowering the hand is `cancelLiveSeatRequest`.
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
       requestBody:
         required: false
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/LiveSeatRequestBody' }
+            schema: { $ref: '#/components/schemas/LiveSeatAskBody' }
       responses:
         '200':
           description: The pending request (already asked).
@@ -4232,6 +4273,8 @@ paths:
         Seats the user on `seatIndex`, else the seat they asked for, else the first free seat.
         Already handled, cancelled or the requester left → 409 `LIVE_REQUEST_NOT_PENDING`; no
         usable seat → 409 `LIVE_SEAT_UNAVAILABLE`. Not host or moderator → 403.
+        v1.47-live (D212): in a PODCAST with a question time, the seat gets `demoteAt` (now + the time);
+        then the sweeper moves the speaker back to the listeners.
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
         - $ref: '#/components/parameters/SeatRequestIdPath'
@@ -4247,6 +4290,30 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/LiveSeats' }
         '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/seat-requests/{requestId}/defer:
+    post:
+      tags: [live]
+      operationId: deferLiveSeatRequest
+      summary: "Host or moderator: «لاحقاً» on a podcast hand (v1.47-live, D212)"
+      description: |
+        CONVENTIONS §10.69. The hand stays up and moves to the end of the queue (`deferred` true). Not a
+        PODCAST → 409 `LIVE_SEAT_UNAVAILABLE`; already handled → 409 `LIVE_REQUEST_NOT_PENDING`; not host
+        or moderator → 403. The seat-action rate limit.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+        - $ref: '#/components/parameters/SeatRequestIdPath'
+      responses:
+        '200':
+          description: The seats after the change.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveSeats' }
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
@@ -19123,7 +19190,7 @@ components:
           description: Localized by `Accept-Language` (ar|en), else the caller's stored locale (CONVENTIONS §10.1).
     LiveConfig:
       type: object
-      required: [hostingEnabled, heartbeatIntervalSeconds, heartbeatStaleAfterSeconds, themes, seatCounts]
+      required: [hostingEnabled, heartbeatIntervalSeconds, heartbeatStaleAfterSeconds, themes, seatCounts, podcast]
       properties:
         hostingEnabled:
           type: boolean
@@ -19141,13 +19208,55 @@ components:
           properties:
             MULTI: { type: array, items: { type: integer }, example: [4, 6, 9, 12] }
             AUDIO: { type: array, items: { type: integer }, example: [5, 10, 15, 20] }
+        podcast:
+          type: object
+          description: v1.47-live (D212, CONVENTIONS §10.69) — the podcast setup's choices.
+          required: [speakers, topics, questionSeconds, defaultQuestionSeconds]
+          properties:
+            speakers: { type: integer, example: 4, description: "Speakers including the host." }
+            topics:
+              type: array
+              items: { $ref: '#/components/schemas/PodcastTopic' }
+            questionSeconds: { type: array, items: { type: integer }, example: [60, 120, 180, 300] }
+            defaultQuestionSeconds: { type: integer, example: 120 }
     LiveRoomMode:
       type: string
-      enum: [SOLO, PK, MULTI, AUDIO]
+      enum: [SOLO, PK, MULTI, AUDIO, PODCAST]
       description: |
         SOLO (one host on camera), MULTI (CP-011: multi-guest video with seats), AUDIO (CP-011:
-        voice only with seats). PK is reserved for L5. Clients render an unrecognised future
-        value as SOLO.
+        voice only with seats), PODCAST (v1.47-live, D212: voice only, the host and up to 3
+        speakers; listeners raise a hand). PK is reserved for L5. Clients render an unrecognised
+        future value as SOLO.
+    PodcastTopic:
+      type: string
+      enum: [business, tech, sports, religion, society, entertainment, other]
+      description: v1.47-live (D212) — a podcast's topic chip (ريادة أعمال، تقنية، رياضة، دين، مجتمع، ترفيه، أخرى).
+    PodcastQuestionSeconds:
+      type: [integer, 'null']
+      enum: [60, 120, 180, 300, null]
+      description: v1.47-live (D212) — an accepted hand's speaking time; null = no limit.
+    LivePodcastSpeaker:
+      type: object
+      required: [id, username, displayName, avatarUrl]
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        displayName: { type: string }
+        avatarUrl: { type: [string, 'null'], format: uri }
+    LivePodcast:
+      type: object
+      description: v1.47-live (D212, CONVENTIONS §10.69) — a PODCAST live's episode facts.
+      required: [episodeNumber, topic, questionsOpen, questionSeconds, speakers]
+      properties:
+        episodeNumber: { type: integer, minimum: 1, description: "Per host: 1 for the host's first podcast, then 2, 3, …" }
+        topic: { $ref: '#/components/schemas/PodcastTopic' }
+        questionsOpen: { type: boolean, description: "Listeners may raise a hand." }
+        questionSeconds: { $ref: '#/components/schemas/PodcastQuestionSeconds' }
+        speakers:
+          type: array
+          maxItems: 3
+          description: The seated speakers (the host not included), in seat order — the hub card's avatar stack.
+          items: { $ref: '#/components/schemas/LivePodcastSpeaker' }
     LiveRoomTitle:
       type: string
       minLength: 1
@@ -19199,6 +19308,11 @@ components:
           format: int64
           minimum: 0
           description: CP-012 — the live's points (taps + support); `popular` orders by it.
+        podcast:
+          description: v1.47-live (D212) — PODCAST lives only; null otherwise. Clients that do not know the field ignore it.
+          oneOf:
+            - $ref: '#/components/schemas/LivePodcast'
+            - type: 'null'
     LiveRoom:
       allOf:
         - { $ref: '#/components/schemas/LiveRoomSummary' }
@@ -19292,11 +19406,26 @@ components:
         allowGuests: { type: boolean, default: true }
         mode:
           type: string
-          enum: [SOLO, MULTI, AUDIO]
+          enum: [SOLO, MULTI, AUDIO, PODCAST]
           default: SOLO
-          description: CP-011. PK cannot be started here (L5).
+          description: CP-011. PK cannot be started here (L5). v1.47-live (D212) PODCAST needs `podcast`.
+        podcast:
+          type: object
+          additionalProperties: false
+          description: |
+            v1.47-live (D212, CONVENTIONS §10.69): required with mode PODCAST, refused otherwise (400
+            `podcast` `required` / `invalid_value`). The episode number is given by the server (per host). A
+            PODCAST started without `theme` gets `podcast-studio` (the owner's podcast backgrounds:
+            `podcast-studio`, `podcast-majlis`, `podcast-library`; any `LiveConfig.themes` slug is accepted).
+          required: [topic]
+          properties:
+            topic: { $ref: '#/components/schemas/PodcastTopic' }
+            questionsOpen: { type: boolean, default: true }
+            questionSeconds:
+              allOf: [{ $ref: '#/components/schemas/PodcastQuestionSeconds' }]
+              description: Default 120; null = no limit.
         seatCount:
-          description: CP-011 — required for MULTI and AUDIO, forbidden for SOLO (else 400).
+          description: CP-011 — required for MULTI and AUDIO, forbidden for SOLO and PODCAST (else 400; a PODCAST always has 4).
           allOf:
             - $ref: '#/components/schemas/LiveSeatCount'
         theme: { $ref: '#/components/schemas/LiveThemeSlug' }
@@ -19329,6 +19458,12 @@ components:
         wishGifts:
           allOf: [{ $ref: '#/components/schemas/WishGiftCodes' }]
           description: "v1.27.3-live (D136): the host's wish list (`[]` empties it). A real change moves `roomInfoVersion` (audited `live.room.edit`)."
+        questionsOpen:
+          type: boolean
+          description: "v1.47-live (D212): PODCAST only (else 400 `invalid_value`) — open or close the hands. Closing keeps the hands already up. A real change moves `roomInfoVersion` (audited `live.room.podcast`)."
+        questionSeconds:
+          allOf: [{ $ref: '#/components/schemas/PodcastQuestionSeconds' }]
+          description: "v1.47-live (D212): PODCAST only (else 400) — for hands accepted from now on."
     LiveMediaTokenRequest:
       type: object
       additionalProperties: false
@@ -19845,6 +19980,16 @@ components:
       additionalProperties: false
       properties:
         seatIndex: { type: integer, minimum: 1, maximum: 24 }
+    LiveSeatAskBody:
+      type: object
+      additionalProperties: false
+      description: v1.47-live (D212) — `requestLiveSeat`'s body (`LiveSeatRequestBody` + a podcast hand's question).
+      properties:
+        seatIndex: { type: integer, minimum: 1, maximum: 24 }
+        question:
+          type: string
+          maxLength: 640
+          description: PODCAST only — 1–80 code points after the chat text rules (§10.11); else 400.
     LiveSeatInviteBody:
       type: object
       required: [username]
@@ -19874,6 +20019,10 @@ components:
             - $ref: '#/components/schemas/UserSummary'
             - type: 'null'
         mutedByHost: { type: boolean, description: "TAKEN only; false otherwise." }
+        demoteAt:
+          type: [string, 'null']
+          format: date-time
+          description: v1.47-live (D212) — PODCAST rooms only (absent otherwise); TAKEN — when this speaker's question time ends (null = no limit, the host's guests).
     LiveSeatRequest:
       type: object
       required: [id, user, seatIndex, createdAt]
@@ -19882,6 +20031,8 @@ components:
         user: { $ref: '#/components/schemas/UserSummary' }
         seatIndex: { type: [integer, 'null'], minimum: 1, maximum: 24 }
         createdAt: { type: string, format: date-time }
+        question: { type: [string, 'null'], description: "v1.47-live (D212): PODCAST only (absent otherwise) — the hand's question." }
+        deferred: { type: boolean, description: "v1.47-live (D212): PODCAST only — the host said «لاحقاً» (listed after the others)." }
     LiveSeatRequestPage:
       type: object
       required: [data, page]
@@ -19939,8 +20090,8 @@ components:
         roomId: { type: string, format: uuid }
         mode:
           type: string
-          enum: [MULTI, AUDIO, SOLO]
-          description: "v1.40-live (D174): SOLO — a solo live's 3 guest seats (`seatCount` 4)."
+          enum: [MULTI, AUDIO, SOLO, PODCAST]
+          description: "v1.40-live (D174): SOLO — a solo live's 3 guest seats (`seatCount` 4). v1.47-live (D212): PODCAST — 3 speaker seats (`seatCount` 4)."
         version: { type: integer, minimum: 0 }
         seatCount: { $ref: '#/components/schemas/LiveSeatCount' }
         cinema:
@@ -19971,6 +20122,11 @@ components:
             same list. Clients that do not know the field ignore it.
           items: { $ref: '#/components/schemas/LiveSeatCouple' }
         pendingRequests: { type: integer, minimum: 0, description: Host and moderators only; absent for others. }
+        handsUp:
+          type: array
+          maxItems: 50
+          description: v1.47-live (D212) — PODCAST only, for everyone — the user ids of the raised hands in queue order (deferred last). A change raises `version`.
+          items: { type: string, format: uuid }
         mine:
           description: Signed-in callers only; absent for guests.
           allOf:
@@ -20958,14 +21114,40 @@ components:
       properties:
         title: { type: string, minLength: 1, maxLength: 240, description: "1–60 code points after normalization (CONVENTIONS §10.16)." }
         startsAt: { type: string, format: date-time, description: 15 minutes to 30 days from now. }
+        mode:
+          type: string
+          enum: [PODCAST]
+          description: v1.47-live (D212) — an announced podcast episode (listed by `listScheduledPodcasts`).
+        podcastTopic:
+          allOf: [{ $ref: '#/components/schemas/PodcastTopic' }]
+          description: v1.47-live (D212) — required with `mode` PODCAST, refused without it (400).
     LiveScheduleSlot:
       type: object
-      required: [id, title, startsAt, createdAt]
+      required: [id, title, startsAt, createdAt, mode, podcastTopic]
       properties:
         id: { type: string, format: uuid }
         title: { type: string, minLength: 1, maxLength: 60 }
         startsAt: { type: string, format: date-time }
         createdAt: { type: string, format: date-time }
+        mode: { type: [string, 'null'], enum: [PODCAST, null], description: "v1.47-live (D212)." }
+        podcastTopic:
+          description: v1.47-live (D212).
+          oneOf:
+            - $ref: '#/components/schemas/PodcastTopic'
+            - type: 'null'
+    LiveScheduledPodcast:
+      type: object
+      description: v1.47-live (D212, §10.69) — an announced podcast episode in the hub.
+      required: [id, title, startsAt, podcastTopic, host, reminder]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string, minLength: 1, maxLength: 60 }
+        startsAt: { type: string, format: date-time }
+        podcastTopic: { $ref: '#/components/schemas/PodcastTopic' }
+        host: { $ref: '#/components/schemas/UserSummary' }
+        reminder:
+          type: boolean
+          description: The caller will be reminded 15 minutes before (they follow the host — the CP-016 C reminder goes to followers; «ذكّرني» follows the host). False for guests.
     LiveScheduleList:
       type: object
       required: [data]

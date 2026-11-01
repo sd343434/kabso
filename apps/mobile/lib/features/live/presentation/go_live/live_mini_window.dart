@@ -235,7 +235,7 @@ class _PictureState extends ConsumerState<_Picture> {
     final state = widget.state;
     final user = ref.watch(currentUserProvider);
     final engine = ref.read(liveHostControllerProvider.notifier).engine;
-    final camera = state.mode == LiveRoomMode.audio ? null : engine.preview();
+    final camera = state.mode.isVoice ? null : engine.preview();
     final since = state.liveSince;
     final elapsed = formatLiveDuration(
       since == null ? Duration.zero : clock.now().difference(since),
@@ -248,7 +248,7 @@ class _PictureState extends ConsumerState<_Picture> {
         else ...[
           LiveThemeBackground(
             theme: state.mode.hasSeats ? state.theme : LiveThemes.classic,
-            waves: state.mode == LiveRoomMode.audio,
+            waves: state.mode.isVoice,
           ),
           Center(
             child: KAvatar(
@@ -331,9 +331,7 @@ class _ViewerPicture extends ConsumerWidget {
     return ListenableBuilder(
       listenable: engine.changes,
       builder: (context, _) {
-        final video = current.mode == LiveRoomMode.audio
-            ? null
-            : engine.remoteVideo(host.id);
+        final video = current.mode.isVoice ? null : engine.remoteVideo(host.id);
         return Stack(
           fit: StackFit.expand,
           children: [
@@ -344,7 +342,7 @@ class _ViewerPicture extends ConsumerWidget {
                 theme: current.mode.hasSeats
                     ? current.theme
                     : LiveThemes.classic,
-                waves: current.mode == LiveRoomMode.audio,
+                waves: current.mode.isVoice,
               ),
               Center(
                 child: _SpeakingRing(

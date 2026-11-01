@@ -52,6 +52,7 @@ abstract interface class LiveRepository {
     LiveRoomMode mode = LiveRoomMode.solo,
     int? seatCount,
     String? theme,
+    PodcastSetup? podcast,
   });
 
   /// `POST /live/rooms/{roomId}/heartbeat` (host).
@@ -81,8 +82,30 @@ abstract interface class LiveRepository {
   /// `GET /live/rooms/{roomId}/seats`.
   Future<LiveSeats> seats(String roomId);
 
-  /// `POST /live/rooms/{roomId}/seat-requests`.
-  Future<LiveSeatRequest> requestSeat(String roomId, {int? seatIndex});
+  /// `POST /live/rooms/{roomId}/seat-requests`. D212: in a podcast a
+  /// raised hand, with an optional short [question].
+  Future<LiveSeatRequest> requestSeat(
+    String roomId, {
+    int? seatIndex,
+    String? question,
+  });
+
+  /// v1.47-live (D212): `POST …/seat-requests/{requestId}/defer` — the
+  /// host's «لاحقاً» on a podcast hand.
+  Future<LiveSeats> deferSeatRequest(String roomId, String requestId);
+
+  /// v1.47-live (D212): `PATCH /live/rooms/{roomId}` with the podcast's
+  /// hands switch and/or question time ([questionSeconds] `null` = no
+  /// limit; leave [setQuestionSeconds] false to keep it).
+  Future<LiveRoom> setPodcastSettings(
+    String roomId, {
+    bool? questionsOpen,
+    bool setQuestionSeconds = false,
+    int? questionSeconds,
+  });
+
+  /// v1.47-live (D212): `GET /live/podcasts/scheduled`.
+  Future<List<LiveScheduledPodcast>> scheduledPodcasts();
 
   /// `DELETE /live/rooms/{roomId}/seat-requests/me`.
   Future<void> cancelSeatRequest(String roomId);
@@ -309,6 +332,7 @@ class LiveRepositoryImpl implements LiveRepository {
     LiveRoomMode mode = LiveRoomMode.solo,
     int? seatCount,
     String? theme,
+    PodcastSetup? podcast,
   }) => guardApiCall(() async {
     final res = await _dio.post<Map<String, dynamic>>(
       '/live/rooms',
@@ -319,6 +343,7 @@ class LiveRepositoryImpl implements LiveRepository {
         if (mode != LiveRoomMode.solo) 'mode': mode.wire,
         'seatCount': ?seatCount,
         'theme': ?theme,
+        if (podcast != null) 'podcast': podcast.toJson(),
       },
     );
     return LiveRoom.fromJson(res.data!);
@@ -492,13 +517,53 @@ class LiveRepositoryImpl implements LiveRepository {
       _seatsCall(() => _dio.get('${_room(roomId)}/seats'));
 
   @override
-  Future<LiveSeatRequest> requestSeat(String roomId, {int? seatIndex}) =>
+  Future<LiveSeatRequest> requestSeat(
+    String roomId, {
+    int? seatIndex,
+    String? question,
+  }) => guardApiCall(() async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '${_room(roomId)}/seat-requests',
+      data: {'seatIndex': ?seatIndex, 'question': ?question},
+    );
+    return LiveSeatRequest.fromJson(res.data!);
+  });
+
+  @override
+  Future<LiveSeats> deferSeatRequest(String roomId, String requestId) =>
+      _seatsCall(
+        () => _dio.post(
+          '${_room(roomId)}/seat-requests/${pathSegment(requestId)}/defer',
+        ),
+      );
+
+  @override
+  Future<LiveRoom> setPodcastSettings(
+    String roomId, {
+    bool? questionsOpen,
+    bool setQuestionSeconds = false,
+    int? questionSeconds,
+  }) => guardApiCall(() async {
+    final res = await _dio.patch<Map<String, dynamic>>(
+      _room(roomId),
+      data: {
+        'questionsOpen': ?questionsOpen,
+        if (setQuestionSeconds) 'questionSeconds': questionSeconds,
+      },
+    );
+    return LiveRoom.fromJson(res.data!);
+  });
+
+  @override
+  Future<List<LiveScheduledPodcast>> scheduledPodcasts() =>
       guardApiCall(() async {
-        final res = await _dio.post<Map<String, dynamic>>(
-          '${_room(roomId)}/seat-requests',
-          data: {'seatIndex': ?seatIndex},
+        final res = await _dio.get<Map<String, dynamic>>(
+          '/live/podcasts/scheduled',
         );
-        return LiveSeatRequest.fromJson(res.data!);
+        return [
+          for (final p in res.data!['data']! as List<dynamic>)
+            LiveScheduledPodcast.fromJson(p as Map<String, dynamic>),
+        ];
       });
 
   @override

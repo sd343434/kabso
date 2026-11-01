@@ -46,6 +46,8 @@ export enum ErrorCode {
   LIVE_SEAT_UNAVAILABLE = 'LIVE_SEAT_UNAVAILABLE',
   /** v1.7-live (DRAFT, CP-011): the seat request or invitation is no longer pending. */
   LIVE_REQUEST_NOT_PENDING = 'LIVE_REQUEST_NOT_PENDING',
+  /** v1.47-live (D212): the podcast's host closed the hands. */
+  LIVE_QUESTIONS_CLOSED = 'LIVE_QUESTIONS_CLOSED',
   /** v1.9-live (DRAFT, CP-013): a chat message from someone who is not in the room now. */
   LIVE_CHAT_NOT_IN_ROOM = 'LIVE_CHAT_NOT_IN_ROOM',
   /** v1.9-live (DRAFT, CP-013): the host or a moderator muted the caller in this live's chat. */
@@ -283,6 +285,7 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.LIVE_SCHEDULE_FULL]: 409,
   [ErrorCode.LIVE_SEAT_UNAVAILABLE]: 409,
   [ErrorCode.LIVE_REQUEST_NOT_PENDING]: 409,
+  [ErrorCode.LIVE_QUESTIONS_CLOSED]: 409,
   [ErrorCode.LIVE_CHAT_NOT_IN_ROOM]: 403,
   [ErrorCode.LIVE_CHAT_MUTED]: 403,
   [ErrorCode.LIVE_CHAT_CLOSED]: 409,
@@ -413,6 +416,7 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.LIVE_SCHEDULE_FULL]: 'You can schedule up to 10 lives.',
   [ErrorCode.LIVE_SEAT_UNAVAILABLE]: 'That seat is not available.',
   [ErrorCode.LIVE_REQUEST_NOT_PENDING]: 'The request or invitation is no longer pending.',
+  [ErrorCode.LIVE_QUESTIONS_CLOSED]: 'The host is not taking questions now.',
   [ErrorCode.LIVE_CHAT_NOT_IN_ROOM]: 'Join the live to chat.',
   [ErrorCode.LIVE_CHAT_MUTED]: 'You are muted in this live.',
   [ErrorCode.LIVE_CHAT_CLOSED]: 'The chat is off.',

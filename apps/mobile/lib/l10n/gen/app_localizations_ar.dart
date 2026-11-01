@@ -12127,4 +12127,265 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get errorHostApplicationNotAllowed => 'لا يمكنك التقديم الآن';
+
+  @override
+  String get liveCategoryRowLabel => 'تصنيفات البث';
+
+  @override
+  String get liveCategoryAll => 'الكل';
+
+  @override
+  String get liveCategoryLive => 'بث مباشر';
+
+  @override
+  String get liveCategoryAudio => 'بث صوتي';
+
+  @override
+  String get liveCategoryPodcast => 'بث بودكاست';
+
+  @override
+  String get liveCategoryMulti => 'بث متعدد';
+
+  @override
+  String get liveCategoryStreamer => 'بث ستريمر';
+
+  @override
+  String get liveStreamerSoonTitle => 'بث الستريمر قريباً';
+
+  @override
+  String get liveStreamerSoonBody => 'قريباً تبث شاشة هاتفك مباشرة لمتابعيك.';
+
+  @override
+  String get livePodcastEmptyTitle => 'لا بودكاست مباشر الآن';
+
+  @override
+  String get livePodcastEmptyBody => 'ابدأ حلقتك أو عُد لاحقاً.';
+
+  @override
+  String get podcastUpcoming => 'حلقات قادمة';
+
+  @override
+  String get podcastRemindMe => 'ذكّرني';
+
+  @override
+  String get podcastReminderOn => 'سنذكّرك';
+
+  @override
+  String podcastStartsAt(String time) {
+    return '$time';
+  }
+
+  @override
+  String podcastListeners(String count) {
+    return 'المستمعون · $count';
+  }
+
+  @override
+  String get podcastSeeAll => 'عرض الكل ‹';
+
+  @override
+  String podcastEpisode(int number) {
+    return 'الحلقة $number';
+  }
+
+  @override
+  String get podcastLiveTag => 'مباشر';
+
+  @override
+  String get podcastTopicBusiness => 'ريادة أعمال';
+
+  @override
+  String get podcastTopicTech => 'تقنية';
+
+  @override
+  String get podcastTopicSports => 'رياضة';
+
+  @override
+  String get podcastTopicReligion => 'دين';
+
+  @override
+  String get podcastTopicSociety => 'مجتمع';
+
+  @override
+  String get podcastTopicEntertainment => 'ترفيه';
+
+  @override
+  String get podcastTopicOther => 'أخرى';
+
+  @override
+  String get podcastRaiseHand => 'ارفع يدك';
+
+  @override
+  String get podcastLowerHand => 'أنزل يدك';
+
+  @override
+  String get podcastHandUp => 'يدك مرفوعة. اضغط لإنزالها.';
+
+  @override
+  String get podcastLeaveStage => 'عُد إلى المستمعين';
+
+  @override
+  String get podcastAskTitle => 'ارفع يدك';
+
+  @override
+  String get podcastAskHint => 'سؤالك باختصار (اختياري)';
+
+  @override
+  String get podcastAskSend => 'ارفع يدي';
+
+  @override
+  String get podcastHandsTitle => 'رفع الأيدي ✋';
+
+  @override
+  String podcastHandsRequests(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count طلب',
+      many: '$count طلباً',
+      few: '$count طلبات',
+      two: 'طلبان',
+      one: 'طلب واحد',
+      zero: 'لا طلبات',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String podcastHandsSeats(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count مقاعد متاحة',
+      two: 'مقعدان متاحان',
+      one: 'مقعد واحد متاح',
+      zero: 'لا مقعد متاح',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get podcastLater => 'لاحقاً';
+
+  @override
+  String get podcastBringUp => 'اصعد';
+
+  @override
+  String get podcastNoHands => 'لا أيدي مرفوعة الآن.';
+
+  @override
+  String podcastHandsBadge(int count) {
+    return '$count أيدٍ مرفوعة';
+  }
+
+  @override
+  String get podcastQuestionTime => 'مدة السؤال';
+
+  @override
+  String podcastMinutes(int count) {
+    return '$count د';
+  }
+
+  @override
+  String get podcastNoLimit => 'بدون حد';
+
+  @override
+  String get podcastQuestionsOpen => 'استقبال الأسئلة';
+
+  @override
+  String podcastQuestionPill(String time) {
+    return 'سؤال · $time';
+  }
+
+  @override
+  String get podcastQuestionsClosed => 'المضيف لا يستقبل أسئلة الآن.';
+
+  @override
+  String get podcastSeatsFull => 'المقاعد الثلاثة ممتلئة. أنزل متحدثاً أولاً.';
+
+  @override
+  String get podcastDeferred => 'لاحقاً';
+
+  @override
+  String get podcastSpeakerDown => 'إنزال إلى المستمعين';
+
+  @override
+  String get podcastSetupTopic => 'موضوع الحلقة';
+
+  @override
+  String get podcastSetupTitleHint => 'عنوان الحلقة';
+
+  @override
+  String get podcastSetupTitleRequired => 'اكتب عنوان الحلقة أولاً.';
+
+  @override
+  String get podcastSetupGuests => 'الضيوف (حتى 3)';
+
+  @override
+  String get podcastSetupAddGuest => 'إضافة ضيف';
+
+  @override
+  String get podcastSetupGuestsNote => 'نرسل الدعوة لكل ضيف عند دخوله البث.';
+
+  @override
+  String get podcastSetupGuestSearch => 'ابحث باسم المستخدم';
+
+  @override
+  String get podcastSetupQuestions => 'أسئلة المستمعين';
+
+  @override
+  String get podcastSetupOpen => 'مفتوحة';
+
+  @override
+  String get podcastSetupClosed => 'مغلقة';
+
+  @override
+  String get podcastSetupWhen => 'الموعد';
+
+  @override
+  String get podcastSetupNow => 'الآن';
+
+  @override
+  String get podcastSetupSchedule => 'جدولة';
+
+  @override
+  String get podcastSetupScheduled =>
+      'جُدولت الحلقة. نذكّر متابعيك قبلها بـ 15 دقيقة.';
+
+  @override
+  String get podcastSetupScheduleAction => 'جدولة الحلقة';
+
+  @override
+  String get goLiveModePodcast => 'بث بودكاست';
+
+  @override
+  String get goLiveModeStreamer => 'بث ستريمر';
+
+  @override
+  String chatJoinedMale(String name) {
+    return '$name دخل البث';
+  }
+
+  @override
+  String chatJoinedFemale(String name) {
+    return '$name دخلت البث';
+  }
+
+  @override
+  String get liveThemePodcastStudio => 'استوديو البودكاست';
+
+  @override
+  String get liveThemePodcastMajlis => 'مجلس الخيمة';
+
+  @override
+  String get liveThemePodcastLibrary => 'مكتبة الزمرد';
+
+  @override
+  String get errorLiveQuestionsClosed => 'المضيف لا يستقبل أسئلة الآن.';
+
+  @override
+  String get podcastSpeaking => 'يتحدث';
+
+  @override
+  String get podcastMuted => 'الميكروفون مغلق';
 }

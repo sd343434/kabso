@@ -44,6 +44,8 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.insufficientCoins: 409,
   // v1.20-live (D105)
   ErrorCode.liveKicked: 403,
+  // v1.47-live (D212).
+  ErrorCode.liveQuestionsClosed: 409,
   // v1.21-live (CP-018)
   ErrorCode.alreadyInFamily: 409,
   ErrorCode.familyFull: 409,
@@ -181,6 +183,7 @@ void main() {
           'INSUFFICIENT_COINS',
           // v1.20-live (D105)
           'LIVE_KICKED',
+          'LIVE_QUESTIONS_CLOSED',
           // v1.21-live (CP-018)
           'ALREADY_IN_FAMILY',
           'FAMILY_FULL',

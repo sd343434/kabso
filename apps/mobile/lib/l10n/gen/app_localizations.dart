@@ -20697,6 +20697,450 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'لا يمكنك التقديم الآن'**
   String get errorHostApplicationNotAllowed;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'تصنيفات البث'**
+  String get liveCategoryRowLabel;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'الكل'**
+  String get liveCategoryAll;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'بث مباشر'**
+  String get liveCategoryLive;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'بث صوتي'**
+  String get liveCategoryAudio;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'بث بودكاست'**
+  String get liveCategoryPodcast;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'بث متعدد'**
+  String get liveCategoryMulti;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'بث ستريمر'**
+  String get liveCategoryStreamer;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'بث الستريمر قريباً'**
+  String get liveStreamerSoonTitle;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'قريباً تبث شاشة هاتفك مباشرة لمتابعيك.'**
+  String get liveStreamerSoonBody;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا بودكاست مباشر الآن'**
+  String get livePodcastEmptyTitle;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'ابدأ حلقتك أو عُد لاحقاً.'**
+  String get livePodcastEmptyBody;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'حلقات قادمة'**
+  String get podcastUpcoming;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'ذكّرني'**
+  String get podcastRemindMe;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'سنذكّرك'**
+  String get podcastReminderOn;
+
+  /// D212: when an announced episode starts (already formatted).
+  ///
+  /// In ar, this message translates to:
+  /// **'{time}'**
+  String podcastStartsAt(String time);
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'المستمعون · {count}'**
+  String podcastListeners(String count);
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض الكل ‹'**
+  String get podcastSeeAll;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'الحلقة {number}'**
+  String podcastEpisode(int number);
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'مباشر'**
+  String get podcastLiveTag;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'ريادة أعمال'**
+  String get podcastTopicBusiness;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'تقنية'**
+  String get podcastTopicTech;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'رياضة'**
+  String get podcastTopicSports;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'دين'**
+  String get podcastTopicReligion;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'مجتمع'**
+  String get podcastTopicSociety;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'ترفيه'**
+  String get podcastTopicEntertainment;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'أخرى'**
+  String get podcastTopicOther;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'ارفع يدك'**
+  String get podcastRaiseHand;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'أنزل يدك'**
+  String get podcastLowerHand;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'يدك مرفوعة. اضغط لإنزالها.'**
+  String get podcastHandUp;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'عُد إلى المستمعين'**
+  String get podcastLeaveStage;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'ارفع يدك'**
+  String get podcastAskTitle;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'سؤالك باختصار (اختياري)'**
+  String get podcastAskHint;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'ارفع يدي'**
+  String get podcastAskSend;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'رفع الأيدي ✋'**
+  String get podcastHandsTitle;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, =0{لا طلبات} =1{طلب واحد} =2{طلبان} few{{count} طلبات} many{{count} طلباً} other{{count} طلب}}'**
+  String podcastHandsRequests(int count);
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, =0{لا مقعد متاح} =1{مقعد واحد متاح} =2{مقعدان متاحان} other{{count} مقاعد متاحة}}'**
+  String podcastHandsSeats(int count);
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'لاحقاً'**
+  String get podcastLater;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'اصعد'**
+  String get podcastBringUp;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا أيدي مرفوعة الآن.'**
+  String get podcastNoHands;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} أيدٍ مرفوعة'**
+  String podcastHandsBadge(int count);
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'مدة السؤال'**
+  String get podcastQuestionTime;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} د'**
+  String podcastMinutes(int count);
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'بدون حد'**
+  String get podcastNoLimit;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'استقبال الأسئلة'**
+  String get podcastQuestionsOpen;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'سؤال · {time}'**
+  String podcastQuestionPill(String time);
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'المضيف لا يستقبل أسئلة الآن.'**
+  String get podcastQuestionsClosed;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'المقاعد الثلاثة ممتلئة. أنزل متحدثاً أولاً.'**
+  String get podcastSeatsFull;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'لاحقاً'**
+  String get podcastDeferred;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'إنزال إلى المستمعين'**
+  String get podcastSpeakerDown;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'موضوع الحلقة'**
+  String get podcastSetupTopic;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'عنوان الحلقة'**
+  String get podcastSetupTitleHint;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب عنوان الحلقة أولاً.'**
+  String get podcastSetupTitleRequired;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'الضيوف (حتى 3)'**
+  String get podcastSetupGuests;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'إضافة ضيف'**
+  String get podcastSetupAddGuest;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'نرسل الدعوة لكل ضيف عند دخوله البث.'**
+  String get podcastSetupGuestsNote;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'ابحث باسم المستخدم'**
+  String get podcastSetupGuestSearch;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'أسئلة المستمعين'**
+  String get podcastSetupQuestions;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'مفتوحة'**
+  String get podcastSetupOpen;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'مغلقة'**
+  String get podcastSetupClosed;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'الموعد'**
+  String get podcastSetupWhen;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'الآن'**
+  String get podcastSetupNow;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'جدولة'**
+  String get podcastSetupSchedule;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'جُدولت الحلقة. نذكّر متابعيك قبلها بـ 15 دقيقة.'**
+  String get podcastSetupScheduled;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'جدولة الحلقة'**
+  String get podcastSetupScheduleAction;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'بث بودكاست'**
+  String get goLiveModePodcast;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'بث ستريمر'**
+  String get goLiveModeStreamer;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'{name} دخل البث'**
+  String chatJoinedMale(String name);
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'{name} دخلت البث'**
+  String chatJoinedFemale(String name);
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'استوديو البودكاست'**
+  String get liveThemePodcastStudio;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'مجلس الخيمة'**
+  String get liveThemePodcastMajlis;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'مكتبة الزمرد'**
+  String get liveThemePodcastLibrary;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'المضيف لا يستقبل أسئلة الآن.'**
+  String get errorLiveQuestionsClosed;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'يتحدث'**
+  String get podcastSpeaking;
+
+  /// D212 (live categories and the podcast live).
+  ///
+  /// In ar, this message translates to:
+  /// **'الميكروفون مغلق'**
+  String get podcastMuted;
 }
 
 class _AppLocalizationsDelegate

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/misc.dart'
     show FutureProviderFamily, KeepAliveLink;
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/logging/app_logger.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/features/live/application/live_background.dart';
 import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
@@ -15,6 +16,7 @@ import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_permissions.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
 
 /// Where the go-live flow is.
 enum GoLivePhase {
@@ -60,7 +62,17 @@ class GoLiveState {
     this.wishGifts,
     this.fillLight = false,
     this.fillLightLevel = LiveFillLight.medium,
+    this.podcast = const PodcastSetup(topic: PodcastTopic.business),
+    this.podcastGuests = const [],
   });
+
+  /// D212: the podcast setup (topic, hands, question time), sent with a
+  /// PODCAST room.
+  final PodcastSetup podcast;
+
+  /// D212: up to 3 guests the host picked; each is invited onto a speaker
+  /// seat once they are in the live.
+  final List<UserSummary> podcastGuests;
 
   /// D143 fill light, kept for this go-live (setup and on air): the front
   /// camera lights the face — D157: a soft exposure lift with a warm tint on
@@ -98,7 +110,8 @@ class GoLiveState {
   int? get seatCount => switch (mode) {
     LiveRoomMode.multi => multiSeats,
     LiveRoomMode.audio => audioSeats,
-    LiveRoomMode.solo || LiveRoomMode.pk => null,
+    // D212: a podcast's count is the server's (4).
+    LiveRoomMode.solo || LiveRoomMode.pk || LiveRoomMode.podcast => null,
   };
 
   final String theme;
@@ -137,7 +150,11 @@ class GoLiveState {
     List<String>? wishGifts,
     bool? fillLight,
     LiveFillLight? fillLightLevel,
+    PodcastSetup? podcast,
+    List<UserSummary>? podcastGuests,
   }) => GoLiveState(
+    podcast: podcast ?? this.podcast,
+    podcastGuests: podcastGuests ?? this.podcastGuests,
     fillLight: fillLight ?? this.fillLight,
     fillLightLevel: fillLightLevel ?? this.fillLightLevel,
     wishGifts: wishGifts ?? this.wishGifts,
@@ -299,19 +316,19 @@ class LiveHostController extends Notifier<GoLiveState> {
   Future<void> startPreview({LivePermissionPrompt? explain}) async {
     state = state.copyWith(phase: GoLivePhase.preparing);
     if (!await _ensurePermission(
-      camera: state.mode != LiveRoomMode.audio,
+      camera: !state.mode.isVoice,
       explain: explain,
     )) {
       return;
     }
     if (!ref.mounted) return;
     try {
-      var video = state.mode != LiveRoomMode.audio;
+      var video = !state.mode.isVoice;
       await _engine.startPreview(video: video);
       // The mode may change while the camera starts (Audio tapped while
       // preparing): follow it, so an audio room never keeps a camera.
-      while (ref.mounted && (state.mode != LiveRoomMode.audio) != video) {
-        video = state.mode != LiveRoomMode.audio;
+      while (ref.mounted && (!state.mode.isVoice) != video) {
+        video = !state.mode.isVoice;
         await _engine.startPreview(video: video);
       }
       if (!ref.mounted) return;
@@ -368,9 +385,7 @@ class LiveHostController extends Notifier<GoLiveState> {
             state.capture != LiveCaptureProblem.denied)) {
       return;
     }
-    final permission = await _permissions.check(
-      camera: state.mode != LiveRoomMode.audio,
-    );
+    final permission = await _permissions.check(camera: !state.mode.isVoice);
     if (!ref.mounted || permission != LivePermission.granted) return;
     await startPreview();
   }
@@ -394,23 +409,81 @@ class LiveHostController extends Notifier<GoLiveState> {
     }
     if (mode == state.mode) return;
     final wasPreview = state.phase == GoLivePhase.preview;
-    final cameraChanges =
-        (mode == LiveRoomMode.audio) != (state.mode == LiveRoomMode.audio);
-    state = state.copyWith(mode: mode);
+    final cameraChanges = mode.isVoice != (state.mode.isVoice);
+    // D212: a podcast starts on the owner's podcast background; leaving the
+    // podcast takes its background back to the classic one.
+    final podcastTheme = LiveThemeArt.of(state.theme).podcast;
+    final theme = mode == LiveRoomMode.podcast && !podcastTheme
+        ? LiveThemeArt.podcastDefault
+        : mode != LiveRoomMode.podcast && podcastTheme
+        ? LiveThemes.classic
+        : state.theme;
+    state = state.copyWith(mode: mode, theme: theme);
     if (wasPreview && cameraChanges) {
-      if (mode != LiveRoomMode.audio &&
+      if (!mode.isVoice &&
           !await _ensurePermission(camera: true, explain: explain)) {
         return;
       }
       if (!ref.mounted) return;
       try {
-        await _engine.startPreview(video: mode != LiveRoomMode.audio);
+        await _engine.startPreview(video: !mode.isVoice);
       } on LiveCaptureException catch (e) {
         if (!ref.mounted) return;
         state = state.copyWith(
           phase: GoLivePhase.captureFailed,
           capture: e.problem,
         );
+      }
+    }
+  }
+
+  /// D212: the podcast setup before going live (topic, hands, question
+  /// time); while live the hands and the time go through
+  /// [setPodcastSettings].
+  void setPodcastSetup(PodcastSetup setup) {
+    if (state.phase == GoLivePhase.live) return;
+    state = state.copyWith(podcast: setup);
+  }
+
+  /// D212: the guests picked in the setup (up to 3).
+  void setPodcastGuests(List<UserSummary> guests) {
+    state = state.copyWith(podcastGuests: guests.take(3).toList());
+  }
+
+  /// D212: while live, the hands switch and/or the question time (`PATCH`;
+  /// throws an `AppFailure`). [seconds] returns the new time (null inside
+  /// = no limit); null = unchanged.
+  Future<void> setPodcastSettings({
+    bool? questionsOpen,
+    int? Function()? seconds,
+  }) async {
+    final room = state.room;
+    if (room == null) return;
+    final updated = await _repo.setPodcastSettings(
+      room.id,
+      questionsOpen: questionsOpen,
+      setQuestionSeconds: seconds != null,
+      questionSeconds: seconds?.call(),
+    );
+    if (!ref.mounted) return;
+    state = state.copyWith(room: updated);
+  }
+
+  /// D212: the guests picked in the setup who were invited this live.
+  final Set<String> _invitedGuests = {};
+
+  /// D212: invites each picked guest onto a speaker seat once they are in
+  /// the live ([present]: the user ids watching now). Best effort: a
+  /// refused invitation (a full stage, a block) is not retried.
+  Future<void> inviteArrivedGuests(Set<String> present) async {
+    final room = state.room;
+    if (room == null || state.mode != LiveRoomMode.podcast) return;
+    for (final g in state.podcastGuests) {
+      if (!present.contains(g.id) || !_invitedGuests.add(g.id)) continue;
+      try {
+        await _repo.inviteToSeat(room.id, g.username);
+      } on Object catch (e) {
+        AppLogger.error('live: podcast guest invite failed', e);
       }
     }
   }
@@ -425,7 +498,7 @@ class LiveHostController extends Notifier<GoLiveState> {
       state = state.copyWith(room: updated);
       return;
     }
-    state = state.mode == LiveRoomMode.audio
+    state = state.mode.isVoice
         ? state.copyWith(audioSeats: count)
         : state.copyWith(multiSeats: count);
   }
@@ -620,12 +693,14 @@ class LiveHostController extends Notifier<GoLiveState> {
       final allowed = switch (state.mode) {
         LiveRoomMode.audio => config.seatCounts.audio,
         LiveRoomMode.multi => config.seatCounts.multi,
-        LiveRoomMode.solo || LiveRoomMode.pk => const <int>[],
+        LiveRoomMode.solo ||
+        LiveRoomMode.pk ||
+        LiveRoomMode.podcast => const <int>[],
       };
       if (state.seatCount case final count?
           when fitSeatCount(count, allowed) != count) {
         final fitted = fitSeatCount(count, allowed);
-        state = state.mode == LiveRoomMode.audio
+        state = state.mode.isVoice
             ? state.copyWith(audioSeats: fitted)
             : state.copyWith(multiSeats: fitted);
       }
@@ -637,6 +712,7 @@ class LiveHostController extends Notifier<GoLiveState> {
         mode: state.mode,
         seatCount: state.seatCount,
         theme: state.mode.hasSeats ? state.theme : null,
+        podcast: state.mode == LiveRoomMode.podcast ? state.podcast : null,
       );
       _onAir = room.id;
       // D136: the wish list picked in the setup.
@@ -654,7 +730,7 @@ class LiveHostController extends Notifier<GoLiveState> {
       // An audio room's media token allows the microphone only (CP-011): a
       // camera left running would be refused and the publish would fail.
       stage = 'camera';
-      if (state.mode == LiveRoomMode.audio && _engine.videoEnabled) {
+      if (state.mode.isVoice && _engine.videoEnabled) {
         await _engine.startPreview(video: false);
       }
       // The core of going live: joining the media room and publishing the
@@ -688,6 +764,8 @@ class LiveHostController extends Notifier<GoLiveState> {
           wishGifts: state.wishGifts,
           fillLight: state.fillLight,
           fillLightLevel: state.fillLightLevel,
+          podcast: state.podcast,
+          podcastGuests: state.podcastGuests,
         );
       }
       _release();
@@ -717,7 +795,7 @@ class LiveHostController extends Notifier<GoLiveState> {
   /// return, when a heartbeat is also sent at once in case the timer was
   /// late. The notification's End ends the live as the ✕ does.
   void _holdBackground(LiveBackgroundTexts texts) {
-    final video = state.mode != LiveRoomMode.audio;
+    final video = !state.mode.isVoice;
     _keeper.hold(
       this,
       LiveBackgroundSpec.of(LiveBackgroundRole.host, texts),

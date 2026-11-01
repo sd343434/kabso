@@ -129,15 +129,27 @@ function LiveDialog({ id, onClose, onEnded }: { id: string; onClose: () => void;
   );
 }
 
+/** D212: the mode filter's chips, in the app's category order. */
+const LIVE_MODES = ['', 'SOLO', 'AUDIO', 'PODCAST', 'MULTI', 'PK'] as const;
+
 /** «البث الآن» (D197): every live on air as a card grid (most viewers first); details and END LIVE with a reason. */
 export function Lives() {
   const { t, lang } = useApp();
   const [page, setPage] = useState(1);
   const [bump, setBump] = useState(0);
   const [open, setOpen] = useState<string | null>(null);
+  // D212: the app's live categories as a mode filter ('' = all; PK lives count as SOLO's in the app).
+  const [mode, setMode] = useState<(typeof LIVE_MODES)[number]>('');
   const { data, error, loading } = useAsync(
-    () => api.get<TablePage<LiveRow>>('/admin/lives', { page, pageSize: 24, sort: 'viewers', order: 'desc' }),
-    [page, bump],
+    () =>
+      api.get<TablePage<LiveRow>>('/admin/lives', {
+        page,
+        pageSize: 24,
+        sort: 'viewers',
+        order: 'desc',
+        ...(mode ? { mode } : {}),
+      }),
+    [page, bump, mode],
   );
   const pages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
   return (
@@ -151,6 +163,21 @@ export function Lives() {
           <Icon name="refresh" size={16} />
           {t('refresh')}
         </button>
+      </div>
+      <div className="tabs" role="group" aria-label={t('liveModeFilter')}>
+        {LIVE_MODES.map((m) => (
+          <button
+            key={m || 'all'}
+            className="tab"
+            aria-pressed={mode === m}
+            onClick={() => {
+              setMode(m);
+              setPage(1);
+            }}
+          >
+            {t(m ? (`liveMode${m}` as never) : 'statusAll')}
+          </button>
+        ))}
       </div>
       <ErrorAlert error={error} />
       {loading && !data && (

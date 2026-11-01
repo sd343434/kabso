@@ -231,8 +231,18 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
     const row = await this.rooms.visibleRow(room.id, hostId);
     if (row.status !== 'LIVE') throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
     const { allowGuests, seatCount, theme, chatEnabled, title, categorySlug, topic, wishGifts } = parsed.data;
+    const { questionsOpen, questionSeconds } = parsed.data;
     if (seatCount !== undefined && !seatCountFits(row.mode, seatCount)) {
       throw AppException.validation([{ field: 'seatCount', issue: 'invalid_value' }]);
+    }
+    // v1.47-live (D212, §10.69): the hands switch and the question duration are a podcast's only.
+    if (row.mode !== 'PODCAST') {
+      if (questionsOpen !== undefined) {
+        throw AppException.validation([{ field: 'questionsOpen', issue: 'invalid_value' }]);
+      }
+      if (questionSeconds !== undefined) {
+        throw AppException.validation([{ field: 'questionSeconds', issue: 'invalid_value' }]);
+      }
     }
     let category: RoomInfoEdit['category'];
     if (categorySlug === null) category = null;
@@ -263,6 +273,34 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
         meta,
       );
       if (version !== null) await this.metadata.infoChanged(room.id);
+    }
+    if (questionsOpen !== undefined || questionSeconds !== undefined) {
+      const changed = await this.prisma.$transaction(async (tx) => {
+        const before = await tx.liveRoom.findUniqueOrThrow({
+          where: { id: room.id },
+          select: { questionsOpen: true, questionSeconds: true },
+        });
+        const data = {
+          ...(questionsOpen !== undefined && questionsOpen !== before.questionsOpen ? { questionsOpen } : {}),
+          ...(questionSeconds !== undefined && questionSeconds !== before.questionSeconds
+            ? { questionSeconds }
+            : {}),
+        };
+        if (Object.keys(data).length === 0) return false;
+        await tx.liveRoom.update({ where: { id: room.id }, data });
+        await this.audit.recordIn(tx, {
+          action: AuditAction.LIVE_ROOM_PODCAST,
+          actorUserId: hostId,
+          targetType: 'live_room',
+          targetId: room.id,
+          metadata: data,
+          ip: meta.ip,
+          requestId: meta.requestId,
+        });
+        return true;
+      }, LIVE_TX_OPTIONS);
+      // Everyone's app re-reads the room (the hand button follows `questionsOpen`).
+      if (changed) await this.metadata.infoChanged(room.id);
     }
     if (chatEnabled !== undefined && chatEnabled !== room.chatEnabled) {
       const changed = await this.prisma.$transaction(async (tx) => {
@@ -584,6 +622,8 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
     if (this.config.live.livekit === null) return 0;
     // CP-011: invitations past their 60 seconds (they already read as none).
     await this.seats.expireInvites();
+    // v1.47-live (D212): podcast questions whose time is over.
+    await this.seats.demoteExpired();
     await closeVisitsOfEndedRooms(this.prisma);
     await this.prisma.$executeRaw`
       DELETE FROM live_room_viewers v USING live_rooms r

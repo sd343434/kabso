@@ -1815,16 +1815,9 @@ void main() {
         await tester.pumpAndSettle();
         expect(line('Welcome!'), findsOneWidget);
         expect(line(l10n.liveChatHostBadge), findsOneWidget);
-        // D119: the join is the strip pinned under the chat, not a line;
-        // the name is direction-isolated.
-        expect(line('joined'), findsNothing);
-        expect(
-          find.descendant(
-            of: find.byKey(LiveChatJoinStrip.stripKey),
-            matching: find.textContaining('joined'),
-          ),
-          findsOneWidget,
-        );
+        // D212 (owner): each join is its own chat line in every room (the
+        // D119 strip is gone); the name is direction-isolated.
+        expect(line('\u2068Huda\u2069 joined'), findsOneWidget);
         // Write.
         await tester.tap(find.byKey(AudioRoomViewKeys.chat));
         await tester.pumpAndSettle();
@@ -1833,10 +1826,9 @@ void main() {
         await tester.pumpAndSettle();
         expect(repo.chatCalls, contains('send:Hi all'));
         expect(line('Hi all'), findsOneWidget);
-        // Someone else's line: profile and report only. (The oldest line
-        // has scrolled under the top of the box: the rules line, D118, came
-        // after it.)
-        expect(find.byKey(LiveRoomChatLines.noticeKey), findsOneWidget);
+        // Someone else's line: profile and report only. D212 (owner): the
+        // rules line went at the visit's first message.
+        expect(find.byKey(LiveRoomChatLines.noticeKey), findsNothing);
         await tester.tapAt(const Offset(1, 1));
         await tester.pumpAndSettle();
         await tester.tap(line('Welcome!'));
