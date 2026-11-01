@@ -348,11 +348,13 @@ describe('navigation by role', () => {
     expect(visibleNav((c) => CAPS.MODERATION!.includes(c)).map((g) => g.key)).not.toContain('navGroupMoney');
   });
   it('every v2 route has a capability', () => {
-    for (const r of ['agencies', 'agency', 'complaints', 'lives', 'hosts', 'gifts', 'items', 'promo', 'report', 'topups', 'cards', 'tasks', 'levels', 'waitlist', 'team', 'audit', 'specialUsernames', 'hostApplications', 'hostApplication']) {
+    for (const r of ['agencies', 'agency', 'complaints', 'lives', 'hosts', 'gifts', 'items', 'promo', 'report', 'topups', 'cards', 'tasks', 'levels', 'waitlist', 'team', 'audit', 'specialUsernames', 'hostApplications', 'hostApplication', 'referrals', 'referral', 'referralSettings']) {
       expect(CAP_OF_ROUTE[r], r).toBeTruthy();
     }
     expect(matchPath('/agencies/abc')).toEqual({ name: 'agency', params: { id: 'abc' } });
     expect(matchPath('/finance/report')?.name).toBe('report');
     expect(matchPath('/host-applications/abc')).toEqual({ name: 'hostApplication', params: { id: 'abc' } });
+    expect(matchPath('/referrals/abc')).toEqual({ name: 'referral', params: { id: 'abc' } });
+    expect(CAP_OF_ROUTE.referralSettings).toBe('referrals.view');
   });
 });

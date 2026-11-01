@@ -67,6 +67,9 @@ export const NAV: NavGroup[] = [
       { to: '/finance/topups', key: 'navAgentTopups', icon: 'list', cap: 'finance.view', match: ['topups'] },
       { to: '/withdrawals', key: 'navWithdrawals', icon: 'download', cap: 'withdrawals.view', match: ['withdrawals'] },
       { to: '/finance/cards', key: 'navCards', icon: 'shield', cap: 'finance.view', match: ['cards'] },
+      // v1.74-social (D217): «الدعوات» and their settings.
+      { to: '/referrals', key: 'navReferrals', icon: 'users', cap: 'referrals.view', match: ['referrals', 'referral'] },
+      { to: '/referral-settings', key: 'navReferralSettings', icon: 'money', cap: 'referrals.view', match: ['referralSettings'] },
     ],
   },
   { key: 'navGroupContent', items: [{ to: '/reports', key: 'navReports', icon: 'flag', cap: 'reports.view', match: ['reports'] }] },

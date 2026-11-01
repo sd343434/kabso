@@ -56,4 +56,8 @@ export const CAPABILITY_ROLES: Partial<Record<Capability, readonly PanelRole[]>>
   'hosts.applications.photos': ['OWNER', 'SUPPORT'],
   'hosts.applications.decide': ['OWNER', 'SUPPORT'],
   'gifts.categories': ['OWNER'],
+  // v1.74-social (D217).
+  'referrals.view': ['OWNER', 'SUPPORT', 'FINANCE'],
+  'referrals.decide': ['OWNER', 'FINANCE'],
+  'referrals.settings': ['OWNER', 'FINANCE'],
 };
