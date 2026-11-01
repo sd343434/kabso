@@ -1,9 +1,9 @@
-// D218 (owner: «اجعلها بهذه الطريقة بشكل مطابق ١٠٠٪»): the three bond tiles
-// on the public and the own profile are the owner's pill art — equal height,
-// each at its own aspect, 8 dp apart, the medallion at the reading start
-// (mirrored in English), titles never cut (also at 360×800 ×1.3 in Arabic
-// and English), targets of at least 48 dp, the same in light and dark, and
-// a tap opens the same place as before.
+// D218 (owner: «اجعلها بهذه الطريقة بشكل مطابق ١٠٠٪», then «مستطيل بحواف
+// مستديرة قليلاً»): the three bond tiles on the public and the own profile
+// are equal rounded rectangles (12 dp) in the owner's sampled colours with
+// the owner's medallion art at the reading start (never mirrored), 8 dp
+// apart, 60 dp tall; titles never cut (also at 360×800 ×1.3 in Arabic and
+// English), the same in light and dark, and a tap opens the same place.
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -89,10 +89,10 @@ void main() {
     ProfileBondsRow.cpKey,
     ProfileBondsRow.medalsKey,
   ];
-  const assets = [
-    'assets/profile/bonds/family.webp',
-    'assets/profile/bonds/couple.webp',
-    'assets/profile/bonds/medals.webp',
+  const medals = [
+    'assets/profile/bonds/family_medal.webp',
+    'assets/profile/bonds/couple_medal.webp',
+    'assets/profile/bonds/medals_medal.webp',
   ];
   for (final language in AppLanguage.values) {
     for (final brightness in Brightness.values) {
@@ -101,9 +101,9 @@ void main() {
         (GoldenViewport.android, 1.3),
       ]) {
         testWidgets('${language.name} ${brightness.name} '
-            '${viewport.name}×$scale: the owner pills, equal height, 8 dp '
-            'apart, own aspect, medallion at the reading start, titles '
-            'whole, targets ≥ 48 dp', (tester) async {
+            '${viewport.name}×$scale: three equal rounded rectangles 8 dp '
+            'apart, the medallion at the reading start, titles whole, '
+            '≥ 48 dp', (tester) async {
           await _pump(
             tester,
             language: language,
@@ -115,9 +115,10 @@ void main() {
           final rtl = language == AppLanguage.ar;
           final rects = [for (final k in tiles) tester.getRect(find.byKey(k))];
           for (final r in rects) {
+            expect(r.height, KBondTile.height);
             expect(r.height, greaterThanOrEqualTo(KSizes.minTouchTarget));
+            expect(r.width, moreOrLessEquals(rects.first.width, epsilon: 0.5));
           }
-          // Reading order: family, couple, medals.
           if (rtl) {
             expect(rects[0].left, greaterThan(rects[1].right));
             expect(rects[1].left, greaterThan(rects[2].right));
@@ -129,27 +130,46 @@ void main() {
           expect(sorted[1].left - sorted[0].right, moreOrLessEquals(8));
           expect(sorted[2].left - sorted[1].right, moreOrLessEquals(8));
           for (final (i, tile) in tiles.indexed) {
-            final art = find.descendant(
+            final box = tester.getRect(find.byKey(tile));
+            // The body: a 12 dp rounded rectangle in the art's colours.
+            final body =
+                tester
+                        .widget<DecoratedBox>(
+                          find.descendant(
+                            of: find.byKey(tile),
+                            matching: find.byKey(ProfileBondsRow.bodyKey),
+                          ),
+                        )
+                        .decoration
+                    as BoxDecoration;
+            expect(body.borderRadius, BorderRadius.circular(12));
+            final art = BondArt.values[i];
+            expect((body.gradient! as LinearGradient).colors, [
+              art.top,
+              art.middle,
+              art.middle,
+              art.bottom,
+            ]);
+            // The owner's medallion, unmirrored, at the reading start.
+            final medal = find.descendant(
               of: find.byKey(tile),
-              matching: find.image(AssetImage(assets[i])),
+              matching: find.byKey(ProfileBondsRow.medalKey),
             );
-            expect(art, findsOneWidget);
-            // The art keeps its aspect (no squash) and is mirrored only in
-            // English.
-            final image = tester.getRect(art);
-            final source = switch (i) {
-              0 => 662 / 290,
-              1 => 642 / 289,
-              _ => 653 / 289,
-            };
             expect(
-              image.width / image.height,
-              moreOrLessEquals(source, epsilon: 0.02),
+              (tester.widget<Image>(medal).image as AssetImage).assetName,
+              medals[i],
             );
-            final flip = tester.widget<Transform>(
-              find.ancestor(of: art, matching: find.byType(Transform)).first,
+            expect(
+              find.ancestor(of: medal, matching: find.byType(Transform)),
+              findsNothing,
             );
-            expect(flip.transform.storage[0], rtl ? 1 : -1);
+            final m = tester.getRect(medal);
+            expect(m.width, moreOrLessEquals(m.height));
+            if (rtl) {
+              expect(box.right - m.right, lessThan(8));
+            } else {
+              expect(m.left - box.left, lessThan(8));
+            }
             final title = find.descendant(
               of: find.byKey(tile),
               matching: find.byKey(ProfileBondsRow.titleKey),
@@ -159,22 +179,13 @@ void main() {
             );
             expect(paragraph.didExceedMaxLines, isFalse);
             final shown = tester.getRect(title);
-            expect(image.contains(shown.center), isTrue);
-            // The words sit away from the medallion (the reading start).
+            expect(box.contains(shown.center), isTrue);
             if (rtl) {
-              expect(shown.right, lessThan(image.right - image.height * 0.8));
+              expect(shown.right, lessThanOrEqualTo(m.left));
             } else {
-              expect(shown.left, greaterThan(image.left + image.height * 0.8));
+              expect(shown.left, greaterThanOrEqualTo(m.right));
             }
           }
-          // No card behind the art (the same in light and dark).
-          expect(
-            find.descendant(
-              of: find.byKey(ProfileBondsRow.familyKey),
-              matching: find.byType(DecoratedBox),
-            ),
-            findsNothing,
-          );
         });
       }
     }

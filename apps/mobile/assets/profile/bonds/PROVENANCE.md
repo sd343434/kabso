@@ -1,19 +1,30 @@
-# Profile bond pills (family, couple, medals)
+# Profile bond medallions (family, couple, medals)
 
 Supplied by the owner on 2026-11-01 (one image, 2000×667 px, transparent
-background, sha256 `3cc58053…59f6fc67`) as Kabso's own art with the request
-«اجعلها بهذه الطريقة بشكل مطابق ١٠٠٪» (D218). Owner-supplied; not
-third-party. Each pill was cut from the image along its existing alpha
-(a 14 px margin around the opaque body keeps the soft glow and shadow; faint
-specks below alpha 6 were dropped), not redrawn or recoloured.
+background, sha256 `3cc58053…59f6fc67`): three glossy pills — yellow with a
+shield / crown / wings medallion, orange with a flame, purple with a trophy
+and laurel — as Kabso's own art («اجعلها بهذه الطريقة بشكل مطابق ١٠٠٪», D218).
+Owner-supplied; not third-party. The source image is not in the repository.
 
-| File | Bond | What | Size | sha256 |
-| ---- | ---- | ---- | ---- | ------ |
-| `family.webp` | العائلة (family) | Yellow glossy pill, the shield / crown / wings medallion on the right | 662×290 | `e2c813e1…3af3c706` |
-| `couple.webp` | العلاقة (couple) | Orange glossy pill, the flame medallion on the right | 642×289 | `9de04cd2…25b25e93` |
-| `medals.webp` | الميداليات (medals) | Purple glossy pill, the trophy and laurel medallion on the right | 653×289 | `8a87f84c…40c22ce7` |
+The owner then asked for rectangles with slightly rounded corners («مستطيل
+بحواف مستديرة قليلاً»), so only the medallions are assets now; the tile body
+is painted in code (`BondArt` in `lib/features/profile/profile_bonds.dart`)
+from colours sampled on each pill. The full pill cut-outs of the previous
+commit were removed (unused).
 
-WebP with alpha, quality 92. The opaque body starts 14 px in from every edge;
-the medallion is a circle as tall as the body at its right end. In English
-the app mirrors the whole image (the medallion goes to the reading start).
-The source image itself is not in the repository.
+| File | Bond | Cut | Size | sha256 |
+| ---- | ---- | --- | ---- | ------ |
+| `family_medal.webp` | العائلة | circle r = 131 px (+1.5 px soft edge) around (513, 144.5) of the family pill crop; 4 px rim margin | 270×270 | `d441ca2a…cc163754` |
+| `couple_medal.webp` | العلاقة | circle r = 130.5 px around the couple pill's medallion | 269×269 | `b370f237…dd5d586e` |
+| `medals_medal.webp` | الميداليات | circle r = 130.5 px around the medals pill's medallion | 269×269 | `82ea14dd…03e032f2` |
+
+Cut along the medallion's circle from the art's own alpha (multiplied by a
+circular mask); pixels unchanged, WebP with alpha, quality 94.
+
+## Sampled body colours (`measure.py sample`, pixels of each pill crop)
+
+| Pill | top (120, 58) | middle (120, 142) | bottom (120, 250) | by the medallion (340, 145) | light rim (120, 22) | dark rim (120, 262) |
+| ---- | ---- | ---- | ---- | ---- | ---- | ---- |
+| family | `#FFDB1D` | `#FCC302` | `#FBCE09` | `#F7A902` | `#FBF8C5` | `#F4B50B` |
+| couple | `#FC7516` | `#FA5101` | `#FE6205` | `#E83C00` | `#FDEE7C` | `#F94E06` |
+| medals | `#D054F9` | `#982FF5` | `#C149FC` | `#751EE8` | `#D8C2F4` | `#9B3AEC` |

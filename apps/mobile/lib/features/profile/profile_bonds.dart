@@ -94,14 +94,15 @@ VoidCallback? bondAction(
 /// The family, relationship and medals of a profile (CP-018) as three
 /// tiles under the header: each says what exists and opens it.
 ///
-/// D218 (owner: «اجعلها بهذه الطريقة بشكل مطابق ١٠٠٪»): each tile IS the
-/// owner's glossy pill art (`assets/profile/bonds/`, PROVENANCE.md) — yellow
-/// with the shield (family), orange with the flame (couple), purple with
-/// the trophy (medals) — at its own aspect ratio, three in a row of equal
-/// height, 8 dp apart. The medallion is at the reading start (the art as
-/// drawn in Arabic, mirrored in English); the title (white, bold, a soft
-/// shadow) and the value (white 85 %) sit in the pill's empty part and
-/// shrink to fit, never the art. The same in light and dark (no card).
+/// D218 (owner: «اجعلها بهذه الطريقة بشكل مطابق ١٠٠٪», then «مستطيل بحواف
+/// مستديرة قليلاً»): three equal rounded rectangles (12 dp) 8 dp apart, in
+/// the owner's colours — the glossy yellow (family), orange (couple) and
+/// purple (medals) bodies painted from colours sampled on the owner's pills
+/// (`assets/profile/bonds/PROVENANCE.md`), with the owner's medallion art
+/// unchanged at the reading start (right in Arabic, left in English; the
+/// art itself is never mirrored). The title (white, bold, a soft shadow)
+/// and the value (white 85 %) fill the rest and shrink to fit. The same in
+/// light and dark.
 class ProfileBondsRow extends ConsumerWidget {
   const new({required this.profile, super.key});
 
@@ -112,7 +113,11 @@ class ProfileBondsRow extends ConsumerWidget {
   static const medalsKey = Key('profile.bonds.medals');
 
   /// Each tile's title (tests: never cut).
-  static const Key titleKey = _Pill.titleKey;
+  static const Key titleKey = _BondTile.titleKey;
+
+  /// Each tile's body and medallion (tests).
+  static const Key bodyKey = _BondTile.bodyKey;
+  static const Key medalKey = _BondTile.medalKey;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -121,17 +126,14 @@ class ProfileBondsRow extends ConsumerWidget {
     final family = profile.family;
     final cp = profile.cp;
     final cpAction = cpTap(profile, signedIn: signedIn);
-    Widget pill(_PillArt art, Widget tile) =>
-        Expanded(flex: (art.aspect * 1000).round(), child: tile);
     return Padding(
       padding: const EdgeInsets.only(top: KSpacing.sm),
       child: Row(
         children: [
-          pill(
-            _PillArt.family,
-            _Pill(
+          Expanded(
+            child: _BondTile(
               key: familyKey,
-              art: _PillArt.family,
+              art: BondArt.family,
               title: l10n.profileBondFamily,
               value: family == null
                   ? l10n.liveUserNone
@@ -140,11 +142,10 @@ class ProfileBondsRow extends ConsumerWidget {
             ),
           ),
           const SizedBox(width: KSpacing.sm),
-          pill(
-            _PillArt.couple,
-            _Pill(
+          Expanded(
+            child: _BondTile(
               key: cpKey,
-              art: _PillArt.couple,
+              art: BondArt.couple,
               title: l10n.profileBondCouple,
               value: cp != null
                   ? (cp.partner.displayName.isEmpty
@@ -157,11 +158,10 @@ class ProfileBondsRow extends ConsumerWidget {
             ),
           ),
           const SizedBox(width: KSpacing.sm),
-          pill(
-            _PillArt.medals,
-            _Pill(
+          Expanded(
+            child: _BondTile(
               key: medalsKey,
-              art: _PillArt.medals,
+              art: BondArt.medals,
               title: l10n.profileBondMedals,
               value: l10n.medalsOwned(
                 profile.medals.owned,
@@ -180,44 +180,73 @@ class ProfileBondsRow extends ConsumerWidget {
   }
 }
 
-/// The owner's pill art and its measured geometry (pixels of the asset;
-/// PROVENANCE.md): the image size and the opaque body (the glow margin is
-/// 14 px; the medallion is a circle as tall as the body at its right end).
-enum _PillArt {
-  family('assets/profile/bonds/family.webp', 662, 290, 14, 14, 634, 262),
-  couple('assets/profile/bonds/couple.webp', 642, 289, 14, 14, 614, 261),
-  medals('assets/profile/bonds/medals.webp', 653, 289, 14, 14, 625, 261);
+/// D218 geometry of the bond tiles.
+abstract final class KBondTile {
+  static const double height = 60;
+  static const double radius = 12;
+  static const double rim = 1.2;
 
-  new(
-    this.asset,
-    this.width,
-    this.height,
-    this.bodyLeft,
-    this.bodyTop,
-    this.bodyWidth,
-    this.bodyHeight,
-  );
-
-  final String asset;
-  final double width;
-  final double height;
-  final double bodyLeft;
-  final double bodyTop;
-  final double bodyWidth;
-  final double bodyHeight;
-
-  double get aspect => width / height;
-
-  /// The text area, as fractions of the image, measured from the medallion
-  /// side (the reading start) and from the other end.
-  double get textFromMedallion =>
-      (width - (bodyLeft + bodyWidth) + bodyHeight * 1.04) / width;
-  double get textFromEnd => (bodyLeft + bodyHeight * 0.26) / width;
-  double get textTop => (bodyTop + bodyHeight * 0.14) / height;
+  /// The medallion's diameter (of the tile height) and its inset.
+  static const double medal = 0.92;
+  static const double medalInset = 3;
 }
 
-/// D218: one pill. A 48 dp+ target; the ripple follows the pill's shape.
-class _Pill extends StatelessWidget {
+/// The owner's art for one bond: the medallion (cut from the owner's pill
+/// along its circle, unchanged) and the body colours sampled on the pill
+/// (`measure.py sample`, PROVENANCE.md): the top of the body, its middle,
+/// its bottom, the shade next to the medallion, the light rim on top and
+/// the darker rim below.
+enum BondArt {
+  family(
+    'assets/profile/bonds/family_medal.webp',
+    top: Color(0xFFFFDB1D),
+    middle: Color(0xFFFCC302),
+    bottom: Color(0xFFFBCE09),
+    shade: Color(0xFFF7A902),
+    rimLight: Color(0xFFFBF8C5),
+    rimDark: Color(0xFFF4B50B),
+  ),
+  couple(
+    'assets/profile/bonds/couple_medal.webp',
+    top: Color(0xFFFC7516),
+    middle: Color(0xFFFA5101),
+    bottom: Color(0xFFFE6205),
+    shade: Color(0xFFE83C00),
+    rimLight: Color(0xFFFDEE7C),
+    rimDark: Color(0xFFF94E06),
+  ),
+  medals(
+    'assets/profile/bonds/medals_medal.webp',
+    top: Color(0xFFD054F9),
+    middle: Color(0xFF982FF5),
+    bottom: Color(0xFFC149FC),
+    shade: Color(0xFF751EE8),
+    rimLight: Color(0xFFD8C2F4),
+    rimDark: Color(0xFF9B3AEC),
+  );
+
+  new(
+    this.medal, {
+    required this.top,
+    required this.middle,
+    required this.bottom,
+    required this.shade,
+    required this.rimLight,
+    required this.rimDark,
+  });
+
+  final String medal;
+  final Color top;
+  final Color middle;
+  final Color bottom;
+  final Color shade;
+  final Color rimLight;
+  final Color rimDark;
+}
+
+/// D218: one rounded-rectangle tile. A 60 dp target; the ripple is clipped
+/// to the rounded rectangle.
+class _BondTile extends StatelessWidget {
   const new({
     required this.art,
     required this.title,
@@ -226,12 +255,14 @@ class _Pill extends StatelessWidget {
     super.key,
   });
 
-  final _PillArt art;
+  final BondArt art;
   final String title;
   final String value;
   final VoidCallback? onTap;
 
   static const Key titleKey = ValueKey('profile.bonds.title');
+  static const Key bodyKey = ValueKey('profile.bonds.body');
+  static const Key medalKey = ValueKey('profile.bonds.medal');
 
   @override
   Widget build(BuildContext context) {
@@ -241,123 +272,150 @@ class _Pill extends StatelessWidget {
     const shadow = [
       Shadow(color: Color(0x73000000), blurRadius: 3, offset: Offset(0, 1)),
     ];
+    final radius = BorderRadius.circular(KBondTile.radius);
+    const medal = KBondTile.height * KBondTile.medal;
     return Semantics(
       button: onTap != null,
       label: '$title, $value',
       excludeSemantics: true,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final w = constraints.maxWidth;
-          final h = w / art.aspect;
-          final scale = w / art.width;
-          final body = Rect.fromLTWH(
-            art.bodyLeft * scale,
-            art.bodyTop * scale,
-            art.bodyWidth * scale,
-            art.bodyHeight * scale,
-          );
-          final box = h < KSizes.minTouchTarget ? KSizes.minTouchTarget : h;
-          return SizedBox(
-            width: w,
-            height: box,
-            child: Center(
-              child: SizedBox(
-                width: w,
-                height: h,
-                child: Stack(
-                  children: [
-                    Positioned.fill(
-                      child: Transform.flip(
-                        // The art is drawn for Arabic (medallion on the
-                        // right); English mirrors it (medallion at the left).
-                        flipX: !rtl,
-                        child: Image.asset(
-                          art.asset,
-                          fit: BoxFit.fill,
-                          excludeFromSemantics: true,
-                        ),
-                      ),
-                    ),
-                    PositionedDirectional(
-                      start: w * art.textFromMedallion,
-                      end: w * art.textFromEnd,
-                      top: h * art.textTop,
-                      bottom: h * art.textTop,
-                      child: MediaQuery.withClampedTextScaling(
-                        maxScaleFactor: KBondCard.maxTextScale,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Flexible(
-                              child: FittedBox(
-                                fit: BoxFit.scaleDown,
-                                alignment: AlignmentDirectional.centerStart,
-                                child: Text(
-                                  title,
-                                  key: titleKey,
-                                  maxLines: 1,
-                                  softWrap: false,
-                                  style: t.label.copyWith(
-                                    color: white,
-                                    fontSize: KBondCard.titleFont,
-                                    fontWeight: FontWeight.w700,
-                                    height: 1.15,
-                                    shadows: shadow,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Flexible(
-                              child: FittedBox(
-                                fit: BoxFit.scaleDown,
-                                alignment: AlignmentDirectional.centerStart,
-                                child: ConstrainedBox(
-                                  constraints: BoxConstraints(
-                                    // Long names end in «…» rather than
-                                    // shrinking to dust.
-                                    maxWidth:
-                                        w *
-                                        (1 -
-                                            art.textFromMedallion -
-                                            art.textFromEnd) *
-                                        1.4,
-                                  ),
-                                  child: Text(
-                                    value,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: t.caption.copyWith(
-                                      color: white.withValues(alpha: 0.85),
-                                      fontSize: KBondCard.valueFont - 1,
-                                      height: 1.15,
-                                      shadows: shadow,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    // The ripple and the press highlight follow the pill.
-                    Positioned.fromRect(
-                      rect: body,
-                      child: Material(
-                        type: MaterialType.transparency,
-                        child: InkWell(
-                          customBorder: const StadiumBorder(),
-                          onTap: onTap,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+      child: SizedBox(
+        height: KBondTile.height,
+        child: DecoratedBox(
+          key: bodyKey,
+          decoration: BoxDecoration(
+            borderRadius: radius,
+            // The pill's body: lighter on top and at the bottom edge, deeper
+            // in the middle (sampled down a column of the owner's art).
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [art.top, art.middle, art.middle, art.bottom],
+              stops: const [0, 0.42, 0.7, 1],
             ),
-          );
-        },
+            border: Border.all(color: art.rimDark, width: KBondTile.rim),
+            boxShadow: [
+              BoxShadow(
+                color: art.shade.withValues(alpha: 0.35),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: radius,
+            child: Stack(
+              children: [
+                // Deeper next to the medallion (the art's horizontal shade).
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: rtl
+                            ? Alignment.centerLeft
+                            : Alignment.centerRight,
+                        end: rtl ? Alignment.centerRight : Alignment.centerLeft,
+                        colors: [
+                          art.shade.withValues(alpha: 0),
+                          art.shade.withValues(alpha: 0.55),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                // The glossy band along the top (the art's light rim).
+                Positioned(
+                  top: KBondTile.rim,
+                  left: KBondTile.rim + 2,
+                  right: KBondTile.rim + 2,
+                  height: KBondTile.height * 0.38,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(KBondTile.radius - 2),
+                        bottom: Radius.circular(KBondTile.radius),
+                      ),
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          art.rimLight.withValues(alpha: 0.75),
+                          art.rimLight.withValues(alpha: 0),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                PositionedDirectional(
+                  start: KBondTile.medalInset,
+                  top: (KBondTile.height - medal) / 2,
+                  width: medal,
+                  height: medal,
+                  child: Image.asset(
+                    art.medal,
+                    key: medalKey,
+                    fit: BoxFit.contain,
+                    // The owner's art, scaled as faithfully as possible.
+                    filterQuality: FilterQuality.high,
+                    excludeFromSemantics: true,
+                  ),
+                ),
+                PositionedDirectional(
+                  start: KBondTile.medalInset + medal + KSpacing.xs,
+                  end: KSpacing.sm,
+                  top: KSpacing.xs,
+                  bottom: KSpacing.xs,
+                  child: MediaQuery.withClampedTextScaling(
+                    maxScaleFactor: KBondCard.maxTextScale,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Flexible(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: AlignmentDirectional.centerStart,
+                            child: Text(
+                              title,
+                              key: titleKey,
+                              maxLines: 1,
+                              softWrap: false,
+                              style: t.label.copyWith(
+                                color: white,
+                                fontSize: KBondCard.titleFont,
+                                fontWeight: FontWeight.w700,
+                                height: 1.15,
+                                shadows: shadow,
+                              ),
+                            ),
+                          ),
+                        ),
+                        Flexible(
+                          child: Text(
+                            value,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: t.caption.copyWith(
+                              color: white.withValues(alpha: 0.85),
+                              fontSize: KBondCard.valueFont - 1,
+                              height: 1.15,
+                              shadows: shadow,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                Positioned.fill(
+                  child: Material(
+                    type: MaterialType.transparency,
+                    child: InkWell(borderRadius: radius, onTap: onTap),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
