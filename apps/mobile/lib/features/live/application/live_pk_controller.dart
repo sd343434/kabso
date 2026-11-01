@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show NotifierProviderFamily;
+import 'package:kabso_live/core/logging/app_logger.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/application/live_room_session.dart';
 import 'package:kabso_live/features/live/data/live_pk_media.dart';
@@ -130,8 +131,9 @@ class LivePkController extends Notifier<LivePkState> {
       unawaited(_events?.cancel());
       _refresh?.cancel();
       _announcementTimer?.cancel();
-      unawaited(_opponent?.leave());
+      final opponent = _opponent;
       _opponent = null;
+      unawaited(_leave(opponent));
     });
     return const LivePkState();
   }
@@ -274,7 +276,7 @@ class LivePkController extends Notifier<LivePkState> {
       state = state.copyWith(clearMatch: true, opponentJoined: false);
       final opponent = _opponent;
       _opponent = null;
-      unawaited(opponent?.leave());
+      unawaited(_leave(opponent));
       return;
     }
     state = state.copyWith(
@@ -287,17 +289,29 @@ class LivePkController extends Notifier<LivePkState> {
     unawaited(_ensureOpponent(match));
   }
 
+  /// The other room's watch-only connection (D195). D215 (owner: the app
+  /// closed when a random PK started): every step is guarded — a failure is
+  /// logged, the half-made connection is left (it was kept for ever before,
+  /// so it was never tried again), the panes show the host's picture, and
+  /// the next refresh (15 s) tries again. A match that ended (or another
+  /// one that started) while connecting gets no connection.
   Future<void> _ensureOpponent(PkMatch match) async {
     final (own, _) = match.of(roomId);
     final opponent = _opponent;
     if (opponent != null) {
       if (opponent.audioMuted != own.mutesOpponent) {
-        await opponent.setAudioMuted(muted: own.mutesOpponent);
+        try {
+          await opponent.setAudioMuted(muted: own.mutesOpponent);
+        } on Object catch (e, stack) {
+          AppLogger.error('live: PK opponent sound not switched', e, stack);
+        }
       }
       return;
     }
     if (_joining) return;
     _joining = true;
+    LivePkOpponentMedia? media;
+    var step = 'token';
     try {
       final signedIn = ref.read(currentUserProvider) != null;
       final access = await _repo.mediaToken(
@@ -305,15 +319,39 @@ class LivePkController extends Notifier<LivePkState> {
         guestId: signedIn ? null : ref.read(liveGuestIdProvider),
       );
       if (!ref.mounted || state.match?.id != match.id) return;
-      final media = ref.read(livePkOpponentMediaFactoryProvider)();
-      _opponent = media;
+      step = 'join';
+      media = ref.read(livePkOpponentMediaFactoryProvider)();
       await media.join(access);
+      if (!ref.mounted || state.match?.id != match.id) {
+        final late = media;
+        media = null;
+        await _leave(late);
+        return;
+      }
+      step = 'sound';
       await media.setAudioMuted(muted: own.mutesOpponent);
-      if (ref.mounted) state = state.copyWith(opponentJoined: true);
-    } on Object {
+      _opponent = media;
+      media = null;
+      state = state.copyWith(opponentJoined: true);
+    } on Object catch (e, stack) {
       // The panes show the host's picture; the next refresh tries again.
+      AppLogger.error('live: PK opponent media failed at $step', e, stack);
+      final broken = media;
+      media = null;
+      await _leave(broken);
     } finally {
       _joining = false;
+    }
+  }
+
+  /// Leaves the other room's connection; a failure is logged, never thrown
+  /// into the room (D215).
+  static Future<void> _leave(LivePkOpponentMedia? media) async {
+    if (media == null) return;
+    try {
+      await media.leave();
+    } on Object catch (e, stack) {
+      AppLogger.error('live: PK opponent media not left', e, stack);
     }
   }
 

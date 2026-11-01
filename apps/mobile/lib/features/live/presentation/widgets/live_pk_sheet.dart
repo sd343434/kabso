@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/logging/app_logger.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/emoji/kabi_emoji.dart';
@@ -124,6 +125,15 @@ class LivePkSheet extends ConsumerStatefulWidget {
   static const friendsTabKey = Key('pk.sheet.friends');
   static const friendsHelpKey = Key('pk.sheet.friends.help');
   static const emptyKey = Key('pk.sheet.empty');
+
+  /// D215: the list could not be read (never shown as «no friends»).
+  static const errorKey = Key('pk.sheet.error');
+  static const retryKey = Key('pk.sheet.retry');
+
+  /// D215: how often the open sheet reads the list again (a friend who goes
+  /// live, or is free again, appears without reopening it). Runs with the
+  /// countdowns ([LivePkStage.ticks]).
+  static const refreshEvery = Duration(seconds: 10);
   static const searchKey = Key('pk.sheet.search');
   static const randomKey = Key('pk.sheet.random');
   static const stopRandomKey = Key('pk.sheet.random.stop');
@@ -142,33 +152,69 @@ class _LivePkSheetState extends ConsumerState<LivePkSheet> {
   String _query = '';
   Timer? _debounce;
   Timer? _tick;
-  Future<List<PkCandidate>>? _candidates;
+  Timer? _refresh;
   bool _busy = false;
+
+  /// D215: the last list read (kept while it is read again, so a refresh
+  /// never flashes the spinner), or the failure of the last read.
+  List<PkCandidate>? _list;
+  Object? _failure;
+  int _reads = 0;
 
   @override
   void initState() {
     super.initState();
-    _load();
+    unawaited(_load());
     if (LivePkStage.ticks) {
       _tick = Timer.periodic(const Duration(seconds: 1), (_) {
         if (mounted) setState(() {});
       });
+      _refresh = Timer.periodic(LivePkSheet.refreshEvery, (_) {
+        if (mounted && _showsList()) unawaited(_load());
+      });
     }
   }
 
+  /// Whether the sheet shows the list now (no PK, no invitation out, not
+  /// waiting for a random match).
+  bool _showsList() {
+    final pk = ref.read(livePkProvider(widget.roomId));
+    final until = pk.queueUntil;
+    return pk.match == null &&
+        pk.outgoing == null &&
+        (until == null || !until.isAfter(pk.now()));
+  }
+
   /// No search: the «Friends» (mutual follows live now); a search: any
-  /// host who may be invited.
-  void _load() {
+  /// host who may be invited. D215: a failure is shown (with «إعادة
+  /// المحاولة») and logged, never read as an empty list.
+  Future<void> _load() async {
     final q = _query.trim();
-    _candidates = ref
-        .read(livePkRepositoryProvider)
-        .candidates(widget.roomId, query: q, friends: q.isEmpty);
+    final read = ++_reads;
+    try {
+      final list = await ref
+          .read(livePkRepositoryProvider)
+          .candidates(widget.roomId, query: q, friends: q.isEmpty);
+      if (!mounted || read != _reads) return;
+      setState(() {
+        _list = list;
+        _failure = null;
+      });
+    } on Object catch (e, stack) {
+      AppLogger.error('live: PK candidates not read', e, stack);
+      if (!mounted || read != _reads) return;
+      setState(() {
+        _list = null;
+        _failure = e;
+      });
+    }
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
     _tick?.cancel();
+    _refresh?.cancel();
     super.dispose();
   }
 
@@ -188,6 +234,16 @@ class _LivePkSheetState extends ConsumerState<LivePkSheet> {
   Widget build(BuildContext context) {
     final pk = ref.watch(livePkProvider(widget.roomId));
     final controller = ref.read(livePkProvider(widget.roomId).notifier);
+    // D215: back to the list (the wait, the invitation or the PK ended):
+    // read it again at once.
+    ref.listen(
+      livePkProvider(widget.roomId).select(
+        (p) => p.match == null && p.outgoing == null && p.queueUntil == null,
+      ),
+      (before, idle) {
+        if (idle && before == false) unawaited(_load());
+      },
+    );
     final match = pk.match;
     final height =
         MediaQuery.sizeOf(context).height * PkSheetMetrics.heightFactor;
@@ -502,27 +558,37 @@ class _LivePkSheetState extends ConsumerState<LivePkSheet> {
         ),
       );
     }
-    return FutureBuilder<List<PkCandidate>>(
-      future: _candidates,
-      builder: (context, snap) {
-        if (snap.connectionState != ConnectionState.done) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        final list = snap.data ?? const <PkCandidate>[];
-        if (list.isEmpty) {
-          return _Empty(
-            key: LivePkSheet.emptyKey,
-            text: _query.trim().isEmpty
-                ? l10n.pkNoFriends
-                : l10n.pkNoCandidates,
-          );
-        }
-        return ListView.builder(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-          itemCount: list.length,
-          itemBuilder: (context, i) => _candidate(context, list[i], controller),
-        );
-      },
+    final failure = _failure;
+    if (failure != null) {
+      return _status(
+        key: LivePkSheet.errorKey,
+        avatar: const Icon(
+          Icons.cloud_off_rounded,
+          size: 48,
+          color: PkSheetMetrics.grey,
+        ),
+        text: pkFailureMessage(l10n, failure),
+        action: KButton(
+          key: LivePkSheet.retryKey,
+          variant: KButtonVariant.secondary,
+          label: l10n.actionRetry,
+          expand: false,
+          onPressed: () => unawaited(_load()),
+        ),
+      );
+    }
+    final list = _list;
+    if (list == null) return const Center(child: CircularProgressIndicator());
+    if (list.isEmpty) {
+      return _Empty(
+        key: LivePkSheet.emptyKey,
+        text: _query.trim().isEmpty ? l10n.pkNoFriends : l10n.pkNoCandidates,
+      );
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      itemCount: list.length,
+      itemBuilder: (context, i) => _candidate(context, list[i], controller),
     );
   }
 
@@ -530,7 +596,9 @@ class _LivePkSheetState extends ConsumerState<LivePkSheet> {
     required Widget avatar,
     required String text,
     required Widget action,
+    Key? key,
   }) => Center(
+    key: key,
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -635,8 +703,10 @@ class _LivePkSheetState extends ConsumerState<LivePkSheet> {
                     if (!mounted) return;
                     setState(() {
                       _query = v;
-                      _load();
+                      _list = null;
+                      _failure = null;
                     });
+                    unawaited(_load());
                   });
                 },
               ),

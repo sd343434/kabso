@@ -508,6 +508,10 @@ info:
     password shown once, a forced change: `login` → 403 `PASSWORD_CHANGE_REQUIRED`, then `LoginRequest.newPassword`),
     the email, the profile, content (hide / restore / delete), coin and cherry adjustments (`ADMIN_ADJUSTMENT`,
     per-admin daily cap), the D193 deletion and its cancel, and `getAdminUserControl`; four system notification types.
+    **D215 (DRAFT v1.48-live)**: a host waiting in the PK random queue is listed by `listLivePkCandidates` (also
+    `friends=true`) and may be invited (`inviteLivePk`): the invited host's wait no longer makes them
+    `PK_HOST_BUSY`; while the invitation is open they are not paired at random; accepted, both waits end. The
+    caller's own wait still makes the caller busy. No shape change (CONVENTIONS §10.70).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -3569,8 +3573,8 @@ paths:
       description: |
         v1.43-live, §10.58. The room's host only (404 otherwise; 503 hosting off; 409 `PK_UNAVAILABLE`
         while PK is switched off). SOLO video lives with a fresh heartbeat whose host is present, takes
-        invitations, is not in a PK, an open invitation or the random queue, and has no block with the
-        caller either way. `q` (≤ 30 characters) matches the start of the username or any part of the
+        invitations, is not in a PK or an open invitation, and has no block with the caller either way.
+        v1.48-live (D215, §10.70): a host waiting in the random queue is listed (no longer left out). `q` (≤ 30 characters) matches the start of the username or any part of the
         display name (case-insensitive); without `q` the busiest lives come first (suggestions). `limit`
         1–50 (default 20); no pagination. v1.44-live (D199, §10.62): `friends=true` keeps only mutual
         follows («Friends»); hosts who turned `recommendable` off are left out of the suggestions (no `q`,
@@ -3612,7 +3616,9 @@ paths:
         too), not the caller's (400), eligible the same way (409 `PK_UNAVAILABLE`); its host takes
         invitations (409 `PK_INVITES_OFF`); `PK_INVITE_COOLDOWN_SECONDS` (default 10) since the caller's
         previous invitation (409 `PK_INVITE_COOLDOWN` with `Retry-After`); neither room busy — a PK, an
-        open invitation either way, the random queue (409 `PK_HOST_BUSY`). The invitation is open for
+        open invitation either way, the caller in the random queue (409 `PK_HOST_BUSY`). v1.48-live (D215,
+        §10.70): the invited host may be waiting in the random queue; while the invitation is open they are
+        not paired at random, and accepting ends both waits. The invitation is open for
         `PK_INVITE_TTL_SECONDS` (default 15); the invited host gets a `pk-invite` data message.
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
