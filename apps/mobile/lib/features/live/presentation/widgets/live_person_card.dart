@@ -75,12 +75,13 @@ class _Look {
             line: p.border,
             ring: p.surfaceRaised,
           )
-        : const _Look(
-            sheet: Color(0xFFFFFFFF),
-            ink: Color(0xFF2E3130),
-            soft: Color(0xFF9A9BA5),
-            line: Color(0xFFE6E6EA),
-            ring: Color(0xFFFFFFFF),
+        : _Look(
+            sheet: const Color(0xFFFFFFFF),
+            ink: const Color(0xFF2E3130),
+            soft: const Color(0xFF9A9BA5),
+            // The theme's divider token (lines, outlines).
+            line: p.border,
+            ring: const Color(0xFFFFFFFF),
           );
   }
 
@@ -105,7 +106,10 @@ abstract final class LivePersonCardMetrics {
   static const double radius = 22;
 
   /// Number over label: the four numbers' row.
-  static const double statNumber = 19;
+  static const double statNumber = 17;
+
+  /// The thin grey line between two numbers (≈ 60 % of the row).
+  static const double statDivider = 22;
 
   /// The two pills (family + couple, gift wall).
   static const double pill = 40;
@@ -179,6 +183,10 @@ class LivePersonSheet extends ConsumerWidget {
   /// D220: the badge pills row and the four numbers.
   static const badgesKey = Key('room.userCard.badges');
   static const statsKey = Key('room.userCard.stats');
+
+  /// D220: the line before the [index]-th number shown (1-based gaps).
+  static Key statDividerKey(int index) =>
+      Key('room.userCard.statDivider.$index');
   static Key statKey(LivePersonStat stat) =>
       Key('room.userCard.stat.${stat.name}');
 
@@ -685,49 +693,66 @@ class _Body extends ConsumerWidget {
             ),
           ),
         const SizedBox(height: 12),
-        Row(
-          key: LivePersonSheet.statsKey,
-          children: [
-            for (final (stat, value, label) in stats)
-              Expanded(
-                child: Semantics(
-                  key: LivePersonSheet.statKey(stat),
-                  label: '$label ${KFormat.compact(value, l10n)}',
-                  excludeSemantics: true,
-                  child: Column(
-                    children: [
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          KFormat.compact(value, l10n),
-                          maxLines: 1,
-                          style: text.title.copyWith(
-                            color: look.ink,
-                            fontSize: LivePersonCardMetrics.statNumber,
-                            fontWeight: FontWeight.w800,
-                            height: 1.2,
+        // D220 (owner): short Latin numbers, smaller, equal columns, a
+        // thin grey line between two numbers (only between those shown).
+        IntrinsicHeight(
+          child: Row(
+            key: LivePersonSheet.statsKey,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final (i, (stat, value, label)) in stats.indexed) ...[
+                if (i > 0)
+                  Center(
+                    child: Container(
+                      key: LivePersonSheet.statDividerKey(i),
+                      width: 1,
+                      height: LivePersonCardMetrics.statDivider,
+                      color: look.line,
+                    ),
+                  ),
+                Expanded(
+                  child: Semantics(
+                    key: LivePersonSheet.statKey(stat),
+                    label: '$label ${KFormat.compactLatin(value)}',
+                    excludeSemantics: true,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            KFormat.compactLatin(value),
+                            maxLines: 1,
+                            style: text.title.copyWith(
+                              color: look.ink,
+                              fontSize: LivePersonCardMetrics.statNumber,
+                              fontWeight: FontWeight.w700,
+                              height: 1.15,
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 2),
-                      // A long label shrinks a little to stay whole.
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          label,
-                          maxLines: 1,
-                          textAlign: TextAlign.center,
-                          style: text.caption.copyWith(
-                            color: look.soft,
-                            fontSize: 11.5,
+                        const SizedBox(height: 1),
+                        // A long label shrinks a little to stay whole.
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            label,
+                            maxLines: 1,
+                            textAlign: TextAlign.center,
+                            style: text.caption.copyWith(
+                              color: look.soft,
+                              fontSize: 11,
+                              height: 1.2,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
-          ],
+              ],
+            ],
+          ),
         ),
         const SizedBox(height: 14),
         // The family-and-couple gradient pill, then the gift wall.

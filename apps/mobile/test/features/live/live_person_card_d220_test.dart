@@ -116,6 +116,9 @@ Future<BondFakes> _card(
   return fakes;
 }
 
+/// D220 (owner): the card's numbers are short Latin, isolated left to right.
+String _ltr(String v) => '\u2066$v\u2069';
+
 Finder _stat(LivePersonStat s) => find.byKey(LivePersonSheet.statKey(s));
 
 void main() {
@@ -131,7 +134,7 @@ void main() {
         (LivePersonStat.following, '59.4K', en.liveCardFollowing),
         (LivePersonStat.cherries, '5.8M', en.liveCardCherries),
         (LivePersonStat.coins, '33.2K', en.liveCardCoinsSent),
-      ]) {
+      ].map((e) => (e.$1, _ltr(e.$2), e.$3))) {
         expect(_stat(stat), findsOneWidget, reason: stat.name);
         expect(
           find.descendant(of: _stat(stat), matching: find.text(value)),
@@ -174,6 +177,17 @@ void main() {
           hidden.cherries,
         );
         expect(_stat(LivePersonStat.coins).evaluate().isEmpty, hidden.coins);
+        // A thin divider only between the numbers shown.
+        expect(
+          find.byWidgetPredicate(
+            (w) =>
+                w.key is ValueKey<String> &&
+                (w.key! as ValueKey<String>).value.startsWith(
+                  'room.userCard.statDivider.',
+                ),
+          ),
+          findsNWidgets(count - 1),
+        );
         // Equal cells across the row, centred under the card.
         final rects = [for (final s in shown) tester.getRect(_stat(s))];
         final width = rects.first.width;
@@ -462,13 +476,62 @@ void main() {
       expect(find.byKey(LivePersonSheet.ringKey), findsOneWidget);
     });
 
+    testWidgets('Arabic: short Latin numbers (no «مليون» / «ألف»), smaller '
+        'than the name, grey dividers between them', (tester) async {
+      await _card(tester, _profile(ar: true), language: AppLanguage.ar);
+      for (final v in ['1.5M', '59.4K', '5.8M', '33.2K']) {
+        expect(find.text(_ltr(v)), findsOneWidget, reason: v);
+      }
+      expect(find.textContaining('مليون'), findsNothing);
+      expect(find.textContaining('ألف'), findsNothing);
+      final number = tester.widget<Text>(
+        find.descendant(
+          of: _stat(LivePersonStat.followers),
+          matching: find.text(_ltr('1.5M')),
+        ),
+      );
+      expect(number.style!.fontSize, 17);
+      final dividers = [
+        for (var i = 1; i < 4; i++)
+          find.byKey(LivePersonSheet.statDividerKey(i)),
+      ];
+      final row = tester.getRect(find.byKey(LivePersonSheet.statsKey));
+      for (final d in dividers) {
+        final r = tester.getRect(d);
+        expect(r.width, 1);
+        expect(r.height, lessThan(row.height * 0.75));
+        expect(r.center.dy, closeTo(row.center.dy, 0.5));
+        // Between two numbers.
+      }
+      // Each divider sits between its two neighbours (RTL: right to left).
+      final f = tester.getCenter(_stat(LivePersonStat.followers)).dx;
+      final g = tester.getCenter(_stat(LivePersonStat.following)).dx;
+      final d1 = tester.getCenter(dividers.first).dx;
+      expect(d1, lessThan(f));
+      expect(d1, greaterThan(g));
+    });
+
+    testWidgets('dividers follow the theme token (light and dark)', (
+      tester,
+    ) async {
+      Color line() => tester
+          .widget<Container>(find.byKey(LivePersonSheet.statDividerKey(1)))
+          .color!;
+      await _card(tester, _profile());
+      final light = line();
+      await _card(tester, _profile(), brightness: Brightness.dark);
+      final dark = line();
+      expect(light, isNot(dark));
+      expect(light.a, 1);
+    });
+
     testWidgets('semantics: each number is read with its label', (
       tester,
     ) async {
       final handle = tester.ensureSemantics();
       await _card(tester, _profile());
       expect(
-        find.bySemanticsLabel('${en.liveCardCherries} 5.8M'),
+        find.bySemanticsLabel('${en.liveCardCherries} ${_ltr('5.8M')}'),
         findsOneWidget,
       );
       expect(find.bySemanticsLabel(en.liveCardSendGift), findsNothing);

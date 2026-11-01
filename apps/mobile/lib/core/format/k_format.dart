@@ -59,6 +59,29 @@ abstract final class KFormat {
   /// above that one decimal, **floored** (never overstated), trailing ".0"
   /// dropped, suffix from the ARB (`K`/`M`/`B`, `ألف`/`مليون`/`مليار` after a
   /// no-break space). Negative values are shown as 0.
+  /// D220 (owner): the person card's short Latin numbers in every language —
+  /// 999, 1.2K, 59.4K, 1.5M, 1B (tenths cut, never rounded up; a trailing
+  /// ".0" dropped) — wrapped in a left-to-right isolate so they keep their
+  /// order inside Arabic text. Other screens keep [compact].
+  static String compactLatin(int value) {
+    final v = value < 0 ? 0 : value;
+    final String text;
+    if (v < 1000) {
+      text = '$v';
+    } else {
+      final (divisor, suffix) = switch (v) {
+        >= 1000000000 => (1000000000, 'B'),
+        >= 1000000 => (1000000, 'M'),
+        _ => (1000, 'K'),
+      };
+      final tenths = v * 10 ~/ divisor;
+      final whole = tenths ~/ 10;
+      final decimal = tenths % 10;
+      text = decimal == 0 ? '$whole$suffix' : '$whole.$decimal$suffix';
+    }
+    return '\u2066$text\u2069';
+  }
+
   static String compact(int value, AppLocalizations l10n) {
     if (value < 10000) return grouped(value < 0 ? 0 : value);
     final (divisor, suffix) = switch (value) {

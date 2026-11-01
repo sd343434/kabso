@@ -27,7 +27,7 @@ Every number below is **E** (perspective, scaling, JPEG/WebP artefacts); colours
 | Name | centred, dark, ≈20 dp, y≈77 | 20 sp w700, one line, ellipsis; taps open the profile |
 | ID | «ID:…», grey, ≈12 dp, y≈103 | «ID: username» 12 sp, `#9A9BA5`, always LTR, copy on tap (premium IDs keep their badge) |
 | Badge pills | one centred row of small pills, y≈135, ≈16–18 dp high | one centred row (scrolls sideways when long): role, charm level, other levels, recharge / agent badges, chosen medals |
-| Numbers | four columns, number ≈19 dp bold over a grey label, y≈178/207 | equal `Expanded` cells, 19 sp w800 over 11.5 sp grey; hidden ones are absent and the rest share the row |
+| Numbers | four columns, number ≈19 dp bold over a grey label, y≈178/207 | owner follow-up: equal `Expanded` cells, short Latin numbers (`KFormat.compactLatin`: 999, 1.2K, 1.5M, 1B, LTR-isolated) 17 sp w700 over 11 sp grey, a 1 × 22 dp divider in the theme's `border` token between shown numbers; hidden ones are absent and the rest share the row |
 | Pills | orange showcase pill (≈168 px) + purple «Gift Wall» (≈113 px), ≈37 px high, r≈8 | 3 : 2, 40 dp high, r 10: orange `#FFC596→#FF9466` (family | couple), purple `#C77BFB→#9445E6` gift wall |
 | Actions | cyan Follow (≈151 px), round gift (≈38 px), outline Chat (≈160 px), ≈48 px high | 11 : 48 dp : 9, 48 dp high; cyan `#00E3D9→#05D7E4`, gift pink→violet, outline `#E6E6EA` |
 | Sheet | white, rounded top | white (light) / `surfaceRaised` (dark), top radius 22 |
@@ -49,7 +49,9 @@ honest loading / error states, and «تعديل الملف» instead of follow /
 - The gift wall has no API for a person yet: a tap says it is coming (as before).
 - Text on the showcase pill is dark brown (white on light orange fails contrast); the follow label stays white
   on cyan as in the reference (≈2:1 contrast — an owner decision).
-- Arabic numbers use the app's compact words («1.5 مليون»), English «1.5M»; values under 10 000 are grouped.
+- Owner follow-up (2026-11-01, «الارقام كبيرة اكتب ١ مليون هكذا 1M … وبين كل فئة مثل خط بلون رمادي صغير»): the card's
+  numbers are short Latin in both languages (1.5M, 59.4K, 999) — other screens keep the localized compact words —
+  smaller, with thin grey dividers.
 - No country flag: `PublicProfile` has no country on this base (D218 adds one on its own branch).
 
 ## Verification
