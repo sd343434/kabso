@@ -283,6 +283,22 @@ export enum AuditAction {
   HOST_APPLICATION_REJECT = 'host.application.reject',
   HOST_APPLICATION_VIEW = 'host.application.view',
   HOST_APPLICATION_PHOTO_VIEW = 'host.application.photo.view',
+  /**
+   * v1.74-social (D217, §10.71): «دعوة الأصدقاء» — a code applied (at sign-up or later; refused by a fraud rule too),
+   * a referral qualified or voided after its hold, a reward made / credited / voided, the team's approve and void
+   * (via panel or cli), every panel view of a referral, and the settings changed.
+   */
+  REFERRAL_ATTACH = 'referral.attach',
+  REFERRAL_QUALIFY = 'referral.qualify',
+  REFERRAL_VOID = 'referral.void',
+  REFERRAL_APPROVE = 'referral.approve',
+  REFERRAL_REWARD_CREATE = 'referral.reward.create',
+  REFERRAL_REWARD_CREDIT = 'referral.reward.credit',
+  REFERRAL_REWARD_VOID = 'referral.reward.void',
+  /** A credited reward taken back when the team voided its referral {user, cherries, shortfall, balanceAfter}. */
+  REFERRAL_REWARD_REVERSE = 'referral.reward.reverse',
+  REFERRAL_VIEW = 'referral.view',
+  REFERRAL_SETTINGS_UPDATE = 'referral.settings.update',
   /** A live ended by the team from the panel {reason, hostUserId} (end reason ADMIN). */
   ADMIN_LIVE_END = 'admin.live.end',
   /** A user's app sessions signed out by the team {sessions, reason}. */

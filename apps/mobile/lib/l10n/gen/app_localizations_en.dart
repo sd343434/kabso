@@ -12403,4 +12403,267 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get podcastMuted => 'mic off';
+
+  @override
+  String get inviteTitle => 'Invite a friend';
+
+  @override
+  String get inviteRulesTooltip => 'Rules';
+
+  @override
+  String get inviteHeroLine => 'Invite friends and earn up to';
+
+  @override
+  String inviteMoneyHint(String money) {
+    return '≈ $money';
+  }
+
+  @override
+  String inviteTickerLine(String name, String amount) {
+    return '$name earned $amount cherries, congratulations';
+  }
+
+  @override
+  String get inviteCardTitle => 'Invite new friends to join Kabso';
+
+  @override
+  String inviteStepSignup(String amount) {
+    return 'Your friend signs up with your code: you get $amount cherries.';
+  }
+
+  @override
+  String inviteStepRecharge(String percent) {
+    return 'Your friend\'s first recharge: you get $percent of its value in cherries.';
+  }
+
+  @override
+  String inviteStepHold(String hours) {
+    return 'Rewards reach your withdrawable cherries after a check ($hours hours).';
+  }
+
+  @override
+  String inviteYouGet(String you, String friend) {
+    return 'You get $you, your friend gets $friend';
+  }
+
+  @override
+  String inviteYouGetOnly(String you) {
+    return 'You get $you for each friend';
+  }
+
+  @override
+  String inviteCherries(String amount) {
+    return '$amount cherries';
+  }
+
+  @override
+  String get inviteNow => 'Invite now';
+
+  @override
+  String get inviteMyCode => 'My invite code:';
+
+  @override
+  String get inviteCopy => 'Copy';
+
+  @override
+  String get inviteCodeCopied => 'Invite code copied';
+
+  @override
+  String get inviteLinkCopied => 'Invite link copied';
+
+  @override
+  String get inviteMilestonesTitle => 'Invite new friends to earn up to';
+
+  @override
+  String inviteInvitedCount(String count) {
+    return '$count invited';
+  }
+
+  @override
+  String inviteMilestoneFriends(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count friends',
+      one: '$count friend',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get inviteMilestoneLocked => 'Locked';
+
+  @override
+  String get inviteMilestoneUnlocked => 'Reached, being checked';
+
+  @override
+  String get inviteMilestoneClaimed => 'Added';
+
+  @override
+  String inviteMilestoneSemantics(String friends, String amount, String state) {
+    return 'Milestone $friends: $amount cherries, $state';
+  }
+
+  @override
+  String inviteRewardsPending(String amount) {
+    return 'Held: $amount';
+  }
+
+  @override
+  String inviteRewardsCredited(String amount) {
+    return 'Added: $amount';
+  }
+
+  @override
+  String get inviteFriendsTitle => 'Your friends';
+
+  @override
+  String get inviteStatusPending => 'Being checked';
+
+  @override
+  String get inviteStatusQualified => 'Qualified';
+
+  @override
+  String get inviteStatusRejected => 'Not eligible';
+
+  @override
+  String get inviteStatusVoid => 'Void';
+
+  @override
+  String get inviteRecharged => 'Recharged';
+
+  @override
+  String get inviteNoFriends =>
+      'You have not invited anyone yet. Share your code with your friends.';
+
+  @override
+  String get inviteErrorTitle => 'Could not load the invite page';
+
+  @override
+  String inviteShareText(String code, String link) {
+    return 'Join me on Kabso Live. Use my invite code $code when you sign up: $link';
+  }
+
+  @override
+  String get inviteShareWhatsapp => 'WhatsApp';
+
+  @override
+  String get inviteShareMore => 'Share';
+
+  @override
+  String get inviteShareCopyLink => 'Copy link';
+
+  @override
+  String get inviteShareFailed =>
+      'Could not open the app; the link was copied instead';
+
+  @override
+  String get inviteRulesTitle => 'Invite rules';
+
+  @override
+  String inviteRuleSignup(String amount) {
+    return 'When a new friend signs up with your invite code you get $amount cherries.';
+  }
+
+  @override
+  String inviteRuleInvitee(String amount) {
+    return 'Your friend gets $amount cherries.';
+  }
+
+  @override
+  String inviteRuleRecharge(String percent) {
+    return 'On your friend\'s first recharge (the website, a recharge agent or a recharge order) you get $percent of its value in cherries.';
+  }
+
+  @override
+  String inviteRuleHold(String hours) {
+    return 'Every reward is held $hours hours, then added to your withdrawable cherries. It is voided if your friend\'s account is banned, deleted or locked.';
+  }
+
+  @override
+  String get inviteRuleFair =>
+      'One reward per device and per email; inviting yourself or your other accounts does not count.';
+
+  @override
+  String inviteRuleCap(String count) {
+    return 'Up to $count sign-ups are rewarded a day.';
+  }
+
+  @override
+  String inviteRuleLater(String days) {
+    return 'Your friend can enter your code in Settings within $days days of signing up, once.';
+  }
+
+  @override
+  String inviteRuleMilestones(String list) {
+    return 'Milestone bonuses, once each, by the number of your qualified friends:\n$list';
+  }
+
+  @override
+  String get inviteRuleWithdraw =>
+      'Cherries follow the usual withdrawal rules of the cherry wallet.';
+
+  @override
+  String get referralApplyRow => 'Invite code';
+
+  @override
+  String get referralApplyTitle => 'Enter an invite code';
+
+  @override
+  String get referralApplyLabel => 'Your friend\'s code or invite link';
+
+  @override
+  String referralApplyBody(String date) {
+    return 'You can enter it once, until $date.';
+  }
+
+  @override
+  String get referralApplySubmit => 'Confirm';
+
+  @override
+  String get referralApplied => 'Your account is linked to your friend\'s code';
+
+  @override
+  String get referralAppliedNotEligible =>
+      'The code was saved, but this invitation does not qualify';
+
+  @override
+  String get errorReferralUnavailable => 'Invitations are not available now';
+
+  @override
+  String get errorReferralCodeInvalid => 'This invite code is not valid';
+
+  @override
+  String get errorReferralNotAllowed => 'You cannot enter an invite code now';
+
+  @override
+  String get registerReferralLabel => 'Invite code (optional)';
+
+  @override
+  String get registerReferralHelper =>
+      'If a friend invited you, type their code or paste the invite link';
+
+  @override
+  String get cherryReasonReferral => 'Referral reward';
+
+  @override
+  String inviteStepMilestones(String list) {
+    return 'Extra rewards by the number of your qualified friends:\n$list';
+  }
+
+  @override
+  String inviteMilestoneItem(String friends, String amount) {
+    return '$friends: $amount cherries';
+  }
+
+  @override
+  String get inviteRuleClawback =>
+      'If the Kabso team voids an invalid invite, the cherries it brought are taken back; if your balance does not cover them it goes below 0 and withdrawals wait until it is earned back.';
+
+  @override
+  String get cherryReasonReferralReversal => 'Referral reward taken back';
+
+  @override
+  String get notifReferralReversed =>
+      'The Kabso team voided an invalid invite and took back its cherries. Open the cherry wallet for details';
 }

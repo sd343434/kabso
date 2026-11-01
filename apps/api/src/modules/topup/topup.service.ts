@@ -429,7 +429,14 @@ export class TopupService {
           (fresh.paymentMethodTypes.length === 1 && fresh.paymentMethodTypes[0] === 'customer_balance')
             ? 'customer_balance'
             : 'card';
-        const credited = await creditOrderIn(tx, fresh, now, this.config.recharge.badges, event.id, method);
+        const credited = await creditOrderIn(
+          tx,
+          fresh,
+          now,
+          { ...this.config.recharge.badges, cherriesPerCoin: this.config.economy.cherriesPerCoin },
+          event.id,
+          method,
+        );
         return none(credited ? 'credited' : 'already_credited', order.id);
       }
       case 'charge.refunded': {

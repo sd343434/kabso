@@ -25,6 +25,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_rankings_shee
 import 'package:kabso_live/features/medals/domain/medal_models.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/features/profile/me_hub_screen.dart';
+import 'package:kabso_live/features/referrals/application/referral_providers.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -54,6 +55,8 @@ const List<String> _destinations = [
   // D164.
   AppRoutes.wallet,
   AppRoutes.creatorCenter,
+  // D217: «اربح المال» → «دعوة صديق».
+  AppRoutes.inviteFriends,
   // D179.
   AppRoutes.agency,
   // D166.
@@ -275,7 +278,8 @@ void main() {
     (MeHubItem.premium, AppRoutes.premium),
     // D164.
     (MeHubItem.wallet, AppRoutes.wallet),
-    (MeHubItem.earn, AppRoutes.walletCherries),
+    // D217 (owner): «اربح المال» opens «دعوة صديق».
+    (MeHubItem.earn, AppRoutes.inviteFriends),
     (MeHubItem.creatorCenter, AppRoutes.creatorCenter),
     // D166.
     (MeHubItem.taskCenter, AppRoutes.taskCenter),
@@ -290,6 +294,17 @@ void main() {
       expect(find.text('page $path'), findsOneWidget);
     });
   }
+
+  testWidgets('D217: «اربح المال» opens the cherry wallet when the referral '
+      'programme was found off', (tester) async {
+    await _pump(tester);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(MeHubScreen)),
+    );
+    container.read(referralEnabledProvider.notifier).enabled = false;
+    await _tapItem(tester, MeHubItem.earn);
+    expect(find.text('page ${AppRoutes.walletCherries}'), findsOneWidget);
+  });
 
   testWidgets('Ranking opens the popularity board (CP-016 A)', (tester) async {
     await _pump(

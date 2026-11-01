@@ -9,7 +9,8 @@ import type {
 } from '../../generated/prisma/client.js';
 import { uuidv7 } from '../levels/uuidv7.js';
 import { creditIn } from '../wallet/wallet-ledger.js';
-import { recordRechargeIn, type RechargeBadgeRules } from './recharge-badges.js';
+import { recordRechargeIn, type RechargeCreditRules } from './recharge-badges.js';
+import { referralRechargeIn } from '../referrals/referral-core.js';
 import { moveStockIn, RechargeAdminError } from './recharge-core.js';
 import type { DisputeOutcome, OrderStatus } from './recharge-order-rules.js';
 
@@ -149,13 +150,19 @@ async function creditBuyerIn(
   tx: Tx,
   order: RechargeOrder,
   now: Date,
-  badges: RechargeBadgeRules,
+  badges: RechargeCreditRules,
 ): Promise<bigint> {
   const wallet = await creditIn(tx, order.buyerUserId, order.coins, 'RECHARGE_ORDER', order.id);
   await recordRechargeIn(
     tx,
     { userId: order.buyerUserId, coins: order.coins, source: 'AGENT_SALE', now },
     badges,
+  );
+  // v1.74-social (D217): the invitee's first recharge pays the inviter a share (held).
+  await referralRechargeIn(
+    tx,
+    { userId: order.buyerUserId, coins: order.coins, reason: 'RECHARGE_ORDER', reference: order.id, now },
+    badges.cherriesPerCoin,
   );
   return wallet.coins;
 }
@@ -230,7 +237,7 @@ export async function confirmIn(
   order: RechargeOrder,
   actorUserId: string,
   now: Date,
-  badges: RechargeBadgeRules,
+  badges: RechargeCreditRules,
 ): Promise<boolean> {
   if (order.status === 'COMPLETED') return false;
   if (order.status !== 'PAID') throw new OrderStateError(order.status);
@@ -321,7 +328,7 @@ export async function resolveDisputeIn(
   outcome: DisputeOutcome,
   reason: string,
   now: Date,
-  badges: RechargeBadgeRules,
+  badges: RechargeCreditRules,
   by: AdminVia = CLI_VIA,
 ): Promise<{ status: OrderStatus; changed: boolean }> {
   const order = await lockOrderIn(tx, orderId);

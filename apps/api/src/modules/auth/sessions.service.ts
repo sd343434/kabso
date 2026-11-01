@@ -92,6 +92,8 @@ export class SessionsService {
         deviceName: client.device?.name || null,
         platform: client.device?.platform ?? null,
         appVersion: client.device?.appVersion || null,
+        // v1.74-social (D217): the app's install id, for the referral device checks.
+        installId: client.device?.installId ?? null,
         ip: client.ip?.slice(0, 64) ?? null,
         userAgent: client.userAgent,
         createdAt: now,

@@ -7,6 +7,7 @@ import { normalizeDisplayName, rawDisplayNameIssue } from '../users/display-name
 import { normalizeContentText, type ContentTextLimits } from '../posts/content-text.js';
 import { passwordPolicyIssue } from './password-policy.js';
 import { ACCOUNT_CATEGORIES, GENDERS, profileLinksSchema } from '../users/profile-fields.js';
+import { installIdSchema, referralCodeInput } from '../referrals/referral-rules.js';
 
 // Request schemas mirror docs/contracts/openapi.yaml. All objects are strict
 // (`additionalProperties: false`): unknown fields fail with `unknown_field`.
@@ -72,6 +73,11 @@ export const deviceInfoSchema = z.strictObject({
   name: safeText(0, 100).optional(),
   platform: z.enum(['android', 'ios', 'web', 'other']).optional(),
   appVersion: safeText(0, 32).optional(),
+  /**
+   * v1.74-social (D217, §10.71): a random id the app keeps for this install (until it is uninstalled); used only by
+   * the referral fraud checks (one reward per device, no self-referral).
+   */
+  installId: installIdSchema.optional(),
 });
 
 /**
@@ -97,6 +103,11 @@ export const registerSchema = z.strictObject({
   gender: z.string().pipe(z.enum(GENDERS)),
   locale: localeSchema.optional(),
   device: deviceInfoSchema.optional(),
+  /**
+   * v1.74-social (D217, §10.71): an invite code (or invite link) typed at sign-up, or from the link that opened the
+   * app. Only its format is checked here (the answer stays the same 202); it is applied when the account is created.
+   */
+  referralCode: referralCodeInput.optional(),
   /**
    * v1.66-social (D198, §10.61.2): the sign-up's «عمري 18 عاماً أو أكثر وأوافق على الشروط وسياسة الخصوصية» — the 18+
    * statement and the versions of the terms and the privacy policy shown (from `getLegalDocuments`). Optional for

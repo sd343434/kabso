@@ -51,6 +51,7 @@ class _PendingRepo extends FakeAuthRepository {
     required Gender gender,
     required String locale,
     Map<String, dynamic>? legal,
+    String? referralCode,
   }) async {
     registerCalls++;
     registerLocales.add(locale);

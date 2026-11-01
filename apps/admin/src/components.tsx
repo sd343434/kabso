@@ -95,6 +95,11 @@ const TONES: Record<string, string> = {
   PASSED: 'ok',
   FAILED: 'bad',
   STOPPED: 'bad',
+  // v1.74-social (D217): a referral and its rewards.
+  QUALIFIED: 'ok',
+  CREDITED: 'ok',
+  VOID: 'bad',
+  REVERSED: 'bad',
 };
 
 export function StatusBadge({ status }: { status: string }) {

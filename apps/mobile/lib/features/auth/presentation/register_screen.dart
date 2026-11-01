@@ -27,6 +27,9 @@ class RegisterScreen extends ConsumerStatefulWidget {
   static const usernameKey = Key('register.username');
   static const displayNameKey = Key('register.displayName');
   static const passwordKey = Key('register.password');
+
+  /// D217: the optional invite code «كود الدعوة».
+  static const referralKey = Key('register.referral');
   static const submitKey = Key('register.submit');
   static const usernameStatusKey = Key('register.usernameStatus');
   static const usernameLostKey = Key('register.usernameLost');
@@ -57,6 +60,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _username = TextEditingController();
   final _displayName = TextEditingController();
   final _password = TextEditingController();
+
+  /// D217: an invite code from a friend (optional; the app has no deep link
+  /// yet, so it is typed or pasted — a pasted invite link works too).
+  final _referral = TextEditingController();
+  String? _referralError;
 
   /// D175 (owner): chosen at sign-up, required; «أفضّل عدم الذكر» is one of
   /// the three choices.
@@ -116,6 +124,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     _username.dispose();
     _displayName.dispose();
     _password.dispose();
+    _referral.dispose();
     super.dispose();
   }
 
@@ -231,6 +240,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           displayName: _displayName.text,
           gender: gender,
           legal: legal,
+          referralCode: _referral.text,
         );
     if (!mounted) return;
     if (ok) {
@@ -245,6 +255,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     final failure = submission.failure;
     final l10n = context.l10n;
     setState(() {
+      // D217: only the code's format is checked at sign-up.
+      if (failure is ServerFailure &&
+          failure.details.any((d) => d.field == 'referralCode')) {
+        _referralError = l10n.errorReferralCodeInvalid;
+      }
       for (final MapEntry(key: field, value: issue)
           in failure.authFieldIssues.entries) {
         // EMAIL_TAKEN is never mapped to a field (v1.2, D24).
@@ -437,6 +452,23 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 },
                 validator: (v) =>
                     validationMessage(l10n, AuthValidators.password(v)),
+              ),
+              const SizedBox(height: KSpacing.lg),
+              KTextField(
+                fieldKey: RegisterScreen.referralKey,
+                controller: _referral,
+                label: l10n.registerReferralLabel,
+                helperText: l10n.registerReferralHelper,
+                textInputAction: TextInputAction.done,
+                textDirection: TextDirection.ltr,
+                maxLength: 200,
+                enabled: !submitting,
+                errorText: _referralError,
+                onChanged: (_) {
+                  if (_referralError != null) {
+                    setState(() => _referralError = null);
+                  }
+                },
               ),
               const SizedBox(height: KSpacing.md),
               FormField<bool>(

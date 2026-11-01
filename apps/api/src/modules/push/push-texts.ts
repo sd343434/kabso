@@ -163,6 +163,11 @@ export function notificationBody(n: NotificationText, locale: PushLocale): strin
       return ar ? 'رُفع القيد عن حسابك' : 'The restriction on your account was lifted';
     case 'BALANCE_ADJUSTED':
       return ar ? 'عدّل فريق Kabso رصيدك' : 'The Kabso team adjusted your balance';
+    // v1.74-social (D217): the amount is in the cherry history (`REFERRAL_REVERSAL`).
+    case 'REFERRAL_REWARD_REVERSED':
+      return ar
+        ? 'ألغى فريق Kabso دعوة غير صالحة واسترجع كرز مكافأتها'
+        : 'The Kabso team voided an invalid invite and took back its cherries';
     case 'PROFILE_EDITED_BY_TEAM':
       return ar ? 'عدّل فريق Kabso ملفك الشخصي' : 'The Kabso team edited your profile';
     default:

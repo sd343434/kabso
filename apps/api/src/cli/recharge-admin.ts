@@ -387,6 +387,8 @@ try {
         tierMins: setting('RECHARGE_BADGE_TIERS') as number[],
         timeZone: setting('RECHARGE_BADGE_TIME_ZONE') as string,
         hours: setting('RECHARGE_BADGE_HOURS') as number,
+        // v1.74-social (D217): the referral first-recharge reward of a buyer credited here.
+        cherriesPerCoin: setting('CHERRIES_PER_COIN') as number,
       };
       const r = await run(() =>
         prisma.$transaction((tx) =>

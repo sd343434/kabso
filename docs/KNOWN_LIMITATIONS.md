@@ -199,6 +199,34 @@
   and host agents' joins are never dropped). Gender comes only from people who show it on their profile.
 - Not verified on a device (LiveKit active speaker, mic permissions, the sweeper's demotion on a real server).
 
+## «دعوة الأصدقاء» — referral rewards in cherries (v1.74-social draft, D217)
+
+- **Amounts are defaults to confirm** (owner gave none): inviter 20 000 cherries per sign-up (≈ $0.02 at the default
+  payout rate), friend 0, 5 % of the first recharge, milestones 1 / 5 / 15 → 50 000 / 300 000 / 1 000 000, 20
+  sign-up rewards a day per inviter, held 24 h, a code may be entered 7 days after sign-up, self-IP window 24 h. The
+  programme is **on** after the migration; switch it off in the panel («إعدادات الدعوات») or with
+  `referral-admin settings --set enabled=false --reason …` before the owner confirms, if wanted.
+- **Device id:** the server had no device id before D217. `DeviceInfo.installId` is a random id the app keeps per
+  install (shared preferences): uninstalling the app gives a new one, and older apps send none — then only the
+  mailbox, IP and daily-cap rules apply. Not a hardware id.
+- **Same-IP rule:** an invitee on the inviter's IP (seen within 24 h) is REJECTED. Mobile carriers share IPs (CGNAT)
+  and families share Wi-Fi, so real friends can be refused; the team can approve them. Whether to keep the rule on is
+  an owner question (`selfIpWindowHours` 0 turns it off).
+- **No phone rule:** Kabso has no phone numbers.
+- **Voiding after crediting** (owner 2026-11-01): the team's «إلغاء» takes the credited cherries back at once
+  (`REFERRAL_REVERSAL`). A balance that does not cover it goes below 0 (a debt, like a gift reversal's); the app shows
+  the negative balance and the history row, but has no special message about the debt — a withdrawal simply answers
+  «insufficient cherries» until it is earned back. Milestone bonuses the inviter no longer reaches are taken back too;
+  whether the owner wants that is to confirm.
+- **Deep links:** the app has no deep-link package; the link `/i/<code>` opens the website, which shows the code to copy.
+  The sign-up field is not pre-filled from the link.
+- **No notifications** for a friend who joined or a reward credited (the page and the cherry history show them).
+- **The ticker** shows masked names of people who got a reward in the last 30 days, regardless of their privacy
+  settings (only the masked name and the amount).
+- **Data export (D198)** does not include the referral rows yet.
+- **Not verified on a device or on the server.** The Flutter tests ran (full suite) and the page has goldens and
+  @3x test captures (fake data), not device captures.
+
 ## Media storage from the admin panel «التخزين (R2 / S3)» (v1.75-social draft, D222)
 
 - **No real R2 call was made.** The round trip, the uploads, the cross-bucket copy and «not public» were verified with

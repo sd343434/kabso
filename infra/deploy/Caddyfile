@@ -41,6 +41,8 @@
 		@shortCache not path /assets/fonts/* /assets/characters/*
 		header @shortCache Cache-Control "public, max-age=300"
 		root * /srv/site
+		# v1.74-social (D217): an invite link /i/<code> shows invite.html (the code is read from the address there).
+		rewrite /i/* /invite.html
 		# Clean URLs: /privacy → privacy.html.
 		try_files {path} {path}.html
 		file_server

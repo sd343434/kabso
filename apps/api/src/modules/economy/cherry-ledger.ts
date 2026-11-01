@@ -399,3 +399,45 @@ export async function taskCherryLockIn(
     rules.rateMinor,
   );
 }
+
+/**
+ * v1.74-social (D217, CONVENTIONS §10.71): a referral reward credited after its hold — `cherries` (> 0) as one
+ * `REFERRAL_REWARD` row, reference = the `referral_rewards` row, so a reward is credited at most once (a second
+ * call fails on `cherry_ledger_reference_once` and rolls the caller back).
+ */
+export async function creditReferralCherriesIn(
+  tx: Tx,
+  userId: string,
+  cherries: bigint,
+  rewardId: string,
+  now: Date,
+): Promise<void> {
+  await applyMovementsIn(tx, [{ userId, reason: 'REFERRAL_REWARD', delta: cherries }], rewardId, now);
+}
+
+/**
+ * v1.74-social (D217, owner 2026-11-01): takes a credited referral reward back when the team voids its referral —
+ * `cherries` (> 0) as one `REFERRAL_REVERSAL` row (−cherries), reference = the same `referral_rewards` row, so a
+ * reward is taken back at most once (a second call fails on `cherry_ledger_reference_once`). The whole amount is
+ * debited even when the balance does not cover it: the balance goes below 0, as a gift reversal's does (a debt);
+ * withdrawals and cherry sales (`holdCherriesIn`) are refused until the person earns it back. Returns the balance
+ * after and the part the balance did not cover (`shortfall`, 0 … cherries).
+ */
+export async function reverseReferralCherriesIn(
+  tx: Tx,
+  userId: string,
+  cherries: bigint,
+  rewardId: string,
+  now: Date,
+): Promise<{ balanceAfter: bigint; shortfall: bigint }> {
+  if (cherries <= 0n) throw new RangeError('A claw-back is positive');
+  await applyMovementsIn(tx, [{ userId, reason: 'REFERRAL_REVERSAL', delta: -cherries }], rewardId, now);
+  const wallet = await tx.cherryWallet.findUniqueOrThrow({ where: { userId }, select: { cherries: true } });
+  return { balanceAfter: wallet.cherries, shortfall: referralShortfall(cherries, wallet.cherries) };
+}
+
+/** The part of a `cherries` debit a balance of `balanceAfter` (after the debit) did not cover. */
+export function referralShortfall(cherries: bigint, balanceAfter: bigint): bigint {
+  if (balanceAfter >= 0n) return 0n;
+  return -balanceAfter < cherries ? -balanceAfter : cherries;
+}

@@ -116,6 +116,13 @@ export const CAPABILITIES = {
   'users.balance_adjust': ['OWNER', 'FINANCE'],
   /** Start the account's deletion (D193 grace period, code again) and cancel it. */
   'users.delete': ['OWNER'],
+  // ---- v1.74-social (D217, CONVENTIONS §10.71): «الدعوات» -----------------------------------------------------------
+  /** The referrals, their rewards and the settings (read; a referral's detail is audited). */
+  'referrals.view': ['OWNER', 'SUPPORT', 'FINANCE'],
+  /** Approve or void a referral (money: the authenticator code again). */
+  'referrals.decide': ['OWNER', 'FINANCE'],
+  /** Change the amounts and rules (money: the authenticator code again). */
+  'referrals.settings': ['OWNER', 'FINANCE'],
 } as const satisfies Record<string, readonly PanelRole[]>;
 
 export type Capability = keyof typeof CAPABILITIES;

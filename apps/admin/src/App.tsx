@@ -8,6 +8,7 @@ import { Gifts, Items, Promo } from './pages/Catalog';
 import { GiftCategories } from './pages/GiftCategories';
 import { Hosts, Lives } from './pages/Lives';
 import { HostApplicationDetail, HostApplications } from './pages/HostApplications';
+import { ReferralDetail, Referrals, ReferralSettingsPage } from './pages/Referrals';
 import { AgencyDetail, Agencies, Complaints } from './pages/Agencies';
 import { CAP_OF_ROUTE } from './nav';
 import { Audit } from './pages/Audit';
@@ -189,6 +190,15 @@ export function App() {
           break;
         case 'hostApplication':
           page = <HostApplicationDetail id={match.params.id!} />;
+          break;
+        case 'referrals':
+          page = <Referrals />;
+          break;
+        case 'referral':
+          page = <ReferralDetail id={match.params.id!} />;
+          break;
+        case 'referralSettings':
+          page = <ReferralSettingsPage />;
           break;
         case 'gifts':
           page = <Gifts />;

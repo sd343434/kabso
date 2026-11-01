@@ -90,6 +90,10 @@ enum NotificationType {
   /// team approved / rejected the application. Both open «الوكالة».
   hostApplicationApproved('HOST_APPLICATION_APPROVED'),
   hostApplicationRejected('HOST_APPLICATION_REJECTED'),
+
+  /// v1.74-social (D217, system, no target): the team voided a referral and
+  /// took back the cherries it had credited. Opens the cherry wallet.
+  referralRewardReversed('REFERRAL_REWARD_REVERSED'),
   unknown('');
 
   new(this.wire);
@@ -112,7 +116,8 @@ enum NotificationType {
       this == dataExportReady ||
       this == rechargeOrderUpdate ||
       isAgency ||
-      isHostApplication;
+      isHostApplication ||
+      this == referralRewardReversed;
 
   /// v1.73-social (D209): the decision on «كن مضيفاً مع الإدارة».
   bool get isHostApplication =>

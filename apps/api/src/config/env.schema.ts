@@ -595,6 +595,10 @@ export const envSchema = z
     RATE_LIMIT_AGENCY_OPEN_USER: rateLimit('5/86400'),
     /** v1.73-social (D209): «كن مضيفاً مع الإدارة» submissions per user (also refused ones). */
     RATE_LIMIT_HOST_APPLY_USER: rateLimit('5/86400'),
+    /** v1.74-social (D217): invite codes applied later, per user (also refused ones). */
+    RATE_LIMIT_REFERRAL_APPLY_USER: rateLimit('10/86400'),
+    /** v1.74-social (D217): the public ticker of recent referral rewards, per client IP. */
+    RATE_LIMIT_REFERRAL_TICKER_IP: rateLimit('60/600'),
     /** v1.59-social (D190, §10.53): card top-up checkouts started, per user. */
     RATE_LIMIT_TOPUP_CHECKOUT_USER: rateLimit('20/3600'),
     /** v1.61-social (D192, §10.55): the website's waitlist sign-ups, per client IP (no account). */
@@ -1009,6 +1013,12 @@ export const envSchema = z
      */
     HOST_APPLICATION_MIN_AGE: intSetting(18, 18, 120),
     HOST_APPLICATION_REAPPLY_DAYS: intSetting(30, 0, 365),
+    /**
+     * v1.74-social (D217, §10.71): «دعوة الأصدقاء» — how often the sweeper credits or voids the referral rewards whose
+     * hold ended (0 = off: tests; refused in production). Every amount and rule is in `referral_settings`, edited in
+     * the admin panel (not here).
+     */
+    REFERRAL_SWEEP_INTERVAL_SECONDS: intSetting(300, 0, 86_400),
     /**
      * D179: withdrawals (paid by hand, no provider yet): CHERRY_PAYOUT_RATE = `cherries:minor` (owner:
      * 1 000 000 cherries = $1.10 → `1000000:110`), the currency, the smallest request in minor units
@@ -1603,6 +1613,14 @@ export const envSchema = z
           code: 'custom',
           path: ['SPECIAL_USERNAME_SWEEP_INTERVAL_SECONDS'],
           message: 'the special-username sweeper cannot be disabled in production',
+        });
+      }
+      // D217: a referral reward must be credited (or voided) when its hold ends.
+      if (env.REFERRAL_SWEEP_INTERVAL_SECONDS === 0) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['REFERRAL_SWEEP_INTERVAL_SECONDS'],
+          message: 'the referral sweeper cannot be disabled in production',
         });
       }
       // D193: a deletion request must be carried out when its grace period ends (store and privacy rules).

@@ -293,6 +293,10 @@ class NotificationRow extends StatelessWidget {
     if (item.type == NotificationType.rechargeCoinsReceived) {
       return AppRoutes.wallet;
     }
+    // D217: a referral's cherries taken back → the cherry wallet (history).
+    if (item.type == NotificationType.referralRewardReversed) {
+      return AppRoutes.walletCherries;
+    }
     if (item.type == NotificationType.rechargeCherryRequest) {
       return AppRoutes.rechargeCherries;
     }
@@ -431,6 +435,7 @@ class NotificationRow extends StatelessWidget {
       NotificationType.agencyHostReleased => l10n.notifAgencyHostReleased,
       NotificationType.hostApplicationApproved => l10n.notifHostApproved,
       NotificationType.hostApplicationRejected => l10n.notifHostRejected,
+      NotificationType.referralRewardReversed => l10n.notifReferralReversed,
       NotificationType.unknown => '',
     };
     return (text, item.type.isSystem ? null : who, name);

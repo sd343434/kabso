@@ -36,6 +36,10 @@ export type Capability =
   | 'hosts.applications'
   | 'hosts.applications.photos'
   | 'hosts.applications.decide'
+  // v1.74-social (D217)
+  | 'referrals.view'
+  | 'referrals.decide'
+  | 'referrals.settings'
   | 'lives.view'
   | 'lives.manage'
   | 'catalog.view'
@@ -615,4 +619,96 @@ export interface StorageSettings {
   publicPrefix: string;
   healthcheckPrefix: string;
   connectionTestSkippable: boolean;
+}
+
+// ---- v1.74-social (D217, CONVENTIONS §10.71): «الدعوات» ---------------------------------------------------------
+export type ReferralStatus = 'PENDING' | 'QUALIFIED' | 'REJECTED' | 'VOID';
+export type ReferralRewardKind = 'SIGNUP_INVITER' | 'SIGNUP_INVITEE' | 'FIRST_RECHARGE' | 'MILESTONE';
+
+export interface ReferralPerson {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+  status: string;
+}
+
+/** `AdminReferralRow` */
+export interface ReferralRow {
+  id: string;
+  status: ReferralStatus;
+  source: 'SIGNUP' | 'LATER';
+  code: string;
+  rejectReason: string | null;
+  voidReason: string | null;
+  inviter: ReferralPerson;
+  invitee: ReferralPerson;
+  holdUntil: string;
+  firstRecharge: boolean;
+  pendingCherries: number;
+  creditedCherries: number;
+  createdAt: string;
+}
+
+/** `AdminReferralReward` */
+export interface ReferralReward {
+  id: string;
+  userId: string;
+  kind: ReferralRewardKind;
+  status: 'PENDING' | 'CREDITED' | 'VOID' | 'REVERSED';
+  cherries: number;
+  holdUntil: string;
+  baseCoins: number | null;
+  rateBps: number | null;
+  rechargeReason: string | null;
+  creditedAt: string | null;
+  voidedAt: string | null;
+  voidReason: string | null;
+  /** REVERSED: taken back when the team voided the referral; the part the balance did not cover. */
+  reversedAt: string | null;
+  reversalShortfall: number | null;
+}
+
+/** `AdminReferral.voidClawback`: what «إلغاء الدعوة» would take back now. */
+export interface ReferralClawback {
+  cherries: number;
+  shortfall: number;
+  rewards: number;
+  people: { userId: string; cherries: number; balance: number; shortfall: number }[];
+}
+
+/** `AdminReferral` */
+export interface ReferralDetail {
+  id: string;
+  status: ReferralStatus;
+  source: 'SIGNUP' | 'LATER';
+  code: string;
+  rejectReason: string | null;
+  voidReason: string | null;
+  inviter: ReferralPerson;
+  invitee: ReferralPerson;
+  decidedBy: ReferralPerson | null;
+  holdUntil: string;
+  firstRechargeAt: string | null;
+  qualifiedAt: string | null;
+  voidedAt: string | null;
+  createdAt: string;
+  signals: { installId: boolean; ip: string | null; sameDeviceReferrals: number; sameEmailReferrals: number };
+  rewards: ReferralReward[];
+  voidClawback: ReferralClawback;
+}
+
+/** `AdminReferralSettings` */
+export interface ReferralSettings {
+  enabled: boolean;
+  inviterSignupCherries: number;
+  inviteeSignupCherries: number;
+  firstRechargeBps: number;
+  milestones: { friends: number; cherries: number }[];
+  dailySignupCap: number;
+  holdHours: number;
+  applyWindowDays: number;
+  selfIpWindowHours: number;
+  updatedAt: string;
+  updatedById: string | null;
 }

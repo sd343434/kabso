@@ -227,6 +227,12 @@ model User {
   /// v1.73-social (D209): the person's applications «كن مضيفاً مع الإدارة», and those a team member decided.
   hostApplications       HostApplication[]          @relation("HostApplicant")
   hostAppsDecided        HostApplication[]          @relation("HostApplicationDecider")
+  /// v1.74-social (D217): the person's invite code, whom they invited, who invited them, their rewards.
+  referralCode           ReferralCode?
+  referralsMade          Referral[]                 @relation("ReferralInviter")
+  referredBy             Referral?                  @relation("ReferralInvitee")
+  referralsDecided       Referral[]                 @relation("ReferralDecider")
+  referralRewards        ReferralReward[]
   agencyLinks            AgencyHost[]
   cherryWithdrawals      CherryWithdrawal[]
   // v1.54-social (D185): recharge agents.
@@ -379,6 +385,8 @@ model Session {
   revokedAt                 DateTime? @map("revoked_at") @db.Timestamptz(3)
   /// LOGOUT | USER_REVOKED | REFRESH_REUSE | PASSWORD_RESET | ADMIN | ACCOUNT_DELETION (D193) | ADMIN_REVOKED (D197)
   revokedReason             String?   @map("revoked_reason") @db.VarChar(32)
+  /// v1.74-social (D217): the app's install id (`DeviceInfo.installId`), for the referral device checks.
+  installId                 String?   @map("install_id") @db.VarChar(64)
 
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   /// v1.30-live (D152): at most one push token per session.
@@ -386,6 +394,7 @@ model Session {
 
   @@index([userId, createdAt(sort: Desc)], map: "sessions_user_id_created_at_idx")
   @@index([expiresAt], map: "sessions_expires_at_idx")
+  @@index([installId], map: "sessions_install_id_idx", where: raw("install_id IS NOT NULL"))
   @@map("sessions")
 }
 
@@ -449,6 +458,9 @@ model PendingRegistration {
   legalConsent  Json?    @map("legal_consent") @db.JsonB
   /// v1.47-social (D175): required by `register` since v1.47 (null only on rows made before).
   gender        Gender?
+  /// v1.74-social (D217): the app's install id and the invite code typed at sign-up (applied at verify).
+  installId     String?  @map("install_id") @db.VarChar(64)
+  referralCode  String?  @map("referral_code") @db.VarChar(16)
   /// HMAC-SHA-256 (hex) of the 8-digit code, keyed by a key derived from RATE_LIMIT_KEY_SECRET.
   codeHash      String   @map("code_hash") @db.Char(64)
   /// Checks of the CURRENT code (max 5; reset when resend issues a new code).
@@ -2082,6 +2094,8 @@ enum NotificationType {
   HOST_APPLICATION_APPROVED
   /// v1.73-social (D209, system): the application was rejected (the reason is in `getMyHostingApplication`).
   HOST_APPLICATION_REJECTED
+  /// v1.74-social (D217): the team voided a referral and took back its credited cherries (system, no target).
+  REFERRAL_REWARD_REVERSED
 
   @@map("notification_type")
 }
@@ -3737,6 +3751,11 @@ enum CherryLedgerReason {
   RECHARGE_SALE
   /// v1.72-social (D208): a credit or debit by the team (reference: the `admin_balance_adjustments` row).
   ADMIN_ADJUSTMENT
+  /// v1.74-social (D217): a referral reward credited after its hold (reference: the `referral_rewards` row).
+  REFERRAL_REWARD
+  /// v1.74-social (D217, owner 2026-11-01): that reward taken back when the team voided the referral (reference: the
+  /// same `referral_rewards` row; the balance may go below 0 — a debt that blocks withdrawals).
+  REFERRAL_REVERSAL
 
   @@map("cherry_ledger_reason")
 }
@@ -5421,4 +5440,134 @@ model HostApplication {
   @@index([status, createdAt(sort: Desc)], map: "host_applications_status_idx")
   @@index([decidedById], map: "host_applications_decided_by_idx")
   @@map("host_applications")
+}
+
+// ---- v1.74-social (D217, CONVENTIONS §10.71): «دعوة الأصدقاء» — invite codes, referrals and rewards ----------------
+
+enum ReferralStatus {
+  PENDING
+  QUALIFIED
+  REJECTED
+  VOID
+
+  @@map("referral_status")
+}
+
+enum ReferralRewardKind {
+  SIGNUP_INVITER
+  SIGNUP_INVITEE
+  FIRST_RECHARGE
+  MILESTONE
+
+  @@map("referral_reward_kind")
+}
+
+enum ReferralRewardStatus {
+  PENDING
+  CREDITED
+  VOID
+  /// Credited, then taken back (`REFERRAL_REVERSAL`) when the team voided the referral.
+  REVERSED
+
+  @@map("referral_reward_status")
+}
+
+/// D217: one row (id 1) — every amount and rule of the programme; edited in the panel (FINANCE / OWNER, the
+/// authenticator code again) or `referral-admin settings` (audited). `milestones`: `[{friends, cherries}]`, increasing.
+model ReferralSettings {
+  id                    Int      @id @default(1) @db.SmallInt
+  enabled               Boolean  @default(true)
+  inviterSignupCherries BigInt   @default(20000) @map("inviter_signup_cherries")
+  inviteeSignupCherries BigInt   @default(0) @map("invitee_signup_cherries")
+  firstRechargeBps      Int      @default(500) @map("first_recharge_bps")
+  milestones            Json     @default("[{\"friends\":1,\"cherries\":50000},{\"friends\":5,\"cherries\":300000},{\"friends\":15,\"cherries\":1000000}]") @db.JsonB
+  dailySignupCap        Int      @default(20) @map("daily_signup_cap")
+  holdHours             Int      @default(24) @map("hold_hours")
+  applyWindowDays       Int      @default(7) @map("apply_window_days")
+  selfIpWindowHours     Int      @default(24) @map("self_ip_window_hours")
+  updatedAt             DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+  updatedById           String?  @map("updated_by_id") @db.Uuid
+
+  @@map("referral_settings")
+}
+
+/// D217: a person's invite code (made on first read; never changes).
+model ReferralCode {
+  userId    String   @id @map("user_id") @db.Uuid
+  code      String   @unique(map: "referral_codes_code_key") @db.VarChar(16)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("referral_codes")
+}
+
+/// D217: who invited whom (one inviter per person, ever). `source` SIGNUP | LATER. REJECTED = a fraud rule at the
+/// start (`rejectReason`); VOID = voided later (the hold's re-check or the team, `voidReason`).
+model Referral {
+  id               String         @id @default(uuid(7)) @db.Uuid
+  inviterUserId    String         @map("inviter_user_id") @db.Uuid
+  inviteeUserId    String         @unique(map: "referrals_invitee_key") @map("invitee_user_id") @db.Uuid
+  code             String         @db.VarChar(16)
+  source           String         @db.VarChar(8)
+  status           ReferralStatus @default(PENDING)
+  rejectReason     String?        @map("reject_reason") @db.VarChar(32)
+  inviteeInstallId String?        @map("invitee_install_id") @db.VarChar(64)
+  inviteeIp        String?        @map("invitee_ip") @db.VarChar(64)
+  /// SHA-256 (hex) of the canonical mailbox (`canonicalEmail`): the alias / duplicate check without the address.
+  inviteeEmailHash String         @map("invitee_email_hash") @db.Char(64)
+  holdUntil        DateTime       @map("hold_until") @db.Timestamptz(3)
+  firstRechargeAt  DateTime?      @map("first_recharge_at") @db.Timestamptz(3)
+  qualifiedAt      DateTime?      @map("qualified_at") @db.Timestamptz(3)
+  voidedAt         DateTime?      @map("voided_at") @db.Timestamptz(3)
+  voidReason       String?        @map("void_reason") @db.VarChar(500)
+  decidedById      String?        @map("decided_by_id") @db.Uuid
+  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  inviter   User             @relation("ReferralInviter", fields: [inviterUserId], references: [id], onDelete: Cascade)
+  invitee   User             @relation("ReferralInvitee", fields: [inviteeUserId], references: [id], onDelete: Cascade)
+  decidedBy User?            @relation("ReferralDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+  rewards   ReferralReward[]
+
+  @@index([inviterUserId, createdAt(sort: Desc)], map: "referrals_inviter_idx")
+  @@index([status, createdAt(sort: Desc)], map: "referrals_status_idx")
+  @@index([holdUntil], map: "referrals_due_idx", where: raw("status = 'PENDING'::referral_status"))
+  @@index([inviteeInstallId], map: "referrals_install_idx", where: raw("invitee_install_id IS NOT NULL"))
+  @@index([inviteeEmailHash], map: "referrals_email_idx")
+  @@map("referrals")
+}
+
+/// D217: a reward — PENDING until `holdUntil`, then CREDITED (one `REFERRAL_REWARD` ledger row, reference = this id)
+/// or VOID. FIRST_RECHARGE keeps the recharge (`rechargeReason` = the coin ledger reason, `rechargeReference`), its
+/// coins and the rate; MILESTONE has no referral and keeps the threshold.
+model ReferralReward {
+  id                String               @id @default(uuid(7)) @db.Uuid
+  referralId        String?              @map("referral_id") @db.Uuid
+  userId            String               @map("user_id") @db.Uuid
+  kind              ReferralRewardKind
+  status            ReferralRewardStatus @default(PENDING)
+  cherries          BigInt
+  holdUntil         DateTime             @map("hold_until") @db.Timestamptz(3)
+  baseCoins         BigInt?              @map("base_coins")
+  rateBps           Int?                 @map("rate_bps")
+  rechargeReason    String?              @map("recharge_reason") @db.VarChar(20)
+  rechargeReference String?              @map("recharge_reference") @db.VarChar(64)
+  milestoneFriends  Int?                 @map("milestone_friends")
+  creditedAt        DateTime?            @map("credited_at") @db.Timestamptz(3)
+  voidedAt          DateTime?            @map("voided_at") @db.Timestamptz(3)
+  reversedAt        DateTime?            @map("reversed_at") @db.Timestamptz(3)
+  /// REVERSED: the part of the claw-back the balance did not cover (a debt).
+  reversalShortfall BigInt?              @map("reversal_shortfall")
+  voidReason        String?              @map("void_reason") @db.VarChar(500)
+  createdAt         DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  referral Referral? @relation(fields: [referralId], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([referralId, kind], map: "referral_rewards_referral_kind_key", where: raw("(referral_id IS NOT NULL) AND (status <> 'REVERSED'::referral_reward_status)"))
+  @@unique([userId, milestoneFriends], map: "referral_rewards_milestone_key", where: raw("(kind = 'MILESTONE'::referral_reward_kind) AND (status <> 'REVERSED'::referral_reward_status)"))
+  @@index([userId, createdAt(sort: Desc)], map: "referral_rewards_user_idx")
+  @@index([holdUntil], map: "referral_rewards_due_idx", where: raw("status = 'PENDING'::referral_reward_status"))
+  @@index([creditedAt(sort: Desc)], map: "referral_rewards_credited_idx", where: raw("status = 'CREDITED'::referral_reward_status"))
+  @@map("referral_rewards")
 }

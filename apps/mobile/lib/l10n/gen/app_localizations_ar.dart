@@ -12397,4 +12397,268 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get podcastMuted => 'الميكروفون مغلق';
+
+  @override
+  String get inviteTitle => 'دعوة صديق';
+
+  @override
+  String get inviteRulesTooltip => 'القواعد';
+
+  @override
+  String get inviteHeroLine => 'ادعُ أصدقاءك واربح حتى';
+
+  @override
+  String inviteMoneyHint(String money) {
+    return '≈ $money';
+  }
+
+  @override
+  String inviteTickerLine(String name, String amount) {
+    return '$name ربح $amount كرزة، مبروك';
+  }
+
+  @override
+  String get inviteCardTitle => 'ادعُ أصدقاء جدداً للانضمام إلى Kabso';
+
+  @override
+  String inviteStepSignup(String amount) {
+    return 'يسجّل صديقك بكودك: تحصل على $amount كرزة.';
+  }
+
+  @override
+  String inviteStepRecharge(String percent) {
+    return 'أول شحن لصديقك: تحصل على $percent من قيمته بالكرز.';
+  }
+
+  @override
+  String inviteStepHold(String hours) {
+    return 'تُضاف المكافآت إلى رصيد الكرز القابل للسحب بعد التحقق ($hours ساعة).';
+  }
+
+  @override
+  String inviteYouGet(String you, String friend) {
+    return 'تحصل أنت على $you، ويحصل صديقك على $friend';
+  }
+
+  @override
+  String inviteYouGetOnly(String you) {
+    return 'تحصل أنت على $you عن كل صديق';
+  }
+
+  @override
+  String inviteCherries(String amount) {
+    return '$amount كرزة';
+  }
+
+  @override
+  String get inviteNow => 'ادعُ الآن';
+
+  @override
+  String get inviteMyCode => 'كود دعوتي:';
+
+  @override
+  String get inviteCopy => 'نسخ';
+
+  @override
+  String get inviteCodeCopied => 'تم نسخ كود الدعوة';
+
+  @override
+  String get inviteLinkCopied => 'تم نسخ رابط الدعوة';
+
+  @override
+  String get inviteMilestonesTitle => 'ادعُ أصدقاء جدداً واربح حتى';
+
+  @override
+  String inviteInvitedCount(String count) {
+    return '$count مدعو';
+  }
+
+  @override
+  String inviteMilestoneFriends(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count صديق',
+      many: '$count صديقاً',
+      few: '$count أصدقاء',
+      two: 'صديقان',
+      one: 'صديق واحد',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get inviteMilestoneLocked => 'مقفلة';
+
+  @override
+  String get inviteMilestoneUnlocked => 'تحققت، قيد المراجعة';
+
+  @override
+  String get inviteMilestoneClaimed => 'أُضيفت';
+
+  @override
+  String inviteMilestoneSemantics(String friends, String amount, String state) {
+    return 'مرحلة $friends: $amount كرزة، $state';
+  }
+
+  @override
+  String inviteRewardsPending(String amount) {
+    return 'محجوز: $amount';
+  }
+
+  @override
+  String inviteRewardsCredited(String amount) {
+    return 'أُضيف: $amount';
+  }
+
+  @override
+  String get inviteFriendsTitle => 'أصدقاؤك';
+
+  @override
+  String get inviteStatusPending => 'قيد التحقق';
+
+  @override
+  String get inviteStatusQualified => 'مؤهل';
+
+  @override
+  String get inviteStatusRejected => 'غير مؤهل';
+
+  @override
+  String get inviteStatusVoid => 'ملغى';
+
+  @override
+  String get inviteRecharged => 'شحن';
+
+  @override
+  String get inviteNoFriends => 'لم تدعُ أحداً بعد. شارك كودك مع أصدقائك.';
+
+  @override
+  String get inviteErrorTitle => 'تعذّر تحميل صفحة الدعوة';
+
+  @override
+  String inviteShareText(String code, String link) {
+    return 'انضم إليّ في Kabso Live. استخدم كود دعوتي $code عند التسجيل: $link';
+  }
+
+  @override
+  String get inviteShareWhatsapp => 'واتساب';
+
+  @override
+  String get inviteShareMore => 'مشاركة';
+
+  @override
+  String get inviteShareCopyLink => 'نسخ الرابط';
+
+  @override
+  String get inviteShareFailed => 'تعذّر فتح التطبيق؛ نُسخ الرابط بدلاً من ذلك';
+
+  @override
+  String get inviteRulesTitle => 'قواعد الدعوة';
+
+  @override
+  String inviteRuleSignup(String amount) {
+    return 'عندما يسجّل صديق جديد بكود دعوتك تحصل على $amount كرزة.';
+  }
+
+  @override
+  String inviteRuleInvitee(String amount) {
+    return 'ويحصل صديقك على $amount كرزة.';
+  }
+
+  @override
+  String inviteRuleRecharge(String percent) {
+    return 'عند أول شحن لصديقك (من الموقع أو وكيل شحن أو طلب شحن) تحصل على $percent من قيمته بالكرز.';
+  }
+
+  @override
+  String inviteRuleHold(String hours) {
+    return 'تُحجز كل مكافأة $hours ساعة ثم تُضاف إلى رصيد الكرز القابل للسحب. تُلغى إذا حُظر حساب صديقك أو حُذف أو قُيّد.';
+  }
+
+  @override
+  String get inviteRuleFair =>
+      'مكافأة واحدة لكل جهاز ولكل بريد، ولا تُحتسب دعوة نفسك أو حساباتك الأخرى.';
+
+  @override
+  String inviteRuleCap(String count) {
+    return 'يُكافأ حتى $count تسجيلاً في اليوم.';
+  }
+
+  @override
+  String inviteRuleLater(String days) {
+    return 'يمكن لصديقك إدخال كودك من الإعدادات خلال $days يوم من تسجيله، مرة واحدة.';
+  }
+
+  @override
+  String inviteRuleMilestones(String list) {
+    return 'مكافآت المراحل، مرة واحدة لكل مرحلة، حسب عدد أصدقائك المؤهلين:\n$list';
+  }
+
+  @override
+  String get inviteRuleWithdraw =>
+      'الكرز يخضع لقواعد السحب المعتادة في محفظة الكرز.';
+
+  @override
+  String get referralApplyRow => 'كود الدعوة';
+
+  @override
+  String get referralApplyTitle => 'أدخل كود الدعوة';
+
+  @override
+  String get referralApplyLabel => 'كود صديقك أو رابط الدعوة';
+
+  @override
+  String referralApplyBody(String date) {
+    return 'يمكنك إدخاله مرة واحدة حتى $date.';
+  }
+
+  @override
+  String get referralApplySubmit => 'تأكيد';
+
+  @override
+  String get referralApplied => 'تم ربط حسابك بكود صديقك';
+
+  @override
+  String get referralAppliedNotEligible =>
+      'حُفظ الكود، لكن هذه الدعوة لا تستوفي الشروط';
+
+  @override
+  String get errorReferralUnavailable => 'الدعوات غير متاحة الآن';
+
+  @override
+  String get errorReferralCodeInvalid => 'كود الدعوة غير صحيح';
+
+  @override
+  String get errorReferralNotAllowed => 'لا يمكنك إدخال كود دعوة الآن';
+
+  @override
+  String get registerReferralLabel => 'كود الدعوة (اختياري)';
+
+  @override
+  String get registerReferralHelper =>
+      'إن دعاك صديق، اكتب كوده أو الصق رابط الدعوة';
+
+  @override
+  String get cherryReasonReferral => 'مكافأة دعوة';
+
+  @override
+  String inviteStepMilestones(String list) {
+    return 'مكافآت إضافية حسب عدد أصدقائك المؤهلين:\n$list';
+  }
+
+  @override
+  String inviteMilestoneItem(String friends, String amount) {
+    return '$friends: $amount كرزة';
+  }
+
+  @override
+  String get inviteRuleClawback =>
+      'إذا ألغى فريق Kabso دعوة غير صالحة يُسترجع الكرز الذي أُضيف بسببها، وإن لم يكفِ رصيدك يصبح سالباً ولا يمكن السحب حتى يُسدَّد.';
+
+  @override
+  String get cherryReasonReferralReversal => 'استرجاع مكافأة دعوة';
+
+  @override
+  String get notifReferralReversed =>
+      'ألغى فريق Kabso دعوة غير صالحة واسترجع كرز مكافأتها. افتح محفظة الكرز للتفاصيل';
 }

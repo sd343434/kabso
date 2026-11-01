@@ -23,6 +23,14 @@ export interface RechargeBadgeRules {
   readonly hours: number;
 }
 
+/**
+ * v1.74-social (D217): what a recharge path needs besides the badges — CHERRIES_PER_COIN, for the referral
+ * first-recharge reward (`referralRechargeIn`).
+ */
+export interface RechargeCreditRules extends RechargeBadgeRules {
+  readonly cherriesPerCoin: number;
+}
+
 /** `RechargeBadge` (openapi v1.56-social). */
 export interface RechargeBadgeDto {
   tier: number;

@@ -21159,6 +21159,408 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'الميكروفون مغلق'**
   String get podcastMuted;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'دعوة صديق'**
+  String get inviteTitle;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'القواعد'**
+  String get inviteRulesTooltip;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'ادعُ أصدقاءك واربح حتى'**
+  String get inviteHeroLine;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'≈ {money}'**
+  String inviteMoneyHint(String money);
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'{name} ربح {amount} كرزة، مبروك'**
+  String inviteTickerLine(String name, String amount);
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'ادعُ أصدقاء جدداً للانضمام إلى Kabso'**
+  String get inviteCardTitle;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'يسجّل صديقك بكودك: تحصل على {amount} كرزة.'**
+  String inviteStepSignup(String amount);
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'أول شحن لصديقك: تحصل على {percent} من قيمته بالكرز.'**
+  String inviteStepRecharge(String percent);
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'تُضاف المكافآت إلى رصيد الكرز القابل للسحب بعد التحقق ({hours} ساعة).'**
+  String inviteStepHold(String hours);
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'تحصل أنت على {you}، ويحصل صديقك على {friend}'**
+  String inviteYouGet(String you, String friend);
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'تحصل أنت على {you} عن كل صديق'**
+  String inviteYouGetOnly(String you);
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'{amount} كرزة'**
+  String inviteCherries(String amount);
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'ادعُ الآن'**
+  String get inviteNow;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'كود دعوتي:'**
+  String get inviteMyCode;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'نسخ'**
+  String get inviteCopy;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'تم نسخ كود الدعوة'**
+  String get inviteCodeCopied;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'تم نسخ رابط الدعوة'**
+  String get inviteLinkCopied;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'ادعُ أصدقاء جدداً واربح حتى'**
+  String get inviteMilestonesTitle;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} مدعو'**
+  String inviteInvitedCount(String count);
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, =1{صديق واحد} =2{صديقان} few{{count} أصدقاء} many{{count} صديقاً} other{{count} صديق}}'**
+  String inviteMilestoneFriends(int count);
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'مقفلة'**
+  String get inviteMilestoneLocked;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'تحققت، قيد المراجعة'**
+  String get inviteMilestoneUnlocked;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'أُضيفت'**
+  String get inviteMilestoneClaimed;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'مرحلة {friends}: {amount} كرزة، {state}'**
+  String inviteMilestoneSemantics(String friends, String amount, String state);
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'محجوز: {amount}'**
+  String inviteRewardsPending(String amount);
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'أُضيف: {amount}'**
+  String inviteRewardsCredited(String amount);
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'أصدقاؤك'**
+  String get inviteFriendsTitle;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'قيد التحقق'**
+  String get inviteStatusPending;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'مؤهل'**
+  String get inviteStatusQualified;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'غير مؤهل'**
+  String get inviteStatusRejected;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'ملغى'**
+  String get inviteStatusVoid;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'شحن'**
+  String get inviteRecharged;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تدعُ أحداً بعد. شارك كودك مع أصدقائك.'**
+  String get inviteNoFriends;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل صفحة الدعوة'**
+  String get inviteErrorTitle;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'انضم إليّ في Kabso Live. استخدم كود دعوتي {code} عند التسجيل: {link}'**
+  String inviteShareText(String code, String link);
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'واتساب'**
+  String get inviteShareWhatsapp;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'مشاركة'**
+  String get inviteShareMore;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'نسخ الرابط'**
+  String get inviteShareCopyLink;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر فتح التطبيق؛ نُسخ الرابط بدلاً من ذلك'**
+  String get inviteShareFailed;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'قواعد الدعوة'**
+  String get inviteRulesTitle;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'عندما يسجّل صديق جديد بكود دعوتك تحصل على {amount} كرزة.'**
+  String inviteRuleSignup(String amount);
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'ويحصل صديقك على {amount} كرزة.'**
+  String inviteRuleInvitee(String amount);
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'عند أول شحن لصديقك (من الموقع أو وكيل شحن أو طلب شحن) تحصل على {percent} من قيمته بالكرز.'**
+  String inviteRuleRecharge(String percent);
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'تُحجز كل مكافأة {hours} ساعة ثم تُضاف إلى رصيد الكرز القابل للسحب. تُلغى إذا حُظر حساب صديقك أو حُذف أو قُيّد.'**
+  String inviteRuleHold(String hours);
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'مكافأة واحدة لكل جهاز ولكل بريد، ولا تُحتسب دعوة نفسك أو حساباتك الأخرى.'**
+  String get inviteRuleFair;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'يُكافأ حتى {count} تسجيلاً في اليوم.'**
+  String inviteRuleCap(String count);
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكن لصديقك إدخال كودك من الإعدادات خلال {days} يوم من تسجيله، مرة واحدة.'**
+  String inviteRuleLater(String days);
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'مكافآت المراحل، مرة واحدة لكل مرحلة، حسب عدد أصدقائك المؤهلين:\n{list}'**
+  String inviteRuleMilestones(String list);
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'الكرز يخضع لقواعد السحب المعتادة في محفظة الكرز.'**
+  String get inviteRuleWithdraw;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'كود الدعوة'**
+  String get referralApplyRow;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل كود الدعوة'**
+  String get referralApplyTitle;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'كود صديقك أو رابط الدعوة'**
+  String get referralApplyLabel;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنك إدخاله مرة واحدة حتى {date}.'**
+  String referralApplyBody(String date);
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'تأكيد'**
+  String get referralApplySubmit;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'تم ربط حسابك بكود صديقك'**
+  String get referralApplied;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'حُفظ الكود، لكن هذه الدعوة لا تستوفي الشروط'**
+  String get referralAppliedNotEligible;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'الدعوات غير متاحة الآن'**
+  String get errorReferralUnavailable;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'كود الدعوة غير صحيح'**
+  String get errorReferralCodeInvalid;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكنك إدخال كود دعوة الآن'**
+  String get errorReferralNotAllowed;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'كود الدعوة (اختياري)'**
+  String get registerReferralLabel;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'إن دعاك صديق، اكتب كوده أو الصق رابط الدعوة'**
+  String get registerReferralHelper;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'مكافأة دعوة'**
+  String get cherryReasonReferral;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'مكافآت إضافية حسب عدد أصدقائك المؤهلين:\n{list}'**
+  String inviteStepMilestones(String list);
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'{friends}: {amount} كرزة'**
+  String inviteMilestoneItem(String friends, String amount);
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'إذا ألغى فريق Kabso دعوة غير صالحة يُسترجع الكرز الذي أُضيف بسببها، وإن لم يكفِ رصيدك يصبح سالباً ولا يمكن السحب حتى يُسدَّد.'**
+  String get inviteRuleClawback;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'استرجاع مكافأة دعوة'**
+  String get cherryReasonReferralReversal;
+
+  /// D217 (invite friends «دعوة الأصدقاء»).
+  ///
+  /// In ar, this message translates to:
+  /// **'ألغى فريق Kabso دعوة غير صالحة واسترجع كرز مكافأتها. افتح محفظة الكرز للتفاصيل'**
+  String get notifReferralReversed;
 }
 
 class _AppLocalizationsDelegate

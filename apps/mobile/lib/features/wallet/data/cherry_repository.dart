@@ -23,6 +23,13 @@ enum CherryLedgerReason {
 
   /// v1.53-social (D184): a Task Center reward.
   taskReward('TASK_REWARD'),
+
+  /// v1.74-social (D217): a «دعوة الأصدقاء» reward.
+  referralReward('REFERRAL_REWARD'),
+
+  /// v1.74-social (D217): that reward taken back when the team voided the
+  /// referral (the balance may go below 0: a debt).
+  referralReversal('REFERRAL_REVERSAL'),
   other('');
 
   new(this.wire);

@@ -250,6 +250,8 @@ export function buildTestConfig(overrides: Record<string, string> = {}): AppConf
     SPECIAL_USERNAME_SWEEP_INTERVAL_SECONDS: '0',
     // D193: specs call AccountDeletionSweeper.sweep() with a later time.
     ACCOUNT_DELETION_SWEEP_INTERVAL_SECONDS: '0',
+    // v1.74-social (D217): the referral sweeper runs only when a test calls it.
+    REFERRAL_SWEEP_INTERVAL_SECONDS: '0',
     RATE_LIMIT_ACCOUNT_DELETION_USER: GENEROUS,
     // D198: specs call DataExportsService.sweep() / build directly.
     DATA_EXPORT_SWEEP_INTERVAL_SECONDS: '0',
@@ -305,7 +307,7 @@ export const SEED_GIFT_CATEGORIES_SQL = `
 /**
  * Removes every table row (the e2e database is dedicated to tests). Every application table is
  * truncated, so tables added by later migrations are covered without editing this list; the seeded
- * gift categories (D207) are put back.
+ * gift categories (D207) and the referral settings row (D217) are put back.
  */
 export async function resetDatabase(): Promise<void> {
   await withMigrationClient(async (client) => {
@@ -322,6 +324,8 @@ export async function resetDatabase(): Promise<void> {
       END
       $$`);
     await client.$executeRawUnsafe(SEED_GIFT_CATEGORIES_SQL);
+    // v1.74-social (D217): the referral settings' one row (its defaults), inserted by its migration.
+    await client.$executeRawUnsafe(`INSERT INTO referral_settings (id) VALUES (1) ON CONFLICT DO NOTHING`);
   });
 }
 

@@ -93,6 +93,9 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.agencyLeaveWindowClosed: 409,
   ErrorCode.agencyOpenNotAllowed: 409,
   ErrorCode.hostApplicationNotAllowed: 409,
+  ErrorCode.referralUnavailable: 503,
+  ErrorCode.referralCodeInvalid: 422,
+  ErrorCode.referralNotAllowed: 409,
   ErrorCode.insufficientCherries: 409,
   ErrorCode.withdrawalPending: 409,
   ErrorCode.rechargeApplicationNotAllowed: 409,
@@ -238,6 +241,10 @@ void main() {
           'AGENCY_OPEN_NOT_ALLOWED',
           // v1.73-social (D209)
           'HOST_APPLICATION_NOT_ALLOWED',
+          // v1.74-social (D217)
+          'REFERRAL_UNAVAILABLE',
+          'REFERRAL_CODE_INVALID',
+          'REFERRAL_NOT_ALLOWED',
           'INSUFFICIENT_CHERRIES',
           'WITHDRAWAL_PENDING',
           // v1.54-social (D185).
