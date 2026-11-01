@@ -6,7 +6,8 @@
 // - settings.account: the end of the list — no «مستوياتي» or «اليوزرات
 //   المميزة» (they are in the «أنا» hub), no component gallery (removed);
 //   Demo data is there because goldens run in a test build (!kReleaseMode).
-// - sessions.all: the full list. Test data only.
+// - sessions.all: the full list; sessions.revoke_others: its «تسجيل الخروج
+//   من كل الأجهزة الأخرى» dialog (v1.79-social). Test data only.
 @Tags(['golden'])
 library;
 
@@ -133,6 +134,22 @@ void main() {
           brightness: Brightness.dark,
         );
         await expectScreenGolden('sessions.all', language: language);
+      });
+    });
+
+    testWidgets('sessions: sign out of all other devices ($language)', (
+      tester,
+    ) async {
+      await withClock(Clock.fixed(_now), () async {
+        await _pump(
+          tester,
+          const SessionsScreen(),
+          language: language,
+          brightness: Brightness.dark,
+        );
+        await tester.tap(find.byKey(RevokeOthersButton.buttonKey));
+        await tester.pumpAndSettle();
+        await expectScreenGolden('sessions.revoke_others', language: language);
       });
     });
   });

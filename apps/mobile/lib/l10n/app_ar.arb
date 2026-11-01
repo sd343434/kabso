@@ -294,6 +294,29 @@
       }
     }
   },
+  "sessionsRevokeOthers": "تسجيل الخروج من كل الأجهزة الأخرى",
+  "@sessionsRevokeOthers": {"description": "D226: the red text button under the sessions (only while another session exists)."},
+  "sessionsRevokeOthersTitle": "تسجيل الخروج من كل الأجهزة الأخرى؟",
+  "sessionsRevokeOthersBody": "{n, plural, =1{سيتم تسجيل الخروج من جهاز آخر على الفور.} =2{سيتم تسجيل الخروج من جهازين آخرين على الفور.} few{سيتم تسجيل الخروج من {n} أجهزة أخرى على الفور.} many{سيتم تسجيل الخروج من {n} جهازًا آخر على الفور.} other{سيتم تسجيل الخروج من {n} جهاز آخر على الفور.}}",
+  "@sessionsRevokeOthersBody": {
+    "description": "D226: the confirm dialog; n = the other sessions in the list.",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "sessionsRevokeOthersPasswordHint": "أدخل كلمة المرور للتأكيد.",
+  "sessionsRevokeOthersConfirm": "تسجيل الخروج",
+  "sessionsRevokedOthers": "{n, plural, =0{لا توجد أجهزة أخرى مسجَّلة الدخول} =1{تم تسجيل الخروج من جهاز آخر} =2{تم تسجيل الخروج من جهازين آخرين} few{تم تسجيل الخروج من {n} أجهزة أخرى} many{تم تسجيل الخروج من {n} جهازًا آخر} other{تم تسجيل الخروج من {n} جهاز آخر}}",
+  "@sessionsRevokedOthers": {
+    "description": "D226: the snackbar after revokeOtherSessions; n = revoked.",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
   "platformAndroid": "أندرويد",
   "platformIos": "iOS",
   "platformWeb": "الويب",

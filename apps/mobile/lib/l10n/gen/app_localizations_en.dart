@@ -444,6 +444,41 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get sessionsRevokeOthers => 'Log out of all other devices';
+
+  @override
+  String get sessionsRevokeOthersTitle => 'Log out of all other devices?';
+
+  @override
+  String sessionsRevokeOthersBody(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n other devices will be logged out right away.',
+      one: '$n other device will be logged out right away.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get sessionsRevokeOthersPasswordHint =>
+      'Enter your password to confirm.';
+
+  @override
+  String get sessionsRevokeOthersConfirm => 'Log out';
+
+  @override
+  String sessionsRevokedOthers(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n other devices logged out',
+      one: '$n other device logged out',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get platformAndroid => 'Android';
 
   @override

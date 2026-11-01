@@ -824,6 +824,42 @@ abstract class AppLocalizations {
   /// **'عرض الكل ({count})'**
   String sessionsShowAll(int count);
 
+  /// D226: the red text button under the sessions (only while another session exists).
+  ///
+  /// In ar, this message translates to:
+  /// **'تسجيل الخروج من كل الأجهزة الأخرى'**
+  String get sessionsRevokeOthers;
+
+  /// No description provided for @sessionsRevokeOthersTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'تسجيل الخروج من كل الأجهزة الأخرى؟'**
+  String get sessionsRevokeOthersTitle;
+
+  /// D226: the confirm dialog; n = the other sessions in the list.
+  ///
+  /// In ar, this message translates to:
+  /// **'{n, plural, =1{سيتم تسجيل الخروج من جهاز آخر على الفور.} =2{سيتم تسجيل الخروج من جهازين آخرين على الفور.} few{سيتم تسجيل الخروج من {n} أجهزة أخرى على الفور.} many{سيتم تسجيل الخروج من {n} جهازًا آخر على الفور.} other{سيتم تسجيل الخروج من {n} جهاز آخر على الفور.}}'**
+  String sessionsRevokeOthersBody(int n);
+
+  /// No description provided for @sessionsRevokeOthersPasswordHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل كلمة المرور للتأكيد.'**
+  String get sessionsRevokeOthersPasswordHint;
+
+  /// No description provided for @sessionsRevokeOthersConfirm.
+  ///
+  /// In ar, this message translates to:
+  /// **'تسجيل الخروج'**
+  String get sessionsRevokeOthersConfirm;
+
+  /// D226: the snackbar after revokeOtherSessions; n = revoked.
+  ///
+  /// In ar, this message translates to:
+  /// **'{n, plural, =0{لا توجد أجهزة أخرى مسجَّلة الدخول} =1{تم تسجيل الخروج من جهاز آخر} =2{تم تسجيل الخروج من جهازين آخرين} few{تم تسجيل الخروج من {n} أجهزة أخرى} many{تم تسجيل الخروج من {n} جهازًا آخر} other{تم تسجيل الخروج من {n} جهاز آخر}}'**
+  String sessionsRevokedOthers(int n);
+
   /// No description provided for @platformAndroid.
   ///
   /// In ar, this message translates to:

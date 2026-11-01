@@ -32,9 +32,8 @@ List<Session> orderSessions(List<Session> sessions) {
 const int kSettingsSessionsShown = 2;
 
 /// D226: «الجلسات النشطة» — every active session of the caller, with the
-/// same revoke action as the Settings rows. Opened from «عرض الكل (N)».
-/// No "sign out of all other devices": the API has no such endpoint
-/// (PHASE1_SCREENS §9.3), and none is added here (no contract change).
+/// same revoke action as the Settings rows and «تسجيل الخروج من كل الأجهزة
+/// الأخرى» ([RevokeOthersButton], v1.79-social). Opened from «عرض الكل (N)».
 class SessionsScreen extends ConsumerWidget {
   const new({super.key});
 
@@ -59,6 +58,7 @@ class SessionsScreen extends ConsumerWidget {
             children: [
               for (final s in orderSessions(value)) SessionTile(session: s),
               if (!value.any((s) => !s.current)) const SessionsNoOthers(),
+              RevokeOthersButton(sessions: value),
             ],
           ),
         ),
@@ -71,6 +71,163 @@ class SessionsScreen extends ConsumerWidget {
           child: SessionsSkeleton(rows: 3),
         ),
       },
+    );
+  }
+}
+
+/// D226 (v1.79-social, CONVENTIONS §10.76): «تسجيل الخروج من كل الأجهزة
+/// الأخرى» — red text, only while another session exists. A dialog asks for
+/// the password (the API re-checks it), then every other session is ended,
+/// the list is refreshed and a snackbar says how many.
+class RevokeOthersButton extends ConsumerWidget {
+  const new({required this.sessions, super.key});
+
+  final List<Session> sessions;
+
+  static const buttonKey = Key('sessions.revokeOthers');
+  static const passwordKey = Key('sessions.revokeOthers.password');
+  static const confirmKey = Key('sessions.revokeOthers.confirm');
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final others = sessions.where((s) => !s.current).length;
+    if (others == 0) return const SizedBox.shrink();
+    final p = context.palette;
+    return Padding(
+      padding: const EdgeInsetsDirectional.symmetric(
+        horizontal: KSpacing.sm,
+        vertical: KSpacing.xs,
+      ),
+      child: Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: TextButton.icon(
+          key: buttonKey,
+          style: TextButton.styleFrom(
+            foregroundColor: p.error,
+            minimumSize: const Size(
+              KSizes.minTouchTarget,
+              KSizes.minTouchTarget,
+            ),
+          ),
+          icon: const Icon(Icons.logout_rounded, size: 20),
+          label: Text(context.l10n.sessionsRevokeOthers),
+          onPressed: () => _confirm(context, ref, others),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirm(BuildContext context, WidgetRef ref, int others) async {
+    final l10n = context.l10n;
+    final revoked = await showDialog<int>(
+      context: context,
+      builder: (_) => _RevokeOthersDialog(others: others),
+    );
+    if (revoked == null || !context.mounted) return;
+    KSnack.success(context, l10n.sessionsRevokedOthers(revoked));
+    ref.invalidate(sessionsProvider);
+  }
+}
+
+class _RevokeOthersDialog extends ConsumerStatefulWidget {
+  const new({required this.others});
+
+  final int others;
+
+  @override
+  ConsumerState<_RevokeOthersDialog> createState() =>
+      _RevokeOthersDialogState();
+}
+
+class _RevokeOthersDialogState extends ConsumerState<_RevokeOthersDialog> {
+  final _password = TextEditingController();
+  String? _error;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _password.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _password.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final l10n = context.l10n;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final revoked = await ref
+          .read(authRepositoryProvider)
+          .revokeOtherSessions(_password.text);
+      if (mounted) Navigator.of(context).pop(revoked);
+    } on Object catch (e) {
+      final failure = toAppFailure(e);
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _error = failureMessage(l10n, failure);
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return AlertDialog(
+      title: Text(l10n.sessionsRevokeOthersTitle),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(l10n.sessionsRevokeOthersBody(widget.others)),
+            const SizedBox(height: KSpacing.xs),
+            Text(
+              l10n.sessionsRevokeOthersPasswordHint,
+              style: context.textStyles.caption.copyWith(
+                color: context.palette.textSecondary,
+              ),
+            ),
+            const SizedBox(height: KSpacing.md),
+            KTextField(
+              label: l10n.loginPasswordLabel,
+              fieldKey: RevokeOthersButton.passwordKey,
+              controller: _password,
+              obscure: true,
+              enabled: !_busy,
+              showPasswordLabel: l10n.passwordShow,
+              hidePasswordLabel: l10n.passwordHide,
+              autofillHints: const [AutofillHints.password],
+              textInputAction: TextInputAction.done,
+              errorText: _error,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _busy ? null : () => Navigator.of(context).pop(),
+          child: Text(l10n.actionCancel),
+        ),
+        TextButton(
+          key: RevokeOthersButton.confirmKey,
+          style: TextButton.styleFrom(foregroundColor: context.palette.error),
+          onPressed: _busy || _password.text.isEmpty ? null : _submit,
+          child: _busy
+              ? const SizedBox.square(
+                  dimension: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Text(l10n.sessionsRevokeOthersConfirm),
+        ),
+      ],
     );
   }
 }

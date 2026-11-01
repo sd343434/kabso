@@ -396,6 +396,8 @@ class _SessionsSection extends ConsumerWidget {
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap: () => GoRouter.maybeOf(context)?.push(AppRoutes.sessions),
             ),
+          // D226 (v1.79-social): only while another session exists.
+          RevokeOthersButton(sessions: value),
         ],
       ),
       AsyncValue(:final error?, isLoading: false) => Padding(

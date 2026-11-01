@@ -14,6 +14,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/app.dart';
 import 'package:kabso_live/app/router/routes.dart';
+import 'package:kabso_live/core/error/app_failure.dart';
+import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
@@ -44,7 +46,33 @@ class _Repo extends FakeAuthRepository {
     revoked.add(sessionId);
     sessions = sessions.where((s) => s.id != sessionId).toList();
   }
+
+  /// D226: the passwords sent to `revokeOtherSessions`.
+  final List<String> revokeOthersCalls = [];
+
+  /// When set, `revokeOtherSessions` fails with it (after a right password).
+  AppFailure? revokeOthersFailure;
+
+  @override
+  Future<int> revokeOtherSessions(String password) async {
+    revokeOthersCalls.add(password);
+    if (password != _password) {
+      throw const ServerFailure(
+        code: ErrorCode.reauthFailed,
+        rawCode: 'REAUTH_FAILED',
+        debugMessage: 'wrong password',
+        statusCode: 403,
+      );
+    }
+    final failure = revokeOthersFailure;
+    if (failure != null) throw failure;
+    final before = sessions.length;
+    sessions = sessions.where((s) => s.current).toList();
+    return before - sessions.length;
+  }
 }
+
+const _password = 'right password';
 
 String _id(int n) => '0192f1c2-0000-7000-8000-00000000000$n';
 
@@ -386,6 +414,137 @@ void main() {
         expect(find.byKey(SettingsScreen.deleteAccountKey), findsOneWidget);
       });
     }
+  });
+
+  group('1b. sign out of all other devices (v1.79-social)', () {
+    final button = find.byKey(RevokeOthersButton.buttonKey);
+    final confirm = find.byKey(RevokeOthersButton.confirmKey);
+    final field = find.byKey(RevokeOthersButton.passwordKey);
+
+    Future<void> openFullList(WidgetTester tester) async {
+      final all = find.byKey(SettingsScreen.sessionsShowAllKey);
+      await tester.scrollUntilVisible(all, 100);
+      await tester.ensureVisible(all);
+      await tester.pumpAndSettle();
+      await tester.tap(all);
+      await tester.pumpAndSettle();
+    }
+
+    for (final language in AppLanguage.values) {
+      final l10n = l10nFor(language);
+
+      testWidgets('${language.name}: shown under the preview and the full '
+          'list; confirm needs the password; success refreshes and counts', (
+        tester,
+      ) async {
+        final h = await _pump(tester, language: language);
+        await tester.scrollUntilVisible(button, 100);
+        expect(
+          find.descendant(
+            of: button,
+            matching: find.text(l10n.sessionsRevokeOthers),
+          ),
+          findsOneWidget,
+        );
+        await tester.scrollUntilVisible(
+          find.byKey(SettingsScreen.sessionsShowAllKey),
+          -100,
+        );
+        await openFullList(tester);
+        expect(button, findsOneWidget);
+
+        await tester.tap(button);
+        await tester.pumpAndSettle();
+        expect(find.text(l10n.sessionsRevokeOthersTitle), findsOneWidget);
+        expect(find.text(l10n.sessionsRevokeOthersBody(3)), findsOneWidget);
+        // No password yet: the confirm is off.
+        expect(tester.widget<TextButton>(confirm).onPressed, isNull);
+
+        await tester.enterText(field, _password);
+        await tester.pump();
+        await tester.tap(confirm);
+        await tester.pumpAndSettle();
+
+        expect(h.repo.revokeOthersCalls, [_password]);
+        expect(find.byType(AlertDialog), findsNothing);
+        expect(find.text(l10n.sessionsRevokedOthers(3)), findsOneWidget);
+        // Only this device is left; the button is gone.
+        expect(find.byKey(Key('session.${_id(3)}')), findsOneWidget);
+        for (final n in [1, 2, 4]) {
+          expect(find.byKey(Key('session.${_id(n)}')), findsNothing);
+        }
+        expect(button, findsNothing);
+        expect(find.text(l10n.sessionsNoOthers), findsOneWidget);
+      });
+
+      testWidgets('${language.name}: a wrong password keeps the dialog with '
+          'the error; nothing is ended', (tester) async {
+        final h = await _pump(tester, language: language);
+        await openFullList(tester);
+        await tester.tap(button);
+        await tester.pumpAndSettle();
+        await tester.enterText(field, 'nope');
+        await tester.pump();
+        await tester.tap(confirm);
+        await tester.pumpAndSettle();
+
+        expect(h.repo.revokeOthersCalls, ['nope']);
+        expect(find.byType(AlertDialog), findsOneWidget);
+        expect(find.text(l10n.errorReauthFailed), findsOneWidget);
+        expect(h.repo.sessions, hasLength(4));
+
+        // Cancel closes it and changes nothing.
+        await tester.tap(find.text(l10n.actionCancel));
+        await tester.pumpAndSettle();
+        expect(find.byType(AlertDialog), findsNothing);
+        expect(find.byKey(Key('session.${_id(4)}')), findsOneWidget);
+      });
+
+      testWidgets('${language.name}: a network failure is said in the dialog', (
+        tester,
+      ) async {
+        final h = await _pump(tester, language: language);
+        h.repo.revokeOthersFailure = const NetworkFailure.offline();
+        await openFullList(tester);
+        await tester.tap(button);
+        await tester.pumpAndSettle();
+        await tester.enterText(field, _password);
+        await tester.pump();
+        await tester.tap(confirm);
+        await tester.pumpAndSettle();
+        expect(find.byType(AlertDialog), findsOneWidget);
+        expect(
+          find.text(failureMessage(l10n, const NetworkFailure.offline())),
+          findsOneWidget,
+        );
+      });
+
+      testWidgets('${language.name}: hidden when this device is the only one', (
+        tester,
+      ) async {
+        await _pump(tester, language: language, sessions: [_four()[2]]);
+        await tester.scrollUntilVisible(find.text(l10n.sessionsNoOthers), 100);
+        expect(button, findsNothing);
+      });
+    }
+
+    testWidgets('ar ×1.3 at 360×800, dark: the dialog fits', (tester) async {
+      await _pump(
+        tester,
+        language: AppLanguage.ar,
+        size: const Size(360, 800),
+        textScale: 1.3,
+        device: Brightness.dark,
+      );
+      await openFullList(tester);
+      await tester.scrollUntilVisible(button, 100);
+      await tester.ensureVisible(button);
+      await tester.pumpAndSettle();
+      await tester.tap(button);
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.byType(AlertDialog), findsOneWidget);
+    });
   });
 
   testWidgets('5. test builds: Demo data stays (gated by !kReleaseMode); '

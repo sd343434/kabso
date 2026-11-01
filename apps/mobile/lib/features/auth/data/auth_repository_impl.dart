@@ -137,6 +137,10 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<void> revokeSession(String sessionId) =>
       _remote.revokeSession(sessionId);
+
+  @override
+  Future<int> revokeOtherSessions(String password) =>
+      _remote.revokeOtherSessions(password);
 }
 
 final authRemoteDataSourceProvider = Provider<AuthRemoteDataSource>(
