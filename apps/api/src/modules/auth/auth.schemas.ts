@@ -8,6 +8,7 @@ import { normalizeContentText, type ContentTextLimits } from '../posts/content-t
 import { passwordPolicyIssue } from './password-policy.js';
 import { ACCOUNT_CATEGORIES, GENDERS, profileLinksSchema } from '../users/profile-fields.js';
 import { installIdSchema, referralCodeInput } from '../referrals/referral-rules.js';
+import { deviceKeySchema } from './device-signups.js';
 
 // Request schemas mirror docs/contracts/openapi.yaml. All objects are strict
 // (`additionalProperties: false`): unknown fields fail with `unknown_field`.
@@ -78,6 +79,12 @@ export const deviceInfoSchema = z.strictObject({
    * the referral fraud checks (one reward per device, no self-referral).
    */
   installId: installIdSchema.optional(),
+  /**
+   * v1.78-social (D223, §10.75): the phone's stable device id (Android `ANDROID_ID`, iOS the Keychain id) as the app's
+   * salted SHA-256 (64 lower-case hex). Read only by `register` / `registerVerify` (at most
+   * SIGNUP_MAX_ACCOUNTS_PER_DEVICE accounts created per device); stored only as an HMAC under the server's key.
+   */
+  deviceKey: deviceKeySchema.optional(),
 });
 
 /**

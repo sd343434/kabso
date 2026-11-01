@@ -20,6 +20,13 @@ import { SessionsService } from './sessions.service.js';
 import { hashesEqual } from './tokens.js';
 import { recordRegistrationConsentsIn, type RegistrationConsent } from '../privacy/legal.js';
 import { attachReferralIn } from '../referrals/referral-core.js';
+import {
+  deviceAllowanceIn,
+  deviceHashOf,
+  deviceHmacKey,
+  lockDeviceIn,
+  recordDeviceSignupIn,
+} from './device-signups.js';
 
 /** Constant 202 body (contract v1.2 §6). */
 export const VERIFICATION_PENDING = { status: 'verification_pending' } as const;
@@ -54,12 +61,31 @@ interface ClaimedPending {
   /** v1.74-social (D217): the app's install id and the invite code typed at sign-up. */
   install_id: string | null;
   referral_code: string | null;
+  /** v1.78-social (D223): the HMAC of the device key sent to `register` (null: none). */
+  device_hash: string | null;
 }
 
 class VerifyFailed extends Error {
   constructor(readonly reason: VerifyFailure) {
     super(reason);
   }
+}
+
+/** v1.78-social (D223): the device already created its accounts (thrown inside the account's transaction). */
+class DeviceLimitReached extends Error {
+  constructor(
+    readonly count: number,
+    readonly max: number,
+  ) {
+    super('device_account_limit');
+  }
+}
+
+/** 409 DEVICE_ACCOUNT_LIMIT with the limit in `details[0].issue` (§10.75). */
+function deviceLimitError(max: number): AppException {
+  return new AppException(ErrorCode.DEVICE_ACCOUNT_LIMIT, undefined, [
+    { field: 'device', issue: String(max) },
+  ]);
 }
 
 /**
@@ -74,6 +100,8 @@ class VerifyFailed extends Error {
 export class RegistrationService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(RegistrationService.name);
   private readonly codeKey: Buffer;
+  /** v1.78-social (D223): the HMAC key of the stored device keys. */
+  private readonly deviceKey: Buffer;
   private cleanupTimer: NodeJS.Timeout | undefined;
 
   constructor(
@@ -101,6 +129,7 @@ export class RegistrationService implements OnModuleInit, OnModuleDestroy {
         32,
       ),
     );
+    this.deviceKey = deviceHmacKey(config.registration.deviceKey ?? config.rateLimitKeySecret);
   }
 
   onModuleInit(): void {
@@ -134,6 +163,20 @@ export class RegistrationService implements OnModuleInit, OnModuleDestroy {
   /** POST /auth/register → always 202 with a constant body (or 400/409/429/503). */
   async register(input: RegisterInput, meta: RequestMeta): Promise<VerificationPendingDto> {
     const now = new Date();
+    // v1.78-social (D223, §10.75): a device that already created its accounts is told so before anything else (the
+    // answer depends on the device only, never on the email). Checked again when the account is created.
+    const deviceHash = deviceHashOf(this.deviceKey, input.device?.deviceKey);
+    if (deviceHash) {
+      const allowance = await deviceAllowanceIn(
+        this.prisma,
+        deviceHash,
+        this.config.registration.maxAccountsPerDevice,
+      );
+      if (allowance.count >= allowance.max) {
+        await this.recordDeviceLimit('register', allowance.count, allowance.max, null, meta);
+        throw deviceLimitError(allowance.max);
+      }
+    }
     if (
       containsReservedTerm(
         input.displayName,
@@ -184,6 +227,7 @@ export class RegistrationService implements OnModuleInit, OnModuleDestroy {
             appVersion: input.device?.appVersion || null,
             installId: input.device?.installId ?? null,
             referralCode: input.referralCode ?? null,
+            deviceHash,
             ip: meta.ip?.slice(0, 64) ?? null,
             userAgent: meta.userAgent,
             ...(input.legal
@@ -254,7 +298,7 @@ export class RegistrationService implements OnModuleInit, OnModuleDestroy {
           AND "attempts" < ${MAX_CODE_ATTEMPTS} AND "total_attempts" < ${MAX_TOTAL_ATTEMPTS}
         RETURNING "id", "code_hash", "attempts", "total_attempts", "username", "display_name", "gender"::text AS "gender", "locale",
                   "password_hash", "device_name", "platform", "app_version", "legal_consent",
-                  "install_id", "referral_code"`;
+                  "install_id", "referral_code", "device_hash"`;
       const pending = rows[0];
       if (!pending) {
         // Lazy cleanup of an expired/exhausted row for this address.
@@ -352,6 +396,8 @@ export class RegistrationService implements OnModuleInit, OnModuleDestroy {
       ...(pending.app_version ? { appVersion: pending.app_version } : {}),
       ...(pending.install_id ? { installId: pending.install_id } : {}),
     };
+    // v1.78-social (D223): the device creating the account — the one verifying, else the one that registered.
+    const deviceHash = deviceHashOf(this.deviceKey, input.device?.deviceKey) ?? pending.device_hash;
     try {
       const { user, session } = await this.prisma.$transaction(async (tx) => {
         // Claim the row first: a concurrent verify of the same pending blocks here and then
@@ -360,6 +406,15 @@ export class RegistrationService implements OnModuleInit, OnModuleDestroy {
         if (claimed.count !== 1) throw new VerifyFailed('concurrent_verify');
         if ((await tx.user.count({ where: { email: input.email } })) > 0) {
           throw new VerifyFailed('email_registered');
+        }
+        if (deviceHash) {
+          await lockDeviceIn(tx, deviceHash);
+          const allowance = await deviceAllowanceIn(
+            tx,
+            deviceHash,
+            this.config.registration.maxAccountsPerDevice,
+          );
+          if (allowance.count >= allowance.max) throw new DeviceLimitReached(allowance.count, allowance.max);
         }
         const created = await this.users.createAccount(tx, {
           email: input.email,
@@ -372,6 +427,7 @@ export class RegistrationService implements OnModuleInit, OnModuleDestroy {
         });
         // v1.66-social (D198, §10.61.2): the terms, the privacy policy and the 18+ statement accepted at sign-up.
         if (pending.legal_consent) await recordRegistrationConsentsIn(tx, created.id, pending.legal_consent);
+        if (deviceHash) await recordDeviceSignupIn(tx, created.id, deviceHash, device.platform ?? null, now);
         const issued = await this.sessions.create(tx, created.id, this.auth.client(device, meta), now);
         return { user: created, session: issued };
       });
@@ -379,6 +435,12 @@ export class RegistrationService implements OnModuleInit, OnModuleDestroy {
         await this.attachReferral(user.id, input.email, pending, device.installId, meta, now);
       return { user: toMeDto(user), tokens: await this.auth.tokenPair(user.id, session) };
     } catch (err) {
+      if (err instanceof DeviceLimitReached) {
+        // This pending sign-up can never succeed on this device: release its username at once.
+        await this.prisma.pendingRegistration.deleteMany({ where: { id: pending.id } });
+        await this.recordDeviceLimit('verify', err.count, err.max, pending.id, meta);
+        throw deviceLimitError(err.max);
+      }
       const emailConflict =
         (err instanceof VerifyFailed && err.reason === 'email_registered') ||
         (err instanceof AppException && err.code === ErrorCode.EMAIL_TAKEN);
@@ -434,6 +496,24 @@ export class RegistrationService implements OnModuleInit, OnModuleDestroy {
     } catch (err) {
       this.logger.error({ error: safeErrorLog(err) }, 'Sign-up invite code failed');
     }
+  }
+
+  /** v1.78-social (D223): the audit row of a sign-up refused for its device (no email, no device hash). */
+  private async recordDeviceLimit(
+    stage: 'register' | 'verify',
+    count: number,
+    max: number,
+    pendingId: string | null,
+    meta: RequestMeta,
+  ): Promise<void> {
+    await this.audit.record({
+      action: AuditAction.REGISTRATION_DEVICE_LIMIT,
+      targetType: 'pending_registration',
+      ...(pendingId ? { targetId: pendingId } : {}),
+      metadata: { stage, count, max },
+      ip: meta.ip,
+      requestId: meta.requestId,
+    });
   }
 
   /** "Account already exists" notice, in the account's locale, at most once per interval. */

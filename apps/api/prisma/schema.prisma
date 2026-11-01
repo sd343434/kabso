@@ -233,6 +233,10 @@ model User {
   referredBy             Referral?                  @relation("ReferralInvitee")
   referralsDecided       Referral[]                 @relation("ReferralDecider")
   referralRewards        ReferralReward[]
+  /// v1.78-social (D223): the device this account was created on (when the app sent one), and the device exceptions
+  /// an OWNER granted.
+  deviceSignup           DeviceSignup?
+  deviceExceptionsGiven  DeviceSignupException[]
   agencyLinks            AgencyHost[]
   cherryWithdrawals      CherryWithdrawal[]
   // v1.54-social (D185): recharge agents.
@@ -461,6 +465,8 @@ model PendingRegistration {
   /// v1.74-social (D217): the app's install id and the invite code typed at sign-up (applied at verify).
   installId     String?  @map("install_id") @db.VarChar(64)
   referralCode  String?  @map("referral_code") @db.VarChar(16)
+  /// v1.78-social (D223): HMAC-SHA-256 (hex, server key) of the app's `DeviceInfo.deviceKey`; null: none sent.
+  deviceHash    String?  @map("device_hash") @db.Char(64)
   /// HMAC-SHA-256 (hex) of the 8-digit code, keyed by a key derived from RATE_LIMIT_KEY_SECRET.
   codeHash      String   @map("code_hash") @db.Char(64)
   /// Checks of the CURRENT code (max 5; reset when resend issues a new code).
@@ -5536,4 +5542,37 @@ model ReferralReward {
   @@index([holdUntil], map: "referral_rewards_due_idx", where: raw("status = 'PENDING'::referral_reward_status"))
   @@index([creditedAt(sort: Desc)], map: "referral_rewards_credited_idx", where: raw("status = 'CREDITED'::referral_reward_status"))
   @@map("referral_rewards")
+}
+
+// ---------------------------------------------------------------------------------------------
+// v1.78-social (D223, CONVENTIONS §10.75): at most SIGNUP_MAX_ACCOUNTS_PER_DEVICE accounts created per device.
+// ---------------------------------------------------------------------------------------------
+
+/// D223: the device an account was created on — HMAC-SHA-256 (hex) under the server's device key of the app's
+/// `DeviceInfo.deviceKey` (itself a salted SHA-256 of ANDROID_ID / the iOS Keychain id; the raw id never leaves the
+/// phone). Written once by `registerVerify`; kept when the account is deleted (deleted accounts still count).
+model DeviceSignup {
+  userId     String   @id @map("user_id") @db.Uuid
+  deviceHash String   @map("device_hash") @db.Char(64)
+  platform   String?  @db.VarChar(16)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([deviceHash, createdAt], map: "device_signups_device_idx")
+  @@map("device_signups")
+}
+
+/// D223: an OWNER's exception for one device — it may create `maxAccounts` accounts instead of the default.
+model DeviceSignupException {
+  deviceHash  String   @id @map("device_hash") @db.Char(64)
+  maxAccounts Int      @map("max_accounts")
+  reason      String   @db.VarChar(500)
+  grantedById String?  @map("granted_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  grantedBy User? @relation(fields: [grantedById], references: [id], onDelete: SetNull)
+
+  @@map("device_signup_exceptions")
 }

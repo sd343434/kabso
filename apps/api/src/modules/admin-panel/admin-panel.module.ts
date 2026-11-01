@@ -33,6 +33,8 @@ import { AdminControlController } from './admin-control.controller.js';
 import { AdminControlService } from './admin-control.service.js';
 import { AdminHostApplicationsController } from './admin-host-applications.controller.js';
 import { AdminHostApplicationsService } from './admin-host-applications.service.js';
+import { AdminDeviceSignupsController } from './admin-device-signups.controller.js';
+import { AdminDeviceSignupsService } from './admin-device-signups.service.js';
 
 /**
  * v1.60-social (D191, CONVENTIONS §10.54): the admin panel «لوحة الإدارة» API behind its own cookie session with a
@@ -67,6 +69,8 @@ import { AdminHostApplicationsService } from './admin-host-applications.service.
     AdminControlController,
     // v1.73-social (D209, §10.68): «طلبات المضيفين».
     AdminHostApplicationsController,
+    // v1.78-social (D223, §10.75): the accounts made on a device, and its exception.
+    AdminDeviceSignupsController,
   ],
   providers: [
     AdminAuthService,
@@ -85,6 +89,7 @@ import { AdminHostApplicationsService } from './admin-host-applications.service.
     AdminOrdersService,
     AdminControlService,
     AdminHostApplicationsService,
+    AdminDeviceSignupsService,
   ],
   exports: [AdminAuthService, AdminSessionGuard],
 })

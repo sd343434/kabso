@@ -50,6 +50,8 @@ describe('ErrorCode', () => {
         'REFERRAL_UNAVAILABLE',
         'REFERRAL_CODE_INVALID',
         'REFERRAL_NOT_ALLOWED',
+        // v1.78-social (D223)
+        'DEVICE_ACCOUNT_LIMIT',
         // v1.47-live (D212).
         'LIVE_QUESTIONS_CLOSED',
         // v1.54-social (D185).
@@ -288,6 +290,7 @@ describe('ErrorCode', () => {
       REFERRAL_UNAVAILABLE: 503,
       REFERRAL_CODE_INVALID: 422,
       REFERRAL_NOT_ALLOWED: 409,
+      DEVICE_ACCOUNT_LIMIT: 409,
       LIVE_QUESTIONS_CLOSED: 409,
     });
   });

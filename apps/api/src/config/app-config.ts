@@ -505,6 +505,10 @@ export interface AppConfig {
     readonly codeKey: string | undefined;
     readonly noticeIntervalSeconds: number;
     readonly cleanupIntervalSeconds: number;
+    /** v1.78-social (D223, §10.75): accounts one device may create (deleted ones included). */
+    readonly maxAccountsPerDevice: number;
+    /** v1.78-social (D223): dedicated device-HMAC key source; falls back to rateLimitKeySecret. */
+    readonly deviceKey: string | undefined;
   };
   readonly loginRecentSuccessTtlSeconds: number;
   readonly reservedDisplayNameTerms: readonly string[];
@@ -908,6 +912,8 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       codeKey: e.REGISTRATION_CODE_KEY,
       noticeIntervalSeconds: e.REGISTRATION_NOTICE_INTERVAL_SECONDS,
       cleanupIntervalSeconds: e.REGISTRATION_CLEANUP_INTERVAL_SECONDS,
+      maxAccountsPerDevice: e.SIGNUP_MAX_ACCOUNTS_PER_DEVICE,
+      deviceKey: e.SIGNUP_DEVICE_KEY,
     },
     loginRecentSuccessTtlSeconds: e.LOGIN_RECENT_SUCCESS_TTL_SECONDS,
     reservedDisplayNameTerms: e.RESERVED_DISPLAY_NAME_TERMS,
