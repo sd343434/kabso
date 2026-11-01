@@ -1337,6 +1337,22 @@ export const envSchema = z
       .min(1)
       .refine((v) => Buffer.byteLength(v, 'utf8') >= MIN_SECRET_BYTES, 'must be at least 32 bytes')
       .optional(),
+    /**
+     * v1.78-social (D223, CONVENTIONS §10.75): accounts one device may CREATE (deleted ones included; signing in is never
+     * limited). The device is the app's `DeviceInfo.deviceKey`; a sign-up without one (web, an older app) is not counted.
+     * An OWNER may raise it for one device in the panel.
+     */
+    SIGNUP_MAX_ACCOUNTS_PER_DEVICE: intSetting(2, 1, 100),
+    /**
+     * v1.78-social (D223): optional dedicated source of the HMAC key (HKDF, info `signup-device/v1`) under which the
+     * device keys are stored. When unset, the key is derived from RATE_LIMIT_KEY_SECRET with that label. Changing the
+     * source (or RATE_LIMIT_KEY_SECRET while this is unset) makes every device start again from 0 accounts.
+     */
+    SIGNUP_DEVICE_KEY: z
+      .string()
+      .min(1)
+      .refine((v) => Buffer.byteLength(v, 'utf8') >= MIN_SECRET_BYTES, 'must be at least 32 bytes')
+      .optional(),
     /** At most one "account already exists" notice per account per interval (contract: 1 h). */
     REGISTRATION_NOTICE_INTERVAL_SECONDS: positiveInt(3600),
     /** Periodic deletion of expired pending registrations; 0 disables the job. */
@@ -1697,6 +1713,22 @@ export const envSchema = z
             code: 'custom',
             path: ['REGISTRATION_CODE_KEY'],
             message: 'must differ from JWT_ACCESS_SECRET and RATE_LIMIT_KEY_SECRET',
+          });
+        }
+      }
+      if (env.SIGNUP_DEVICE_KEY !== undefined) {
+        const deviceKeyProblem = productionSecretProblem(env.SIGNUP_DEVICE_KEY);
+        if (deviceKeyProblem) {
+          ctx.addIssue({ code: 'custom', path: ['SIGNUP_DEVICE_KEY'], message: deviceKeyProblem });
+        } else if (
+          [env.JWT_ACCESS_SECRET, env.RATE_LIMIT_KEY_SECRET, env.REGISTRATION_CODE_KEY].includes(
+            env.SIGNUP_DEVICE_KEY,
+          )
+        ) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['SIGNUP_DEVICE_KEY'],
+            message: 'must differ from JWT_ACCESS_SECRET, RATE_LIMIT_KEY_SECRET and REGISTRATION_CODE_KEY',
           });
         }
       }

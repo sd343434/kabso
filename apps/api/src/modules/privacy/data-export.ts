@@ -106,7 +106,8 @@ export function exportReadme(generatedAt: Date, supportEmail: string): string {
     'المجلد data/ فيه ملف لكل قسم: الملف الشخصي والإعدادات، المنشورات والريلز والقصص (مع روابط الوسائط)، التعليقات،',
     'الرسائل التي أرسلتها والتي وصلتك (كما رأيتها)، المتابعات والحظر، سجلات العملات والكرز والمستويات، الهدايا المرسلة',
     'والمستلمة (الطرف الآخر باسم المستخدم العام فقط)، طلبات السحب (بيانات الدفع مخفية جزئياً)، طلب وكيل الشحن',
-    '(بياناتك أنت وصورك في المجلد files/)، الموافقات على الشروط والخصوصية، وسجل الأجهزة وتسجيل الدخول.',
+    '(بياناتك أنت وصورك في المجلد files/)، الموافقات على الشروط والخصوصية، وسجل الأجهزة وتسجيل الدخول (ومنه هل سُجّل',
+    'معرّف للجهاز الذي أُنشئ منه الحساب، دون قيمته).',
     'لا يحوي هذا الملف كلمة المرور أو أي رموز سرية، ولا بيانات خاصة لأشخاص آخرين، ولا مؤشرات داخلية لمكافحة الاحتيال.',
     'الملف manifest.json يذكر عدد السجلات في كل قسم.',
     `للاستفسار أو لتصحيح بياناتك: ${supportEmail}`,
@@ -120,7 +121,8 @@ export function exportReadme(generatedAt: Date, supportEmail: string): string {
     'their media); comments; messages you sent and received (as you saw them); follows and blocks; coin, cherry and level',
     'ledgers; gifts sent and received (the other person by public username only); withdrawals (payout details partly',
     'masked); your recharge-agent application (your own data, pictures in files/); your acceptances of the terms and the',
-    'privacy policy; and the device and sign-in history we keep.',
+    'privacy policy; and the device and sign-in history we keep (including whether a device id was recorded for the',
+    'device the account was created on, without its value).',
     "It does not contain your password or any secret token, other people's private data, or internal fraud signals.",
     'manifest.json lists how many records each section has. Amounts are strings (exact integers); times are UTC.',
     `Questions, or to correct your data: ${supportEmail}`,
@@ -870,6 +872,16 @@ export async function buildDataExport(db: Db, o: BuildExportOptions): Promise<Ex
       signedOutAt: iso(s.revokedAt),
       signOutReason: s.revokedReason,
     })),
+    // v1.78-social (D223, §10.75): that a device id was recorded when the account was created, with its platform and
+    // time. The value itself (the server's keyed hash of the app's salted device id, never the device's own id) is an
+    // internal anti-abuse signal like the referral checks' and is not included.
+    signupDevice: await (async () => {
+      const d = await db.deviceSignup.findUnique({
+        where: { userId: u },
+        select: { platform: true, createdAt: true },
+      });
+      return d ? { deviceIdRecorded: true, platform: d.platform, recordedAt: iso(d.createdAt) } : null;
+    })(),
     pushDevices: (
       await db.deviceToken.findMany({
         where: { userId: u },

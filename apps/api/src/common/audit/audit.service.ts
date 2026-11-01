@@ -307,6 +307,15 @@ export enum AuditAction {
   REFERRAL_REWARD_REVERSE = 'referral.reward.reverse',
   REFERRAL_VIEW = 'referral.view',
   REFERRAL_SETTINGS_UPDATE = 'referral.settings.update',
+  /**
+   * v1.78-social (D223, §10.75): a sign-up refused because its device created its accounts {stage, count, max}; the
+   * panel's view of the accounts made on a user's device, and an OWNER's device exception granted / removed
+   * {maxAccounts, before, reason, via}.
+   */
+  REGISTRATION_DEVICE_LIMIT = 'auth.registration.device_limit',
+  DEVICE_SIGNUPS_VIEW = 'admin.device_signups.view',
+  DEVICE_EXCEPTION_GRANT = 'admin.device_exception.grant',
+  DEVICE_EXCEPTION_REMOVE = 'admin.device_exception.remove',
   /** A live ended by the team from the panel {reason, hostUserId} (end reason ADMIN). */
   ADMIN_LIVE_END = 'admin.live.end',
   /** A user's app sessions signed out by the team {sessions, reason}. */

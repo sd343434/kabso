@@ -123,6 +123,11 @@ export const CAPABILITIES = {
   'referrals.decide': ['OWNER', 'FINANCE'],
   /** Change the amounts and rules (money: the authenticator code again). */
   'referrals.settings': ['OWNER', 'FINANCE'],
+  // ---- v1.78-social (D223, CONVENTIONS §10.75): accounts per device --------------------------------------------------
+  /** The accounts created on a user's sign-up device, and its exception (read; audited). */
+  'users.device_view': ['OWNER', 'SUPPORT'],
+  /** Grant or remove a device's exception to the accounts-per-device limit (the authenticator code again). */
+  'users.device_exception': ['OWNER'],
 } as const satisfies Record<string, readonly PanelRole[]>;
 
 export type Capability = keyof typeof CAPABILITIES;

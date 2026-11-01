@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/config/app_config.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
+import 'package:kabso_live/core/ids/device_key.dart';
 import 'package:kabso_live/core/ids/install_id.dart';
 import 'package:kabso_live/core/logging/app_logger.dart';
 import 'package:kabso_live/core/models/profile_fields.dart';
@@ -13,11 +14,23 @@ import 'package:kabso_live/features/auth/domain/entities.dart';
 import 'package:kabso_live/features/auth/domain/validators.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
-  new({required this._remote, required this._tokens, required this._device});
+  new({
+    required this._remote,
+    required this._tokens,
+    required this._device,
+    this._deviceKey,
+  });
 
   final AuthRemoteDataSource _remote;
   final TokenManager _tokens;
   final DeviceInfoDto _device;
+
+  /// v1.78-social (D223): the stable device key, sent with a sign-up only
+  /// (`register`, `registerVerify`); null sends none.
+  final DeviceKeySource? _deviceKey;
+
+  Future<DeviceInfoDto> _signupDevice() async =>
+      _device.withDeviceKey(await _deviceKey?.read());
 
   @override
   Future<User?> restoreSession() async {
@@ -62,7 +75,7 @@ class AuthRepositoryImpl implements AuthRepository {
         displayName: displayName.trim(),
         gender: gender.wire,
         locale: locale,
-        device: _device,
+        device: await _signupDevice(),
         legal: legal,
         referralCode: code == null || code.isEmpty ? null : code,
       ),
@@ -78,7 +91,7 @@ class AuthRepositoryImpl implements AuthRepository {
       RegisterVerifyRequestDto(
         email: AuthValidators.normalizeEmail(email),
         code: code,
-        device: _device,
+        device: await _signupDevice(),
       ),
     );
     await _tokens.saveTokens(res.tokens);
@@ -162,5 +175,7 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
       // v1.74-social (D217): the referral device check.
       installId: ref.watch(installIdProvider),
     ),
+    // v1.78-social (D223): at most 2 accounts created per device.
+    deviceKey: ref.watch(deviceKeySourceProvider),
   );
 });

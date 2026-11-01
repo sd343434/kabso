@@ -14,6 +14,7 @@ import 'package:kabso_live/features/auth/domain/validators.dart';
 import 'package:kabso_live/features/auth/presentation/auth_controller.dart';
 import 'package:kabso_live/features/auth/presentation/registration_flow.dart';
 import 'package:kabso_live/features/auth/presentation/widgets/auth_widgets.dart';
+import 'package:kabso_live/features/auth/presentation/widgets/device_limit_notice.dart';
 import 'package:kabso_live/features/privacy/privacy_repository.dart';
 import 'package:kabso_live/features/profile/profile_fields_view.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -205,6 +206,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     _usernameFocus.requestFocus();
   }
 
+  /// Leaving the flow to Login clears the in-memory draft.
+  void _logIn() {
+    ref.read(registrationFlowProvider.notifier).clear();
+    context.go(AppRoutes.login);
+  }
+
   Future<void> _submit() async {
     FocusScope.of(context).unfocus();
     setState(() {
@@ -322,6 +329,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   key: RegisterScreen.usernameLostKey,
                   message: l10n.errUsernameTakenDuringVerify,
                 ),
+                const SizedBox(height: KSpacing.lg),
+              ] else if (generalFailure?.code ==
+                  ErrorCode.deviceAccountLimit) ...[
+                // D223: this device created its accounts; signing in works.
+                DeviceLimitNotice(failure: generalFailure!, onLogIn: _logIn),
                 const SizedBox(height: KSpacing.lg),
               ] else if (generalFailure != null) ...[
                 FailureBanner(failure: generalFailure, remaining: remaining),
@@ -505,11 +517,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               AuthSwitchPrompt(
                 question: l10n.registerHaveAccount,
                 action: l10n.registerSignIn,
-                onPressed: () {
-                  // Leaving the flow to Login clears the in-memory draft.
-                  ref.read(registrationFlowProvider.notifier).clear();
-                  context.go(AppRoutes.login);
-                },
+                onPressed: _logIn,
               ),
             ],
           ),

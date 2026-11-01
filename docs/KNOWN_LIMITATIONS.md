@@ -291,3 +291,24 @@
 - **No verification badge** (owner: decided later).
 - Not verified on a device (the keyboard over the story reply, the cover under the status bar on notched phones).
 
+
+## At most 2 accounts created per device (v1.78-social draft, D223)
+
+- **The id can change or be faked.** Android `ANDROID_ID` survives a reinstall and «clear data» but changes on a
+  **factory reset** (and differs per app-signing key and per Android user profile); the iOS Keychain id survives a
+  reinstall but not **erasing the iPhone** (it is `ThisDeviceOnly`, so a backup restored to another phone gets a new
+  one). A **rooted or jailbroken** phone, an emulator or a modified app can send any value. The rule raises the cost of
+  mass sign-ups; it does not stop a determined person.
+- **No device key, no count.** A sign-up from the website, from an app older than D223, or from a client that omits
+  `device.deviceKey` is allowed and not counted (owner brief: «No device id → allowed»). The limit only binds the
+  current apps.
+- **Not verified on a real phone.** The channel code (`MainActivity.kt`, `AppDelegate.swift`) was not run here (no
+  Android device or emulator, no macOS / Xcode in this environment); that ANDROID_ID stays the same across a reinstall
+  and that the Keychain item survives deleting the app come from the platform documentation, not from a test. The Dart
+  side is covered by tests with a mocked channel only.
+- **The copy names 2.** «لا يمكن إنشاء أكثر من حسابين…» is the owner's text for the default; a device with an exception
+  (or a changed `SIGNUP_MAX_ACCOUNTS_PER_DEVICE`) gets the number from the error's detail with ICU plurals.
+- **Shared phones.** A family sharing one phone can create only 2 accounts on it; an OWNER can raise the limit for
+  that device in the panel (user page → «الجهاز»). Accounts made before D223 have no device and never count.
+- **Rotating the key resets the counts.** Changing `SIGNUP_DEVICE_KEY` (or `RATE_LIMIT_KEY_SECRET` while it is unset)
+  makes every device start again from 0.

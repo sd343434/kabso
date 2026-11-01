@@ -137,7 +137,13 @@ class AuthResponseDto {
 /// `DeviceInfo`
 @JsonSerializable(includeIfNull: false)
 class DeviceInfoDto {
-  const new({this.name, this.platform, this.appVersion, this.installId});
+  const new({
+    this.name,
+    this.platform,
+    this.appVersion,
+    this.installId,
+    this.deviceKey,
+  });
 
   factory fromJson(Map<String, dynamic> json) => _$DeviceInfoDtoFromJson(json);
 
@@ -150,6 +156,22 @@ class DeviceInfoDto {
   /// v1.74-social (D217): this install's random id (the referral device
   /// check; `installIdProvider`).
   final String? installId;
+
+  /// v1.78-social (D223): the salted SHA-256 of the phone's stable device id
+  /// (`deviceKeySourceProvider`), sent only with a sign-up — at most 2
+  /// accounts are created per device.
+  final String? deviceKey;
+
+  /// This device info with [key] as its `deviceKey` (null keeps none).
+  DeviceInfoDto withDeviceKey(String? key) => key == null
+      ? this
+      : DeviceInfoDto(
+          name: name,
+          platform: platform,
+          appVersion: appVersion,
+          installId: installId,
+          deviceKey: key,
+        );
 
   Map<String, dynamic> toJson() => _$DeviceInfoDtoToJson(this);
 }

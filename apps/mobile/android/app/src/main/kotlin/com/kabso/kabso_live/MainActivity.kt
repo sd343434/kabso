@@ -8,6 +8,7 @@ import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -31,6 +32,25 @@ class MainActivity : FlutterActivity() {
                     "ringerMode" -> {
                         val audio = getSystemService(AudioManager::class.java)
                         result.success(audio?.ringerMode ?: AudioManager.RINGER_MODE_NORMAL)
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+        // D223 (CONVENTIONS §10.75): the stable device id for «at most 2
+        // accounts created per device». ANDROID_ID is per app-signing key,
+        // user and device (Android 8+), survives a reinstall and changes on a
+        // factory reset. The app hashes it with a salt before sending; the raw
+        // value never leaves the phone. Needs no permission.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.kabso/device_id")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "stableId" -> {
+                        val id = try {
+                            Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
+                        } catch (e: SecurityException) {
+                            null
+                        }
+                        result.success(id)
                     }
                     else -> result.notImplemented()
                 }

@@ -92,6 +92,7 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
     ErrorCode.referralUnavailable => l10n.errorReferralUnavailable,
     ErrorCode.referralCodeInvalid => l10n.errorReferralCodeInvalid,
     ErrorCode.referralNotAllowed => l10n.errorReferralNotAllowed,
+    ErrorCode.deviceAccountLimit => l10n.errorDeviceAccountLimit,
     ErrorCode.insufficientCherries => l10n.errorInsufficientCherries,
     ErrorCode.withdrawalPending => l10n.errorWithdrawalPending,
     ErrorCode.rechargeApplicationNotAllowed =>
@@ -159,12 +160,25 @@ String failureMessage(
           : l10n.errorServiceBusyRetryIn(wait);
     }
   }
+  // v1.78-social (D223): the device's own limit (2 unless an exception).
+  if (failure is ServerFailure &&
+      failure.code == ErrorCode.deviceAccountLimit) {
+    final max = deviceAccountLimitOf(failure);
+    if (max != null) return l10n.errorDeviceAccountLimitCount(max);
+  }
   // v1.72-social (D208): a lock or restriction by the team, with its end.
   if (failure is ServerFailure) {
     final locked = _accountControlMessage(l10n, failure);
     if (locked != null) return locked;
   }
   return errorCodeMessage(l10n, failure.code);
+}
+
+/// v1.78-social (D223): the accounts the device may create, from
+/// `DEVICE_ACCOUNT_LIMIT`'s `details[0].issue` (null when absent or odd).
+int? deviceAccountLimitOf(ServerFailure f) {
+  final max = int.tryParse(_detail(f, 'device') ?? '');
+  return max != null && max > 0 ? max : null;
 }
 
 /// The end of a lock or restriction: the date and the time (it may end today).

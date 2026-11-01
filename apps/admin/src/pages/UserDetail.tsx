@@ -21,10 +21,11 @@ import {
   type ControlAction,
 } from './UserControl';
 import { codeField } from '../components';
+import { UserDevice } from './UserDevice';
 import type { UserControl } from '../types';
 
 type Action = ControlAction | 'revoke' | 'bag' | null;
-type Tab = 'overview' | 'money' | 'content' | 'reports' | 'items' | 'audit' | 'sessions';
+type Tab = 'overview' | 'money' | 'content' | 'reports' | 'items' | 'audit' | 'sessions' | 'device';
 
 function GiftDialog({ userId, onClose, onDone }: { userId: string; onClose: () => void; onDone: () => void }) {
   const { t } = useApp();
@@ -257,6 +258,8 @@ export function UserDetail({ id }: { id: string }) {
     { key: 'items', label: 'tabItems', show: can('items.grant') },
     { key: 'audit', label: 'tabAudit', show: can('audit.view') },
     { key: 'sessions', label: 'tabSessions', show: can('users.sessions') },
+    // D223: the accounts created on this account's sign-up device.
+    { key: 'device', label: 'tabDevice', show: can('users.device_view') },
   ];
   return (
     <>
@@ -475,6 +478,7 @@ export function UserDetail({ id }: { id: string }) {
       {tab === 'sessions' && (
         <Sessions id={id} bump={bump} onRevoke={(sid) => setRevokeOne(sid)} />
       )}
+      {tab === 'device' && <UserDevice id={id} />}
       {/* D208 (owner 2026-10-31): the permanent ban asks for the authenticator code again. */}
       {action === 'ban' && (
         <FormDialog

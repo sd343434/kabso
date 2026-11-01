@@ -261,6 +261,11 @@ export enum ErrorCode {
    * `details: [{field: 'referral', issue: ALREADY_REFERRED|WINDOW_CLOSED}]`.
    */
   REFERRAL_NOT_ALLOWED = 'REFERRAL_NOT_ALLOWED',
+  /**
+   * v1.78-social (DRAFT, D223, §10.75): this device already created its accounts (`SIGNUP_MAX_ACCOUNTS_PER_DEVICE`,
+   * deleted ones included) — `details: [{field: 'device', issue: '<the limit, decimal>'}]`. Signing in is not limited.
+   */
+  DEVICE_ACCOUNT_LIMIT = 'DEVICE_ACCOUNT_LIMIT',
 }
 
 /** HTTP status for every code (CONVENTIONS.md §4 table). */
@@ -395,6 +400,7 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.REFERRAL_UNAVAILABLE]: 503,
   [ErrorCode.REFERRAL_CODE_INVALID]: 422,
   [ErrorCode.REFERRAL_NOT_ALLOWED]: 409,
+  [ErrorCode.DEVICE_ACCOUNT_LIMIT]: 409,
 };
 
 /** Default developer-facing messages (clients localize by `code`, not by message). */
@@ -529,6 +535,8 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.REFERRAL_UNAVAILABLE]: 'Inviting friends is not available now.',
   [ErrorCode.REFERRAL_CODE_INVALID]: 'This invite code is not valid.',
   [ErrorCode.REFERRAL_NOT_ALLOWED]: 'You cannot enter an invite code now.',
+  [ErrorCode.DEVICE_ACCOUNT_LIMIT]:
+    'This device cannot create more accounts. You can sign in to your existing accounts.',
 };
 
 export interface ErrorDetail {

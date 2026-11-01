@@ -245,6 +245,11 @@ enum ErrorCode {
   /// enter one are over (`details[0].issue`).
   referralNotAllowed('REFERRAL_NOT_ALLOWED'),
 
+  /// v1.78-social (D223, §10.75, 409): this device already created its
+  /// accounts (`details[0] = {field: device, issue: '<the limit>'}`); signing
+  /// in is still possible.
+  deviceAccountLimit('DEVICE_ACCOUNT_LIMIT'),
+
   /// v1.52-social (D179, §10.46, 409): the cherry balance does not cover
   /// the withdrawal.
   insufficientCherries('INSUFFICIENT_CHERRIES'),

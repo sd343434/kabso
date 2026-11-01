@@ -203,6 +203,7 @@ All non-2xx responses use one envelope:
 | 503 | `REFERRAL_UNAVAILABLE` | *(v1.74-social, DRAFT, D217)* «دعوة الأصدقاء» is switched off (`referral_settings.enabled`); `applyReferralCode` changes nothing. §10.71. |
 | 422 | `REFERRAL_CODE_INVALID` | *(v1.74-social, DRAFT, D217)* `applyReferralCode` with no such invite code, the caller's own, or a code whose owner cannot invite now (not ACTIVE). §10.71. |
 | 409 | `REFERRAL_NOT_ALLOWED` | *(v1.74-social, DRAFT, D217)* The caller may not enter a code now; `details: [{field: "referral", issue: "ALREADY_REFERRED" \| "WINDOW_CLOSED"}]` (one inviter per person, ever; within `applyWindowDays` of sign-up). §10.71. |
+| 409 | `DEVICE_ACCOUNT_LIMIT` | *(v1.78-social, DRAFT, D223)* `register` / `registerVerify`: this device (`DeviceInfo.deviceKey`) already created `SIGNUP_MAX_ACCOUNTS_PER_DEVICE` accounts (deleted ones included; an OWNER exception may raise it); `details: [{field: "device", issue: "<the limit, decimal>"}]`. Signing in is never limited. §10.75. |
 | 403 | `DM_NOT_ALLOWED` | *(v1.40-social, DRAFT, D155)* The recipient's «who can message you» setting (`whoCanMessage`) does not allow the caller (§11.13). Nothing was stored or charged. The app says the person does not accept messages. |
 | 403 | `DM_REQUEST_LIMIT` | *(v1.40-social, DRAFT, D155)* The caller already sent `DM_REQUEST_MAX_MESSAGES` (3) messages in a message request the recipient has not accepted (§11.13). The app says to wait for a reply. |
 | 403 | `DM_REQUEST_TEXT_ONLY` | *(v1.40-social, DRAFT, D155)* A picture or voice message in a message request (only text, a pack emoji or a gift until the recipient accepts, §11.13). |
@@ -638,6 +639,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
 | v1.79-social (draft) | 2026-11-01 | **D226 (owner approved «تسجيل الخروج من كل الأجهزة الأخرى»):** `revokeOtherSessions` (`POST /auth/sessions/revoke-others`, `RevokeOtherSessionsRequest` with the current password, 200 `RevokeOtherSessionsResult` `{revoked}`): every session of the caller but the calling one is revoked with its push token; 403 `REAUTH_FAILED` on a wrong password; rate limit 5 / 15 min per user (bucket `sessions_revoke_others:user`, the existing rule `RATE_LIMIT_ACCOUNT_DELETION_USER`); audit actions `auth.sessions.revoke_others`, `auth.sessions.revoke_others.reauth_failed`. No migration, no new configuration. §7, §10.76. | **Additive** (a new operation). |
+| v1.78-social (draft) | 2026-11-01 | **D223 (owner: «الجهاز الواحد لا يمكنه عمل غير حسابين لكنه يمكن فتح حسابات مختلفة»):** `DeviceInfo.deviceKey` (the app's salted SHA-256 of Android `ANDROID_ID` / an iOS Keychain id; read only by `register` and `registerVerify`, kept only as an HMAC); `register` / `registerVerify` 409 `DEVICE_ACCOUNT_LIMIT` (`details[0] = {field: device, issue: '<limit>'}`); tag `admin-panel`: `getAdminDeviceSignups`, `grantAdminDeviceException`, `removeAdminDeviceException` (`AdminDeviceSignups`, `AdminDeviceExceptionRequest`; capabilities `users.device_view` OWNER / SUPPORT, `users.device_exception` OWNER with the code again); config `SIGNUP_MAX_ACCOUNTS_PER_DEVICE` (2, 1–100), `SIGNUP_DEVICE_KEY` (optional HMAC key source, else RATE_LIMIT_KEY_SECRET); audit `auth.registration.device_limit`, `admin.device_signups.view`, `admin.device_exception.grant\|remove`; migration `20270211090000_device_signups` (`device_signups`, `device_signup_exceptions`, `pending_registrations.device_hash`). §4, §10.75. | **Additive** (an optional request field, a new code on the sign-up operations only when a device key is sent, new operations; an older app or the website sends no key and is not counted). |
 | v1.77-social (draft) | 2026-11-01 | **D220 (owner: the in-live person card «بطاقة التعريف» matched to a reference; four numbers, two of them hideable):** `PublicProfile.cherriesReceived` and `PublicProfile.coinsSent` (optional: absent when hidden from the caller); `PrivacySettings.hideCherriesReceived` / `hideCoinsSent` (required in the response) and the same two optional fields in `UpdatePrivacyRequest`; `AdminUserDetail.balances.cherriesReceived` / `coinsSent` (required); migration `20270212090000_profile_stats_privacy` (two `privacy_settings` columns, default false); the data export lists the switches. §10.74. (v1.74–v1.76-social are D217, D222 and D218.) | **Additive** (new optional response fields; new request fields; new required fields on the caller's own privacy settings and the panel's user detail — strict clients update their models in the same change set). |
 | v1.76-social (draft) | 2026-11-01 | **D218 (owner: «بهذا التصميم حرفياً مع اضافة ميزاتنا وجعلها مناسبة لنا» — the posts feed, the story viewer and the public profile after a reference; v1.74-social and v1.75-social are taken by D217 and D222):** `listFeedPosts` `tab=mixed` (the app's home feed: 1 Following : 2 Trending, §10.73.1); `Post.viewerFollowsAuthor` (required; §10.73.2); the profile cover — `setMyCover` / `removeMyCover` (`PUT` / `DELETE /me/cover`, `SetCoverRequest`, `ProfileCover`), `MediaKind.PROFILE_COVER`, `Me.coverUrl` and `PublicProfile.coverUrl` (required, nullable), the panel's `removeAdminUserCover` (capability `users.avatar`), CLI `profile-admin remove-cover`, `NotificationType.COVER_REMOVED`, audit `user.cover.update` / `admin.cover.remove`; `PublicProfile.country` (required, nullable), `PublicProfile.joinedMonth` (required, `YYYY-MM`) and `PublicProfile.blockedByMe` (required); migrations `20270209090000_profile_cover_enums`, `20270209090100_profile_cover`. §7, §10.73, §11.3. | **Additive** (a new `tab` value; new operations; new required response fields — strict clients update their models in the same change set; clients ignore unknown notification types). |
 | v1.75-social (draft) | 2026-11-01 | **D222 (owner: «Storage = Cloudflare R2» and «اجعل تفعيل من لوحة الادمن» — the OWNER enters and turns on the media storage in the panel, not in server env files):** tag `admin-panel` — `getAdminStorageSettings`, `updateAdminStorageSettings` (PATCH), `testAdminStorageSettings` («اختبار الاتصال»), `clearAdminStorageSettings` (capability `storage.settings`, OWNER); schemas `AdminStorageSettings`, `StorageKeyInfo`, `StorageTarget`, `StorageTestStep`, `StorageTestReport`, `StorageLastTest`, `UpdateAdminStorageSettingsRequest`, `TestAdminStorageSettingsRequest`, `ClearAdminStorageSettingsRequest`; audit `storage.settings.update\|clear\|test`; migration `20270208090000_storage_settings`. D196's pattern and code: the access key id and secret write-only (last 4 only), sealed AES-256-GCM with a key derived from `ADMIN_TOTP_KEY` (HKDF `storage-settings/v1`); two buckets (public `media/`, private `uploads/` + `private/`); on, the panel overrides `S3_*` / `MEDIA_PUBLIC_BASE_URL` / `MEDIA_UPLOADS_ENABLED`, which stay the fallback; the S3 client follows a change without a restart. §4 (`MEDIA_UPLOADS_UNAVAILABLE` text), §9, §10.54.1, §10.72, §11.1. | **Additive** (new operations; env deployments and CI unchanged; no app change). |
@@ -4226,6 +4228,8 @@ New capabilities (added to the §10.54.1 table; the session's `capabilities` lis
 | `referrals.view` *(v1.74-social, D217)* | ✓ | | ✓ | ✓ |
 | `referrals.decide` *(D217; the code again)* | ✓ | | | ✓ |
 | `referrals.settings` *(D217; the code again)* | ✓ | | | ✓ |
+| `users.device_view` *(v1.78-social, D223: the accounts made on a user's sign-up device; audited)* | ✓ | | ✓ | |
+| `users.device_exception` *(D223: a device's exception to the accounts-per-device limit; the code again)* | ✓ | | | |
 
 - **Statistics** (`dashboard.view`, read-only): `getAdminStatsOverview` — five KPI cards (new users; coins sold =
   recharge agents' sales + card orders credited; gift coin value; lives on air now with the lives started per day;
@@ -5189,6 +5193,61 @@ Owner, 2026-11-01: the in-live person card «بطاقة التعريف» shows f
   the profile answers callers the user blocked as before; nothing about a block is added here.
 - **Not a change.** The follower counts, the rate limit (`users:profile`) and every other profile field are as
   before. The switches are not audited (like the other privacy choices except `isPrivate`).
+
+### 10.75 At most 2 accounts created per device; signing in is not limited *(v1.78-social, DRAFT — D223)*
+
+Owner (2026-11-01): «ملاحظة الجهاز الواحد لا يمكنه عمل غير حسابين لكنه يمكن فتح حسابات مختلفة» — one phone may
+**create** at most two accounts, and may **sign in** to any number of existing accounts. Built on D217's device
+fields (§10.71); the install id alone resets on reinstall or «clear data», so this rule has its own stable id.
+
+- **The device key** (`DeviceInfo.deviceKey`, 64 lower-case hex). The app reads the platform's stable id over the
+  `com.kabso/device_id` channel — **Android** `Settings.Secure.ANDROID_ID` (per app-signing key, user and device on
+  Android 8+; it survives a reinstall and «clear data», not a factory reset); **iOS** a UUID the app keeps in the
+  Keychain (`kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`; seeded from `identifierForVendor`, which alone
+  changes when the last app of the vendor is removed; the Keychain item survives a reinstall, not erasing the
+  phone) — and sends SHA-256(`kabso-live/device-key/v1|<platform>|<id>`). The raw id never leaves the phone. It is
+  sent with `register` and `registerVerify` only (never at sign-in). No new package: a platform channel in
+  `MainActivity.kt` / `AppDelegate.swift` (`device_info_plus` is not a dependency). The emulators' shared
+  `9774d56d682e549c` and an empty id count as no id.
+- **What the server keeps.** HMAC-SHA-256(key, deviceKey) — the key from HKDF(`SIGNUP_DEVICE_KEY` when set, else
+  `RATE_LIMIT_KEY_SECRET`; info `signup-device/v1`) — on the pending registration (`device_hash`) and, once the
+  account exists, in `device_signups` (one row per account: the hash, the platform, the time). Changing the key
+  source makes every device start from 0. The panel never shows the hash.
+- **The rule.** `register` counts the `device_signups` rows of the device — **every account status: ACTIVE,
+  SUSPENDED, PENDING_DELETION and DELETED** (a purged account keeps its tombstone row, and its device row with it),
+  so delete-and-recreate does not free a place; nothing else is excluded. When the count is at the limit
+  (`SIGNUP_MAX_ACCOUNTS_PER_DEVICE`, default **2**, 1–100; or the device's exception) the answer is **409
+  `DEVICE_ACCOUNT_LIMIT`**, `details[0] = {field: device, issue: '<the limit>'}`, before the username, the password
+  hash and the email are looked at — the answer depends on the device only, so it reveals nothing about an address —
+  and no code is mailed. `registerVerify` checks again inside the account's transaction, holding a per-device advisory
+  lock, with the device key it is sent (else the one `register` stored): two pending sign-ups racing for the last place
+  give one account and one 409; the refused pending registration is deleted (its username is free again). Audited
+  `auth.registration.device_limit` `{stage: register|verify, count, max}` (no email, no hash).
+- **No device key** (the website, an app older than D223, a platform without an id): the sign-up is allowed and not
+  counted (documented gap: KNOWN_LIMITATIONS).
+- **Signing in** is never limited: `login` accepts `device.deviceKey` (the shared `DeviceInfo`) and ignores it; only a
+  sign-up writes `device_signups`.
+- **The app.** On the sign-up screen (and on the code screen, when the limit was reached meanwhile) the 409 shows
+  «لا يمكن إنشاء أكثر من حسابين من نفس الجهاز. يمكنك تسجيل الدخول إلى حساباتك الحالية.» / «You cannot create more
+  than 2 accounts on the same device. You can log in to your existing accounts.» with a «تسجيل الدخول» / «Log in»
+  button that opens Log in (from the code screen with the email filled in). With another limit in the detail (an
+  exception) the number follows it (ICU plurals: «حساب واحد», «حسابين», «3 حسابات», «11 حسابًا»).
+- **The panel** (user page, tab «الجهاز»): `getAdminDeviceSignups` (`users.device_view`: OWNER, SUPPORT; audited
+  `admin.device_signups.view`) — whether the account has a device (`known`), the platform, the count, the limit, the
+  exception and the accounts made on it (oldest first, at most 50; deleted ones shown as such). An **OWNER** may give
+  that device a different limit — `grantAdminDeviceException` `{maxAccounts 1–100, reason, totpCode}` — or end the
+  exception — `removeAdminDeviceException` `{reason, totpCode}` (`users.device_exception`; the authenticator code
+  again; audited `admin.device_exception.grant` `{maxAccounts, before, defaultMax, reason, via}` /
+  `admin.device_exception.remove` `{before, reason, via}`). Accounts already made stay. 409 `ADMIN_ACTION_REFUSED`
+  when the account has no device or there is no exception to remove.
+- **Privacy and retention.** The privacy policy names the device id (the hashed id, why, how long). The data export's
+  `devices.json` says whether a device id was recorded for the account (`signupDevice: {deviceIdRecorded, platform,
+  recordedAt}`), without the value (an internal anti-abuse signal, as the referral checks' are). Retention follows the
+  install id's (§10.71): the referral keeps its install id after a purge, and `device_signups` keeps the hash with the
+  account's tombstone (a sign-up without it would let a deleted account free its place).
+- **Limits** (KNOWN_LIMITATIONS): a factory reset, erasing an iPhone, a rooted / jailbroken phone or an emulator can
+  change or fake the id; a sign-up without a device key (an older app, the website, a modified client) is not
+  counted. The rule raises the cost of mass sign-ups; it does not make them impossible.
 
 ### 10.76 «تسجيل الخروج من كل الأجهزة الأخرى»: sign out of all other devices *(v1.79-social, DRAFT — D226)*
 

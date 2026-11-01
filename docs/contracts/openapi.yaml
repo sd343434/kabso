@@ -324,6 +324,15 @@ info:
     `hideCoinsSent` (default false = shown): a hidden total is left out of `getPublicProfile` for everyone but
     the user (enforced by the server, the value is not sent), and the panel's `AdminUserDetail.balances` keeps
     both (CONVENTIONS §10.74).
+    **D223 (DRAFT v1.78-social)**: one device may **create** at most `SIGNUP_MAX_ACCOUNTS_PER_DEVICE` (2) accounts —
+    deleted and pending-deletion ones included; signing in to any number of existing accounts is never limited (owner
+    2026-11-01). The device is `DeviceInfo.deviceKey` (the app's salted SHA-256 of Android's `ANDROID_ID` or an iOS
+    Keychain id, stored only as an HMAC under the server's key); `register` and `registerVerify` answer 409
+    `DEVICE_ACCOUNT_LIMIT` (`details[0] = {field: device, issue: '<the limit>'}`) once it is reached. A sign-up
+    without a device key (the website, an older app) is not counted. The panel's user page lists the accounts made on
+    that device (`getAdminDeviceSignups`, `users.device_view`) and an OWNER may give the device more
+    (`grantAdminDeviceException` / `removeAdminDeviceException`, `users.device_exception`, a reason and the code
+    again) (CONVENTIONS §10.75).
     **D184 (DRAFT v1.53-social)**: the Task Center's rewards are cherries (the old coins ×10, then raised
     ×300: ≈ $5 a month at most), credited to the cherry ledger as `TASK_REWARD` under a daily cherry cap
     (`ProgramTask.rewardCherries` / `claimedCherries`, `MyTasks.dailyCapCherries` / `dailyEarnedCherries`,
@@ -681,7 +690,11 @@ paths:
               schema: { $ref: '#/components/schemas/VerificationPending' }
         '400': { $ref: '#/components/responses/Error' }
         '409':
-          description: USERNAME_TAKEN only (taken by an account or a live pending registration).
+          description: |
+            USERNAME_TAKEN (taken by an account or a live pending registration); v1.78-social (D223, §10.75)
+            DEVICE_ACCOUNT_LIMIT — `device.deviceKey` already created SIGNUP_MAX_ACCOUNTS_PER_DEVICE accounts (deleted
+            ones included; an OWNER exception may raise it), `details[0] = {field: device, issue: '<the limit>'}`.
+            Depends on the device only (checked before the email), so it reveals nothing about the address.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }
@@ -707,7 +720,10 @@ paths:
               schema: { $ref: '#/components/schemas/AuthResponse' }
         '400': { $ref: '#/components/responses/Error' }
         '409':
-          description: USERNAME_TAKEN (backstop race only).
+          description: |
+            USERNAME_TAKEN (backstop race only); v1.78-social (D223) DEVICE_ACCOUNT_LIMIT — the device (this request's
+            `device.deviceKey`, else the one sent to `register`) reached its limit meanwhile (checked again, one sign-up
+            per device at a time); the pending registration is deleted.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }
@@ -11257,6 +11273,88 @@ paths:
         '404': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/users/{userId}/device-signups:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminDeviceSignups
+      summary: "«الجهاز»: the accounts created on this account's sign-up device and its limit (users.device_view; audited)"
+      description: |
+        (v1.78-social, D223, §10.75) The device the account was created on (`known` false: created without a device
+        key — the website or an older app), how many accounts it created (every status: deleted ones count), its
+        limit (an OWNER exception, else SIGNUP_MAX_ACCOUNTS_PER_DEVICE) and the accounts (oldest first, at most 50).
+        The device hash itself is never shown. Audited `admin.device_signups.view`.
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminUserIdPath'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminDeviceSignups' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/users/{userId}/device-signups/exception:
+    put:
+      tags: [admin-panel]
+      operationId: grantAdminDeviceException
+      summary: "Lets this account's sign-up device create `maxAccounts` accounts (users.device_exception: OWNER; the code again; audited)"
+      description: |
+        (v1.78-social, D223, §10.75) Sets (or replaces) the exception of the device the account was created on. 409
+        `ADMIN_ACTION_REFUSED` when the account has no device. Audited `admin.device_exception.grant` with the reason,
+        `maxAccounts` and the value before.
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminUserIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminDeviceExceptionRequest' }
+      responses:
+        '200':
+          description: The device now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminDeviceSignups' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/users/{userId}/device-signups/exception/remove:
+    post:
+      tags: [admin-panel]
+      operationId: removeAdminDeviceException
+      summary: "Ends the device's exception: the default limit again (users.device_exception: OWNER; the code again; audited)"
+      description: |
+        (v1.78-social, D223, §10.75) Accounts it already created stay. 409 `ADMIN_ACTION_REFUSED` when the account has
+        no device or the device no exception. Audited `admin.device_exception.remove`.
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminUserIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReasonCodeRequest' }
+      responses:
+        '200':
+          description: The device now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminDeviceSignups' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/admin/users/{userId}/deletion:
     post:
       tags: [admin-panel]
@@ -16448,6 +16546,59 @@ components:
               reason: { type: string }
               actor: { type: [string, 'null'], description: The admin's username (null from the CLI). }
               createdAt: { type: string, format: date-time }
+    AdminDeviceExceptionRequest:
+      type: object
+      additionalProperties: false
+      required: [maxAccounts, reason, totpCode]
+      properties:
+        maxAccounts: { type: integer, minimum: 1, maximum: 100, description: The accounts this device may create in all (deleted ones included). }
+        reason: { type: string, minLength: 1, maxLength: 500, description: Required; kept in the audit log. }
+        totpCode: { type: string, pattern: '^[0-9]{6}$', description: The authenticator code again. }
+    AdminDeviceSignups:
+      type: object
+      additionalProperties: false
+      description: (v1.78-social, D223, §10.75) The accounts created on one device, named by one of its accounts.
+      required: [known, platform, createdAt, defaultMax, maxAccounts, count, exception, accounts]
+      properties:
+        known: { type: boolean, description: The account was created with a device key. }
+        platform: { type: [string, 'null'] }
+        createdAt: { type: [string, 'null'], format: date-time, description: When this account's device was recorded. }
+        defaultMax: { type: integer, minimum: 1, description: SIGNUP_MAX_ACCOUNTS_PER_DEVICE. }
+        maxAccounts: { type: integer, minimum: 1, description: 'The limit for this device (its exception, else the default).' }
+        count: { type: integer, minimum: 0, description: Accounts created on it (every status). }
+        exception:
+          oneOf:
+            - type: 'null'
+            - type: object
+              additionalProperties: false
+              required: [maxAccounts, reason, grantedBy, grantedAt]
+              properties:
+                maxAccounts: { type: integer, minimum: 1, maximum: 100 }
+                reason: { type: string }
+                grantedBy:
+                  oneOf:
+                    - type: 'null'
+                    - type: object
+                      additionalProperties: false
+                      required: [id, username]
+                      properties:
+                        id: { type: string, format: uuid }
+                        username: { type: string }
+                grantedAt: { type: string, format: date-time }
+        accounts:
+          type: array
+          maxItems: 50
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, username, displayName, status, createdAt, self]
+            properties:
+              id: { type: string, format: uuid }
+              username: { type: string }
+              displayName: { type: string }
+              status: { type: string, enum: [ACTIVE, SUSPENDED, PENDING_DELETION, DELETED] }
+              createdAt: { type: string, format: date-time }
+              self: { type: boolean, description: The account the page is about. }
     AdminReasonCodeRequest:
       type: object
       additionalProperties: false
@@ -19637,6 +19788,15 @@ components:
             v1.74-social (D217, CONVENTIONS §10.71). A random id the app keeps for this install (until it is
             uninstalled); kept with the session and used only by the referral fraud checks (one reward per device, no
             self-referral). Optional.
+        deviceKey:
+          type: string
+          pattern: '^[0-9a-f]{64}$'
+          description: |
+            v1.78-social (D223, CONVENTIONS §10.75). The phone's stable device id — Android `ANDROID_ID`, iOS a
+            Keychain id (seeded from `identifierForVendor`) — as the app's salted SHA-256, 64 lower-case hex; the raw id
+            never leaves the phone. Read only by `register` and `registerVerify` (at most
+            SIGNUP_MAX_ACCOUNTS_PER_DEVICE accounts created per device) and kept only as an HMAC under the server's
+            key. Optional: without it (the website, an older app) the sign-up is not counted.
     RegisterRequest:
       type: object
       required: [email, password, username, displayName, gender]

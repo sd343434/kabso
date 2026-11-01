@@ -66,7 +66,10 @@ export type Capability =
   | 'users.profile_edit'
   | 'users.content'
   | 'users.balance_adjust'
-  | 'users.delete';
+  | 'users.delete'
+  // v1.78-social (D223)
+  | 'users.device_view'
+  | 'users.device_exception';
 
 export interface AdminSessionInfo {
   admin: { id: string; email: string; username: string; displayName: string };
@@ -718,4 +721,21 @@ export interface ReferralSettings {
   selfIpWindowHours: number;
   updatedAt: string;
   updatedById: string | null;
+}
+
+/** v1.78-social (D223): the accounts created on a user's sign-up device (`getAdminDeviceSignups`). */
+export interface DeviceSignups {
+  known: boolean;
+  platform: string | null;
+  createdAt: string | null;
+  defaultMax: number;
+  maxAccounts: number;
+  count: number;
+  exception: {
+    maxAccounts: number;
+    reason: string;
+    grantedBy: { id: string; username: string } | null;
+    grantedAt: string;
+  } | null;
+  accounts: { id: string; username: string; displayName: string; status: UserStatus; createdAt: string; self: boolean }[];
 }

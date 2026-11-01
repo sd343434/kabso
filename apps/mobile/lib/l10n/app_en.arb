@@ -3996,6 +3996,8 @@
   "errorReferralUnavailable": "Invitations are not available now",
   "errorReferralCodeInvalid": "This invite code is not valid",
   "errorReferralNotAllowed": "You cannot enter an invite code now",
+  "errorDeviceAccountLimit": "You cannot create more than 2 accounts on the same device. You can log in to your existing accounts.",
+  "errorDeviceAccountLimitCount": "You cannot create more than{count, plural, =1{ one account} other{ {count} accounts}} on the same device. You can log in to your existing accounts.",
   "registerReferralLabel": "Invite code (optional)",
   "registerReferralHelper": "If a friend invited you, type their code or paste the invite link",
   "cherryReasonReferral": "Referral reward",

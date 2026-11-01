@@ -21844,6 +21844,18 @@ abstract class AppLocalizations {
   /// **'لا يمكنك إدخال كود دعوة الآن'**
   String get errorReferralNotAllowed;
 
+  /// D223 (owner copy): DEVICE_ACCOUNT_LIMIT — this device already created its 2 accounts; signing in is still possible.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن إنشاء أكثر من حسابين من نفس الجهاز. يمكنك تسجيل الدخول إلى حساباتك الحالية.'**
+  String get errorDeviceAccountLimit;
+
+  /// D223: DEVICE_ACCOUNT_LIMIT with the device's own limit (details[0].issue; an OWNER exception may differ from 2). T4: Arabic plural via ICU.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, =1{لا يمكن إنشاء أكثر من حساب واحد من نفس الجهاز.} =2{لا يمكن إنشاء أكثر من حسابين من نفس الجهاز.} few{لا يمكن إنشاء أكثر من {count} حسابات من نفس الجهاز.} many{لا يمكن إنشاء أكثر من {count} حسابًا من نفس الجهاز.} other{لا يمكن إنشاء أكثر من {count} حساب من نفس الجهاز.}} يمكنك تسجيل الدخول إلى حساباتك الحالية.'**
+  String errorDeviceAccountLimitCount(int count);
+
   /// D217 (invite friends «دعوة الأصدقاء»).
   ///
   /// In ar, this message translates to:
