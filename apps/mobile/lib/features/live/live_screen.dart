@@ -23,6 +23,7 @@ import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/hub/home_banner_carousel.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_hub_filters.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_hub_grid.dart';
+import 'package:kabso_live/features/live/presentation/hub/podcast_hub.dart';
 import 'package:kabso_live/features/live/presentation/hub/voice_room_list.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/features/notifications/presentation/notifications_screen.dart';
@@ -132,13 +133,30 @@ class _LiveScreenState extends ConsumerState<LiveScreen> {
               categories: categories,
               onSelect: _select,
             ),
+            // D212 (owner): «الكل» + the five live categories.
+            LiveHubCategoryBar(
+              selected: _selection.liveCategory,
+              onSelect: (c) => _select(_selection.withCategory(c)),
+            ),
             Expanded(
-              child: LiveRoomsPage(
-                key: ValueKey(_selection),
-                query: _selection.query,
-                selection: _selection,
-                onSelect: _select,
-              ),
+              child: switch (_selection.liveCategory) {
+                // D213: no streamer lives yet — an honest «قريباً».
+                LiveHubCategory.streamer => const StreamerSoon(),
+                LiveHubCategory.podcast => LiveRoomsPage(
+                  key: ValueKey(_selection),
+                  query: _selection.query,
+                  selection: _selection,
+                  onSelect: _select,
+                  layout: LiveRoomsLayout.podcast,
+                  header: const ScheduledPodcastsSection(),
+                ),
+                _ => LiveRoomsPage(
+                  key: ValueKey(_selection),
+                  query: _selection.query,
+                  selection: _selection,
+                  onSelect: _select,
+                ),
+              },
             ),
           ],
         ),
@@ -273,7 +291,8 @@ class _LiveHubPartyButtonState extends State<LiveHubPartyButton> {
 
 /// How a room list is laid out: the hub's 2-column grid, or the Voice
 /// rooms' list rows (ref 166).
-enum LiveRoomsLayout { grid, list }
+/// D212: [podcast] — the podcast tab's full-width episode cards.
+enum LiveRoomsLayout { grid, list, podcast }
 
 /// Which empty and unavailable copy a list shows.
 enum LiveListKind { following, popular, explore, nearby, featured }
@@ -342,7 +361,7 @@ class LiveRoomsPage extends ConsumerWidget {
     final boosted = ref.watch(liveBoostedRoomsProvider).value ?? const [];
     return [
       for (final b in boosted)
-        if (query.kind.includes(b.room.mode)) b.room,
+        if (query.kind?.includes(b.room.mode) ?? true) b.room,
     ];
   }
 
@@ -360,6 +379,7 @@ class LiveRoomsPage extends ConsumerWidget {
     return LiveHubBody(
       kind: _kind,
       voice: query.kind == LiveRoomsKind.audio,
+      podcast: query.kind == LiveRoomsKind.podcast,
       layout: layout,
       header: header,
       content: liveHubContent(async, pinned: _pinned(ref)),
@@ -376,6 +396,10 @@ class LiveRoomsPage extends ConsumerWidget {
           : () => select(const LiveHubSelection(filter: LiveHubFilter.explore)),
       onRefresh: () {
         // The banners reload with the list (a failure there shows none).
+        // D212: and the announced podcasts.
+        if (layout == LiveRoomsLayout.podcast) {
+          ref.invalidate(scheduledPodcastsProvider);
+        }
         ref
           ..invalidate(homeBannersProvider)
           // D154b: and the featured slots.
@@ -452,6 +476,7 @@ class LiveHubBody extends StatelessWidget {
     required this.onRetry,
     super.key,
     this.voice = false,
+    this.podcast = false,
     this.layout = LiveRoomsLayout.grid,
     this.header,
     this.countryNotSet = false,
@@ -479,6 +504,9 @@ class LiveHubBody extends StatelessWidget {
 
   /// Voice rooms (their empty copy names voice rooms).
   final bool voice;
+
+  /// D212: the podcast tab (its empty copy names podcasts).
+  final bool podcast;
   final LiveRoomsLayout layout;
   final Widget? header;
 
@@ -511,10 +539,16 @@ class LiveHubBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final emptyTitle = voice
+    final emptyTitle = podcast
+        ? l10n.livePodcastEmptyTitle
+        : voice
         ? l10n.liveVoiceEmptyTitle
         : l10n.liveHubEmptyTitle;
-    final emptyBody = voice ? l10n.liveVoiceEmptyBody : l10n.liveHubEmptyBody;
+    final emptyBody = podcast
+        ? l10n.livePodcastEmptyBody
+        : voice
+        ? l10n.liveVoiceEmptyBody
+        : l10n.liveHubEmptyBody;
     final (
       String title,
       String body,
@@ -617,12 +651,12 @@ class LiveHubBody extends StatelessWidget {
             onOpen: onOpenBanner,
             canOpen: canOpenBanner,
           );
-    final list = layout == LiveRoomsLayout.list;
+    final list = layout != LiveRoomsLayout.grid;
     return FeedRegion<LiveRoomCardData>(
       key: PageStorageKey(
         layout == LiveRoomsLayout.grid
             ? 'live.${kind.name}'
-            : 'live.${kind.name}.list',
+            : 'live.${kind.name}.${layout.name}',
       ),
       content: content,
       copy: copy,
@@ -636,7 +670,9 @@ class LiveHubBody extends StatelessWidget {
           ? VoiceRoomList.skeletonSliver()
           : LiveHubGrid.skeletonSliver(),
       footerLoadingSliver: LiveHubGrid.loadingMoreSliver(context),
-      itemsSliver: (rooms) => list
+      itemsSliver: (rooms) => layout == LiveRoomsLayout.podcast
+          ? PodcastHubList.sliver(rooms: rooms, onOpenRoom: onOpenRoom)
+          : list
           ? VoiceRoomList.sliver(
               rooms: rooms,
               banner: banner,

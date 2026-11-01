@@ -44,7 +44,14 @@ class LiveRoomChatLines extends ConsumerWidget {
     this.inline = false,
     this.anchorTop = false,
     this.brightNotice = false,
+    this.compact = false,
   });
+
+  /// D212: the podcast's lower chat box (the mockup's four lines under the
+  /// listeners): at most [compactShare] of the screen, so the stage above
+  /// it keeps the listeners row whole.
+  final bool compact;
+  static const double compactShare = 0.22;
 
   /// D135: the room's theme is bright (the rules line's fill is a little
   /// darker).
@@ -97,22 +104,25 @@ class LiveRoomChatLines extends ConsumerWidget {
     // The window's own insets: the room's scaffold takes the keyboard out
     // of its children's MediaQuery.
     final typing = View.of(context).viewInsets.bottom > 0;
+    // D212 (owner, every category): the rules line is gone once the first
+    // message of the visit is written (by anyone), and each join is its own
+    // line (the audio room too: no join strip any more).
+    final written = chat.written;
     final items = [
       for (final it in chat.items)
-        if ((inline || it is! LiveChatJoinItem) &&
-            !(anchorTop && typing && it is LiveChatNoticeLine))
+        if (!(it is LiveChatNoticeLine && (written || (anchorTop && typing))))
           it,
     ];
     // D119: taller lines (picture, name, badges, bubble), so a little more
     // room than the 240 pt of one-line bubbles: about three messages.
     final maxHeight = math
-        .min(300, MediaQuery.sizeOf(context).height * 0.35)
+        .min(
+          300,
+          MediaQuery.sizeOf(context).height * (compact ? compactShare : 0.35),
+        )
         .toDouble();
-    // D119: the latest join, pinned under the newest message (D131: the
-    // video live shows joins as rows instead).
-    final strip = inline
-        ? const SizedBox.shrink()
-        : LiveChatJoinStrip(join: chat.latestJoin, color: bubble);
+    // D119's join strip is gone (D212): joins are lines in every room.
+    const strip = SizedBox.shrink();
     // The newest lines that fit; older ones fade out at the top. Not a lazy
     // list: the audio room measures the chat's height.
     final visible = items.length > maxVisibleLines
@@ -208,8 +218,13 @@ class LiveRoomChatLines extends ConsumerWidget {
     final l10n = context.l10n;
     final boxMax = LiveChatAuthoredLine.chatMaxWidth(context);
     return switch (item) {
-      // D131: joins are rows of the video live only (never reached here).
-      LiveChatJoinItem() => const SizedBox.shrink(),
+      // D212: a join is a line in the audio room too.
+      LiveChatJoinItem(:final join) => LiveChatJoinBubble(
+        join: join,
+        color: bubble,
+        maxWidth: boxMax,
+        onProfile: () => onProfile(join.user.username),
+      ),
       // CP-017: a voice clip or a picture (the controller drops them at
       // `expiresAt` and when the media is gone).
       LiveChatPosted(:final entry)
@@ -407,14 +422,23 @@ class LiveRoomChatLines extends ConsumerWidget {
                 : null,
           ),
         );
+      // D212: the podcast's join lines are the mockup's bubbles (the name in
+      // light blue).
+      case LiveChatJoinItem(:final join) when compact:
+        return LiveChatJoinBubble(
+          join: join,
+          color: bubble,
+          maxWidth: max,
+          onProfile: () => onProfile(join.user.username),
+        );
       case LiveChatJoinItem(:final join):
         return LiveChatInlineRow(
           maxWidth: max,
           color: bubble,
-          label: l10n.chatJoined(join.user.displayName),
+          label: liveJoinText(l10n, join, isolate: false),
           onProfile: () => onProfile(join.user.username),
           onActions: () => onProfile(join.user.username),
-          join: l10n.chatJoined(KFormat.bidiIsolate(join.user.displayName)),
+          join: liveJoinText(l10n, join),
           agentCode: join.user.rechargeAgentCode,
           hostAgentCode: join.user.hostAgentCode,
           rechargeBadge: join.user.rechargeBadge,
@@ -1338,148 +1362,6 @@ Future<void> sendLiveChatText(
   }
 }
 
-/// Owner (2026-10-26, D119): "pin the join line at the bottom of the chat,
-/// each join replaces it". One compact strip under the newest message
-/// shows only the latest "X joined" (with "+N" when others joined within
-/// the second before); a new join swaps it with a short fade and slide
-/// (none with reduced motion). CTO choice (the owner may change it): it
-/// hides 4 s after the last join.
-class LiveChatJoinStrip extends StatefulWidget {
-  const new({required this.join, required this.color, super.key});
-
-  final LiveChatJoinLine? join;
-  final Color color;
-
-  static const stripKey = Key('liveChat.joinStrip');
-  static const hideAfter = Duration(seconds: 4);
-  static const swap = Duration(milliseconds: 220);
-
-  @override
-  State<LiveChatJoinStrip> createState() => _LiveChatJoinStripState();
-}
-
-class _LiveChatJoinStripState extends State<LiveChatJoinStrip> {
-  LiveChatJoinLine? _shown;
-  Timer? _hide;
-
-  @override
-  void initState() {
-    super.initState();
-    _show(widget.join);
-  }
-
-  @override
-  void didUpdateWidget(LiveChatJoinStrip old) {
-    super.didUpdateWidget(old);
-    if (widget.join?.serial != old.join?.serial) _show(widget.join);
-  }
-
-  void _show(LiveChatJoinLine? join) {
-    if (join == null) return;
-    _shown = join;
-    _hide?.cancel();
-    _hide = Timer(LiveChatJoinStrip.hideAfter, () {
-      if (mounted) setState(() => _shown = null);
-    });
-  }
-
-  @override
-  void dispose() {
-    _hide?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final shown = _shown;
-    final still = MediaQuery.disableAnimationsOf(context);
-    final Widget child;
-    if (shown == null) {
-      child = const SizedBox.shrink(key: ValueKey('liveChat.join.none'));
-    } else {
-      final text = l10n.chatJoined(KFormat.bidiIsolate(shown.user.displayName));
-      final style = context.textStyles.caption.copyWith(
-        fontSize: 12.5,
-        color: KAudioRoom.text,
-        fontWeight: FontWeight.w600,
-      );
-      child = Padding(
-        key: ValueKey('liveChat.join.${shown.serial}'),
-        padding: const EdgeInsets.only(top: 6),
-        child: Semantics(
-          container: true,
-          liveRegion: true,
-          label: shown.burst > 0 ? '$text +${shown.burst}' : text,
-          excludeSemantics: true,
-          child: Opacity(
-            opacity: 0.85,
-            child: Container(
-              key: LiveChatJoinStrip.stripKey,
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-              decoration: BoxDecoration(
-                color: widget.color,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Flexible(
-                    child: Text(
-                      text,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: style,
-                    ),
-                  ),
-                  // D185 (owner): a recharge agent's badge after the name.
-                  RechargeAgentInlineBadge(
-                    code: shown.user.rechargeAgentCode,
-                    hostCode: shown.user.hostAgentCode,
-                    height: inlineAgentBadgeHeight(style.fontSize!),
-                  ),
-                  // D187: the daily recharge badge after the name.
-                  RechargeTierBadge(
-                    badge: shown.user.rechargeBadge,
-                    height: inlineAgentBadgeHeight(style.fontSize!),
-                    gap: 4,
-                  ),
-                  if (shown.burst > 0) ...[
-                    const SizedBox(width: 6),
-                    Text(
-                      '+${shown.burst}',
-                      textDirection: TextDirection.ltr,
-                      style: style.copyWith(color: KAudioRoom.textSoft),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-    return AnimatedSwitcher(
-      duration: still ? Duration.zero : LiveChatJoinStrip.swap,
-      layoutBuilder: (current, previous) => Stack(
-        alignment: AlignmentDirectional.bottomStart,
-        children: [...previous, ?current],
-      ),
-      transitionBuilder: (child, animation) => FadeTransition(
-        opacity: animation,
-        child: SlideTransition(
-          position: Tween(
-            begin: const Offset(0, 0.5),
-            end: Offset.zero,
-          ).animate(animation),
-          child: child,
-        ),
-      ),
-      child: child,
-    );
-  }
-}
-
 /// Owner (2026-10-26, D118): the system line with the room's rules when a
 /// live opens — a very see-through red pill with red text and a red shield,
 /// distinct from every message (Kabso's wording, l10n). [label] names it for
@@ -2023,5 +1905,92 @@ class _RenderWholeLines extends RenderBox
       if (data.shown) visitor(child);
       child = data.nextSibling;
     }
+  }
+}
+
+/// D212: «فلان دخل البث» / «فلانة دخلت البث» by the joiner's shown gender,
+/// else the neutral «انضم فلان».
+String liveJoinText(
+  AppLocalizations l10n,
+  LiveChatJoinLine join, {
+  bool isolate = true,
+}) {
+  final name = isolate
+      ? KFormat.bidiIsolate(join.user.displayName)
+      : join.user.displayName;
+  return switch (join.gender) {
+    LiveJoinGender.male => l10n.chatJoinedMale(name),
+    LiveJoinGender.female => l10n.chatJoinedFemale(name),
+    null => l10n.chatJoined(name),
+  };
+}
+
+/// D212: a join as its own line in the audio room and the podcast — a
+/// small see-through bubble, the name in a light blue, the rest softer
+/// (the approved podcast mockup).
+class LiveChatJoinBubble extends StatelessWidget {
+  const new({
+    required this.join,
+    required this.color,
+    required this.maxWidth,
+    super.key,
+    this.onProfile,
+  });
+
+  final LiveChatJoinLine join;
+  final Color color;
+  final double maxWidth;
+  final VoidCallback? onProfile;
+
+  static const nameColor = Color(0xFF9FE3FF);
+  static const textColor = Color(0xCCFFFFFF);
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final text = liveJoinText(l10n, join);
+    final name = KFormat.bidiIsolate(join.user.displayName);
+    final at = text.indexOf(name);
+    final style = context.textStyles.caption.copyWith(
+      fontSize: 11.5,
+      height: 1.5,
+      color: textColor,
+    );
+    final nameStyle = style.copyWith(
+      color: nameColor,
+      fontWeight: FontWeight.w600,
+    );
+    return Semantics(
+      button: onProfile != null,
+      label: liveJoinText(l10n, join, isolate: false),
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: onProfile,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxWidth),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text.rich(
+              at < 0
+                  ? TextSpan(text: text)
+                  : TextSpan(
+                      children: [
+                        TextSpan(text: text.substring(0, at)),
+                        TextSpan(text: name, style: nameStyle),
+                        TextSpan(text: text.substring(at + name.length)),
+                      ],
+                    ),
+              style: style,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

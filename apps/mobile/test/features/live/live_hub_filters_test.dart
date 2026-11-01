@@ -129,16 +129,18 @@ void main() {
   final ar = l10nFor(AppLanguage.ar);
 
   group('Live hub filters (ref 165)', () {
-    testWidgets('opens on Popular: kind=video, tab=popular; the four pills '
-        'in order, Popular selected with its chevron', (tester) async {
+    testWidgets('opens on Popular, «الكل»: every room (no kind, D212), '
+        'tab=popular; the four pills in order, Popular selected with its '
+        'chevron', (tester) async {
       final live = await _pump(tester);
       expect(live.requests, isNotEmpty);
       final r = live.requests.last;
-      expect(r.kind, LiveRoomsKind.video);
+      // D212 (owner): the category row's «الكل» lists every live; the
+      // «بث مباشر» tab is the video lives (kind=solo, podcast_d212_test).
+      expect(r.kind, isNull);
       expect(r.tab, LiveRoomsTab.popular);
       expect(r.nearby || r.featured, isFalse);
-      // Video lives only (rooms 4–11).
-      expect(_cardNumbers(tester).every((n) => n >= 4), isTrue);
+      expect(_cardNumbers(tester).any((n) => n < 4), isTrue);
       final xs = [
         for (final f in LiveHubFilter.values.take(3))
           tester.getCenter(_pill(f)).dx,
@@ -179,13 +181,13 @@ void main() {
       final live = await _pump(tester, country: 'JO');
       await _tapPill(tester, LiveHubFilter.explore);
       expect(live.requests.last.tab, LiveRoomsTab.latest);
-      expect(live.requests.last.kind, LiveRoomsKind.video);
+      expect(live.requests.last.kind, isNull);
       await _tapPill(tester, LiveHubFilter.featured);
       expect(live.requests.last.featured, isTrue);
       expect(_cardNumbers(tester), [4, 5]);
       await _tapPill(tester, LiveHubFilter.nearby);
       expect(live.requests.last.nearby, isTrue);
-      expect(live.requests.last.kind, LiveRoomsKind.video);
+      expect(live.requests.last.kind, isNull);
       final before = live.requests.length;
       await _tapPill(tester, LiveHubFilter.nearby);
       expect(live.requests.length, before + 1);

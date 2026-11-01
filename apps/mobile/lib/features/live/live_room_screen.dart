@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:clock/clock.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -35,6 +36,7 @@ import 'package:kabso_live/features/live/application/live_watch.dart';
 import 'package:kabso_live/features/live/data/live_host_targets_repository.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_permissions.dart';
+import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
@@ -43,6 +45,8 @@ import 'package:kabso_live/features/live/presentation/go_live/live_boost_sheet.d
 import 'package:kabso_live/features/live/presentation/go_live/live_cinema.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_cp_seats.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_newcomers_sheet.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_podcast_room.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_podcast_sheets.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_room_tools.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_score_sheet.dart';
@@ -316,6 +320,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
 
   @override
   void dispose() {
+    _demoteTimer?.cancel();
     if (!_minimized) endLiveChatVisit(_visits, widget.room.id);
     _chat.dispose();
     _chatFocus.dispose();
@@ -644,7 +649,14 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         brightNotice: LiveRoomRulesNotice.isBrightTheme(_room.theme),
         roomId: widget.room.id,
         role: _chatRole(session),
-        bubble: bubble ?? KAudioRoom.bubble,
+        // D212: a podcast's chat is the mockup's one-line bubbles.
+        inline: _room.mode == LiveRoomMode.podcast,
+        compact: _room.mode == LiveRoomMode.podcast,
+        bubble:
+            bubble ??
+            (_room.mode == LiveRoomMode.podcast
+                ? KPodcast.chatBubble
+                : KAudioRoom.bubble),
         onProfile: _person,
       );
 
@@ -733,7 +745,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       context,
       ref.read(livePermissionsProvider),
       // D174: a SOLO live's guests are on camera too.
-      camera: _room.mode != LiveRoomMode.audio,
+      camera: !_room.mode.isVoice,
     );
     if (!ok && mounted) {
       KSnack.info(context, context.l10n.livePermissionSeatRefused);
@@ -781,6 +793,133 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     await runSeatAction(context, () => _session.requestSeat(seatIndex: index));
   }
 
+  /// D212: a podcast listener raises a hand (an optional short question).
+  Future<void> _raiseHand() async {
+    final l10n = context.l10n;
+    if (!(_room.podcast?.questionsOpen ?? true)) {
+      KSnack.info(context, l10n.podcastQuestionsClosed);
+      return;
+    }
+    if (!await _seatPermission() || !mounted) return;
+    final question = await showPodcastAskSheet(context);
+    if (question == null || !mounted) return;
+    await runSeatAction(
+      context,
+      () => _session.requestSeat(question: question),
+    );
+  }
+
+  /// D212: a podcast speaker's own question time: their app leaves the
+  /// seat when it ends (the server's sweeper does it too, within 15 s).
+  Timer? _demoteTimer;
+  DateTime? _demoteAt;
+
+  void _watchDemote(LiveRoomSessionState session) {
+    final mine = session.mine?.seatIndex;
+    DateTime? at;
+    if (mine != null && _room.mode == LiveRoomMode.podcast) {
+      for (final seat in session.seats?.seats ?? const <LiveSeat>[]) {
+        if (seat.index == mine) at = seat.demoteAt;
+      }
+    }
+    if (at == _demoteAt) return;
+    _demoteAt = at;
+    _demoteTimer?.cancel();
+    _demoteTimer = null;
+    if (at == null) return;
+    final left = at.difference(clock.now());
+    _demoteTimer = Timer(left.isNegative ? Duration.zero : left, () {
+      if (mounted) unawaited(_session.leaveSeat().catchError((Object _) {}));
+    });
+  }
+
+  /// D212: the podcast's stage — the episode card, the four speaker seats
+  /// and the listeners row.
+  Widget _podcastStage(
+    LiveRoomSessionState session,
+    LiveMediaEngine engine,
+    LivePodcast podcast,
+    int score,
+    void Function(int index) onSeat,
+  ) {
+    final room = _room;
+    final host = room.host;
+    final me = ref.watch(currentUserProvider)?.id;
+    final seats = session.seats?.seats ?? const <LiveSeat>[];
+    final speakers = <PodcastSpeakerData>[
+      PodcastSpeakerData(
+        userId: host.id,
+        name: host.displayName,
+        avatarUrl: host.avatarUrl,
+        points: score,
+        host: true,
+        speaking: engine.speaking.contains(host.id),
+        onTap: () => _person(host.username),
+      ),
+      for (var i = 1; i < 4; i++)
+        switch (seats.where((s) => s.index == i).firstOrNull) {
+          LiveSeat(:final user?) && final seat => PodcastSpeakerData(
+            userId: user.id,
+            name: user.displayName,
+            avatarUrl: user.avatarUrl,
+            points: seat.points,
+            muted: seat.mutedByHost || (user.id == me && !engine.micEnabled),
+            speaking: engine.speaking.contains(user.id),
+            demoteAt: seat.demoteAt,
+            seatIndex: i,
+            onTap: () => onSeat(i),
+          ),
+          _ => PodcastSpeakerData.empty(i, onTap: () => onSeat(i)),
+        },
+    ];
+    final onStage = {for (final s in speakers) ?s.userId};
+    final preview = ref.watch(liveViewersPreviewProvider(room.id)).value;
+    final listeners = podcastListenerOrder([
+      for (final v in preview?.items ?? const <LiveViewer>[])
+        if (v.user case final u? when !onStage.contains(u.id))
+          PodcastListenerData(
+            userId: u.id,
+            name: u.displayName,
+            avatarUrl: u.avatarUrl,
+            onTap: () => _person(u.username),
+          ),
+    ], session.seats?.handsUp ?? const []);
+    return PodcastStage(
+      title: room.title,
+      podcast: podcast,
+      startedAt: room.startedAt,
+      speakers: speakers,
+      listeners: listeners,
+      listenerCount: math.max(room.viewerCount, listeners.length),
+      onSeeAll: () => unawaited(
+        showLiveViewers(
+          context,
+          roomId: room.id,
+          moderators: session.seats?.moderators ?? const [],
+          seated: seats,
+          onPerson: (u) => _person(u.username),
+        ),
+      ),
+    );
+  }
+
+  /// D212: the hands sheet for a moderator (no settings: the host's).
+  Future<void> _openHands(LiveRoomSessionState session) {
+    final free = (session.seats?.seats ?? const <LiveSeat>[])
+        .where((s) => s.state == LiveSeatState.empty)
+        .length;
+    final repo = ref.read(liveRepositoryProvider);
+    return showPodcastHandsSheet(
+      context,
+      load: () async => (await repo.seatRequests(_room.id)).items,
+      freeSeats: free,
+      podcast: _room.podcast!,
+      config: const LivePodcastConfig(),
+      onBringUp: _session.accept,
+      onLater: _session.defer,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -798,6 +937,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       });
     }
     ref.listen(liveRoomSessionProvider(room.id), (previous, next) {
+      _watchDemote(next);
       // The media session dropped (the host ended the live): re-read the
       // room so the ended state shows.
       if (next.disconnected && !(previous?.disconnected ?? false)) {
@@ -861,7 +1001,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                 // and video alike; beside a video live's wish column.
                 stripsStart: LiveGiftEffectsLayer.videoStripsStart(
                   sideColumn:
-                      room.mode != LiveRoomMode.audio &&
+                      !room.mode.isVoice &&
                       (room.wishGifts.isNotEmpty ||
                           LiveRoomPromoBox.shows(ref, room.id)),
                 ),
@@ -872,7 +1012,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                 roomId: room.id,
                 host: false,
                 // D160: a floating window in a video live.
-                pip: room.mode != LiveRoomMode.audio,
+                pip: !room.mode.isVoice,
               ),
             // D145: the lucky combo button after a lucky gift is sent.
             if (room.status == LiveRoomStatus.live)
@@ -881,7 +1021,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                 hostUsername: room.host.username,
                 // Over the audio bar, or over the video live's quick
                 // replies.
-                bottom: room.mode == LiveRoomMode.audio
+                bottom: room.mode.isVoice
                     ? LuckyComboLayer.audioBottom
                     : LuckyComboLayer.videoBottom,
               ),
@@ -925,7 +1065,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       chat: ref.watch(liveChatProvider(room.id)),
       role: _chatRole(session),
     );
-    if (!ended && room.mode == LiveRoomMode.audio) {
+    if (!ended && room.mode.isVoice) {
       return _audioRoom(
         session: session,
         engine: engine,
@@ -1161,8 +1301,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                         // D174a (owner: «الضيوف في البث الفردي يمكن إقفال
                         // الكاميرا»): a seated guest on camera turns their
                         // own camera and mic off or on.
-                        if (session.seated &&
-                            room.mode != LiveRoomMode.audio) ...[
+                        if (session.seated && !room.mode.isVoice) ...[
                           KViewerBarButton(
                             key: LiveRoomScreen.guestCameraKey,
                             icon: engine.videoPaused
@@ -1250,8 +1389,22 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     final pending = session.seats?.pendingRequests ?? 0;
 
     // The seat button follows the viewer's state (CP-011).
-    LiveRoundButton? seatButton;
-    if (signedIn && mine != null) {
+    Widget? seatButton;
+    final podcast = room.mode == LiveRoomMode.podcast;
+    if (podcast && signedIn && mine != null && !session.seated) {
+      // D212: the red ✋ in the ∞ button's place.
+      seatButton = mine.request != null
+          ? PodcastHandButton(
+              raised: true,
+              label: l10n.podcastLowerHand,
+              onTap: () =>
+                  unawaited(runSeatAction(context, _session.cancelRequest)),
+            )
+          : PodcastHandButton(
+              label: l10n.podcastRaiseHand,
+              onTap: () => unawaited(_raiseHand()),
+            );
+    } else if (signedIn && mine != null) {
       if (session.seated) {
         seatButton = LiveRoundButton(
           key: AudioRoomViewKeys.leave,
@@ -1486,12 +1639,15 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                       label: l10n.liveSeatRequests,
                       badge: pending,
                       onTap: () => unawaited(
-                        showSeatRequests(
-                          context,
-                          roomId: room.id,
-                          onAccept: _session.accept,
-                          onDecline: _session.decline,
-                        ),
+                        room.mode == LiveRoomMode.podcast &&
+                                room.podcast != null
+                            ? _openHands(session)
+                            : showSeatRequests(
+                                context,
+                                roomId: room.id,
+                                onAccept: _session.accept,
+                                onDecline: _session.decline,
+                              ),
                       ),
                     ),
                   // D173: games (none yet: the sheet says so), with the
@@ -1807,7 +1963,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
   Widget _video(LiveRoomSessionState session, LiveMediaEngine engine) {
     final room = _room;
     if (room.mode.hasSeats) {
-      if (room.mode == LiveRoomMode.audio && room.theme == LiveThemes.classic) {
+      if (room.mode.isVoice && room.theme == LiveThemes.classic) {
         return const LiveAudioRoomBackground();
       }
       return LiveThemeBackground(theme: room.theme);
@@ -1883,6 +2039,10 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       if (seat != null) _onSeat(session, seat);
     }
 
+    if (room.podcast case final podcast?
+        when room.mode == LiveRoomMode.podcast) {
+      return _podcastStage(session, engine, podcast, score, onSeat);
+    }
     final height = MediaQuery.sizeOf(context).height;
     if (room.mode == LiveRoomMode.multi) {
       return SizedBox(

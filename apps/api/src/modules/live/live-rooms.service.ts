@@ -27,6 +27,11 @@ import { activeRechargeBadge, type RechargeBadgeDto } from '../recharge/recharge
 import { clearEndedRoomSeatsIn, releaseUserIn } from './live-seats.store.js';
 import {
   DEFAULT_LIVE_THEME,
+  DEFAULT_PODCAST_QUESTION_SECONDS,
+  DEFAULT_PODCAST_THEME,
+  PODCAST_QUESTION_SECONDS,
+  PODCAST_SEAT_COUNT,
+  PODCAST_TOPICS,
   hostPresenceSchema,
   isUuid,
   LIVE_SEAT_COUNTS,
@@ -76,7 +81,7 @@ export interface UserSummaryDto {
   rechargeBadge?: RechargeBadgeDto;
 }
 
-export type LiveRoomMode = 'SOLO' | 'PK' | 'MULTI' | 'AUDIO';
+export type LiveRoomMode = 'SOLO' | 'PK' | 'MULTI' | 'AUDIO' | 'PODCAST';
 export type LiveRoomEndReason =
   | 'HOST_ENDED'
   | 'HEARTBEAT_TIMEOUT'
@@ -104,6 +109,30 @@ export interface LiveRoomSummaryDto {
   theme: string;
   /** CP-012: the live's points (taps + support); `popular` orders by it. */
   score: number;
+  /** v1.47-live (D212, §10.69): the episode facts of a PODCAST live; null for other modes. */
+  podcast: LivePodcastDto | null;
+}
+
+/** A speaker of a podcast as the hub card shows it (avatar stack and names). */
+export interface LivePodcastSpeakerDto {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+}
+
+/** v1.47-live (D212): `LivePodcast`. */
+export interface LivePodcastDto {
+  /** Per host: 1 for the host's first podcast episode, then 2, 3, … */
+  episodeNumber: number;
+  /** A slug of `PODCAST_TOPICS`. */
+  topic: string;
+  /** Listeners may raise a hand. */
+  questionsOpen: boolean;
+  /** An accepted hand's speaking time (60, 120, 180, 300 s); null = no limit. */
+  questionSeconds: number | null;
+  /** The seated speakers (not the host), in seat order (at most 3). */
+  speakers: LivePodcastSpeakerDto[];
 }
 
 /** `LiveScore` (CP-012). */
@@ -150,6 +179,14 @@ export interface LiveConfigDto {
   themes: string[];
   /** CP-011: allowed seat counts per mode (host tile included). */
   seatCounts: { MULTI: number[]; AUDIO: number[] };
+  /** v1.47-live (D212, §10.69): the podcast setup's choices. */
+  podcast: {
+    /** Speakers including the host. */
+    speakers: number;
+    topics: string[];
+    questionSeconds: number[];
+    defaultQuestionSeconds: number;
+  };
 }
 
 /**
@@ -223,6 +260,13 @@ export interface RoomRow {
   room_level: number | null;
   /** v1.27.3-live (D136): the wish list's gift codes. */
   wish_gifts: string[];
+  /** v1.47-live (D212): PODCAST fields (null / true for other modes). */
+  episode_number: number | null;
+  podcast_topic: string | null;
+  questions_open: boolean;
+  question_seconds: number | null;
+  /** v1.47-live (D212): a PODCAST's seated speakers (JSON, seat order); null for other modes. */
+  podcast_speakers: LivePodcastSpeakerDto[] | null;
 }
 
 /**
@@ -274,7 +318,15 @@ const ROOM_COLUMNS = Prisma.sql`
          (SELECT rb.badge_until FROM recharge_badges rb WHERE rb.user_id = r.host_user_id) AS badge_until,
          c.slug AS category_slug, c.name_ar AS category_name_ar,
          c.name_en AS category_name_en, r.chat_enabled, lh.room_number, ${ROOM_LEVEL_SQL} AS room_level,
-         r.wish_gifts`;
+         r.wish_gifts, r.episode_number, r.podcast_topic, r.questions_open,
+         r.question_seconds::int AS question_seconds,
+         CASE WHEN r.mode = 'PODCAST'::live_room_mode THEN (
+           SELECT COALESCE(json_agg(json_build_object('id', s2.user_id::text, 'username', spp.username,
+                    'displayName', spp.display_name, 'avatarUrl', spp.avatar_url) ORDER BY s2.seat_index), '[]'::json)
+             FROM live_room_seats s2
+             JOIN users sp ON sp.id = s2.user_id AND sp.status = 'ACTIVE'
+             JOIN user_profiles spp ON spp.user_id = s2.user_id
+            WHERE s2.room_id = r.id AND s2.user_id IS NOT NULL) END AS podcast_speakers`;
 
 const ROOM_FROM = Prisma.sql`
     FROM live_rooms r
@@ -526,6 +578,12 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
       heartbeatStaleAfterSeconds: this.config.live.heartbeatStaleSeconds,
       themes: [...LIVE_THEMES],
       seatCounts: { MULTI: [...LIVE_SEAT_COUNTS.MULTI], AUDIO: [...LIVE_SEAT_COUNTS.AUDIO] },
+      podcast: {
+        speakers: PODCAST_SEAT_COUNT,
+        topics: [...PODCAST_TOPICS],
+        questionSeconds: [...PODCAST_QUESTION_SECONDS],
+        defaultQuestionSeconds: DEFAULT_PODCAST_QUESTION_SECONDS,
+      },
     };
   }
 
@@ -735,7 +793,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
           SELECT id::text AS id FROM live_rooms
            WHERE status = 'LIVE' AND host_away_since IS NOT NULL
              AND host_away_since <= ${awayCutoff}::timestamptz
-             AND mode <> 'AUDIO'::live_room_mode AND last_heartbeat_at > ${staleCutoff}::timestamptz
+             AND mode NOT IN ('AUDIO'::live_room_mode, 'PODCAST'::live_room_mode) AND last_heartbeat_at > ${staleCutoff}::timestamptz
            ORDER BY host_away_since
            LIMIT ${batchSize}
              FOR UPDATE SKIP LOCKED`;
@@ -746,7 +804,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
                  ended_at = host_away_since + make_interval(secs => ${timeout}::int),
                  updated_at = ${ts(now)}::timestamptz
            WHERE id = ANY(${ids.map((row) => row.id)}::uuid[])
-             AND status = 'LIVE' AND mode <> 'AUDIO'::live_room_mode
+             AND status = 'LIVE' AND mode NOT IN ('AUDIO'::live_room_mode, 'PODCAST'::live_room_mode)
              AND host_away_since IS NOT NULL AND host_away_since <= ${awayCutoff}::timestamptz
              AND last_heartbeat_at > ${staleCutoff}::timestamptz
        RETURNING id::text AS id, host_user_id::text AS host_user_id`;
@@ -820,6 +878,16 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
       occupiedSeats: row.occupied_seats,
       theme: row.theme,
       score: Number(row.score),
+      podcast:
+        row.mode === 'PODCAST' && row.episode_number !== null && row.podcast_topic !== null
+          ? {
+              episodeNumber: row.episode_number,
+              topic: row.podcast_topic,
+              questionsOpen: row.questions_open,
+              questionSeconds: row.question_seconds,
+              speakers: row.podcast_speakers ?? [],
+            }
+          : null,
     };
   }
 
@@ -1092,6 +1160,27 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
         const [host] = await tx.$queryRaw<{ cover_url: string | null }[]>`
           SELECT cover_url FROM live_hosts WHERE user_id = ${callerId}::uuid FOR SHARE`;
         if (!host) throw new AppException(ErrorCode.LIVE_HOSTING_NOT_ALLOWED);
+        // v1.47-live (D212, §10.69): a podcast episode is numbered per host (the host's lives are
+        // serialized by the user lock above and the one-live-per-host index).
+        const mode = input.mode ?? 'SOLO';
+        const podcast =
+          mode === 'PODCAST' && input.podcast
+            ? {
+                episodeNumber:
+                  ((
+                    await tx.liveRoom.aggregate({
+                      where: { hostUserId: callerId, mode: 'PODCAST' },
+                      _max: { episodeNumber: true },
+                    })
+                  )._max.episodeNumber ?? 0) + 1,
+                podcastTopic: input.podcast.topic,
+                questionsOpen: input.podcast.questionsOpen ?? true,
+                questionSeconds:
+                  input.podcast.questionSeconds === undefined
+                    ? DEFAULT_PODCAST_QUESTION_SECONDS
+                    : input.podcast.questionSeconds,
+              }
+            : null;
         const room = await tx.liveRoom.create({
           data: {
             hostUserId: callerId,
@@ -1101,9 +1190,10 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
             lastHeartbeatAt: now,
             allowGuests: input.allowGuests ?? true,
             // CP-011: the mode, its seat count (validated with the mode) and the theme.
-            mode: input.mode ?? 'SOLO',
-            seatCount: input.seatCount ?? null,
-            theme: input.theme ?? DEFAULT_LIVE_THEME,
+            mode,
+            seatCount: mode === 'PODCAST' ? PODCAST_SEAT_COUNT : (input.seatCount ?? null),
+            theme: input.theme ?? (mode === 'PODCAST' ? DEFAULT_PODCAST_THEME : DEFAULT_LIVE_THEME),
+            ...(podcast ?? {}),
             coverUrl: host.cover_url,
             wishGifts: [...wishGifts],
           },
@@ -1116,8 +1206,9 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
           targetId: room.id,
           metadata: {
             categorySlug: input.categorySlug ?? null,
-            mode: input.mode ?? 'SOLO',
+            mode,
             seatCount: input.seatCount ?? null,
+            ...(podcast ? { episodeNumber: podcast.episodeNumber, podcastTopic: podcast.podcastTopic } : {}),
           },
           ip: meta.ip,
           requestId: meta.requestId,
@@ -1182,7 +1273,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     const updated = await this.prisma.$executeRaw`
       UPDATE live_rooms
          SET host_away_since = CASE
-               WHEN ${away}::boolean AND mode <> 'AUDIO'::live_room_mode
+               WHEN ${away}::boolean AND mode NOT IN ('AUDIO'::live_room_mode, 'PODCAST'::live_room_mode)
                  THEN COALESCE(host_away_since, ${ts(now)}::timestamptz)
                ELSE NULL END
        WHERE id = ${roomId}::uuid AND host_user_id = ${callerId}::uuid AND status = 'LIVE'

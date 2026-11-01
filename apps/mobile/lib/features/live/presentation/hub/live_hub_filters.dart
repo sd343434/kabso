@@ -23,14 +23,47 @@ enum LiveHubFilter {
   explore,
 }
 
+/// D212 (owner: «بث مباشر، بث صوتي، بث بودكاست، بث متعدد، بث ستريمر»):
+/// the hub's category tabs, «الكل» first. Each is a `kind` of
+/// `GET /live/rooms` (server-side); «ستريمر» (phone screen share, D213)
+/// has no rooms yet and shows an honest «قريباً» without a call.
+enum LiveHubCategory {
+  all(null),
+  live(LiveRoomsKind.solo),
+  audio(LiveRoomsKind.audio),
+  podcast(LiveRoomsKind.podcast),
+  multi(LiveRoomsKind.multi),
+  streamer(null);
+
+  new(this.kind);
+
+  /// The server's filter (`null`: every room, or none for [streamer]).
+  final LiveRoomsKind? kind;
+
+  /// D213: the streamer category is not built yet.
+  bool get comingSoon => this == streamer;
+
+  String label(AppLocalizations l10n) => switch (this) {
+    all => l10n.liveCategoryAll,
+    live => l10n.liveCategoryLive,
+    audio => l10n.liveCategoryAudio,
+    podcast => l10n.liveCategoryPodcast,
+    multi => l10n.liveCategoryMulti,
+    streamer => l10n.liveCategoryStreamer,
+  };
+}
+
 /// What the hub shows: a filter, and for Popular its menu choice
-/// (Following, All or one category).
+/// (Following, All or one category); D212: and a category tab. The two
+/// rows combine (AND): the filter picks the list (nearby, popular,
+/// featured, newest), the category adds `kind`.
 @immutable
 class LiveHubSelection {
   const new({
     this.filter = LiveHubFilter.popular,
     this.following = false,
     this.category,
+    this.liveCategory = LiveHubCategory.all,
   });
 
   /// The hub as another screen asks for it ("Watch live streams", a
@@ -41,6 +74,16 @@ class LiveHubSelection {
     FeedTab.latest => const LiveHubSelection(filter: LiveHubFilter.explore),
   };
 
+  /// D212: the category tab.
+  final LiveHubCategory liveCategory;
+
+  LiveHubSelection withCategory(LiveHubCategory next) => LiveHubSelection(
+    filter: filter,
+    following: following,
+    category: category,
+    liveCategory: next,
+  );
+
   final LiveHubFilter filter;
 
   /// Popular's menu: Following (people the person follows).
@@ -49,8 +92,10 @@ class LiveHubSelection {
   /// Popular's menu: a category slug (`null`: All).
   final String? category;
 
-  /// The room list behind this selection (video lives, D131).
-  LiveRoomsQuery get query => switch (filter) {
+  /// The room list behind this selection (D212: in its category).
+  LiveRoomsQuery get query => _filterQuery.withKind(liveCategory.kind);
+
+  LiveRoomsQuery get _filterQuery => switch (filter) {
     LiveHubFilter.nearby => const LiveRoomsQuery(
       tab: FeedTab.popular,
       nearby: true,
@@ -66,18 +111,23 @@ class LiveHubSelection {
     LiveHubFilter.explore => const LiveRoomsQuery(tab: FeedTab.latest),
   };
 
-  LiveHubSelection withFilter(LiveHubFilter next) =>
-      LiveHubSelection(filter: next, following: following, category: category);
+  LiveHubSelection withFilter(LiveHubFilter next) => LiveHubSelection(
+    filter: next,
+    following: following,
+    category: category,
+    liveCategory: liveCategory,
+  );
 
   @override
   bool operator ==(Object other) =>
       other is LiveHubSelection &&
       other.filter == filter &&
       other.following == following &&
-      other.category == category;
+      other.category == category &&
+      other.liveCategory == liveCategory;
 
   @override
-  int get hashCode => Object.hash(filter, following, category);
+  int get hashCode => Object.hash(filter, following, category, liveCategory);
 }
 
 /// Geometry of the filter row, measured on ref 165 (393 pt wide).
@@ -207,7 +257,11 @@ class LiveHubFilterBar extends StatelessWidget {
     );
     if (choice == null) return;
     onSelect(
-      LiveHubSelection(following: choice.following, category: choice.slug),
+      LiveHubSelection(
+        following: choice.following,
+        category: choice.slug,
+        liveCategory: selection.liveCategory,
+      ),
     );
   }
 
@@ -369,6 +423,119 @@ class _Pill extends StatelessWidget {
                   ],
                 ],
               ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// D212: the category tabs' geometry (Kabso's own; no reference).
+abstract final class KLiveHubCategories {
+  /// The row's height (a 48 pt touch target per tab).
+  static const double height = 40;
+
+  /// The label (14 sp; the selected one bold).
+  static const double fontSize = 14;
+
+  /// The selected tab's underline.
+  static const double underline = 3;
+  static const double underlineWidth = 18;
+
+  /// Gap between tabs.
+  static const double gap = 16;
+}
+
+/// D212 (owner): the hub's category row — «الكل» + بث مباشر · بث صوتي ·
+/// بث بودكاست · بث متعدد · بث ستريمر — text tabs on one scrolling line, the
+/// selected one bold with a short brand-red underline. It sits under the
+/// filter pills; both apply (the filter picks the list, the tab the kind).
+class LiveHubCategoryBar extends StatelessWidget {
+  const new({required this.selected, required this.onSelect, super.key});
+
+  final LiveHubCategory selected;
+  final ValueChanged<LiveHubCategory> onSelect;
+
+  static Key tabKey(LiveHubCategory c) => Key('liveHub.category.${c.name}');
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final p = context.palette;
+    final scaler = MediaQuery.textScalerOf(context).clamp(maxScaleFactor: 1.3);
+    return MediaQuery(
+      data: MediaQuery.of(context).copyWith(textScaler: scaler),
+      child: Semantics(
+        container: true,
+        explicitChildNodes: true,
+        label: l10n.liveCategoryRowLabel,
+        child: SizedBox(
+          height: KSizes.minTouchTarget,
+          // Every tab is built (a short row; it scrolls on narrow screens).
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(
+              horizontal: KLiveHubFilters.inset,
+            ),
+            child: Row(
+              children: [
+                for (final (i, c) in LiveHubCategory.values.indexed) ...[
+                  if (i > 0) const SizedBox(width: KLiveHubCategories.gap),
+                  Semantics(
+                    button: true,
+                    selected: c == selected,
+                    inMutuallyExclusiveGroup: true,
+                    label: c.comingSoon
+                        ? '${c.label(l10n)} · ${l10n.liveSoon}'
+                        : c.label(l10n),
+                    onTap: () => onSelect(c),
+                    excludeSemantics: true,
+                    child: GestureDetector(
+                      key: tabKey(c),
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => onSelect(c),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          minHeight: KSizes.minTouchTarget,
+                          minWidth: 32,
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              c.label(l10n),
+                              maxLines: 1,
+                              style: context.textStyles.label.copyWith(
+                                fontSize: KLiveHubCategories.fontSize,
+                                height: 1.25,
+                                color: c == selected
+                                    ? p.textPrimary
+                                    : p.textSecondary,
+                                fontWeight: c == selected
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            AnimatedContainer(
+                              duration: KMotion.of(context, KMotion.fast),
+                              width: c == selected
+                                  ? KLiveHubCategories.underlineWidth
+                                  : 0,
+                              height: KLiveHubCategories.underline,
+                              decoration: BoxDecoration(
+                                color: KBrandColors.red500,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
         ),

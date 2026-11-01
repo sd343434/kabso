@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:clock/clock.dart';
 import 'package:flutter/services.dart';
@@ -36,6 +37,7 @@ import 'package:kabso_live/features/live/data/beauty/live_color_filter.dart';
 import 'package:kabso_live/features/live/data/live_host_targets_repository.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
+import 'package:kabso_live/features/live/data/live_schedule_repository.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart'
@@ -54,6 +56,8 @@ import 'package:kabso_live/features/live/presentation/go_live/live_fill_light.da
 import 'package:kabso_live/features/live/presentation/go_live/live_glass.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_host_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_newcomers_sheet.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_podcast_room.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_podcast_sheets.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_program_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_quality_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
@@ -325,17 +329,68 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     }
   }
 
+  /// D212: «جدولة» chosen in the podcast setup.
+  bool _schedulePodcast = false;
+
+  /// D212: announces the podcast episode (CP-016 C: followers are reminded
+  /// 15 minutes before) instead of going live now.
+  Future<void> _scheduleEpisode(String title) async {
+    final l10n = context.l10n;
+    final now = DateTime.now();
+    final first = now.add(liveScheduleMinLead + const Duration(minutes: 1));
+    final day = await showDatePicker(
+      context: context,
+      initialDate: first,
+      firstDate: first,
+      lastDate: now.add(liveScheduleMaxLead),
+    );
+    if (day == null || !mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(first),
+    );
+    if (time == null || !mounted) return;
+    final startsAt = DateTime(
+      day.year,
+      day.month,
+      day.day,
+      time.hour,
+      time.minute,
+    );
+    final topic = ref.read(liveHostControllerProvider).podcast.topic;
+    try {
+      await ref
+          .read(liveScheduleRepositoryProvider)
+          .create(title: title, startsAt: startsAt, podcastTopic: topic.wire);
+      if (!mounted) return;
+      KSnack.success(context, l10n.podcastSetupScheduled);
+      setState(() => _schedulePodcast = false);
+    } on Object catch (e) {
+      if (!mounted) return;
+      KSnack.error(context, failureMessage(l10n, toAppFailure(e)));
+    }
+  }
+
   Future<void> _start() async {
     final l10n = context.l10n;
     final title = _title.text.trim();
+    final podcast =
+        ref.read(liveHostControllerProvider).mode == LiveRoomMode.podcast;
     if (title.isEmpty) {
       _titleFocus.requestFocus();
-      KSnack.info(context, l10n.goLiveTitleRequired);
+      KSnack.info(
+        context,
+        podcast ? l10n.podcastSetupTitleRequired : l10n.goLiveTitleRequired,
+      );
       return;
     }
     _titleFocus.unfocus();
+    if (podcast && _schedulePodcast) {
+      await _scheduleEpisode(title);
+      return;
+    }
     // Audio: 3, 2, 1 before the room opens (the owner's recording).
-    if (ref.read(liveHostControllerProvider).mode == LiveRoomMode.audio) {
+    if (ref.read(liveHostControllerProvider).mode.isVoice) {
       for (var n = 3; n >= 1; n--) {
         if (!mounted) return;
         setState(() => _countdown = n);
@@ -655,8 +710,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     final previewing = gate == null && state.phase == GoLivePhase.preview;
     final setup = gate == null && !onAir && !ended;
     final captureFailed = state.phase == GoLivePhase.captureFailed;
-    final audioSetup =
-        setup && !captureFailed && state.mode == LiveRoomMode.audio;
+    final audioSetup = setup && !captureFailed && state.mode.isVoice;
     final seats = state.mode.hasSeats;
     final room = state.room;
     // D174: a solo live has guest seats too.
@@ -668,7 +722,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     final setupSeats = switch (state.seatCount) {
       final c? => fitSeatCount(
         c,
-        state.mode == LiveRoomMode.audio
+        state.mode.isVoice
             ? (cfg?.seatCounts.audio ?? const [5, 10, 15, 20])
             : (cfg?.seatCounts.multi ?? const [4, 6, 9, 12]),
       ),
@@ -703,6 +757,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             roomId: room.id,
             role: LiveChatViewerRole.host,
             onProfile: (username) => _person(room.id, username),
+            // D212: a podcast's chat is the mockup's one-line bubbles.
+            inline: state.mode == LiveRoomMode.podcast,
+            compact: state.mode == LiveRoomMode.podcast,
+            bubble: state.mode == LiveRoomMode.podcast
+                ? KPodcast.chatBubble
+                : KAudioRoom.bubble,
           );
     final chatComposer = _writing
         ? TapRegion(
@@ -755,8 +815,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       onSeat = (index) => unawaited(_tapSeat(room.id, liveSeats, index));
     }
 
-    final audioOnAir =
-        gate == null && onAir && state.mode == LiveRoomMode.audio;
+    final audioOnAir = gate == null && onAir && state.mode.isVoice;
     // D131: the host's video live in the viewer's frame (host pill, chips,
     // inline chat, the host bar).
     final videoOnAir =
@@ -764,7 +823,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         onAir &&
         !captureFailed &&
         room != null &&
-        state.mode != LiveRoomMode.audio;
+        !state.mode.isVoice;
     final Widget background;
     if (gate != null || ended) {
       // D199 (owner, ref 275): no camera (permission refused) is black.
@@ -781,10 +840,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     } else {
       background = audioOnAir && state.theme == LiveThemes.classic
           ? const LiveAudioRoomBackground()
-          : LiveThemeBackground(
-              theme: state.theme,
-              waves: state.mode == LiveRoomMode.audio,
-            );
+          : LiveThemeBackground(theme: state.theme, waves: state.mode.isVoice);
     }
 
     final hostName = user?.displayName ?? '';
@@ -814,7 +870,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     }
 
     final canAct = previewing || state.phase == GoLivePhase.live;
-    final video = state.mode != LiveRoomMode.audio;
+    final video = !state.mode.isVoice;
     final tools = <GoLiveTool>[
       if (video) ...[
         GoLiveTool(
@@ -899,7 +955,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               ? () => unawaited(
                   showLiveThemeSheet(
                     context,
-                    themes: cfg?.themes ?? const [LiveThemes.classic],
+                    themes: _themesFor(state.mode, cfg),
                     selected: state.theme,
                     onSelect: (t) => unawaited(_guard(() => _host.setTheme(t))),
                   ),
@@ -924,7 +980,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               ? () => unawaited(
                   showSeatCountSheet(
                     context,
-                    counts: state.mode == LiveRoomMode.audio
+                    counts: state.mode.isVoice
                         ? (cfg?.seatCounts.audio ?? const [5, 10, 15, 20])
                         : (cfg?.seatCounts.multi ?? const [4, 6, 9, 12]),
                     selected: seatCount!,
@@ -1014,7 +1070,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             ? () => unawaited(
                 showLiveThemeSheet(
                   context,
-                  themes: cfg?.themes ?? const [LiveThemes.classic],
+                  // D212: a podcast offers the owner's podcast backgrounds
+                  // first, then the room themes.
+                  themes: _themesFor(state.mode, cfg),
                   selected: state.theme,
                   onSelect: (t) => unawaited(_guard(() => _host.setTheme(t))),
                 ),
@@ -1040,7 +1098,24 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               )
             : null,
         seatCounts: cfg?.seatCounts.audio ?? const [5, 10, 15, 20],
-        seatCount: setupSeats!,
+        // D212: a podcast has no seat count to pick (4, the server's).
+        seatCount: setupSeats ?? 4,
+        mode: state.mode,
+        podcast: state.podcast,
+        podcastConfig: cfg?.podcast ?? const LivePodcastConfig(),
+        onPodcast: previewing ? _host.setPodcastSetup : null,
+        podcastGuests: state.podcastGuests,
+        onGuests: previewing
+            ? () => unawaited(() async {
+                final picked = await showPodcastGuestPicker(
+                  context,
+                  selected: state.podcastGuests,
+                );
+                if (picked != null) _host.setPodcastGuests(picked);
+              }())
+            : null,
+        schedule: _schedulePodcast,
+        onSchedule: (on) => setState(() => _schedulePodcast = on),
         onSeatCount: previewing
             ? (c) => unawaited(_guard(() => _host.setSeatCount(c)))
             : null,
@@ -1246,6 +1321,29 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       // D173: YouTube together turns the room into the owner's cinema.
       final cinema =
           live && room != null && LiveWatchScreen.shows(ref, room.id);
+      // D212: a podcast's stage — the episode card, four speakers, the
+      // listeners (the guests picked in the setup are invited on arrival).
+      final podcastInfo = room?.podcast;
+      final podcastStage =
+          room != null &&
+              state.mode == LiveRoomMode.podcast &&
+              podcastInfo != null
+          ? _podcastStage(
+              room,
+              podcastInfo,
+              liveSeats,
+              viewers?.items ?? const [],
+              score,
+              onSeat,
+            )
+          : null;
+      if (room != null && state.mode == LiveRoomMode.podcast && live) {
+        unawaited(
+          _host.inviteArrivedGuests({
+            for (final v in viewers?.items ?? const <LiveViewer>[]) ?v.user?.id,
+          }),
+        );
+      }
       final ring = AudioSeatRing(
         count: seatCount!,
         // D173: no points pills on the cinema's seats.
@@ -1419,7 +1517,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               ),
           ],
         ),
-        stage: ring,
+        stage: podcastStage ?? ring,
         // D173: the cinema's seats on the drawn seats.
         cinemaSeat: cinema ? ring.cinemaTile : null,
         cinemaSeats: seatCount,
@@ -1446,22 +1544,32 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           ),
         ],
         barEnd: [
-          LiveRoundButton(
-            key: GoLiveKeys.tool('requests'),
-            // D141 (owner): the video bar's ∞ (guests) icon.
-            icon: Icons.all_inclusive_rounded,
-            bare: true,
-            label: byId['requests']!.label,
-            // Owner (2026-10-26): the seat button opens the room's people on
-            // the Guests tab — the requests, then who is on a seat.
-            onTap: switch ((room, byId['requests']!.onTap)) {
-              (final r?, _?) => () => unawaited(
-                _openViewers(r.id, liveSeats, guests: true),
-              ),
-              _ => null,
-            },
-            badge: liveSeats?.pendingRequests ?? 0,
-          ),
+          if (state.mode == LiveRoomMode.podcast)
+            // D212: the red ✋ in the ∞ button's place — the raised hands.
+            PodcastHandButton(
+              label: l10n.podcastHandsTitle,
+              badge: liveSeats?.pendingRequests ?? 0,
+              onTap: room?.podcast == null
+                  ? null
+                  : () => unawaited(_openHands(room!, liveSeats)),
+            )
+          else
+            LiveRoundButton(
+              key: GoLiveKeys.tool('requests'),
+              // D141 (owner): the video bar's ∞ (guests) icon.
+              icon: Icons.all_inclusive_rounded,
+              bare: true,
+              label: byId['requests']!.label,
+              // Owner (2026-10-26): the seat button opens the room's people on
+              // the Guests tab — the requests, then who is on a seat.
+              onTap: switch ((room, byId['requests']!.onTap)) {
+                (final r?, _?) => () => unawaited(
+                  _openViewers(r.id, liveSeats, guests: true),
+                ),
+                _ => null,
+              },
+              badge: liveSeats?.pendingRequests ?? 0,
+            ),
           // PK is not in the contract yet: the button says so.
           LiveRoundButton(
             key: GoLiveScreen.audioPkKey,
@@ -1636,7 +1744,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 Padding(
                   padding: const EdgeInsets.only(bottom: KSpacing.md),
                   child: GoLiveSeatCountPicker(
-                    counts: state.mode == LiveRoomMode.audio
+                    counts: state.mode.isVoice
                         ? (cfg?.seatCounts.audio ?? const [5, 10, 15, 20])
                         : (cfg?.seatCounts.multi ?? const [4, 6, 9, 12]),
                     selected: setupSeats!,
@@ -1754,7 +1862,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                     roomId: room.id,
                     host: true,
                     // D160: a floating window in a video live.
-                    pip: state.mode != LiveRoomMode.audio,
+                    pip: !state.mode.isVoice,
                   ),
                 // D154f: the assistant's hint, for the host only.
                 if (room != null && state.phase == GoLivePhase.live)
@@ -1768,7 +1876,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 // debug/profile builds with the camera processor only.
                 if (LiveFxDiagnostics.enabled &&
                     engine.arEffects != LiveArSupport.unsupported &&
-                    state.mode != LiveRoomMode.audio &&
+                    !state.mode.isVoice &&
                     engine.videoEnabled)
                   PositionedDirectional(
                     top: MediaQuery.paddingOf(context).top + 120,
@@ -2784,6 +2892,117 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     );
   }
 
+  /// D212: the podcast's stage on the host's screen.
+  Widget _podcastStage(
+    LiveRoom room,
+    LivePodcast podcast,
+    LiveSeats? liveSeats,
+    List<LiveViewer> viewers,
+    int score,
+    ValueChanged<int>? onSeat,
+  ) {
+    final engine = _host.engine;
+    final state = ref.read(liveHostControllerProvider);
+    final host = room.host;
+    final seats = liveSeats?.seats ?? const <LiveSeat>[];
+    final speakers = <PodcastSpeakerData>[
+      PodcastSpeakerData(
+        userId: host.id,
+        name: host.displayName,
+        avatarUrl: host.avatarUrl,
+        points: score,
+        host: true,
+        muted: !state.micEnabled,
+        speaking: engine.speaking.contains(host.id),
+        onTap: () => unawaited(_person(room.id, host.username)),
+      ),
+      for (var i = 1; i < 4; i++)
+        switch (seats.where((s) => s.index == i).firstOrNull) {
+          LiveSeat(:final user?) && final seat => PodcastSpeakerData(
+            userId: user.id,
+            name: user.displayName,
+            avatarUrl: user.avatarUrl,
+            points: seat.points,
+            muted: seat.mutedByHost,
+            speaking: engine.speaking.contains(user.id),
+            demoteAt: seat.demoteAt,
+            seatIndex: i,
+            onTap: onSeat == null ? null : () => onSeat(i),
+          ),
+          _ => PodcastSpeakerData.empty(
+            i,
+            onTap: onSeat == null ? null : () => onSeat(i),
+          ),
+        },
+    ];
+    final onStage = {for (final s in speakers) ?s.userId};
+    final listeners = podcastListenerOrder([
+      for (final v in viewers)
+        if (v.user case final u? when !onStage.contains(u.id))
+          PodcastListenerData(
+            userId: u.id,
+            name: u.displayName,
+            avatarUrl: u.avatarUrl,
+            onTap: () => unawaited(_person(room.id, u.username)),
+          ),
+    ], liveSeats?.handsUp ?? const []);
+    return PodcastStage(
+      title: room.title,
+      podcast: podcast,
+      startedAt: room.startedAt,
+      speakers: speakers,
+      listeners: listeners,
+      listenerCount: math.max(room.viewerCount, listeners.length),
+      onSeeAll: () => unawaited(_openViewers(room.id, liveSeats)),
+    );
+  }
+
+  /// D212: the host's hands sheet — «اصعد», «لاحقاً», the hands switch and
+  /// the question time.
+  Future<void> _openHands(LiveRoom room, LiveSeats? liveSeats) {
+    final repo = ref.read(liveRepositoryProvider);
+    final free = (liveSeats?.seats ?? const <LiveSeat>[])
+        .where((s) => s.state == LiveSeatState.empty)
+        .length;
+    final podcast =
+        ref.read(liveHostControllerProvider).room?.podcast ?? room.podcast!;
+    return showPodcastHandsSheet(
+      context,
+      load: () async => (await repo.seatRequests(room.id)).items,
+      freeSeats: free,
+      podcast: podcast,
+      config:
+          ref.read(liveConfigProvider).value?.podcast ??
+          const LivePodcastConfig(),
+      onBringUp: (r) async {
+        await repo.acceptSeatRequest(room.id, r.id);
+        await _afterSeatChange(room.id);
+      },
+      onLater: (r) async {
+        await repo.deferSeatRequest(room.id, r.id);
+        await _afterSeatChange(room.id);
+      },
+      onSettings: ({questionsOpen, seconds}) => _host.setPodcastSettings(
+        questionsOpen: questionsOpen,
+        seconds: seconds,
+      ),
+    );
+  }
+
+  /// D212: the themes offered for [mode]: a podcast's backgrounds first.
+  static List<String> _themesFor(LiveRoomMode mode, LiveConfig? cfg) {
+    final all = cfg?.themes ?? const [LiveThemes.classic];
+    final podcast = [
+      for (final t in all)
+        if (LiveThemeArt.podcastThemes.contains(t)) t,
+    ];
+    final rooms = [
+      for (final t in all)
+        if (!LiveThemeArt.podcastThemes.contains(t)) t,
+    ];
+    return mode == LiveRoomMode.podcast ? [...podcast, ...rooms] : rooms;
+  }
+
   Future<void> _openRequests(String roomId) {
     final repo = ref.read(liveRepositoryProvider);
     return showSeatRequests(
@@ -2807,7 +3026,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         problem == LiveCaptureProblem.denied ||
         problem == LiveCaptureProblem.blocked;
     // D144a: an audio room asks for the microphone only, and says so.
-    final audio = state.mode == LiveRoomMode.audio;
+    final audio = state.mode.isVoice;
     final blocked = problem == LiveCaptureProblem.blocked;
     return LiveGlass(
       child: _Notice(

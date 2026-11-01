@@ -10850,5 +10850,351 @@
   "goLiveToolsDegraded": "بعض أدوات البث لم تعمل وأُوقفت. البث مستمر.",
   "@goLiveToolsDegraded": {
     "description": "D210: an optional live tool (PK, music, targets…) failed to start and was switched off; the live goes on"
+  },
+  "liveCategoryRowLabel": "تصنيفات البث",
+  "@liveCategoryRowLabel": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "liveCategoryAll": "الكل",
+  "@liveCategoryAll": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "liveCategoryLive": "بث مباشر",
+  "@liveCategoryLive": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "liveCategoryAudio": "بث صوتي",
+  "@liveCategoryAudio": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "liveCategoryPodcast": "بث بودكاست",
+  "@liveCategoryPodcast": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "liveCategoryMulti": "بث متعدد",
+  "@liveCategoryMulti": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "liveCategoryStreamer": "بث ستريمر",
+  "@liveCategoryStreamer": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "liveStreamerSoonTitle": "بث الستريمر قريباً",
+  "@liveStreamerSoonTitle": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "liveStreamerSoonBody": "قريباً تبث شاشة هاتفك مباشرة لمتابعيك.",
+  "@liveStreamerSoonBody": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "livePodcastEmptyTitle": "لا بودكاست مباشر الآن",
+  "@livePodcastEmptyTitle": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "livePodcastEmptyBody": "ابدأ حلقتك أو عُد لاحقاً.",
+  "@livePodcastEmptyBody": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastUpcoming": "حلقات قادمة",
+  "@podcastUpcoming": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastRemindMe": "ذكّرني",
+  "@podcastRemindMe": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastReminderOn": "سنذكّرك",
+  "@podcastReminderOn": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastStartsAt": "{time}",
+  "@podcastStartsAt": {
+    "description": "D212: when an announced episode starts (already formatted).",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "podcastListeners": "المستمعون · {count}",
+  "@podcastListeners": {
+    "description": "D212 (live categories and the podcast live).",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "podcastSeeAll": "عرض الكل ‹",
+  "@podcastSeeAll": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastEpisode": "الحلقة {number}",
+  "@podcastEpisode": {
+    "description": "D212 (live categories and the podcast live).",
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "podcastLiveTag": "مباشر",
+  "@podcastLiveTag": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastTopicBusiness": "ريادة أعمال",
+  "@podcastTopicBusiness": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastTopicTech": "تقنية",
+  "@podcastTopicTech": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastTopicSports": "رياضة",
+  "@podcastTopicSports": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastTopicReligion": "دين",
+  "@podcastTopicReligion": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastTopicSociety": "مجتمع",
+  "@podcastTopicSociety": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastTopicEntertainment": "ترفيه",
+  "@podcastTopicEntertainment": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastTopicOther": "أخرى",
+  "@podcastTopicOther": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastRaiseHand": "ارفع يدك",
+  "@podcastRaiseHand": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastLowerHand": "أنزل يدك",
+  "@podcastLowerHand": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastHandUp": "يدك مرفوعة. اضغط لإنزالها.",
+  "@podcastHandUp": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastLeaveStage": "عُد إلى المستمعين",
+  "@podcastLeaveStage": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastAskTitle": "ارفع يدك",
+  "@podcastAskTitle": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastAskHint": "سؤالك باختصار (اختياري)",
+  "@podcastAskHint": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastAskSend": "ارفع يدي",
+  "@podcastAskSend": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastHandsTitle": "رفع الأيدي ✋",
+  "@podcastHandsTitle": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastHandsRequests": "{count, plural, =0{لا طلبات} =1{طلب واحد} =2{طلبان} few{{count} طلبات} many{{count} طلباً} other{{count} طلب}}",
+  "@podcastHandsRequests": {
+    "description": "D212 (live categories and the podcast live).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "podcastHandsSeats": "{count, plural, =0{لا مقعد متاح} =1{مقعد واحد متاح} =2{مقعدان متاحان} other{{count} مقاعد متاحة}}",
+  "@podcastHandsSeats": {
+    "description": "D212 (live categories and the podcast live).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "podcastLater": "لاحقاً",
+  "@podcastLater": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastBringUp": "اصعد",
+  "@podcastBringUp": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastNoHands": "لا أيدي مرفوعة الآن.",
+  "@podcastNoHands": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastHandsBadge": "{count} أيدٍ مرفوعة",
+  "@podcastHandsBadge": {
+    "description": "D212 (live categories and the podcast live).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "podcastQuestionTime": "مدة السؤال",
+  "@podcastQuestionTime": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastMinutes": "{count} د",
+  "@podcastMinutes": {
+    "description": "D212 (live categories and the podcast live).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "podcastNoLimit": "بدون حد",
+  "@podcastNoLimit": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastQuestionsOpen": "استقبال الأسئلة",
+  "@podcastQuestionsOpen": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastQuestionPill": "سؤال · {time}",
+  "@podcastQuestionPill": {
+    "description": "D212 (live categories and the podcast live).",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "podcastQuestionsClosed": "المضيف لا يستقبل أسئلة الآن.",
+  "@podcastQuestionsClosed": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastSeatsFull": "المقاعد الثلاثة ممتلئة. أنزل متحدثاً أولاً.",
+  "@podcastSeatsFull": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastDeferred": "لاحقاً",
+  "@podcastDeferred": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastSpeakerDown": "إنزال إلى المستمعين",
+  "@podcastSpeakerDown": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastSetupTopic": "موضوع الحلقة",
+  "@podcastSetupTopic": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastSetupTitleHint": "عنوان الحلقة",
+  "@podcastSetupTitleHint": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastSetupTitleRequired": "اكتب عنوان الحلقة أولاً.",
+  "@podcastSetupTitleRequired": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastSetupGuests": "الضيوف (حتى 3)",
+  "@podcastSetupGuests": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastSetupAddGuest": "إضافة ضيف",
+  "@podcastSetupAddGuest": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastSetupGuestsNote": "نرسل الدعوة لكل ضيف عند دخوله البث.",
+  "@podcastSetupGuestsNote": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastSetupGuestSearch": "ابحث باسم المستخدم",
+  "@podcastSetupGuestSearch": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastSetupQuestions": "أسئلة المستمعين",
+  "@podcastSetupQuestions": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastSetupOpen": "مفتوحة",
+  "@podcastSetupOpen": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastSetupClosed": "مغلقة",
+  "@podcastSetupClosed": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastSetupWhen": "الموعد",
+  "@podcastSetupWhen": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastSetupNow": "الآن",
+  "@podcastSetupNow": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastSetupSchedule": "جدولة",
+  "@podcastSetupSchedule": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastSetupScheduled": "جُدولت الحلقة. نذكّر متابعيك قبلها بـ 15 دقيقة.",
+  "@podcastSetupScheduled": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastSetupScheduleAction": "جدولة الحلقة",
+  "@podcastSetupScheduleAction": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "goLiveModePodcast": "بث بودكاست",
+  "@goLiveModePodcast": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "goLiveModeStreamer": "بث ستريمر",
+  "@goLiveModeStreamer": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "chatJoinedMale": "{name} دخل البث",
+  "@chatJoinedMale": {
+    "description": "D212 (live categories and the podcast live).",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "chatJoinedFemale": "{name} دخلت البث",
+  "@chatJoinedFemale": {
+    "description": "D212 (live categories and the podcast live).",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "liveThemePodcastStudio": "استوديو البودكاست",
+  "@liveThemePodcastStudio": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "liveThemePodcastMajlis": "مجلس الخيمة",
+  "@liveThemePodcastMajlis": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "liveThemePodcastLibrary": "مكتبة الزمرد",
+  "@liveThemePodcastLibrary": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "errorLiveQuestionsClosed": "المضيف لا يستقبل أسئلة الآن.",
+  "@errorLiveQuestionsClosed": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastSpeaking": "يتحدث",
+  "@podcastSpeaking": {
+    "description": "D212 (live categories and the podcast live)."
+  },
+  "podcastMuted": "الميكروفون مغلق",
+  "@podcastMuted": {
+    "description": "D212 (live categories and the podcast live)."
   }
 }

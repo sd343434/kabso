@@ -277,7 +277,24 @@ class DemoLiveRepository implements LiveRepository {
     LiveRoomMode mode = LiveRoomMode.solo,
     int? seatCount,
     String? theme,
+    PodcastSetup? podcast,
   }) async => throw _serverOnly;
+
+  @override
+  Future<LiveSeats> deferSeatRequest(String roomId, String requestId) async =>
+      throw _serverOnly;
+
+  @override
+  Future<LiveRoom> setPodcastSettings(
+    String roomId, {
+    bool? questionsOpen,
+    bool setQuestionSeconds = false,
+    int? questionSeconds,
+  }) async => throw _serverOnly;
+
+  /// Demo data has no announced podcasts (an honest empty list).
+  @override
+  Future<List<LiveScheduledPodcast>> scheduledPodcasts() async => const [];
 
   @override
   Future<LiveRoom> updateRoom(
@@ -294,8 +311,11 @@ class DemoLiveRepository implements LiveRepository {
   Future<LiveSeats> seats(String roomId) async => throw _serverOnly;
 
   @override
-  Future<LiveSeatRequest> requestSeat(String roomId, {int? seatIndex}) async =>
-      throw _serverOnly;
+  Future<LiveSeatRequest> requestSeat(
+    String roomId, {
+    int? seatIndex,
+    String? question,
+  }) async => throw _serverOnly;
 
   @override
   Future<void> cancelSeatRequest(String roomId) async => throw _serverOnly;

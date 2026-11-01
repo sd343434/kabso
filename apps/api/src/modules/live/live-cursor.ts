@@ -20,11 +20,19 @@ export type LiveTab = (typeof LIVE_TABS)[number];
  * are voice rooms), `video` = `SOLO`, `PK` and `MULTI`. A cursor is bound to it like to the
  * category; a cursor issued without a kind carries no `k` (cursors of older apps stay valid).
  */
-export const LIVE_KINDS = ['audio', 'video', 'solo', 'multi', 'party'] as const;
+export const LIVE_KINDS = ['audio', 'video', 'solo', 'multi', 'party', 'podcast'] as const;
 export type LiveKind = (typeof LIVE_KINDS)[number];
 
-/** v1.27.1-live (D133): `solo` = SOLO and PK, `multi` = MULTI, `party` = AUDIO and MULTI. */
-export const LIVE_KIND_MODES: Readonly<Record<LiveKind, readonly ('SOLO' | 'PK' | 'MULTI' | 'AUDIO')[]>> = {
+/**
+ * v1.27.1-live (D133): `solo` = SOLO and PK, `multi` = MULTI, `party` = AUDIO and MULTI.
+ * v1.47-live (D212, §10.69): `podcast` = PODCAST. A podcast is in no other kind (the hub's five
+ * category tabs are `solo`, `audio`, `podcast`, `multi` and the streamer tab of D213), so `audio`
+ * stays AUDIO rooms only.
+ */
+export const LIVE_KIND_MODES: Readonly<
+  Record<LiveKind, readonly ('SOLO' | 'PK' | 'MULTI' | 'AUDIO' | 'PODCAST')[]>
+> = {
+  podcast: ['PODCAST'],
   audio: ['AUDIO'],
   video: ['SOLO', 'PK', 'MULTI'],
   solo: ['SOLO', 'PK'],

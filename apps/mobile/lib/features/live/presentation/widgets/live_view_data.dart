@@ -28,6 +28,8 @@ class LiveRoomCardData {
     this.seatCount,
     this.occupiedSeats = 0,
     this.featured = false,
+    this.podcast,
+    this.hostUsername,
   });
 
   /// A room from `GET /live/rooms` (v1.3): the host's display name and
@@ -49,12 +51,14 @@ class LiveRoomCardData {
       categoryName: room.category?.name,
       roomId: room.id,
       score: room.score,
-      isAudio: room.mode == LiveRoomMode.audio,
+      isAudio: room.mode.isVoice,
       isMulti: room.mode == LiveRoomMode.multi,
       hostId: room.host.id,
       seatCount: room.seatCount,
       occupiedSeats: room.occupiedSeats,
       featured: featured,
+      podcast: room.mode == LiveRoomMode.podcast ? room.podcast : null,
+      hostUsername: room.host.username,
     );
   }
 
@@ -111,6 +115,12 @@ class LiveRoomCardData {
 
   /// D154b: in a paid «مميز» slot now (a traffic card); the card says so.
   final bool featured;
+
+  /// D212: a podcast's episode facts (its hub card); null otherwise.
+  final LivePodcast? podcast;
+
+  /// D212: the host's @username (API rooms).
+  final String? hostUsername;
 }
 
 /// A line in the live chat overlay.

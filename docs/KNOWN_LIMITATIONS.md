@@ -86,3 +86,19 @@
   configured events shows empty lists.
 - **Purchase VIP** (CP-024 §3) is not part of the approval: its hub card stays «قريباً».
 - Not verified on a device.
+
+## Live categories and the podcast live (v1.47-live draft, D212)
+
+- **«بث ستريمر»** (phone screen share) is not built (D213): the hub tab and the go-live mode say «قريباً» and call nothing.
+- **Guests picked in the podcast setup** are invited onto a speaker seat only once they are in the live (seat
+  invitations travel on the room's data channel); there is no push or DM invitation yet.
+- **Timed questions** end within one reconciliation run (≤ 15 s) on the server, or at once when the speaker's app is
+  open (it leaves the seat itself). The countdown is the speaker's phone clock against the server's `demoteAt`.
+- **Raised hands in the listeners row** are the hands of people in the first page of viewers (the room's viewer
+  preview); a hand beyond it counts in the host's sheet but has no badge in the row.
+- **No podcast recording** (owner: not now).
+- **«ذكّرني»** follows the host (the CP-016 C reminder goes to followers 15 minutes before); a private host's follow is a
+  request, so no reminder until it is accepted.
+- **Join lines:** the server sends at most one per 200 ms per room; a burst above 5 a second loses lines (recharge
+  and host agents' joins are never dropped). Gender comes only from people who show it on their profile.
+- Not verified on a device (LiveKit active speaker, mic permissions, the sweeper's demotion on a real server).

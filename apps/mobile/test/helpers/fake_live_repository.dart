@@ -149,6 +149,7 @@ class FakeLiveRepository implements LiveRepository {
       LiveRoomMode mode,
       int? seatCount,
       String? theme,
+      PodcastSetup? podcast,
     })
   >
   startRequests = [];
@@ -176,6 +177,68 @@ class FakeLiveRepository implements LiveRepository {
   /// Answers `viewers`.
   List<LiveViewer> viewerList = [];
 
+  /// D212: the episode number a podcast `startRoom` answers with.
+  int podcastEpisode = 1;
+
+  /// D212: `deferSeatRequest` / `setPodcastSettings` calls.
+  final List<String> deferred = [];
+  final List<({bool? questionsOpen, bool setSeconds, int? seconds})>
+  podcastSettings = [];
+
+  /// D212: answers `scheduledPodcasts`.
+  List<LiveScheduledPodcast> scheduled = [];
+  AppFailure? scheduledFailure;
+
+  /// D212: the last raised hand's question.
+  String? lastQuestion;
+
+  @override
+  Future<LiveSeats> deferSeatRequest(String roomId, String requestId) async {
+    final s = _seats('deferSeatRequest:$requestId');
+    deferred.add(requestId);
+    final request = pendingSeatRequests.firstWhere((r) => r.id == requestId);
+    pendingSeatRequests = [
+      for (final r in pendingSeatRequests)
+        if (r.id != requestId) r,
+      request.copyWith(deferred: true),
+    ];
+    return _bump(
+      s.copyWith(handsUp: [for (final r in pendingSeatRequests) r.user.id]),
+    );
+  }
+
+  @override
+  Future<LiveRoom> setPodcastSettings(
+    String roomId, {
+    bool? questionsOpen,
+    bool setQuestionSeconds = false,
+    int? questionSeconds,
+  }) async {
+    podcastSettings.add((
+      questionsOpen: questionsOpen,
+      setSeconds: setQuestionSeconds,
+      seconds: questionSeconds,
+    ));
+    final base = hostRoom ?? apiRoom(id: roomId);
+    final podcast = base.podcast;
+    final room = base.copyWith(
+      podcast: podcast?.copyWith(
+        questionsOpen: questionsOpen ?? podcast.questionsOpen,
+        questionSeconds: setQuestionSeconds
+            ? questionSeconds
+            : podcast.questionSeconds,
+      ),
+    );
+    hostRoom = room;
+    return room;
+  }
+
+  @override
+  Future<List<LiveScheduledPodcast>> scheduledPodcasts() async {
+    if (scheduledFailure case final f?) throw f;
+    return scheduled;
+  }
+
   @override
   Future<LiveRoom> startRoom({
     required String title,
@@ -184,6 +247,7 @@ class FakeLiveRepository implements LiveRepository {
     LiveRoomMode mode = LiveRoomMode.solo,
     int? seatCount,
     String? theme,
+    PodcastSetup? podcast,
   }) async {
     startRequests.add((
       title: title,
@@ -192,6 +256,7 @@ class FakeLiveRepository implements LiveRepository {
       mode: mode,
       seatCount: seatCount,
       theme: theme,
+      podcast: podcast,
     ));
     if (startFailure case final failure?) throw failure;
     // Like the server (CONVENTIONS §10.9): a count the mode does not allow
@@ -200,7 +265,9 @@ class FakeLiveRepository implements LiveRepository {
     final allowed = switch (mode) {
       LiveRoomMode.audio => counts.audio,
       LiveRoomMode.multi => counts.multi,
-      LiveRoomMode.solo || LiveRoomMode.pk => const <int>[],
+      LiveRoomMode.solo ||
+      LiveRoomMode.pk ||
+      LiveRoomMode.podcast => const <int>[],
     };
     if (seatCount != null && !allowed.contains(seatCount)) {
       throw const ServerFailure(
@@ -210,11 +277,21 @@ class FakeLiveRepository implements LiveRepository {
         statusCode: 400,
       );
     }
+    // D212: a podcast always has 4 tiles, the episode numbered by the server.
+    final tiles = mode == LiveRoomMode.podcast ? 4 : seatCount;
     final room = apiRoom(id: 'room-host').copyWith(
       title: title,
       allowGuests: allowGuests,
       mode: mode,
-      seatCount: seatCount,
+      seatCount: tiles,
+      podcast: podcast == null
+          ? null
+          : LivePodcast(
+              episodeNumber: podcastEpisode,
+              topic: podcast.topic,
+              questionsOpen: podcast.questionsOpen,
+              questionSeconds: podcast.questionSeconds,
+            ),
       theme: theme ?? LiveThemes.classic,
       roomLevel: startRoomLevel,
       roomNumber: startRoomNumber,
@@ -224,9 +301,9 @@ class FakeLiveRepository implements LiveRepository {
         roomId: room.id,
         mode: mode,
         version: 0,
-        seatCount: seatCount!,
+        seatCount: tiles!,
         seats: [
-          for (var i = 1; i < seatCount; i++)
+          for (var i = 1; i < tiles; i++)
             LiveSeat(index: i, state: LiveSeatState.empty, user: null),
         ],
         moderators: const [],
@@ -544,8 +621,13 @@ class FakeLiveRepository implements LiveRepository {
   Future<LiveSeats> seats(String roomId) async => _seats('seats');
 
   @override
-  Future<LiveSeatRequest> requestSeat(String roomId, {int? seatIndex}) async {
+  Future<LiveSeatRequest> requestSeat(
+    String roomId, {
+    int? seatIndex,
+    String? question,
+  }) async {
     _seats('requestSeat:${seatIndex ?? ''}');
+    lastQuestion = question;
     return LiveSeatRequest(
       id: 'req-me',
       user: _user('me'),

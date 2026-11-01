@@ -42,6 +42,8 @@ describe('ErrorCode', () => {
         'SECOND_CAMERA_CODE_INVALID',
         'SECOND_CAMERA_UNAVAILABLE',
         'SECOND_CAMERA_BUSY',
+        // v1.47-live (D212).
+        'LIVE_QUESTIONS_CLOSED',
         // v1.54-social (D185).
         'RECHARGE_APPLICATION_NOT_ALLOWED',
         'RECHARGE_AGENT_NOT_ACTIVE',
@@ -257,6 +259,7 @@ describe('ErrorCode', () => {
       SECOND_CAMERA_CODE_INVALID: 422,
       SECOND_CAMERA_UNAVAILABLE: 409,
       SECOND_CAMERA_BUSY: 409,
+      LIVE_QUESTIONS_CLOSED: 409,
     });
   });
 

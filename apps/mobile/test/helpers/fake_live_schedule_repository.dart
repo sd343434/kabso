@@ -24,6 +24,7 @@ class FakeLiveScheduleRepository implements LiveScheduleRepository {
   Future<LiveScheduleSlot> create({
     required String title,
     required DateTime startsAt,
+    String? podcastTopic,
   }) async {
     if (failure case final f?) throw f;
     created.add((title: title, startsAt: startsAt));
@@ -31,6 +32,7 @@ class FakeLiveScheduleRepository implements LiveScheduleRepository {
       id: 'slot-${_next++}',
       title: title.trim(),
       startsAt: startsAt,
+      podcastTopic: podcastTopic,
     );
     slots = [...slots, slot]..sort((a, b) => a.startsAt.compareTo(b.startsAt));
     return slot;

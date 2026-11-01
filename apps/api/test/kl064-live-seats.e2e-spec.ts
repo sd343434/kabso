@@ -28,6 +28,8 @@ const SEAT_OPERATIONS = [
   'cancelLiveSeatRequest',
   'acceptLiveSeatRequest',
   'declineLiveSeatRequest',
+  // v1.47-live (D212): «لاحقاً» on a podcast hand.
+  'deferLiveSeatRequest',
   'inviteToLiveSeat',
   'acceptLiveSeatInvite',
   'declineLiveSeatInvite',
@@ -40,7 +42,7 @@ const SEAT_OPERATIONS = [
 ];
 
 describe('CP-011 seats contract coverage', () => {
-  it('openapi declares exactly the fifteen seat operations', () => {
+  it('openapi declares exactly the sixteen seat operations (D212 adds defer)', () => {
     expect(
       operations()
         .filter((o) =>
@@ -58,6 +60,7 @@ describe('CP-011 seats contract coverage', () => {
         'cancelLiveSeatRequest DELETE /api/v1/live/rooms/{roomId}/seat-requests/me',
         'acceptLiveSeatRequest POST /api/v1/live/rooms/{roomId}/seat-requests/{requestId}/accept',
         'declineLiveSeatRequest POST /api/v1/live/rooms/{roomId}/seat-requests/{requestId}/decline',
+        'deferLiveSeatRequest POST /api/v1/live/rooms/{roomId}/seat-requests/{requestId}/defer',
         'inviteToLiveSeat POST /api/v1/live/rooms/{roomId}/seat-invites',
         'acceptLiveSeatInvite POST /api/v1/live/rooms/{roomId}/seat-invites/me/accept',
         'declineLiveSeatInvite POST /api/v1/live/rooms/{roomId}/seat-invites/me/decline',
@@ -175,8 +178,19 @@ describe('CP-011 multi-guest and audio rooms', () => {
           'game-arena',
           'heart-garden',
           'galaxy',
+          // v1.47-live (D212): the podcast backgrounds.
+          'podcast-studio',
+          'podcast-majlis',
+          'podcast-library',
         ],
         seatCounts: { MULTI: [4, 6, 9, 12], AUDIO: [5, 10, 15, 20] },
+        // v1.47-live (D212): the podcast setup's choices.
+        podcast: {
+          speakers: 4,
+          topics: ['business', 'tech', 'sports', 'religion', 'society', 'entertainment', 'other'],
+          questionSeconds: [60, 120, 180, 300],
+          defaultQuestionSeconds: 120,
+        },
       });
 
       const [h1, h2, h3] = [await host(), await host(), await host()];

@@ -75,7 +75,11 @@ import {
   type PageDto,
 } from './live-seats.service.js';
 import { LiveRankingsService, type LiveRankingsDto } from './live-rankings.service.js';
-import { LiveScheduleService, type LiveScheduleSlotDto } from './live-schedule.service.js';
+import {
+  LiveScheduleService,
+  type LiveScheduledPodcastDto,
+  type LiveScheduleSlotDto,
+} from './live-schedule.service.js';
 import { LiveStatsService, type LiveRoomStatsDto } from './live-stats.service.js';
 import {
   LiveTapsService,
@@ -152,6 +156,7 @@ export class LiveController {
     private readonly kicks: LiveKicksService,
     private readonly rankings: LiveRankingsService,
     private readonly stats: LiveStatsService,
+    private readonly schedule: LiveScheduleService,
     private readonly limiter: RateLimitService,
     @Inject(APP_CONFIG) private readonly appConfig: AppConfig,
   ) {}
@@ -227,6 +232,17 @@ export class LiveController {
   )
   async startRoom(@Req() req: AppRequest, @Body() body: unknown): Promise<LiveRoomDto> {
     return this.rooms.startRoom(requireCaller(req), body, await this.language(req), meta(req));
+  }
+
+  /**
+   * v1.47-live (D212, §10.69): announced podcast episodes (the hub's «بث بودكاست» tab, dashed cards
+   * with «ذكّرني»), soonest first. Guests may read it.
+   */
+  @Get('podcasts/scheduled')
+  @OptionalAuth()
+  @RateLimit(GUEST_READ)
+  async scheduledPodcasts(@Req() req: AppRequest): Promise<{ data: LiveScheduledPodcastDto[] }> {
+    return this.schedule.scheduledPodcasts(callerOf(req));
   }
 
   @Get('rooms/:roomId')
@@ -366,6 +382,18 @@ export class LiveController {
     @Body() body: unknown,
   ): Promise<LiveSeatsDto> {
     return this.seats.acceptRequest(requireCaller(req), roomId, requestId, body, await this.language(req));
+  }
+
+  /** v1.47-live (D212): the host's «لاحقاً» on a podcast hand (it stays up, at the end of the queue). */
+  @Post('rooms/:roomId/seat-requests/:requestId/defer')
+  @HttpCode(200)
+  @RateLimit(SEAT_ACTION)
+  async deferSeatRequest(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Param('requestId') requestId: string,
+  ): Promise<LiveSeatsDto> {
+    return this.seats.deferRequest(requireCaller(req), roomId, requestId, await this.language(req));
   }
 
   @Post('rooms/:roomId/seat-requests/:requestId/decline')

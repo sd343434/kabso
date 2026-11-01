@@ -59,8 +59,14 @@ export const LIVE_THEMES = [
   'game-arena',
   'heart-garden',
   'galaxy',
+  // v1.47-live (D212): the owner's podcast backgrounds (2026-10-31), the first the PODCAST default.
+  'podcast-studio',
+  'podcast-majlis',
+  'podcast-library',
 ] as const;
 export const DEFAULT_LIVE_THEME = LIVE_THEMES[0];
+/** v1.47-live (D212): a PODCAST started without a theme gets the owner's studio background. */
+export const DEFAULT_PODCAST_THEME = 'podcast-studio';
 
 /**
  * Allowed `seatCount` per mode for a start or a change, host tile included (owner D94; AUDIO owner
@@ -84,17 +90,68 @@ export function isSeatedMode(mode: string): mode is SeatedMode {
  */
 export const SOLO_SEAT_COUNT = 4;
 
-/** The modes whose rooms have guest seats: MULTI and AUDIO (their own count) and SOLO (D174). */
-export type GuestSeatMode = SeatedMode | 'SOLO';
+/**
+ * The modes whose rooms have guest seats: MULTI and AUDIO (their own count), SOLO (D174) and
+ * PODCAST (v1.47-live, D212: the host and 3 speakers).
+ */
+export type GuestSeatMode = SeatedMode | 'SOLO' | 'PODCAST';
 
 export function hasGuestSeats(mode: string): mode is GuestSeatMode {
-  return isSeatedMode(mode) || mode === 'SOLO';
+  return isSeatedMode(mode) || mode === 'SOLO' || mode === 'PODCAST';
 }
 
-/** The seat count of a room with guest seats (SOLO: {@link SOLO_SEAT_COUNT}). */
+/** The seat count of a room with guest seats (SOLO: {@link SOLO_SEAT_COUNT}; PODCAST: {@link PODCAST_SEAT_COUNT}). */
 export function guestSeatCount(mode: GuestSeatMode, seatCount: number | null): number {
-  return mode === 'SOLO' ? SOLO_SEAT_COUNT : (seatCount ?? 0);
+  if (mode === 'SOLO') return SOLO_SEAT_COUNT;
+  if (mode === 'PODCAST') return PODCAST_SEAT_COUNT;
+  return seatCount ?? 0;
 }
+
+/** v1.47-live (D212): voice-only modes (no camera for anyone): AUDIO rooms and PODCAST episodes. */
+export function isVoiceMode(mode: string): boolean {
+  return mode === 'AUDIO' || mode === 'PODCAST';
+}
+
+// ---- v1.47-live (D212, CONVENTIONS §10.69): podcast episodes ---------------------------------
+
+/** Owner D212: at most 4 speakers — the host and up to 3 guests (stored as `seat_count` 4). */
+export const PODCAST_SEAT_COUNT = 4;
+
+/** The topic chips of the podcast setup, in display order (owner D212); `other` last. */
+export const PODCAST_TOPICS = [
+  'business',
+  'tech',
+  'sports',
+  'religion',
+  'society',
+  'entertainment',
+  'other',
+] as const;
+export type PodcastTopic = (typeof PODCAST_TOPICS)[number];
+
+/** A question's speaking time in seconds (owner D212: 1, 2, 3 or 5 minutes; null = no limit). */
+export const PODCAST_QUESTION_SECONDS = [60, 120, 180, 300] as const;
+/** Owner D212: 2 minutes by default. */
+export const DEFAULT_PODCAST_QUESTION_SECONDS = 120;
+/** A raised hand's optional question: 1–80 code points (the chat text rules, §10.11). */
+export const PODCAST_QUESTION_MAX_CODE_POINTS = 80;
+
+const questionSecondsSchema = z
+  .number()
+  .int()
+  .refine((v) => (PODCAST_QUESTION_SECONDS as readonly number[]).includes(v), {
+    params: { issue: 'invalid_value' },
+  })
+  .nullable();
+
+/** `PodcastSetup` of `StartLiveRoomRequest` (required with mode PODCAST, refused otherwise). */
+const podcastSetupSchema = z.strictObject({
+  topic: z.enum(PODCAST_TOPICS),
+  /** Default true: listeners may raise a hand. */
+  questionsOpen: z.boolean().optional(),
+  /** Default {@link DEFAULT_PODCAST_QUESTION_SECONDS}; null = no limit. */
+  questionSeconds: questionSecondsSchema.optional(),
+});
 
 /** True when `count` is an allowed seat count for `mode`. */
 export function seatCountFits(mode: string, count: number): boolean {
@@ -148,8 +205,10 @@ export const startLiveRoomSchema = z
     categorySlug: categorySlugSchema.optional(),
     /** CP-010: default true (owner D93). */
     allowGuests: z.boolean().optional(),
-    mode: z.enum(['SOLO', 'MULTI', 'AUDIO']).optional(),
+    mode: z.enum(['SOLO', 'MULTI', 'AUDIO', 'PODCAST']).optional(),
     seatCount: seatCountSchema.optional(),
+    /** v1.47-live (D212): the episode's topic and question settings (PODCAST only). */
+    podcast: podcastSetupSchema.optional(),
     theme: themeSchema.optional(),
     /** v1.27.3-live (D136): the wish list; absent → the host's last live's list. */
     wishGifts: wishGiftsSchema.optional(),
@@ -157,8 +216,14 @@ export const startLiveRoomSchema = z
   .superRefine((input, ctx) => {
     const mode = input.mode ?? 'SOLO';
     // A count outside the enum is already reported by the field itself.
+    if (mode !== 'PODCAST' && input.podcast !== undefined) {
+      ctx.addIssue({ code: 'custom', path: ['podcast'], params: { issue: 'invalid_value' } });
+    }
+    if (mode === 'PODCAST' && input.podcast === undefined) {
+      ctx.addIssue({ code: 'custom', path: ['podcast'], params: { issue: 'required' } });
+    }
     if (input.seatCount !== undefined && !ALL_SEAT_COUNTS.includes(input.seatCount)) return;
-    if (mode === 'SOLO') {
+    if (mode === 'SOLO' || mode === 'PODCAST') {
       if (input.seatCount !== undefined) {
         ctx.addIssue({ code: 'custom', path: ['seatCount'], params: { issue: 'invalid_value' } });
       }
@@ -234,6 +299,10 @@ export const updateLiveRoomSchema = z
     chatEnabled: z.boolean().optional(),
     /** v1.27.3-live (D136): the host's wish list. */
     wishGifts: wishGiftsSchema.optional(),
+    /** v1.47-live (D212): hands open or closed (PODCAST only; else 400 `invalid_value`). */
+    questionsOpen: z.boolean().optional(),
+    /** v1.47-live (D212): the question duration for hands accepted from now on (PODCAST only). */
+    questionSeconds: questionSecondsSchema.optional(),
   })
   .superRefine((input, ctx) => {
     if (Object.keys(input).length === 0) {
@@ -244,6 +313,26 @@ export type UpdateLiveRoomInput = z.output<typeof updateLiveRoomSchema>;
 
 /** `LiveSeatRequestBody` (request a seat, accept a request). */
 export const liveSeatRequestBodySchema = z.strictObject({ seatIndex: seatIndexSchema.optional() });
+
+/**
+ * v1.47-live (D212): `LiveSeatAskBody` — a seat request, which in a PODCAST is a raised hand that may
+ * carry a short question (1–80 code points, the chat text rules; refused outside PODCAST by the service).
+ */
+export const liveSeatAskBodySchema = z.strictObject({
+  seatIndex: seatIndexSchema.optional(),
+  question: z
+    .string()
+    .max(PODCAST_QUESTION_MAX_CODE_POINTS * 8)
+    .transform((raw, ctx) => {
+      const result = normalizeLiveChatText(raw, PODCAST_QUESTION_MAX_CODE_POINTS);
+      if ('issue' in result) {
+        ctx.addIssue({ code: 'custom', message: result.issue, params: { issue: result.issue } });
+        return z.NEVER;
+      }
+      return result.value;
+    })
+    .optional(),
+});
 
 /** `LiveSeatInviteBody`; a malformed username is simply not found (404). */
 export const liveSeatInviteBodySchema = z.strictObject({
@@ -461,6 +550,7 @@ export const listLiveRoomsQuerySchema = z.strictObject({
   category: categorySlugSchema.optional(),
   // v1.26.4-live (D129): `audio` = AUDIO rooms, `video` = SOLO, PK and MULTI; absent = all.
   // v1.27.1-live (D133): `solo` = SOLO and PK, `multi` = MULTI, `party` = AUDIO and MULTI.
+  // v1.47-live (D212): `podcast` = PODCAST (the hub's «بث بودكاست» tab).
   kind: z.enum(LIVE_KINDS).optional(),
   // v1.27.1-live (D133): rooms of the caller's country; rooms of featured hosts.
   scope: z.enum(LIVE_SCOPES).optional(),

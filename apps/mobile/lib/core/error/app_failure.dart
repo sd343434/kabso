@@ -70,6 +70,10 @@ enum ErrorCode {
   /// this live (403); the app leaves the room and says so.
   liveKicked('LIVE_KICKED'),
 
+  /// v1.47-live (D212, 409): a raised hand in a podcast whose host closed
+  /// the hands.
+  liveQuestionsClosed('LIVE_QUESTIONS_CLOSED'),
+
   /// v1.21-live (CP-018, §10.21, 409): the caller already belongs to a family.
   alreadyInFamily('ALREADY_IN_FAMILY'),
 

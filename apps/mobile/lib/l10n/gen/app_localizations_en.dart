@@ -11323,4 +11323,263 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get goLiveToolsDegraded =>
       'Some live tools didn’t start and were switched off. Your live goes on.';
+
+  @override
+  String get liveCategoryRowLabel => 'Live categories';
+
+  @override
+  String get liveCategoryAll => 'All';
+
+  @override
+  String get liveCategoryLive => 'Live';
+
+  @override
+  String get liveCategoryAudio => 'Audio';
+
+  @override
+  String get liveCategoryPodcast => 'Podcast';
+
+  @override
+  String get liveCategoryMulti => 'Multi';
+
+  @override
+  String get liveCategoryStreamer => 'Streamer';
+
+  @override
+  String get liveStreamerSoonTitle => 'Streamer lives are coming soon';
+
+  @override
+  String get liveStreamerSoonBody =>
+      'Soon you can stream your phone screen live to your followers.';
+
+  @override
+  String get livePodcastEmptyTitle => 'No podcast is live right now';
+
+  @override
+  String get livePodcastEmptyBody =>
+      'Start your own episode or come back later.';
+
+  @override
+  String get podcastUpcoming => 'Upcoming episodes';
+
+  @override
+  String get podcastRemindMe => 'Remind me';
+
+  @override
+  String get podcastReminderOn => 'You’ll be reminded';
+
+  @override
+  String podcastStartsAt(String time) {
+    return '$time';
+  }
+
+  @override
+  String podcastListeners(String count) {
+    return 'Listeners · $count';
+  }
+
+  @override
+  String get podcastSeeAll => 'See all ‹';
+
+  @override
+  String podcastEpisode(int number) {
+    return 'Episode $number';
+  }
+
+  @override
+  String get podcastLiveTag => 'LIVE';
+
+  @override
+  String get podcastTopicBusiness => 'Business';
+
+  @override
+  String get podcastTopicTech => 'Tech';
+
+  @override
+  String get podcastTopicSports => 'Sports';
+
+  @override
+  String get podcastTopicReligion => 'Faith';
+
+  @override
+  String get podcastTopicSociety => 'Society';
+
+  @override
+  String get podcastTopicEntertainment => 'Entertainment';
+
+  @override
+  String get podcastTopicOther => 'Other';
+
+  @override
+  String get podcastRaiseHand => 'Raise your hand';
+
+  @override
+  String get podcastLowerHand => 'Lower your hand';
+
+  @override
+  String get podcastHandUp => 'Your hand is up. Tap to lower it.';
+
+  @override
+  String get podcastLeaveStage => 'Back to the listeners';
+
+  @override
+  String get podcastAskTitle => 'Raise your hand';
+
+  @override
+  String get podcastAskHint => 'Your question in short (optional)';
+
+  @override
+  String get podcastAskSend => 'Raise my hand';
+
+  @override
+  String get podcastHandsTitle => 'Raised hands ✋';
+
+  @override
+  String podcastHandsRequests(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count requests',
+      one: '$count request',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String podcastHandsSeats(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count seats free',
+      one: '$count seat free',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get podcastLater => 'Later';
+
+  @override
+  String get podcastBringUp => 'Bring up';
+
+  @override
+  String get podcastNoHands => 'No hands are up right now.';
+
+  @override
+  String podcastHandsBadge(int count) {
+    return '$count hands up';
+  }
+
+  @override
+  String get podcastQuestionTime => 'Question time';
+
+  @override
+  String podcastMinutes(int count) {
+    return '$count min';
+  }
+
+  @override
+  String get podcastNoLimit => 'No limit';
+
+  @override
+  String get podcastQuestionsOpen => 'Take questions';
+
+  @override
+  String podcastQuestionPill(String time) {
+    return 'Question · $time';
+  }
+
+  @override
+  String get podcastQuestionsClosed => 'The host isn’t taking questions now.';
+
+  @override
+  String get podcastSeatsFull =>
+      'All three seats are taken. Move a speaker down first.';
+
+  @override
+  String get podcastDeferred => 'Later';
+
+  @override
+  String get podcastSpeakerDown => 'Move to the listeners';
+
+  @override
+  String get podcastSetupTopic => 'Episode topic';
+
+  @override
+  String get podcastSetupTitleHint => 'Episode title';
+
+  @override
+  String get podcastSetupTitleRequired => 'Write the episode title first.';
+
+  @override
+  String get podcastSetupGuests => 'Guests (up to 3)';
+
+  @override
+  String get podcastSetupAddGuest => 'Add a guest';
+
+  @override
+  String get podcastSetupGuestsNote =>
+      'Each guest is invited as soon as they join the live.';
+
+  @override
+  String get podcastSetupGuestSearch => 'Search by username';
+
+  @override
+  String get podcastSetupQuestions => 'Listener questions';
+
+  @override
+  String get podcastSetupOpen => 'Open';
+
+  @override
+  String get podcastSetupClosed => 'Closed';
+
+  @override
+  String get podcastSetupWhen => 'When';
+
+  @override
+  String get podcastSetupNow => 'Now';
+
+  @override
+  String get podcastSetupSchedule => 'Schedule';
+
+  @override
+  String get podcastSetupScheduled =>
+      'Episode scheduled. Your followers are reminded 15 minutes before.';
+
+  @override
+  String get podcastSetupScheduleAction => 'Schedule the episode';
+
+  @override
+  String get goLiveModePodcast => 'Podcast';
+
+  @override
+  String get goLiveModeStreamer => 'Streamer';
+
+  @override
+  String chatJoinedMale(String name) {
+    return '$name joined';
+  }
+
+  @override
+  String chatJoinedFemale(String name) {
+    return '$name joined';
+  }
+
+  @override
+  String get liveThemePodcastStudio => 'Podcast studio';
+
+  @override
+  String get liveThemePodcastMajlis => 'Tent majlis';
+
+  @override
+  String get liveThemePodcastLibrary => 'Emerald library';
+
+  @override
+  String get errorLiveQuestionsClosed => 'The host isn’t taking questions now.';
+
+  @override
+  String get podcastSpeaking => 'speaking';
+
+  @override
+  String get podcastMuted => 'mic off';
 }

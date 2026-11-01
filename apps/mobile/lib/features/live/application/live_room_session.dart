@@ -269,8 +269,7 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
       return;
     }
     // D174: a solo live's guests are on camera too.
-    final video =
-        role == LiveBackgroundRole.guest && _mode != LiveRoomMode.audio;
+    final video = role == LiveBackgroundRole.guest && !_mode.isVoice;
     _keeper.hold(
       this,
       LiveBackgroundSpec.of(role, texts),
@@ -401,7 +400,7 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
       if (want && !state.publishing && !state.captureFailed) {
         try {
           // D174: a SOLO live's guests are on camera too.
-          await _engine.publishLocal(video: _mode != LiveRoomMode.audio);
+          await _engine.publishLocal(video: !_mode.isVoice);
           if (ref.mounted) state = state.copyWith(publishing: true);
         } on LiveCaptureException {
           if (ref.mounted) state = state.copyWith(captureFailed: true);
@@ -420,9 +419,14 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
 
   // ---- the viewer's seat actions (each throws an AppFailure) ----------
 
-  Future<void> requestSeat({int? seatIndex}) async {
+  /// D212: in a podcast a raised hand, with an optional short [question].
+  Future<void> requestSeat({int? seatIndex, String? question}) async {
     try {
-      await _repo.requestSeat(roomId, seatIndex: seatIndex);
+      await _repo.requestSeat(
+        roomId,
+        seatIndex: seatIndex,
+        question: question == null || question.isEmpty ? null : question,
+      );
     } on AppFailure catch (e) {
       if (e.code == ErrorCode.liveKicked) markKicked();
       rethrow;
@@ -454,6 +458,10 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
       _apply(
         await _repo.acceptSeatRequest(roomId, request.id, seatIndex: seatIndex),
       );
+
+  /// D212: «لاحقاً» on a podcast hand.
+  Future<void> defer(LiveSeatRequest request) async =>
+      _apply(await _repo.deferSeatRequest(roomId, request.id));
 
   Future<void> decline(LiveSeatRequest request) async {
     await _repo.declineSeatRequest(roomId, request.id);
