@@ -46,4 +46,14 @@ export const CAPABILITY_ROLES: Partial<Record<Capability, readonly PanelRole[]>>
   'users.content': ['OWNER', 'MODERATION'],
   'users.balance_adjust': ['OWNER', 'FINANCE'],
   'users.delete': ['OWNER'],
+  // D204 / D206 / D207 / D209 (added on merge: the API table has them).
+  'recharge.disputes': ['OWNER', 'SUPPORT', 'FINANCE'],
+  'recharge.disputes.resolve': ['OWNER', 'FINANCE'],
+  'recharge.rates': ['OWNER', 'FINANCE'],
+  'agencies.applications': ['OWNER', 'SUPPORT'],
+  'agencies.probation': ['OWNER'],
+  'hosts.applications': ['OWNER', 'SUPPORT', 'MODERATION'],
+  'hosts.applications.photos': ['OWNER', 'SUPPORT'],
+  'hosts.applications.decide': ['OWNER', 'SUPPORT'],
+  'gifts.categories': ['OWNER'],
 };

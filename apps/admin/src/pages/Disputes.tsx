@@ -36,7 +36,13 @@ export function Disputes() {
           <h1>{t('disputesTitle')}</h1>
           <p className="muted small">{t('disputesSubtitle')}</p>
         </div>
-        <StatusTabs value={status} options={STATUSES} onChange={setStatus} />
+        {/* «محسومة» / «Decided» (D204); the shared statusRESOLVED is the agency complaints' «تمت» (D197). */}
+        <StatusTabs
+          value={status}
+          options={STATUSES}
+          onChange={setStatus}
+          label={(s) => (s === 'RESOLVED' ? t('disputeResolved') : undefined)}
+        />
       </div>
       <ErrorAlert error={error} />
       {loading && !data && <Loading />}

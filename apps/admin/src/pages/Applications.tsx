@@ -8,13 +8,24 @@ import type { Application, ApplicationRow, Page } from '../types';
 
 const STATUSES = ['PENDING', 'APPROVED', 'REJECTED', ''] as const;
 
-export function StatusTabs<S extends string>({ value, options, onChange }: { value: S; options: readonly S[]; onChange: (s: S) => void }) {
+export function StatusTabs<S extends string>({
+  value,
+  options,
+  onChange,
+  label,
+}: {
+  value: S;
+  options: readonly S[];
+  onChange: (s: S) => void;
+  /** A page's own name for a tab (default: the shared `status<S>` text). */
+  label?: (s: S) => string | undefined;
+}) {
   const { t } = useApp();
   return (
     <div className="tabs" role="group">
       {options.map((s) => (
         <button key={s || 'all'} className="tab" aria-pressed={value === s} onClick={() => onChange(s)}>
-          {s ? t(`status${s}` as never) : t('statusAll')}
+          {(s && label?.(s)) ?? (s ? t(`status${s}` as never) : t('statusAll'))}
         </button>
       ))}
     </div>
