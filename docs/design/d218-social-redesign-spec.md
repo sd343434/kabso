@@ -61,13 +61,13 @@ font file, glyphs ≈ 8 px tall).
 | Top bar | back and ⋮ squares over the photo | **owner override (after D218): the bar of before** — back, centred «@username», ⋯ — on the page colour; no squares over the cover | owner |
 | Cover | photo from the top to ≈195 dp | 140 dp under the top bar; `coverUrl` or the Kabso red gradient (never a stock photo) | E |
 | Avatar | ≈75 dp, white ring, half over the cover | `KProfile.avatar` 88 dp with a 3 dp page-colour ring (frames, live ring as before) | E |
-| Name line | name, blue verified mark, @handle | name 18 sp w700, our badges, handle 13 sp; **no verification mark** (owner) | owner / E |
+| Name line | name, blue verified mark, @handle | name 18 sp w700 and our badges; **no @handle here** (only in the top bar) and **no verification mark yet** — its place stays free (owner); the **level badges right under the name** | owner / E |
 | Counts | «36K Follower 600 Following» | «N متابِع · N متابَع», bold numbers, tappable (lists) | E |
 | Bio | one line | `body` | E |
 | Facts | 📍 London · 📅 Joined April 2025 | country flag + name, «انضم في <شهر سنة>» (`PublicProfile.country`, `joinedMonth`) | E |
 | Follow | wide black pill | `textPrimary` fill / `background` text (inverted in dark), 44 dp; states متابَع / تم الطلب / إلغاء الحظر | M (238 lp wide) / E |
 | Message | outlined circle | 44 dp circle, `borderStrong` outline, send glyph | E |
-| Our features | — | levels + charm, medals shown, family / relationship / medals tiles (`ProfileBondsBlock`), PK record (`LivePkRecordLine`) | owner |
+| Our features | — | medals shown, family / relationship / medals tiles (`ProfileBondsBlock`); **no PK record pill** (owner) | owner |
 | Tabs | «Post · For Subscribers · Shorts» words | «منشورات · ريلز · إعادات» words, selected bold with a 2 dp underline; **no subscribers tab** | owner |
 | Grid | 3 columns, 1 px gaps, square | unchanged (`KProfile.gridGap` hairline, square) | M |
 

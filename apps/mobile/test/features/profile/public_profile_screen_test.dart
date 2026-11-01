@@ -18,6 +18,7 @@ import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/home/presentation/widgets/feed_post_tile.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_pk_record.dart';
 import 'package:kabso_live/features/messages/chat_screen.dart';
 import 'package:kabso_live/features/messages/data/dm_repository.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
@@ -71,8 +72,15 @@ void main() {
       'bio; a wide Follow pill and a round Message button', (tester) async {
     final repo = await _pump(tester);
     expect(repo.calls, ['GET host0']);
-    expect(find.text(KHandle.isolated('host0')), findsOneWidget);
+    // Owner (after D218): the @username only in the top bar; under the
+    // name the level badges; no PK record pill on the profile.
+    expect(find.text(KHandle.isolated('host0')), findsNothing);
+    expect(find.text('@host0'), findsOneWidget);
     expect(find.text('Sara'), findsOneWidget);
+    final name = tester.getRect(find.byKey(const Key('profile.displayName')));
+    final levels = tester.getRect(find.byKey(PublicProfileScreen.levelsKey));
+    expect(levels.top, greaterThanOrEqualTo(name.bottom));
+    expect(find.byType(LivePkRecordLine), findsNothing);
     expect(find.text('Arabic music every evening'), findsOneWidget);
     expect(find.textContaining('1,234'), findsOneWidget);
     expect(find.textContaining('40'), findsWidgets);
@@ -378,7 +386,7 @@ void main() {
       await tester.pumpAndSettle();
     });
     expect(find.byType(PublicProfileScreen), findsOneWidget);
-    expect(find.text(KHandle.isolated('host0')), findsOneWidget);
+    expect(find.text('@host0'), findsOneWidget);
   });
 
   testWidgets('D61: Message opens the conversation with the user', (

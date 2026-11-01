@@ -14,7 +14,6 @@ import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/cp/presentation/cp_special_frame.dart';
 import 'package:kabso_live/features/levels/presentation/profile_levels.dart';
-import 'package:kabso_live/features/live/presentation/widgets/live_pk_record.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/features/profile/application/public_profile_controller.dart';
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
@@ -35,12 +34,14 @@ import 'package:material_ui/material_ui.dart';
 /// the top bar of before (back, the centred @username, the three dots —
 /// owner: «ارجعهم مثل ما كانو»), then a cover (`coverUrl`, or a Kabso
 /// gradient); the photo overlapping the cover (the live ring and «يبث
-/// الآن» while live — a tap opens the room); the name and the handle (no
+/// الآن» while live — a tap opens the room); the name (no
 /// verification mark: the owner decides on one later); «N متابِع · N
 /// متابَع» (the lists); the bio; the country and «انضم في <شهر سنة>»; the
 /// links; a wide Follow pill (متابَع / تم الطلب / إلغاء الحظر) and a round
-/// Message button; then our features — levels and charm, medals, family,
-/// relationship (`ProfileBondsBlock`) and the PK record; the words
+/// Message button; then our features — medals, family and relationship
+/// (`ProfileBondsBlock`). Owner, later: the @username only in the top bar
+/// (beside the name: room for a verification mark), the level badges right
+/// under the name, no PK record pill. The words
 /// «منشورات | ريلز | إعادات» over the 3-column grid (1 px gaps). Private
 /// and blocked accounts keep their honest states. Before D218:
 ///
@@ -87,6 +88,7 @@ class PublicProfileScreen extends ConsumerStatefulWidget {
   static const unblockKey = Key('profile.public.unblock');
   static const blockedKey = Key('profile.public.blocked');
   static const factsKey = Key('profile.public.facts');
+  static const levelsKey = Key('profile.public.levels');
 
   static const List<ProfileTab> tabs = [
     ProfileTab.posts,
@@ -678,8 +680,8 @@ class _CoverHeader extends StatelessWidget {
   }
 }
 
-/// D218: the name and handle, the counts, the bio, the country and the
-/// month joined, the links, the buttons, then our features.
+/// D218: the name and the level badges, the counts, the bio, the country
+/// and the month joined, the links, the buttons, then our features.
 class _ProfileInfo extends StatelessWidget {
   const new({
     required this.profile,
@@ -798,15 +800,20 @@ class _ProfileInfo extends StatelessWidget {
                   key: ProfileHeaderView.rechargeBadgeKey,
                   badge: profile.rechargeBadge,
                 ),
-              switch (profile.premiumTier) {
-                final tier? => KSpecialUsername(
-                  username: profile.username,
-                  tier: tier,
-                  height: 20,
-                ),
-                null => Text(KHandle.isolated(profile.username), style: muted),
-              },
+              // Owner (after D218): «اليوزر فقط بالاعلى وليس بجانب الاسم» —
+              // the @username is only in the top bar; this place is kept
+              // for a verification mark (none yet).
             ],
+          ),
+          // Owner (after D218): «واسفلها ميداليات الليفيل» — the level
+          // badges right under the name.
+          ProfileLevels(
+            key: PublicProfileScreen.levelsKey,
+            username: profile.isSelf ? null : profile.username,
+            onOpen: profile.isSelf
+                ? () => context.push(AppRoutes.levels)
+                : null,
+            padding: const EdgeInsetsDirectional.only(top: KSpacing.xs),
           ),
           ProfileFieldsLine(category: profile.category, gender: profile.gender),
           const SizedBox(height: KSpacing.xs),
@@ -859,20 +866,17 @@ class _ProfileInfo extends StatelessWidget {
           ProfileLinksRow(links: profile.links, reportable: !profile.isSelf),
           const SizedBox(height: KSpacing.md),
           actions,
-          // Our features (D218: nothing removed, each in a tidy row): the
-          // levels and charm, the medals shown, family, relationship and
-          // medals tiles; then the PK record.
-          ProfileBondsBlock(
-            levels: ProfileLevels(
-              username: profile.isSelf ? null : profile.username,
-              onOpen: profile.isSelf
-                  ? () => context.push(AppRoutes.levels)
-                  : null,
-              padding: const EdgeInsetsDirectional.only(top: KSpacing.md),
+          // Our features (D218): the medals shown, the family,
+          // relationship and medals tiles (the levels sit under the name;
+          // owner: no PK record pill on the profile — «ايقونة pk فوز
+          // وخسارة ازلها»).
+          Padding(
+            padding: const EdgeInsets.only(top: KSpacing.xs),
+            child: ProfileBondsBlock(
+              levels: const SizedBox.shrink(),
+              profile: profile,
             ),
-            profile: profile,
           ),
-          LivePkRecordLine(username: profile.username),
         ],
       ),
     );
