@@ -219,7 +219,8 @@ void main() {
       final live = await hub(tester);
       final l10n = lookupAppLocalizations(AppLanguage.ar.locale);
       expect(find.byType(LiveHubCategoryBar), findsNothing);
-      expect(live.requests.last.kind, isNull); // the hub: every kind
+      // D239: the hub is solo and PK only.
+      expect(live.requests.last.kind, LiveRoomsKind.solo);
       await _openParty(tester);
       expect(find.byType(VoiceRoomsScreen), findsOneWidget);
       expect(live.requests.last.kind, LiveRoomsKind.audio);

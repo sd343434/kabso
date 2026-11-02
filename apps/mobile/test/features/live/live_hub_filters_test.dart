@@ -15,7 +15,9 @@ import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/features/auth/data/auth_repository_impl.dart';
 import 'package:kabso_live/features/auth/presentation/country_picker.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/live/data/live_boost_repository.dart';
 import 'package:kabso_live/features/live/domain/home_banner.dart';
+import 'package:kabso_live/features/live/domain/live_boost_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
 import 'package:kabso_live/features/live/presentation/hub/home_banner_carousel.dart';
@@ -81,6 +83,7 @@ Future<FakeLiveRepository> _pump(
   List<HomeBanner> banners = const [],
   String? country,
   FakeAuthRepository? auth,
+  List<LiveBoostedRoom>? boosted,
 }) async {
   setViewport(tester, viewport);
   final live = FakeLiveRepository(
@@ -98,6 +101,8 @@ Future<FakeLiveRepository> _pump(
         testUser().copyWith(country: country),
       ),
       if (auth != null) authRepositoryProvider.overrideWithValue(auth),
+      if (boosted != null)
+        liveBoostedRoomsProvider.overrideWith((ref) async => boosted),
     ],
   );
   await tester.pumpAndSettle();
@@ -131,7 +136,7 @@ void main() {
   final ar = l10nFor(AppLanguage.ar);
 
   group('Live hub filters (ref 165)', () {
-    testWidgets('opens on Popular, «الكل»: every room (no kind, D212), '
+    testWidgets('opens on Popular: D239 video lives only (kind=solo), '
         'tab=popular; the four pills in order, Popular selected with its '
         'chevron', (tester) async {
       final live = await _pump(tester);
@@ -139,10 +144,14 @@ void main() {
       final r = live.requests.last;
       // D212 (owner): the category row's «الكل» lists every live; the
       // «بث مباشر» tab is the video lives (kind=solo, podcast_d212_test).
-      expect(r.kind, isNull);
+      // D239: the main hub is solo and PK only (server-side kind=solo).
+      expect(r.kind, LiveRoomsKind.solo);
       expect(r.tab, LiveRoomsTab.popular);
       expect(r.nearby || r.featured, isFalse);
-      expect(_cardNumbers(tester).any((n) => n < 4), isTrue);
+      // D239: no audio rooms (0–3) and no multi (i % 3 == 1).
+      expect(_cardNumbers(tester), isNotEmpty);
+      expect(_cardNumbers(tester).any((n) => n < 4), isFalse);
+      expect(_cardNumbers(tester).any((n) => n % 3 == 1), isFalse);
       final xs = [
         for (final f in LiveHubFilter.values.take(3))
           tester.getCenter(_pill(f)).dx,
@@ -185,13 +194,13 @@ void main() {
       final live = await _pump(tester, country: 'JO');
       await _tapPill(tester, LiveHubFilter.explore);
       expect(live.requests.last.tab, LiveRoomsTab.latest);
-      expect(live.requests.last.kind, isNull);
+      expect(live.requests.last.kind, LiveRoomsKind.solo);
       await _tapPill(tester, LiveHubFilter.featured);
       expect(live.requests.last.featured, isTrue);
-      expect(_cardNumbers(tester), [4, 5]);
+      expect(_cardNumbers(tester), [5]); // D239: 4 is a multi
       await _tapPill(tester, LiveHubFilter.nearby);
       expect(live.requests.last.nearby, isTrue);
-      expect(live.requests.last.kind, isNull);
+      expect(live.requests.last.kind, LiveRoomsKind.solo);
       final before = live.requests.length;
       await _tapPill(tester, LiveHubFilter.nearby);
       expect(live.requests.length, before + 1);
@@ -234,7 +243,7 @@ void main() {
     });
 
     testWidgets('D237: «المتابَعين» is the first tab (the reading start), '
-        'the people I follow (every kind)', (tester) async {
+        'the people I follow (D239: solo and PK)', (tester) async {
       final live = await _pump(tester);
       expect(LiveHubFilter.values, [
         LiveHubFilter.following,
@@ -249,7 +258,7 @@ void main() {
       );
       await _tapPill(tester, LiveHubFilter.following);
       expect(live.requests.last.tab, LiveRoomsTab.following);
-      expect(live.requests.last.kind, isNull);
+      expect(live.requests.last.kind, LiveRoomsKind.solo);
       expect(live.requests.last.category, isNull);
     });
 
@@ -325,10 +334,12 @@ void main() {
     }
 
     testWidgets('D237: no category row; every card names its kind, from the '
-        "room's mode (all kinds together)", (tester) async {
+        "room's mode. D239: only solo and PK (no audio, podcast or multi)", (
+      tester,
+    ) async {
       final live = await _pump(tester);
       expect(find.byType(LiveHubCategoryBar), findsNothing);
-      expect(live.requests.last.kind, isNull);
+      expect(live.requests.last.kind, LiveRoomsKind.solo);
       final types = {
         for (final card in tester.widgetList<KLiveGridCard>(
           find.byType(KLiveGridCard),
@@ -343,14 +354,46 @@ void main() {
               .data,
       };
       expect(types.values, everyElement(isNotNull));
+      expect(types.values.toSet(), {en.liveCategoryLive, en.pkBadge});
+    });
+
+    testWidgets('D239: a «مميز» (rocket) audio or multi room is not pinned '
+        'on the hub; it is pinned in its party tab instead', (tester) async {
+      final rooms = apiRooms(12, categories: apiCategories());
+      LiveBoostedRoom boost(int i, LiveRoomMode mode) => LiveBoostedRoom(
+        room: rooms[i].copyWith(mode: mode),
+        endsAt: DateTime.now().add(const Duration(minutes: 10)),
+        stage: 2,
+      );
+      final boosted = [
+        boost(0, LiveRoomMode.audio),
+        boost(4, LiveRoomMode.multi),
+        boost(5, LiveRoomMode.pk),
+      ];
+      await _pump(tester, boosted: boosted);
+      List<(int, bool)> featured() => [
+        for (final card in tester.widgetList<KLiveGridCard>(
+          find.byType(KLiveGridCard),
+        ))
+          (
+            int.parse((card.room.roomId ?? '').split('-').last),
+            card.room.featured,
+          ),
+      ];
+      // The PK room is pinned first; the audio and multi rooms are nowhere.
+      expect(featured().first, (5, true));
+      expect(featured().map((e) => e.$1), isNot(contains(0)));
+      expect(featured().map((e) => e.$1), isNot(contains(4)));
+      await tester.pumpWidget(const SizedBox.shrink());
+      await _pump(tester, screen: const VoiceRoomsScreen(), boosted: boosted);
+      // The party page (audio): the rocket audio room is pinned there.
+      expect(find.byType(VoiceRoomRow).evaluate(), isNotEmpty);
       expect(
-        types.values.toSet(),
-        containsAll([
-          en.liveCategoryAudio,
-          en.liveCategoryLive,
-          en.liveCategoryMulti,
-          en.pkBadge,
-        ]),
+        tester
+            .widget<VoiceRoomRow>(find.byType(VoiceRoomRow).first)
+            .room
+            .roomId,
+        rooms[0].id,
       );
     });
 
