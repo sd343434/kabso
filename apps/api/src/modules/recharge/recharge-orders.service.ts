@@ -11,6 +11,8 @@ import { safeErrorLog } from '../../logging/redact-text.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { uuidv7 } from '../levels/uuidv7.js';
 import type { UserSummaryDto } from '../live/live-rooms.service.js';
+import { FxRatesService } from '../fx/fx-rates.service.js';
+import { priceRateOf } from '../fx/fx.rules.js';
 import { MediaService } from '../media/media.service.js';
 import { OBJECT_STORAGE, type ObjectStorage } from '../media/object-storage.js';
 import { USER_SUMMARY_SELECT, userSummary, type PageDto } from '../posts/post-views.js';
@@ -183,6 +185,7 @@ export class RechargeOrdersService implements OnModuleInit, OnModuleDestroy {
     private readonly media: MediaService,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    private readonly fx: FxRatesService,
   ) {
     this.cursors = new SocialCursorCodec(config.social.cursorKey);
   }
@@ -235,9 +238,12 @@ export class RechargeOrdersService implements OnModuleInit, OnModuleDestroy {
     return row?.blocked ?? false;
   }
 
+  /**
+   * D245: the rate a new order's price uses — the one resolver (the admin's manual rate «يدوي», else the automatic
+   * rate of the country's currency; stale or missing → USD only; a USD country has no second line).
+   */
   private async rateOf(country: string) {
-    const r = await this.prisma.rechargeExchangeRate.findUnique({ where: { country } });
-    return r ? { currency: r.currency, rateMicro: r.rateMicro, digits: r.digits } : null;
+    return priceRateOf(await this.fx.effective(country, this.clock.now()));
   }
 
   /** The ACTIVE agent of `code` serving `country`, with the payment types there. */

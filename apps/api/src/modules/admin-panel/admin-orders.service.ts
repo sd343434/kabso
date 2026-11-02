@@ -4,6 +4,7 @@ import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
 import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { FxRatesService } from '../fx/fx-rates.service.js';
 import { RechargeAdminError } from '../recharge/recharge-core.js';
 import {
   clearExchangeRateIn,
@@ -14,12 +15,7 @@ import {
   resolveDisputeIn,
   setExchangeRateIn,
 } from '../recharge/recharge-order-core.js';
-import {
-  ARAB_CURRENCIES,
-  formatRate,
-  parseRateMicro,
-  type DisputeOutcome,
-} from '../recharge/recharge-order-rules.js';
+import { formatRate, parseRateMicro, type DisputeOutcome } from '../recharge/recharge-order-rules.js';
 import { priceDto, RechargeOrdersService } from '../recharge/recharge-orders.service.js';
 import { AdminAuthService, type AdminContext } from './admin-auth.service.js';
 import { decodeCursor, pageOf } from './admin-panel.schemas.js';
@@ -48,6 +44,7 @@ export class AdminOrdersService {
     private readonly auth: AdminAuthService,
     private readonly orders: RechargeOrdersService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    private readonly fx: FxRatesService,
   ) {}
 
   private user(u: {
@@ -250,24 +247,14 @@ export class AdminOrdersService {
 
   // ---- exchange rates ---------------------------------------------------------------------------------------------
 
+  /**
+   * «أسعار الصرف» (D204; D245): every country with its effective rate (manual «يدوي» over automatic «تلقائي»), both
+   * sources, and the automatic feed's status card.
+   */
   async rates() {
-    const rows = await this.prisma.rechargeExchangeRate.findMany({ orderBy: { country: 'asc' } });
-    const set = new Map(rows.map((r) => [r.country, r]));
-    const countries = [...new Set([...Object.keys(ARAB_CURRENCIES), ...rows.map((r) => r.country)])].sort();
-    return {
-      retailUsdPerMillion: this.config.economy.coinRetailUsdPerMillion,
-      data: countries.map((country) => {
-        const r = set.get(country);
-        const fallback = ARAB_CURRENCIES[country];
-        return {
-          country,
-          currency: r?.currency ?? fallback?.currency ?? null,
-          digits: r?.digits ?? fallback?.digits ?? 2,
-          unitsPerUsd: r ? formatRate(r.rateMicro) : null,
-          updatedAt: r?.updatedAt.toISOString() ?? null,
-        };
-      }),
-    };
+    const now = new Date();
+    const [data, status] = await Promise.all([this.fx.table(now), this.fx.status(now)]);
+    return { retailUsdPerMillion: this.config.economy.coinRetailUsdPerMillion, status, data };
   }
 
   async setRate(

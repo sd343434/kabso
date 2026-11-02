@@ -52,6 +52,8 @@ export const CAPABILITIES = {
   'storage.settings': ['OWNER'],
   /** v1.80-kyc (D227, §10.77): the Didit API key, webhook secret, workflows and switch «التحقق من الهوية (Didit)». */
   'kyc.settings': ['OWNER'],
+  /** v1.81-social (D245, §10.85): the paid exchange-rate provider and its API key «مزوّد أسعار الصرف». */
+  'fx.settings': ['OWNER'],
   /** v1.80-kyc (D227): a person's identity check (name, birth date, document country, duplicates; images via Didit). */
   'kyc.view': ['OWNER', 'SUPPORT'],
   // ---- v1.65-social (D197, CONVENTIONS §10.60): the panel v2 sections ---------------------------------------

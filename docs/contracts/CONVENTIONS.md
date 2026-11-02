@@ -601,6 +601,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.60-social)* Tables `admin_credentials`, `admin_recovery_codes`, `admin_sessions`; admin permissions `OWNER`, `SUPPORT`, `FINANCE`; server config `ADMIN_*`, `RATE_LIMIT_ADMIN_*`; CLI `admin-admin`; `apps/admin` | Backend — `admin-panel` module (reads other modules' tables for its views; changes them only through their shared rules, §10.54.4); web — `apps/admin` | CTO; Security (sign-in, second factor, sessions, private data) |
 | *(v1.60-social)* Table `site_settings` | Backend — `site-settings` module (public read; OWNER writes from the panel) | CTO |
 | *(v1.75-social)* Table `storage_settings` (the object-storage keys sealed, the two buckets, the switch, the last test); capability `storage.settings`; audit `storage.settings.*` (§10.72) | Backend — `storage-settings` module (`StorageSettingsService` the only writer; `StorageSettingsStore` the only reader: the media storage `OBJECT_STORAGE`, the upload switch and every public media URL); web — `apps/admin` «التخزين (R2 / S3)» | CTO; Security (storage keys, encryption at rest, the private bucket) |
+| *(v1.81-social)* Tables `fx_rates` (the latest automatic rate per currency, its source and times, a value held for review), `fx_settings` (the paid provider's key sealed, the switch, the last test, the poller's state); capability `fx.settings`; audit `fx.*`; server config `FX_*` (§10.85) | Backend — `fx` module (`FxRatesService` the only writer of `fx_rates` and of the poller state, and the one resolver every price reads; `FxSettingsService` the only writer of the provider settings). `recharge_exchange_rates` stays the `recharge` module's (the manual rates). | CTO |
 | *(v1.80-kyc)* Tables `kyc_settings` (the Didit API key and webhook secret sealed, the workflows, the daily limit, the switch, the last test), `kyc_checks` (one Didit session of a person: status, decision, reasons, name, birth date, document country, document HMAC), `kyc_webhook_events` (the deliveries applied); capabilities `kyc.settings`, `kyc.view`; audit `kyc.*` (§10.77) | Backend — `kyc` module (`KycSettingsService` the only writer of the settings, `KycService` of the checks; `KycSettingsStore` the only reader of the secrets; `kyc-core.ts` the gates shared with `host-applications`, `economy` (agency open) and `recharge`); web — `apps/admin` «التحقق من الهوية (Didit)» and the KYC block of the three application pages; app — `features/kyc` | CTO; Security (Didit secrets, the minimum personal data, the webhook signature); Privacy (Didit as a processor, export and purge) |
 | *(v1.64-social)* Table `payment_settings` (the Stripe keys sealed, the top-up options); capability `payments.settings`; audit `payment.settings.*` (§10.53.1) | Backend — `payment-settings` module (`PaymentSettingsService` the only writer; `PaymentSettingsStore` the only reader, used by `topup`, `wallet`, `site-settings`); web — `apps/admin` «الدفع (Stripe)» | CTO; Security (Stripe keys, encryption at rest) |
 | *(v1.66-social)* Tables `legal_documents`, `user_consents`, `data_exports`; column `pending_registrations.legal_consent`; notification type `DATA_EXPORT_READY`; the 428 gate (`ConsentGuard`); server config `DATA_EXPORT_*`, `RATE_LIMIT_DATA_EXPORT_*`; CLIs `legal-admin`, `privacy-admin`; private prefix `private/data-exports/`; `scripts/check-site-no-tracking.sh` (§10.61) | Backend — `privacy` module (`legal.ts` and `data-export.ts` shared with the CLIs; `auth`, `topup` and `gifts` record consents through `legal.ts`; D193's purge deletes exports and clears consents' IP/UA) | CTO; Security (the export's content, the download token); Legal (the documents' text and versions) |
@@ -649,6 +650,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.81-social (draft) | 2026-11-02 | **D245 (owner: «اجعل أسعار الصرف متاحة لجميع الدول بشكل أوتوماتيكي بحيث يقوم النظام بتحديث كل دقيقة»):** automatic exchange rates for every country (§10.85). `listAdminRechargeExchangeRates` → every country (`AdminFxRateRow`: `source` MANUAL / AUTO / USD / NONE, `stale`, `manual`, `auto` with `held`) + `status` (`AdminFxStatus`); `clearAdminRechargeExchangeRate` is «إعادة إلى التلقائي»; new `refreshAdminFxRates` (`POST /admin/fx/refresh`), `acceptAdminFxHeldRate` (`POST /admin/fx/held/{currency}/accept`) (capability `recharge.rates`); the OWNER's «مزوّد أسعار الصرف» `getAdminFxSettings` / `updateAdminFxSettings` (PATCH) / `testAdminFxSettings` / `clearAdminFxSettings` (`/admin/fx-settings`, capability `fx.settings`). `RechargePrice.local` uses the effective rate. Tables `fx_rates`, `fx_settings`; audit `fx.settings.update|clear|test`, `fx.rates.refresh`, `fx.rate.accept_held`; server config `FX_*`. No new error code (409 `ADMIN_ACTION_REFUSED` issues `fx_refresh_too_soon`, `fx_nothing_held`, `fx_key_missing`, `fx_test_required`, `fx_test_failed`, `fx_nothing_to_clear`). | Additive. |
 | v1.80-kyc (draft) | 2026-11-01 | **D227 (owner: identity verification with Didit for «كن مضيفاً مع الإدارة», «افتح وكالة» and recharge agents; the keys in the admin panel, never in env files):** tag `kyc` — `getMyKyc` (`GET /me/kyc`, `MyKyc`, `KycPurposeState`), `startKycSession` (`POST /me/kyc/sessions`, `StartKycSessionRequest`, `KycSessionStart`), `syncKycCheck` (`POST /me/kyc/checks/{checkId}/sync`, `KycCheck`), `receiveDiditWebhook` (`POST /kyc/didit/webhook`); schemas `KycPurpose`, `KycStatus`, `KycRefusal`; tag `admin-panel` — `getAdminKycSettings`, `updateAdminKycSettings` (PATCH), `testAdminKycSettings`, `clearAdminKycSettings` (capability `kyc.settings`, OWNER), `getAdminKycCheck`, `getAdminKycCheckMedia` (capability `kyc.view`, OWNER + SUPPORT); schemas `AdminKycSettings`, `KycKeyInfo`, `KycTestReport`, `KycTestWorkflow`, `KycLastTest`, `UpdateAdminKycSettingsRequest`, `TestAdminKycSettingsRequest`, `ClearAdminKycSettingsRequest`, `AdminKycCheck`, `AdminKycPerson`, `AdminKycSummary`, `AdminKycMedia`; `AdminHostApplication.kyc`, `AdminAgencyApplication.kyc`, `AdminRechargeApplication.kyc` (and `paymentMethods[].details`, returned since D191, now declared); codes `KYC_NOT_ALLOWED` (409), `KYC_UNAVAILABLE` (503); `AGENCY_OPEN_NOT_ALLOWED` issue `KYC_REQUIRED`; `ADMIN_ACTION_REFUSED` issue `kyc_required` (host approval, the recharge agent's first top-up); notification types `KYC_APPROVED`, `KYC_DECLINED`, `KYC_IN_REVIEW` (system, no target); `HostingApplicationRequest` / `OpenAgencyRequest` / `RechargeAgentApplicationRequest`: `photoUploadId` and `selfieUploadId` no longer required by the schema (required by the server while Didit is off; ignored while on); config `API_PUBLIC_URL` (optional, shown as the webhook's origin), `RATE_LIMIT_KYC_START_USER` (20/86400), `RATE_LIMIT_KYC_SYNC_USER` (60/3600); migrations `20270214090000_kyc_enums`, `20270214090100_kyc_checks` (also relaxes `recharge_agent_applications_shape`: the two picture keys both or neither); audit `kyc.settings.update\|clear\|test`, `kyc.session.start`, `kyc.check.decision`, `kyc.check.duplicate_document`, `kyc.check.view`, `kyc.check.media.view`; the data export gains `kyc_checks`; the account purge deletes the checks. §4, §7, §8, §10.54.1, §10.77. | **Additive** for clients (new operations, schemas, codes and enum values; clients ignore unknown notification types; older clients that still send the upload ids keep working). Behaviour while Didit is ON: approval / activation / opening need an approved check. While OFF nothing changes. |
 | v1.79-social (draft) | 2026-11-01 | **D226 (owner approved «تسجيل الخروج من كل الأجهزة الأخرى»):** `revokeOtherSessions` (`POST /auth/sessions/revoke-others`, `RevokeOtherSessionsRequest` with the current password, 200 `RevokeOtherSessionsResult` `{revoked}`): every session of the caller but the calling one is revoked with its push token; 403 `REAUTH_FAILED` on a wrong password; rate limit 5 / 15 min per user (bucket `sessions_revoke_others:user`, the existing rule `RATE_LIMIT_ACCOUNT_DELETION_USER`); audit actions `auth.sessions.revoke_others`, `auth.sessions.revoke_others.reauth_failed`. No migration, no new configuration. §7, §10.76. | **Additive** (a new operation). |
 | v1.78-social (draft) | 2026-11-01 | **D223 (owner: «الجهاز الواحد لا يمكنه عمل غير حسابين لكنه يمكن فتح حسابات مختلفة»):** `DeviceInfo.deviceKey` (the app's salted SHA-256 of Android `ANDROID_ID` / an iOS Keychain id; read only by `register` and `registerVerify`, kept only as an HMAC); `register` / `registerVerify` 409 `DEVICE_ACCOUNT_LIMIT` (`details[0] = {field: device, issue: '<limit>'}`); tag `admin-panel`: `getAdminDeviceSignups`, `grantAdminDeviceException`, `removeAdminDeviceException` (`AdminDeviceSignups`, `AdminDeviceExceptionRequest`; capabilities `users.device_view` OWNER / SUPPORT, `users.device_exception` OWNER with the code again); config `SIGNUP_MAX_ACCOUNTS_PER_DEVICE` (2, 1–100), `SIGNUP_DEVICE_KEY` (optional HMAC key source, else RATE_LIMIT_KEY_SECRET); audit `auth.registration.device_limit`, `admin.device_signups.view`, `admin.device_exception.grant\|remove`; migration `20270211090000_device_signups` (`device_signups`, `device_signup_exceptions`, `pending_registrations.device_hash`). §4, §10.75. | **Additive** (an optional request field, a new code on the sign-up operations only when a device key is sent, new operations; an older app or the website sends no key and is not counted). |
@@ -3810,6 +3812,7 @@ session's `capabilities` do not include.
 | `payments.settings` (v1.64-social, D196: the Stripe keys and top-up options, §10.53.1) | ✓ | | | |
 | `storage.settings` (v1.75-social, D222: the media storage R2 / S3 keys, buckets and switch, §10.72) | ✓ | | | |
 | `kyc.settings` (v1.80-kyc, D227: the Didit API key, webhook secret, workflows, daily limit and switch, §10.77) | ✓ | | | |
+| `fx.settings` (v1.81-social, D245: the paid exchange-rate provider, its API key and switch «مزوّد أسعار الصرف», §10.85.4) | ✓ | | | |
 | `kyc.view` (v1.80-kyc, D227: a person's identity check — name, birth date, document country, duplicates — and the short-lived image fetch, each audited, §10.77) | ✓ | | ✓ | |
 | `recharge.disputes` (v1.69-social, D204: «نزاعات الشحن» — a disputed order, its chat and pictures, «الإدارة» lines, §10.64.9) | ✓ | | ✓ | ✓ |
 | `recharge.disputes.resolve`, `recharge.rates` (v1.69-social, D204: a dispute's decision, the exchange rates) | ✓ | | | ✓ |
@@ -3862,7 +3865,8 @@ Sign-in events: `admin.login.password|success|failure|locked`, `admin.totp.enrol
 **Financial actions need the authenticator code again** (`totpCode` in the body): `topUpAdminRechargeAgent`,
 `payAdminWithdrawal`, `rejectAdminWithdrawal` (it refunds the held cherries); v1.64-social (D196):
 `updateAdminPaymentSettings` and `clearAdminPaymentKeys`, which also need a reason (§10.53.1); v1.75-social (D222):
-`updateAdminStorageSettings` and `clearAdminStorageSettings`, with a reason too (§10.72). A missing code is 400; a wrong or used
+`updateAdminStorageSettings` and `clearAdminStorageSettings`, with a reason too (§10.72); v1.81-social (D245):
+`updateAdminFxSettings` and `clearAdminFxSettings`, with a reason too (§10.85.4). A missing code is 400; a wrong or used
 one 403 `ADMIN_TOTP_INVALID` (counted towards the lockout); nothing changes.
 
 #### 10.54.4 One rule for the CLI and the panel
@@ -3901,6 +3905,8 @@ own message.
 6. **Website settings «إعدادات الموقع»** (OWNER) — §10.54.6.
 7. **Payments «الدفع (Stripe)»** (OWNER; v1.64-social, D196) — §10.53.1.
 8. **Storage «التخزين (R2 / S3)»** (OWNER; v1.75-social, D222) — §10.72.
+9. **Exchange-rate provider «مزوّد أسعار الصرف»** (OWNER; v1.81-social, D245) — §10.85.4; the rates themselves are
+   «أسعار الصرف» (OWNER / FINANCE edit, every recharge role reads; §10.64.1, §10.85).
 
 Lists are keyset-paginated (`cursor`, `limit` ≤ 100; reports use the `listAdminReports` cursor).
 
@@ -4598,6 +4604,9 @@ the country (`recharge_exchange_rates`: currency, units per 1 USD × 1 000 000, 
 in the currency's decimals; without a rate the country is USD only. USD is always shown. The price — USD, currency,
 rate and local amount — is **stored with the order at creation**; a later rate change never touches it.
 `RECHARGE_ORDER_MIN_COINS` (10 000) … `RECHARGE_ORDER_MAX_COINS` (1 000 000 000) per order.
+
+*v1.81-social (D245):* a row of `recharge_exchange_rates` is now the **manual** rate «يدوي»; without one the country
+uses the **automatic** rate of its currency (§10.85). Clearing a manual rate is «إعادة إلى التلقائي».
 
 #### 10.64.2 Creating an order
 
@@ -5537,6 +5546,84 @@ Owner (2026-11-02, on a live chat screenshot): «لماذا الأيقونة ا�
 - **App:** a chat line with the badge header is the name with the role pills and level emblems beside it (one row, one
   height; only the name shortens) / up to 5 medals (one row, hidden when empty) / the message (§10.24's bubble, else a
   translucent black box). Older servers: no medals row.
+
+### 10.85 Automatic exchange rates for every country *(v1.81-social, DRAFT — D245)*
+
+Owner (2026-11-02): «اجعل أسعار الصرف متاحة لجميع الدول بشكل أوتوماتيكي بحيث يقوم النظام بتحديث كل دقيقة». The
+coordinator's decisions: a **free** source now for every country (hourly — polling a daily feed every minute is
+pointless and abusive), a **paid** provider later from the panel (then every minute), the **manual** rate wins.
+
+#### 10.85.1 Countries, currencies and the one resolver
+
+- Every ISO 3166-1 country maps to its official ISO 4217 currency (`apps/api/src/modules/fx/fx-countries.ts`, 248
+  codes; AQ has none; the 22 Arab League countries keep D150's table and decimals — IQD, LBP, SYP, YER, SOS 0).
+  Multi-currency / de facto cases use the official ISO code (PA → PAB, BT → BTN, LS → LSL, NA → NAD, SZ → SZL, ZW →
+  ZWG, CW / SX → XCG, BG → EUR since 2026-01-01, PS → ILS); the team sets a manual rate when another one is wanted.
+- **The effective rate of a country** (one function, `resolveRate`; every reader goes through `FxRatesService` /
+  `effectiveRateIn` — the recharge-order quote and creation, the panel, `recharge-admin rates`):
+  1. the admin's **manual** rate of the country (`recharge_exchange_rates`, D204) — «يدوي»;
+  2. a **USD** country (US, EC, SV, PR, …): rate 1 — the price has no second, identical line (`local` null);
+  3. the **automatic** rate of the country's currency (`fx_rates`) — «تلقائي» — unless it is **stale**;
+  4. otherwise none: USD only (D204's rule: the USD price always shows).
+- **Stale data → USD only** (chosen over an «تقريبي» note: no app change, never a wrong local amount): an automatic
+  value whose provider time (else its fetch time) is older than `FX_STALE_AFTER_HOURS` (48) is not used. Manual rates
+  never go stale. The free feed changes once a day, so 48 h leaves a full day of failed fetches before USD only.
+- An order still stores its price at creation (§10.64.1): a later rate never changes it.
+
+#### 10.85.2 Fetching, checks and holds
+
+- **Sources.** Free: ExchangeRate-API «open access» `GET https://open.er-api.com/v6/latest/USD` (no key, ~160
+  currencies, data updated once a day; its terms ask not to poll more than about hourly and to show
+  «Rates By Exchange Rate API» linking to https://www.exchangerate-api.com where the rates are shown — the panel shows
+  it; `AdminFxStatus.attribution`). Paid (§10.85.4): currencyapi.com `GET /v3/latest?base_currency=USD` (header
+  `apikey`) or ExchangeRate-API `GET /v6/{key}/latest/USD`. All USD-based; `FX_*_URL` settings (https in production).
+- **Every value is checked** against the last good one of its currency: not a finite number > 0 (zero, negative, NaN,
+  a string) or > 10^12 → **rejected**; a move over `FX_MAX_JUMP_PERCENT` (50 %) → **held** for review (the last good
+  value stays in force; `auto.held` in the panel; the next normal value clears it; OWNER / FINANCE accept it with a
+  reason, `acceptAdminFxHeldRate`, audited `fx.rate.accept_held`). A held currency's last good value keeps its old
+  time, so a real devaluation nobody reviews ends as USD only after 48 h, never as a wrong local price. USD itself is
+  never stored. A fetch with no usable value is a failure (`no_rates`).
+- **The poller** (`FxPoller`): every `FX_POLL_TICK_SECONDS` (30; 0 = off, tests) each API instance asks whether a fetch
+  is due. One `fx_settings` row is the shared state: `next_fetch_at`, a **lease** `running_until` (2 min) claimed under
+  `FOR UPDATE`, so N instances fetch once per period and never twice at once. The interval is
+  `FX_FREE_INTERVAL_SECONDS` (3600, minimum 600) with the free feed, `FX_PAID_INTERVAL_SECONDS` (60, minimum 60) with
+  a paid provider on.
+- **Failures** (`unreachable`, `timeout`, `http_error`, `bad_api_key`, `quota_reached`, `rate_limited`,
+  `bad_response`, `no_rates`): the last good rates stay; the error, its time and the failures in a row are stored and
+  shown; the wait doubles per failure (free: 1 h, 2 h, 4 h, at most 6 h; paid: 1, 2, 4 … at most 60 min) and resets
+  after a success. Logged without the key or the URL. Requests: GET only, 10 s timeout (`FX_FETCH_TIMEOUT_MS`), no
+  redirect, at most 1 MB.
+
+#### 10.85.3 The panel «أسعار الصرف»
+
+`listAdminRechargeExchangeRates` (`recharge.agents`): every country with currency, effective `unitsPerUsd`, `source`
+(MANUAL «يدوي» / AUTO «تلقائي» / USD / NONE «دولار فقط»), `stale`, `updatedAt` «آخر تحديث», the manual and the automatic
+value (source, fetch and provider times, a held value with its jump), and `status` (the source in use, the interval,
+the last attempt / success, the next fetch, the last error and the failures, the counts, the attribution). Edit
+(`setAdminRechargeExchangeRate`) sets a manual rate; «إعادة إلى التلقائي» (`clearAdminRechargeExchangeRate`) removes it
+— both `recharge.rates` (OWNER, FINANCE) with a reason, audited as in D204 (no code: the D204 rate edits need none).
+«تحديث الآن» `refreshAdminFxRates` (`recharge.rates`): one fetch under the same lease; refused within 60 s of the last
+attempt (`fx_refresh_too_soon`); audited `fx.rates.refresh`.
+
+#### 10.85.4 The OWNER's paid provider «مزوّد أسعار الصرف»
+
+D196 / D222 / D227's pattern exactly: `/admin/fx-settings`, capability `fx.settings` (OWNER). The provider
+(`CURRENCYAPI` — currencyapi.com, minute updates on its paid plans; or `EXCHANGERATE_API`) and the **API key, write-only**:
+AES-256-GCM at rest with a key derived from ADMIN_TOTP_KEY (HKDF-SHA-256, info `fx-settings/v1`, AAD
+`fx_settings.api_key`); only the last 4, who and when are ever shown or audited. Every change and the removal need the
+authenticator code again + a reason (403 `ADMIN_TOTP_INVALID`), audited `fx.settings.update` / `fx.settings.clear`
+(masked before / after, `changed`, `connectionTest`). «اختبار الاتصال» `testAdminFxSettings`: one real request with the
+typed or saved key (`FxTestReport`, audited `fx.settings.test`). Turning on, or a new key / provider while on, runs it
+first (`fx_test_failed`, nothing saved; `skipConnectionTest` outside production only). While on, the poller reads the
+paid provider every minute (a switch is fetched at the next tick); off or cleared → the free feed hourly. A key sealed
+with another ADMIN_TOTP_KEY is ignored (`paidIgnored: unreadable`, free feed). No key ever lives in env files or the
+repository; tests use a local stub provider.
+
+#### 10.85.5 Deployment
+
+The API container needs **outbound HTTPS** to `open.er-api.com` (and, with a paid provider, `api.currencyapi.com` or
+`v6.exchangerate-api.com`). Without it every fetch fails (`unreachable`), the panel shows the error, manual rates keep
+working and the other countries are USD only. Migration `20270225090000_fx_rates`. DEPLOYMENT §5.46.
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 

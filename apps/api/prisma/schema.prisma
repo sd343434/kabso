@@ -4367,6 +4367,61 @@ model RechargeExchangeRate {
   @@map("recharge_exchange_rates")
 }
 
+/// D245: the latest AUTOMATIC rate of a currency (units per 1 USD × 1 000 000) from the free feed or the OWNER's paid
+/// provider. A manual `RechargeExchangeRate` of a country wins over it. A value that moved more than FX_MAX_JUMP_PERCENT
+/// from `rateMicro` is held (`held*`) for the team's review; `rateMicro` stays in force meanwhile.
+model FxRate {
+  currency              String    @id @db.Char(3)
+  rateMicro             BigInt    @map("rate_micro")
+  /// OPEN_ER_API | CURRENCYAPI | EXCHANGERATE_API.
+  source                String    @db.VarChar(24)
+  /// The provider's own «last updated» time of this value (the free feed: once a day).
+  providerUpdatedAt     DateTime? @map("provider_updated_at") @db.Timestamptz(3)
+  fetchedAt             DateTime  @map("fetched_at") @db.Timestamptz(3)
+  heldRateMicro         BigInt?   @map("held_rate_micro")
+  heldSource            String?   @map("held_source") @db.VarChar(24)
+  heldProviderUpdatedAt DateTime? @map("held_provider_updated_at") @db.Timestamptz(3)
+  heldAt                DateTime? @map("held_at") @db.Timestamptz(3)
+  updatedAt             DateTime  @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  @@map("fx_rates")
+}
+
+/// D245: one row — the OWNER's paid exchange-rate provider «مزوّد أسعار الصرف» (the API key sealed AES-256-GCM with a
+/// key derived from ADMIN_TOTP_KEY, `fx-settings/v1`; write-only, last 4 shown) and the poller's shared state.
+model FxSettings {
+  id                    Int       @id @default(1) @db.SmallInt
+  /// CURRENCYAPI | EXCHANGERATE_API.
+  provider              String    @default("CURRENCYAPI") @db.VarChar(24)
+  enabled               Boolean   @default(false)
+  apiKeyEnc             String?   @map("api_key_enc")
+  apiKeyLast4           String?   @map("api_key_last4") @db.VarChar(4)
+  apiKeySetById         String?   @map("api_key_set_by_id") @db.Uuid
+  apiKeySetAt           DateTime? @map("api_key_set_at") @db.Timestamptz(3)
+  lastTestAt            DateTime? @map("last_test_at") @db.Timestamptz(3)
+  lastTestOk            Boolean?  @map("last_test_ok")
+  lastTestById          String?   @map("last_test_by_id") @db.Uuid
+  lastTest              Json?     @map("last_test")
+  /// The poller: when the next fetch is due, and the lease of the instance fetching now.
+  nextFetchAt           DateTime? @map("next_fetch_at") @db.Timestamptz(3)
+  runningUntil          DateTime? @map("running_until") @db.Timestamptz(3)
+  lastAttemptAt         DateTime? @map("last_attempt_at") @db.Timestamptz(3)
+  lastSuccessAt         DateTime? @map("last_success_at") @db.Timestamptz(3)
+  lastSource            String?   @map("last_source") @db.VarChar(24)
+  lastProviderUpdatedAt DateTime? @map("last_provider_updated_at") @db.Timestamptz(3)
+  /// The last successful fetch's counts (accepted / unchanged / held / rejected).
+  lastReport            Json?     @map("last_report")
+  lastErrorAt           DateTime? @map("last_error_at") @db.Timestamptz(3)
+  lastErrorIssue        String?   @map("last_error_issue") @db.VarChar(32)
+  lastErrorDetail       String?   @map("last_error_detail") @db.VarChar(300)
+  /// Failed fetches in a row (the back-off); 0 after a success.
+  failures              Int       @default(0)
+  updatedAt             DateTime  @default(now()) @map("updated_at") @db.Timestamptz(3)
+  updatedById           String?   @map("updated_by_id") @db.Uuid
+
+  @@map("fx_settings")
+}
+
 /// D204: a buyer's order to an agent. The price is fixed at creation (retail USD and the local amount at the rate in
 /// force). Coins are frozen from the agent's stock (ORDER_HOLD) from the payment details until a confirmation (to
 /// the buyer), a cancellation / expiry (back to the stock, ORDER_RELEASE) or a dispute decision.

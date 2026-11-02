@@ -359,6 +359,19 @@ export interface AppConfig {
     readonly appLinkEnabled: boolean;
     readonly termsVersion: string;
   };
+  /** v1.81-social (D245, §10.85): automatic exchange rates (the paid key is in the panel, never here). */
+  readonly fx: {
+    readonly freeUrl: string;
+    readonly currencyApiBaseUrl: string;
+    readonly exchangeRateApiBaseUrl: string;
+    readonly freeIntervalSeconds: number;
+    readonly paidIntervalSeconds: number;
+    /** 0 = no automatic fetch (tests). */
+    readonly tickSeconds: number;
+    readonly staleAfterHours: number;
+    readonly maxJumpPercent: number;
+    readonly fetchTimeoutMs: number;
+  };
   /** v1.80-kyc (D227, §10.77): identity checks with Didit (the keys are in the panel, never here). */
   readonly kyc: {
     /** API_PUBLIC_URL: shown as the webhook address's origin (default `https://api.kabsolive.com`). */
@@ -792,6 +805,17 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       },
     },
     kyc: { publicApiBaseUrl: e.API_PUBLIC_URL ?? 'https://api.kabsolive.com' },
+    fx: {
+      freeUrl: e.FX_FREE_URL,
+      currencyApiBaseUrl: e.FX_CURRENCYAPI_BASE_URL,
+      exchangeRateApiBaseUrl: e.FX_EXCHANGERATE_API_BASE_URL,
+      freeIntervalSeconds: e.FX_FREE_INTERVAL_SECONDS,
+      paidIntervalSeconds: e.FX_PAID_INTERVAL_SECONDS,
+      tickSeconds: e.FX_POLL_TICK_SECONDS,
+      staleAfterHours: e.FX_STALE_AFTER_HOURS,
+      maxJumpPercent: e.FX_MAX_JUMP_PERCENT,
+      fetchTimeoutMs: e.FX_FETCH_TIMEOUT_MS,
+    },
     topup: {
       stripe:
         e.STRIPE_SECRET_KEY !== undefined &&

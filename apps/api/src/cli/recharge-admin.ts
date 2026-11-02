@@ -18,8 +18,9 @@
  *   pnpm recharge:admin agents
  *   pnpm recharge:admin purge                                    # the retention step now
  *   pnpm recharge:admin rates                                    # v1.69-social (D204): exchange rates per country
+ *                                                                # (D245: the effective rate — manual «يدوي» or automatic)
  *   pnpm recharge:admin set-rate <CC> <CUR> <units per USD> --digits <0-3> --reason <text>
- *   pnpm recharge:admin clear-rate <CC> --reason <text>          # the country goes back to USD only
+ *   pnpm recharge:admin clear-rate <CC> --reason <text>          # D245: back to the automatic rate (else USD only)
  *   pnpm recharge:admin disputes                                 # open disputes (no chat content)
  *   pnpm recharge:admin resolve <order id> credit-buyer|refund-agent --reason <text>
  *   pnpm recharge:admin expire-orders                            # the order expiry step now
@@ -35,6 +36,8 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient, type RechargeApplicationStatus } from '../generated/prisma/client.js';
 import { AuditAction } from '../common/audit/audit.service.js';
 import type { AppConfig } from '../config/app-config.js';
+import { effectiveRateIn } from '../modules/fx/fx-rates.service.js';
+import { allCountries } from '../modules/fx/fx.rules.js';
 import { envSchema } from '../config/env.schema.js';
 import type { ObjectStorage } from '../modules/media/object-storage.js';
 import { S3ObjectStorage } from '../modules/media/s3-object-storage.js';
@@ -331,14 +334,16 @@ try {
     }
     // ---- v1.69-social (D204, §10.64): exchange rates and disputes ------------------------------------------
     case 'rates': {
-      const rows = await prisma.rechargeExchangeRate.findMany({ orderBy: { country: 'asc' } });
-      for (const r of rows) {
+      // D245: the effective rate of every country through the one resolver (manual over automatic; stale → USD only).
+      const stale = setting('FX_STALE_AFTER_HOURS') as number;
+      const manual = await prisma.rechargeExchangeRate.findMany({ select: { country: true } });
+      const countries = [...new Set([...allCountries(), ...manual.map((r) => r.country)])].sort();
+      for (const country of countries) {
+        const e = await effectiveRateIn(prisma, country, now, stale);
         process.stdout.write(
-          `${r.country}  ${r.currency}  ${formatRate(r.rateMicro)} per USD  (${String(r.digits)} decimals)  ${r.updatedAt.toISOString()}\n`,
+          `${country}  ${e.currency ?? '-'}  ${e.rate ? `${formatRate(e.rate.rateMicro)} per USD` : 'USD only'}  ${e.source}${e.stale ? ' (stale)' : ''}  ${e.updatedAt?.toISOString() ?? ''}\n`,
         );
       }
-      if (rows.length === 0)
-        process.stdout.write('No exchange rates: every country is priced in USD only.\n');
       break;
     }
     case 'set-rate': {
@@ -362,7 +367,7 @@ try {
       if (!/^[A-Z]{2}$/.test(country)) fail(USAGE);
       const reason = text(values.reason, '--reason');
       await run(() => prisma.$transaction((tx) => clearExchangeRateIn(tx, country, reason)));
-      process.stdout.write(`${country}: USD only.\n`);
+      process.stdout.write(`${country}: back to the automatic rate (USD only when there is none).\n`);
       break;
     }
     case 'disputes': {

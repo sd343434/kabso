@@ -599,6 +599,17 @@ info:
     default) or the free on-device engine (Google ML Kit + MediaPipe). `LiveConfig.cameraFxEngine` (`DEEPAR` |
     `FREE`) in `getLiveConfig`; `getAdminCameraFx` / `updateAdminCameraFx` (`/admin/camera-fx`, panel session,
     capability `site.settings`: OWNER; audited `site.settings.update`). Additive (CONVENTIONS §10.79).
+    **D245 (DRAFT v1.81-social)**: automatic exchange rates for every country. The server reads a free no-key USD
+    feed (ExchangeRate-API «open access», daily data, read hourly) or, once the OWNER turns one on, a paid provider
+    (currencyapi.com or ExchangeRate-API, every minute) and stores the latest rate per currency; every country maps to
+    its ISO 4217 currency. The recharge-order price (`RechargePrice.local`) uses the effective rate: the admin's manual
+    rate «يدوي» of the country, else the automatic one (older than 48 h → USD only); a USD country has no local line.
+    `listAdminRechargeExchangeRates` now lists every country with `source`, `stale`, `manual`, `auto` (with a value
+    held for review) and the feed's `status` card; `clearAdminRechargeExchangeRate` is «إعادة إلى التلقائي».
+    New: `refreshAdminFxRates`, `acceptAdminFxHeldRate` (`recharge.rates`), and the OWNER's «مزوّد أسعار الصرف»
+    `getAdminFxSettings`, `updateAdminFxSettings` (PATCH; the code again + reason), `testAdminFxSettings`,
+    `clearAdminFxSettings` (capability `fx.settings`; the API key write-only, sealed `fx-settings/v1`, last 4 only).
+    Additive (CONVENTIONS §10.85).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -10712,6 +10723,152 @@ paths:
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '503': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/fx/refresh:
+    post:
+      tags: [admin-panel]
+      operationId: refreshAdminFxRates
+      summary: "«تحديث الآن»: fetch the automatic exchange rates now (recharge.rates; audited)"
+      description: "v1.81-social (D245, CONVENTIONS §10.85.3). One fetch from the source in use (the free feed, or the OWNER's paid provider), under the same lease as the poller. 409 `ADMIN_ACTION_REFUSED` `fx_refresh_too_soon` within 60 s of the last attempt. A failed fetch is a 200 with `result.status: failed` (the last good rates stay). Audited `fx.rates.refresh`."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      responses:
+        '200':
+          description: The outcome and the status card.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminFxRefreshResult' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/fx/held/{currency}/accept:
+    post:
+      tags: [admin-panel]
+      operationId: acceptAdminFxHeldRate
+      summary: "Accepts an automatic value held for review (a jump over FX_MAX_JUMP_PERCENT) (recharge.rates; reason; audited)"
+      description: "v1.81-social (D245, §10.85.2). The held value becomes the currency's automatic rate. 409 `ADMIN_ACTION_REFUSED` `fx_nothing_held` when none is held. Audited `fx.rate.accept_held` (before / after, reason)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - { name: currency, in: path, required: true, schema: { type: string, pattern: '^[A-Za-z]{3}$' } }
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReasonRequest' }
+      responses:
+        '200':
+          description: Accepted.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminFxHeldAccepted' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/fx-settings:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminFxSettings
+      summary: "«مزوّد أسعار الصرف»: the paid exchange-rate provider — the key as last 4 only —, the switch and the last test (fx.settings: OWNER)"
+      description: "v1.81-social (D245, §10.85.4). Never the key: `apiKey` is `FxKeyInfo` (last 4, who, when). `Cache-Control: no-store`. 503 `ADMIN_PANEL_UNAVAILABLE` without ADMIN_TOTP_KEY."
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: The settings.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminFxSettings' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+    patch:
+      tags: [admin-panel]
+      operationId: updateAdminFxSettings
+      summary: "Saves the paid provider / key and turns it on or off «تفعيل» (fx.settings: OWNER; the code again + reason; audited with the last 4 only)"
+      description: |
+        Only the fields sent change. Every change needs `totpCode` (403 `ADMIN_TOTP_INVALID`, counts towards the
+        lockout) and `reason`. Turning on needs a saved or sent key (409 `ADMIN_ACTION_REFUSED` `fx_key_missing`).
+        Turning on, or a new key / provider while on, first runs `testAdminFxSettings` with the merged values (kept as
+        the last test); a failure → 409 `fx_test_failed` (`enabled`), nothing saved. `skipConnectionTest: true` only
+        when NODE_ENV is not production (else 409 `fx_test_required`). While on, the poller reads the paid provider
+        every FX_PAID_INTERVAL_SECONDS (60) instead of the free feed hourly; a switch is fetched at the next tick.
+        Audited `fx.settings.update` (before / after with `…last4`, `changed`, `connectionTest`, `reason`).
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateAdminFxSettingsRequest' }
+      responses:
+        '200':
+          description: Saved; the settings as now (last 4 only).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminFxSettings' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/fx-settings/test:
+    post:
+      tags: [admin-panel]
+      operationId: testAdminFxSettings
+      summary: "«اختبار الاتصال»: one real request to the paid provider with the key (typed or saved) — nothing saved but the result (fx.settings: OWNER)"
+      description: "200 `FxTestReport` whatever the outcome (`bad_api_key`, `quota_reached`, `rate_limited`, `unreachable`, `timeout`, `http_error`, `bad_response`, `no_rates`); 400 `required` when there is no key. Audited `fx.settings.test` (`…last4`, the outcome)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TestAdminFxSettingsRequest' }
+      responses:
+        '200':
+          description: The outcome.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FxTestReport' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/fx-settings/clear:
+    post:
+      tags: [admin-panel]
+      operationId: clearAdminFxSettings
+      summary: "Removes the paid provider and its key: the free feed hourly again (fx.settings: OWNER; code again + reason; audited)"
+      description: "409 `ADMIN_ACTION_REFUSED` (`fx_nothing_to_clear`) when no key is saved. The rates already stored stay. Audited `fx.settings.clear` (masked before, `reason`)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ClearAdminFxSettingsRequest' }
+      responses:
+        '200':
+          description: Cleared.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminFxSettings' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
   /api/v1/admin/kyc-settings:
     get:
       tags: [admin-panel]
@@ -15080,7 +15237,7 @@ paths:
       tags: [admin-panel]
       operationId: listAdminRechargeExchangeRates
       summary: "«أسعار الصرف»: the exchange rate per country used to price recharge orders (recharge.agents)"
-      description: "v1.69-social, CONVENTIONS §10.64.1. The 22 Arab League countries (D150) and any other country with a rate; `unitsPerUsd` null = USD only."
+      description: "v1.69-social, CONVENTIONS §10.64.1. v1.81-social (D245, §10.85): every country of the ISO 3166 → ISO 4217 table (and any other with a manual rate), each with its effective rate (`source` MANUAL «يدوي» over AUTO «تلقائي»; USD for a USD country; NONE = USD only, also when the automatic value is `stale`), the manual and the automatic values, a value held for review, and the automatic feed's `status` card. `unitsPerUsd` null = USD only."
       security: [{ adminSession: [] }]
       responses:
         '200':
@@ -15122,8 +15279,8 @@ paths:
     post:
       tags: [admin-panel]
       operationId: clearAdminRechargeExchangeRate
-      summary: "Removes a country's rate: USD only (recharge.rates; reason; audited)"
-      description: "v1.69-social, CONVENTIONS §10.64.1 — the `recharge-admin clear-rate` rule. 409 `ADMIN_ACTION_REFUSED` when there is no rate."
+      summary: "«إعادة إلى التلقائي»: removes a country's manual rate (recharge.rates; reason; audited)"
+      description: "v1.69-social, CONVENTIONS §10.64.1 — the `recharge-admin clear-rate` rule. v1.81-social (D245): the country goes back to the automatic rate (USD only when there is none or it is stale); the response's `unitsPerUsd` is null (the manual rate is gone). 409 `ADMIN_ACTION_REFUSED` when there is no manual rate."
       security: [{ adminSession: [] }]
       parameters:
         - { name: country, in: path, required: true, schema: { type: string, pattern: '^[A-Za-z]{2}$' } }
@@ -26971,7 +27128,7 @@ components:
         usdMinor: { type: integer, format: int64, minimum: 0, description: "US cents (coins × the retail price, rounded half up)." }
         usd: { type: string, pattern: '^[0-9]+\.[0-9]{2}$', description: "e.g. `12.50`." }
         local:
-          description: "The amount in the country's currency at the admin's rate; null = USD only."
+          description: "The amount in the country's currency at the effective rate (D245: the admin's manual rate, else the automatic one; stale or none → null); null = USD only. A USD country has no local amount."
           oneOf:
             - type: object
               required: [currency, minor, digits, amount, rate]
@@ -27198,12 +27355,221 @@ components:
         updatedAt: { type: [string, 'null'], format: date-time }
     AdminRechargeExchangeRates:
       type: object
-      required: [retailUsdPerMillion, data]
+      required: [retailUsdPerMillion, status, data]
       properties:
         retailUsdPerMillion: { type: number, description: "COIN_RETAIL_USD_PER_MILLION (owner 12.5)." }
+        status: { $ref: '#/components/schemas/AdminFxStatus' }
         data:
           type: array
-          items: { $ref: '#/components/schemas/AdminRechargeExchangeRate' }
+          items: { $ref: '#/components/schemas/AdminFxRateRow' }
+    AdminFxRateRow:
+      type: object
+      description: "v1.81-social (D245): a country's effective rate and both sources."
+      required: [country, currency, digits, unitsPerUsd, updatedAt, source, stale, manual, auto]
+      properties:
+        country: { type: string, pattern: '^[A-Z]{2}$' }
+        currency: { type: [string, 'null'], pattern: '^[A-Z]{3}$', description: "The manual rate's currency, else the country's ISO 4217 currency; null = none (AQ)." }
+        digits: { type: integer, minimum: 0, maximum: 3 }
+        unitsPerUsd: { type: [string, 'null'], description: "The effective rate; null = USD only." }
+        updatedAt: { type: [string, 'null'], format: date-time, description: "The manual rate's change, or the automatic value's fetch." }
+        source: { type: string, enum: [MANUAL, AUTO, USD, NONE], description: "MANUAL «يدوي» wins; AUTO «تلقائي»; USD (a USD country, 1); NONE = USD only (no value, or a stale one)." }
+        stale: { type: boolean, description: "An automatic value exists but is older than FX_STALE_AFTER_HOURS (48): not used." }
+        manual:
+          oneOf:
+            - type: object
+              required: [currency, digits, unitsPerUsd, updatedAt]
+              properties:
+                currency: { type: string, pattern: '^[A-Z]{3}$' }
+                digits: { type: integer, minimum: 0, maximum: 3 }
+                unitsPerUsd: { type: string }
+                updatedAt: { type: string, format: date-time }
+            - type: 'null'
+        auto:
+          oneOf:
+            - type: object
+              required: [currency, unitsPerUsd, source, fetchedAt, providerUpdatedAt, stale, held]
+              properties:
+                currency: { type: string, pattern: '^[A-Z]{3}$' }
+                unitsPerUsd: { type: string }
+                source: { $ref: '#/components/schemas/FxSource' }
+                fetchedAt: { type: string, format: date-time }
+                providerUpdatedAt: { type: [string, 'null'], format: date-time }
+                stale: { type: boolean }
+                held:
+                  description: "A newer value that moved more than FX_MAX_JUMP_PERCENT (50) from this one, held for the team (`acceptAdminFxHeldRate`); this one stays in force."
+                  oneOf:
+                    - type: object
+                      required: [unitsPerUsd, source, at, jumpPercent]
+                      properties:
+                        unitsPerUsd: { type: string }
+                        source: { $ref: '#/components/schemas/FxSource' }
+                        at: { type: string, format: date-time }
+                        jumpPercent: { type: number }
+                    - type: 'null'
+            - type: 'null'
+    FxSource:
+      type: string
+      description: "Where an automatic rate came from: the free feed (OPEN_ER_API) or a paid provider."
+      enum: [OPEN_ER_API, CURRENCYAPI, EXCHANGERATE_API]
+    AdminFxStatus:
+      type: object
+      description: "v1.81-social (D245): the automatic feed's status card «الحالة»."
+      required: [source, sourceName, paidActive, paidIgnored, intervalSeconds, polling, lastAttemptAt, lastSuccessAt, lastSource, lastProviderUpdatedAt, nextFetchAt, lastError, failures, lastReport, currencies, held, staleAfterHours, maxJumpPercent, attribution]
+      properties:
+        source: { $ref: '#/components/schemas/FxSource' }
+        sourceName: { type: string }
+        paidActive: { type: boolean }
+        paidIgnored: { type: [string, 'null'], enum: [unreadable, null], description: "The saved key was sealed with another ADMIN_TOTP_KEY: the free feed is used." }
+        intervalSeconds: { type: integer, description: "FX_PAID_INTERVAL_SECONDS (60) with a paid provider, else FX_FREE_INTERVAL_SECONDS (3600)." }
+        polling: { type: boolean, description: "false = FX_POLL_TICK_SECONDS 0 (no automatic fetch)." }
+        lastAttemptAt: { type: [string, 'null'], format: date-time }
+        lastSuccessAt: { type: [string, 'null'], format: date-time, description: "«آخر تحديث»." }
+        lastSource: { oneOf: [{ $ref: '#/components/schemas/FxSource' }, { type: 'null' }] }
+        lastProviderUpdatedAt: { type: [string, 'null'], format: date-time, description: "The provider's own time of the last data (the free feed: once a day)." }
+        nextFetchAt: { type: [string, 'null'], format: date-time, description: "null when polling is off." }
+        lastError:
+          oneOf:
+            - type: object
+              required: [at, issue, detail]
+              properties:
+                at: { type: string, format: date-time }
+                issue: { type: string }
+                detail: { type: [string, 'null'] }
+            - type: 'null'
+        failures: { type: integer, minimum: 0, description: "Failed fetches in a row (the back-off doubles the wait each time)." }
+        lastReport:
+          oneOf:
+            - type: object
+              properties:
+                accepted: { type: integer }
+                held: { type: integer }
+                rejected: { type: integer }
+                heldCurrencies: { type: array, items: { type: string } }
+                rejectedCurrencies: { type: array, items: { type: string } }
+            - type: 'null'
+        currencies: { type: integer, minimum: 0 }
+        held: { type: integer, minimum: 0 }
+        staleAfterHours: { type: integer }
+        maxJumpPercent: { type: integer }
+        attribution:
+          description: "Shown wherever rates from the free feed appear (its terms)."
+          oneOf:
+            - type: object
+              required: [text, url]
+              properties:
+                text: { type: string }
+                url: { type: string, format: uri }
+            - type: 'null'
+    AdminFxRefreshResult:
+      type: object
+      required: [result, status]
+      properties:
+        result:
+          type: object
+          required: [status]
+          properties:
+            status: { type: string, enum: [ok, failed, locked, not_due] }
+            source: { $ref: '#/components/schemas/FxSource' }
+            accepted: { type: integer }
+            held: { type: integer }
+            rejected: { type: integer }
+            issue: { type: string }
+            nextFetchAt: { type: string, format: date-time }
+        status: { $ref: '#/components/schemas/AdminFxStatus' }
+    AdminFxHeldAccepted:
+      type: object
+      required: [currency, unitsPerUsd, source]
+      properties:
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
+        unitsPerUsd: { type: string }
+        source: { $ref: '#/components/schemas/FxSource' }
+    FxPaidProvider:
+      type: string
+      enum: [CURRENCYAPI, EXCHANGERATE_API]
+    FxKeyInfo:
+      type: object
+      required: [last4, setBy, setAt]
+      properties:
+        last4: { type: string, maxLength: 4 }
+        setBy:
+          oneOf:
+            - type: object
+              required: [id, displayName]
+              properties:
+                id: { type: string, format: uuid }
+                displayName: { type: string }
+            - type: 'null'
+        setAt: { type: [string, 'null'], format: date-time }
+    FxTestReport:
+      type: object
+      required: [ok, at, provider, apiKeyLast4, ms, issue, detail, currencies, providerUpdatedAt]
+      properties:
+        ok: { type: boolean }
+        at: { type: string, format: date-time }
+        provider: { $ref: '#/components/schemas/FxPaidProvider' }
+        apiKeyLast4: { type: string, maxLength: 4 }
+        ms: { type: integer, minimum: 0 }
+        issue: { type: [string, 'null'], enum: [unreachable, timeout, http_error, bad_api_key, quota_reached, rate_limited, bad_response, no_rates, null] }
+        detail: { type: [string, 'null'] }
+        currencies: { type: integer, minimum: 0 }
+        providerUpdatedAt: { type: [string, 'null'], format: date-time }
+        by:
+          oneOf:
+            - type: object
+              required: [id, displayName]
+              properties:
+                id: { type: string, format: uuid }
+                displayName: { type: string }
+            - type: 'null'
+    AdminFxSettings:
+      type: object
+      required: [status, provider, enabled, apiKey, updatedAt, panelIgnored, lastTest, paidIntervalSeconds, freeIntervalSeconds, providers, connectionTestSkippable]
+      properties:
+        status: { type: string, enum: [active, 'off', not_configured] }
+        provider: { $ref: '#/components/schemas/FxPaidProvider' }
+        enabled: { type: boolean }
+        apiKey: { oneOf: [{ $ref: '#/components/schemas/FxKeyInfo' }, { type: 'null' }] }
+        updatedAt: { type: [string, 'null'], format: date-time }
+        panelIgnored: { type: [string, 'null'], enum: [unreadable, null] }
+        lastTest: { oneOf: [{ $ref: '#/components/schemas/FxTestReport' }, { type: 'null' }] }
+        paidIntervalSeconds: { type: integer }
+        freeIntervalSeconds: { type: integer }
+        providers:
+          type: array
+          items:
+            type: object
+            required: [code, name, site, signupUrl, docsUrl]
+            properties:
+              code: { $ref: '#/components/schemas/FxPaidProvider' }
+              name: { type: string }
+              site: { type: string, format: uri }
+              signupUrl: { type: [string, 'null'], format: uri }
+              docsUrl: { type: string, format: uri }
+        connectionTestSkippable: { type: boolean }
+    UpdateAdminFxSettingsRequest:
+      type: object
+      additionalProperties: false
+      required: [totpCode, reason]
+      properties:
+        provider: { $ref: '#/components/schemas/FxPaidProvider' }
+        apiKey: { type: string, pattern: '^[A-Za-z0-9_-]{8,128}$', writeOnly: true }
+        enabled: { type: boolean }
+        skipConnectionTest: { type: boolean, description: "Outside production only." }
+        totpCode: { type: string, pattern: '^[0-9]{6}$', writeOnly: true }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+    TestAdminFxSettingsRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        provider: { $ref: '#/components/schemas/FxPaidProvider' }
+        apiKey: { type: string, pattern: '^[A-Za-z0-9_-]{8,128}$', writeOnly: true }
+    ClearAdminFxSettingsRequest:
+      type: object
+      additionalProperties: false
+      required: [totpCode, reason]
+      properties:
+        totpCode: { type: string, pattern: '^[0-9]{6}$', writeOnly: true }
+        reason: { type: string, minLength: 1, maxLength: 500 }
     AdminRechargeExchangeRateRequest:
       type: object
       additionalProperties: false

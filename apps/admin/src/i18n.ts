@@ -11,6 +11,7 @@ import { AR_D223, EN_D223 } from './i18n-d223';
 import { AR_D228, EN_D228 } from './i18n-d228';
 import { AR_D227, EN_D227 } from './i18n-d227';
 import { AR_D233, EN_D233 } from './i18n-d233';
+import { AR_D245, EN_D245 } from './i18n-d245';
 
 export type Lang = 'ar' | 'en';
 
@@ -315,7 +316,7 @@ const ar = {
   colUpdated: 'آخر تعديل',
   rateNone: 'دولار فقط',
   rateEdit: 'تعديل',
-  rateClear: 'إزالة',
+  rateClear: 'إعادة إلى التلقائي',
   rateEditTitle: 'سعر صرف {country}',
   // payments (D196)
   navPayments: 'الدفع (Stripe)',
@@ -394,6 +395,7 @@ const ar = {
   ...AR_D228,
   ...AR_D227,
   ...AR_D233,
+  ...AR_D245,
 };
 
 export type Key = keyof typeof ar;
@@ -687,7 +689,7 @@ const en: Record<Key, string> = {
   colUpdated: 'Updated',
   rateNone: 'USD only',
   rateEdit: 'Edit',
-  rateClear: 'Remove',
+  rateClear: 'Back to automatic',
   rateEditTitle: '{country} exchange rate',
   navPayments: 'Payments (Stripe)',
   paymentsTitle: 'Payments (Stripe)',
@@ -765,6 +767,7 @@ const en: Record<Key, string> = {
   ...EN_D228,
   ...EN_D227,
   ...EN_D233,
+  ...EN_D245,
 };
 
 export const DICTIONARIES: Record<Lang, Record<Key, string>> = { ar, en };

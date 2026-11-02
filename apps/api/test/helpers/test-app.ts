@@ -259,6 +259,9 @@ export function buildTestConfig(overrides: Record<string, string> = {}): AppConf
     RATE_LIMIT_DATA_EXPORT_DOWNLOAD_USER: GENEROUS,
     // D204: the recharge-order expiry sweeper (tests call it directly).
     RECHARGE_ORDER_SWEEP_INTERVAL_SECONDS: '0',
+    // D245: no exchange-rate poller in tests (specs call FxRatesService.runIfDue / refresh against a stub feed).
+    FX_POLL_TICK_SECONDS: '0',
+    FX_FREE_URL: 'http://127.0.0.1:9/fx-disabled',
     BAG_SWEEP_INTERVAL_SECONDS: '0',
     RATE_LIMIT_DM_SEND_USER: GENEROUS,
     RATE_LIMIT_DM_REQUEST_USER: GENEROUS,

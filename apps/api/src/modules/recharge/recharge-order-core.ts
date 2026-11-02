@@ -425,7 +425,7 @@ export async function setExchangeRateIn(
   });
 }
 
-/** `recharge-admin clear-rate` / the panel: the country goes back to USD only. */
+/** `recharge-admin clear-rate` / the panel: removes the manual rate (D245: back to the automatic rate, else USD only). */
 export async function clearExchangeRateIn(
   tx: Tx,
   country: string,

@@ -26,6 +26,8 @@ export type Capability =
   // v1.80-kyc (D227)
   | 'kyc.settings'
   | 'kyc.view'
+  // v1.81-social (D245)
+  | 'fx.settings'
   // v1.65-social (D197)
   | 'users.list'
   | 'users.export'
@@ -457,12 +459,87 @@ export interface AdminOrder {
   messages: OrderMessage[];
 }
 
+/** v1.81-social (D245): where an automatic rate came from. */
+export type FxSource = 'OPEN_ER_API' | 'CURRENCYAPI' | 'EXCHANGERATE_API';
+export type FxPaidProvider = 'CURRENCYAPI' | 'EXCHANGERATE_API';
+
+/** `AdminFxRateRow` (D204; D245): a country's effective rate (manual «يدوي» over automatic «تلقائي») and both sources. */
 export interface ExchangeRateRow {
   country: string;
   currency: string | null;
   digits: number;
   unitsPerUsd: string | null;
   updatedAt: string | null;
+  source: 'MANUAL' | 'AUTO' | 'USD' | 'NONE';
+  stale: boolean;
+  manual: { currency: string; digits: number; unitsPerUsd: string; updatedAt: string } | null;
+  auto: {
+    currency: string;
+    unitsPerUsd: string;
+    source: FxSource;
+    fetchedAt: string;
+    providerUpdatedAt: string | null;
+    stale: boolean;
+    held: { unitsPerUsd: string; source: FxSource; at: string; jumpPercent: number } | null;
+  } | null;
+}
+
+/** `AdminFxStatus` (D245): the automatic feed's status card. */
+export interface FxStatus {
+  source: FxSource;
+  sourceName: string;
+  paidActive: boolean;
+  paidIgnored: 'unreadable' | null;
+  intervalSeconds: number;
+  polling: boolean;
+  lastAttemptAt: string | null;
+  lastSuccessAt: string | null;
+  lastSource: FxSource | null;
+  lastProviderUpdatedAt: string | null;
+  nextFetchAt: string | null;
+  lastError: { at: string; issue: string; detail: string | null } | null;
+  failures: number;
+  lastReport: { accepted?: number; held?: number; rejected?: number; heldCurrencies?: string[]; rejectedCurrencies?: string[] } | null;
+  currencies: number;
+  held: number;
+  staleAfterHours: number;
+  maxJumpPercent: number;
+  attribution: { text: string; url: string } | null;
+}
+
+export interface ExchangeRates {
+  retailUsdPerMillion: number;
+  status: FxStatus;
+  data: ExchangeRateRow[];
+}
+
+/** `FxTestReport` (D245): «اختبار الاتصال» (never the key, only its last 4). */
+export interface FxTestReport {
+  ok: boolean;
+  at: string;
+  provider: FxPaidProvider;
+  apiKeyLast4: string;
+  ms: number;
+  issue: string | null;
+  detail: string | null;
+  currencies: number;
+  providerUpdatedAt: string | null;
+  by?: { id: string; displayName: string } | null;
+}
+
+/** `AdminFxSettings` (D245): the OWNER's paid provider «مزوّد أسعار الصرف». */
+export interface FxSettings {
+  status: 'active' | 'off' | 'not_configured';
+  provider: FxPaidProvider;
+  enabled: boolean;
+  apiKey: { last4: string; setBy: { id: string; displayName: string } | null; setAt: string | null } | null;
+  updatedAt: string | null;
+  panelIgnored: 'unreadable' | null;
+  lastTest: FxTestReport | null;
+  paidIntervalSeconds: number;
+  freeIntervalSeconds: number;
+  providers: { code: FxPaidProvider; name: string; site: string; signupUrl: string | null; docsUrl: string }[];
+  connectionTestSkippable: boolean;
 }
 
 // ---- v1.72-social (D208, CONVENTIONS §10.67): the account controls -------------------------------------------------

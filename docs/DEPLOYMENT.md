@@ -2366,3 +2366,66 @@ sends no `type` (NORMAL), shows a DARES invitation as a normal one and ignores `
 offered a dare's buttons, so a dare drawn against it times out as refused after 30 s — ship the app before announcing
 «PK أحكام»).
 - Not verified on a device or a server (the draw animation on a phone, the second-room dare banner on real LiveKit).
+
+### 5.46 Automatic exchange rates for every country (migration `20270225090000_fx_rates`; D245) — [IMPLEMENTED, draft contract v1.81-social; not deployed; no real provider call made from the tests (local stub)]
+
+CONVENTIONS §10.85. Additive: two new tables (`fx_rates`, `fx_settings` — one row at most); DML for the runtime role
+from the default privileges (no GRANT); no backfill. Once deployed, the API fetches the free feed within a minute of
+starting and then hourly; every country's recharge price shows the local amount automatically. The manual rates
+already set in «أسعار الصرف» (D204) keep winning («يدوي»). The paid key is sealed with a key derived from
+`ADMIN_TOTP_KEY` (the panel must be on, D191) — **a new `ADMIN_TOTP_KEY` makes a saved paid key unreadable: the
+server falls back to the free feed and the panel says so; enter the key again.** No key is ever a server setting.
+
+**Network (VPS):** the API container needs **outbound HTTPS (TCP 443)** to `open.er-api.com`, and with a paid provider
+to `api.currencyapi.com` or `v6.exchangerate-api.com`. Docker's default bridge allows it; a firewall with an egress
+allow-list must list these hosts. Without it: «آخر خطأ: unreachable» in the panel, manual rates still work, the other
+countries show USD only. Check from the VPS: `docker compose exec api node -e "fetch('https://open.er-api.com/v6/latest/USD').then(r=>console.log(r.status))"` → `200`.
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `FX_FREE_INTERVAL_SECONDS` | `3600` (min 600) | how often the free feed is read (its data changes once a day; do not lower much — its terms) |
+| `FX_PAID_INTERVAL_SECONDS` | `60` (min 60) | how often the paid provider is read while it is on (match your plan's quota: 60 s ≈ 44 000 requests a month) |
+| `FX_POLL_TICK_SECONDS` | `30` (0 = off) | how often each API instance checks whether a fetch is due (0: no automatic rates, manual only) |
+| `FX_STALE_AFTER_HOURS` | `48` | an automatic rate older than this is not used (USD only) |
+| `FX_MAX_JUMP_PERCENT` | `50` | a value moving more than this from the last good one is held for review in the panel |
+| `FX_FETCH_TIMEOUT_MS` | `10000` | per request |
+| `FX_FREE_URL`, `FX_CURRENCYAPI_BASE_URL`, `FX_EXCHANGERATE_API_BASE_URL` | the providers' | change only for a proxy; https in production |
+
+Order: API (with the migration) first, then the panel. The app needs no change (it shows `price.local` as before).
+
+#### The owner's steps — بالعربية
+
+**الآن (مجاناً، لا شيء مطلوب):** بعد النشر تُجلب الأسعار تلقائياً كل ساعة من مصدر مجاني (ExchangeRate-API، يتحدّث
+مرة في اليوم) لكل الدول. افتح لوحة الإدارة ← «أسعار الصرف»: بطاقة «الحالة» تعرض المصدر و«آخر تحديث» و«التحديث القادم»
+وأي خطأ. أي بلد تضع له سعراً يدوياً يبقى على سعرك («يدوي») حتى تضغط «إعادة إلى التلقائي». إذا ظهر «سعر معلّق للمراجعة»
+(قفزة أكبر من 50%) فراجعه واضغط «قبول السعر الجديد» إن كان صحيحاً. تأكد أن الخادم يسمح بالاتصال الخارجي HTTPS (انظر أعلاه).
+
+**لاحقاً (تحديث كل دقيقة، مدفوع):**
+1. اختر مزوّداً: **currencyapi.com** (المقترح: تحديث كل 60 ثانية في الخطط المدفوعة) أو **ExchangeRate-API**. اختر خطة
+   فيها «تحديث كل دقيقة» وعدد طلبات شهرية لا يقل عن نحو **45 000** (طلب كل دقيقة). إن كانت خطتك تحدّث كل 5 دقائق مثلاً
+   فاطلب من الفريق ضبط `FX_PAID_INTERVAL_SECONDS=300` حتى لا تُستهلك الطلبات بلا فائدة.
+2. أنشئ الحساب: currencyapi ← `https://app.currencyapi.com/register` ثم من لوحة التحكم انسخ **API Key**.
+   (ExchangeRate-API ← `https://app.exchangerate-api.com/sign-up` ثم انسخ المفتاح من «Dashboard».)
+3. في لوحة الإدارة ← «مزوّد أسعار الصرف» (للمالك فقط): اختر المزوّد، الصق المفتاح، اضغط **«اختبار الاتصال»** — يجب أن
+   يظهر «نجح» وعدد العملات. ثم فعّل «تفعيل» ← السبب + رمز تطبيق المصادقة ← حفظ. يبدأ الجلب كل دقيقة فوراً.
+4. المفتاح لا يظهر بعد الحفظ إطلاقاً (آخر 4 أحرف فقط)، ويُحفظ مشفّراً، وكل تغيير مسجّل في سجل التدقيق. لا ترسل المفتاح
+   في محادثة ولا تضعه في ملفات الخادم.
+5. للإيقاف: «تفعيل» إلى إيقاف أو «إزالة المفتاح» (رمز + سبب): يعود النظام إلى المصدر المجاني كل ساعة.
+
+#### The owner's steps — English
+
+**Now (free, nothing to do):** after deployment the rates of every country are fetched hourly from a free source
+(ExchangeRate-API open access, data updated once a day). Panel → «أسعار الصرف»: the status card shows the source, the
+last update, the next fetch and any error. A country you set by hand stays on your rate («يدوي») until «إعادة إلى
+التلقائي». A «held for review» value (a jump over 50 %) waits for «قبول السعر الجديد». Make sure the server allows
+outbound HTTPS (above).
+
+**Later (every minute, paid):** 1. Choose **currencyapi.com** (suggested: 60-second updates on its paid plans) or
+**ExchangeRate-API**; pick a plan with minute updates and at least ~45 000 requests a month (one a minute). If the
+plan updates every 5 minutes, have `FX_PAID_INTERVAL_SECONDS=300` set so requests are not wasted. 2. Sign up
+(`https://app.currencyapi.com/register`, or `https://app.exchangerate-api.com/sign-up`) and copy the API key from the
+dashboard. 3. Panel → «مزوّد أسعار الصرف» (OWNER only): choose the provider, paste the key, **«اختبار الاتصال»** (must
+show success and the number of currencies), then switch «تفعيل» on → reason + authenticator code → save; the minute
+polling starts at once. 4. The key is never shown again (last 4 only), stored encrypted, every change audited; never
+send it in chat or put it in server files. 5. To stop: switch off or «إزالة المفتاح» (code + reason) → the free feed
+hourly again.
