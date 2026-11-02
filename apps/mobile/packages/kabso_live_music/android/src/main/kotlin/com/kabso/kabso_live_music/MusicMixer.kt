@@ -31,8 +31,8 @@ class MusicMixer(private val events: Events) : AudioProcessingAdapter.ExternalAu
         /** The file played to its end (any thread). */
         fun completed()
 
-        /** The file could not be decoded (any thread). */
-        fun failed()
+        /** The file could not be decoded (any thread): `unsupported` or `unreadable`. */
+        fun failed(reason: String)
     }
 
     @Volatile private var rate = 48000
@@ -105,7 +105,7 @@ class MusicMixer(private val events: Events) : AudioProcessingAdapter.ExternalAu
     /** Loads [path] (stops the last file); its duration in ms, or 0 when unknown. Throws when unreadable. */
     fun load(path: String): Long {
         stop()
-        val next = Decoder(path, rate) { events.failed() }
+        val next = Decoder(path, rate) { events.failed("unreadable") }
         decoder = next
         consumed = 0
         lastReportAt = 0
@@ -131,6 +131,9 @@ class MusicMixer(private val events: Events) : AudioProcessingAdapter.ExternalAu
         d?.close()
     }
 
+    /** D232: the phone has no decoder for [mime]. */
+    class UnsupportedFormat(val mime: String) : Exception("no decoder for $mime")
+
     /**
      * Decodes [path] to mono floats at [target] Hz on its own thread, filling
      * [ring] (blocking while it is full or paused).
@@ -153,26 +156,56 @@ class MusicMixer(private val events: Events) : AudioProcessingAdapter.ExternalAu
         val durationMs: Long
         private var thread: Thread? = null
 
+        /**
+         * D232: created and started here, on `load`, so a format the phone cannot
+         * decode fails the `load` itself (`unsupported`) instead of a silent
+         * error event after "play".
+         */
+        private val codec: MediaCodec
+
         init {
-            extractor.setDataSource(path)
-            var found = -1
-            var f: MediaFormat? = null
-            for (i in 0 until extractor.trackCount) {
-                val tf = extractor.getTrackFormat(i)
-                if (tf.getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true) {
-                    found = i
-                    f = tf
-                    break
+            try {
+                extractor.setDataSource(path)
+                var found = -1
+                var f: MediaFormat? = null
+                for (i in 0 until extractor.trackCount) {
+                    val tf = extractor.getTrackFormat(i)
+                    if (tf.getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true) {
+                        found = i
+                        f = tf
+                        break
+                    }
                 }
-            }
-            if (found < 0 || f == null) {
+                if (found < 0 || f == null) throw IllegalArgumentException("no audio track")
+                track = found
+                format = f
+                durationMs =
+                    if (f.containsKey(MediaFormat.KEY_DURATION)) f.getLong(MediaFormat.KEY_DURATION) / 1000 else 0
+                extractor.selectTrack(track)
+                // Some extractors (WAV, FLAC) hand samples larger than a decoder's
+                // default input buffer: readSampleData would throw.
+                if (!f.containsKey(MediaFormat.KEY_MAX_INPUT_SIZE)) {
+                    f.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, 256 * 1024)
+                }
+                val mime = f.getString(MediaFormat.KEY_MIME)!!
+                codec =
+                    try {
+                        MediaCodec.createDecoderByType(mime).also {
+                            try {
+                                it.configure(f, null, null, 0)
+                                it.start()
+                            } catch (e: Exception) {
+                                it.release()
+                                throw e
+                            }
+                        }
+                    } catch (e: Exception) {
+                        throw UnsupportedFormat(mime)
+                    }
+            } catch (e: Exception) {
                 extractor.release()
-                throw IllegalArgumentException("no audio track")
+                throw e
             }
-            track = found
-            format = f
-            durationMs =
-                if (f.containsKey(MediaFormat.KEY_DURATION)) f.getLong(MediaFormat.KEY_DURATION) / 1000 else 0
         }
 
         fun start() {
@@ -197,13 +230,7 @@ class MusicMixer(private val events: Events) : AudioProcessingAdapter.ExternalAu
         }
 
         private fun run() {
-            var codec: MediaCodec? = null
             try {
-                extractor.selectTrack(track)
-                val mime = format.getString(MediaFormat.KEY_MIME)!!
-                codec = MediaCodec.createDecoderByType(mime)
-                codec.configure(format, null, null, 0)
-                codec.start()
                 val info = MediaCodec.BufferInfo()
                 var inputDone = false
                 var outRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE)
@@ -276,10 +303,10 @@ class MusicMixer(private val events: Events) : AudioProcessingAdapter.ExternalAu
                 if (running) onFailed()
             } finally {
                 try {
-                    codec?.stop()
+                    codec.stop()
                 } catch (_: Exception) {
                 }
-                codec?.release()
+                codec.release()
                 extractor.release()
             }
         }

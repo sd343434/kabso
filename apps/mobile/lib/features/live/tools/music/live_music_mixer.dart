@@ -15,7 +15,41 @@ enum LiveMusicUnsupported {
   web,
 }
 
-/// A file the host picked (copied into the app's cache by the picker).
+/// D232: why a file did not play — each with its own message.
+enum LiveMusicError {
+  /// The mixer has no live microphone to mix into (the live's audio is not
+  /// running yet); the file itself is fine (native `not_ready`).
+  notReady,
+
+  /// The phone has no decoder for this file's format (native
+  /// `unsupported`).
+  unsupported,
+
+  /// The file could not be opened or decoded (native `unreadable`, or a
+  /// decode error while playing).
+  unreadable;
+
+  /// The native error code (`PlatformException.code`, the `error` event's
+  /// `reason`) → the error.
+  static LiveMusicError fromCode(String? code) => switch (code) {
+    'not_ready' => notReady,
+    'unsupported' => unsupported,
+    _ => unreadable,
+  };
+}
+
+/// D232: [LiveMusicMixer.load] failed for [error].
+class LiveMusicLoadException implements Exception {
+  const new(this.error);
+
+  final LiveMusicError error;
+
+  @override
+  String toString() => 'LiveMusicLoadException($error)';
+}
+
+/// A file the host picked (copied into the app's own storage by the picker,
+/// under a safe ASCII name that keeps the format's extension — D232).
 @immutable
 class LiveMusicFile {
   const new({required this.path, required this.name});
@@ -41,7 +75,10 @@ final class LiveMusicCompleted extends LiveMusicEvent {
 }
 
 final class LiveMusicFailed extends LiveMusicEvent {
-  const new();
+  const new([this.error = LiveMusicError.unreadable]);
+
+  /// D232: unsupported (no decoder) or unreadable (a decode error).
+  final LiveMusicError error;
 }
 
 /// D201: mixes an audio file into the host's own published microphone, after
@@ -57,7 +94,7 @@ abstract interface class LiveMusicMixer {
   Future<List<LiveMusicFile>> pickFiles();
 
   /// Loads [file] (stops what plays); its length, when the file says.
-  /// Throws when it cannot be decoded.
+  /// Throws a [LiveMusicLoadException] when it cannot play (D232).
   Future<Duration?> load(LiveMusicFile file);
 
   Future<void> play();
@@ -102,7 +139,12 @@ class ChannelLiveMusicMixer implements LiveMusicMixer {
       case 'completed':
         _events.add(const LiveMusicCompleted());
       case 'error':
-        _events.add(const LiveMusicFailed());
+        final reason = args is Map ? args['reason'] : null;
+        _events.add(
+          LiveMusicFailed(
+            LiveMusicError.fromCode(reason is String ? reason : null),
+          ),
+        );
     }
   }
 
@@ -128,7 +170,12 @@ class ChannelLiveMusicMixer implements LiveMusicMixer {
 
   @override
   Future<Duration?> load(LiveMusicFile file) async {
-    final ms = await _channel.invokeMethod<int>('load', {'path': file.path});
+    final int? ms;
+    try {
+      ms = await _channel.invokeMethod<int>('load', {'path': file.path});
+    } on PlatformException catch (e) {
+      throw LiveMusicLoadException(LiveMusicError.fromCode(e.code));
+    }
     return ms == null || ms <= 0 ? null : Duration(milliseconds: ms);
   }
 

@@ -16,7 +16,7 @@ class LiveMusicState {
     this.ducking = true,
     this.position = Duration.zero,
     this.duration,
-    this.failed = false,
+    this.error,
   });
 
   final List<LiveMusicFile> queue;
@@ -31,8 +31,11 @@ class LiveMusicState {
   final Duration position;
   final Duration? duration;
 
-  /// The last file could not be read.
-  final bool failed;
+  /// D232: why the last file did not play, or null.
+  final LiveMusicError? error;
+
+  /// The last file did not play.
+  bool get failed => error != null;
 
   LiveMusicFile? get track =>
       current == null || current! >= queue.length ? null : queue[current!];
@@ -45,7 +48,7 @@ class LiveMusicState {
     bool? ducking,
     Duration? position,
     Duration? Function()? duration,
-    bool? failed,
+    LiveMusicError? Function()? error,
   }) => LiveMusicState(
     queue: queue ?? this.queue,
     current: current == null ? this.current : current(),
@@ -54,7 +57,7 @@ class LiveMusicState {
     ducking: ducking ?? this.ducking,
     position: position ?? this.position,
     duration: duration == null ? this.duration : duration(),
-    failed: failed ?? this.failed,
+    error: error == null ? this.error : error(),
   );
 }
 
@@ -90,8 +93,8 @@ class LiveMusicController extends Notifier<LiveMusicState> {
         state = state.copyWith(position: position, duration: () => duration);
       case LiveMusicCompleted():
         unawaited(next());
-      case LiveMusicFailed():
-        state = state.copyWith(playing: false, failed: true);
+      case LiveMusicFailed(:final error):
+        state = state.copyWith(playing: false, error: () => error);
     }
   }
 
@@ -101,7 +104,10 @@ class LiveMusicController extends Notifier<LiveMusicState> {
     final room = maxQueue - state.queue.length;
     final added = files.take(room < 0 ? 0 : room).toList();
     if (added.isNotEmpty) {
-      state = state.copyWith(queue: [...state.queue, ...added], failed: false);
+      state = state.copyWith(
+        queue: [...state.queue, ...added],
+        error: () => null,
+      );
     }
     return files.length - added.length;
   }
@@ -115,23 +121,38 @@ class LiveMusicController extends Notifier<LiveMusicState> {
       playing: false,
       position: Duration.zero,
       duration: () => null,
-      failed: false,
+      error: () => null,
     );
     try {
       final length = await _mixer.load(file);
       await _mixer.setVolume(state.volume);
       await _mixer.setDucking(on: state.ducking);
       await _mixer.play();
+      // D232: a decode error reported while this was starting (the decoder
+      // runs on its own thread) wins — it is not "playing" (was: the pause
+      // icon next to «تعذّر تشغيل هذا الملف.»).
+      if (state.failed || state.current != index) return;
       state = state.copyWith(playing: true, duration: () => length);
+    } on LiveMusicLoadException catch (e) {
+      state = state.copyWith(playing: false, error: () => e.error);
     } on Object {
-      state = state.copyWith(playing: false, failed: true);
+      state = state.copyWith(
+        playing: false,
+        error: () => LiveMusicError.unreadable,
+      );
     }
   }
 
-  /// Play / pause; with nothing loaded, the first file.
+  /// Play / pause; with nothing loaded, the first file. D232: after a
+  /// failure, play loads the file again (the native decoder is gone; was a
+  /// bare `play` on nothing, shown as playing).
   Future<void> toggle() async {
     if (state.track == null) {
       if (state.queue.isNotEmpty) await playAt(0);
+      return;
+    }
+    if (state.failed && !state.playing) {
+      await playAt(state.current!);
       return;
     }
     if (state.playing) {

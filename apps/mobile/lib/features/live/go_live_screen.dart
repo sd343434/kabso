@@ -201,6 +201,9 @@ class GoLiveScreen extends ConsumerStatefulWidget {
   static const tapsKey = Key('goLive.taps');
   static const micOffKey = Key('goLive.micOff');
 
+  /// D232: the audio room's host pill (the video live's [KHostPill]).
+  static const audioPillKey = Key('goLive.audioPill');
+
   /// v1.43-live (D195): the host's PK stage.
   static const pkStageKey = Key('goLive.pkStage');
   static Key categoryKey(String? slug) => GoLiveKeys.category(slug);
@@ -457,25 +460,17 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
 
   Future<void> _confirmEnd() async {
     final l10n = context.l10n;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (dialog) => AlertDialog(
-        title: Text(l10n.goLiveEndConfirmTitle),
-        content: Text(l10n.goLiveEndConfirmBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialog).pop(false),
-            child: Text(l10n.goLiveKeepGoing),
-          ),
-          TextButton(
-            key: GoLiveScreen.endConfirmKey,
-            onPressed: () => Navigator.of(dialog).pop(true),
-            child: Text(l10n.goLiveEndConfirm),
-          ),
-        ],
-      ),
+    // D232: the live's card style.
+    final ok = await showKLiveConfirm(
+      context,
+      leading: const KLiveDialogIcon(Icons.power_settings_new_rounded),
+      title: l10n.goLiveEndConfirmTitle,
+      message: l10n.goLiveEndConfirmBody,
+      confirmKey: GoLiveScreen.endConfirmKey,
+      confirmLabel: l10n.goLiveEndConfirm,
+      cancelLabel: l10n.goLiveKeepGoing,
     );
-    if (ok ?? false) await _host.end();
+    if (ok) await _host.end();
   }
 
   /// Share: copies the live's invite (there is no public link to a live
@@ -1301,6 +1296,15 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               label: l10n.liveToolDataCenter,
               onTap: () => unawaited(showLiveDataCenter(context)),
             ),
+            // D232: «نقاط البث» (taps and support), off the chips row.
+            GoLiveTool(
+              id: 'contributions',
+              icon: Icons.emoji_events_rounded,
+              label: l10n.liveToolContributions,
+              onTap: room == null
+                  ? null
+                  : () => unawaited(showLiveScoreSheet(context, room.id)),
+            ),
             // D154b: the traffic card (a paid «مميز» slot for this room).
             GoLiveTool(
               id: 'traffic',
@@ -1424,31 +1428,34 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               )
             : null,
         header: LiveAudioRoomHeader(
-          // CP-015: the live's cover, else the host's picture.
-          cover: switch (room?.coverUrl ?? user?.liveCoverUrl) {
-            final url? => Image.network(
-              url,
-              fit: BoxFit.cover,
-              errorBuilder: (_, _, _) =>
-                  KAvatar(name: hostName, imageUrl: user?.avatarUrl, size: 26),
+          // D232 (owner: «وحّد الجميع واجعلهم مثل البث الحي»): the video
+          // live's host pill — the picture, the name, the @username (copy
+          // on tap) and this live's cherries / taps — in place of the room
+          // card (cover, title, charm level). It still opens the room info.
+          pill: KHostPill(
+            key: GoLiveScreen.audioPillKey,
+            hostName: hostName,
+            avatar: switch (user?.avatarUrl) {
+              final url? => NetworkImage(url),
+              null => null,
+            },
+            username: user?.username,
+            premiumTier: user?.premiumTier,
+            lines: KHostPill.pointLines(
+              context,
+              score: score,
+              taps:
+                  (_tapsRoom == room?.id ? _tapParts?.tapPoints : null) ??
+                  room?.scoreParts?.tapPoints,
+              scoreKey: GoLiveScreen.scoreKey,
+              tapsKey: GoLiveScreen.tapsKey,
             ),
-            null => KAvatar(
-              name: hostName,
-              imageUrl: user?.avatarUrl,
-              size: 26,
-            ),
-          },
-          title: room?.title ?? _title.text.trim(),
-          level: room?.roomLevel,
-          // D141 (owner): the host's @username (copy on tap), not the
-          // room number.
-          username: user?.username,
-          premiumTier: user?.premiumTier,
+            // Owner ref 73: the room bar opens the room's info.
+            onTap: openRoomInfo,
+          ),
           minimizeKey: GoLiveScreen.minimizeKey,
           minimizeTooltip: l10n.goLiveMinimize,
           onMinimize: live ? _minimize : null,
-          // Owner ref 73: the room bar opens the room's info.
-          onTap: openRoomInfo,
           shareKey: GoLiveScreen.shareKey,
           shareTooltip: l10n.goLiveShare,
           onShare: user == null || room == null
@@ -1458,24 +1465,15 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           endTooltip: l10n.goLiveEndConfirm,
           onEnd: live ? () => unawaited(_confirmEnd()) : null,
         ),
-        // Ref 83/84: the room rank, then the live's points.
+        // Ref 83: the room rank. D232 (owner: «ازل الكرز الأول الخاص
+        // بالتكبيس»): the live's points chip is gone — the points are on
+        // the host pill and their breakdown («نقاط البث») is in ≡.
         chips: Row(
           children: [
             Expanded(
               child: Row(
                 children: [
                   const Flexible(child: LiveRankChip()),
-                  if (score > 0) ...[
-                    const SizedBox(width: 8),
-                    LiveScoreChip(
-                      text: KFormat.compact(score, l10n),
-                      label: l10n.liveScore(score, KFormat.grouped(score)),
-                      onTap: room == null
-                          ? null
-                          : () =>
-                                unawaited(showLiveScoreSheet(context, room.id)),
-                    ),
-                  ],
                   // D214: the host's «تارجت» chip in every live (voice too).
                   if (room != null &&
                       LiveHostTargetChip.shows(
@@ -2348,14 +2346,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       ),
     );
     final micOff = !state.micEnabled;
-    // D135: the host's own charm level and points (`GET /levels/me`).
-    final charm = ref
-        .watch(myLevelsProvider)
-        .value
-        ?.where(
-          (l) => l.category == LevelCategory.attractiveness && l.available,
-        )
-        .firstOrNull;
+    // D135: the host's own charm level (`GET /levels/me`) stays loaded for
+    // the data page (≡ → data) — D232 took its chip off the screen.
+    ref.watch(myLevelsProvider);
     final incoming = pk.incoming;
     final scaffold = KLiveRoomScaffold(
       // D145c: the gift strips keep above the chat text.
@@ -2457,13 +2450,11 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       closeButtonKey: GoLiveScreen.closeKey,
       closeLabel: l10n.goLiveEndConfirm,
       onClose: live ? () => unawaited(_confirmEnd()) : null,
-      // D135 (owner: "the charm level is in the wrong place"): the board
-      // chip and the charm level chip with the host's points against the
-      // next level at the start; the LIVE timer and the room ID at the end.
+      // The board chip (and D199's «تارجت») at the start; the LIVE timer at
+      // the end. D232 (owner: «يتم وضع الليفيل بجانب الكرز ازله»): D135's
+      // charm level chip is gone (the level stays in the profile and the
+      // data center's «الآن» page).
       roomInfo: KRoomChipsRow(
-        level: charm?.level?.levelNumber ?? room.roomLevel,
-        points: charm?.points.toInt(),
-        target: charm?.nextLevel?.requiredPoints.toInt(),
         elapsed: _HostElapsed(since: state.liveSince),
         // D199: the host's «تارجت» chip (the full gift stats on tap).
         targetChip:

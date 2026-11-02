@@ -142,7 +142,6 @@ class _Room extends StatelessWidget {
     body: Padding(
       padding: const EdgeInsets.fromLTRB(12, 60, 12, 0),
       child: KRoomChipsRow(
-        level: 3,
         roomNumber: 1234,
         targetChip: LiveHostTargetChip(
           username: 'host',

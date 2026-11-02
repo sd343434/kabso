@@ -12,6 +12,8 @@ import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart'
+    show KHostPill;
 import 'package:kabso_live/features/live/presentation/widgets/live_tap_layer.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:material_ui/material_ui.dart';
@@ -101,18 +103,11 @@ void main() {
   });
 
   group('the room level next to the room name', () {
-    testWidgets('a video room: the badge after the title, read as the level', (
-      tester,
-    ) async {
-      final semantics = tester.ensureSemantics();
+    testWidgets('D232 (owner: «يتم وضع الليفيل بجانب الكرز ازله»): a video '
+        'room with a level shows no level chip', (tester) async {
       await _pumpRoom(tester, apiRoom().copyWith(roomLevel: 25));
-      expect(find.byKey(CharmLevelBadge.badgeKey), findsOneWidget);
-      expect(find.bySemanticsLabel('Room level 25'), findsOneWidget);
-      final badge = tester.widget<CharmLevelBadge>(
-        find.byType(CharmLevelBadge),
-      );
-      expect(CharmTier.of(badge.level), CharmTier.kitty);
-      semantics.dispose();
+      expect(find.byKey(CharmLevelBadge.badgeKey), findsNothing);
+      expect(find.byType(CharmLevelBadge), findsNothing);
     });
 
     testWidgets('no badge while the charm levels are unavailable', (
@@ -122,13 +117,12 @@ void main() {
       expect(find.byType(CharmLevelBadge), findsNothing);
     });
 
-    testWidgets('Arabic: the label is translated, the number stays LTR', (
-      tester,
-    ) async {
+    testWidgets('Arabic: the badge (still on the room info) is translated, '
+        'the number stays LTR', (tester) async {
       final semantics = tester.ensureSemantics();
-      await _pumpRoom(
+      await pumpScreen(
         tester,
-        apiRoom(ar: true).copyWith(roomLevel: 7),
+        const Scaffold(body: Center(child: CharmLevelBadge(level: 7))),
         language: AppLanguage.ar,
       );
       expect(find.bySemanticsLabel('مستوى الغرفة 7'), findsOneWidget);
@@ -144,18 +138,14 @@ void main() {
       semantics.dispose();
     });
 
-    testWidgets('an audio room bar: title, then the badge, on one line', (
-      tester,
-    ) async {
+    testWidgets('D232: the audio room bar is the host pill of the video live '
+        'no room title, no level badge', (tester) async {
       setViewport(tester, GoldenViewport.phone);
       await pumpScreen(
         tester,
         const Scaffold(
           body: LiveAudioRoomHeader(
-            cover: SizedBox(),
-            title: 'Voices',
-            subtitle: 'ID: 123456789',
-            level: 42,
+            pill: KHostPill(hostName: 'Oz', username: 'oz'),
             minimizeTooltip: 'Minimize',
             onMinimize: null,
             endTooltip: 'End',
@@ -164,10 +154,8 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      final title = tester.getCenter(find.text('Voices'));
-      final badge = tester.getCenter(find.byType(CharmLevelBadge));
-      expect(badge.dx, greaterThan(title.dx));
-      expect(badge.dy, closeTo(title.dy, 2));
+      expect(find.byType(KHostPill), findsOneWidget);
+      expect(find.byType(CharmLevelBadge), findsNothing);
       expect(CharmTier.of(42), CharmTier.fox);
       expect(tester.takeException(), isNull);
     });

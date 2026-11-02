@@ -153,8 +153,9 @@ void main() {
     expect(repo.tapBatches.single.count, 6);
     await tester.pumpAndSettle();
     expect(find.byType(LiveTapCharacter), findsNothing);
-    // The answer's score shows in the host's room bar.
-    expect(find.byType(LiveScoreChip), findsOneWidget);
+    // The answer's score shows on the host pill (D232: no points chip).
+    expect(find.byKey(GoLiveScreen.scoreKey), findsOneWidget);
+    expect(find.byType(LiveScoreChip), findsNothing);
     await _leave(tester);
   });
 

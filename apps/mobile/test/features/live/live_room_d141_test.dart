@@ -272,10 +272,9 @@ void main() {
       await _pumpBare(
         tester,
         const LiveAudioRoomLayout(
+          // D232: the audio room's pill is the video live's.
           header: LiveAudioRoomHeader(
-            cover: SizedBox(),
-            title: 'Room',
-            username: 'oz',
+            pill: KHostPill(hostName: 'Oz', username: 'oz'),
             minimizeTooltip: 'm',
             onMinimize: null,
             endTooltip: 'e',
@@ -287,8 +286,15 @@ void main() {
         ),
         media: inset,
       );
-      final card = tester.getRect(find.byKey(LiveAudioRoomHeader.barKey));
+      final card = tester.getRect(
+        find.descendant(
+          of: find.byKey(LiveAudioRoomHeader.barKey),
+          matching: find.byKey(KHostPill.pillKey),
+        ),
+      );
       expect(card.top, closeTo(pill.top, 0.5));
+      // D232: the same start inset as the video live's pill.
+      expect(card.left, closeTo(pill.left, 0.5));
     });
 
     testWidgets('the keyboard up: the video room bar sits right on it', (

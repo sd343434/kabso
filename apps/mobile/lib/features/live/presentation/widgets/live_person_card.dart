@@ -1249,14 +1249,18 @@ class _FollowPill extends ConsumerWidget {
           return;
         }
         if (requested) {
-          if (await confirmCancelFollowRequest(context, profile.displayName) &&
+          if (await confirmCancelFollowRequest(
+                context,
+                profile.displayName,
+                live: true,
+              ) &&
               context.mounted) {
             await setHostFollowing(context, ref, username, follow: false);
           }
           return;
         }
         if (following) {
-          if (await confirmUnfollow(context, profile.displayName) &&
+          if (await confirmUnfollow(context, profile.displayName, live: true) &&
               context.mounted) {
             await setHostFollowing(context, ref, username, follow: false);
           }

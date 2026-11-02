@@ -96,9 +96,23 @@ class PublicProfileScreen extends ConsumerStatefulWidget {
 enum _More { copy, mute, unmute, block, report }
 
 /// Asks before unfollowing [name] (the profile page and, D220, the person
-/// card in a live): true when confirmed.
-Future<bool> confirmUnfollow(BuildContext context, String name) async {
+/// card in a live): true when confirmed. D232: [live] asks in the live's
+/// card style ([KLiveDialogCard]).
+Future<bool> confirmUnfollow(
+  BuildContext context,
+  String name, {
+  bool live = false,
+}) async {
   final l10n = context.l10n;
+  if (live) {
+    return await showKLiveConfirm(
+      context,
+      title: l10n.profileUnfollowConfirm(name),
+      confirmKey: PublicProfileScreen.unfollowKey,
+      confirmLabel: l10n.homeUnfollowAuthor(name),
+      cancelLabel: l10n.actionCancel,
+    );
+  }
   final unfollow = await showModalBottomSheet<bool>(
     context: context,
     builder: (sheet) => SafeArea(
@@ -130,12 +144,23 @@ Future<bool> confirmUnfollow(BuildContext context, String name) async {
 }
 
 /// D175: asks before cancelling a pending follow request to [name] (the
-/// profile page and the live room). True when the person confirms.
+/// profile page and the live room). True when the person confirms. D232:
+/// [live] asks in the live's card style ([KLiveDialogCard]).
 Future<bool> confirmCancelFollowRequest(
   BuildContext context,
-  String name,
-) async {
+  String name, {
+  bool live = false,
+}) async {
   final l10n = context.l10n;
+  if (live) {
+    return await showKLiveConfirm(
+      context,
+      title: l10n.profileCancelRequestConfirm(name),
+      confirmKey: PublicProfileScreen.cancelRequestKey,
+      confirmLabel: l10n.profileCancelRequest,
+      cancelLabel: l10n.actionCancel,
+    );
+  }
   final cancel = await showModalBottomSheet<bool>(
     context: context,
     builder: (sheet) => SafeArea(

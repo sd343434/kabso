@@ -376,19 +376,9 @@ class _PkSettingsPageState extends ConsumerState<PkSettingsPage> {
       activeTrackColor: _red,
       onChanged: _saving ? null : (v) => unawaited(_save({field: v})),
     );
-    void help(String title, String body) => showDialog<void>(
-      context: context,
-      builder: (dialog) => AlertDialog(
-        title: Text(title),
-        content: Text(body),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialog).pop(),
-            child: Text(MaterialLocalizations.of(dialog).okButtonLabel),
-          ),
-        ],
-      ),
-    );
+    // D232: the live's card style.
+    void help(String title, String body) =>
+        unawaited(showKLiveInfo(context, title: title, message: body));
     String gender(PkGenderPref g) => switch (g) {
       PkGenderPref.both => l10n.pkGenderBoth,
       PkGenderPref.male => l10n.pkGenderMale,

@@ -1438,6 +1438,8 @@
   "liveMusicDucking": "Lower the music while I speak",
   "liveMusicQueueFull": "The queue is full (up to {max} files).",
   "liveMusicUnreadable": "This file cannot be played.",
+  "liveMusicNotReady": "Music is mixed into the live microphone: turn the microphone on and wait for the live to start, then play it.",
+  "liveMusicUnsupportedFormat": "Your phone can’t play this file’s format. Try an MP3 or M4A file.",
   "liveMusicMicOff": "Your microphone is muted: viewers won’t hear the music.",
   "liveMusicUnsupportedIos": "Music is not available on iOS in this version: mixing a file into the live microphone needs an iOS audio module that is not built yet.",
   "liveMusicUnsupportedWeb": "Music is not available on the web. Use the Android app.",

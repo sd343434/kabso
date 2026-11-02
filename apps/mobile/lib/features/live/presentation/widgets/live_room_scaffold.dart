@@ -532,6 +532,45 @@ class KHostPill extends StatefulWidget {
   static const avatarSize = 30.0;
   static const lineKey = Key('hostPill.line');
 
+  /// D131's second lines — this live's points (the cherry, then its taps
+  /// with a heart when known). D232: every live category's pill (the audio
+  /// room and the podcast too) shows the same lines.
+  static List<Widget> pointLines(
+    BuildContext context, {
+    required int score,
+    int? taps,
+    Key? scoreKey,
+    Key? tapsKey,
+  }) {
+    final l10n = context.l10n;
+    return [
+      Semantics(
+        label: l10n.liveHostPillPoints(KFormat.grouped(score)),
+        excludeSemantics: true,
+        child: KHostPillLine(
+          key: scoreKey,
+          icon: const KCherryIcon(size: 11),
+          text: KFormat.grouped(score),
+        ),
+      ),
+      if (taps != null)
+        Semantics(
+          label: l10n.liveHostPillTaps(KFormat.grouped(taps)),
+          excludeSemantics: true,
+          child: KHostPillLine(
+            key: tapsKey,
+            icon: const Icon(
+              Icons.favorite_rounded,
+              size: 11,
+              color: Color(0xFFFF6B9A),
+            ),
+            text: KFormat.grouped(taps),
+            color: const Color(0xFFFFFFFF),
+          ),
+        ),
+    ];
+  }
+
   @override
   State<KHostPill> createState() => _KHostPillState();
 }

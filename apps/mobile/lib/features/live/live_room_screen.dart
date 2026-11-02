@@ -137,7 +137,6 @@ class LiveRoomScreen extends ConsumerWidget {
   static const guestLeaveKey = Key('room.guest.leave');
   static const guestCameraKey = Key('room.guest.camera');
   static const guestMicKey = Key('room.guest.mic');
-  static const scoreChipKey = Key('room.scoreChip');
 
   /// D181: minimize into the floating window (viewers and guests).
   static const minimizeKey = Key('room.minimize');
@@ -341,7 +340,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
   /// asking, as on the profile page.
   Future<void> _cancelRequest() async {
     final name = _room.host.displayName;
-    if (await confirmCancelFollowRequest(context, name) && mounted) {
+    if (await confirmCancelFollowRequest(context, name, live: true) &&
+        mounted) {
       await _setFollowing(follow: false);
     }
   }
@@ -763,21 +763,29 @@ class _RoomViewState extends ConsumerState<_RoomView> {
   /// An invitation (CP-011): Join or Not now.
   Future<void> _showInvite(LiveSeatInvite invite) async {
     final l10n = context.l10n;
-    final join = await showDialog<bool>(
-      context: context,
-      builder: (dialog) => AlertDialog(
+    // D232: the live's card style (a tap outside answers nothing).
+    final join = await showKLiveDialog<bool>(
+      context,
+      builder: (dialog) => KLiveDialogCard(
         key: const Key('room.seatInvite'),
-        title: Text(l10n.liveSeatInviteTitle),
-        content: Text(l10n.liveSeatInviteBody(invite.invitedBy.displayName)),
+        leading: KAvatar(
+          name: invite.invitedBy.displayName,
+          imageUrl: invite.invitedBy.avatarUrl,
+          size: 64,
+        ),
+        title: l10n.liveSeatInviteTitle,
+        message: l10n.liveSeatInviteBody(invite.invitedBy.displayName),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialog).pop(false),
-            child: Text(l10n.liveSeatInviteDecline),
-          ),
-          FilledButton(
+          KLiveDialogAction(
             key: const Key('room.seatInvite.accept'),
+            label: l10n.liveSeatInviteAccept,
+            primary: true,
             onPressed: () => Navigator.of(dialog).pop(true),
-            child: Text(l10n.liveSeatInviteAccept),
+          ),
+          KLiveDialogAction(
+            key: const Key('room.seatInvite.decline'),
+            label: l10n.liveSeatInviteDecline,
+            onPressed: () => Navigator.of(dialog).pop(false),
           ),
         ],
       ),
@@ -1139,6 +1147,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         canTap: canTap,
         signedIn: me != null,
         canFollow: canFollow && !following,
+        following: following,
         requested: requested,
         composer: composer,
       );
@@ -1237,17 +1246,10 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       onClose: () => unawaited(_leave()),
       roomInfo: ended
           ? null
+          // D232 (owner): no level chip and no points chip beside the
+          // cherries — the points stay on the host pill and in ≡'s
+          // «نقاط البث».
           : KRoomChipsRow(
-              level: room.roomLevel,
-              // D173: the cherry chip of the audio room (the live's points;
-              // shown from the first point, as there).
-              score: score > 0
-                  ? LiveScoreChip(
-                      key: LiveRoomScreen.scoreChipKey,
-                      text: KFormat.compact(score, l10n),
-                      label: l10n.liveScore(score, KFormat.grouped(score)),
-                    )
-                  : null,
               // D199: the host's «تارجت» chip (the ranking sheet on tap).
               targetChip:
                   LiveHostTargetChip.shows(
@@ -1451,6 +1453,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     required bool signedIn,
     required bool canFollow,
     required ({bool canWrite, String hint}) composer,
+    bool following = false,
     bool requested = false,
   }) {
     final l10n = context.l10n;
@@ -1573,45 +1576,38 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                             : null,
                       ),
                 header: LiveAudioRoomHeader(
-                  cover: KAvatar(
-                    name: host.displayName,
-                    imageUrl: host.avatarUrl,
-                    size: 30,
+                  // D232 (owner: «وحّد الجميع واجعلهم مثل البث الحي»): the
+                  // video live's host pill — the host's picture, name,
+                  // @username, this live's cherries / taps and the follow
+                  // capsule — in place of the room card.
+                  pill: KHostPill(
+                    key: AudioRoomViewKeys.pill,
+                    username: host.username,
+                    premiumTier: host.premiumTier,
+                    agentCode: host.rechargeAgentCode,
+                    hostAgentCode: host.hostAgentCode,
+                    rechargeBadge: host.rechargeBadge,
+                    hostName: host.displayName,
+                    avatar: _networkImage(host.avatarUrl),
+                    lines: KHostPill.pointLines(
+                      context,
+                      score: score,
+                      taps:
+                          session.scoreParts?.tapPoints ??
+                          room.scoreParts?.tapPoints,
+                      scoreKey: LiveRoomScreen.scoreKey,
+                      tapsKey: LiveRoomScreen.tapsKey,
+                    ),
+                    following: following,
+                    onFollow: canFollow && !requested
+                        ? () => unawaited(_setFollowing(follow: true))
+                        : null,
+                    requested: requested,
+                    onCancelRequest: requested
+                        ? () => unawaited(_cancelRequest())
+                        : null,
+                    onTap: () => _person(_username),
                   ),
-                  title: room.title,
-                  level: room.roomLevel,
-                  // D141 (owner): the host's @username (copy on tap), not
-                  // the room number.
-                  username: host.username,
-                  premiumTier: host.premiumTier,
-                  agentCode: host.rechargeAgentCode,
-                  hostAgentCode: host.hostAgentCode,
-                  rechargeBadge: host.rechargeBadge,
-                  onTap: () => _person(_username),
-                  action: canFollow
-                      ? LiveRoundButton(
-                          key: AudioRoomViewKeys.follow,
-                          icon: requested
-                              ? Icons.hourglass_top_rounded
-                              : Icons.person_add_alt_1_rounded,
-                          // D175: a private host gets a request; tap again
-                          // to cancel it.
-                          label: requested
-                              ? l10n.followRequested
-                              : l10n.liveFollow,
-                          // Ref 147: the card's 26 pt action circle.
-                          size: KAudioRoom.cardAction,
-                          iconSize: 15,
-                          color: requested
-                              ? const Color(0x66FFFFFF)
-                              : const Color(0xFFFF4D7A),
-                          onTap: () => unawaited(
-                            requested
-                                ? _cancelRequest()
-                                : _setFollowing(follow: true),
-                          ),
-                        )
-                      : null,
                   // D181: minimize for viewers and guests too.
                   minimizeKey: LiveRoomScreen.minimizeKey,
                   minimizeTooltip: l10n.goLiveMinimize,
@@ -1638,19 +1634,10 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                         alignment: AlignmentDirectional.centerStart,
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
-                          // Ref 83/84: the room rank, then the live's points.
+                          // Ref 83: the room rank. D232 (owner): the
+                          // live's points chip is gone (the pill shows them).
                           children: [
                             const Flexible(child: LiveRankChip()),
-                            if (score > 0) ...[
-                              const SizedBox(width: 8),
-                              LiveScoreChip(
-                                text: KFormat.compact(score, l10n),
-                                label: l10n.liveScore(
-                                  score,
-                                  KFormat.grouped(score),
-                                ),
-                              ),
-                            ],
                             // D214: the host's «تارجت» chip in every live
                             // (voice too; the ranking sheet on tap).
                             if (LiveHostTargetChip.shows(
@@ -2650,7 +2637,9 @@ class _SeatBar extends StatelessWidget {
 
 /// The viewer's audio room buttons (D94).
 abstract final class AudioRoomViewKeys {
-  static const follow = Key('audioRoom.follow');
+  /// D232: the host pill (the video live's [KHostPill]; its follow capsule
+  /// replaced the card's follow circle).
+  static const pill = Key('audioRoom.pill');
   static const share = Key('audioRoom.share');
   static const close = Key('audioRoom.close');
   static const chat = Key('audioRoom.chat');

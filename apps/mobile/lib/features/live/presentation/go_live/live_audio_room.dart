@@ -3,19 +3,14 @@ import 'dart:math' as math;
 
 import 'package:clock/clock.dart';
 import 'package:kabso_live/core/emoji/unicode_emoji.dart';
-import 'package:kabso_live/core/models/premium_tier.dart';
-import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/emoji/emoji_panel.dart';
 import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_cinema.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart'
     show AudioSeatRing;
-import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart'
-    show KLiveUsernameTag, KTopReporter;
-import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
-import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
+    show KHostPill, KTopReporter;
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -92,11 +87,9 @@ abstract final class KAudioRoom {
   static const topPitch = 42.0;
   static const topIcon = 19.0;
 
-  /// Ref 147: the room card is 39.6 pt tall, at most 268 pt wide; its
-  /// action circle (a viewer's Follow) 26 pt, 6.5 pt from its end.
+  /// Ref 147: the old room card's height. D232: the card became the video
+  /// live's host pill; the row under it keeps this card's bottom.
   static const cardHeight = 43.0;
-  static const cardMaxWidth = 268.0;
-  static const cardAction = 26.0;
 
   /// Ref 147: the chips under the card are 22 pt tall, 10 pt under it.
   static const chipHeight = 24.0;
@@ -226,9 +219,15 @@ class LiveAudioRoomLayout extends StatelessWidget {
 
   /// D141: the header row's top under the safe area, so the card's top is
   /// [KMetrics.liveHeaderGap] under it (the row is a 48 pt target tall).
+  /// D232: the pill is the video live's ([KMetrics.hostPillHeight]).
   static const double headerTop =
       KMetrics.liveHeaderGap -
-      (KSizes.minTouchTarget - KAudioRoom.cardHeight) / 2;
+      (KSizes.minTouchTarget - KMetrics.hostPillHeight) / 2;
+
+  /// D232: the pill is lower than the old card; the row keeps the old
+  /// card's bottom so the chips, the seats and the cinema stay in place.
+  static const double headerKeep =
+      (KAudioRoom.cardHeight - KMetrics.hostPillHeight) / 2;
 
   /// The end slot beside the chat: the promo box (or the combo), with the
   /// wish card over it.
@@ -265,7 +264,13 @@ class LiveAudioRoomLayout extends StatelessWidget {
     // the edge. D141: the card's top [KMetrics.liveHeaderGap] under the
     // status bar, as the video live's host pill (the 48 pt row centres it).
     Padding(
-      padding: const EdgeInsetsDirectional.fromSTEB(10.5, headerTop, 6, 0),
+      // D232: the pill KSpacing.sm from the edge, as the video live's.
+      padding: const EdgeInsetsDirectional.fromSTEB(
+        KSpacing.sm,
+        headerTop,
+        6,
+        headerKeep,
+      ),
       child: header,
     ),
     if (chips case final chips?)
@@ -568,6 +573,7 @@ class LiveAudioRoomLayout extends StatelessWidget {
     return MediaQuery.paddingOf(context).top +
         headerTop +
         KSizes.minTouchTarget +
+        headerKeep +
         10 +
         scaler.scale(KAudioRoom.chipHeight) +
         6;
@@ -909,48 +915,32 @@ class _LiveChatComposerState extends State<LiveChatComposer> {
   }
 }
 
-/// The room bar (owner ref 83): a rounded bar with the cover, the title and
-/// a second line (the room number, "ID: …"); then share, minimize and ✕ in
-/// round dark buttons. The live's points are a chip under the bar
-/// ([LiveScoreChip]).
+/// The room's top row. D232 (owner: «وحّد الجميع واجعلهم مثل البث الحي»):
+/// at the start the SOLO video live's host pill ([KHostPill]: the host's
+/// picture, name, `@username`, this live's cherries / taps line and the
+/// viewer's follow capsule) — the audio room's own card (cover, room title,
+/// charm level) is gone; then share, minimize and ✕ in round dark buttons.
 class LiveAudioRoomHeader extends StatelessWidget {
   const new({
-    required this.cover,
-    required this.title,
+    required this.pill,
     required this.minimizeTooltip,
     required this.onMinimize,
     required this.endTooltip,
     required this.onEnd,
     super.key,
-    this.subtitle,
-    this.username,
-    this.premiumTier,
-    this.agentCode,
-    this.hostAgentCode,
-    this.rechargeBadge,
     this.minimizeKey,
     this.endKey,
     this.onShare,
     this.shareTooltip,
     this.shareKey,
-    this.onTap,
-    this.action,
     this.showMinimize = true,
-    this.level,
   });
 
-  /// CP-016 D (D101): the room level (the host's charm level) after the
-  /// title; none while the charm levels are unavailable.
-  final int? level;
-
-  /// At the end of the room bar (a viewer's Follow).
-  final Widget? action;
+  /// D232: the host pill ([KHostPill]), the video live's.
+  final Widget pill;
 
   /// Viewers have no floating window.
   final bool showMinimize;
-
-  /// Opens the room's info (host) or the host's sheet (viewer).
-  final VoidCallback? onTap;
 
   final VoidCallback? onShare;
   final String? shareTooltip;
@@ -958,27 +948,10 @@ class LiveAudioRoomHeader extends StatelessWidget {
 
   /// The points chip ([LiveScoreChip]) keeps this key.
   static const scoreKey = Key('liveRoom.score');
+
+  /// The pill's slot (D232: it holds the [KHostPill]).
   static const barKey = Key('liveRoom.bar');
 
-  final Widget cover;
-  final String title;
-  final String? subtitle;
-
-  /// D141 (owner): the host's `@username` under the title (copy on tap),
-  /// in place of [subtitle].
-  final String? username;
-
-  /// D146: the host's premium username tier (the special-ID badge).
-  final PremiumTier? premiumTier;
-
-  /// v1.54-social (D185): the host's recharge-agent code (the badge).
-  final String? agentCode;
-
-  /// v1.58-social (D189): the host's host-agent code (its badge too).
-  final String? hostAgentCode;
-
-  /// v1.56-social (D187): the host's daily recharge badge while it shows.
-  final RechargeBadge? rechargeBadge;
   final String minimizeTooltip;
   final VoidCallback? onMinimize;
   final String endTooltip;
@@ -987,156 +960,38 @@ class LiveAudioRoomHeader extends StatelessWidget {
   final Key? endKey;
 
   @override
-  Widget build(BuildContext context) {
-    final text = context.textStyles;
-    final subtitle = this.subtitle;
-    return Row(
-      children: [
-        // Ref 147: the card hugs its title, from 10.5 pt to at most
-        // 278.5 pt; 39.6 pt tall, fully rounded.
-        Expanded(
-          child: Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: KAudioRoom.cardMaxWidth,
-              ),
-              child: GestureDetector(
-                key: barKey,
-                onTap: onTap,
-                behavior: HitTestBehavior.opaque,
-                child: Container(
-                  // At least 39.6 pt; it grows with large text instead of
-                  // clipping the title and the subtitle.
-                  constraints: const BoxConstraints(
-                    minHeight: KAudioRoom.cardHeight,
-                  ),
-                  // Ref 147: the cover 5 pt in; the action circle 6.5 pt
-                  // from the end, the title 14 pt without one.
-                  padding: EdgeInsetsDirectional.fromSTEB(
-                    5,
-                    5,
-                    action == null ? 14 : 6.5,
-                    5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: KAudioRoom.bar,
-                    borderRadius: BorderRadius.circular(
-                      KAudioRoom.cardHeight / 2,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(5),
-                        child: SizedBox.square(dimension: 32, child: cover),
-                      ),
-                      // Ref 147: the title starts 52 pt from the edge.
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    title,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: text.caption.copyWith(
-                                      fontSize: 14,
-                                      height: 1.15,
-                                      color: KAudioRoom.text,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                                if (level case final level?) ...[
-                                  const SizedBox(width: 4),
-                                  CharmLevelBadge(level: level, height: 13),
-                                ],
-                                RechargeAgentInlineBadge(
-                                  code: agentCode,
-                                  hostCode: hostAgentCode,
-                                  height: inlineAgentBadgeHeight(14),
-                                ),
-                                RechargeTierBadge(
-                                  badge: rechargeBadge,
-                                  height: inlineAgentBadgeHeight(14),
-                                  gap: 3,
-                                ),
-                              ],
-                            ),
-                            if (username case final name?)
-                              KLiveUsernameTag(
-                                username: name,
-                                fontSize: 11,
-                                premiumTier: premiumTier,
-                              )
-                            else if (subtitle != null && subtitle.isNotEmpty)
-                              Text(
-                                subtitle,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: text.caption.copyWith(
-                                  fontSize: 11,
-                                  height: 1.2,
-                                  color: KAudioRoom.textSoft,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                      if (action case final action?) ...[
-                        const SizedBox(width: 8),
-                        // Ref 147: a 26 pt circle; its 44 pt target
-                        // overflows the card instead of making it taller.
-                        SizedBox.square(
-                          dimension: KAudioRoom.cardAction,
-                          child: OverflowBox(
-                            maxWidth: KSizes.minTouchTarget,
-                            maxHeight: KSizes.minTouchTarget,
-                            child: action,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
+  Widget build(BuildContext context) => Row(
+    children: [
+      Expanded(
+        child: Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: KeyedSubtree(key: barKey, child: pill),
         ),
-        const SizedBox(width: 8),
-        // Ref 147: 31 pt round buttons, 39 pt apart.
-        if (onShare != null)
-          _TopIcon(
-            key: shareKey,
-            asset: 'assets/live_room_icons/share.png',
-            label: shareTooltip ?? '',
-            onTap: onShare,
-          ),
-        if (showMinimize)
-          _TopIcon(
-            key: minimizeKey,
-            asset: 'assets/live_room_icons/minimize.png',
-            label: minimizeTooltip,
-            onTap: onMinimize,
-          ),
+      ),
+      const SizedBox(width: 8),
+      // Ref 147: 31 pt round buttons, 39 pt apart.
+      if (onShare != null)
         _TopIcon(
-          key: endKey,
-          asset: 'assets/live_room_icons/close.png',
-          label: endTooltip,
-          onTap: onEnd,
+          key: shareKey,
+          asset: 'assets/live_room_icons/share.png',
+          label: shareTooltip ?? '',
+          onTap: onShare,
         ),
-      ],
-    );
-  }
+      if (showMinimize)
+        _TopIcon(
+          key: minimizeKey,
+          asset: 'assets/live_room_icons/minimize.png',
+          label: minimizeTooltip,
+          onTap: onMinimize,
+        ),
+      _TopIcon(
+        key: endKey,
+        asset: 'assets/live_room_icons/close.png',
+        label: endTooltip,
+        onTap: onEnd,
+      ),
+    ],
+  );
 }
 
 /// A small chip of the row under the room bar.
