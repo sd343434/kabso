@@ -628,13 +628,15 @@ void main() {
                     .evaluate()) {
               final box = line.renderObject! as RenderBox;
               var r = box.localToGlobal(Offset.zero) & box.size;
-              // Only what the chat shows (its list clips the rest).
-              final list = find.ancestor(
+              // Only what the chat shows (its lists clip the rest; D230:
+              // the chat's own scrolling list sits in the room's).
+              final lists = find.ancestor(
                 of: find.byElementPredicate((e) => e == line),
                 matching: find.byType(Scrollable),
               );
-              if (list.evaluate().isNotEmpty) {
-                r = r.intersect(tester.getRect(list.first));
+              for (final list in lists.evaluate()) {
+                final box = list.renderObject! as RenderBox;
+                r = r.intersect(box.localToGlobal(Offset.zero) & box.size);
               }
               if (r.isEmpty) continue;
               expect(r.overlaps(strips), isFalse, reason: '$r $strips');

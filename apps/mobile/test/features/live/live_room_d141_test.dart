@@ -6,7 +6,6 @@
 import 'dart:async';
 import 'dart:ui' show Tristate;
 
-import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
@@ -335,7 +334,8 @@ void main() {
     });
   });
 
-  group('9. chat rows in reading order (bidi)', () {
+  group('9. chat rows in reading order (bidi); D230: name, badges under it, '
+      'message under them', () {
     const badges = LiveChatAuthorBadges(charmLevel: 12);
     for (final language in AppLanguage.values) {
       final ar = language == AppLanguage.ar;
@@ -344,8 +344,10 @@ void main() {
         ('text and emoji', ar ? 'يا :kabi_hi: هلا' : 'hi :kabi_hi: all'),
         ('two emojis', ':kabi_hi: :kiki_love:'),
       ]) {
-        testWidgets('${language.name}, $label: badges, then the name, then '
-            'the message in reading order', (tester) async {
+        testWidgets('${language.name}, $label: the name, the badges under '
+            'it and the message under them, at the reading start', (
+          tester,
+        ) async {
           await _pumpBare(
             tester,
             Align(
@@ -362,36 +364,30 @@ void main() {
             ),
             language: language,
           );
-          final badge = tester.getRect(find.byType(LiveChatBadgeRow));
+          final name = tester.getRect(find.byKey(LiveChatInlineRow.nameKey));
+          final badge = tester.getRect(find.byKey(LiveChatInlineRow.badgesKey));
+          final message = tester.getRect(find.byKey(LiveChatInlineRow.textKey));
+          // No colon after the name (D230).
+          expect(find.text('\u2068Oz\u2069'), findsOneWidget);
+          expect(find.textContaining('Oz:'), findsNothing);
+          expect(badge.top, greaterThanOrEqualTo(name.bottom - 0.5));
+          expect(message.top, greaterThanOrEqualTo(badge.bottom - 0.5));
+          // All three at the reading start.
+          final row = tester.getRect(find.byKey(LiveChatInlineRow.rowKey));
+          for (final r in [name, badge, message]) {
+            if (ar) {
+              expect(r.right, closeTo(row.right - 8, 0.5));
+            } else {
+              expect(r.left, closeTo(row.left + 8, 0.5));
+            }
+          }
           final emojis = [
             for (final e in find.byType(KabiEmoji).evaluate())
               tester.getRect(find.byWidget(e.widget)),
           ];
           expect(emojis, isNotEmpty);
-          // The name sits between the badges and the first emoji.
-          final paragraph = tester.renderObject<RenderParagraph>(
-            find.byType(KBidiRichTextRaw),
-          );
-          final plain = paragraph.text.toPlainText();
-          final at = plain.indexOf('Oz');
-          final nameBox = paragraph
-              .getBoxesForSelection(
-                TextSelection(baseOffset: at, extentOffset: at + 2),
-              )
-              .first;
-          final origin = paragraph.localToGlobal(Offset.zero);
-          final nameLeft = origin.dx + nameBox.left;
-          final nameRight = origin.dx + nameBox.right;
-          if (ar) {
-            expect(badge.left, greaterThanOrEqualTo(nameRight - 0.5));
-            for (final e in emojis) {
-              expect(e.right, lessThanOrEqualTo(nameLeft + 0.5));
-            }
-          } else {
-            expect(badge.right, lessThanOrEqualTo(nameLeft + 0.5));
-            for (final e in emojis) {
-              expect(e.left, greaterThanOrEqualTo(nameRight - 0.5));
-            }
+          for (final e in emojis) {
+            expect(e.top, greaterThanOrEqualTo(message.top - 0.5));
           }
           if (label == 'two emojis') {
             // :kabi_hi: comes first in reading order.
@@ -410,35 +406,6 @@ void main() {
         });
       }
     }
-  });
-
-  group('18. whole chat lines', () {
-    testWidgets('a line that does not fit whole is left out (not cut), the '
-        'newest at the bottom', (tester) async {
-      Widget line(String k) => ColoredBox(
-        key: Key(k),
-        color: const Color(0xFF000000),
-        child: const SizedBox(width: 100, height: 40),
-      );
-      await _pumpBare(
-        tester,
-        Align(
-          alignment: Alignment.topLeft,
-          child: SizedBox(
-            height: 100,
-            width: 200,
-            child: LiveChatWholeLines(
-              children: [line('a'), line('b'), line('c')],
-            ),
-          ),
-        ),
-      );
-      expect(find.byKey(const Key('a')).hitTestable(), findsNothing);
-      expect(find.byKey(const Key('b')).hitTestable(), findsOneWidget);
-      expect(find.byKey(const Key('c')).hitTestable(), findsOneWidget);
-      expect(tester.getRect(find.byKey(const Key('c'))).bottom, 100);
-      expect(tester.getRect(find.byKey(const Key('b'))).top, 20);
-    });
   });
 
   group('16 + 17. the public message card', () {

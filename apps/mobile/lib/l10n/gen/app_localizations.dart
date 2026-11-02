@@ -6818,6 +6818,12 @@ abstract class AppLocalizations {
   /// **'لم تُرسل. اضغط لإعادة المحاولة'**
   String get liveChatFailed;
 
+  /// D230: the pill over the live chat while scrolled up to older messages and new ones arrived; a tap jumps back to the newest.
+  ///
+  /// In ar, this message translates to:
+  /// **'رسائل جديدة ↓'**
+  String get liveChatNewMessages;
+
   /// Action on a failed chat line.
   ///
   /// In ar, this message translates to:

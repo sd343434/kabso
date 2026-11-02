@@ -177,6 +177,7 @@ class LiveChatState {
     this.loaded = false,
     this.kicked = false,
     this.latestJoin,
+    this.written = false,
   });
 
   /// D119: the newest "X joined" (the join strip under the chat), or null.
@@ -189,22 +190,14 @@ class LiveChatState {
   /// Oldest first.
   final List<LiveChatItem> items;
 
-  /// D212: someone wrote in this chat during the visit (a message, this
-  /// person's own line on its way, or a public message) — the rules line
-  /// is gone for the rest of the visit.
-  /// Messages from before the visit (above the rules line) do not count.
-  bool get written {
-    final at = items.indexWhere((it) => it is LiveChatNoticeLine);
-    if (at < 0) return true;
-    return items
-        .skip(at + 1)
-        .any(
-          (it) =>
-              it is LiveChatPosted ||
-              it is LiveChatPending ||
-              it is LiveChatBulletLine,
-        );
-  }
+  /// D212: someone wrote in this chat during the visit (a text, voice or
+  /// picture message, this person's own line on its way, or a public
+  /// message) — the rules line is gone for the rest of the visit. Joins,
+  /// gifts, wins and quips do not count.
+  /// D230 (owner's device: the viewer never saw the rules line): set by the
+  /// controller from what ARRIVES during the visit — never from the history
+  /// read on entering, wherever its lines sit around the rules line.
+  final bool written;
 
   /// The host has not turned the chat off.
   final bool enabled;
@@ -222,7 +215,9 @@ class LiveChatState {
     bool? loaded,
     bool? kicked,
     LiveChatJoinLine? latestJoin,
+    bool? written,
   }) => LiveChatState(
+    written: written ?? this.written,
     latestJoin: latestJoin ?? this.latestJoin,
     items: items ?? this.items,
     enabled: enabled ?? this.enabled,
@@ -321,6 +316,20 @@ class LiveChatController extends Notifier<LiveChatState> {
     state = state.copyWith(
       items: _trim([...state.items, LiveChatBulletLine(bullet)]),
     );
+    _markWritten();
+  }
+
+  /// D212/D230: a message was written during this visit (the rules line
+  /// goes). Kept with the visit, so a chat rebuilt mid-visit (the live
+  /// minimized and reopened) remembers it.
+  void _markWritten() {
+    if (!ref.mounted) return;
+    if (!state.written) state = state.copyWith(written: true);
+    final visits = ref.read(liveChatVisitsProvider);
+    final visit = visits[roomId];
+    if (visit != null && !visit.written) {
+      visits[roomId] = visit.copyWith(written: true);
+    }
   }
 
   /// Starts the chat with the room's [enabled] / [muted] and the [engine]'s
@@ -364,25 +373,49 @@ class LiveChatController extends Notifier<LiveChatState> {
       final visit = visits[roomId];
       final int split;
       if (visit == null) {
+        // D230: a new visit — everything read now was said BEFORE it: the
+        // rules line comes after all of it and stays until a message
+        // arrives during the visit.
         split = history.length;
-        visits[roomId] = LiveChatVisit(after: history.lastOrNull?.id);
+        final last = history.lastOrNull;
+        visits[roomId] = LiveChatVisit(
+          after: last?.id,
+          afterAt: last?.createdAt,
+          written: state.written,
+        );
       } else {
         final after = visit.after;
-        // Gone from the history (older than its last 50): the rules line
-        // left the top long ago.
-        split = after == null
-            ? 0
-            : history.indexWhere((m) => m.id == after) + 1;
+        final at = after == null
+            ? -1
+            : history.indexWhere((m) => m.id == after);
+        if (after == null) {
+          // Nothing was said before the visit: all of it came during it.
+          split = 0;
+        } else if (at >= 0) {
+          split = at + 1;
+        } else {
+          // D230: that message is gone (deleted, an expired clip or
+          // picture, or older than the last 50): what the server dated no
+          // later than it was said before the visit.
+          final afterAt = visit.afterAt;
+          split = afterAt == null
+              ? 0
+              : history.where((m) => !m.createdAt.isAfter(afterAt)).length;
+        }
       }
+      final during = history.skip(split).toList();
       state = state.copyWith(
         items: _trim([
           ...history.take(split).map(LiveChatPosted.new),
           const LiveChatNoticeLine(),
-          ...history.skip(split).map(LiveChatPosted.new),
+          ...during.map(LiveChatPosted.new),
           ...live,
         ]),
         loaded: true,
       );
+      // A chat rebuilt mid-visit: what was said since the visit began (or
+      // the visit's own memory) still counts.
+      if (during.isNotEmpty || (visit?.written ?? false)) _markWritten();
     } on Object {
       if (ref.mounted) {
         state = state.copyWith(
@@ -437,6 +470,7 @@ class LiveChatController extends Notifier<LiveChatState> {
         state = state.copyWith(
           items: _trim([...items, LiveChatPosted(message)]),
         );
+        _markWritten();
       case LiveChatDeleted(:final id):
         _expiry.remove(id)?.cancel();
         state = state.copyWith(
@@ -624,6 +658,7 @@ class LiveChatController extends Notifier<LiveChatState> {
         pending,
       ],
     );
+    _markWritten();
     try {
       // D141 (owner's device: an emoji sent right after two others showed
       // "Not sent"): the chat takes one line a second per person (§10.11,
@@ -744,6 +779,7 @@ class LiveChatController extends Notifier<LiveChatState> {
         state = state.copyWith(
           items: _trim([...state.items, LiveChatPosted(message)]),
         );
+        _markWritten();
       }
       return null;
     } on Object catch (e) {
@@ -859,9 +895,22 @@ class LiveChatController extends Notifier<LiveChatState> {
 /// D141: where the rules line of the current visit to a room was said —
 /// after which message of the history ([after]; null: before them all).
 class LiveChatVisit {
-  const new({this.after});
+  const new({this.after, this.afterAt, this.written = false});
 
   final String? after;
+
+  /// D230: when [after] was said (the server's time), to place the rules
+  /// line again once that message is gone from the history.
+  final DateTime? afterAt;
+
+  /// D230: a message was written during the visit (the rules line is gone).
+  final bool written;
+
+  LiveChatVisit copyWith({bool? written}) => LiveChatVisit(
+    after: after,
+    afterAt: afterAt,
+    written: written ?? this.written,
+  );
 }
 
 /// D141: the visits in progress, by room id. Kept while the app runs (a

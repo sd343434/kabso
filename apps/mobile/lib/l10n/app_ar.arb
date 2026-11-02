@@ -4465,6 +4465,10 @@
   "@liveChatFailed": {
     "description": "A chat line that failed to send (CP-013)."
   },
+  "liveChatNewMessages": "رسائل جديدة ↓",
+  "@liveChatNewMessages": {
+    "description": "D230: the pill over the live chat while scrolled up to older messages and new ones arrived; a tap jumps back to the newest."
+  },
   "liveChatRetry": "إعادة الإرسال",
   "@liveChatRetry": {
     "description": "Action on a failed chat line."

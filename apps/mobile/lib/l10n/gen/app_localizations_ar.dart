@@ -3886,6 +3886,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveChatFailed => 'لم تُرسل. اضغط لإعادة المحاولة';
 
   @override
+  String get liveChatNewMessages => 'رسائل جديدة ↓';
+
+  @override
   String get liveChatRetry => 'إعادة الإرسال';
 
   @override

@@ -1647,8 +1647,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           bubble: KLiveColors.chatScrim,
           onProfile: (username) => _person(room.id, username),
           inline: true,
-          // D199 (owner, ref 275): the chat starts at its top.
-          anchorTop: true,
+          // D230: the video live's chat (bottom-anchored like every room;
+          // the rules line steps aside while typing).
+          video: true,
         ),
         composer: chatComposer,
         openChat: openChat,
