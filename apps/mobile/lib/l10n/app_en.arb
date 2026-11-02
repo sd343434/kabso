@@ -4053,5 +4053,6 @@
   "privacyCardStatsTitle": "Numbers on your card",
   "privacyHideCherries": "Hide cherries received",
   "privacyHideCoins": "Hide coins sent",
-  "privacyCardStatsHint": "A hidden number is not shown to anyone else on your card in lives or on your profile. You and the Kabso team still see it."
+  "privacyCardStatsHint": "A hidden number is not shown to anyone else on your card in lives or on your profile. You and the Kabso team still see it.",
+  "pkFollowHost": "Follow {name}"
 }

@@ -44,7 +44,9 @@ void main() {
       for (final b in [null, PkPowerTier.triple]) {
         await t.pumpWidget(host(l: 1200, r: 800, lt: a, rt: b));
         await t.pump(const Duration(milliseconds: 300));
-        expect(find.text('1200'), findsOneWidget);
+        // D231: short Latin figures (1.2K) in the bar.
+        expect(find.text(pkBarScore(1200)), findsOneWidget);
+        expect(find.text('1.2K'), findsOneWidget);
         expect(find.text('800'), findsOneWidget);
         expect(t.getSize(find.byType(PkBattleBar)), size);
       }

@@ -13020,4 +13020,9 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get privacyCardStatsHint =>
       'الرقم المخفي لا يظهر لغيرك في بطاقتك داخل البث ولا في ملفك. أنت وفريق Kabso تستطيعون رؤيته.';
+
+  @override
+  String pkFollowHost(String name) {
+    return 'متابعة $name';
+  }
 }

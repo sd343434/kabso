@@ -13018,4 +13018,9 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get privacyCardStatsHint =>
       'A hidden number is not shown to anyone else on your card in lives or on your profile. You and the Kabso team still see it.';
+
+  @override
+  String pkFollowHost(String name) {
+    return 'Follow $name';
+  }
 }

@@ -12416,5 +12416,14 @@
   "privacyCardStatsHint": "الرقم المخفي لا يظهر لغيرك في بطاقتك داخل البث ولا في ملفك. أنت وفريق Kabso تستطيعون رؤيته.",
   "@privacyCardStatsHint": {
     "description": "D220: under the two switches."
+  },
+  "pkFollowHost": "متابعة {name}",
+  "@pkFollowHost": {
+    "description": "D231: the + on the other PK host's chip at the bottom of their half (screen readers).",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   }
 }

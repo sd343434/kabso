@@ -42,7 +42,7 @@ import 'package:kabso_live/features/live/data/live_schedule_repository.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart'
-    show showHostSheet;
+    show pkFollowOpponent, showHostSheet, showPkOpponentCard;
 import 'package:kabso_live/features/live/presentation/go_live/go_live_audio_setup.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_setup_parts.dart';
@@ -2085,7 +2085,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     final hostName = user?.displayName ?? room.host.displayName;
     // v1.43-live (D195): a PK puts both hosts side by side in the stage.
     final pk = ref.watch(livePkProvider(room.id));
-    final pkStage = pk.match == null ? null : _hostPkStage(pk, room);
+    final pkStage = pk.match == null ? null : _hostPkStage(pk, room, state);
     ref.listen(livePkProvider(room.id).select((p) => p.notice), (_, notice) {
       if (notice == null) return;
       ref.read(livePkProvider(room.id).notifier).clearNotice();
@@ -2547,11 +2547,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
 
   /// v1.43-live (D195): the host's PK stage — their own camera on the
   /// reading start, the other host (and guests) from the PK connection.
-  Widget _hostPkStage(LivePkState pk, LiveRoom room) {
+  Widget _hostPkStage(LivePkState pk, LiveRoom room, GoLiveState state) {
     final engine = _host.engine;
     final match = pk.match!;
     final opponent = ref.read(livePkProvider(room.id).notifier).opponent;
     final (_, other) = match.of(room.id);
+    final follow = pkFollowOpponent(context, ref, other.host);
     Widget stage() => LivePkStage(
       key: GoLiveScreen.pkStageKey,
       match: match,
@@ -2563,6 +2564,14 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       speaking: {...engine.speaking, ...?opponent?.speaking},
       announcement: pk.announcement,
       onPerson: (u) => unawaited(_person(room.id, u.username)),
+      // D231: a tap on my half — my card (as the host pill's); on the
+      // other half — the other host's card for their room; the «+».
+      onHost: (u, {required opponent}) => unawaited(
+        opponent
+            ? showPkOpponentCard(context, other)
+            : _person(room.id, room.host.username, selfMic: _selfMic(state)),
+      ),
+      onFollowOpponent: follow,
       // v1.44-live (D199): «ابدأ PK» on a connected PK.
       onStart: match.connected
           ? () => unawaited(

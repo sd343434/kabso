@@ -22161,6 +22161,12 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'الرقم المخفي لا يظهر لغيرك في بطاقتك داخل البث ولا في ملفك. أنت وفريق Kabso تستطيعون رؤيته.'**
   String get privacyCardStatsHint;
+
+  /// D231: the + on the other PK host's chip at the bottom of their half (screen readers).
+  ///
+  /// In ar, this message translates to:
+  /// **'متابعة {name}'**
+  String pkFollowHost(String name);
 }
 
 class _AppLocalizationsDelegate
