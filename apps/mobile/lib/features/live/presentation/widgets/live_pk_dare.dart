@@ -156,30 +156,16 @@ class _PkDareLayerState extends State<PkDareLayer>
 
   Future<void> _refuse() async {
     final l10n = context.l10n;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (dialog) => AlertDialog(
-        title: Text(l10n.pkDareRefuseTitle),
-        content: Text(
-          l10n.pkDareRefuseBody(KFormat.signed(widget.dare.refusePoints)),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialog).pop(false),
-            child: Text(MaterialLocalizations.of(dialog).cancelButtonLabel),
-          ),
-          FilledButton(
-            key: PkDareLayer.refuseConfirmKey,
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFFE50914),
-            ),
-            onPressed: () => Navigator.of(dialog).pop(true),
-            child: Text(l10n.pkDareRefuse),
-          ),
-        ],
-      ),
+    // D232: the live's card style (red confirm, outlined cancel).
+    final ok = await showKLiveConfirm(
+      context,
+      title: l10n.pkDareRefuseTitle,
+      message: l10n.pkDareRefuseBody(KFormat.signed(widget.dare.refusePoints)),
+      confirmKey: PkDareLayer.refuseConfirmKey,
+      confirmLabel: l10n.pkDareRefuse,
+      cancelLabel: MaterialLocalizations.of(context).cancelButtonLabel,
     );
-    if (ok == true) await _run(widget.actions.onRefuse);
+    if (ok) await _run(widget.actions.onRefuse);
   }
 
   Future<void> _report(String dareId) async {
