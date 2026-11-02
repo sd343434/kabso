@@ -33,6 +33,7 @@ import {
   DEFAULT_PODCAST_THEME,
   DEFAULT_STREAMER_CORNER,
   type StreamerCorner,
+  type StreamerMain,
   type StreamerOrientation,
   PODCAST_QUESTION_SECONDS,
   PODCAST_SEAT_COUNT,
@@ -125,6 +126,8 @@ export interface LiveRoomSummaryDto {
 export interface LiveStreamerDto {
   orientation: StreamerOrientation;
   cameraOverlay: { visible: boolean; corner: StreamerCorner };
+  /** v1.57-live (D247, §10.88): the main picture — the screen (with the bubble) or the camera alone. */
+  main: StreamerMain;
   /** Increases on every change (the media metadata's `streamerVersion`, the `streamer` message). */
   version: number;
 }
@@ -289,6 +292,8 @@ export interface RoomRow {
   streamer_orientation: string | null;
   streamer_camera_visible: boolean | null;
   streamer_camera_corner: string | null;
+  /** v1.57-live (D247): `SCREEN` / `CAMERA` (STREAMER only). */
+  streamer_main: string | null;
   streamer_version: number;
 }
 
@@ -351,7 +356,8 @@ const ROOM_COLUMNS = Prisma.sql`
              JOIN users sp ON sp.id = s2.user_id AND sp.status = 'ACTIVE'
              JOIN user_profiles spp ON spp.user_id = s2.user_id
             WHERE s2.room_id = r.id AND s2.user_id IS NOT NULL) END AS podcast_speakers,
-         r.streamer_orientation, r.streamer_camera_visible, r.streamer_camera_corner, r.streamer_version`;
+         r.streamer_orientation, r.streamer_camera_visible, r.streamer_camera_corner, r.streamer_main,
+         r.streamer_version`;
 
 const ROOM_FROM = Prisma.sql`
     FROM live_rooms r
@@ -363,13 +369,16 @@ const ROOM_FROM = Prisma.sql`
 
 const ROOM_SELECT = Prisma.sql`SELECT ${ROOM_COLUMNS} ${ROOM_FROM}`;
 
-/** CP-013: whether `viewerId` is muted in the room's chat (a guest never is). */
-/** v1.56-live (D213, §10.86): a STREAMER row's `LiveStreamer`; null for other modes. */
+/**
+ * v1.56-live (D213, §10.86): a STREAMER row's `LiveStreamer`; null for other modes. v1.57-live (D247, §10.88):
+ * `main` (a row read before the column existed counts as `SCREEN`, the only layout D213 had).
+ */
 export function streamerOf(row: {
   mode: string;
   streamer_orientation: string | null;
   streamer_camera_visible: boolean | null;
   streamer_camera_corner: string | null;
+  streamer_main?: string | null;
   streamer_version: number;
 }): LiveStreamerDto | null {
   if (
@@ -386,10 +395,12 @@ export function streamerOf(row: {
       visible: row.streamer_camera_visible,
       corner: row.streamer_camera_corner as StreamerCorner,
     },
+    main: row.streamer_main === 'CAMERA' ? 'CAMERA' : 'SCREEN',
     version: row.streamer_version,
   };
 }
 
+/** CP-013: whether `viewerId` is muted in the room's chat (a guest never is). */
 function chatMutedSql(viewerId: string | null): Prisma.Sql {
   if (viewerId === null) return Prisma.sql`FALSE`;
   return Prisma.sql`EXISTS (SELECT 1 FROM live_chat_mutes m
@@ -1257,6 +1268,8 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
                   streamerOrientation: input.streamer?.orientation ?? 'PORTRAIT',
                   streamerCameraVisible: input.streamer?.cameraOverlay?.visible ?? true,
                   streamerCameraCorner: input.streamer?.cameraOverlay?.corner ?? DEFAULT_STREAMER_CORNER,
+                  // v1.57-live (D247, §10.88): the web studio's "camera only" (OBS) starts with CAMERA.
+                  streamerMain: input.streamer?.main ?? 'SCREEN',
                 }
               : {}),
             coverUrl: host.cover_url,

@@ -56,11 +56,15 @@ describe('D213 streamer rules', () => {
     expect(updateLiveStreamerSchema.parse({ cameraOverlay: { corner: 'TOP_RIGHT' } })).toEqual({
       cameraOverlay: { corner: 'TOP_RIGHT' },
     });
+    // v1.57-live (D247): `main` alone is a change.
+    expect(updateLiveStreamerSchema.parse({ main: 'CAMERA' })).toEqual({ main: 'CAMERA' });
     for (const bad of [
       {},
       { cameraOverlay: {} },
       { orientation: 'portrait' },
       { cameraOverlay: { corner: 'TOP' } },
+      { main: 'OBS' },
+      { main: 'camera' },
     ]) {
       expect(updateLiveStreamerSchema.safeParse(bad).success).toBe(false);
     }
@@ -92,8 +96,12 @@ describe('D213 streamer rules', () => {
     expect(streamerOf(row)).toEqual({
       orientation: 'LANDSCAPE',
       cameraOverlay: { visible: true, corner: 'TOP_RIGHT' },
+      main: 'SCREEN',
       version: 7,
     });
+    // v1.57-live (D247): the camera as the main picture; a row without the column reads as SCREEN.
+    expect(streamerOf({ ...row, streamer_main: 'CAMERA' })?.main).toBe('CAMERA');
+    expect(streamerOf({ ...row, streamer_main: null })?.main).toBe('SCREEN');
     expect(streamerOf({ ...row, mode: 'SOLO' })).toBeNull();
     expect(streamerOf({ ...row, streamer_camera_corner: null })).toBeNull();
   });

@@ -358,7 +358,7 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
     const parsed = updateLiveStreamerSchema.safeParse(body ?? {}, { reportInput: true });
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
     const room = await this.hostLiveRoom(hostId, roomId);
-    const { orientation, cameraOverlay } = parsed.data;
+    const { orientation, cameraOverlay, main } = parsed.data;
     const result = await this.prisma.$transaction(async (tx) => {
       const [row] = await tx.$queryRaw<
         {
@@ -367,10 +367,11 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
           streamer_orientation: string | null;
           streamer_camera_visible: boolean | null;
           streamer_camera_corner: string | null;
+          streamer_main: string | null;
           streamer_version: number;
         }[]
       >`SELECT mode::text AS mode, status::text AS status, streamer_orientation, streamer_camera_visible,
-               streamer_camera_corner, streamer_version
+               streamer_camera_corner, streamer_main, streamer_version
           FROM live_rooms WHERE id = ${room.id}::uuid FOR UPDATE`;
       if (!row) throw new AppException(ErrorCode.NOT_FOUND);
       if (row.status !== 'LIVE') throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
@@ -385,6 +386,8 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
         ...(cameraOverlay?.corner !== undefined && cameraOverlay.corner !== row.streamer_camera_corner
           ? { streamerCameraCorner: cameraOverlay.corner }
           : {}),
+        // v1.57-live (D247, §10.88): the screen or the camera as the main picture.
+        ...(main !== undefined && main !== (row.streamer_main ?? 'SCREEN') ? { streamerMain: main } : {}),
       };
       if (Object.keys(data).length === 0) return { changed: false, row };
       const updated = await tx.liveRoom.update({
@@ -394,6 +397,7 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
           streamerOrientation: true,
           streamerCameraVisible: true,
           streamerCameraCorner: true,
+          streamerMain: true,
           streamerVersion: true,
         },
       });
@@ -405,6 +409,7 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
           streamer_orientation: updated.streamerOrientation,
           streamer_camera_visible: updated.streamerCameraVisible,
           streamer_camera_corner: updated.streamerCameraCorner,
+          streamer_main: updated.streamerMain,
           streamer_version: updated.streamerVersion,
         },
       };

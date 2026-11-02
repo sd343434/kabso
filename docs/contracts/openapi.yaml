@@ -196,6 +196,10 @@ info:
     only; a `streamer` data message and the media metadata's `streamerVersion`); `listLiveRooms?kind=streamer`
     (a streamer is also in `video` and `solo`); the host publishes `screen_share` besides camera and microphone; code
     `LIVE_NOT_STREAMER` (409); `GET /admin/lives?mode=STREAMER` (CONVENTIONS §10.86).
+    **D247 (DRAFT v1.57-live)** «استوديو البث», the browser studio at studio.<domain> (a client of this API, no new
+    operation): `StreamerMain` (`SCREEN` | `CAMERA`) as `LiveStreamer.main` (required in responses), `StreamerSetup.main`
+    and `UpdateLiveStreamerRequest.main` — the camera track alone as the picture, for OBS Virtual Camera
+    (CONVENTIONS §10.88).
     **D234 (DRAFT v1.52-live)** adds the author's showcased medals to a live chat line:
     `LiveChatAuthorBadges.medals` (≤ 5 `LiveChatAuthorMedal` {code, iconKey}; CONVENTIONS §10.82).
     **D154c (DRAFT v1.34-live)** adds newcomers «الجدد»: `listLiveNewcomers` (host and moderators:
@@ -2449,7 +2453,8 @@ paths:
         room's metadata and sends everyone in the room a `streamer` data message (topic `streamer`):
         `{"type": "streamer", "roomId": "…", "streamer": LiveStreamer}`; apps keep the highest `version`
         and re-read the room when the metadata's `streamerVersion` is higher than the one they hold (a
-        message they missed). Sending the current values changes nothing (idempotent, no message). Its own
+        message they missed). v1.57-live (D247, §10.88): `main` (`SCREEN` / `CAMERA`) is part of the layout
+        and moves the version like the other keys. Sending the current values changes nothing (idempotent, no message). Its own
         rate-limit bucket `live:streamer` (`RATE_LIMIT_LIVE_TAPS_USER`), so a rotation or a moved bubble
         never uses up the `PATCH` bucket. Not audited (a layout).
       parameters:
@@ -21603,6 +21608,14 @@ components:
         v1.56-live (D213) — the camera bubble's corner of the screen picture. Physical corners: the screen
         picture is never mirrored for a right-to-left language, so every viewer sees the bubble where the
         host put it.
+    StreamerMain:
+      type: string
+      enum: [SCREEN, CAMERA]
+      description: |
+        v1.57-live (D247, CONVENTIONS §10.88) — the main picture of a STREAMER live. `SCREEN`: the host's
+        `screen_share` track, with the `camera` track as the round bubble (D213). `CAMERA`: the host's `camera`
+        track alone is the picture, laid out by `orientation` (no bubble, no screen track expected) — the web
+        studio's "camera only" layout, e.g. OBS Virtual Camera holding a whole scene composed in OBS.
     LiveStreamerCameraOverlay:
       type: object
       required: [visible, corner]
@@ -21612,10 +21625,13 @@ components:
     LiveStreamer:
       type: object
       description: v1.56-live (D213, CONVENTIONS §10.86) — a STREAMER live's layout, as the host set it.
-      required: [orientation, cameraOverlay, version]
+      required: [orientation, cameraOverlay, main, version]
       properties:
         orientation: { $ref: '#/components/schemas/StreamerOrientation' }
         cameraOverlay: { $ref: '#/components/schemas/LiveStreamerCameraOverlay' }
+        main:
+          allOf: [{ $ref: '#/components/schemas/StreamerMain' }]
+          description: v1.57-live (D247) — the screen with the camera bubble (`SCREEN`, every D213 live) or the camera alone (`CAMERA`); `cameraOverlay` applies to `SCREEN` only.
         version:
           type: integer
           minimum: 0
@@ -21625,9 +21641,10 @@ components:
       additionalProperties: false
       description: |
         v1.56-live (D213) — `StartLiveRoomRequest.streamer` (optional with mode STREAMER, refused otherwise:
-        400 `streamer` / `invalid_value`). Defaults: PORTRAIT, the bubble shown at TOP_LEFT.
+        400 `streamer` / `invalid_value`). Defaults: PORTRAIT, the bubble shown at TOP_LEFT, `main` SCREEN.
       properties:
         orientation: { $ref: '#/components/schemas/StreamerOrientation' }
+        main: { $ref: '#/components/schemas/StreamerMain' }
         cameraOverlay:
           type: object
           additionalProperties: false
@@ -21640,9 +21657,11 @@ components:
       minProperties: 1
       description: |
         v1.56-live (D213) — at least one key (else 400 `too_few`); a `cameraOverlay` with neither `visible`
-        nor `corner` → 400 (`cameraOverlay`, `too_few`).
+        nor `corner` → 400 (`cameraOverlay`, `too_few`). v1.57-live (D247): `main` switches the picture between
+        the screen and the camera.
       properties:
         orientation: { $ref: '#/components/schemas/StreamerOrientation' }
+        main: { $ref: '#/components/schemas/StreamerMain' }
         cameraOverlay:
           type: object
           additionalProperties: false
