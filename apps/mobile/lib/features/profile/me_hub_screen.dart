@@ -82,7 +82,6 @@ enum MeHubItem {
   eventCenter,
   wallet,
   bag,
-  svip,
   taskCenter,
   medals,
   ranking,
@@ -99,8 +98,9 @@ enum MeHubItem {
 /// of a feature Kabso has opens its real screen; the ones not built yet are
 /// shown faded with a "Soon" tag and do nothing (no stand-in screens).
 /// D164: Wallet, Earn money and Creator Center open their real screens.
-/// D166: Event Center, SVIP and Task Center too (CP-024 approved with
+/// D166: Event Center and Task Center too (CP-024 approved with
 /// defaults); Purchase VIP waits for the owner's prices.
+/// D249 (owner): the SVIP button is removed from the Me hub.
 ///
 /// Data: `GET /me`, `GET /users/{username}` (counts, family, relationship,
 /// medals), `GET /me/levels` and `GET /wallet/me`. The API has no friends
@@ -256,13 +256,6 @@ class MeHubScreen extends ConsumerWidget {
         ),
       ],
       [
-        _HubRow(
-          item: MeHubItem.svip,
-          icon: Icons.military_tech_rounded,
-          hue: _Hues.gold,
-          title: l10n.meHubSvip,
-          onTap: () => push(AppRoutes.svip),
-        ),
         _HubRow(
           item: MeHubItem.taskCenter,
           icon: Icons.task_alt_rounded,
