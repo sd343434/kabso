@@ -40,20 +40,14 @@ class MainActivity : FlutterActivity() {
         // D243: a live's second camera keeps the screen on (it sits untouched
         // on a stand; a timed-out screen stops the activity and Android takes
         // the camera from an app that is not in the foreground). Only while
-        // this window is shown; no permission.
+        // this window is shown; no permission. D251: answered once, at once,
+        // on this (main) thread, never throwing ([ScreenKeepOn]).
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.kabso/screen")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "keepOn" -> {
-                        val on = call.arguments as? Boolean ?: false
-                        runOnUiThread {
-                            if (on) {
-                                window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                            } else {
-                                window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                            }
-                            result.success(null)
-                        }
+                        val error = ScreenKeepOn.apply(call.arguments, keepOnFlags())
+                        if (error == null) result.success(null) else result.error(error, null, null)
                     }
                     else -> result.notImplemented()
                 }
@@ -77,6 +71,17 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+    }
+
+    /** D251: this Activity's window flag, or null when it is going away. */
+    private fun keepOnFlags(): ScreenKeepOn.Flags? {
+        if (isFinishing || isDestroyed) return null
+        val target = window ?: return null
+        return object : ScreenKeepOn.Flags {
+            override fun add() = target.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
+            override fun clear() = target.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
     }
 
     /**

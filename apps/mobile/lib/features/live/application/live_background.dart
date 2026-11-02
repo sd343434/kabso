@@ -89,6 +89,7 @@ class LiveBackgroundSpec {
     required this.channelName,
     this.screen = false,
     this.buttons = const [],
+    this.askNotifications = true,
   });
 
   /// The spec of [role] with [texts].
@@ -122,6 +123,13 @@ class LiveBackgroundSpec {
   /// camera bubble).
   final List<LiveBackgroundButton> buttons;
 
+  /// D251: whether starting the service may ask Android 13+'s notification
+  /// permission first (a system dialog over the screen). The second camera
+  /// never asks: the dialog came up over its camera at the very moment it
+  /// went on air. Without the permission the service still runs; only its
+  /// notification is hidden.
+  final bool askNotifications;
+
   /// D213: this spec as a streamer host's, with its two toggles.
   LiveBackgroundSpec streamer({required String mic, required String camera}) =>
       LiveBackgroundSpec(
@@ -135,6 +143,7 @@ class LiveBackgroundSpec {
           LiveBackgroundButton(LiveBackgroundAction.toggleMic, mic),
           LiveBackgroundButton(LiveBackgroundAction.toggleCamera, camera),
         ],
+        askNotifications: askNotifications,
       );
 
   /// The microphone is captured (Android foreground service type
@@ -150,6 +159,7 @@ class LiveBackgroundSpec {
       other.actionLabel == actionLabel &&
       other.channelName == channelName &&
       other.screen == screen &&
+      other.askNotifications == askNotifications &&
       listEquals(other.buttons, buttons);
 
   @override
@@ -160,6 +170,7 @@ class LiveBackgroundSpec {
     actionLabel,
     channelName,
     screen,
+    askNotifications,
     Object.hashAll(buttons),
   );
 }
@@ -206,6 +217,7 @@ class _Hold {
     this.onForeground, {
     this.onToggleMic,
     this.onToggleCamera,
+    this.onUnavailable,
   });
 
   final LiveBackgroundSpec spec;
@@ -215,6 +227,7 @@ class _Hold {
   final VoidCallback? onForeground;
   final VoidCallback? onToggleMic;
   final VoidCallback? onToggleCamera;
+  final VoidCallback? onUnavailable;
 }
 
 /// Keeps the background service in step with whoever is live (D123).
@@ -258,6 +271,7 @@ class LiveBackgroundKeeper {
     VoidCallback? onForeground,
     VoidCallback? onToggleMic,
     VoidCallback? onToggleCamera,
+    VoidCallback? onUnavailable,
   }) {
     _holds.remove(owner);
     _holds[owner] = _Hold(
@@ -268,6 +282,7 @@ class LiveBackgroundKeeper {
       onForeground,
       onToggleMic: onToggleMic,
       onToggleCamera: onToggleCamera,
+      onUnavailable: onUnavailable,
     );
     _sync();
   }
@@ -291,21 +306,51 @@ class LiveBackgroundKeeper {
     return best;
   }
 
+  /// D251: how long one start / stop may hold the queue. A platform call
+  /// that never answers no longer blocks every later start and stop (the
+  /// call goes on; when it ends late, what runs is checked again).
+  @visibleForTesting
+  static Duration stepTimeout = const Duration(seconds: 30);
+
   void _sync() {
     final want = _top?.spec;
     if (want == _shown) return;
     _shown = want;
-    _queue = _queue.then((_) async {
-      try {
-        if (want == null) {
-          await _service.stop();
-        } else {
-          await _service.start(want);
-        }
-      } on Object {
-        // Best effort: the live goes on in the foreground either way.
-      }
-    });
+    _queue = _queue.then((_) => _apply(want));
+  }
+
+  Future<void> _apply(LiveBackgroundSpec? want) async {
+    final Future<void> call;
+    try {
+      call = want == null ? _service.stop() : _service.start(want);
+    } on Object {
+      _unavailable(want);
+      return;
+    }
+    try {
+      await call.timeout(stepTimeout);
+    } on TimeoutException {
+      _unavailable(want);
+      unawaited(
+        call.then((_) {
+          // Ended late: run what is wanted now if that changed meanwhile.
+          final now = _shown;
+          if (now != want) _queue = _queue.then((_) => _apply(now));
+        }, onError: (Object _) {}),
+      );
+    } on Object {
+      // Best effort: the live goes on in the foreground either way.
+      _unavailable(want);
+    }
+  }
+
+  /// D251: tells the holders of [spec] that the service could not start
+  /// (their screens say so; nothing else changes).
+  void _unavailable(LiveBackgroundSpec? spec) {
+    if (spec == null) return;
+    for (final hold in [..._holds.values]) {
+      if (hold.spec == spec) hold.onUnavailable?.call();
+    }
   }
 
   /// Waits for the start / stop calls sent so far (tests).

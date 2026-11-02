@@ -4408,6 +4408,29 @@ class AppLocalizationsEn extends AppLocalizations {
       'Keep this screen open: it stays on while you stream. If you leave the app, this camera pauses until you come back.';
 
   @override
+  String get liveCam2CopyLog => 'Copy diagnostics log';
+
+  @override
+  String get liveCam2LogCopied =>
+      'Diagnostics log copied. Paste it in a message to support.';
+
+  @override
+  String get liveCam2AwakeFailed =>
+      'Couldn\'t keep the screen on automatically. Touch it now and then so it doesn\'t turn off.';
+
+  @override
+  String get liveCam2BackgroundFailed =>
+      'The live\'s background service couldn\'t start. Keep the app open on this screen.';
+
+  @override
+  String get liveCam2CameraSlow =>
+      'The camera isn\'t responding right now. If the picture stays frozen, tap Flip, or leave and join again.';
+
+  @override
+  String get liveCam2FilterFailed =>
+      'Couldn\'t apply the filter on this device, so the picture stays without a filter.';
+
+  @override
   String get liveCam2Ended =>
       'The second camera ended: the live ended or the main device disconnected it.';
 

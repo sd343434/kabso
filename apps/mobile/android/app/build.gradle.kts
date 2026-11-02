@@ -106,6 +106,12 @@ flutter {
     source = "../.."
 }
 
+dependencies {
+    // D251: plain JVM tests of rules kept apart from the Activity
+    // (`ScreenKeepOnTest`; run with `./gradlew :app:testDebugUnitTest`).
+    testImplementation("junit:junit:4.13.2")
+}
+
 // D152 push notifications (Firebase Cloud Messaging). google-services.json is
 // never in git (the repository is public): CI writes it from the
 // GOOGLE_SERVICES_JSON secret before the build. Without it (forks, pull

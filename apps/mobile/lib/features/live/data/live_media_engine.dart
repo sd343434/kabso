@@ -385,6 +385,7 @@ class LiveKitMediaEngine
         LiveClipCapture,
         LivePlaybackControls,
         LiveSessionLink,
+        LiveSoftVideoPause,
         LiveScreenShare {
   lk.LocalVideoTrack? _video;
   lk.LocalAudioTrack? _audio;
@@ -927,6 +928,24 @@ class LiveKitMediaEngine
     } else {
       await video.unmute();
       await _attachFx();
+    }
+    _changes.ping();
+  }
+
+  /// D251: see [LiveSoftVideoPause] — never `trackDispose` / `getUserMedia`
+  /// on an app lifecycle change.
+  @override
+  Future<void> setVideoAway({required bool away}) async {
+    final video = _video;
+    if (video == null || video.muted == away) return;
+    if (away) {
+      // Disabled and signalled muted; the capture keeps running.
+      await video.mute(stopOnMute: false);
+      // The native track stays enabled: flutter_webrtc restarts only
+      // enabled cameras when the activity resumes (before Dart hears it).
+      if (!kIsWeb) video.mediaStreamTrack.enabled = true;
+    } else {
+      await video.unmute(stopOnMute: false);
     }
     _changes.ping();
   }

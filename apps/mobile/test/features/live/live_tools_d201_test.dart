@@ -21,11 +21,14 @@ import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/live/application/live_fx_engine_providers.dart';
+import 'package:kabso_live/features/live/data/beauty/live_fx_engine.dart';
 import 'package:kabso_live/features/live/data/live_blocked_words_repository.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_media_extras.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/data/live_schedule_repository.dart';
+import 'package:kabso_live/features/live/data/live_screen_awake.dart';
 import 'package:kabso_live/features/live/go_live_screen.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_host_parts.dart';
@@ -542,6 +545,9 @@ void main() {
         overrides: [
           liveToolsRepositoryProvider.overrideWithValue(tools),
           liveMediaEngineProvider.overrideWithValue(() => engine),
+          // D251: the screen limits its platform calls; no platform here.
+          liveScreenAwakeProvider.overrideWithValue(const _NoAwake()),
+          liveFxEngineProvider.overrideWithValue(LiveFxEngine.deepAr),
         ],
       );
       final l10n = _l10nOf(tester, find.byType(SecondCameraScreen));
@@ -591,6 +597,9 @@ void main() {
         overrides: [
           liveToolsRepositoryProvider.overrideWithValue(tools),
           liveMediaEngineProvider.overrideWithValue(() => engine),
+          // D251: the screen limits its platform calls; no platform here.
+          liveScreenAwakeProvider.overrideWithValue(const _NoAwake()),
+          liveFxEngineProvider.overrideWithValue(LiveFxEngine.deepAr),
         ],
       );
       final l10n = _l10nOf(tester, find.byType(SecondCameraScreen));
@@ -617,6 +626,9 @@ void main() {
         overrides: [
           liveToolsRepositoryProvider.overrideWithValue(FakeToolsRepository()),
           liveMediaEngineProvider.overrideWithValue(() => engine),
+          // D251: the screen limits its platform calls; no platform here.
+          liveScreenAwakeProvider.overrideWithValue(const _NoAwake()),
+          liveFxEngineProvider.overrideWithValue(LiveFxEngine.deepAr),
         ],
       );
       await tester.enterText(find.byKey(SecondCameraScreen.codeKey), '123456');
@@ -1219,4 +1231,12 @@ void main() {
       });
     }
   });
+}
+
+/// D251: keep-screen-on that answers at once (no platform in tests).
+class _NoAwake implements LiveScreenAwake {
+  const new();
+
+  @override
+  Future<void> keepOn({required bool on}) async {}
 }

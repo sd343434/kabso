@@ -27,6 +27,8 @@ import 'package:kabso_live/app/app.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/application/live_background.dart';
+import 'package:kabso_live/features/live/application/live_fx_engine_providers.dart';
+import 'package:kabso_live/features/live/data/beauty/live_fx_engine.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_media_extras.dart';
 import 'package:kabso_live/features/live/data/live_screen_awake.dart';
@@ -123,6 +125,8 @@ Future<void> _pump(
     liveMediaEngineProvider.overrideWithValue(() => engine),
     liveScreenAwakeProvider.overrideWithValue(h.awake),
     liveBackgroundServiceProvider.overrideWithValue(h.service),
+    // D251: the effects engine follows the admin setting (no server here).
+    liveFxEngineProvider.overrideWithValue(LiveFxEngine.deepAr),
   ];
   await tester.pumpWidget(
     ProviderScope(
@@ -157,6 +161,10 @@ Future<void> _join(WidgetTester tester) async {
   await tester.enterText(find.byKey(SecondCameraScreen.codeKey), '123456');
   await tester.pump();
   await tester.tap(find.byKey(SecondCameraScreen.joinKey));
+  await tester.pumpAndSettle();
+  // D251: the foreground service starts once the camera is on air and
+  // settled.
+  await tester.pump(SecondCameraScreen.backgroundDelay);
   await tester.pumpAndSettle();
 }
 
@@ -278,6 +286,10 @@ void main() {
       tester.binding
         ..handleAppLifecycleStateChanged(AppLifecycleState.hidden)
         ..handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      await tester.pump();
+      // D251: told after a short debounce (a system dialog changes nothing).
+      expect(engine.videoPauses, isEmpty);
+      await tester.pump(SecondCameraScreen.awayDebounce);
       await tester.pump();
       expect(engine.videoPauses, [true]);
       // Still on air meanwhile: the session is kept.

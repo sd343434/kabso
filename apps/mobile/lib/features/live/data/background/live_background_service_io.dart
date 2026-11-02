@@ -91,8 +91,9 @@ class AndroidLiveBackgroundService implements LiveBackgroundService {
   @override
   Future<void> start(LiveBackgroundSpec spec) async {
     // Android 13+: the ongoing notification needs POST_NOTIFICATIONS. The
-    // service runs either way; asked once per run.
-    if (!_askedNotifications) {
+    // service runs either way; asked once per run (D251: never for a spec
+    // that must not put a system dialog over its screen).
+    if (spec.askNotifications && !_askedNotifications) {
       _askedNotifications = true;
       final permission =
           await FlutterForegroundTask.checkNotificationPermission();

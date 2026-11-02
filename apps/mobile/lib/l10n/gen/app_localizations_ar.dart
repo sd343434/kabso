@@ -4441,6 +4441,28 @@ class AppLocalizationsAr extends AppLocalizations {
       'أبقِ هذه الشاشة مفتوحة، فهي تبقى مضاءة أثناء البث. إذا خرجت من التطبيق تتوقف هذه الكاميرا مؤقتاً حتى تعود.';
 
   @override
+  String get liveCam2CopyLog => 'نسخ سجل التشخيص';
+
+  @override
+  String get liveCam2LogCopied => 'تم نسخ سجل التشخيص. الصقه في رسالة للدعم.';
+
+  @override
+  String get liveCam2AwakeFailed =>
+      'تعذّر إبقاء الشاشة مضاءة تلقائياً. المس الشاشة من حين لآخر كي لا تنطفئ.';
+
+  @override
+  String get liveCam2BackgroundFailed =>
+      'تعذّر تشغيل خدمة البث في الخلفية. أبقِ التطبيق مفتوحاً على هذه الشاشة.';
+
+  @override
+  String get liveCam2CameraSlow =>
+      'الكاميرا لا تستجيب الآن. إن بقيت الصورة متوقفة فاضغط «قلب» أو غادر وانضم من جديد.';
+
+  @override
+  String get liveCam2FilterFailed =>
+      'تعذّر تطبيق الفلتر على هذا الجهاز، فبقيت الصورة بدون فلتر.';
+
+  @override
   String get liveCam2Ended =>
       'انتهت الكاميرا الثانية: انتهى البث أو فُصلت من الجهاز الرئيسي.';
 
