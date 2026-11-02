@@ -19,35 +19,47 @@ void _refreshContent(WidgetRef ref) => ref
 
 /// Asks, then blocks [username] (CONVENTIONS §11.7: neither side sees the
 /// other; follows both ways are removed and not restored by unblocking).
-/// `true` when blocked.
+/// `true` when blocked. D232: [live] asks in the live's card style
+/// ([KLiveDialogCard]).
 Future<bool> confirmBlock(
   BuildContext context,
   WidgetRef ref, {
   required String username,
   required String name,
+  bool live = false,
 }) async {
   final l10n = context.l10n;
-  final ok = await showDialog<bool>(
-    context: context,
-    builder: (dialog) => AlertDialog(
-      title: Text(l10n.safetyBlockTitle(name)),
-      content: Text(l10n.safetyBlockBody),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(dialog).pop(false),
-          child: Text(l10n.actionCancel),
-        ),
-        TextButton(
-          key: const Key('safety.block.confirm'),
-          onPressed: () => Navigator.of(dialog).pop(true),
-          child: Text(
-            l10n.safetyBlock,
-            style: TextStyle(color: dialog.palette.error),
+  final ok = live
+      ? await showKLiveConfirm(
+          context,
+          leading: const KLiveDialogIcon(Icons.block_rounded),
+          title: l10n.safetyBlockTitle(name),
+          message: l10n.safetyBlockBody,
+          confirmKey: const Key('safety.block.confirm'),
+          confirmLabel: l10n.safetyBlock,
+          cancelLabel: l10n.actionCancel,
+        )
+      : await showDialog<bool>(
+          context: context,
+          builder: (dialog) => AlertDialog(
+            title: Text(l10n.safetyBlockTitle(name)),
+            content: Text(l10n.safetyBlockBody),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialog).pop(false),
+                child: Text(l10n.actionCancel),
+              ),
+              TextButton(
+                key: const Key('safety.block.confirm'),
+                onPressed: () => Navigator.of(dialog).pop(true),
+                child: Text(
+                  l10n.safetyBlock,
+                  style: TextStyle(color: dialog.palette.error),
+                ),
+              ),
+            ],
           ),
-        ),
-      ],
-    ),
-  );
+        );
   if (!(ok ?? false) || !context.mounted) return false;
   try {
     await ref

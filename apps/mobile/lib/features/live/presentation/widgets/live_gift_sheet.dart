@@ -2855,26 +2855,17 @@ class _OddsRow extends StatelessWidget {
 
 /// D132: the one-time 18+ statement before a first lucky gift. True when
 /// the person confirmed.
-Future<bool> _confirmLuckyAge(BuildContext context) async {
+Future<bool> _confirmLuckyAge(BuildContext context) {
   final l10n = context.l10n;
-  final ok = await showDialog<bool>(
-    context: context,
-    builder: (dialog) => AlertDialog(
-      key: KLiveGiftSheet.ageDialogKey,
-      title: Text(l10n.liveLuckyAgeTitle),
-      content: Text(l10n.liveLuckyAgeBody),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(dialog).pop(false),
-          child: Text(MaterialLocalizations.of(dialog).cancelButtonLabel),
-        ),
-        TextButton(
-          key: KLiveGiftSheet.ageConfirmKey,
-          onPressed: () => Navigator.of(dialog).pop(true),
-          child: Text(l10n.liveLuckyAgeConfirm),
-        ),
-      ],
-    ),
+  // D232: the live's card style.
+  return showKLiveConfirm(
+    context,
+    cardKey: KLiveGiftSheet.ageDialogKey,
+    leading: const KLiveDialogIcon(Icons.eighteen_up_rating_rounded),
+    title: l10n.liveLuckyAgeTitle,
+    message: l10n.liveLuckyAgeBody,
+    confirmKey: KLiveGiftSheet.ageConfirmKey,
+    confirmLabel: l10n.liveLuckyAgeConfirm,
+    cancelLabel: MaterialLocalizations.of(context).cancelButtonLabel,
   );
-  return ok ?? false;
 }

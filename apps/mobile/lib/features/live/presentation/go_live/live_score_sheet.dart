@@ -5,21 +5,33 @@ import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
-import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// CP-012: the live's points and their parts (taps, support) from
-/// `GET /live/rooms/{roomId}` `scoreParts`.
+/// `GET /live/rooms/{roomId}` `scoreParts`. D232: a small card in the live's
+/// style ([KLiveDialogCard]), opened from ≡ («نقاط البث») now that the
+/// chips row has no points chip.
 Future<void> showLiveScoreSheet(BuildContext context, String roomId) =>
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: const Color(0x00000000),
-      builder: (sheet) => LiveSheetFrame(
-        title: sheet.l10n.liveScoreTitle,
-        child: _ScoreParts(roomId: roomId),
+    showKLiveDialog<void>(
+      context,
+      builder: (dialog) => KLiveDialogCard(
+        key: liveScoreCardKey,
+        leading: const KCherryIcon(size: 44),
+        title: dialog.l10n.liveScoreTitle,
+        body: _ScoreParts(roomId: roomId),
+        actions: [
+          KLiveDialogAction(
+            label: MaterialLocalizations.of(dialog).okButtonLabel,
+            primary: true,
+            onPressed: () => Navigator.of(dialog).pop(),
+          ),
+        ],
       ),
     );
+
+/// D232: the «نقاط البث» card.
+const liveScoreCardKey = Key('liveScore.card');
 
 class _ScoreParts extends ConsumerStatefulWidget {
   const new({required this.roomId});
@@ -41,7 +53,7 @@ class _ScorePartsState extends ConsumerState<_ScoreParts> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final text = context.textStyles;
-    const white = Color(0xFFFFFFFF);
+    final white = KLiveDialogCard.inkOf(context);
     return FutureBuilder<LiveRoom>(
       future: _room,
       builder: (context, snap) {
@@ -58,7 +70,7 @@ class _ScorePartsState extends ConsumerState<_ScoreParts> {
         final room = snap.data;
         if (room == null) {
           return const Padding(
-            padding: EdgeInsets.all(KSpacing.xl),
+            padding: EdgeInsets.all(KSpacing.lg),
             child: Center(child: CircularProgressIndicator()),
           );
         }
@@ -70,13 +82,10 @@ class _ScorePartsState extends ConsumerState<_ScoreParts> {
               supportPoints: 0,
             );
         Widget row(IconData icon, String label, int value) => Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: KSpacing.xl,
-            vertical: KSpacing.sm,
-          ),
+          padding: const EdgeInsets.symmetric(vertical: KSpacing.sm),
           child: Row(
             children: [
-              Icon(icon, size: 20, color: white),
+              Icon(icon, size: 20, color: context.palette.primaryText),
               const SizedBox(width: KSpacing.md),
               Expanded(
                 child: Text(label, style: text.body.copyWith(color: white)),
@@ -98,8 +107,6 @@ class _ScorePartsState extends ConsumerState<_ScoreParts> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const KCherryIcon(size: 32),
-                  const SizedBox(width: KSpacing.sm),
                   Text(
                     KFormat.grouped(parts.total),
                     style: text.headline.copyWith(
@@ -118,17 +125,12 @@ class _ScorePartsState extends ConsumerState<_ScoreParts> {
               parts.supportPoints,
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(
-                KSpacing.xl,
-                KSpacing.sm,
-                KSpacing.xl,
-                0,
-              ),
+              padding: const EdgeInsets.only(top: KSpacing.sm),
               child: Text(
                 l10n.liveScoreHint,
                 textAlign: TextAlign.center,
                 style: text.caption.copyWith(
-                  color: white.withValues(alpha: 0.7),
+                  color: KLiveDialogCard.softInkOf(context),
                 ),
               ),
             ),

@@ -13,7 +13,6 @@ import 'package:kabso_live/features/live/data/live_pk_repository.dart';
 import 'package:kabso_live/features/live/domain/live_pk.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk_pages.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk_stage.dart';
-import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -404,19 +403,9 @@ class _LivePkSheetState extends ConsumerState<LivePkSheet> {
     );
   }
 
-  void _help(String title, String body) => showDialog<void>(
-    context: context,
-    builder: (dialog) => AlertDialog(
-      title: Text(title),
-      content: Text(body),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(dialog).pop(),
-          child: Text(MaterialLocalizations.of(dialog).okButtonLabel),
-        ),
-      ],
-    ),
-  );
+  // D232: the live's card style.
+  void _help(String title, String body) =>
+      unawaited(showKLiveInfo(context, title: title, message: body));
 
   Widget _modeCards(BuildContext context) {
     final l10n = context.l10n;
@@ -807,25 +796,16 @@ class _LivePkSheetState extends ConsumerState<LivePkSheet> {
   Future<void> _confirmEnd(PkMatch match, LivePkController controller) async {
     final l10n = context.l10n;
     if (match.status == PkMatchStatus.battle) {
-      final ok = await showDialog<bool>(
-        context: context,
-        builder: (dialog) => AlertDialog(
-          title: Text(l10n.pkEndConfirmTitle),
-          content: Text(l10n.pkEndConfirmBody),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialog).pop(false),
-              child: Text(l10n.pkCancel),
-            ),
-            TextButton(
-              key: const Key('pk.end.confirm'),
-              onPressed: () => Navigator.of(dialog).pop(true),
-              child: Text(l10n.pkEnd),
-            ),
-          ],
-        ),
+      // D232: the live's card style.
+      final ok = await showKLiveConfirm(
+        context,
+        title: l10n.pkEndConfirmTitle,
+        message: l10n.pkEndConfirmBody,
+        confirmKey: const Key('pk.end.confirm'),
+        confirmLabel: l10n.pkEnd,
+        cancelLabel: l10n.pkCancel,
       );
-      if (!(ok ?? false)) return;
+      if (!ok) return;
     }
     await _run(controller.end);
     if (mounted) Navigator.of(context).maybePop();
@@ -1032,6 +1012,7 @@ class LivePkIncomingInvite extends ConsumerStatefulWidget {
 
   static const acceptKey = Key('pk.incoming.accept');
   static const declineKey = Key('pk.incoming.decline');
+  static const cardKey = Key('pk.incoming.card');
 
   @override
   ConsumerState<LivePkIncomingInvite> createState() =>
@@ -1078,83 +1059,42 @@ class _LivePkIncomingInviteState extends ConsumerState<LivePkIncomingInvite> {
     final pk = ref.watch(livePkProvider(widget.roomId));
     final left = widget.invite.expiresAt.difference(pk.now());
     final seconds = left.isNegative ? 0 : left.inSeconds;
-    return KLiveSurface(
-      child: Material(
-        color: const Color(0x00000000),
-        child: Container(
-          margin: const EdgeInsets.all(KSpacing.md),
-          padding: const EdgeInsets.all(KSpacing.md),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0xF22A0A0E), Color(0xF2120608)],
+    // D232 (owner): the live's card style ([KLiveDialogCard]) — the
+    // inviter's picture, the question and its countdown, Accept in brand
+    // red and Decline outlined.
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 18.3),
+      child: Center(
+        child: KLiveDialogCard(
+          key: LivePkIncomingInvite.cardKey,
+          leading: KAvatar(
+            name: from.displayName,
+            imageUrl: from.avatarUrl,
+            size: 64,
+          ),
+          title: l10n.pkIncomingTitle,
+          message: l10n.pkIncomingBody(from.displayName),
+          body: Text(
+            KFormat.countdown(Duration(seconds: seconds)),
+            style: context.textStyles.caption.copyWith(
+              color: KLiveDialogCard.softInkOf(context),
+              fontFeatures: const [FontFeature.tabularFigures()],
             ),
-            borderRadius: BorderRadius.circular(KRadius.lg),
-            border: Border.all(color: const Color(0xFFE50914), width: 1.5),
-            boxShadow: const [
-              BoxShadow(color: Color(0x99000000), blurRadius: 16),
-            ],
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                l10n.pkIncomingTitle,
-                style: context.textStyles.label.copyWith(
-                  color: const Color(0xFFFFC94D),
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: KSpacing.sm),
-              KAvatar(
-                name: from.displayName,
-                imageUrl: from.avatarUrl,
-                size: 56,
-              ),
-              const SizedBox(height: KSpacing.sm),
-              Text(
-                l10n.pkIncomingBody(from.displayName),
-                textAlign: TextAlign.center,
-                style: context.textStyles.body.copyWith(
-                  color: const Color(0xFFFFFFFF),
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: KSpacing.xs),
-              Text(
-                KFormat.countdown(Duration(seconds: seconds)),
-                style: context.textStyles.caption.copyWith(
-                  color: const Color(0xCCFFFFFF),
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
-              ),
-              const SizedBox(height: KSpacing.md),
-              Row(
-                children: [
-                  Expanded(
-                    child: KButton(
-                      key: LivePkIncomingInvite.declineKey,
-                      variant: KButtonVariant.secondary,
-                      label: l10n.pkDecline,
-                      onPressed: _busy
-                          ? null
-                          : () => unawaited(_answer(accept: false)),
-                    ),
-                  ),
-                  const SizedBox(width: KSpacing.sm),
-                  Expanded(
-                    child: KButton(
-                      key: LivePkIncomingInvite.acceptKey,
-                      label: l10n.pkAccept,
-                      loading: _busy,
-                      onPressed: () => unawaited(_answer(accept: true)),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+          actions: [
+            KLiveDialogAction(
+              key: LivePkIncomingInvite.acceptKey,
+              label: l10n.pkAccept,
+              primary: true,
+              loading: _busy,
+              onPressed: () => unawaited(_answer(accept: true)),
+            ),
+            KLiveDialogAction(
+              key: LivePkIncomingInvite.declineKey,
+              label: l10n.pkDecline,
+              onPressed: _busy ? null : () => unawaited(_answer(accept: false)),
+            ),
+          ],
         ),
       ),
     );

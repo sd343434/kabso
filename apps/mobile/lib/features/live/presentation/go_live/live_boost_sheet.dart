@@ -99,32 +99,22 @@ class _LiveBoostSheetState extends ConsumerState<LiveBoostSheet> {
   Future<void> _buy(LiveBoostOffers offers, LiveBoostOption option) async {
     final l10n = context.l10n;
     final card = _useCard && _held(offers, option.minutes) > 0;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (dialog) => AlertDialog(
-        title: Text(l10n.liveBoostConfirmTitle),
-        content: Text(
-          card
-              ? l10n.liveBoostConfirmCard(option.minutes)
-              : l10n.liveBoostConfirmCoins(
-                  option.minutes,
-                  KFormat.grouped(option.priceCoins),
-                ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialog, false),
-            child: Text(l10n.actionCancel),
-          ),
-          FilledButton(
-            key: LiveBoostSheet.confirmKey,
-            onPressed: () => Navigator.pop(dialog, true),
-            child: Text(l10n.liveBoostConfirmAction),
-          ),
-        ],
-      ),
+    // D232: the live's card style.
+    final ok = await showKLiveConfirm(
+      context,
+      leading: const KLiveDialogIcon(Icons.confirmation_number_outlined),
+      title: l10n.liveBoostConfirmTitle,
+      message: card
+          ? l10n.liveBoostConfirmCard(option.minutes)
+          : l10n.liveBoostConfirmCoins(
+              option.minutes,
+              KFormat.grouped(option.priceCoins),
+            ),
+      confirmKey: LiveBoostSheet.confirmKey,
+      confirmLabel: l10n.liveBoostConfirmAction,
+      cancelLabel: l10n.actionCancel,
     );
-    if (ok != true || !mounted) return;
+    if (!ok || !mounted) return;
     final source = card ? LiveBoostSource.card : LiveBoostSource.coins;
     final key = '${source.wire}|${option.minutes}';
     final clientId = _pending?.key == key ? _pending!.clientId : newClientId();

@@ -567,18 +567,12 @@ class _HostTargetSheetState extends ConsumerState<HostTargetSheet> {
 
   Future<void> _help(BuildContext context) {
     final l10n = context.l10n;
-    return showDialog<void>(
-      context: context,
-      builder: (dialog) => AlertDialog(
-        title: Text(l10n.liveTargetHelpTitle),
-        content: Text(l10n.liveTargetHelp),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialog).pop(),
-            child: Text(MaterialLocalizations.of(dialog).okButtonLabel),
-          ),
-        ],
-      ),
+    // D232: the live's card style.
+    return showKLiveInfo(
+      context,
+      leading: const KLiveDialogIcon(Icons.info_outline_rounded),
+      title: l10n.liveTargetHelpTitle,
+      message: l10n.liveTargetHelp,
     );
   }
 

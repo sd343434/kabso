@@ -32,75 +32,24 @@ abstract final class KViewerRoom {
   static const double rowGap = 8.1;
 }
 
-/// The second row (ref 158 §4.3): at the reading start the board chip and
-/// (D135) the level chip — the host's charm level badge and, when known
-/// (the host's own screen), their charm points against the next level
-/// ("3.51K/5K") over a gold progress fill; at the end the [elapsed] LIVE
-/// timer (host) and the room ID. The charm level shows only here.
+/// The second row (ref 158 §4.3): at the reading start the board chip
+/// «ترتيب الغرف» and (D199) the «تارجت» chip; at the end the [elapsed]
+/// LIVE timer (host) and the room ID. D232 (owner: «يتم وضع الليفيل بجانب
+/// الكرز ازله … وازل الكرز الأول»): D135's level chip and D173's points
+/// chip are gone from every live (the points stay on the host pill and in
+/// ≡ «نقاط البث»).
 class KRoomChipsRow extends StatelessWidget {
-  const new({
-    super.key,
-    this.level,
-    this.roomNumber,
-    this.points,
-    this.target,
-    this.elapsed,
-    this.score,
-    this.targetChip,
-  });
-
-  final int? level;
+  const new({super.key, this.roomNumber, this.elapsed, this.targetChip});
 
   /// D199: the «تارجت» chip (`LiveHostTargetChip`), right after the board
   /// chip «ترتيب الغرف».
   final Widget? targetChip;
-
-  /// D173 (owner: «ولا يوجد في البث الحي الكرزات»): the viewer's cherry
-  /// chip (the live's points), right after the board chip as in the audio
-  /// room.
-  final Widget? score;
   final int? roomNumber;
-
-  /// D135: the host's charm points and the next level's requirement (null
-  /// at the top level or when unknown, e.g. to viewers).
-  final int? points;
-  final int? target;
 
   /// D135: the host's LIVE timer, before the room ID.
   final Widget? elapsed;
 
   static const numberKey = Key('room.number');
-  static const levelKey = Key('room.levelChip');
-
-  /// The score and level chips after the board (and target) chips.
-  List<Widget> _afterBoard({bool capped = false}) {
-    final level = this.level;
-    return [
-      if (score case final score?) ...[const SizedBox(width: 6), score],
-      if (level != null) ...[
-        const SizedBox(width: 6),
-        if (capped)
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 130),
-            child: LiveLevelTargetChip(
-              key: levelKey,
-              level: level,
-              points: points,
-              target: target,
-            ),
-          )
-        else
-          Flexible(
-            child: LiveLevelTargetChip(
-              key: levelKey,
-              level: level,
-              points: points,
-              target: target,
-            ),
-          ),
-      ],
-    ];
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -117,12 +66,11 @@ class KRoomChipsRow extends StatelessWidget {
           // shortens the board chip.
           Expanded(
             child: targetChip == null
-                ? Row(
+                ? const Row(
                     children: [
-                      const Flexible(
+                      Flexible(
                         child: LiveRankChip(icon: Icons.bar_chart_rounded),
                       ),
-                      ..._afterBoard(),
                     ],
                   )
                 // D199: with the «تارجت» chip every chip keeps its natural
@@ -142,7 +90,6 @@ class KRoomChipsRow extends StatelessWidget {
                         ),
                         const SizedBox(width: 6),
                         targetChip!,
-                        ..._afterBoard(capped: true),
                       ],
                     ),
                   ),
@@ -521,44 +468,33 @@ class KViewerBarButton extends StatelessWidget {
 enum LiveLeaveChoice { followAndExit, exit }
 
 /// D131 (owner, ref 160): leaving a live whose host the viewer can follow
-/// and does not: a floating white card over a 50 % scrim — the host's
-/// picture with a "Host" tag, the question, "Follow and exit" (cyan) and
-/// "Exit live room". A tap outside or Back keeps watching (`null`).
+/// and does not: a floating card over a 50 % scrim — the host's picture
+/// with a "Host" tag, the question, "Follow and exit" and "Exit live room".
+/// A tap outside or Back keeps watching (`null`). D232 (owner: «زر تابع
+/// واخرج اجعله بلوننا … تمويج أحمر»): the live's card style
+/// ([KLiveDialogCard]) — a red wash and a brand-red "Follow and exit".
 Future<LiveLeaveChoice?> showLiveLeavePrompt(
   BuildContext context, {
   required String hostName,
   required ImageProvider? avatar,
-}) => showGeneralDialog<LiveLeaveChoice>(
-  context: context,
-  barrierDismissible: true,
-  barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
-  transitionDuration: KMotion.of(context, KMotion.base),
-  pageBuilder: (dialog, _, _) =>
-      KLeavePrompt(hostName: hostName, avatar: avatar),
-  transitionBuilder: (_, animation, _, child) => FadeTransition(
-    opacity: CurvedAnimation(parent: animation, curve: KMotion.standard),
-    child: child,
-  ),
+}) => showKLiveDialog<LiveLeaveChoice>(
+  context,
+  builder: (dialog) => KLeavePrompt(hostName: hostName, avatar: avatar),
 );
 
 /// The card of [showLiveLeavePrompt] (ref 160, measured): 356.4 × 271.7
-/// pt, 18.3 pt from the sides and the bottom, ≈ 18 pt corners, white with a
-/// `#D4FDFF` tint fading out over its top 99 pt; the 72.9 pt picture 23.3
-/// pt down; a 38.3 × 16.6 pt `#FF7801` "Host" tag over its lower edge; the
-/// question (`#272A29`, 14.5 sp) 26 pt under it; two 43.9 pt buttons 22.1
-/// pt in, 7.2 pt apart, 21.7 pt above the card's bottom.
+/// pt, 18.3 pt from the sides and the bottom, ≈ 18 pt corners; the 72.9 pt
+/// picture 23.3 pt down; a 38.3 × 16.6 pt `#FF7801` "Host" tag over its
+/// lower edge; the question (14.5 sp) 26 pt under it; two 43.9 pt buttons
+/// 22.1 pt in, 7.2 pt apart, 21.7 pt above the card's bottom. D232: the
+/// wash and the follow button are brand red ([KLiveDialogCard]).
 class KLeavePrompt extends StatelessWidget {
   const new({required this.hostName, required this.avatar, super.key});
 
   final String hostName;
   final ImageProvider? avatar;
 
-  static const scrim = Color(0x80000000);
-  static const tint = Color(0xFFD4FDFF);
-  static const ink = Color(0xFF272A29);
-  static const buttonInk = Color(0xFF252728);
   static const hostTag = Color(0xFFFF7801);
-  static const gradient = [Color(0xFF2EE7D6), Color(0xFF03D4E6)];
   static const cardKey = Key('leavePrompt.card');
   static const followKey = Key('leavePrompt.follow');
   static const exitKey = Key('leavePrompt.exit');
@@ -567,145 +503,54 @@ class KLeavePrompt extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final t = context.textStyles;
-    Widget button({
-      required Key key,
-      required String label,
-      required LiveLeaveChoice choice,
-      required bool primary,
-    }) => Semantics(
-      button: true,
-      label: label,
-      excludeSemantics: true,
-      onTap: () => Navigator.of(context).pop(choice),
-      child: GestureDetector(
-        key: key,
-        behavior: HitTestBehavior.opaque,
-        onTap: () => Navigator.of(context).pop(choice),
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 43.9),
-          alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(horizontal: KSpacing.md),
-          decoration: BoxDecoration(
-            gradient: primary
-                ? const LinearGradient(colors: KLeavePrompt.gradient)
-                : null,
-            color: primary ? null : const Color(0xFFFFFFFF),
-            border: primary
-                ? null
-                : Border.all(color: const Color(0xFFE9E9E9), width: 0.8),
-            borderRadius: BorderRadius.circular(KRadius.pill),
-          ),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: t.bodyStrong.copyWith(
-              fontSize: 15.5,
-              fontWeight: FontWeight.w700,
-              color: primary ? const Color(0xFFFFFFFF) : KLeavePrompt.buttonInk,
-            ),
-          ),
-        ),
-      ),
-    );
-    final bottom = MediaQuery.paddingOf(context).bottom;
-    return SafeArea(
-      bottom: false,
-      child: Align(
+    return KLiveDialogCard(
+      key: cardKey,
+      semanticsLabel: l10n.liveLeaveTitle,
+      leading: Stack(
+        clipBehavior: Clip.none,
         alignment: Alignment.bottomCenter,
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(
-            18.3,
-            KSpacing.lg,
-            18.3,
-            bottom > 18.5 ? bottom - 15 : 18.5,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: KAvatar(name: hostName, image: avatar, size: 72.9),
           ),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
-            child: Material(
-              key: cardKey,
-              type: MaterialType.transparency,
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(18),
-                  gradient: const LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    stops: [0, 0.36],
-                    colors: [KLeavePrompt.tint, Color(0xFFFFFFFF)],
-                  ),
-                ),
-                padding: const EdgeInsets.fromLTRB(22.1, 23.3, 22.1, 21.7),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Stack(
-                      clipBehavior: Clip.none,
-                      alignment: Alignment.bottomCenter,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 4),
-                          child: KAvatar(
-                            name: hostName,
-                            image: avatar,
-                            size: 72.9,
-                          ),
-                        ),
-                        Container(
-                          height: 16.6,
-                          constraints: const BoxConstraints(minWidth: 38.3),
-                          padding: const EdgeInsets.fromLTRB(7, 1.5, 7, 0),
-                          decoration: BoxDecoration(
-                            color: KLeavePrompt.hostTag,
-                            borderRadius: BorderRadius.circular(KRadius.pill),
-                            border: Border.all(
-                              color: const Color(0xFFFFFFFF),
-                              width: 1.2,
-                            ),
-                          ),
-                          child: Text(
-                            l10n.liveChatHostBadge,
-                            textScaler: TextScaler.noScaling,
-                            style: t.caption.copyWith(
-                              fontSize: 10.5,
-                              height: 1.1,
-                              color: const Color(0xFFFFFFFF),
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 22),
-                    Text(
-                      l10n.liveLeaveTitle,
-                      textAlign: TextAlign.center,
-                      style: t.body.copyWith(
-                        fontSize: 14.5,
-                        color: KLeavePrompt.ink,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 21.9),
-                    button(
-                      key: followKey,
-                      label: l10n.liveLeaveFollow,
-                      choice: LiveLeaveChoice.followAndExit,
-                      primary: true,
-                    ),
-                    const SizedBox(height: 7.2),
-                    button(
-                      key: exitKey,
-                      label: l10n.liveLeaveExit,
-                      choice: LiveLeaveChoice.exit,
-                      primary: false,
-                    ),
-                  ],
-                ),
+          Container(
+            height: 16.6,
+            constraints: const BoxConstraints(minWidth: 38.3),
+            padding: const EdgeInsets.fromLTRB(7, 1.5, 7, 0),
+            decoration: BoxDecoration(
+              color: hostTag,
+              borderRadius: BorderRadius.circular(KRadius.pill),
+              border: Border.all(color: const Color(0xFFFFFFFF), width: 1.2),
+            ),
+            child: Text(
+              l10n.liveChatHostBadge,
+              textScaler: TextScaler.noScaling,
+              style: t.caption.copyWith(
+                fontSize: 10.5,
+                height: 1.1,
+                color: const Color(0xFFFFFFFF),
+                fontWeight: FontWeight.w800,
               ),
             ),
           ),
-        ),
+        ],
       ),
+      message: l10n.liveLeaveTitle,
+      actions: [
+        KLiveDialogAction(
+          key: followKey,
+          label: l10n.liveLeaveFollow,
+          primary: true,
+          onPressed: () =>
+              Navigator.of(context).pop(LiveLeaveChoice.followAndExit),
+        ),
+        KLiveDialogAction(
+          key: exitKey,
+          label: l10n.liveLeaveExit,
+          onPressed: () => Navigator.of(context).pop(LiveLeaveChoice.exit),
+        ),
+      ],
     );
   }
 }

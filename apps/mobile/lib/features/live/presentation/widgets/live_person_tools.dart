@@ -208,28 +208,17 @@ class _LivePersonToolsState extends ConsumerState<LivePersonTools> {
   Future<void> _kick() async {
     final l10n = context.l10n;
     final name = KFormat.bidiIsolate(widget.person.name);
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (dialog) => AlertDialog(
-        title: Text(l10n.liveUserKickTitle(name)),
-        content: Text(l10n.liveUserKickBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialog).pop(false),
-            child: Text(l10n.actionCancel),
-          ),
-          TextButton(
-            key: LivePersonToolKeys.kickConfirm,
-            onPressed: () => Navigator.of(dialog).pop(true),
-            child: Text(
-              l10n.liveUserKickConfirm,
-              style: const TextStyle(color: _danger),
-            ),
-          ),
-        ],
-      ),
+    // D232: the live's card style.
+    final ok = await showKLiveConfirm(
+      context,
+      leading: const KLiveDialogIcon(Icons.person_remove_rounded),
+      title: l10n.liveUserKickTitle(name),
+      message: l10n.liveUserKickBody,
+      confirmKey: LivePersonToolKeys.kickConfirm,
+      confirmLabel: l10n.liveUserKickConfirm,
+      cancelLabel: l10n.actionCancel,
     );
-    if (ok != true || !mounted) return;
+    if (!ok || !mounted) return;
     await _run(() async {
       await ref
           .read(liveRepositoryProvider)
@@ -344,6 +333,7 @@ class _LivePersonToolsState extends ConsumerState<LivePersonTools> {
       ref,
       username: widget.person.username,
       name: widget.person.name,
+      live: true,
     );
     if (blocked) _closeCard();
   }
@@ -546,9 +536,9 @@ Future<void> showLivePointsPopover(
   required String roomId,
   required String username,
   required String name,
-}) => showDialog<void>(
-  context: context,
-  barrierColor: const Color(0x33000000),
+}) => showKLiveDialog<void>(
+  context,
+  // D232: the live's card style; a tap outside closes it.
   builder: (_) =>
       _PointsPopover(roomId: roomId, username: username, name: name),
 );
@@ -569,132 +559,93 @@ class _PointsPopoverState extends ConsumerState<_PointsPopover> {
       .read(liveRepositoryProvider)
       .contributor(widget.roomId, widget.username);
 
-  static const _ink = Color(0xFF2E3130);
-  static const _soft = Color(0xFF9A9BA5);
-  static const _flame = Color(0xFFE07A12);
+  static const _flame = Color(0xFFB45309);
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final text = context.textStyles;
-    return Dialog(
+    final ink = KLiveDialogCard.inkOf(context);
+    final soft = KLiveDialogCard.softInkOf(context);
+    return KLiveDialogCard(
       key: LivePersonToolKeys.pointsPopover,
-      backgroundColor: const Color(0xFFFFFFFF),
-      surfaceTintColor: const Color(0x00000000),
-      insetPadding: const EdgeInsets.symmetric(horizontal: 48, vertical: 24),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 300),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
-          child: FutureBuilder<LiveContributorStanding>(
-            future: _load,
-            builder: (context, snap) {
-              final standing = snap.data;
-              final Widget body;
-              if (standing != null) {
-                final rank = standing.rank;
-                body = standing.points <= 0
-                    ? Text(
-                        l10n.liveUserNoPoints,
-                        textAlign: TextAlign.center,
-                        style: text.body.copyWith(color: _soft),
-                      )
-                    : Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const KCherryIcon(size: 26),
-                              const SizedBox(width: 6),
-                              Flexible(
-                                child: Text(
-                                  l10n.liveScore(
-                                    standing.points,
-                                    KFormat.grouped(standing.points),
-                                  ),
-                                  textAlign: TextAlign.center,
-                                  style: text.title.copyWith(
-                                    color: _ink,
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          if (rank != null) ...[
-                            const SizedBox(height: 10),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 5,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFFF1DF),
-                                borderRadius: BorderRadius.circular(
-                                  KRadius.pill,
-                                ),
-                              ),
-                              child: Text(
-                                l10n.liveUserRank(KFormat.grouped(rank)),
-                                textAlign: TextAlign.center,
-                                style: text.bodyStrong.copyWith(
-                                  color: _flame,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      );
-              } else if (snap.hasError) {
-                body = Text(
-                  failureMessage(l10n, toAppFailure(snap.error!)),
-                  textAlign: TextAlign.center,
-                  style: text.body.copyWith(color: _soft),
-                );
-              } else {
-                body = const Padding(
-                  padding: EdgeInsets.all(8),
-                  child: Center(child: CircularProgressIndicator()),
-                );
-              }
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
+      leading: const KLiveDialogIcon(Icons.bar_chart_rounded),
+      title: l10n.liveUserPoints,
+      message: KFormat.bidiIsolate(widget.name),
+      body: FutureBuilder<LiveContributorStanding>(
+        future: _load,
+        builder: (context, snap) {
+          final standing = snap.data;
+          final Widget body;
+          if (standing != null) {
+            final rank = standing.rank;
+            body = standing.points <= 0
+                ? Text(
+                    l10n.liveUserNoPoints,
+                    textAlign: TextAlign.center,
+                    style: text.body.copyWith(color: soft),
+                  )
+                : Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(
-                        Icons.bar_chart_rounded,
-                        size: 18,
-                        color: _flame,
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const KCherryIcon(size: 26),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              l10n.liveScore(
+                                standing.points,
+                                KFormat.grouped(standing.points),
+                              ),
+                              textAlign: TextAlign.center,
+                              style: text.title.copyWith(
+                                color: ink,
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 6),
-                      Flexible(
-                        child: Text(
-                          l10n.liveUserPoints,
-                          style: text.bodyStrong.copyWith(color: _ink),
+                      if (rank != null) ...[
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF1DF),
+                            borderRadius: BorderRadius.circular(KRadius.pill),
+                          ),
+                          child: Text(
+                            l10n.liveUserRank(KFormat.grouped(rank)),
+                            textAlign: TextAlign.center,
+                            style: text.bodyStrong.copyWith(
+                              color: _flame,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
                         ),
-                      ),
+                      ],
                     ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    KFormat.bidiIsolate(widget.name),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: text.caption.copyWith(color: _soft),
-                  ),
-                  const SizedBox(height: 14),
-                  body,
-                ],
-              );
-            },
-          ),
-        ),
+                  );
+          } else if (snap.hasError) {
+            body = Text(
+              failureMessage(l10n, toAppFailure(snap.error!)),
+              textAlign: TextAlign.center,
+              style: text.body.copyWith(color: soft),
+            );
+          } else {
+            body = const Padding(
+              padding: EdgeInsets.all(8),
+              child: Center(child: CircularProgressIndicator()),
+            );
+          }
+          return body;
+        },
       ),
     );
   }

@@ -18,6 +18,7 @@ import 'package:kabso_live/app/app.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
+import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/storage/preferences.dart';
@@ -56,6 +57,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_quality_sheet
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_room_info_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_schedule_sheet.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_score_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_emoji.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_settings_sheet.dart';
@@ -407,15 +409,13 @@ void main() {
   });
 
   group('on air', () {
-    testWidgets('CP-016 D: the room level shows after the title and follows '
-        'a level change the media room announces', (tester) async {
+    testWidgets('CP-016 D: a level change the media room announces is read '
+        '(D232: no level chip on the screen any more)', (tester) async {
       final repo = FakeLiveRepository(categories: _categories)
         ..startRoomLevel = 9;
       final (_, camera) = await _pump(tester, repo: repo);
       await _goLive(tester);
-      CharmLevelBadge badge() =>
-          tester.widget<CharmLevelBadge>(find.byType(CharmLevelBadge));
-      expect(badge().level, 9);
+      expect(find.byType(CharmLevelBadge), findsNothing);
 
       // A viewer's taps raised the host's charm level: the server raised
       // the room's info version, the host reads the room again.
@@ -425,8 +425,7 @@ void main() {
         ..ping();
       await tester.pumpAndSettle();
       expect(repo.roomRequests, ['room-host']);
-      expect(badge().level, 11);
-      expect(CharmTier.of(badge().level), CharmTier.bunny);
+      expect(find.byType(CharmLevelBadge), findsNothing);
 
       // The same version again reads nothing.
       camera.ping();
@@ -930,22 +929,27 @@ void main() {
       await tester.tap(find.byTooltip(l10n.liveClose).last);
       await tester.pumpAndSettle();
       expect(find.byKey(SeatControlKeys.guestsTab), findsNothing);
-      // CP-012: the score replaces @username once there are points; the
-      // room bar opens the breakdown.
-      expect(find.byKey(LiveAudioRoomHeader.scoreKey), findsNothing);
+      // CP-012 / D232: the live's points on the host pill (the video
+      // live's), no points chip beside «ترتيب الغرف»; the breakdown
+      // («نقاط البث») is in ≡.
       camera
         ..scoreNow = 12400
         ..ping();
       await tester.pump();
+      expect(find.byKey(LiveAudioRoomHeader.scoreKey), findsNothing);
       expect(
         find.descendant(
-          of: find.byKey(LiveAudioRoomHeader.scoreKey),
-          matching: find.text('12.4K'),
+          of: find.byKey(GoLiveScreen.audioPillKey),
+          matching: find.text(KFormat.bidiIsolate('12,400')),
         ),
         findsOneWidget,
       );
-      await tester.tap(find.byKey(LiveAudioRoomHeader.scoreKey));
+      await tester.tap(find.byKey(GoLiveScreen.audioMoreKey));
       await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byKey(GoLiveKeys.tool('contributions')));
+      await tester.tap(find.byKey(GoLiveKeys.tool('contributions')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(liveScoreCardKey), findsOneWidget);
       expect(find.text(l10n.liveScoreTitle), findsOneWidget);
       expect(find.text(l10n.liveScoreTaps), findsOneWidget);
       await tester.tapAt(const Offset(10, 10));
@@ -1753,14 +1757,13 @@ void main() {
       final (repo, _) = await _pump(tester);
       final l10n = _l10n(tester);
       await audioLive(tester, repo);
-      // The card's cover (D141: its @username copies instead).
+      // D232: the host pill (the video live's) opens the room info; its
+      // @username copies instead.
       await tester.tap(
-        find
-            .descendant(
-              of: find.byKey(LiveAudioRoomHeader.barKey),
-              matching: find.byType(ClipRRect),
-            )
-            .first,
+        find.descendant(
+          of: find.byKey(GoLiveScreen.audioPillKey),
+          matching: find.byType(KAvatar),
+        ),
       );
       await tester.pumpAndSettle();
       expect(find.byKey(LiveRoomInfoKeys.sheet), findsOneWidget);
@@ -1947,28 +1950,17 @@ void main() {
             tester.getRect(find.byKey(KHostBar.giftKey)).bottom,
             lessThanOrEqualTo(852 - bottom + 0.5),
           );
-          // The level chip: the charm badge and 3,510/5,000, right after
-          // the board chip; no other charm level chip on the screen.
-          final chip = find.byKey(KRoomChipsRow.levelKey);
-          expect(chip, findsOneWidget);
-          expect(
-            find.descendant(of: chip, matching: find.byType(CharmLevelBadge)),
-            findsOneWidget,
-          );
-          expect(find.byType(CharmLevelBadge), findsOneWidget);
-          expect(
-            find.descendant(of: chip, matching: find.textContaining('/')),
-            findsOneWidget,
-          );
+          // D232 (owner: «يتم وضع الليفيل بجانب الكرز ازله»): no level chip
+          // (D135's charm badge with 3,510/5,000) — the board chip, then
+          // the timer at the end.
+          expect(find.byType(LiveLevelTargetChip), findsNothing);
+          expect(find.byType(CharmLevelBadge), findsNothing);
           final rank = tester.getRect(find.byType(LiveRankChip));
-          final level = tester.getRect(chip);
           final timer = tester.getRect(find.byKey(GoLiveScreen.elapsedKey));
           if (ar) {
-            expect(rank.left, greaterThan(level.right - 0.5));
-            expect(level.left, greaterThan(timer.right));
+            expect(rank.left, greaterThan(timer.right));
           } else {
-            expect(level.left, greaterThan(rank.right - 0.5));
-            expect(timer.left, greaterThan(level.right));
+            expect(timer.left, greaterThan(rank.right));
           }
           // D141: the host's @username beside the name, in the host pill
           // (not the room number); a tap copies it.

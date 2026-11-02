@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
+import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/home_banner.dart';
@@ -17,10 +18,13 @@ import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.da
 import 'package:kabso_live/features/live/presentation/go_live/live_cinema.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
+import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_games_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_side_cards.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_viewer_parts.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_watch_card.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:material_ui/material_ui.dart';
@@ -443,37 +447,52 @@ void main() {
     });
   });
 
-  group('D173 cherries on the video live', () {
-    for (final language in AppLanguage.values) {
-      testWidgets('the cherry chip sits right after the board chip, as in '
-          'the audio room (${language.name})', (tester) async {
-        await _pump(tester, language: language);
-        final chip = find.byKey(LiveRoomScreen.scoreChipKey);
-        expect(chip, findsOneWidget);
-        final l10n = l10nFor(language);
-        expect(
-          tester.widget<LiveScoreChip>(chip).label,
-          l10n.liveScore(45210, KFormat.grouped(45210)),
-        );
-        final rank = tester.getRect(find.byType(LiveRankChip));
-        final rect = tester.getRect(chip);
-        expect((rect.center.dy - rank.center.dy).abs(), lessThan(1));
-        if (language == AppLanguage.ar) {
-          expect(rect.right, lessThanOrEqualTo(rank.left));
-        } else {
-          expect(rect.left, greaterThanOrEqualTo(rank.right));
-        }
-        await _leave(tester);
-      });
+  group('D232 cherries: on the host pill, not as a chip', () {
+    for (final mode in const [
+      LiveRoomMode.solo,
+      LiveRoomMode.multi,
+      LiveRoomMode.audio,
+    ]) {
+      for (final language in AppLanguage.values) {
+        testWidgets('${mode.name} (${language.name}): no level chip and no '
+            'points chip beside «ترتيب الغرف»; the cherries total under the '
+            "host's name (owner: «ازل الكرز الأول … ازل الليفيل»)", (
+          tester,
+        ) async {
+          await _pump(tester, language: language, mode: mode);
+          expect(find.byType(LiveRankChip), findsOneWidget);
+          expect(find.byType(LiveScoreChip), findsNothing);
+          expect(find.byType(LiveLevelTargetChip), findsNothing);
+          expect(find.byType(CharmLevelBadge), findsNothing);
+          final pill = find.byType(KHostPill);
+          expect(pill, findsOneWidget);
+          final line = find.descendant(
+            of: pill,
+            matching: find.byKey(LiveRoomScreen.scoreKey),
+          );
+          expect(line, findsOneWidget);
+          expect(
+            find.descendant(of: line, matching: find.byType(KCherryIcon)),
+            findsOneWidget,
+          );
+          expect(
+            find.descendant(
+              of: line,
+              matching: find.text(KFormat.bidiIsolate(KFormat.grouped(45210))),
+            ),
+            findsOneWidget,
+          );
+          // The pill is the video live's in every category: the same
+          // height and start inset.
+          final rect = tester.getRect(
+            find.descendant(of: pill, matching: find.byKey(KHostPill.pillKey)),
+          );
+          expect(rect.height, closeTo(KMetrics.hostPillHeight, 0.5));
+          expect(tester.takeException(), isNull);
+          await _leave(tester);
+        });
+      }
     }
-
-    testWidgets('no points yet: no chip (as in the audio room)', (
-      tester,
-    ) async {
-      await _pump(tester, score: 0);
-      expect(find.byKey(LiveRoomScreen.scoreChipKey), findsNothing);
-      await _leave(tester);
-    });
   });
 
   group('D173 wish list in the audio room', () {

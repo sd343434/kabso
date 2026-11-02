@@ -7862,6 +7862,18 @@ abstract class AppLocalizations {
   /// **'تعذّر تشغيل هذا الملف.'**
   String get liveMusicUnreadable;
 
+  /// D232: the mixer has no live microphone yet (the file is fine)
+  ///
+  /// In ar, this message translates to:
+  /// **'الموسيقى تُمزج في ميكروفون البث: افتح الميكروفون وانتظر بدء البث ثم شغّلها.'**
+  String get liveMusicNotReady;
+
+  /// D232: no decoder for this file's format on the phone
+  ///
+  /// In ar, this message translates to:
+  /// **'هاتفك لا يدعم صيغة هذا الملف. جرّب ملف MP3 أو M4A.'**
+  String get liveMusicUnsupportedFormat;
+
   /// D201 live tools
   ///
   /// In ar, this message translates to:

@@ -47,47 +47,31 @@ Future<void> showLiveMusic(
   );
 }
 
-/// The one-time notice; true when accepted.
+/// The one-time notice; true when accepted. D232: the live's card style.
 Future<bool?> showLiveMusicRightsNotice(BuildContext context) =>
-    showDialog<bool>(
-      context: context,
+    showKLiveDialog<bool>(
+      context,
       barrierDismissible: false,
       builder: (context) {
         final l10n = context.l10n;
-        final t = context.textStyles;
-        return LiveToolLightTheme(
-          child: AlertDialog(
-            key: LiveMusicSheet.rightsKey,
-            backgroundColor: const Color(0xFFFFFFFF),
-            icon: const Icon(
-              Icons.copyright_rounded,
-              color: LiveToolColors.accent,
-              size: 36,
+        return KLiveDialogCard(
+          key: LiveMusicSheet.rightsKey,
+          leading: const KLiveDialogIcon(Icons.copyright_rounded),
+          title: l10n.liveMusicRightsTitle,
+          message: l10n.liveMusicRightsBody,
+          actions: [
+            KLiveDialogAction(
+              key: LiveMusicSheet.rightsAcceptKey,
+              label: l10n.liveMusicRightsAccept,
+              primary: true,
+              onPressed: () => Navigator.of(context).pop(true),
             ),
-            title: Text(
-              l10n.liveMusicRightsTitle,
-              style: t.title.copyWith(color: LiveToolColors.ink),
+            KLiveDialogAction(
+              key: LiveMusicSheet.rightsCancelKey,
+              label: l10n.liveToolsCancel,
+              onPressed: () => Navigator.of(context).pop(false),
             ),
-            content: Text(
-              l10n.liveMusicRightsBody,
-              style: t.body.copyWith(color: LiveToolColors.ink, height: 1.5),
-            ),
-            actions: [
-              TextButton(
-                key: LiveMusicSheet.rightsCancelKey,
-                onPressed: () => Navigator.of(context).pop(false),
-                child: Text(l10n.liveToolsCancel),
-              ),
-              FilledButton(
-                key: LiveMusicSheet.rightsAcceptKey,
-                style: FilledButton.styleFrom(
-                  backgroundColor: LiveToolColors.accent,
-                ),
-                onPressed: () => Navigator.of(context).pop(true),
-                child: Text(l10n.liveMusicRightsAccept),
-              ),
-            ],
-          ),
+          ],
         );
       },
     );
@@ -110,6 +94,9 @@ class LiveMusicSheet extends ConsumerWidget {
   static const unsupportedKey = Key('music.unsupported');
   static const emptyKey = Key('music.empty');
   static const micOffKey = Key('music.micOff');
+
+  /// D232: the reason the file did not play.
+  static const errorKey = Key('music.error');
   static Key itemKey(int i) => Key('music.item.$i');
   static Key removeKey(int i) => Key('music.remove.$i');
 
@@ -202,10 +189,17 @@ class LiveMusicSheet extends ConsumerWidget {
                     ),
                 ],
               ),
-              if (state.failed) ...[
+              if (state.error case final error?) ...[
                 const SizedBox(height: KSpacing.xs),
                 Text(
-                  l10n.liveMusicUnreadable,
+                  key: errorKey,
+                  // D232: the precise reason.
+                  switch (error) {
+                    LiveMusicError.notReady => l10n.liveMusicNotReady,
+                    LiveMusicError.unsupported =>
+                      l10n.liveMusicUnsupportedFormat,
+                    LiveMusicError.unreadable => l10n.liveMusicUnreadable,
+                  },
                   style: t.caption.copyWith(color: const Color(0xFFD93B4F)),
                 ),
               ],

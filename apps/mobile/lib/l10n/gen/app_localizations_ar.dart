@@ -4479,6 +4479,14 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveMusicUnreadable => 'تعذّر تشغيل هذا الملف.';
 
   @override
+  String get liveMusicNotReady =>
+      'الموسيقى تُمزج في ميكروفون البث: افتح الميكروفون وانتظر بدء البث ثم شغّلها.';
+
+  @override
+  String get liveMusicUnsupportedFormat =>
+      'هاتفك لا يدعم صيغة هذا الملف. جرّب ملف MP3 أو M4A.';
+
+  @override
   String get liveMusicMicOff => 'الميكروفون مكتوم: لن يسمع المشاهدون الموسيقى.';
 
   @override

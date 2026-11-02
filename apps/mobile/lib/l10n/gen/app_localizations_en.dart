@@ -4448,6 +4448,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveMusicUnreadable => 'This file cannot be played.';
 
   @override
+  String get liveMusicNotReady =>
+      'Music is mixed into the live microphone: turn the microphone on and wait for the live to start, then play it.';
+
+  @override
+  String get liveMusicUnsupportedFormat =>
+      'Your phone can’t play this file’s format. Try an MP3 or M4A file.';
+
+  @override
   String get liveMusicMicOff =>
       'Your microphone is muted: viewers won’t hear the music.';
 
