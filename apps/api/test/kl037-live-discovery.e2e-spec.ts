@@ -365,6 +365,8 @@ describe('KL-037 live discovery and host lifecycle (hosting enabled)', () => {
         score: 0,
         // v1.47-live (D212): not a podcast.
         podcast: null,
+        // v1.54-live (D241): a new SOLO live is not in a PK.
+        inPk: false,
         scoreParts: { total: 0, tapPoints: 0, supportPoints: 0 },
         // CP-013 (v1.9-live): a new live starts with the chat on; the host is never muted.
         chatEnabled: true,
