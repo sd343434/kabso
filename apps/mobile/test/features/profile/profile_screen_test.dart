@@ -110,11 +110,14 @@ void main() {
     );
     expect(cover.top, bar.bottom);
     expect(cover.width, 393);
+    // D244 (owner: «اجعل الصورة داخل الغلاف»): the photo wholly inside the
+    // cover (it straddled the edge in D218; a frame then covered the name),
+    // the name under the cover.
     final photo = tester.getRect(find.byKey(ProfileHeaderView.avatarKey));
-    expect(photo.top, lessThan(cover.bottom));
-    expect(photo.bottom, greaterThan(cover.bottom));
+    expect(photo.top, greaterThanOrEqualTo(cover.top));
+    expect(photo.bottom, lessThanOrEqualTo(cover.bottom));
     final name = tester.getRect(find.byKey(const Key('profile.displayName')));
-    expect(name.top, greaterThanOrEqualTo(photo.bottom));
+    expect(name.top, greaterThanOrEqualTo(cover.bottom));
     final levels = tester.getRect(find.byKey(ProfileInfoBlock.levelsKey));
     expect(levels.top, greaterThanOrEqualTo(name.bottom));
     final stats = tester.getRect(find.byKey(ProfileScreen.statsKey));
@@ -309,11 +312,19 @@ void main() {
     tester,
   ) async {
     await _pump(tester, language: AppLanguage.ar);
-    // D218: the photo over the cover at the reading start (right), the
-    // counts under the name.
+    // D218: the photo at the reading start (right), the counts under the
+    // name. D244: centred in the photo slot inside the cover (frames fit
+    // that slot), the slot at the start.
     final avatar = tester.getRect(find.byKey(ProfileHeaderView.avatarKey));
     final stats = tester.getRect(find.byKey(ProfileScreen.statsKey));
-    expect(avatar.right, moreOrLessEquals(393 - KProfile.inset, epsilon: 1));
+    final slot = KPublicProfile.avatarSlot;
+    expect(
+      avatar.center.dx,
+      moreOrLessEquals(
+        393 - KPublicProfile.avatarStart - slot.width / 2,
+        epsilon: 1,
+      ),
+    );
     expect(stats.top, greaterThan(avatar.bottom));
     expect(stats.right, moreOrLessEquals(393 - KProfile.inset, epsilon: 1));
   });
