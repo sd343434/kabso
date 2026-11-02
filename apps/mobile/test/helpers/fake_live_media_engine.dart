@@ -451,6 +451,29 @@ class FakeLiveMediaEngine
   @override
   Widget? remoteCamera(String identity) => remoteVideo(identity);
 
+  /// D247: the camera as the whole picture (`main: CAMERA`), keyed for tests.
+  static const cameraPictureKey = Key('fake.cameraPicture');
+
+  @override
+  Widget? remoteCameraPicture(String identity) =>
+      !receiveVideo ||
+          !present.contains(identity) ||
+          videoMutedIds.contains(identity)
+      ? null
+      : Center(
+          child: AspectRatio(
+            aspectRatio: screenFrame.width / screenFrame.height,
+            child: const ColoredBox(
+              key: cameraPictureKey,
+              color: Color(0xFF6B1E3A),
+            ),
+          ),
+        );
+
+  @override
+  bool remoteCameraPaused(String identity) =>
+      present.contains(identity) && videoMutedIds.contains(identity);
+
   /// What the media room delivers to [streamerEvents]; tests add to it.
   final streamer = StreamController<LiveStreamerEvent>.broadcast();
 

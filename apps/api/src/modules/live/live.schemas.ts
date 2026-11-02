@@ -167,7 +167,14 @@ export type StreamerOrientation = (typeof STREAMER_ORIENTATIONS)[number];
 export const STREAMER_CORNERS = ['TOP_LEFT', 'TOP_RIGHT', 'BOTTOM_LEFT', 'BOTTOM_RIGHT'] as const;
 export type StreamerCorner = (typeof STREAMER_CORNERS)[number];
 
-/** A STREAMER started without a choice: portrait, the bubble shown at the top left. */
+/**
+ * v1.57-live (D247, CONVENTIONS §10.88): the main picture. `SCREEN` = the screen track with the camera as the
+ * bubble (D213); `CAMERA` = the camera track alone (a browser studio's OBS Virtual Camera holds the whole scene).
+ */
+export const STREAMER_MAINS = ['SCREEN', 'CAMERA'] as const;
+export type StreamerMain = (typeof STREAMER_MAINS)[number];
+
+/** A STREAMER started without a choice: portrait, the bubble shown at the top left, the screen as the picture. */
 export const DEFAULT_STREAMER_CORNER: StreamerCorner = 'TOP_LEFT';
 
 const cameraOverlaySchema = z.strictObject({
@@ -179,6 +186,8 @@ const cameraOverlaySchema = z.strictObject({
 const streamerSetupSchema = z.strictObject({
   orientation: z.enum(STREAMER_ORIENTATIONS).optional(),
   cameraOverlay: cameraOverlaySchema.optional(),
+  /** v1.57-live (D247): `SCREEN` (default) or `CAMERA`. */
+  main: z.enum(STREAMER_MAINS).optional(),
 });
 
 /**
@@ -186,7 +195,7 @@ const streamerSetupSchema = z.strictObject({
  * `cameraOverlay` with neither key is refused too.
  */
 export const updateLiveStreamerSchema = streamerSetupSchema.superRefine((input, ctx) => {
-  if (input.orientation === undefined && input.cameraOverlay === undefined) {
+  if (input.orientation === undefined && input.cameraOverlay === undefined && input.main === undefined) {
     ctx.addIssue({ code: 'custom', path: [], params: { issue: 'too_few' } });
   }
   if (

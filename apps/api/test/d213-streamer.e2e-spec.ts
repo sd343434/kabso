@@ -105,7 +105,12 @@ describe('D213 streamer lives', () => {
       mode: 'STREAMER',
       seatCount: null,
       podcast: null,
-      streamer: { orientation: 'PORTRAIT', cameraOverlay: { visible: true, corner: 'TOP_LEFT' }, version: 0 },
+      streamer: {
+        orientation: 'PORTRAIT',
+        cameraOverlay: { visible: true, corner: 'TOP_LEFT' },
+        main: 'SCREEN',
+        version: 0,
+      },
     });
     const token = await ctx.http
       .post(`/api/v1/live/rooms/${plain.body.id}/media-token`)
@@ -136,6 +141,7 @@ describe('D213 streamer lives', () => {
     expect(chosen.body.streamer).toEqual({
       orientation: 'LANDSCAPE',
       cameraOverlay: { visible: false, corner: 'BOTTOM_RIGHT' },
+      main: 'SCREEN',
       version: 0,
     });
     // A guest reads the room with the layout.
@@ -207,6 +213,7 @@ describe('D213 streamer lives', () => {
     expect(rotated.body).toEqual({
       orientation: 'LANDSCAPE',
       cameraOverlay: { visible: true, corner: 'TOP_LEFT' },
+      main: 'SCREEN',
       version: 1,
     });
     expect(streamerMessages(roomId)).toEqual([{ type: 'streamer', roomId, streamer: rotated.body }]);
@@ -218,6 +225,7 @@ describe('D213 streamer lives', () => {
     expect(moved.body).toEqual({
       orientation: 'LANDSCAPE',
       cameraOverlay: { visible: false, corner: 'BOTTOM_RIGHT' },
+      main: 'SCREEN',
       version: 2,
     });
     expect(streamerMessages(roomId).at(-1)?.streamer).toEqual(moved.body);

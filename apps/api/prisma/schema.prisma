@@ -690,7 +690,10 @@ model LiveRoom {
   /// v1.56-live (D213): the camera bubble's corner of the screen picture (`TOP_LEFT`, `TOP_RIGHT`,
   /// `BOTTOM_LEFT`, `BOTTOM_RIGHT`; physical, not mirrored for RTL); STREAMER only.
   streamerCameraCorner  String?   @map("streamer_camera_corner") @db.VarChar(16)
-  /// v1.56-live (D213): increases on every change of the three (media metadata `streamerVersion`).
+  /// v1.57-live (D247, §10.88): the main picture — `SCREEN` (the screen track, the camera as the bubble) or
+  /// `CAMERA` (the camera track alone, e.g. a browser studio's OBS Virtual Camera); STREAMER only.
+  streamerMain          String?   @map("streamer_main") @db.VarChar(16)
+  /// v1.56-live (D213): increases on every change of the layout (media metadata `streamerVersion`).
   streamerVersion       Int       @default(0) @map("streamer_version")
   createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)

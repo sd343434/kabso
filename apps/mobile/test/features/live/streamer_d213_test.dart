@@ -745,6 +745,122 @@ void main() {
     });
   });
 
+  // D247 (v1.57-live, CONVENTIONS §10.88): «استوديو البث» on a computer can
+  // send the camera track alone as the picture (OBS Virtual Camera holding a
+  // whole scene) — `main: CAMERA`. Viewers lay it out like a screen.
+  group('camera as the main picture (D247)', () {
+    test('`main` reads the wire; unknown or absent is the screen', () {
+      final s = LiveStreamer.fromJson(const {
+        'orientation': 'LANDSCAPE',
+        'cameraOverlay': {'visible': false, 'corner': 'TOP_LEFT'},
+        'main': 'CAMERA',
+        'version': 4,
+      });
+      expect(s.main, StreamerMain.camera);
+      expect(s.cameraMain, isTrue);
+      expect(LiveStreamer.fromJson(s.toJson()), s);
+      expect(s.toJson()['main'], 'CAMERA');
+      expect(
+        LiveStreamer.fromJson(const {'main': 'WINDOW'}).cameraMain,
+        isFalse,
+      );
+      expect(const LiveStreamer().main, StreamerMain.screen);
+      expect(s.copyWith(main: StreamerMain.screen).cameraMain, isFalse);
+      expect(s == s.copyWith(main: StreamerMain.screen), isFalse);
+    });
+
+    for (final language in AppLanguage.values) {
+      testWidgets('${language.name}: the camera fills the picture, landscape '
+          'letterboxed, no bubble, no screen expected', (tester) async {
+        await _watch(
+          tester,
+          language: language,
+          screen: false,
+          streamer: const LiveStreamer(
+            orientation: StreamerOrientation.landscape,
+            main: StreamerMain.camera,
+            cameraVisible: false,
+          ),
+        );
+        expect(
+          find.byKey(FakeLiveMediaEngine.cameraPictureKey),
+          findsOneWidget,
+        );
+        expect(find.byKey(FakeLiveMediaEngine.screenKey), findsNothing);
+        expect(find.byKey(StreamerViewerStage.bubbleKey), findsNothing);
+        expect(find.byKey(StreamerViewerStage.waitingKey), findsNothing);
+        final picture = tester.getRect(
+          find.byKey(StreamerViewerStage.pictureKey),
+        );
+        expect(picture.width, closeTo(393, 0.5));
+        expect(picture.height, lessThan(200));
+        expect(find.byKey(StreamerViewerStage.fullscreenKey), findsOneWidget);
+        await _leave(tester);
+      });
+    }
+
+    testWidgets('a bubble setting never draws the camera twice', (
+      tester,
+    ) async {
+      await _watch(
+        tester,
+        language: AppLanguage.ar,
+        screen: false,
+        streamer: const LiveStreamer(main: StreamerMain.camera),
+      );
+      expect(find.byKey(FakeLiveMediaEngine.cameraPictureKey), findsOneWidget);
+      expect(find.byKey(StreamerViewerStage.bubbleKey), findsNothing);
+      await _leave(tester);
+    });
+
+    testWidgets('paused camera and waiting for the picture', (tester) async {
+      final (engine, _) = await _watch(
+        tester,
+        language: AppLanguage.ar,
+        screen: false,
+        streamer: const LiveStreamer(main: StreamerMain.camera),
+      );
+      final hostId = apiRoom().host.id;
+      engine
+        ..videoMutedIds.add(hostId)
+        ..ping();
+      await tester.pump();
+      expect(find.byKey(StreamerViewerStage.pausedKey), findsOneWidget);
+      engine
+        ..videoMutedIds.clear()
+        ..present.remove(hostId)
+        ..ping();
+      await tester.pump();
+      expect(find.byKey(StreamerViewerStage.waitingKey), findsOneWidget);
+      expect(find.text('بانتظار صورة المضيف…'), findsOneWidget);
+      await _leave(tester);
+    });
+
+    testWidgets('the host switches screen ⇄ camera with a `streamer` message', (
+      tester,
+    ) async {
+      final (engine, _) = await _watch(tester, language: AppLanguage.en);
+      expect(find.byKey(FakeLiveMediaEngine.screenKey), findsOneWidget);
+      expect(find.byKey(StreamerViewerStage.bubbleKey), findsOneWidget);
+      engine.streamer.add(
+        const LiveStreamerEvent(
+          'room-0',
+          LiveStreamer(main: StreamerMain.camera, version: 1),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(FakeLiveMediaEngine.cameraPictureKey), findsOneWidget);
+      expect(find.byKey(FakeLiveMediaEngine.screenKey), findsNothing);
+      expect(find.byKey(StreamerViewerStage.bubbleKey), findsNothing);
+      engine.streamer.add(
+        const LiveStreamerEvent('room-0', LiveStreamer(version: 2)),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(FakeLiveMediaEngine.screenKey), findsOneWidget);
+      await _leave(tester);
+    });
+  });
+
   group('hub', () {
     for (final language in AppLanguage.values) {
       testWidgets('${language.name}: a streamer card says «ستريمر»', (

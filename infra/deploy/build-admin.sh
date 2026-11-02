@@ -29,9 +29,11 @@ docker run --rm \
   -v "$APP_DIR":/repo:ro -v "$next":/out \
   -e CI=true \
   "$node_image" sh -euc '
-    mkdir -p /w/apps/api /w/apps/mobile/assets && cd /w
+    mkdir -p /w/apps/api /w/apps/studio /w/apps/mobile/assets && cd /w
     cp /repo/package.json /repo/pnpm-lock.yaml /repo/pnpm-workspace.yaml .
+    # Every workspace manifest, so the frozen lockfile matches the workspace - D247 added apps/studio.
     cp /repo/apps/api/package.json apps/api/
+    cp /repo/apps/studio/package.json apps/studio/
     cp -r /repo/apps/admin apps/
     cp -r /repo/apps/mobile/assets/fonts apps/mobile/assets/
     rm -rf apps/admin/node_modules apps/admin/dist

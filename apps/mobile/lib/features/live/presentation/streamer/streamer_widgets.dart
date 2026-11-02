@@ -935,9 +935,17 @@ class _StreamerViewerStageState extends State<StreamerViewerStage> {
     final l10n = context.l10n;
     final engine = widget.engine;
     final layout = _layout;
-    final screen = engine.remoteScreen(widget.hostId);
-    final paused = engine.remoteScreenPaused(widget.hostId);
-    final camera = layout.cameraVisible
+    // D247 (v1.57-live): `main: CAMERA` — the camera track is the whole
+    // picture (the web studio's OBS Virtual Camera), laid out like a screen,
+    // with no bubble over it.
+    final cameraMain = layout.cameraMain;
+    final screen = cameraMain
+        ? engine.remoteCameraPicture(widget.hostId)
+        : engine.remoteScreen(widget.hostId);
+    final paused = cameraMain
+        ? engine.remoteCameraPaused(widget.hostId)
+        : engine.remoteScreenPaused(widget.hostId);
+    final camera = layout.cameraVisible && !cameraMain
         ? engine.remoteCamera(widget.hostId)
         : null;
     final padding = MediaQuery.paddingOf(context);
@@ -983,7 +991,9 @@ class _StreamerViewerStageState extends State<StreamerViewerStage> {
                 compact: true,
                 icon: Icons.screen_share_outlined,
                 busy: widget.joined,
-                title: l10n.streamerWaiting,
+                title: cameraMain
+                    ? l10n.streamerWaitingCamera
+                    : l10n.streamerWaiting,
               ),
             );
           }

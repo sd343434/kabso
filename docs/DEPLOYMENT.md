@@ -1442,10 +1442,11 @@ the `deploy-image` job of `.github/workflows/ci.yml`.
 | `api.kabsolive.com` | Caddy → API (`/internal/*` answers 404 from outside) |
 | `live.kabsolive.com` | Caddy → LiveKit signalling (`wss://`); media on 7881/tcp, 7882/udp |
 | `admin.kabsolive.com` | *(D191)* Caddy, the admin panel's static build (`infra/deploy/admin/current`) and `/api/*` → API (§11.6) |
+| `studio.kabsolive.com` | *(D247)* Caddy, «استوديو البث»'s static build (`infra/deploy/studio/current`) and `/api/*` → API (§5.48) |
 
 PostgreSQL, Redis and the API are not published; only 80, 443 (TCP+UDP), 7881/tcp and
 7882/udp are. Caddy gets and renews the Let's Encrypt certificates once the DNS A records (the
-domain, `api.`, `live.` and, since D191, `admin.`) point at the server.
+domain, `api.`, `live.` and, since D191, `admin.`; since D247, `studio.`) point at the server.
 
 **Release flow (no manual server step):**
 
@@ -1592,8 +1593,8 @@ list; this migration extends whatever rule is in place.
 ### 11.7 The public website kabsolive.com (D192) — [IMPLEMENTED; checked locally through the committed Caddy block, not on the server yet]
 
 **DNS** (A records to the server's IP; Caddy gets every certificate itself): `kabsolive.com` (apex), **`www`**
-(new: redirects to the apex; until it exists Caddy only logs failed certificate attempts for it), `api`, `live`, and
-`admin` for D191's panel.
+(new: redirects to the apex; until it exists Caddy only logs failed certificate attempts for it), `api`, `live`,
+`admin` for D191's panel, and `studio` for D247's «استوديو البث» (§5.48).
 
 **How the server picks it up:** Caddy serves `infra/deploy/site/` straight from the checkout (`./site:/srv/site:ro`),
 so a merged change to the website is live as soon as `update.sh` fast-forwards `/opt/kabso` — no restart. A change to
@@ -2452,3 +2453,48 @@ test database (`prisma migrate deploy` from zero; `prisma migrate diff` shows no
   (PRE_PRODUCTION PP-43) — an app update that declares them without it can be rejected.
 - **Order:** API first (an older app reads STREAMER as SOLO and shows the host's camera track; it ignores the
   `streamer` field and topic), then the app; the admin panel's «ستريمر» chip needs the API's `mode` filter.
+
+### 5.48 «استوديو البث»: the browser studio at studio.<domain> (migration `20270302090000_streamer_main`; D247) — [IMPLEMENTED, draft contract v1.57-live; not deployed; real OBS NOT tested]
+
+CONVENTIONS §10.88. **Migration:** one nullable column, `live_rooms.streamer_main` (`SCREEN` / `CAMERA`); existing
+STREAMER rows are set to `SCREEN` in the same migration, then the CHECK `live_rooms_streamer_fields` is re-created
+with `IS NOT NULL` on every STREAMER field (D213's version let a NULL orientation or corner through: `NULL IN (…)` is
+not false). No new table, no GRANT. Checked on a fresh test database (`prisma migrate deploy` from zero; `prisma
+migrate diff` shows no drift on `live_rooms`).
+
+**The studio (no new server service):** `apps/studio` is built into static files by `infra/deploy/build-studio.sh` (run
+by `update.sh` like `build-admin.sh`: only when `apps/studio`, the lockfile or the fonts changed; the API's pinned Node
+image; `infra/deploy/studio/current` swapped with two renames, not in git; a failed build keeps the previous one and
+never stops the API deploy). Caddy serves it at `studio.<domain>` (`./studio:/srv/studio:ro` in the compose file) with
+`/api/*` → API on the same origin.
+
+**Owner steps, once:**
+
+1. **DNS:** an A record `studio.kabsolive.com` → the server's IPv4 (the same address as `api.` and `admin.`). Caddy gets
+   the certificate on the next update (update.sh recreates Caddy when the Caddyfile changed).
+2. **Media origin (only if LiveKit is not `live.<domain>`):** the studio's CSP allows `wss://live.<domain>` and
+   `https://live.<domain>`. When `LIVEKIT_URL` points elsewhere (e.g. LiveKit Cloud), add both forms to
+   `/etc/kabso/kabso.env`: `KABSO_STUDIO_MEDIA_ORIGINS='wss://<project>.livekit.cloud https://<project>.livekit.cloud'`,
+   then `sudo docker compose -f /opt/kabso/infra/deploy/docker-compose.yml up -d --force-recreate caddy`.
+3. Nothing else: no new API variable. The hosts sign in with their app accounts; only accounts with the hosting
+   permission can go live (as in the app).
+
+**Order:** the API (the `main` column and field) and the app's viewer together; the studio after them (an app without
+D247 shows a «الكاميرا فقط» live as waiting for the screen). By hand: `sudo /opt/kabso/infra/deploy/build-studio.sh
+--force`. CI checks it in the `studio` job (typecheck, lint, unit tests, build).
+
+**Security headers** (Caddy): CSP `default-src 'self'` (`script-src 'self'`, `worker-src 'self'` for the heartbeat
+clock, `connect-src 'self'` + the media server, `img-src 'self' data: blob: https:` for avatars and gift pictures,
+`media-src 'self' blob:`, `frame-ancestors 'none'`), `Permissions-Policy: camera=(self), microphone=(self),
+display-capture=(self)` (the public website keeps `camera=()`), HSTS, `X-Frame-Options: DENY`, `nosniff`,
+`Referrer-Policy: no-referrer`, COOP same-origin, `X-Robots-Tag: noindex` (the website's `/studio` page is the indexed
+one); `index.html` is `no-store`, hashed assets immutable.
+
+**Bandwidth:** a studio live sends the screen (≈ 2.5 Mbps at 720p30, ≈ 4 Mbps at 1080p30), the camera (simulcast) and
+the sound — more LiveKit egress per viewer than a phone streamer at 1080p; budget it.
+
+**Local run:** API (or `SMOKE_STUDIO=1 … vitest run --config vitest.smoke.config.ts test/smoke/studio.smoke.ts`, which
+seeds a host, a viewer and a gift; with `LIVEKIT_TEST_URL` it uses a real LiveKit), then
+`KABSO_API_URL=http://127.0.0.1:3000 pnpm --filter @kabso/studio dev` (Vite on :5190 proxies `/api`). The Playwright
+run (`apps/studio/e2e`) needs `KABSO_STUDIO_SMOKE`, `KABSO_STUDIO_URL`, `KABSO_API_DIR` (and `KABSO_SITE_DIR`,
+`KABSO_LIVEKIT_RESTART`, `KABSO_STUDIO_CAPTURES` optionally).

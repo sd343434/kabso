@@ -98,6 +98,8 @@ services:
       - ./site:/srv/site:ro
       # v1.60-social (D191): the admin panel's build (build-admin.sh swaps admin/current; not in git).
       - ./admin:/srv/admin:ro
+      # v1.57-live (D247): «استوديو البث»'s build (build-studio.sh swaps studio/current; not in git).
+      - ./studio:/srv/studio:ro
       - caddy-data:/data
       - caddy-config:/config
     depends_on: [api, livekit]
