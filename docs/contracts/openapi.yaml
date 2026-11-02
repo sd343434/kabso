@@ -638,6 +638,13 @@ info:
     `getAdminFxSettings`, `updateAdminFxSettings` (PATCH; the code again + reason), `testAdminFxSettings`,
     `clearAdminFxSettings` (capability `fx.settings`; the API key write-only, sealed `fx-settings/v1`, last 4 only).
     Additive (CONVENTIONS §10.87).
+    **D248 (DRAFT v1.59-live)**: the live hub's banners as in the owner's reference — the 3:1 `home` carousel after
+    the first row of lives and a **card-size banner** in one grid cell. `listHomeBanners` takes `placement=hub_card`
+    (signed-in only; pictures 720 × 805, the live card's aspect) and answers `cell`, the 0-based grid cell it takes
+    (server setting `HOME_HUB_CARD_CELL`, default 4). The panel can add banners: `uploadAdminBannerPicture`
+    (`POST /admin/banner-uploads?placement=`, raw bytes, cover-cropped to the placement's shape) and
+    `createAdminBanner` (`POST /admin/banners`, reason; audited `banner.add` via panel), capability `catalog.manage`.
+    `AdminBannerList` items are the named schema `AdminBanner`. Additive (CONVENTIONS §10.90).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -7253,12 +7260,16 @@ paths:
         like the other live guest reads; their `title` follows `Accept-Language`, else Arabic. The
         live hub's `home` banners, the Task Center's `tasks` banners (v1.50-social, D176) and the
         wallet's `wallet` banners (v1.51-social, D177) stay signed-in only (no token → 401); a token that is sent must be valid (else 401).
+        *(v1.59-live, D248, §10.90)* `placement=hub_card` lists the live hub's **card-size** banners (720 × 805, the
+        live card's aspect; signed-in only) and the response adds `cell`: the 0-based index, in reading order over every
+        cell of the hub's 2-column grid, of the one cell they take (several active ones take turns in it). The banners
+        never count as lives and never change the rooms' cursor.
       parameters:
         - name: placement
           in: query
           required: false
-          description: "v1.27.4-live (D137): `home` (default, the live hub) or `room` (the promo box in a live); v1.50-social (D176): `tasks` (the Task Center's banner slot, 3:1 like home); v1.51-social (D177): `wallet` (the wallet page, 3:1 like `home`). Anything else → 400 `placement` / `invalid_value`."
-          schema: { type: string, enum: [home, room, tasks, wallet], default: home }
+          description: "v1.27.4-live (D137): `home` (default, the live hub) or `room` (the promo box in a live); v1.50-social (D176): `tasks` (the Task Center's banner slot, 3:1 like home); v1.51-social (D177): `wallet` (the wallet page, 3:1 like `home`); v1.59-live (D248): `hub_card` (the live hub's card-size banner, 720 × 805). Anything else → 400 `placement` / `invalid_value`."
+          schema: { type: string, enum: [home, room, tasks, wallet, hub_card], default: home }
       responses:
         '200':
           description: The active banners (possibly empty).
@@ -7285,6 +7296,19 @@ paths:
                         title: فضاء الثنائيات
                         titleSide: RIGHT
                         link: /cp/space
+                hubCard:
+                  summary: "`placement=hub_card`: one card-size banner in the grid's 5th cell"
+                  value:
+                    data:
+                      - id: 0193a4b2-7c1d-7e2f-8a3b-4c5d6e7f8093
+                        imageUrl: https://media.kabso.app/media/0193a4b2-7c1d-7e2f-8a3b-4c5d6e7f8094/720.webp
+                        width: 720
+                        height: 805
+                        blurhash: null
+                        title: null
+                        titleSide: RIGHT
+                        link: /families
+                    cell: 4
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -14050,8 +14074,8 @@ paths:
       tags:
       - admin-panel
       operationId: listAdminBanners
-      summary: Home / room / tasks / wallet banners (catalog.view)
-      description: '(v1.65-social, D197) New banners need a picture upload: `banner-admin add`.'
+      summary: Home / room / tasks / wallet / hub card banners (catalog.view)
+      description: '(v1.65-social, D197) New banners need a picture upload: `banner-admin add` or (v1.59-live, D248) `uploadAdminBannerPicture` then `createAdminBanner`.'
       security:
       - adminSession: []
       responses:
@@ -14064,6 +14088,95 @@ paths:
         '401':
           $ref: '#/components/responses/Error'
         '403':
+          $ref: '#/components/responses/Error'
+    post:
+      tags:
+      - admin-panel
+      operationId: createAdminBanner
+      summary: Adds a banner on an uploaded picture (reason; audited) (catalog.manage)
+      description: |
+        (v1.59-live, D248, CONVENTIONS §10.90) The `banner-admin add` rules: the picture is a `uploadAdminBannerPicture`
+        answer for the same placement (its shape is checked), unused and less than 24 hours old; the link allowlist;
+        titles 1–40 code points; `endsAt` after `startsAt`. Audited `banner.add` (via panel, with the reason). 409
+        `ADMIN_ACTION_REFUSED` with the reason when a rule refuses it.
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminBannerCreateRequest'
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminBanner'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/banner-uploads:
+    post:
+      tags:
+      - admin-panel
+      operationId: uploadAdminBannerPicture
+      summary: Checks and stores a banner picture, the raw bytes as the body (catalog.manage)
+      description: |
+        (v1.59-live, D248, CONVENTIONS §10.90) The body is the picture (`application/octet-stream`, JPEG / PNG / WebP,
+        at most 15 MiB, at most 8 000 px a side and 50 MP). As the CLI's `--image`: EXIF orientation applied, metadata
+        dropped, cover-cropped around the centre to the placement's shape — `home`, `tasks`, `wallet` 1 500 × 500
+        (thumb 320 × 107), `room` 600 × 800 (240 × 320), `hub_card` 720 × 805 (288 × 322) — and stored as WebP. Owned
+        by the admin's account and shown nowhere until `createAdminBanner` names it (the media sweeper deletes an unused
+        one after 24 hours). 409 `ADMIN_ACTION_REFUSED` for a file that is not an acceptable image; 503 without object
+        storage.
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminCsrf'
+      - name: placement
+        in: query
+        required: true
+        schema:
+          type: string
+          enum: [home, room, tasks, wallet, hub_card]
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '201':
+          description: Stored.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminBannerUpload'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '413':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
+        '503':
           $ref: '#/components/responses/Error'
   /api/v1/admin/banners/{bannerId}/enable:
     post:
@@ -19433,53 +19546,88 @@ components:
         data:
           type: array
           items:
-            type: object
-            required:
-            - id
-            - placement
-            - titleAr
-            - titleEn
-            - link
-            - startsAt
-            - endsAt
-            - sortOrder
-            - enabled
-            - showing
-            - imageUrl
-            properties:
-              id:
-                type: string
-                format: uuid
-              placement:
-                type: string
-              titleAr:
-                type:
-                - string
-                - 'null'
-              titleEn:
-                type:
-                - string
-                - 'null'
-              link:
-                type: string
-              startsAt:
-                type: string
-                format: date-time
-              endsAt:
-                type:
-                - string
-                - 'null'
-                format: date-time
-              sortOrder:
-                type: integer
-              enabled:
-                type: boolean
-              showing:
-                type: boolean
-              imageUrl:
-                type:
-                - string
-                - 'null'
+            $ref: '#/components/schemas/AdminBanner'
+    AdminBanner:
+      description: (v1.65-social, D197; named in v1.59-live, D248) One banner in the panel.
+      type: object
+      required:
+      - id
+      - placement
+      - titleAr
+      - titleEn
+      - link
+      - startsAt
+      - endsAt
+      - sortOrder
+      - enabled
+      - showing
+      - imageUrl
+      properties:
+        id:
+          type: string
+          format: uuid
+        placement:
+          type: string
+          description: "HOME, ROOM, TASKS, WALLET or (v1.59-live, D248) HUB_CARD."
+        titleAr:
+          type:
+          - string
+          - 'null'
+        titleEn:
+          type:
+          - string
+          - 'null'
+        link:
+          type: string
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        sortOrder:
+          type: integer
+        enabled:
+          type: boolean
+        showing:
+          type: boolean
+        imageUrl:
+          type:
+          - string
+          - 'null'
+    AdminBannerUpload:
+      type: object
+      description: (v1.59-live, D248) A stored banner picture, not shown until `createAdminBanner` names it.
+      required: [mediaId, placement, width, height, imageUrl, thumbUrl]
+      properties:
+        mediaId: { type: string, format: uuid }
+        placement: { type: string, enum: [HOME, ROOM, TASKS, WALLET, HUB_CARD] }
+        width: { type: integer, description: "1500 (home, tasks, wallet), 600 (room) or 720 (hub_card)." }
+        height: { type: integer, description: "500, 800 or 805." }
+        imageUrl: { type: [string, 'null'], description: Null without MEDIA_PUBLIC_BASE_URL. }
+        thumbUrl: { type: [string, 'null'] }
+    AdminBannerCreateRequest:
+      type: object
+      additionalProperties: false
+      description: (v1.59-live, D248) The `banner-admin add` fields, from the panel.
+      required: [mediaId, placement, link, reason]
+      properties:
+        mediaId: { type: string, format: uuid, description: "From `uploadAdminBannerPicture` for the same placement, within 24 hours." }
+        placement: { type: string, enum: [home, room, tasks, wallet, hub_card] }
+        link:
+          type: string
+          maxLength: 512
+          description: "`/cp/space`, `/families`, `/live?tab=trending|new|following`, `/home/room/{roomId}`, `/users/{username}` or an `https://` URL."
+        titleAr: { type: [string, 'null'], description: "Overlay text, 1–40 code points." }
+        titleEn: { type: [string, 'null'] }
+        titleSide: { type: string, enum: [LEFT, RIGHT], default: RIGHT }
+        startsAt: { type: string, format: date-time, description: Default now. }
+        endsAt: { type: [string, 'null'], format: date-time, description: Null or absent = open. }
+        sortOrder: { type: integer, minimum: 0, maximum: 1000000, default: 0 }
+        enabled: { type: boolean, default: true }
+        reason: { type: string, minLength: 1, maxLength: 500 }
     AdminBannerEnabled:
       type: object
       required:
@@ -21817,7 +21965,7 @@ components:
         imageUrl:
           type: string
           format: uri
-          description: The 1 500 × 500 WebP (3:1); show it cover-fitted at the full content width.
+          description: The 1 500 × 500 WebP (3:1); show it cover-fitted at the full content width. (`room` 600 × 800; v1.59-live `hub_card` 720 × 805, shown as one live card.)
         width: { type: integer, minimum: 1 }
         height: { type: integer, minimum: 1 }
         blurhash: { type: [string, 'null'] }
@@ -21844,6 +21992,12 @@ components:
           type: array
           maxItems: 10
           items: { $ref: '#/components/schemas/HomeBanner' }
+        cell:
+          type: integer
+          minimum: 0
+          maximum: 40
+          description: "v1.59-live (D248): only for `placement=hub_card` — the 0-based grid cell (reading order, every cell of the 2-column grid) the card-size banner takes (`HOME_HUB_CARD_CELL`, default 4: the first cell of the third row)."
+
     LiveCategory:
       type: object
       required: [slug, name]

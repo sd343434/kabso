@@ -21,6 +21,7 @@ import 'package:kabso_live/features/live/domain/home_banner_link.dart';
 import 'package:kabso_live/features/live/domain/live_boost_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/hub/home_banner_carousel.dart';
+import 'package:kabso_live/features/live/presentation/hub/hub_card_banner.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_hub_filters.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_hub_grid.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_nearby_country.dart';
@@ -42,8 +43,9 @@ import 'package:material_ui/material_ui.dart';
 /// Following · Popular · New tabs, the category chips and D129's "voice
 /// rooms · live" switch. The voice rooms open from the party button
 /// (`VoiceRoomsScreen`, `/live/voice`). D124 stays: the top bar (title,
-/// search, party, bell), the 2-column grid with the promo banners after
-/// the 4th card, and swiping between this list's lives inside a room. All
+/// search, party, bell), the 2-column grid with the promo banners (D248:
+/// the carousel after the first row, a card-size banner in one cell), and
+/// swiping between this list's lives inside a room. All
 /// data comes from the API (`liveRoomsProvider`, `homeBannersProvider`);
 /// while the server has hosting switched off the list shows the honest
 /// unavailable state with Try again.
@@ -291,7 +293,9 @@ enum LiveListKind { following, popular, explore, nearby, featured }
 
 /// One room list from the API ([query]): the content region of the hub and
 /// of the Voice rooms screen. Opening a room sets the in-room swipe list
-/// (D124); a promo banner follows the 4th room.
+/// (D124); D248: in the hub's grid the promo carousel follows the first row
+/// and a card-size banner takes one cell (the Voice rooms' list keeps its
+/// banner after the 4th row).
 class LiveRoomsPage extends ConsumerWidget {
   const new({
     required this.query,
@@ -364,6 +368,11 @@ class LiveRoomsPage extends ConsumerWidget {
     final controller = ref.read(provider.notifier);
     final hub = async.value;
     final banners = ref.watch(homeBannersProvider).value ?? const [];
+    // D248: the card-size banners only in the grid (not the Voice rooms'
+    // list, not the podcasts).
+    final cards = layout == LiveRoomsLayout.grid
+        ? ref.watch(hubCardBannersProvider).value ?? HubCardBanners.empty
+        : HubCardBanners.empty;
     final arabic = ref.watch(liveScopeProvider).language == AppLanguage.ar;
     final country = KCountries.byCode(ref.watch(liveCountryProvider));
     final select = onSelect;
@@ -395,6 +404,8 @@ class LiveRoomsPage extends ConsumerWidget {
         }
         ref
           ..invalidate(homeBannersProvider)
+          // D248: and the card-size banners.
+          ..invalidate(hubCardBannersProvider)
           // D154b: and the featured slots.
           ..invalidate(liveBoostedRoomsProvider);
         return controller.refresh();
@@ -403,6 +414,8 @@ class LiveRoomsPage extends ConsumerWidget {
       onLoadMore: () => unawaited(controller.loadMore()),
       onRetryLoadMore: () => unawaited(controller.retryLoadMore()),
       banners: banners,
+      cardBanners: cards.banners,
+      cardBannerCell: cards.cell,
       onOpenBanner: (banner) => _openBanner(context, ref, banner),
       canOpenBanner: (banner) => HomeBannerTarget.parse(banner.link) != null,
       onOpenRoom: (room) {
@@ -483,6 +496,8 @@ class LiveHubBody extends StatelessWidget {
     this.onOpenRoom,
     this.refreshWhenUnavailable = false,
     this.banners = const [],
+    this.cardBanners = const [],
+    this.cardBannerCell = HubCardBanners.defaultCell,
     this.onOpenBanner,
     this.canOpenBanner,
   });
@@ -524,9 +539,14 @@ class LiveHubBody extends StatelessWidget {
 
   final bool refreshWhenUnavailable;
 
-  /// D124: the active promo banners, shown after the 4th room (none: no
-  /// carousel).
+  /// D124: the active promo banners; D248: after the grid's first row (the
+  /// Voice rooms' list: after the 4th row). None: no carousel.
   final List<HomeBanner> banners;
+
+  /// D248: the card-size banners, taking turns in grid cell
+  /// [cardBannerCell] (none: no such cell; the grid layout only).
+  final List<HomeBanner> cardBanners;
+  final int cardBannerCell;
   final ValueChanged<HomeBanner>? onOpenBanner;
   final bool Function(HomeBanner banner)? canOpenBanner;
 
@@ -638,14 +658,23 @@ class LiveHubBody extends StatelessWidget {
       errorTitle: l10n.liveHubErrorTitle,
       loadMoreFailed: l10n.liveHubLoadMoreFailed,
     );
+    final list = layout != LiveRoomsLayout.grid;
     final banner = banners.isEmpty
         ? null
         : KHomeBannerCarousel(
             banners: banners,
             onOpen: onOpenBanner,
             canOpen: canOpenBanner,
+            // D248 (ref 375): the hub's indicator bar inside the picture.
+            overlayIndicator: !list,
           );
-    final list = layout != LiveRoomsLayout.grid;
+    final cardBanner = cardBanners.isEmpty || list
+        ? null
+        : KHubCardBanner(
+            banners: cardBanners,
+            onOpen: onOpenBanner,
+            canOpen: canOpenBanner,
+          );
     return FeedRegion<LiveRoomCardData>(
       key: PageStorageKey(
         layout == LiveRoomsLayout.grid
@@ -675,6 +704,8 @@ class LiveHubBody extends StatelessWidget {
           : LiveHubGrid.sliver(
               rooms: rooms,
               banner: banner,
+              cardBanner: cardBanner,
+              cardBannerCell: cardBannerCell,
               onOpenRoom: onOpenRoom,
             ),
     );

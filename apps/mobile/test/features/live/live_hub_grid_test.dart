@@ -1,6 +1,6 @@
 // D124: the live hub as a 2-column grid with the promo banner carousel
-// after the 4th card, banner links, and the in-room swipe through the
-// tab's rooms.
+// (D248: after the first row, and the card-size banner's link), banner
+// links, and the in-room swipe through the tab's rooms.
 
 import 'dart:ui' show Tristate;
 
@@ -22,6 +22,7 @@ import 'package:kabso_live/features/live/domain/home_banner.dart';
 import 'package:kabso_live/features/live/domain/home_banner_link.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
 import 'package:kabso_live/features/live/presentation/hub/home_banner_carousel.dart';
+import 'package:kabso_live/features/live/presentation/hub/hub_card_banner.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_grid_card.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_hub_filters.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_hub_grid.dart';
@@ -188,9 +189,8 @@ void main() {
   });
 
   group('banners (D124)', () {
-    testWidgets('full width after the 4th card, 3:1, with page dots', (
-      tester,
-    ) async {
+    testWidgets('D248: full width after the first row (2 cards), 3:1, the '
+        'indicator bar inside its bottom edge', (tester) async {
       await _pumpHub(tester, banners: sampleBanners());
       final carousel = find.byKey(KHomeBannerCarousel.carouselKey);
       expect(carousel, findsOneWidget);
@@ -200,22 +200,23 @@ void main() {
       expect(pager.left, moreOrLessEquals(13));
       expect(pager.width, moreOrLessEquals(393 - 26));
       expect(pager.height, moreOrLessEquals((393 - 26) / 3));
-      final fourth = tester.getRect(find.byKey(LiveHubGrid.cardKey(3)));
-      expect(pager.top - fourth.bottom, moreOrLessEquals(7.2));
-      await tester.drag(
-        find.byType(CustomScrollView).first,
-        const Offset(0, -400),
-      );
-      await tester.pumpAndSettle();
-      final fifth = tester.getRect(find.byKey(LiveHubGrid.cardKey(4)));
+      final second = tester.getRect(find.byKey(LiveHubGrid.cardKey(1)));
+      final third = tester.getRect(find.byKey(LiveHubGrid.cardKey(2)));
+      // Ref 375: 12 px (6.4 pt) under the first row, 21 px (11.2 pt) above
+      // the next.
+      expect(pager.top - second.bottom, moreOrLessEquals(6.4));
+      expect(third.top - pager.bottom, moreOrLessEquals(11.2));
       final dots = tester.getRect(find.byKey(KHomeBannerCarousel.dotsKey));
-      expect(fifth.top, greaterThan(dots.bottom));
+      expect(dots.bottom, moreOrLessEquals(pager.bottom - 6.4));
+      expect(dots.center.dx, moreOrLessEquals(pager.center.dx));
+      expect(dots.width, moreOrLessEquals(3 * 8.5));
+      expect(dots.height, moreOrLessEquals(2));
     });
 
-    testWidgets('after the last card when there are fewer than 4', (
+    testWidgets('after the last card when there are fewer than 2', (
       tester,
     ) async {
-      await _pumpHub(tester, rooms: 2, banners: sampleBanners(count: 1));
+      await _pumpHub(tester, rooms: 1, banners: sampleBanners(count: 1));
       final pager = tester.getRect(
         find.descendant(
           of: find.byKey(KHomeBannerCarousel.carouselKey),
@@ -224,7 +225,7 @@ void main() {
       );
       expect(
         pager.top,
-        greaterThan(tester.getRect(find.byKey(LiveHubGrid.cardKey(1))).bottom),
+        greaterThan(tester.getRect(find.byKey(LiveHubGrid.cardKey(0))).bottom),
       );
       // One banner: no dots.
       expect(find.byKey(KHomeBannerCarousel.dotsKey), findsNothing);
@@ -496,6 +497,17 @@ void main() {
             .isSelected,
         Tristate.isTrue,
       );
+    });
+
+    testWidgets('D248: the card-size banner opens its link', (tester) async {
+      banners.hubCardBanners = sampleCardBanners();
+      await pumpRouted(tester);
+      final card = find.byKey(KHubCardBanner.pageKey('card-0'));
+      await tester.ensureVisible(card);
+      await tester.pumpAndSettle();
+      await tester.tap(card);
+      await tester.pumpAndSettle();
+      expect(find.text('families'), findsOneWidget);
     });
 
     testWidgets('top bar: search opens Discover, the bell the notifications', (

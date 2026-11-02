@@ -22,6 +22,13 @@ export const BANNER_HEIGHT = 500;
 export const ROOM_BANNER_WIDTH = 600;
 export const ROOM_BANNER_HEIGHT = 800;
 export const ROOM_BANNER_THUMB_WIDTH = 240;
+/**
+ * v1.59-live (D248): the live hub's card-size banner takes one grid cell, so its picture has the live
+ * card's aspect (width : height 0.894, `KLiveGrid.cardAspect` in the app): 720 × 805, thumb 288 × 322.
+ */
+export const HUB_CARD_BANNER_WIDTH = 720;
+export const HUB_CARD_BANNER_HEIGHT = 805;
+export const HUB_CARD_BANNER_THUMB_WIDTH = 288;
 
 /**
  * How the variants are shaped: `inside` (the long side bounded, never enlarged), `square` (a live
@@ -29,7 +36,7 @@ export const ROOM_BANNER_THUMB_WIDTH = 240;
  * home banner, cover-cropped to exactly 3:1 around the centre — 1 500 × 500 and 320 × 107 —
  * enlarged when smaller, so every banner has the same size).
  */
-export type ImageShape = 'inside' | 'square' | 'banner' | 'roomBanner';
+export type ImageShape = 'inside' | 'square' | 'banner' | 'roomBanner' | 'hubCardBanner';
 
 /** Why an upload is not an acceptable image (never shown to clients; they get MEDIA_INVALID). */
 export class InvalidImageError extends Error {}
@@ -112,6 +119,14 @@ export async function processImage(
         { fit: 'cover', position: 'centre' },
       ] as const;
     }
+    if (shape === 'hubCardBanner') {
+      const width = side === THUMB_SIDE ? HUB_CARD_BANNER_THUMB_WIDTH : HUB_CARD_BANNER_WIDTH;
+      return [
+        width,
+        Math.round((width * HUB_CARD_BANNER_HEIGHT) / HUB_CARD_BANNER_WIDTH),
+        { fit: 'cover', position: 'centre' },
+      ] as const;
+    }
     if (shape === 'banner') {
       const width = side === THUMB_SIDE ? THUMB_SIDE : BANNER_WIDTH;
       return [
@@ -126,7 +141,13 @@ export async function processImage(
   };
   try {
     const large = await base()
-      .resize(...resize(shape === 'banner' || shape === 'roomBanner' ? BANNER_WIDTH : largeSide))
+      .resize(
+        ...resize(
+          shape === 'banner' || shape === 'roomBanner' || shape === 'hubCardBanner'
+            ? BANNER_WIDTH
+            : largeSide,
+        ),
+      )
       .webp({ quality: 82 })
       .toBuffer({ resolveWithObject: true });
     const thumb = await base()

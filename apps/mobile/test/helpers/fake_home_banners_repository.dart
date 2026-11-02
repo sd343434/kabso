@@ -9,6 +9,8 @@ class FakeHomeBannersRepository implements HomeBannersRepository {
     this.failure,
     this.roomBanners = const [],
     this.walletBanners = const [],
+    this.hubCardBanners = const [],
+    this.hubCardCell = HubCardBanners.defaultCell,
   });
 
   List<HomeBanner> banners;
@@ -18,6 +20,10 @@ class FakeHomeBannersRepository implements HomeBannersRepository {
 
   /// D177: the wallet page's banners.
   List<HomeBanner> walletBanners;
+
+  /// D248: the live hub's card-size banners and their cell.
+  List<HomeBanner> hubCardBanners;
+  int hubCardCell;
   AppFailure? failure;
   int calls = 0;
 
@@ -35,7 +41,27 @@ class FakeHomeBannersRepository implements HomeBannersRepository {
         ? walletBanners
         : banners;
   }
+
+  @override
+  Future<HubCardBanners> listHubCardBanners() async {
+    calls++;
+    final f = failure;
+    if (f != null) throw f;
+    return HubCardBanners(banners: hubCardBanners, cell: hubCardCell);
+  }
 }
+
+/// D248: card-size banners (720 × 805, the picture carries its text).
+List<HomeBanner> sampleCardBanners({int count = 2}) => [
+  for (var i = 0; i < count; i++)
+    HomeBanner(
+      id: 'card-$i',
+      imageUrl: 'https://media.example.test/media/card-$i/720.webp',
+      width: 720,
+      height: 805,
+      link: const ['/families', '/cp/space'][i % 2],
+    ),
+];
 
 /// Three banners like the owner's (3:1, text in the picture, no overlay).
 List<HomeBanner> sampleBanners({int count = 3}) => [

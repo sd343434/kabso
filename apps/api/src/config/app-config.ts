@@ -375,6 +375,8 @@ export interface AppConfig {
     readonly maxJumpPercent: number;
     readonly fetchTimeoutMs: number;
   };
+  /** v1.59-live (D248, §10.90): the live hub's card-size banner: its grid cell (0-based, reading order). */
+  readonly home: { readonly hubCardCell: number };
   /** v1.80-kyc (D227, §10.77): identity checks with Didit (the keys are in the panel, never here). */
   readonly kyc: {
     /** API_PUBLIC_URL: shown as the webhook address's origin (default `https://api.kabsolive.com`). */
@@ -810,6 +812,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       },
     },
     kyc: { publicApiBaseUrl: e.API_PUBLIC_URL ?? 'https://api.kabsolive.com' },
+    home: { hubCardCell: e.HOME_HUB_CARD_CELL },
     fx: {
       freeUrl: e.FX_FREE_URL,
       currencyApiBaseUrl: e.FX_CURRENCYAPI_BASE_URL,

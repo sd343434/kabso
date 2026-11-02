@@ -245,6 +245,31 @@ export const bagGrantBody = z.strictObject({
 export const bagRevokeBody = z.strictObject({ code: z.string().trim().min(1).max(40), reason });
 
 const isoTime = z.string().datetime({ offset: true });
+/** v1.59-live (D248, §10.90): where a banner uploaded or added from the panel is shown (the picture's shape). */
+export const bannerPlacementParam = z.enum(['home', 'room', 'tasks', 'wallet', 'hub_card']);
+export type BannerPlacementParam = z.infer<typeof bannerPlacementParam>;
+
+/** v1.59-live (D248): `POST /admin/banner-uploads?placement=`. */
+export const bannerUploadQuery = z.strictObject({ placement: bannerPlacementParam });
+
+/**
+ * v1.59-live (D248): `POST /admin/banners` — a banner on a picture uploaded with `POST /admin/banner-uploads` for the
+ * same placement in the last 24 hours (the CLI's `banner-admin add` rules: link allowlist, titles 1–40, window).
+ */
+export const createBannerBody = z.strictObject({
+  mediaId: uuid,
+  placement: bannerPlacementParam,
+  link: z.string().trim().min(1).max(512),
+  titleAr: z.string().trim().min(1).max(80).nullable().optional(),
+  titleEn: z.string().trim().min(1).max(80).nullable().optional(),
+  titleSide: z.enum(['LEFT', 'RIGHT']).optional(),
+  startsAt: isoTime.optional(),
+  endsAt: isoTime.nullable().optional(),
+  sortOrder: z.number().int().min(0).max(1_000_000).optional(),
+  enabled: z.boolean().optional(),
+  reason,
+});
+
 export const createEventBody = z.strictObject({
   titleAr: z.string().trim().min(1).max(120),
   titleEn: z.string().trim().min(1).max(120),

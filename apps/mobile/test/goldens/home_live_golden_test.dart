@@ -235,9 +235,10 @@ void main() {
 
         // Layout review with designed fixture covers (D35): the pure hub
         // body, as in the debug gallery. D124: the 2-column grid with the
-        // banner carousel after the 4th card (its pictures are network
-        // images: the placeholder surface here), in the dark and the light
-        // app theme (the hub follows the app theme).
+        // banner carousel (D248: after the first row, and the card-size
+        // banner in the 5th cell; their pictures are network images: the
+        // placeholder surface here), in the dark and the light app theme
+        // (the hub follows the app theme).
         for (final brightness in Brightness.values) {
           final suffix = brightness == Brightness.light ? '.light' : '';
           testWidgets('live_hub.populated$suffix ($vp)', (tester) async {
@@ -266,6 +267,15 @@ void main() {
                               imageUrl: 'https://media.example.test/$i.webp',
                               link: '/families',
                             ),
+                        ],
+                        cardBanners: const [
+                          HomeBanner(
+                            id: 'card-0',
+                            imageUrl: 'https://media.example.test/card.webp',
+                            width: 720,
+                            height: 805,
+                            link: '/families',
+                          ),
                         ],
                         onRefresh: () async {},
                         onRetry: () {},

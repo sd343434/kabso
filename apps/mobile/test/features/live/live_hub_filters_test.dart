@@ -1,9 +1,9 @@
 // D131 (owner, ref 165): the Live hub's four filters (Nearby · Popular ▾ ·
 // Featured · Explore) over every live video (`kind=video`), Popular's menu
 // (Following, All, the categories), D133's Nearby without a country, the
-// banner after the 4th card, and the layout in Arabic and English, small
-// screens and large text. D131 (ref 166): the Voice rooms screen behind the
-// party button (`kind=audio`).
+// banner after the first row (D248), and the layout in Arabic and English,
+// small screens and large text. D131 (ref 166): the Voice rooms screen
+// behind the party button (`kind=audio`).
 
 import 'dart:ui' show Tristate;
 
@@ -403,7 +403,7 @@ void main() {
       );
     });
 
-    testWidgets('the banner still follows the 4th card', (tester) async {
+    testWidgets('D248: the banner follows the first row', (tester) async {
       await _pump(
         tester,
         banners: const [
@@ -415,9 +415,11 @@ void main() {
         ],
       );
       expect(find.byKey(LiveHubGrid.bannerSlotKey), findsOneWidget);
-      final fourth = tester.getRect(find.byKey(LiveHubGrid.cardKey(3)));
+      final second = tester.getRect(find.byKey(LiveHubGrid.cardKey(1)));
+      final third = tester.getRect(find.byKey(LiveHubGrid.cardKey(2)));
       final banner = tester.getRect(find.byType(KHomeBannerCarousel));
-      expect(banner.top, greaterThanOrEqualTo(fourth.bottom));
+      expect(banner.top, greaterThanOrEqualTo(second.bottom));
+      expect(third.top, greaterThan(banner.bottom));
     });
 
     testWidgets('Arabic: Nearby at the reading start (right)', (tester) async {

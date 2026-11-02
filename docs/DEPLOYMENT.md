@@ -2499,6 +2499,36 @@ seeds a host, a viewer and a gift; with `LIVEKIT_TEST_URL` it uses a real LiveKi
 run (`apps/studio/e2e`) needs `KABSO_STUDIO_SMOKE`, `KABSO_STUDIO_URL`, `KABSO_API_DIR` (and `KABSO_SITE_DIR`,
 `KABSO_LIVEKIT_RESTART`, `KABSO_STUDIO_CAPTURES` optionally).
 
+### 5.49 The live hub's banners as in the owner's reference: the card-size banner and adding banners from the panel (migration `20270303090000_banner_hub_card`; D248) — [IMPLEMENTED, draft contract v1.59-live; not deployed, not device-tested]
+
+CONVENTIONS §10.90. Additive: the banner placement CHECK gains `HUB_CARD` (no new table, no backfill). (§5.47 and
+§5.48 are D213 / D247's; §5.50 is reserved for D250, §5.51 is D246b's.)
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `HOME_HUB_CARD_CELL` | `4` (0–40) | the live hub grid cell (0-based, reading order; 4 = the first cell of the third row) of the card-size banner |
+
+Order: API (with the migration) first, then the panel, then the app. An older app ignores `hub_card` banners (it never
+asks for them) and keeps its carousel after the 4th card. The panel's upload needs object storage (the same as the
+CLI's `--image`, §5.10 / §5.40); without it 503.
+
+**What to upload (the owner):**
+
+- **Carousel** «الرئيسية — الشريط المتحرك بعد أول بثين»: **1 500 × 500 px** (3:1), text inside the picture, keep it
+  away from the edges; one or more, they rotate every 4 s.
+- **Card-size banner** «الرئيسية — بانر بحجم بطاقة البث»: **720 × 805 px** (the live card's shape), text inside the
+  picture. Several take turns in the same cell every 5 s.
+- Both: JPEG, PNG or WebP, at most 15 MB; anything else is cropped around the centre to that shape (the panel shows the
+  crop before adding).
+
+#### The owner's steps — بالعربية
+
+1. لوحة الإدارة ← «البانرات والفعاليات» ← «إضافة بانر».
+2. اختر «مكان العرض»: «الرئيسية — الشريط المتحرك بعد أول بثين» (صورة 1500 × 500) أو «الرئيسية — بانر بحجم بطاقة البث»
+   (صورة 720 × 805).
+3. اختر الصورة وتأكد من «معاينة القص»، ثم اكتب الرابط (مثل ‎/families‎) والسبب واضغط «إضافة بانر».
+4. لتغيير الخانة التي يظهر فيها بانر البطاقة: `HOME_HUB_CARD_CELL` في إعدادات الخادم (4 = أول خانة في الصف الثالث).
+
 ### 5.51 The party page's room cards: «رائج» per kind (no migration; D246) — [IMPLEMENTED, draft contract v1.58-live; not deployed, not device-tested]
 
 CONVENTIONS §10.89. (Numbered §5.48 on its branch; renumbered §5.51 at integration `claude/kl-int12` because D247's studio is §5.48, D248 §5.49 and D250 §5.50.) No migration and no new table: `LiveRoomSummary.roomLevel`,
@@ -2509,3 +2539,4 @@ CONVENTIONS §10.89. (Numbered §5.48 on its branch; renumbered §5.51 at integr
 | `LIVE_POPULAR_TOP_N` | 10 | D246 «رائج»: a live is popular while among this many first lives of its kind (audio, podcast, multi, video) in the `popular` order (1–100) |
 
 Order: API first, then the app (an older server sends none of the fields: the cards show no level, no «رائج», no flag).
+

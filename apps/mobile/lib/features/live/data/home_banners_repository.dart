@@ -17,6 +17,10 @@ abstract interface class HomeBannersRepository {
     bool room = false,
     bool wallet = false,
   });
+
+  /// D248: `GET /home/banners?placement=hub_card` — the live hub's
+  /// card-size banners and their grid cell (openapi v1.59-live).
+  Future<HubCardBanners> listHubCardBanners();
 }
 
 class HomeBannersRepositoryImpl implements HomeBannersRepository {
@@ -43,6 +47,15 @@ class HomeBannersRepositoryImpl implements HomeBannersRepository {
         HomeBanner.fromJson(item as Map<String, dynamic>),
     ];
   });
+
+  @override
+  Future<HubCardBanners> listHubCardBanners() => guardApiCall(() async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      '/home/banners',
+      queryParameters: const {'placement': 'hub_card'},
+    );
+    return HubCardBanners.fromJson(res.data!);
+  });
 }
 
 /// Demo mode (test builds) has no banners: nothing is invented (D39).
@@ -54,6 +67,9 @@ class _NoBanners implements HomeBannersRepository {
     bool room = false,
     bool wallet = false,
   }) async => const [];
+
+  @override
+  Future<HubCardBanners> listHubCardBanners() async => HubCardBanners.empty;
 }
 
 final homeBannersRepositoryProvider = Provider<HomeBannersRepository>(

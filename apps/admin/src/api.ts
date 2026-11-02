@@ -147,9 +147,36 @@ export function uploadGiftFile(
   file: Blob,
   onProgress: (fraction: number) => void = () => undefined,
 ): Promise<GiftUpload> {
+  return uploadRaw<GiftUpload>(withQuery('/admin/gift-uploads', { kind, code }), file, onProgress);
+}
+
+/** v1.59-live (D248): what `POST /admin/banner-uploads` answers for a stored banner picture. */
+export interface BannerUpload {
+  mediaId: string;
+  placement: string;
+  width: number;
+  height: number;
+  imageUrl: string | null;
+  thumbUrl: string | null;
+}
+
+/**
+ * v1.59-live (D248, CONVENTIONS §10.90): uploads a banner picture as the raw request body; the server cover-crops it to
+ * the placement's shape (409 with the reason for a file that is not an acceptable image).
+ */
+export function uploadBannerPicture(
+  placement: string,
+  file: Blob,
+  onProgress: (fraction: number) => void = () => undefined,
+): Promise<BannerUpload> {
+  return uploadRaw<BannerUpload>(withQuery('/admin/banner-uploads', { placement }), file, onProgress);
+}
+
+/** A raw `application/octet-stream` POST with the CSRF token and upload progress (XMLHttpRequest: `fetch` has none). */
+function uploadRaw<T>(path: string, file: Blob, onProgress: (fraction: number) => void): Promise<T> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open('POST', `/api/v1${withQuery('/admin/gift-uploads', { kind, code })}`);
+    xhr.open('POST', `/api/v1${path}`);
     xhr.withCredentials = true;
     xhr.setRequestHeader('Content-Type', 'application/octet-stream');
     xhr.setRequestHeader('Accept', 'application/json');
@@ -167,7 +194,7 @@ export function uploadGiftFile(
       }
       if (xhr.status >= 200 && xhr.status < 300) {
         onProgress(1);
-        resolve(parsed as GiftUpload);
+        resolve(parsed as T);
         return;
       }
       const err = (parsed as ApiErrorBody | null)?.error;

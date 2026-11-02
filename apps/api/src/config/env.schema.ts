@@ -1188,6 +1188,12 @@ export const envSchema = z
     FX_MAX_JUMP_PERCENT: intSetting(50, 1, 1000),
     FX_FETCH_TIMEOUT_MS: intSetting(10_000, 1000, 60_000),
     /**
+     * v1.59-live (D248, CONVENTIONS §10.90): the grid cell of the live hub where the card-size banner
+     * (`placement=hub_card`) sits, counted from 0 in reading order over every cell of the grid (default 4: the first
+     * cell of the third row). Answered by `GET /home/banners?placement=hub_card` as `cell`.
+     */
+    HOME_HUB_CARD_CELL: intSetting(4, 0, 40),
+    /**
      * v1.54-social (D185, §10.48.1): special usernames («يوزر مميز»). After one ends, the name stays reserved
      * for the person this many days (a `coin` name: forever). The sweeper ends expired ones and releases names.
      */

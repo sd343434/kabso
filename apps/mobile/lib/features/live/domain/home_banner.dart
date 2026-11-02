@@ -44,3 +44,35 @@ class HomeBanner {
   /// An allowlisted in-app route or an https URL (`openHomeBannerLink`).
   final String link;
 }
+
+/// D248 (openapi v1.59-live draft, CONVENTIONS §10.90): the live hub's
+/// card-size banners (`GET /home/banners?placement=hub_card`, 720 × 805
+/// pictures, the live card's aspect) and the grid [cell] they take.
+@immutable
+class HubCardBanners {
+  const new({this.banners = const [], this.cell = defaultCell});
+
+  /// Parses the list response; a missing or out-of-range `cell` falls back
+  /// to [defaultCell].
+  factory fromJson(Map<String, dynamic> json) {
+    final cell = json['cell'];
+    return HubCardBanners(
+      banners: [
+        for (final item in json['data']! as List<dynamic>)
+          HomeBanner.fromJson(item as Map<String, dynamic>),
+      ],
+      cell: cell is int && cell >= 0 && cell <= 40 ? cell : defaultCell,
+    );
+  }
+
+  /// The first cell of the third row (the server's default).
+  static const int defaultCell = 4;
+
+  static const empty = HubCardBanners();
+
+  /// In server order; they take turns in the one cell.
+  final List<HomeBanner> banners;
+
+  /// 0-based, in reading order over every cell of the 2-column grid.
+  final int cell;
+}

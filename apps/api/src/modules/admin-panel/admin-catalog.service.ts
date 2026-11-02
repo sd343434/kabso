@@ -4,7 +4,7 @@ import { AuditService } from '../../common/audit/audit.service.js';
 import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
 import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
-import type { GiftBadge, EventMetric } from '../../generated/prisma/client.js';
+import type { GiftBadge, EventMetric, HomeBanner, MediaAsset } from '../../generated/prisma/client.js';
 import { safeErrorLog } from '../../logging/redact-text.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { BagAdminError, grantBagItemByAdminIn, revokeBagItemByAdminIn } from '../bag/bag-admin-rules.js';
@@ -38,7 +38,17 @@ import {
   GiftFieldsError,
   type GiftFields,
 } from '../gifts/gift-catalogue.js';
-import { activeBannerWhere, BANNER_ORDER, removeBannerIn, setBannerEnabledIn } from '../home/home-banners.js';
+import {
+  activeBannerWhere,
+  addBannerIn,
+  BANNER_ORDER,
+  BannerError,
+  type BannerPlacement,
+  removeBannerIn,
+  setBannerEnabledIn,
+  storeBannerImage,
+} from '../home/home-banners.js';
+import { MAX_IMAGE_BYTES } from '../media/media-image.js';
 import { OBJECT_STORAGE, type ObjectStorage } from '../media/object-storage.js';
 import {
   changeEventByAdminIn,
@@ -120,6 +130,11 @@ function given(input: GiftInput): Partial<GiftFields> {
  * through the CLI's own rule (gift-admin-rules, bag-admin-rules, home-banners, event-admin-rules), audited with
  * `via: panel` and the reason.
  */
+/** v1.59-live (D248): the panel's lower-case placement (`hub_card`) as stored (`HUB_CARD`). */
+function panelPlacement(raw: string): BannerPlacement {
+  return raw.toUpperCase() as BannerPlacement;
+}
+
 @Injectable()
 export class AdminCatalogService {
   private readonly logger = new Logger(AdminCatalogService.name);
@@ -594,22 +609,103 @@ export class AdminCatalogService {
       this.prisma.homeBanner.findMany({ where: activeBannerWhere(now), select: { id: true } }),
     ]);
     const on = new Set(active.map((b) => b.id));
+    return { data: rows.map((b) => this.bannerRow(b, on.has(b.id))) };
+  }
+
+  /** `AdminBanner` (openapi): one banner for the panel's list. */
+  private bannerRow(b: HomeBanner & { media: MediaAsset }, showing: boolean) {
     const base = this.storageSettings.current().publicBaseUrl;
     return {
-      data: rows.map((b) => ({
-        id: b.id,
-        placement: b.placement,
-        titleAr: b.titleAr,
-        titleEn: b.titleEn,
-        link: b.link,
-        startsAt: b.startsAt.toISOString(),
-        endsAt: b.endsAt?.toISOString() ?? null,
-        sortOrder: b.sortOrder,
-        enabled: b.enabled,
-        showing: on.has(b.id),
-        imageUrl: giftArtUrl(base, b.media.thumbKey ?? b.media.largeKey),
-      })),
+      id: b.id,
+      placement: b.placement,
+      titleAr: b.titleAr,
+      titleEn: b.titleEn,
+      link: b.link,
+      startsAt: b.startsAt.toISOString(),
+      endsAt: b.endsAt?.toISOString() ?? null,
+      sortOrder: b.sortOrder,
+      enabled: b.enabled,
+      showing,
+      imageUrl: giftArtUrl(base, b.media.thumbKey ?? b.media.largeKey),
     };
+  }
+
+  /**
+   * v1.59-live (D248, §10.90): stores a banner picture uploaded from the panel (the CLI's `--image` path:
+   * signature, decoder, size limits, metadata dropped, cover-cropped to the placement's shape), owned by the admin's
+   * account and unattached until [createBanner] names it. 409 for a file that is not an acceptable image.
+   */
+  async uploadBannerPicture(placement: string, body: unknown, ctx: AdminContext) {
+    if (!Buffer.isBuffer(body) || body.length === 0) throw refused('The file is empty.');
+    if (body.length > MAX_IMAGE_BYTES) throw refused('The picture is larger than 15 MiB.');
+    let asset: MediaAsset;
+    try {
+      asset = await storeBannerImage(this.prisma, this.storage, ctx.userId, body, panelPlacement(placement));
+    } catch (err) {
+      if (err instanceof BannerError) throw refused(err.message);
+      throw err;
+    }
+    const base = this.storageSettings.current().publicBaseUrl;
+    return {
+      mediaId: asset.id,
+      placement: panelPlacement(placement),
+      width: asset.width,
+      height: asset.height,
+      imageUrl: giftArtUrl(base, asset.largeKey),
+      thumbUrl: giftArtUrl(base, asset.thumbKey ?? asset.largeKey),
+    };
+  }
+
+  /** v1.59-live (D248, §10.90): adds a banner from the panel (the CLI's rules; audited via panel with the reason). */
+  async createBanner(
+    input: {
+      mediaId: string;
+      placement: string;
+      link: string;
+      titleAr?: string | null | undefined;
+      titleEn?: string | null | undefined;
+      titleSide?: 'LEFT' | 'RIGHT' | undefined;
+      startsAt?: string | undefined;
+      endsAt?: string | null | undefined;
+      sortOrder?: number | undefined;
+      enabled?: boolean | undefined;
+      reason: string;
+    },
+    ctx: AdminContext,
+  ) {
+    let created: HomeBanner;
+    try {
+      created = await this.prisma.$transaction((tx) =>
+        addBannerIn(
+          tx,
+          input.mediaId,
+          {
+            titleAr: input.titleAr ?? null,
+            titleEn: input.titleEn ?? null,
+            titleSide: input.titleSide ?? 'RIGHT',
+            link: input.link,
+            startsAt: input.startsAt === undefined ? new Date() : new Date(input.startsAt),
+            endsAt: input.endsAt === undefined || input.endsAt === null ? null : new Date(input.endsAt),
+            sortOrder: input.sortOrder ?? 0,
+            enabled: input.enabled ?? true,
+            placement: panelPlacement(input.placement),
+          },
+          viaOf(ctx),
+          input.reason,
+        ),
+      );
+    } catch (err) {
+      if (err instanceof BannerError) throw refused(err.message);
+      throw err;
+    }
+    const row = await this.prisma.homeBanner.findUniqueOrThrow({
+      where: { id: created.id },
+      include: { media: true },
+    });
+    const showing = await this.prisma.homeBanner.count({
+      where: { id: row.id, ...activeBannerWhere(new Date()) },
+    });
+    return this.bannerRow(row, showing > 0);
   }
 
   async setBannerEnabled(id: string, enabled: boolean, reason: string, ctx: AdminContext) {
