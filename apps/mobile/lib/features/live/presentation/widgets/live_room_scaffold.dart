@@ -50,6 +50,7 @@ class KLiveRoomScaffold extends StatelessWidget {
     this.sideStart,
     this.sidePromo,
     this.chatEnd,
+    this.dock,
     this.onChatTop,
     this.closeButtonKey = closeKey,
     this.closeLabel,
@@ -83,6 +84,17 @@ class KLiveRoomScaffold extends StatelessWidget {
   /// replies (the lucky combo): the chat narrows for it, so it covers
   /// neither the chat nor the quick replies.
   final Widget? chatEnd;
+
+  /// D238 (owner: «اجعل صندوق اصغر ويظهر في الاسفل»): a small card docked
+  /// at the bottom of the chat area, right above [actionBar] (the PK dare),
+  /// [dockSide] from the screen's sides like the leave prompt. It covers
+  /// the chat, never the stage or the bar; on the keyboard it rides up with
+  /// the bar, and scrolls when the room left for it is shorter than it.
+  final Widget? dock;
+
+  /// D238: the leave prompt's side margin (`KLiveDialogFrame`).
+  static const double dockSide = 18.3;
+  static const dockKey = Key('room.dock');
 
   /// ✕'s key and spoken label (the host's ✕ ends the live).
   /// D145c: told the chat's top on the screen when it moves (the gift
@@ -196,35 +208,39 @@ class KLiveRoomScaffold extends StatelessWidget {
                     ],
                     const SizedBox(height: KSpacing.sm),
                     Expanded(
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Expanded(
-                            child: chat == null
-                                ? const SizedBox.shrink()
-                                : Align(
-                                    alignment: AlignmentDirectional.bottomStart,
-                                    child: ConstrainedBox(
-                                      constraints: BoxConstraints(
-                                        maxHeight: chatCap,
-                                      ),
-                                      child: KTopReporter(
-                                        onTop: onChatTop,
-                                        child: chat,
+                      child: _WithDock(
+                        dock: dock,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Expanded(
+                              child: chat == null
+                                  ? const SizedBox.shrink()
+                                  : Align(
+                                      alignment:
+                                          AlignmentDirectional.bottomStart,
+                                      child: ConstrainedBox(
+                                        constraints: BoxConstraints(
+                                          maxHeight: chatCap,
+                                        ),
+                                        child: KTopReporter(
+                                          onTop: onChatTop,
+                                          child: chat,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                          ),
-                          if (chatEnd case final end?) ...[
-                            const SizedBox(width: KSpacing.xs),
-                            Padding(
-                              padding: const EdgeInsetsDirectional.only(
-                                end: KSpacing.xs,
-                              ),
-                              child: end,
                             ),
+                            if (chatEnd case final end?) ...[
+                              const SizedBox(width: KSpacing.xs),
+                              Padding(
+                                padding: const EdgeInsetsDirectional.only(
+                                  end: KSpacing.xs,
+                                ),
+                                child: end,
+                              ),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
                     ),
                     if (actionBar != null) ...[
@@ -358,6 +374,43 @@ class KLiveUsernameTag extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// D238: [child] (the chat row) with [dock] over its bottom — the leave
+/// prompt's side margins (the room's column already starts [KSpacing.sm]
+/// in), its height capped to the chat area (scrolling inside it, the
+/// buttons first).
+class _WithDock extends StatelessWidget {
+  const new({required this.dock, required this.child});
+
+  final Widget? dock;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final dock = this.dock;
+    if (dock == null) return child;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        child,
+        PositionedDirectional(
+          start: KLiveRoomScaffold.dockSide - KSpacing.sm,
+          end: KLiveRoomScaffold.dockSide,
+          top: 0,
+          bottom: 0,
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: SingleChildScrollView(
+              key: KLiveRoomScaffold.dockKey,
+              reverse: true,
+              child: dock,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

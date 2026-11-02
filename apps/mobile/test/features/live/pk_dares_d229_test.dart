@@ -5,7 +5,9 @@
 // one per level), the loser's «قبول» / «رفض» (with the \u22123 confirm) and its
 // ring, everyone else waiting, the banner with its countdown and ⚠️, the
 // winner's «نُفّذ» / «لم يُنفّذ», the outcomes, and the record's points —
-// ar and en, 393×852 and 360×800 at text 1.0 / 1.3, no overflow.
+// ar and en, 393×852 and 360×800 at text 1.0 / 1.3, no overflow. D238: the
+// card after the draw is the room's bottom dock (small, above the bar, off
+// the videos); the stage and the dock are pumped in the real room scaffold.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
@@ -15,6 +17,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_pk_dare.dart'
 import 'package:kabso_live/features/live/presentation/widgets/live_pk_pages.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk_stage.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../helpers/fake_live_pk.dart';
@@ -67,6 +70,7 @@ Future<void> _pumpStage(
   GoldenViewport viewport = GoldenViewport.phone,
   double textScale = 1,
   bool reduced = true,
+  double keyboard = 0,
 }) async {
   setViewport(tester, viewport);
   if (textScale != 1) {
@@ -75,24 +79,39 @@ Future<void> _pumpStage(
   }
   await pumpScreen(
     tester,
-    Scaffold(
-      backgroundColor: const Color(0xFF000000),
-      body: MediaQuery(
-        data: MediaQueryData(
-          size: viewport.logicalSize,
-          disableAnimations: reduced,
-          textScaler: TextScaler.linear(textScale),
-        ),
-        child: SingleChildScrollView(
-          child: LivePkStage(
+    MediaQuery(
+      data: MediaQueryData(
+        size: viewport.logicalSize,
+        disableAnimations: reduced,
+        textScaler: TextScaler.linear(textScale),
+        viewInsets: EdgeInsets.only(bottom: keyboard),
+        padding: viewport == GoldenViewport.phone
+            ? const EdgeInsets.only(top: 59, bottom: 34)
+            : const EdgeInsets.only(top: 24),
+      ),
+      // (The screens' Scaffold: the dare's snack bars.)
+      child: Scaffold(
+        // The live screens do not resize for the keyboard.
+        resizeToAvoidBottomInset: false,
+        body: KLiveRoomScaffold(
+          header: const SizedBox(height: 48),
+          stage: LivePkStage(
             match: match,
             roomId: 'room-0',
             ownVideo: null,
             opponentVideo: null,
             now: () => now,
-            isHost: isHost,
-            dareActions: actions,
           ),
+          chat: const SizedBox(key: _chatKey, height: 120),
+          dock: LivePkStage.dareDock(
+            match: match,
+            roomId: 'room-0',
+            now: () => now,
+            isHost: isHost,
+            actions: actions,
+          ),
+          // The bar and its quick replies (about their real height).
+          actionBar: const SizedBox(key: _barKey, height: 76),
         ),
       ),
     ),
@@ -100,6 +119,9 @@ Future<void> _pumpStage(
   );
   await tester.pump();
 }
+
+const _chatKey = Key('test.chat');
+const _barKey = Key('test.bar');
 
 void main() {
   group('parse (contract shapes)', () {
@@ -439,74 +461,98 @@ void main() {
       }
     }
 
-    // D236 (owner: the dare card in the «تابع واخرج» style): the shared
-    // live card, the primary action full width in the theme red over the
-    // outlined secondary one, a red-tinted level pill and a red ring.
-    group('D236 the live card style', () {
+    // D236 (owner: the dare card in the «تابع واخرج» style) → D238 (owner:
+    // «اجعل صندوق اصغر ويظهر في الاسفل»): the shared live card, dense — the
+    // red primary and the outlined secondary side by side (the primary at
+    // the reading start), 40 lp buttons, a red-tinted level pill and a red
+    // ring on one header row, the dare in 15 lp — docked at the bottom of
+    // the room above the bar, under the videos.
+    group('D238 the small docked card', () {
       Rect rectOf(WidgetTester tester, Key key) =>
           tester.getRect(find.byKey(key));
 
-      testWidgets('the loser: «قبول» (red, full width) over «رفض» '
-          '(outlined), the red ring and pill, dark ink', (tester) async {
-        final match = pkDareMatchFixture(
-          now: now,
-          dare: pkDareFixture(now: now),
-        );
-        await _pumpStage(
-          tester,
-          match,
-          now: now,
-          isHost: true,
-          actions: _Calls().actions(),
-        );
-        final card = find.byKey(PkDareLayer.decideKey);
-        expect(tester.widget(card), isA<KLiveDialogCard>());
-        final accept = rectOf(tester, PkDareLayer.acceptKey);
-        final refuse = rectOf(tester, PkDareLayer.refuseKey);
-        expect(accept.bottom, lessThanOrEqualTo(refuse.top));
-        expect(accept.width, closeTo(refuse.width, 0.5));
-        final inner =
-            tester.getRect(card).width -
-            KLiveDialogCard.compactPadding.horizontal;
-        // (Dark: the card's 0.8 lp edge on each side.)
-        expect(accept.width, closeTo(inner, 2));
-        final context = tester.element(card);
-        final fill = tester.widget<Container>(
-          find
-              .descendant(
-                of: find.byKey(PkDareLayer.acceptKey),
-                matching: find.byType(Container),
-              )
-              .first,
-        );
-        expect(
-          (fill.decoration! as BoxDecoration).color,
-          context.palette.primary,
-        );
-        final ring = tester.widget<CircularProgressIndicator>(
-          find.descendant(
-            of: find.byType(PkDareRing),
-            matching: find.byType(CircularProgressIndicator),
-          ),
-        );
-        expect(
-          (ring.valueColor! as AlwaysStoppedAnimation<Color?>).value,
-          context.palette.primary,
-        );
-        final chip = tester.widget<Text>(
-          find.descendant(
-            of: find.byType(PkDareLevelChip),
-            matching: find.byType(Text),
-          ),
-        );
-        expect(chip.style?.color, context.palette.primaryText);
-        final dare = tester.widget<Text>(
-          find.descendant(of: card, matching: find.textContaining('غناء')),
-        );
-        expect(dare.style?.color, KLiveDialogCard.inkOf(context));
-      });
+      for (final language in [AppLanguage.ar, AppLanguage.en]) {
+        testWidgets('the loser (${language.name}): «قبول» (red) beside «رفض» '
+            '(outlined), primary at the reading start, the red ring and '
+            'pill on one row, dark 15 lp ink', (tester) async {
+          final match = pkDareMatchFixture(
+            now: now,
+            ar: language == AppLanguage.ar,
+            dare: pkDareFixture(now: now),
+          );
+          await _pumpStage(
+            tester,
+            match,
+            now: now,
+            isHost: true,
+            actions: _Calls().actions(),
+            language: language,
+          );
+          final card = find.byKey(PkDareLayer.decideKey);
+          final widget = tester.widget<KLiveDialogCard>(card);
+          expect(widget.dense, isTrue);
+          final accept = rectOf(tester, PkDareLayer.acceptKey);
+          final refuse = rectOf(tester, PkDareLayer.refuseKey);
+          // One row, the same size, 40 lp tall.
+          expect(accept.top, closeTo(refuse.top, 0.5));
+          expect(accept.width, closeTo(refuse.width, 0.5));
+          expect(accept.height, closeTo(40, 0.5));
+          if (language == AppLanguage.ar) {
+            expect(accept.left, greaterThan(refuse.right - 0.5));
+          } else {
+            expect(accept.right, lessThan(refuse.left + 0.5));
+          }
+          // The pill and the ring on one row.
+          final chip = tester.getRect(find.byType(PkDareLevelChip));
+          final ring = tester.getRect(find.byType(PkDareRing));
+          expect(chip.center.dy, closeTo(ring.center.dy, 1));
+          expect(ring.height, PkDareDock.ring);
+          final context = tester.element(card);
+          final fill = tester.widget<Container>(
+            find
+                .descendant(
+                  of: find.byKey(PkDareLayer.acceptKey),
+                  matching: find.byType(Container),
+                )
+                .first,
+          );
+          expect(
+            (fill.decoration! as BoxDecoration).color,
+            context.palette.primary,
+          );
+          final arc = tester.widget<CircularProgressIndicator>(
+            find.descendant(
+              of: find.byType(PkDareRing),
+              matching: find.byType(CircularProgressIndicator),
+            ),
+          );
+          expect(
+            (arc.valueColor! as AlwaysStoppedAnimation<Color?>).value,
+            context.palette.primary,
+          );
+          final chipText = tester.widget<Text>(
+            find.descendant(
+              of: find.byType(PkDareLevelChip),
+              matching: find.byType(Text),
+            ),
+          );
+          expect(chipText.style?.color, context.palette.primaryText);
+          final dare = tester.widget<Text>(
+            find.descendant(
+              of: card,
+              matching: find.textContaining(
+                language == AppLanguage.ar ? 'غناء' : 'Sing',
+              ),
+            ),
+          );
+          expect(dare.style?.color, KLiveDialogCard.inkOf(context));
+          expect(dare.style?.fontSize, PkDareDock.textSize);
+          expect(dare.maxLines, 3);
+          expect(find.text(l10nFor(language).pkDareYourDare), findsOneWidget);
+        });
+      }
 
-      testWidgets('the winner judging: «نُفّذ» over «لم يُنفّذ»', (
+      testWidgets('the winner judging: «نُفّذ» beside «لم يُنفّذ»', (
         tester,
       ) async {
         final match = pkDareMatchFixture(
@@ -531,21 +577,26 @@ void main() {
         );
         final done = rectOf(tester, PkDareLayer.doneKey);
         final notDone = rectOf(tester, PkDareLayer.notDoneKey);
-        expect(done.bottom, lessThanOrEqualTo(notDone.top));
-        expect(done.width, closeTo(notDone.width, 0.5));
+        expect(done.top, closeTo(notDone.top, 0.5));
+        expect(done.left, greaterThan(notDone.right - 0.5)); // ar: start
+        expect(done.height, closeTo(40, 0.5));
       });
 
       for (final language in [AppLanguage.ar, AppLanguage.en]) {
         for (final (viewport, scale) in [
           (GoldenViewport.phone, 1.0),
+          (GoldenViewport.phone, 1.3),
           (GoldenViewport.android, 1.3),
         ]) {
-          for (final (status, loser) in [
-            (PkDareStatus.deciding, 'room-0'),
-            (PkDareStatus.active, 'room-b'),
+          for (final (status, loser, host) in [
+            (PkDareStatus.deciding, 'room-0', true),
+            (PkDareStatus.active, 'room-b', true),
+            (PkDareStatus.active, 'room-b', false),
+            (PkDareStatus.refused, 'room-0', false),
           ]) {
-            testWidgets('${status.name} ${language.name} ${viewport.name} '
-                '×$scale: the card stays over the videos', (tester) async {
+            testWidgets('${status.name} host:$host ${language.name} '
+                '${viewport.name} ×$scale: at the bottom over the chat, '
+                'above the bar, off the videos', (tester) async {
               final match = pkDareMatchFixture(
                 now: now,
                 ar: language == AppLanguage.ar,
@@ -554,37 +605,89 @@ void main() {
                   status: status,
                   loserRoom: loser,
                   winnerRoom: loser == 'room-0' ? 'room-b' : 'room-0',
+                  cause: status == PkDareStatus.refused
+                      ? 'LOSER_REFUSED'
+                      : null,
+                  points: status == PkDareStatus.refused ? -3 : 0,
                 ),
               );
               await _pumpStage(
                 tester,
                 match,
                 now: now,
-                isHost: true,
-                actions: _Calls().actions(),
+                isHost: host,
+                actions: _Calls().actions(report: host),
                 language: language,
                 viewport: viewport,
                 textScale: scale,
               );
               expect(tester.takeException(), isNull);
               final card = tester.getRect(
-                find.byKey(
-                  status == PkDareStatus.deciding
-                      ? PkDareLayer.decideKey
-                      : PkDareLayer.bannerKey,
-                ),
+                find.byKey(switch (status) {
+                  PkDareStatus.deciding => PkDareLayer.decideKey,
+                  PkDareStatus.active => PkDareLayer.bannerKey,
+                  _ => PkDareLayer.outcomeKey,
+                }),
               );
               final pane = rectOf(tester, LivePkStage.ownPaneKey);
-              expect(card.bottom, lessThanOrEqualTo(pane.bottom + 0.5));
-              expect(card.left, greaterThanOrEqualTo(-0.5));
+              final bar = rectOf(tester, _barKey);
+              expect(card.top, greaterThanOrEqualTo(pane.bottom - 0.5));
+              expect(card.bottom, lessThanOrEqualTo(bar.top + 0.5));
+              // Close to the bar (the column's 8 lp gap).
+              expect(bar.top - card.bottom, lessThan(KSpacing.sm + 1));
+              final width = viewport.logicalSize.width;
+              expect(card.left, closeTo(KLiveRoomScaffold.dockSide, 0.5));
               expect(
                 card.right,
-                lessThanOrEqualTo(viewport.logicalSize.width + 0.5),
+                closeTo(width - KLiveRoomScaffold.dockSide, 0.5),
               );
+              // Smaller than D236's card (≈ 236 lp at 1.0 for the loser).
+              if (scale == 1) expect(card.height, lessThan(190));
+              // Scrolling inside the dock never hides the buttons.
+              if (host && status != PkDareStatus.refused) {
+                final first = rectOf(
+                  tester,
+                  status == PkDareStatus.deciding
+                      ? PkDareLayer.acceptKey
+                      : PkDareLayer.doneKey,
+                );
+                expect(first.bottom, lessThanOrEqualTo(bar.top + 0.5));
+                expect(first.top, greaterThanOrEqualTo(pane.bottom - 0.5));
+              }
             });
           }
         }
       }
+
+      testWidgets('the keyboard: the dock rides up with the bar', (
+        tester,
+      ) async {
+        final match = pkDareMatchFixture(
+          now: now,
+          dare: pkDareFixture(now: now),
+        );
+        await _pumpStage(
+          tester,
+          match,
+          now: now,
+          isHost: true,
+          actions: _Calls().actions(),
+          // A short keyboard: the PK stage itself (not the dock) does not
+          // fit above a full one — pre-existing, outside D238.
+          keyboard: 140,
+        );
+        expect(tester.takeException(), isNull);
+        final bar = rectOf(tester, _barKey);
+        final accept = rectOf(tester, PkDareLayer.acceptKey);
+        expect(bar.bottom, closeTo(852 - 140, 0.5));
+        expect(accept.bottom, lessThanOrEqualTo(bar.top + 0.5));
+        expect(
+          accept.top,
+          greaterThanOrEqualTo(rectOf(tester, LivePkStage.ownPaneKey).bottom),
+        );
+        // Still tappable.
+        await tester.tap(find.byKey(PkDareLayer.acceptKey));
+      });
     });
   });
 

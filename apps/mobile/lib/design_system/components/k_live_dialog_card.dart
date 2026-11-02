@@ -45,6 +45,7 @@ class KLiveDialogCard extends StatelessWidget {
     this.actions = const [],
     this.semanticsLabel,
     this.padding = defaultPadding,
+    this.dense = false,
   });
 
   /// At the top centre (a picture with a tag, an icon …).
@@ -63,6 +64,12 @@ class KLiveDialogCard extends StatelessWidget {
   /// card that sits over a small stage, as the PK dare's).
   final EdgeInsetsGeometry padding;
 
+  /// D238 (owner: «اجعل صندوق اصغر ويظهر في الاسفل»): the small card docked
+  /// at the bottom of a live (the PK dare): the buttons side by side in one
+  /// row ([denseButtonHeight] tall; the first — the primary — at the
+  /// reading start), less room above them. Pass [densePadding] with it.
+  final bool dense;
+
   /// Ref 325's padding.
   static const EdgeInsets defaultPadding = EdgeInsets.fromLTRB(
     22.1,
@@ -74,11 +81,18 @@ class KLiveDialogCard extends StatelessWidget {
   /// D236: the same card a little tighter (over the PK stage).
   static const EdgeInsets compactPadding = EdgeInsets.fromLTRB(16, 14, 16, 14);
 
+  /// D238: the docked card's padding ([dense]).
+  static const EdgeInsets densePadding = EdgeInsets.fromLTRB(12, 10, 12, 12);
+
   /// Ref 325 (measured on the leave prompt): the wash, the corners and the
   /// buttons.
   static const double radius = 18;
   static const double buttonHeight = 43.9;
   static const double buttonGap = 7.2;
+
+  /// D238: the [dense] card's buttons (side by side, 8 lp apart).
+  static const double denseButtonHeight = 40;
+  static const double denseButtonGap = 8;
   static const double maxWidth = 420;
 
   /// The wash's top colour: a pale brand red on white; on the dark surface
@@ -176,12 +190,28 @@ class KLiveDialogCard extends StatelessWidget {
                 ],
                 if (actions.isNotEmpty)
                   SizedBox(
-                    height: padding == defaultPadding ? 21.9 : KSpacing.md,
+                    height: dense
+                        ? KSpacing.sm
+                        : padding == defaultPadding
+                        ? 21.9
+                        : KSpacing.md,
                   ),
-                for (final (i, a) in actions.indexed) ...[
-                  if (i > 0) const SizedBox(height: buttonGap),
-                  _Button(action: a),
-                ],
+                if (dense && actions.isNotEmpty)
+                  // D238: one row; the Row follows the reading direction, so
+                  // the first (primary) button is at the start in Arabic too.
+                  Row(
+                    children: [
+                      for (final (i, a) in actions.indexed) ...[
+                        if (i > 0) const SizedBox(width: denseButtonGap),
+                        Expanded(child: _Button(action: a, dense: true)),
+                      ],
+                    ],
+                  )
+                else
+                  for (final (i, a) in actions.indexed) ...[
+                    if (i > 0) const SizedBox(height: buttonGap),
+                    _Button(action: a),
+                  ],
               ],
             ),
           ),
@@ -192,9 +222,10 @@ class KLiveDialogCard extends StatelessWidget {
 }
 
 class _Button extends StatelessWidget {
-  const new({required this.action});
+  const new({required this.action, this.dense = false});
 
   final KLiveDialogAction action;
+  final bool dense;
 
   @override
   Widget build(BuildContext context) {
@@ -221,11 +252,15 @@ class _Button extends StatelessWidget {
         child: Opacity(
           opacity: a.onPressed == null && !a.loading ? 0.5 : 1,
           child: Container(
-            constraints: const BoxConstraints(
-              minHeight: KLiveDialogCard.buttonHeight,
+            constraints: BoxConstraints(
+              minHeight: dense
+                  ? KLiveDialogCard.denseButtonHeight
+                  : KLiveDialogCard.buttonHeight,
             ),
             alignment: Alignment.center,
-            padding: const EdgeInsets.symmetric(horizontal: KSpacing.md),
+            padding: EdgeInsets.symmetric(
+              horizontal: dense ? KSpacing.sm : KSpacing.md,
+            ),
             decoration: BoxDecoration(
               color: a.primary
                   ? palette.primary
@@ -250,8 +285,10 @@ class _Button extends StatelessWidget {
                 : Text(
                     a.label,
                     textAlign: TextAlign.center,
+                    maxLines: dense ? 1 : null,
+                    overflow: dense ? TextOverflow.ellipsis : null,
                     style: t.bodyStrong.copyWith(
-                      fontSize: 15.5,
+                      fontSize: dense ? 14.5 : 15.5,
                       fontWeight: FontWeight.w700,
                       color: fg,
                     ),

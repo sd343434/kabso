@@ -106,8 +106,6 @@ class LivePkStage extends StatefulWidget {
     this.onStart,
     this.onHost,
     this.onFollowOpponent,
-    this.isHost = false,
-    this.dareActions = const PkDareActions(),
   });
 
   final PkMatch match;
@@ -120,12 +118,6 @@ class LivePkStage extends StatefulWidget {
   /// this person may follow them and does not yet (never for yourself);
   /// null hides it.
   final VoidCallback? onFollowOpponent;
-
-  /// v1.50-live (D229): this device is the room's host (the dare's buttons).
-  final bool isHost;
-
-  /// v1.50-live (D229): what this device may do with a «PK أحكام» dare.
-  final PkDareActions dareActions;
 
   /// v1.44-live (D199): the host starts a CONNECTED PK (null: a viewer, who
   /// only reads that it will start).
@@ -178,6 +170,35 @@ class LivePkStage extends StatefulWidget {
   static const followOpponentKey = Key('pk.host.opponent.follow');
   static Key boostChipKey(String roomId) => Key('pk.boost.$roomId');
   static Key guestKey(String userId) => Key('pk.guest.$userId');
+
+  /// D238: the «PK أحكام» card for the room's bottom dock
+  /// (`KLiveRoomScaffold.dock`) while [match] has a dare after its battle
+  /// (null otherwise); the draw stays over the stage. [isHost]: this device
+  /// is [roomId]'s host (the dare's buttons); [actions]: what it may do.
+  static Widget? dareDock({
+    required PkMatch match,
+    required String roomId,
+    required DateTime Function() now,
+    bool isHost = false,
+    PkDareActions actions = const PkDareActions(),
+  }) {
+    final dare = match.dare;
+    if (dare == null ||
+        match.status == PkMatchStatus.battle ||
+        match.connected) {
+      return null;
+    }
+    return PkDareDock(
+      match: match,
+      dare: dare,
+      roomId: roomId,
+      // D231's test clock pins the dare's phases too.
+      now: debugNow ?? now,
+      isHost: isHost,
+      actions: actions,
+      ticks: ticks,
+    );
+  }
 
   @override
   State<LivePkStage> createState() => _LivePkStageState();
@@ -362,9 +383,10 @@ class _LivePkStageState extends State<LivePkStage> {
                 ),
               ),
             ],
-            // v1.50-live (D229): «PK أحكام» — the draw, the loser's
-            // answer, the dare's banner and the outcome, both rooms
-            // (under the result chip at the videos' top edge).
+            // v1.50-live (D229): «PK أحكام» — the draw, both rooms (under
+            // the result chip at the videos' top edge). D238: the loser's
+            // answer, the banner and the outcome are [dareDock]'s small
+            // card at the bottom of the room, off the videos.
             if (match.dare case final dare? when !battle && !connected)
               Positioned.fill(
                 top: 28,
@@ -374,8 +396,6 @@ class _LivePkStageState extends State<LivePkStage> {
                   roomId: widget.roomId,
                   // D231's test clock pins the dare's phases too.
                   now: LivePkStage.debugNow ?? widget.now,
-                  isHost: widget.isHost,
-                  actions: widget.dareActions,
                   ticks: LivePkStage.ticks,
                 ),
               ),

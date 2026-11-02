@@ -2485,6 +2485,23 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             : null,
       ),
       stage: pkStage ?? stage,
+      // v1.50-live (D229) → D238: the host's dare card, small at the bottom
+      // over the chat (loser: accept / refuse; winner: done / not done; the
+      // report).
+      dock: pk.match == null
+          ? null
+          : LivePkStage.dareDock(
+              match: pk.match!,
+              roomId: room.id,
+              now: pk.now,
+              isHost: true,
+              actions: PkDareActions(
+                onAccept: ref.read(livePkProvider(room.id).notifier).acceptDare,
+                onRefuse: ref.read(livePkProvider(room.id).notifier).refuseDare,
+                onVerdict: ref.read(livePkProvider(room.id).notifier).judgeDare,
+                onReport: ref.read(livePkProvider(room.id).notifier).reportDare,
+              ),
+            ),
       chat: Align(alignment: AlignmentDirectional.bottomStart, child: roomChat),
       actionBar:
           composer ??
@@ -2595,15 +2612,6 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               }),
             )
           : null,
-      // v1.50-live (D229): the host's dare buttons (loser: accept / refuse;
-      // winner: done / not done) and the report.
-      isHost: true,
-      dareActions: PkDareActions(
-        onAccept: ref.read(livePkProvider(room.id).notifier).acceptDare,
-        onRefuse: ref.read(livePkProvider(room.id).notifier).refuseDare,
-        onVerdict: ref.read(livePkProvider(room.id).notifier).judgeDare,
-        onReport: ref.read(livePkProvider(room.id).notifier).reportDare,
-      ),
     );
     // D215: the same subtree with or without the other room's connection
     // (the stage and its video renderers are not rebuilt from scratch when

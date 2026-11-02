@@ -1187,6 +1187,20 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       stage:
           pkStage ??
           (!ended && room.mode.hasSeats ? _stage(session, engine) : null),
+      // D238: the «PK أحكام» card, small at the bottom over the chat; a
+      // signed-in viewer may report the dare (⚠️).
+      dock: pkState?.match == null
+          ? null
+          : LivePkStage.dareDock(
+              match: pkState!.match!,
+              roomId: room.id,
+              now: pkState.now,
+              actions: PkDareActions(
+                onReport: me == null
+                    ? null
+                    : ref.read(livePkProvider(room.id).notifier).reportDare,
+              ),
+            ),
       header: KHostPill(
         // D141 (owner): the host's @username beside the name (copy on tap).
         username: host.username,
@@ -2187,12 +2201,6 @@ class _RoomViewState extends ConsumerState<_RoomView> {
           ? unawaited(showPkOpponentCard(context, other))
           : _person(room.host.username),
       onFollowOpponent: follow,
-      // v1.50-live (D229): a signed-in viewer may report the dare (⚠️).
-      dareActions: PkDareActions(
-        onReport: ref.read(currentUserProvider) == null
-            ? null
-            : ref.read(livePkProvider(room.id).notifier).reportDare,
-      ),
     );
     // D215: the same subtree with or without the other room's connection
     // (the stage and its video renderers are not rebuilt from scratch when
