@@ -56,7 +56,7 @@ describe('D133 contract coverage', () => {
     // v1.47-live (D212) adds `podcast` (d212-podcast covers it).
     expect(params.find((p) => p.name === 'kind')?.schema).toEqual({
       type: 'string',
-      enum: [...KINDS, 'podcast'],
+      enum: [...KINDS, 'podcast', 'streamer'],
     });
     expect(params.find((p) => p.name === 'scope')?.schema).toEqual({ type: 'string', enum: ['nearby'] });
     expect(params.find((p) => p.name === 'featured')?.schema).toEqual({

@@ -56,6 +56,19 @@ abstract interface class LiveRepository {
     int? seatCount,
     String? theme,
     PodcastSetup? podcast,
+
+    /// v1.56-live (D213): a STREAMER's starting layout (version ignored).
+    LiveStreamer? streamer,
+  });
+
+  /// v1.56-live (D213, CONVENTIONS §10.86): `PUT /live/rooms/{roomId}/
+  /// streamer` (host) — only the values given change. Answers the layout
+  /// now (its `version` moves on a real change).
+  Future<LiveStreamer> updateStreamer(
+    String roomId, {
+    StreamerOrientation? orientation,
+    bool? cameraVisible,
+    StreamerCorner? corner,
   });
 
   /// `POST /live/rooms/{roomId}/heartbeat` (host).
@@ -338,6 +351,7 @@ class LiveRepositoryImpl implements LiveRepository {
     int? seatCount,
     String? theme,
     PodcastSetup? podcast,
+    LiveStreamer? streamer,
   }) => guardApiCall(() async {
     final res = await _dio.post<Map<String, dynamic>>(
       '/live/rooms',
@@ -349,9 +363,35 @@ class LiveRepositoryImpl implements LiveRepository {
         'seatCount': ?seatCount,
         'theme': ?theme,
         if (podcast != null) 'podcast': podcast.toJson(),
+        if (streamer != null && mode == LiveRoomMode.streamer)
+          'streamer': {
+            'orientation': streamer.orientation.wire,
+            'cameraOverlay': {
+              'visible': streamer.cameraVisible,
+              'corner': streamer.corner.wire,
+            },
+          },
       },
     );
     return LiveRoom.fromJson(res.data!);
+  });
+
+  @override
+  Future<LiveStreamer> updateStreamer(
+    String roomId, {
+    StreamerOrientation? orientation,
+    bool? cameraVisible,
+    StreamerCorner? corner,
+  }) => guardApiCall(() async {
+    final res = await _dio.put<Map<String, dynamic>>(
+      '/live/rooms/${pathSegment(roomId)}/streamer',
+      data: {
+        'orientation': ?orientation?.wire,
+        if (cameraVisible != null || corner != null)
+          'cameraOverlay': {'visible': ?cameraVisible, 'corner': ?corner?.wire},
+      },
+    );
+    return LiveStreamer.fromJson(res.data!);
   });
 
   @override

@@ -206,6 +206,7 @@ All non-2xx responses use one envelope:
 | 403 | `ACCOUNT_RESTRICTED` | *(v1.72-social, DRAFT, D208)* The team switched the action off for the caller for a while (live chat, bullets, comments and direct messages: `CHAT_MUTE`; going live: `NO_LIVE`; live, direct and bag gifts: `NO_GIFTS`; posts, reels and stories: `NO_POSTING`); `details: [{field: "restriction", issue: <kind>}, {field: "until", issue: <ISO 8601 time>}]`. Nothing was stored or charged. §10.67. |
 | 403 | `PASSWORD_CHANGE_REQUIRED` | *(v1.72-social, DRAFT, D208)* `login` with the right password while the team requires a new one (a temporary password, or «فرض تغيير كلمة المرور»); the same request with `newPassword` sets it and signs in. §10.67. |
 | 409 | `LIVE_QUESTIONS_CLOSED` | *(v1.47-live, DRAFT, D212)* A raised hand in a PODCAST whose host closed the hands (`questionsOpen` false). §10.69. |
+| 409 | `LIVE_NOT_STREAMER` | *(v1.56-live, DRAFT, D213)* `updateLiveStreamer` on a live that is not a STREAMER (the host's own room of another mode). §10.86. |
 | 503 | `REFERRAL_UNAVAILABLE` | *(v1.74-social, DRAFT, D217)* «دعوة الأصدقاء» is switched off (`referral_settings.enabled`); `applyReferralCode` changes nothing. §10.71. |
 | 422 | `REFERRAL_CODE_INVALID` | *(v1.74-social, DRAFT, D217)* `applyReferralCode` with no such invite code, the caller's own, or a code whose owner cannot invite now (not ACTIVE). §10.71. |
 | 409 | `REFERRAL_NOT_ALLOWED` | *(v1.74-social, DRAFT, D217)* The caller may not enter a code now; `details: [{field: "referral", issue: "ALREADY_REFERRED" \| "WINDOW_CLOSED"}]` (one inviter per person, ever; within `applyWindowDays` of sign-up). §10.71. |
@@ -686,6 +687,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.49-social (draft) | 2026-10-30 | **D172 (owner: the Creator Center «مركز صنّاع المحتوى» in the layout of the owner's reference, whose stats card shows «بيانات أكتوبر» — the current month):** `getMyCreatorStats` takes `period=THIS_MONTH` — the current calendar month so far, from the 1st at 00:00 in `LIVE_RANKINGS_TIME_ZONE` (the region's zone, as the families' month, §10.21) until now; `CreatorStats.month` (`YYYY-MM` for `THIS_MONTH`, else null; required in responses). No migration. §10.40. | **Additive** (an enum value the app sends only when it knows it, and a response field older apps ignore). |
 | v1.48-social (draft) | 2026-10-29 | **D171 (owner: «الحقيبة تعرض العنصر الذي تم شراؤه أو استلامه كهدية … ارتداء / إزالة … إرسال … الوقت المتبقي»; amendment «يمكن أن تجزّئ المدة»):** `BagItem` gains `expiresAt` (null = permanent), `giftedBy` (`UserSummary` or null) and `transferable` (all **required** in responses); `BagItemSource` gains `GIFT`; `getMyBag` never lists expired items; new `sendMyBagItem` (`POST /me/bag/transfers`, `SendBagItemRequest {code, username, days?}`, 201 `BagTransfer`): the whole item or `days` of its remaining time to another user, stacking on the recipient's copy; codes `BAG_ITEM_NOT_TRANSFERABLE`, `BAG_SEND_PERMANENT_WHOLE_ONLY`, `BAG_SEND_EXCEEDS_REMAINING`, `BAG_RECIPIENT_HAS_PERMANENT` (409); notification type `BAG_ITEM_RECEIVED` (target `BAG_ITEM`, `NotificationTarget.bagCategory`). `bag-admin grant <email> <code> [<days>|forever]`. Migrations `20261216090000_bag_expiry_send_enums`, `20261216100000_bag_expiry_send`. Version number: v1.39–v1.47 are taken (live and social share one sequence), so this is v1.48-social. §4, §7, §8, §10.22, §10.45, §11.10. | **Additive** (an operation, codes, enum values clients treat as unknown-safe, required response fields strict clients add in the same change set). `GET /bag/catalogue` is unchanged (the app no longer shows items the user does not own). |
 | v1.47-social (draft) | 2026-10-30 | **D175 (owner, Arabic, answering D168's questions a–g; CP-025; v1.46-social left free for another branch):** profile fields, private accounts and follow requests. `Gender` (`MALE`, `FEMALE`, `UNDISCLOSED`) is **required** by `register` (`RegisterRequest.gender`) and editable with `updateMe` together with `showGender` (default false), `category` (`AccountCategory`: 11 values) and `links` (0–3 `ProfileLinkInput`, https only, normalised); `Me` gains `gender`, `showGender`, `category`, `links`; `PublicProfile` gains `gender` (only when shown), `category`, `links` (`ProfileLink` with `ProfileLinkPlatform`) and `followRequested`; `FollowState.isRequested`; `FollowListItem.requestedByMe`; `PrivacySettings.isPrivate` / `UpdatePrivacyRequest.isPrivate` (switching to public accepts every pending request); a new follow of a private account is a **follow request** (was 403); `listFollowRequests` (`GET /me/follow-requests`, `FollowRequestPage`, `FollowRequest`), `acceptFollowRequest` / `declineFollowRequest` (`POST /me/follow-requests/{username}/accept` → `FollowRequestAccepted`, `…/decline` → 204); `NotificationType` `FOLLOW_REQUEST`, `FOLLOW_REQUEST_ACCEPTED`, `AVATAR_REMOVED`; report `targetType: PROFILE_LINK` (`Report.linkSnapshot`, `ProfileLinkSnapshot`); code `FOLLOW_REQUEST_NOT_PENDING` (409); server config `RATE_LIMIT_FOLLOW_REQUEST_ANSWER_USER`; CLI `profile-admin remove-avatar`; audit `user.privacy.private`, `admin.avatar.remove`; migrations `20261215090000_profile_fields_enums`, `20261215100000_profile_fields_private_accounts`. §4, §7, §10.5, §10.6, §10.42, §10.47, §11.7, §11.10. | **Breaking for registration** (`gender` is required: an app without the gender step gets 400 `gender` / `required`; app and API ship together). **Behaviour change** for a new follow of a private account (200 with `isRequested: true` instead of 403; no app could make an account private before). Otherwise **additive** (new required response fields: strict clients update their models in the same change set; clients ignore unknown notification types and treat an unknown `ProfileLinkPlatform` as `OTHER`). |
+| v1.56-live (draft) | 2026-11-02 | **D213 (owner, 2026-11-02: «بث ستريمر» — the host's phone screen with a small round front-camera bubble the host hides, shows and drags to a corner; the microphone plus the game sound, muted separately; Android first, «قريباً على آيفون»; the picture follows the screen):** `LiveRoomMode.STREAMER`; `StartLiveRoomRequest.streamer` (`StreamerSetup`); `LiveRoomSummary.streamer` (`LiveStreamer`: `orientation`, `cameraOverlay` {visible, corner}, `version`); `updateLiveStreamer` (`PUT /live/rooms/{roomId}/streamer`, own bucket `live:streamer`) with the `streamer` data message and the metadata's `streamerVersion`; `listLiveRooms?kind=streamer` (also in `video` and `solo`); the host may publish `screen_share` / `screen_share_audio`; code `LIVE_NOT_STREAMER` (409); `GET /admin/lives?mode=STREAMER`. Migrations `20270301090000_streamer_mode_enum`, `20270301090100_streamer`. §10.86. | Additive. An older app reads STREAMER as SOLO (its `unknownEnumValue`) and shows the host's camera track; it ignores `streamer` and the topic. |
 | v1.55-live (draft) | 2026-11-02 | **D242 (owner: «لا يحتوي pk زر إعادة pk أو لعب جولة أخرى»):** `offerLivePkRematch` (POST `/live/rooms/{roomId}/pk/rematch`), `cancelLivePkRematch` (DELETE), `acceptLivePkRematch`, `declineLivePkRematch`; `PkMatch.rematch` (`PkRematchOffer`), `rematchOf`, `rematchCount`, `rematchesLeft`; data-message events `rematch-offer`, `rematch-cancelled`, `rematch-declined`, `rematch-expired`, `rematch`; codes `PK_REMATCH_UNAVAILABLE`, `PK_REMATCH_CLOSED` (409); config `PK_REMATCH_ACCEPT_SECONDS` (15), `PK_REMATCH_MAX` (5); migration `20270220090000_pk_rematch`. §4, §10.58, §10.85. | **Additive**: older apps ignore the new fields and events; a rematch reaches them as a new match (`started`-like state on `getLivePk`). |
 | v1.54-live (draft) | 2026-11-02 | **D241 (owner, the panel's «البث الآن»: two lives in a PK battle showed 0 under «PK» and no PK in the app):** `LiveRoomSummary.inPk` (an open D195 match — CONNECTED, BATTLE or RESULT — or the legacy mode `PK`; real battles keep the rooms `SOLO`); `listAdminLives` documents `mode` (`PK` = in a PK, `SOLO` = SOLO not in a PK); `AdminLiveRow.pk` / `AdminLiveDetail.pk` (`AdminLivePk`: the opponent's room, @username, name). §10.84. | **Additive**: older apps read a missing `inPk` as false; the panel's SOLO chip no longer counts lives in a PK. |
 | v1.53-live (draft) | 2026-11-02 | **D240 (owner: «القريبة» = my country, changeable; the party page's kinds on top):** `listLiveRooms` `country` (ISO 3166-1 alpha-2, any case; the hosts of that profile country; no token; wins over `scope=nearby`; binds the cursor). §10.83. | **Additive**: older apps keep `scope=nearby`. |
@@ -4929,7 +4931,7 @@ the podcast mockup (Clubhouse / Spaces style, built on the audio room's own elem
 
 - **Five categories = modes.** The hub's category row is «الكل» + بث مباشر (`kind=solo`: SOLO and PK), بث صوتي
   (`kind=audio`: AUDIO), بث بودكاست (`kind=podcast`: PODCAST), بث متعدد (`kind=multi`: MULTI) and بث ستريمر (phone
-  screen share, D213 — no mode yet: the app shows «قريباً» and calls nothing). A PODCAST is in no other kind (`audio`
+  screen share, D213 — v1.56-live: `kind=streamer`, STREAMER, §10.86). A PODCAST is in no other kind (`audio`
   stays AUDIO only; `party` and `video` are unchanged). The hub's existing chips (القريبة / الرائج / المميزة / استكشاف)
   combine with the category: the chip picks the list (`scope=nearby`, `tab=popular`, `featured=true`, `tab=new`) and
   the category adds `kind` (AND); «الكل» sends no `kind`. Cursors are bound to `kind` as before (§10.4).
@@ -5617,6 +5619,50 @@ needed a new invitation or a random wait.
 - **Apps:** both hosts see «جولة أخرى» in the result (the white card of D238); the other host gets «@A يريد جولة أخرى»
   with «قبول» / «رفض» and the countdown; the asking host «بانتظار @B…» with cancel; viewers a short «جولة أخرى تبدأ» banner
   when the new battle starts. Rate limit: the PK action bucket.
+
+### 10.86 «بث ستريمر»: the streamer live — the phone screen with a camera bubble *(v1.56-live, DRAFT — D213)*
+
+Owner (2026-11-02): the host's PHONE SCREEN (games or apps) plus a small round front-camera bubble in a corner, which
+the host can hide or show and drag to another corner; viewers see the screen with the bubble where the host put it.
+Audio: the microphone plus the game's / app's sound (Android 10+), each muted on its own. Android first (iOS: an
+honest «قريباً على آيفون», no flow); viewers on any platform. The picture follows the screen: a landscape game is
+landscape for viewers (letterboxed in the portrait room, with a fullscreen / rotate button), portrait stays portrait.
+
+- **Mode.** `LiveRoomMode.STREAMER` (`StartLiveRoomRequest.mode`). No guest seats (`seatCount` → 400; the DB CHECK
+  `live_rooms_seat_count_mode` keeps it null), no PK (PK stays SOLO only, §10.58), no host-away timeout (§10.44: the
+  host is in another app on purpose, so `host-presence` `away: true` stores nothing for a STREAMER). Gifts, chat,
+  taps, rankings, the wish list and the room tools that do not need a camera picture work as in a SOLO live.
+- **Media.** The host's token may publish `camera`, `microphone`, `screen_share` and `screen_share_audio` (LiveKit
+  sources). The screen is its own video track (`screen_share`); the camera bubble is the ordinary `camera` track,
+  which every viewer composites over the screen (not drawn into the screen picture on the phone: the screen keeps its
+  full resolution, the bubble can move or hide without re-encoding, and an older app that does not know STREAMER still
+  shows the camera as a solo live). The Android app mixes the game audio into the published microphone track
+  (flutter_webrtc's capture post-processing, as the D201 music); `screen_share_audio` is allowed for a later client
+  that publishes it as a track of its own. A muted `screen_share` track = the screen is paused (the host is in Kabso,
+  a call, the screen is off): viewers show «الشاشة متوقفة مؤقتاً» instead of a frozen picture.
+- **Layout.** `LiveRoomSummary.streamer` (`LiveStreamer`, null for other modes): `orientation` (`PORTRAIT` /
+  `LANDSCAPE`), `cameraOverlay` `{visible, corner}` (`TOP_LEFT`, `TOP_RIGHT`, `BOTTOM_LEFT`, `BOTTOM_RIGHT` — physical
+  corners of the screen picture, never mirrored for Arabic) and `version`. Start: `StartLiveRoomRequest.streamer`
+  (`StreamerSetup`, optional; defaults PORTRAIT, shown, TOP_LEFT; refused for other modes → 400 `streamer`
+  `invalid_value`). Changes: `updateLiveStreamer` (`PUT /live/rooms/{roomId}/streamer`, the host only — anyone else 404;
+  another mode 409 `LIVE_NOT_STREAMER`; ended 409 `LIVE_ROOM_ENDED`; at least one key, else 400 `too_few`). A real change
+  increases `version` under the row's lock, writes `streamerVersion` into the media room's metadata (left out while 0,
+  like `roomInfoVersion`) and broadcasts `{"type": "streamer", "roomId", "streamer": LiveStreamer}` on topic
+  `streamer`. Apps keep the highest `version`; a metadata `streamerVersion` above it (a message missed, a late join)
+  makes them re-read the room. Its own bucket `live:streamer` (`RATE_LIMIT_LIVE_TAPS_USER`, 120 / min): rotations and
+  moved bubbles never use up the `PATCH` bucket (60 / h). Not audited (a layout).
+- **Lists.** `listLiveRooms?kind=streamer` = STREAMER; a streamer is a video live, so `video` and `solo` (the main
+  hub, D239) list it too; `audio`, `podcast`, `multi`, `party` never do. The hub card's tag is «ستريمر». Admin:
+  `GET /admin/lives?mode=STREAMER` (the panel's «ستريمر» chip and card tag).
+- **App (Android host).** Capture consent (MediaProjection) → the live's foreground service restarts with the types
+  `microphone|mediaPlayback|camera|mediaProjection` (Android 14: after the consent, before the capture) → room, token,
+  camera + microphone, then the screen track; Android 10+ then joins the game audio (`AudioPlaybackCapture` of media,
+  game and unknown usages, on the same MediaProjection) — some apps forbid it (they come out silent: «بعض الألعاب تمنع
+  التقاط صوتها»), protected (DRM) video is black; below Android 10 the microphone only, with a note. The notification
+  carries «إنهاء», the microphone and the camera bubble (Android shows at most 3 actions; the game sound is in the app).
+  Stopping the capture from the system (the status-bar chip, Android 14+) ends the screen and asks the host to share
+  again or end. The screen pauses while Kabso itself is in front (so viewers never see the host's chat, wallet or
+  messages; the window is also FLAG_SECURE), during a phone call and while the screen is off.
 
 ### 10.87 Automatic exchange rates for every country *(v1.81-social, DRAFT — D245)*
 

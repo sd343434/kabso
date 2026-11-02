@@ -3,6 +3,9 @@
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
+import 'package:kabso_live/features/live/domain/live_streamer.dart';
+
+export 'package:kabso_live/features/live/domain/live_streamer.dart';
 
 part 'live_models.freezed.dart';
 part 'live_models.g.dart';
@@ -183,7 +186,12 @@ enum LiveRoomMode {
   /// v1.47-live (D212): an audio-only podcast — the host and up to 3
   /// speakers; listeners raise a hand.
   @JsonValue('PODCAST')
-  podcast;
+  podcast,
+
+  /// v1.56-live (D213): the host's phone screen with a round camera bubble
+  /// (Android hosts; any viewer). No guest seats, no PK.
+  @JsonValue('STREAMER')
+  streamer;
 
   /// The wire value (requests).
   String get wire => switch (this) {
@@ -192,6 +200,7 @@ enum LiveRoomMode {
     multi => 'MULTI',
     audio => 'AUDIO',
     podcast => 'PODCAST',
+    streamer => 'STREAMER',
   };
 
   /// MULTI, AUDIO and (D212) PODCAST rooms have seats.
@@ -263,6 +272,9 @@ abstract class LiveRoomSummary with _$LiveRoomSummary {
     /// v1.54-live (D241): the room is in a PK now (an open D195 match —
     /// the rooms stay SOLO — or the legacy mode PK). Older servers: false.
     @Default(false) bool inPk,
+
+    /// v1.56-live (D213): a streamer's layout; null otherwise.
+    LiveStreamer? streamer,
   }) = _LiveRoomSummary;
 
   factory fromJson(Map<String, dynamic> json) =>
@@ -326,6 +338,9 @@ abstract class LiveRoom with _$LiveRoom {
 
     /// v1.47-live (D212): a podcast's episode facts; null otherwise.
     LivePodcast? podcast,
+
+    /// v1.56-live (D213): a streamer's layout; null otherwise.
+    LiveStreamer? streamer,
   }) = _LiveRoom;
 
   factory fromJson(Map<String, dynamic> json) => _$LiveRoomFromJson(json);
@@ -454,7 +469,10 @@ enum LiveRoomsKind {
   party('party'),
 
   /// v1.47-live (D212): `PODCAST`.
-  podcast('podcast');
+  podcast('podcast'),
+
+  /// v1.56-live (D213): `STREAMER` (also in [video] and [solo]).
+  streamer('streamer');
 
   new(this.wire);
 
@@ -472,7 +490,11 @@ enum LiveRoomsKind {
     audio => mode == LiveRoomMode.audio,
     video => !mode.isVoice,
     podcast => mode == LiveRoomMode.podcast,
-    solo => mode == LiveRoomMode.solo || mode == LiveRoomMode.pk,
+    solo =>
+      mode == LiveRoomMode.solo ||
+          mode == LiveRoomMode.pk ||
+          mode == LiveRoomMode.streamer,
+    streamer => mode == LiveRoomMode.streamer,
     multi => mode == LiveRoomMode.multi,
     party => mode == LiveRoomMode.audio || mode == LiveRoomMode.multi,
   };

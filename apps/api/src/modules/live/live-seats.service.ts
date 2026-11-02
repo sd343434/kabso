@@ -153,8 +153,12 @@ export function seatPermission(mode: GuestSeatMode, mutedByHost: boolean): LiveM
 /** A viewer: hidden, publishing nothing. */
 export const VIEWER_PERMISSION: LiveMediaPermission = { visible: false, sources: [] };
 
-/** What the host of a room of `mode` may publish (CP-011: an AUDIO host — D212: and a PODCAST host — the microphone only). */
+/**
+ * What the host of a room of `mode` may publish (CP-011: an AUDIO host — D212: and a PODCAST host —
+ * the microphone only; v1.56-live, D213: a STREAMER host also the screen and its audio).
+ */
 export function hostSources(mode: LiveRoomMode): LiveMediaSource[] {
+  if (mode === 'STREAMER') return ['camera', 'microphone', 'screen_share', 'screen_share_audio'];
   return isVoiceMode(mode) ? ['microphone'] : ['camera', 'microphone'];
 }
 
@@ -1430,7 +1434,15 @@ export class LiveSeatsService {
     if (!expected) return 0;
     const current = await this.media.roomMetadata(roomId);
     if (current === null || current === expected.json) return 0;
-    if (!seated && current === '' && expected.score === 0 && expected.roomInfoVersion === 0) return 0;
+    if (
+      !seated &&
+      current === '' &&
+      expected.score === 0 &&
+      expected.roomInfoVersion === 0 &&
+      expected.streamerVersion === 0
+    ) {
+      return 0;
+    }
     await this.media.setRoomMetadata(roomId, expected.json);
     return 1;
   }

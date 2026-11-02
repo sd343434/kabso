@@ -1,4 +1,5 @@
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/live/data/streamer/live_streamer_platform.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_cover_picture.dart';
@@ -590,8 +591,11 @@ class GoLiveModePager extends StatelessWidget {
       (LiveRoomMode.multi, l10n.goLiveModeMulti),
       (LiveRoomMode.solo, l10n.goLiveModeSolo),
       (LiveRoomMode.audio, l10n.goLiveModeAudio),
-      // D212: the podcast, then the streamer («قريباً», D213).
+      // D212: the podcast, then the streamer (D213: a mode on Android,
+      // «قريباً» elsewhere).
       (LiveRoomMode.podcast, l10n.goLiveModePodcast),
+      if (streamerSupportHere() == StreamerSupport.supported)
+        (LiveRoomMode.streamer, l10n.goLiveModeStreamer),
     ];
     final i = modes.indexWhere((m) => m.$1 == selected);
     Widget mode(LiveRoomMode m, String label) {
@@ -652,7 +656,8 @@ class GoLiveModePager extends StatelessWidget {
           selected: i,
           children: [
             for (final (m, label) in modes) mode(m, label),
-            const GoLiveStreamerTab(),
+            if (streamerSupportHere() != StreamerSupport.supported)
+              const GoLiveStreamerTab(),
           ],
         ),
       ),

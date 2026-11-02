@@ -21544,6 +21544,240 @@ abstract class AppLocalizations {
   /// **'بث ستريمر'**
   String get goLiveModeStreamer;
 
+  /// D213 (the streamer live «بث ستريمر»).
+  ///
+  /// In ar, this message translates to:
+  /// **'ستريمر'**
+  String get liveCardTagStreamer;
+
+  /// D213 (the streamer live «بث ستريمر»).
+  ///
+  /// In ar, this message translates to:
+  /// **'قريباً على آيفون'**
+  String get goLiveStreamerSoonIos;
+
+  /// D213 (the streamer live «بث ستريمر»).
+  ///
+  /// In ar, this message translates to:
+  /// **'بث ستريمر قريباً على آيفون'**
+  String get goLiveStreamerIosSnack;
+
+  /// D213 (the streamer live «بث ستريمر»).
+  ///
+  /// In ar, this message translates to:
+  /// **'يرى المشاهدون شاشة هاتفك، لعبة أو تطبيق، مع فقاعة صغيرة من كاميرتك الأمامية.'**
+  String get streamerSetupBody;
+
+  /// D213 (the streamer live «بث ستريمر»).
+  ///
+  /// In ar, this message translates to:
+  /// **'فقاعة الكاميرا'**
+  String get streamerCameraBubble;
+
+  /// D213 (the streamer live «بث ستريمر»).
+  ///
+  /// In ar, this message translates to:
+  /// **'مكان الفقاعة'**
+  String get streamerCameraCorner;
+
+  /// D213 (the streamer live «بث ستريمر»).
+  ///
+  /// In ar, this message translates to:
+  /// **'أعلى اليسار'**
+  String get streamerCornerTopLeft;
+
+  /// D213 (the streamer live «بث ستريمر»).
+  ///
+  /// In ar, this message translates to:
+  /// **'أعلى اليمين'**
+  String get streamerCornerTopRight;
+
+  /// D213 (the streamer live «بث ستريمر»).
+  ///
+  /// In ar, this message translates to:
+  /// **'أسفل اليسار'**
+  String get streamerCornerBottomLeft;
+
+  /// D213 (the streamer live «بث ستريمر»).
+  ///
+  /// In ar, this message translates to:
+  /// **'أسفل اليمين'**
+  String get streamerCornerBottomRight;
+
+  /// D213 (the streamer live «بث ستريمر»).
+  ///
+  /// In ar, this message translates to:
+  /// **'الميكروفون'**
+  String get streamerMic;
+
+  /// D213 (the streamer live «بث ستريمر»).
+  ///
+  /// In ar, this message translates to:
+  /// **'صوت اللعبة'**
+  String get streamerGameAudio;
+
+  /// D213 (the streamer live «بث ستريمر»).
+  ///
+  /// In ar, this message translates to:
+  /// **'بعض الألعاب تمنع التقاط صوتها'**
+  String get streamerGameAudioNote;
+
+  /// D213 (the streamer live): the setup's and the on-air tip while the game sound is on and no headset is connected (the speaker's game sound would reach the microphone too).
+  ///
+  /// In ar, this message translates to:
+  /// **'استخدم سماعات حتى لا يُسمع صوت اللعبة مرتين'**
+  String get streamerHeadphonesTip;
+
+  /// D213 (the streamer live «بث ستريمر»).
+  ///
+  /// In ar, this message translates to:
+  /// **'صوت اللعبة يحتاج أندرويد 10 أو أحدث، سيُبث صوت الميكروفون فقط'**
+  String get streamerGameAudioOld;
+
+  /// D213 (the streamer live «بث ستريمر»).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يرى المشاهدون شاشتك وأنت داخل Kabso Live'**
+  String get streamerPrivacyNote;
+
+  /// D213 (the streamer live «بث ستريمر»).
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تسمح بتصوير الشاشة، لذلك لم يبدأ البث'**
+  String get streamerConsentRefused;
+
+  /// D213 (the streamer live «بث ستريمر»).
+  ///
+  /// In ar, this message translates to:
+  /// **'شاشتك على الهواء'**
+  String get streamerOnAir;
+
+  /// D213 (the streamer live «بث ستريمر»).
+  ///
+  /// In ar, this message translates to:
+  /// **'الشاشة متوقفة مؤقتاً وأنت داخل Kabso Live'**
+  String get streamerPausedInApp;
+
+  /// D213 (the streamer live «بث ستريمر»).
+  ///
+  /// In ar, this message translates to:
+  /// **'الشاشة متوقفة أثناء المكالمة'**
+  String get streamerPausedCall;
+
+  /// D213 (the streamer live «بث ستريمر»).
+  ///
+  /// In ar, this message translates to:
+  /// **'الشاشة متوقفة والهاتف مقفل'**
+  String get streamerPausedScreenOff;
+
+  /// D213 (the streamer live «بث ستريمر»).
+  ///
+  /// In ar, this message translates to:
+  /// **'اذهب إلى اللعبة'**
+  String get streamerGoToGame;
+
+  /// D213 (the streamer live «بث ستريمر»).
+  ///
+  /// In ar, this message translates to:
+  /// **'توقفت مشاركة الشاشة'**
+  String get streamerStoppedTitle;
+
+  /// D213 (the streamer live «بث ستريمر»).
+  ///
+  /// In ar, this message translates to:
+  /// **'شارك الشاشة من جديد'**
+  String get streamerShareAgain;
+
+  /// D213 (the streamer live «بث ستريمر»).
+  ///
+  /// In ar, this message translates to:
+  /// **'صوت اللعبة يُبث'**
+  String get streamerGameLive;
+
+  /// D213 (the streamer live «بث ستريمر»).
+  ///
+  /// In ar, this message translates to:
+  /// **'صوت اللعبة مكتوم'**
+  String get streamerGameMuted;
+
+  /// D213 (the streamer live «بث ستريمر»).
+  ///
+  /// In ar, this message translates to:
+  /// **'صوت اللعبة غير متاح على هذا الهاتف، يُبث الميكروفون فقط'**
+  String get streamerGameUnavailable;
+
+  /// D213 (the streamer live «بث ستريمر»).
+  ///
+  /// In ar, this message translates to:
+  /// **'إظهار الكاميرا'**
+  String get streamerShowCamera;
+
+  /// D213 (the streamer live «بث ستريمر»).
+  ///
+  /// In ar, this message translates to:
+  /// **'إخفاء الكاميرا'**
+  String get streamerHideCamera;
+
+  /// D213 (the streamer live «بث ستريمر»).
+  ///
+  /// In ar, this message translates to:
+  /// **'كتم صوت اللعبة'**
+  String get streamerMuteGame;
+
+  /// D213 (the streamer live «بث ستريمر»).
+  ///
+  /// In ar, this message translates to:
+  /// **'تشغيل صوت اللعبة'**
+  String get streamerUnmuteGame;
+
+  /// D213 (the streamer live «بث ستريمر»).
+  ///
+  /// In ar, this message translates to:
+  /// **'كتم المايك'**
+  String get streamerNotifMicOff;
+
+  /// D213 (the streamer live «بث ستريمر»).
+  ///
+  /// In ar, this message translates to:
+  /// **'تشغيل المايك'**
+  String get streamerNotifMicOn;
+
+  /// D213 (the streamer live «بث ستريمر»).
+  ///
+  /// In ar, this message translates to:
+  /// **'اسحب الفقاعة إلى أي زاوية'**
+  String get streamerDragHint;
+
+  /// D213 (the streamer live «بث ستريمر»).
+  ///
+  /// In ar, this message translates to:
+  /// **'الشاشة متوقفة مؤقتاً، سيعود البث بعد قليل'**
+  String get streamerPausedViewer;
+
+  /// D213 (the streamer live «بث ستريمر»).
+  ///
+  /// In ar, this message translates to:
+  /// **'بانتظار شاشة المضيف…'**
+  String get streamerWaiting;
+
+  /// D213 (the streamer live «بث ستريمر»).
+  ///
+  /// In ar, this message translates to:
+  /// **'ملء الشاشة'**
+  String get streamerFullscreen;
+
+  /// D213 (the streamer live «بث ستريمر»).
+  ///
+  /// In ar, this message translates to:
+  /// **'الخروج من ملء الشاشة'**
+  String get streamerExitFullscreen;
+
+  /// D213 (the streamer live «بث ستريمر»).
+  ///
+  /// In ar, this message translates to:
+  /// **'شاشة {name}'**
+  String streamerScreenSemantics(String name);
+
   /// D212 (live categories and the podcast live).
   ///
   /// In ar, this message translates to:

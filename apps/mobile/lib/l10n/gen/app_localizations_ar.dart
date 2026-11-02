@@ -12695,6 +12695,132 @@ class AppLocalizationsAr extends AppLocalizations {
   String get goLiveModeStreamer => 'بث ستريمر';
 
   @override
+  String get liveCardTagStreamer => 'ستريمر';
+
+  @override
+  String get goLiveStreamerSoonIos => 'قريباً على آيفون';
+
+  @override
+  String get goLiveStreamerIosSnack => 'بث ستريمر قريباً على آيفون';
+
+  @override
+  String get streamerSetupBody =>
+      'يرى المشاهدون شاشة هاتفك، لعبة أو تطبيق، مع فقاعة صغيرة من كاميرتك الأمامية.';
+
+  @override
+  String get streamerCameraBubble => 'فقاعة الكاميرا';
+
+  @override
+  String get streamerCameraCorner => 'مكان الفقاعة';
+
+  @override
+  String get streamerCornerTopLeft => 'أعلى اليسار';
+
+  @override
+  String get streamerCornerTopRight => 'أعلى اليمين';
+
+  @override
+  String get streamerCornerBottomLeft => 'أسفل اليسار';
+
+  @override
+  String get streamerCornerBottomRight => 'أسفل اليمين';
+
+  @override
+  String get streamerMic => 'الميكروفون';
+
+  @override
+  String get streamerGameAudio => 'صوت اللعبة';
+
+  @override
+  String get streamerGameAudioNote => 'بعض الألعاب تمنع التقاط صوتها';
+
+  @override
+  String get streamerHeadphonesTip =>
+      'استخدم سماعات حتى لا يُسمع صوت اللعبة مرتين';
+
+  @override
+  String get streamerGameAudioOld =>
+      'صوت اللعبة يحتاج أندرويد 10 أو أحدث، سيُبث صوت الميكروفون فقط';
+
+  @override
+  String get streamerPrivacyNote =>
+      'لا يرى المشاهدون شاشتك وأنت داخل Kabso Live';
+
+  @override
+  String get streamerConsentRefused =>
+      'لم تسمح بتصوير الشاشة، لذلك لم يبدأ البث';
+
+  @override
+  String get streamerOnAir => 'شاشتك على الهواء';
+
+  @override
+  String get streamerPausedInApp => 'الشاشة متوقفة مؤقتاً وأنت داخل Kabso Live';
+
+  @override
+  String get streamerPausedCall => 'الشاشة متوقفة أثناء المكالمة';
+
+  @override
+  String get streamerPausedScreenOff => 'الشاشة متوقفة والهاتف مقفل';
+
+  @override
+  String get streamerGoToGame => 'اذهب إلى اللعبة';
+
+  @override
+  String get streamerStoppedTitle => 'توقفت مشاركة الشاشة';
+
+  @override
+  String get streamerShareAgain => 'شارك الشاشة من جديد';
+
+  @override
+  String get streamerGameLive => 'صوت اللعبة يُبث';
+
+  @override
+  String get streamerGameMuted => 'صوت اللعبة مكتوم';
+
+  @override
+  String get streamerGameUnavailable =>
+      'صوت اللعبة غير متاح على هذا الهاتف، يُبث الميكروفون فقط';
+
+  @override
+  String get streamerShowCamera => 'إظهار الكاميرا';
+
+  @override
+  String get streamerHideCamera => 'إخفاء الكاميرا';
+
+  @override
+  String get streamerMuteGame => 'كتم صوت اللعبة';
+
+  @override
+  String get streamerUnmuteGame => 'تشغيل صوت اللعبة';
+
+  @override
+  String get streamerNotifMicOff => 'كتم المايك';
+
+  @override
+  String get streamerNotifMicOn => 'تشغيل المايك';
+
+  @override
+  String get streamerDragHint => 'اسحب الفقاعة إلى أي زاوية';
+
+  @override
+  String get streamerPausedViewer =>
+      'الشاشة متوقفة مؤقتاً، سيعود البث بعد قليل';
+
+  @override
+  String get streamerWaiting => 'بانتظار شاشة المضيف…';
+
+  @override
+  String get streamerFullscreen => 'ملء الشاشة';
+
+  @override
+  String get streamerExitFullscreen => 'الخروج من ملء الشاشة';
+
+  @override
+  String streamerScreenSemantics(String name) {
+    return 'شاشة $name';
+  }
+
+  @override
   String chatJoinedMale(String name) {
     return '$name دخل البث';
   }

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/features/live/data/background/live_background_service_stub.dart'
@@ -29,7 +30,18 @@ class LiveBackgroundTexts {
     required this.body,
     required this.endLive,
     required this.leave,
+    this.micOff = '',
+    this.micOn = '',
+    this.cameraHide = '',
+    this.cameraShow = '',
   });
+
+  /// D213: a streamer host's notification toggles («كتم المايك» /
+  /// «تشغيل المايك», «إخفاء الكاميرا» / «إظهار الكاميرا»).
+  final String micOff;
+  final String micOn;
+  final String cameraHide;
+  final String cameraShow;
 
   /// The Android notification channel ("Live").
   final String channelName;
@@ -47,6 +59,25 @@ class LiveBackgroundTexts {
   final String leave;
 }
 
+/// D213: one more action on a streamer host's notification (Android shows
+/// at most 3 actions: «إنهاء», the microphone and the camera bubble).
+@immutable
+class LiveBackgroundButton {
+  const new(this.action, this.label);
+
+  final LiveBackgroundAction action;
+  final String label;
+
+  @override
+  bool operator ==(Object other) =>
+      other is LiveBackgroundButton &&
+      other.action == action &&
+      other.label == label;
+
+  @override
+  int get hashCode => Object.hash(action, label);
+}
+
 /// What the platform service shows and keeps running.
 @immutable
 class LiveBackgroundSpec {
@@ -56,6 +87,8 @@ class LiveBackgroundSpec {
     required this.body,
     required this.actionLabel,
     required this.channelName,
+    this.screen = false,
+    this.buttons = const [],
   });
 
   /// The spec of [role] with [texts].
@@ -80,6 +113,30 @@ class LiveBackgroundSpec {
   final String actionLabel;
   final String channelName;
 
+  /// D213: a streamer host — the phone screen is captured (Android types
+  /// `mediaProjection` and `camera`: the camera bubble goes on while the
+  /// host is in the game).
+  final bool screen;
+
+  /// D213: actions after the main one (a streamer host's microphone and
+  /// camera bubble).
+  final List<LiveBackgroundButton> buttons;
+
+  /// D213: this spec as a streamer host's, with its two toggles.
+  LiveBackgroundSpec streamer({required String mic, required String camera}) =>
+      LiveBackgroundSpec(
+        role: role,
+        title: title,
+        body: body,
+        actionLabel: actionLabel,
+        channelName: channelName,
+        screen: true,
+        buttons: [
+          LiveBackgroundButton(LiveBackgroundAction.toggleMic, mic),
+          LiveBackgroundButton(LiveBackgroundAction.toggleCamera, camera),
+        ],
+      );
+
   /// The microphone is captured (Android foreground service type
   /// `microphone`); a listener only plays (`mediaPlayback`).
   bool get microphone => role != LiveBackgroundRole.listener;
@@ -91,10 +148,20 @@ class LiveBackgroundSpec {
       other.title == title &&
       other.body == body &&
       other.actionLabel == actionLabel &&
-      other.channelName == channelName;
+      other.channelName == channelName &&
+      other.screen == screen &&
+      listEquals(other.buttons, buttons);
 
   @override
-  int get hashCode => Object.hash(role, title, body, actionLabel, channelName);
+  int get hashCode => Object.hash(
+    role,
+    title,
+    body,
+    actionLabel,
+    channelName,
+    screen,
+    Object.hashAll(buttons),
+  );
 }
 
 /// What the person did on the ongoing notification.
@@ -104,6 +171,12 @@ enum LiveBackgroundAction {
 
   /// Tapped the action button: end the live, or leave.
   end,
+
+  /// D213: a streamer host's microphone on / off.
+  toggleMic,
+
+  /// D213: a streamer host's camera bubble shown / hidden.
+  toggleCamera,
 }
 
 /// The platform side (D123): on Android a foreground service of type
@@ -125,13 +198,23 @@ abstract interface class LiveBackgroundService {
 /// One holder of the background service (the host's controller, a viewer's
 /// session) and what it does on the notification and app lifecycle.
 class _Hold {
-  new(this.spec, this.onEnd, this.onOpen, this.onBackground, this.onForeground);
+  new(
+    this.spec,
+    this.onEnd,
+    this.onOpen,
+    this.onBackground,
+    this.onForeground, {
+    this.onToggleMic,
+    this.onToggleCamera,
+  });
 
   final LiveBackgroundSpec spec;
   final VoidCallback onEnd;
   final VoidCallback? onOpen;
   final VoidCallback? onBackground;
   final VoidCallback? onForeground;
+  final VoidCallback? onToggleMic;
+  final VoidCallback? onToggleCamera;
 }
 
 /// Keeps the background service in step with whoever is live (D123).
@@ -173,9 +256,19 @@ class LiveBackgroundKeeper {
     VoidCallback? onOpen,
     VoidCallback? onBackground,
     VoidCallback? onForeground,
+    VoidCallback? onToggleMic,
+    VoidCallback? onToggleCamera,
   }) {
     _holds.remove(owner);
-    _holds[owner] = _Hold(spec, onEnd, onOpen, onBackground, onForeground);
+    _holds[owner] = _Hold(
+      spec,
+      onEnd,
+      onOpen,
+      onBackground,
+      onForeground,
+      onToggleMic: onToggleMic,
+      onToggleCamera: onToggleCamera,
+    );
     _sync();
   }
 
@@ -226,6 +319,10 @@ class LiveBackgroundKeeper {
         top.onEnd();
       case LiveBackgroundAction.open:
         top.onOpen?.call();
+      case LiveBackgroundAction.toggleMic:
+        top.onToggleMic?.call();
+      case LiveBackgroundAction.toggleCamera:
+        top.onToggleCamera?.call();
     }
   }
 

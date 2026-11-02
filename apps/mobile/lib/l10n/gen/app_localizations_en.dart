@@ -12680,6 +12680,136 @@ class AppLocalizationsEn extends AppLocalizations {
   String get goLiveModeStreamer => 'Streamer';
 
   @override
+  String get liveCardTagStreamer => 'Streamer';
+
+  @override
+  String get goLiveStreamerSoonIos => 'Soon on iPhone';
+
+  @override
+  String get goLiveStreamerIosSnack =>
+      'Streamer lives are coming soon on iPhone';
+
+  @override
+  String get streamerSetupBody =>
+      'Viewers see your phone screen (a game or an app) with a small bubble from your front camera.';
+
+  @override
+  String get streamerCameraBubble => 'Camera bubble';
+
+  @override
+  String get streamerCameraCorner => 'Bubble corner';
+
+  @override
+  String get streamerCornerTopLeft => 'Top left';
+
+  @override
+  String get streamerCornerTopRight => 'Top right';
+
+  @override
+  String get streamerCornerBottomLeft => 'Bottom left';
+
+  @override
+  String get streamerCornerBottomRight => 'Bottom right';
+
+  @override
+  String get streamerMic => 'Microphone';
+
+  @override
+  String get streamerGameAudio => 'Game sound';
+
+  @override
+  String get streamerGameAudioNote =>
+      'Some games don\'t allow their sound to be captured';
+
+  @override
+  String get streamerHeadphonesTip =>
+      'Use headphones so the game sound isn\'t heard twice';
+
+  @override
+  String get streamerGameAudioOld =>
+      'Game sound needs Android 10 or newer — only your microphone will be heard';
+
+  @override
+  String get streamerPrivacyNote =>
+      'Viewers don\'t see your screen while you\'re in Kabso Live';
+
+  @override
+  String get streamerConsentRefused =>
+      'Screen capture wasn\'t allowed, so the live didn\'t start';
+
+  @override
+  String get streamerOnAir => 'Your screen is live';
+
+  @override
+  String get streamerPausedInApp =>
+      'Your screen is paused while you\'re in Kabso Live';
+
+  @override
+  String get streamerPausedCall => 'Your screen is paused during the call';
+
+  @override
+  String get streamerPausedScreenOff =>
+      'Your screen is paused while the phone is locked';
+
+  @override
+  String get streamerGoToGame => 'Go to your game';
+
+  @override
+  String get streamerStoppedTitle => 'Screen sharing stopped';
+
+  @override
+  String get streamerShareAgain => 'Share the screen again';
+
+  @override
+  String get streamerGameLive => 'Game sound is live';
+
+  @override
+  String get streamerGameMuted => 'Game sound is muted';
+
+  @override
+  String get streamerGameUnavailable =>
+      'Game sound isn\'t available on this phone — only your microphone is live';
+
+  @override
+  String get streamerShowCamera => 'Show camera';
+
+  @override
+  String get streamerHideCamera => 'Hide camera';
+
+  @override
+  String get streamerMuteGame => 'Mute game sound';
+
+  @override
+  String get streamerUnmuteGame => 'Unmute game sound';
+
+  @override
+  String get streamerNotifMicOff => 'Mute mic';
+
+  @override
+  String get streamerNotifMicOn => 'Unmute mic';
+
+  @override
+  String get streamerDragHint => 'Drag the bubble to any corner';
+
+  @override
+  String get streamerPausedViewer =>
+      'The screen is paused — the stream will be back shortly';
+
+  @override
+  String get streamerWaiting => 'Waiting for the host\'s screen…';
+
+  @override
+  String get streamerFullscreen => 'Full screen';
+
+  @override
+  String get streamerExitFullscreen => 'Exit full screen';
+
+  @override
+  String streamerScreenSemantics(String name) {
+    return '$name\'s screen';
+  }
+
+  @override
   String chatJoinedMale(String name) {
     return '$name joined';
   }

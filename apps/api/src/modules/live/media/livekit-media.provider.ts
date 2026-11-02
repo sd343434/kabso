@@ -18,12 +18,23 @@ import type {
 const ALL_SOURCES: readonly LiveMediaSource[] = ['camera', 'microphone'];
 
 function toTrackSource(source: LiveMediaSource): TrackSource {
-  return source === 'camera' ? TrackSource.CAMERA : TrackSource.MICROPHONE;
+  switch (source) {
+    case 'camera':
+      return TrackSource.CAMERA;
+    case 'microphone':
+      return TrackSource.MICROPHONE;
+    case 'screen_share':
+      return TrackSource.SCREEN_SHARE;
+    case 'screen_share_audio':
+      return TrackSource.SCREEN_SHARE_AUDIO;
+  }
 }
 
 function fromTrackSource(source: TrackSource): LiveMediaSource | null {
   if (source === TrackSource.CAMERA) return 'camera';
   if (source === TrackSource.MICROPHONE) return 'microphone';
+  if (source === TrackSource.SCREEN_SHARE) return 'screen_share';
+  if (source === TrackSource.SCREEN_SHARE_AUDIO) return 'screen_share_audio';
   return null;
 }
 

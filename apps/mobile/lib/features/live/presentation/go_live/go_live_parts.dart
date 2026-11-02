@@ -5,6 +5,7 @@ import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
 import 'package:kabso_live/features/live/data/beauty/live_beauty.dart';
 import 'package:kabso_live/features/live/data/beauty/live_color_filter.dart';
 import 'package:kabso_live/features/live/data/beauty/live_fx_engine.dart';
+import 'package:kabso_live/features/live/data/streamer/live_streamer_platform.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_glass.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_room_style.dart';
@@ -666,7 +667,11 @@ class GoLiveModeBar extends StatelessWidget {
           mode(LiveRoomMode.solo, l10n.goLiveModeSolo),
           mode(LiveRoomMode.audio, l10n.goLiveModeAudio),
           mode(LiveRoomMode.podcast, l10n.goLiveModePodcast),
-          const GoLiveStreamerTab(),
+          // D213: a real mode on Android; «قريباً» elsewhere.
+          if (streamerSupportHere() == StreamerSupport.supported)
+            mode(LiveRoomMode.streamer, l10n.goLiveModeStreamer)
+          else
+            const GoLiveStreamerTab(),
         ],
       ),
     );
@@ -675,6 +680,8 @@ class GoLiveModeBar extends StatelessWidget {
 
 /// D212 (owner): «بث ستريمر» in the go-live modes — greyed with «قريباً»
 /// until D213 (phone screen share); a tap says so and starts nothing.
+/// D213 (owner: «ANDROID FIRST»): Android offers the real mode instead;
+/// iOS keeps this greyed tab with «قريباً على آيفون» (no fake flow).
 class GoLiveStreamerTab extends StatelessWidget {
   const new({super.key, this.fontSize = 12.5});
 
@@ -685,15 +692,20 @@ class GoLiveStreamerTab extends StatelessWidget {
     final l10n = context.l10n;
     final text = context.textStyles;
     const white = Color(0xFFFFFFFF);
+    final ios = streamerSupportHere() == StreamerSupport.iosSoon;
+    final soon = ios ? l10n.goLiveStreamerSoonIos : l10n.liveSoon;
     return Semantics(
       button: true,
       enabled: false,
-      label: '${l10n.goLiveModeStreamer} · ${l10n.liveSoon}',
+      label: '${l10n.goLiveModeStreamer} · $soon',
       excludeSemantics: true,
       child: GestureDetector(
         key: GoLiveKeys.streamer,
         behavior: HitTestBehavior.opaque,
-        onTap: () => KSnack.info(context, l10n.liveStreamerSoonTitle),
+        onTap: () => KSnack.info(
+          context,
+          ios ? l10n.goLiveStreamerIosSnack : l10n.liveStreamerSoonTitle,
+        ),
         child: ConstrainedBox(
           constraints: const BoxConstraints(
             minHeight: KSizes.minTouchTarget,
@@ -716,7 +728,7 @@ class GoLiveStreamerTab extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  l10n.liveSoon,
+                  soon,
                   maxLines: 1,
                   style: text.caption.copyWith(
                     color: white.withValues(alpha: 0.55),

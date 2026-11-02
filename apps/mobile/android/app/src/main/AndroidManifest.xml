@@ -14,6 +14,13 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
+    <!-- D213 «بث ستريمر»: a streamer host's service also has the types
+         mediaProjection (the phone screen; Android 14 asks for the capture
+         consent first, then starts the service with it) and camera (the
+         round camera bubble goes on while the host is in the game). Only a
+         streamer live starts the service with these types. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
 
@@ -72,10 +79,12 @@
         </activity>
         <!-- D123: the live's foreground service (the plugin's class; the name
              must not change). Not exported; stops with the app's task. The
-             camera is paused in the background, so no camera type. -->
+             camera is paused in the background (D123) — except a streamer
+             host's bubble: D213 adds mediaProjection|camera, started with
+             them only for a streamer live (after the capture consent). -->
         <service
             android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
-            android:foregroundServiceType="microphone|mediaPlayback"
+            android:foregroundServiceType="microphone|mediaPlayback|mediaProjection|camera"
             android:stopWithTask="true"
             android:exported="false"/>
         <!-- D152 pushes (Firebase Cloud Messaging): the channel a push without

@@ -1,0 +1,182 @@
+package com.kabso.kabso_streamer
+
+import java.util.concurrent.atomic.AtomicInteger
+
+/**
+ * D213: the plain-Kotlin rules of the streamer live (no Android types), so the
+ * JVM tests run them without a device.
+ */
+object StreamerRules {
+    /** The largest sample of WebRTC's float buffers (the 16-bit range). */
+    const val FULL_SCALE = 32767f
+
+    /** The game sits a little under the voice so the host stays clear. */
+    const val GAME_GAIN = 0.8f
+
+    /**
+     * One 10 ms capture frame: the microphone's [voice] (silenced when
+     * [micMuted]) plus [game] at [gameGain] (nothing when [gameMuted] or when
+     * [gameFrames] is 0), soft-limited so a loud game never wraps around.
+     * Writes into [voice]; returns the peak of the result.
+     */
+    fun mix(
+        voice: FloatArray,
+        n: Int,
+        micMuted: Boolean,
+        game: FloatArray,
+        gameFrames: Int,
+        gameMuted: Boolean,
+        gameGain: Float = GAME_GAIN,
+    ): Float {
+        var peak = 0f
+        val g = if (gameMuted) 0f else gameGain
+        for (i in 0 until n) {
+            val v = if (micMuted) 0f else voice[i]
+            val s = if (i < gameFrames) game[i] * g else 0f
+            val out = limit(v + s)
+            voice[i] = out
+            val a = if (out < 0) -out else out
+            if (a > peak) peak = a
+        }
+        return peak
+    }
+
+    /** A soft knee above 80 % of full scale; never past full scale. */
+    fun limit(x: Float): Float {
+        val knee = FULL_SCALE * 0.8f
+        val a = if (x < 0) -x else x
+        if (a <= knee) return x
+        val over = (a - knee) / (FULL_SCALE - knee)
+        val soft = knee + (FULL_SCALE - knee) * (over / (1f + over))
+        return if (x < 0) -soft else soft
+    }
+
+    /** 16-bit PCM (mono) to floats in the 16-bit range, as WebRTC uses. */
+    fun pcm16ToFloat(src: ShortArray, count: Int, dst: FloatArray) {
+        for (i in 0 until count) dst[i] = src[i].toFloat()
+    }
+
+    /**
+     * Android's `AudioManager.getMode()`: a phone call rings
+     * (`MODE_RINGTONE` 1), is on (`MODE_IN_CALL` 2) or is screened
+     * (`MODE_CALL_SCREENING` 4, Android 11). `MODE_IN_COMMUNICATION` (3) is
+     * a VoIP call — our own live sets it, so it is not one.
+     */
+    fun isPhoneCall(mode: Int): Boolean = mode == 1 || mode == 2 || mode == 4
+
+    /**
+     * `AudioDeviceInfo.getType()` outputs that play into the host's ears, so
+     * the game sound does not reach the microphone a second time: wired
+     * headset (3) and headphones (4), Bluetooth SCO (7) and A2DP (8), USB
+     * headset (22), hearing aid (23), BLE headset (26). A BLE speaker (27) is
+     * not one. A2DP is also a car or a Bluetooth speaker — Android cannot
+     * tell them apart cheaply, so the tip is then hidden too.
+     */
+    val HEADSET_TYPES = setOf(3, 4, 7, 8, 22, 23, 26)
+
+    /** Any of the connected output [types] is a headset. */
+    fun anyHeadset(types: IntArray): Boolean = types.any { it in HEADSET_TYPES }
+
+    /** `Display.getRotation()`: 1 (90°) and 3 (270°) are landscape. */
+    fun isLandscape(rotation: Int): Boolean = rotation == 1 || rotation == 3
+
+    /**
+     * The path from flutter_webrtc's plugin object to the screen capturer's
+     * running `MediaProjection` (flutter_webrtc 1.6.2+hotfix.4; its ProGuard
+     * rules keep `com.cloudwebrtc.webrtc.**` with every member):
+     * `FlutterWebRTCPlugin.methodCallHandler` → `MethodCallHandlerImpl
+     * .getUserMediaImpl` → `GetUserMediaImpl.mVideoCapturers` (track id →
+     * `VideoCapturerInfoEx`) → `.capturer` (an `OrientationAwareScreenCapturer`)
+     * → `.mediaProjection`. Android 14 lets one consent start ONE projection,
+     * so the game audio must use this one rather than ask again.
+     */
+    val PROJECTION_PATH = listOf("methodCallHandler", "getUserMediaImpl", "mVideoCapturers")
+
+    /**
+     * Finds the first value of [type] behind [root] along [PROJECTION_PATH];
+     * null when any step is missing (another flutter_webrtc version: the app
+     * then streams the microphone only and says why).
+     */
+    fun <T> findProjection(root: Any?, type: Class<T>): T? {
+        var at: Any? = root
+        for (name in PROJECTION_PATH) {
+            at = field(at, name) ?: return null
+        }
+        val capturers = (at as? Map<*, *>)?.values ?: return null
+        for (info in capturers) {
+            val capturer = field(info, "capturer") ?: continue
+            val projection = field(capturer, "mediaProjection") ?: continue
+            if (type.isInstance(projection)) return type.cast(projection)
+        }
+        return null
+    }
+
+    /** A declared field of [obj]'s class or a superclass (private too). */
+    fun field(obj: Any?, name: String): Any? {
+        if (obj == null) return null
+        var c: Class<*>? = obj.javaClass
+        while (c != null) {
+            try {
+                val f = c.getDeclaredField(name)
+                f.isAccessible = true
+                return f.get(obj)
+            } catch (_: NoSuchFieldException) {
+                c = c.superclass
+            } catch (_: ReflectiveOperationException) {
+                return null
+            } catch (_: RuntimeException) {
+                // InaccessibleObjectException / SecurityException.
+                return null
+            }
+        }
+        return null
+    }
+}
+
+/**
+ * A single-producer, single-consumer ring of floats (the capture thread
+ * writes, WebRTC's audio thread reads). When full, the oldest samples are
+ * dropped by the reader's next skip, so the game never lags behind.
+ */
+class FloatRing(capacity: Int) {
+    private val buf = FloatArray(capacity)
+    private val head = AtomicInteger(0) // next write
+    private val tail = AtomicInteger(0) // next read
+    val capacity: Int get() = buf.size
+
+    fun available(): Int {
+        val h = head.get()
+        val t = tail.get()
+        return if (h >= t) h - t else buf.size - t + h
+    }
+
+    /** Writes [count] samples; when there is no room the oldest are dropped. */
+    fun write(src: FloatArray, count: Int) {
+        var h = head.get()
+        for (i in 0 until count) {
+            buf[h] = src[i]
+            h = (h + 1) % buf.size
+            if (h == tail.get()) {
+                // Full: drop the oldest sample.
+                tail.set((tail.get() + 1) % buf.size)
+            }
+        }
+        head.set(h)
+    }
+
+    /** Reads up to [count] samples into [dst]; returns how many. */
+    fun poll(dst: FloatArray, count: Int): Int {
+        val n = minOf(count, available())
+        var t = tail.get()
+        for (i in 0 until n) {
+            dst[i] = buf[t]
+            t = (t + 1) % buf.size
+        }
+        tail.set(t)
+        return n
+    }
+
+    fun clear() {
+        tail.set(head.get())
+    }
+}

@@ -10,13 +10,22 @@ export const SCORE_METADATA_INTERVAL_MS = 2_000;
 /**
  * The media room metadata: the seat version (CP-011, §10.9) next to the score (CP-012, §10.10) and,
  * once the host has edited the live's title, category or topic, the room info version (CP-014,
- * §10.12). `roomInfoVersion` is left out while it is 0 (never edited): apps read a missing key as 0,
+ * §10.12); v1.56-live (D213, §10.86): once a STREAMER host changed the layout, `streamerVersion`. `roomInfoVersion` is left out while it is 0 (never edited): apps read a missing key as 0,
  * and rooms that were never edited keep exactly the metadata they had before v1.10-live.
  */
-export function roomMetadataJson(seatsVersion: number, score: number, roomInfoVersion = 0): string {
-  return JSON.stringify(
-    roomInfoVersion > 0 ? { seatsVersion, score, roomInfoVersion } : { seatsVersion, score },
-  );
+export function roomMetadataJson(
+  seatsVersion: number,
+  score: number,
+  roomInfoVersion = 0,
+  streamerVersion = 0,
+): string {
+  // v1.56-live (D213, §10.86): a STREAMER's layout version, once the host changed it (left out at 0).
+  return JSON.stringify({
+    seatsVersion,
+    score,
+    ...(roomInfoVersion > 0 ? { roomInfoVersion } : {}),
+    ...(streamerVersion > 0 ? { streamerVersion } : {}),
+  });
 }
 
 /**
@@ -121,17 +130,20 @@ export class LiveRoomMetadataService implements OnModuleDestroy {
   }
 
   /** The metadata the room should carry now, or null when the room does not exist. */
-  async expected(roomId: string): Promise<{ json: string; score: number; roomInfoVersion: number } | null> {
+  async expected(
+    roomId: string,
+  ): Promise<{ json: string; score: number; roomInfoVersion: number; streamerVersion: number } | null> {
     const room = await this.prisma.liveRoom.findUnique({
       where: { id: roomId },
-      select: { seatsVersion: true, score: true, infoVersion: true },
+      select: { seatsVersion: true, score: true, infoVersion: true, streamerVersion: true },
     });
     if (!room) return null;
     const score = Number(room.score);
     return {
-      json: roomMetadataJson(room.seatsVersion, score, room.infoVersion),
+      json: roomMetadataJson(room.seatsVersion, score, room.infoVersion, room.streamerVersion),
       score,
       roomInfoVersion: room.infoVersion,
+      streamerVersion: room.streamerVersion,
     };
   }
 

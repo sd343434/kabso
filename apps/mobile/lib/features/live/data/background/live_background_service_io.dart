@@ -16,6 +16,10 @@ LiveBackgroundService createLiveBackgroundService() => Platform.isAndroid
 /// The notification's action button id.
 const String _endButton = 'kabso.live.end';
 
+/// D213: a streamer host's two more buttons (sent to the app as is).
+const String _micButton = 'kabso.live.mic';
+const String _cameraButton = 'kabso.live.camera';
+
 /// The messages the service's task sends to the app.
 const String _openMessage = 'kabso.live.open';
 const String _endMessage = 'kabso.live.end';
@@ -39,6 +43,9 @@ class AndroidLiveBackgroundService implements LiveBackgroundService {
   /// Whether the running service was started with the `microphone` type.
   bool _runningMic = false;
 
+  /// D213: whether it was started with `mediaProjection` and `camera`.
+  bool _runningScreen = false;
+
   static const int _serviceId = 4123;
 
   void _onData(Object data) {
@@ -47,6 +54,10 @@ class AndroidLiveBackgroundService implements LiveBackgroundService {
         _actions.add(LiveBackgroundAction.open);
       case _endMessage:
         _actions.add(LiveBackgroundAction.end);
+      case _micButton:
+        _actions.add(LiveBackgroundAction.toggleMic);
+      case _cameraButton:
+        _actions.add(LiveBackgroundAction.toggleCamera);
     }
   }
 
@@ -92,8 +103,22 @@ class AndroidLiveBackgroundService implements LiveBackgroundService {
     _init(spec.channelName);
     final buttons = [
       NotificationButton(id: _endButton, text: spec.actionLabel),
+      // D213: a streamer host's microphone and camera bubble.
+      for (final b in spec.buttons)
+        NotificationButton(
+          id: b.action == LiveBackgroundAction.toggleMic
+              ? _micButton
+              : _cameraButton,
+          text: b.label,
+        ),
     ];
     var running = await FlutterForegroundTask.isRunningService;
+    if (running && spec.screen && !_runningScreen) {
+      // D213 (Android 14): the `mediaProjection` type is given after the
+      // capture consent (asked just before), so the service starts again.
+      await FlutterForegroundTask.stopService();
+      running = false;
+    }
     if (running && spec.microphone && !_runningMic) {
       // A listener took a seat: the service's types are fixed when it
       // starts, and Android 14 cuts a background microphone without the
@@ -114,6 +139,12 @@ class AndroidLiveBackgroundService implements LiveBackgroundService {
       serviceTypes: [
         if (spec.microphone) ForegroundServiceTypes.microphone,
         ForegroundServiceTypes.mediaPlayback,
+        // D213: the screen capture, and the camera bubble while the host is
+        // in the game (Android allows a background camera only so).
+        if (spec.screen) ...[
+          ForegroundServiceTypes.mediaProjection,
+          ForegroundServiceTypes.camera,
+        ],
       ],
       notificationTitle: spec.title,
       notificationText: spec.body,
@@ -124,6 +155,7 @@ class AndroidLiveBackgroundService implements LiveBackgroundService {
       throw StateError('Live foreground service: $error');
     }
     _runningMic = spec.microphone;
+    _runningScreen = spec.screen;
   }
 
   @override
@@ -154,6 +186,10 @@ class _LiveTaskHandler extends TaskHandler {
   @override
   void onNotificationButtonPressed(String id) {
     if (id == _endButton) FlutterForegroundTask.sendDataToMain(_endMessage);
+    // D213: a streamer host's toggles.
+    if (id == _micButton || id == _cameraButton) {
+      FlutterForegroundTask.sendDataToMain(id);
+    }
   }
 
   @override

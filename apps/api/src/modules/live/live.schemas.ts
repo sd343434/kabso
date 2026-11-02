@@ -154,6 +154,51 @@ const podcastSetupSchema = z.strictObject({
   questionSeconds: questionSecondsSchema.optional(),
 });
 
+// ---- v1.56-live (D213, CONVENTIONS §10.86): streamer lives ------------------------------------
+
+/** The screen picture's orientation (it follows the host's screen). */
+export const STREAMER_ORIENTATIONS = ['PORTRAIT', 'LANDSCAPE'] as const;
+export type StreamerOrientation = (typeof STREAMER_ORIENTATIONS)[number];
+
+/**
+ * The camera bubble's corner of the screen picture. Physical corners (the screen picture is never
+ * mirrored for a right-to-left language), so every viewer sees it where the host put it.
+ */
+export const STREAMER_CORNERS = ['TOP_LEFT', 'TOP_RIGHT', 'BOTTOM_LEFT', 'BOTTOM_RIGHT'] as const;
+export type StreamerCorner = (typeof STREAMER_CORNERS)[number];
+
+/** A STREAMER started without a choice: portrait, the bubble shown at the top left. */
+export const DEFAULT_STREAMER_CORNER: StreamerCorner = 'TOP_LEFT';
+
+const cameraOverlaySchema = z.strictObject({
+  visible: z.boolean().optional(),
+  corner: z.enum(STREAMER_CORNERS).optional(),
+});
+
+/** `StreamerSetup` of `StartLiveRoomRequest` (optional with mode STREAMER, refused otherwise). */
+const streamerSetupSchema = z.strictObject({
+  orientation: z.enum(STREAMER_ORIENTATIONS).optional(),
+  cameraOverlay: cameraOverlaySchema.optional(),
+});
+
+/**
+ * `UpdateLiveStreamerRequest` (`PUT /live/rooms/{roomId}/streamer`): at least one field; a
+ * `cameraOverlay` with neither key is refused too.
+ */
+export const updateLiveStreamerSchema = streamerSetupSchema.superRefine((input, ctx) => {
+  if (input.orientation === undefined && input.cameraOverlay === undefined) {
+    ctx.addIssue({ code: 'custom', path: [], params: { issue: 'too_few' } });
+  }
+  if (
+    input.cameraOverlay !== undefined &&
+    input.cameraOverlay.visible === undefined &&
+    input.cameraOverlay.corner === undefined
+  ) {
+    ctx.addIssue({ code: 'custom', path: ['cameraOverlay'], params: { issue: 'too_few' } });
+  }
+});
+export type UpdateLiveStreamerInput = z.output<typeof updateLiveStreamerSchema>;
+
 /** True when `count` is an allowed seat count for `mode`. */
 export function seatCountFits(mode: string, count: number): boolean {
   return isSeatedMode(mode) && (LIVE_SEAT_COUNTS[mode] as readonly number[]).includes(count);
@@ -206,10 +251,12 @@ export const startLiveRoomSchema = z
     categorySlug: categorySlugSchema.optional(),
     /** CP-010: default true (owner D93). */
     allowGuests: z.boolean().optional(),
-    mode: z.enum(['SOLO', 'MULTI', 'AUDIO', 'PODCAST']).optional(),
+    mode: z.enum(['SOLO', 'MULTI', 'AUDIO', 'PODCAST', 'STREAMER']).optional(),
     seatCount: seatCountSchema.optional(),
     /** v1.47-live (D212): the episode's topic and question settings (PODCAST only). */
     podcast: podcastSetupSchema.optional(),
+    /** v1.56-live (D213): the screen's orientation and the camera bubble (STREAMER only). */
+    streamer: streamerSetupSchema.optional(),
     theme: themeSchema.optional(),
     /** v1.27.3-live (D136): the wish list; absent → the host's last live's list. */
     wishGifts: wishGiftsSchema.optional(),
@@ -223,8 +270,11 @@ export const startLiveRoomSchema = z
     if (mode === 'PODCAST' && input.podcast === undefined) {
       ctx.addIssue({ code: 'custom', path: ['podcast'], params: { issue: 'required' } });
     }
+    if (mode !== 'STREAMER' && input.streamer !== undefined) {
+      ctx.addIssue({ code: 'custom', path: ['streamer'], params: { issue: 'invalid_value' } });
+    }
     if (input.seatCount !== undefined && !ALL_SEAT_COUNTS.includes(input.seatCount)) return;
-    if (mode === 'SOLO' || mode === 'PODCAST') {
+    if (mode === 'SOLO' || mode === 'PODCAST' || mode === 'STREAMER') {
       if (input.seatCount !== undefined) {
         ctx.addIssue({ code: 'custom', path: ['seatCount'], params: { issue: 'invalid_value' } });
       }

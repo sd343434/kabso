@@ -33,6 +33,7 @@ import 'package:kabso_live/features/live/data/live_host_targets_repository.dart'
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_permissions.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
+import 'package:kabso_live/features/live/data/streamer/live_screen_share.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/domain/live_pk.dart';
@@ -54,6 +55,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dar
 import 'package:kabso_live/features/live/presentation/go_live/live_watch_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/live_permission_sheet.dart';
+import 'package:kabso_live/features/live/presentation/streamer/streamer_widgets.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_background_texts.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_cp_entrance.dart';
@@ -2224,6 +2226,26 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         return const LiveAudioRoomBackground();
       }
       return LiveThemeBackground(theme: room.theme);
+    }
+    // D213: a streamer — the host's screen fitted to its orientation, the
+    // camera bubble at the host's corner (the data saver and a failed join
+    // keep their notes below).
+    if (room.mode == LiveRoomMode.streamer &&
+        engine is LiveScreenShare &&
+        !(_dataSaverSent ?? false) &&
+        session.joinFailure == null) {
+      return StreamerViewerStage(
+        engine: engine as LiveScreenShare,
+        changes: engine.changes,
+        hostId: room.host.id,
+        hostName: room.host.displayName,
+        initial: room.streamer ?? const LiveStreamer(),
+        joined: session.joined,
+        reload: () => ref
+            .read(liveRepositoryProvider)
+            .getRoom(room.id)
+            .then((r) => r.streamer),
+      );
     }
     final picture = engine.remoteVideo(room.host.id);
     // D201: the host's second camera (small picture, tap to swap) and the

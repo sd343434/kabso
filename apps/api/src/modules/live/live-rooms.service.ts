@@ -31,6 +31,9 @@ import {
   DEFAULT_LIVE_THEME,
   DEFAULT_PODCAST_QUESTION_SECONDS,
   DEFAULT_PODCAST_THEME,
+  DEFAULT_STREAMER_CORNER,
+  type StreamerCorner,
+  type StreamerOrientation,
   PODCAST_QUESTION_SECONDS,
   PODCAST_SEAT_COUNT,
   PODCAST_TOPICS,
@@ -84,7 +87,7 @@ export interface UserSummaryDto {
   rechargeBadge?: RechargeBadgeDto;
 }
 
-export type LiveRoomMode = 'SOLO' | 'PK' | 'MULTI' | 'AUDIO' | 'PODCAST';
+export type LiveRoomMode = 'SOLO' | 'PK' | 'MULTI' | 'AUDIO' | 'PODCAST' | 'STREAMER';
 export type LiveRoomEndReason =
   | 'HOST_ENDED'
   | 'HEARTBEAT_TIMEOUT'
@@ -119,6 +122,16 @@ export interface LiveRoomSummaryDto {
    * its dare included) or the legacy `mode = 'PK'`. A real battle keeps the rooms SOLO.
    */
   inPk: boolean;
+  /** v1.56-live (D213, §10.86): a STREAMER's screen orientation and camera bubble; null otherwise. */
+  streamer: LiveStreamerDto | null;
+}
+
+/** v1.56-live (D213, §10.86): `LiveStreamer`. */
+export interface LiveStreamerDto {
+  orientation: StreamerOrientation;
+  cameraOverlay: { visible: boolean; corner: StreamerCorner };
+  /** Increases on every change (the media metadata's `streamerVersion`, the `streamer` message). */
+  version: number;
 }
 
 /** A speaker of a podcast as the hub card shows it (avatar stack and names). */
@@ -279,6 +292,11 @@ export interface RoomRow {
   podcast_speakers: LivePodcastSpeakerDto[] | null;
   /** v1.54-live (D241): an open PK match has this room on either side. */
   in_pk: boolean;
+  /** v1.56-live (D213): STREAMER fields (null for other modes). */
+  streamer_orientation: string | null;
+  streamer_camera_visible: boolean | null;
+  streamer_camera_corner: string | null;
+  streamer_version: number;
 }
 
 /**
@@ -341,7 +359,8 @@ const ROOM_COLUMNS = Prisma.sql`
              FROM live_room_seats s2
              JOIN users sp ON sp.id = s2.user_id AND sp.status = 'ACTIVE'
              JOIN user_profiles spp ON spp.user_id = s2.user_id
-            WHERE s2.room_id = r.id AND s2.user_id IS NOT NULL) END AS podcast_speakers`;
+            WHERE s2.room_id = r.id AND s2.user_id IS NOT NULL) END AS podcast_speakers,
+         r.streamer_orientation, r.streamer_camera_visible, r.streamer_camera_corner, r.streamer_version`;
 
 const ROOM_FROM = Prisma.sql`
     FROM live_rooms r
@@ -354,6 +373,32 @@ const ROOM_FROM = Prisma.sql`
 const ROOM_SELECT = Prisma.sql`SELECT ${ROOM_COLUMNS} ${ROOM_FROM}`;
 
 /** CP-013: whether `viewerId` is muted in the room's chat (a guest never is). */
+/** v1.56-live (D213, §10.86): a STREAMER row's `LiveStreamer`; null for other modes. */
+export function streamerOf(row: {
+  mode: string;
+  streamer_orientation: string | null;
+  streamer_camera_visible: boolean | null;
+  streamer_camera_corner: string | null;
+  streamer_version: number;
+}): LiveStreamerDto | null {
+  if (
+    row.mode !== 'STREAMER' ||
+    row.streamer_orientation === null ||
+    row.streamer_camera_visible === null ||
+    row.streamer_camera_corner === null
+  ) {
+    return null;
+  }
+  return {
+    orientation: row.streamer_orientation as StreamerOrientation,
+    cameraOverlay: {
+      visible: row.streamer_camera_visible,
+      corner: row.streamer_camera_corner as StreamerCorner,
+    },
+    version: row.streamer_version,
+  };
+}
+
 function chatMutedSql(viewerId: string | null): Prisma.Sql {
   if (viewerId === null) return Prisma.sql`FALSE`;
   return Prisma.sql`EXISTS (SELECT 1 FROM live_chat_mutes m
@@ -811,7 +856,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
           SELECT id::text AS id FROM live_rooms
            WHERE status = 'LIVE' AND host_away_since IS NOT NULL
              AND host_away_since <= ${awayCutoff}::timestamptz
-             AND mode NOT IN ('AUDIO'::live_room_mode, 'PODCAST'::live_room_mode) AND last_heartbeat_at > ${staleCutoff}::timestamptz
+             AND mode NOT IN ('AUDIO'::live_room_mode, 'PODCAST'::live_room_mode, 'STREAMER'::live_room_mode) AND last_heartbeat_at > ${staleCutoff}::timestamptz
            ORDER BY host_away_since
            LIMIT ${batchSize}
              FOR UPDATE SKIP LOCKED`;
@@ -822,7 +867,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
                  ended_at = host_away_since + make_interval(secs => ${timeout}::int),
                  updated_at = ${ts(now)}::timestamptz
            WHERE id = ANY(${ids.map((row) => row.id)}::uuid[])
-             AND status = 'LIVE' AND mode NOT IN ('AUDIO'::live_room_mode, 'PODCAST'::live_room_mode)
+             AND status = 'LIVE' AND mode NOT IN ('AUDIO'::live_room_mode, 'PODCAST'::live_room_mode, 'STREAMER'::live_room_mode)
              AND host_away_since IS NOT NULL AND host_away_since <= ${awayCutoff}::timestamptz
              AND last_heartbeat_at > ${staleCutoff}::timestamptz
        RETURNING id::text AS id, host_user_id::text AS host_user_id`;
@@ -907,6 +952,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
             }
           : null,
       inPk: row.in_pk || row.mode === 'PK',
+      streamer: streamerOf(row),
     };
   }
 
@@ -1219,6 +1265,14 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
             seatCount: mode === 'PODCAST' ? PODCAST_SEAT_COUNT : (input.seatCount ?? null),
             theme: input.theme ?? (mode === 'PODCAST' ? DEFAULT_PODCAST_THEME : DEFAULT_LIVE_THEME),
             ...(podcast ?? {}),
+            // v1.56-live (D213, §10.86): the screen starts as the host chose (portrait, bubble shown).
+            ...(mode === 'STREAMER'
+              ? {
+                  streamerOrientation: input.streamer?.orientation ?? 'PORTRAIT',
+                  streamerCameraVisible: input.streamer?.cameraOverlay?.visible ?? true,
+                  streamerCameraCorner: input.streamer?.cameraOverlay?.corner ?? DEFAULT_STREAMER_CORNER,
+                }
+              : {}),
             coverUrl: host.cover_url,
             wishGifts: [...wishGifts],
           },
@@ -1298,7 +1352,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     const updated = await this.prisma.$executeRaw`
       UPDATE live_rooms
          SET host_away_since = CASE
-               WHEN ${away}::boolean AND mode NOT IN ('AUDIO'::live_room_mode, 'PODCAST'::live_room_mode)
+               WHEN ${away}::boolean AND mode NOT IN ('AUDIO'::live_room_mode, 'PODCAST'::live_room_mode, 'STREAMER'::live_room_mode)
                  THEN COALESCE(host_away_since, ${ts(now)}::timestamptz)
                ELSE NULL END
        WHERE id = ${roomId}::uuid AND host_user_id = ${callerId}::uuid AND status = 'LIVE'

@@ -11,4 +11,9 @@ LiveBackgroundTexts liveBackgroundTexts(AppLocalizations l10n) =>
       body: l10n.liveBgBody,
       endLive: l10n.liveBgEnd,
       leave: l10n.liveBgLeave,
+      // D213: a streamer host's notification toggles.
+      micOff: l10n.streamerNotifMicOff,
+      micOn: l10n.streamerNotifMicOn,
+      cameraHide: l10n.streamerHideCamera,
+      cameraShow: l10n.streamerShowCamera,
     );

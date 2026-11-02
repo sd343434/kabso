@@ -92,7 +92,7 @@ export class AdminLivesService {
   ) {}
 
   async now(
-    q: TableQuery & { mode?: 'SOLO' | 'PK' | 'MULTI' | 'AUDIO' | 'PODCAST' | undefined },
+    q: TableQuery & { mode?: 'SOLO' | 'PK' | 'MULTI' | 'AUDIO' | 'PODCAST' | 'STREAMER' | undefined },
     ctx: AdminContext,
   ) {
     const text = q.q?.trim().toLowerCase().replace(/^@/, '');

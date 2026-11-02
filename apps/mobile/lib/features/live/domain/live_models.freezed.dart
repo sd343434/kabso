@@ -2097,9 +2097,8 @@ mixin _$LiveRoomSummary {
  int get occupiedSeats; String get theme;/// CP-012: the live's points (taps + support); `popular` orders by it.
  int get score;/// CP-014: the host's one-line topic, or null.
  String? get topic;/// v1.47-live (D212): a podcast's episode facts; null otherwise.
- LivePodcast? get podcast;/// v1.54-live (D241): the room is in a PK now (an open D195 match —
-/// the rooms stay SOLO — or the legacy mode PK). Older servers: false.
- bool get inPk;
+ LivePodcast? get podcast;/// v1.56-live (D213): a streamer's layout; null otherwise.
+ LiveStreamer? get streamer;
 /// Create a copy of LiveRoomSummary
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -2113,20 +2112,20 @@ $LiveRoomSummaryCopyWith<LiveRoomSummary> get copyWith => _$LiveRoomSummaryCopyW
 @override
 bool operator ==(Object other) {
   final _this = this as LiveRoomSummary;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveRoomSummary&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.title, _this.title) || other.title == _this.title)&&(identical(other.mode, _this.mode) || other.mode == _this.mode)&&(identical(other.viewerCount, _this.viewerCount) || other.viewerCount == _this.viewerCount)&&(identical(other.startedAt, _this.startedAt) || other.startedAt == _this.startedAt)&&(identical(other.coverUrl, _this.coverUrl) || other.coverUrl == _this.coverUrl)&&(identical(other.category, _this.category) || other.category == _this.category)&&(identical(other.host, _this.host) || other.host == _this.host)&&(identical(other.seatCount, _this.seatCount) || other.seatCount == _this.seatCount)&&(identical(other.occupiedSeats, _this.occupiedSeats) || other.occupiedSeats == _this.occupiedSeats)&&(identical(other.theme, _this.theme) || other.theme == _this.theme)&&(identical(other.score, _this.score) || other.score == _this.score)&&(identical(other.topic, _this.topic) || other.topic == _this.topic)&&(identical(other.podcast, _this.podcast) || other.podcast == _this.podcast)&&(identical(other.inPk, _this.inPk) || other.inPk == _this.inPk));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveRoomSummary&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.title, _this.title) || other.title == _this.title)&&(identical(other.mode, _this.mode) || other.mode == _this.mode)&&(identical(other.viewerCount, _this.viewerCount) || other.viewerCount == _this.viewerCount)&&(identical(other.startedAt, _this.startedAt) || other.startedAt == _this.startedAt)&&(identical(other.coverUrl, _this.coverUrl) || other.coverUrl == _this.coverUrl)&&(identical(other.category, _this.category) || other.category == _this.category)&&(identical(other.host, _this.host) || other.host == _this.host)&&(identical(other.seatCount, _this.seatCount) || other.seatCount == _this.seatCount)&&(identical(other.occupiedSeats, _this.occupiedSeats) || other.occupiedSeats == _this.occupiedSeats)&&(identical(other.theme, _this.theme) || other.theme == _this.theme)&&(identical(other.score, _this.score) || other.score == _this.score)&&(identical(other.topic, _this.topic) || other.topic == _this.topic)&&(identical(other.podcast, _this.podcast) || other.podcast == _this.podcast)&&(identical(other.streamer, _this.streamer) || other.streamer == _this.streamer));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as LiveRoomSummary;
-  return Object.hash(runtimeType,_this.id,_this.title,_this.mode,_this.viewerCount,_this.startedAt,_this.coverUrl,_this.category,_this.host,_this.seatCount,_this.occupiedSeats,_this.theme,_this.score,_this.topic,_this.podcast,_this.inPk);
+  return Object.hash(runtimeType,_this.id,_this.title,_this.mode,_this.viewerCount,_this.startedAt,_this.coverUrl,_this.category,_this.host,_this.seatCount,_this.occupiedSeats,_this.theme,_this.score,_this.topic,_this.podcast,_this.streamer);
 }
 
 @override
 String toString() {
   final _this = this as LiveRoomSummary;
-  return 'LiveRoomSummary(id: ${_this.id}, title: ${_this.title}, mode: ${_this.mode}, viewerCount: ${_this.viewerCount}, startedAt: ${_this.startedAt}, coverUrl: ${_this.coverUrl}, category: ${_this.category}, host: ${_this.host}, seatCount: ${_this.seatCount}, occupiedSeats: ${_this.occupiedSeats}, theme: ${_this.theme}, score: ${_this.score}, topic: ${_this.topic}, podcast: ${_this.podcast}, inPk: ${_this.inPk})';
+  return 'LiveRoomSummary(id: ${_this.id}, title: ${_this.title}, mode: ${_this.mode}, viewerCount: ${_this.viewerCount}, startedAt: ${_this.startedAt}, coverUrl: ${_this.coverUrl}, category: ${_this.category}, host: ${_this.host}, seatCount: ${_this.seatCount}, occupiedSeats: ${_this.occupiedSeats}, theme: ${_this.theme}, score: ${_this.score}, topic: ${_this.topic}, podcast: ${_this.podcast}, streamer: ${_this.streamer})';
 }
 
 
@@ -2137,7 +2136,7 @@ abstract mixin class $LiveRoomSummaryCopyWith<$Res>  {
   factory $LiveRoomSummaryCopyWith(LiveRoomSummary value, $Res Function(LiveRoomSummary) _then) = _$LiveRoomSummaryCopyWithImpl;
 @useResult
 $Res call({
- String id, String title,@JsonKey(unknownEnumValue: LiveRoomMode.solo) LiveRoomMode mode, int viewerCount, DateTime startedAt, String? coverUrl, LiveCategory? category, UserSummary host, int? seatCount, int occupiedSeats, String theme, int score, String? topic, LivePodcast? podcast, bool inPk
+ String id, String title,@JsonKey(unknownEnumValue: LiveRoomMode.solo) LiveRoomMode mode, int viewerCount, DateTime startedAt, String? coverUrl, LiveCategory? category, UserSummary host, int? seatCount, int occupiedSeats, String theme, int score, String? topic, LivePodcast? podcast, LiveStreamer? streamer
 });
 
 
@@ -2154,7 +2153,7 @@ class _$LiveRoomSummaryCopyWithImpl<$Res>
 
 /// Create a copy of LiveRoomSummary
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? title = null,Object? mode = null,Object? viewerCount = null,Object? startedAt = null,Object? coverUrl = freezed,Object? category = freezed,Object? host = null,Object? seatCount = freezed,Object? occupiedSeats = null,Object? theme = null,Object? score = null,Object? topic = freezed,Object? podcast = freezed,Object? inPk = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? title = null,Object? mode = null,Object? viewerCount = null,Object? startedAt = null,Object? coverUrl = freezed,Object? category = freezed,Object? host = null,Object? seatCount = freezed,Object? occupiedSeats = null,Object? theme = null,Object? score = null,Object? topic = freezed,Object? podcast = freezed,Object? streamer = freezed,}) {
   return _then(LiveRoomSummary(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
@@ -2170,8 +2169,8 @@ as int,theme: null == theme ? _self.theme : theme // ignore: cast_nullable_to_no
 as String,score: null == score ? _self.score : score // ignore: cast_nullable_to_non_nullable
 as int,topic: freezed == topic ? _self.topic : topic // ignore: cast_nullable_to_non_nullable
 as String?,podcast: freezed == podcast ? _self.podcast : podcast // ignore: cast_nullable_to_non_nullable
-as LivePodcast?,inPk: null == inPk ? _self.inPk : inPk // ignore: cast_nullable_to_non_nullable
-as bool,
+as LivePodcast?,streamer: freezed == streamer ? _self.streamer : streamer // ignore: cast_nullable_to_non_nullable
+as LiveStreamer?,
   ));
 }
 /// Create a copy of LiveRoomSummary
@@ -2289,10 +2288,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String title, @JsonKey(unknownEnumValue: LiveRoomMode.solo)  LiveRoomMode mode,  int viewerCount,  DateTime startedAt,  String? coverUrl,  LiveCategory? category,  UserSummary host,  int? seatCount,  int occupiedSeats,  String theme,  int score,  String? topic,  LivePodcast? podcast,  bool inPk)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String title, @JsonKey(unknownEnumValue: LiveRoomMode.solo)  LiveRoomMode mode,  int viewerCount,  DateTime startedAt,  String? coverUrl,  LiveCategory? category,  UserSummary host,  int? seatCount,  int occupiedSeats,  String theme,  int score,  String? topic,  LivePodcast? podcast,  LiveStreamer? streamer)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _LiveRoomSummary() when $default != null:
-return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedAt,_that.coverUrl,_that.category,_that.host,_that.seatCount,_that.occupiedSeats,_that.theme,_that.score,_that.topic,_that.podcast,_that.inPk);case _:
+return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedAt,_that.coverUrl,_that.category,_that.host,_that.seatCount,_that.occupiedSeats,_that.theme,_that.score,_that.topic,_that.podcast,_that.streamer);case _:
   return orElse();
 
 }
@@ -2310,10 +2309,10 @@ return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedA
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String title, @JsonKey(unknownEnumValue: LiveRoomMode.solo)  LiveRoomMode mode,  int viewerCount,  DateTime startedAt,  String? coverUrl,  LiveCategory? category,  UserSummary host,  int? seatCount,  int occupiedSeats,  String theme,  int score,  String? topic,  LivePodcast? podcast,  bool inPk)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String title, @JsonKey(unknownEnumValue: LiveRoomMode.solo)  LiveRoomMode mode,  int viewerCount,  DateTime startedAt,  String? coverUrl,  LiveCategory? category,  UserSummary host,  int? seatCount,  int occupiedSeats,  String theme,  int score,  String? topic,  LivePodcast? podcast,  LiveStreamer? streamer)  $default,) {final _that = this;
 switch (_that) {
 case _LiveRoomSummary():
-return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedAt,_that.coverUrl,_that.category,_that.host,_that.seatCount,_that.occupiedSeats,_that.theme,_that.score,_that.topic,_that.podcast,_that.inPk);case _:
+return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedAt,_that.coverUrl,_that.category,_that.host,_that.seatCount,_that.occupiedSeats,_that.theme,_that.score,_that.topic,_that.podcast,_that.streamer);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -2330,10 +2329,10 @@ return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedA
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String title, @JsonKey(unknownEnumValue: LiveRoomMode.solo)  LiveRoomMode mode,  int viewerCount,  DateTime startedAt,  String? coverUrl,  LiveCategory? category,  UserSummary host,  int? seatCount,  int occupiedSeats,  String theme,  int score,  String? topic,  LivePodcast? podcast,  bool inPk)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String title, @JsonKey(unknownEnumValue: LiveRoomMode.solo)  LiveRoomMode mode,  int viewerCount,  DateTime startedAt,  String? coverUrl,  LiveCategory? category,  UserSummary host,  int? seatCount,  int occupiedSeats,  String theme,  int score,  String? topic,  LivePodcast? podcast,  LiveStreamer? streamer)?  $default,) {final _that = this;
 switch (_that) {
 case _LiveRoomSummary() when $default != null:
-return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedAt,_that.coverUrl,_that.category,_that.host,_that.seatCount,_that.occupiedSeats,_that.theme,_that.score,_that.topic,_that.podcast,_that.inPk);case _:
+return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedAt,_that.coverUrl,_that.category,_that.host,_that.seatCount,_that.occupiedSeats,_that.theme,_that.score,_that.topic,_that.podcast,_that.streamer);case _:
   return null;
 
 }
@@ -2345,7 +2344,7 @@ return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedA
 @JsonSerializable()
 
 class _LiveRoomSummary implements LiveRoomSummary {
-  const _LiveRoomSummary({required this.id, required this.title, @JsonKey(unknownEnumValue: LiveRoomMode.solo) required this.mode, required this.viewerCount, required this.startedAt, required this.coverUrl, required this.category, required this.host, this.seatCount, this.occupiedSeats = 0, this.theme = LiveThemes.classic, this.score = 0, this.topic, this.podcast, this.inPk = false});
+  const _LiveRoomSummary({required this.id, required this.title, @JsonKey(unknownEnumValue: LiveRoomMode.solo) required this.mode, required this.viewerCount, required this.startedAt, required this.coverUrl, required this.category, required this.host, this.seatCount, this.occupiedSeats = 0, this.theme = LiveThemes.classic, this.score = 0, this.topic, this.podcast, this.streamer});
   factory _LiveRoomSummary.fromJson(Map<String, dynamic> json) => _$LiveRoomSummaryFromJson(json);
 
 @override final  String id;
@@ -2367,9 +2366,8 @@ class _LiveRoomSummary implements LiveRoomSummary {
 @override final  String? topic;
 /// v1.47-live (D212): a podcast's episode facts; null otherwise.
 @override final  LivePodcast? podcast;
-/// v1.54-live (D241): the room is in a PK now (an open D195 match —
-/// the rooms stay SOLO — or the legacy mode PK). Older servers: false.
-@override@JsonKey() final  bool inPk;
+/// v1.56-live (D213): a streamer's layout; null otherwise.
+@override final  LiveStreamer? streamer;
 
 /// Create a copy of LiveRoomSummary
 /// with the given fields replaced by the non-null parameter values.
@@ -2384,18 +2382,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveRoomSummary&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.mode, mode) || other.mode == mode)&&(identical(other.viewerCount, viewerCount) || other.viewerCount == viewerCount)&&(identical(other.startedAt, startedAt) || other.startedAt == startedAt)&&(identical(other.coverUrl, coverUrl) || other.coverUrl == coverUrl)&&(identical(other.category, category) || other.category == category)&&(identical(other.host, host) || other.host == host)&&(identical(other.seatCount, seatCount) || other.seatCount == seatCount)&&(identical(other.occupiedSeats, occupiedSeats) || other.occupiedSeats == occupiedSeats)&&(identical(other.theme, theme) || other.theme == theme)&&(identical(other.score, score) || other.score == score)&&(identical(other.topic, topic) || other.topic == topic)&&(identical(other.podcast, podcast) || other.podcast == podcast)&&(identical(other.inPk, inPk) || other.inPk == inPk));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveRoomSummary&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.mode, mode) || other.mode == mode)&&(identical(other.viewerCount, viewerCount) || other.viewerCount == viewerCount)&&(identical(other.startedAt, startedAt) || other.startedAt == startedAt)&&(identical(other.coverUrl, coverUrl) || other.coverUrl == coverUrl)&&(identical(other.category, category) || other.category == category)&&(identical(other.host, host) || other.host == host)&&(identical(other.seatCount, seatCount) || other.seatCount == seatCount)&&(identical(other.occupiedSeats, occupiedSeats) || other.occupiedSeats == occupiedSeats)&&(identical(other.theme, theme) || other.theme == theme)&&(identical(other.score, score) || other.score == score)&&(identical(other.topic, topic) || other.topic == topic)&&(identical(other.podcast, podcast) || other.podcast == podcast)&&(identical(other.streamer, streamer) || other.streamer == streamer));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,id,title,mode,viewerCount,startedAt,coverUrl,category,host,seatCount,occupiedSeats,theme,score,topic,podcast,inPk);
+    return Object.hash(runtimeType,id,title,mode,viewerCount,startedAt,coverUrl,category,host,seatCount,occupiedSeats,theme,score,topic,podcast,streamer);
 }
 
 @override
 String toString() {
-    return 'LiveRoomSummary(id: $id, title: $title, mode: $mode, viewerCount: $viewerCount, startedAt: $startedAt, coverUrl: $coverUrl, category: $category, host: $host, seatCount: $seatCount, occupiedSeats: $occupiedSeats, theme: $theme, score: $score, topic: $topic, podcast: $podcast, inPk: $inPk)';
+    return 'LiveRoomSummary(id: $id, title: $title, mode: $mode, viewerCount: $viewerCount, startedAt: $startedAt, coverUrl: $coverUrl, category: $category, host: $host, seatCount: $seatCount, occupiedSeats: $occupiedSeats, theme: $theme, score: $score, topic: $topic, podcast: $podcast, streamer: $streamer)';
 }
 
 
@@ -2406,7 +2404,7 @@ abstract mixin class _$LiveRoomSummaryCopyWith<$Res> implements $LiveRoomSummary
   factory _$LiveRoomSummaryCopyWith(_LiveRoomSummary value, $Res Function(_LiveRoomSummary) _then) = __$LiveRoomSummaryCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String title,@JsonKey(unknownEnumValue: LiveRoomMode.solo) LiveRoomMode mode, int viewerCount, DateTime startedAt, String? coverUrl, LiveCategory? category, UserSummary host, int? seatCount, int occupiedSeats, String theme, int score, String? topic, LivePodcast? podcast, bool inPk
+ String id, String title,@JsonKey(unknownEnumValue: LiveRoomMode.solo) LiveRoomMode mode, int viewerCount, DateTime startedAt, String? coverUrl, LiveCategory? category, UserSummary host, int? seatCount, int occupiedSeats, String theme, int score, String? topic, LivePodcast? podcast, LiveStreamer? streamer
 });
 
 
@@ -2423,7 +2421,7 @@ class __$LiveRoomSummaryCopyWithImpl<$Res>
 
 /// Create a copy of LiveRoomSummary
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? title = null,Object? mode = null,Object? viewerCount = null,Object? startedAt = null,Object? coverUrl = freezed,Object? category = freezed,Object? host = null,Object? seatCount = freezed,Object? occupiedSeats = null,Object? theme = null,Object? score = null,Object? topic = freezed,Object? podcast = freezed,Object? inPk = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? title = null,Object? mode = null,Object? viewerCount = null,Object? startedAt = null,Object? coverUrl = freezed,Object? category = freezed,Object? host = null,Object? seatCount = freezed,Object? occupiedSeats = null,Object? theme = null,Object? score = null,Object? topic = freezed,Object? podcast = freezed,Object? streamer = freezed,}) {
   return _then(_LiveRoomSummary(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
@@ -2439,8 +2437,8 @@ as int,theme: null == theme ? _self.theme : theme // ignore: cast_nullable_to_no
 as String,score: null == score ? _self.score : score // ignore: cast_nullable_to_non_nullable
 as int,topic: freezed == topic ? _self.topic : topic // ignore: cast_nullable_to_non_nullable
 as String?,podcast: freezed == podcast ? _self.podcast : podcast // ignore: cast_nullable_to_non_nullable
-as LivePodcast?,inPk: null == inPk ? _self.inPk : inPk // ignore: cast_nullable_to_non_nullable
-as bool,
+as LivePodcast?,streamer: freezed == streamer ? _self.streamer : streamer // ignore: cast_nullable_to_non_nullable
+as LiveStreamer?,
   ));
 }
 
@@ -2499,7 +2497,8 @@ mixin _$LiveRoom {
  bool get kicked;/// v1.27.3-live (D136, §10.29): the host's wish list, as shown (older
 /// servers send none).
  List<LiveWishGift> get wishGifts;/// v1.47-live (D212): a podcast's episode facts; null otherwise.
- LivePodcast? get podcast;
+ LivePodcast? get podcast;/// v1.56-live (D213): a streamer's layout; null otherwise.
+ LiveStreamer? get streamer;
 /// Create a copy of LiveRoom
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -2513,20 +2512,20 @@ $LiveRoomCopyWith<LiveRoom> get copyWith => _$LiveRoomCopyWithImpl<LiveRoom>(thi
 @override
 bool operator ==(Object other) {
   final _this = this as LiveRoom;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveRoom&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.title, _this.title) || other.title == _this.title)&&(identical(other.mode, _this.mode) || other.mode == _this.mode)&&(identical(other.viewerCount, _this.viewerCount) || other.viewerCount == _this.viewerCount)&&(identical(other.startedAt, _this.startedAt) || other.startedAt == _this.startedAt)&&(identical(other.coverUrl, _this.coverUrl) || other.coverUrl == _this.coverUrl)&&(identical(other.category, _this.category) || other.category == _this.category)&&(identical(other.host, _this.host) || other.host == _this.host)&&(identical(other.status, _this.status) || other.status == _this.status)&&(identical(other.endedAt, _this.endedAt) || other.endedAt == _this.endedAt)&&(identical(other.endReason, _this.endReason) || other.endReason == _this.endReason)&&(identical(other.allowGuests, _this.allowGuests) || other.allowGuests == _this.allowGuests)&&(identical(other.seatCount, _this.seatCount) || other.seatCount == _this.seatCount)&&(identical(other.occupiedSeats, _this.occupiedSeats) || other.occupiedSeats == _this.occupiedSeats)&&(identical(other.theme, _this.theme) || other.theme == _this.theme)&&(identical(other.score, _this.score) || other.score == _this.score)&&(identical(other.scoreParts, _this.scoreParts) || other.scoreParts == _this.scoreParts)&&(identical(other.chatEnabled, _this.chatEnabled) || other.chatEnabled == _this.chatEnabled)&&(identical(other.chatMuted, _this.chatMuted) || other.chatMuted == _this.chatMuted)&&(identical(other.topic, _this.topic) || other.topic == _this.topic)&&(identical(other.roomNumber, _this.roomNumber) || other.roomNumber == _this.roomNumber)&&(identical(other.roomLevel, _this.roomLevel) || other.roomLevel == _this.roomLevel)&&(identical(other.kicked, _this.kicked) || other.kicked == _this.kicked)&&const DeepCollectionEquality().equals(other.wishGifts, _this.wishGifts)&&(identical(other.podcast, _this.podcast) || other.podcast == _this.podcast));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveRoom&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.title, _this.title) || other.title == _this.title)&&(identical(other.mode, _this.mode) || other.mode == _this.mode)&&(identical(other.viewerCount, _this.viewerCount) || other.viewerCount == _this.viewerCount)&&(identical(other.startedAt, _this.startedAt) || other.startedAt == _this.startedAt)&&(identical(other.coverUrl, _this.coverUrl) || other.coverUrl == _this.coverUrl)&&(identical(other.category, _this.category) || other.category == _this.category)&&(identical(other.host, _this.host) || other.host == _this.host)&&(identical(other.status, _this.status) || other.status == _this.status)&&(identical(other.endedAt, _this.endedAt) || other.endedAt == _this.endedAt)&&(identical(other.endReason, _this.endReason) || other.endReason == _this.endReason)&&(identical(other.allowGuests, _this.allowGuests) || other.allowGuests == _this.allowGuests)&&(identical(other.seatCount, _this.seatCount) || other.seatCount == _this.seatCount)&&(identical(other.occupiedSeats, _this.occupiedSeats) || other.occupiedSeats == _this.occupiedSeats)&&(identical(other.theme, _this.theme) || other.theme == _this.theme)&&(identical(other.score, _this.score) || other.score == _this.score)&&(identical(other.scoreParts, _this.scoreParts) || other.scoreParts == _this.scoreParts)&&(identical(other.chatEnabled, _this.chatEnabled) || other.chatEnabled == _this.chatEnabled)&&(identical(other.chatMuted, _this.chatMuted) || other.chatMuted == _this.chatMuted)&&(identical(other.topic, _this.topic) || other.topic == _this.topic)&&(identical(other.roomNumber, _this.roomNumber) || other.roomNumber == _this.roomNumber)&&(identical(other.roomLevel, _this.roomLevel) || other.roomLevel == _this.roomLevel)&&(identical(other.kicked, _this.kicked) || other.kicked == _this.kicked)&&const DeepCollectionEquality().equals(other.wishGifts, _this.wishGifts)&&(identical(other.podcast, _this.podcast) || other.podcast == _this.podcast)&&(identical(other.streamer, _this.streamer) || other.streamer == _this.streamer));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as LiveRoom;
-  return Object.hashAll([runtimeType,_this.id,_this.title,_this.mode,_this.viewerCount,_this.startedAt,_this.coverUrl,_this.category,_this.host,_this.status,_this.endedAt,_this.endReason,_this.allowGuests,_this.seatCount,_this.occupiedSeats,_this.theme,_this.score,_this.scoreParts,_this.chatEnabled,_this.chatMuted,_this.topic,_this.roomNumber,_this.roomLevel,_this.kicked,const DeepCollectionEquality().hash(_this.wishGifts),_this.podcast]);
+  return Object.hashAll([runtimeType,_this.id,_this.title,_this.mode,_this.viewerCount,_this.startedAt,_this.coverUrl,_this.category,_this.host,_this.status,_this.endedAt,_this.endReason,_this.allowGuests,_this.seatCount,_this.occupiedSeats,_this.theme,_this.score,_this.scoreParts,_this.chatEnabled,_this.chatMuted,_this.topic,_this.roomNumber,_this.roomLevel,_this.kicked,const DeepCollectionEquality().hash(_this.wishGifts),_this.podcast,_this.streamer]);
 }
 
 @override
 String toString() {
   final _this = this as LiveRoom;
-  return 'LiveRoom(id: ${_this.id}, title: ${_this.title}, mode: ${_this.mode}, viewerCount: ${_this.viewerCount}, startedAt: ${_this.startedAt}, coverUrl: ${_this.coverUrl}, category: ${_this.category}, host: ${_this.host}, status: ${_this.status}, endedAt: ${_this.endedAt}, endReason: ${_this.endReason}, allowGuests: ${_this.allowGuests}, seatCount: ${_this.seatCount}, occupiedSeats: ${_this.occupiedSeats}, theme: ${_this.theme}, score: ${_this.score}, scoreParts: ${_this.scoreParts}, chatEnabled: ${_this.chatEnabled}, chatMuted: ${_this.chatMuted}, topic: ${_this.topic}, roomNumber: ${_this.roomNumber}, roomLevel: ${_this.roomLevel}, kicked: ${_this.kicked}, wishGifts: ${_this.wishGifts}, podcast: ${_this.podcast})';
+  return 'LiveRoom(id: ${_this.id}, title: ${_this.title}, mode: ${_this.mode}, viewerCount: ${_this.viewerCount}, startedAt: ${_this.startedAt}, coverUrl: ${_this.coverUrl}, category: ${_this.category}, host: ${_this.host}, status: ${_this.status}, endedAt: ${_this.endedAt}, endReason: ${_this.endReason}, allowGuests: ${_this.allowGuests}, seatCount: ${_this.seatCount}, occupiedSeats: ${_this.occupiedSeats}, theme: ${_this.theme}, score: ${_this.score}, scoreParts: ${_this.scoreParts}, chatEnabled: ${_this.chatEnabled}, chatMuted: ${_this.chatMuted}, topic: ${_this.topic}, roomNumber: ${_this.roomNumber}, roomLevel: ${_this.roomLevel}, kicked: ${_this.kicked}, wishGifts: ${_this.wishGifts}, podcast: ${_this.podcast}, streamer: ${_this.streamer})';
 }
 
 
@@ -2537,7 +2536,7 @@ abstract mixin class $LiveRoomCopyWith<$Res>  {
   factory $LiveRoomCopyWith(LiveRoom value, $Res Function(LiveRoom) _then) = _$LiveRoomCopyWithImpl;
 @useResult
 $Res call({
- String id, String title,@JsonKey(unknownEnumValue: LiveRoomMode.solo) LiveRoomMode mode, int viewerCount, DateTime startedAt, String? coverUrl, LiveCategory? category, UserSummary host, LiveRoomStatus status, DateTime? endedAt,@JsonKey(unknownEnumValue: LiveRoomEndReason.unknown) LiveRoomEndReason? endReason, bool allowGuests, int? seatCount, int occupiedSeats, String theme, int score, LiveScore? scoreParts, bool chatEnabled, bool chatMuted, String? topic, int? roomNumber, int? roomLevel, bool kicked, List<LiveWishGift> wishGifts, LivePodcast? podcast
+ String id, String title,@JsonKey(unknownEnumValue: LiveRoomMode.solo) LiveRoomMode mode, int viewerCount, DateTime startedAt, String? coverUrl, LiveCategory? category, UserSummary host, LiveRoomStatus status, DateTime? endedAt,@JsonKey(unknownEnumValue: LiveRoomEndReason.unknown) LiveRoomEndReason? endReason, bool allowGuests, int? seatCount, int occupiedSeats, String theme, int score, LiveScore? scoreParts, bool chatEnabled, bool chatMuted, String? topic, int? roomNumber, int? roomLevel, bool kicked, List<LiveWishGift> wishGifts, LivePodcast? podcast, LiveStreamer? streamer
 });
 
 
@@ -2554,7 +2553,7 @@ class _$LiveRoomCopyWithImpl<$Res>
 
 /// Create a copy of LiveRoom
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? title = null,Object? mode = null,Object? viewerCount = null,Object? startedAt = null,Object? coverUrl = freezed,Object? category = freezed,Object? host = null,Object? status = null,Object? endedAt = freezed,Object? endReason = freezed,Object? allowGuests = null,Object? seatCount = freezed,Object? occupiedSeats = null,Object? theme = null,Object? score = null,Object? scoreParts = freezed,Object? chatEnabled = null,Object? chatMuted = null,Object? topic = freezed,Object? roomNumber = freezed,Object? roomLevel = freezed,Object? kicked = null,Object? wishGifts = null,Object? podcast = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? title = null,Object? mode = null,Object? viewerCount = null,Object? startedAt = null,Object? coverUrl = freezed,Object? category = freezed,Object? host = null,Object? status = null,Object? endedAt = freezed,Object? endReason = freezed,Object? allowGuests = null,Object? seatCount = freezed,Object? occupiedSeats = null,Object? theme = null,Object? score = null,Object? scoreParts = freezed,Object? chatEnabled = null,Object? chatMuted = null,Object? topic = freezed,Object? roomNumber = freezed,Object? roomLevel = freezed,Object? kicked = null,Object? wishGifts = null,Object? podcast = freezed,Object? streamer = freezed,}) {
   return _then(LiveRoom(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
@@ -2581,7 +2580,8 @@ as int?,roomLevel: freezed == roomLevel ? _self.roomLevel : roomLevel // ignore:
 as int?,kicked: null == kicked ? _self.kicked : kicked // ignore: cast_nullable_to_non_nullable
 as bool,wishGifts: null == wishGifts ? _self.wishGifts : wishGifts // ignore: cast_nullable_to_non_nullable
 as List<LiveWishGift>,podcast: freezed == podcast ? _self.podcast : podcast // ignore: cast_nullable_to_non_nullable
-as LivePodcast?,
+as LivePodcast?,streamer: freezed == streamer ? _self.streamer : streamer // ignore: cast_nullable_to_non_nullable
+as LiveStreamer?,
   ));
 }
 /// Create a copy of LiveRoom
@@ -2711,10 +2711,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String title, @JsonKey(unknownEnumValue: LiveRoomMode.solo)  LiveRoomMode mode,  int viewerCount,  DateTime startedAt,  String? coverUrl,  LiveCategory? category,  UserSummary host,  LiveRoomStatus status,  DateTime? endedAt, @JsonKey(unknownEnumValue: LiveRoomEndReason.unknown)  LiveRoomEndReason? endReason,  bool allowGuests,  int? seatCount,  int occupiedSeats,  String theme,  int score,  LiveScore? scoreParts,  bool chatEnabled,  bool chatMuted,  String? topic,  int? roomNumber,  int? roomLevel,  bool kicked,  List<LiveWishGift> wishGifts,  LivePodcast? podcast)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String title, @JsonKey(unknownEnumValue: LiveRoomMode.solo)  LiveRoomMode mode,  int viewerCount,  DateTime startedAt,  String? coverUrl,  LiveCategory? category,  UserSummary host,  LiveRoomStatus status,  DateTime? endedAt, @JsonKey(unknownEnumValue: LiveRoomEndReason.unknown)  LiveRoomEndReason? endReason,  bool allowGuests,  int? seatCount,  int occupiedSeats,  String theme,  int score,  LiveScore? scoreParts,  bool chatEnabled,  bool chatMuted,  String? topic,  int? roomNumber,  int? roomLevel,  bool kicked,  List<LiveWishGift> wishGifts,  LivePodcast? podcast,  LiveStreamer? streamer)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _LiveRoom() when $default != null:
-return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedAt,_that.coverUrl,_that.category,_that.host,_that.status,_that.endedAt,_that.endReason,_that.allowGuests,_that.seatCount,_that.occupiedSeats,_that.theme,_that.score,_that.scoreParts,_that.chatEnabled,_that.chatMuted,_that.topic,_that.roomNumber,_that.roomLevel,_that.kicked,_that.wishGifts,_that.podcast);case _:
+return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedAt,_that.coverUrl,_that.category,_that.host,_that.status,_that.endedAt,_that.endReason,_that.allowGuests,_that.seatCount,_that.occupiedSeats,_that.theme,_that.score,_that.scoreParts,_that.chatEnabled,_that.chatMuted,_that.topic,_that.roomNumber,_that.roomLevel,_that.kicked,_that.wishGifts,_that.podcast,_that.streamer);case _:
   return orElse();
 
 }
@@ -2732,10 +2732,10 @@ return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedA
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String title, @JsonKey(unknownEnumValue: LiveRoomMode.solo)  LiveRoomMode mode,  int viewerCount,  DateTime startedAt,  String? coverUrl,  LiveCategory? category,  UserSummary host,  LiveRoomStatus status,  DateTime? endedAt, @JsonKey(unknownEnumValue: LiveRoomEndReason.unknown)  LiveRoomEndReason? endReason,  bool allowGuests,  int? seatCount,  int occupiedSeats,  String theme,  int score,  LiveScore? scoreParts,  bool chatEnabled,  bool chatMuted,  String? topic,  int? roomNumber,  int? roomLevel,  bool kicked,  List<LiveWishGift> wishGifts,  LivePodcast? podcast)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String title, @JsonKey(unknownEnumValue: LiveRoomMode.solo)  LiveRoomMode mode,  int viewerCount,  DateTime startedAt,  String? coverUrl,  LiveCategory? category,  UserSummary host,  LiveRoomStatus status,  DateTime? endedAt, @JsonKey(unknownEnumValue: LiveRoomEndReason.unknown)  LiveRoomEndReason? endReason,  bool allowGuests,  int? seatCount,  int occupiedSeats,  String theme,  int score,  LiveScore? scoreParts,  bool chatEnabled,  bool chatMuted,  String? topic,  int? roomNumber,  int? roomLevel,  bool kicked,  List<LiveWishGift> wishGifts,  LivePodcast? podcast,  LiveStreamer? streamer)  $default,) {final _that = this;
 switch (_that) {
 case _LiveRoom():
-return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedAt,_that.coverUrl,_that.category,_that.host,_that.status,_that.endedAt,_that.endReason,_that.allowGuests,_that.seatCount,_that.occupiedSeats,_that.theme,_that.score,_that.scoreParts,_that.chatEnabled,_that.chatMuted,_that.topic,_that.roomNumber,_that.roomLevel,_that.kicked,_that.wishGifts,_that.podcast);case _:
+return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedAt,_that.coverUrl,_that.category,_that.host,_that.status,_that.endedAt,_that.endReason,_that.allowGuests,_that.seatCount,_that.occupiedSeats,_that.theme,_that.score,_that.scoreParts,_that.chatEnabled,_that.chatMuted,_that.topic,_that.roomNumber,_that.roomLevel,_that.kicked,_that.wishGifts,_that.podcast,_that.streamer);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -2752,10 +2752,10 @@ return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedA
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String title, @JsonKey(unknownEnumValue: LiveRoomMode.solo)  LiveRoomMode mode,  int viewerCount,  DateTime startedAt,  String? coverUrl,  LiveCategory? category,  UserSummary host,  LiveRoomStatus status,  DateTime? endedAt, @JsonKey(unknownEnumValue: LiveRoomEndReason.unknown)  LiveRoomEndReason? endReason,  bool allowGuests,  int? seatCount,  int occupiedSeats,  String theme,  int score,  LiveScore? scoreParts,  bool chatEnabled,  bool chatMuted,  String? topic,  int? roomNumber,  int? roomLevel,  bool kicked,  List<LiveWishGift> wishGifts,  LivePodcast? podcast)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String title, @JsonKey(unknownEnumValue: LiveRoomMode.solo)  LiveRoomMode mode,  int viewerCount,  DateTime startedAt,  String? coverUrl,  LiveCategory? category,  UserSummary host,  LiveRoomStatus status,  DateTime? endedAt, @JsonKey(unknownEnumValue: LiveRoomEndReason.unknown)  LiveRoomEndReason? endReason,  bool allowGuests,  int? seatCount,  int occupiedSeats,  String theme,  int score,  LiveScore? scoreParts,  bool chatEnabled,  bool chatMuted,  String? topic,  int? roomNumber,  int? roomLevel,  bool kicked,  List<LiveWishGift> wishGifts,  LivePodcast? podcast,  LiveStreamer? streamer)?  $default,) {final _that = this;
 switch (_that) {
 case _LiveRoom() when $default != null:
-return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedAt,_that.coverUrl,_that.category,_that.host,_that.status,_that.endedAt,_that.endReason,_that.allowGuests,_that.seatCount,_that.occupiedSeats,_that.theme,_that.score,_that.scoreParts,_that.chatEnabled,_that.chatMuted,_that.topic,_that.roomNumber,_that.roomLevel,_that.kicked,_that.wishGifts,_that.podcast);case _:
+return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedAt,_that.coverUrl,_that.category,_that.host,_that.status,_that.endedAt,_that.endReason,_that.allowGuests,_that.seatCount,_that.occupiedSeats,_that.theme,_that.score,_that.scoreParts,_that.chatEnabled,_that.chatMuted,_that.topic,_that.roomNumber,_that.roomLevel,_that.kicked,_that.wishGifts,_that.podcast,_that.streamer);case _:
   return null;
 
 }
@@ -2767,7 +2767,7 @@ return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedA
 @JsonSerializable()
 
 class _LiveRoom implements LiveRoom {
-  const _LiveRoom({required this.id, required this.title, @JsonKey(unknownEnumValue: LiveRoomMode.solo) required this.mode, required this.viewerCount, required this.startedAt, required this.coverUrl, required this.category, required this.host, required this.status, required this.endedAt, @JsonKey(unknownEnumValue: LiveRoomEndReason.unknown) required this.endReason, this.allowGuests = true, this.seatCount, this.occupiedSeats = 0, this.theme = LiveThemes.classic, this.score = 0, this.scoreParts, this.chatEnabled = true, this.chatMuted = false, this.topic, this.roomNumber, this.roomLevel, this.kicked = false,  List<LiveWishGift> wishGifts = const <LiveWishGift>[], this.podcast}): _wishGifts = wishGifts;
+  const _LiveRoom({required this.id, required this.title, @JsonKey(unknownEnumValue: LiveRoomMode.solo) required this.mode, required this.viewerCount, required this.startedAt, required this.coverUrl, required this.category, required this.host, required this.status, required this.endedAt, @JsonKey(unknownEnumValue: LiveRoomEndReason.unknown) required this.endReason, this.allowGuests = true, this.seatCount, this.occupiedSeats = 0, this.theme = LiveThemes.classic, this.score = 0, this.scoreParts, this.chatEnabled = true, this.chatMuted = false, this.topic, this.roomNumber, this.roomLevel, this.kicked = false,  List<LiveWishGift> wishGifts = const <LiveWishGift>[], this.podcast, this.streamer}): _wishGifts = wishGifts;
   factory _LiveRoom.fromJson(Map<String, dynamic> json) => _$LiveRoomFromJson(json);
 
 @override final  String id;
@@ -2818,6 +2818,8 @@ class _LiveRoom implements LiveRoom {
 
 /// v1.47-live (D212): a podcast's episode facts; null otherwise.
 @override final  LivePodcast? podcast;
+/// v1.56-live (D213): a streamer's layout; null otherwise.
+@override final  LiveStreamer? streamer;
 
 /// Create a copy of LiveRoom
 /// with the given fields replaced by the non-null parameter values.
@@ -2832,18 +2834,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveRoom&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.mode, mode) || other.mode == mode)&&(identical(other.viewerCount, viewerCount) || other.viewerCount == viewerCount)&&(identical(other.startedAt, startedAt) || other.startedAt == startedAt)&&(identical(other.coverUrl, coverUrl) || other.coverUrl == coverUrl)&&(identical(other.category, category) || other.category == category)&&(identical(other.host, host) || other.host == host)&&(identical(other.status, status) || other.status == status)&&(identical(other.endedAt, endedAt) || other.endedAt == endedAt)&&(identical(other.endReason, endReason) || other.endReason == endReason)&&(identical(other.allowGuests, allowGuests) || other.allowGuests == allowGuests)&&(identical(other.seatCount, seatCount) || other.seatCount == seatCount)&&(identical(other.occupiedSeats, occupiedSeats) || other.occupiedSeats == occupiedSeats)&&(identical(other.theme, theme) || other.theme == theme)&&(identical(other.score, score) || other.score == score)&&(identical(other.scoreParts, scoreParts) || other.scoreParts == scoreParts)&&(identical(other.chatEnabled, chatEnabled) || other.chatEnabled == chatEnabled)&&(identical(other.chatMuted, chatMuted) || other.chatMuted == chatMuted)&&(identical(other.topic, topic) || other.topic == topic)&&(identical(other.roomNumber, roomNumber) || other.roomNumber == roomNumber)&&(identical(other.roomLevel, roomLevel) || other.roomLevel == roomLevel)&&(identical(other.kicked, kicked) || other.kicked == kicked)&&const DeepCollectionEquality().equals(other.wishGifts, _wishGifts)&&(identical(other.podcast, podcast) || other.podcast == podcast));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveRoom&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.mode, mode) || other.mode == mode)&&(identical(other.viewerCount, viewerCount) || other.viewerCount == viewerCount)&&(identical(other.startedAt, startedAt) || other.startedAt == startedAt)&&(identical(other.coverUrl, coverUrl) || other.coverUrl == coverUrl)&&(identical(other.category, category) || other.category == category)&&(identical(other.host, host) || other.host == host)&&(identical(other.status, status) || other.status == status)&&(identical(other.endedAt, endedAt) || other.endedAt == endedAt)&&(identical(other.endReason, endReason) || other.endReason == endReason)&&(identical(other.allowGuests, allowGuests) || other.allowGuests == allowGuests)&&(identical(other.seatCount, seatCount) || other.seatCount == seatCount)&&(identical(other.occupiedSeats, occupiedSeats) || other.occupiedSeats == occupiedSeats)&&(identical(other.theme, theme) || other.theme == theme)&&(identical(other.score, score) || other.score == score)&&(identical(other.scoreParts, scoreParts) || other.scoreParts == scoreParts)&&(identical(other.chatEnabled, chatEnabled) || other.chatEnabled == chatEnabled)&&(identical(other.chatMuted, chatMuted) || other.chatMuted == chatMuted)&&(identical(other.topic, topic) || other.topic == topic)&&(identical(other.roomNumber, roomNumber) || other.roomNumber == roomNumber)&&(identical(other.roomLevel, roomLevel) || other.roomLevel == roomLevel)&&(identical(other.kicked, kicked) || other.kicked == kicked)&&const DeepCollectionEquality().equals(other.wishGifts, _wishGifts)&&(identical(other.podcast, podcast) || other.podcast == podcast)&&(identical(other.streamer, streamer) || other.streamer == streamer));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hashAll([runtimeType,id,title,mode,viewerCount,startedAt,coverUrl,category,host,status,endedAt,endReason,allowGuests,seatCount,occupiedSeats,theme,score,scoreParts,chatEnabled,chatMuted,topic,roomNumber,roomLevel,kicked,const DeepCollectionEquality().hash(_wishGifts),podcast]);
+    return Object.hashAll([runtimeType,id,title,mode,viewerCount,startedAt,coverUrl,category,host,status,endedAt,endReason,allowGuests,seatCount,occupiedSeats,theme,score,scoreParts,chatEnabled,chatMuted,topic,roomNumber,roomLevel,kicked,const DeepCollectionEquality().hash(_wishGifts),podcast,streamer]);
 }
 
 @override
 String toString() {
-    return 'LiveRoom(id: $id, title: $title, mode: $mode, viewerCount: $viewerCount, startedAt: $startedAt, coverUrl: $coverUrl, category: $category, host: $host, status: $status, endedAt: $endedAt, endReason: $endReason, allowGuests: $allowGuests, seatCount: $seatCount, occupiedSeats: $occupiedSeats, theme: $theme, score: $score, scoreParts: $scoreParts, chatEnabled: $chatEnabled, chatMuted: $chatMuted, topic: $topic, roomNumber: $roomNumber, roomLevel: $roomLevel, kicked: $kicked, wishGifts: $wishGifts, podcast: $podcast)';
+    return 'LiveRoom(id: $id, title: $title, mode: $mode, viewerCount: $viewerCount, startedAt: $startedAt, coverUrl: $coverUrl, category: $category, host: $host, status: $status, endedAt: $endedAt, endReason: $endReason, allowGuests: $allowGuests, seatCount: $seatCount, occupiedSeats: $occupiedSeats, theme: $theme, score: $score, scoreParts: $scoreParts, chatEnabled: $chatEnabled, chatMuted: $chatMuted, topic: $topic, roomNumber: $roomNumber, roomLevel: $roomLevel, kicked: $kicked, wishGifts: $wishGifts, podcast: $podcast, streamer: $streamer)';
 }
 
 
@@ -2854,7 +2856,7 @@ abstract mixin class _$LiveRoomCopyWith<$Res> implements $LiveRoomCopyWith<$Res>
   factory _$LiveRoomCopyWith(_LiveRoom value, $Res Function(_LiveRoom) _then) = __$LiveRoomCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String title,@JsonKey(unknownEnumValue: LiveRoomMode.solo) LiveRoomMode mode, int viewerCount, DateTime startedAt, String? coverUrl, LiveCategory? category, UserSummary host, LiveRoomStatus status, DateTime? endedAt,@JsonKey(unknownEnumValue: LiveRoomEndReason.unknown) LiveRoomEndReason? endReason, bool allowGuests, int? seatCount, int occupiedSeats, String theme, int score, LiveScore? scoreParts, bool chatEnabled, bool chatMuted, String? topic, int? roomNumber, int? roomLevel, bool kicked, List<LiveWishGift> wishGifts, LivePodcast? podcast
+ String id, String title,@JsonKey(unknownEnumValue: LiveRoomMode.solo) LiveRoomMode mode, int viewerCount, DateTime startedAt, String? coverUrl, LiveCategory? category, UserSummary host, LiveRoomStatus status, DateTime? endedAt,@JsonKey(unknownEnumValue: LiveRoomEndReason.unknown) LiveRoomEndReason? endReason, bool allowGuests, int? seatCount, int occupiedSeats, String theme, int score, LiveScore? scoreParts, bool chatEnabled, bool chatMuted, String? topic, int? roomNumber, int? roomLevel, bool kicked, List<LiveWishGift> wishGifts, LivePodcast? podcast, LiveStreamer? streamer
 });
 
 
@@ -2871,7 +2873,7 @@ class __$LiveRoomCopyWithImpl<$Res>
 
 /// Create a copy of LiveRoom
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? title = null,Object? mode = null,Object? viewerCount = null,Object? startedAt = null,Object? coverUrl = freezed,Object? category = freezed,Object? host = null,Object? status = null,Object? endedAt = freezed,Object? endReason = freezed,Object? allowGuests = null,Object? seatCount = freezed,Object? occupiedSeats = null,Object? theme = null,Object? score = null,Object? scoreParts = freezed,Object? chatEnabled = null,Object? chatMuted = null,Object? topic = freezed,Object? roomNumber = freezed,Object? roomLevel = freezed,Object? kicked = null,Object? wishGifts = null,Object? podcast = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? title = null,Object? mode = null,Object? viewerCount = null,Object? startedAt = null,Object? coverUrl = freezed,Object? category = freezed,Object? host = null,Object? status = null,Object? endedAt = freezed,Object? endReason = freezed,Object? allowGuests = null,Object? seatCount = freezed,Object? occupiedSeats = null,Object? theme = null,Object? score = null,Object? scoreParts = freezed,Object? chatEnabled = null,Object? chatMuted = null,Object? topic = freezed,Object? roomNumber = freezed,Object? roomLevel = freezed,Object? kicked = null,Object? wishGifts = null,Object? podcast = freezed,Object? streamer = freezed,}) {
   return _then(_LiveRoom(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
@@ -2898,7 +2900,8 @@ as int?,roomLevel: freezed == roomLevel ? _self.roomLevel : roomLevel // ignore:
 as int?,kicked: null == kicked ? _self.kicked : kicked // ignore: cast_nullable_to_non_nullable
 as bool,wishGifts: null == wishGifts ? _self._wishGifts : wishGifts // ignore: cast_nullable_to_non_nullable
 as List<LiveWishGift>,podcast: freezed == podcast ? _self.podcast : podcast // ignore: cast_nullable_to_non_nullable
-as LivePodcast?,
+as LivePodcast?,streamer: freezed == streamer ? _self.streamer : streamer // ignore: cast_nullable_to_non_nullable
+as LiveStreamer?,
   ));
 }
 

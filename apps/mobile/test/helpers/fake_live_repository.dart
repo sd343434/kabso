@@ -157,9 +157,52 @@ class FakeLiveRepository implements LiveRepository {
       int? seatCount,
       String? theme,
       PodcastSetup? podcast,
+      LiveStreamer? streamer,
     })
   >
   startRequests = [];
+
+  /// D213: every `updateStreamer` call (the values sent).
+  final List<
+    ({
+      String roomId,
+      StreamerOrientation? orientation,
+      bool? cameraVisible,
+      StreamerCorner? corner,
+    })
+  >
+  streamerUpdates = [];
+
+  /// D213: thrown by `updateStreamer` while set.
+  AppFailure? streamerFailure;
+
+  @override
+  Future<LiveStreamer> updateStreamer(
+    String roomId, {
+    StreamerOrientation? orientation,
+    bool? cameraVisible,
+    StreamerCorner? corner,
+  }) async {
+    streamerUpdates.add((
+      roomId: roomId,
+      orientation: orientation,
+      cameraVisible: cameraVisible,
+      corner: corner,
+    ));
+    if (streamerFailure case final f?) throw f;
+    final base = hostRoom ?? apiRoom(id: roomId);
+    final now = base.streamer ?? const LiveStreamer();
+    final next = now.copyWith(
+      orientation: orientation,
+      cameraVisible: cameraVisible,
+      corner: corner,
+    );
+    final changed = next != now;
+    final out = changed ? next.copyWith(version: now.version + 1) : now;
+    hostRoom = base.copyWith(streamer: out);
+    return out;
+  }
+
   final List<String> heartbeats = [];
   final List<String> endRequests = [];
   final List<({String roomId, bool allow})> guestUpdates = [];
@@ -255,6 +298,7 @@ class FakeLiveRepository implements LiveRepository {
     int? seatCount,
     String? theme,
     PodcastSetup? podcast,
+    LiveStreamer? streamer,
   }) async {
     startRequests.add((
       title: title,
@@ -264,6 +308,7 @@ class FakeLiveRepository implements LiveRepository {
       seatCount: seatCount,
       theme: theme,
       podcast: podcast,
+      streamer: streamer,
     ));
     if (startFailure case final failure?) throw failure;
     // Like the server (CONVENTIONS §10.9): a count the mode does not allow
@@ -274,7 +319,8 @@ class FakeLiveRepository implements LiveRepository {
       LiveRoomMode.multi => counts.multi,
       LiveRoomMode.solo ||
       LiveRoomMode.pk ||
-      LiveRoomMode.podcast => const <int>[],
+      LiveRoomMode.podcast ||
+      LiveRoomMode.streamer => const <int>[],
     };
     if (seatCount != null && !allowed.contains(seatCount)) {
       throw const ServerFailure(
@@ -300,6 +346,10 @@ class FakeLiveRepository implements LiveRepository {
               questionSeconds: podcast.questionSeconds,
             ),
       theme: theme ?? LiveThemes.classic,
+      // D213: the server's starting layout (portrait, bubble top left).
+      streamer: mode == LiveRoomMode.streamer
+          ? (streamer ?? const LiveStreamer()).copyWith(version: 0)
+          : null,
       roomLevel: startRoomLevel,
       roomNumber: startRoomNumber,
     );

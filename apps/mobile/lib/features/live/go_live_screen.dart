@@ -31,6 +31,7 @@ import 'package:kabso_live/features/live/application/live_program.dart';
 import 'package:kabso_live/features/live/application/live_quips.dart';
 import 'package:kabso_live/features/live/application/live_seat_emojis.dart';
 import 'package:kabso_live/features/live/application/live_stickers.dart';
+import 'package:kabso_live/features/live/application/live_streamer_host.dart';
 import 'package:kabso_live/features/live/application/live_tap_batcher.dart';
 import 'package:kabso_live/features/live/application/live_watch.dart';
 import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
@@ -79,6 +80,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_watch_sheet.d
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/live_fx_diagnostics.dart';
 import 'package:kabso_live/features/live/presentation/live_permission_sheet.dart';
+import 'package:kabso_live/features/live/presentation/streamer/streamer_widgets.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_background_texts.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_tools.dart';
@@ -440,6 +442,18 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       if (!mounted) return;
       setState(() => _countdown = null);
     }
+    // D213 (Android 14): the screen-capture consent before anything is
+    // created; refused → nothing starts.
+    if (ref.read(liveHostControllerProvider).mode == LiveRoomMode.streamer) {
+      final allowed = await ref
+          .read(liveStreamerHostProvider.notifier)
+          .consent();
+      if (!mounted) return;
+      if (!allowed) {
+        KSnack.info(context, l10n.streamerConsentRefused);
+        return;
+      }
+    }
     final background = liveBackgroundTexts(l10n);
     if (_startFailure != null) setState(() => _startFailure = null);
     try {
@@ -468,6 +482,58 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
 
   /// 3, 2, 1 while an audio live is about to start; null otherwise.
   int? _countdown;
+
+  bool _streamerDeviceRead = false;
+
+  /// D213: the streamer's setup panel (camera bubble and corner, the
+  /// microphone, the game sound with its notes).
+  Widget _streamerPanel(GoLiveState state, bool previewing) {
+    final host = ref.watch(liveStreamerHostProvider);
+    final notifier = ref.read(liveStreamerHostProvider.notifier);
+    if (!_streamerDeviceRead) {
+      _streamerDeviceRead = true;
+      unawaited(notifier.readDevice());
+    }
+    return GoLiveStreamerPanel(
+      host: host,
+      micOn: state.micEnabled,
+      onMic: previewing ? () => unawaited(_host.toggleMic()) : null,
+      onCameraVisible: previewing
+          ? (v) => unawaited(notifier.setCameraVisible(visible: v))
+          : null,
+      onCorner: previewing ? (c) => unawaited(notifier.setCorner(c)) : null,
+      onGameAudio: previewing ? (on) => notifier.setGameAudioOn(on: on) : null,
+    );
+  }
+
+  /// D213: the streamer host's stage on air.
+  Widget _streamerStage(GoLiveState state) {
+    final host = ref.watch(liveStreamerHostProvider);
+    final notifier = ref.read(liveStreamerHostProvider.notifier);
+    final live = state.phase == GoLivePhase.live;
+    return StreamerHostStage(
+      host: host,
+      micOn: state.micEnabled,
+      camera: _host.engine.preview(),
+      onMic: live ? () => unawaited(_host.toggleMic()) : null,
+      onGame: live
+          ? () => unawaited(notifier.setGameMuted(muted: !host.gameMuted))
+          : null,
+      onCamera: live
+          ? () => unawaited(_host.setCameraOff(off: host.cameraVisible))
+          : null,
+      onCorner: live ? (c) => unawaited(notifier.setCorner(c)) : null,
+      onGoToGame: live ? () => unawaited(notifier.goToGame()) : null,
+      onShareAgain: live
+          ? () => unawaited(() async {
+              final ok = await notifier.shareAgain();
+              if (!ok && mounted) {
+                KSnack.info(context, context.l10n.streamerConsentRefused);
+              }
+            }())
+          : null,
+    );
+  }
 
   Future<void> _confirmEnd() async {
     final l10n = context.l10n;
@@ -872,6 +938,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               engine: engine,
               camera: _camera(state),
             )
+          // D213: a streamer's own room shows the stream's state and the
+          // bubble (the screen itself is paused while Kabso is in front).
+          : videoOnAir && state.mode == LiveRoomMode.streamer
+          ? _streamerStage(state)
           : _camera(state);
     } else {
       background = audioOnAir && state.theme == LiveThemes.classic
@@ -891,6 +961,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       middle = gate;
     } else if (captureFailed) {
       middle = _captureNotice(state);
+    } else if (setup && state.mode == LiveRoomMode.streamer) {
+      // D213: the streamer's choices under the title card.
+      middle = Align(
+        alignment: Alignment.topCenter,
+        child: SingleChildScrollView(child: _streamerPanel(state, previewing)),
+      );
     } else if (state.mode == LiveRoomMode.multi) {
       middle = Align(
         alignment: Alignment.topCenter,

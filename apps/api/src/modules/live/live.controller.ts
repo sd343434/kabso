@@ -65,6 +65,7 @@ import {
   type LiveConfigDto,
   type LiveRoomDto,
   type LiveRoomPageDto,
+  type LiveStreamerDto,
   type RequestMeta,
 } from './live-rooms.service.js';
 import {
@@ -275,6 +276,20 @@ export class LiveController {
     }
     const id = await this.media.updateRoom(host, roomId, body, meta(req));
     return this.rooms.getRoom(id, await this.language(req), host);
+  }
+
+  /**
+   * v1.56-live (D213, §10.86): a STREAMER host's screen orientation and camera bubble. Its own bucket
+   * (a rotation or a drag of the bubble while playing must not use up the `PATCH` bucket).
+   */
+  @Put('rooms/:roomId/streamer')
+  @RateLimit({ bucket: 'live:streamer', rule: 'liveTapsUser', key: byUserId, replacesDefault: true })
+  updateStreamer(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Body() body: unknown,
+  ): Promise<LiveStreamerDto> {
+    return this.media.updateStreamer(requireCaller(req), roomId, body);
   }
 
   /** CP-010: access to the room's video (host, viewer or guest). */

@@ -203,6 +203,13 @@ info:
     (`PkRematchOffer`), `rematchOf`, `rematchCount`, `rematchesLeft`; data-message events `rematch-offer`,
     `rematch-cancelled`, `rematch-declined`, `rematch-expired`, `rematch`; codes `PK_REMATCH_UNAVAILABLE`,
     `PK_REMATCH_CLOSED` (409); config `PK_REMATCH_ACCEPT_SECONDS` (15), `PK_REMATCH_MAX` (5) (CONVENTIONS §10.85).
+    **D213 (DRAFT v1.56-live)** adds the **streamer** live «بث ستريمر»: `LiveRoomMode.STREAMER` (the host's phone
+    screen — a game or an app — with a small round front-camera bubble viewers lay over it; Android hosts only);
+    `StartLiveRoomRequest.streamer` (`StreamerSetup`); `LiveRoomSummary.streamer` (`LiveStreamer`: orientation,
+    `cameraOverlay` {visible, corner}, `version`); `updateLiveStreamer` (`PUT /live/rooms/{roomId}/streamer`, host
+    only; a `streamer` data message and the media metadata's `streamerVersion`); `listLiveRooms?kind=streamer`
+    (a streamer is also in `video` and `solo`); the host publishes `screen_share` besides camera and microphone; code
+    `LIVE_NOT_STREAMER` (409); `GET /admin/lives?mode=STREAMER` (CONVENTIONS §10.86).
     **D154c (DRAFT v1.34-live)** adds newcomers «الجدد»: `listLiveNewcomers` (host and moderators:
     the people in the live whose account is younger than `NEWCOMER_DAYS`, 30) and
     `LiveChatAuthorBadges.newcomer` (CONVENTIONS §10.35).
@@ -2247,8 +2254,8 @@ paths:
         - name: kind
           in: query
           required: false
-          description: '(v1.26.4-live, D129) `audio`: voice rooms (`mode` `AUDIO`); `video`: `SOLO`, `PK` and `MULTI`. (v1.27.1-live, D133) `solo`: `SOLO` and `PK`; `multi`: `MULTI`; `party`: `AUDIO` and `MULTI`. (v1.47-live, D212) `podcast`: `PODCAST` (in no other kind). Absent: every room. Another value → 400 `VALIDATION_FAILED` (`field "kind"`).'
-          schema: { type: string, enum: [audio, video, solo, multi, party, podcast] }
+          description: '(v1.26.4-live, D129) `audio`: voice rooms (`mode` `AUDIO`); `video`: `SOLO`, `PK` and `MULTI`. (v1.27.1-live, D133) `solo`: `SOLO` and `PK`; `multi`: `MULTI`; `party`: `AUDIO` and `MULTI`. (v1.47-live, D212) `podcast`: `PODCAST` (in no other kind). (v1.56-live, D213) `streamer`: `STREAMER`; a streamer is a video live, so `video` and `solo` list it too. Absent: every room. Another value → 400 `VALIDATION_FAILED` (`field "kind"`).'
+          schema: { type: string, enum: [audio, video, solo, multi, party, podcast, streamer] }
         - name: scope
           in: query
           required: false
@@ -2464,6 +2471,40 @@ paths:
         '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
+  /api/v1/live/rooms/{roomId}/streamer:
+    put:
+      tags: [live]
+      operationId: updateLiveStreamer
+      summary: "Host: a STREAMER live's screen orientation and camera bubble (v1.56-live, D213)"
+      description: |
+        CONVENTIONS §10.86. Host only (anyone else → 404, like every host control). The room must be a
+        STREAMER (else 409 `LIVE_NOT_STREAMER`) and LIVE (else 409 `LIVE_ROOM_ENDED`). Only the keys sent
+        change. A real change increases `LiveStreamer.version`, writes `streamerVersion` into the media
+        room's metadata and sends everyone in the room a `streamer` data message (topic `streamer`):
+        `{"type": "streamer", "roomId": "…", "streamer": LiveStreamer}`; apps keep the highest `version`
+        and re-read the room when the metadata's `streamerVersion` is higher than the one they hold (a
+        message they missed). Sending the current values changes nothing (idempotent, no message). Its own
+        rate-limit bucket `live:streamer` (`RATE_LIMIT_LIVE_TAPS_USER`), so a rotation or a moved bubble
+        never uses up the `PATCH` bucket. Not audited (a layout).
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateLiveStreamerRequest' }
+      responses:
+        '200':
+          description: The layout now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveStreamer' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
   /api/v1/live/rooms/{roomId}/media-token:
     post:
       tags: [live]
@@ -2479,7 +2520,8 @@ paths:
         nonexistent, host not ACTIVE, or a block either way) → room LIVE (else 409
         `LIVE_ROOM_ENDED`) → a guest needs `allowGuests` (else 403 `LIVE_GUESTS_NOT_ALLOWED`).
         v1.20-live (D105): a signed-in caller kicked out of this live → 403 `LIVE_KICKED` (after
-        the 409); a later live of the same host is not affected.
+        the 409); a later live of the same host is not affected. v1.56-live (D213, §10.86): the host
+        of a STREAMER may also publish `screen_share` (the phone screen) and `screen_share_audio`.
       security: [{}, {bearerAuth: []}]
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
@@ -12779,10 +12821,10 @@ paths:
       - name: mode
         in: query
         required: false
-        description: (v1.47-live, D212) the panel's category chips. (v1.54-live, D241) `PK` = the rooms in an open D195 PK match (they stay `SOLO`) or of the legacy mode `PK`; `SOLO` = `SOLO` rooms not in a PK (the chips partition the lives).
+        description: (v1.47-live, D212) the panel's category chips. (v1.54-live, D241) `PK` = the rooms in an open D195 PK match (they stay `SOLO`) or of the legacy mode `PK`; `SOLO` = `SOLO` rooms not in a PK (the chips partition the lives). (v1.56-live, D213) `STREAMER`.
         schema:
           type: string
-          enum: [SOLO, PK, MULTI, AUDIO, PODCAST]
+          enum: [SOLO, PK, MULTI, AUDIO, PODCAST, STREAMER]
       responses:
         '200':
           description: OK.
@@ -21837,12 +21879,71 @@ components:
             defaultQuestionSeconds: { type: integer, example: 120 }
     LiveRoomMode:
       type: string
-      enum: [SOLO, PK, MULTI, AUDIO, PODCAST]
+      enum: [SOLO, PK, MULTI, AUDIO, PODCAST, STREAMER]
       description: |
         SOLO (one host on camera), MULTI (CP-011: multi-guest video with seats), AUDIO (CP-011:
         voice only with seats), PODCAST (v1.47-live, D212: voice only, the host and up to 3
-        speakers; listeners raise a hand). PK is reserved for L5. Clients render an unrecognised
-        future value as SOLO.
+        speakers; listeners raise a hand), STREAMER (v1.56-live, D213: the host's phone screen with
+        a round camera bubble; no guest seats, no PK). PK is reserved for L5. Clients render an
+        unrecognised future value as SOLO (an older app shows a STREAMER's camera track as a solo live).
+    StreamerOrientation:
+      type: string
+      enum: [PORTRAIT, LANDSCAPE]
+      description: v1.56-live (D213) — the screen picture's orientation; it follows the host's screen.
+    StreamerCorner:
+      type: string
+      enum: [TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT]
+      description: |
+        v1.56-live (D213) — the camera bubble's corner of the screen picture. Physical corners: the screen
+        picture is never mirrored for a right-to-left language, so every viewer sees the bubble where the
+        host put it.
+    LiveStreamerCameraOverlay:
+      type: object
+      required: [visible, corner]
+      properties:
+        visible: { type: boolean, description: "The host shows the camera bubble (false: viewers see the screen alone)." }
+        corner: { $ref: '#/components/schemas/StreamerCorner' }
+    LiveStreamer:
+      type: object
+      description: v1.56-live (D213, CONVENTIONS §10.86) — a STREAMER live's layout, as the host set it.
+      required: [orientation, cameraOverlay, version]
+      properties:
+        orientation: { $ref: '#/components/schemas/StreamerOrientation' }
+        cameraOverlay: { $ref: '#/components/schemas/LiveStreamerCameraOverlay' }
+        version:
+          type: integer
+          minimum: 0
+          description: Increases on every change (0 as started). The `streamer` data message carries it; keep the highest.
+    StreamerSetup:
+      type: object
+      additionalProperties: false
+      description: |
+        v1.56-live (D213) — `StartLiveRoomRequest.streamer` (optional with mode STREAMER, refused otherwise:
+        400 `streamer` / `invalid_value`). Defaults: PORTRAIT, the bubble shown at TOP_LEFT.
+      properties:
+        orientation: { $ref: '#/components/schemas/StreamerOrientation' }
+        cameraOverlay:
+          type: object
+          additionalProperties: false
+          properties:
+            visible: { type: boolean }
+            corner: { $ref: '#/components/schemas/StreamerCorner' }
+    UpdateLiveStreamerRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      description: |
+        v1.56-live (D213) — at least one key (else 400 `too_few`); a `cameraOverlay` with neither `visible`
+        nor `corner` → 400 (`cameraOverlay`, `too_few`).
+      properties:
+        orientation: { $ref: '#/components/schemas/StreamerOrientation' }
+        cameraOverlay:
+          type: object
+          additionalProperties: false
+          minProperties: 1
+          properties:
+            visible: { type: boolean }
+            corner: { $ref: '#/components/schemas/StreamerCorner' }
     PodcastTopic:
       type: string
       enum: [business, tech, sports, religion, society, entertainment, other]
@@ -21932,6 +22033,11 @@ components:
         inPk:
           type: boolean
           description: "v1.54-live (D241, CONVENTIONS §10.84) — the room is in a PK now: an open D195 match (CONNECTED, BATTLE or RESULT, its dare included) on either side, or the legacy mode `PK` (a real battle keeps the rooms `SOLO`). The hub card's tag is «PK». Sent by v1.54-live servers; a missing field reads as false."
+        streamer:
+          description: v1.56-live (D213) — STREAMER lives only; null otherwise. Clients that do not know the field ignore it.
+          oneOf:
+            - $ref: '#/components/schemas/LiveStreamer'
+            - type: 'null'
     LiveRoom:
       allOf:
         - { $ref: '#/components/schemas/LiveRoomSummary' }
@@ -22025,9 +22131,10 @@ components:
         allowGuests: { type: boolean, default: true }
         mode:
           type: string
-          enum: [SOLO, MULTI, AUDIO, PODCAST]
+          enum: [SOLO, MULTI, AUDIO, PODCAST, STREAMER]
           default: SOLO
-          description: CP-011. PK cannot be started here (L5). v1.47-live (D212) PODCAST needs `podcast`.
+          description: CP-011. PK cannot be started here (L5). v1.47-live (D212) PODCAST needs `podcast`. v1.56-live (D213) STREAMER may send `streamer`; its host publishes the screen besides the camera and microphone.
+        streamer: { $ref: '#/components/schemas/StreamerSetup' }
         podcast:
           type: object
           additionalProperties: false
@@ -22044,7 +22151,7 @@ components:
               allOf: [{ $ref: '#/components/schemas/PodcastQuestionSeconds' }]
               description: Default 120; null = no limit.
         seatCount:
-          description: CP-011 — required for MULTI and AUDIO, forbidden for SOLO and PODCAST (else 400; a PODCAST always has 4).
+          description: CP-011 — required for MULTI and AUDIO, forbidden for SOLO, PODCAST and STREAMER (else 400; a PODCAST always has 4).
           allOf:
             - $ref: '#/components/schemas/LiveSeatCount'
         theme: { $ref: '#/components/schemas/LiveThemeSlug' }

@@ -1454,6 +1454,22 @@ ins {
   color: var(--red-500);
   font-weight: 700;
 }
+/* D213: a streamer's card tag, beside the live badge. */
+.live-mode-tag {
+  position: absolute;
+  top: 10px;
+  inset-inline-end: 10px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+/* A streamer in a PK: the mode tag moves under the «PK» badge. */
+.live-mode-tag + .live-badge.pk-badge {
+  top: 40px;
+}
 .viewers {
   position: absolute;
   bottom: 10px;
