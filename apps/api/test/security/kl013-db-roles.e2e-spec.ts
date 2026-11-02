@@ -388,6 +388,9 @@ describe('KL-037 v1.3 tables (live_categories, live_rooms, follows) under the KL
       // CP-011 (20261027090000_live_seats): the seat count matches the mode; theme slug; version.
       'live_rooms_seat_count_mode',
       'live_rooms_seats_version_nonneg',
+      // v1.56-live (D213, 20270301090100_streamer; v1.57-live D247 20270302090000_streamer_main re-creates it):
+      // the STREAMER layout fields are set exactly for a STREAMER.
+      'live_rooms_streamer_fields',
       'live_rooms_theme_format',
       'live_rooms_time_order',
       'live_rooms_title_length',

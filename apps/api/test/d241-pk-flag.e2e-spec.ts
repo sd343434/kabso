@@ -35,7 +35,8 @@ describe('D241 contract coverage', () => {
     const params = (op?.spec as { parameters?: { name?: string; schema?: unknown }[] }).parameters ?? [];
     expect(params.find((p) => p.name === 'mode')?.schema).toEqual({
       type: 'string',
-      enum: ['SOLO', 'PK', 'MULTI', 'AUDIO', 'PODCAST'],
+      // v1.56-live (D213): the «ستريمر» chip.
+      enum: ['SOLO', 'PK', 'MULTI', 'AUDIO', 'PODCAST', 'STREAMER'],
     });
   });
 });
