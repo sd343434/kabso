@@ -1,0 +1,45 @@
+75:Launch video unavailable: UnimplementedError: init() has not been implemented.
+99:00:05 +37 -1: /home/runner/work/kabso/kabso/apps/mobile/test/core/copy_rules_test.dart: T3: no exclamation marks [E]
+114:00:07 +43 -1: /home/runner/work/kabso/kabso/apps/mobile/test/core/failure_messages_test.dart: localized error messages (ar) VALIDATION_FAILED has its own message
+184:00:07 +113 -1: /home/runner/work/kabso/kabso/apps/mobile/test/core/failure_messages_test.dart: localized error messages (en) VALIDATION_FAILED has its own message
+260:00:08 +189 -1: /home/runner/work/kabso/kabso/apps/mobile/test/core/error_mapper_test.dart: mapDioException with the error envelope maps VALIDATION_FAILED
+721:Launch video unavailable: UnimplementedError: init() has not been implemented.
+726:Launch video unavailable: UnimplementedError: init() has not been implemented.
+733:Launch video unavailable: UnimplementedError: init() has not been implemented.
+736:Launch video unavailable: UnimplementedError: init() has not been implemented.
+739:Launch video unavailable: UnimplementedError: init() has not been implemented.
+742:Launch video unavailable: UnimplementedError: init() has not been implemented.
+747:Launch video unavailable: UnimplementedError: init() has not been implemented.
+750:Launch video unavailable: UnimplementedError: init() has not been implemented.
+753:Launch video unavailable: UnimplementedError: init() has not been implemented.
+762:Launch video unavailable: UnimplementedError: init() has not been implemented.
+769:Launch video unavailable: UnimplementedError: init() has not been implemented.
+777:Launch video unavailable: UnimplementedError: init() has not been implemented.
+781:Launch video unavailable: UnimplementedError: init() has not been implemented.
+784:Launch video unavailable: UnimplementedError: init() has not been implemented.
+787:Launch video unavailable: UnimplementedError: init() has not been implemented.
+790:Launch video unavailable: UnimplementedError: init() has not been implemented.
+793:Launch video unavailable: UnimplementedError: init() has not been implemented.
+797:Launch video unavailable: UnimplementedError: init() has not been implemented.
+799:Launch video unavailable: UnimplementedError: init() has not been implemented.
+801:Launch video unavailable: UnimplementedError: init() has not been implemented.
+804:Launch video unavailable: UnimplementedError: init() has not been implemented.
+807:Launch video unavailable: UnimplementedError: init() has not been implemented.
+810:Launch video unavailable: UnimplementedError: init() has not been implemented.
+817:Launch video unavailable: UnimplementedError: init() has not been implemented.
+820:Launch video unavailable: UnimplementedError: init() has not been implemented.
+823:Launch video unavailable: UnimplementedError: init() has not been implemented.
+828:Launch video unavailable: UnimplementedError: init() has not been implemented.
+833:01:14 +710 -2: /home/runner/work/kabso/kabso/apps/mobile/test/qa/kl006_qa_test.dart: checklist #2: localization resources no Text widget in lib/ is built from a string literal [E]
+848:Launch video unavailable: UnimplementedError: init() has not been implemented.
+851:Launch video unavailable: UnimplementedError: init() has not been implemented.
+854:Launch video unavailable: UnimplementedError: init() has not been implemented.
+856:Launch video unavailable: UnimplementedError: init() has not been implemented.
+858:Launch video unavailable: UnimplementedError: init() has not been implemented.
+861:Launch video unavailable: UnimplementedError: init() has not been implemented.
+865:Launch video unavailable: UnimplementedError: init() has not been implemented.
+2688:05:48 +2393 -2: /home/runner/work/kabso/kabso/apps/mobile/test/features/home_live/kl047_polish_test.dart: Home (KL-047, D47 tabs) error: Try again re-runs the load, then shows posts
+2689:05:48 +2394 -2: /home/runner/work/kabso/kabso/apps/mobile/test/features/home_live/kl047_polish_test.dart: Home (KL-047, D47 tabs) error: Try again re-runs the load, then shows posts
+2690:05:49 +2395 -2: /home/runner/work/kabso/kabso/apps/mobile/test/features/home_live/kl047_polish_test.dart: Home (KL-047, D47 tabs) error: Try again re-runs the load, then shows posts
+2691:05:49 +2396 -2: /home/runner/work/kabso/kabso/apps/mobile/test/features/home_live/kl047_polish_test.dart: Home (KL-047, D47 tabs) error: Try again re-runs the load, then shows posts
+2692:05:49 +2397 -2: /home/runner/work/kabso/kabso/apps/mobile/test/features/home/home_tabs_test.dart: Reels error: Try again re-runs the load, then shows reels
