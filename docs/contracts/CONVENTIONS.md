@@ -144,6 +144,13 @@ All non-2xx responses use one envelope:
 | 503 | `YOUTUBE_SEARCH_UNAVAILABLE` | *(v1.38-live, DRAFT, D154i)* YouTube search is not set up on this server (no `YOUTUBE_API_KEY`) or YouTube failed; paste a link instead (§10.39). |
 | 409 | `TASK_NOT_COMPLETED` | *(v1.44-social, DRAFT, D166)* A task claim whose task is not completed yet in its day or week (§10.41). Nothing was paid. |
 | 409 | `TASK_DAILY_CAP_REACHED` | *(v1.44-social, DRAFT, D166)* A daily task claim after the caller already got the day's cap of task and check-in coins (`TASK_DAILY_CAP_COINS`, §10.41). Nothing was paid. |
+| 403 | `LUDO_NOT_IN_ROOM` | *(v1.45-live, DRAFT, D168)* A Ludo seat or move from someone who is not in the room now (neither the host nor in the room's media session, §10.42). The app shows the room again (it rejoins). |
+| 409 | `LUDO_GAME_EXISTS` | *(v1.45-live, DRAFT, D168)* The host opened a Ludo game while the room already has one in its lobby or playing (one game per room, §10.42). The app shows the existing game. |
+| 409 | `LUDO_SEAT_UNAVAILABLE` | *(v1.45-live, DRAFT, D168)* The Ludo seat is taken or not part of this game (a game of 2 uses seats 0 and 2), the caller already sits, or the game is no longer in its lobby (§10.42). |
+| 409 | `LUDO_NOT_STARTABLE` | *(v1.45-live, DRAFT, D168)* The host started a Ludo game that is not in its lobby or has fewer than 2 players seated (§10.42). |
+| 409 | `LUDO_NOT_YOUR_TURN` | *(v1.45-live, DRAFT, D168)* A roll or move from a player whose turn it is not, or at the wrong step of the turn (a roll while choosing a piece, a move before rolling), or in a game that is not playing (§10.42). Nothing applied. |
+| 409 | `LUDO_ILLEGAL_MOVE` | *(v1.45-live, DRAFT, D168)* The chosen piece cannot move by the rolled number (still in the base without a 6, already home, or past the centre) (§10.42). Nothing applied. |
+| 409 | `LUDO_STALE_VERSION` | *(v1.45-live, DRAFT, D168)* The Ludo game changed since the `version` the app sent (another intent or the server's timer came first). Nothing applied; the app reads the game again (§10.42). |
 | 403 | `DM_NOT_ALLOWED` | *(v1.40-social, DRAFT, D155)* The recipient's «who can message you» setting (`whoCanMessage`) does not allow the caller (§11.13). Nothing was stored or charged. The app says the person does not accept messages. |
 | 403 | `DM_REQUEST_LIMIT` | *(v1.40-social, DRAFT, D155)* The caller already sent `DM_REQUEST_MAX_MESSAGES` (3) messages in a message request the recipient has not accepted (§11.13). The app says to wait for a reply. |
 | 403 | `DM_REQUEST_TEXT_ONLY` | *(v1.40-social, DRAFT, D155)* A picture or voice message in a message request (only text, a pack emoji or a gift until the recipient accepts, §11.13). |
@@ -407,6 +414,7 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `GET /live/rooms/{roomId}/chat` *(v1.9-live, CP-013)* | the per-user default; guests share the CP-010 guest read limit per IP |
 | `POST /live/rooms/{roomId}/seat-emoji` *(v1.27.5-live, D138)* | 120 / min per user (bucket `live:seat-emoji`, the taps rule `RATE_LIMIT_LIVE_TAPS_USER`), plus a counting rule of **one every 2 s per user** (429 with `Retry-After`). **Replaces** the per-user default |
 | `POST /live/rooms/{roomId}/sounds` *(v1.32-live, D154)* | 120 / min per user (bucket `live:sound`, the taps rule `RATE_LIMIT_LIVE_TAPS_USER`), plus a counting rule of **one sound every 2 s per user** (owner; 429 with `Retry-After`). **Replaces** the per-user default. Quips sent from the gift panel use the gift buckets above |
+| Ludo `/live/rooms/{roomId}/ludo…` *(v1.45-live, D168)* | Host actions (`createLiveLudo`, `startLiveLudo`, `endLiveLudo`): 300 / hour per user (bucket `live:ludo:host`, the seat actions' rule `RATE_LIMIT_LIVE_SEAT_ACTION_USER`); seats (`takeLiveLudoSeat`, `leaveLiveLudoSeat`): 30 / 10 min per user (bucket `live:ludo:seat`, the seat requests' rule `RATE_LIMIT_LIVE_SEAT_ASK_USER`); rolls and moves: 120 / min per user (bucket `live:ludo:play`, the taps rule `RATE_LIMIT_LIVE_TAPS_USER`; a turn is at most two intents). All **replace** the per-user default; `getLiveLudo` uses the guest-read rule (per IP for guests) like the room |
 | `POST /live/rooms/{roomId}/boosts` *(v1.33-live, D154b)* | 30 / hour per user (bucket `live:boost`, the CP writes rule `RATE_LIMIT_CP_WRITE_USER`). **Replaces** the per-user default. `GET /live/boosts/active` uses the live list's buckets (guests too); the other reads the per-user default |
 | `GET /live/rooms/{roomId}/stats` *(v1.27.6-live, D140)* | the per-user default only (600 / 15 min); host only, no endpoint-specific bucket |
 | `PATCH /live/rooms/{roomId}` *(v1.6-live, CP-010)* | 60 / hour per user |
@@ -487,6 +495,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.36-live)* Table `live_program_items` | Backend — `live` module (`LiveProgramService`; the host writes, the announcer marks `announced_at`) | CTO |
 | *(v1.37-live)* Tables `live_stickers`, `live_sticker_art` | Backend — `live` module (`LiveStickersService`; the host writes the stickers; admins add art rows) | CTO |
 | *(v1.38-live)* Tables `live_watch`, `live_watch_suggestions` | Backend — `live` module (`LiveWatchService`; the host writes the state, viewers suggest) | CTO |
+| *(v1.45-live)* Table `live_ludo_games`; server config `LIVE_LUDO_TICK_MS` | Backend — `live` module (`LiveLudoService` and the pure rules in `live-ludo.ts`; intents and the server's timer write through a compare-and-set on `version`; presence from the media webhooks) | CTO |
 | *(v1.40-social)* Tables `dm_conversations`, `dm_participants`, `dm_messages`, `dm_message_hides`; columns `live_gifts.dm_conversation_id`, `privacy_settings.who_can_message`, `reports.target_dm_message_id`, `reports.dm_snapshot` | Backend — `messages` module (gift sends are written by the live module's `LiveGiftsService`; the privacy column by the `safety` module; report snapshots by the `safety` module through `messages/dm-reports.ts`) | CTO; Security reviews privacy, requests and retention (§11.13) |
 | *(v1.44-social)* Tables `task_definitions`, `task_claims`, `daily_check_ins`, `events`, `event_results`; ledger reasons `TASK_REWARD`, `CHECK_IN_REWARD`, `EVENT_PRIZE`; server config `TASK_DAILY_CAP_COINS`, `TASK_CHECK_IN_COINS`, `TASK_CHECK_IN_STREAK_BONUS_COINS`, `EVENT_PRIZE_REVIEW_HOURS`, `EVENTS_SWEEP_INTERVAL_SECONDS`, `SVIP_TIERS`, `SVIP_WINDOW_DAYS`, `SVIP_STATUS_DAYS`, `WALLET_RECHARGE_PACKAGES`, `WALLET_RECHARGE_CURRENCY` | Backend — `programs` module (`TasksService`, `EventsService`, `SvipService`; tasks and events changed only by the `task-admin` / `event-admin` CLIs) | CTO; Security (coin payouts) |
 | `apps/api/**` | Backend | CTO review |
@@ -528,6 +537,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.45-live (draft) | 2026-11-02 | **D168 (owner: Ludo inside the live room, free, server-authoritative):** `getLiveLudo`, `createLiveLudo`, `takeLiveLudoSeat`, `leaveLiveLudoSeat`, `startLiveLudo`, `rollLiveLudo`, `moveLiveLudo`, `endLiveLudo` (`/live/rooms/{roomId}/ludo…`; schemas `LiveLudoSnapshot`, `LiveLudoGame`, `LiveLudoSeat`, `LiveLudoEvent`, `LiveLudoCapture`, `CreateLiveLudoRequest`, `LiveLudoVersionRequest`, `LiveLudoMoveRequest`; parameter `LudoSeatPath`); data message `ludo` on topic `ludo`; codes `LUDO_NOT_IN_ROOM` (403), `LUDO_GAME_EXISTS`, `LUDO_SEAT_UNAVAILABLE`, `LUDO_NOT_STARTABLE`, `LUDO_NOT_YOUR_TURN`, `LUDO_ILLEGAL_MOVE`, `LUDO_STALE_VERSION` (409); table `live_ludo_games` (migration `20261215090000_live_ludo`); config `LIVE_LUDO_TICK_MS`. §4, §7, §8, §10.42. | **Additive** (new operations, schemas, codes and data message type; apps ignore unknown data message types). No coins, ledger rows or rewards. |
 | v1.44-social (draft) | 2026-10-29 | **D166 (owner: the Me hub's «قريباً» programs, CP-024 approved with defaults):** tag `programs`: `getMyTasks` (`GET /me/tasks`, `MyTasks`, `ProgramTask`, `CheckInDay`), `checkIn` (`POST /me/check-in`, `CheckInResult`; 201 / 200), `claimMyTask` (`POST /me/tasks/{code}/claim`, `TaskClaimResult`; 201 / 200), `getMySvip` (`GET /me/svip`, `SvipStatus`, `SvipPerk`), `listEvents` (`GET /events?tab=&month=`, `EventList`, `EventSummary`), `getEvent` (`GET /events/{eventId}`, `EventDetail`, `EventPrize`), `getEventLeaderboard` (`GET /events/{eventId}/leaderboard`, `EventLeaderboard`); tag `wallet`: `listRechargePackages` (`GET /wallet/recharge-packages`, `RechargePackages`; no purchase, B5); `WalletLedgerReason` gains `TASK_REWARD`, `CHECK_IN_REWARD`, `EVENT_PRIZE`; codes `TASK_NOT_COMPLETED`, `TASK_DAILY_CAP_REACHED` (409); migrations `20261214090000_me_programs_enums`, `20261214100000_me_programs`; CLIs `task-admin`, `event-admin`. §4, §8, §10.41. | **Additive** (new operations, schemas, codes and ledger reasons; clients show an unknown reason as a generic change). |
 | v1.43-social (draft) | 2026-10-29 | **D164 (owner: «اجعل الوكيل يعمل على أزرار قريباً في أنا» — the Me hub's "Soon" buttons that only need stored data):** tag `wallet`: `listMyWalletLedger` (`GET /wallet/me/ledger`, `WalletLedgerPage`, `WalletLedgerEntry`, `WalletLedgerReason`), `getMyEarnings` (`GET /wallet/me/earnings`, `MyEarnings`) and `listMyEarnings` (`GET /wallet/me/earnings/history`, `EarningPage`, `Earning`, `EarningContext`); tag `me`: `getMyCreatorStats` (`GET /me/creator-stats?period=LAST_7_DAYS\|LAST_30_DAYS\|ALL_TIME`, `CreatorStats`, `CreatorContentStats`, `CreatorStatsPeriod`). All read the caller's own stored data only (no migration). Earnings are display only (no withdrawal, D149). §10.40. | **Additive** (new operations and schemas). |
 | v1.43.1-social (draft) | 2026-10-29 | **D165 (owner: «الوكيل الثاني يعمل على زر الرسائل» — every button of the Messages tab works):** `listDmConversations` takes `q` (a case-insensitive prefix of the peer's username or display name, trimmed, 1–30 characters, a leading `@` ignored; the cursor is bound to `box` and `q`); `markDmUnread` / `clearDmUnread` (`PUT` / `DELETE /dm/conversations/{conversationId}/unread`, 204, bucket `dm:write`); `DmConversation.markedUnread` (required in responses); `markDmRead` clears the mark; `getDmUnread` counts a marked conversation without unread messages as one. Migration `20261213090000_dm_marked_unread` (`dm_participants.marked_unread`). §7 row, §11.13. | **Additive** (an optional parameter, two operations, a response field older apps ignore; the badge can count a marked conversation). |
@@ -2581,6 +2591,62 @@ Every value below is server config or an admin-managed row: the owner changes it
   (10+20 $0.29 … 5197+30 $129.99, 276+28 $6.99 was $8.00) for the owner to set. `purchasesEnabled` is false
   and there is no purchase operation until B5.
 - **Rate limits:** every route uses the per-user default (§7).
+
+### 10.42 Ludo «لودو» inside a live room *(v1.45-live, DRAFT — D168)*
+
+Owner decisions (2026-11-02, D168) are marked *(owner)*.
+
+- **Where** *(owner)*: inside a LIVE room. The host opens the game from the room's tools; it shows as a
+  panel over the lower part of the room (the stream, the host bar and the seats stay visible above it,
+  and the room keeps playing); people in the room take a free seat or watch. One game in its lobby or
+  playing per room (`live_ludo_games_one_open_per_room`; 409 `LUDO_GAME_EXISTS`). The host may play or
+  only run the game.
+- **Free** *(owner)*: no coins, no entry fee, no stakes, no rewards, no Task Center progress, no ledger
+  rows. Nothing about a game is a bet. The rank pill in the app shows the game's own progress points
+  (computed on the phone from the pieces), which are worth nothing.
+- **Lifecycle:** `createLiveLudo` (host; `mode` CLASSIC = 4 pieces or QUICK = 2; `players` 2 = seats 0
+  and 2, or 4 = seats 0–3) → `LOBBY`. `takeLiveLudoSeat` (the host or anyone **in the room's media
+  session now**, else 403 `LUDO_NOT_IN_ROOM`; one seat per person; 409 `LUDO_SEAT_UNAVAILABLE`).
+  `leaveLiveLudoSeat` (the player, or the host removing them). `startLiveLudo` (host, ≥ 2 seated, else
+  409 `LUDO_NOT_STARTABLE`) → `PLAYING`: the seated players play in seat order, red first. The first
+  to bring every piece home wins → `FINISHED` (`winner`). `endLiveLudo` (host) or the live ending →
+  `ENDED` (no winner). A finished or ended game is no longer returned by `getLiveLudo`; the host may
+  open a new one.
+- **Board and rules** (the owner-approved prototype): seats 0 red (top-left), 1 green (top-right), 2
+  yellow (bottom-right), 3 blue (bottom-left); a 52-square shared track; each colour starts on square
+  0 / 13 / 26 / 39 and goes clockwise; safe squares 0, 8, 13, 21, 26, 34, 39, 47 (the starts and the
+  stars). A piece's `pieces[i]` is its step: −1 base, 0–51 on the track from its start, 52–56 on its
+  home column, 57 home. A 6 is needed to leave the base and gives another turn; landing on an
+  opponent's piece (every piece there) on a non-safe square sends it to its base and gives another
+  turn; reaching home gives another turn; the third 6 in a row ends the turn; the exact roll is needed
+  to finish (a roll with no legal move passes the turn). A roll with a single legal move plays it at
+  once; otherwise the player picks one of `movable`.
+- **Server-authoritative:** the server rolls the die (Node's `crypto.randomInt`), checks every
+  intent and applies it; apps send intents only — `rollLiveLudo {version}` and `moveLiveLudo {version,
+  piece}` — never positions or numbers. Every change increments `version`; an intent whose `version` is
+  not the game's changes nothing (409 `LUDO_STALE_VERSION`), and every write is a compare-and-set on
+  `version`, so two taps, two phones or an intent racing the timer apply **once**. Wrong turn or step →
+  409 `LUDO_NOT_YOUR_TURN`; a piece that cannot move → 409 `LUDO_ILLEGAL_MOVE`.
+- **Timers (server):** each step of a turn has 15 s (`turnEndsAt`, `turnSeconds`; `serverTime` places
+  it on the phone's clock). On timeout the server rolls for the player; if a choice is then needed the
+  player gets a new 15 s, after which the server plays the **best move** (the prototype's heuristic:
+  a capture, then finishing, entering the home column, leaving the base, a safe square, progress).
+  An **AUTO** seat (`auto: true`) is played the same way about 1.5 s after its turn starts. The timers
+  run in the API on `LIVE_LUDO_TICK_MS` (1 s; a database scan of due games, safe on several instances
+  thanks to the compare-and-set), so they survive phones dropping; 0 turns them off (tests only;
+  refused in production).
+- **AUTO:** leaving a started game (or the host removing a player) makes the seat AUTO for good. A
+  player who leaves the room's media session (the media server's webhook) and is not back within 30 s
+  becomes AUTO (`reason: DISCONNECTED`) and gets the seat back when they return (`BACK`), or by acting
+  again. In the lobby, leaving the room frees the seat.
+- **Real time:** every change reaches the room as `{"type":"ludo","game":LiveLudoGame}` on topic
+  **`ludo`** (reliable, best effort like every data message). The whole game is sent each time, with
+  `events` — what the change did, in order (`ROLL`, `MOVE` with `from` / `to` / `captured` / `reached`,
+  `NO_MOVE`, `THREE_SIXES`, `AUTO`, `BACK`, `WIN`, `START`, `END`) — so apps animate steps, the die,
+  captures and toasts. Late joiners, spectators and guests read `getLiveLudo` (the same state). Apps
+  keep the higher `version` when a message and a response cross.
+- **Not in v1.45-live:** coins, stakes, prizes or any reward *(owner)*; more than one game per room;
+  games outside a live room; spectator chat inside the game (the room chat stays); match history.
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 

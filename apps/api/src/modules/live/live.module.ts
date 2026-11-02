@@ -15,6 +15,8 @@ import { LiveDataCenterService } from './live-data-center.service.js';
 import { LiveProgramService } from './live-program.service.js';
 import { LiveStickersService } from './live-stickers.service.js';
 import { LiveWatchService } from './live-watch.service.js';
+import { LiveLudoController } from './live-ludo.controller.js';
+import { cryptoDice, LiveLudoService, LUDO_DICE } from './live-ludo.service.js';
 import { HttpYoutubeClient, YOUTUBE_CLIENT } from './youtube/youtube.client.js';
 import { LiveCategoriesService } from './live-categories.service.js';
 import { LiveChatBadgesService } from './live-chat-badges.service.js';
@@ -65,6 +67,8 @@ import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit
     LiveScheduleController,
     AdminLiveController,
     LiveMediaWebhookController,
+    // D168: Ludo inside a live room (§10.42).
+    LiveLudoController,
   ],
   providers: [
     LiveCategoriesService,
@@ -94,6 +98,9 @@ import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit
     LiveStickersService,
     LiveWatchService,
     { provide: YOUTUBE_CLIENT, useClass: HttpYoutubeClient },
+    // D168: Ludo in a live room; the die is the server's crypto RNG.
+    LiveLudoService,
+    { provide: LUDO_DICE, useValue: cryptoDice },
     // v1.20-live (D105): kicking someone out of a live (§10.20).
     LiveKicksService,
     // v1.23-live (CP-020, D108): gifts in a live, through the wallet and the gifts module (§10.23).

@@ -257,6 +257,8 @@ export interface AppConfig {
     readonly guestKey: string;
     /** CP-016 A: the popularity boards' time zone (day and week boundaries). */
     readonly rankingsTimeZone: string;
+    /** D168: period (ms) of the Ludo turn timers' scan; 0 = off (tests; refused in production). */
+    readonly ludoTickMs: number;
   };
   readonly registration: {
     readonly ttlSeconds: number;
@@ -495,6 +497,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
           : null,
       guestKey: rateLimitKeySecret,
       rankingsTimeZone: e.LIVE_RANKINGS_TIME_ZONE,
+      ludoTickMs: e.LIVE_LUDO_TICK_MS,
     },
     registration: {
       ttlSeconds: e.REGISTRATION_TTL_SECONDS,

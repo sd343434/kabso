@@ -25,6 +25,7 @@ import {
   LiveController,
   LiveMediaWebhookController,
 } from '../../src/modules/live/live.controller.js';
+import { LiveLudoController } from '../../src/modules/live/live-ludo.controller.js';
 import { FollowsController } from '../../src/modules/social/follows.controller.js';
 import { PublicProfileController } from '../../src/modules/users/profiles/public-profile.controller.js';
 import {
@@ -87,6 +88,8 @@ const OPTIONAL_AUTH_ALLOWLIST = [
   'GET /api/v1/live/rooms/:roomId/stickers',
   // v1.38-live (D154i): what the live watches together (guests follow it like the picture).
   'GET /api/v1/live/rooms/:roomId/watch',
+  // v1.45-live (D168): the room's Ludo game (guests watch it like the picture).
+  'GET /api/v1/live/rooms/:roomId/ludo',
 ].sort();
 
 interface RouteInfo {
@@ -139,6 +142,8 @@ const CONTROLLERS = [
   // CP-010 (KL-063): admin hosting permission and the media server's webhook.
   AdminLiveController,
   LiveMediaWebhookController,
+  // v1.45-live (D168): Ludo inside a live room.
+  LiveLudoController,
 ] as const;
 
 describe('KL-007 security regression', () => {

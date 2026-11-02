@@ -22,6 +22,7 @@ import {
 import { LiveCategoriesService } from './live-categories.service.js';
 import { closeVisits, closeVisitsOfEndedRooms, openVisit, recountViewers } from './live-audience.js';
 import { LiveChatService } from './live-chat.service.js';
+import { LiveLudoService } from './live-ludo.service.js';
 import { LiveRoomMetadataService } from './live-metadata.service.js';
 import { hostSources, LiveSeatsService, seatPermission } from './live-seats.service.js';
 import {
@@ -95,6 +96,8 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
     private readonly metadata: LiveRoomMetadataService,
     @Inject(LIVE_MEDIA_PROVIDER) private readonly media: LiveMediaProvider,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    // D168: Ludo seats follow presence (a player away 30 s becomes AUTO).
+    private readonly ludo: LiveLudoService,
   ) {
     this.guestKey = Buffer.from(hkdfSync('sha256', config.live.guestKey, '', 'live-guest/v1', 32));
     this.cursors = new SocialCursorCodec(config.social.cursorKey);
@@ -464,6 +467,8 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
       await this.recount(this.prisma, roomId);
       // CP-011: leaving the media session ends the user's seat, request and invitation.
       if (isUuid(event.identity)) await this.seats.onLeft(roomId, event.identity.toLowerCase());
+      // D168: a Ludo player who left starts the 30 s count (a lobby seat is freed).
+      if (isUuid(event.identity)) await this.ludo.onLeft(roomId, event.identity.toLowerCase());
       return;
     }
     await this.onJoined(roomId, event.identity);
@@ -485,7 +490,11 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
       await this.kick(roomId, identity);
       return;
     }
-    if (userId === room.hostUserId) return; // the host is not a viewer
+    if (userId === room.hostUserId) {
+      // D168: the host may play Ludo; coming back keeps their seat.
+      await this.ludo.onJoined(roomId, userId);
+      return; // the host is not a viewer
+    }
     if (guestId !== null && !room.allowGuests) {
       await this.kick(roomId, identity);
       return;
@@ -513,6 +522,8 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
     await this.recount(this.prisma, roomId);
     // CP-011: a seated user who (re)joins gets their seat's permission.
     if (userId !== null) await this.seats.onJoined(roomId, userId);
+    // D168: a Ludo player back in the room keeps (or gets back) their seat.
+    if (userId !== null) await this.ludo.onJoined(roomId, userId);
     // CP-013: a "joined" line for a signed-in viewer who just came in (guests are not announced;
     // a repeated webhook for someone already recorded is not a new join).
     if (userId !== null && recorded.count > 0) await this.chat.announceJoin(roomId, userId);

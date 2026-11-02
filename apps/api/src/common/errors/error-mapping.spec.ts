@@ -105,6 +105,14 @@ describe('ErrorCode', () => {
         // v1.44-social (DRAFT, D166)
         'TASK_NOT_COMPLETED',
         'TASK_DAILY_CAP_REACHED',
+        // D168 (DRAFT v1.45-live)
+        'LUDO_NOT_IN_ROOM',
+        'LUDO_GAME_EXISTS',
+        'LUDO_SEAT_UNAVAILABLE',
+        'LUDO_NOT_STARTABLE',
+        'LUDO_NOT_YOUR_TURN',
+        'LUDO_ILLEGAL_MOVE',
+        'LUDO_STALE_VERSION',
       ].sort(),
     );
     expect(ERROR_HTTP_STATUS).toMatchObject({
@@ -176,6 +184,13 @@ describe('ErrorCode', () => {
       YOUTUBE_SEARCH_UNAVAILABLE: 503,
       TASK_NOT_COMPLETED: 409,
       TASK_DAILY_CAP_REACHED: 409,
+      LUDO_NOT_IN_ROOM: 403,
+      LUDO_GAME_EXISTS: 409,
+      LUDO_SEAT_UNAVAILABLE: 409,
+      LUDO_NOT_STARTABLE: 409,
+      LUDO_NOT_YOUR_TURN: 409,
+      LUDO_ILLEGAL_MOVE: 409,
+      LUDO_STALE_VERSION: 409,
     });
   });
 

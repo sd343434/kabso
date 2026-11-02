@@ -227,6 +227,13 @@ info:
     recharge packages without purchases (`listRechargePackages`, B5); ledger reasons `TASK_REWARD`,
     `CHECK_IN_REWARD`, `EVENT_PRIZE`; codes `TASK_NOT_COMPLETED`, `TASK_DAILY_CAP_REACHED` (CONVENTIONS
     §10.41).
+    **D168 (DRAFT v1.45-live)** adds Ludo «لودو» inside a live room, free to play (no coins, stakes
+    or rewards): `getLiveLudo`, `createLiveLudo`, `takeLiveLudoSeat` / `leaveLiveLudoSeat`,
+    `startLiveLudo`, `rollLiveLudo`, `moveLiveLudo`, `endLiveLudo` under `/live/rooms/{roomId}/ludo`;
+    the server rolls, checks every intent and runs the turn timers; every change reaches the room as
+    the data message `ludo` on topic `ludo`; codes `LUDO_NOT_IN_ROOM` (403), `LUDO_GAME_EXISTS`,
+    `LUDO_SEAT_UNAVAILABLE`, `LUDO_NOT_STARTABLE`, `LUDO_NOT_YOUR_TURN`, `LUDO_ILLEGAL_MOVE`,
+    `LUDO_STALE_VERSION` (409) (CONVENTIONS §10.42).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -1894,6 +1901,218 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/LiveProgram' }
         '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/live/rooms/{roomId}/ludo:
+    get:
+      tags: [live]
+      operationId: getLiveLudo
+      summary: "The room's Ludo game (D168)"
+      description: |
+        v1.45-live, CONVENTIONS §10.42. The room's game in its lobby or playing (`game`), or null (no
+        game, the last one finished or ended, or the live ended). Anyone who can see the room, guests
+        too: spectators and late joiners get the whole state here, then follow the `ludo` data
+        messages. 404 when the room cannot be seen.
+      security: [{}, {bearerAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '200':
+          description: The game, or null.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveLudoSnapshot' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [live]
+      operationId: createLiveLudo
+      summary: "The host opens a Ludo game (D168)"
+      description: |
+        v1.45-live, CONVENTIONS §10.42. Opens the room's game in its lobby: `mode` CLASSIC (4 pieces)
+        or QUICK (2), `players` 2 (seats 0 and 2) or 4. Free: no coins, no stakes, no rewards. Checks:
+        401; 404; 409 `LIVE_ROOM_ENDED`; 403 `AUTH_FORBIDDEN` (not the host); 400; 409
+        `LUDO_GAME_EXISTS` (one game in its lobby or playing per room). The room gets
+        `{"type":"ludo","game":LiveLudoGame}` on topic `ludo`.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateLiveLudoRequest' }
+            example: { mode: CLASSIC, players: 4 }
+      responses:
+        '201':
+          description: The new game (its lobby).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveLudoGame' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/live/rooms/{roomId}/ludo/seats/{seat}:
+    put:
+      tags: [live]
+      operationId: takeLiveLudoSeat
+      summary: "Take a free seat of the Ludo lobby (D168)"
+      description: |
+        v1.45-live, CONVENTIONS §10.42. The caller — the host, or someone in the room's media session
+        now (403 `LUDO_NOT_IN_ROOM` otherwise) — sits on a free seat of the lobby; one seat per person.
+        Checks: 401; 404 (room; no open game); 409 `LIVE_ROOM_ENDED`; 403 `LUDO_NOT_IN_ROOM`; 409
+        `LUDO_SEAT_UNAVAILABLE` (taken, not in this game, already seated, or the game started).
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+        - $ref: '#/components/parameters/LudoSeatPath'
+      responses:
+        '200':
+          description: The game now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveLudoGame' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [live]
+      operationId: leaveLiveLudoSeat
+      summary: "Leave a Ludo seat, or the host removes its player (D168)"
+      description: |
+        v1.45-live, CONVENTIONS §10.42. The seat's player leaves, or the host removes them. In the
+        lobby the seat is free again; once the game started the seat becomes AUTO for good (the
+        server plays it to the end). Checks: 401; 404 (room; no open game; nobody on that seat); 409
+        `LIVE_ROOM_ENDED`; 403 `AUTH_FORBIDDEN` (neither the player nor the host).
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+        - $ref: '#/components/parameters/LudoSeatPath'
+      responses:
+        '200':
+          description: The game now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveLudoGame' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/live/rooms/{roomId}/ludo/start:
+    post:
+      tags: [live]
+      operationId: startLiveLudo
+      summary: "The host starts the Ludo game (D168)"
+      description: |
+        v1.45-live, CONVENTIONS §10.42. The seated players play, red first, every piece in its base;
+        the first turn's 15 s timer starts. Checks: 401; 404; 409 `LIVE_ROOM_ENDED`; 403
+        `AUTH_FORBIDDEN` (not the host); 400; 409 `LUDO_NOT_STARTABLE` (not in its lobby, fewer than 2
+        seated); 409 `LUDO_STALE_VERSION` (`version` is not the game's).
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LiveLudoVersionRequest' }
+      responses:
+        '200':
+          description: The game now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveLudoGame' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/live/rooms/{roomId}/ludo/roll:
+    post:
+      tags: [live]
+      operationId: rollLiveLudo
+      summary: "Roll the die on your turn (D168)"
+      description: |
+        v1.45-live, CONVENTIONS §10.42. An intent: the server rolls its die (a cryptographic RNG) for
+        the caller's seat and applies the rules — a third 6 in a row or no legal move passes the turn;
+        a single legal move is played at once; otherwise the player chooses a piece within a new 15 s.
+        Checks: 401; 404; 409 `LIVE_ROOM_ENDED`; 403 `LUDO_NOT_IN_ROOM`; 400; 409
+        `LUDO_NOT_YOUR_TURN` (not playing, not the caller's turn or not the rolling step); 409
+        `LUDO_STALE_VERSION` (applied at most once: a repeated intent finds a newer version).
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LiveLudoVersionRequest' }
+            example: { version: 7 }
+      responses:
+        '200':
+          description: The game now (`events` tells what the roll did).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveLudoGame' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/live/rooms/{roomId}/ludo/move:
+    post:
+      tags: [live]
+      operationId: moveLiveLudo
+      summary: "Move one of your pieces by the rolled number (D168)"
+      description: |
+        v1.45-live, CONVENTIONS §10.42. An intent naming a piece (0–3); the server moves it — never a
+        position from the app. Landing on an opponent outside a safe square sends it home; a 6, a
+        capture or reaching the centre gives another turn; the first to bring every piece home wins
+        (`status: FINISHED`). Checks as `rollLiveLudo`, plus 409 `LUDO_ILLEGAL_MOVE` (that piece
+        cannot move by the roll).
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LiveLudoMoveRequest' }
+            example: { version: 8, piece: 2 }
+      responses:
+        '200':
+          description: The game now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveLudoGame' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/live/rooms/{roomId}/ludo/end:
+    post:
+      tags: [live]
+      operationId: endLiveLudo
+      summary: "The host ends the Ludo game (D168)"
+      description: |
+        v1.45-live, CONVENTIONS §10.42. Ends the room's game in its lobby or playing (`status: ENDED`,
+        no winner). Checks: 401; 404 (room; no open game); 409 `LIVE_ROOM_ENDED`; 403 `AUTH_FORBIDDEN`
+        (not the host). A game also ends by itself when the live ends.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '200':
+          description: The ended game.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveLudoGame' }
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
@@ -6984,6 +7203,12 @@ components:
       required: true
       description: A malformed id is treated as not found (404), never 400.
       schema: { type: string, format: uuid }
+    LudoSeatPath:
+      name: seat
+      in: path
+      required: true
+      description: "v1.45-live (D168): a Ludo seat, 0 red, 1 green, 2 yellow, 3 blue. A seat outside the game is 409 `LUDO_SEAT_UNAVAILABLE` (taking) or 404 (leaving), never 400."
+      schema: { type: integer, minimum: 0, maximum: 3 }
     LevelCategoryPath:
       name: category
       in: path
@@ -10486,6 +10711,127 @@ components:
           maxItems: 10
           items: { $ref: '#/components/schemas/LiveProgramItem' }
         current: { type: [integer, 'null'], minimum: 0, maximum: 9, description: The segment on now (the last one started) while the live is on; null otherwise. }
+    LiveLudoSnapshot:
+      type: object
+      description: v1.45-live (D168, CONVENTIONS §10.42). The room's open Ludo game, or null.
+      required: [game]
+      properties:
+        game:
+          oneOf:
+            - $ref: '#/components/schemas/LiveLudoGame'
+            - type: 'null'
+    CreateLiveLudoRequest:
+      type: object
+      description: v1.45-live (D168). A new game's lobby.
+      required: [mode, players]
+      additionalProperties: false
+      properties:
+        mode: { type: string, enum: [CLASSIC, QUICK], description: "CLASSIC: 4 pieces each; QUICK: 2." }
+        players: { type: integer, enum: [2, 4], description: "2: seats 0 and 2 (opposite corners); 4: every seat." }
+    LiveLudoVersionRequest:
+      type: object
+      description: v1.45-live (D168). An intent at the game version the app saw.
+      required: [version]
+      additionalProperties: false
+      properties:
+        version: { type: integer, minimum: 0 }
+    LiveLudoMoveRequest:
+      type: object
+      description: v1.45-live (D168). Move one of the caller's pieces by the rolled number.
+      required: [version, piece]
+      additionalProperties: false
+      properties:
+        version: { type: integer, minimum: 0 }
+        piece: { type: integer, minimum: 0, maximum: 3 }
+    LiveLudoSeat:
+      type: object
+      description: v1.45-live (D168). One seat; its colour follows the seat (0 red top-left, 1 green top-right, 2 yellow bottom-right, 3 blue bottom-left).
+      required: [seat, color, user, auto, pieces]
+      properties:
+        seat: { type: integer, minimum: 0, maximum: 3 }
+        color: { type: string, enum: [RED, GREEN, YELLOW, BLUE] }
+        user:
+          oneOf:
+            - $ref: '#/components/schemas/UserSummary'
+            - type: 'null'
+          description: The player; null for a free seat of the lobby (or an account gone).
+        auto: { type: boolean, description: "The server plays this seat (its player left the game, or was away from the room 30 s)." }
+        pieces:
+          type: array
+          maxItems: 4
+          items: { type: integer, minimum: -1, maximum: 57 }
+          description: "Each piece's step: -1 in the base, 0–51 on the track from the seat's start, 52–56 on its home column, 57 home. Empty in the lobby."
+    LiveLudoCapture:
+      type: object
+      description: v1.45-live (D168). A piece sent home by a capture.
+      required: [seat, piece, from]
+      properties:
+        seat: { type: integer, minimum: 0, maximum: 3 }
+        piece: { type: integer, minimum: 0, maximum: 3 }
+        from: { type: integer, minimum: 0, maximum: 51 }
+    LiveLudoEvent:
+      type: object
+      description: |
+        v1.45-live (D168). What the last change did, in order (apps animate them): `START`; `ROLL`
+        (seat, dice, auto); `MOVE` (seat, piece, from, to, dice, captured, reached, auto); `NO_MOVE`
+        (seat, dice: the turn passed); `THREE_SIXES` (seat: the turn ended); `AUTO` (seat, reason);
+        `BACK` (seat: the player is back); `WIN` (seat); `END`. Apps ignore kinds they do not know.
+      required: [kind]
+      properties:
+        kind: { type: string, enum: [START, ROLL, MOVE, NO_MOVE, THREE_SIXES, AUTO, BACK, WIN, END] }
+        seat: { type: integer, minimum: 0, maximum: 3 }
+        dice: { type: integer, minimum: 1, maximum: 6 }
+        auto: { type: boolean, description: The server played it (a timeout or an AUTO seat). }
+        piece: { type: integer, minimum: 0, maximum: 3 }
+        from: { type: integer, minimum: -1, maximum: 57 }
+        to: { type: integer, minimum: 0, maximum: 57 }
+        captured:
+          type: array
+          maxItems: 12
+          items: { $ref: '#/components/schemas/LiveLudoCapture' }
+        reached: { type: boolean, description: The piece reached the centre. }
+        reason: { type: string, enum: [LEFT, DISCONNECTED] }
+    LiveLudoGame:
+      type: object
+      description: |
+        v1.45-live (D168, CONVENTIONS §10.42). A Ludo game in a live room — the server's state, sent
+        whole on every change as `{"type":"ludo","game":LiveLudoGame}` on topic `ludo`. Apps show it
+        and send intents with `version`; they never send positions. Free: no coins, stakes or rewards.
+      required: [id, roomId, status, mode, maxPlayers, piecesPerPlayer, version, seats, turn, phase, dice, sixes, movable, turnEndsAt, turnSeconds, winner, events, serverTime, createdAt, startedAt, endedAt]
+      properties:
+        id: { type: string, format: uuid }
+        roomId: { type: string, format: uuid }
+        status: { type: string, enum: [LOBBY, PLAYING, FINISHED, ENDED] }
+        mode: { type: string, enum: [CLASSIC, QUICK] }
+        maxPlayers: { type: integer, enum: [2, 4] }
+        piecesPerPlayer: { type: integer, enum: [2, 4] }
+        version: { type: integer, minimum: 0, description: Grows by one on every change; intents name it. }
+        seats:
+          type: array
+          minItems: 2
+          maxItems: 4
+          items: { $ref: '#/components/schemas/LiveLudoSeat' }
+          description: In the lobby the open seats (some free); once playing the seated players, in turn order.
+        turn: { type: [integer, 'null'], minimum: 0, maximum: 3, description: The seat whose turn it is while playing. }
+        phase: { type: [string, 'null'], enum: [ROLL, MOVE, null], description: "ROLL: the player rolls; MOVE: they choose a piece of `movable`." }
+        dice: { type: [integer, 'null'], minimum: 1, maximum: 6, description: The last roll. }
+        sixes: { type: integer, minimum: 0, maximum: 2, description: Sixes in a row in this turn (a third ends it). }
+        movable:
+          type: array
+          maxItems: 4
+          items: { type: integer, minimum: 0, maximum: 3 }
+          description: The pieces the player may move now (phase MOVE).
+        turnEndsAt: { type: [string, 'null'], format: date-time, description: When the server plays for the player (15 s per step; about 1.5 s for an AUTO seat). }
+        turnSeconds: { type: integer, minimum: 1, description: The turn timer (15). }
+        winner: { type: [integer, 'null'], minimum: 0, maximum: 3, description: The winning seat (FINISHED). }
+        events:
+          type: array
+          maxItems: 24
+          items: { $ref: '#/components/schemas/LiveLudoEvent' }
+        serverTime: { type: string, format: date-time, description: The server's clock, to place `turnEndsAt` on a phone whose clock differs. }
+        createdAt: { type: string, format: date-time }
+        startedAt: { type: [string, 'null'], format: date-time }
+        endedAt: { type: [string, 'null'], format: date-time }
     LiveNewcomers:
       type: object
       description: v1.34-live (D154c). The newcomers in a live now.

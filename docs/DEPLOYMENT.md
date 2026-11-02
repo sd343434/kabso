@@ -1229,6 +1229,17 @@ hard-deleted 24 hours after it was sent** (owner).
 - **Not verified here:** on a device (sending pictures/voice from the phone, pushes, the badge in
   the background), against real R2 storage, and with the production key. See the D155 row.
 
+### 5.26 Ludo «لودو» in live rooms (migration `20261215090000_live_ludo`; D168) — [IMPLEMENTED, draft contract v1.45-live; not deployed, not device-tested]
+
+- Apply with the usual `migrate` job (§5): table `live_ludo_games` (one row per game; at most one open
+  game per room by a partial unique index). No GRANT (default privileges), no backfill, no enum.
+- **New optional config:** `LIVE_LUDO_TICK_MS` (default `1000`, 0–10 000): how often the API scans for due
+  Ludo turns (15 s turn timers, AUTO seats, players away 30 s). 0 turns the timers off and is refused in
+  production. The scan is one indexed query (`live_ludo_games_due_idx`, PLAYING games only) plus one
+  UPDATE that ends games of rooms that are no longer live; safe on several API instances (every write is
+  a compare-and-set on the game's `version`).
+- No secret, no new egress. Games are free: nothing touches the wallet or the ledger.
+
 ## 6. Observability baseline
 
 | Item | Status |

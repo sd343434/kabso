@@ -124,6 +124,20 @@ export enum ErrorCode {
   TASK_NOT_COMPLETED = 'TASK_NOT_COMPLETED',
   /** v1.44-social (DRAFT, D166): the caller already got the day's task and check-in coins cap. */
   TASK_DAILY_CAP_REACHED = 'TASK_DAILY_CAP_REACHED',
+  /** D168 (DRAFT v1.45-live): Ludo needs the caller in the room (the host, or in its media session now). */
+  LUDO_NOT_IN_ROOM = 'LUDO_NOT_IN_ROOM',
+  /** D168: the room already has a Ludo game in its lobby or playing. */
+  LUDO_GAME_EXISTS = 'LUDO_GAME_EXISTS',
+  /** D168: the seat is taken or not in this game, the caller already sits, or the game started. */
+  LUDO_SEAT_UNAVAILABLE = 'LUDO_SEAT_UNAVAILABLE',
+  /** D168: the game cannot start (not in its lobby, or fewer than 2 players seated). */
+  LUDO_NOT_STARTABLE = 'LUDO_NOT_STARTABLE',
+  /** D168: not the caller's turn, or not the step of the turn (rolling / choosing a piece). */
+  LUDO_NOT_YOUR_TURN = 'LUDO_NOT_YOUR_TURN',
+  /** D168: that piece cannot move by the rolled number. */
+  LUDO_ILLEGAL_MOVE = 'LUDO_ILLEGAL_MOVE',
+  /** D168: the game changed since the version the app sent (nothing applied; read the game again). */
+  LUDO_STALE_VERSION = 'LUDO_STALE_VERSION',
 }
 
 /** HTTP status for every code (CONVENTIONS.md §4 table). */
@@ -199,6 +213,13 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.CP_PRIVILEGE_LOCKED]: 403,
   [ErrorCode.TASK_NOT_COMPLETED]: 409,
   [ErrorCode.TASK_DAILY_CAP_REACHED]: 409,
+  [ErrorCode.LUDO_NOT_IN_ROOM]: 403,
+  [ErrorCode.LUDO_GAME_EXISTS]: 409,
+  [ErrorCode.LUDO_SEAT_UNAVAILABLE]: 409,
+  [ErrorCode.LUDO_NOT_STARTABLE]: 409,
+  [ErrorCode.LUDO_NOT_YOUR_TURN]: 409,
+  [ErrorCode.LUDO_ILLEGAL_MOVE]: 409,
+  [ErrorCode.LUDO_STALE_VERSION]: 409,
 };
 
 /** Default developer-facing messages (clients localize by `code`, not by message). */
@@ -274,6 +295,13 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.YOUTUBE_SEARCH_UNAVAILABLE]: 'YouTube search is not available; paste a link instead.',
   [ErrorCode.TASK_NOT_COMPLETED]: 'That task is not completed yet.',
   [ErrorCode.TASK_DAILY_CAP_REACHED]: 'You already got today’s maximum of task coins.',
+  [ErrorCode.LUDO_NOT_IN_ROOM]: 'Join the live room to play.',
+  [ErrorCode.LUDO_GAME_EXISTS]: 'This live already has a Ludo game.',
+  [ErrorCode.LUDO_SEAT_UNAVAILABLE]: 'That seat is not available.',
+  [ErrorCode.LUDO_NOT_STARTABLE]: 'The game needs at least 2 players to start.',
+  [ErrorCode.LUDO_NOT_YOUR_TURN]: 'It is not your turn.',
+  [ErrorCode.LUDO_ILLEGAL_MOVE]: 'That piece cannot move.',
+  [ErrorCode.LUDO_STALE_VERSION]: 'The game changed; showing the latest.',
 };
 
 export interface ErrorDetail {

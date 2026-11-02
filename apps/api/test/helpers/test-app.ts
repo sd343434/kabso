@@ -219,6 +219,8 @@ export function buildTestConfig(overrides: Record<string, string> = {}): AppConf
     EVENTS_SWEEP_INTERVAL_SECONDS: '0',
     // No background sweeper in tests: specs call LiveRoomsService.sweepStale() with a fake clock.
     LIVE_SWEEP_INTERVAL_SECONDS: '0',
+    // D168: specs call LiveLudoService.tick() with a fake clock.
+    LIVE_LUDO_TICK_MS: '0',
     ...overrides,
   });
 }

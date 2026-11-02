@@ -587,6 +587,8 @@ export const envSchema = z
     LIVE_HEARTBEAT_STALE_SECONDS: intSetting(45, 1, 3600),
     /** Period of the in-process stale-room sweeper; 0 disables it (refused in production). */
     LIVE_SWEEP_INTERVAL_SECONDS: intSetting(15, 0, 3600),
+    /** D168: period (ms) of the Ludo turn timers' scan; 0 disables it (tests; refused in production). */
+    LIVE_LUDO_TICK_MS: intSetting(1000, 0, 10_000),
     /**
      * CP-016 A (D99): the one region's time zone (IANA name). The popularity boards' day starts at
      * midnight and the week on Monday there; the hour is the same everywhere.
@@ -1115,6 +1117,13 @@ export const envSchema = z
             `allows ${beat.max} per ${beat.windowSeconds} s, but a ${env.LIVE_HEARTBEAT_INTERVAL_SECONDS} s ` +
             `heartbeat cadence needs at least ${HEARTBEAT_RATE_LIMIT_HEADROOM * expected} ` +
             `(${HEARTBEAT_RATE_LIMIT_HEADROOM}× headroom for retries)`,
+        });
+      }
+      if (env.LIVE_LUDO_TICK_MS === 0) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['LIVE_LUDO_TICK_MS'],
+          message: 'the Ludo turn timers cannot be disabled in production',
         });
       }
       if (env.LIVE_SWEEP_INTERVAL_SECONDS === 0) {

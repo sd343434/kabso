@@ -165,6 +165,7 @@ model User {
   /// v1.32-live (D154): the free quips the user sent (one per live).
   freeQuips           LiveFreeQuip[]
   watchSuggestions    LiveWatchSuggestion[]
+  ludoWins            LiveLudoGame[]
   // v1.27.1-live (D133): featured on the live hub.
   liveFeatured        LiveFeaturedHost?
   // v1.28-live (D146): premium usernames.
@@ -518,6 +519,7 @@ model LiveRoom {
   stickers         LiveSticker[]
   watch            LiveWatch?
   watchSuggestions LiveWatchSuggestion[]
+  ludoGames        LiveLudoGame[]
 
   @@unique([hostUserId], map: "live_rooms_one_live_per_host", where: raw("status = 'LIVE'::live_room_status"))
   @@index([score(sort: Desc), startedAt(sort: Desc), id(sort: Desc)], map: "live_rooms_live_popular_idx", where: raw("status = 'LIVE'::live_room_status"))
@@ -2586,6 +2588,32 @@ model LiveWatchSuggestion {
   @@index([roomId, createdAt], map: "live_watch_suggestions_pending_idx", where: raw("status = 'PENDING'"))
   @@index([userId], map: "live_watch_suggestions_user_idx")
   @@map("live_watch_suggestions")
+}
+
+/// D168 (CONVENTIONS §10.42): a Ludo game in a live room (free; no coins). `state` is the rules
+/// engine's state (seats, pieces, turn); `version` guards concurrent intents (optimistic update).
+model LiveLudoGame {
+  id           String    @id(map: "live_ludo_games_pkey") @db.Uuid
+  roomId       String    @map("room_id") @db.Uuid
+  status       String    @default("LOBBY") @db.VarChar(10)
+  mode         String    @db.VarChar(10)
+  maxPlayers   Int       @map("max_players") @db.SmallInt
+  state        Json
+  version      Int       @default(0)
+  winnerUserId String?   @map("winner_user_id") @db.Uuid
+  dueAt        DateTime? @map("due_at") @db.Timestamptz(3)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  startedAt    DateTime? @map("started_at") @db.Timestamptz(3)
+  endedAt      DateTime? @map("ended_at") @db.Timestamptz(3)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  room   LiveRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  winner User?    @relation(fields: [winnerUserId], references: [id], onDelete: SetNull)
+
+  @@unique([roomId], map: "live_ludo_games_one_open_per_room", where: raw("status IN ('LOBBY', 'PLAYING')"))
+  @@index([dueAt], map: "live_ludo_games_due_idx", where: raw("status = 'PLAYING'"))
+  @@index([roomId, createdAt], map: "live_ludo_games_room_created_idx")
+  @@map("live_ludo_games")
 }
 
 /// v1.37-live (D154h, CONVENTIONS §10.38): sticker art the app may place on a live (the catalogue).

@@ -426,6 +426,13 @@ describe('loadConfig', () => {
       expect(problemsFor(prod(), 'LIVE_SWEEP_INTERVAL_SECONDS')).toEqual([]);
     });
 
+    it('D168: the Ludo timers default to 1 s and may be off (0) only outside production', () => {
+      expect(loadConfig(base).live.ludoTickMs).toBe(1000);
+      expect(loadConfig({ ...base, LIVE_LUDO_TICK_MS: '0' }).live.ludoTickMs).toBe(0);
+      expect(problemsFor(prod({ LIVE_LUDO_TICK_MS: '0' }), 'LIVE_LUDO_TICK_MS')).toHaveLength(1);
+      expect(problemsFor(prod(), 'LIVE_LUDO_TICK_MS')).toEqual([]);
+    });
+
     it('LIVE_CURSOR_KEY is optional, strength-checked and distinct in production', () => {
       const env = prod();
       delete (env as Record<string, string | undefined>).LIVE_CURSOR_KEY;
