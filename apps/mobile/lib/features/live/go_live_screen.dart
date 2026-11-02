@@ -21,6 +21,7 @@ import 'package:kabso_live/features/levels/application/levels_providers.dart';
 import 'package:kabso_live/features/levels/domain/level_models.dart';
 import 'package:kabso_live/features/live/application/live_assistant.dart';
 import 'package:kabso_live/features/live/application/live_chat_controller.dart';
+import 'package:kabso_live/features/live/application/live_fx_engine_providers.dart';
 import 'package:kabso_live/features/live/application/live_gift_effects.dart';
 import 'package:kabso_live/features/live/application/live_gift_ticker.dart';
 import 'package:kabso_live/features/live/application/live_host_controller.dart';
@@ -34,6 +35,7 @@ import 'package:kabso_live/features/live/application/live_tap_batcher.dart';
 import 'package:kabso_live/features/live/application/live_watch.dart';
 import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
 import 'package:kabso_live/features/live/data/beauty/live_color_filter.dart';
+import 'package:kabso_live/features/live/data/beauty/live_fx_engine.dart';
 import 'package:kabso_live/features/live/data/live_blocked_words_repository.dart';
 import 'package:kabso_live/features/live/data/live_host_targets_repository.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
@@ -262,6 +264,13 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     super.initState();
     _lifecycle = AppLifecycleListener(
       onResume: () => unawaited(_host.recheckPermission()),
+    );
+    // D228: the camera effects engine follows the server's
+    // `cameraFxEngine` (and, in debug/profile builds, the override).
+    ref.listenManual<LiveFxEngine>(
+      liveFxEngineProvider,
+      (_, next) => unawaited(_host.setFxEngine(next)),
+      fireImmediately: true,
     );
   }
 
@@ -937,7 +946,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           label: l10n.liveToolMagic,
           badge:
               !state.beauty.filter.isNatural ||
-              state.beauty.effect != LiveArEffect.none,
+              state.beauty.effect != LiveArEffect.none ||
+              (engine.fxEngine == LiveFxEngine.free && state.beauty.free.on),
           onTap: canAct
               ? () => unawaited(
                   showLiveFilterSheet(
@@ -950,6 +960,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                     effect: state.beauty.effect,
                     onEffect: (e) => unawaited(_host.setArEffect(e)),
                     effectStatus: engine.arStatus,
+                    fxEngine: engine.fxEngine,
+                    freeBeauty: state.beauty.free,
+                    onFreeBeauty: (b) => unawaited(_host.setFreeBeauty(b)),
                   ),
                 )
               : null,
@@ -1908,6 +1921,11 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                     child: LiveFxDiagnostics(
                       load: engine.arDiagnostics,
                       status: engine.arStatus,
+                      // D228: the developer override of the engine.
+                      engineOverride: ref.watch(liveFxEngineOverrideProvider),
+                      onEngineOverride: (e) => unawaited(
+                        ref.read(liveFxEngineOverrideProvider.notifier).set(e),
+                      ),
                     ),
                   ),
                 // D210: why the last go-live failed (step and error type),

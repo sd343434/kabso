@@ -562,6 +562,10 @@ info:
     **D226 (DRAFT v1.79-social)**: «تسجيل الخروج من كل الأجهزة الأخرى» — `revokeOtherSessions`
     (`POST /auth/sessions/revoke-others`, password re-checked) ends every session of the caller except the one making
     the call and answers how many were ended (CONVENTIONS §10.76). Additive.
+    **D228 (DRAFT v1.49-live)**: the OWNER's switch of the Android app's camera effects engine — DeepAR (D144,
+    default) or the free on-device engine (Google ML Kit + MediaPipe). `LiveConfig.cameraFxEngine` (`DEEPAR` |
+    `FREE`) in `getLiveConfig`; `getAdminCameraFx` / `updateAdminCameraFx` (`/admin/camera-fx`, panel session,
+    capability `site.settings`: OWNER; audited `site.settings.update`). Additive (CONVENTIONS §10.79).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -2023,6 +2027,7 @@ paths:
                 themes: [classic, ice-palace, desert-night, rose-garden, sunset-sky, moon-palace, ocean-depths, golden-hall, game-arena, heart-garden, galaxy, podcast-studio, podcast-majlis, podcast-library]
                 seatCounts: { MULTI: [4, 6, 9, 12], AUDIO: [5, 10, 15, 20] }
                 podcast: { speakers: 4, topics: [business, tech, sports, religion, society, entertainment, other], questionSeconds: [60, 120, 180, 300], defaultQuestionSeconds: 120 }
+                cameraFxEngine: DEEPAR
         '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
@@ -10281,6 +10286,43 @@ paths:
         '403': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
   # ---- v1.64-social (DRAFT, D196, CONVENTIONS §10.53.1): the Stripe keys from the panel «الدفع (Stripe)» --------
+  # ---- v1.49-live (DRAFT, D228, CONVENTIONS §10.79): the app's camera effects engine ------------------------------
+  /api/v1/admin/camera-fx:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminCameraFx
+      summary: "The Android app's camera effects engine «محرك مؤثرات الكاميرا» (site.settings: OWNER)"
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: The engine in use.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CameraFxSettings' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+    put:
+      tags: [admin-panel]
+      operationId: updateAdminCameraFx
+      summary: "Switches the app's camera effects engine: DeepAR or the free one (site.settings: OWNER; audited)"
+      description: "The panel session and its CSRF token (a bearer token is not a session: 401). Takes effect for every host at their next `getLiveConfig` (the go-live screen). Audited `site.settings.update` with `metadata.key` = `cameraFxEngine`, before, after and `reason`. Any other value → 400 `VALIDATION_FAILED`, nothing changed."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateCameraFxRequest' }
+      responses:
+        '200':
+          description: Saved.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CameraFxSettings' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
   /api/v1/admin/payment-settings:
     get:
       tags: [admin-panel]
@@ -19350,6 +19392,23 @@ components:
       properties:
         socials: { $ref: '#/components/schemas/SiteSocials' }
         topupEnabled: { type: boolean, description: "Show the «شحن العملات» link (off until D190 deploys)." }
+    CameraFxEngine:
+      type: string
+      enum: [DEEPAR, FREE]
+      description: "v1.49-live (D228, CONVENTIONS §10.79) — the Android app's camera effects engine on the host's published camera: `DEEPAR` (D144, licence key; the default) or `FREE` (Google ML Kit selfie segmentation + MediaPipe Face Landmarker, on the device). Clients read an unknown value as `DEEPAR`."
+    CameraFxSettings:
+      type: object
+      additionalProperties: false
+      required: [cameraFxEngine]
+      properties:
+        cameraFxEngine: { $ref: '#/components/schemas/CameraFxEngine' }
+    UpdateCameraFxRequest:
+      type: object
+      additionalProperties: false
+      required: [cameraFxEngine]
+      properties:
+        cameraFxEngine: { $ref: '#/components/schemas/CameraFxEngine' }
+        reason: { type: string, minLength: 1, maxLength: 500 }
     UpdateSiteSettingsRequest:
       type: object
       additionalProperties: false
@@ -20358,8 +20417,10 @@ components:
           description: Localized by `Accept-Language` (ar|en), else the caller's stored locale (CONVENTIONS §10.1).
     LiveConfig:
       type: object
-      required: [hostingEnabled, heartbeatIntervalSeconds, heartbeatStaleAfterSeconds, themes, seatCounts, podcast]
+      required: [hostingEnabled, heartbeatIntervalSeconds, heartbeatStaleAfterSeconds, themes, seatCounts, podcast, cameraFxEngine]
       properties:
+        cameraFxEngine:
+          $ref: '#/components/schemas/CameraFxEngine'
         hostingEnabled:
           type: boolean
           description: Server config `LIVE_HOSTING_ENABLED` (default false until a media provider exists, B1).

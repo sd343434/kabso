@@ -24,6 +24,11 @@ abstract class LiveConfig with _$LiveConfig {
     /// v1.47-live (D212): the podcast setup's choices (defaults from an
     /// older server).
     @Default(LivePodcastConfig()) LivePodcastConfig podcast,
+
+    /// v1.49-live (D228): the camera effects engine on Android — `DEEPAR`
+    /// (default; also for an older server) or `FREE` (ML Kit + MediaPipe).
+    /// Read through `LiveFxEngine.parse`.
+    @Default('DEEPAR') String cameraFxEngine,
   }) = _LiveConfig;
 
   factory fromJson(Map<String, dynamic> json) => _$LiveConfigFromJson(json);

@@ -82,6 +82,9 @@ class FakeLiveRepository implements LiveRepository {
   /// Thrown by the next `getConfig` calls while set.
   AppFailure? configFailure;
 
+  /// D228: `LiveConfig.cameraFxEngine` (`DEEPAR` / `FREE`).
+  String cameraFxEngine = 'DEEPAR';
+
   int configCalls = 0;
   int categoryCalls = 0;
   final List<RoomsRequest> requests = [];
@@ -96,6 +99,7 @@ class FakeLiveRepository implements LiveRepository {
       heartbeatIntervalSeconds: 15,
       heartbeatStaleAfterSeconds: 45,
       themes: themes,
+      cameraFxEngine: cameraFxEngine,
     );
   }
 

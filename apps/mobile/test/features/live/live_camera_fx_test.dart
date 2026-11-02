@@ -39,6 +39,21 @@ class _FakeBridge implements KabsoCameraFx {
   Future<void> setEffect(String? effect) async =>
       calls.add('effect:${effect ?? 'none'}');
 
+  /// D228: the engine switch and the free engine's effects.
+  @override
+  Future<void> setEngine(KabsoCameraFxEngine engine) async =>
+      calls.add('engine:${engine.wire}');
+
+  KabsoFreeFx? freeFx;
+
+  @override
+  Future<void> setFreeFx(KabsoFreeFx fx) async {
+    freeFx = fx;
+    calls.add(
+      fx.isNone ? 'free:none' : 'free:${fx.backgroundBlur ? 'blur' : '-'}',
+    );
+  }
+
   /// D144b: the track the last release named.
   String? releasedTrack;
 

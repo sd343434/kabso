@@ -12691,6 +12691,66 @@ abstract class AppLocalizations {
   /// **'المؤثر غير متاح الآن: خرجت صورته سوداء، فعادت الكاميرا من دونه قبل أن يراها المشاهدون. جرّبه مرة أخرى لاحقاً.'**
   String get liveEffectUnavailableBlack;
 
+  /// D228: the free effects engine kept missing its frame budget (too_slow) and switched itself off.
+  ///
+  /// In ar, this message translates to:
+  /// **'المؤثر غير متاح الآن: كان أبطأ من أن يواكب الكاميرا على هذا الجهاز، فعادت الكاميرا من دونه.'**
+  String get liveEffectUnavailableSlow;
+
+  /// D228 Magic: the effects run on the free engine (Google ML Kit + MediaPipe, on the device). ML Kit and MediaPipe are product names: not translated; in Arabic they sit in a left-to-right isolate (U+2066 … U+2069) so the brackets stay in place.
+  ///
+  /// In ar, this message translates to:
+  /// **'المحرك: المجاني، على الجهاز (⁦ML Kit + MediaPipe⁩)'**
+  String get liveEffectsEngineFree;
+
+  /// D228 Magic: the free engine's beauty section.
+  ///
+  /// In ar, this message translates to:
+  /// **'التجميل'**
+  String get liveFreeBeautyTitle;
+
+  /// D228 Magic: turns the free engine's beauty on.
+  ///
+  /// In ar, this message translates to:
+  /// **'تجميل الوجه'**
+  String get liveFreeBeautyOn;
+
+  /// D228 Magic: the face model downloads once on first use; then everything runs on the phone.
+  ///
+  /// In ar, this message translates to:
+  /// **'يُنزَّل نموذج الوجه (3.6 ميغابايت) مرة واحدة عند أول استخدام، ثم يعمل كل شيء على الجهاز.'**
+  String get liveFreeBeautyNote;
+
+  /// D228 Magic: the face model could not be downloaded or loaded.
+  ///
+  /// In ar, this message translates to:
+  /// **'التجميل غير متاح الآن: تعذّر تحميل نموذج الوجه. تحقّق من الاتصال وجرّب مرة أخرى.'**
+  String get liveFreeBeautyUnavailable;
+
+  /// D228 Magic: skin smoothing strength (0–100).
+  ///
+  /// In ar, this message translates to:
+  /// **'تنعيم البشرة'**
+  String get liveFreeBeautySmooth;
+
+  /// D228 Magic: brighten/whiten strength (0–100).
+  ///
+  /// In ar, this message translates to:
+  /// **'تفتيح'**
+  String get liveFreeBeautyBrighten;
+
+  /// D228 Magic: subtle face slimming strength (0–100).
+  ///
+  /// In ar, this message translates to:
+  /// **'نحت الوجه'**
+  String get liveFreeBeautySlim;
+
+  /// D228 Magic: subtle eye enlargement strength (0–100).
+  ///
+  /// In ar, this message translates to:
+  /// **'تكبير العينين'**
+  String get liveFreeBeautyEyes;
+
   /// D159: the label of the ruby win banner (x50 to x100; D145e: the big win card).
   ///
   /// In ar, this message translates to:

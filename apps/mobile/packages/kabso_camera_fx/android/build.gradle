@@ -4,6 +4,8 @@
 // Carries the whole native integration: the DeepAR repository and dependency,
 // the consumer ProGuard rules DeepAR's JNI callbacks need, and the processor.
 // The app's own Gradle files stay untouched.
+// D228: plus the free engine's two dependencies (ML Kit, MediaPipe; both on
+// Google's Maven, already in the repositories below).
 group 'com.kabso.kabso_camera_fx'
 version '1.0'
 
@@ -48,8 +50,9 @@ android {
     }
 
     defaultConfig {
-        // DeepAR's AAR declares minSdk 23; the app is on 24.
-        minSdkVersion 23
+        // DeepAR's AAR declares minSdk 23; D228: MediaPipe Tasks 24 (the app
+        // is on 24).
+        minSdkVersion 24
         consumerProguardFiles 'proguard-rules.pro'
     }
 }
@@ -71,6 +74,16 @@ dependencies {
     // it is the one producing the frames; a second copy must not resolve.
     compileOnly 'io.github.webrtc-sdk:android:150.7871.01'
     compileOnly 'androidx.annotation:annotation:1.1.0'
+
+    // D228: the free effects engine (FreeFxStage.kt, FreeFxGl.kt,
+    // FreeFxRules.kt). On-device, no API key; licences and sizes in
+    // THIRD_PARTY_NOTICES.md. Removing the free engine removes these two
+    // lines (docs/KNOWN_LIMITATIONS.md, D228).
+    // ML Kit Selfie Segmentation (bundled 256×256 model; Google ML Kit terms).
+    implementation 'com.google.mlkit:segmentation-selfie:16.0.0-beta6'
+    // MediaPipe Tasks Vision — Face Landmarker (Apache-2.0); its model is
+    // downloaded on first use, not bundled.
+    implementation 'com.google.mediapipe:tasks-vision:1.1.1'
 
     // D144a: JVM tests of the plain-Kotlin frame rules (FrameGate.kt).
     testImplementation 'junit:junit:4.13.2'

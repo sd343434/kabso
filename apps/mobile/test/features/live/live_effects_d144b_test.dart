@@ -77,6 +77,12 @@ class _Bridge implements KabsoCameraFx {
   Future<void> setEffect(String? effect) async => native.effect = effect;
 
   @override
+  Future<void> setEngine(KabsoCameraFxEngine engine) async {}
+
+  @override
+  Future<void> setFreeFx(KabsoFreeFx fx) async {}
+
+  @override
   Future<void> release({String? trackId}) async => native.release(trackId);
 
   @override

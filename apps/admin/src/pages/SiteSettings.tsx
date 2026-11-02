@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { ErrorAlert, Loading, useAsync } from '../components';
 import { useApp } from '../context';
-import type { SiteSettings as Settings } from '../types';
+import type { CameraFxEngine, CameraFxSettings, SiteSettings as Settings } from '../types';
 
 export function SiteSettings() {
   const { t, toast } = useApp();
@@ -90,6 +90,95 @@ export function SiteSettings() {
           {t('save')}
         </button>
       </form>
+      <CameraFxCard />
+    </>
+  );
+}
+
+/** D228: the PUT body of «محرك مؤثرات الكاميرا» (a reason only when typed). */
+export function cameraFxBody(engine: CameraFxEngine, reason: string): { cameraFxEngine: CameraFxEngine; reason?: string } {
+  return { cameraFxEngine: engine, ...(reason.trim() ? { reason: reason.trim() } : {}) };
+}
+
+/** D228: the form of «محرك مؤثرات الكاميرا» (the app's camera effects engine), pure for the tests. */
+export function CameraFxView(props: {
+  engine: CameraFxEngine;
+  reason: string;
+  busy: boolean;
+  onEngine: (engine: CameraFxEngine) => void;
+  onReason: (reason: string) => void;
+  onSave: () => void;
+}) {
+  const { t } = useApp();
+  const option = (value: CameraFxEngine, label: string) => (
+    <label className="check field">
+      <input type="radio" name="camera-fx" value={value} checked={props.engine === value} onChange={() => props.onEngine(value)} />
+      {label}
+    </label>
+  );
+  return (
+    <form
+      className="card"
+      style={{ maxWidth: 640, marginTop: 16 }}
+      onSubmit={(e) => {
+        e.preventDefault();
+        props.onSave();
+      }}
+    >
+      <h2>{t('fxTitle')}</h2>
+      <p className="muted small">{t('fxIntro')}</p>
+      {option('DEEPAR', t('fxDeepar'))}
+      {option('FREE', t('fxFree'))}
+      {props.engine === 'FREE' ? <p className="hint">{t('fxFreeNote')}</p> : null}
+      <div className="field">
+        <label htmlFor="fx-reason">{t('reason')}</label>
+        <textarea id="fx-reason" maxLength={500} value={props.reason} onChange={(e) => props.onReason(e.target.value)} />
+      </div>
+      <button className="btn primary" disabled={props.busy}>
+        {t('fxSave')}
+      </button>
+    </form>
+  );
+}
+
+function CameraFxCard() {
+  const { t, toast } = useApp();
+  const { data, error, loading } = useAsync(() => api.get<CameraFxSettings>('/admin/camera-fx'), []);
+  const [engine, setEngine] = useState<CameraFxEngine>('DEEPAR');
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [saveError, setSaveError] = useState<unknown>(null);
+  useEffect(() => {
+    if (data) setEngine(data.cameraFxEngine);
+  }, [data]);
+  if (loading && !data) return <Loading />;
+  if (!data) return <ErrorAlert error={error} />;
+  return (
+    <>
+      <ErrorAlert error={saveError} />
+      <CameraFxView
+        engine={engine}
+        reason={reason}
+        busy={busy}
+        onEngine={setEngine}
+        onReason={setReason}
+        onSave={() => {
+          setBusy(true);
+          setSaveError(null);
+          api.put<CameraFxSettings>('/admin/camera-fx', cameraFxBody(engine, reason)).then(
+            (saved) => {
+              setBusy(false);
+              setEngine(saved.cameraFxEngine);
+              setReason('');
+              toast(t('saved'));
+            },
+            (err: unknown) => {
+              setBusy(false);
+              setSaveError(err);
+            },
+          );
+        }}
+      />
     </>
   );
 }

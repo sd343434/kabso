@@ -60,6 +60,10 @@ enum LiveArProblem {
   /// switched off before the viewers saw more of it (`black_output`).
   blackPicture,
 
+  /// D228: the free engine kept taking longer than its frame budget on this
+  /// phone (`too_slow`); the camera goes on without it.
+  tooSlow,
+
   /// DeepAR did not start (or failed otherwise).
   failed,
 }
@@ -74,7 +78,11 @@ class LiveArStatus {
   factory from(KabsoCameraFxStatus status) => switch (status.state) {
     KabsoCameraFxState.off => off,
     KabsoCameraFxState.initializing => const LiveArStatus(LiveArState.starting),
-    KabsoCameraFxState.ready => const LiveArStatus(LiveArState.running),
+    // D228: the free engine may say `beauty_unavailable` while running.
+    KabsoCameraFxState.ready => LiveArStatus(
+      LiveArState.running,
+      code: status.reason,
+    ),
     KabsoCameraFxState.licenceFailed => LiveArStatus(
       LiveArState.unavailable,
       problem: LiveArProblem.licence,
@@ -82,9 +90,11 @@ class LiveArStatus {
     ),
     KabsoCameraFxState.disabled => LiveArStatus(
       LiveArState.unavailable,
-      problem: status.reason == 'black_output'
-          ? LiveArProblem.blackPicture
-          : LiveArProblem.stopped,
+      problem: switch (status.reason) {
+        'black_output' => LiveArProblem.blackPicture,
+        'too_slow' => LiveArProblem.tooSlow,
+        _ => LiveArProblem.stopped,
+      },
       code: status.reason,
     ),
     KabsoCameraFxState.error => LiveArStatus(
@@ -95,6 +105,11 @@ class LiveArStatus {
   };
 
   static const LiveArStatus off = LiveArStatus(LiveArState.off);
+
+  /// D228: the free engine's face model could not be loaded — the beauty
+  /// sliders say so (blur may still run).
+  bool get beautyUnavailable =>
+      code == 'beauty_unavailable' || code == 'model_unavailable';
 
   final LiveArState state;
   final LiveArProblem? problem;

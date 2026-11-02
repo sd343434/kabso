@@ -24,6 +24,12 @@
 /// it switches an effect off by itself rather than freeze the picture — and
 /// [KabsoCameraFx.diagnostics] feeds the non-release overlay.
 /// [KabsoPermissions] checks and asks for the camera and microphone.
+///
+/// D228: a second, **free** effects engine ([KabsoCameraFxEngine.free]:
+/// Google ML Kit selfie segmentation + MediaPipe Face Landmarker, GLSL on the
+/// GPU, no licence key) runs instead of DeepAR when picked with
+/// [KabsoCameraFx.setEngine]; its blur and beauty go through
+/// [KabsoCameraFx.setFreeFx]. One engine at a time; DeepAR is unchanged.
 library;
 
 import 'dart:async';
@@ -37,7 +43,80 @@ abstract final class KabsoCameraFxEffects {
   static const String backgroundBlur = 'builtin:background_blur';
 }
 
-/// DeepAR's state on the native side (D144a).
+/// D228: which effects engine the processor runs.
+enum KabsoCameraFxEngine {
+  /// DeepAR (D144; licence key, monthly active users).
+  deepAr('deepar'),
+
+  /// The free engine: ML Kit + MediaPipe + GLSL, on the device.
+  free('free');
+
+  const KabsoCameraFxEngine(this.wire);
+
+  /// The channel's value.
+  final String wire;
+}
+
+/// D228: what the free engine applies. Strengths are 0 … 1 (Magic's
+/// sliders are 0 … 100); out-of-range values are clamped.
+@immutable
+class KabsoFreeFx {
+  const KabsoFreeFx({
+    this.backgroundBlur = false,
+    this.smooth = 0,
+    this.brighten = 0,
+    this.slim = 0,
+    this.eyes = 0,
+  });
+
+  static const KabsoFreeFx none = KabsoFreeFx();
+
+  final bool backgroundBlur;
+
+  /// Skin smoothing (bilateral, on the face skin only).
+  final double smooth;
+
+  /// Brighten / whiten.
+  final double brighten;
+
+  /// Face slimming (a subtle jaw warp).
+  final double slim;
+
+  /// Eye enlargement (subtle).
+  final double eyes;
+
+  bool get isNone =>
+      !backgroundBlur && smooth <= 0 && brighten <= 0 && slim <= 0 && eyes <= 0;
+
+  Map<String, Object?> toMap() {
+    double unit(double v) => v.isNaN ? 0 : v.clamp(0, 1).toDouble();
+    return {
+      'blur': backgroundBlur,
+      'smooth': unit(smooth),
+      'brighten': unit(brighten),
+      'slim': unit(slim),
+      'eyes': unit(eyes),
+    };
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is KabsoFreeFx &&
+      other.backgroundBlur == backgroundBlur &&
+      other.smooth == smooth &&
+      other.brighten == brighten &&
+      other.slim == slim &&
+      other.eyes == eyes;
+
+  @override
+  int get hashCode => Object.hash(backgroundBlur, smooth, brighten, slim, eyes);
+}
+
+/// DeepAR's state on the native side (D144a). D228: the free engine reports
+/// the same states (its reasons: `gl_failed`, `init_failed`,
+/// `model_unavailable`, `too_slow`, `no_frames`, `init_timeout`, `no_output`;
+/// `ready` with `beauty_unavailable` when the face model could not be
+/// loaded but the blur runs).
 enum KabsoCameraFxState {
   /// No effect picked.
   off,
@@ -150,6 +229,19 @@ class KabsoCameraFxDiagnostics {
     this.heldBlack = 0,
     this.engine = -1,
     this.lastWarning,
+    this.fxEngine,
+    this.frameMs = 0,
+    this.lastFrameMs = 0,
+    this.budgetMs = 0,
+    this.slowFrames = 0,
+    this.skippedFrames = 0,
+    this.backoffs = 0,
+    this.analysisMs = 0,
+    this.segmentMs = 0,
+    this.landmarkMs = 0,
+    this.analyses = 0,
+    this.facePresent = false,
+    this.faceModel,
   });
 
   factory KabsoCameraFxDiagnostics.fromMap(Map<Object?, Object?> map) {
@@ -196,6 +288,19 @@ class KabsoCameraFxDiagnostics {
       heldBlack: count('heldBlack'),
       engine: map['engine'] is num ? count('engine') : -1,
       lastWarning: text('lastWarning'),
+      fxEngine: text('fxEngine'),
+      frameMs: ms('frameMs'),
+      lastFrameMs: ms('lastFrameMs'),
+      budgetMs: count('budgetMs'),
+      slowFrames: count('slowFrames'),
+      skippedFrames: count('skippedFrames'),
+      backoffs: count('backoffs'),
+      analysisMs: ms('analysisMs'),
+      segmentMs: ms('segmentMs'),
+      landmarkMs: ms('landmarkMs'),
+      analyses: count('analyses'),
+      facePresent: map['facePresent'] == true,
+      faceModel: text('faceModel'),
     );
   }
 
@@ -290,6 +395,37 @@ class KabsoCameraFxDiagnostics {
 
   /// D144c: DeepAR's last warning (its errors stay in [lastError]).
   final String? lastWarning;
+
+  /// D228: the engine these counters are from: `deepar` or `free`.
+  final String? fxEngine;
+
+  /// D228 (free engine): the GPU time per frame — the last second's average
+  /// and the last frame — against the budget (a frame over it goes raw).
+  final double frameMs;
+  final double lastFrameMs;
+  final int budgetMs;
+
+  /// D228: frames over the budget, frames passed raw while backing off,
+  /// and how many back-offs are running (3 in a row → `too_slow`).
+  final int slowFrames;
+  final int skippedFrames;
+  final int backoffs;
+
+  /// D228: the last analysis (segmentation + landmarks, on a 256-px copy)
+  /// and its two parts, in ms; analyses done.
+  final double analysisMs;
+  final double segmentMs;
+  final double landmarkMs;
+  final int analyses;
+
+  /// D228: a face is tracked now.
+  final bool facePresent;
+
+  /// D228: the face model: `absent`, `downloading`, `ready`, `failed`.
+  final String? faceModel;
+
+  /// D228: these counters are the free engine's.
+  bool get isFree => fxEngine == KabsoCameraFxEngine.free.wire;
 }
 
 /// Steers the native processor. The native side keeps a single processor;
@@ -373,6 +509,21 @@ class KabsoCameraFx {
   Future<void> setEffect(String? effect) async {
     if (!_supported) return;
     await _call<void>('setEffect', {'effect': effect});
+  }
+
+  /// D228: picks the effects engine. Switching turns the other one off
+  /// (DeepAR is released and never initialized while [KabsoCameraFxEngine.free]
+  /// runs). Forgotten by [release] (back to DeepAR).
+  Future<void> setEngine(KabsoCameraFxEngine engine) async {
+    if (!_supported) return;
+    await _call<void>('setEngine', {'engine': engine.wire});
+  }
+
+  /// D228: the free engine's blur and beauty ([KabsoFreeFx.none]: off).
+  /// Only applied while the free engine is picked.
+  Future<void> setFreeFx(KabsoFreeFx fx) async {
+    if (!_supported) return;
+    await _call<void>('setFreeFx', fx.toMap());
   }
 
   /// Takes the processor off its track and releases DeepAR and the GPU

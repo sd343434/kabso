@@ -40,4 +40,9 @@ abstract final class PreferenceKeys {
   /// D217: this install's random id (`DeviceInfo.installId`, the referral
   /// device check). Wiped on uninstall. Not sensitive.
   static const installId = 'pref.installId';
+
+  /// D228: the developer override of the camera effects engine on this
+  /// phone (`DEEPAR` / `FREE`; absent: the server's choice). Read and
+  /// written only in debug/profile builds. Not sensitive.
+  static const debugCameraFxEngine = 'debug.cameraFxEngine';
 }

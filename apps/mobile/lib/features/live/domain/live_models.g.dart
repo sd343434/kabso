@@ -20,6 +20,7 @@ _LiveConfig _$LiveConfigFromJson(Map<String, dynamic> json) => _LiveConfig(
   podcast: json['podcast'] == null
       ? const LivePodcastConfig()
       : LivePodcastConfig.fromJson(json['podcast'] as Map<String, dynamic>),
+  cameraFxEngine: json['cameraFxEngine'] as String? ?? 'DEEPAR',
 );
 
 Map<String, dynamic> _$LiveConfigToJson(_LiveConfig instance) =>
@@ -30,6 +31,7 @@ Map<String, dynamic> _$LiveConfigToJson(_LiveConfig instance) =>
       'themes': instance.themes,
       'seatCounts': instance.seatCounts,
       'podcast': instance.podcast,
+      'cameraFxEngine': instance.cameraFxEngine,
     };
 
 _LiveSeatCounts _$LiveSeatCountsFromJson(Map<String, dynamic> json) =>

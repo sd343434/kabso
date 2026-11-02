@@ -26,6 +26,12 @@ import java.util.concurrent.atomic.AtomicReference
  * and [framePath] says how the attach found the track ([FramePath]); the
  * overlay shows both, so "the processor gets no camera frames" is visible as
  * such instead of as a DeepAR that never starts.
+ *
+ * D228: a second, free effects engine ([FreeFxStage]: ML Kit + MediaPipe +
+ * GLSL) can run **instead of** DeepAR — [setEngine]. One engine at a time:
+ * switching turns the other one off (DeepAR released, never initialized
+ * while the free engine is picked). The free stage is created only when
+ * that engine is first chosen. The colour stage follows either.
  */
 internal class CameraFxProcessor(
     activity: Activity,
@@ -33,6 +39,12 @@ internal class CameraFxProcessor(
 ) : LocalVideoTrack.ExternalVideoFrameProcessing {
 
     private val deepAr = DeepArStage(activity, onStatus)
+
+    /** D228: which effects engine runs; the free stage is made on first use. */
+    enum class Engine { DEEPAR, FREE }
+
+    @Volatile private var engine = Engine.DEEPAR
+    private val freeFx = lazy { FreeFxStage(activity, onStatus) }
     private val color = ColorStage()
     private val main = Handler(Looper.getMainLooper())
 
@@ -47,13 +59,44 @@ internal class CameraFxProcessor(
 
     fun setLicenseKey(key: String) = deepAr.setLicenseKey(key)
 
-    fun setEffect(effect: DeepArStage.Effect?) = deepAr.setEffect(effect)
+    /** DeepAR's effect; D228: ignored (None) while the free engine runs. */
+    fun setEffect(effect: DeepArStage.Effect?) = deepAr.setEffect(if (engine == Engine.FREE) null else effect)
 
     fun setColorMatrix(matrix: FloatArray?) = color.setMatrix(matrix)
 
-    /** D144a: DeepAR's state and counters for the diagnostics overlay. */
-    fun diagnostics(): Map<String, Any?> =
-        deepAr.diagnostics() + mapOf("cameraFrames" to cameraFrames.get(), "framePath" to framePath)
+    /**
+     * D228: picks the effects engine. The one left is switched off (DeepAR:
+     * its effect to None, so it is released; the free stage: [FreeFxParams.NONE]).
+     */
+    fun setEngine(next: Engine) {
+        if (next == engine) return
+        engine = next
+        if (next == Engine.FREE) {
+            deepAr.setEffect(null)
+        } else if (freeFx.isInitialized()) {
+            freeFx.value.configure(FreeFxParams.NONE)
+        }
+    }
+
+    /** D228: the free engine's blur and beauty (only used while it is the engine). */
+    fun setFreeFx(params: FreeFxParams) {
+        if (engine != Engine.FREE && !freeFx.isInitialized()) return
+        freeFx.value.configure(if (engine == Engine.FREE) params else FreeFxParams.NONE)
+    }
+
+    /** D144a: the engine's state and counters for the diagnostics overlay. */
+    fun diagnostics(): Map<String, Any?> {
+        val stage = when {
+            engine != Engine.FREE -> deepAr.diagnostics()
+            freeFx.isInitialized() -> freeFx.value.diagnostics()
+            else -> mapOf("state" to FreeFxMachine.STATE_OFF)
+        }
+        return stage + mapOf(
+            "cameraFrames" to cameraFrames.get(),
+            "framePath" to framePath,
+            "fxEngine" to if (engine == Engine.FREE) "free" else "deepar",
+        )
+    }
 
     override fun onFrame(frame: VideoFrame): VideoFrame {
         // Before any bail-out: DeepAR's render texture is single and must
@@ -61,8 +104,15 @@ internal class CameraFxProcessor(
         lastReturned.getAndSet(null)?.release()
 
         cameraFrames.incrementAndGet()
-        // DeepAR, then the colour transform on its output (D144b: FxChain).
-        val (out, ours) = FxChain.run(frame, deepAr::process, color::process) { it.release() }
+        // DeepAR (or, D228, the free engine), then the colour transform on
+        // its output (D144b: FxChain).
+        val effect: (VideoFrame) -> VideoFrame? = when {
+            engine != Engine.FREE -> deepAr::process
+            // Made by the first pick (setFreeFx); until then nothing to do.
+            freeFx.isInitialized() -> freeFx.value::process
+            else -> NO_EFFECT
+        }
+        val (out, ours) = FxChain.run(frame, effect, color::process) { it.release() }
         if (ours) lastReturned.set(out)
         return out
     }
@@ -77,16 +127,18 @@ internal class CameraFxProcessor(
         main.postDelayed({ stale.release() }, STALE_RELEASE_DELAY_MS)
     }
 
-    /** Releases DeepAR and the GPU stage (after [detachFrom]). */
+    /** Releases DeepAR, the free stage and the GPU stage (after [detachFrom]). */
     fun dispose() {
         // After a frame the sink may still hold has been released.
         main.postDelayed({
             deepAr.dispose()
+            if (freeFx.isInitialized()) freeFx.value.dispose()
             color.dispose()
         }, STALE_RELEASE_DELAY_MS * 2)
     }
 
     private companion object {
         const val STALE_RELEASE_DELAY_MS = 250L
+        val NO_EFFECT: (VideoFrame) -> VideoFrame? = { null }
     }
 }

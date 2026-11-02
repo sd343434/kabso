@@ -6,6 +6,12 @@ import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { PaymentSettingsStore } from '../payment-settings/payment-settings.store.js';
 import {
+  CAMERA_FX_SETTING_KEY,
+  readCameraFxEngine,
+  type CameraFxSettingsDto,
+  type UpdateCameraFxInput,
+} from './camera-fx.rules.js';
+import {
   SETTING_KEYS,
   SITE_SETTINGS_DEFAULTS,
   storedSocial,
@@ -90,6 +96,45 @@ export class SiteSettingsService {
         metadata: {
           before: before as unknown as Prisma.InputJsonObject,
           after: after as unknown as Prisma.InputJsonObject,
+          ...(input.reason ? { reason: input.reason } : {}),
+          via: 'panel',
+        },
+        ip: actor.ip,
+        requestId: actor.requestId,
+      });
+      return after;
+    });
+  }
+
+  /** D228: the camera effects engine (`LiveConfig.cameraFxEngine`). */
+  async getCameraFx(
+    db: Pick<Prisma.TransactionClient, 'siteSetting'> = this.prisma,
+  ): Promise<CameraFxSettingsDto> {
+    return { cameraFxEngine: await readCameraFxEngine(db) };
+  }
+
+  /**
+   * D228: the OWNER flips the engine from the panel; audited in the same transaction as a site-settings change
+   * (`site.settings.update`, `metadata.key` = `cameraFxEngine`, before and after).
+   */
+  async updateCameraFx(input: UpdateCameraFxInput, actor: SiteSettingsActor): Promise<CameraFxSettingsDto> {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('site_settings'))`;
+      const before = await this.getCameraFx(tx);
+      const after: CameraFxSettingsDto = { cameraFxEngine: input.cameraFxEngine };
+      await tx.siteSetting.upsert({
+        where: { key: CAMERA_FX_SETTING_KEY },
+        create: { key: CAMERA_FX_SETTING_KEY, value: after.cameraFxEngine, updatedById: actor.userId },
+        update: { value: after.cameraFxEngine, updatedById: actor.userId },
+      });
+      await this.audit.recordIn(tx, {
+        action: AuditAction.SITE_SETTINGS_UPDATE,
+        actorUserId: actor.userId,
+        targetType: 'site_settings',
+        metadata: {
+          key: CAMERA_FX_SETTING_KEY,
+          before: before.cameraFxEngine,
+          after: after.cameraFxEngine,
           ...(input.reason ? { reason: input.reason } : {}),
           via: 'panel',
         },

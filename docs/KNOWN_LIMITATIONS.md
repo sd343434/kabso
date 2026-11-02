@@ -312,3 +312,84 @@
   that device in the panel (user page → «الجهاز»). Accounts made before D223 have no device and never count.
 - **Rotating the key resets the counts.** Changing `SIGNUP_DEVICE_KEY` (or `RATE_LIMIT_KEY_SECRET` while it is unset)
   makes every device start again from 0.
+
+## The free camera effects engine beside DeepAR (v1.49-live draft, D228)
+
+- **Never run on a phone.** No Android device or emulator here, and the full APK was not built in this environment
+  (disk shared and short; see the board row). What ran: the plugin's Kotlin compiled against the real DeepAR 5.6.22,
+  WebRTC 150.7871.01, ML Kit segmentation-selfie 16.0.0-beta6 and MediaPipe tasks-vision 1.1.1 classes; the JVM tests;
+  the GLSL compiled in WebGL 1 (GLSL ES 1.00, SwiftShader) with the warp checked pixel by pixel against the Kotlin
+  twin. **Unverified:** frame rate (target 30 fps at 720p), the real per-frame GPU time and the 40 ms budget, picture
+  quality of the blur edge and the beauty, memory, heat/battery, front/back camera orientation of the mask and the
+  landmarks, the face model download on mobile data, R8/ProGuard in a release build (consumer keep rules were added for
+  MediaPipe; ML Kit ships its own).
+- **Lag on fast movement.** Segmentation and landmarks run asynchronously on a 256-px copy (every other frame when the
+  phone keeps up); the frame drawn uses the latest result, one or two frames old. The slimming/eye warp can trail a
+  quickly moving face; the masks are smoothed over time on purpose.
+- **Slow phones.** A frame whose GPU work is not done in 40 ms goes out raw; 3 slow frames in a row → 30 frames raw;
+  3 such back-offs without 90 good frames between them → the effect switches off (`too_slow`, Magic says why).
+- **Usage metrics to Google.** ML Kit and MediaPipe send Google their own usage/performance metrics (never the
+  picture). Not turned off. Owner approved disclosing it (2026-11-01): the privacy policy text has the line (§2 and
+  §5 of `infra/deploy/site/privacy.html`, ar + en), **not yet published as a new version** (the owner publishes);
+  the Play Data safety answers are PP-39 — the Google pages behind them could not be opened from the authoring
+  environment and must be re-read when the form is filled.
+- **APK size:** about +36 MB of native code per ABI (arm64, uncompressed, ~12 MB compressed; approved by the owner
+  2026-11-01); see docs/DEPLOYMENT.md §9.2.
+- **One engine for every host.** The server switch is global; the per-phone override exists only in debug/profile
+  builds. iOS is unchanged (no camera processor there yet).
+
+- **DeepAR in the privacy policy (owner approved 2026-11-01).** `privacy.html` §2 and §5 now name DeepAR
+  (I Love Ice Cream Ltd., UK). *Verified:* DeepAR's FAQ (docs.deepar.ai/faq, read 2026-11-01) — camera processing on
+  the device, not stored on its servers; non-personal device data (app ID, screen resolution, OS version, a random
+  seed, date) kept for licence validation and MAU, "not restricted to" that list; the company name from deepar.ai's
+  privacy notice and docs footer; in the 5.6.22 AAR, a Java `sendRequest` HTTP POST and, in `libnative-lib.so`, the
+  Google Analytics Measurement Protocol endpoint with DeepAR's tracking ID `UA-109020681-1` (`AnalyticsAndroid::
+  trackApp/trackEvent`). *Not verified:* what DeepAR actually sends at run time (no device, no traffic capture),
+  whether the analytics events still fire (Universal Analytics is retired by Google) and what they contain, and the
+  exact licence-validation request. The policy is therefore worded conservatively ("such as …", "contains code that
+  sends usage events"); confirm by capturing the phone's traffic with DeepAR on before the policy version is
+  published. DeepAR's own privacy notice covers only its website, not SDK end users — ask DeepAR for a DPA / SDK data
+  statement. Note: the D144 comment in `KabsoCameraFxPlugin.kt` says DeepAR validates its licence "through a WebView";
+  no WebView use appears in the SDK's Java classes (the comment is left as it is; not re-tested).
+
+- **Effects after the live's foreground service starts (the D232 finding).** The service's second FlutterEngine
+  overwrites flutter_webrtc's static `sharedSingleton` with an instance that has no tracks, so `kabso_camera_fx`
+  could not find the host's camera track after a live started (effects, DeepAR, the free engine and the colour
+  filters silently not applied, or a re-attach after unmute / a quality change failing). Fixed the same way as
+  D232's music plugin: `attach` asks the flutter_webrtc of the plugin's own engine first, then the singleton
+  (`OwnEngineFirst`, JVM-tested). The stages' EGL context comes from flutter_webrtc's process-wide `EglUtils`, which
+  the second engine does not replace. **Device must confirm:** go live, wait for the foreground notification, then
+  pick a colour filter, DeepAR blur and the free engine's blur/beauty — and mute/unmute the camera (re-attach) —
+  and check the effect appears on a viewer's phone; the FX overlay's `camera` count must keep rising.
+
+### Removing the free engine (if the owner does not like it)
+
+1. `apps/mobile/packages/kabso_camera_fx/android/`: delete `src/main/kotlin/com/kabso/kabso_camera_fx/FreeFxStage.kt`,
+   `FreeFxGl.kt`, `FreeFxRules.kt` and `src/test/kotlin/com/kabso/kabso_camera_fx/FreeFxRulesTest.kt`; in
+   `build.gradle` remove the two `implementation` lines (`com.google.mlkit:segmentation-selfie`,
+   `com.google.mediapipe:tasks-vision`) and set `minSdkVersion` back to 23 if wanted; in `proguard-rules.pro` remove the
+   D228 block; in `CameraFxProcessor.kt` remove `Engine`, `freeFx`, `setEngine`, `setFreeFx` and the `when` in
+   `onFrame` (back to `deepAr::process`); in `KabsoCameraFxPlugin.kt` remove `setEngine` / `setFreeFx` and the
+   `engine` / `freeFx` fields; in `THIRD_PARTY_NOTICES.md` remove the D228 section.
+2. Plugin Dart (`lib/kabso_camera_fx.dart`): remove `KabsoCameraFxEngine`, `KabsoFreeFx`, `setEngine`, `setFreeFx` and
+   the D228 diagnostics fields; their tests in `test/kabso_camera_fx_test.dart` (group «D228 free engine»).
+3. App: delete `lib/features/live/data/beauty/live_fx_engine.dart`,
+   `lib/features/live/application/live_fx_engine_providers.dart`, `test/features/live/free_fx_d228_test.dart`; remove
+   `LiveBeauty.free`, `LiveMediaEngine.fxEngine/setFxEngine` (+ `LiveKitMediaEngine`, `FakeLiveMediaEngine`),
+   `LiveCameraFx.setEngine/_syncFree`, `LiveHostController.setFreeBeauty/setFxEngine`, the `listenManual` in
+   `go_live_screen.dart`, Magic's `fxEngine/freeBeauty/onFreeBeauty` and `_FreeBeautySection` in `go_live_parts.dart`,
+   the overlay's override chips and `_freeLines` in `live_fx_diagnostics.dart`, `PreferenceKeys.debugCameraFxEngine`,
+   the `liveFreeBeauty*` / `liveEffectsEngineFree` strings (keep `liveEffectUnavailableSlow` only if wanted), and
+   `LiveConfig.cameraFxEngine` (regenerate with build_runner); the fakes' `setEngine/setFreeFx`.
+4. API/admin (optional — DEEPAR is the default, so leaving them is harmless): `src/modules/site-settings/camera-fx.rules.ts`
+   (+ spec), `AdminCameraFxController`, `SiteSettingsService.getCameraFx/updateCameraFx`, `LiveConfigDto.cameraFxEngine`
+   in `live-rooms.service.ts`, `test/d228-camera-fx.e2e-spec.ts` and the line in `kl037`; the panel card in
+   `apps/admin/src/pages/SiteSettings.tsx`, `src/i18n-d228.ts`, `test/camera-fx.test.tsx`; the contract
+   (`CameraFxEngine`, `CameraFxSettings`, `UpdateCameraFxRequest`, the two operations, the `LiveConfig` field,
+   CONVENTIONS §10.79) through a contract change; a new migration may delete the `cameraFxEngine` row and restore the
+   CHECK.
+5. Privacy and store: remove the camera-effects paragraph and the Google (ML Kit / MediaPipe) processor line from
+   `infra/deploy/site/privacy.html` (publish as a new version) and drop PP-39 / its Data safety answers.
+6. On phones: the downloaded model (`files/kabso_camera_fx/face_landmarker.task`, 3.6 MB) is deleted with the app's
+   data; an update that removes the engine leaves it until then (harmless).
+

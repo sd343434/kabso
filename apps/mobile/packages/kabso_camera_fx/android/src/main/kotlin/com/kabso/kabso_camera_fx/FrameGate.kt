@@ -593,3 +593,30 @@ internal class OutputVerifier(
         const val NONE = Long.MIN_VALUE
     }
 }
+
+/**
+ * D228 (the D232 finding): which flutter_webrtc instance holds the host's
+ * camera track. The live's foreground service (flutter_foreground_task, D123)
+ * starts a SECOND FlutterEngine that registers every plugin again, and
+ * flutter_webrtc's constructor overwrites the static
+ * `FlutterWebRTCPlugin.sharedSingleton` with that engine's instance — which
+ * never created a WebRTC factory and holds no tracks. So the instance of THIS
+ * plugin's own engine (the app's) is asked first, the singleton only after
+ * it; the first that has the track wins. A lookup that throws counts as "not
+ * there". [P] is `FlutterWebRTCPlugin` on the device, a fake in the tests.
+ */
+internal object OwnEngineFirst {
+    fun <P : Any, R : Any> find(own: P?, shared: P?, lookup: (P) -> R?): Pair<P, R>? {
+        val candidates = if (shared == null || shared === own) listOfNotNull(own) else listOfNotNull(own, shared)
+        for (plugin in candidates) {
+            val found = try {
+                lookup(plugin)
+            } catch (_: RuntimeException) {
+                null
+            }
+            if (found != null) return plugin to found
+        }
+        return null
+    }
+}
+

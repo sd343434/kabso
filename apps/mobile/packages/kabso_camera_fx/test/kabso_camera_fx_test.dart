@@ -307,4 +307,83 @@ void main() {
       );
     });
   });
+
+  group('D228 free engine', () {
+    test('the engine switch and the free effects reach the plugin', () async {
+      final fx = KabsoCameraFx(supported: true);
+      await fx.setEngine(KabsoCameraFxEngine.free);
+      await fx.setFreeFx(
+        const KabsoFreeFx(backgroundBlur: true, smooth: 0.4, eyes: 1.6),
+      );
+      await fx.setFreeFx(KabsoFreeFx.none);
+      await fx.setEngine(KabsoCameraFxEngine.deepAr);
+      expect(calls.map((c) => c.method), [
+        'setEngine',
+        'setFreeFx',
+        'setFreeFx',
+        'setEngine',
+      ]);
+      expect(calls[0].arguments, {'engine': 'free'});
+      expect(calls[1].arguments, {
+        'blur': true,
+        'smooth': 0.4,
+        'brighten': 0.0,
+        'slim': 0.0,
+        'eyes': 1.0,
+      });
+      expect((calls[2].arguments as Map)['blur'], isFalse);
+      expect(calls[3].arguments, {'engine': 'deepar'});
+      expect(KabsoFreeFx.none.isNone, isTrue);
+      expect(const KabsoFreeFx(brighten: 0.1).isNone, isFalse);
+    });
+
+    test('elsewhere: nothing is sent', () async {
+      final fx = KabsoCameraFx(supported: false);
+      await fx.setEngine(KabsoCameraFxEngine.free);
+      await fx.setFreeFx(const KabsoFreeFx(backgroundBlur: true));
+      expect(calls, isEmpty);
+    });
+
+    test("diagnostics carry the free engine's times and model", () {
+      final d = KabsoCameraFxDiagnostics.fromMap({
+        'state': 'ready',
+        'reason': 'beauty_unavailable',
+        'fxEngine': 'free',
+        'framesIn': 300,
+        'framesOut': 290,
+        'timeouts': 10,
+        'frameMs': 11.5,
+        'lastFrameMs': 9,
+        'budgetMs': 40,
+        'slowFrames': 3,
+        'skippedFrames': 30,
+        'backoffs': 1,
+        'analysisMs': 21.0,
+        'segmentMs': 8.25,
+        'landmarkMs': 12.5,
+        'analyses': 140,
+        'facePresent': true,
+        'faceModel': 'failed',
+      });
+      expect(d.isFree, isTrue);
+      expect(d.status.state, KabsoCameraFxState.ready);
+      expect(d.status.reason, 'beauty_unavailable');
+      expect(d.frameMs, 11.5);
+      expect(d.lastFrameMs, 9);
+      expect(d.budgetMs, 40);
+      expect(d.slowFrames, 3);
+      expect(d.skippedFrames, 30);
+      expect(d.backoffs, 1);
+      expect(d.analysisMs, 21);
+      expect(d.segmentMs, 8.25);
+      expect(d.landmarkMs, 12.5);
+      expect(d.analyses, 140);
+      expect(d.facePresent, isTrue);
+      expect(d.faceModel, 'failed');
+      expect(
+        KabsoCameraFxDiagnostics.fromMap({'fxEngine': 'deepar'}).isFree,
+        isFalse,
+      );
+    });
+  });
 }

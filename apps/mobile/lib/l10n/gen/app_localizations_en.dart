@@ -7347,6 +7347,40 @@ class AppLocalizationsEn extends AppLocalizations {
       'The effect isn\'t available right now: its picture came out black, so the camera went on without it before viewers saw it. Try it again later.';
 
   @override
+  String get liveEffectUnavailableSlow =>
+      'The effect isn\'t available right now: it was too slow to keep up with the camera on this phone, so the camera went on without it.';
+
+  @override
+  String get liveEffectsEngineFree =>
+      'Engine: free, on the device (ML Kit + MediaPipe)';
+
+  @override
+  String get liveFreeBeautyTitle => 'Beauty';
+
+  @override
+  String get liveFreeBeautyOn => 'Face beauty';
+
+  @override
+  String get liveFreeBeautyNote =>
+      'The face model (3.6 MB) downloads once on first use; then everything runs on the phone.';
+
+  @override
+  String get liveFreeBeautyUnavailable =>
+      'Beauty isn\'t available right now: the face model couldn\'t be loaded. Check your connection and try again.';
+
+  @override
+  String get liveFreeBeautySmooth => 'Smooth skin';
+
+  @override
+  String get liveFreeBeautyBrighten => 'Brighten';
+
+  @override
+  String get liveFreeBeautySlim => 'Slim face';
+
+  @override
+  String get liveFreeBeautyEyes => 'Bigger eyes';
+
+  @override
   String get liveLuckyBigWin => 'BIG WIN';
 
   @override

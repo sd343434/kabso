@@ -172,7 +172,7 @@ export class LiveController {
   @Get('config')
   @OptionalAuth()
   @RateLimit(GUEST_READ)
-  config(): LiveConfigDto {
+  config(): Promise<LiveConfigDto> {
     return this.rooms.getConfig();
   }
 

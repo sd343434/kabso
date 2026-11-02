@@ -4707,6 +4707,7 @@ model AdminSession {
 
 /// v1.60-social (D191/D192, CONVENTIONS §10.54.6): the public website's settings, one row per key
 /// (`socials`, `topupEnabled`). Read by `GET /site/settings`, changed by the OWNER from the panel (audited).
+/// D228: also `cameraFxEngine` (`"DEEPAR"` / `"FREE"`), served in `LiveConfig.cameraFxEngine`.
 model SiteSetting {
   key         String   @id @db.VarChar(40)
   value       Json     @db.JsonB

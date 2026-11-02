@@ -8,6 +8,7 @@ import com.cloudwebrtc.webrtc.FlutterWebRTCPlugin
 import com.cloudwebrtc.webrtc.GetUserMediaImpl
 import com.cloudwebrtc.webrtc.video.LocalVideoTrack
 import io.flutter.FlutterInjector
+import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
@@ -39,6 +40,19 @@ import org.webrtc.VideoSource
  * a camera opened twice), and `release` with a `trackId` only releases the
  * processor if it is still on that track — a go-live screen closing after the
  * next one opened its camera must not take the new one's processor away.
+ *
+ * D228 (the D232 finding): the live's foreground service starts a second
+ * FlutterEngine whose flutter_webrtc overwrites the static
+ * `FlutterWebRTCPlugin.sharedSingleton` (no factory, no tracks). [attach]
+ * now looks the camera track up in the flutter_webrtc of THIS plugin's own
+ * engine first and only then in the singleton ([OwnEngineFirst]) — DeepAR,
+ * the free engine and the colour stage all hang off that one attach. (Their
+ * EGL context comes from flutter_webrtc's process-wide `EglUtils`, which the
+ * second engine does not replace.)
+ *
+ * D228: `setEngine` (`deepar` | `free`) and `setFreeFx` (`{blur, smooth,
+ * brighten, slim, eyes}`, strengths 0 … 1) steer the free engine
+ * ([FreeFxStage]); kept like the rest for a processor created later.
  */
 class KabsoCameraFxPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHandler {
     private var channel: MethodChannel? = null
@@ -51,13 +65,20 @@ class KabsoCameraFxPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCa
     /** The last DeepAR status, kept across processors (Dart may ask). */
     private var lastStatus: Map<String, Any?> = mapOf("state" to "off", "reason" to null)
     private var processor: CameraFxProcessor? = null
+
+    /** D228/D232: this plugin's own engine (its flutter_webrtc holds the tracks). */
+    private var flutterEngine: FlutterEngine? = null
     private var attachedTrack: LocalVideoTrack? = null
 
     private var licenseKey: String? = null
     private var colorMatrix: FloatArray? = null
     private var effect: DeepArStage.Effect? = null
+    private var engine = CameraFxProcessor.Engine.DEEPAR
+    private var freeFx = FreeFxParams.NONE
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+        @Suppress("DEPRECATION")
+        flutterEngine = binding.flutterEngine
         channel = MethodChannel(binding.binaryMessenger, CHANNEL).also {
             it.setMethodCallHandler(this)
         }
@@ -72,6 +93,7 @@ class KabsoCameraFxPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCa
         permissionsChannel?.setMethodCallHandler(null)
         permissionsChannel = null
         releaseProcessor()
+        flutterEngine = null
     }
 
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
@@ -133,6 +155,20 @@ class KabsoCameraFxPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCa
                 processor?.setEffect(effect)
                 result.success(null)
             }
+            "setEngine" -> {
+                engine = if (call.argument<String>("engine") == "free") {
+                    CameraFxProcessor.Engine.FREE
+                } else {
+                    CameraFxProcessor.Engine.DEEPAR
+                }
+                processor?.setEngine(engine)
+                result.success(null)
+            }
+            "setFreeFx" -> {
+                freeFx = FreeFxParams.fromMap(call.arguments as? Map<*, *>)
+                processor?.setFreeFx(freeFx)
+                result.success(null)
+            }
             "diagnostics" -> {
                 val diagnostics = processor?.diagnostics() ?: (lastStatus + mapOf(
                     "licencePresent" to !licenseKey.isNullOrEmpty(),
@@ -153,6 +189,8 @@ class KabsoCameraFxPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCa
                 releaseProcessor()
                 colorMatrix = null
                 effect = null
+                freeFx = FreeFxParams.NONE
+                engine = CameraFxProcessor.Engine.DEEPAR
                 lastStatus = mapOf("state" to "off", "reason" to null)
                 result.success(null)
             }
@@ -163,17 +201,22 @@ class KabsoCameraFxPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCa
     private fun attach(trackId: String?): Boolean {
         val host = activity ?: return false
         if (trackId.isNullOrEmpty()) return false
-        val webrtc = FlutterWebRTCPlugin.sharedSingleton ?: return false
-        val track = webrtc.getLocalTrack(trackId) as? LocalVideoTrack
-        if (track == null) {
-            Log.w(TAG, "attach: no local video track with that id")
+        // D228/D232: the own engine's flutter_webrtc first, then the singleton.
+        val own = flutterEngine?.plugins?.get(FlutterWebRTCPlugin::class.java) as? FlutterWebRTCPlugin
+        val found = OwnEngineFirst.find(own, FlutterWebRTCPlugin.sharedSingleton) { plugin ->
+            plugin.getLocalTrack(trackId) as? LocalVideoTrack
+        }
+        if (found == null) {
+            Log.w(TAG, "attach: no local video track with that id (own engine ${own != null})")
             return false
         }
+        val (webrtc, track) = found
         if (track === attachedTrack) return true
         val current = processor ?: CameraFxProcessor(host, ::onStatus).also { created ->
             licenseKey?.let(created::setLicenseKey)
             created.setColorMatrix(colorMatrix)
-            created.setEffect(effect)
+            created.setEngine(engine)
+            if (engine == CameraFxProcessor.Engine.FREE) created.setFreeFx(freeFx) else created.setEffect(effect)
             processor = created
         }
         attachedTrack?.let { previous -> current.detachFrom(previous) }
