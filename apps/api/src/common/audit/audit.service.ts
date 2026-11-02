@@ -370,6 +370,13 @@ export enum AuditAction {
   RECHARGE_ORDER_ADMIN_MESSAGE = 'recharge.order.admin_message',
   RECHARGE_RATE_SET = 'recharge.rate.set',
   RECHARGE_RATE_CLEAR = 'recharge.rate.clear',
+  // v1.81-social (DRAFT, D245): automatic exchange rates — the OWNER's paid provider «مزوّد أسعار الصرف» (a change with
+  // the key's last 4 only, the removal, a «اختبار الاتصال»), «تحديث الآن» and the acceptance of a held (jumped) value.
+  FX_SETTINGS_UPDATE = 'fx.settings.update',
+  FX_SETTINGS_CLEAR = 'fx.settings.clear',
+  FX_SETTINGS_TEST = 'fx.settings.test',
+  FX_RATES_REFRESH = 'fx.rates.refresh',
+  FX_RATE_ACCEPT_HELD = 'fx.rate.accept_held',
   // v1.72-social (DRAFT, D208, CONVENTIONS §10.67): the account controls «تحكم كامل» (panel and `control-admin`).
   // Every row has the reason, `via` and `before` / `after`; never a password, token or full email in the clear.
   /** A temporary lock «قفل الحساب» {kind: LOCK, endsAt, sessions} and its early end. */

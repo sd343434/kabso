@@ -12,6 +12,7 @@ import {
   StorageSettingsModule,
 } from './modules/storage-settings/storage-settings.module.js';
 import { KycCoreModule, KycModule } from './modules/kyc/kyc.module.js';
+import { FxCoreModule, FxModule } from './modules/fx/fx.module.js';
 import { AuditModule } from './common/audit/audit.module.js';
 import { BackgroundTasksModule } from './common/background/background-tasks.js';
 import { AllExceptionsFilter } from './common/errors/all-exceptions.filter.js';
@@ -88,6 +89,8 @@ export class AppModule {
         StorageSettingsCoreModule,
         // v1.80-kyc (DRAFT, D227): identity checks with Didit (the settings store, read by the applications).
         KycCoreModule,
+        // v1.81-social (DRAFT, D245): automatic exchange rates (the resolver every price reads, and the poller).
+        FxCoreModule,
         MediaModule,
         PostsModule,
         SafetyModule,
@@ -137,6 +140,8 @@ export class AppModule {
         StorageSettingsModule,
         // v1.80-kyc (DRAFT, D227): «تأكيد الهوية» (Didit), its webhook and the panel's «التحقق من الهوية (Didit)».
         KycModule,
+        // v1.81-social (DRAFT, D245): «مزوّد أسعار الصرف», «تحديث الآن» and held values in the panel.
+        FxModule,
         // v1.61-social (DRAFT, D192): the public website's waitlist.
         WaitlistModule,
         // v1.66-social (DRAFT, D198): privacy — legal documents, consents (the 428 gate) and the data export.

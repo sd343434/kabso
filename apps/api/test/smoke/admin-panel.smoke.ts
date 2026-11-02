@@ -23,8 +23,9 @@ import { MemoryObjectStorage } from '../helpers/memory-storage.js';
 import { createTestApp, registerVerified, withMigrationClient } from '../helpers/test-app.js';
 
 // D222: `SMOKE_STORAGE=1` serves storage-settings.smoke.ts instead (one server on SMOKE_PORT at a time); D227:
-// `SMOKE_KYC=1` serves kyc-settings.smoke.ts.
-const other = process.env.SMOKE_STORAGE === '1' || process.env.SMOKE_KYC === '1';
+// `SMOKE_KYC=1` serves kyc-settings.smoke.ts; D245: `SMOKE_FX=1` serves fx-rates.smoke.ts.
+const other =
+  process.env.SMOKE_STORAGE === '1' || process.env.SMOKE_KYC === '1' || process.env.SMOKE_FX === '1';
 it.skipIf(other)('serves the admin panel smoke API', async () => {
   const port = Number(process.env.SMOKE_PORT ?? 3000);
   const file = process.env.SMOKE_FILE ?? 'admin-smoke.json';

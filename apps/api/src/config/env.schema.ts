@@ -1154,6 +1154,35 @@ export const envSchema = z
     RECHARGE_ORDER_DISPUTE_AFTER_MINUTES: intSetting(15, 0, 1440),
     RECHARGE_ORDER_SWEEP_INTERVAL_SECONDS: intSetting(60, 0, 3600),
     /**
+     * v1.81-social (D245, CONVENTIONS §10.87): automatic exchange rates for every country. The free no-key feed
+     * (ExchangeRate-API «open access», USD base, updated once a day) is read every FX_FREE_INTERVAL_SECONDS (default
+     * 1 hour, at least 10 minutes: the feed is daily and asks not to be polled more often); when the OWNER turns on a
+     * paid provider in the panel «مزوّد أسعار الصرف», every FX_PAID_INTERVAL_SECONDS (default 60, at least 60).
+     * FX_POLL_TICK_SECONDS is how often each API instance checks whether a fetch is due (0 = no automatic fetch:
+     * tests; the manual rates still apply). Automatic rates older than FX_STALE_AFTER_HOURS are not used (USD only);
+     * a value that moves more than FX_MAX_JUMP_PERCENT from the last good one is held for the team's review.
+     * The URLs are the providers' (tests point them at a local stub).
+     */
+    FX_FREE_URL: z.string().trim().url().default('https://open.er-api.com/v6/latest/USD'),
+    FX_CURRENCYAPI_BASE_URL: z
+      .string()
+      .trim()
+      .url()
+      .default('https://api.currencyapi.com')
+      .transform((v) => v.replace(/\/+$/, '')),
+    FX_EXCHANGERATE_API_BASE_URL: z
+      .string()
+      .trim()
+      .url()
+      .default('https://v6.exchangerate-api.com')
+      .transform((v) => v.replace(/\/+$/, '')),
+    FX_FREE_INTERVAL_SECONDS: intSetting(3600, 600, 86_400),
+    FX_PAID_INTERVAL_SECONDS: intSetting(60, 60, 86_400),
+    FX_POLL_TICK_SECONDS: intSetting(30, 0, 300),
+    FX_STALE_AFTER_HOURS: intSetting(48, 1, 720),
+    FX_MAX_JUMP_PERCENT: intSetting(50, 1, 1000),
+    FX_FETCH_TIMEOUT_MS: intSetting(10_000, 1000, 60_000),
+    /**
      * v1.54-social (D185, §10.48.1): special usernames («يوزر مميز»). After one ends, the name stays reserved
      * for the person this many days (a `coin` name: forever). The sweeper ends expired ones and releases names.
      */
@@ -1655,6 +1684,12 @@ export const envSchema = z
           path: ['RECHARGE_AGENT_SWEEP_INTERVAL_SECONDS'],
           message: 'the recharge-agent sweeper (KYC retention) cannot be disabled in production',
         });
+      }
+      // D245: the exchange-rate feeds are fetched over HTTPS only (the paid key travels with the request).
+      for (const k of ['FX_FREE_URL', 'FX_CURRENCYAPI_BASE_URL', 'FX_EXCHANGERATE_API_BASE_URL'] as const) {
+        if (!env[k].startsWith('https://')) {
+          ctx.addIssue({ code: 'custom', path: [k], message: 'must be https:// in production' });
+        }
       }
       // D204: an expired order must give the agent's frozen coins back on time.
       if (env.RECHARGE_ORDER_SWEEP_INTERVAL_SECONDS === 0) {

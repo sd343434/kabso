@@ -470,3 +470,23 @@
 - **An older app** shows a DARES invitation as a normal PK and cannot answer a dare (it then counts as refused after
   30 s); ship the app before announcing the type.
 - Not verified on a device or with real LiveKit (the draw animation and the banner in the second room).
+
+## Automatic exchange rates (v1.81-social draft, D245)
+
+- **The free feed is daily.** ExchangeRate-API's open-access data changes once a day (the API reads it hourly), so a
+  local price can be up to a day behind the market. Minute updates need the OWNER's paid provider (§10.87.4).
+- **Attribution.** The free feed's terms ask for «Rates By Exchange Rate API» (linked) where its rates are shown. The
+  panel shows it; the app's recharge screen does not yet. If the provider
+  requires it in the app too, add the line to the order screen (API: `AdminFxStatus.attribution`; not in
+  `RechargePrice`). The terms were not re-read online during D245 (no network from the build session).
+- **Stale → USD only**, not «تقريبي»: after 48 h without fresh data a country shows the USD price only.
+- **A held value** (jump > 50 %) is not used until the team accepts it; if nobody does, that currency falls back to
+  USD only once its last good value is 48 h old. Large real devaluations therefore need a person.
+- **Rates are display prices.** The buyer pays the agent outside the app; the local amount is informative and stored
+  with the order at creation.
+- **No fallback between sources.** While a paid provider is on and failing, the server backs off on it (up to 1 h)
+  instead of switching to the free feed; the panel shows the error.
+- **Countries outside ISO 3166-1** that the app may still accept (AC, DG, EA, IC, TA, …) have no currency in the table:
+  USD only unless a manual rate is set.
+- Not verified against the real providers (tests use a local stub; the request shapes follow their public docs as
+  known on 2026-11-02).
