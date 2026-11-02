@@ -42,6 +42,7 @@ class LivePkState {
     this.notice,
     this.offset = Duration.zero,
     this.opponentJoined = false,
+    this.rematchBanner,
   });
 
   /// The room's BATTLE or RESULT match (null: no PK; the solo live).
@@ -69,6 +70,9 @@ class LivePkState {
   /// The other room's connection is up.
   final bool opponentJoined;
 
+  /// D242: «جولة أخرى!» on screen now (a serial; null: none).
+  final int? rematchBanner;
+
   DateTime now() => DateTime.now().add(offset);
 
   LivePkState copyWith({
@@ -86,6 +90,8 @@ class LivePkState {
     bool clearNotice = false,
     Duration? offset,
     bool? opponentJoined,
+    int? rematchBanner,
+    bool clearRematchBanner = false,
   }) => LivePkState(
     match: clearMatch ? null : match ?? this.match,
     incoming: clearIncoming ? null : incoming ?? this.incoming,
@@ -95,11 +101,25 @@ class LivePkState {
     notice: clearNotice ? null : notice ?? this.notice,
     offset: offset ?? this.offset,
     opponentJoined: opponentJoined ?? this.opponentJoined,
+    rematchBanner: clearRematchBanner
+        ? null
+        : rematchBanner ?? this.rematchBanner,
   );
 }
 
 /// A host's one-time PK message.
-enum PkNotice { declined, expired, cancelled, queueExpired, unavailable }
+enum PkNotice {
+  declined,
+  expired,
+  cancelled,
+  queueExpired,
+  unavailable,
+
+  /// v1.55-live (D242): the other host said no to «جولة أخرى» / did not
+  /// answer in time.
+  rematchDeclined,
+  rematchExpired,
+}
 
 /// The PK of one room: the server's match from the snapshot and the `pk`
 /// data messages (the highest `seq` wins; a gap or a reconnect reads the
@@ -115,6 +135,7 @@ class LivePkController extends Notifier<LivePkState> {
   StreamSubscription<PkEvent>? _events;
   Timer? _refresh;
   Timer? _announcementTimer;
+  Timer? _rematchTimer;
   LivePkOpponentMedia? _opponent;
   bool _isHost = false;
   int _serial = 0;
@@ -131,6 +152,7 @@ class LivePkController extends Notifier<LivePkState> {
       unawaited(_events?.cancel());
       _refresh?.cancel();
       _announcementTimer?.cancel();
+      _rematchTimer?.cancel();
       final opponent = _opponent;
       _opponent = null;
       unawaited(_leave(opponent));
@@ -195,7 +217,20 @@ class LivePkController extends Notifier<LivePkState> {
           // A gap: keep this one and read the snapshot too.
           unawaited(refresh());
         }
+        // D242: a host's own offer refused or lapsed — said once (the PK
+        // then closes with the next message).
+        if (_isHost &&
+            (event == 'rematch-declined' || event == 'rematch-expired') &&
+            current?.rematch?.byRoomId == roomId) {
+          state = state.copyWith(
+            notice: event == 'rematch-declined'
+                ? PkNotice.rematchDeclined
+                : PkNotice.rematchExpired,
+          );
+        }
         _applyMatch(match.open ? match : null);
+        // D242: «جولة أخرى!» for everyone when the new battle starts.
+        if (event == 'rematch' && match.open) _announceRematch();
         if (event == 'boost' && boostKind != null && match.open) {
           _announce(
             match,
@@ -256,6 +291,15 @@ class LivePkController extends Notifier<LivePkState> {
     _announcementTimer?.cancel();
     _announcementTimer = Timer(const Duration(milliseconds: 3200), () {
       if (ref.mounted) state = state.copyWith(clearAnnouncement: true);
+    });
+  }
+
+  void _announceRematch() {
+    _serial += 1;
+    state = state.copyWith(rematchBanner: _serial);
+    _rematchTimer?.cancel();
+    _rematchTimer = Timer(const Duration(milliseconds: 2400), () {
+      if (ref.mounted) state = state.copyWith(clearRematchBanner: true);
     });
   }
 
@@ -440,6 +484,36 @@ class LivePkController extends Notifier<LivePkState> {
 
   /// ⚠️ a dare on the banner (viewers and hosts).
   Future<void> reportDare(String dareId) => _repo.reportDare(roomId, dareId);
+
+  // ---- v1.55-live (D242): «جولة أخرى» --------------------------------------
+
+  /// Offers another battle (or accepts the other host's open offer).
+  Future<void> offerRematch() async {
+    final match = await _repo.offerRematch(roomId);
+    if (match.id != state.match?.id && match.open) _announceRematch();
+    _applyMatch(match, replace: true);
+  }
+
+  /// The other host's offer: accepted — the new battle starts.
+  Future<void> acceptRematch() async {
+    final match = await _repo.acceptRematch(roomId);
+    _announceRematch();
+    _applyMatch(match, replace: true);
+  }
+
+  /// The other host's offer: declined — the PK closes.
+  Future<void> declineRematch() async {
+    await _repo.declineRematch(roomId);
+    _applyMatch(null);
+  }
+
+  /// This host's own offer: withdrawn.
+  Future<void> cancelRematch() async {
+    _applyMatch(await _repo.cancelRematch(roomId), replace: true);
+  }
+
+  /// Tests and previews: the «جولة أخرى!» banner.
+  void announceRematchForTest() => _announceRematch();
 
   /// Tests: puts a match in place as if the snapshot had it.
   void debugSetMatch(PkMatch? match) => _applyMatch(match, replace: true);

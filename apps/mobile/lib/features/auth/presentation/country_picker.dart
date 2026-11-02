@@ -27,9 +27,34 @@ Future<bool> showCountryPicker(BuildContext context) async =>
     ) ??
     false;
 
+/// D240: the country of «القريبة» for this viewer on this device (the
+/// same searchable list with flags; it never changes the profile).
+/// [selected] is checked; true when a country was chosen.
+Future<bool> showLiveCountryPicker(
+  BuildContext context, {
+  required String? selected,
+  required ValueChanged<String> onChoose,
+}) async =>
+    await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (_) =>
+          CountryPickerSheet(selected: selected, onChoose: onChoose),
+    ) ??
+    false;
+
 /// The sheet of [showCountryPicker] (public for tests and the gallery).
 class CountryPickerSheet extends ConsumerStatefulWidget {
-  const new({super.key});
+  const new({super.key, this.onChoose, this.selected});
+
+  /// D240: a local choice ([showLiveCountryPicker]): the tap calls this and
+  /// closes, nothing is saved to the profile and there is no «remove» row.
+  final ValueChanged<String>? onChoose;
+
+  /// D240: the checked country of a local choice.
+  final String? selected;
 
   static const searchKey = Key('countryPicker.search');
   static const clearKey = Key('countryPicker.clear');
@@ -47,6 +72,12 @@ class _CountryPickerSheetState extends ConsumerState<CountryPickerSheet> {
 
   Future<void> _save(String? code) async {
     if (_saving != null) return;
+    final choose = widget.onChoose;
+    if (choose != null && code != null) {
+      choose(code);
+      Navigator.of(context).pop(true);
+      return;
+    }
     setState(() => _saving = code ?? '');
     try {
       final user = await ref.read(authRepositoryProvider).updateCountry(code);
@@ -67,7 +98,11 @@ class _CountryPickerSheetState extends ConsumerState<CountryPickerSheet> {
     final p = context.palette;
     final t = context.textStyles;
     final arabic = ref.watch(languageControllerProvider) == AppLanguage.ar;
-    final current = ref.watch(currentUserProvider.select((u) => u?.country));
+    final local = widget.onChoose != null;
+    final profile = ref.watch(currentUserProvider.select((u) => u?.country));
+    final current = local ? widget.selected : profile;
+    // D240: a local choice has no «remove my country» row.
+    final clearRow = !local && current != null;
     final countries = KCountries.search(_query, arabic: arabic);
     return SizedBox(
       height: MediaQuery.sizeOf(context).height * 0.85,
@@ -84,7 +119,7 @@ class _CountryPickerSheetState extends ConsumerState<CountryPickerSheet> {
             child: Semantics(
               header: true,
               child: Text(
-                l10n.countryPickerTitle,
+                local ? l10n.liveCountryPickerTitle : l10n.countryPickerTitle,
                 style: t.title.copyWith(color: p.textPrimary),
               ),
             ),
@@ -97,7 +132,7 @@ class _CountryPickerSheetState extends ConsumerState<CountryPickerSheet> {
               KSpacing.md,
             ),
             child: Text(
-              l10n.countryPickerBody,
+              local ? l10n.liveCountryPickerBody : l10n.countryPickerBody,
               style: t.caption.copyWith(color: p.textSecondary),
             ),
           ),
@@ -117,9 +152,9 @@ class _CountryPickerSheetState extends ConsumerState<CountryPickerSheet> {
           const SizedBox(height: KSpacing.sm),
           Expanded(
             child: ListView.builder(
-              itemCount: countries.length + (current == null ? 0 : 1),
+              itemCount: countries.length + (clearRow ? 1 : 0),
               itemBuilder: (context, i) {
-                if (current != null && i == 0) {
+                if (clearRow && i == 0) {
                   return ListTile(
                     key: CountryPickerSheet.clearKey,
                     leading: const Icon(Icons.public_off_outlined),
@@ -134,7 +169,7 @@ class _CountryPickerSheetState extends ConsumerState<CountryPickerSheet> {
                     onTap: () => unawaited(_save(null)),
                   );
                 }
-                final c = countries[i - (current == null ? 0 : 1)];
+                final c = countries[i - (clearRow ? 1 : 0)];
                 final selected = c.code == current;
                 return ListTile(
                   key: CountryPickerSheet.rowKey(c.code),

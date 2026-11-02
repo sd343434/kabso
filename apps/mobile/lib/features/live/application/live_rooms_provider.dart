@@ -8,6 +8,7 @@ import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
+import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
@@ -27,9 +28,39 @@ final liveScopeProvider = Provider<LiveScope>(
 );
 
 /// D133: the person's own country (`Me.country`); Nearby reloads when
-/// it changes.
+/// it changes. D240: the country this viewer chose for «القريبة» on this
+/// device ([liveNearbyChoiceProvider]) wins over it.
 final liveCountryProvider = Provider<String?>(
-  (ref) => ref.watch(currentUserProvider.select((u) => u?.country)),
+  (ref) =>
+      ref.watch(liveNearbyChoiceProvider) ??
+      ref.watch(currentUserProvider.select((u) => u?.country)),
+);
+
+/// D240 (owner: «عند الضغط على القريبة يظهر لايفات التي في نفس بلدي
+/// واسفله يمكن تغيير البلد»): the viewer's own choice of country for
+/// «القريبة» in the hub and the party page, kept on the device
+/// ([PreferenceKeys.liveNearbyCountry]); `null`: the profile country. It
+/// never changes the profile.
+class LiveNearbyChoice extends Notifier<String?> {
+  @override
+  String? build() => ref
+      .read(sharedPreferencesProvider)
+      .getString(PreferenceKeys.liveNearbyCountry);
+
+  void choose(String code) {
+    final upper = code.toUpperCase();
+    if (state == upper) return;
+    state = upper;
+    unawaited(
+      ref
+          .read(sharedPreferencesProvider)
+          .setString(PreferenceKeys.liveNearbyCountry, upper),
+    );
+  }
+}
+
+final liveNearbyChoiceProvider = NotifierProvider<LiveNearbyChoice, String?>(
+  LiveNearbyChoice.new,
 );
 
 extension FeedTabLiveRooms on FeedTab {
@@ -171,6 +202,9 @@ class LiveRoomsController extends AsyncNotifier<LiveHubState> {
     category: query.category,
     kind: query.kind,
     nearby: query.nearby,
+    // D240: the chosen country (v1.53-live `country`; the server reads the
+    // caller's own without it).
+    country: query.nearby ? ref.read(liveCountryProvider) : null,
     featured: query.featured,
     cursor: cursor,
   );

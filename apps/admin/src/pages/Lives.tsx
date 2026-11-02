@@ -8,7 +8,14 @@ import type { PersonRef } from '../types';
 import { DataTable, type TablePage } from '../ui/DataTable';
 import { Icon } from '../ui/icons';
 
-interface LiveRow {
+/** D241: the other side of the live's open PK (the opponent is null for a legacy mode PK room). */
+export interface LivePk {
+  opponentRoomId: string | null;
+  opponentUsername: string | null;
+  opponentDisplayName: string | null;
+}
+
+export interface LiveRow {
   id: string;
   title: string;
   mode: string;
@@ -19,6 +26,8 @@ interface LiveRow {
   categoryAr: string | null;
   categoryEn: string | null;
   host: PersonRef;
+  /** D241: null when not in a PK. */
+  pk: LivePk | null;
 }
 
 interface LiveDetailDto extends Omit<LiveRow, 'score'> {
@@ -100,7 +109,13 @@ function LiveDialog({ id, onClose, onEnded }: { id: string; onClose: () => void;
             <dt>{t('liveOnAir')}</dt>
             <dd className="num">{onAir(data.startedAt)}</dd>
             <dt>{t('colMode')}</dt>
-            <dd>{data.mode}</dd>
+            <dd>{data.pk ? t('livePkBadge') : data.mode}</dd>
+            {data.pk && (
+              <>
+                <dt>{t('livePkOpponent')}</dt>
+                <dd>{data.pk.opponentUsername ? <span className="ltr">@{data.pk.opponentUsername}</span> : t('livePkLegacy')}</dd>
+              </>
+            )}
             <dt>{t('liveGiftCoins')}</dt>
             <dd className="num">
               {n(data.giftCoins)} <span className="muted small">({n(data.giftsSent)})</span>
@@ -129,6 +144,40 @@ function LiveDialog({ id, onClose, onEnded }: { id: string; onClose: () => void;
   );
 }
 
+/**
+ * One card of «البث الآن». D241: a live in a PK (an open D195 match: the rooms stay SOLO) shows a «PK» badge and
+ * «ضد @handle».
+ */
+export function LiveCard({ live: l, onOpen }: { live: LiveRow; onOpen: () => void }) {
+  const { t, lang } = useApp();
+  return (
+    <button type="button" className="live-card" onClick={onOpen} data-live-pk={l.pk ? 'true' : undefined}>
+      <span className="thumb">
+        {l.coverUrl ? <img src={l.coverUrl} alt="" loading="lazy" /> : <span className="cover-fallback">{(l.host.displayName || '?')[0]}</span>}
+        <span className="live-badge">{t('liveNow')}</span>
+        {l.pk && <span className="live-badge pk-badge">{t('livePkBadge')}</span>}
+        <span className="viewers">
+          <Icon name="eye" size={14} /> {formatNumber(l.viewers, lang)}
+        </span>
+      </span>
+      <span className="live-info">
+        <span className="live-title">{l.title}</span>
+        {l.pk?.opponentUsername && (
+          <span className="small pk-vs" dir="auto">
+            {t('livePkVs', { handle: l.pk.opponentUsername })}
+          </span>
+        )}
+        <span className="row small muted">
+          <Avatar url={l.host.avatarUrl ?? null} name={l.host.displayName || l.host.username} />
+          <span className="ltr">@{l.host.username}</span>
+          <span className="spacer" />
+          <span className="num">{onAir(l.startedAt)}</span>
+        </span>
+      </span>
+    </button>
+  );
+}
+
 /** D212: the mode filter's chips, in the app's category order. */
 const LIVE_MODES = ['', 'SOLO', 'AUDIO', 'PODCAST', 'MULTI', 'PK'] as const;
 
@@ -138,7 +187,8 @@ export function Lives() {
   const [page, setPage] = useState(1);
   const [bump, setBump] = useState(0);
   const [open, setOpen] = useState<string | null>(null);
-  // D212: the app's live categories as a mode filter ('' = all; PK lives count as SOLO's in the app).
+  // D212: the app's live categories as a mode filter ('' = all). D241: «PK» = the lives in an open PK; «بث مباشر» =
+  // SOLO lives not in one (the chips partition the lives).
   const [mode, setMode] = useState<(typeof LIVE_MODES)[number]>('');
   const { data, error, loading } = useAsync(
     () =>
@@ -195,24 +245,7 @@ export function Lives() {
       )}
       <div className="live-grid">
         {data?.data.map((l) => (
-          <button key={l.id} type="button" className="live-card" onClick={() => setOpen(l.id)}>
-            <span className="thumb">
-              {l.coverUrl ? <img src={l.coverUrl} alt="" loading="lazy" /> : <span className="cover-fallback">{(l.host.displayName || '?')[0]}</span>}
-              <span className="live-badge">{t('liveNow')}</span>
-              <span className="viewers">
-                <Icon name="eye" size={14} /> {formatNumber(l.viewers, lang)}
-              </span>
-            </span>
-            <span className="live-info">
-              <span className="live-title">{l.title}</span>
-              <span className="row small muted">
-                <Avatar url={l.host.avatarUrl ?? null} name={l.host.displayName || l.host.username} />
-                <span className="ltr">@{l.host.username}</span>
-                <span className="spacer" />
-                <span className="num">{onAir(l.startedAt)}</span>
-              </span>
-            </span>
-          </button>
+          <LiveCard key={l.id} live={l} onOpen={() => setOpen(l.id)} />
         ))}
       </div>
       {pages > 1 && (

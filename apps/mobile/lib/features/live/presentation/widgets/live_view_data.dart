@@ -53,7 +53,9 @@ class LiveRoomCardData {
       viewerCount: room.viewerCount,
       cover: cover == null || cover.isEmpty ? null : _image(cover),
       hostAvatar: avatar == null || avatar.isEmpty ? null : _image(avatar),
-      inPk: room.mode == LiveRoomMode.pk,
+      // D241: the server's flag (a real battle keeps the room SOLO); the
+      // legacy mode PK too.
+      inPk: room.inPk || room.mode == LiveRoomMode.pk,
       categoryName: room.category?.name,
       roomId: room.id,
       score: room.score,

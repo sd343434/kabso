@@ -13369,4 +13369,51 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get pkFailureDareClosed => 'لم يعد بالإمكان الرد على هذا الحكم';
+
+  @override
+  String get liveCountryPickerTitle => 'بلد «القريبة»';
+
+  @override
+  String get liveCountryPickerBody =>
+      'اختر بلداً لترى بثوثه في «القريبة». لا يغيّر ملفك.';
+
+  @override
+  String liveNearbyCountryRow(String country) {
+    return 'بلد «القريبة»: $country. تغيير';
+  }
+
+  @override
+  String get liveNearbyChooseCountry => 'اختر بلداً';
+
+  @override
+  String get pkRematch => 'جولة أخرى';
+
+  @override
+  String pkRematchAsk(String name) {
+    return 'العب جولة أخرى مع $name؟';
+  }
+
+  @override
+  String pkRematchWaiting(String name) {
+    return 'بانتظار $name…';
+  }
+
+  @override
+  String pkRematchOffered(String name) {
+    return '$name يريد جولة أخرى';
+  }
+
+  @override
+  String get pkRematchBanner => 'جولة أخرى تبدأ';
+
+  @override
+  String get pkRematchDeclined => 'رفض المضيف الآخر الجولة الأخرى';
+
+  @override
+  String get pkRematchExpired => 'لم يردّ المضيف الآخر على الجولة الأخرى';
+
+  @override
+  String pkRematchSeconds(String seconds) {
+    return '$seconds ث';
+  }
 }

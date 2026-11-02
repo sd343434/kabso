@@ -229,6 +229,10 @@ export enum ErrorCode {
   PK_DARE_CLOSED = 'PK_DARE_CLOSED',
   /** v1.50-live (DRAFT, D229): only the losing host may accept or refuse, only the winning host may judge. */
   PK_DARE_FORBIDDEN = 'PK_DARE_FORBIDDEN',
+  /** v1.55-live (DRAFT, D242): «جولة أخرى» cannot be offered now (a dare running, a host gone, away, banned or blocked, the limit in a row). */
+  PK_REMATCH_UNAVAILABLE = 'PK_REMATCH_UNAVAILABLE',
+  /** v1.55-live (DRAFT, D242): no open rematch offer to answer or withdraw (answered, withdrawn or lapsed). */
+  PK_REMATCH_CLOSED = 'PK_REMATCH_CLOSED',
   /** v1.45-live (DRAFT, D201): the pairing code is unknown, expired, used, revoked or of another account (one answer for all). */
   SECOND_CAMERA_CODE_INVALID = 'SECOND_CAMERA_CODE_INVALID',
   /** v1.45-live (DRAFT, D201): the live cannot take a second camera now (not the caller's LIVE SOLO video live, or in a PK). */
@@ -398,6 +402,8 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.PK_BOOSTER_UNAVAILABLE]: 409,
   [ErrorCode.PK_DARE_CLOSED]: 409,
   [ErrorCode.PK_DARE_FORBIDDEN]: 403,
+  [ErrorCode.PK_REMATCH_UNAVAILABLE]: 409,
+  [ErrorCode.PK_REMATCH_CLOSED]: 409,
   [ErrorCode.SECOND_CAMERA_CODE_INVALID]: 422,
   [ErrorCode.SECOND_CAMERA_UNAVAILABLE]: 409,
   [ErrorCode.SECOND_CAMERA_BUSY]: 409,
@@ -537,6 +543,8 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.PK_BOOSTER_UNAVAILABLE]: 'That booster cannot be used now.',
   [ErrorCode.PK_DARE_CLOSED]: 'This dare can no longer be answered.',
   [ErrorCode.PK_DARE_FORBIDDEN]: 'Only the other host can do that.',
+  [ErrorCode.PK_REMATCH_UNAVAILABLE]: 'Another round is not possible now.',
+  [ErrorCode.PK_REMATCH_CLOSED]: 'This offer of another round is no longer open.',
   [ErrorCode.SECOND_CAMERA_CODE_INVALID]: 'That pairing code is not valid.',
   [ErrorCode.SECOND_CAMERA_UNAVAILABLE]: 'This live cannot take a second camera now.',
   [ErrorCode.SECOND_CAMERA_BUSY]: 'This live already has a second camera.',

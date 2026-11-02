@@ -7,12 +7,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
-import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/core/storage/secure_token_store.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/data/auth_repository_impl.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
+import 'package:kabso_live/features/live/presentation/hub/live_hub_filters.dart';
 import 'package:kabso_live/features/live/voice_rooms_screen.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -64,13 +64,9 @@ void main() {
   for (final language in AppLanguage.values) {
     final l10n = l10nFor(language);
     group('${language.name}: voice rooms Live button (D139)', () {
-      testWidgets("in the party button's place: between search and the "
-          'bell, 48 pt, the Live icon, labelled', (tester) async {
+      testWidgets("D240: the party page's corner switch, 48 pt, the Live "
+          "icon (the size of the hub's party icon), labelled", (tester) async {
         await _pumpApp(tester, language);
-        final hubParty = tester.getRect(
-          find.byKey(LiveHubPartyButton.buttonKey),
-        );
-        final hubBell = tester.getRect(find.byKey(_bell));
         final partySize = tester
             .widget<KPartyIcon>(find.byType(KPartyIcon))
             .size;
@@ -87,32 +83,25 @@ void main() {
           partySize,
         );
         final rect = tester.getRect(button);
-        final bell = tester.getRect(find.byKey(_bell).last);
         expect(rect.size, const Size.square(KSizes.minTouchTarget));
-        expect(rect.size, bell.size);
-        expect(rect.center.dy, bell.center.dy);
-        // Beside the bell on its reading-start side, like the party
-        // button on the hub (mirrored in Arabic).
-        expect(
-          rect.center.dx - bell.center.dx,
-          hubParty.center.dx - hubBell.center.dx,
-        );
+        // D240 (owner: «فقط احفظ زر تبديل بين الحفلة وبث حي على زاوية»):
+        // the page's only button, in the corner at the reading end (no bell
+        // beside it any more).
+        expect(find.byKey(_bell), findsNothing);
+        final width =
+            tester.view.physicalSize.width / tester.view.devicePixelRatio;
         if (language == AppLanguage.ar) {
-          expect(rect.center.dx, greaterThan(bell.center.dx));
+          expect(rect.left, closeTo(KSpacing.xs, 0.5));
         } else {
-          expect(rect.center.dx, lessThan(bell.center.dx));
+          expect(rect.right, closeTo(width - KSpacing.xs, 0.5));
         }
-        // Search is on its other side; the back arrow stays.
-        final search = tester.getRect(
+        // D240: no search on the party page; the back arrow stays.
+        expect(
           find.descendant(
             of: find.byType(VoiceRoomsScreen),
             matching: find.byTooltip(l10n.feedSearch),
           ),
-        );
-        expect((search.center.dx - rect.center.dx).abs(), 48);
-        expect(
-          (search.center.dx - bell.center.dx).abs(),
-          greaterThan((rect.center.dx - bell.center.dx).abs()),
+          findsNothing,
         );
         expect(find.byKey(VoiceRoomsScreen.backKey), findsOneWidget);
 
@@ -215,22 +204,24 @@ void main() {
         await _openFromHub(tester);
         expect(tester.takeException(), isNull);
         final back = tester.getRect(find.byKey(VoiceRoomsScreen.backKey));
-        final search = tester.getRect(
+        final live = tester.getRect(find.byKey(VoiceRoomsLiveButton.buttonKey));
+        // D240: the kinds sit whole between the back arrow and the Live
+        // switch (no search, no bell; they shrink to fit).
+        expect(
           find.descendant(
             of: find.byType(VoiceRoomsScreen),
             matching: find.byTooltip(l10n.feedSearch),
           ),
+          findsNothing,
         );
-        // The tabs sit whole between the back arrow and search (they
-        // shrink to fit rather than scroll out of sight).
-        for (final t in FeedTab.values) {
-          final tab = tester.getRect(find.byKey(VoiceRoomsScreen.tabKey(t)));
+        for (final k in LiveHubCategory.partyPage) {
+          final tab = tester.getRect(find.byKey(VoiceRoomsScreen.kindKey(k)));
           if (language == AppLanguage.ar) {
             expect(tab.right, lessThanOrEqualTo(back.left));
-            expect(tab.left, greaterThanOrEqualTo(search.right));
+            expect(tab.left, greaterThanOrEqualTo(live.right));
           } else {
             expect(tab.left, greaterThanOrEqualTo(back.right));
-            expect(tab.right, lessThanOrEqualTo(search.left));
+            expect(tab.right, lessThanOrEqualTo(live.left));
           }
         }
         final rect = tester.getRect(find.byKey(VoiceRoomsLiveButton.buttonKey));

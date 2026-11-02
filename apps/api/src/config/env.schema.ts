@@ -718,6 +718,10 @@ export const envSchema = z
     PK_DARE_DRAW_SECONDS: intSetting(4, 1, 30),
     PK_DARE_SECONDS: intSetting(180, 10, 600),
     PK_DARE_OUTCOME_SECONDS: intSetting(8, 0, 120),
+    /** v1.55-live (D242) «جولة أخرى»: how long the other host has to accept a rematch offer. */
+    PK_REMATCH_ACCEPT_SECONDS: intSetting(15, 5, 120),
+    /** v1.55-live (D242): rematches in a row with the same opponent (0 = unlimited). */
+    PK_REMATCH_MAX: intSetting(5, 0, 100),
     /**
      * CP-016 A (D99): the one region's time zone (IANA name). The popularity boards' day starts at
      * midnight and the week on Monday there; the hour is the same everywhere.

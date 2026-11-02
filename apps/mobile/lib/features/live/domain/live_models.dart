@@ -259,6 +259,10 @@ abstract class LiveRoomSummary with _$LiveRoomSummary {
 
     /// v1.47-live (D212): a podcast's episode facts; null otherwise.
     LivePodcast? podcast,
+
+    /// v1.54-live (D241): the room is in a PK now (an open D195 match —
+    /// the rooms stay SOLO — or the legacy mode PK). Older servers: false.
+    @Default(false) bool inPk,
   }) = _LiveRoomSummary;
 
   factory fromJson(Map<String, dynamic> json) =>

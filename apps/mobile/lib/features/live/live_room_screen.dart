@@ -1184,9 +1184,25 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                 LiveStickerLayer(roomId: room.id),
               ],
             ),
+      // D238b: the PK videos edge to edge.
+      stageEdgeToEdge: pkStage != null,
       stage:
           pkStage ??
           (!ended && room.mode.hasSeats ? _stage(session, engine) : null),
+      // D238: the «PK أحكام» card, small at the bottom over the chat; a
+      // signed-in viewer may report the dare (⚠️).
+      dock: pkState?.match == null
+          ? null
+          : LivePkStage.dareDock(
+              match: pkState!.match!,
+              roomId: room.id,
+              now: pkState.now,
+              actions: PkDareActions(
+                onReport: me == null
+                    ? null
+                    : ref.read(livePkProvider(room.id).notifier).reportDare,
+              ),
+            ),
       header: KHostPill(
         // D141 (owner): the host's @username beside the name (copy on tap).
         username: host.username,
@@ -2180,6 +2196,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
           : engine.remoteVideo(id) ?? opponent?.video(id),
       speaking: {...engine.speaking, ...?opponent?.speaking},
       announcement: pk.announcement,
+      // D242: «جولة أخرى!» as the rematch starts.
+      rematchBanner: pk.rematchBanner != null,
       onPerson: (u) => _person(u.username),
       // D231: a tap on a half — that host's card (the other room's host:
       // their room's card); the «+» to follow the other host.
@@ -2187,12 +2205,6 @@ class _RoomViewState extends ConsumerState<_RoomView> {
           ? unawaited(showPkOpponentCard(context, other))
           : _person(room.host.username),
       onFollowOpponent: follow,
-      // v1.50-live (D229): a signed-in viewer may report the dare (⚠️).
-      dareActions: PkDareActions(
-        onReport: ref.read(currentUserProvider) == null
-            ? null
-            : ref.read(livePkProvider(room.id).notifier).reportDare,
-      ),
     );
     // D215: the same subtree with or without the other room's connection
     // (the stage and its video renderers are not rebuilt from scratch when

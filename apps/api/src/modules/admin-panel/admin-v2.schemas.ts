@@ -93,7 +93,8 @@ export const resolveComplaintBody = z
     path: ['toInviteCode'],
   });
 
-/** v1.47-live (D212): `mode` filters the lives on air by mode (the app's five categories; PK lives are SOLO's). */
+/** v1.47-live (D212): `mode` filters the lives on air by mode (the app's five categories). v1.54-live (D241): `PK` = in an open
+ * D195 match (or the legacy mode PK); `SOLO` = SOLO not in a PK. */
 export const livesQuery = tableQuery(['viewers', 'startedAt'], 'viewers')
   .extend({ mode: z.enum(['SOLO', 'PK', 'MULTI', 'AUDIO', 'PODCAST']).optional() })
   .strict();

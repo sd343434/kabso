@@ -170,6 +170,38 @@ export class LivePkController {
     return this.pk.muteOpponent(requireCaller(req), roomId, body);
   }
 
+  /** v1.55-live (D242) «جولة أخرى»: a host offers another battle with the same opponent (or accepts theirs). */
+  @Post('rooms/:roomId/pk/rematch')
+  @HttpCode(200)
+  @RateLimit(PK_ACTION)
+  offerRematch(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<PkMatchDto> {
+    return this.pk.offerRematch(requireCaller(req), roomId);
+  }
+
+  /** v1.55-live (D242): the other host accepts — the new battle starts. */
+  @Post('rooms/:roomId/pk/rematch/accept')
+  @HttpCode(200)
+  @RateLimit(PK_ACTION)
+  acceptRematch(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<PkMatchDto> {
+    return this.pk.acceptRematch(requireCaller(req), roomId);
+  }
+
+  /** v1.55-live (D242): the other host declines — the PK closes. */
+  @Post('rooms/:roomId/pk/rematch/decline')
+  @HttpCode(204)
+  @RateLimit(PK_ACTION)
+  declineRematch(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<void> {
+    return this.pk.declineRematch(requireCaller(req), roomId);
+  }
+
+  /** v1.55-live (D242): the asking host withdraws the offer. */
+  @Delete('rooms/:roomId/pk/rematch')
+  @HttpCode(200)
+  @RateLimit(PK_ACTION)
+  cancelRematch(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<PkMatchDto> {
+    return this.pk.cancelRematch(requireCaller(req), roomId);
+  }
+
   /** v1.50-live (D229) «PK أحكام»: the losing host accepts the drawn dare («قبول»). */
   @Post('rooms/:roomId/pk/dare/accept')
   @HttpCode(200)

@@ -12,7 +12,6 @@ import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/design_system/design_system.dart';
-import 'package:kabso_live/features/auth/presentation/country_picker.dart';
 import 'package:kabso_live/features/live/application/home_banners_provider.dart';
 import 'package:kabso_live/features/live/application/live_room_swipe.dart';
 import 'package:kabso_live/features/live/application/live_rooms_provider.dart';
@@ -24,6 +23,7 @@ import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/hub/home_banner_carousel.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_hub_filters.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_hub_grid.dart';
+import 'package:kabso_live/features/live/presentation/hub/live_nearby_country.dart';
 import 'package:kabso_live/features/live/presentation/hub/podcast_hub.dart';
 import 'package:kabso_live/features/live/presentation/hub/voice_room_list.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
@@ -136,6 +136,9 @@ class _LiveScreenState extends ConsumerState<LiveScreen> {
               categories: categories,
               onSelect: _select,
             ),
+            // D240: «القريبة»'s country, changeable.
+            if (_selection.filter == LiveHubFilter.nearby)
+              const LiveNearbyCountryRow(),
             // D237 (owner): no category row — every kind together, each
             // card names its kind; audio, podcast and multi are also the
             // party page's tabs.
@@ -376,7 +379,8 @@ class LiveRoomsPage extends ConsumerWidget {
       countryName: country == null
           ? null
           : KCountries.name(country, arabic: arabic),
-      onSetCountry: () => unawaited(showCountryPicker(context)),
+      // D240: the viewer's own choice (never the profile).
+      onSetCountry: () => unawaited(openLiveNearbyCountryPicker(context, ref)),
       onShowPopular: select == null || current == null
           ? null
           : () => select(const LiveHubSelection()),

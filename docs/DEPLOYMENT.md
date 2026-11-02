@@ -2359,6 +2359,8 @@ codes and never overwrites the team's edits. Expect `received 20000, inserted 20
 | `PK_DARE_SECONDS` | 180 | the dare's timer after the loser accepts (owner: 3 minutes; 10–600) |
 | `PK_DARE_OUTCOME_SECONDS` | 8 | how long «نُفّذ الحكم» / «رفض الحكم» stays before the PK closes (0–120) |
 | `RATE_LIMIT_LIVE_PK_DARE_REPORT_USER` | 10/600 | dare reports per user |
+| `PK_REMATCH_ACCEPT_SECONDS` | 15 | D242 «جولة أخرى»: how long the other host has to accept a rematch offer (5–120) |
+| `PK_REMATCH_MAX` | 5 | D242: rematches in a row with the same opponent; 0 = unlimited (0–100) |
 
 The points, the loser's decision time and the auto-disable threshold are in the panel «أحكام PK» (`pk_dares.edit`:
 OWNER, MODERATION; audited). Order: API (migration + import) first, then the admin panel, then the app; an older app

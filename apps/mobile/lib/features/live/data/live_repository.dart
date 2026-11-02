@@ -29,12 +29,15 @@ abstract interface class LiveRepository {
   /// D129: [kind] lists voice rooms or video lives only (`null`: all).
   /// D133 (v1.27.1-live): [nearby] sends `scope=nearby` (the caller's
   /// country; `emptyReason` `COUNTRY_NOT_SET` without one) and [featured]
-  /// sends `featured=true` (featured hosts, by feature rank).
+  /// sends `featured=true` (featured hosts, by feature rank). D240
+  /// (v1.53-live): [country] sends `country` (the hosts of that country; it
+  /// wins over the caller's own).
   Future<LiveRoomPage> listRooms({
     required LiveRoomsTab tab,
     String? category,
     LiveRoomsKind? kind,
     bool nearby = false,
+    String? country,
     bool featured = false,
     String? cursor,
     int limit = defaultPageSize,
@@ -297,6 +300,7 @@ class LiveRepositoryImpl implements LiveRepository {
     String? category,
     LiveRoomsKind? kind,
     bool nearby = false,
+    String? country,
     bool featured = false,
     String? cursor,
     int limit = LiveRepository.defaultPageSize,
@@ -308,6 +312,7 @@ class LiveRepositoryImpl implements LiveRepository {
         'category': ?category,
         'kind': ?kind?.wire,
         if (nearby) 'scope': 'nearby',
+        'country': ?country,
         if (featured) 'featured': 'true',
         'cursor': ?cursor,
         'limit': limit,

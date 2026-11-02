@@ -11,7 +11,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
-import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/core/storage/secure_token_store.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/data/auth_repository_impl.dart';
@@ -219,12 +218,14 @@ void main() {
       final live = await hub(tester);
       final l10n = lookupAppLocalizations(AppLanguage.ar.locale);
       expect(find.byType(LiveHubCategoryBar), findsNothing);
-      expect(live.requests.last.kind, isNull); // the hub: every kind
+      // D239: the hub is solo and PK only.
+      expect(live.requests.last.kind, LiveRoomsKind.solo);
       await _openParty(tester);
       expect(find.byType(VoiceRoomsScreen), findsOneWidget);
       expect(live.requests.last.kind, LiveRoomsKind.audio);
+      // D240: the kinds are the party page's top tabs.
       for (final c in LiveHubCategory.partyPage) {
-        expect(find.byKey(LiveHubCategoryBar.tabKey(c)), findsOneWidget);
+        expect(find.byKey(VoiceRoomsScreen.kindKey(c)), findsOneWidget);
       }
       expect(find.text(l10n.liveCategoryStreamer), findsNothing);
       for (final (c, kind) in [
@@ -235,12 +236,14 @@ void main() {
         await tester.pumpAndSettle();
         expect(live.requests.last.kind, kind, reason: c.name);
       }
-      // The header's tabs apply: New + podcast.
+      // D240: the hub's filters apply: Following + podcast.
       await _tapKind(tester, LiveHubCategory.podcast);
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(VoiceRoomsScreen.tabKey(FeedTab.latest)));
+      await tester.tap(
+        find.byKey(LiveHubFilterBar.pillKey(LiveHubFilter.following)),
+      );
       await tester.pumpAndSettle();
-      expect(live.requests.last.tab, LiveRoomsTab.latest);
+      expect(live.requests.last.tab, LiveRoomsTab.following);
       expect(live.requests.last.kind, LiveRoomsKind.podcast);
       expect(find.byType(PodcastHubCard), findsOneWidget);
       expect(tester.takeException(), isNull);
@@ -684,7 +687,7 @@ Future<void> _openParty(WidgetTester tester) async {
 
 /// Taps one of the party page's kind tabs.
 Future<void> _tapKind(WidgetTester tester, LiveHubCategory category) async {
-  final tab = find.byKey(LiveHubCategoryBar.tabKey(category));
+  final tab = find.byKey(VoiceRoomsScreen.kindKey(category));
   await tester.ensureVisible(tab);
   await tester.pumpAndSettle();
   await tester.tap(tab);

@@ -91,6 +91,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_host_target_c
 import 'package:kabso_live/features/live/presentation/widgets/live_lucky_combo_button.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk_dare.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_pk_rematch.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk_stage.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
@@ -2112,6 +2113,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         PkNotice.expired => l10n.pkNoticeExpired,
         PkNotice.queueExpired => l10n.pkNoticeQueueExpired,
         PkNotice.cancelled || PkNotice.unavailable => l10n.pkErrorUnavailable,
+        // D242: the other host said no / did not answer «جولة أخرى».
+        PkNotice.rematchDeclined => l10n.pkRematchDeclined,
+        PkNotice.rematchExpired => l10n.pkRematchExpired,
       });
     });
     final avatarUrl = user?.avatarUrl ?? room.host.avatarUrl;
@@ -2484,7 +2488,41 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             ? LiveHostTargetChip(username: room.host.username, isHost: true)
             : null,
       ),
+      // D238b: the PK videos edge to edge.
+      stageEdgeToEdge: pkStage != null,
       stage: pkStage ?? stage,
+      // v1.50-live (D229) → D238: the host's dare card, small at the bottom
+      // over the chat (loser: accept / refuse; winner: done / not done; the
+      // report).
+      dock: pk.match == null
+          ? null
+          : LivePkStage.dareDock(
+              match: pk.match!,
+              roomId: room.id,
+              now: pk.now,
+              isHost: true,
+              actions: PkDareActions(
+                onAccept: ref.read(livePkProvider(room.id).notifier).acceptDare,
+                onRefuse: ref.read(livePkProvider(room.id).notifier).refuseDare,
+                onVerdict: ref.read(livePkProvider(room.id).notifier).judgeDare,
+                onReport: ref.read(livePkProvider(room.id).notifier).reportDare,
+              ),
+              // D242: «جولة أخرى» for the host in the result.
+              rematch: PkRematchActions(
+                onOffer: ref
+                    .read(livePkProvider(room.id).notifier)
+                    .offerRematch,
+                onAccept: ref
+                    .read(livePkProvider(room.id).notifier)
+                    .acceptRematch,
+                onDecline: ref
+                    .read(livePkProvider(room.id).notifier)
+                    .declineRematch,
+                onCancel: ref
+                    .read(livePkProvider(room.id).notifier)
+                    .cancelRematch,
+              ),
+            ),
       chat: Align(alignment: AlignmentDirectional.bottomStart, child: roomChat),
       actionBar:
           composer ??
@@ -2574,6 +2612,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       guestVideo: (id) => engine.remoteVideo(id) ?? opponent?.video(id),
       speaking: {...engine.speaking, ...?opponent?.speaking},
       announcement: pk.announcement,
+      rematchBanner: pk.rematchBanner != null,
       onPerson: (u) => unawaited(_person(room.id, u.username)),
       // D231: a tap on my half — my card (as the host pill's); on the
       // other half — the other host's card for their room; the «+».
@@ -2595,15 +2634,6 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               }),
             )
           : null,
-      // v1.50-live (D229): the host's dare buttons (loser: accept / refuse;
-      // winner: done / not done) and the report.
-      isHost: true,
-      dareActions: PkDareActions(
-        onAccept: ref.read(livePkProvider(room.id).notifier).acceptDare,
-        onRefuse: ref.read(livePkProvider(room.id).notifier).refuseDare,
-        onVerdict: ref.read(livePkProvider(room.id).notifier).judgeDare,
-        onReport: ref.read(livePkProvider(room.id).notifier).reportDare,
-      ),
     );
     // D215: the same subtree with or without the other room's connection
     // (the stage and its video renderers are not rebuilt from scratch when

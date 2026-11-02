@@ -13357,4 +13357,51 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pkFailureDareClosed => 'This dare can no longer be answered';
+
+  @override
+  String get liveCountryPickerTitle => 'Nearby country';
+
+  @override
+  String get liveCountryPickerBody =>
+      'Pick a country to see its lives in Nearby. Your profile doesn\'t change.';
+
+  @override
+  String liveNearbyCountryRow(String country) {
+    return 'Nearby country: $country. Change';
+  }
+
+  @override
+  String get liveNearbyChooseCountry => 'Choose a country';
+
+  @override
+  String get pkRematch => 'Another round';
+
+  @override
+  String pkRematchAsk(String name) {
+    return 'Play another round with $name?';
+  }
+
+  @override
+  String pkRematchWaiting(String name) {
+    return 'Waiting for $name…';
+  }
+
+  @override
+  String pkRematchOffered(String name) {
+    return '$name wants another round';
+  }
+
+  @override
+  String get pkRematchBanner => 'Another round starts';
+
+  @override
+  String get pkRematchDeclined => 'The other host said no to another round';
+
+  @override
+  String get pkRematchExpired => 'The other host did not answer';
+
+  @override
+  String pkRematchSeconds(String seconds) {
+    return '$seconds s';
+  }
 }

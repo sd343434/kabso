@@ -114,6 +114,11 @@ export interface LiveRoomSummaryDto {
   score: number;
   /** v1.47-live (D212, §10.69): the episode facts of a PODCAST live; null for other modes. */
   podcast: LivePodcastDto | null;
+  /**
+   * v1.54-live (D241, §10.84): the room is in a PK now — an open D195 match (CONNECTED, BATTLE or RESULT,
+   * its dare included) or the legacy `mode = 'PK'`. A real battle keeps the rooms SOLO.
+   */
+  inPk: boolean;
 }
 
 /** A speaker of a podcast as the hub card shows it (avatar stack and names). */
@@ -272,6 +277,8 @@ export interface RoomRow {
   question_seconds: number | null;
   /** v1.47-live (D212): a PODCAST's seated speakers (JSON, seat order); null for other modes. */
   podcast_speakers: LivePodcastSpeakerDto[] | null;
+  /** v1.54-live (D241): an open PK match has this room on either side. */
+  in_pk: boolean;
 }
 
 /**
@@ -326,6 +333,8 @@ const ROOM_COLUMNS = Prisma.sql`
          c.name_en AS category_name_en, r.chat_enabled, lh.room_number, ${ROOM_LEVEL_SQL} AS room_level,
          r.wish_gifts, r.episode_number, r.podcast_topic, r.questions_open,
          r.question_seconds::int AS question_seconds,
+         EXISTS (SELECT 1 FROM pk_matches pm WHERE pm.status <> 'CLOSED'::pk_match_status
+                   AND (pm.room_a_id = r.id OR pm.room_b_id = r.id)) AS in_pk,
          CASE WHEN r.mode = 'PODCAST'::live_room_mode THEN (
            SELECT COALESCE(json_agg(json_build_object('id', s2.user_id::text, 'username', spp.username,
                     'displayName', spp.display_name, 'avatarUrl', spp.avatar_url) ORDER BY s2.seat_index), '[]'::json)
@@ -897,6 +906,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
               speakers: row.podcast_speakers ?? [],
             }
           : null,
+      inPk: row.in_pk || row.mode === 'PK',
     };
   }
 
@@ -948,12 +958,16 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     query: ListLiveRoomsQuery,
     lang: ContentLanguage,
   ): Promise<LiveRoomPageDto> {
-    if (callerId === null && (query.tab === 'following' || query.scope === 'nearby')) {
+    // v1.53-live (D240): an explicit `country` needs no token and wins over `scope=nearby`.
+    if (
+      callerId === null &&
+      (query.tab === 'following' || (query.scope === 'nearby' && query.country === undefined))
+    ) {
       throw new AppException(ErrorCode.AUTH_UNAUTHENTICATED);
     }
     // v1.27.1-live (D133): nearby = the caller's own country; none set → an honest empty page.
-    let nearbyCountry: string | null = null;
-    if (query.scope === 'nearby') {
+    let nearbyCountry: string | null = query.country ?? null;
+    if (query.scope === 'nearby' && nearbyCountry === null) {
       const profile = await this.prisma.userProfile.findUnique({
         where: { userId: callerId ?? '' },
         select: { countryCode: true },

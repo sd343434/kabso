@@ -7,6 +7,13 @@
 // tap on a half opens that host's card — the other host's for their room,
 // without a gift button. Pure stage at 393×852 and 360×800 with text ×1.3,
 // ar and en; then the real viewer and host screens.
+//
+// D238b (owner, ref 332: «خط pk عريض قليلاً … شاشة الخصمين هناك فراغ من
+// الجانبين ازلهم … اسم المضيف يظهر للمشاهدين اسم المضيف الآخر …»): the
+// reference's 14.5 lp track and «PK m:ss» chip, the videos edge to edge with
+// a hairline between them, and only the OTHER host's name in the
+// reference's small pill (the «+» at its end); a tap on either half opens
+// that host's card.
 import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -113,9 +120,8 @@ void main() {
     ]) {
       final tag = '${language.name} ${viewport.name} ×$scale';
       group(tag, () {
-        testWidgets('the bar: 30 lp track, big figures, readable timer', (
-          tester,
-        ) async {
+        testWidgets('the bar: the reference 14.5 lp track, its figures and '
+            'timer chip', (tester) async {
           await _stage(
             tester,
             pkMatchFixture(now: DateTime.now(), ar: ar, otherScore: 834390),
@@ -126,7 +132,7 @@ void main() {
           expect(tester.takeException(), isNull);
           final bar = _rect(tester, LivePkStage.barKey);
           expect(bar.height, PkBarMetrics.height);
-          expect(PkBarMetrics.track, inInclusiveRange(28, 32));
+          expect(PkBarMetrics.track, 14.5);
           // Own side on the reading start: right in Arabic.
           final ownKey = ar
               ? PkBattleBar.rightScoreKey
@@ -137,11 +143,17 @@ void main() {
           expect(tester.widget<Text>(find.byKey(ownKey)).data, '12.5K');
           expect(tester.widget<Text>(find.byKey(otherKey)).data, '834.3K');
           for (final key in [ownKey, otherKey]) {
-            expect(_fontPx(tester, key), greaterThanOrEqualTo(18));
+            // The reference's 8.9 lp figures: 13 sp (the text scale on top).
+            expect(
+              _fontPx(tester, key),
+              greaterThanOrEqualTo(13 * scale - 0.5),
+            );
             final r = _rect(tester, key);
-            // Inside the track, fully on screen.
-            expect(r.top, greaterThanOrEqualTo(bar.bottom - 30 - 0.5));
-            expect(r.bottom, lessThanOrEqualTo(bar.bottom + 0.5));
+            // Centred on the track, fully on screen.
+            expect(
+              r.center.dy,
+              closeTo(bar.bottom - PkBarMetrics.track / 2, 1),
+            );
             expect(r.left, greaterThanOrEqualTo(bar.left));
             expect(r.right, lessThanOrEqualTo(bar.right));
             final style = tester.widget<Text>(find.byKey(key)).style!;
@@ -161,20 +173,19 @@ void main() {
             _rect(tester, PkBattleBar.rightScoreKey).right,
             closeTo(bar.right - PkBarMetrics.scoreInset, 0.5),
           );
-          // The timer: 15 sp+, centred where the halves meet, hanging
-          // from the bar.
+          // The timer: the reference's chip (≈ 64.7 × 17.9 lp, 11.5 sp),
+          // centred where the halves meet, hanging from the bar.
           final timer = _rect(tester, LivePkStage.timerKey);
           expect(timer.center.dx, closeTo(bar.center.dx, 1));
           expect(timer.top, closeTo(bar.bottom, 0.5));
+          expect(timer.height, KLivePk.timerHeight);
+          expect(timer.width, greaterThanOrEqualTo(KLivePk.timerWidth));
           final timerText = find.descendant(
             of: find.byKey(LivePkStage.timerKey),
             matching: find.byType(Text),
           );
           final t = tester.widget<Text>(timerText);
-          expect(
-            t.textScaler!.scale(t.style!.fontSize!),
-            greaterThanOrEqualTo(15),
-          );
+          expect(t.style!.fontSize, KLivePk.timerText);
         });
 
         testWidgets('the emblem and Kabi never cover the figures', (
@@ -224,11 +235,22 @@ void main() {
             expect(kabi, findsNWidgets(2));
             for (final k in tester.widgetList(kabi)) {
               final r = tester.getRect(find.byWidget(k));
+              // D238b: on the thin track's top edge; never over a figure.
               expect(
                 r.bottom,
-                lessThanOrEqualTo(math.min(left.top, right.top) + 1),
+                lessThanOrEqualTo(left.center.dy - PkBarMetrics.track / 2 + 1),
                 reason: '$own:$other',
               );
+              for (final f in [left, right]) {
+                final o = r.intersect(f);
+                // (At 1.3× the figure's text box, taller than its glyphs,
+                // may touch Kabi's feet by about 1 lp.)
+                expect(
+                  o.width <= 0 || o.height <= 1.5,
+                  isTrue,
+                  reason: '$own:$other kabi $r figure $f',
+                );
+              }
             }
           }
         });
@@ -248,14 +270,15 @@ void main() {
           final other = _rect(tester, LivePkStage.opponentPaneKey);
           expect(own.top, closeTo(bar.bottom, 0.01));
           expect(other.top, closeTo(bar.bottom, 0.01));
-          // The track is the bar's bottom 30 lp; the emblem reaches over
+          // The track is the bar's bottom 14.5 lp; the emblem reaches over
           // the videos' top edge (overlap, never a gap).
           final emblem = _rect(tester, PkBattleBar.emblemKey);
           expect(emblem.bottom, greaterThan(own.top));
         });
 
-        testWidgets('hosts at the bottom of their halves; the «+» only for '
-            'the opponent and only when given', (tester) async {
+        testWidgets('only the other host has a name pill (the reference '
+            "pill at their half's bottom outer corner); the «+» only when "
+            'given; the videos edge to edge', (tester) async {
           var follows = 0;
           await _stage(
             tester,
@@ -266,27 +289,54 @@ void main() {
             onFollow: () => follows++,
           );
           expect(tester.takeException(), isNull);
+          final width = viewport.logicalSize.width;
           final ownPane = _rect(tester, LivePkStage.ownPaneKey);
           final otherPane = _rect(tester, LivePkStage.opponentPaneKey);
-          final ownChip = _rect(tester, LivePkStage.ownHostKey);
-          final otherChip = _rect(tester, LivePkStage.opponentHostKey);
-          for (final (pane, chip) in [
-            (ownPane, ownChip),
-            (otherPane, otherChip),
-          ]) {
-            expect(pane.left <= chip.left && chip.right <= pane.right, isTrue);
-            expect(chip.bottom, closeTo(pane.bottom - KLivePk.paneInset, 1));
-            expect(chip.height, KLivePk.hostChip);
-          }
-          // Avatars 38 lp in the team ring, the names on one line.
-          expect(KLivePk.hostAvatar, inInclusiveRange(36, 40));
+          // Edge to edge, a hairline between the halves.
+          final (left, right) = ar
+              ? (otherPane, ownPane)
+              : (ownPane, otherPane);
+          expect(left.left, closeTo(0, 0.01));
+          expect(right.right, closeTo(width, 0.01));
+          expect(right.left - left.right, closeTo(KLivePk.seam, 0.01));
           expect(
-            find.descendant(
-              of: find.byKey(LivePkStage.ownHostKey),
-              matching: find.text(ar ? 'سارة' : 'Sara'),
-            ),
-            findsOneWidget,
+            ownPane.height,
+            closeTo(ownPane.width / KLivePk.paneAspect, 0.5),
           );
+          // This room's host is in the top bar: no pill on their half.
+          expect(find.byKey(LivePkStage.ownHostKey), findsNothing);
+          expect(find.text(ar ? 'سارة' : 'Sara'), findsNothing);
+          final glass = find.descendant(
+            of: find.byKey(LivePkStage.opponentHostKey),
+            matching: find.byWidgetPredicate(
+              (w) =>
+                  w is Container &&
+                  w.decoration is BoxDecoration &&
+                  (w.decoration! as BoxDecoration).color == KLivePk.pillGlass,
+            ),
+          );
+          final pill = tester.getRect(glass);
+          // The reference's 14 lp; larger text may grow it a little.
+          if (scale == 1) {
+            expect(pill.height, closeTo(KLivePk.pillHeight, 0.5));
+          } else {
+            expect(pill.height, inInclusiveRange(KLivePk.pillHeight, 18));
+          }
+          expect(pill.width, lessThanOrEqualTo(KLivePk.pillMaxWidth + 0.5));
+          // Its centre where the reference's is (7.2 lp over the bottom).
+          expect(
+            pill.center.dy,
+            closeTo(
+              otherPane.bottom - KLivePk.pillBottom - KLivePk.pillHeight / 2,
+              0.5,
+            ),
+          );
+          // At the outer edge (the screen's), the reference's 11.1 lp in.
+          if (ar) {
+            expect(pill.left, closeTo(KLivePk.pillEnd, 0.5));
+          } else {
+            expect(pill.right, closeTo(width - KLivePk.pillEnd, 0.5));
+          }
           final name = tester.widget<Text>(
             find.descendant(
               of: find.byKey(LivePkStage.opponentHostKey),
@@ -295,15 +345,26 @@ void main() {
           );
           expect(name.maxLines, 1);
           expect(name.overflow, TextOverflow.ellipsis);
-          // The «+» is on the opponent's chip only.
-          final plus = find.byKey(LivePkStage.followOpponentKey);
-          expect(plus, findsOneWidget);
+          expect(name.style?.fontSize, KLivePk.pillText);
+          // No picture inside the pill.
           expect(
             find.descendant(
               of: find.byKey(LivePkStage.opponentHostKey),
-              matching: plus,
+              matching: find.byType(KAvatar),
             ),
-            findsOneWidget,
+            findsNothing,
+          );
+          // The red «+» at the pill's end; its target is at least 28 lp.
+          final plus = find.byKey(LivePkStage.followOpponentKey);
+          expect(plus, findsOneWidget);
+          final target = tester.getRect(plus);
+          expect(target.height, greaterThanOrEqualTo(KLivePk.pillTarget));
+          expect(target.width, greaterThanOrEqualTo(KLivePk.pillTarget));
+          expect(
+            ar
+                ? target.center.dx < pill.center.dx
+                : target.center.dx > pill.center.dx,
+            isTrue,
           );
           await tester.tap(plus);
           expect(follows, 1);
@@ -317,6 +378,39 @@ void main() {
             textScale: scale,
           );
           expect(find.byKey(LivePkStage.followOpponentKey), findsNothing);
+          expect(find.byKey(LivePkStage.opponentHostKey), findsOneWidget);
+        });
+
+        testWidgets('each half is a button for screen readers (the card)', (
+          tester,
+        ) async {
+          final handle = tester.ensureSemantics();
+          await _stage(
+            tester,
+            pkMatchFixture(now: DateTime.now(), ar: ar),
+            language: language,
+            viewport: viewport,
+            textScale: scale,
+          );
+          final l10n = l10nFor(language);
+          for (final (key, label) in [
+            (LivePkStage.ownPaneKey, l10n.pkOwnPane(ar ? 'سارة' : 'Sara')),
+            (
+              LivePkStage.opponentPaneKey,
+              l10n.pkOpponentPane(ar ? 'كريم' : 'Karim'),
+            ),
+          ]) {
+            expect(
+              tester.getSemantics(find.byKey(key)),
+              matchesSemantics(
+                label: label,
+                hint: l10n.liveUserViewProfile,
+                isButton: true,
+                hasTapAction: true,
+              ),
+            );
+          }
+          handle.dispose();
         });
 
         testWidgets('a tap on a half or its host: that host (opponent '
@@ -329,12 +423,8 @@ void main() {
             textScale: scale,
           );
           await tester.tap(find.byKey(LivePkStage.opponentPaneKey));
-          await tester.tap(
-            find.descendant(
-              of: find.byKey(LivePkStage.opponentHostKey),
-              matching: find.byType(KAvatar),
-            ),
-          );
+          // The pill's name falls through to its half.
+          await tester.tap(find.text(ar ? 'كريم' : 'Karim'));
           await tester.tap(find.byKey(LivePkStage.ownPaneKey));
           expect(taps.map((t) => (t.host.id, t.opponent)), [
             ('host-b', true),
@@ -388,7 +478,9 @@ void main() {
       tester,
     ) async {
       final profiles = await viewer(tester);
-      expect(find.byKey(LivePkStage.ownHostKey), findsOneWidget);
+      // D238b: the room's own host has no pill (they are in the top bar).
+      expect(find.byKey(LivePkStage.ownHostKey), findsNothing);
+      expect(find.byKey(LivePkStage.opponentHostKey), findsOneWidget);
       final plus = find.byKey(LivePkStage.followOpponentKey);
       expect(plus, findsOneWidget);
       await tester.tap(plus);
@@ -409,8 +501,9 @@ void main() {
         final other = _rect(tester, LivePkStage.opponentPaneKey);
         expect(bar.left, closeTo(0, 0.5));
         expect(bar.right, closeTo(393, 0.5));
-        // The videos keep their margins, right under the bar.
-        expect(math.min(own.left, other.left), greaterThan(bar.left));
+        // D238b: the videos edge to edge too, right under the bar.
+        expect(math.min(own.left, other.left), closeTo(0, 0.01));
+        expect(math.max(own.right, other.right), closeTo(393, 0.01));
         expect(own.top, closeTo(bar.bottom, 0.01));
         final art = [
           for (final i in tester.widgetList<Image>(

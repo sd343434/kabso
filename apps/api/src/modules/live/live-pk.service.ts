@@ -185,6 +185,13 @@ export interface PkMatchDto {
   type: PkTypeName;
   /** v1.50-live (D229): the dare of a DARES match with a winner; null otherwise (and until the battle ends). */
   dare: PkDareDto | null;
+  /** v1.55-live (D242) «جولة أخرى»: the open offer of a RESULT match (who asked, until when); null otherwise. */
+  rematch: { byRoomId: string; expiresAt: string } | null;
+  /** v1.55-live (D242): the battle this one is a rematch of, and how many rematches came before it. */
+  rematchOf: string | null;
+  rematchCount: number;
+  /** v1.55-live (D242): rematches this pair may still play in a row (PK_REMATCH_MAX); null = unlimited. */
+  rematchesLeft: number | null;
 }
 
 /** `PkInvite`. */
@@ -311,7 +318,13 @@ export interface PkMatchData {
     | 'closed'
     | 'mute'
     /** v1.50-live (D229): the dare changed (drawn, accepted, refused, judged, over). */
-    | 'dare';
+    | 'dare'
+    /** v1.55-live (D242) «جولة أخرى»: offered, withdrawn, declined, lapsed; `rematch` = the new battle started. */
+    | 'rematch-offer'
+    | 'rematch-cancelled'
+    | 'rematch-declined'
+    | 'rematch-expired'
+    | 'rematch';
   readonly match: PkMatchDto;
   /** `boost`: the side (room id) and booster that just started (the «فعّل فريق X تربل ×5!» line). */
   readonly boost?: { roomId: string; kind: PkBoosterKindName; multiplier: number; endsAt: string };
@@ -397,6 +410,12 @@ interface MatchRow {
   connected_at: Date | null;
   effective: boolean | null;
   type: PkTypeName;
+  /** v1.55-live (D242). */
+  rematch_of: string | null;
+  rematch_root_id: string | null;
+  rematch_count: number;
+  rematch_by: PkSideName | null;
+  rematch_expires_at: Date | null;
 }
 
 /** v1.50-live (D229): a match's dare row. */
@@ -427,7 +446,9 @@ const MATCH_COLUMNS = `id::text AS id, source::text AS source, status::text AS s
   host_b_id::text AS host_b_id, score_a, score_b, started_at, battle_ends_at, ended_at, result_ends_at,
   end_reason::text AS end_reason, winner::text AS winner, loser_cause::text AS loser_cause,
   a_mutes_b, b_mutes_a, seq, top_a, top_b, mode::text AS mode, round_seconds, round, rounds_a, rounds_b,
-  total_a, total_b, settings_from::text AS settings_from, connected_at, effective, type::text AS type`;
+  total_a, total_b, settings_from::text AS settings_from, connected_at, effective, type::text AS type,
+  rematch_of::text AS rematch_of, rematch_root_id::text AS rematch_root_id, rematch_count,
+  rematch_by::text AS rematch_by, rematch_expires_at`;
 
 interface RoomState {
   id: string;
@@ -808,6 +829,14 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
       effective: row.effective,
       type: row.type,
       dare,
+      rematch:
+        row.status === 'RESULT' && row.rematch_by !== null && row.rematch_expires_at !== null
+          ? { byRoomId: roomOf(row.rematch_by)!, expiresAt: iso(row.rematch_expires_at) }
+          : null,
+      rematchOf: row.rematch_of,
+      rematchCount: row.rematch_count,
+      rematchesLeft:
+        this.config.pk.rematchMax === 0 ? null : Math.max(0, this.config.pk.rematchMax - row.rematch_count),
     };
   }
 
@@ -2210,10 +2239,15 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
   async allowsWatcher(roomId: string, identity: string): Promise<boolean> {
     const matchId = pkMatchOfIdentity(identity);
     if (matchId === null) return false;
-    const n = await this.prisma.pkMatch.count({
-      where: { id: matchId, status: { not: 'CLOSED' }, OR: [{ roomAId: roomId }, { roomBId: roomId }] },
-    });
-    return n > 0;
+    // v1.55-live (D242): a rematch keeps the PK media of its chain — a watcher of an earlier battle of the same
+    // chain stays while the chain's open match is in this room.
+    const [row] = await this.prisma.$queryRaw<{ ok: boolean }[]>`
+      WITH me AS (SELECT COALESCE(rematch_root_id, id) AS root FROM pk_matches WHERE id = ${matchId}::uuid)
+      SELECT EXISTS (
+        SELECT 1 FROM pk_matches m, me
+         WHERE m.status <> 'CLOSED' AND (m.room_a_id = ${roomId}::uuid OR m.room_b_id = ${roomId}::uuid)
+           AND (m.id = ${matchId}::uuid OR m.rematch_root_id = me.root)) AS ok`;
+    return row?.ok === true;
   }
 
   /** The host of a room in a PK battle joined or left the media session (D195 disconnect rule). */
@@ -2235,6 +2269,231 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
                                                THEN COALESCE(b_left_at, ${now}::timestamptz) ELSE b_left_at END
          WHERE status IN ('CONNECTED', 'BATTLE') AND (room_a_id = ${roomId}::uuid OR room_b_id = ${roomId}::uuid)`;
     }
+  }
+
+  // ---- «جولة أخرى» (v1.55-live, D242) -------------------------------------------------------------
+
+  /**
+   * The caller's room's open match under both rooms' PK locks (FOR UPDATE), with the caller's side. No open match
+   * → 409 PK_NOT_ACTIVE.
+   */
+  private async lockedOwnMatch(
+    tx: Prisma.TransactionClient,
+    room: RoomState,
+  ): Promise<{ match: MatchRow; side: PkSideName }> {
+    const first = await this.openMatchOfRoom(tx, room.id);
+    if (!first) throw new AppException(ErrorCode.PK_NOT_ACTIVE);
+    await this.lockRooms(tx, [first.room_a_id, first.room_b_id]);
+    const match = await this.selectMatch(tx, Prisma.sql`id = ${first.id}::uuid`, true);
+    if (!match || match.status === 'CLOSED') throw new AppException(ErrorCode.PK_NOT_ACTIVE);
+    return { match, side: match.room_a_id === room.id ? 'A' : 'B' };
+  }
+
+  /**
+   * Why «جولة أخرى» cannot be played now (409 PK_REMATCH_UNAVAILABLE), or nothing: the match is in RESULT with
+   * its dare over (or none); both lives still on air as SOLO video lives with fresh heartbeats and their hosts
+   * present; both hosts ACTIVE and not blocked either way; fewer than PK_REMATCH_MAX rematches in a row.
+   */
+  private async assertRematchable(tx: Prisma.TransactionClient, m: MatchRow, now: Date): Promise<void> {
+    const unavailable = () => new AppException(ErrorCode.PK_REMATCH_UNAVAILABLE);
+    if (m.status !== 'RESULT') throw unavailable();
+    if (this.config.pk.rematchMax > 0 && m.rematch_count >= this.config.pk.rematchMax) throw unavailable();
+    const [open] = await tx.$queryRaw<{ open: boolean }[]>`
+      SELECT EXISTS (SELECT 1 FROM pk_match_dares d WHERE d.match_id = ${m.id}::uuid AND d.finished_at IS NULL) AS open`;
+    if (open?.open) throw unavailable();
+    const [a, b] = await Promise.all([this.roomState(tx, m.room_a_id), this.roomState(tx, m.room_b_id)]);
+    if (!this.eligible(a, now) || !this.eligible(b, now)) throw unavailable();
+    const active = await tx.user.count({
+      where: { id: { in: [m.host_a_id, m.host_b_id] }, status: 'ACTIVE' },
+    });
+    if (active < 2) throw unavailable();
+    if (await this.blocked(tx, m.host_a_id, m.host_b_id)) throw unavailable();
+  }
+
+  /**
+   * v1.55-live (D242) `POST /live/rooms/{roomId}/pk/rematch` «جولة أخرى»: a host of a RESULT match offers another
+   * battle with the same opponent; the other host has PK_REMATCH_ACCEPT_SECONDS to answer (the PK stays open that
+   * long). The other host's own offer open → it is an acceptance (both tapped). Already offered by the caller: the
+   * match as it is (idempotent). Event `rematch-offer` to both rooms.
+   */
+  async offerRematch(callerId: string, roomId: string): Promise<PkMatchDto> {
+    this.assertPkOn();
+    const room = await this.ownRoom(callerId, roomId);
+    const now = this.clock.now();
+    const result = await this.prisma.$transaction(
+      async (tx): Promise<{ kind: 'offered' | 'same'; id: string } | { kind: 'accepted'; id: string }> => {
+        const { match, side } = await this.lockedOwnMatch(tx, room);
+        if (match.status === 'BATTLE' && match.rematch_of !== null) return { kind: 'same', id: match.id };
+        const pending =
+          match.rematch_by !== null &&
+          match.rematch_expires_at !== null &&
+          match.rematch_expires_at.getTime() > now.getTime();
+        if (pending && match.rematch_by === side) return { kind: 'same', id: match.id };
+        if (pending) return { kind: 'accepted', id: await this.startRematchIn(tx, match, callerId, now) };
+        await this.assertRematchable(tx, match, now);
+        const expires = new Date(now.getTime() + this.config.pk.rematchAcceptSeconds * 1000);
+        await tx.$executeRaw`
+          UPDATE pk_matches
+             SET rematch_by = ${side}::pk_side, rematch_expires_at = ${iso(expires)}::timestamptz,
+                 result_ends_at = GREATEST(COALESCE(result_ends_at, ${iso(expires)}::timestamptz), ${iso(expires)}::timestamptz),
+                 seq = seq + 1
+           WHERE id = ${match.id}::uuid`;
+        return { kind: 'offered', id: match.id };
+      },
+      LIVE_TX_OPTIONS,
+    );
+    if (result.kind === 'offered') return (await this.broadcastMatch(result.id, 'rematch-offer'))!;
+    if (result.kind === 'accepted') return (await this.broadcastMatch(result.id, 'rematch'))!;
+    return this.matchDto((await this.selectMatch(this.prisma, Prisma.sql`id = ${result.id}::uuid`))!);
+  }
+
+  /**
+   * v1.55-live (D242) `POST /live/rooms/{roomId}/pk/rematch/accept`: the other host accepts — the RESULT match
+   * closes quietly (its PK media stays: the chain's watchers remain valid) and a NEW battle starts between the same
+   * two rooms at once, with the previous battle's mode and round time, scores and boosters from zero, the same
+   * type (its own dare). Event `rematch` to both rooms. Already accepted: the new battle as it is.
+   */
+  async acceptRematch(callerId: string, roomId: string): Promise<PkMatchDto> {
+    this.assertPkOn();
+    const room = await this.ownRoom(callerId, roomId);
+    const now = this.clock.now();
+    const result = await this.prisma.$transaction(async (tx) => {
+      const { match, side } = await this.lockedOwnMatch(tx, room);
+      if (match.status === 'BATTLE' && match.rematch_of !== null) return { started: false, id: match.id };
+      if (
+        match.status !== 'RESULT' ||
+        match.rematch_by === null ||
+        match.rematch_by === side ||
+        match.rematch_expires_at === null ||
+        match.rematch_expires_at.getTime() <= now.getTime()
+      ) {
+        throw new AppException(ErrorCode.PK_REMATCH_CLOSED);
+      }
+      return { started: true, id: await this.startRematchIn(tx, match, callerId, now) };
+    }, LIVE_TX_OPTIONS);
+    if (result.started) return (await this.broadcastMatch(result.id, 'rematch'))!;
+    return this.matchDto((await this.selectMatch(this.prisma, Prisma.sql`id = ${result.id}::uuid`))!);
+  }
+
+  /** In the accept's transaction: the checks again, the old match closed, the new battle created; its id. */
+  private async startRematchIn(
+    tx: Prisma.TransactionClient,
+    old: MatchRow,
+    actorId: string,
+    now: Date,
+  ): Promise<string> {
+    await this.assertRematchable(tx, old, now);
+    await tx.$executeRaw`
+      UPDATE pk_matches
+         SET status = 'CLOSED', closed_at = ${iso(now)}::timestamptz, rematch_by = NULL, rematch_expires_at = NULL,
+             seq = seq + 1
+       WHERE id = ${old.id}::uuid AND status = 'RESULT'`;
+    const id = uuidv7();
+    const type: PkTypeName = old.type === 'DARES' && this.config.pk.daresEnabled ? 'DARES' : 'NORMAL';
+    await tx.pkMatch.create({
+      data: {
+        id,
+        source: old.source,
+        status: 'BATTLE',
+        roomAId: old.room_a_id,
+        hostAId: old.host_a_id,
+        roomBId: old.room_b_id,
+        hostBId: old.host_b_id,
+        startedAt: now,
+        battleEndsAt: new Date(now.getTime() + old.round_seconds * 1000),
+        mode: old.mode,
+        roundSeconds: old.round_seconds,
+        settingsFrom: old.settings_from,
+        seq: 1,
+        type,
+        aMutesB: old.a_mutes_b,
+        bMutesA: old.b_mutes_a,
+        rematchOf: old.id,
+        rematchRootId: old.rematch_root_id ?? old.id,
+        rematchCount: old.rematch_count + 1,
+      },
+    });
+    await this.audit.recordIn(tx, {
+      action: AuditAction.LIVE_PK_START,
+      actorUserId: actorId,
+      targetType: 'pk_match',
+      targetId: id,
+      metadata: {
+        source: 'REMATCH',
+        rematchOf: old.id,
+        rematchCount: old.rematch_count + 1,
+        roomA: old.room_a_id,
+        roomB: old.room_b_id,
+        mode: old.mode,
+        roundSeconds: old.round_seconds,
+        type,
+      },
+    });
+    return id;
+  }
+
+  /**
+   * v1.55-live (D242) `POST /live/rooms/{roomId}/pk/rematch/decline`: the other host says no — the offer ends
+   * (event `rematch-declined`, the asking host's honest toast) and the PK closes as it normally does.
+   */
+  async declineRematch(callerId: string, roomId: string): Promise<void> {
+    const room = await this.ownRoom(callerId, roomId);
+    const now = this.clock.now();
+    const id = await this.prisma.$transaction(async (tx) => {
+      const { match, side } = await this.lockedOwnMatch(tx, room);
+      if (
+        match.status !== 'RESULT' ||
+        match.rematch_by === null ||
+        match.rematch_by === side ||
+        match.rematch_expires_at === null ||
+        match.rematch_expires_at.getTime() <= now.getTime()
+      ) {
+        throw new AppException(ErrorCode.PK_REMATCH_CLOSED);
+      }
+      return match.id;
+    }, LIVE_TX_OPTIONS);
+    await this.endRematchOffer(id, 'rematch-declined', null);
+  }
+
+  /**
+   * v1.55-live (D242) `DELETE /live/rooms/{roomId}/pk/rematch`: the asking host withdraws the offer (event
+   * `rematch-cancelled`); the result goes on until its own end. No offer of theirs open → 409 PK_REMATCH_CLOSED.
+   */
+  async cancelRematch(callerId: string, roomId: string): Promise<PkMatchDto> {
+    const room = await this.ownRoom(callerId, roomId);
+    const now = this.clock.now();
+    const id = await this.prisma.$transaction(async (tx) => {
+      const { match, side } = await this.lockedOwnMatch(tx, room);
+      if (
+        match.status !== 'RESULT' ||
+        match.rematch_by !== side ||
+        match.rematch_expires_at === null ||
+        match.rematch_expires_at.getTime() <= now.getTime()
+      ) {
+        throw new AppException(ErrorCode.PK_REMATCH_CLOSED);
+      }
+      return match.id;
+    }, LIVE_TX_OPTIONS);
+    await this.endRematchOffer(id, 'rematch-cancelled', 'keep');
+    return this.matchDto((await this.selectMatch(this.prisma, Prisma.sql`id = ${id}::uuid`))!);
+  }
+
+  /**
+   * Ends an open offer (still open: the guard): `event` to both rooms; then, unless `keep`, the PK closes as usual
+   * (declined or lapsed). True when this call ended it.
+   */
+  private async endRematchOffer(
+    matchId: string,
+    event: 'rematch-cancelled' | 'rematch-declined' | 'rematch-expired',
+    keep: 'keep' | null,
+  ): Promise<boolean> {
+    const changed = await this.prisma.$executeRaw`
+      UPDATE pk_matches SET rematch_by = NULL, rematch_expires_at = NULL, seq = seq + 1
+       WHERE id = ${matchId}::uuid AND status = 'RESULT' AND rematch_by IS NOT NULL`;
+    if (changed === 0) return false;
+    await this.broadcastMatch(matchId, event);
+    if (keep === null) await this.closeResult(matchId, true);
+    return true;
   }
 
   // ---- Settings, records -----------------------------------------------------------------------
@@ -2495,6 +2754,13 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
         else if (m.battle_ends_at.getTime() <= now.getTime()) finish = { reason: 'TIME', loser: null };
         if (finish && (await this.finishBattle(m.id, finish))) ended += 1;
       } else if (m.status === 'RESULT') {
+        // v1.55-live (D242): a rematch offer nobody answered in time lapses, and the PK closes as usual.
+        if (m.rematch_by !== null && m.rematch_expires_at !== null) {
+          if (m.rematch_expires_at.getTime() <= now.getTime()) {
+            if (await this.endRematchOffer(m.id, 'rematch-expired', null)) closed += 1;
+            continue;
+          }
+        }
         // v1.50-live (D229): an open dare runs first (its timeouts, the loser gone); the PK stays open meanwhile.
         if (m.type === 'DARES' && (await this.dareTick(m, now, grace))) continue;
         const rooms = await this.prisma.liveRoom.count({

@@ -191,6 +191,18 @@ info:
     (CONVENTIONS §10.81).
     **D234 (DRAFT v1.52-live)** adds the author's showcased medals to a live chat line:
     `LiveChatAuthorBadges.medals` (≤ 5 `LiveChatAuthorMedal` {code, iconKey}; CONVENTIONS §10.82).
+    **D240 (DRAFT v1.53-live)** adds `country` to `listLiveRooms`: the rooms whose host's country is the
+    given ISO 3166-1 alpha-2 code (the viewer's choice of «القريبة»; no token needed; wins over
+    `scope=nearby`; CONVENTIONS §10.83).
+    **D241 (DRAFT v1.54-live)** flags a room in a PK: `LiveRoomSummary.inPk` (an open D195 match — CONNECTED,
+    BATTLE or RESULT — or the legacy mode `PK`; real battles keep the rooms `SOLO`), and the panel's lives:
+    `listAdminLives` `mode=PK` / `SOLO` by it and `AdminLiveRow.pk` / `AdminLiveDetail.pk` (the opponent;
+    CONVENTIONS §10.84).
+    **D242 (DRAFT v1.55-live)** «جولة أخرى»: a rematch with the same opponent from the result —
+    `offerLivePkRematch`, `acceptLivePkRematch`, `declineLivePkRematch`, `cancelLivePkRematch`; `PkMatch.rematch`
+    (`PkRematchOffer`), `rematchOf`, `rematchCount`, `rematchesLeft`; data-message events `rematch-offer`,
+    `rematch-cancelled`, `rematch-declined`, `rematch-expired`, `rematch`; codes `PK_REMATCH_UNAVAILABLE`,
+    `PK_REMATCH_CLOSED` (409); config `PK_REMATCH_ACCEPT_SECONDS` (15), `PK_REMATCH_MAX` (5) (CONVENTIONS §10.85).
     **D154c (DRAFT v1.34-live)** adds newcomers «الجدد»: `listLiveNewcomers` (host and moderators:
     the people in the live whose account is younger than `NEWCOMER_DAYS`, 30) and
     `LiveChatAuthorBadges.newcomer` (CONVENTIONS §10.35).
@@ -449,7 +461,8 @@ info:
     watch-only token for the other room (`createLivePkMediaToken`); the snapshot `getLivePk`; the host's
     mute (`muteLivePkOpponent`); records and history (`getLivePkHost`); codes `PK_UNAVAILABLE`, `PK_HOST_BUSY`,
     `PK_INVITES_OFF`, `PK_INVITE_COOLDOWN`, `PK_INVITE_CLOSED`, `PK_NOT_ACTIVE`, `PK_BOOSTER_UNAVAILABLE` (409); v1.50-live
-    (D229): `PK_DARE_CLOSED` (409), `PK_DARE_FORBIDDEN` (403)
+    (D229): `PK_DARE_CLOSED` (409), `PK_DARE_FORBIDDEN` (403); v1.55-live (D242): `PK_REMATCH_UNAVAILABLE`,
+    `PK_REMATCH_CLOSED` (409)
     (CONVENTIONS §10.58).
     **D196 (DRAFT v1.64-social)**: the OWNER enters the Stripe keys in the admin panel «الدفع (Stripe)» instead of
     the server environment. `getAdminPaymentSettings`, `updateAdminPaymentSettings` (PATCH; the code again and a
@@ -2205,6 +2218,11 @@ paths:
         filters `following`). `scope`, `featured`, `kind` and `category` combine freely and filter every
         tab; the cursor is bound to all of them (and, for `nearby`, to the caller and their country:
         a cursor issued before the caller's country changed → 400). Explore is `tab=new` (unchanged).
+        *(v1.53-live, D240)* `country` (ISO 3166-1 alpha-2, any case) keeps the rooms whose host's
+        country is that code — the viewer's own choice for «القريبة» (a host without a country is never
+        listed). It needs no token, combines with every tab, `kind`, `category` and `featured`, wins over
+        `scope=nearby` (the caller's country is then not read and `emptyReason` is null), and the cursor
+        is bound to it (a cursor of another country → 400).
       parameters:
         - name: tab
           in: query
@@ -2225,6 +2243,11 @@ paths:
           required: false
           description: '(v1.27.1-live, D133) `nearby`: only rooms whose host has the same country as the caller (`Me.country`). Needs a token (else 401). A caller without a country → 200, empty page, `emptyReason` `COUNTRY_NOT_SET`. Absent: every country. Another value → 400 (`field "scope"`).'
           schema: { type: string, enum: [nearby] }
+        - name: country
+          in: query
+          required: false
+          description: '(v1.53-live, D240) ISO 3166-1 alpha-2 code, any case: only rooms whose host''s country (`Me.country`) is this one. No token needed; wins over `scope=nearby`. Absent: every country (unless `scope=nearby`). Not two letters or not a known code → 400 `VALIDATION_FAILED` (`field "country"`).'
+          schema: { type: string, pattern: '^[A-Za-z]{2}$' }
         - name: featured
           in: query
           required: false
@@ -2267,7 +2290,7 @@ paths:
                         topic: null
                     page: { nextCursor: eyJ2IjoxLCJ0IjoibmV3In0.q2Fm0b7xT1sYg8aE3k9Lzw, hasMore: true }
         '400':
-          description: VALIDATION_FAILED — bad `tab`, malformed `category`, bad `kind`, `scope` or `featured` (v1.27.1-live), `limit` out of range, or a malformed, tampered or mismatched `cursor` (`field "cursor"`, `issue "invalid_value"`).
+          description: VALIDATION_FAILED — bad `tab`, malformed `category`, bad `kind`, `scope` or `featured` (v1.27.1-live), bad `country` (v1.53-live), `limit` out of range, or a malformed, tampered or mismatched `cursor` (`field "cursor"`, `issue "invalid_value"`).
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }
@@ -4112,6 +4135,98 @@ paths:
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/pk/rematch:
+    post:
+      tags: [live]
+      operationId: offerLivePkRematch
+      summary: "«جولة أخرى»: a host offers another battle with the same opponent (D242)"
+      description: |
+        v1.55-live, §10.85. A host of the room's RESULT match (their room in the path), after its dare is over (or
+        with none), before it closes: both lives still on air as SOLO video lives, fresh and present, both hosts
+        ACTIVE and not blocked, fewer than `PK_REMATCH_MAX` (5; 0 = unlimited) rematches in a row — else 409
+        `PK_REMATCH_UNAVAILABLE`; no open match 409 `PK_NOT_ACTIVE`. The other host has `PK_REMATCH_ACCEPT_SECONDS`
+        (15) to answer (`PkMatch.rematch`; the PK stays open that long); event `rematch-offer` to both rooms. The
+        other host's own offer open: this is an acceptance (both tapped: the new battle starts, event `rematch`).
+        Already offered by the caller, or the rematch already started: the match as it is. Bucket `live:pk:action`.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '200':
+          description: The match (with its offer), or the new battle when this was an acceptance.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PkMatch' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [live]
+      operationId: cancelLivePkRematch
+      summary: "«جولة أخرى»: the asking host withdraws the offer (D242)"
+      description: |
+        v1.55-live, §10.85. Event `rematch-cancelled`; the result goes on until its own end. No open offer of the
+        caller's → 409 `PK_REMATCH_CLOSED`. Bucket `live:pk:action`.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '200':
+          description: The match without the offer.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PkMatch' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/pk/rematch/accept:
+    post:
+      tags: [live]
+      operationId: acceptLivePkRematch
+      summary: "«جولة أخرى»: the other host accepts — a new battle starts (D242)"
+      description: |
+        v1.55-live, §10.85. The host the offer was made to, before it lapses (else 409 `PK_REMATCH_CLOSED`; the
+        conditions of the offer are checked again: 409 `PK_REMATCH_UNAVAILABLE`). The RESULT match closes quietly
+        (no `closed` event; its PK media watchers stay valid for the chain) and a **new** match starts at once
+        between the same two rooms (same sides): BATTLE, the previous battle's `mode` and `roundSeconds`, scores and
+        boosters from zero, the same `type` (a DARES rematch has its own dare), `rematchOf` the previous match,
+        `rematchCount` + 1; it counts in the records and the history like any match. Event `rematch` (with the new
+        match) to both rooms. Already accepted: the new battle as it is. Audited `live.pk.start` (`source`
+        REMATCH). Bucket `live:pk:action`.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '200':
+          description: The new battle.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PkMatch' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/pk/rematch/decline:
+    post:
+      tags: [live]
+      operationId: declineLivePkRematch
+      summary: "«جولة أخرى»: the other host declines — the PK closes (D242)"
+      description: |
+        v1.55-live, §10.85. Event `rematch-declined` (the asking host's toast), then the PK closes as usual (event
+        `closed`). No open offer to the caller → 409 `PK_REMATCH_CLOSED`. An offer nobody answers lapses the same
+        way (event `rematch-expired`). Bucket `live:pk:action`.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '204': { description: Declined; the PK closes. }
+        '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -12504,6 +12619,13 @@ paths:
           - viewers
           - startedAt
           default: viewers
+      - name: mode
+        in: query
+        required: false
+        description: (v1.47-live, D212) the panel's category chips. (v1.54-live, D241) `PK` = the rooms in an open D195 PK match (they stay `SOLO`) or of the legacy mode `PK`; `SOLO` = `SOLO` rooms not in a PK (the chips partition the lives).
+        schema:
+          type: string
+          enum: [SOLO, PK, MULTI, AUDIO, PODCAST]
       responses:
         '200':
           description: OK.
@@ -18302,6 +18424,23 @@ components:
           - 'null'
         host:
           $ref: '#/components/schemas/AdminPersonRef'
+        pk:
+          description: (v1.54-live, D241) the room's PK, null when not in one. The opponent is null for a legacy mode `PK` room without a match.
+          oneOf:
+          - $ref: '#/components/schemas/AdminLivePk'
+          - type: 'null'
+    AdminLivePk:
+      type: object
+      description: (v1.54-live, D241) the other side of the room's open PK match.
+      required: [opponentRoomId, opponentUsername, opponentDisplayName]
+      properties:
+        opponentRoomId:
+          type: [string, 'null']
+          format: uuid
+        opponentUsername:
+          type: [string, 'null']
+        opponentDisplayName:
+          type: [string, 'null']
     AdminLivePage:
       type: object
       required:
@@ -18407,6 +18546,11 @@ components:
           type: integer
         moderators:
           type: integer
+        pk:
+          description: (v1.54-live, D241) the room's PK, null when not in one.
+          oneOf:
+          - $ref: '#/components/schemas/AdminLivePk'
+          - type: 'null'
     AdminLiveEnded:
       type: object
       required:
@@ -21628,6 +21772,9 @@ components:
           oneOf:
             - $ref: '#/components/schemas/LivePodcast'
             - type: 'null'
+        inPk:
+          type: boolean
+          description: "v1.54-live (D241, CONVENTIONS §10.84) — the room is in a PK now: an open D195 match (CONNECTED, BATTLE or RESULT, its dare included) on either side, or the legacy mode `PK` (a real battle keeps the rooms `SOLO`). The hub card's tag is «PK». Sent by v1.54-live servers; a missing field reads as false."
     LiveRoom:
       allOf:
         - { $ref: '#/components/schemas/LiveRoomSummary' }
@@ -21883,7 +22030,7 @@ components:
         mutesOpponent: { type: boolean, description: "This side's host turned the opponent's sound off in their room." }
     PkMatch:
       type: object
-      required: [id, source, status, startedAt, battleEndsAt, endedAt, resultEndsAt, endReason, winnerRoomId, loserCauseRoomId, seq, serverTime, sides, boosters, mode, roundSeconds, round, rounds, connectedAt, settingsFromRoomId, effective, type, dare]
+      required: [id, source, status, startedAt, battleEndsAt, endedAt, resultEndsAt, endReason, winnerRoomId, loserCauseRoomId, seq, serverTime, sides, boosters, mode, roundSeconds, round, rounds, connectedAt, settingsFromRoomId, effective, type, dare, rematch, rematchOf, rematchCount, rematchesLeft]
       properties:
         id: { type: string, format: uuid }
         source: { type: string, enum: [INVITE, RANDOM] }
@@ -21925,6 +22072,20 @@ components:
           oneOf:
             - $ref: '#/components/schemas/PkDare'
             - type: 'null'
+        rematch:
+          description: "v1.55-live (D242) «جولة أخرى»: the open offer of a RESULT match — the asking host's room and when it lapses (PK_REMATCH_ACCEPT_SECONDS); null otherwise."
+          oneOf:
+            - $ref: '#/components/schemas/PkRematchOffer'
+            - type: 'null'
+        rematchOf: { type: [string, 'null'], format: uuid, description: "v1.55-live (D242): the battle this one is a rematch of (same two rooms); null for the first." }
+        rematchCount: { type: integer, minimum: 0, description: "v1.55-live (D242): rematches before this one in the chain." }
+        rematchesLeft: { type: [integer, 'null'], minimum: 0, description: "v1.55-live (D242): rematches still allowed in a row (PK_REMATCH_MAX); null = unlimited. 0: the app shows no «جولة أخرى»." }
+    PkRematchOffer:
+      type: object
+      required: [byRoomId, expiresAt]
+      properties:
+        byRoomId: { type: string, format: uuid }
+        expiresAt: { type: string, format: date-time }
     PkType:
       type: string
       enum: [NORMAL, DARES]

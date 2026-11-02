@@ -5151,7 +5151,17 @@ model PkMatch {
   effective     Boolean?
   /// v1.50-live (D229): «PK أحكام» (DARES) or the normal PK.
   type          PkType        @default(NORMAL)
+  /// v1.55-live (D242) «جولة أخرى»: the battle this rematch follows, the first of its chain (the chain's PK media
+  /// watchers stay valid) and how many rematches came before it (PK_REMATCH_MAX).
+  rematchOf        String?   @map("rematch_of") @db.Uuid
+  rematchRootId    String?   @map("rematch_root_id") @db.Uuid
+  rematchCount     Int       @default(0) @map("rematch_count")
+  /// v1.55-live (D242): an open offer on a RESULT match — the side that asked and when it lapses.
+  rematchBy        PkSide?   @map("rematch_by")
+  rematchExpiresAt DateTime? @map("rematch_expires_at") @db.Timestamptz(3)
 
+  previous    PkMatch?       @relation("PkRematch", fields: [rematchOf], references: [id], onDelete: SetNull)
+  rematches   PkMatch[]      @relation("PkRematch")
   roomA       LiveRoom       @relation("PkMatchRoomA", fields: [roomAId], references: [id], onDelete: Cascade)
   roomB       LiveRoom       @relation("PkMatchRoomB", fields: [roomBId], references: [id], onDelete: Cascade)
   hostA       User           @relation("PkMatchHostA", fields: [hostAId], references: [id], onDelete: Cascade)
@@ -5169,6 +5179,7 @@ model PkMatch {
   @@index([hostAId, startedAt(sort: Desc)], map: "pk_matches_host_a_idx")
   @@index([hostBId, startedAt(sort: Desc)], map: "pk_matches_host_b_idx")
   @@index([roomBId], map: "pk_matches_room_b_idx")
+  @@index([rematchRootId], map: "pk_matches_rematch_root_idx", where: raw("rematch_root_id IS NOT NULL"))
   @@map("pk_matches")
 }
 

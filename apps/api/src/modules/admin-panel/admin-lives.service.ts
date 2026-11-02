@@ -11,6 +11,62 @@ import type { AdminContext } from './admin-auth.service.js';
 import { tableResult, window, type TableQuery } from './admin-tables.js';
 import { refused } from './admin-users.service.js';
 
+/** v1.54-live (D241): an open D195 PK match (CONNECTED, BATTLE or RESULT) on either side. */
+const OPEN_PK = { status: { not: 'CLOSED' as const } };
+const inOpenPk: Prisma.LiveRoomWhereInput = {
+  OR: [{ mode: 'PK' }, { pkMatchesAsA: { some: OPEN_PK } }, { pkMatchesAsB: { some: OPEN_PK } }],
+};
+const pkOpponent = {
+  pkMatchesAsA: {
+    where: OPEN_PK,
+    take: 1,
+    select: {
+      roomB: {
+        select: {
+          id: true,
+          host: { select: { profile: { select: { username: true, displayName: true } } } },
+        },
+      },
+    },
+  },
+  pkMatchesAsB: {
+    where: OPEN_PK,
+    take: 1,
+    select: {
+      roomA: {
+        select: {
+          id: true,
+          host: { select: { profile: { select: { username: true, displayName: true } } } },
+        },
+      },
+    },
+  },
+};
+
+type PkSides = {
+  mode: string;
+  pkMatchesAsA: {
+    roomB: { id: string; host: { profile: { username: string; displayName: string } | null } };
+  }[];
+  pkMatchesAsB: {
+    roomA: { id: string; host: { profile: { username: string; displayName: string } | null } };
+  }[];
+};
+
+/**
+ * v1.54-live (D241): the row's PK — the opponent's room and host when the room is in an open match; a legacy
+ * `mode = 'PK'` room without a match has no opponent. Null when not in a PK.
+ */
+function pkOf(r: PkSides) {
+  const other = r.pkMatchesAsA[0]?.roomB ?? r.pkMatchesAsB[0]?.roomA;
+  if (!other && r.mode !== 'PK') return null;
+  return {
+    opponentRoomId: other?.id ?? null,
+    opponentUsername: other?.host.profile?.username ?? null,
+    opponentDisplayName: other?.host.profile?.displayName ?? null,
+  };
+}
+
 const host = {
   select: {
     id: true,
@@ -40,10 +96,20 @@ export class AdminLivesService {
     ctx: AdminContext,
   ) {
     const text = q.q?.trim().toLowerCase().replace(/^@/, '');
+    // v1.47-live (D212): the mode filter (the panel's category chips). v1.54-live (D241): «PK» = the rooms in an
+    // open D195 match (they stay SOLO) or the legacy mode PK; «بث مباشر» (SOLO) = SOLO rooms NOT in a PK, so
+    // the chips partition the lives.
+    const modeWhere: Prisma.LiveRoomWhereInput =
+      q.mode === 'PK'
+        ? inOpenPk
+        : q.mode === 'SOLO'
+          ? { mode: 'SOLO', NOT: inOpenPk }
+          : q.mode
+            ? { mode: q.mode }
+            : {};
     const where: Prisma.LiveRoomWhereInput = {
       status: 'LIVE',
-      // v1.47-live (D212): the mode filter (the panel's category chips).
-      ...(q.mode ? { mode: q.mode } : {}),
+      AND: [modeWhere],
       ...(text
         ? {
             OR: [
@@ -72,6 +138,7 @@ export class AdminLivesService {
           score: true,
           category: { select: { nameAr: true, nameEn: true } },
           host,
+          ...pkOpponent,
         },
       }),
       this.prisma.liveRoom.count({ where }),
@@ -92,6 +159,7 @@ export class AdminLivesService {
         displayName: r.host.profile?.displayName ?? '',
         avatarUrl: r.host.profile?.avatarUrl ?? null,
       },
+      pk: pkOf(r),
     }));
     return tableResult(
       this.audit,
@@ -105,6 +173,7 @@ export class AdminLivesService {
         ['title', (r) => r.title],
         ['host', (r) => r.host.username],
         ['mode', (r) => r.mode],
+        ['pk_opponent', (r) => r.pk?.opponentUsername ?? (r.pk ? 'PK' : '')],
         ['viewers', (r) => r.viewers],
         ['started_at', (r) => r.startedAt],
       ],
@@ -131,6 +200,7 @@ export class AdminLivesService {
         allowGuests: true,
         category: { select: { nameAr: true, nameEn: true } },
         host,
+        ...pkOpponent,
       },
     });
     if (!r) throw new AppException(ErrorCode.NOT_FOUND);
@@ -168,6 +238,7 @@ export class AdminLivesService {
       seatsTaken: seats,
       openReports,
       moderators,
+      pk: pkOf(r),
     };
   }
 

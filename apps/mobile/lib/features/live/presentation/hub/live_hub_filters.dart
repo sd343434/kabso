@@ -33,7 +33,7 @@ enum LiveHubFilter {
 /// «ستريمر» (phone screen share, D213) has no rooms yet. D237 (owner): the
 /// hub no longer has a category row — audio, podcast and multi are the
 /// tabs of the party page ([partyPage]), and every hub card names its
-/// room's category.
+/// room's category. D239: and only there (the hub is solo and PK).
 enum LiveHubCategory {
   all(null),
   live(LiveRoomsKind.solo),
@@ -64,8 +64,10 @@ enum LiveHubCategory {
 }
 
 /// What the hub shows: a filter, and for Popular its menu choice (All or
-/// one server category). D237: every kind of live together (no category
-/// row; each card names its kind).
+/// one server category). D237: no category row; each card names its kind.
+/// D239 (owner: «بث صوتي يظهر في غير مكانه»): the main hub lists video
+/// lives only — solo and PK (`kind=solo`, server-side, so every filter and
+/// its pages agree); audio, podcast and multi are the party page's.
 @immutable
 class LiveHubSelection {
   const new({this.filter = LiveHubFilter.popular, this.category});
@@ -85,8 +87,15 @@ class LiveHubSelection {
   /// Popular's menu: a category slug (`null`: All).
   final String? category;
 
-  /// The room list behind this selection: every kind (D237).
-  LiveRoomsQuery get query => _filterQuery.withKind(null);
+  /// The room list behind this selection: D239 — video lives only (SOLO
+  /// and PK; «ستريمر» has no rooms yet), under every filter.
+  LiveRoomsQuery get query => _filterQuery.withKind(hubKind);
+
+  /// D240: the same filter's list of one party kind (the party page).
+  LiveRoomsQuery queryOf(LiveRoomsKind kind) => _filterQuery.withKind(kind);
+
+  /// D239: the main hub's server `kind` (SOLO and PK).
+  static const LiveRoomsKind hubKind = LiveRoomsKind.solo;
 
   LiveRoomsQuery get _filterQuery => switch (filter) {
     LiveHubFilter.following => const LiveRoomsQuery(tab: FeedTab.following),

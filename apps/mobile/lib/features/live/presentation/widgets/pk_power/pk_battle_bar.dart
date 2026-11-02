@@ -65,23 +65,30 @@ const _dir = 'assets/pk/score_bar/parts';
 /// plus an end glow at that side's screen edge — and in its banner over its
 /// own video half.
 abstract final class PkBarMetrics {
-  /// The track's height.
-  static const double track = 30;
+  /// The track's height. D238b (owner, ref 332: «خط pk عريض قليلاً»): the
+  /// reference bar's 14.5 lp (measured: 34 px at 2.349 px/lp; was 30).
+  static const double track = 14.5;
 
-  /// Room over the track for Kabi pushing the emblem.
-  static const double above = 34;
+  /// Room over the track for Kabi pushing the emblem (D238b: with Kabi).
+  static const double above = 28;
 
   /// The bar's box: the track's bottom is the box's bottom.
   static const double height = above + track;
 
-  /// The PK emblem's height.
-  static const double emblem = 50;
+  /// The PK emblem's height (D238b: scaled with the track; was 50).
+  static const double emblem = 30;
 
-  /// Kabi's height.
-  static const double kabi = 40;
+  /// Kabi's height (D238b: was 40).
+  static const double kabi = 30;
 
-  /// The score figures (sp; clamped to the overlay text scale).
-  static const double score = 19;
+  /// The score figures (sp; clamped to the overlay text scale). D238b: the
+  /// reference's figures are 8.9 lp tall (measured) — 13 sp of Baloo
+  /// (estimate; was 19).
+  static const double score = 13;
+
+  /// D238b: the figures' box, taller than the thin track so the outlined
+  /// figures at 1.3× text are never clipped (centred on the track).
+  static const double scoreBox = track + 10;
 
   /// The figures' face: the bundled Baloo Bhaijaan 2 ExtraBold (D199).
   static const String family = 'Baloo Bhaijaan 2';
@@ -486,8 +493,8 @@ class _PkBattleBarState extends State<PkBattleBar>
               // track, above everything.
               Positioned(
                 left: PkBarMetrics.scoreInset,
-                top: PkBarMetrics.above,
-                height: PkBarMetrics.track,
+                top: PkBarMetrics.trackCentre - PkBarMetrics.scoreBox / 2,
+                height: PkBarMetrics.scoreBox,
                 child: Center(
                   child: _score(
                     leftText,
@@ -499,8 +506,8 @@ class _PkBattleBarState extends State<PkBattleBar>
               ),
               Positioned(
                 right: PkBarMetrics.scoreInset,
-                top: PkBarMetrics.above,
-                height: PkBarMetrics.track,
+                top: PkBarMetrics.trackCentre - PkBarMetrics.scoreBox / 2,
+                height: PkBarMetrics.scoreBox,
                 child: Center(
                   child: _score(
                     rightText,
@@ -1021,7 +1028,8 @@ class _KabiPusherState extends State<_KabiPusher> {
         final split = g.split(a.ratio);
         const kh = PkBarMetrics.kabi;
         const k = kh / 215;
-        const feet = PkBarMetrics.above + 2;
+        // D238b: on the thin track's top edge (was 2 lp into the track).
+        const feet = PkBarMetrics.above;
         final kw = kh * _pose.aspect;
         final effort = math.min(1, a.vel.abs() * 8);
         final calm = a.reduced;

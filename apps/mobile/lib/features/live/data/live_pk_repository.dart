@@ -82,6 +82,19 @@ abstract interface class LivePkRepository {
 
   /// A viewer's (or host's) report of one of the room's dares.
   Future<void> reportDare(String roomId, String dareId);
+
+  /// v1.55-live (D242) «جولة أخرى»: `POST …/pk/rematch` (an offer, or the
+  /// acceptance when the other host's offer is open).
+  Future<PkMatch> offerRematch(String roomId);
+
+  /// `POST …/pk/rematch/accept`: the new battle.
+  Future<PkMatch> acceptRematch(String roomId);
+
+  /// `POST …/pk/rematch/decline`: the PK closes.
+  Future<void> declineRematch(String roomId);
+
+  /// `DELETE …/pk/rematch`: the asking host withdraws it.
+  Future<PkMatch> cancelRematch(String roomId);
 }
 
 class LivePkRepositoryImpl implements LivePkRepository {
@@ -292,6 +305,35 @@ class LivePkRepositoryImpl implements LivePkRepository {
           data: {'dareId': dareId},
         );
       });
+
+  @override
+  Future<PkMatch> offerRematch(String roomId) => guardApiCall(() async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '${_room(roomId)}/rematch',
+    );
+    return PkMatch.fromJson(res.data!);
+  });
+
+  @override
+  Future<PkMatch> acceptRematch(String roomId) => guardApiCall(() async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '${_room(roomId)}/rematch/accept',
+    );
+    return PkMatch.fromJson(res.data!);
+  });
+
+  @override
+  Future<void> declineRematch(String roomId) => guardApiCall(() async {
+    await _dio.post<void>('${_room(roomId)}/rematch/decline');
+  });
+
+  @override
+  Future<PkMatch> cancelRematch(String roomId) => guardApiCall(() async {
+    final res = await _dio.delete<Map<String, dynamic>>(
+      '${_room(roomId)}/rematch',
+    );
+    return PkMatch.fromJson(res.data!);
+  });
 }
 
 final livePkRepositoryProvider = Provider<LivePkRepository>(

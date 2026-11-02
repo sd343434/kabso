@@ -206,6 +206,7 @@ class DemoLiveRepository implements LiveRepository {
     String? category,
     LiveRoomsKind? kind,
     bool nearby = false,
+    String? country,
     bool featured = false,
     String? cursor,
     int limit = LiveRepository.defaultPageSize,

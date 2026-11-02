@@ -22653,6 +22653,78 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'لم يعد بالإمكان الرد على هذا الحكم'**
   String get pkFailureDareClosed;
+
+  /// D240: the title of the «القريبة» country picker (a local choice).
+  ///
+  /// In ar, this message translates to:
+  /// **'بلد «القريبة»'**
+  String get liveCountryPickerTitle;
+
+  /// D240: the picker's line.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر بلداً لترى بثوثه في «القريبة». لا يغيّر ملفك.'**
+  String get liveCountryPickerBody;
+
+  /// D240: the country row under the filters, for screen readers.
+  ///
+  /// In ar, this message translates to:
+  /// **'بلد «القريبة»: {country}. تغيير'**
+  String liveNearbyCountryRow(String country);
+
+  /// D240: the country row with no country yet.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر بلداً'**
+  String get liveNearbyChooseCountry;
+
+  /// D242: the rematch button.
+  ///
+  /// In ar, this message translates to:
+  /// **'جولة أخرى'**
+  String get pkRematch;
+
+  /// D242: the result card asks.
+  ///
+  /// In ar, this message translates to:
+  /// **'العب جولة أخرى مع {name}؟'**
+  String pkRematchAsk(String name);
+
+  /// D242: the asking host waits.
+  ///
+  /// In ar, this message translates to:
+  /// **'بانتظار {name}…'**
+  String pkRematchWaiting(String name);
+
+  /// D242: the other host is asked.
+  ///
+  /// In ar, this message translates to:
+  /// **'{name} يريد جولة أخرى'**
+  String pkRematchOffered(String name);
+
+  /// D242: everyone, when the new battle starts.
+  ///
+  /// In ar, this message translates to:
+  /// **'جولة أخرى تبدأ'**
+  String get pkRematchBanner;
+
+  /// D242: the asking host is told.
+  ///
+  /// In ar, this message translates to:
+  /// **'رفض المضيف الآخر الجولة الأخرى'**
+  String get pkRematchDeclined;
+
+  /// D242: the offer lapsed.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يردّ المضيف الآخر على الجولة الأخرى'**
+  String get pkRematchExpired;
+
+  /// D242: the answer countdown for screen readers.
+  ///
+  /// In ar, this message translates to:
+  /// **'{seconds} ث'**
+  String pkRematchSeconds(String seconds);
 }
 
 class _AppLocalizationsDelegate

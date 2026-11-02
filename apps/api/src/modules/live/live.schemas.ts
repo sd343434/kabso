@@ -3,6 +3,7 @@ import type { ErrorDetail } from '../../common/errors/error-codes.js';
 import { zodErrorToDetails } from '../../common/validation/zod-validation.pipe.js';
 import { normalizeContentText } from '../posts/content-text.js';
 import { normalizeDisplayName, textHygieneIssue, type TextHygieneIssue } from '../users/display-name.js';
+import { isCountryCode } from '../users/country.js';
 import { trimHygiene } from '../users/text-hygiene.js';
 import { LIVE_KINDS, LIVE_SCOPES, LIVE_TABS } from './live-cursor.js';
 import { isSeatEmojiToken } from './live-seat-emoji.js';
@@ -554,6 +555,14 @@ export const listLiveRoomsQuerySchema = z.strictObject({
   kind: z.enum(LIVE_KINDS).optional(),
   // v1.27.1-live (D133): rooms of the caller's country; rooms of featured hosts.
   scope: z.enum(LIVE_SCOPES).optional(),
+  // v1.53-live (D240): rooms whose host's country is this ISO 3166-1 alpha-2 code (any case; the
+  // viewer's own choice of «القريبة»). Wins over `scope=nearby`'s own country; needs no token.
+  country: z
+    .string()
+    .regex(/^[A-Za-z]{2}$/)
+    .transform((v) => v.toUpperCase())
+    .refine(isCountryCode, { params: { issue: 'invalid_value' } })
+    .optional(),
   featured: z
     .enum(['true', 'false'])
     .optional()

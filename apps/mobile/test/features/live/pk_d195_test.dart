@@ -317,10 +317,13 @@ void main() {
       find.byKey(LivePkStage.guestKey('a-guest-0')),
     );
     expect(ownPane.contains(circle.center), isTrue);
-    // D231: just over the host's chip at the bottom of the half.
+    // D231: near the bottom of the half. D238b: this room's host has no
+    // name pill; on the other half the guests sit over the host's pill.
     expect(circle.bottom, greaterThan(ownPane.bottom - 100));
-    final chip = tester.getRect(find.byKey(LivePkStage.ownHostKey));
-    expect(circle.bottom, lessThanOrEqualTo(chip.top));
+    expect(find.byKey(LivePkStage.ownHostKey), findsNothing);
+    final other = tester.getRect(find.byKey(LivePkStage.guestKey('b-guest-0')));
+    final pill = tester.getRect(find.byKey(LivePkStage.opponentHostKey));
+    expect(other.bottom, lessThanOrEqualTo(pill.top));
     await _leave(tester);
   });
 

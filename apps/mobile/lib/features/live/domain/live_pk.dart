@@ -251,6 +251,10 @@ class PkMatch {
     this.effective,
     this.type = PkType.normal,
     this.dare,
+    this.rematch,
+    this.rematchOf,
+    this.rematchCount = 0,
+    this.rematchesLeft,
   });
 
   factory fromJson(Map<String, dynamic> j) {
@@ -285,6 +289,14 @@ class PkMatch {
       dare: j['dare'] is Map<String, dynamic>
           ? PkDare.fromJson(j['dare']! as Map<String, dynamic>)
           : null,
+      rematch: j['rematch'] is Map<String, dynamic>
+          ? PkRematchOffer.fromJson(j['rematch']! as Map<String, dynamic>)
+          : null,
+      rematchOf: j['rematchOf'] as String?,
+      rematchCount: j['rematchCount'] == null ? 0 : _int(j['rematchCount']),
+      rematchesLeft: j['rematchesLeft'] == null
+          ? null
+          : _int(j['rematchesLeft']),
     );
   }
 
@@ -323,6 +335,27 @@ class PkMatch {
   /// v1.50-live (D229): the dare of a DARES match with a winner (else null).
   final PkDare? dare;
 
+  /// v1.55-live (D242) «جولة أخرى»: the open offer of a RESULT match.
+  final PkRematchOffer? rematch;
+
+  /// v1.55-live (D242): the battle this one is a rematch of (null: the
+  /// first) and how many rematches came before it.
+  final String? rematchOf;
+  final int rematchCount;
+
+  /// v1.55-live (D242): rematches still allowed in a row (null: unlimited;
+  /// older servers: unknown — the app then offers it and the server says).
+  final int? rematchesLeft;
+
+  /// D242: «جولة أخرى» may be offered now from the hosts' side — the result
+  /// is showing, its dare (if any) is over, no offer is open and the limit
+  /// is not reached. The server checks the rest (both lives present …).
+  bool get canOfferRematch =>
+      status == PkMatchStatus.result &&
+      rematch == null &&
+      (dare == null || dare!.finishedAt != null) &&
+      (rematchesLeft == null || rematchesLeft! > 0);
+
   /// CONNECTED: no timer, no points until a host starts it.
   bool get connected => status == PkMatchStatus.connected;
 
@@ -334,6 +367,20 @@ class PkMatch {
 
   PkBoosterRule? rule(PkBoosterKind kind) =>
       boosters.where((b) => b.kind == kind).firstOrNull;
+}
+
+/// v1.55-live (D242) `PkRematchOffer`: who asked for «جولة أخرى», until when.
+@immutable
+class PkRematchOffer {
+  const new({required this.byRoomId, required this.expiresAt});
+
+  factory fromJson(Map<String, dynamic> j) => PkRematchOffer(
+    byRoomId: j['byRoomId']! as String,
+    expiresAt: _date(j['expiresAt']) ?? DateTime.now(),
+  );
+
+  final String byRoomId;
+  final DateTime expiresAt;
 }
 
 /// `PkInvite`.
@@ -695,7 +742,8 @@ final class PkMatchEvent extends PkEvent {
     this.boostKind,
   });
 
-  /// started, score, boost, ended, closed, mute.
+  /// started, score, boost, ended, closed, mute, dare; D242: rematch-offer,
+  /// rematch-cancelled, rematch-declined, rematch-expired, rematch.
   final String event;
   final PkMatch match;
   final String? boostRoomId;
