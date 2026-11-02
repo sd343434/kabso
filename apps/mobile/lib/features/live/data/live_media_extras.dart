@@ -11,6 +11,18 @@ abstract interface class LiveParticipantAttributes {
   Map<String, String> attributesOf(String identity);
 }
 
+/// D243: whether the media session is over for good. `connected` alone is
+/// false while LiveKit reconnects (a Wi-Fi / mobile handover, a resumed ICE
+/// connection), which is not an end: the second camera's screen ended itself
+/// on such a blip and left the live. Kept apart like the other extras (a
+/// screen checks `engine is LiveSessionLink`).
+abstract interface class LiveSessionLink {
+  /// The session closed and will not come back (LiveKit gave up
+  /// reconnecting, the server closed the room or removed this participant,
+  /// or this phone left). False while connecting or reconnecting.
+  bool get sessionClosed;
+}
+
 /// D201: records the published camera and microphone of this phone to a
 /// file (the host's clip, ≤ 60 s). Android only: flutter_webrtc's recorder
 /// there takes the camera track and the microphone's samples; on iOS it

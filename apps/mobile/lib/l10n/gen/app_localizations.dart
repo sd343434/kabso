@@ -7772,6 +7772,12 @@ abstract class AppLocalizations {
   /// **'مغادرة'**
   String get liveCam2Leave;
 
+  /// D243 second camera device: the screen stays on; leaving the app pauses the camera.
+  ///
+  /// In ar, this message translates to:
+  /// **'أبقِ هذه الشاشة مفتوحة، فهي تبقى مضاءة أثناء البث. إذا خرجت من التطبيق تتوقف هذه الكاميرا مؤقتاً حتى تعود.'**
+  String get liveCam2KeepOpen;
+
   /// D201 live tools
   ///
   /// In ar, this message translates to:

@@ -26,6 +26,9 @@ class LiveDualCameraView extends StatefulWidget {
   static const pipKey = Key('dual.pip');
   static const mainKey = Key('dual.main');
 
+  /// D243: the swap hint on the small picture (a tap swaps).
+  static const swapHintKey = Key('dual.swapHint');
+
   /// The small picture's size (9 : 16).
   static const pipSize = Size(96, 170);
 
@@ -129,9 +132,37 @@ class _LiveDualCameraViewState extends State<LiveDualCameraView> {
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(10),
-                      child: ColoredBox(
-                        color: const Color(0xFF000000),
-                        child: small,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          ColoredBox(
+                            color: const Color(0xFF000000),
+                            child: small,
+                          ),
+                          // D243: says a tap swaps the two (the owner asked
+                          // for it to be discoverable).
+                          const PositionedDirectional(
+                            bottom: 6,
+                            end: 6,
+                            child: ExcludeSemantics(
+                              child: DecoratedBox(
+                                key: LiveDualCameraView.swapHintKey,
+                                decoration: BoxDecoration(
+                                  color: Color(0x99000000),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Padding(
+                                  padding: EdgeInsets.all(4),
+                                  child: Icon(
+                                    Icons.swap_horiz_rounded,
+                                    size: 16,
+                                    color: Color(0xFFFFFFFF),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),

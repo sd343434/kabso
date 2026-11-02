@@ -53,6 +53,12 @@ export const ATTR_MAIN_FEED = 'kabso.mainFeed';
 export const ATTR_RECORDING_UNTIL = 'kabso.recordingUntil';
 
 export const SECOND_CAMERA_TOKEN_TTL_SECONDS = 600;
+/**
+ * D243: a second camera that left (`LEFT`) and joins again within this time is the same device
+ * reconnecting (LiveKit's full reconnect: a new session with the same identity, the old one's
+ * `participant_left` arriving first) — its camera is kept, not removed.
+ */
+export const SECOND_CAMERA_REJOIN_SECONDS = 60;
 export const RECORDING_MAX_SECONDS = 60;
 /** The music-rights notice's text version (§10.63); a new text gets a new version. */
 export const MUSIC_NOTICE_VERSION = 1;
@@ -456,13 +462,16 @@ export class LiveToolsService {
       where: { id: roomId },
       select: { id: true, status: true, mode: true, hostUserId: true },
     });
-    const camera =
+    let camera =
       room && hostId === room.hostUserId
         ? await this.prisma.liveSecondCamera.findFirst({
             where: { roomId, hostUserId: hostId, endedAt: null, redeemedAt: { not: null } },
             select: { id: true, connectedAt: true },
           })
         : null;
+    if (room && hostId === room.hostUserId && !camera && (await this.unavailable(room)) === null) {
+      camera = await this.rejoin(roomId, hostId);
+    }
     if (!room || !camera || (await this.unavailable(room)) !== null) {
       await this.kick(roomId, identity);
       return;
@@ -475,10 +484,56 @@ export class LiveToolsService {
     }
   }
 
-  /** A `cam2:` identity left: its second camera ended (a new code pairs again). */
+  /**
+   * D243: the camera that left (`LEFT`) at most {@link SECOND_CAMERA_REJOIN_SECONDS} ago is open again
+   * — the same device back after a reconnect (only a `cam2:` token of this host, issued by a
+   * redemption, can join as it). Never one the host ended, expired or a PK ended; never when another
+   * camera was paired meanwhile (one at a time).
+   */
+  private async rejoin(
+    roomId: string,
+    hostId: string,
+  ): Promise<{ id: string; connectedAt: Date | null } | null> {
+    const since = new Date(this.clock.now().getTime() - SECOND_CAMERA_REJOIN_SECONDS * 1000);
+    const left = await this.prisma.liveSecondCamera.findFirst({
+      where: {
+        roomId,
+        hostUserId: hostId,
+        endReason: 'LEFT',
+        redeemedAt: { not: null },
+        connectedAt: { not: null },
+        endedAt: { gte: since },
+      },
+      orderBy: { endedAt: 'desc' },
+      select: { id: true, connectedAt: true },
+    });
+    if (!left) return null;
+    try {
+      const reopened = await this.prisma.liveSecondCamera.updateMany({
+        where: { id: left.id, endReason: 'LEFT' },
+        data: { endedAt: null, endReason: null },
+      });
+      return reopened.count === 1 ? left : null;
+    } catch {
+      // Another camera was paired meanwhile (the one-camera index): this one stays ended.
+      return null;
+    }
+  }
+
+  /**
+   * A `cam2:` identity left: its second camera ended (a new code pairs again). D243: not while that
+   * identity is still in the media session — a reconnect replaced the old session, whose
+   * `participant_left` came after the new one joined.
+   */
   async onLeft(roomId: string, identity: string): Promise<void> {
     const hostId = hostOfSecondCamera(identity);
     if (hostId === null) return;
+    try {
+      if ((await this.media.listIdentities(roomId)).includes(identity)) return;
+    } catch (err) {
+      // Unknown: ended as before; a rejoin within the grace time opens it again.
+      this.logger.warn({ error: safeErrorLog(err) }, 'Could not list the media session');
+    }
     const rows = await this.endRows(
       this.prisma,
       { roomId, hostUserId: hostId, redeemedAt: { not: null }, connectedAt: { not: null } },

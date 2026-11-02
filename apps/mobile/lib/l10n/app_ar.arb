@@ -5174,6 +5174,8 @@
   "@liveCam2MicOff": {"description": "D201 live tools"},
   "liveCam2Leave": "مغادرة",
   "@liveCam2Leave": {"description": "D201 live tools"},
+  "liveCam2KeepOpen": "أبقِ هذه الشاشة مفتوحة، فهي تبقى مضاءة أثناء البث. إذا خرجت من التطبيق تتوقف هذه الكاميرا مؤقتاً حتى تعود.",
+  "@liveCam2KeepOpen": {"description": "D243 second camera device: the screen stays on; leaving the app pauses the camera."},
   "liveCam2Ended": "انتهت الكاميرا الثانية: انتهى البث أو فُصلت من الجهاز الرئيسي.",
   "@liveCam2Ended": {"description": "D201 live tools"},
   "liveMusicRightsTitle": "حقوق الموسيقى",

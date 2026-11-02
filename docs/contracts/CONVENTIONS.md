@@ -4550,12 +4550,19 @@ Owner: the D199 Room Tools «كاميرتان», «موسيقى» and «التس
     second device; the app ends it at once on the main device.
   - *Never a viewer.* The webhook (and the reconciliation) treat `cam2:` like `pk:`: no `live_room_viewers` row, no
     visit, no join announcement, no viewer count. A `cam2:` participant is removed unless it is the live's host's
-    redeemed camera in a LIVE SOLO room without a PK. It leaving ends the camera (`LEFT`); ending the live ends the
-    code and the camera (`ROOM_ENDED`, the media room is closed); `endLiveSecondCamera` (either device) ends both
-    (`REVOKED`) and removes the second device. A redeemed camera that never connected expires after 600 s.
+    redeemed camera in a LIVE SOLO room without a PK. It leaving ends the camera (`LEFT`) — *(D243)* unless the
+    media server still lists that identity (a reconnect replaced the old session), and a camera that left
+    (`LEFT`, never `REVOKED` / `EXPIRED` / `PK`) is open again when the same identity joins within 60 s and no other
+    camera was paired meanwhile (LiveKit's full reconnect: the old session's `participant_left` first); ending the
+    live ends the code and the camera (`ROOM_ENDED`, the media room is closed); `endLiveSecondCamera` (either
+    device) ends both (`REVOKED`) and removes the second device. A redeemed camera that never connected expires after 600 s.
   - *Layout (the app).* Viewers and the host see the main feed full screen and the other camera as a small
     draggable picture; tapping it swaps them **on that screen only**; the default follows `kabso.mainFeed`. During a
     PK the stage shows the host's camera only. When the second device leaves, the small picture disappears.
+    *(D243)* The small picture carries a swap icon. The second device keeps its screen on while it joins and is on
+    air, holds the live's foreground service (type microphone, as a seated guest) and, while the app is in the
+    background, mutes its camera the LiveKit way (the small picture goes; never a frozen frame) and restarts it on
+    return; a LiveKit reconnect is not an end.
 - **Music («موسيقى»).** The host picks audio files on the phone; the app mixes them **into its own microphone track**
   (after echo cancelling and noise suppression, at the music volume, lowered while the host speaks), so viewers
   hear voice + music from the one track — no new source or token change. Before the first music the app shows the

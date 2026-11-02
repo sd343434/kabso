@@ -4404,6 +4404,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveCam2Leave => 'Leave';
 
   @override
+  String get liveCam2KeepOpen =>
+      'Keep this screen open: it stays on while you stream. If you leave the app, this camera pauses until you come back.';
+
+  @override
   String get liveCam2Ended =>
       'The second camera ended: the live ended or the main device disconnected it.';
 

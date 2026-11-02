@@ -326,6 +326,49 @@ describe('D201 live tools', { timeout: 300_000 }, () => {
     expect(await state(h, roomId)).toMatchObject({ status: 'CONNECTED' });
   });
 
+  it('D243: the same second device reconnecting keeps its camera (left then joined within 60 s, or left while its new session is in)', async () => {
+    const h = await host();
+    const roomId = await goLive(h);
+    const identity = await pair(h, roomId);
+    const removedBefore = media.removed.filter((r) => r.identity === identity).length;
+    // LiveKit's full reconnect: the old session's participant_left, then the new one joins.
+    await webhook('participant_left', roomId, identity);
+    expect((await cameraRows(roomId)).at(-1)).toMatchObject({ endReason: 'LEFT' });
+    clock.advance(30);
+    await webhook('participant_joined', roomId, identity);
+    expect(media.removed.filter((r) => r.identity === identity).length).toBe(removedBefore);
+    expect((await cameraRows(roomId)).at(-1)).toMatchObject({ endedAt: null, endReason: null });
+    expect(await state(h, roomId)).toMatchObject({ status: 'CONNECTED' });
+    expect(await viewerCount(roomId)).toBe(0);
+    // The old session's participant_left arriving after the new one joined (the media server still
+    // lists the identity): still connected.
+    const listIdentities = media.listIdentities.bind(media);
+    media.listIdentities = (room: string) =>
+      room === roomId ? Promise.resolve([identity]) : listIdentities(room);
+    try {
+      await webhook('participant_left', roomId, identity);
+    } finally {
+      media.listIdentities = listIdentities;
+    }
+    expect((await cameraRows(roomId)).at(-1)).toMatchObject({ endedAt: null });
+    expect(await state(h, roomId)).toMatchObject({ status: 'CONNECTED' });
+    // Gone for longer than 60 s: a join is refused, a new code pairs again.
+    await webhook('participant_left', roomId, identity);
+    clock.advance(61);
+    await webhook('participant_joined', roomId, identity);
+    expect(media.removed.filter((r) => r.identity === identity).length).toBe(removedBefore + 1);
+    expect(await state(h, roomId)).toMatchObject({ status: 'NONE' });
+    // Ended by the host: a rejoin at once is still refused.
+    await pair(h, roomId);
+    const end = await ctx.http.delete(`/api/v1/live/rooms/${roomId}/second-camera`).set(auth(h));
+    expect(end.status, JSON.stringify(end.body)).toBeLessThan(300);
+    await webhook('participant_joined', roomId, identity);
+    expect(media.removed.filter((r) => r.identity === identity).length).toBeGreaterThanOrEqual(
+      removedBefore + 2,
+    );
+    expect(await state(h, roomId)).toMatchObject({ status: 'NONE' });
+  });
+
   it('the host ends the second camera (either device); the main feed is the host’s to choose', async () => {
     const h = await host();
     const roomId = await goLive(h);
