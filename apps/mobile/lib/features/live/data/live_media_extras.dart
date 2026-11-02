@@ -23,6 +23,31 @@ abstract interface class LiveSessionLink {
   bool get sessionClosed;
 }
 
+/// D251 (owner: «الكاميرا الثانية … أوّل ما تفتح تعلق»): pauses the
+/// published camera while the app is away WITHOUT stopping or reopening the
+/// capture.
+///
+/// `LiveMediaEngine.setVideoPaused` mutes the LiveKit way: the camera track
+/// is disposed (`trackDispose`) and unmuting opens a new one
+/// (`getUserMedia`). On Android, flutter_webrtc 1.6.2 does both on the
+/// platform (main) thread with unbounded busy-waits —
+/// `CameraEventsHandler.waitForCameraClosed()` (until CLOSED or ERROR) and
+/// `waitForCameraOpen()` (until the first frame or ERROR). A camera that ends
+/// DISCONNECTED (evicted, or handed back late after a system dialog / the
+/// app returning) never reaches either state, so the main thread spins for
+/// ever: input and vsync stop and the whole app hangs (ANR).
+///
+/// Here the others are told the camera is off (LiveKit's muted signal, the
+/// track disabled), the capture is left as it is, and the native track stays
+/// enabled so flutter_webrtc's own resume hook (`reStartCamera`, an
+/// asynchronous `startCapture` on the same capturer) restarts the camera if
+/// Android stopped it in the background. Same track, same id: the camera
+/// processor (filters) stays attached.
+abstract interface class LiveSoftVideoPause {
+  /// Tells the others the camera is away ([away]) or back.
+  Future<void> setVideoAway({required bool away});
+}
+
 /// D201: records the published camera and microphone of this phone to a
 /// file (the host's clip, ≤ 60 s). Android only: flutter_webrtc's recorder
 /// there takes the camera track and the microphone's samples; on iOS it

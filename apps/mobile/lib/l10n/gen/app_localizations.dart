@@ -7778,6 +7778,42 @@ abstract class AppLocalizations {
   /// **'أبقِ هذه الشاشة مفتوحة، فهي تبقى مضاءة أثناء البث. إذا خرجت من التطبيق تتوقف هذه الكاميرا مؤقتاً حتى تعود.'**
   String get liveCam2KeepOpen;
 
+  /// D251 second camera: copies a state log (no personal data) to share with support.
+  ///
+  /// In ar, this message translates to:
+  /// **'نسخ سجل التشخيص'**
+  String get liveCam2CopyLog;
+
+  /// D251 second camera: after copying the log.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم نسخ سجل التشخيص. الصقه في رسالة للدعم.'**
+  String get liveCam2LogCopied;
+
+  /// D251 second camera: keep-screen-on failed or did not answer.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر إبقاء الشاشة مضاءة تلقائياً. المس الشاشة من حين لآخر كي لا تنطفئ.'**
+  String get liveCam2AwakeFailed;
+
+  /// D251 second camera: the live foreground service failed or did not answer.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تشغيل خدمة البث في الخلفية. أبقِ التطبيق مفتوحاً على هذه الشاشة.'**
+  String get liveCam2BackgroundFailed;
+
+  /// D251 second camera: a camera call failed or did not answer in time.
+  ///
+  /// In ar, this message translates to:
+  /// **'الكاميرا لا تستجيب الآن. إن بقيت الصورة متوقفة فاضغط «قلب» أو غادر وانضم من جديد.'**
+  String get liveCam2CameraSlow;
+
+  /// D251 second camera: the camera effects pipeline failed or did not answer.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تطبيق الفلتر على هذا الجهاز، فبقيت الصورة بدون فلتر.'**
+  String get liveCam2FilterFailed;
+
   /// D201 live tools
   ///
   /// In ar, this message translates to:

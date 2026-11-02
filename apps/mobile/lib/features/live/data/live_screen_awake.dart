@@ -12,7 +12,8 @@ import 'package:kabso_live/core/logging/app_logger.dart';
 /// Android: the window's `FLAG_KEEP_SCREEN_ON` (no permission, only while
 /// the app's window is shown); iOS: `isIdleTimerDisabled`. Elsewhere nothing.
 abstract interface class LiveScreenAwake {
-  /// Keeps the screen on ([on]) or lets it time out again.
+  /// Keeps the screen on ([on]) or lets it time out again. Throws when the
+  /// platform could not (callers treat it as best effort).
   Future<void> keepOn({required bool on});
 }
 
@@ -23,14 +24,16 @@ class PlatformLiveScreenAwake implements LiveScreenAwake {
 
   static const channel = MethodChannel('com.kabso/screen');
 
+  /// D251: a failure is thrown (logged first) so the second camera's
+  /// screen can say so; it never waits on this call without a time limit.
   @override
   Future<void> keepOn({required bool on}) async {
     if (kIsWeb) return;
     try {
       await channel.invokeMethod<void>('keepOn', on);
     } on Object catch (e) {
-      // Best effort: the camera still works while the person touches it.
       AppLogger.warning('live: keep screen on failed (${e.runtimeType})');
+      rethrow;
     }
   }
 }
