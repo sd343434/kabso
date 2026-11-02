@@ -315,53 +315,119 @@ class _Look {
   final Color? halo;
 }
 
-/// D233: the hub card's badge of a live with a rocket [stage] running — the
-/// rocket on a dark glass disc ringed in the «مميز» gold; larger for a
-/// higher stage.
-class KRocketBadge extends StatelessWidget {
-  const new({required this.stage, super.key});
+/// D233 follow-up (owner 2026-11-02: «ضع الصاروخ داخل أيقونة مميز، لكن كل
+/// صاروخ يكون له لون أيقونة مميز مختلف»): the look of a stage's «مميز» pill
+/// and of its animated card frame. Text on the pill ≥ 4.5:1 on both stops:
+/// 1 bronze (dark brown ≥ 4.94:1), 2 silver-blue (navy ≥ 7.35:1), 3 gold
+/// (the legacy «مميز» colours, ≥ 7.43:1), 4 royal purple → crimson with a
+/// gold edge (white ≥ 7.07:1).
+typedef KRocketStyle = ({
+  List<Color> pill,
+  Color text,
+  Color? edge,
+  Color ring,
+  Color arc,
+});
 
+/// The four stage styles; see [KRocketStyle].
+abstract final class KRocketStyles {
+  static const KRocketStyle bronze = (
+    pill: [Color(0xFFF2B27A), Color(0xFFC8722F)],
+    text: Color(0xFF2B1300),
+    edge: null,
+    ring: Color(0xFFC8722F),
+    arc: Color(0xFFFFC48E),
+  );
+  static const KRocketStyle silver = (
+    pill: [Color(0xFFE8EEF6), Color(0xFF9DB3D0)],
+    text: Color(0xFF0E2340),
+    edge: null,
+    ring: Color(0xFF8FA9CC),
+    arc: Color(0xFFE3F0FF),
+  );
+  static const KRocketStyle gold = (
+    pill: [KRocketStages.accent, KRocketStages.accentDeep],
+    text: Color(0xFF3B2200),
+    edge: null,
+    ring: KRocketStages.accentDeep,
+    arc: KRocketStages.accent,
+  );
+  static const KRocketStyle royal = (
+    pill: [Color(0xFF7A22D0), Color(0xFFB0122E)],
+    text: Color(0xFFFFFFFF),
+    edge: KRocketStages.accent,
+    ring: Color(0xFF9B3BE8),
+    arc: KRocketStages.accent,
+  );
+
+  /// The style of [stage] (clamped to 1–4).
+  static KRocketStyle of(int stage) => switch (KRocketStages.clamp(stage)) {
+    1 => bronze,
+    2 => silver,
+    3 => gold,
+    _ => royal,
+  };
+}
+
+/// The hub card's «مميز» pill. With a rocket [stage] (1–4) running: that
+/// stage's small rocket at the reading start of the text, in the stage's
+/// own colours ([KRocketStyles]); without one (a legacy featured live,
+/// [stage] 0): the plain gold pill of D154b.
+class KFeaturedPill extends StatelessWidget {
+  const new({required this.label, super.key, this.stage = 0});
+
+  final String label;
   final int stage;
 
-  /// The badge's side for [stage]: 26 / 28 / 30 / 32.
-  static double sizeOf(int stage) => 24 + 2.0 * KRocketStages.clamp(stage);
+  /// The rocket's side inside the pill.
+  static const double rocket = 16;
 
   @override
   Widget build(BuildContext context) {
-    final s = KRocketStages.clamp(stage);
-    final side = sizeOf(s);
+    final style = stage > 0 ? KRocketStyles.of(stage) : KRocketStyles.gold;
+    final edge = stage > 0 ? style.edge : null;
     return Container(
-      width: side,
-      height: side,
+      padding: EdgeInsetsDirectional.only(
+        start: stage > 0 ? 3 : 6,
+        end: 6,
+        top: stage > 0 ? 0.5 : 1.5,
+        bottom: stage > 0 ? 0.5 : 1.5,
+      ),
       decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: const RadialGradient(
-          colors: [Color(0xCC2A2140), Color(0xE6120E1C)],
-        ),
-        border: Border.all(
-          color: s == 4 ? KRocketStages.accent : KRocketStages.accentDeep,
-          width: s >= 3 ? 1.5 : 1,
-        ),
-        boxShadow: [
-          if (s >= 3)
-            BoxShadow(
-              color: KRocketStages.accent.withValues(alpha: s == 4 ? 0.7 : 0.4),
-              blurRadius: s == 4 ? 8 : 5,
+        gradient: LinearGradient(colors: style.pill),
+        borderRadius: BorderRadius.circular(999),
+        border: edge == null ? null : Border.all(color: edge, width: 0.8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (stage > 0) ...[
+            KRocketArt(stage: stage, size: rocket),
+            const SizedBox(width: 2),
+          ],
+          Text(
+            label,
+            maxLines: 1,
+            style: DefaultTextStyle.of(context).style.copyWith(
+              color: style.text,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
             ),
+          ),
         ],
       ),
-      alignment: Alignment.center,
-      child: KRocketArt(stage: s, size: side - 4),
     );
   }
 }
 
 /// D233: the animated frame around a hub card whose live has a rocket
-/// [stage] running — a moving gold («مميز») gradient on the border with a
-/// glow; width, glow, speed and the number of bright arcs grow with the
-/// stage (4 is the most premium). Reduce motion (and [animate] off in tests
-/// and goldens) holds it still. One ticker per card, repainting only the
-/// border's own layer, so a few framed cards stay cheap.
+/// [stage] running — a moving gradient on the border with a glow, tinted in
+/// the stage's «مميز» colours ([KRocketStyles]: bronze, silver-blue, gold,
+/// royal purple with gold arcs); width, glow, speed and the number of
+/// bright arcs grow with the stage (4 is the most premium). Reduce motion
+/// (and [animate] off in tests and goldens) holds it still. One ticker per
+/// card, repainting only the border's own layer, so a few framed cards stay
+/// cheap.
 class KBoostFrame extends StatefulWidget {
   const new({required this.stage, super.key, this.radius = 5});
 
@@ -464,17 +530,18 @@ class _FramePainter extends CustomPainter {
       rect.deflate(inset),
       Radius.circular(math.max(0, radius - inset)),
     );
-    // The resting gold ring.
+    final style = KRocketStyles.of(stage);
+    // The resting ring in the stage's colour.
     canvas.drawRRect(
       rrect,
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = spec.width
-        ..color = KRocketStages.accentDeep.withValues(alpha: 0.75),
+        ..color = style.ring.withValues(alpha: 0.75),
     );
     // The moving bright arcs: a sweep gradient that turns.
-    const bright = KRocketStages.accent;
-    const clear = Color(0x00FFD36E);
+    final bright = style.arc;
+    final clear = bright.withValues(alpha: 0);
     final colors = <Color>[];
     final stops = <double>[];
     for (var i = 0; i < spec.arcs; i++) {

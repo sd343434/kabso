@@ -4,7 +4,9 @@
 // - the purchase sheet: ar and en, 393×852 dark and light, 360×800 at text
 //   scale 1.3;
 // - hub cards with stages 1–4 running (the frame held still: goldens run with
-//   animations disabled), the same variants.
+//   animations disabled), then a legacy featured live and a plain one, the
+//   same variants. Owner 2026-11-02: each stage's rocket sits inside its
+//   «مميز» pill, in the stage's colours (no separate round badge).
 //
 // Regenerate on Linux with the pinned Flutter:
 //   flutter test --update-goldens test/goldens/live_visit_rocket_golden_test.dart
@@ -97,8 +99,15 @@ Future<void> _pumpSheet(
   await tester.pumpAndSettle();
 }
 
-const _titles = ['Night chat', 'سهرة طرب', 'Quiz time', 'PK الليلة'];
-const _hosts = ['Lina', 'عمر', 'Sami', 'نور'];
+const _titles = [
+  'Night chat',
+  'سهرة طرب',
+  'Quiz time',
+  'PK الليلة',
+  'Legacy featured',
+  'Plain live',
+];
+const _hosts = ['Lina', 'عمر', 'Sami', 'نور', 'Rami', 'هدى'];
 
 Future<void> _pumpCards(
   WidgetTester tester,
@@ -111,10 +120,11 @@ Future<void> _pumpCards(
       room: LiveRoomCardData(
         hostName: _hosts[i],
         title: _titles[i],
-        viewerCount: [12, 340, 2100, 9800][i],
+        viewerCount: [12, 340, 2100, 9800, 55, 7][i],
         roomId: 'r$i',
-        featured: true,
-        boostStage: i + 1,
+        // Stages 1–4, then a legacy featured live (no stage), then none.
+        featured: i < 5,
+        boostStage: i < 4 ? i + 1 : 0,
         inPk: i == 3,
       ),
       onTap: () {},
@@ -127,7 +137,7 @@ Future<void> _pumpCards(
       SingleChildScrollView(
         child: Column(
           children: [
-            for (final row in [0, 2]) ...[
+            for (final row in [0, 2, 4]) ...[
               if (row > 0) const SizedBox(height: KLiveGrid.rowGap),
               Row(
                 children: [

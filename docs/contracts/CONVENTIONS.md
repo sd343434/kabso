@@ -5511,8 +5511,11 @@ of §10.34 (slots, FIFO queue, one card per live, refunds, cards, the host earns
   The owner's prices save nothing (per minute 20 000 / 27 500 / 50 000 / 58 333), so no «وفّر» shows.
 - **Coins only:** prices are shown in coins with the coin icon, never a currency; lengths in words («10 دقائق»,
   «20 دقيقة», …), never «د».
-- **The hub:** a pinned «مميز» live shows its stage's rocket badge and an animated frame in the «مميز» gold (width, glow,
-  speed and bright arcs grow with the stage); still with reduce motion. **Order** among the running ones is unchanged:
+- **The hub:** a pinned «مميز» live shows its stage's small rocket **inside the «مميز» pill** at the reading start of the
+  text (owner 2026-11-02: no separate round badge), the pill in the stage's own colours — 1 bronze, 2 silver-blue,
+  3 gold, 4 royal purple → crimson with a gold edge (text ≥ 4.5:1 on every stop) — and an animated frame tinted to match
+  (width, glow, speed and bright arcs grow with the stage); still with reduce motion. A featured live without a stage
+  keeps the plain gold «مميز» pill and no frame. **Order** among the running ones is unchanged:
   the earliest started first (purchase order through the FIFO queue). Ranking a higher stage first was considered and
   not done: the queue is shared and stage-blind, and the paid slots show at most 3 lives; proposed to the owner as an
   option (D233).

@@ -69,9 +69,8 @@ class KLiveGridCard extends StatelessWidget {
   /// D154b: the «مميز» label of a live with a running traffic card.
   static const featuredKey = Key('liveGrid.featured');
 
-  /// D233: the rocket badge and the animated «مميز» frame of a live with a
-  /// rocket stage running.
-  static const rocketKey = Key('liveGrid.rocket');
+  /// D233: the animated «مميز» frame of a live with a rocket stage running
+  /// (the stage's rocket is inside the «مميز» pill, [featuredKey]).
   static const frameKey = Key('liveGrid.frame');
 
   @override
@@ -193,38 +192,19 @@ class KLiveGridCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  // D233: the running rocket's badge, under the live mark.
-                  if (stage > 0)
-                    PositionedDirectional(
-                      top: 26,
-                      start: 6,
-                      child: KRocketBadge(key: rocketKey, stage: stage),
-                    ),
-                  // D154b: «مميز» over the title (a running traffic card).
+                  // D154b: «مميز» over the title (a running traffic card);
+                  // D233 follow-up: with a rocket stage, its rocket inside
+                  // the pill and the stage's colours (no separate badge).
                   if (room.featured)
                     PositionedDirectional(
                       start: 8.5,
                       bottom: 28,
-                      child: Container(
-                        key: featuredKey,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 1.5,
-                        ),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFFFFD36E), Color(0xFFF2A93B)],
-                          ),
-                          borderRadius: BorderRadius.circular(KRadius.pill),
-                        ),
-                        child: Text(
-                          l10n.liveBoostFeatured,
-                          maxLines: 1,
-                          style: t.caption.copyWith(
-                            color: const Color(0xFF3B2200),
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                          ),
+                      child: DefaultTextStyle.merge(
+                        style: t.caption,
+                        child: KFeaturedPill(
+                          key: featuredKey,
+                          label: l10n.liveBoostFeatured,
+                          stage: stage,
                         ),
                       ),
                     ),
