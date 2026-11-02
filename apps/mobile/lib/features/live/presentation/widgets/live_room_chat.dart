@@ -114,19 +114,12 @@ class LiveRoomChatLines extends ConsumerWidget {
     // D135 (owner, final): the rules line is simply the first line of
     // this visit — it shows at the bottom on entering and rises with the
     // messages. No "no messages yet" line.
-    // D199 (owner, ref 275): while this person types in the video live,
-    // the rules line has scrolled away (it never stays over the keyboard).
-    // The window's own insets: the room's scaffold takes the keyboard out
-    // of its children's MediaQuery.
-    final typing = video && View.of(context).viewInsets.bottom > 0;
-    // D212/D230 (owner, every category): the rules line is gone once a
-    // message is written DURING this visit (by anyone; joins, gifts and the
-    // history read on entering do not count) — [LiveChatState.written].
-    final written = chat.written;
-    final items = [
-      for (final it in chat.items)
-        if (!(it is LiveChatNoticeLine && (written || typing))) it,
-    ];
+    // D236 (owner: the rules line behaves like any chat message; supersedes
+    // D212/D230's «gone once a message is written» and D199's «steps aside
+    // while typing»): it stays in the bottom-anchored list where it was
+    // put and scrolls up and away as new lines arrive — never pinned,
+    // never removed by a new message or the keyboard.
+    final items = chat.items;
     // D119: taller lines (picture, name, badges, bubble), so a little more
     // room than the 240 pt of one-line bubbles: about three messages.
     // D230: the video live's rows are three lines tall now (name, badges,

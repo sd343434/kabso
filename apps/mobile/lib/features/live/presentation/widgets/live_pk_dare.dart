@@ -223,18 +223,11 @@ class _PkDareLayerState extends State<PkDareLayer>
     );
   }
 
-  Widget _frame({required Widget child, Key? key, Color? border}) => Container(
-    key: key,
-    padding: const EdgeInsets.all(KSpacing.sm),
-    decoration: BoxDecoration(
-      gradient: _cardGradient,
-      borderRadius: BorderRadius.circular(KRadius.lg),
-      border: Border.all(color: border ?? const Color(0xFFFFC94D), width: 1.5),
-      boxShadow: const [BoxShadow(color: Color(0x99000000), blurRadius: 16)],
-    ),
-    child: child,
-  );
-
+  /// D236 (owner: «نفس ستايل تابع واخرج»): the loser's decision, the dare's
+  /// banner with the judge's buttons and the outcome are [KLiveDialogCard]s —
+  /// the white card with the red wash (dark: the card's own dark surface),
+  /// dark ink, the primary action full width in the theme red over the
+  /// outlined secondary one, stacked. Same content, timings and states.
   Widget _text(BuildContext context, PkDareOption option, {int maxLines = 3}) =>
       Text(
         option.text(Localizations.localeOf(context)),
@@ -243,11 +236,24 @@ class _PkDareLayerState extends State<PkDareLayer>
         overflow: TextOverflow.ellipsis,
         textScaler: _scaler(context),
         style: context.textStyles.body.copyWith(
-          color: const Color(0xFFFFFFFF),
+          color: KLiveDialogCard.inkOf(context),
           fontWeight: FontWeight.w800,
           height: 1.3,
         ),
       );
+
+  Widget _soft(BuildContext context, String text, {Key? key}) => Text(
+    text,
+    key: key,
+    textAlign: TextAlign.center,
+    maxLines: 2,
+    overflow: TextOverflow.ellipsis,
+    textScaler: _scaler(context),
+    style: context.textStyles.caption.copyWith(
+      color: KLiveDialogCard.softInkOf(context),
+      fontWeight: FontWeight.w600,
+    ),
+  );
 
   Widget _deciding(BuildContext context, DateTime now) {
     final l10n = context.l10n;
@@ -262,17 +268,18 @@ class _PkDareLayerState extends State<PkDareLayer>
         PkDareLayer.debugDecideSeconds ??
         math.max(0, dare.decideBy.difference(now).inSeconds);
     final loser = widget.isHost && dare.loserRoomId == widget.roomId;
-    return _frame(
+    return KLiveDialogCard(
       key: PkDareLayer.decideKey,
-      border: pkDareLevelColor(option.level),
-      child: Column(
+      semanticsLabel: option.text(Localizations.localeOf(context)),
+      padding: KLiveDialogCard.compactPadding,
+      body: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             children: [
-              PkDareLevelChip(level: option.level),
+              PkDareLevelChip(level: option.level, onCard: true),
               const Spacer(),
-              PkDareRing(seconds: left, fraction: left / total),
+              PkDareRing(seconds: left, fraction: left / total, onCard: true),
             ],
           ),
           const SizedBox(height: KSpacing.xs),
@@ -281,48 +288,37 @@ class _PkDareLayerState extends State<PkDareLayer>
               l10n.pkDareYourDare,
               textScaler: _scaler(context),
               style: context.textStyles.caption.copyWith(
-                color: const Color(0xFFFFC94D),
+                color: context.palette.primaryText,
                 fontWeight: FontWeight.w800,
               ),
             ),
           _text(context, option),
-          const SizedBox(height: KSpacing.sm),
-          if (loser)
-            Row(
-              children: [
-                Expanded(
-                  child: KButton(
-                    key: PkDareLayer.refuseKey,
-                    variant: KButtonVariant.secondary,
-                    label: l10n.pkDareRefuse,
-                    onPressed: _busy ? null : () => unawaited(_refuse()),
-                  ),
-                ),
-                const SizedBox(width: KSpacing.sm),
-                Expanded(
-                  child: KButton(
-                    key: PkDareLayer.acceptKey,
-                    label: l10n.pkDareAccept,
-                    loading: _busy,
-                    onPressed: () => unawaited(_run(widget.actions.onAccept)),
-                  ),
-                ),
-              ],
-            )
-          else
-            Text(
+          if (!loser) ...[
+            const SizedBox(height: KSpacing.xs),
+            _soft(
+              context,
               l10n.pkDareLoserDeciding(KFormat.bidiIsolate(_loserName())),
               key: PkDareLayer.waitingKey,
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textScaler: _scaler(context),
-              style: context.textStyles.caption.copyWith(
-                color: const Color(0xCCFFFFFF),
-              ),
             ),
+          ],
         ],
       ),
+      actions: [
+        if (loser) ...[
+          KLiveDialogAction(
+            key: PkDareLayer.acceptKey,
+            label: l10n.pkDareAccept,
+            primary: true,
+            loading: _busy,
+            onPressed: () => unawaited(_run(widget.actions.onAccept)),
+          ),
+          KLiveDialogAction(
+            key: PkDareLayer.refuseKey,
+            label: l10n.pkDareRefuse,
+            onPressed: _busy ? null : () => unawaited(_refuse()),
+          ),
+        ],
+      ],
     );
   }
 
@@ -337,20 +333,21 @@ class _PkDareLayerState extends State<PkDareLayer>
         (ends.isAfter(now) ? ends.difference(now) : Duration.zero);
     final winner = widget.isHost && dare.winnerRoomId == widget.roomId;
     final time = KFormat.countdown(left);
+    final ink = KLiveDialogCard.inkOf(context);
     return Semantics(
       label: l10n.pkDareSemantics(
         option.text(Localizations.localeOf(context)),
         time,
       ),
-      child: _frame(
+      child: KLiveDialogCard(
         key: PkDareLayer.bannerKey,
-        border: pkDareLevelColor(option.level),
-        child: Column(
+        padding: KLiveDialogCard.compactPadding,
+        body: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Row(
               children: [
-                PkDareLevelChip(level: option.level),
+                PkDareLevelChip(level: option.level, onCard: true),
                 const SizedBox(width: KSpacing.xs),
                 Container(
                   key: PkDareLayer.timerKey,
@@ -359,7 +356,7 @@ class _PkDareLayerState extends State<PkDareLayer>
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0x33FFFFFF),
+                    color: ink.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(KRadius.pill),
                   ),
                   child: Text(
@@ -367,7 +364,7 @@ class _PkDareLayerState extends State<PkDareLayer>
                     textDirection: TextDirection.ltr,
                     textScaler: _scaler(context),
                     style: context.textStyles.label.copyWith(
-                      color: const Color(0xFFFFFFFF),
+                      color: ink,
                       fontWeight: FontWeight.w900,
                       fontFeatures: const [FontFeature.tabularFigures()],
                     ),
@@ -382,61 +379,48 @@ class _PkDareLayerState extends State<PkDareLayer>
                     onPressed: _busy
                         ? null
                         : () => unawaited(_report(option.id)),
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.warning_amber_rounded,
-                      color: Color(0xFFFFC94D),
+                      color: context.palette.primaryText,
                       size: 22,
                     ),
                   ),
               ],
             ),
+            const SizedBox(height: KSpacing.xxs),
             _text(context, option),
             if (winner) ...[
               const SizedBox(height: KSpacing.xs),
-              Text(
-                l10n.pkDareJudge,
-                textScaler: _scaler(context),
-                style: context.textStyles.caption.copyWith(
-                  color: const Color(0xCCFFFFFF),
-                ),
-              ),
-              const SizedBox(height: KSpacing.xs),
-              Row(
-                children: [
-                  Expanded(
-                    child: KButton(
-                      key: PkDareLayer.notDoneKey,
-                      variant: KButtonVariant.secondary,
-                      label: l10n.pkDareNotDone,
-                      onPressed: _busy
-                          ? null
-                          : () => unawaited(
-                              _run(() async {
-                                await widget.actions.onVerdict?.call(
-                                  done: false,
-                                );
-                              }),
-                            ),
-                    ),
-                  ),
-                  const SizedBox(width: KSpacing.sm),
-                  Expanded(
-                    child: KButton(
-                      key: PkDareLayer.doneKey,
-                      label: l10n.pkDareDone,
-                      loading: _busy,
-                      onPressed: () => unawaited(
-                        _run(() async {
-                          await widget.actions.onVerdict?.call(done: true);
-                        }),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              _soft(context, l10n.pkDareJudge),
             ],
           ],
         ),
+        actions: [
+          if (winner) ...[
+            KLiveDialogAction(
+              key: PkDareLayer.doneKey,
+              label: l10n.pkDareDone,
+              primary: true,
+              loading: _busy,
+              onPressed: () => unawaited(
+                _run(() async {
+                  await widget.actions.onVerdict?.call(done: true);
+                }),
+              ),
+            ),
+            KLiveDialogAction(
+              key: PkDareLayer.notDoneKey,
+              label: l10n.pkDareNotDone,
+              onPressed: _busy
+                  ? null
+                  : () => unawaited(
+                      _run(() async {
+                        await widget.actions.onVerdict?.call(done: false);
+                      }),
+                    ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -451,10 +435,11 @@ class _PkDareLayerState extends State<PkDareLayer>
         ? l10n.pkDareOutcomeNotDone
         : l10n.pkDareOutcomeRefused;
     final option = dare.chosen;
-    return _frame(
+    return KLiveDialogCard(
       key: PkDareLayer.outcomeKey,
-      border: done ? const Color(0xFF22C27A) : const Color(0xFFE50914),
-      child: Column(
+      padding: KLiveDialogCard.compactPadding,
+      semanticsLabel: text,
+      body: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
@@ -462,7 +447,9 @@ class _PkDareLayerState extends State<PkDareLayer>
             textAlign: TextAlign.center,
             textScaler: _scaler(context),
             style: context.textStyles.title.copyWith(
-              color: done ? const Color(0xFF7CF5B5) : const Color(0xFFFF8A8A),
+              color: done
+                  ? KLiveDialogCard.inkOf(context)
+                  : context.palette.primaryText,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -472,13 +459,7 @@ class _PkDareLayerState extends State<PkDareLayer>
           ],
           if (!done && dare.points != 0) ...[
             const SizedBox(height: KSpacing.xs),
-            Text(
-              l10n.pkRecordPoints(KFormat.signed(dare.points)),
-              textScaler: _scaler(context),
-              style: context.textStyles.caption.copyWith(
-                color: const Color(0xCCFFFFFF),
-              ),
-            ),
+            _soft(context, l10n.pkRecordPoints(KFormat.signed(dare.points))),
           ],
         ],
       ),
@@ -591,21 +572,33 @@ class _Card extends StatelessWidget {
 }
 
 /// «سهل» / «متوسط» / «صعب» in the level's colour.
+///
+/// D236: [onCard] — on the live card ([KLiveDialogCard]) a small red-tinted
+/// pill (brand red at 12 %, the theme's red text ≥ 4.5:1 on the card).
 class PkDareLevelChip extends StatelessWidget {
-  const new({required this.level, super.key, this.dense = false});
+  const new({
+    required this.level,
+    super.key,
+    this.dense = false,
+    this.onCard = false,
+  });
 
   final PkDareLevel level;
   final bool dense;
+  final bool onCard;
 
   @override
   Widget build(BuildContext context) {
-    final color = pkDareLevelColor(level);
+    final red = context.palette.primaryText;
+    final color = onCard ? red : pkDareLevelColor(level);
     return Container(
       padding: EdgeInsets.symmetric(horizontal: dense ? 6 : 8, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.18),
+        color: onCard
+            ? KBrandColors.red500.withValues(alpha: 0.12)
+            : color.withValues(alpha: 0.18),
         borderRadius: BorderRadius.circular(KRadius.pill),
-        border: Border.all(color: color),
+        border: onCard ? null : Border.all(color: color),
       ),
       child: Text(
         pkDareLevelName(context.l10n, level),
@@ -621,37 +614,55 @@ class PkDareLevelChip extends StatelessWidget {
 }
 
 /// The loser's decision ring (seconds left, the arc shrinking).
+///
+/// D236: [onCard] — on the live card a red arc (the theme's `primary`) over
+/// a faint track, the seconds in the card's ink.
 class PkDareRing extends StatelessWidget {
-  const new({required this.seconds, required this.fraction, super.key});
+  const new({
+    required this.seconds,
+    required this.fraction,
+    super.key,
+    this.onCard = false,
+  });
 
   final int seconds;
   final double fraction;
+  final bool onCard;
 
   @override
-  Widget build(BuildContext context) => SizedBox.square(
-    dimension: 40,
-    child: Stack(
-      alignment: Alignment.center,
-      children: [
-        CircularProgressIndicator(
-          value: fraction.clamp(0, 1),
-          strokeWidth: 3.5,
-          backgroundColor: const Color(0x33FFFFFF),
-          valueColor: const AlwaysStoppedAnimation(Color(0xFFFFC94D)),
-        ),
-        Text(
-          '$seconds',
-          textDirection: TextDirection.ltr,
-          textScaler: _scaler(context),
-          style: context.textStyles.label.copyWith(
-            color: const Color(0xFFFFFFFF),
-            fontWeight: FontWeight.w900,
-            fontFeatures: const [FontFeature.tabularFigures()],
+  Widget build(BuildContext context) {
+    final ink = onCard
+        ? KLiveDialogCard.inkOf(context)
+        : const Color(0xFFFFFFFF);
+    return SizedBox.square(
+      dimension: 40,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          CircularProgressIndicator(
+            value: fraction.clamp(0, 1),
+            strokeWidth: 3.5,
+            backgroundColor: onCard
+                ? ink.withValues(alpha: 0.12)
+                : const Color(0x33FFFFFF),
+            valueColor: AlwaysStoppedAnimation(
+              onCard ? context.palette.primary : const Color(0xFFFFC94D),
+            ),
           ),
-        ),
-      ],
-    ),
-  );
+          Text(
+            '$seconds',
+            textDirection: TextDirection.ltr,
+            textScaler: _scaler(context),
+            style: context.textStyles.label.copyWith(
+              color: ink,
+              fontWeight: FontWeight.w900,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// The message of a refused dare action (409 `PK_DARE_CLOSED`, else generic).

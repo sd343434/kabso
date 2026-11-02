@@ -8,6 +8,7 @@
 // ar and en, 393×852 and 360×800 at text 1.0 / 1.3, no overflow.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
+import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/domain/live_pk.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk_dare.dart';
@@ -437,6 +438,154 @@ void main() {
         }
       }
     }
+
+    // D236 (owner: the dare card in the «تابع واخرج» style): the shared
+    // live card, the primary action full width in the theme red over the
+    // outlined secondary one, a red-tinted level pill and a red ring.
+    group('D236 the live card style', () {
+      Rect rectOf(WidgetTester tester, Key key) =>
+          tester.getRect(find.byKey(key));
+
+      testWidgets('the loser: «قبول» (red, full width) over «رفض» '
+          '(outlined), the red ring and pill, dark ink', (tester) async {
+        final match = pkDareMatchFixture(
+          now: now,
+          dare: pkDareFixture(now: now),
+        );
+        await _pumpStage(
+          tester,
+          match,
+          now: now,
+          isHost: true,
+          actions: _Calls().actions(),
+        );
+        final card = find.byKey(PkDareLayer.decideKey);
+        expect(tester.widget(card), isA<KLiveDialogCard>());
+        final accept = rectOf(tester, PkDareLayer.acceptKey);
+        final refuse = rectOf(tester, PkDareLayer.refuseKey);
+        expect(accept.bottom, lessThanOrEqualTo(refuse.top));
+        expect(accept.width, closeTo(refuse.width, 0.5));
+        final inner =
+            tester.getRect(card).width -
+            KLiveDialogCard.compactPadding.horizontal;
+        // (Dark: the card's 0.8 lp edge on each side.)
+        expect(accept.width, closeTo(inner, 2));
+        final context = tester.element(card);
+        final fill = tester.widget<Container>(
+          find
+              .descendant(
+                of: find.byKey(PkDareLayer.acceptKey),
+                matching: find.byType(Container),
+              )
+              .first,
+        );
+        expect(
+          (fill.decoration! as BoxDecoration).color,
+          context.palette.primary,
+        );
+        final ring = tester.widget<CircularProgressIndicator>(
+          find.descendant(
+            of: find.byType(PkDareRing),
+            matching: find.byType(CircularProgressIndicator),
+          ),
+        );
+        expect(
+          (ring.valueColor! as AlwaysStoppedAnimation<Color?>).value,
+          context.palette.primary,
+        );
+        final chip = tester.widget<Text>(
+          find.descendant(
+            of: find.byType(PkDareLevelChip),
+            matching: find.byType(Text),
+          ),
+        );
+        expect(chip.style?.color, context.palette.primaryText);
+        final dare = tester.widget<Text>(
+          find.descendant(of: card, matching: find.textContaining('غناء')),
+        );
+        expect(dare.style?.color, KLiveDialogCard.inkOf(context));
+      });
+
+      testWidgets('the winner judging: «نُفّذ» over «لم يُنفّذ»', (
+        tester,
+      ) async {
+        final match = pkDareMatchFixture(
+          now: now,
+          dare: pkDareFixture(
+            now: now,
+            status: PkDareStatus.active,
+            loserRoom: 'room-b',
+            winnerRoom: 'room-0',
+          ),
+        );
+        await _pumpStage(
+          tester,
+          match,
+          now: now,
+          isHost: true,
+          actions: _Calls().actions(),
+        );
+        expect(
+          tester.widget(find.byKey(PkDareLayer.bannerKey)),
+          isA<KLiveDialogCard>(),
+        );
+        final done = rectOf(tester, PkDareLayer.doneKey);
+        final notDone = rectOf(tester, PkDareLayer.notDoneKey);
+        expect(done.bottom, lessThanOrEqualTo(notDone.top));
+        expect(done.width, closeTo(notDone.width, 0.5));
+      });
+
+      for (final language in [AppLanguage.ar, AppLanguage.en]) {
+        for (final (viewport, scale) in [
+          (GoldenViewport.phone, 1.0),
+          (GoldenViewport.android, 1.3),
+        ]) {
+          for (final (status, loser) in [
+            (PkDareStatus.deciding, 'room-0'),
+            (PkDareStatus.active, 'room-b'),
+          ]) {
+            testWidgets('${status.name} ${language.name} ${viewport.name} '
+                '×$scale: the card stays over the videos', (tester) async {
+              final match = pkDareMatchFixture(
+                now: now,
+                ar: language == AppLanguage.ar,
+                dare: pkDareFixture(
+                  now: now,
+                  status: status,
+                  loserRoom: loser,
+                  winnerRoom: loser == 'room-0' ? 'room-b' : 'room-0',
+                ),
+              );
+              await _pumpStage(
+                tester,
+                match,
+                now: now,
+                isHost: true,
+                actions: _Calls().actions(),
+                language: language,
+                viewport: viewport,
+                textScale: scale,
+              );
+              expect(tester.takeException(), isNull);
+              final card = tester.getRect(
+                find.byKey(
+                  status == PkDareStatus.deciding
+                      ? PkDareLayer.decideKey
+                      : PkDareLayer.bannerKey,
+                ),
+              );
+              final pane = rectOf(tester, LivePkStage.ownPaneKey);
+              expect(card.bottom, lessThanOrEqualTo(pane.bottom + 0.5));
+              expect(card.left, greaterThanOrEqualTo(-0.5));
+              expect(
+                card.right,
+                lessThanOrEqualTo(viewport.logicalSize.width + 0.5),
+              );
+            });
+          }
+        }
+      }
+    });
   });
 
   group('the record', () {

@@ -44,6 +44,7 @@ class KLiveDialogCard extends StatelessWidget {
     this.body,
     this.actions = const [],
     this.semanticsLabel,
+    this.padding = defaultPadding,
   });
 
   /// At the top centre (a picture with a tag, an icon …).
@@ -57,6 +58,21 @@ class KLiveDialogCard extends StatelessWidget {
 
   /// Names the card for screen readers (defaults to [title]).
   final String? semanticsLabel;
+
+  /// The room inside the card ([defaultPadding]; [compactPadding] for a
+  /// card that sits over a small stage, as the PK dare's).
+  final EdgeInsetsGeometry padding;
+
+  /// Ref 325's padding.
+  static const EdgeInsets defaultPadding = EdgeInsets.fromLTRB(
+    22.1,
+    23.3,
+    22.1,
+    21.7,
+  );
+
+  /// D236: the same card a little tighter (over the PK stage).
+  static const EdgeInsets compactPadding = EdgeInsets.fromLTRB(16, 14, 16, 14);
 
   /// Ref 325 (measured on the leave prompt): the wash, the corners and the
   /// buttons.
@@ -126,7 +142,7 @@ class KLiveDialogCard extends StatelessWidget {
                 ],
               ),
             ),
-            padding: const EdgeInsets.fromLTRB(22.1, 23.3, 22.1, 21.7),
+            padding: padding,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -158,7 +174,10 @@ class KLiveDialogCard extends StatelessWidget {
                     const SizedBox(height: KSpacing.md),
                   body,
                 ],
-                if (actions.isNotEmpty) const SizedBox(height: 21.9),
+                if (actions.isNotEmpty)
+                  SizedBox(
+                    height: padding == defaultPadding ? 21.9 : KSpacing.md,
+                  ),
                 for (final (i, a) in actions.indexed) ...[
                   if (i > 0) const SizedBox(height: buttonGap),
                   _Button(action: a),

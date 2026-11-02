@@ -110,9 +110,11 @@ final class LiveChatBulletLine extends LiveChatItem {
 }
 
 /// Owner (2026-10-26, D118): the room's rules, a system line shown once
-/// each time a live opens (host and viewers), in red. D212 (owner: «رسالة
-/// النظام … تختفي عند الكتابة»): it is gone as soon as the first chat
-/// message of the visit is written, by anyone ([LiveChatState.written]).
+/// each time a live opens (host and viewers), in red. D236 (owner,
+/// supersedes D212's «تختفي عند الكتابة»): it behaves like any chat line —
+/// the first line of the visit, rising and scrolling away as new lines
+/// arrive; a new message does not remove it ([LiveChatState.written] no
+/// longer hides it).
 /// Local only: never sent, never stored, never from a user; the text is the
 /// app's (l10n).
 final class LiveChatNoticeLine extends LiveChatItem {
@@ -197,6 +199,7 @@ class LiveChatState {
   /// D230 (owner's device: the viewer never saw the rules line): set by the
   /// controller from what ARRIVES during the visit — never from the history
   /// read on entering, wherever its lines sit around the rules line.
+  /// D236: no longer hides the rules line (it scrolls like any line).
   final bool written;
 
   /// The host has not turned the chat off.

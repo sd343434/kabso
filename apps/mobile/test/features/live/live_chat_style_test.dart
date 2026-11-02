@@ -455,9 +455,11 @@ void main() {
   });
 
   for (final audio in [true, false]) {
-    testWidgets('D212 (owner, every category): the rules line shows on '
-        'entering and is gone at the first message of the visit; no "no '
-        'messages" line (${audio ? 'audio' : 'video'})', (tester) async {
+    testWidgets('D236 (owner, every category; was D212): the rules line '
+        'shows on entering and stays as a line when messages arrive, rising '
+        'above them; no "no messages" line (${audio ? 'audio' : 'video'})', (
+      tester,
+    ) async {
       final engine = await _room(tester, audio: audio);
       final notice = find.byKey(LiveRoomChatLines.noticeKey);
       expect(notice, findsOne);
@@ -476,15 +478,20 @@ void main() {
       engine.chat.add(LiveChatReceived(_entry('n0', 'message 0')));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
-      expect(notice, findsNothing);
+      expect(notice, findsOne);
       expect(_line('m:n0'), findsOne);
+      // Not pinned: the new message is under it (the newest at the bottom).
+      expect(
+        tester.getRect(_line('m:n0')).top,
+        greaterThanOrEqualTo(tester.getRect(notice).bottom - 0.5),
+      );
       await _leave(tester);
     });
   }
 
   testWidgets("D230 (owner's device, was D199's top start): in the video "
       'live the rules line is the BOTTOM line of the chat, unfaded; '
-      'messages come under it; gone while typing', (tester) async {
+      'messages come under it; D236: it stays while typing', (tester) async {
     final engine = await _room(tester, audio: false);
     final notice = find.byKey(LiveRoomChatLines.noticeKey);
     final list = find.byKey(LiveRoomChatLines.listKey);
@@ -497,14 +504,19 @@ void main() {
     engine.chat.add(LiveChatReceived(_entry('t0', 'hello')));
     await tester.pump();
     await tester.pump();
-    // Keyboard up: the rules line has scrolled away; the message stays.
+    // D236: keyboard up — the rules line is a line like the others (not
+    // hidden); the message under it.
     tester.view.viewInsets = FakeViewPadding(
       bottom: 300 * tester.view.devicePixelRatio,
     );
     addTearDown(tester.view.resetViewInsets);
     await tester.pump();
-    expect(notice, findsNothing);
+    expect(notice, findsOne);
     expect(_line('m:t0'), findsOne);
+    expect(
+      tester.getRect(_line('m:t0')).top,
+      greaterThanOrEqualTo(tester.getRect(notice).bottom - 0.5),
+    );
     await _leave(tester);
   });
 

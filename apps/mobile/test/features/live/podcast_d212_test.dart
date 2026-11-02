@@ -1,6 +1,7 @@
 // D212 (owner): the hub's five live categories, the podcast live (stage,
 // raised hands, the host's hands sheet, the setup) and the chat rule for
-// every category (the rules line goes at the first message; each join is a
+// every category (D236: the rules line stays as a line at the first
+// message; each join is a
 // line). Fakes stand in for the API and the media engine (tests only).
 import 'dart:async';
 
@@ -520,46 +521,49 @@ void main() {
   });
 
   group('chat rule (every category)', () {
-    testWidgets('the rules line goes at the first message; each join is its '
-        'own line, by the shown gender', (tester) async {
-      final (_, engine) = await _openRoom(
-        tester,
-        seats: _podcastSeats(role: LiveSeatRole.viewer),
-      );
-      expect(find.byKey(LiveRoomChatLines.noticeKey), findsOneWidget);
-      engine.chat
-        ..add(LiveChatJoined(_u('j1', 'جود'), gender: LiveJoinGender.male))
-        ..add(LiveChatJoined(_u('j2', 'دانة'), gender: LiveJoinGender.female))
-        ..add(LiveChatJoined(_u('j3', 'كريم')));
-      await tester.pump();
-      await tester.pump();
-      // Joins do not count as writing: the rules line stays.
-      expect(find.byKey(LiveRoomChatLines.noticeKey), findsOneWidget);
-      Finder has(String t) => find.textContaining(t, findRichText: true);
-      expect(has('دخل البث'), findsOneWidget);
-      expect(has('دخلت البث'), findsOneWidget);
-      expect(has('انضم'), findsOneWidget);
-      engine.chat.add(
-        LiveChatReceived(
-          LiveChatEntry(
-            id: 'm1',
-            roomId: 'room-0',
-            author: _u('v1', 'نور'),
-            text: 'كيف أختار الشريك المناسب؟',
-            createdAt: DateTime.utc(2026, 10, 31, 18),
-            authorRole: LiveChatRole.viewer,
+    testWidgets(
+      'D236: the rules line stays at the first message; each join is its '
+      'own line, by the shown gender',
+      (tester) async {
+        final (_, engine) = await _openRoom(
+          tester,
+          seats: _podcastSeats(role: LiveSeatRole.viewer),
+        );
+        expect(find.byKey(LiveRoomChatLines.noticeKey), findsOneWidget);
+        engine.chat
+          ..add(LiveChatJoined(_u('j1', 'جود'), gender: LiveJoinGender.male))
+          ..add(LiveChatJoined(_u('j2', 'دانة'), gender: LiveJoinGender.female))
+          ..add(LiveChatJoined(_u('j3', 'كريم')));
+        await tester.pump();
+        await tester.pump();
+        // Joins do not count as writing: the rules line stays.
+        expect(find.byKey(LiveRoomChatLines.noticeKey), findsOneWidget);
+        Finder has(String t) => find.textContaining(t, findRichText: true);
+        expect(has('دخل البث'), findsOneWidget);
+        expect(has('دخلت البث'), findsOneWidget);
+        expect(has('انضم'), findsOneWidget);
+        engine.chat.add(
+          LiveChatReceived(
+            LiveChatEntry(
+              id: 'm1',
+              roomId: 'room-0',
+              author: _u('v1', 'نور'),
+              text: 'كيف أختار الشريك المناسب؟',
+              createdAt: DateTime.utc(2026, 10, 31, 18),
+              authorRole: LiveChatRole.viewer,
+            ),
           ),
-        ),
-      );
-      await tester.pump();
-      await tester.pump();
-      expect(find.byKey(LiveRoomChatLines.noticeKey), findsNothing);
-      expect(
-        find.textContaining('كيف أختار', findRichText: true),
-        findsWidgets,
-      );
-      await _close(tester);
-    });
+        );
+        await tester.pump();
+        await tester.pump();
+        expect(find.byKey(LiveRoomChatLines.noticeKey), findsOneWidget);
+        expect(
+          find.textContaining('كيف أختار', findRichText: true),
+          findsWidgets,
+        );
+        await _close(tester);
+      },
+    );
 
     test('D230: `written` comes from the controller (what arrives during '
         'the visit), never from where the history sits', () {

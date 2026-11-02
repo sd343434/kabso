@@ -285,15 +285,20 @@ void main() {
         ..add(LiveChatReceived(_entry('m1', 'لحظة')))
         ..add(LiveChatReceived(_entry('m2', '.')));
       await _frames(tester);
-      expect(_notice, findsNothing);
+      // D236: the rules line stays, risen above the new lines like any line.
+      expect(_notice, findsOneWidget);
       final list = tester.getRect(_list);
       expect(tester.getRect(_line('m:m2')).bottom, closeTo(list.bottom, 1));
       expect(
         tester.getRect(_line('m:m1')).bottom,
         closeTo(tester.getRect(_line('m:m2')).top, 1),
       );
+      expect(
+        tester.getRect(_line('n:rules')).bottom,
+        closeTo(tester.getRect(_line('m:m1')).top, 1),
+      );
       // The chat hugs its lines from the bottom: nothing empty above them.
-      expect(tester.getRect(_line('m:m1')).top, closeTo(list.top, 1));
+      expect(tester.getRect(_line('n:rules')).top, closeTo(list.top, 1));
       expect(_fading(tester), isFalse);
       await _leave(tester);
     });

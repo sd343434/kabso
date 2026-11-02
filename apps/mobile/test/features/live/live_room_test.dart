@@ -1860,9 +1860,9 @@ void main() {
         await tester.pumpAndSettle();
         expect(repo.chatCalls, contains('send:Hi all'));
         expect(line('Hi all'), findsOneWidget);
-        // Someone else's line: profile and report only. D212 (owner): the
-        // rules line went at the visit's first message.
-        expect(find.byKey(LiveRoomChatLines.noticeKey), findsNothing);
+        // Someone else's line: profile and report only. D236 (owner; was
+        // D212): the rules line stays, a line like the others.
+        expect(find.byKey(LiveRoomChatLines.noticeKey), findsOneWidget);
         await tester.tapAt(const Offset(1, 1));
         await tester.pumpAndSettle();
         await tester.tap(line('Welcome!'));
