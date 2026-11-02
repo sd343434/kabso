@@ -137,6 +137,21 @@ void main() {
           cards: sampleCardBanners(count: 1),
           language: language,
         );
+        // The carousel (D248b: 5:1) is after the first row.
+        final pager = tester.getRect(
+          find.byKey(KHomeBannerCarousel.carouselKey),
+        );
+        expect(
+          pager.top,
+          greaterThan(
+            tester.getRect(find.byKey(LiveHubGrid.cardKey(1))).bottom,
+          ),
+        );
+        expect(
+          pager.bottom,
+          lessThan(tester.getRect(find.byKey(LiveHubGrid.cardKey(2))).top),
+        );
+        expect(pager.width / pager.height, moreOrLessEquals(5, epsilon: 0.1));
         await _scrollBy(tester, 300);
         final cell = tester.getRect(find.byKey(LiveHubGrid.cardBannerSlotKey));
         final card2 = tester.getRect(find.byKey(LiveHubGrid.cardKey(2)));
@@ -159,11 +174,6 @@ void main() {
           expect(cell.left, moreOrLessEquals(13));
           expect(card4.left - cell.right, moreOrLessEquals(7.2));
         }
-        // The carousel is above it, after the first row.
-        final pager = tester.getRect(
-          find.byKey(KHomeBannerCarousel.carouselKey),
-        );
-        expect(pager.bottom, lessThan(card2.top));
       });
     }
 

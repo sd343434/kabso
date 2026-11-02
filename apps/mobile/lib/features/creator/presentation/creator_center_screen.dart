@@ -657,6 +657,8 @@ class _BannerSlot extends ConsumerWidget {
         banners: banners,
         onOpen: onOpen,
         canOpen: (b) => HomeBannerTarget.parse(b.link) != null,
+        // D248b: the HOME banners are 5:1.
+        aspect: KHomeBannerCarousel.homeAspect,
       ),
     );
   }

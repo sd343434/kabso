@@ -128,7 +128,7 @@ export class BannerError extends Error {}
 /**
  * Stores an image file as a `HOME_BANNER` media asset owned by `ownerId` (the CLI's `--image`):
  * the same checks as an upload (signature, decoder, size limits, metadata stripped), cover-cropped
- * to 1 500 × 500 and 320 × 107 WebP. The asset is unattached until [addBannerIn] claims it.
+ * to 1 500 × 500 and 320 × 107 WebP (D248b: HOME 1 500 × 300 and 320 × 64). The asset is unattached until [addBannerIn] claims it.
  */
 export async function storeBannerImage(
   prisma: Pick<PrismaClient, 'mediaAsset'>,
@@ -142,12 +142,19 @@ export async function storeBannerImage(
   let image;
   try {
     // D137: a ROOM banner is cover-cropped to 3:4 (600 × 800 and 240 × 320); D248: a HUB_CARD banner to the live
-    // card's aspect (720 × 805 and 288 × 322).
+    // card's aspect (720 × 805 and 288 × 322); D248b: a HOME banner to 5:1 (1 500 × 300 and 320 × 64); TASKS and
+    // WALLET stay 3:1.
     image = await processImage(
       bytes,
       type,
       BANNER_WIDTH,
-      placement === 'ROOM' ? 'roomBanner' : placement === 'HUB_CARD' ? 'hubCardBanner' : 'banner',
+      placement === 'ROOM'
+        ? 'roomBanner'
+        : placement === 'HUB_CARD'
+          ? 'hubCardBanner'
+          : placement === 'HOME'
+            ? 'homeBanner'
+            : 'banner',
     );
   } catch {
     throw new BannerError('The image could not be read (or is larger than 8 000 px / 50 MP)');

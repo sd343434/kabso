@@ -8,7 +8,8 @@ import { useApp } from '../context';
  * server (around the centre, as the CLI's `--image`). The preview crops the chosen file the same way.
  */
 export const BANNER_SHAPES = {
-  home: { width: 1500, height: 500 },
+  // D248b: the live hub carousel is 5:1 (the owner's reference).
+  home: { width: 1500, height: 300 },
   hub_card: { width: 720, height: 805 },
   room: { width: 600, height: 800 },
   tasks: { width: 1500, height: 500 },

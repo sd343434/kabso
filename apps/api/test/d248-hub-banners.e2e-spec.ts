@@ -167,7 +167,14 @@ describe('D248 hub card banners', { timeout: 240_000 }, () => {
   it('a picture serves only its own placement; the CLI rules refuse bad fields (409); one use only', async () => {
     const home = await uploadPicture(owner, 'home', await png(1800, 600));
     expect(home.status).toBe(201);
-    expect([home.body.width, home.body.height]).toEqual([1500, 500]);
+    // D248b: the hub carousel is 5:1 (1 500 × 300, thumb 320 × 64); TASKS / WALLET stay 3:1.
+    expect([home.body.width, home.body.height]).toEqual([1500, 300]);
+    const homeThumb = await sharp(
+      storage.objects.get(String(home.body.thumbUrl).replace('https://media.example.test/', ''))!.body,
+    ).metadata();
+    expect([homeThumb.width, homeThumb.height]).toEqual([320, 64]);
+    const wallet = await uploadPicture(owner, 'wallet', await png(1800, 600));
+    expect([wallet.body.width, wallet.body.height]).toEqual([1500, 500]);
     const card = await uploadPicture(owner, 'hub_card', await png(500, 500));
     expect(card.status).toBe(201);
 

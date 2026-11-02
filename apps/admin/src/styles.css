@@ -1574,6 +1574,10 @@ ins {
   height: 100%;
   object-fit: cover;
 }
+/* D248b: a live hub carousel banner is 5:1 (older ones 3:1 are shown centre-cropped there). */
+.banner-art[data-placement='home'] {
+  aspect-ratio: 5 / 1;
+}
 /* D248: a room banner is 3:4 and a hub card banner has the live card's shape (720 × 805). */
 .banner-art[data-placement='room'] {
   aspect-ratio: 3 / 4;

@@ -43,7 +43,7 @@ describe('D248 add a banner', () => {
     expect(html).toContain('إضافة بانر');
     for (const p of BANNER_PLACEMENT_KEYS) expect(html).toContain(`value="${p}"`);
     expect(html).toContain('بانر بحجم بطاقة البث');
-    expect(html).toContain('1500 × 500');
+    expect(html).toContain('1500 × 300');
     expect(html).toMatch(/<button class="btn primary" disabled="">/);
   });
 

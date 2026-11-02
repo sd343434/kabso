@@ -2447,8 +2447,10 @@ CLI's `--image`, §5.10 / §5.40); without it 503.
 
 **What to upload (the owner):**
 
-- **Carousel** «الرئيسية — الشريط المتحرك بعد أول بثين»: **1 500 × 500 px** (3:1), text inside the picture, keep it
-  away from the edges; one or more, they rotate every 4 s.
+- **Carousel** «الرئيسية — الشريط المتحرك بعد أول بثين»: **1 500 × 300 px** (5:1, D248b: the reference's shape),
+  text inside the picture, keep it away from the edges; one or more, they rotate every 4 s. Banners already uploaded at
+  1 500 × 500 still show, centre-cropped to 5:1 (their top and bottom are cut: re-upload them at 1 500 × 300). The
+  same banners show 5:1 in the Voice rooms list and the Creator Center. «ارفع صور بنر 1500×300».
 - **Card-size banner** «الرئيسية — بانر بحجم بطاقة البث»: **720 × 805 px** (the live card's shape), text inside the
   picture. Several take turns in the same cell every 5 s.
 - Both: JPEG, PNG or WebP, at most 15 MB; anything else is cropped around the centre to that shape (the panel shows the
@@ -2457,7 +2459,7 @@ CLI's `--image`, §5.10 / §5.40); without it 503.
 #### The owner's steps — بالعربية
 
 1. لوحة الإدارة ← «البانرات والفعاليات» ← «إضافة بانر».
-2. اختر «مكان العرض»: «الرئيسية — الشريط المتحرك بعد أول بثين» (صورة 1500 × 500) أو «الرئيسية — بانر بحجم بطاقة البث»
+2. اختر «مكان العرض»: «الرئيسية — الشريط المتحرك بعد أول بثين» (ارفع صور بنر 1500×300) أو «الرئيسية — بانر بحجم بطاقة البث»
    (صورة 720 × 805).
 3. اختر الصورة وتأكد من «معاينة القص»، ثم اكتب الرابط (مثل ‎/families‎) والسبب واضغط «إضافة بانر».
 4. لتغيير الخانة التي يظهر فيها بانر البطاقة: `HOME_HUB_CARD_CELL` في إعدادات الخادم (4 = أول خانة في الصف الثالث).

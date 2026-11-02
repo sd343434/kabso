@@ -5705,8 +5705,12 @@ working and the other countries are USD only. Migration `20270225090000_fx_rates
 Owner (2026-11-02): «اجعل التصميم مشابه للبيجو لايف بحيث بعد أول بثين هناك بنر متحرك، وفي الأسفل قليلاً بنر بحجم
 اللايف». Extends §10.26; the rest of §10.26 is unchanged.
 
-- **Carousel** (`placement=home`, unchanged pictures 1 500 × 500): in the hub's 2-column grid it now follows the
-  **first row** (2 cells; after the last cell when there are fewer), full width, 3:1, the cards' corner radius; it
+- **Carousel** (`placement=home`): in the hub's 2-column grid it now follows the
+  **first row** (2 cells; after the last cell when there are fewer), full width, the cards' corner radius;
+  *D248b (owner: «البنر كبير، خذ نفس حجم بنر البيجو»)*: **5:1** (ref 375 measured 690 × 138 px = 5.0, ≈ 37 % of a
+  card's height) — pictures uploaded from the panel or `--image` for `home` are **1 500 × 300** (thumb 320 × 64);
+  older 1 500 × 500 ones are centre-cropped (cover) to 5:1 by the app, never an error. Every `home` surface is 5:1:
+  the hub grid, the Voice rooms list and the Creator Center; `tasks` and `wallet` stay 3:1 (1 500 × 500); it
   auto-advances every 4 s and swipes as before; the page indicator is a thin bar inside the picture's bottom edge. The
   Voice rooms list keeps it after its 4th row. Hidden when no banner is active (never a placeholder).
 - **Card-size banner** (`placement=hub_card`, new placement `HUB_CARD`): one **grid cell**, exactly a live card (width
@@ -5721,7 +5725,7 @@ Owner (2026-11-02): «اجعل التصميم مشابه للبيجو لايف �
   infinite scroll never see them. Pull to refresh reloads both lists. No impression or click tracking exists for
   banners, so none is added.
 - **Adding from the panel** «البانرات والفعاليات» (`catalog.manage`, OWNER): `POST /admin/banner-uploads?placement=`
-  (raw `application/octet-stream`, the CLI's `--image` checks and crop: home / tasks / wallet 1 500 × 500, room 600 ×
+  (raw `application/octet-stream`, the CLI's `--image` checks and crop: home 1 500 × 300 (D248b), tasks / wallet 1 500 × 500, room 600 ×
   800, hub_card 720 × 805; 409 `ADMIN_ACTION_REFUSED` for a file that is not an image) answers `mediaId`; then
   `POST /admin/banners` with the `banner-admin add` fields and a reason (the same rules: the picture must have the
   placement's shape, unused, < 24 h old; audit `banner.add` with `via: panel`, the actor and the reason). The panel
