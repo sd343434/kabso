@@ -13369,4 +13369,19 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get pkFailureDareClosed => 'لم يعد بالإمكان الرد على هذا الحكم';
+
+  @override
+  String get liveCountryPickerTitle => 'بلد «القريبة»';
+
+  @override
+  String get liveCountryPickerBody =>
+      'اختر بلداً لترى بثوثه في «القريبة». لا يغيّر ملفك.';
+
+  @override
+  String liveNearbyCountryRow(String country) {
+    return 'بلد «القريبة»: $country. تغيير';
+  }
+
+  @override
+  String get liveNearbyChooseCountry => 'اختر بلداً';
 }

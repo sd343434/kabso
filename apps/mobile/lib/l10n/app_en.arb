@@ -4164,5 +4164,13 @@
   "pkRecordDares": "Dares done: {done} · refused: {refused}",
   "@pkRecordDares": {"description": "v1.50-live (D229): «PK أحكام».", "placeholders": {"done": {"type": "String"}, "refused": {"type": "String"}}},
   "pkFailureDareClosed": "This dare can no longer be answered",
-  "@pkFailureDareClosed": {"description": "v1.50-live (D229): «PK أحكام»."}
+  "@pkFailureDareClosed": {"description": "v1.50-live (D229): «PK أحكام»."},
+  "liveCountryPickerTitle": "Nearby country",
+  "@liveCountryPickerTitle": {"description": "D240: the title of the «القريبة» country picker (a local choice)."},
+  "liveCountryPickerBody": "Pick a country to see its lives in Nearby. Your profile doesn't change.",
+  "@liveCountryPickerBody": {"description": "D240: the picker's line."},
+  "liveNearbyCountryRow": "Nearby country: {country}. Change",
+  "@liveNearbyCountryRow": {"description": "D240: the country row under the filters, for screen readers.", "placeholders": {"country": {"type": "String"}}},
+  "liveNearbyChooseCountry": "Choose a country",
+  "@liveNearbyChooseCountry": {"description": "D240: the country row with no country yet."}
 }

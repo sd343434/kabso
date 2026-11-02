@@ -37,6 +37,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_mini_window.d
 import 'package:kabso_live/features/live/presentation/go_live/live_podcast_room.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_hub_filters.dart';
 import 'package:kabso_live/features/live/presentation/hub/podcast_hub.dart';
+import 'package:kabso_live/features/live/voice_rooms_screen.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -599,7 +600,8 @@ void main() {
 Future<void> _tapTab(WidgetTester tester, LiveHubCategory category) async {
   await tester.tap(find.byKey(LiveHubPartyButton.buttonKey));
   await tester.pumpAndSettle();
-  final tab = find.byKey(LiveHubCategoryBar.tabKey(category));
+  // D240: the kinds are the party page's top tabs.
+  final tab = find.byKey(VoiceRoomsScreen.kindKey(category));
   await tester.ensureVisible(tab);
   await tester.pumpAndSettle();
   await tester.tap(tab);

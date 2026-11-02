@@ -30,6 +30,10 @@ abstract final class PreferenceKeys {
   /// build is left alone and ignored. Not sensitive.
   static const liveHubKind = 'pref.liveHubKind';
 
+  /// D240: the country this device's viewer chose for «القريبة» (ISO
+  /// alpha-2; absent: their profile country). Not sensitive.
+  static const liveNearbyCountry = 'pref.liveNearbyCountry';
+
   /// D145d: the app's sound effects on (default) or off. Not sensitive.
   static const soundEffects = 'pref.soundEffects';
 

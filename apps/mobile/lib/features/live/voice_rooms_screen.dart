@@ -4,42 +4,15 @@ import 'package:clock/clock.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/app/shell/shell_navigation.dart';
-import 'package:kabso_live/core/countries/countries.dart';
-import 'package:kabso_live/core/icons/app_icons.dart';
-import 'package:kabso_live/core/preferences/app_preferences.dart';
-import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/application/live_rooms_provider.dart';
-import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_hub_filters.dart';
+import 'package:kabso_live/features/live/presentation/hub/live_nearby_country.dart';
 import 'package:kabso_live/features/live/presentation/hub/podcast_hub.dart';
-import 'package:kabso_live/features/notifications/presentation/notifications_screen.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
-
-/// The second row of the Voice rooms header: the person's country
-/// (Nearby), Recommendations (every voice room) or one category.
-@immutable
-class VoiceRoomsScope {
-  const new recommended() : nearby = false, category = null;
-  const new nearby() : nearby = true, category = null;
-  const new category(String this.category) : nearby = false;
-
-  final bool nearby;
-  final String? category;
-
-  @override
-  bool operator ==(Object other) =>
-      other is VoiceRoomsScope &&
-      other.nearby == nearby &&
-      other.category == category;
-
-  @override
-  int get hashCode => Object.hash(nearby, category);
-}
 
 /// Measured on ref 166 (393 pt).
 abstract final class KVoiceRoomsHeader {
@@ -69,21 +42,24 @@ abstract final class KVoiceRoomsHeader {
   static const Color lightPage = Color(0xFFF4F6FA);
 }
 
-/// D131: `/live/voice` — the voice rooms (`kind=audio`), opened by the Live
-/// hub's party button (owner, ref 166). D237 (owner): the party page holds
-/// three kinds as tabs under the header — «بث صوتي» (audio rooms, the
-/// default, as before), «بث بودكاست» (podcasts: the episode cards and the
-/// announced episodes) and «بث متعدد» (multi-guest lives) — each its own
-/// `GET /live/rooms?kind=` list with its real empty / error states; the
-/// header's tabs and scopes apply to all three.
+/// D131: `/live/voice` — the party page, opened by the Live hub's party
+/// button (owner, ref 166). D237: three kinds, each its own
+/// `GET /live/rooms?kind=` list with its real empty / error states.
 ///
-/// - Header: back, Follow · Hot · New (the server tabs following, popular,
-///   new; the selected one bold with a dash under it), search and the bell.
-/// - Second row: the person's country (D133 `scope=nearby`; "Nearby" while
-///   they have none), Recommendations (the default: every voice room) and
-///   the server's active categories.
-/// - "Rooms" with a list/grid switch: list rows as in ref 166 (default), or
-///   the hub's card grid.
+/// D240 (owner: «اقترح بث صوتي بث بودكاست بث متعدد يكون فلتر في الاعلى،
+/// وازل البحث والاشعارات من هنا، فقط احفظ زر تبديل بين الحفلة وبث حي على
+/// زاوية، باسفل ضع فلاتر نفس فلاتر البث الحي»):
+/// - Top row: back (when pushed), the kinds «بث صوتي · بث بودكاست · بث
+///   متعدد» as the page's tabs (audio first; the selected one bold with a
+///   dash under it, ref 166's tab style), and in the corner only the Live
+///   button (party ⇄ live hub; the hub's 🎉 is the other direction). No
+///   search, no bell.
+/// - Under it the live hub's own filter row (`LiveHubFilterBar`: Following ·
+///   Nearby · Popular ▾ · Featured · Explore, the same queries) combined
+///   with the selected kind; «القريبة» shows its country row
+///   (`LiveNearbyCountryRow`).
+/// - "Rooms" with the list/grid switch (audio and multi); the podcast tab
+///   keeps its episode cards and announced episodes.
 /// - The promo banners after the 4th room and swiping between this list's
 ///   rooms inside a room, like the hub.
 class VoiceRoomsScreen extends ConsumerStatefulWidget {
@@ -92,34 +68,27 @@ class VoiceRoomsScreen extends ConsumerStatefulWidget {
   static const backKey = Key('voiceRooms.back');
   static const titleKey = Key('voiceRooms.title');
   static const layoutKey = Key('voiceRooms.layout');
-  static Key tabKey(FeedTab tab) => Key('voiceRooms.tab.${tab.name}');
-  static const nearbyKey = Key('voiceRooms.scope.nearby');
 
-  /// D237: the kind tabs (audio, podcast, multi).
+  /// D237: the kind tabs (audio, podcast, multi); D240: the top row.
   static const kindsKey = Key('voiceRooms.kinds');
-  static const recommendedKey = Key('voiceRooms.scope.recommended');
-  static Key categoryKey(String slug) => Key('voiceRooms.scope.$slug');
+  static Key kindKey(LiveHubCategory kind) =>
+      Key('voiceRooms.kind.${kind.name}');
 
   @override
   ConsumerState<VoiceRoomsScreen> createState() => _VoiceRoomsScreenState();
 }
 
 class _VoiceRoomsScreenState extends ConsumerState<VoiceRoomsScreen> {
-  FeedTab _tab = FeedTab.popular;
+  /// D240: the hub's filters (Popular first, as the hub).
+  LiveHubSelection _selection = const LiveHubSelection();
 
   /// D237: the kind shown (audio rooms first, as before).
   LiveHubCategory _kind = LiveHubCategory.audio;
-  VoiceRoomsScope _scope = const VoiceRoomsScope.recommended();
   LiveRoomsLayout _layout = LiveRoomsLayout.list;
   late final AppLifecycleListener _lifecycle;
   DateTime? _leftAt;
 
-  LiveRoomsQuery get _query => LiveRoomsQuery(
-    tab: _tab,
-    kind: _kind.kind,
-    nearby: _scope.nearby,
-    category: _scope.category,
-  );
+  LiveRoomsQuery get _query => _selection.queryOf(_kind.kind!);
 
   @override
   void initState() {
@@ -155,19 +124,14 @@ class _VoiceRoomsScreenState extends ConsumerState<VoiceRoomsScreen> {
         .catchError((Object _) {}),
   );
 
-  void _selectTab(FeedTab tab) {
-    if (tab == _tab) return _refreshShown();
-    setState(() => _tab = tab);
-  }
-
   void _selectKind(LiveHubCategory kind) {
     if (kind == _kind) return _refreshShown();
     setState(() => _kind = kind);
   }
 
-  void _selectScope(VoiceRoomsScope scope) {
-    if (scope == _scope) return _refreshShown();
-    setState(() => _scope = scope);
+  void _select(LiveHubSelection next) {
+    if (next == _selection) return _refreshShown();
+    setState(() => _selection = next);
   }
 
   @override
@@ -176,25 +140,27 @@ class _VoiceRoomsScreenState extends ConsumerState<VoiceRoomsScreen> {
     final light = Theme.of(context).brightness == Brightness.light;
     final categories =
         ref.watch(liveDiscoveryCategoriesProvider).value ?? const [];
+    final surface = light ? p.surfaceRaised : p.surface;
     return Scaffold(
       backgroundColor: light ? KVoiceRoomsHeader.lightPage : p.background,
       body: Column(
         children: [
-          _Header(
-            tab: _tab,
-            scope: _scope,
-            categories: categories,
-            onTab: _selectTab,
-            onScope: _selectScope,
-          ),
-          // D237: the three kinds that left the hub's category row.
-          Container(
-            width: double.infinity,
-            color: light ? p.surfaceRaised : p.surface,
-            child: LiveHubCategoryBar(
-              key: VoiceRoomsScreen.kindsKey,
-              selected: _kind,
-              onSelect: _selectKind,
+          _Header(kind: _kind, onKind: _selectKind),
+          ColoredBox(
+            color: surface,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // D240: the live hub's filters, with this page's kind.
+                LiveHubFilterBar(
+                  selection: _selection,
+                  categories: categories,
+                  onSelect: _select,
+                ),
+                if (_selection.filter == LiveHubFilter.nearby)
+                  const LiveNearbyCountryRow(),
+                const SizedBox(height: KSpacing.xs),
+              ],
             ),
           ),
           Expanded(
@@ -203,12 +169,16 @@ class _VoiceRoomsScreenState extends ConsumerState<VoiceRoomsScreen> {
                 ? LiveRoomsPage(
                     key: ValueKey(_query),
                     query: _query,
+                    selection: _selection,
+                    onSelect: _select,
                     layout: LiveRoomsLayout.podcast,
                     header: const ScheduledPodcastsSection(),
                   )
                 : LiveRoomsPage(
                     key: ValueKey((_query, _layout)),
                     query: _query,
+                    selection: _selection,
+                    onSelect: _select,
                     layout: _layout,
                     header: _SectionRow(
                       layout: _layout,
@@ -226,176 +196,98 @@ class _VoiceRoomsScreenState extends ConsumerState<VoiceRoomsScreen> {
   }
 }
 
-class _Header extends ConsumerWidget {
-  const new({
-    required this.tab,
-    required this.scope,
-    required this.categories,
-    required this.onTab,
-    required this.onScope,
-  });
+class _Header extends StatelessWidget {
+  const new({required this.kind, required this.onKind});
 
-  final FeedTab tab;
-  final VoiceRoomsScope scope;
-  final List<LiveCategory> categories;
-  final ValueChanged<FeedTab> onTab;
-  final ValueChanged<VoiceRoomsScope> onScope;
+  final LiveHubCategory kind;
+  final ValueChanged<LiveHubCategory> onKind;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final l10n = context.l10n;
     final p = context.palette;
     final light = Theme.of(context).brightness == Brightness.light;
-    final arabic = ref.watch(liveScopeProvider).language == AppLanguage.ar;
-    final country = KCountries.byCode(ref.watch(liveCountryProvider));
     final scaler = MediaQuery.textScalerOf(context)
         .clamp(maxScaleFactor: KMetrics.topBarMaxTextScale);
-    final tabs = {
-      FeedTab.following: l10n.liveVoiceTabFollow,
-      FeedTab.popular: l10n.liveVoiceTabHot,
-      FeedTab.latest: l10n.liveVoiceTabNew,
-    };
+    // D240: the back arrow only when this page was pushed.
+    final pushed = Navigator.maybeOf(context)?.canPop() ?? false;
     return MediaQuery(
       data: MediaQuery.of(context).copyWith(textScaler: scaler),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: light ? p.surfaceRaised : p.surface,
-          boxShadow: light
-              ? const [
-                  BoxShadow(
-                    color: Color(0x14000000),
-                    blurRadius: 8,
-                    offset: Offset(0, 2),
-                  ),
-                ]
-              : null,
-        ),
+      child: ColoredBox(
+        color: light ? p.surfaceRaised : p.surface,
         child: KTopSafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                height: KMetrics.topBarHeight,
-                child: Row(
-                  children: [
-                    IconButton(
-                      key: VoiceRoomsScreen.backKey,
-                      tooltip: MaterialLocalizations.of(context)
-                          .backButtonTooltip,
-                      constraints: const BoxConstraints.tightFor(
-                        width: 40,
-                        height: KSizes.minTouchTarget,
-                      ),
-                      onPressed: () => context.canPop()
-                          ? context.pop()
-                          : context.go(AppRoutes.home),
-                      // Points to the reading start (mirrored in Arabic).
-                      icon: Icon(
-                        Icons.arrow_back_ios_new_rounded,
-                        size: 20,
-                        color: p.textPrimary,
-                      ),
+          child: SizedBox(
+            height: KMetrics.topBarHeight,
+            child: Row(
+              children: [
+                if (pushed)
+                  IconButton(
+                    key: VoiceRoomsScreen.backKey,
+                    tooltip: MaterialLocalizations.of(context)
+                        .backButtonTooltip,
+                    constraints: const BoxConstraints.tightFor(
+                      width: 40,
+                      height: KSizes.minTouchTarget,
                     ),
-                    Expanded(
-                      child: Semantics(
-                        key: VoiceRoomsScreen.titleKey,
-                        container: true,
-                        explicitChildNodes: true,
-                        label: l10n.liveVoiceRoomsTitle,
-                        // D139: with the Live button the three tabs can be
-                        // wider than their space (Arabic at 360 pt, large
-                        // text): they shrink to fit instead of scrolling
-                        // the last one out of sight (scale 1 when they fit).
-                        child: Align(
+                    onPressed: () => Navigator.of(context).maybePop(),
+                    // Points to the reading start (mirrored in Arabic).
+                    icon: Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      size: 20,
+                      color: p.textPrimary,
+                    ),
+                  )
+                else
+                  const SizedBox(width: KSpacing.sm),
+                Expanded(
+                  child: Semantics(
+                    key: VoiceRoomsScreen.titleKey,
+                    container: true,
+                    explicitChildNodes: true,
+                    label: l10n.liveVoiceRoomsTitle,
+                    // The three kinds shrink to fit (Arabic at 360 pt,
+                    // large text) instead of scrolling one out of sight.
+                    child: Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: Padding(
+                        padding: const EdgeInsetsDirectional.only(
+                          start: KSpacing.xs,
+                        ),
+                        child: FittedBox(
+                          key: VoiceRoomsScreen.kindsKey,
+                          fit: BoxFit.scaleDown,
                           alignment: AlignmentDirectional.centerStart,
-                          child: Padding(
-                            padding: const EdgeInsetsDirectional.only(
-                              start: KSpacing.xs,
-                            ),
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: AlignmentDirectional.centerStart,
-                              child: SizedBox(
-                                height: KMetrics.topBarHeight,
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    for (final (i, t)
-                                        in FeedTab.values.indexed) ...[
-                                      if (i > 0)
-                                        const SizedBox(
-                                          width: KVoiceRoomsHeader.tabGap,
-                                        ),
-                                      _TopTab(
-                                        key: VoiceRoomsScreen.tabKey(t),
-                                        label: tabs[t]!,
-                                        selected: t == tab,
-                                        onTap: () => onTab(t),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ),
+                          child: SizedBox(
+                            height: KMetrics.topBarHeight,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                for (final (i, k)
+                                    in LiveHubCategory.partyPage.indexed) ...[
+                                  if (i > 0)
+                                    const SizedBox(
+                                      width: KVoiceRoomsHeader.tabGap,
+                                    ),
+                                  _TopTab(
+                                    key: VoiceRoomsScreen.kindKey(k),
+                                    label: k.label(l10n),
+                                    selected: k == kind,
+                                    onTap: () => onKind(k),
+                                  ),
+                                ],
+                              ],
                             ),
                           ),
                         ),
                       ),
                     ),
-                    IconButton(
-                      tooltip: l10n.feedSearch,
-                      constraints: const BoxConstraints.tightFor(
-                        width: KSizes.minTouchTarget,
-                        height: KSizes.minTouchTarget,
-                      ),
-                      onPressed: () => context.push(AppRoutes.discover),
-                      icon: AppIcon(
-                        AppIcons.search,
-                        size: KLiveHubTopBar.iconSize,
-                        color: p.textPrimary,
-                      ),
-                    ),
-                    // D139: the owner's Live icon where the hub has the party
-                    // button (between search and the bell): back to the
-                    // live hub.
-                    const VoiceRoomsLiveButton(),
-                    const NotificationsBell(),
-                    const SizedBox(width: KSpacing.xs),
-                  ],
+                  ),
                 ),
-              ),
-              // Ref 166: the second row's centre 34 pt under the first's.
-              SizedBox(
-                height: 34,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 21),
-                  children: [
-                    _SubTab(
-                      key: VoiceRoomsScreen.nearbyKey,
-                      label: country == null
-                          ? l10n.liveHubFilterNearby
-                          : KCountries.name(country, arabic: arabic),
-                      selected: scope.nearby,
-                      onTap: () => onScope(const VoiceRoomsScope.nearby()),
-                    ),
-                    _SubTab(
-                      key: VoiceRoomsScreen.recommendedKey,
-                      label: l10n.liveVoiceRecommended,
-                      selected: !scope.nearby && scope.category == null,
-                      onTap: () => onScope(const VoiceRoomsScope.recommended()),
-                    ),
-                    for (final c in categories)
-                      _SubTab(
-                        key: VoiceRoomsScreen.categoryKey(c.slug),
-                        label: c.name,
-                        selected: scope.category == c.slug,
-                        onTap: () => onScope(VoiceRoomsScope.category(c.slug)),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: KSpacing.xs),
-            ],
+                // D240: only the party ⇄ live switch in the corner.
+                const VoiceRoomsLiveButton(),
+                const SizedBox(width: KSpacing.xs),
+              ],
+            ),
           ),
         ),
       ),
@@ -456,55 +348,6 @@ class _TopTab extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SubTab extends StatelessWidget {
-  const new({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-    super.key,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final p = context.palette;
-    final light = Theme.of(context).brightness == Brightness.light;
-    final ink = light ? KVoiceRoomsHeader.lightInk : p.textPrimary;
-    final grey = light ? KVoiceRoomsHeader.lightGrey : p.textTertiary;
-    return Semantics(
-      button: true,
-      selected: selected,
-      inMutuallyExclusiveGroup: true,
-      label: label,
-      onTap: onTap,
-      excludeSemantics: true,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsetsDirectional.only(
-            end: KVoiceRoomsHeader.subTabGap,
-          ),
-          child: Center(
-            child: Text(
-              label,
-              maxLines: 1,
-              style: context.textStyles.body.copyWith(
-                color: selected ? ink : grey,
-                fontSize: KVoiceRoomsHeader.subTab,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
-              ),
-            ),
-          ),
         ),
       ),
     );

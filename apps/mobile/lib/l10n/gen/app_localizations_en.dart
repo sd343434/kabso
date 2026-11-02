@@ -13357,4 +13357,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pkFailureDareClosed => 'This dare can no longer be answered';
+
+  @override
+  String get liveCountryPickerTitle => 'Nearby country';
+
+  @override
+  String get liveCountryPickerBody =>
+      'Pick a country to see its lives in Nearby. Your profile doesn\'t change.';
+
+  @override
+  String liveNearbyCountryRow(String country) {
+    return 'Nearby country: $country. Change';
+  }
+
+  @override
+  String get liveNearbyChooseCountry => 'Choose a country';
 }

@@ -5538,6 +5538,25 @@ Owner (2026-11-02, on a live chat screenshot): «لماذا الأيقونة ا�
   height; only the name shortens) / up to 5 medals (one row, hidden when empty) / the message (§10.24's bubble, else a
   translucent black box). Older servers: no medals row.
 
+### 10.83 «القريبة» = a country the viewer chooses; the party page's kinds *(v1.53-live, DRAFT — D240)*
+
+Owner (2026-11-02, on the party page): «اقترح بث صوتي بث بودكاست بث متعدد يكون فلتر في الاعلى، وازل البحث والاشعارات من
+هنا، فقط احفظ زر تبديل بين الحفلة وبث حي على زاوية، باسفل ضع فلاتر نفس فلاتر البث الحي، واريد في البث الحي وصفحة الحفلة
+عند الضغط على القريبة يظهر لايفات التي في نفس بلدي واسفله يمكن تغيير البلد».
+
+- **Wire:** `listLiveRooms` takes `country` (ISO 3166-1 alpha-2, any case, stored and compared upper case): only rooms
+  whose host's profile country (`Me.country`) is that code; a host without a country is never in it. No token needed
+  (guests may choose a country). It combines with every `tab`, `kind`, `category` and `featured`, wins over
+  `scope=nearby` (the caller's country is then not read, `emptyReason` null) and binds the cursor (another country →
+  400). Malformed or unknown → 400 `field "country"`.
+- **App:** «القريبة» in the live hub (D239: `kind=solo`) and in the party page (the selected kind) sends `country`: the
+  viewer's own choice, kept on the device, defaulting to their profile country; a country row «🇯🇴 الأردن ▾» under the
+  filters opens the searchable country picker. No choice and no profile country: an honest empty state that opens the
+  picker. The choice never changes the profile.
+- **Party page** (`/live/voice`): the kinds «بث صوتي · بث بودكاست · بث متعدد» are its top tabs (audio first), the hub's
+  filter row under them (the same filters and queries, combined with the kind); one corner button switches to the live
+  hub (the hub's 🎉 switches back). No search, no bell, no tab or region rows of its own.
+
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 
 Additive; no earlier rule changes. Reels and video (M2), stories (M3), notifications (M4),

@@ -22653,6 +22653,30 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'لم يعد بالإمكان الرد على هذا الحكم'**
   String get pkFailureDareClosed;
+
+  /// D240: the title of the «القريبة» country picker (a local choice).
+  ///
+  /// In ar, this message translates to:
+  /// **'بلد «القريبة»'**
+  String get liveCountryPickerTitle;
+
+  /// D240: the picker's line.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر بلداً لترى بثوثه في «القريبة». لا يغيّر ملفك.'**
+  String get liveCountryPickerBody;
+
+  /// D240: the country row under the filters, for screen readers.
+  ///
+  /// In ar, this message translates to:
+  /// **'بلد «القريبة»: {country}. تغيير'**
+  String liveNearbyCountryRow(String country);
+
+  /// D240: the country row with no country yet.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر بلداً'**
+  String get liveNearbyChooseCountry;
 }
 
 class _AppLocalizationsDelegate

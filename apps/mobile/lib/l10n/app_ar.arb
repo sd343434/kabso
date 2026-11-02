@@ -12598,5 +12598,13 @@
   "pkRecordDares": "أحكام نُفّذت: {done} · رُفضت: {refused}",
   "@pkRecordDares": {"description": "v1.50-live (D229): «PK أحكام».", "placeholders": {"done": {"type": "String"}, "refused": {"type": "String"}}},
   "pkFailureDareClosed": "لم يعد بالإمكان الرد على هذا الحكم",
-  "@pkFailureDareClosed": {"description": "v1.50-live (D229): «PK أحكام»."}
+  "@pkFailureDareClosed": {"description": "v1.50-live (D229): «PK أحكام»."},
+  "liveCountryPickerTitle": "بلد «القريبة»",
+  "@liveCountryPickerTitle": {"description": "D240: the title of the «القريبة» country picker (a local choice)."},
+  "liveCountryPickerBody": "اختر بلداً لترى بثوثه في «القريبة». لا يغيّر ملفك.",
+  "@liveCountryPickerBody": {"description": "D240: the picker's line."},
+  "liveNearbyCountryRow": "بلد «القريبة»: {country}. تغيير",
+  "@liveNearbyCountryRow": {"description": "D240: the country row under the filters, for screen readers.", "placeholders": {"country": {"type": "String"}}},
+  "liveNearbyChooseCountry": "اختر بلداً",
+  "@liveNearbyChooseCountry": {"description": "D240: the country row with no country yet."}
 }

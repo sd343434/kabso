@@ -91,6 +91,9 @@ class LiveHubSelection {
   /// and PK; «ستريمر» has no rooms yet), under every filter.
   LiveRoomsQuery get query => _filterQuery.withKind(hubKind);
 
+  /// D240: the same filter's list of one party kind (the party page).
+  LiveRoomsQuery queryOf(LiveRoomsKind kind) => _filterQuery.withKind(kind);
+
   /// D239: the main hub's server `kind` (SOLO and PK).
   static const LiveRoomsKind hubKind = LiveRoomsKind.solo;
 

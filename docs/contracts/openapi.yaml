@@ -191,6 +191,9 @@ info:
     (CONVENTIONS §10.81).
     **D234 (DRAFT v1.52-live)** adds the author's showcased medals to a live chat line:
     `LiveChatAuthorBadges.medals` (≤ 5 `LiveChatAuthorMedal` {code, iconKey}; CONVENTIONS §10.82).
+    **D240 (DRAFT v1.53-live)** adds `country` to `listLiveRooms`: the rooms whose host's country is the
+    given ISO 3166-1 alpha-2 code (the viewer's choice of «القريبة»; no token needed; wins over
+    `scope=nearby`; CONVENTIONS §10.83).
     **D154c (DRAFT v1.34-live)** adds newcomers «الجدد»: `listLiveNewcomers` (host and moderators:
     the people in the live whose account is younger than `NEWCOMER_DAYS`, 30) and
     `LiveChatAuthorBadges.newcomer` (CONVENTIONS §10.35).
@@ -2205,6 +2208,11 @@ paths:
         filters `following`). `scope`, `featured`, `kind` and `category` combine freely and filter every
         tab; the cursor is bound to all of them (and, for `nearby`, to the caller and their country:
         a cursor issued before the caller's country changed → 400). Explore is `tab=new` (unchanged).
+        *(v1.53-live, D240)* `country` (ISO 3166-1 alpha-2, any case) keeps the rooms whose host's
+        country is that code — the viewer's own choice for «القريبة» (a host without a country is never
+        listed). It needs no token, combines with every tab, `kind`, `category` and `featured`, wins over
+        `scope=nearby` (the caller's country is then not read and `emptyReason` is null), and the cursor
+        is bound to it (a cursor of another country → 400).
       parameters:
         - name: tab
           in: query
@@ -2225,6 +2233,11 @@ paths:
           required: false
           description: '(v1.27.1-live, D133) `nearby`: only rooms whose host has the same country as the caller (`Me.country`). Needs a token (else 401). A caller without a country → 200, empty page, `emptyReason` `COUNTRY_NOT_SET`. Absent: every country. Another value → 400 (`field "scope"`).'
           schema: { type: string, enum: [nearby] }
+        - name: country
+          in: query
+          required: false
+          description: '(v1.53-live, D240) ISO 3166-1 alpha-2 code, any case: only rooms whose host''s country (`Me.country`) is this one. No token needed; wins over `scope=nearby`. Absent: every country (unless `scope=nearby`). Not two letters or not a known code → 400 `VALIDATION_FAILED` (`field "country"`).'
+          schema: { type: string, pattern: '^[A-Za-z]{2}$' }
         - name: featured
           in: query
           required: false
@@ -2267,7 +2280,7 @@ paths:
                         topic: null
                     page: { nextCursor: eyJ2IjoxLCJ0IjoibmV3In0.q2Fm0b7xT1sYg8aE3k9Lzw, hasMore: true }
         '400':
-          description: VALIDATION_FAILED — bad `tab`, malformed `category`, bad `kind`, `scope` or `featured` (v1.27.1-live), `limit` out of range, or a malformed, tampered or mismatched `cursor` (`field "cursor"`, `issue "invalid_value"`).
+          description: VALIDATION_FAILED — bad `tab`, malformed `category`, bad `kind`, `scope` or `featured` (v1.27.1-live), bad `country` (v1.53-live), `limit` out of range, or a malformed, tampered or mismatched `cursor` (`field "cursor"`, `issue "invalid_value"`).
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }

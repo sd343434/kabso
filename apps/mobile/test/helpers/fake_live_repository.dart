@@ -21,6 +21,7 @@ typedef RoomsRequest = ({
   String? category,
   LiveRoomsKind? kind,
   bool nearby,
+  String? country,
   bool featured,
   String? cursor,
   int limit,
@@ -115,6 +116,7 @@ class FakeLiveRepository implements LiveRepository {
     String? category,
     LiveRoomsKind? kind,
     bool nearby = false,
+    String? country,
     bool featured = false,
     String? cursor,
     int limit = LiveRepository.defaultPageSize,
@@ -124,6 +126,7 @@ class FakeLiveRepository implements LiveRepository {
       category: category,
       kind: kind,
       nearby: nearby,
+      country: country,
       featured: featured,
       cursor: cursor,
       limit: limit,
@@ -1008,5 +1011,22 @@ List<Override> liveOverrides(
 }) => [
   liveRepositoryProvider.overrideWithValue(repo),
   liveScopeProvider.overrideWithValue((userId: userId, language: language)),
-  liveCountryProvider.overrideWithValue(country),
+  // D240: the viewer's «القريبة» country (changeable, as in the app).
+  liveNearbyChoiceProvider.overrideWith(() => FixedNearbyChoice(country)),
+  liveCountryProvider.overrideWith(
+    (ref) => ref.watch(liveNearbyChoiceProvider),
+  ),
 ];
+
+/// D240: [LiveNearbyChoice] starting at [initial] (no preferences read).
+class FixedNearbyChoice extends LiveNearbyChoice {
+  new(this.initial);
+
+  final String? initial;
+
+  @override
+  String? build() => initial;
+
+  @override
+  void choose(String code) => state = code.toUpperCase();
+}

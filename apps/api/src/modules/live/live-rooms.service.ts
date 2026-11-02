@@ -948,12 +948,16 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     query: ListLiveRoomsQuery,
     lang: ContentLanguage,
   ): Promise<LiveRoomPageDto> {
-    if (callerId === null && (query.tab === 'following' || query.scope === 'nearby')) {
+    // v1.53-live (D240): an explicit `country` needs no token and wins over `scope=nearby`.
+    if (
+      callerId === null &&
+      (query.tab === 'following' || (query.scope === 'nearby' && query.country === undefined))
+    ) {
       throw new AppException(ErrorCode.AUTH_UNAUTHENTICATED);
     }
     // v1.27.1-live (D133): nearby = the caller's own country; none set → an honest empty page.
-    let nearbyCountry: string | null = null;
-    if (query.scope === 'nearby') {
+    let nearbyCountry: string | null = query.country ?? null;
+    if (query.scope === 'nearby' && nearbyCountry === null) {
       const profile = await this.prisma.userProfile.findUnique({
         where: { userId: callerId ?? '' },
         select: { countryCode: true },
