@@ -13187,4 +13187,9 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get agencyOpenRefusedKyc =>
       'يلزم تأكيد هويتك أولاً (خطوة «تأكيد الهوية»).';
+
+  @override
+  String pkFollowHost(String name) {
+    return 'متابعة $name';
+  }
 }

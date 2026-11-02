@@ -35,6 +35,7 @@ import 'package:kabso_live/features/live/data/live_permissions.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
+import 'package:kabso_live/features/live/domain/live_pk.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_boost_sheet.dart';
@@ -2166,6 +2167,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     final opponent = ref.read(livePkProvider(room.id).notifier).opponent;
     final (_, other) = match.of(room.id);
     final me = ref.read(currentUserProvider)?.id;
+    final follow = pkFollowOpponent(context, ref, other.host);
     Widget stage() => LivePkStage(
       match: match,
       roomId: room.id,
@@ -2178,6 +2180,12 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       speaking: {...engine.speaking, ...?opponent?.speaking},
       announcement: pk.announcement,
       onPerson: (u) => _person(u.username),
+      // D231: a tap on a half — that host's card (the other room's host:
+      // their room's card); the «+» to follow the other host.
+      onHost: (u, {required opponent}) => opponent
+          ? unawaited(showPkOpponentCard(context, other))
+          : _person(room.host.username),
+      onFollowOpponent: follow,
     );
     // D215: the same subtree with or without the other room's connection
     // (the stage and its video renderers are not rebuilt from scratch when
@@ -2451,6 +2459,44 @@ Future<void> showHostSheet(
     header: header,
   ),
 );
+
+/// D231 (owner: «عند الضغط على الخصم لا تظهر البطاقة التعريفية»): the other
+/// PK room's host's card, from either room's screen. It belongs to *their*
+/// room: the points are theirs, nobody here moderates them, and there is
+/// no gift button — a gift is sent in the room it is watched in, to its
+/// host or a seated guest (§10.23), and the other host is in neither, so
+/// the server would refuse it (409 `LIVE_GIFT_RECIPIENT_UNAVAILABLE`).
+/// Follow, chat, report and the profile work as on any card.
+Future<void> showPkOpponentCard(BuildContext context, PkSide opponent) =>
+    showHostSheet(
+      context,
+      opponent.host.username,
+      scope: LivePersonScope(
+        roomId: opponent.roomId,
+        target: LivePersonRole.host,
+      ),
+    );
+
+/// D231: the «+» on the other PK host's chip — only when the profile is
+/// read, this person may follow them (not yourself) and does not yet (a
+/// pending request hides it too); a tap follows through the real API
+/// (`publicProfileProvider`, optimistic; a failure says why).
+VoidCallback? pkFollowOpponent(
+  BuildContext context,
+  WidgetRef ref,
+  UserSummary host,
+) {
+  if (ref.watch(currentUserProvider)?.id == host.id) return null;
+  final profile = ref.watch(publicProfileProvider(host.username)).value;
+  if (profile == null ||
+      !profile.canFollowOrRequest ||
+      profile.isFollowing ||
+      profile.followRequested) {
+    return null;
+  }
+  return () =>
+      unawaited(setHostFollowing(context, ref, host.username, follow: true));
+}
 
 class _FollowButton extends StatelessWidget {
   const new({

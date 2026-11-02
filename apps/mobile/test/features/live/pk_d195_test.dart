@@ -317,7 +317,10 @@ void main() {
       find.byKey(LivePkStage.guestKey('a-guest-0')),
     );
     expect(ownPane.contains(circle.center), isTrue);
-    expect(circle.bottom, greaterThan(ownPane.bottom - 50));
+    // D231: just over the host's chip at the bottom of the half.
+    expect(circle.bottom, greaterThan(ownPane.bottom - 100));
+    final chip = tester.getRect(find.byKey(LivePkStage.ownHostKey));
+    expect(circle.bottom, lessThanOrEqualTo(chip.top));
     await _leave(tester);
   });
 

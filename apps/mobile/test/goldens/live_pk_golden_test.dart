@@ -10,6 +10,10 @@
 // at 1.2 s, `flutter_test_config.dart`) and a score change while boosted,
 // the host's Room Tools (ref 273 / B) and the live's data page (ref 274).
 //
+// D231: the stage's bar (taller, big figures, right on the videos), the
+// hosts at the bottom of their halves with the other host's «+»; new host
+// goldens `go_live.pk.{battle,boost,result}`.
+//
 // Regenerate on Linux with the pinned Flutter:
 //   flutter test --update-goldens test/goldens/live_pk_golden_test.dart
 @Tags(['golden'])
@@ -35,6 +39,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_data_now_page
 import 'package:kabso_live/features/live/presentation/go_live/live_host_parts.dart';
 import 'package:kabso_live/features/live/presentation/widgets/kabso_pk_bar.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk_sheet.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_pk_stage.dart';
 import 'package:kabso_live/features/live/presentation/widgets/pk_power/pk_power_banner.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 
@@ -191,8 +196,16 @@ List<PkCandidate> pkCandidates({required bool ar}) => [
 void main() {
   final now = DateTime.now();
   // D199: the owner's banner countdown, pinned (see PkPowerBanner).
-  setUp(() => PkPowerBanner.debugRemaining = const Duration(seconds: 14));
-  tearDown(() => PkPowerBanner.debugRemaining = null);
+  setUp(() {
+    PkPowerBanner.debugRemaining = const Duration(seconds: 14);
+    // D231: the round timer reads the fixtures' server time, not the
+    // wall clock (it flipped a second under load).
+    LivePkStage.debugNow = () => now;
+  });
+  tearDown(() {
+    PkPowerBanner.debugRemaining = null;
+    LivePkStage.debugNow = null;
+  });
   forEachLanguage((language) {
     final ar = language == AppLanguage.ar;
     group(language.name, () {
@@ -508,6 +521,63 @@ void main() {
         expect(find.byKey(LiveDataNowPage.pageKey), findsOneWidget);
         await expectScreenGolden('go_live.data_now', language: language);
       });
+
+      // ---- D231: the host's PK stage (bar on the videos, the hosts at the
+      // bottom, the other host's «+»), running / boosted / the result.
+      for (final (name, match) in [
+        (
+          'go_live.pk.battle',
+          pkMatchFixture(
+            now: now,
+            ar: ar,
+            ownRoom: 'room-host',
+            otherScore: 834390,
+            ownGuests: 2,
+          ),
+        ),
+        (
+          'go_live.pk.boost',
+          pkMatchFixture(
+            now: now,
+            ar: ar,
+            ownRoom: 'room-host',
+            remaining: const Duration(seconds: 48, milliseconds: 500),
+            ownBoost: PkBoosterKind.tripleTurbo,
+            ownScore: 48200,
+            otherScore: 39900,
+          ),
+        ),
+        (
+          'go_live.pk.result',
+          pkMatchFixture(
+            now: now,
+            ar: ar,
+            ownRoom: 'room-host',
+            status: PkMatchStatus.result,
+            winner: 'room-host',
+            ownScore: 61500,
+            otherScore: 52100,
+          ),
+        ),
+      ]) {
+        testWidgets(name, (tester) async {
+          await pumpPkHost(
+            tester,
+            language: language,
+            snapshot: PkState(match: match),
+            extra: [
+              profileRepositoryProvider.overrideWithValue(
+                FakeProfileRepository(apiProfile(ar: ar)),
+              ),
+            ],
+          );
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 300)),
+          );
+          await tester.pump();
+          await expectScreenGolden(name, language: language);
+        });
+      }
     });
   });
 }

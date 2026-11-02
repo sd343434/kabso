@@ -20,8 +20,20 @@ abstract final class KLivePk {
   /// Room above the bar for Kabi and the flames (D73: about 40 lp).
   static const double aboveBar = 36;
   static const double barHeight = 22;
-  static const double timerHeight = 20;
-  static const double timerWidth = 104;
+
+  /// D231: «PK 3:47» where the halves meet, under the bar (readable: 15 sp).
+  static const double timerHeight = 26;
+  static const double timerWidth = 112;
+  static const double timerText = 15;
+
+  /// D231 (owner: «لا تظهر صورة المضيفين كل شخص على جزئه من الأسفل مع زر +»):
+  /// each side's host at the bottom of their half — picture, name and the
+  /// opponent's «+».
+  static const double hostAvatar = 38;
+  static const double hostRing = 2;
+  static const double hostChip = hostAvatar + hostRing * 2;
+  static const double hostName = 13;
+  static const double follow = 24;
   static const double seam = 2;
   static const double paneInset = 6;
   static const double pillHeight = 22;
@@ -33,17 +45,19 @@ abstract final class KLivePk {
   static const double supporterAvatar = 28;
   static const double outcome = 132;
 
-  /// The host's team (Kabso red) on the reading start, the opponents
-  /// (blazing orange) on the end (D71); top → bottom, the last is solid.
+  /// The host's team (Kabso red) on the reading start, the opponents on
+  /// the end (D71); top → bottom, the last is solid. D231: the opponents
+  /// are the owner's bar blue (was orange), so the bar, the host rings and
+  /// the supporters show one colour per side.
   static const List<Color> startTeam = [
     Color(0xFFFF4A4A),
     Color(0xFFE50914),
     Color(0xFFA3000B),
   ];
   static const List<Color> endTeam = [
-    Color(0xFFFFC94D),
-    Color(0xFFFF7A00),
-    Color(0xFFD94400),
+    Color(0xFFA8DCFF),
+    Color(0xFF3D8BFF),
+    Color(0xFF1340B8),
   ];
   static final List<Color> startFill = startTeam.reversed.toList();
   static final List<Color> endFill = endTeam.reversed.toList();
@@ -89,9 +103,20 @@ class LivePkStage extends StatefulWidget {
     this.announcement,
     this.onPerson,
     this.onStart,
+    this.onHost,
+    this.onFollowOpponent,
   });
 
   final PkMatch match;
+
+  /// D231: a tap on a half or its host's picture: that host's person card
+  /// (`opponent` true for the other room's host).
+  final void Function(UserSummary host, {required bool opponent})? onHost;
+
+  /// D231: the «+» on the other host's chip — given by the screen only when
+  /// this person may follow them and does not yet (never for yourself);
+  /// null hides it.
+  final VoidCallback? onFollowOpponent;
 
   /// v1.44-live (D199): the host starts a CONNECTED PK (null: a viewer, who
   /// only reads that it will start).
@@ -124,6 +149,12 @@ class LivePkStage extends StatefulWidget {
   /// it off (`test/flutter_test_config.dart`) so frames settle.
   static bool ticks = true;
 
+  /// D231: goldens pin the stage's clock to their fixture's server time,
+  /// so the round timer never flips a second under load (the known
+  /// `room.pk.*` flake); null in the app.
+  @visibleForTesting
+  static DateTime Function()? debugNow;
+
   static const barKey = Key('pk.bar');
   static const timerKey = Key('pk.timer');
   static const ownPaneKey = Key('pk.pane.own');
@@ -133,6 +164,9 @@ class LivePkStage extends StatefulWidget {
   static const startKey = Key('pk.stage.start');
   static const connectedKey = Key('pk.stage.connected');
   static const bannersKey = Key('pk.banners');
+  static const ownHostKey = Key('pk.host.own');
+  static const opponentHostKey = Key('pk.host.opponent');
+  static const followOpponentKey = Key('pk.host.opponent.follow');
   static Key boostChipKey(String roomId) => Key('pk.boost.$roomId');
   static Key guestKey(String userId) => Key('pk.guest.$userId');
 
@@ -164,7 +198,7 @@ class _LivePkStageState extends State<LivePkStage> {
     final l10n = context.l10n;
     final match = widget.match;
     final (own, other) = match.of(widget.roomId);
-    final now = widget.now();
+    final now = (LivePkStage.debugNow ?? widget.now)();
     final battle = match.status == PkMatchStatus.battle;
     final connected = match.connected;
     final left = battle ? match.battleEndsAt.difference(now) : Duration.zero;
@@ -208,202 +242,252 @@ class _LivePkStageState extends State<LivePkStage> {
           KLivePk.maxPaneHeight,
           (width - KLivePk.seam) / 2 / KLivePk.paneAspect,
         );
+        final onHost = widget.onHost;
+        // D231 (owner: «خط الـpk مرتفع عن الشاشتين»): the bar's track ends
+        // exactly where the two videos start — no gap; its frames and the
+        // PK emblem reach a little over the videos' top edge.
+        const barHeight = PkBarMetrics.height;
+        final panes = Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: _Pane(
+                    key: LivePkStage.ownPaneKey,
+                    side: own,
+                    video: widget.ownVideo,
+                    label: l10n.pkOwnPane(own.host.displayName),
+                    stage: widget,
+                    hostKey: LivePkStage.ownHostKey,
+                    ring: KLivePk.startTeam,
+                    end: false,
+                    onTap: onHost == null
+                        ? null
+                        : () => onHost(own.host, opponent: false),
+                  ),
+                ),
+                const SizedBox(width: KLivePk.seam),
+                Expanded(
+                  child: _Pane(
+                    key: LivePkStage.opponentPaneKey,
+                    side: other,
+                    video: widget.opponentVideo,
+                    label: l10n.pkOpponentPane(other.host.displayName),
+                    muted: own.mutesOpponent,
+                    stage: widget,
+                    hostKey: LivePkStage.opponentHostKey,
+                    ring: KLivePk.endTeam,
+                    end: true,
+                    onFollow: widget.onFollowOpponent,
+                    onTap: onHost == null
+                        ? null
+                        : () => onHost(other.host, opponent: true),
+                  ),
+                ),
+              ],
+            ),
+            // D199: each running booster for screen readers (the
+            // banner itself is a picture).
+            for (final (side, boost) in [(own, ownBoost), (other, otherBoost)])
+              if (boost != null)
+                Semantics(
+                  key: LivePkStage.boostChipKey(side.roomId),
+                  liveRegion: true,
+                  label: l10n.pkBoostChipSemantics(
+                    pkBoosterName(l10n, boost.kind),
+                    '${boost.multiplier}',
+                    math
+                        .max(0, boost.endsAt.difference(now).inSeconds)
+                        .toString(),
+                  ),
+                  child: const SizedBox.shrink(),
+                ),
+            // v1.44-live (D199): connected, waiting for a start.
+            if (connected)
+              Align(
+                alignment: const Alignment(0, -0.2),
+                child: _Connected(
+                  key: LivePkStage.connectedKey,
+                  onStart: widget.onStart,
+                ),
+              ),
+            if (!battle && !connected) ...[
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: IgnorePointer(
+                  child: SizedBox(
+                    width: (width - KLivePk.seam) / 2,
+                    child: Center(
+                      child: KabsoBattleEmoji(
+                        ownWins
+                            ? KabsoBattle.win
+                            : otherWins
+                            ? KabsoBattle.lose
+                            : KabsoBattle.draw,
+                        size: KLivePk.outcome,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: IgnorePointer(
+                  child: SizedBox(
+                    width: (width - KLivePk.seam) / 2,
+                    child: Center(
+                      child: KabsoBattleEmoji(
+                        otherWins
+                            ? KabsoBattle.win
+                            : ownWins
+                            ? KabsoBattle.lose
+                            : KabsoBattle.draw,
+                        size: KLivePk.outcome,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+            // D199 (owner «استخدمها بنفس المكان … وبنفس الحجم واجعلها
+            // تظهر للفرقين»): the owner's banners where the
+            // announcement pill was — centred over both boxes, 52 % of
+            // the width — for every boosted side, in both rooms.
+            Positioned.fill(
+              child: IgnorePointer(
+                child: PkPowerLayer(
+                  key: LivePkStage.bannersKey,
+                  left: activation(leftSide, leftBoost, PkPowerSide.left),
+                  right: activation(rightSide, rightBoost, PkPowerSide.right),
+                  centred: true,
+                  widthFactor: PkStageBanner.widthFactor,
+                  top: PkStageBanner.top(width, paneHeight),
+                ),
+              ),
+            ),
+            // «فعّل فريق {host} {booster}» under the banners (3 s).
+            if (announcement != null)
+              Positioned(
+                left: 0,
+                right: 0,
+                top: PkStageBanner.captionTop(
+                  width,
+                  paneHeight,
+                  both: leftBoost != null && rightBoost != null,
+                ),
+                child: IgnorePointer(
+                  child: Center(
+                    child: Padding(
+                      key: LivePkStage.announcementKey,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: KSpacing.lg,
+                      ),
+                      child: Text(
+                        l10n.pkBoostActivated(
+                          KFormat.bidiIsolate(announcement.teamName),
+                          pkBoosterName(l10n, announcement.kind),
+                        ),
+                        key: PkBoostText.lineKey,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        textScaler: MediaQuery.textScalerOf(
+                          context,
+                        ).clamp(maxScaleFactor: KMetrics.overlayMaxTextScale),
+                        style: pkBoostLineStyle(context),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
         return Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // D199 (owner «يصبح شريط النقاط هكذا حسب كل حالة»): the owner's
-            // battle bar — neutral frames, or the tier's frame and emblem on
-            // a boosted side; Kabi pushes, pulls and wins on the seam.
-            Semantics(
-              label: l10n.pkScoreSemantics(
-                KFormat.grouped(own.score),
-                KFormat.grouped(other.score),
-              ),
-              excludeSemantics: true,
-              child: RepaintBoundary(
-                child: PkBattleBar(
-                  key: LivePkStage.barKey,
-                  leftScore: leftSide.score,
-                  rightScore: rightSide.score,
-                  leftTier: leftBoost == null
-                      ? null
-                      : pkPowerTier(leftBoost.kind),
-                  rightTier: rightBoost == null
-                      ? null
-                      : pkPowerTier(rightBoost.kind),
-                  leftAvatar: avatar(leftSide),
-                  rightAvatar: avatar(rightSide),
-                  winner: battle || connected
-                      ? null
-                      : match.winnerRoomId == leftSide.roomId
-                      ? PkPowerSide.left
-                      : match.winnerRoomId == rightSide.roomId
-                      ? PkPowerSide.right
-                      : null,
-                ),
-              ),
-            ),
             SizedBox(
-              height: paneHeight,
+              height: barHeight + paneHeight,
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Expanded(
-                        child: _Pane(
-                          key: LivePkStage.ownPaneKey,
-                          side: own,
-                          video: widget.ownVideo,
-                          label: l10n.pkOwnPane(own.host.displayName),
-                          showName: false,
-                          stage: widget,
-                        ),
-                      ),
-                      const SizedBox(width: KLivePk.seam),
-                      Expanded(
-                        child: _Pane(
-                          key: LivePkStage.opponentPaneKey,
-                          side: other,
-                          video: widget.opponentVideo,
-                          label: l10n.pkOpponentPane(other.host.displayName),
-                          showName: true,
-                          muted: own.mutesOpponent,
-                          stage: widget,
-                        ),
-                      ),
-                    ],
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: barHeight,
+                    height: paneHeight,
+                    child: panes,
                   ),
-                  // D199: each running booster for screen readers (the
-                  // banner itself is a picture).
-                  for (final (side, boost) in [
-                    (own, ownBoost),
-                    (other, otherBoost),
-                  ])
-                    if (boost != null)
-                      Semantics(
-                        key: LivePkStage.boostChipKey(side.roomId),
-                        liveRegion: true,
-                        label: l10n.pkBoostChipSemantics(
-                          pkBoosterName(l10n, boost.kind),
-                          '${boost.multiplier}',
-                          math
-                              .max(0, boost.endsAt.difference(now).inSeconds)
-                              .toString(),
-                        ),
-                        child: const SizedBox.shrink(),
+                  // D199 (owner «يصبح شريط النقاط هكذا حسب كل حالة»): the
+                  // owner's battle bar — neutral frames, or the tier's
+                  // frame and emblem on a boosted side; Kabi pushes, pulls
+                  // and wins on the seam. Drawn over the videos' top edge.
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: 0,
+                    height: barHeight,
+                    child: Semantics(
+                      label: l10n.pkScoreSemantics(
+                        KFormat.grouped(own.score),
+                        KFormat.grouped(other.score),
                       ),
+                      excludeSemantics: true,
+                      child: RepaintBoundary(
+                        child: PkBattleBar(
+                          key: LivePkStage.barKey,
+                          leftScore: leftSide.score,
+                          rightScore: rightSide.score,
+                          ownSide: startIsLeft
+                              ? PkPowerSide.left
+                              : PkPowerSide.right,
+                          leftTier: leftBoost == null
+                              ? null
+                              : pkPowerTier(leftBoost.kind),
+                          rightTier: rightBoost == null
+                              ? null
+                              : pkPowerTier(rightBoost.kind),
+                          leftAvatar: avatar(leftSide),
+                          rightAvatar: avatar(rightSide),
+                          winner: battle || connected
+                              ? null
+                              : match.winnerRoomId == leftSide.roomId
+                              ? PkPowerSide.left
+                              : match.winnerRoomId == rightSide.roomId
+                              ? PkPowerSide.right
+                              : null,
+                        ),
+                      ),
+                    ),
+                  ),
+                  // The round's time hangs from the bar where the halves
+                  // meet, over the emblem's lower edge (always readable).
                   if (battle)
-                    Align(
-                      alignment: Alignment.topCenter,
-                      child: _RoundTimer(
-                        key: LivePkStage.timerKey,
-                        left: remaining,
-                        round: match.bestOfThree ? match.round : null,
-                      ),
-                    ),
-                  // v1.44-live (D199): connected, waiting for a start.
-                  if (connected)
-                    Align(
-                      alignment: const Alignment(0, -0.2),
-                      child: _Connected(
-                        key: LivePkStage.connectedKey,
-                        onStart: widget.onStart,
-                      ),
-                    ),
-                  if (!battle && !connected) ...[
-                    Align(
-                      alignment: AlignmentDirectional.centerStart,
-                      child: SizedBox(
-                        width: (width - KLivePk.seam) / 2,
-                        child: Center(
-                          child: KabsoBattleEmoji(
-                            ownWins
-                                ? KabsoBattle.win
-                                : otherWins
-                                ? KabsoBattle.lose
-                                : KabsoBattle.draw,
-                            size: KLivePk.outcome,
-                          ),
-                        ),
-                      ),
-                    ),
-                    Align(
-                      alignment: AlignmentDirectional.centerEnd,
-                      child: SizedBox(
-                        width: (width - KLivePk.seam) / 2,
-                        child: Center(
-                          child: KabsoBattleEmoji(
-                            otherWins
-                                ? KabsoBattle.win
-                                : ownWins
-                                ? KabsoBattle.lose
-                                : KabsoBattle.draw,
-                            size: KLivePk.outcome,
-                          ),
-                        ),
-                      ),
-                    ),
-                    Align(
-                      alignment: Alignment.topCenter,
-                      child: _ResultChip(
-                        key: LivePkStage.resultKey,
-                        match: match,
-                        own: own,
-                        other: other,
-                      ),
-                    ),
-                  ],
-                  // D199 (owner «استخدمها بنفس المكان … وبنفس الحجم واجعلها
-                  // تظهر للفرقين»): the owner's banners where the
-                  // announcement pill was — centred over both boxes, 52 % of
-                  // the width — for every boosted side, in both rooms.
-                  Positioned.fill(
-                    child: PkPowerLayer(
-                      key: LivePkStage.bannersKey,
-                      left: activation(leftSide, leftBoost, PkPowerSide.left),
-                      right: activation(
-                        rightSide,
-                        rightBoost,
-                        PkPowerSide.right,
-                      ),
-                      centred: true,
-                      widthFactor: PkStageBanner.widthFactor,
-                      top: PkStageBanner.top(width, paneHeight),
-                    ),
-                  ),
-                  // «فعّل فريق {host} {booster}» under the banners (3 s).
-                  if (announcement != null)
                     Positioned(
                       left: 0,
                       right: 0,
-                      top: PkStageBanner.captionTop(
-                        width,
-                        paneHeight,
-                        both: leftBoost != null && rightBoost != null,
-                      ),
+                      top: barHeight,
                       child: Center(
-                        child: Padding(
-                          key: LivePkStage.announcementKey,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: KSpacing.lg,
-                          ),
-                          child: Text(
-                            l10n.pkBoostActivated(
-                              KFormat.bidiIsolate(announcement.teamName),
-                              pkBoosterName(l10n, announcement.kind),
-                            ),
-                            key: PkBoostText.lineKey,
-                            textAlign: TextAlign.center,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            textScaler: MediaQuery.textScalerOf(context).clamp(
-                              maxScaleFactor: KMetrics.overlayMaxTextScale,
-                            ),
-                            style: pkBoostLineStyle(context),
-                          ),
+                        child: _RoundTimer(
+                          key: LivePkStage.timerKey,
+                          left: remaining,
+                          round: match.bestOfThree ? match.round : null,
+                        ),
+                      ),
+                    ),
+                  if (!battle && !connected)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      top: barHeight,
+                      child: Center(
+                        child: _ResultChip(
+                          key: LivePkStage.resultKey,
+                          match: match,
+                          own: own,
+                          other: other,
                         ),
                       ),
                     ),
@@ -446,115 +530,232 @@ class _Pane extends StatelessWidget {
     required this.side,
     required this.video,
     required this.label,
-    required this.showName,
     required this.stage,
+    required this.hostKey,
+    required this.ring,
+    required this.end,
     super.key,
     this.muted = false,
+    this.onTap,
+    this.onFollow,
   });
 
   final PkSide side;
   final Widget? video;
   final String label;
-  final bool showName;
   final bool muted;
   final LivePkStage stage;
 
+  /// D231: the host chip at the bottom of the half.
+  final Key hostKey;
+  final List<Color> ring;
+
+  /// The chip on the half's end (the opponent: the outer edge).
+  final bool end;
+
+  /// D231: a tap on the half or the chip: the host's card.
+  final VoidCallback? onTap;
+
+  /// D231: the opponent's «+» (null hides it).
+  final VoidCallback? onFollow;
+
   @override
   Widget build(BuildContext context) {
-    final white = KPalette.dark.textPrimary;
-    final scaler = MediaQuery.textScalerOf(context)
-        .clamp(maxScaleFactor: KMetrics.overlayMaxTextScale);
     final host = side.host;
-    return ClipRect(
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Semantics(
-            image: true,
-            label: label,
-            child:
-                video ??
-                DecoratedBox(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [Color(0xFF2A1A2E), Color(0xFF120A14)],
+    final onTap = this.onTap;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: ClipRect(
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Semantics(
+              image: true,
+              label: label,
+              child:
+                  video ??
+                  DecoratedBox(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Color(0xFF2A1A2E), Color(0xFF120A14)],
+                      ),
+                    ),
+                    child: Center(
+                      child: KAvatar(
+                        name: host.displayName,
+                        imageUrl: host.avatarUrl,
+                        size: 72,
+                      ),
                     ),
                   ),
-                  child: Center(
-                    child: KAvatar(
-                      name: host.displayName,
-                      imageUrl: host.avatarUrl,
-                      size: 72,
-                    ),
-                  ),
-                ),
-          ),
-          if (showName)
-            PositionedDirectional(
-              end: KLivePk.paneInset,
-              top: KLivePk.paneInset + KLivePk.timerHeight + 4,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 140),
-                child: Container(
-                  height: KLivePk.pillHeight,
-                  padding: const EdgeInsets.symmetric(horizontal: KSpacing.sm),
-                  decoration: BoxDecoration(
-                    color: KLivePk.glass,
-                    borderRadius: BorderRadius.circular(KLivePk.pillHeight / 2),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (muted) ...[
-                        Icon(
-                          Icons.volume_off_rounded,
-                          size: 13,
-                          color: white.withValues(alpha: 0.85),
-                        ),
-                        const SizedBox(width: KSpacing.xxs),
-                      ],
-                      Flexible(
-                        child: Text(
-                          host.displayName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textScaler: scaler,
-                          style: context.textStyles.caption.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: white,
-                          ),
-                        ),
+            ),
+            if (side.guests.isNotEmpty)
+              PositionedDirectional(
+                start: KLivePk.paneInset,
+                end: KLivePk.paneInset,
+                // Over the host's chip.
+                bottom: KLivePk.paneInset * 2 + KLivePk.hostChip,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    for (final (i, g) in side.guests.take(3).indexed) ...[
+                      if (i > 0) const SizedBox(width: KSpacing.xs),
+                      _GuestCircle(
+                        key: LivePkStage.guestKey(g.user.id),
+                        guest: g,
+                        video: stage.guestVideo?.call(g.user.id),
+                        speaking: stage.speaking.contains(g.user.id),
+                        onTap: stage.onPerson == null
+                            ? null
+                            : () => stage.onPerson!(g.user),
                       ),
                     ],
-                  ),
+                  ],
                 ),
               ),
-            ),
-          if (side.guests.isNotEmpty)
             PositionedDirectional(
               start: KLivePk.paneInset,
               end: KLivePk.paneInset,
               bottom: KLivePk.paneInset,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  for (final (i, g) in side.guests.take(3).indexed) ...[
-                    if (i > 0) const SizedBox(width: KSpacing.xs),
-                    _GuestCircle(
-                      key: LivePkStage.guestKey(g.user.id),
-                      guest: g,
-                      video: stage.guestVideo?.call(g.user.id),
-                      speaking: stage.speaking.contains(g.user.id),
-                      onTap: stage.onPerson == null
-                          ? null
-                          : () => stage.onPerson!(g.user),
-                    ),
-                  ],
+              child: Align(
+                alignment: end
+                    ? AlignmentDirectional.centerEnd
+                    : AlignmentDirectional.centerStart,
+                child: _HostChip(
+                  key: hostKey,
+                  host: host,
+                  ring: ring,
+                  muted: muted,
+                  onTap: onTap,
+                  onFollow: onFollow,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// D231: a PK side's host at the bottom of their half — the round picture
+/// in the team's ring, the name on one line, a muted mark when this room
+/// muted them, and the opponent's «+» (follow) when given.
+class _HostChip extends StatelessWidget {
+  const new({
+    required this.host,
+    required this.ring,
+    required this.muted,
+    super.key,
+    this.onTap,
+    this.onFollow,
+  });
+
+  final UserSummary host;
+  final List<Color> ring;
+  final bool muted;
+  final VoidCallback? onTap;
+  final VoidCallback? onFollow;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    const white = Color(0xFFFFFFFF);
+    final onFollow = this.onFollow;
+    final scaler = MediaQuery.textScalerOf(context)
+        .clamp(maxScaleFactor: KMetrics.overlayMaxTextScale);
+    return Container(
+      height: KLivePk.hostChip,
+      padding: EdgeInsetsDirectional.only(
+        end: onFollow == null ? KSpacing.sm : KSpacing.xxs,
+      ),
+      decoration: BoxDecoration(
+        color: KLivePk.glass,
+        borderRadius: BorderRadius.circular(KLivePk.hostChip / 2),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Semantics(
+            button: onTap != null,
+            label: l10n.liveUserViewProfile,
+            child: GestureDetector(
+              onTap: onTap,
+              child: Container(
+                width: KLivePk.hostChip,
+                height: KLivePk.hostChip,
+                padding: const EdgeInsets.all(KLivePk.hostRing),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(colors: ring),
+                ),
+                child: KAvatar(
+                  name: host.displayName,
+                  imageUrl: host.avatarUrl,
+                  size: KLivePk.hostAvatar,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: KSpacing.xs),
+          if (muted) ...[
+            Icon(
+              Icons.volume_off_rounded,
+              size: 14,
+              color: white.withValues(alpha: 0.85),
+            ),
+            const SizedBox(width: KSpacing.xxs),
+          ],
+          Flexible(
+            child: Text(
+              host.displayName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textScaler: scaler,
+              style: context.textStyles.caption.copyWith(
+                fontSize: KLivePk.hostName,
+                fontWeight: FontWeight.w700,
+                color: white,
+                shadows: const [
+                  Shadow(color: Color(0x99000000), blurRadius: 3),
                 ],
               ),
             ),
+          ),
+          if (onFollow != null) ...[
+            const SizedBox(width: KSpacing.xs),
+            Semantics(
+              button: true,
+              label: l10n.pkFollowHost(host.displayName),
+              excludeSemantics: true,
+              child: GestureDetector(
+                key: LivePkStage.followOpponentKey,
+                behavior: HitTestBehavior.opaque,
+                onTap: onFollow,
+                // A 38 lp target around the 24 lp «+».
+                child: const SizedBox(
+                  width: KLivePk.hostChip - 4,
+                  height: KLivePk.hostChip,
+                  child: Center(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Color(0xFFE50914),
+                        shape: BoxShape.circle,
+                      ),
+                      child: SizedBox(
+                        width: KLivePk.follow,
+                        height: KLivePk.follow,
+                        child: Icon(Icons.add_rounded, size: 18, color: white),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -675,9 +876,12 @@ class _RoundTimer extends StatelessWidget {
           textScaler: MediaQuery.textScalerOf(context)
               .clamp(maxScaleFactor: KMetrics.overlayMaxTextScale),
           style: context.textStyles.label.copyWith(
+            fontSize: KLivePk.timerText,
+            height: 1.1,
             fontWeight: FontWeight.w800,
             color: KPalette.dark.textPrimary,
             fontFeatures: const [FontFeature.tabularFigures()],
+            shadows: const [Shadow(color: Color(0x99000000), blurRadius: 2)],
           ),
         ),
       ),

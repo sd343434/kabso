@@ -13191,4 +13191,9 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get agencyOpenRefusedKyc =>
       'Confirm your identity first (the «Confirm your identity» step).';
+
+  @override
+  String pkFollowHost(String name) {
+    return 'Follow $name';
+  }
 }

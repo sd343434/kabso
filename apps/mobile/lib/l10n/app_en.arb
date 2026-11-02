@@ -4102,5 +4102,6 @@
   "notifKycDeclined": "Your identity could not be verified. Open the application to see why and try again",
   "notifKycInReview": "Your identity check is being reviewed; we will tell you the result",
   "errorKycNotAllowed": "Verification cannot start now",
-  "agencyOpenRefusedKyc": "Confirm your identity first (the «Confirm your identity» step)."
+  "agencyOpenRefusedKyc": "Confirm your identity first (the «Confirm your identity» step).",
+  "pkFollowHost": "Follow {name}"
 }

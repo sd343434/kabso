@@ -12516,5 +12516,14 @@
   "errorKycNotAllowed": "لا يمكن بدء التحقق الآن",
   "@errorKycNotAllowed": {"description": "v1.80-kyc (D227): «تأكيد الهوية» (Didit)."},
   "agencyOpenRefusedKyc": "يلزم تأكيد هويتك أولاً (خطوة «تأكيد الهوية»).",
-  "@agencyOpenRefusedKyc": {"description": "v1.80-kyc (D227): «تأكيد الهوية» (Didit)."}
+  "@agencyOpenRefusedKyc": {"description": "v1.80-kyc (D227): «تأكيد الهوية» (Didit)."},
+  "pkFollowHost": "متابعة {name}",
+  "@pkFollowHost": {
+    "description": "D231: the + on the other PK host's chip at the bottom of their half (screen readers).",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  }
 }

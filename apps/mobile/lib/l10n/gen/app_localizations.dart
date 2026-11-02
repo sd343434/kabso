@@ -22455,6 +22455,12 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'يلزم تأكيد هويتك أولاً (خطوة «تأكيد الهوية»).'**
   String get agencyOpenRefusedKyc;
+
+  /// D231: the + on the other PK host's chip at the bottom of their half (screen readers).
+  ///
+  /// In ar, this message translates to:
+  /// **'متابعة {name}'**
+  String pkFollowHost(String name);
 }
 
 class _AppLocalizationsDelegate
