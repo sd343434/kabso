@@ -57,22 +57,13 @@ abstract final class LudoArt {
     // The prototype's plane, turned a quarter anticlockwise round (12, 12).
     Offset p(double x, double y) =>
         Offset(rect.left + y * k, rect.top + (24 - x) * k);
-    final points = [
-      p(21, 15.5),
-      p(21, 13.5),
-      p(13, 8.5),
-      p(13, 3.5),
-    ];
+    final points = [p(21, 15.5), p(21, 13.5), p(13, 8.5), p(13, 3.5)];
     final path = Path()..moveTo(points[0].dx, points[0].dy);
     for (final q in points.skip(1)) {
       path.lineTo(q.dx, q.dy);
     }
     final nose = p(10, 3.5);
-    path.arcToPoint(
-      nose,
-      radius: Radius.circular(1.5 * k),
-      clockwise: false,
-    );
+    path.arcToPoint(nose, radius: Radius.circular(1.5 * k), clockwise: false);
     for (final (x, y) in const <(double, double)>[
       (10, 8.5),
       (2, 13.5),
@@ -172,7 +163,12 @@ class LudoBoardPainter extends CustomPainter {
     bool star = false,
   }) {
     final pad = u * 0.06;
-    final rect = Rect.fromLTWH(c * u + pad, r * u + pad, u - 2 * pad, u - 2 * pad);
+    final rect = Rect.fromLTWH(
+      c * u + pad,
+      r * u + pad,
+      u - 2 * pad,
+      u - 2 * pad,
+    );
     final rr = RRect.fromRectAndRadius(rect, Radius.circular(u * 0.12));
     final face = fill ?? (star ? LudoArt.starCell : LudoArt.cell);
     final edge = fill != null
@@ -182,7 +178,12 @@ class LudoBoardPainter extends CustomPainter {
       ..drawRRect(rr, Paint()..color = edge)
       ..drawRRect(
         RRect.fromRectAndCorners(
-          Rect.fromLTRB(rect.left, rect.top, rect.right, rect.bottom - u * 0.08),
+          Rect.fromLTRB(
+            rect.left,
+            rect.top,
+            rect.right,
+            rect.bottom - u * 0.08,
+          ),
           topLeft: rr.tlRadius,
           topRight: rr.trRadius,
           bottomLeft: rr.blRadius,
@@ -244,11 +245,7 @@ class LudoBoardPainter extends CustomPainter {
           ..shader = LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              LudoArt.mix(color, 0.3),
-              color,
-              LudoArt.mix(color, -0.2),
-            ],
+            colors: [LudoArt.mix(color, 0.3), color, LudoArt.mix(color, -0.2)],
             stops: const [0, 0.45, 1],
           ).createShader(rect),
       )
@@ -319,12 +316,7 @@ class LudoBoardPainter extends CustomPainter {
     final petals = [
       (corners[0], corners[3], 0, Offset(rect.left + rect.width * 0.21, m.dy)),
       (corners[0], corners[1], 1, Offset(m.dx, rect.top + rect.height * 0.21)),
-      (
-        corners[1],
-        corners[2],
-        2,
-        Offset(rect.right - rect.width * 0.21, m.dy),
-      ),
+      (corners[1], corners[2], 2, Offset(rect.right - rect.width * 0.21, m.dy)),
       (
         corners[3],
         corners[2],
@@ -344,7 +336,9 @@ class LudoBoardPainter extends CustomPainter {
           Paint()..color = LudoBoard.colors[seat],
         )
         ..drawPath(
-          LudoArt.star5(Rect.fromCenter(center: at, width: u * 0.9, height: u * 0.9)),
+          LudoArt.star5(
+            Rect.fromCenter(center: at, width: u * 0.9, height: u * 0.9),
+          ),
           starPaint,
         );
     }
@@ -363,10 +357,7 @@ class LudoPlanePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    canvas.drawPath(
-      LudoArt.plane(Offset.zero & size),
-      Paint()..color = color,
-    );
+    canvas.drawPath(LudoArt.plane(Offset.zero & size), Paint()..color = color);
   }
 
   @override

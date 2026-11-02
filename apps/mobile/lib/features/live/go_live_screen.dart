@@ -1066,9 +1066,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               label: l10n.liveToolLudo,
               onTap: room == null || !live
                   ? null
-                  : () => unawaited(
-                      openLiveLudo(context, ref, roomId: room.id),
-                    ),
+                  : () =>
+                        unawaited(openLiveLudo(context, ref, roomId: room.id)),
             ),
             GoLiveTool.soon(
               id: 'singing',

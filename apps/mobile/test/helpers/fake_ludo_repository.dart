@@ -37,16 +37,14 @@ class FakeLudoRepository implements LudoRepository {
   Future<LudoGame> takeSeat(String roomId, int seat) => _answer('seat $seat');
 
   @override
-  Future<LudoGame> leaveSeat(String roomId, int seat) =>
-      _answer('leave $seat');
+  Future<LudoGame> leaveSeat(String roomId, int seat) => _answer('leave $seat');
 
   @override
   Future<LudoGame> start(String roomId, int version) =>
       _answer('start $version');
 
   @override
-  Future<LudoGame> roll(String roomId, int version) =>
-      _answer('roll $version');
+  Future<LudoGame> roll(String roomId, int version) => _answer('roll $version');
 
   @override
   Future<LudoGame> move(String roomId, int version, int piece) =>

@@ -14460,6 +14460,360 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'جائزة فعالية'**
   String get walletReasonEventPrize;
+
+  /// D168: the host's Room Tools tile.
+  ///
+  /// In ar, this message translates to:
+  /// **'لودو'**
+  String get liveToolLudo;
+
+  /// D168: the game panel (screen readers).
+  ///
+  /// In ar, this message translates to:
+  /// **'لعبة لودو'**
+  String get ludoTitle;
+
+  /// D168: the board (screen readers).
+  ///
+  /// In ar, this message translates to:
+  /// **'لوحة اللودو'**
+  String get ludoBoard;
+
+  /// D168: the panel's close button.
+  ///
+  /// In ar, this message translates to:
+  /// **'إغلاق اللعبة'**
+  String get ludoClose;
+
+  /// D168: folds the panel.
+  ///
+  /// In ar, this message translates to:
+  /// **'تصغير اللعبة'**
+  String get ludoCollapse;
+
+  /// D168: unfolds the panel.
+  ///
+  /// In ar, this message translates to:
+  /// **'إظهار اللعبة'**
+  String get ludoExpand;
+
+  /// D168: a seat's label (1–4).
+  ///
+  /// In ar, this message translates to:
+  /// **'اللاعب {n}'**
+  String ludoPlayer(String n);
+
+  /// D168: the rank pill (screen readers); points are display only.
+  ///
+  /// In ar, this message translates to:
+  /// **'المركز الأول {first} نقطة، المركز الثاني {second} نقطة'**
+  String ludoRankLabel(String first, String second);
+
+  /// D168: a free seat in the lobby.
+  ///
+  /// In ar, this message translates to:
+  /// **'اجلس'**
+  String get ludoSit;
+
+  /// D168: a free seat (screen readers).
+  ///
+  /// In ar, this message translates to:
+  /// **'مقعد فارغ'**
+  String get ludoFreeSeat;
+
+  /// D168: the lobby's status line.
+  ///
+  /// In ar, this message translates to:
+  /// **'بانتظار اللاعبين ({count}/{max})'**
+  String ludoWaiting(String count, String max);
+
+  /// D168: the host starts the lobby.
+  ///
+  /// In ar, this message translates to:
+  /// **'ابدأ اللعبة'**
+  String get ludoStart;
+
+  /// D168: status line.
+  ///
+  /// In ar, this message translates to:
+  /// **'دورك: اضغط على النرد'**
+  String get ludoYourTurn;
+
+  /// D168: status line after a 6, a capture or a piece home.
+  ///
+  /// In ar, this message translates to:
+  /// **'دور إضافي! ارمِ النرد مرة أخرى'**
+  String get ludoExtraTurn;
+
+  /// D168: status line.
+  ///
+  /// In ar, this message translates to:
+  /// **'رميت {dice}: اختر طائرة'**
+  String ludoChoose(String dice);
+
+  /// D168: status line.
+  ///
+  /// In ar, this message translates to:
+  /// **'دور {name}…'**
+  String ludoTurnOf(String name);
+
+  /// D168: a spectator's status line.
+  ///
+  /// In ar, this message translates to:
+  /// **'أنت تشاهد'**
+  String get ludoSpectating;
+
+  /// D168: status line.
+  ///
+  /// In ar, this message translates to:
+  /// **'{name} رمى {dice}: لا حركة'**
+  String ludoNoMove(String name, String dice);
+
+  /// D168: status line.
+  ///
+  /// In ar, this message translates to:
+  /// **'ثلاث ستات متتالية: ينتهي دور {name}'**
+  String ludoThreeSixes(String name);
+
+  /// D168: the capture toast.
+  ///
+  /// In ar, this message translates to:
+  /// **'{name} أسقط طائرة {other}!'**
+  String ludoCaptured(String name, String other);
+
+  /// D168: a piece reached the centre.
+  ///
+  /// In ar, this message translates to:
+  /// **'{name}: طائرة وصلت'**
+  String ludoArrived(String name);
+
+  /// D168: the winner.
+  ///
+  /// In ar, this message translates to:
+  /// **'فاز {name}'**
+  String ludoWon(String name);
+
+  /// D168: the winner is this phone's player.
+  ///
+  /// In ar, this message translates to:
+  /// **'فزت بالجولة!'**
+  String get ludoYouWon;
+
+  /// D168: the winner card.
+  ///
+  /// In ar, this message translates to:
+  /// **'أوصل {player} كل الطائرات إلى المنتصف أولاً.'**
+  String ludoWonBody(String player);
+
+  /// D168: status line.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت اللعبة'**
+  String get ludoEnded;
+
+  /// D168: the new-round card's title and the host's button.
+  ///
+  /// In ar, this message translates to:
+  /// **'جولة جديدة'**
+  String get ludoNewRound;
+
+  /// D168: closes the winner card.
+  ///
+  /// In ar, this message translates to:
+  /// **'حسناً'**
+  String get ludoOk;
+
+  /// D168: the new-round card.
+  ///
+  /// In ar, this message translates to:
+  /// **'أوصل كل طائراتك إلى النجمة في المنتصف قبل الجميع.'**
+  String get ludoIntro;
+
+  /// D168: the new-round card (owner: free).
+  ///
+  /// In ar, this message translates to:
+  /// **'اللعبة مجانية: بلا عملات ولا رهانات.'**
+  String get ludoFree;
+
+  /// D168: the new-round card.
+  ///
+  /// In ar, this message translates to:
+  /// **'عدد اللاعبين'**
+  String get ludoPlayersTitle;
+
+  /// D168: the new-round card.
+  ///
+  /// In ar, this message translates to:
+  /// **'2 لاعبين'**
+  String get ludoTwoPlayers;
+
+  /// D168: the new-round card.
+  ///
+  /// In ar, this message translates to:
+  /// **'مواجهة'**
+  String get ludoTwoPlayersHint;
+
+  /// D168: the new-round card.
+  ///
+  /// In ar, this message translates to:
+  /// **'4 لاعبين'**
+  String get ludoFourPlayers;
+
+  /// D168: the new-round card.
+  ///
+  /// In ar, this message translates to:
+  /// **'كل المقاعد'**
+  String get ludoFourPlayersHint;
+
+  /// D168: the new-round card.
+  ///
+  /// In ar, this message translates to:
+  /// **'النمط'**
+  String get ludoModeTitle;
+
+  /// D168: the new-round card.
+  ///
+  /// In ar, this message translates to:
+  /// **'كلاسيكي'**
+  String get ludoClassic;
+
+  /// D168: the new-round card.
+  ///
+  /// In ar, this message translates to:
+  /// **'4 طائرات'**
+  String get ludoClassicHint;
+
+  /// D168: the new-round card.
+  ///
+  /// In ar, this message translates to:
+  /// **'سريع'**
+  String get ludoQuick;
+
+  /// D168: the new-round card.
+  ///
+  /// In ar, this message translates to:
+  /// **'طائرتان'**
+  String get ludoQuickHint;
+
+  /// D168: opens the lobby.
+  ///
+  /// In ar, this message translates to:
+  /// **'ابدأ'**
+  String get ludoOpen;
+
+  /// D168: the host's close.
+  ///
+  /// In ar, this message translates to:
+  /// **'إنهاء اللعبة للجميع؟'**
+  String get ludoEndConfirm;
+
+  /// D168: confirms ending.
+  ///
+  /// In ar, this message translates to:
+  /// **'إنهاء'**
+  String get ludoEnd;
+
+  /// D168: a player's close once started.
+  ///
+  /// In ar, this message translates to:
+  /// **'مغادرة اللعبة؟ سيلعب الخادم مكانك حتى النهاية.'**
+  String get ludoLeaveConfirm;
+
+  /// D168: a player's close in the lobby.
+  ///
+  /// In ar, this message translates to:
+  /// **'مغادرة مقعدك في اللعبة؟'**
+  String get ludoLeaveLobbyConfirm;
+
+  /// D168: confirms leaving.
+  ///
+  /// In ar, this message translates to:
+  /// **'مغادرة'**
+  String get ludoLeave;
+
+  /// D168: keeps the game.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء'**
+  String get ludoCancel;
+
+  /// D168: the banner while the panel is closed.
+  ///
+  /// In ar, this message translates to:
+  /// **'لودو: انضم للعب'**
+  String get ludoBannerJoin;
+
+  /// D168: the banner while the panel is closed.
+  ///
+  /// In ar, this message translates to:
+  /// **'لودو: شاهد اللعبة'**
+  String get ludoBannerWatch;
+
+  /// D168: the die (screen readers).
+  ///
+  /// In ar, this message translates to:
+  /// **'ارمِ النرد'**
+  String get ludoRollDie;
+
+  /// D168: the die (screen readers).
+  ///
+  /// In ar, this message translates to:
+  /// **'النرد: {dice}'**
+  String ludoDieValue(String dice);
+
+  /// D168: a piece (screen readers).
+  ///
+  /// In ar, this message translates to:
+  /// **'طائرة {player} رقم {n}، {where}'**
+  String ludoPiece(String player, String n, String where);
+
+  /// D168: a piece's place.
+  ///
+  /// In ar, this message translates to:
+  /// **'في القاعدة'**
+  String get ludoInBase;
+
+  /// D168: a piece's place.
+  ///
+  /// In ar, this message translates to:
+  /// **'على اللوحة'**
+  String get ludoOnBoard;
+
+  /// D168: a piece's place.
+  ///
+  /// In ar, this message translates to:
+  /// **'وصلت'**
+  String get ludoAtHome;
+
+  /// D168: LUDO_NOT_IN_ROOM.
+  ///
+  /// In ar, this message translates to:
+  /// **'ادخل الغرفة لتلعب'**
+  String get ludoErrorNotInRoom;
+
+  /// D168: LUDO_SEAT_UNAVAILABLE.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا المقعد غير متاح'**
+  String get ludoErrorSeat;
+
+  /// D168: LUDO_NOT_STARTABLE.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحتاج اللعبة إلى لاعبَين على الأقل'**
+  String get ludoErrorNotStartable;
+
+  /// D168: LUDO_NOT_YOUR_TURN or a newer game.
+  ///
+  /// In ar, this message translates to:
+  /// **'ليس دورك الآن'**
+  String get ludoErrorTurn;
+
+  /// D168: LUDO_GAME_EXISTS.
+  ///
+  /// In ar, this message translates to:
+  /// **'في الغرفة لعبة لودو بالفعل'**
+  String get ludoErrorExists;
 }
 
 class _AppLocalizationsDelegate

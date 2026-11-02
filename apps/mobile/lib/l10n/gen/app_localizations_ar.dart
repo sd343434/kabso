@@ -8402,4 +8402,208 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get walletReasonEventPrize => 'جائزة فعالية';
+
+  @override
+  String get liveToolLudo => 'لودو';
+
+  @override
+  String get ludoTitle => 'لعبة لودو';
+
+  @override
+  String get ludoBoard => 'لوحة اللودو';
+
+  @override
+  String get ludoClose => 'إغلاق اللعبة';
+
+  @override
+  String get ludoCollapse => 'تصغير اللعبة';
+
+  @override
+  String get ludoExpand => 'إظهار اللعبة';
+
+  @override
+  String ludoPlayer(String n) {
+    return 'اللاعب $n';
+  }
+
+  @override
+  String ludoRankLabel(String first, String second) {
+    return 'المركز الأول $first نقطة، المركز الثاني $second نقطة';
+  }
+
+  @override
+  String get ludoSit => 'اجلس';
+
+  @override
+  String get ludoFreeSeat => 'مقعد فارغ';
+
+  @override
+  String ludoWaiting(String count, String max) {
+    return 'بانتظار اللاعبين ($count/$max)';
+  }
+
+  @override
+  String get ludoStart => 'ابدأ اللعبة';
+
+  @override
+  String get ludoYourTurn => 'دورك: اضغط على النرد';
+
+  @override
+  String get ludoExtraTurn => 'دور إضافي! ارمِ النرد مرة أخرى';
+
+  @override
+  String ludoChoose(String dice) {
+    return 'رميت $dice: اختر طائرة';
+  }
+
+  @override
+  String ludoTurnOf(String name) {
+    return 'دور $name…';
+  }
+
+  @override
+  String get ludoSpectating => 'أنت تشاهد';
+
+  @override
+  String ludoNoMove(String name, String dice) {
+    return '$name رمى $dice: لا حركة';
+  }
+
+  @override
+  String ludoThreeSixes(String name) {
+    return 'ثلاث ستات متتالية: ينتهي دور $name';
+  }
+
+  @override
+  String ludoCaptured(String name, String other) {
+    return '$name أسقط طائرة $other!';
+  }
+
+  @override
+  String ludoArrived(String name) {
+    return '$name: طائرة وصلت';
+  }
+
+  @override
+  String ludoWon(String name) {
+    return 'فاز $name';
+  }
+
+  @override
+  String get ludoYouWon => 'فزت بالجولة!';
+
+  @override
+  String ludoWonBody(String player) {
+    return 'أوصل $player كل الطائرات إلى المنتصف أولاً.';
+  }
+
+  @override
+  String get ludoEnded => 'انتهت اللعبة';
+
+  @override
+  String get ludoNewRound => 'جولة جديدة';
+
+  @override
+  String get ludoOk => 'حسناً';
+
+  @override
+  String get ludoIntro => 'أوصل كل طائراتك إلى النجمة في المنتصف قبل الجميع.';
+
+  @override
+  String get ludoFree => 'اللعبة مجانية: بلا عملات ولا رهانات.';
+
+  @override
+  String get ludoPlayersTitle => 'عدد اللاعبين';
+
+  @override
+  String get ludoTwoPlayers => '2 لاعبين';
+
+  @override
+  String get ludoTwoPlayersHint => 'مواجهة';
+
+  @override
+  String get ludoFourPlayers => '4 لاعبين';
+
+  @override
+  String get ludoFourPlayersHint => 'كل المقاعد';
+
+  @override
+  String get ludoModeTitle => 'النمط';
+
+  @override
+  String get ludoClassic => 'كلاسيكي';
+
+  @override
+  String get ludoClassicHint => '4 طائرات';
+
+  @override
+  String get ludoQuick => 'سريع';
+
+  @override
+  String get ludoQuickHint => 'طائرتان';
+
+  @override
+  String get ludoOpen => 'ابدأ';
+
+  @override
+  String get ludoEndConfirm => 'إنهاء اللعبة للجميع؟';
+
+  @override
+  String get ludoEnd => 'إنهاء';
+
+  @override
+  String get ludoLeaveConfirm =>
+      'مغادرة اللعبة؟ سيلعب الخادم مكانك حتى النهاية.';
+
+  @override
+  String get ludoLeaveLobbyConfirm => 'مغادرة مقعدك في اللعبة؟';
+
+  @override
+  String get ludoLeave => 'مغادرة';
+
+  @override
+  String get ludoCancel => 'إلغاء';
+
+  @override
+  String get ludoBannerJoin => 'لودو: انضم للعب';
+
+  @override
+  String get ludoBannerWatch => 'لودو: شاهد اللعبة';
+
+  @override
+  String get ludoRollDie => 'ارمِ النرد';
+
+  @override
+  String ludoDieValue(String dice) {
+    return 'النرد: $dice';
+  }
+
+  @override
+  String ludoPiece(String player, String n, String where) {
+    return 'طائرة $player رقم $n، $where';
+  }
+
+  @override
+  String get ludoInBase => 'في القاعدة';
+
+  @override
+  String get ludoOnBoard => 'على اللوحة';
+
+  @override
+  String get ludoAtHome => 'وصلت';
+
+  @override
+  String get ludoErrorNotInRoom => 'ادخل الغرفة لتلعب';
+
+  @override
+  String get ludoErrorSeat => 'هذا المقعد غير متاح';
+
+  @override
+  String get ludoErrorNotStartable => 'تحتاج اللعبة إلى لاعبَين على الأقل';
+
+  @override
+  String get ludoErrorTurn => 'ليس دورك الآن';
+
+  @override
+  String get ludoErrorExists => 'في الغرفة لعبة لودو بالفعل';
 }

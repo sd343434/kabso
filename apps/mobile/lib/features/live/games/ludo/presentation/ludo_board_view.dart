@@ -72,6 +72,24 @@ class LudoBoardView extends StatefulWidget {
   /// One step of a piece.
   static const hop = Duration(milliseconds: 170);
 
+  /// A player chip's width (it straddles the board's left or right edge).
+  static const double chipWidth = 64;
+
+  /// Room beside the board for the chips on its edges.
+  static double marginX(double side) =>
+      side / LudoBoard.cells * 0.35 + chipWidth / 2;
+
+  /// Room above and under the board for the six-counter tabs.
+  static double marginY(double side) => side / LudoBoard.cells * 0.62 + 10;
+
+  /// The board's side that fits [width] × [height] with its chips and tabs.
+  static double sideFor(double width, double height) => math
+      .min(
+        (width - chipWidth) / (1 + 0.7 / LudoBoard.cells),
+        (height - 20) / (1 + 1.24 / LudoBoard.cells),
+      )
+      .clamp(160.0, 400.0);
+
   @override
   State<LudoBoardView> createState() => _LudoBoardViewState();
 }
@@ -136,7 +154,7 @@ class _LudoBoardViewState extends State<LudoBoardView>
       return;
     }
     _ring.value = (left.inMilliseconds / total.inMilliseconds).clamp(0.0, 1.0);
-    if (_animate) unawaited(_ring.animateTo(0, duration: left));
+    if (_animate) _ring.animateTo(0, duration: left);
   }
 
   Future<void> _wait(Duration d) =>
@@ -232,6 +250,10 @@ class _LudoBoardViewState extends State<LudoBoardView>
     final l10n = context.l10n;
     final game = widget.game;
     final u = widget.size / LudoBoard.cells;
+    // Everything is placed from the board's top-left, inside a box with room
+    // for the chips and tabs (so they are hit-tested where they are drawn).
+    final ox = LudoBoardView.marginX(widget.size);
+    final oy = LudoBoardView.marginY(widget.size);
     final duration = _animate
         ? const Duration(milliseconds: 160)
         : Duration.zero;
@@ -274,13 +296,17 @@ class _LudoBoardViewState extends State<LudoBoardView>
           key: LudoKeys.piece(seat, i),
           duration: duration,
           curve: Curves.easeOut,
-          left: at.dx * u - d * u / 2,
-          top: at.dy * u - d * u / 2,
+          left: ox + at.dx * u - d * u / 2,
+          top: oy + at.dy * u - d * u / 2,
           width: d * u,
           height: d * u,
           child: Semantics(
             container: true,
-            label: l10n.ludoPiece(ludoPlayerLabel(l10n, seat), '${i + 1}', where),
+            label: l10n.ludoPiece(
+              ludoPlayerLabel(l10n, seat),
+              '${i + 1}',
+              where,
+            ),
             button: mine,
             onTap: mine ? () => _tapPiece(i) : null,
             excludeSemantics: true,
@@ -300,12 +326,17 @@ class _LudoBoardViewState extends State<LudoBoardView>
     final face = _face ?? game.dice ?? 6;
     final canRoll = widget.onRoll != null && !_rolling;
 
-    return SizedBox.square(
-      dimension: widget.size,
+    return SizedBox(
+      width: widget.size + 2 * ox,
+      height: widget.size + 2 * oy,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          Positioned.fill(
+          Positioned(
+            left: ox,
+            top: oy,
+            width: widget.size,
+            height: widget.size,
             child: Semantics(
               label: l10n.ludoBoard,
               container: true,
@@ -316,7 +347,7 @@ class _LudoBoardViewState extends State<LudoBoardView>
             ),
           ),
           for (final s in game.seats)
-            if (playing) _tabs(s.seat, u),
+            if (playing) _tabs(s.seat, u, ox, oy),
           ...pieces,
           ...front,
           if (playing)
@@ -325,8 +356,8 @@ class _LudoBoardViewState extends State<LudoBoardView>
               duration: _animate
                   ? const Duration(milliseconds: 300)
                   : Duration.zero,
-              left: dieCol * u - dieSize / 2,
-              top: dieRow * u - dieSize / 2,
+              left: ox + dieCol * u - dieSize / 2,
+              top: oy + dieRow * u - dieSize / 2,
               width: dieSize,
               height: dieSize,
               child: Semantics(
@@ -346,12 +377,20 @@ class _LudoBoardViewState extends State<LudoBoardView>
                 ),
               ),
             ),
-          for (final s in game.seats) _chip(s, u),
+          for (final s in game.seats) _chip(s, u, ox, oy),
           if (_toast case final text?)
-            Positioned.fill(
+            Positioned(
+              left: ox,
+              top: oy,
+              width: widget.size,
+              height: widget.size,
               child: IgnorePointer(
                 child: Center(
-                  child: _Toast(key: LudoKeys.toast, text: text, color: _toastColor),
+                  child: _Toast(
+                    key: LudoKeys.toast,
+                    text: text,
+                    color: _toastColor,
+                  ),
                 ),
               ),
             ),
@@ -370,15 +409,17 @@ class _LudoBoardViewState extends State<LudoBoardView>
     widget.onMove?.call(piece);
   }
 
-  Widget _tabs(int seat, double u) {
+  Widget _tabs(int seat, double u, double ox, double oy) {
     final (row, col, fromStart) = LudoBoard.tabsAt[seat];
     final on = widget.game.turn == seat ? widget.game.sixes : 0;
+    // The prototype's 16-pt tabs, smaller on a small board.
+    final tab = math.min(16, (2.2 * u - 6) / 3).toDouble();
     return Positioned(
       key: LudoKeys.tabs(seat),
-      left: col * u,
-      top: row * u - 8,
+      left: ox + col * u,
+      top: oy + row * u - tab / 2,
       width: 2.2 * u,
-      height: 16,
+      height: tab,
       child: ExcludeSemantics(
         child: Row(
           textDirection: TextDirection.ltr,
@@ -388,7 +429,7 @@ class _LudoBoardViewState extends State<LudoBoardView>
           children: [
             for (var j = 0; j < 3; j++) ...[
               if (j > 0) const SizedBox(width: 3),
-              _SixTab(on: j < on),
+              _SixTab(on: j < on, size: tab),
             ],
           ],
         ),
@@ -396,7 +437,7 @@ class _LudoBoardViewState extends State<LudoBoardView>
     );
   }
 
-  Widget _chip(LudoSeat seat, double u) {
+  Widget _chip(LudoSeat seat, double u, double ox, double oy) {
     final l10n = context.l10n;
     final game = widget.game;
     final (row, col) = LudoBoard.chipAt[seat.seat];
@@ -406,7 +447,7 @@ class _LudoBoardViewState extends State<LudoBoardView>
     final free = user == null;
     final onSeat = widget.onSeat;
     final label = ludoPlayerLabel(l10n, seat.seat);
-    const width = 76.0;
+    const width = LudoBoardView.chipWidth;
     const avatar = 46.0;
     Widget face;
     if (free) {
@@ -438,7 +479,8 @@ class _LudoBoardViewState extends State<LudoBoardView>
               blurRadius: 6,
               offset: Offset(0, 2),
             ),
-            if (active) BoxShadow(color: color, blurRadius: 16, spreadRadius: 3),
+            if (active)
+              BoxShadow(color: color, blurRadius: 16, spreadRadius: 3),
           ],
         ),
         child: KAvatar(
@@ -454,8 +496,8 @@ class _LudoBoardViewState extends State<LudoBoardView>
               '${seat.auto ? ', AUTO' : ''}';
     return Positioned(
       key: LudoKeys.chip(seat.seat),
-      left: col * u - width / 2,
-      top: row * u - avatar / 2 - 6,
+      left: ox + col * u - width / 2,
+      top: oy + row * u - avatar / 2 - 6,
       width: width,
       child: Semantics(
         container: true,
@@ -630,7 +672,7 @@ class _DieState extends State<_Die> with SingleTickerProviderStateMixin {
 
   void _sync() {
     if (widget.pulse && (widget.ready || widget.rolling)) {
-      if (!_pulse.isAnimating) unawaited(_pulse.repeat());
+      if (!_pulse.isAnimating) _pulse.repeat();
     } else {
       _pulse
         ..stop()
@@ -736,14 +778,15 @@ class _DieState extends State<_Die> with SingleTickerProviderStateMixin {
 
 /// One of the three six-counter tabs by a base.
 class _SixTab extends StatelessWidget {
-  const new({required this.on});
+  const new({required this.on, required this.size});
 
   final bool on;
+  final double size;
 
   @override
   Widget build(BuildContext context) => Container(
-    width: 16,
-    height: 16,
+    width: size,
+    height: size,
     decoration: BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(4),
@@ -753,8 +796,8 @@ class _SixTab extends StatelessWidget {
     ),
     alignment: Alignment.center,
     child: Container(
-      width: 5,
-      height: 5,
+      width: size * 0.31,
+      height: size * 0.31,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: on ? const Color(0xFFE5414A) : const Color(0xFFE9E9F2),

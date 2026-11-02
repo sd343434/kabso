@@ -40,12 +40,10 @@ class LudoRepositoryImpl implements LudoRepository {
   String _path(String roomId, [String rest = '']) =>
       '/live/rooms/${pathSegment(roomId)}/ludo$rest';
 
-  Future<LudoGame> _post(String path, [Object? data]) => guardApiCall(
-    () async {
-      final res = await _dio.post<Map<String, dynamic>>(path, data: data);
-      return LudoGame.fromJson(res.data!);
-    },
-  );
+  Future<LudoGame> _post(String path, [Object? data]) => guardApiCall(() async {
+    final res = await _dio.post<Map<String, dynamic>>(path, data: data);
+    return LudoGame.fromJson(res.data!);
+  });
 
   @override
   Future<LudoGame?> get(String roomId) => guardApiCall(() async {
@@ -67,22 +65,20 @@ class LudoRepositoryImpl implements LudoRepository {
   });
 
   @override
-  Future<LudoGame> takeSeat(String roomId, int seat) =>
-      guardApiCall(() async {
-        final res = await _dio.put<Map<String, dynamic>>(
-          _path(roomId, '/seats/$seat'),
-        );
-        return LudoGame.fromJson(res.data!);
-      });
+  Future<LudoGame> takeSeat(String roomId, int seat) => guardApiCall(() async {
+    final res = await _dio.put<Map<String, dynamic>>(
+      _path(roomId, '/seats/$seat'),
+    );
+    return LudoGame.fromJson(res.data!);
+  });
 
   @override
-  Future<LudoGame> leaveSeat(String roomId, int seat) =>
-      guardApiCall(() async {
-        final res = await _dio.delete<Map<String, dynamic>>(
-          _path(roomId, '/seats/$seat'),
-        );
-        return LudoGame.fromJson(res.data!);
-      });
+  Future<LudoGame> leaveSeat(String roomId, int seat) => guardApiCall(() async {
+    final res = await _dio.delete<Map<String, dynamic>>(
+      _path(roomId, '/seats/$seat'),
+    );
+    return LudoGame.fromJson(res.data!);
+  });
 
   @override
   Future<LudoGame> start(String roomId, int version) =>

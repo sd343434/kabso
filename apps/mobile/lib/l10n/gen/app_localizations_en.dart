@@ -8379,4 +8379,209 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get walletReasonEventPrize => 'Event prize';
+
+  @override
+  String get liveToolLudo => 'Ludo';
+
+  @override
+  String get ludoTitle => 'Ludo game';
+
+  @override
+  String get ludoBoard => 'Ludo board';
+
+  @override
+  String get ludoClose => 'Close the game';
+
+  @override
+  String get ludoCollapse => 'Minimise the game';
+
+  @override
+  String get ludoExpand => 'Show the game';
+
+  @override
+  String ludoPlayer(String n) {
+    return 'Player $n';
+  }
+
+  @override
+  String ludoRankLabel(String first, String second) {
+    return 'First place $first points, second place $second points';
+  }
+
+  @override
+  String get ludoSit => 'Sit';
+
+  @override
+  String get ludoFreeSeat => 'Free seat';
+
+  @override
+  String ludoWaiting(String count, String max) {
+    return 'Waiting for players ($count/$max)';
+  }
+
+  @override
+  String get ludoStart => 'Start the game';
+
+  @override
+  String get ludoYourTurn => 'Your turn: tap the die';
+
+  @override
+  String get ludoExtraTurn => 'Extra turn! Roll again';
+
+  @override
+  String ludoChoose(String dice) {
+    return 'You rolled $dice: choose a plane';
+  }
+
+  @override
+  String ludoTurnOf(String name) {
+    return 'Turn: $name…';
+  }
+
+  @override
+  String get ludoSpectating => 'You are watching';
+
+  @override
+  String ludoNoMove(String name, String dice) {
+    return '$name rolled $dice: no move';
+  }
+
+  @override
+  String ludoThreeSixes(String name) {
+    return 'Three sixes in a row: $name loses the turn';
+  }
+
+  @override
+  String ludoCaptured(String name, String other) {
+    return '$name sent a plane of $other home!';
+  }
+
+  @override
+  String ludoArrived(String name) {
+    return '$name: a plane reached home';
+  }
+
+  @override
+  String ludoWon(String name) {
+    return '$name won';
+  }
+
+  @override
+  String get ludoYouWon => 'You won the round!';
+
+  @override
+  String ludoWonBody(String player) {
+    return '$player brought every plane to the centre first.';
+  }
+
+  @override
+  String get ludoEnded => 'The game is over';
+
+  @override
+  String get ludoNewRound => 'New round';
+
+  @override
+  String get ludoOk => 'OK';
+
+  @override
+  String get ludoIntro =>
+      'Bring all your planes to the star in the centre before everyone else.';
+
+  @override
+  String get ludoFree => 'The game is free: no coins, no bets.';
+
+  @override
+  String get ludoPlayersTitle => 'Players';
+
+  @override
+  String get ludoTwoPlayers => '2 players';
+
+  @override
+  String get ludoTwoPlayersHint => 'Head to head';
+
+  @override
+  String get ludoFourPlayers => '4 players';
+
+  @override
+  String get ludoFourPlayersHint => 'All seats';
+
+  @override
+  String get ludoModeTitle => 'Mode';
+
+  @override
+  String get ludoClassic => 'Classic';
+
+  @override
+  String get ludoClassicHint => '4 planes';
+
+  @override
+  String get ludoQuick => 'Quick';
+
+  @override
+  String get ludoQuickHint => '2 planes';
+
+  @override
+  String get ludoOpen => 'Start';
+
+  @override
+  String get ludoEndConfirm => 'End the game for everyone?';
+
+  @override
+  String get ludoEnd => 'End';
+
+  @override
+  String get ludoLeaveConfirm =>
+      'Leave the game? The server plays your seat to the end.';
+
+  @override
+  String get ludoLeaveLobbyConfirm => 'Leave your seat in the game?';
+
+  @override
+  String get ludoLeave => 'Leave';
+
+  @override
+  String get ludoCancel => 'Cancel';
+
+  @override
+  String get ludoBannerJoin => 'Ludo: join the game';
+
+  @override
+  String get ludoBannerWatch => 'Ludo: watch the game';
+
+  @override
+  String get ludoRollDie => 'Roll the die';
+
+  @override
+  String ludoDieValue(String dice) {
+    return 'Die: $dice';
+  }
+
+  @override
+  String ludoPiece(String player, String n, String where) {
+    return '$player plane $n, $where';
+  }
+
+  @override
+  String get ludoInBase => 'in the base';
+
+  @override
+  String get ludoOnBoard => 'on the board';
+
+  @override
+  String get ludoAtHome => 'home';
+
+  @override
+  String get ludoErrorNotInRoom => 'Join the room to play';
+
+  @override
+  String get ludoErrorSeat => 'That seat is not available';
+
+  @override
+  String get ludoErrorNotStartable => 'The game needs at least 2 players';
+
+  @override
+  String get ludoErrorTurn => 'It is not your turn now';
+
+  @override
+  String get ludoErrorExists => 'This room already has a Ludo game';
 }

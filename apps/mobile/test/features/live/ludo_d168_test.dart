@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/app/app.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/auth/domain/entities.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/games/ludo/application/ludo_controller.dart';
@@ -25,9 +26,15 @@ import '../../helpers/fakes.dart';
 import '../../helpers/golden.dart';
 
 const _room = 'room-1';
-final _me = testUser();
+final User _me = testUser();
 
-Map<String, dynamic> _seat(int seat, String? userId, String? name, List<int> pieces, {bool auto = false}) => {
+Map<String, dynamic> _seat(
+  int seat,
+  String? userId,
+  String? name,
+  List<int> pieces, {
+  bool auto = false,
+}) => {
   'seat': seat,
   'color': ['RED', 'GREEN', 'YELLOW', 'BLUE'][seat],
   'user': userId == null
@@ -111,7 +118,10 @@ Future<ProviderContainer> _pump(
           AppLocalizations.delegate,
           ...GlobalMaterialLocalizations.delegates,
         ],
-        theme: buildAppTheme(brightness: Brightness.dark, locale: language.locale),
+        theme: buildAppTheme(
+          brightness: Brightness.dark,
+          locale: language.locale,
+        ),
         builder: (context, app) => MediaQuery(
           data: MediaQuery.of(context).copyWith(disableAnimations: true),
           child: app!,
@@ -119,7 +129,9 @@ Future<ProviderContainer> _pump(
         home: Scaffold(
           body: Stack(
             children: [
-              const Positioned.fill(child: ColoredBox(color: Color(0xFF3B1B9E))),
+              const Positioned.fill(
+                child: ColoredBox(color: Color(0xFF3B1B9E)),
+              ),
               LiveLudoLayer(roomId: _room, host: host),
             ],
           ),
@@ -144,7 +156,11 @@ void main() {
       final homes = [for (final h in LudoBoard.home) ...h];
       expect(homes.toSet(), hasLength(20));
       bool inBase((int, int) cell) => LudoBoard.base.any(
-        (b) => cell.$1 >= b.$1 && cell.$1 < b.$1 + 6 && cell.$2 >= b.$2 && cell.$2 < b.$2 + 6,
+        (b) =>
+            cell.$1 >= b.$1 &&
+            cell.$1 < b.$1 + 6 &&
+            cell.$2 >= b.$2 &&
+            cell.$2 < b.$2 + 6,
       );
       bool inCentre((int, int) cell) =>
           cell.$1 >= 6 && cell.$1 < 9 && cell.$2 >= 6 && cell.$2 < 9;
@@ -155,14 +171,21 @@ void main() {
       for (var i = 0; i < 52; i++) {
         final (r, c) = LudoBoard.track[i];
         final (r2, c2) = LudoBoard.track[(i + 1) % 52];
-        expect((r - r2).abs() + (c - c2).abs(), lessThanOrEqualTo(2), reason: '$i');
+        expect(
+          (r - r2).abs() + (c - c2).abs(),
+          lessThanOrEqualTo(2),
+          reason: '$i',
+        );
       }
     });
 
     test('pieces sit where the prototype puts them', () {
       // Red's base slots, its start square, a home square and the centre.
       expect(LudoBoard.cellOf(0, -1, 0).dx, closeTo(1.988, 0.001));
-      expect(LudoBoard.cellOf(0, -1, 3), Offset(LudoBoard.cellOf(0, -1, 1).dx, LudoBoard.cellOf(0, -1, 2).dy));
+      expect(
+        LudoBoard.cellOf(0, -1, 3),
+        Offset(LudoBoard.cellOf(0, -1, 1).dx, LudoBoard.cellOf(0, -1, 2).dy),
+      );
       expect(LudoBoard.cellOf(0, 0, 0), const Offset(1.5, 6.5));
       expect(LudoBoard.cellOf(1, 0, 0), const Offset(8.5, 1.5));
       expect(LudoBoard.cellOf(2, 52, 0), const Offset(13.5, 7.5));
@@ -212,7 +235,9 @@ void main() {
   });
 
   group('D168 the Ludo panel', () {
-    testWidgets('the board with every piece of every seat and the chips', (tester) async {
+    testWidgets('the board with every piece of every seat and the chips', (
+      tester,
+    ) async {
       await _pump(tester, FakeLudoRepository(game: _game()));
       expect(find.byKey(LudoKeys.panel), findsOneWidget);
       expect(find.byKey(LudoKeys.board), findsOneWidget);
@@ -238,21 +263,35 @@ void main() {
           tester.getCenter(find.byKey(LudoKeys.piece(seat, i))) - board.topLeft;
       expect(centreOf(0, 0).dx, closeTo(1.988 * u, 1));
       expect(centreOf(0, 0).dy, closeTo(1.988 * u, 1));
-      expect(centreOf(0, 1), offsetMoreOrLessEquals(const Offset(6.5, 5.5) * u, epsilon: 1));
+      expect(
+        centreOf(0, 1),
+        offsetMoreOrLessEquals(const Offset(6.5, 5.5) * u, epsilon: 1),
+      );
       expect(centreOf(1, 0).dx, greaterThan(9 * u));
-      expect(centreOf(2, 0), offsetMoreOrLessEquals(LudoBoard.cellOf(2, 10, 0) * u, epsilon: 1));
+      expect(
+        centreOf(2, 0),
+        offsetMoreOrLessEquals(LudoBoard.cellOf(2, 10, 0) * u, epsilon: 1),
+      );
       expect(centreOf(3, 0).dy, greaterThan(9 * u));
       expect(centreOf(3, 0).dx, lessThan(6 * u));
     });
 
-    testWidgets('your turn: the die on your base; a tap rolls (an intent)', (tester) async {
+    testWidgets('your turn: the die on your base; a tap rolls (an intent)', (
+      tester,
+    ) async {
       final repo = FakeLudoRepository(game: _game());
       await _pump(tester, repo);
       expect(_status(tester), 'Your turn: tap the die');
       expect(find.bySemanticsLabel('Roll the die'), findsOneWidget);
       final board = tester.getRect(find.byKey(LudoKeys.board));
       final die = tester.getCenter(find.byKey(LudoKeys.die)) - board.topLeft;
-      expect(die, offsetMoreOrLessEquals(const Offset(4.4, 0.35) * (board.width / 15), epsilon: 1));
+      expect(
+        die,
+        offsetMoreOrLessEquals(
+          const Offset(4.4, 0.35) * (board.width / 15),
+          epsilon: 1,
+        ),
+      );
       repo.next = _game(version: 6, phase: 'MOVE', dice: 6, movable: [0, 1, 2]);
       await tester.tap(find.byKey(LudoKeys.die));
       await tester.pump();
@@ -263,7 +302,9 @@ void main() {
       expect(repo.calls.last, 'move 6 2');
     });
 
-    testWidgets('a spectator: no die to roll, the turn is named', (tester) async {
+    testWidgets('a spectator: no die to roll, the turn is named', (
+      tester,
+    ) async {
       final repo = FakeLudoRepository(
         game: _game(
           turn: 2,
@@ -282,7 +323,9 @@ void main() {
       expect(find.byKey(LudoKeys.chip(1)), findsNothing);
     });
 
-    testWidgets('the lobby: free seats; the host starts with 2 seated', (tester) async {
+    testWidgets('the lobby: free seats; the host starts with 2 seated', (
+      tester,
+    ) async {
       final lobby = _game(
         status: 'LOBBY',
         version: 2,
@@ -325,8 +368,14 @@ void main() {
       expect(find.text('You won the round!'), findsOneWidget);
     });
 
-    testWidgets('Arabic: the panel is RTL, the board is not mirrored', (tester) async {
-      await _pump(tester, FakeLudoRepository(game: _game()), language: AppLanguage.ar);
+    testWidgets('Arabic: the panel is RTL, the board is not mirrored', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        FakeLudoRepository(game: _game()),
+        language: AppLanguage.ar,
+      );
       expect(_status(tester), 'دورك: اضغط على النرد');
       expect(find.text('اللاعب 1'), findsOneWidget);
       // Close at the right (the reading start), fold at the left.
@@ -346,13 +395,18 @@ void main() {
       await tester.tap(find.byKey(LudoKeys.collapse));
       await tester.pump();
       expect(find.byKey(LudoKeys.board), findsNothing);
-      expect(tester.getSize(find.byKey(LudoKeys.panel)).height, LiveLudoLayer.foldedHeight);
+      expect(
+        tester.getSize(find.byKey(LudoKeys.panel)).height,
+        LiveLudoLayer.foldedHeight,
+      );
       await tester.tap(find.byKey(LudoKeys.collapse));
       await tester.pump();
       expect(find.byKey(LudoKeys.board), findsOneWidget);
     });
 
-    testWidgets('a spectator closes the panel; the banner reopens it', (tester) async {
+    testWidgets('a spectator closes the panel; the banner reopens it', (
+      tester,
+    ) async {
       await _pump(
         tester,
         FakeLudoRepository(
@@ -377,10 +431,13 @@ void main() {
   group('D168 the controller', () {
     test('keeps the newest version; an ended game goes away', () {
       final container = ProviderContainer(
-        overrides: [ludoRepositoryProvider.overrideWithValue(FakeLudoRepository())],
+        overrides: [
+          ludoRepositoryProvider.overrideWithValue(FakeLudoRepository()),
+        ],
       );
       addTearDown(container.dispose);
-      final controller = container.read(liveLudoProvider(_room).notifier)..apply(_game(version: 7));
+      final controller = container.read(liveLudoProvider(_room).notifier)
+        ..apply(_game(version: 7));
       expect(container.read(liveLudoProvider(_room)).game?.version, 7);
       controller.apply(_game(version: 6));
       expect(container.read(liveLudoProvider(_room)).game?.version, 7);

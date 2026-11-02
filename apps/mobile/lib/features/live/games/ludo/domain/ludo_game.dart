@@ -211,8 +211,7 @@ final class LudoGame {
   final DateTime serverTime;
 
   /// In its lobby or playing (the room's current game).
-  bool get isOpen =>
-      status == LudoStatus.lobby || status == LudoStatus.playing;
+  bool get isOpen => status == LudoStatus.lobby || status == LudoStatus.playing;
 
   LudoSeat? seatAt(int seat) {
     for (final s in seats) {

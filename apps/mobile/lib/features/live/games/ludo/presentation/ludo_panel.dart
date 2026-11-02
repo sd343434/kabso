@@ -107,10 +107,7 @@ class LiveLudoLayer extends ConsumerWidget {
       );
     }
     final h = media.size.height;
-    final open = math.max(
-      300,
-      math.min(h * 0.58, h - 150 - bottom),
-    ).toDouble();
+    final open = math.max(300, math.min(h * 0.58, h - 150 - bottom)).toDouble();
     final animate = !(MediaQuery.maybeDisableAnimationsOf(context) ?? false);
     return AnimatedPositioned(
       duration: animate ? const Duration(milliseconds: 300) : Duration.zero,
@@ -177,7 +174,7 @@ class LudoPanel extends ConsumerWidget {
         child: Stack(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
+              padding: const EdgeInsets.fromLTRB(6, 10, 6, 8),
               child: Column(
                 children: [
                   _Header(
@@ -190,9 +187,10 @@ class LudoPanel extends ConsumerWidget {
                     Expanded(
                       child: LayoutBuilder(
                         builder: (context, box) {
-                          final side = math
-                              .min(box.maxWidth - 52, box.maxHeight - 44)
-                              .clamp(160.0, 400.0);
+                          final side = LudoBoardView.sideFor(
+                            box.maxWidth,
+                            box.maxHeight,
+                          );
                           return Directionality(
                             textDirection: TextDirection.ltr,
                             child: Center(
@@ -309,7 +307,11 @@ class LudoPanel extends ConsumerWidget {
     controller.hide();
   }
 
-  Future<bool> _confirm(BuildContext context, String text, String action) async {
+  Future<bool> _confirm(
+    BuildContext context,
+    String text,
+    String action,
+  ) async {
     final l10n = context.l10n;
     final ok = await showDialog<bool>(
       context: context,
@@ -343,7 +345,9 @@ String _status(
       return l10n.ludoWaiting('${game.seated}', '${game.maxPlayers}');
     case LudoStatus.finished:
       final w = game.winner;
-      return w == null ? l10n.ludoEnded : l10n.ludoWon(ludoSeatName(l10n, game, w));
+      return w == null
+          ? l10n.ludoEnded
+          : l10n.ludoWon(ludoSeatName(l10n, game, w));
     case LudoStatus.ended:
       return l10n.ludoEnded;
     case LudoStatus.playing:
@@ -417,9 +421,8 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final ranked = [
-      for (final s in game.seats) LudoBoard.points(s.pieces),
-    ]..sort((a, b) => b.compareTo(a));
+    final ranked = [for (final s in game.seats) LudoBoard.points(s.pieces)]
+      ..sort((a, b) => b.compareTo(a));
     final first = ranked.isEmpty ? 0 : ranked[0];
     final second = ranked.length < 2 ? 0 : ranked[1];
     const label = TextStyle(
@@ -924,9 +927,9 @@ class _NewRoundCardState extends State<_NewRoundCard> {
               Center(
                 child: _PrimaryButton(
                   label: l10n.ludoOpen,
-                  onTap: () => Navigator.of(
-                    context,
-                  ).pop((quick: _quick, players: _players)),
+                  onTap: () =>
+                      Navigator.of(context)
+                          .pop((quick: _quick, players: _players)),
                 ),
               ),
             ],
