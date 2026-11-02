@@ -29,6 +29,7 @@ import { AdminProgramsService } from './admin-programs.service.js';
 import { AdminStatsService } from './admin-stats.service.js';
 import { AdminTeamService } from './admin-team.service.js';
 import { AdminV2Controller } from './admin-v2.controller.js';
+import { AdminLiveBoostsController } from './admin-live-boosts.controller.js';
 import { AdminControlController } from './admin-control.controller.js';
 import { AdminControlService } from './admin-control.service.js';
 import { AdminHostApplicationsController } from './admin-host-applications.controller.js';
@@ -64,6 +65,8 @@ import { AdminDeviceSignupsService } from './admin-device-signups.service.js';
     AdminFinanceController,
     AdminModerationController,
     AdminV2Controller,
+    // v1.51-live (D233): «صواريخ الزيارات».
+    AdminLiveBoostsController,
     AdminRechargeOrdersController,
     // v1.72-social (D208, §10.67): the account controls.
     AdminControlController,

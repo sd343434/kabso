@@ -28,6 +28,7 @@ class LiveRoomCardData {
     this.seatCount,
     this.occupiedSeats = 0,
     this.featured = false,
+    this.boostStage = 0,
     this.podcast,
     this.hostUsername,
   });
@@ -38,7 +39,11 @@ class LiveRoomCardData {
   /// card then shows the host avatar) and the server-localized category name
   /// when the room has one. Multi-guest rooms carry no guest count in v1.3,
   /// so no seats tag is shown.
-  factory fromSummary(LiveRoomSummary room, {bool featured = false}) {
+  factory fromSummary(
+    LiveRoomSummary room, {
+    bool featured = false,
+    int boostStage = 0,
+  }) {
     final cover = room.coverUrl;
     final avatar = room.host.avatarUrl;
     return LiveRoomCardData(
@@ -56,7 +61,8 @@ class LiveRoomCardData {
       hostId: room.host.id,
       seatCount: room.seatCount,
       occupiedSeats: room.occupiedSeats,
-      featured: featured,
+      featured: featured || boostStage > 0,
+      boostStage: boostStage,
       podcast: room.mode == LiveRoomMode.podcast ? room.podcast : null,
       hostUsername: room.host.username,
     );
@@ -115,6 +121,10 @@ class LiveRoomCardData {
 
   /// D154b: in a paid «مميز» slot now (a traffic card); the card says so.
   final bool featured;
+
+  /// D233: the rocket stage (1–4) running on this live, 0 for none: the
+  /// card shows that stage's rocket badge and the animated «مميز» frame.
+  final int boostStage;
 
   /// D212: a podcast's episode facts (its hub card); null otherwise.
   final LivePodcast? podcast;

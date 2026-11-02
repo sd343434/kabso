@@ -1130,12 +1130,18 @@ APNs key yet): the iOS app never starts Firebase and needs no `GoogleService-Inf
 
   | Variable | Default | Meaning |
   | -------- | ------- | ------- |
-  | `LIVE_BOOST_PRICES` | `10:10000,20:18000,30:25000,60:45000` | `minutes:coins` per length on sale (owner 15c); 1–8 lengths |
+  | `LIVE_BOOST_PRICES` | `10:200000,20:550000,30:1500000,60:3500000` | `minutes:coins` per length on sale; **exactly 4** lengths = the rocket stages 1–4 (D233, v1.51-live; was 1–8 lengths at 10 000 / 18 000 / 25 000 / 45 000). The admin panel «صواريخ الزيارات» can override each stage's price (`live_boost_prices`) |
   | `LIVE_BOOST_SLOTS` | `3` | paid «مميز» slots at the top of the live list (owner) |
   | `LIVE_BOOST_MAX_WAIT_MINUTES` | `180` | a card that would wait longer is refused (409 `BOOST_QUEUE_FULL`) |
 
   The settlement (refunds of cards whose live ended before they ran) runs on the live sweeper's interval
   (`LIVE_SWEEP_INTERVAL_SECONDS`) and before every purchase; safe on several instances (one advisory lock).
+- **D233 (v1.51-live, migration `20270218090000_live_boost_stages`):** adds `live_boosts.stage` (backfilled by length,
+  NOT NULL, CHECK 1–4) and table `live_boost_prices`; no GRANT. Deploy the API with the migration (an older API does not
+  write `stage` and its purchases would fail on NOT NULL: roll back only with
+  `ALTER TABLE live_boosts ALTER COLUMN stage SET DEFAULT 1;`). A `LIVE_BOOST_PRICES` set on the server with other than 4
+  lengths stops the API from starting — remove it (the default is the owner's rocket prices) or give 4 lengths. The
+  OWNER edits the prices in the panel «صواريخ الزيارات» (`catalog.manage`, the code again, audited).
 - **Rewards:** grant cards with the CLI (audited):
 
   ```bash

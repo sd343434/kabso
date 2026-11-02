@@ -134,6 +134,8 @@ import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit
   // v1.43-social (D164): the data center's summaries also feed the creator center.
   exports: [
     LiveRoomsService,
+    // v1.51-live (D233): the admin panel edits the rocket stages' prices.
+    LiveBoostsService,
     LiveMediaService,
     LiveSeatsService,
     LiveChatService,

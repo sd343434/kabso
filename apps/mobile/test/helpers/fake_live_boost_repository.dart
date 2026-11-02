@@ -1,4 +1,5 @@
-// In-memory traffic cards (D154b, tests only): the owner's prices, a set
+// In-memory traffic cards (D154b, tests only; D233: the owner's rocket
+// stages and prices in coins), a set
 // of slots, the caller's cards and a wallet, following §10.34's rules for
 // one live at a time.
 
@@ -9,7 +10,7 @@ import 'package:kabso_live/features/live/domain/live_boost_models.dart';
 
 class FakeLiveBoostRepository implements LiveBoostRepository {
   new({
-    this.coins = 50000,
+    this.coins = 1000000,
     Map<int, int> cards = const {},
     this.waitMinutes = 0,
   }) : cards = Map.of(cards);
@@ -24,8 +25,9 @@ class FakeLiveBoostRepository implements LiveBoostRepository {
       [];
   final Map<String, LiveBoost> byRoom = {};
 
-  static const prices = {10: 10000, 20: 18000, 30: 25000, 60: 45000};
-  static const _save = {10: 0, 20: 10, 30: 17, 60: 25};
+  /// D233: the owner's prices, stages 1–4 (they save nothing).
+  static const prices = {10: 200000, 20: 550000, 30: 1500000, 60: 3500000};
+  static const _stage = {10: 1, 20: 2, 30: 3, 60: 4};
 
   static const _user = UserSummary(
     id: 'user-me',
@@ -55,7 +57,8 @@ class FakeLiveBoostRepository implements LiveBoostRepository {
         LiveBoostOption(
           minutes: e.key,
           priceCoins: e.value,
-          savePercent: _save[e.key]!,
+          savePercent: 0,
+          stage: _stage[e.key]!,
         ),
     ],
     cards: _stock,
@@ -92,6 +95,7 @@ class FakeLiveBoostRepository implements LiveBoostRepository {
       host: _user,
       buyer: _user,
       minutes: minutes,
+      stage: _stage[minutes]!,
       source: source,
       coinsCharged: source == LiveBoostSource.coins ? prices[minutes]! : 0,
       state: waitMinutes > 0 ? LiveBoostState.waiting : LiveBoostState.running,

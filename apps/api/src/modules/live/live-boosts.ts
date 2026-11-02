@@ -74,21 +74,45 @@ export function replanWaiting(
   return out;
 }
 
-/** `LiveBoostOption`: a length, its price, and what it saves against the shortest one per minute. */
+/**
+ * v1.51-live (D233, CONVENTIONS §10.81): a rocket stage «صاروخ N» — the Nth configured length (shortest
+ * first) at its price: the admin panel's (`live_boost_prices`) when set, else the server config's.
+ */
+export interface BoostStage extends BoostPrice {
+  readonly stage: number;
+}
+
+/** The stages of the configured lengths with the panel's prices (`overrides`: stage → coins) applied. */
+export function boostStages(
+  config: readonly BoostPrice[],
+  overrides: ReadonlyMap<number, number> = new Map(),
+): BoostStage[] {
+  return config.map((p, i) => ({
+    stage: i + 1,
+    minutes: p.minutes,
+    coins: overrides.get(i + 1) ?? p.coins,
+  }));
+}
+
+/** `LiveBoostOption`: a stage, its length, its price, and what it saves against the shortest per minute. */
 export interface BoostOptionDto {
+  stage: number;
   minutes: number;
   priceCoins: number;
-  /** Rounded percent saved against the shortest length's price per minute (0 for it). */
+  /**
+   * Rounded percent saved against the shortest length's price per minute (0 for it, and 0 when a longer
+   * length costs as much or more per minute — the owner's rocket prices of D233 save nothing).
+   */
   savePercent: number;
 }
 
-/** The options of the configured prices (owner 15c: «وفّر 10/17/25%»). */
-export function boostOptions(prices: readonly BoostPrice[]): BoostOptionDto[] {
-  const base = prices[0];
-  return prices.map((p) => {
+/** The options of the stages (D154b owner 15c: «وفّر 10/17/25%» — shown only while it is true). */
+export function boostOptions(stages: readonly BoostStage[]): BoostOptionDto[] {
+  const base = stages[0];
+  return stages.map((p) => {
     const full = base ? (base.coins / base.minutes) * p.minutes : p.coins;
     const save = full > 0 ? Math.round(((full - p.coins) / full) * 100) : 0;
-    return { minutes: p.minutes, priceCoins: p.coins, savePercent: Math.max(0, save) };
+    return { stage: p.stage, minutes: p.minutes, priceCoins: p.coins, savePercent: Math.max(0, save) };
   });
 }
 

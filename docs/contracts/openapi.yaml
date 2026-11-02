@@ -184,6 +184,11 @@ info:
     live list), `buyLiveBoost` (the host, or a viewer for the host; coins or one of the caller's cards)
     and `listLiveRoomBoosts`; data message `boost` on topic `boost`; codes `BOOST_QUEUE_FULL`,
     `BOOST_CARD_INSUFFICIENT`, `BOOST_ROOM_BUSY` (CONVENTIONS §10.34).
+    **D233 (DRAFT v1.51-live)** turns the traffic card into a 4-stage rocket «صاروخ 1 · 2 · 3 · 4»:
+    `LiveBoostOption.stage`, `LiveBoost.stage`, `LiveBoostedRoom.stage` (1–4), the owner's prices in coins
+    (`LIVE_BOOST_PRICES` default 10 min 200 000 · 20 min 550 000 · 30 min 1 500 000 · 60 min 3 500 000;
+    exactly 4 lengths) and the panel's `getAdminLiveBoostPrices` / `updateAdminLiveBoostPrices`
+    (CONVENTIONS §10.81).
     **D154c (DRAFT v1.34-live)** adds newcomers «الجدد»: `listLiveNewcomers` (host and moderators:
     the people in the live whose account is younger than `NEWCOMER_DAYS`, 30) and
     `LiveChatAuthorBadges.newcomer` (CONVENTIONS §10.35).
@@ -2062,7 +2067,8 @@ paths:
       operationId: getLiveBoostOffers
       summary: "Traffic card lengths, prices, the caller's cards and the queue (D154b)"
       description: |
-        v1.33-live, CONVENTIONS §10.34. The configured lengths and prices (`LIVE_BOOST_PRICES`) with what
+        v1.33-live, CONVENTIONS §10.34 (v1.51-live, §10.81: the four rocket stages, each `stage` with its length and
+        its price in coins — the panel's when set). The configured lengths and prices (`LIVE_BOOST_PRICES`) with what
         each saves against the shortest per minute, the caller's traffic cards, the number of paid slots,
         when a new card would start now at the latest (`nextStartAt`), and — with `roomId` — that live's
         own card running or waiting. 404 for a `roomId` the caller may not see.
@@ -12362,6 +12368,46 @@ paths:
         '403': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  # ---- v1.51-live (DRAFT, D233, CONVENTIONS §10.81): «صواريخ الزيارات» prices from the panel ------------------------
+  /api/v1/admin/live-boost-prices:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminLiveBoostPrices
+      summary: "«صواريخ الزيارات»: the rocket stages, their lengths and prices in coins (catalog.view)"
+      description: "(v1.51-live, D233, §10.81) The four stages, shortest first: the length (server config, read-only), the price in force, the server config's price and whether the panel set it."
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: The stages.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminLiveBoostPrices' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    put:
+      tags: [admin-panel]
+      operationId: updateAdminLiveBoostPrices
+      summary: "Sets the four stages' prices (catalog.manage: OWNER; the code again; audited)"
+      description: "(v1.51-live, D233, §10.81) All four prices, stage 1 first, each 1 … 10^9 coins and strictly more than the stage before (else 400 `prices` `invalid_value`), with a reason and the authenticator code again (a wrong code answers like every re-authentication). Audited `live.boost_prices.update` with before and after. Only new purchases pay the new prices: a card already bought keeps `coinsCharged`, and its refund gives that back."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateAdminLiveBoostPricesRequest' }
+      responses:
+        '200':
+          description: The stages now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminLiveBoostPrices' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/admin/referral-settings:
     get:
       tags: [admin-panel]
@@ -15046,6 +15092,44 @@ components:
       properties:
         friends: { type: integer, minimum: 1, maximum: 1000 }
         cherries: { type: integer, format: int64, minimum: 1, maximum: 100000000 }
+    AdminLiveBoostStage:
+      type: object
+      description: "(v1.51-live, D233) One rocket stage in the panel."
+      additionalProperties: false
+      required: [stage, minutes, priceCoins, configCoins, custom, updatedAt]
+      properties:
+        stage: { type: integer, minimum: 1, maximum: 4 }
+        minutes: { type: integer, minimum: 1, maximum: 1440, description: The length (server config). }
+        priceCoins: { type: integer, format: int64, minimum: 1, maximum: 1000000000, description: What it costs now. }
+        configCoins: { type: integer, format: int64, minimum: 1, maximum: 1000000000, description: "`LIVE_BOOST_PRICES`' price, used while the panel set none." }
+        custom: { type: boolean, description: The panel set this price. }
+        updatedAt:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: 'null' }
+    AdminLiveBoostPrices:
+      type: object
+      additionalProperties: false
+      required: [stages]
+      properties:
+        stages:
+          type: array
+          minItems: 4
+          maxItems: 4
+          items: { $ref: '#/components/schemas/AdminLiveBoostStage' }
+    UpdateAdminLiveBoostPricesRequest:
+      type: object
+      additionalProperties: false
+      required: [prices, reason, totpCode]
+      properties:
+        prices:
+          type: array
+          minItems: 4
+          maxItems: 4
+          description: Stage 1 first; each more than the one before.
+          items: { type: integer, format: int64, minimum: 1, maximum: 1000000000 }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+        totpCode: { type: string, pattern: '^[0-9]{6}$' }
     AdminReferralSettings:
       type: object
       description: "(v1.74-social, D217) Defaults (to confirm with the owner): on; inviter 20 000 cherries per sign-up, friend 0; 5 % of the first recharge; milestones 1 / 5 / 15 friends → 50 000 / 300 000 / 1 000 000; 20 sign-up rewards per inviter in 24 h; held 24 h; a code may be entered for 7 days; the inviter's IP within 24 h counts as self-referral."
@@ -24180,13 +24264,14 @@ components:
     LiveBoost:
       type: object
       description: v1.33-live (D154b, CONVENTIONS §10.34). One traffic card used on a live.
-      required: [id, roomId, host, buyer, minutes, source, coinsCharged, state, startsAt, endsAt, createdAt]
+      required: [id, roomId, host, buyer, minutes, stage, source, coinsCharged, state, startsAt, endsAt, createdAt]
       properties:
         id: { type: string, format: uuid }
         roomId: { type: string, format: uuid }
         host: { $ref: '#/components/schemas/UserSummary' }
         buyer: { $ref: '#/components/schemas/UserSummary' }
         minutes: { type: integer, minimum: 1 }
+        stage: { type: integer, minimum: 1, maximum: 4, description: "v1.51-live (D233): the rocket stage bought (older cards: by their length)." }
         source: { type: string, enum: [COINS, CARD] }
         coinsCharged: { type: integer, format: int64, minimum: 0 }
         state: { $ref: '#/components/schemas/LiveBoostState' }
@@ -24201,11 +24286,12 @@ components:
         quantity: { type: integer, minimum: 1 }
     LiveBoostOption:
       type: object
-      required: [minutes, priceCoins, savePercent]
+      required: [stage, minutes, priceCoins, savePercent]
       properties:
+        stage: { type: integer, minimum: 1, maximum: 4, description: "v1.51-live (D233): «صاروخ N», shortest first." }
         minutes: { type: integer, minimum: 1 }
-        priceCoins: { type: integer, minimum: 1 }
-        savePercent: { type: integer, minimum: 0, maximum: 100, description: Rounded percent saved against the shortest length per minute. }
+        priceCoins: { type: integer, minimum: 1, description: "Coins only (v1.51-live: the panel's price, else `LIVE_BOOST_PRICES`')." }
+        savePercent: { type: integer, minimum: 0, maximum: 100, description: "Rounded percent saved against the shortest length per minute; 0 when it saves nothing (the D233 prices)." }
     LiveBoostOffers:
       type: object
       required: [slots, maxWaitMinutes, options, cards, nextStartAt, roomBoost]
@@ -24235,10 +24321,11 @@ components:
           items: { $ref: '#/components/schemas/LiveBoostCardStock' }
     LiveBoostedRoom:
       type: object
-      required: [room, endsAt]
+      required: [room, endsAt, stage]
       properties:
         room: { $ref: '#/components/schemas/LiveRoomSummary' }
         endsAt: { type: string, format: date-time, description: When its card ends. }
+        stage: { type: integer, minimum: 1, maximum: 4, description: "v1.51-live (D233): its rocket stage (the hub's rocket badge and animated frame)." }
     LiveSoundRequest:
       type: object
       description: v1.32-live (D154). A free sound of the soundboard.

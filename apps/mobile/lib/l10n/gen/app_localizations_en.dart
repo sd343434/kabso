@@ -6318,7 +6318,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveToolInfo => 'Info';
 
   @override
-  String get liveToolTrafficCard => 'Traffic card';
+  String get liveToolTrafficCard => 'Visit rockets';
 
   @override
   String get liveToolMagic => 'Filters';
@@ -7689,21 +7689,27 @@ class AppLocalizationsEn extends AppLocalizations {
       'Too many quips are waiting. Try again in a moment.';
 
   @override
-  String get liveBoostTitle => 'Traffic card';
+  String get liveBoostTitle => 'Visit rockets';
 
   @override
   String liveBoostHint(int slots) {
-    return 'Your live shows at the top of the live list, marked «Featured». Only $slots places; when they\'re full it waits its turn.';
+    return 'Pick a rocket: your live shows at the top of the live list, marked «Featured» with a moving frame. Only $slots places; when they\'re full it waits its turn.';
   }
 
   @override
   String liveBoostGiftHint(String name) {
-    return 'A gift for $name: their live shows at the top of the list, marked «Featured». The host earns no coins from it.';
+    return 'A gift for $name: a rocket lifts their live to the top of the list, marked «Featured». The host earns no coins from it.';
   }
 
   @override
   String liveBoostMinutes(int minutes) {
-    return '$minutes min';
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes minutes',
+      one: '$minutes minute',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -7726,7 +7732,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String liveBoostStartsIn(int minutes) {
-    return 'All places taken: starts within $minutes min at the latest.';
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes minutes',
+      one: '$minutes minute',
+    );
+    return 'All places taken: starts within $_temp0 at the latest.';
   }
 
   @override
@@ -7743,16 +7755,28 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get liveBoostConfirmTitle => 'Traffic card';
+  String get liveBoostConfirmTitle => 'Visit rockets';
 
   @override
   String liveBoostConfirmCoins(int minutes, String coins) {
-    return '$minutes minutes in the featured places for $coins coins?';
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes minutes',
+      one: '$minutes minute',
+    );
+    return '$_temp0 in the featured places for $coins coins?';
   }
 
   @override
   String liveBoostConfirmCard(int minutes) {
-    return 'Use a $minutes-minute card?';
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes minutes',
+      one: '$minutes minute',
+    );
+    return 'Use a card of $_temp0?';
   }
 
   @override
@@ -7760,31 +7784,54 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveBoostDoneNow =>
-      'The live is featured at the top of the list now.';
+      'Lift-off: the live is featured at the top of the list now.';
 
   @override
   String liveBoostDoneWaiting(int minutes) {
-    return 'Queued: starts within $minutes min at the latest.';
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes minutes',
+      one: '$minutes minute',
+    );
+    return 'Queued: starts within $_temp0 at the latest.';
   }
 
   @override
   String liveBoostRunning(int minutes) {
-    return 'Featured now — ends in $minutes min.';
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes minutes',
+      one: '$minutes minute',
+    );
+    return 'Featured now — ends in $_temp0.';
   }
 
   @override
   String liveBoostWaiting(int minutes) {
-    return 'A card is queued — starts within $minutes min at the latest.';
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes minutes',
+      one: '$minutes minute',
+    );
+    return 'A rocket is queued — starts within $_temp0 at the latest.';
   }
 
   @override
-  String get liveBoostLoadError => 'Couldn\'t load the traffic card';
+  String get liveBoostLoadError => 'Couldn\'t load the visit rockets';
 
   @override
   String get liveBoostFeatured => 'Featured';
 
   @override
-  String get liveBoostGiftAction => 'Traffic card';
+  String get liveBoostGiftAction => 'Visit rocket';
+
+  @override
+  String liveRocketStage(int stage) {
+    return 'Rocket $stage';
+  }
 
   @override
   String get errorBoostQueueFull =>
@@ -7795,7 +7842,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get errorBoostRoomBusy =>
-      'This live already has a traffic card running or queued.';
+      'This live already has a visit rocket running or queued.';
 
   @override
   String get liveNewcomerBadge => 'New 🌱';
@@ -8470,10 +8517,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get walletReasonDmGift => 'Gift in a chat';
 
   @override
-  String get walletReasonLiveBoost => 'Traffic card';
+  String get walletReasonLiveBoost => 'Visit rocket';
 
   @override
-  String get walletReasonLiveBoostRefund => 'Traffic card refund';
+  String get walletReasonLiveBoostRefund => 'Visit rocket refund';
 
   @override
   String get walletReasonOther => 'Balance change';
@@ -8652,7 +8699,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get creatorTrafficHint =>
-      'Buy a traffic card from Room Tools during your live.';
+      'Buy a visit rocket from Room Tools during your live.';
 
   @override
   String get creatorGoLive => 'Go Live';

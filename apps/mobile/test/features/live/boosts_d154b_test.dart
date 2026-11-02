@@ -91,13 +91,23 @@ LiveRoomSummary _room(String id, {LiveRoomMode mode = LiveRoomMode.solo}) =>
 
 void main() {
   for (final language in AppLanguage.values) {
-    testWidgets('the host buys a 20-minute card with coins after confirming '
-        '(${language.name})', (tester) async {
+    testWidgets('the host buys rocket 2 (20 minutes) with coins after '
+        'confirming (${language.name})', (tester) async {
       final repo = await _pump(tester, language: language);
       final ar = language == AppLanguage.ar;
-      expect(find.text(ar ? '20 د' : '20 min'), findsOneWidget);
-      expect(find.text('18,000'), findsOneWidget);
-      expect(find.text(ar ? 'وفّر 25%' : 'Save 25%'), findsOneWidget);
+      // D233: four rockets, the length in words, coins only, no «د», no
+      // saving (the owner's prices save nothing).
+      for (final n in [1, 2, 3, 4]) {
+        expect(find.text(ar ? 'صاروخ $n' : 'Rocket $n'), findsOneWidget);
+      }
+      expect(find.text(ar ? '10 دقائق' : '10 minutes'), findsOneWidget);
+      expect(find.text(ar ? '20 دقيقة' : '20 minutes'), findsOneWidget);
+      expect(find.text(ar ? '60 دقيقة' : '60 minutes'), findsOneWidget);
+      expect(find.text('550,000'), findsOneWidget);
+      expect(find.text('3,500,000'), findsOneWidget);
+      expect(find.textContaining(ar ? 'وفّر' : 'Save'), findsNothing);
+      expect(find.textContaining(RegExp(r'\d د(?!\S)')), findsNothing);
+      expect(find.textContaining(RegExp(r'دينار|JOD|\$')), findsNothing);
       expect(
         find.text(ar ? 'يبدأ فوراً.' : 'Starts right away.'),
         findsOneWidget,
@@ -105,13 +115,13 @@ void main() {
       await tester.tap(find.byKey(LiveBoostSheet.optionKey(20)));
       await tester.pumpAndSettle();
       expect(
-        find.text(ar ? 'اشترِ بـ 18,000 عملة' : 'Buy for 18,000 coins'),
+        find.text(ar ? 'اشترِ بـ 550,000 عملة' : 'Buy for 550,000 coins'),
         findsOneWidget,
       );
       await _confirm(tester);
       expect(repo.bought.single.minutes, 20);
       expect(repo.bought.single.source, LiveBoostSource.coins);
-      expect(repo.coins, 32000);
+      expect(repo.coins, 450000);
       expect(find.byKey(LiveBoostSheet.stateKey), findsOneWidget);
       expect(find.byKey(LiveBoostSheet.messageKey), findsOneWidget);
       // One card per live: buying again is off.
@@ -130,7 +140,7 @@ void main() {
       tester,
       repo: FakeLiveBoostRepository(waitMinutes: 15),
     );
-    expect(find.textContaining('within 15 min at the latest'), findsOne);
+    expect(find.textContaining('within 15 minutes at the latest'), findsOne);
     await _confirm(tester);
     expect(repo.bought, hasLength(1));
     expect(find.textContaining('Queued'), findsOneWidget);
@@ -147,7 +157,7 @@ void main() {
     expect(find.text('Use the card'), findsOneWidget);
     await _confirm(tester);
     expect(repo.bought.single.source, LiveBoostSource.card);
-    expect(repo.coins, 50000);
+    expect(repo.coins, 1000000);
     expect(repo.cards[10], 1);
   });
 
@@ -178,11 +188,19 @@ void main() {
                   rooms: rooms,
                 ),
               ),
-              pinned: [_room('c'), _room('z')],
+              pinned: [
+                LiveBoostedRoom(room: _room('c'), endsAt: DateTime(2026)),
+                LiveBoostedRoom(
+                  room: _room('z'),
+                  endsAt: DateTime(2026),
+                  stage: 3,
+                ),
+              ],
             ).requireValue
             as FeedItems<LiveRoomCardData>;
     expect(content.items.map((r) => r.roomId), ['c', 'z', 'a', 'b']);
     expect(content.items.map((r) => r.featured), [true, true, false, false]);
+    expect(content.items.map((r) => r.boostStage), [1, 3, 0, 0]);
   });
 
   testWidgets('a featured card shows «مميز» and says it', (tester) async {

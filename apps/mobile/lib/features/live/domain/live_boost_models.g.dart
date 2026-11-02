@@ -26,6 +26,7 @@ _LiveBoost _$LiveBoostFromJson(Map<String, dynamic> json) => _LiveBoost(
   startsAt: DateTime.parse(json['startsAt'] as String),
   endsAt: DateTime.parse(json['endsAt'] as String),
   createdAt: DateTime.parse(json['createdAt'] as String),
+  stage: (json['stage'] as num?)?.toInt() ?? 1,
 );
 
 Map<String, dynamic> _$LiveBoostToJson(_LiveBoost instance) =>
@@ -41,6 +42,7 @@ Map<String, dynamic> _$LiveBoostToJson(_LiveBoost instance) =>
       'startsAt': instance.startsAt.toIso8601String(),
       'endsAt': instance.endsAt.toIso8601String(),
       'createdAt': instance.createdAt.toIso8601String(),
+      'stage': instance.stage,
     };
 
 const _$LiveBoostSourceEnumMap = {
@@ -60,6 +62,7 @@ _LiveBoostOption _$LiveBoostOptionFromJson(Map<String, dynamic> json) =>
       minutes: (json['minutes'] as num).toInt(),
       priceCoins: (json['priceCoins'] as num).toInt(),
       savePercent: (json['savePercent'] as num).toInt(),
+      stage: (json['stage'] as num?)?.toInt() ?? 1,
     );
 
 Map<String, dynamic> _$LiveBoostOptionToJson(_LiveBoostOption instance) =>
@@ -67,6 +70,7 @@ Map<String, dynamic> _$LiveBoostOptionToJson(_LiveBoostOption instance) =>
       'minutes': instance.minutes,
       'priceCoins': instance.priceCoins,
       'savePercent': instance.savePercent,
+      'stage': instance.stage,
     };
 
 _LiveBoostCardStock _$LiveBoostCardStockFromJson(Map<String, dynamic> json) =>
@@ -127,10 +131,12 @@ _LiveBoostedRoom _$LiveBoostedRoomFromJson(Map<String, dynamic> json) =>
     _LiveBoostedRoom(
       room: LiveRoomSummary.fromJson(json['room'] as Map<String, dynamic>),
       endsAt: DateTime.parse(json['endsAt'] as String),
+      stage: (json['stage'] as num?)?.toInt() ?? 1,
     );
 
 Map<String, dynamic> _$LiveBoostedRoomToJson(_LiveBoostedRoom instance) =>
     <String, dynamic>{
       'room': instance.room,
       'endsAt': instance.endsAt.toIso8601String(),
+      'stage': instance.stage,
     };

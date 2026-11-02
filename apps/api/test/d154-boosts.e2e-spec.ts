@@ -130,6 +130,8 @@ describe('D154b traffic cards', { timeout: 180_000 }, () => {
         LIVE_HOSTING_ENABLED: 'true',
         LIVE_HEARTBEAT_STALE_SECONDS: '3600',
         LIVE_BOOST_SLOTS: '2',
+        // D233 changed the default prices (the rocket stages); this suite keeps D154b's own.
+        LIVE_BOOST_PRICES: '10:10000,20:18000,30:25000,60:45000',
         LIVE_BOOST_MAX_WAIT_MINUTES: '10',
       },
       [
@@ -152,10 +154,10 @@ describe('D154b traffic cards', { timeout: 180_000 }, () => {
       slots: 2,
       maxWaitMinutes: 10,
       options: [
-        { minutes: 10, priceCoins: 10_000, savePercent: 0 },
-        { minutes: 20, priceCoins: 18_000, savePercent: 10 },
-        { minutes: 30, priceCoins: 25_000, savePercent: 17 },
-        { minutes: 60, priceCoins: 45_000, savePercent: 25 },
+        { stage: 1, minutes: 10, priceCoins: 10_000, savePercent: 0 },
+        { stage: 2, minutes: 20, priceCoins: 18_000, savePercent: 10 },
+        { stage: 3, minutes: 30, priceCoins: 25_000, savePercent: 17 },
+        { stage: 4, minutes: 60, priceCoins: 45_000, savePercent: 25 },
       ],
       cards: [],
       roomBoost: null,
@@ -175,6 +177,7 @@ describe('D154b traffic cards', { timeout: 180_000 }, () => {
     expect(res.body.boost).toMatchObject({
       roomId,
       minutes: 20,
+      stage: 2,
       source: 'COINS',
       coinsCharged: 18_000,
       state: 'RUNNING',

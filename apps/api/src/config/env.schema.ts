@@ -167,8 +167,11 @@ const hostSharePercents = (fallback: string) =>
 
 /**
  * v1.33-live (D154b, CONVENTIONS §10.34): the traffic card prices, `minutes:coins` pairs, e.g.
- * `10:10000,20:18000` → ascending by minutes. 1–8 lengths of 1–1440 minutes, prices 1 … 10^9 coins.
+ * `10:10000,20:18000` → ascending by minutes, lengths of 1–1440 minutes, prices 1 … 10^9 coins.
+ * v1.51-live (D233, §10.81): exactly 4 lengths — the rocket stages 1–4, shortest first (was 1–8).
  */
+/** v1.51-live (D233): the rocket stages «صاروخ 1 · 2 · 3 · 4». */
+export const BOOST_STAGES = 4;
 export interface BoostPrice {
   readonly minutes: number;
   readonly coins: number;
@@ -200,8 +203,8 @@ const boostPrices = (fallback: string) =>
         }
         out.push({ minutes, coins });
       }
-      if (out.length > 8) {
-        ctx.addIssue({ code: 'custom', message: 'at most 8 lengths' });
+      if (out.length !== BOOST_STAGES) {
+        ctx.addIssue({ code: 'custom', message: `exactly ${BOOST_STAGES} lengths (the rocket stages)` });
         return z.NEVER;
       }
       return out.sort((a, b) => a.minutes - b.minutes);
@@ -732,11 +735,13 @@ export const envSchema = z
      */
     QUIP_QUEUE_MAX_WAIT_SECONDS: intSetting(60, 5, 600),
     /**
-     * v1.33-live (D154b, CONVENTIONS §10.34): traffic cards — the prices by length (owner 15c: 10 min
-     * 10 000, 20 min 18 000, 30 min 25 000, 60 min 45 000 coins), the paid slots at the top of the live
-     * list (owner: 3), and the longest a new card may wait for its slot (else 409 BOOST_QUEUE_FULL).
+     * v1.33-live (D154b, CONVENTIONS §10.34): traffic cards — the prices by length, the paid slots at the
+     * top of the live list (owner: 3), and the longest a new card may wait for its slot (else 409
+     * BOOST_QUEUE_FULL). v1.51-live (D233, §10.81): the 4 lengths are the rocket stages 1–4 and the owner's
+     * new prices are 10 min 200 000 · 20 min 550 000 · 30 min 1 500 000 · 60 min 3 500 000 coins (was 10 000 /
+     * 18 000 / 25 000 / 45 000); a price set in the admin panel (`live_boost_prices`) wins over this one.
      */
-    LIVE_BOOST_PRICES: boostPrices('10:10000,20:18000,30:25000,60:45000'),
+    LIVE_BOOST_PRICES: boostPrices('10:200000,20:550000,30:1500000,60:3500000'),
     LIVE_BOOST_SLOTS: intSetting(3, 1, 20),
     LIVE_BOOST_MAX_WAIT_MINUTES: intSetting(180, 10, 1440),
     /**

@@ -1,6 +1,8 @@
 // Wire models of traffic cards «بطاقة الزيارات» (docs/contracts/openapi.yaml
 // v1.33-live DRAFT: `getLiveBoostOffers`, `listActiveLiveBoosts`,
 // `buyLiveBoost`, `listLiveRoomBoosts`; CONVENTIONS §10.34, D154b).
+// v1.51-live (D233, §10.81): each card is a rocket stage 1–4 (`stage`; an
+// older server without it reads as stage 1).
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
@@ -51,18 +53,21 @@ abstract class LiveBoost with _$LiveBoost {
     required DateTime startsAt,
     required DateTime endsAt,
     required DateTime createdAt,
+    @Default(1) int stage,
   }) = _LiveBoost;
 
   factory fromJson(Map<String, dynamic> json) => _$LiveBoostFromJson(json);
 }
 
-/// `LiveBoostOption`: a length on sale, its price and what it saves.
+/// `LiveBoostOption`: a rocket stage on sale — its length, its price in
+/// coins and what it saves (0: nothing, shown only while true).
 @freezed
 abstract class LiveBoostOption with _$LiveBoostOption {
   const factory({
     required int minutes,
     required int priceCoins,
     required int savePercent,
+    @Default(1) int stage,
   }) = _LiveBoostOption;
 
   factory fromJson(Map<String, dynamic> json) =>
@@ -108,11 +113,15 @@ abstract class LiveBoostResult with _$LiveBoostResult {
       _$LiveBoostResultFromJson(json);
 }
 
-/// `LiveBoostedRoom`: a live in a paid «مميز» slot now.
+/// `LiveBoostedRoom`: a live in a paid «مميز» slot now, with its rocket
+/// [stage] (D233: the hub's rocket badge and animated frame).
 @freezed
 abstract class LiveBoostedRoom with _$LiveBoostedRoom {
-  const factory({required LiveRoomSummary room, required DateTime endsAt}) =
-      _LiveBoostedRoom;
+  const factory({
+    required LiveRoomSummary room,
+    required DateTime endsAt,
+    @Default(1) int stage,
+  }) = _LiveBoostedRoom;
 
   factory fromJson(Map<String, dynamic> json) =>
       _$LiveBoostedRoomFromJson(json);

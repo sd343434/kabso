@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { envSchema } from '../../config/env.schema.js';
-import { boostOptions, placeBoost, replanWaiting, slotsFreeAt, type PlannedBoost } from './live-boosts.js';
+import {
+  boostOptions,
+  boostStages,
+  placeBoost,
+  replanWaiting,
+  slotsFreeAt,
+  type PlannedBoost,
+} from './live-boosts.js';
 
 const T0 = new Date('2026-10-28T12:00:00.000Z');
 const at = (min: number) => new Date(T0.getTime() + min * 60_000);
@@ -12,25 +19,55 @@ const b = (id: string, slot: number, from: number, to: number): PlannedBoost => 
 });
 
 describe('traffic cards (v1.33-live, D154b)', () => {
-  it("the owner's prices save 10 / 17 / 25 % against the 10-minute card", () => {
+  it("D233: the owner's rocket prices are 4 stages of 10 / 20 / 30 / 60 minutes, and they save nothing", () => {
     const prices = envSchema.shape.LIVE_BOOST_PRICES.parse(undefined);
     expect(prices).toEqual([
-      { minutes: 10, coins: 10_000 },
-      { minutes: 20, coins: 18_000 },
-      { minutes: 30, coins: 25_000 },
-      { minutes: 60, coins: 45_000 },
+      { minutes: 10, coins: 200_000 },
+      { minutes: 20, coins: 550_000 },
+      { minutes: 30, coins: 1_500_000 },
+      { minutes: 60, coins: 3_500_000 },
     ]);
-    expect(boostOptions(prices)).toEqual([
-      { minutes: 10, priceCoins: 10_000, savePercent: 0 },
-      { minutes: 20, priceCoins: 18_000, savePercent: 10 },
-      { minutes: 30, priceCoins: 25_000, savePercent: 17 },
-      { minutes: 60, priceCoins: 45_000, savePercent: 25 },
+    // Per minute 20 000 / 27 500 / 50 000 / 58 333: a longer rocket is dearer per minute, so no «وفّر».
+    expect(boostOptions(boostStages(prices))).toEqual([
+      { stage: 1, minutes: 10, priceCoins: 200_000, savePercent: 0 },
+      { stage: 2, minutes: 20, priceCoins: 550_000, savePercent: 0 },
+      { stage: 3, minutes: 30, priceCoins: 1_500_000, savePercent: 0 },
+      { stage: 4, minutes: 60, priceCoins: 3_500_000, savePercent: 0 },
     ]);
-    expect(envSchema.shape.LIVE_BOOST_PRICES.parse(' 60:1, 5:2 ')).toEqual([
-      { minutes: 5, coins: 2 },
-      { minutes: 60, coins: 1 },
+  });
+
+  it('D154b savings stay right while they are true (the old prices: 10 / 17 / 25 %)', () => {
+    const old = envSchema.shape.LIVE_BOOST_PRICES.parse('10:10000,20:18000,30:25000,60:45000');
+    expect(boostOptions(boostStages(old)).map((o) => o.savePercent)).toEqual([0, 10, 17, 25]);
+  });
+
+  it("the panel's price of a stage wins over the config's; the length is always the config's", () => {
+    const prices = envSchema.shape.LIVE_BOOST_PRICES.parse(undefined);
+    expect(boostStages(prices, new Map([[3, 1_200_000]]))).toEqual([
+      { stage: 1, minutes: 10, coins: 200_000 },
+      { stage: 2, minutes: 20, coins: 550_000 },
+      { stage: 3, minutes: 30, coins: 1_200_000 },
+      { stage: 4, minutes: 60, coins: 3_500_000 },
     ]);
-    for (const bad of ['10:0', '0:5', '10:5,10:6', 'ten:5', '1441:5', '']) {
+  });
+
+  it('the config holds exactly 4 lengths (the stages), sorted, distinct, in range', () => {
+    expect(envSchema.shape.LIVE_BOOST_PRICES.parse(' 60:4, 5:1,20:2 ,30:3')).toEqual([
+      { minutes: 5, coins: 1 },
+      { minutes: 20, coins: 2 },
+      { minutes: 30, coins: 3 },
+      { minutes: 60, coins: 4 },
+    ]);
+    for (const bad of [
+      '10:0,20:1,30:1,60:1',
+      '0:5,20:1,30:1,60:1',
+      '10:5,10:6,30:1,60:1',
+      'ten:5,20:1,30:1,60:1',
+      '1441:5,20:1,30:1,60:1',
+      '10:1,20:2,30:3',
+      '10:1,20:2,30:3,60:4,90:5',
+      '',
+    ]) {
       expect(envSchema.shape.LIVE_BOOST_PRICES.safeParse(bad).success, bad).toBe(false);
     }
   });

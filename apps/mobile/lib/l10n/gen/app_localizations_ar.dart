@@ -6342,7 +6342,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveToolInfo => 'المعلومات';
 
   @override
-  String get liveToolTrafficCard => 'بطاقة الزيارات';
+  String get liveToolTrafficCard => 'صواريخ الزيارات';
 
   @override
   String get liveToolMagic => 'الفلاتر';
@@ -7730,21 +7730,29 @@ class AppLocalizationsAr extends AppLocalizations {
   String get errorQuipQueueFull => 'إفيهات كثيرة بانتظار دورها، جرّب بعد قليل.';
 
   @override
-  String get liveBoostTitle => 'بطاقة الزيارات';
+  String get liveBoostTitle => 'صواريخ الزيارات';
 
   @override
   String liveBoostHint(int slots) {
-    return 'يظهر بثك في أعلى قائمة البث مع علامة «مميز». $slots أماكن فقط؛ إن امتلأت ينتظر دوره.';
+    return 'اختر صاروخاً: يظهر بثك في أعلى قائمة البث مع علامة «مميز» وإطار متحرك. $slots أماكن فقط؛ إن امتلأت ينتظر دوره.';
   }
 
   @override
   String liveBoostGiftHint(String name) {
-    return 'هدية لـ $name: يظهر بثه في أعلى القائمة مع علامة «مميز». المضيف لا يربح منها عملات.';
+    return 'هدية لـ $name: صاروخ يرفع بثه إلى أعلى القائمة مع علامة «مميز». المضيف لا يربح منها عملات.';
   }
 
   @override
   String liveBoostMinutes(int minutes) {
-    return '$minutes د';
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes دقيقة',
+      few: '$minutes دقائق',
+      two: 'دقيقتان',
+      one: 'دقيقة واحدة',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -7767,7 +7775,15 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String liveBoostStartsIn(int minutes) {
-    return 'الأماكن ممتلئة: يبدأ خلال $minutes د على الأكثر.';
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes دقيقة',
+      few: '$minutes دقائق',
+      two: 'دقيقتين',
+      one: 'دقيقة واحدة',
+    );
+    return 'الأماكن ممتلئة: يبدأ خلال $_temp0 على الأكثر.';
   }
 
   @override
@@ -7784,47 +7800,93 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
-  String get liveBoostConfirmTitle => 'بطاقة الزيارات';
+  String get liveBoostConfirmTitle => 'صواريخ الزيارات';
 
   @override
   String liveBoostConfirmCoins(int minutes, String coins) {
-    return '$minutes دقيقة في الأماكن المميزة مقابل $coins عملة؟';
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes دقيقة',
+      few: '$minutes دقائق',
+      two: 'دقيقتان',
+      one: 'دقيقة واحدة',
+    );
+    return '$_temp0 في الأماكن المميزة مقابل $coins عملة؟';
   }
 
   @override
   String liveBoostConfirmCard(int minutes) {
-    return 'استخدام بطاقة $minutes دقيقة؟';
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes دقيقة',
+      few: '$minutes دقائق',
+      two: 'دقيقتان',
+      one: 'دقيقة واحدة',
+    );
+    return 'استخدام بطاقة $_temp0؟';
   }
 
   @override
   String get liveBoostConfirmAction => 'تأكيد';
 
   @override
-  String get liveBoostDoneNow => 'البث مميز الآن في أعلى القائمة.';
+  String get liveBoostDoneNow =>
+      'انطلق الصاروخ: البث مميز الآن في أعلى القائمة.';
 
   @override
   String liveBoostDoneWaiting(int minutes) {
-    return 'في الدور: يبدأ خلال $minutes د على الأكثر.';
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes دقيقة',
+      few: '$minutes دقائق',
+      two: 'دقيقتين',
+      one: 'دقيقة واحدة',
+    );
+    return 'في الدور: يبدأ خلال $_temp0 على الأكثر.';
   }
 
   @override
   String liveBoostRunning(int minutes) {
-    return 'مميز الآن — ينتهي خلال $minutes د.';
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes دقيقة',
+      few: '$minutes دقائق',
+      two: 'دقيقتين',
+      one: 'دقيقة واحدة',
+    );
+    return 'مميز الآن — ينتهي خلال $_temp0.';
   }
 
   @override
   String liveBoostWaiting(int minutes) {
-    return 'بطاقة في الدور — تبدأ خلال $minutes د على الأكثر.';
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes دقيقة',
+      few: '$minutes دقائق',
+      two: 'دقيقتين',
+      one: 'دقيقة واحدة',
+    );
+    return 'صاروخ في الدور — يبدأ خلال $_temp0 على الأكثر.';
   }
 
   @override
-  String get liveBoostLoadError => 'تعذّر تحميل بطاقة الزيارات';
+  String get liveBoostLoadError => 'تعذّر تحميل صواريخ الزيارات';
 
   @override
   String get liveBoostFeatured => 'مميز';
 
   @override
-  String get liveBoostGiftAction => 'بطاقة زيارات';
+  String get liveBoostGiftAction => 'صاروخ زيارات';
+
+  @override
+  String liveRocketStage(int stage) {
+    return 'صاروخ $stage';
+  }
 
   @override
   String get errorBoostQueueFull =>
@@ -7834,7 +7896,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get errorBoostCardInsufficient => 'ليس لديك بطاقة بهذه المدة.';
 
   @override
-  String get errorBoostRoomBusy => 'لهذا البث بطاقة زيارات تعمل أو في الدور.';
+  String get errorBoostRoomBusy => 'لهذا البث صاروخ زيارات يعمل أو في الدور.';
 
   @override
   String get liveNewcomerBadge => 'جديد 🌱';
@@ -8499,10 +8561,10 @@ class AppLocalizationsAr extends AppLocalizations {
   String get walletReasonDmGift => 'هدية في محادثة';
 
   @override
-  String get walletReasonLiveBoost => 'بطاقة زيارات';
+  String get walletReasonLiveBoost => 'صاروخ زيارات';
 
   @override
-  String get walletReasonLiveBoostRefund => 'استرداد بطاقة زيارات';
+  String get walletReasonLiveBoostRefund => 'استرداد صاروخ زيارات';
 
   @override
   String get walletReasonOther => 'تغيير في الرصيد';
@@ -8678,7 +8740,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get creatorTrafficHint =>
-      'تشتري بطاقة الزيارات من «أدوات الغرفة» أثناء بثك.';
+      'تشتري صاروخ الزيارات من «أدوات الغرفة» أثناء بثك.';
 
   @override
   String get creatorGoLive => 'ابدأ البث';

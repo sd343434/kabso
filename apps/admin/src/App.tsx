@@ -6,6 +6,7 @@ import { Team } from './pages/Team';
 import { Cards, Report, AgentTopups } from './pages/Finance';
 import { Gifts, Items, Promo } from './pages/Catalog';
 import { GiftCategories } from './pages/GiftCategories';
+import { LiveBoostPrices } from './pages/LiveBoostPrices';
 import { Hosts, Lives } from './pages/Lives';
 import { HostApplicationDetail, HostApplications } from './pages/HostApplications';
 import { ReferralDetail, Referrals, ReferralSettingsPage } from './pages/Referrals';
@@ -211,6 +212,9 @@ export function App() {
           break;
         case 'promo':
           page = <Promo />;
+          break;
+        case 'boostPrices':
+          page = <LiveBoostPrices />;
           break;
         case 'report':
           page = <Report />;
