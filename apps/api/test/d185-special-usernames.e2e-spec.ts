@@ -271,7 +271,9 @@ describe('D185 special usernames', { timeout: 300_000 }, () => {
   it('a gift with an end gives the base back, holds the name for the grace period, then releases it', async () => {
     const u = await signup();
     const other = await signup();
-    const name = `star${u.id.slice(-6).replace(/-/g, '')}`;
+    // A digit is always present: a regular username needs a letter and a digit, and the id's
+    // last 6 hex characters can all be letters (CI 2026-11-02 failed on such an id).
+    const name = `star7${u.id.slice(-6).replace(/-/g, '')}`;
     const t0 = new Date();
     await gift(u, name, new Date(t0.getTime() + DAY), t0);
     expect(await shown(u.id)).toBe(name);
@@ -300,7 +302,7 @@ describe('D185 special usernames', { timeout: 300_000 }, () => {
   it('names are unique both ways and coin + digits is reserved', async () => {
     const a = await signup();
     const c = await signup();
-    const special = `gem${a.id.slice(-6).replace(/-/g, '')}`;
+    const special = `gem7${a.id.slice(-6).replace(/-/g, '')}`; // always has a digit (see above)
     await gift(a, special, null);
 
     // A's base username and special username are both taken for everyone else.
