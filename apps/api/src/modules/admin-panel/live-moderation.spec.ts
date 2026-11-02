@@ -49,14 +49,17 @@ describe('D250 live moderation', () => {
       { field: 'until', issue: '2027-01-01T00:00:00.000Z' },
       { field: 'reason', issue: 'why' },
     ]);
-    expect(deviceBannedError({ id: 'a', reason: 'why', endsAt: null }).details[0]).toEqual({
+    expect(deviceBannedError({ id: 'a', reason: 'why', endsAt: null }).details?.[0]).toEqual({
       field: 'until',
       issue: 'permanent',
     });
   });
 
-  it('the four capabilities are OWNER and MODERATION only', () => {
-    for (const cap of ['lives.watch', 'lives.reports', 'lives.moderate', 'devices.ban'] as const) {
+  it('SUPPORT watches and reads the reports (D250b); only OWNER and MODERATION act', () => {
+    for (const cap of ['lives.watch', 'lives.reports'] as const) {
+      expect(CAPABILITIES[cap]).toEqual(['OWNER', 'MODERATION', 'SUPPORT']);
+    }
+    for (const cap of ['lives.moderate', 'devices.ban'] as const) {
       expect(CAPABILITIES[cap]).toEqual(['OWNER', 'MODERATION']);
     }
   });

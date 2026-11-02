@@ -66,8 +66,8 @@ export const CAPABILITY_ROLES: Partial<Record<Capability, readonly PanelRole[]>>
   'referrals.settings': ['OWNER', 'FINANCE'],
   'pk_dares.view': ['OWNER', 'MODERATION', 'SUPPORT'],
   'pk_dares.edit': ['OWNER', 'MODERATION'],
-  'lives.watch': ['OWNER', 'MODERATION'],
-  'lives.reports': ['OWNER', 'MODERATION'],
+  'lives.watch': ['OWNER', 'MODERATION', 'SUPPORT'],
+  'lives.reports': ['OWNER', 'MODERATION', 'SUPPORT'],
   'lives.moderate': ['OWNER', 'MODERATION'],
   'devices.ban': ['OWNER', 'MODERATION'],
   // v1.78-social (D223).

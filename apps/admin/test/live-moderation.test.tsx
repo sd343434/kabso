@@ -89,12 +89,33 @@ describe('D250 previews are capped', () => {
     );
   });
 
-  it('without lives.watch (SUPPORT): no preview and no play button — the cover only', () => {
+  it('without lives.watch (FINANCE): no preview and no play button — the cover only', () => {
     const pool = new PreviewPool();
     pool.request(live.id);
-    const out = html('ar', <LiveCard live={live} pool={pool} onOpen={() => undefined} />, roleCan('SUPPORT'));
+    const out = html('ar', <LiveCard live={live} pool={pool} onOpen={() => undefined} />, roleCan('FINANCE'));
     expect(out).not.toContain('<video');
     expect(out).not.toContain('play-btn');
+  });
+
+  it('D250b: SUPPORT watches (the preview plays) and sees the reports badge, but no action anywhere', () => {
+    const pool = new PreviewPool();
+    pool.request(live.id);
+    const support = roleCan('SUPPORT');
+    expect(support('lives.watch')).toBe(true);
+    expect(support('lives.reports')).toBe(true);
+    expect(support('lives.moderate')).toBe(false);
+    expect(support('devices.ban')).toBe(false);
+    const out = html(
+      'ar',
+      <LiveCard live={{ ...live, openReports: 2 }} pool={pool} onOpen={() => undefined} onAction={() => undefined} />,
+      support,
+    );
+    expect(out).toMatch(/<video[^>]*class="live-preview-video"/);
+    expect(out).toContain('data-open-reports="2"');
+    expect(out).not.toContain('data-action=');
+    // The watch view's and the card menu's actions come from liveActions: none for SUPPORT, on air or not.
+    expect(liveActions(support as never, true, 2)).toEqual([]);
+    expect(liveActions(support as never, false, 2)).toEqual([]);
   });
 });
 
@@ -227,13 +248,15 @@ describe('D250 action dialogs', () => {
     expect(filled).toMatch(/<button type="submit" class="btn primary">/);
   });
 
-  it('the actions follow the capabilities (OWNER, MODERATION: all; SUPPORT, FINANCE: none)', () => {
+  it('the actions follow the capabilities (OWNER, MODERATION: all; SUPPORT — watches only, D250b — and FINANCE: none)', () => {
     for (const role of ['OWNER', 'MODERATION'] as const) {
       expect(liveActions(roleCan(role) as never, true, 2)).toEqual(['END', 'BAN', 'DEVICE_BAN', 'DISMISS']);
       expect(liveActions(roleCan(role) as never, true, 0)).toEqual(['END', 'BAN', 'DEVICE_BAN']);
       expect(liveActions(roleCan(role) as never, false, 1)).toEqual(['DISMISS']);
     }
     for (const role of ['SUPPORT', 'FINANCE'] as const) expect(liveActions(roleCan(role) as never, true, 2)).toEqual([]);
+    expect(CAPABILITY_ROLES['lives.watch']).toEqual(['OWNER', 'MODERATION', 'SUPPORT']);
+    expect(CAPABILITY_ROLES['lives.moderate']).toEqual(['OWNER', 'MODERATION']);
   });
 });
 

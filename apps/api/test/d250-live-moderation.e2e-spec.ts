@@ -5,7 +5,8 @@
  * against PostgreSQL + Redis with the in-memory media server and a fake push sender:
  *
  *  - the hidden staff observer token (capabilities, hidden + subscribe-only, never a viewer through the webhook or the
- *    reconciliation, audited, refused to SUPPORT / FINANCE, both rooms of a PK);
+ *    reconciliation, audited, refused to FINANCE, both rooms of a PK); D250b: SUPPORT watches and reads the reports
+ *    but every action and the device bans answer 403;
  *  - the reported lives (LIVE_ROOM reports with a note, deduped per reporter; the host's USER reports made during the
  *    live), the counts, the per-live reports with the reporter and the chat before;
  *  - each action with its reason: END, NO_LIVE (go-live refused with the reason until the end, then allowed), SUSPEND
@@ -275,13 +276,17 @@ describe('D250 live moderation from the panel', { timeout: 900_000 }, () => {
     expect((await hook('participant_joined', roomId, viewer.id)).status).toBe(200);
     expect((await ctx.prisma.liveRoom.findUniqueOrThrow({ where: { id: roomId } })).viewerCount).toBe(1);
 
-    for (const a of [support, finance]) {
-      expectCode(
-        await apost(a, `/admin/lives/${roomId}/watch-token`, { purpose: 'WATCH' }),
-        403,
-        'AUTH_FORBIDDEN',
-      );
-    }
+    expectCode(
+      await apost(finance, `/admin/lives/${roomId}/watch-token`, { purpose: 'WATCH' }),
+      403,
+      'AUTH_FORBIDDEN',
+    );
+    // D250b (owner): SUPPORT may watch.
+    const bySupport = await apost(support, `/admin/lives/${roomId}/watch-token`, { purpose: 'WATCH' });
+    expect(bySupport.status, JSON.stringify(bySupport.body)).toBe(200);
+    expectContract(bySupport, 'createAdminLiveWatchToken');
+    expect(bySupport.body.main.identity).toMatch(new RegExp(`^staff:${support.id}:`));
+    expect((await audits('admin.live.watch', roomId)).map((r) => r.actorUserId)).toEqual([support.id]);
     const issuedBefore = media.issued.length;
     const res = await apost(moderator, `/admin/lives/${roomId}/watch-token`, { purpose: 'PREVIEW' });
     expect(res.status, JSON.stringify(res.body)).toBe(200);
@@ -313,9 +318,8 @@ describe('D250 live moderation from the panel', { timeout: 900_000 }, () => {
     expect((await hook('participant_left', roomId, identity)).status).toBe(200);
     expect((await ctx.prisma.liveRoom.findUniqueOrThrow({ where: { id: roomId } })).viewerCount).toBe(1);
 
-    const rows = await audits('admin.live.watch', roomId);
+    const rows = (await audits('admin.live.watch', roomId)).filter((r) => r.actorUserId === moderator.id);
     expect(rows).toHaveLength(1);
-    expect(rows[0]!.actorUserId).toBe(moderator.id);
     expect(rows[0]!.metadata).toMatchObject({ purpose: 'PREVIEW', identity, hostUserId: h.id, via: 'panel' });
 
     // A PK: the watch view also gets the other room.
@@ -340,10 +344,8 @@ describe('D250 live moderation from the panel', { timeout: 900_000 }, () => {
     );
     expect((await ctx.prisma.liveRoom.findUniqueOrThrow({ where: { id: otherRoom } })).viewerCount).toBe(0);
     const watchRows = await audits('admin.live.watch', roomId);
-    expect(watchRows).toHaveLength(2);
-    expect(
-      watchRows.find((r) => (r.metadata as { purpose: string }).purpose === 'WATCH')!.metadata,
-    ).toMatchObject({
+    expect(watchRows).toHaveLength(3); // SUPPORT's, MODERATION's preview, OWNER's watch
+    expect(watchRows.find((r) => r.actorUserId === owner.id)!.metadata).toMatchObject({
       purpose: 'WATCH',
       opponentRoomId: otherRoom,
     });
@@ -409,8 +411,16 @@ describe('D250 live moderation from the panel', { timeout: 900_000 }, () => {
     expect(summary.status).toBe(200);
     expectContract(summary, 'getAdminLiveReportsSummary');
     expect(summary.body).toEqual({ rooms: before.rooms + 1, reports: before.reports + 2 });
-    for (const a of [support, finance])
-      expectCode(await aget(a, '/admin/live-reports/summary'), 403, 'AUTH_FORBIDDEN');
+    expectCode(await aget(finance, '/admin/live-reports/summary'), 403, 'AUTH_FORBIDDEN');
+    // D250b: SUPPORT reads the reported lives (the red dots, the list, a live's reports) but cannot act.
+    expect((await aget(support, '/admin/live-reports/summary')).body).toEqual(summary.body);
+    const supportList = await aget(support, '/admin/lives?reported=true&pageSize=100');
+    expect(supportList.status).toBe(200);
+    expect((supportList.body.data as { id: string }[]).map((r) => r.id)).toContain(roomId);
+    const supportReports = await aget(support, `/admin/lives/${roomId}/reports`);
+    expect(supportReports.status).toBe(200);
+    expectContract(supportReports, 'listAdminLiveReports');
+    expect(supportReports.body.open).toBe(2);
 
     const list = await aget(moderator, '/admin/lives?reported=true&pageSize=100');
     expect(list.status, JSON.stringify(list.body)).toBe(200);
@@ -456,7 +466,8 @@ describe('D250 live moderation from the panel', { timeout: 900_000 }, () => {
       'line one',
       'bad words here',
     ]);
-    expectCode(await aget(support, `/admin/lives/${roomId}/chat`), 403, 'AUTH_FORBIDDEN');
+    expectCode(await aget(finance, `/admin/lives/${roomId}/chat`), 403, 'AUTH_FORBIDDEN');
+    expect((await aget(support, `/admin/lives/${roomId}/chat`)).status).toBe(200);
 
     // «تمت المراجعة — لا مخالفة»: the reason is required; the reports close as DISMISSED; no notification to the host.
     expectCode(

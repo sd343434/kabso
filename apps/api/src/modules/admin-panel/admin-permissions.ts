@@ -141,9 +141,10 @@ export const CAPABILITIES = {
   'pk_dares.edit': ['OWNER', 'MODERATION'],
   // ---- v1.60-live (D250, CONVENTIONS §10.91): live moderation «مراقبة البث» ---------------------------------------------
   /** Watch a live as a hidden observer (muted card previews and the watch view); every token audited. */
-  'lives.watch': ['OWNER', 'MODERATION'],
+  'lives.watch': ['OWNER', 'MODERATION', 'SUPPORT'],
   /** The reported lives «لايفات مبلّغ عنها» (counts, the red dots), a live's reports with the reporter, its chat. */
-  'lives.reports': ['OWNER', 'MODERATION'],
+  'lives.reports': ['OWNER', 'MODERATION', 'SUPPORT'],
+  /** D250b (owner 2026-11-02): SUPPORT watches and reads the reports (above) but takes no action (below). */
   /** End a live, ban its host from going live / suspend the account for a while, dismiss its reports — with a reason. */
   'lives.moderate': ['OWNER', 'MODERATION'],
   /** Ban the host's devices «حظر جهاز» (the authenticator code again), the device-ban list and lifting a ban. */

@@ -210,7 +210,7 @@ info:
     `listAdminLiveChat`, `listAdminLiveModerations`), and the team's actions with a reason the host is told
     (`moderateAdminLive`: END / NO_LIVE «منع من البث» / SUSPEND «تعليق الحساب» / DEVICE_BAN «حظر جهاز» — the code
     again; `dismissAdminLiveReports`); the device bans (`listAdminDeviceBans`, `liftAdminDeviceBan`). Capabilities
-    `lives.watch`, `lives.reports`, `lives.moderate`, `devices.ban` (OWNER, MODERATION). `DeviceInfo.deviceKey` is now
+    `lives.watch`, `lives.reports` (OWNER, MODERATION, SUPPORT — D250b), `lives.moderate`, `devices.ban` (OWNER, MODERATION). `DeviceInfo.deviceKey` is now
     also read by `login` (kept with the session); code `DEVICE_BANNED` (403) on `register`, `registerVerify`, `login`
     and `startLiveRoom`; `ACCOUNT_RESTRICTED` gains the reason; notification `LIVE_MODERATED` (target
     `LIVE_MODERATION`) (CONVENTIONS §10.91).
@@ -12811,7 +12811,7 @@ paths:
     post:
       tags: [admin-panel]
       operationId: createAdminLiveWatchToken
-      summary: "A hidden observer's media token for a live (lives.watch: OWNER, MODERATION; audited)"
+      summary: "A hidden observer's media token for a live (lives.watch: OWNER, MODERATION, SUPPORT; audited)"
       description: |
         (v1.60-live, D250, §10.91.1) Subscribe only — no publishing, no data — with `hidden` set, so neither the host
         nor the viewers see the observer; identity `staff:<adminId>:<nonce>`, never recorded or counted as a viewer.

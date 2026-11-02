@@ -2453,7 +2453,7 @@ this have no device and are never matched by a device ban). Checked on a fresh d
   it only at sign-up, so it is harmless, but the device ban only works with this API). Without the new app, sessions
   have no device: a device ban then blocks sign-up only (D223's sign-up path already sends the key) and ends the
   sessions it can see.
-- **Who can.** `lives.watch`, `lives.reports`, `lives.moderate`, `devices.ban`: OWNER and MODERATION. A device ban asks
+- **Who can.** `lives.watch`, `lives.reports`: OWNER, MODERATION and SUPPORT (owner answer D250b: SUPPORT watches and reads, no action); `lives.moderate`, `devices.ban`: OWNER and MODERATION. A device ban asks
   for the authenticator code again; bans and suspensions end by themselves (nothing to schedule).
 - Not verified on a server or a phone (the CSP in a real browser against the production LiveKit, the push with the
   reason on a device, a device ban against a real ANDROID_ID).
