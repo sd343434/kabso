@@ -240,13 +240,15 @@ class _LivePkStageState extends State<LivePkStage> {
             endsAt: boost.endsAt.subtract(skew),
             label: pkBoosterName(l10n, boost.kind),
           );
-    ImageProvider? avatar(PkSide side) => switch (side.host.avatarUrl) {
-      final String url => NetworkImage(url),
-      null => null,
-    };
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
+        // D231b (owner: «خط الـpk اجعله كامل الشاشة»): the bar bleeds past
+        // the stage's side margins to the screen's edges (the room's
+        // scaffold keeps the stage inset by the same amount on each side).
+        final bleed = math
+            .max(0, (MediaQuery.sizeOf(context).width - width) / 2)
+            .toDouble();
         final paneHeight = math.min(
           KLivePk.maxPaneHeight,
           (width - KLivePk.seam) / 2 / KLivePk.paneAspect,
@@ -377,18 +379,20 @@ class _LivePkStageState extends State<LivePkStage> {
                   ticks: LivePkStage.ticks,
                 ),
               ),
-            // D199 (owner «استخدمها بنفس المكان … وبنفس الحجم واجعلها
-            // تظهر للفرقين»): the owner's banners where the
-            // announcement pill was — centred over both boxes, 52 % of
-            // the width — for every boosted side, in both rooms.
+            // D199 → D231b (owner: «الدبل والتربل يجب أن يظهر عند من
+            // ظهر»): each side's banner over its OWN video half (the
+            // screen's left half is the left team in both languages),
+            // centred in it and scaled to the half; two boosted sides show
+            // side by side, never stacked in the middle. Both rooms.
             Positioned.fill(
               child: IgnorePointer(
                 child: PkPowerLayer(
                   key: LivePkStage.bannersKey,
                   left: activation(leftSide, leftBoost, PkPowerSide.left),
                   right: activation(rightSide, rightBoost, PkPowerSide.right),
-                  centred: true,
-                  widthFactor: PkStageBanner.widthFactor,
+                  perHalf: true,
+                  seam: KLivePk.seam,
+                  widthFactor: PkStageBanner.halfFactor,
                   top: PkStageBanner.top(width, paneHeight),
                 ),
               ),
@@ -398,11 +402,7 @@ class _LivePkStageState extends State<LivePkStage> {
               Positioned(
                 left: 0,
                 right: 0,
-                top: PkStageBanner.captionTop(
-                  width,
-                  paneHeight,
-                  both: leftBoost != null && rightBoost != null,
-                ),
+                top: PkStageBanner.captionTop(width, paneHeight),
                 child: IgnorePointer(
                   child: Center(
                     child: Padding(
@@ -447,12 +447,13 @@ class _LivePkStageState extends State<LivePkStage> {
                     child: panes,
                   ),
                   // D199 (owner «يصبح شريط النقاط هكذا حسب كل حالة»): the
-                  // owner's battle bar — neutral frames, or the tier's
-                  // frame and emblem on a boosted side; Kabi pushes, pulls
-                  // and wins on the seam. Drawn over the videos' top edge.
+                  // owner's battle bar — each side's tier on its half of
+                  // the track, the PK emblem; Kabi pushes, pulls and wins
+                  // on the seam. D231b: edge to edge of the screen, no end
+                  // frames.
                   Positioned(
-                    left: 0,
-                    right: 0,
+                    left: -bleed,
+                    right: -bleed,
                     top: 0,
                     height: barHeight,
                     child: Semantics(
@@ -475,8 +476,6 @@ class _LivePkStageState extends State<LivePkStage> {
                           rightTier: rightBoost == null
                               ? null
                               : pkPowerTier(rightBoost.kind),
-                          leftAvatar: avatar(leftSide),
-                          rightAvatar: avatar(rightSide),
                           winner: battle || connected
                               ? null
                               : match.winnerRoomId == leftSide.roomId

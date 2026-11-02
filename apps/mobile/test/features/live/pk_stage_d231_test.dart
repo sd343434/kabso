@@ -149,6 +149,18 @@ void main() {
             expect(style.fontWeight, FontWeight.w800);
             expect(style.shadows, isNotEmpty, reason: 'outlined');
           }
+          // D231b: the bar edge to edge; each figure 10 lp from its screen
+          // edge (no end frame before it).
+          expect(bar.left, closeTo(0, 0.5));
+          expect(bar.right, closeTo(viewport.logicalSize.width, 0.5));
+          expect(
+            _rect(tester, PkBattleBar.leftScoreKey).left,
+            closeTo(bar.left + PkBarMetrics.scoreInset, 0.5),
+          );
+          expect(
+            _rect(tester, PkBattleBar.rightScoreKey).right,
+            closeTo(bar.right - PkBarMetrics.scoreInset, 0.5),
+          );
           // The timer: 15 sp+, centred where the halves meet, hanging
           // from the bar.
           final timer = _rect(tester, LivePkStage.timerKey);
@@ -386,6 +398,35 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
     });
 
+    for (final language in [AppLanguage.ar, AppLanguage.en]) {
+      testWidgets('D231b viewer (${language.name}): the bar runs edge to edge '
+          "of the screen past the videos' margins, without end frames", (
+        tester,
+      ) async {
+        await viewer(tester, language: language);
+        final bar = _rect(tester, LivePkStage.barKey);
+        final own = _rect(tester, LivePkStage.ownPaneKey);
+        final other = _rect(tester, LivePkStage.opponentPaneKey);
+        expect(bar.left, closeTo(0, 0.5));
+        expect(bar.right, closeTo(393, 0.5));
+        // The videos keep their margins, right under the bar.
+        expect(math.min(own.left, other.left), greaterThan(bar.left));
+        expect(own.top, closeTo(bar.bottom, 0.01));
+        final art = [
+          for (final i in tester.widgetList<Image>(
+            find.descendant(
+              of: find.byKey(LivePkStage.barKey),
+              matching: find.byType(Image),
+            ),
+          ))
+            if (i.image case final AssetImage a) a.assetName,
+        ];
+        expect(art.where((a) => a.contains('/parts/frame')), isEmpty);
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox.shrink());
+      });
+    }
+
     testWidgets('viewer: already following — no «+»', (tester) async {
       await viewer(tester, following: true);
       expect(find.byKey(LivePkStage.opponentHostKey), findsOneWidget);
@@ -469,6 +510,9 @@ void main() {
         _rect(tester, LivePkStage.ownPaneKey).top,
         closeTo(bar.bottom, 0.01),
       );
+      // D231b: edge to edge on the host's screen too.
+      expect(bar.left, closeTo(0, 0.5));
+      expect(bar.right, closeTo(393, 0.5));
       // The other half → their card for their room.
       await tester.tap(find.byKey(LivePkStage.opponentPaneKey));
       await tester.pumpAndSettle();

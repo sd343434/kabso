@@ -33,6 +33,8 @@ class PkPowerLayer extends StatefulWidget {
     this.widthFactor = .62,
     this.stackGap = .9,
     this.centred = false,
+    this.perHalf = false,
+    this.seam = 0,
   });
 
   final PkPowerActivation? left;
@@ -53,6 +55,12 @@ class PkPowerLayer extends StatefulWidget {
   /// across both halves (the old announcement pill's place); with two
   /// boosted teams the right one sits under the left one.
   final bool centred;
+
+  /// Kabso D231b (owner «الدبل والتربل يجب أن يظهر عند من ظهر»): each banner
+  /// centred over its own team's half ([widthFactor] of the half's width;
+  /// the halves split by a [seam]); both at [top], side by side.
+  final bool perHalf;
+  final double seam;
 
   @override
   State<PkPowerLayer> createState() => _PkPowerLayerState();
@@ -106,8 +114,11 @@ class _PkPowerLayerState extends State<PkPowerLayer> {
     if (_slots.isEmpty) return const SizedBox.shrink();
     return LayoutBuilder(
       builder: (context, c) {
-        final w = c.maxWidth * widget.widthFactor;
-        final both = _slots.length == 2;
+        final half = (c.maxWidth - widget.seam) / 2;
+        final w = widget.perHalf
+            ? half * widget.widthFactor
+            : c.maxWidth * widget.widthFactor;
+        final both = _slots.length == 2 && !widget.perHalf;
         // the left team's banner height decides how far the right one is pushed
         // down (tiers have different art)
         final leftSlot = _slots[PkPowerSide.left];
@@ -144,10 +155,18 @@ class _PkPowerLayerState extends State<PkPowerLayer> {
                     (both && e.key == PkPowerSide.right
                         ? h * widget.stackGap
                         : 0),
-                left: widget.centred
+                left: widget.perHalf
+                    ? (e.key == PkPowerSide.left ? 0 : half + widget.seam) +
+                          (half - w) / 2
+                    : widget.centred
                     ? (c.maxWidth - w) / 2
                     : (e.key == PkPowerSide.left ? 0 : null),
-                right: !widget.centred && e.key == PkPowerSide.right ? 0 : null,
+                right:
+                    !widget.perHalf &&
+                        !widget.centred &&
+                        e.key == PkPowerSide.right
+                    ? 0
+                    : null,
                 child: PkPowerBanner(
                   key: ValueKey(
                     'pk-power-${e.key.name}-${e.value.activation.id}',

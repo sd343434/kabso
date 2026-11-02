@@ -2,7 +2,8 @@
 // 4-tier design sheet.
 //
 // What moves:
-//   • ONE track between the two avatars. The split point = leftScore /
+//   • ONE track across the whole width (D231b: no avatar frames at its ends).
+// The split point = leftScore /
 // (leftScore + rightScore) and follows score
 //     changes with a spring, so the leading team's fill pushes into the other
 // team's side.
@@ -16,20 +17,20 @@
 // sweep, flames (TURBO tiers),
 //     lightning on the rim (TRIPLE tiers), rainbow fill (TRIPLE TURBO),
 // particles flowing to the clash point,
-//     frame pulse and an activation flash. A team with no power keeps its
+//     an end glow at its screen edge (D231b) and an activation flash. A team
+// with no power keeps its
 // default team colour (left red / right blue).
 //
 // Artwork taken from the design sheet (assets/pk/score_bar/parts/):
-// frameL_t1..t4 (tier frames), frame_neutral_L/R
-// (default frames), emblem_t1..t4 (PK emblem; the highest active tier is
-// shown). Everything else is painted live.
+// emblem_t1..t4 (PK emblem; the highest active tier is shown); the tier and
+// neutral end frames are no longer drawn (D231b). Everything else is painted
+// live.
 //
 //   PkBattleBar(
 //     leftScore: s.left, rightScore: s.right,          // your existing values
 // — never modified here
 //     leftTier: s.leftTeam.activePower?.tier,          // null = no power
 //     rightTier: s.rightTeam.activePower?.tier,
-//     leftAvatar: NetworkImage(...), rightAvatar: NetworkImage(...),
 //   )
 
 import 'dart:async';
@@ -40,12 +41,8 @@ import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/features/live/presentation/widgets/pk_power/pk_power_models.dart';
 import 'package:material_ui/material_ui.dart';
 
-// The owner's art in its sheet units (frames 190 × 250, the avatar centred
-// at y 124 with radius 38.5; emblem 232 × 250).
+// The owner's art in its sheet units (emblem 232 × 250).
 const _sheetH = 250.0;
-const _frameW = 190.0;
-const _avatarY = 124.0;
-const _avatarRad = 38.5;
 const _emblemW = 232.0;
 const _dir = 'assets/pk/score_bar/parts';
 
@@ -58,6 +55,15 @@ const _dir = 'assets/pk/score_bar/parts';
 /// Kabi over it, the owner's frames and PK emblem centred on the track
 /// (they reach a little over the videos), and each side's score in big
 /// outlined figures that the emblem never covers.
+///
+/// D231b (owner, on a phone: «خط الـpk اجعله كامل الشاشة، ومن الطرفين بدون
+/// إطار صورة»): the track runs from edge to edge of the bar's box (the stage
+/// lets the bar bleed to the screen's edges) with square ends, and the round
+/// avatar frames at its ends are gone (each host's picture is at the bottom
+/// of their half since D231). A side's booster shows in its own half of the
+/// track — its tier's fill, glow, flames, lightning and rainbow (unchanged)
+/// plus an end glow at that side's screen edge — and in its banner over its
+/// own video half.
 abstract final class PkBarMetrics {
   /// The track's height.
   static const double track = 30;
@@ -67,10 +73,6 @@ abstract final class PkBarMetrics {
 
   /// The bar's box: the track's bottom is the box's bottom.
   static const double height = above + track;
-
-  /// The owner's tier / neutral frame art's height (the avatar inside is
-  /// 77 / 250 of it).
-  static const double frame = 64;
 
   /// The PK emblem's height.
   static const double emblem = 50;
@@ -90,16 +92,13 @@ abstract final class PkBarMetrics {
   /// Gap between a score and the emblem at its nearest.
   static const double gap = 4;
 
-  static double get _kf => frame / _sheetH;
-  static double get frameWidth => _frameW * _kf;
-
-  /// The avatar's centre from the bar's outer edge.
-  static double get avatarCentre => frameWidth / 2;
-  static double get avatarSize => _avatarRad * 2 * _kf;
   static double get emblemWidth => emblem * _emblemW / _sheetH;
 
-  /// Where a side's score starts, from the bar's outer edge.
-  static double get scoreInset => frameWidth - 2;
+  /// D231b: where a side's score starts, from the bar's outer (screen) edge.
+  static const double scoreInset = 10;
+
+  /// D231b: how far a boosted side's tier glows in from its screen edge.
+  static const double endGlow = 56;
 
   /// The track's vertical centre in the bar's box.
   static const double trackCentre = above + track / 2;
@@ -239,8 +238,6 @@ class PkBattleBar extends StatefulWidget {
     super.key,
     this.leftTier,
     this.rightTier,
-    this.leftAvatar,
-    this.rightAvatar,
     this.width,
     this.showKabi = true,
     this.winner,
@@ -274,8 +271,6 @@ class PkBattleBar extends StatefulWidget {
   final int rightScore;
   final PkPowerTier? leftTier;
   final PkPowerTier? rightTier;
-  final ImageProvider? leftAvatar;
-  final ImageProvider? rightAvatar;
   final double? width;
 
   @override
@@ -342,9 +337,6 @@ class _PkBattleBarState extends State<PkBattleBar>
     super.didChangeDependencies();
     _a.reduced = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
     for (final t in PkPowerTier.values) {
-      unawaited(
-        precacheImage(AssetImage('$_dir/frameL_${_n(t)}.png'), context),
-      );
       unawaited(
         precacheImage(AssetImage('$_dir/emblem_${_n(t)}.png'), context),
       );
@@ -418,7 +410,6 @@ class _PkBattleBarState extends State<PkBattleBar>
           rightWidth: rightWidth,
           leftRed: widget.ownSide == PkPowerSide.left,
         );
-        const kf = PkBarMetrics.frame / _sheetH;
         final top = [widget.leftTier, widget.rightTier]
             .whereType<PkPowerTier>()
             .fold<PkPowerTier?>(
@@ -426,87 +417,6 @@ class _PkBattleBarState extends State<PkBattleBar>
               (m, e) => m == null || e.index > m.index ? e : m,
             );
         final emblem = 'emblem_${_n(top ?? PkPowerTier.doublePower)}';
-
-        Widget frame({required bool left}) {
-          final tier = left ? widget.leftTier : widget.rightTier;
-          // D231: this room's neutral frame is the red one, the opponent's
-          // the blue one, on whichever side they are (mirrored to fit).
-          final art = (widget.ownSide == PkPowerSide.left) == left ? 'L' : 'R';
-          final img = tier != null
-              ? '$_dir/frameL_${_n(tier)}.png'
-              : '$_dir/frame_neutral_$art.png';
-          final mirror = tier != null ? !left : (art == 'L') != left;
-          final avatar = left ? widget.leftAvatar : widget.rightAvatar;
-          final fw = PkBarMetrics.frameWidth;
-          final d = PkBarMetrics.avatarSize;
-          final cx = left
-              ? PkBarMetrics.avatarCentre
-              : w - PkBarMetrics.avatarCentre;
-          return Positioned(
-            left: cx - fw / 2,
-            top: PkBarMetrics.trackCentre - _avatarY * kf,
-            width: fw,
-            height: PkBarMetrics.frame,
-            child: IgnorePointer(
-              child: AnimatedBuilder(
-                animation: _a,
-                builder: (_, _) {
-                  final pul = tier == null || _a.reduced
-                      ? 1.0
-                      : 1 +
-                            .03 *
-                                math.sin(
-                                  _a.t /
-                                      (tier == PkPowerTier.tripleTurbo
-                                          ? 150
-                                          : 260),
-                                );
-                  return Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Positioned(
-                        left: fw / 2 - d / 2,
-                        top: _avatarY * kf - d / 2,
-                        width: d,
-                        height: d,
-                        child: ClipOval(
-                          child: avatar != null
-                              ? Image(image: avatar, fit: BoxFit.cover)
-                              : ColoredBox(
-                                  color: const Color(0xFF2A1A2E),
-                                  child: Icon(
-                                    Icons.person,
-                                    color: Colors.white70,
-                                    size: d * .7,
-                                  ),
-                                ),
-                        ),
-                      ),
-                      Positioned.fill(
-                        child: Transform.scale(
-                          scale: pul,
-                          child: Transform(
-                            alignment: Alignment.center,
-                            transform: Matrix4.diagonal3Values(
-                              mirror ? -1 : 1,
-                              1,
-                              1,
-                            ),
-                            child: Image.asset(
-                              img,
-                              fit: BoxFit.fill,
-                              gaplessPlayback: true,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ),
-          );
-        }
 
         return SizedBox(
           width: w,
@@ -526,8 +436,6 @@ class _PkBattleBarState extends State<PkBattleBar>
                   ),
                 ),
               ),
-              frame(left: true),
-              frame(left: false),
               // Kabi mascots: one per team over the track, hands on the PK
               // emblem (drawn under it so the hands tuck behind).
               if (widget.showKabi)
@@ -643,8 +551,9 @@ _Geo _geoOf(
   required double rightWidth,
   required bool leftRed,
 }) {
-  final tl = PkBarMetrics.avatarCentre;
-  final tr = w - PkBarMetrics.avatarCentre;
+  // D231b: the track spans the whole bar.
+  const tl = 0.0;
+  final tr = w;
   final span = math.max(1, tr - tl).toDouble();
   final half = PkBarMetrics.emblemWidth / 2;
   final reserve = PkBarMetrics.scoreInset + PkBarMetrics.gap + half;
@@ -754,13 +663,8 @@ class _BarPainter extends CustomPainter {
     }
 
     // 3. track + fills
-    final track = RRect.fromLTRBR(
-      tl,
-      ty,
-      tr,
-      ty + th,
-      const Radius.circular(th / 2),
-    );
+    // D231b: edge to edge with square ends (the screen's edges end it).
+    final track = RRect.fromLTRBR(tl, ty, tr, ty + th, Radius.zero);
     canvas
       ..save()
       ..clipRRect(track);
@@ -860,6 +764,28 @@ class _BarPainter extends CustomPainter {
       canvas.restore();
     }
     canvas.restore();
+
+    // 3b. D231b: a boosted side's tier glows in from its screen edge (the
+    // cue the end frames gave).
+    for (final (left, x1, x2, tier, _, red) in sides) {
+      if (tier == null || x2 - x1 < 1) continue;
+      final p = _pal(tier, left, t, 0, red: red);
+      final pul = calm ? 1.0 : .75 + .25 * math.sin(t / 260);
+      final reach = math.min(x2 - x1, PkBarMetrics.endGlow);
+      final rect = left
+          ? Rect.fromLTRB(x1, ty - 6, x1 + reach, ty + th + 6)
+          : Rect.fromLTRB(x2 - reach, ty - 6, x2, ty + th + 6);
+      _p
+        ..style = PaintingStyle.fill
+        ..blendMode = BlendMode.plus
+        ..shader = LinearGradient(
+          begin: left ? Alignment.centerLeft : Alignment.centerRight,
+          end: left ? Alignment.centerRight : Alignment.centerLeft,
+          colors: [p[3].pkAlpha(.55 * pul), p[3].pkAlpha(0)],
+        ).createShader(rect);
+      canvas.drawRect(rect, _p);
+      _p.shader = null;
+    }
 
     // 4. rim in each team's colour, meeting at the split
     _p

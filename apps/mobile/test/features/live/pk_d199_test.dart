@@ -354,18 +354,21 @@ void main() {
       PkBoosterKind.tripleTurbo: 10,
     };
 
-    testWidgets("no booster: the owner's bar with both neutral frames", (
-      tester,
-    ) async {
+    /// D231b: one half's width and centre on the 393 lp stage (ar: the own
+    /// side on the right).
+    const half = (393 - KLivePk.seam) / 2;
+    double centreOf(PkPowerSide side) =>
+        side == PkPowerSide.left ? half / 2 : half + KLivePk.seam + half / 2;
+    bool isFrame(String a) => a.contains('/parts/frame');
+
+    testWidgets("no booster: the owner's bar, edge to edge, without end "
+        'frames (D231b)', (tester) async {
       await stage(tester, pkMatchFixture(now: DateTime.now()));
       final bar = find.byKey(LivePkStage.barKey);
-      expect(
-        assets(tester, bar),
-        containsAll([
-          'assets/pk/score_bar/parts/frame_neutral_L.png',
-          'assets/pk/score_bar/parts/frame_neutral_R.png',
-        ]),
-      );
+      expect(assets(tester, bar).where(isFrame), isEmpty);
+      final box = tester.getRect(bar);
+      expect(box.left, closeTo(0, 0.5));
+      expect(box.right, closeTo(393, 0.5));
       expect(find.byKey(LivePkStage.bannersKey), findsOneWidget);
       expect(
         find.descendant(
@@ -378,8 +381,8 @@ void main() {
 
     for (final kind in PkBoosterKind.values) {
       final t = pkPowerTier(kind).index + 1;
-      testWidgets('${kind.name}: tier t$t frame on the boosted side, the '
-          "owner's banner centred at the pill's place for both rooms", (
+      testWidgets('${kind.name}: tier t$t emblem, no end frame; the '
+          "owner's banner over the boosted side's own half, both rooms", (
         tester,
       ) async {
         final now = DateTime.now();
@@ -399,13 +402,17 @@ void main() {
           );
           final bar = find.byKey(LivePkStage.barKey);
           final art = assets(tester, bar);
-          expect(art, contains('assets/pk/score_bar/parts/frameL_t$t.png'));
+          expect(art.where(isFrame), isEmpty);
           expect(art, contains('assets/pk/score_bar/parts/emblem_t$t.png'));
           final banner = find.byType(PkPowerBanner);
           expect(banner, findsOneWidget, reason: room);
           final rect = tester.getRect(banner);
-          expect(rect.center.dx, closeTo(393 / 2, 1));
-          expect(rect.width, closeTo(393 * PkStageBanner.widthFactor, 1));
+          // room-0 boosted: in Arabic its half is the right one in its own
+          // room, the left one in the opponent's (their own is on the right).
+          final side = room == 'room-0' ? PkPowerSide.right : PkPowerSide.left;
+          expect(rect.center.dx, closeTo(centreOf(side), 1), reason: room);
+          expect(rect.width, closeTo(half * PkStageBanner.halfFactor, 1));
+          expect(rect.width, lessThanOrEqualTo(half));
           expect(
             find.descendant(of: banner, matching: find.text('x${mult[kind]}')),
             findsWidgets,
@@ -426,8 +433,8 @@ void main() {
       });
     }
 
-    testWidgets('own side on the right in Arabic: its tier frame is the '
-        'right one, the banner enters from the right', (tester) async {
+    testWidgets('own side on the right in Arabic: its tier on the right of '
+        'the bar, the banner over the right half', (tester) async {
       await stage(
         tester,
         pkMatchFixture(now: DateTime.now(), ownBoost: PkBoosterKind.triple),
@@ -442,7 +449,8 @@ void main() {
       expect(bar.rightScore, 12500);
     });
 
-    testWidgets('both teams boosted: two banners, stacked', (tester) async {
+    testWidgets('both teams boosted: two banners side by side, each over '
+        'its own half, never stacked (D231b)', (tester) async {
       await stage(
         tester,
         pkMatchFixture(
@@ -453,10 +461,22 @@ void main() {
       );
       final banners = find.byType(PkPowerBanner);
       expect(banners, findsNWidgets(2));
-      final a = tester.getRect(banners.first);
-      final b = tester.getRect(banners.last);
-      expect(a.center.dx, closeTo(b.center.dx, 1));
-      expect((a.top - b.top).abs(), greaterThan(20));
+      final rects = [
+        for (final e in banners.evaluate())
+          tester.getRect(find.byWidget(e.widget)),
+      ]..sort((x, y) => x.left.compareTo(y.left));
+      final (a, b) = (rects.first, rects.last);
+      expect(a.center.dx, closeTo(centreOf(PkPowerSide.left), 1));
+      expect(b.center.dx, closeTo(centreOf(PkPowerSide.right), 1));
+      expect(a.top, closeTo(b.top, 0.5));
+      expect(a.right, lessThanOrEqualTo(half + 0.5));
+      expect(b.left, greaterThanOrEqualTo(half + KLivePk.seam - 0.5));
+      // Ar: the own side (double) on the right, the opponent's on the left.
+      final layer = tester.widget<PkPowerLayer>(
+        find.byKey(LivePkStage.bannersKey),
+      );
+      expect(layer.right?.tier, PkPowerTier.doublePower);
+      expect(layer.left?.tier, PkPowerTier.tripleTurbo);
     });
 
     testWidgets("the result: the winner's Kabi celebrates", (tester) async {
