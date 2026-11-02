@@ -298,20 +298,36 @@ class LiveAudioRoomLayout extends StatelessWidget {
             onTop: onChatTop,
             child: _fade(
               fadeTop,
-              SingleChildScrollView(
-                reverse: true,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    for (final line in chat)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: line,
+              // D230: the room's chat is one widget that scrolls by itself
+              // (a finger drags back to older lines): it gets the bounded
+              // height here, not an outer scroll view's unbounded one.
+              chat.length == 1
+                  ? Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Flexible(
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: chat.single,
+                          ),
+                        ),
+                      ],
+                    )
+                  : SingleChildScrollView(
+                      reverse: true,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          for (final line in chat)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: line,
+                            ),
+                        ],
                       ),
-                  ],
-                ),
-              ),
+                    ),
             ),
           ),
         ),

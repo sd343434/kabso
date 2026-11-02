@@ -3046,17 +3046,17 @@ void main() {
       await _leave(tester);
     });
 
-    testWidgets("host chat: the rules line at the chat area's top", (
-      tester,
-    ) async {
+    testWidgets('D230 host chat: the rules line sits at the BOTTOM of the '
+        'chat (just above the composer), whole and not faded', (tester) async {
       final (_, camera) = await _pump(tester);
       await _goLive(tester);
       await camera.setVideoPaused(paused: true);
       await tester.pumpAndSettle();
-      final area = find.byKey(LiveRoomChatLines.topAnchorKey);
-      expect(area, findsOneWidget);
+      final list = tester.getRect(find.byKey(LiveRoomChatLines.listKey));
       final notice = tester.getRect(find.byKey(LiveRoomChatLines.noticeKey));
-      expect(notice.top, closeTo(tester.getRect(area).top, 12));
+      expect(notice.bottom, closeTo(list.bottom, 1));
+      // Shrink-wrapped at the bottom: nothing above it in the chat.
+      expect(notice.top, closeTo(list.top + LiveChatInlineRow.gap, 1));
       await _leave(tester);
     });
 

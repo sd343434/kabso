@@ -561,26 +561,12 @@ void main() {
       await _close(tester);
     });
 
-    test('`written` ignores the history above the rules line', () {
-      LiveChatPosted posted(String id) => LiveChatPosted(
-        LiveChatEntry(
-          id: id,
-          roomId: 'r',
-          author: _u('a', 'A'),
-          text: 'x',
-          createdAt: DateTime.utc(2026),
-          authorRole: LiveChatRole.viewer,
-        ),
-      );
-      final join = LiveChatJoinItem(LiveChatJoinLine(_u('j', 'J'), 0));
+    test('D230: `written` comes from the controller (what arrives during '
+        'the visit), never from where the history sits', () {
+      expect(const LiveChatState().written, isFalse);
+      expect(const LiveChatState().copyWith(written: true).written, isTrue);
       expect(
-        LiveChatState(items: [posted('old'), const LiveChatNoticeLine(), join])
-            .written,
-        isFalse,
-      );
-      expect(
-        LiveChatState(items: [const LiveChatNoticeLine(), join, posted('new')])
-            .written,
+        const LiveChatState(written: true).copyWith(loaded: true).written,
         isTrue,
       );
     });

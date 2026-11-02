@@ -139,6 +139,12 @@ Future<void> _leave(WidgetTester tester) async {
 }
 
 Finder _line(String key) => find.byKey(LiveRoomChatLines.lineKey(key));
+
+/// D230: 0 while the chat's top edge fades (more lines above), else 1.
+double _fadeAlpha(WidgetTester tester) =>
+    LiveChatScroll.debugFading(tester.state(find.byType(LiveChatScroll)))
+    ? 0
+    : 1;
 Finder _in(String key, Finder finder) =>
     find.descendant(of: _line(key), matching: finder);
 
@@ -226,16 +232,25 @@ void main() {
               : (row.left - list.left).abs() < 1,
           isTrue,
         );
-        // 13 sp lines 18.2 pt apart: one line is about 23 pt (ref 22–23);
-        // the test font's wide glyphs wrap this badge-full line once.
-        expect(row.height, inInclusiveRange(21, 46));
-        final text = tester.widget<RichText>(
-          _in('m:m1', find.byType(KBidiRichTextRaw)).first,
+        // D230: three lines — the name, the badges under it, the text.
+        final name = tester.getRect(
+          _in('m:m1', find.byKey(LiveChatInlineRow.nameKey)),
         );
-        final plain = text.text.toPlainText();
-        expect(plain, contains('Huda'));
-        expect(plain, contains('hello'));
-        expect(plain.indexOf('Huda'), lessThan(plain.indexOf('hello')));
+        final message = tester.getRect(
+          _in('m:m1', find.byKey(LiveChatInlineRow.textKey)),
+        );
+        expect(badges.top, greaterThanOrEqualTo(name.bottom - 0.5));
+        expect(message.top, greaterThanOrEqualTo(badges.bottom - 0.5));
+        expect(find.text('\u2068Huda\u2069'), findsOneWidget);
+        expect(
+          tester
+              .widget<RichText>(
+                _in('m:m1', find.byType(KBidiRichTextRaw)).first,
+              )
+              .text
+              .toPlainText(),
+          contains('hello'),
+        );
         expect(tester.takeException(), isNull);
         await _leave(tester);
       });
@@ -464,28 +479,20 @@ void main() {
     });
   }
 
-  testWidgets('D199 (owner, ref 275): in the video live the rules line is the '
-      'first line at the TOP of the chat area, faded out at the top as lines '
-      'arrive, and gone while typing', (tester) async {
+  testWidgets("D230 (owner's device, was D199's top start): in the video "
+      'live the rules line is the BOTTOM line of the chat, unfaded; '
+      'messages come under it; gone while typing', (tester) async {
     final engine = await _room(tester, audio: false);
     final notice = find.byKey(LiveRoomChatLines.noticeKey);
-    final area = find.byKey(LiveRoomChatLines.topAnchorKey);
-    expect(area, findsOne);
-    expect(tester.getRect(notice).top, closeTo(tester.getRect(area).top, 12));
-    // Above the composer by the area's empty rest, not right on it.
+    final list = find.byKey(LiveRoomChatLines.listKey);
     expect(
-      tester.getRect(area).bottom - tester.getRect(notice).bottom,
-      greaterThan(60),
+      tester.getRect(notice).bottom,
+      closeTo(tester.getRect(list).bottom, 1),
     );
-    // The chat's top edge fades (the list is masked).
-    expect(
-      find.descendant(
-        of: find.byKey(LiveRoomChatLines.listKey),
-        matching: find.byType(ShaderMask),
-      ),
-      findsOne,
-    );
+    // A short chat: no fade at the top edge.
+    expect(_fadeAlpha(tester), 1);
     engine.chat.add(LiveChatReceived(_entry('t0', 'hello')));
+    await tester.pump();
     await tester.pump();
     // Keyboard up: the rules line has scrolled away; the message stays.
     tester.view.viewInsets = FakeViewPadding(
@@ -666,11 +673,9 @@ void main() {
         expect(row.right, lessThanOrEqualTo(screen.right));
         expect(row.width, lessThanOrEqualTo(360 * 0.81 + 0.5));
       }
-      // The name is isolated from the layout's direction.
-      final mixed = tester.widget<RichText>(
-        _in('m:m2', find.byType(KBidiRichTextRaw)).first,
-      );
-      expect(mixed.text.toPlainText(), contains('\u2068نور Star 99\u2069'));
+      // The name is isolated from the layout's direction (D230: its own
+      // line).
+      expect(_in('m:m2', find.text('\u2068نور Star 99\u2069')), findsOneWidget);
       await _leave(tester);
     });
   }

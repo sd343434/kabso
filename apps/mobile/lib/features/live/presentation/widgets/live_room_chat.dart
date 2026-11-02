@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
@@ -42,7 +41,7 @@ class LiveRoomChatLines extends ConsumerWidget {
     super.key,
     this.bubble = KAudioRoom.bubble,
     this.inline = false,
-    this.anchorTop = false,
+    this.video = false,
     this.brightNotice = false,
     this.compact = false,
   });
@@ -80,18 +79,19 @@ class LiveRoomChatLines extends ConsumerWidget {
   /// in every live category (video, audio, podcast, multi) — none.
   static const plain = Color(0x00000000);
 
-  /// D199 (owner, ref 275): the video live's chat area keeps its height
-  /// and starts at its top (the rules line first); the audio room's does
-  /// not.
-  final bool anchorTop;
+  /// The video live's chat (solo and multi, host and viewer): D199's
+  /// rule that the rules line steps aside while typing, and D230's taller
+  /// area for the three-line rows. D230 (owner's device): the lines sit at
+  /// the bottom of the area in every room (D199's top start is gone).
+  final bool video;
+
+  /// D230: the video live's chat area — at most this share of the screen
+  /// and [videoMaxHeight] pt.
+  static const double videoShare = 0.4;
+  static const double videoMaxHeight = 340;
 
   static const listKey = Key('liveChat.lines');
 
-  /// D199: the video live's top-anchored chat area.
-  static const topAnchorKey = Key('liveChat.topAnchor');
-
-  /// Lines on screen at once (the newest).
-  static const maxVisibleLines = 8;
   static Key lineKey(String key) => Key('liveChat.line.$key');
 
   /// D118: the room's rules line.
@@ -105,37 +105,44 @@ class LiveRoomChatLines extends ConsumerWidget {
     final chat = ref.watch(liveChatProvider(roomId));
     // D135 (owner, final): the rules line is simply the first line of
     // this visit — it shows at the bottom on entering and rises with the
-    // messages until it fades out at the top like any old line. No "no
-    // messages yet" line.
-    // D199 (owner, ref 275): while this person types, the rules line has
-    // scrolled away (it never stays pinned over the keyboard).
+    // messages. No "no messages yet" line.
+    // D199 (owner, ref 275): while this person types in the video live,
+    // the rules line has scrolled away (it never stays over the keyboard).
     // The window's own insets: the room's scaffold takes the keyboard out
     // of its children's MediaQuery.
-    final typing = View.of(context).viewInsets.bottom > 0;
-    // D212 (owner, every category): the rules line is gone once the first
-    // message of the visit is written (by anyone), and each join is its own
-    // line (the audio room too: no join strip any more).
+    final typing = video && View.of(context).viewInsets.bottom > 0;
+    // D212/D230 (owner, every category): the rules line is gone once a
+    // message is written DURING this visit (by anyone; joins, gifts and the
+    // history read on entering do not count) — [LiveChatState.written].
     final written = chat.written;
     final items = [
       for (final it in chat.items)
-        if (!(it is LiveChatNoticeLine && (written || (anchorTop && typing))))
-          it,
+        if (!(it is LiveChatNoticeLine && (written || typing))) it,
     ];
     // D119: taller lines (picture, name, badges, bubble), so a little more
     // room than the 240 pt of one-line bubbles: about three messages.
+    // D230: the video live's rows are three lines tall now (name, badges,
+    // message): a little more room there.
     final maxHeight = math
         .min(
-          300,
-          MediaQuery.sizeOf(context).height * (compact ? compactShare : 0.35),
+          video ? videoMaxHeight : 300,
+          MediaQuery.sizeOf(context).height *
+              (compact
+                  ? compactShare
+                  : video
+                  ? videoShare
+                  : 0.35),
         )
         .toDouble();
     // D119's join strip is gone (D212): joins are lines in every room.
     const strip = SizedBox.shrink();
-    // The newest lines that fit; older ones fade out at the top. Not a lazy
+    // D230 (owner's device: «تظهر رسالته في الاعلى نصفها مختفي» and «لا
+    // يمكن إرجاع الرسائل بإصبعي»): the lines are anchored at the BOTTOM of
+    // the area in every room — the newest just above the quick replies /
+    // composer, older ones rising — and a finger drags back through every
+    // line this visit keeps ([LiveChatScroll]). Only once they overflow does
+    // the top edge fade; a short chat is never faded or cut. Not a lazy
     // list: the audio room measures the chat's height.
-    final visible = items.length > maxVisibleLines
-        ? items.sublist(items.length - maxVisibleLines)
-        : items;
     final lines = items.isEmpty
         ? null
         : ConstrainedBox(
@@ -148,71 +155,40 @@ class LiveRoomChatLines extends ConsumerWidget {
                   ? LiveChatInlineRow.chatMaxWidth(context)
                   : LiveChatAuthoredLine.chatMaxWidth(context),
             ),
-            child: ClipRect(
-              child: ShaderMask(
-                blendMode: BlendMode.dstIn,
-                shaderCallback: (bounds) => const LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Color(0x00000000), Color(0xFF000000)],
-                  stops: [0, 0.18],
-                ).createShader(bounds),
-                child: Semantics(
-                  container: true,
-                  liveRegion: true,
-                  // D141 (owner's device: a bubble cut in half at the top
-                  // of the chat): only whole lines are shown, the newest at
-                  // the bottom; a line that no longer fits goes as a whole.
-                  child: LiveChatWholeLines(
-                    // Only while no line has gone (the cap or the height).
-                    topAligned:
-                        anchorTop && !typing && items.length <= maxVisibleLines,
-                    children: [
-                      for (final item in visible)
-                        Padding(
-                          key: lineKey(item.key),
-                          // D119: messages 8 pt apart (the reference's ~7 pt
-                          // at this scale); system lines stay compact.
-                          padding: EdgeInsets.only(
-                            top: inline
-                                ? LiveChatInlineRow.gap
-                                : item is LiveChatPosted ||
-                                      item is LiveChatPending
-                                ? 8
-                                : 4,
-                          ),
-                          child: _line(context, ref, item),
-                        ),
-                    ],
-                  ),
-                ),
+            child: Semantics(
+              container: true,
+              liveRegion: true,
+              child: LiveChatScroll(
+                newest: items.last.key,
+                children: [
+                  for (final item in items)
+                    Padding(
+                      key: lineKey(item.key),
+                      // D119: messages 8 pt apart (the reference's ~7 pt
+                      // at this scale); system lines stay compact.
+                      padding: EdgeInsets.only(
+                        top: inline
+                            ? LiveChatInlineRow.gap
+                            : item is LiveChatPosted || item is LiveChatPending
+                            ? 8
+                            : 4,
+                      ),
+                      child: _line(context, ref, item),
+                    ),
+                ],
               ),
             ),
           );
     // The strip keeps its room: when the place is bounded (the video live)
     // the lines give way; in the audio room's scroll view they do not need
     // to.
-    // D199 (owner, ref 275): the video live's chat area keeps its height —
-    // the rules line is the first line at its TOP (not above the composer)
-    // and the next lines come under it; once full, the oldest rise and fade
-    // out at the top edge.
-    final placed = lines == null || !anchorTop || typing
-        ? lines
-        : SizedBox(
-            key: topAnchorKey,
-            height: maxHeight,
-            child: Align(
-              alignment: AlignmentDirectional.topStart,
-              child: lines,
-            ),
-          );
     return LayoutBuilder(
       builder: (context, box) => Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (placed != null)
-            if (box.hasBoundedHeight) Flexible(child: placed) else placed,
+          if (lines != null)
+            if (box.hasBoundedHeight) Flexible(child: lines) else lines,
           strip,
         ],
       ),
@@ -762,13 +738,15 @@ class LiveChatAuthoredLine extends StatelessWidget {
   /// the box 14 pt corners and 8 pt padding (12 at the end); the column
   /// 8 pt after the picture; the name 2 pt down (12.5 pt), 18 pt badges and
   /// the message stacked 4 and 5 pt apart; 14 pt text (measured 14.6).
+  /// D230 (owner: «الكتابة صغيرة والميداليات والمستوى صغير»): the name
+  /// 15 sp bold, the badges 20 pt under it, the message 15.5 sp.
   static const double avatar = 32;
   static const double gap = 8;
   static const double nameTop = 2;
-  static const double nameSize = 12.5;
-  static const double textSize = 14;
+  static const double nameSize = 15;
+  static const double textSize = 15.5;
   static const double radius = 14;
-  static const double badgeRowHeight = 18;
+  static const double badgeRowHeight = 20;
   static const EdgeInsetsDirectional boxPadding =
       EdgeInsetsDirectional.fromSTEB(8, 8, 12, 8);
 
@@ -820,6 +798,8 @@ class LiveChatAuthoredLine extends StatelessWidget {
       agentCode: agentCode,
       hostAgentCode: hostAgentCode,
       rechargeBadge: rechargeBadge,
+      agentBadgeHeight: badgeRowHeight - 2,
+      fadeOverflow: true,
     );
     final profile = onProfile;
     // The picture and the name are in the line's label already.
@@ -863,7 +843,7 @@ class LiveChatAuthoredLine extends StatelessWidget {
                       fontSize: nameSize,
                       height: 1.25,
                       color: cp ? LiveCpChatBubble.name : nameColor,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.w800,
                       shadows: const [
                         Shadow(color: Color(0x66000000), blurRadius: 2),
                       ],
@@ -950,10 +930,17 @@ class LiveChatBadgeRow extends StatelessWidget {
     this.hostAgentCode,
     this.rechargeBadge,
     this.agentBadgeHeight,
+    this.fadeOverflow = false,
   });
 
   final LiveChatRole? role;
   final LiveChatAuthorBadges? badges;
+
+  /// D230 (owner: «الميداليات والمستوى صغير، واجعل الميداليات أسفل الاسم»):
+  /// the row on a line of its own under the name — the emblems and pills at
+  /// the row's [height] (not the old small ones), one row whose overflow is
+  /// clipped with a fade at the reading end (never an overflow error).
+  final bool fadeOverflow;
 
   /// v1.54-social (D185): the author's recharge-agent code while ACTIVE
   /// (`UserSummary.rechargeAgent`): the agent badge leads the row.
@@ -1010,117 +997,253 @@ class LiveChatBadgeRow extends StatelessWidget {
       h,
       agentBadgeHeight ?? inlineAgentBadgeHeight(LiveChatAuthoredLine.nameSize),
     );
+    final big = fadeOverflow;
+    // D230: the pills' text and the emblems grow with the row.
+    final pillText = big ? h * 0.6 : 10.5;
+    final charmH = big ? h * 0.85 : CharmLevelBadge.lineHeight;
+    final supportH = big ? h * 0.8 : h / 1.5;
+    final family = badges?.family;
+    final familyChip = family == null
+        ? null
+        : LiveChatFamilyChip(
+            key: familyKey,
+            name: family.name,
+            level: family.level,
+            height: big ? h : LiveChatAuthoredLine.badgeRowHeight,
+          );
+    final row = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // D185 (owner): the recharge agent's badge next to the name.
+        if (agentCode case final code?) ...[
+          RechargeAgentBadge(code: code, height: agentH),
+          const SizedBox(width: _space),
+        ],
+        // D189: the host agent's badge, placed as the recharge one.
+        if (hostAgentCode case final code?) ...[
+          HostAgentBadge(code: code, height: agentH),
+          const SizedBox(width: _space),
+        ],
+        // D187 (owner): the daily recharge badge next to the name.
+        if (rechargeBadgeShows(rechargeBadge)) ...[
+          RechargeTierBadge(badge: rechargeBadge, height: agentH),
+          const SizedBox(width: _space),
+        ],
+        if (tag != null)
+          Container(
+            key: roleKey,
+            height: h - 2,
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: role == LiveChatRole.host
+                  ? KAudioRoom.hostTag
+                  : const Color(0xFFFFB13B),
+              borderRadius: BorderRadius.circular(KRadius.pill),
+            ),
+            child: Text(
+              tag,
+              style: context.textStyles.caption.copyWith(
+                fontSize: pillText,
+                height: 1.1,
+                color: const Color(0xFF14123A),
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        if (tag != null) const SizedBox(width: _space),
+        // D154c (owner): «جديد 🌱» next to a newcomer's name.
+        if (badges?.newcomer ?? false) ...[
+          Container(
+            key: newcomerKey,
+            height: h - 2,
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: const Color(0xFF3DDC97),
+              borderRadius: BorderRadius.circular(KRadius.pill),
+            ),
+            child: Text(
+              l10n.liveNewcomerBadge,
+              style: context.textStyles.caption.copyWith(
+                fontSize: pillText,
+                height: 1.1,
+                color: const Color(0xFF06301F),
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const SizedBox(width: _space),
+        ],
+        if (badges?.charmLevel case final level?) ...[
+          SizedBox(
+            key: charmKey,
+            height: h,
+            child: Center(
+              widthFactor: 1,
+              // D135 (owner): one size with the other badges and the
+              // room's level chip.
+              child: CharmLevelBadge(level: level, height: charmH),
+            ),
+          ),
+          const SizedBox(width: _space),
+        ],
+        if (badges?.supportLevel case final level?) ...[
+          SizedBox(
+            key: supportKey,
+            height: h,
+            child: Center(
+              widthFactor: 1,
+              child: KLevelBadge(
+                category: LevelCategory.support,
+                levelNumber: level,
+                height: supportH,
+              ),
+            ),
+          ),
+          const SizedBox(width: _space),
+        ],
+        if (familyChip != null)
+          // D230: in a faded row every badge keeps its width (the row is
+          // clipped instead); else the family chip gives way first.
+          if (big) familyChip else Flexible(child: familyChip),
+      ],
+    );
     return ExcludeSemantics(
+      // A row (not a wrap): each badge takes its own width.
       child: MediaQuery.withNoTextScaling(
-        // A row (not a wrap): each badge takes its own width; the family
-        // chip gives way first (its name ends with an ellipsis).
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // D185 (owner): the recharge agent's badge next to the name.
-            if (agentCode case final code?) ...[
-              RechargeAgentBadge(code: code, height: agentH),
-              const SizedBox(width: _space),
-            ],
-            // D189: the host agent's badge, placed as the recharge one.
-            if (hostAgentCode case final code?) ...[
-              HostAgentBadge(code: code, height: agentH),
-              const SizedBox(width: _space),
-            ],
-            // D187 (owner): the daily recharge badge next to the name.
-            if (rechargeBadgeShows(rechargeBadge)) ...[
-              RechargeTierBadge(badge: rechargeBadge, height: agentH),
-              const SizedBox(width: _space),
-            ],
-            if (tag != null)
-              Container(
-                key: roleKey,
-                height: h - 2,
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: role == LiveChatRole.host
-                      ? KAudioRoom.hostTag
-                      : const Color(0xFFFFB13B),
-                  borderRadius: BorderRadius.circular(KRadius.pill),
-                ),
-                child: Text(
-                  tag,
-                  style: context.textStyles.caption.copyWith(
-                    fontSize: 10.5,
-                    height: 1.1,
-                    color: const Color(0xFF14123A),
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            if (tag != null) const SizedBox(width: _space),
-            // D154c (owner): «جديد 🌱» next to a newcomer's name.
-            if (badges?.newcomer ?? false) ...[
-              Container(
-                key: newcomerKey,
-                height: h - 2,
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF3DDC97),
-                  borderRadius: BorderRadius.circular(KRadius.pill),
-                ),
-                child: Text(
-                  l10n.liveNewcomerBadge,
-                  style: context.textStyles.caption.copyWith(
-                    fontSize: 10.5,
-                    height: 1.1,
-                    color: const Color(0xFF06301F),
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-              const SizedBox(width: _space),
-            ],
-            if (badges?.charmLevel case final level?) ...[
-              SizedBox(
-                key: charmKey,
-                height: h,
-                child: Center(
-                  widthFactor: 1,
-                  // D135 (owner): one size with the other badges and the
-                  // room's level chip.
-                  child: CharmLevelBadge(
-                    level: level,
-                    height: CharmLevelBadge.lineHeight,
-                  ),
-                ),
-              ),
-              const SizedBox(width: _space),
-            ],
-            if (badges?.supportLevel case final level?) ...[
-              SizedBox(
-                key: supportKey,
-                height: h,
-                child: Center(
-                  widthFactor: 1,
-                  child: KLevelBadge(
-                    category: LevelCategory.support,
-                    levelNumber: level,
-                    height: h / 1.5,
-                  ),
-                ),
-              ),
-              const SizedBox(width: _space),
-            ],
-            if (badges?.family case final family?)
-              Flexible(
-                child: LiveChatFamilyChip(
-                  key: familyKey,
-                  name: family.name,
-                  level: family.level,
-                ),
-              ),
-          ],
-        ),
+        child: big ? LiveChatFadeOverflow(child: row) : row,
       ),
     );
+  }
+}
+
+/// D230: one row of badges at most as wide as its place; what does not fit
+/// is clipped, and the reading end fades out (only when something is cut).
+class LiveChatFadeOverflow extends SingleChildRenderObjectWidget {
+  const new({super.key, super.child});
+
+  /// The faded end, in pt.
+  static const double fade = 18;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderFadeOverflow(Directionality.of(context));
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    covariant RenderObject renderObject,
+  ) => (renderObject as _RenderFadeOverflow).direction = Directionality.of(
+    context,
+  );
+}
+
+class _RenderFadeOverflow extends RenderProxyBox {
+  new(this._direction);
+
+  TextDirection _direction;
+  TextDirection get direction => _direction;
+  set direction(TextDirection value) {
+    if (value == _direction) return;
+    _direction = value;
+    markNeedsLayout();
+  }
+
+  bool _cut = false;
+  double _childWidth = 0;
+  final _mask = LayerHandle<ShaderMaskLayer>();
+  final _clip = LayerHandle<ClipRectLayer>();
+
+  @override
+  void performLayout() {
+    final child = this.child;
+    if (child == null) {
+      size = constraints.smallest;
+      return;
+    }
+    child.layout(
+      BoxConstraints(maxHeight: constraints.maxHeight),
+      parentUsesSize: true,
+    );
+    _childWidth = child.size.width;
+    size = constraints.constrain(child.size);
+    final cut = _childWidth > size.width + 0.5;
+    if (cut != _cut) {
+      _cut = cut;
+      markNeedsCompositingBitsUpdate();
+    }
+  }
+
+  @override
+  Size computeDryLayout(BoxConstraints constraints) {
+    final child = this.child;
+    if (child == null) return constraints.smallest;
+    return constraints.constrain(
+      child.getDryLayout(BoxConstraints(maxHeight: constraints.maxHeight)),
+    );
+  }
+
+  double get _dx =>
+      _direction == TextDirection.rtl ? size.width - _childWidth : 0;
+
+  @override
+  bool get alwaysNeedsCompositing => _cut;
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    final child = this.child;
+    if (child == null) return;
+    if (!_cut) {
+      _mask.layer = null;
+      _clip.layer = null;
+      context.paintChild(child, offset + Offset(_dx, 0));
+      return;
+    }
+    final rtl = _direction == TextDirection.rtl;
+    final stop = (1 - LiveChatFadeOverflow.fade / size.width).clamp(0.0, 1.0);
+    final mask = (_mask.layer ??= ShaderMaskLayer())
+      ..shader = LinearGradient(
+        begin: rtl ? Alignment.centerRight : Alignment.centerLeft,
+        end: rtl ? Alignment.centerLeft : Alignment.centerRight,
+        colors: const [Color(0xFF000000), Color(0xFF000000), Color(0x00000000)],
+        stops: [0, stop, 1],
+      ).createShader(Offset.zero & size)
+      ..maskRect = offset & size
+      ..blendMode = BlendMode.dstIn;
+    context.pushLayer(mask, (context, offset) {
+      _clip.layer = context.pushClipRect(
+        needsCompositing,
+        offset,
+        Offset.zero & size,
+        (context, offset) => context.paintChild(child, offset + Offset(_dx, 0)),
+        oldLayer: _clip.layer,
+      );
+    }, offset);
+  }
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
+    final child = this.child;
+    if (child == null || !size.contains(position)) return false;
+    return result.addWithPaintOffset(
+      offset: Offset(_dx, 0),
+      position: position,
+      hitTest: (result, transformed) =>
+          child.hitTest(result, position: transformed),
+    );
+  }
+
+  @override
+  void applyPaintTransform(RenderBox child, Matrix4 transform) {
+    transform.translateByDouble(_dx, 0, 0, 1);
+  }
+
+  @override
+  void dispose() {
+    _mask.layer = null;
+    _clip.layer = null;
+    super.dispose();
   }
 }
 
@@ -1128,19 +1251,28 @@ class LiveChatBadgeRow extends StatelessWidget {
 /// to violet pill with the family level in a ring and the family's name
 /// (Kabso's own look; one line, cut with an ellipsis).
 class LiveChatFamilyChip extends StatelessWidget {
-  const new({required this.name, required this.level, super.key});
+  const new({
+    required this.name,
+    required this.level,
+    super.key,
+    this.height = LiveChatAuthoredLine.badgeRowHeight,
+  });
 
   final String name;
   final int level;
+
+  /// D230: the row's height (the stacked rows' badges are taller).
+  final double height;
 
   static const colors = [Color(0xFF2E5BFF), Color(0xFF7B5CFF)];
 
   @override
   Widget build(BuildContext context) {
-    const h = LiveChatAuthoredLine.badgeRowHeight;
+    final h = height;
+    final grow = h / LiveChatAuthoredLine.badgeRowHeight;
     return Container(
       height: h,
-      constraints: const BoxConstraints(maxWidth: 132),
+      constraints: BoxConstraints(maxWidth: 132 * grow),
       padding: const EdgeInsetsDirectional.only(start: 1.5, end: 7),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(KRadius.pill),
@@ -1166,12 +1298,12 @@ class LiveChatFamilyChip extends StatelessWidget {
             child: Text(
               '$level',
               textDirection: TextDirection.ltr,
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: KFonts.latin,
-                fontSize: 9,
+                fontSize: 9 * grow,
                 height: 1,
                 fontWeight: FontWeight.w800,
-                color: Color(0xFFFFFFFF),
+                color: const Color(0xFFFFFFFF),
               ),
             ),
           ),
@@ -1182,7 +1314,7 @@ class LiveChatFamilyChip extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: context.textStyles.caption.copyWith(
-                fontSize: 11,
+                fontSize: 11 * grow,
                 height: 1.1,
                 color: const Color(0xFFFFFFFF),
                 fontWeight: FontWeight.w700,
@@ -1397,6 +1529,9 @@ class LiveRoomRulesNotice extends StatelessWidget {
   /// at least 4.5:1 against the fill as rendered over the brightest
   /// backgrounds tested (a bright video frame, the bright themes; tests).
   static const fill = Color(0x59100610);
+
+  /// D230: the rules text's size.
+  static const double noticeTextSize = 13;
   static const fillBright = Color(0x6B100610);
   static const icon = Color(0xFFFF9AA5);
   static const textColor = Color(0xFFFFD6D2);
@@ -1432,7 +1567,7 @@ class LiveRoomRulesNotice extends StatelessWidget {
             padding: EdgeInsets.only(top: 1),
             child: Icon(
               Icons.shield_rounded,
-              size: 14,
+              size: 15,
               color: icon,
               shadows: [Shadow(color: Color(0x99000000), blurRadius: 3)],
             ),
@@ -1441,8 +1576,10 @@ class LiveRoomRulesNotice extends StatelessWidget {
           Flexible(
             child: Text(
               text,
+              // D230: a little larger (12 → 13 sp); a paragraph, so not the
+              // one-line system lines' 15 sp (it would fill the chat).
               style: context.textStyles.caption.copyWith(
-                fontSize: 12,
+                fontSize: noticeTextSize,
                 height: 1.35,
                 color: textColor,
                 fontWeight: FontWeight.w600,
@@ -1529,20 +1666,34 @@ class LiveChatInlineRow extends StatefulWidget {
   final VoidCallback? onProfile;
   final VoidCallback? onActions;
 
-  /// Measured on ref 158/159/163 (393 pt): 13 sp text (caps 21–22 px),
-  /// 18.3 pt line pitch, rows 22–23 pt tall and 2.6 pt apart, at most
-  /// 318.5 pt wide (81 %), the name mint `#B0F3EF`.
-  static const double textSize = 13;
-  static const double lineHeight = 1.4;
-  static const double gap = 2.6;
-  static const double radius = 11.5;
-  static const double badgeHeight = 14;
+  /// Measured on ref 158/159/163 (393 pt): at most 318.5 pt wide (81 %),
+  /// the name mint `#B0F3EF`. D230 (owner: «الكتابة صغيرة والميداليات
+  /// والمستوى صغير، واجعل الميداليات أسفل الاسم وأسفلهم الرسالة»): a message
+  /// is three lines — the name (15 sp, bold, no colon), the badges under it
+  /// (20 pt tall, one row, the overflow faded) and the message (15.5 sp);
+  /// joins stay one compact line at the 15 sp base size.
+  static const double textSize = 15.5;
+  static const double nameSize = 15;
+  static const double compactTextSize = 15;
+  static const double lineHeight = 1.35;
+  static const double gap = 4;
+  static const double radius = 12;
+  static const double badgeHeight = 20;
+
+  /// The public message card's small badges (its own design, CP-017).
+  static const double cardBadgeHeight = 14;
   static const EdgeInsetsDirectional padding = EdgeInsetsDirectional.fromSTEB(
     8,
-    2.5,
+    4,
     10,
-    2.5,
+    4,
   );
+
+  /// D230: the badges row under the name.
+  static const badgesKey = Key('liveChat.row.badges');
+
+  /// D230: the message text under the badges.
+  static const textKey = Key('liveChat.row.text');
   static const nameColor = Color(0xFFB0F3EF);
   static const joinColor = Color(0xD9FFFFFF);
   static const rowKey = Key('liveChat.row');
@@ -1556,13 +1707,45 @@ class LiveChatInlineRow extends StatefulWidget {
 }
 
 class _LiveChatInlineRowState extends State<LiveChatInlineRow> {
-  late final TapGestureRecognizer _name = TapGestureRecognizer()
-    ..onTap = () => widget.onProfile?.call();
-
-  @override
-  void dispose() {
-    _name.dispose();
-    super.dispose();
+  /// A join: one compact line (D230: at the 15 sp base size) with the
+  /// person's agent and recharge badges after the text.
+  Widget _joinLine(TextStyle base) {
+    final w = widget;
+    final scaler = MediaQuery.textScalerOf(context)
+        .clamp(maxScaleFactor: KMetrics.overlayMaxTextScale);
+    final style = base.copyWith(fontSize: LiveChatInlineRow.compactTextSize);
+    final badgeH = inlineAgentBadgeHeight(LiveChatInlineRow.compactTextSize);
+    return KBidiRichText(
+      TextSpan(
+        children: [
+          TextSpan(
+            text: w.join,
+            style: style.copyWith(color: LiveChatInlineRow.joinColor),
+          ),
+          if (w.agentCode != null || w.hostAgentCode != null)
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: RechargeAgentInlineBadge(
+                code: w.agentCode,
+                hostCode: w.hostAgentCode,
+                height: badgeH,
+              ),
+            ),
+          // D187: the daily recharge badge after the join text.
+          if (rechargeBadgeShows(w.rechargeBadge))
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: RechargeTierBadge(
+                badge: w.rechargeBadge,
+                height: badgeH,
+                gap: 4,
+              ),
+            ),
+        ],
+      ),
+      key: LiveChatInlineRow.nameKey,
+      textScaler: scaler,
+    );
   }
 
   @override
@@ -1583,114 +1766,103 @@ class _LiveChatInlineRowState extends State<LiveChatInlineRow> {
           ? KLiveColors.glassShadow
           : const [Shadow(color: Color(0x4D000000), blurRadius: 2)],
     );
-    final badges = LiveChatBadgeRow(
-      role: w.role,
-      badges: w.badges,
-      height: LiveChatInlineRow.badgeHeight,
-      agentBadgeHeight: inlineAgentBadgeHeight(LiveChatInlineRow.textSize),
-      agentCode: w.join == null ? w.agentCode : null,
-      hostAgentCode: w.join == null ? w.hostAgentCode : null,
-      rechargeBadge: w.join == null ? w.rechargeBadge : null,
-    );
-    final name = w.name;
-    final text = w.text;
-    final spans = <InlineSpan>[
-      if (w.join != null) ...[
-        TextSpan(
-          text: w.join,
-          style: base.copyWith(color: LiveChatInlineRow.joinColor),
-        ),
-        if (w.agentCode != null || w.hostAgentCode != null)
-          WidgetSpan(
-            alignment: PlaceholderAlignment.middle,
-            child: RechargeAgentInlineBadge(
-              code: w.agentCode,
-              hostCode: w.hostAgentCode,
-              height: inlineAgentBadgeHeight(LiveChatInlineRow.textSize),
-            ),
-          ),
-        // D187: the daily recharge badge after the join text.
-        if (rechargeBadgeShows(w.rechargeBadge))
-          WidgetSpan(
-            alignment: PlaceholderAlignment.middle,
-            child: RechargeTierBadge(
-              badge: w.rechargeBadge,
-              height: inlineAgentBadgeHeight(LiveChatInlineRow.textSize),
-              gap: 4,
-            ),
-          ),
-      ] else ...[
-        if (w.cp)
-          WidgetSpan(
-            alignment: PlaceholderAlignment.middle,
-            child: Padding(
-              padding: const EdgeInsetsDirectional.only(end: 4),
-              child: Image.asset(
-                LiveCpChatBubble.heart,
-                key: LiveRoomChatLines.cpHeartKey,
-                width: 13,
-                height: 13,
-                excludeFromSemantics: true,
-              ),
-            ),
-          ),
-        if (badges.isNotEmpty)
-          WidgetSpan(
-            alignment: PlaceholderAlignment.middle,
-            child: Padding(
-              padding: const EdgeInsetsDirectional.only(end: 4),
-              child: badges,
-            ),
-          ),
-        if (name != null)
-          TextSpan(
-            text: '${KFormat.bidiIsolate(name)}: ',
-            recognizer: w.onProfile == null ? null : _name,
-            style: base.copyWith(
-              color: w.cp ? LiveCpChatBubble.name : LiveChatInlineRow.nameColor,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        if (text != null)
-          TextSpan(
-            style: base,
-            children: [
-              ...kabiIsolatedSpans(
-                text,
-                size: LiveChatInlineRow.textSize * KKabiEmoji.inlineScale,
-              ),
-            ],
-          ),
-      ],
-    ];
     final failed = w.failed;
-    final content = Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // D141: inline widgets (badges, pack emoji) in reading order in
-        // both directions (Flutter swaps them in right-to-left lines).
-        KBidiRichText(
-          TextSpan(children: spans),
-          key: LiveChatInlineRow.nameKey,
-          textScaler: scaler,
-        ),
-        if (w.media case final media?) ...[
-          const SizedBox(height: 3),
-          media,
-          const SizedBox(height: 2),
-        ],
-        if (failed != null)
-          Text(
-            failed,
-            textScaler: scaler,
-            style: styles.caption.copyWith(
-              color: const Color(0xFFFF8A9A),
-              fontWeight: FontWeight.w700,
+    final Widget content;
+    if (w.join != null) {
+      content = _joinLine(base);
+    } else {
+      final badges = LiveChatBadgeRow(
+        role: w.role,
+        badges: w.badges,
+        agentBadgeHeight: LiveChatInlineRow.badgeHeight - 2,
+        agentCode: w.agentCode,
+        hostAgentCode: w.hostAgentCode,
+        rechargeBadge: w.rechargeBadge,
+        fadeOverflow: true,
+      );
+      final name = w.name;
+      final text = w.text;
+      content = Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 1. The name (bold, no colon); CP-021's heart before it.
+          if (name != null)
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (w.cp)
+                  Padding(
+                    padding: const EdgeInsetsDirectional.only(end: 4),
+                    child: Image.asset(
+                      LiveCpChatBubble.heart,
+                      key: LiveRoomChatLines.cpHeartKey,
+                      width: 15,
+                      height: 15,
+                      excludeFromSemantics: true,
+                    ),
+                  ),
+                Flexible(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: w.onProfile,
+                    child: Text(
+                      KFormat.bidiIsolate(name),
+                      key: LiveChatInlineRow.nameKey,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textScaler: scaler,
+                      style: base.copyWith(
+                        fontSize: LiveChatInlineRow.nameSize,
+                        color: w.cp
+                            ? LiveCpChatBubble.name
+                            : LiveChatInlineRow.nameColor,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-      ],
-    );
+          // 2. The badges under the name.
+          if (badges.isNotEmpty) ...[
+            const SizedBox(height: 3),
+            KeyedSubtree(key: LiveChatInlineRow.badgesKey, child: badges),
+          ],
+          // 3. The message (D141: Kabi emoji inline, in reading order).
+          if (text != null) ...[
+            const SizedBox(height: 2),
+            KBidiRichText(
+              TextSpan(
+                style: base,
+                children: [
+                  ...kabiIsolatedSpans(
+                    text,
+                    size: LiveChatInlineRow.textSize * KKabiEmoji.inlineScale,
+                  ),
+                ],
+              ),
+              key: LiveChatInlineRow.textKey,
+              textScaler: scaler,
+            ),
+          ],
+          if (w.media case final media?) ...[
+            const SizedBox(height: 4),
+            media,
+            const SizedBox(height: 2),
+          ],
+          if (failed != null)
+            Text(
+              failed,
+              textScaler: scaler,
+              style: styles.caption.copyWith(
+                color: const Color(0xFFFF8A9A),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+        ],
+      );
+    }
     final box = ConstrainedBox(
       key: LiveChatInlineRow.rowKey,
       constraints: BoxConstraints(maxWidth: w.maxWidth),
@@ -1742,183 +1914,224 @@ class _LiveChatInlineRowState extends State<LiveChatInlineRow> {
   }
 }
 
-/// D141: the chat's lines, oldest first, laid out from the bottom up; only
-/// the lines that fit whole in the height given are painted (and read by
-/// screen readers) — an older line that would be cut at the top is left
-/// out, so no bubble is ever drawn in half. Lines start at the reading
-/// start and sit at the bottom; the box takes the height it is given (when
-/// bounded) and hugs the widest shown line.
-class LiveChatWholeLines extends MultiChildRenderObjectWidget {
-  const new({super.key, super.children, this.topAligned = false});
+/// D230 (owner: «في البث المباشر لا يمكن إرجاع الرسائل بإصبعي، اعمل سحب
+/// للأسفل لأرى الرسائل القديمة»): the chat's lines, oldest first, in a
+/// list anchored at the bottom (a reversed scroll view: the newest just
+/// above the composer) that a finger drags back through every line this
+/// visit keeps. While the person reads older lines a new one never pulls
+/// them down: the «رسائل جديدة ↓» pill shows and jumps back to the newest.
+/// At the newest, new lines come in at the bottom. The top edge fades only
+/// while there is more above it (the lines overflow); a short chat is never
+/// faded. The list takes its drags and taps, so the stage under it (tap to
+/// like, seats) never gets them.
+class LiveChatScroll extends StatefulWidget {
+  const new({required this.children, required this.newest, super.key});
 
-  /// D199: lines from the top of the area until it is full (then the
-  /// newest stay at the bottom as before).
-  final bool topAligned;
+  /// The lines, oldest first.
+  final List<Widget> children;
+
+  /// The newest line's key (a new one arrived when it changes).
+  final String newest;
+
+  static const scrollKey = Key('liveChat.scroll');
+  static const newMessagesKey = Key('liveChat.newMessages');
+
+  /// Further from the newest than this, the person is reading older lines.
+  static const double awayAt = 24;
+
+  /// The faded top edge while there is more above.
+  static const double fade = 40;
+
+  /// Whether [state]'s top edge fades now (tests).
+  @visibleForTesting
+  static bool debugFading(State<LiveChatScroll> state) =>
+      (state as _LiveChatScrollState)._more;
 
   @override
-  RenderObject createRenderObject(BuildContext context) =>
-      _RenderWholeLines(Directionality.of(context))..topAligned = topAligned;
-
-  @override
-  void updateRenderObject(
-    BuildContext context,
-    covariant RenderBox renderObject,
-  ) => (renderObject as _RenderWholeLines)
-    ..direction = Directionality.of(context)
-    ..topAligned = topAligned;
+  State<LiveChatScroll> createState() => _LiveChatScrollState();
 }
 
-class _WholeLineData extends ContainerBoxParentData<RenderBox> {
-  bool shown = true;
-}
+class _LiveChatScrollState extends State<LiveChatScroll> {
+  final _scroll = ScrollController();
 
-class _RenderWholeLines extends RenderBox
-    with
-        ContainerRenderObjectMixin<RenderBox, _WholeLineData>,
-        RenderBoxContainerDefaultsMixin<RenderBox, _WholeLineData> {
-  new(this._textDirection);
+  /// Reading older lines (away from the newest).
+  bool _away = false;
 
-  bool _topAligned = false;
-  bool get topAligned => _topAligned;
-  set topAligned(bool value) {
-    if (value == _topAligned) return;
-    _topAligned = value;
-    markNeedsLayout();
-  }
+  /// New lines arrived while away: the pill.
+  bool _newBelow = false;
 
-  TextDirection _textDirection;
-  TextDirection get direction => _textDirection;
-  set direction(TextDirection value) {
-    if (value == _textDirection) return;
-    _textDirection = value;
-    markNeedsLayout();
-  }
+  /// More lines above the top edge: it fades.
+  bool _more = false;
+  bool _checkQueued = false;
 
   @override
-  void setupParentData(RenderBox child) {
-    if (child.parentData is! _WholeLineData) {
-      child.parentData = _WholeLineData();
+  void didUpdateWidget(covariant LiveChatScroll old) {
+    super.didUpdateWidget(old);
+    if (old.newest == widget.newest || !_scroll.hasClients) return;
+    final position = _scroll.position;
+    final pixels = position.pixels;
+    if (pixels > LiveChatScroll.awayAt) {
+      // Reading older lines: they stay where they are (the new line adds
+      // below them), and the pill says there is more.
+      final before = position.maxScrollExtent;
+      _newBelow = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_scroll.hasClients) return;
+        final p = _scroll.position;
+        p.jumpTo(
+          (pixels + p.maxScrollExtent - before).clamp(0.0, p.maxScrollExtent),
+        );
+      });
+    } else if (pixels > 0) {
+      // Near the newest: the new line shows whole.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _scroll.hasClients) _scroll.jumpTo(0);
+      });
     }
   }
 
   @override
-  void performLayout() {
-    final width = constraints.maxWidth;
-    final room = constraints.maxHeight;
-    final lineConstraints = BoxConstraints(maxWidth: width);
-    // From the newest (last) line up: each one is shown while it fits.
-    var used = 0.0;
-    var widest = 0.0;
-    var fits = true;
-    var child = lastChild;
-    while (child != null) {
-      child.layout(lineConstraints, parentUsesSize: true);
-      final data = child.parentData! as _WholeLineData;
-      final h = child.size.height;
-      if (fits && used + h <= room + 0.01) {
-        used += h;
-        widest = math.max(widest, child.size.width);
-        data.shown = true;
-      } else {
-        fits = false;
-        data.shown = false;
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  void _check() {
+    if (_checkQueued) return;
+    _checkQueued = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkQueued = false;
+      if (!mounted || !_scroll.hasClients) return;
+      final p = _scroll.position;
+      if (!p.hasContentDimensions) return;
+      final away = p.pixels > LiveChatScroll.awayAt;
+      final more = p.maxScrollExtent - p.pixels > 0.5;
+      final newBelow = _newBelow && away;
+      if (away != _away || more != _more || newBelow != _newBelow) {
+        setState(() {
+          _away = away;
+          _more = more;
+          _newBelow = newBelow;
+        });
       }
-      child = data.previousSibling;
-    }
-    // The whole height when it is bounded (the lines sit at its bottom and
-    // the top fade stays at the top), else the lines' own.
-    size = constraints.constrain(Size(widest, room.isFinite ? room : used));
-    // D199: from the top until a line has had to go; then, as before, the
-    // newest at the bottom.
-    var y = _topAligned && fits ? 0.0 : size.height - used;
-    child = firstChild;
-    while (child != null) {
-      final data = child.parentData! as _WholeLineData;
-      if (data.shown) {
-        final x = _textDirection == TextDirection.rtl
-            ? size.width - child.size.width
-            : 0.0;
-        data.offset = Offset(x, y);
-        y += child.size.height;
-      } else {
-        data.offset = Offset.zero;
-      }
-      child = data.nextSibling;
+    });
+  }
+
+  void _toNewest() {
+    setState(() => _newBelow = false);
+    if (!_scroll.hasClients) return;
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _scroll.jumpTo(0);
+    } else {
+      _scroll.animateTo(
+        0,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
+      );
     }
   }
 
   @override
-  double computeMinIntrinsicWidth(double height) => 0;
-
-  @override
-  double computeMaxIntrinsicWidth(double height) {
-    var w = 0.0;
-    var child = firstChild;
-    while (child != null) {
-      w = math.max(w, child.getMaxIntrinsicWidth(double.infinity));
-      child = (child.parentData! as _WholeLineData).nextSibling;
-    }
-    return w;
-  }
-
-  @override
-  Size computeDryLayout(BoxConstraints constraints) {
-    final lineConstraints = BoxConstraints(maxWidth: constraints.maxWidth);
-    var used = 0.0;
-    var widest = 0.0;
-    var child = lastChild;
-    while (child != null) {
-      final s = child.getDryLayout(lineConstraints);
-      if (used + s.height > constraints.maxHeight + 0.01) break;
-      used += s.height;
-      widest = math.max(widest, s.width);
-      child = (child.parentData! as _WholeLineData).previousSibling;
-    }
-    return constraints.constrain(
-      Size(
-        widest,
-        constraints.maxHeight.isFinite ? constraints.maxHeight : used,
+  Widget build(BuildContext context) {
+    _check();
+    final more = _more;
+    final list = NotificationListener<ScrollMetricsNotification>(
+      onNotification: (_) {
+        _check();
+        return false;
+      },
+      child: NotificationListener<ScrollNotification>(
+        onNotification: (_) {
+          _check();
+          return false;
+        },
+        // The same tree whether or not the edge fades (the scroll position
+        // is kept): only the mask changes.
+        child: ShaderMask(
+          blendMode: BlendMode.dstIn,
+          shaderCallback: (rect) => LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              if (more) const Color(0x00000000) else const Color(0xFF000000),
+              const Color(0xFF000000),
+            ],
+            stops: [
+              0,
+              if (rect.height <= 0)
+                0
+              else
+                (LiveChatScroll.fade / rect.height).clamp(0.0, 1.0),
+            ],
+          ).createShader(rect),
+          child: SingleChildScrollView(
+            key: LiveChatScroll.scrollKey,
+            controller: _scroll,
+            reverse: true,
+            physics: const ClampingScrollPhysics(),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: widget.children,
+            ),
+          ),
+        ),
       ),
     );
+    return Stack(
+      children: [
+        list,
+        if (_newBelow)
+          PositionedDirectional(
+            start: 0,
+            bottom: 4,
+            child: _NewMessagesPill(onTap: _toNewest),
+          ),
+      ],
+    );
   }
+}
+
+/// D230: «رسائل جديدة ↓» — Kabso's pink pill over the chat while the person
+/// reads older lines.
+class _NewMessagesPill extends StatelessWidget {
+  const new({required this.onTap});
+
+  final VoidCallback onTap;
 
   @override
-  void paint(PaintingContext context, Offset offset) {
-    var child = firstChild;
-    while (child != null) {
-      final data = child.parentData! as _WholeLineData;
-      if (data.shown) context.paintChild(child, data.offset + offset);
-      child = data.nextSibling;
-    }
-  }
-
-  @override
-  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
-    var child = lastChild;
-    while (child != null) {
-      final data = child.parentData! as _WholeLineData;
-      if (data.shown) {
-        final hit = result.addWithPaintOffset(
-          offset: data.offset,
-          position: position,
-          hitTest: (result, transformed) =>
-              child!.hitTest(result, position: transformed),
-        );
-        if (hit) return true;
-      }
-      child = data.previousSibling;
-    }
-    return false;
-  }
-
-  @override
-  void visitChildrenForSemantics(RenderObjectVisitor visitor) {
-    var child = firstChild;
-    while (child != null) {
-      final data = child.parentData! as _WholeLineData;
-      if (data.shown) visitor(child);
-      child = data.nextSibling;
-    }
+  Widget build(BuildContext context) {
+    final label = context.l10n.liveChatNewMessages;
+    return Semantics(
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: GestureDetector(
+        key: LiveChatScroll.newMessagesKey,
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+          decoration: BoxDecoration(
+            color: KPalette.dark.primary,
+            borderRadius: BorderRadius.circular(KRadius.pill),
+            boxShadow: const [
+              BoxShadow(color: Color(0x66000000), blurRadius: 6),
+            ],
+          ),
+          child: Text(
+            label,
+            textScaler: MediaQuery.textScalerOf(context)
+                .clamp(maxScaleFactor: KMetrics.overlayMaxTextScale),
+            style: context.textStyles.caption.copyWith(
+              color: const Color(0xFFFFFFFF),
+              fontWeight: FontWeight.w800,
+              fontSize: 13,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -1965,9 +2178,10 @@ class LiveChatJoinBubble extends StatelessWidget {
     final text = liveJoinText(l10n, join);
     final name = KFormat.bidiIsolate(join.user.displayName);
     final at = text.indexOf(name);
+    // D230: the chat's 15 sp base size.
     final style = context.textStyles.caption.copyWith(
-      fontSize: 11.5,
-      height: 1.5,
+      fontSize: LiveChatInlineRow.compactTextSize,
+      height: 1.35,
       color: textColor,
     );
     final nameStyle = style.copyWith(

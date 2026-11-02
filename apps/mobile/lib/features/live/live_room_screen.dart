@@ -1300,8 +1300,9 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                   bubble: KLiveColors.chatScrim,
                   onProfile: _person,
                   inline: true,
-                  // D199: the chat starts at its top (the rules line first).
-                  anchorTop: true,
+                  // D230: the video live's chat (bottom-anchored like every
+                  // room; the rules line steps aside while typing).
+                  video: true,
                 ),
               ),
             ),

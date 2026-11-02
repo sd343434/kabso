@@ -1929,6 +1929,10 @@ void main() {
             entry('m2', 'Thanks all', role: LiveChatRole.host),
           ];
         await _pumpRoom(tester, repo: repo, engine: engine, user: testUser());
+        // D230: the oldest line may have risen above the chat's top (a
+        // finger drags back to it).
+        await tester.ensureVisible(line('buy followers'));
+        await tester.pumpAndSettle();
         await tester.tap(line('buy followers'));
         await tester.pumpAndSettle();
         expect(find.byKey(const Key('liveChat.action.delete')), findsOneWidget);

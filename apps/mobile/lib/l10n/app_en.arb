@@ -1264,6 +1264,7 @@
   "liveChatMutedPill": "You're muted in this live's chat",
   "liveChatSignIn": "Log in to chat",
   "liveChatFailed": "Not sent. Tap to retry",
+  "liveChatNewMessages": "New messages ↓",
   "liveChatRetry": "Send again",
   "liveChatDiscard": "Remove",
   "liveChatHostBadge": "Host",

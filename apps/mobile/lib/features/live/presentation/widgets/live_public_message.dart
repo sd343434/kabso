@@ -180,7 +180,7 @@ class _LivePublicMessageState extends State<LivePublicMessage>
     final badges = LiveChatBadgeRow(
       role: null,
       badges: widget.badges,
-      height: LiveChatInlineRow.badgeHeight,
+      height: LiveChatInlineRow.cardBadgeHeight,
     );
     final local = bullet.createdAt.toLocal();
     final time =

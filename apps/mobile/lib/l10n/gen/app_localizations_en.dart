@@ -3852,6 +3852,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveChatFailed => 'Not sent. Tap to retry';
 
   @override
+  String get liveChatNewMessages => 'New messages ↓';
+
+  @override
   String get liveChatRetry => 'Send again';
 
   @override

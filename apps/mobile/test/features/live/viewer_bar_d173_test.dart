@@ -624,10 +624,9 @@ void main() {
             // The chat keeps its place over the bar, under the seats.
             final chat = find.byType(LiveRoomChatLines);
             expect(chat, findsOneWidget);
-            // (the lines scroll inside the area under the seats)
-            final c = tester.getRect(
-              find.ancestor(of: chat, matching: find.byType(Scrollable)).first,
-            );
+            // (D230: the chat scrolls by itself inside the area under the
+            // seats)
+            final c = tester.getRect(chat);
             expect(
               c.top,
               greaterThanOrEqualTo(
