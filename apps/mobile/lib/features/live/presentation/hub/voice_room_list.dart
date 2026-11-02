@@ -1,6 +1,7 @@
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_grid_card.dart';
+import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_rocket_art.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -167,16 +168,13 @@ abstract final class VoiceRoomList {
 
 /// One room as a party-page card (D246, the owner's reference): the cover
 /// square at the reading start, rounded, with the live mark and the room's
-/// kind at its bottom («ılı بث صوتي»); the title in bold (two lines when
-/// there is no topic) and the host's topic in grey under it; a pills line
-/// with only what the API says — «PK» while the room is in a PK (D241),
-/// «مميز» in a paid slot (D154b) and the seats taken when the room has
-/// seats; the viewer count at the end with a mic (audio, podcast) or a
-/// camera (multi).
-///
-/// The ref's host level pill and "Popular" pill need data a room summary
-/// does not carry (the host's level, a popularity flag), so they are not
-/// drawn (no invented values).
+/// kind at its bottom («ılı بث صوتي»); the host's country flag and the title
+/// in bold (two lines when there is no topic), the host's topic in grey
+/// under it; one line of pills with only what the API says — «رائج»
+/// (`popular`, v1.58-live), «PK» while the room is in a PK (D241), the
+/// host's level (`roomLevel`, the charm badge), «مميز» in a paid slot
+/// (D154b) and the seats; the viewer count at the end with a mic (audio,
+/// podcast) or a camera (multi).
 class VoiceRoomRow extends StatelessWidget {
   const new({required this.room, super.key, this.onTap});
 
@@ -188,6 +186,9 @@ class VoiceRoomRow extends StatelessWidget {
   static const pkKey = Key('voiceRoom.pk');
   static const featuredKey = Key('voiceRoom.featured');
   static const seatsKey = Key('voiceRoom.seats');
+  static const levelKey = Key('voiceRoom.level');
+  static const popularKey = Key('voiceRoom.popular');
+  static const flagKey = Key('voiceRoom.flag');
   static const viewersKey = Key('voiceRoom.viewers');
 
   @override
@@ -218,12 +219,17 @@ class VoiceRoomRow extends StatelessWidget {
     final withCategory = category == null || category.isEmpty
         ? base
         : l10n.liveCardSemanticsCategory(base, category);
-    final semantics = room.featured
-        ? '${l10n.liveBoostFeatured}, $withCategory'
-        : withCategory;
+    final semantics = [
+      if (room.featured) l10n.liveBoostFeatured,
+      if (room.popular) l10n.liveCardPopular,
+      withCategory,
+      if (room.roomLevel case final level?) l10n.liveRoomLevelBadge(level),
+    ].join(', ');
     final topic = room.topic?.trim();
     final hasTopic = topic != null && topic.isNotEmpty;
     final seats = room.seatCount;
+    final level = room.roomLevel;
+    final country = room.hostCountry;
     final radius = BorderRadius.circular(KVoiceRoomRow.radius);
     return Semantics(
       button: onTap != null,
@@ -331,16 +337,37 @@ class VoiceRoomRow extends StatelessWidget {
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  room.title,
-                                  maxLines: hasTopic ? 1 : 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: t.bodyStrong.copyWith(
-                                    color: ink,
-                                    fontSize: KVoiceRoomRow.title,
-                                    fontWeight: FontWeight.w700,
-                                    height: 1.25,
-                                  ),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // D246: the host's country at the
+                                    // title's start (owner).
+                                    if (country != null) ...[
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          top: 2.5,
+                                        ),
+                                        child: _Flag(
+                                          key: flagKey,
+                                          code: country,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                    ],
+                                    Flexible(
+                                      child: Text(
+                                        room.title,
+                                        maxLines: hasTopic ? 1 : 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: t.bodyStrong.copyWith(
+                                          color: ink,
+                                          fontSize: KVoiceRoomRow.title,
+                                          fontWeight: FontWeight.w700,
+                                          height: 1.25,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                                 if (hasTopic)
                                   Text(
@@ -361,36 +388,63 @@ class VoiceRoomRow extends StatelessWidget {
                             Row(
                               children: [
                                 Expanded(
-                                  child: Wrap(
-                                    spacing: KVoiceRoomRow.chipGap,
-                                    runSpacing: 2,
-                                    children: [
-                                      if (room.inPk)
-                                        _Chip(
-                                          key: pkKey,
-                                          label: l10n.pkBadge,
-                                          pk: true,
-                                        ),
-                                      if (room.featured)
-                                        DefaultTextStyle.merge(
-                                          key: featuredKey,
-                                          style: t.caption.copyWith(
-                                            height: 1.2,
-                                          ),
-                                          child: KFeaturedPill(
-                                            label: l10n.liveBoostFeatured,
-                                          ),
-                                        ),
-                                      if (seats != null)
-                                        _Chip(
-                                          key: seatsKey,
-                                          icon: Icons.event_seat_outlined,
-                                          label: l10n.liveVoiceSeats(
-                                            room.occupiedSeats,
-                                            seats,
-                                          ),
-                                        ),
-                                    ],
+                                  // One line of pills: those that do not
+                                  // fit are left out (a second run is
+                                  // clipped), the level's creature may
+                                  // stand above and below the line.
+                                  child: ClipRect(
+                                    clipper: const _PillsClip(),
+                                    child: SizedBox(
+                                      height: KVoiceRoomRow.chipHeight,
+                                      child: Wrap(
+                                        spacing: KVoiceRoomRow.chipGap,
+                                        runSpacing: KVoiceRoomRow.chipHeight,
+                                        crossAxisAlignment:
+                                            WrapCrossAlignment.center,
+                                        children: [
+                                          if (room.popular)
+                                            _Chip(
+                                              key: popularKey,
+                                              label: l10n.liveCardPopular,
+                                              tone: _ChipTone.popular,
+                                            ),
+                                          if (room.inPk)
+                                            _Chip(
+                                              key: pkKey,
+                                              label: l10n.pkBadge,
+                                              tone: _ChipTone.pk,
+                                            ),
+                                          if (level != null)
+                                            // Sized to its number (the
+                                            // badge fills a loose width).
+                                            IntrinsicWidth(
+                                              child: CharmLevelBadge(
+                                                key: levelKey,
+                                                level: level,
+                                              ),
+                                            ),
+                                          if (room.featured)
+                                            DefaultTextStyle.merge(
+                                              key: featuredKey,
+                                              style: t.caption.copyWith(
+                                                height: 1.2,
+                                              ),
+                                              child: KFeaturedPill(
+                                                label: l10n.liveBoostFeatured,
+                                              ),
+                                            ),
+                                          if (seats != null)
+                                            _Chip(
+                                              key: seatsKey,
+                                              icon: Icons.event_seat_outlined,
+                                              label: l10n.liveVoiceSeats(
+                                                room.occupiedSeats,
+                                                seats,
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(width: KSpacing.xs),
@@ -440,25 +494,43 @@ class VoiceRoomRow extends StatelessWidget {
   }
 }
 
+/// The look of a card pill.
+enum _ChipTone { seats, pk, popular }
+
 /// A card pill (the ref's tinted pills, in Kabso's colours): the seats
-/// (cyan) or «PK» (brand red, italic bold).
+/// (cyan), «PK» (brand red, italic bold) or «رائج» (grey, as the ref's
+/// "Popular").
 class _Chip extends StatelessWidget {
-  const new({required this.label, super.key, this.icon, this.pk = false});
+  const new({
+    required this.label,
+    super.key,
+    this.icon,
+    this.tone = _ChipTone.seats,
+  });
 
   final IconData? icon;
   final String label;
-  final bool pk;
+  final _ChipTone tone;
 
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
     final light = Theme.of(context).brightness == Brightness.light;
-    final fill = pk
-        ? (light ? const Color(0xFFFFE9EC) : const Color(0x33E8173A))
-        : (light ? const Color(0xFFE6F7FB) : p.surfaceOverlay);
-    final ink = pk
-        ? KBrandColors.red500
-        : (light ? const Color(0xFF1D9BB8) : p.textSecondary);
+    final pk = tone == _ChipTone.pk;
+    final (fill, ink) = switch (tone) {
+      _ChipTone.pk => (
+        light ? const Color(0xFFFFE9EC) : const Color(0x33E8173A),
+        KBrandColors.red500,
+      ),
+      _ChipTone.popular => (
+        light ? const Color(0xFFECEEF3) : p.surfaceOverlay,
+        light ? const Color(0xFF9A9EAB) : p.textSecondary,
+      ),
+      _ChipTone.seats => (
+        light ? const Color(0xFFE6F7FB) : p.surfaceOverlay,
+        light ? const Color(0xFF1D9BB8) : p.textSecondary,
+      ),
+    };
     final icon = this.icon;
     return Container(
       constraints: const BoxConstraints(minHeight: KVoiceRoomRow.chipHeight),
@@ -488,4 +560,37 @@ class _Chip extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Clips the pills line to its width and one line, with room above and
+/// below for the level's creature (1.55 × the pill).
+class _PillsClip extends CustomClipper<Rect> {
+  const new();
+
+  @override
+  Rect getClip(Size size) =>
+      Rect.fromLTRB(0, -size.height * 0.4, size.width, size.height * 1.4);
+
+  @override
+  bool shouldReclip(_PillsClip oldClipper) => false;
+}
+
+/// D246: the host's country flag (Noto Color Emoji art, `assets/flags/`,
+/// OFL); nothing when the art is missing.
+class _Flag extends StatelessWidget {
+  const new({required this.code, super.key});
+
+  final String code;
+
+  static const Size size = Size(16, 12);
+
+  @override
+  Widget build(BuildContext context) => Image.asset(
+    'assets/flags/${code.toLowerCase()}.webp',
+    width: size.width,
+    height: size.height,
+    fit: BoxFit.contain,
+    excludeFromSemantics: true,
+    errorBuilder: (_, _, _) => const SizedBox.shrink(),
+  );
 }

@@ -119,6 +119,18 @@ export interface LiveRoomSummaryDto {
    * its dare included) or the legacy `mode = 'PK'`. A real battle keeps the rooms SOLO.
    */
   inPk: boolean;
+  /**
+   * v1.58-live (D246, §10.89): the host's charm level (CP-016 D, the room level; null while the charm
+   * category is unavailable) — the cards' «Lv.N».
+   */
+  roomLevel: number | null;
+  /**
+   * v1.58-live (D246, §10.89): «رائج» — among the first `LIVE_POPULAR_TOP_N` lives of its kind (audio,
+   * podcast, multi, video) in the `popular` order, now.
+   */
+  popular: boolean;
+  /** v1.58-live (D246, §10.89): the host's profile country (ISO 3166-1 alpha-2); absent when none. */
+  hostCountry?: string;
 }
 
 /** A speaker of a podcast as the hub card shows it (avatar stack and names). */
@@ -166,8 +178,6 @@ export interface LiveRoomDto extends LiveRoomSummaryDto {
   kicked: boolean;
   /** CP-016 G: the host's public room number (null without the hosting permission). */
   roomNumber: number | null;
-  /** CP-016 D (§10.18): the host's charm level. */
-  roomLevel: number | null;
   /** v1.27.3-live (D136, §10.29): the host's wish list, as shown. */
   wishGifts: LiveWishGiftDto[];
 }
@@ -279,6 +289,10 @@ export interface RoomRow {
   podcast_speakers: LivePodcastSpeakerDto[] | null;
   /** v1.54-live (D241): an open PK match has this room on either side. */
   in_pk: boolean;
+  /** v1.58-live (D246): the host's profile country, or null. */
+  host_country: string | null;
+  /** v1.58-live (D246): in the top `LIVE_POPULAR_TOP_N` of its kind now (`popularSql`). */
+  popular: boolean;
 }
 
 /**
@@ -316,6 +330,7 @@ const ROOM_COLUMNS = Prisma.sql`
            WHERE s.room_id = r.id AND s.user_id IS NOT NULL) AS occupied_seats,
          r.host_user_id::text AS host_user_id, u.status::text AS host_status, p.username,
          p.display_name, p.avatar_url, p.premium_tier::text AS premium_tier,
+         p.country_code::text AS host_country,
          (SELECT ra.code FROM recharge_agents ra WHERE ra.user_id = r.host_user_id AND ra.status = 'ACTIVE') AS agent_code,
          (SELECT ag.host_code FROM agencies ag
            WHERE ag.owner_user_id = r.host_user_id AND ag.suspended_at IS NULL
@@ -351,7 +366,34 @@ const ROOM_FROM = Prisma.sql`
     LEFT JOIN live_room_scores sc ON sc.room_id = r.id
     LEFT JOIN live_hosts lh ON lh.user_id = r.host_user_id`;
 
-const ROOM_SELECT = Prisma.sql`SELECT ${ROOM_COLUMNS} ${ROOM_FROM}`;
+/**
+ * v1.58-live (D246, §10.89): the kind a live counts in for «رائج» — the party page's kinds and the
+ * hub's video (SOLO and PK).
+ */
+function popularKindSql(alias: string): Prisma.Sql {
+  const mode = Prisma.raw(`${alias}.mode`);
+  return Prisma.sql`CASE ${mode} WHEN 'AUDIO'::live_room_mode THEN 1 WHEN 'PODCAST'::live_room_mode THEN 2
+                         WHEN 'MULTI'::live_room_mode THEN 3 ELSE 0 END`;
+}
+
+/**
+ * v1.58-live (D246, §10.89): `r` is «رائج» — among the first `topN` listable lives (LIVE, fresh, ACTIVE
+ * host) of its kind in the `popular` order (score, startedAt, id, all desc; the same as the tab). An
+ * uncorrelated subquery: PostgreSQL computes the set once per statement (a hashed subplan), never per
+ * row. Global (the same for every viewer), so blocks do not change it.
+ */
+function popularSql(cutoff: Date, topN: number): Prisma.Sql {
+  return Prisma.sql`(r.id IN (
+           SELECT t.id FROM (
+             SELECT r2.id, row_number() OVER (
+                      PARTITION BY ${popularKindSql('r2')}
+                      ORDER BY r2.score DESC, r2.started_at DESC, r2.id DESC) AS rn
+               FROM live_rooms r2
+               JOIN users u2 ON u2.id = r2.host_user_id
+              WHERE r2.status = 'LIVE' AND u2.status = 'ACTIVE'
+                AND r2.last_heartbeat_at > ${ts(cutoff)}::timestamptz) t
+            WHERE t.rn <= ${topN}::int))`;
+}
 
 /** CP-013: whether `viewerId` is muted in the room's chat (a guest never is). */
 function chatMutedSql(viewerId: string | null): Prisma.Sql {
@@ -603,6 +645,11 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
       // D228: the OWNER's switch (a `site_settings` row; DEEPAR when absent or unreadable).
       cameraFxEngine: await readCameraFxEngine(this.prisma),
     };
+  }
+
+  /** v1.58-live (D246): the «رائج» column of a room statement, as of now. */
+  private popularColumn(): Prisma.Sql {
+    return popularSql(this.cutoff(this.clock.now()), this.config.live.popularTopN);
   }
 
   private cutoff(now: Date): Date {
@@ -907,6 +954,9 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
             }
           : null,
       inPk: row.in_pk || row.mode === 'PK',
+      roomLevel: row.room_level,
+      popular: row.popular,
+      ...(row.host_country ? { hostCountry: row.host_country } : {}),
     };
   }
 
@@ -934,14 +984,14 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
       chatMuted: row.chat_muted ?? false,
       kicked: row.kicked ?? false,
       roomNumber: row.room_number,
-      roomLevel: row.room_level,
       wishGifts,
     };
   }
 
   private async selectRoom(roomId: string, viewerId: string | null = null): Promise<RoomRow | null> {
     const rows = await this.prisma.$queryRaw<RoomRow[]>`
-      SELECT ${ROOM_COLUMNS}, ${chatMutedSql(viewerId)} AS chat_muted, ${kickedSql(viewerId)} AS kicked
+      SELECT ${ROOM_COLUMNS}, ${chatMutedSql(viewerId)} AS chat_muted, ${kickedSql(viewerId)} AS kicked,
+             ${this.popularColumn()} AS popular
              ${ROOM_FROM}
        WHERE r.id = ${roomId}::uuid AND ${notBlockedSql(viewerId)}`;
     return rows[0] ?? null;
@@ -1023,14 +1073,16 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     // v1.27.1-live (D133): featured = hosts featured now (`until` not passed), by rank first.
     const rows = featured
       ? await this.prisma.$queryRaw<(RoomRow & { feature_rank: number })[]>`
-          SELECT ${ROOM_COLUMNS}, fh.rank AS feature_rank ${ROOM_FROM}
+          SELECT ${ROOM_COLUMNS}, fh.rank AS feature_rank, ${popularSql(this.cutoff(now), this.config.live.popularTopN)} AS popular
+                 ${ROOM_FROM}
             JOIN live_featured_hosts fh ON fh.user_id = r.host_user_id
                  AND (fh.until IS NULL OR fh.until > ${ts(now)}::timestamptz)
            WHERE ${Prisma.join(conditions, ' AND ')}
            ORDER BY ${FEATURED_ORDER}
            LIMIT ${query.limit + 1}`
       : await this.prisma.$queryRaw<RoomRow[]>`
-          ${ROOM_SELECT}
+          SELECT ${ROOM_COLUMNS}, ${popularSql(this.cutoff(now), this.config.live.popularTopN)} AS popular
+                 ${ROOM_FROM}
            WHERE ${Prisma.join(conditions, ' AND ')}
            ORDER BY ${orderBy(query.tab)}
            LIMIT ${query.limit + 1}`;
@@ -1068,7 +1120,8 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     if (roomIds.length === 0) return new Map();
     const now = this.clock.now();
     const rows = await this.prisma.$queryRaw<RoomRow[]>`
-      ${ROOM_SELECT}
+      SELECT ${ROOM_COLUMNS}, ${popularSql(this.cutoff(now), this.config.live.popularTopN)} AS popular
+             ${ROOM_FROM}
        WHERE r.id = ANY(${[...roomIds]}::uuid[]) AND r.status = 'LIVE'
          AND r.last_heartbeat_at > ${ts(this.cutoff(now))}::timestamptz
          AND u.status = 'ACTIVE' AND ${notBlockedSql(viewerId)}`;

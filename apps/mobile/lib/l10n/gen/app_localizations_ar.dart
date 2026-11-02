@@ -6226,6 +6226,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get livePartyTabFollowing => 'المتابَعة';
 
   @override
+  String get liveCardPopular => 'رائج';
+
+  @override
   String get liveHubFilterNearby => 'القريبة';
 
   @override

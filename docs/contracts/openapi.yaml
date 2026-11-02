@@ -198,6 +198,10 @@ info:
     BATTLE or RESULT — or the legacy mode `PK`; real battles keep the rooms `SOLO`), and the panel's lives:
     `listAdminLives` `mode=PK` / `SOLO` by it and `AdminLiveRow.pk` / `AdminLiveDetail.pk` (the opponent;
     CONVENTIONS §10.84).
+    **D246 (DRAFT v1.58-live)** the party page's room cards: `LiveRoomSummary.roomLevel` (the host's charm
+    level, CP-016 D — now in every summary, not only `LiveRoom`), `LiveRoomSummary.popular` («رائج»: among the
+    first `LIVE_POPULAR_TOP_N` (10) lives of its kind in the `popular` order) and `LiveRoomSummary.hostCountry`
+    (the host's profile country; absent when none) (CONVENTIONS §10.89).
     **D242 (DRAFT v1.55-live)** «جولة أخرى»: a rematch with the same opponent from the result —
     `offerLivePkRematch`, `acceptLivePkRematch`, `declineLivePkRematch`, `cancelLivePkRematch`; `PkMatch.rematch`
     (`PkRematchOffer`), `rematchOf`, `rematchCount`, `rematchesLeft`; data-message events `rematch-offer`,
@@ -21775,6 +21779,17 @@ components:
         inPk:
           type: boolean
           description: "v1.54-live (D241, CONVENTIONS §10.84) — the room is in a PK now: an open D195 match (CONNECTED, BATTLE or RESULT, its dare included) on either side, or the legacy mode `PK` (a real battle keeps the rooms `SOLO`). The hub card's tag is «PK». Sent by v1.54-live servers; a missing field reads as false."
+        roomLevel:
+          type: [integer, 'null']
+          minimum: 1
+          description: "CP-016 D (v1.17-live, CONVENTIONS §10.18): the host's charm (ATTRACTIVENESS) level, the same in every live of that host. Null while the charm category is unavailable. v1.58-live (D246, §10.89): in every summary (lists, boosts), the room cards' «Lv.N»; before, only `LiveRoom` carried it. A missing field reads as null."
+        popular:
+          type: boolean
+          description: "v1.58-live (D246, CONVENTIONS §10.89) — «رائج»: the live is among the first `LIVE_POPULAR_TOP_N` (default 10) listable lives (LIVE, fresh, ACTIVE host) of its kind — audio (`AUDIO`), podcast (`PODCAST`), multi (`MULTI`), video (`SOLO`, `PK`) — in the `popular` order (score, startedAt, id, all descending), as of the request. The same for every viewer. A missing field reads as false."
+        hostCountry:
+          type: string
+          pattern: '^[A-Z]{2}$'
+          description: "v1.58-live (D246, CONVENTIONS §10.89) — the host's profile country (ISO 3166-1 alpha-2, upper case; public like `PublicProfile.country`); the party page's cards show its flag. Absent when the host set none."
     LiveRoom:
       allOf:
         - { $ref: '#/components/schemas/LiveRoomSummary' }
@@ -21799,10 +21814,6 @@ components:
               minimum: 100000000
               maximum: 999999999
               description: "CP-016 G (v1.15-live): the host's public room number (9 digits, the same in every live of that host; the room bar shows \"ID: …\"). Null when the host no longer has the hosting permission."
-            roomLevel:
-              type: [integer, 'null']
-              minimum: 1
-              description: "CP-016 D (v1.17-live, CONVENTIONS §10.18): the host's charm (ATTRACTIVENESS) level, the same in every live of that host. Null while the charm category is unavailable."
             status: { type: string, enum: [LIVE, ENDED] }
             allowGuests: { type: boolean, description: "CP-010: people without an account may watch." }
             endedAt: { type: [string, 'null'], format: date-time }

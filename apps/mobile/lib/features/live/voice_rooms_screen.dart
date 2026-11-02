@@ -598,7 +598,16 @@ class _NearbyCountryTab extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (country != null) ...[
-                Text(KCountries.flag(country.code), style: style),
+                // The flag art (`assets/flags/`, as the cards), not the
+                // emoji: the same on every phone.
+                Image.asset(
+                  'assets/flags/${country.code.toLowerCase()}.webp',
+                  width: 18,
+                  height: 13,
+                  fit: BoxFit.contain,
+                  excludeFromSemantics: true,
+                  errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                ),
                 const SizedBox(width: 4),
               ],
               ConstrainedBox(

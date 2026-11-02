@@ -25,6 +25,7 @@ import 'package:kabso_live/features/live/presentation/hub/live_hub_filters.dart'
 import 'package:kabso_live/features/live/presentation/hub/live_hub_grid.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_nearby_country.dart';
 import 'package:kabso_live/features/live/presentation/hub/voice_room_list.dart';
+import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/features/live/voice_rooms_screen.dart';
 import 'package:kabso_live/features/notifications/presentation/notifications_screen.dart';
@@ -605,9 +606,10 @@ void main() {
       expect(find.byType(KLiveGridCard), findsWidgets);
     });
 
-    testWidgets('cards show only the API facts: «PK» (inPk), «مميز» (a paid '
-        'slot), the topic under the title, a mic for audio and a camera for '
-        'multi', (tester) async {
+    testWidgets('cards show only the API facts: «رائج» (popular), «PK» '
+        '(inPk), the level (roomLevel), «مميز» (a paid slot), the flag '
+        '(hostCountry), the topic under the title, a mic for audio and a '
+        'camera for multi', (tester) async {
       setViewport(tester, GoldenViewport.phone);
       await pumpScreen(
         tester,
@@ -624,6 +626,9 @@ void main() {
                   inPk: true,
                   featured: true,
                   topic: 'welcome',
+                  popular: true,
+                  roomLevel: 12,
+                  hostCountry: 'JO',
                 ),
               ),
               VoiceRoomRow(
@@ -646,6 +651,31 @@ void main() {
       expect(inCard('a', find.text('welcome')), findsOneWidget);
       expect(inCard('a', find.text(en.liveCategoryAudio)), findsOneWidget);
       expect(inCard('a', find.byIcon(Icons.mic_rounded)), findsOneWidget);
+      // D246 (v1.58-live): «رائج», the host's level and flag — from the API.
+      expect(inCard('a', find.byKey(VoiceRoomRow.popularKey)), findsOneWidget);
+      expect(inCard('a', find.text(en.liveCardPopular)), findsOneWidget);
+      expect(
+        tester
+            .widget<CharmLevelBadge>(
+              inCard('a', find.byKey(VoiceRoomRow.levelKey)),
+            )
+            .level,
+        12,
+      );
+      final flag = tester.widget<Image>(
+        inCard(
+          'a',
+          find.descendant(
+            of: find.byKey(VoiceRoomRow.flagKey),
+            matching: find.byType(Image),
+          ),
+        ),
+      );
+      expect((flag.image as AssetImage).assetName, 'assets/flags/jo.webp');
+      // None of them without the data (an older server, no country).
+      expect(inCard('m', find.byKey(VoiceRoomRow.popularKey)), findsNothing);
+      expect(inCard('m', find.byKey(VoiceRoomRow.levelKey)), findsNothing);
+      expect(inCard('m', find.byKey(VoiceRoomRow.flagKey)), findsNothing);
       expect(inCard('m', find.byKey(VoiceRoomRow.pkKey)), findsNothing);
       expect(inCard('m', find.byKey(VoiceRoomRow.featuredKey)), findsNothing);
       expect(inCard('m', find.byKey(VoiceRoomRow.topicKey)), findsNothing);

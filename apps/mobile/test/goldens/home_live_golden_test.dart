@@ -301,6 +301,11 @@ void main() {
                       ][i % 3],
                 seatCount: i < 6 ? 8 : null,
                 occupiedSeats: i < 6 ? (i * 3) % 8 : 0,
+                // D246 (v1.58-live): the party cards' «رائج», the host's
+                // level and country (none for some, as the API).
+                popular: i == 0 || i == 2,
+                roomLevel: i.isEven ? 12 + i * 7 : null,
+                hostCountry: const ['JO', 'SA', null, 'EG', 'AE', null][i % 6],
                 viewerCount: const [
                   128,
                   0,

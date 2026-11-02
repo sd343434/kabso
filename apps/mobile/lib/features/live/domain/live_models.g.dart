@@ -184,6 +184,9 @@ _LiveRoomSummary _$LiveRoomSummaryFromJson(Map<String, dynamic> json) =>
           ? null
           : LivePodcast.fromJson(json['podcast'] as Map<String, dynamic>),
       inPk: json['inPk'] as bool? ?? false,
+      roomLevel: (json['roomLevel'] as num?)?.toInt(),
+      popular: json['popular'] as bool? ?? false,
+      hostCountry: json['hostCountry'] as String?,
     );
 
 Map<String, dynamic> _$LiveRoomSummaryToJson(_LiveRoomSummary instance) =>
@@ -203,6 +206,9 @@ Map<String, dynamic> _$LiveRoomSummaryToJson(_LiveRoomSummary instance) =>
       'topic': instance.topic,
       'podcast': instance.podcast,
       'inPk': instance.inPk,
+      'roomLevel': instance.roomLevel,
+      'popular': instance.popular,
+      'hostCountry': instance.hostCountry,
     };
 
 const _$LiveRoomModeEnumMap = {

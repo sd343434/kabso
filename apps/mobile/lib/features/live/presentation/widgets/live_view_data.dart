@@ -33,6 +33,9 @@ class LiveRoomCardData {
     this.podcast,
     this.hostUsername,
     this.topic,
+    this.roomLevel,
+    this.popular = false,
+    this.hostCountry,
   });
 
   /// A room from `GET /live/rooms` (v1.3): the host's display name and
@@ -71,6 +74,9 @@ class LiveRoomCardData {
       podcast: room.mode == LiveRoomMode.podcast ? room.podcast : null,
       hostUsername: room.host.username,
       topic: room.topic,
+      roomLevel: room.roomLevel,
+      popular: room.popular,
+      hostCountry: room.hostCountry,
     );
   }
 
@@ -144,6 +150,16 @@ class LiveRoomCardData {
   /// CP-014: the host's one-line topic, or null (D246: the party page's
   /// card subtitle).
   final String? topic;
+
+  /// v1.58-live (D246): the host's charm level (the cards' level pill), or
+  /// null.
+  final int? roomLevel;
+
+  /// v1.58-live (D246): «رائج» (top of its kind in the popular order).
+  final bool popular;
+
+  /// v1.58-live (D246): the host's profile country (ISO alpha-2), or null.
+  final String? hostCountry;
 }
 
 /// A line in the live chat overlay.

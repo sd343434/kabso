@@ -2368,3 +2368,14 @@ sends no `type` (NORMAL), shows a DARES invitation as a normal one and ignores `
 offered a dare's buttons, so a dare drawn against it times out as refused after 30 s — ship the app before announcing
 «PK أحكام»).
 - Not verified on a device or a server (the draw animation on a phone, the second-room dare banner on real LiveKit).
+
+### 5.48 The party page's room cards: «رائج» per kind (no migration; D246) — [IMPLEMENTED, draft contract v1.58-live; not deployed, not device-tested]
+
+CONVENTIONS §10.89. (§5.46–§5.47 are on other branches.) No migration and no new table: `LiveRoomSummary.roomLevel`,
+`popular` and `hostCountry` are read in the room statements.
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `LIVE_POPULAR_TOP_N` | 10 | D246 «رائج»: a live is popular while among this many first lives of its kind (audio, podcast, multi, video) in the `popular` order (1–100) |
+
+Order: API first, then the app (an older server sends none of the fields: the cards show no level, no «رائج», no flag).
