@@ -1184,6 +1184,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                 LiveStickerLayer(roomId: room.id),
               ],
             ),
+      // D238b: the PK videos edge to edge.
+      stageEdgeToEdge: pkStage != null,
       stage:
           pkStage ??
           (!ended && room.mode.hasSeats ? _stage(session, engine) : null),

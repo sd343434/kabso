@@ -22,26 +22,43 @@ abstract final class KLivePk {
   static const double aboveBar = 36;
   static const double barHeight = 22;
 
-  /// D231: «PK 3:47» where the halves meet, under the bar (readable: 15 sp).
-  static const double timerHeight = 26;
-  static const double timerWidth = 112;
-  static const double timerText = 15;
+  /// D231 → D238b (owner, ref 332: «حتى حجم خط pk»): «PK 3:47» hanging
+  /// under the bar where the halves meet, at the reference's size —
+  /// measured 64.7 × 17.9 lp (152 × 42 px at 2.349 px/lp), its digits
+  /// 8.1 lp tall (11.5 sp, estimate). Was 112 × 26, 15 sp.
+  static const double timerHeight = 18;
+  static const double timerWidth = 64;
+  static const double timerText = 11.5;
+  static const double timerRadius = 5;
 
-  /// D231 (owner: «لا تظهر صورة المضيفين كل شخص على جزئه من الأسفل مع زر +»):
-  /// each side's host at the bottom of their half — picture, name and the
-  /// opponent's «+».
-  static const double hostAvatar = 38;
-  static const double hostRing = 2;
-  static const double hostChip = hostAvatar + hostRing * 2;
-  static const double hostName = 13;
-  static const double follow = 24;
-  static const double seam = 2;
+  /// D238b (owner, ref 332: «اسم المضيف يظهر للمشاهدين اسم المضيف الآخر …
+  /// واجعل طريقة اسم المضيف مطابق للقطة»): only the OTHER host's name, in
+  /// the reference's pill at the bottom outer corner of their half —
+  /// measured 14 lp tall (33 px), its bottom 7.2 lp over the video's bottom
+  /// and its end 11.1 lp in from the screen edge, at most 86 lp wide; the
+  /// name 9 sp (estimate: 6.4 lp cap height) with «…», the round «+»
+  /// (13 lp) at its end. Dark glass about 32 % (measured over the video).
+  static const double pillHeight = 14;
+  static const double pillBottom = 7.2;
+  static const double pillEnd = 11.1;
+  static const double pillMaxWidth = 86;
+  static const double pillText = 9;
+  static const double pillPlus = 13;
+  static const Color pillGlass = Color(0x52000000);
+
+  /// The «+»'s touch target around the 13 lp circle (the pill stays the
+  /// reference's size; the target reaches past it).
+  static const double pillTarget = 28;
+
+  /// D238b: the reference's hairline between the halves (measured 1 px at
+  /// 2.349 px/lp; was 2 lp).
+  static const double seam = 0.5;
   static const double paneInset = 6;
-  static const double pillHeight = 22;
   static const double maxPaneHeight = 374;
 
-  /// Pane height per pane width (the owner's 1 v 1 panes are tall).
-  static const double paneAspect = 0.58;
+  /// Pane height per pane width. D238b: the reference's halves (measured
+  /// 196.1 × 327.1 lp: 0.6; was 0.58) — edge to edge.
+  static const double paneAspect = 0.6;
   static const double guest = 34;
   static const double supporterAvatar = 28;
   static const double outcome = 132;
@@ -293,7 +310,6 @@ class _LivePkStageState extends State<LivePkStage> {
                     label: l10n.pkOwnPane(own.host.displayName),
                     stage: widget,
                     hostKey: LivePkStage.ownHostKey,
-                    ring: KLivePk.startTeam,
                     end: false,
                     onTap: onHost == null
                         ? null
@@ -310,8 +326,9 @@ class _LivePkStageState extends State<LivePkStage> {
                     muted: own.mutesOpponent,
                     stage: widget,
                     hostKey: LivePkStage.opponentHostKey,
-                    ring: KLivePk.endTeam,
                     end: true,
+                    // D238b: only the other host's name on their video.
+                    pill: true,
                     onFollow: widget.onFollowOpponent,
                     onTap: onHost == null
                         ? null
@@ -577,10 +594,10 @@ class _Pane extends StatelessWidget {
     required this.label,
     required this.stage,
     required this.hostKey,
-    required this.ring,
     required this.end,
     super.key,
     this.muted = false,
+    this.pill = false,
     this.onTap,
     this.onFollow,
   });
@@ -591,14 +608,17 @@ class _Pane extends StatelessWidget {
   final bool muted;
   final LivePkStage stage;
 
-  /// D231: the host chip at the bottom of the half.
+  /// D231: the host's name pill at the bottom of the half.
   final Key hostKey;
-  final List<Color> ring;
 
-  /// The chip on the half's end (the opponent: the outer edge).
+  /// The pill on the half's end (the opponent: the outer edge).
   final bool end;
 
-  /// D231: a tap on the half or the chip: the host's card.
+  /// D238b: this half shows its host's name pill (only the other room's
+  /// host: this room's host is already in the top bar).
+  final bool pill;
+
+  /// D231: a tap on the half: the host's card.
   final VoidCallback? onTap;
 
   /// D231: the opponent's «+» (null hides it).
@@ -608,102 +628,116 @@ class _Pane extends StatelessWidget {
   Widget build(BuildContext context) {
     final host = side.host;
     final onTap = this.onTap;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
+    // D238b: the whole half is the host's button (their card) for screen
+    // readers too; the guests and the «+» are their own buttons.
+    return Semantics(
+      container: true,
+      button: onTap != null,
+      label: label,
+      hint: onTap == null ? null : context.l10n.liveUserViewProfile,
       onTap: onTap,
-      child: ClipRect(
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Semantics(
-              image: true,
-              label: label,
-              child:
-                  video ??
-                  DecoratedBox(
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [Color(0xFF2A1A2E), Color(0xFF120A14)],
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: ClipRect(
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              ExcludeSemantics(
+                child:
+                    video ??
+                    DecoratedBox(
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [Color(0xFF2A1A2E), Color(0xFF120A14)],
+                        ),
+                      ),
+                      child: Center(
+                        child: KAvatar(
+                          name: host.displayName,
+                          imageUrl: host.avatarUrl,
+                          size: 72,
+                        ),
                       ),
                     ),
-                    child: Center(
-                      child: KAvatar(
-                        name: host.displayName,
-                        imageUrl: host.avatarUrl,
-                        size: 72,
-                      ),
+              ),
+              if (side.guests.isNotEmpty)
+                PositionedDirectional(
+                  start: KLivePk.paneInset,
+                  end: KLivePk.paneInset,
+                  // Over the name pill's touch row.
+                  bottom: KLivePk.pillTarget + KSpacing.xs,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      for (final (i, g) in side.guests.take(3).indexed) ...[
+                        if (i > 0) const SizedBox(width: KSpacing.xs),
+                        _GuestCircle(
+                          key: LivePkStage.guestKey(g.user.id),
+                          guest: g,
+                          video: stage.guestVideo?.call(g.user.id),
+                          speaking: stage.speaking.contains(g.user.id),
+                          onTap: stage.onPerson == null
+                              ? null
+                              : () => stage.onPerson!(g.user),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              if (pill)
+                PositionedDirectional(
+                  start: KLivePk.paneInset,
+                  // The pill's end [KLivePk.pillEnd] from the edge; its «+»
+                  // target reaches half the slack further.
+                  end:
+                      KLivePk.pillEnd -
+                      (onFollow == null ? 0 : _HostPill.slack),
+                  bottom:
+                      KLivePk.pillBottom -
+                      (KLivePk.pillTarget - KLivePk.pillHeight) / 2,
+                  child: Align(
+                    alignment: end
+                        ? AlignmentDirectional.centerEnd
+                        : AlignmentDirectional.centerStart,
+                    child: _HostPill(
+                      key: hostKey,
+                      host: host,
+                      muted: muted,
+                      onFollow: onFollow,
                     ),
                   ),
-            ),
-            if (side.guests.isNotEmpty)
-              PositionedDirectional(
-                start: KLivePk.paneInset,
-                end: KLivePk.paneInset,
-                // Over the host's chip.
-                bottom: KLivePk.paneInset * 2 + KLivePk.hostChip,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    for (final (i, g) in side.guests.take(3).indexed) ...[
-                      if (i > 0) const SizedBox(width: KSpacing.xs),
-                      _GuestCircle(
-                        key: LivePkStage.guestKey(g.user.id),
-                        guest: g,
-                        video: stage.guestVideo?.call(g.user.id),
-                        speaking: stage.speaking.contains(g.user.id),
-                        onTap: stage.onPerson == null
-                            ? null
-                            : () => stage.onPerson!(g.user),
-                      ),
-                    ],
-                  ],
                 ),
-              ),
-            PositionedDirectional(
-              start: KLivePk.paneInset,
-              end: KLivePk.paneInset,
-              bottom: KLivePk.paneInset,
-              child: Align(
-                alignment: end
-                    ? AlignmentDirectional.centerEnd
-                    : AlignmentDirectional.centerStart,
-                child: _HostChip(
-                  key: hostKey,
-                  host: host,
-                  ring: ring,
-                  muted: muted,
-                  onTap: onTap,
-                  onFollow: onFollow,
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-/// D231: a PK side's host at the bottom of their half — the round picture
-/// in the team's ring, the name on one line, a muted mark when this room
-/// muted them, and the opponent's «+» (follow) when given.
-class _HostChip extends StatelessWidget {
+/// D238b (ref 332, measured): the other host's name in a small dark glass
+/// pill — the name on one line with «…», a muted mark when this room muted
+/// them, and the round «+» (follow) at its end when given: Kabso red
+/// (D232) with a white «+». The pill is [KLivePk.pillHeight] tall inside a
+/// transparent [KLivePk.pillTarget] row, so the «+» has a usable target.
+/// A tap on the name falls through to the half (the host's card).
+class _HostPill extends StatelessWidget {
   const new({
     required this.host,
-    required this.ring,
     required this.muted,
     super.key,
-    this.onTap,
     this.onFollow,
   });
 
   final UserSummary host;
-  final List<Color> ring;
   final bool muted;
-  final VoidCallback? onTap;
   final VoidCallback? onFollow;
+
+  /// How far the «+» target reaches past the pill's end.
+  static const double slack = (KLivePk.pillTarget - KLivePk.pillPlus) / 2 - 1;
 
   @override
   Widget build(BuildContext context) {
@@ -712,67 +746,86 @@ class _HostChip extends StatelessWidget {
     final onFollow = this.onFollow;
     final scaler = MediaQuery.textScalerOf(context)
         .clamp(maxScaleFactor: KMetrics.overlayMaxTextScale);
-    return Container(
-      height: KLivePk.hostChip,
-      padding: EdgeInsetsDirectional.only(
-        end: onFollow == null ? KSpacing.sm : KSpacing.xxs,
-      ),
-      decoration: BoxDecoration(
-        color: KLivePk.glass,
-        borderRadius: BorderRadius.circular(KLivePk.hostChip / 2),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Semantics(
-            button: onTap != null,
-            label: l10n.liveUserViewProfile,
-            child: GestureDetector(
-              onTap: onTap,
-              child: Container(
-                width: KLivePk.hostChip,
-                height: KLivePk.hostChip,
-                padding: const EdgeInsets.all(KLivePk.hostRing),
+    final pill = ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: KLivePk.pillMaxWidth),
+      child: Container(
+        constraints: const BoxConstraints(minHeight: KLivePk.pillHeight),
+        padding: EdgeInsetsDirectional.only(
+          start: 6,
+          end: onFollow == null ? 6 : 0.5,
+        ),
+        decoration: BoxDecoration(
+          color: KLivePk.pillGlass,
+          borderRadius: BorderRadius.circular(KLivePk.pillHeight / 2),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (muted) ...[
+              Icon(
+                Icons.volume_off_rounded,
+                size: 10,
+                color: white.withValues(alpha: 0.85),
+              ),
+              const SizedBox(width: 2),
+            ],
+            Flexible(
+              child: Text(
+                host.displayName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textScaler: scaler,
+                style: context.textStyles.caption.copyWith(
+                  fontSize: KLivePk.pillText,
+                  height: 1.2,
+                  fontWeight: FontWeight.w600,
+                  color: white,
+                ),
+              ),
+            ),
+            if (onFollow != null) ...[
+              const SizedBox(width: 4),
+              const DecoratedBox(
                 decoration: BoxDecoration(
+                  color: Color(0xFFE50914),
                   shape: BoxShape.circle,
-                  gradient: LinearGradient(colors: ring),
                 ),
-                child: KAvatar(
-                  name: host.displayName,
-                  imageUrl: host.avatarUrl,
-                  size: KLivePk.hostAvatar,
+                child: SizedBox.square(
+                  dimension: KLivePk.pillPlus,
+                  child: Icon(Icons.add_rounded, size: 11, color: white),
                 ),
               ),
-            ),
-          ),
-          const SizedBox(width: KSpacing.xs),
-          if (muted) ...[
-            Icon(
-              Icons.volume_off_rounded,
-              size: 14,
-              color: white.withValues(alpha: 0.85),
-            ),
-            const SizedBox(width: KSpacing.xxs),
+            ],
           ],
-          Flexible(
-            child: Text(
-              host.displayName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textScaler: scaler,
-              style: context.textStyles.caption.copyWith(
-                fontSize: KLivePk.hostName,
-                fontWeight: FontWeight.w700,
-                color: white,
-                shadows: const [
-                  Shadow(color: Color(0x99000000), blurRadius: 3),
-                ],
-              ),
-            ),
+        ),
+      ),
+    );
+    final name = Semantics(
+      label: host.displayName,
+      excludeSemantics: true,
+      child: pill,
+    );
+    if (onFollow == null) {
+      return SizedBox(
+        height: KLivePk.pillTarget,
+        child: Center(widthFactor: 1, child: name),
+      );
+    }
+    return SizedBox(
+      height: KLivePk.pillTarget,
+      child: Stack(
+        alignment: AlignmentDirectional.centerEnd,
+        children: [
+          Padding(
+            padding: const EdgeInsetsDirectional.only(end: slack),
+            child: name,
           ),
-          if (onFollow != null) ...[
-            const SizedBox(width: KSpacing.xs),
-            Semantics(
+          PositionedDirectional(
+            end: 0,
+            top: 0,
+            bottom: 0,
+            width: KLivePk.pillTarget,
+            child: Semantics(
               button: true,
               label: l10n.pkFollowHost(host.displayName),
               excludeSemantics: true,
@@ -780,27 +833,9 @@ class _HostChip extends StatelessWidget {
                 key: LivePkStage.followOpponentKey,
                 behavior: HitTestBehavior.opaque,
                 onTap: onFollow,
-                // A 38 lp target around the 24 lp «+».
-                child: const SizedBox(
-                  width: KLivePk.hostChip - 4,
-                  height: KLivePk.hostChip,
-                  child: Center(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: Color(0xFFE50914),
-                        shape: BoxShape.circle,
-                      ),
-                      child: SizedBox(
-                        width: KLivePk.follow,
-                        height: KLivePk.follow,
-                        child: Icon(Icons.add_rounded, size: 18, color: white),
-                      ),
-                    ),
-                  ),
-                ),
               ),
             ),
-          ],
+          ),
         ],
       ),
     );
@@ -895,7 +930,7 @@ class _RoundTimer extends StatelessWidget {
     return Container(
       height: KLivePk.timerHeight,
       constraints: const BoxConstraints(minWidth: KLivePk.timerWidth),
-      padding: const EdgeInsets.symmetric(horizontal: KSpacing.md),
+      padding: const EdgeInsets.symmetric(horizontal: KSpacing.sm),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
@@ -905,9 +940,9 @@ class _RoundTimer extends StatelessWidget {
               : const [Color(0xCC1A0A06), Color(0x991A0A06)],
         ),
         borderRadius: const BorderRadius.vertical(
-          bottom: Radius.circular(KRadius.md),
+          bottom: Radius.circular(KLivePk.timerRadius),
         ),
-        boxShadow: const [BoxShadow(color: Color(0x40FF7A00), blurRadius: 6)],
+        boxShadow: const [BoxShadow(color: Color(0x40FF7A00), blurRadius: 4)],
       ),
       child: Center(
         widthFactor: 1,

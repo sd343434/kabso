@@ -51,6 +51,7 @@ class KLiveRoomScaffold extends StatelessWidget {
     this.sidePromo,
     this.chatEnd,
     this.dock,
+    this.stageEdgeToEdge = false,
     this.onChatTop,
     this.closeButtonKey = closeKey,
     this.closeLabel,
@@ -92,9 +93,20 @@ class KLiveRoomScaffold extends StatelessWidget {
   /// the bar, and scrolls when the room left for it is shorter than it.
   final Widget? dock;
 
+  /// D238b (owner, ref 332: «شاشة الخصمين هناك فراغ من الجانبين ازلهم»):
+  /// [stage] spans the screen's whole width (the PK videos), no side
+  /// margins.
+  final bool stageEdgeToEdge;
+
   /// D238: the leave prompt's side margin (`KLiveDialogFrame`).
   static const double dockSide = 18.3;
   static const dockKey = Key('room.dock');
+
+  /// The room column's start inset (every row but an edge-to-edge stage).
+  static Widget _start(Widget child) => Padding(
+    padding: const EdgeInsetsDirectional.only(start: KSpacing.sm),
+    child: child,
+  );
 
   /// ✕'s key and spoken label (the host's ✕ ends the live).
   /// D145c: told the chat's top on the screen when it moves (the gift
@@ -150,42 +162,46 @@ class KLiveRoomScaffold extends StatelessWidget {
                 // D135: the header row below the status bar ([headerTop]),
                 // the bar on the bottom safe edge (above the home
                 // indicator or the navigation bar) or on the keyboard.
+                // D238b: the start inset is per child (`_start`), so the PK
+                // stage can go edge to edge.
                 padding: EdgeInsetsDirectional.only(
-                  start: KSpacing.sm,
                   top: headerTop(inset),
                   bottom: keyboard,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Align(
-                            alignment: AlignmentDirectional.centerStart,
-                            child: header,
+                    _start(
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Align(
+                              alignment: AlignmentDirectional.centerStart,
+                              child: header,
+                            ),
                           ),
-                        ),
-                        if (viewers != null) ...[
-                          const SizedBox(width: KSpacing.xs),
-                          viewers,
+                          if (viewers != null) ...[
+                            const SizedBox(width: KSpacing.xs),
+                            viewers,
+                          ],
+                          // Ref 158: a bare ✕ (10.6 pt ink); its centre 24 pt
+                          // from the end (ref 18.3) to keep a 48 pt target.
+                          ?trailing,
+                          KRoomIconButton(
+                            key: closeButtonKey,
+                            icon: Icons.close,
+                            label: closeLabel ?? l10n.liveClose,
+                            onPressed: onClose,
+                            iconSize: 19,
+                            bare: true,
+                          ),
                         ],
-                        // Ref 158: a bare ✕ (10.6 pt ink); its centre 24 pt
-                        // from the end (ref 18.3) to keep a 48 pt target.
-                        ?trailing,
-                        KRoomIconButton(
-                          key: closeButtonKey,
-                          icon: Icons.close,
-                          label: closeLabel ?? l10n.liveClose,
-                          onPressed: onClose,
-                          iconSize: 19,
-                          bare: true,
-                        ),
-                      ],
+                      ),
                     ),
                     if (roomInfo != null)
                       Padding(
                         padding: const EdgeInsetsDirectional.only(
+                          start: KSpacing.sm,
                           end: KSpacing.sm,
                         ),
                         child: Align(
@@ -195,51 +211,58 @@ class KLiveRoomScaffold extends StatelessWidget {
                       ),
                     if (statusChip != null) ...[
                       const SizedBox(height: KSpacing.sm),
-                      Center(child: statusChip),
+                      _start(Center(child: statusChip)),
                     ],
                     if (stage != null) ...[
                       const SizedBox(height: KSpacing.sm),
                       Padding(
-                        padding: const EdgeInsetsDirectional.only(
-                          end: KSpacing.sm,
-                        ),
+                        // D238b: edge to edge — the column's start inset is
+                        // per child ([_start]), so the stage can skip it.
+                        padding: stageEdgeToEdge
+                            ? EdgeInsets.zero
+                            : const EdgeInsetsDirectional.only(
+                                start: KSpacing.sm,
+                                end: KSpacing.sm,
+                              ),
                         child: stage,
                       ),
                     ],
                     const SizedBox(height: KSpacing.sm),
                     Expanded(
-                      child: _WithDock(
-                        dock: dock,
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Expanded(
-                              child: chat == null
-                                  ? const SizedBox.shrink()
-                                  : Align(
-                                      alignment:
-                                          AlignmentDirectional.bottomStart,
-                                      child: ConstrainedBox(
-                                        constraints: BoxConstraints(
-                                          maxHeight: chatCap,
-                                        ),
-                                        child: KTopReporter(
-                                          onTop: onChatTop,
-                                          child: chat,
+                      child: _start(
+                        _WithDock(
+                          dock: dock,
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Expanded(
+                                child: chat == null
+                                    ? const SizedBox.shrink()
+                                    : Align(
+                                        alignment:
+                                            AlignmentDirectional.bottomStart,
+                                        child: ConstrainedBox(
+                                          constraints: BoxConstraints(
+                                            maxHeight: chatCap,
+                                          ),
+                                          child: KTopReporter(
+                                            onTop: onChatTop,
+                                            child: chat,
+                                          ),
                                         ),
                                       ),
-                                    ),
-                            ),
-                            if (chatEnd case final end?) ...[
-                              const SizedBox(width: KSpacing.xs),
-                              Padding(
-                                padding: const EdgeInsetsDirectional.only(
-                                  end: KSpacing.xs,
-                                ),
-                                child: end,
                               ),
+                              if (chatEnd case final end?) ...[
+                                const SizedBox(width: KSpacing.xs),
+                                Padding(
+                                  padding: const EdgeInsetsDirectional.only(
+                                    end: KSpacing.xs,
+                                  ),
+                                  child: end,
+                                ),
+                              ],
                             ],
-                          ],
+                          ),
                         ),
                       ),
                     ),
@@ -248,7 +271,10 @@ class KLiveRoomScaffold extends StatelessWidget {
                       // Ref 158: the last circle 7.2 pt from the end (its
                       // 48 pt target reaches 0.6 pt further).
                       Padding(
-                        padding: const EdgeInsetsDirectional.only(end: 0.6),
+                        padding: const EdgeInsetsDirectional.only(
+                          start: KSpacing.sm,
+                          end: 0.6,
+                        ),
                         child: actionBar,
                       ),
                     ],

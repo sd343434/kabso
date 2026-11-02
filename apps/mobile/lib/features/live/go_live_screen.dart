@@ -2484,6 +2484,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             ? LiveHostTargetChip(username: room.host.username, isHost: true)
             : null,
       ),
+      // D238b: the PK videos edge to edge.
+      stageEdgeToEdge: pkStage != null,
       stage: pkStage ?? stage,
       // v1.50-live (D229) → D238: the host's dare card, small at the bottom
       // over the chat (loser: accept / refuse; winner: done / not done; the
