@@ -313,6 +313,54 @@
 - **Rotating the key resets the counts.** Changing `SIGNUP_DEVICE_KEY` (or `RATE_LIMIT_KEY_SECRET` while it is unset)
   makes every device start again from 0.
 
+## Identity verification with Didit «تأكيد الهوية» (v1.80-kyc draft, D227)
+
+- **No real Didit call was made, no real key used.** Every test fakes Didit behind its port (`DIDIT_API_FACTORY`,
+  `test/helpers/fake-didit.ts`); the production client (`didit-api.ts`) was only checked against a local HTTP stub for
+  the request shapes and the error mapping. A real account, key, workflow, webhook delivery, retention setting and the
+  hosted flow on a phone are not verified.
+- **docs.didit.me could not be opened from the build environment** (the network policy refused the host); Didit's
+  documentation was read through the Context7 documentation index of docs.didit.me (2026-11-01). Assumptions taken
+  from it, to confirm on the first real run:
+  - the decision webhook signs `X-Signature-V2` = HMAC-SHA-256 of the JSON re-encoded with recursively sorted keys,
+    compact separators and Unicode not escaped (and `X-Signature` over the raw bytes); `X-Timestamp` is Unix seconds.
+    A Python-style float form (e.g. `1e-07`) could encode differently from JavaScript's — the raw-bytes signature then
+    still matches. `X-Signature-Simple` (envelope only) is refused on purpose.
+  - the webhook body carries `event_id` (reused on retries), `webhook_type` (`status.updated`), `session_id`,
+    `status`, `created_at` / `timestamp` (seconds) and, once decided, `decision` with `id_verifications[]` holding
+    `first_name`, `last_name`, `full_name`, `date_of_birth` (YYYY-MM-DD), `issuing_state` (alpha-3) and
+    `document_number` (else `personal_number`); the reasons are the items' `warnings[].risk`.
+  - `GET /v3/workflows/` lists the application's workflows (`results[]` with `workflow_id` / `uuid`, `status`
+    `published`, `is_archived`); used only by «اختبار الاتصال».
+  - Didit returns the unfinished session again for the same `vendor_data` on the same workflow (we send the user id).
+  - the console's menu names (Settings › API & Webhooks, App Settings › Data, Workflows) in the owner's guide.
+- **Didit's Flutter SDK is not used.** `didit_sdk` 4.11.0 (pub.dev, MIT, publisher didit.me) wraps Didit's native iOS
+  and Android SDKs (a Maven artifact and a CocoaPod of unknown size, NFC and camera code); the brief asks to ask before
+  a heavy dependency, so the app opens Didit's hosted flow in the in-app WebView (`webview_flutter`, already a
+  dependency), which Didit documents for mobile apps. Before opening it the app asks for the camera through the same
+  system prompt a live uses (`flutter_webrtc` `getUserMedia`, released at once) so the WebView can pass it on; on a
+  device where that fails, «فتح في المتصفح» opens the flow in the browser and the step refreshes when the app returns.
+  Not tested on a device.
+- **The images are never stored.** The team sees them in Didit's console (the link opens the console's home; the
+  session number is shown to search for it — the console's per-session URL is not documented) or through «عرض الصور»,
+  which fetches Didit's decision now and shows its presigned links (they expire within minutes; each fetch is audited).
+- **The account purge deletes our record only.** Didit keeps its copy for the retention the OWNER sets in Didit's
+  console (the guide suggests 1 year); no automatic `DELETE /v3/session/{id}/delete/` call is made on a purge (the
+  docs show two different delete paths; to add once confirmed).
+- **A check that counts.** An APPROVED check counts for an application when it was made for it or ran on the same
+  workflow as that application now; with one workflow for all (the default) one approval serves the three
+  applications. A check approved by Didit but under 18 by the document (or without a readable date of birth) is stored
+  DECLINED; the person may retry within the daily limit. An approved check is never revoked by us later except by
+  Didit's own later event (a reviewer's change, `Kyc Expired`).
+- **No previous webhook secret.** Unlike the Stripe section, a new webhook secret replaces the old one at once:
+  deliveries signed with the old one in the minutes after a change are refused (401) and Didit retries them twice.
+- **The decision to gate recharge agents at the first top-up** (the activation) leaves agents already ACTIVE before
+  D227 untouched; later top-ups of an active agent are not gated.
+- **Notifications open «الوكالة»** for all three results (there is no target); a recharge-agent applicant opens their
+  form from «وكيل الشحن».
+- **The app's tests and captures are headless** (fakes): the WebView itself, the camera prompt and the browser
+  fallback are not exercised by any test.
+
 ## The free camera effects engine beside DeepAR (v1.49-live draft, D228)
 
 - **Never run on a phone.** No Android device or emulator here, and the full APK was not built in this environment

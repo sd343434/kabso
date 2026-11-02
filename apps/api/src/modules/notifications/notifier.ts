@@ -58,6 +58,10 @@ export const SYSTEM_TYPES: readonly NotificationType[] = [
   'HOST_APPLICATION_REJECTED',
   // v1.74-social (D217): the team voided a referral and took its credited cherries back (no target).
   'REFERRAL_REWARD_REVERSED',
+  // v1.80-kyc (D227): the identity check «تأكيد الهوية» was approved / declined / sent to review (no target).
+  'KYC_APPROVED',
+  'KYC_DECLINED',
+  'KYC_IN_REVIEW',
 ];
 
 /** Types that join one unread row per target (owner, D92). */
@@ -206,7 +210,10 @@ export class Notifier {
         | 'PROFILE_EDITED_BY_TEAM'
         | 'HOST_APPLICATION_APPROVED'
         | 'HOST_APPLICATION_REJECTED'
-        | 'REFERRAL_REWARD_REVERSED';
+        | 'REFERRAL_REWARD_REVERSED'
+        | 'KYC_APPROVED'
+        | 'KYC_DECLINED'
+        | 'KYC_IN_REVIEW';
       recipientId: string;
     } & NotificationTargetRef,
   ): Promise<void> {

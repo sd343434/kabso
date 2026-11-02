@@ -93,6 +93,9 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.agencyLeaveWindowClosed: 409,
   ErrorCode.agencyOpenNotAllowed: 409,
   ErrorCode.hostApplicationNotAllowed: 409,
+  // v1.80-kyc (D227).
+  ErrorCode.kycNotAllowed: 409,
+  ErrorCode.kycUnavailable: 503,
   ErrorCode.referralUnavailable: 503,
   ErrorCode.referralCodeInvalid: 422,
   ErrorCode.referralNotAllowed: 409,
@@ -242,6 +245,9 @@ void main() {
           'AGENCY_OPEN_NOT_ALLOWED',
           // v1.73-social (D209)
           'HOST_APPLICATION_NOT_ALLOWED',
+          // v1.80-kyc (D227)
+          'KYC_NOT_ALLOWED',
+          'KYC_UNAVAILABLE',
           // v1.74-social (D217)
           'REFERRAL_UNAVAILABLE',
           'REFERRAL_CODE_INVALID',

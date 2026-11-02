@@ -14,6 +14,9 @@ import 'package:kabso_live/features/agency/application/agency_providers.dart';
 import 'package:kabso_live/features/agency/data/agency_repository.dart';
 import 'package:kabso_live/features/agency/data/hosting_application.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/kyc/application/kyc_providers.dart';
+import 'package:kabso_live/features/kyc/data/kyc_models.dart';
+import 'package:kabso_live/features/kyc/presentation/kyc_step.dart';
 import 'package:kabso_live/features/posts/application/compose_controller.dart'
     show newIdempotencyKey;
 import 'package:kabso_live/features/posts/data/media_repository.dart'
@@ -193,11 +196,17 @@ class _HostApplyScreenState extends ConsumerState<HostApplyScreen> {
     final selfie = _selfie;
     final country = _country;
     final birth = _birth;
+    // v1.80-kyc (D227): with Didit on, «تأكيد الهوية» replaces the two
+    // pictures (approved, or under Didit's review; the team approves only
+    // after an approved check).
+    final kyc = ref.read(myKycProvider).value;
+    final kycOn = kyc?.enabled ?? false;
     final picturesOk =
-        idCard != null &&
-        selfie != null &&
-        sniffImageType(idCard) != null &&
-        sniffImageType(selfie) != null;
+        kycOn ||
+        (idCard != null &&
+            selfie != null &&
+            sniffImageType(idCard) != null &&
+            sniffImageType(selfie) != null);
     setState(() {
       _tried = true;
       _error = null;
@@ -210,6 +219,7 @@ class _HostApplyScreenState extends ConsumerState<HostApplyScreen> {
         _bioError(l10n) != null ||
         !_links.every((c) => _linkOk(c.text)) ||
         !picturesOk ||
+        !kycReady(kyc, KycPurpose.hostApplication) ||
         !_accepted) {
       return;
     }
@@ -226,10 +236,14 @@ class _HostApplyScreenState extends ConsumerState<HostApplyScreen> {
               contactValue: _contact.text.trim(),
               bio: _bio.text.trim(),
               links: _linkValues,
-              idCard: idCard,
-              idCardType: sniffImageType(idCard)!,
-              selfie: selfie,
-              selfieType: sniffImageType(selfie)!,
+              idCard: kycOn ? null : idCard,
+              idCardType: kycOn || idCard == null
+                  ? null
+                  : sniffImageType(idCard),
+              selfie: kycOn ? null : selfie,
+              selfieType: kycOn || selfie == null
+                  ? null
+                  : sniffImageType(selfie),
               idempotencyKey: _key,
             ),
           );
@@ -269,7 +283,11 @@ class _HostApplyScreenState extends ConsumerState<HostApplyScreen> {
     final p = context.palette;
     final t = context.textStyles;
     final locale = Localizations.localeOf(context).toLanguageTag();
-    final picturesMissing = _tried && (_idCard == null || _selfie == null);
+    final kyc = ref.watch(myKycProvider).value;
+    final kycOn = kyc?.enabled ?? false;
+    final picturesMissing =
+        !kycOn && _tried && (_idCard == null || _selfie == null);
+    final kycMissing = _tried && !kycReady(kyc, KycPurpose.hostApplication);
     final birth = _birth;
     return Scaffold(
       backgroundColor: p.background,
@@ -473,41 +491,49 @@ class _HostApplyScreenState extends ConsumerState<HostApplyScreen> {
               ],
             ),
           ),
-          RechargeSection(
-            step: 2,
-            title: l10n.hostApplyStepId,
-            error: picturesMissing ? l10n.agencyOpenIdMissing : null,
-            child: IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(
-                    child: RechargeIdPicture(
-                      key: HostApplyScreen.idCardKey,
-                      title: l10n.agencyOpenIdCard,
-                      hint: l10n.agencyOpenIdCardHint,
-                      bytes: _idCard,
-                      icon: Icons.badge_rounded,
-                      missing: _tried && _idCard == null,
-                      onPick: () => unawaited(_pick(false)),
+          if (kycOn)
+            RechargeSection(
+              step: 2,
+              title: l10n.kycStepTitle,
+              error: kycMissing ? l10n.kycRequiredToSubmit : null,
+              child: const KycStep(purpose: KycPurpose.hostApplication),
+            )
+          else
+            RechargeSection(
+              step: 2,
+              title: l10n.hostApplyStepId,
+              error: picturesMissing ? l10n.agencyOpenIdMissing : null,
+              child: IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: RechargeIdPicture(
+                        key: HostApplyScreen.idCardKey,
+                        title: l10n.agencyOpenIdCard,
+                        hint: l10n.agencyOpenIdCardHint,
+                        bytes: _idCard,
+                        icon: Icons.badge_rounded,
+                        missing: _tried && _idCard == null,
+                        onPick: () => unawaited(_pick(false)),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: KSpacing.sm),
-                  Expanded(
-                    child: RechargeIdPicture(
-                      key: HostApplyScreen.selfieKey,
-                      title: l10n.rechargeSelfie,
-                      hint: l10n.rechargeSelfieHint,
-                      bytes: _selfie,
-                      icon: Icons.face_retouching_natural_rounded,
-                      missing: _tried && _selfie == null,
-                      onPick: () => unawaited(_pick(true)),
+                    const SizedBox(width: KSpacing.sm),
+                    Expanded(
+                      child: RechargeIdPicture(
+                        key: HostApplyScreen.selfieKey,
+                        title: l10n.rechargeSelfie,
+                        hint: l10n.rechargeSelfieHint,
+                        bytes: _selfie,
+                        icon: Icons.face_retouching_natural_rounded,
+                        missing: _tried && _selfie == null,
+                        onPick: () => unawaited(_pick(true)),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
           RechargeSection(
             step: 3,
             title: l10n.hostApplyStepRules,

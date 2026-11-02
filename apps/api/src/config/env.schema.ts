@@ -595,6 +595,10 @@ export const envSchema = z
     RATE_LIMIT_AGENCY_OPEN_USER: rateLimit('5/86400'),
     /** v1.73-social (D209): «كن مضيفاً مع الإدارة» submissions per user (also refused ones). */
     RATE_LIMIT_HOST_APPLY_USER: rateLimit('5/86400'),
+    /** v1.80-kyc (D227): identity-check starts per user (also refused ones; the panel's daily limit is separate). */
+    RATE_LIMIT_KYC_START_USER: rateLimit('20/86400'),
+    /** v1.80-kyc (D227): «sync» reads of a check's decision from Didit, per user. */
+    RATE_LIMIT_KYC_SYNC_USER: rateLimit('60/3600'),
     /** v1.74-social (D217): invite codes applied later, per user (also refused ones). */
     RATE_LIMIT_REFERRAL_APPLY_USER: rateLimit('10/86400'),
     /** v1.74-social (D217): the public ticker of recent referral rewards, per client IP. */
@@ -1247,6 +1251,19 @@ export const envSchema = z
       .default('false')
       .transform((v) => v === 'true'),
     /** The website's origin (the API serves `/topup`): Stripe's success / cancel redirects come back here. */
+    /**
+     * v1.80-kyc (D227): the API's public origin (`https://api.kabsolive.com`), only to show the OWNER the Didit
+     * webhook address in the panel «التحقق من الهوية (Didit)». Not a secret; the Didit keys are entered in the panel.
+     */
+    API_PUBLIC_URL: z
+      .string()
+      .trim()
+      .url()
+      .refine((v) => /^https?:\/\/[^/?#]+$/.test(v.replace(/\/$/, '')), {
+        message: 'must be an origin like https://api.kabsolive.com',
+      })
+      .transform((v) => v.replace(/\/$/, ''))
+      .optional(),
     TOPUP_PUBLIC_BASE_URL: z
       .string()
       .trim()

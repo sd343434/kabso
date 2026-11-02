@@ -30,6 +30,7 @@ import 'package:kabso_live/features/agency/presentation/agency_open_screen.dart'
 import 'package:kabso_live/features/agency/presentation/agency_screen.dart';
 import 'package:kabso_live/features/agency/presentation/host_apply_screen.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/kyc/data/kyc_repository.dart';
 import 'package:kabso_live/features/notifications/domain/notification_models.dart';
 import 'package:kabso_live/features/profile/data/profile_edit_repository.dart';
 import 'package:kabso_live/features/push/push_payload.dart';
@@ -37,6 +38,7 @@ import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../helpers/fake_economy_repositories.dart';
+import '../../helpers/fake_kyc_repository.dart';
 import '../../helpers/fakes.dart';
 import '../../helpers/golden.dart';
 import '../../helpers/pump_app.dart';
@@ -155,6 +157,8 @@ Future<void> _pump(
           sharedPreferencesProvider.overrideWithValue(prefs),
           secureTokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
           currentUserProvider.overrideWithValue(user),
+          // D227: Didit off (the manual ID pictures, as before).
+          kycRepositoryProvider.overrideWithValue(FakeKycRepository()),
           agencyRepositoryProvider.overrideWithValue(agency),
           avatarPhotoPickerProvider.overrideWithValue(picker ?? _Picker()),
         ],

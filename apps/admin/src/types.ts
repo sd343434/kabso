@@ -23,6 +23,9 @@ export type Capability =
   | 'payments.settings'
   // v1.75-social (D222)
   | 'storage.settings'
+  // v1.80-kyc (D227)
+  | 'kyc.settings'
+  | 'kyc.view'
   // v1.65-social (D197)
   | 'users.list'
   | 'users.export'
@@ -174,6 +177,8 @@ export interface ApplicationRow {
 }
 
 export interface Application {
+  /** v1.80-kyc (D227): the applicant's identity check (needed before the first top-up). */
+  kyc?: AdminKycSummary;
   id: string;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   createdAt: string;
@@ -512,6 +517,8 @@ export interface HostApplicationRow {
 
 /** v1.73-social (D209): `AdminHostApplication` — the application with its private fields and the account summary. */
 export interface HostApplicationDetail {
+  /** v1.80-kyc (D227): the applicant's identity check. */
+  kyc?: AdminKycSummary;
   id: string;
   status: HostApplicationRow['status'];
   createdAt: string;
@@ -744,4 +751,86 @@ export interface DeviceSignups {
     grantedAt: string;
   } | null;
   accounts: { id: string; username: string; displayName: string; status: UserStatus; createdAt: string; self: boolean }[];
+}
+
+// ---- v1.80-kyc (D227): identity verification with Didit ----------------------------------------------------------
+
+export type KycPurpose = 'HOST_APPLICATION' | 'AGENCY_OPEN' | 'RECHARGE_AGENT';
+export type KycStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'IN_REVIEW' | 'APPROVED' | 'DECLINED' | 'EXPIRED' | 'ABANDONED';
+
+/** `AdminKycCheck`. */
+export interface AdminKycCheck {
+  id: string;
+  purpose: KycPurpose;
+  status: KycStatus;
+  providerStatus: string;
+  reasons: string[];
+  sessionId: string;
+  sessionNumber: number | null;
+  workflowId: string;
+  fullName: string | null;
+  dateOfBirth: string | null;
+  age: number | null;
+  documentCountry: string | null;
+  duplicateDocument: boolean;
+  duplicates: { id: string; username: string; displayName: string }[];
+  createdAt: string;
+  decidedAt: string | null;
+  consoleUrl: string;
+}
+
+/** `AdminKycSummary`: on the three application pages. */
+export interface AdminKycSummary {
+  enabled: boolean;
+  required: boolean;
+  satisfied: boolean;
+  workflowId: string | null;
+  approved: AdminKycCheck | null;
+  latest: AdminKycCheck | null;
+}
+
+/** `AdminKycMedia`. */
+export interface AdminKycMedia {
+  portrait: string | null;
+  front: string | null;
+  back: string | null;
+  liveness: string | null;
+  fetchedAt: string;
+}
+
+export interface KycKeyInfo {
+  last4: string;
+  setBy: { id: string; displayName: string } | null;
+  setAt: string | null;
+}
+
+export type KycWorkflowField = 'workflowId' | 'workflowIdHost' | 'workflowIdAgency' | 'workflowIdRecharge';
+
+export interface KycTestReport {
+  ok: boolean;
+  at: string;
+  apiKeyLast4: string | null;
+  apiKey: { ok: boolean; issue: string | null; ms: number };
+  workflows: { field: KycWorkflowField; workflowId: string; ok: boolean; label: string | null; features: string | null; issue: string | null }[];
+}
+
+/** `AdminKycSettings`. */
+export interface KycSettings {
+  status: 'active' | 'off' | 'not_configured';
+  enabled: boolean;
+  apiKey: KycKeyInfo | null;
+  webhookSecret: KycKeyInfo | null;
+  workflowId: string | null;
+  workflowIdHost: string | null;
+  workflowIdAgency: string | null;
+  workflowIdRecharge: string | null;
+  maxSessionsPerDay: number;
+  missing: ('apiKey' | 'webhookSecret' | 'workflowId')[];
+  updatedAt: string | null;
+  panelIgnored: 'unreadable' | null;
+  lastTest: (KycTestReport & { by: { id: string; displayName: string } | null }) | null;
+  webhookUrl: string;
+  callbackUrl: string;
+  consoleUrl: string;
+  connectionTestSkippable: boolean;
 }

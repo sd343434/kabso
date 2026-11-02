@@ -22221,6 +22221,222 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'الرقم المخفي لا يظهر لغيرك في بطاقتك داخل البث ولا في ملفك. أنت وفريق Kabso تستطيعون رؤيته.'**
   String get privacyCardStatsHint;
+
+  /// v1.80-kyc (D227): «تأكيد الهوية» (Didit).
+  ///
+  /// In ar, this message translates to:
+  /// **'تأكيد الهوية'**
+  String get kycStepTitle;
+
+  /// v1.80-kyc (D227): «تأكيد الهوية» (Didit).
+  ///
+  /// In ar, this message translates to:
+  /// **'نتأكد من هويتك عبر Didit: صورة وثيقتك ثم صورة لوجهك. لا حاجة لرفع صورة الهوية والسيلفي يدوياً.'**
+  String get kycStepIntro;
+
+  /// v1.80-kyc (D227): «تأكيد الهوية» (Didit).
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تبدأ التحقق بعد'**
+  String get kycStatusNotStarted;
+
+  /// v1.80-kyc (D227): «تأكيد الهوية» (Didit).
+  ///
+  /// In ar, this message translates to:
+  /// **'صوّر وثيقة هويتك (بطاقة أو جواز أو رخصة) ثم وجهك. يستغرق نحو دقيقتين.'**
+  String get kycStatusNotStartedHint;
+
+  /// v1.80-kyc (D227): «تأكيد الهوية» (Didit).
+  ///
+  /// In ar, this message translates to:
+  /// **'التحقق لم يكتمل'**
+  String get kycStatusInProgress;
+
+  /// v1.80-kyc (D227): «تأكيد الهوية» (Didit).
+  ///
+  /// In ar, this message translates to:
+  /// **'تابع من حيث توقفت؛ ستظهر النتيجة هنا عند الانتهاء.'**
+  String get kycStatusInProgressHint;
+
+  /// v1.80-kyc (D227): «تأكيد الهوية» (Didit).
+  ///
+  /// In ar, this message translates to:
+  /// **'التحقق قيد المراجعة'**
+  String get kycStatusInReview;
+
+  /// v1.80-kyc (D227): «تأكيد الهوية» (Didit).
+  ///
+  /// In ar, this message translates to:
+  /// **'تتم مراجعة التحقق، وسنخبرك بالنتيجة بإشعار.'**
+  String get kycStatusInReviewHint;
+
+  /// v1.80-kyc (D227): «تأكيد الهوية» (Didit).
+  ///
+  /// In ar, this message translates to:
+  /// **'تم تأكيد هويتك'**
+  String get kycStatusApproved;
+
+  /// v1.80-kyc (D227): «تأكيد الهوية» (Didit).
+  ///
+  /// In ar, this message translates to:
+  /// **'هويتك مؤكدة ويمكنك إرسال الطلب.'**
+  String get kycStatusApprovedHint;
+
+  /// v1.80-kyc (D227): «تأكيد الهوية» (Didit).
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يتم تأكيد هويتك'**
+  String get kycStatusDeclined;
+
+  /// v1.80-kyc (D227): «تأكيد الهوية» (Didit).
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنك المحاولة مرة أخرى بعد مراعاة السبب:'**
+  String get kycStatusDeclinedHint;
+
+  /// v1.80-kyc (D227): «تأكيد الهوية» (Didit).
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت جلسة التحقق'**
+  String get kycStatusExpired;
+
+  /// v1.80-kyc (D227): «تأكيد الهوية» (Didit).
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت الجلسة قبل اكتمالها. ابدأ من جديد.'**
+  String get kycStatusExpiredHint;
+
+  /// v1.80-kyc (D227): «تأكيد الهوية» (Didit).
+  ///
+  /// In ar, this message translates to:
+  /// **'ابدأ التحقق'**
+  String get kycStart;
+
+  /// v1.80-kyc (D227): «تأكيد الهوية» (Didit).
+  ///
+  /// In ar, this message translates to:
+  /// **'متابعة التحقق'**
+  String get kycContinue;
+
+  /// v1.80-kyc (D227): «تأكيد الهوية» (Didit).
+  ///
+  /// In ar, this message translates to:
+  /// **'إعادة المحاولة'**
+  String get kycRetry;
+
+  /// v1.80-kyc (D227): «تأكيد الهوية» (Didit).
+  ///
+  /// In ar, this message translates to:
+  /// **'يُفتح التحقق داخل التطبيق لدى {provider}. لا نحفظ صور وثيقتك أو وجهك.'**
+  String kycWhatHappens(String provider);
+
+  /// v1.80-kyc (D227): «تأكيد الهوية» (Didit).
+  ///
+  /// In ar, this message translates to:
+  /// **'وصلت إلى الحد اليومي لمحاولات التحقق. حاول غداً.'**
+  String get kycRefusedDailyLimit;
+
+  /// v1.80-kyc (D227): «تأكيد الهوية» (Didit).
+  ///
+  /// In ar, this message translates to:
+  /// **'التحقق من الهوية غير متاح الآن. حاول لاحقاً.'**
+  String get kycUnavailable;
+
+  /// v1.80-kyc (D227): «تأكيد الهوية» (Didit).
+  ///
+  /// In ar, this message translates to:
+  /// **'أكمل «تأكيد الهوية» أولاً.'**
+  String get kycRequiredToSubmit;
+
+  /// v1.80-kyc (D227): «تأكيد الهوية» (Didit).
+  ///
+  /// In ar, this message translates to:
+  /// **'يلزم تأكيد هويتك (مقبول) قبل فتح الوكالة.'**
+  String get kycRequiredApproved;
+
+  /// v1.80-kyc (D227): «تأكيد الهوية» (Didit).
+  ///
+  /// In ar, this message translates to:
+  /// **'العمر في الوثيقة أقل من ١٨ سنة.'**
+  String get kycReasonUnderAge;
+
+  /// v1.80-kyc (D227): «تأكيد الهوية» (Didit).
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّرت قراءة تاريخ الميلاد في الوثيقة. صوّرها بوضوح.'**
+  String get kycReasonNoBirthDate;
+
+  /// v1.80-kyc (D227): «تأكيد الهوية» (Didit).
+  ///
+  /// In ar, this message translates to:
+  /// **'الوثيقة منتهية الصلاحية. استخدم وثيقة سارية.'**
+  String get kycReasonDocumentExpired;
+
+  /// v1.80-kyc (D227): «تأكيد الهوية» (Didit).
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يظهر وجهك بوضوح. صوّر في مكان مضاء.'**
+  String get kycReasonNoFace;
+
+  /// v1.80-kyc (D227): «تأكيد الهوية» (Didit).
+  ///
+  /// In ar, this message translates to:
+  /// **'لم ينجح فحص الحيوية. صوّر وجهك مباشرة دون صورة أو شاشة.'**
+  String get kycReasonLiveness;
+
+  /// v1.80-kyc (D227): «تأكيد الهوية» (Didit).
+  ///
+  /// In ar, this message translates to:
+  /// **'وجهك لا يطابق صورة الوثيقة.'**
+  String get kycReasonFaceMatch;
+
+  /// v1.80-kyc (D227): «تأكيد الهوية» (Didit).
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تجتز إحدى خطوات التحقق.'**
+  String get kycReasonOther;
+
+  /// v1.80-kyc (D227): «تأكيد الهوية» (Didit).
+  ///
+  /// In ar, this message translates to:
+  /// **'إغلاق'**
+  String get kycClose;
+
+  /// v1.80-kyc (D227): «تأكيد الهوية» (Didit).
+  ///
+  /// In ar, this message translates to:
+  /// **'فتح في المتصفح'**
+  String get kycOpenInBrowser;
+
+  /// v1.80-kyc (D227): «تأكيد الهوية» (Didit).
+  ///
+  /// In ar, this message translates to:
+  /// **'تم تأكيد هويتك بنجاح'**
+  String get notifKycApproved;
+
+  /// v1.80-kyc (D227): «تأكيد الهوية» (Didit).
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يتم تأكيد هويتك. افتح الطلب لمعرفة السبب والمحاولة مرة أخرى'**
+  String get notifKycDeclined;
+
+  /// v1.80-kyc (D227): «تأكيد الهوية» (Didit).
+  ///
+  /// In ar, this message translates to:
+  /// **'التحقق من هويتك قيد المراجعة، سنخبرك بالنتيجة'**
+  String get notifKycInReview;
+
+  /// v1.80-kyc (D227): «تأكيد الهوية» (Didit).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن بدء التحقق الآن'**
+  String get errorKycNotAllowed;
+
+  /// v1.80-kyc (D227): «تأكيد الهوية» (Didit).
+  ///
+  /// In ar, this message translates to:
+  /// **'يلزم تأكيد هويتك أولاً (خطوة «تأكيد الهوية»).'**
+  String get agencyOpenRefusedKyc;
 }
 
 class _AppLocalizationsDelegate

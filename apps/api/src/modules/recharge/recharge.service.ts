@@ -1,4 +1,6 @@
 import { Inject, Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
+import { kycOn, kycSettingsIn } from '../kyc/kyc-core.js';
+import { takeIdPictures } from '../kyc/id-pictures.js';
 import { z } from 'zod';
 import { AuditAction } from '../../common/audit/audit.service.js';
 import { AppException } from '../../common/errors/app-exception.js';
@@ -438,7 +440,9 @@ export class RechargeService implements OnModuleInit, OnModuleDestroy {
 
   /** `POST /me/recharge-agent/application`. */
   async apply(userId: string, body: unknown): Promise<RechargeAgentMeDto> {
-    await this.media.assertEnabled();
+    // v1.80-kyc (D227): with Didit on the ID pictures are not asked (the identity check is, before activation).
+    const kyc = kycOn(await kycSettingsIn(this.prisma));
+    if (!kyc) await this.media.assertEnabled();
     const input = parse(applicationSchema, body);
     const [pending, agent, job] = await Promise.all([
       this.prisma.rechargeAgentApplication.count({ where: { userId, status: 'PENDING' } }),
@@ -447,24 +451,13 @@ export class RechargeService implements OnModuleInit, OnModuleDestroy {
     ]);
     if (pending > 0 || agent > 0 || job) throw new AppException(ErrorCode.RECHARGE_APPLICATION_NOT_ALLOWED);
     const id = uuidv7();
-    const photoKey = privateKeyOf(id, 'photo');
-    const selfieKey = privateKeyOf(id, 'selfie');
-    if (
-      !(await this.media.consumePrivateImage(userId, input.photoUploadId, 'RECHARGE_AGENT_PHOTO', photoKey))
-    ) {
-      throw AppException.validation([{ field: 'photoUploadId', issue: 'invalid_value' }]);
-    }
-    if (
-      !(await this.media.consumePrivateImage(
-        userId,
-        input.selfieUploadId,
-        'RECHARGE_AGENT_SELFIE',
-        selfieKey,
-      ))
-    ) {
-      await this.media.deletePrivateObjects([photoKey]).catch(() => undefined);
-      throw AppException.validation([{ field: 'selfieUploadId', issue: 'invalid_value' }]);
-    }
+    const { photoKey, selfieKey } = await takeIdPictures(
+      this.media,
+      userId,
+      input,
+      { photo: privateKeyOf(id, 'photo'), selfie: privateKeyOf(id, 'selfie') },
+      kyc,
+    );
     try {
       await this.prisma.$transaction(async (tx) => {
         await tx.rechargeAgentApplication.create({
@@ -492,7 +485,8 @@ export class RechargeService implements OnModuleInit, OnModuleDestroy {
         });
       });
     } catch (err) {
-      await this.media.deletePrivateObjects([photoKey, selfieKey]).catch(() => undefined);
+      const taken = [photoKey, selfieKey].filter((k): k is string => k !== null);
+      if (taken.length > 0) await this.media.deletePrivateObjects(taken).catch(() => undefined);
       if (isUniqueViolation(err)) throw new AppException(ErrorCode.RECHARGE_APPLICATION_NOT_ALLOWED);
       throw err;
     }

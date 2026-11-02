@@ -370,7 +370,10 @@ enum AgencyOpenRefusal {
   accountNotActive('ACCOUNT_NOT_ACTIVE'),
   ownsAgency('OWNS_AGENCY'),
   hostOfAgency('HOST_OF_AGENCY'),
-  reopenCooldown('REOPEN_COOLDOWN');
+  reopenCooldown('REOPEN_COOLDOWN'),
+
+  /// v1.80-kyc (D227): Didit is on and the identity check is not approved.
+  kycRequired('KYC_REQUIRED');
 
   new(this.wire);
 
@@ -430,11 +433,11 @@ final class AgencyOpenDraft {
     required this.contactValue,
     required this.expectedHosts,
     required this.bio,
-    required this.idCard,
-    required this.idCardType,
-    required this.selfie,
-    required this.selfieType,
     required this.idempotencyKey,
+    this.idCard,
+    this.idCardType,
+    this.selfie,
+    this.selfieType,
   });
 
   final String name;
@@ -445,10 +448,13 @@ final class AgencyOpenDraft {
   final String contactValue;
   final int expectedHosts;
   final String bio;
-  final Uint8List idCard;
-  final String idCardType;
-  final Uint8List selfie;
-  final String selfieType;
+
+  /// v1.80-kyc (D227): null while Didit is on (the identity check replaces
+  /// the manual ID pictures; nothing is uploaded).
+  final Uint8List? idCard;
+  final String? idCardType;
+  final Uint8List? selfie;
+  final String? selfieType;
 
   /// One per attempt of the form (a retry after a lost answer reuses it).
   final String idempotencyKey;
@@ -586,21 +592,39 @@ class AgencyRepositoryImpl implements AgencyRepository {
   /// The object store's client (presigned PUTs).
   final Dio _storage;
 
-  @override
-  Future<MyAgency> open(AgencyOpenDraft d) => guardApiCall(() async {
-    final idCard = await uploadPrivateImage(
+  /// v1.80-kyc (D227): the two D185 private uploads, or none while Didit is on
+  /// (the draft carries no pictures).
+  Future<(String?, String?)> _idPictures(
+    Uint8List? idCard,
+    String? idCardType,
+    Uint8List? selfie,
+    String? selfieType,
+  ) async {
+    if (idCard == null || selfie == null) return (null, null);
+    final photo = await uploadPrivateImage(
       _dio,
       _storage,
-      d.idCard,
-      d.idCardType,
+      idCard,
+      idCardType ?? 'image/jpeg',
       'RECHARGE_AGENT_PHOTO',
     );
-    final selfie = await uploadPrivateImage(
+    final face = await uploadPrivateImage(
       _dio,
       _storage,
+      selfie,
+      selfieType ?? 'image/jpeg',
+      'RECHARGE_AGENT_SELFIE',
+    );
+    return (photo, face);
+  }
+
+  @override
+  Future<MyAgency> open(AgencyOpenDraft d) => guardApiCall(() async {
+    final (idCard, selfie) = await _idPictures(
+      d.idCard,
+      d.idCardType,
       d.selfie,
       d.selfieType,
-      'RECHARGE_AGENT_SELFIE',
     );
     final res = await _dio.post<Map<String, dynamic>>(
       '/me/agency/open',
@@ -610,8 +634,8 @@ class AgencyRepositoryImpl implements AgencyRepository {
         'contact': {'type': d.contactType.wire, 'value': d.contactValue},
         'expectedHosts': d.expectedHosts,
         if (d.bio.isNotEmpty) 'bio': d.bio,
-        'photoUploadId': idCard,
-        'selfieUploadId': selfie,
+        'photoUploadId': ?idCard,
+        'selfieUploadId': ?selfie,
       },
       options: Options(headers: {'Idempotency-Key': d.idempotencyKey}),
     );
@@ -635,19 +659,11 @@ class AgencyRepositoryImpl implements AgencyRepository {
   @override
   Future<MyHostingApplication> applyForHosting(HostingDraft d) =>
       guardApiCall(() async {
-        final idCard = await uploadPrivateImage(
-          _dio,
-          _storage,
+        final (idCard, selfie) = await _idPictures(
           d.idCard,
           d.idCardType,
-          'RECHARGE_AGENT_PHOTO',
-        );
-        final selfie = await uploadPrivateImage(
-          _dio,
-          _storage,
           d.selfie,
           d.selfieType,
-          'RECHARGE_AGENT_SELFIE',
         );
         final res = await _dio.post<Map<String, dynamic>>(
           '/me/hosting-application',
@@ -659,8 +675,8 @@ class AgencyRepositoryImpl implements AgencyRepository {
             'bio': d.bio,
             if (d.links.isNotEmpty) 'links': d.links,
             'acceptRules': true,
-            'photoUploadId': idCard,
-            'selfieUploadId': selfie,
+            'photoUploadId': ?idCard,
+            'selfieUploadId': ?selfie,
           },
           options: Options(headers: {'Idempotency-Key': d.idempotencyKey}),
         );

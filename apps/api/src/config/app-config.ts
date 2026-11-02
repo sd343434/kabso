@@ -186,6 +186,9 @@ export interface AppConfig {
     readonly agencyOpenUser: RateLimitRule;
     /** v1.73-social (D209). */
     readonly hostApplyUser: RateLimitRule;
+    /** v1.80-kyc (D227). */
+    readonly kycStartUser: RateLimitRule;
+    readonly kycSyncUser: RateLimitRule;
     /** v1.74-social (D217): a later invite code (per user); the public rewards ticker (per IP). */
     readonly referralApplyUser: RateLimitRule;
     readonly referralTickerIp: RateLimitRule;
@@ -348,6 +351,11 @@ export interface AppConfig {
     readonly disputeAutoSubmit: boolean;
     readonly appLinkEnabled: boolean;
     readonly termsVersion: string;
+  };
+  /** v1.80-kyc (D227, §10.77): identity checks with Didit (the keys are in the panel, never here). */
+  readonly kyc: {
+    /** API_PUBLIC_URL: shown as the webhook address's origin (default `https://api.kabsolive.com`). */
+    readonly publicApiBaseUrl: string;
   };
   /** v1.60-social (D191, CONVENTIONS §10.54): the admin panel; `totpKey` null = the panel is off. */
   readonly adminPanel: {
@@ -643,6 +651,8 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       rechargeOrderActionUser: e.RATE_LIMIT_RECHARGE_ORDER_ACTION_USER,
       agencyOpenUser: e.RATE_LIMIT_AGENCY_OPEN_USER,
       hostApplyUser: e.RATE_LIMIT_HOST_APPLY_USER,
+      kycStartUser: e.RATE_LIMIT_KYC_START_USER,
+      kycSyncUser: e.RATE_LIMIT_KYC_SYNC_USER,
       referralApplyUser: e.RATE_LIMIT_REFERRAL_APPLY_USER,
       referralTickerIp: e.RATE_LIMIT_REFERRAL_TICKER_IP,
       topupCheckoutUser: e.RATE_LIMIT_TOPUP_CHECKOUT_USER,
@@ -773,6 +783,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
         sweepIntervalSeconds: e.RECHARGE_ORDER_SWEEP_INTERVAL_SECONDS,
       },
     },
+    kyc: { publicApiBaseUrl: e.API_PUBLIC_URL ?? 'https://api.kabsolive.com' },
     topup: {
       stripe:
         e.STRIPE_SECRET_KEY !== undefined &&

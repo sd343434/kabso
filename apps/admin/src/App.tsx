@@ -25,6 +25,7 @@ import { Login } from './pages/Login';
 import { Reports } from './pages/Reports';
 import { Payments } from './pages/Payments';
 import { Storage } from './pages/Storage';
+import { KycSettingsPage } from './pages/Kyc';
 import { SiteSettings } from './pages/SiteSettings';
 import { UserDetail } from './pages/UserDetail';
 import { Withdrawals } from './pages/Withdrawals';
@@ -169,6 +170,9 @@ export function App() {
           break;
         case 'storage':
           page = <Storage />;
+          break;
+        case 'kycSettings':
+          page = <KycSettingsPage />;
           break;
         case 'agencies':
           page = <Agencies />;

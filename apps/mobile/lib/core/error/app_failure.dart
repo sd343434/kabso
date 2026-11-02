@@ -235,6 +235,13 @@ enum ErrorCode {
   /// `details[0].issue` says why (`HostingApplyRefusal`).
   hostApplicationNotAllowed('HOST_APPLICATION_NOT_ALLOWED'),
 
+  /// v1.80-kyc (D227, §10.77, 409): an identity check cannot start now —
+  /// `details[0].issue` says why (`KycRefusal`).
+  kycNotAllowed('KYC_NOT_ALLOWED'),
+
+  /// v1.80-kyc (D227, 503): identity verification (Didit) is off.
+  kycUnavailable('KYC_UNAVAILABLE'),
+
   /// v1.74-social (D217, §10.71, 503): «دعوة الأصدقاء» is switched off.
   referralUnavailable('REFERRAL_UNAVAILABLE'),
 

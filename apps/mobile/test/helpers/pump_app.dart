@@ -11,6 +11,7 @@ import 'package:kabso_live/features/auth/presentation/join_screen.dart';
 import 'package:kabso_live/features/auth/presentation/register_screen.dart';
 import 'package:kabso_live/features/auth/presentation/splash_video.dart';
 import 'package:kabso_live/features/auth/presentation/welcome_screen.dart';
+import 'package:kabso_live/features/kyc/data/kyc_repository.dart';
 import 'package:kabso_live/features/live/data/home_banners_repository.dart';
 import 'package:kabso_live/features/live/data/live_blocked_words_repository.dart';
 import 'package:kabso_live/features/live/data/live_boost_repository.dart';
@@ -40,6 +41,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'fake_dm_repository.dart';
 import 'fake_home_banners_repository.dart';
 import 'fake_inline_video.dart';
+import 'fake_kyc_repository.dart';
 import 'fake_live_blocked_words_repository.dart';
 import 'fake_live_boost_repository.dart';
 import 'fake_live_data_center_repository.dart';
@@ -114,6 +116,8 @@ Future<void> pumpKabsoApp(
         rechargeRepositoryProvider.overrideWithValue(FakeRechargeRepository()),
         // D198: never the network for the legal documents and consents.
         privacyRepositoryProvider.overrideWithValue(FakePrivacyRepository()),
+        // D227: never Didit (off: the manual ID pictures).
+        kycRepositoryProvider.overrideWithValue(FakeKycRepository()),
         // D156: never the video plugin (it has no test implementation).
         splashVideoFactoryProvider.overrideWithValue(
           splashVideo ?? (_) => FakeSplashVideo(endOnPlay: true),
@@ -267,6 +271,8 @@ Future<void> pumpScreen(
         ),
         // D198: never the network for the legal documents and consents.
         privacyRepositoryProvider.overrideWithValue(FakePrivacyRepository()),
+        // D227: never Didit (off: the manual ID pictures).
+        kycRepositoryProvider.overrideWithValue(FakeKycRepository()),
         // D162: post and reel videos without the plugin.
         inlineVideoFactoryProvider.overrideWithValue(
           (inlineVideos ?? FakeInlineVideos()).call,

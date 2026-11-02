@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto';
+import { kycGateIn } from '../kyc/kyc-core.js';
+import { takeIdPictures } from '../kyc/id-pictures.js';
 import { Inject, Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { z } from 'zod';
 import { AuditAction } from '../../common/audit/audit.service.js';
@@ -155,6 +157,8 @@ export interface ClosedAgencyDto {
 }
 
 export type AgencyOpenRefusal = 'ACCOUNT_NOT_ACTIVE' | 'HOST_OF_AGENCY' | 'OWNS_AGENCY' | 'REOPEN_COOLDOWN';
+/** v1.80-kyc (D227): with Didit on, «افتح وكالة» needs an approved identity check (only at the opening). */
+export type AgencyOpenSubmitRefusal = AgencyOpenRefusal | 'KYC_REQUIRED';
 
 /** v1.70-social (D206): `AgencyOpenRule` — «افتح وكالة» (free). */
 export interface AgencyOpenRuleDto {
@@ -224,8 +228,9 @@ export const openAgencyBodySchema = z.strictObject({
     // Line breaks are allowed in the bio; no other control character.
     .refine((v) => PLAIN.test(v.replace(/\n/gu, ' ')))
     .optional(),
-  photoUploadId: z.string().regex(UUID),
-  selfieUploadId: z.string().regex(UUID),
+  /** v1.80-kyc (D227): required only while Didit is off (with Didit on, ignored: an approved check is needed). */
+  photoUploadId: z.string().regex(UUID).optional(),
+  selfieUploadId: z.string().regex(UUID).optional(),
 });
 export type OpenAgencyBody = z.infer<typeof openAgencyBodySchema>;
 
@@ -250,8 +255,8 @@ function requestHash(b: OpenAgencyBody): string {
     b.contact.value,
     b.expectedHosts,
     b.bio ?? '',
-    b.photoUploadId.toLowerCase(),
-    b.selfieUploadId.toLowerCase(),
+    (b.photoUploadId ?? '').toLowerCase(),
+    (b.selfieUploadId ?? '').toLowerCase(),
   ]);
   return createHash('sha256').update(canonical).digest('hex');
 }
@@ -523,25 +528,24 @@ export class AgencyService implements OnModuleInit, OnModuleDestroy {
     };
     const before = await replay();
     if (before) return before;
-    await this.media.assertEnabled();
-    const refused = (issue: AgencyOpenRefusal) =>
+    // v1.80-kyc (D227): with Didit on the ID pictures are not asked: an approved identity check is.
+    const kycGate = await kycGateIn(this.prisma, me, 'AGENCY_OPEN');
+    if (!kycGate.enabled) await this.media.assertEnabled();
+    const refused = (issue: AgencyOpenSubmitRefusal) =>
       new AppException(ErrorCode.AGENCY_OPEN_NOT_ALLOWED, undefined, [{ field: 'agency', issue }]);
     const own = await this.prisma.agency.findUnique({ where: { ownerUserId: me } });
     const refusal = await this.openRefusal(me, own);
     if (refusal) throw refused(refusal);
+    if (kycGate.enabled && !kycGate.approved) throw refused('KYC_REQUIRED');
 
     const applicationId = uuidv7();
-    const photoKey = agencyPictureKey(applicationId, 'photo');
-    const selfieKey = agencyPictureKey(applicationId, 'selfie');
-    if (!(await this.media.consumePrivateImage(me, input.photoUploadId, 'RECHARGE_AGENT_PHOTO', photoKey))) {
-      throw AppException.validation([{ field: 'photoUploadId', issue: 'invalid_value' }]);
-    }
-    if (
-      !(await this.media.consumePrivateImage(me, input.selfieUploadId, 'RECHARGE_AGENT_SELFIE', selfieKey))
-    ) {
-      await this.media.deletePrivateObjects([photoKey]).catch(() => undefined);
-      throw AppException.validation([{ field: 'selfieUploadId', issue: 'invalid_value' }]);
-    }
+    const { photoKey, selfieKey } = await takeIdPictures(
+      this.media,
+      me,
+      input,
+      { photo: agencyPictureKey(applicationId, 'photo'), selfie: agencyPictureKey(applicationId, 'selfie') },
+      kycGate.enabled,
+    );
     const now = this.clock.now();
     const e = this.config.economy;
     const grace = this.config.specialUsernames.graceDays;
@@ -671,7 +675,8 @@ export class AgencyService implements OnModuleInit, OnModuleDestroy {
         }
       }
     } catch (err) {
-      await this.media.deletePrivateObjects([photoKey, selfieKey]).catch(() => undefined);
+      const taken = [photoKey, selfieKey].filter((k): k is string => k !== null);
+      if (taken.length > 0) await this.media.deletePrivateObjects(taken).catch(() => undefined);
       if (isUniqueViolation(err)) {
         // The same key raced, or the person's agency was made meanwhile.
         const raced = await replay();

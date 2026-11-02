@@ -154,6 +154,9 @@ describe('ErrorCode', () => {
         'AGENCY_LEAVE_WINDOW_CLOSED',
         'AGENCY_OPEN_NOT_ALLOWED',
         'HOST_APPLICATION_NOT_ALLOWED',
+        // v1.80-kyc (D227).
+        'KYC_NOT_ALLOWED',
+        'KYC_UNAVAILABLE',
         'INSUFFICIENT_CHERRIES',
         'WITHDRAWAL_PENDING',
         // v1.57-social (DRAFT, D188)

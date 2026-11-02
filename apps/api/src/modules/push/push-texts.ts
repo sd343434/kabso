@@ -170,6 +170,17 @@ export function notificationBody(n: NotificationText, locale: PushLocale): strin
         : 'The Kabso team voided an invalid invite and took back its cherries';
     case 'PROFILE_EDITED_BY_TEAM':
       return ar ? 'عدّل فريق Kabso ملفك الشخصي' : 'The Kabso team edited your profile';
+    // v1.80-kyc (D227): the identity check «تأكيد الهوية» (the reasons are in the app, never in the push).
+    case 'KYC_APPROVED':
+      return ar ? 'تم تأكيد هويتك بنجاح' : 'Your identity was verified';
+    case 'KYC_DECLINED':
+      return ar
+        ? 'لم يتم تأكيد هويتك. افتح التطبيق لمعرفة السبب والمحاولة مرة أخرى'
+        : 'Your identity could not be verified. Open the app to see why and try again';
+    case 'KYC_IN_REVIEW':
+      return ar
+        ? 'التحقق من هويتك قيد المراجعة، سنخبرك بالنتيجة'
+        : 'Your identity check is being reviewed; we will tell you the result';
     default:
       return null;
   }

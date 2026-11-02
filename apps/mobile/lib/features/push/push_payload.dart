@@ -72,6 +72,8 @@ class PushPayload {
     if (type is String && type.startsWith('HOST_APPLICATION_')) {
       return AppRoutes.agency;
     }
+    // D227: the identity check's result.
+    if (type is String && type.startsWith('KYC_')) return AppRoutes.agency;
     // D217: a referral's cherries taken back.
     if (type == 'REFERRAL_REWARD_REVERSED') return AppRoutes.walletCherries;
     if (id == null || id.isEmpty) return null;

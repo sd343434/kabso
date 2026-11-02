@@ -17,6 +17,12 @@ const REFUSAL_KEYS: Record<string, Key> = {
   storage_test_failed: 'stErrTestFailed',
   https_required: 'stErrHttps',
   storage_nothing_to_clear: 'stErrNothingToClear',
+  // D227 «التحقق من الهوية (Didit)», and the gates of the application pages.
+  kyc_incomplete: 'kycErrIncomplete',
+  kyc_test_required: 'kycErrTestRequired',
+  kyc_test_failed: 'kycErrTestFailed',
+  kyc_nothing_to_clear: 'kycErrNothingToClear',
+  kyc_required: 'kycErrRequired',
 };
 
 function refusalKey(err: ApiError): Key | null {

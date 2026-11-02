@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { KycBlock } from './Kyc';
+import type { AdminKycSummary } from '../types';
 import { api } from '../api';
 import { codeField, ErrorAlert, FormDialog, Loading, reasonField, StatusBadge, useAsync, UserCell } from '../components';
 import { useApp } from '../context';
@@ -503,6 +505,8 @@ interface AgencyApplicationDto {
   expectedHosts: number;
   bio: string | null;
   photos: { photo: boolean; selfie: boolean };
+  /** v1.80-kyc (D227). */
+  kyc?: AdminKycSummary;
 }
 
 /** v1.70-social (D206): the applications; the fields and the pictures are read one at a time (each view audited). */
@@ -556,10 +560,13 @@ function ApplicationFields({ agencyId, appId }: { agencyId: string; appId: strin
         <dt>{t('agencyBio')}</dt>
         <dd>{data.bio ?? '—'}</dd>
       </dl>
+      <KycBlock summary={data.kyc} />
+      {(data.photos.photo || data.photos.selfie || !data.kyc?.required) && (
       <div className="grid cols-2">
         <AgencyPhoto agencyId={agencyId} appId={appId} which="photo" exists={data.photos.photo} label={t('agencyIdCard')} />
         <AgencyPhoto agencyId={agencyId} appId={appId} which="selfie" exists={data.photos.selfie} label={t('agencySelfie')} />
       </div>
+      )}
     </div>
   );
 }

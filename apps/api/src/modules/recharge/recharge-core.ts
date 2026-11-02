@@ -1,6 +1,7 @@
 import { auditBy, CLI_VIA, type AdminVia } from '../../common/audit/admin-actor.js';
 import { AuditAction } from '../../common/audit/audit.service.js';
 import type { Prisma, PrismaClient, RechargeStockReason } from '../../generated/prisma/client.js';
+import { assertKycForDecisionIn, KycRequiredError } from '../kyc/kyc-core.js';
 import { uuidv7 } from '../levels/uuidv7.js';
 import { nameInUse } from '../premium-usernames/premium-username-ops.js';
 import { syncAgentUsernameIn } from '../users/agent-usernames.js';
@@ -16,7 +17,15 @@ import { agentCode, topUpPrice, type PriceTier } from './recharge-rules.js';
 type Tx = Prisma.TransactionClient;
 
 /** A refused admin action (the CLI prints the message and exits 1; nothing changed). */
-export class RechargeAdminError extends Error {}
+export class RechargeAdminError extends Error {
+  /** v1.80-kyc (D227): `kyc_required` when the identity check is missing (the panel's `details[0].issue`). */
+  constructor(
+    message: string,
+    readonly issue?: string,
+  ) {
+    super(message);
+  }
+}
 
 /** The private prefix of an application's pictures (never public, §11.1). */
 export function privateKeyOf(applicationId: string, which: 'photo' | 'selfie'): string {
@@ -180,6 +189,25 @@ export async function topUpIn(
   if (!agent) throw new RechargeAdminError('Not an agent.');
   if (agent.status === 'SUSPENDED') throw new RechargeAdminError('The agent is SUSPENDED; reinstate first.');
   const first = agent.code === null;
+  if (first) {
+    // v1.80-kyc (D227): the agent is activated by the first top-up — Didit on → an approved identity check first;
+    // off → the application's manual ID pictures (or a check made earlier).
+    const pictures = await tx.rechargeAgent.findUniqueOrThrow({
+      where: { userId: agentUserId },
+      select: { application: { select: { photoKey: true, selfieKey: true } } },
+    });
+    try {
+      await assertKycForDecisionIn(
+        tx,
+        agentUserId,
+        'RECHARGE_AGENT',
+        !!pictures.application?.photoKey && !!pictures.application.selfieKey,
+      );
+    } catch (err) {
+      if (err instanceof KycRequiredError) throw new RechargeAdminError(err.message, err.issue);
+      throw err;
+    }
+  }
   if (first && coins < BigInt(rules.activationMinCoins)) {
     throw new RechargeAdminError(
       `The first top-up must be at least ${String(rules.activationMinCoins)} coins (it activates the agent).`,

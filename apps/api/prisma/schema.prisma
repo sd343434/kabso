@@ -237,6 +237,8 @@ model User {
   /// an OWNER granted.
   deviceSignup           DeviceSignup?
   deviceExceptionsGiven  DeviceSignupException[]
+  /// v1.80-kyc (D227): the person's identity checks «تأكيد الهوية» (Didit).
+  kycChecks              KycCheck[]
   agencyLinks            AgencyHost[]
   cherryWithdrawals      CherryWithdrawal[]
   // v1.54-social (D185): recharge agents.
@@ -2116,6 +2118,11 @@ enum NotificationType {
   REFERRAL_REWARD_REVERSED
   /// v1.76-social (D218): a moderator removed the profile cover (system).
   COVER_REMOVED
+  /// v1.80-kyc (D227, system, no target): the identity check «تأكيد الهوية» was approved / declined / sent to a
+  /// manual review by Didit (or the team in Didit's console).
+  KYC_APPROVED
+  KYC_DECLINED
+  KYC_IN_REVIEW
 
   @@map("notification_type")
 }
@@ -5624,4 +5631,112 @@ model DeviceSignupException {
   grantedBy User? @relation(fields: [grantedById], references: [id], onDelete: SetNull)
 
   @@map("device_signup_exceptions")
+}
+
+// ---- v1.80-kyc (D227, CONVENTIONS §10.77): identity verification with Didit «تأكيد الهوية» ---------------------
+
+/// D227: what a check was started for (the application it belongs to).
+enum KycPurpose {
+  HOST_APPLICATION
+  AGENCY_OPEN
+  RECHARGE_AGENT
+
+  @@map("kyc_purpose")
+}
+
+/// D227: a check's state, mapped from Didit's session status (`Not Started` → NOT_STARTED, `In Progress` /
+/// `Awaiting User` / `Resubmitted` → IN_PROGRESS, `In Review`, `Approved`, `Declined`, `Expired` / `Kyc Expired` →
+/// EXPIRED, `Abandoned`). An Approved session whose date of birth is under 18 is stored DECLINED (`UNDER_MIN_AGE`).
+enum KycStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  IN_REVIEW
+  APPROVED
+  DECLINED
+  EXPIRED
+  ABANDONED
+
+  @@map("kyc_status")
+}
+
+/// D227: the OWNER's «التحقق من الهوية (Didit)» settings — one row. The API key and the webhook secret are sealed
+/// (AdminSecretBox, HKDF info `kyc-settings/v1`, per-column AAD) and write-only: only their last 4 characters, who
+/// and when. The workflow ids are not secrets (Didit console ids).
+model KycSettings {
+  id                     Int       @id @default(1) @db.SmallInt
+  enabled                Boolean   @default(false)
+  apiKeyEnc              String?   @map("api_key_enc")
+  apiKeyLast4            String?   @map("api_key_last4") @db.VarChar(4)
+  apiKeySetById          String?   @map("api_key_set_by_id") @db.Uuid
+  apiKeySetAt            DateTime? @map("api_key_set_at") @db.Timestamptz(3)
+  webhookSecretEnc       String?   @map("webhook_secret_enc")
+  webhookSecretLast4     String?   @map("webhook_secret_last4") @db.VarChar(4)
+  webhookSecretSetById   String?   @map("webhook_secret_set_by_id") @db.Uuid
+  webhookSecretSetAt     DateTime? @map("webhook_secret_set_at") @db.Timestamptz(3)
+  /// The default workflow (every purpose without its own).
+  workflowId             String?   @map("workflow_id") @db.Uuid
+  workflowIdHost         String?   @map("workflow_id_host") @db.Uuid
+  workflowIdAgency       String?   @map("workflow_id_agency") @db.Uuid
+  workflowIdRecharge     String?   @map("workflow_id_recharge") @db.Uuid
+  /// How many checks one person may start in 24 hours (1–10).
+  maxSessionsPerDay      Int       @default(3) @map("max_sessions_per_day") @db.SmallInt
+  lastTestAt             DateTime? @map("last_test_at") @db.Timestamptz(3)
+  lastTestOk             Boolean?  @map("last_test_ok")
+  lastTestById           String?   @map("last_test_by_id") @db.Uuid
+  lastTest               Json?     @map("last_test")
+  updatedAt              DateTime  @default(now()) @map("updated_at") @db.Timestamptz(3)
+  updatedById            String?   @map("updated_by_id") @db.Uuid
+
+  @@map("kyc_settings")
+}
+
+/// D227: one Didit verification session of a person. Only the minimum is kept: Didit's session id and number, the
+/// status and decision, the warning codes (reasons), the dates, and from the document the name, the date of birth
+/// (18+), the issuing country and the document number as an HMAC (never the number itself). Never an image: the
+/// team sees them in Didit's console, or through a short-lived fetch from the panel (audited).
+model KycCheck {
+  id                 String     @id @default(uuid(7)) @db.Uuid
+  userId             String     @map("user_id") @db.Uuid
+  purpose            KycPurpose
+  status             KycStatus  @default(NOT_STARTED)
+  /// Didit's session id (unique) and the number shown in Didit's console.
+  sessionId          String     @unique(map: "kyc_checks_session_key") @map("session_id") @db.Uuid
+  sessionNumber      Int?       @map("session_number")
+  workflowId         String     @map("workflow_id") @db.Uuid
+  /// Didit's status string as last received (e.g. `In Review`).
+  providerStatus     String     @map("provider_status") @db.VarChar(32)
+  /// The warnings' `risk` codes of a decline or review (and `UNDER_MIN_AGE`), at most 20.
+  reasons            String[]   @default([]) @db.VarChar(64)
+  fullName           String?    @map("full_name") @db.VarChar(200)
+  dateOfBirth        DateTime?  @map("date_of_birth") @db.Date
+  /// ISO 3166-1 alpha-3 of the document's issuing state.
+  documentCountry    String?    @map("document_country") @db.Char(3)
+  /// HMAC-SHA-256 (hex) of `<country>:<number>` under a key derived from ADMIN_TOTP_KEY (`kyc-document/v1`).
+  documentHash       String?    @map("document_hash") @db.Char(64)
+  /// The same document hash is on another account's check (flagged to the team; never an automatic decline).
+  duplicateDocument  Boolean    @default(false) @map("duplicate_document")
+  createdAt          DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  decidedAt          DateTime?  @map("decided_at") @db.Timestamptz(3)
+  /// The newest event applied (Didit's `created_at` of the webhook, or the sync time): older ones are ignored.
+  lastEventAt        DateTime?  @map("last_event_at") @db.Timestamptz(3)
+  updatedAt          DateTime   @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)], map: "kyc_checks_user_idx")
+  @@index([documentHash], map: "kyc_checks_document_idx")
+  @@index([status, createdAt(sort: Desc)], map: "kyc_checks_status_idx")
+  @@map("kyc_checks")
+}
+
+/// D227: the webhook deliveries already applied (Didit's `event_id`; a retry reuses it): idempotency. Kept 30 days.
+model KycWebhookEvent {
+  eventId    String   @id @map("event_id") @db.VarChar(64)
+  sessionId  String?  @map("session_id") @db.Uuid
+  type       String   @db.VarChar(48)
+  status     String?  @db.VarChar(32)
+  receivedAt DateTime @default(now()) @map("received_at") @db.Timestamptz(3)
+
+  @@index([receivedAt], map: "kyc_webhook_events_received_idx")
+  @@map("kyc_webhook_events")
 }

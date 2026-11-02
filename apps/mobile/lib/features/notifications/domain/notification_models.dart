@@ -97,6 +97,12 @@ enum NotificationType {
   /// v1.74-social (D217, system, no target): the team voided a referral and
   /// took back the cherries it had credited. Opens the cherry wallet.
   referralRewardReversed('REFERRAL_REWARD_REVERSED'),
+
+  /// v1.80-kyc (D227, system, no target): the identity check «تأكيد الهوية»
+  /// was approved / declined / sent to a review. All open «الوكالة».
+  kycApproved('KYC_APPROVED'),
+  kycDeclined('KYC_DECLINED'),
+  kycInReview('KYC_IN_REVIEW'),
   unknown('');
 
   new(this.wire);
@@ -121,7 +127,12 @@ enum NotificationType {
       this == rechargeOrderUpdate ||
       isAgency ||
       isHostApplication ||
+      isKyc ||
       this == referralRewardReversed;
+
+  /// v1.80-kyc (D227): the identity check's result.
+  bool get isKyc =>
+      this == kycApproved || this == kycDeclined || this == kycInReview;
 
   /// v1.73-social (D209): the decision on «كن مضيفاً مع الإدارة».
   bool get isHostApplication =>

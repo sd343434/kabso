@@ -152,8 +152,10 @@ All non-2xx responses use one envelope:
 | 409 | `AGENCY_ALREADY_MEMBER` | *(v1.52-social, DRAFT, D179)* `joinAgency` while the caller is an ACTIVE host of another agency (§10.46). |
 | 409 | `AGENCY_JOIN_NOT_ALLOWED` | *(v1.52-social, DRAFT, D179)* `joinAgency` by the owner of an agency (an agent is never a host of an agency, their own included). |
 | 409 | `AGENCY_LEAVE_WINDOW_CLOSED` | *(v1.52-social, DRAFT, D179)* `leaveAgency` after `AGENCY_LEAVE_DAYS` (14) from joining; only a complaint to the admin remains (§10.46). |
-| 409 | `AGENCY_OPEN_NOT_ALLOWED` | *(v1.70-social, DRAFT, D206)* `openAgency` refused — `details[0] = {field: agency, issue}`: `ACCOUNT_NOT_ACTIVE`, `OWNS_AGENCY` (an open agency, its probation included), `HOST_OF_AGENCY`, `REOPEN_COOLDOWN` (§10.65). |
+| 409 | `AGENCY_OPEN_NOT_ALLOWED` | *(v1.70-social, DRAFT, D206)* `openAgency` refused — `details[0] = {field: agency, issue}`: `ACCOUNT_NOT_ACTIVE`, `OWNS_AGENCY` (an open agency, its probation included), `HOST_OF_AGENCY`, `REOPEN_COOLDOWN` (§10.65). *(v1.80-kyc, D227)* `KYC_REQUIRED`: Didit is on and the person has no approved identity check for «افتح وكالة» (§10.77). |
 | 409 | `HOST_APPLICATION_NOT_ALLOWED` | *(v1.73-social, DRAFT, D209)* `applyForHosting` refused — `details[0] = {field: application, issue}`: `ACCOUNT_NOT_ACTIVE`, `ALREADY_HOST` (any hosting permission), `HOST_OF_AGENCY`, `OWNS_AGENCY` (an open agency), `PENDING` (one open application per user), `REAPPLY_COOLDOWN` (rejected less than `HOST_APPLICATION_REAPPLY_DAYS` ago), `UNDER_MIN_AGE` (§10.68). Nothing was kept. |
+| 409 | `KYC_NOT_ALLOWED` | *(v1.80-kyc, DRAFT, D227)* `startKycSession` refused — `details[0] = {field: purpose, issue}`: `ACCOUNT_NOT_ACTIVE`, `ALREADY_APPROVED` (an approved check counts for the purpose), `IN_REVIEW` (wait for the review), `DAILY_LIMIT` (the OWNER's sessions per 24 h, default 3; §10.77). Nothing was started. |
+| 503 | `KYC_UNAVAILABLE` | *(v1.80-kyc, DRAFT, D227)* Identity verification (Didit) is off or not configured in the admin panel «التحقق من الهوية (Didit)» — `startKycSession`, `syncKycCheck`; the webhook when no webhook secret is saved (Didit retries); the panel's image fetch without an API key. No `Retry-After`. |
 | 409 | `INSUFFICIENT_CHERRIES` | *(v1.52-social, DRAFT, D179)* A withdrawal request larger than the caller's cherry balance (*v1.53-social, D184:* less the task cherries still locked, `withdrawableCherries`, §10.46.1). Nothing was held. |
 | 409 | `WITHDRAWAL_PENDING` | *(v1.52-social, DRAFT, D179)* A withdrawal request while another of the caller's requests waits to be paid (one at a time). |
 | 409 | `RECHARGE_APPLICATION_NOT_ALLOWED` | *(v1.54-social, DRAFT, D185)* A recharge-agent application while the caller has one pending, is already an agent (any status but rejected) or is an agent's employee (§10.48). |
@@ -437,6 +439,9 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `PUT /me/username` *(v1.28-live, D146)* | 5 / day per user (bucket `username:change`, `RATE_LIMIT_USERNAME_CHANGE_USER`). **Replaces** the per-user default |
 | `POST /me/account-deletion` *(v1.62-social, D193)* | 5 / 15 min per user (bucket `account_deletion:user`, `RATE_LIMIT_ACCOUNT_DELETION_USER`; the password is re-checked). **Replaces** the per-user default |
 | `POST /auth/sessions/revoke-others` *(v1.79-social, D226)* | 5 / 15 min per user (bucket `sessions_revoke_others:user`, the rule `RATE_LIMIT_ACCOUNT_DELETION_USER`; the password is re-checked). **Replaces** the per-user default |
+| `POST /me/kyc/sessions` *(v1.80-kyc, D227)* | 20 / 24 h per user (bucket `kyc:start`, `RATE_LIMIT_KYC_START_USER`; refused attempts count), on top of the per-user default; separately, the OWNER's «جلسات في اليوم» (1–10, default 3) counts the NEW sessions of the last 24 h (an unfinished one opened again does not count) → 409 `KYC_NOT_ALLOWED` `DAILY_LIMIT` |
+| `POST /me/kyc/checks/{checkId}/sync` *(v1.80-kyc, D227)* | 60 / hour per user (bucket `kyc:sync`, `RATE_LIMIT_KYC_SYNC_USER`), on top of the per-user default |
+| `POST /kyc/didit/webhook` *(v1.80-kyc, D227)* | none (server to server; verified by its signature, like the Stripe webhook) |
 | `POST /me/data-exports` *(v1.66-social, D198)* | 5 / 15 min per user (bucket `data_export:user`, `RATE_LIMIT_DATA_EXPORT_USER`; the password is re-checked) and one export per 24 hours (`DATA_EXPORT_MIN_INTERVAL_HOURS`, 429 `DATA_EXPORT_LIMIT`). **Replaces** the per-user default |
 | `POST /me/data-exports/{id}/link`, `GET /me/data-exports/{id}/file` *(v1.66-social, D198)* | 10 / hour per user (bucket `data_export_download:user`, `RATE_LIMIT_DATA_EXPORT_DOWNLOAD_USER`). **Replaces** the per-user default |
 | `POST /me/premium-username/rentals`, `DELETE /me/premium-username` *(v1.28-live, D146)* | 20 / hour per user (bucket `premium:rent`, `RATE_LIMIT_PREMIUM_RENT_USER`). **Replaces** the per-user default; `GET /premium-usernames`, `GET /premium-usernames/{username}` and `GET /me/premium-username` use the per-user default |
@@ -591,6 +596,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.60-social)* Tables `admin_credentials`, `admin_recovery_codes`, `admin_sessions`; admin permissions `OWNER`, `SUPPORT`, `FINANCE`; server config `ADMIN_*`, `RATE_LIMIT_ADMIN_*`; CLI `admin-admin`; `apps/admin` | Backend — `admin-panel` module (reads other modules' tables for its views; changes them only through their shared rules, §10.54.4); web — `apps/admin` | CTO; Security (sign-in, second factor, sessions, private data) |
 | *(v1.60-social)* Table `site_settings` | Backend — `site-settings` module (public read; OWNER writes from the panel) | CTO |
 | *(v1.75-social)* Table `storage_settings` (the object-storage keys sealed, the two buckets, the switch, the last test); capability `storage.settings`; audit `storage.settings.*` (§10.72) | Backend — `storage-settings` module (`StorageSettingsService` the only writer; `StorageSettingsStore` the only reader: the media storage `OBJECT_STORAGE`, the upload switch and every public media URL); web — `apps/admin` «التخزين (R2 / S3)» | CTO; Security (storage keys, encryption at rest, the private bucket) |
+| *(v1.80-kyc)* Tables `kyc_settings` (the Didit API key and webhook secret sealed, the workflows, the daily limit, the switch, the last test), `kyc_checks` (one Didit session of a person: status, decision, reasons, name, birth date, document country, document HMAC), `kyc_webhook_events` (the deliveries applied); capabilities `kyc.settings`, `kyc.view`; audit `kyc.*` (§10.77) | Backend — `kyc` module (`KycSettingsService` the only writer of the settings, `KycService` of the checks; `KycSettingsStore` the only reader of the secrets; `kyc-core.ts` the gates shared with `host-applications`, `economy` (agency open) and `recharge`); web — `apps/admin` «التحقق من الهوية (Didit)» and the KYC block of the three application pages; app — `features/kyc` | CTO; Security (Didit secrets, the minimum personal data, the webhook signature); Privacy (Didit as a processor, export and purge) |
 | *(v1.64-social)* Table `payment_settings` (the Stripe keys sealed, the top-up options); capability `payments.settings`; audit `payment.settings.*` (§10.53.1) | Backend — `payment-settings` module (`PaymentSettingsService` the only writer; `PaymentSettingsStore` the only reader, used by `topup`, `wallet`, `site-settings`); web — `apps/admin` «الدفع (Stripe)» | CTO; Security (Stripe keys, encryption at rest) |
 | *(v1.66-social)* Tables `legal_documents`, `user_consents`, `data_exports`; column `pending_registrations.legal_consent`; notification type `DATA_EXPORT_READY`; the 428 gate (`ConsentGuard`); server config `DATA_EXPORT_*`, `RATE_LIMIT_DATA_EXPORT_*`; CLIs `legal-admin`, `privacy-admin`; private prefix `private/data-exports/`; `scripts/check-site-no-tracking.sh` (§10.61) | Backend — `privacy` module (`legal.ts` and `data-export.ts` shared with the CLIs; `auth`, `topup` and `gifts` record consents through `legal.ts`; D193's purge deletes exports and clears consents' IP/UA) | CTO; Security (the export's content, the download token); Legal (the documents' text and versions) |
 | *(v1.55-social)* Table `host_frame_choices`; bag source `HOST_ACTIVE`; catalogue rows `host_frame_blue`, `host_frame_pink` | Backend — `economy` module (`host-frames.ts`: given and taken by the agency sweeper and `economy-admin agency-evaluate`, on agency join / leave / a resolved complaint, on a gender change and a style choice; `bag-admin` refuses them) | CTO |
@@ -638,6 +644,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.80-kyc (draft) | 2026-11-01 | **D227 (owner: identity verification with Didit for «كن مضيفاً مع الإدارة», «افتح وكالة» and recharge agents; the keys in the admin panel, never in env files):** tag `kyc` — `getMyKyc` (`GET /me/kyc`, `MyKyc`, `KycPurposeState`), `startKycSession` (`POST /me/kyc/sessions`, `StartKycSessionRequest`, `KycSessionStart`), `syncKycCheck` (`POST /me/kyc/checks/{checkId}/sync`, `KycCheck`), `receiveDiditWebhook` (`POST /kyc/didit/webhook`); schemas `KycPurpose`, `KycStatus`, `KycRefusal`; tag `admin-panel` — `getAdminKycSettings`, `updateAdminKycSettings` (PATCH), `testAdminKycSettings`, `clearAdminKycSettings` (capability `kyc.settings`, OWNER), `getAdminKycCheck`, `getAdminKycCheckMedia` (capability `kyc.view`, OWNER + SUPPORT); schemas `AdminKycSettings`, `KycKeyInfo`, `KycTestReport`, `KycTestWorkflow`, `KycLastTest`, `UpdateAdminKycSettingsRequest`, `TestAdminKycSettingsRequest`, `ClearAdminKycSettingsRequest`, `AdminKycCheck`, `AdminKycPerson`, `AdminKycSummary`, `AdminKycMedia`; `AdminHostApplication.kyc`, `AdminAgencyApplication.kyc`, `AdminRechargeApplication.kyc` (and `paymentMethods[].details`, returned since D191, now declared); codes `KYC_NOT_ALLOWED` (409), `KYC_UNAVAILABLE` (503); `AGENCY_OPEN_NOT_ALLOWED` issue `KYC_REQUIRED`; `ADMIN_ACTION_REFUSED` issue `kyc_required` (host approval, the recharge agent's first top-up); notification types `KYC_APPROVED`, `KYC_DECLINED`, `KYC_IN_REVIEW` (system, no target); `HostingApplicationRequest` / `OpenAgencyRequest` / `RechargeAgentApplicationRequest`: `photoUploadId` and `selfieUploadId` no longer required by the schema (required by the server while Didit is off; ignored while on); config `API_PUBLIC_URL` (optional, shown as the webhook's origin), `RATE_LIMIT_KYC_START_USER` (20/86400), `RATE_LIMIT_KYC_SYNC_USER` (60/3600); migrations `20270214090000_kyc_enums`, `20270214090100_kyc_checks` (also relaxes `recharge_agent_applications_shape`: the two picture keys both or neither); audit `kyc.settings.update\|clear\|test`, `kyc.session.start`, `kyc.check.decision`, `kyc.check.duplicate_document`, `kyc.check.view`, `kyc.check.media.view`; the data export gains `kyc_checks`; the account purge deletes the checks. §4, §7, §8, §10.54.1, §10.77. | **Additive** for clients (new operations, schemas, codes and enum values; clients ignore unknown notification types; older clients that still send the upload ids keep working). Behaviour while Didit is ON: approval / activation / opening need an approved check. While OFF nothing changes. |
 | v1.79-social (draft) | 2026-11-01 | **D226 (owner approved «تسجيل الخروج من كل الأجهزة الأخرى»):** `revokeOtherSessions` (`POST /auth/sessions/revoke-others`, `RevokeOtherSessionsRequest` with the current password, 200 `RevokeOtherSessionsResult` `{revoked}`): every session of the caller but the calling one is revoked with its push token; 403 `REAUTH_FAILED` on a wrong password; rate limit 5 / 15 min per user (bucket `sessions_revoke_others:user`, the existing rule `RATE_LIMIT_ACCOUNT_DELETION_USER`); audit actions `auth.sessions.revoke_others`, `auth.sessions.revoke_others.reauth_failed`. No migration, no new configuration. §7, §10.76. | **Additive** (a new operation). |
 | v1.78-social (draft) | 2026-11-01 | **D223 (owner: «الجهاز الواحد لا يمكنه عمل غير حسابين لكنه يمكن فتح حسابات مختلفة»):** `DeviceInfo.deviceKey` (the app's salted SHA-256 of Android `ANDROID_ID` / an iOS Keychain id; read only by `register` and `registerVerify`, kept only as an HMAC); `register` / `registerVerify` 409 `DEVICE_ACCOUNT_LIMIT` (`details[0] = {field: device, issue: '<limit>'}`); tag `admin-panel`: `getAdminDeviceSignups`, `grantAdminDeviceException`, `removeAdminDeviceException` (`AdminDeviceSignups`, `AdminDeviceExceptionRequest`; capabilities `users.device_view` OWNER / SUPPORT, `users.device_exception` OWNER with the code again); config `SIGNUP_MAX_ACCOUNTS_PER_DEVICE` (2, 1–100), `SIGNUP_DEVICE_KEY` (optional HMAC key source, else RATE_LIMIT_KEY_SECRET); audit `auth.registration.device_limit`, `admin.device_signups.view`, `admin.device_exception.grant\|remove`; migration `20270211090000_device_signups` (`device_signups`, `device_signup_exceptions`, `pending_registrations.device_hash`). §4, §10.75. | **Additive** (an optional request field, a new code on the sign-up operations only when a device key is sent, new operations; an older app or the website sends no key and is not counted). |
 | v1.77-social (draft) | 2026-11-01 | **D220 (owner: the in-live person card «بطاقة التعريف» matched to a reference; four numbers, two of them hideable):** `PublicProfile.cherriesReceived` and `PublicProfile.coinsSent` (optional: absent when hidden from the caller); `PrivacySettings.hideCherriesReceived` / `hideCoinsSent` (required in the response) and the same two optional fields in `UpdatePrivacyRequest`; `AdminUserDetail.balances.cherriesReceived` / `coinsSent` (required); migration `20270212090000_profile_stats_privacy` (two `privacy_settings` columns, default false); the data export lists the switches. §10.74. (v1.74–v1.76-social are D217, D222 and D218.) | **Additive** (new optional response fields; new request fields; new required fields on the caller's own privacy settings and the panel's user detail — strict clients update their models in the same change set). |
@@ -3793,6 +3800,8 @@ session's `capabilities` do not include.
 | `site.settings` | ✓ | | | |
 | `payments.settings` (v1.64-social, D196: the Stripe keys and top-up options, §10.53.1) | ✓ | | | |
 | `storage.settings` (v1.75-social, D222: the media storage R2 / S3 keys, buckets and switch, §10.72) | ✓ | | | |
+| `kyc.settings` (v1.80-kyc, D227: the Didit API key, webhook secret, workflows, daily limit and switch, §10.77) | ✓ | | | |
+| `kyc.view` (v1.80-kyc, D227: a person's identity check — name, birth date, document country, duplicates — and the short-lived image fetch, each audited, §10.77) | ✓ | | ✓ | |
 | `recharge.disputes` (v1.69-social, D204: «نزاعات الشحن» — a disputed order, its chat and pictures, «الإدارة» lines, §10.64.9) | ✓ | | ✓ | ✓ |
 | `recharge.disputes.resolve`, `recharge.rates` (v1.69-social, D204: a dispute's decision, the exchange rates) | ✓ | | | ✓ |
 
@@ -5273,6 +5282,99 @@ every other session at once. PHASE1_SCREENS §9.3 had left it out («No revoke a
 - **The app.** The full sessions list and the Settings preview show a red «تسجيل الخروج من كل الأجهزة الأخرى» /
   "Log out of all other devices" while another session exists; it asks for the password in a confirm dialog,
   then refreshes the list and says how many devices were signed out.
+
+### 10.77 «تأكيد الهوية»: identity verification with Didit *(v1.80-kyc, DRAFT — D227)*
+
+Owner (2026-11-01): the applicants «كن مضيفاً مع الإدارة» (§10.68), «افتح وكالة» (§10.65) and recharge agents (§10.48)
+verify their identity with **Didit** (didit.me: the ID document, passive liveness and the 1:1 face match; 500 free
+checks a month, then about $0.33 a check). Hosts who join an agency are NOT checked by this feature. The OWNER enters
+the keys in the admin panel; never in env files, never in chat.
+
+- **Didit's API** (docs.didit.me, read 2026-11-01; recorded in KNOWN_LIMITATIONS where the docs leave a doubt).
+  Base `https://verification.didit.me`, header `x-api-key`. `POST /v3/session/` with `workflow_id`, `vendor_data`
+  (we send the person's user id: Didit's «User», its duplicate checks and the reuse of an unfinished session),
+  `callback` (`kabsolive://kyc/done`), `metadata` (`{purpose}`) and `language` (`ar` / `en`) → 201 `session_id`,
+  `session_number`, `session_token`, `url` (the hosted flow), `status`. Didit returns the existing session instead of
+  a new one while one of the same `vendor_data` is unfinished on the workflow's latest version. `GET
+  /v3/session/{id}/decision/` → the decision (plural arrays `id_verifications[]`, `liveness_checks[]`,
+  `face_matches[]` …; the media are presigned, short-lived URLs). `GET /v3/workflows/` → the application's workflows
+  (`«اختبار الاتصال»`). A bad key → 401/403. The Didit client is one port (`DIDIT_API_FACTORY`); tests replace it.
+- **Purposes.** `HOST_APPLICATION`, `AGENCY_OPEN`, `RECHARGE_AGENT`. Each runs on its own workflow when the OWNER
+  sets one (`workflowIdHost` / `workflowIdAgency` / `workflowIdRecharge`), else on the default `workflowId`. An
+  APPROVED check **counts** for a purpose when it was made for it, or ran on the workflow the purpose runs on now —
+  with one workflow for all (the default), one approval serves the three applications.
+- **Statuses.** Didit → ours: `Not Started` → NOT_STARTED; `In Progress`, `Awaiting User`, `Resubmitted` →
+  IN_PROGRESS; `In Review` → IN_REVIEW; `Approved` → APPROVED; `Declined` → DECLINED; `Expired`, `Kyc Expired` →
+  EXPIRED; `Abandoned` → ABANDONED; an unknown value changes nothing but `providerStatus`. **18+:** an Approved session
+  whose document date of birth is under 18 is stored DECLINED with the reason `UNDER_MIN_AGE`; without a date of birth
+  DECLINED `DATE_OF_BIRTH_MISSING`. `decided_at` is set for APPROVED / DECLINED / IN_REVIEW.
+- **Person — `getMyKyc`, `startKycSession`, `syncKycCheck`.** A new session is refused (409 `KYC_NOT_ALLOWED`,
+  `details[0].issue`) in this order: `ACCOUNT_NOT_ACTIVE`, `ALREADY_APPROVED`, `IN_REVIEW` (the purpose's newest
+  check is under review), `DAILY_LIMIT` (new sessions of the person in the last 24 h ≥ the OWNER's
+  `maxSessionsPerDay`, 1–10, default 3). An unfinished session (NOT_STARTED / IN_PROGRESS) is opened again (Didit
+  answers the same session: 200, the same check, not counted). A DECLINED / EXPIRED / ABANDONED check may be retried
+  within the limit. Didit off → 503 `KYC_UNAVAILABLE`; Didit unreachable or refusing → 503 `SERVICE_UNAVAILABLE`
+  (nothing kept). `syncKycCheck` reads the decision now (after the hosted flow, for a late webhook) and applies it as
+  the webhook does. The person never sees a personal field back; `reasons` only for DECLINED / IN_REVIEW.
+- **Webhook — `receiveDiditWebhook`** (`POST /api/v1/kyc/didit/webhook`, public, raw body). The OWNER sets
+  `https://api.kabsolive.com/api/v1/kyc/didit/webhook` in Didit (Settings › API & Webhooks). Verified with the panel's
+  webhook secret: `X-Timestamp` (Unix seconds) within **300 s** of now (the replay window), then `X-Signature-V2` =
+  hex HMAC-SHA-256 of the canonical JSON (keys sorted recursively, compact separators, Unicode not escaped) or
+  `X-Signature` = hex HMAC-SHA-256 of the raw bytes, constant-time; `X-Signature-Simple` (deprecated, envelope only) is
+  NOT accepted. Failure → 401 `AUTH_UNAUTHENTICATED` (`missing_timestamp` / `stale_timestamp` / `missing_signature` /
+  `invalid_signature`), nothing changes. **Idempotent:** each `event_id` (Didit reuses it on retries) is applied once
+  (`kyc_webhook_events`, kept 30 days); an event older (`created_at`) than the last one applied to the check is
+  ignored; `status.updated` / `data.updated` are applied, other types acknowledged; an unknown session acknowledged and
+  dropped. No secret saved → 503 (Didit retries twice).
+- **Stored — the minimum.** `kyc_checks`: Didit's session id and number, the workflow, `providerStatus`, our status,
+  `reasons` (the warnings' `risk` codes of a declined / reviewed session, ≤ 20, plus ours), the dates; from the first
+  ID document only the full name, the date of birth, the issuing state (ISO alpha-3) and the document number as an
+  **HMAC-SHA-256** under a key derived from `ADMIN_TOTP_KEY` (HKDF `kyc-document/v1`) over `<country>:<number>`
+  (upper-case, letters and digits only) — never the number, an address, an image or an image link.
+- **Duplicate documents.** A check whose document hash is on another account's check is flagged
+  (`duplicateDocument`, both checks) and audited `kyc.check.duplicate_document`; the team sees the other accounts.
+  Never an automatic decline.
+- **The gates** (`kyc-core.ts`, shared by the API and the CLIs). While Didit is **ON**:
+  - «كن مضيفاً مع الإدارة»: the application is sent without ID pictures; **approving** it (panel or `host-admin
+    approve`) needs an approved check that counts for `HOST_APPLICATION` → else 409 `ADMIN_ACTION_REFUSED`
+    `details[0] = {field: kyc, issue: kyc_required}`.
+  - «افتح وكالة»: it opens at once (no approval), so the **opening** needs the approved check → else 409
+    `AGENCY_OPEN_NOT_ALLOWED` `KYC_REQUIRED` (after the other refusals).
+  - Recharge agents: the application is sent without ID pictures; the team may approve it; the **first top-up**,
+    which activates the agent (§10.48), needs the approved check → else 409 `ADMIN_ACTION_REFUSED` `kyc_required`
+    (nothing credited). Agents already ACTIVE are not affected. Chosen over «before the stock is credited» because
+    the first top-up IS both the activation and the first credit; later top-ups of an active agent stay unchanged.
+  While Didit is **OFF** the manual ID card + selfie (the D185 uploads) stay required (400 `required`) and are the
+  check (the fallback); an approved check made earlier also counts. With Didit ON the two upload ids are ignored when
+  sent (never consumed).
+- **Notifications.** The person gets `KYC_APPROVED`, `KYC_DECLINED` or `KYC_IN_REVIEW` (system, pushed; the push
+  never carries a reason) when the check's status becomes that value — once per change.
+- **The OWNER's settings «التحقق من الهوية (Didit)»** (capability `kyc.settings`, OWNER only; D196 / D222's pattern):
+  the API key and the webhook secret are **write-only**, sealed AES-256-GCM with a key derived from `ADMIN_TOTP_KEY`
+  (HKDF `kyc-settings/v1`, AAD per column); only their last 4, who and when are shown. Workflows, the daily limit,
+  the «تفعيل» switch, the webhook address (`API_PUBLIC_URL`, default `https://api.kabsolive.com`) and the callback.
+  Every change: the authenticator code again + a reason (403 `ADMIN_TOTP_INVALID`), audited `kyc.settings.update`
+  with the last 4 only. Turning on needs the key, the secret and the default workflow (409 `kyc_incomplete`) and a
+  passing «اختبار الاتصال» (`GET /v3/workflows/`: the key works, each workflow exists, is published, not archived; 409
+  `kyc_test_failed`; skippable only outside production). Read within 5 s on every instance (no restart). Clearing
+  turns Didit off; the checks already made stay.
+- **The team's view** (capability `kyc.view`: OWNER + SUPPORT). The three application pages show `kyc`
+  (`AdminKycSummary`: required, satisfied, the approved and the newest check; without `kyc.view` — e.g. MODERATION on
+  «طلبات المضيفين» — the state only, personal fields null). `getAdminKycCheck` (audited `kyc.check.view`): name, birth
+  date, age, document country, reasons, Didit's session number, the duplicate accounts. The images: Didit's console
+  (`https://business.didit.me`, search the session number) or `getAdminKycCheckMedia` — a fetch of Didit's decision
+  now that answers only its presigned links (they expire within minutes), audited `kyc.check.media.view` per fetch,
+  never stored.
+- **Privacy.** Didit is a processor (privacy policy text in Arabic and English; the policy version is NOT bumped:
+  the OWNER publishes it). The data export gains `kyc_checks` (status, decision, reasons, name, birth date, country;
+  never the hash). The account purge deletes the person's checks and their webhook rows. Didit's own copy follows the
+  retention the OWNER sets in Didit's console (DEPLOYMENT §5.44).
+- **The app.** In the host-apply, agency-open and recharge-apply forms, while Didit is on, the ID step becomes
+  «تأكيد الهوية»: the state (not started, in progress, approved, declined with the reasons and «إعادة المحاولة»,
+  under review) and a button that opens Didit's hosted flow in an in-app WebView (camera granted to the page); the
+  WebView closes when it reaches `kabsolive://kyc/done`, then the app calls `syncKycCheck`. Didit's Flutter SDK
+  (`didit_sdk`, MIT) is not used: it wraps Didit's native iOS / Android SDKs (heavy, needs the owner's go-ahead), while
+  the WebView is Didit's documented alternative and `webview_flutter` is already a dependency.
 
 ### 10.79 The app's camera effects engine: DeepAR or the free on-device engine *(v1.49-live, DRAFT — D228)*
 

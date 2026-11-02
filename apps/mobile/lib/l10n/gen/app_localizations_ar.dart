@@ -13054,4 +13054,126 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get privacyCardStatsHint =>
       'الرقم المخفي لا يظهر لغيرك في بطاقتك داخل البث ولا في ملفك. أنت وفريق Kabso تستطيعون رؤيته.';
+
+  @override
+  String get kycStepTitle => 'تأكيد الهوية';
+
+  @override
+  String get kycStepIntro =>
+      'نتأكد من هويتك عبر Didit: صورة وثيقتك ثم صورة لوجهك. لا حاجة لرفع صورة الهوية والسيلفي يدوياً.';
+
+  @override
+  String get kycStatusNotStarted => 'لم تبدأ التحقق بعد';
+
+  @override
+  String get kycStatusNotStartedHint =>
+      'صوّر وثيقة هويتك (بطاقة أو جواز أو رخصة) ثم وجهك. يستغرق نحو دقيقتين.';
+
+  @override
+  String get kycStatusInProgress => 'التحقق لم يكتمل';
+
+  @override
+  String get kycStatusInProgressHint =>
+      'تابع من حيث توقفت؛ ستظهر النتيجة هنا عند الانتهاء.';
+
+  @override
+  String get kycStatusInReview => 'التحقق قيد المراجعة';
+
+  @override
+  String get kycStatusInReviewHint =>
+      'تتم مراجعة التحقق، وسنخبرك بالنتيجة بإشعار.';
+
+  @override
+  String get kycStatusApproved => 'تم تأكيد هويتك';
+
+  @override
+  String get kycStatusApprovedHint => 'هويتك مؤكدة ويمكنك إرسال الطلب.';
+
+  @override
+  String get kycStatusDeclined => 'لم يتم تأكيد هويتك';
+
+  @override
+  String get kycStatusDeclinedHint =>
+      'يمكنك المحاولة مرة أخرى بعد مراعاة السبب:';
+
+  @override
+  String get kycStatusExpired => 'انتهت جلسة التحقق';
+
+  @override
+  String get kycStatusExpiredHint => 'انتهت الجلسة قبل اكتمالها. ابدأ من جديد.';
+
+  @override
+  String get kycStart => 'ابدأ التحقق';
+
+  @override
+  String get kycContinue => 'متابعة التحقق';
+
+  @override
+  String get kycRetry => 'إعادة المحاولة';
+
+  @override
+  String kycWhatHappens(String provider) {
+    return 'يُفتح التحقق داخل التطبيق لدى $provider. لا نحفظ صور وثيقتك أو وجهك.';
+  }
+
+  @override
+  String get kycRefusedDailyLimit =>
+      'وصلت إلى الحد اليومي لمحاولات التحقق. حاول غداً.';
+
+  @override
+  String get kycUnavailable => 'التحقق من الهوية غير متاح الآن. حاول لاحقاً.';
+
+  @override
+  String get kycRequiredToSubmit => 'أكمل «تأكيد الهوية» أولاً.';
+
+  @override
+  String get kycRequiredApproved => 'يلزم تأكيد هويتك (مقبول) قبل فتح الوكالة.';
+
+  @override
+  String get kycReasonUnderAge => 'العمر في الوثيقة أقل من ١٨ سنة.';
+
+  @override
+  String get kycReasonNoBirthDate =>
+      'تعذّرت قراءة تاريخ الميلاد في الوثيقة. صوّرها بوضوح.';
+
+  @override
+  String get kycReasonDocumentExpired =>
+      'الوثيقة منتهية الصلاحية. استخدم وثيقة سارية.';
+
+  @override
+  String get kycReasonNoFace => 'لم يظهر وجهك بوضوح. صوّر في مكان مضاء.';
+
+  @override
+  String get kycReasonLiveness =>
+      'لم ينجح فحص الحيوية. صوّر وجهك مباشرة دون صورة أو شاشة.';
+
+  @override
+  String get kycReasonFaceMatch => 'وجهك لا يطابق صورة الوثيقة.';
+
+  @override
+  String get kycReasonOther => 'لم تجتز إحدى خطوات التحقق.';
+
+  @override
+  String get kycClose => 'إغلاق';
+
+  @override
+  String get kycOpenInBrowser => 'فتح في المتصفح';
+
+  @override
+  String get notifKycApproved => 'تم تأكيد هويتك بنجاح';
+
+  @override
+  String get notifKycDeclined =>
+      'لم يتم تأكيد هويتك. افتح الطلب لمعرفة السبب والمحاولة مرة أخرى';
+
+  @override
+  String get notifKycInReview =>
+      'التحقق من هويتك قيد المراجعة، سنخبرك بالنتيجة';
+
+  @override
+  String get errorKycNotAllowed => 'لا يمكن بدء التحقق الآن';
+
+  @override
+  String get agencyOpenRefusedKyc =>
+      'يلزم تأكيد هويتك أولاً (خطوة «تأكيد الهوية»).';
 }

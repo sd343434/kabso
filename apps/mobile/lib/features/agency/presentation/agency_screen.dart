@@ -1130,8 +1130,11 @@ class _OpenCard extends StatelessWidget {
       AgencyOpenRefusal.hostOfAgency => l10n.agencyOpenIsHost,
       AgencyOpenRefusal.ownsAgency => l10n.agencyOpenOwns,
       AgencyOpenRefusal.accountNotActive => l10n.agencyOpenNotActive,
-      // The closed card says when (with the date).
-      AgencyOpenRefusal.reopenCooldown || null => null,
+      // The closed card says when (with the date); D227's identity check is
+      // asked in the form, never before.
+      AgencyOpenRefusal.reopenCooldown ||
+      AgencyOpenRefusal.kycRequired ||
+      null => null,
     };
     return WalletSection(
       children: [

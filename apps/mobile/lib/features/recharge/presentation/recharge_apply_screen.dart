@@ -7,6 +7,9 @@ import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/kyc/application/kyc_providers.dart';
+import 'package:kabso_live/features/kyc/data/kyc_models.dart';
+import 'package:kabso_live/features/kyc/presentation/kyc_step.dart';
 import 'package:kabso_live/features/posts/data/media_repository.dart'
     show sniffImageType;
 import 'package:kabso_live/features/profile/data/profile_edit_repository.dart';
@@ -136,11 +139,17 @@ class _RechargeApplyScreenState extends ConsumerState<RechargeApplyScreen> {
     final paymentsOk = !payments.any(
       (p) => p.details.isEmpty || !locations.any((l) => l.country == p.country),
     );
+    // v1.80-kyc (D227): with Didit on, «تأكيد الهوية» replaces the two
+    // pictures (approved, or under Didit's review; the team activates the
+    // agent only after an approved check).
+    final kyc = ref.read(myKycProvider).value;
+    final kycOn = kyc?.enabled ?? false;
     final photosOk =
-        photo != null &&
-        selfie != null &&
-        sniffImageType(photo) != null &&
-        sniffImageType(selfie) != null;
+        kycOn ||
+        (photo != null &&
+            selfie != null &&
+            sniffImageType(photo) != null &&
+            sniffImageType(selfie) != null);
     setState(() {
       _tried = true;
       _error = null;
@@ -151,12 +160,13 @@ class _RechargeApplyScreenState extends ConsumerState<RechargeApplyScreen> {
     if (!locationsOk ||
         !paymentsOk ||
         !photosOk ||
+        !kycReady(kyc, KycPurpose.rechargeAgent) ||
         _nameError(l10n) != null ||
         _phoneError(l10n) != null) {
       return;
     }
-    final photoType = sniffImageType(photo)!;
-    final selfieType = sniffImageType(selfie)!;
+    final photoType = kycOn || photo == null ? null : sniffImageType(photo);
+    final selfieType = kycOn || selfie == null ? null : sniffImageType(selfie);
     setState(() => _busy = true);
     try {
       await ref
@@ -165,9 +175,9 @@ class _RechargeApplyScreenState extends ConsumerState<RechargeApplyScreen> {
             RechargeApplicationDraft(
               fullName: _name.text.trim(),
               phone: _phone.text.trim(),
-              photo: photo,
+              photo: kycOn ? null : photo,
               photoType: photoType,
-              selfie: selfie,
+              selfie: kycOn ? null : selfie,
               selfieType: selfieType,
               locations: locations,
               paymentMethods: payments,
@@ -246,6 +256,8 @@ class _RechargeApplyScreenState extends ConsumerState<RechargeApplyScreen> {
     final l10n = context.l10n;
     final p = context.palette;
     final countries = _countries;
+    final kyc = ref.watch(myKycProvider).value;
+    final kycOn = kyc?.enabled ?? false;
     return Scaffold(
       backgroundColor: p.background,
       appBar: KAppBar(
@@ -295,41 +307,51 @@ class _RechargeApplyScreenState extends ConsumerState<RechargeApplyScreen> {
               ],
             ),
           ),
-          RechargeSection(
-            step: 2,
-            title: l10n.rechargeApplyStepPhotos,
-            error: _tried && (_photo == null || _selfie == null)
-                ? _photoError ?? l10n.rechargeMissingPhotos
-                : null,
-            child: IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(
-                    child: _picture(
-                      key: RechargeApplyScreen.photoKey,
-                      title: l10n.rechargePhoto,
-                      hint: l10n.rechargePhotoHint,
-                      bytes: _photo,
-                      icon: Icons.person_rounded,
-                      onPick: () => unawaited(_pick(false)),
+          if (kycOn)
+            RechargeSection(
+              step: 2,
+              title: l10n.kycStepTitle,
+              error: _tried && !kycReady(kyc, KycPurpose.rechargeAgent)
+                  ? l10n.kycRequiredToSubmit
+                  : null,
+              child: const KycStep(purpose: KycPurpose.rechargeAgent),
+            )
+          else
+            RechargeSection(
+              step: 2,
+              title: l10n.rechargeApplyStepPhotos,
+              error: _tried && (_photo == null || _selfie == null)
+                  ? _photoError ?? l10n.rechargeMissingPhotos
+                  : null,
+              child: IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: _picture(
+                        key: RechargeApplyScreen.photoKey,
+                        title: l10n.rechargePhoto,
+                        hint: l10n.rechargePhotoHint,
+                        bytes: _photo,
+                        icon: Icons.person_rounded,
+                        onPick: () => unawaited(_pick(false)),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: KSpacing.sm),
-                  Expanded(
-                    child: _picture(
-                      key: RechargeApplyScreen.selfieKey,
-                      title: l10n.rechargeSelfie,
-                      hint: l10n.rechargeSelfieHint,
-                      bytes: _selfie,
-                      icon: Icons.face_retouching_natural_rounded,
-                      onPick: () => unawaited(_pick(true)),
+                    const SizedBox(width: KSpacing.sm),
+                    Expanded(
+                      child: _picture(
+                        key: RechargeApplyScreen.selfieKey,
+                        title: l10n.rechargeSelfie,
+                        hint: l10n.rechargeSelfieHint,
+                        bytes: _selfie,
+                        icon: Icons.face_retouching_natural_rounded,
+                        onPick: () => unawaited(_pick(true)),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
           RechargeSection(
             step: 3,
             title: l10n.rechargeLocations,

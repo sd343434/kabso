@@ -208,8 +208,9 @@ export const applicationSchema = z
     }),
     phone: z.string().regex(E164),
     whatsapp: z.literal(true),
-    photoUploadId: z.uuid(),
-    selfieUploadId: z.uuid(),
+    /** v1.80-kyc (D227): required only while Didit is off (with Didit on, ignored). */
+    photoUploadId: z.uuid().optional(),
+    selfieUploadId: z.uuid().optional(),
     locations: z
       .array(z.strictObject({ country, cities: z.array(plainText(1, 60)).min(1).max(20) }))
       .min(1)
