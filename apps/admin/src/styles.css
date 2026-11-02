@@ -1444,6 +1444,16 @@ ins {
   padding: 3px 9px;
   border-radius: 999px;
 }
+/* D241: a live in a PK — a second badge at the top end, and «ضد @handle» under the title. */
+.live-badge.pk-badge {
+  inset-inline-start: auto;
+  inset-inline-end: 10px;
+  background: linear-gradient(90deg, #e50914, #3d8bff);
+}
+.pk-vs {
+  color: var(--red-500);
+  font-weight: 700;
+}
 .viewers {
   position: absolute;
   bottom: 10px;

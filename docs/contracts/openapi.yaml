@@ -194,6 +194,10 @@ info:
     **D240 (DRAFT v1.53-live)** adds `country` to `listLiveRooms`: the rooms whose host's country is the
     given ISO 3166-1 alpha-2 code (the viewer's choice of «القريبة»; no token needed; wins over
     `scope=nearby`; CONVENTIONS §10.83).
+    **D241 (DRAFT v1.54-live)** flags a room in a PK: `LiveRoomSummary.inPk` (an open D195 match — CONNECTED,
+    BATTLE or RESULT — or the legacy mode `PK`; real battles keep the rooms `SOLO`), and the panel's lives:
+    `listAdminLives` `mode=PK` / `SOLO` by it and `AdminLiveRow.pk` / `AdminLiveDetail.pk` (the opponent;
+    CONVENTIONS §10.84).
     **D154c (DRAFT v1.34-live)** adds newcomers «الجدد»: `listLiveNewcomers` (host and moderators:
     the people in the live whose account is younger than `NEWCOMER_DAYS`, 30) and
     `LiveChatAuthorBadges.newcomer` (CONVENTIONS §10.35).
@@ -12517,6 +12521,13 @@ paths:
           - viewers
           - startedAt
           default: viewers
+      - name: mode
+        in: query
+        required: false
+        description: (v1.47-live, D212) the panel's category chips. (v1.54-live, D241) `PK` = the rooms in an open D195 PK match (they stay `SOLO`) or of the legacy mode `PK`; `SOLO` = `SOLO` rooms not in a PK (the chips partition the lives).
+        schema:
+          type: string
+          enum: [SOLO, PK, MULTI, AUDIO, PODCAST]
       responses:
         '200':
           description: OK.
@@ -18315,6 +18326,23 @@ components:
           - 'null'
         host:
           $ref: '#/components/schemas/AdminPersonRef'
+        pk:
+          description: (v1.54-live, D241) the room's PK, null when not in one. The opponent is null for a legacy mode `PK` room without a match.
+          oneOf:
+          - $ref: '#/components/schemas/AdminLivePk'
+          - type: 'null'
+    AdminLivePk:
+      type: object
+      description: (v1.54-live, D241) the other side of the room's open PK match.
+      required: [opponentRoomId, opponentUsername, opponentDisplayName]
+      properties:
+        opponentRoomId:
+          type: [string, 'null']
+          format: uuid
+        opponentUsername:
+          type: [string, 'null']
+        opponentDisplayName:
+          type: [string, 'null']
     AdminLivePage:
       type: object
       required:
@@ -18420,6 +18448,11 @@ components:
           type: integer
         moderators:
           type: integer
+        pk:
+          description: (v1.54-live, D241) the room's PK, null when not in one.
+          oneOf:
+          - $ref: '#/components/schemas/AdminLivePk'
+          - type: 'null'
     AdminLiveEnded:
       type: object
       required:
@@ -21641,6 +21674,9 @@ components:
           oneOf:
             - $ref: '#/components/schemas/LivePodcast'
             - type: 'null'
+        inPk:
+          type: boolean
+          description: "v1.54-live (D241, CONVENTIONS §10.84) — the room is in a PK now: an open D195 match (CONNECTED, BATTLE or RESULT, its dare included) on either side, or the legacy mode `PK` (a real battle keeps the rooms `SOLO`). The hub card's tag is «PK». Sent by v1.54-live servers; a missing field reads as false."
     LiveRoom:
       allOf:
         - { $ref: '#/components/schemas/LiveRoomSummary' }
