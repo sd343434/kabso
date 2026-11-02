@@ -2078,6 +2078,27 @@ touched tables).
 - **Order:** API first (an older app shows a PODCAST as a camera-less SOLO room and never sends the new fields); then
   the app. The admin panel's mode chips need the API's `mode` filter.
 
+### 5.47 «بث ستريمر»: the streamer live (migrations `20270301090000_streamer_mode_enum`, `20270301090100_streamer`; D213) — [IMPLEMENTED, draft contract v1.56-live; not deployed; the Android build NOT run, screen capture NOT tested on a device]
+
+CONVENTIONS §10.86. Two migrations, in order: the first only adds `STREAMER` to `live_room_mode`; the second adds
+nullable / defaulted columns only — `live_rooms.streamer_orientation`, `streamer_camera_visible`,
+`streamer_camera_corner` (CHECK `live_rooms_streamer_fields`: all three set for a STREAMER, all NULL otherwise) and
+`streamer_version` (default 0) — and re-creates `live_rooms_seat_count_mode` with `STREAMER` (no seats). No new
+table, so no GRANT; no backfill (existing rows are not STREAMER: their new columns are NULL / 0). Checked on a fresh
+test database (`prisma migrate deploy` from zero; `prisma migrate diff` shows no drift on `live_rooms`).
+
+- **LiveKit:** the STREAMER host's token grants `camera`, `microphone`, `screen_share` and `screen_share_audio`
+  (no server setting). A 720p30 screen at ~2.5 Mbps uplink plus the camera bubble: more egress per streamer than a
+  solo live (budget it in LiveKit Cloud's plan).
+- **Rate limit:** `PUT /live/rooms/{id}/streamer` uses its own bucket `live:streamer` with the existing
+  `RATE_LIMIT_LIVE_TAPS_USER` rule (default 120 / 60 s per user). No new variable.
+- **Android app:** the manifest adds `FOREGROUND_SERVICE_MEDIA_PROJECTION` and `FOREGROUND_SERVICE_CAMERA` and the
+  live service's types `mediaProjection|camera` (used only for a streamer live). **Google Play:** the Play Console's
+  foreground-service declaration must list `mediaProjection` and `camera` with a short video of the feature
+  (PRE_PRODUCTION PP-43) — an app update that declares them without it can be rejected.
+- **Order:** API first (an older app reads STREAMER as SOLO and shows the host's camera track; it ignores the
+  `streamer` field and topic), then the app; the admin panel's «ستريمر» chip needs the API's `mode` filter.
+
 ### 5.39 «دعوة الأصدقاء»: referral rewards in cherries (migrations `20270206090000_referrals_enums`, `20270206090100_referrals`; D217) — [IMPLEMENTED, draft contract v1.74-social; not deployed, not device-tested]
 
 CONVENTIONS §10.71. The first migration only adds enum values — `REFERRAL_REWARD` and `REFERRAL_REVERSAL` to

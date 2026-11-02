@@ -185,7 +185,7 @@
 
 ## Live categories and the podcast live (v1.47-live draft, D212)
 
-- **«بث ستريمر»** (phone screen share) is not built (D213): the hub tab and the go-live mode say «قريباً» and call nothing.
+- **«بث ستريمر»** (phone screen share): built in D213 (see «بث ستريمر» below); iOS still says «قريباً على آيفون».
 - **Guests picked in the podcast setup** are invited onto a speaker seat only once they are in the live (seat
   invitations travel on the room's data channel); there is no push or DM invitation yet.
 - **Timed questions** end within one reconciliation run (≤ 15 s) on the server, or at once when the speaker's app is
@@ -198,6 +198,37 @@
 - **Join lines:** the server sends at most one per 200 ms per room; a burst above 5 a second loses lines (recharge
   and host agents' joins are never dropped). Gender comes only from people who show it on their profile.
 - Not verified on a device (LiveKit active speaker, mic permissions, the sweeper's demotion on a real server).
+
+## «بث ستريمر»: the streamer live (v1.56-live draft, D213)
+
+- **Not tested on a real phone.** The screen capture (MediaProjection), the game sound (AudioPlaybackCapture), the
+  foreground-service types, the notification's toggles, FLAG_SECURE and the reflection that finds the capture's
+  MediaProjection inside flutter_webrtc 1.6.2+hotfix.4 were written and their plain rules unit-tested (JVM), but the
+  Android build (`flutter build apk --debug`) could not run where they were written (Maven Central answered 429 and the
+  shared disk filled) — so the plugin's Kotlin, the manifest merge and the service types are **not compile-checked**
+  and nothing ran on a device. A build and a device test are required before the owner announces it.
+- **iOS:** no streamer hosting — the go-live tab says «قريباً على آيفون» (a ReplayKit broadcast extension is not built).
+  iPhone viewers watch normally. The web offers no hosting either.
+- **Game sound:** Android 10+ only (below: the microphone only, said in the setup). Apps that forbid capture
+  (`allowAudioPlaybackCapture="false"`, many games and every DRM/media app that opts out) come out **silent** — Android
+  reports no error, so the app says «بعض الألعاب تمنع التقاط صوتها» up front. Voice-call apps are never captured.
+- **Protected (DRM) video** (Netflix-like apps, some games' cut-scenes) is **black** in the screen capture; the
+  system decides, the app cannot.
+- **Echo:** the game sound is captured digitally AND reaches the microphone through the phone's speaker (WebRTC's echo
+  canceller only knows the live's own playback): headphones avoid a doubled game sound. Not measured.
+- **Notification:** Android shows at most 3 actions — «إنهاء», the microphone and the camera bubble; the game sound's
+  mute is in the app's stage (owner question). No floating bubble over other apps (`SYSTEM_ALERT_WINDOW` is not used).
+- **Pauses:** the screen pauses for viewers («الشاشة متوقفة مؤقتاً») while Kabso is in front (privacy: chat, wallet and
+  messages are never streamed; the window is also FLAG_SECURE, which blocks the host's own screenshots in Kabso while
+  streaming), during a phone call (`AudioManager` mode, polled each second — a ring can show for up to a second) and
+  while the screen is off. Notifications that pop up over the game ARE streamed (Android 15+ hides sensitive ones).
+- **Stopped from the system** (Android 14's status-bar chip): the screen track ends; the host shares again with a new
+  consent («شارك الشاشة من جديد») — Android 14 allows one capture per consent.
+- **Orientation:** the host's display rotation is sent to viewers (`PUT …/streamer`); viewers letterbox a landscape
+  picture with a nominal 19.5:9 box for the bubble's corner (a 16:9 phone's picture has slim bars inside it).
+- **No PK, no guest seats, no second camera** for a streamer (PK stays SOLO; the camera is already the bubble).
+- **Older apps** see a STREAMER as a solo live showing the host's camera (they ignore the screen track).
+- **Bandwidth:** 720p30 at ~2.5 Mbps for the screen plus the camera — heavier than a solo live on weak networks.
 
 ## «دعوة الأصدقاء» — referral rewards in cherries (v1.74-social draft, D217)
 
