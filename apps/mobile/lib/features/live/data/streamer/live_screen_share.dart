@@ -39,6 +39,13 @@ abstract interface class LiveScreenShare {
   /// The camera bubble of [identity] (cover-fit), or null (none, or paused).
   Widget? remoteCamera(String identity);
 
+  /// D247 (v1.57-live, `main: CAMERA`): [identity]'s camera as the whole
+  /// picture, fitted inside its box (letterboxed), or null (none, or paused).
+  Widget? remoteCameraPicture(String identity);
+
+  /// D247: whether [identity]'s camera track is published but muted.
+  bool remoteCameraPaused(String identity);
+
   /// The `streamer` data messages of the room.
   Stream<LiveStreamerEvent> get streamerEvents;
 

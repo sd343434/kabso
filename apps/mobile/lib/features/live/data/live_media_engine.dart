@@ -1316,6 +1316,33 @@ class LiveKitMediaEngine
   @override
   Widget? remoteCamera(String identity) => remoteVideo(identity);
 
+  /// D247: the host's camera publication (not the screen), or null.
+  lk.TrackPublication? _remoteCameraOf(String identity) {
+    final participant = _room?.remoteParticipants[identity];
+    if (participant == null) return null;
+    for (final publication in participant.videoTrackPublications) {
+      if (publication.source == lk.TrackSource.screenShareVideo) continue;
+      return publication;
+    }
+    return null;
+  }
+
+  @override
+  Widget? remoteCameraPicture(String identity) {
+    if (!_receiveVideo) return null;
+    final publication = _remoteCameraOf(identity);
+    final track = publication?.track;
+    if (publication == null || track is! lk.VideoTrack || publication.muted) {
+      return null;
+    }
+    // Fitted inside the box, like the screen (OBS sends the whole scene).
+    return lk.VideoTrackRenderer(track);
+  }
+
+  @override
+  bool remoteCameraPaused(String identity) =>
+      _remoteCameraOf(identity)?.muted ?? false;
+
   @override
   Stream<LiveStreamerEvent> get streamerEvents => _streamer.stream;
 

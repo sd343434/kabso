@@ -12294,6 +12294,10 @@
   "@streamerWaiting": {
     "description": "D213 (the streamer live «بث ستريمر»)."
   },
+  "streamerWaitingCamera": "بانتظار صورة المضيف…",
+  "@streamerWaitingCamera": {
+    "description": "D247 (v1.57-live): a STREAMER whose main picture is the camera (the web studio, OBS Virtual Camera) before it arrives."
+  },
   "streamerFullscreen": "ملء الشاشة",
   "@streamerFullscreen": {
     "description": "D213 (the streamer live «بث ستريمر»)."

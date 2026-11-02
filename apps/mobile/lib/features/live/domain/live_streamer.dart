@@ -57,6 +57,24 @@ enum StreamerCorner {
   }
 }
 
+/// v1.57-live (D247, CONVENTIONS §10.88): `StreamerMain` — the main picture.
+/// `screen`: the screen track with the camera as the bubble (D213, the
+/// Android host). `camera`: the camera track alone is the picture (the web
+/// studio's «الكاميرا فقط», e.g. OBS Virtual Camera holding a whole scene);
+/// no bubble, no screen track.
+enum StreamerMain {
+  screen('SCREEN'),
+  camera('CAMERA');
+
+  new(this.wire);
+
+  final String wire;
+
+  /// Unknown values (and a server before v1.57) read as the screen.
+  static StreamerMain parse(Object? wire) =>
+      wire == camera.wire ? camera : screen;
+}
+
 /// `LiveStreamer`: a STREAMER live's layout as the host set it.
 @immutable
 class LiveStreamer {
@@ -64,6 +82,7 @@ class LiveStreamer {
     this.orientation = StreamerOrientation.portrait,
     this.cameraVisible = true,
     this.corner = StreamerCorner.topLeft,
+    this.main = StreamerMain.screen,
     this.version = 0,
   });
 
@@ -75,6 +94,7 @@ class LiveStreamer {
       orientation: StreamerOrientation.parse(json['orientation']),
       cameraVisible: o['visible'] is! bool || o['visible'] as bool,
       corner: StreamerCorner.parse(o['corner']),
+      main: StreamerMain.parse(json['main']),
       version: version is int ? version : 0,
     );
   }
@@ -83,14 +103,21 @@ class LiveStreamer {
   final bool cameraVisible;
   final StreamerCorner corner;
 
+  /// D247: the screen (with the bubble) or the camera alone.
+  final StreamerMain main;
+
   /// Increases on every change; the app keeps the highest it saw.
   final int version;
 
   bool get landscape => orientation == StreamerOrientation.landscape;
 
+  /// D247: the camera is the whole picture (no bubble, no screen expected).
+  bool get cameraMain => main == StreamerMain.camera;
+
   Map<String, dynamic> toJson() => {
     'orientation': orientation.wire,
     'cameraOverlay': {'visible': cameraVisible, 'corner': corner.wire},
+    'main': main.wire,
     'version': version,
   };
 
@@ -98,11 +125,13 @@ class LiveStreamer {
     StreamerOrientation? orientation,
     bool? cameraVisible,
     StreamerCorner? corner,
+    StreamerMain? main,
     int? version,
   }) => LiveStreamer(
     orientation: orientation ?? this.orientation,
     cameraVisible: cameraVisible ?? this.cameraVisible,
     corner: corner ?? this.corner,
+    main: main ?? this.main,
     version: version ?? this.version,
   );
 
@@ -116,14 +145,16 @@ class LiveStreamer {
       other.orientation == orientation &&
       other.cameraVisible == cameraVisible &&
       other.corner == corner &&
+      other.main == main &&
       other.version == version;
 
   @override
-  int get hashCode => Object.hash(orientation, cameraVisible, corner, version);
+  int get hashCode =>
+      Object.hash(orientation, cameraVisible, corner, main, version);
 
   @override
   String toString() =>
-      'LiveStreamer(${orientation.wire}, camera: $cameraVisible '
+      'LiveStreamer(${orientation.wire}, ${main.wire}, camera: $cameraVisible '
       '${corner.wire}, v$version)';
 }
 

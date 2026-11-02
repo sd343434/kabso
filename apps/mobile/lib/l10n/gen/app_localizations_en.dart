@@ -12791,6 +12791,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get streamerWaiting => 'Waiting for the host\'s screen…';
 
   @override
+  String get streamerWaitingCamera => 'Waiting for the host\'s picture…';
+
+  @override
   String get streamerFullscreen => 'Full screen';
 
   @override

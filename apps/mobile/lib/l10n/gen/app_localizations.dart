@@ -21748,6 +21748,12 @@ abstract class AppLocalizations {
   /// **'بانتظار شاشة المضيف…'**
   String get streamerWaiting;
 
+  /// D247 (v1.57-live): a STREAMER whose main picture is the camera (the web studio, OBS Virtual Camera) before it arrives.
+  ///
+  /// In ar, this message translates to:
+  /// **'بانتظار صورة المضيف…'**
+  String get streamerWaitingCamera;
+
   /// D213 (the streamer live «بث ستريمر»).
   ///
   /// In ar, this message translates to:

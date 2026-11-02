@@ -3980,6 +3980,7 @@
   "streamerDragHint": "Drag the bubble to any corner",
   "streamerPausedViewer": "The screen is paused — the stream will be back shortly",
   "streamerWaiting": "Waiting for the host's screen…",
+  "streamerWaitingCamera": "Waiting for the host's picture…",
   "streamerFullscreen": "Full screen",
   "streamerExitFullscreen": "Exit full screen",
   "streamerScreenSemantics": "{name}'s screen",

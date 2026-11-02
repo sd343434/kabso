@@ -12802,6 +12802,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get streamerWaiting => 'بانتظار شاشة المضيف…';
 
   @override
+  String get streamerWaitingCamera => 'بانتظار صورة المضيف…';
+
+  @override
   String get streamerFullscreen => 'ملء الشاشة';
 
   @override
