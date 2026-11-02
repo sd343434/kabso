@@ -13420,4 +13420,71 @@ class AppLocalizationsAr extends AppLocalizations {
   String pkRematchSeconds(String seconds) {
     return '$seconds ث';
   }
+
+  @override
+  String get liveToolReportLive => 'الإبلاغ عن البث';
+
+  @override
+  String get liveReportTitle => 'لماذا تبلّغ عن هذا البث؟';
+
+  @override
+  String get liveReportNoteLabel => 'ملاحظة (اختياري)';
+
+  @override
+  String get liveReportNoteHint => 'صف ما حدث في البث';
+
+  @override
+  String get liveReportSend => 'إرسال البلاغ';
+
+  @override
+  String get liveReportSent => 'وصل بلاغك، سيراجع فريق Kabso البث.';
+
+  @override
+  String get errorDeviceBanned => 'تم حظر هذا الجهاز من فريق Kabso.';
+
+  @override
+  String errorDeviceBannedUntil(String date, String reason) {
+    return 'تم حظر هذا الجهاز من فريق Kabso حتى $date. السبب: $reason';
+  }
+
+  @override
+  String errorDeviceBannedPermanent(String reason) {
+    return 'تم حظر هذا الجهاز من فريق Kabso نهائياً. السبب: $reason';
+  }
+
+  @override
+  String errorAccountRestrictedUntilReason(
+    String what,
+    String date,
+    String reason,
+  ) {
+    return '$what موقوف لحسابك حتى $date. السبب: $reason';
+  }
+
+  @override
+  String get notifLiveModeratedEnd => 'أنهى فريق Kabso بثك.';
+
+  @override
+  String notifLiveModeratedNoLive(String date) {
+    return 'أنهى فريق Kabso بثك ومنعك من البث حتى $date.';
+  }
+
+  @override
+  String notifLiveModeratedSuspend(String date) {
+    return 'أنهى فريق Kabso بثك وعلّق حسابك حتى $date.';
+  }
+
+  @override
+  String notifLiveModeratedDevice(String date) {
+    return 'أنهى فريق Kabso بثك وحظر جهازك حتى $date.';
+  }
+
+  @override
+  String get notifLiveModeratedDevicePermanent =>
+      'أنهى فريق Kabso بثك وحظر جهازك نهائياً.';
+
+  @override
+  String notifLiveModeratedReason(String reason) {
+    return 'السبب: $reason';
+  }
 }

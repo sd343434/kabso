@@ -158,8 +158,9 @@ class DeviceInfoDto {
   final String? installId;
 
   /// v1.78-social (D223): the salted SHA-256 of the phone's stable device id
-  /// (`deviceKeySourceProvider`), sent only with a sign-up — at most 2
-  /// accounts are created per device.
+  /// (`deviceKeySourceProvider`), sent with a sign-up — at most 2 accounts
+  /// are created per device — and, v1.60-live (D250), with a sign-in (a
+  /// device the team banned is refused).
   final String? deviceKey;
 
   /// This device info with [key] as its `deviceKey` (null keeps none).

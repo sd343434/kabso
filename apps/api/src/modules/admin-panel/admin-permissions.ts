@@ -139,6 +139,15 @@ export const CAPABILITIES = {
   'pk_dares.view': ['OWNER', 'MODERATION', 'SUPPORT'],
   /** Add, edit, disable / enable, import, clear reports; the PK points and dare settings. */
   'pk_dares.edit': ['OWNER', 'MODERATION'],
+  // ---- v1.60-live (D250, CONVENTIONS §10.91): live moderation «مراقبة البث» ---------------------------------------------
+  /** Watch a live as a hidden observer (muted card previews and the watch view); every token audited. */
+  'lives.watch': ['OWNER', 'MODERATION'],
+  /** The reported lives «لايفات مبلّغ عنها» (counts, the red dots), a live's reports with the reporter, its chat. */
+  'lives.reports': ['OWNER', 'MODERATION'],
+  /** End a live, ban its host from going live / suspend the account for a while, dismiss its reports — with a reason. */
+  'lives.moderate': ['OWNER', 'MODERATION'],
+  /** Ban the host's devices «حظر جهاز» (the authenticator code again), the device-ban list and lifting a ban. */
+  'devices.ban': ['OWNER', 'MODERATION'],
 } as const satisfies Record<string, readonly PanelRole[]>;
 
 export type Capability = keyof typeof CAPABILITIES;

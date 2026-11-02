@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_report_sheet.dart';
 import 'package:kabso_live/features/posts/application/posts_feed_controller.dart';
 import 'package:kabso_live/features/posts/presentation/report_sheet.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
@@ -124,6 +125,28 @@ Future<void> unmuteUser(
     await ref.read(safetyRepositoryProvider).setMuted(username, muted: false);
     _refreshContent(ref);
     if (context.mounted) KSnack.success(context, l10n.safetyUnmuted(name));
+  } on Object catch (e) {
+    if (context.mounted) {
+      KSnack.error(context, failureMessage(l10n, toAppFailure(e)));
+    }
+  }
+}
+
+/// v1.60-live (D250, §10.91.3): «الإبلاغ عن البث» — asks why (and an optional
+/// note), then reports the live [roomId] (`LIVE_ROOM`).
+Future<void> reportLive(
+  BuildContext context,
+  WidgetRef ref, {
+  required String roomId,
+}) async {
+  final l10n = context.l10n;
+  final choice = await pickLiveReport(context);
+  if (choice == null || !context.mounted) return;
+  try {
+    await ref
+        .read(safetyRepositoryProvider)
+        .reportLive(roomId, choice.reason, note: choice.note);
+    if (context.mounted) KSnack.success(context, l10n.liveReportSent);
   } on Object catch (e) {
     if (context.mounted) {
       KSnack.error(context, failureMessage(l10n, toAppFailure(e)));

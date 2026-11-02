@@ -331,6 +331,8 @@ class NotificationRow extends StatelessWidget {
       NotificationTargetType.user => AppRoutes.userProfile(target.id),
       NotificationTargetType.family => AppRoutes.family(target.id),
       NotificationTargetType.medal => AppRoutes.medals,
+      // D250: the team's action on a live — the row says it all.
+      NotificationTargetType.liveModeration => null,
     };
   }
 
@@ -442,6 +444,11 @@ class NotificationRow extends StatelessWidget {
       NotificationType.kycApproved => l10n.notifKycApproved,
       NotificationType.kycDeclined => l10n.notifKycDeclined,
       NotificationType.kycInReview => l10n.notifKycInReview,
+      NotificationType.liveModerated => liveModeratedText(
+        l10n,
+        item.target,
+        localeTag,
+      ),
       NotificationType.unknown => '',
     };
     return (text, item.type.isSystem ? null : who, name);
@@ -498,7 +505,14 @@ class NotificationRow extends StatelessWidget {
           Localizations.localeOf(context).toLanguageTag(),
         ) ??
         l10n.feedPostJustNow;
-    final excerpt = item.target?.text;
+    // D250: the team's full reason under the sentence («السبب: …»).
+    final excerpt =
+        item.type == NotificationType.liveModerated &&
+            (item.target?.reason ?? item.target?.text) != null
+        ? l10n.notifLiveModeratedReason(
+            KFormat.bidiIsolate(item.target?.reason ?? item.target!.text!),
+          )
+        : item.target?.text;
     final body = t.body.copyWith(color: p.textPrimary);
     final spans = <InlineSpan>[];
     final at = who == null || name.isEmpty || !who.startsWith(name)
@@ -542,7 +556,8 @@ class NotificationRow extends StatelessWidget {
             child: Icon(
               item.type == NotificationType.contentRemoved ||
                       item.type == NotificationType.avatarRemoved ||
-                      item.type == NotificationType.coverRemoved
+                      item.type == NotificationType.coverRemoved ||
+                      item.type == NotificationType.liveModerated
                   ? Icons.gpp_maybe_outlined
                   : item.type.isAgency
                   ? Icons.business_center_rounded
@@ -555,7 +570,8 @@ class NotificationRow extends StatelessWidget {
               color:
                   item.type == NotificationType.contentRemoved ||
                       item.type == NotificationType.avatarRemoved ||
-                      item.type == NotificationType.coverRemoved
+                      item.type == NotificationType.coverRemoved ||
+                      item.type == NotificationType.liveModerated
                   ? p.error
                   : p.primary,
             ),
@@ -752,5 +768,29 @@ String rechargeOrderNotificationText(
     'EXPIRED' => l10n.notifRechargeOrderExpired,
     'ADMIN_MESSAGE' => l10n.notifRechargeOrderAdmin,
     _ => l10n.notifRechargeOrderMessage,
+  };
+}
+
+/// v1.60-live (D250, §10.91.5): the sentence of a LIVE_MODERATED row — the
+/// live ended, with the ban from going live / the suspension / the device ban
+/// and its end (or «نهائياً»). The reason is shown under it.
+String liveModeratedText(
+  AppLocalizations l10n,
+  NotificationTarget? target,
+  String localeTag,
+) {
+  final at = target?.endsAt?.toLocal();
+  final when = at == null
+      ? null
+      : KFormat.bidiIsolate(
+          '${KFormat.date(at, localeTag)} ${KFormat.time(at, localeTag)}',
+        );
+  return switch ((target?.moderation, when)) {
+    ('NO_LIVE', final String w) => l10n.notifLiveModeratedNoLive(w),
+    ('SUSPEND', final String w) => l10n.notifLiveModeratedSuspend(w),
+    ('DEVICE_BAN', final String w) => l10n.notifLiveModeratedDevice(w),
+    ('DEVICE_BAN', null) when target?.permanent ?? false =>
+      l10n.notifLiveModeratedDevicePermanent,
+    _ => l10n.notifLiveModeratedEnd,
   };
 }

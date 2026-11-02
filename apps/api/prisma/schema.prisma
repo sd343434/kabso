@@ -235,6 +235,12 @@ model User {
   referralCode           ReferralCode?
   referralsMade          Referral[]                 @relation("ReferralInviter")
   referredBy             Referral?                  @relation("ReferralInvitee")
+  /// v1.60-live (D250, §10.91): the team's actions on the person's lives and those they took; device bans.
+  liveModerations        LiveModerationAction[]     @relation("LiveModerationHost")
+  liveModerationsBy      LiveModerationAction[]     @relation("LiveModerationActor")
+  deviceBansFrom         DeviceBan[]                @relation("DeviceBanSource")
+  deviceBansBy           DeviceBan[]                @relation("DeviceBanCreatedBy")
+  deviceBansLiftedBy     DeviceBan[]                @relation("DeviceBanLiftedBy")
   referralsDecided       Referral[]                 @relation("ReferralDecider")
   referralRewards        ReferralReward[]
   /// v1.78-social (D223): the device this account was created on (when the app sent one), and the device exceptions
@@ -402,6 +408,9 @@ model Session {
   revokedReason             String?   @map("revoked_reason") @db.VarChar(32)
   /// v1.74-social (D217): the app's install id (`DeviceInfo.installId`), for the referral device checks.
   installId                 String?   @map("install_id") @db.VarChar(64)
+  /// v1.60-live (D250, §10.91): the HMAC of the `DeviceInfo.deviceKey` the session signed in with (D223's key), so a
+  /// device ban refuses going live and ends the device's sessions. NULL: none sent (website, older app).
+  deviceHash                String?   @map("device_hash") @db.Char(64)
 
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   /// v1.30-live (D152): at most one push token per session.
@@ -410,6 +419,7 @@ model Session {
   @@index([userId, createdAt(sort: Desc)], map: "sessions_user_id_created_at_idx")
   @@index([expiresAt], map: "sessions_expires_at_idx")
   @@index([installId], map: "sessions_install_id_idx", where: raw("install_id IS NOT NULL"))
+  @@index([deviceHash], map: "sessions_device_hash_idx", where: raw("device_hash IS NOT NULL AND revoked_at IS NULL"))
   @@map("sessions")
 }
 
@@ -687,6 +697,8 @@ model LiveRoom {
   viewers          LiveRoomViewer[]
   audience         LiveRoomAudience[]
   reports          Report[]
+  /// v1.60-live (D250): what the team did on this live from the panel.
+  moderations      LiveModerationAction[]
   seats            LiveRoomSeat[]
   seatRequests     LiveSeatRequest[]
   seatInvites      LiveSeatInvite[]
@@ -2127,6 +2139,9 @@ enum NotificationType {
   KYC_APPROVED
   KYC_DECLINED
   KYC_IN_REVIEW
+  /// v1.60-live (D250, system; target LIVE_MODERATION): the team acted on the person's live from the panel — ended
+  /// it, possibly with a ban from going live / a suspension / a device ban — with the reason «السبب».
+  LIVE_MODERATED
 
   @@map("notification_type")
 }
@@ -2175,6 +2190,9 @@ model Notification {
   balanceAdjustmentId  String?                 @map("balance_adjustment_id") @db.Uuid
   accountRestriction   AccountRestriction?     @relation(fields: [accountRestrictionId], references: [id], onDelete: Cascade)
   balanceAdjustment    AdminBalanceAdjustment? @relation(fields: [balanceAdjustmentId], references: [id], onDelete: Cascade)
+  /// v1.60-live (D250): LIVE_MODERATED.
+  liveModerationId     String?                 @map("live_moderation_id") @db.Uuid
+  liveModeration       LiveModerationAction?   @relation(fields: [liveModerationId], references: [id], onDelete: Cascade)
 
   recipient     User                  @relation(fields: [recipientId], references: [id], onDelete: Cascade)
   post          Post?                 @relation(fields: [postId], references: [id], onDelete: Cascade)
@@ -2192,6 +2210,7 @@ model Notification {
 
   @@index([recipientId, updatedAt(sort: Desc), id(sort: Desc)], map: "notifications_recipient_updated_idx")
   @@index([agencyId], map: "notifications_agency_idx", where: raw("agency_id IS NOT NULL"))
+  @@index([liveModerationId], map: "notifications_live_moderation_idx", where: raw("live_moderation_id IS NOT NULL"))
   @@index([recipientId, groupKey], map: "notifications_unread_group_idx", where: raw("read_at IS NULL AND group_key IS NOT NULL"))
   @@index([recipientId], map: "notifications_unread_idx", where: raw("read_at IS NULL"))
   @@index([premiumLeaseId], map: "notifications_premium_lease_idx", where: raw("premium_lease_id IS NOT NULL"))
@@ -5656,6 +5675,8 @@ model AccountRestriction {
   createdBy     User?          @relation("RestrictionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   liftedBy      User?          @relation("RestrictionLiftedBy", fields: [liftedById], references: [id], onDelete: SetNull)
   notifications Notification[]
+  /// v1.60-live (D250): the live moderation that set it.
+  moderations   LiveModerationAction[]
 
   @@index([userId, kind, endsAt(sort: Desc)], map: "account_restrictions_open_idx", where: raw("lifted_at IS NULL"))
   @@index([userId, createdAt(sort: Desc)], map: "account_restrictions_user_idx")
@@ -6005,4 +6026,75 @@ model KycWebhookEvent {
 
   @@index([receivedAt], map: "kyc_webhook_events_received_idx")
   @@map("kyc_webhook_events")
+}
+
+// ---- v1.60-live (D250, CONVENTIONS §10.91): live moderation from the panel «مراقبة البث» ---------------------------
+
+/// D250: what the team did on a live from the panel. END ends it; NO_LIVE «منع من البث» and SUSPEND «تعليق الحساب»
+/// also set a D208 restriction (NO_LIVE / LOCK) until `ends_at`; DEVICE_BAN «حظر جهاز» also bans the account's
+/// devices; DISMISS «تمت المراجعة — لا مخالفة» closes the live's open reports and changes nothing else.
+enum LiveModerationKind {
+  END
+  NO_LIVE
+  SUSPEND
+  DEVICE_BAN
+  DISMISS
+
+  @@map("live_moderation_kind")
+}
+
+/// D250: one action of the team on a live (audited separately; this row is the host's notification target and the
+/// live's moderation history). Never deleted except with the live or the host.
+model LiveModerationAction {
+  id            String             @id @default(uuid(7)) @db.Uuid
+  roomId        String             @map("room_id") @db.Uuid
+  hostUserId    String             @map("host_user_id") @db.Uuid
+  actorId       String?            @map("actor_id") @db.Uuid
+  kind          LiveModerationKind
+  reason        String             @db.VarChar(500)
+  /// NO_LIVE / SUSPEND: the restriction's end; DEVICE_BAN: the ban's end (NULL = permanent); else NULL.
+  endsAt        DateTime?          @map("ends_at") @db.Timestamptz(3)
+  restrictionId String?            @map("restriction_id") @db.Uuid
+  /// Whether this action ended the live (it was on air).
+  endedLive     Boolean            @default(false) @map("ended_live")
+  reportsClosed Int                @default(0) @map("reports_closed")
+  devicesBanned Int                @default(0) @map("devices_banned")
+  createdAt     DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  room          LiveRoom            @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  host          User                @relation("LiveModerationHost", fields: [hostUserId], references: [id], onDelete: Cascade)
+  actor         User?               @relation("LiveModerationActor", fields: [actorId], references: [id], onDelete: SetNull)
+  restriction   AccountRestriction? @relation(fields: [restrictionId], references: [id], onDelete: SetNull)
+  notifications Notification[]
+  deviceBans    DeviceBan[]
+
+  @@index([roomId, createdAt(sort: Desc)], map: "live_moderation_actions_room_idx")
+  @@index([hostUserId, createdAt(sort: Desc)], map: "live_moderation_actions_host_idx")
+  @@map("live_moderation_actions")
+}
+
+/// D250: a banned device «حظر جهاز» — the HMAC of D223's device key (never the key). While active (not lifted, and
+/// `ends_at` NULL = permanent or in the future) the device cannot sign up, sign in or go live, for any account.
+model DeviceBan {
+  id               String    @id @default(uuid(7)) @db.Uuid
+  deviceHash       String    @map("device_hash") @db.Char(64)
+  reason           String    @db.VarChar(500)
+  /// The account the device was found on (the panel names the device by it).
+  sourceUserId     String?   @map("source_user_id") @db.Uuid
+  liveModerationId String?   @map("live_moderation_id") @db.Uuid
+  createdById      String?   @map("created_by_id") @db.Uuid
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  endsAt           DateTime? @map("ends_at") @db.Timestamptz(3)
+  liftedAt         DateTime? @map("lifted_at") @db.Timestamptz(3)
+  liftedById       String?   @map("lifted_by_id") @db.Uuid
+  liftReason       String?   @map("lift_reason") @db.VarChar(500)
+
+  sourceUser     User?                 @relation("DeviceBanSource", fields: [sourceUserId], references: [id], onDelete: SetNull)
+  liveModeration LiveModerationAction? @relation(fields: [liveModerationId], references: [id], onDelete: SetNull)
+  createdBy      User?                 @relation("DeviceBanCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  liftedBy       User?                 @relation("DeviceBanLiftedBy", fields: [liftedById], references: [id], onDelete: SetNull)
+
+  @@index([deviceHash], map: "device_bans_open_idx", where: raw("lifted_at IS NULL"))
+  @@index([createdAt(sort: Desc)], map: "device_bans_created_idx")
+  @@map("device_bans")
 }

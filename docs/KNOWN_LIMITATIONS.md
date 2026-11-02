@@ -490,3 +490,28 @@
   USD only unless a manual rate is set.
 - Not verified against the real providers (tests use a local stub; the request shapes follow their public docs as
   known on 2026-11-02).
+
+## Live moderation from the panel «مراقبة البث» (v1.60-live draft, D250)
+
+- **A device ban is not a person ban.** It holds D223's device id: a **factory reset** (Android) or erasing the iPhone
+  gives a new id; a **rooted / jailbroken** phone, an emulator or a modified app can send any value; the **website and
+  apps older than this version** send no id at sign-in, so a banned person can still sign in and go live from them (the
+  panel's dialog and the device-ban list say so). Combine it with «تعليق الحساب» when the account itself must stop.
+- **Only devices already seen.** A ban covers the account's sign-up device and the devices its sessions signed in with
+  from this version on (at most 20). Older sessions carry no device. A host whose account has no known device cannot be
+  device-banned (409 `no_device`).
+- **Shared phones.** Everyone signing in from a banned phone is refused (any account) and signed out when the ban is
+  made — by design (the owner asked for the device); an OWNER or MODERATION lifts a wrong ban from «الأجهزة المحظورة».
+- **The push may not arrive.** A suspension or a device ban signs the host out and drops the push tokens in the same
+  step, so the push with the reason can be lost; the sign-in screen then shows the end and the reason, and the inbox row
+  is there after signing in. The push carries the reason (owner: «ليصل إشعار للمضيف بالسبب») — on a lock screen.
+- **Report snapshot = the chat lines kept.** «آخر رسائل الدردشة قبل البلاغ» is read from the live's stored chat at
+  review time (no copy at report time): a message the author's account deletion removed is gone.
+- **Reports of the host during the live count for it.** Older apps report the host as a user from the live's menu; such
+  reports made since the live started are part of the live's open reports and are closed with its action or dismissal.
+- **Previews and LAN tests.** The panel plays at most 6 card previews at once; a busy grid shows covers with a play
+  button. In the capture environment Chromium needed `--disable-features=WebRtcHideLocalIpsWithMdns` to reach a LiveKit
+  on the same VM (a real network does not); the video in the captures is a **synthetic test pattern** from a local
+  LiveKit 1.9.1, not a real live.
+- **Not verified:** a real phone (the report sheet, the messages, the notification), the panel on the server against
+  the production LiveKit (CSP, autoplay of sound), push delivery.

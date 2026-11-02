@@ -58,6 +58,7 @@ describe('ErrorCode', () => {
         'REFERRAL_NOT_ALLOWED',
         // v1.78-social (D223)
         'DEVICE_ACCOUNT_LIMIT',
+        'DEVICE_BANNED',
         // v1.47-live (D212).
         'LIVE_QUESTIONS_CLOSED',
         // v1.54-social (D185).
@@ -304,6 +305,7 @@ describe('ErrorCode', () => {
       REFERRAL_CODE_INVALID: 422,
       REFERRAL_NOT_ALLOWED: 409,
       DEVICE_ACCOUNT_LIMIT: 409,
+      DEVICE_BANNED: 403,
       LIVE_QUESTIONS_CLOSED: 409,
     });
   });

@@ -67,11 +67,14 @@ api.{$KABSO_DOMAIN} {
 # update.sh) is served from /srv/admin/current with an SPA fallback; /api/* goes to the API on the same origin, so the
 # session cookie stays first-party (SameSite=Strict, __Host-). Optional allowlist: KABSO_ADMIN_ALLOW_IPS in kabso.env
 # (space-separated CIDRs; unset = everyone).
+# v1.60-live (D250, CONVENTIONS §10.91.7): staff watch lives in the panel (livekit-client, subscribe only) — connect-src
+# allows the media server (wss: signalling, https: its HTTP endpoints) and media-src the video elements' blob: streams.
+# KABSO_ADMIN_MEDIA_ORIGINS in kabso.env when LIVEKIT_URL is elsewhere (e.g. "wss://x.livekit.cloud https://x.livekit.cloud").
 admin.{$KABSO_DOMAIN} {
 	encode zstd gzip
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
-		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https:; font-src 'self'; media-src 'self' blob:; connect-src 'self' wss://live.{$KABSO_DOMAIN} https://live.{$KABSO_DOMAIN} {$KABSO_ADMIN_MEDIA_ORIGINS}; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
 		X-Frame-Options "DENY"
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "no-referrer"

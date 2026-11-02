@@ -10,6 +10,7 @@ import { normalizeUsername } from '../users/username.js';
 import type { AdminContext } from './admin-auth.service.js';
 import { tableResult, window, type TableQuery } from './admin-tables.js';
 import { refused } from './admin-users.service.js';
+import { openLiveReportsByRoom } from './admin-live-moderation.service.js';
 
 /** v1.54-live (D241): an open D195 PK match (CONNECTED, BATTLE or RESULT) on either side. */
 const OPEN_PK = { status: { not: 'CLOSED' as const } };
@@ -92,9 +93,14 @@ export class AdminLivesService {
   ) {}
 
   async now(
-    q: TableQuery & { mode?: 'SOLO' | 'PK' | 'MULTI' | 'AUDIO' | 'PODCAST' | undefined },
+    q: TableQuery & {
+      mode?: 'SOLO' | 'PK' | 'MULTI' | 'AUDIO' | 'PODCAST' | undefined;
+      reported?: boolean | undefined;
+    },
     ctx: AdminContext,
   ) {
+    // v1.60-live (D250, §10.91.2): «لايفات مبلّغ عنها» — the lives with open reports (a filter, combinable with a mode).
+    const reported = q.reported === true ? await openLiveReportsByRoom(this.prisma) : null;
     const text = q.q?.trim().toLowerCase().replace(/^@/, '');
     // v1.47-live (D212): the mode filter (the panel's category chips). v1.54-live (D241): «PK» = the rooms in an
     // open D195 match (they stay SOLO) or the legacy mode PK; «بث مباشر» (SOLO) = SOLO rooms NOT in a PK, so
@@ -109,7 +115,7 @@ export class AdminLivesService {
             : {};
     const where: Prisma.LiveRoomWhereInput = {
       status: 'LIVE',
-      AND: [modeWhere],
+      AND: [modeWhere, ...(reported ? [{ id: { in: [...reported.keys()] } }] : [])],
       ...(text
         ? {
             OR: [
@@ -143,10 +149,18 @@ export class AdminLivesService {
       }),
       this.prisma.liveRoom.count({ where }),
     ]);
+    // v1.60-live (D250): each card's open reports (the red badge).
+    const open =
+      reported ??
+      (await openLiveReportsByRoom(
+        this.prisma,
+        rows.map((r) => r.id),
+      ));
     const data = rows.map((r) => ({
       id: r.id,
       title: r.title,
       mode: r.mode,
+      openReports: open.get(r.id) ?? 0,
       viewers: r.viewerCount,
       startedAt: r.startedAt.toISOString(),
       coverUrl: r.coverUrl ?? r.host.liveHost?.coverUrl ?? null,
@@ -177,7 +191,7 @@ export class AdminLivesService {
         ['viewers', (r) => r.viewers],
         ['started_at', (r) => r.startedAt],
       ],
-      q.mode ? { mode: q.mode } : {},
+      { ...(q.mode ? { mode: q.mode } : {}), ...(q.reported ? { reported: true } : {}) },
     );
   }
 
@@ -207,7 +221,8 @@ export class AdminLivesService {
     const [gifts, seats, openReports, moderators] = await Promise.all([
       this.prisma.liveGift.aggregate({ where: { roomId: id }, _sum: { totalCoins: true }, _count: true }),
       this.prisma.liveRoomSeat.count({ where: { roomId: id, userId: { not: null } } }),
-      this.prisma.report.count({ where: { targetLiveRoomId: id, status: 'OPEN' } }),
+      // v1.60-live (D250): the room's and its host's (as a user, since the live started) open reports.
+      openLiveReportsByRoom(this.prisma, [id]).then((m) => m.get(id) ?? 0),
       this.prisma.liveRoomModerator.count({ where: { roomId: id } }),
     ]);
     return {

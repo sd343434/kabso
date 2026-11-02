@@ -256,7 +256,8 @@ export enum ErrorCode {
   ACCOUNT_LOCKED = 'ACCOUNT_LOCKED',
   /**
    * v1.72-social (DRAFT, D208): the team switched this off for the caller for a while;
-   * `details: [{field: 'restriction', issue: CHAT_MUTE|NO_LIVE|NO_GIFTS|NO_POSTING}, {field: 'until', issue: <ISO>}]`.
+   * `details: [{field: 'restriction', issue: CHAT_MUTE|NO_LIVE|NO_GIFTS|NO_POSTING}, {field: 'until', issue: <ISO>}]`;
+   * v1.60-live (D250) adds `{field: 'reason', issue: <the team's reason>}` (additive).
    */
   ACCOUNT_RESTRICTED = 'ACCOUNT_RESTRICTED',
   /**
@@ -278,6 +279,11 @@ export enum ErrorCode {
    * deleted ones included) — `details: [{field: 'device', issue: '<the limit, decimal>'}]`. Signing in is not limited.
    */
   DEVICE_ACCOUNT_LIMIT = 'DEVICE_ACCOUNT_LIMIT',
+  /**
+   * v1.60-live (DRAFT, D250): the team banned this device «حظر جهاز» — sign-up, sign-in and going live from it are
+   * refused for every account — `details: [{field: 'until', issue: <ISO> | 'permanent'}, {field: 'reason', issue}]`.
+   */
+  DEVICE_BANNED = 'DEVICE_BANNED',
 }
 
 /** HTTP status for every code (CONVENTIONS.md §4 table). */
@@ -419,6 +425,7 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.REFERRAL_CODE_INVALID]: 422,
   [ErrorCode.REFERRAL_NOT_ALLOWED]: 409,
   [ErrorCode.DEVICE_ACCOUNT_LIMIT]: 409,
+  [ErrorCode.DEVICE_BANNED]: 403,
 };
 
 /** Default developer-facing messages (clients localize by `code`, not by message). */
@@ -561,6 +568,7 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.REFERRAL_NOT_ALLOWED]: 'You cannot enter an invite code now.',
   [ErrorCode.DEVICE_ACCOUNT_LIMIT]:
     'This device cannot create more accounts. You can sign in to your existing accounts.',
+  [ErrorCode.DEVICE_BANNED]: 'This device is banned by the Kabso team.',
 };
 
 export interface ErrorDetail {

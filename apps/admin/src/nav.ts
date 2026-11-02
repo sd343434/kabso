@@ -41,8 +41,10 @@ export const NAV: NavGroup[] = [
   {
     key: 'navGroupLives',
     items: [
-      { to: '/lives', key: 'navLives', icon: 'live', cap: 'lives.view', match: ['lives'] },
+      { to: '/lives', key: 'navLives', icon: 'live', cap: 'lives.view', match: ['lives', 'liveWatch'] },
       { to: '/live-hosts', key: 'navHosts', icon: 'key', cap: 'lives.view', match: ['hosts'] },
+      // v1.60-live (D250): «الأجهزة المحظورة».
+      { to: '/device-bans', key: 'navDeviceBans', icon: 'ban', cap: 'devices.ban', match: ['deviceBans'] },
       // v1.50-live (D229): «أحكام PK».
       { to: '/pk-dares', key: 'navPkDares', icon: 'list', cap: 'pk_dares.view', match: ['pkDares'] },
       // v1.73-social (D209): the applications «كن مضيفاً مع الإدارة».

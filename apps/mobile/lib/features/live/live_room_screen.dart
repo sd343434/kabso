@@ -1921,6 +1921,16 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                   closes: true,
                   onTap: _minimize,
                 ),
+              // v1.60-live (D250): «الإبلاغ عن البث» (the live itself).
+              if (me != null && me.id != room.host.id)
+                LiveSettingsLink(
+                  id: 'reportLive',
+                  icon: Icons.report_outlined,
+                  label: l10n.liveToolReportLive,
+                  closes: true,
+                  onTap: () =>
+                      unawaited(reportLive(context, ref, roomId: room.id)),
+                ),
               if (me != null && me.id != room.host.id)
                 LiveSettingsLink(
                   id: 'report',
@@ -2033,6 +2043,14 @@ class _RoomViewState extends ConsumerState<_RoomView> {
           icon: Icons.logout_rounded,
           label: l10n.liveSeatLeave,
           onTap: () => unawaited(runSeatAction(context, _session.leaveSeat)),
+        ),
+      // v1.60-live (D250): «الإبلاغ عن البث» (the live itself).
+      if (me != null && me.id != host.id)
+        GoLiveTool(
+          id: 'reportLive',
+          icon: Icons.report_outlined,
+          label: l10n.liveToolReportLive,
+          onTap: () => unawaited(reportLive(context, ref, roomId: room.id)),
         ),
       if (me != null && me.id != host.id)
         GoLiveTool(

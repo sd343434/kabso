@@ -8,6 +8,12 @@ import { visibleNav } from '../nav';
 import { navigate } from '../router';
 import type { Attention, AttentionKind, SearchResult } from '../types';
 import { Icon } from './icons';
+import { useLiveReportsSummary } from '../pages/LiveModeration';
+
+/** v1.60-live (D250): the sidebar's red dots — «البث الآن» while reported lives are on air. */
+export function navDots(reported: { rooms: number } | null): Record<string, number> {
+  return { '/lives': reported?.rooms ?? 0 };
+}
 
 /** Where each pending queue opens. */
 export const ATTENTION_LINK: Record<AttentionKind, { to: string; key: Key }> = {
@@ -236,6 +242,9 @@ export function Shell({
   const [menuOpen, setMenuOpen] = useState(false);
   useEffect(() => setMenuOpen(false), [path]);
   const groups = visibleNav(can);
+  // v1.60-live (D250): a red dot on «البث الآن» while a live on air has open reports.
+  const reported = useLiveReportsSummary(can('lives.reports'));
+  const dots = navDots(reported);
   return (
     <div className="shell">
       <aside className={`side${menuOpen ? ' open' : ''}`} aria-label={t('appName')}>
@@ -270,6 +279,11 @@ export function Shell({
                 >
                   <Icon name={n.icon} />
                   <span>{t(n.key)}</span>
+                  {(dots[n.to] ?? 0) > 0 && (
+                    <span className="nav-dot" data-nav-dot={dots[n.to]} aria-label={t('liveReported')}>
+                      <span className="red-dot" aria-hidden="true" />
+                    </span>
+                  )}
                 </a>
               ))}
             </div>

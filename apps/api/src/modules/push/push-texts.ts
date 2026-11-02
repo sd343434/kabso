@@ -181,6 +181,13 @@ export function notificationBody(n: NotificationText, locale: PushLocale): strin
       return ar
         ? 'التحقق من هويتك قيد المراجعة، سنخبرك بالنتيجة'
         : 'Your identity check is being reviewed; we will tell you the result';
+    // v1.60-live (D250, §10.91.5; owner: «ليصل إشعار للمضيف بالسبب»): the team acted on the host's live — the push
+    // carries the team's reason (clipped; the inbox row has all of it, with the ban's end).
+    case 'LIVE_MODERATED': {
+      const why = n.targetText ? clip(n.targetText, 80) : null;
+      if (ar) return why ? `أنهى فريق Kabso بثك. السبب: ${why}` : 'أنهى فريق Kabso بثك';
+      return why ? `The Kabso team ended your live. Reason: ${why}` : 'The Kabso team ended your live';
+    }
     default:
       return null;
   }

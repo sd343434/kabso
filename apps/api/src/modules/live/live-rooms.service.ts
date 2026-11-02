@@ -41,6 +41,7 @@ import {
   startLiveRoomSchema,
   type ListLiveRoomsQuery,
 } from './live.schemas.js';
+import { activeDeviceBanOf, deviceBannedError } from '../auth/device-bans.js';
 import { assertNotRestricted } from '../users/account-control.js';
 
 // ---- Response shapes (openapi v1.3) ------------------------------------------------------------
@@ -1131,11 +1132,31 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
    * verified email → active category → one LIVE room per host. The caller's stale LIVE room is
    * ended in the same transaction; a fresh one (or a parallel winner) → 409.
    */
+  /** v1.60-live (D250): 403 DEVICE_BANNED (audited `auth.device_banned` {stage: live}) for a banned session device. */
+  private async refuseBannedDevice(callerId: string, sessionId: string, meta: RequestMeta): Promise<void> {
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+      select: { deviceHash: true },
+    });
+    const ban = await activeDeviceBanOf(this.prisma, [session?.deviceHash]);
+    if (!ban) return;
+    await this.audit.record({
+      action: AuditAction.DEVICE_BAN_REFUSED,
+      actorUserId: callerId,
+      targetType: 'device_ban',
+      targetId: ban.id,
+      metadata: { stage: 'live' },
+      ip: meta.ip,
+      requestId: meta.requestId,
+    });
+    throw deviceBannedError(ban);
+  }
+
   async startRoom(
     callerId: string,
     body: unknown,
     lang: ContentLanguage,
-    meta: RequestMeta,
+    meta: RequestMeta & { readonly sessionId?: string | null },
   ): Promise<LiveRoomDto> {
     this.assertHostingEnabled();
     // CP-010 (§10.8): the hosting permission, checked right after the hosting switch.
@@ -1144,6 +1165,8 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     }
     // v1.72-social (D208, §10.67): the team's restriction of the caller, if any (403 ACCOUNT_RESTRICTED).
     await assertNotRestricted(this.prisma, callerId, 'NO_LIVE');
+    // v1.60-live (D250, §10.91): the device the caller signed in with, banned by the team (403 DEVICE_BANNED).
+    if (meta.sessionId) await this.refuseBannedDevice(callerId, meta.sessionId, meta);
     const parsed = startLiveRoomSchema.safeParse(body, { reportInput: true });
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
     const input = parsed.data;

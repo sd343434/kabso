@@ -4,6 +4,7 @@ import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/config/app_config.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
+import 'package:kabso_live/core/ids/device_key.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/core/network/network_providers.dart';
 import 'package:kabso_live/design_system/design_system.dart';
@@ -52,6 +53,8 @@ final changePasswordAtSignInProvider = Provider<ChangePasswordAtSignIn>((ref) {
   final remote = ref.watch(authRemoteDataSourceProvider);
   final tokens = ref.watch(tokenManagerProvider);
   final config = ref.watch(appConfigProvider);
+  // v1.60-live (D250): sign-in sends the device key too (a banned device).
+  final deviceKey = ref.watch(deviceKeySourceProvider);
   return ({
     required identifier,
     required password,
@@ -64,7 +67,7 @@ final changePasswordAtSignInProvider = Provider<ChangePasswordAtSignIn>((ref) {
         device: DeviceInfoDto(
           platform: clientPlatform(),
           appVersion: config.appVersion,
-        ),
+        ).withDeviceKey(await deviceKey.read()),
       ),
       newPassword: newPassword,
     );
